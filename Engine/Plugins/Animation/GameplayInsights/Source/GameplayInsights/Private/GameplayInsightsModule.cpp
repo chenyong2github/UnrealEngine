@@ -175,6 +175,7 @@ void FGameplayInsightsModule::StartupModule()
 			if (!UnrealInsightsModule.GetStoreClient())
 			{
 #if WITH_TRACE_STORE
+				UE_LOG(LogCore, Display, TEXT("GameplayInsights module auto-connecting to internal trace server..."));
 				// Create the Store Service.
 				FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
 				UE::Trace::FStoreService::FDesc StoreServiceDesc;
@@ -191,6 +192,7 @@ void FGameplayInsightsModule::StartupModule()
 				UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort());
 				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 #else
+				UE_LOG(LogCore, Display, TEXT("GameplayInsights module auto-connecting to local trace server..."));
 				UnrealInsightsModule.ConnectToStore(TEXT("127.0.0.1"));
 				const bool bConnected = FTraceAuxiliary::Start(
 					FTraceAuxiliary::EConnectionType::Network,
