@@ -41,6 +41,15 @@ public class OpenColorIOLib : ModuleRules
 
 				bIsPlatformAdded = true;
 			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.1.dylib"));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.dylib"));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.1.dylib"));
+				PublicDefinitions.Add("WITH_OCIO=1");
+
+				bIsPlatformAdded = true;
+			}
 		}
 		
 		if(!bIsPlatformAdded)

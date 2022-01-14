@@ -26,7 +26,8 @@
 			"LoadingPhase": "PreDefault",
 			"PlatformAllowList": [
 				"Win64",
-				"Linux"
+				"Linux",
+				"Mac"
 			]
 		}
 	],
