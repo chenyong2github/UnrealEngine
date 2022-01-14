@@ -194,7 +194,7 @@ namespace Gauntlet
 			}
 		}
 
-		static StreamWriter LogFile = null;
+		static TextWriter LogFile = null;
 
 		static List<Action<string>> Callbacks;
 
@@ -237,7 +237,7 @@ namespace Gauntlet
 
 				try
 				{
-					LogFile = new StreamWriter(Outpath);
+					LogFile = TextWriter.Synchronized(new StreamWriter(Outpath));
 				}
 				catch (UnauthorizedAccessException Ex)
 				{
