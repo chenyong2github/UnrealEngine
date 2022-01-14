@@ -1308,7 +1308,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 
 	RebuildRendererBindings();
 
-	if ( GPUComputeScript )
+	if ( GPUComputeScript && CompiledData )
 	{
 		for (FSimulationStageMetaData& SimStageMetaData : GPUComputeScript->GetVMExecutableData().SimulationStageMetaData)
 		{
