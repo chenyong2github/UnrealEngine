@@ -69,7 +69,7 @@ namespace Chaos
 	void FEventDefaults::RegisterCollisionEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FCollisionEventData>(EEventType::Collision, []
-		(const Chaos::FPBDRigidsSolver* Solver, FCollisionEventData& CollisionEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FCollisionEventData& CollisionEventData, bool bResetData)
 		{
 			check(Solver);
 
@@ -84,15 +84,13 @@ namespace Chaos
 			FCollisionDataArray& AllCollisionsDataArray = CollisionEventData.CollisionData.AllCollisionsArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>>& AllCollisionsIndicesByPhysicsProxy = CollisionEventData.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 
-			
-			if (CollisionEventData.CollisionData.TimeCreated != Solver->MTime)
+			if (bResetData)
 			{
 				AllCollisionsDataArray.Reset();
 				AllCollisionsIndicesByPhysicsProxy.Reset();
-
-				CollisionEventData.CollisionData.TimeCreated = Solver->MTime;
-				CollisionEventData.PhysicsProxyToCollisionIndices.TimeCreated = Solver->MTime;
 			}
+			CollisionEventData.CollisionData.TimeCreated = Solver->MTime;
+			CollisionEventData.PhysicsProxyToCollisionIndices.TimeCreated = Solver->MTime;
 			
 			const auto* Evolution = Solver->GetEvolution();
 
@@ -147,13 +145,16 @@ namespace Chaos
 							continue;
 						}
 
-						if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+						FKinematicGeometryParticleHandle* Primary = Body0 ? Body0 : Body1;
+						FKinematicGeometryParticleHandle* Secondary = Body0 ? Body1 : Body0;
+
+						if (!Constraint.AccumulatedImpulse.IsZero() && Primary)
 						{
 							if (ensure(!Constraint.GetLocation().ContainsNaN() &&
 								!Constraint.GetNormal().ContainsNaN()) &&
-								!Body0->V().ContainsNaN() &&
-								!Body0->W().ContainsNaN() &&
-								(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+								!Primary->V().ContainsNaN() &&
+								!Primary->W().ContainsNaN() &&
+								(Secondary == nullptr || ((!Secondary->V().ContainsNaN()) && !Secondary->W().ContainsNaN())))
 							{
 								ValidCollisionHandles[NumValidCollisions] = ContactHandle;
 								NumValidCollisions++;
@@ -267,7 +268,7 @@ namespace Chaos
 	void FEventDefaults::RegisterBreakingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FBreakingEventData>(EEventType::Breaking, []
-		(const Chaos::FPBDRigidsSolver* Solver, FBreakingEventData& BreakingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FBreakingEventData& BreakingEventData, bool bResetData)
 		{
 			check(Solver);
 
@@ -282,12 +283,12 @@ namespace Chaos
 			FBreakingDataArray& AllBreakingDataArray = BreakingEventData.BreakingData.AllBreakingsArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>>& AllBreakingIndicesByPhysicsProxy = BreakingEventData.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
 
-			if (BreakingEventData.BreakingData.TimeCreated != Solver->MTime)
+			if (bResetData)
 			{
 				AllBreakingDataArray.Reset();
 				AllBreakingIndicesByPhysicsProxy.Reset();
-				BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 			}
+			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 
 			const auto* Evolution = Solver->GetEvolution();
 			const FPBDRigidParticles& Particles = Evolution->GetParticles().GetDynamicParticles();
@@ -340,7 +341,7 @@ namespace Chaos
 	void FEventDefaults::RegisterTrailingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FTrailingEventData>(EEventType::Trailing, []
-		(const Chaos::FPBDRigidsSolver* Solver, FTrailingEventData& TrailingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FTrailingEventData& TrailingEventData, bool bResetData)
 		{
 			check(Solver);
 
@@ -359,14 +360,13 @@ namespace Chaos
 			FTrailingDataArray& AllTrailingsDataArray = TrailingEventData.TrailingData.AllTrailingsArray;
 			TMap<IPhysicsProxyBase*, TArray<int32>>& AllTrailingIndicesByPhysicsProxy = TrailingEventData.PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
 
-			if (TrailingEventData.TrailingData.TimeCreated != Solver->MTime)
+			if (bResetData)
 			{
 				AllTrailingsDataArray.Reset();
 				AllTrailingIndicesByPhysicsProxy.Reset();
-
-				TrailingEventData.TrailingData.TimeCreated = Solver->MTime;
-				TrailingEventData.PhysicsProxyToTrailingIndices.TimeCreated = Solver->MTime;
 			}
+			TrailingEventData.TrailingData.TimeCreated = Solver->MTime;
+			TrailingEventData.PhysicsProxyToTrailingIndices.TimeCreated = Solver->MTime;
 
 			const TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& ActiveParticlesArray = Evolution->GetParticles().GetActiveParticlesArray();
 
@@ -436,7 +436,7 @@ namespace Chaos
 	void FEventDefaults::RegisterSleepingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FSleepingEventData>(EEventType::Sleeping, []
-		(const Chaos::FPBDRigidsSolver* Solver, FSleepingEventData& SleepingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FSleepingEventData& SleepingEventData, bool bResetData)
 		{
 			check(Solver);
 
@@ -478,7 +478,7 @@ namespace Chaos
 	void FEventDefaults::RegisterRemovalEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FRemovalEventData>(EEventType::Removal, []
-		(const Chaos::FPBDRigidsSolver* Solver, FRemovalEventData& RemovalEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FRemovalEventData& RemovalEventData, bool bResetData)
 			{
 				check(Solver);
 				EnsureIsInPhysicsThreadContext();
@@ -486,12 +486,12 @@ namespace Chaos
 				FRemovalDataArray& AllRemovalDataArray = RemovalEventData.RemovalData.AllRemovalArray;
 				TMap<IPhysicsProxyBase*, TArray<int32>>& AllRemovalIndicesByPhysicsProxy = RemovalEventData.PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
 
-				if (RemovalEventData.RemovalData.TimeCreated != Solver->MTime)
+				if (bResetData)
 				{
 					AllRemovalDataArray.Reset();
 					AllRemovalIndicesByPhysicsProxy.Reset();
-					RemovalEventData.RemovalData.TimeCreated = Solver->MTime;
 				}
+				RemovalEventData.RemovalData.TimeCreated = Solver->MTime;
 
 				const TArray<FRemovalData>& AllRemovalsArray = Solver->GetEvolution()->GetAllRemovals();
 				

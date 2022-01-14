@@ -371,15 +371,19 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_EventDataGathering);
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FillProducerData);
-					MSolver->GetEventManager()->FillProducerData(MSolver);
+					bool ResetData = (MSubStepInfo.Step == 0);
+					MSolver->GetEventManager()->FillProducerData(MSolver, ResetData);
 					MSolver->GetEvolution()->ResetAllRemovals();
 				}
+
+				// flip on last sub-step of frame
+				if (MSubStepInfo.Step == MSubStepInfo.NumSteps - 1)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FlipBuffersIfRequired);
 					MSolver->GetEventManager()->FlipBuffersIfRequired();
 				}
 			}
-
+			
 			{
 				SCOPE_CYCLE_COUNTER(STAT_EndFrame);
 				MSolver->GetEvolution()->EndFrame(MDeltaTime);

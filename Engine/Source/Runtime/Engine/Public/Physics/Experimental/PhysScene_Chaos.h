@@ -12,6 +12,7 @@
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "Chaos/ChaosScene.h"
 #include "Chaos/ContactModification.h"
+#include "Chaos/Real.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -344,6 +345,10 @@ private:
 
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;
+
+#if WITH_CHAOS
+	Chaos::FReal LastEventDispatchTime;
+#endif 
 
 #if WITH_EDITOR
 	// Counter used to check a match with the single step status.

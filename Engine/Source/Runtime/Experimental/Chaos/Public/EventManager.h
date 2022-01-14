@@ -105,7 +105,7 @@ namespace Chaos
 		/*
 		 * Inject data from the physics solver into the producer side of the buffer
 		 */
-		virtual void InjectProducerData(const FPBDRigidsSolver* Solver) = 0;
+		virtual void InjectProducerData(const FPBDRigidsSolver* Solver, bool bResetData) = 0;
 
 		/**
 		 * Flips the buffer if the buffer type is double or triple
@@ -128,7 +128,7 @@ namespace Chaos
 		/**
 		 * Regular constructor
 		 */
-		TEventContainer(const Chaos::EMultiBufferMode& BufferMode, TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventDataInOut)> InFunction)
+		TEventContainer(const Chaos::EMultiBufferMode& BufferMode, TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventDataInOut, bool bResetData)> InFunction)
 			: InjectedFunction(InFunction)
 			, EventBuffer(Chaos::FMultiBufferFactory<PayloadType>::CreateBuffer(BufferMode))
 		{
@@ -182,9 +182,9 @@ namespace Chaos
 		/*
 		 * Inject data from the physics solver into the producer side of the buffer
 		 */
-		virtual void InjectProducerData(const FPBDRigidsSolver* Solver)
+		virtual void InjectProducerData(const FPBDRigidsSolver* Solver, bool bResetData)
 		{
-			InjectedFunction(Solver, *EventBuffer->AccessProducerBuffer());
+			InjectedFunction(Solver, *EventBuffer->AccessProducerBuffer(), bResetData);
 		}
 
 		
@@ -228,7 +228,7 @@ namespace Chaos
 		/**
 		 * The function that handles filling the event data buffer
 		 */
-		TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventData)> InjectedFunction;
+		TFunction<void(const FPBDRigidsSolver* Solver, PayloadType& EventData, bool bResetData)> InjectedFunction;
 
 		/**
 		 * The data buffer that is filled by the producer and read by the consumer
@@ -279,7 +279,7 @@ namespace Chaos
 		 * Register a new event into the system, providing the function that will fill the producer side of the event buffer
 		 */
 		template<typename PayloadType>
-		void RegisterEvent(const EEventType& EventType, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InFunction)
+		void RegisterEvent(const EEventType& EventType, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData, bool bResetData)> InFunction)
 		{
 			ContainerLock.WriteLock();
 			InternalRegisterInjector(FEventID(EventType), new TEventContainer<PayloadType>(BufferMode, InFunction));
@@ -338,7 +338,7 @@ namespace Chaos
 		/**
 		 * Called by the solver to invoke the functions that fill the producer side of all the event data buffers
 		 */
-		void FillProducerData(const Chaos::FPBDRigidsSolver* Solver);
+		void FillProducerData(const Chaos::FPBDRigidsSolver* Solver, bool bResetData = true);
 
 		/**
 		 * Flips the event data buffer if it is of double or triple buffer type
@@ -380,7 +380,6 @@ namespace Chaos
 		/** Defer handler registration if we are currently dispatching events. */
 		bool bCurrentlyDispatchingEvents;
 		TArray<TPair<FEventID, IEventHandler*>> DeferredHandlers;
-
 	};
 
 }

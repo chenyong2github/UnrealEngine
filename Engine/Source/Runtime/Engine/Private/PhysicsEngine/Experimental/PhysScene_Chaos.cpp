@@ -33,7 +33,6 @@
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
 #include "PhysicsProxy/JointConstraintProxy.h"
-#include "Chaos/Real.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/Framework/DebugSubstep.h"
@@ -382,6 +381,9 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	)
 	, PhysicsReplication(nullptr)
 	, SolverActor(InSolverActor)
+#if WITH_CHAOS
+	, LastEventDispatchTime(Chaos::FReal(-1))
+#endif
 #if WITH_EDITOR
 	, SingleStepCounter(0)
 #endif
@@ -680,15 +682,18 @@ FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const 
 
 void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
-
+#if WITH_CHAOS
 	ContactPairToPendingNotifyMap.Reset();
 
 	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 	Chaos::FCollisionDataArray const& CollisionData = Event.CollisionData.AllCollisionsArray;
 	const Chaos::FReal MinDeltaVelocityThreshold = UPhysicsSettings::Get()->MinDeltaVelocityForHitEvents;
 	int32 NumCollisions = CollisionData.Num();
-	if (NumCollisions > 0)
+
+	if (NumCollisions > 0 && LastEventDispatchTime < Event.CollisionData.TimeCreated)
 	{
+		LastEventDispatchTime = Event.CollisionData.TimeCreated;
+
 		// look through all the components that someone is interested in, and see if they had a collision
 		// note that we only need to care about the interaction from the POV of the registered component,
 		// since if anyone wants notifications for the other component it hit, it's also registered and we'll get to that elsewhere in the list
@@ -757,6 +762,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 	// Tell the world and actors about the collisions
 	DispatchPendingCollisionNotifies();
+#endif
 }
 
 void FPhysScene_Chaos::DispatchPendingCollisionNotifies()

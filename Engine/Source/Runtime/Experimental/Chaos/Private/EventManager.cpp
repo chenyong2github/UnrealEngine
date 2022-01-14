@@ -37,14 +37,14 @@ namespace Chaos
 		ContainerLock.WriteUnlock();
 	}
 
-	void FEventManager::FillProducerData(const Chaos::FPBDRigidsSolver* Solver)
+	void FEventManager::FillProducerData(const Chaos::FPBDRigidsSolver* Solver, bool bResetData)
 	{
 		ContainerLock.ReadLock();
 		for (FEventContainerBasePtr EventContainer : EventContainers)
 		{
 			if (EventContainer)
 			{
-				EventContainer->InjectProducerData(Solver);
+				EventContainer->InjectProducerData(Solver, bResetData);
 			}
 		}
 		ContainerLock.ReadUnlock();
