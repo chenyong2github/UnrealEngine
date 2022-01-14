@@ -1552,7 +1552,7 @@ void FRDGLogFile::End()
 		{
 			const FRDGPass* Pass = Passes[PassHandle];
 
-			for (const FRDGPassHandle ProducerHandle : Pass->GetProducers())
+			for (FRDGPassHandle ProducerHandle : Pass->GetProducers())
 			{
 				const FRDGPass* Producer = Passes[ProducerHandle];
 
