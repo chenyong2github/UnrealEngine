@@ -18,14 +18,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumber[] PreferredWindowsSdkVersions = new VersionNumber[]
 		{
-			VersionNumber.Parse("10.0.18362.0"),
-			VersionNumber.Parse("10.0.16299.0")
+			VersionNumber.Parse("10.0.18362.0")
 		};
 
 		public override string GetMainVersion()
 		{
 			// preferred/main version is the top of the Preferred list - 
-			return PreferredWindowsSdkVersions[0].ToString();
+			return PreferredWindowsSdkVersions.First().ToString();
 		}
 
 		public override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
@@ -36,8 +35,8 @@ namespace UnrealBuildTool
 
 		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
-			// for now, allow any version of Windows 10
-			MinVersion = "10.0.0.0";
+			// minimum version is the oldest version in the Preferred list -
+			MinVersion = PreferredWindowsSdkVersions.Min().ToString();
 			MaxVersion = null;
 		}
 
