@@ -548,7 +548,7 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	}
 	else if (Initializer.bUseFauxOrthoViewPos)
 	{
-		auto DistanceToViewOrigin = WORLD_MAX;
+		auto DistanceToViewOrigin = UE_OLD_WORLD_MAX;
 		ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal())) * DistanceToViewOrigin + LocalViewOrigin;
 		bViewOriginIsFudged = true;
 	}
