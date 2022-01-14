@@ -49,6 +49,9 @@ private:
 	unsigned int MaxLength;
 	FOnBufferReadyFn* OnBufferReady;
 
+	const char* InputBuffer = nullptr;
+	int InputLength = 0;
+
 public:
 	const char* Func = nullptr;
 	const char* PromptResponse = nullptr;
@@ -57,6 +60,18 @@ public:
 	{
 		SetWriteBuffer(WriteBuffer);
 		this->OnBufferReady = OnBufferReady;
+	}
+
+	virtual void InputData(StrBuf* strbuf, Error* e) override
+	{
+		if (InputBuffer != nullptr)
+		{
+			strbuf->Set(InputBuffer, InputLength);
+		}
+		else
+		{
+			ClientUser::InputData(strbuf, e);
+		}
 	}
 
 	virtual void Prompt(Error* err, StrBuf& rsp, int noEcho, Error* e) override
@@ -77,6 +92,12 @@ public:
 	virtual void Prompt(const StrPtr& msg, StrBuf& rsp, int noEcho, int noOutput, Error* e) override
 	{
 		rsp.Set(PromptResponse);
+	}
+
+	void SetInputBuffer(const char* InputBuffer, int InputLength)
+	{
+		this->InputBuffer = InputBuffer;
+		this->InputLength = InputLength;
 	}
 
 	void SetWriteBuffer(FWriteBuffer* WriteBuffer)
@@ -430,15 +451,17 @@ extern "C" NATIVE_API FClient* Client_Create(const FSettings* Settings, FWriteBu
 extern "C" NATIVE_API void Client_Login(FClient * Client, const char* Password)
 {
 	Client->User.PromptResponse = Password;
+	Client->User.SetInputBuffer(nullptr, 0);
 	Client->ClientApi.SetArgv(0, nullptr);
 	Client->ClientApi.Run("login", &Client->User);
 	Client->User.Flush();
 	Client->User.PromptResponse = nullptr;
 }
 
-extern "C" NATIVE_API void Client_Command(FClient* Client, const char* Func, int ArgCount, const char** Args)
+extern "C" NATIVE_API void Client_Command(FClient* Client, const char* Func, int ArgCount, const char** Args, const char* InputData, int InputLength)
 {
 	Client->User.Func = Func;
+	Client->User.SetInputBuffer(InputData, InputLength);
 	Client->ClientApi.SetArgv(ArgCount, (char* const*)Args);
 	Client->ClientApi.Run(Func, &Client->User);
 	Client->User.Flush();

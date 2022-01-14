@@ -301,7 +301,7 @@ namespace EpicGames.Perforce
 				for (; ; )
 				{
 					int InitialBufferPos = BufferPos;
-					if (!ReadRecord(Data, ref BufferPos, Record.Rows))
+					if (!ParseRecord(Data, ref BufferPos, Record.Rows))
 					{
 						BufferPos = InitialBufferPos;
 						break;
@@ -325,7 +325,8 @@ namespace EpicGames.Perforce
 		/// <param name="BufferPos">Current read position within the buffer</param>
 		/// <param name="Rows">List of rows to read into</param>
 		/// <returns>True if a record could be read; false if more data is required</returns>
-		static bool ReadRecord(ReadOnlyMemory<byte> Buffer, ref int BufferPos, List<KeyValuePair<Utf8String, PerforceValue>> Rows)
+		[SuppressMessage("Design", "CA1045:Do not pass types by reference", Justification = "<Pending>")]
+		public static bool ParseRecord(ReadOnlyMemory<byte> Buffer, ref int BufferPos, List<KeyValuePair<Utf8String, PerforceValue>> Rows)
 		{
 			Rows.Clear();
 			ReadOnlySpan<byte> BufferSpan = Buffer.Span;

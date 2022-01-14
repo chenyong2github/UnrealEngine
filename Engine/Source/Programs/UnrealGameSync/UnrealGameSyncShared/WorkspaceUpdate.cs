@@ -42,6 +42,7 @@ namespace UnrealGameSync
 		SyncAllProjects = 0x1000,
 		IncludeAllProjectsInSolution = 0x2000,
 		RemoveFilteredFiles = 0x4000,
+		Clobber = 0x8000,
 	}
 
 	public enum WorkspaceUpdateResult
@@ -1664,23 +1665,26 @@ namespace UnrealGameSync
 			// If any files need to be clobbered, defer to the main thread to figure out which ones
 			if (TamperedFiles.Count > 0)
 			{
-				int NumNewFilesToClobber = 0;
-				foreach (string TamperedFile in TamperedFiles)
+				if ((Context.Options & WorkspaceUpdateOptions.Clobber) == 0)
 				{
-					if (!Context.ClobberFiles.ContainsKey(TamperedFile))
+					int NumNewFilesToClobber = 0;
+					foreach (string TamperedFile in TamperedFiles)
 					{
-						Context.ClobberFiles[TamperedFile] = true;
-						if (TamperedFile.EndsWith(LocalObjectVersionFileName, StringComparison.OrdinalIgnoreCase) || TamperedFile.EndsWith(LocalVersionHeaderFileName, StringComparison.OrdinalIgnoreCase))
+						if (!Context.ClobberFiles.ContainsKey(TamperedFile))
 						{
-							// Hack for UseFastModularVersioningV2; we don't need to update these files any more.
-							continue;
+							Context.ClobberFiles[TamperedFile] = true;
+							if (TamperedFile.EndsWith(LocalObjectVersionFileName, StringComparison.OrdinalIgnoreCase) || TamperedFile.EndsWith(LocalVersionHeaderFileName, StringComparison.OrdinalIgnoreCase))
+							{
+								// Hack for UseFastModularVersioningV2; we don't need to update these files any more.
+								continue;
+							}
+							NumNewFilesToClobber++;
 						}
-						NumNewFilesToClobber++;
 					}
-				}
-				if (NumNewFilesToClobber > 0)
-				{
-					return (WorkspaceUpdateResult.FilesToClobber, $"Cancelled sync after checking files to clobber ({NumNewFilesToClobber} new files).");
+					if (NumNewFilesToClobber > 0)
+					{
+						return (WorkspaceUpdateResult.FilesToClobber, $"Cancelled sync after checking files to clobber ({NumNewFilesToClobber} new files).");
+					}
 				}
 				foreach (string TamperedFile in TamperedFiles)
 				{

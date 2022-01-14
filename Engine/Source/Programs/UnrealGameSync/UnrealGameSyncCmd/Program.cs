@@ -262,10 +262,17 @@ namespace UnrealGameSyncCmd
 			DirectoryReference? Dir = DirectoryReference.GetCurrentDirectory();
 			for (; Dir != null; Dir = Dir.ParentDirectory)
 			{
-				UserWorkspaceSettings? Settings;
-				if (UserWorkspaceSettings.TryLoad(Dir, out Settings))
+				try
 				{
-					return Settings;
+					UserWorkspaceSettings? Settings;
+					if (UserWorkspaceSettings.TryLoad(Dir, out Settings))
+					{
+						return Settings;
+					}
+				}
+				catch
+				{
+					// Guard against directories we can't access, eg. /Users/.ugs
 				}
 			}
 			return null;
@@ -558,6 +565,9 @@ namespace UnrealGameSyncCmd
 				[CommandLine("-NoGPF", Value = "false")]
 				[CommandLine("-NoProjectFiles", Value = "false")]
 				public bool ProjectFiles { get; set; } = true;
+
+				[CommandLine("-Clobber")]
+				public bool Clobber { get; set; }
 			}
 
 			public override async Task ExecuteAsync(CommandContext Context)
@@ -599,6 +609,10 @@ namespace UnrealGameSyncCmd
 				{
 					Options |= WorkspaceUpdateOptions.GenerateProjectFiles;
 				}
+				if (SyncOptions.Clobber)
+				{
+					Options |= WorkspaceUpdateOptions.Clobber;
+				}
 				Options |= WorkspaceUpdateOptions.RemoveFilteredFiles;
 
 				ProjectInfo ProjectInfo = State.CreateProjectInfo();
@@ -611,7 +625,16 @@ namespace UnrealGameSyncCmd
 
 				WorkspaceUpdate Update = new WorkspaceUpdate(UpdateContext);
 				(WorkspaceUpdateResult Result, string Message) = await Update.ExecuteAsync(PerforceClient.Settings, ProjectInfo, State, Context.Logger, CancellationToken.None);
-				if(Result != WorkspaceUpdateResult.Success)
+				if (Result == WorkspaceUpdateResult.FilesToClobber)
+				{
+					Logger.LogWarning("The following files are modified in your workspace:");
+					foreach (string File in UpdateContext.ClobberFiles.Keys.OrderBy(x => x))
+					{
+						Logger.LogWarning("  {File}", File);
+					}
+					Logger.LogWarning("Use -Clobber to overwrite");
+				}
+				else if (Result != WorkspaceUpdateResult.Success)
 				{
 					Logger.LogError("{Message} (Result: {Result})", Message, Result);
 				}

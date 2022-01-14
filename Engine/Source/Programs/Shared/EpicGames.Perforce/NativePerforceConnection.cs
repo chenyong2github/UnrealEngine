@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
@@ -9,6 +10,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -73,7 +75,7 @@ namespace EpicGames.Perforce
 		static extern void Client_Login(IntPtr Client, [MarshalAs(UnmanagedType.LPStr)] string Password);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern void Client_Command(IntPtr Client, [MarshalAs(UnmanagedType.LPStr)] string Command, int NumArgs, string[] Args);
+		static extern void Client_Command(IntPtr Client, [MarshalAs(UnmanagedType.LPStr)] string Command, int NumArgs, string[] Args, byte[]? InputData, int InputLength);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl)]
 		static extern void Client_Destroy(IntPtr Client);
@@ -485,9 +487,10 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData)
 		{
+			byte[]? SpecData = null;
 			if (InputData != null)
 			{
-				throw new NotImplementedException();
+				SpecData = Encoding.UTF8.GetBytes(FormatSpec(InputData));
 			}
 
 			List<string> AllArguments = new List<string>(Arguments);
@@ -497,7 +500,7 @@ namespace EpicGames.Perforce
 			}
 
 			Response Response = new Response(this);
-			Requests.Add((() => Client_Command(Client, Command, AllArguments.Count, AllArguments.ToArray()), Response));
+			Requests.Add((() => Client_Command(Client, Command, AllArguments.Count, AllArguments.ToArray(), SpecData, SpecData?.Length ?? 0), Response));
 			return Task.FromResult<IPerforceOutput>(Response);
 		}
 
@@ -507,6 +510,45 @@ namespace EpicGames.Perforce
 			Response Response = new Response(this);
 			Requests.Add((() => Client_Login(Client, Password), Response), CancellationToken);
 			return Task.FromResult<IPerforceOutput>(Response);
+		}
+
+		/// <summary>
+		/// Converts a Python marshalled data blob to a spec definition
+		/// </summary>
+		static string FormatSpec(byte[] InputData)
+		{
+			int Pos = 0;
+
+			List<KeyValuePair<Utf8String, PerforceValue>> Rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
+			if (!PerforceOutputExtensions.ParseRecord(InputData, ref Pos, Rows))
+			{
+				throw new PerforceException("Unable to parse input data as record");
+			}
+			if (Pos != InputData.Length)
+			{
+				throw new PerforceException("Garbage after end of spec data");
+			}
+
+			StringBuilder Result = new StringBuilder();
+			foreach ((Utf8String Key, PerforceValue Value) in Rows)
+			{
+				string[] ValueLines = Value.ToString().Split('\n');
+				if (ValueLines.Length == 1)
+				{
+					Result.AppendLine($"{Key}: {ValueLines[0]}");
+				}
+				else
+				{
+					Result.AppendLine($"{Key}:");
+					foreach (string ValueLine in ValueLines)
+					{
+						Result.AppendLine($"\t{ValueLine}");
+					}
+				}
+				Result.AppendLine();
+			}
+
+			return Result.ToString();
 		}
 	}
 }
