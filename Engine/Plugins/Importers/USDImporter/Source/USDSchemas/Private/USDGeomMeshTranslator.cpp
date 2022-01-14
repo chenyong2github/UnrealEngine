@@ -541,7 +541,7 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 	}
 
-	UStaticMesh* CreateStaticMesh( TArray<FMeshDescription>& LODIndexToMeshDescription, FUsdSchemaTranslationContext& Context, const FString& PrimPath, const bool bShouldEnableNanite, bool& bOutIsNew )
+	UStaticMesh* CreateStaticMesh( TArray<FMeshDescription>& LODIndexToMeshDescription, FUsdSchemaTranslationContext& Context, const FString& MeshName, const bool bShouldEnableNanite, bool& bOutIsNew )
 	{
 		UStaticMesh* StaticMesh = nullptr;
 
@@ -588,7 +588,7 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			bOutIsNew = true;
 
-			FName AssetName = MakeUniqueObjectName( GetTransientPackage(), UStaticMesh::StaticClass(), *FPaths::GetBaseFilename( PrimPath ) );
+			FName AssetName = MakeUniqueObjectName( GetTransientPackage(), UStaticMesh::StaticClass(), *FPaths::GetBaseFilename( MeshName ) );
 			StaticMesh = NewObject< UStaticMesh >( GetTransientPackage(), AssetName, Context.ObjectFlags | EObjectFlags::RF_Public );
 
 #if WITH_EDITOR
@@ -1008,10 +1008,25 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
 #endif // WITH_EDITOR
 
-			bool bIsNew = true;
 			const FString PrimPathString = PrimPath.GetString();
+
+			// It's useful to have the LOD Mesh prims be named "LOD0", "LOD1", etc. within the LOD variants so that we
+			// can easily tell which Mesh is actually meant to be the LOD mesh (in case there are more Meshes in each
+			// variant or other Meshes outside of the variant), but it's not ideal to have all the generated assets end
+			// up imported as "SM_LOD0_22", "SM_LOD0_23", etc. So here we fetch the parent prim name in case we're a LOD
+			FString MeshName;
+			if ( Context->bAllowInterpretingLODs && UsdUtils::IsGeomMeshALOD( GetPrim() ) )
+			{
+				MeshName = PrimPath.GetParentPath().GetString();
+			}
+			else
+			{
+				MeshName = PrimPath.GetString();
+			}
+
+			bool bIsNew = true;
 			const bool bShouldEnableNanite = UsdGeomMeshTranslatorImpl::ShouldEnableNanite( LODIndexToMeshDescription, LODIndexToMaterialInfo, *Context, GetPrim() );
-			StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( LODIndexToMeshDescription, *Context, PrimPathString, bShouldEnableNanite, bIsNew );
+			StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( LODIndexToMeshDescription, *Context, MeshName, bShouldEnableNanite, bIsNew );
 
 			if ( StaticMesh )
 			{
