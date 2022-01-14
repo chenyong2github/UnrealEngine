@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Math/UnrealMathSSE.h"
-#include "Math/Matrix.h"
-
 // This file implements non-inlined functions from UnrealMathSSE.h
 #if UE_USING_UNREALMATH_SSE
+
+#include "Math/UnrealMathSSE.h"
+#include "Math/Matrix.h"
 
 void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1, const FMatrix44f* Matrix2)
 {
