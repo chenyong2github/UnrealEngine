@@ -17,6 +17,10 @@ public:
 	//~UPCGSettings interface implementation
 	virtual UPCGNode* CreateNode() const override;
 
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
+#endif
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface implementation

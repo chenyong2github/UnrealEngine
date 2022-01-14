@@ -26,6 +26,10 @@ public:
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
 
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const { return NAME_None; }
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	int Seed = 0xC35A9631; // random prime number
 

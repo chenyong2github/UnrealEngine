@@ -30,11 +30,18 @@ class UPCGStaticMeshSpawnerSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<FPCGStaticMeshSpawnerEntry> Meshes;
+#if WITH_EDITOR
+	// ~Begin UPCGSettings interface
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("StaticMeshSpawnerNode")); }
+#endif
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
+	// ~End UPCGSettings interface
+
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	TArray<FPCGStaticMeshSpawnerEntry> Meshes;
 };
 
 class FPCGStaticMeshSpawnerElement : public FSimpleTypedPCGElement<UPCGStaticMeshSpawnerSettings>

@@ -109,6 +109,16 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 
 		// Reparent node to this graph
 		Node->Rename(nullptr, this);
+
+#if WITH_EDITOR
+		const FName DefaultNodeName = Settings->GetDefaultNodeName();
+		if (DefaultNodeName != NAME_None)
+		{
+			FName NodeName = MakeUniqueObjectName(GetOuter(), UPCGNode::StaticClass(), DefaultNodeName);
+			Node->Rename(*NodeName.ToString());
+		}
+#endif
+
 		Nodes.Add(Node);
 
 #if WITH_EDITOR
@@ -138,6 +148,16 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 
 		// Reparent node to this graph
 		Node->Rename(nullptr, this);
+
+#if WITH_EDITOR
+		const FName DefaultNodeName = InSettings->GetDefaultNodeName();
+		if (DefaultNodeName != NAME_None)
+		{
+			FName NodeName = MakeUniqueObjectName(GetOuter(), UPCGNode::StaticClass(), DefaultNodeName);
+			Node->Rename(*NodeName.ToString());
+		}
+#endif
+
 		Nodes.Add(Node);
 
 #if WITH_EDITOR

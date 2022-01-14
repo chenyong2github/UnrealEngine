@@ -17,12 +17,18 @@ class UPCGPointSamplerSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0", ClampMax="1"))
-	float Ratio = 0.1f;
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointSamplerNode")); }
+#endif
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
+	//~End UPCGSettings interface
+
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0", ClampMax="1"))
+	float Ratio = 0.1f;
 };
 
 class FPCGPointSamplerElement : public FSimpleTypedPCGElement<UPCGPointSamplerSettings>

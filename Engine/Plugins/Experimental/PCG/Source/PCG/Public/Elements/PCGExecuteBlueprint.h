@@ -32,9 +32,21 @@ class UPCGBlueprintSettings : public UPCGSettings
 public:
 	friend class FPCGExecuteBlueprintElement;
 
+	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("BlueprintNode")); }
+#endif
+
+protected:
+	virtual FPCGElementPtr CreateElement() const override;
+	// ~End UPCGSettings interface
+
+public:
+#if WITH_EDITOR
+	// ~Begin UObject interface
 	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// ~End UObject interface
 #endif
 
 	UFUNCTION(BlueprintCallable, Category = Settings)
@@ -52,7 +64,6 @@ protected:
 
 protected:
 	void RefreshBlueprintElement();
-	virtual FPCGElementPtr CreateElement() const override;
 };
 
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
