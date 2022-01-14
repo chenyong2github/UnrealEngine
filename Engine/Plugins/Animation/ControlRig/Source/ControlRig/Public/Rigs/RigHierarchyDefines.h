@@ -110,6 +110,92 @@ enum class ERigControlAxis : uint8
 };
 
 USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigControlLimitEnabled
+{
+	GENERATED_BODY()
+	
+	FRigControlLimitEnabled()
+		: bMinimum(false)
+		, bMaximum(false)
+	{}
+
+	FRigControlLimitEnabled(bool InValue)
+		: bMinimum(false)
+		, bMaximum(false)
+	{
+		Set(InValue);
+	}
+
+	FRigControlLimitEnabled(bool InMinimum, bool InMaximum)
+		: bMinimum(false)
+		, bMaximum(false)
+	{
+		Set(InMinimum, InMaximum);
+	}
+
+	FRigControlLimitEnabled& Set(bool InValue)
+	{
+		return Set(InValue, InValue);
+	}
+
+	FRigControlLimitEnabled& Set(bool InMinimum, bool InMaximum)
+	{
+		bMinimum = InMinimum;
+		bMaximum = InMaximum;
+		return *this;
+	}
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigControlLimitEnabled& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+
+	FORCEINLINE bool operator ==(const FRigControlLimitEnabled& Other) const
+	{
+		return bMinimum == Other.bMinimum && bMaximum == Other.bMaximum;
+	}
+
+	FORCEINLINE bool operator !=(const FRigControlLimitEnabled& Other) const
+	{
+		return bMinimum != Other.bMinimum || bMaximum != Other.bMaximum;
+	}
+
+	bool IsOn() const { return bMinimum || bMaximum; }
+	bool IsOff() const { return !bMinimum && !bMaximum; }
+	bool GetForValueType(ERigControlValueType InValueType) const;
+	void SetForValueType(ERigControlValueType InValueType, bool InValue);
+
+	template<typename T>
+	T Apply(const T& InValue, const T& InMinimum, const T& InMaximum) const
+	{
+		if(IsOff())
+		{
+			return InValue;
+		}
+
+		if(bMinimum && bMaximum)
+		{
+			return FMath::Clamp<T>(InValue, InMinimum, InMaximum);
+		}
+
+		if(bMinimum)
+		{
+			return FMath::Max<T>(InValue, InMinimum);
+		}
+
+		return FMath::Min<T>(InValue, InMaximum);
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limit)
+	bool bMinimum;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limit)
+	bool bMaximum;
+};
+
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigControlValueStorage
 {
 public:
@@ -605,14 +691,12 @@ public:
 	}
 
 	FORCEINLINE void ApplyLimits(
-		bool bLimitTranslation,
-		bool bLimitRotation,
-		bool bLimitScale,
+		const TArray<FRigControlLimitEnabled>& LimitEnabled,
 		ERigControlType InControlType,
 		const FRigControlValue& InMinimumValue,
 		const FRigControlValue& InMaximumValue)
 	{
-		if (!bLimitTranslation && !bLimitRotation && !bLimitScale)
+		if(LimitEnabled.IsEmpty())
 		{
 			return;
 		}
@@ -621,7 +705,7 @@ public:
 		{
 			case ERigControlType::Float:
 			{
-				if (bLimitTranslation)
+				if (LimitEnabled[0].IsOn())
 				{
 					float& ValueRef = GetRef<float>();
 					ValueRef = Clamp<float>(ValueRef, InMinimumValue.Get<float>(), InMaximumValue.Get<float>());
@@ -630,7 +714,7 @@ public:
 			}
 			case ERigControlType::Integer:
 			{
-				if (bLimitTranslation)
+				if (LimitEnabled[0].IsOn())
 				{
 					int32& ValueRef = GetRef<int32>();
 					ValueRef = Clamp<int32>(ValueRef, InMinimumValue.Get<int32>(), InMaximumValue.Get<int32>());
@@ -639,115 +723,143 @@ public:
 			}
 			case ERigControlType::Vector2D:
 			{
-				if (bLimitTranslation)
+				if(LimitEnabled.Num() < 2)
+				{
+					return;
+				}
+				if (LimitEnabled[0].IsOn() || LimitEnabled[1].IsOn())
 				{
 					FVector3f& ValueRef = GetRef<FVector3f>();
 					const FVector3f& Min = InMinimumValue.GetRef<FVector3f>();
 					const FVector3f& Max = InMaximumValue.GetRef<FVector3f>();
-					ValueRef.X = Clamp<float>(ValueRef.X, Min.X, Max.X);
-					ValueRef.Y = Clamp<float>(ValueRef.Y, Min.Y, Max.Y);
+					ValueRef.X = LimitEnabled[0].Apply<float>(ValueRef.X, Min.X, Max.X);
+					ValueRef.Y = LimitEnabled[1].Apply<float>(ValueRef.Y, Min.Y, Max.Y);
 				}
 				break;
 			}
 			case ERigControlType::Position:
 			{
-				if (bLimitTranslation)
+				if(LimitEnabled.Num() < 3)
+				{
+					return;
+				}
+				if (LimitEnabled[0].IsOn() || LimitEnabled[2].IsOn() || LimitEnabled[2].IsOn())
 				{
 					FVector3f& ValueRef = GetRef<FVector3f>();
 					const FVector3f& Min = InMinimumValue.GetRef<FVector3f>();
 					const FVector3f& Max = InMaximumValue.GetRef<FVector3f>();
-					ValueRef.X = Clamp<float>(ValueRef.X, Min.X, Max.X);
-					ValueRef.Y = Clamp<float>(ValueRef.Y, Min.Y, Max.Y);
-					ValueRef.Z = Clamp<float>(ValueRef.Z, Min.Z, Max.Z);
+					ValueRef.X = LimitEnabled[0].Apply<float>(ValueRef.X, Min.X, Max.X);
+					ValueRef.Y = LimitEnabled[1].Apply<float>(ValueRef.Y, Min.Y, Max.Y);
+					ValueRef.Z = LimitEnabled[2].Apply<float>(ValueRef.Z, Min.Z, Max.Z);
 				}
 				break;
 			}
 			case ERigControlType::Scale:
 			{
-				if (bLimitScale)
+				if(LimitEnabled.Num() < 3)
+				{
+					return;
+				}
+				if (LimitEnabled[0].IsOn() || LimitEnabled[2].IsOn() || LimitEnabled[2].IsOn())
 				{
 					FVector3f& ValueRef = GetRef<FVector3f>();
 					const FVector3f& Min = InMinimumValue.GetRef<FVector3f>();
 					const FVector3f& Max = InMaximumValue.GetRef<FVector3f>();
-					ValueRef.X = Clamp<float>(ValueRef.X, Min.X, Max.X);
-					ValueRef.Y = Clamp<float>(ValueRef.Y, Min.Y, Max.Y);
-					ValueRef.Z = Clamp<float>(ValueRef.Z, Min.Z, Max.Z);
+					ValueRef.X = LimitEnabled[0].Apply<float>(ValueRef.X, Min.X, Max.X);
+					ValueRef.Y = LimitEnabled[1].Apply<float>(ValueRef.Y, Min.Y, Max.Y);
+					ValueRef.Z = LimitEnabled[2].Apply<float>(ValueRef.Z, Min.Z, Max.Z);
 				}
 				break;
 			}
 			case ERigControlType::Rotator:
 			{
-				if (bLimitRotation)
+				if(LimitEnabled.Num() < 3)
+				{
+					return;
+				}
+				if (LimitEnabled[0].IsOn() || LimitEnabled[2].IsOn() || LimitEnabled[2].IsOn())
 				{
 					FVector3f& ValueRef = GetRef<FVector3f>();
 					const FVector3f& Min = InMinimumValue.GetRef<FVector3f>();
 					const FVector3f& Max = InMaximumValue.GetRef<FVector3f>();
-					ValueRef.X = Clamp<float>(ValueRef.X, Min.X, Max.X);
-					ValueRef.Y = Clamp<float>(ValueRef.Y, Min.Y, Max.Y);
-					ValueRef.Z = Clamp<float>(ValueRef.Z, Min.Z, Max.Z);
+					ValueRef.X = LimitEnabled[0].Apply<float>(ValueRef.X, Min.X, Max.X);
+					ValueRef.Y = LimitEnabled[1].Apply<float>(ValueRef.Y, Min.Y, Max.Y);
+					ValueRef.Z = LimitEnabled[2].Apply<float>(ValueRef.Z, Min.Z, Max.Z);
 				}
 				break;
 			}
 			case ERigControlType::Transform:
 			{
+				if(LimitEnabled.Num() < 9)
+				{
+					return;
+				}
+
 				FTransform_Float& ValueRef = GetRef<FTransform_Float>();
 				const FTransform Min = InMinimumValue.GetRef<FTransform_Float>().ToTransform();
 				const FTransform Max = InMaximumValue.GetRef<FTransform_Float>().ToTransform();
 
-				if (bLimitTranslation)
+				if (LimitEnabled[0].IsOn() || LimitEnabled[2].IsOn() || LimitEnabled[2].IsOn())
 				{
-					ValueRef.TranslationX = Clamp<float>(ValueRef.TranslationX, Min.GetLocation().X, Max.GetLocation().X);
-					ValueRef.TranslationY = Clamp<float>(ValueRef.TranslationY, Min.GetLocation().Y, Max.GetLocation().Y);
-					ValueRef.TranslationZ = Clamp<float>(ValueRef.TranslationZ, Min.GetLocation().Z, Max.GetLocation().Z);
+					ValueRef.TranslationX = LimitEnabled[0].Apply<float>(ValueRef.TranslationX, Min.GetLocation().X, Max.GetLocation().X);
+					ValueRef.TranslationY = LimitEnabled[1].Apply<float>(ValueRef.TranslationY, Min.GetLocation().Y, Max.GetLocation().Y);
+					ValueRef.TranslationZ = LimitEnabled[2].Apply<float>(ValueRef.TranslationZ, Min.GetLocation().Z, Max.GetLocation().Z);
 				}
-				if (bLimitRotation)
+				if (LimitEnabled[3].IsOn() || LimitEnabled[4].IsOn() || LimitEnabled[5].IsOn())
 				{
 					const FRotator Rotator = FQuat(ValueRef.RotationX, ValueRef.RotationY, ValueRef.RotationZ, ValueRef.RotationW).Rotator();
 					const FRotator MinRotator = Min.GetRotation().Rotator();
 					const FRotator MaxRotator = Max.GetRotation().Rotator();
 
-					FQuat LimitedQuat(FRotator(
-						Clamp<float>(Rotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch),
-						Clamp<float>(Rotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw),
-						Clamp<float>(Rotator.Roll, MinRotator.Roll, MaxRotator.Roll)
-					));
+					FRotator LimitedRotator = Rotator;
+					LimitedRotator.Pitch = LimitEnabled[3].Apply<float>(LimitedRotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch);
+					LimitedRotator.Yaw = LimitEnabled[4].Apply<float>(LimitedRotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw);
+					LimitedRotator.Roll = LimitEnabled[5].Apply<float>(LimitedRotator.Roll, MinRotator.Roll, MaxRotator.Roll);
+
+					FQuat LimitedQuat(LimitedRotator);
 					
 					ValueRef.RotationX = LimitedQuat.X;
 					ValueRef.RotationY = LimitedQuat.Y;
 					ValueRef.RotationZ = LimitedQuat.Z;
 					ValueRef.RotationW = LimitedQuat.W;
 				}
-				if (bLimitScale)
+				if (LimitEnabled[6].IsOn() || LimitEnabled[7].IsOn() || LimitEnabled[8].IsOn())
 				{
-					ValueRef.ScaleX = Clamp<float>(ValueRef.ScaleX, Min.GetScale3D().X, Max.GetScale3D().X);
-					ValueRef.ScaleY = Clamp<float>(ValueRef.ScaleY, Min.GetScale3D().Y, Max.GetScale3D().Y);
-					ValueRef.ScaleZ = Clamp<float>(ValueRef.ScaleZ, Min.GetScale3D().Z, Max.GetScale3D().Z);
+					ValueRef.ScaleX = LimitEnabled[6].Apply<float>(ValueRef.ScaleX, Min.GetScale3D().X, Max.GetScale3D().X);
+					ValueRef.ScaleY = LimitEnabled[7].Apply<float>(ValueRef.ScaleY, Min.GetScale3D().Y, Max.GetScale3D().Y);
+					ValueRef.ScaleZ = LimitEnabled[8].Apply<float>(ValueRef.ScaleZ, Min.GetScale3D().Z, Max.GetScale3D().Z);
 				}
 				break;
 			}
 			case ERigControlType::TransformNoScale:
 			{
+				if(LimitEnabled.Num() < 6)
+				{
+					return;
+				}
+
 				FTransformNoScale_Float& ValueRef = GetRef<FTransformNoScale_Float>();
 				const FTransformNoScale Min = InMinimumValue.GetRef<FTransformNoScale_Float>().ToTransform();
 				const FTransformNoScale Max = InMaximumValue.GetRef<FTransformNoScale_Float>().ToTransform();
 
-				if (bLimitTranslation)
+				if (LimitEnabled[0].IsOn() || LimitEnabled[1].IsOn() || LimitEnabled[2].IsOn())
 				{
-					ValueRef.TranslationX = Clamp<float>(ValueRef.TranslationX, Min.Location.X, Max.Location.X);
-					ValueRef.TranslationY = Clamp<float>(ValueRef.TranslationY, Min.Location.Y, Max.Location.Y);
-					ValueRef.TranslationZ = Clamp<float>(ValueRef.TranslationZ, Min.Location.Z, Max.Location.Z);
+					ValueRef.TranslationX = LimitEnabled[0].Apply<float>(ValueRef.TranslationX, Min.Location.X, Max.Location.X);
+					ValueRef.TranslationY = LimitEnabled[1].Apply<float>(ValueRef.TranslationY, Min.Location.Y, Max.Location.Y);
+					ValueRef.TranslationZ = LimitEnabled[2].Apply<float>(ValueRef.TranslationZ, Min.Location.Z, Max.Location.Z);
 				}
-				if (bLimitRotation)
+				if (LimitEnabled[3].IsOn() || LimitEnabled[4].IsOn() || LimitEnabled[5].IsOn())
 				{
 					const FRotator Rotator = FQuat(ValueRef.RotationX, ValueRef.RotationY, ValueRef.RotationZ, ValueRef.RotationW).Rotator();
 					const FRotator MinRotator = Min.Rotation.Rotator();
 					const FRotator MaxRotator = Max.Rotation.Rotator();
 
-					FQuat LimitedQuat(FRotator(
-						Clamp<float>(Rotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch),
-						Clamp<float>(Rotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw),
-						Clamp<float>(Rotator.Roll, MinRotator.Roll, MaxRotator.Roll)
-					));
+					FRotator LimitedRotator = Rotator;
+					LimitedRotator.Pitch = LimitEnabled[3].Apply<float>(LimitedRotator.Pitch, MinRotator.Pitch, MaxRotator.Pitch);
+					LimitedRotator.Yaw = LimitEnabled[4].Apply<float>(LimitedRotator.Yaw, MinRotator.Yaw, MaxRotator.Yaw);
+					LimitedRotator.Roll = LimitEnabled[5].Apply<float>(LimitedRotator.Roll, MinRotator.Roll, MaxRotator.Roll);
+
+					FQuat LimitedQuat(LimitedRotator);
 
 					ValueRef.RotationX = LimitedQuat.X;
 					ValueRef.RotationY = LimitedQuat.Y;
@@ -759,27 +871,32 @@ public:
 
 			case ERigControlType::EulerTransform:
 			{
+				if(LimitEnabled.Num() < 9)
+				{
+					return;
+				}
+
 				FEulerTransform_Float& ValueRef = GetRef<FEulerTransform_Float>();
 				const FEulerTransform_Float& Min = InMinimumValue.GetRef<FEulerTransform_Float>();
 				const FEulerTransform_Float& Max = InMaximumValue.GetRef<FEulerTransform_Float>();
 
-				if (bLimitTranslation)
+				if (LimitEnabled[0].IsOn() || LimitEnabled[1].IsOn() || LimitEnabled[2].IsOn())
 				{
-					ValueRef.TranslationX = Clamp<float>(ValueRef.TranslationX, Min.TranslationX, Max.TranslationX);
-					ValueRef.TranslationY = Clamp<float>(ValueRef.TranslationY, Min.TranslationY, Max.TranslationY);
-					ValueRef.TranslationZ = Clamp<float>(ValueRef.TranslationZ, Min.TranslationZ, Max.TranslationZ);
+					ValueRef.TranslationX = LimitEnabled[0].Apply<float>(ValueRef.TranslationX, Min.TranslationX, Max.TranslationX);
+					ValueRef.TranslationY = LimitEnabled[1].Apply<float>(ValueRef.TranslationY, Min.TranslationY, Max.TranslationY);
+					ValueRef.TranslationZ = LimitEnabled[2].Apply<float>(ValueRef.TranslationZ, Min.TranslationZ, Max.TranslationZ);
 				}
-				if (bLimitRotation)
+				if (LimitEnabled[3].IsOn() || LimitEnabled[4].IsOn() || LimitEnabled[5].IsOn())
 				{
-					ValueRef.RotationPitch = Clamp<float>(ValueRef.RotationPitch, Min.RotationPitch, Max.RotationPitch);
-					ValueRef.RotationYaw = Clamp<float>(ValueRef.RotationYaw, Min.RotationYaw, Max.RotationYaw);
-					ValueRef.RotationRoll = Clamp<float>(ValueRef.RotationRoll, Min.RotationRoll, Max.RotationRoll);
+					ValueRef.RotationPitch = LimitEnabled[3].Apply<float>(ValueRef.RotationPitch, Min.RotationPitch, Max.RotationPitch);
+					ValueRef.RotationYaw = LimitEnabled[4].Apply<float>(ValueRef.RotationYaw, Min.RotationYaw, Max.RotationYaw);
+					ValueRef.RotationRoll = LimitEnabled[5].Apply<float>(ValueRef.RotationRoll, Min.RotationRoll, Max.RotationRoll);
 				}
-				if (bLimitScale)
+				if (LimitEnabled[6].IsOn() || LimitEnabled[7].IsOn() || LimitEnabled[8].IsOn())
 				{
-					ValueRef.ScaleX = Clamp<float>(ValueRef.ScaleX, Min.ScaleX, Max.ScaleX);
-					ValueRef.ScaleY = Clamp<float>(ValueRef.ScaleY, Min.ScaleY, Max.ScaleY);
-					ValueRef.ScaleZ = Clamp<float>(ValueRef.ScaleZ, Min.ScaleZ, Max.ScaleZ);
+					ValueRef.ScaleX = LimitEnabled[6].Apply<float>(ValueRef.ScaleX, Min.ScaleX, Max.ScaleX);
+					ValueRef.ScaleY = LimitEnabled[7].Apply<float>(ValueRef.ScaleY, Min.ScaleY, Max.ScaleY);
+					ValueRef.ScaleZ = LimitEnabled[8].Apply<float>(ValueRef.ScaleZ, Min.ScaleZ, Max.ScaleZ);
 				}
 				break;
 			}

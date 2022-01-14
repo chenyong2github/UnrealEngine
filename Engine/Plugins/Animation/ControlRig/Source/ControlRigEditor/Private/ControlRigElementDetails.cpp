@@ -23,7 +23,6 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 #include "AnimationCoreLibrary.h"
-#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
@@ -781,6 +780,21 @@ void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	DetailBuilder.HideCategory(TEXT("RigElement"));
 }
 
+URigHierarchy* FRigBaseElementDetails::GetHierarchyBeingDebugged() const
+{
+	URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
+		
+	if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+	{
+		if(!DebuggedRig->IsSetupModeEnabled())
+		{
+			HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
+		}
+	}
+
+	return HierarchyBeingDebugged;
+}
+
 FRigElementKey FRigBaseElementDetails::GetElementKey() const
 {
 	check(ObjectsBeingCustomized.Num() == 1);
@@ -977,16 +991,7 @@ void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& Prop
 {
 }
 
-namespace ERigTransformElementDetailsTransform
-{
-	enum Type
-	{
-		Initial,
-		Current,
-		Offset,
-		Max
-	};
-}
+TSharedPtr<TArray<ERigTransformElementDetailsTransform::Type>> FRigTransformElementDetails::PickedTransforms;
 
 void FRigTransformElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
@@ -999,17 +1004,16 @@ void FRigTransformElementDetails::RegisterSectionMappings(FPropertyEditorModule&
 	
 	TSharedRef<FPropertySection> TransformSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Transform", LOCTEXT("Transform", "Transform"));
 	TransformSection->AddCategory("General");
+	TransformSection->AddCategory("Value");
 	TransformSection->AddCategory("Transform");
 }
 
 void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& DetailBuilder)
 {
 	URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
-	bool IsSetupModeEnabled = false;
 	if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 	{
-		IsSetupModeEnabled = DebuggedRig->IsSetupModeEnabled(); 
- 		if(!IsSetupModeEnabled)
+ 		if(!DebuggedRig->IsSetupModeEnabled())
 		{
 			HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
 		}
@@ -1017,7 +1021,8 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 
 	TArray<FRigElementKey> Keys = GetElementKeys();
 	Keys = HierarchyBeingDebugged->SortKeys(Keys);
-	const bool bAllControls = !IsAnyElementNotOfType(ERigElementType::Control);
+	const bool bAllControls = !IsAnyElementNotOfType(ERigElementType::Control) && !IsAnyControlOfType(ERigControlType::Bool);
+	bool bShowLimits = false;
 	TArray<ERigTransformElementDetailsTransform::Type> TransformTypes;
 	TArray<FText> ButtonLabels;
 	TArray<FText> ButtonTooltips;
@@ -1039,6 +1044,24 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 			LOCTEXT("CurrentTooltip", "Current animation transform"),
 			LOCTEXT("OffsetTooltip", "Offset transform under the control")
 		};
+
+		bShowLimits = !IsAnyControlNotOfType(ERigControlType::EulerTransform);
+
+		if(bShowLimits)
+		{
+			TransformTypes.Append({
+				ERigTransformElementDetailsTransform::Minimum,
+				ERigTransformElementDetailsTransform::Maximum
+			});
+			ButtonLabels.Append({
+				LOCTEXT("Min", "Min"),
+				LOCTEXT("Max", "Max")
+			});
+			ButtonTooltips.Append({
+				LOCTEXT("ValueMinimumTooltip", "The minimum limit(s) for the control"),
+				LOCTEXT("ValueMaximumTooltip", "The maximum limit(s) for the control")
+			});
+		}
 	}
 	else
 	{
@@ -1061,7 +1084,7 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 	// determine if the transforms are enabled
 	for(int32 Index = 0; Index < TransformTypes.Num(); Index++)
 	{
-		ERigTransformElementDetailsTransform::Type CurrentTransformType = (ERigTransformElementDetailsTransform::Type)Index;
+		const ERigTransformElementDetailsTransform::Type CurrentTransformType = TransformTypes[Index];
 
 		bool bIsTransformEnabled = true;
 		if (IsAnyElementOfType(ERigElementType::Control))
@@ -1104,146 +1127,59 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 		bTransformsEnabled.Add(bIsTransformEnabled);
 	}
 
-	static TAttribute<TArray<ERigTransformElementDetailsTransform::Type>> PickedTransforms = 
-		TArray<ERigTransformElementDetailsTransform::Type>({ERigTransformElementDetailsTransform::Current});
+	if(!PickedTransforms.IsValid())
+	{
+		PickedTransforms = MakeShareable(new TArray<ERigTransformElementDetailsTransform::Type>({ERigTransformElementDetailsTransform::Current}));
+	}
 
 	TSharedPtr<SSegmentedControl<ERigTransformElementDetailsTransform::Type>> TransformChoiceWidget =
 		SSegmentedControl<ERigTransformElementDetailsTransform::Type>::Create(
 			TransformTypes,
 			ButtonLabels,
 			ButtonTooltips,
-			PickedTransforms
+			*PickedTransforms.Get(),
+			true,
+			SSegmentedControl<ERigTransformElementDetailsTransform::Type>::FOnValuesChanged::CreateLambda(
+				[](TArray<ERigTransformElementDetailsTransform::Type> NewSelection)
+				{
+					(*FRigTransformElementDetails::PickedTransforms.Get()) = NewSelection;
+				}
+			)
 		);
 
 	IDetailCategoryBuilder& TransformCategory = DetailBuilder.EditCategory(TEXT("Transform"), LOCTEXT("Transform", "Transform"));
 	AddChoiceWidgetRow(TransformCategory, FText::FromString(TEXT("TransformType")), TransformChoiceWidget.ToSharedRef());
-	
-	TSharedRef<UE::Math::TVector<float>> IsComponentRelative = MakeShareable(new UE::Math::TVector<float>(1.f, 1.f, 1.f));
 
 	using TransformType = FEulerTransform;
 	using NumericType = FVector::FReal;
 
 	SAdvancedTransformInputBox<TransformType>::FArguments TransformWidgetArgs = SAdvancedTransformInputBox<TransformType>::FArguments()
-		.DisplayToggle(false)
-		.DisplayRelativeWorld(true)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.OnGetIsComponentRelative_Lambda(
-			[IsComponentRelative](ESlateTransformComponent::Type InComponent)
-			{
-				return IsComponentRelative->operator[]((int32)InComponent) > 0.f;
-			})
-		.OnIsComponentRelativeChanged_Lambda(
-			[IsComponentRelative](ESlateTransformComponent::Type InComponent, bool bIsRelative)
-			{
-				IsComponentRelative->operator[]((int32)InComponent) = bIsRelative ? 1.f : 0.f;
-			});
-	
+	.DisplayToggle(false)
+	.DisplayRelativeWorld(true)
+	.Font(IDetailLayoutBuilder::GetDetailFont());
+
 	for(int32 Index = 0; Index < ButtonLabels.Num(); Index++)
 	{
-		ERigTransformElementDetailsTransform::Type CurrentTransformType = (ERigTransformElementDetailsTransform::Type)Index;
-
-		auto GetRelativeAbsoluteTransforms = [CurrentTransformType, Keys, HierarchyBeingDebugged](
-			const FRigElementKey& Key,
-			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
-			) -> TPair<TransformType, TransformType>
+		const ERigTransformElementDetailsTransform::Type CurrentTransformType = TransformTypes[Index];
+		ERigControlValueType CurrentValueType = ERigControlValueType::Current;
+		switch(CurrentTransformType)
 		{
-			if(InTransformType == ERigTransformElementDetailsTransform::Max)
+			case ERigTransformElementDetailsTransform::Initial:
 			{
-				InTransformType = CurrentTransformType;
+				CurrentValueType = ERigControlValueType::Initial;
+				break;
 			}
-
-			TransformType RelativeTransform = TransformType::Identity;
-			TransformType AbsoluteTransform = TransformType::Identity;
-
-			const bool bInitial = InTransformType == ERigTransformElementDetailsTransform::Initial; 
-			if(bInitial || InTransformType == ERigTransformElementDetailsTransform::Current)
+			case ERigTransformElementDetailsTransform::Minimum:
 			{
-				RelativeTransform = HierarchyBeingDebugged->GetLocalTransform(Key, bInitial);
-				AbsoluteTransform = HierarchyBeingDebugged->GetGlobalTransform(Key, bInitial);
+				CurrentValueType = ERigControlValueType::Minimum;
+				break;
 			}
-			else
+			case ERigTransformElementDetailsTransform::Maximum:
 			{
-				if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
-				{
-					RelativeTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal);
-					AbsoluteTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, bInitial ? ERigTransformType::InitialGlobal : ERigTransformType::CurrentGlobal);
-				}
+				CurrentValueType = ERigControlValueType::Maximum;
+				break;
 			}
-
-			return TPair<FTransform, FTransform>(RelativeTransform, AbsoluteTransform);
-		};
-
-		auto GetCombinedTransform = [IsComponentRelative, GetRelativeAbsoluteTransforms](
-			const FRigElementKey& Key,
-			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
-			) -> TransformType
-		{
-			const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
-			const TransformType RelativeTransform = TransformPair.Key;
-			const TransformType AbsoluteTransform = TransformPair.Value;
-
-			TransformType Xfo;
-			Xfo.SetLocation((IsComponentRelative->X > 0.f) ? RelativeTransform.GetLocation() : AbsoluteTransform.GetLocation());
-			Xfo.SetRotation((IsComponentRelative->Y > 0.f) ? RelativeTransform.GetRotation() : AbsoluteTransform.GetRotation());
-			Xfo.SetScale3D((IsComponentRelative->Z > 0.f) ? RelativeTransform.GetScale3D() : AbsoluteTransform.GetScale3D());
-
-			return Xfo;
-		};
-
-		auto GetSingleTransform = [GetRelativeAbsoluteTransforms](
-			const FRigElementKey& Key,
-			bool bIsRelative,
-			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
-			) -> TransformType
-		{
-			const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
-			const TransformType RelativeTransform = TransformPair.Key;
-			const TransformType AbsoluteTransform = TransformPair.Value;
-			return bIsRelative ? RelativeTransform : AbsoluteTransform;
-		};
-
-		auto SetSingleTransform = [CurrentTransformType, GetRelativeAbsoluteTransforms, this, IsSetupModeEnabled, HierarchyBeingDebugged](
-			const FRigElementKey& Key,
-			TransformType InTransform,
-			bool bIsRelative)
-		{
-			const bool bInitial = CurrentTransformType == ERigTransformElementDetailsTransform::Initial; 
-
-			TArray<URigHierarchy*> HierarchiesToUpdate;
-			HierarchiesToUpdate.Add(HierarchyBeingDebugged);
-			if(bInitial || IsSetupModeEnabled)
-			{
-				HierarchiesToUpdate.Add(HierarchyBeingCustomized);
-			}
-
-			for(URigHierarchy* HierarchyToUpdate : HierarchiesToUpdate)
-			{
-				if(bInitial || CurrentTransformType == ERigTransformElementDetailsTransform::Current)
-				{
-					if(bIsRelative)
-					{
-						HierarchyToUpdate->SetLocalTransform(Key, InTransform, bInitial, true, true);
-					}
-					else
-					{
-						HierarchyToUpdate->SetGlobalTransform(Key, InTransform, bInitial, true, true);
-					}
-				}
-				else
-				{
-					if(!bIsRelative)
-					{
-						const FTransform ParentTransform = HierarchyToUpdate->GetParentTransform(Key, bInitial);
-						InTransform = FTransform(InTransform).GetRelativeTransform(ParentTransform);
-					}
-							
-					if(FRigControlElement* ControlElement = HierarchyToUpdate->Find<FRigControlElement>(Key))
-					{
-						HierarchyToUpdate->SetControlOffsetTransform(Key, InTransform, bInitial, true, true);
-					}
-				}
-			}
-		};
+		}
 
 		TransformWidgetArgs.Visibility_Lambda([TransformChoiceWidget, Index]() -> EVisibility
 		{
@@ -1252,329 +1188,15 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 
 		TransformWidgetArgs.IsEnabled(bTransformsEnabled[Index]);
 
-		TransformWidgetArgs.OnGetNumericValue_Lambda([Keys, GetCombinedTransform](
-			ESlateTransformComponent::Type Component,
-			ESlateRotationRepresentation::Type Representation,
-			ESlateTransformSubComponent::Type SubComponent) -> TOptional<NumericType>
-		{
-			TOptional<NumericType> FirstValue;
-
-			for(int32 Index = 0; Index < Keys.Num(); Index++)
-			{
-				const FRigElementKey& Key = Keys[Index];
-				TransformType Xfo = GetCombinedTransform(Key);
-
-				TOptional<NumericType> CurrentValue = SAdvancedTransformInputBox<TransformType>::GetNumericValueFromTransform(Xfo, Component, Representation, SubComponent);
-				if(!CurrentValue.IsSet())
-				{
-					return CurrentValue;
-				}
-
-				if(Index == 0)
-				{
-					FirstValue = CurrentValue;
-				}
-				else
-				{
-					if(!FMath::IsNearlyEqual(FirstValue.GetValue(), CurrentValue.GetValue()))
-					{
-						return TOptional<NumericType>();
-					}
-				}
-			}
-			
-			return FirstValue;
-		});
-
-		TransformWidgetArgs.OnNumericValueChanged_Lambda([
+		CreateEulerTransformValueWidgetRow(
+			HierarchyBeingDebugged,
 			Keys,
-			this,
-			IsComponentRelative,
-			GetSingleTransform,
-			SetSingleTransform
-		](
-			ESlateTransformComponent::Type Component,
-			ESlateRotationRepresentation::Type Representation,
-			ESlateTransformSubComponent::Type SubComponent,
-			NumericType InNumericValue)
-		{
-			const bool bIsRelative = IsComponentRelative->Component((int32)Component) > 0.f;
-
-			FScopedTransaction Transaction(LOCTEXT("ChangeNumericValue", "Change Numeric Value"));
-
-			for(const FRigElementKey& Key : Keys)
-			{
-				TransformType Transform = GetSingleTransform(Key, bIsRelative);
-				SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
-				SetSingleTransform(Key, Transform, bIsRelative);
-			}
-		});
-
-		TransformWidgetArgs.OnCopyToClipboard_Lambda([Keys, IsComponentRelative, GetSingleTransform](
-			ESlateTransformComponent::Type InComponent
-			)
-		{
-			if(Keys.Num() == 0)
-			{
-				return;
-			}
-
-			// make sure that we use the same relative setting on all components when copying
-			IsComponentRelative->Y = IsComponentRelative->Z = IsComponentRelative->X;
-			const bool bIsRelative = IsComponentRelative->Y > 0.f; 
-
-			const FRigElementKey& FirstKey = Keys[0];
-			TransformType Xfo = GetSingleTransform(FirstKey, bIsRelative);
-
-			FString Content;
-			switch(InComponent)
-			{
-				case ESlateTransformComponent::Location:
-				{
-					const FVector Data = Xfo.GetLocation();
-					TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
-					break;
-				}
-				case ESlateTransformComponent::Rotation:
-				{
-					const FRotator Data = Xfo.Rotator();
-					TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
-					break;
-				}
-				case ESlateTransformComponent::Scale:
-				{
-					const FVector Data = Xfo.GetScale3D();
-					TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
-					break;
-				}
-				case ESlateTransformComponent::Max:
-				default:
-				{
-					TBaseStructure<TransformType>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
-					break;
-				}
-			}
-
-			if(!Content.IsEmpty())
-			{
-				FPlatformApplicationMisc::ClipboardCopy(*Content);
-			}
-		});
-
-		TransformWidgetArgs.OnPasteFromClipboard_Lambda([Keys, IsComponentRelative, GetSingleTransform, SetSingleTransform](
-			ESlateTransformComponent::Type InComponent
-			)
-		{
-			if(Keys.Num() == 0)
-			{
-				return;
-			}
-			
-			
-			// make sure that we use the same relative setting on all components when pasting
-			IsComponentRelative->Y = IsComponentRelative->Z = IsComponentRelative->X;
-			const bool bIsRelative = IsComponentRelative->Y > 0.f; 
-
-			FString Content;
-			FPlatformApplicationMisc::ClipboardPaste(Content);
-
-			if(Content.IsEmpty())
-			{
-				return;
-			}
-
-			FScopedTransaction Transaction(LOCTEXT("PasteTransform", "Paste Transform"));
-
-			for(const FRigElementKey& Key : Keys)
-			{
-				TransformType Xfo = GetSingleTransform(Key, bIsRelative);
-
-				{
-					class FRigPasteTransformWidgetErrorPipe : public FOutputDevice
-					{
-					public:
-
-						int32 NumErrors;
-
-						FRigPasteTransformWidgetErrorPipe()
-							: FOutputDevice()
-							, NumErrors(0)
-						{
-						}
-
-						virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
-						{
-							UE_LOG(LogControlRig, Error, TEXT("Error Pasting to Widget: %s"), V);
-							NumErrors++;
-						}
-					};
-
-					FRigPasteTransformWidgetErrorPipe ErrorPipe;
-					
-					switch(InComponent)
-					{
-						case ESlateTransformComponent::Location:
-						{
-							FVector Data = Xfo.GetLocation();
-							TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
-							Xfo.SetLocation(Data);
-							break;
-						}
-						case ESlateTransformComponent::Rotation:
-						{
-							FRotator Data = Xfo.Rotator();
-							TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
-							Xfo.SetRotator(Data);
-							break;
-						}
-						case ESlateTransformComponent::Scale:
-						{
-							FVector Data = Xfo.GetScale3D();
-							TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
-							Xfo.SetScale3D(Data);
-							break;
-						}
-						case ESlateTransformComponent::Max:
-						default:
-						{
-							TBaseStructure<TransformType>::Get()->ImportText(*Content, &Xfo, nullptr, PPF_None, &ErrorPipe, TBaseStructure<TransformType>::Get()->GetName(), true);
-							break;
-						}
-					}
-
-					if(ErrorPipe.NumErrors == 0)
-					{
-						SetSingleTransform(Key, Xfo, bIsRelative);
-					}
-				}
-			}
-		});
-
-		TransformWidgetArgs.DiffersFromDefault_Lambda([
+			TransformWidgetArgs,
+			TransformCategory,
+			ButtonLabels[Index],
+			ButtonTooltips[Index],
 			CurrentTransformType,
-			Keys,
-			GetSingleTransform
-			
-		](
-			ESlateTransformComponent::Type InComponent) -> bool
-		{
-			for(const FRigElementKey& Key : Keys)
-			{
-				const TransformType CurrentTransform = GetSingleTransform(Key, true);
-				TransformType DefaultTransform;
-
-				switch(CurrentTransformType)
-				{
-					case ERigTransformElementDetailsTransform::Current:
-					{
-						DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
-						break;
-					}
-					default:
-					{
-						DefaultTransform = TransformType::Identity; 
-						break;
-					}
-				}
-
-				switch(InComponent)
-				{
-					case ESlateTransformComponent::Location:
-					{
-						if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()))
-						{
-							return true;
-						}
-						break;
-					}
-					case ESlateTransformComponent::Rotation:
-					{
-						if(!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()))
-						{
-							return true;
-						}
-						break;
-					}
-					case ESlateTransformComponent::Scale:
-					{
-						if(!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
-						{
-							return true;
-						}
-						break;
-					}
-					default: // also no component whole transform
-					{
-						if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()) ||
-							!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()) ||
-							!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
-						{
-							return true;
-						}
-						break;
-					}
-				}
-			}
-			return false;
-		});
-
-		TransformWidgetArgs.OnResetToDefault_Lambda([CurrentTransformType, Keys, GetSingleTransform, SetSingleTransform](
-			ESlateTransformComponent::Type InComponent)
-		{
-			FScopedTransaction Transaction(LOCTEXT("ResetTransformToDefault", "Reset Transform to Default"));
-			
-			for(const FRigElementKey& Key : Keys)
-			{
-				TransformType CurrentTransform = GetSingleTransform(Key, true);
-				TransformType DefaultTransform;
-
-				switch(CurrentTransformType)
-				{
-					case ERigTransformElementDetailsTransform::Current:
-					{
-						DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
-						break;
-					}
-					default:
-					{
-						DefaultTransform = TransformType::Identity; 
-						break;
-					}
-				}
-
-				switch(InComponent)
-				{
-					case ESlateTransformComponent::Location:
-					{
-						CurrentTransform.SetLocation(DefaultTransform.GetLocation());
-						break;
-					}
-					case ESlateTransformComponent::Rotation:
-					{
-						CurrentTransform.SetRotator(DefaultTransform.Rotator());
-						break;
-					}
-					case ESlateTransformComponent::Scale:
-					{
-						CurrentTransform.SetScale3D(DefaultTransform.GetScale3D());
-						break;
-					}
-					default: // whole transform / max component
-					{
-						CurrentTransform = DefaultTransform;
-						break;
-					}
-				}
-
-				SetSingleTransform(Key, CurrentTransform, true);
-			}
-		});
-
-		SAdvancedTransformInputBox<TransformType>::ConstructGroupedTransformRows(
-			TransformCategory, 
-			ButtonLabels[Index], 
-			ButtonTooltips[Index], 
-			TransformWidgetArgs);
+			CurrentValueType);
 	}
 }
 
@@ -1612,568 +1234,987 @@ void FRigTransformElementDetails::AddChoiceWidgetRow(IDetailCategoryBuilder& InC
 	];
 }
 
-void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
+TSharedPtr<TArray<ERigControlValueType>> FRigControlElementDetails::PickedValueTypes;
+
+void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
+	URigHierarchy* HierarchyBeingDebugged,
+	const TArray<FRigElementKey>& Keys,
+	SAdvancedTransformInputBox<FEulerTransform>::FArguments TransformWidgetArgs,
+	IDetailCategoryBuilder& CategoryBuilder,
+	const FText& Label,
+	const FText& Tooltip,
+	ERigTransformElementDetailsTransform::Type CurrentTransformType,
+	ERigControlValueType ValueType)
 {
-	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
-	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
+	using TransformType = FEulerTransform;
+	using NumericType = FVector::FReal;
 
-	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
-	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
-	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-
-	InCategory.AddCustomRow(PropertyLabel)
-	.NameContent()
-	[
-	    SNew(STextBlock)
-		.Text(PropertyLabel)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-	]
-	.ValueContent()
-	[
-	    SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-	    [
-	        SNew(SCheckBox)
-	        .IsChecked_Lambda([HierarchyPtr, InKey, InValueType]() -> ECheckBoxState
-	        {
-	        	if(HierarchyPtr.IsValid())
-	        	{
-	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-	        		{
-                        bool Value = HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<bool>();
-						return Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-                    }
-	        	}
-	        	return ECheckBoxState::Unchecked;
-	        })
-	        .OnCheckStateChanged_Lambda([HierarchyPtr, InKey, InValueType](ECheckBoxState NewState)
-	        {
-	        	if(HierarchyPtr.IsValid())
-	        	{
-	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-	        		{
-                        const FRigControlValue Value = FRigControlValue::Make<bool>(NewState == ECheckBoxState::Checked);
-						HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-	        			if(InValueType == ERigControlValueType::Initial)
-	        			{
-                            if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
-                            {
-                                Blueprint->Hierarchy->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-                            }
-                        }
-		            }
-	        	}
-	        })
-	    ]
-	]
-	.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
-    {
-		if(HierarchyPtr.IsValid())
+	TSharedRef<UE::Math::TVector<float>> IsComponentRelativeStorage = MakeShareable(new UE::Math::TVector<float>(1.f, 1.f, 1.f));
+	TransformWidgetArgs.OnGetIsComponentRelative_Lambda(
+		[IsComponentRelativeStorage](ESlateTransformComponent::Type InComponent)
 		{
-			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-			{
-				return ControlElement->Settings.IsValueTypeEnabled(InValueType);
-			}
+			return IsComponentRelativeStorage->operator[]((int32)InComponent) > 0.f;
+		})
+	.OnIsComponentRelativeChanged_Lambda(
+		[IsComponentRelativeStorage](ESlateTransformComponent::Type InComponent, bool bIsRelative)
+		{
+			IsComponentRelativeStorage->operator[]((int32)InComponent) = bIsRelative ? 1.f : 0.f;
+		});
+
+	const TSharedPtr<ESlateRotationRepresentation::Type> RotationRepresentationStorage =
+		MakeShareable(new ESlateRotationRepresentation::Type(ESlateRotationRepresentation::Rotator));
+	TransformWidgetArgs.RotationRepresentation(RotationRepresentationStorage);
+	
+	auto IsComponentRelative = [TransformWidgetArgs](int32 Component) -> bool
+	{
+		if(TransformWidgetArgs._OnGetIsComponentRelative.IsBound())
+		{
+			return TransformWidgetArgs._OnGetIsComponentRelative.Execute((ESlateTransformComponent::Type)Component);
 		}
-		return false;
-    })));
-}
+		return true;
+	};
 
-void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
-{
-	FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InKey);
-	if(ControlElement == nullptr)
+	auto ConformComponentRelative = [TransformWidgetArgs, IsComponentRelative](int32 Component)
 	{
-		return;
-	}
-
-	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
-	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
-
-	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
-	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
-	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-
-	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
-    {
-		if(HierarchyPtr.IsValid())
+		if(TransformWidgetArgs._OnIsComponentRelativeChanged.IsBound())
 		{
-            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-            {
-                return ControlElement->Settings.IsValueTypeEnabled(InValueType);
-            }
-        }
-		return false;
-    }));
+			bool bRelative = IsComponentRelative(Component);
+			TransformWidgetArgs._OnIsComponentRelativeChanged.Execute(ESlateTransformComponent::Location, bRelative);
+			TransformWidgetArgs._OnIsComponentRelativeChanged.Execute(ESlateTransformComponent::Rotation, bRelative);
+			TransformWidgetArgs._OnIsComponentRelativeChanged.Execute(ESlateTransformComponent::Scale, bRelative);
+		}
+	};
 
-	const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([EnabledAttribute]()->EVisibility
+	switch(CurrentTransformType)
 	{
-		return EnabledAttribute.Get() ? EVisibility::Visible : EVisibility::Hidden;
-	}));
-
-	if (ControlElement->Settings.ControlEnum)
-	{
-		InCategory.AddCustomRow(PropertyLabel)
-		.Visibility(VisibilityAttribute)
-        .NameContent()
-        [
-            SNew(STextBlock)
-            .Text(PropertyLabel)
-            .Font(IDetailLayoutBuilder::GetDetailFont())
-        ]
-        .ValueContent()
-        .MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-        .MaxDesiredWidth(125.0f * 3.0f)
-        [
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot()
-            [
-                SNew(SEnumComboBox, ControlElement->Settings.ControlEnum)
-                .CurrentValue_Lambda([HierarchyPtr, InKey, InValueType]() -> int32
-                {
-                	if(HierarchyPtr.IsValid())
-                	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                		{
-                            return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<int32>();
-                        }
-                	}
-                	return 0;
-                })
-                .OnEnumSelectionChanged_Lambda([HierarchyPtr, InKey, InValueType](int32 NewSelection, ESelectInfo::Type)
-                {
-                	if(HierarchyPtr.IsValid())
-                	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                		{
-                            const FRigControlValue Value = FRigControlValue::Make<int32>(NewSelection);
-                            HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-                			if(InValueType == ERigControlValueType::Initial)
-                			{
-                                if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
-                                {
-                                    Blueprint->Hierarchy->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-                                }
-                            }
-	                    }
-                	}
-                })
-                .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-            ]
-        ]
-		.IsEnabled(EnabledAttribute);
-	}
-	else
-	{
-		InCategory.AddCustomRow(PropertyLabel)
-		.Visibility(VisibilityAttribute)
-        .NameContent()
-        [
-            SNew(STextBlock)
-            .Text(PropertyLabel)
-            .Font(IDetailLayoutBuilder::GetDetailFont())
-        ]
-        .ValueContent()
-        .MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-        .MaxDesiredWidth(125.0f * 3.0f)
-        [
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot()
-            [
-                SNew(SNumericEntryBox<int32>)
-                .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-                .AllowSpin(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-                .MinSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<int32>
-				{
-				    if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-				    {
-				    	if(HierarchyPtr.IsValid())
-				    	{
-				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-				    		{
-                                return ControlElement->Settings.MinimumValue.Get<int32>();
-                            }
-				    	}
-				    }
-				    return TOptional<int32>();
-				})
-				.MaxSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<int32>
-				{
-				    if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-				    {
-				    	if(HierarchyPtr.IsValid())
-				    	{
-				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-				    		{
-                                return ControlElement->Settings.MaximumValue.Get<int32>();
-                            }
-				    	}
-				    }
-				    return TOptional<int32>();
-				})
-                .Value_Lambda([HierarchyPtr, InKey, InValueType]() -> int32
-                {
-                	if(HierarchyPtr.IsValid())
-                	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                		{
-                            return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<int32>();
-                        }
-                	}
-                	return 0;
-                })
-                .OnValueChanged_Lambda([HierarchyPtr, InKey, InValueType](TOptional<int32> InNewSelection)
-                {
-                	if(InNewSelection.IsSet())
-                	{
-                		if(HierarchyPtr.IsValid())
-                		{
-                			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                			{
-                                const FRigControlValue Value = FRigControlValue::Make<int32>(InNewSelection.GetValue());
-								HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-                				if(InValueType == ERigControlValueType::Initial)
-                				{
-                                    if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
-                                    {
-                                        Blueprint->Hierarchy->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-                                    }
-                                }
-                            }
-                		}
-                	}
-                })
-            ]
-        ]
-		.IsEnabled(EnabledAttribute);
-	}
-}
-
-void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
-{
-	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
-	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
-
-	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
-	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
-	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-
-	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
-    {
-        if(HierarchyPtr.IsValid())
-        {
-            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-            {
-                return ControlElement->Settings.IsValueTypeEnabled(InValueType);
-            }
-        }
-        return false;
-    }));
-
-	const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([EnabledAttribute]()->EVisibility
-    {
-        return EnabledAttribute.Get() ? EVisibility::Visible : EVisibility::Hidden;
-    }));
-
-	InCategory.AddCustomRow(PropertyLabel)
-	.Visibility(VisibilityAttribute)
-    .NameContent()
-    [
-        SNew(STextBlock)
-        .Text(PropertyLabel)
-        .Font(IDetailLayoutBuilder::GetDetailFont())
-    ]
-    .ValueContent()
-    .MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-    .MaxDesiredWidth(125.0f * 3.0f)
-    [
-        SNew(SVerticalBox)
-        + SVerticalBox::Slot()
-        [
-            SNew(SNumericEntryBox<float>)
-            .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-            .AllowSpin(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-            .Value_Lambda([HierarchyPtr, InKey, InValueType]() -> float
-            {
-            	if(HierarchyPtr.IsValid())
-            	{
-            		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-            		{
-                        return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<float>();
-                    }
-            	}
-            	return 0.f;
-            })
-            .MinSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<float>
-            {
-                if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-                {
-                	if(HierarchyPtr.IsValid())
-                	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                		{
-                            return ControlElement->Settings.MinimumValue.Get<float>();
-                        }
-                	}
-                }
-                return TOptional<float>();
-            })
-            .MaxSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<float>
-            {
-                if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-                {
-                	if(HierarchyPtr.IsValid())
-                	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-                		{
-                            return ControlElement->Settings.MaximumValue.Get<float>();
-                        }
-                	}
-                }
-                return TOptional<float>();
-            })
-            .OnValueChanged_Lambda([HierarchyPtr, InKey, InValueType](TOptional<float> InNewSelection)
-            {
-            	if(InNewSelection.IsSet())
-            	{
-            		if(HierarchyPtr.IsValid())
-            		{
-            			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-            			{
-                            const FRigControlValue Value = FRigControlValue::Make<float>(InNewSelection.GetValue());
-                            HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-            				if(InValueType == ERigControlValueType::Initial)
-            				{
-            					if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
-            					{
-            						Blueprint->Hierarchy->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
-            					}
-            				}
-                        }
-            		}
-            	}
-            })
-        ]
-    ]
-	.IsEnabled(EnabledAttribute);
-}
-
-template<typename T>
-T FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return InValue.Get<T>();
-}
-
-template<typename T>
-FRigControlValue FRigControlElementDetails_PackageValue(const T& InValue)
-{
-	return FRigControlValue::Make<T>(InValue);
-}
-
-template<>
-FVector2D FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	const FVector3f TempValue = InValue.Get<FVector3f>();
-	return FVector2D(TempValue.X, TempValue.Y);
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FVector2D& InValue)
-{
-	const FVector3f TempValue(InValue.X, InValue.Y, 0.f);
-	return FRigControlValue::Make<FVector3f>(TempValue);
-}
-
-template<>
-FVector FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return InValue.Get<FVector3f>();
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FVector& InValue)
-{
-	return FRigControlValue::Make<FVector3f>(InValue);
-}
-
-template<>
-FRotator FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return FRotator::MakeFromEuler(InValue.Get<FVector3f>());
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FRotator& InValue)
-{
-	return FRigControlValue::Make<FVector3f>(InValue.Euler());
-}
-
-template<>
-FTransform FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return InValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FTransform& InValue)
-{
-	return FRigControlValue::Make<FRigControlValue::FTransform_Float>(InValue);
-}
-
-template<>
-FTransformNoScale FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return InValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FTransformNoScale& InValue)
-{
-	return FRigControlValue::Make<FRigControlValue::FTransformNoScale_Float>(InValue);
-}
-
-template<>
-FEulerTransform FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
-{
-	return InValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
-}
-
-template<>
-FRigControlValue FRigControlElementDetails_PackageValue(const FEulerTransform& InValue)
-{
-	return FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(InValue);
-}
-
-template<typename T>
-void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
-{
-	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
-	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
-
-	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
-	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
-	const UScriptStruct* ValueStruct = TBaseStructure<T>::Get();
-
-	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(ValueStruct));
-
-	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-
-	const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType, StructToDisplay, ValueStruct]()->EVisibility
-    {
-		if(HierarchyPtr.IsValid())
+		case ERigTransformElementDetailsTransform::Minimum:
+		case ERigTransformElementDetailsTransform::Maximum:
 		{
-			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
-			{
-				// update the struct with the current control value
-				uint8* StructMemory = StructToDisplay->GetStructMemory();
-				const FRigControlValue& ControlValue = HierarchyPtr->GetControlValue(ControlElement, InValueType);
-				T ExtractedValue = FRigControlElementDetails_ExtractValue<T>(ControlValue);
-				ValueStruct->CopyScriptStruct(StructToDisplay->GetStructMemory(), &ExtractedValue, 1);
+			TransformWidgetArgs.AllowEditRotationRepresentation(false);
+			TransformWidgetArgs.DisplayRelativeWorld(false);
+			TransformWidgetArgs.DisplayToggle(true);
+			TransformWidgetArgs.OnGetToggleChecked_Lambda([Keys, HierarchyBeingDebugged, ValueType]
+				(
+					ESlateTransformComponent::Type Component,
+					ESlateRotationRepresentation::Type RotationRepresentation,
+					ESlateTransformSubComponent::Type SubComponent
+				) -> ECheckBoxState
+				{
+					TOptional<bool> FirstValue;
+
+					for(const FRigElementKey& Key : Keys)
+					{
+						if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+						{
+							TOptional<bool> Value;
+
+							switch(ControlElement->Settings.ControlType)
+							{
+								case ERigControlType::Position:
+								case ERigControlType::Rotator:
+								case ERigControlType::Scale:
+								{
+									if(ControlElement->Settings.LimitEnabled.Num() == 3)
+									{
+										const int32 Index = ControlElement->Settings.ControlType == ERigControlType::Rotator ?
+											int32(SubComponent) - int32(ESlateTransformSubComponent::Pitch) :
+											int32(SubComponent) - int32(ESlateTransformSubComponent::X);
+
+										Value = ControlElement->Settings.LimitEnabled[Index].GetForValueType(ValueType);
+									}
+									break;
+								}
+								case ERigControlType::EulerTransform:
+								{
+									if(ControlElement->Settings.LimitEnabled.Num() == 9)
+									{
+										switch(Component)
+										{
+											case ESlateTransformComponent::Location:
+											{
+												switch(SubComponent)
+												{
+													case ESlateTransformSubComponent::X:
+													{
+														Value = ControlElement->Settings.LimitEnabled[0].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Y:
+													{
+														Value = ControlElement->Settings.LimitEnabled[1].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Z:
+													{
+														Value = ControlElement->Settings.LimitEnabled[2].GetForValueType(ValueType);
+														break;
+													}
+													default:
+													{
+														break;
+													}
+												}
+												break;
+											}
+											case ESlateTransformComponent::Rotation:
+											{
+												switch(SubComponent)
+												{
+													case ESlateTransformSubComponent::Pitch:
+													{
+														Value = ControlElement->Settings.LimitEnabled[3].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Yaw:
+													{
+														Value = ControlElement->Settings.LimitEnabled[4].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Roll:
+													{
+														Value = ControlElement->Settings.LimitEnabled[5].GetForValueType(ValueType);
+														break;
+													}
+													default:
+													{
+														break;
+													}
+												}
+												break;
+											}
+											case ESlateTransformComponent::Scale:
+											{
+												switch(SubComponent)
+												{
+													case ESlateTransformSubComponent::X:
+													{
+														Value = ControlElement->Settings.LimitEnabled[6].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Y:
+													{
+														Value = ControlElement->Settings.LimitEnabled[7].GetForValueType(ValueType);
+														break;
+													}
+													case ESlateTransformSubComponent::Z:
+													{
+														Value = ControlElement->Settings.LimitEnabled[8].GetForValueType(ValueType);
+														break;
+													}
+													default:
+													{
+														break;
+													}
+												}
+												break;
+											}
+										}
+									}
+									break;
+								}
+							}
+
+							if(Value.IsSet())
+							{
+								if(FirstValue.IsSet())
+								{
+									if(FirstValue.GetValue() != Value.GetValue())
+									{
+										return ECheckBoxState::Undetermined;
+									}
+								}
+								else
+								{
+									FirstValue = Value;
+								}
+							}
+						}
+					}
+
+					if(!ensure(FirstValue.IsSet()))
+					{
+						return ECheckBoxState::Undetermined;
+					}
+					return FirstValue.GetValue() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				});
 				
-				if(ControlElement->Settings.IsValueTypeEnabled(InValueType))
-                {
-                    return EVisibility::Visible;
-                }
-            }
-		}
-		return EVisibility::Hidden;
-    }));
-
-	IDetailPropertyRow* Row = InCategory.AddExternalStructure(StructToDisplay.ToSharedRef());
-	Row->DisplayName(PropertyLabel);
-	Row->ShouldAutoExpand(true);
-	Row->Visibility(VisibilityAttribute);
-
-	TSharedPtr<SWidget> NameWidget, ValueWidget;
-	Row->GetDefaultWidgets(NameWidget, ValueWidget);
-	
-	const FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateLambda([HierarchyPtr, InKey, StructToDisplay, InValueType]()
-	{
-		if(HierarchyPtr.IsValid())
-		{
-            const FRigControlValue ControlValue = FRigControlElementDetails_PackageValue(*(T*)StructToDisplay->GetStructMemory());
-			HierarchyPtr->SetControlValue(InKey, ControlValue, InValueType, true, true);
-			if(InValueType == ERigControlValueType::Initial)
+			TransformWidgetArgs.OnToggleChanged_Lambda([ValueType, Keys, this]
+			(
+				ESlateTransformComponent::Type Component,
+				ESlateRotationRepresentation::Type RotationRepresentation,
+				ESlateTransformSubComponent::Type SubComponent,
+				ECheckBoxState CheckState
+			)
 			{
-                if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
-                {
-                    Blueprint->Hierarchy->SetControlValue(InKey, ControlValue, InValueType, true);
-                }
-            }
-		}
-	});
+				if(CheckState == ECheckBoxState::Undetermined)
+				{
+					return;
+				}
 
-	TSharedPtr<IPropertyHandle> Handle = Row->GetPropertyHandle();
-	Handle->SetOnPropertyValueChanged(OnStructContentsChangedDelegate);
-	Handle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
-}
+				const bool Value = CheckState == ECheckBoxState::Checked;
 
-void FRigControlElementDetails_SetupValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
-{
-	const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InKey);
-	if(ControlElement == nullptr)
-	{
-		return;
-	}
-	
-	switch(ControlElement->Settings.ControlType)
-	{
-		case ERigControlType::Bool:
-		{
-			if((InValueType == ERigControlValueType::Minimum) || (InValueType == ERigControlValueType::Maximum))
-			{
-				return;
-			}
-			FRigControlElementDetails_SetupBoolValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Integer:
-		{
-			FRigControlElementDetails_SetupIntegerValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Float:
-		{
-			FRigControlElementDetails_SetupFloatValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Vector2D:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector2D>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Position:
-		case ERigControlType::Scale:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Rotator:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FRotator>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::TransformNoScale:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransformNoScale>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::EulerTransform:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FEulerTransform>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
-			break;
-		}
-		case ERigControlType::Transform:
-		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransform>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
+				FScopedTransaction Transaction(LOCTEXT("ChangeLimitToggle", "Change Limit Toggle"));
+				HierarchyBeingCustomized->Modify();
+
+				for(const FRigElementKey& Key : Keys)
+				{
+					if(FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
+					{
+						switch(ControlElement->Settings.ControlType)
+						{
+							case ERigControlType::Position:
+							case ERigControlType::Rotator:
+							case ERigControlType::Scale:
+							{
+								if(ControlElement->Settings.LimitEnabled.Num() == 3)
+								{
+									const int32 Index = ControlElement->Settings.ControlType == ERigControlType::Rotator ?
+										int32(SubComponent) - int32(ESlateTransformSubComponent::Pitch) :
+										int32(SubComponent) - int32(ESlateTransformSubComponent::X);
+
+									ControlElement->Settings.LimitEnabled[Index].SetForValueType(ValueType, Value);
+								}
+								break;
+							}
+							case ERigControlType::EulerTransform:
+							{
+								if(ControlElement->Settings.LimitEnabled.Num() == 9)
+								{
+									switch(Component)
+									{
+										case ESlateTransformComponent::Location:
+										{
+											switch(SubComponent)
+											{
+												case ESlateTransformSubComponent::X:
+												{
+													ControlElement->Settings.LimitEnabled[0].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Y:
+												{
+													ControlElement->Settings.LimitEnabled[1].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Z:
+												{
+													ControlElement->Settings.LimitEnabled[2].SetForValueType(ValueType, Value);
+													break;
+												}
+												default:
+												{
+													break;
+												}
+											}
+											break;
+										}
+										case ESlateTransformComponent::Rotation:
+										{
+											switch(SubComponent)
+											{
+												case ESlateTransformSubComponent::Pitch:
+												{
+													ControlElement->Settings.LimitEnabled[3].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Yaw:
+												{
+													ControlElement->Settings.LimitEnabled[4].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Roll:
+												{
+													ControlElement->Settings.LimitEnabled[5].SetForValueType(ValueType, Value);
+													break;
+												}
+												default:
+												{
+													break;
+												}
+											}
+											break;
+										}
+										case ESlateTransformComponent::Scale:
+										{
+											switch(SubComponent)
+											{
+												case ESlateTransformSubComponent::X:
+												{
+													ControlElement->Settings.LimitEnabled[6].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Y:
+												{
+													ControlElement->Settings.LimitEnabled[7].SetForValueType(ValueType, Value);
+													break;
+												}
+												case ESlateTransformSubComponent::Z:
+												{
+													ControlElement->Settings.LimitEnabled[8].SetForValueType(ValueType, Value);
+													break;
+												}
+												default:
+												{
+													break;
+												}
+											}
+											break;
+										}
+									}
+								}
+								break;
+							}
+						}
+						
+						HierarchyBeingCustomized->SetControlSettings(ControlElement, ControlElement->Settings, true, true, true);
+					}
+				}
+			});
 			break;
 		}
 		default:
 		{
-			ensure(false);
+			TransformWidgetArgs.AllowEditRotationRepresentation(true);
+			TransformWidgetArgs.DisplayRelativeWorld(true);
+			TransformWidgetArgs.DisplayToggle(false);
+			TransformWidgetArgs._OnGetToggleChecked.Unbind();
+			TransformWidgetArgs._OnToggleChanged.Unbind();
 			break;
 		}
 	}
+
+	auto GetRelativeAbsoluteTransforms = [CurrentTransformType, Keys, HierarchyBeingDebugged](
+		const FRigElementKey& Key,
+		ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+		) -> TPair<TransformType, TransformType>
+	{
+		if(InTransformType == ERigTransformElementDetailsTransform::Max)
+		{
+			InTransformType = CurrentTransformType;
+		}
+
+		TransformType RelativeTransform = TransformType::Identity;
+		TransformType AbsoluteTransform = TransformType::Identity;
+
+		const bool bInitial = InTransformType == ERigTransformElementDetailsTransform::Initial; 
+		if(bInitial || InTransformType == ERigTransformElementDetailsTransform::Current)
+		{
+			RelativeTransform = HierarchyBeingDebugged->GetLocalTransform(Key, bInitial);
+			AbsoluteTransform = HierarchyBeingDebugged->GetGlobalTransform(Key, bInitial);
+		}
+		else
+		{
+			if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+			{
+				const ERigControlType ControlType = ControlElement->Settings.ControlType;
+
+				if(InTransformType == ERigTransformElementDetailsTransform::Offset)
+				{
+					RelativeTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
+					AbsoluteTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal);
+				}
+				else if(InTransformType == ERigTransformElementDetailsTransform::Minimum)
+				{
+					switch(ControlType)
+					{
+						case ERigControlType::Position:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+								.Get<FVector3f>();
+							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector3f::OneVector);
+							break;
+						}
+						case ERigControlType::Rotator:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+								.Get<FVector3f>();
+							FRotator Rotator = FRotator::MakeFromEuler(Data);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, Rotator, FVector3f::OneVector);
+							break;
+						}
+						case ERigControlType::Scale:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+								.Get<FVector3f>();
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, FRotator::ZeroRotator, Data);
+							break;
+						}
+						case ERigControlType::EulerTransform:
+						{
+							const FRigControlValue::FEulerTransform_Float EulerTransform = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+								.Get<FRigControlValue::FEulerTransform_Float>();
+							AbsoluteTransform = RelativeTransform = EulerTransform.ToTransform();
+							break;
+						}
+					}
+				}
+				else if(InTransformType == ERigTransformElementDetailsTransform::Maximum)
+				{
+					switch(ControlType)
+					{
+						case ERigControlType::Position:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+								.Get<FVector3f>();
+							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector3f::OneVector);
+							break;
+						}
+						case ERigControlType::Rotator:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+								.Get<FVector3f>();
+							FRotator Rotator = FRotator::MakeFromEuler(Data);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, Rotator, FVector3f::OneVector);
+							break;
+						}
+						case ERigControlType::Scale:
+						{
+							const FVector3f Data = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+								.Get<FVector3f>();
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, FRotator::ZeroRotator, Data);
+							break;
+						}
+						case ERigControlType::EulerTransform:
+						{
+							const FRigControlValue::FEulerTransform_Float EulerTransform = 
+								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+								.Get<FRigControlValue::FEulerTransform_Float>();
+							AbsoluteTransform = RelativeTransform = EulerTransform.ToTransform();
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		return TPair<FTransform, FTransform>(RelativeTransform, AbsoluteTransform);
+	};
+
+	
+	auto GetCombinedTransform = [IsComponentRelative, GetRelativeAbsoluteTransforms](
+		const FRigElementKey& Key,
+		ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+		) -> TransformType
+	{
+		const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
+		const TransformType RelativeTransform = TransformPair.Key;
+		const TransformType AbsoluteTransform = TransformPair.Value;
+
+		TransformType Xfo;
+		Xfo.SetLocation((IsComponentRelative(0)) ? RelativeTransform.GetLocation() : AbsoluteTransform.GetLocation());
+		Xfo.SetRotation((IsComponentRelative(1)) ? RelativeTransform.GetRotation() : AbsoluteTransform.GetRotation());
+		Xfo.SetScale3D((IsComponentRelative(2)) ? RelativeTransform.GetScale3D() : AbsoluteTransform.GetScale3D());
+
+		return Xfo;
+	};
+
+	auto GetSingleTransform = [GetRelativeAbsoluteTransforms](
+		const FRigElementKey& Key,
+		bool bIsRelative,
+		ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+		) -> TransformType
+	{
+		const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
+		const TransformType RelativeTransform = TransformPair.Key;
+		const TransformType AbsoluteTransform = TransformPair.Value;
+		return bIsRelative ? RelativeTransform : AbsoluteTransform;
+	};
+
+	auto SetSingleTransform = [CurrentTransformType, GetRelativeAbsoluteTransforms, this, HierarchyBeingDebugged](
+		const FRigElementKey& Key,
+		TransformType InTransform,
+		bool bIsRelative,
+		bool bSetupUndoRedo)
+	{
+		const bool bCurrent = CurrentTransformType == ERigTransformElementDetailsTransform::Current; 
+		const bool bInitial = CurrentTransformType == ERigTransformElementDetailsTransform::Initial; 
+
+		bool bSetupModeEnabled = false;
+		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			bSetupModeEnabled = DebuggedRig->IsSetupModeEnabled();
+		}
+
+		TArray<URigHierarchy*> HierarchiesToUpdate;
+		HierarchiesToUpdate.Add(HierarchyBeingDebugged);
+		if(!bCurrent || bSetupModeEnabled)
+		{
+			HierarchiesToUpdate.Add(HierarchyBeingCustomized);
+		}
+
+		for(URigHierarchy* HierarchyToUpdate : HierarchiesToUpdate)
+		{
+			if(bInitial || CurrentTransformType == ERigTransformElementDetailsTransform::Current)
+			{
+				if(bIsRelative)
+				{
+					HierarchyToUpdate->SetLocalTransform(Key, InTransform, bInitial, true, bSetupUndoRedo);
+				}
+				else
+				{
+					HierarchyToUpdate->SetGlobalTransform(Key, InTransform, bInitial, true, bSetupUndoRedo);
+				}
+			}
+			else
+			{
+				if(FRigControlElement* ControlElement = HierarchyToUpdate->Find<FRigControlElement>(Key))
+				{
+					const ERigControlType ControlType = ControlElement->Settings.ControlType;
+
+					if(CurrentTransformType == ERigTransformElementDetailsTransform::Offset)
+					{
+						if(!bIsRelative)
+						{
+							const FTransform ParentTransform = HierarchyToUpdate->GetParentTransform(Key, bInitial);
+							InTransform = FTransform(InTransform).GetRelativeTransform(ParentTransform);
+						}
+						HierarchyToUpdate->SetControlOffsetTransform(Key, InTransform, true, true, bSetupUndoRedo);
+					}
+					else if(CurrentTransformType == ERigTransformElementDetailsTransform::Minimum)
+					{
+						switch(ControlType)
+						{
+							case ERigControlType::Position:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetLocation());
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::Rotator:
+							{
+								const FVector3f Euler = InTransform.Rotator().Euler();
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(Euler);
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::Scale:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetScale3D());
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::EulerTransform:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(InTransform);
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
+								break;
+							}
+						}
+					}
+					else if(CurrentTransformType == ERigTransformElementDetailsTransform::Maximum)
+					{
+						switch(ControlType)
+						{
+							case ERigControlType::Position:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetLocation());
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::Rotator:
+							{
+								const FVector3f Euler = InTransform.Rotator().Euler();
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(Euler);
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::Scale:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetScale3D());
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
+								break;
+							}
+							case ERigControlType::EulerTransform:
+							{
+								const FRigControlValue Value = FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(InTransform);
+								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	};
+
+	TransformWidgetArgs.OnGetNumericValue_Lambda([Keys, GetCombinedTransform](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent) -> TOptional<NumericType>
+	{
+		TOptional<NumericType> FirstValue;
+
+		for(int32 Index = 0; Index < Keys.Num(); Index++)
+		{
+			const FRigElementKey& Key = Keys[Index];
+			TransformType Xfo = GetCombinedTransform(Key);
+
+			TOptional<NumericType> CurrentValue = SAdvancedTransformInputBox<TransformType>::GetNumericValueFromTransform(Xfo, Component, Representation, SubComponent);
+			if(!CurrentValue.IsSet())
+			{
+				return CurrentValue;
+			}
+
+			if(Index == 0)
+			{
+				FirstValue = CurrentValue;
+			}
+			else
+			{
+				if(!FMath::IsNearlyEqual(FirstValue.GetValue(), CurrentValue.GetValue()))
+				{
+					return TOptional<NumericType>();
+				}
+			}
+		}
+		
+		return FirstValue;
+	});
+
+	TransformWidgetArgs.OnNumericValueChanged_Lambda(
+	[
+		Keys,
+		this,
+		IsComponentRelative,
+		GetSingleTransform,
+		SetSingleTransform,
+		CurrentTransformType
+	](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		NumericType InNumericValue)
+	{
+		const bool bIsRelative = IsComponentRelative((int32)Component);
+
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType Transform = GetSingleTransform(Key, bIsRelative);
+			TransformType PreviousTransform = Transform;
+			SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
+
+			if(!FRigControlElementDetails::Equals(Transform, PreviousTransform))
+			{
+				if(!SliderTransaction.IsValid())
+				{
+					SliderTransaction = MakeShareable(new FScopedTransaction(NSLOCTEXT("ControlRigElementDetails", "ChangeNumericValue", "Change Numeric Value")));
+					HierarchyBeingCustomized->Modify();
+				}
+							
+				SetSingleTransform(Key, Transform, bIsRelative, false);
+			}
+		}
+	});
+
+	TransformWidgetArgs.OnNumericValueCommitted_Lambda(
+	[
+		Keys,
+		this,
+		IsComponentRelative,
+		GetSingleTransform,
+		SetSingleTransform,
+		CurrentTransformType
+	](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		NumericType InNumericValue,
+		ETextCommit::Type InCommitType)
+	{
+		const bool bIsRelative = IsComponentRelative((int32)Component);
+
+		{
+			FScopedTransaction Transaction(LOCTEXT("ChangeNumericValue", "Change Numeric Value"));
+			if(!SliderTransaction.IsValid())
+			{
+				HierarchyBeingCustomized->Modify();
+			}
+			
+			for(const FRigElementKey& Key : Keys)
+			{
+				TransformType Transform = GetSingleTransform(Key, bIsRelative);
+				SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
+				SetSingleTransform(Key, Transform, bIsRelative, true);
+			}
+		}
+
+		SliderTransaction.Reset();
+	});
+
+	TransformWidgetArgs.OnCopyToClipboard_Lambda([Keys, IsComponentRelative, ConformComponentRelative, GetSingleTransform](
+		ESlateTransformComponent::Type InComponent
+		)
+	{
+		if(Keys.Num() == 0)
+		{
+			return;
+		}
+
+		// make sure that we use the same relative setting on all components when copying
+		ConformComponentRelative(0);
+		const bool bIsRelative = IsComponentRelative(0); 
+
+		const FRigElementKey& FirstKey = Keys[0];
+		TransformType Xfo = GetSingleTransform(FirstKey, bIsRelative);
+
+		FString Content;
+		switch(InComponent)
+		{
+			case ESlateTransformComponent::Location:
+			{
+				const FVector Data = Xfo.GetLocation();
+				TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Rotation:
+			{
+				const FRotator Data = Xfo.Rotator();
+				TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Scale:
+			{
+				const FVector Data = Xfo.GetScale3D();
+				TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Max:
+			default:
+			{
+				TBaseStructure<TransformType>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+				break;
+			}
+		}
+
+		if(!Content.IsEmpty())
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*Content);
+		}
+	});
+
+	TransformWidgetArgs.OnPasteFromClipboard_Lambda([this, Keys, IsComponentRelative, ConformComponentRelative, GetSingleTransform, SetSingleTransform](
+		ESlateTransformComponent::Type InComponent
+		)
+	{
+		if(Keys.Num() == 0)
+		{
+			return;
+		}
+		
+		
+		// make sure that we use the same relative setting on all components when pasting
+		ConformComponentRelative(0);
+		const bool bIsRelative = IsComponentRelative(0); 
+
+		FString Content;
+		FPlatformApplicationMisc::ClipboardPaste(Content);
+
+		if(Content.IsEmpty())
+		{
+			return;
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("PasteTransform", "Paste Transform"));
+		HierarchyBeingCustomized->Modify();
+
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType Xfo = GetSingleTransform(Key, bIsRelative);
+
+			{
+				class FRigPasteTransformWidgetErrorPipe : public FOutputDevice
+				{
+				public:
+
+					int32 NumErrors;
+
+					FRigPasteTransformWidgetErrorPipe()
+						: FOutputDevice()
+						, NumErrors(0)
+					{
+					}
+
+					virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+					{
+						UE_LOG(LogControlRig, Error, TEXT("Error Pasting to Widget: %s"), V);
+						NumErrors++;
+					}
+				};
+
+				FRigPasteTransformWidgetErrorPipe ErrorPipe;
+				
+				switch(InComponent)
+				{
+					case ESlateTransformComponent::Location:
+					{
+						FVector Data = Xfo.GetLocation();
+						TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+						Xfo.SetLocation(Data);
+						break;
+					}
+					case ESlateTransformComponent::Rotation:
+					{
+						FRotator Data = Xfo.Rotator();
+						TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
+						Xfo.SetRotator(Data);
+						break;
+					}
+					case ESlateTransformComponent::Scale:
+					{
+						FVector Data = Xfo.GetScale3D();
+						TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+						Xfo.SetScale3D(Data);
+						break;
+					}
+					case ESlateTransformComponent::Max:
+					default:
+					{
+						TBaseStructure<TransformType>::Get()->ImportText(*Content, &Xfo, nullptr, PPF_None, &ErrorPipe, TBaseStructure<TransformType>::Get()->GetName(), true);
+						break;
+					}
+				}
+
+				if(ErrorPipe.NumErrors == 0)
+				{
+					SetSingleTransform(Key, Xfo, bIsRelative, true);
+				}
+			}
+		}
+	});
+
+	TransformWidgetArgs.DiffersFromDefault_Lambda([
+		CurrentTransformType,
+		Keys,
+		GetSingleTransform
+		
+	](
+		ESlateTransformComponent::Type InComponent) -> bool
+	{
+		for(const FRigElementKey& Key : Keys)
+		{
+			const TransformType CurrentTransform = GetSingleTransform(Key, true);
+			TransformType DefaultTransform;
+
+			switch(CurrentTransformType)
+			{
+				case ERigTransformElementDetailsTransform::Current:
+				{
+					DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
+					break;
+				}
+				default:
+				{
+					DefaultTransform = TransformType::Identity; 
+					break;
+				}
+			}
+
+			switch(InComponent)
+			{
+				case ESlateTransformComponent::Location:
+				{
+					if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()))
+					{
+						return true;
+					}
+					break;
+				}
+				case ESlateTransformComponent::Rotation:
+				{
+					if(!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()))
+					{
+						return true;
+					}
+					break;
+				}
+				case ESlateTransformComponent::Scale:
+				{
+					if(!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+					{
+						return true;
+					}
+					break;
+				}
+				default: // also no component whole transform
+				{
+					if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()) ||
+						!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()) ||
+						!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+					{
+						return true;
+					}
+					break;
+				}
+			}
+		}
+		return false;
+	});
+
+	TransformWidgetArgs.OnResetToDefault_Lambda([this, CurrentTransformType, Keys, GetSingleTransform, SetSingleTransform](
+		ESlateTransformComponent::Type InComponent)
+	{
+		FScopedTransaction Transaction(LOCTEXT("ResetTransformToDefault", "Reset Transform to Default"));
+		HierarchyBeingCustomized->Modify();
+
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType CurrentTransform = GetSingleTransform(Key, true);
+			TransformType DefaultTransform;
+
+			switch(CurrentTransformType)
+			{
+				case ERigTransformElementDetailsTransform::Current:
+				{
+					DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
+					break;
+				}
+				default:
+				{
+					DefaultTransform = TransformType::Identity; 
+					break;
+				}
+			}
+
+			switch(InComponent)
+			{
+				case ESlateTransformComponent::Location:
+				{
+					CurrentTransform.SetLocation(DefaultTransform.GetLocation());
+					break;
+				}
+				case ESlateTransformComponent::Rotation:
+				{
+					CurrentTransform.SetRotator(DefaultTransform.Rotator());
+					break;
+				}
+				case ESlateTransformComponent::Scale:
+				{
+					CurrentTransform.SetScale3D(DefaultTransform.GetScale3D());
+					break;
+				}
+				default: // whole transform / max component
+				{
+					CurrentTransform = DefaultTransform;
+					break;
+				}
+			}
+
+			SetSingleTransform(Key, CurrentTransform, true, true);
+		}
+	});
+
+	SAdvancedTransformInputBox<TransformType>::ConstructGroupedTransformRows(
+		CategoryBuilder, 
+		Label, 
+		Tooltip, 
+		TransformWidgetArgs);
 }
 
 void FRigBoneElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -2188,45 +2229,245 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 {
 	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
 
-	ShapeNameList.Reset();
-	if (BlueprintBeingCustomized)
-	{
-		bool bUseNameSpace = BlueprintBeingCustomized->ShapeLibraries.Num() > 1;
-		for(TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : BlueprintBeingCustomized->ShapeLibraries)
-		{
-			if (!ShapeLibrary.IsValid())
-			{
-				ShapeLibrary.LoadSynchronous();
-			}
-			if (ShapeLibrary.IsValid())
-			{
-				const FString NameSpace = bUseNameSpace ? ShapeLibrary->GetName() + TEXT(".") : FString();
-				ShapeNameList.Add(MakeShared<FString>(NameSpace + ShapeLibrary->DefaultShape.ShapeName.ToString()));
-				for (const FControlRigShapeDefinition& Shape : ShapeLibrary->Shapes)
-				{
-					ShapeNameList.Add(MakeShared<FString>(NameSpace + Shape.ShapeName.ToString()));
-				}
-			}
-		}
-	}
-
 	if (HierarchyBeingCustomized == nullptr)
 	{
 		return;
 	}
 
-	IDetailCategoryBuilder& ControlCategory = DetailBuilder.EditCategory(TEXT("Control"), LOCTEXT("Control", "Control"));
-	IDetailCategoryBuilder& ShapeCategory = DetailBuilder.EditCategory(TEXT("Shape"), LOCTEXT("Shape", "Shape"));
-	IDetailCategoryBuilder& LimitsCategory = DetailBuilder.EditCategory(TEXT("Limits"), LOCTEXT("Limits", "Limits"));
+	ControlElements.Reset();
+	ObjectPerControl.Reset();;
+	
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
+			{
+				ControlElements.Add(ObjectBeingCustomized->GetContent<FRigControlElement>());
+				ObjectPerControl.Add(ObjectBeingCustomized.Get());
+			}
+		}
+	}
 
-	// the transform category should show up after the control, shape and limits categories
+	CustomizeControl(DetailBuilder);
+	CustomizeValue(DetailBuilder);
 	CustomizeTransform(DetailBuilder);
+	CustomizeShape(DetailBuilder);
+}
 
+void FRigControlElementDetails::CustomizeValue(IDetailLayoutBuilder& DetailBuilder)
+{
+	if(ControlElements.Num() == 0)
+	{
+		return;
+	}
+
+	// only show this section if all controls are the same type
+	const ERigControlType ControlType = ControlElements[0].Settings.ControlType;
+	for(const FRigControlElement& ControlElement : ControlElements)
+	{
+		if(ControlElement.Settings.ControlType != ControlType)
+		{
+			return;
+		}
+	}
+
+	// transforms don't show their value here - instead they are shown in the transform section
+	if(ControlType == ERigControlType::EulerTransform ||
+		ControlType == ERigControlType::Transform ||
+		ControlType == ERigControlType::TransformNoScale)
+	{
+		return;
+	}
+	
+	TArray<FText> Labels = {
+		LOCTEXT("Initial", "Initial"),
+		LOCTEXT("Current", "Current")
+	};
+	TArray<FText> Tooltips = {
+		LOCTEXT("ValueInitialTooltip", "The initial animation value of the control"),
+		LOCTEXT("ValueCurrentTooltip", "The current animation value of the control")
+	};
+	TArray<ERigControlValueType> ValueTypes = {
+		ERigControlValueType::Initial,
+		ERigControlValueType::Current
+	};
+
+	// bool doesn't have limits,
+	// transform types already got filtered out earlier.
+	// integers with enums don't have limits either
+	if(ControlType != ERigControlType::Bool &&
+		(ControlType != ERigControlType::Integer || ControlElements[0].Settings.ControlEnum.IsNull()))
+	{
+		Labels.Append({
+			LOCTEXT("Min", "Min"),
+			LOCTEXT("Max", "Max")
+		});
+		Tooltips.Append({
+			LOCTEXT("ValueMinimumTooltip", "The minimum limit(s) for the control"),
+			LOCTEXT("ValueMaximumTooltip", "The maximum limit(s) for the control")
+		});
+		ValueTypes.Append({
+			ERigControlValueType::Minimum,
+			ERigControlValueType::Maximum
+		});
+	}
+	
+	IDetailCategoryBuilder& ValueCategory = DetailBuilder.EditCategory(TEXT("Value"), LOCTEXT("Value", "Value"));
+
+	if(!PickedValueTypes.IsValid())
+	{
+		PickedValueTypes = MakeShareable(new TArray<ERigControlValueType>({ERigControlValueType::Current}));
+	}
+
+	TSharedPtr<SSegmentedControl<ERigControlValueType>> ValueTypeChoiceWidget =
+		SSegmentedControl<ERigControlValueType>::Create(
+			ValueTypes,
+			Labels,
+			Tooltips,
+			*PickedValueTypes.Get(),
+			true,
+			SSegmentedControl<ERigControlValueType>::FOnValuesChanged::CreateLambda(
+				[](TArray<ERigControlValueType> NewSelection)
+				{
+					(*FRigControlElementDetails::PickedValueTypes.Get()) = NewSelection;
+				}
+			)
+		);
+
+	AddChoiceWidgetRow(ValueCategory, FText::FromString(TEXT("ValueType")), ValueTypeChoiceWidget.ToSharedRef());
+
+	using TransformType = FEulerTransform;
+	using NumericType = FVector::FReal;
+
+	TSharedRef<UE::Math::TVector<float>> IsComponentRelative = MakeShareable(new UE::Math::TVector<float>(1.f, 1.f, 1.f));
+
+	for(int32 Index=0; Index < ValueTypes.Num(); Index++)
+	{
+		const ERigControlValueType ValueType = ValueTypes[Index];
+		
+		const TAttribute<EVisibility> VisibilityAttribute =
+			TAttribute<EVisibility>::CreateLambda([ValueType, ValueTypeChoiceWidget]()-> EVisibility
+			{
+				return ValueTypeChoiceWidget->HasValue(ValueType) ? EVisibility::Visible : EVisibility::Collapsed; 
+			});
+		
+		switch(ControlType)
+		{
+			case ERigControlType::Bool:
+			{
+				CreateBoolValueWidgetRow(ValueCategory, Labels[Index], Tooltips[Index], ValueType, VisibilityAttribute);
+				break;
+			}
+			case ERigControlType::Float:
+			{
+				CreateFloatValueWidgetRow(ValueCategory, Labels[Index], Tooltips[Index], ValueType, VisibilityAttribute);
+				break;
+			}
+			case ERigControlType::Integer:
+			{
+				bool bIsEnum = false;
+				const TArray<FRigElementKey> Keys = GetElementKeys();
+				for(const FRigElementKey& Key : Keys)
+				{
+					if(const FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
+					{
+						if(!ControlElement->Settings.ControlEnum.IsNull())
+						{
+							bIsEnum = true;
+							break;
+						}
+					}
+				}
+
+				if(bIsEnum)
+				{
+					CreateEnumValueWidgetRow(ValueCategory, Labels[Index], Tooltips[Index], ValueType, VisibilityAttribute);
+				}
+				else
+				{
+					CreateIntegerValueWidgetRow(ValueCategory, Labels[Index], Tooltips[Index], ValueType, VisibilityAttribute);
+				}
+				break;
+			}
+			case ERigControlType::Vector2D:
+			{
+				CreateVector2DValueWidgetRow(ValueCategory, Labels[Index], Tooltips[Index], ValueType, VisibilityAttribute);
+				break;
+			}
+			case ERigControlType::Position:
+			case ERigControlType::Rotator:
+			case ERigControlType::Scale:
+			{
+				ERigTransformElementDetailsTransform::Type CurrentTransformType = ERigTransformElementDetailsTransform::Current;
+				switch(ValueType)
+				{
+					case ERigControlValueType::Initial:
+					{
+						CurrentTransformType = ERigTransformElementDetailsTransform::Initial;
+						break;
+					}
+					case ERigControlValueType::Minimum:
+					{
+						CurrentTransformType = ERigTransformElementDetailsTransform::Minimum;
+						break;
+					}
+					case ERigControlValueType::Maximum:
+					{
+						CurrentTransformType = ERigTransformElementDetailsTransform::Maximum;
+						break;
+					}
+				}
+
+				SAdvancedTransformInputBox<TransformType>::FArguments TransformWidgetArgs = SAdvancedTransformInputBox<TransformType>::FArguments()
+				.DisplayToggle(false)
+				.DisplayRelativeWorld(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.AllowEditRotationRepresentation(false)
+				.OnGetIsComponentRelative_Lambda(
+					[IsComponentRelative](ESlateTransformComponent::Type InComponent)
+					{
+						return IsComponentRelative->operator[]((int32)InComponent) > 0.f;
+					})
+				.OnIsComponentRelativeChanged_Lambda(
+					[IsComponentRelative](ESlateTransformComponent::Type InComponent, bool bIsRelative)
+					{
+						IsComponentRelative->operator[]((int32)InComponent) = bIsRelative ? 1.f : 0.f;
+					});
+
+				TransformWidgetArgs.Visibility(VisibilityAttribute);
+
+				TransformWidgetArgs.ConstructLocation(ControlType == ERigControlType::Position);
+				TransformWidgetArgs.ConstructRotation(ControlType == ERigControlType::Rotator);
+				TransformWidgetArgs.ConstructScale(ControlType == ERigControlType::Scale);
+
+				CreateEulerTransformValueWidgetRow(
+					GetHierarchyBeingDebugged(),
+					GetElementKeys(),
+					TransformWidgetArgs,
+					ValueCategory,
+					Labels[Index],
+					Tooltips[Index],
+					CurrentTransformType,
+					ValueType);
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+}
+
+void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBuilder)
+{
 	const TSharedPtr<IPropertyHandle> SettingsHandle = DetailBuilder.GetProperty(TEXT("Settings"));
-	const TSharedPtr<IPropertyHandle> DisplayNameHandle = SettingsHandle->GetChildHandle(TEXT("DisplayName"));
-
 	DetailBuilder.HideProperty(SettingsHandle);
 
+	IDetailCategoryBuilder& ControlCategory = DetailBuilder.EditCategory(TEXT("Control"), LOCTEXT("Control", "Control"));
+
+	const TSharedPtr<IPropertyHandle> DisplayNameHandle = SettingsHandle->GetChildHandle(TEXT("DisplayName"));
 	ControlCategory.AddCustomRow(LOCTEXT("DisplayName", "Display Name"))
 	.NameContent()
 	[
@@ -2263,6 +2504,8 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 
 			if (this->HierarchyBeingCustomized && ControlElementsInHierarchy.Num() > 0)
 			{
+				this->HierarchyBeingCustomized->Modify();
+				
 				for(int32 ControlIndex = 0; ControlIndex< ControlElementsInView.Num(); ControlIndex++)
 				{
 					const FRigControlElement& ViewElement = ControlElementsInView[ControlIndex];
@@ -2271,9 +2514,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 					FRigControlValue ValueToSet;
 
 					ControlElement->Settings.ControlType = ViewElement.Settings.ControlType;
-					ControlElement->Settings.bLimitTranslation = false;
-					ControlElement->Settings.bLimitRotation = false;
-					ControlElement->Settings.bLimitScale = false;
+					ControlElement->Settings.LimitEnabled.Reset();
 
 					switch (ControlElement->Settings.ControlType)
 					{
@@ -2285,7 +2526,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Float:
 						{
 							ValueToSet = FRigControlValue::Make<float>(0.f);
-							ControlElement->Settings.bLimitTranslation = true;
+							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<float>(0.f);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<float>(100.f);
 							break;
@@ -2293,7 +2534,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Integer:
 						{
 							ValueToSet = FRigControlValue::Make<int32>(0);
-							ControlElement->Settings.bLimitTranslation = true;
+							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<int32>(0);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<int32>(100);
 							break;
@@ -2301,7 +2542,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Vector2D:
 						{
 							ValueToSet = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
-							ControlElement->Settings.bLimitTranslation = true;
+							ControlElement->Settings.SetupLimitArrayForType(true);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<FVector2D>(FVector2D(100.f, 100.f));
 							break;
@@ -2309,6 +2550,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Position:
 						{
 							ValueToSet = FRigControlValue::Make<FVector>(FVector::ZeroVector);
+							ControlElement->Settings.SetupLimitArrayForType(false);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<FVector>(-FVector::OneVector);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<FVector>(FVector::OneVector);
 							break;
@@ -2316,6 +2558,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Scale:
 						{
 							ValueToSet = FRigControlValue::Make<FVector>(FVector::OneVector);
+							ControlElement->Settings.SetupLimitArrayForType(false);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<FVector>(FVector::ZeroVector);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<FVector>(FVector::OneVector);
 							break;
@@ -2323,6 +2566,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Rotator:
 						{
 							ValueToSet = FRigControlValue::Make<FRotator>(FRotator::ZeroRotator);
+							ControlElement->Settings.SetupLimitArrayForType(false, false);
 							ControlElement->Settings.MinimumValue = FRigControlValue::Make<FRotator>(FRotator::ZeroRotator);
 							ControlElement->Settings.MaximumValue = FRigControlValue::Make<FRotator>(FRotator(180.f, 180.f, 180.f));
 							break;
@@ -2330,6 +2574,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						case ERigControlType::Transform:
 						{
 							ValueToSet = FRigControlValue::Make<FTransform>(FTransform::Identity);
+							ControlElement->Settings.SetupLimitArrayForType(false, false, false);
 							ControlElement->Settings.MinimumValue = ValueToSet;
 							ControlElement->Settings.MaximumValue = ValueToSet;
 							break;
@@ -2338,6 +2583,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						{
 							FTransformNoScale Identity = FTransform::Identity;
 							ValueToSet = FRigControlValue::Make<FTransformNoScale>(Identity);
+							ControlElement->Settings.SetupLimitArrayForType(false, false, false);
 							ControlElement->Settings.MinimumValue = ValueToSet;
 							ControlElement->Settings.MaximumValue = ValueToSet;
 							break;
@@ -2346,6 +2592,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						{
 							FEulerTransform Identity = FEulerTransform::Identity;
 							ValueToSet = FRigControlValue::Make<FEulerTransform>(Identity);
+							ControlElement->Settings.SetupLimitArrayForType(false, false, false);
 							ControlElement->Settings.MinimumValue = ValueToSet;
 							ControlElement->Settings.MaximumValue = ValueToSet;
 							break;
@@ -2357,7 +2604,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						}
 					}
 
-					this->HierarchyBeingCustomized->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+					this->HierarchyBeingCustomized->SetControlSettings(ControlElement, ControlElement->Settings, true, true, true);
 					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true, false, true);
 					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true, false, true);
 
@@ -2368,9 +2615,9 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 						if(FRigControlElement* OtherControlElement = this->BlueprintBeingCustomized->Hierarchy->Find<FRigControlElement>(ControlElement->GetKey()))
 						{
 							OtherControlElement->Settings = ControlElement->Settings;
-							this->BlueprintBeingCustomized->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true);
-							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true);
+							this->BlueprintBeingCustomized->Hierarchy->SetControlSettings(OtherControlElement, OtherControlElement->Settings, true, true, true);
+							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(OtherControlElement, ValueToSet, ERigControlValueType::Initial, true);
+							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(OtherControlElement, ValueToSet, ERigControlValueType::Current, true);
 						}
 					}
 				}
@@ -2381,50 +2628,6 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	));
 
 	ControlCategory.AddProperty(ControlTypeHandle.ToSharedRef());
-	ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
-
-	// any but bool controls show the offset + shape + limits
-	const bool bNeedsShapeProperties = IsAnyControlNotOfType(ERigControlType::Bool);
-	if (bNeedsShapeProperties)
-	{
-		// setup offset
-		{
-			const TSharedPtr<IPropertyHandle> OffsetHandle = DetailBuilder.GetProperty(TEXT("Offset"));
-			const TSharedPtr<IPropertyHandle> InitialHandle = OffsetHandle->GetChildHandle(TEXT("Initial"));
-			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
-			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
-			ControlCategory.AddProperty(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Offset Transform")));
-		}
-	}
-
-	if(IsAnyControlOfType(ERigControlType::Float) ||
-		IsAnyControlOfType(ERigControlType::Integer) ||
-		IsAnyControlOfType(ERigControlType::Vector2D) ||
-		IsAnyControlOfType(ERigControlType::Position) ||
-		IsAnyControlOfType(ERigControlType::Transform) ||
-		IsAnyControlOfType(ERigControlType::TransformNoScale) ||
-		IsAnyControlOfType(ERigControlType::EulerTransform))
-	{
-		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitTranslation"));
-		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Translation")));
-	}
-
-	if(IsAnyControlOfType(ERigControlType::Rotator) ||
-		IsAnyControlOfType(ERigControlType::Transform) ||
-		IsAnyControlOfType(ERigControlType::TransformNoScale) ||
-		IsAnyControlOfType(ERigControlType::EulerTransform))
-	{
-		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitRotation"));
-		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Rotation")));
-	}
-
-	if(IsAnyControlOfType(ERigControlType::Scale) ||
-		IsAnyControlOfType(ERigControlType::Transform) ||
-		IsAnyControlOfType(ERigControlType::EulerTransform))
-	{
-		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitScale"));
-		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Scale")));
-	}
 
 	if(!(IsAnyControlNotOfType(ERigControlType::Integer) &&
 		IsAnyControlNotOfType(ERigControlType::Float) &&
@@ -2434,122 +2637,13 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		ControlCategory.AddProperty(PrimaryAxisHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Primary Axis")));
 	}
 
-	if (bNeedsShapeProperties)
-	{
-		const TSharedPtr<IPropertyHandle> DrawLimitsHandle = SettingsHandle->GetChildHandle(TEXT("bDrawLimits"));
-		LimitsCategory.AddProperty(DrawLimitsHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Draw Limits")));
-	}
-
-	TArray<FRigControlElement> ControlElements;
-	TArray<UDetailsViewWrapperObject*> ObjectPerControl;
-	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
-	{
-		if(ObjectBeingCustomized.IsValid())
-		{
-			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
-			{
-				ControlElements.Add(ObjectBeingCustomized->GetContent<FRigControlElement>());
-				ObjectPerControl.Add(ObjectBeingCustomized.Get());
-			}
-		}
-	}
-
-	// only setup value widgets if there is only ony control selected
-	if(ControlElements.Num() == 1)
-	{
-		URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
-		
-		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
-		{
-			if(!DebuggedRig->IsSetupModeEnabled())
-			{
-				HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
-			}
-		}
-		
-		FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Current, ControlElements[0].GetKey(), HierarchyBeingDebugged);
-
-		switch (ControlElements[0].Settings.ControlType)
-		{
-			case ERigControlType::Bool:
-			case ERigControlType::Float:
-			case ERigControlType::Integer:
-			case ERigControlType::Vector2D:
-			{
-				FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Initial,ControlElements[0].GetKey(), HierarchyBeingCustomized);
-				break;
-			}
-			default:
-			{
-				break;
-			}
-		}
-		
-		
-		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Minimum, ControlElements[0].GetKey(), HierarchyBeingCustomized);
-		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Maximum, ControlElements[0].GetKey(), HierarchyBeingCustomized);
-	}
-
-	if (bNeedsShapeProperties)
-	{
-		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
-		.DisplayName(FText::FromString(TEXT("Enabled")));
-		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
-		.DisplayName(FText::FromString(TEXT("Visible")));
-
-		IDetailGroup& ShapeProperitesGroup = ShapeCategory.AddGroup(TEXT("Shape Properties"), LOCTEXT("ShapeProperties", "Shape Properties"));
-		ShapeProperitesGroup.HeaderRow().NameContent()
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("ShapeProperties", "Shape Properties"))
-			.ToolTipText(LOCTEXT("ShapeProperties", "Customize the properties of the shape"))
-		]
-		.CopyAction(FUIAction(
-			FExecuteAction::CreateSP(this, &FRigControlElementDetails::OnCopyShapeProperties)))
-		.PasteAction(FUIAction(
-			FExecuteAction::CreateSP(this, &FRigControlElementDetails::OnPasteShapeProperties)));
-		
-		{
-			// setup shape transform
-			{
-				TSharedPtr<IPropertyHandle> ShapeHandle = DetailBuilder.GetProperty(TEXT("Shape"));
-				TSharedPtr<IPropertyHandle> InitialHandle = ShapeHandle->GetChildHandle(TEXT("Initial"));
-				TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
-				ShapeTransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
-				ShapeProperitesGroup.AddPropertyRow(ShapeTransformHandle.ToSharedRef())
-				.IsEnabled(TAttribute<bool>::CreateSP(this, &FRigControlElementDetails::IsShapeEnabled));
-			}
-
-			ShapeNameHandle = SettingsHandle->GetChildHandle(TEXT("ShapeName"));
-			ShapeProperitesGroup.AddPropertyRow(ShapeNameHandle.ToSharedRef()).CustomWidget()
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("Shape")))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
-			]
-			.ValueContent()
-			[
-				SNew(SControlRigShapeNameList, ControlElements, BlueprintBeingCustomized)
-				.OnGetNameListContent(this, &FRigControlElementDetails::GetShapeNameList)
-				.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
-			];
-
-			ShapeColorHandle = SettingsHandle->GetChildHandle(TEXT("ShapeColor"));
-			ShapeProperitesGroup.AddPropertyRow(ShapeColorHandle.ToSharedRef())
-			.DisplayName(FText::FromString(TEXT("Color")));
-		}
-	}
-
 	if(IsAnyControlOfType(ERigControlType::Integer))
 	{
 		const TSharedPtr<IPropertyHandle> ControlEnumHandle = SettingsHandle->GetChildHandle(TEXT("ControlEnum"));
 		ControlCategory.AddProperty(ControlEnumHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Control Enum")));
 
 		ControlEnumHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
-			[this, PropertyUtilities, ControlElements, ObjectPerControl]()
+			[this, PropertyUtilities]()
 			{
 				PropertyUtilities->ForceRefresh();
 
@@ -2566,7 +2660,9 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 							int32 Maximum = (int32)ControlEnum->GetMaxEnumValue() - 1;
 							ControlBeingCustomized->Settings.MinimumValue.Set<int32>(0);
 							ControlBeingCustomized->Settings.MaximumValue.Set<int32>(Maximum);
-							HierarchyBeingCustomized->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlBeingCustomized);
+							ControlBeingCustomized->Settings.LimitEnabled.Reset();
+							ControlBeingCustomized->Settings.LimitEnabled.Add(true);
+							HierarchyBeingCustomized->SetControlSettings(ControlBeingCustomized, ControlBeingCustomized->Settings, true, true, true);
 
 							FRigControlValue InitialValue = HierarchyBeingCustomized->GetControlValue(ControlBeingCustomized, ERigControlValueType::Initial);
 							FRigControlValue CurrentValue = HierarchyBeingCustomized->GetControlValue(ControlBeingCustomized, ERigControlValueType::Current);
@@ -2583,7 +2679,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 								{
 									DebuggedControlElement->Settings.MinimumValue.Set<int32>(0);
                                     DebuggedControlElement->Settings.MaximumValue.Set<int32>(Maximum);
-                                    DebuggedHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, DebuggedControlElement);
+									DebuggedHierarchy->SetControlSettings(DebuggedControlElement, DebuggedControlElement->Settings, true, true, true);
 
                                     DebuggedHierarchy->SetControlValue(DebuggedControlElement, InitialValue, ERigControlValueType::Initial);
                                     DebuggedHierarchy->SetControlValue(DebuggedControlElement, CurrentValue, ERigControlValueType::Current);
@@ -2598,9 +2694,472 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		));
 		
 	}
+
+	ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
+
+	const TSharedPtr<IPropertyHandle> CustomizationHandle = SettingsHandle->GetChildHandle(TEXT("Customization"));
+	const TSharedPtr<IPropertyHandle> AvailableSpacesHandle = CustomizationHandle->GetChildHandle(TEXT("AvailableSpaces"));
+	ControlCategory.AddProperty(AvailableSpacesHandle.ToSharedRef());
+
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
+
+	const TSharedPtr<IPropertyHandle> DrawLimitsHandle = SettingsHandle->GetChildHandle(TEXT("bDrawLimits"));
 	
-	IDetailCategoryBuilder& AnimationCategory = DetailBuilder.EditCategory(TEXT("Animation"), LOCTEXT("Animation", "Animation"));
-	AnimationCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("Customization"))->GetChildHandle(TEXT("AvailableSpaces")).ToSharedRef());
+	ControlCategory
+	.AddProperty(DrawLimitsHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Draw Limits")))
+	.IsEnabled(TAttribute<bool>::CreateLambda([Keys, HierarchyBeingDebugged]() -> bool
+	{
+		for(const FRigElementKey& Key : Keys)
+		{
+			if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+			{
+				if(ControlElement->Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}));
+}
+
+void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuilder)
+{
+	// bools don't have shapes
+	if(IsAnyControlOfType(ERigControlType::Bool))
+	{
+		return;
+	}
+
+	TSharedPtr<IPropertyHandle> ShapeHandle = DetailBuilder.GetProperty(TEXT("Shape"));
+	TSharedPtr<IPropertyHandle> InitialHandle = ShapeHandle->GetChildHandle(TEXT("Initial"));
+	TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
+	ShapeTransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
+	
+	ShapeNameList.Reset();
+	if (BlueprintBeingCustomized)
+	{
+		const bool bUseNameSpace = BlueprintBeingCustomized->ShapeLibraries.Num() > 1;
+		for(TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : BlueprintBeingCustomized->ShapeLibraries)
+		{
+			if (!ShapeLibrary.IsValid())
+			{
+				ShapeLibrary.LoadSynchronous();
+			}
+			if (ShapeLibrary.IsValid())
+			{
+				const FString NameSpace = bUseNameSpace ? ShapeLibrary->GetName() + TEXT(".") : FString();
+				ShapeNameList.Add(MakeShared<FString>(NameSpace + ShapeLibrary->DefaultShape.ShapeName.ToString()));
+				for (const FControlRigShapeDefinition& Shape : ShapeLibrary->Shapes)
+				{
+					ShapeNameList.Add(MakeShared<FString>(NameSpace + Shape.ShapeName.ToString()));
+				}
+			}
+		}
+	}
+
+	IDetailCategoryBuilder& ShapeCategory = DetailBuilder.EditCategory(TEXT("Shape"), LOCTEXT("Shape", "Shape"));
+
+	const TSharedPtr<IPropertyHandle> SettingsHandle = DetailBuilder.GetProperty(TEXT("Settings"));
+
+	ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
+	.DisplayName(FText::FromString(TEXT("Enabled")));
+	ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
+	.DisplayName(FText::FromString(TEXT("Visible")));
+
+	IDetailGroup& ShapePropertiesGroup = ShapeCategory.AddGroup(TEXT("Shape Properties"), LOCTEXT("ShapeProperties", "Shape Properties"));
+	ShapePropertiesGroup.HeaderRow().NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("ShapeProperties", "Shape Properties"))
+		.ToolTipText(LOCTEXT("ShapeProperties", "Customize the properties of the shape"))
+	]
+	.CopyAction(FUIAction(
+		FExecuteAction::CreateSP(this, &FRigControlElementDetails::OnCopyShapeProperties)))
+	.PasteAction(FUIAction(
+		FExecuteAction::CreateSP(this, &FRigControlElementDetails::OnPasteShapeProperties)));
+	
+	// setup shape transform
+	using TransformType = FEulerTransform;
+	using NumericType = FVector::FReal;
+	
+	SAdvancedTransformInputBox<TransformType>::FArguments TransformWidgetArgs = SAdvancedTransformInputBox<TransformType>::FArguments()
+	.DisplayToggle(false)
+	.DisplayRelativeWorld(false)
+	.Font(IDetailLayoutBuilder::GetDetailFont());
+
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
+	Keys = HierarchyBeingDebugged->SortKeys(Keys);
+
+	auto GetShapeTransform = [HierarchyBeingDebugged](
+		const FRigElementKey& Key
+		) -> TransformType
+	{
+		if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+		{
+			return HierarchyBeingDebugged->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
+		}
+		return TransformType::Identity;
+	};
+
+	auto SetShapeTransform = [this](
+		const FRigElementKey& Key,
+		const TransformType& InTransform,
+		bool bSetupUndo
+		)
+	{
+		if(FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
+		{
+			HierarchyBeingCustomized->SetControlShapeTransform(ControlElement, InTransform, ERigTransformType::InitialLocal, bSetupUndo, true, bSetupUndo);
+		}
+	};
+
+	TransformWidgetArgs.OnGetNumericValue_Lambda([Keys, HierarchyBeingDebugged, GetShapeTransform](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent) -> TOptional<NumericType>
+	{
+		TOptional<NumericType> FirstValue;
+
+		for(int32 Index = 0; Index < Keys.Num(); Index++)
+		{
+			const FRigElementKey& Key = Keys[Index];
+			TransformType Xfo = GetShapeTransform(Key);
+
+			TOptional<NumericType> CurrentValue = SAdvancedTransformInputBox<TransformType>::GetNumericValueFromTransform(Xfo, Component, Representation, SubComponent);
+			if(!CurrentValue.IsSet())
+			{
+				return CurrentValue;
+			}
+
+			if(Index == 0)
+			{
+				FirstValue = CurrentValue;
+			}
+			else
+			{
+				if(!FMath::IsNearlyEqual(FirstValue.GetValue(), CurrentValue.GetValue()))
+				{
+					return TOptional<NumericType>();
+				}
+			}
+		}
+		
+		return FirstValue;
+	});
+
+	TransformWidgetArgs.OnNumericValueChanged_Lambda(
+	[
+		Keys,
+		this,
+		GetShapeTransform,
+		SetShapeTransform
+	](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		NumericType InNumericValue)
+	{
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType Transform = GetShapeTransform(Key);
+			TransformType PreviousTransform = Transform;
+			SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
+
+			if(!FRigControlElementDetails::Equals(Transform, PreviousTransform))
+			{
+				if(!SliderTransaction.IsValid())
+				{
+					SliderTransaction = MakeShareable(new FScopedTransaction(NSLOCTEXT("ControlRigElementDetails", "ChangeNumericValue", "Change Numeric Value")));
+					HierarchyBeingCustomized->Modify();
+				}
+				SetShapeTransform(Key, Transform, false);
+			}
+		}
+	});
+
+	TransformWidgetArgs.OnNumericValueCommitted_Lambda(
+	[
+		Keys,
+		this,
+		GetShapeTransform,
+		SetShapeTransform
+	](
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		NumericType InNumericValue,
+		ETextCommit::Type InCommitType)
+	{
+		{
+			FScopedTransaction Transaction(LOCTEXT("ChangeNumericValue", "Change Numeric Value"));
+			this->HierarchyBeingCustomized->Modify();
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				TransformType Transform = GetShapeTransform(Key);
+				TransformType PreviousTransform = Transform;
+				SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
+				if(!FRigControlElementDetails::Equals(Transform, PreviousTransform))
+				{
+					SetShapeTransform(Key, Transform, true);
+				}
+			}
+		}
+		SliderTransaction.Reset();
+	});
+
+	TransformWidgetArgs.OnCopyToClipboard_Lambda([Keys, GetShapeTransform](
+		ESlateTransformComponent::Type InComponent
+		)
+	{
+		if(Keys.Num() == 0)
+		{
+			return;
+		}
+
+		const FRigElementKey& FirstKey = Keys[0];
+		TransformType Xfo = GetShapeTransform(FirstKey);
+
+		FString Content;
+		switch(InComponent)
+		{
+			case ESlateTransformComponent::Location:
+			{
+				const FVector Data = Xfo.GetLocation();
+				TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Rotation:
+			{
+				const FRotator Data = Xfo.Rotator();
+				TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Scale:
+			{
+				const FVector Data = Xfo.GetScale3D();
+				TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ESlateTransformComponent::Max:
+			default:
+			{
+				TBaseStructure<TransformType>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+				break;
+			}
+		}
+
+		if(!Content.IsEmpty())
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*Content);
+		}
+	});
+
+	TransformWidgetArgs.OnPasteFromClipboard_Lambda([Keys, GetShapeTransform, SetShapeTransform, this](
+		ESlateTransformComponent::Type InComponent
+		)
+	{
+		if(Keys.Num() == 0)
+		{
+			return;
+		}
+
+		FString Content;
+		FPlatformApplicationMisc::ClipboardPaste(Content);
+
+		if(Content.IsEmpty())
+		{
+			return;
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("PasteTransform", "Paste Transform"));
+		HierarchyBeingCustomized->Modify();
+
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType Xfo = GetShapeTransform(Key);
+
+			{
+				class FRigPasteTransformWidgetErrorPipe : public FOutputDevice
+				{
+				public:
+
+					int32 NumErrors;
+
+					FRigPasteTransformWidgetErrorPipe()
+						: FOutputDevice()
+						, NumErrors(0)
+					{
+					}
+
+					virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+					{
+						UE_LOG(LogControlRig, Error, TEXT("Error Pasting to Widget: %s"), V);
+						NumErrors++;
+					}
+				};
+
+				FRigPasteTransformWidgetErrorPipe ErrorPipe;
+				
+				switch(InComponent)
+				{
+					case ESlateTransformComponent::Location:
+					{
+						FVector Data = Xfo.GetLocation();
+						TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+						Xfo.SetLocation(Data);
+						break;
+					}
+					case ESlateTransformComponent::Rotation:
+					{
+						FRotator Data = Xfo.Rotator();
+						TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
+						Xfo.SetRotator(Data);
+						break;
+					}
+					case ESlateTransformComponent::Scale:
+					{
+						FVector Data = Xfo.GetScale3D();
+						TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+						Xfo.SetScale3D(Data);
+						break;
+					}
+					case ESlateTransformComponent::Max:
+					default:
+					{
+						TBaseStructure<TransformType>::Get()->ImportText(*Content, &Xfo, nullptr, PPF_None, &ErrorPipe, TBaseStructure<TransformType>::Get()->GetName(), true);
+						break;
+					}
+				}
+
+				if(ErrorPipe.NumErrors == 0)
+				{
+					SetShapeTransform(Key, Xfo, true);
+				}
+			}
+		}
+	});
+
+	TransformWidgetArgs.DiffersFromDefault_Lambda([
+		Keys,
+		GetShapeTransform
+	](
+		ESlateTransformComponent::Type InComponent) -> bool
+	{
+		for(const FRigElementKey& Key : Keys)
+		{
+			const TransformType CurrentTransform = GetShapeTransform(Key);
+			const TransformType DefaultTransform = TransformType::Identity;
+
+			switch(InComponent)
+			{
+				case ESlateTransformComponent::Location:
+				{
+					if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()))
+					{
+						return true;
+					}
+					break;
+				}
+				case ESlateTransformComponent::Rotation:
+				{
+					if(!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()))
+					{
+						return true;
+					}
+					break;
+				}
+				case ESlateTransformComponent::Scale:
+				{
+					if(!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+					{
+						return true;
+					}
+					break;
+				}
+				default: // also no component whole transform
+				{
+					if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()) ||
+						!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()) ||
+						!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+					{
+						return true;
+					}
+					break;
+				}
+			}
+		}
+		return false;
+	});
+
+	TransformWidgetArgs.OnResetToDefault_Lambda([Keys, GetShapeTransform, SetShapeTransform, this](
+		ESlateTransformComponent::Type InComponent)
+	{
+		FScopedTransaction Transaction(LOCTEXT("ResetTransformToDefault", "Reset Transform to Default"));
+		HierarchyBeingCustomized->Modify();
+
+		for(const FRigElementKey& Key : Keys)
+		{
+			TransformType CurrentTransform = GetShapeTransform(Key);
+			const TransformType DefaultTransform = TransformType::Identity; 
+
+			switch(InComponent)
+			{
+				case ESlateTransformComponent::Location:
+				{
+					CurrentTransform.SetLocation(DefaultTransform.GetLocation());
+					break;
+				}
+				case ESlateTransformComponent::Rotation:
+				{
+					CurrentTransform.SetRotator(DefaultTransform.Rotator());
+					break;
+				}
+				case ESlateTransformComponent::Scale:
+				{
+					CurrentTransform.SetScale3D(DefaultTransform.GetScale3D());
+					break;
+				}
+				default: // whole transform / max component
+				{
+					CurrentTransform = DefaultTransform;
+					break;
+				}
+			}
+
+			SetShapeTransform(Key, CurrentTransform, true);
+		}
+	});
+
+	SAdvancedTransformInputBox<TransformType>::ConstructGroupedTransformRows(
+		ShapeCategory, 
+		LOCTEXT("ShapeTransform", "Shape Transform"), 
+		LOCTEXT("ShapeTransformTooltip", "The relative transform of the shape under the control"),
+		TransformWidgetArgs);
+
+	ShapeNameHandle = SettingsHandle->GetChildHandle(TEXT("ShapeName"));
+	ShapePropertiesGroup.AddPropertyRow(ShapeNameHandle.ToSharedRef()).CustomWidget()
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(FText::FromString(TEXT("Shape")))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
+	]
+	.ValueContent()
+	[
+		SNew(SControlRigShapeNameList, ControlElements, BlueprintBeingCustomized)
+		.OnGetNameListContent(this, &FRigControlElementDetails::GetShapeNameList)
+		.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
+	];
+
+	ShapeColorHandle = SettingsHandle->GetChildHandle(TEXT("ShapeColor"));
+	ShapePropertiesGroup.AddPropertyRow(ShapeColorHandle.ToSharedRef())
+	.DisplayName(FText::FromString(TEXT("Color")));
 }
 
 void FRigControlElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
@@ -2610,15 +3169,11 @@ void FRigControlElementDetails::RegisterSectionMappings(FPropertyEditorModule& P
 	TSharedRef<FPropertySection> ControlSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Control", LOCTEXT("Control", "Control"));
 	ControlSection->AddCategory("General");
 	ControlSection->AddCategory("Control");
-	ControlSection->AddCategory("Animation");
+	ControlSection->AddCategory("Value");
 
 	TSharedRef<FPropertySection> ShapeSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Shape", LOCTEXT("Shape", "Shape"));
 	ShapeSection->AddCategory("General");
 	ShapeSection->AddCategory("Shape");
-
-	TSharedRef<FPropertySection> LimitsSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Limits", LOCTEXT("Limits", "Limits"));
-	LimitsSection->AddCategory("General");
-	LimitsSection->AddCategory("Limits");
 }
 
 bool FRigControlElementDetails::IsShapeEnabled() const
@@ -2638,37 +3193,6 @@ bool FRigControlElementDetails::IsShapeEnabled() const
 		}
 	}
 	return false;
-}
-
-bool FRigControlElementDetails::IsEnabled(ERigControlValueType InValueType) const
-{
-	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
-	{
-		if(ObjectBeingCustomized.IsValid())
-		{
-			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
-			{
-				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-				
-				switch (InValueType)
-				{
-					case ERigControlValueType::Minimum:
-					case ERigControlValueType::Maximum:
-					{
-						if(ControlElement.Settings.bLimitTranslation || ControlElement.Settings.bLimitRotation || ControlElement.Settings.bLimitScale)
-						{
-							return true;
-						}
-					}
-					default:
-					{
-						break;
-					}
-				}
-			}
-		}
-	}
-	return true;
 }
 
 const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetShapeNameList() const
@@ -2734,7 +3258,7 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 
 				if(GetHierarchy())
 				{
-					GetHierarchy()->SetControlSettings(ControlElement.GetKey(), ControlElement.Settings, false, false, true);
+					GetHierarchy()->SetControlSettings(ControlElement.GetKey(), ControlElement.Settings, true, true, true);
 				}
 			}
 		}
@@ -2824,6 +3348,504 @@ void FRigControlElementDetails::OnPasteShapeProperties()
 			}		
 			ShapeTransformHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}		
+	}
+}
+
+void FRigControlElementDetails::CreateBoolValueWidgetRow(
+	IDetailCategoryBuilder& CategoryBuilder,
+	const FText& Label,
+	const FText& Tooltip,
+	ERigControlValueType ValueType,
+	TAttribute<EVisibility> Visibility)
+{
+	const bool bCurrent = ValueType == ERigControlValueType::Current;
+	const bool bInitial = ValueType == ERigControlValueType::Initial;
+
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
+	URigHierarchy* HierarchyToChange = bCurrent ? HierarchyBeingDebugged : HierarchyBeingCustomized;
+	Keys = HierarchyBeingDebugged->SortKeys(Keys);
+
+	const static TCHAR* TrueText = TEXT("True");
+	const static TCHAR* FalseText = TEXT("False");
+
+	CategoryBuilder.AddCustomRow(Label)
+	.Visibility(Visibility)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(Label)
+		.ToolTipText(Tooltip)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SNew(SCheckBox)
+		.IsChecked_Lambda([ValueType, Keys, HierarchyBeingDebugged]() -> ECheckBoxState
+		{
+			const bool FirstValue = HierarchyBeingDebugged->GetControlValue<bool>(Keys[0], ValueType);
+			for(int32 Index = 1; Index < Keys.Num(); Index++)
+			{
+				const bool SecondValue = HierarchyBeingDebugged->GetControlValue<bool>(Keys[Index], ValueType);
+				if(FirstValue != SecondValue)
+				{
+					return ECheckBoxState::Undetermined;
+				}
+			}
+			return FirstValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+		.OnCheckStateChanged_Lambda([ValueType, Keys, HierarchyToChange](ECheckBoxState NewState)
+		{
+			if(NewState == ECheckBoxState::Undetermined)
+			{
+				return;
+			}
+
+			const bool Value = NewState == ECheckBoxState::Checked;
+			FScopedTransaction Transaction(LOCTEXT("ChangeValue", "Change Value"));
+			HierarchyToChange->Modify();
+			for(const FRigElementKey& Key : Keys)
+			{
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<bool>(Value), ValueType, true, true); 
+			}
+		})
+	]
+	.CopyAction(FUIAction(
+	FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
+		{
+			const bool FirstValue = HierarchyBeingDebugged->GetControlValue<bool>(Keys[0], ValueType);
+			FPlatformApplicationMisc::ClipboardCopy(FirstValue ? TrueText : FalseText);
+		}),
+		FCanExecuteAction())
+	)
+	.PasteAction(FUIAction(
+		FExecuteAction::CreateLambda([ValueType, Keys, HierarchyToChange]()
+		{
+			FString Content;
+			FPlatformApplicationMisc::ClipboardPaste(Content);
+
+			const bool Value = FToBoolHelper::FromCStringWide(*Content);
+			FScopedTransaction Transaction(LOCTEXT("ChangeValue", "Change Value"));
+			HierarchyToChange->Modify();
+			for(const FRigElementKey& Key : Keys)
+			{
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<bool>(Value), ValueType, true, true); 
+			}
+		}),
+		FCanExecuteAction())
+	)
+	.OverrideResetToDefault(FResetToDefaultOverride::Create(
+		TAttribute<bool>::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]() -> bool
+		{
+			const bool FirstValue = HierarchyBeingDebugged->GetControlValue<bool>(Keys[0], ValueType);
+			const bool ReferenceValue = ValueType == ERigControlValueType::Initial ? false :
+				HierarchyBeingDebugged->GetControlValue<bool>(Keys[0], ERigControlValueType::Initial);
+
+			return FirstValue != ReferenceValue;
+		}),
+		FSimpleDelegate::CreateLambda([ValueType, Keys, HierarchyToChange]()
+		{
+			FScopedTransaction Transaction(LOCTEXT("ResetValueToDefault", "Reset Value To Default"));
+			HierarchyToChange->Modify();
+			for(const FRigElementKey& Key : Keys)
+			{
+				const bool ReferenceValue = ValueType == ERigControlValueType::Initial ? false :
+					HierarchyToChange->GetControlValue<bool>(Keys[0], ERigControlValueType::Initial);
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<bool>(ReferenceValue), ValueType, true, true); 
+			}
+		})
+	));
+}
+
+void FRigControlElementDetails::CreateFloatValueWidgetRow(
+	IDetailCategoryBuilder& CategoryBuilder,
+	const FText& Label,
+	const FText& Tooltip,
+	ERigControlValueType ValueType,
+	TAttribute<EVisibility> Visibility)
+{
+	CreateNumericValueWidgetRow<float>(CategoryBuilder, Label, Tooltip, ValueType, Visibility);
+}
+
+void FRigControlElementDetails::CreateIntegerValueWidgetRow(
+	IDetailCategoryBuilder& CategoryBuilder,
+	const FText& Label,
+	const FText& Tooltip,
+	ERigControlValueType ValueType,
+	TAttribute<EVisibility> Visibility)
+{
+	CreateNumericValueWidgetRow<int32>(CategoryBuilder, Label, Tooltip, ValueType, Visibility);
+}
+
+void FRigControlElementDetails::CreateEnumValueWidgetRow(IDetailCategoryBuilder& CategoryBuilder, const FText& Label,
+	const FText& Tooltip, ERigControlValueType ValueType, TAttribute<EVisibility> Visibility)
+{
+	const bool bCurrent = ValueType == ERigControlValueType::Current;
+	const bool bInitial = ValueType == ERigControlValueType::Initial;
+	
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
+	URigHierarchy* HierarchyToChange = bCurrent ? HierarchyBeingDebugged : HierarchyBeingCustomized;
+	Keys = HierarchyBeingDebugged->SortKeys(Keys);
+
+	UEnum* Enum = nullptr;
+	for(const FRigElementKey& Key : Keys)
+	{
+		if(const FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
+		{
+			Enum = ControlElement->Settings.ControlEnum.Get();
+			if(Enum)
+			{
+				break;
+			}
+		}
+	}
+
+	check(Enum != nullptr);
+
+	CategoryBuilder.AddCustomRow(Label)
+	.Visibility(Visibility)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(Label)
+		.ToolTipText(Tooltip)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SNew(SEnumComboBox, Enum)
+		.CurrentValue_Lambda([ValueType, Keys, HierarchyBeingDebugged]() -> int32
+		{
+			const int32 FirstValue = HierarchyBeingDebugged->GetControlValue<int32>(Keys[0], ValueType);
+			for(int32 Index = 1; Index < Keys.Num(); Index++)
+			{
+				const int32 SecondValue = HierarchyBeingDebugged->GetControlValue<int32>(Keys[Index], ValueType);
+				if(FirstValue != SecondValue)
+				{
+					return INDEX_NONE;
+				}
+			}
+			return FirstValue;
+		})
+		.OnEnumSelectionChanged_Lambda([ValueType, Keys, HierarchyToChange](int32 NewSelection, ESelectInfo::Type)
+		{
+			if(NewSelection == INDEX_NONE)
+			{
+				return;
+			}
+
+			FScopedTransaction Transaction(LOCTEXT("ChangeValue", "Change Value"));
+			HierarchyToChange->Modify();
+			for(const FRigElementKey& Key : Keys)
+			{
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<int32>(NewSelection), ValueType, true, true); 
+			}
+		})
+		.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+	]
+	.CopyAction(FUIAction(
+	FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
+		{
+			const int32 FirstValue = HierarchyBeingDebugged->GetControlValue<int32>(Keys[0], ValueType);
+			FPlatformApplicationMisc::ClipboardCopy(*FString::FromInt(FirstValue));
+		}),
+		FCanExecuteAction())
+	)
+	.PasteAction(FUIAction(
+		FExecuteAction::CreateLambda([ValueType, Keys, HierarchyToChange]()
+		{
+			FString Content;
+			FPlatformApplicationMisc::ClipboardPaste(Content);
+			if(!Content.IsNumeric())
+			{
+				return;
+			}
+
+			const int32 Value = FCString::Atoi(*Content);
+			FScopedTransaction Transaction(LOCTEXT("ChangeValue", "Change Value"));
+			HierarchyToChange->Modify();
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<int32>(Value), ValueType, true, true); 
+			}
+		}),
+		FCanExecuteAction())
+	)
+	.OverrideResetToDefault(FResetToDefaultOverride::Create(
+		TAttribute<bool>::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]() -> bool
+		{
+			const int32 FirstValue = HierarchyBeingDebugged->GetControlValue<int32>(Keys[0], ValueType);
+			const int32 ReferenceValue = ValueType == ERigControlValueType::Initial ? 0 :
+				HierarchyBeingDebugged->GetControlValue<int32>(Keys[0], ERigControlValueType::Initial);
+
+			return FirstValue != ReferenceValue;
+		}),
+		FSimpleDelegate::CreateLambda([ValueType, Keys, HierarchyToChange]()
+		{
+			FScopedTransaction Transaction(LOCTEXT("ResetValueToDefault", "Reset Value To Default"));
+			HierarchyToChange->Modify();
+			for(const FRigElementKey& Key : Keys)
+			{
+				const int32 ReferenceValue = ValueType == ERigControlValueType::Initial ? 0 :
+					HierarchyToChange->GetControlValue<int32>(Keys[0], ERigControlValueType::Initial);
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<int32>(ReferenceValue), ValueType, true, true); 
+			}
+		})
+	));
+}
+
+void FRigControlElementDetails::CreateVector2DValueWidgetRow(
+	IDetailCategoryBuilder& CategoryBuilder, 
+	const FText& Label, 
+	const FText& Tooltip, 
+	ERigControlValueType ValueType,
+	TAttribute<EVisibility> Visibility)
+{
+	const bool bCurrent = ValueType == ERigControlValueType::Current;
+	const bool bInitial = ValueType == ERigControlValueType::Initial;
+	const bool bShowToggle = (ValueType == ERigControlValueType::Minimum) || (ValueType == ERigControlValueType::Maximum);
+	
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
+	URigHierarchy* HierarchyToChange = bCurrent ? HierarchyBeingDebugged : HierarchyBeingCustomized;
+	Keys = HierarchyBeingDebugged->SortKeys(Keys);
+
+	using SNumericVector2DInputBox = SNumericVectorInputBox<float, FVector2f, 2>;
+	TSharedPtr<SNumericVector2DInputBox> VectorInputBox;
+	
+	FDetailWidgetRow& WidgetRow = CategoryBuilder.AddCustomRow(Label);
+	TAttribute<ECheckBoxState> ToggleXChecked, ToggleYChecked;
+	FOnCheckStateChanged OnToggleXChanged, OnToggleYChanged;
+
+	if(bShowToggle)
+	{
+		auto ToggleChecked = [ValueType, Keys, HierarchyBeingDebugged](int32 Index) -> ECheckBoxState
+		{
+			TOptional<bool> FirstValue;
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+				{
+					if(ControlElement->Settings.LimitEnabled.Num() == 2)
+					{
+						const bool Value = ControlElement->Settings.LimitEnabled[Index].GetForValueType(ValueType);
+						if(FirstValue.IsSet())
+						{
+							if(FirstValue.GetValue() != Value)
+							{
+								return ECheckBoxState::Undetermined;
+							}
+						}
+						else
+						{
+							FirstValue = Value;
+						}
+					}
+				}
+			}
+
+			if(!ensure(FirstValue.IsSet()))
+			{
+				return ECheckBoxState::Undetermined;
+			}
+
+			return FirstValue.GetValue() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		};
+		
+		ToggleXChecked = TAttribute<ECheckBoxState>::CreateLambda([ToggleChecked]() -> ECheckBoxState
+		{
+			return ToggleChecked(0);
+		});
+
+		ToggleYChecked = TAttribute<ECheckBoxState>::CreateLambda([ToggleChecked]() -> ECheckBoxState
+		{
+			return ToggleChecked(1);
+		});
+
+		auto OnToggleChanged = [ValueType, Keys, HierarchyToChange](ECheckBoxState InValue, int32 Index)
+		{
+			if(InValue == ECheckBoxState::Undetermined)
+			{
+				return;
+			}
+					
+			FScopedTransaction Transaction(LOCTEXT("ChangeLimitToggle", "Change Limit Toggle"));
+			HierarchyToChange->Modify();
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				if(FRigControlElement* ControlElement = HierarchyToChange->Find<FRigControlElement>(Key))
+				{
+					if(ControlElement->Settings.LimitEnabled.Num() == 2)
+					{
+						ControlElement->Settings.LimitEnabled[Index].SetForValueType(ValueType, InValue == ECheckBoxState::Checked);
+						HierarchyToChange->SetControlSettings(ControlElement, ControlElement->Settings, true, true, true);
+					}
+				}
+			}
+		};
+
+		OnToggleXChanged = FOnCheckStateChanged::CreateLambda([OnToggleChanged](ECheckBoxState InValue)
+		{
+			OnToggleChanged(InValue, 0);
+		});
+
+		OnToggleYChanged = FOnCheckStateChanged::CreateLambda([OnToggleChanged](ECheckBoxState InValue)
+		{
+			OnToggleChanged(InValue, 1);
+		});
+	}
+
+	auto GetValue = [ValueType, Keys, HierarchyBeingDebugged](int32 Component) -> TOptional<float>
+	{
+		const float FirstValue = HierarchyBeingDebugged->GetControlValue<FVector2f>(Keys[0], ValueType).Component(Component);
+		for(int32 Index = 1; Index < Keys.Num(); Index++)
+		{
+			const float SecondValue = HierarchyBeingDebugged->GetControlValue<FVector2f>(Keys[Index], ValueType).Component(Component);
+			if(FirstValue != SecondValue)
+			{
+				return TOptional<float>();
+			}
+		}
+		return FirstValue;
+	};
+
+	auto OnValueChanged = [ValueType, Keys, HierarchyBeingDebugged, HierarchyToChange, this]
+		(TOptional<float> InValue, ETextCommit::Type InCommitType, bool bSetupUndo, int32 Component)
+		{
+			if(!InValue.IsSet())
+			{
+				return;
+			}
+
+			const float Value = InValue.GetValue();
+		
+			for(const FRigElementKey& Key : Keys)
+			{
+				FVector2f Vector = HierarchyBeingDebugged->GetControlValue<FVector2f>(Key, ValueType);
+				if(!FMath::IsNearlyEqual(Vector.Component(Component), Value))
+				{
+					if(!SliderTransaction.IsValid())
+					{
+						SliderTransaction = MakeShareable(new FScopedTransaction(NSLOCTEXT("ControlRigElementDetails", "ChangeValue", "Change Value")));
+						HierarchyToChange->Modify();
+					}
+					Vector.Component(Component) = Value;
+					HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<FVector2f>(Vector), ValueType, bSetupUndo, bSetupUndo);
+				};
+			}
+
+			if(bSetupUndo)
+			{
+				SliderTransaction.Reset();
+			}
+	};
+
+	WidgetRow
+	.Visibility(Visibility)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(Label)
+		.ToolTipText(Tooltip)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SAssignNew(VectorInputBox, SNumericVector2DInputBox)
+        .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+        .AllowSpin(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
+		.SpinDelta(0.01f)
+		.X_Lambda([GetValue]() -> TOptional<float>
+        {
+			return GetValue(0);
+        })
+        .Y_Lambda([GetValue]() -> TOptional<float>
+		{
+			return GetValue(1);
+		})
+		.OnXChanged_Lambda([OnValueChanged](TOptional<float> InValue)
+		{
+			OnValueChanged(InValue, ETextCommit::Default, false, 0);
+		})
+		.OnYChanged_Lambda([OnValueChanged](TOptional<float> InValue)
+		{
+			OnValueChanged(InValue, ETextCommit::Default, false, 1);
+		})
+		.OnXCommitted_Lambda([OnValueChanged](TOptional<float> InValue, ETextCommit::Type InCommitType)
+		{
+			OnValueChanged(InValue, InCommitType, true, 0);
+		})
+		.OnYCommitted_Lambda([OnValueChanged](TOptional<float> InValue, ETextCommit::Type InCommitType)
+		{
+			OnValueChanged(InValue, InCommitType, true, 1);
+		})
+		 .DisplayToggle(bShowToggle)
+		 .ToggleXChecked(ToggleXChecked)
+		 .ToggleYChecked(ToggleYChecked)
+		 .OnToggleXChanged(OnToggleXChanged)
+		 .OnToggleYChanged(OnToggleYChanged)
+	]
+	.CopyAction(FUIAction(
+	FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
+		{
+			const FVector2f Data = HierarchyBeingDebugged->GetControlValue<FVector2f>(Keys[0], ValueType);
+			FString Content = Data.ToString();
+			FPlatformApplicationMisc::ClipboardCopy(*Content);
+		}),
+		FCanExecuteAction())
+	)
+	.PasteAction(FUIAction(
+		FExecuteAction::CreateLambda([ValueType, Keys, HierarchyToChange]()
+		{
+			FString Content;
+			FPlatformApplicationMisc::ClipboardPaste(Content);
+			if(Content.IsEmpty())
+			{
+				return;
+			}
+
+			FVector2f Data = FVector2f::ZeroVector;
+			Data.InitFromString(Content);
+
+			FScopedTransaction Transaction(NSLOCTEXT("ControlRigElementDetails", "ChangeValue", "Change Value"));
+			HierarchyToChange->Modify();
+			
+			for(const FRigElementKey& Key : Keys)
+			{
+				HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<FVector2f>(Data), ValueType, true, true); 
+			}
+		}),
+		FCanExecuteAction())
+	);
+
+	if(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
+	{
+		WidgetRow.OverrideResetToDefault(FResetToDefaultOverride::Create(
+			TAttribute<bool>::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]() -> bool
+			{
+				const FVector2f FirstValue = HierarchyBeingDebugged->GetControlValue<FVector2f>(Keys[0], ValueType);
+				const FVector2f ReferenceValue = ValueType == ERigControlValueType::Initial ? FVector2f::ZeroVector :
+					HierarchyBeingDebugged->GetControlValue<FVector2f>(Keys[0], ERigControlValueType::Initial);
+
+				return !(FirstValue - ReferenceValue).IsNearlyZero();
+			}),
+			FSimpleDelegate::CreateLambda([ValueType, Keys, HierarchyToChange]()
+			{
+				FScopedTransaction Transaction(LOCTEXT("ResetValueToDefault", "Reset Value To Default"));
+				HierarchyToChange->Modify();
+				
+				for(const FRigElementKey& Key : Keys)
+				{
+					const FVector2f ReferenceValue = ValueType == ERigControlValueType::Initial ? FVector2f::ZeroVector :
+						HierarchyToChange->GetControlValue<FVector2f>(Keys[0], ERigControlValueType::Initial);
+					HierarchyToChange->SetControlValue(Key, FRigControlValue::Make<FVector2f>(ReferenceValue), ValueType, true, true); 
+				}
+			})
+		));
 	}
 }
 

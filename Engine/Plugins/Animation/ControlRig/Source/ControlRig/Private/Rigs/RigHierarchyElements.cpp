@@ -408,14 +408,12 @@ void FRigBoneElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOt
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigControlSettings::FRigControlSettings()
-: ControlType(ERigControlType::Transform)
+: ControlType(ERigControlType::EulerTransform)
 , DisplayName(NAME_None)
 , PrimaryAxis(ERigControlAxis::X)
 , bIsCurve(false)
 , bAnimatable(true)
-, bLimitTranslation(false)
-, bLimitRotation(false)
-, bLimitScale(false)
+, LimitEnabled()
 , bDrawLimits(true)
 , MinimumValue()
 , MaximumValue()
@@ -452,9 +450,7 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << PrimaryAxisName;
 	Ar << bIsCurve;
 	Ar << bAnimatable;
-	Ar << bLimitTranslation;
-	Ar << bLimitRotation;
-	Ar << bLimitScale;
+	Ar << LimitEnabled;
 	Ar << bDrawLimits;
 	Ar << MinimumValue;
 	Ar << MaximumValue;
@@ -477,14 +473,25 @@ void FRigControlSettings::Load(FArchive& Ar)
 	FName ControlTypeName, PrimaryAxisName;
 	FString ControlEnumPathName;
 
+	bool bLimitTranslation_DEPRECATED = false;
+	bool bLimitRotation_DEPRECATED = false;
+	bool bLimitScale_DEPRECATED = false;
+
 	Ar << ControlTypeName;
 	Ar << DisplayName;
 	Ar << PrimaryAxisName;
 	Ar << bIsCurve;
 	Ar << bAnimatable;
-	Ar << bLimitTranslation;
-	Ar << bLimitRotation;
-	Ar << bLimitScale;
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::PerChannelLimits)
+	{
+		Ar << bLimitTranslation_DEPRECATED;
+		Ar << bLimitRotation_DEPRECATED;
+		Ar << bLimitScale_DEPRECATED;
+	}
+	else
+	{
+		Ar << LimitEnabled;
+	}
 	Ar << bDrawLimits;
 
 	FTransform MinimumTransform, MaximumTransform;
@@ -529,6 +536,11 @@ void FRigControlSettings::Load(FArchive& Ar)
 	{
 		Customization.AvailableSpaces.Reset();
 	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::PerChannelLimits)
+	{
+		SetupLimitArrayForType(bLimitTranslation_DEPRECATED, bLimitRotation_DEPRECATED, bLimitScale_DEPRECATED);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -557,15 +569,7 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(bLimitTranslation != InOther.bLimitTranslation)
-	{
-		return false;
-	}
-	if(bLimitRotation != InOther.bLimitRotation)
-	{
-		return false;
-	}
-	if(bLimitScale != InOther.bLimitScale)
+	if(LimitEnabled != InOther.LimitEnabled)
 	{
 		return false;
 	}
@@ -617,6 +621,66 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	}
 
 	return true;
+}
+
+void FRigControlSettings::SetupLimitArrayForType(bool bLimitTranslation, bool bLimitRotation, bool bLimitScale)
+{
+	switch(ControlType)
+	{
+		case ERigControlType::Integer:
+		case ERigControlType::Float:
+		{
+			LimitEnabled.SetNum(1);
+			LimitEnabled[0].Set(bLimitTranslation);
+			break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			LimitEnabled.SetNum(2);
+			LimitEnabled[0] = LimitEnabled[1].Set(bLimitTranslation);
+			break;
+		}
+		case ERigControlType::Position:
+		{
+			LimitEnabled.SetNum(3);
+			LimitEnabled[0] = LimitEnabled[1] = LimitEnabled[2].Set(bLimitTranslation);
+			break;
+		}
+		case ERigControlType::Scale:
+		{
+			LimitEnabled.SetNum(3);
+			LimitEnabled[0] = LimitEnabled[1] = LimitEnabled[2].Set(bLimitScale);
+			break;
+		}
+		case ERigControlType::Rotator:
+		{
+			LimitEnabled.SetNum(3);
+			LimitEnabled[0] = LimitEnabled[1] = LimitEnabled[2].Set(bLimitRotation);
+			break;
+		}
+		case ERigControlType::TransformNoScale:
+		{
+			LimitEnabled.SetNum(6);
+			LimitEnabled[0] = LimitEnabled[1] = LimitEnabled[2].Set(bLimitTranslation);
+			LimitEnabled[3] = LimitEnabled[4] = LimitEnabled[5].Set(bLimitRotation);
+			break;
+		}
+		case ERigControlType::EulerTransform:
+		case ERigControlType::Transform:
+		{
+			LimitEnabled.SetNum(9);
+			LimitEnabled[0] = LimitEnabled[1] = LimitEnabled[2].Set(bLimitTranslation);
+			LimitEnabled[3] = LimitEnabled[4] = LimitEnabled[5].Set(bLimitRotation);
+			LimitEnabled[6] = LimitEnabled[7] = LimitEnabled[8].Set(bLimitScale);
+			break;
+		}
+		case ERigControlType::Bool:
+		default:
+		{
+			LimitEnabled.Reset();
+			break;
+		}
+	}
 }
 
 void FRigControlElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)

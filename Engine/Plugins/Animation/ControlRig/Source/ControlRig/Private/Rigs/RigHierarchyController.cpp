@@ -313,6 +313,10 @@ FRigElementKey URigHierarchyController::AddControl(
 		NewElement->Key.Type = ERigElementType::Control;
 		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
 		NewElement->Settings = InSettings;
+		if(NewElement->Settings.LimitEnabled.IsEmpty())
+		{
+			NewElement->Settings.SetupLimitArrayForType();
+		}
 		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
 		
 		NewElement->Offset.Set(ERigTransformType::InitialLocal, InOffsetTransform);  
@@ -529,6 +533,10 @@ bool URigHierarchyController::SetControlSettings(FRigElementKey InKey, FRigContr
 #endif
 
 	ControlElement->Settings = InSettings;
+	if(ControlElement->Settings.LimitEnabled.IsEmpty())
+	{
+		ControlElement->Settings.SetupLimitArrayForType(false, false, false);
+	}
 
 	FRigControlValue InitialValue = Hierarchy->GetControlValue(ControlElement, ERigControlValueType::Initial);
 	FRigControlValue CurrentValue = Hierarchy->GetControlValue(ControlElement, ERigControlValueType::Current);
@@ -1237,9 +1245,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.PrimaryAxis = Control.PrimaryAxis;
 		Settings.bIsCurve = Control.bIsCurve;
 		Settings.bAnimatable = Control.bAnimatable;
-		Settings.bLimitTranslation = Control.bLimitTranslation;
-		Settings.bLimitRotation = Control.bLimitRotation;
-		Settings.bLimitScale = Control.bLimitScale;
+		Settings.SetupLimitArrayForType(Control.bLimitTranslation, Control.bLimitRotation, Control.bLimitScale);
 		Settings.bDrawLimits = Control.bDrawLimits;
 		Settings.MinimumValue = Control.MinimumValue;
 		Settings.MaximumValue = Control.MaximumValue;
@@ -2427,9 +2433,7 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		{
 			if(FRigControlElement* DuplicatedControlElement = Hierarchy->Find<FRigControlElement>(DuplicatedKeys[Index]))
 			{
-				TGuardValue<bool> DisableTranslationLimit(DuplicatedControlElement->Settings.bLimitTranslation, false);
-				TGuardValue<bool> DisableRotationLimit(DuplicatedControlElement->Settings.bLimitRotation, false);
-				TGuardValue<bool> DisableScaleLimit(DuplicatedControlElement->Settings.bLimitScale, false);
+				TGuardValue<TArray<FRigControlLimitEnabled>> DisableLimits(DuplicatedControlElement->Settings.LimitEnabled, TArray<FRigControlLimitEnabled>());
 
 				// mirror offset
 				FTransform OriginalGlobalOffsetTransform = Hierarchy->GetGlobalControlOffsetTransform(OriginalKeys[Index]);

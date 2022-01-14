@@ -309,10 +309,13 @@ FRigUnit_GetControlTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 {
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Transform;
+
 	const FRigElementKey Root = Controller->AddControl(
 		TEXT("Root"),
 		FRigElementKey(),
-		FRigControlSettings(),
+		Settings,
 		FRigControlValue::Make(FTransform(FVector(1.f, 0.f, 0.f))),
 		FTransform::Identity,
 		FTransform::Identity);
@@ -320,7 +323,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 	const FRigElementKey ControlA = Controller->AddControl(
 	    TEXT("ControlA"),
 	    Root,
-	    FRigControlSettings(),
+	    Settings,
 	    FRigControlValue::Make(FTransform(FVector(1.f, 2.f, 3.f))),
 	    FTransform::Identity,
 	    FTransform::Identity);

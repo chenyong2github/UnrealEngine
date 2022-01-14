@@ -135,6 +135,7 @@ void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenc
 
             FRigControlSettings Settings;
             Settings.DisplayName = BoneName;
+			Settings.ControlType = ERigControlType::Transform;
             Controller->AddControl(ControlName, NullKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
 
             return true;

@@ -156,6 +156,9 @@ void URigHierarchy::Save(FArchive& Ar)
 		{
 			return;
 		}
+
+		TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
+		Ar << SelectedKeys;
 	}
 
 	// make sure all parts of pose are valid.
@@ -188,6 +191,7 @@ void URigHierarchy::Save(FArchive& Ar)
 
 void URigHierarchy::Load(FArchive& Ar)
 {
+	TArray<FRigElementKey> SelectedKeys;
 	if(Ar.IsTransacting())
 	{
 		bool bOnlySerializedTransformStackIndex = false;
@@ -198,6 +202,8 @@ void URigHierarchy::Load(FArchive& Ar)
 		{
 			return;
 		}
+
+		Ar << SelectedKeys;
 	}
 
 	Reset();
@@ -251,6 +257,18 @@ void URigHierarchy::Load(FArchive& Ar)
 	}
 
 	UpdateAllCachedChildren();
+
+	if(Ar.IsTransacting())
+	{
+		for(const FRigElementKey& SelectedKey : SelectedKeys)
+		{
+			if(FRigBaseElement* Element = Find<FRigBaseElement>(SelectedKey))
+			{
+				Element->bSelected = true;
+			}
+		}
+	}
+
 	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
 }
 
@@ -4823,42 +4841,50 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 		case ERigControlType::TransformNoScale: TypeStr = TEXT("EULER_TRANSFORM"); break;
 		default: ensure(false);
 	}
+
+	static const TCHAR* TrueText = TEXT("True");
+	static const TCHAR* FalseText = TEXT("False");
+
+	TArray<FString> LimitEnabledParts;
+	for(const FRigControlLimitEnabled& LimitEnabled : Settings.LimitEnabled)
+	{
+		LimitEnabledParts.Add(FString::Printf(TEXT("unreal.RigControlLimitEnabled(%s, %s)"),
+						   LimitEnabled.bMinimum ? TrueText : FalseText,
+						   LimitEnabled.bMaximum ? TrueText : FalseText));
+	}
+	
+	const FString LimitEnabledStr = FString::Join(LimitEnabledParts, TEXT(", "));
+	
 	Commands.Add(FString::Printf(TEXT("%s.control_type = unreal.RigControlType.%s"),
 									*NameSettings,
 									*TypeStr));
 	Commands.Add(FString::Printf(TEXT("%s.animatable = %s"),
 		*NameSettings,
-		Settings.bAnimatable ? TEXT("True") : TEXT("False")));
+		Settings.bAnimatable ? TrueText : FalseText));
 	Commands.Add(FString::Printf(TEXT("%s.display_name = '%s'"),
 		*NameSettings,
 		*Settings.DisplayName.ToString()));
 	Commands.Add(FString::Printf(TEXT("%s.draw_limits = %s"),
 		*NameSettings,
-		Settings.bDrawLimits ? TEXT("True") : TEXT("False")));
+		Settings.bDrawLimits ? TrueText : FalseText));
 	Commands.Add(FString::Printf(TEXT("%s.shape_color = %s"),
 		*NameSettings,
 		*RigVMPythonUtils::LinearColorToPythonString(Settings.ShapeColor)));
 	Commands.Add(FString::Printf(TEXT("%s.shape_enabled = %s"),
 		*NameSettings,
-		Settings.bShapeEnabled ? TEXT("True") : TEXT("False")));
+		Settings.bShapeEnabled ? TrueText : FalseText));
 	Commands.Add(FString::Printf(TEXT("%s.shape_name = '%s'"),
 		*NameSettings,
 		*Settings.ShapeName.ToString()));
 	Commands.Add(FString::Printf(TEXT("%s.shape_visible = %s"),
 		*NameSettings,
-		Settings.bShapeVisible ? TEXT("True") : TEXT("False")));
+		Settings.bShapeVisible ? TrueText : FalseText));
 	Commands.Add(FString::Printf(TEXT("%s.is_transient_control = %s"),
 		*NameSettings,
-		Settings.bIsTransientControl ? TEXT("True") : TEXT("False")));
-	Commands.Add(FString::Printf(TEXT("%s.limit_rotation = %s"),
+		Settings.bIsTransientControl ? TrueText : FalseText));
+	Commands.Add(FString::Printf(TEXT("%s.limit_enabled = [%s]"),
 		*NameSettings,
-		Settings.bLimitRotation ? TEXT("True") : TEXT("False")));
-	Commands.Add(FString::Printf(TEXT("%s.limit_translation = %s"),
-		*NameSettings,
-		Settings.bLimitTranslation ? TEXT("True") : TEXT("False")));
-	Commands.Add(FString::Printf(TEXT("%s.limit_scale = %s"),
-		*NameSettings,
-		Settings.bLimitScale ? TEXT("True") : TEXT("False")));
+		*LimitEnabledStr));
 	Commands.Add(FString::Printf(TEXT("%s.primary_axis = unreal.RigControlAxis.%s"),
 		*NameSettings,
 		Settings.PrimaryAxis == ERigControlAxis::X ? TEXT("X") : Settings.PrimaryAxis == ERigControlAxis::Y ? TEXT("Y") : TEXT("Z")));

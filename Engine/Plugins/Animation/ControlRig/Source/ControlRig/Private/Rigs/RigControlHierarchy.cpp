@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigControlHierarchy.h"
+#include "Rigs/RigHierarchyElements.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigControl
@@ -8,7 +9,10 @@
 
 void FRigControl::ApplyLimits(FRigControlValue& InOutValue) const
 {
-	InOutValue.ApplyLimits(bLimitTranslation, bLimitRotation, bLimitScale, ControlType, MinimumValue, MaximumValue);
+	FRigControlSettings Settings;
+	Settings.ControlType = ControlType;
+	Settings.SetupLimitArrayForType(bLimitTranslation, bLimitRotation, bLimitScale);
+	InOutValue.ApplyLimits(Settings.LimitEnabled, ControlType, MinimumValue, MaximumValue);
 }
 
 FTransform FRigControl::GetTransformFromValue(ERigControlValueType InValueType) const

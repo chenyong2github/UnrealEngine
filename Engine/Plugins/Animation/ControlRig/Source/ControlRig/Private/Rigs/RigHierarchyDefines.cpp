@@ -4,6 +4,37 @@
 #include "Rigs/RigHierarchy.h"
 
 ////////////////////////////////////////////////////////////////////////////////
+// FRigControlLimitEnabled
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigControlLimitEnabled::Serialize(FArchive& Ar)
+{
+	Ar << bMinimum;
+	Ar << bMaximum;
+}
+
+bool FRigControlLimitEnabled::GetForValueType(ERigControlValueType InValueType) const
+{
+	if(InValueType == ERigControlValueType::Minimum)
+	{
+		return bMinimum;
+	}
+	return bMaximum;
+}
+
+void FRigControlLimitEnabled::SetForValueType(ERigControlValueType InValueType, bool InValue)
+{
+	if(InValueType == ERigControlValueType::Minimum)
+	{
+		bMinimum = InValue;
+	}
+	else
+	{
+		bMaximum = InValue;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FRigElementKey
 ////////////////////////////////////////////////////////////////////////////////
 

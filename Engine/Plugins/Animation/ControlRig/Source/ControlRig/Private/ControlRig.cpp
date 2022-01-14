@@ -896,21 +896,13 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		GetHierarchy()->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
 		{
 			const FRigControlSettings& Settings = ControlElement->Settings;
-			
+
 			if (Settings.bShapeEnabled &&
 				Settings.bShapeVisible &&
 				!Settings.bIsTransientControl &&
 				Settings.bDrawLimits &&
-				(Settings.bLimitTranslation
-					|| Settings.bLimitRotation
-					|| Settings.bLimitScale))
+				Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
 			{
-				// for now we don't draw rotational limits
-				if(!Settings.bLimitTranslation)
-				{
-					return true;
-				}
-
 				FTransform Transform = GetHierarchy()->GetGlobalControlOffsetTransformByIndex(ControlElement->GetIndex());
 				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Settings.ShapeColor, 0.f, Transform);
 
@@ -918,6 +910,11 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				{
 					case ERigControlType::Float:
 					{
+						if(Settings.LimitEnabled[0].IsOff())
+						{
+							break;
+						}
+
 						FVector MinPos = FVector::ZeroVector;
 						FVector MaxPos = FVector::ZeroVector;
 
@@ -949,6 +946,11 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					}
 					case ERigControlType::Integer:
 					{
+						if(Settings.LimitEnabled[0].IsOff())
+						{
+							break;
+						}
+
 						FVector MinPos = FVector::ZeroVector;
 						FVector MaxPos = FVector::ZeroVector;
 
@@ -980,6 +982,15 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					}
 					case ERigControlType::Vector2D:
 					{
+						if(Settings.LimitEnabled.Num() < 2)
+						{
+							break;
+						}
+						if(Settings.LimitEnabled[0].IsOff() && Settings.LimitEnabled[1].IsOff())
+						{
+							break;
+						}
+
 						Instruction.PrimitiveType = EControlRigDrawSettings::LineStrip;
 						FVector3f MinPos = Settings.MinimumValue.Get<FVector3f>();
 						FVector3f MaxPos = Settings.MaximumValue.Get<FVector3f>();
@@ -1022,7 +1033,20 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					case ERigControlType::TransformNoScale:
 					case ERigControlType::EulerTransform:
 					{
-						FVector3f MinPos, MaxPos;
+						FVector3f MinPos = FVector3f::ZeroVector;
+						FVector3f MaxPos = FVector3f::ZeroVector;
+
+						// we only check the first three here
+						// since we only consider translation anyway
+						// for scale it's also the first three
+						if(Settings.LimitEnabled.Num() < 3)
+						{
+							break;
+						}
+						if(!Settings.LimitEnabled[0].IsOn() && !Settings.LimitEnabled[1].IsOn() && !Settings.LimitEnabled[2].IsOn())
+						{
+							break;
+						}
 
 						switch (Settings.ControlType)
 						{
@@ -1715,6 +1739,7 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 	ShapeTransform.SetScale3D(FVector::ZeroVector);
 
 	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Transform;
 	if (URigVMPin* ColorPin = PinForLink->GetNode()->FindPin(TEXT("Color")))
 	{
 		if (ColorPin->GetCPPType() == TEXT("FLinearColor"))
@@ -1842,6 +1867,7 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 	ShapeTransform.SetScale3D(FVector::ZeroVector);
 
 	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Transform;
 	Settings.bIsTransientControl = true;
 	Settings.DisplayName = TEXT("Temporary Control");
 

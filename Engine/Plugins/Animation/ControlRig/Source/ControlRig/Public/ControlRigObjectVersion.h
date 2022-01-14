@@ -48,6 +48,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// BoundVariableWithInjectionNode 
 		BoundVariableWithInjectionNode,
 
+		// Switch limit control over to per channel limits 
+		PerChannelLimits,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

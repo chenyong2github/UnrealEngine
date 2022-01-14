@@ -880,28 +880,23 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
 	bool bAnimatable;
 
-	/** True if the control has to obey translation limits. */
+	/** True if the control has limits. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
-	bool bLimitTranslation;
+	TArray<FRigControlLimitEnabled> LimitEnabled;
 
-	/** True if the control has to obey rotation limits. */
+	/**
+	 * True if the limits should be drawn in debug.
+	 * For this to be enabled you need to have at least one min and max limit turned on.
+	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
-	bool bLimitRotation;
-
-	/** True if the control has to obey scale limits. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits)
-	bool bLimitScale;
-
-	/** True if the limits should be drawn in debug. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
 	bool bDrawLimits;
 
 	/** The minimum limit of the control's value */
-	UPROPERTY(BlueprintReadWrite, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
+	UPROPERTY(BlueprintReadWrite, Category = Limits)
 	FRigControlValue MinimumValue;
 
 	/** The maximum limit of the control's value */
-	UPROPERTY(BlueprintReadWrite, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
+	UPROPERTY(BlueprintReadWrite, Category = Limits)
 	FRigControlValue MaximumValue;
 
 	/** Set to true if the shape is enabled in 3d */
@@ -937,7 +932,7 @@ struct CONTROLRIG_API FRigControlSettings
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const
 	{
-		InOutValue.ApplyLimits(bLimitTranslation, bLimitRotation, bLimitScale, ControlType, MinimumValue, MaximumValue);
+		InOutValue.ApplyLimits(LimitEnabled, ControlType, MinimumValue, MaximumValue);
 	}
 
 	/** Applies the limits expressed by these settings to a transform */
@@ -947,15 +942,6 @@ struct CONTROLRIG_API FRigControlSettings
 		Value.SetFromTransform(InOutValue, ControlType, PrimaryAxis);
 		ApplyLimits(Value);
 		InOutValue = Value.GetAsTransform(ControlType, PrimaryAxis);
-	}
-
-	FORCEINLINE bool IsValueTypeEnabled(ERigControlValueType InValueType) const
-	{
-		if(InValueType == ERigControlValueType::Minimum || InValueType == ERigControlValueType::Maximum)
-		{
-			return bLimitTranslation || bLimitRotation || bLimitScale;
-		}
-		return true;
 	}
 
 	FORCEINLINE FRigControlValue GetIdentityValue() const
@@ -971,6 +957,8 @@ struct CONTROLRIG_API FRigControlSettings
 	{
 		return !(*this == InOther);
 	}
+
+	void SetupLimitArrayForType(bool bLimitTranslation = false, bool bLimitRotation = false, bool bLimitScale = false);
 };
 
 USTRUCT(BlueprintType)
