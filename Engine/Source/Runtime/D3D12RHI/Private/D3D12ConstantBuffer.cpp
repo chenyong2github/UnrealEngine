@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-D3D12ConstantBuffer.cpp: D3D Constant buffer RHI implementation.
-=============================================================================*/
-
 #include "D3D12RHIPrivate.h"
 
 DEFINE_STAT(STAT_D3D12GlobalConstantBufferUpdateTime);
@@ -16,7 +12,6 @@ FD3D12ConstantBuffer::FD3D12ConstantBuffer(FD3D12Device* InParent, FD3D12FastCon
 	bIsDirty(false),
 	Allocator(InAllocator)
 {
-	FMemory::Memset(ShadowData, 0);
 #if USE_STATIC_ROOT_SIGNATURE
 	View = new FD3D12ConstantBufferView(InParent);
 #endif
@@ -58,8 +53,8 @@ bool FD3D12ConstantBuffer::Version(FD3D12ResourceLocation& BufferOut, bool bDisc
 	// Get the next constant buffer
 	void* Data = Allocator.Allocate(TotalUpdateSize, BufferOut, ViewToUse);
 
-	check(TotalUpdateSize <= sizeof(ShadowData));
-	FMemory::Memcpy(Data, ShadowData, TotalUpdateSize);
+	check(TotalUpdateSize <= (uint32)ShadowData.Num());
+	FMemory::Memcpy(Data, ShadowData.GetData(), TotalUpdateSize);
 
 	bIsDirty = false;
 	return true;
