@@ -270,12 +270,12 @@ namespace Jupiter
         private void ConfigureMiddlewares(bool isHighPerf, JupiterSettings jupiterSettings, IApplicationBuilder app, IWebHostEnvironment env)
         {
             // enable use of forwarding headers as we expect a reverse proxy to be running in front of us
-            app.UseMiddleware<DatadogTraceMiddleware>("ForwardedHeaders");
+            //app.UseMiddleware<DatadogTraceMiddleware>("ForwardedHeaders");
             app.UseForwardedHeaders();
 
             if (!isHighPerf && jupiterSettings.UseRequestLogging)
             {
-                app.UseMiddleware<DatadogTraceMiddleware>("RequestLogging");
+                //app.UseMiddleware<DatadogTraceMiddleware>("RequestLogging");
                 app.UseSerilogRequestLogging();
             }
 
@@ -290,18 +290,18 @@ namespace Jupiter
                 app.UseExceptionHandler("/error");
             }
                 
-            app.UseMiddleware<DatadogTraceMiddleware>("Routing");
+            //app.UseMiddleware<DatadogTraceMiddleware>("Routing");
             app.UseRouting();
 
             if (!isHighPerf)
             {
-                app.UseMiddleware<DatadogTraceMiddleware>("Authentication");
+                //app.UseMiddleware<DatadogTraceMiddleware>("Authentication");
                 app.UseAuthentication();
-                app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
+                //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
                 app.UseAuthorization();
             }
             
-            app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
+            //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
             {
                 bool PassAllChecks(HealthCheckRegistration check) => true;
@@ -325,7 +325,7 @@ namespace Jupiter
 
             if (!isHighPerf && jupiterSettings.HostSwaggerDocumentation)
             {
-                app.UseMiddleware<DatadogTraceMiddleware>("Swagger");
+                //app.UseMiddleware<DatadogTraceMiddleware>("Swagger");
                 app.UseSwagger();
                 app.UseReDoc(options => { options.SpecUrl = "/swagger/v1/swagger.json"; });
             }
