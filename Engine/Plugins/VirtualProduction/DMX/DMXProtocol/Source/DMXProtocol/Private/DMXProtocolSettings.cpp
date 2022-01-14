@@ -252,3 +252,51 @@ void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
 
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
 }
+
+FString UDMXProtocolSettings::GetUniqueInputPortName() const
+{
+	const FString AutoNamePrefix = "InputPort";
+	int32 HighestPortNumber = 0;
+
+	for (const FDMXInputPortConfig InputPortConfig : InputPortConfigs)
+	{
+		const FString& PortName = InputPortConfig.GetPortName();
+		if (PortName.StartsWith(AutoNamePrefix))
+		{
+			int32 PortNameNumericSuffix = 0;
+			if (LexTryParseString<int32>(PortNameNumericSuffix, *PortName.RightChop(AutoNamePrefix.Len())))
+			{
+				if (PortNameNumericSuffix > HighestPortNumber)
+				{
+					HighestPortNumber = PortNameNumericSuffix;
+				}
+			}
+		}
+	}
+
+	return AutoNamePrefix + FString::FromInt(HighestPortNumber + 1);
+}
+
+FString UDMXProtocolSettings::GetUniqueOutputPortName() const
+{
+	const FString AutoNamePrefix = "OutputPort";
+	int32 HighestPortNumber = 0;
+
+	for (const FDMXOutputPortConfig& OutputPortConfig : OutputPortConfigs)
+	{
+		const FString& PortName = OutputPortConfig.GetPortName();
+		if (PortName.StartsWith(AutoNamePrefix))
+		{
+			int32 PortNameNumericSuffix = 0;
+			if (LexTryParseString<int32>(PortNameNumericSuffix, *PortName.RightChop(AutoNamePrefix.Len())))
+			{
+				if (PortNameNumericSuffix > HighestPortNumber)
+				{
+					HighestPortNumber = PortNameNumericSuffix;
+				}
+			}
+		}
+	}
+
+	return AutoNamePrefix + FString::FromInt(HighestPortNumber + 1);
+}

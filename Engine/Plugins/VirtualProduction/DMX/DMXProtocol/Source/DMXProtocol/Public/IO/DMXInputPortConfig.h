@@ -142,8 +142,6 @@ protected:
 	int32 Priority = 0;
 
 protected:
-	/** Generates a unique port name (unique for those stored in project settings) */
-	void GenerateUniquePortName();
 	
 	/** 
 	 * Unique identifier, shared with the port instance.

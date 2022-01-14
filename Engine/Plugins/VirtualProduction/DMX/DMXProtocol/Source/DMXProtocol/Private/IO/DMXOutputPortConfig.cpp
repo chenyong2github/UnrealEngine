@@ -39,8 +39,6 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
 	check(PortGuid.IsValid());
 
-	GenerateUniquePortName();
-
 	MakeValid();
 }
 
@@ -63,8 +61,6 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
 	check(PortGuid.IsValid());
 	check(!ProtocolName.IsNone())
-
-	GenerateUniquePortName();
 
 	MakeValid();
 }
@@ -135,6 +131,12 @@ void FDMXOutputPortConfig::MakeValid()
 	{
 		Delay = 0.0;
 	}
+
+	if (PortName.IsEmpty())
+	{
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+		PortName = ProtocolSettings->GetUniqueOutputPortName();
+	}
 }
 
 int32 FDMXOutputPortConfig::GetDelaySeconds() const
@@ -153,29 +155,4 @@ FString FDMXOutputPortConfig::GetDeviceAddress() const
 		return OverrideIP;
 	}
 	return DeviceAddress;
-}
-
-void FDMXOutputPortConfig::GenerateUniquePortName()
-{
-	if (!PortName.IsEmpty())
-	{
-		return;
-	}
-
-	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-	check(ProtocolSettings);
-
-	TSet<FString> OtherPortNames;
-	for (const FDMXOutputPortConfig& PortConfig : ProtocolSettings->OutputPortConfigs)
-	{
-		if (&PortConfig == this)
-		{
-			continue;
-		}
-
-		OtherPortNames.Add(PortConfig.PortName);
-	}
-
-	FString BaseName = TEXT("OutputPort_1");
-	PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OtherPortNames, BaseName);
 }

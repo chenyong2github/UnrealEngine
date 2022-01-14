@@ -98,6 +98,12 @@ public:
 	/** Overrides if send DMX is enabled at runtime */
 	void OverrideReceiveDMXEnabled(bool bEnabled);
 
+	/** Returns an automatic/unique name for an InputPort */
+	FString GetUniqueInputPortName() const;
+
+	/** Returns an automatic/unique name for an OutputPort */
+	FString GetUniqueOutputPortName() const;
+
 private:
 	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
