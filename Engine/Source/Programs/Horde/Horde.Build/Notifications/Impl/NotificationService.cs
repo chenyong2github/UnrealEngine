@@ -205,7 +205,7 @@ namespace HordeServer.Notifications.Impl
 		{
 			if (Pool.EnableAutoscaling && !PoolHasAgentsOnline)
 			{
-				EnqueueTasks(Sink => Sink.NotifyJobScheduledAsync(Pool, PoolHasAgentsOnline, Job, Graph, BatchId));
+//				EnqueueTasks(Sink => Sink.NotifyJobScheduledAsync(Pool, PoolHasAgentsOnline, Job, Graph, BatchId));
 			}
 		}
 
