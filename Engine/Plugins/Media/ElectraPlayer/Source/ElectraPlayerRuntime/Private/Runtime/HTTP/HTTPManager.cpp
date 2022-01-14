@@ -170,12 +170,40 @@ namespace Electra
 				if (HttpResponseCache.IsValid())
 				{
 					TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem;
-					if (HttpResponseCache->GetCachedEntity(CacheItem, ActiveResponse.URL, ActiveResponse.Range))
+					IHTTPResponseCache::EScatterResult Result;
+					Result = HttpResponseCache->GetScatteredCacheEntity(CacheItem, ActiveResponse.URL, ActiveResponse.Range);
+					if (Result == IHTTPResponseCache::EScatterResult::FullHit)
 					{
+						check(CacheItem.IsValid());
 						if (CacheItem.IsValid())
 						{
 							ActiveResponse.CacheResponse = MoveTemp(CacheItem);
 							return true;
+						}
+					}
+					else if (Result == IHTTPResponseCache::EScatterResult::PartialHit)
+					{
+						check(CacheItem.IsValid());
+						if (CacheItem.IsValid())
+						{
+							// Partial cached responses require the missing partial data to be fetched via sub range requests.
+							ActiveResponse.bIsSubRangeRequest = true;
+
+							// If there is no cached response it means that the first bytes are not in the cache but later
+							// data is. The first part must be requested. Otherwise we can just return the cached response.
+							if (CacheItem->Response.IsValid())
+							{
+								ActiveResponse.CacheResponse = MoveTemp(CacheItem);
+								ActiveResponse.ReceivedContentRange = ActiveResponse.CacheResponse->Range;
+								return true;
+							}
+							else
+							{
+								// The missing range we need to fetch has been set up by the cache so we just need to use
+								// that range in the request.
+								ActiveResponse.Range = CacheItem->Range;
+								HttpRequest->SetHeader(TEXT("Range"), FString::Printf(TEXT("bytes=%s"), *ActiveResponse.Range.GetString()));
+							}
 						}
 					}
 				}
@@ -230,6 +258,13 @@ namespace Electra
 					return 0;
 				}
 
+				void ClearForNextSubRange()
+				{
+					CacheResponse.Reset();
+					bHitCache = false;
+					bWasAddedToCache = false;
+				}
+
 			};
 
 			enum class EHandleType
@@ -277,6 +312,7 @@ namespace Electra
 				bResponseReceived = false;
 				bIsConnected = false;
 				bHaveResponseHeaders = false;
+				ActiveResponse.ClearForNextSubRange();
 			}
 		};
 
@@ -1324,6 +1360,16 @@ namespace Electra
 						TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
 						CacheItem->URL = Request->Parameters.URL;
 						CacheItem->Range = Handle->ActiveResponse.Range;
+						// Make sure the range is always set, even for non-partial responses.
+						CacheItem->Range.DocumentSize = ci.ContentLength > Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize() ? ci.ContentLength : Handle->ActiveResponse.ReceivedContentRange.GetDocumentSize();
+						if (CacheItem->Range.GetStart() < 0)
+						{
+							CacheItem->Range.SetStart(0);
+						}
+						if (CacheItem->Range.GetEndIncluding() < 0)
+						{
+							CacheItem->Range.SetEndIncluding(CacheItem->Range.DocumentSize - 1);
+						}
 						CacheItem->Response = Handle->ActiveResponse.Response;
 						Request->ResponseCache->CacheEntity(CacheItem);
 					}
@@ -1332,30 +1378,24 @@ namespace Electra
 					TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
 					if (ReceiveBuffer.IsValid())
 					{
+						bool bCheckForNext = false;
 						// Is it to be used as a linear buffer?
 						if (!ReceiveBuffer->bEnableRingbuffer)
 						{
 							const TArray<uint8>& Content = Handle->ActiveResponse.Response->GetContent();
-							// Set the actual content length now. What we got in the header before may have been incorrect if the content was zipped
-							// or was transferred using chunked content encoding.
-							ci.ContentLength = Content.Num();
-							if (ReceiveBuffer->Buffer.EnlargeTo(ci.ContentLength))
+
+							if (!ReceiveBuffer->Buffer.EnlargeTo(ReceiveBuffer->Buffer.Num() + Content.Num()) ||
+								!ReceiveBuffer->Buffer.PushData(Content.GetData(), Content.Num()))
 							{
-								if (ReceiveBuffer->Buffer.PushData(Content.GetData(), Content.Num()))
-								{
-									ci.BytesReadSoFar = ci.ContentLength;
-								}
-								else
-								{
-									ci.bWasAborted = true;
-								}
+								ci.bWasAborted = true;
+								bHasFinished = true;
 							}
 							else
 							{
-								// When OOM we just claim we've been aborted.
-								ci.bWasAborted = true;
+								ci.ContentLength = ReceiveBuffer->Buffer.Num();
+								ci.BytesReadSoFar = ci.ContentLength;
+								bCheckForNext = true;
 							}
-							bHasFinished = true;
 						}
 						else
 						{
@@ -1374,32 +1414,36 @@ namespace Electra
 								// All copied out now?
 								if (Handle->ActiveResponse.NumBytesPassedOut >= Content.Num())
 								{
-									// Check if this was a sub ranged request and if there is still data to go for the original request.
-									if (Handle->ActiveResponse.SizeRemaining() == 0)
+									bCheckForNext = true;
+								}
+							}
+						}
+						if (bCheckForNext)
+						{
+							// Check if this was a sub ranged request and if there is still data to go for the original request.
+							if (Handle->ActiveResponse.SizeRemaining() == 0)
+							{
+								// All done now.
+								bHasFinished = true;
+							}
+							else
+							{
+								// Still another sub range to go.
+								if (PrepareHTTPModuleHandle(Now, Handle, Request, false))
+								{
+									if (!Handle->ProcessHTTPRequest())
 									{
-										// All done now.
+										ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
 										bHasFinished = true;
 									}
-									else
-									{
-										// Still another sub range to go.
-										if (PrepareHTTPModuleHandle(Now, Handle, Request, false))
-										{
-											if (!Handle->ProcessHTTPRequest())
-											{
-												ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
-												bHasFinished = true;
-											}
-										}
-										else
-										{
-											// 
-											ci.StatusInfo.ErrorCode = ERRCODE_WRITE_ERROR;
-											ci.StatusInfo.bReadError = true;
-											ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Error setting up the next sub range request")));
-											bHasFinished = true;
-										}
-									}
+								}
+								else
+								{
+									// 
+									ci.StatusInfo.ErrorCode = ERRCODE_WRITE_ERROR;
+									ci.StatusInfo.bReadError = true;
+									ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("Error setting up the next sub range request")));
+									bHasFinished = true;
 								}
 							}
 						}

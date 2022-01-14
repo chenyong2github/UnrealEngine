@@ -36,11 +36,24 @@ public:
 	 * Add an entity to the cache.
 	 */
 	virtual void CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd) = 0;
+
+
+	enum EScatterResult
+	{
+		FullHit,			//!< The entire request is present in the cache
+		PartialHit,			//!< Partial data is present in the cache
+		Miss				//!< No part of the request is present in the cache
+	};
+
 	/**
-	 * Return a cached entity.
-	 * Returns true if found, false if not.
+	 * Returns the first cached portion of a request.
+	 * This is used to create responses for which partially cached data already exist and break the request apart
+	 * to fetch the next portion that is not cached yet.
+	 * 
+	 * Returns false to indicate that the range specified in the (otherwise empty) cached response must be requested from the origin.
+	 * Returns true if a - possibly partial - cached response exists. The range that is cached is given in the cache item.
 	 */
-	virtual bool GetCachedEntity(TSharedPtrTS<FCacheItem>& OutCachedEntity, const FString& URL, const IElectraHttpManager::FParams::FRange& Range) = 0;
+	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const IElectraHttpManager::FParams::FRange& Range) = 0;
 
 protected:
 	IHTTPResponseCache() = default;

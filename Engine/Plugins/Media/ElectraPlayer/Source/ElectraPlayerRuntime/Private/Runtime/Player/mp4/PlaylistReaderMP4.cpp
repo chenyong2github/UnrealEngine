@@ -337,6 +337,7 @@ void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
 	Request->Parameters.Range.SetEndIncluding(LastByte);
 	Request->ReceiveBuffer = ReceiveBuffer;
 	Request->ProgressListener = ProgressListener;
+	Request->ResponseCache = PlayerSessionServices->GetHTTPResponseCache();
 	PlayerSessionServices->GetHTTPManager()->AddRequest(Request, false);
 }
 
