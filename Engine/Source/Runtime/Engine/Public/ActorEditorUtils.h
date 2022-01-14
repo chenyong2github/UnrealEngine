@@ -16,6 +16,13 @@ namespace FActorEditorUtils
 	*/
 	ENGINE_API bool IsABuilderBrush( const AActor* InActor );
 
+	/**
+	 * Return whether this actor is an ABrush or not.
+	 *
+	 * @return true if this actor is an ABrush, false otherwise.
+	 */
+	ENGINE_API bool IsABrush( const AActor* InActor );
+
 	/** 
 	* Return whether this actor is a preview actor or not.
 	*

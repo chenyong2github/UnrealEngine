@@ -547,8 +547,12 @@ void AActor::PostEditUndo()
 		Super::PostEditUndo();
 	}
 
+	// Do not immediately update all primitive scene infos for brush actor
+	// undo/redo transactions since they require the render thread to wait until
+	// after the transactions are processed to guarantee that the model data
+	// is safe to access.
 	UWorld* World = GetWorld();
-	if (World && World->Scene)
+	if (World && World->Scene && !FActorEditorUtils::IsABrush(this))
 	{
 		ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([Scene = World->Scene](FRHICommandListImmediate& RHICmdList) {
 			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);

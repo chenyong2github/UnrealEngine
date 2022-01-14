@@ -37,6 +37,11 @@ namespace FActorEditorUtils
 		return bIsBuilder;
 	}
 
+	bool IsABrush( const AActor* InActor )
+	{
+		return Cast<ABrush>(InActor) != nullptr;
+	}
+
 	bool IsAPreviewOrInactiveActor( const AActor* InActor )
 	{
 		UWorld* World = InActor ? InActor->GetWorld() : NULL;
