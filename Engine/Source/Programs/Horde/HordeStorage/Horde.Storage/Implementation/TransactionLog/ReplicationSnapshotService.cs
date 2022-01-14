@@ -93,7 +93,7 @@ namespace Horde.Storage.Implementation
         /// The frequency at which to poll for new replication events
         /// </summary>
         [Required]
-        public int SnapshotFrequencySeconds { get; set; } = 3600; // default to once a day
+        public int SnapshotFrequencySeconds { get; set; } = (int)TimeSpan.FromDays(1.0).TotalSeconds; // default to once a day
 
         public NamespaceId SnapshotStorageNamespace { get; set; } = INamespacePolicyResolver.JupiterInternalNamespace;
     }
