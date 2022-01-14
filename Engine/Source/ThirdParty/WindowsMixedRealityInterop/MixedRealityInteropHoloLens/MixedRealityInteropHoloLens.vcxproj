@@ -120,7 +120,7 @@
       </SDLCheck>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalOptions>/await /D "_ITERATOR_DEBUG_LEVEL=0" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include;./Generated Files;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;PLATFORM_HOLOLENS;%(PreprocessorDefinitions);WITH_SCENE_UNDERSTANDING=1</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -177,7 +177,7 @@
       <AdditionalIncludeDirectories>../Include;./Generated Files;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_ENABLE_EXTENDED_ALIGNED_STORAGE;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;PLATFORM_HOLOLENS;WITH_SCENE_UNDERSTANDING=1</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalOptions>/await  /D "_ITERATOR_DEBUG_LEVEL=0" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <CompileAsWinRT>true</CompileAsWinRT>

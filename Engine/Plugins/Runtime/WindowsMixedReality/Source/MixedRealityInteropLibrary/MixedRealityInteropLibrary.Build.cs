@@ -2,6 +2,7 @@
 
 using System.IO;
 using UnrealBuildTool;
+using EpicGames.Core;
 
 public class MixedRealityInteropLibrary : ModuleRules
 {
@@ -36,12 +37,17 @@ public class MixedRealityInteropLibrary : ModuleRules
 					PublicDelayLoadDLLs.Add(Dll);
 					RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + Dll);
 				}
-            }
+			}
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-            string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/" + Target.WindowsPlatform.GetArchitectureSubpath() + "/";
-            PublicAdditionalLibraries.Add(InteropLibPath + (Target.Configuration == UnrealTargetConfiguration.Debug ? "MixedRealityInteropHoloLensDebug.lib" : "MixedRealityInteropHoloLens.lib"));
+			string InteropLibPath = Target.UEThirdPartySourceDirectory + "/WindowsMixedRealityInterop/Lib/" + Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+			bool bUseDebugInteropLibrary = Target.Configuration == UnrealTargetConfiguration.Debug && Target.Architecture == "ARM64";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && !bUseDebugInteropLibrary)
+			{
+				Log.TraceInformation("Building Hololens Debug {0} but not using MixedRealityInteropHoloLensDebug.lib due to Debug Win CRT incompatibilities.  Debugging within the interop will be similar to release.", Target.Architecture); // See also WindowsMixedRealityInterop.Build.cs
+			}
+			PublicAdditionalLibraries.Add(InteropLibPath + (bUseDebugInteropLibrary ? "MixedRealityInteropHoloLensDebug.lib" : "MixedRealityInteropHoloLens.lib"));
 		}
 	}
 }

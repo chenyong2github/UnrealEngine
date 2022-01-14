@@ -33,8 +33,8 @@ public class WindowsMixedRealityInterop : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             LibrariesPath = Path.Combine(LibrariesPath, Target.WindowsPlatform.GetArchitectureSubpath());
-            if (Target.Configuration == UnrealTargetConfiguration.Debug)
-            {
+            if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)  // Debug Win CRT compatibility problems prevent using the debug interop on x64 (which is for the device emulator). See also WindowsMixedRealityLibrary.Build.cs
+			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInteropHoloLensDebug.lib"));
 			}
 			else
