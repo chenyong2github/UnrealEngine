@@ -10,20 +10,18 @@
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "DetailsViewWrapperObject.h"
-#include "Graph/ControlRigGraph.h"
 #include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
 #include "SSearchableComboBox.h"
-#include "DetailsViewWrapperObject.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailGroup.h"
 #include "SAdvancedTransformInputBox.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Internationalization/FastDecimalFormat.h"
+#include "ScopedTransaction.h"
 
 class IPropertyHandle;
 
