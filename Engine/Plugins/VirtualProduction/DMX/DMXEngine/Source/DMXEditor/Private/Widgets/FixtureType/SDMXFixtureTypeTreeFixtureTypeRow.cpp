@@ -263,9 +263,11 @@ void SDMXFixtureTypeTreeFixtureTypeRow::OnNameTextCommit(const FText& InNewName,
 		}
 
 		const FScopedTransaction Transaction(LOCTEXT("RenameEntity", "Rename Entity"));
-		DMXLibrary->Modify();
+		Entity->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Name)));
 
 		FDMXEditorUtils::RenameEntity(DMXLibrary, Entity, NewNameString);
+
+		Entity->PostEditChange();
 
 		FixtureTypeTree->SelectItemByName(NewNameString, ESelectInfo::OnMouseClick);
 	}
