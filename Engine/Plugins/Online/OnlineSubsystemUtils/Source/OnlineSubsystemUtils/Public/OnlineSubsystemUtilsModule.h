@@ -36,12 +36,6 @@ public:
 		return false;
 	}
 
-	virtual bool SupportsAutomaticShutdown() override
-	{
-		return false;
-	}
-
-
 private:
 
 	/** Online subsystem utilities singleton */
