@@ -65,7 +65,8 @@ void AARSharedWorldPlayerController::ClientInitSharedWorld_Implementation(int32 
 
 bool AARSharedWorldPlayerController::ClientUpdatePreviewImageData_Validate(int32 Offset, const TArray<uint8>& Buffer)
 {
-	return Offset >= 0;
+	// Validate offset, and also check for signed integer overflow case.
+	return Offset >= 0 && (Offset + Buffer.Num()) >= 0;
 }
 
 void AARSharedWorldPlayerController::ClientUpdatePreviewImageData_Implementation(int32 Offset, const TArray<uint8>& Buffer)
@@ -77,7 +78,8 @@ void AARSharedWorldPlayerController::ClientUpdatePreviewImageData_Implementation
 
 bool AARSharedWorldPlayerController::ClientUpdateARWorldData_Validate(int32 Offset, const TArray<uint8>& Buffer)
 {
-	return Offset >= 0;
+	// Validate offset, and also check for signed integer overflow case.
+	return Offset >= 0 && (Offset + Buffer.Num()) >= 0;
 }
 
 void AARSharedWorldPlayerController::ClientUpdateARWorldData_Implementation(int32 Offset, const TArray<uint8>& Buffer)
