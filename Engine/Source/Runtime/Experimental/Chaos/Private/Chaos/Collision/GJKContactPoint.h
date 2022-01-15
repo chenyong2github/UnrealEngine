@@ -31,8 +31,6 @@ namespace Chaos
 			Contact.ShapeContactPoints[0] = ClosestA;
 			Contact.ShapeContactPoints[1] = BToATM.InverseTransformPosition(ClosestBInA);
 			Contact.ShapeContactNormal = -BToATM.InverseTransformVector(Normal);
-			Contact.Location = ATM.TransformPosition(ClosestA + ThicknessA * Normal);
-			Contact.Normal = -ATM.TransformVectorNoScale(Normal);
 			Contact.Phi = -Penetration;
 		}
 

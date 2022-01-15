@@ -59,10 +59,10 @@ namespace Chaos
 				WeakPairs.Empty(Constraints.Num());
 				for(FPBDCollisionConstraint& Constraint : Constraints)
 				{
-					WeakPairs.Add(FWeakConstraintPair{Constraint.Particle[0]->WeakParticleHandle(),Constraint.Particle[1]->WeakParticleHandle()});
+					WeakPairs.Add(FWeakConstraintPair{Constraint.GetParticle0()->WeakParticleHandle(),Constraint.GetParticle1()->WeakParticleHandle()});
 
-					auto* A = Constraint.Particle[0];
-					auto* B = Constraint.Particle[1];
+					auto* A = Constraint.GetParticle0();
+					auto* B = Constraint.GetParticle1();
 
 					//Need to do this on save for any new constraints
 					MarkSoftIfDesync(*A,*B);

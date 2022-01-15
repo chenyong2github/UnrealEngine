@@ -79,7 +79,7 @@ namespace Chaos
 
 		virtual bool IsEnabled() const override;
 
-		FVec3 GetContactLocation() const;
+		//FVec3 GetContactLocation() const;
 
 		FVec3 GetAccumulatedImpulse() const;
 

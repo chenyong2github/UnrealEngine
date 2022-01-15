@@ -64,15 +64,15 @@ namespace ChaosTest {
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (auto PBDRigid = Constraint.GetParticle0()->CastToRigidParticle())
 		{
 			//Question: non dynamics don't have collision particles, seems wrong if the levelset is dynamic and the static is something like a box
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
 		Collisions.UpdateLevelsetConstraint(Constraint);
 
-		EXPECT_EQ(Constraint.Particle[0], Box2);
-		EXPECT_EQ(Constraint.Particle[1], Box1);
+		EXPECT_EQ(Constraint.GetParticle0(), Box2);
+		EXPECT_EQ(Constraint.GetParticle1(), Box1);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 
 		// The contact point is the average of the surface contact points, so it should be half of Phi inside particle0
@@ -118,12 +118,12 @@ namespace ChaosTest {
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
 		Collisions.UpdateLevelsetConstraint(Constraint);
 		
-		EXPECT_EQ(Constraint.Particle[0], Box2);
-		EXPECT_EQ(Constraint.Particle[1], Box1);
+		EXPECT_EQ(Constraint.GetParticle0(), Box2);
+		EXPECT_EQ(Constraint.GetParticle1(), Box1);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 
 		// The contact point is the average of the surface contact points, so it should be half of Phi inside particle0
-		Chaos::FReal Distance = ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation());
+		Chaos::FReal Distance = ChaosTest::SignedDistance(*Constraint.GetParticle0(), Constraint.GetLocation());
 		EXPECT_NEAR(Distance, 0.5f * Constraint.GetPhi(), KINDA_SMALL_NUMBER);
 	}
 	
@@ -162,10 +162,10 @@ namespace ChaosTest {
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		EXPECT_TRUE(Constraint.Particle[0] != nullptr);
-		EXPECT_TRUE(Constraint.Particle[1] != nullptr);
+		EXPECT_TRUE(Constraint.GetParticle0() != nullptr);
+		EXPECT_TRUE(Constraint.GetParticle1() != nullptr);
 
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (auto PBDRigid = Constraint.GetParticle0()->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
@@ -174,8 +174,8 @@ namespace ChaosTest {
 
 		Collisions.Update(Constraint);
 
-		EXPECT_EQ(Constraint.Particle[0], Box);
-		EXPECT_EQ(Constraint.Particle[1], Floor);
+		EXPECT_EQ(Constraint.GetParticle0(), Box);
+		EXPECT_EQ(Constraint.GetParticle1(), Floor);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - FReal(-0.5) ) < SMALL_THRESHOLD );
 
@@ -257,8 +257,8 @@ namespace ChaosTest {
 
 		Collisions.Update(*Constraint);
 
-		EXPECT_EQ(Constraint->Particle[0], Box);
-		EXPECT_EQ(Constraint->Particle[1], Floor);
+		EXPECT_EQ(Constraint->GetParticle0(), Box);
+		EXPECT_EQ(Constraint->GetParticle1(), Floor);
 		EXPECT_TRUE(Constraint->GetNormal().operator==(FVec3(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(Constraint->GetPhi() - FReal(-1.0)) < SMALL_THRESHOLD);
 
@@ -333,8 +333,8 @@ namespace ChaosTest {
 		Collisions.GatherInput(Dt);
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		EXPECT_EQ(Constraint.Particle[0], Box);
-		EXPECT_EQ(Constraint.Particle[1], Floor);
+		EXPECT_EQ(Constraint.GetParticle0(), Box);
+		EXPECT_EQ(Constraint.GetParticle1(), Floor);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - FReal(-0.5)) < SMALL_THRESHOLD);
 
@@ -403,7 +403,7 @@ namespace ChaosTest {
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (auto PBDRigid = Constraint.GetParticle0()->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
@@ -411,8 +411,8 @@ namespace ChaosTest {
 		Collisions.GatherInput(Dt);
 
 		Collisions.UpdateLevelsetConstraint(Constraint);
-		EXPECT_EQ(Constraint.Particle[0], Box);
-		EXPECT_EQ(Constraint.Particle[1], Floor);
+		EXPECT_EQ(Constraint.GetParticle0(), Box);
+		EXPECT_EQ(Constraint.GetParticle1(), Floor);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - FReal(-0.5)) < SMALL_THRESHOLD);
 
@@ -491,15 +491,15 @@ namespace ChaosTest {
 		}
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		if (FPBDRigidParticleHandle* PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (FPBDRigidParticleHandle* PBDRigid = Constraint.GetParticle0()->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
 
 		Collisions.GatherInput(Dt);
 
-		EXPECT_EQ(Constraint.Particle[0], DynamicCube);
-		EXPECT_EQ(Constraint.Particle[1], StaticCube);
+		EXPECT_EQ(Constraint.GetParticle0(), DynamicCube);
+		EXPECT_EQ(Constraint.GetParticle1(), StaticCube);
 		EXPECT_NEAR(Constraint.GetNormal().Z, FReal(1), KINDA_SMALL_NUMBER);
 		{
 			INVARIANT_XR_START(DynamicCube);
@@ -560,13 +560,13 @@ namespace ChaosTest {
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
 
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (auto PBDRigid = Constraint.GetParticle0()->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
 
-		EXPECT_EQ(Constraint.Particle[0], Box2);
-		EXPECT_EQ(Constraint.Particle[1], StaticBox);
+		EXPECT_EQ(Constraint.GetParticle0(), Box2);
+		EXPECT_EQ(Constraint.GetParticle1(), StaticBox);
 		EXPECT_TRUE(Constraint.GetNormal().Equals(FVector(0.0, 0.0, 1.0f)));
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - FReal(-0.4)) < SMALL_THRESHOLD);
 

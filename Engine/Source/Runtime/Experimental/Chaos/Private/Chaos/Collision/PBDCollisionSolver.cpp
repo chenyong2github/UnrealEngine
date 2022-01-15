@@ -59,19 +59,30 @@ namespace Chaos
 		const FSolverReal Dt,
 		const FConstraintSolverBody& Body0,
 		const FConstraintSolverBody& Body1,
-		const FVec3& InWorldAnchorPoint0,
-		const FVec3& InWorldAnchorPoint1,
+		const FSolverVec3& InRelativeContactPosition0,
+		const FSolverVec3& InRelativeContactPosition1,
 		const FSolverVec3& InWorldContactNormal,
-		const bool bAddVelocityToFriction)
+		const FSolverVec3& InWorldContactTangentU,
+		const FSolverVec3& InWorldContactTangentV,
+		const FSolverReal InWorldContactDeltaNormal,
+		const FSolverReal InWorldContactDeltaTangentU,
+		const FSolverReal InWorldContactDeltaTangentV)
 	{
+		RelativeContactPosition0 = InRelativeContactPosition0;
+		RelativeContactPosition1 = InRelativeContactPosition1;
+		WorldContactNormal = InWorldContactNormal;
+		WorldContactTangentU = InWorldContactTangentU;
+		WorldContactTangentV = InWorldContactTangentV;
+		WorldContactDeltaNormal = InWorldContactDeltaNormal;
+		WorldContactDeltaTangentU = InWorldContactDeltaTangentU;
+		WorldContactDeltaTangentV = InWorldContactDeltaTangentV;
+
 		NetPushOutNormal = FSolverReal(0);
 		NetPushOutTangentU = FSolverReal(0);
 		NetPushOutTangentV = FSolverReal(0);
 		NetImpulseNormal = FSolverReal(0);
 		NetImpulseTangentU = FSolverReal(0);
 		NetImpulseTangentV = FSolverReal(0);
-
-		UpdateContact(Dt, Body0, Body1, InWorldAnchorPoint0, InWorldAnchorPoint1, InWorldContactNormal, bAddVelocityToFriction);
 
 		UpdateMass(Body0, Body1);
 	}
@@ -95,51 +106,6 @@ namespace Chaos
 			}
 		}
 
-	}
-
-	inline void FPBDCollisionSolverManifoldPoint::UpdateContact(
-		const FSolverReal Dt,
-		const FConstraintSolverBody& Body0, 
-		const FConstraintSolverBody& Body1,
-		const FVec3& InWorldAnchorPoint0,
-		const FVec3& InWorldAnchorPoint1, 
-		const FSolverVec3& InWorldContactNormal,
-		const bool bAddVelocityToFriction)
-	{
-		// The world-space point where we apply impulses/corrections (same world-space point for momentum conservation)
-		const FVec3 WorldContactPosition = FReal(0.5) * (InWorldAnchorPoint0 + InWorldAnchorPoint1);
-		RelativeContactPosition0 = FSolverVec3(WorldContactPosition - Body0.P());
-		RelativeContactPosition1 = FSolverVec3(WorldContactPosition - Body1.P());
-
-		// The world-space contact normal
-		WorldContactNormal = InWorldContactNormal;
-
-		// World-space contact tangents. We are treating the normal as the constraint-space Z axis
-		// and the Tangent U and V as the constraint-space X and Y axes resepctively
-		WorldContactTangentU = FSolverVec3::CrossProduct(FSolverVec3(0, 1, 0), InWorldContactNormal);
-		if (!WorldContactTangentU.Normalize(FSolverReal(KINDA_SMALL_NUMBER)))
-		{
-			WorldContactTangentU = FSolverVec3::CrossProduct(FSolverVec3(1, 0, 0), InWorldContactNormal);
-			WorldContactTangentU = WorldContactTangentU.GetUnsafeNormal();
-		}
-		WorldContactTangentV = FSolverVec3::CrossProduct(InWorldContactNormal, WorldContactTangentU);
-
-		// The contact point error we are trying to correct in this solver
-		const FSolverVec3 WorldContactDelta = InWorldAnchorPoint0 - InWorldAnchorPoint1;
-		WorldContactDeltaNormal = FSolverVec3::DotProduct(WorldContactDelta, WorldContactNormal);
-		WorldContactDeltaTangentU = FSolverVec3::DotProduct(WorldContactDelta, WorldContactTangentU);
-		WorldContactDeltaTangentV = FSolverVec3::DotProduct(WorldContactDelta, WorldContactTangentV);
-
-		// For rolling friction to work (e.g., on spheres) we need to include the angular velocity in the friction calculation
-		if (bAddVelocityToFriction)
-		{
-			// Contact velocity from rotation for quadratic surfaces. Corrects for rolling friction.
-			FVec3 ContactVel = (Body0.V() + FVec3::CrossProduct(Body0.W(), RelativeContactPosition0)) - (Body1.V() + FVec3::CrossProduct(Body1.W(), RelativeContactPosition1));
-			const FSolverReal ContactVelocityU = FSolverVec3::DotProduct(ContactVel, WorldContactTangentU);
-			const FSolverReal ContactVelocityV = FSolverVec3::DotProduct(ContactVel, WorldContactTangentV);
-			WorldContactDeltaTangentU += ContactVelocityU * Dt;
-			WorldContactDeltaTangentV += ContactVelocityV * Dt;
-		}
 	}
 
 	inline void FPBDCollisionSolverManifoldPoint::UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1)
@@ -272,32 +238,40 @@ namespace Chaos
 
 	void FPBDCollisionSolver::InitContact(
 		const int32 ManifoldPoiontIndex,
-		const FReal Dt,
-		const FVec3& InWorldAnchorPoint0,
-		const FVec3& InWorldAnchorPoint1,
-		const FVec3& InWorldContactNormal,
-		const bool bAddVelocityToFriction)
+		const FSolverReal Dt,
+		const FSolverVec3& InRelativeContactPosition0,
+		const FSolverVec3& InRelativeContactPosition1,
+		const FSolverVec3& InWorldContactNormal,
+		const FSolverVec3& InWorldContactTangentU,
+		const FSolverVec3& InWorldContactTangentV,
+		const FSolverReal InWorldContactDeltaNormal,
+		const FSolverReal InWorldContactDeltaTangentU,
+		const FSolverReal InWorldContactDeltaTangentV)
 	{
 		State.ManifoldPoints[ManifoldPoiontIndex].InitContact(
 			FSolverReal(Dt),
 			State.SolverBodies[0], 
 			State.SolverBodies[1], 
-			InWorldAnchorPoint0, 
-			InWorldAnchorPoint1, 
-			FSolverVec3(InWorldContactNormal),
-			bAddVelocityToFriction);
+			InRelativeContactPosition0,
+			InRelativeContactPosition1,
+			InWorldContactNormal,
+			InWorldContactTangentU,
+			InWorldContactTangentV,
+			InWorldContactDeltaNormal,
+			InWorldContactDeltaTangentU,
+			InWorldContactDeltaTangentV);
 	}
 
 	void FPBDCollisionSolver::InitMaterial(
 		const int32 ManifoldPoiontIndex,
-		const FReal InRestitution,
-		const FReal InRestitutionVelocityThreshold)
+		const FSolverReal InRestitution,
+		const FSolverReal InRestitutionVelocityThreshold)
 	{
 		State.ManifoldPoints[ManifoldPoiontIndex].InitMaterial(
 			State.SolverBodies[0], 
 			State.SolverBodies[1], 
-			FSolverReal(InRestitution), 
-			FSolverReal(InRestitutionVelocityThreshold));
+			InRestitution, 
+			InRestitutionVelocityThreshold);
 	}
 
 	void FPBDCollisionSolver::SolveVelocityAverage(const FSolverReal Dt)

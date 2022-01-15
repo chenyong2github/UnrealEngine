@@ -17,10 +17,6 @@
 
 namespace Chaos
 {
-#if INTEL_ISPC
-	extern bool bChaos_Collision_ISPC_Enabled;
-#endif
-
 	namespace CVars
 	{
 		int32 Chaos_Collision_EnergyClampEnabled = 1;
@@ -73,7 +69,7 @@ namespace Chaos
 			// \todo(chaos): see if we can easily switch to CoM transforms now in collision loop (shapes are held in actor space)
 			const FSolverBody& Body0 = *Constraint.GetSolverBody0();
 			const FSolverBody& Body1 = *Constraint.GetSolverBody1();
-			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.GetParticle0());
 			const FRigidTransform3 TransformXQ0(Body0.X() - Body0.ActorQ().RotateVector(Particle0->CenterOfMass()), Body0.ActorQ());
 			const FRigidTransform3 Transform1 = FRigidTransform3(Body1.ActorP(), Body1.ActorQ());
 
@@ -90,20 +86,26 @@ namespace Chaos
 		{
 			FVec3 AccumulatedImpulse(0);
 
-			FCollisionContact& Contact = Constraint.Manifold;
 			FSolverBody& Body0 = *Constraint.GetSolverBody0();
 			FSolverBody& Body1 = *Constraint.GetSolverBody1();
 
-			FVec3 VectorToPoint0 = Contact.Location - Body0.P();
-			FVec3 VectorToPoint1 = Contact.Location - Body1.P();
+			const FVec3 ContactLocation = Constraint.CalculateWorldContactLocation();
+			const FVec3 ContactNormal = Constraint.CalculateWorldContactNormal();
+			const FReal ContactFriction = Constraint.GetDynamicFriction();
+			const FReal ContactRestitution = Constraint.GetRestitution();
+			FReal ContactPhi = Constraint.GetPhi();
+			FReal ContactRestitutionPadding = Constraint.GetRestitutionPadding();
 
-			if (Contact.Phi < 0)
+			FVec3 VectorToPoint0 = ContactLocation - Body0.P();
+			FVec3 VectorToPoint1 = ContactLocation - Body1.P();
+
+			if (ContactPhi < 0)
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
 
-				bool bApplyResitution = (Contact.Restitution > 0.0f);
-				bool bHaveRestitutionPadding = (Contact.RestitutionPadding > 0.0f);
-				bool bApplyFriction = (Contact.Friction > 0) && (IterationParameters.Dt > SMALL_NUMBER);
+				bool bApplyResitution = (ContactRestitution > 0.0f);
+				bool bHaveRestitutionPadding = (ContactRestitutionPadding > 0.0f);
+				bool bApplyFriction = (ContactFriction > 0) && (IterationParameters.Dt > SMALL_NUMBER);
 
 				// If we have restitution, pad the constraint by an amount that enforces the outgoing velocity constraint
 				// Really this should be per contact point, not per constraint.
@@ -119,13 +121,15 @@ namespace Chaos
 					FVec3 CV0 = BodyV0 + FVec3::CrossProduct(BodyW0, VectorToPoint0);
 					FVec3 CV1 = BodyV1 + FVec3::CrossProduct(BodyW1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
-					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+					FReal CVNormal = FVec3::DotProduct(CV, ContactNormal);
 
 					// No restitution below threshold normal velocity (CVNormal is negative here)
 					if (CVNormal < -ParticleParameters.RestitutionVelocityThreshold)
 					{
-						Contact.RestitutionPadding = -(1.0f + Contact.Restitution) * CVNormal * IterationParameters.Dt + Contact.Phi;
-						Contact.Phi -= Contact.RestitutionPadding;
+						ContactRestitutionPadding = -(1.0f + ContactRestitution) * CVNormal * IterationParameters.Dt + ContactPhi;
+						ContactPhi -= ContactRestitutionPadding;
+
+						Constraint.SetRestitutionPadding(ContactRestitutionPadding);
 					}
 				}
 			
@@ -134,8 +138,8 @@ namespace Chaos
 					(Body1.IsDynamic() ? ComputeFactorMatrix3(VectorToPoint1, FMatrix33(Body1.InvI()), FReal(Body1.InvM())) : FMatrix33(0));
 
 				// Calculate the normal correction
-				FVec3 NormalError = Contact.Phi * Contact.Normal;
-				FReal NormalImpulseDenominator = FVec3::DotProduct(Contact.Normal, ContactInvI * Contact.Normal);
+				FVec3 NormalError = ContactPhi * ContactNormal;
+				FReal NormalImpulseDenominator = FVec3::DotProduct(ContactNormal, ContactInvI * ContactNormal);
 				FVec3 NormalImpulseNumerator = -NormalError;
 				FVec3 NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
 
@@ -151,10 +155,10 @@ namespace Chaos
 					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
 					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
-					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
+					FReal CVNormal = FVec3::DotProduct(CV, ContactNormal);
 					if (CVNormal < 0.0f)
 					{
-						FVec3 CVLateral = CV - CVNormal * Contact.Normal;
+						FVec3 CVLateral = CV - CVNormal * ContactNormal;
 						FReal CVLateralMag = CVLateral.Size();
 						if (CVLateralMag > KINDA_SMALL_NUMBER)
 						{
@@ -164,9 +168,9 @@ namespace Chaos
 							LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
 							FReal LateralImpulseMag = LateralCorrection.Size();
 							FReal NormalImpulseMag = NormalCorrection.Size();
-							if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
+							if (LateralImpulseMag > ContactFriction * NormalImpulseMag)
 							{
-								LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
+								LateralCorrection *= ContactFriction * NormalImpulseMag / LateralImpulseMag;
 							}
 						}
 					}
@@ -232,8 +236,8 @@ namespace Chaos
 				// to work, it should be set via the Scatter method of the SolverBody
 				if (ParticleParameters.Collided)
 				{
-					FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
-					FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
+					FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.GetParticle0());
+					FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.GetParticle1());
 					Particle0->AuxilaryValue(*ParticleParameters.Collided) = true;
 					Particle1->AuxilaryValue(*ParticleParameters.Collided) = true;
 				}

@@ -45,9 +45,8 @@ namespace Chaos
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;
-					Contact.Location = BTransform.TransformPosition(Location);
-					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
-					ComputeSweptContactPhiAndTOIHelper(Contact.Normal, Dir, Length, OutTime, TOI, Contact.Phi);
+					const FVec3 ContactNormal = BTransform.TransformVectorNoScale(Normal);
+					ComputeSweptContactPhiAndTOIHelper(ContactNormal, Dir, Length, OutTime, TOI, Contact.Phi);
 				}
 			});
 
@@ -92,8 +91,6 @@ namespace Chaos
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
 				Contact.Phi = ContactPhi;
-				Contact.Location = BTransform.TransformPosition(Location);
-				Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 			}
 		}
 		else if (const TImplicitObjectInstanced<GeometryA>* InstancedConvexImplicit = A.template GetObject<const TImplicitObjectInstanced<GeometryA> >())
@@ -106,8 +103,6 @@ namespace Chaos
 					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
 					Contact.Phi = ContactPhi;
-					Contact.Location = BTransform.TransformPosition(Location);
-					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 				}
 			}
 		}
@@ -119,8 +114,6 @@ namespace Chaos
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
 				Contact.Phi = ContactPhi;
-				Contact.Location = BTransform.TransformPosition(Location);
-				Contact.Normal = BTransform.TransformVectorNoScale(Normal);
 			}
 		}
 
@@ -152,11 +145,8 @@ namespace Chaos
 		for (FContactPoint& ContactPoint : ContactPoints)
 		{
 			// Calculate the shape contact points
-			ContactPoint.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(ContactPoint.Location);
-			ContactPoint.ShapeContactPoints[1] = ContactPoint.Location - ContactPoint.Phi * ContactPoint.ShapeContactNormal;
-			ContactPoint.Normal = BTransform.TransformVectorNoScale(ContactPoint.ShapeContactNormal);
-			// Get the Location in world space
-			ContactPoint.Location = BTransform.TransformPosition(ContactPoint.Location);
+			ContactPoint.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(ContactPoint.ShapeContactPoints[1]);
+			ContactPoint.ShapeContactPoints[1] = ContactPoint.ShapeContactPoints[1] - ContactPoint.Phi * ContactPoint.ShapeContactNormal;
 		}
 	}
 
@@ -182,9 +172,11 @@ namespace Chaos
 				// @todo(chaos): handle Instanced with margin
 				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
-					Contact.Location = BTransform.TransformPosition(Location);
-					Contact.Normal = BTransform.TransformVectorNoScale(Normal);
-					ComputeSweptContactPhiAndTOIHelper(Contact.Normal, Dir, Length, OutTime, TOI, Contact.Phi);
+					Contact.ShapeContactPoints[1] = Location;
+					Contact.ShapeContactNormal = Normal;
+
+					const FVec3& ContactNormal = BTransform.TransformVectorNoScale(Normal);
+					ComputeSweptContactPhiAndTOIHelper(ContactNormal, Dir, Length, OutTime, TOI, Contact.Phi);
 				}
 			});
 
@@ -215,8 +207,6 @@ namespace Chaos
 			Result.ShapeContactPoints[1] = Sphere2.GetCenter() + Sphere2Transform.InverseTransformVector(R2 * Normal);
 			Result.ShapeContactNormal = Sphere2Transform.InverseTransformVector(Normal);
 			Result.Phi = NewPhi;
-			Result.Normal = Normal;
-			Result.Location = Center2 + R2 * Result.Normal;
 		}
 		return Result;
 	}
@@ -239,8 +229,6 @@ namespace Chaos
 		Result.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Location - Phi * NormalWorld);
 		Result.ShapeContactNormal = PlaneTransform.InverseTransformVector(NormalWorld);
 		Result.Phi = Phi;
-		Result.Normal = NormalWorld;
-		Result.Location = Location;
 
 		return Result;
 	}
@@ -263,8 +251,6 @@ namespace Chaos
 		Result.ShapeContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);
 		Result.ShapeContactNormal = NormalBox;
 		Result.Phi = Phi;
-		Result.Normal = NormalWorld;
-		Result.Location = LocationWorld;
 		return Result;
 	}
 
@@ -291,8 +277,6 @@ namespace Chaos
 			Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 			Result.Phi = NewPhi;
-			Result.Normal = Normal;
-			Result.Location = FReal(0.5) * (LocationA + LocationB);
 		}
 
 		return Result;
@@ -421,8 +405,6 @@ namespace Chaos
 			Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 			Result.Phi = NewPhi;
-			Result.Normal = Normal;
-			Result.Location = FReal(0.5) * (LocationA + LocationB);
 		}
 
 		return Result;

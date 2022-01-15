@@ -84,12 +84,6 @@ namespace Chaos
 	bool CollisionsAllowParticleTracking = true;
 	FAutoConsoleVariableRef CVarCollisionsAllowParticleTracking(TEXT("p.Chaos.Collision.AllowParticleTracking"), CollisionsAllowParticleTracking, TEXT("Allow particles to track their collisions constraints when their DoBufferCollisions flag is enable [def:true]"));
 
-#if INTEL_ISPC
-	bool bChaos_Collision_ISPC_Enabled = false;
-	FAutoConsoleVariableRef CVarChaosCollisionISPCEnabled(TEXT("p.Chaos.Collision.ISPC"), bChaos_Collision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Collision Solver"));
-#endif
-
-
 	DECLARE_CYCLE_STAT(TEXT("Collisions::Reset"), STAT_Collisions_Reset, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::UpdatePointConstraints"), STAT_Collisions_UpdatePointConstraints, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::BeginDetect"), STAT_Collisions_BeginDetect, STATGROUP_ChaosCollision);
@@ -126,12 +120,6 @@ namespace Chaos
 		, MaxPushOutVelocity(0)
 		, SolverType(EConstraintSolverType::QuasiPbd)
 	{
-#if INTEL_ISPC
-		if (bRealTypeCompatibleWithISPC && bChaos_Collision_ISPC_Enabled)
-		{
-			check(sizeof(FCollisionContact) == ispc::SizeofFCollisionContact());
-		}
-#endif
 	}
 
 	FPBDCollisionConstraints::~FPBDCollisionConstraints()

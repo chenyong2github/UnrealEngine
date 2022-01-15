@@ -84,8 +84,8 @@ public:
 			Constraint.ResetPhi(TNumericLimits<FReal>::Max());
 			Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(
 				Constraint, 
-				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.Particle[0])), 
-				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.Particle[1])), 
+				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.GetParticle0())), 
+				FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(Constraint.GetParticle1())), 
 				Dt);
 		}
 	}
@@ -96,8 +96,8 @@ public:
 		// Dt is not important for the tests that use this function
 		const FReal Dt = FReal(1) / FReal(30);
 
-		FRigidTransform3 WorldTransform0 = Constraint.ImplicitTransform[0] * Collisions::GetTransform(Constraint.Particle[0]);
-		FRigidTransform3 WorldTransform1 = Constraint.ImplicitTransform[1] * Collisions::GetTransform(Constraint.Particle[1]);
+		FRigidTransform3 WorldTransform0 = Constraint.GetShapeRelativeTransform0() * Collisions::GetTransform(Constraint.GetParticle0());
+		FRigidTransform3 WorldTransform1 = Constraint.GetShapeRelativeTransform1() * Collisions::GetTransform(Constraint.GetParticle1());
 
 		Constraint.ResetManifold();
 		Collisions::UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Deepest>(WorldTransform0, WorldTransform1, FReal(1 / 30.0f), Constraint);

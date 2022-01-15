@@ -1113,7 +1113,7 @@ namespace Chaos
 				const FVec3 V0 = Rigid0 ? Rigid0->PreV() : FVec3(0);
 				const FVec3 V1 = Rigid1 ? Rigid1->PreV() : FVec3(0);
 				const FVec3 DeltaV = V0 - V1;
-				const FReal SpeedAlongNormal = FVec3::DotProduct(DeltaV, ContactHandle->GetContact().GetNormal());
+				const FReal SpeedAlongNormal = FVec3::DotProduct(DeltaV, ContactHandle->GetContact().CalculateWorldContactNormal());
 
 				// If we're not approaching at more than the min speed, reject the contact
 				if (SpeedAlongNormal > -MinContactSpeedForStrainEval && ContactHandle->GetAccumulatedImpulse().SizeSquared() > FReal(0))
@@ -1131,7 +1131,7 @@ namespace Chaos
 				const TArray<FPBDRigidParticleHandle*>& ParentToChildren)
 			{
 				const FRigidTransform3 WorldToClusterTM = FRigidTransform3(Cluster->P(), Cluster->Q());
-				const FVec3 ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContactLocation());
+				const FVec3 ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContact().CalculateWorldContactLocation());
 				FAABB3 ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
 				ContactBox.Thicken(ClusterDistanceThreshold);
 				if (Cluster->ChildrenSpatial())

@@ -47,8 +47,6 @@ namespace Chaos
 			Contact.ShapeContactPoints[0] = ATOITM.InverseTransformPosition(WorldLocation);
 			Contact.ShapeContactPoints[1] = Location;
 			Contact.ShapeContactNormal = Normal;
-			Contact.Location = WorldLocation;
-			Contact.Normal = WorldNormal;
 
 			if (OutTime > 0.f)
 			{

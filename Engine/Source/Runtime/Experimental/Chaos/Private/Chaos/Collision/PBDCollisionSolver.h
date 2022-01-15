@@ -46,10 +46,14 @@ namespace Chaos
 			const FSolverReal Dt,
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
-			const FVec3& InWorldAnchorPoint0,
-			const FVec3& InWorldAnchorPoint1,
+			const FSolverVec3& InRelativeContactPosition0,
+			const FSolverVec3& InRelativeContactPosition1,
 			const FSolverVec3& InWorldContactNormal,
-			const bool bAddVelocityToFriction);
+			const FSolverVec3& InWorldContactTangentU,
+			const FSolverVec3& InWorldContactTangentV,
+			const FSolverReal InWorldContactDeltaNormal,
+			const FSolverReal InWorldContactDeltaTangentU,
+			const FSolverReal InWorldContactDeltaTangentV);
 
 		/**
 		 * @brief Initialize the material related properties of the contact
@@ -59,18 +63,6 @@ namespace Chaos
 			const FConstraintSolverBody& Body1,
 			const FSolverReal InRestitution,
 			const FSolverReal InRestitutionVelocityThreshold);
-
-		/**
-		 * @brief Update the world-space relative contact points based on current body transforms and body-space contact positions
-		*/
-		void UpdateContact(
-			const FSolverReal Dt,
-			const FConstraintSolverBody& Body0,
-			const FConstraintSolverBody& Body1,
-			const FVec3& InWorldAnchorPoint0,
-			const FVec3& InWorldAnchorPoint1,
-			const FSolverVec3& InWorldContactNormal,
-			const bool bAddVelocityToFriction);
 
 		/**
 		 * @brief Update the cached mass properties based on the current body transforms
@@ -170,16 +162,16 @@ namespace Chaos
 		FSolverReal DynamicFriction() const { return State.DynamicFriction; }
 		FSolverReal VelocityFriction() const { return State.VelocityFriction; }
 
-		void SetFriction(const FReal InStaticFriction, const FReal InDynamicFriction, const FReal InVelocityFriction)
+		void SetFriction(const FSolverReal InStaticFriction, const FSolverReal InDynamicFriction, const FSolverReal InVelocityFriction)
 		{
-			State.StaticFriction = FSolverReal(InStaticFriction);
-			State.DynamicFriction = FSolverReal(InDynamicFriction);
-			State.VelocityFriction = FSolverReal(InVelocityFriction);
+			State.StaticFriction = InStaticFriction;
+			State.DynamicFriction = InDynamicFriction;
+			State.VelocityFriction = InVelocityFriction;
 		}
 
-		void SetStiffness(const FReal InStiffness)
+		void SetStiffness(const FSolverReal InStiffness)
 		{
-			State.Stiffness = FSolverReal(InStiffness);
+			State.Stiffness = InStiffness;
 		}
 
 		void SetSolverBodies(FSolverBody* SolverBody0, FSolverBody* SolverBody1)
@@ -213,16 +205,20 @@ namespace Chaos
 
 		void InitContact(
 			const int32 ManifoldPoiontIndex,
-			const FReal Dt,
-			const FVec3& InWorldAnchorPoint0,
-			const FVec3& InWorldAnchorPoint1,
-			const FVec3& InWorldContactNormal,
-			const bool bAddVelocityToFriction);
+			const FSolverReal Dt,
+			const FSolverVec3& InRelativeContactPosition0,
+			const FSolverVec3& InRelativeContactPosition1,
+			const FSolverVec3& InWorldContactNormal,
+			const FSolverVec3& InWorldContactTangentU,
+			const FSolverVec3& InWorldContactTangentV,
+			const FSolverReal InWorldContactDeltaNormal,
+			const FSolverReal InWorldContactDeltaTangentU,
+			const FSolverReal InWorldContactDeltaTangentV);
 
 		void InitMaterial(
 			const int32 ManifoldPoiontIndex,
-			const FReal InRestitution,
-			const FReal InRestitutionVelocityThreshold);
+			const FSolverReal InRestitution,
+			const FSolverReal InRestitutionVelocityThreshold);
 
 		/**
 		 * @brief Get the first (decaorated) solver body

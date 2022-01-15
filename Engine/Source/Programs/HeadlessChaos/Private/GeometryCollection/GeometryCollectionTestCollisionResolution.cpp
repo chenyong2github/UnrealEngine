@@ -95,8 +95,7 @@ namespace GeometryCollectionTest
 			EXPECT_TRUE(Collection->DynamicCollection->Simplicials[0]->Size() != 0);
 
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z - (Radius + 10.f)), KINDA_SMALL_NUMBER);
-			// ball settles within 10% of radius (The ball will sink deeper than expected due to contact position averaging within CullDistance)
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Radius), Radius * 0.1f); 
+			EXPECT_NEAR(Collection->DynamicCollection->Transform[0].GetTranslation().Z, Radius, KINDA_SMALL_NUMBER); 
 		}
 	}
 

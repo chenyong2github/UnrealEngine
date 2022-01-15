@@ -122,15 +122,15 @@ namespace Chaos
 
 					if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 					{
-						FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
-						FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
-						FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
+						const FGeometryParticleHandle* Particle0 = Constraint.GetParticle0();
+						const FGeometryParticleHandle* Particle1 = Constraint.GetParticle1();
+						const FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
 
 						// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-						FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
+						const FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
 
-						const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
-						const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
+						const FImplicitObject* Implicit0 = Constraint.GetImplicit0();
+						const FImplicitObject* Implicit1 = Constraint.GetImplicit1();
 
 						const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
 						const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
@@ -145,13 +145,13 @@ namespace Chaos
 							continue;
 						}
 
-						FKinematicGeometryParticleHandle* Primary = Body0 ? Body0 : Body1;
-						FKinematicGeometryParticleHandle* Secondary = Body0 ? Body1 : Body0;
+						const FKinematicGeometryParticleHandle* Primary = Body0 ? Body0 : Body1;
+						const FKinematicGeometryParticleHandle* Secondary = Body0 ? Body1 : Body0;
 
 						if (!Constraint.AccumulatedImpulse.IsZero() && Primary)
 						{
-							if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-								!Constraint.GetNormal().ContainsNaN()) &&
+							if (ensure(!Constraint.CalculateWorldContactLocation().ContainsNaN() &&
+								!Constraint.CalculateWorldContactNormal().ContainsNaN()) &&
 								!Primary->V().ContainsNaN() &&
 								!Primary->W().ContainsNaN() &&
 								(Secondary == nullptr || ((!Secondary->V().ContainsNaN()) && !Secondary->W().ContainsNaN())))
@@ -171,17 +171,18 @@ namespace Chaos
 					{
 						const FPBDCollisionConstraint& Constraint = ValidCollisionHandles[IdxCollision]->GetContact();
 
-						FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
-						FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+						const FGeometryParticleHandle* Particle0 = Constraint.GetParticle0();
+						const FGeometryParticleHandle* Particle1 = Constraint.GetParticle1();
 
 						FCollidingData Data;
-						Data.Location = Constraint.GetLocation();
+						Data.Location = Constraint.CalculateWorldContactLocation();
 						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
-						Data.Normal = Constraint.GetNormal();
+						Data.Normal = Constraint.CalculateWorldContactNormal();
 						Data.PenetrationDepth = Constraint.GetPhi();
-							
-						Data.Proxy1 = Particle0 ? Particle0->PhysicsProxy() : nullptr;
-						Data.Proxy2 = Particle1 ? Particle1->PhysicsProxy() : nullptr;
+						
+						// @todo(chaos): fix this casting
+						Data.Proxy1 = Particle0 ? const_cast<IPhysicsProxyBase*>(Particle0->PhysicsProxy()) : nullptr;
+						Data.Proxy2 = Particle1 ? const_cast<IPhysicsProxyBase*>(Particle1->PhysicsProxy()) : nullptr;
 
 						const FPerShapeData* Shape0 = Particle0 ? Particle0->GetImplicitShape(Constraint.GetImplicit0()) : nullptr;
 						const FPerShapeData* Shape1 = Particle1 ? Particle1->GetImplicitShape(Constraint.GetImplicit1()) : nullptr;
@@ -195,18 +196,18 @@ namespace Chaos
 							continue;
 						}
 
-						if (FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
+						if (const FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
 						{
 							Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
 						}
-						if (FPBDRigidParticleHandle * Rigid1 = Particle1->CastToRigidParticle())
+						if (const FPBDRigidParticleHandle * Rigid1 = Particle1->CastToRigidParticle())
 						{
 							Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
 						}
 
 						// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 						// do we still need these now we have pointers to particles returned?
-						FPBDRigidParticleHandle* PBDRigid0 = Particle0->CastToRigidParticle();
+						const FPBDRigidParticleHandle* PBDRigid0 = Particle0->CastToRigidParticle();
 						if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity1 = PBDRigid0->V();
@@ -214,7 +215,7 @@ namespace Chaos
 							Data.Mass1 = PBDRigid0->M();
 						}
 
-						FPBDRigidParticleHandle* PBDRigid1 = Particle1->CastToRigidParticle();
+						const FPBDRigidParticleHandle* PBDRigid1 = Particle1->CastToRigidParticle();
 						if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity2 = PBDRigid1->V();
@@ -222,8 +223,8 @@ namespace Chaos
 							Data.Mass2 = PBDRigid1->M();
 						}
 
-						IPhysicsProxyBase* const PhysicsProxy = Particle0->PhysicsProxy();
-						IPhysicsProxyBase* const OtherPhysicsProxy = Particle1->PhysicsProxy();
+						IPhysicsProxyBase* const PhysicsProxy = const_cast<IPhysicsProxyBase*>(Particle0->PhysicsProxy());
+						IPhysicsProxyBase* const OtherPhysicsProxy = const_cast<IPhysicsProxyBase*>(Particle1->PhysicsProxy());
 							
 						const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
 						if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))

@@ -34,9 +34,6 @@ namespace ChaosTest
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.X, ShapeContactNormal.X, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.Y, ShapeContactNormal.Y, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.Z, ShapeContactNormal.Z, NormalTolerance);
-		EXPECT_NEAR(ContactPoint.Normal.X, Normal.X, NormalTolerance);
-		EXPECT_NEAR(ContactPoint.Normal.Y, Normal.Y, NormalTolerance);
-		EXPECT_NEAR(ContactPoint.Normal.Z, Normal.Z, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.Phi, Phi, DistanceTolerance);
 	}
 

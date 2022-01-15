@@ -42,11 +42,6 @@ namespace Chaos
 		return !GetContact().GetDisabled();
 	}
 
-	FVec3 FPBDCollisionConstraintHandle::GetContactLocation() const
-	{
-		return GetContact().GetLocation();
-	}
-
 	FVec3 FPBDCollisionConstraintHandle::GetAccumulatedImpulse() const
 	{
 		return GetContact().AccumulatedImpulse;
@@ -54,12 +49,12 @@ namespace Chaos
 
 	TVector<const TGeometryParticleHandle<FReal, 3>*, 2> FPBDCollisionConstraintHandle::GetConstrainedParticles() const
 	{
-		return { GetContact().Particle[0], GetContact().Particle[1] };
+		return { GetContact().GetParticle0(), GetContact().GetParticle1() };
 	}
 
 	TVector<TGeometryParticleHandle<FReal, 3>*, 2> FPBDCollisionConstraintHandle::GetConstrainedParticles()
 	{
-		return { GetContact().Particle[0], GetContact().Particle[1] };
+		return { GetContact().GetParticle0(), GetContact().GetParticle1() };
 	}
 
 	void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)

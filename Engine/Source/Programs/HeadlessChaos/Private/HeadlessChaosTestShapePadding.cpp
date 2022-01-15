@@ -104,10 +104,10 @@ namespace ChaosTest {
 		Constraint->ResetPhi(Constraint->GetCullDistance());
 		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
 
-		EXPECT_NEAR(Constraint->Manifold.Phi, ExpectedPhi, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.X, ExpectedNormal.X, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
+		EXPECT_NEAR(Constraint->GetPhi(), ExpectedPhi, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().X, ExpectedNormal.X, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().Y, ExpectedNormal.Y, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().Z, ExpectedNormal.Z, Tolerance);
 	}
 
 	TEST(CollisionTests, TestBoxBoxCollisionMargin)
@@ -213,10 +213,10 @@ namespace ChaosTest {
 		// Detect collisions
 		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
 
-		EXPECT_NEAR(Constraint->Manifold.Phi, ExpectedPhi, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.X, ExpectedNormal.X, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
-		EXPECT_NEAR(Constraint->Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
+		EXPECT_NEAR(Constraint->GetPhi(), ExpectedPhi, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().X, ExpectedNormal.X, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().Y, ExpectedNormal.Y, Tolerance);
+		EXPECT_NEAR(Constraint->GetNormal().Z, ExpectedNormal.Z, Tolerance);
 	}
 
 

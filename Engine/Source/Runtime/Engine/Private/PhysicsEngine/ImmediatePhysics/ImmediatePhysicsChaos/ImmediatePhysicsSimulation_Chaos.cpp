@@ -946,7 +946,7 @@ namespace ImmediatePhysics_Chaos
 	{
 #if CHAOS_DEBUG_DRAW
 		using namespace Chaos;
-		if (FDebugDrawQueue::IsDebugDrawingEnabled() && bChaosImmediate_DebugDrawJoints)
+		if (FDebugDrawQueue::IsDebugDrawingEnabled())
 		{
 			if (bChaosImmediate_DebugDrawCollisions)
 			{

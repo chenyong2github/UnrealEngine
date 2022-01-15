@@ -831,14 +831,14 @@ namespace Chaos
 			{
 				if (Contact.GetUseManifold())
 				{
-					const FConstGenericParticleHandle Particle0 = Contact.Particle[0];
-					const FConstGenericParticleHandle Particle1 = Contact.Particle[1];
+					const FConstGenericParticleHandle Particle0 = Contact.GetParticle0();
+					const FConstGenericParticleHandle Particle1 = Contact.GetParticle1();
 					const FRigidTransform3 WorldActorTransform0 = FParticleUtilities::GetActorWorldTransform(Particle0);
 					const FRigidTransform3 WorldActorTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
 
 					// Are we within the region of interest?
-					const FReal Particle0Size = Contact.Particle[0]->HasBounds() ? 0.5f * Contact.Particle[0]->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
-					const FReal Particle1Size = Contact.Particle[1]->HasBounds() ? 0.5f * Contact.Particle[1]->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
+					const FReal Particle0Size = Contact.GetParticle0()->HasBounds() ? 0.5f * Contact.GetParticle0()->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
+					const FReal Particle1Size = Contact.GetParticle1()->HasBounds() ? 0.5f * Contact.GetParticle1()->LocalBounds().Extents().Size() : TNumericLimits<FReal>::Max();
 					if (!FDebugDrawQueue::GetInstance().IsInRegionOfInterest(WorldActorTransform0.GetLocation(), Particle0Size))
 					{
 						return;
@@ -858,10 +858,10 @@ namespace Chaos
 
 						const int32 ContactPlaneOwner = 1;
 						const int32 ContactPointOwner = 1 - ContactPlaneOwner;
-						const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? Contact.ImplicitTransform[0] * WorldActorTransform0 : Contact.ImplicitTransform[1] * WorldActorTransform1;
-						const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? Contact.ImplicitTransform[1] * WorldActorTransform1 : Contact.ImplicitTransform[0] * WorldActorTransform0;
+						const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? Contact.GetShapeRelativeTransform0() * WorldActorTransform0 : Contact.GetShapeRelativeTransform1() * WorldActorTransform1;
+						const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? Contact.GetShapeRelativeTransform1() * WorldActorTransform1 : Contact.GetShapeRelativeTransform0() * WorldActorTransform0;
 						const FConstGenericParticleHandle PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
-						const FVec3 PlaneNormal = ManifoldPoint.ContactPoint.Normal;
+						const FVec3 PlaneNormal = PlaneTransform.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);
 						const FVec3 PointLocation = PointTransform.TransformPosition(ManifoldPoint.ContactPoint.ShapeContactPoints[ContactPointOwner]);
 						const FVec3 PlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.ContactPoint.ShapeContactPoints[ContactPlaneOwner]);
 						const FVec3 PointPlaneLocation = PointLocation - FVec3::DotProduct(PointLocation - PlaneLocation, PlaneNormal) * PlaneNormal;
@@ -909,8 +909,8 @@ namespace Chaos
 						FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 
 						// Previous points
-						const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[ContactPointOwner]);
-						const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[ContactPlaneOwner]);
+						const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PointTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPointOwner]));
+						const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PlaneTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPlaneOwner]));
 						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 
@@ -929,20 +929,20 @@ namespace Chaos
 				}
 				else
 				{
-					const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
-					const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+					const FVec3 Location = SpaceTransform.TransformPosition(Contact.CalculateWorldContactLocation());
+					const FVec3 Normal = SpaceTransform.TransformVector(Contact.CalculateWorldContactNormal());
 					DrawCollisionImpl(Location, Normal, Contact.GetPhi(), FVec3(0), FColor(200, 0, 0), FColor(200, 0, 0), FColor(200, 0, 0), ColorScale, Settings);
 				}
 			}
 			if (Settings.ContactOwnerWidth > 0)
 			{
-				const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
-				const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+				const FVec3 Location = SpaceTransform.TransformPosition(Contact.CalculateWorldContactLocation());
+				const FVec3 Normal = SpaceTransform.TransformVector(Contact.CalculateWorldContactNormal());
 
 				const FColor C3 = (ColorScale * FColor(128, 128, 128)).ToFColor(false);
 				const FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				const FVec3 P0 = SpaceTransform.TransformPosition(Contact.Particle[0]->X());
-				const FVec3 P1 = SpaceTransform.TransformPosition(Contact.Particle[1]->X());
+				const FVec3 P0 = SpaceTransform.TransformPosition(Contact.GetParticle0()->X());
+				const FVec3 P1 = SpaceTransform.TransformPosition(Contact.GetParticle1()->X());
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P0, C3, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 0.5f);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, P1, C3, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 0.5f);
 			}
@@ -962,18 +962,18 @@ namespace Chaos
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 			{
 				const FPBDCollisionConstraint* PointConstraint = &Collisions.GetConstraint(ConstraintIndex);
-				if (!PointConstraint->GetDisabled() && (PointConstraint->Manifold.Phi < TNumericLimits<FReal>::Max()))
+				if (!PointConstraint->GetDisabled() && (PointConstraint->GetPhi() < TNumericLimits<FReal>::Max()))
 				{
-					const FImplicitObject* Implicit0 = PointConstraint->Manifold.Implicit[0];
-					const FImplicitObject* Implicit1 = PointConstraint->Manifold.Implicit[1];
+					const FImplicitObject* Implicit0 = PointConstraint->GetImplicit0();
+					const FImplicitObject* Implicit1 = PointConstraint->GetImplicit1();
 					if ((Implicit0 != nullptr) && (Implicit1 != nullptr))
 					{
-						FConstGenericParticleHandle Particle0 = PointConstraint->Particle[0];
-						FConstGenericParticleHandle Particle1 = PointConstraint->Particle[1];
+						FConstGenericParticleHandle Particle0 = PointConstraint->GetParticle0();
+						FConstGenericParticleHandle Particle1 = PointConstraint->GetParticle1();
 						const FRigidTransform3 WorldActorTransform0 = FParticleUtilities::GetActorWorldTransform(Particle0);
 						const FRigidTransform3 WorldActorTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
-						const FRigidTransform3 ShapeWorldTransform0 = PointConstraint->ImplicitTransform[0] * WorldActorTransform0;
-						const FRigidTransform3 ShapeWorldTransform1 = PointConstraint->ImplicitTransform[1] * WorldActorTransform1;
+						const FRigidTransform3 ShapeWorldTransform0 = PointConstraint->GetShapeRelativeTransform0() * WorldActorTransform0;
+						const FRigidTransform3 ShapeWorldTransform1 = PointConstraint->GetShapeRelativeTransform1() * WorldActorTransform1;
 
 						if (!Shapes.Contains(Implicit0))
 						{
@@ -1138,14 +1138,16 @@ namespace Chaos
 		{
 			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint* Constraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, bool bIsUsed, const FChaosDebugDrawSettings& Settings)
 			{
-				FVec3 ContactPos = Constraint->GetContactLocation();
+				const FRigidTransform3& ShapeTransform0 = Constraint->GetShapeWorldTransform0();
+				const FRigidTransform3& ShapeTransform1 = Constraint->GetShapeWorldTransform1();
+				FVec3 ContactPos = FReal(0.5) * (ShapeTransform0.GetLocation() + ShapeTransform1.GetLocation());
 				if (Constraint->GetManifoldPoints().Num() > 0)
 				{
 					ContactPos = FVec3(0);
 					for (const FManifoldPoint& ManifoldPoint : Constraint->GetManifoldPoints())
 					{
-						ContactPos += SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[0]);
-						ContactPos += SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[1]);
+						ContactPos += SpaceTransform.TransformPosition(ShapeTransform0.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]));
+						ContactPos += SpaceTransform.TransformPosition(ShapeTransform1.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]));
 					}
 					ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
 				}

@@ -80,8 +80,6 @@ namespace Chaos
 				ContactPoint.ShapeContactPoints[0] = PosConvex;
 				ContactPoint.ShapeContactPoints[1] = PosSphere;
 				ContactPoint.ShapeContactNormal = -NormalConvex;
-				ContactPoint.Location = ConvexTransform.TransformPosition(ContactPoint.ShapeContactPoints[0]);
-				ContactPoint.Normal = ConvexTransform.TransformVectorNoScale(-NormalConvex);
 				ContactPoint.Phi = Phi;
 			}
 		}

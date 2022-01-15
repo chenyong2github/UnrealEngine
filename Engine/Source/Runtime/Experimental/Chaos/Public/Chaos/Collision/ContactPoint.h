@@ -31,12 +31,6 @@ namespace Chaos
 		// Shape-space contact normal on the second shape with direction that points away from shape 1
 		FVec3 ShapeContactNormal;
 
-		// World-space contact location
-		FVec3 Location;
-
-		// World-space contact normal with direction that points away from shape 1
-		FVec3 Normal;
-
 		// Contact separation (negative for overlap)
 		FReal Phi;
 
@@ -59,7 +53,6 @@ namespace Chaos
 			{
 				Swap(ShapeContactPoints[0], ShapeContactPoints[1]);
 				ShapeContactNormal = -ShapeContactNormal;
-				Normal = -Normal;
 			}
 			return *this;
 		}
