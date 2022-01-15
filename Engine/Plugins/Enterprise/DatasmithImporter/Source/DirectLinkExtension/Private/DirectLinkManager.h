@@ -12,6 +12,7 @@
 #include "DirectLinkEndpoint.h"
 #include "HAL/CriticalSection.h"
 #include "IUriResolver.h"
+#include "UObject/SoftObjectPtr.h"
 
 struct FAssetData;
 
