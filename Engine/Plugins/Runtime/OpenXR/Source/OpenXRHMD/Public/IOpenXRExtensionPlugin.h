@@ -364,9 +364,16 @@ public:
 	virtual void PostSyncActions(XrSession InSession)
 	{
 	}
+
 	
 	virtual void OnSetDeviceProperty(XrSession InSession, int32 ControllerId, const FInputDeviceProperty* Property)
 	{
+	}
+
+	/** Update OpenXRHMD to use reference space types other than view, local, and stage. */
+	virtual bool UseCustomReferenceSpaceType(XrReferenceSpaceType& OutReferenceSpaceType)
+	{
+		return false;
 	}
 	
 	/**

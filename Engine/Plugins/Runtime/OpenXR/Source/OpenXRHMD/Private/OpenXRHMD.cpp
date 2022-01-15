@@ -887,6 +887,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, Session(XR_NULL_HANDLE)
 	, LocalSpace(XR_NULL_HANDLE)
 	, StageSpace(XR_NULL_HANDLE)
+	, CustomSpace(XR_NULL_HANDLE)
 	, TrackingSpaceType(XR_REFERENCE_SPACE_TYPE_STAGE)
 	, SelectedViewConfigurationType(XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM)
 	, SelectedEnvironmentBlendMode(XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM)
@@ -1364,8 +1365,26 @@ bool FOpenXRHMD::OnStereoStartup()
 	SpaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
 	XR_ENSURE(xrCreateReferenceSpace(Session, &SpaceInfo, &LocalSpace));
 
-	// Prefer a stage space over a local space
-	if (Spaces.Contains(XR_REFERENCE_SPACE_TYPE_STAGE))
+	bool UseCustomReferenceSpaceType = false;
+	XrReferenceSpaceType CustomReferenceSpaceType;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		if (Module->UseCustomReferenceSpaceType(CustomReferenceSpaceType))
+		{
+			UseCustomReferenceSpaceType = true;
+			break;
+		}
+	}
+
+	// If a custom reference space is desired, try to use that.  
+	// Otherwise prefer a stage space over a local space
+	if (UseCustomReferenceSpaceType && Spaces.Contains(CustomReferenceSpaceType))
+	{
+		TrackingSpaceType = CustomReferenceSpaceType;
+		SpaceInfo.referenceSpaceType = TrackingSpaceType;
+		XR_ENSURE(xrCreateReferenceSpace(Session, &SpaceInfo, &CustomSpace));
+	}
+	else if (Spaces.Contains(XR_REFERENCE_SPACE_TYPE_STAGE))
 	{
 		TrackingSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
 		SpaceInfo.referenceSpaceType = TrackingSpaceType;

@@ -297,6 +297,11 @@ public:
 	OPENXRHMD_API XrSession GetSession() { return Session; }
 	OPENXRHMD_API XrSpace GetTrackingSpace()
 	{
+		if (CustomSpace != XR_NULL_HANDLE)
+		{
+			return CustomSpace;
+		}
+		
 		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE) ? StageSpace : LocalSpace;
 	}
 	OPENXRHMD_API XrTime GetDisplayTime() const;
@@ -332,6 +337,7 @@ private:
 	XrSession				Session;
 	XrSpace					LocalSpace;
 	XrSpace					StageSpace;
+	XrSpace					CustomSpace;
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
