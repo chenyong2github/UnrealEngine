@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace EpicGames.Serialization.Converters
+namespace EpicGames.Serialization
 {
 	/// <summary>
 	/// Attribute declaring the converter to use for a type
