@@ -1194,7 +1194,7 @@ void FStaticMeshOperations::AreNormalsAndTangentsValid(const FMeshDescription& M
 
 void ClearNormalsAndTangentsData(FMeshDescription& MeshDescription, bool bClearNormals, bool bClearTangents)
 {
-	if (!bClearNormals && bClearTangents)
+	if (!bClearNormals && !bClearTangents)
 	{
 		return;
 	}
