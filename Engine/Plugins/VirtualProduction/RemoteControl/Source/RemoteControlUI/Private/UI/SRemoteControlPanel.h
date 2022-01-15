@@ -93,8 +93,6 @@ public:
 	void SetEditMode(bool bEditMode)
 	{
 		bIsInEditMode = bEditMode;
-	
-		OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
 	}
 
 	/**

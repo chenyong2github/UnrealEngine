@@ -44,7 +44,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 			.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
 			.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
 			.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening)
-			.ClearSelectionOnClick(false)
+			.ClearSelectionOnClick(true)
 	];
 
 	RegisterEvents();
@@ -164,7 +164,8 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 			Args.Preset = Preset.Get();
 			Args.WidgetRegistry = WidgetRegistry;
 			Args.ColumnSizeData = ColumnSizeData;
-			
+			Args.bIsInEditMode = bIsInEditMode;
+
 			FieldWidgetMap.Add(Entity->GetId(), FRemoteControlUIModule::Get().GenerateEntityWidget(Args));
 		}
 	}
