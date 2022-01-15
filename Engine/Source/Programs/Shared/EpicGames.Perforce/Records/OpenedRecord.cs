@@ -22,21 +22,21 @@ namespace EpicGames.Perforce
 		public string DepotFile { get; set; } = String.Empty;
 		
 		/// <summary>
-		/// Client path to file
+		/// Client path to file (not returned if OpenedOptions.ShortOutput is set)
 		/// </summary>
-		[PerforceTag("clientFile")]
+		[PerforceTag("clientFile", Optional = true)]
 		public string ClientFile { get; set; } = String.Empty;
 
 		/// <summary>
-		/// The revision of the file 
+		/// The revision of the file (not returned if OpenedOptions.ShortOutput is set)
 		/// </summary>
-		[PerforceTag("rev")]
+		[PerforceTag("rev", Optional = true)]
 		public int Revision { get; set; }
 
 		/// <summary>
-		/// The synced revision of the file (may be 'none' for adds)
+		/// The synced revision of the file (may be 'none' for adds) (not returned if OpenedOptions.ShortOutput is set)
 		/// </summary>
-		[PerforceTag("haveRev")]
+		[PerforceTag("haveRev", Optional = true)]
 		public int HaveRevision { get; set; }
 
 		/// <summary>

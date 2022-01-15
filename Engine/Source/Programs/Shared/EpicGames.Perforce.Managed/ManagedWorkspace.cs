@@ -1241,7 +1241,7 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch Timer = Stopwatch.StartNew();
 
 				// Get a list of open files
-				List<OpenedRecord> OpenedFilesResponse = await PerforceClient.OpenedAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, new string[0], CancellationToken).ToListAsync(CancellationToken);
+				List<OpenedRecord> OpenedFilesResponse = await PerforceClient.OpenedAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, FileSpecList.Any, CancellationToken).ToListAsync(CancellationToken);
 
 				// If there are any files, revert them
 				if(OpenedFilesResponse.Any())
