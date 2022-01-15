@@ -69,6 +69,36 @@ struct FPageSections
 	}
 };
 
+struct FPageGPUHeader
+{
+	uint32 NumClusters = 0;
+	uint32 Pad[3] = { 0 };
+};
+
+struct FPageDiskHeader
+{
+	uint32 GpuSize;
+	uint32 NumClusters;
+	uint32 NumRawFloat4s;
+	uint32 NumTexCoords;
+	uint32 NumVertexRefs;
+	uint32 DecodeInfoOffset;
+	uint32 StripBitmaskOffset;
+	uint32 VertexRefBitmaskOffset;
+};
+
+struct FClusterDiskHeader
+{
+	uint32 IndexDataOffset;
+	uint32 PageClusterMapOffset;
+	uint32 VertexRefDataOffset;
+	uint32 PositionDataOffset;
+	uint32 AttributeDataOffset;
+	uint32 NumVertexRefs;
+	uint32 NumPrevRefVerticesBeforeDwords;
+	uint32 NumPrevNewVerticesBeforeDwords;
+};
+
 struct FPage
 {
 	uint32	PartsStartIndex = 0;
@@ -205,61 +235,6 @@ private:
 	uint64 			PendingBits;
 	int32 			NumPendingBits;
 };
-
-
-FORCEINLINE uint32 GetTypeHash(const FUIntVector& V)
-{
-	return CityHash32( (const char*)&V, sizeof(FUIntVector) );
-}
-
-FORCEINLINE uint32 GetTypeHash( const FIntVector4& Vector )
-{
-	return CityHash32( (const char*)&Vector, sizeof( FIntVector4 ) );
-}
-
-/*
-void UnpackBounds( FSphere& Bounds, const FSphere& LODBounds, const Nanite::FPackedBound& PackedBound )
-{
-	FFloat16 X, Y, Z, W;
-	X.Encoded = PackedBound.XY & 0xFFFFu;
-	Y.Encoded = PackedBound.XY >> 16;
-	Z.Encoded = PackedBound.ZW & 0xFFFFu;
-	W.Encoded = PackedBound.ZW >> 16;
-
-	FVector4 BoundsDelta	= FVector4( X, Y, Z, W );
-	FVector4 Value			= BoundsDelta + FVector4( LODBounds.Center, LODBounds.W );
-	Bounds.Center			= FVector( Value );
-	Bounds.W				= Value.W;
-}
-
-void PackBounds( Nanite::FPackedBound& PackedBound, const FSphere& Bounds, const FSphere& LODBounds )
-{
-	FVector4 BoundsDelta= FVector4( Bounds.Center, Bounds.W ) - FVector4( LODBounds.Center, LODBounds.W );
-	PackedBound.XY		= FFloat16( BoundsDelta.X ).Encoded | ( FFloat16( BoundsDelta.Y ).Encoded << 16 );
-	PackedBound.ZW		= FFloat16( BoundsDelta.Z ).Encoded | ( FFloat16( BoundsDelta.W ).Encoded << 16 );
-}
-
-void PackBoundsConservative( Nanite::FPackedBound& PackedBound, const FSphere& Bounds, const FSphere& LODBounds )
-{
-	PackBounds( PackedBound, Bounds, LODBounds );
-
-	FSphere NewBounds;
-	UnpackBounds( NewBounds, LODBounds, PackedBound );
-	float NewRadius = ( ( Bounds.Center - NewBounds.Center ).Size() + Bounds.W - LODBounds.W );
-	FFloat16 NewRadius16 = FFloat16( NewRadius );
-	if( NewRadius16 < NewRadius )
-		NewRadius16.Encoded += NewRadius16 < 0 ? -1 : 1;
-
-	check( FMath::IsFinite(NewBounds.Center.X) );
-	check( FMath::IsFinite(NewBounds.Center.Y) );
-	check( FMath::IsFinite(NewBounds.Center.Z) );
-	check( NewRadius16 >= NewRadius );
-	PackedBound.ZW = ( NewRadius16.Encoded << 16) | ( PackedBound.ZW & 0xFFFFu );
-
-	UnpackBounds( NewBounds, LODBounds, PackedBound );
-	check( Bounds.IsInside( NewBounds, 1e-3f ) );
-}
-*/
 
 static void RemoveRootPagesFromRange(uint32& StartPage, uint32& NumPages, const uint32 NumResourceRootPages)
 {

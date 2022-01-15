@@ -23,6 +23,33 @@ static FAutoConsoleVariableRef CVarNaniteExportDepth(
 	TEXT("")
 );
 
+int32 GNaniteMaxNodes = 2 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxNodes(
+	TEXT("r.Nanite.MaxNodes"),
+	GNaniteMaxNodes,
+	TEXT("Maximum number of Nanite nodes traversed during a culling pass."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteMaxCandidateClusters = 16 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
+	TEXT("r.Nanite.MaxCandidateClusters"),
+	GNaniteMaxCandidateClusters,
+	TEXT("Maximum number of Nanite clusters before cluster culling."),
+	ECVF_ReadOnly
+);
+
+int32 GNaniteMaxVisibleClusters = 2 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
+	TEXT("r.Nanite.MaxVisibleClusters"),
+	GNaniteMaxVisibleClusters,
+	TEXT("Maximum number of visible Nanite clusters."),
+	ECVF_ReadOnly
+);
+
+#define MAX_CLUSTERS	(16 * 1024 * 1024)
+
+
 namespace Nanite
 {
 
@@ -131,6 +158,66 @@ FPackedView CreatePackedViewFromViewInfo
 	Params.HZBTestViewRect = View.PrevViewInfo.ViewRect;
 	return CreatePackedView(Params);
 }
+
+void FGlobalResources::InitRHI()
+{
+}
+
+void FGlobalResources::ReleaseRHI()
+{
+	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		LLM_SCOPE_BYTAG(Nanite);
+
+		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
+		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
+
+		MainAndPostNodesAndClusterBatchesBuffer.SafeRelease();
+
+		StatsBuffer.SafeRelease();
+
+		StructureBufferStride8.SafeRelease();
+	}
+}
+
+void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
+{
+	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
+
+	if (!StructureBufferStride8.IsValid())
+	{
+		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
+		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("Nanite.StructureBufferStride8"));
+		check(StructureBufferStride8.IsValid());
+	}
+}
+
+uint32 FGlobalResources::GetMaxCandidateClusters()
+{
+	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
+	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	return MaxCandidateClusters;
+}
+
+uint32 FGlobalResources::GetMaxClusterBatches()
+{
+	const uint32 MaxCandidateClusters = GetMaxCandidateClusters();
+	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
+	return MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+}
+
+uint32 FGlobalResources::GetMaxVisibleClusters()
+{
+	checkf(GNaniteMaxVisibleClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxVisibleClusters must be <= MAX_CLUSTERS"));
+	return GNaniteMaxVisibleClusters;
+}
+
+uint32 FGlobalResources::GetMaxNodes()
+{
+	return GNaniteMaxNodes & -MAX_BVH_NODES_PER_GROUP;
+}
+
+TGlobalResource< FGlobalResources > GGlobalResources;
 
 } // namespace Nanite
 

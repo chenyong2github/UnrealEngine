@@ -113,24 +113,6 @@ class FVertexFactory;
 namespace Nanite
 {
 
-struct FUIntVector
-{
-	uint32 X, Y, Z;
-
-	bool operator==(const FUIntVector& V) const
-	{
-		return X == V.X && Y == V.Y && Z == V.Z;
-	}
-
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FUIntVector& V)
-	{
-		Ar << V.X;
-		Ar << V.Y;
-		Ar << V.Z;
-		return Ar;
-	}
-};
-
 struct FPackedHierarchyNode
 {
 	FVector4f		LODBounds[MAX_BVH_NODE_FANOUT];
@@ -153,14 +135,6 @@ struct FPackedHierarchyNode
 	} Misc2[MAX_BVH_NODE_FANOUT];
 };
 
-struct FMaterialTriangle
-{
-	uint32 Index0;
-	uint32 Index1;
-	uint32 Index2;
-	uint32 MaterialIndex;
-	uint32 RangeCount;
-};
 
 FORCEINLINE uint32 GetBits(uint32 Value, uint32 NumBits, uint32 Offset)
 {
@@ -246,12 +220,6 @@ struct FPackedCluster
 	void		SetGroupIndex(uint32 GroupIndex)		{ SetBits(ColorBits_GroupIndex, GroupIndex & 0xFFFFu, 16, 16); }
 };
 
-struct FPageGPUHeader
-{
-	uint32 NumClusters = 0;
-	uint32 Pad[3] = {0};
-};
-
 struct FPageStreamingState
 {
 	uint32			BulkOffset;
@@ -321,30 +289,6 @@ public:
 	uint32 PageDependencyStartAndNum;
 };
 
-struct FPageDiskHeader
-{
-	uint32 GpuSize;
-	uint32 NumClusters;
-	uint32 NumRawFloat4s;
-	uint32 NumTexCoords;
-	uint32 NumVertexRefs;
-	uint32 DecodeInfoOffset;
-	uint32 StripBitmaskOffset;
-	uint32 VertexRefBitmaskOffset;
-};
-
-struct FClusterDiskHeader
-{
-	uint32 IndexDataOffset;
-	uint32 PageClusterMapOffset;
-	uint32 VertexRefDataOffset;
-	uint32 PositionDataOffset;
-	uint32 AttributeDataOffset;
-	uint32 NumVertexRefs;
-	uint32 NumPrevRefVerticesBeforeDwords;
-	uint32 NumPrevNewVerticesBeforeDwords;
-};
-
 class FFixupChunk	//TODO: rename to something else
 {
 public:
@@ -407,58 +351,18 @@ struct FResources
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }
 };
 
-/*
- * GPU side buffers containing Nanite resource data.
- */
-class FGlobalResources : public FRenderResource
+class FVertexFactoryResource : public FRenderResource
 {
-public:
-	struct PassBuffers
-	{
-		// Used for statistics
-		TRefCountPtr<FRDGPooledBuffer> StatsRasterizeArgsSWHWBuffer;
-	};
-
-	// Used for statistics
-	uint32 StatsRenderFlags = 0;
-	uint32 StatsDebugFlags  = 0;
-
 public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	ENGINE_API void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
-
-	ENGINE_API static uint32 GetMaxCandidateClusters();
-	ENGINE_API static uint32 GetMaxClusterBatches();
-	ENGINE_API static uint32 GetMaxVisibleClusters();
-	ENGINE_API static uint32 GetMaxNodes();
-
-	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
-	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
-
-	TRefCountPtr<FRDGPooledBuffer>& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
-
-	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
-	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
-
 	FVertexFactory* GetVertexFactory() { return VertexFactory; }
-	
 private:
-	PassBuffers MainPassBuffers;
-	PassBuffers PostPassBuffers;
-
 	class FVertexFactory* VertexFactory = nullptr;
-
-	TRefCountPtr<FRDGPooledBuffer> MainAndPostNodesAndClusterBatchesBuffer;
-
-	// Used for statistics
-	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
-
-	// Dummy structured buffer with stride8
-	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
 };
 
-extern ENGINE_API TGlobalResource< FGlobalResources > GGlobalResources;
+
+extern ENGINE_API TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 
 } // namespace Nanite

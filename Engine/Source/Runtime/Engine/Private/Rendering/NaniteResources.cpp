@@ -49,38 +49,12 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Random Data Instances"), STAT_InstanceHasRa
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Local Bounds Instances"), STAT_InstanceHasLocalBounds, STATGROUP_Nanite);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Hierarchy Offset Instances"), STAT_InstanceHasHierarchyOffset, STATGROUP_Nanite);
 
-#define MAX_CLUSTERS	(16 * 1024 * 1024)
-
 int32 GNaniteOptimizedRelevance = 1;
 FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	TEXT("r.Nanite.OptimizedRelevance"),
 	GNaniteOptimizedRelevance,
 	TEXT("Whether to optimize Nanite relevance (outside of editor)."),
 	ECVF_RenderThreadSafe
-);
-
-int32 GNaniteMaxNodes = 2 * 1048576;
-FAutoConsoleVariableRef CVarNaniteMaxNodes(
-	TEXT("r.Nanite.MaxNodes"),
-	GNaniteMaxNodes,
-	TEXT("Maximum number of Nanite nodes traversed during a culling pass."),
-	ECVF_ReadOnly
-);
-
-int32 GNaniteMaxCandidateClusters = 16 * 1048576;
-FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
-	TEXT("r.Nanite.MaxCandidateClusters"),
-	GNaniteMaxCandidateClusters,
-	TEXT("Maximum number of Nanite clusters before cluster culling."),
-	ECVF_ReadOnly
-);
-
-int32 GNaniteMaxVisibleClusters = 2 * 1048576;
-FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
-	TEXT("r.Nanite.MaxVisibleClusters"),
-	GNaniteMaxVisibleClusters,
-	TEXT("Maximum number of visible Nanite clusters."),
-	ECVF_ReadOnly
 );
 
 int32 GRayTracingNaniteProxyMeshes = 1;
@@ -289,7 +263,7 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	LLM_SCOPE_BYTAG(Nanite);
 
 	FMeshBatch MeshBatch;
-	MeshBatch.VertexFactory = GGlobalResources.GetVertexFactory();
+	MeshBatch.VertexFactory = GVertexFactoryResource.GetVertexFactory();
 	MeshBatch.Type = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
 	MeshBatch.ReverseCulling = false;
 	MeshBatch.bDisableBackfaceCulling = true;
@@ -1327,7 +1301,7 @@ uint32 FSceneProxy::GetMemoryFootprint() const
 	return sizeof( *this ) + GetAllocatedSize();
 }
 
-void FGlobalResources::InitRHI()
+void FVertexFactoryResource::InitRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
@@ -1337,63 +1311,17 @@ void FGlobalResources::InitRHI()
 	}
 }
 
-void FGlobalResources::ReleaseRHI()
+void FVertexFactoryResource::ReleaseRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		LLM_SCOPE_BYTAG(Nanite);
-
-		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
-		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
-
-		MainAndPostNodesAndClusterBatchesBuffer.SafeRelease();
-
-		StatsBuffer.SafeRelease();
-
-		StructureBufferStride8.SafeRelease();
 
 		delete VertexFactory;
 		VertexFactory = nullptr;
 	}
 }
 
-void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
-{
-	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
-
-	if (!StructureBufferStride8.IsValid())
-	{
-		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
-		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("Nanite.StructureBufferStride8"));
-		check(StructureBufferStride8.IsValid());
-	}
-}
-
-uint32 FGlobalResources::GetMaxCandidateClusters()
-{
-	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
-	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-	return MaxCandidateClusters;
-}
-
-uint32 FGlobalResources::GetMaxClusterBatches()
-{
-	const uint32 MaxCandidateClusters = GetMaxCandidateClusters();
-	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
-	return MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-}
-
-uint32 FGlobalResources::GetMaxVisibleClusters()
-{
-	checkf(GNaniteMaxVisibleClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxVisibleClusters must be <= MAX_CLUSTERS"));
-	return GNaniteMaxVisibleClusters;
-}
-
-uint32 FGlobalResources::GetMaxNodes()
-{
-	return GNaniteMaxNodes & -MAX_BVH_NODES_PER_GROUP;
-}
-
-TGlobalResource< FGlobalResources > GGlobalResources;
+TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 
 } // namespace Nanite

@@ -12,6 +12,15 @@ class FGraphPartitioner;
 namespace Nanite
 {
 
+struct FMaterialTriangle
+{
+	uint32 Index0;
+	uint32 Index1;
+	uint32 Index2;
+	uint32 MaterialIndex;
+	uint32 RangeCount;
+};
+
 struct FMaterialRange
 {
 	uint32 RangeStart;

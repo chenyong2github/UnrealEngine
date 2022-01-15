@@ -124,6 +124,54 @@ struct FVisualizeResult
 	uint8 bSkippedTile    : 1;
 };
 
+/*
+ * GPU side buffers containing Nanite resource data.
+ */
+class FGlobalResources : public FRenderResource
+{
+public:
+	struct PassBuffers
+	{
+		// Used for statistics
+		TRefCountPtr<FRDGPooledBuffer> StatsRasterizeArgsSWHWBuffer;
+	};
+
+	// Used for statistics
+	uint32 StatsRenderFlags = 0;
+	uint32 StatsDebugFlags = 0;
+
+public:
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+
+	void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
+
+	static uint32 GetMaxCandidateClusters();
+	static uint32 GetMaxClusterBatches();
+	static uint32 GetMaxVisibleClusters();
+	static uint32 GetMaxNodes();
+
+	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
+	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
+
+	TRefCountPtr<FRDGPooledBuffer>& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
+
+	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
+	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
+private:
+	PassBuffers MainPassBuffers;
+	PassBuffers PostPassBuffers;
+
+	TRefCountPtr<FRDGPooledBuffer> MainAndPostNodesAndClusterBatchesBuffer;
+
+	// Used for statistics
+	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
+
+	// Dummy structured buffer with stride8
+	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
+};
+
+extern TGlobalResource< FGlobalResources > GGlobalResources;
 } // namespace Nanite
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
