@@ -1296,12 +1296,16 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 	// Copy the viewer
 	if (NewResourceDumpContext.bEnableDiskWrite)
 	{
-		const TCHAR* OpenGPUDumpViewerWindowsName = TEXT("OpenGPUDumpViewer.bat");
+#if PLATFORM_WINDOWS
+		const TCHAR* OpenGPUDumpViewerName = TEXT("OpenGPUDumpViewer.bat");
+#else
+		const TCHAR* OpenGPUDumpViewerName = TEXT("OpenGPUDumpViewer.sh");
+#endif
 		const TCHAR* ViewerHTML = TEXT("GPUDumpViewer.html");
 		FString DumpGPUViewerSourcePath = FPaths::EngineDir() + FString(TEXT("Extras")) / TEXT("GPUDumpViewer");
 
 		PlatformFile.CopyFile(*(NewResourceDumpContext.DumpingDirectoryPath / ViewerHTML), *(DumpGPUViewerSourcePath / ViewerHTML));
-		PlatformFile.CopyFile(*(NewResourceDumpContext.DumpingDirectoryPath / OpenGPUDumpViewerWindowsName), *(DumpGPUViewerSourcePath / OpenGPUDumpViewerWindowsName));
+		PlatformFile.CopyFile(*(NewResourceDumpContext.DumpingDirectoryPath / OpenGPUDumpViewerName), *(DumpGPUViewerSourcePath / OpenGPUDumpViewerName));
 	}
 
 	ENQUEUE_RENDER_COMMAND(FStartGPUDump)(
