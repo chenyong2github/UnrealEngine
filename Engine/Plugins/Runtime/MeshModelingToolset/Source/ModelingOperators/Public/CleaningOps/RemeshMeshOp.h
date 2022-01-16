@@ -65,6 +65,9 @@ public:
 	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
+	// When true, result will have attributes object regardless of whether attributes 
+	// were discarded or present initially.
+	bool bResultMustHaveAttributesEnabled = false;
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 
 	FDynamicMesh3* ProjectionTarget = nullptr;

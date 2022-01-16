@@ -75,6 +75,9 @@ public:
 	int TargetPercentage, TargetCount;
 	float TargetEdgeLength;
 	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse;
+	// When true, result will have attributes object regardless of whether attributes 
+	// were discarded or present initially.
+	bool bResultMustHaveAttributesEnabled = false;
 	UE::Geometry::EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float MinimalPlanarAngleThresh = 0.01f;

@@ -237,6 +237,18 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 
 	// currently cannot re-use existing attribute buffers
 	Clear();
+	if (bNormals && copy.HasVertexNormals())
+	{
+		EnableVertexNormals(FVector3f::UnitY());
+	}
+	if (bColors && copy.HasVertexColors())
+	{
+		EnableVertexColors(FVector3f::One());
+	}
+	if (bUVs && copy.HasVertexUVs())
+	{
+		EnableVertexUVs(FVector2f::Zero());
+	}
 
 	// Use a triangle map if we have a CompactInfo or we need to copy attributes.
 	const bool bUseTriangleMap = CompactInfo != nullptr || (bAttributes && copy.HasAttributes());

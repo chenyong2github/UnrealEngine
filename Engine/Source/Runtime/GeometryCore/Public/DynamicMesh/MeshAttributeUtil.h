@@ -37,6 +37,26 @@ namespace Geometry
 		TArray<int32>& NewToOldMapOut,
 		bool& bWasCompactOut);
 
+	/**
+	 * Copies vertex UVs to a given overlay (clearing it before use if it has any elements).
+	 * 
+	 * @param bCompactElements If true, elements are compacted in the overlay
+	 * @return true if successful
+	 */
+	GEOMETRYCORE_API bool CopyVertexUVsToOverlay(
+		const FDynamicMesh3& Mesh,
+		FDynamicMeshUVOverlay& UVOverlayOut,
+		bool bCompactElements = false);
 
+	/**
+	 * Copies vertex normals to a given overlay (clearing it before use if it has any elements).
+	 *
+	 * @param bCompactElements If true, elements are compacted in the overlay
+	 * @return true if successful
+	 */
+	GEOMETRYCORE_API bool CopyVertexNormalsToOverlay(
+		const FDynamicMesh3& Mesh,
+		FDynamicMeshNormalOverlay& NormalOverlayOut,
+		bool bCompactElements = false);
 }
 }

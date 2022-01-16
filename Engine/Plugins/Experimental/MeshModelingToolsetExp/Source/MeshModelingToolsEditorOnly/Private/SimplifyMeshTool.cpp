@@ -191,6 +191,8 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	TUniquePtr<FSimplifyMeshOp> Op = MakeUnique<FSimplifyMeshOp>();
 
 	Op->bDiscardAttributes = SimplifyProperties->bDiscardAttributes;
+	// We always want attributes enabled on result even if we discard them initially
+	Op->bResultMustHaveAttributesEnabled = true;
 	Op->bPreventNormalFlips = SimplifyProperties->bPreventNormalFlips;
 	Op->bPreserveSharpEdges = SimplifyProperties->bPreserveSharpEdges;
 	Op->bAllowSeamCollapse = !SimplifyProperties->bPreserveSharpEdges;

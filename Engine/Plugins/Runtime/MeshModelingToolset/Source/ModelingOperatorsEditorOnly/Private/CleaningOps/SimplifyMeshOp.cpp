@@ -7,6 +7,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshAttributeUtil.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
@@ -329,4 +330,16 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		FMeshNormals::QuickComputeVertexNormals(*ResultMesh);
 	}
 
+	if (!TargetMesh->HasAttributes() && bResultMustHaveAttributesEnabled)
+	{
+		TargetMesh->EnableAttributes();
+		if (TargetMesh->HasVertexUVs())
+		{
+			CopyVertexUVsToOverlay(*TargetMesh, *TargetMesh->Attributes()->PrimaryUV());
+		}
+		if (TargetMesh->HasVertexNormals())
+		{
+			CopyVertexNormalsToOverlay(*TargetMesh, *TargetMesh->Attributes()->PrimaryNormals());
+		}
+	}
 }

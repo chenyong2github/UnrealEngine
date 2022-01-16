@@ -63,3 +63,77 @@ bool UE::Geometry::CompactAttributeValues(
 
 	return true;
 }
+
+bool UE::Geometry::CopyVertexUVsToOverlay(
+	const FDynamicMesh3& Mesh,
+	FDynamicMeshUVOverlay& UVOverlayOut,
+	bool bCompactElements)
+{
+	if (!Mesh.HasVertexUVs())
+	{
+		return false;
+	}
+
+	if (UVOverlayOut.ElementCount() > 0)
+	{
+		UVOverlayOut.ClearElements();
+	}
+	
+	UVOverlayOut.BeginUnsafeElementsInsert();
+	for (int32 Vid : Mesh.VertexIndicesItr())
+	{
+		FVector2f UV = Mesh.GetVertexUV(Vid);
+		UVOverlayOut.InsertElement(Vid, &UV.X, true);
+	}
+	UVOverlayOut.EndUnsafeElementsInsert();
+
+	for (int32 Tid : Mesh.TriangleIndicesItr())
+	{
+		UVOverlayOut.SetTriangle(Tid, Mesh.GetTriangle(Tid));
+	}
+
+	if (bCompactElements)
+	{
+		FCompactMaps CompactMaps;
+		UVOverlayOut.CompactInPlace(CompactMaps);
+	}
+
+	return true;
+}
+
+bool UE::Geometry::CopyVertexNormalsToOverlay(
+	const FDynamicMesh3& Mesh,
+	FDynamicMeshNormalOverlay& NormalOverlayOut,
+	bool bCompactElements)
+{
+	if (!Mesh.HasVertexNormals())
+	{
+		return false;
+	}
+
+	if (NormalOverlayOut.ElementCount() > 0)
+	{
+		NormalOverlayOut.ClearElements();
+	}
+
+	NormalOverlayOut.BeginUnsafeElementsInsert();
+	for (int32 Vid : Mesh.VertexIndicesItr())
+	{
+		FVector3f Normal = Mesh.GetVertexNormal(Vid);
+		NormalOverlayOut.InsertElement(Vid, &Normal.X, true);
+	}
+	NormalOverlayOut.EndUnsafeElementsInsert();
+
+	for (int32 Tid : Mesh.TriangleIndicesItr())
+	{
+		NormalOverlayOut.SetTriangle(Tid, Mesh.GetTriangle(Tid));
+	}
+
+	if (bCompactElements)
+	{
+		FCompactMaps CompactMaps;
+		NormalOverlayOut.CompactInPlace(CompactMaps);
+	}
+
+	return true;
+}

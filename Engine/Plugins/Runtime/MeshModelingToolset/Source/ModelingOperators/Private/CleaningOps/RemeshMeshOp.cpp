@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshAttributeUtil.h"
 #include "Remesher.h"
 #include "QueueRemesher.h"
 #include "MeshConstraintsUtil.h"
@@ -195,4 +196,16 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
+	if (!TargetMesh->HasAttributes() && bResultMustHaveAttributesEnabled)
+	{
+		TargetMesh->EnableAttributes();
+		if (TargetMesh->HasVertexUVs())
+		{
+			CopyVertexUVsToOverlay(*TargetMesh, *TargetMesh->Attributes()->PrimaryUV());
+		}
+		if (TargetMesh->HasVertexNormals())
+		{
+			CopyVertexNormalsToOverlay(*TargetMesh, *TargetMesh->Attributes()->PrimaryNormals());
+		}
+	}
 }

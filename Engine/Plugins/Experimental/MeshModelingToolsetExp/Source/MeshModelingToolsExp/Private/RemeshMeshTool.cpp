@@ -208,6 +208,8 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 
 	Op->bCollapses = BasicProperties->bCollapses;
 	Op->bDiscardAttributes = BasicProperties->bDiscardAttributes;
+	// We always want attributes enabled on result even if we discard them initially
+	Op->bResultMustHaveAttributesEnabled = true;
 	Op->bFlips = BasicProperties->bFlips;
 	Op->bPreserveSharpEdges = BasicProperties->bPreserveSharpEdges;
 	Op->MeshBoundaryConstraint = (EEdgeRefineFlags)BasicProperties->MeshBoundaryConstraint;
