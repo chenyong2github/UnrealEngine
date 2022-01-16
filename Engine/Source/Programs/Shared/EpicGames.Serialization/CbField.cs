@@ -900,7 +900,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public byte[] AsBinaryArray()
 		{
-			return AsBinaryByteArray(Array.Empty<byte>());
+			return AsBinaryArray(Array.Empty<byte>());
 		}
 
 		/// <summary>
