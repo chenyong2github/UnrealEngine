@@ -467,6 +467,15 @@ namespace EpicGames.Serialization
 		/// Writes an unnamed integer field
 		/// </summary>
 		/// <param name="Value">Value to be written</param>
+		public void WriteIntegerValue(int Value)
+		{
+			WriteIntegerValue((long)Value);
+		}
+
+		/// <summary>
+		/// Writes an unnamed integer field
+		/// </summary>
+		/// <param name="Value">Value to be written</param>
 		public void WriteIntegerValue(long Value)
 		{
 			if (Value >= 0)
@@ -479,6 +488,16 @@ namespace EpicGames.Serialization
 				WriteFieldHeader(CbFieldType.IntegerNegative);
 				WriteIntegerPayload((ulong)-Value);
 			}
+		}
+
+		/// <summary>
+		/// Writes an named integer field
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value to be written</param>
+		public void WriteInteger(Utf8String Name, int Value)
+		{
+			WriteInteger(Name, (long)Value);
 		}
 
 		/// <summary>
@@ -707,7 +726,20 @@ namespace EpicGames.Serialization
 		/// Writes an unnamed string value
 		/// </summary>
 		/// <param name="Value">Value to be written</param>
-		public void WriteStringValue(Utf8String Value)
+		public void WriteStringValue(string Value) => WriteUtf8StringValue(Value);
+
+		/// <summary>
+		/// Writes a named string value
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value to be written</param>
+		public void WriteString(Utf8String Name, string Value) => WriteUtf8String(Name, Value);
+
+		/// <summary>
+		/// Writes an unnamed string value
+		/// </summary>
+		/// <param name="Value">Value to be written</param>
+		public void WriteUtf8StringValue(Utf8String Value)
 		{
 			WriteFieldHeader(CbFieldType.String);
 			WriteBinaryPayload(Value.Span);
@@ -718,7 +750,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteString(Utf8String Name, Utf8String Value)
+		public void WriteUtf8String(Utf8String Name, Utf8String Value)
 		{
 			WriteFieldHeader(CbFieldType.String, Name);
 			WriteBinaryPayload(Value.Span);
@@ -728,7 +760,7 @@ namespace EpicGames.Serialization
 		/// Writes an unnamed binary value
 		/// </summary>
 		/// <param name="Value">Value to be written</param>
-		public void WriteBinaryValue(ReadOnlySpan<byte> Value)
+		public void WriteBinarySpanValue(ReadOnlySpan<byte> Value)
 		{
 			WriteFieldHeader(CbFieldType.Binary);
 			WriteBinaryPayload(Value);
@@ -739,10 +771,48 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteBinary(Utf8String Name, ReadOnlySpan<byte> Value)
+		public void WriteBinarySpan(Utf8String Name, ReadOnlySpan<byte> Value)
 		{
 			WriteFieldHeader(CbFieldType.Binary, Name);
 			WriteBinaryPayload(Value);
+		}
+
+		/// <summary>
+		/// Writes an unnamed binary value
+		/// </summary>
+		/// <param name="Value">Value to be written</param>
+		public void WriteBinaryValue(ReadOnlyMemory<byte> Value)
+		{
+			WriteBinarySpanValue(Value.Span);
+		}
+
+		/// <summary>
+		/// Writes a named binary value
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value to be written</param>
+		public void WriteBinary(Utf8String Name, ReadOnlyMemory<byte> Value)
+		{
+			WriteBinarySpan(Name, Value.Span);
+		}
+
+		/// <summary>
+		/// Writes an unnamed binary value
+		/// </summary>
+		/// <param name="Value">Value to be written</param>
+		public void WriteBinaryArrayValue(byte[] Value)
+		{
+			WriteBinarySpanValue(Value.AsSpan());
+		}
+
+		/// <summary>
+		/// Writes a named binary value
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value to be written</param>
+		public void WriteBinaryArray(Utf8String Name, byte[] Value)
+		{
+			WriteBinarySpan(Name, Value.AsSpan());
 		}
 
 		/// <summary>

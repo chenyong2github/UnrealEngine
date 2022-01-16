@@ -34,7 +34,7 @@ namespace EpicGames.Serialization.Tests
 			CbWriter Writer1 = new CbWriter();
 			Writer1.BeginObject();
 			Writer1.WriteInteger("a", 1);
-			Writer1.WriteString("b", "hello");
+			Writer1.WriteUtf8String("b", "hello");
 			Writer1.EndObject();
 
 			CbObject Object1 = Writer1.ToObject();
@@ -136,7 +136,7 @@ namespace EpicGames.Serialization.Tests
 
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();
-			writer.WriteString("string", "test");
+			writer.WriteUtf8String("string", "test");
 			writer.WriteBinaryAttachment("hash", hash1);
 			writer.EndObject();
 
@@ -150,7 +150,7 @@ namespace EpicGames.Serialization.Tests
 			Assert.AreEqual(2, fields.Count);
 
 			CbField? stringField = o["string"];
-			Assert.AreEqual("test", stringField!.AsString());
+			Assert.AreEqual("test", stringField!.AsUtf8String());
 
 			CbField? hashField = o["hash"];
 			Assert.AreEqual(hash1, hashField!.AsAttachment());

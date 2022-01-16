@@ -869,7 +869,16 @@ namespace EpicGames.Serialization
 		/// Access the field as binary data.
 		/// </summary>
 		/// <returns></returns>
-		public ReadOnlyMemory<byte> AsBinary(ReadOnlyMemory<byte> Default = default)
+		public ReadOnlyMemory<byte> AsBinary()
+		{
+			return AsBinary(ReadOnlyMemory<byte>.Empty);
+		}
+
+		/// <summary>
+		/// Access the field as binary data.
+		/// </summary>
+		/// <returns></returns>
+		public ReadOnlyMemory<byte> AsBinary(ReadOnlyMemory<byte> Default)
 		{
 			if (CbFieldUtils.IsBinary(TypeWithFlags))
 			{
@@ -886,12 +895,42 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Access the field as binary data.
+		/// </summary>
+		/// <returns></returns>
+		public byte[] AsBinaryArray()
+		{
+			return AsBinaryByteArray(Array.Empty<byte>());
+		}
+
+		/// <summary>
+		/// Access the field as binary data.
+		/// </summary>
+		/// <returns></returns>
+		public byte[] AsBinaryArray(byte[] Default)
+		{
+			return AsBinary(Default).ToArray();
+		}
+
+		/// <summary>
 		/// Access the field as a UTF-8 string.
 		/// </summary>
 		/// <returns></returns>
-		public Utf8String AsString()
+		public string AsString() => AsUtf8String().ToString();
+
+		/// <summary>
+		/// Access the field as a UTF-8 string.
+		/// </summary>
+		/// <returns></returns>
+		public string AsString(string Default) => AsUtf8String(Default).ToString();
+
+		/// <summary>
+		/// Access the field as a UTF-8 string.
+		/// </summary>
+		/// <returns></returns>
+		public Utf8String AsUtf8String()
 		{
-			return AsString(default);
+			return AsUtf8String(default);
 		}
 
 		/// <summary>
@@ -899,7 +938,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Default">Default value to return</param>
 		/// <returns></returns>
-		public Utf8String AsString(Utf8String Default)
+		public Utf8String AsUtf8String(Utf8String Default)
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
@@ -1728,11 +1767,11 @@ namespace EpicGames.Serialization
 				case CbFieldType.String:
 					if (Field.HasName())
 					{
-						Writer.WriteString(Field.Name.Span, Field.AsString().Span);
+						Writer.WriteString(Field.Name.Span, Field.AsUtf8String().Span);
 					}
 					else
 					{
-						Writer.WriteStringValue(Field.AsString().Span);
+						Writer.WriteStringValue(Field.AsUtf8String().Span);
 					}
 					break;
 				case CbFieldType.IntegerPositive:
@@ -2634,7 +2673,7 @@ namespace EpicGames.Serialization
 			}
 			else if (Field.IsString())
 			{
-				Writer.WriteString(Field.Name.Span, Field.AsString().Span);
+				Writer.WriteString(Field.Name.Span, Field.AsUtf8String().Span);
 			}
 			else
 			{

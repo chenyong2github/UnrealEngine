@@ -98,39 +98,20 @@ namespace EpicGames.Serialization.Converters
 			}
 		}
 
-		static void WriteInt32Value(CbWriter Writer, int Value) => Writer.WriteIntegerValue(Value);
-		static void WriteInt32(CbWriter Writer, Utf8String Name, int Value) => Writer.WriteInteger(Name, Value);
-		static void WriteInt64Value(CbWriter Writer, long Value) => Writer.WriteIntegerValue(Value);
-		static void WriteInt64(CbWriter Writer, Utf8String Name, long Value) => Writer.WriteInteger(Name, Value);
-		static void WriteDoubleValue(CbWriter Writer, double Value) => Writer.WriteDoubleValue(Value);
-		static void WriteDouble(CbWriter Writer, Utf8String Name, double Value) => Writer.WriteDouble(Name, Value);
-
-		static string ReadString(CbField Field) => Field.AsString().ToString();
-		static void WriteString(CbWriter Writer, Utf8String Name, string Value) => Writer.WriteString(Name, Value);
-		static void WriteStringValue(CbWriter Writer, string Value) => Writer.WriteStringValue(Value);
-
-		static ReadOnlyMemory<byte> ReadMemory(CbField Field) => Field.AsBinary();
-		static void WriteMemory(CbWriter Writer, Utf8String Name, ReadOnlyMemory<byte> Value) => Writer.WriteBinary(Name, Value.Span);
-		static void WriteMemoryValue(CbWriter Writer, ReadOnlyMemory<byte> Value) => Writer.WriteBinaryValue(Value.Span);
-
-		static byte[] ReadByteArray(CbField Field) => Field.AsBinary().ToArray();
-		static void WriteByteArray(CbWriter Writer, Utf8String Name, byte[] Value) => Writer.WriteBinary(Name, Value);
-		static void WriteByteArrayValue(CbWriter Writer, byte[] Value) => Writer.WriteBinaryValue(Value);
-
 		static Dictionary<Type, CbConverterInfo> TypeToConverterInfo = new Dictionary<Type, CbConverterInfo>(new KeyValuePair<Type, CbConverterInfo>[]
 		{
 			GetPodConverterInfo(x => x.AsBool(), (w, v) => w.WriteBoolValue(v), (w, n, v) => w.WriteBool(n, v), SkipIfNullOrZero),
-			GetPodConverterInfo(x => x.AsInt32(), (w, v) => WriteInt32Value(w, v), (w, n, v) => WriteInt32(w, n, v), SkipIfNullOrZero),
-			GetPodConverterInfo(x => x.AsInt64(), (w, v) => WriteInt64Value(w, v), (w, n, v) => WriteInt64(w, n, v), SkipIfNullOrZero),
-			GetPodConverterInfo(x => x.AsDouble(), (w, v) => WriteDoubleValue(w, v), (w, n, v)=> WriteDouble(w, n, v), SkipIfNullOrZero),
-			GetPodConverterInfo(x => x.AsString(), (w, v) => w.WriteStringValue(v), (w, n, v) => w.WriteString(n, v), null),
+			GetPodConverterInfo(x => x.AsInt32(), (w, v) => w.WriteIntegerValue(v), (w, n, v) => w.WriteInteger(n, v), SkipIfNullOrZero),
+			GetPodConverterInfo(x => x.AsInt64(), (w, v) => w.WriteIntegerValue(v), (w, n, v) => w.WriteInteger(n, v), SkipIfNullOrZero),
+			GetPodConverterInfo(x => x.AsDouble(), (w, v) => w.WriteDoubleValue(v), (w, n, v)=> w.WriteDouble(n, v), SkipIfNullOrZero),
+			GetPodConverterInfo(x => x.AsUtf8String(), (w, v) => w.WriteUtf8StringValue(v), (w, n, v) => w.WriteUtf8String(n, v), null),
 			GetPodConverterInfo(x => x.AsHash(), (w, v) => w.WriteHashValue(v), (w, n, v) => w.WriteHash(n, v), null),
 			GetPodConverterInfo(x => x.AsObjectAttachment(), (w, v) => w.WriteObjectAttachmentValue(v.Hash), (w, n, v) => w.WriteObjectAttachment(n, v.Hash), null),
 			GetPodConverterInfo(x => x.AsBinaryAttachment(), (w, v) => w.WriteBinaryAttachmentValue(v.Hash), (w, n, v) => w.WriteBinaryAttachment(n, v.Hash), null),
 			GetPodConverterInfo(x => x.AsDateTime(), (w, v) => w.WriteDateTimeValue(v), (w, n, v) => w.WriteDateTime(n, v), null),
-			GetPodConverterInfo(x => ReadString(x), (w, v) => WriteStringValue(w, v), (w, n, v) => WriteString(w, n, v), SkipIfNullOrZero),
-			GetPodConverterInfo(x => ReadMemory(x), (w, v) => WriteMemoryValue(w, v), (w, n, v) => WriteMemory(w, n, v), null),
-			GetPodConverterInfo(x => ReadByteArray(x), (w, v) => WriteByteArrayValue(w, v), (w, n, v) => WriteByteArray(w, n, v), null),
+			GetPodConverterInfo(x => x.AsString(), (w, v) => w.WriteStringValue(v), (w, n, v) => w.WriteString(n, v), SkipIfNullOrZero),
+			GetPodConverterInfo(x => x.AsBinary(), (w, v) => w.WriteBinaryValue(v), (w, n, v) => w.WriteBinary(n, v), null),
+			GetPodConverterInfo(x => x.AsBinaryArray(), (w, v) => w.WriteBinaryArrayValue(v), (w, n, v) => w.WriteBinaryArray(n, v), null),
 		});
 
 		static KeyValuePair<Type, CbConverterInfo> GetPodConverterInfo<T>(Expression<Func<CbField, T>> Read, Expression<Action<CbWriter, T>> Write, Expression<Action<CbWriter, Utf8String, T>> WriteNamed, SkipDefaultDelegate? SkipDefault)

@@ -69,7 +69,7 @@ namespace EpicGames.Perforce.Managed
 			Length = Field[LengthField].AsInt64();
 
 			Md5Hash Digest = new Md5Hash(Field[DigestField].AsBinary());
-			Utf8String Type = Field[TypeField].AsString();
+			Utf8String Type = Field[TypeField].AsUtf8String();
 			ContentId = new FileContentId(Digest, Type);
 
 			Revision = Field[RevisionField].AsInt32();
@@ -82,8 +82,8 @@ namespace EpicGames.Perforce.Managed
 		public void Write(CbWriter Writer)
 		{
 			Writer.WriteInteger(LengthField, Length);
-			Writer.WriteBinary(DigestField, ContentId.Digest.Span);
-			Writer.WriteString(TypeField, ContentId.Type);
+			Writer.WriteBinarySpan(DigestField, ContentId.Digest.Span);
+			Writer.WriteUtf8String(TypeField, ContentId.Type);
 			Writer.WriteInteger(RevisionField, Revision);
 		}
 	}
@@ -211,7 +211,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				CbObject FileObject = FileField.AsObject();
 
-				Utf8String Name = FileObject[NameField].AsString();
+				Utf8String Name = FileObject[NameField].AsUtf8String();
 				Utf8String FilePath = ReadPath(FileObject, Path, Name);
 				StreamFile File = new StreamFile(FilePath, FileObject);
 
@@ -223,7 +223,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				CbObject TreeObject = TreeField.AsObject();
 
-				Utf8String Name = TreeObject[NameField].AsString();
+				Utf8String Name = TreeObject[NameField].AsUtf8String();
 				Utf8String TreePath = ReadPath(TreeObject, Path, Name);
 				StreamTreeRef Tree = new StreamTreeRef(TreePath, TreeObject);
 
@@ -243,7 +243,7 @@ namespace EpicGames.Perforce.Managed
 				foreach ((Utf8String Name, StreamFile File) in NameToFile.OrderBy(x => x.Key))
 				{
 					Writer.BeginObject();
-					Writer.WriteString(NameField, Name);
+					Writer.WriteUtf8String(NameField, Name);
 					WritePath(Writer, File.Path, Path, Name);
 					File.Write(Writer);
 					Writer.EndObject();
@@ -257,7 +257,7 @@ namespace EpicGames.Perforce.Managed
 				foreach ((Utf8String Name, StreamTreeRef Tree) in NameToTree.OrderBy(x => x.Key))
 				{
 					Writer.BeginObject();
-					Writer.WriteString(NameField, Name);
+					Writer.WriteUtf8String(NameField, Name);
 					WritePath(Writer, Tree.Path, Path, Name);
 					Tree.Write(Writer);
 					Writer.EndObject();
@@ -275,7 +275,7 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		static Utf8String ReadPath(CbObject Object, Utf8String BasePath, Utf8String Name)
 		{
-			Utf8String Path = Object[PathField].AsString();
+			Utf8String Path = Object[PathField].AsUtf8String();
 			if (Path.IsEmpty)
 			{
 				byte[] Data = new byte[BasePath.Length + 1 + Name.Length];
@@ -298,7 +298,7 @@ namespace EpicGames.Perforce.Managed
 		{
 			if (Path.Length != ParentPath.Length + Name.Length + 1 || !Path.StartsWith(ParentPath) || Path[ParentPath.Length] != '/' || !Path.EndsWith(Name))
 			{
-				Writer.WriteString(PathField, Path);
+				Writer.WriteUtf8String(PathField, Path);
 			}
 		}
 

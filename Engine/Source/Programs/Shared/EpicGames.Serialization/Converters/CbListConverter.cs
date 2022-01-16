@@ -67,7 +67,7 @@ namespace EpicGames.Serialization.Converters
 			List<Utf8String> List = new List<Utf8String>();
 			foreach (CbField ElementField in Field)
 			{
-				List.Add(ElementField.AsString());
+				List.Add(ElementField.AsUtf8String());
 			}
 			return List;
 		}
@@ -78,7 +78,7 @@ namespace EpicGames.Serialization.Converters
 			Writer.BeginUniformArray(CbFieldType.String);
 			foreach (Utf8String String in List)
 			{
-				Writer.WriteStringValue(String);
+				Writer.WriteUtf8StringValue(String);
 			}
 			Writer.EndUniformArray();
 		}
@@ -91,7 +91,7 @@ namespace EpicGames.Serialization.Converters
 				Writer.BeginUniformArray(Name, CbFieldType.String);
 				foreach (Utf8String String in List)
 				{
-					Writer.WriteStringValue(String);
+					Writer.WriteUtf8StringValue(String);
 				}
 				Writer.EndUniformArray();
 			}
