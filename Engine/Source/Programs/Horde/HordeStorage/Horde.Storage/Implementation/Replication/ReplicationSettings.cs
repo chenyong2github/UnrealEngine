@@ -64,6 +64,11 @@ namespace Horde.Storage
         /// Max number of replications that can run in parallel, set to -1 to disable the limit and go as wide as possible
         /// </summary>
         public int MaxParallelReplications { get; set; } = 64;
+
+        /// <summary>
+        /// The replication will stop its run after this many events have been processed, yielding its time until the next time a replication is triggered.
+        /// </summary>
+        public int MaxReplicationsPerRun { get; set; } = 1000;
     }
 
     public enum ReplicatorVersion

@@ -305,8 +305,16 @@ namespace Horde.Storage.Implementation
 
             _logger.Information("{Name} Starting incremental replication maxParallelism: {MaxParallelism} Last event: {LastEvent} Last Bucket {LastBucket}", _name, maxParallelism, lastEvent, lastBucket);
 
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationTokenSource linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, replicationToken);
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
+                // if we have done all the replication events we should do in a single run we abort
+                if (countOfReplicationsDone > _replicatorSettings.MaxReplicationsPerRun)
+                {
+                    linkedTokenSource.Cancel();
+                    return;
+                }
                 using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
                 scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.EventId}";
 
@@ -369,7 +377,7 @@ namespace Horde.Storage.Implementation
                         replicationTasks.Remove(currentOffset);
                     }
                 }
-            } , maxParallelism, breakLoopOnException: true, cancellationToken: replicationToken);
+            } , maxParallelism, breakLoopOnException: true, cancellationToken: linkedTokenSource.Token);
 
             return countOfReplicationsDone;
         }
