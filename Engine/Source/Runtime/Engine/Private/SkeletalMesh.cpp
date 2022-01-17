@@ -4627,7 +4627,7 @@ namespace InternalSkeletalMeshHelper
 				continue;
 			}
 			const TArray<int16>* BackupSectionsPtr = BackupSectionsPerLOD.Find(LODIndex);
-			if (!BackupSectionsPtr)
+			if (!BackupSectionsPtr || BackupSectionsPtr->IsEmpty())
 			{
 				continue;
 			}
