@@ -43,6 +43,30 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
+	/// Attribute used to indicate that this object is the base for a class hierarchy. Each derived class must have a [CbDiscriminator] attribute.
+	/// </summary>
+	public class CbPolymorphicAttribute : Attribute
+	{
+	}
+
+	/// <summary>
+	/// Sets the name used for discriminating between derived classes during serialization
+	/// </summary>
+	public class CbDiscriminatorAttribute : Attribute
+	{
+		/// <summary>
+		/// Name used to identify this class
+		/// </summary>
+		public string Name { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">Name used to identify this class</param>
+		public CbDiscriminatorAttribute(string Name) => this.Name = Name;
+	}
+
+	/// <summary>
 	/// Exception thrown when serializing cb objects
 	/// </summary>
 	public class CbException : Exception
