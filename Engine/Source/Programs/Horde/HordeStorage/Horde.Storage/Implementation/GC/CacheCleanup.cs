@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -38,7 +39,12 @@ namespace Horde.Storage.Implementation
         {
             using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
             scope.Span.ResourceName = ns.ToString();
-            if (_settings.CurrentValue.CleanNamespacesV1.Contains(ns.ToString()))
+            if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
+            {
+                // do not apply our cleanup policies to the internal namespace
+                return Task.FromResult(new List<OldRecord>());
+            }
+            else if (_settings.CurrentValue.CleanNamespacesV1.Contains(ns.ToString()))
             {
                 return CleanNamespaceV1(ns, cancellationToken);
             }
