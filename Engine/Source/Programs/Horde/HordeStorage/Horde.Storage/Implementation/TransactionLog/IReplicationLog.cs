@@ -26,16 +26,18 @@ namespace Horde.Storage.Implementation
     public class SnapshotInfo
     {
         [JsonConstructor]
-        public SnapshotInfo(NamespaceId snapshottedNamespace, NamespaceId blobNamespace, BlobIdentifier snapshotBlob)
+        public SnapshotInfo(NamespaceId snapshottedNamespace, NamespaceId blobNamespace, BlobIdentifier snapshotBlob, DateTime timestamp)
         {
             SnapshottedNamespace = snapshottedNamespace;
             BlobNamespace = blobNamespace;
             SnapshotBlob = snapshotBlob;
+            Timestamp = timestamp;
         }
 
         public NamespaceId SnapshottedNamespace { get; set; }
         public NamespaceId BlobNamespace { get; set; }
         public BlobIdentifier SnapshotBlob { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 
     public class ReplicationLogEvent

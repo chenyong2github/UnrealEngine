@@ -84,7 +84,7 @@ namespace Horde.Storage.Implementation.TransactionLog
                     throw new TaskCanceledException();
 
                 // update the replication log with the new snapshot
-                await _replicationLog.AddSnapshot(new SnapshotInfo(ns, storeInNamespace, blobIdentifier));
+                await _replicationLog.AddSnapshot(new SnapshotInfo(ns, storeInNamespace, blobIdentifier, DateTime.Now));
 
                 return blobIdentifier;
 

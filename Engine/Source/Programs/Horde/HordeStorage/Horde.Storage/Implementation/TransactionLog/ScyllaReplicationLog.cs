@@ -253,7 +253,7 @@ namespace Horde.Storage.Implementation
 
             foreach (ScyllaSnapshot snapshot in snapshots)
             {
-                yield return new SnapshotInfo(ns, new NamespaceId(snapshot.BlobNamespace), snapshot.BlobSnapshot.AsBlobIdentifier());
+                yield return new SnapshotInfo(ns, new NamespaceId(snapshot.BlobNamespace), snapshot.BlobSnapshot.AsBlobIdentifier(), snapshot.Id.GetDate().DateTime);
             }
         }
     }

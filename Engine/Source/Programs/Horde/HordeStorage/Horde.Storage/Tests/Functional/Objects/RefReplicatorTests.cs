@@ -200,7 +200,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             BlobIdentifier snapshotBlob = BlobIdentifier.FromBlob(snapshotContent);
 
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
-            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob)}));
+            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob, DateTime.Now)}));
             handler.SetupRequest($"http://localhost/api/v1/replication-log/snapshots/{TestNamespace}").ReturnsResponse(s, "application/json");
 
             // after processing a snapshot it will attempt to incrementally replicate from there, which should be empty
@@ -285,7 +285,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             BlobIdentifier snapshotBlob = BlobIdentifier.FromBlob(snapshotContent);
 
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
-            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob)}));
+            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob, DateTime.Now)}));
             handler.SetupRequest($"http://localhost/api/v1/replication-log/snapshots/{TestNamespace}").ReturnsResponse(s, "application/json");
 
             // when the snapshot has been processed we have a set of incremental events as well
@@ -368,7 +368,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             Guid missingId = Guid.NewGuid();
 
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
-            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob)}));
+            string s = JsonConvert.SerializeObject(new ReplicationLogSnapshots(new List<SnapshotInfo>{new SnapshotInfo(TestNamespace, SnapshotNamespace, snapshotBlob, DateTime.Now)}));
             handler.SetupRequest($"http://localhost/api/v1/replication-log/snapshots/{TestNamespace}").ReturnsResponse(s, "application/json");
 
             // mock a error being generated due to the lastBucket/event being to old
