@@ -253,7 +253,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public async Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             using IScope _ = Tracer.Instance.StartActive("scylla.delete_record");
             ObjectRecord record;
@@ -264,7 +264,7 @@ namespace Horde.Storage.Implementation
             catch (ObjectNotFoundException)
             {
                 // if the record does not exist we do not need to do anything
-                return 0L;
+                return false;
             }
 
             Task removeTTL = RemoveTTLRecord(record);
@@ -272,9 +272,9 @@ namespace Horde.Storage.Implementation
 
             await removeTTL;
             if (info.Applied)
-                return 1L;
+                return true;
 
-            return 0L;
+            return false;
         }
 
         public async Task<long> DropNamespace(NamespaceId ns)

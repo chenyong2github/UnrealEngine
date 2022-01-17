@@ -80,14 +80,14 @@ namespace Horde.Storage.Implementation
             return _namespaces.ToAsyncEnumerable();
         }
 
-        public Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             if (!_objects.TryRemove(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
                 throw new ObjectNotFoundException(ns, bucket, key);
             }
 
-            return Task.FromResult(1L);
+            return Task.FromResult(true);
         }
 
         public Task<long> DropNamespace(NamespaceId ns)

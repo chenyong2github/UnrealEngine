@@ -22,7 +22,7 @@ namespace Horde.Storage.Implementation
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
 
-        Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
+        Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<long> DropNamespace(NamespaceId ns);
         Task<long> DeleteBucket(NamespaceId ns, BucketId bucket);
     }
@@ -174,7 +174,7 @@ namespace Horde.Storage.Implementation
             return _referencesStore.GetNamespaces();
         }
 
-        public Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             return _referencesStore.Delete(ns, bucket, key);
         }

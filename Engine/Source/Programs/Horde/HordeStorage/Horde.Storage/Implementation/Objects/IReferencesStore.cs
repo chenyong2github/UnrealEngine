@@ -27,7 +27,7 @@ namespace Horde.Storage.Implementation
         IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns);
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
-        Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
+        Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<long> DropNamespace(NamespaceId ns);
         Task<long> DeleteBucket(NamespaceId ns, BucketId bucket);
     }

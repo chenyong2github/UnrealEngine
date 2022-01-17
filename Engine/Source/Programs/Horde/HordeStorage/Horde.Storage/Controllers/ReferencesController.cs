@@ -507,8 +507,8 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                long deleteCount = await _objectService.Delete(ns, bucket, key);
-                return Ok(new { DeletedCount = deleteCount } );
+                bool deleted = await _objectService.Delete(ns, bucket, key);
+                return Ok(new { DeletedCount = deleted ? 1: 0 } );
             }
             catch (NamespaceNotFoundException e)
             {

@@ -75,7 +75,7 @@ namespace Horde.Storage.Implementation
                 using IScope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
                 scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
                 // delete the old record from the ref refs
-                Task storeDelete = _referencesStore.Delete(ns, bucket, name);
+                Task<bool> storeDelete = _referencesStore.Delete(ns, bucket, name);
                 // insert a delete event into the transaction log
                 Task<(string, Guid)> transactionLogDelete = _replicationLog.InsertDeleteEvent(ns, bucket, name, null);
 
@@ -87,8 +87,16 @@ namespace Horde.Storage.Implementation
                 {
                     _logger.Warning(e, "Exception when attempting to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);
                 }
-                // we convert the ObjectRecords key (which is a iohash) to a keyid (which is a generic string) not the prettiest but this result is only used for debugging purposes anyway
-                deletedRecords.Add(new OldRecord(ns, bucket, new KeyId(name.ToString())));
+
+                if (await storeDelete)
+                {
+                    // we convert the ObjectRecords key (which is a iohash) to a keyid (which is a generic string) not the prettiest but this result is only used for debugging purposes anyway
+                    deletedRecords.Add(new OldRecord(ns, bucket, new KeyId(name.ToString())));
+                }
+                else
+                {
+                    _logger.Warning("Failed to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);            
+                }
             }
 
             _logger.Information("Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}", ns, consideredCount, deletedRecords.Count);
