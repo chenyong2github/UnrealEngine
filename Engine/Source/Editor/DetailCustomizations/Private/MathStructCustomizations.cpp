@@ -465,7 +465,7 @@ void FMathStructCustomization::OnValueChanged(NumericType NewValue, TWeakPtr<IPr
 {
 	if (bIsUsingSlider)
 	{
-		EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::InteractiveChange;
+		EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::InteractiveChange | EPropertyValueSetFlags::NotTransactable;
 		SetValue(NewValue, Flags, WeakHandlePtr);
 	}
 }
