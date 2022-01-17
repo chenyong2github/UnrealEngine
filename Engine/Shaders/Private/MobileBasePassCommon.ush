@@ -7,8 +7,6 @@
 #define FogStruct MobileBasePass.Fog
 #define PlanarReflectionStruct MobileBasePass.PlanarReflection
 
-#define USE_PS_CLIP_PLANE PROJECT_ALLOW_GLOBAL_CLIP_PLANE
-
 #undef NEEDS_LIGHTMAP_COORDINATE
 
 #define NEEDS_LIGHTMAP_COORDINATE		(LQ_TEXTURE_LIGHTMAP)
@@ -42,7 +40,7 @@ struct FSharedMobileBasePassInterpolants
 	float3 PixelPositionExcludingWPO	: TEXCOORD9;
 #endif
 
-#if USE_PS_CLIP_PLANE
+#if USE_GLOBAL_CLIP_PLANE
 	float OutClipDistance : OUTCLIPDIST;
 #endif
 

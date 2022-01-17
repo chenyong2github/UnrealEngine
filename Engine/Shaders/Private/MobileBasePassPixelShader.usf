@@ -610,7 +610,7 @@ void Main(
 	ResolvedView = ResolveView();
 #endif
 
-#if USE_PS_CLIP_PLANE
+#if USE_GLOBAL_CLIP_PLANE
 	clip(BasePassInterpolants.OutClipDistance);
 #endif
 

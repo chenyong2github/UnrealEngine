@@ -93,7 +93,7 @@ void Main(
 	Output.BasePassInterpolants.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 #endif
 
-#if USE_PS_CLIP_PLANE
+#if USE_GLOBAL_CLIP_PLANE
 	Output.BasePassInterpolants.OutClipDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz, 1));
 #endif
 
