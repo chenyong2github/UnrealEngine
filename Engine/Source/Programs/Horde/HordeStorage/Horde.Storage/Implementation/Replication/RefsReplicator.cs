@@ -307,6 +307,8 @@ namespace Horde.Storage.Implementation
 
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
             CancellationTokenSource linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, replicationToken);
+            ISpanContext parentSpanContext = Tracer.Instance.ActiveScope.Span.Context;
+
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
                 // if we have done all the replication events we should do in a single run we abort
@@ -315,7 +317,7 @@ namespace Horde.Storage.Implementation
                     linkedTokenSource.Cancel();
                     return;
                 }
-                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
+                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental", new SpanCreationSettings {Parent = parentSpanContext});
                 scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.EventId}";
 
                 _logger.Information("{Name} New transaction to replicate found. New op: {@Op} . Count of running replications: {CurrentReplications}", _name, @event, replicationTasks.Count);
