@@ -51,6 +51,9 @@ class AIMODULE_API UBTTask_RunEQSQuery : public UBTTask_BlackboardBase
 	UPROPERTY(Category = EQS, EditAnywhere)
 	FEQSParametrizedQueryExecutionRequest EQSRequest;
 
+	UPROPERTY(Category = EQS, EditAnywhere)
+	bool bUpdateBBOnFail = false;
+
 	FQueryFinishedSignature QueryFinishedDelegate;
 
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;

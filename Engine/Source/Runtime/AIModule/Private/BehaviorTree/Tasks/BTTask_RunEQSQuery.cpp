@@ -8,6 +8,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "AISystem.h"
 
 
 UBTTask_RunEQSQuery::UBTTask_RunEQSQuery(const FObjectInitializer& ObjectInitializer) 
@@ -23,6 +25,8 @@ UBTTask_RunEQSQuery::UBTTask_RunEQSQuery(const FObjectInitializer& ObjectInitial
 	}
 
 	QueryFinishedDelegate = FQueryFinishedSignature::CreateUObject(this, &UBTTask_RunEQSQuery::OnQueryFinished);
+
+	bUpdateBBOnFail = GET_AI_CONFIG_VAR(bClearBBEntryOnBTEQSFail);
 
 	// deprecated
 	EQSQueryBlackboardKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_RunEQSQuery, EQSQueryBlackboardKey), UEnvQuery::StaticClass());
@@ -131,6 +135,12 @@ void UBTTask_RunEQSQuery::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 				*UEnvQueryTypes::GetShortTypeName(Result->ItemType).ToString(),
 				*UBehaviorTreeTypes::GetShortTypeName(BlackboardKey.SelectedKeyType));
 		}
+	}
+	else if (bUpdateBBOnFail)
+	{
+		UBlackboardComponent* MyBlackboard = MyComp->GetBlackboardComponent();
+		check(MyBlackboard);
+		MyBlackboard->ClearValue(BlackboardKey.GetSelectedKeyID());
 	}
 
 	FAIMessage::Send(MyComp, FAIMessage(UBrainComponent::AIMessage_QueryFinished, this, Result->QueryID, bSuccess));

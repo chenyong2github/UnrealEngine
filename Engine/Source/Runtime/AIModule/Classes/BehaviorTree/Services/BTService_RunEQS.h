@@ -26,6 +26,9 @@ protected:
 	UPROPERTY(Category = EQS, EditAnywhere)
 	FEQSParametrizedQueryExecutionRequest EQSRequest;
 
+	UPROPERTY(Category = EQS, EditAnywhere)
+	bool bUpdateBBOnFail = false;
+
 	FQueryFinishedSignature QueryFinishedDelegate;
 
 public:

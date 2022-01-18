@@ -94,6 +94,9 @@ public:
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Blackboard")
 	bool bAddBlackboardSelfKey = true;
 
+	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Behavior Tree")
+	bool bClearBBEntryOnBTEQSFail = true;
+
 	/** Which collision channel to use for sight checks by default */
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "PerceptionSystem")
 	TEnumAsByte<ECollisionChannel> DefaultSightCollisionChannel;

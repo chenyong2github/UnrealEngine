@@ -8,6 +8,9 @@
 #include "VisualLogger/VisualLogger.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "AISystem.h"
+
 
 UBTService_RunEQS::UBTService_RunEQS(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,6 +25,8 @@ UBTService_RunEQS::UBTService_RunEQS(const FObjectInitializer& ObjectInitializer
 	BlackboardKey.AddVectorFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_RunEQS, BlackboardKey));
 
 	QueryFinishedDelegate = FQueryFinishedSignature::CreateUObject(this, &UBTService_RunEQS::OnQueryFinished);
+
+	bUpdateBBOnFail = GET_AI_CONFIG_VAR(bClearBBEntryOnBTEQSFail);
 }
 
 void UBTService_RunEQS::InitializeFromAsset(UBehaviorTree& Asset)
@@ -98,6 +103,12 @@ void UBTService_RunEQS::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 				*UEnvQueryTypes::GetShortTypeName(Result->ItemType).ToString(),
 				*UBehaviorTreeTypes::GetShortTypeName(BlackboardKey.SelectedKeyType));
 		}
+	}
+	else if (bUpdateBBOnFail)
+	{
+		UBlackboardComponent* MyBlackboard = BTComp->GetBlackboardComponent();
+		check(MyBlackboard);
+		MyBlackboard->ClearValue(BlackboardKey.GetSelectedKeyID());
 	}
 
 	MyMemory->RequestID = INDEX_NONE;
