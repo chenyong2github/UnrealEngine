@@ -2396,6 +2396,12 @@ class Config(object):
         return self.engine_exe_path(
             self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE.get_value())
 
+    def multiuser_server_session_directory_path(self):
+        return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserServer", "Intermediate", "MultiUser")
+        
+    def multiuser_server_log_path(self):
+        return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserServer", "Saved", "Logs", "UnrealMultiUserServer.log")
+
     def listener_path(self):
         return self.engine_exe_path(
             self.ENGINE_DIR.get_value(), self.LISTENER_EXE.get_value())

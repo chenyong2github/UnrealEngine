@@ -97,6 +97,7 @@ class HTMLogger(object):
         super(HTMLogger, self).__init__()
         self.logger = logger
         self.file_handler = None
+        self.log_path = None
 
         self.add_custom_levels()
 
@@ -165,8 +166,10 @@ class HTMLogger(object):
         if not log_path:
             if not os.path.isdir(DEFAULT_LOG_PATH):
                 os.makedirs(DEFAULT_LOG_PATH)
-            log_path = os.path.join(DEFAULT_LOG_PATH, "switchboard_{}.html".format(str(time.time())))
-        self.file_handler = logging.FileHandler(log_path)
+            self.log_path = os.path.join(DEFAULT_LOG_PATH, "switchboard_{}.html".format(str(time.time())))
+        else:
+            self.log_path = log_path
+        self.file_handler = logging.FileHandler(self.log_path)
         self.logger.addHandler(self.file_handler)
         self.logger.setLevel(logging.DEBUG)  # Log everything.
 
@@ -174,12 +177,22 @@ class HTMLogger(object):
         self.logger.setLevel(value)
 
     def disable_file_logging(self):
+        self.log_path = None
         if not self.file_handler:
             return self.logger.warning("No file handler found!")
         self.logger.removeHandler(self.file_handler)
         self.file_handler.close()
+        
+    def save_log_file(self) -> str:
+        if self.log_path is not None:
+            replaced_path_name = self.log_path.replace(".html", ".log")
+            with open(replaced_path_name, "w") as file:
+                file.write(_LOG_STREAM.getvalue())
+            return replaced_path_name
 
-
+from io import StringIO
+_LOG_STREAM = StringIO()
+logging.basicConfig(stream=_LOG_STREAM)
 _LOGGER = logging.getLogger("switchboard")
 DEFAULT_LOG_PATH = os.path.join(tempfile.gettempdir(), "switchboard")
 

@@ -189,17 +189,7 @@ def explore_path(path:str):
         subprocess.Popen(f'open {path}')
     else:
         LOGGER.error(f"explore_path not supported in platform '{sys.platform}'")
-
-def zip_files_in_folder(zipped_directory: str, zip_result_path: str, allow_file: typing.Callable[[str], bool]):
-    ''' Zips all files within zipped_directory and saves it as zip_result_path. Recursively iterates sub-folders.'''
-    with ZipFile(zip_result_path, "w") as zip_file:
-        for (dirpath, dirnames, filenames) in os.walk(zipped_directory):
-            for file_name in filenames:
-                file_path = os.path.join(dirpath, file_name)
-                if allow_file(file_path):
-                    directory_name_in_zip = pathlib.Path(zipped_directory).relative_to(pathlib.Path(dirpath))
-                    name_in_zip = os.path.join(directory_name_in_zip, file_name) if directory_name_in_zip else file_name 
-                    zip_file.write(file_path, name_in_zip)
+        
 
 def copy2clipboard(text:str):
     if sys.platform.startswith('win'):
