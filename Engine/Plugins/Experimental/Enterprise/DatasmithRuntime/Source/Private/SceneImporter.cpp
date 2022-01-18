@@ -552,18 +552,11 @@ namespace DatasmithRuntime
 				}
 
 				const FSceneGraphId ElementId = ActionTask.GetElementId();
-				if (DirectLink::InvalidId == ElementId)
+				FBaseData& ElementData = DirectLink::InvalidId == ElementId ? FAssetData::EmptyAsset : (AssetDataList.Contains(ElementId) ? (FBaseData&)AssetDataList[ElementId] : (FBaseData&)ActorDataList[ElementId]);
+				if (ActionTask.Execute(ElementData) == EActionResult::Retry)
 				{
-					ActionTask.Execute(FAssetData::EmptyAsset);
-				}
-				else
-				{
-					FBaseData& ElementData = AssetDataList.Contains(ElementId) ? (FBaseData&)AssetDataList[ElementId] : (FBaseData&)ActorDataList[ElementId];
-					if (ActionTask.Execute(ElementData) == EActionResult::Retry)
-					{
-						ActionQueues[EQueueTask::NonAsyncQueue].Enqueue(MoveTemp(ActionTask));
-						continue;
-					}
+					ActionQueues[EQueueTask::NonAsyncQueue].Enqueue(MoveTemp(ActionTask));
+					continue;
 				}
 			}
 		}
