@@ -332,9 +332,11 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 	// remove all components
 	for (USkeletalMeshComponent* Component : AdditionalMeshes)
 	{
-		const UAnimInstance* AnimInst = Component->GetAnimInstance();
+		UAnimInstance* AnimInst = Component->GetAnimInstance();
 		if (AnimInst && AnimInst->IsA(UAnimPreviewAttacheInstance::StaticClass()))
 		{
+			AnimInst->Montage_Stop(0.0f);
+
 			FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UAnimPreviewAttacheInstance>(Component);
 		}
 		

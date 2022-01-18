@@ -262,8 +262,6 @@ public:
 		
 			if (AnimInstance)
 			{
-				AnimInstance->Montage_Stop(0.0f);
-
 				const TArray<UAnimInstance*>& LinkedInstances = const_cast<const USkeletalMeshComponent*>(InSkeletalMeshComponent)->GetLinkedAnimInstances();
 				for (UAnimInstance* LinkedInstance : LinkedInstances)
 				{
