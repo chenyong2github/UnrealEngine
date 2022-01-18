@@ -710,8 +710,9 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 									const uint32 bOftenMoving = CacheType == GDF_Full;
 									const uint32 bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
+									const uint32 bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh() ? 1U : 0U;
 
-									const uint32 Flags = bOftenMoving | (bCastShadow << 1);
+									const uint32 Flags = bOftenMoving | (bCastShadow << 1U) | (bIsNaniteMesh << 2U);
 
 									FVector4f ObjectWorldExtentAndFlags(WorldSpaceMeshBounds.GetExtent(), 0.0f);
 									ObjectWorldExtentAndFlags.W = *(const float*)&Flags;

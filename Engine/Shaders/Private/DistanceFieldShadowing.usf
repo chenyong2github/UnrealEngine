@@ -85,6 +85,7 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 float4 ShadowConvexHull[12];
 float4 ShadowBoundingSphere;
 uint NumShadowHullPlanes;
+uint bDrawNaniteMeshes;
 
 bool ShadowConvexHullIntersectSphere(float3 SphereOrigin, float SphereRadius)
 {
@@ -151,7 +152,9 @@ void CullObjectsForShadowCS(
 		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius);
 		const bool bBoundingSphereIntersect = ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - DFObjectBounds.Center, ShadowBoundingSphere.xyz - DFObjectBounds.Center) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius);
 
-        if (DFObjectBounds.bCastShadow && (bConvexHullIntersect || bBoundingSphereIntersect))
+        if (DFObjectBounds.bCastShadow 
+			&& (bConvexHullIntersect || bBoundingSphereIntersect)
+			&& (bDrawNaniteMeshes || !DFObjectBounds.bIsNaniteMesh))
 		{
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 

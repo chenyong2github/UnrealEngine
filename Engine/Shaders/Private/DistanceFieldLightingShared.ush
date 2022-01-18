@@ -155,6 +155,7 @@ struct FDFObjectBounds
 	float3 BoxExtent;	// World space AABB extent
 	uint OftenMoving;
 	uint bCastShadow;
+	bool bIsNaniteMesh;
 };
 
 uint NumSceneObjects;
@@ -173,8 +174,9 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 	Bounds.BoxExtent = Vector1.xyz;
 
 	uint Flags = asuint(Vector1.w);
-	Bounds.OftenMoving = Flags & 1;
-	Bounds.bCastShadow = Flags & 2;
+	Bounds.OftenMoving = Flags & 1U;
+	Bounds.bCastShadow = Flags & 2U;
+	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
 
 	return Bounds;
 }

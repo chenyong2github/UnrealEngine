@@ -164,6 +164,7 @@ class FCullObjectsForShadowCS : public FGlobalShader
 		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
 		SHADER_PARAMETER(float, ObjectExpandScale)
 		SHADER_PARAMETER(uint32, NumShadowHullPlanes)
+		SHADER_PARAMETER(uint32, bDrawNaniteMeshes)
 		SHADER_PARAMETER(FVector4f, ShadowBoundingSphere)
 		SHADER_PARAMETER_ARRAY(FVector4f,ShadowConvexHull,[12])
 	END_SHADER_PARAMETER_STRUCT()
@@ -558,6 +559,7 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = ShadowBoundingSphereValue;
+		PassParameters->bDrawNaniteMeshes = !LightSceneProxy->UseVirtualShadowMaps();
 
 		check(NumPlanes <= 12);
 
