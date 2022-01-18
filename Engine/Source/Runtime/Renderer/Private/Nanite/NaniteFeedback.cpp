@@ -68,7 +68,7 @@ FFeedbackManager::FFeedbackManager()
 	});
 
 
-	ScreenMessageDelegate = FRendererOnScreenNotification::Get().AddLambda(
+	ScreenMessageDelegate = FCoreDelegates::OnGetOnScreenMessages.AddLambda(	// TODO: Should be FRendererOnScreenNotification::Get(). Temporary workaround for singleton initialization issue.
 		[this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText>& OutMessages)
 	{
 		const uint32 MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
@@ -109,7 +109,7 @@ FFeedbackManager::FFeedbackManager()
 
 FFeedbackManager::~FFeedbackManager()
 {
-	FRendererOnScreenNotification::Get().Remove(ScreenMessageDelegate);
+	FCoreDelegates::OnGetOnScreenMessages.Remove(ScreenMessageDelegate);	// TODO: Should be FRendererOnScreenNotification::Get(). Temporary workaround for singleton initialization issue.
 }
 
 bool FFeedbackManager::FBufferState::Update(const uint32 Peak, const uint32 Capacity)
