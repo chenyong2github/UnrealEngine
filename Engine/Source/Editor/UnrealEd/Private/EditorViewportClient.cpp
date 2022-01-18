@@ -914,6 +914,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	}
 
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
+	ViewportSize.X = FMath::Max(ViewportSize.X, 1);
+	ViewportSize.Y = FMath::Max(ViewportSize.Y, 1);
 	FIntPoint ViewportOffset(0, 0);
 
 	// We expect some size to avoid problems with the view rect manipulation
