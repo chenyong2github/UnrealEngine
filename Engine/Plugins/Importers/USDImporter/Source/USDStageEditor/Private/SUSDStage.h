@@ -99,6 +99,9 @@ protected:
 	// True while we're in the middle of setting the viewport selection from the prim selection
 	bool bUpdatingViewportSelection;
 
+	// True while we're in the middle of updating the prim selection from the viewport selection
+	bool bUpdatingPrimSelection;
+
 	// We keep this menu alive instead of recreating it every time because it doesn't expose
 	// setting/getting/responding to the picked world, which resets every time it is reconstructed (see UE-127879)
 	// By keeping it alive it will keep its own state and we just do a full refresh when needed
