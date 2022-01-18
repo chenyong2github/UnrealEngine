@@ -1599,8 +1599,8 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinTypeToTypeDefinition(const FEd
 
 		if (PinType.PinCategory == PinCategoryEnum)
 			return FNiagaraTypeDefinition(Enum);
-		else if (PinType.PinCategory == PinCategoryEnum)
-			return FNiagaraTypeDefinition(Enum).ToStaticDef();
+		//else if (PinType.PinCategory == PinCategoryEnum)
+		//	return FNiagaraTypeDefinition(Enum).ToStaticDef();
 	}
 	
 	return FNiagaraTypeDefinition();
@@ -1875,8 +1875,6 @@ bool UEdGraphSchema_Niagara::PinTypesValidForNumericConversion(FEdGraphPinType A
 	if (AType == BType)
 		return true;
 	else if (AType.PinCategory == PinCategoryStaticType && BType.PinCategory == PinCategoryType)
-		return true;
-	else if (BType.PinCategory == PinCategoryStaticType && AType.PinCategory == PinCategoryType)
 		return true;
 	else if (AType.PinCategory == PinCategoryType && BType.PinCategory == PinCategoryType)
 		return true;
