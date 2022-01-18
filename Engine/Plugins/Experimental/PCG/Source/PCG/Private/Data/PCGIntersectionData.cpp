@@ -70,6 +70,24 @@ float UPCGIntersectionData::GetDensityAtPosition(const FVector& InPosition) cons
 	}
 }
 
+FVector UPCGIntersectionData::TransformPosition(const FVector& InPosition) const
+{
+	check(A && B);
+	return A->HasNonTrivialTransform() ? A->TransformPosition(InPosition) : B->TransformPosition(InPosition);
+}
+
+FPCGPoint UPCGIntersectionData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	check(A && B);
+	return A->HasNonTrivialTransform() ? A->TransformPoint(InPoint) : B->TransformPoint(InPoint);
+}
+
+bool UPCGIntersectionData::HasNonTrivialTransform() const
+{
+	check(A && B);
+	return A->HasNonTrivialTransform() || B->HasNonTrivialTransform();
+}
+
 const UPCGPointData* UPCGIntersectionData::CreatePointData() const
 {
 	check(A && B);

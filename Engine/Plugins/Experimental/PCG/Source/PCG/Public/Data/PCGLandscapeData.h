@@ -40,9 +40,10 @@ public:
 	// ~Begin UPGCSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
+	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
 	virtual FVector TransformPosition(const FVector& InPosition) const override;
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual bool HasNonTrivialTransform() const override { return true; }
 	// ~End UPGCConcreteData interface
 
 	// ~Begin UPCGSpatialDataWithPointCache interface

@@ -21,8 +21,11 @@ public:
 	virtual int GetDimension() const override;
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
-	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
 	virtual FVector GetNormal() const override;
+	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual FVector TransformPosition(const FVector& InPosition) const override;
+	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const override;
+	virtual bool HasNonTrivialTransform() const override;
 	//~End UPCGSpatialData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface
@@ -30,9 +33,6 @@ public:
 	//~End UPCGSpatialDataWithPointCache interface
 
 protected:
-	virtual FVector ProjectPosition(const FVector& InPosition) const;
-	virtual FPCGPoint ProjectPoint(const FPCGPoint& InPoint) const;
-
 	FBox ProjectBounds(const FBox& InBounds) const;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)

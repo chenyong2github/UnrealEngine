@@ -103,6 +103,45 @@ float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
 	return Density;
 }
 
+FVector UPCGUnionData::TransformPosition(const FVector& InPosition) const
+{
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		if (Datum->HasNonTrivialTransform())
+		{
+			return Datum->TransformPosition(InPosition);
+		}
+	}
+
+	return Super::TransformPosition(InPosition);
+}
+
+FPCGPoint UPCGUnionData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		if (Datum->HasNonTrivialTransform())
+		{
+			return Datum->TransformPoint(InPoint);
+		}
+	}
+
+	return Super::TransformPoint(InPoint);
+}
+
+bool UPCGUnionData::HasNonTrivialTransform() const
+{
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		if (Datum->HasNonTrivialTransform())
+		{
+			return true;
+		}
+	}
+
+	return Super::HasNonTrivialTransform();
+}
+
 const UPCGPointData* UPCGUnionData::CreatePointData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);

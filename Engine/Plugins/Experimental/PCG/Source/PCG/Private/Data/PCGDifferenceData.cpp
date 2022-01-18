@@ -103,6 +103,24 @@ float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
 	}
 }
 
+FVector UPCGDifferenceData::TransformPosition(const FVector& InPosition) const
+{
+	check(Source);
+	return Source->TransformPosition(InPosition);
+}
+
+FPCGPoint UPCGDifferenceData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	check(Source);
+	return Source->TransformPoint(InPoint);
+}
+
+bool UPCGDifferenceData::HasNonTrivialTransform() const
+{
+	check(Source);
+	return Source->HasNonTrivialTransform();
+}
+
 const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGDifferenceData::CreatePointData);

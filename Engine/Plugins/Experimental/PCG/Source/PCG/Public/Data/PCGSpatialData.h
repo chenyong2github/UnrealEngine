@@ -61,6 +61,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const { return InPoint; }
 
+	/** Returns true if the data has a non-trivial transform */
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	virtual bool HasNonTrivialTransform() const { return false; }
+
 	/** Returns a specialized data to intersect with another data */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual UPCGIntersectionData* IntersectWith(const UPCGSpatialData* InOther) const;
