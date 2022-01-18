@@ -226,6 +226,16 @@ public:
 			return UniformBuffer;
 		}
 		
+		bool HasBoneBufferForReading(bool bPrevious) const
+		{
+			const FVertexBufferAndSRV* RetPtr = &GetBoneBufferInternal(bPrevious);
+			if (!RetPtr->VertexBufferRHI.IsValid() && bPrevious)
+			{
+				RetPtr = &GetBoneBufferInternal(false);
+			}
+			return RetPtr->VertexBufferRHI.IsValid();
+		}
+
 		// @param bPrevious true:previous, false:current
 		const FVertexBufferAndSRV& GetBoneBufferForReading(bool bPrevious) const
 		{
@@ -357,6 +367,9 @@ public:
 	/** Morph vertex factory functions */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
 	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const { return nullptr; }
+	/** Cloth vertex factory access. */
+	virtual class FGPUBaseSkinAPEXClothVertexFactory* GetClothVertexFactory() { return nullptr; }
+	virtual class FGPUBaseSkinAPEXClothVertexFactory const* GetClothVertexFactory() const { return nullptr; }
 
 	virtual GPUSkinBoneInfluenceType GetBoneInfluenceType() const				{ return DefaultBoneInfluence; }
 	virtual uint32 GetNumBoneInfluences() const									{ return Data.IsValid() ? Data->NumBoneInfluences : 0; }
@@ -683,6 +696,16 @@ public:
 			return ClothSimulPositionNormalBuffer[Index];
 		}
 
+		bool HasClothBufferForReading(bool bPrevious, uint32 FrameNumber) const
+		{
+			int32 Index = GetMostRecentIndex(FrameNumber);
+			if (bPrevious && DoWeHavePreviousData())
+			{
+				Index = 1 - Index;
+			}
+			return ClothSimulPositionNormalBuffer[Index].VertexBufferRHI.IsValid();
+		}
+
 		// @param bPrevious true:previous, false:current
 		// @param FrameNumber usually from View.Family->FrameNumber
 		const FVertexBufferAndSRV& GetClothBufferForReading(bool bPrevious, uint32 FrameNumber) const
@@ -834,10 +857,16 @@ public:
 		return ClothShaderData;
 	}
 
+	static bool IsClothEnabled(EShaderPlatform Platform);
+
 	virtual FGPUBaseSkinVertexFactory* GetVertexFactory() = 0;
 	virtual const FGPUBaseSkinVertexFactory* GetVertexFactory() const = 0;
 
-	static bool IsClothEnabled(EShaderPlatform Platform);
+	/** Get buffer containing cloth influences. */
+	virtual FShaderResourceViewRHIRef GetClothBuffer() { return nullptr; }
+	virtual const FShaderResourceViewRHIRef GetClothBuffer() const { return nullptr; }
+	/** Get offset from vertex index to cloth influence index at a given vertex index. The offset will be constant for all vertices in the same section. */
+	virtual uint32 GetClothIndexOffset(uint32 VertexIndex, uint32 LODBias = 0) const { return 0; }
 
 protected:
 	ClothShaderType ClothShaderData;
@@ -863,17 +892,17 @@ class TGPUSkinAPEXClothVertexFactory : public FGPUBaseSkinAPEXClothVertexFactory
 	typedef TGPUSkinVertexFactory<BoneInfluenceType> Super;
 
 public:
-	inline FShaderResourceViewRHIRef GetClothBuffer()
+	inline FShaderResourceViewRHIRef GetClothBuffer() override
 	{
 		return ClothDataPtr ? ClothDataPtr->ClothBuffer : nullptr;
 	}
 
-	inline const FShaderResourceViewRHIRef GetClothBuffer() const
+	const FShaderResourceViewRHIRef GetClothBuffer() const override
 	{
 		return ClothDataPtr ? ClothDataPtr->ClothBuffer : nullptr;
 	}
 
-	inline uint32 GetClothIndexOffset(uint32 VertexIndex, uint32 LODBias = 0) const
+	uint32 GetClothIndexOffset(uint32 VertexIndex, uint32 LODBias = 0) const override
 	{
 		if (ClothDataPtr)
 		{
@@ -917,6 +946,16 @@ public:
 	virtual const FGPUBaseSkinVertexFactory* GetVertexFactory() const override
 	{
 		return this;
+	}
+
+	virtual FGPUBaseSkinAPEXClothVertexFactory* GetClothVertexFactory() override 
+	{
+		return this; 
+	}
+	
+	virtual FGPUBaseSkinAPEXClothVertexFactory const* GetClothVertexFactory() const override 
+	{
+		return this; 
 	}
 
 	// FRenderResource interface.

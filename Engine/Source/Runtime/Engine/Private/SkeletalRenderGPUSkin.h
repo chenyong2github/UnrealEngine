@@ -406,6 +406,12 @@ public:
 	FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer(int32 LODIndex) const;
 
 	/** 
+	 * Get the skin vertex factory for direct skinning. 
+	 * This is different from GetSkinVertexFactory because it ignores any passthrough vertex factories that may be in use.
+	 */
+	FGPUBaseSkinVertexFactory const* GetBaseSkinVertexFactory(int32 LODIndex, int32 ChunkIdx) const;
+
+	/** 
 	 * Vertex buffers that can be used for GPU skinning factories 
 	 */
 	struct FVertexFactoryBuffers

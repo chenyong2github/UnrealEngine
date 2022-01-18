@@ -9,16 +9,49 @@ class FSkeletalMeshObject;
 class FRDGPooledBuffer;
 class FRHIShaderResourceView;
 
-/** Functions that expose some functionality of FSkeletalMeshObject required by MeshDeformer systems. */
+/** Functions that expose some internal functionality of FSkeletalMeshObject required by MeshDeformer systems. */
 class FSkeletalMeshDeformerHelpers
 {
 public:
+
+#pragma region GetInternals
+
 	/** Get direct access to bone matrix buffer SRV. */
 	ENGINE_API static FRHIShaderResourceView* GetBoneBufferForReading(
 		FSkeletalMeshObject* MeshObject,
 		int32 LODIndex,
 		int32 SectionIndex,
 		bool bPreviousFrame);
+
+	/** Get direct access to morph target buffer SRV. */
+	ENGINE_API static FRHIShaderResourceView* GetMorphTargetBufferForReading(
+		FSkeletalMeshObject* MeshObject,
+		int32 LODIndex,
+		int32 SectionIndex,
+		uint32 FrameNumber,
+		bool bPreviousFrame);
+
+	/** Buffer SRVs from the cloth system. */
+	struct ENGINE_API FClothBuffers
+	{
+		int32 ClothInfluenceBufferOffset = 0;
+		FRHIShaderResourceView* ClothInfluenceBuffer = nullptr;
+		FRHIShaderResourceView* ClothSimulatedPositionAndNormalBuffer = nullptr;
+		FMatrix44f ClothLocalToWorld = FMatrix44f::Identity;
+		FMatrix44f ClothWorldToLocal = FMatrix44f::Identity;
+	};
+
+	/** Get direct access to cloth buffer SRVs. */
+	ENGINE_API static FClothBuffers GetClothBuffersForReading(
+		FSkeletalMeshObject* MeshObject,
+		int32 LODIndex,
+		int32 SectionIndex,
+		uint32 FrameNumber,
+		bool bPreviousFrame);
+
+#pragma endregion GetInternals
+
+#pragma region SetInternals
 
 	/** Buffer override behavior for SetVertexFactoryBufferOverrides. */
 	enum class EOverrideType
@@ -48,4 +81,6 @@ public:
 		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer);
 
 #endif // RHI_RAYTRACING
+
+#pragma endregion SetInternals
 };

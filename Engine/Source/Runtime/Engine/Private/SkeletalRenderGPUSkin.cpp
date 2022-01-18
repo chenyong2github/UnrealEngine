@@ -1367,7 +1367,6 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	checkSlow( LODs.IsValidIndex(LODIndex) );
 	checkSlow( DynamicData );
 
-	const FSkelMeshObjectLODInfo& MeshLODInfo = LODInfo[LODIndex];
 	const FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
 
 	// If a mesh deformer cache was used, return the passthrough vertex factory
@@ -1392,6 +1391,14 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	{
 		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
 	}
+
+	// No passthrough usage so return the base skin vertex factory.
+	return GetBaseSkinVertexFactory(LODIndex, ChunkIdx);
+}
+
+FGPUBaseSkinVertexFactory const* FSkeletalMeshObjectGPUSkin::GetBaseSkinVertexFactory(int32 LODIndex, int32 ChunkIdx) const
+{
+	const FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
 
 	// cloth simulation is updated & if this ChunkIdx is for ClothVertexFactory
 	if ( DynamicData->ClothingSimData.Num() > 0 
