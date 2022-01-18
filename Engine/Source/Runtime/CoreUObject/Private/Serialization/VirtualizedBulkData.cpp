@@ -747,10 +747,10 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			PackageSegment = EPackageSegment::Header;
 
 			const FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
-			checkf(Trailer != nullptr || !IsStoredInPackageTrailer(), TEXT("Payload was stored in a package trailer, but there no trailer loaded"));
-		
+				
 			if (IsStoredInPackageTrailer())
 			{
+				checkf(Trailer != nullptr, TEXT("Payload was stored in a package trailer, but there no trailer loaded"));
 				// Cache the offset from the trailer (if we move the loading of the payload to the trailer 
 				// at a later point then we can skip this)
 				OffsetInFile = Trailer->FindPayloadOffsetInFile(PayloadContentId);
