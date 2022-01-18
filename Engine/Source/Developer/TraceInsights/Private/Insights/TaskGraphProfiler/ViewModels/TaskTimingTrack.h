@@ -58,9 +58,13 @@ private:
 
 	void BuildTasksSubMenu(FMenuBuilder& MenuBuilder);
 
-	void ContextMenu_ShowTaskDependencies_Execute();
-	bool ContextMenu_ShowTaskDependencies_CanExecute();
-	bool ContextMenu_ShowTaskDependencies_IsChecked();
+	void ContextMenu_ShowTaskTransitions_Execute();
+	bool ContextMenu_ShowTaskTransitions_CanExecute();
+	bool ContextMenu_ShowTaskTransitions_IsChecked();
+
+	void ContextMenu_ShowTaskConnections_Execute();
+	bool ContextMenu_ShowTaskConnections_CanExecute();
+	bool ContextMenu_ShowTaskConnections_IsChecked();
 
 	void ContextMenu_ShowTaskPrerequisites_Execute();
 	bool ContextMenu_ShowTaskPrerequisites_CanExecute();

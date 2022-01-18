@@ -445,7 +445,7 @@ void STaskTableTreeView::ContextMenu_GoToTask_Execute()
 
 	TSharedPtr<FTaskTimingSharedState> TaskSharedState = FTaskGraphProfilerManager::Get()->GetTaskTimingSharedState();
 
-	if (TaskSharedState.IsValid() && FTaskGraphProfilerManager::Get()->GetShowRelations())
+	if (TaskSharedState.IsValid() && FTaskGraphProfilerManager::Get()->GetShowAnyRelations())
 	{
 		TaskSharedState->SetTaskId(SelectedTask->GetTask()->GetId());
 	}

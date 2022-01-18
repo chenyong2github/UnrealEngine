@@ -225,7 +225,8 @@ void FInsightsStyle::FStyle::Initialize()
 
 	Set("Icons.GoToTask", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_ViewColumn_32x", Icon16x16));
 	Set("Icons.ShowTaskCriticalPath", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_HotPath_32x", Icon16x16));
-	Set("Icons.ShowTaskDependencies", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));
+	Set("Icons.ShowTaskTransitions", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));
+	Set("Icons.ShowTaskConnections", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));
 	Set("Icons.ShowTaskPrerequisites", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));
 	Set("Icons.ShowTaskSubsequents", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));
 	Set("Icons.ShowNestedTasks", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_Calls_32x", Icon16x16));

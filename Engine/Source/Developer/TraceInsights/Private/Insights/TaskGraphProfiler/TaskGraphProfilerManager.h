@@ -102,11 +102,15 @@ public:
 	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, int32 SourceDepth, double TargetTimestamp, uint32 TargetThreadId, int32 TargetDepth, ETaskEventType Type);
 	void ClearTaskRelations();
 	FLinearColor GetColorForTaskEvent(ETaskEventType InEvent);
+	uint32 GetColorForTaskEventAsPackedARGB(ETaskEventType InEvent);
 
 	TSharedPtr<Insights::FTaskTimingSharedState> GetTaskTimingSharedState() { return TaskTimingSharedState;	}
 
-	bool GetShowRelations() const { return bShowRelations; }
-	void SetShowRelations(bool bInValue);
+	bool GetShowTransitions() const { return bShowTransitions; }
+	void SetShowTransitions(bool bInValue);
+
+	bool GetShowConnections() const { return bShowConnections; }
+	void SetShowConnections(bool bInValue) { bShowConnections = bInValue; }
 
 	bool GetShowPrerequisites() const { return bShowPrerequisites; }
 	void SetShowPrerequisites(bool bInValue) { bShowPrerequisites = bInValue; }
@@ -120,7 +124,7 @@ public:
 	bool GetShowCriticalPath() const { return bShowCriticalPath; }
 	void SetShowCriticalPath(bool bInValue) { bShowCriticalPath = bInValue; }
 
-	bool GetShowAnyRelations() const { return GetShowRelations() || GetShowPrerequisites() || GetShowSubsequents() || GetShowNestedTasks() || GetShowCriticalPath(); }
+	bool GetShowAnyRelations() const { return GetShowTransitions() || GetShowConnections() || GetShowPrerequisites() || GetShowSubsequents() || GetShowNestedTasks() || GetShowCriticalPath(); }
 
 	int32 GetDepthOfTaskExecution(double TaskStartedTime, double TaskFinishedTime, uint32 ThreadId);
 
@@ -131,7 +135,8 @@ private:
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
 	void ShowTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
-	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
+	void GetSingleTaskTransitions(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
+	void GetSingleTaskConnections(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
 	void GetRelationsOnCriticalPath(const TraceServices::FTaskInfo* Task);
 
 	double GetRelationsOnCriticalPathAscendingRec(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, TArray<FTaskGraphRelation>& Relations);
@@ -161,7 +166,8 @@ private:
 
 	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
 	FLinearColor ColorCode[static_cast<uint32>(ETaskEventType::NumTaskEventTypes)];
-	bool bShowRelations = true;
+	bool bShowTransitions = true;
+	bool bShowConnections = false;
 	bool bShowPrerequisites = false;
 	bool bShowSubsequents = false;
 	bool bShowNestedTasks = false;

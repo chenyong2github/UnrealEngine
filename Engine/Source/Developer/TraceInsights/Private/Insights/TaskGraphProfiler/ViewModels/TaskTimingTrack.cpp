@@ -51,15 +51,45 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_ShowTaskDependencies, "Show Task Dependencies", "Show/hide dependencies of the current task (for a selected cpu timing event.)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
-		UI_COMMAND(Command_ShowTaskPrerequisites, "Show Dependencies of Prerequisites", "Show/hide dependencies of the current task's prerequisites.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::P));
-		UI_COMMAND(Command_ShowTaskSubsequents, "Show Dependencies of Subsequents", "Show/hide dependencies of the current task's subsequents.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
-		UI_COMMAND(Command_ShowNestedTasks, "Show Dependencies of Nested Tasks", "Show/hide dependencies of the current task's nested tasks.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
-		UI_COMMAND(Command_ShowCriticalPath, "Show Task Critical Path", "Show/hide relations representing the critical path containing the current task.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(Command_ShowTaskTransitions,
+				   "Show Task Transitions",
+				   "Show/hide transitions between the stages of the current task (for a selected cpu timing event.)",
+				    EUserInterfaceActionType::ToggleButton,
+				    FInputChord(EKeys::T));
+
+		UI_COMMAND(Command_ShowTaskConnections,
+				   "Show Task Connections",
+				   "Show/hide conections between:\nThe current task's prerequisites completed time and the current task's started time.\nThe current task's completed time and the current task's subsequents started time.\nThe current task's nested tasks added time and their started time.",
+				   EUserInterfaceActionType::ToggleButton, FInputChord());
+
+		UI_COMMAND(Command_ShowTaskPrerequisites,
+				   "Show Transitions of Prerequisites",
+				   "Show/hide stage transitions for the current task's prerequisites.",
+				   EUserInterfaceActionType::ToggleButton,
+				   FInputChord(EKeys::P));
+
+		UI_COMMAND(Command_ShowTaskSubsequents,
+				   "Show Transitions of Subsequents",
+				   "Show/hide stage transitions for the current task's subsequents.",
+				   EUserInterfaceActionType::ToggleButton,
+				   FInputChord(EKeys::S));
+
+		UI_COMMAND(Command_ShowNestedTasks,
+				   "Show Transitions of Nested Tasks",
+				   "Show/hide stage transitions for the current task's nested tasks.",
+				   EUserInterfaceActionType::ToggleButton,
+				   FInputChord(EKeys::N));
+
+		UI_COMMAND(Command_ShowCriticalPath,
+				   "Show Task Critical Path",
+				   "Show/hide relations representing the critical path containing the current task.",
+				   EUserInterfaceActionType::ToggleButton,
+				   FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
-	TSharedPtr<FUICommandInfo> Command_ShowTaskDependencies;
+	TSharedPtr<FUICommandInfo> Command_ShowTaskTransitions;
+	TSharedPtr<FUICommandInfo> Command_ShowTaskConnections;
 	TSharedPtr<FUICommandInfo> Command_ShowTaskPrerequisites;
 	TSharedPtr<FUICommandInfo> Command_ShowTaskSubsequents;
 	TSharedPtr<FUICommandInfo> Command_ShowNestedTasks;
@@ -205,11 +235,20 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.AddMenuEntry
 	(
-		FTaskTimingStateCommands::Get().Command_ShowTaskDependencies,
+		FTaskTimingStateCommands::Get().Command_ShowTaskTransitions,
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskDependencies")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskTransitions")
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FTaskTimingStateCommands::Get().Command_ShowTaskConnections,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskConnections")
 	);
 
 	MenuBuilder.AddSeparator();
@@ -252,10 +291,16 @@ void FTaskTimingSharedState::InitCommandList()
 	FTaskTimingStateCommands::Register();
 
 	CommandList->MapAction(
-		FTaskTimingStateCommands::Get().Command_ShowTaskDependencies,
-		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_Execute),
-		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_CanExecute),
-		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_IsChecked));
+		FTaskTimingStateCommands::Get().Command_ShowTaskTransitions,
+		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_Execute),
+		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_CanExecute),
+		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_IsChecked));
+
+	CommandList->MapAction(
+		FTaskTimingStateCommands::Get().Command_ShowTaskConnections,
+		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskConnections_Execute),
+		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskConnections_CanExecute),
+		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskConnections_IsChecked));
 
 	CommandList->MapAction(
 		FTaskTimingStateCommands::Get().Command_ShowTaskPrerequisites,
@@ -283,31 +328,59 @@ void FTaskTimingSharedState::InitCommandList()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Dependencies
+// Transitions
 
-void FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_Execute()
+void FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_Execute()
 {
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
 	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
 	{
-		TaskGraphManager->SetShowRelations(!TaskGraphManager->GetShowRelations());
+		TaskGraphManager->SetShowTransitions(!TaskGraphManager->GetShowTransitions());
 		OnTaskSettingsChanged();
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_CanExecute()
+bool FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_CanExecute()
 {
 	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_IsChecked()
+bool FTaskTimingSharedState::ContextMenu_ShowTaskTransitions_IsChecked()
 {
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
-	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowRelations();
+	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowTransitions();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Connections
+
+void FTaskTimingSharedState::ContextMenu_ShowTaskConnections_Execute()
+{
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
+	{
+		TaskGraphManager->SetShowConnections(!TaskGraphManager->GetShowConnections());
+		OnTaskSettingsChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTaskTimingSharedState::ContextMenu_ShowTaskConnections_CanExecute()
+{
+	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTaskTimingSharedState::ContextMenu_ShowTaskConnections_IsChecked()
+{
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowConnections();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,13 +561,13 @@ void FTaskTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builde
 		return;
 	}
 
-	Builder.AddEvent(Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, TEXT("Launched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(ETaskEventType::Created).ToFColor(true).ToPackedARGB());
-	Builder.AddEvent(Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, TEXT("Dispatched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(ETaskEventType::Launched).ToFColor(true).ToPackedARGB());
-	Builder.AddEvent(Task->ScheduledTimestamp, Task->StartedTimestamp, 0, TEXT("Scheduled"), 0,  FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(ETaskEventType::Scheduled).ToFColor(true).ToPackedARGB());
-	Builder.AddEvent(Task->StartedTimestamp, Task->FinishedTimestamp, 0, TEXT("Executed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(ETaskEventType::NestedCompleted).ToFColor(true).ToPackedARGB());
+	Builder.AddEvent(Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, TEXT("Launched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Created));
+	Builder.AddEvent(Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, TEXT("Dispatched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Launched));
+	Builder.AddEvent(Task->ScheduledTimestamp, Task->StartedTimestamp, 0, TEXT("Scheduled"), 0,  FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Scheduled));
+	Builder.AddEvent(Task->StartedTimestamp, Task->FinishedTimestamp, 0, TEXT("Executed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Started));
 	if (Task->CompletedTimestamp > Task->FinishedTimestamp)
 	{
-		Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Completed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(ETaskEventType::Completed).ToFColor(true).ToPackedARGB());
+		Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Completed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Completed));
 	}
 }
 

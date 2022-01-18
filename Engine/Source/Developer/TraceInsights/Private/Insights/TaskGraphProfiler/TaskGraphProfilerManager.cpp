@@ -275,7 +275,7 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 			const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(Relation.RelativeId);
 			if (Task != nullptr)
 			{
-				GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
+				GetSingleTaskTransitions(Task, TasksProvider, InSelectedEvent);
 			}
 		}
 	};
@@ -284,9 +284,13 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 	{
 		GetSingleTaskRelationsForAll(Task->Prerequisites);
 	}
-	if (bShowRelations)
+	if (bShowTransitions)
 	{
-		GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
+		GetSingleTaskTransitions(Task, TasksProvider, InSelectedEvent);
+	}
+	if (bShowConnections)
+	{
+		GetSingleTaskConnections(Task, TasksProvider, InSelectedEvent);
 	}
 	if (bShowNestedTasks)
 	{
@@ -302,10 +306,8 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 	}
 }
 
-void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
+void FTaskGraphProfilerManager::GetSingleTaskTransitions(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
 {
-	const int32 MaxTasksToShow = 30;
-
 	if (Task->CreatedTimestamp != Task->LaunchedTimestamp || Task->CreatedThreadId != Task->LaunchedThreadId)
 	{
 		AddRelation(InSelectedEvent, Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, ETaskEventType::Created);
@@ -315,16 +317,36 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 	{
 		AddRelation(InSelectedEvent, Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Launched);
 	}
+
+	int32 ExecutionStartedDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+	AddRelation(InSelectedEvent, Task->ScheduledTimestamp, Task->ScheduledThreadId, -1, Task->StartedTimestamp, Task->StartedThreadId, ExecutionStartedDepth, ETaskEventType::Scheduled);
+
+	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
+	{
+		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, ExecutionStartedDepth, Task->CompletedTimestamp, Task->CompletedThreadId, -1,  ETaskEventType::Completed);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::GetSingleTaskConnections(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
+{
+	const int32 MaxTasksToShow = 30;
+
 	int32 NumPrerequisitesToShow = FMath::Min(Task->Prerequisites.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumPrerequisitesToShow; ++i)
 	{
 		const TraceServices::FTaskInfo* Prerequisite = TasksProvider->TryGetTask(Task->Prerequisites[i].RelativeId);
 		check(Prerequisite != nullptr);
-		AddRelation(InSelectedEvent, Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, ETaskEventType::Prerequisite);
+		double StartTime = Prerequisite->CompletedTimestamp;
+		uint32 ThreadId = Prerequisite->CompletedThreadId;
+		if (StartTime <= 0.0)
+		{
+			StartTime = Prerequisite->FinishedTimestamp;
+			ThreadId = Prerequisite->StartedThreadId;
+		}
+		AddRelation(InSelectedEvent, StartTime, ThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Prerequisite);
 	}
-
-	int32 ExecutionStartedDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
-	AddRelation(InSelectedEvent, Task->ScheduledTimestamp, Task->ScheduledThreadId, -1, Task->StartedTimestamp, Task->StartedThreadId, ExecutionStartedDepth, ETaskEventType::Scheduled);
 
 	int32 NumNestedToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumNestedToShow; ++i)
@@ -335,9 +357,7 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 
 		int32 NestedExecutionStartedDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
 
-		AddRelation(InSelectedEvent, RelationInfo.Timestamp, Task->StartedThreadId, -1, NestedTask->StartedTimestamp,  NestedTask->StartedThreadId, NestedExecutionStartedDepth,  ETaskEventType::AddedNested);
-
-		AddRelation(InSelectedEvent, NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, ETaskEventType::NestedCompleted);
+		AddRelation(InSelectedEvent, RelationInfo.Timestamp, Task->StartedThreadId, -1, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, NestedExecutionStartedDepth, ETaskEventType::AddedNested);
 	}
 
 	int32 NumSubsequentsToShow = FMath::Min(Task->Subsequents.Num(), MaxTasksToShow);
@@ -345,15 +365,14 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 	{
 		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
 		check(Subsequent != nullptr);
-		if (Task->CompletedTimestamp < Subsequent->ScheduledTimestamp)
+		double StartTime = Task->CompletedTimestamp;
+		uint32 ThreadId = Task->CompletedThreadId;
+		if (StartTime <= 0.0)
 		{
-			AddRelation(InSelectedEvent, Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->ScheduledTimestamp, Subsequent->ScheduledThreadId, ETaskEventType::Subsequent);
+			StartTime = Task->FinishedTimestamp;
+			ThreadId = Task->StartedThreadId;
 		}
-	}
-
-	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
-	{
-		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, ExecutionStartedDepth, Task->CompletedTimestamp, Task->StartedThreadId, -1,  ETaskEventType::Completed);
+		AddRelation(InSelectedEvent, StartTime, ThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, ETaskEventType::Subsequent);
 	}
 }
 
@@ -476,16 +495,25 @@ void FTaskGraphProfilerManager::OnWindowClosedEvent()
 
 void FTaskGraphProfilerManager::InitializeColorCode()
 {
-	ColorCode[static_cast<uint32>(ETaskEventType::Created)] = FLinearColor::Yellow;
-	ColorCode[static_cast<uint32>(ETaskEventType::Launched)] = FLinearColor::Green;
-	ColorCode[static_cast<uint32>(ETaskEventType::Prerequisite)] = FLinearColor::Red;
-	ColorCode[static_cast<uint32>(ETaskEventType::Scheduled)] = FLinearColor::Blue;
-	ColorCode[static_cast<uint32>(ETaskEventType::Started)] = FLinearColor::Red;
-	ColorCode[static_cast<uint32>(ETaskEventType::AddedNested)] = FLinearColor::Blue;
-	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = FLinearColor::Red;
-	ColorCode[static_cast<uint32>(ETaskEventType::Subsequent)] = FLinearColor::Red;
-	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = FLinearColor::Yellow;
-	ColorCode[static_cast<uint32>(ETaskEventType::CriticalPath)] = FLinearColor(FColor::Purple);
+	auto ToLiniarColorNoAlpha = [](uint32 Value)
+	{
+		float R = (Value & 0xFF000000) >> 24;
+		float G = (Value & 0x00FF0000) >> 16;
+		float B = (Value & 0x0000FF00) >> 8;
+
+		return FLinearColor(R / 255, G / 255, B / 255);
+	};
+
+	ColorCode[static_cast<uint32>(ETaskEventType::Created)] = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow;
+	ColorCode[static_cast<uint32>(ETaskEventType::Launched)] = ToLiniarColorNoAlpha(0x8BC24AFF); // Green;
+	ColorCode[static_cast<uint32>(ETaskEventType::Prerequisite)] = ToLiniarColorNoAlpha(0xFF729CFF); //Pink;
+	ColorCode[static_cast<uint32>(ETaskEventType::Scheduled)] = ToLiniarColorNoAlpha(0x26BBFFFF); // Blue;
+	ColorCode[static_cast<uint32>(ETaskEventType::Started)] = ToLiniarColorNoAlpha(0xFF0000FF); // Red;
+	ColorCode[static_cast<uint32>(ETaskEventType::AddedNested)] = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
+	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = ToLiniarColorNoAlpha(0x804D39FF); // Brown
+	ColorCode[static_cast<uint32>(ETaskEventType::Subsequent)] = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange;;
+	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
+	ColorCode[static_cast<uint32>(ETaskEventType::CriticalPath)] = ToLiniarColorNoAlpha(0xA139BFFF); // Purple
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -494,6 +522,13 @@ FLinearColor FTaskGraphProfilerManager::GetColorForTaskEvent(ETaskEventType InEv
 {
 	check(InEvent < ETaskEventType::NumTaskEventTypes);
 	return ColorCode[static_cast<uint32>(InEvent)];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 FTaskGraphProfilerManager::GetColorForTaskEventAsPackedARGB(ETaskEventType InEvent)
+{
+	return GetColorForTaskEvent(InEvent).ToFColor(false).ToPackedARGB();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -596,10 +631,10 @@ void FTaskGraphProfilerManager::ClearTaskRelations()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::SetShowRelations(bool bInValue)
+void FTaskGraphProfilerManager::SetShowTransitions(bool bInValue)
 {
-	bShowRelations = bInValue;
-	if (!bShowRelations)
+	bShowTransitions = bInValue;
+	if (!bShowTransitions)
 	{
 		TaskTimingSharedState->SetTaskId(TaskTrace::InvalidId);
 	}
