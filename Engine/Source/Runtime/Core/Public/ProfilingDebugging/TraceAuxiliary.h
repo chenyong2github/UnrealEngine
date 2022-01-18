@@ -4,11 +4,22 @@
 
 #include "HAL/Platform.h"
 
+
+////////////////////////////////////////////////////////////////////////////////
+	
 ////////////////////////////////////////////////////////////////////////////////
 class CORE_API FTraceAuxiliary
 {
 public:
 
+	// In no logging configurations all log categories are of type FNoLoggingCategory, which has no relation with
+	// FLogCategoryBase. In order to not need to conditionally set the argument alias the type here.
+#if NO_LOGGING
+	typedef FNoLoggingCategory& FLogCategoryAlias;
+#else
+	typedef FLogCategoryBase FLogCategoryAlias;
+#endif
+	
 	enum class EConnectionType
 	{
 		/**
@@ -44,7 +55,7 @@ public:
 	 * @param LogCategory Log channel to output messages to. Default set to 'Core'.
 	 * @return True when successfully starting the trace, false if the data connection could not be made.
 	 */
-	static bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options = nullptr, const FLogCategoryBase& LogCategory = LogCore);
+	static bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options = nullptr, const FLogCategoryAlias& LogCategory = LogCore);
 
 	/**
 	 * Stop tracing.
