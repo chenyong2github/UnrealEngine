@@ -843,6 +843,12 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		[
 			InCustomRow->ValueWidget.Widget
 		];
+
+		Row
+		.ExtensionContent()
+		[
+			InCustomRow->ExtensionWidget.Widget
+		];
 	}
 	else if (PropertyEditor.IsValid())
 	{
