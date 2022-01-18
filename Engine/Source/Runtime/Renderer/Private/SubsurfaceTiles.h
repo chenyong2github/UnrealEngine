@@ -64,6 +64,7 @@ class FSubsurfaceTilePassVS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, ViewMin)
+		SHADER_PARAMETER(FIntPoint, ViewMax)
 		SHADER_PARAMETER(int32, bRectPrimitive)
 		SHADER_PARAMETER(uint32, TileType)
 		SHADER_PARAMETER(FVector2f, ExtentInverse)

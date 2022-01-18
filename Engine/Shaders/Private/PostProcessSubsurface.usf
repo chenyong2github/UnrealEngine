@@ -624,6 +624,7 @@ void BuildIndirectDispatchArgsCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 #define TYPE_SEPARABLE 0x1
 #define TYPE_BURLEY    0x2
+#define TYPE_IN_VIEWPORT 0x4
 
 // 0, no subsurface
 // 1, Separable
@@ -690,17 +691,19 @@ void AddSubsurfaceComputeGroup(uint GI, uint Type, uint2 GroupXY)
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (GI == 0 && (SubsurfaceTypeFlag & TYPE_SEPARABLE))
+	if (GI == 0 && ((SubsurfaceTypeFlag & TYPE_SEPARABLE) && (SubsurfaceTypeFlag & TYPE_IN_VIEWPORT)))
 	{
 		AddSeparableGroup(GroupXY);
 	}
 
-	if (GI == 0 && (SubsurfaceTypeFlag & TYPE_BURLEY))
+	if (GI == 0 && ((SubsurfaceTypeFlag & TYPE_BURLEY) && (SubsurfaceTypeFlag & TYPE_IN_VIEWPORT)))
 	{
 		AddBurleyGroup(GroupXY);
 	}
 
-	if (GI == 0 && SubsurfaceTypeFlag > 0)
+	if (GI == 0 && ((SubsurfaceTypeFlag & TYPE_IN_VIEWPORT) &&
+				   ((SubsurfaceTypeFlag &	TYPE_SEPARABLE) ||
+					(SubsurfaceTypeFlag &	   TYPE_BURLEY))))
 	{
 		AddAllGroup(GroupXY);
 	}
@@ -827,6 +830,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 
 	if (all(Pos < Output_ViewportMax))
 	{
+		Type |= TYPE_IN_VIEWPORT;
 		SetupTexture[Pos] = OutColor;
 
 #if !SUBSURFACE_FORCE_SEPARABLE && ENABLE_PROFILE_ID_CACHE

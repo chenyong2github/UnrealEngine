@@ -78,6 +78,7 @@ void ClearUAV(uint2 DT_ID : SV_DispatchThreadID)
 #if SHADER_TILE_VS
 
 int2 ViewMin;
+int2 ViewMax;
 float2 ExtentInverse;
 uint TileType;
 Buffer<uint> TileDataBuffer;
@@ -93,7 +94,7 @@ void MainVS(
 	uint2 TileVertex = TileCoord * SUBSURFACE_TILE_SIZE;
 	TileVertex.x += InVertexId == 1 || InVertexId == 2 || InVertexId == 4 ? SUBSURFACE_TILE_SIZE : 0;
 	TileVertex.y += InVertexId == 2 || InVertexId == 4 || InVertexId == 5 ? SUBSURFACE_TILE_SIZE : 0;
-	Out.UV = float2(TileVertex + ViewMin) * ExtentInverse;
+	Out.UV = float2(min((int2)TileVertex + ViewMin, ViewMax)) * ExtentInverse;
 	Out.Position = float4(Out.UV * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.0f, 1.0f);
 }
 
