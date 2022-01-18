@@ -39,7 +39,7 @@ FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteMaxVisibleClusters = 2 * 1048576;
+int32 GNaniteMaxVisibleClusters = 4 * 1048576;
 FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
 	TEXT("r.Nanite.MaxVisibleClusters"),
 	GNaniteMaxVisibleClusters,
@@ -161,6 +161,13 @@ FPackedView CreatePackedViewFromViewInfo
 
 void FGlobalResources::InitRHI()
 {
+	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		LLM_SCOPE_BYTAG(Nanite);
+#if !UE_BUILD_SHIPPING
+		FeedbackManager = new FFeedbackManager();
+#endif
+	}
 }
 
 void FGlobalResources::ReleaseRHI()
@@ -177,6 +184,11 @@ void FGlobalResources::ReleaseRHI()
 		StatsBuffer.SafeRelease();
 
 		StructureBufferStride8.SafeRelease();
+
+#if !UE_BUILD_SHIPPING
+		delete FeedbackManager;
+		FeedbackManager = nullptr;
+#endif
 	}
 }
 

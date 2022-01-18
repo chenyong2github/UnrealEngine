@@ -9,6 +9,7 @@
 #include "RenderGraphResources.h"
 #include "RenderGraphUtils.h"
 #include "Rendering/NaniteResources.h"
+#include "NaniteFeedback.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
@@ -158,6 +159,10 @@ public:
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
+
+#if !UE_BUILD_SHIPPING
+	FFeedbackManager* GetFeedbackManager() { return FeedbackManager; }
+#endif
 private:
 	PassBuffers MainPassBuffers;
 	PassBuffers PostPassBuffers;
@@ -169,6 +174,10 @@ private:
 
 	// Dummy structured buffer with stride8
 	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
+
+#if !UE_BUILD_SHIPPING
+	FFeedbackManager* FeedbackManager = nullptr;
+#endif
 };
 
 extern TGlobalResource< FGlobalResources > GGlobalResources;

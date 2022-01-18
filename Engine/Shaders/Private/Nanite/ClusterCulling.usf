@@ -17,6 +17,7 @@
 #include "NaniteDataDecode.ush"
 #include "HZBCull.ush"
 #include "Culling.ush"
+#include "../GPUMessaging.ush"
 
 #define SANITY_CHECK_STREAMING_REQUESTS		0												// Adds frame counter dependent magic values to streaming requests to help verify their integrity.
 																							// Must match define in NaniteStreamingManager.h
@@ -1113,3 +1114,24 @@ void ClearStreamingRequestCount()
 {
 	OutStreamingRequests[0].RuntimeResourceID_Magic = 0;	// First entry holds count
 }
+
+Buffer<uint> InMainRasterizerArgsSWHW;
+Buffer<uint> InPostRasterizerArgsSWHW;
+uint StatusMessageId;
+
+[numthreads(1, 1, 1)]
+void FeedbackStatus()
+{
+	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
+
+	const uint PeakNodes				= max(QueueState[0].PassState[0].NodeWriteOffset, QueueState[0].PassState[1].NodeWriteOffset);
+	const uint PeakCandidateClusters	= max(QueueState[0].PassState[0].ClusterWriteOffset, QueueState[0].PassState[1].ClusterWriteOffset);
+	const uint PeakVisibleClusters		= max(	InMainRasterizerArgsSWHW[0] + InMainRasterizerArgsSWHW[HWClusterCounterIndex],
+												InPostRasterizerArgsSWHW[0] + InPostRasterizerArgsSWHW[HWClusterCounterIndex]);
+												
+	FGPUMessageWriter Mw = GPUMessageBegin(StatusMessageId, 3U);
+	GPUMessageWriteItem(Mw, PeakNodes);
+	GPUMessageWriteItem(Mw, PeakCandidateClusters);
+	GPUMessageWriteItem(Mw, PeakVisibleClusters);
+}
+

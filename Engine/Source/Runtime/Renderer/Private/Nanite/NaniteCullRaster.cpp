@@ -2366,6 +2366,10 @@ void CullRasterize(
 		const bool bVirtualTextureTarget = VirtualShadowMapArray != nullptr;
 		ExtractStats(GraphBuilder, SharedContext, CullingContext, bVirtualTextureTarget);
 	}
+
+#if !UE_BUILD_SHIPPING
+	GGlobalResources.GetFeedbackManager()->Update(GraphBuilder, SharedContext, CullingContext);
+#endif
 }
 
 void CullRasterize(
