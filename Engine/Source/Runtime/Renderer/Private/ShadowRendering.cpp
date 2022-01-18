@@ -1240,7 +1240,7 @@ void FProjectedShadowInfo::RenderProjectionInternal(
 	const bool bSubPixelSupport = HairStrandsUniformBuffer != nullptr;// HairStrands::HasViewHairStrandsData(*View);
 	const bool bStencilTestEnabled = !bSubPixelSupport && GShadowStencilCulling;
 	const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0 && !bSubPixelSupport;
-	const uint32 StencilRef = bSubPixelSupport ? 1u : 0u;
+	const uint32 StencilRef = bSubPixelSupport && !IsWholeSceneDirectionalShadow() ? 1u : 0u;
 
 	if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
 	{
