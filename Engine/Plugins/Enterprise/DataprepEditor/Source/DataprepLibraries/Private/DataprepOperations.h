@@ -98,14 +98,14 @@ class UDataprepSetSimpleCollisionOperation : public UDataprepOperation
 	GENERATED_BODY()
 
 	UDataprepSetSimpleCollisionOperation()
-		: ShapeType(EScriptingCollisionShapeType_Deprecated::Box)
+		: ShapeType(EScriptCollisionShapeType::Box)
 	{
 	}
 
 public:
 	// Shape's of the collision geometry encompassing the static mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Shape's of the collision geometry encompassing the static mesh"))
-		EScriptingCollisionShapeType_Deprecated ShapeType;
+		EScriptCollisionShapeType ShapeType;
 
 	//~ Begin UDataprepOperation Interface
 public:

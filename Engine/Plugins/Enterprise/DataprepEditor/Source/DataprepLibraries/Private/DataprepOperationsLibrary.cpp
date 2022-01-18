@@ -42,7 +42,7 @@ DEFINE_LOG_CATEGORY(LogDataprep);
 
 extern UNREALED_API UEditorEngine* GEditor;
 
-void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, TArray<UObject*>& ModifiedObjects)
+void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects, const FStaticMeshReductionOptions& ReductionOptions, TArray<UObject*>& ModifiedObjects)
 {
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
@@ -60,14 +60,14 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, UDEPRECATED_EditorStaticMeshLibrary::ConvertReductionOptions(ReductionOptions), false);
+			StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, ReductionOptions, false);
 
 			ModifiedObjects.Add( StaticMesh );
 		}
 	}
 }
 
-void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType_Deprecated ShapeType, TArray<UObject*>& ModifiedObjects)
+void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptCollisionShapeType ShapeType, TArray<UObject*>& ModifiedObjects)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
@@ -82,11 +82,11 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 	bool bNeedRenderData = false;
 	switch (ShapeType)
 	{
-		case EScriptingCollisionShapeType_Deprecated::NDOP10_X:
-		case EScriptingCollisionShapeType_Deprecated::NDOP10_Y:
-		case EScriptingCollisionShapeType_Deprecated::NDOP10_Z:
-		case EScriptingCollisionShapeType_Deprecated::NDOP18:
-		case EScriptingCollisionShapeType_Deprecated::NDOP26:
+		case EScriptCollisionShapeType::NDOP10_X:
+		case EScriptCollisionShapeType::NDOP10_Y:
+		case EScriptCollisionShapeType::NDOP10_Z:
+		case EScriptCollisionShapeType::NDOP18:
+		case EScriptCollisionShapeType::NDOP26:
 		{
 			bNeedRenderData = true;
 			break;
@@ -109,7 +109,7 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 			// Remove existing simple collisions
 			StaticMeshEditorSubsystem->RemoveCollisionsWithNotification( StaticMesh, false );
 
-			StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification( StaticMesh, UDEPRECATED_EditorStaticMeshLibrary::ConvertCollisionShape(ShapeType), false );
+			StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification( StaticMesh, ShapeType, false );
 
 			ModifiedObjects.Add( StaticMesh );
 		}

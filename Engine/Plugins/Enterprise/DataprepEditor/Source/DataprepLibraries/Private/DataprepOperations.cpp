@@ -74,7 +74,7 @@ void UDataprepSetLODsOperation::OnExecution_Implementation(const FDataprepContex
 	}
 
 	// Fill up mesh reduction struct
-	FEditorScriptingMeshReductionOptions_Deprecated ReductionOptions;
+	FStaticMeshReductionOptions ReductionOptions;
 
 	ReductionOptions.bAutoComputeLODScreenSize = bAutoComputeLODScreenSize;
 	ReductionOptions.ReductionSettings.SetNum( LODCount );
