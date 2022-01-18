@@ -59,6 +59,12 @@ struct ASSETMANAGEREDITOR_API FAssetManagerEditorRegistrySource
 	/** Filename registry was loaded from */
 	FString SourceFilename;
 
+	/** 
+	* Timestamp for the registry we loaded from, if from a file. Modified time if the OS supports it,
+	* otherwise creation time. If we can't get anything or not from a file, empty string. In local timezone.
+	*/
+	FString SourceTimestamp;
+
 	/** Target platform for this state, may be null */
 	ITargetPlatform* TargetPlatform;
 
@@ -189,6 +195,9 @@ public:
 		RegistryStatePrivate = nullptr;
 		AssetRegistryPrivate = nullptr;
 	}
+
+	// grabs the SourceTimestamp from the asset registry file changed times.
+	void LoadRegistryTimestamp();
 
 	// Functions to forward on to the RegistryState, either the owned one or the editor's global State.
 

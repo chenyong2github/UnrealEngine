@@ -1479,6 +1479,32 @@ const FAssetManagerEditorRegistrySource* FAssetManagerEditorModule::GetCurrentRe
 	return CurrentRegistrySource;
 }
 
+void FAssetManagerEditorRegistrySource::LoadRegistryTimestamp()
+{
+	FFileStatData TimeData = IFileManager::Get().GetStatData(*SourceFilename);
+	FDateTime UseTime = FDateTime::MinValue();
+	if (TimeData.bIsValid)
+	{
+		if (TimeData.ModificationTime != FDateTime::MinValue())
+		{
+			UseTime = TimeData.ModificationTime;
+		}
+		else
+		{
+			UseTime = TimeData.CreationTime;
+		}
+	}
+
+	if (UseTime != FDateTime::MinValue())
+	{
+		//Turn UTC into local
+		FTimespan UTCOffset = FDateTime::Now() - FDateTime::UtcNow();
+		UseTime += UTCOffset;
+
+		SourceTimestamp = UseTime.ToString(TEXT("%Y.%m.%d %h:%m %A"));
+	}
+}
+
 void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceName)
 {
 	InitializeRegistrySources(false);
@@ -1488,6 +1514,8 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 	if (NewSource)
 	{
 		CurrentRegistrySource = NewSource;
+
+		CurrentRegistrySource->SourceTimestamp = FString();
 
 		if (CurrentRegistrySource->SourceName == FAssetManagerEditorRegistrySource::CustomSourceName)
 		{
@@ -1532,6 +1560,8 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 			FArrayReader SerializedAssetData;
 			if (FFileHelper::LoadFileToArray(SerializedAssetData, *CurrentRegistrySource->SourceFilename))
 			{
+				CurrentRegistrySource->LoadRegistryTimestamp();
+
 				FAssetRegistryState* NewState = new FAssetRegistryState();
 				FAssetRegistrySerializationOptions Options(UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 

@@ -14,6 +14,7 @@
 
 class FUICommandList;
 class SMenuAnchor;
+class STextBlock;
 
 //////////////////////////////////////////////////////////////////////////
 // SAssetAuditBrowser
@@ -144,6 +145,12 @@ protected:
 
 	/** List of valid registry sources */
 	TArray<TSharedPtr<FString>> SourceComboList;
+
+	/**
+	* Text block where we put the timestamp for the asset registry so the user knows
+	* if they are looking at super out of date data.
+	*/
+	TSharedPtr<STextBlock> RegistrySourceTimeText;
 
 	/** Current TargetPlatform and registry state, may be null! */
 	const FAssetManagerEditorRegistrySource* CurrentRegistrySource;

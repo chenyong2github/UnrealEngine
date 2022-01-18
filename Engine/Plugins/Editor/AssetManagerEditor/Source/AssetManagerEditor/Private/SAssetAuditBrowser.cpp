@@ -455,6 +455,15 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("RefreshAssets", "Refresh"))
 						.OnClicked(this, &SAssetAuditBrowser::RefreshAssets)
 					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(6.0f)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SAssignNew(RegistrySourceTimeText, STextBlock)
+						.ToolTipText(LOCTEXT("RegistryTime_TT", "The timestamp for the AssetRegistry.bin file. Changes to assets are not picked up until a new cook."))
+					]
 					
 					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
@@ -873,6 +882,23 @@ FText SAssetAuditBrowser::GetSourceComboText() const
 void SAssetAuditBrowser::SetCurrentRegistrySource(const FAssetManagerEditorRegistrySource* RegistrySource)
 {
 	CurrentRegistrySource = RegistrySource;
+
+	if (CurrentRegistrySource->bIsEditor)
+	{
+		RegistrySourceTimeText->SetText(LOCTEXT("AssetRegistryTimestampEditor", "Preview data (cook for actual data)"));
+	}
+	else
+	{
+		
+		if (CurrentRegistrySource->SourceTimestamp.Len() == 0)
+		{
+			RegistrySourceTimeText->SetText(LOCTEXT("AssetRegistryTimestampError", "Unable to get AssetRegistry.bin timestamp (recook?)"));
+		}
+		else
+		{
+			RegistrySourceTimeText->SetText(FText::Format(LOCTEXT("AssetRegistryTimestampFormat", "AssetRegistry.bin from {0}"), FText::FromString(CurrentRegistrySource->SourceTimestamp)));
+		}
+	}
 
 	// Refresh dropdown
 	TArray<const FAssetManagerEditorRegistrySource*> AvailableSources;
