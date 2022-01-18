@@ -174,7 +174,7 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 		for (auto& CacheEntry : Manager.PrevCacheEntries)
 		{
 			TBitArray<>& RenderedPrimitives = CacheEntry.Value->RenderedPrimitives;
-			if (bIsNaniteMesh || (PersistentPrimitiveIndex <= RenderedPrimitives.Num() && RenderedPrimitives[PersistentPrimitiveIndex]))
+			if (bIsNaniteMesh || (PersistentPrimitiveIndex < RenderedPrimitives.Num() && RenderedPrimitives[PersistentPrimitiveIndex]))
 			{
 				if (!bIsNaniteMesh)
 				{
