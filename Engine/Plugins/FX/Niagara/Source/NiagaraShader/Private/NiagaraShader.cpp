@@ -1245,31 +1245,6 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 	EmitterConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraEmitterParameters"));
 	ExternalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
 
-	// params for event buffers
-	// this is horrendous; need to do this in a uniform buffer instead.
-	//
-	for (uint32 i = 0; i < MAX_CONCURRENT_EVENT_DATASETS; i++)
-	{
-		FString VarName = TEXT("WriteDataSetFloat") + FString::FromInt(i + 1);
-		EventFloatUAVParams[i].Bind(ParameterMap, *VarName);
-		VarName = TEXT("WriteDataSetInt") + FString::FromInt(i + 1);
-		EventIntUAVParams[i].Bind(ParameterMap, *VarName);
-
-		VarName = TEXT("ReadDataSetFloat") + FString::FromInt(i + 1);
-		EventFloatSRVParams[i].Bind(ParameterMap, *VarName);
-		VarName = TEXT("ReadDataSetInt") + FString::FromInt(i + 1);
-		EventIntSRVParams[i].Bind(ParameterMap, *VarName);
-
-		VarName = TEXT("DSComponentBufferSizeReadFloat") + FString::FromInt(i + 1);
-		EventReadFloatStrideParams[i].Bind(ParameterMap, *VarName);
-		VarName = TEXT("DSComponentBufferSizeWriteFloat") + FString::FromInt(i + 1);
-		EventWriteFloatStrideParams[i].Bind(ParameterMap, *VarName);
-		VarName = TEXT("DSComponentBufferSizeReadInt") + FString::FromInt(i + 1);
-		EventReadIntStrideParams[i].Bind(ParameterMap, *VarName);
-		VarName = TEXT("DSComponentBufferSizeWriteInt") + FString::FromInt(i + 1);
-		EventWriteIntStrideParams[i].Bind(ParameterMap, *VarName);
-	}
-
 	DataInterfaceParameters.Empty(InDIParamInfo.Num());
 	for(const FNiagaraDataInterfaceGPUParamInfo& DIParamInfo : InDIParamInfo)
 	{

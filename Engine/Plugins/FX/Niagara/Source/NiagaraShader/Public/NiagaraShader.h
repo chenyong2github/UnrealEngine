@@ -103,14 +103,6 @@ public:
 
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);
-	LAYOUT_ARRAY(FRWShaderParameter, EventIntUAVParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FRWShaderParameter, EventFloatUAVParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderResourceParameter, EventIntSRVParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderResourceParameter, EventFloatSRVParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderParameter, EventWriteFloatStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderParameter, EventWriteIntStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderParameter, EventReadFloatStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
-	LAYOUT_ARRAY(FShaderParameter, EventReadIntStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
 
 private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, NiagaraUniformBuffer);

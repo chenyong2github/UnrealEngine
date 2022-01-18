@@ -32,8 +32,6 @@ class FNiagaraShaderMapId;
 class UNiagaraScriptBase;
 struct FNiagaraVMExecutableDataId;
 
-#define MAX_CONCURRENT_EVENT_DATASETS 4
-
 /** Defines the compile event types for translation/compilation.*/
 UENUM()
 enum class FNiagaraCompileEventSeverity : uint8
