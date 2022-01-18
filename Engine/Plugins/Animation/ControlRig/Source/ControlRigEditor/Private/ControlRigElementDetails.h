@@ -503,6 +503,7 @@ private:
 			 .DisplayToggle(bShowToggle)
 			 .ToggleChecked(ToggleChecked)
 			 .OnToggleChanged(OnToggleChanged)
+			 .UndeterminedString(NSLOCTEXT("FRigControlElementDetails", "MultipleValues", "Multiple Values"))
 		]
 		.CopyAction(FUIAction(
 		FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
