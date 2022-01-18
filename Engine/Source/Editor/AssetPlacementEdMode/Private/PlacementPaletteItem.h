@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ISMPartition/ISMPartitionInstanceManager.h"
+#include "Factories/AssetFactoryInterface.h"
 
 #include "PlacementPaletteItem.generated.h"
 
