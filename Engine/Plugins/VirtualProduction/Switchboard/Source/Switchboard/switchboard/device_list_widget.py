@@ -50,6 +50,10 @@ class DeviceListWidget(QtWidgets.QListWidget):
 
         item_widget = self.itemWidget(item)
         assert item_widget
+        
+        # No actions for clicking the header widget
+        if isinstance(item_widget, DeviceWidgetHeader):
+            return
 
         device_context_menu = QtWidgets.QMenu(self)
 
