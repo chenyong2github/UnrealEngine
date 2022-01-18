@@ -164,8 +164,6 @@ extern CORE_API FQueuedThreadPool* GThreadPool;
 
 extern CORE_API FQueuedThreadPool* GIOThreadPool;
 
-extern CORE_API FQueuedThreadPool* GDDCIOThreadPool;
-
 extern CORE_API FQueuedThreadPool* GBackgroundPriorityThreadPool;
 
 #if WITH_EDITOR

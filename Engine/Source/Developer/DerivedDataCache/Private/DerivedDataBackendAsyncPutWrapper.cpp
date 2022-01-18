@@ -2,6 +2,7 @@
 
 #include "Async/AsyncWork.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
@@ -521,7 +522,7 @@ FDerivedDataBackendInterface::EPutStatus FDerivedDataBackendAsyncPutWrapper::Put
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s queueing %s for put"), *GetName(), CacheKey);
 
 	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
-	(new FAutoDeleteAsyncTask<FCachePutAsyncWorker>(CacheKey, InData, InnerBackend, bPutEvenIfExists, InflightCache.Get(), &FilesInFlight, UsageStats))->StartBackgroundTask(GDDCIOThreadPool, EQueuedWorkPriority::Low);
+	(new FAutoDeleteAsyncTask<FCachePutAsyncWorker>(CacheKey, InData, InnerBackend, bPutEvenIfExists, InflightCache.Get(), &FilesInFlight, UsageStats))->StartBackgroundTask(Private::GCacheThreadPool, EQueuedWorkPriority::Low);
 
 	return EPutStatus::Executing;
 }
@@ -576,7 +577,7 @@ public:
 		Owner.Begin(this);
 
 		DoneEvent.Reset();
-		GDDCIOThreadPool->AddQueuedWork(this, GetPriority(Priority));
+		Private::GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
 	}
 
 	inline void Execute(bool bCancel)
@@ -595,9 +596,9 @@ public:
 
 	inline void SetPriority(EPriority Priority) final
 	{
-		if (GDDCIOThreadPool->RetractQueuedWork(this))
+		if (Private::GCacheThreadPool->RetractQueuedWork(this))
 		{
-			GDDCIOThreadPool->AddQueuedWork(this, GetPriority(Priority));
+			Private::GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
 		}
 	}
 
@@ -605,7 +606,7 @@ public:
 	{
 		if (!DoneEvent.Wait(0))
 		{
-			if (GDDCIOThreadPool->RetractQueuedWork(this))
+			if (Private::GCacheThreadPool->RetractQueuedWork(this))
 			{
 				Abandon();
 			}
@@ -621,7 +622,7 @@ public:
 	{
 		if (!DoneEvent.Wait(0))
 		{
-			if (GDDCIOThreadPool->RetractQueuedWork(this))
+			if (Private::GCacheThreadPool->RetractQueuedWork(this))
 			{
 				DoThreadedWork();
 			}
@@ -738,7 +739,7 @@ void FDerivedDataBackendAsyncPutWrapper::Execute(
 	#endif
 	};
 
-	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
+	if (Owner.GetPriority() == EPriority::Blocking || !Private::GCacheThreadPool)
 	{
 		return ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 	}

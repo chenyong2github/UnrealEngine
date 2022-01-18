@@ -897,11 +897,11 @@ bool FStreamedAudioPlatformData::AreDerivedChunksAvailable(FStringView InContext
 
 	// If this is called from the game thread, try to prefetch chunks locally on background thread
 	// to avoid doing high latency remote calls every time we reload this data.
-	if (bAllCachedDataProbablyExists && GDDCIOThreadPool && IsInGameThread())
+	if (bAllCachedDataProbablyExists && GIOThreadPool && IsInGameThread())
 	{
 		FString Context{ InContext };
 		AsyncPool(
-			*GDDCIOThreadPool,
+			*GIOThreadPool,
 			[ChunkKeys, Context]()
 			{
 				GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, Context);

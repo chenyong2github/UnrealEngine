@@ -2469,18 +2469,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			verify(GIOThreadPool->Create(NumThreadsInThreadPool, 96 * 1024, TPri_AboveNormal, TEXT("IOThreadPool")));
 		}
- 
-		if (!FPlatformProperties::RequiresCookedData())
-		{
-			SCOPED_BOOT_TIMING("GDDCIOThreadPool->Create");
-			GDDCIOThreadPool = FQueuedThreadPool::Allocate();
-			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfIOWorkerThreadsToSpawn();
-			if (FPlatformProperties::IsServerOnly())
-			{
-				NumThreadsInThreadPool = 2;
-			}
-			verify(GDDCIOThreadPool->Create(NumThreadsInThreadPool, 96 * 1024, TPri_AboveNormal, TEXT("DDC IO ThreadPool")));
-		}
 	}
 
 	FEmbeddedCommunication::ForceTick(1);

@@ -43,8 +43,6 @@ FQueuedThreadPool* GThreadPool = nullptr;
 
 FQueuedThreadPool* GIOThreadPool = nullptr;
 
-FQueuedThreadPool* GDDCIOThreadPool = nullptr;
-
 FQueuedThreadPool* GBackgroundPriorityThreadPool = nullptr;
 
 #if WITH_EDITOR

@@ -7,6 +7,7 @@
 #include "Misc/AsciiSet.h"
 
 class FDerivedDataCacheInterface;
+class FQueuedThreadPool;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class ICache; }
@@ -14,6 +15,9 @@ namespace UE::DerivedData { struct FCacheKey; }
 
 namespace UE::DerivedData::Private
 {
+
+// Created by CreateCache
+extern FQueuedThreadPool* GCacheThreadPool;
 
 // Implemented in DerivedDataCache.cpp
 ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache);

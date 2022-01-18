@@ -285,6 +285,8 @@ void ICacheStore::GetValue(
 namespace UE::DerivedData::Private
 {
 
+FQueuedThreadPool* GCacheThreadPool;
+
 /**
  * Implementation of the derived data cache
  * This API is fully threadsafe
@@ -496,6 +498,13 @@ public:
 	FDerivedDataCache()
 		: CurrentHandle(19248) // we will skip some potential handles to catch errors
 	{
+		if (FPlatformProcess::SupportsMultithreading())
+		{
+			GCacheThreadPool = FQueuedThreadPool::Allocate();
+			const int32 ThreadCount = FPlatformMisc::NumberOfIOWorkerThreadsToSpawn();
+			verify(GCacheThreadPool->Create(ThreadCount, 96 * 1024, TPri_AboveNormal, TEXT("DDC IO ThreadPool")));
+		}
+
 		FDerivedDataBackend::Get(); // we need to make sure this starts before we allow us to start
 
 		CacheStoreMaintainers = IModularFeatures::Get().GetModularFeatureImplementations<ICacheStoreMaintainer>(FeatureName);
@@ -642,7 +651,7 @@ public:
 		PendingTasks.Add(Handle, AsyncTask);
 		AddToAsyncCompletionCounter(1);
 		// This request is I/O only, doesn't do any processing, send it to the I/O only thread-pool to avoid wasting worker threads on long I/O waits.
-		AsyncTask->StartBackgroundTask(GDDCIOThreadPool);
+		AsyncTask->StartBackgroundTask(GCacheThreadPool);
 		return Handle;
 	}
 
