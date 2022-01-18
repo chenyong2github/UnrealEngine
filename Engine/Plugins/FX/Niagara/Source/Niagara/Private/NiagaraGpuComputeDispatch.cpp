@@ -1474,7 +1474,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRHICommandList& RHICmdList, FRHI
 	{
 		DispatchType = SimStageData.StageMetaData->GpuDispatchType;
 		DispatchCount = SimStageData.AlternateIterationSource->GetElementCount(Tick.SystemInstanceID);
-		DispatchNumThreads = (DispatchType == ENiagaraGpuDispatchType::Custom) ? SimStageData.StageMetaData->GpuDispatchNumThreads : FNiagaraShader::GetDefaultThreadGroupSize(DispatchType);
+		DispatchNumThreads = SimStageData.StageMetaData->GpuDispatchNumThreads;
 
 		// Verify the number of elements isn't higher that what we can handle
 		checkf(uint64(DispatchCount.X) * uint64(DispatchCount.Y) * uint64(DispatchCount.Z) < uint64(TNumericLimits<int32>::Max()), TEXT("DispatchCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"), DispatchCount.X, DispatchCount.Y, DispatchCount.Z, *SimStageData.AlternateIterationSource->SourceDIName.ToString());
@@ -1510,13 +1510,13 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRHICommandList& RHICmdList, FRHI
 	SetComputePipelineState(RHICmdList, RHIComputeShader);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS,
-		TEXT("NiagaraGpuSim(%s) DispatchCount(%d x %d x %d) Stage(%s %u) NumInstructions(%u)"),
+		TEXT("NiagaraGpuSim(%s) DispatchCount(%dx%dx%d) Stage(%s %u) Iteration(%u) NumThreads(%dx%dx%d)"),
 		InstanceData.Context->GetDebugSimName(),
 		DispatchCount.X, DispatchCount.Y, DispatchCount.Z,
 		*SimStageData.StageMetaData->SimulationStageName.ToString(),
 		SimStageData.StageIndex,
 		SimStageData.IterationIndex,
-		ComputeShader->GetNumInstructions()
+		DispatchNumThreads.X, DispatchNumThreads.Y, DispatchNumThreads.Z
 	);
 	FNiagaraEmptyUAVPoolScopedAccess UAVPoolAccessScope(GetEmptyUAVPool());
 

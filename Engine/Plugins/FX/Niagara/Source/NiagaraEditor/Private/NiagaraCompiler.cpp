@@ -695,6 +695,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					SimStageData.PartialParticleUpdate	= GenericStage->bDisablePartialParticleUpdate == false;
 					SimStageData.bParticleIterationStateEnabled	= GenericStage->bParticleIterationStateEnabled;
 					SimStageData.ParticleIterationStateRange	= GenericStage->ParticleIterationStateRange;
+					SimStageData.bGpuDispatchForceLinear		= GenericStage->bGpuDispatchForceLinear;
+					SimStageData.bOverrideGpuDispatchNumThreads	= GenericStage->bOverrideGpuDispatchNumThreads;
+					SimStageData.OverrideGpuDispatchNumThreads	= GenericStage->OverrideGpuDispatchNumThreads;
 
 					if (SimStageData.bParticleIterationStateEnabled)
 					{

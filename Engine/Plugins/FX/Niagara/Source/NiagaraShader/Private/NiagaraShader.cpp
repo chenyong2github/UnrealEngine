@@ -432,16 +432,7 @@ void FNiagaraShaderType::BeginCompileShader(
 
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED"), Script->GetUsesCompressedAttributes() ? 1 : 0);
 
-	FIntVector ThreadGroupSize = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
-	if (SimStageMetaData.GpuDispatchType != ENiagaraGpuDispatchType::Custom)
-	{
-		ThreadGroupSize = FNiagaraShader::GetDefaultThreadGroupSize(SimStageMetaData.GpuDispatchType);
-	}
-	else
-	{
-		ThreadGroupSize = SimStageMetaData.GpuDispatchNumThreads;
-	}
-
+	const FIntVector ThreadGroupSize = SimStageMetaData.GpuDispatchNumThreads;
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_DISPATCH_TYPE"), int(SimStageMetaData.GpuDispatchType));
 	NewJob->Input.Environment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize.X * ThreadGroupSize.Y * ThreadGroupSize.Z);
 	NewJob->Input.Environment.SetDefine(TEXT("THREADGROUP_SIZE_X"), ThreadGroupSize.X);

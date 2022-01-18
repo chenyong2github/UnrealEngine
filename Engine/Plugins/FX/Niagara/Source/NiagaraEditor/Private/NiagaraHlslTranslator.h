@@ -100,6 +100,9 @@ public:
 		bool							bParticleIterationStateEnabled = false;
 		FName							ParticleIterationStateBinding;
 		FIntPoint						ParticleIterationStateRange = FIntPoint::ZeroValue;
+		bool							bGpuDispatchForceLinear = false;
+		bool							bOverrideGpuDispatchNumThreads = false;
+		FIntVector						OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
 	};
 	TArray<FCompileSimStageData> CompileSimStageData;
 
@@ -379,6 +382,9 @@ public:
 	bool bWritesAlive = false;
 	bool bWritesParticles = false;
 	bool bPartialParticleUpdate = false;
+	bool bGpuDispatchForceLinear = false;
+	bool bOverrideGpuDispatchNumThreads = false;
+	FIntVector OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
 	TArray<FNiagaraVariable> SetParticleAttributes;
 	FString CustomReadFunction;
 	FString CustomWriteFunction;

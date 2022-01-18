@@ -91,6 +91,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
 	FIntPoint ParticleIterationStateRange = FIntPoint(0, 0);
 
+	/** When enabled we force the dispatch to be linear (i.e. one dimension is used). */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	uint32 bGpuDispatchForceLinear : 1;
+
+	/** When enabled we use a custom number of threads for the dispatch. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	uint32 bOverrideGpuDispatchNumThreads : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	FIntVector OverrideGpuDispatchNumThreads = FIntVector(64, 1, 1);
+
 	virtual void PostInitProperties() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #if WITH_EDITOR

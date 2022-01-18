@@ -404,7 +404,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_Unit)
 			{
-				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D || NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_CUSTOM
 					Out_Unit = (float3(GDispatchThreadId.x, GDispatchThreadId.y, GDispatchThreadId.z) + .5) / {NumCellsName};
 				#else
 					const uint Linear = GLinearThreadId;
@@ -425,7 +425,7 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
 			{
-				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D || NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_CUSTOM
 					Out_IndexX = GDispatchThreadId.x;
 					Out_IndexY = GDispatchThreadId.y;
 					Out_IndexZ = GDispatchThreadId.z;
@@ -895,7 +895,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float2 Out_Unit)
 			{
-				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D || NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_CUSTOM
 					Out_Unit = (float2(GDispatchThreadId.x, GDispatchThreadId.y) + .5) * {UnitToUVName};			
 				#else
 					const uint Linear = GLinearThreadId;
@@ -914,7 +914,7 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY)
 			{
-				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D || NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_CUSTOM
 					Out_IndexX = GDispatchThreadId.x;
 					Out_IndexY = GDispatchThreadId.y;
 				#else
