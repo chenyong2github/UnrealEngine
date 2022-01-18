@@ -3856,47 +3856,12 @@ template< class T > struct TBaseStructure
 	}
 };
 
-template<> struct TBaseStructure<FRotator>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct TBaseStructure<FQuat>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct TBaseStructure<FTransform>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
 template<> struct TBaseStructure<FLinearColor>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 template<> struct TBaseStructure<FColor>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct  TBaseStructure<FPlane>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct  TBaseStructure<FVector>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct TBaseStructure<FVector2D>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};
-
-template<> struct TBaseStructure<FVector4>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
@@ -3910,11 +3875,6 @@ template<> struct TBaseStructure<FGuid>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
-
-template<> struct TBaseStructure<FBox2D>
-{
-	COREUOBJECT_API static UScriptStruct* Get();
-};	
 
 template<> struct TBaseStructure<FFallbackStruct>
 {
@@ -4039,3 +3999,28 @@ template<> struct TBaseStructure<FTestUninitializedScriptStructMembersTest>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
+
+
+
+// TBaseStructure for explicit core variant types only. e.g. FVector3d returns "Vector3d" struct. 
+template< class T > struct TVariantStructure
+{
+	static_assert(sizeof(T) == 0, "Unsupported for this type. Did you mean to use TBaseStructure?");
+};
+
+#define UE_DECLARE_CORE_VARIANT_TYPE(VARIANT, CORE)														\
+template<> struct TBaseStructure<F##CORE> { COREUOBJECT_API static UScriptStruct* Get(); };		\
+template<> struct TVariantStructure<F##VARIANT##f> { COREUOBJECT_API static UScriptStruct* Get(); };	\
+template<> struct TVariantStructure<F##VARIANT##d> { COREUOBJECT_API static UScriptStruct* Get(); };
+
+UE_DECLARE_CORE_VARIANT_TYPE(Vector2,	Vector2D);
+UE_DECLARE_CORE_VARIANT_TYPE(Vector3,	Vector);
+UE_DECLARE_CORE_VARIANT_TYPE(Vector4,	Vector4);
+UE_DECLARE_CORE_VARIANT_TYPE(Plane4,	Plane);
+UE_DECLARE_CORE_VARIANT_TYPE(Quat4,		Quat);
+UE_DECLARE_CORE_VARIANT_TYPE(Rotator3,	Rotator);
+UE_DECLARE_CORE_VARIANT_TYPE(Transform3,Transform);
+UE_DECLARE_CORE_VARIANT_TYPE(Matrix44,	Matrix);
+UE_DECLARE_CORE_VARIANT_TYPE(Box2,		Box2D);
+
+#undef UE_DECLARE_CORE_VARIANT_TYPE
