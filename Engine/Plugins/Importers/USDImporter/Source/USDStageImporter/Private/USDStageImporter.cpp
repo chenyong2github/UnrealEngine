@@ -111,49 +111,6 @@ namespace UsdStageImporterImpl
 		return Suffix == 1 ? InPackagePath : InPackagePath + TEXT("_") + LexToString(Suffix - 1);
 	}
 
-	/**
-	 * Removes any numbered suffix, followed by any number of underscores (e.g. Asset_2, Asset__23231 or Asset94 become 'Asset'), making
-	 * sure the string is kept at least one character long.
-	*/
-	void RemoveNumberedSuffix( FString& Prefix )
-	{
-		if ( !Prefix.IsNumeric() )
-		{
-			FString LastChar = Prefix.Right( 1 );
-			while ( LastChar.IsNumeric() )
-			{
-				const bool bAllowShrinking = false;
-				Prefix.LeftChopInline( 1, bAllowShrinking );
-				LastChar = Prefix.Right( 1 );
-			}
-			Prefix.Shrink();
-		}
-
-		while ( Prefix.Len() > 1 && Prefix.Right( 1 ) == TEXT( "_" ) )
-		{
-			Prefix.RemoveFromEnd( TEXT( "_" ) );
-		}
-	}
-
-	FString GetUniqueName(FString Prefix, TSet<FString>& UniqueNames)
-	{
-		if (!UniqueNames.Contains(Prefix))
-		{
-			return Prefix;
-		}
-
-		RemoveNumberedSuffix(Prefix);
-
-		int32 Suffix = 0;
-		FString Result;
-		do
-		{
-			Result = FString::Printf(TEXT("%s_%d"), *Prefix, Suffix++);
-		} while (UniqueNames.Contains(Result));
-
-		return Result;
-	}
-
 	void SetupSceneActor(FUsdStageImportContext& ImportContext)
 	{
 		if ( !ImportContext.ImportOptions->bImportActors )
@@ -463,7 +420,7 @@ namespace UsdStageImporterImpl
 		// We don't care if our assets overwrite something in the final destination package (that conflict will be
 		// handled according to EReplaceAssetPolicy). But we do want these assets to have unique names amongst themselves
 		// or else they will overwrite each other when publishing
-		FinalName = GetUniqueName( ObjectTools::SanitizeObjectName( FinalName ), UniqueAssetNames );
+		FinalName = UsdUtils::GetUniqueName( ObjectTools::SanitizeObjectName( FinalName ), UniqueAssetNames );
 		UniqueAssetNames.Add(FinalName);
 
 		return FinalName;

@@ -196,6 +196,12 @@ namespace UsdUtils
 	USDUTILITIES_API bool RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName );
 
 	/**
+	 * Removes any numbered suffix, followed by any number of underscores (e.g. Asset_2, Asset__232_31 or Asset94 all become 'Asset'), making
+	 * sure the string is kept at least one character long. Returns true if it removed anything.
+	 */
+	USDUTILITIES_API bool RemoveNumberedSuffix( FString& Prefix );
+
+	/**
 	 * Appends numbered suffixes to Name until the result is not contained in UsedNames, and returns it.
 	 * Does not add the result to UsedNames before returning (as it is const).
 	 * @param Name - Received string to make unique (e.g. "MyName")

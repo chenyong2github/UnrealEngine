@@ -1248,9 +1248,40 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 #endif // #if USE_USD_SDK
 }
 
+bool UsdUtils::RemoveNumberedSuffix( FString& Prefix )
+{
+	if ( Prefix.IsNumeric() )
+	{
+		return false;
+	}
+
+	bool bRemoved = false;
+
+	FString LastChar = Prefix.Right( 1 );
+	while ( ( LastChar.IsNumeric() || LastChar == TEXT( "_" ) ) && Prefix.Len() > 1 )
+	{
+		const bool bAllowShrinking = false;
+		Prefix.LeftChopInline( 1, bAllowShrinking );
+		LastChar = Prefix.Right( 1 );
+
+		bRemoved = true;
+	}
+	Prefix.Shrink();
+
+	return bRemoved;
+}
+
 FString UsdUtils::GetUniqueName( FString Name, const TSet<FString>& UsedNames )
 {
 	if ( !UsedNames.Contains( Name ) )
+	{
+		return Name;
+	}
+
+	const bool bRemoved = RemoveNumberedSuffix( Name );
+
+	// Its possible that removing the suffix made it into a unique name already
+	if ( bRemoved && !UsedNames.Contains( Name ) )
 	{
 		return Name;
 	}
