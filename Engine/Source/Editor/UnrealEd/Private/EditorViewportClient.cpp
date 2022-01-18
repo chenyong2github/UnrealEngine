@@ -3826,6 +3826,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		.SetRealtimeUpdate( IsRealtime() && FSlateThrottleManager::Get().IsAllowingExpensiveTasks() )
 		.SetViewModeParam( ViewModeParam, ViewModeParamName ) );
 
+	ViewFamily.DebugDPIScale = GetDPIScale();
+
 	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();

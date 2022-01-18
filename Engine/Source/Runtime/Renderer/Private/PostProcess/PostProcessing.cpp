@@ -1347,34 +1347,6 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		SceneColor = AddHMDDistortionPass(GraphBuilder, View, PassInputs);
 	}
 
-	if (EngineShowFlags.TestImage)
-	{
-		AddTestImagePass(GraphBuilder, View, SceneColor);
-	}
-
-	if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr)
-	{
-		AddVisualizeNanitePass(GraphBuilder, View, SceneColor, *NaniteRasterResults);
-	}
-
-	if (ShaderDrawDebug::IsEnabled(View))
-	{
-		ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
-	}
-
-	if (ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
-	}
-
-	if ( View.Family && View.Family->Scene )
-	{
-		if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())
-		{
-			FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
-		}
-	}
-
 	if (PassSequence.IsEnabled(EPass::HighResolutionScreenshotMask))
 	{
 		FHighResolutionScreenshotMaskInputs PassInputs;
@@ -1453,6 +1425,39 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, Method, FPaniniProjectionConfig());
 		}
 	}
+
+	// Draw debug stuff directly onto the back buffer
+	#if !UE_BUILD_SHIPPING
+	{
+		if (EngineShowFlags.TestImage)
+		{
+			AddTestImagePass(GraphBuilder, View, SceneColor);
+		}
+
+		if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr)
+		{
+			AddVisualizeNanitePass(GraphBuilder, View, SceneColor, *NaniteRasterResults);
+		}
+
+		if (ShaderDrawDebug::IsEnabled(View))
+		{
+			ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+		}
+
+		if (ShaderPrint::IsEnabled(View))
+		{
+			ShaderPrint::DrawView(GraphBuilder, View, SceneColor);
+		}
+
+		if (View.Family && View.Family->Scene)
+		{
+			if (FFXSystemInterface* FXSystem = View.Family->Scene->GetFXSystem())
+			{
+				FXSystem->DrawSceneDebug_RenderThread(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+			}
+		}
+	}
+	#endif
 }
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)

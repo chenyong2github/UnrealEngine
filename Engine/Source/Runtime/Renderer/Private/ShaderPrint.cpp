@@ -98,7 +98,7 @@ namespace ShaderPrint
 	{		
 		FUniformBufferParameters Out;
 		Out.FontSize = Data.FontSize;
-		Out.Resolution = Data.Resolution;
+		Out.Resolution = Data.OutputRect.Size();
 		Out.MaxValueCount = Data.MaxValueCount;
 		Out.MaxSymbolCount = Data.MaxSymbolCount;
 		return FUniformBufferRef::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
@@ -289,14 +289,18 @@ namespace ShaderPrint
 			return;
 		}
 
-		const FIntPoint Resolution(FMath::Max(View.UnconstrainedViewRect.Size().X, 1), FMath::Max(View.UnconstrainedViewRect.Size().Y, 1));
+		const FIntPoint ViewSize(FMath::Max(View.UnconstrainedViewRect.Size().X, 1), FMath::Max(View.UnconstrainedViewRect.Size().Y, 1));
 
-		const float FontWidth = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)Resolution.X;
-		const float FontHeight = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)Resolution.Y;
-		const float SpaceWidth = (float)FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1) / (float)Resolution.X;
-		const float SpaceHeight = (float)FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1) / (float)Resolution.Y;
+		float FontSize = float(FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1)) * View.Family->DebugDPIScale;
+		float FontSpacingX = float(FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1)) * View.Family->DebugDPIScale;
+		float FontSpacingY = float(FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1)) * View.Family->DebugDPIScale;
+
+		const float FontWidth = FontSize / float(ViewSize.X);
+		const float FontHeight = FontSize / float(ViewSize.Y);
+		const float SpaceWidth = FontSpacingX / float(ViewSize.X);
+		const float SpaceHeight = FontSpacingY / float(ViewSize.Y);
 		View.ShaderPrintData.FontSize = FVector4f(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
-		View.ShaderPrintData.Resolution = Resolution;
+		View.ShaderPrintData.OutputRect = View.UnconstrainedViewRect;
 		View.ShaderPrintData.MaxValueCount = GetMaxValueCount();
 		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
 		GCharacterRequestCount = 0;
@@ -330,12 +334,14 @@ namespace ShaderPrint
 			FIntVector(1, 1, 1));
 	}
 
-	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture OutputTexture)
 	{
-		check(OutputTexture);
+		check(OutputTexture.IsValid());
 
 		RDG_EVENT_SCOPE(GraphBuilder, "ShaderPrintDrawView");
 
+		FIntRect OutputRect = OutputTexture.ViewRect;
+	
 		// Initialize graph managed resources
 		// Symbols buffer contains Count + 1 elements. The first element is only used as a counter.
 		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxSymbolCount() + 1), TEXT("ShaderPrintSymbolBuffer"));
@@ -410,7 +416,7 @@ namespace ShaderPrint
 			TShaderMapRef< FShaderDrawSymbolsPS > PixelShader(GlobalShaderMap);
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture.Texture, ERenderTargetLoadAction::ELoad);
 			PassParameters->UniformBufferParameters = UniformBuffer;
 			PassParameters->MiniFontTexture = FontTexture;
 			PassParameters->SymbolsBuffer = GraphBuilder.CreateSRV(SymbolBuffer);
@@ -420,10 +426,12 @@ namespace ShaderPrint
 				RDG_EVENT_NAME("DrawSymbols"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdListImmediate)
+				[VertexShader, PixelShader, PassParameters, OutputRect](FRHICommandList& RHICmdList)
 			{
+				RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Min.X, OutputRect.Min.Y, 1.0f);
+				
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
@@ -431,12 +439,12 @@ namespace ShaderPrint
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-				SetGraphicsPipelineState(RHICmdListImmediate, GraphicsPSOInit, 0);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-				SetShaderParameters(RHICmdListImmediate, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
-				SetShaderParameters(RHICmdListImmediate, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
-				RHICmdListImmediate.DrawIndexedPrimitiveIndirect(GTwoTrianglesIndexBuffer.IndexBufferRHI, PassParameters->IndirectDrawArgsBuffer->GetIndirectRHICallBuffer(), 0);
+				RHICmdList.DrawIndexedPrimitiveIndirect(GTwoTrianglesIndexBuffer.IndexBufferRHI, PassParameters->IndirectDrawArgsBuffer->GetIndirectRHICallBuffer(), 0);
 			});
 		}
 	}

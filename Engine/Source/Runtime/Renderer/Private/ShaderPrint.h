@@ -12,6 +12,7 @@
 
 #include "RenderGraph.h"
 #include "Templates/RefCounting.h"
+#include "ScreenPass.h"
 
 class FViewInfo;
 
@@ -32,7 +33,7 @@ namespace ShaderPrint
 	// Allocate the debug print buffer associated with the view
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	// Draw info from the debug print buffer to the given output target
-	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture);
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture OutputTexture);
 	// Release the debug print buffer associated with the view
 	void EndView(FViewInfo& View);
 }

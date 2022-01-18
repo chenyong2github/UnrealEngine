@@ -1736,6 +1736,9 @@ public:
 	/** Gamma correction used when rendering this family. Default is 1.0 */
 	float GammaCorrection;
 	
+	/** DPI scale to be used for debugging font. */
+	float DebugDPIScale = 1.0f;
+
 	/** Editor setting to allow designers to override the automatic expose. 0:Automatic, following indices: -4 .. +4 */
 	FExposureSettings ExposureSettings;
 

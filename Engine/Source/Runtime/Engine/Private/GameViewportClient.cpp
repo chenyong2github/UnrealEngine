@@ -1290,6 +1290,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		EngineShowFlags)
 		.SetRealtimeUpdate(true));
 
+	ViewFamily.DebugDPIScale = GetDPIScale();
+
 #if WITH_EDITOR
 	if (GIsEditor)
 	{

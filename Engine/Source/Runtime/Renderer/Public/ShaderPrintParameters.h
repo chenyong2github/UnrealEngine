@@ -20,7 +20,7 @@ class FViewInfo;
 struct FShaderPrintData
 {
 	FVector4f FontSize;
-	FIntPoint Resolution;
+	FIntRect OutputRect;
 	int32 MaxValueCount = -1;
 	int32 MaxSymbolCount = -1;
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
