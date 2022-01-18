@@ -242,9 +242,9 @@ public:
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	struct FBundle;
@@ -1343,13 +1343,13 @@ void FS3DerivedDataBackend::Get(
 }
 
 void FS3DerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Requests,
+	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheChunkComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	if (OnComplete)
 	{
-		for (const FCacheChunkRequest& Request : Requests)
+		for (const FCacheGetChunkRequest& Request : Requests)
 		{
 			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
 		}

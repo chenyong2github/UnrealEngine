@@ -943,9 +943,9 @@ public:
 	}
 
 	void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) final
+		FOnCacheGetChunkComplete&& OnComplete) final
 	{
 		return FDerivedDataBackend::Get().GetRoot().GetChunks(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
 	}

@@ -227,7 +227,7 @@ protected:
 		using namespace UE::DerivedData;
 		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
 
-		TArray<FCacheChunkRequest> Requests;
+		TArray<FCacheGetChunkRequest> Requests;
 
 		int32 OverallIndex = 0;
 		for (int32 RecordIndex = 0; RecordIndex < Records.Num(); ++RecordIndex)
@@ -251,7 +251,7 @@ protected:
 		TArray<TOptional<FGetChunksOutput>> GetOutputs;
 		GetOutputs.SetNum(Requests.Num());
 		FRequestOwner RequestOwner(EPriority::Blocking);
-		TestBackend->GetChunks(Requests, RequestOwner, [&GetOutputs](FCacheChunkResponse&& Response)
+		TestBackend->GetChunks(Requests, RequestOwner, [&GetOutputs](FCacheGetChunkResponse&& Response)
 			{
 				GetOutputs[Response.UserData].Emplace(FGetChunksOutput { Response.RawData, Response.Status });
 			});

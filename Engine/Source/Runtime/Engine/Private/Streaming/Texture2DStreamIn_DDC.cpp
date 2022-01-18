@@ -158,7 +158,7 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
 		{
 			using namespace UE::DerivedData;
-			TArray<FCacheChunkRequest> MipKeys;
+			TArray<FCacheGetChunkRequest> MipKeys;
 
 			TStringBuilder<256> MipNameBuilder;
 			Context.Texture->GetPathName(nullptr, MipNameBuilder);
@@ -170,7 +170,7 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 				if (MipMap.IsPagedToDerivedData())
 				{
-					FCacheChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+					FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
 					MipNameBuilder.Appendf(TEXT(" [MIP 0]"), MipIndex + LODBias);
 					Request.Name = MipNameBuilder;
 					Request.Key = Key;
@@ -182,7 +182,7 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 
 			if (MipKeys.Num())
 			{
-				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheChunkResponse&& Response)
+				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheGetChunkResponse&& Response)
 				{
 					if (Response.Status == EStatus::Ok)
 					{

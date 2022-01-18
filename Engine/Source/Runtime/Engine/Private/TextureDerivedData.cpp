@@ -1281,7 +1281,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 	}
 	else if (PlatformData.DerivedDataKey.IsType<FCacheKeyProxy>())
 	{
-		TArray<FCacheChunkRequest> MipKeys;
+		TArray<FCacheGetChunkRequest> MipKeys;
 
 		const FCacheKey& Key = *PlatformData.DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
@@ -1291,7 +1291,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			{
 				TStringBuilder<256> MipNameBuilder;
 				MipNameBuilder.Append(DebugContext).Appendf(TEXT(" [MIP 0]"), MipIndex);
-				FCacheChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+				FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
 				Request.Name = MipNameBuilder;
 				Request.Key = Key;
 				Request.Id = FTexturePlatformData::MakeMipId(MipIndex);
@@ -1304,7 +1304,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			check(Callback);
 			bool bMiss = false;
 			FRequestOwner RequestOwner(EPriority::Blocking);
-			GetCache().GetChunks(MipKeys, RequestOwner, [Callback = MoveTemp(Callback), &bMiss](FCacheChunkResponse&& Response)
+			GetCache().GetChunks(MipKeys, RequestOwner, [Callback = MoveTemp(Callback), &bMiss](FCacheGetChunkResponse&& Response)
 			{
 				if (Response.Status == EStatus::Ok)
 				{

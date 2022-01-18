@@ -107,9 +107,9 @@ public:
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	/** Name of the cache file loaded (if any). */
@@ -768,14 +768,14 @@ void FMemoryDerivedDataBackend::Get(
 }
 
 void FMemoryDerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Requests,
+	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheChunkComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	FValueWithId Value;
 	FCacheKey ValueKey;
 	FCompressedBufferReader Reader;
-	for (const FCacheChunkRequest& Request : Requests)
+	for (const FCacheGetChunkRequest& Request : Requests)
 	{
 		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());

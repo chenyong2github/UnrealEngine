@@ -175,9 +175,9 @@ public:
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
 		return InnerBackend->GetChunks(Requests, Owner, MoveTemp(OnComplete));
 	}

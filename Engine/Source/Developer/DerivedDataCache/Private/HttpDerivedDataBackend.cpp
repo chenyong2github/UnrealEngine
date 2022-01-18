@@ -2031,9 +2031,9 @@ public:
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 	static FHttpDerivedDataBackend* GetAny()
 	{
@@ -3231,9 +3231,9 @@ void FHttpDerivedDataBackend::Get(
 }
 
 void FHttpDerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Requests,
+	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheChunkComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	// TODO: This is inefficient because Jupiter doesn't allow us to get only part of a compressed blob, so we have to
 	//		 get the whole thing and then decompress only the portion we need.  Furthermore, because there is no propagation
@@ -3242,7 +3242,7 @@ void FHttpDerivedDataBackend::GetChunks(
 	//		 are missing in local/fast stores and have to be retrieved from slow stores into record requests instead.  That
 	//		 will make this code path unused/uncommon as Jupiter will most always be a slow store with a local/fast store in front of it.
 	//		 Regardless, to adhere to the functional contract, this implementation must exist.
-	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
+	TArray<FCacheGetChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
 	SortedRequests.StableSort(TChunkLess());
 
 	bool bHasValue = false;
@@ -3253,7 +3253,7 @@ void FHttpDerivedDataBackend::GetChunks(
 	FCompressedBufferReader ValueReader;
 	EStatus ValueStatus = EStatus::Error;
 	FOptionalCacheRecord Record;
-	for (const FCacheChunkRequest& Request : SortedRequests)
+	for (const FCacheGetChunkRequest& Request : SortedRequests)
 	{
 		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());

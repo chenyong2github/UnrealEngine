@@ -211,12 +211,12 @@ public:
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
 		InnerBackend->GetChunks(Requests, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheChunkResponse&& Response)
+			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetChunkResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Response.RawData.GetSize()));
 				if (OnComplete)

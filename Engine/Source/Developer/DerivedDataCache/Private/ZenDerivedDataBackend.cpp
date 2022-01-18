@@ -134,9 +134,9 @@ public:
 		FOnCacheGetValueComplete&& OnComplete = FOnCacheGetValueComplete()) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	enum class EGetResult
@@ -1083,14 +1083,14 @@ void FZenDerivedDataBackend::GetValue(
 
 
 void FZenDerivedDataBackend::GetChunks(
-	TConstArrayView<FCacheChunkRequest> Requests,
+	TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheChunkComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetChunks);
 	TRACE_COUNTER_ADD(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 
-	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
+	TArray<FCacheGetChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
 	SortedRequests.StableSort(TChunkLess());
 
 	int32 TotalCompleted = 0;
@@ -1110,7 +1110,7 @@ void FZenDerivedDataBackend::GetChunks(
 				BatchRequest.BeginArray("ChunkRequests"_ASV);
 				for (int32 ChunkIndex = BatchFirst; ChunkIndex <= BatchLast; ChunkIndex++)
 				{
-					const FCacheChunkRequest& Request = SortedRequests[ChunkIndex];
+					const FCacheGetChunkRequest& Request = SortedRequests[ChunkIndex];
 					
 					BatchRequest.BeginObject();
 					
@@ -1147,7 +1147,7 @@ void FZenDerivedDataBackend::GetChunks(
 			int32 ChunkIndex = BatchFirst;
 			for (FCbFieldView HashView : ResponseObj["Result"_ASV])
 			{
-				const FCacheChunkRequest& Request = SortedRequests[ChunkIndex++];
+				const FCacheGetChunkRequest& Request = SortedRequests[ChunkIndex++];
 
 				if (ShouldSimulateMiss(Request.Key))
 				{
@@ -1195,7 +1195,7 @@ void FZenDerivedDataBackend::GetChunks(
 		{
 			for (int32 ChunkIndex = BatchFirst; ChunkIndex <= BatchLast; ChunkIndex++)
 			{
-				const FCacheChunkRequest& Request = SortedRequests[ChunkIndex];
+				const FCacheGetChunkRequest& Request = SortedRequests[ChunkIndex];
 				
 				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing value '%s' for '%s' from '%s'"),
 					*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);

@@ -20,8 +20,8 @@
 
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FCacheChunkRequest; }
-namespace UE::DerivedData { struct FCacheChunkResponse; }
+namespace UE::DerivedData { struct FCacheGetChunkRequest; }
+namespace UE::DerivedData { struct FCacheGetChunkResponse; }
 namespace UE::DerivedData { struct FCacheGetRequest; }
 namespace UE::DerivedData { struct FCacheGetResponse; }
 namespace UE::DerivedData { struct FCacheGetValueRequest; }
@@ -35,13 +35,13 @@ namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 namespace UE::DerivedData
 {
 
-using FCacheRequestName UE_DEPRECATED(5.0, "Use FSharedString.") = FSharedString;
-
 using FOnCachePutComplete = TUniqueFunction<void (FCachePutResponse&& Response)>;
 using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetResponse&& Response)>;
 using FOnCachePutValueComplete = TUniqueFunction<void (FCachePutValueResponse&& Response)>;
 using FOnCacheGetValueComplete = TUniqueFunction<void (FCacheGetValueResponse&& Response)>;
-using FOnCacheChunkComplete = TUniqueFunction<void (FCacheChunkResponse&& Response)>;
+using FOnCacheGetChunkComplete = TUniqueFunction<void (FCacheGetChunkResponse&& Response)>;
+
+using FOnCacheChunkComplete UE_DEPRECATED(5.0, "Use FOnCacheGetChunkComplete.") = FOnCacheGetChunkComplete;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -300,9 +300,9 @@ public:
 	 * @param OnComplete   A callback invoked for every chunk as it completes or is canceled.
 	 */
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) = 0;
+		FOnCacheGetChunkComplete&& OnComplete) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,8 +365,6 @@ struct FCachePutResponse
 	EStatus Status = EStatus::Error;
 };
 
-using FCachePutCompleteParams UE_DEPRECATED(5.0, "Use FCachePutResponse.") = FCachePutResponse;
-
 /** Parameters to request to get a cache record. */
 struct FCacheGetRequest
 {
@@ -406,8 +404,6 @@ struct FCacheGetResponse
 	EStatus Status = EStatus::Error;
 };
 
-using FCacheGetCompleteParams UE_DEPRECATED(5.0, "Use FCacheGetResponse.") = FCacheGetResponse;
-
 /** Parameters to request to put a cache value. */
 struct FCachePutValueRequest
 {
@@ -442,8 +438,6 @@ struct FCachePutValueResponse
 	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
-
-using FCachePutValueCompleteParams UE_DEPRECATED(5.0, "Use FCachePutValueResponse.") = FCachePutValueResponse;
 
 /** Parameters to request to get a cache value. */
 struct FCacheGetValueRequest
@@ -485,10 +479,8 @@ struct FCacheGetValueResponse
 	EStatus Status = EStatus::Error;
 };
 
-using FCacheGetValueCompleteParams UE_DEPRECATED(5.0, "Use FCacheGetValueResponse.") = FCacheGetValueResponse;
-
 /** Parameters to request a chunk, which is a subset of a value, from a cache record or cache value. */
-struct FCacheChunkRequest
+struct FCacheGetChunkRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
 	FSharedString Name;
@@ -515,8 +507,10 @@ struct FCacheChunkRequest
 	uint64 UserData = 0;
 };
 
+using FCacheChunkRequest UE_DEPRECATED(5.0, "Use FCacheGetChunkRequest.") = FCacheGetChunkRequest;
+
 /** Parameters for the completion callback for cache chunk requests. */
-struct FCacheChunkResponse
+struct FCacheGetChunkResponse
 {
 	/** A copy of the name from the request. */
 	FSharedString Name;
@@ -546,7 +540,7 @@ struct FCacheChunkResponse
 	EStatus Status = EStatus::Error;
 };
 
-using FCacheChunkCompleteParams UE_DEPRECATED(5.0, "Use FCacheChunkResponse.") = FCacheChunkResponse;
+using FCacheChunkResponse UE_DEPRECATED(5.0, "Use FCacheGetChunkResponse.") = FCacheGetChunkResponse;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

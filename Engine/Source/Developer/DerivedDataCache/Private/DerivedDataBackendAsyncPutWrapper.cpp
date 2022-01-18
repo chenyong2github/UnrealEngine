@@ -177,9 +177,9 @@ public:
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
 		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimeGet,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::GetChunks);
 	}
@@ -692,7 +692,7 @@ static FCacheGetValueResponse MakeCanceledResponse(const FCacheGetValueRequest& 
 	return {Request.Name, Request.Key, {}, Request.UserData, EStatus::Canceled};
 }
 
-static FCacheChunkResponse MakeCanceledResponse(const FCacheChunkRequest& Request)
+static FCacheGetChunkResponse MakeCanceledResponse(const FCacheGetChunkRequest& Request)
 {
 	return {Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Canceled};
 }

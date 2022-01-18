@@ -748,11 +748,11 @@ public:
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
-		TArray<FCacheChunkRequest, TInlineAllocator<16>> RemainingRequests(Requests);
+		TArray<FCacheGetChunkRequest, TInlineAllocator<16>> RemainingRequests(Requests);
 
 		{
 			FReadScopeLock LockScope(Lock);
@@ -764,10 +764,10 @@ public:
 					return;
 				}
 				RemainingRequests.StableSort(TChunkLess());
-				TArray<FCacheChunkRequest, TInlineAllocator<16>> ErrorChunks;
+				TArray<FCacheGetChunkRequest, TInlineAllocator<16>> ErrorChunks;
 				FRequestOwner BlockingOwner(EPriority::Blocking);
 				InnerBackend->GetChunks(RemainingRequests, BlockingOwner,
-					[&OnComplete, &RemainingRequests, &ErrorChunks](FCacheChunkResponse&& Response)
+					[&OnComplete, &RemainingRequests, &ErrorChunks](FCacheGetChunkResponse&& Response)
 					{
 						if (Response.Status == EStatus::Error)
 						{
@@ -789,7 +789,7 @@ public:
 
 		if (OnComplete)
 		{
-			for (const FCacheChunkRequest& Request : RemainingRequests)
+			for (const FCacheGetChunkRequest& Request : RemainingRequests)
 			{
 				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
 			}

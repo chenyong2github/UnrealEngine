@@ -33,7 +33,7 @@ bool FCacheStoreTest::RunTest(const FString& Parameters)
 	TArray<FCachePutValueRequest> PutValueRequests;
 	TArray<FCacheGetRequest> GetRequests;
 	TArray<FCacheGetValueRequest> GetValueRequests;
-	TArray<FCacheChunkRequest> ChunkRequests;
+	TArray<FCacheGetChunkRequest> ChunkRequests;
 	struct FTestData
 	{
 		FValue Value;
@@ -84,7 +84,7 @@ bool FCacheStoreTest::RunTest(const FString& Parameters)
 			PutValueRequests.Add(FCachePutValueRequest{ Name, Key, TestData.Value, PutPolicy, UserData });
 			GetValueRequests.Add(FCacheGetValueRequest{ Name, Key, GetPolicy, UserData });
 		}
-		ChunkRequests.Add(FCacheChunkRequest{ Name, Key, TestData.bUseValueAPI ? FValueId() : ValueId,
+		ChunkRequests.Add(FCacheGetChunkRequest{ Name, Key, TestData.bUseValueAPI ? FValueId() : ValueId,
 			0, TestData.Value.GetRawSize(), FIoHash(), GetPolicy, UserData });
 	}
 
@@ -195,7 +195,7 @@ bool FCacheStoreTest::RunTest(const FString& Parameters)
 			});
 
 #if ZENSERVER_SUPPORTS_VALUEAPI
-		Cache.GetChunks(ChunkRequests, Owner, [&TestDatas, this](FCacheChunkResponse&& Response)
+		Cache.GetChunks(ChunkRequests, Owner, [&TestDatas, this](FCacheGetChunkResponse&& Response)
 			{
 				FTestData* TestData = TestDatas.Find(Response.UserData);
 				int32 n = (int32)Response.UserData;

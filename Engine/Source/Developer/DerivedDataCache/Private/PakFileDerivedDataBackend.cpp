@@ -126,9 +126,9 @@ public:
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Requests,
+		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	bool PutCacheRecord(FStringView Name, const FCacheRecord& Record, const FCacheRecordPolicy& Policy);
@@ -710,16 +710,16 @@ void FPakFileDerivedDataBackend::Get(
 }
 
 void FPakFileDerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Requests,
+	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheChunkComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
-	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
+	TArray<FCacheGetChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
 	SortedRequests.StableSort(TChunkLess());
 
 	FOptionalCacheRecord Record;
 	FCompressedBufferReader Reader;
-	for (const FCacheChunkRequest& Request : SortedRequests)
+	for (const FCacheGetChunkRequest& Request : SortedRequests)
 	{
 		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData);
 		TRACE_CPUPROFILER_EVENT_SCOPE(PakFileDDC_Get);
