@@ -530,8 +530,10 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 				{
 					const FShaderCommonCompileJob::FInputHash& InputHash = Job->GetInputHash();
 
+					const bool bCheckDDC = !(Job->bIsDefaultMaterial || Job->bIsGlobalShader);
+
 					// see if we can find the job in the cache first
-					if (TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash))
+					if (TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash, bCheckDDC))
 					{
 						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is already a cached job with the ihash %s, processing the new one immediately."), *LexToString(InputHash));
 						FMemoryReader MemReader(*ExistingOutput);
@@ -689,8 +691,9 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 
 	if (FinishedJob->bSucceeded)
 	{
+		const bool bAddToDDC = !(FinishedJob->bIsDefaultMaterial || FinishedJob->bIsGlobalShader);
 		// we only cache jobs that succeded
-		CompletedJobsCache.Add(InputHash, Output, NumOutstandingJobsWithSameHash);
+		CompletedJobsCache.Add(InputHash, Output, NumOutstandingJobsWithSameHash, bAddToDDC);
 	}
 
 	// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
@@ -6289,6 +6292,8 @@ static void PrepareGlobalShaderCompileJob(EShaderPlatform Platform,
 	static FString GlobalName(TEXT("Global"));
 
 	NewJob->bErrorsAreLikelyToBeCode = true;
+	NewJob->bIsGlobalShader = true;
+	NewJob->bIsDefaultMaterial = false;
 
 	// Compile the shader environment passed in with the shader type's source code.
 	::GlobalBeginCompileShader(
@@ -7648,7 +7653,7 @@ namespace
 }
 #endif
 
-FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Hash)
+FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Hash, const bool bCheckDDC)
 {
 	++TotalSearchAttempts;
 	TRACE_COUNTER_INCREMENT(Shaders_JobCacheSearchAttempts);
@@ -7673,7 +7678,7 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 		else
 		{
 			// If we didn't find it in memory search the DDC if it's enabled.
-			const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled();
+			const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled() && bCheckDDC;
 			if (bCachePerShaderDDC)
 			{
 				FSharedBuffer Results;
@@ -7763,7 +7768,7 @@ FShaderJobCache::FShaderJobCache()
 	CurrentlyAllocatedMemory = sizeof(*this) + InputHashToOutput.GetAllocatedSize() + Outputs.GetAllocatedSize();
 }
 
-void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount)
+void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount, const bool bAddToDDC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderJobCache::Add);
 
@@ -7784,7 +7789,7 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 	const uint64 InputHashToOutputOriginalSize = InputHashToOutput.GetAllocatedSize();
 	InputHashToOutput.Add(Hash, OutputHash);
 
-	const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled();
+	const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled() && bAddToDDC;
 
 	FStoredOutput** CannedOutput = Outputs.Find(OutputHash);
 	if (CannedOutput && (bCachePerShaderDDC == false))

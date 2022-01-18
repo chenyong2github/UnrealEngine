@@ -38,6 +38,8 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 	NewJob->Input.SharedEnvironment = MaterialEnvironment;
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 	ShaderEnvironment.TargetPlatform = MaterialEnvironment->TargetPlatform;
+	NewJob->bIsDefaultMaterial = Material->IsDefaultMaterial();
+	NewJob->bIsGlobalShader = false;
 
 	const FMaterialShaderParameters MaterialParameters(Material);
 

@@ -137,9 +137,12 @@ public:
 		After a job is bFinalized it will be bReleased when ReleaseJob() is invoked, which means that the shader compile thread
 		is no longer processing the job; which is useful for non standard job handling (Niagara as an example). */
 	uint8 bReleased : 1;
-
 	/** Whether we hashed the inputs */
 	uint8 bInputHashSet : 1;
+	/** Whether or not we are a default material. */
+	uint8 bIsDefaultMaterial : 1;
+	/** Whether or not we are a global shader. */
+	uint8 bIsGlobalShader : 1;
 	/** Hash of all the job inputs */
 	FInputHash InputHash;
 
@@ -202,7 +205,10 @@ protected:
 		bSucceeded(false),
 		bErrorsAreLikelyToBeCode(false),
 		bReleased(false),
-		bInputHashSet(false)
+		bInputHashSet(false),
+		bIsDefaultMaterial(false),
+		bIsGlobalShader(false)
+
 	{
 		check(InPriroity != EShaderCompileJobPriority::None);
 	}
@@ -342,10 +348,10 @@ public:
 	using FJobCachedOutput = TArray<uint8>;
 
 	/** Looks for the job in the cache, returns null if not found */
-	FJobCachedOutput* Find(const FJobInputHash& Hash);
+	FJobCachedOutput* Find(const FJobInputHash& Hash, const bool bCheckDDC);
 
 	/** Adds a job output to the cache */
-	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount);
+	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount, const bool bAddToDDC);
 
 	/** Calculates memory used by the cache*/
 	uint64 GetAllocatedMemory();
