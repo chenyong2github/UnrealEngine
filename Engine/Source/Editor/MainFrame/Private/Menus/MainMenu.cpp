@@ -261,27 +261,23 @@ void FMainMenu::RegisterHelpMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Help");
 
-	FToolMenuSection& LearnSection = Menu->AddSection("Learn", NSLOCTEXT("MainHelpMenu", "LearnSection", "Learn"));
-	{
-		LearnSection.AddMenuEntry(FMainFrameCommands::Get().DocumentationHome);
-		LearnSection.AddMenuEntry(FMainFrameCommands::Get().VisitOnlineLearning);
-	}
-
 	FToolMenuSection& ReferenceSection = Menu->AddSection("Reference", NSLOCTEXT("MainHelpMenu", "ReferenceSection", "Reference"));
 	{
+		ReferenceSection.AddMenuEntry(FMainFrameCommands::Get().DocumentationHome);
 		ReferenceSection.AddMenuEntry(FMainFrameCommands::Get().BrowseAPIReference);
 		ReferenceSection.AddMenuEntry(FMainFrameCommands::Get().BrowseCVars);
 	}
 
-	FToolMenuSection& HelpOnlineSection = Menu->AddSection("HelpOnline", NSLOCTEXT("MainHelpMenu", "HelpOnlineSection", "Help"));
+	FToolMenuSection& CommunitySection = Menu->AddSection("Community", NSLOCTEXT("MainHelpMenu", "CommunitySection", "Community"));
 	{
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
+		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitOnlineLearning);
+		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
+		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
 	}
 
-	FToolMenuSection& BugReportingSection = Menu->AddSection("BugReporting", NSLOCTEXT("MainHelpMenu", "BugsReporting", "Bugs"));
+	FToolMenuSection& BugReportingSection = Menu->AddSection("Support", NSLOCTEXT("MainHelpMenu", "SupportSection", "Support"));
 	{
+		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
 		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().ReportABug);
 		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().OpenIssueTracker);
 	}
