@@ -98,13 +98,19 @@ FUIActionBindingHandle UCommonUserWidget::RegisterUIActionBinding(const FBindUIA
 void UCommonUserWidget::RemoveActionBinding(FUIActionBindingHandle ActionBinding)
 {
 	ActionBindings.Remove(ActionBinding);
-	UCommonUIActionRouterBase::Get(*this)->RemoveBinding(ActionBinding);
+	if (UCommonUIActionRouterBase* ActionRouter = UCommonUIActionRouterBase::Get(*this))
+	{
+		ActionRouter->RemoveBinding(ActionBinding);
+	}
 }
 
 void UCommonUserWidget::AddActionBinding(FUIActionBindingHandle ActionBinding)
 {
 	ActionBindings.Add(ActionBinding);
-	UCommonUIActionRouterBase::Get(*this)->AddBinding(ActionBinding);
+	if (UCommonUIActionRouterBase* ActionRouter = UCommonUIActionRouterBase::Get(*this))
+	{
+		ActionRouter->AddBinding(ActionBinding);
+	}
 }
 
 void UCommonUserWidget::RegisterScrollRecipient(const UWidget& AnalogScrollRecipient)
