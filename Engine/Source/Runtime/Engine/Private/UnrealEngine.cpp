@@ -274,6 +274,7 @@ IMPLEMENT_MODULE( FEngineModule, Engine );
 
 #define LOCTEXT_NAMESPACE "UnrealEngine"
 
+void InitScreenPercentage();
 
 void OnChangeEngineCVarRequiringRecreateRenderState(IConsoleVariable* Var)
 {
@@ -298,6 +299,8 @@ void FEngineModule::StartupModule()
 
 	SuspendTextureStreamingRenderTasks = &SuspendRenderAssetStreaming;
 	ResumeTextureStreamingRenderTasks = &ResumeRenderAssetStreaming;
+
+	InitScreenPercentage();
 
 	FParticleSystemWorldManager::OnStartup();
 

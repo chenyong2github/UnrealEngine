@@ -1324,8 +1324,8 @@ void SLevelViewportToolBar::OnFOVValueChanged( float NewValue )
 
 TSharedRef<SWidget> SLevelViewportToolBar::GenerateScreenPercentageMenu() const
 {
-	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction * 100.0f;
-	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f;
 
 	return
 		SNew(SBox)
@@ -1343,8 +1343,8 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateScreenPercentageMenu() const
 					SNew(SSpinBox<int32>)
 					.Style(&FAppStyle::Get(), "Menu.SpinBox")
 					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-					.MinValue(PreviewScreenPercentageMin)
-					.MaxValue(PreviewScreenPercentageMax)
+					.MinSliderValue(PreviewScreenPercentageMin)
+					.MaxSliderValue(PreviewScreenPercentageMax)
 					.Value(this, &SLevelViewportToolBar::OnGetScreenPercentageValue)
 					.OnValueChanged(const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::OnScreenPercentageValueChanged)
 				]

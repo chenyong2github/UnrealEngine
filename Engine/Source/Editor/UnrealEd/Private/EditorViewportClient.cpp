@@ -82,16 +82,10 @@ static TAutoConsoleVariable<int32> CVarEditorViewportTest(
 	TEXT("1..7: Various Configuations"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarEditorViewportScreenPercentage(
-	TEXT("r.Editor.ViewportScreenPercentage"),
-	100.0f,
-	TEXT("Default screen percentage of the editor's viewports"),
-	ECVF_RenderThreadSafe);
-
 static bool GetDefaultLowDPIPreviewValue()
 {
-	static auto CVarEnableEditorScreenPercentageOverride = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.OverrideDPIBasedEditorViewportScaling"));
-	return CVarEnableEditorScreenPercentageOverride->GetInt() == 0;
+	static auto CVarEditorViewportHighDPI = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.HighDPI"));
+	return CVarEditorViewportHighDPI->GetInt() == 0;
 }
 
 float ComputeOrthoZoomFactor(const float ViewportWidth)
@@ -445,7 +439,6 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, MovingPreviewLightSavedScreenPos(ForceInitToZero)
 	, MovingPreviewLightTimer(0.0f)
 	, bLockFlightCamera(false)
-	, PreviewResolutionFraction(CVarEditorViewportScreenPercentage.GetValueOnGameThread() / 100.0f)
 	, SceneDPIMode(ESceneDPIMode::EditorDefault)
 	, PerspViewModeIndex(DefaultPerspectiveViewMode)
 	, OrthoViewModeIndex(DefaultOrthoViewMode)
@@ -2683,18 +2676,60 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	return true;
 }
 
+
+float FEditorViewportClient::GetDefaultPrimaryResolutionFractionTarget() const
+{
+	FStaticResolutionFractionHeuristic StaticHeuristic;
+	StaticHeuristic.Settings.PullEditorRenderingSettings(bIsRealtime);
+
+	if (SupportsLowDPIPreview() && IsLowDPIPreview()) // TODO: && ViewFamily.SupportsScreenPercentage())
+	{
+		StaticHeuristic.SecondaryViewFraction = GetDPIDerivedResolutionFraction();
+	}
+
+	StaticHeuristic.TotalDisplayedPixelCount = FMath::Max(Viewport->GetSizeXY().X * Viewport->GetSizeXY().Y, 1);
+	StaticHeuristic.DPIScale = GetDPIScale();
+	return StaticHeuristic.ResolveResolutionFraction();
+}
+
 int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 {
+	float ResolutionFraction = 1.0f;
+	if (PreviewResolutionFraction.IsSet())
+	{
+		ResolutionFraction = PreviewResolutionFraction.GetValue();
+	}
+	else
+	{
+		ResolutionFraction = GetDefaultPrimaryResolutionFractionTarget();
+	}
+
 	// We expose the resolution fraction derived from DPI, to not lie to the artist when screen percentage = 100%.
 	return FMath::RoundToInt(FMath::Clamp(
-		PreviewResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction) * 100.0f);
+		ResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction) * 100.0f);
 }
 
 void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercentage)
 {
-	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
+	float AutoResolutionFraction = GetDefaultPrimaryResolutionFractionTarget();
+	int32 AutoScreenPercentage = FMath::RoundToInt(FMath::Clamp(
+		AutoResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction) * 100.0f);
+
+	float NewResolutionFraction = PreviewScreenPercentage / 100.0f;
+	if (NewResolutionFraction >= ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction &&
+		NewResolutionFraction <= ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction &&
+		PreviewScreenPercentage != AutoScreenPercentage)
+	{
+		PreviewResolutionFraction = NewResolutionFraction;
+	}
+	else
+	{
+		PreviewResolutionFraction.Reset();
+	}
 }
 
 bool FEditorViewportClient::SupportsLowDPIPreview() const
@@ -2702,7 +2737,7 @@ bool FEditorViewportClient::SupportsLowDPIPreview() const
 	return GetDPIDerivedResolutionFraction() < 1.0f;
 }
 
-bool FEditorViewportClient::IsLowDPIPreview()
+bool FEditorViewportClient::IsLowDPIPreview() const
 {
 	if (SceneDPIMode == ESceneDPIMode::EditorDefault)
 	{
@@ -3834,7 +3869,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	ViewFamily.LandscapeLODOverride = LandscapeLODOverride;
 
 	// Setup the screen percentage and upscaling method for the view family.
-	bool bFinalScreenPercentageShowFlag;
 	{
 		checkf(ViewFamily.GetScreenPercentageInterface() == nullptr,
 			TEXT("Some code has tried to set up an alien screen percentage driver, that could be wrong if not supported very well by the RHI."));
@@ -3850,29 +3884,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		{
 			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, this);
 		}
-
-		// If a screen percentage interface was not set by one of the view extension, then set the legacy one.
-		if (ViewFamily.GetScreenPercentageInterface() == nullptr)
-		{
-			float GlobalResolutionFraction = 1.0f;
-
-			// If not doing VR rendering, apply preview resolution fraction.
-			if (!bStereoRendering && SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
-			{
-				GlobalResolutionFraction = PreviewResolutionFraction;
-
-				// Force screen percentage's engine show flag to be turned on for preview screen percentage.
-				ViewFamily.EngineShowFlags.ScreenPercentage = (GlobalResolutionFraction != 1.0);
-			}
-
-			// In editor viewport, we ignore r.ScreenPercentage and FPostProcessSettings::ScreenPercentage by design.
-			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-				ViewFamily, GlobalResolutionFraction));
-		}
-
-		check(ViewFamily.GetScreenPercentageInterface() != nullptr);
-
-		bFinalScreenPercentageShowFlag = ViewFamily.EngineShowFlags.ScreenPercentage;
 	}
 
 	FSceneView* View = nullptr;
@@ -3894,14 +3905,41 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	    }
  	}
 
+	{
+		// If a screen percentage interface was not set by one of the view extension, then set the legacy one.
+		if (ViewFamily.GetScreenPercentageInterface() == nullptr)
+		{
+			float GlobalResolutionFraction = 1.0f;
+
+			// If not doing VR rendering, apply preview resolution fraction.
+			if (!bStereoRendering && SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
+			{
+				if (PreviewResolutionFraction.IsSet())
+				{
+					GlobalResolutionFraction = PreviewResolutionFraction.GetValue();
+				}
+				else
+				{
+					GlobalResolutionFraction = GetDefaultPrimaryResolutionFractionTarget();
+				}
+
+				// Force screen percentage's engine show flag to be turned on for preview screen percentage.
+				ViewFamily.EngineShowFlags.ScreenPercentage = (GlobalResolutionFraction != 1.0);
+			}
+
+			// In editor viewport, we ignore r.ScreenPercentage and FPostProcessSettings::ScreenPercentage by design.
+			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
+				ViewFamily, GlobalResolutionFraction));
+		}
+
+		check(ViewFamily.GetScreenPercentageInterface() != nullptr);
+	}
+
 	if (IsAspectRatioConstrained())
 	{
 		// Clear the background to black if the aspect ratio is constrained, as the scene view won't write to all pixels.
 		Canvas->Clear(FLinearColor::Black);
 	}
-
-	// Make sure the engine show flag for screen percentage is still what it was when setting up the screen percentage interface
-	ViewFamily.EngineShowFlags.ScreenPercentage = bFinalScreenPercentageShowFlag;
 
 	// Draw the 3D scene
 	GetRendererModule().BeginRenderingViewFamily(Canvas,&ViewFamily);

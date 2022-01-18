@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/DeveloperSettings.h"
 #include "Math/UnitConversion.h"
+#include "LegacyScreenPercentageDriver.h"
 
 #include "EditorProjectSettings.generated.h"
 
@@ -152,6 +153,48 @@ public:
 
 public:
 	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+
+};
+
+/**
+ * Configure per-project performance settings for the Editor
+ */
+UCLASS(config=Editor, meta=(DisplayName="Performance"), defaultconfig)
+class UNREALED_API UEditorPerformanceProjectSettings : public UDeveloperSettings
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Default screen percentage mode for realtime editor viewports."))
+	EScreenPercentageMode RealtimeScreenPercentageMode;
+
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Default screen percentage mode for non-realtime editor viewports."))
+	EScreenPercentageMode NonRealtimeScreenPercentageMode;
+
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		EditCondition="RealtimeScreenPercentageMode == EScreenPercentageMode::Manual || NonRealtimeScreenPercentageMode == EScreenPercentageMode::Manual",
+		DisplayName="Manual screen percentage to be set by default for editor viewports."))
+	float ManualScreenPercentage;
+
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Minimum default rendering resolution to use for editor viewports."))
+	int32 MinViewportRenderingResolution;
+
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Maximum default rendering resolution to use for editor viewports."))
+	int32 MaxViewportRenderingResolution;
+
+
+	static void ExportResolutionValuesToConsoleVariables();
+
+public:
+	// UObject interface
+	virtual void PostInitProperties() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 

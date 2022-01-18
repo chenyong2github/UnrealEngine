@@ -4,6 +4,36 @@
 #include "UObject/UnrealType.h"
 #include "Toolkits/ToolkitManager.h"
 #include "BlueprintEditor.h"
+#include "Editor/EditorPerformanceSettings.h"
+#include "EditorViewportClient.h"
+#include "Editor.h"
+
+
+TAutoConsoleVariable<int32> CVarEditorViewportDefaultScreenPercentageMode(
+	TEXT("r.Editor.Viewport.ScreenPercentageMode.RealTime"), 1,
+	TEXT("Controls the default screen percentage mode for realtime editor viewports."),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarEditorViewportNonRealtimeDefaultScreenPercentageMode(
+	TEXT("r.Editor.Viewport.ScreenPercentageMode.NonRealTime"), 2,
+	TEXT("Controls the default screen percentage mode for non-realtime editor viewports."),
+	ECVF_Default);
+
+TAutoConsoleVariable<float> CVarEditorViewportDefaultScreenPercentage(
+	TEXT("r.Editor.Viewport.ScreenPercentage"), 100,
+	TEXT("Controls the editor viewports' default screen percentage when using r.Editor.Viewport.ScreenPercentageMode=0."),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarEditorViewportDefaultMinRenderingResolution(
+	TEXT("r.Editor.Viewport.MinRenderingResolution"), 720,
+	TEXT("Controls the minimum number of rendered pixel by default in editor viewports."),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarEditorViewportDefaultMaxRenderingResolution(
+	TEXT("r.Editor.Viewport.MaxRenderingResolution"), 2160,
+	TEXT("Controls the absolute maximum number of rendered pixel in editor viewports."),
+	ECVF_Default);
+
 
 EUnit ConvertDefaultInputUnits(EDefaultLocationUnit In)
 {
@@ -139,4 +169,151 @@ void ULevelEditor2DSettings::PostEditChangeProperty(struct FPropertyChangedEvent
 	SnapLayers.Sort([](const FMode2DLayer& LHS, const FMode2DLayer& RHS){ return LHS.Depth > RHS.Depth; });
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+
+/* UEditorPerformanceProjectSettings
+*****************************************************************************/
+
+UEditorPerformanceProjectSettings::UEditorPerformanceProjectSettings(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, RealtimeScreenPercentageMode(EScreenPercentageMode::BasedOnDisplayResolution)
+	, NonRealtimeScreenPercentageMode(EScreenPercentageMode::BasedOnDPIScale)
+	, ManualScreenPercentage(100.0f)
+	, MinViewportRenderingResolution(720)
+	, MaxViewportRenderingResolution(2160)
+{
+}
+
+void UEditorPerformanceProjectSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+	ExportResolutionValuesToConsoleVariables();
+}
+
+void UEditorPerformanceProjectSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if (!PropertyChangedEvent.Property)
+	{
+		return;
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceProjectSettings, RealtimeScreenPercentageMode) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceProjectSettings, NonRealtimeScreenPercentageMode) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceProjectSettings, ManualScreenPercentage) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceProjectSettings, MinViewportRenderingResolution) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceProjectSettings, MaxViewportRenderingResolution))
+	{
+		ExportResolutionValuesToConsoleVariables();
+	}
+	else
+	{
+		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
+	}
+}
+
+// static
+void UEditorPerformanceProjectSettings::ExportResolutionValuesToConsoleVariables()
+{
+	// Apply project settings settings
+	{
+		const UEditorPerformanceProjectSettings* EditorProjectSettings = GetDefault<UEditorPerformanceProjectSettings>();
+
+		CVarEditorViewportDefaultScreenPercentageMode->Set(int32(EditorProjectSettings->RealtimeScreenPercentageMode), ECVF_SetByProjectSetting);
+		CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->Set(int32(EditorProjectSettings->NonRealtimeScreenPercentageMode), ECVF_SetByProjectSetting);
+		CVarEditorViewportDefaultScreenPercentage->Set(EditorProjectSettings->ManualScreenPercentage, ECVF_SetByProjectSetting);
+		CVarEditorViewportDefaultMinRenderingResolution->Set(EditorProjectSettings->MinViewportRenderingResolution, ECVF_SetByProjectSetting);
+		CVarEditorViewportDefaultMaxRenderingResolution->Set(EditorProjectSettings->MaxViewportRenderingResolution, ECVF_SetByProjectSetting);
+	}
+
+
+	// Override with the per editor user settings
+	{
+		const UEditorPerformanceSettings* EditorUserSettings = GetDefault<UEditorPerformanceSettings>();
+
+		{
+			if (EditorUserSettings->RealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::Manual)
+			{
+				CVarEditorViewportDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::Manual), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->RealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDisplayResolution)
+			{
+				CVarEditorViewportDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDisplayResolution), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->RealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDPIScale)
+			{
+				CVarEditorViewportDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDPIScale), ECVF_SetByProjectSetting);
+			}
+		}
+
+		{
+			if (EditorUserSettings->NonRealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::Manual)
+			{
+				CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::Manual), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->NonRealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDisplayResolution)
+			{
+				CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDisplayResolution), ECVF_SetByProjectSetting);
+			}
+			else if (EditorUserSettings->NonRealtimeScreenPercentageMode == EEditorUserScreenPercentageModeOverride::BasedOnDPIScale)
+			{
+				CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->Set(int32(EScreenPercentageMode::BasedOnDPIScale), ECVF_SetByProjectSetting);
+			}
+		}
+
+		if (EditorUserSettings->bOverrideManualScreenPercentage)
+		{
+			CVarEditorViewportDefaultScreenPercentage->Set(EditorUserSettings->ManualScreenPercentage, ECVF_SetByProjectSetting);
+		}
+
+		if (EditorUserSettings->bOverrideMinViewportRenderingResolution)
+		{
+			CVarEditorViewportDefaultMinRenderingResolution->Set(EditorUserSettings->MinViewportRenderingResolution, ECVF_SetByProjectSetting);
+		}
+
+		if (EditorUserSettings->bOverrideMaxViewportRenderingResolution)
+		{
+			CVarEditorViewportDefaultMaxRenderingResolution->Set(EditorUserSettings->MaxViewportRenderingResolution, ECVF_SetByProjectSetting);
+		}
+	}
+
+	// Tell all viewports to refresh their screen percentage when the dpi scaling override changes
+	if (GEngine && GEditor)
+	{
+		for (FEditorViewportClient* Client : GEditor->GetAllViewportClients())
+		{
+			if (Client)
+			{
+				Client->RequestUpdateDPIScale();
+				Client->Invalidate();
+			}
+		}
+
+		if (GEngine->GameViewport)
+		{
+			GEngine->GameViewport->RequestUpdateDPIScale();
+		}
+	}
+}
+
+void SetupEditorResolutionFractionHeuristicSettings(FStaticResolutionFractionHeuristic::FUserSettings* OutputSettings, bool bIsRealTime)
+{
+	FStaticResolutionFractionHeuristic::FUserSettings Settings;
+
+	// Setup up with the per project settings
+	{
+		if (bIsRealTime)
+		{
+			OutputSettings->Mode = EScreenPercentageMode(FMath::Clamp(CVarEditorViewportDefaultScreenPercentageMode->GetInt(), 0, 2));
+		}
+		else
+		{
+			OutputSettings->Mode = EScreenPercentageMode(FMath::Clamp(CVarEditorViewportNonRealtimeDefaultScreenPercentageMode->GetInt(), 0, 2));
+		}
+		OutputSettings->GlobalResolutionFraction = CVarEditorViewportDefaultScreenPercentage->GetFloat() / 100.0f;
+		OutputSettings->MinRenderingResolution = CVarEditorViewportDefaultMinRenderingResolution->GetInt();
+		OutputSettings->MaxRenderingResolution = CVarEditorViewportDefaultMaxRenderingResolution->GetInt();
+	}
+
 }

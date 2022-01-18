@@ -243,6 +243,9 @@ FAutomationTestScreenshotEnvSetup::FAutomationTestScreenshotEnvSetup()
 	, ContactShadows(TEXT("r.ContactShadows"))
 	, TonemapperGamma(TEXT("r.TonemapperGamma"))
 	, TonemapperSharpen(TEXT("r.Tonemapper.Sharpen"))
+	, ScreenPercentage(TEXT("r.ScreenPercentage"))
+	, ScreenPercentageMode(TEXT("r.ScreenPercentage.Mode"))
+	, EditorViewportOverrideGameScreenPercentage(TEXT("r.Editor.Viewport.OverridePIEScreenPercentage"))
 	, SecondaryScreenPercentage(TEXT("r.SecondaryScreenPercentage.GameViewport"))
 {
 }
@@ -276,8 +279,18 @@ void FAutomationTestScreenshotEnvSetup::Setup(UWorld* InWorld, FAutomationScreen
 		//TonemapperSharpen.Set(0);
 	}
 
+	// Forces ScreenPercentage=100
+	{
+		if (GIsEditor)
+		{
+			EditorViewportOverrideGameScreenPercentage.Set(0);
+		}
+		ScreenPercentageMode.Set(0);
+		ScreenPercentage.Set(100.f);
+	}
+
 	// Ignore High-DPI settings
-	SecondaryScreenPercentage.Set(100.f); 
+	SecondaryScreenPercentage.Set(100.f);
 
 	InOutOptions.SetToleranceAmounts(InOutOptions.Tolerance);
 
@@ -313,6 +326,9 @@ void FAutomationTestScreenshotEnvSetup::Restore()
 	ContactShadows.Restore();
 	TonemapperGamma.Restore();
 	//TonemapperSharpen.Restore();
+	ScreenPercentage.Restore();
+	ScreenPercentageMode.Restore();
+	EditorViewportOverrideGameScreenPercentage.Restore();
 	SecondaryScreenPercentage.Restore();
 
 	AutomationViewExtension.Reset();

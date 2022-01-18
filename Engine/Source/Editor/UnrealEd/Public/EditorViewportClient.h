@@ -1282,6 +1282,9 @@ public:
 	/** @return True if PreviewResolutionFraction is supported. */
 	bool SupportsPreviewResolutionFraction() const;
 
+	/** @return default resolution fraction for UI based on display resolution and user settings. */
+	float GetDefaultPrimaryResolutionFractionTarget() const;
+
 	/** @return preview screen percentage for UI. */
 	int32 GetPreviewScreenPercentage() const;
 
@@ -1292,7 +1295,7 @@ public:
 	bool SupportsLowDPIPreview() const;
 
 	/** @return whether previewing for low DPI. */
-	bool IsLowDPIPreview();
+	bool IsLowDPIPreview() const;
 
 	/** Set whether previewing for low DPI. */
 	void SetLowDPIPreview(bool LowDPIPreview);
@@ -1831,12 +1834,12 @@ private:
 
 private:
 	/** Controles resolution fraction for previewing in editor viewport at different screen percentage. */
-	float PreviewResolutionFraction;
+	TOptional<float> PreviewResolutionFraction;
 
 	// DPI mode for scene rendering.
 	enum class ESceneDPIMode
 	{
-		// Uses Editor.OverrideDPIBasedEditorViewportScaling.
+		// Uses r.Editor.Viewport.HighDPI.
 		EditorDefault,
 
 		// Force emulating low DPI.

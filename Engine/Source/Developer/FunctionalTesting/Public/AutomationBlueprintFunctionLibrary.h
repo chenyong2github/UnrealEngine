@@ -234,6 +234,9 @@ private:
 	FConsoleVariableSwapperTempl<int32> ContactShadows;
 	FConsoleVariableSwapperTempl<float> TonemapperGamma;
 	FConsoleVariableSwapperTempl<float> TonemapperSharpen;
+	FConsoleVariableSwapperTempl<float> ScreenPercentage;
+	FConsoleVariableSwapperTempl<int32> ScreenPercentageMode;
+	FConsoleVariableSwapperTempl<int32> EditorViewportOverrideGameScreenPercentage;
 	FConsoleVariableSwapperTempl<float> SecondaryScreenPercentage;
 
 	TWeakObjectPtr<UWorld> WorldPtr;
