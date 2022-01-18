@@ -16,6 +16,7 @@ namespace Gauntlet
 		public NullAppInstance(ITargetDevice InDevice)
 		{
 			Device = InDevice;
+			HasExited = true;
 		}
 
 		public string ArtifactPath

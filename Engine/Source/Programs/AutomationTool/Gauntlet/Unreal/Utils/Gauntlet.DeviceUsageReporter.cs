@@ -22,19 +22,28 @@ namespace Gauntlet
 			, Success = 1
 		};
 
-		public static void RecordStart(string deviceName, UnrealTargetPlatform platform, EventType et, EventState state = EventState.Success, string comment = "")
+		public static void RecordStart(string deviceName, UnrealTargetPlatform? platform, EventType et, EventState state = EventState.Success, string comment = "")
 		{
-			RecordToAll(deviceName, platform, et, true, state, comment);
+			if (platform.HasValue)
+			{
+				RecordToAll(deviceName, platform.Value, et, true, state, comment);
+			}
 		}
 
-		public static void RecordEnd(string deviceName, UnrealTargetPlatform platform, EventType et, EventState state = EventState.Success, string comment = "")
+		public static void RecordEnd(string deviceName, UnrealTargetPlatform? platform, EventType et, EventState state = EventState.Success, string comment = "")
 		{
-			RecordToAll(deviceName, platform, et, false, state, comment);
+			if (platform.HasValue)
+			{
+				RecordToAll(deviceName, platform.Value, et, false, state, comment);
+			}
 		}
 
-		public static void RecordComment(string deviceName, UnrealTargetPlatform platform, EventType et, string comment)
+		public static void RecordComment(string deviceName, UnrealTargetPlatform? platform, EventType et, string comment)
 		{
-			CommentToAll(deviceName, platform, et, comment);
+			if (platform.HasValue)
+            {
+				CommentToAll(deviceName, platform.Value, et, comment);
+			}
 		}
 
 		private static List<IDeviceUsageReporter> GetEnabledReporters()

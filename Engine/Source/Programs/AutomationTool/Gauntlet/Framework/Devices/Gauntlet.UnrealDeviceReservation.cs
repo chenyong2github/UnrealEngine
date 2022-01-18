@@ -145,7 +145,7 @@ namespace Gauntlet
 			{
 				foreach (ITargetDevice device in ReservedDevices)
 				{
-					IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.Device);
+					IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.Device);
 				}
 				DevicePool.Instance.ReleaseDevices(ReservedDevices);
 				ReservedDevices.Clear();

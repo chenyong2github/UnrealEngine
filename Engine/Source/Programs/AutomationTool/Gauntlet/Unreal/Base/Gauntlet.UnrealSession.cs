@@ -379,7 +379,7 @@ namespace Gauntlet
 					{
 						App.Kill();
 						// Apps that are still running have timed out => fail
-						IDeviceUsageReporter.RecordEnd(App.Device.Name, (UnrealTargetPlatform)App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Success);
+						IDeviceUsageReporter.RecordEnd(App.Device.Name, App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Success);
 					});
 				}
 
@@ -389,7 +389,7 @@ namespace Gauntlet
 					ClosedApps.ForEach(App =>
 					{
 						// Apps that have already exited have 'succeeded'
-						IDeviceUsageReporter.RecordEnd(App.Device.Name, (UnrealTargetPlatform)App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Failure);
+						IDeviceUsageReporter.RecordEnd(App.Device.Name, App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Failure);
 					});
 				}
 			}
@@ -734,12 +734,12 @@ namespace Gauntlet
 
 					IAppInstall Install = null;
 
-					IDeviceUsageReporter.RecordStart(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);
-					IDeviceUsageReporter.RecordStart(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
+					IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);
+					IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
 					try
 					{
 						Install = Device.InstallApplication(AppConfig);
-						IDeviceUsageReporter.RecordEnd(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success);
+						IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success);
 					}
 					catch (System.Exception Ex)
 					{
@@ -747,7 +747,7 @@ namespace Gauntlet
 						Log.Info("Failed to install app onto device {0} for role {1}. {2}. Will retry with new device", Device, Role, Ex);
 						UnrealDeviceReservation.MarkProblemDevice(Device);
 						InstallSuccess = false;
-						IDeviceUsageReporter.RecordEnd(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
+						IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
 						break;
 					}
 					
@@ -794,7 +794,7 @@ namespace Gauntlet
 						try
 						{
 							IAppInstance Instance = CurrentInstall.Run();
-							IDeviceUsageReporter.RecordStart(Instance.Device.Name, (UnrealTargetPlatform)Instance.Device.Platform, IDeviceUsageReporter.EventType.Test);
+							IDeviceUsageReporter.RecordStart(Instance.Device.Name, Instance.Device.Platform, IDeviceUsageReporter.EventType.Test);
 
 							if (Instance != null || Globals.CancelSignalled)
 							{
@@ -1165,7 +1165,7 @@ namespace Gauntlet
 					Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
 					UnrealRoleArtifacts Artifacts = null;
 					ITargetDevice device = App.AppInstance.Device;
-					IDeviceUsageReporter.RecordStart(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts);
+					IDeviceUsageReporter.RecordStart(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts);
 					try
 					{
 						Artifacts = SaveRoleArtifacts(Context, App, DestPath);
@@ -1173,12 +1173,12 @@ namespace Gauntlet
 					catch (Exception)
 					{
 						// Caught an exception -> report failure
-						IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Failure);
+						IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Failure);
 						// Pass exception to the surrounding try/catch in UnrealTestNode while preserving the original callstack
 						throw;
 					}
 					// Did not catch -> successful reporting
-					IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Success);
+					IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Success);
 
 					if (Artifacts != null)
 					{
