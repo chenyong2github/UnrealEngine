@@ -179,8 +179,8 @@ void FBuildJobContext::SetCachePolicyMask(ECachePolicy Policy)
 		TEXT("KeepAlive flag may not be masked out on the cache policy for build of '%s' by %s. ")
 		TEXT("Flags for cache record lifetime may be set indirectly through EBuildPolicy."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
-	checkf(EnumHasAllFlags(Policy, ECachePolicy::PartialOnError),
-		TEXT("PartialOnError flag may not be masked out on the cache policy for build of '%s' by %s."),
+	checkf(EnumHasAllFlags(Policy, ECachePolicy::PartialRecord),
+		TEXT("PartialRecord flag may not be masked out on the cache policy for build of '%s' by %s."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	CachePolicyMask = Policy;
 }

@@ -741,7 +741,7 @@ void FMemoryDerivedDataBackend::Get(
 				if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipData))
 				{
 					Status = EStatus::Error;
-					if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
+					if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialRecord))
 					{
 						Record.Reset();
 						break;

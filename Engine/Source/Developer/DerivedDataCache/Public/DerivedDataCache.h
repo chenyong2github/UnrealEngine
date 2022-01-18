@@ -97,7 +97,7 @@ enum class ECachePolicy : uint32
 	 *
 	 * Applying this flag for a put of a record allows a partial record to be stored.
 	 */
-	PartialOnError  = 1 << 6,
+	PartialRecord   = 1 << 6,
 
 	/**
 	 * Keep records in the cache for at least the duration of the session.
@@ -240,7 +240,7 @@ public:
 	 *
 	 * A cache store is free to interpret a record containing only a key as a request to delete that
 	 * record from the store. Records may contain values that do not have data, and such values must
-	 * reference an existing value in the store, if available. The PartialOnError policy may be used
+	 * reference an existing value in the store, if available. The PartialRecord policy may be used
 	 * to request that a partial record be stored when a value is missing.
 	 *
 	 * @param Requests     Requests with the cache records to store. Records must have a key.
@@ -260,10 +260,10 @@ public:
 	 *
 	 * Records may propagate into other cache stores, in accordance with the policy. A propagated
 	 * record may be a partial record, containing values without data, depending on the policy. A
-	 * propagated put of a partial record will include the PartialOnError policy.
+	 * propagated put of a partial record will include the PartialRecord policy.
 	 *
 	 * When values are required by the policy but not available, the status must be Error. If the
-	 * PartialOnError policy applies to the missing values, the cache store must return a partial
+	 * PartialRecord policy applies to the missing values, the cache store must return a partial
 	 * record containing the available values.
 	 *
 	 * @param Requests     Requests with the keys identifying the cache records to fetch.

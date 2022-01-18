@@ -1031,7 +1031,7 @@ void FPakFileDerivedDataBackend::GetCacheContent(
 				*CachePath, *WriteToString<16>(InOutValue.GetId()), *WriteToString<48>(RawHash),
 				*WriteToString<96>(Key), Name.Len(), Name.GetData());
 			InOutStatus = EStatus::Error;
-			if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialOnError))
+			if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialRecord))
 			{
 				InOutValue = FValueWithId::Null;
 			}
@@ -1044,7 +1044,7 @@ void FPakFileDerivedDataBackend::GetCacheContent(
 		*CachePath, *WriteToString<16>(InOutValue.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
 		Name.Len(), Name.GetData());
 	InOutStatus = EStatus::Error;
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialOnError))
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialRecord))
 	{
 		InOutValue = FValueWithId::Null;
 	}

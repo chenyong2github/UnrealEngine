@@ -580,7 +580,7 @@ public:
 							{
 								if (!EnumHasAllFlags(P, ECachePolicy::Query))
 								{
-									EnumAddFlags(P, ECachePolicy::PartialOnError);
+									EnumAddFlags(P, ECachePolicy::PartialRecord);
 								}
 								return P;
 							});

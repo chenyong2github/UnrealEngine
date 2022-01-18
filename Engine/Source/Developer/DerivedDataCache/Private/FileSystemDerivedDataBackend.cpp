@@ -1990,7 +1990,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 		{
 			RecordBuilder.AddValue(Id, MoveTemp(Content));
 		}
-		else if (EnumHasAnyFlags(ValuePolicy, ECachePolicy::PartialOnError))
+		else if (EnumHasAnyFlags(ValuePolicy, ECachePolicy::PartialRecord))
 		{
 			OutStatus = EStatus::Error;
 			RecordBuilder.AddValue(Value);
