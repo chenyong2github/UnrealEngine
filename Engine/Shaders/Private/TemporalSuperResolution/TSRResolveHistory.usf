@@ -28,7 +28,7 @@ RWTexture2D<uint> PrevClosestDepthOutput;
 
 //------------------------------------------------------- LDS
 
-groupshared taa_half3 SharedArray0[TILE_SIZE * TILE_SIZE];
+groupshared taa_halfC SharedArray0[TILE_SIZE * TILE_SIZE];
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -83,14 +83,14 @@ uint2 OutputViewRectMax;
 uint bGenerateOutputMip1;
 float HistoryValidityMultiply;
 
-Texture2D<taa_half3> History_LowFrequency;
-Texture2D<taa_half3> History_HighFrequency;
+Texture2D<taa_halfC> History_LowFrequency;
+Texture2D<taa_halfC> History_HighFrequency;
 Texture2D<taa_half2> History_Metadata;
 Texture2D<taa_half3> History_Translucency;
 Texture2D<taa_half>  History_TranslucencyAlpha;
 
-RWTexture2D<taa_half3> SceneColorOutputMip0;
-RWTexture2D<taa_half3> SceneColorOutputMip1;
+RWTexture2D<taa_halfC> SceneColorOutputMip0;
+RWTexture2D<taa_halfC> SceneColorOutputMip1;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -106,8 +106,8 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	taa_half3 LowFrequencyColor = 0.0;
-	taa_half3 HighFrequencyColor = 0.0;
+	taa_halfC LowFrequencyColor = 0.0;
+	taa_halfC HighFrequencyColor = 0.0;
 	taa_half  HistoryValidity = 0.0;
 	
 	// Downsample the history
@@ -135,19 +135,25 @@ void MainCS(
 
 				SampleUV = clamp(SampleUV, HistoryInfo_UVViewportBilinearMin, HistoryInfo_UVViewportBilinearMax);
 
-				taa_half3 SampleLowFrequencyColor  = History_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				taa_half3 SampleHighFrequencyColor = History_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				taa_halfC SampleLowFrequencyColor  = History_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				taa_halfC SampleHighFrequencyColor = History_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				taa_half2 SampleMetadata   	       = History_Metadata.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
 				taa_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				taa_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
 				taa_half SampleHistoryValidity = SampleMetadata.y;
+				taa_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
 
 				#if 1
 				{
-					SampleLowFrequencyColor  = SampleLowFrequencyColor  * SampleTranslucencyAlpha + SampleTranslucencyColor;
-					SampleHighFrequencyColor = SampleHighFrequencyColor * SampleTranslucencyAlpha + SampleTranslucencyColor * SampleHistoryValidity;
+					SampleLowFrequencyColor.rgb  = SampleLowFrequencyColor.rgb  * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb;
+					SampleHighFrequencyColor.rgb = SampleHighFrequencyColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb * SampleHistoryValidity;
+				
+					#if CONFIG_SCENE_COLOR_APLHA
+						SampleLowFrequencyColor.a = saturate(taa_half(1.0) - saturate(taa_half(1.0) - SampleLowFrequencyColor.a) * SampleTranslucencyAlpha);
+						SampleHighFrequencyColor.a = saturate(taa_half(1.0) - saturate(taa_half(1.0) - SampleHighFrequencyColor.a * InvSampleHistoryValidity) * SampleTranslucencyAlpha) * SampleHistoryValidity;
+					#endif
 				}
 				#endif
 
@@ -156,7 +162,7 @@ void MainCS(
 				float kernelWeight = MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C);
 				
 				float LowFrequencyHdrWeight  = HdrWeight4(SampleLowFrequencyColor);
-				float HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * SafeRcp(SampleHistoryValidity));
+				float HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * InvSampleHistoryValidity);
 
 				LowFrequencyColor   += (kernelWeight * LowFrequencyHdrWeight)  * SampleLowFrequencyColor;
 				LowFrequencyWeight  += (kernelWeight * LowFrequencyHdrWeight);
@@ -175,7 +181,7 @@ void MainCS(
 	}
 	
 	// Compute final output
-	taa_half3 FinalOutputColor;
+	taa_halfC FinalOutputColor;
 	{
 		taa_half OutputBlend = ComputeLowFrequencyContribution(HistoryValidity);
 		
@@ -198,7 +204,7 @@ void MainCS(
 	{
 		uint LocalGroupThreadIndex = GroupThreadIndex;
 
-		taa_half3 HalfResOutput = FinalOutputColor * taa_half(0.25);
+		taa_halfC HalfResOutput = FinalOutputColor * taa_half(0.25);
 		taa_short2 HalfResOutputPixelPos;
 		HalfResOutputPixelPos[0] = (OutputPixelPosition[0] >> taa_short(1)) | (((OutputPixelPosition[0] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
 		HalfResOutputPixelPos[1] = (OutputPixelPosition[1] >> taa_short(1)) | (((OutputPixelPosition[1] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));

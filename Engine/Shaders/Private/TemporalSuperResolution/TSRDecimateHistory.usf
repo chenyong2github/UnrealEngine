@@ -17,31 +17,37 @@
 float4x4 RotationalClipToPrevClip;
 float3 OutputQuantizationError;
 
-Texture2D<taa_half3> InputSceneColorTexture;
+Texture2D<taa_halfC> InputSceneColorTexture;
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
 Texture2D<uint> ParallaxFactorTexture;
 
-Texture2D<taa_half3> PrevHistory_LowFrequency;
-Texture2D<taa_half3> PrevHistory_HighFrequency;
+Texture2D<taa_halfC> PrevHistory_LowFrequency;
+Texture2D<taa_halfC> PrevHistory_HighFrequency;
 Texture2D<taa_half2> PrevHistory_Metadata;
 Texture2D<taa_half4> PrevHistory_Translucency;
 Texture2D<taa_subpixel_details> PrevHistory_SubpixelDetails;
 
-RWTexture2D<taa_half3> HalfResSceneColorOutput;
-RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
+RWTexture2D<taa_halfC> HalfResSceneColorOutput;
+RWTexture2D<taa_halfC> HalfResPredictionSceneColorOutput;
 RWTexture2D<taa_half> HalfResParallaxRejectionMaskOutput;
 
-RWTexture2D<taa_half3> PredictionSceneColorOutput;
+RWTexture2D<taa_halfC> PredictionSceneColorOutput;
 RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
 
 
 //------------------------------------------------------- LDS
 
-groupshared taa_half3 SharedInputColor[TILE_SIZE * TILE_SIZE];
+groupshared taa_halfC SharedInputColor[TILE_SIZE * TILE_SIZE];
+
+#if CONFIG_SCENE_COLOR_APLHA
+groupshared taa_halfC SharedHistoryColor[TILE_SIZE * TILE_SIZE];
+groupshared taa_half  SharedMask[TILE_SIZE * TILE_SIZE];
+#else
 groupshared taa_half4 SharedHistoryColorAndMask[TILE_SIZE * TILE_SIZE];
+#endif
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -76,7 +82,7 @@ void MainCS(
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 	float DeviceZ = ClosestDepthTexture[InputPixelPos];
 	taa_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
-	taa_half3 InputSceneColor = InputSceneColorTexture[InputPixelPos];
+	taa_halfC InputSceneColor = InputSceneColorTexture[InputPixelPos];
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
 	
@@ -148,7 +154,7 @@ void MainCS(
 	taa_half2 dKO = taa_half2(HistoryPPCo - HistoryPPCk);
 	
 	// Sample the history
-	taa_half3 DecimatedColor;
+	taa_halfC DecimatedColor;
 	taa_half HistoryMaxRejectionFactor;
 
 	taa_half ClosestInterferenceSeed;
@@ -181,7 +187,7 @@ void MainCS(
 					PrevHistoryInfo_UVViewportBilinearMin,
 					PrevHistoryInfo_UVViewportBilinearMax);
 				
-				taa_half3 HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
+				taa_halfC HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
 
 				DecimatedColor += HistorySample;
 			}
@@ -245,15 +251,20 @@ void MainCS(
 	#if CONFIG_OUTPUT_HALF_RES
 	{
 		SharedInputColor[GroupThreadIndex] = InputSceneColor;
-		SharedHistoryColorAndMask[GroupThreadIndex] = taa_half4(DecimatedColor, ParallaxRejectionMask);
+		#if CONFIG_SCENE_COLOR_APLHA
+			SharedHistoryColor[GroupThreadIndex] = DecimatedColor;
+			SharedMask[GroupThreadIndex] = ParallaxRejectionMask;
+		#else
+			SharedHistoryColorAndMask[GroupThreadIndex] = taa_half4(DecimatedColor, ParallaxRejectionMask);
+		#endif
 
 		GroupMemoryBarrierWithGroupSync();
 
 		bool bCheckerboard = (((InputPixelPos.x ^ InputPixelPos.y) >> 1) & 0x1) != 0;
 
-		half3 HalfResInputSceneColor = InputSceneColor;
-		half3 HalfResDecimatedColor = DecimatedColor;
-		half HalfResParallaxRejectionMask = ParallaxRejectionMask;
+		taa_halfC HalfResInputSceneColor = InputSceneColor;
+		taa_halfC HalfResDecimatedColor = DecimatedColor;
+		taa_half HalfResParallaxRejectionMask = ParallaxRejectionMask;
 
 		UNROLL
 		for (uint i = 1; i < 4; i++)
@@ -268,13 +279,18 @@ void MainCS(
 			{
 				HalfResInputSceneColor = max(HalfResInputSceneColor, SharedInputColor[GroupThreadIndex ^ ButterflySwap]);
 			}
-			HalfResDecimatedColor += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].rgb;
-
-			HalfResParallaxRejectionMask += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].a;
+			
+			#if CONFIG_SCENE_COLOR_APLHA
+				HalfResDecimatedColor += SharedHistoryColor[GroupThreadIndex ^ ButterflySwap];
+				HalfResParallaxRejectionMask += SharedMask[GroupThreadIndex ^ ButterflySwap];
+			#else
+				HalfResDecimatedColor += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].rgb;
+				HalfResParallaxRejectionMask += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].a;
+			#endif
 		}
 
-		HalfResDecimatedColor *= 0.25;
-		HalfResParallaxRejectionMask *= 0.25;
+		HalfResDecimatedColor *= taa_half(0.25);
+		HalfResParallaxRejectionMask *= taa_half(0.25);
 
 		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 		{

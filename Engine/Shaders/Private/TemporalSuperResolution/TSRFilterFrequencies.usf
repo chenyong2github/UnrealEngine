@@ -32,18 +32,18 @@
 
 float3 OutputQuantizationError;
 
-Texture2D<taa_half3> InputTexture;
-Texture2D<taa_half3> PredictionSceneColorTexture;
+Texture2D<taa_halfC> InputTexture;
+Texture2D<taa_halfC> PredictionSceneColorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 
-RWTexture2D<taa_half3> FilteredInputOutput;
-RWTexture2D<taa_half3> FilteredPredictionSceneColorOutput;
+RWTexture2D<taa_halfC> FilteredInputOutput;
+RWTexture2D<taa_halfC> FilteredPredictionSceneColorOutput;
 RWTexture2D<taa_half>  InputSceneColorLdrLumaOutput;
 
 
 //------------------------------------------------------- FUNCTIONS
 
-taa_half ComputeColorWeight(taa_half3 Color)
+taa_half ComputeColorWeight(taa_halfC Color)
 #if CONFIG_ACCUMULATE_KARIS_WEIGHTING
 {
 	return HdrWeight4(Color);
@@ -76,19 +76,17 @@ void MainCS(
 		Map16x16Tile2x2Lane(GroupThreadIndex));
 
 	// Fetch center of the kernel
-	taa_half3 CenterInput;
-	taa_half3 FilteredInput;
+	taa_halfC CenterInput;
+	taa_halfC FilteredInput;
 	taa_half FilteredInputWeight;
-	taa_half3 FilteredHistory;
+	taa_halfC FilteredHistory;
 	taa_half FilteredHistoryWeight;
-	taa_half4 FilteredInterferenceSeed;
-	taa_half FilteredInterferenceSeedWeight;
 
 	{
 		taa_half SampleSpatialWeight = 1.0;
 
-		taa_half3 InputSample = InputTexture[InputPixelPos];
-		taa_half3 HistorySample = PredictionSceneColorTexture[InputPixelPos];
+		taa_halfC InputSample = InputTexture[InputPixelPos];
+		taa_halfC HistorySample = PredictionSceneColorTexture[InputPixelPos];
 		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[InputPixelPos]);
 		
@@ -175,13 +173,17 @@ void MainCS(
 			DynamicSpreadFactor * Offset, Offset,
 			InputPixelPosMin, InputPixelPosMax);
 
-		taa_half3 InputSample = InputTexture[SampleInputPixelPos];
-		taa_half3 HistorySample = PredictionSceneColorTexture[SampleInputPixelPos];
+		taa_halfC InputSample = InputTexture[SampleInputPixelPos];
+		taa_halfC HistorySample = PredictionSceneColorTexture[SampleInputPixelPos];
 		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[SampleInputPixelPos]);
 
 		#if CONFIG_SCENE_COLOR_OVERFLOW
-			InputSample = min(InputSample, LargestSceneColorRGB);
+			#if CONFIG_SCENE_COLOR_APLHA
+				InputSample = min(InputSample, LargestSceneColorRGBA);
+			#else
+				InputSample = min(InputSample, LargestSceneColorRGB);
+			#endif
 		#endif
 
 		taa_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
@@ -212,7 +214,7 @@ void MainCS(
 			taa_half CenterLuma = max(CenterInput.r, max(CenterInput.g, CenterInput.b));
 			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
 		#else
-			taa_half CenterLuma = dot(CenterInput, half3(0.299f, 0.587f, 0.114f));
+			taa_half CenterLuma = dot(CenterInput.rgb, half3(0.299f, 0.587f, 0.114f));
 			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
 		#endif
 	}

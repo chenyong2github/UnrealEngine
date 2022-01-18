@@ -575,6 +575,9 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	const bool bSetupDebugPasses = CVarTSRSetupDebugPasses.GetValueOnRenderThread() != 0;
 #endif
 
+	// Whether alpha channel is supported.
+	const bool bSupportsAlpha = IsPostProcessingWithAlphaChannelSupported();
+
 	// Whether to use camera cut shader permutation or not.
 	bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
 
@@ -587,6 +590,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	bool bRejectSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
 
 	bool bAccumulateSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
+
+	EPixelFormat ColorFormat = bSupportsAlpha ? PF_FloatRGBA : PF_FloatR11G11B10;
 
 	int32 RejectionAntiAliasingQuality = FMath::Clamp(CVarTSRRejectionAntiAliasingQuality.GetValueOnRenderThread(), 1, 2);
 	if (UpdateHistoryQuality == FTSRUpdateHistoryCS::EQuality::Low)
@@ -667,7 +672,10 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	float ScreenPercentage = float(InputRect.Width()) / float(OutputRect.Width());
 	float InvScreenPercentage = float(OutputRect.Width()) / float(InputRect.Width());
 
-	RDG_EVENT_SCOPE(GraphBuilder, "TemporalSuperResolution %dx%d -> %dx%d", InputRect.Width(), InputRect.Height(), OutputRect.Width(), OutputRect.Height());
+	RDG_EVENT_SCOPE(GraphBuilder, "TemporalSuperResolution(%s) %dx%d -> %dx%d",
+		bSupportsAlpha ? TEXT("Alpha") : TEXT(""),
+		InputRect.Width(), InputRect.Height(),
+		OutputRect.Width(), OutputRect.Height());
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TemporalSuperResolution);
 
 	FRDGTextureRef BlackUintDummy = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
@@ -895,7 +903,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			HistoryExtent,
-			(CVarTSRR11G11B10History.GetValueOnRenderThread() != 0) ? PF_FloatR11G11B10 : PF_FloatRGBA,
+			(CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -907,7 +915,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		if (bAccumulateSeparateTranslucency)
 		{
-			Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0) ? PF_FloatR11G11B10 : PF_FloatRGBA;
+			Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA;
 			History.Translucency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
 
 			Desc.Format = PF_R8;
@@ -946,7 +954,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 			PassParameters->RotationalClipToPrevClip = RotationalInvViewProj * RotationalPrevViewProj;
 		}
-		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PF_FloatR11G11B10);
+		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(ColorFormat);
 		{
 			float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
 
@@ -968,7 +976,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				LowFrequencyExtent,
-				PF_FloatR11G11B10,
+				ColorFormat,
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -986,7 +994,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				InputExtent,
-				PF_FloatR11G11B10,
+				ColorFormat,
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -1120,7 +1128,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					LowFrequencyExtent,
-					PF_FloatR11G11B10,
+					ColorFormat,
 					FClearValueBinding::None,
 					/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -1333,7 +1341,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			OutputExtent,
-			PF_FloatR11G11B10,
+			ColorFormat,
 			FClearValueBinding::None,
 			/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 			/* NumMips = */ PassInputs.bGenerateOutputMip1 ? 2 : 1);

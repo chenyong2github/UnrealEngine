@@ -36,10 +36,15 @@
 	#define CONFIG_BUTTERFLY_KERNEL 0
 #endif
 
-#define CONFIG_ENABLE_STOCASTIC_QUANTIZATION 1
-
 #define CONFIG_SCENE_COLOR_OVERFLOW 1
 
+#if POST_PROCESS_ALPHA
+	#define CONFIG_SCENE_COLOR_APLHA 1
+#else
+	#define CONFIG_SCENE_COLOR_APLHA 0
+#endif
+
+#define CONFIG_ENABLE_STOCASTIC_QUANTIZATION (!CONFIG_SCENE_COLOR_APLHA)
 
 //------------------------------------------------------- CONSTANTS
 
@@ -193,6 +198,17 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 7, 5 };
 
 #endif
 
+#if CONFIG_SCENE_COLOR_APLHA
+	#define taa_halfC taa_half4
+	#define taa_halfCx2 taa_half4x2
+
+#else
+	#define taa_halfC taa_half3
+	#define taa_halfCx2 taa_half3x2
+
+#endif
+
+
 #define taa_subpixel_details uint
 #define taa_subpixel_details2 uint2
 #define taa_subpixel_payload uint // TODO: uint16_t
@@ -205,6 +221,7 @@ static const taa_half LargestNormalNumber = taa_half(65504.0);
 static const taa_half3 LargestSceneColorRGB = (LargestNormalNumber * taa_half(0.25)).xxx;
 static const taa_half4 LargestSceneColorRGBA = (LargestNormalNumber * taa_half(0.25)).xxxx;
 static const taa_half3 LargestSceneColorYCoCg = LargestNormalNumber.xxx;
+static const taa_half4 LargestSceneColorYCoCgA = LargestNormalNumber.xxxx;
 
 
 //------------------------------------------------------- PARAMETERS
@@ -643,6 +660,18 @@ taa_half3x2 YCoCgToRGB(taa_half3x2 YCoCg)
 }
 
 CALL_SITE_DEBUGLOC
+taa_half4x2 RGBToYCoCg(taa_half4x2 RGBA)
+{
+	return taa_half4x2(RGBToYCoCg(taa_half3x2(RGBA[0], RGBA[1], RGBA[2])), RGBA[3]);
+}
+
+CALL_SITE_DEBUGLOC
+taa_half4x2 YCoCgToRGB(taa_half4x2 YCoCgA)
+{
+	return taa_half4x2(YCoCgToRGB(taa_half3x2(YCoCgA[0], YCoCgA[1], YCoCgA[2])), YCoCgA[3]);
+}
+
+CALL_SITE_DEBUGLOC
 taa_half3 RGBToYCoCg(taa_half3 RGB)
 {
 	return dpv_lo(RGBToYCoCg(dpv_interleave_mono_registers(RGB)));
@@ -652,6 +681,18 @@ CALL_SITE_DEBUGLOC
 taa_half3 YCoCgToRGB(taa_half3 YCoCg)
 {
 	return dpv_lo(YCoCgToRGB(dpv_interleave_mono_registers(YCoCg)));
+}
+
+CALL_SITE_DEBUGLOC
+taa_half4 RGBToYCoCg(taa_half4 RGBA)
+{
+	return dpv_lo(RGBToYCoCg(dpv_interleave_mono_registers(RGBA)));
+}
+
+CALL_SITE_DEBUGLOC
+taa_half4 YCoCgToRGB(taa_half4 YCoCgA)
+{
+	return dpv_lo(YCoCgToRGB(dpv_interleave_mono_registers(YCoCgA)));
 }
 
 
@@ -667,9 +708,21 @@ taa_half2 Luma4(taa_half3x2 Color)
 }
 
 CALL_SITE_DEBUGLOC
+taa_half2 Luma4(taa_half4x2 Color)
+{
+	return Luma4(taa_half3x2(Color[0], Color[1], Color[2]));
+}
+
+CALL_SITE_DEBUGLOC
 taa_half Luma4(taa_half3 Color)
 {
 	return dpv_lo(Luma4(dpv_interleave_mono_registers(Color)));
+}
+
+CALL_SITE_DEBUGLOC
+taa_half Luma4(taa_half4 Color)
+{
+	return Luma4(Color.rgb);
 }
 
 CALL_SITE_DEBUGLOC
@@ -706,7 +759,19 @@ taa_half2 HdrWeight4(taa_half3x2 Color)
 }
 
 CALL_SITE_DEBUGLOC
+taa_half2 HdrWeight4(taa_half4x2 Color)
+{
+	return HdrWeightY(Luma4(Color));
+}
+
+CALL_SITE_DEBUGLOC
 taa_half HdrWeight4(taa_half3 Color)
+{
+	return HdrWeightY(Luma4(Color));
+}
+
+CALL_SITE_DEBUGLOC
+taa_half HdrWeight4(taa_half4 Color)
 {
 	return HdrWeightY(Luma4(Color));
 }
@@ -804,33 +869,45 @@ taa_half MeasureBackbufferLDRQuantizationErrorFromHDRLuma(taa_half Luma)
 }
 
 taa_half2 MeasureRejectionFactor(
-	taa_half3x2 PrevYCoCg,
-	taa_half3x2 ClampedPrevYCoCg,
-	taa_half3x2 InputCenterYCoCg,
-	taa_half3x2 InputMinYCoCg, taa_half3x2 InputMaxYCoCg,
+	taa_halfCx2 PrevYCoCg,
+	taa_halfCx2 ClampedPrevYCoCg,
+	taa_halfCx2 InputCenterYCoCg,
+	taa_halfCx2 InputMinYCoCg, taa_halfCx2 InputMaxYCoCg,
 	taa_half2 BackbufferQuantizationError)
 {
-	taa_half3x2 BoxSize = InputMaxYCoCg - InputMinYCoCg;
+	const taa_halfC Null = taa_half(0.0);
+	
+	#if CONFIG_SCENE_COLOR_APLHA
+		taa_halfCx2 BackbufferQuantizationErrorVector = taa_half4x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError);
+	#else
+		taa_halfCx2 BackbufferQuantizationErrorVector = taa_half3x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError);
+	#endif
 
-	taa_half3x2 ClampedEnergy = abs(ClampedPrevYCoCg - PrevYCoCg);
-	taa_half3x2 Delta = abs(InputCenterYCoCg - PrevYCoCg);
+	taa_halfCx2 BoxSize = InputMaxYCoCg - InputMinYCoCg;
 
-	taa_half3x2 ClampError = max(
+	taa_halfCx2 ClampedEnergy = abs(ClampedPrevYCoCg - PrevYCoCg);
+	taa_halfCx2 Delta = abs(InputCenterYCoCg - PrevYCoCg);
+
+	taa_halfCx2 ClampError = max(
 		BoxSize * taa_half(0.25),
-		taa_half3x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError));
+		BackbufferQuantizationErrorVector);
 
-	taa_half3x2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half3x2(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) * rcp(max(Delta, BoxSize)));
+	taa_halfCx2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, dpv_interleave_mono_registers(Null)) * rcp(max(Delta, BoxSize)));
 
 	taa_half2 Rejection = min3(Factor[0], Factor[1], Factor[2]);
 	
+	#if CONFIG_SCENE_COLOR_APLHA
+		Rejection = min(Rejection, Factor[3]);
+	#endif
+
 	return Rejection;
 }
 
 taa_half MeasureRejectionFactor(
-	taa_half3 PrevYCoCg,
-	taa_half3 ClampedPrevYCoCg,
-	taa_half3 InputCenterYCoCg,
-	taa_half3 InputMinYCoCg, taa_half3 InputMaxYCoCg,
+	taa_halfC PrevYCoCg,
+	taa_halfC ClampedPrevYCoCg,
+	taa_halfC InputCenterYCoCg,
+	taa_halfC InputMinYCoCg, taa_halfC InputMaxYCoCg,
 	taa_half BackbufferQuantizationError)
 {
 	return dpv_lo(MeasureRejectionFactor(

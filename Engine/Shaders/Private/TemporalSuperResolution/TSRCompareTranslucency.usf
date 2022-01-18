@@ -78,11 +78,18 @@ taa_half MeasureTranslucencyRejectionFactor(
 	taa_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
 	
 	taa_half BackbufferQuantizationError = 0.0; //MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], Translucency[0]));
-
-	taa_half Rejection = MeasureRejectionFactor(
-		PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
-		Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
-		BackbufferQuantizationError);
+	
+	#if CONFIG_SCENE_COLOR_APLHA
+		taa_half Rejection = MeasureRejectionFactor(
+			PrevTranslucency, ClampedPrevTranslucency,
+			Translucency, TranslucencyMin, TranslucencyMax,
+			BackbufferQuantizationError);
+	#else
+		taa_half Rejection = MeasureRejectionFactor(
+			PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
+			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
+			BackbufferQuantizationError);
+	#endif
 
 	Rejection = lerp(1.0, Rejection, IsHighlight);
 

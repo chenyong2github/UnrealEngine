@@ -13,8 +13,8 @@
 //------------------------------------------------------- PARAMETERS
 
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
-Texture2D<taa_half3> FilteredInputTexture;
-Texture2D<taa_half3> FilteredPredictionSceneColorTexture;
+Texture2D<taa_halfC> FilteredInputTexture;
+Texture2D<taa_halfC> FilteredPredictionSceneColorTexture;
 
 RWTexture2D<taa_half> HistoryRejectionOutput;
 
@@ -26,7 +26,7 @@ groupshared taa_half SharedRejection[TILE_SIZE * TILE_SIZE];
 
 //------------------------------------------------------- FUNCTIONS
 
-taa_half3 TransformColorForClampingBox(taa_half3 Color)
+taa_halfC TransformColorForClampingBox(taa_halfC Color)
 {
 	return RGBToYCoCg(Color);
 }
@@ -46,9 +46,9 @@ void MainCS(
 		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
 		Map16x16Tile2x2Lane(GroupThreadIndex));
 
-	taa_half3 InputMinColor;
-	taa_half3 InputMaxColor;
-	taa_half3 InputCenterColor;
+	taa_halfC InputMinColor;
+	taa_halfC InputMaxColor;
+	taa_halfC InputCenterColor;
 	taa_half ParallaxRejectionMask;
 
 	{
@@ -74,19 +74,19 @@ void MainCS(
 			kOffsets3x3[i], kOffsets3x3[i],
 			InputPixelPosMin, InputPixelPosMax);
 
-		taa_half3 Color = TransformColorForClampingBox(FilteredInputTexture[SampleInputPixelPos]);
+		taa_halfC Color = TransformColorForClampingBox(FilteredInputTexture[SampleInputPixelPos]);
 
 		InputMinColor = min(InputMinColor, Color);
 		InputMaxColor = max(InputMaxColor, Color);
 	}
 	
 
-	taa_half3 PrevColor = TransformColorForClampingBox(FilteredPredictionSceneColorTexture[InputPixelPos]);
+	taa_halfC PrevColor = TransformColorForClampingBox(FilteredPredictionSceneColorTexture[InputPixelPos]);
 
 	taa_half Rejection = 1.0;
 	#if 1
 	{
-		taa_half3 ClampedPrevColor = clamp(PrevColor, InputMinColor, InputMaxColor);
+		taa_halfC ClampedPrevColor = clamp(PrevColor, InputMinColor, InputMaxColor);
 
 		Rejection = MeasureRejectionFactor(
 			PrevColor, ClampedPrevColor,
