@@ -75,12 +75,12 @@ void FHairStrandsRootUtils::DecodeTriangleIndex(uint32 Encoded, uint32& OutTrian
 	OutTriangleIndex = Encoded & 0xFFFFFF;
 }
 
-uint32 FHairStrandsRootUtils::EncodeBarycentrics(const FVector2D& B)
+uint32 FHairStrandsRootUtils::EncodeBarycentrics(const FVector2f& B)
 {
 	return uint32(FFloat16(B.X).Encoded) | (uint32(FFloat16(B.Y).Encoded)<<16);
 }
 
-FVector2D FHairStrandsRootUtils::DecodeBarycentrics(uint32 B)
+FVector2f FHairStrandsRootUtils::DecodeBarycentrics(uint32 B)
 {
 	FFloat16 BX;
 	BX.Encoded = (B & 0xFFFF);
@@ -88,15 +88,15 @@ FVector2D FHairStrandsRootUtils::DecodeBarycentrics(uint32 B)
 	FFloat16 BY;
 	BY.Encoded = (B >> 16) & 0xFFFF;
 
-	return FVector2D(BX, BY);
+	return FVector2f(BX, BY);
 }
 
-uint32 FHairStrandsRootUtils::PackUVs(const FVector2D& UV)
+uint32 FHairStrandsRootUtils::PackUVs(const FVector2f& UV)
 {
 	return (FFloat16(UV.X).Encoded & 0xFFFF) | ((FFloat16(UV.Y).Encoded & 0xFFFF) << 16);
 }
 
-float FHairStrandsRootUtils::PackUVsToFloat(const FVector2D& UV)
+float FHairStrandsRootUtils::PackUVsToFloat(const FVector2f& UV)
 {
 	uint32 Encoded = PackUVs(UV);
 	return *((float*)(&Encoded));

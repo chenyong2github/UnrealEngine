@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarHairStrandsComposeDOFDepth(TEXT("r.HairStrand
 
 float GetHairFastResolveVelocityThreshold(const FIntPoint& Resolution)
 {
-	FVector2D PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
+	FVector2f PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
 	const float VelocityThreshold = FMath::Clamp(GHairFastResolveVelocityThreshold, 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
 	return VelocityThreshold;
 }

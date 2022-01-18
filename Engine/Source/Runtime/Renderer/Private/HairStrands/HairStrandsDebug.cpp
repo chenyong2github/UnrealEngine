@@ -483,13 +483,13 @@ static void AddDebugDeepShadowTexturePass(
 	check(OutTarget);
 
 	FIntPoint AtlasResolution(0, 0);
-	FVector2D AltasOffset(0, 0);
-	FVector2D AltasScale(0, 0);
+	FVector2f AltasOffset(0, 0);
+	FVector2f AltasScale(0, 0);
 	if (ShadowData && Resources)
 	{
 		AtlasResolution = FIntPoint(Resources->DepthAtlasTexture->Desc.Extent.X, Resources->DepthAtlasTexture->Desc.Extent.Y);
-		AltasOffset = FVector2D(ShadowData->AtlasRect.Min.X / float(AtlasResolution.X), ShadowData->AtlasRect.Min.Y / float(AtlasResolution.Y));
-		AltasScale = FVector2D((ShadowData->AtlasRect.Max.X - ShadowData->AtlasRect.Min.X) / float(AtlasResolution.X), (ShadowData->AtlasRect.Max.Y - ShadowData->AtlasRect.Min.Y) / float(AtlasResolution.Y));
+		AltasOffset = FVector2f(ShadowData->AtlasRect.Min.X / float(AtlasResolution.X), ShadowData->AtlasRect.Min.Y / float(AtlasResolution.Y));
+		AltasScale = FVector2f((ShadowData->AtlasRect.Max.X - ShadowData->AtlasRect.Min.X) / float(AtlasResolution.X), (ShadowData->AtlasRect.Max.Y - ShadowData->AtlasRect.Min.Y) / float(AtlasResolution.Y));
 	}
 
 	const FIntRect Viewport = View->ViewRect;
@@ -500,7 +500,7 @@ static void AddDebugDeepShadowTexturePass(
 	Parameters->DomAtlasOffset = AltasOffset;
 	Parameters->DomAtlasScale = AltasScale;
 	Parameters->OutputResolution = Resolution;
-	Parameters->InvOutputResolution = FVector2D(1.f / Resolution.X, 1.f / Resolution.Y);
+	Parameters->InvOutputResolution = FVector2f(1.f / Resolution.X, 1.f / Resolution.Y);
 	Parameters->DeepShadowDepthTexture = Resources ? Resources->DepthAtlasTexture : nullptr;
 	Parameters->DeepShadowLayerTexture = Resources ? Resources->LayersAtlasTexture : nullptr;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

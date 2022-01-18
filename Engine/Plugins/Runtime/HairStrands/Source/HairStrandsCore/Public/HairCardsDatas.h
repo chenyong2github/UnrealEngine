@@ -176,7 +176,7 @@ struct FHairOrientedBound
 struct FHairCardsGeometry
 {
 	// Geometry
-	TArray<FVector4> UVs;
+	TArray<FVector4f>UVs;
 	TArray<FVector3f>Normals;
 	TArray<FVector3f>Tangents;
 	TArray<FVector3f>Positions;
@@ -192,7 +192,7 @@ struct FHairCardsGeometry
 	TArray<uint32> IndexOffsets;
 	TArray<uint32> IndexCounts;
 
-	FBox BoundingBox;
+	FBox3f BoundingBox;
 
 	void Reset()
 	{
@@ -357,8 +357,8 @@ struct FHairCardsProceduralAtlas
 
 	FIntPoint Resolution;
 	TArray<Rect> Rects;
-	TArray<FVector4> StrandsPositions;
-	TArray<FVector4> StrandsAttributes;
+	TArray<FVector4f> StrandsPositions;
+	TArray<FVector4f> StrandsAttributes;
 	bool bIsDirty = true;
 };
 
@@ -406,13 +406,13 @@ struct HAIRSTRANDSCORE_API FHairCardsSourceData
 struct FHairMeshes
 {
 	// Geometry
-	TArray<FVector2D> UVs;
+	TArray<FVector2f> UVs;
 	TArray<FVector3f> Normals;
 	TArray<FVector3f> Tangents;
 	TArray<FVector3f> Positions;
 	TArray<uint32>    Indices;
 
-	FBox BoundingBox;
+	FBox3f BoundingBox;
 
 	void SetNum(uint32 Count)
 	{

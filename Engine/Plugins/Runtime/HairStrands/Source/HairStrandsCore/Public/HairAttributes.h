@@ -21,7 +21,7 @@ namespace HairAttribute
 		extern HAIRSTRANDSCORE_API const FName GroupID;			// int
 		extern HAIRSTRANDSCORE_API const FName Guide;			// int
 		extern HAIRSTRANDSCORE_API const FName ID;				// int
-		extern HAIRSTRANDSCORE_API const FName RootUV;			// FVector2D
+		extern HAIRSTRANDSCORE_API const FName RootUV;			// FVector2f
 		extern HAIRSTRANDSCORE_API const FName VertexCount;		// int
 		extern HAIRSTRANDSCORE_API const FName Width;			// float
 		extern HAIRSTRANDSCORE_API const FName ClosestGuides;	// FVector

@@ -151,7 +151,7 @@ static void AddHairStrandsEnvironmentAOPass(
 	PassParameters->AO_DistanceThreshold = FMath::Max(GHairStrandsSkyAODistanceThreshold, 1.f);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(Output, ERenderTargetLoadAction::ELoad);
 	PassParameters->Output_bHalfRes = bHalfRes;
-	PassParameters->Output_InvResolution = FVector2D(1.f/Output->Desc.Extent.X, 1.f/Output->Desc.Extent.Y);
+	PassParameters->Output_InvResolution = FVector2f(1.f/Output->Desc.Extent.X, 1.f/Output->Desc.Extent.Y);
 
 	FIntRect ViewRect;
 	if (bHalfRes)
