@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "HAL/Platform.h"
-
+#include "Logging/LogMacros.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 	
