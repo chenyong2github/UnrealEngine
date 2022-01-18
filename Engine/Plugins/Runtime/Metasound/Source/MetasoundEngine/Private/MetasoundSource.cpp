@@ -467,7 +467,7 @@ bool UMetaSoundSource::SupportsSubtitles() const
 	return Super::SupportsSubtitles();
 }
 
-float UMetaSoundSource::GetDuration()
+float UMetaSoundSource::GetDuration() const
 {
 	// eh? this is kind of a weird field anyways.
 	return Super::GetDuration();
@@ -724,12 +724,12 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 	return bIsValid;
 }
 
-bool UMetaSoundSource::IsLooping()
+bool UMetaSoundSource::IsLooping() const
 {
 	return !IsOneShot();
 }
 
-bool UMetaSoundSource::IsOneShot()
+bool UMetaSoundSource::IsOneShot() const
 {
 	using namespace Metasound::Frontend;
 

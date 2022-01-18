@@ -227,7 +227,7 @@ public:
 	/**
 	 * Returns the length of the sound
 	 */
-	virtual float GetDuration();
+	virtual float GetDuration() const;
 
 	/** Returns whether or not this sound has a delay node, which means it's possible for the sound to not generate audio for a while. */
 	bool HasDelayNode() const;
@@ -253,10 +253,10 @@ public:
 	virtual class UCurveTable* GetCurveData() const { return nullptr; }
 
 	/** Returns whether or not this sound is looping. TODO: Deprecate this to only use IsOneshot() in a MetaSound world. */
-	virtual bool IsLooping();
+	virtual bool IsLooping() const;
 
 	/** Query if it's one shot. One shot is defined as a sound which is intended to have a fixed duration. */
-	virtual bool IsOneShot();
+	virtual bool IsOneShot() const;
 
 	/** Parses the Sound to generate the WaveInstances to play. */
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) { }

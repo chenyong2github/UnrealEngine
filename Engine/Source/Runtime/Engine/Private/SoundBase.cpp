@@ -66,7 +66,7 @@ float USoundBase::GetMaxDistance() const
 	return WORLD_MAX;
 }
 
-float USoundBase::GetDuration()
+float USoundBase::GetDuration() const
 {
 	return Duration;
 }
@@ -96,12 +96,12 @@ float USoundBase::GetPitchMultiplier()
 	return 1.f;
 }
 
-bool USoundBase::IsOneShot()
+bool USoundBase::IsOneShot() const
 {
 	return !IsLooping();
 }
 
-bool USoundBase::IsLooping()
+bool USoundBase::IsLooping() const
 {
 	return (GetDuration() >= INDEFINITELY_LOOPING_DURATION);
 }

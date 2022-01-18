@@ -171,7 +171,7 @@ public:
 	virtual float GetVolumeMultiplier() override;
 	virtual float GetPitchMultiplier() override;
 	virtual float GetMaxDistance() const override;
-	virtual float GetDuration() override;
+	virtual float GetDuration() const override;
 	virtual const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const override;
 	virtual float GetSubtitlePriority() const override;
 	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;

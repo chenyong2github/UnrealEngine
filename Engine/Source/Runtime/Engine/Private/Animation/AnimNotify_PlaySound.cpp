@@ -39,9 +39,9 @@ void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class
 	// Don't call super to avoid call back in to blueprints
 	if (Sound && MeshComp)
 	{
-		if (Sound->IsLooping() && !Sound->IsA<USoundWaveProcedural>())
+		if (!Sound->IsOneShot())
 		{
-			UE_LOG(LogAudio, Warning, TEXT("PlaySound notify: Anim %s tried to spawn infinitely looping sound asset %s. Spawning suppressed."), *GetNameSafe(Animation), *GetNameSafe(Sound));
+			UE_LOG(LogAudio, Warning, TEXT("PlaySound notify: Anim %s tried to play a sound asset which is not a one-shot: '%s'. Spawning suppressed."), *GetNameSafe(Animation), *GetNameSafe(Sound));
 			return;
 		}
 
@@ -83,7 +83,7 @@ void UAnimNotify_PlaySound::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
 
-	if ((Sound != nullptr) && (Sound->IsLooping()) && (!Sound->IsA<USoundWaveProcedural>()))
+	if (Sound != nullptr && !Sound->IsOneShot())
 	{
 		UObject* ContainingAsset = GetContainingAsset();
 

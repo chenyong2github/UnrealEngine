@@ -781,7 +781,7 @@ public:
 	//~ Begin USoundBase Interface.
 	virtual bool IsPlayable() const override;
 	virtual void Parse(class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances) override;
-	virtual float GetDuration() override;
+	virtual float GetDuration() const override;
 	virtual float GetSubtitlePriority() const override;
 	virtual bool SupportsSubtitles() const override;
 	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;

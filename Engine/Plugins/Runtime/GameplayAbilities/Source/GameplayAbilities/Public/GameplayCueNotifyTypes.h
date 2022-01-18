@@ -401,6 +401,9 @@ public:
 
 	// Sound to play.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
+	USoundBase* Sound;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - SoundCue is deprecated. Instead use the Sound property. The type is USoundBase not USoundCue."))
 	USoundBase* SoundCue;
 
 	// How long it should take to fade out.  Only used on looping gameplay cues.

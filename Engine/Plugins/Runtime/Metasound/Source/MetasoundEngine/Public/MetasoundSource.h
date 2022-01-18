@@ -163,13 +163,13 @@ public:
 
 	virtual bool IsPlayable() const override;
 	virtual bool SupportsSubtitles() const override;
-	virtual float GetDuration() override;
+	virtual float GetDuration() const override;
 	virtual bool ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
-	virtual bool IsLooping() override;
-	virtual bool IsOneShot() override;
+	virtual bool IsLooping() const override;
+	virtual bool IsOneShot() const override;
 
 protected:
 	/** Gets all the default parameters for this Asset.  */

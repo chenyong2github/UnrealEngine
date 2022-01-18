@@ -36,7 +36,7 @@ public:
 	/** 
 	 * Returns the length of the sound
 	 */
-	virtual float GetDuration() override;
+	virtual float GetDuration() const override;
 
 	virtual float GetVolumeMultiplier() override;
 	virtual float GetPitchMultiplier() override;

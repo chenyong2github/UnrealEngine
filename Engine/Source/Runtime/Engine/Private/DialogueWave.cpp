@@ -433,7 +433,7 @@ float UDialogueSoundWaveProxy::GetMaxDistance() const
 	return SoundWave->GetMaxDistance();
 }
 
-float UDialogueSoundWaveProxy::GetDuration()
+float UDialogueSoundWaveProxy::GetDuration() const
 {
 	return SoundWave->GetDuration();
 }

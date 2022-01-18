@@ -2196,13 +2196,12 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 		const USoundBase* Sound = ActiveSound.GetSound();
 
-		// Don't need to worry about logging orphaned sounds for procedural sounds
-		if (!Sound->IsA<USoundWaveProcedural>())
+		if (!Sound->IsOneShot())
 		{
 #if !(NO_LOGGING || UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (!ActiveSound.bWarnedAboutOrphanedLooping && ActiveSound.GetAudioComponentID() == 0 && ActiveSound.FadeOut == FActiveSound::EFadeOut::None)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Detected orphaned looping sound '%s'."), *ActiveSound.GetSound()->GetName());
+				UE_LOG(LogAudio, Warning, TEXT("Detected orphaned sound which is not a one-shot '%s'. Sounds which are not one-shots need to have audio components or they risk being orphaned."), *ActiveSound.GetSound()->GetName());
 				ActiveSound.bWarnedAboutOrphanedLooping = true;
 			}
 #endif
@@ -2534,7 +2533,7 @@ bool USoundWave::IsPlayable() const
 	return true;
 }
 
-float USoundWave::GetDuration()
+float USoundWave::GetDuration() const
 {
 	return (bLooping ? INDEFINITELY_LOOPING_DURATION : Duration);
 }

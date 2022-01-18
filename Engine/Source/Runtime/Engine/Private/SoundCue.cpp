@@ -561,12 +561,15 @@ float USoundCue::GetMaxDistance() const
 	return GIsEditor ? FindMaxDistanceInternal() : MaxDistance;
 }
 
-float USoundCue::GetDuration()
+float USoundCue::GetDuration() const
 {
 	// Always recalc the duration when in the editor as it could change
 	if (GIsEditor || (Duration < SMALL_NUMBER) || HasDelayNode())
 	{
-		CacheAggregateValues();
+		// This needs to be cached here vs an earlier point due to the need to parse sound cues and load order issues.
+		// Alternative is to make getters not const, this is preferable. 
+		USoundCue* ThisSoundCue = const_cast<USoundCue*>(this);
+		ThisSoundCue->CacheAggregateValues();
 	}
 
 	return Duration;

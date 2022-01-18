@@ -106,7 +106,7 @@ float USoundSimple::GetMaxDistance() const
 	return MaxDistance;
 }
 
-float USoundSimple::GetDuration()
+float USoundSimple::GetDuration() const
 {
 	return Duration;
 }
