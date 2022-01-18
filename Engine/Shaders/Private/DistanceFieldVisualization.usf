@@ -74,7 +74,7 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 
 				float MaxEncodedDistance = DFAssetMipData.DistanceFieldToVolumeScaleBias.x + DFAssetMipData.DistanceFieldToVolumeScaleBias.y;
 
-				if (abs(DistanceField) >= MaxEncodedDistance && ReversedMipIndex > 0)
+				if (abs(DistanceField) > MaxEncodedDistance && ReversedMipIndex > 0)
 				{
 					ReversedMipIndex--;
 					DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);

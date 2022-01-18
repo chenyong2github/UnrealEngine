@@ -652,7 +652,7 @@ void RayTraceSingleMeshSDF(
 			float MaxEncodedDistance = DFAssetMipData.DistanceFieldToVolumeScaleBias.x + DFAssetMipData.DistanceFieldToVolumeScaleBias.y;
 
 			// We reached the maximum distance of this mip's narrow band, use a lower resolution mip for next iteration
-			if (abs(DistanceField) >= MaxEncodedDistance && ReversedMipIndex > 0)
+			if (abs(DistanceField) > MaxEncodedDistance && ReversedMipIndex > 0)
 			{
 				ReversedMipIndex--;
 				DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
