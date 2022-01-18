@@ -1007,16 +1007,19 @@ protected:
 			// 6) Handle EPackageSegment::PayloadSidecar in FEditorDomain::OpenReadPackage by returning an archive configured to deserialize the sidecar segment.
 			unimplemented();
 		}
-		WritePackageRecord = *Record.Package;
+		
+		// EditorDomain save does not support multi package outputs
+		check(Record.Packages.Num() == 1);
+		FPackageWriterRecords::FWritePackage& Package = Record.Packages[0];
+		WritePackageRecord = Package;
 
 		TArray<FSharedBuffer> AttachmentBuffers;
-
-		for (const FFileRegion& FileRegion : Record.Package->Regions)
+		for (const FFileRegion& FileRegion : Package.Regions)
 		{
 			checkf(FileRegion.Type == EFileRegionType::None, TEXT("Does not support FileRegion types other than None."));
 		}
-		check(Record.Package->Buffer.GetSize() > 0); // Header+Exports segment is non-zero in length
-		AttachmentBuffers.Add(Record.Package->Buffer);
+		check(Package.Buffer.GetSize() > 0); // Header+Exports segment is non-zero in length
+		AttachmentBuffers.Add(Package.Buffer);
 
 		BulkDataSize = 0;
 		for (const FBulkDataRecord& BulkRecord : Record.BulkDatas)
@@ -1087,7 +1090,7 @@ protected:
 			Attachments.Add(FAttachment{ Buffer, IntToValueId(AttachmentIndex++) });
 			FileSize += Buffer.GetSize();
 		}
-		WritePackageRecord = MoveTemp(*Record.Package);
+		WritePackageRecord = MoveTemp(Package);
 
 		return TFuture<FMD5Hash>();
 	}

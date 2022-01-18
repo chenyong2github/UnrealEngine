@@ -93,6 +93,21 @@ struct FIllegalReference
 /** Hold the harvested exports and imports for a realm */
 struct FHarvestedRealm
 {
+
+	~FHarvestedRealm()
+	{
+		CloseLinkerArchives();
+
+		if (TempFilename.IsSet())
+		{
+			IFileManager::Get().Delete(*TempFilename.GetValue());
+		}
+		if (TextFormatTempFilename.IsSet())
+		{
+			IFileManager::Get().Delete(*TextFormatTempFilename.GetValue());
+		}
+	}
+
 	void AddImport(UObject* InObject)
 	{
 		Imports.Add(InObject);
@@ -217,7 +232,94 @@ struct FHarvestedRealm
 		return false;
 	}
 
+	FLinkerSave* GetLinker() const
+	{
+		return Linker.Get();
+	}
+
+	void SetLinker(TPimplPtr<FLinkerSave> InLinker)
+	{
+		Linker = MoveTemp(InLinker);
+	}
+
+	bool CloseLinkerArchives()
+	{
+		bool bSuccess = true;
+		if (Linker)
+		{
+			bSuccess = Linker->CloseAndDestroySaver();
+		}
+		StructuredArchive.Reset();
+		Formatter.Reset();
+		TextFormatArchive.Reset();
+		return bSuccess;
+	}
+
+	FArchive* GetTextFormatArchive() const
+	{
+		return TextFormatArchive.Get();
+	}
+
+	void SetTextFormatArchive(TUniquePtr<FArchive> InTextArchive)
+	{
+		TextFormatArchive = MoveTemp(InTextArchive);
+	}
+
+	FArchiveFormatterType* GetFormatter() const
+	{
+		return Formatter.Get();
+	}
+
+	void SetFormatter(TUniquePtr<FArchiveFormatterType> InFormatter)
+	{
+		Formatter = MoveTemp(InFormatter);
+	}
+
+	FStructuredArchive* GetStructuredArchive() const
+	{
+		return StructuredArchive.Get();
+	}
+
+	void SetStructuredArchive(TUniquePtr<FStructuredArchive> InArchive)
+	{
+		StructuredArchive = MoveTemp(InArchive);
+	}
+
+	const TOptional<FString>& GetTempFilename() const
+	{
+		return TempFilename;
+	}
+
+	void SetTempFilename(TOptional<FString> InTemp)
+	{
+		TempFilename = MoveTemp(InTemp);
+	}
+
+	const TOptional<FString>& GetTextFormatTempFilename() const
+	{
+		return TextFormatTempFilename;
+	}
+
+	void SetTextFormatTempFilename(TOptional<FString> InTemp)
+	{
+		TextFormatTempFilename = MoveTemp(InTemp);
+	}
+
 private:
+	friend class FSaveContext;
+
+	/** Linker associated with this realm. */
+	TPimplPtr<FLinkerSave> Linker;
+
+	/** Archives associated with this linker and realm. */
+	TUniquePtr<FArchive> TextFormatArchive;
+	TUniquePtr<FArchiveFormatterType> Formatter;
+	TUniquePtr<FStructuredArchive> StructuredArchive;
+
+	/** Temp Filename for the archive. */
+	TOptional<FString> TempFilename;
+	TOptional<FString> TextFormatTempFilename;
+
 	// Set of objects excluded (import or exports) through marks or otherwise (i.e. transient flags, etc)
 	TSet<UObject*> Excluded;
 	// Set of objects marked as export
@@ -320,17 +422,6 @@ public:
 
 	~FSaveContext()
 	{
-		CloseLinkerArchives();
-
-		if (TempFilename.IsSet())
-		{
-			IFileManager::Get().Delete(*TempFilename.GetValue());
-		}
-		if (TextFormatTempFilename.IsSet())
-		{
-			IFileManager::Get().Delete(*TextFormatTempFilename.GetValue());
-		}
-
 		if (bNeedPreSaveCleanup && Asset)
 		{
 			UE::SavePackageUtilities::CallPostSaveRoot(Asset, ObjectSaveContext, bNeedPreSaveCleanup);
@@ -713,22 +804,82 @@ public:
 		CustomVersions = MoveTemp(InCustomVersions);
 	}
 
+	TArray<FLinkerSave*> GetLinkers() const
+	{
+		TArray<FLinkerSave*> Linkers;
+		for (const FHarvestedRealm& Realm : HarvestedRealms)
+		{
+			if (FLinkerSave* Linker = Realm.GetLinker())
+			{
+				Linkers.Add(Realm.GetLinker());
+			}
+		}
+		return Linkers;
+	}
+
 	FLinkerSave* GetLinker() const
 	{
-		return Linker.Get();
+		return GetHarvestedRealm().GetLinker();
+	}
+
+	void SetLinker(TPimplPtr<FLinkerSave> InLinker)
+	{
+		GetHarvestedRealm().SetLinker(MoveTemp(InLinker));
 	}
 
 	bool CloseLinkerArchives()
 	{
-		bool bSuccess = true;
-		if (Linker)
-		{
-			bSuccess = Linker->CloseAndDestroySaver();
-		}
-		StructuredArchive.Reset();
-		Formatter.Reset();
-		TextFormatArchive.Reset();
-		return bSuccess;
+		return GetHarvestedRealm().CloseLinkerArchives();
+	}
+
+	FArchive* GetTextFormatArchive() const
+	{
+		return GetHarvestedRealm().GetTextFormatArchive();
+	}
+
+	void SetTextFormatArchive(TUniquePtr<FArchive> InTextArchive)
+	{
+		GetHarvestedRealm().SetTextFormatArchive(MoveTemp(InTextArchive));
+	}
+
+	FArchiveFormatterType* GetFormatter() const
+	{
+		return GetHarvestedRealm().GetFormatter();
+	}
+
+	void SetFormatter(TUniquePtr<FArchiveFormatterType> InFormatter)
+	{
+		GetHarvestedRealm().SetFormatter(MoveTemp(InFormatter));
+	}
+
+	FStructuredArchive* GetStructuredArchive() const
+	{
+		return GetHarvestedRealm().GetStructuredArchive();
+	}
+
+	void SetStructuredArchive(TUniquePtr<FStructuredArchive> InArchive)
+	{
+		GetHarvestedRealm().SetStructuredArchive(MoveTemp(InArchive));
+	}
+
+	const TOptional<FString>& GetTempFilename() const
+	{
+		return GetHarvestedRealm().GetTempFilename();
+	}
+
+	void SetTempFilename(TOptional<FString> InTemp)
+	{
+		GetHarvestedRealm().SetTempFilename(MoveTemp(InTemp));
+	}
+
+	const TOptional<FString>& GetTextFormatTempFilename() const
+	{
+		return GetHarvestedRealm().GetTextFormatTempFilename();
+	}
+
+	void SetTextFormatTempFilename(TOptional<FString> InTemp)
+	{
+		GetHarvestedRealm().SetTextFormatTempFilename(MoveTemp(InTemp));
 	}
 
 	FSavePackageResultStruct GetFinalResult()
@@ -748,7 +899,7 @@ public:
 		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
 		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed,
 			AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)),
-			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(Linker) : nullptr);
+			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(GetHarvestedRealm().Linker) : nullptr);
 	}
 
 	FObjectSaveContextData& GetObjectSaveContext()
@@ -778,16 +929,9 @@ public:
 public:
 	ESavePackageResult Result;
 
-	TPimplPtr<FLinkerSave> Linker;
-	TUniquePtr<FArchive> TextFormatArchive;
-	TUniquePtr<FArchiveFormatterType> Formatter;
-	TUniquePtr<FStructuredArchive> StructuredArchive;
-
-	TOptional<FString> TempFilename;
-	TOptional<FString> TextFormatTempFilename;
-
 	EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
 
+	//@note FH: Most of these public members should be moved to harvested realm class 
 	int64 PackageHeaderAndExportSize = 0;
 	int64 TotalPackageSizeUncompressed = 0;
 	int32 OffsetAfterPackageFileSummary = 0;

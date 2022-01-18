@@ -45,6 +45,7 @@ FObjectExport::FObjectExport()
 , bNotForServer(false)
 , bNotAlwaysLoadedForEditorGame(true)
 , bIsAsset(false)
+, bGeneratePublicHash(false)
 , bExportLoadFailed(false)
 // @todo: BP2CPP_remove
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -74,6 +75,7 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 , bNotForServer(false)
 , bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
 , bIsAsset(false)
+, bGeneratePublicHash(false)
 , bExportLoadFailed(false)
 // @todo: BP2CPP_remove
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -167,6 +169,11 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 		Record << SA_VALUE(TEXT("bIsAsset"), E.bIsAsset);
 	}
 
+	if (BaseArchive.UEVer() >= EUnrealEngineObjectUE5Version::OPTIONAL_RESOURCES)
+	{
+		Record << SA_VALUE(TEXT("bGeneratePublicHash"), E.bGeneratePublicHash);
+	}
+
 	if (BaseArchive.UEVer() >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
 	{
 		Record << SA_VALUE(TEXT("FirstExportDependency"), E.FirstExportDependency);
@@ -249,6 +256,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 FObjectImport::FObjectImport()
 	: FObjectResource()
 	, SourceIndex(INDEX_NONE)
+	, bImportOptional(false)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
@@ -262,6 +270,7 @@ FObjectImport::FObjectImport(UObject* InObject)
 	, ClassPackage(InObject ? InObject->GetClass()->GetOuter()->GetFName() : NAME_None)
 	, ClassName(InObject ? InObject->GetClass()->GetFName() : NAME_None)
 	, SourceIndex(INDEX_NONE)
+	, bImportOptional(false)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
@@ -275,6 +284,7 @@ FObjectImport::FObjectImport(UObject* InObject, UClass* InClass)
 	, ClassPackage((InObject && InClass) ? InClass->GetOuter()->GetFName() : NAME_None)
 	, ClassName((InObject && InClass) ? InClass->GetFName() : NAME_None)
 	, SourceIndex(INDEX_NONE)
+	, bImportOptional(false)
 	, bImportPackageHandled(false)
 	, bImportSearchedFor(false)
 	, bImportFailed(false)
@@ -298,13 +308,17 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectImport& I)
 	Record << SA_VALUE(TEXT("OuterIndex"), I.OuterIndex);
 	Record << SA_VALUE(TEXT("ObjectName"), I.ObjectName);
 
-	//@todo: re-enable package override at runtime when ready
 #if WITH_EDITORONLY_DATA
 	if (Slot.GetUnderlyingArchive().UEVer() >= VER_UE4_NON_OUTER_PACKAGE_IMPORT && !Slot.GetUnderlyingArchive().IsFilterEditorOnly())
 	{
 		Record << SA_VALUE(TEXT("PackageName"), I.PackageName);
 	}
 #endif
+
+	if (Slot.GetUnderlyingArchive().UEVer() >= EUnrealEngineObjectUE5Version::OPTIONAL_RESOURCES)
+	{
+		Record << SA_VALUE(TEXT("bImportOptional"), I.bImportOptional);
+	}
 
 	if (Slot.GetUnderlyingArchive().IsLoading())
 	{

@@ -186,6 +186,11 @@ EPackageExtension FPackagePath::ParseExtension(FStringView Filename, int32* OutE
 	return EPackageExtension::Custom;
 }
 
+const TCHAR* FPackagePath::GetOptionalSegmentExtensionModifier()
+{
+	return TEXT(".o");
+}
+
 const TCHAR* FPackagePath::GetExternalActorsFolderName()
 {
 	return TEXT("__ExternalActors__");

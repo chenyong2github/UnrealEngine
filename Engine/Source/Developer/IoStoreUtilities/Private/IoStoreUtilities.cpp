@@ -4578,7 +4578,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 		ZenStoreWriter->BeginPackage(BeginPackageInfo);
 
 		IPackageWriter::FPackageInfo PackageStorePackageInfo;
-		PackageStorePackageInfo.PackageName = PackageInfo.PackageName;
+		PackageStorePackageInfo.OutputPackageName = PackageStorePackageInfo.InputPackageName = PackageInfo.PackageName;
 		PackageStorePackageInfo.LooseFilePath = PackageInfo.FileName;
 		PackageStorePackageInfo.ChunkId = PackageInfo.Chunk.Value;
 
@@ -4588,7 +4588,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 		for (const FBulkDataInfo& BulkDataInfo : PackageInfo.BulkData)
 		{
 			IPackageWriter::FBulkDataInfo PackageStoreBulkDataInfo;
-			PackageStoreBulkDataInfo.PackageName = PackageInfo.PackageName;
+			PackageStoreBulkDataInfo.OutputPackageName = PackageStoreBulkDataInfo.InputPackageName = PackageInfo.PackageName;
 			PackageStoreBulkDataInfo.LooseFilePath = BulkDataInfo.FileName;
 			PackageStoreBulkDataInfo.ChunkId = BulkDataInfo.Chunk.Value;
 			PackageStoreBulkDataInfo.BulkDataType = BulkDataInfo.BulkDataType;

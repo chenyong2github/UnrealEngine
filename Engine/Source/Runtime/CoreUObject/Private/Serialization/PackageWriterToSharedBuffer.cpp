@@ -36,34 +36,34 @@ void FPackageWriterRecords::BeginPackage(FPackage* Record, const IPackageWriter:
 void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo& Info,
 	FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.PackageName);
-	int64 DataSize= ExportsArchive.TotalSize();
+	FPackage& Record = FindRecordChecked(Info.InputPackageName);
+	int64 DataSize = ExportsArchive.TotalSize();
 	checkf(DataSize > 0, TEXT("IPackageWriter->WritePackageData must not be called with an empty ExportsArchive"));
 	checkf(static_cast<uint64>(DataSize) >= Info.HeaderSize,
 		TEXT("IPackageWriter->WritePackageData must not be called with HeaderSize > ExportsArchive.TotalSize"));
 	FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(ExportsArchive.ReleaseOwnership(), DataSize,
 		FMemory::Free);
-	Record.Package = FWritePackage{ Info, MoveTemp(Buffer), FileRegions };
+	Record.Packages.Insert(FWritePackage{ Info, MoveTemp(Buffer), FileRegions }, Info.MultiOutputIndex);
 }
 
 void FPackageWriterRecords::WriteBulkData(const IPackageWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData,
 	const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.PackageName);
+	FPackage& Record = FindRecordChecked(Info.InputPackageName);
 	Record.BulkDatas.Add(FBulkData{ Info, IoBufferToSharedBuffer(BulkData), FileRegions });
 }
 
 void FPackageWriterRecords::WriteAdditionalFile(const IPackageWriter::FAdditionalFileInfo& Info,
 	const FIoBuffer& FileData)
 {
-	FPackage& Record = FindRecordChecked(Info.PackageName);
+	FPackage& Record = FindRecordChecked(Info.InputPackageName);
 	Record.AdditionalFiles.Add(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
 }
 
 void FPackageWriterRecords::WriteLinkerAdditionalData(const IPackageWriter::FLinkerAdditionalDataInfo& Info,
 	const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.PackageName);
+	FPackage& Record = FindRecordChecked(Info.InputPackageName);
 	Record.LinkerAdditionalDatas.Add(
 		FLinkerAdditionalData{ Info, IoBufferToSharedBuffer(Data), FileRegions });
 }
@@ -93,13 +93,15 @@ TUniquePtr<FPackageWriterRecords::FPackage> FPackageWriterRecords::FindAndRemove
 
 void FPackageWriterRecords::ValidateCommit(FPackage& Record, const IPackageWriter::FCommitPackageInfo& Info) const
 {
-	checkf(Info.bSucceeded == false || Record.Package.IsSet(),
+	checkf(Info.bSucceeded == false || Record.Packages.Num() > 0,
 		TEXT("IPackageWriter->WritePackageData must be called before Commit if the Package save was successful."));
-	bool HasBulkDataType[IPackageWriter::FBulkDataInfo::NumTypes]{};
+	checkf(Info.bSucceeded == false || Record.Packages.FindByPredicate([](const FPackageWriterRecords::FWritePackage& Package) { return Package.Info.MultiOutputIndex == 0; }),
+		TEXT("SavePackage must provide output 0 when saving multioutput packages."));
+	uint8 HasBulkDataType[IPackageWriter::FBulkDataInfo::NumTypes]{};
 	for (FBulkData& BulkRecord : Record.BulkDatas)
 	{
-		checkf(!HasBulkDataType[(int32)BulkRecord.Info.BulkDataType],
+		checkf((HasBulkDataType[(int32)BulkRecord.Info.BulkDataType] & (1 << BulkRecord.Info.MultiOutputIndex)) == 0,
 			TEXT("IPackageWriter->WriteBulkData must not be called with more than one BulkData of the same type."));
-		HasBulkDataType[(int32)BulkRecord.Info.BulkDataType] = true;
+		HasBulkDataType[(int32)BulkRecord.Info.BulkDataType] |= 1 << BulkRecord.Info.MultiOutputIndex;
 	}
 }

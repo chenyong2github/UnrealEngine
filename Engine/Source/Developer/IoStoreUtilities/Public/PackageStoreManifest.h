@@ -31,9 +31,9 @@ public:
 	IOSTOREUTILITIES_API FPackageStoreManifest(const FString& CookedOutputPath);
 	IOSTOREUTILITIES_API ~FPackageStoreManifest() = default;
 
-	IOSTOREUTILITIES_API void BeginPackage(FName PackageName);
-	IOSTOREUTILITIES_API void AddPackageData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId);
-	IOSTOREUTILITIES_API void AddBulkData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId);
+	IOSTOREUTILITIES_API void BeginPackage(FName InputPackageName);
+	IOSTOREUTILITIES_API void AddPackageData(FName InputPackageName, FName OutputPackageName, const FString& FileName, const FIoChunkId& ChunkId);
+	IOSTOREUTILITIES_API void AddBulkData(FName InputPackageName, FName OutputPackageName, const FString& FileName, const FIoChunkId& ChunkId);
 
 	IOSTOREUTILITIES_API FIoStatus Save(const TCHAR* Filename) const;
 	IOSTOREUTILITIES_API FIoStatus Load(const TCHAR* Filename);
@@ -45,9 +45,15 @@ public:
 	IOSTOREUTILITIES_API const FZenServerInfo* ReadZenServerInfo() const;
 
 private:
+	FPackageInfo* GetPackageInfo_NoLock(FName InputPackageName, FName OutputPackageName);
+
 	mutable FCriticalSection CriticalSection;
 	FString CookedOutputPath;
-	TMap<FName, FPackageInfo> PackageInfoByNameMap;
+	/** Main Package Output Info map */
+	TMap<FName, FPackageInfo> MainPackageInfoByNameMap;
+	/** Additionally Generated Package Info Output map */
+	TMultiMap<FName, FPackageInfo> OptionalPackageInfoByNameMap;
+
 	TMap<FIoChunkId, FString> FileNameByChunkIdMap;
 	TUniquePtr<FZenServerInfo> ZenServerInfo;
 };

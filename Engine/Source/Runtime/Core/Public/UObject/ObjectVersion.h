@@ -50,6 +50,9 @@ enum class EUnrealEngineObjectUE5Version : uint32
 
 	// Added a payload table of contents to the package summary 
 	PAYLOAD_TOC,
+
+	// Added data to identify references from and to optional package
+	OPTIONAL_RESOURCES,
 	
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)

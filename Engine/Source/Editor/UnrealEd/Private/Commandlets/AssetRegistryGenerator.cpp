@@ -24,6 +24,7 @@
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/PathViews.h"
 #include "Stats/StatsMisc.h"
 #include "Templates/UniquePtr.h"
 #include "Engine/AssetManager.h"
@@ -1524,13 +1525,13 @@ class FPackageCookerOpenOrderVisitor : public IPlatformFile::FDirectoryVisitor
 {
 	const FSandboxPlatformFile& SandboxFile;
 	const FString& PlatformSandboxPath;
-	const TSet<FString>& ValidExtensions;
+	const TSet<FStringView>& ValidExtensions;
 	TMultiMap<FString, FString>& PackageExtensions;
 public:
 	FPackageCookerOpenOrderVisitor(
 		const FSandboxPlatformFile& InSandboxFile,
 		const FString& InPlatformSandboxPath,
-		const TSet<FString>& InValidExtensions,
+		const TSet<FStringView>& InValidExtensions,
 		TMultiMap<FString, FString>& OutPackageExtensions) :
 		SandboxFile(InSandboxFile),
 		PlatformSandboxPath(InPlatformSandboxPath),
@@ -1544,10 +1545,16 @@ public:
 			return true;
 
 		FString Filename = FilenameOrDirectory;
-		FString FileExtension = FPaths::GetExtension(Filename, true);
-
+		FStringView UnusedFilePath, FileBaseName, FileExtension;
+		FPathViews::Split(Filename, UnusedFilePath, FileBaseName, FileExtension);
 		if (ValidExtensions.Contains(FileExtension))
 		{
+			// if the file base name ends with an optional extension, ignore it. (i.e. .o.uasset/.o.uexp etc)
+			if (FileBaseName.EndsWith(FPackagePath::GetOptionalSegmentExtensionModifier()))
+			{
+				return true;
+			}
+
 			FString PackageName;
 			Filename.ReplaceInline(*PlatformSandboxPath, *SandboxFile.GetSandboxDirectory());
 			FString AssetSourcePath = SandboxFile.ConvertFromSandboxPath(*Filename);
@@ -1640,16 +1647,16 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder(FSandboxPlatformFile& InSandb
 		}
 		
 		// Iterate sandbox folder and generate a map from package name to cooked files
-		const TArray<FString> ValidExtensions =
+		const TArray<FStringView> ValidExtensions =
 		{
-			TEXT(".uasset"),
-			TEXT(".uexp"),
-			TEXT(".ubulk"),
-			TEXT(".uptnl"),
-			TEXT(".umap"),
-			TEXT(".ufont")
+			TEXT("uasset"),
+			TEXT("uexp"),
+			TEXT("ubulk"),
+			TEXT("uptnl"),
+			TEXT("umap"),
+			TEXT("ufont")
 		};
-		const TSet<FString> ValidExtensionSet(ValidExtensions);
+		const TSet<FStringView> ValidExtensionSet(ValidExtensions);
 
 		const FString SandboxPath = InSandboxFile.GetSandboxDirectory();
 		const FString Platform = TargetPlatform->PlatformName();

@@ -361,6 +361,12 @@ public:
 	COREUOBJECT_API static EPackageExtension ParseExtension(FStringView Filename, int32* OutExtensionStart = nullptr);
 
 	/**
+	 * Get the string identifying optional segments
+	 * @return the string modifier added prior to the file extension that identify optional segments (i.e. ".o")
+	 */
+	COREUOBJECT_API static const TCHAR* GetOptionalSegmentExtensionModifier();
+
+	/**
 	 * Get the folder name from which all external actors paths are created
 	 * @return folder name
 	 */

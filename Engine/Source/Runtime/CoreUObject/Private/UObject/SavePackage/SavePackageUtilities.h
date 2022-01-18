@@ -379,7 +379,7 @@ namespace SavePackageUtilities
 	ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter,
 		const TCHAR* Filename, const ITargetPlatform* TargetPlatform, FSavePackageContext* SavePackageContext,
 		uint32 SaveFlags, const bool bTextFormat, const bool bComputeHash,
-		TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
+		TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm = false);
 	
 	/**
 	 * Used to append additional data to the end of the package file by invoking callbacks stored in the linker.

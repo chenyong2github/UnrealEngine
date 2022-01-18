@@ -52,6 +52,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		WorkspaceDomain,					// Added Version information to AssetPackageData
 		PackageImportedClasses,				// Added ImportedClasses to AssetPackageData
 		PackageFileSummaryVersionChange,	// A new version number of UE5 was added to FPackageFileSummary
+		ObjectResourceOptionalVersionChange,// Change to linker export/import resource serializationn
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

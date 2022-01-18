@@ -55,6 +55,8 @@ enum class ESavePackageResult
 	ValidatorError,
 	/** Result from ISavePackageValidator that suppresses the save but is not an error. */
 	ValidatorSuppress,
+	/** Internal save result used to identify a valid empty internal save realm to skip over. @see ESaveRealm */
+	EmptyRealm,
 };
 
 /**

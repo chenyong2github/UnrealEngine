@@ -88,10 +88,14 @@ public:
 
 	struct FPackageInfo
 	{
-		FName		PackageName;
+		/** Associated Package Name Entry from BeginPackage */
+		FName		InputPackageName;
+		/** Output Package Name (Input Package can produce multiple output) */
+		FName		OutputPackageName;
 		FString		LooseFilePath;
-		uint64		HeaderSize;
+		uint64		HeaderSize = 0;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
+		uint32		MultiOutputIndex = 0;
 	};
 
 	/** Write package data (exports and serialized header)
@@ -112,10 +116,14 @@ public:
 			NumTypes,
 		};
 
-		FName		PackageName;
+		/** Associated Package Name Entry */
+		FName		InputPackageName;
+		/** Output Package Name (Input Package can produce multiple output) */
+		FName		OutputPackageName;
 		EType		BulkDataType = BulkSegment;
 		FString		LooseFilePath;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
+		uint32		MultiOutputIndex = 0;
 	};
 
 	/** Write bulk data for the current package
@@ -124,9 +132,13 @@ public:
 
 	struct FAdditionalFileInfo
 	{
-		FName	PackageName;
-		FString	Filename;
-		FIoChunkId ChunkId;
+		/** Associated Package Name Entry */
+		FName		InputPackageName;
+		/** Output Package Name (Input Package can produce multiple output) */
+		FName		OutputPackageName;
+		FString		Filename;
+		FIoChunkId	ChunkId;
+		uint32		MultiOutputIndex = 0;
 	};
 
 	/** Write separate files written by UObjects during cooking via UObject::CookAdditionalFiles. */
@@ -134,7 +146,11 @@ public:
 
 	struct FLinkerAdditionalDataInfo
 	{
-		FName PackageName;
+		/** Associated Package Name Entry */
+		FName	InputPackageName;
+		/** Output Package Name (Input Package can produce multiple output) */
+		FName	OutputPackageName;
+		uint32	MultiOutputIndex = 0;
 	};
 	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend. */
 	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) = 0;
@@ -269,14 +285,14 @@ public:
 		int64 StartOffset;
 	};
 	/** Load the bytes of the previously-cooked package, used for diffing */
-	virtual bool GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData)
+	virtual bool GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData)
 	{
 		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
 		unimplemented();
 		return false;
 	}
 	/** Append all data to the Exports archive that would normally be done in CommitPackage, used for diffing. */
-	virtual void CompleteExportsArchiveForDiff(FName PackageName, FLargeMemoryWriter& ExportsArchive)
+	virtual void CompleteExportsArchiveForDiff(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
 	{
 		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
 		unimplemented();

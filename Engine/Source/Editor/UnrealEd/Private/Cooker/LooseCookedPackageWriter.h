@@ -46,8 +46,8 @@ public:
 	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	virtual void RemoveCookedPackages() override;
 	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
-	virtual bool GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData) override;
-	virtual void CompleteExportsArchiveForDiff(FName PackageName, FLargeMemoryWriter& ExportsArchive) override;
+	virtual bool GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData) override;
+	virtual void CompleteExportsArchiveForDiff(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive) override;
 	virtual TFuture<FMD5Hash> CommitPackageInternal(FPackageWriterRecords::FPackage&& BaseRecord,
 		const FCommitPackageInfo& Info) override;
 	virtual FPackageWriterRecords::FPackage* ConstructRecord() override;
@@ -61,7 +61,7 @@ private:
 		bool bCompletedExportsArchiveForDiff = false;
 	};
 
-	/** Buffers that are combined into the HeaderAndExports file (which is then split into .uasset + .uexp). */
+	/** Buffers that are combined into the HeaderAndExports file (which is then split into .uasset + .uexp or .uoasset + .uoexp). */
 	struct FExportBuffer
 	{
 		FSharedBuffer Buffer;
@@ -69,7 +69,7 @@ private:
 	};
 
 	/**
-	 * The data needed to asynchronously write one of the files (.uasset, .uexp, .ubulk, and any additional),
+	 * The data needed to asynchronously write one of the files (.uasset, .uexp, .ubulk, any optional and any additional),
 	 * without reference back to other data on this writer.
 	 */
 	struct FWriteFileData
@@ -78,6 +78,7 @@ private:
 		FCompositeBuffer Buffer;
 		TArray<FFileRegion> Regions;
 		bool bIsSidecar;
+		bool bContributeToHash = true;
 
 		void Write(FMD5& AccumulatedHash, EWriteOptions WriteOptions) const;
 	};
@@ -86,7 +87,7 @@ private:
 	struct FCommitContext
 	{
 		const FCommitPackageInfo& Info;
-		TArray<FExportBuffer> ExportsBuffers;
+		TArray<TArray<FExportBuffer>> ExportsBuffers;
 		TArray<FWriteFileData> OutputFiles;
 	};
 
