@@ -64,4 +64,7 @@ private:
 
 	// cached transforms, copied on the game thread
 	TArray<FTransform> SourceMeshComponentSpaceBoneTransforms;
+
+	// mapping from required bones to actual bones within the target skeleton
+	TArray< TPair<int32, int32> > RequiredToTargetBoneMapping;
 };
