@@ -119,8 +119,8 @@ bool ASmartObjectCollection::RegisterWithSubsystem(const FString& Context)
 		return false;
 	}
 
-	SmartObjectSubsystem->RegisterCollection(*this);
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetFullName(), *Context);
+	const ESmartObjectCollectionRegistrationResult Result = SmartObjectSubsystem->RegisterCollection(*this);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - %s"), *GetFullName(), *Context, *UEnum::GetValueAsString(Result));
 	return true;
 }
 
