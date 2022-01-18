@@ -197,6 +197,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	CoarseMeshStreamingHandle(INDEX_NONE),
 #endif
 	PackedIndex(INDEX_NONE),
+	PersistentIndex(FPersistentPrimitiveIndex{ INDEX_NONE }),
 	ComponentForDebuggingOnly(InComponent),
 	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),

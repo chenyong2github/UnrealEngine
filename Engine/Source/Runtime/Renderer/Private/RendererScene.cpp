@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/PlatformFileManager.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
@@ -145,6 +146,125 @@ TGlobalResource< FGlobalDitherUniformBuffer > GDitherFadedInUniformBuffer;
 static FThreadSafeCounter FSceneViewState_UniqueID;
 
 extern bool IsVelocityMergedWithDepthPass();
+
+#define ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV 0
+
+#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
+
+int32 GDumpPrimitiveAllocatorStatsToCSV = 0;
+FAutoConsoleVariableRef CVarDumpPrimitiveStatsToCSV(
+	TEXT("r.DumpPrimitiveStatsToCSV"),
+	GDumpPrimitiveAllocatorStatsToCSV,
+	TEXT("Dump primitive and instance stats to CSV\n")
+	TEXT(" 0 - stop recording, dump to csv and clear array.\n")
+	TEXT(" 1 - start recording into array\n")
+	TEXT(" 2 - dump to csv and continue recording without clearing array\n"),
+	ECVF_RenderThreadSafe
+);
+
+static constexpr int32 StatStride = 8;
+TArray<int32> GPrimitiveAllocatorStats;
+
+void DumpPrimitiveAllocatorStats()
+{
+	if (!GPrimitiveAllocatorStats.IsEmpty())
+	{
+		FString FileName = FPaths::ProjectLogDir() / TEXT("PrimitiveStats-") + FDateTime::Now().ToString() + TEXT(".csv");
+
+		UE_LOG(LogRenderer, Log, TEXT("Dumping primitive allocator stats trace to: '%s'"), *FileName);
+
+		FArchive* FileToLogTo = IFileManager::Get().CreateFileWriter(*FileName, false);
+		
+		ensure(FileToLogTo);
+		if (FileToLogTo)
+		{
+			static const FString StatNames[StatStride] =
+			{
+				TEXT("NumPrimitives"),
+				TEXT("MaxPersistent"),
+				TEXT("NumPersistentAllocated"),
+				TEXT("PersistentFreeListSizeBC"),
+				TEXT("PersistentPendingListSizeBC"),
+				TEXT("PersistentFreeListSize"),
+				TEXT("MaxInstances"),
+				TEXT("NumInstancesAllocated"),
+			};
+
+			// Print header
+			FString StringToPrint;
+			for (int32 Index = 0; Index < StatStride; ++Index)
+			{
+				if (!StringToPrint.IsEmpty())
+				{
+					StringToPrint += TEXT(",");
+				}
+				if (Index < int32(UE_ARRAY_COUNT(StatNames)))
+				{
+					StringToPrint.Append(StatNames[Index]);
+				}
+				else
+				{
+					StringToPrint.Appendf(TEXT("Stat_%d"), Index);
+				}
+			}
+
+			StringToPrint += TEXT("\n");
+			FileToLogTo->Serialize(TCHAR_TO_ANSI(*StringToPrint), StringToPrint.Len());
+
+			int32 Num = GPrimitiveAllocatorStats.Num() / StatStride;
+			for (int32 Ind = 0; Ind < Num; ++Ind)
+			{
+				StringToPrint.Empty();
+
+				for (int32 StatInd = 0; StatInd < StatStride; ++StatInd)
+				{
+					if (!StringToPrint.IsEmpty())
+					{
+						StringToPrint.Append(TEXT(","));
+					}
+
+					StringToPrint.Appendf(TEXT("%d"), GPrimitiveAllocatorStats[Ind * StatStride + StatInd]);
+				}
+
+				StringToPrint += TEXT("\n");
+				FileToLogTo->Serialize(TCHAR_TO_ANSI(*StringToPrint), StringToPrint.Len());
+			}
+
+
+			FileToLogTo->Close();
+		}
+	}
+}
+
+void UpdatePrimitiveAllocatorStats(int32 NumPrimitives, int32 MaxPersistent, int32 NumPersistentAllocated, int32 PersistemFreeListSize, int32 PersistemFreeListSizeBC, int32 PersistentPendingListSizeBC, int32 MaxInstances, int32 NumInstancesAllocated)
+{
+	// Dump and clear when turning off the cvar
+	if (GDumpPrimitiveAllocatorStatsToCSV == 0 && !GPrimitiveAllocatorStats.IsEmpty())
+	{
+		DumpPrimitiveAllocatorStats();
+		GPrimitiveAllocatorStats.Empty();
+	}
+
+	// Dump snapshot (and don't clear or stop) when cvar is set to 2
+	if (GDumpPrimitiveAllocatorStatsToCSV == 2 && !GPrimitiveAllocatorStats.IsEmpty())
+	{
+		DumpPrimitiveAllocatorStats();
+		GDumpPrimitiveAllocatorStatsToCSV = 1;
+	}
+
+	if (GDumpPrimitiveAllocatorStatsToCSV != 0)
+	{
+		GPrimitiveAllocatorStats.Add(NumPrimitives);
+		GPrimitiveAllocatorStats.Add(MaxPersistent);
+		GPrimitiveAllocatorStats.Add(NumPersistentAllocated);
+		GPrimitiveAllocatorStats.Add(PersistemFreeListSizeBC);
+		GPrimitiveAllocatorStats.Add(PersistentPendingListSizeBC);
+		GPrimitiveAllocatorStats.Add(PersistemFreeListSize);
+		GPrimitiveAllocatorStats.Add(MaxInstances);
+		GPrimitiveAllocatorStats.Add(NumInstancesAllocated);
+	}
+}
+#endif // ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
 
 /**
  * Holds the info to update SpeedTree wind per unique tree object in the scene, instead of per instance
@@ -4347,6 +4467,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						}
 					}
 				}
+
+				PersistentPrimitiveIdAllocator.Free(PrimitiveSceneInfo->PersistentIndex.Index);
 			}
 
 			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
@@ -4371,6 +4493,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AddPrimitiveSceneInfos);
 		SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos, FColor::Green);
 		SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveRenderThreadTime);
+#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
+		int32 PersistentPrimitiveFreeListSizeBeforeConsolidate = PersistentPrimitiveIdAllocator.GetNumFreeSpans();
+		int32 PersistentPrimitivePendingFreeListSizeBeforeConsolidate = PersistentPrimitiveIdAllocator.GetNumPendingFreeSpans();
+#endif
+		PersistentPrimitiveIdAllocator.Consolidate();
+
 		if (AddedLocalPrimitiveSceneInfos.Num())
 		{
 			Primitives.Reserve(Primitives.Num() + AddedLocalPrimitiveSceneInfos.Num());
@@ -4457,6 +4585,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
+				checkSlow(PrimitiveSceneInfo->PersistentIndex.Index == INDEX_NONE);
+				PrimitiveSceneInfo->PersistentIndex = FPersistentPrimitiveIndex{ PersistentPrimitiveIdAllocator.Allocate() };
 
 				GPUScene.AddPrimitiveToUpdate(SourceIndex, EPrimitiveDirtyState::AddedMask);
 			}
@@ -4566,6 +4696,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			}
 
 			CheckPrimitiveArrays();
+
+#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
+			UpdatePrimitiveAllocatorStats(Primitives.Num(), PersistentPrimitiveIdAllocator.GetMaxSize(), PersistentPrimitiveIdAllocator.GetSparselyAllocatedSize(), PersistentPrimitiveIdAllocator.GetNumFreeSpans(), PersistentPrimitiveFreeListSizeBeforeConsolidate, PersistentPrimitivePendingFreeListSizeBeforeConsolidate, GPUScene.GetNumInstances(), GPUScene.GetInstanceSceneDataAllocator().GetSparselyAllocatedSize());
+#endif
 
 			for (int32 AddIndex = StartIndex; AddIndex < AddedLocalPrimitiveSceneInfos.Num(); AddIndex++)
 			{

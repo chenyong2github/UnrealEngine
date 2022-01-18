@@ -266,6 +266,14 @@ enum class EUpdateStaticMeshFlags : uint8
 ENUM_CLASS_FLAGS(EUpdateStaticMeshFlags);
 
 /**
+ * Wrapper to make it harder to confuse the packed and persistent index when used as arguments etc.
+ */
+struct FPersistentPrimitiveIndex
+{
+	int32 Index;
+};
+
+/**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
 class FPrimitiveSceneInfo : public FDeferredCleanupInterface
@@ -516,7 +524,19 @@ public:
 
 	/** Simple comparison against the invalid values used before/after scene add/remove. */
 	FORCEINLINE bool IsIndexValid() const { return PackedIndex != INDEX_NONE && PackedIndex != MAX_int32; }
-	
+
+	/**
+	 * Persistent index of the primitive in the range [0, FScene::GetMaxPersistentPrimitiveIndex() ). Where the max is never higher than the high watermark of the primitives in the scene.
+	 * This index remains stable for the life-time of the primitive in the scene (i.e., same as PrimitiveSceneInfo and Proxy - between FScene::AddPrimitive / FScene::RemovePrimitive). 
+	 * The intended use is to enable tracking primitive data over time in renderer systems using direct indexing, e.g., for efficiently storing a bit per primitive. 
+	 * Direct indexing also facilitates easy GPU-reflection and access of the persistent data, where it can be accessed as e.g., GetPrimitiveData(...).PersistentPrimitiveIndex.
+	 * It is allocated using FScene::PersistentPrimitiveIdAllocator from a range with holes that is kept as compact as possible up to the high-water mark of the scene primitives. 
+	 * Due to persistence this maximum can be substantially larger than the current number of Primitives at times, but never worse than the high-watermark.
+	 * In the future, the index will likely be refactored to persist for the lifetime of the component (to facilitate tracking data past proxy re-creates).
+	 * Note: It is not currently used to index any of the current FScene primitive arrays (use PackedIndex), though this is intended to change.
+	 */
+	RENDERER_API FORCEINLINE FPersistentPrimitiveIndex GetPersistentIndex() const { return PersistentIndex; }
+
 	/**
 	 * Shifts primitive position and all relevant data by an arbitrary delta.
 	 * Called on world origin changes
@@ -600,6 +620,11 @@ private:
 	 * change as primitives are added and removed from the scene.
 	 */
 	int32 PackedIndex;
+
+	/**
+	 * See GetPersistentIndex()
+	 */
+	FPersistentPrimitiveIndex PersistentIndex;
 
 	/** 
 	 * The UPrimitiveComponent this scene info is for, useful for quickly inspecting properties on the corresponding component while debugging.

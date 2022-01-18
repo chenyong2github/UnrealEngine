@@ -60,6 +60,7 @@
 #include "PrimitiveInstanceUpdateCommand.h"
 #include "OIT/OIT.h"
 #include "ShadingEnergyConservation.h"
+#include "SpanAllocator.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -3013,6 +3014,8 @@ public:
 
 	const FReadOnlyCVARCache& ReadOnlyCVARCache;
 
+	FSpanAllocator PersistentPrimitiveIdAllocator;
+
 #if WITH_EDITOR
 	/** Editor Pixel inspector */
 	FPixelInspectorData PixelInspectorData;
@@ -3357,6 +3360,12 @@ public:
 	}
 
 	bool IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const;
+
+	/**
+	 * Maximum used persistent Primitive Index, use to size arrays that store primitive data indexed by FPrimitiveSceneInfo::PersistentIndex.
+	 * Only changes during UpdateAllPrimitiveSceneInfos.
+	 */
+	inline int32 GetMaxPersistentPrimitiveIndex() const { return PersistentPrimitiveIdAllocator.GetMaxSize(); }
 
 protected:
 

@@ -53,7 +53,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector3f,		WireframeColor)											// Only needed for editor/development
 	SHADER_PARAMETER(uint32,		NaniteImposterIndex)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
-	SHADER_PARAMETER(uint32,		Padding)
+	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -106,6 +106,7 @@ public:
 		Parameters.LightmapDataIndex				= INDEX_NONE;
 		Parameters.LightmapUVIndex					= INDEX_NONE;
 		Parameters.SingleCaptureIndex				= INDEX_NONE;
+		Parameters.PersistentPrimitiveIndex			= INDEX_NONE;
 
 		// Nanite
 		Parameters.NaniteResourceID					= INDEX_NONE;
@@ -145,6 +146,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataStride);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				PersistentPrimitiveIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteImposterIndex);
