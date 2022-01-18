@@ -25,6 +25,7 @@
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "Tests/AutomationCommon.h"
+#include "IAssetViewport.h"
 
 #include "LevelEditor.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -502,6 +503,23 @@ bool FAutomationEditorCommonUtils::SetOrthoViewportView(const FVector& ViewLocat
 	return false;
 }
 
+bool FAutomationEditorCommonUtils::SetPlaySessionStartToActiveViewport(FRequestPlaySessionParams& OutParams)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	// Make sure we can find a path to the view port.
+	if (ActiveLevelViewport.IsValid() &&
+		FSlateApplication::Get().FindWidgetWindow(ActiveLevelViewport->AsWidget()).IsValid())
+	{
+		// Start the player where the camera is if not forcing from player start
+		OutParams.StartLocation = ActiveLevelViewport->GetAssetViewportClient().GetViewLocation();
+		OutParams.StartRotation = ActiveLevelViewport->GetAssetViewportClient().GetViewRotation();
+		return true;
+	}
+
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////
 //Asset Path Commands
 
@@ -794,6 +812,12 @@ bool FStartPIECommand::Update()
 	if (bSimulateInEditor)
 	{
 		Params.WorldType = EPlaySessionWorldType::SimulateInEditor;
+	}
+
+	// Make sure the player start location is a valid location.
+	if (GUnrealEd->CheckForPlayerStart() == nullptr)
+	{
+		FAutomationEditorCommonUtils::SetPlaySessionStartToActiveViewport(Params);
 	}
 
 	GUnrealEd->RequestPlaySession(Params);

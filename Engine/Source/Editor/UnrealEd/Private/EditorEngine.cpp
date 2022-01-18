@@ -187,6 +187,7 @@
 
 #if !UE_BUILD_SHIPPING
 #include "Tests/AutomationCommon.h"
+#include "Tests/AutomationEditorCommon.h"
 #endif
 
 #include "PhysicsPublic.h"
@@ -7364,6 +7365,12 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, bool bForceReload,
 		EditorPlaySettings->SetPlayNumberOfClients(1);
 		EditorPlaySettings->bLaunchSeparateServer = false;
 		RequestParams.EditorPlaySettings = EditorPlaySettings;
+
+		// Make sure the player start location is a valid location.
+		if (CheckForPlayerStart() == nullptr)
+		{
+			FAutomationEditorCommonUtils::SetPlaySessionStartToActiveViewport(RequestParams);
+		}
 
 		RequestPlaySession(RequestParams);
 
