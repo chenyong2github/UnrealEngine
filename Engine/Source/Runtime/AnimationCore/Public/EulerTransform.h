@@ -29,7 +29,7 @@ struct ANIMATIONCORE_API FEulerTransform
 	FORCEINLINE FEulerTransform()
 		: Location(ForceInitToZero)
 		, Rotation(ForceInitToZero)
-		, Scale(ForceInitToZero)
+		, Scale(FVector::OneVector)
 	{
 	}
 
