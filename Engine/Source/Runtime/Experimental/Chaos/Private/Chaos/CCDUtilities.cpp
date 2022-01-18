@@ -222,8 +222,12 @@ namespace Chaos
 			if (Island == INDEX_NONE)
 			{
 				// non-dynamic pairs are already ignored in Init() so if Particle 0 is null the second one should not be 
-				ensure(CCDConstraint.Particle[1] != nullptr); 
-				Island = CCDConstraint.Particle[1]->Island;
+				ensure(CCDConstraint.Particle[1] != nullptr);
+
+				if (CCDConstraint.Particle[1])
+				{
+					Island = CCDConstraint.Particle[1]->Island;
+				}	
 			}
 			CCDConstraint.Island = Island;
 			IslandConstraintNum[Island]++;
