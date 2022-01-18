@@ -39,6 +39,7 @@
 #include "EdGraph/EdGraph.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "AssetRegistryModule.h"
+#include "FoliageEditUtility.h"
 #include "FoliageHelper.h"
 #include "Engine/WorldComposition.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
@@ -686,7 +687,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet, Display);
 
 	TArray<FString> Tokens, Switches;
-	ParseCommandLine(*Params, Tokens, Switches);
+	TMap<FString, FString> Arguments;
+	ParseCommandLine(*Params, Tokens, Switches, Arguments);
 
 	if (Tokens.Num() != 1)
 	{
@@ -706,8 +708,14 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	bGenerateIni = Switches.Contains(TEXT("GenerateIni"));
 	bReportOnly = bGenerateIni || Switches.Contains(TEXT("ReportOnly"));
 	bVerbose = Switches.Contains(TEXT("Verbose"));
-
 	ConversionSuffix = GetConversionSuffix(bOnlyMergeSubLevels);
+
+	FString* FoliageTypePathValue = Arguments.Find(TEXT("FoliageTypePath"));
+	
+	if (FoliageTypePathValue != nullptr)
+	{
+		FoliageTypePath = *FoliageTypePathValue;
+	}
 
 	if (!Switches.Contains(TEXT("AllowCommandletRendering")))
 	{
@@ -843,7 +851,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	OnWorldLoaded(MainWorld);
 
-	auto PartitionFoliage = [this, MainWorld](AInstancedFoliageActor* IFA)
+	auto PartitionFoliage = [this, MainWorld](AInstancedFoliageActor* IFA) -> bool
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PartitionFoliage);
 
@@ -851,7 +859,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		int32 NumInstances = 0;
 		int32 NumInstancesProcessed = 0;
 
-		IFA->ForEachFoliageInfo([IFA, &FoliageToAdd, &NumInstances](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+		bool bAddFoliageSucceeded = IFA->ForEachFoliageInfo([IFA, &FoliageToAdd, &NumInstances, this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo) -> bool
 		{
 			if (FoliageInfo.Type == EFoliageImplType::Actor)
 			{
@@ -860,17 +868,50 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				return true;
 			}
 
+			UFoliageType* FoliageTypeToAdd = FoliageType;
+
+			if (FoliageType->GetTypedOuter<AInstancedFoliageActor>() != nullptr)
+			{
+				UFoliageType* NewFoliageType = nullptr;
+				
+				if (!FoliageTypePath.IsEmpty())
+				{
+					UObject* FoliageSource = FoliageType->GetSource();
+					const FString BaseAssetName = (FoliageSource != nullptr) ? FoliageSource->GetName() : FoliageType->GetName();
+					FString PackageName = FoliageTypePath / BaseAssetName + TEXT("_FoliageType");
+
+					NewFoliageType = FFoliageEditUtility::DuplicateFoliageTypeToNewPackage(PackageName, FoliageType);
+				}
+
+				if (NewFoliageType == nullptr)
+				{
+					UE_LOG(LogWorldPartitionConvertCommandlet, Error,
+						   TEXT("Level contains embedded FoliageType settings: please save the FoliageType setting assets, ")
+						   TEXT("use the SaveFoliageTypeToContentFolder switch, ")
+						   TEXT("specify FoliageTypePath in configuration file or the commandline."));
+					return false;
+				}
+
+				FoliageTypeToAdd = NewFoliageType;
+				PackagesToSave.Add(NewFoliageType->GetOutermost());
+			}
+
 			if (FoliageInfo.Instances.Num() > 0)
 			{
-				check(FoliageType->GetTypedOuter<AInstancedFoliageActor>() == nullptr);
-				FoliageToAdd.FindOrAdd(FoliageType).Append(FoliageInfo.Instances);
-			
-				NumInstances += FoliageInfo.Instances.Num();
+				check(FoliageTypeToAdd->GetTypedOuter<AInstancedFoliageActor>() == nullptr);
 
-				UE_LOG(LogWorldPartitionConvertCommandlet, Display, TEXT("FoliageType: %s Count: %d"), *FoliageType->GetName(), FoliageInfo.Instances.Num());
+				FoliageToAdd.FindOrAdd(FoliageTypeToAdd).Append(FoliageInfo.Instances);
+				NumInstances += FoliageInfo.Instances.Num();
+				UE_LOG(LogWorldPartitionConvertCommandlet, Display, TEXT("FoliageType: %s Count: %d"), *FoliageTypeToAdd->GetName(), FoliageInfo.Instances.Num());
 			}
+
 			return true;
 		});
+
+		if (!bAddFoliageSucceeded)
+		{
+			return false;
+		}
 
 		IFA->GetLevel()->GetWorld()->DestroyActor(IFA);
 
@@ -888,6 +929,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 
 		check(NumInstances == NumInstancesProcessed);
+
+		return true;
 	};
 
 	auto PartitionLandscape = [this, MainWorld](ULandscapeInfo* LandscapeInfo)
@@ -950,7 +993,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	};
 
-	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel)
+	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel) -> bool
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareLevelActors);
 
@@ -1022,7 +1065,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 			for (AInstancedFoliageActor* IFA : IFAs)
 			{
-				PartitionFoliage(IFA);
+				if (!PartitionFoliage(IFA))
+				{
+					return false;
+				}
 			}
 		}
 
@@ -1035,6 +1081,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				PartitionLandscape(LandscapeInfo);
 			}
 		}
+
+		return true;
 	};
 
 	// Gather and load sublevels
@@ -1069,7 +1117,12 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Prepare levels for conversion
 	DetachDependantLevelPackages(MainLevel);
-	PrepareLevelActors(MainLevel, MainLevel->Actors, true);
+	
+	if (!PrepareLevelActors(MainLevel, MainLevel->Actors, true))
+	{
+		return 1;
+	}
+	
 	PackagesToSave.Add(MainLevel->GetPackage());
 
 	if (bConversionSuffix)

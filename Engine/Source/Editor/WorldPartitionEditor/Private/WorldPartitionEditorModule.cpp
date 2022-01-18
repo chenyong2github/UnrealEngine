@@ -425,6 +425,11 @@ FString UWorldPartitionConvertOptions::ToCommandletArgs() const
 	{
 		CommandletArgsBuilder.Append(TEXT(" -OnlyMergeSubLevels"));
 	}
+
+	if (bSaveFoliageTypeToContentFolder)
+	{
+		CommandletArgsBuilder.Append(TEXT(" -FoliageTypePath=/Game/FoliageTypes"));
+	}
 	
 	return CommandletArgsBuilder.ToString();
 }

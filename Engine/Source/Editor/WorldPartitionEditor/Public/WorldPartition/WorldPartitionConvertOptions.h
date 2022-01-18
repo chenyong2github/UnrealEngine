@@ -41,5 +41,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
 	bool bOnlyMergeSubLevels;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
+	bool bSaveFoliageTypeToContentFolder = true;
+
 	FString LongPackageName;
 };

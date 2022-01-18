@@ -2902,15 +2902,17 @@ void AInstancedFoliageActor::GetOverlappingMeshCounts(const FSphere& Sphere, TMa
 	}
 }
 
-void AInstancedFoliageActor::ForEachFoliageInfo(TFunctionRef<bool(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)> InOperation)
+bool AInstancedFoliageActor::ForEachFoliageInfo(TFunctionRef<bool(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)> InOperation)
 {
 	for (auto& Pair : FoliageInfos)
 	{
 		if (!InOperation(Pair.Key, Pair.Value.Get()))
 		{
-			return;
+			return false;
 		}
 	}
+
+	return true;
 }
 
 TUniqueObj<FFoliageInfo>& AInstancedFoliageActor::AddFoliageInfo(UFoliageType* FoliageType)

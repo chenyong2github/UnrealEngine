@@ -122,6 +122,9 @@ protected:
 	FString DefaultHLODLayerName;
 
 	UPROPERTY(Config)
+	FString FoliageTypePath;
+
+	UPROPERTY(Config)
 	TArray<FHLODLayerActorMapping> HLODLayersForActorClasses;
 
 	UPROPERTY(Transient)

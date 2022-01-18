@@ -40,18 +40,7 @@ UFoliageType* FFoliageEditUtility::SaveFoliageTypeObject(UFoliageType* InFoliage
 		if (SaveFoliageTypeDialog->ShowModal() != EAppReturnType::Cancel)
 		{
 			PackageName = SaveFoliageTypeDialog->GetFullAssetPath().ToString();
-			UPackage* Package = CreatePackage( *PackageName);
-
-			// We should not save a copy of this duplicate into the transaction buffer as it's an asset
-			InFoliageType->ClearFlags(RF_Transactional);
-			TypeToSave = Cast<UFoliageType>(StaticDuplicateObject(InFoliageType, Package, *FPackageName::GetLongPackageAssetName(PackageName)));
-			InFoliageType->SetFlags(RF_Transactional);
-
-			TypeToSave->SetFlags(RF_Standalone | RF_Public | RF_Transactional);
-			TypeToSave->Modify();
-
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(TypeToSave);
+			TypeToSave = DuplicateFoliageTypeToNewPackage(PackageName, InFoliageType);
 		}
 	}
 	else
@@ -74,6 +63,27 @@ UFoliageType* FFoliageEditUtility::SaveFoliageTypeObject(UFoliageType* InFoliage
 		}
 	}
 
+	return TypeToSave;
+}
+
+UFoliageType* FFoliageEditUtility::DuplicateFoliageTypeToNewPackage(const FString& InPackageName, UFoliageType* InFoliageType)
+{
+	UPackage* Package = CreatePackage(*InPackageName);
+	UFoliageType* TypeToSave = nullptr;
+
+	// We should not save a copy of this duplicate into the transaction buffer as it's an asset. Save and restore Transactional flag
+	EObjectFlags Transactional = InFoliageType->HasAnyFlags(RF_Transactional) ? RF_Transactional : RF_NoFlags;
+	
+	InFoliageType->ClearFlags(Transactional);
+	TypeToSave = Cast<UFoliageType>(StaticDuplicateObject(InFoliageType, Package, *FPackageName::GetLongPackageAssetName(InPackageName)));
+	InFoliageType->SetFlags(Transactional);
+
+	TypeToSave->SetFlags(RF_Standalone | RF_Public | Transactional);
+	TypeToSave->Modify();
+
+	// Notify the asset registry
+	FAssetRegistryModule::AssetCreated(TypeToSave);
+	
 	return TypeToSave;
 }
 
