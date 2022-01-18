@@ -147,14 +147,14 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		if (CfgBaseUVIndex >= 0)
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found BaseUVIndex value - '%d'"), CfgBaseUVIndex);
-
-			OutWarpCfg.BaseUVIndex = CfgBaseUVIndex;
 		}
-		else
+		else if(CfgBaseUVIndex != INDEX_NONE)
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid BaseUVIndex value - '%d'"), CfgBaseUVIndex);
+			CfgBaseUVIndex = INDEX_NONE;
 		}
 	}
+	OutWarpCfg.BaseUVIndex = CfgBaseUVIndex;
 
 	int32 CfgChromakeyUVIndex = INDEX_NONE;
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::ChromakeyUVIndex, CfgChromakeyUVIndex))
@@ -162,14 +162,14 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		if (CfgChromakeyUVIndex >= 0)
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found ChromakeyUVIndex value - '%d'"), CfgChromakeyUVIndex);
-
-			OutWarpCfg.ChromakeyUVIndex = CfgChromakeyUVIndex;
 		}
-		else
+		else if(CfgChromakeyUVIndex != INDEX_NONE)
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid ChromakeyUVIndex value - '%d'"), CfgChromakeyUVIndex);
+			CfgChromakeyUVIndex = INDEX_NONE;
 		}
 	}
+	OutWarpCfg.ChromakeyUVIndex = CfgChromakeyUVIndex;
 
 	// Get the StaticMeshComponent
 	OutWarpCfg.StaticMeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);

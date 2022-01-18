@@ -464,14 +464,14 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDispl
 		"Warp UVs",
 		DisplayClusterProjectionStrings::cfg::mesh::BaseUVIndex,
 		Blueprint,
-		ConfigurationViewports, -1, -1);
+		ConfigurationViewports, INDEX_NONE, INDEX_NONE);
 	BaseUVIndexParameterRef->SetParameterTooltip(LOCTEXT("MeshPolicyBaseUVIndexTooltip", "Define custom UV channel in the original geometry as UV for warp. The default is -1."));
 
 	TSharedPtr<FPolicyParameterInfo> ChromakeyUVIndexParameterRef = MakeShared<FPolicyParameterInfoNumber<int32>>(
 		"Chromakey UVs",
 		DisplayClusterProjectionStrings::cfg::mesh::ChromakeyUVIndex,
 		Blueprint,
-		ConfigurationViewports, -1, -1);
+		ConfigurationViewports, INDEX_NONE, INDEX_NONE);
 	ChromakeyUVIndexParameterRef->SetParameterTooltip(LOCTEXT("MeshPolicyChromakeyUVIndexTooltip", "Define custom UV channel in the original geometry as UV for ChromakeyMarkers. The default is -1."));
 
 	CustomPolicyParameters.Add(SectionIndexParameterRef);
