@@ -177,8 +177,10 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 	{
 		OptionsPtr.Reset( Options );
 
-		UWorld* World = Options->CurrentTask
-			? Cast<UWorld>( Options->CurrentTask->Object )
+		UAssetExportTask* Task = Options->CurrentTask.Get();
+
+		UWorld* World = Task
+			? Cast<UWorld>( Task->Object )
 			: GEditor->GetEditorWorldContext().World();
 
 		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &Options->Inner, World );

@@ -96,9 +96,11 @@ public:
 
 public:
 	// We temporarily stash our export task here as a way of passing our options down to
-	// the Python exporter, that does the actual level exporting
+	// the Python exporter, that does the actual level exporting.
+	// This is weak because we often use the CDO of this class directly, and we never want to
+	// permanently hold on to a particular export task
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Hidden )
-	UAssetExportTask* CurrentTask;
+	TWeakObjectPtr<UAssetExportTask> CurrentTask;
 
 private:
 	UFUNCTION()

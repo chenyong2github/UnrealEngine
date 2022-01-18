@@ -26,10 +26,7 @@ namespace UE
 	{
 		namespace Private
 		{
-			// I haven't managed to get nested sublevels like this to even load in the engine at all,
-			// but UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert implies that it's possible,
-			// so we're doing it recursively just in case too
-			void StreamInLevelRecursively( ULevel* Level, const TSet<FString>& LevelsToIgnore )
+			void StreamInLevels( ULevel* Level, const TSet<FString>& LevelsToIgnore )
 			{
 				UWorld* InnerWorld = Level->GetTypedOuter<UWorld>();
 				if ( !InnerWorld || InnerWorld->GetStreamingLevels().Num() == 0 )
@@ -128,17 +125,6 @@ namespace UE
 				// Synchronously show levels right now
 				InnerWorld->FlushLevelStreaming( EFlushLevelStreamingType::Visibility );
 
-				for ( ULevelStreaming* StreamingLevel : InnerWorld->GetStreamingLevels() )
-				{
-					if ( StreamingLevel->IsLevelLoaded() )
-					{
-						if ( ULevel* StreamedLevel = StreamingLevel->GetLoadedLevel() )
-						{
-							StreamInLevelRecursively( StreamedLevel, LevelsToIgnore );
-						}
-					}
-				}
-
 				if ( bCreatedContext )
 				{
 					GEngine->DestroyWorldContext( InnerWorld );
@@ -157,7 +143,7 @@ void UUsdConversionBlueprintLibrary::StreamInRequiredLevels( UWorld* World, cons
 
 	if ( ULevel* PersistentLevel = World->PersistentLevel )
 	{
-		UE::UsdConversionBlueprintLibraryImpl::Private::StreamInLevelRecursively( PersistentLevel, LevelsToIgnore );
+		UE::UsdConversionBlueprintLibraryImpl::Private::StreamInLevels( PersistentLevel, LevelsToIgnore );
 	}
 }
 
