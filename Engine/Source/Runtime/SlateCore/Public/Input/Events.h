@@ -841,7 +841,7 @@ public:
 	FKey GetEffectingButton() const { return EffectingButton; }
 	
 	/** How much did the mouse wheel turn since the last mouse event */
-	float GetWheelDelta() const { return WheelOrGestureDelta.Y; }
+	float GetWheelDelta() const { return UE_REAL_TO_FLOAT(WheelOrGestureDelta.Y); }
 
 	/** Returns the index of the user that caused the event */
 	int32 GetUserIndex() const { return UserIndex; }

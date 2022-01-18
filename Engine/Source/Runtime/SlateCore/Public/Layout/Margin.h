@@ -64,10 +64,10 @@ public:
 
 	/** Construct a Margin where Horizontal describes Left and Right spacing while Vertical describes Top and Bottom spacing */
 	FMargin(const FVector2D& InVector)
-		: Left(InVector.X)
-		, Top(InVector.Y)
-		, Right(InVector.X)
-		, Bottom(InVector.Y)
+		: Left(UE_REAL_TO_FLOAT(InVector.X))
+		, Top(UE_REAL_TO_FLOAT(InVector.Y))
+		, Right(UE_REAL_TO_FLOAT(InVector.X))
+		, Bottom(UE_REAL_TO_FLOAT(InVector.Y))
 	{ }
 	
 	/** Construct a Margin where the spacing on each side is individually specified. */

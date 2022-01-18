@@ -38,10 +38,10 @@ public:
 	{ }
 
 	FSlateRect( const FVector2D& InStartPos, const FVector2D& InEndPos )
-		: Left(InStartPos.X)
-		, Top(InStartPos.Y)
-		, Right(InEndPos.X)
-		, Bottom(InEndPos.Y)
+		: Left(UE_REAL_TO_FLOAT(InStartPos.X))
+		, Top(UE_REAL_TO_FLOAT(InStartPos.Y))
+		, Right(UE_REAL_TO_FLOAT(InEndPos.X))
+		, Bottom(UE_REAL_TO_FLOAT(InEndPos.Y))
 	{ }
 
 	/**

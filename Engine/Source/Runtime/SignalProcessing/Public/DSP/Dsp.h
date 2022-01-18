@@ -305,18 +305,18 @@ namespace Audio
 		// Check if equal as well as less than to avoid round error in case where at edges.
 		if (InValue <= Domain.X)
 		{
-			return Range.X;
+			return UE_REAL_TO_FLOAT(Range.X);
 		}
 
 		if (InValue >= Domain.Y)
 		{
-			return Range.Y;
+			return UE_REAL_TO_FLOAT(Range.Y);
 		}
 
 		//Handle edge case of NaN
 		if (FMath::IsNaN(InValue))
 		{
-			return Range.X;
+			return UE_REAL_TO_FLOAT(Range.X);
 		}
 
 		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
@@ -330,23 +330,23 @@ namespace Audio
 		// Check if equal as well as less than to avoid round error in case where at edges.
 		if (InFrequencyValue <= Range.X)
 		{
-			return Domain.X;
+			return UE_REAL_TO_FLOAT(Domain.X);
 		}
 
 		if (InFrequencyValue >= Range.Y)
 		{
-			return Domain.Y;
+			return UE_REAL_TO_FLOAT(Domain.Y);
 		}
 
 		//Handle edge case of NaN
 		if (FMath::IsNaN(InFrequencyValue))
 		{
-			return Domain.X;
+			return UE_REAL_TO_FLOAT(Domain.X);
 		}
 
 		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
 		const FVector2D::FReal FrequencyLog = FMath::Loge(InFrequencyValue);
-		return FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog);
+		return UE_REAL_TO_FLOAT(FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog));
 	}
 
 	// Using midi tuning standard, compute midi from frequency in hz
@@ -494,15 +494,15 @@ namespace Audio
 			{
 				if (i != j)
 				{
-					float Denom = Points[i].X - Points[j].X;
+					float Denom = UE_REAL_TO_FLOAT(Points[i].X - Points[j].X);
 					if (FMath::Abs(Denom) < SMALL_NUMBER)
 					{
 						Denom = SMALL_NUMBER;
 					}
-					Lagrangian *= (Alpha - Points[j].X) / Denom;
+					Lagrangian *= (Alpha - UE_REAL_TO_FLOAT(Points[j].X)) / Denom;
 				}
 			}
-			Output += Lagrangian * Points[i].Y;
+			Output += Lagrangian * UE_REAL_TO_FLOAT(Points[i].Y);
 		}
 		return Output;
 	}
