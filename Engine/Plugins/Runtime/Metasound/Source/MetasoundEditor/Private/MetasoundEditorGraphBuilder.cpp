@@ -1337,6 +1337,56 @@ namespace Metasound
 			MetaSoundAsset->UnregisterGraphWithFrontend();
 		}
 
+		void FGraphBuilder::MarkEditorNodesReferencingAssetForRefresh(UObject& InMetaSound)
+		{
+			using namespace Frontend;
+
+			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
+			if (!MetaSoundAsset)
+			{
+				return;
+			}
+
+			if (!GEditor)
+			{
+				return;
+			}
+
+			bool bGraphUpdated = false;
+
+			FMetasoundFrontendClassMetadata AssetClassMetadata = MetaSoundAsset->GetRootGraphHandle()->GetGraphMetadata();
+			AssetClassMetadata.SetType(EMetasoundFrontendClassType::External);
+			const FNodeRegistryKey AssetClassKey = NodeRegistryKey::CreateKey(AssetClassMetadata);
+
+			TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+			for (UObject* EditedAsset : EditedAssets)
+			{
+				if (FMetasoundAssetBase* EditedMetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(EditedAsset))
+				{
+					const UEdGraph& Graph = EditedMetaSoundAsset->GetGraphChecked();
+					TArray<UMetasoundEditorGraphExternalNode*> ExternalNodes;
+					Graph.GetNodesOfClass<UMetasoundEditorGraphExternalNode>(ExternalNodes);
+					for (UMetasoundEditorGraphExternalNode* Node : ExternalNodes)
+					{
+						FConstNodeHandle NodeHandle = Node->GetConstNodeHandle();
+						const FMetasoundFrontendClassMetadata& ClassMetadata = NodeHandle->GetClassMetadata();
+						const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassMetadata);
+
+						if (AssetClassKey == RegistryKey)
+						{
+							bGraphUpdated = true;
+							Node->bRefreshNode = true;
+						}
+					}
+				}
+			}
+
+			if (bGraphUpdated)
+			{
+				MetaSoundAsset->SetSynchronizationRequired();
+			}
+		}
+
 		bool FGraphBuilder::IsMatchingInputHandleAndPin(const Frontend::FConstInputHandle& InInputHandle, const UEdGraphPin& InEditorPin)
 		{
 			if (InEditorPin.Direction != EGPD_Input)

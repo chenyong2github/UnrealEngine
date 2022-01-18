@@ -290,10 +290,14 @@ namespace Metasound
 					UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
 					check(AssetSubsystem);
 
-					AssetSubsystem->RenameAsset(InAssetData, false /* bReregisterWithFrontend */);
+					// Use the FGraphBuilder Register call instead of registering via the
+					// MetaSoundAssetSubsystem so as to properly refresh respective open editors.
+					constexpr bool bReregisterWithFrontend = false;
+					AssetSubsystem->RenameAsset(InAssetData, bReregisterWithFrontend);
 					if (UObject* AssetObject = InAssetData.GetAsset())
 					{
 						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
+						FGraphBuilder::MarkEditorNodesReferencingAssetForRefresh(*AssetObject);
 					}
 				}
 			}
