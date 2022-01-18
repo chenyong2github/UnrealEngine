@@ -1352,7 +1352,7 @@ namespace UnrealBuildTool
 
 		protected virtual bool UsingLld(string Architecture)
 		{
-			return Architecture.StartsWith("x86_64");
+			return true;
 		}
 
 		/// <summary>
