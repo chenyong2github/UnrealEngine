@@ -95,8 +95,8 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	float TempFloat;
 	uint8 TempByte;
 	FColor TempColor;
-	FVector2D TempVector2D;
-	FVector4 TempVector4;
+	FVector2d TempVector2d;
+	FVector4d TempVector4d;
 	UE::Color::FColorSpace TempColorSpace;
 	FGuid TempGuid;
 
@@ -129,10 +129,10 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempUint32 = UE::Color::COLORSPACE_VER; Ar << TempUint32;
 		TempColorSpace = UE::Color::FColorSpace::GetWorking(); Ar << TempColorSpace;
 
-		TempVector2D = Settings.RedChromaticityCoordinate; Ar << TempVector2D;
-		TempVector2D = Settings.GreenChromaticityCoordinate; Ar << TempVector2D;
-		TempVector2D = Settings.BlueChromaticityCoordinate; Ar << TempVector2D;
-		TempVector2D = Settings.WhiteChromaticityCoordinate; Ar << TempVector2D;
+		TempVector2d = Settings.RedChromaticityCoordinate; Ar << TempVector2d;
+		TempVector2d = Settings.GreenChromaticityCoordinate; Ar << TempVector2d;
+		TempVector2d = Settings.BlueChromaticityCoordinate; Ar << TempVector2d;
+		TempVector2d = Settings.WhiteChromaticityCoordinate; Ar << TempVector2d;
 		TempByte = Settings.ChromaticAdaptationMethod; Ar << TempByte;
 	}
 
@@ -141,7 +141,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 
 	if (Settings.AlphaCoverageThresholds != FVector4(0, 0, 0, 0))
 	{
-		TempVector4 = Settings.AlphaCoverageThresholds; Ar << TempVector4;
+		TempVector4d = Settings.AlphaCoverageThresholds; Ar << TempVector4d;
 	}
 	
 	TempByte = Settings.bComputeBokehAlpha; Ar << TempByte;

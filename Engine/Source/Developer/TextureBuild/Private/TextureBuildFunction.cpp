@@ -66,14 +66,14 @@ static void ReadCbField(FCbFieldView Field, FColor& OutValue)
 	OutValue.B = It++->AsUInt8(OutValue.B);
 }
 
-static void ReadCbField(FCbFieldView Field, FVector2D& OutValue)
+static void ReadCbField(FCbFieldView Field, FVector2f& OutValue)
 {
 	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
 	OutValue.X = It++->AsFloat(OutValue.X);
 	OutValue.Y = It++->AsFloat(OutValue.Y);
 }
 
-static void ReadCbField(FCbFieldView Field, FVector4& OutValue)
+static void ReadCbField(FCbFieldView Field, FVector4f& OutValue)
 {
 	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
 	OutValue.X = It++->AsFloat(OutValue.X);

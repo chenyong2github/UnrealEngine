@@ -73,7 +73,7 @@ struct FTextureBuildSettings
 	/** Color adjustment parameters. */
 	FColorAdjustmentParameters ColorAdjustment;
 	/** Channel values to compare to when preserving alpha coverage. */
-	FVector4 AlphaCoverageThresholds;
+	FVector4f AlphaCoverageThresholds;
 	/** The desired amount of mip sharpening. */
 	float MipSharpening;
 	/** For angular filtered cubemaps, the mip level which contains convolution with the diffuse cosine lobe. */
@@ -103,13 +103,13 @@ struct FTextureBuildSettings
 	/** Whether the texture has a defined source color space. */
 	bool bHasColorSpaceDefinition;
 	/** Red chromaticity coordinate of the source color space. */
-	FVector2D RedChromaticityCoordinate;
+	FVector2f RedChromaticityCoordinate;
 	/** Green chromaticity coordinate of the source color space. */
-	FVector2D GreenChromaticityCoordinate;
+	FVector2f GreenChromaticityCoordinate;
 	/** Blue chromaticity coordinate of the source color space. */
-	FVector2D BlueChromaticityCoordinate;
+	FVector2f BlueChromaticityCoordinate;
 	/** White chromaticity coordinate of the source color space. */
-	FVector2D WhiteChromaticityCoordinate;
+	FVector2f WhiteChromaticityCoordinate;
 	/** Chromatic adaption method applied if the source white point differs from the working color space white point. */
 	uint8 ChromaticAdaptationMethod;
 	/** Whether the texture should use the legacy gamma space for converting to sRGB */

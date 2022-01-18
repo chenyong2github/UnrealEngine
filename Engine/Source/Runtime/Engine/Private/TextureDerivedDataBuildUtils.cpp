@@ -40,7 +40,7 @@ static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FColor& 
 	Writer.EndArray();
 }
 
-static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FVector2D& Value)
+static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FVector2f& Value)
 {
 	Writer.BeginArray(Name);
 	Writer.AddFloat(Value.X);
@@ -48,7 +48,7 @@ static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FVector2
 	Writer.EndArray();
 }
 
-static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FVector4& Value)
+static void WriteCbField(FCbWriter& Writer, FAnsiStringView Name, const FVector4f& Value)
 {
 	Writer.BeginArray(Name);
 	Writer.AddFloat(Value.X);
