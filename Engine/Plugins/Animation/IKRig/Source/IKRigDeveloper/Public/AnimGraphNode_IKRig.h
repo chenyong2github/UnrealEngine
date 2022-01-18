@@ -140,5 +140,9 @@ private:
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 	void BindPropertyChanges();
 
+	// update the goals' array within the anim node based on the asset
 	void UpdateGoalsFromAsset();
+
+	// setup goal based on it's asset definition 
+	static void SetupGoal(const UIKRigEffectorGoal* InAssetGoal, FIKRigGoal& OutGoal);
 };
