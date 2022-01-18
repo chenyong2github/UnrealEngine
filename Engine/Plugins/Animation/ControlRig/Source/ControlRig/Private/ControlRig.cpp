@@ -496,9 +496,13 @@ void UControlRig::InstantiateVMFromCDO()
 			// which should be unlikely
 			VM->CopyFrom(CDO->VM, !IsInGameThread(), true);
 		}
-		else
+		else if (VM)
 		{
 			VM->Reset();
+		}
+		else
+		{
+			ensure(false);
 		}
 	}
 

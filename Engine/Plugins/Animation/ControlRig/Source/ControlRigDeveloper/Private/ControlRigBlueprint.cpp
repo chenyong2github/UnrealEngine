@@ -715,6 +715,12 @@ void UControlRigBlueprint::RecompileVM()
 		{
 			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
 			{
+				// No objects should be created during load, so PostInitInstanceIfRequired, which creates a new VM and
+				// DynamicHierarchy, should not be called during load
+				if (!InstanceRig->HasAllFlags(RF_NeedPostLoad))
+				{
+					InstanceRig->PostInitInstanceIfRequired();
+				}
 				InstanceRig->InstantiateVMFromCDO();
 			}
 		}
