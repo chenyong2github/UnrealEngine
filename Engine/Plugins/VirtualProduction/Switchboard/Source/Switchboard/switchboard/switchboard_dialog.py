@@ -1433,12 +1433,6 @@ class SwitchboardDialog(QtCore.QObject):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
         device_widget.update_build_info(current_cl=device.engine_changelist, built_cl=device.built_engine_changelist)
 
-        cl = device.built_engine_changelist
-        ip = device.ip_address
-        for device in self.device_manager.devices():
-            if device.ip_address == ip and device.built_engine_changelist and device.built_engine_changelist != cl:
-                device.built_engine_changelist = cl
-
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):
         # Update the device widget
