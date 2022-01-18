@@ -588,6 +588,7 @@ namespace ChaosTest {
 				
 				++Index;
 			}
+			Graph.ResetIndices();
 		}
 	}
 

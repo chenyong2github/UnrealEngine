@@ -52,6 +52,16 @@ public:
 	~FPBDIslandManager();
 
 	/**
+	* Reset nodes and edges graph indices 
+	*/
+	void ResetIndices();
+
+	/**
+	* Remove all the constraints from the graph
+	*/
+	void RemoveConstraints();
+
+	/**
 	  * Default island manager constructor
 	  * @param Particles List of particles to be used to fill the graph nodes
 	  */

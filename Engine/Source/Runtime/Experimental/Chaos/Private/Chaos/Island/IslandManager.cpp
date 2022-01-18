@@ -277,6 +277,9 @@ FPBDIslandManager::FPBDIslandManager(const TParticleView<FPBDRigidParticles>& PB
 }
 
 FPBDIslandManager::~FPBDIslandManager()
+{}
+
+void FPBDIslandManager::ResetIndices()
 {
 	// Reset of all the particles / constraint graph index to INDEX_NONE
 	for(auto& ItemNode : IslandGraph->ItemNodes)
@@ -334,6 +337,33 @@ void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>&
 		{
 			IslandSolver->ClearConstraints();
 		}
+	}
+}
+
+void FPBDIslandManager::RemoveConstraints()
+{
+	for(auto& ItemEdge : IslandGraph->ItemEdges)
+	{
+		ItemEdge.Key->SetConstraintGraphIndex(INDEX_NONE);
+	}
+	IslandGraph->ItemEdges.Reset();
+	IslandGraph->GraphEdges.Reset();
+	
+	for(auto& GraphIsland : IslandGraph->GraphIslands)
+	{
+		GraphIsland.NumEdges = 0;
+	}
+	for(auto& GraphNode: IslandGraph->GraphNodes)
+	{
+		GraphNode.NodeEdges.Reset();
+	}
+	for(auto& IslandSolver : IslandSolvers)
+	{
+		IslandSolver->ClearConstraints();
+	}
+	for(auto& IslandGroup : IslandGroups)
+	{
+		IslandGroup->NumConstraints() = 0;
 	}
 }
 

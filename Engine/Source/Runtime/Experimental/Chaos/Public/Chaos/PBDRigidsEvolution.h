@@ -577,6 +577,9 @@ public:
 
 	CHAOS_API void ResetConstraints()
 	{
+		// Remove all the constraints from the graph
+		GetConstraintGraph().RemoveConstraints();
+		
 		// Clear all particle lists of collisions and constraints
 		// (this could be performed by the constraint containers
 		// but it would be unnecessarily expensive to remove them

@@ -709,8 +709,9 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 
 FPBDRigidsEvolutionGBF::~FPBDRigidsEvolutionGBF()
 {
+	// Not sure we need to reset the indices since all the particles and constraints are going to be destroyed
+	//GetConstraintGraph().ResetIndices();
 }
-
 
 void FPBDRigidsEvolutionGBF::Serialize(FChaosArchive& Ar)
 {
