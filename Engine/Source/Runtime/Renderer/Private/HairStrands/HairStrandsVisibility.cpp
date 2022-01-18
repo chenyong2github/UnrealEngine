@@ -3152,6 +3152,7 @@ class FHairStrandsEmitSelectionPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitSelectionPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector2f, InvViewportResolution)
 		SHADER_PARAMETER(uint32, MaxMaterialCount)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisNodeIndex)
@@ -3176,6 +3177,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsEmitSelectionPS, "/Engine/Private/HairStrand
 void AddHairStrandsSelectionOutlinePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FIntRect& ViewportRect,
 	FRDGTextureRef VisNodeIndex,
 	FRDGBufferRef VisNodeData,
 	FRDGTextureRef SelectionDepthTexture)
@@ -3199,6 +3201,7 @@ void AddHairStrandsSelectionOutlinePass(
 	auto* PassParameters = GraphBuilder.AllocParameters<FHairStrandsEmitSelectionPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->MaxMaterialCount = SelectionMaterialId.Num();
+	PassParameters->InvViewportResolution = FVector2f(1.f/ViewportRect.Width(), 1.f/ViewportRect.Height());
 	PassParameters->VisNodeIndex = VisNodeIndex;
 	PassParameters->VisNodeData = GraphBuilder.CreateSRV(VisNodeData);
 	PassParameters->SelectionMaterialIdBuffer = GraphBuilder.CreateSRV(SelectionMaterialIdBuffer, PF_R32_UINT);
@@ -3212,7 +3215,7 @@ void AddHairStrandsSelectionOutlinePass(
 		RDG_EVENT_NAME("HairStrands::EmitSelection"),
 		PixelShader,
 		PassParameters,
-		View.ViewRect,
+		ViewportRect,
 		TStaticBlendState<>::GetRHI(),
 		TStaticRasterizerState<>::GetRHI(),
 		TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(), 
@@ -3381,11 +3384,12 @@ namespace HairStrands
 {
 
 // Draw hair strands depth value for outline selection
-void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture)
+void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewportRect, FRDGTextureRef SelectionDepthTexture)
 {
 	AddHairStrandsSelectionOutlinePass(
 		GraphBuilder,
 		View,
+		ViewportRect,
 		View.HairStrandsViewData.VisibilityData.NodeIndex,
 		View.HairStrandsViewData.VisibilityData.NodeVisData,
 		SelectionDepthTexture);

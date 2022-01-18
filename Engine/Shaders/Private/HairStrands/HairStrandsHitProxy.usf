@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Engine/Public/Platform.ush"
+#include "../Common.ush"
 float3 DecodeVelocityFromTexture(float4 EncodedV);
 #include "HairStrandsVisibilityCommon.ush" 
 
@@ -49,6 +49,7 @@ void EmitPS(
 
 #if SHADER_SELECTION
 
+float2							 InvViewportResolution;
 uint							 MaxMaterialCount;
 Buffer<uint>					 SelectionMaterialIdBuffer;
 Texture2D<uint>					 VisNodeIndex;
@@ -58,7 +59,8 @@ void EmitPS(
 	in float4 SvPosition : SV_Position,
 	out float OutDepth : SV_Depth)
 {
-	const uint2 PixelCoord = (uint2)SvPosition.xy;
+	const float2 UV = SvPosition * InvViewportResolution;
+	const uint2 PixelCoord = UV * View.ViewSizeAndInvSize.xy;
 
 	// Take the first sample
 	const FNodeDesc NodeDesc = DecodeNodeDesc(VisNodeIndex.Load(uint3(PixelCoord, 0)));
