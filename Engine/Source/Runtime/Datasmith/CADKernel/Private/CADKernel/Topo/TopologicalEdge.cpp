@@ -49,8 +49,8 @@ FTopologicalEdge::FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve,
 	TArray<FCurvePoint> Points;
 	Curve->EvaluatePoints(Coordinates, Points);
 
-	StartVertex = FEntity::MakeShared<FTopologicalVertex>(Points[0].Point);
-	EndVertex = FEntity::MakeShared<FTopologicalVertex>(Points[1].Point);
+	StartVertex = FTopologicalVertex::Make(Points[0].Point);
+	EndVertex = FTopologicalVertex::Make(Points[1].Point);
 }
 
 FTopologicalEdge::FTopologicalEdge(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2)
@@ -162,6 +162,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::ReturnIfValid(TSharedRef<FTopolog
 		return TSharedPtr<FTopologicalEdge>();
 	}
 
+	InEdge->Finalize();
 	InEdge->LinkVertex();
 	return InEdge;
 }
@@ -524,8 +525,7 @@ bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
 		Edge.SetAsDegenerated();
 		return true;
 
-		// TODO
-		ensureCADKernel(false);
+		// Todo: Two cycles can have connected extremities but not with the same orientation
 	}
 
 	return vertex1Edge == Edge.GetStartVertex()->GetLink();
@@ -946,7 +946,7 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 		// TODO
 	}
 
-	TSharedRef<FTopologicalVertex> MiddelVertex = FEntity::MakeShared<FTopologicalVertex>(NewVertexCoordinate);
+	TSharedRef<FTopologicalVertex> MiddelVertex = FTopologicalVertex::Make(NewVertexCoordinate);
 
 	if (bKeepStartVertexConnectivity)
 	{

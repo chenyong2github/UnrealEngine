@@ -27,6 +27,14 @@ public:
 
 	void PrintReport() const
 	{
+		FMessage::FillReportFile(TEXT("SelfInterFail"), CountOfRemoveLoopSelfIntersectionFailure);
+		FMessage::FillReportFile(TEXT("CrossingFail"), CountOfCrossingLoopsFailure);
+		FMessage::FillReportFile(TEXT(""), TEXT(""));
+		FMessage::FillReportFile(TEXT("MeshingFail"), CountOfMeshingFailure);
+		FMessage::FillReportFile(TEXT("DegenGrid"), CountOfDegeneratedGrid);
+		FMessage::FillReportFile(TEXT("DegenLoop"), CountOfDegeneratedLoop);
+		FMessage::FillReportFile(TEXT("CycleFailure"), CountOfCycleMeshingFailure);
+		FMessage::FillReportFile(TEXT(""), TEXT(""));
 	}
 
 	void AddRemoveCrossingLoopsFailure()
@@ -108,6 +116,16 @@ struct CADKERNEL_API FMesherChronos
 
 	void PrintReport() const
 	{
+		FMessage::FillReportFile(TEXT("Criteria"), ApplyCriteriaDuration);
+		FMessage::FillReportFile(TEXT("Find Quad"), IsolateQuadPatchDuration);
+		FMessage::FillReportFile(TEXT("GenPoint"), GlobalGeneratePointCloudDuration);
+		FMessage::FillReportFile(TEXT("FindThin"), GlobalThinZones);
+		FMessage::FillReportFile(TEXT("MeshThin"), GlobalMeshThinZones);
+		FMessage::FillReportFile(TEXT("MeshEdges"), GlobalMeshEdges);
+		FMessage::FillReportFile(TEXT("Triangul"),  GlobalTriangulateDuration);
+		FMessage::FillReportFile(TEXT("MeshTotal"), GlobalDuration);
+		FMessage::FillReportFile(TEXT(""), TEXT(""));
+
 	}
 };
 

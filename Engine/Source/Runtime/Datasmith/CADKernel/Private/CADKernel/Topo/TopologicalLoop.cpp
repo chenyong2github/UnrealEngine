@@ -206,9 +206,14 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
  *
  * If the slop is still closed to 0 or 8, the point is "UndefinedOrientation"
  * This case was found in the shape of char '1'
+ * 
+ * @return false if the orientation is doubtful
+ * 
  */
-void FTopologicalLoop::Orient()
+bool FTopologicalLoop::Orient()
 {
+	bool bSucceed = true;
+
 	ensureCADKernel(Edges.Num() > 0);
 
 	TArray<FPoint2D> LoopSampling;
@@ -216,7 +221,7 @@ void FTopologicalLoop::Orient()
 	if (!Get2DSamplingWithoutDegeneratedEdges(LoopSampling))
 	{
 		// the loop is degenerated
-		return;
+		return false;
 	}
 
 #ifdef DEBUG_ORIENT
@@ -456,7 +461,8 @@ void FTopologicalLoop::Orient()
 		Wait();
 #endif
 
-		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d could failed\n"), Face.Pin()->GetId());
+		bSucceed = false;
+		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d is doubtful\n"), Face.Pin()->GetId());
 	}
 
 	if ((WrongOrientationCount > GoodOrientationCount) == bExternalLoop)
@@ -477,6 +483,7 @@ void FTopologicalLoop::Orient()
 	}
 #endif
 
+	return bSucceed;
 }
 
 void FTopologicalLoop::SwapOrientation()

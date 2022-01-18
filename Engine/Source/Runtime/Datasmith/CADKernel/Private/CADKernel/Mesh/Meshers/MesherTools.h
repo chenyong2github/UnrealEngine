@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
-
+#include "CADKernel/Math/Boundary.h"
 
 namespace CADKernel
 {
@@ -47,6 +47,21 @@ namespace CADKernel
 		 */
 		static void ComputeFinalCuttingPointsWithImposedCuttingPoints(const TArray<double>& CrossingUs, const TArray<double>& DeltaUs, const TArray<FCuttingPoint>& ImposedCuttingPoints, TArray<double>& OutCuttingPoints);
 
+		/**
+		 * Fill an array of CuttingPointCoordinates with "PointCount" coordinates evenly divided between the extremities of the boundary 
+		 */
+		static void FillCuttingPointCoordinates(const FLinearBoundary& Boundary, int32 PointCount, TArray<double>& OutCuttingPointCoordinates)
+		{
+			PointCount--;
+			ensureCADKernel(PointCount > 0);
+			double Delta = Boundary.Length() / PointCount;
+			OutCuttingPointCoordinates.Empty(PointCount);
+			OutCuttingPointCoordinates.Add(Boundary.GetMin());
+			for (int32 Index = 0; Index < PointCount; ++Index)
+			{
+				OutCuttingPointCoordinates.Add(OutCuttingPointCoordinates.Last() + Delta);
+			}
+		}
 	};
 
 } // namespace CADKernel

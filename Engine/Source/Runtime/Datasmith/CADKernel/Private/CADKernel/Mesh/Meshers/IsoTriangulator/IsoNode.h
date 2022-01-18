@@ -145,21 +145,6 @@ public:
 		}
 	}
 
-	bool IsLinkedToLoopInQuarter(int32 Quarter) const // [0 Pi/2]
-	{
-		switch (Quarter)
-		{
-		case 0:
-			return (States & EIsoNodeStates::FirstQuarter) == EIsoNodeStates::FirstQuarter;
-		case 1:
-			return (States & EIsoNodeStates::SecondQuarter) == EIsoNodeStates::SecondQuarter;
-		case 2:
-			return (States & EIsoNodeStates::ThirdQuarter) == EIsoNodeStates::ThirdQuarter;
-		default:
-			return (States & EIsoNodeStates::FourthQuarter) == EIsoNodeStates::FourthQuarter;
-		}
-	}
-
 	bool IsLinkedToLoopInNearlyIso(int32 Iso) const
 	{
 		if (Iso > 3)
@@ -385,10 +370,9 @@ public:
 	 *    |                                |        |                              |
 	 *    X---------------X----------------X        X------------------X-----------X
 	 */
-	bool IsSegmentBeInsideFace(const FPoint2D& EndSegmentCoordinate, const FGrid& Grid, const double FlatAngle)
+	bool IsSegmentBeInsideFace(const FPoint2D& EndSegmentCoordinate, const FGrid& Grid, const double FlatAngle) const
 	{
-		//bool bIsOuterLoop = (GetLoopIndex() == 0);
-		return (/*bIsOuterLoop  == */!IsPointPInsideSectorABC(GetPreviousNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Get2DPoint(EGridSpace::UniformScaled, Grid), GetNextNode().Get2DPoint(EGridSpace::UniformScaled, Grid), EndSegmentCoordinate, FlatAngle));
+		return (!IsPointPInsideSectorABC(GetPreviousNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Get2DPoint(EGridSpace::UniformScaled, Grid), GetNextNode().Get2DPoint(EGridSpace::UniformScaled, Grid), EndSegmentCoordinate, FlatAngle));
 	}
 
 	void SetAsIsoU()

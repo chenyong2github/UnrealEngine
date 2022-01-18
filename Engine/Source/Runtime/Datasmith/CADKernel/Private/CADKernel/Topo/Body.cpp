@@ -2,6 +2,8 @@
 #include "CADKernel/Topo/Body.h"
 
 #include "CADKernel/Topo/Shell.h"
+#include "CADKernel/Topo/TopologyReport.h"
+
 
 namespace CADKernel
 {
@@ -42,5 +44,14 @@ FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
 	return FTopologicalEntity::GetInfo(Info).Add(TEXT("shells"), Shells).Add(*this);
 }
 #endif
+
+void FBody::FillTopologyReport(FTopologyReport& Report) const
+{
+	Report.Add(this);
+	for (TSharedPtr<FShell> Shell : Shells)
+	{
+		Shell->FillTopologyReport(Report);
+	}
+}
 
 }

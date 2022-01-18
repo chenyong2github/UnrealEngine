@@ -14,7 +14,6 @@ namespace CADKernel
 	class CADKERNEL_API FTopologicalVertex : public TLinkable<FTopologicalVertex, FVertexLink>
 	{
 		friend class FEntity;
-		friend class FTopologicalEdge;
 		friend class FVertexLink;
 
 	protected:
@@ -31,6 +30,13 @@ namespace CADKernel
 		FTopologicalVertex() = default;
 
 	public:
+
+		static TSharedRef<FTopologicalVertex> Make(const FPoint& InCoordinate)
+		{
+			TSharedRef<FTopologicalVertex> Vertex = FEntity::MakeShared<FTopologicalVertex>(InCoordinate);
+			Vertex->Finalize();
+			return Vertex;
+		}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{

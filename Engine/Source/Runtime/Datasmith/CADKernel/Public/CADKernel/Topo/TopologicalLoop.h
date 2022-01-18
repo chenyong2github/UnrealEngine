@@ -149,7 +149,10 @@ namespace CADKernel
 			return Face.Pin().ToSharedRef();
 		}
 
-		void Orient();
+		/*
+		 * @return false if the orientation is doubtful
+		 */ 
+		bool Orient();
 		void SwapOrientation();
 
 		void SetAsInnerBoundary()

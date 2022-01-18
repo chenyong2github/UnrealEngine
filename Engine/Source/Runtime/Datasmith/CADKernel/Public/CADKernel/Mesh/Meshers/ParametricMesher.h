@@ -115,6 +115,8 @@ namespace CADKernel
 
 		void GenerateCloud(FGrid& Grid);
 
+		void PrintReport();
+
 	protected:
 
 		void MeshEntities();

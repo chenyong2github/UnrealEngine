@@ -228,6 +228,11 @@ public:
 		States |= EIsoSegmentStates::Degenerate;
 	}
 
+	void ResetDegenerated()
+	{
+		States &= ~EIsoSegmentStates::Degenerate;
+	}
+
 	bool IsDegenerated() const
 	{
 		return (States & EIsoSegmentStates::Degenerate) == EIsoSegmentStates::Degenerate;

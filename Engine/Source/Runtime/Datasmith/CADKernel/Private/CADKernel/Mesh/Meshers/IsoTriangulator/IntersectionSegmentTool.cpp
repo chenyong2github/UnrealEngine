@@ -65,12 +65,7 @@ const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoNode& Start
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		if (!Segment.IsoSegment)
-		{
-			continue;
-		}
-
-		if (Segment.IsoSegment != nullptr && Segment.IsoSegment->IsDelete())
+		if (!Segment.IsoSegment || Segment.IsoSegment->IsDelete())
 		{
 			continue;
 		}

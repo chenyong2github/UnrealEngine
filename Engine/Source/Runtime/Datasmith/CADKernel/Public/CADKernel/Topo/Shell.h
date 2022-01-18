@@ -143,6 +143,7 @@ namespace CADKernel
 		virtual void SpreadBodyOrientation() override;
 
 		void CheckTopology(TArray<FFaceSubset>& SubShells);
+		virtual void FillTopologyReport(FTopologyReport& Report) const override;
 
 		/**
 		 * @return true if the shell has at least one border edge 

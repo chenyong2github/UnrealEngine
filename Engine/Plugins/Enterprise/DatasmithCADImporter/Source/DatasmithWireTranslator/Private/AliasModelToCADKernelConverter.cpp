@@ -222,7 +222,8 @@ TSharedPtr<CADKernel::FTopologicalFace> FAliasModelToCADKernelConverter::AddTrim
 	TSharedRef<CADKernel::FTopologicalFace> Face = CADKernel::FEntity::MakeShared<CADKernel::FTopologicalFace>(Surface);
 	Face->SetPatchId(LastFaceId++);
 
-	Face->AddLoops(Loops);
+	int32 DoubtfulLoopOrientationCount = 0;
+	Face->AddLoops(Loops, DoubtfulLoopOrientationCount);
 	return Face;
 }
 

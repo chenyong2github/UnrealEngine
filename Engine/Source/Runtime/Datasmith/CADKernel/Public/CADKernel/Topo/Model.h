@@ -178,6 +178,8 @@ namespace CADKernel
 		 */
 		void CheckTopology();
 
+		virtual void FillTopologyReport(FTopologyReport& Report) const override;
+
 		/**
 		 * Fore each body
 		 */

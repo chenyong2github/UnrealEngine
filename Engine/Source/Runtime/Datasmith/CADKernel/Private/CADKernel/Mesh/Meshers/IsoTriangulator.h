@@ -41,7 +41,6 @@ struct CADKERNEL_API FIsoTriangulatorChronos
 	FDuration FindSegmentToLinkLoopToLoopDuration = FChrono::Init();
 	FDuration FindSegmentToLinkLoopToLoopByDelaunayDuration = FChrono::Init();
 	FDuration FindSegmentToLinkInnerToLoopDuration = FChrono::Init();
-	FDuration SelectSegmentToLinkInnerToLoopsDuration = FChrono::Init();
 	FDuration TriangulateOverCycleDuration = FChrono::Init();
 	FDuration TriangulateInnerNodesDuration = FChrono::Init();
 
@@ -59,7 +58,6 @@ struct CADKERNEL_API FIsoTriangulatorChronos
 		IsoTriangulerDuration += FindSegmentToLinkLoopToLoopDuration;
 		IsoTriangulerDuration += FindSegmentToLinkLoopToLoopByDelaunayDuration;
 		IsoTriangulerDuration += FindSegmentToLinkInnerToLoopDuration;
-		IsoTriangulerDuration += SelectSegmentToLinkInnerToLoopsDuration;
 		IsoTriangulerDuration += TriangulateOverCycleDuration;
 		IsoTriangulerDuration += TriangulateInnerNodesDuration;
 
@@ -74,7 +72,6 @@ struct CADKERNEL_API FIsoTriangulatorChronos
 		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Find Segment ToLink LoopToLoop by Delaunay"), FindSegmentToLinkLoopToLoopByDelaunayDuration);
 		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Find Segment ToLink LoopToLoop"), FindSegmentToLinkLoopToLoopDuration);
 		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Find Segment ToLink InnerToLoop"), FindSegmentToLinkInnerToLoopDuration);
-		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Select Segment ToLink InnerToLoop"), SelectSegmentToLinkInnerToLoopsDuration);
 		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Mesh Over Cycle"), TriangulateOverCycleDuration);
 		FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("Mesh Inner Nodes"), TriangulateInnerNodesDuration);
 		FChrono::PrintClockElapse(Log, TEXT("  "), TEXT("Triangulate1"), TriangulateDuration1);
@@ -149,16 +146,6 @@ protected:
 	 *
 	 */
 	TArray<FIsoSegment*> CandidateSegments;
-
-	/**
-	 * Segments to link boundary to boundary and to complete the mesh
-	 */
-	TArray<FIsoSegment*> CandidateLoopToLoopSegments;
-
-	/**
-	 * Segments to link inner to boundary and to complete the mesh
-	 */
-	TArray<FIsoSegment*> CandidateInnerToLoopSegments;
 
 	TArray<FIsoSegment*> NewTestSegments;
 
@@ -244,31 +231,19 @@ public:
 
 	/**
 	 * The closest loops are connected together
-	 * To do it, a Delaunay triangulation of the loop barycenters is realized.
+	 * To do it, a Delaunay triangulation of the loop barycenter is realized.
 	 * Each edge of this mesh defined a near loops pair
 	 * The shortest segment is then build between this pair of loops
 	 */
 	void ConnectCellSubLoopsByNeighborhood(FCell& cell);
 
-	/**
-	 * 2nd step
-	 */
-	void ConnectCellCornerToInnerLoop(FCell& Cell);
+	void FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell);	
 
-	/**
-	 * 3rd step : IsoSegment linking
-	 */
-	void FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell);
-
-	/**
-	 * 4th step : If their is no segment candidate
-	 */
 	void FindSegmentToLinkOuterLoopNodes(FCell& Cell);
 
-	/**
-	 * 5th step : try to connect outer loop Extremities
-	 */
-	void AddSementToLinkOuterLoopExtremities(FCell& Cell);
+	void FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell);
+
+	void ConnectCellCornerToInnerLoop(FCell& Cell);
 
 	/**
 	 * The goal of this algorithm is to connect iso U (or V) aligned loop nodes as soon as they are nearly in the same iso V (or U) strip.
@@ -277,35 +252,12 @@ public:
 	 * - In the same strip: each node of the segment has the same index "i" that verify: isoV[i] - TolV < Node.V < isoV[i+1] + TolV
 	 */
 	void FindIsoSegmentToLinkLoopToLoop();
-#ifdef UNUSED_TO_DELETE_
-	void LastChanceToCreateSegmentInCell(FCell& Cell);
-	/**
-	 * The goal of this algorithm is to connect inner node (node of the grid UV) to iso aligned loop node when they are in the same iso V (or U) strip.
-	 * I.e.:
-	 * - Iso U aligned: NodeA.U < NodeB.U
-	 * - In the same strip: each node of the segment has the same index "i" that verify: isoV[i-1] - TolV < BoundaryNode.V or BoundaryNode.V < isoV[i+1] + TolV
-	 * https://docs.google.com/presentation/d/1qUVOH-2kU_QXBVKyRUcdDy1Y6WGkcaJCiaS8wGjSZ6M/edit?usp=sharing
-	 * Slide "Find Iso Segment To Link Inner To Loop"
-	 */
-	void FindIsoSegmentToLinkInnerToLoop();
-#endif
 
 	/**
 	 * The purpose of the method is select a minimal set of segments connecting loops together
 	 * The final segments will be selected with SelectSegmentInCandidateSegments
 	 */
 	void ConnectCellSubLoopsByNeighborhood();  // to rename and clean
-
-#ifdef TODELETE
-	void FindSegmentToLinkLoopToLoop();
-#endif
-
-	/**
-	 * The purpose of the method is select a minimal set of segments
-	 * The final segments will be selected with SelectSegmentInCandidateSegments
-	 */
-	void FindCandidateSegmentsToLinkInnerToLoop();
-
 
 	void FindCandidateSegmentsToLinkInnerAndLoop();
 
@@ -337,6 +289,10 @@ public:
 	 */
 	void MeshCycle(const EGridSpace Space, const TArray<FIsoSegment*>& cycle, const TArray<bool>& cycleOrientation);
 
+#ifdef WIP_ADD_STEP_TO_TO_FAVOR_ISO_SEGMENTS
+	void FindIsoCandidateSegmentInCycle(TArray<FIsoNode*> CycleNodes);
+#endif
+
 	bool CanCycleBeMeshed(const TArray<FIsoSegment*>& Cycle, FIntersectionSegmentTool& CycleIntersectionTool);
 
 	/**
@@ -366,11 +322,6 @@ public:
 private:
 
 	FIsoSegment* FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, SlopMethod GetSlop) const;
-
-
-#ifdef UNUSED_TO_DELETE_
-	void CreateLoopToLoopSegment(FLoopNode* NodeA, const FPoint2D& ACoordinates, FLoopNode* NodeB, const FPoint2D& BCoordinates, TArray<FIsoSegment*>& NewSegments);
-#endif
 
 	// ==========================================================================================
 	// 	   Create segments

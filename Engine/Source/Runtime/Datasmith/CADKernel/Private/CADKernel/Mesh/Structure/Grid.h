@@ -221,12 +221,6 @@ protected:
 	void ScaleLoops();
 
 	/**
-	 * After the loops have been scaled, the distance between two consecutive vertices is verified to avoid degenerated mesh elements
-	 * @ return false if the external loop is degenerated after the process
-	 */
-	bool RemoveCoincidentNodes();
-
-	/**
 	 * Convert Coordinate of "DefaultParametric" space into a scaled parametric space
 	 * @see ScaleLoops
 	 */
@@ -564,11 +558,12 @@ public:
 	// ======================================================================================================================================================================================================================
 #ifdef CADKERNEL_DEV
 	bool bDisplay = false;
+	const double DisplayScale = 100.;
 
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	void DisplayIsoNode(EGridSpace Space, const FIsoNode& Node, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
-	void DisplayIsoNodes(EGridSpace Space, const TArray<FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const;
-	void DisplayIsoNodes(const FString& Message, EGridSpace Space, const TArray<FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const
+	void DisplayIsoNodes(EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const;
+	void DisplayIsoNodes(const FString& Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const
 	{
 		if (!bDisplay)
 		{
@@ -638,11 +633,11 @@ public:
 		{
 			if (IsInsideFace[Index])
 			{
-				DisplayPoint(Points[Index], IsCloseToLoop[Index] ? EVisuProperty::BluePoint : EVisuProperty::GreenPoint, Index);
+				DisplayPoint(Points[Index] * DisplayScale, IsCloseToLoop[Index] ? EVisuProperty::BluePoint : EVisuProperty::GreenPoint, Index);
 			}
 			else
 			{
-				DisplayPoint(Points[Index], EVisuProperty::OrangePoint, Index);
+				DisplayPoint(Points[Index] * DisplayScale, EVisuProperty::OrangePoint, Index);
 			}
 		}
 	}
@@ -667,20 +662,20 @@ public:
 			const TPoint* FirstSegmentPoint = &Loop[0];
 			if (bDisplayNodes)
 			{
-				DisplayPoint(*FirstSegmentPoint, EVisuProperty::BluePoint, 0);
+				DisplayPoint(*FirstSegmentPoint * DisplayScale, EVisuProperty::BluePoint, 0);
 			}
 
 			for (int32 Index = 1; Index < Loop.Num(); ++Index)
 			{
 				const TPoint* SecondSegmentPoint = &Loop[Index];
-				DisplaySegment(*FirstSegmentPoint, *SecondSegmentPoint);
+				DisplaySegment(*FirstSegmentPoint * DisplayScale, *SecondSegmentPoint * DisplayScale);
 				if (bDisplayNodes)
 				{
-					DisplayPoint(*SecondSegmentPoint, EVisuProperty::BluePoint, Index);
+					DisplayPoint(*SecondSegmentPoint * DisplayScale, EVisuProperty::BluePoint, Index);
 				}
 				FirstSegmentPoint = SecondSegmentPoint;
 			}
-			DisplaySegment(*FirstSegmentPoint, *Loop.begin());
+			DisplaySegment(*FirstSegmentPoint * DisplayScale, *Loop.begin() * DisplayScale);
 			if (bMakeGroup)
 			{
 				Close3DDebugSession();

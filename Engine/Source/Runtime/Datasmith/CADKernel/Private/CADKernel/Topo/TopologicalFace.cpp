@@ -11,6 +11,7 @@
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
+#include "CADKernel/Topo/TopologyReport.h"
 
 namespace CADKernel
 {
@@ -101,7 +102,7 @@ void FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
 	AddLoop(Loop);
 }
 
-void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLoops)
+void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLoops, int32& DoubtfulLoopOrientationCount)
 {
 	for (TSharedPtr<FTopologicalLoop> Loop : InLoops)
 	{
@@ -110,7 +111,10 @@ void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLo
 
 	for (TSharedPtr<FTopologicalLoop> Loop : InLoops)
 	{
-		Loop->Orient();
+		if (!Loop->Orient())
+		{
+			DoubtfulLoopOrientationCount++;
+		}
 	}
 }
 
@@ -215,6 +219,19 @@ const FTopologicalEdge* FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& 
 	}
 
 	return nullptr;
+}
+
+void FTopologicalFace::FillTopologyReport(FTopologyReport& Report) const
+{
+	Report.Add(this);
+
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
+	{
+		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			Report.Add(Edge.Entity.Get());
+		}
+	}
 }
 
 void FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const

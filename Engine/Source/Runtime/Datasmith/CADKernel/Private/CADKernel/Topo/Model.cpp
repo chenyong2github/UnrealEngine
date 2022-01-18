@@ -3,11 +3,11 @@
 
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Topo/Body.h"
-#include "CADKernel/Topo/TopologicalFace.h"
-#include "CADKernel/Topo/TopologicalEdge.h"
-#include "CADKernel/Topo/TopologicalVertex.h"
-#include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/Joiner.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
+#include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/Topo/TopologicalVertex.h"
+#include "CADKernel/Topo/TopologyReport.h"
 
 namespace CADKernel
 {
@@ -189,7 +189,6 @@ struct FBodyShell
 
 };
 
-//void FModel::CheckTopology()
 void FModel::CheckTopology() 
 {
 	TArray<FBodyShell> IsolatedBodies;
@@ -248,6 +247,18 @@ for (const FFaceSubset& Subset : SubShells)
 	}
 }
 
+void FModel::FillTopologyReport(FTopologyReport& Report) const
+{
+	for (TSharedPtr<FBody> Body : Bodies)
+	{
+		Body->FillTopologyReport(Report);
+	}
+
+	for (TSharedPtr<FTopologicalFace> Face : Faces)
+	{
+		Face->FillTopologyReport(Report);
+	}
+}
 
 void FModel::Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody)
 {

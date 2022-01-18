@@ -104,34 +104,30 @@ void FSystem::DefineSpyFile(const FString& InSpyFilePath)
 
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-void FSystem::DefineQaDataFile(const FString& InQaDataFilePath)
+void FSystem::DefineReportFile(const FString& InReportFilePath)
 {
-	if (QaDataFile.IsValid())
+	if (ReportFile.IsValid())
 	{
-		QaDataFile->Close();
-		QaDataFile.Reset();
+		ReportFile->Close();
+		ReportFile.Reset();
 
-		if (QaHeaderFile.IsValid())
+		if (ReportHeaderFile.IsValid())
 		{
-			QaHeaderFile->Close();
-			QaHeaderFile.Reset();
+			ReportHeaderFile->Close();
+			ReportHeaderFile.Reset();
 		}
 	}
 
-	FString QualifPath = FPaths::GetPath(InQaDataFilePath);
-	if (!FPaths::DirectoryExists(QualifPath))
+	FString ReportHeaderPath = FPaths::GetPath(InReportFilePath);
+	if (!FPaths::DirectoryExists(ReportHeaderPath))
 	{
-		IFileManager::Get().MakeDirectory(*QualifPath, true);
+		IFileManager::Get().MakeDirectory(*ReportHeaderPath, true);
 	}
 
-	QaDataFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InQaDataFilePath, IO_WRITE));
+	ReportFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InReportFilePath, IO_WRITE));
 
-	QualifPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GetPath(QualifPath), TEXT("QualifHeader.txt")));
-
-	if (!IFileManager::Get().FileExists(*QualifPath))
-	{
-		QaHeaderFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*QualifPath, IO_WRITE));
-	}
+	ReportHeaderPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(ReportHeaderPath, TEXT("ReportHeader.csv")));
+	ReportHeaderFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*ReportHeaderPath, IO_WRITE));
 }
 #endif
 

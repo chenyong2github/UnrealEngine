@@ -41,8 +41,8 @@ void FIsoTriangulator::DisplayPixel(const int32 IndexU, const int32 IndexV) cons
 
 void FIsoTriangulator::DisplayPixel(const int32 Index) const
 {
-	FPoint Point = (Grid.GetInner2DPoint(EGridSpace::Default2D, Index) + Grid.GetInner2DPoint(EGridSpace::Default2D, Index + Grid.GetCuttingCount(EIso::IsoU) + 1)) * 0.5;
-	DisplayPoint(Point, EVisuProperty::GreenPoint);
+	FPoint Point = (Grid.GetInner2DPoint(EGridSpace::UniformScaled, Index) + Grid.GetInner2DPoint(EGridSpace::UniformScaled, Index + Grid.GetCuttingCount(EIso::IsoU) + 1)) * 0.5;
+	DisplayPoint(Point * Grid.DisplayScale, EVisuProperty::GreenPoint);
 };
 
 void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
@@ -52,7 +52,7 @@ void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 		return;
 	}
 
-	Open3DDebugSession(TEXT("FIsoTrianguler::Pixel"));
+	F3DDebugSession _(TEXT("FIsoTrianguler::Pixel"));
 	for (int32 Index = 0; Index <Grid.GetTotalCuttingCount(); ++Index)
 	{
 		if (Pixel[Index])
@@ -60,7 +60,6 @@ void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 			DisplayPixel(Index);
 		}
 	}
-	Close3DDebugSession();
 }
 
 void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bSplitBySegment) const
@@ -149,15 +148,15 @@ void FIsoTriangulator::DrawCellBoundary(int32 Index, EVisuProperty Property) con
 	int32 IndexV;
 	Grid.UVIndexFromGlobalIndex(Index, IndexU, IndexV);
 
-	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Property, Index);
-	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Property, Index);
-	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Property, Index);
-	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV) * Grid.DisplayScale, Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1) * Grid.DisplayScale, Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV) * Grid.DisplayScale, Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1) * Grid.DisplayScale, Property, Index);
 
-	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Index, EVisuProperty(Property + 1));
-	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Index, EVisuProperty(Property + 1));
-	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Index, EVisuProperty(Property + 1));
-	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV) * Grid.DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1) * Grid.DisplayScale, Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV) * Grid.DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1) * Grid.DisplayScale, Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV) * Grid.DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV) * Grid.DisplayScale, Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1) * Grid.DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1) * Grid.DisplayScale, Index, EVisuProperty(Property + 1));
 }
 
 
@@ -168,7 +167,6 @@ void FIsoTriangulator::DisplayCell(const FCell& Cell) const
 		return;
 	}
 
-
 	F3DDebugSession _(FString::Printf(TEXT("Cell %d"), Cell.Id));
 
 	DrawCellBoundary(Cell.Id, EVisuProperty::YellowPoint);
@@ -176,7 +174,7 @@ void FIsoTriangulator::DisplayCell(const FCell& Cell) const
 	{
 		for (const FLoopNode* Node : Nodes)
 		{
-			DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::BluePoint, Cell.Id);
+			Grid.DisplayIsoNode(EGridSpace::UniformScaled, *Node, Cell.Id, EVisuProperty::BluePoint);
 		}
 	}
 }
@@ -193,7 +191,7 @@ void FIntersectionSegmentTool::Display(const TCHAR* Message, EVisuProperty Prope
 	Open3DDebugSession(Message);
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		DisplaySegment(Segment.Segment2D[0], Segment.Segment2D[1], Index++, Property);
+		DisplaySegment(Segment.Segment2D[0] * Grid.DisplayScale, Segment.Segment2D[1] * Grid.DisplayScale, Index++, Property);
 	}
 	Close3DDebugSession();
 }

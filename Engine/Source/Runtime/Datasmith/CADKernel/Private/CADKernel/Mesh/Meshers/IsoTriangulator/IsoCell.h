@@ -109,7 +109,7 @@ namespace CADKernel
 		void SelectSegmentInCandidateSegments(TFactory<FIsoSegment>& SegmentFactory)
 		{
 #ifdef DEBUG_SELECT_SEGMENT
-			F3DDebugSession _(TEXT("SelectSegmentInCandidateSegments "));
+			F3DDebugSession _(Grid.bDisplay, TEXT("SelectSegmentInCandidateSegments "));
 			IntersectionTool.Display(TEXT("Cell.IntersectionTool at SelectSegmentInCandidateSegments start"));
 			//Wait();
 #endif
@@ -119,19 +119,17 @@ namespace CADKernel
 					return Segment1->Get2DLengthSquare(EGridSpace::UniformScaled, Grid) < Segment2->Get2DLengthSquare(EGridSpace::UniformScaled, Grid);
 				});
 
-			//IntersectionTool.Empty(IntersectionTool.Count());
-
 			// Validate all candidate segments
 			for (FIsoSegment* Segment : CandidateSegments)
 			{
 #ifdef DEBUG_SELECT_SEGMENT
-				F3DDebugSession _(TEXT("Segment"));
+				F3DDebugSession _(Grid.bDisplay, TEXT("Segment"));
 #endif
 				if (IntersectionTool.DoesIntersect(*Segment))
 				{
 #ifdef DEBUG_SELECT_SEGMENT
-					F3DDebugSession _(TEXT("SelectSegmentInCandidateSegments "));
-					DisplaySegment(Segment->GetFirstNode().GetPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().GetPoint(EGridSpace::UniformScaled, Grid), 0, YellowCurve);
+					F3DDebugSession _(Grid.bDisplay, TEXT("SelectSegmentInCandidateSegments "));
+					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, YellowCurve);
 #endif
 					SegmentFactory.DeleteEntity(Segment);
 					continue;
@@ -140,14 +138,14 @@ namespace CADKernel
 				if (FIsoSegment::IsItAlreadyDefined(&Segment->GetFirstNode(), &Segment->GetSecondNode()))
 				{
 #ifdef DEBUG_SELECT_SEGMENT
-					DisplaySegment(Segment->GetFirstNode().GetPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().GetPoint(EGridSpace::UniformScaled, Grid), 0, GreenCurve);
+					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, GreenCurve);
 #endif
 					SegmentFactory.DeleteEntity(Segment);
 					continue;
 				}
 
 #ifdef DEBUG_SELECT_SEGMENT
-				DisplaySegment(Segment->GetFirstNode().GetPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().GetPoint(EGridSpace::UniformScaled, Grid), 0, BlueCurve);
+				Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, BlueCurve);
 #endif
 
 				FinalSegments.Add(Segment);
@@ -164,7 +162,6 @@ namespace CADKernel
 			int32 Index = LoopIndexToIndex[LoopIndex];
 			return SubLoops[Index].Find(NodeToFind) != INDEX_NONE;
 		}
-
 
 	};
 

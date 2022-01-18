@@ -182,7 +182,7 @@ namespace CADKernel
 		/**
 		 * Trimmed the face with an outer boundary (first boundary of the array) and inners boundaries
 		 */
-		void AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& Loops);
+		void AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& Loops, int32& DoubtfulLoopOrientationCount);
 
 		/**
 		 * Trimmed the face with curves i.e. Edges will be build from the cures to make boundaries.
@@ -291,6 +291,8 @@ namespace CADKernel
 		 * Disconnects the face of its neighbors
 		 */
 		void RemoveLinksWithNeighbours();
+
+		virtual void FillTopologyReport(FTopologyReport& Report) const override;
 
 		// ======   Meshing Function   ======
 

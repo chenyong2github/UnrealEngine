@@ -14,7 +14,7 @@ namespace CADKernel
 
 	/**
 	 * Transform a positive slope into an oriented slope [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
-	 * @return a slop between [-4, 4]
+	 * @return a slope between [-4, 4]
 	 */
 	inline double TransformIntoOrientedSlope(double Slope)
 	{
@@ -25,7 +25,7 @@ namespace CADKernel
 
 	/**
 	 * Transform a slope into a positive slope [0, *] i.e. an equivalent angle between [0, 2.Pi]
-	 * @return a slop between [0, 8]
+	 * @return a slope between [0, 8]
 	 */
 	inline double TransformIntoPositiveSlope(double Slope)
 	{
@@ -37,7 +37,7 @@ namespace CADKernel
 	 * Fast angle approximation by a "slope" :
 	 * This method is used to compute an approximation of the angle between the input segment defined by two points and [0, u) axis.
 	 * The return value is a real in the interval [0, 8] for an angle in the interval [0, 2Pi]
-	 * Warning, it's only an approximation... The conversion is not linear but the error is small near the integer value of slop (0, 1, 2, 3, ...8)
+	 * Warning, it's only an approximation... The conversion is not linear but the error is small near the integer value of slope (0, 1, 2, 3, ...8)
 	 * 
 	 * This approximation is very good when only comparison of angles is needed.
 	 * This method is not adapted to compute angle
@@ -46,7 +46,7 @@ namespace CADKernel
 	 * 
 	 * [0 - 2Pi] is divide into 8 angular sector i.e. [0, Pi/4] = [0,1], [Pi/4, Pi/2] = [1,2], ...
 	 * 
-	 * @return a slop between [0, 8] i.e. an equivalent angle between [0, 2Pi]
+	 * @return a slope between [0, 8] i.e. an equivalent angle between [0, 2Pi]
 	 *
 	 * Angle (Degree) to Slop
 	 *		  0   = 0
@@ -131,7 +131,7 @@ namespace CADKernel
 	/**
 	 * Compute the oriented slope of a segment according to a reference slope
 	 * This method is used to compute an approximation of the angle between two segments in 2D.
-	 * return a slop between [0, 8] i.e. an equivalent angle between [0, 2Pi]
+	 * return a slope between [0, 8] i.e. an equivalent angle between [0, 2Pi]
  	 */
 	inline double ComputePositiveSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 	{
@@ -143,7 +143,7 @@ namespace CADKernel
 
 	/**
 	 * Compute the positive slope between the segments [StartPoint, EndPoint1] and [StartPoint, EndPoint2]
-	 * @return a slop between [0, 8] i.e. an equivalent angle between [0, 2Pi]
+	 * @return a slope between [0, 8] i.e. an equivalent angle between [0, 2Pi]
 	 */
 	inline double ComputePositiveSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
 	{
@@ -165,7 +165,7 @@ namespace CADKernel
 
 	/**
 	 * Compute the oriented slope of a segment according to a reference slope
-	 * @return a slop between [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
+	 * @return a slope between [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
 	 */
 	inline double ComputeOrientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 	{
@@ -174,7 +174,7 @@ namespace CADKernel
 
 	/**
 	 * Compute the positive slope between the segments [StartPoint, EndPoint1] and [StartPoint, EndPoint2]
-	 * @return a slop between [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
+	 * @return a slope between [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
 	 */
 	inline double ComputeOrientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
 	{
@@ -182,7 +182,7 @@ namespace CADKernel
 	}
 
 	/**
-	 * return a slop between [0, 4] i.e. an angle between [0, Pi]
+	 * return a slope between [0, 4] i.e. an angle between [0, Pi]
 	 */
 	inline double ComputeUnorientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 	{
@@ -190,7 +190,48 @@ namespace CADKernel
 	}
 
 	/**
-	 * return a slop between [0, 4] i.e. an angle between [0, Pi]
+	 * return a slope between [0, 1] relative to the nearest axis between horizontal or vertical axis i.e. 
+	 * ComputeUnorientedSlope => 0.5 return 0.5
+	 * ComputeUnorientedSlope => 2.3 return 0.3
+	 * ComputeUnorientedSlope => 3.6 return 0.4
+	 */
+	inline double ComputeSlopeRelativeToNearestAxis(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
+	{
+		double Slope = FMath::Abs(TransformIntoOrientedSlope(ComputeSlope(StartPoint, EndPoint)));
+		if (Slope > 2)
+		{
+			Slope = 4 - Slope;
+		}
+
+		// if slope close to 2 means segment close to IsoU, otherwise segment close to IsoV
+		// Wants a slope between 0 and 1 to manage either IsoU and IsoV
+		// Close to 0 means close to IsoU or IsoV
+		if (Slope > 1)
+		{
+			Slope = 2 - Slope;
+		}
+
+		return Slope;
+	}
+
+	/**
+	 * return a slope between [0, 2] relative to reference Axis i.e.
+	 * ComputeUnorientedSlope => 0.5 return 0.5
+	 * ComputeUnorientedSlope => 2.3 return 1.7
+	 */
+	inline double ComputeSlopeRelativeToReferenceAxis(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceAxisSlope)
+	{
+		double Slope = ComputeUnorientedSlope(StartPoint, EndPoint, ReferenceAxisSlope);
+		if (Slope > 2)
+		{
+			Slope = 4 - Slope;
+		}
+
+		return Slope;
+	}
+
+	/**
+	 * return a slope between [0, 4] i.e. an angle between [0, Pi]
 	 */
 	inline double ComputeUnorientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
 	{
@@ -259,51 +300,51 @@ namespace CADKernel
 			});
 	}
 
-	inline FPoint2D SlopeToVector(const double Slop)
+	inline FPoint2D SlopeToVector(const double Slope)
 	{
-		int32 SlopStep = (int32)(Slop);
+		int32 SlopeStep = (int32) (Slope);
 		FPoint2D Vector;
-		switch (SlopStep)
+		switch (SlopeStep)
 		{
 		case 0:
 			// Delta = DeltaV / DeltaU;
 			Vector[0] = 1.;
-			Vector[1] = Slop;
+			Vector[1] = Slope;
 			break;
 		case 1:
 			// 2 - DeltaU / DeltaV;
-			Vector[0] = 2. - Slop;
+			Vector[0] = 2. - Slope;
 			Vector[1] = 1.;
 			break;
 		case 2:
 			// 2 - DeltaU / DeltaV;
-			Vector[0] = 2. - Slop;
+			Vector[0] = 2. - Slope;
 			Vector[1] = 1.;
 			break;
 		case 3:
 			// 4 + DeltaV / DeltaU;
 			Vector[0] = -1.;
-			Vector[1] = 4. - Slop;
+			Vector[1] = 4. - Slope;
 			break;
 		case 4:
 			// 4 + DeltaV / DeltaU;
 			Vector[0] = -1.;
-			Vector[1] = 4. - Slop;
+			Vector[1] = 4. - Slope;
 			break;
 		case 5:
 			// 6 - DeltaU / DeltaV;
-			Vector[0] = Slop - 6.;
+			Vector[0] = Slope - 6.;
 			Vector[1] = -1.;
 			break;
 		case 6:
 			// 6 - DeltaU / DeltaV // deltaU/deltaV <0
-			Vector[0] = Slop - 6.;
+			Vector[0] = Slope - 6.;
 			Vector[1] = -1;
 			break;
 		case 7:
 			// 8 + DeltaV / DeltaU; // deltaU/deltaV <0
 			Vector[0] = 1.;
-			Vector[1] = Slop - 8.;
+			Vector[1] = Slope - 8.;
 			break;
 		default:
 			break;

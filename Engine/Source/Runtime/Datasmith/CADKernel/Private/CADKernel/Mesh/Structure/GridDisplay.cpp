@@ -16,7 +16,7 @@ void FGrid::DisplayIsoNode(EGridSpace DisplaySpace, const int32 PointIndex, FIde
 	{
 		return;
 	}
-	DisplayPoint(Points2D[DisplaySpace][PointIndex], Ident);
+	DisplayPoint(Points2D[DisplaySpace][PointIndex] * DisplayScale, Ident);
 }
 
 void FGrid::DisplayIsoNode(EGridSpace Space, const FIsoNode& Node, FIdent Ident, EVisuProperty Property) const
@@ -25,17 +25,17 @@ void FGrid::DisplayIsoNode(EGridSpace Space, const FIsoNode& Node, FIdent Ident,
 	{
 		return;
 	}
-	DisplayPoint(Node.GetPoint(Space, *this), Property, Ident);
+	DisplayPoint(Node.GetPoint(Space, *this) * DisplayScale, Property, Ident);
 }
 
-void FGrid::DisplayIsoNodes(EGridSpace Space, const TArray<FIsoNode*>& Nodes, EVisuProperty Property) const
+void FGrid::DisplayIsoNodes(EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property) const
 {
 	if (!bDisplay)
 	{
 		return;
 	}
 
-	for (FIsoNode* Node : Nodes)
+	for (const FIsoNode* Node : Nodes)
 	{
 		DisplayIsoNode(Space, *Node, Node->GetId(), Property);
 	}
@@ -47,7 +47,7 @@ void FGrid::DisplayIsoSegment(EGridSpace Space, const FIsoSegment& Segment, FIde
 	{
 		return;
 	}
-	DisplaySegment(Segment.GetFirstNode().GetPoint(Space, *this), Segment.GetSecondNode().GetPoint(Space, *this), Ident, Property, bDisplayOrientation);
+	DisplaySegment(Segment.GetFirstNode().GetPoint(Space, *this) * DisplayScale, Segment.GetSecondNode().GetPoint(Space, *this) * DisplayScale, Ident, Property, bDisplayOrientation);
 }
 
 void FGrid::DisplayIsoSegment(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident, EVisuProperty Property) const
@@ -56,16 +56,16 @@ void FGrid::DisplayIsoSegment(EGridSpace Space, const FIsoNode& NodeA, const FIs
 	{
 		return;
 	}
-	DisplaySegment(NodeA.GetPoint(Space, *this), NodeB.GetPoint(Space, *this), Ident, Property);
+	DisplaySegment(NodeA.GetPoint(Space, *this) * DisplayScale, NodeB.GetPoint(Space, *this) * DisplayScale, Ident, Property);
 }
 
 void FGrid::DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const
 {
 	TArray<FPoint> Points;
 	Points.SetNum(3);
-	Points[0] = NodeA.GetPoint(Space, *this);
-	Points[1] = NodeB.GetPoint(Space, *this);
-	Points[2] = NodeC.GetPoint(Space, *this);
+	Points[0] = NodeA.GetPoint(Space, *this) * DisplayScale;
+	Points[1] = NodeB.GetPoint(Space, *this) * DisplayScale;
+	Points[2] = NodeC.GetPoint(Space, *this) * DisplayScale;
 	DrawElement(2, Points, EVisuProperty::Element);
 
 	DisplaySegment(Points[0], Points[1], 0, EVisuProperty::EdgeMesh);
@@ -85,11 +85,11 @@ void FGrid::DisplayIsoSegments(EGridSpace Space, const TArray<FIsoSegment*>& InS
 	{
 		if (Segment)
 		{
-			DisplaySegment(Segment->GetFirstNode().GetPoint(Space, *this), Segment->GetSecondNode().GetPoint(Space, *this), Index++, Property, bDisplayOrientation);
+			DisplaySegment(Segment->GetFirstNode().GetPoint(Space, *this) * DisplayScale, Segment->GetSecondNode().GetPoint(Space, *this) * DisplayScale, Index++, Property, bDisplayOrientation);
 			if(bDisplayNode)
 			{
-				DisplayPoint(Segment->GetFirstNode().GetPoint(Space, *this), (EVisuProperty)(Property - 1), Segment->GetFirstNode().GetIndex());
-				DisplayPoint(Segment->GetSecondNode().GetPoint(Space, *this), (EVisuProperty)(Property - 1), Segment->GetSecondNode().GetIndex());
+				DisplayPoint(Segment->GetFirstNode().GetPoint(Space, *this) * DisplayScale, (EVisuProperty)(Property - 1), Segment->GetFirstNode().GetIndex());
+				DisplayPoint(Segment->GetSecondNode().GetPoint(Space, *this) * DisplayScale, (EVisuProperty)(Property - 1), Segment->GetSecondNode().GetIndex());
 			}
 		}
 	}
@@ -311,7 +311,7 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 		{
 			if (IsInsideFace[Index])
 			{
-				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::BluePoint, Index);
+				DisplayPoint(Points2D[DisplaySpace][Index] * DisplayScale, EVisuProperty::BluePoint, Index);
 				NbNum++;
 			}
 		}
@@ -324,7 +324,7 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 		{
 			if (!IsInsideFace[Index])
 			{
-				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::OrangePoint, Index);
+				DisplayPoint(Points2D[DisplaySpace][Index] * DisplayScale, EVisuProperty::OrangePoint, Index);
 			}
 		}
 	}

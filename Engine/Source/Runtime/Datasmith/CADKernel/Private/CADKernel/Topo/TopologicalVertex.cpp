@@ -67,7 +67,7 @@ bool FTopologicalVertex::IsBorderVertex()
 TSharedPtr<FEntityGeom> FTopologicalVertex::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FPoint transformedPoint = InMatrix.Multiply(Coordinates);
-	return FEntity::MakeShared<FTopologicalVertex>(transformedPoint);
+	return FTopologicalVertex::Make(transformedPoint);
 }
 
 void FTopologicalVertex::GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& OutEdges) const

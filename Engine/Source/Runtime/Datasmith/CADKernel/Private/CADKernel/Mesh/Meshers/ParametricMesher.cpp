@@ -100,6 +100,8 @@ void FParametricMesher::MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities)
 	}
 
 	MeshEntities();
+
+	MesherReport.Print();
 }
 
 void FParametricMesher::MeshEntities()
@@ -228,14 +230,16 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 	FGrid Grid(Face, MeshModel);
 	GenerateCloud(Grid);
 
+	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
+
 	if (Grid.IsDegenerated())
 	{
+		MesherReport.Logs.AddDegeneratedGrid();
 		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face->GetId());
 		Face->SetMeshed();
 		return;
 	}
 
-	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
 
 	FTimePoint IsoTriangulerStartTime = FChrono::Now();
 
@@ -412,7 +416,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
 			// In the particular case where the both case are opposed, we can have the 2d line sampled with 4 points, and the 2d curve sampled with 2 points (because in 3d, the 2d curve is a 3d line)
 			// In this case, the loop is flat i.e. in 2d the meshes of the 2d line and 2d curve are coincident
 			// So the grid is degenerated and the surface is not meshed
-			// to avoid this case, the Edge is virtually meshed i.e. the nodes inside the edge has the is of the mesh of the vertices.
+			// to avoid this case, the Edge is virtually meshed i.e. the nodes inside the edge have the id of the mesh of the vertices.
 			InEdge.SetAsVirtuallyMeshed();
 		}
 
@@ -1606,6 +1610,11 @@ void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 void FParametricMesher::InitParameters(const FString& ParametersString)
 {
 	Parameters->SetFromString(ParametersString);
+}
+
+void FParametricMesher::PrintReport()
+{
+	MesherReport.Print();
 }
 
 #ifdef DEBUG_INTERSECTEDGEISOS

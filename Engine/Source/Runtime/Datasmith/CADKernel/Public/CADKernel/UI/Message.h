@@ -2,81 +2,92 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Core/Chrono.h"
 
 #include "CADKernel/UI/Progress.h"
 
 namespace CADKernel
 {
-extern const char* VerboseLevelConstNames[];
-extern const char* VerboseConstDescHelp[];
+	extern const char* VerboseLevelConstNames[];
+	extern const char* VerboseConstDescHelp[];
 
 
-class CADKERNEL_API FMessage
-{
-	friend class FProgressManager;
-
-private:
-	static int32 NumberOfIndentation;
-	static int32 OldPercent;
-
-	static void VPrintf(EVerboseLevel Level, const TCHAR* Text, ...);
-
-#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-	static void VQaPrintF(const TCHAR* Header, const TCHAR* Text, ...);
-#endif
-
-public:
-
-	template <typename FmtType, typename... Types>
-	static void Printf(EVerboseLevel Level, const FmtType& Text, Types... Args)
+	class CADKERNEL_API FMessage
 	{
-		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-		VPrintf(Level, Text, Args...);
-	}
+		friend class FProgressManager;
 
-	template <typename FmtType, typename... Types>
-	static void Error(const FmtType& Text, Types... Args)
-	{
-		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-		FString CompleteText = TEXT("ERROR: ");
-		CompleteText += Text;
-		VPrintf(Log, *CompleteText, Args...);
-	}
+	private:
+		static int32 NumberOfIndentation;
+		static int32 OldPercent;
 
-	template <typename FmtType, typename... Types>
-	static void Warning(const FmtType& Text, Types... Args)
-	{
-		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-		FString CompleteText = TEXT("WARNING: ");
-		CompleteText += Text;
-		VPrintf(Log, *CompleteText, Args...);
-	}
+		static void VPrintf(EVerboseLevel Level, const TCHAR* Text, ...);
 
-#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-	template <typename FmtType, typename... Types>
-	static void FillQaDataFile(const FmtType& Header, const FmtType& Text, Types... Args)
-	{
-		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-		VQaPrintF(Header, Text, Args...);
-	}
-#endif
+		static void VReportPrintF(FString Header, const TCHAR* Text, ...);
 
-	static void Indent(int32 InNumberOfIndent = 1)
-	{
-		NumberOfIndentation += InNumberOfIndent;
-	}
+	public:
 
-	static void Deindent(int32 InNumberOfIndent = 1)
-	{
-		NumberOfIndentation -= InNumberOfIndent;
-		if (NumberOfIndentation < 0)
+		template <typename FmtType, typename... Types>
+		static void Printf(EVerboseLevel Level, const FmtType& Text, Types... Args)
 		{
-			NumberOfIndentation = 0;
+			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+			VPrintf(Level, Text, Args...);
 		}
-	}
 
-};
+		template <typename FmtType, typename... Types>
+		static void Error(const FmtType& Text, Types... Args)
+		{
+			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+			FString CompleteText = TEXT("ERROR: ");
+			CompleteText += Text;
+			VPrintf(Log, *CompleteText, Args...);
+		}
 
+		template <typename FmtType, typename... Types>
+		static void Warning(const FmtType& Text, Types... Args)
+		{
+			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+			FString CompleteText = TEXT("WARNING: ");
+			CompleteText += Text;
+			VPrintf(Log, *CompleteText, Args...);
+		}
+
+		template <typename FmtType, typename... Types>
+		static void FillReportFile(const FmtType Header, const FmtType Text, Types... Args)
+		{
+			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+			VReportPrintF(Header, Text, Args...);
+		}
+
+		static void FillReportFile(const TCHAR* Header, FDuration Duration)
+		{
+#ifdef CADKERNEL_DEV
+			int64 Time = FChrono::ConvertInto<std::chrono::microseconds>(Duration);
+#else
+			int64 Time = Duration;
+#endif
+			VReportPrintF(Header, TEXT("%lld"), Time);
+		}
+
+		static void FillReportFile(const TCHAR* Header, int32 Count)
+		{
+			VReportPrintF(Header, TEXT("%d"), Count);
+		}
+
+		static void Indent(int32 InNumberOfIndent = 1)
+		{
+			NumberOfIndentation += InNumberOfIndent;
+		}
+
+		static void Deindent(int32 InNumberOfIndent = 1)
+		{
+			NumberOfIndentation -= InNumberOfIndent;
+			if (NumberOfIndentation < 0)
+			{
+				NumberOfIndentation = 0;
+			}
+		}
+
+	};
 } // namespace CADKernel
 
 #define ERROR_FUNCTION_CALL_NOT_EXPECTED \

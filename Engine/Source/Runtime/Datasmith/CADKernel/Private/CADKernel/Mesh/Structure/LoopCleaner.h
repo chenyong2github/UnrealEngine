@@ -7,6 +7,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
 
 namespace CADKernel
 {
@@ -153,11 +154,13 @@ public:
 	{
 		if (!CleanLoops())
 		{
+			MesherReport.Logs.AddRemoveSelfIntersectionFailure();
 			return false;
 		}
 		
 		if (!UncrossLoops())
 		{
+			MesherReport.Logs.AddRemoveCrossingLoopsFailure();
 			return false;
 		}
 
@@ -189,11 +192,7 @@ private:
 	{
 		double Slop = ComputeUnorientedSlope(NodeToRemovePoint, PreviousPoint, NextPoint);
 		bool bRemoveNode = false;
-		if (Slop < 0.03)
-		{
-			bRemoveNode = true;
-		}
-		else if (Slop < 0.1)
+		if (Slop < 0.1)
 		{
 			double SquareDistance1 = SquareDistanceOfPointToSegment(PreviousPoint, NodeToRemovePoint, NextPoint);
 			double SquareDistance2 = SquareDistanceOfPointToSegment(NextPoint, NodeToRemovePoint, PreviousPoint);
@@ -322,7 +321,7 @@ private:
 		FLoopNode* Node = NodesOfLoop[Index];
 		if (Node->IsDelete())
 		{
-#ifdef DEBUG_LOOP_INTERSECTION_AND_FIX_IT	
+#ifdef GET_NODE_AT	
 			Wait();
 #endif
 			return nullptr;
@@ -417,7 +416,7 @@ private:
 			FLoopNode* Segment0End = GetNodeAt(NextIndex((int32)Intersection.Key));
 			FLoopNode* Segment1Start = GetNodeAt((int32)Intersection.Value);
 
-			if (!Segment0End || !Segment1Start)
+			if (Segment0End == nullptr || Segment1Start == nullptr)
 			{
 				return;
 			}

@@ -3,6 +3,7 @@
 #include "CoreTechFileParser.h"
 
 #include "CoreTechTypes.h"
+#include "CADFileReport.h"
 
 #ifdef USE_KERNEL_IO_SDK
 
@@ -721,7 +722,8 @@ namespace CADLibrary
 
 			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
 
-			CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession);
+			CADKernel::FCADFileReport Report;
+			CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession, Report);
 
 			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
 			CADKernelModel->Add(CADKernelBody);
@@ -822,7 +824,8 @@ namespace CADLibrary
 		CADKernelSession.SetFirstNewHostId(LastHostIdUsed);
 		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
 
-		CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession);
+		CADKernel::FCADFileReport Report;
+		CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession, Report);
 
 		for(CT_OBJECT_ID BodyId : Bodies)
 		{

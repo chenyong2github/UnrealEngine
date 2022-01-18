@@ -222,7 +222,7 @@ public:
 
 	double Length() const
 	{
-		return sqrt((X * X) + (Y * Y) + (Z * Z));
+		return FMath::Sqrt((X * X) + (Y * Y) + (Z * Z));
 	}
 
 	double SquareLength() const
@@ -253,7 +253,7 @@ public:
 
 	double Distance(const FPoint& Point) const
 	{
-		return sqrt(FMath::Square(Point.X - X) + FMath::Square(Point.Y - Y) + FMath::Square(Point.Z - Z));
+		return FMath::Sqrt(FMath::Square(Point.X - X) + FMath::Square(Point.Y - Y) + FMath::Square(Point.Z - Z));
 	}
 
 	double SquareDistance(const FPoint& Point) const
@@ -446,7 +446,7 @@ public:
 
 	double Distance(const FPoint2D& Point) const
 	{
-		return sqrt(FMath::Square(Point.U - U) + FMath::Square(Point.V - V));
+		return FMath::Sqrt(FMath::Square(Point.U - U) + FMath::Square(Point.V - V));
 	}
 
 	double SquareDistance(const FPoint2D& Point) const
@@ -456,7 +456,7 @@ public:
 
 	double Length() const
 	{
-		return sqrt(FMath::Square(U) + FMath::Square(V));
+		return FMath::Sqrt(FMath::Square(U) + FMath::Square(V));
 	}
 
 	double SquareLength() const

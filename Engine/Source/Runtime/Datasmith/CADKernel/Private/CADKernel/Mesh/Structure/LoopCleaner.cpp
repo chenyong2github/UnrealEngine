@@ -45,7 +45,7 @@ bool FLoopCleaner::CleanLoops()
 	{
 		Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, EVisuProperty::BlueCurve);
 		Grid.DisplayIsoSegments(TEXT("Loops Init"), EGridSpace::UniformScaled, LoopSegments, true, false, EVisuProperty::BlueCurve);
-		Grid.DisplayIsoNodes(TEXT("BestStartNodeOfLoop"), EGridSpace::UniformScaled, (const TArray<FIsoNode*>&) BestStartNodeOfLoops, EVisuProperty::BluePoint);
+		Grid.DisplayIsoNodes(TEXT("BestStartNodeOfLoop"), EGridSpace::UniformScaled, (const TArray<const FIsoNode*>) BestStartNodeOfLoops, EVisuProperty::BluePoint);
 		Wait(bDisplay);
 	}
 #endif
@@ -98,7 +98,8 @@ bool FLoopCleaner::CleanLoops()
 
 		if (!RemoveLoopPicks())
 		{
-			continue;
+			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace()->GetId());
+			return false;
 		}
 
 		if (NodesOfLoopCount == 0)
@@ -817,7 +818,7 @@ bool FLoopCleaner::RemoveSelfIntersectionsOfLoop()
 		FLoopNode* Segment0End = GetNodeAt(NextIndex((int32)Intersection.Key));
 		FLoopNode* Segment1Start = GetNodeAt((int32)Intersection.Value);
 
-		if (!Segment0End || !Segment1Start)
+		if (Segment0End == nullptr || Segment1Start == nullptr)
 		{
 			++IntersectionIndex;
 			continue;
@@ -929,7 +930,7 @@ bool FLoopCleaner::RemoveOutgoingLoop(const TPair<double, double>& Intersection,
 
 	FLoopNode* TmpNode = GetNodeAt(NextIndex((int32)Intersection.Value));
 	FLoopNode* EndNode = GetNodeAt((int32)NextIntersection.Value);
-	if (TmpNode == nullptr || TmpNode->IsDelete() || EndNode == nullptr || EndNode->IsDelete())
+	if (TmpNode == nullptr || EndNode == nullptr)
 	{
 		return false;
 	}
@@ -1007,7 +1008,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 		FLoopNode* Node = GetNodeAt(StartIndex);
 		FLoopNode* StopNode = GetNodeAt(EndIndex);
 		FLoopNode* EndSegment = GetNodeAt(SegmnentEndIndex);
-		if (Node == nullptr || Node->IsDelete() || StopNode == nullptr || StopNode->IsDelete() || EndSegment == nullptr)
+		if (Node == nullptr || StopNode == nullptr || EndSegment == nullptr)
 		{
 			return false;
 		}
@@ -1025,7 +1026,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 
 		for (Node = GetNodeAt(StartIndex); Node != StopNode; )
 		{
-			if (Node->IsDelete())
+			if (Node == nullptr)
 			{
 				return false;
 			}
@@ -1102,7 +1103,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 			{
 				FLoopNode* NodeSide0 = GetNodeAt(IndexSide0);
 				FLoopNode* NodeSide1 = GetNodeAt(IndexSide1);
-				if (NodeSide0->IsDelete() || NodeSide1->IsDelete())
+				if (NodeSide0 == nullptr || NodeSide1 == nullptr)
 				{
 					return false;
 				}
@@ -1125,14 +1126,14 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 				FLoopSection IntersectingSection;
 				IntersectingSection.Key = GetNodeAt(IndexSide0);
 				IntersectingSection.Value = GetNodeAt((int32)SecondIntersection.Key);
-				if(!IntersectingSection.Key || !IntersectingSection.Value)
+				if(IntersectingSection.Key == nullptr || IntersectingSection.Value == nullptr)
 				{
 					return false;
 				}
 
 				IntersectingSection.Key = GetPrevious(IntersectingSection.Key);
 				IntersectingSection.Value = GetNext(IntersectingSection.Value);
-				if (!IntersectingSection.Key || IntersectingSection.Key->IsDelete() || !IntersectingSection.Value || IntersectingSection.Value->IsDelete())
+				if (IntersectingSection.Key == nullptr || IntersectingSection.Key->IsDelete() || IntersectingSection.Value == nullptr || IntersectingSection.Value->IsDelete())
 				{
 					return false;
 				}
@@ -1140,7 +1141,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 				FLoopSection OppositeSection;
 				OppositeSection.Key = GetNodeAt(IndexSide1);
 				OppositeSection.Value = GetNodeAt((int32)FirstIntersection.Value);
-				if (!OppositeSection.Key || !OppositeSection.Value)
+				if (OppositeSection.Key == nullptr || OppositeSection.Value == nullptr)
 				{
 					return false;
 				}
@@ -1148,7 +1149,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 				OppositeSection.Key = GetPrevious(OppositeSection.Key);
 				OppositeSection.Value = GetNext(OppositeSection.Value);
 
-				if (!OppositeSection.Key || OppositeSection.Key->IsDelete() || !OppositeSection.Value || OppositeSection.Value->IsDelete())
+				if (OppositeSection.Key == nullptr || OppositeSection.Key->IsDelete() || OppositeSection.Value == nullptr || OppositeSection.Value->IsDelete())
 				{
 					return false;
 				}
@@ -1167,17 +1168,36 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 #endif
 
 				// Check if there is no more intersection, otherwise fix last intersections by moving node of OppositeSection
-				// As we don't know the existence of intersection, the process is chesk and fix
+				// As we don't know the existence of intersection, the process checks and fixes
 				{
 					LoopSegmentsIntersectionTool.Empty(NodesOfLoopCount);
 					for (FLoopNode* Node = IntersectingSection.Key; Node != IntersectingSection.Value; Node = GetNext(Node))
 					{
-						LoopSegmentsIntersectionTool.AddSegment(*Node->GetSegmentConnectedTo(GetNext(Node)));
+						if (Node->IsDelete())
+						{
+							// should not happen => so the process is canceled
+							return false;
+						}
+						
+						FIsoSegment* Segment = Node->GetSegmentConnectedTo(GetNext(Node));
+						if(!Segment)
+						{
+							// should not happen => so the process is canceled
+							return false;
+						}
+
+						LoopSegmentsIntersectionTool.AddSegment(*Segment);
 					}
 				}
 
 				for (FLoopNode* Node = OppositeSection.Key; Node != OppositeSection.Value; Node = GetNext(Node))
 				{
+					if (Node->IsDelete() || OppositeSection.Value->IsDelete())
+					{
+						// should not happen => so the process is canceled
+						return false;
+					}
+
 					if (const FIsoSegment* Intersection = LoopSegmentsIntersectionTool.DoesIntersect(*Node, *GetNext(Node)))
 					{
 						MoveNodeBehindSegment(*Intersection, *GetNext(Node));
@@ -1412,7 +1432,7 @@ bool FLoopCleaner::Fill(LoopCleanerImpl::FPinchIntersectionContext& Context)
 	{
 		Context.Points[Side].SetNum(3);
 		Context.Nodes[Side][1] = GetNodeAt(Index);
-		if (Context.Nodes[Side][1] == nullptr || Context.Nodes[Side][1]->IsDelete())
+		if (Context.Nodes[Side][1] == nullptr)
 		{
 			return false;
 		}
@@ -1568,7 +1588,7 @@ bool FLoopCleaner::DisconnectCrossingSegments(LoopCleanerImpl::FPinchIntersectio
 bool FLoopCleaner::SwapNodes(const TPair<double, double>& Intersection)
 {
 	FLoopNode* Node0 = GetNodeAt(NextIndex((int32)Intersection.Key));
-	if (Node0 == nullptr || Node0->IsDelete())
+	if (Node0 == nullptr)
 	{
 		return false;
 	}
@@ -1593,7 +1613,7 @@ bool FLoopCleaner::TryToSwapSegmentsOrRemoveLoop(const TPair<double, double>& In
 
 	FLoopNode* Segment0_Node1 = GetNodeAt(Segment0StartIndex);
 	FLoopNode* Segment1_Node0 = GetNodeAt(Segment1EndIndex);
-	if (Segment0_Node1 == nullptr || Segment0_Node1->IsDelete() || Segment1_Node0 == nullptr || Segment1_Node0->IsDelete())
+	if (Segment0_Node1 == nullptr || Segment1_Node0 == nullptr)
 	{
 		return false;
 	}
@@ -1927,7 +1947,7 @@ void FLoopCleaner::FindLoopIntersections()
 bool FLoopCleaner::RemoveOuterNode(const TPair<double, double>& Intersection)
 {
 	FLoopNode* Node0 = GetNodeAt(NextIndex((int32)Intersection.Key));
-	if (Node0->IsDelete())
+	if (Node0 == nullptr)
 	{
 		return false;
 	}
@@ -1973,8 +1993,18 @@ bool FLoopCleaner::RemoveLoopPicks()
 
 bool FLoopCleaner::RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1)
 {
+	if (Node0->IsDelete() || Node1->IsDelete())
+	{
+		return false;
+	}
+
 	FLoopNode* PreviousNode = &Node0->GetPreviousNode();
 	FLoopNode* NextNode = &Node1->GetNextNode();
+
+	if (PreviousNode->IsDelete() || NextNode->IsDelete())
+	{
+		return false;
+	}
 
 	const FPoint2D* PreviousPoint = &PreviousNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FPoint2D* Point0 = &Node0->Get2DPoint(EGridSpace::UniformScaled, Grid);
@@ -1983,16 +2013,7 @@ bool FLoopCleaner::RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1)
 
 	while (true)
 	{
-		bool bNodeIsToDelete = (Point0->SquareDistance(*Point1) < SquareGeometricTolerance2);
-		if (bNodeIsToDelete)
-		{
-			if (!RemoveNodeOfLoop(*Node0))
-			{
-				return false;
-			}
-		}
-
-		if (bNodeIsToDelete || CheckAndRemovePick(*PreviousPoint, *Point0, *Point1, *Node0))
+		if (CheckAndRemovePick(*PreviousPoint, *Point0, *Point1, *Node0))
 		{
 			if (PreviousNode->IsDelete())
 			{
@@ -2232,16 +2253,32 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 	LoopIndex = StartNode->GetLoopIndex();
 	double OptimalSlop = (LoopIndex == 0) ? -1 : 9.;
 
+	double MaxFrontSlope = 4;
+	double MinBackSlope = 4;
+
+#ifdef DEBUG_LOOP_ORIENTATION
+	F3DDebugSession _(Grid.bDisplay, TEXT("GetLoopOrientation"));
+#endif
 	TFunction<void(const FLoopNode*)> CompareWithSlopAt = [&](const FLoopNode* Node)
 	{
 		FLoopNode& PreviousNode = Node->GetPreviousNode();
 		FLoopNode& NextNode = Node->GetNextNode();
-		double Slop = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
+		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
 
-		if ((Slop > OptimalSlop) == (LoopIndex == 0))
+#ifdef DEBUG_LOOP_ORIENTATION
+		F3DDebugSession A(Grid.bDisplay, FString::Printf(TEXT("Slop %f"), Slope));
+		Grid.DisplayIsoNode(EGridSpace::UniformScaled, *Node);
+		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Node, PreviousNode);
+		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Node, NextNode);
+#endif
+
+		if (Slope > 4)
 		{
-			OptimalSlop = Slop;
-			BestNode = Node;
+			if (MaxFrontSlope < Slope) MaxFrontSlope = Slope;
+		}
+		else
+		{
+			if (MinBackSlope > Slope) MinBackSlope = Slope;
 		}
 	};
 
@@ -2266,8 +2303,8 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 		}
 	};
 
-	const FLoopNode* Node = LoopCleanerImpl::GetNextConstNodeImpl(StartNode);
-	for (; Node != StartNode; Node = LoopCleanerImpl::GetNextConstNodeImpl(Node))
+	const FLoopNode* Node = StartNode;
+	do
 	{
 		const FPoint2D& Point = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
@@ -2292,16 +2329,20 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 			VMin = Point.V;
 			ExtremityNodes[3] = Node;
 		}
-	}
+		Node = LoopCleanerImpl::GetNextConstNodeImpl(Node);
+	} while (Node != StartNode);
+
 	FindLoopExtremity();
+
+	MaxFrontSlope = 8. - MaxFrontSlope;
 
 	if (LoopIndex == 0)
 	{
-		return OptimalSlop > 4 ? EOrientation::Front : EOrientation::Back;
+		return MaxFrontSlope < MinBackSlope ? EOrientation::Front : EOrientation::Back;
 	}
 	else
 	{
-		return OptimalSlop < 4 ? EOrientation::Front : EOrientation::Back;
+		return MaxFrontSlope > MinBackSlope ? EOrientation::Front : EOrientation::Back;
 	}
 }
 

@@ -4,9 +4,8 @@
 
 #ifdef USE_KERNEL_IO_SDK 
 
-#ifdef CADKERNEL_DEV
-#include "CADKernel/Geo/Surfaces/Surface.h"
-#endif
+#include "CADFileReport.h"
+
 #include "CADKernel/Math/MatrixH.h"
 
 #pragma warning(push)
@@ -18,7 +17,6 @@
 
 namespace CADKernel
 {
-
 class FSurfacicBoundary;
 
 class FBody;
@@ -48,8 +46,10 @@ private:
 
 	TArray<TSharedPtr<FCriterion>> Criteria;
 
+	FCADFileReport& Report;
+
 public:
-	FCoreTechBridge(FSession& InSession);
+	FCoreTechBridge(FSession& InSession, FCADFileReport& InReport);
 
 	TSharedRef<FBody> AddBody(CT_OBJECT_ID CTBodyId);
 
@@ -105,22 +105,6 @@ private:
 	{
 		AddMetadata(NodeId, (TSharedRef<FMetadataDictionary>) Entity);
 	}
-
-#ifdef CADKERNEL_DEV
-	TMap<const uint32, FMatrixH> SurfaceToMatrix;
-
-	const FMatrixH& GetParamSpaceTransform(TSharedPtr<FSurface>& Surface)
-	{
-		FMatrixH* Matrix = SurfaceToMatrix.Find(Surface->GetId());
-		return Matrix == nullptr ? FMatrixH::Identity : *Matrix;
-	}
-
-	void SetParamSpaceTransorm(TSharedPtr<FSurface>& Surface, const FMatrixH Matrix)
-	{
-		SurfaceToMatrix.Add(Surface->GetId(), Matrix);
-	}
-#endif
-
 };
 
 }

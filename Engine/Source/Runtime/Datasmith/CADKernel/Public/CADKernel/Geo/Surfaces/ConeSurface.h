@@ -71,7 +71,9 @@ namespace CADKernel
 			ToleranceU /= ScaleU;
 
 			FPoint Point2DV{ 0, 1, 0 };
-			double ToleranceV = Tolerance3D / ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+			double ScaleV = ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
+			double ToleranceV = Tolerance3D / FMath::Sqrt(FMath::Square(DeltaVR) + 1);
+			ToleranceV /= ScaleV;
 
 			MinToleranceIso.Set(ToleranceU, ToleranceV);
 		}

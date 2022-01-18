@@ -105,6 +105,8 @@ namespace CADKernel
 			}
 		}
 
+		virtual void FillTopologyReport(FTopologyReport& Report) const override;
+
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 	};
 }

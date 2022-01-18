@@ -7,6 +7,7 @@ namespace CADKernel
 {
 	class FModelMesh;
 	class FTopologicalFace;
+	class FTopologyReport;
 
 	class CADKERNEL_API FTopologicalEntity : public FEntityGeom
 	{
@@ -24,6 +25,8 @@ namespace CADKernel
 		 * Marker2 of spread face is set. It must be reset after the process
 		 */
 		virtual void SpreadBodyOrientation() {}
+
+		virtual void FillTopologyReport(FTopologyReport& Report) const {}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{

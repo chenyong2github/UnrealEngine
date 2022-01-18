@@ -39,8 +39,8 @@ namespace CADKernel
 		TSharedPtr<FArchive> SpyFile;
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-		TSharedPtr<FArchive> QaDataFile;
-		TSharedPtr<FArchive> QaHeaderFile;
+		TSharedPtr<FArchive> ReportFile;
+		TSharedPtr<FArchive> ReportHeaderFile;
 #endif
 
 		EVerboseLevel VerboseLevel;
@@ -126,15 +126,15 @@ namespace CADKernel
 
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-		void DefineQaDataFile(const FString& InLogFilePath);
-		TSharedPtr<FArchive> GetQaDataFile() const
+		void DefineReportFile(const FString& InLogFilePath);
+		TSharedPtr<FArchive> GetReportFile() const
 		{
-			return QaDataFile;
+			return ReportFile;
 		}
 
-		TSharedPtr<FArchive> GetQaHeaderFile() const
+		TSharedPtr<FArchive> GetReportHeaderFile() const
 		{
-			return QaHeaderFile;
+			return ReportHeaderFile;
 		}
 #endif
 
