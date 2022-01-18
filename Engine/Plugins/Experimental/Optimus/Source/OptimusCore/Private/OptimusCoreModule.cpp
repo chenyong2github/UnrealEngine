@@ -2,6 +2,7 @@
 
 #include "OptimusCoreModule.h"
 
+#include "Features/IModularFeatures.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -26,10 +27,10 @@ bool FOptimusCoreModule::IsEnabled(EShaderPlatform Platform)
 	return true;
 }
 
-FSoftObjectPtr FOptimusCoreModule::GetDefaultMeshDeformer()
+TSoftObjectPtr<UMeshDeformer> FOptimusCoreModule::GetDefaultMeshDeformer()
 {
 	// todo: Make this a plugin setting?
-	return FSoftObjectPtr();
+	return nullptr;
 }
 
 IMPLEMENT_MODULE(FOptimusCoreModule, OptimusCore)

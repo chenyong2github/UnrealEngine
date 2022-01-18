@@ -15,7 +15,7 @@ public:
 
 	/** IMeshDeformerProvider implementation */
 	bool IsEnabled(EShaderPlatform Platform) override;
-	FSoftObjectPtr GetDefaultMeshDeformer() override;
+	TSoftObjectPtr<UMeshDeformer> GetDefaultMeshDeformer() override;
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOptimusCore, Log, All);

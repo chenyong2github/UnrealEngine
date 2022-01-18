@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
+#include "RHIDefinitions.h"
+#include "UObject/SoftObjectPtr.h"
 
 /**
  * Modular feature interface for mesh defomer providers. 
@@ -28,5 +30,5 @@ public:
 	 * This can allow a mesh deformer plugin to automatically replace the UE fixed function animation path.
 	 * todo: Extend this to take requested features (lbs, morph, cloth etc.)
 	 */
-	virtual FSoftObjectPtr GetDefaultMeshDeformer() = 0;
+	virtual TSoftObjectPtr<class UMeshDeformer> GetDefaultMeshDeformer() = 0;
 };
