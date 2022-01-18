@@ -883,7 +883,7 @@ void FStreamingManager::MovePageToFreeList( FStreamingPageInfo* Page )
 	DEC_DWORD_STAT( STAT_NaniteRegisteredStreamingPages );
 }
 
-bool FStreamingManager::ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 PageIndex, uint32 DependencyPageStart, uint32 DependencyPageNum)
+bool FStreamingManager::ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 DependencyPageStart, uint32 DependencyPageNum)
 {
 	bool bResult = true;
 	for (uint32 i = 0; i < DependencyPageNum; i++)
@@ -907,22 +907,20 @@ uint32 FStreamingManager::GPUPageIndexToGPUOffset(uint32 PageIndex) const
 
 // Applies the fixups required to install/uninstall a page.
 // Hierarchy references are patched up and leaf flags of parent clusters are set accordingly.
-// GPUPageIndex == INVALID_PAGE_INDEX signals that the page should be uninstalled.
-void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, uint32 PageIndex, uint32 GPUPageIndex )
+void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, bool bUninstall )
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
 	const uint32 RuntimeResourceID = Resources.RuntimeResourceID;
 	const uint32 HierarchyOffset = Resources.HierarchyOffset;
-	bool bIsUninstall = ( GPUPageIndex == INVALID_PAGE_INDEX );
-	uint32 Flags = bIsUninstall ? NANITE_CLUSTER_FLAG_LEAF : 0;
+	uint32 Flags = bUninstall ? NANITE_CLUSTER_FLAG_LEAF : 0;
 
 	// Fixup clusters
 	for( uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++ )
 	{
 		const FClusterFixup& Fixup = FixupChunk.GetClusterFixup( i );
 
-		bool bPageDependenciesCommitted = bIsUninstall || ArePageDependenciesCommitted(RuntimeResourceID, PageIndex, Fixup.GetPageDependencyStart(), Fixup.GetPageDependencyNum());
+		bool bPageDependenciesCommitted = bUninstall || ArePageDependenciesCommitted(RuntimeResourceID, Fixup.GetPageDependencyStart(), Fixup.GetPageDependencyNum());
 		if (!bPageDependenciesCommitted)
 			continue;
 		
@@ -940,7 +938,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 			FPageKey TargetKey = { RuntimeResourceID, TargetPageIndex };
 			FStreamingPageInfo** TargetPagePtr = CommittedStreamingPageMap.Find( TargetKey );
 
-			check( bIsUninstall || TargetPagePtr );
+			check( bUninstall || TargetPagePtr );
 			if (TargetPagePtr)
 			{
 				FStreamingPageInfo* TargetPage = *TargetPagePtr;
@@ -968,13 +966,13 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 	{
 		const FHierarchyFixup& Fixup = FixupChunk.GetHierarchyFixup( i );
 
-		bool bPageDependenciesCommitted = bIsUninstall || ArePageDependenciesCommitted(RuntimeResourceID, PageIndex, Fixup.GetPageDependencyStart(), Fixup.GetPageDependencyNum());
+		bool bPageDependenciesCommitted = bUninstall || ArePageDependenciesCommitted(RuntimeResourceID, Fixup.GetPageDependencyStart(), Fixup.GetPageDependencyNum());
 		if (!bPageDependenciesCommitted)
 			continue;
 
 		FPageKey TargetKey = { RuntimeResourceID, Fixup.GetPageIndex() };
 		uint32 TargetGPUPageIndex = INVALID_PAGE_INDEX;
-		if (!bIsUninstall)
+		if (!bUninstall)
 		{
 			if (Resources.IsRootPage(TargetKey.PageIndex))
 			{
@@ -995,7 +993,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		uint32 HierarchyNodeIndex = Fixup.GetNodeIndex();
 		check( HierarchyNodeIndex < Resources.NumHierarchyNodes );
 		uint32 ChildIndex = Fixup.GetChildIndex();
-		uint32 ChildStartReference = bIsUninstall ? 0xFFFFFFFFu : ( ( TargetGPUPageIndex << MAX_CLUSTERS_PER_PAGE_BITS ) | Fixup.GetClusterGroupPartStartIndex() );
+		uint32 ChildStartReference = bUninstall ? 0xFFFFFFFFu : ( ( TargetGPUPageIndex << MAX_CLUSTERS_PER_PAGE_BITS ) | Fixup.GetClusterGroupPartStartIndex() );
 		uint32 Offset = ( size_t )&( ( (FPackedHierarchyNode*)0 )[ HierarchyOffset + HierarchyNodeIndex ].Misc1[ ChildIndex ].ChildStartReference );
 		Hierarchy.UploadBuffer.Add( Offset / sizeof( uint32 ), &ChildStartReference );
 	}
@@ -1085,7 +1083,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						// Prevent race between installs and uninstalls of the same page. Only uninstall if the page is not going to be installed again.
 						if (!BatchNewPageKeys.Contains(StreamingPageInfo.ResidentKey))
 						{
-							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], **Resources, INVALID_PAGE_INDEX, INVALID_PAGE_INDEX);
+							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], **Resources, true);
 						}
 					}
 				}
@@ -1196,7 +1194,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 				// Apply fixups to install page
 				StreamingPage->ResidentKey = PendingPage.InstallKey;
-				ApplyFixups( *FixupChunk, **Resources, PendingPage.InstallKey.PageIndex, PendingPage.GPUPageIndex );
+				ApplyFixups( *FixupChunk, **Resources, false );
 
 				INC_DWORD_STAT( STAT_NaniteInstalledPages );
 				INC_DWORD_STAT(STAT_NanitePageInstalls);

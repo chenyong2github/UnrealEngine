@@ -251,9 +251,9 @@ private:
 	void UnregisterPage( const FPageKey& Key );
 	void MovePageToFreeList( FStreamingPageInfo* Page );
 
-	void ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, uint32 PageIndex, uint32 GPUPageIndex );
+	void ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, bool bIsUninstall );
 
-	bool ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 PageIndex, uint32 DependencyPageStart, uint32 DependencyPageNum);
+	bool ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 DependencyPageStart, uint32 DependencyPageNum);
 
 	uint32 GPUPageIndexToGPUOffset(uint32 PageIndex) const;
 
