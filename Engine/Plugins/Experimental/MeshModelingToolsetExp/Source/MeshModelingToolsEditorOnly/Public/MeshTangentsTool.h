@@ -67,16 +67,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay)
 	bool bShowDegenerates = false;
 
-	/** Display difference between the current tangents and tangents calculated with standard MikkTSpace calculation.
-	 * This is only available if a Calculation Method other than MikkTSpace is selected. */
+	/** Display difference between FastMikkTSpace tangents and MikkTSpace tangents.
+	 * This is only available if the FastMikkTSpace Calculation Method is selected. */
 	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay, meta = (DisplayName = "Compare with MikkT",
-		EditCondition = "CalculationMethod != EMeshTangentsType::MikkTSpace"))
+		EditCondition = "CalculationMethod == EMeshTangentsType::FastMikkTSpace"))
 	bool bCompareWithMikkt = false;
 
-	/** Minimum angle difference in degrees for a tangent to be considered different to the standard MikkTSpace calculation
-	 * This is only available if a Compare with MikkT is enabled and a Calculation Method other than MikkTSpace is selected. */
+	/** Minimum angle difference in degrees for a FastMikkTSpace tangent to be considered different to a MikkTSpace tangent.
+	 * This is only available if a Compare with MikkT is enabled and the FastMikkTSpace Calculation Method is selected. */
 	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay, meta = (DisplayName = "Compare Threshold", UIMin = "0.5", UIMax = "90.0",
-		EditCondition = "CalculationMethod != EMeshTangentsType::MikkTSpace && bCompareWithMikkt"))
+		EditCondition = "CalculationMethod == EMeshTangentsType::FastMikkTSpace && bCompareWithMikkt"))
 	float CompareWithMikktThreshold = 5.0f;
 
 };

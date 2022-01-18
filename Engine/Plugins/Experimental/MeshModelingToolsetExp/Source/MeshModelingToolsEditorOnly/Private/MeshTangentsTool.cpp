@@ -307,7 +307,7 @@ void UMeshTangentsTool::ComputeMikkTDeviations(const TSet<int32>* DegenerateTris
 {
 	// calculate deviation between what we have and MikkT, if necessary
 	Deviations.Reset();
-	if (Settings->bCompareWithMikkt && Settings->CalculationMethod != EMeshTangentsType::MikkTSpace)
+	if (Settings->bCompareWithMikkt && Settings->CalculationMethod == EMeshTangentsType::FastMikkTSpace)
 	{
 		TSet<int32> TempDegenerateTris;
 		if (DegenerateTris == nullptr)
