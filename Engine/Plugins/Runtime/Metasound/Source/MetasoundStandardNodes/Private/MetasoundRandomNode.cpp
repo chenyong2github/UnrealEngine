@@ -5,7 +5,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundNodeRegistrationMacro.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RandomNode"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
@@ -61,42 +61,42 @@ namespace Metasound
 
 		static FText GetNextTriggerDescription()
 		{
-			return LOCTEXT("RandomNodeNextTT", "Trigger to generate the next random integer.");
+			return LOCTEXT("RandomNode_NextTT", "Trigger to generate the next random integer.");
 		}
 
 		static FText GetResetDescription()
 		{
-			return LOCTEXT("RandomNodeResetTT", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.");
+			return LOCTEXT("RandomNode_ResetTT", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.");
 		}
 
 		static FText GetSeedDescription()
 		{
-			return LOCTEXT("RandomNodeSeedTT", "The seed value to use for the random node. Set to -1 to use a random seed.");
+			return LOCTEXT("RandomNode_SeedTT", "The seed value to use for the random node. Set to -1 to use a random seed.");
 		}
 
 		static FText GetMinDescription()
 		{
-			return LOCTEXT("RandomNodeMinTT", "Min random value.");
+			return LOCTEXT("RandomNode_MinTT", "Min random value.");
 		}
 
 		static FText GetMaxDescription()
 		{
-			return LOCTEXT("RandNodeMaxTT", "Max random value.");
+			return LOCTEXT("RandomNode_MaxTT", "Max random value.");
 		}
 
 		static FText GetOutputDescription()
 		{
-			return LOCTEXT("RandomNodeOutputTT", "The randomly generated value.");
+			return LOCTEXT("RandomNode_OutputTT", "The randomly generated value.");
 		}
 
 		static FText GetOutputOnNextDescription()
 		{
-			return LOCTEXT("RandomNodeOutputNextTT", "Triggers when next is triggered.");
+			return LOCTEXT("RandomNode_OutputNextTT", "Triggers when next is triggered.");
 		}
 
 		static FText GetOutputOnResetDescription()
 		{
-			return LOCTEXT("RandomNodeOutputNextTT", "Triggers when reset is triggered.");
+			return LOCTEXT("RandomNode_OutputResetTT", "Triggers when reset is triggered.");
 		}
 	}
 

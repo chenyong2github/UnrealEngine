@@ -18,7 +18,6 @@
 
 #include <type_traits>
 
-#define LOCTEXT_NAMESPACE "MetasoundFrontend_RandomArrayGet"
 
 namespace Metasound
 {
@@ -234,5 +233,3 @@ namespace Metasound
 	}
 
 }
-
-#undef LOCTEXT_NAMESPACE

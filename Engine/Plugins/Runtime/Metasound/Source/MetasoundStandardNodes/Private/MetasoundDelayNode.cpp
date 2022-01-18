@@ -12,18 +12,18 @@
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundFacade.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_Delay"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
 	namespace Delay
 	{
-		static const TCHAR* InParamNameAudioInput = TEXT("In");
-		static const TCHAR* InParamNameDelayTime = TEXT("Delay Time");
-		static const TCHAR* InParamNameDryLevel = TEXT("Dry Level");
-		static const TCHAR* InParamNameWetLevel = TEXT("Wet Level");
-		static const TCHAR* InParamNameFeedbackAmount = TEXT("Feedback");
-		static const TCHAR* OutParamNameAudio = TEXT("Out");
+		static const FName InParamNameAudioInput = "In";
+		static const FName InParamNameDelayTime = "Delay Time";
+		static const FName InParamNameDryLevel = "Dry Level";
+		static const FName InParamNameWetLevel = "Wet Level";
+		static const FName InParamNameFeedbackAmount = "Feedback";
+		static const FName OutParamNameAudio = "Out";
 
 		// TODO: make this a static vertex
 		static float MaxDelaySeconds = 5.0f;
@@ -170,14 +170,14 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(Delay::InParamNameAudioInput, LOCTEXT("AudioInputTooltip", "Audio input.")),
-				TInputDataVertexModel<FTime>(Delay::InParamNameDelayTime, LOCTEXT("DelayTimeTooltip", "The amount of time to delay the audio, in seconds."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameDryLevel, LOCTEXT("DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameWetLevel, LOCTEXT("WetlevelTooltip", "The wet level of the delay."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameFeedbackAmount, LOCTEXT("FeedbackTooltip", "Feedback amount."), 0.0f)
+				TInputDataVertexModel<FAudioBuffer>(Delay::InParamNameAudioInput, LOCTEXT("DelayNode_AudioInputTooltip", "Audio input.")),
+				TInputDataVertexModel<FTime>(Delay::InParamNameDelayTime, LOCTEXT("DelayNode_DelayTimeTooltip", "The amount of time to delay the audio, in seconds."), 1.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameDryLevel, LOCTEXT("DelayNode_DryLevelTooltip", "The dry level of the delay."), 0.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameWetLevel, LOCTEXT("DelayNode_WetlevelTooltip", "The wet level of the delay."), 1.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameFeedbackAmount, LOCTEXT("DelayNode_FeedbackTooltip", "Feedback amount."), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(Delay::OutParamNameAudio, LOCTEXT("DelayOutputTooltip", "Audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(Delay::OutParamNameAudio, LOCTEXT("DelayNode_DelayOutputTooltip", "Audio output."))
 			)
 		);
 
@@ -189,11 +189,11 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { StandardNodes::Namespace, TEXT("Delay"), StandardNodes::AudioVariant };
+			Info.ClassName = { StandardNodes::Namespace, "Delay", StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
-			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_DelayDisplayName", "Delay");
-			Info.Description = LOCTEXT("Metasound_DelayNodeDescription", "Delays an audio buffer by the specified amount.");
+			Info.MinorVersion = 1;
+			Info.DisplayName = LOCTEXT("DelayNode_DisplayName", "Delay");
+			Info.Description = LOCTEXT("DelayNode_Description", "Delays an audio buffer by the specified amount.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

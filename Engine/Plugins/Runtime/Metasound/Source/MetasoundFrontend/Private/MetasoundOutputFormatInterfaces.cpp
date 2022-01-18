@@ -76,14 +76,14 @@ namespace Metasound
 						Outputs =
 						{
 							{
-								LOCTEXT("GeneratedLeftDisplayName", "Out Left"),
-								LOCTEXT("GeneratedLeftDescription", "The resulting left channel output audio from this source."),
+								LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDisplayName", "Out Left"),
+								LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDescription", "The resulting left channel output audio from this source."),
 								GetMetasoundDataTypeName<FAudioBuffer>(),
 								Outputs::LeftOut
 							},
 							{
-								LOCTEXT("GeneratedLeftDisplayName", "Out Right"),
-								LOCTEXT("GeneratedLeftDescription", "The resulting right channel output audio from this source."),
+								LOCTEXT("OutputFormatStereoInterface_GeneratedRightDisplayName", "Out Right"),
+								LOCTEXT("OutputFormatStereoInterface_GeneratedRightDescription", "The resulting right channel output audio from this source."),
 								GetMetasoundDataTypeName<FAudioBuffer>(),
 								Outputs::RightOut
 							}

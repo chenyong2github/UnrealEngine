@@ -9,7 +9,7 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_BPMToSeconds"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
@@ -134,12 +134,12 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<float>(GetInputBPMTempoName(), LOCTEXT("BPMToSecsBPMTT", "Input BPM (Beats Per Minute)."), 90.0f),
-				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), LOCTEXT("BPMToSecsBeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
-				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), LOCTEXT("BPMToSecsDivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
+				TInputDataVertexModel<float>(GetInputBPMTempoName(), LOCTEXT("BPMToSecondsNode_BPMTT", "Beats Per Minute."), 90.0f),
+				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), LOCTEXT("BPMToSecondsNode_BeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
+				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), LOCTEXT("BPMToSecondsNode_DivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), LOCTEXT("BPMToSecsOutputTimeTT", "The output time in seconds, given the BPM inputs."))
+				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), LOCTEXT("BPMToSecondsNode_OutputTimeTT", "The output time in seconds."))
 			)
 		);
 
@@ -151,11 +151,11 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { StandardNodes::Namespace, TEXT("BPMToSeconds"), TEXT("") };
+			Info.ClassName = { StandardNodes::Namespace, "BPMToSeconds", "" };
 			Info.MajorVersion = 1;
-			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("BPMToSecondsDisplayName", "BPM To Seconds");
-			Info.Description = LOCTEXT("BPMToSecondsDesc", "Calculates a beat time in seconds from the given BPM, beat multiplier and divisions of a whole note.");
+			Info.MinorVersion = 1;
+			Info.DisplayName = LOCTEXT("BPMToSecondsNode_DisplayName", "BPM To Seconds");
+			Info.Description = LOCTEXT("BPMToSecondsNode_Desc", "Calculates a beat time in seconds from the given BPM, beat multiplier and divisions of a whole note.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

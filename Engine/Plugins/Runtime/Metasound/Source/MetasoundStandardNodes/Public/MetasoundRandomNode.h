@@ -13,7 +13,7 @@
 #include "MetasoundTime.h"
 #include "MetasoundVertex.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RandomNode"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
@@ -58,12 +58,12 @@ namespace Metasound
 
 		static FText GetDisplayName()
 		{
-			return LOCTEXT("Int32RandomValueDisplayName", "Random (Int)");
+			return LOCTEXT("RandomNode_Int32RandomValueDisplayName", "Random (Int)");
 		}
 
 		static FText GetDescription()
 		{
-			return LOCTEXT("Int32RandomDescription", "Generates a seedable random integer in the given value range.");
+			return LOCTEXT("RandomNode_Int32RandomDescription", "Generates a seedable random integer in the given value range.");
 		}
 
 		static bool HasRange()
@@ -107,12 +107,12 @@ namespace Metasound
 
 		static FText GetDisplayName()
 		{
-			return LOCTEXT("FloatRandomValueDisplayName", "Random (Float)");
+			return LOCTEXT("RandomNode_FloatRandomValueDisplayName", "Random (Float)");
 		}
 
 		static FText GetDescription()
 		{
-			return LOCTEXT("FloatRandomDescription", "Generates a seedable random float in the given value range.");
+			return LOCTEXT("RandomNode_FloatRandomDescription", "Generates a seedable random float in the given value range.");
 		}
 
 		static bool HasRange()
@@ -156,12 +156,12 @@ namespace Metasound
 
 		static FText GetDisplayName()
 		{
-			return LOCTEXT("BoolRandomValueDisplayName", "Random (Bool)");
+			return LOCTEXT("RandomNode_BoolRandomValueDisplayName", "Random (Bool)");
 		}
 
 		static FText GetDescription()
 		{
-			return LOCTEXT("BoolRandomDiscription", "Generates a random bool value.");
+			return LOCTEXT("RandomNode_BoolRandomDiscription", "Generates a random bool value.");
 		}
 
 		static bool HasRange()
@@ -205,12 +205,12 @@ namespace Metasound
 
 		static FText GetDisplayName()
 		{
-			return LOCTEXT("TimeRandomValueDisplayName", "Random (Time)");
+			return LOCTEXT("RandomNode_TimeRandomValueDisplayName", "Random (Time)");
 		}
 
 		static FText GetDescription()
 		{
-			return LOCTEXT("TimeRandomDiscription", "Generates a random time value.");
+			return LOCTEXT("RandomNode_TimeRandomDiscription", "Generates a random time value.");
 		}
 
 		static bool HasRange()
@@ -301,11 +301,11 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { StandardNodes::Namespace, TRandomNodeSpecialization<ValueType>::GetClassName(), TEXT("") };
+				Info.ClassName = { StandardNodes::Namespace, TRandomNodeSpecialization<ValueType>::GetClassName(), "" };
 				Info.MajorVersion = 1;
-				Info.MinorVersion = 0;
+				Info.MinorVersion = 1;
 				Info.DisplayName = TRandomNodeSpecialization<ValueType>::GetDisplayName();
-				Info.Description = LOCTEXT("RandomOpDescription", "Generates a Random value.");
+				Info.Description = LOCTEXT("RandomNode_Description", "Generates a random value.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetDefaultInterface();
