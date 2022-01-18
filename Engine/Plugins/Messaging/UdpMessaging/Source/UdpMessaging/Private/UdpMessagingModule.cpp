@@ -14,6 +14,8 @@
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
 	#include "ISettingsSection.h"
+	#include "PropertyEditorModule.h"
+	#include "Customization/UdpSettingsDetailsCustomization.h"
 #endif
 
 #include "Features/IModularFeatures.h"
@@ -238,7 +240,6 @@ public:
 #if WITH_EDITOR
 		// register settings
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-
 		if (SettingsModule != nullptr)
 		{
 			ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "UdpMessaging",
@@ -252,6 +253,9 @@ public:
 				SettingsSection->OnModified().BindRaw(this, &FUdpMessagingModule::HandleSettingsSaved);
 			}
 		}
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(UUdpMessagingSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FUdpSettingsDetailsCustomization::MakeInstance));
 #endif // WITH_EDITOR
 
 		// parse additional command line args

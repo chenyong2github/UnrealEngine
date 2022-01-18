@@ -44,10 +44,22 @@ namespace UnrealBuildTool.Rules
 					new string[] {
 						"Settings",
 					});
-
+				
 				PrivateIncludePathModuleNames.AddRange(
 					new string[] {
 						"Settings",
+					});
+
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+						"ApplicationCore",
+						"EditorStyle",
+						"Engine",
+						"InputCore",
+						"PropertyEditor",
+						"Slate",
+						"SlateCore",
+						"UnrealEd"
 					});
 			}
 		}
