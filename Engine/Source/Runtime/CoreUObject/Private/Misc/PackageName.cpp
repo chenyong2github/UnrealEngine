@@ -216,6 +216,15 @@ struct FLongPackagePathsSingleton
 		return Singleton;
 	}
 
+	/** Initialization function to setup content paths that cannot be run until CoreUObject/PluginManager have been initialized */
+	void OnCoreUObjectInitialized()
+	{
+		// Allow the plugin manager to mount new content paths by exposing access through a delegate.  PluginManager is 
+		// a Core class, but content path functionality is added at the CoreUObject level.
+		IPluginManager::Get().SetRegisterMountPointDelegate(IPluginManager::FRegisterMountPointDelegate::CreateStatic(&FPackageName::RegisterMountPoint));
+		IPluginManager::Get().SetUnRegisterMountPointDelegate(IPluginManager::FRegisterMountPointDelegate::CreateStatic(&FPackageName::UnRegisterMountPoint));
+	}
+
 	const TArray<FString>& GetValidLongPackageRoots(bool bIncludeReadOnlyRoots) const
 	{
 		return ValidLongPackageRoots[bIncludeReadOnlyRoots ? 1 : 0];
@@ -332,6 +341,8 @@ struct FLongPackagePathsSingleton
 private:
 	FLongPackagePathsSingleton()
 	{
+		SCOPED_BOOT_TIMING("FPackageName::FLongPackagePathsSingleton");
+
 		ConfigRootPath = TEXT("/Config/");
 		EngineRootPath = TEXT("/Engine/");
 		GameRootPath   = TEXT("/Game/");
@@ -397,11 +408,6 @@ private:
 		AddPathPair(ContentRootToPath, ScriptRootPath, GameScriptPathRebased);
 		AddPathPair(ContentRootToPath, TempRootPath,   GameSavedPathRebased);
 		AddPathPair(ContentRootToPath, ConfigRootPath, GameConfigPathRebased);
-
-		// Allow the plugin manager to mount new content paths by exposing access through a delegate.  PluginManager is 
-		// a Core class, but content path functionality is added at the CoreUObject level.
-		IPluginManager::Get().SetRegisterMountPointDelegate( IPluginManager::FRegisterMountPointDelegate::CreateStatic( &FPackageName::RegisterMountPoint ) );
-		IPluginManager::Get().SetUnRegisterMountPointDelegate( IPluginManager::FRegisterMountPointDelegate::CreateStatic( &FPackageName::UnRegisterMountPoint ) );
 
 		UpdateValidLongPackageRoots();
 	}
@@ -2044,10 +2050,9 @@ void FPackageName::QueryRootContentPaths(TArray<FString>& OutRootContentPaths, b
 	}
 }
 
-void FPackageName::EnsureContentPathsAreRegistered()
+void FPackageName::OnCoreUObjectInitialized()
 {
-	SCOPED_BOOT_TIMING("FPackageName::EnsureContentPathsAreRegistered");
-	FLongPackagePathsSingleton::Get();
+	FLongPackagePathsSingleton::Get().OnCoreUObjectInitialized();
 }
 
 bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath)

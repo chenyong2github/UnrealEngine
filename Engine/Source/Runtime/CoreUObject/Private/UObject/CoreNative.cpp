@@ -52,7 +52,7 @@ public:
 #endif
 
 		// Make sure that additional content mount points can be registered after CoreUObject loads
-		FPackageName::EnsureContentPathsAreRegistered();
+		FPackageName::OnCoreUObjectInitialized();
 
 #if DO_BLUEPRINT_GUARD
 		FFrame::InitPrintScriptCallstack();

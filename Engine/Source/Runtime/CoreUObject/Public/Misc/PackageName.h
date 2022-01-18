@@ -610,7 +610,7 @@ public:
 	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots = false, bool bWithoutLeadingSlashes = false, bool bWithoutTrailingSlashes = false);
 	
 	/** If the FLongPackagePathsSingleton is not created yet, this function will create it and thus allow mount points to be added */
-	static void EnsureContentPathsAreRegistered();
+	static void OnCoreUObjectInitialized();
 
 	/** 
 	 * Converts the supplied export text path to an object path and class name.
