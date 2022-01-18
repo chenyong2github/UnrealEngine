@@ -14,6 +14,7 @@ class AIMODULE_API UEnvQueryGenerator_PerceivedActors : public UEnvQueryGenerato
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
 	/** If set will be used to filter results */
 	UPROPERTY(EditDefaultsOnly, Category=Generator)
 	TSubclassOf<AActor> AllowedActorClass;

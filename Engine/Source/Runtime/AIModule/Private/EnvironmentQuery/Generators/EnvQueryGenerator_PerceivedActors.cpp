@@ -113,7 +113,6 @@ void UEnvQueryGenerator_PerceivedActors::GenerateItems(FEnvQueryInstance& QueryI
 				&& (!AllowedActorClass || PerceivedActor->IsA(AllowedActorClass.Get())))
 			{
 				AllPerceivedActors.Add(PerceivedActor);
-				AllPerceivedActors.Add(PerceivedActor);
 			}
 		}
 	}
