@@ -181,7 +181,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		PinInfo.ModelPinPath = ModelPin->GetPinPath();
 		PinInfo.bAutoHeight = false;
 		
-		const bool bAskSchemaForEdition = RigSchema && ModelPin->IsStruct();
+		const bool bAskSchemaForEdition = RigSchema && ModelPin->IsStruct() && !ModelPin->IsBoundToVariable();
 		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && PinInfo.bIsContainer;
 		if (!PinInfo.bHideInputWidget)
 		{
