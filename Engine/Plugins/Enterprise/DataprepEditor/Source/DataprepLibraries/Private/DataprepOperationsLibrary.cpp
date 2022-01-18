@@ -462,6 +462,14 @@ void UDataprepOperationsLibrary::ConsolidateObjects(const TArray< UObject* >& Se
 	UObject* ObjectToConsolidateTo = SelectedObjects[0];
 	check(ObjectToConsolidateTo);
 
+	UObject* Outer = ObjectToConsolidateTo->GetOuter();
+
+	if (nullptr == Outer || !Outer->IsA(UPackage::StaticClass()))
+	{
+		UE_LOG(LogDataprep, Warning, TEXT("Consolidate failed: the object %s is not an asset"), *ObjectToConsolidateTo->GetName());
+		return;
+	}
+
 	const UClass* ComparisonClass = ObjectToConsolidateTo->GetClass();
 	check(ComparisonClass);
 
