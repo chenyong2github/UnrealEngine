@@ -42,7 +42,7 @@ namespace Horde.Storage.Implementation
             _referencesStore = referencesStore;
         }
 
-        public override bool ShouldStartPolling()
+        protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.CleanOldRefRecords;
         }

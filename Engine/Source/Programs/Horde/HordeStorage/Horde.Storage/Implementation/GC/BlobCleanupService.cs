@@ -19,7 +19,7 @@ namespace Horde.Storage.Implementation
         private volatile bool _alreadyPolling;
         private readonly ILogger _logger = Log.ForContext<BlobCleanupService>();
 
-        public override bool ShouldStartPolling()
+        protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.BlobCleanupServiceEnabled;
         }

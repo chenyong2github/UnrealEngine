@@ -30,7 +30,7 @@ namespace Horde.Storage.Implementation
         {
         }
 
-        public override bool ShouldStartPolling()
+        protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.Enabled;
         }

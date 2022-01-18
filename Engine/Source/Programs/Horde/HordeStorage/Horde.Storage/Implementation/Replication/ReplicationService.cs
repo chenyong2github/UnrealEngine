@@ -27,7 +27,7 @@ namespace Horde.Storage.Implementation
             public List<IReplicator> Replicators { get; } = new List<IReplicator>();
         }
 
-        public override bool ShouldStartPolling()
+        protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.Enabled;
         }

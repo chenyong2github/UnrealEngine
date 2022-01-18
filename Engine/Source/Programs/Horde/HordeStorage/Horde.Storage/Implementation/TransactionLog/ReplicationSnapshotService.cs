@@ -31,7 +31,7 @@ namespace Horde.Storage.Implementation
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private Task? _snapshotBuildTask = null;
 
-        public override bool ShouldStartPolling()
+        protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.Enabled;
         }
