@@ -1,4 +1,4 @@
-//CopyrightEpicGames,Inc.AllRightsReserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CADFileReport.h"
