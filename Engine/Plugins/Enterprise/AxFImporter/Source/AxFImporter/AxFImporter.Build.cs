@@ -45,10 +45,14 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
+			string AfxSdkVersion = "1.8.1";
+
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
-                PublicDelayLoadDLLs.Add("AxFDecoding.dll");
-				string ModulePath = Path.Combine(EngineDirectory, "Plugins/Enterprise/AxFImporter/Binaries/ThirdParty/AxF", Target.Platform.ToString(), "AxFDecoding.dll");
+				string AxFDllName = $"AxFDecoding.{AfxSdkVersion}.dll";
+
+				PublicDelayLoadDLLs.Add(AxFDllName);
+				string ModulePath = Path.Combine(EngineDirectory, "Plugins/Enterprise/AxFImporter/Binaries/ThirdParty/AxF", Target.Platform.ToString(), AxFDllName);
 				if (!File.Exists(ModulePath))
                 {
 					string Err = string.Format("AxF Decoding dll '{0}' not found.", ModulePath);
@@ -62,7 +66,7 @@ namespace UnrealBuildTool.Rules
             {
                 //third party libraries
 
-                string[] Libs = { "AxF-Decoding-SDK-1.5.1" };
+                string[] Libs = { $"AxF-Decoding-SDK-{AfxSdkVersion}" };
                 string[] StaticLibNames = { "AxFDecoding" };
 
                 foreach (string Lib in Libs)
@@ -78,9 +82,10 @@ namespace UnrealBuildTool.Rules
                     }
                 }
 
-                PrivateDefinitions.Add("USE_AXFSDK");
+				PrivateDefinitions.Add("USE_AXFSDK");
+				PrivateDefinitions.Add($"AFX_SDK_VERSION=\"{AfxSdkVersion}\"");
 
-                string TargetPlatform = "Windows.x64";
+				string TargetPlatform = "Windows.x64";
                 string TargetExtension = "lib";
                 if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
