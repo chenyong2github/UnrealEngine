@@ -6,8 +6,11 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "DisplayDebugHelpers.h"
 #include "EngineGlobals.h"
+#include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCameraShake, Warning, All);
 
@@ -95,9 +98,16 @@ UCameraShakeBase* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCamer
 		const bool bIsCustomInitialized = Params.Initializer.IsBound();
 
 		// Adjust for splitscreen
-		if (CameraOwner != nullptr && GEngine->IsSplitScreen(CameraOwner->GetWorld()))
+		if (CameraOwner != nullptr && CameraOwner->PCOwner != nullptr)
 		{
-			Scale *= SplitScreenShakeScale;
+			const ULocalPlayer* LocalPlayer = CameraOwner->PCOwner->GetLocalPlayer();
+			if (LocalPlayer != nullptr && LocalPlayer->ViewportClient != nullptr)
+			{
+				if (LocalPlayer->ViewportClient->GetCurrentSplitscreenConfiguration() != ESplitScreenType::None)
+				{
+					Scale *= SplitScreenShakeScale;
+				}
+			}
 		}
 
 		UCameraShakeBase const* const ShakeCDO = GetDefault<UCameraShakeBase>(ShakeClass);

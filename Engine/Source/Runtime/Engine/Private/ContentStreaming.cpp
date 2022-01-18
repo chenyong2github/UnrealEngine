@@ -508,7 +508,7 @@ void IStreamingManager::SetupViewInfos( float DeltaTime )
 	// Apply a split-screen factor if we have multiple players on the same machine, and they currently have individual views.
 	float SplitScreenFactor = 1.0f;
 	
-	if ( bHaveMultiplePlayerViews && GEngine->IsSplitScreen(NULL) )
+	if ( bHaveMultiplePlayerViews && GEngine->HasMultipleLocalPlayers(NULL) )
 	{
 		SplitScreenFactor = 0.75f;
 	}

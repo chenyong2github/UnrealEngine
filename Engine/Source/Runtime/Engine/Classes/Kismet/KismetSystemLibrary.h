@@ -208,9 +208,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Networking", meta=(WorldContext="WorldContextObject"))
 	static bool IsStandalone(const UObject* WorldContextObject);
 	
-	/** Returns whether we're currently running in split screen (more than one local player). */
-	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
+	/** Returns whether we currently have more than one local player. */
+	UE_DEPRECATED(5.1, "IsSplitScreen was only ever checking if there are more than one local player. Use HasMultipleLocalPlayers instead.")
+	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject", DeprecatedFunction, DeprecationMessage = "Use HasMultipleLocalPlayers instead"))
 	static bool IsSplitScreen(const UObject* WorldContextObject);
+
+	/** Returns whether there are currently multiple local players in the given world */
+	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
+	static bool HasMultipleLocalPlayers(const UObject* WorldContextObject);
 
 	/** Returns whether this is a build that is packaged for distribution */
 	UFUNCTION(BlueprintPure, Category="Development", meta=(BlueprintThreadSafe))

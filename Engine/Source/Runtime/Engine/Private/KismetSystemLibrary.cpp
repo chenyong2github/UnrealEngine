@@ -234,8 +234,13 @@ bool UKismetSystemLibrary::IsStandalone(const UObject* WorldContextObject)
 
 bool UKismetSystemLibrary::IsSplitScreen(const UObject* WorldContextObject)
 {
+	return HasMultipleLocalPlayers(WorldContextObject);
+}
+
+bool UKismetSystemLibrary::HasMultipleLocalPlayers(const UObject* WorldContextObject)
+{
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? GEngine->IsSplitScreen(World) : false;
+	return World ? GEngine->HasMultipleLocalPlayers(World) : false;
 }
 
 bool UKismetSystemLibrary::IsPackagedForDistribution()

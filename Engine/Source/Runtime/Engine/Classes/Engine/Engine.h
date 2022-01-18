@@ -2537,8 +2537,12 @@ public:
 	/** @return the currently active audio device */
 	FAudioDeviceHandle GetActiveAudioDevice();
 
-	/** @return whether we're currently running in split screen (more than one local player) */
+	/** @return whether we currently have more than one local player */
+	UE_DEPRECATED(5.1, "IsSplitScreen was only ever checking if there are more than one local player. Use HasMultipleLocalPlayers instead.")
 	virtual bool IsSplitScreen(UWorld *InWorld);
+
+	/** @returns whether there are currently multiple local players in the given world */
+	virtual bool HasMultipleLocalPlayers(UWorld* InWorld);
 
 	/** @return whether we're currently running with stereoscopic 3D enabled for the specified viewport (or globally, if viewport is nullptr) */
 	bool IsStereoscopic3D(FViewport* InViewport = nullptr);

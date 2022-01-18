@@ -3762,8 +3762,13 @@ void UEngine::RecordHMDAnalytics()
 	}
 }
 
-/** @return whether we're currently running in split screen (more than one local player) */
+/** @return whether we currently have more than one local player */
 bool UEngine::IsSplitScreen(UWorld *InWorld)
+{
+	return HasMultipleLocalPlayers(InWorld);
+}
+
+bool UEngine::HasMultipleLocalPlayers(UWorld* InWorld)
 {
 	if (InWorld == NULL)
 	{
