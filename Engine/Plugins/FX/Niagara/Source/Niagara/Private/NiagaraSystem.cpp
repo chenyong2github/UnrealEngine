@@ -1031,7 +1031,7 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITOR
-	if (GIsCookerLoadingPackage && Ar.IsLoading())
+	if ((IsRunningCookCommandlet() || GIsCookerLoadingPackage) && Ar.IsLoading())
 	{
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;

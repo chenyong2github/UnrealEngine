@@ -128,7 +128,6 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 			// Create a shader compiler environment for the script that will be shared by all jobs from this script
 			TRefCountPtr<FSharedShaderCompilerEnvironment> CompilerEnvironment = new FSharedShaderCompilerEnvironment();
 
-			FString ShaderCode = CompilableScript->GetVMExecutableData().LastHlslTranslationGPU;
 			// Shaders are created in-sync in the postload when running the automated tests.
 			const bool bSynchronousCompile = GIsAutomationTesting;
 
