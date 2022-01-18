@@ -385,9 +385,6 @@ protected:
 
 			/** If set, the pass will wait on the assigned mGPU temporal effect. */
 			uint32 bWaitForTemporalEffect : 1;
-
-			/** Whether this pass allocated a texture through the pool. */
-			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
 		uint32 PackedBits1 = 0;
 	};

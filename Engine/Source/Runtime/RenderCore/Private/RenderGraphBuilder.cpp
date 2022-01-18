@@ -3113,12 +3113,6 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Tex
 
 		// Cannot begin a resource within a merged render pass region.
 		check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
-
-		if (!Pass->bFirstTextureAllocated)
-		{
-			GRenderTargetPool.AddPhaseEvent(Pass->GetName());
-			Pass->bFirstTextureAllocated = 1;
-		}
 	}
 #endif
 

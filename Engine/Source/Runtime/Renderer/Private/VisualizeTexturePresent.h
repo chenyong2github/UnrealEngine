@@ -12,7 +12,4 @@ public:
 
 	/** Present the visualize texture tool on screen. */
 	static void PresentContent(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassRenderTarget Output);
-
-private:
-	static uint32 ComputeEventDisplayHeight();
 };

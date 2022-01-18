@@ -4046,11 +4046,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 	const FSceneViewFamily& ViewFamily = SceneRenderer->ViewFamily;
 
-	if(ViewFamily.EngineShowFlags.OnScreenDebug)
-	{
-		GRenderTargetPool.SetEventRecordingActive(true);
-	}
-
 	{
 		SCOPE_CYCLE_COUNTER_VERBOSE(STAT_TotalSceneRenderingTime, ViewFamily.ProfileDescription.IsEmpty() ? nullptr : *ViewFamily.ProfileDescription);
 
@@ -4141,8 +4136,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		// Update on screen notifications.
 		FRendererOnScreenNotification::Get().Broadcast();
 #endif
-
-		GRenderTargetPool.SetEventRecordingActive(false);
 	}
 
 #if STATS

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	RenderTargetPool.cpp: Scene render target pool manager.
-=============================================================================*/
-
 #include "RenderTargetPool.h"
 #include "RHIStaticStates.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -117,93 +113,9 @@ static FAutoConsoleCommandWithOutputDevice GDumpRenderTargetPoolMemoryCmd(
 	FConsoleCommandWithOutputDeviceDelegate::CreateStatic(DumpRenderTargetPoolMemory)
 );
 
-void RenderTargetPoolEvents(const TArray<FString>& Args)
-{
-	uint32 SizeInKBThreshold = -1;
-	if (Args.Num() && Args[0].IsNumeric())
-	{
-		SizeInKBThreshold = FCString::Atof(*Args[0]);
-	}
-
-	if (SizeInKBThreshold != -1)
-	{
-		UE_LOG(LogRenderTargetPool, Display, TEXT("r.DumpRenderTargetPoolEvents is now enabled, use r.DumpRenderTargetPoolEvents ? for help"));
-
-		GRenderTargetPool.EventRecordingSizeThreshold = SizeInKBThreshold;
-		GRenderTargetPool.bStartEventRecordingNextTick = true;
-	}
-	else
-	{
-		GRenderTargetPool.DisableEventDisplay();
-
-		UE_LOG(LogRenderTargetPool, Display, TEXT("r.DumpRenderTargetPoolEvents is now disabled, use r.DumpRenderTargetPoolEvents <SizeInKB> to enable or r.DumpRenderTargetPoolEvents ? for help"));
-	}
-}
-
-// CVars and commands
-static FAutoConsoleCommand GRenderTargetPoolEventsCmd(
-	TEXT("r.RenderTargetPool.Events"),
-	TEXT("Visualize the render target pool events over time in one frame. Optional parameter defines threshold in KB.\n")
-	TEXT("To disable the view use the command without any parameter"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(RenderTargetPoolEvents)
-);
-
-bool FRenderTargetPool::IsEventRecordingEnabled() const
-{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	return bEventRecordingStarted && bEventRecordingActive;
-#else
-	return false;
-#endif
-}
-
-IPooledRenderTarget* FRenderTargetPoolEvent::GetValidatedPointer() const
-{
-	int32 Index = GRenderTargetPool.FindIndex(Pointer);
-
-	if (Index >= 0)
-	{
-		return Pointer;
-	}
-
-	return 0;
-}
-
-bool FRenderTargetPoolEvent::NeedsDeallocEvent()
-{
-	if (GetEventType() == ERTPE_Alloc)
-	{
-		if (Pointer)
-		{
-			IPooledRenderTarget* ValidPointer = GetValidatedPointer();
-			if (!ValidPointer || ValidPointer->IsFree())
-			{
-				Pointer = 0;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 static uint32 ComputeSizeInKB(FPooledRenderTarget& Element)
 {
 	return (Element.ComputeMemorySize() + 1023) / 1024;
-}
-
-FRenderTargetPool::FRenderTargetPool()
-	: AllocationLevelInKB(0)
-	, bCurrentlyOverBudget(false)
-	, bStartEventRecordingNextTick(false)
-	, EventRecordingSizeThreshold(0)
-	, bEventRecordingActive(false)
-	, bEventRecordingStarted(false)
-	, CurrentEventRecordingTime(0)
-#if LOG_MAX_RENDER_TARGET_POOL_USAGE
-	, MaxUsedRenderTargetInKB(0)
-#endif
-{
 }
 
 TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementForRDG(
@@ -304,15 +216,6 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 						(FTexture2DArrayRHIRef&)Found->RenderTargetItem.ShaderResourceTexture,
 						Desc.NumSamples
 					);
-				}
-
-				if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) && Desc.bCreateRenderTargetWriteMask)
-				{
-					Found->RenderTargetItem.RTWriteMaskSRV = RHICreateShaderResourceViewWriteMask((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
-				}
-				if (Desc.bCreateRenderTargetFmask)
-				{
-					Found->RenderTargetItem.FmaskSRV = RHICreateShaderResourceViewFMask((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
 				}
 			}
 			else if (Desc.Is3DTexture())
@@ -455,19 +358,11 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 		Found->Desc.DebugName = InDebugName;
 	}
 
-	check(Found->IsFree());
-
 	Found->Desc.DebugName = InDebugName;
 	Found->UnusedForNFrames = 0;
 
-	AddAllocEvent(FoundIndex, Found);
-
-	uint32 OriginalNumRefs = Found->GetRefCount();
-
 	// assign to the reference counted variable
 	TRefCountPtr<FPooledRenderTarget> Result = Found;
-
-	check(!Found->IsFree());
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (Found->GetRenderTargetItem().TargetableTexture)
@@ -606,235 +501,6 @@ void FRenderTargetPool::GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB
 	ensure(AllocationLevelInKB == OutWholePoolInKB);
 }
 
-void FRenderTargetPool::AddPhaseEvent(const TCHAR* InPhaseName)
-{
-	if (IsEventRecordingEnabled())
-	{
-		AddDeallocEvents();
-
-		const FString* LastName = GetLastEventPhaseName();
-
-		if (!LastName || *LastName != InPhaseName)
-		{
-			if (CurrentEventRecordingTime)
-			{
-				// put a break to former data
-				++CurrentEventRecordingTime;
-			}
-
-			FRenderTargetPoolEvent NewEvent(InPhaseName, CurrentEventRecordingTime);
-
-			RenderTargetPoolEvents.Add(NewEvent);
-		}
-	}
-}
-
-const FString* FRenderTargetPool::GetLastEventPhaseName()
-{
-	// could be optimized but this is a debug view
-
-	// start from the end for better performance
-	for (int32 i = RenderTargetPoolEvents.Num() - 1; i >= 0; --i)
-	{
-		const FRenderTargetPoolEvent* Event = &RenderTargetPoolEvents[i];
-
-		if (Event->GetEventType() == ERTPE_Phase)
-		{
-			return &Event->GetPhaseName();
-		}
-	}
-
-	return 0;
-}
-
-FRenderTargetPool::SMemoryStats FRenderTargetPool::ComputeView()
-{
-	SMemoryStats MemoryStats;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	{
-		struct FRTPColumn
-		{
-			FString Name;
-			// index into the column, -1 if this is no valid column
-			uint32 PoolEntryId;
-			// for sorting
-			uint64 SizeInBytes;
-			// for sorting
-			bool bVRam;
-
-			// default constructor
-			FRTPColumn()
-				: PoolEntryId(-1)
-				, SizeInBytes(0)
-			{
-			}
-
-			// constructor
-			FRTPColumn(const FRenderTargetPoolEvent& Event)
-				: Name(Event.GetDesc().DebugName)
-				, PoolEntryId(Event.GetPoolEntryId())
-				, bVRam(EnumHasAnyFlags(Event.GetDesc().Flags, TexCreate_FastVRAM))
-			{
-				SizeInBytes = Event.GetSizeInBytes();
-			}
-
-			// sort criteria
-			bool operator < (const FRTPColumn& RHS) const
-			{
-				if (SizeInBytes == RHS.SizeInBytes)
-				{
-					return Name < RHS.Name;
-				}
-
-				return SizeInBytes > RHS.SizeInBytes;
-			}
-		};
-
-		TArray<FRTPColumn> Colums;
-
-		// generate Colums
-		for (int32 i = 0, Num = RenderTargetPoolEvents.Num(); i < Num; i++)
-		{
-			FRenderTargetPoolEvent* Event = &RenderTargetPoolEvents[i];
-
-			if (Event->GetEventType() == ERTPE_Alloc)
-			{
-				uint32 PoolEntryId = Event->GetPoolEntryId();
-
-				if (PoolEntryId >= (uint32)Colums.Num())
-				{
-					Colums.SetNum(PoolEntryId + 1);
-				}
-
-				Colums[PoolEntryId] = FRTPColumn(*Event);
-			}
-		}
-
-		Colums.StableSort();
-
-		{
-			uint32 ColumnX = 0;
-
-			for (int32 ColumnIndex = 0, ColumnsNum = Colums.Num(); ColumnIndex < ColumnsNum; ++ColumnIndex)
-			{
-				const FRTPColumn& RTPColumn = Colums[ColumnIndex];
-
-				uint32 ColumnSize = RTPColumn.SizeInBytes;
-
-				// hide columns that are too small to make a difference (e.g. <1 MB)
-				if (RTPColumn.SizeInBytes <= EventRecordingSizeThreshold * 1024)
-				{
-					ColumnSize = 0;
-				}
-				else
-				{
-					MemoryStats.DisplayedUsageInBytes += RTPColumn.SizeInBytes;
-
-					// give an entry some size to be more UI friendly (if we get mouse UI for zooming in we might not want that any more)
-					ColumnSize = FMath::Max((uint32)(1024 * 1024), ColumnSize);
-				}
-
-				MemoryStats.TotalColumnSize += ColumnSize;
-				MemoryStats.TotalUsageInBytes += RTPColumn.SizeInBytes;
-
-				for (int32 EventIndex = 0, PoolEventsNum = RenderTargetPoolEvents.Num(); EventIndex < PoolEventsNum; EventIndex++)
-				{
-					FRenderTargetPoolEvent* Event = &RenderTargetPoolEvents[EventIndex];
-
-					if (Event->GetEventType() != ERTPE_Phase)
-					{
-						uint32 PoolEntryId = Event->GetPoolEntryId();
-
-						if (RTPColumn.PoolEntryId == PoolEntryId)
-						{
-							Event->SetColumn(ColumnIndex, ColumnX, ColumnSize);
-						}
-					}
-				}
-				ColumnX += ColumnSize;
-			}
-		}
-	}
-#endif
-
-	return MemoryStats;
-}
-
-void FRenderTargetPool::AddDeallocEvents()
-{
-	check(IsInRenderingThread());
-
-	bool bWorkWasDone = false;
-
-	for (uint32 i = 0, Num = (uint32)RenderTargetPoolEvents.Num(); i < Num; ++i)
-	{
-		FRenderTargetPoolEvent& Event = RenderTargetPoolEvents[i];
-
-		if (Event.NeedsDeallocEvent())
-		{
-			FRenderTargetPoolEvent NewEvent(Event.GetPoolEntryId(), CurrentEventRecordingTime);
-
-			// for convenience - is actually redundant
-			NewEvent.SetDesc(Event.GetDesc());
-
-			RenderTargetPoolEvents.Add(NewEvent);
-			bWorkWasDone = true;
-		}
-	}
-
-	if (bWorkWasDone)
-	{
-		++CurrentEventRecordingTime;
-	}
-}
-
-void FRenderTargetPool::AddAllocEvent(uint32 InPoolEntryId, FPooledRenderTarget* In)
-{
-	check(In);
-
-	if (IsEventRecordingEnabled())
-	{
-		AddDeallocEvents();
-
-		check(IsInRenderingThread());
-
-		FRenderTargetPoolEvent NewEvent(InPoolEntryId, CurrentEventRecordingTime++, In);
-
-		RenderTargetPoolEvents.Add(NewEvent);
-	}
-}
-
-void FRenderTargetPool::AddAllocEventsFromCurrentState()
-{
-	if (!IsEventRecordingEnabled())
-	{
-		return;
-	}
-
-	check(IsInRenderingThread());
-
-	bool bWorkWasDone = false;
-
-	for (uint32 i = 0; i < (uint32)PooledRenderTargets.Num(); ++i)
-	{
-		FPooledRenderTarget* Element = PooledRenderTargets[i];
-
-		if (Element && !Element->IsFree())
-		{
-			FRenderTargetPoolEvent NewEvent(i, CurrentEventRecordingTime, Element);
-
-			RenderTargetPoolEvents.Add(NewEvent);
-			bWorkWasDone = true;
-		}
-	}
-
-	if (bWorkWasDone)
-	{
-		++CurrentEventRecordingTime;
-	}
-}
-
 void FRenderTargetPool::TickPoolElements()
 {
 	uint32 DeferredAllocationLevelInKB = 0;
@@ -845,12 +511,6 @@ void FRenderTargetPool::TickPoolElements()
 
 	check(IsInRenderingThread());
 	DeferredDeleteArray.Reset();
-
-	if (bStartEventRecordingNextTick)
-	{
-		bStartEventRecordingNextTick = false;
-		bEventRecordingStarted = true;
-	}
 
 	uint32 MinimumPoolSizeInKB;
 	{
@@ -878,21 +538,8 @@ void FRenderTargetPool::TickPoolElements()
 
 	uint32 TotalFrameUsageInKb = AllocationLevelInKB + DeferredAllocationLevelInKB ;
 
-#if LOG_MAX_RENDER_TARGET_POOL_USAGE
-	if (TotalFrameUsageInKb > MaxUsedRenderTargetInKB)
-	{
-		MaxUsedRenderTargetInKB = TotalFrameUsageInKb;
-
-		if (MaxUsedRenderTargetInKB > MinimumPoolSizeInKB)
-		{
-			DumpMemoryUsage(*GLog);
-		}
-	}
-#endif
-
 	CSV_CUSTOM_STAT(RenderTargetPool, UnusedMB, UnusedAllocationLevelInKB / 1024.0f, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(RenderTargetPool, PeakUsedMB, (TotalFrameUsageInKb - UnusedAllocationLevelInKB) / 1024.f, ECsvCustomStatOp::Set);
-
 	
 	// we need to release something, take the oldest ones first
 	while (AllocationLevelInKB > MinimumPoolSizeInKB)
@@ -955,10 +602,6 @@ void FRenderTargetPool::TickPoolElements()
 			bCurrentlyOverBudget = false;
 		}
 	}
-
-	AddPhaseEvent(TEXT("FromLastFrame"));
-	AddAllocEventsFromCurrentState();
-	AddPhaseEvent(TEXT("Rendering"));
 
 #if STATS
 	uint32 Count, SizeKB, UsedKB;
@@ -1041,10 +684,6 @@ void FRenderTargetPool::FreeUnusedResources()
 			FreeElementAtIndex(i);
 		}
 	}
-
-#if LOG_MAX_RENDER_TARGET_POOL_USAGE
-	MaxUsedRenderTargetInKB = 0;
-#endif
 }
 
 void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)

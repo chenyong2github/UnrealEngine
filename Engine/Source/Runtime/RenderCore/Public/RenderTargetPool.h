@@ -12,8 +12,6 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
-#define LOG_MAX_RENDER_TARGET_POOL_USAGE 0
-
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
 struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 {
@@ -81,111 +79,13 @@ private:
 	friend class FRenderTargetPool;
 };
 
-enum ERenderTargetPoolEventType
-{
-	ERTPE_Alloc,
-	ERTPE_Dealloc,
-	ERTPE_Phase
-};
-
-struct RENDERCORE_API FRenderTargetPoolEvent
-{
-	// constructor for ERTPE_Alloc
-	FRenderTargetPoolEvent(uint32 InPoolEntryId, uint32 InTimeStep, FPooledRenderTarget* InPointer)
-		: PoolEntryId(InPoolEntryId)
-		, TimeStep(InTimeStep)
-		, Pointer(InPointer)
-		, EventType(ERTPE_Alloc)
-		, ColumnIndex(-1)
-		, ColumnX(0)
-		, ColumnSize(0)
-	{
-		Desc = Pointer->GetDesc();
-		SizeInBytes = Pointer->ComputeMemorySize();
-	}
-
-	// constructor for ERTPE_Alloc
-	FRenderTargetPoolEvent(uint32 InPoolEntryId, uint32 InTimeStep)
-		: PoolEntryId(InPoolEntryId)
-		, TimeStep(InTimeStep)
-		, Pointer(0)
-		, SizeInBytes(0)
-		, EventType(ERTPE_Dealloc)
-		, ColumnIndex(-1)
-		, ColumnX(0)
-		, ColumnSize(0)
-	{
-	}
-
-	// constructor for ERTPE_Alloc
-	// @param PhaseName must not be 0
-	FRenderTargetPoolEvent(const FString& InPhaseName, uint32 InTimeStep)
-		: PoolEntryId(-1)
-		, TimeStep(InTimeStep)
-		, Pointer(0)
-		, PhaseName(InPhaseName)
-		, SizeInBytes(0)
-		, EventType(ERTPE_Phase)
-		, ColumnIndex(-1)
-		, ColumnX(0)
-		, ColumnSize(0)
-	{
-	}
-
-	// @return Pointer if the object is still in the pool
-	IPooledRenderTarget* GetValidatedPointer() const;
-
-	ERenderTargetPoolEventType GetEventType() const { return EventType; }
-
-	const int32 GetPoolEntryId() const { check(EventType == ERTPE_Alloc || EventType == ERTPE_Dealloc); return PoolEntryId; }
-	const FString& GetPhaseName() const { check(EventType == ERTPE_Phase); return PhaseName; }
-	const FPooledRenderTargetDesc& GetDesc() const { check(EventType == ERTPE_Alloc || EventType == ERTPE_Dealloc); return Desc; }
-	const uint32 GetTimeStep() const { return TimeStep; }
-	const uint64 GetSizeInBytes() const { check(EventType == ERTPE_Alloc); return SizeInBytes; }
-	const void SetPoolEntryId(uint32 InPoolEntryId) { PoolEntryId = InPoolEntryId; }
-	const void SetColumn(uint32 InColumnIndex, uint32 InColumnX, uint32 InColumnSize) { check(EventType == ERTPE_Alloc || EventType == ERTPE_Dealloc); ColumnIndex = InColumnIndex; ColumnX = InColumnX; ColumnSize = InColumnSize; }
-	const uint32 GetColumnX() const { check(EventType == ERTPE_Alloc || EventType == ERTPE_Dealloc); return ColumnX; }
-	const uint32 GetColumnSize() const { check(EventType == ERTPE_Alloc || EventType == ERTPE_Dealloc); return ColumnSize; }
-	bool IsVisible() const { return EventType == ERTPE_Phase || ColumnSize > 0; }
-
-	void SetDesc(const FPooledRenderTargetDesc &InDesc) { Desc = InDesc; }
-
-	bool NeedsDeallocEvent();
-
-private:
-
-	// valid if EventType==ERTPE_Alloc || EventType==ERTPE_Dealloc, -1 if not set, was index into PooledRenderTargets[]
-	uint32 PoolEntryId;
-	//
-	uint32 TimeStep;
-	// valid EventType==ERTPE_Alloc, 0 if not set
-	FPooledRenderTarget* Pointer;
-	// valid if EventType==ERTPE_Phase TEXT("") if not set
-	FString PhaseName;
-	// valid if EventType==ERTPE_Alloc || EventType==ERTPE_Dealloc
-	FPooledRenderTargetDesc Desc;
-	// valid if EventType==ERTPE_Alloc 0 if unknown
-	uint64 SizeInBytes;
-	// e.g. ERTPE_Alloc
-	ERenderTargetPoolEventType EventType;
-
-	// for display, computed by ComputeView()
-
-	// valid if EventType==ERTPE_Alloc || EventType==ERTPE_Dealloc, -1 if not defined yet
-	uint32 ColumnIndex;
-	//
-	uint32 ColumnX;
-	//
-	uint32 ColumnSize;
-};
-
 /**
  * Encapsulates the render targets pools that allows easy sharing (mostly used on the render thread side)
  */
 class RENDERCORE_API FRenderTargetPool : public FRenderResource
 {
 public:
-	FRenderTargetPool();
+	FRenderTargetPool() = default;
 
 	/**
 	 * @param DebugName must not be 0, we only store the pointer
@@ -226,20 +126,8 @@ public:
 	// @return -1 if not found
 	int32 FindIndex(IPooledRenderTarget* In) const;
 
-	void SetObserveTarget(const FString& InObservedDebugName, uint32 InObservedDebugNameReusedGoal = 0xffffffff);
-
 	// Logs out usage information.
 	void DumpMemoryUsage(FOutputDevice& OutputDevice);
-
-	// to not have event recording for some time during rendering (e.g. thumbnail rendering)
-	void SetEventRecordingActive(bool bValue) { bEventRecordingActive = bValue; }
-
-	//
-	void DisableEventDisplay() { RenderTargetPoolEvents.Empty(); bEventRecordingStarted = false; }
-	//
-	bool IsEventRecordingEnabled() const;
-
-	void AddPhaseEvent(const TCHAR* InPhaseName);
 
 private:
 	TRefCountPtr<FPooledRenderTarget> FindFreeElementForRDG(FRHICommandList& RHICmdList, const FRDGTextureDesc& Desc, const TCHAR* Name);
@@ -249,8 +137,6 @@ private:
 		const FPooledRenderTargetDesc& InputDesc,
 		const TCHAR* InDebugName);
 
-	friend void RenderTargetPoolEvents(const TArray<FString>& Args);
-
 	void FreeElementAtIndex(int32 Index);
 
 	/** Elements can be 0, we compact the buffer later. */
@@ -259,64 +145,13 @@ private:
 	TArray< TRefCountPtr<FPooledRenderTarget> > DeferredDeleteArray;
 
 	// redundant, can always be computed with GetStats(), to debug "out of memory" situations and used for r.RenderTargetPoolMin
-	uint32 AllocationLevelInKB;
-
-	FGraphEventRef TransitionFence;
+	uint32 AllocationLevelInKB = 0;
 
 	// to avoid log spam
-	bool bCurrentlyOverBudget;
+	bool bCurrentlyOverBudget = false;
 
 	// could be done on the fly but that makes the RenderTargetPoolEvents harder to read
 	void CompactPool();
-
-	// the following is used for Event recording --------------------------------
-
-	struct SMemoryStats
-	{
-		SMemoryStats()
-			: DisplayedUsageInBytes(0)
-			, TotalUsageInBytes(0)
-		{
-		}
-		// for statistics
-		uint64 DisplayedUsageInBytes;
-		// for statistics
-		uint64 TotalUsageInBytes;
-		// for display purposes, to normalize the view width (Initialize to 1 to avoid a division by zero when compiled out)
-		uint64 TotalColumnSize = 1;
-	};
-
-	// if next frame we want to run with bEventRecording=true
-	bool bStartEventRecordingNextTick;
-	// in KB, e.g. 1MB = 1024, 0 to display all
-	uint32 EventRecordingSizeThreshold;
-	// true if active, to not have the event recording for some time during rendering (e.g. thumbnail rendering)
-	bool bEventRecordingActive;
-	// true meaning someone used r.RenderTargetPool.Events to start it
-	bool bEventRecordingStarted;
-	// only used if bEventRecording
-	TArray<FRenderTargetPoolEvent> RenderTargetPoolEvents;
-	//
-	uint32 CurrentEventRecordingTime;
-
-#if LOG_MAX_RENDER_TARGET_POOL_USAGE
-	uint32 MaxUsedRenderTargetInKB;
-#endif
-
-	//
-	void AddDeallocEvents();
-
-	// @param In must no be 0
-	void AddAllocEvent(uint32 InPoolEntryId, FPooledRenderTarget* In);
-
-	//
-	void AddAllocEventsFromCurrentState();
-
-	// @return 0 if none was found
-	const FString* GetLastEventPhaseName();
-
-	// sorted by size
-	SMemoryStats ComputeView();
 
 	friend struct FPooledRenderTarget;
 	friend class FVisualizeTexture;

@@ -487,15 +487,18 @@ struct FSceneRenderTargetItem
 		,	UAV(InUAV)
 	{}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSceneRenderTargetItem(const FSceneRenderTargetItem&) = default;
+	FSceneRenderTargetItem(FSceneRenderTargetItem&&) = default;
+	FSceneRenderTargetItem& operator=(const FSceneRenderTargetItem&) = default;
+	FSceneRenderTargetItem& operator=(FSceneRenderTargetItem&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	void SafeRelease()
 	{
 		TargetableTexture.SafeRelease();
 		ShaderResourceTexture.SafeRelease();
 		UAV.SafeRelease();
-		HTileUAV.SafeRelease();
-		HTileSRV.SafeRelease();
-		RTWriteMaskSRV.SafeRelease();
-		FmaskSRV.SafeRelease();
 	}
 
 	bool IsValid() const
@@ -519,12 +522,20 @@ struct FSceneRenderTargetItem
 	/** only created if requested through the flag. */
 	FUnorderedAccessViewRHIRef UAV;
 
+	UE_DEPRECATED(5.0, "RTWriteMaskSRV is deprecated. Use RDG instead.")
 	FShaderResourceViewRHIRef RTWriteMaskSRV;
+
+	UE_DEPRECATED(5.0, "FmaskSRV is deprecated. Use RDG instead.")
 	FShaderResourceViewRHIRef FmaskSRV;
 
 	/** only created if requested through meta data access flags */
+	UE_DEPRECATED(5.0, "HTileUAV is deprecated. Use RDG instead.")
 	FUnorderedAccessViewRHIRef HTileUAV;
+
+	UE_DEPRECATED(5.0, "HTileSRV is deprecated. Use RDG instead.")
 	FShaderResourceViewRHIRef  HTileSRV;
+
+	UE_DEPRECATED(5.0, "StencilUAV is deprecated. Use RDG instead.")
 	FUnorderedAccessViewRHIRef StencilUAV;
 };
 
