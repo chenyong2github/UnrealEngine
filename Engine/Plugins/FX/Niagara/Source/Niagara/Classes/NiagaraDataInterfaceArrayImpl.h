@@ -458,10 +458,9 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			ensure(PerInstanceData_GameThread.Num() == 1);
 			FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.CreateConstIterator().Value();
 			FWriteScopeLock	ScopeLock(InstanceData->ArrayRWGuard);
-			InstanceData->bIsModified = false;
+			InstanceData->bIsModified = true;
 			InstanceData->bIsRenderDirty = bShouldSyncToGpu;
-			InstanceData->ArrayData.Empty();
-			Owner->GetArrayReference() = InArrayData;
+			InstanceData->ArrayData = InArrayData;
 		}
 	}
 
