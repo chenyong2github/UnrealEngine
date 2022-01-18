@@ -3,10 +3,18 @@
 #include "IO/PackageId.h"
 #include "Serialization/StructuredArchive.h"
 
-FPackageId FPackageId::FromName(const FName& Name)
+FPackageId FPackageId::FromName(const FName& Name, bool bAsOptional)
 {
-	TCHAR NameStr[FName::StringBufferSize];
+	TCHAR NameStr[FName::StringBufferSize + 2];
 	uint32 NameLen = Name.ToString(NameStr);
+
+	if (bAsOptional)
+	{
+		NameStr[NameLen++] = '.';
+		NameStr[NameLen++] = 'o';
+		NameStr[NameLen] = '\0';
+	}
+
 	for (uint32 I = 0; I < NameLen; ++I)
 	{
 		NameStr[I] = TChar<TCHAR>::ToLower(NameStr[I]);

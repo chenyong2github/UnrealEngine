@@ -54,6 +54,7 @@ enum class EPackageStoreEntryFlags : uint32
 {
 	None		= 0,
 	Redirected	= 0x01,
+	Optional	= 0x02,
 };
 ENUM_CLASS_FLAGS(EPackageStoreEntryFlags);
 
@@ -84,13 +85,13 @@ struct FPackageStoreEntryResource
 	/** Returns the package ID. */
 	FPackageId GetPackageId() const
 	{
-		return FPackageId::FromName(PackageName);
+		return FPackageId::FromName(PackageName, IsOptional());
 	}
 
 	/** Returns the source package ID. */
 	FPackageId GetSourcePackageId() const
 	{
-		return SourcePackageName.IsNone() ? FPackageId() : FPackageId::FromName(SourcePackageName);
+		return SourcePackageName.IsNone() ? FPackageId() : FPackageId::FromName(SourcePackageName, IsOptional());
 	}
 
 	FName GetSourcePackageName() const
@@ -102,6 +103,12 @@ struct FPackageStoreEntryResource
 	bool IsRedirected() const
 	{
 		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::Redirected); 
+	}
+
+	/** Returns whether this package is optional. */
+	bool IsOptional() const
+	{
+		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::Optional);
 	}
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry);
