@@ -58,6 +58,24 @@ public:
 	FClipmapInfo Clipmap;
 };
 
+class FVirtualShadowMapPerLightCacheEntry
+{
+public:
+	FVirtualShadowMapPerLightCacheEntry(int32 NumScenePrimitives)
+		: RenderedPrimitives(false, NumScenePrimitives)
+	{
+	}
+
+	TSharedPtr<FVirtualShadowMapCacheEntry> FindCreateShadowMapEntry(int32 Index);
+
+	// Primitives that have been rendered (not culled) the previous frame, when a primitive transitions from being culled to not it must be rendered into the VSM
+	// Key culling reasons are small size or distance cutoff.
+	TBitArray<> RenderedPrimitives;
+
+	// One entry represents the cached state of a given shadow map in the set of either a clipmap(N), one cube map(6) or a regular VSM (1)
+	TArray< TSharedPtr<FVirtualShadowMapCacheEntry> > ShadowMapEntries;
+};
+
 // Persistent buffers that we ping pong frame by frame
 struct FVirtualShadowMapArrayFrameData
 {
@@ -108,6 +126,11 @@ public:
 	/**
 	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
 	 */
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FindCreateLightCacheEntry(int32 LightSceneId);
+
+	/**
+	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
+	 */
 	TSharedPtr<FVirtualShadowMapCacheEntry> FindCreateCacheEntry(int32 LightSceneId, int32 Index = 0);
 
 	/*
@@ -125,46 +148,13 @@ public:
 	class FInvalidatingPrimitiveCollector
 	{
 	public:
-		FInvalidatingPrimitiveCollector(int32 MaxPrimitiveID, FGPUScene& InGPUScene)
-			: AlreadyAddedPrimitives(false, MaxPrimitiveID)
-			, GPUScene(InGPUScene)
-		{
-			// Add and clear pending invalidations enqueued on the GPU Scene from dynamic primitives added since last invalidation
-			for (const FGPUScene::FInstanceRange& Range : GPUScene.DynamicPrimitiveInstancesToInvalidate)
-			{
-				LoadBalancer.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries, 0U);
-#if VSM_LOG_INVALIDATIONS
-				RangesStr.Appendf(TEXT("[%6d, %6d), "), Range.InstanceSceneDataOffset, Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries);
-#endif
-				TotalInstanceCount += Range.NumInstanceSceneDataEntries;
-			}
-
-			GPUScene.DynamicPrimitiveInstancesToInvalidate.Reset();
-		}
+		FInvalidatingPrimitiveCollector(FVirtualShadowMapArrayCacheManager* InVirtualShadowMapArrayCacheManager);
 
 		/**
 		 * Add a primitive to invalidate the instances for, the function filters redundant primitive adds, and thus expects valid IDs (so can't be called for primitives that have not yet been added)
 		 * and unchanging IDs (so can't be used over a span that include any scene mutation).
 		 */
-		void Add(const FPrimitiveSceneInfo* PrimitiveSceneInfo)
-		{
-			int32 PrimitiveID = PrimitiveSceneInfo->GetIndex();
-			if (PrimitiveID >= 0
-				&& !AlreadyAddedPrimitives[PrimitiveID]
-				&& PrimitiveSceneInfo->GetInstanceSceneDataOffset() != INDEX_NONE
-				// Don't process primitives that are still in the 'added' state because this means that they
-				// have not been uploaded to the GPU yet and may be pending from a previous call to update primitive scene infos.
-				&& !EnumHasAnyFlags(GPUScene.GetPrimitiveDirtyState(PrimitiveID), EPrimitiveDirtyState::Added))
-			{
-				AlreadyAddedPrimitives[PrimitiveID] = true;
-				const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
-				LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, 0U);
-#if VSM_LOG_INVALIDATIONS
-				RangesStr.Appendf(TEXT("[%6d, %6d), "), PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetInstanceSceneDataOffset() + NumInstanceSceneDataEntries);
-#endif
-				TotalInstanceCount += NumInstanceSceneDataEntries;
-			}
-		}
+		void Add(const FPrimitiveSceneInfo* PrimitiveSceneInfo);
 
 		bool IsEmpty() const { return LoadBalancer.IsEmpty(); }
 
@@ -174,7 +164,9 @@ public:
 #if VSM_LOG_INVALIDATIONS
 		FString RangesStr;
 #endif
+		const FScene& Scene;
 		FGPUScene& GPUScene;
+		FVirtualShadowMapArrayCacheManager& Manager;
 	};
 
 	/**
@@ -183,6 +175,11 @@ public:
 	 * Invalidate pages that are touched by (the instances of) the removed primitives. 
 	 */
 	void ProcessRemovedOrUpdatedPrimitives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
+
+	/**
+	 * Allow the cache manager to track scene changes, in particular track resizing of primitive tracking data.
+	 */
+	void OnSceneChange();
 
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const;
 
@@ -206,9 +203,9 @@ private:
 	// we store the physical pool here.
 	TRefCountPtr<IPooledRenderTarget> PhysicalPagePool;
 
-	// Index the Cache entries by the light ID and clipmap/cubemap face index (if applicable)
-	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > CacheEntries;
-	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > PrevCacheEntries;
+	// Index the Cache entries by the light ID
+	TMap< int32, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;
+	TMap< int32, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > PrevCacheEntries;
 
 	// Stores stats over frames when activated.
 	TRefCountPtr<FRDGPooledBuffer> AccumulatedStatsBuffer;

@@ -43,12 +43,23 @@ void VirtualSmInvalidateInstancePagesCS(
 	uint3 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
+	uint FirstVirtualShadowMapId = 0u;
+	uint NumVirtualShadowMapIds = VirtualShadowMap.NumShadowMaps;
+
 #if INPUT_KIND == INPUT_KIND_LOAD_BALANCER
 	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, 0U);
 
 	if (!WorkSetup.bValid)
 	{
 		return;
+	}
+
+	bool bSkipClipmaps = (WorkSetup.Item.Payload & 1U) != 0U;
+	uint SingleShadowMapId = WorkSetup.Item.Payload >> 1U;
+	if (SingleShadowMapId != 0U)
+	{
+		FirstVirtualShadowMapId = SingleShadowMapId - 1U;
+		NumVirtualShadowMapIds = FirstVirtualShadowMapId + 1U;
 	}
 
 	uint InstanceId = WorkSetup.Item.InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
@@ -58,6 +69,8 @@ void VirtualSmInvalidateInstancePagesCS(
 	{
 		return;
 	}
+	bool bSkipClipmaps = false;
+
 	int InstanceId = InvalidatingInstances[1 + DispatchIndex];
 #endif
 	{
@@ -83,11 +96,21 @@ void VirtualSmInvalidateInstancePagesCS(
 		// TODO: test the flag on the instance instead once it is updated correctly InstanceSceneData.CastShadows
 		if (bCastShadows)
 		{
-			for (uint ShadowMapDataIndex = 0; ShadowMapDataIndex < VirtualShadowMap.NumShadowMaps; ++ShadowMapDataIndex)
+			for (uint VirtualShadowMapId = FirstVirtualShadowMapId; VirtualShadowMapId < NumVirtualShadowMapIds;)
 			{
 				// 1. Load cached projection data
-				FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ShadowMapDataIndex);
+				FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 				const bool bDirectionalLight = (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL);
+
+				if (bSkipClipmaps && bDirectionalLight)
+				{
+					VirtualShadowMapId += uint(ProjectionData.ClipmapLevelCount);
+					continue;
+				}
+				else
+				{
+					++VirtualShadowMapId;
+				}
 
 				float4x4 LocalToTranslatedWorld = LWCHackToFloat(InstanceSceneData.LocalToWorld);
 				LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;

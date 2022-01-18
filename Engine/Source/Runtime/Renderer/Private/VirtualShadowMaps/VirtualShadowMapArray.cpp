@@ -1862,6 +1862,9 @@ public:
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PrimitiveRevealedMask)
+		SHADER_PARAMETER(uint32, PrimitiveRevealedNum)
+
 		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, LoadBalancerParameters)
 
 		SHADER_PARAMETER(int32, FirstPrimaryView)
@@ -1994,7 +1997,9 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	FRDGBufferRef VirtualShadowViewsRDG,
 	const FCullPerPageDrawCommandsCs::FHZBShaderParameters &HZBShaderParameters,
 	FVirtualShadowMapArray *VirtualShadowMapArray,
-	FGPUScene& GPUScene)
+	FGPUScene& GPUScene,
+	FRDGBufferRef PrimitiveRevealedMaskRdg,
+	int32 PrimitiveRevealedNum)
 {
 	int32 NumIndirectArgs = IndirectArgs.Num();
 
@@ -2036,6 +2041,11 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 		PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 		PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
+
+		// Make sure there is enough space in the buffer for all the primitive IDs that might be used to index.
+		check(PrimitiveRevealedMaskRdg->Desc.NumElements * 32u >= uint32(PrimitiveRevealedNum));
+		PassParameters->PrimitiveRevealedMask = GraphBuilder.CreateSRV(PrimitiveRevealedMaskRdg);
+		PassParameters->PrimitiveRevealedNum = uint32(PrimitiveRevealedNum);
 
 		PassParameters->DynamicInstanceIdOffset = BatchInfos[0].DynamicInstanceIdOffset;
 		PassParameters->DynamicInstanceIdMax = BatchInfos[0].DynamicInstanceIdMax;
@@ -2345,7 +2355,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			VirtualShadowViewsRDG,
 			HZBShaderParameters,
 			this,
-			GPUScene
+			GPUScene,
+			GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 4),
+			0
 		);
 		GraphBuilder.EndEventScope();
 
@@ -2400,6 +2412,17 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			CullingBatchInfo.DynamicInstanceIdOffset = ShadowDepthView->DynamicPrimitiveCollector.GetInstanceSceneDataOffset();
 			CullingBatchInfo.DynamicInstanceIdMax = CullingBatchInfo.DynamicInstanceIdOffset + ShadowDepthView->DynamicPrimitiveCollector.NumInstances();
 
+			FRDGBufferRef PrimitiveRevealedMaskRdg = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 4);
+			int32 PrimitiveRevealedNum = 0;
+				
+
+			if (!Clipmap->GetRevealedPrimitivesMask().IsEmpty())
+			{
+				PrimitiveRevealedMaskRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.RevealedPrimitivesMask"), Clipmap->GetRevealedPrimitivesMask());
+				PrimitiveRevealedNum = Clipmap->GetNumRevealedPrimitives();
+
+			}
+
 			FCullingResult CullingResult = AddCullingPasses(
 				GraphBuilder,
 				InstanceCullingContext->IndirectArgs, 
@@ -2415,7 +2438,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 				VirtualShadowViewsRDG,
 				HZBShaderParameters,
 				this,
-				GPUScene
+				GPUScene,
+				PrimitiveRevealedMaskRdg,
+				PrimitiveRevealedNum
 			);
 
 			TRDGUniformBufferRef<FShadowDepthPassUniformParameters> ShadowDepthPassUniformBuffer = CreateShadowDepthPassUniformBuffer(ProjectedShadowInfo->ShouldClampToNearPlane());

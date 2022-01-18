@@ -109,6 +109,11 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 	WorldOrigin = CameraViewMatrices.GetViewOrigin();
 
+	if (bCacheValid)
+	{
+		PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id);
+	}
+
 	for (int32 Index = 0; Index < LevelCount; ++Index)
 	{
 		FLevelData& Level = LevelData[Index];
@@ -142,10 +147,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		// Check if we have a cache entry for this level
 		// If we do and it covers our required depth range, we can use cached pages. Otherwise we need to invalidate.
 		TSharedPtr<FVirtualShadowMapCacheEntry> CacheEntry = nullptr;
-		if (bCacheValid)
+		if (PerLightCacheEntry.IsValid())
 		{
 			// NOTE: We use the absolute (virtual) level index so that the caching is robust against changes to the chosen level range
-			CacheEntry = VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo.Id, AbsoluteLevel);
+			CacheEntry = PerLightCacheEntry->FindCreateShadowMapEntry(AbsoluteLevel);
 		}
 
 		// We expand the depth range of the clipmap level to allow for camera movement without having to invalidate cached shadow data
@@ -277,3 +282,26 @@ uint32 FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask()
 
 	return BitMask;
 }
+
+void FVirtualShadowMapClipmap::OnPrimitiveRendered(FPersistentPrimitiveIndex PersistentPrimitiveId)
+{
+	check(PersistentPrimitiveId.Index >= 0);
+
+	if (PerLightCacheEntry.IsValid())
+	{
+		check(PersistentPrimitiveId.Index < PerLightCacheEntry->RenderedPrimitives.Num());
+		// Check previous frame(s) state to detect transition from hidden->visible
+		if (!PerLightCacheEntry->RenderedPrimitives[PersistentPrimitiveId.Index])
+		{
+			if (RevealedPrimitivesMask.IsEmpty())
+			{
+				RevealedPrimitivesMask.Init(false, PerLightCacheEntry->RenderedPrimitives.Num());
+			}
+			RevealedPrimitivesMask[PersistentPrimitiveId.Index] = true;
+		}
+
+		// update rendered state (this is cleared whenever a primitive is invalidating the VSM).
+		PerLightCacheEntry->RenderedPrimitives[PersistentPrimitiveId.Index] = true;
+	}
+}
+

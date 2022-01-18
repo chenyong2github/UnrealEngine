@@ -12,6 +12,7 @@ VirtualShadowMapClipmap.h
 struct FViewMatrices;
 class FVirtualShadowMapArray;
 class FVirtualShadowMapArrayCacheManager;
+class FVirtualShadowMapPerLightCacheEntry;
 
 class FVirtualShadowMapClipmap : FRefCountedObject
 {
@@ -76,6 +77,17 @@ public:
 	// Bits relative to FirstLevel (i.e. in terms of ClipmapIndex, not ClipmapLevel)
 	static uint32 GetCoarsePageClipmapIndexMask();
 
+	/**
+	 * Called when a primitive passes CPU-culling, note that this applies to non-nanite primitives only. Not thread safe in general.
+	 */ 
+	void OnPrimitiveRendered(FPersistentPrimitiveIndex PersistentPrimitiveId);
+
+	/**
+	 * Return array with one bit per primitive, a set bit indicates that the primitive transitioned from not rendered to rendered this frame (see OnPrimitiveRendered above).
+	 */
+	TConstArrayView<uint32> GetRevealedPrimitivesMask() const { return RevealedPrimitivesMask.IsEmpty() ? MakeArrayView<uint32>(nullptr, 0) : MakeArrayView(RevealedPrimitivesMask.GetData(), FBitSet::CalculateNumWords(RevealedPrimitivesMask.Num())); }
+	int32 GetNumRevealedPrimitives() const { return RevealedPrimitivesMask.Num(); }
+
 private:
 	void ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices);
 
@@ -111,4 +123,9 @@ private:
 
 	FSphere BoundingSphere;
 	FConvexVolume ViewFrustumBounds;
+
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> PerLightCacheEntry;
+
+	// Set to 1 for each primitives that went from not being rendered to being rendered this frame, may be empty if no primitives were revealed - lazily initialized
+	TBitArray<> RevealedPrimitivesMask;
 };

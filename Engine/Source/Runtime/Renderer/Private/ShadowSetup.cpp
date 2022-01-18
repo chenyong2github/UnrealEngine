@@ -2002,6 +2002,12 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 		}
 	}
 
+	// If we have a clipmap, we need to track the state of the primitive such that we may invalidate pages when the culling changes (e.g., the primitive crosses a range boundary)
+	if (VirtualShadowMapClipmap.IsValid())
+	{
+		VirtualShadowMapClipmap->OnPrimitiveRendered(PrimitiveSceneInfo->GetPersistentIndex());
+	}
+
 	if (Result.bAddOnRenderThread)
 	{
 		AddSubjectPrimitive(PrimitiveSceneInfo, ViewArray, Result.bShouldRecordShadowSubjectsForMobile);
@@ -3660,7 +3666,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				}
 
 				// Consolidate repeated operation into a single site.
-				auto AddInteractingPrimitives = [bStaticSceneOnly, &Views = this->Views, FeatureLevel = this->FeatureLevel, &LightViewFrustumConvexHulls](FLightPrimitiveInteraction* InteractionList, FProjectedShadowInfo* ProjectedShadowInfo, bool& bContainsNaniteSubjectsOut)
+				auto AddInteractingPrimitives = [bStaticSceneOnly, &Views = this->Views, FeatureLevel = this->FeatureLevel, &LightViewFrustumConvexHulls](FLightPrimitiveInteraction* InteractionList, FProjectedShadowInfo* ProjectedShadowInfo, bool& bContainsNaniteSubjectsOut, bool bTestConvexHull)
 				{
 					for (FLightPrimitiveInteraction* Interaction = InteractionList; Interaction; Interaction = Interaction->GetNextPrimitive())
 					{
@@ -3679,7 +3685,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							else if (EnumHasAnyFlags(ProjectedShadowInfo->MeshSelectionMask, Interaction->ProxySupportsGPUScene() ? EShadowMeshSelection::VSM : EShadowMeshSelection::All))
 							{
 								FBoxSphereBounds const& Bounds = Interaction->GetPrimitiveSceneInfo()->Proxy->GetBounds();
-								if (IntersectsConvexHulls(LightViewFrustumConvexHulls, Bounds))
+								if (!bTestConvexHull || IntersectsConvexHulls(LightViewFrustumConvexHulls, Bounds))
 								{
 									ProjectedShadowInfo->AddSubjectPrimitive(Interaction->GetPrimitiveSceneInfo(), Views, false);
 								}
@@ -3734,8 +3740,10 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					ProjectedShadowInfo->MeshSelectionMask = EShadowMeshSelection::VSM;
 
 					bool bContainsNaniteSubjects = false;
-					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
-					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+					// Skip convex hull tests for VSM since this causes artifacts due to caching (potentially check if caching is enabled but may lead to race condition).
+					// The interaction setup has already tested the light bounds (by calling FLightSceneProxy::AffectsBounds)
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects, false);
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects, false);
 					ProjectedShadowInfo->bContainsNaniteSubjects = bContainsNaniteSubjects;
 
 					VisibleLightInfo.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
@@ -3785,12 +3793,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 								&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
 							{
 								// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects, true);
 							}
 						
 							if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
 							{
-								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects, true);
 							}
 						}
 						ProjectedShadowInfo->bContainsNaniteSubjects = bContainsNaniteSubjects;

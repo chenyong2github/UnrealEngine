@@ -4,6 +4,7 @@
 	VirtualShadowMap.h:
 =============================================================================*/
 #include "VirtualShadowMapCacheManager.h"
+#include "VirtualShadowMapClipmap.h"
 #include "RendererModule.h"
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
@@ -132,6 +133,76 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FW
 	bCurrentRendered = false;
 }
 
+FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::FInvalidatingPrimitiveCollector(FVirtualShadowMapArrayCacheManager* InVirtualShadowMapArrayCacheManager)
+	: AlreadyAddedPrimitives(false, InVirtualShadowMapArrayCacheManager->Scene->Primitives.Num())
+	, Scene(*InVirtualShadowMapArrayCacheManager->Scene)
+	, GPUScene(InVirtualShadowMapArrayCacheManager->Scene->GPUScene)
+	, Manager(*InVirtualShadowMapArrayCacheManager)
+{
+	// Add and clear pending invalidations enqueued on the GPU Scene from dynamic primitives added since last invalidation
+	for (const FGPUScene::FInstanceRange& Range : GPUScene.DynamicPrimitiveInstancesToInvalidate)
+	{
+		LoadBalancer.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries, 0U);
+#if VSM_LOG_INVALIDATIONS
+		RangesStr.Appendf(TEXT("[%6d, %6d), "), Range.InstanceSceneDataOffset, Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries);
+#endif
+		TotalInstanceCount += Range.NumInstanceSceneDataEntries;
+	}
+
+	GPUScene.DynamicPrimitiveInstancesToInvalidate.Reset();
+}
+void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(const FPrimitiveSceneInfo * PrimitiveSceneInfo)
+{
+	int32 PrimitiveID = PrimitiveSceneInfo->GetIndex();
+	if (PrimitiveID >= 0
+		&& !AlreadyAddedPrimitives[PrimitiveID]
+		&& PrimitiveSceneInfo->GetInstanceSceneDataOffset() != INDEX_NONE
+		// Don't process primitives that are still in the 'added' state because this means that they
+		// have not been uploaded to the GPU yet and may be pending from a previous call to update primitive scene infos.
+		&& !EnumHasAnyFlags(GPUScene.GetPrimitiveDirtyState(PrimitiveID), EPrimitiveDirtyState::Added))
+	{
+		AlreadyAddedPrimitives[PrimitiveID] = true;
+		int32 PersistentPrimitiveIndex = PrimitiveSceneInfo->GetPersistentIndex().Index;
+
+		const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
+		// Add for non-directional lights, mark for skipping clipmaps as these are handled individually below
+		LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, 1U);
+
+		// Nanite meshes need special handling because they don't get culled on CPU, thus always process invalidations for those
+		const bool bIsNaniteMesh = Scene.PrimitiveFlagsCompact[PrimitiveID].bIsNaniteMesh;
+		// Process directional lights, where we explicitly filter out primitives that were not rendered (and mark this fact)
+		for (auto& CacheEntry : Manager.PrevCacheEntries)
+		{
+			TBitArray<>& RenderedPrimitives = CacheEntry.Value->RenderedPrimitives;
+			if (bIsNaniteMesh || (PersistentPrimitiveIndex <= RenderedPrimitives.Num() && RenderedPrimitives[PersistentPrimitiveIndex]))
+			{
+				if (!bIsNaniteMesh)
+				{
+					// Clear the record as we're wiping it out.
+					RenderedPrimitives[PersistentPrimitiveIndex] = false;
+				}
+
+				// Add item for each shadow map explicitly, inflates host data but improves load balancing,
+				// TODO: maybe add permutation so we can strip the loop completely.
+				for (const auto& SmCacheEntry : CacheEntry.Value->ShadowMapEntries)
+				{
+					if (SmCacheEntry.IsValid())
+					{
+						// Lowest bit indicates whether to skip the clipmap loop, add 1 to ID so != 0 <==> single level processing
+						LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, (uint32(SmCacheEntry->CurrentVirtualShadowMapId + 1) << 1U) | 0U);
+					}
+				}
+			}
+		}
+#if VSM_LOG_INVALIDATIONS
+		RangesStr.Appendf(TEXT("[%6d, %6d), "), PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetInstanceSceneDataOffset() + NumInstanceSceneDataEntries);
+#endif
+		TotalInstanceCount += NumInstanceSceneDataEntries;
+	}
+}
+
+
+
 FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* InScene) 
 	: Scene(InScene)
 {
@@ -233,6 +304,52 @@ void FVirtualShadowMapArrayCacheManager::Invalidate()
 	CacheEntries.Reset();
 }
 
+TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapPerLightCacheEntry::FindCreateShadowMapEntry(int32 Index)
+{
+	check(Index >= 0);
+	ShadowMapEntries.SetNum(FMath::Max(Index + 1, ShadowMapEntries.Num()));
+
+	TSharedPtr<FVirtualShadowMapCacheEntry>& EntryRef = ShadowMapEntries[Index];
+
+	if (!EntryRef.IsValid())
+	{
+		EntryRef = MakeShared<FVirtualShadowMapCacheEntry>();
+	}
+
+	return EntryRef;
+}
+
+TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(int32 LightSceneId)
+{
+	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
+	{
+		return nullptr;
+	}
+
+	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntry = CacheEntries.Find(LightSceneId))
+	{
+		return *LightEntry;
+	}
+
+	// Add to current frame / active set.
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& NewLightEntry = CacheEntries.Add(LightSceneId);
+
+	// Copy data if available
+	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry>* PrevNewLightEntry = PrevCacheEntries.Find(LightSceneId))
+	{
+		NewLightEntry = *PrevNewLightEntry;
+	}
+	else
+	{
+		NewLightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->Primitives.Num());
+	}
+
+	// return entry
+	return NewLightEntry;
+}
+
+
+
 TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateCacheEntry(int32 LightSceneId, int32 Index)
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
@@ -240,28 +357,7 @@ TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::Find
 		return nullptr;
 	}
 
-	const FIntPoint Key(LightSceneId, Index);
-
-	if (TSharedPtr<FVirtualShadowMapCacheEntry> *VirtualShadowMapCacheEntry = CacheEntries.Find(Key))
-	{
-		return *VirtualShadowMapCacheEntry;
-	}
-
-	// Add to current frame / active set.
-	TSharedPtr<FVirtualShadowMapCacheEntry> &NewVirtualShadowMapCacheEntry = CacheEntries.Add(Key);
-
-	// Copy data if available
-	if (TSharedPtr<FVirtualShadowMapCacheEntry> *PrevVirtualShadowMapCacheEntry = PrevCacheEntries.Find(Key))
-	{
-		NewVirtualShadowMapCacheEntry = *PrevVirtualShadowMapCacheEntry;
-	}
-	else
-	{
-		NewVirtualShadowMapCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>(new FVirtualShadowMapCacheEntry);
-	}
-
-	// return entry
-	return NewVirtualShadowMapCacheEntry;
+	return FindCreateLightCacheEntry(LightSceneId)->FindCreateShadowMapEntry(Index);
 }
 
 
@@ -524,6 +620,31 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedOrUpdatedPrimitives(FRDGB
 			UE_LOG(LogTemp, Warning, TEXT("ProcessRemovedOrUpdatedPrimitives: \n%s"), *InvalidatingPrimitiveCollector.RangesStr);
 #endif
 			ProcessInvalidations(GraphBuilder, InvalidatingPrimitiveCollector.LoadBalancer, InvalidatingPrimitiveCollector.TotalInstanceCount, GPUScene);
+		}
+	}
+}
+
+static void ResizeFlagArray(TBitArray<>& BitArray, int32 NewMax)
+{
+	if (BitArray.Num() > NewMax)
+	{
+		// Trim off excess items
+		BitArray.SetNumUninitialized(NewMax);
+	}
+	else if (BitArray.Num() < NewMax)
+	{
+		// Add false
+		BitArray.Add(false, NewMax - BitArray.Num());
+	}
+}
+
+void FVirtualShadowMapArrayCacheManager::OnSceneChange()
+{
+	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
+	{
+		for (auto& CacheEntry : PrevCacheEntries)
+		{
+			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 		}
 	}
 }

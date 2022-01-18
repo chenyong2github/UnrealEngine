@@ -55,12 +55,29 @@ RWBuffer<uint> DrawIndirectArgsBufferOut;
 RWStructuredBuffer<uint> OutInvalidatingInstances;
 uint NumInvalidatingInstanceSlots;
 
+StructuredBuffer<uint> PrimitiveRevealedMask;
+uint PrimitiveRevealedNum;
 
 #if USE_HZB_OCCLUSION
 // Mode 1 == previous frame HZB, 
 // Mode 2 == this frame HZB (Nanite only).
 uint HZBMode;
 #endif
+
+
+bool WasPrimitiveRevealed(uint PersistentPrimitiveId)
+{
+	// Use to filter out transient primitives as well as opting out of the test (if e.g., caching is off)
+	if (PersistentPrimitiveId >= PrimitiveRevealedNum)
+	{
+		return false;
+	}
+
+	uint PrimitiveIdWordOffset = PersistentPrimitiveId / 32U;
+	uint PrimitiveIdWordMask = 1U << (PersistentPrimitiveId % 32U);
+
+	return (PrimitiveRevealedMask[PrimitiveIdWordOffset] & PrimitiveIdWordMask) != 0U;
+}
 
 void MarkInstanceForInvalidation(uint InstanceId)
 {
@@ -69,7 +86,7 @@ void MarkInstanceForInvalidation(uint InstanceId)
 	if (InstanceId < uint(NumInvalidatingInstanceSlots))
 	{
 		uint InstanceIdWordOffset = InstanceId / 32U;
-		uint InstanceIdWordMask = 1U << (InstanceId % 32);
+		uint InstanceIdWordMask = 1U << (InstanceId % 32U);
 
 		uint PreviousWordMask = 0U;
 		InterlockedOr(OutInvalidatingInstances[1 + NumInvalidatingInstanceSlots + InstanceIdWordOffset], InstanceIdWordMask, PreviousWordMask);
@@ -152,7 +169,14 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
-	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || DrawCommandDesc.bMaterialMayModifyPosition;
+
+	// A thing is considered to have moved (which causes it to render into cached pages) if:
+	// It was uploaded this frame, OR
+	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber
+		// it has a material that uses WPO or PDO, OR
+		|| DrawCommandDesc.bMaterialMayModifyPosition
+		// the primitive was "revealed" this frame - i.e., transitioned from culled -> visible on CPU
+		|| WasPrimitiveRevealed(GetPrimitiveData(InstanceData.PrimitiveId).PersistentPrimitiveIndex);
 
 	uint ThreadTotalForAllViews = 0;
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
