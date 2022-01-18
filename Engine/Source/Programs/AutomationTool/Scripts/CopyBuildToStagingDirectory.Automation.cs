@@ -2870,12 +2870,6 @@ namespace AutomationScripts
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 						if (ShouldCreateIoStoreContainerFiles(Params, SC))
 						{
-							bool bAllowBulkDataInIoStore = true;
-							if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
-							{
-								bAllowBulkDataInIoStore = true; // Default is to allow it in the IoStore
-							}
-
 							bool bAllowShadersInIoStore;
 							if (!PlatformEngineConfig.GetBool("Core.System", "AllowShadersInIoStore", out bAllowShadersInIoStore))
 							{
@@ -2902,14 +2896,7 @@ namespace AutomationScripts
 								else if(Path.GetExtension(Entry.Key).Contains(".ubulk") ||
 										Path.GetExtension(Entry.Key).Contains(".uptnl"))
 								{
-									if(bAllowBulkDataInIoStore)
-									{
-										IoStoreResponseFile.Add(Entry.Key, Entry.Value);
-									}
-									else
-									{
-										UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
-									}
+									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
 								}
 								else if (Path.GetExtension(Entry.Key).Contains(".ushaderbytecode"))
 								{
