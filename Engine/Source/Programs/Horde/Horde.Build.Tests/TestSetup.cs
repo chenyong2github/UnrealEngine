@@ -246,6 +246,14 @@ namespace HordeServerTests
 				new List<Claim> {new Claim(ServerSettings.AdminClaimType, ServerSettings.AdminClaimValue)}, "TestAuthType"));
 			return ControllerContext;
 		}
+		
+		private static int AgentIdCounter = 1;
+		public async Task<IAgent> CreateAgentAsync(IPool Pool)
+		{
+			IAgent Agent = await AgentService.CreateAgentAsync("TestAgent" + AgentIdCounter++, true, null, new List<StringId<IPool>> { Pool.Id });
+			Agent = await AgentService.CreateSessionAsync(Agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
+			return Agent;
+		}
 
 		/// <summary>
 		/// Hack the Datadog tracing library to not block during shutdown of tests.

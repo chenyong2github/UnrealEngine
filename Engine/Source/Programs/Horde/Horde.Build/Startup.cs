@@ -82,6 +82,7 @@ using HordeServer.Compute.Impl;
 using HordeServer.Compute;
 using System.Net.Http.Headers;
 using Amazon.SecurityToken.Model;
+using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Utilities;
 using Serilog.Events;
 using HordeServer.Jobs;
@@ -334,6 +335,21 @@ namespace HordeServer
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
 			Services.AddSingleton<AutoscaleService>();
+
+			if (Enum.TryParse(Settings.AgentPoolSizeStrategy, out PoolSizeStrategy PoolSizeStrategy))
+			{
+				switch (PoolSizeStrategy)
+				{
+					case PoolSizeStrategy.LeaseUtilization: Services.AddSingleton<IPoolSizeStrategy, LeaseUtilizationStrategy>(); break;
+					case PoolSizeStrategy.JobQueue: Services.AddSingleton<IPoolSizeStrategy, JobQueueStrategy>(); break;
+					default: Services.AddSingleton<IPoolSizeStrategy, NoOpPoolSizeStrategy>(); break;
+				}
+			}
+			else
+			{
+				Services.AddSingleton<IPoolSizeStrategy, NoOpPoolSizeStrategy>();
+			}
+			
 			switch (Settings.FleetManager)
 			{
 				case FleetManagerType.Aws:
@@ -557,8 +573,17 @@ namespace HordeServer
 
 			if (Settings.EnableBackgroundServices)
 			{
+				// Allow both legacy and v2 impl to co-exist during rollout phase
+				if (Settings.AgentPoolSizeStrategy != null)
+				{
+					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleServiceV2>());
+				}
+				else
+				{
+					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());	
+				}
+				
 				Services.AddHostedService(Provider => Provider.GetRequiredService<AgentService>());
-				Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());
 				Services.AddHostedService(Provider => Provider.GetRequiredService<CommitService>());
 				Services.AddHostedService(Provider => Provider.GetRequiredService<ConsistencyService>());
 				Services.AddHostedService(Provider => (DowntimeService)Provider.GetRequiredService<IDowntimeService>());

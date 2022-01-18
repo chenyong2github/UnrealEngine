@@ -504,6 +504,11 @@ namespace HordeServer
 		/// The Uri for the Jira installation
 		/// </summary>
 		public Uri? JiraUrl { get; set; }
+		
+		/// <summary>
+		/// Type of auto-scaling strategy to be used for sizing agent pools (if left empty, legacy auto scaling impl is used)
+		/// </summary>
+		public string? AgentPoolSizeStrategy { get; set; }
 
 		/// <summary>
 		/// Set the minimum size of the global thread pool
