@@ -4,6 +4,7 @@
 #include "MassMovementTypes.h"
 #include "Components/SceneComponent.h"
 #include "MassEntitySubsystem.h"
+#include "MassCommonTypes.h"
 
 //----------------------------------------------------------------------//
 //  UMassSceneComponentLocationToMassTranslator
