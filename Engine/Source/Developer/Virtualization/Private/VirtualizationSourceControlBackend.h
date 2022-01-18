@@ -51,6 +51,9 @@ private:
 
 	void CreateDepotPath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath);
 
+	/** Will display a FMessage notification to the user on the next valid engine tick to try and keep them aware of connection failures */
+	void OnConnectionError();
+	
 	/** The root where the virtualized payloads are stored in source control */
 	FString DepotRoot;
 

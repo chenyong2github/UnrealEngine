@@ -2,9 +2,11 @@
 
 #include "VirtualizationSourceControlBackend.h"
 
+#include "Containers/Ticker.h"
 #include "HAL/FileManager.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "Logging/MessageLog.h"
 #include "Misc/App.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -17,6 +19,8 @@
 // When the SourceControl module (or at least the perforce source control module) is thread safe we
 // can enable this and stop using the hacky work around 'TryToDownloadFileFromBackgroundThread'
 #define IS_SOURCE_CONTROL_THREAD_SAFE 0
+
+#define LOCTEXT_NAMESPACE "Virtualization"
 
 namespace UE::Virtualization
 {
@@ -88,6 +92,26 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		SCCProvider.Init();
 	}
 
+	// Note that if the connect is failing then we expect it to fail here rather than in the subsequent attempts to get the meta info file
+	TSharedRef<FConnect, ESPMode::ThreadSafe> ConnectCommand = ISourceControlOperation::Create<FConnect>();
+	if (SCCProvider.Execute(ConnectCommand, FString(), EConcurrency::Synchronous) != ECommandResult::Succeeded)
+	{		
+		FTextBuilder Errors;
+		for (const FText& Msg : ConnectCommand->GetResultInfo().ErrorMessages)
+		{
+			Errors.AppendLine(Msg);
+		}
+
+		FMessageLog Log("LogVirtualization");
+		Log.Error(	FText::Format(LOCTEXT("FailedSourceControlConnection", "Failed to connect to source control backend with the following errors:\n{0}\n"
+					"The source control backend will be unable to pull payloads!\n"
+					"Trying logging in with the 'p4 login' command or by using p4vs/UnrealGameSync."),
+					Errors.ToText()));
+		
+		OnConnectionError();
+		return true;
+	}
+
 	// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.
 	// This allows us to check for the existence of the file to confirm that the depot root is indeed valid.
 	const FString PayloadMetaInfoPath = FString::Printf(TEXT("%spayload_metainfo.txt"), *DepotRoot);
@@ -96,23 +120,41 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
 	if (SCCProvider.Execute(DownloadCommand, PayloadMetaInfoPath, EConcurrency::Synchronous) != ECommandResult::Succeeded)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to find 'payload_metainfo.txt' in the depot '%s', is your config set up correctly?"), *DepotRoot);
-		return false;
+		FMessageLog Log("LogVirtualization");
+
+		Log.Error(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\n"
+					"The source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+					FText::FromString(DepotRoot)));
+		
+		OnConnectionError();
+		return true;
 	}	
 #else
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
 	if (!SCCProvider.TryToDownloadFileFromBackgroundThread(DownloadCommand, PayloadMetaInfoPath))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to find 'payload_metainfo.txt' in the depot '%s', is your config set up correctly?"), *DepotRoot);
-		return false;
+		FMessageLog Log("LogVirtualization");
+
+		Log.Error(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\n"
+					"The source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+					FText::FromString(DepotRoot)));
+		
+		OnConnectionError();
+		return true;
 	}		
 #endif //IS_SOURCE_CONTROL_THREAD_SAFE
 
 	FSharedBuffer MetaInfoBuffer = DownloadCommand->GetFileData(PayloadMetaInfoPath);
 	if (MetaInfoBuffer.IsNull())
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to find 'payload_metainfo.txt' in the depot '%s', is your config set up correctly?"), *DepotRoot);
-		return false;
+		FMessageLog Log("LogVirtualization");
+
+		Log.Error(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\n"
+					"The source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+					FText::FromString(DepotRoot)));
+
+		OnConnectionError();
+		return true;
 	}
 
 	// Currently we do not do anything with the payload meta info, in the future we could structure
@@ -453,6 +495,22 @@ void FSourceControlBackend::CreateDepotPath(const FPayloadId& PayloadId, FString
 	OutPath << DepotRoot << PayloadPath;
 }
 
+void FSourceControlBackend::OnConnectionError()
+{
+	auto Callback = [](float Delta)->bool
+	{
+		FMessageLog Log("LogVirtualization");
+		Log.Notify(LOCTEXT("ConnectionError", "Asset virtualization connect errors were encountered, see the message log for more info"));
+
+		// This tick callback is one shot, so return false to prevent it being invoked again
+		return false;
+	};
+
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(Callback));
+}
+
 UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FSourceControlBackend, SourceControl);
 
 } // namespace UE::Virtualization
+
+#undef LOCTEXT_NAMESPACE

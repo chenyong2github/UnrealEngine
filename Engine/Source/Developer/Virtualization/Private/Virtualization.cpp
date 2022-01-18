@@ -4,10 +4,13 @@
 
 #include "Features/IModularFeatures.h"
 #include "ISourceControlModule.h"
+#include "MessageLogModule.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "PackageSubmissionChecks.h"
 #include "Serialization/VirtualizedBulkData.h"
 #include "VirtualizationSourceControlUtilities.h"
+
+#define LOCTEXT_NAMESPACE "Virtualization"
 
 namespace UE::Virtualization
 {
@@ -25,12 +28,19 @@ public:
 				PackageSubmissionHandle = ISourceControlModule::Get().RegisterPreSubmitFinalize(
 					FSourceControlPreSubmitFinalizeDelegate::FDelegate::CreateStatic(&OnPrePackageSubmission));
 			});
+
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		MessageLogModule.RegisterLogListing("LogVirtualization", LOCTEXT("AssetVirtualizationLogLabel", "Asset Virtualization"));
 	}
 
 	virtual void ShutdownModule() override
 	{
-		IModularFeatures::Get().UnregisterModularFeature(FName("VirtualizationSourceControlUtilities"), &SourceControlutility);
-		
+		if (FModuleManager::Get().IsModuleLoaded("MessageLog"))
+		{
+			FMessageLogModule& MessageLogModule = FModuleManager::GetModuleChecked<FMessageLogModule>("MessageLog");
+			MessageLogModule.UnregisterLogListing("LogVirtualization&");
+		}
+	
 		// The SourceControl module might be destroyed before this one, depending on shutdown order so we need to check if 
 		// it is loaded before unregistering.
 		if (ISourceControlModule* SourceControlModule = FModuleManager::GetModulePtr<ISourceControlModule>(FName("SourceControl")))
@@ -40,6 +50,7 @@ public:
 
 		PackageSubmissionHandle.Reset();
 		
+		IModularFeatures::Get().UnregisterModularFeature(FName("VirtualizationSourceControlUtilities"), &SourceControlutility);
 	}
 
 private:
@@ -49,5 +60,7 @@ private:
 };
 
 } // namespace UE::Virtualization
+
+#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(UE::Virtualization::FVirtualizationModule, Virtualization);
