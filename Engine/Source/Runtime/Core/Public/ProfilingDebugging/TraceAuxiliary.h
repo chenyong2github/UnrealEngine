@@ -41,9 +41,10 @@ public:
 	 * @param Target String to use for connection. See /ref EConnectionType for details.
 	 * @param Channels Comma separated list of channels to enable. If the pointer is null the default channels will be active.
 	 * @param Options Optional additional tracing options.
+	 * @param LogCategory Log channel to output messages to. Default set to 'Core'.
 	 * @return True when successfully starting the trace, false if the data connection could not be made.
 	 */
-	static bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options = nullptr);
+	static bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options = nullptr, const FLogCategoryBase& LogCategory = LogCore);
 
 	/**
 	 * Stop tracing.
