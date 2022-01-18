@@ -286,6 +286,9 @@ public:
 	/** Delegate used to go to assets in the content browser */
 	void OnGotoAsset(const FString& InAssetPath) const;
 
+	/** Delegate used on message log AActor token activation */
+	void OnActorTokenActivated(const TSharedRef<class IMessageToken>& Token);
+
 	/** Delegate used to update the map of asset update counts */
 	void OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext);
 
@@ -308,6 +311,8 @@ public:
 	FString FindMapFileFromPartialName(const FString& PartialMapName);
 
 private:
+	void SelectActorFromMessageToken(AActor* InActor);
+
 	void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 
 	/** The current state of the autosave */

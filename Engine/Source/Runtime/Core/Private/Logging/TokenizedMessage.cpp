@@ -211,4 +211,36 @@ TSharedRef<FDocumentationToken> FDocumentationToken::Create(const FString& InDoc
 	return MakeShareable(new FDocumentationToken(InDocumentationLink, InPreviewExcerptLink, InPreviewExcerptName));
 }
 
+FOnMessageTokenActivated FActorToken::DefaultMessageTokenActivated;
+
+TSharedRef<FActorToken> FActorToken::Create(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage)
+{
+	return MakeShareable(new FActorToken(InActorPath, InActorGuid, InMessage));
+}
+
+FActorToken::FActorToken(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage)
+	: ActorPath(InActorPath), ActorGuid(InActorGuid)
+{
+	if (!InMessage.IsEmpty())
+	{
+		CachedText = InMessage;
+	}
+	else
+	{
+		CachedText = FText::FromString(ActorPath);
+	}
+}
+
+const FOnMessageTokenActivated& FActorToken::GetOnMessageTokenActivated() const
+{
+	if (MessageTokenActivated.IsBound())
+	{
+		return MessageTokenActivated;
+	}
+	else
+	{
+		return DefaultMessageTokenActivated;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

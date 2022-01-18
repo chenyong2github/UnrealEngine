@@ -57,6 +57,8 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 	GEngine->OnLevelActorDeleted().AddRaw(this, &FActorBrowsingMode::OnLevelActorDeleted);
 
+	GEditor->OnSelectUnloadedActorsEvent().AddRaw(this, &FActorBrowsingMode::OnSelectUnloadedActors);
+
 	FEditorDelegates::OnEditCutActorsBegin.AddRaw(this, &FActorBrowsingMode::OnEditCutActorsBegin);
 	FEditorDelegates::OnEditCutActorsEnd.AddRaw(this, &FActorBrowsingMode::OnEditCutActorsEnd);
 	FEditorDelegates::OnEditCopyActorsBegin.AddRaw(this, &FActorBrowsingMode::OnEditCopyActorsBegin);
@@ -177,6 +179,8 @@ FActorBrowsingMode::~FActorBrowsingMode()
 	FSceneOutlinerDelegates::Get().OnComponentsUpdated.RemoveAll(this);
 
 	GEngine->OnLevelActorDeleted().RemoveAll(this);
+
+	GEditor->OnSelectUnloadedActorsEvent().RemoveAll(this);
 		
 	FEditorDelegates::OnEditCutActorsBegin.RemoveAll(this);
 	FEditorDelegates::OnEditCutActorsEnd.RemoveAll(this);
@@ -588,6 +592,24 @@ void FActorBrowsingMode::OnComponentsUpdated()
 void FActorBrowsingMode::OnLevelActorDeleted(AActor* Actor)
 {
 	ApplicableActors.Remove(Actor);
+}
+
+void FActorBrowsingMode::OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids)
+{
+	TArray<FSceneOutlinerTreeItemPtr> ItemsToSelect;
+	ItemsToSelect.Reserve(ActorGuids.Num());
+	for (const FGuid& ActorGuid : ActorGuids)
+	{
+		if (FSceneOutlinerTreeItemPtr ItemPtr = SceneOutliner->GetTreeItem(ActorGuid))
+		{
+			ItemsToSelect.Add(ItemPtr);
+		}
+	}
+	
+	if (ItemsToSelect.Num())
+	{
+		SceneOutliner->SetItemSelection(ItemsToSelect, true);
+	}
 }
 
 void FActorBrowsingMode::OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc)

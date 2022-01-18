@@ -693,6 +693,13 @@ public:
 	/** Called when the editor has been asked to perform an exec command on particle systems. */
 	DECLARE_EVENT_OneParam(UEditorEngine, FExecParticleInvoked, const TCHAR*);
 	FExecParticleInvoked& OnExecParticleInvoked() { return ExecParticleInvokedEvent; }
+
+	/** Called to allow selection of unloaded actors */
+	DECLARE_EVENT_OneParam(UEditorEngine, FSelectUnloadedActorsEvent, const TArray<FGuid>&);
+	FSelectUnloadedActorsEvent& OnSelectUnloadedActorsEvent() { return SelectUnloadedActorsEvent; }
+
+	void BroadcastSelectUnloadedActors(const TArray<FGuid>& ActorGuids) const { SelectUnloadedActorsEvent.Broadcast(ActorGuids); }
+
 	/**
 	 * Called before an actor or component is about to be translated, rotated, or scaled by the editor
 	 *
@@ -2869,6 +2876,9 @@ private:
 
 	/** Broadcasts after an Exec event on particles has been invoked.*/
 	FExecParticleInvoked ExecParticleInvokedEvent; 
+
+	/** Broadcasts to allow selection of unloaded actors */
+	FSelectUnloadedActorsEvent SelectUnloadedActorsEvent;
 
 	/** Delegate to be called when a matinee is requested to be opened */
 	FShouldOpenMatineeCallback ShouldOpenMatineeCallback;	

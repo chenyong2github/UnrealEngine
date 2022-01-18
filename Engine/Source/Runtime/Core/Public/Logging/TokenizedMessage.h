@@ -33,6 +33,7 @@ namespace EMessageToken
 	enum Type
 	{
 		Action,
+		Actor,
 		AssetName,
 		Documentation,
 		Image,
@@ -593,3 +594,52 @@ private:
 	FString TutorialAssetName;
 };
 
+/** 
+ * Basic message token that defaults its activated method to select an actor in the opened level
+ */
+class FActorToken : public IMessageToken
+{
+public:
+	/** Factory method, tokens can only be constructed as shared refs */
+	CORE_API static TSharedRef<FActorToken> Create(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage = FText());
+
+	/** Begin IMessageToken interface */
+	virtual EMessageToken::Type GetType() const override
+	{
+		return EMessageToken::Actor;
+	}
+
+	virtual const FOnMessageTokenActivated& GetOnMessageTokenActivated() const override;
+	/** End IMessageToken interface */
+
+	/** Get the actor name used by this token */
+	const FString& GetActorPath() const
+	{
+		return ActorPath;
+	}
+
+	/** Get the actor guid used by this token */
+	const FGuid& GetActorGuid() const
+	{
+		return ActorGuid;
+	}
+
+	/** Get the delegate for default token activation */
+	CORE_API static FOnMessageTokenActivated& DefaultOnMessageTokenActivated()
+	{
+		return DefaultMessageTokenActivated;
+	}
+
+private:
+	/** Private constructor */
+	FActorToken(const FString& InActorPath, const FGuid& InActorGuid, const FText& InMessage);
+
+	/** The actor path we will select */
+	FString ActorPath;
+
+	/** The actor guid we will select */
+	FGuid ActorGuid;
+
+	/** The default activation method, if any */
+	CORE_API static FOnMessageTokenActivated DefaultMessageTokenActivated;
+};

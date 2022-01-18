@@ -331,6 +331,15 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	}
 		break;
 #endif
+
+	case EMessageToken::Actor:
+	{
+		const TSharedRef<FActorToken> ActorToken = StaticCastSharedRef<FActorToken>(InMessageToken);
+
+		IconBrushName = FName("Icons.Search");
+		RowContent = CreateHyperlink(InMessageToken, ActorToken->ToText());
+	}
+		break;
 	}
 
 	if (RowContent.IsValid())

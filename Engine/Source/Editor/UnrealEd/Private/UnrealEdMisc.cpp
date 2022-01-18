@@ -504,6 +504,7 @@ void FUnrealEdMisc::OnInit()
 	FUObjectToken::DefaultOnMessageTokenActivated().BindRaw(this, &FUnrealEdMisc::OnMessageTokenActivated);
 	FUObjectToken::DefaultOnGetObjectDisplayName().BindRaw(this, &FUnrealEdMisc::OnGetDisplayName);
 	FAssetNameToken::OnGotoAsset().BindRaw(this, &FUnrealEdMisc::OnGotoAsset);
+	FActorToken::DefaultOnMessageTokenActivated().BindRaw(this, &FUnrealEdMisc::OnActorTokenActivated);
 
 	// Register to receive notification of new key bindings
 	OnUserDefinedChordChangedDelegateHandle = FInputBindingManager::Get().RegisterUserDefinedChordChanged(FOnUserDefinedChordChanged::FDelegate::CreateRaw( this, &FUnrealEdMisc::OnUserDefinedChordChanged ));
@@ -1006,6 +1007,7 @@ void FUnrealEdMisc::OnExit()
 	FUObjectToken::DefaultOnMessageTokenActivated().Unbind();
 	FUObjectToken::DefaultOnGetObjectDisplayName().Unbind();
 	FAssetNameToken::OnGotoAsset().Unbind();
+	FActorToken::DefaultOnMessageTokenActivated().Unbind();
 
 	// Unregister message log UIs
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
@@ -1369,15 +1371,7 @@ void FUnrealEdMisc::OnMessageTokenActivated(const TSharedRef<IMessageToken>& Tok
 
 			if (Actor && Actor->GetLevel() != nullptr)
 			{
-				// Select the actor
-				GEditor->SelectNone(false, true);
-				GEditor->SelectActor(Actor, /*InSelected=*/true, /*bNotify=*/false, /*bSelectEvenIfHidden=*/true); 
-				GEditor->NoteSelectionChange();
-				GEditor->MoveViewportCamerasToActor(*Actor, false);
-
-				// Update the property windows and create one if necessary
-				GUnrealEd->ShowActorProperties();
-				GUnrealEd->UpdateFloatingPropertyWindows();
+				SelectActorFromMessageToken(Actor);
 			}
 			else
 			{
@@ -1417,6 +1411,35 @@ void FUnrealEdMisc::OnMessageTokenActivated(const TSharedRef<IMessageToken>& Tok
 			}
 		}
 	}
+}
+
+void FUnrealEdMisc::OnActorTokenActivated(const TSharedRef<class IMessageToken>& Token)
+{
+	if (Token->GetType() == EMessageToken::Actor)
+	{
+		const TSharedRef<FActorToken> ActorToken = StaticCastSharedRef<FActorToken>(Token);
+		if (AActor* Actor = FindObject<AActor>(nullptr, *ActorToken->GetActorPath()))
+		{
+			SelectActorFromMessageToken(Actor);
+		}
+		else
+		{
+			GEditor->BroadcastSelectUnloadedActors({ ActorToken->GetActorGuid() });
+		}
+	}
+}
+
+void FUnrealEdMisc::SelectActorFromMessageToken(AActor* InActor)
+{
+	// Select the actor
+	GEditor->SelectNone(false, true);
+	GEditor->SelectActor(InActor, /*InSelected=*/true, /*bNotify=*/false, /*bSelectEvenIfHidden=*/true);
+	GEditor->NoteSelectionChange();
+	GEditor->MoveViewportCamerasToActor(*InActor, false);
+
+	// Update the property windows and create one if necessary
+	GUnrealEd->ShowActorProperties();
+	GUnrealEd->UpdateFloatingPropertyWindows();
 }
 
 FText FUnrealEdMisc::OnGetDisplayName(const UObject* InObject, const bool bFullPath)

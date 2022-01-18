@@ -61,6 +61,9 @@ public:
 	void OnComponentsUpdated();
 	/** Called by the engine when an actor is deleted */
 	void OnLevelActorDeleted(AActor* Actor);
+
+	/** Called by the editor to allow selection of unloaded actors */
+	void OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids);
 	
 	/** Called when an actor desc is removed */
 	void OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc);
