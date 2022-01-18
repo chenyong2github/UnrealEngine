@@ -661,18 +661,18 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 {
 	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 	{
-			// Find layer with this name in interfaces
-			for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+		// Find layer with this name in interfaces
+		for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+		{
+			for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 			{
-				for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+				if(InterfaceGraph->GetFName() == Node.Layer)
 				{
-					if(InterfaceGraph->GetFName() == Node.Layer)
-					{
-						return InterfaceDesc.Interface;
-					}
+					return InterfaceDesc.Interface;
 				}
 			}
 		}
+	}
 
 	return nullptr;
 }
@@ -829,17 +829,57 @@ void UAnimGraphNode_LinkedAnimLayer::GetMenuActions(FBlueprintActionDatabaseRegi
 			UClass* TargetClass = *TargetAnimBlueprint->SkeletonGeneratedClass;
 			if(TargetClass)
 			{
-				UClass* NodeClass = GetClass();
-				IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
-				for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+				// Accept interfaces
+				if(TargetAnimBlueprint->BlueprintType == BPTYPE_Interface)
 				{
-					if(AnimBlueprintFunction.Name != UEdGraphSchema_K2::GN_AnimGraph)
+					IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
+					for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
 					{
-						if(UFunction* Function = TargetClass->FindFunctionByName(AnimBlueprintFunction.Name))
+						if(AnimBlueprintFunction.Name != UEdGraphSchema_K2::GN_AnimGraph)
 						{
-							if (UBlueprintNodeSpawner* NodeSpawner = MakeAnimBlueprintAction(NodeClass, AnimBlueprintFunction.Name))
+							if(UFunction* Function = TargetClass->FindFunctionByName(AnimBlueprintFunction.Name))
 							{
-								ActionRegistrar.AddBlueprintAction(Function, NodeSpawner);
+								if (UBlueprintNodeSpawner* NodeSpawner = MakeAnimBlueprintAction(GetClass(), AnimBlueprintFunction.Name))
+								{
+									ActionRegistrar.AddBlueprintAction(Function, NodeSpawner);
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					// Accept 'self' layers
+					IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
+					for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+					{
+						if(AnimBlueprintFunction.Name != UEdGraphSchema_K2::GN_AnimGraph)
+						{
+							const bool bIsSelfLayer = [TargetAnimBlueprint, &AnimBlueprintFunction]()
+							{
+								for(const FBPInterfaceDescription& InterfaceDesc : TargetAnimBlueprint->ImplementedInterfaces)
+								{
+									for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+									{
+										if(InterfaceGraph->GetFName() == AnimBlueprintFunction.Name)
+										{
+											return false;
+										}
+									}
+								}
+
+								return true;
+							}();
+
+							if(bIsSelfLayer)
+							{
+								if(UFunction* Function = TargetClass->FindFunctionByName(AnimBlueprintFunction.Name))
+								{
+									if (UBlueprintNodeSpawner* NodeSpawner = MakeAnimBlueprintAction(GetClass(), AnimBlueprintFunction.Name))
+									{
+										ActionRegistrar.AddBlueprintAction(Function, NodeSpawner);
+									}
+								}
 							}
 						}
 					}
@@ -847,6 +887,41 @@ void UAnimGraphNode_LinkedAnimLayer::GetMenuActions(FBlueprintActionDatabaseRegi
 			}
 		}
 	}
+}
+
+bool UAnimGraphNode_LinkedAnimLayer::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
+{
+	bool bIsFilteredOut = false;
+
+	FBlueprintActionContext const& FilterContext = Filter.Context;
+
+	for (UBlueprint* Blueprint : FilterContext.Blueprints)
+	{
+		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+		{
+			if(UClass* TargetClass = *AnimBlueprint->SkeletonGeneratedClass)
+			{
+				// Accept only functions contained in this BP
+				bool bImplemented = false;
+				IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
+				for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+				{
+					if(Node.Layer == AnimBlueprintFunction.Name)
+					{
+						bImplemented = true;
+						break;
+					}
+				}
+
+				if(!bImplemented)
+				{
+					bIsFilteredOut = true;
+				}
+			}
+		}
+	}
+	
+	return bIsFilteredOut;
 }
 
 #undef LOCTEXT_NAMESPACE
