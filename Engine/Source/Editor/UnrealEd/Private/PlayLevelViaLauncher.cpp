@@ -249,7 +249,9 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	if (CurrentLauncherCookMode == ELauncherProfileCookModes::OnTheFlyInEditor ||
 		CurrentLauncherCookMode == ELauncherProfileCookModes::ByTheBookInEditor)
 	{
-		// For now World Partition doesn't these cook modes
+		// For now World Partition doesn't support InEditor cooking because its cooking is destructive -
+		// it moves UObjects out of the generator package into the streaming packages. To allow cooking it in
+		// the editor process, we will need to make it non-destructive or restore the package afterwards.
 		FWorldContext& EditorContext = GetEditorWorldContext();
 		if (EditorContext.World()->IsPartitionedWorld())
 		{

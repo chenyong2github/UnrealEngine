@@ -2273,9 +2273,12 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 	check(Splitter);
 	check(!PackageData.GetGeneratorPackage());
 
-	// TODO: Add support for cooking in the editor
+	// TODO: Add support for cooking in the editor. Possibly moot since we plan to deprecate cooking in the editor.
 	if (IsCookingInEditor())
 	{
+		// CookPackageSplitters allow destructive changes to the generator package. e.g. moving UObjects out
+		// of it into the streaming packages. To allow its use in the editor, we will need to make it non-destructive
+		// (by e.g. copying to new packages), or restore the package after the changes have been made.
 		UE_LOG(LogCook, Error, TEXT("Cooking in editor doesn't support Cook Package Splitters."));
 		return nullptr;
 	}
