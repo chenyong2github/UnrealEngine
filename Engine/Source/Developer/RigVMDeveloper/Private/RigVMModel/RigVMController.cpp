@@ -10309,16 +10309,23 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		return nullptr;
 	}
 
-	if (InCPPTypeObject == nullptr)
+	FString CPPType = InCPPType;
+	if(CPPType.StartsWith(RigVMTypeUtils::TArrayPrefix))
 	{
-		InCPPTypeObject = URigVMCompiler::GetScriptStructForCPPType(InCPPType);
-	}
-	if (InCPPTypeObject == nullptr)
-	{
-		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
+		// turn "TArray<bool>" to "bool"
+		CPPType = CPPType.Mid(FCString::Strlen(RigVMTypeUtils::TArrayPrefix)).LeftChop(1).TrimStartAndEnd();
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
+	if (InCPPTypeObject == nullptr)
+	{
+		InCPPTypeObject = URigVMCompiler::GetScriptStructForCPPType(CPPType);
+	}
+	if (InCPPTypeObject == nullptr)
+	{
+		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(CPPType);
+	}
+
+	CPPType = PostProcessCPPType(CPPType, InCPPTypeObject);
 	
 	const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ArrayNode")) : InNodeName);
 	URigVMArrayNode* Node = NewObject<URigVMArrayNode>(Graph, *Name);
