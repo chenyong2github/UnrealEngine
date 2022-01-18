@@ -1845,9 +1845,14 @@ float LWCApplyAddressModeMirror(FLWCScalar v)
 
 float LWCApplyAddressMode(FLWCScalar v, uint AddressMode)
 {
-	if(AddressMode == LWCADDRESSMODE_WRAP) return LWCFrac(v);
-	else if(AddressMode == LWCADDRESSMODE_MIRROR) return LWCApplyAddressModeMirror(v);
-	else return LWCSaturate(v);
+	// For wrap/mirror, we can take the offset of the normalized tile
+	// This lets the GPU handle wrapping in most cases which will preserve correct derivatives.  There will be a seam along tile boundaries in the UV however
+	// May be possible to improve this by wrapping at higher values than TileSize, which would reduce frequency (but not eliminate) the seam
+	// For the CLAMP case, a simple LWCToFloat() is sufficient.  This will lose a ton of precision for large values, but we don't care about this since the GPU will clamp to [0,1) anyway
+	// It's possible certain GPUs might need a special case if the ToFloat() conversion overflows
+	if(AddressMode == LWCADDRESSMODE_WRAP) return LWCNormalizeTile(v).Offset;
+	else if(AddressMode == LWCADDRESSMODE_MIRROR) LWCNormalizeTile(v).Offset;
+	else return LWCToFloat(v);
 }
 float2 LWCApplyAddressMode(FLWCVector2 UV, uint AddressX, uint AddressY)
 {

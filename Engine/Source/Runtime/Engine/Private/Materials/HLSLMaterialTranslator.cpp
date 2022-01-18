@@ -5859,7 +5859,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			break;
 		}
 
-		if (MipValueMode == TMVM_None || MipValueMode == TMVM_MipBias)
+		// Explicitly compute the derivatives for LWC UVs
+		// This is needed for 100% correct functionality, otherwise filtering seams are possible where there is discontinuity in LWC->float UV conversion
+		// This is expensive though, and discontinuities can be minimized by carefully choosing conversion operation
+		// Disabled for now, may enable as an option in the future
+		const bool bExplicitLWCDerivatives = false;
+		if (bExplicitLWCDerivatives && (MipValueMode == TMVM_None || MipValueMode == TMVM_MipBias))
 		{
 			int32 MipScaleIndex = INDEX_NONE;
 			if (MipValueMode == TMVM_MipBias)
