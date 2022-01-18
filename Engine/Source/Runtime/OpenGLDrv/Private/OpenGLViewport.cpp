@@ -253,7 +253,7 @@ FOpenGLViewport::~FOpenGLViewport()
 		PlatformRestoreDesktopDisplayMode();
 	}
 
-	FrameSyncEvent.ReleaseResource();
+	BeginReleaseResource(&FrameSyncEvent);
 
 	// Release back buffer, before OpenGL context becomes invalid, making it impossible
 	BackBuffer.SafeRelease();
