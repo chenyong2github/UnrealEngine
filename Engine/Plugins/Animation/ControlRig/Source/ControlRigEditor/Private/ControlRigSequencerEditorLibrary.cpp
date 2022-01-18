@@ -2265,4 +2265,54 @@ bool UControlRigSequencerEditorLibrary::BakeControlRigSpace(ULevelSequence* InSe
 	return bValid;
 }
 
+bool UControlRigSequencerEditorLibrary::RenameControlRigControlChannels(ULevelSequence* LevelSequence, UControlRig* ControlRig, const TArray<FName>& InOldControlNames, const TArray<FName>& InNewControlNames)
+{
+	if (LevelSequence == nullptr || ControlRig == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("LevelSequence and Control Rig must be valid"));
+		return false;
+	}
+	if (InOldControlNames.Num() != InNewControlNames.Num() || InOldControlNames.Num() < 1)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Old and New Control Name arrays don't match in length"));
+		return false;
+	}
+	for (const FName& NewName : InNewControlNames)
+	{
+		if (ControlRig->FindControl(NewName) == nullptr)
+		{
+			const FString StringName = NewName.ToString();
+			UE_LOG(LogControlRig, Error, TEXT("Missing Control Name %s"), *(StringName));
+			return false;
+		}
+	}
+	bool bValid = false;
+
+
+	UMovieScene* MovieScene = LevelSequence->GetMovieScene();
+	if (MovieScene)
+	{
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
+		{
+			TArray<UMovieSceneTrack*> Tracks = MovieScene->FindTracks(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
+			for (UMovieSceneTrack* AnyOleTrack : Tracks)
+			{
+				UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(AnyOleTrack);
+				if (Track && Track->GetControlRig() == ControlRig)
+				{
+					Track->Modify();
+					bValid = true;
+					for (int32 Index = 0; Index < InOldControlNames.Num(); ++Index)
+					{
+						Track->RenameParameterName(InOldControlNames[Index], InNewControlNames[Index]);
+					}
+				}
+			}
+		}
+	}
+	
+	return bValid;
+}
+
 #undef LOCTEXT_NAMESPACE

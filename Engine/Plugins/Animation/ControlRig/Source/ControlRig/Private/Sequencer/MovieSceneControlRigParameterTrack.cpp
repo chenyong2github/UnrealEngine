@@ -446,8 +446,21 @@ void UMovieSceneControlRigParameterTrack::PostEditImport()
 	ReconstructControlRig();
 }
 
+void UMovieSceneControlRigParameterTrack::RenameParameterName(const FName& OldParameterName, const FName& NewParameterName)
+{
+	if (OldParameterName != NewParameterName)
+	{
+		for (UMovieSceneSection* Section : Sections)
+		{
+			if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+			{
+				CRSection->RenameParameterName(OldParameterName, NewParameterName);
+			}
+		}
+	}
+}
 
-CONTROLRIG_API void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
+void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
 {
 	ControlRig = NewControlRig;
 	if (ControlRig->GetOuter() != this)

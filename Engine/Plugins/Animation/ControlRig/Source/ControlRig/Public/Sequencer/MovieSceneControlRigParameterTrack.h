@@ -61,6 +61,8 @@ public:
 
 	CONTROLRIG_API void ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels);
 
+	CONTROLRIG_API void RenameParameterName(const FName& OldParameterName, const FName& NewParameterName);
+
 public:
 	CONTROLRIG_API UControlRig* GetControlRig() const { return ControlRig; }
 

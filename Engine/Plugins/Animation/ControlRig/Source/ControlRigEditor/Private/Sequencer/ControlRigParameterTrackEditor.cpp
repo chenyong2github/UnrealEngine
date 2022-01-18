@@ -257,6 +257,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 								UnbindControlRig(OldControlRig);
 								if (*NewControlRig)
 								{
+									Track->Modify();
 									Track->ReplaceControlRig(*NewControlRig, OldControlRig->GetClass() != (*NewControlRig)->GetClass());
 									BindControlRig(*NewControlRig);
 
@@ -2347,40 +2348,6 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 		}
 	}
-}
-
-void FControlRigParameterTrackEditor::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
-{
-	//Only handle renamed events, the other ones like ERigHierarchyNotification::ElementRemoved will get handle when we recompile.
-	switch (InNotification)
-	{
-
-	case ERigHierarchyNotification::ElementRenamed:
-	{
-		if (const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
-		{
-			if (!GetSequencer().IsValid() || !GetSequencer()->IsAllowedToChange())
-			{
-				return;
-			}
-			UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-			for (const FMovieSceneBinding& Binding : Bindings)
-			{
-				UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-				if (Track && Track->GetControlRig() && Track->GetControlRig()->GetHierarchy() == InHierarchy)
-				{
-
-				}
-			}
-
-		}
-		break;
-	}
-	default:
-		break;
-	}
-	
 }
 
 void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context)

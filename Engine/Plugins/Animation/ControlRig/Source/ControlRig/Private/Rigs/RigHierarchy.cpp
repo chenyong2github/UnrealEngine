@@ -459,6 +459,12 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 		Target->CopyFrom(this, Source, InHierarchy);
 	}
 
+	for (const TPair<FRigElementKey, FRigElementKey>& NameMapPair : InHierarchy->PreviousNameMap)
+	{
+		PreviousNameMap.FindOrAdd(NameMapPair.Key) = NameMapPair.Value;
+	}
+
+
 	TopologyVersion = InHierarchy->GetTopologyVersion();
 	UpdateAllCachedChildren();
 	

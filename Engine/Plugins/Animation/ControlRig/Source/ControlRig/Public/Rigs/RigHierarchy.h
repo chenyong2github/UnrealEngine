@@ -2676,6 +2676,9 @@ private:
 	TObjectPtr<URigHierarchyController> HierarchyController;
 
 	TMap<FRigElementKey, FRigElementKey> PreviousParentMap;
+
+	/*We save this so Sequencer can remap this after load*/
+	UPROPERTY()
 	TMap<FRigElementKey, FRigElementKey> PreviousNameMap;
 
 	int32 ResetPoseHash;

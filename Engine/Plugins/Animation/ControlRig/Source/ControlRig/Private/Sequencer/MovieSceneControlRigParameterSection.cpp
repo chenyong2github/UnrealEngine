@@ -712,6 +712,97 @@ UMovieSceneControlRigParameterSection::UMovieSceneControlRigParameterSection() :
 #endif
 }
 
+bool UMovieSceneControlRigParameterSection::RenameParameterName(const FName& OldParameterName, const FName& NewParameterName)
+{
+	bool bWasReplaced = false;
+	Modify();
+	for (FScalarParameterNameAndCurve& ScalarParameterNameAndCurve : ScalarParameterNamesAndCurves)
+	{
+		if (ScalarParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			ScalarParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FBoolParameterNameAndCurve& BoolParameterNameAndCurve : BoolParameterNamesAndCurves)
+	{
+		if (BoolParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			BoolParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FEnumParameterNameAndCurve& EnumParameterNameAndCurve : EnumParameterNamesAndCurves)
+	{
+		if (EnumParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			EnumParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FIntegerParameterNameAndCurve& IntegerParameterNameAndCurve : IntegerParameterNamesAndCurves)
+	{
+		if (IntegerParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			IntegerParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FVector2DParameterNameAndCurves& Vector2DParameterNameAndCurve : Vector2DParameterNamesAndCurves)
+	{
+		if (Vector2DParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			Vector2DParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FVectorParameterNameAndCurves& VectorParameterNameAndCurve : VectorParameterNamesAndCurves)
+	{
+		if (VectorParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			VectorParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+
+	for (FColorParameterNameAndCurves& ColorParameterNameAndCurve : ColorParameterNamesAndCurves)
+	{
+		if (ColorParameterNameAndCurve.ParameterName == OldParameterName)
+		{
+			ColorParameterNameAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+				
+	}
+
+	for (FTransformParameterNameAndCurves& TransformParameterNamesAndCurve : TransformParameterNamesAndCurves)
+	{
+		if (TransformParameterNamesAndCurve.ParameterName == OldParameterName)
+		{
+			TransformParameterNamesAndCurve.ParameterName = NewParameterName;
+			bWasReplaced = true;
+			break;
+		}
+	}
+	if (bWasReplaced)
+	{
+		ReconstructChannelProxy();
+	}
+	return bWasReplaced;
+}
+
 void UMovieSceneControlRigParameterSection::SetBlendType(EMovieSceneBlendType InBlendType)
 {
 	if (GetSupportedBlendTypes().Contains(InBlendType))
@@ -2026,6 +2117,12 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 		if (!ControlElement->Settings.bAnimatable)
 		{
 			continue;
+		}
+
+		FName PreviousName = ControlRig->GetHierarchy()->GetPreviousName(ControlElement->GetKey());
+		if (PreviousName != NAME_None && PreviousName != ControlElement->GetKey().Name)
+		{
+			RenameParameterName(PreviousName, ControlElement->GetKey().Name);
 		}
 
 		switch (ControlElement->Settings.ControlType)
