@@ -747,7 +747,11 @@ void UGroomAsset::Serialize(FArchive& Ar)
 				HairDescriptionBulkData = MakeUnique<FHairDescriptionBulkData>();
 			}
 
-			HairDescriptionBulkData->Serialize(Ar, this);
+			// We don' serialize the hair description if it is a transactional object (i.e., for undo/redo)
+			if (!Ar.IsTransacting())
+			{
+				HairDescriptionBulkData->Serialize(Ar, this);
+			}
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
