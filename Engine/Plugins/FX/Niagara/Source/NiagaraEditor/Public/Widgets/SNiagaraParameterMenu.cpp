@@ -703,7 +703,7 @@ void SNiagaraAddParameterFromPanelMenu::ParameterSelected(FNiagaraVariable NewVa
 		}
 		else if (NewVariable.GetType().GetStruct() != nullptr)
 		{
-			TypeDisplayName = NewVariable.GetType().GetStruct()->GetDisplayNameText().ToString();
+			TypeDisplayName = NewVariable.GetType().GetNameText().ToString();
 		}
 		else if (NewVariable.GetType().GetClass() != nullptr)
 		{

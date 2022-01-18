@@ -857,7 +857,7 @@ public:
 		return ClassStructOrEnum == Other.ClassStructOrEnum && UnderlyingType == Other.UnderlyingType;
 	}
 
-	FText GetNameText()const
+	FText GetNameText() const
 	{
 		if (IsValid() == false)
 		{
@@ -868,7 +868,27 @@ public:
 #if WITH_EDITOR
 		if ( UnderlyingType != UT_Enum )
 		{
-			NameText = GetStruct()->GetDisplayNameText();
+			// fix names for common types after LWC changes
+			if (*this == GetVec2Def())
+			{
+				NameText = FText::FromString("Vector 2");
+			}
+			else if (*this == GetVec3Def())
+			{
+				NameText = FText::FromString("Vector 3");
+			}
+			else if (*this == GetVec4Def())
+			{
+				NameText = FText::FromString("Vector 4");
+			}
+			else if (*this == GetQuatDef())
+			{
+				NameText = FText::FromString("Quat");
+			}
+			else
+			{
+				NameText = GetStruct()->GetDisplayNameText();
+			}
 		}
 		else
 #endif
