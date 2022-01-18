@@ -190,8 +190,8 @@ struct FAbcStaticMeshSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
 	bool bMergeMeshes;
 
-	// This will, if applicable, apply matrix transformations to the meshes before merging
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh, meta=(editcondition="bMergeMeshes"))
+	// This will, if applicable, apply matrix transformations to the meshes
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
 	bool bPropagateMatrixTransformations;
 
 	// Flag for whether or not lightmap UVs should be generated

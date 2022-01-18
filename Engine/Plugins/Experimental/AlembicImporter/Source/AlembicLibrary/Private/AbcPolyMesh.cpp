@@ -68,7 +68,7 @@ bool FAbcPolyMesh::ReadFirstFrame(const float InTime, const int32 FrameIndex)
 		// Compute tangents for mesh
 		AbcImporterUtilities::ComputeTangents(FirstSample, File->GetImportSettings()->NormalGenerationSettings.bIgnoreDegenerateTriangles, *File->GetMeshUtilities());
 
-		const bool bApplyTransformation = (File->GetImportSettings()->ImportType == EAlembicImportType::StaticMesh && File->GetImportSettings()->StaticMeshSettings.bMergeMeshes && File->GetImportSettings()->StaticMeshSettings.bPropagateMatrixTransformations) || (File->GetImportSettings()->ImportType == EAlembicImportType::Skeletal && File->GetImportSettings()->CompressionSettings.bBakeMatrixAnimation) || File->GetImportSettings()->ImportType == EAlembicImportType::GeometryCache;
+		const bool bApplyTransformation = (File->GetImportSettings()->ImportType == EAlembicImportType::StaticMesh && File->GetImportSettings()->StaticMeshSettings.bPropagateMatrixTransformations) || (File->GetImportSettings()->ImportType == EAlembicImportType::Skeletal && File->GetImportSettings()->CompressionSettings.bBakeMatrixAnimation) || File->GetImportSettings()->ImportType == EAlembicImportType::GeometryCache;
 
 		// Transform copy of the first sample 
 		TransformedFirstSample = new FAbcMeshSample(*FirstSample);

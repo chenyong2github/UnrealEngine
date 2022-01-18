@@ -324,7 +324,7 @@ const TArray<UStaticMesh*> FAbcImporter::ImportAsStaticMesh(UObject* InParent, E
 	};
 	
 
-	EFrameReadFlags ReadFlags = ( ImportSettings->StaticMeshSettings.bMergeMeshes && ImportSettings->StaticMeshSettings.bPropagateMatrixTransformations ? EFrameReadFlags::ApplyMatrix : EFrameReadFlags::None ) | EFrameReadFlags::ForceSingleThreaded;
+	EFrameReadFlags ReadFlags = ( ImportSettings->StaticMeshSettings.bPropagateMatrixTransformations ? EFrameReadFlags::ApplyMatrix : EFrameReadFlags::None ) | EFrameReadFlags::ForceSingleThreaded;
 	AbcFile->ProcessFrames(Func, ReadFlags);
 	
 	TArray<UObject*> Assets;
