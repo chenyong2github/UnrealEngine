@@ -18,6 +18,13 @@
 #define VSM_STATIC_UNCACHED_FLAG	(4U)
 // Marks pages that need non-nanite rendering
 #define VSM_NON_NANITE_FLAG			(8U)
+// NOTE: Bits for the hierarchical page flags are stored in the same uints as the regular mip tail,
+// offset based on the Hmip level. For instance, at the 1x1 level the first 4 bits store the page
+// flags for the coarsest mip, the next 4 bits store the hierarchical page flags for the second
+// coarsest mip and so on.
+// If the total bit count needs to change be sure it doesn't overlow the page flags for all Hmips
+#define VSM_PAGE_FLAGS_BITS_PER_HMIP (4U)
+#define VSM_PAGE_FLAGS_BITS_MASK     ((1U<<VSM_PAGE_FLAGS_BITS_PER_HMIP)-1U)
 
 struct FPhysicalPageMetaData
 {
@@ -64,11 +71,6 @@ uint CalcLevelOffsets(uint Level)
 #endif
 
 	return 0x55555555u & Mask;
-}
-
-uint CalcHPageFlagLevelOffsets(uint Level)
-{
-	return GET_SCALAR_ARRAY_ELEMENT(VirtualShadowMap.HPageFlagLevelOffsets, Level);
 }
 
 /**

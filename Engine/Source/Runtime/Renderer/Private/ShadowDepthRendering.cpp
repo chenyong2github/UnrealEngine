@@ -1844,7 +1844,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "LocalLights");
-				static FString VirtualFilterName = TEXT("VSM_Perspective");
+				static FString VirtualFilterName = TEXT("VSM_Local");
 				FilterAndRenderVirtualShadowMaps(false, VirtualFilterName);
 			}
 

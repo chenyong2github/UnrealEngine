@@ -252,7 +252,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, DynamicData.bHasMoved);
 
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
-	uint4 RectPages = PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
+	uint4 RectPages = VirtualShadowMap.PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
 #endif // VIRTUAL_TEXTURE_TARGET
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -377,7 +377,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 				for( uint x = RectPages.x; x <= RectPages.z; x++ )
 				{
 					uint2 vPage = uint2(x,y);
-					uint PageFlag = PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ];
+					uint PageFlag = VirtualShadowMap.PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ];
 					if ((PageFlag & PageFlagMask) != 0)
 					{
 						RectPagesMapped.xy = min( RectPagesMapped.xy, vPage );
@@ -399,7 +399,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 			{
 				for( uint x = RectPages.x; x <= RectPages.z; x++ )
 				{
-					uint PageFlag = PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) ) ];
+					uint PageFlag = VirtualShadowMap.PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) ) ];
 					NumClustersToEmit += (PageFlag & PageFlagMask) != 0 ? 1 : 0;
 				}
 			}
@@ -473,7 +473,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 				{
 					for( uint x = RectPages.x; x <= RectPages.z; x++ )
 					{
-						uint PageFlag = PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) ) ];
+						uint PageFlag = VirtualShadowMap.PageFlags[ PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) ) ];
 
 						if ((PageFlag & PageFlagMask) != 0)
 						{

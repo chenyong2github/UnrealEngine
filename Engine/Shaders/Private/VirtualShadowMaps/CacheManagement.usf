@@ -147,7 +147,7 @@ void VirtualSmInvalidateInstancePagesCS(
 
 								// Clip to actually allocated pages
 								// TODO: move this to be done as part of or before the overlap test?
-								uint4 AllocatedBounds = PageRectBounds[ProjectionData.VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
+								uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[ProjectionData.VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
 								RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
 								RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
 								if (all(RectPages.zw >= RectPages.xy))
@@ -159,9 +159,9 @@ void VirtualSmInvalidateInstancePagesCS(
 										for (uint x = RectPages.x; x <= RectPages.z; x++)
 										{
 											uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-											uint PageFlag = PageFlags[PageFlagOffset];
+											uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
 
-											if (PageFlag != 0)
+											if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
 											{
 #if USE_HZB_OCCLUSION
 												// When separate static caching is enabled we check against the static page
@@ -176,7 +176,7 @@ void VirtualSmInvalidateInstancePagesCS(
 												}
 #endif // USE_HZB_OCCLUSION
 												// Accumulate static/dynamic invalidation flags
-												// TODO: Wave version												
+												// TODO: Wave version
 												InterlockedOr(OutDynamicCasterPageFlags[PageFlagOffset], InvalidationFlags);
 #if ENABLE_DEBUG_MODE
 												++PageInvalidationCount;

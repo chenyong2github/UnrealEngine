@@ -38,17 +38,9 @@ class FVirtualShadowMap
 public:
 	// PageSize * Level0DimPagesXY defines the virtual address space, e.g., 128x128 = 16k
 
-	// 32x512 = 16k
-	//static constexpr uint32 PageSize = 32U;
-	//static constexpr uint32 Level0DimPagesXY = 512U;
-
 	// 128x128 = 16k
 	static constexpr uint32 PageSize = 128U;
 	static constexpr uint32 Level0DimPagesXY = 128U;
-
-	// 512x32 = 16k
-	//static constexpr uint32 PageSize = 512U;
-	//static constexpr uint32 Level0DimPagesXY = 32U;
 
 	static constexpr uint32 PageSizeMask = PageSize - 1U;
 	static constexpr uint32 Log2PageSize = ILog2Const(PageSize);
@@ -65,6 +57,8 @@ public:
 
 	static constexpr uint32 RasterWindowPages = 4u;
 	
+	static_assert(MaxMipLevels <= 8, ">8 mips requires more PageFlags bits. See VSM_PAGE_FLAGS_BITS_PER_HMIP in PageAccessCommon.ush");
+
 	FVirtualShadowMap(uint32 InID) : ID(InID)
 	{
 	}
@@ -113,8 +107,6 @@ struct FVirtualShadowMapHZBMetadata
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
-	SHADER_PARAMETER_SCALAR_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
-	SHADER_PARAMETER(uint32, HPageTableSize)
 	SHADER_PARAMETER(uint32, NumShadowMaps)
 	SHADER_PARAMETER(uint32, NumDirectionalLights)
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
@@ -124,13 +116,15 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
+	SHADER_PARAMETER(uint32, PackedShadowMaskMaxLightCount)
 	SHADER_PARAMETER(FVector4f, RecPhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSize)
-	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)
-	SHADER_PARAMETER(uint32, PackedShadowMaskMaxLightCount)
+	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)	
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ProjectionData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageFlags)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, PageRectBounds)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -138,17 +132,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
 	// NOTE: These parameters must only be uniform buffers/references! Loose parameters do not get bound
 	// in some of the forward passes that use this structure.
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-END_SHADER_PARAMETER_STRUCT()
-
-/**
- * Use after page allocation but before rendering phase to access page table & related data structures, but not the physical backing.
- */
-BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapPageTableParameters, )
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageTable)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HPageFlags)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
 END_SHADER_PARAMETER_STRUCT()
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
@@ -234,8 +217,6 @@ public:
 
 	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
 
-	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
-
 	bool ShouldCullBackfacingPixels() const { return bCullBackfacingPixels; }
 
 	FRDGTextureRef BuildHZBFurthest(FRDGBuilder& GraphBuilder);
@@ -262,8 +243,6 @@ public:
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush
 	FRDGBufferRef PageFlagsRDG = nullptr;
-	// HPageFlags is a hierarchy over the PageFlags for quick query
-	FRDGBufferRef HPageFlagsRDG = nullptr;
 
 	// Allocation info for each page.
 	FRDGBufferRef CachedPageInfosRDG = nullptr;

@@ -214,7 +214,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 					// Clip to actually allocated pages
 					// TODO: move this to be done as part of or before the overlap test?
-					uint4 AllocatedBounds = PageRectBounds[VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
+					uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
 					RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
 					RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
 					if (all(RectPages.zw >= RectPages.xy))

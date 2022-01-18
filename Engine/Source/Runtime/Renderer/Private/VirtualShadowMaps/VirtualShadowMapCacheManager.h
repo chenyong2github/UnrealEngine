@@ -81,7 +81,6 @@ struct FVirtualShadowMapArrayFrameData
 {
 	TRefCountPtr<FRDGPooledBuffer>				PageTable;
 	TRefCountPtr<FRDGPooledBuffer>				PageFlags;
-	TRefCountPtr<FRDGPooledBuffer>				HPageFlags;
 
 	TRefCountPtr<FRDGPooledBuffer>				ShadowMapProjectionDataBuffer;
 	TRefCountPtr<FRDGPooledBuffer>				PageRectBounds;

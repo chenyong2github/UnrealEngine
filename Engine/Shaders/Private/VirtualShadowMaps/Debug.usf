@@ -125,7 +125,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 				//uint PageFlag = PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
 				for (uint Level = 0; Level < VSM_MAX_MIP_LEVELS; ++Level)
 				{
-					if (PageFlags[CalcPageOffset(VirtualShadowMapId, Level, PageAddress >> Level)])
+					if (VirtualShadowMap.PageFlags[CalcPageOffset(VirtualShadowMapId, Level, PageAddress >> Level)] & VSM_ALLOCATED_FLAG)
 					{
 						OverAlloc += 1;
 					}
@@ -136,8 +136,8 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			else
 			{
 				float3 Color = IntToColor(MipLevel + 1);
-				uint PageFlag = PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
-				DebugOutput[OutputPixel] = float4(PageFlag ? Color : float3(0.0f, 0.0f, 0.0f), 1.0f);
+				uint PageFlag = VirtualShadowMap.PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
+				DebugOutput[OutputPixel] = float4((PageFlag & VSM_ALLOCATED_FLAG) ? Color : float3(0.0f, 0.0f, 0.0f), 1.0f);
 			}
 		}
 		else
@@ -157,10 +157,13 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 				}
 
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-				uint PageFlag = PageFlags[Offset];
+				uint PageFlag = VirtualShadowMap.PageFlags[Offset];
 
-				float3 Color = float3(!PrevPageFlag && PageFlag, PrevPageFlag && PageFlag, PrevPageFlag && !PageFlag);
-				if (PageFlag && PrevDynFlag)
+				bool bPrevAllocated = (PrevPageFlag & VSM_ALLOCATED_FLAG) != 0;
+				bool bPageAllocated = (PageFlag & VSM_ALLOCATED_FLAG) != 0;
+
+				float3 Color = float3(!bPrevAllocated && bPageAllocated, bPrevAllocated && bPageAllocated, bPrevAllocated && !bPageAllocated);
+				if (bPageAllocated && PrevDynFlag)
 				{
 					Color = float3(1.0f, 0.1f, 0.7f);
 				}
@@ -170,9 +173,9 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 #endif // HAS_CACHE_DATA
 			{
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-				uint PageFlag = PageFlags[Offset];
+				uint PageFlag = VirtualShadowMap.PageFlags[Offset];
 				bool PageValid = ShadowGetPhysicalPage(Offset).bThisLODValid;
-				float3 Color = float3(0, !PageValid && PageFlag, 0);
+				float3 Color = float3(0, !PageValid && ((PageFlag & VSM_ALLOCATED_FLAG) != 0), 0);
 				DebugOutput[OutputPixel] = float4(Color, 1.0f);
 			}
 		}

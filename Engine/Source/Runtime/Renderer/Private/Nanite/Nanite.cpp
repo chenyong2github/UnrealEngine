@@ -364,7 +364,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 
 			if (VirtualShadowMaps.Num() > 0)
 			{
-				UE_LOG(LogNanite, Warning, TEXT("VSM_Perspective"));
+				UE_LOG(LogNanite, Warning, TEXT("VSM_Local"));
 			}
 		}
 		
