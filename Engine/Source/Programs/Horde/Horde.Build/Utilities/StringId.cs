@@ -285,7 +285,7 @@ namespace HordeServer.Utilities
 		}
 	}
 
-	sealed class CbStringIdConverter<T> : CbConverter<StringId<T>>
+	sealed class CbStringIdConverter<T> : CbConverterBase<StringId<T>>
 	{
 		public override StringId<T> Read(CbField Field)
 		{

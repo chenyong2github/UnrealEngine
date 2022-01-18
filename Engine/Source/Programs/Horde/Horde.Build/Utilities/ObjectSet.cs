@@ -64,7 +64,7 @@ namespace HordeServer.Utilities
 	/// <summary>
 	/// Converter for BlobPackIndex objects
 	/// </summary>
-	class ObjectPackIndexConverter : CbConverter<ObjectPackIndex>
+	class ObjectPackIndexConverter : CbConverterBase<ObjectPackIndex>
 	{
 		class EncodeFormat
 		{
