@@ -36,16 +36,6 @@ bool FMassStateTreeSmartObjectEvaluator::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-void FMassStateTreeSmartObjectEvaluator::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
-{
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return;
-	}
-
-	Reset(Context);
-}
-
 void FMassStateTreeSmartObjectEvaluator::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
@@ -53,16 +43,6 @@ void FMassStateTreeSmartObjectEvaluator::ExitState(FStateTreeExecutionContext& C
 		return;
 	}
 
-	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
-
-	if (SearchRequestID.IsSet())
-	{
-		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
-		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
-		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
-		SearchRequestID.Reset();
-	}
 	Reset(Context);
 }
 
@@ -71,10 +51,17 @@ void FMassStateTreeSmartObjectEvaluator::Reset(FStateTreeExecutionContext& Conte
 	bool& bCandidatesFound = Context.GetInstanceData(CandidatesFoundHandle);
 	bool& bClaimed = Context.GetInstanceData(ClaimedHandle);
 	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
+	if (SearchRequestID.IsSet())
+	{
+		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
+		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
+		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
+		SearchRequestID.Reset();
+	}
 
 	bCandidatesFound = false;
 	bClaimed = false;
-	SearchRequestID.Reset();
 }
 
 void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType,  const float DeltaTime) const

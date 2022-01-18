@@ -52,7 +52,6 @@ struct MASSAIBEHAVIOR_API FMassStateTreeSmartObjectEvaluator : public FMassState
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual const UStruct* GetInstanceDataType() const override { return FMassStateTreeSmartObjectEvaluatorInstanceData::StaticStruct(); }
-	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
 	void Reset(FStateTreeExecutionContext& Context) const;
