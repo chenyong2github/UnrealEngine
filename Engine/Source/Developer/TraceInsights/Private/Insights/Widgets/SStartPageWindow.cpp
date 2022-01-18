@@ -1866,20 +1866,20 @@ TSharedRef<SWidget> SConnectionWindow::ConstructConnectPanel()
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
-		.Padding(12.0f, 12.0f, 12.0f, 0.0f)
+		.Padding(12.0f, 8.0f, 12.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.VAlign(VAlign_Top)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
 				.MinDesiredWidth(180.0f)
 				.HAlign(HAlign_Right)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("TraceRecorderChannelsText", "Initial channels"))
+					.Text(LOCTEXT("InitialChannelsText", "Initial channels"))
 				]
 			]
 
@@ -1888,29 +1888,23 @@ TSharedRef<SWidget> SConnectionWindow::ConstructConnectPanel()
 			.VAlign(VAlign_Center)
 			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
 			[
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
+				SNew(SBox)
+				.MinDesiredWidth(120.0f)
 				[
-					 SNew(SBox)
-					 .MinDesiredWidth(120.0f)
-					 [
-						 SAssignNew(ChannelsTextBox, SEditableTextBox)
-					 ]
-				]
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("TraceRecorderChannelNoteText", "Comma-separated list of channel names (or \"default\"= cpu,gpu,frame,log,bookmark) to enable when connected."))
+					SAssignNew(ChannelsTextBox, SEditableTextBox)
 				]
 			]
 		]
-	
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(198.0f, 4.0f, 12.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("InitialChannelsNoteText", "Comma-separated list of channel names (or \"default\"=cpu,gpu,frame,log,bookmark) to enable when connected."))
+		]
+
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
@@ -1991,7 +1985,7 @@ FReply SConnectionWindow::Connect_OnClicked()
 		Prerequisites.Add(ConnectTask);
 		PrerequisitesPtr = &Prerequisites;
 	}
-	
+
 	const FString ChannelsExpandedStr = ChannelsTextBox->GetText().ToString().Replace(TEXT("default"), TEXT("cpu,gpu,frame,log,bookmark"));
 
 	FGraphEventRef PreConnectTask = FFunctionGraphTask::CreateAndDispatchWhenReady(

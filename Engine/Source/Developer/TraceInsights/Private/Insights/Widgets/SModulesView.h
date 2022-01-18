@@ -30,7 +30,7 @@ namespace ModulesViewColumns
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Trace log window.
+ * Modules window.
  */
 class SModulesView : public SCompoundWidget
 {
@@ -88,7 +88,7 @@ protected:
 	/** External scrollbar used to synchronize tree view position. */
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 
-	/** List of callstack frames (view model) to show in list view. */
+	/** List of modules (view model) to show in list view. */
 	TArray<TSharedPtr<FModule>> Modules;
 
 	/** Reference to ongoing load symbols task. */
@@ -100,4 +100,4 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} //namespace Insights
+} // namespace Insights

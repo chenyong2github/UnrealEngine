@@ -96,6 +96,9 @@ void FInsightsStyle::FStyle::Initialize()
 	// Sync styles from the parent style that will be used as templates for styles defined here
 	SyncParentStyles();
 
+	Set("Mono.9", DEFAULT_FONT("Mono", 9));
+	Set("Mono.10", DEFAULT_FONT("Mono", 10));
+
 	SetContentRoot(FPaths::EngineContentDir() / TEXT("Slate/Starship/Insights"));
 	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 

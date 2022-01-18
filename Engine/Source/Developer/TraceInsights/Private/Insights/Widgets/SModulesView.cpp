@@ -25,7 +25,7 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FModule
-// 
+//
 // ViewModel for modules
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,23 +38,33 @@ public:
 		check(InModule);
 	}
 
+	const TraceServices::FModule* GetModule() const
+	{
+		return Module;
+	}
+
 	FText GetAddressRangeText() const
 	{
 		TStringBuilder<64> Sb;
-		Sb.Appendf(TEXT("0x%016llX - 0x%016llX"), Module->Base, Module->Base + Module->Size);
+		Sb.Appendf(TEXT("0x%016llX-0x%016llX"), Module->Base, Module->Base + Module->Size);
 		return FText::FromStringView(Sb.ToView());
 	}
-	
+
 	FText GetModuleNameText() const
 	{
 		return FText::FromStringView(Module->Name);
 	}
-	
+
+	FText GetModuleFullNameText() const
+	{
+		return FText::FromStringView(Module->FullName);
+	}
+
 	FText GetSymbolsFileText() const
 	{
 		return Module->StatusMessage ? FText::FromStringView(Module->StatusMessage) : FText();
 	}
-	
+
 	FText GetStatusText() const
 	{
 		return FText::FromStringView(ModuleStatusToString(Module->Status.load()));
@@ -83,7 +93,7 @@ public:
 private:
 	const TraceServices::FModule* Module;
 };
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SModuleRow
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,8 +123,8 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			//.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-			//.BorderBackgroundColor(this, &SModuleRow::GetBackgroundColor)
+			.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(this, &SModuleRow::GetBackgroundColor)
 			[
 				Row
 			]
@@ -130,6 +140,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
+					.Font(FInsightsStyle::Get().GetFontStyle("Mono.10"))
+					.ColorAndOpacity(this, &SModuleRow::GetAddressRangeColor)
 					.Text(this, &SModuleRow::GetAddressRange)
 				];
 		}
@@ -140,6 +152,7 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(this, &SModuleRow::GetModuleName)
+					.ToolTipText(this, &SModuleRow::GetModuleFullName)
 				];
 		}
 		else if (ColumnName == ModulesViewColumns::SymbolsFileColumnName)
@@ -166,6 +179,7 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetStatsColor)
 					.Text(this, &SModuleRow::GetStats)
 				];
 		}
@@ -193,12 +207,37 @@ public:
 		}
 	}
 
+	FSlateColor GetAddressRangeColor() const
+	{
+		if (IsSelected())
+		{
+			return FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
+		}
+		else
+		{
+			return FLinearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		}
+	}
+
 	FText GetModuleName() const
 	{
 		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
 		if (ModulePin.IsValid())
 		{
 			return ModulePin->GetModuleNameText();
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FText GetModuleFullName() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			return ModulePin->GetModuleFullNameText();
 		}
 		else
 		{
@@ -242,6 +281,51 @@ public:
 		else
 		{
 			return FText();
+		}
+	}
+
+	FSlateColor GetStatsColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			if (Module->Stats.Failed > 0)
+			{
+				if (Module->Stats.Cached + Module->Stats.Resolved > Module->Stats.Failed)
+				{
+					return FLinearColor(1.0f, 0.9f, 0.6f, 1.0f);
+				}
+				else
+				{
+					return FLinearColor(1.0f, 0.7f, 0.7f, 1.0f);
+				}
+			}
+			else if (Module->Stats.Cached > 0 || Module->Stats.Resolved > 0)
+			{
+				return FLinearColor(0.7f, 1.0f, 0.7f, 1.0f);
+			}
+			else if (Module->Stats.Discovered > 0)
+			{
+				return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			}
+			else
+			{
+				if (IsSelected())
+				{
+					return FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
+				}
+				else
+				{
+					return FLinearColor(0.2f, 0.2f, 0.2f, 1.0f);
+				}
+			}
+		}
+		else
+		{
+			return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		}
 	}
 
@@ -303,21 +387,21 @@ void SModulesView::Construct(const FArguments& InArgs)
 		SNew(SVerticalBox)
 
 		// Toolbar
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-
-			// Stats Text
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 0.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(this, &SModulesView::GetStatsText)
-			]
-		]
+		//+ SVerticalBox::Slot()
+		//.AutoHeight()
+		//[
+		//	SNew(SHorizontalBox)
+		//
+		//	// Stats Text
+		//	+ SHorizontalBox::Slot()
+		//	.VAlign(VAlign_Center)
+		//	.Padding(2.0f, 0.0f)
+		//	.AutoWidth()
+		//	[
+		//		SNew(STextBlock)
+		//		.Text(this, &SModulesView::GetStatsText)
+		//	]
+		//]
 
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -354,7 +438,7 @@ void SModulesView::Construct(const FArguments& InArgs)
 
 							+ SHeaderRow::Column(ModulesViewColumns::AddressRangeColumnName)
 							.ManualWidth(320.0f)
-							.DefaultLabel(LOCTEXT("AddressRangeColumn", "Address range"))
+							.DefaultLabel(LOCTEXT("AddressRangeColumn", "Address Range"))
 
 							+ SHeaderRow::Column(ModulesViewColumns::ModuleNameColumnName)
 							.ManualWidth(300.0f)
@@ -363,11 +447,12 @@ void SModulesView::Construct(const FArguments& InArgs)
 							+ SHeaderRow::Column(ModulesViewColumns::StatsColumnName)
 							.ManualWidth(350.0f)
 							.DefaultLabel(LOCTEXT("StatsColumn", "Statistics"))
+							.DefaultTooltip(LOCTEXT("StatsColumnTooltip", "Discovered = The total number of symbols discovered.\nCached = The number of symbols loaded from cache (*.ucache file).\nResolved = The number of symbols successfully resolved.\nFailed = The number of symbols failed to resolve."))
 
 							+ SHeaderRow::Column(ModulesViewColumns::StatusColumnName)
 							.ManualWidth(100.0f)
 							.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
-							
+
 							+ SHeaderRow::Column(ModulesViewColumns::SymbolsFileColumnName)
 							.ManualWidth(800.0f)
 							.DefaultLabel(LOCTEXT("SymbolsFileColumn", "Symbols"))
@@ -404,13 +489,13 @@ TSharedRef<ITableRow> SModulesView::OnGenerateRow(TSharedPtr<FModule> InModule, 
 void SModulesView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	using namespace TraceServices;
-	
+
 	if ((InCurrentTime - LastUpdateTime) < 1.0)
 	{
 		return;
 	}
 	LastUpdateTime = InCurrentTime;
-	
+
 	const TSharedPtr<const IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (const IModuleProvider* ModuleProvider = Session->ReadProvider<IModuleProvider>("ModuleProvider"))
 	{
@@ -537,7 +622,7 @@ bool SModulesView::LoadSymbols_CanExecute() const
 {
 	return !LoadSymbolsTask.IsValid() || LoadSymbolsTask->IsComplete();
 }
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SModulesView::LoadSymbols_Execute(TSharedPtr<FModule> Module, bool bOpenFile)
