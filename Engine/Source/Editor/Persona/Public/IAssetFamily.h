@@ -43,6 +43,9 @@ public:
 	/** Gets the slate brush that represents this asset family */
 	virtual const FSlateBrush* GetAssetTypeDisplayIcon(UClass* InAssetClass) const = 0;
 
+	/** Gets the color to tint the asset display icon */
+	virtual FSlateColor GetAssetTypeDisplayTint(UClass* InAssetClass) const = 0;
+
 	/** Check whether an asset is compatible with this family */
 	virtual bool IsAssetCompatible(const FAssetData& InAssetData) const = 0;
 

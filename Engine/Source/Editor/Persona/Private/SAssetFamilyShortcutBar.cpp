@@ -95,7 +95,7 @@ public:
 					.Padding(FMargin(28.f, 4.f))
 					[
 						SNew(SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
+						.ColorAndOpacity(this, &SAssetShortcut::GetAssetTint)
 						.Image(this, &SAssetShortcut::GetAssetIcon)
 					]
 
@@ -131,7 +131,7 @@ public:
 					.Padding(FMargin(16.f, 4.f))
 					[
 						SNew(SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
+						.ColorAndOpacity(this, &SAssetShortcut::GetAssetTint)
 						.Image(this, &SAssetShortcut::GetAssetIcon)
 					]
 
@@ -215,6 +215,15 @@ public:
 	const FSlateBrush* GetAssetIcon() const 
 	{
 		return AssetFamily->GetAssetTypeDisplayIcon(AssetData.GetClass());	
+	}
+
+	FSlateColor GetAssetTint() const
+	{
+		if (GetCheckState() == ECheckBoxState::Checked)
+		{
+			return FSlateColor::UseForeground();
+		}
+		return AssetFamily->GetAssetTypeDisplayTint(AssetData.GetClass());
 	}
 
 	ECheckBoxState GetCheckState() const

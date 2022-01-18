@@ -6,6 +6,7 @@
 #include "AssetRegistryModule.h"
 #include "Animation/AnimBlueprint.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "PersonaAssetFamily"
 
@@ -259,6 +260,46 @@ const FSlateBrush* FPersonaAssetFamily::GetAssetTypeDisplayIcon(UClass* InAssetC
 
 	return nullptr;
 }	
+
+FSlateColor FPersonaAssetFamily::GetAssetTypeDisplayTint(UClass* InAssetClass) const
+{
+	static const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+
+	UClass* UseAssetClass = nullptr;
+	if (InAssetClass)
+	{
+		if (InAssetClass->IsChildOf<USkeleton>())
+		{
+			UseAssetClass = USkeleton::StaticClass();
+		}
+		else if (InAssetClass->IsChildOf<UAnimationAsset>())
+		{
+			UseAssetClass = UAnimationAsset::StaticClass();
+		}
+		else if (InAssetClass->IsChildOf<USkeletalMesh>())
+		{
+			UseAssetClass = USkeletalMesh::StaticClass();
+		}
+		else if (InAssetClass->IsChildOf<UAnimBlueprint>())
+		{
+			UseAssetClass = UAnimBlueprint::StaticClass();
+		}
+		else if (InAssetClass->IsChildOf<UPhysicsAsset>())
+		{
+			UseAssetClass = UPhysicsAsset::StaticClass();
+		}
+	}
+
+	if (UseAssetClass)
+	{
+		TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(UseAssetClass);
+		if (AssetTypeActions.IsValid())
+		{
+			return AssetTypeActions.Pin()->GetTypeColor();
+		}
+	}
+	return FSlateColor::UseForeground();
+}
 
 bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 {

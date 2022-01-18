@@ -24,6 +24,7 @@ public:
 	virtual void FindAssetsOfType(UClass* InAssetClass, TArray<FAssetData>& OutAssets) const override;
 	virtual FText GetAssetTypeDisplayName(UClass* InAssetClass) const override;
 	virtual const FSlateBrush* GetAssetTypeDisplayIcon(UClass* InAssetClass) const override;
+	virtual FSlateColor GetAssetTypeDisplayTint(UClass* InAssetClass) const override;
 	virtual bool IsAssetCompatible(const FAssetData& InAssetData) const override;
 	virtual UClass* GetAssetFamilyClass(UClass* InClass) const override;
 	virtual void RecordAssetOpened(const FAssetData& InAssetData) override;
