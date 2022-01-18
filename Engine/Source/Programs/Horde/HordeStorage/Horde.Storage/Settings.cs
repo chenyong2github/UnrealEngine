@@ -234,6 +234,8 @@ namespace Horde.Storage
 
         public bool UseBlobIndexForExistsCheck { get; set; } = false;
 
+        public List<string> NamespacesThatUseBlobIndexForExistsCheck { get; set; } = new List<string>();
+
     }
 
     public class GCSettings

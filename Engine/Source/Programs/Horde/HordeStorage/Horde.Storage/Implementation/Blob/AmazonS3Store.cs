@@ -164,7 +164,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
-            if (_settings.UseBlobIndexForExistsCheck)
+            if (_settings.UseBlobIndexForExistsCheck && _settings.NamespacesThatUseBlobIndexForExistsCheck.Contains(ns.ToString()))
             {
                 return await _blobIndex.BlobExistsInRegion(ns, blobIdentifier);
             }
