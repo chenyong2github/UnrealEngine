@@ -2336,9 +2336,9 @@ float FCommonViewportClient::GetDPIDerivedResolutionFraction() const
 			return 1.0f;
 		}
 
-		static auto CVarEnableEditorScreenPercentageOverride = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.OverrideDPIBasedEditorViewportScaling"));
+		static auto CVarEditorViewportHighDPIPtr = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.HighDPI"));
 
-		if (CVarEnableEditorScreenPercentageOverride && CVarEnableEditorScreenPercentageOverride->GetInt() == 0)
+		if (CVarEditorViewportHighDPIPtr && CVarEditorViewportHighDPIPtr->GetInt() == 0)
 		{
 			return FMath::Min(1.0f / GetDPIScale(), 1.0f);
 		}

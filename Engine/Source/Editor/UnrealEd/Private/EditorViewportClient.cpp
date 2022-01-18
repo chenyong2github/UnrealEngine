@@ -84,8 +84,8 @@ static TAutoConsoleVariable<int32> CVarEditorViewportTest(
 
 static bool GetDefaultLowDPIPreviewValue()
 {
-	static auto CVarEditorViewportHighDPI = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.HighDPI"));
-	return CVarEditorViewportHighDPI->GetInt() == 0;
+	static auto CVarEditorViewportHighDPIPtr = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.HighDPI"));
+	return CVarEditorViewportHighDPIPtr->GetInt() == 0;
 }
 
 float ComputeOrthoZoomFactor(const float ViewportWidth)
