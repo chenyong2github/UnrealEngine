@@ -112,6 +112,10 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 	case ESubmixEffectDynamicsProcessorType::Gate:
 		DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::Gate);
 		break;
+
+	case ESubmixEffectDynamicsProcessorType::UpwardsCompressor:
+		DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::UpwardsCompressor);
+		break;
 	}
 
 	switch (Settings.PeakMode)

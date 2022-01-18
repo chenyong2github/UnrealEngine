@@ -13,6 +13,7 @@ enum class ESourceEffectDynamicsProcessorType : uint8
 	Limiter,
 	Expander,
 	Gate,
+	UpwardsCompressor,
 	Count UMETA(Hidden)
 };
 

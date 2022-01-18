@@ -29,6 +29,7 @@ enum class ESubmixEffectDynamicsProcessorType : uint8
 	Limiter,
 	Expander,
 	Gate,
+	UpwardsCompressor,
 	Count UMETA(Hidden)
 };
 
@@ -203,7 +204,7 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 
 	// The dynamics processor ratio used for compression/expansion
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (
-		EditCondition = "!bBypass && DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Compressor || DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Expander",
+		EditCondition = "!bBypass && DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Compressor || DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::Expander ||  DynamicsProcessorType == ESubmixEffectDynamicsProcessorType::UpwardsCompressor",
 		ClampMin = "1.0", ClampMax = "20.0", UIMin = "1.0", UIMax = "20.0"))
 	float Ratio = 1.5f;
 

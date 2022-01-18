@@ -439,6 +439,20 @@ namespace Audio
 		return true;
 	}
 
+	bool FDynamicsProcessor::IsInProcessingThreshold(const float InEnvFollowerDb) const
+	{
+		if (ProcessingMode == EDynamicsProcessingMode::UpwardsCompressor)
+		{
+			return HalfKneeBandwidthDb >= 0.0f
+				&& InEnvFollowerDb < (ThresholdDb - HalfKneeBandwidthDb)
+				&& InEnvFollowerDb > (ThresholdDb + HalfKneeBandwidthDb);
+		}
+
+		return HalfKneeBandwidthDb >= 0.0f
+			&& InEnvFollowerDb > (ThresholdDb - HalfKneeBandwidthDb)
+			&& InEnvFollowerDb < (ThresholdDb + HalfKneeBandwidthDb);
+	}
+
 	float FDynamicsProcessor::ComputeGain(const float InEnvFollowerDb)
 	{
 		float SlopeFactor = 0.0f;
@@ -450,6 +464,8 @@ namespace Audio
 
 			// Compressors smoothly reduce the gain as the gain gets louder
 			// CompressionRatio -> Inifinity is a limiter
+			// Upwards compression applies gain when below a threshold, but uses the same slope
+			case EDynamicsProcessingMode::UpwardsCompressor:
 			case EDynamicsProcessingMode::Compressor:
 				SlopeFactor = 1.0f - 1.0f / Ratio;
 				break;
@@ -472,7 +488,7 @@ namespace Audio
 		}
 
 		// If we are in the range of compression
-		if (HalfKneeBandwidthDb > 0.0f && InEnvFollowerDb > (ThresholdDb - HalfKneeBandwidthDb) && InEnvFollowerDb < ThresholdDb + HalfKneeBandwidthDb)
+		if (IsInProcessingThreshold(InEnvFollowerDb))
 		{
 			// Setup the knee for interpolation. Don't allow the top knee point to exceed 0.0
 			KneePoints[0].X = ThresholdDb - HalfKneeBandwidthDb;
@@ -486,7 +502,17 @@ namespace Audio
 		}
 
 		float OutputGainDb = SlopeFactor * (ThresholdDb - InEnvFollowerDb);
-		OutputGainDb = FMath::Min(0.0f, OutputGainDb);
+
+		if (ProcessingMode == EDynamicsProcessingMode::UpwardsCompressor)
+		{
+			// if left unchecked Upwards compression will try to apply infinite gain
+			OutputGainDb = FMath::Clamp(OutputGainDb, 0.f, UpwardsCompressionMaxGain);
+		}
+		else
+		{
+			OutputGainDb = FMath::Min(0.f, OutputGainDb);
+		}
+
 		return ConvertToLinear(OutputGainDb);
 	}
 }

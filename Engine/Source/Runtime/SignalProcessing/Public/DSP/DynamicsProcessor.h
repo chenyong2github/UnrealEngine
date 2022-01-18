@@ -18,6 +18,7 @@ namespace Audio
 			Limiter,
 			Expander,
 			Gate,
+			UpwardsCompressor,
 			Count
 		};
 	}
@@ -79,6 +80,8 @@ namespace Audio
 		// Process key frame, returning true if should continue processing
 		// (Returns false in audition mode and writes straight to output).
 		bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame, bool bKeyIsInput);
+
+		bool IsInProcessingThreshold(const float InEnvFollowerDb) const;
 
 		// (Optional) Low-pass filter for input signal
 		FBiquadFilter InputLowshelfFilter;
@@ -150,5 +153,7 @@ namespace Audio
 
 		// Whether or not key low-pass filter is enabled
 		bool bKeyLowshelfEnabled;
+
+		static constexpr float UpwardsCompressionMaxGain = 36.0f;
 	};
 }

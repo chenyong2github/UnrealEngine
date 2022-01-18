@@ -35,6 +35,10 @@ void FSourceEffectDynamicsProcessor::OnPresetChanged()
 		case ESourceEffectDynamicsProcessorType::Gate:
 			DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::Gate);
 			break;
+
+		case ESourceEffectDynamicsProcessorType::UpwardsCompressor:
+			DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::UpwardsCompressor);
+			break;
 	}
 
 	switch (Settings.PeakMode)
