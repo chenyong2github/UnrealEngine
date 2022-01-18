@@ -123,6 +123,16 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
+	virtual void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete = FOnCachePutValueComplete()) override;
+
+	virtual void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete = FOnCacheGetValueComplete()) override;
+
 	virtual void GetChunks(
 		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
@@ -142,6 +152,7 @@ private:
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool PutCacheRecord(const FCacheRecord& Record, const FCacheRecordPolicy& Policy);
+	bool PutCacheValue(const FCacheKey& Key, const FValue& Value, const ECachePolicy& ValuePolicy);
 
 	bool IsServiceReady();
 	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
@@ -714,8 +725,10 @@ void FZenDerivedDataBackend::Put(
 				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
 			bResult = false;
 		}
-
-		bResult = PutCacheRecord(Record, Request.Policy);
+		else
+		{
+			bResult = PutCacheRecord(Record, Request.Policy);
+		}
 
 		if (bResult)
 		{
@@ -885,6 +898,190 @@ void FZenDerivedDataBackend::Get(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
 }
 
+void FZenDerivedDataBackend::PutValue(
+	TConstArrayView<FCachePutValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCachePutValueComplete&& OnComplete)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::PutValue);
+
+	for (const FCachePutValueRequest& Request : Requests)
+	{
+		COOK_STAT(auto Timer = UsageStats.TimePut());
+		bool bResult;
+		if (ShouldSimulateMiss(Request.Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for PutValue of %s from '%s'"),
+				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
+			bResult = false;
+		}
+		else
+		{
+			bResult = PutCacheValue(Request.Key, Request.Value, Request.Policy);
+		}
+
+		if (bResult)
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache PutValue complete for %s from '%s'"),
+				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
+			COOK_STAT(Timer.AddHit(Request.Value.GetData().GetCompressedSize()));
+			if (OnComplete)
+			{
+				OnComplete({ Request.Name, Request.Key, Request.UserData, EStatus::Ok });
+			}
+		}
+		else
+		{
+			COOK_STAT(Timer.AddMiss());
+			if (OnComplete)
+			{
+				OnComplete({ Request.Name, Request.Key, Request.UserData, EStatus::Error });
+			}
+		}
+	}
+}
+
+void FZenDerivedDataBackend::GetValue(
+	TConstArrayView<FCacheGetValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCacheGetValueComplete&& OnComplete)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetValue);
+	TRACE_COUNTER_ADD(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
+
+	int32 TotalCompleted = 0;
+
+	ForEachBatch(CacheRecordBatchSize, Requests.Num(),
+		[this, &Requests, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
+		{
+			TRACE_COUNTER_ADD(ZenDDC_Get, int64(BatchLast) - int64(BatchFirst) + 1);
+			COOK_STAT(auto Timer = UsageStats.TimeGet());
+
+			FCbWriter BatchRequest;
+			BatchRequest.BeginObject();
+			{
+				BatchRequest << "Method"_ASV << "GetCacheRecords";
+				BatchRequest.BeginObject("Params"_ASV);
+				{
+					BatchRequest.BeginArray("CacheKeys"_ASV);
+					for (int32 KeyIndex = BatchFirst; KeyIndex <= BatchLast; KeyIndex++)
+					{
+						const FCacheKey& Key = Requests[KeyIndex].Key;
+
+						BatchRequest.BeginObject();
+						BatchRequest << "Bucket"_ASV << Key.Bucket.ToString();
+						BatchRequest << "Hash"_ASV << Key.Hash;
+						BatchRequest.EndObject();
+					}
+					BatchRequest.EndArray();
+
+					// TODO: The policy needs to be sent with each key.
+					const ECachePolicy& Policy = Requests[BatchFirst].Policy;
+					BatchRequest.BeginObject("Policy"_ASV);
+					{
+						BatchRequest << "RecordPolicy"_ASV << static_cast<uint32>(Policy);
+					}
+					BatchRequest.EndObject();
+				}
+				BatchRequest.EndObject();
+			}
+			BatchRequest.EndObject();
+
+			FCbPackage BatchResponse;
+			Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
+
+			{
+				Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+				HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
+			}
+
+			if (HttpResult == Zen::FZenHttpRequest::Result::Success)
+			{
+				const FCbObject& ResponseObj = BatchResponse.GetObject();
+
+				int32 KeyIndex = BatchFirst;
+				for (FCbField ValueReferenceField : ResponseObj["Result"_ASV])
+				{
+					const FCacheGetValueRequest& Request = Requests[KeyIndex++];
+					const FCacheKey& Key = Request.Key;
+					FIoHash RawHash = ValueReferenceField["RawHash"_ASV].AsBinaryAttachment();
+					TOptional<FValue> ResultValue;
+
+					if (!RawHash.IsZero())
+					{
+						if (ShouldSimulateMiss(Key))
+						{
+							UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of '%s' from '%s'"),
+								*GetName(), *WriteToString<96>(Key), *Request.Name);
+						}
+						else if (EnumHasAnyFlags(Request.Policy, UE::DerivedData::ECachePolicy::SkipData))
+						{
+							ResultValue.Emplace(RawHash, ValueReferenceField["RawSize"].AsUInt64());
+						}
+						else
+						{
+							const FCbAttachment* Attachment = BatchResponse.FindAttachment(RawHash);
+							if (Attachment)
+							{
+								ResultValue.Emplace(Attachment->AsCompressedBinary());
+							}
+						}
+					}
+
+					if (ResultValue)
+					{
+						UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%s'"),
+							*GetName(), *WriteToString<96>(Key), *Request.Name);
+
+						TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
+						int64 ReceivedSize = ResultValue->GetData().GetCompressedSize();
+						TRACE_COUNTER_ADD(ZenDDC_BytesReceived, ReceivedSize);
+						COOK_STAT(Timer.AddHit(ReceivedSize));
+
+						if (OnComplete)
+						{
+							OnComplete({ Request.Name, Key, MoveTemp(*ResultValue), Request.UserData, EStatus::Ok });
+						}
+					}
+					else
+					{
+						UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
+							*GetName(), *WriteToString<96>(Key), *Request.Name);
+
+						if (OnComplete)
+						{
+							OnComplete({ Request.Name, Key, {}, Request.UserData, EStatus::Error });
+						}
+					}
+
+					TotalCompleted++;
+				}
+			}
+			else
+			{
+				for (int32 KeyIndex = BatchFirst; KeyIndex <= BatchLast; KeyIndex++)
+				{
+					const FCacheGetValueRequest& Request = Requests[KeyIndex];
+					const FCacheKey& Key = Request.Key;
+
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
+						*GetName(), *WriteToString<96>(Key), *Request.Name);
+
+					if (OnComplete)
+					{
+						OnComplete({ Request.Name, Key, {}, Request.UserData, EStatus::Error });
+					}
+
+					TotalCompleted++;
+				}
+			}
+		});
+
+	UE_CLOG(TotalCompleted != Requests.Num(), LogDerivedDataCache, Warning, TEXT("Only '%d/%d' GetValue request(s) completed"), TotalCompleted, Requests.Num());
+	TRACE_COUNTER_SUBTRACT(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
+}
+
+
 void FZenDerivedDataBackend::GetChunks(
 	TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
@@ -1027,6 +1224,35 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, const FC
 	TStringBuilder<256> Uri;
 	AppendZenUri(Record.GetKey(), Uri);
 	AppendPolicyQueryString(Policy.GetRecordPolicy(), Uri);
+	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CbPackage)
+		!= FDerivedDataBackendInterface::EPutStatus::Cached)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FZenDerivedDataBackend::PutCacheValue(const FCacheKey& Key, const FValue& Value, const ECachePolicy& ValuePolicy)
+{
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.AddBinaryAttachment("RawHash", Value.GetRawHash());
+	Writer.AddInteger("RawSize", Value.GetRawSize());
+	Writer.EndObject();
+
+	FCbPackage Package(Writer.Save().AsObject());
+	if (Value.HasData())
+	{
+		Package.AddAttachment(FCbAttachment(Value.GetData()));
+	}
+
+	FBufferArchive Ar;
+	Package.Save(Ar);
+	FCompositeBuffer Buffer = FCompositeBuffer(FSharedBuffer::MakeView(Ar.GetData(), Ar.Num()));
+	TStringBuilder<256> Uri;
+	AppendZenUri(Key, Uri);
+	AppendPolicyQueryString(ValuePolicy, Uri);
 	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CbPackage)
 		!= FDerivedDataBackendInterface::EPutStatus::Cached)
 	{
