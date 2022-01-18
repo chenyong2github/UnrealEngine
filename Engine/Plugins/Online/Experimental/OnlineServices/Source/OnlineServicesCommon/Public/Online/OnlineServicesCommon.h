@@ -40,6 +40,8 @@ public:
 	virtual IPresencePtr GetPresenceInterface() override;
 	virtual IExternalUIPtr GetExternalUIInterface() override;
 	virtual ILobbiesPtr GetLobbiesInterface() override;
+	virtual IConnectivityPtr GetConnectivityInterface() override;
+	virtual IPrivilegesPtr GetPrivilegesInterface() override;
 
 	// FOnlineServicesCommon
 

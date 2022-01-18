@@ -64,6 +64,16 @@ ILobbiesPtr FOnlineServicesCommon::GetLobbiesInterface()
 	return ILobbiesPtr(AsShared(), Get<ILobbies>());
 }
 
+IConnectivityPtr FOnlineServicesCommon::GetConnectivityInterface()
+{
+	return IConnectivityPtr(AsShared(), Get<IConnectivity>());
+}
+
+IPrivilegesPtr FOnlineServicesCommon::GetPrivilegesInterface()
+{
+	return IPrivilegesPtr(AsShared(), Get<IPrivileges>());
+}
+
 void FOnlineServicesCommon::RegisterComponents()
 {
 }

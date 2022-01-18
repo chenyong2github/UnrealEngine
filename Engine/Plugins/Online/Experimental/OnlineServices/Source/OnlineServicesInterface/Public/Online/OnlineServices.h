@@ -16,6 +16,8 @@ using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 using ILobbiesPtr = TSharedPtr<class ILobbies>;
+using IConnectivityPtr = TSharedPtr<class IConnectivity>;
+using IPrivilegesPtr = TSharedPtr<class IPrivileges>;
 
 class ONLINESERVICESINTERFACE_API IOnlineServices
 {
@@ -55,6 +57,16 @@ public:
 	 * @return lobbies implementation, may be null if not implemented for this service
 	 */
 	virtual ILobbiesPtr GetLobbiesInterface() = 0;
+
+	/**
+	 * 
+	 */
+	virtual IConnectivityPtr GetConnectivityInterface() = 0;
+
+	/**
+	 *
+	 */
+	virtual IPrivilegesPtr GetPrivilegesInterface() = 0;
 };
 
 /**

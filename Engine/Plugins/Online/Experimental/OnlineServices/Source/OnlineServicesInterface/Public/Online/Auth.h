@@ -218,6 +218,9 @@ BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByAccountId::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLoginStatusChanged)
+	ONLINE_STRUCT_FIELD(FLoginStatusChanged, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLoginStatusChanged, PreviousStatus),
+	ONLINE_STRUCT_FIELD(FLoginStatusChanged, CurrentStatus)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }
