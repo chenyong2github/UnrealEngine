@@ -316,7 +316,7 @@ $ AdditionalCompilerArguments (String): Additional arguments to pass to the comp
 
 $ AdditionalLinkerArguments (String): Additional arguments to pass to the linker
 
-$ MemoryPerActionGB (Double): Max amount of memory that each compile action may require. Used by ParallelExecutor and TaskExecutor to decide the maximum number of parallel actions to start at one time.
+$ MemoryPerActionGB (Double): Max amount of memory that each compile action may require. Used by ParallelExecutor to decide the maximum number of parallel actions to start at one time.
 
 $ DisableUnityBuildForModules (String[]): List of modules to disable unity builds for
 

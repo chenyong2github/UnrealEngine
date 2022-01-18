@@ -18,8 +18,6 @@ $ bAllowFASTBuild : Whether FASTBuild may be used.
 
 $ bAllowSNDBS : Whether SN-DBS may be used.
 
-$ bAllowTaskExecutor : Whether the experimental async TaskExecutor may be used.
-
 $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching target data. Turning this on causes Unreal Build Tool to emit 'UBT Makefiles' for targets when they are built the first time. Subsequent builds will load these Makefiles and begin outdatedness checking and build invocation very quickly. The caveat is that if source files are added or removed to the project, UBT will need to gather information about those in order for your build to complete successfully. Currently, you must run the project file generator after adding/removing source files to tell UBT to re-gather this information. 
     * Events that can invalidate the 'UBT Makefile':
         * Adding/removing .cpp files
@@ -240,30 +238,18 @@ $ bStopOnError : Whether to stop on error
 
 $ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
 
-### TaskExecutor
-
-$ MaxProcessorCount : Maximum processor count for local execution.
-
-$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks. When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse. This value is ignored if the CPU does not support hyper-threading.
-
-$ MemoryPerActionBytes : Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved. Set to 0 to disable free memory checking.
-
-$ bStopCompilationAfterErrors : When enabled, will stop compiling targets after a compile error occurs.
-
-$ bShowCompilationTimes : Whether to show compilation times along with worst offenders or not.
-
-$ bShowPerActionCompilationTimes : Whether to show compilation times for each executed action
-
-$ bLogActionCommandLines : Whether to log command lines for actions being executed
-
-$ bPrintActionTargetNames : Add target names for each action executed
-
 ### HybridExecutor
 
 $ MaxLocalActions : Maximum number of actions to execute locally.
 
 ### ParallelExecutor
 
+$ MaxProcessorCount : Maximum processor count for local execution.
+
+$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks. When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse. This value is ignored if the CPU does not support hyper-threading.
+
+$ MemoryPerActionBytes : Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved. Set to 0 to disable free memory checking.
+
 $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after a compile error occurs.
 
 $ bShowCompilationTimes : Whether to show compilation times along with worst offenders or not.
@@ -273,12 +259,6 @@ $ bShowPerActionCompilationTimes : Whether to show compilation times for each ex
 $ bLogActionCommandLines : Whether to log command lines for actions being executed
 
 $ bPrintActionTargetNames : Add target names for each action executed
-
-$ MaxProcessorCount : Maximum processor count for local execution.
-
-$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks. When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse. This value is ignored if the CPU does not support hyper-threading.
-
-$ MemoryPerActionBytes : Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved. Set to 0 to disable free memory checking.
 
 ### XGE
 
