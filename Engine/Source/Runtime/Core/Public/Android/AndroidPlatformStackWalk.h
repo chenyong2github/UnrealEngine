@@ -23,8 +23,7 @@ struct CORE_API FAndroidPlatformStackWalk : public FGenericPlatformStackWalk
 
 	static void HandleBackTraceSignal(siginfo* Info, void* Context);
 
-	// called when android version information is set.
-	static void NotifyPlatformVersionInit();
+	static bool InitStackWalking();
 };
 
 typedef FAndroidPlatformStackWalk FPlatformStackWalk;

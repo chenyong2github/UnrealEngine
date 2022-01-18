@@ -434,6 +434,8 @@ int32 AndroidMain(struct android_app* state)
 		ValidGamepadKeyCodes.Add(ValidGamepadKeyCodesList[i]);
 	}
 
+	FAndroidPlatformStackWalk::InitStackWalking();
+
 	// wait for java activity onCreate to finish
 	{
 		SCOPED_BOOT_TIMING("Wait for GResumeMainInit");
@@ -1624,7 +1626,6 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetAndroidVersionIn
 	auto UEOSLanguage = FJavaHelper::FStringFromParam(jenv, osLanguage);
 
 	FAndroidMisc::SetVersionInfo(UEAndroidVersion, targetSDKversion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage);
-	FAndroidPlatformStackWalk::NotifyPlatformVersionInit();
 }
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeOnInitialDownloadStarted();
