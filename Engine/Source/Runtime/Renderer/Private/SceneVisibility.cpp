@@ -93,7 +93,7 @@ static FAutoConsoleVariableRef CVarHZBOcclusion(
 	TEXT(" 0: Hardware occlusion queries\n")
 	TEXT(" 1: Use HZB occlusion system (default, less GPU and CPU cost, more conservative results)")
 	TEXT(" 2: Force HZB occlusion system (overrides rendering platform preferences)"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 static TAutoConsoleVariable<int32> CVarHZBBuildDownSampleFactor(

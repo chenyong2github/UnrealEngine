@@ -50,6 +50,8 @@ float GetRoughnessFade(in float Roughness)
 	return min(Roughness * SSRParams.y + 2, 1.0);
 }
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+
 // Used only if r.SSR.Stencil = 1
 //
 // This shader generate the stencil buffer according to if a pixel needs to
@@ -373,4 +375,120 @@ void ScreenSpaceReflectionsPS(
 	);
 }
 
+#else
+
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthSampler;
+
+Texture2D WorldNormalRoughnessTexture;
+SamplerState WorldNormalRoughnessSampler;
+
+void MobileScreenSpaceReflectionPS(
+	in float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = 0;
+
+	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
+	uint2 PixelPos = (uint2)SvPosition.xy;
+
+	bool bDebugPrint = all(PixelPos == uint2(View.ViewSizeAndInvSize.xy) / 2);
+
+	float4 SceneColorMobile = SceneColor.SampleLevel(SceneColorSampler, UV, 0);
+	float4 WorldNormalRoughness = WorldNormalRoughnessTexture.SampleLevel(WorldNormalRoughnessSampler, UV, 0);
+
+	float3 N = OctahedronToUnitVector( WorldNormalRoughness.xy * 2.0f - 1.0f );
+
+	float DeviceZ = SceneColorMobile.a; // Mobile scene color's alpha channel store depth.
+	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+
+	float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
+	float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
+
+	float Roughness = WorldNormalRoughness.b;
+	float RoughnessFade = GetRoughnessFade(Roughness);
+
+	BRANCH if( RoughnessFade <= 0.0)
+	{
+		return;
+	}
+
+	float a = Roughness * Roughness;
+	float a2 = a * a;
+
+	float NoV = saturate( dot( N, V ) );
+	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
+
+	float ClosestHitDistanceSqr = INFINITE_FLOAT;
+
+#if SSR_QUALITY == 1
+	uint NumSteps = 8;
+#elif SSR_QUALITY == 2
+	uint NumSteps = 16;
+#elif SSR_QUALITY == 3
+	uint NumSteps = 24;
+#else // SSR_QUALITY == 4
+	uint NumSteps = 32;
+#endif
+
+	float NoiseSeed = SSRParams.b;
+	float StepOffset = InterleavedGradientNoise(SvPosition.xy, NoiseSeed);
+	StepOffset -= 0.5;
+	float3 L = reflect( -V, N );
+
+	float3 HitUVz;
+	float Level = 0;
+	bool bHit = RayCast(
+		HZB, HZBSampler,
+		PositionTranslatedWorld, L, Roughness, SceneDepth,
+		NumSteps, StepOffset,
+		HZBUvFactorAndInvFactor,
+		bDebugPrint,
+		HitUVz,
+		Level
+	);
+
+	float4 SSR = 0;
+	BRANCH if( bHit )
+	{
+		ClosestHitDistanceSqr = min(ClosestHitDistanceSqr, ComputeRayHitSqrDistance(PositionTranslatedWorld, HitUVz));
+
+		float2 SampleUV;
+		float Vignette;
+		ReprojectHit(PrevScreenPositionScaleBias, HitUVz, SampleUV, Vignette);
+
+		SSR = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
+	}
+
+	SSR *= RoughnessFade;
+	SSR *= SSRParams.r;
+
+	SceneColorMobile.rgb = -min(-SceneColorMobile.rgb, 0.0);
+	SceneColorMobile.a = 1;
+	OutColor = SSR * SSR.a + SceneColorMobile * (1 - SSR.a);
+
+	// Following composite mode is One One, so subtract scene color here.
+	OutColor.rgb -= SceneColorMobile.rgb * OutColor.a;
+
+	OutColor.rgb *= EnvBRDF( 0.04, Roughness, NoV );
+
+	//OutColor = SSR;
+}
+
+Texture2D ScreenSpaceReflectionTexture;
+SamplerState ScreenSpaceReflectionSampler;
+
+void MobileScreenSpaceReflectionCompositePS(
+	in float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+
+	float4 ScreenSpaceReflection = ScreenSpaceReflectionTexture.SampleLevel(ScreenSpaceReflectionSampler, UV, 0);
+
+	OutColor = ScreenSpaceReflection;
+}
+
+#endif
 

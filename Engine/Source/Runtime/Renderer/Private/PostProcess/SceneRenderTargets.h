@@ -347,6 +347,8 @@ public:
 		return (const FTexture2DRHIRef&)DirectionalOcclusion->GetRenderTargetItem().TargetableTexture; 
 	}
 
+	const FTexture2DRHIRef& GetWorldNormalRoughnessSurface() const { return (const FTexture2DRHIRef&)WorldNormalRoughness->GetRenderTargetItem().TargetableTexture; }
+
 	// @return can be empty if the feature is disabled
 	FCustomDepthTextures RequestCustomDepth(FRDGBuilder& GraphBuilder, bool bPrimitives);
 
@@ -504,6 +506,8 @@ public:
 
 	// used by the Modulated Shadow
 	TRefCountPtr<IPooledRenderTarget> MobileScreenShadowMask;
+	// Scene world normal
+	TRefCountPtr<IPooledRenderTarget> WorldNormalRoughness;
 
 	// optional in case this RHI requires a color render target (adjust up if necessary)
 	TRefCountPtr<IPooledRenderTarget> OptionalShadowDepthColor[4];

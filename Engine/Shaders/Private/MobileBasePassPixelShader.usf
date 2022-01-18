@@ -529,6 +529,8 @@ void Main(
 	// MALI supports only up to 4 input attachements (GBufferA,GBufferB,GBufferC + SceneDepth)
 	// will have to change GBuffer format to fit GBufferD into this limit
 	//, out half4 OutGBufferD	: SV_Target5
+#elif OUTPUT_WORLDNORMALROUGHNESS
+	, out half4 OutWorldNormalRoughness : SV_Target1
 #endif
 #if OUTPUT_PIXEL_DEPTH_OFFSET
     , out float OutDepth : SV_Depth
@@ -612,6 +614,11 @@ void Main(
 	
 	FMobileShadingModelContext ShadingModelContext = (FMobileShadingModelContext)0;
 	ShadingModelContext.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+
+#if OUTPUT_WORLDNORMALROUGHNESS
+	OutWorldNormalRoughness.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
+	OutWorldNormalRoughness.b = GBuffer.Roughness;
+#endif
 
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	float TopMaterialCoverage = ShadingModelContext.Opacity;
@@ -742,6 +749,7 @@ void Main(
 	#else
 		Color += SpecularIBL * ShadingModelContext.SpecularColor;
 	#endif
+
 #endif
 #endif /* FULLY_ROUGH */
 

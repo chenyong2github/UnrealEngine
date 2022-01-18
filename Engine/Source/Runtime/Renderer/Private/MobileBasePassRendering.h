@@ -231,6 +231,9 @@ public:
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		// Modify compilation environment depending upon material shader quality level settings.
 		ModifyCompilationEnvironmentForQualityLevel(Parameters.Platform, Parameters.MaterialParameters.QualityLevel, OutEnvironment);
+
+		bool bOutputWorldNormalRoughness = AllowScreenSpaceReflection(Parameters.Platform) && !IsMobileDeferredShadingEnabled(Parameters.Platform);
+		OutEnvironment.SetDefine(TEXT("OUTPUT_WORLDNORMALROUGHNESS"), bOutputWorldNormalRoughness);
 	}
 
 	/** Initialization constructor. */

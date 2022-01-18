@@ -1032,6 +1032,16 @@ RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 	return true;
 }
 
+RENDERCORE_API bool AllowScreenSpaceReflection(const FStaticShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowSSR"));
+		return CVar->GetValueOnAnyThread() != 0;
+	}
+	return false;
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

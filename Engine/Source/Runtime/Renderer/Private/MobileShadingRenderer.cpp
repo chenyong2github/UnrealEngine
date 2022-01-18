@@ -175,6 +175,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequriesAmbientOcclusionPass = false;
+	bRequriesScreenSpaceReflectionPass = false;
 
 	// Don't do occlusion queries when doing scene captures
 	for (FViewInfo& View : Views)
@@ -341,6 +342,16 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Only support forward shading, we don't want to break tiled deferred shading.
 		&& !bDeferredShading;
 
+	bRequriesScreenSpaceReflectionPass = AllowScreenSpaceReflection(ShaderPlatform)
+		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !Views[0].bIsReflectionCapture
+		&& !Views[0].bIsPlanarReflection
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		&& !bDeferredShading;
+
 	// Whether we need to store depth for post-processing
 	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
@@ -410,6 +421,15 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	else
 	{
 		ReleaseAmbientOcclusionOutputs();
+	}
+
+	if (bRequriesScreenSpaceReflectionPass)
+	{
+		InitScreenSpaceReflectionOutputs(RHICmdList, SceneContext.GetSceneColor());
+	}
+	else
+	{
+		ReleaseScreenSpaceReflectionOutputs();
 	}
 
 	//make sure all the targets we're going to use will be safely writable.
@@ -779,6 +799,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					RenderOcclusion(GraphBuilder, MobileSceneTexturesPerView[ViewIndex]);
+
+					RenderScreenSpaceReflection(GraphBuilder, Views[ViewIndex], SceneContext);
 				}
 
 				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
@@ -891,6 +913,16 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		FoveationTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
+
+	if (AllowScreenSpaceReflection(ShaderPlatform))
+	{
+		SceneColorRenderPassInfo.ColorRenderTargets[1].RenderTarget = SceneContext.GetWorldNormalRoughnessSurface();
+		SceneColorRenderPassInfo.ColorRenderTargets[1].ResolveTarget = nullptr;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].ArraySlice = -1;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].MipIndex = 0;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].Action = ERenderTargetActions::Clear_Store;
+	}
+
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
