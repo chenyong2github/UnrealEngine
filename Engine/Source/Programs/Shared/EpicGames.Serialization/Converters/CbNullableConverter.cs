@@ -11,7 +11,7 @@ namespace EpicGames.Serialization.Converters
 	/// Converter for list types
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	class CbNullableConverter<T> : CbConverter<Nullable<T>> where T : struct
+	class CbNullableConverter<T> : CbConverterBase<Nullable<T>> where T : struct
 	{
 		/// <inheritdoc/>
 		public override T? Read(CbField Field)
@@ -44,12 +44,12 @@ namespace EpicGames.Serialization.Converters
 	class CbNullableConverterFactory : CbConverterFactory
 	{
 		/// <inheritdoc/>
-		public override CbConverter? CreateConverter(Type Type)
+		public override ICbConverter? CreateConverter(Type Type)
 		{
 			if (Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{
 				Type ConverterType = typeof(CbNullableConverter<>).MakeGenericType(Type.GenericTypeArguments);
-				return (CbConverter)Activator.CreateInstance(ConverterType)!;
+				return (ICbConverter)Activator.CreateInstance(ConverterType)!;
 			}
 			return null;
 		}
