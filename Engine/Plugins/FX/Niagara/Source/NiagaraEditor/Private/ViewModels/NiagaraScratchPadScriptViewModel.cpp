@@ -171,7 +171,6 @@ bool FNiagaraScratchPadScriptViewModel::HasUnappliedChanges() const
 void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 {
 	ResetLoaders(OriginalScript->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	OriginalScript->GetOutermost()->LinkerCustomVersion.Empty();
 
 	OriginalScript = (UNiagaraScript*)StaticDuplicateObject(EditScript.Script, OriginalScript->GetOuter(), OriginalScript->GetFName(),
 		RF_AllFlags,

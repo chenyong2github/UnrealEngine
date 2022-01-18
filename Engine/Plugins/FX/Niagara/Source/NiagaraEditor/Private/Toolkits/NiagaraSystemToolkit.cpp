@@ -329,8 +329,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
 
-	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	GetTransientPackage()->LinkerCustomVersion.Empty();
+	// No need to reset loader or versioning on the transient package, there should never be any set 
 	
 	bEmitterThumbnailUpdated = false;
 
@@ -1611,7 +1610,6 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		}
 
 		ResetLoaders(Emitter->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-		Emitter->GetOutermost()->LinkerCustomVersion.Empty();
 
 		TArray<UNiagaraScript*> AllScripts;
 		EditableEmitter->GetScripts(AllScripts, true);

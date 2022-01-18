@@ -5521,6 +5521,13 @@ void FLinkerLoad::Detach()
 	if (LinkerRoot)
 	{
 		LinkerRoot->LinkerLoad = nullptr;
+		// When detaching the linker from its package, also empty its stored list of custom versions. 
+		// This is so that object post loaded in the editor in a package that has no associated linker consider that all package custom versions as latest
+		// (i.e. when duplicating an object in the package)
+		// The runtime *may* use the stored version in the package since there are never any linker associated with it when using iostore
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		LinkerRoot->LinkerCustomVersion.Empty();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		LinkerRoot = nullptr;
 	}
 

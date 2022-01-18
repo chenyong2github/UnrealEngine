@@ -178,8 +178,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	FGuid ScriptVersion = InputScript->IsVersioningEnabled() && InputScript->VersionToOpenInEditor.IsValid() ? InputScript->VersionToOpenInEditor : InputScript->GetExposedVersion().VersionGuid;
 	OriginalNiagaraScript.Script = InputScript;
 	OriginalNiagaraScript.Version = ScriptVersion;
-	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	GetTransientPackage()->LinkerCustomVersion.Empty();
+	// No need to reset loader or versioning on the transient package, there should never be any set
 	EditedNiagaraScript.Script = (UNiagaraScript*)StaticDuplicateObject(InputScript, GetTransientPackage(), NAME_None, ~RF_Standalone, UNiagaraScript::StaticClass());
 	EditedNiagaraScript.Script->OnVMScriptCompiled().AddSP(this, &FNiagaraScriptToolkit::OnVMScriptCompiled);
 	EditedNiagaraScript.Version = ScriptVersion;
@@ -908,7 +907,6 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 	}
 
 	ResetLoaders(OriginalNiagaraScript.Script->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	OriginalNiagaraScript.Script->GetOutermost()->LinkerCustomVersion.Empty();
 
 	// Compile and then overwrite the original script in place by constructing a new one with the same name
 	ScriptViewModel->CompileStandaloneScript();

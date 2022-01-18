@@ -81,8 +81,7 @@ void FNiagaraParameterDefinitionsToolkit::Initialize(const EToolkitMode::Type Mo
 	check(InParameterDefinitions != nullptr);
 	ParameterDefinitionsSource = InParameterDefinitions;
 
-	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	GetTransientPackage()->LinkerCustomVersion.Empty();
+	// No need to reset loader or versioning on the transient package, there should never be any set
 	ParameterDefinitionsInstance = Cast<UNiagaraParameterDefinitions>(StaticDuplicateObject(ParameterDefinitionsSource, GetTransientPackage(), NAME_None, ~RF_Standalone, UNiagaraParameterDefinitions::StaticClass()));
 	ParameterDefinitionsInstance->ClearFlags(RF_Standalone | RF_Public);
 	LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
@@ -319,7 +318,6 @@ void FNiagaraParameterDefinitionsToolkit::OnApply()
 	}
 
 	ResetLoaders(ParameterDefinitionsSource->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-	ParameterDefinitionsSource->GetOutermost()->LinkerCustomVersion.Empty();
 
 	ParameterDefinitionsSource->PreEditChange(nullptr);
 	// overwrite the original parameter definitions in place by constructing a new one with the same name
