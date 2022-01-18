@@ -260,7 +260,7 @@ public:
 		FReplicationChangelistMgr& ChangelistMgr,
 		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates)
 	{
-		RepLayout.PreSendCustomDeltaProperties(Object, Connection, ChangelistMgr, CustomDeltaStates);
+		RepLayout.PreSendCustomDeltaProperties(Object, Connection, ChangelistMgr, Connection->Driver->ReplicationFrame, CustomDeltaStates);
 	}
 
 	static void PostSendCustomDeltaProperties(

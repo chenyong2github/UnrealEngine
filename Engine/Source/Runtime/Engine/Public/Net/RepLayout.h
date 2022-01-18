@@ -1892,6 +1892,7 @@ private:
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
+		uint32 ReplicationFrame,
 		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
 
 	void PostSendCustomDeltaProperties(

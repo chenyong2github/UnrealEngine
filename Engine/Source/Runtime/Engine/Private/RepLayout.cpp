@@ -512,8 +512,8 @@ struct FCustomDeltaChangelistState
 		ArrayStates.SetNum(NumArrays);
 	}
 
-	/** Index used to determine whether or not we've compared already on a given frame. */
-	uint32 CompareIndex = 0;
+	/** Last Replication Frame where we modified histories and caused compares to happen. */
+	uint32 LastReplicationFrame = 0;
 
 	/**
 	 * An array tracking the last compared history of Arrays.
@@ -7237,6 +7237,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 	UObject* Object,
 	UNetConnection* Connection,
 	FReplicationChangelistMgr& ChangelistMgr,
+	uint32 ReplicationFrame,
 	TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
 {
 	using namespace UE_RepLayout_Private;
@@ -7252,10 +7253,9 @@ void FRepLayout::PreSendCustomDeltaProperties(
 
 			// Check to see whether or not we need to do comparisons this frame.
 			// If we do, then run through our fast array states and generate new history items if needed.
-			if (CustomDeltaChangelistState.CompareIndex != static_cast<uint32>(GFrameCounter))
+			if (CustomDeltaChangelistState.LastReplicationFrame != ReplicationFrame)
 			{
-				const bool bIsInitial = (CustomDeltaChangelistState.CompareIndex == 0);
-				CustomDeltaChangelistState.CompareIndex = GFrameCounter;
+				CustomDeltaChangelistState.LastReplicationFrame = ReplicationFrame;
 
 				const FConstRepObjectDataBuffer ObjectData(Object);
 				const uint16 NumLifetimeCustomDeltaProperties = LocalLifetimeCustomPropertyState.GetNumCustomDeltaProperties();
@@ -7291,6 +7291,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 						{
 							FDeltaArrayHistoryState& FastArrayHistoryState = CustomDeltaChangelistState.ArrayStates[FastArrayNumber];
 
+							// If the fast array's ReplicationKey hasn't changed, then we can safely assume there's been no changes.
 							const int32 FastArrayReplicationKey = CustomDeltaProperty.GetFastArrayArrayReplicationKey(FastArraySerializer);
 							if (FastArrayHistoryState.ArrayReplicationKey != FastArrayReplicationKey)
 							{

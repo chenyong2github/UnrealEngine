@@ -1593,8 +1593,11 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		// Get the old map if its there
 		TMap<int32, int32>* OldItemMap = nullptr;
 		int32 BaseReplicationKey = INDEX_NONE;
-		int32 OldChangelistHistory = INDEX_NONE;
-		int32 OldLastAckedHistory = INDEX_NONE;
+
+		// We set ChangelistHistory and LastAckedHistory to 0, as that's the default RepLayout expects.
+		// Setting them to anything else may cause issues with initial sends.
+		uint32 OldChangelistHistory = 0;
+		uint32 OldLastAckedHistory = 0;
 
 		// See if the array changed at all. If the ArrayReplicationKey matches we can skip checking individual items
 		if (Parms.OldState)
