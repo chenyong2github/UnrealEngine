@@ -1104,8 +1104,41 @@ void SRigHierarchy::CreateContextMenu() const
 					FToolMenuSection& TransformsSection = InMenu->AddSection(TEXT("Transforms"), LOCTEXT("TransformsHeader", "Transforms"));
 					TransformsSection.AddMenuEntry(Commands.ResetTransform);
 					TransformsSection.AddMenuEntry(Commands.ResetAllTransforms);
-					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromCurrentTransform);
-					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromClosestBone);
+
+					{
+						static const FString InitialKeyword = TEXT("Initial");
+						static const FString OffsetKeyword = TEXT("Offset");
+						static const FString InitialOffsetKeyword = TEXT("Initial / Offset");
+						
+						const FString* Keyword = &InitialKeyword;
+						TArray<ERigElementType> SelectedTypes;;
+						TArray<TSharedPtr<FRigTreeElement>> SelectedItems = RigHierarchyPanel->TreeView->GetSelectedItems();
+						for(const TSharedPtr<FRigTreeElement>& SelectedItem : SelectedItems)
+						{
+							if(SelectedItem.IsValid())
+							{
+								SelectedTypes.AddUnique(SelectedItem->Key.Type);
+							}
+						}
+						if(SelectedTypes.Contains(ERigElementType::Control))
+						{
+							// since it is unique this means it is only controls
+							if(SelectedTypes.Num() == 1)
+							{
+								Keyword = &OffsetKeyword;
+							}
+							else
+							{
+								Keyword = &InitialOffsetKeyword;
+							}
+						}
+
+						const FText FromCurrentLabel = FText::Format(LOCTEXT("SetTransformFromCurrentTransform", "Set {0} Transform from Current"), FText::FromString(*Keyword));
+						const FText FromClosestBoneLabel = FText::Format(LOCTEXT("SetTransformFromClosestBone", "Set {0} Transform from Closest Bone"), FText::FromString(*Keyword));
+						TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromCurrentTransform, FromCurrentLabel);
+						TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromClosestBone, FromClosestBoneLabel);
+					}
+					
 					TransformsSection.AddMenuEntry(Commands.SetShapeTransformFromCurrent);
 					TransformsSection.AddMenuEntry(Commands.Unparent);
 

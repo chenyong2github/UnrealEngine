@@ -1806,7 +1806,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					Section.AddMenuEntry(
 						"SelectRigElements",
 						LOCTEXT("SelectRigElements", "Select Rig Elements"),
-						LOCTEXT("SelectRigElements_Tooltip", "Selects the bone, controls or spaces associated with this node."),
+						LOCTEXT("SelectRigElements_Tooltip", "Selects the bone, controls or nulls associated with this node."),
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, RigElementsToSelect]() {
 
