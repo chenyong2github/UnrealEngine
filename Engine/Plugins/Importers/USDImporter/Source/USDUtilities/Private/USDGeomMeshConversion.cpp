@@ -2099,6 +2099,13 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 				}
 			}
 
+			// Don't try fetching attributes from the pseudoroot as we'll obviously never have a material binding here
+			// and we may get some USD warnings
+			if ( Prim.IsPseudoRoot() )
+			{
+				return;
+			}
+
 			std::string UnrealMaterialAttrAssetPath;
 			FString UnrealMaterialPrimAssetPath;
 
