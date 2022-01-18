@@ -82,6 +82,9 @@ private:
 	/** Determines if editing the pins on the node should be read only */
 	bool IsPinEditingReadOnly(bool bIsEditingPinType = false) const;
 
+	/** Determines if an argument can be moved up or down */
+	bool CanArgumentBeMoved(bool bMoveUp) const;
+
 	/** Callbacks for all the functionality for modifying arguments */
 	void OnRemoveClicked();
 	FReply OnArgMoveUp();
