@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
-#include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
 
 class IDetailCategoryBuilder;
@@ -22,18 +22,13 @@ struct FImgMediaMipMapObjectInfo;
  * Implements a details view customization for the UImgMediaSource class.
  */
 class FImgMediaSourceCustomization
-	: public IDetailCustomization
+	: public IPropertyTypeCustomization
 {
 public:
 
-	/** Virtual destructor. */
-	~FImgMediaSourceCustomization() { }
-
-public:
-
-	//~ IDetailCustomization interface
-
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 public:
 
@@ -42,7 +37,7 @@ public:
 	 *
 	 * @return The new instance.
 	 */
-	static TSharedRef<IDetailCustomization> MakeInstance()
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
 		return MakeShareable(new FImgMediaSourceCustomization());
 	}
@@ -105,13 +100,22 @@ private:
 	/** Callback for getting the visibility of warning icon for invalid SequencePath paths. */
 	EVisibility HandleSequencePathWarningIconVisibility() const;
 
+	/** Returns the property for SequencePath. */
+	TSharedPtr<IPropertyHandle> GetSequencePathProperty() const;
+	/** Returns the property for SequencePath->Path. */
+	TSharedPtr<IPropertyHandle> GetSequencePathPathProperty() const;
+	/** Returns the property for IsPathRelativeToProjectRoot. */
+	TSharedPtr<IPropertyHandle> GetPathRelativeToRootProperty() const;
+	/** Returns the value of IsPathRelativeToProjectRoot. */
+	bool IsPathRelativeToRoot() const;
+	/** Sets the value of IsPathRelativeToProjectRoot. */
+	void SetPathRelativeToRoot(bool bIsPathRelativeToRoot);
+
 private:
 
 	/** Text block widget showing the found proxy directories. */
 	TSharedPtr<SEditableTextBox> ProxiesTextBlock;
 
-	/** Pointer to the SequencePath.Path property handle. */
-	TSharedPtr<IPropertyHandle> SequencePathProperty;
-	/** Pointer to the IsPathRelativeToProjectRoot property handle. */
-	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty;
+	/** Stores our property. */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
 };

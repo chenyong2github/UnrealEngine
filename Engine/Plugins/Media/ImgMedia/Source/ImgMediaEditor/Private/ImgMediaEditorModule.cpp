@@ -45,7 +45,9 @@ protected:
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
-			PropertyModule.RegisterCustomClassLayout(ImgMediaSourceName, FOnGetDetailCustomizationInstance::CreateStatic(&FImgMediaSourceCustomization::MakeInstance));
+#if WITH_EDITORONLY_DATA
+			PropertyModule.RegisterCustomPropertyTypeLayout(FImgMediaSourceCustomizationSequenceProxy::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FImgMediaSourceCustomization::MakeInstance));
+#endif // WITH_EDITORONLY_DATA
 		}
 	}
 
@@ -54,7 +56,9 @@ protected:
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
-			PropertyModule.UnregisterCustomClassLayout(ImgMediaSourceName);
+#if WITH_EDITORONLY_DATA
+			PropertyModule.UnregisterCustomPropertyTypeLayout(FImgMediaSourceCustomizationSequenceProxy::StaticStruct()->GetFName());
+#endif // WITH_EDITORONLY_DATA
 		}
 	}
 

@@ -3,6 +3,7 @@
 #include "ImgMediaSourceCustomization.h"
 
 #include "IMediaModule.h"
+#include "ImgMediaEditorModule.h"
 #include "ImgMediaMipMapInfo.h"
 #include "ImgMediaSource.h"
 #include "GameFramework/Actor.h"
@@ -22,6 +23,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "IDetailPropertyRow.h"
 
@@ -32,89 +34,66 @@
 /* IDetailCustomization interface
  *****************************************************************************/
 
-void FImgMediaSourceCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FImgMediaSourceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	PropertyHandle = InPropertyHandle;
+
 	// customize 'File' category
-	IDetailCategoryBuilder& FileCategory = DetailBuilder.EditCategory("Sequence");
-	{
-		// FilePath
-		SequencePathProperty = DetailBuilder.GetProperty("SequencePath");
-		{
-			IDetailPropertyRow& SequencePathRow = FileCategory.AddProperty(SequencePathProperty);
-
-			SequencePathRow
-				.ShowPropertyButtons(false)
-				.CustomWidget()
-				.NameContent()
-					[
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-									.Font(IDetailLayoutBuilder::GetDetailFont())
-									.Text(LOCTEXT("SequencePathPropertyName", "Sequence Path"))
-									.ToolTipText(SequencePathProperty->GetToolTipText())
-							]
-
-						+ SHorizontalBox::Slot()
-							.FillWidth(1.0f)
-							.HAlign(HAlign_Left)
-							.VAlign(VAlign_Center)
-							.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-							[
-								SNew(SImage)
-									.Image(FCoreStyle::Get().GetBrush("Icons.Warning"))
-									.ToolTipText(LOCTEXT("SequencePathWarning", "The selected image sequence will not get packaged, because its path points to a directory outside the project's /Content/Movies/ directory."))
-									.Visibility(this, &FImgMediaSourceCustomization::HandleSequencePathWarningIconVisibility)
-							]
-					]
-				.ValueContent()
-					.MaxDesiredWidth(0.0f)
-					.MinDesiredWidth(125.0f)
-					[
-						SNew(SFilePathPicker)
-							.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
-							.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.BrowseButtonToolTip(LOCTEXT("SequencePathBrowseButtonToolTip", "Choose a file from this computer"))
-							.BrowseDirectory_Lambda([this]() -> FString
-							{
-								const FString SequencePath = GetSequencePath();
-								return !SequencePath.IsEmpty() ? SequencePath : (FPaths::ProjectContentDir() / TEXT("Movies"));
-							})
-							.FilePath_Lambda([this]() -> FString
-							{
-								return GetSequencePath();
-							})
-							.FileTypeFilter_Lambda([]() -> FString
-							{
-								return TEXT("All files (*.*)|*.*|EXR files (*.exr)|*.exr");
-							})
-							.OnPathPicked(this, &FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked)
-							.ToolTipText(LOCTEXT("SequencePathToolTip", "The path to an image sequence file on this computer"))
-					];
-		}
-
-		PathRelativeToRootProperty = DetailBuilder.GetProperty("IsPathRelativeToProjectRoot");
-	}
-
-	// add 'Proxies' category
-	IDetailCategoryBuilder& ProxiesCategory = DetailBuilder.EditCategory("Proxies", LOCTEXT("ProxiesCategoryName", "Proxies"));
-	{
-		// add 'Proxy Directories' row
-		FDetailWidgetRow& PreviewRow = ProxiesCategory.AddCustomRow(LOCTEXT("ProxiesRowFilterString", "Proxy Directories"));
-
-		PreviewRow.WholeRowContent()
+	HeaderRow
+		.NameContent()
 			[
-				SAssignNew(ProxiesTextBlock, SEditableTextBox)
-					.IsReadOnly(true)
-			];
-	}
+				SNew(SHorizontalBox)
 
-	// Add mipmap info.
-	CustomizeMipMapInfo(DetailBuilder);
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.Text(LOCTEXT("SequencePathPropertyName", "Sequence Path"))
+							.ToolTipText(GetSequencePathProperty()->GetToolTipText())
+					]
+
+				+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(SImage)
+							.Image(FCoreStyle::Get().GetBrush("Icons.Warning"))
+							.ToolTipText(LOCTEXT("SequencePathWarning", "The selected image sequence will not get packaged, because its path points to a directory outside the project's /Content/Movies/ directory."))
+							.Visibility(this, &FImgMediaSourceCustomization::HandleSequencePathWarningIconVisibility)
+					]
+			]
+		.ValueContent()
+			.MaxDesiredWidth(0.0f)
+			.MinDesiredWidth(125.0f)
+			[
+				SNew(SFilePathPicker)
+					.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+					.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.BrowseButtonToolTip(LOCTEXT("SequencePathBrowseButtonToolTip", "Choose a file from this computer"))
+					.BrowseDirectory_Lambda([this]() -> FString
+					{
+						const FString SequencePath = GetSequencePath();
+						return !SequencePath.IsEmpty() ? SequencePath : (FPaths::ProjectContentDir() / TEXT("Movies"));
+					})
+					.FilePath_Lambda([this]() -> FString
+					{
+						return GetSequencePath();
+					})
+					.FileTypeFilter_Lambda([]() -> FString
+					{
+						return TEXT("All files (*.*)|*.*|EXR files (*.exr)|*.exr");
+					})
+					.OnPathPicked(this, &FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked)
+					.ToolTipText(LOCTEXT("SequencePathToolTip", "The path to an image sequence file on this computer"))
+			];
+}
+
+void FImgMediaSourceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
 }
 
 void FImgMediaSourceCustomization::CustomizeMipMapInfo(IDetailLayoutBuilder& DetailBuilder)
@@ -310,7 +289,14 @@ void FImgMediaSourceCustomization::AddCameraMipDistances(IDetailGroup& InCameraG
 FString FImgMediaSourceCustomization::GetSequencePath() const
 {
 	FString FilePath;
-	SequencePathProperty->GetChildHandle("Path")->GetValue(FilePath);
+	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathPathProperty();
+	if (SequencePathProperty.IsValid())
+	{
+		if (SequencePathProperty->GetValue(FilePath) != FPropertyAccess::Success)
+		{
+			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not get SequencePath."));
+		}
+	}
 
 	return FilePath;
 }
@@ -318,8 +304,8 @@ FString FImgMediaSourceCustomization::GetSequencePath() const
 FString FImgMediaSourceCustomization::GetRelativePathRoot() const
 {
 	FString RelativeDir;
-	bool bIsPathRelativeToRoot = false;
-	PathRelativeToRootProperty->GetValue(bIsPathRelativeToRoot);
+	bool bIsPathRelativeToRoot = IsPathRelativeToRoot();
+
 	if (bIsPathRelativeToRoot)
 	{
 		RelativeDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
@@ -329,6 +315,83 @@ FString FImgMediaSourceCustomization::GetRelativePathRoot() const
 		RelativeDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
 	}
 	return RelativeDir;
+}
+
+
+TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathProperty() const
+{
+	TSharedPtr<IPropertyHandle> SequencePathProperty;
+
+	if ((PropertyHandle.IsValid()) && (PropertyHandle->IsValidHandle()))
+	{
+		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+		if (ParentHandle.IsValid())
+		{
+			SequencePathProperty = ParentHandle->GetChildHandle("SequencePath");
+		}
+	}
+
+	return SequencePathProperty;
+}
+
+TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathPathProperty() const
+{
+	TSharedPtr<IPropertyHandle> SequencePathPathProperty;
+
+	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathProperty();
+	if (SequencePathProperty.IsValid())
+	{
+		SequencePathPathProperty = SequencePathProperty->GetChildHandle("Path");
+	}
+
+	return SequencePathPathProperty;
+}
+
+
+TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetPathRelativeToRootProperty() const
+{
+	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty;
+
+	if ((PropertyHandle.IsValid()) && (PropertyHandle->IsValidHandle()))
+	{
+		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+		if (ParentHandle.IsValid())
+		{
+			PathRelativeToRootProperty = ParentHandle->GetChildHandle("IsPathRelativeToProjectRoot");
+		}
+	}
+
+	return PathRelativeToRootProperty;
+}
+
+
+bool FImgMediaSourceCustomization::IsPathRelativeToRoot() const
+{
+	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty = GetPathRelativeToRootProperty();
+
+	bool bIsPathRelativeToRoot = false;
+	if (PathRelativeToRootProperty.IsValid())
+	{
+		if (PathRelativeToRootProperty->GetValue(bIsPathRelativeToRoot) != FPropertyAccess::Success)
+		{
+			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not get IsPathRelativeToProjectRoot."));
+		}
+	}
+
+	return bIsPathRelativeToRoot;
+}
+
+void FImgMediaSourceCustomization::SetPathRelativeToRoot(bool bIsPathRelativeToRoot)
+{
+	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty = GetPathRelativeToRootProperty();
+
+	if (PathRelativeToRootProperty.IsValid())
+	{
+		if (PathRelativeToRootProperty->SetValue(bIsPathRelativeToRoot) != FPropertyAccess::Success)
+		{
+			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not set IsPathRelativeToProjectRoot."));
+		}
+	}
 }
 
 /* FImgMediaSourceCustomization callbacks
@@ -355,19 +418,25 @@ void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FStr
 	}
 	
 	// Update relative to root property.
-	PathRelativeToRootProperty->SetValue(bIsRelativePath);
+	SetPathRelativeToRoot(bIsRelativePath);
 
 	// update property
-	TSharedPtr<IPropertyHandle> SequencePathPathProperty = SequencePathProperty->GetChildHandle("Path");
-	SequencePathPathProperty->SetValue(PickedDir);
+	TSharedPtr<IPropertyHandle> SequencePathPathProperty = GetSequencePathPathProperty();
+	if (SequencePathPathProperty.IsValid())
+	{
+		if (SequencePathPathProperty->SetValue(PickedDir) != FPropertyAccess::Success)
+		{
+			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not set SequencePath."));
+		}
+	}
 }
 
 
 EVisibility FImgMediaSourceCustomization::HandleSequencePathWarningIconVisibility() const
 {
-	FString FilePath;
+	FString FilePath = GetSequencePath();
 
-	if ((SequencePathProperty->GetChildHandle("Path")->GetValue(FilePath) != FPropertyAccess::Success) || FilePath.IsEmpty() || FilePath.Contains(TEXT("://")))
+	if (FilePath.IsEmpty() || FilePath.Contains(TEXT("://")))
 	{
 		return EVisibility::Hidden;
 	}

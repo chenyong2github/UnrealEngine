@@ -15,6 +15,12 @@
 class AActor;
 class FImgMediaMipMapInfo;
 
+/** This provides customized editing of SequencePath. */
+USTRUCT()
+struct IMGMEDIA_API FImgMediaSourceCustomizationSequenceProxy
+{
+	GENERATED_BODY()
+};
 
 /**
  * Media source for EXR image sequences.
@@ -59,6 +65,14 @@ public:
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence)
 	bool bFillGapsInSequence;
+
+#if WITH_EDITORONLY_DATA
+
+	/** This is only used so we can customize editing of SequencePath. */
+	UPROPERTY(EditAnywhere, Transient, Category = Sequence)
+	FImgMediaSourceCustomizationSequenceProxy SequenceProxy;
+
+#endif // WITH_EDITORONLY_DATA
 
 public:
 
@@ -169,7 +183,7 @@ protected:
 protected:
 
 	/** The directory that contains the image sequence files. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence, meta = (EditCondition = "false", EditConditionHides))
 	FDirectoryPath SequencePath;
 
 	/** MipMapInfo object to handle mip maps. */
