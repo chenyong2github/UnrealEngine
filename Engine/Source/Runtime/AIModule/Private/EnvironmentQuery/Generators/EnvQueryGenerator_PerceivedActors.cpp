@@ -104,7 +104,14 @@ void UEnvQueryGenerator_PerceivedActors::GenerateItems(FEnvQueryInstance& QueryI
 
 		const FVector ListenerLocation = ListenerActor->GetActorLocation();
 		TArray<AActor*> LocalPerceivedActors;
-		PerceptionComponent->GetKnownPerceivedActors(SenseToUse, LocalPerceivedActors);
+		if (bIncludeKnownActors)
+		{
+			PerceptionComponent->GetKnownPerceivedActors(SenseToUse, LocalPerceivedActors);
+		}
+		else
+		{
+			PerceptionComponent->GetCurrentlyPerceivedActors(SenseToUse, LocalPerceivedActors);
+		}
 		
 		for (AActor* PerceivedActor : LocalPerceivedActors)
 		{

@@ -28,8 +28,16 @@ protected:
 	TSubclassOf<UEnvQueryContext> ListenerContext;
 
 	/** If set will be used to filter gathered results so that only actors perceived with a given sense are considered */
-	UPROPERTY(EditAnywhere, Category = Generator)
+	UPROPERTY(EditAnywhere, Category=Generator)
 	TSubclassOf<UAISense> SenseToUse;
+
+	/**
+	 * Indicates whether to include all actors known via perception (TRUE) or just the ones actively being perceived 
+	 * at the moment (example "currently visible" as opposed to "seen and the perception stimulus haven't expired yet").
+	 * @see FAIStimulus.bExpired
+	 */
+	UPROPERTY(EditAnywhere, Category=Generator)
+	bool bIncludeKnownActors = true;
 
 	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
