@@ -263,6 +263,13 @@ TArray<UEdGraph*> UAnimGraphNode_BlendSpaceGraphBase::GetSubGraphs() const
 
 void UAnimGraphNode_BlendSpaceGraphBase::DestroyNode()
 {
+	UBlueprint* Blueprint = GetBlueprint();
+	for (UEdGraph* SampleGraph : Graphs)
+	{
+		SampleGraph->Modify();
+		FBlueprintEditorUtils::RemoveGraph(Blueprint, SampleGraph);
+	}
+
 	UEdGraph* GraphToRemove = BlendSpaceGraph;
 	BlendSpaceGraph = nullptr;
 	Graphs.Empty();
@@ -271,7 +278,6 @@ void UAnimGraphNode_BlendSpaceGraphBase::DestroyNode()
 
 	if (GraphToRemove)
 	{
-		UBlueprint* Blueprint = GetBlueprint();
 		GraphToRemove->Modify();
 		FBlueprintEditorUtils::RemoveGraph(Blueprint, GraphToRemove, EGraphRemoveFlags::Recompile);
 	}

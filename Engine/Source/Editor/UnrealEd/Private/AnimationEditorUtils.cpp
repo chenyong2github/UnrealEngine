@@ -861,6 +861,16 @@ namespace AnimationEditorUtils
 #endif
 	}
 
+	void RemovePoseWatchesFromGraph(UAnimBlueprint* AnimBlueprint, class UEdGraph* Graph)
+	{
+#if WITH_EDITORONLY_DATA
+		for (UEdGraphNode* Node : Graph->Nodes)
+		{
+			RemovePoseWatchFromNode(Node, AnimBlueprint);
+		}
+#endif
+	}
+
 	UPoseWatch* FindPoseWatchForNode(const UEdGraphNode* Node, UAnimBlueprint* AnimBlueprintIfKnown)
 	{
 #if WITH_EDITORONLY_DATA

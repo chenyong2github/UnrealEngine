@@ -39,6 +39,7 @@
 #include "AnimGraphNode_RigidBody.h"
 #include "AnimationBlendSpaceSampleGraph.h"
 #include "GraphEditorDragDropAction.h"
+#include "AnimationEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -233,6 +234,12 @@ void UAnimationGraphSchema::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved)
 
 			// Prevent re-entrancy here
 			NodeToDelete->ClearBoundGraph();
+		}
+
+		// Remove pose watches from nodes in this graph
+		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+		{
+			AnimationEditorUtils::RemovePoseWatchesFromGraph(AnimBlueprint, &GraphBeingRemoved);
 		}
 	}
 }
