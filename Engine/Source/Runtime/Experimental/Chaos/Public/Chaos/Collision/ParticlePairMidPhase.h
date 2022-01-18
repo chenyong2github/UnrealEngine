@@ -22,21 +22,6 @@ namespace Chaos
 	class FSingleShapePairCollisionDetector;
 
 	/**
-	 * @brief The result of the test to see whether we can reuse a manifold (when the bodies have not moved much)
-	*/
-	enum class ECollisionRestoreType
-	{
-		// Do not retore the manifold - bodies have moved beyond the threshold
-		None,
-
-		// Restore the manifold exactly as-is - the bodies have barely moved
-		Reuse,
-
-		// Restore the manifold, but the bodies have moved a bit so reproject the contacts
-		Reproject,
-	};
-
-	/**
 	 * @brief Handles collision detection for a pair of simple shapes (i.e., not compound shapes)
 	 * 
 	 * @note this is not used for collisions involving Unions that require a recursive collision test.
@@ -83,13 +68,7 @@ namespace Chaos
 			const FReal Dt);
 
 		/**
-		 * @brief Reactivate the collision exactly as it was last frame
-		 * @return The number of collisions constraints that were restored
-		*/
-		int32 RestoreCollision(const FReal CullDistance, const bool bReproject);
-
-		/**
-		 * @brief Reactivate the constraint (essentially the same as Restore but slightly optimized)
+		 * @brief Reactivate the constraint
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
@@ -100,15 +79,6 @@ namespace Chaos
 		 * This is used by the Resim restore functionality
 		*/
 		void SetCollision(const FPBDCollisionConstraint& Constraint);
-
-		/**
-		 * @brief Whether we want to use manifold restore for this shape type
-		 * @see FParticlePairMidPhase::ShouldRestoreConstraints
-		*/
-		bool EnableManifoldRestore() const
-		{
-			return Flags.bEnableManifoldCheck;
-		}
 
 	private:
 		int32 GenerateCollisionImpl(const FReal CullDistance, const bool bUseCCD, const FReal Dt);
@@ -141,7 +111,7 @@ namespace Chaos
 				uint32 bEnableAABBCheck : 1;
 				uint32 bEnableOBBCheck0 : 1;
 				uint32 bEnableOBBCheck1 : 1;
-				uint32 bEnableManifoldCheck : 1;
+				uint32 bEnableManifoldUpdate : 1;
 			};
 			uint32 Bits;
 		} Flags;
@@ -211,13 +181,7 @@ namespace Chaos
 			EContactShapesType ShapePairType);
 
 		/**
-		 * @brief Reactivate the collision exactly as it was last frame
-		 * @return The number of collisions constraints that were restored
-		*/
-		int32 RestoreCollisions(const FReal CullDistance, const bool bReproject);
-
-		/**
-		 * @brief Reactivate the constraint (essentially the same as Restore but slightly optimized)
+		 * @brief Reactivate the constraint
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
@@ -252,20 +216,6 @@ namespace Chaos
 		FGeometryParticleHandle* Particle1;
 		const FPerShapeData* Shape0;
 		const FPerShapeData* Shape1;
-	};
-
-
-	class FMidPhaseRestoreThresholds
-	{
-	public:
-		FMidPhaseRestoreThresholds()
-			: PositionThreshold(0)
-			, RotationThreshold(0)
-		{
-		}
-
-		FReal PositionThreshold;	// cm
-		FReal RotationThreshold;	// rad
 	};
 
 	/**
@@ -427,18 +377,6 @@ namespace Chaos
 
 		void InitThresholds();
 
-		/**
-		 * @brief Whether we should reuse the constraint as-is and skip the narrow phase
-		 * This will be true if neither particle has moved much. 
-		 * This is non-const because it updates some position tracking data.
-		*/
-		ECollisionRestoreType ShouldRestoreConstraints(const FReal Dt);
-
-		/**
-		 * @brief If the particles have not moved muc, reactivate all the colisions and skip the narrow phase.
-		*/
-		bool TryRestoreConstraints(const FReal Dt, const FReal CullDistance);
-
 
 		FGeometryParticleHandle* Particle0;
 		FGeometryParticleHandle* Particle1;
@@ -455,7 +393,6 @@ namespace Chaos
 			{
 				uint32 bIsCCD : 1;
 				uint32 bIsInitialized : 1;
-				uint32 bRestorable : 1;
 				uint32 bIsSleeping : 1;
 			};
 			uint32 Bits;
@@ -466,14 +403,6 @@ namespace Chaos
 		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
 		int32 ParticleCollisionsIndex0;
 		int32 ParticleCollisionsIndex1;
-
-		// The particle transforms the last time the collisions were updated (used to determine whether we can restore contacts)
-		FMidPhaseRestoreThresholds RestoreThresholdZeroContacts;
-		FMidPhaseRestoreThresholds RestoreThreshold;
-		FVec3 RestoreParticleP0;
-		FVec3 RestoreParticleP1;
-		FRotation3 RestoreParticleQ0;
-		FRotation3 RestoreParticleQ1;
 
 		// A number based on the size of the dynamic objects used to scale cull distance
 		FReal CullDistanceScale;

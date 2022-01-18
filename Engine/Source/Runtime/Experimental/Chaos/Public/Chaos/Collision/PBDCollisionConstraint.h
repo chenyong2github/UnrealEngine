@@ -74,6 +74,7 @@ namespace Chaos
 			struct
 			{
 				uint8 bWasRestored : 1;
+				uint8 bWasReplaced : 1;
 				uint8 bWasFrictionRestored : 1;
 				uint8 bInsideStaticFrictionCone : 1;		// Whether we are inside the static friction cone
 			};
@@ -97,9 +98,8 @@ namespace Chaos
 	class CHAOS_API FCollisionContact
 	{
 	public:
-		FCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FBVHParticles* InSimplicial0 = nullptr, const FImplicitObject* InImplicit1 = nullptr, const FBVHParticles* InSimplicial1 = nullptr)
-			: bDisabled(false)
-			, Friction(0)
+		FCollisionContact()
+			: Friction(0)
 			, AngularFriction(0)
 			, Restitution(0)
 			, RestitutionPadding(0)
@@ -108,15 +108,8 @@ namespace Chaos
 			, InvMassScale1(1.f)
 			, InvInertiaScale0(1.f)
 			, InvInertiaScale1(1.f)
-			, ShapesType(EContactShapesType::Unknown)
 		{
-			Implicit[0] = InImplicit0;
-			Implicit[1] = InImplicit1;
-			Simplicial[0] = InSimplicial0;
-			Simplicial[1] = InSimplicial1;
 		}
-
-		bool bDisabled;
 
 		FReal Friction;			// @todo(chaos): rename DynamicFriction
 		FReal AngularFriction;	// @todo(chaos): rename StaticFriction
@@ -127,16 +120,11 @@ namespace Chaos
 		FReal InvMassScale1;
 		FReal InvInertiaScale0;
 		FReal InvInertiaScale1;
-		EContactShapesType ShapesType;
 
 		void Reset()
 		{
-			bDisabled = false;
 			RestitutionPadding = 0;
 		}
-
-		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
-		const FBVHParticles* Simplicial[2]; // {Of Particle[0], Of Particle[1]}
 	};
 
 
@@ -223,6 +211,25 @@ namespace Chaos
 
 		/**
 		 * @brief Create a contact constraint
+		 * Initializes a constraint stored inline in an object. Only intended to be called once.
+		 * Does not reinitialize all data so not intended to reset a constraint for reuse with different particles etc.
+		*/
+		static void MakeInline(
+			FGeometryParticleHandle* Particle0,
+			const FImplicitObject* Implicit0,
+			const FBVHParticles* Simplicial0,
+			const FRigidTransform3& ImplicitLocalTransform0,
+			FGeometryParticleHandle* Particle1,
+			const FImplicitObject* Implicit1,
+			const FBVHParticles* Simplicial1,
+			const FRigidTransform3& ImplicitLocalTransform1,
+			const FReal InCullDistance,
+			const bool bInUseManifold,
+			const EContactShapesType ShapesType,
+			FPBDCollisionConstraint& OutConstraint);
+
+		/**
+		 * @brief Create a contact constraint
 		 * Allocates a constraint on the heap, with a permanent address.
 		 * May return null if we hit the contact limit for the scene.
 		*/
@@ -266,13 +273,15 @@ namespace Chaos
 
 		bool ContainsManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS) const
 		{
-			return A == Manifold.Implicit[0] && B == Manifold.Implicit[1] && AS == Manifold.Simplicial[0] && BS == Manifold.Simplicial[1];
+			return A == Implicit[0] && B == Implicit[1] && AS == Simplicial[0] && BS == Simplicial[1];
 		}
 
 		void SetManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS)
 		{
-			Manifold.Implicit[0] = A; Manifold.Implicit[1] = B;
-			Manifold.Simplicial[0] = AS; Manifold.Simplicial[1] = BS;
+			Implicit[0] = A; 
+			Implicit[1] = B;
+			Simplicial[0] = AS; 
+			Simplicial[1] = BS;
 		}
 
 		//
@@ -286,13 +295,13 @@ namespace Chaos
 		FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Particle[ParticleIndex]; }
 		const FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Particle[ParticleIndex]; }
 
-		const FImplicitObject* GetImplicit0() const { return Manifold.Implicit[0]; }
-		const FImplicitObject* GetImplicit1() const { return Manifold.Implicit[1]; }
-		const FImplicitObject* GetImplicit(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Manifold.Implicit[ParticleIndex]; }
+		const FImplicitObject* GetImplicit0() const { return Implicit[0]; }
+		const FImplicitObject* GetImplicit1() const { return Implicit[1]; }
+		const FImplicitObject* GetImplicit(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Implicit[ParticleIndex]; }
 
-		const FBVHParticles* GetCollisionParticles0() const { return Manifold.Simplicial[0]; }
-		const FBVHParticles* GetCollisionParticles1() const { return Manifold.Simplicial[1]; }
-		const FBVHParticles* GetCollisionParticles(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Manifold.Simplicial[ParticleIndex]; }
+		const FBVHParticles* GetCollisionParticles0() const { return Simplicial[0]; }
+		const FBVHParticles* GetCollisionParticles1() const { return Simplicial[1]; }
+		const FBVHParticles* GetCollisionParticles(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Simplicial[ParticleIndex]; }
 
 		const FReal GetCollisionMargin0() const { return CollisionMargins[0]; }
 		const FReal GetCollisionMargin1() const { return CollisionMargins[1]; }
@@ -309,8 +318,8 @@ namespace Chaos
 		void ResetPhi(FReal InPhi) { ClosestManifoldPointIndex = INDEX_NONE; }
 		FReal GetPhi() const { return (ClosestManifoldPointIndex != INDEX_NONE) ? ManifoldPoints[ClosestManifoldPointIndex].ContactPoint.Phi : TNumericLimits<FReal>::Max(); }
 
-		void SetDisabled(bool bInDisabled) { Manifold.bDisabled = bInDisabled; }
-		bool GetDisabled() const { return Manifold.bDisabled; }
+		void SetDisabled(bool bInDisabled) { Flags.bDisabled = bInDisabled; }
+		bool GetDisabled() const { return Flags.bDisabled; }
 
 		virtual void SetIsSleeping(const bool bInIsSleeping) override;
 
@@ -352,7 +361,7 @@ namespace Chaos
 		void SetDynamicFriction(const FReal InDynamicFriction) { Manifold.Friction = InDynamicFriction; }
 		FReal GetDynamicFriction() const { return Manifold.Friction; }
 
-		EContactShapesType GetShapesType() const { return Manifold.ShapesType; }
+		EContactShapesType GetShapesType() const { return ShapesType; }
 
 		FString ToString() const;
 
@@ -404,8 +413,17 @@ namespace Chaos
 		const FRigidTransform3& GetShapeWorldTransform0() const { return ShapeWorldTransform0; }
 		const FRigidTransform3& GetShapeWorldTransform1() const { return ShapeWorldTransform1; }
 
-		void SetShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1);
-		void SetLastShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1);
+		void SetShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1)
+		{
+			ShapeWorldTransform0 = InShapeWorldTransform0;
+			ShapeWorldTransform1 = InShapeWorldTransform1;
+		}
+
+		void SetLastShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1)
+		{
+			LastShapeWorldPositionDelta = InShapeWorldTransform0.GetTranslation() - InShapeWorldTransform1.GetTranslation();
+			LastShapeWorldRotationDelta = InShapeWorldTransform0.GetRotation().Inverse() * InShapeWorldTransform1.GetRotation();
+		}
 
 		bool UpdateAndTryRestoreManifold();
 		void ResetActiveManifoldContacts();
@@ -440,12 +458,6 @@ namespace Chaos
 		 * @brief Whether this constraint was fully restored from a previous tick, and the manifold should be reused as-is
 		*/
 		bool WasManifoldRestored() const { return Flags.bWasManifoldRestored; }
-
-		/**
-		 * @brief Restore the contact manifold (assumes relative motion of the two bodies is small)
-		 * @see IsWithinManifoldRestorationThreshold
-		*/
-		void RestoreManifold(const bool bReproject);
 
 		/**
 		 * Determine the constraint direction based on Normal and Phi.
@@ -567,18 +579,19 @@ namespace Chaos
 		// @todo(chaos): Only intended for use by the legacy solvers - remove it
 		void UpdateManifoldPointPhi(const int32 ManifoldPointIndex);
 
-		void ReprojectManifoldContacts();
-		void ReprojectManifoldPoint(const int32 ManifoldPointIndex);
-
 		void InitMarginsAndTolerances(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1);
 
 	private:
 		FReal CalculateSavedManifoldPointScore(const FSavedManifoldPoint& SavedManifoldPoint, const FManifoldPoint& ManifoldPoint, const FReal DistanceToleranceSq) const;
 
-		//@todo(chaos): make this stuff private
-		FRigidTransform3 ImplicitTransform[2];		// Local-space transforms of the shape (relative to particle)
+		// Local-space transforms of the shape (relative to particle)
+		FRigidTransform3 ImplicitTransform[2];
+		
 		FGeometryParticleHandle* Particle[2];
-		FCollisionContact Manifold;// @todo(chaos): rename
+		const FImplicitObject* Implicit[2];
+		const FBVHParticles* Simplicial[2];
+		FCollisionContact Manifold;// @todo(chaos): rename to FCollisionMaterial or something
+		FReal Stiffness;
 
 	public:
 		FVec3 AccumulatedImpulse;					// @todo(chaos): we need to accumulate angular impulse separately
@@ -588,9 +601,14 @@ namespace Chaos
 
 	private:
 		FPBDCollisionConstraintContainerCookie ContainerCookie;
+		EContactShapesType ShapesType;
 		ECollisionCCDType CCDType;
-		FReal Stiffness;
 
+		// The shape transforms at the current particle transforms
+		FRigidTransform3 ShapeWorldTransform0;
+		FRigidTransform3 ShapeWorldTransform1;
+
+		// The separation distance at which we don't track contacts
 		FReal CullDistance;
 
 		// The margins to use during collision detection. We don't always use the margins on the shapes directly.
@@ -601,38 +619,40 @@ namespace Chaos
 		// margins of the two shapes, as well as their types
 		FReal CollisionTolerance;
 
-		FReal FrictionPositionTolerance;
-
+		// The index into ManifoldPoints of the point with the lowest Phi
 		int32 ClosestManifoldPointIndex;
+
+		// Used by manifold point injection to see how many points were in the manifold before UpdateAndTryRestore
+		int32 ExpectedNumManifoldPoints;
 
 		union FFlags
 		{
 			FFlags() : Bits(0) {}
 			struct
 			{
-				bool bUseManifold;
-				bool bUseIncrementalManifold;
-				bool bWasManifoldRestored;
-				bool bIsQuadratic0;
-				bool bIsQuadratic1;
+				uint32 bDisabled : 1;
+				uint32 bUseManifold : 1;
+				uint32 bUseIncrementalManifold : 1;
+				uint32 bWasManifoldRestored : 1;
+				uint32 bIsQuadratic0 : 1;
+				uint32 bIsQuadratic1 : 1;
 			};
 			uint32 Bits;
 		} Flags;
 
+		// Relative transform the last time we ran the narrow phase
+		// Used to detect when the bodies have moved too far to reues the manifold
+		FVec3 LastShapeWorldPositionDelta;
+		FRotation3 LastShapeWorldRotationDelta;
+
 		// These are only needed here while we still have the legacy solvers (not QuasiPBD)
 		FSolverBody* SolverBodies[2];
-
-		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
-		TCArray<FSavedManifoldPoint, MaxManifoldPoints> SavedManifoldPoints;
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;
 
-		FRigidTransform3 ShapeWorldTransform0;
-		FRigidTransform3 ShapeWorldTransform1;
-		FRigidTransform3 LastShapeWorldTransform0;
-		FRigidTransform3 LastShapeWorldTransform1;
-		int32 ExpectedNumManifoldPoints;
+		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
+		TCArray<FSavedManifoldPoint, MaxManifoldPoints> SavedManifoldPoints;
 	};
 
 

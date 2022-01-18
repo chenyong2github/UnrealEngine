@@ -166,8 +166,9 @@ namespace Chaos
 		}
 
 	private:
-		ElementType Elements[MaxElements];
+		// Element count before array for better cache behaviour
 		int32 NumElements;
+		ElementType Elements[MaxElements];
 	};
 
 
