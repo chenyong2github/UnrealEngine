@@ -205,7 +205,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.AutoWidth()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.Padding(3)
+		.Padding(FMargin(4.0f,5.0f))
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("AdditiveBasePoseLabel", "Base Pose"))
@@ -214,9 +214,8 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 		// if additive, let them choose base pose
 		+ SHorizontalBox::Slot()
-		.FillWidth(1)
-		.HAlign(HAlign_Fill)
-		.Padding(3)
+		.AutoWidth()
+		.Padding(FMargin(4.0f,5.0f))
 		[
 			SAssignNew(BasePoseComboBox, SSearchableComboBox)
 			.OptionsSource(&BasePoseComboList)
@@ -225,7 +224,6 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			.OnComboBoxOpening(this, &FPoseAssetDetails::OnBasePoseComboOpening)
 			.InitiallySelectedItem(InitialSelectedPose)
 			.IsEnabled(this, &FPoseAssetDetails::CanSelectBasePose)
-			.ContentPadding(3)
 			.Content()
 			[
 				SNew(STextBlock)
@@ -235,22 +233,10 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		]
-	];
 
-	AdditiveCategory.AddCustomRow(LOCTEXT("AdditiveSettingCategoryLabel_Apply", "AdditiveSetting_ApplyButton"))
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("DummyText"," "))
-	]
-	.ValueContent()
-	.MinDesiredWidth(200)
-	[
-		SNew(SBox)
-		.Padding(5)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.WidthOverride(200)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(FMargin(4.0f,5.0f))
 		[
 			// apply button 
 			SNew(SButton)
@@ -258,7 +244,8 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			.ToolTipText(LOCTEXT("ApplySettingButton_Tooltip", "Apply Additive Setting changes"))
 			.OnClicked(this, &FPoseAssetDetails::OnApplyAdditiveSettings)
 			.HAlign(HAlign_Center)
-			.IsEnabled(this, &FPoseAssetDetails::CanApplySettings)
+			.VAlign(VAlign_Center)
+			.Visibility(this, &FPoseAssetDetails::CanApplySettings)
 		]
 	];
 
@@ -277,30 +264,25 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	.ValueContent()
 	.MinDesiredWidth(200)
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
 			SNew(SObjectPropertyEntryBox)
 			.AllowedClass(UAnimSequence::StaticClass())
 			.OnShouldFilterAsset(this, &FPoseAssetDetails::ShouldFilterAsset)
 			.PropertyHandle(SourceAnimationPropertyHandle)
 		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SBox)
-			.Padding(5)
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.f, 5.f))
+		.AutoWidth()
+		[			
+			SNew(SButton)			
+			.Text(LOCTEXT("UpdateSource_Lable", "Update Source"))
+			.ToolTipText(LOCTEXT("UpdateSource_Tooltip", "Update Poses From Source Animation"))
+			.OnClicked(this, &FPoseAssetDetails::OnUpdatePoseSourceAnimation)
+			.IsEnabled(this, &FPoseAssetDetails::IsUpdateSourceEnabled)
 			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.WidthOverride(100)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("UpdateSource_Lable", "Update Source"))
-				.ToolTipText(LOCTEXT("UpdateSource_Tooltip", "Update Pose From Source Animation"))
-				.OnClicked(this, &FPoseAssetDetails::OnUpdatePoseSourceAnimation)
-				.HAlign(HAlign_Center)
-			]
 		]
 	];
 }
@@ -578,15 +560,15 @@ void FPoseAssetDetails::CachePoseAssetData()
 	 return FReply::Handled();
  }
 
- bool FPoseAssetDetails::CanApplySettings() const
+ EVisibility FPoseAssetDetails::CanApplySettings() const
  {
 	 if (PoseAsset.IsValid())
 	 {
 		 bool bIsAdditiveAsset = PoseAsset->IsValidAdditive();
-		 return (bCachedAdditive != bIsAdditiveAsset || (bIsAdditiveAsset && CachedBasePoseIndex != PoseAsset->GetBasePoseIndex()));
+		 return (bCachedAdditive != bIsAdditiveAsset || (bIsAdditiveAsset && CachedBasePoseIndex != PoseAsset->GetBasePoseIndex())) ? EVisibility::Visible : EVisibility::Collapsed;
 	 }
 
-	 return false;
+	 return EVisibility::Collapsed;
  }
 
  FReply FPoseAssetDetails::OnApplyAdditiveSettings()
@@ -677,5 +659,19 @@ void FPoseAssetDetails::CachePoseAssetData()
 	 }
 	 return FReply::Handled();
  }
+
+bool FPoseAssetDetails::IsUpdateSourceEnabled() const
+{
+	const UObject* ObjectSet;
+	SourceAnimationPropertyHandle->GetValue(ObjectSet);
+
+	const UAnimSequence* AnimSequenceSelected = Cast<UAnimSequence>(ObjectSet);
+	if (AnimSequenceSelected && PoseAsset.IsValid())
+	{
+		return (PoseAsset->SourceAnimation && PoseAsset->SourceAnimation->GetRawDataGuid() != PoseAsset->SourceAnimationRawDataGUID);		
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

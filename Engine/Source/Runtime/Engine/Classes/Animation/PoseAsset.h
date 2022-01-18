@@ -186,6 +186,10 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Category=Source, EditAnywhere)
 	TObjectPtr<UAnimSequence> SourceAnimation;
+
+	/** GUID cached when the contained poses were last updated according to SourceAnimation - used to keep track of out-of-date/sync data*/ 
+	UPROPERTY()	
+	FGuid SourceAnimationRawDataGUID;
 #endif // WITH_EDITORONLY_DATA
 
 	/**

@@ -75,7 +75,7 @@ private:
 	int32 CachedBasePoseIndex;
 	void CachePoseAssetData();
 
-	bool CanApplySettings() const;
+	EVisibility CanApplySettings() const;
 	FReply OnApplyAdditiveSettings();
 
 	TSharedPtr<IPropertyHandle> SourceAnimationPropertyHandle;
@@ -83,6 +83,7 @@ private:
 	void OnSourceAnimationChanged(const FAssetData& AssetData);
 	bool ShouldFilterAsset(const FAssetData& AssetData);
 	FReply OnUpdatePoseSourceAnimation();
+	bool IsUpdateSourceEnabled() const;
 
 	FText GetButtonText() const;
 };

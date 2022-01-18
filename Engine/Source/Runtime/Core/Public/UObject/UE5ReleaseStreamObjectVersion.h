@@ -84,6 +84,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Unified volumetric cloud component quality sample count slider between main and reflection views for consistency
 		VolumetricCloudSampleCountUnification,
 
+		// Pose asset GUID generated from source AnimationSequence
+		PoseAssetRawDataGUID,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

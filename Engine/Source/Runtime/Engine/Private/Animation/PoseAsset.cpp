@@ -11,8 +11,10 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "PoseAsset"
 
@@ -908,6 +910,18 @@ void UPoseAsset::PostLoad()
     {
 		PostProcessData();
     }
+
+	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::PoseAssetRawDataGUID)
+	{
+		if (SourceAnimation != nullptr && (!SourceAnimationRawDataGUID.IsValid() || SourceAnimationRawDataGUID != SourceAnimation->GetRawDataGuid()))
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("AssetName"), FText::FromString(GetPathName()));
+			Args.Add(TEXT("SourceAsset"), FText::FromString(SourceAnimation->GetPathName()));
+			const FText ResultText = FText::Format(LOCTEXT("PoseAssetSourceOutOfDate", "PoseAsset {AssetName} is out-of-date with its source animation {SourceAsset}"), Args);
+			UE_LOG(LogAnimation, Warning,TEXT("%s"), *ResultText.ToString());
+		}
+	}	
 #endif // WITH_EDITOR
 
 	// fix curve names
@@ -1282,6 +1296,11 @@ void UPoseAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				ConvertToAdditivePose(GetBasePoseIndex());
 			}
 		}
+
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseAsset, SourceAnimation))
+		{
+			SourceAnimationRawDataGUID.Invalidate();
+		}
 	}
 }
 
@@ -1348,6 +1367,7 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 		{
 			SetSkeleton(TargetSkeleton);
 			SourceAnimation = AnimSequence;
+			SourceAnimationRawDataGUID = AnimSequence->GetRawDataGuid();
 
 			// reinitialize, now we're making new pose from this animation
 			Reinitialize();
