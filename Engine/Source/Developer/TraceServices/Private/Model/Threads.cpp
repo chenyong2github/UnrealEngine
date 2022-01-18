@@ -27,7 +27,7 @@ FThreadProvider::~FThreadProvider()
 
 void FThreadProvider::AddGameThread(uint32 Id)
 {
-	const FString Name = *FName(NAME_GameThread).GetPlainNameString();
+	const FString Name = FName(NAME_GameThread).GetPlainNameString();
 	AddThread(Id, *Name, EThreadPriority(-2));
 }
 
@@ -50,7 +50,11 @@ void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Pr
 	}
 	if (Name != nullptr)
 	{
-		ThreadInfo->Name = Session.StoreString(Name);
+		if (Name[0] != 0)
+		{
+			ThreadInfo->Name = Session.StoreString(Name);
+		}
+
 		if (!FCString::Strcmp(Name, TEXT("RHIThread"))) //-V1051
 		{
 			const TCHAR* GroupName = Session.StoreString(TEXT("Render"));

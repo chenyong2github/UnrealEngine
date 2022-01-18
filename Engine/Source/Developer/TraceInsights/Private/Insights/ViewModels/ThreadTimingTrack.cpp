@@ -500,20 +500,25 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 			{
 				// Check if this thread is part of a group?
 				bool bIsGroupVisible = bShowHideAllCpuTracks;
-				const TCHAR* const GroupName = ThreadInfo.GroupName ? ThreadInfo.GroupName : ThreadInfo.Name;
-				if (GroupName != nullptr)
+				const TCHAR* GroupName = ThreadInfo.GroupName;
+				if (!GroupName || *GroupName == 0)
 				{
-					if (!ThreadGroups.Contains(GroupName))
-					{
-						//UE_LOG(TimingProfiler, Log, TEXT("New CPU Thread Group (%d) : \"%s\""), ThreadGroups.Num() + 1, GroupName);
-						ThreadGroups.Add(GroupName, { GroupName, bIsGroupVisible, 0, Order });
-					}
-					else
-					{
-						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
-						bIsGroupVisible = ThreadGroup.bIsVisible;
-						ThreadGroup.Order = Order;
-					}
+					GroupName = ThreadInfo.Name;
+				}
+				if (!GroupName || *GroupName == 0)
+				{
+					GroupName = TEXT("Other Threads");
+				}
+				if (!ThreadGroups.Contains(GroupName))
+				{
+					// Note: The GroupName pointer should be valid for the duration of the session.
+					ThreadGroups.Add(GroupName, { GroupName, bIsGroupVisible, 0, Order });
+				}
+				else
+				{
+					FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
+					bIsGroupVisible = ThreadGroup.bIsVisible;
+					ThreadGroup.Order = Order;
 				}
 
 				// Check if there is an available Asset Loading track for this thread.
