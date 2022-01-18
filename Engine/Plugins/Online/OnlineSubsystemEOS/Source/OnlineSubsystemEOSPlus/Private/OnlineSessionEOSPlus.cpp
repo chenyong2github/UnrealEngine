@@ -387,7 +387,7 @@ bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, F
 		return EOSSessionInterface->CreateSession(*Id->GetEOSNetId(), SessionName, NewSessionSettings);
 	}
 	// Otherwise create the platform version
-	return EOSSessionInterface->CreateSession(*Id->GetBaseNetId(), SessionName, NewSessionSettings);;
+	return BaseSessionInterface->CreateSession(*Id->GetBaseNetId(), SessionName, NewSessionSettings);;
 }
 
 bool FOnlineSessionEOSPlus::StartSession(FName SessionName)
