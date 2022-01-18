@@ -91,6 +91,8 @@ public:
 	void Swap(FVulkanRayTracingGeometry& Other);
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
 
+	const FRayTracingGeometryInitializer& GetInitializer() const { return Initializer; }
+
 private:
 	FVulkanDevice* const Device = nullptr;
 
@@ -120,6 +122,11 @@ public:
 
 	FRayTracingAccelerationStructureSize SizeInfo;
 
+	virtual FRHIShaderResourceView* GetMetadataBufferSRV() const override final
+	{
+		return PerInstanceGeometryParameterSRV.GetReference();
+	}
+
 private:
 	FVulkanDevice* const Device = nullptr;
 
@@ -137,6 +144,11 @@ private:
 	TRefCountPtr<FVulkanShaderResourceView> AccelerationStructureView;
 	
 	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
+
+	// Buffer that contains per-instance index and vertex buffer binding data
+	TRefCountPtr<FVulkanResourceMultiBuffer> PerInstanceGeometryParameterBuffer;
+	TRefCountPtr<FVulkanShaderResourceView> PerInstanceGeometryParameterSRV;
+	void BuildPerInstanceGeometryParameterBuffer();
 };
 
 class FVulkanRayTracingPipelineState : public FRHIRayTracingPipelineState

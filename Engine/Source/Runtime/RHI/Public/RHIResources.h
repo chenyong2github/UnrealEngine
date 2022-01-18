@@ -1949,6 +1949,14 @@ class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure
 {
 public:
 	virtual const FRayTracingSceneInitializer2& GetInitializer() const = 0;
+
+	// Returns a buffer view for RHI-specific system parameters associated with this scene.
+	// This may be needed to access ray tracing geometry data in shaders that use ray queries.
+	// Returns NULL if current RHI does not require this buffer.
+	virtual FRHIShaderResourceView* GetMetadataBufferSRV() const
+	{
+		return nullptr;
+	}
 };
 
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;

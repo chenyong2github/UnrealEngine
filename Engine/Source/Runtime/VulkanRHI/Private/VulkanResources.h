@@ -1193,7 +1193,7 @@ public:
 	}
 
 #if VULKAN_RHI_RAYTRACING
-	VkDeviceAddress GetDeviceAddress();
+	VkDeviceAddress GetDeviceAddress() const;
 #endif
 
 protected:
