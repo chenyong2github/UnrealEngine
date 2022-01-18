@@ -44,6 +44,8 @@ UENUM()
 UENUM()
 enum class EIOSMetalShaderStandard : uint8
 {
+    /** Metal Shader 2.2 is the minimum as of UE5.0*/
+    IOSMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.2 (iOS 13.0/tvOS 13.0)"),
     /** Metal Shaders Compatible With iOS 13.0/tvOS 13.0 or later (std=ios-metal2.2) */
     IOSMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (iOS 13.0/tvOS 13.0)"),
     /** Metal Shaders Compatible With iOS 14.0/tvOS 14.0 or later (std=ios-metal2.3) */
@@ -439,10 +441,9 @@ public:
 	bool bDisableHTTPS;
 
 
-    // The maximum supported Metal shader langauge version.
-    // This defines what features may be used and OS versions supported.
-    UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Max. Metal Shader Standard To Target", ConfigRestartRequired = true))
-	uint8 MaxShaderLanguageVersion;
+    // The Metal shader language version which will be used when compiling the shaders.
+    UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Metal Shader Standard To Target", ConfigRestartRequired = true))
+	uint8 MetalLanguageVersion;
 	
 	/**
 	 * Whether to use the Metal shading language's "fast" intrinsics.

@@ -818,7 +818,7 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 
     // Handle max. shader version a little specially.
     {
-        ShaderVersionPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MaxShaderLanguageVersion));
+        ShaderVersionPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MetalLanguageVersion));
 		ShaderVersionPropertyHandle->SetOnPropertyValueChanged(OnUpdateShaderStandardWarning);
 		
 		// Drop-downs for setting type of lower and upper bound normalization
@@ -1877,38 +1877,32 @@ FText FIOSTargetSettingsCustomization::GetMinVersionDesc() const
 
 void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 {
-	FPropertyAccess::Result Res = ShaderVersionPropertyHandle->SetValue((uint8)Value);
-	check(Res == FPropertyAccess::Success);
-	
-	if (MinOSPropertyHandle.IsValid())
-	{
-		FText Message;
-		
-		uint8 EnumValue = (uint8)EIOSVersion::IOS_13;
-		if (MinOSPropertyHandle.IsValid())
-		{
-			MinOSPropertyHandle->GetValue(EnumValue);
-		}
-		
-		bool bMRTEnabled = false;
-		if (MRTPropertyHandle.IsValid())
-		{
-			MRTPropertyHandle->GetValue(bMRTEnabled);
-		}
-		
-		// make sure we never set the min version to less than current supported
-		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_13))
-		{
-			SetMinVersion((int32)EIOSVersion::IOS_13);
-		}
+    FPropertyAccess::Result Res = ShaderVersionPropertyHandle->SetValue((uint8)Value);
+    check(Res == FPropertyAccess::Success);
 
-		
-		ShaderVersionWarningTextBox->SetError(Message);
-	}
-	else
-	{
-		ShaderVersionWarningTextBox->SetError(TEXT(""));
-	}
+    if (MinOSPropertyHandle.IsValid())
+    {
+        uint8 IOSVersion = (uint8)EIOSVersion::IOS_13;
+        if (MinOSPropertyHandle.IsValid())
+        {
+            MinOSPropertyHandle->GetValue(IOSVersion);
+        }
+
+        ShaderVersionWarningTextBox->SetError(TEXT(""));
+
+        switch (IOSVersion)
+        {
+            case (uint8)EIOSVersion::IOS_13:
+                if (Value != 0 && Value < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2){Value = (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2; ShaderVersionWarningTextBox->SetError(TEXT("Metal 2.2 is the minimum for iOS13")); return;}
+                break;;
+            case (uint8)EIOSVersion::IOS_14:
+                if (Value != 0 && Value < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3){Value = (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3; ShaderVersionWarningTextBox->SetError(TEXT("Metal 2.3 is the minimum for iOS14")); return;}
+                break;
+            case (uint8)EIOSVersion::IOS_15:
+                if (Value != 0 && Value < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_4){Value = (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_4; ShaderVersionWarningTextBox->SetError(TEXT("Metal 2.4 is the minimum for iOS15")); return;}
+                break;
+        }
+    }
 }
 
 void FIOSTargetSettingsCustomization::UpdateShaderStandardWarning()
@@ -1960,9 +1954,9 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 			}
 			
 			ShaderVersionPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2)
+			if (EnumValue < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum)
 			{
-				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2);
+				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum);
 			}
 		}
 		else

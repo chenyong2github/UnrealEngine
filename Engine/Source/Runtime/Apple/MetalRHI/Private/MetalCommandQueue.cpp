@@ -26,25 +26,20 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 , ParallelCommandLists(0)
 , RuntimeDebuggingLevel(EMetalDebugLevelOff)
 {
-	int32 MaxShaderVersion = 0;
 	int32 IndirectArgumentTier = 0;
-	int32 DefaultMaxShaderVersion = 5; // MSL v2.2
-	int32 MinShaderVersion = 5; // MSL v2.2
+    int32 MetalShaderVersion = 0;
 #if PLATFORM_MAC
 	const TCHAR* const Settings = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
 #else
 	const TCHAR* const Settings = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
 #endif
-    if(!GConfig->GetInt(Settings, TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
-	{
-		MaxShaderVersion = DefaultMaxShaderVersion;
-	}
-	if(!GConfig->GetInt(Settings, TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni))
+    GConfig->GetInt(Settings, TEXT("MetalLanguageVersion"), MetalShaderVersion, GEngineIni);
+	
+    if(!GConfig->GetInt(Settings, TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni))
 	{
 		IndirectArgumentTier = 0;
 	}
-	MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
-	ValidateVersion(MaxShaderVersion);
+	ValidateVersion(MetalShaderVersion);
 
 	if(MaxNumCommandBuffers == 0)
 	{

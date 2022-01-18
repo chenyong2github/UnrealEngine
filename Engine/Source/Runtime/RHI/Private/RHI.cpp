@@ -1773,44 +1773,36 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
 	return TEXT("Unknown");
 }
 
-RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
+RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform)
 {
-	uint32 Version = 0;
-	if (IsMetalPlatform(Platform))
+    if (IsMetalPlatform(Platform))
 	{
 		if (IsPCPlatform(Platform))
 		{
-			static int32 MaxShaderVersion = -1;
-			if (MaxShaderVersion < 0)
-			{
-				MaxShaderVersion = 7; // MSL v2.4
-				int32 MinShaderVersion = 5; // MSL v2.2
-				if(!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
-				{
-					MaxShaderVersion = 0;
-				}
-				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
-			}
-			Version = (uint32)MaxShaderVersion;
+            static int32 MacMetalShaderLanguageVersion = -1;
+            if (MacMetalShaderLanguageVersion == -1)
+            {
+                if (!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("MetalLanguageVersion"), MacMetalShaderLanguageVersion, GEngineIni))
+                {
+                    MacMetalShaderLanguageVersion = 0; // 0 means default EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+                }
+            }
+            return MacMetalShaderLanguageVersion;
 		}
 		else
 		{
-			static int32 MaxShaderVersion = -1;
-			if (MaxShaderVersion < 0)
-			{
-				MaxShaderVersion = 7;
-				int32 MinShaderVersion = 5;
-				if(!GConfig->GetInt(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
-				{
-					MaxShaderVersion = 0;
-				}
-                
-				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
-			}
-			Version = (uint32)MaxShaderVersion;
-		}
+            static int32 IOSMetalShaderLanguageVersion = -1;
+            if (IOSMetalShaderLanguageVersion == -1)
+            {
+                if (!GConfig->GetInt(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("MetalLanguageVersion"), IOSMetalShaderLanguageVersion, GEngineIni))
+                {
+                	IOSMetalShaderLanguageVersion = 0;  // 0 means default EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum
+                }
+            }
+            return IOSMetalShaderLanguageVersion;
+        }
 	}
-	return Version;
+	return 0;
 }
 
 static ERHIFeatureLevel::Type GRHIMobilePreviewFeatureLevel = ERHIFeatureLevel::Num;
@@ -1854,7 +1846,7 @@ RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatf
 	if (IsMetalPlatform(Platform))
 	{
 		static constexpr uint32 METAL_TEXTUREBUFFER_SHADER_LANGUAGE_VERSION = 4;
-		if (METAL_TEXTUREBUFFER_SHADER_LANGUAGE_VERSION <= RHIGetShaderLanguageVersion(Platform))
+		if (METAL_TEXTUREBUFFER_SHADER_LANGUAGE_VERSION <= RHIGetMetalShaderLanguageVersion(Platform))
 		{
 			return 0; // BUFFER
 		}

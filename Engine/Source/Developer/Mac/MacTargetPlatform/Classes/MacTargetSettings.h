@@ -13,17 +13,14 @@
 UENUM()
 enum class EMacMetalShaderStandard : uint8
 {
-    /** Metal Shaders Compatible With macOS 10.13 or later (std=osx-metal2.0) */
-    MacMetalSLStandard_2_0 = 3 UMETA(DisplayName="Metal v2.0 (10.13.0+)"),
-    
-    /** Metal Shaders Compatible With macOS 10.14 or later (std=osx-metal2.1) */
-    MacMetalSLStandard_2_1 = 4 UMETA(DisplayName="Metal v2.1 (10.14.0+)"),
-
-	/** Metal Shaders Compatible With macOS 10.15 or later (std=osx-metal2.2) */
-	MacMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (10.15.0+)"),
-
-	/** Metal Shaders Compatible With macOS 11.0 or later (std=osx-metal2.3) */
-	MacMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (11.0+)"),
+    /** Metal Shader 2.2 is the minimum as of UE5.0*/
+    MacMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.2 (10.15.0+)"),
+    /** Metal Shaders Compatible With macOS 10.15 or later (std=osx-metal2.2) */
+    MacMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (10.15.0+)"),
+    /** Metal Shaders Compatible With macOS 11.0 or later (std=osx-metal2.3) */
+    MacMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (11.0+)"),
+    /** Metal Shaders Compatible With macOS 12.0 or later (std=osx-metal2.4) */
+    MacMetalSLStandard_2_4 = 7 UMETA(DisplayName="Metal v2.4 (12.0+)"),
 };
 
 UENUM()
@@ -66,11 +63,10 @@ public:
     EMacTargetArchitecture TargetArchitecture;
     
     /**
-     * The maximum supported Metal shader langauge version. 
-     * This defines what features may be used and OS versions supported.
+     * The Metal shader language version which will be used when compiling the shaders.
      */
-    UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Max. Metal Shader Standard To Target", ConfigRestartRequired = true))
-    uint8 MaxShaderLanguageVersion;
+    UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Metal Shader Standard To Target", ConfigRestartRequired = true))
+    int32 MetalLanguageVersion;
     
     /**
      * Whether to use the Metal shading language's "fast" intrinsics.

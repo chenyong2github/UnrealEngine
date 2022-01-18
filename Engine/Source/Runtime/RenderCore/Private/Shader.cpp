@@ -1611,7 +1611,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += RHISupportsManualVertexFetch(Platform) ? TEXT("_MVF_") : TEXT("");
 		}
 		
-		uint32 ShaderVersion = RHIGetShaderLanguageVersion(Platform);
+		uint32 ShaderVersion = RHIGetMetalShaderLanguageVersion(Platform);
 		KeyString += FString::Printf(TEXT("_MTLSTD%u_"), ShaderVersion);
 		
 		bool bAllowFastIntrinsics = false;

@@ -119,8 +119,8 @@ RHI_API const TCHAR* RHIVendorIdToString();
 // helper to convert VendorId into a printable string, or "Unknown" if unknown.
 RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
 
-// helper to return the shader language version for the given shader platform.
-RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform);
+// helper to return the shader language version for Metal shader.
+RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform);
 
 // helper to check that the shader platform supports creating a UAV off an index buffer.
 inline bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)

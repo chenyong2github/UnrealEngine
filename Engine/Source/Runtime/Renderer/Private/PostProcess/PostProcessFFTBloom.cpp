@@ -206,18 +206,11 @@ float GetFFTBloomResolutionFraction(const FIntPoint& ViewSize)
 
 bool IsFFTBloomEnabled(const FViewInfo& View)
 {
-	const bool bOldMetalNoFFT = IsMetalPlatform(View.GetShaderPlatform()) && (RHIGetShaderLanguageVersion(View.GetShaderPlatform()) < 4) && IsPCPlatform(View.GetShaderPlatform());
 	const bool bUseFFTBloom = View.FinalPostProcessSettings.BloomMethod == EBloomMethod::BM_FFT && View.ViewState != nullptr && DoesPlatformSupportFFTBloom(View.GetShaderPlatform());
 
 	static bool bWarnAboutOldMetalFFTOnce = false;
 
-	if (bOldMetalNoFFT && bUseFFTBloom && !bWarnAboutOldMetalFFTOnce)
-	{
-		UE_LOG(LogRenderer, Error, TEXT("FFT Bloom is only supported on Metal 2.1 and later."));
-		bWarnAboutOldMetalFFTOnce = true;
-	}
-
-	if (bUseFFTBloom && !bOldMetalNoFFT)
+	if (bUseFFTBloom)
 	{
 		return View.FFTBloomKernelTexture != nullptr;
 	}

@@ -115,7 +115,7 @@ void FMacTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBu
     // Handle max. shader version a little specially.
     {
         IDetailCategoryBuilder& RenderCategory = DetailBuilder.EditCategory(TEXT("Rendering"));
-        ShaderVersionPropertyHandle = DetailBuilder.GetProperty(TEXT("MaxShaderLanguageVersion"));
+        ShaderVersionPropertyHandle = DetailBuilder.GetProperty(TEXT("MetalLanguageVersion"));
 		
 		// Drop-downs for setting type of lower and upper bound normalization
 		IDetailPropertyRow& ShaderVersionPropertyRow = RenderCategory.AddProperty(ShaderVersionPropertyHandle.ToSharedRef());
@@ -282,13 +282,9 @@ bool FMacTargetSettingsDetails::HandlePostExternalIconCopy(const FString& InChos
 }
 
 static uint32 GMacTargetSettingsMinOSVers[][3] = {
-	{10,11,6},
-	{10,11,6},
-	{10,12,6},
-	{10,13,0},
-	{10,14,0},
 	{10,15,0},
 	{11, 0,0},
+    {12, 0,0}
 };
 
 TSharedRef<SWidget> FMacTargetSettingsDetails::OnGetShaderVersionContent()
@@ -315,14 +311,14 @@ TSharedRef<SWidget> FMacTargetSettingsDetails::OnGetShaderVersionContent()
 
 FText FMacTargetSettingsDetails::GetShaderVersionDesc() const
 {
-	uint8 EnumValue;
-	ShaderVersionPropertyHandle->GetValue(EnumValue);
+    int32 EnumValue;
+    ShaderVersionPropertyHandle->GetValue(EnumValue);
 	
 	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMacMetalShaderStandard"), true);
 	
 	if (EnumValue < Enum->GetMaxEnumValue() && Enum->IsValidEnumValue(EnumValue))
 	{
-		return Enum->GetDisplayNameTextByValue(EnumValue);
+		return Enum->GetDisplayNameTextByValue((uint8)EnumValue);
 	}
 	
 	return FText::GetEmpty();
@@ -330,25 +326,32 @@ FText FMacTargetSettingsDetails::GetShaderVersionDesc() const
 
 void FMacTargetSettingsDetails::SetShaderStandard(int32 Value)
 {
-	FText Message;
-	
-	if (Value == 2)
-	{
-		Message = LOCTEXT("DeprecatedMacMetalShaderVersion1_2","Metal Shader Standard v1.2 required for macOS 10.12 Sierra is deprecated in 4.21 and will be removed in the next version.");
-	}
-	
-	ShaderVersionWarningTextBox->SetError(Message);
-	
-	FPropertyAccess::Result Res = ShaderVersionPropertyHandle->SetValue((uint8)Value);
-	check(Res == FPropertyAccess::Success);
+    if (ShaderVersionPropertyHandle->IsValidHandle())
+    {
+        FPropertyAccess::Result Res = ShaderVersionPropertyHandle->SetValue(Value);
+        check(Res == FPropertyAccess::Success);
+    }
+    
+    ShaderVersionWarningTextBox->SetError(TEXT(""));
+    if (Value < 5) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+    {
+        ShaderVersionWarningTextBox->SetError(TEXT("Metal Shader Standard is 2.2 on UE5.0"));
+    }
 }
 
 void FMacTargetSettingsDetails::UpdateShaderStandardWarning()
 {
 	// Update the UI
-	uint8 EnumValue;
-	ShaderVersionPropertyHandle->GetValue(EnumValue);
-	SetShaderStandard(EnumValue);
+	uint8 EnumValue = 0;
+
+    if (ShaderVersionPropertyHandle->IsValidHandle())
+    {
+        ShaderVersionPropertyHandle->GetValue(EnumValue);
+        if (EnumValue < 5)
+        {
+            SetShaderStandard(5); // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+        }
+    }
 }
 
 #undef LOCTEXT_NAMESPACE

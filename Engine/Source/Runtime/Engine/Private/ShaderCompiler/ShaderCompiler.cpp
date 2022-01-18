@@ -5622,8 +5622,8 @@ void GlobalBeginCompileShader(
 		}
 		
 		{
-			uint32 ShaderVersion = RHIGetShaderLanguageVersion(EShaderPlatform(Target.Platform));
-			Input.Environment.SetDefine(TEXT("MAX_SHADER_LANGUAGE_VERSION"), ShaderVersion);
+			uint32 ShaderVersion = RHIGetMetalShaderLanguageVersion(EShaderPlatform(Target.Platform));
+			Input.Environment.SetDefine(TEXT("SHADER_LANGUAGE_VERSION"), ShaderVersion);
 			
 			bool bAllowFastIntrinsics = false;
 			bool bForceFloats = false;

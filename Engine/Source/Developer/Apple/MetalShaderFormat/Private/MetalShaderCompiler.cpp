@@ -75,7 +75,7 @@ static inline uint32 ParseNumber(const ANSICHAR* Str)
 
 struct FHlslccMetalHeader : public CrossCompiler::FHlslccHeader
 {
-	FHlslccMetalHeader(uint8 const Version);
+	FHlslccMetalHeader(uint32 const Version);
 	virtual ~FHlslccMetalHeader();
 	
 	// After the standard header, different backends can output their own info
@@ -83,10 +83,10 @@ struct FHlslccMetalHeader : public CrossCompiler::FHlslccHeader
 	
 	TMap<uint8, TArray<uint8>> ArgumentBuffers;
 	int8 SideTable;
-	uint8 Version;
+	uint32 Version;
 };
 
-FHlslccMetalHeader::FHlslccMetalHeader(uint8 const InVersion)
+FHlslccMetalHeader::FHlslccMetalHeader(uint32 const InVersion)
 {
 	SideTable = -1;
 	Version = InVersion;
@@ -845,8 +845,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	
 	EMetalGPUSemantics Semantics = EMetalGPUSemanticsMobile;
 	
-	FString const* MaxVersion = Input.Environment.GetDefinitions().Find(TEXT("MAX_SHADER_LANGUAGE_VERSION"));
-	int32 VersionEnum = FMath::Min(5, FCString::Atoi(*FString(*MaxVersion)));
+    int32 VersionEnum = FCString::Atoi(*FString(*Input.Environment.GetDefinitions().Find(TEXT("SHADER_LANGUAGE_VERSION"))));
 
 	// TODO read from toolchain
 	bool bAppleTV = (Input.ShaderFormat == NAME_SF_METAL_TVOS || Input.ShaderFormat == NAME_SF_METAL_MRT_TVOS);
@@ -925,6 +924,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		break;
 
 	case 5:
+    case 0:
 		TypeMode = EMetalTypeBufferModeTB;
 		StandardVersion = TEXT("2.2");
 		if (bAppleTV)
@@ -945,7 +945,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		Output.bSucceeded = false;
 		{
 			FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
-			NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Version is 2.2 in UE."), *StandardVersion);
+			NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Metal Version is 2.2 in UE5.0"));
 			return;
 		}
 		break;
