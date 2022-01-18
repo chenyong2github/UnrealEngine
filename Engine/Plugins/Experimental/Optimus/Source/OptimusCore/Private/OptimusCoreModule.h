@@ -2,19 +2,20 @@
 
 #pragma once
 
+#include "Animation/MeshDeformerProvider.h"
 #include "Delegates/IDelegateInstance.h"
 #include "IOptimusCoreModule.h"
 
-class FOptimusCoreModule : public IOptimusCoreModule
+class FOptimusCoreModule : public IOptimusCoreModule, public IMeshDeformerProvider
 {
 public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-public:
-
-private:
+	/** IMeshDeformerProvider implementation */
+	bool IsEnabled(EShaderPlatform Platform) override;
+	FSoftObjectPtr GetDefaultMeshDeformer() override;
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOptimusCore, Log, All);
