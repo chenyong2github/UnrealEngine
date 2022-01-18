@@ -119,6 +119,7 @@ namespace Horde.Storage.Implementation
                 using IScope scope = Tracer.Instance.StartActive("replicator.run");
                 scope.Span.ResourceName =_name;
 
+                _replicationTokenSource.TryReset();
                 _replicationRunning = true;
                 _replicationFinishedEvent.Reset();
                 CancellationToken replicationToken = _replicationTokenSource.Token;
