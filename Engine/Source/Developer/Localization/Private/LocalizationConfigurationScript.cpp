@@ -1199,6 +1199,10 @@ namespace LocalizationConfigurationScript
 			{
 				return false;
 			}
+			else
+			{
+				NewConfigContents = TEXT("; THESE ARE GENERATED FILES, DO NOT EDIT DIRECTLY!\r\n; USE THE LOCALIZATION DASHBOARD IN THE UNREAL EDITOR TO EDIT THE CONFIGURATION\r\n") + NewConfigContents;
+			}
 		}
 
 		bool bWriteFile = true;
