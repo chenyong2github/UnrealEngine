@@ -110,7 +110,7 @@ void UEnvQueryGenerator_PerceivedActors::GenerateItems(FEnvQueryInstance& QueryI
 		{
 			if (PerceivedActor 
 				&& (RadiusValue <= 0 || FVector::DistSquared(ListenerLocation, PerceivedActor->GetActorLocation()) < RadiusSq)
-				&& (!ActorClassWhitelist || PerceivedActor->IsA(ActorClassWhitelist.Get())))
+				&& (!AllowedActorClass || PerceivedActor->IsA(AllowedActorClass.Get())))
 			{
 				AllPerceivedActors.Add(PerceivedActor);
 				AllPerceivedActors.Add(PerceivedActor);
@@ -151,9 +151,9 @@ FText UEnvQueryGenerator_PerceivedActors::GetDescriptionDetails() const
 		Args.Add(TEXT("Sense"), FText::FromString(TEXT("All senses")));
 	}
 	
-	if (ActorClassWhitelist)
+	if (AllowedActorClass)
 	{
-		Args.Add(TEXT("ActorClass"), FText::FromString(ActorClassWhitelist->GetName()));
+		Args.Add(TEXT("ActorClass"), FText::FromString(AllowedActorClass->GetName()));
 		return FText::Format(LOCTEXT("PerceivedActorsDescription", "radius: {Radius}\nsense: {Sense}\nactors of class: {ActorClass}"), Args);
 	}
 

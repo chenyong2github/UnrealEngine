@@ -2,9 +2,6 @@
 
 #pragma once
 
-//#include "Templates/SubclassOf.h"
-//#include "GameFramework/Actor.h"
-//#include "EnvironmentQuery/EnvQueryContext.h"
 #include "DataProviders/AIDataProvider.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "Perception/AISense.h"
@@ -19,7 +16,7 @@ class AIMODULE_API UEnvQueryGenerator_PerceivedActors : public UEnvQueryGenerato
 
 	/** If set will be used to filter results */
 	UPROPERTY(EditDefaultsOnly, Category=Generator)
-	TSubclassOf<AActor> ActorClassWhitelist;
+	TSubclassOf<AActor> AllowedActorClass;
 
 	/** Additional distance limit imposed on the items generated. Perception's range limit still applies. */
 	UPROPERTY(EditDefaultsOnly, Category=Generator)
