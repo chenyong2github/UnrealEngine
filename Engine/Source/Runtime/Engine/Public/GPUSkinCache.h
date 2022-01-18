@@ -61,6 +61,7 @@ extern ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices();
 
 // Is it actually enabled?
 extern ENGINE_API int32 GEnableGPUSkinCache;
+extern int32 GSkinCacheRecomputeTangents;
 
 class FGPUSkinCacheEntry;
 
