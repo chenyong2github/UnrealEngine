@@ -1184,7 +1184,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 		SkeletalMeshData = AssetData;
 	}
 
-	if ( !SkeletalMeshData.IsValid() && AssetData.GetClass()->IsChildOf( UAnimBlueprint::StaticClass() ) )
+	if ( !SkeletalMeshData.IsValid() && (AssetData.GetClass()->IsChildOf(UAnimBlueprint::StaticClass()) || AssetData.GetClass()->IsChildOf(UAnimBlueprintGeneratedClass::StaticClass())))
 	{
 		const FString TargetSkeletonPath = AssetData.GetTagValueRef<FString>( "TargetSkeleton" );
 		if ( TargetSkeletonPath.IsEmpty() )
@@ -1271,14 +1271,26 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 
 USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Asset )
 {
-	USkeletalMesh*SkeletalMesh = Cast<USkeletalMesh>( Asset );
-	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>( Asset );
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>( Asset );
 	USkeleton* Skeleton = Cast<USkeleton>( Asset );
 
-	if( SkeletalMesh == nullptr && AnimBlueprint != nullptr && AnimBlueprint->TargetSkeleton )
+	if(SkeletalMesh == nullptr)
 	{
 		// base it on preview skeletal mesh, just to have something
-		SkeletalMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh(true);
+		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset))
+		{
+			if(AnimBlueprint->TargetSkeleton)
+			{
+				SkeletalMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh(true);
+			}
+		}
+		if(UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(Asset))
+		{
+			if(AnimBlueprintGeneratedClass->TargetSkeleton)
+			{
+				SkeletalMesh = AnimBlueprintGeneratedClass->TargetSkeleton->GetPreviewMesh(true);
+			}
+		}
 	}
 
 	if( SkeletalMesh == nullptr && Skeleton != nullptr )
@@ -1306,7 +1318,6 @@ USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Ass
 void UActorFactorySkeletalMesh::PostSpawnActor( UObject* Asset, AActor* NewActor )
 {
 	USkeletalMesh* SkeletalMesh = GetSkeletalMeshFromAsset(Asset);
-	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>( Asset );
 	ASkeletalMeshActor* NewSMActor = CastChecked<ASkeletalMeshActor>(NewActor);
 
 	Super::PostSpawnActor(SkeletalMesh, NewActor);
@@ -1323,9 +1334,13 @@ void UActorFactorySkeletalMesh::PostSpawnActor( UObject* Asset, AActor* NewActor
 
 	// Init Component
 	NewSMActor->GetSkeletalMeshComponent()->RegisterComponent();
-	if( AnimBlueprint )
+	if( UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>( Asset ) )
 	{
 		NewSMActor->GetSkeletalMeshComponent()->SetAnimInstanceClass(AnimBlueprint->GeneratedClass);
+	}
+	else if( UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(Asset) )
+	{
+		NewSMActor->GetSkeletalMeshComponent()->SetAnimInstanceClass(AnimBlueprintGeneratedClass);
 	}
 
 	if (ClassUsedForDelegate != nullptr)
