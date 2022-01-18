@@ -111,13 +111,15 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	// Auto update must be done after all referenced asset classes are registered
 	if (InRegistrationOptions.bAutoUpdate)
 	{
-		const bool bWasAutoUpdated = AutoUpdate();
-		if (bWasAutoUpdated)
-		{
+		FString OwningAssetName = GetOwningAssetName();
+		const bool bAutoUpdated = FAutoUpdateRootGraph(MoveTemp(OwningAssetName)).Transform(GetDocumentHandle());
 #if WITH_EDITORONLY_DATA
+		if (bAutoUpdated)
+		{
+ 
 			SetSynchronizationRequired();
-#endif // WITH_EDITORONLY_DATA
 		}
+#endif // WITH_EDITORONLY_DATA
 	}
 
 	// Registers node by copying document. Updates to document require re-registration.
@@ -329,20 +331,15 @@ void FMetasoundAssetBase::AddDefaultInterfaces()
 	FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(DocumentHandle);
 }
 
-bool FMetasoundAssetBase::AutoUpdate(bool bInMarkDirty)
-{
-	using namespace Metasound::Frontend;
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::AutoUpdate);
-
-	const bool bUpdated = FAutoUpdateRootGraph().Transform(GetDocumentHandle());
-	if (bUpdated && bInMarkDirty)
-	{
-		MarkMetasoundDocumentDirty();
-	}
-
-	return bUpdated;
-}
-
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 bool FMetasoundAssetBase::VersionAsset()
 {
 	using namespace Metasound;

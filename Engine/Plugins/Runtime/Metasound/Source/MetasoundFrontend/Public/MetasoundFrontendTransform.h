@@ -120,12 +120,20 @@ namespace Metasound
 			FConstDocumentHandle ReferencedDocument;
 		};
 
+		/** Automatically updates all nodes and respective dependencies in graph where
+		  * newer versions exist in the loaded MetaSound Class Node Registry.
+		  */
 		class METASOUNDFRONTEND_API FAutoUpdateRootGraph : public IDocumentTransform
 		{
 		public:
-			FAutoUpdateRootGraph() = default;
+			FAutoUpdateRootGraph(FString&& InAssetPath)
+				: AssetPath(MoveTemp(InAssetPath))
+			{
+			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
+
+			const FString AssetPath;
 		};
 
 		/** Synchronizes the document's root graph's display name with that of the asset. */

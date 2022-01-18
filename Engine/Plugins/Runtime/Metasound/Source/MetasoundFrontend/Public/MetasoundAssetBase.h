@@ -15,7 +15,6 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 // Forward Declarations
-class FMetasoundAssetBase;
 class UEdGraph;
 
 namespace Metasound
@@ -123,7 +122,6 @@ public:
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
 	void AddDefaultInterfaces();
-	bool AutoUpdate(bool bInMarkDirty = false);
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA

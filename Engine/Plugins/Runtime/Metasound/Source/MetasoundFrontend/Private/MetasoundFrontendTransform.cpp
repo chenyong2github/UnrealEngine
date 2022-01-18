@@ -9,6 +9,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLog.h"
+#include "MetasoundTrace.h"
 #include "Misc/App.h"
 
 namespace Metasound
@@ -449,6 +450,7 @@ namespace Metasound
 
 		bool FAutoUpdateRootGraph::Transform(FDocumentHandle InDocument) const
 		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FAutoUpdateRootGraph::Transform);
 			bool bDidEdit = false;
 
 			FMetasoundAssetBase* PresetReferencedMetaSoundAsset = nullptr;
@@ -468,7 +470,7 @@ namespace Metasound
 					PresetReferencedMetaSoundAsset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(RegistryKey);
 					if (!PresetReferencedMetaSoundAsset)
 					{
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to update Preset. Referenced asset class '%s' not found."), *ClassMetadata.GetDisplayName().ToString());
+						UE_LOG(LogMetaSound, Error, TEXT("Auto-Updating preset '%s' failed: Referenced class '%s' missing."), *AssetPath, *ClassMetadata.GetDisplayName().ToString());
 					}
 					return;
 				}
@@ -482,12 +484,12 @@ namespace Metasound
 				FMetasoundFrontendVersionNumber UpdateVersion = NodeHandle->FindHighestMinorVersionInRegistry();
 				if (UpdateVersion.IsValid() && UpdateVersion > ClassMetadata.GetVersion())
 				{
-					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node class '%s': Newer version '%s' found."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s': Newer version '%s' found."), *AssetPath, *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
 				}
 				else if (InterfaceUpdates.ContainsChanges())
 				{
 					UpdateVersion = ClassMetadata.GetVersion();
-					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node with class '%s (%s)': Interface change detected."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s (%s)': Interface change detected."), *AssetPath, *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
 				}
 
 				NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
