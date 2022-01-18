@@ -179,7 +179,7 @@ bool FLevelEditorActionCallbacks::DefaultCanExecuteAction()
 
 void FLevelEditorActionCallbacks::BrowseDocumentation()
 {
-	IDocumentation::Get()->OpenHome(FDocumentationSourceInfo(TEXT("help_menu")));
+	IDocumentation::Get()->Open(TEXT("BuildingWorlds/LevelEditor"), FDocumentationSourceInfo(TEXT("help_menu")));
 }
 
 void FLevelEditorActionCallbacks::BrowseViewportControls()
