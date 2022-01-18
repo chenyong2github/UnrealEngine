@@ -64,12 +64,6 @@ namespace UnrealBuildTool
 		public bool bAllowSNDBS = true;
 
 		/// <summary>
-		/// Whether the experimental async TaskExecutor may be used.
-		/// </summary>
-		[XmlConfigFile]
-		public bool bAllowTaskExecutor = false;
-
-		/// <summary>
 		/// Enables support for very fast iterative builds by caching target data. Turning this on causes Unreal Build Tool to emit
 		/// 'UBT Makefiles' for targets when they are built the first time. Subsequent builds will load these Makefiles and begin
 		/// outdatedness checking and build invocation very quickly. The caveat is that if source files are added or removed to

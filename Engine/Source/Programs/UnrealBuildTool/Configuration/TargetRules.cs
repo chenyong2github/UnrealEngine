@@ -1531,7 +1531,7 @@ namespace UnrealBuildTool
 		public string? AdditionalLinkerArguments;
 
 		/// <summary>
-		/// Max amount of memory that each compile action may require. Used by ParallelExecutor and TaskExecutor to decide the maximum 
+		/// Max amount of memory that each compile action may require. Used by ParallelExecutor to decide the maximum 
 		/// number of parallel actions to start at one time.
 		/// </summary>
 		public double MemoryPerActionGB = 0.0;
