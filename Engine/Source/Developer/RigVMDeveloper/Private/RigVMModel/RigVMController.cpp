@@ -2843,7 +2843,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(SubNodes[SubNodeIndex]))
 			{
 				{
-					FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+					FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
 					ReattachLinksToPinObjects();
 				}
 				
