@@ -281,8 +281,17 @@ void FIKRetargetEditor::PostUndo(bool bSuccess)
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
+	const bool WasEditing = EditorController->IsEditingPose();
+	
 	EditorController->AssetController->BroadcastNeedsReinitialized();
 	EditorController->RefreshAllViews();
+	
+	// restore pose mode state to avoid stepping out of the edition when undoing things
+	// note that BroadcastNeedsReinitialized will unset it in FIKRetargetEditorController::OnRetargeterNeedsInitialized
+	if (WasEditing)
+	{
+		EditorController->HandleEditPose();
+	}
 }
 
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
