@@ -418,6 +418,11 @@ namespace Chaos
 			return TPlaneConcrete<FReal, 3>::MakeFrom(Planes[FaceIndex]);
 		}
 
+		const FPlaneType& GetPlaneRaw(int32 FaceIndex) const
+		{
+			return Planes[FaceIndex];
+		}
+
 		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
 		const FVec3Type& GetVertex(int32 VertexIndex) const
 		{

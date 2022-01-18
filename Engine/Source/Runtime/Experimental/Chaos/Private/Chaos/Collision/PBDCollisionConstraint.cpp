@@ -428,26 +428,6 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint)
-	{
-		if (ContactPoint.IsSet())
-		{
-			if (ManifoldPoints.IsFull())
-			{
-				return;
-			}
-			
-			int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
-
-			if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < GetPhi())
-			{
-				ClosestManifoldPointIndex = ManifoldPointIndex;
-			}
-
-			Flags.bUseIncrementalManifold = false;
-		}
-	}
-
 	void FPBDCollisionConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint)
 	{
 		if (ManifoldPoints.IsFull())
@@ -487,28 +467,6 @@ namespace Chaos
 		}
 
 		Flags.bUseIncrementalManifold = true;
-	}
-
-	void FPBDCollisionConstraint::InitManifoldPoint(const int32 ManifoldPointIndex)
-	{
-		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-		ManifoldPoint.InitialShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
-		ManifoldPoint.InitialShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
-
-		ManifoldPoints[ManifoldPointIndex].Flags.Reset();
-		ManifoldPoints[ManifoldPointIndex].NetPushOut = FVec3(0);
-		ManifoldPoints[ManifoldPointIndex].NetImpulse = FVec3(0);
-	}
-
-	int32 FPBDCollisionConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
-	{
-		int32 ManifoldPointIndex = ManifoldPoints.Add();
-
-		ManifoldPoints[ManifoldPointIndex].ContactPoint = ContactPoint;
-
-		InitManifoldPoint(ManifoldPointIndex);
-
-		return ManifoldPointIndex;
 	}
 
 	bool FPBDCollisionConstraint::CanUseManifold(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1) const
@@ -623,6 +581,34 @@ namespace Chaos
 		ExpectedNumManifoldPoints = ManifoldPoints.Num();
 		Flags.bWasManifoldRestored = false;
 
+		// If we did not remove any contact points and we have not moved or rotated much we may reuse the manifold as-is.
+		bool bMovedBeyondTolerance = true;
+		if ((ShapePositionTolerance > 0) && (ShapeRotationThreshold > 0))
+		{
+			// The transform check is necessary regardless of how many points we have left in the manifold because
+			// as a body moves/rotates we may have to change which faces/edges are colliding. We can't know if the face/edge
+			// will change until we run the closest-point checks (GJK) in the narrow phase.
+			const FVec3 Shape1ToShape0Translation = ShapeWorldTransform0.GetTranslation() - ShapeWorldTransform1.GetTranslation();
+			const FVec3 OriginalShape1ToShape0Translation = LastShapeWorldTransform0.GetTranslation() - LastShapeWorldTransform1.GetTranslation();
+			const FVec3 TranslationDelta = Shape1ToShape0Translation - OriginalShape1ToShape0Translation;
+			if (TranslationDelta.IsNearlyZero(ShapePositionTolerance))
+			{
+				const FRotation3 Shape1toShape0Rotation = ShapeWorldTransform0.GetRotation().Inverse() * ShapeWorldTransform1.GetRotation();
+				const FRotation3 OriginalShape1toShape0Rotation = LastShapeWorldTransform0.GetRotation().Inverse() * LastShapeWorldTransform1.GetRotation();
+				const FReal RotationOverlap = FRotation3::DotProduct(Shape1toShape0Rotation, OriginalShape1toShape0Rotation);
+				if (RotationOverlap > ShapeRotationThreshold)
+				{
+					bMovedBeyondTolerance = false;
+				}
+			}
+		}
+
+		if (bMovedBeyondTolerance)
+		{
+			ResetActiveManifoldContacts();
+			return false;
+		}
+
 		// Either update or remove each manifold point depending on how far it has moved from its initial relative point
 		// NOTE: We do not reset if we have 0 points - we can still "restore" a zero point manifold if the bodies have not moved
 		int32 ManifoldPointToRemove = INDEX_NONE;
@@ -655,6 +641,7 @@ namespace Chaos
 					const FVec3 ShapeContactPoint1 = Contact0In1 - ContactPhi * ContactNormalIn1;
 					ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoint1;
 					ManifoldPoint.ContactPoint.Phi = ContactPhi;
+					ManifoldPoint.Flags.bWasRestored = true;
 					if (ManifoldPoint.ContactPoint.Phi < GetPhi())
 					{
 						ClosestManifoldPointIndex = ManifoldPointIndex;
@@ -673,7 +660,7 @@ namespace Chaos
 				}
 			}
 
-			// Remove points - only one point removal suport required (see above)
+			// Remove points - only one point removal support required (see above)
 			if (ManifoldPointToRemove != INDEX_NONE)
 			{
 				ManifoldPoints.RemoveAt(ManifoldPointToRemove);
@@ -682,31 +669,12 @@ namespace Chaos
 					--ClosestManifoldPointIndex;
 					check(ClosestManifoldPointIndex >= 0);
 				}
+				return false;
 			}
 		}
 
-		// If we did not remove any contact points and we have not moved or rotated much we may reuse the manifold as-is.
-		if ((ManifoldPointToRemove == INDEX_NONE) && (ShapePositionTolerance > 0) && (ShapeRotationThreshold > 0))
-		{
-			// The transform check is necessary regardless of how many points we have left in the manifold because
-			// as a body moves/rotates we may have to change which faces/edges are colliding. We can't know if the face/edge
-			// will change until we run the closest-point checks (GJK) in the narrow phase.
-			const FVec3 Shape1ToShape0Translation = ShapeWorldTransform0.GetTranslation() - ShapeWorldTransform1.GetTranslation();
-			const FVec3 OriginalShape1ToShape0Translation = LastShapeWorldTransform0.GetTranslation() - LastShapeWorldTransform1.GetTranslation();
-			const FVec3 TranslationDelta = Shape1ToShape0Translation - OriginalShape1ToShape0Translation;
-			if (TranslationDelta.IsNearlyZero(ShapePositionTolerance))
-			{
-				const FRotation3 Shape1toShape0Rotation = ShapeWorldTransform0.GetRotation().Inverse() * ShapeWorldTransform1.GetRotation();
-				const FRotation3 OriginalShape1toShape0Rotation = LastShapeWorldTransform0.GetRotation().Inverse() * LastShapeWorldTransform1.GetRotation();
-				const FReal RotationOverlap = FRotation3::DotProduct(Shape1toShape0Rotation, OriginalShape1toShape0Rotation);
-				if (RotationOverlap > ShapeRotationThreshold)
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
+		Flags.bWasManifoldRestored = true;
+		return true;
 	}
 
 	bool FPBDCollisionConstraint::TryAddManifoldContact(const FContactPoint& NewContactPoint)

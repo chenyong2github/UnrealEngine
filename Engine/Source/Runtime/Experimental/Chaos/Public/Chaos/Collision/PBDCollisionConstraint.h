@@ -379,7 +379,21 @@ namespace Chaos
 		const FSavedManifoldPoint* FindSavedManifoldPoint(const FManifoldPoint& ManifoldPoint) const;
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint);
-		void AddOneshotManifoldContact(const FContactPoint& ContactPoint);
+
+		inline void AddOneshotManifoldContact(const FContactPoint& ContactPoint)
+		{
+			if (ContactPoint.IsSet() && !ManifoldPoints.IsFull())
+			{
+				int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
+				if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < GetPhi())
+				{
+					ClosestManifoldPointIndex = ManifoldPointIndex;
+				}
+				Flags.bUseIncrementalManifold = false;
+			}
+		}
+
+
 		void UpdateManifoldContacts();
 
 		// Particle-relative transform of each collision shape in the constraint
@@ -530,8 +544,24 @@ namespace Chaos
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
-		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
-		void InitManifoldPoint(const int32 ManifoldPointIndex);
+
+		inline void InitManifoldPoint(const int32 ManifoldPointIndex)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+			ManifoldPoint.InitialShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+			ManifoldPoint.InitialShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
+			ManifoldPoint.Flags.Reset();
+			ManifoldPoint.NetPushOut = FVec3(0);
+			ManifoldPoint.NetImpulse = FVec3(0);
+		}
+
+		inline int32 AddManifoldPoint(const FContactPoint& ContactPoint)
+		{
+			int32 ManifoldPointIndex = ManifoldPoints.Add();	// Note: no initialization (see TCArray)
+			ManifoldPoints[ManifoldPointIndex].ContactPoint = ContactPoint;
+			InitManifoldPoint(ManifoldPointIndex);
+			return ManifoldPointIndex;
+		}
 
 		// Update the store Phi for the manifold point based on current world-space shape transforms
 		// @todo(chaos): Only intended for use by the legacy solvers - remove it

@@ -151,23 +151,31 @@ namespace Chaos
 		return MostOpposingIdx;
 	}
 
-	FVec3 FConvex::GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+	FVec3 FConvex::GetClosestEdgePosition(int32 PlaneIndex, const FVec3& InPosition) const
 	{
-		FVec3 ClosestEdgePosition = FVec3(0);
-		FReal ClosestDistanceSq = FLT_MAX;
+		FVec3Type ClosestEdgePosition = FVec3Type(0);
+		FRealType ClosestDistanceSq = FLT_MAX;
+		FVec3Type Position = FVec3Type(InPosition);
 
 		const int32 PlaneVerticesNum = NumPlaneVertices(PlaneIndex);
 		if (PlaneVerticesNum > 0)
 		{
-			FVec3 P0 = GetVertex(GetPlaneVertex(PlaneIndex, PlaneVerticesNum - 1));
+			FVec3Type P0 = GetVertex(GetPlaneVertex(PlaneIndex, PlaneVerticesNum - 1));
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 			{
 				const int32 VertexIndex = GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
-				const FVec3 P1 = GetVertex(VertexIndex);
+				const FVec3Type P1 = GetVertex(VertexIndex);
 				
-				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
-				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
-
+				// LWC_TODO: low-precision version of FMath::ClosestPointOnLine
+				// See FMath::ClosestPointOnLine (which does not have a float version when LWC is enbled)
+				//const FVec3Type EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+				const FVec3Type DP = P1 - P0;
+				const FRealType A = FVec3Type::DotProduct((P0 - Position), DP);
+				const FRealType B = DP.SizeSquared();
+				const FRealType T = FMath::Clamp(-A / B, FRealType(0), FRealType(1));
+				const FVec3Type EdgePosition = P0 + (T * DP);
+				
+				const FRealType EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
 				if (EdgeDistanceSq < ClosestDistanceSq)
 				{
 					ClosestDistanceSq = EdgeDistanceSq;
@@ -178,7 +186,7 @@ namespace Chaos
 			}
 		}
 
-		return ClosestEdgePosition;
+		return FVec3(ClosestEdgePosition);
 	}
 
 	bool FConvex::GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const

@@ -312,56 +312,55 @@ namespace Chaos
 		// more vertices may be added to outputVertexBuffer by this function
 		// This is the core of the Sutherland-Hodgman algorithm
 		// Plane Normals face outwards 
-		uint32 ClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, uint32 MaxNumberOfOutputPoints, FVec3 ClippingPlaneNormal, FReal PlaneDistance)
+		inline uint32 ClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* OutputVertexBuffer, const uint32 ClipPointCount, const uint32 MaxNumberOfOutputPoints, const FVec3 ClippingPlaneNormal, const FReal PlaneDistance)
 		{
-
-			auto CalculateIntersect = [=](const FVec3& Point1, const FVec3& Point2) -> FVec3
-			{
-				// Only needs to be valid if the line connecting Point1 with Point2 actually intersects
-				FVec3 Result;
-
-				FReal Denominator = FVec3::DotProduct(Point2 - Point1, ClippingPlaneNormal); // Can be negative
-				if (FMath::Abs(Denominator) < SMALL_NUMBER)
-				{
-					Result = Point1;
-				}
-				else
-				{
-					FReal Alpha = (PlaneDistance - FVec3::DotProduct(Point1, ClippingPlaneNormal)) / Denominator;
-					Result = FMath::Lerp(Point1, Point2, Alpha);
-				}
-				return Result;
-			};
-
-			auto InsideClipFace = [=](const FVec3& Point) -> bool
-			{
-				// Epsilon is there so that previously clipped points will still be inside the plane
-				return FVec3::DotProduct(Point, ClippingPlaneNormal) <= PlaneDistance + PlaneDistance * SMALL_NUMBER; 
-			};
+			check(ClipPointCount > 0);
 
 			uint32 NewClipPointCount = 0;
 
+			FVec3 PrevClipPoint;
+			FReal PrevClipPointDotNormal;
+			FVec3 CurrentClipPoint = InputVertexBuffer[ClipPointCount - 1];;
+			FReal CurrentClipPointDotNormal = FVec3::DotProduct(CurrentClipPoint, ClippingPlaneNormal);
+			const FReal PlaneClipDistance = PlaneDistance + PlaneDistance * SMALL_NUMBER;
+
+			auto CalculateIntersect = [&PrevClipPoint, &CurrentClipPoint, &PlaneDistance](const FReal Dot1, const FReal Dot2)
+			{
+				const FReal Denominator = Dot2 - Dot1; // Can be negative
+				if (FMath::Abs(Denominator) < SMALL_NUMBER)
+				{
+					return PrevClipPoint;
+				}
+				else
+				{
+					const FReal Alpha = (PlaneDistance - Dot1) / Denominator;
+					return FVec3::Lerp(PrevClipPoint, CurrentClipPoint, Alpha);
+				}
+			};
+
 			for (uint32 ClipPointIndex = 0; ClipPointIndex < ClipPointCount; ClipPointIndex++)
 			{
-				FVec3 CurrentClipPoint = InputVertexBuffer[ClipPointIndex];
-				FVec3 PrevClipPoint = InputVertexBuffer[(ClipPointIndex + ClipPointCount - 1) % ClipPointCount];
-				FVec3 InterSect = CalculateIntersect(PrevClipPoint, CurrentClipPoint);
+				PrevClipPoint = CurrentClipPoint;
+				PrevClipPointDotNormal = CurrentClipPointDotNormal;
+				CurrentClipPoint = InputVertexBuffer[ClipPointIndex];
+				CurrentClipPointDotNormal = FVec3::DotProduct(CurrentClipPoint, ClippingPlaneNormal);
 
-				if (InsideClipFace(CurrentClipPoint))
+				// Epsilon is there so that previously clipped points will still be inside the plane
+				if (CurrentClipPointDotNormal <= PlaneClipDistance)
 				{
-					if (!InsideClipFace(PrevClipPoint))
+					if (PrevClipPointDotNormal > PlaneClipDistance)
 					{
-						outputVertexBuffer[NewClipPointCount++] = InterSect;
+						OutputVertexBuffer[NewClipPointCount++] = CalculateIntersect(PrevClipPointDotNormal, CurrentClipPointDotNormal);
 						if (NewClipPointCount >= MaxNumberOfOutputPoints)
 						{
 							break;
 						}
 					}
-					outputVertexBuffer[NewClipPointCount++] = CurrentClipPoint;
+					OutputVertexBuffer[NewClipPointCount++] = CurrentClipPoint;
 				}
-				else if (InsideClipFace(PrevClipPoint))
+				else if (PrevClipPointDotNormal < PlaneClipDistance)
 				{
-					outputVertexBuffer[NewClipPointCount++] = InterSect;
+					OutputVertexBuffer[NewClipPointCount++] = CalculateIntersect(PrevClipPointDotNormal, CurrentClipPointDotNormal);
 				}
 
 				if (NewClipPointCount >= MaxNumberOfOutputPoints)
@@ -404,7 +403,7 @@ namespace Chaos
 			const int32 RefConvexFaceVerticesNum = RefConvex.NumPlaneVertices(RefPlaneIndex);
 			int32 ClippingPlaneCount = RefConvexFaceVerticesNum;
 			FVec3 PrevPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneCount - 1));
-			for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
+			for (int32 ClippingPlaneIndex = 0; (ClippingPlaneIndex < ClippingPlaneCount) && (ContactPointCount > 1); ++ClippingPlaneIndex)
 			{
 				FVec3 CurrentPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneIndex));
 				FVec3 ClippingPlaneNormal = RefWindingOrder * FVec3::CrossProduct(RefPlaneNormal, PrevPoint - CurrentPoint);
@@ -459,14 +458,14 @@ namespace Chaos
 			FReal& BestPlaneDot)
 		{
 			const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
-			const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
 				
-			// Ignore planes that do not oppose N
-			if (PlaneNormalDotN <= -SMALL_NUMBER)
+			// Reject planes farther than MaxDistance
+			const FReal PlaneDistance = Plane.SignedDistance(X);
+			if (FMath::Abs(PlaneDistance) <= MaxDistance)
 			{
-				// Reject planes farther than MaxDistance
-				const FReal PlaneDistance = Plane.SignedDistance(X);
-				if (FMath::Abs(PlaneDistance) <= MaxDistance)
+				// Ignore planes that do not oppose N
+				const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
+				if (PlaneNormalDotN <= -SMALL_NUMBER)
 				{
 					// Keep the most opposing plane
 					if (PlaneNormalDotN < BestPlaneDot)
@@ -480,36 +479,42 @@ namespace Chaos
 
 		// Specialization for scaled convex. Avoids the instantiation of a scaled plane object
 		// which almost doubles the cost of the function.
-		template <>
-		void FindBestPlane<TImplicitObjectScaled<FConvex>>(
+		void FindBestPlaneScaledConvex(
 			const TImplicitObjectScaled<FConvex>& ScaledConvex,
-			const FVec3& X,
-			const FVec3& N,
-			const FReal MaxDistance,
+			const FConvex::FVec3Type& X,
+			const FConvex::FVec3Type& N,
+			const FConvex::FVec3Type& Scale,
+			const FConvex::FVec3Type& ScaleInv,
+			const FConvex::FRealType MaxDistance,
 			const int32 PlaneIndex,
-			int32& BestPlaneIndex,
-			FReal& BestPlaneDot)
+			int32& OutBestPlaneIndex,
+			FConvex::FRealType& InOutBestPlaneDot)
 		{
-			const FConvex* UnscaledConvex = ScaledConvex.GetInnerObject()->template GetObject<FConvex>();
-			const TPlaneConcrete<FReal, 3>& UnscaledPlane = UnscaledConvex->GetPlane(PlaneIndex);
+			using FConvexReal = FConvex::FRealType;
+			using FConvexVec3 = FConvex::FVec3Type;
+			using FConvexPlane = FConvex::FPlaneType;
 
-			const FVec3 ScaledPlaneX = FVec3(UnscaledPlane.X()) * ScaledConvex.GetScale();
-			FVec3 ScaledPlaneN = FVec3(UnscaledPlane.Normal()) / ScaledConvex.GetScale();
+			const FConvex* UnscaledConvex = ScaledConvex.GetInnerObject()->template GetObject<FConvex>();
+			const FConvexPlane& UnscaledPlane = UnscaledConvex->GetPlaneRaw(PlaneIndex);
+
+			const FConvexVec3 ScaledPlaneX = UnscaledPlane.X() * Scale;
+			FConvexVec3 ScaledPlaneN = UnscaledPlane.Normal() * ScaleInv;
+
 			if (ScaledPlaneN.Normalize())
 			{
-				// Ignore planes that do not oppose N
-				const FReal PlaneNormalDotN = FVec3::DotProduct(N, ScaledPlaneN);
-				if (PlaneNormalDotN <= -SMALL_NUMBER)
+				// Reject planes farther than MaxDistance
+				const FConvexReal PlaneDistance = FConvexVec3::DotProduct(X - ScaledPlaneX, ScaledPlaneN);
+				if (FMath::Abs(PlaneDistance) <= MaxDistance)
 				{
-					// Reject planes farther than MaxDistance
-					const FReal PlaneDistance = FVec3::DotProduct(X - ScaledPlaneX, ScaledPlaneN);
-					if (FMath::Abs(PlaneDistance) <= MaxDistance)
+					// Ignore planes that do not oppose N
+					const FConvexReal PlaneNormalDotN = FConvexVec3::DotProduct(N, ScaledPlaneN);
+					if (PlaneNormalDotN <= -SMALL_NUMBER)
 					{
 						// Keep the most opposing plane
-						if (PlaneNormalDotN < BestPlaneDot)
+						if (PlaneNormalDotN < InOutBestPlaneDot)
 						{
-							BestPlaneDot = PlaneNormalDotN;
-							BestPlaneIndex = PlaneIndex;
+							InOutBestPlaneDot = PlaneNormalDotN;
+							OutBestPlaneIndex = PlaneIndex;
 						}
 					}
 				}
@@ -563,6 +568,71 @@ namespace Chaos
 			{
 				// This always returns a valid plane.
 				BestPlaneIndex = Convex.GetMostOpposingPlane(N);
+			}
+
+			check(BestPlaneIndex != INDEX_NONE);
+			return BestPlaneIndex;
+		}
+
+		template <>
+		int32 SelectContactPlane<TImplicitObjectScaled<FConvex>>(
+			const TImplicitObjectScaled<FConvex>& ScaledConvex,
+			const FVec3 InX,
+			const FVec3 InN,
+			const FReal InMaxDistance,
+			const int32 VertexIndex)
+		{
+			using FConvexReal = FConvex::FRealType;
+			using FConvexVec3 = FConvex::FVec3Type;
+			using FConvexPlane = FConvex::FPlaneType;
+
+			// Handle InMaxDistance = 0. We expect that the X is actually on the surface in this case, so the search distance just needs to be some reasonable tolerance.
+			// @todo(chaos): this should probable be dependent on the size of the objects...
+			const FConvexReal MinFaceSearchDistance = Chaos_Collision_Manifold_MinFaceSearchDistance;
+			const FConvexReal MaxDistance = FMath::Max(FConvexReal(InMaxDistance), MinFaceSearchDistance);
+
+			// LWC_TODO: Precision Loss
+			// Scale precision is ok as long as we only support large positions and not large sizes...
+			// N precision is ok with floats (normalized)
+			// X precision is ok as long as we don't try to find the exact separation of objects that are separated by LWC distances
+			// which we don't in collision detection (objects must pass bounds checks first).
+			const FConvexVec3 Scale = FConvexVec3(ScaledConvex.GetScale());
+			const FConvexVec3 ScaleInv = FConvexVec3(ScaledConvex.GetInvScale());
+			const FConvexVec3 X = FConvexVec3(InX);
+			const FConvexVec3 N = FConvexVec3(InN);
+
+			int32 BestPlaneIndex = INDEX_NONE;
+			FConvexReal BestPlaneDot = 1.0f;
+			{
+				int32 PlaneIndices[3] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };
+				int32 NumPlanes = ScaledConvex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);
+
+				// If we have more than 3 planes we iterate over the full set of planes since it is faster than using the half edge structure
+				if (NumPlanes > 3)
+				{
+					NumPlanes = ScaledConvex.NumPlanes();
+					for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
+					{
+						FindBestPlaneScaledConvex(ScaledConvex, X, N, Scale, ScaleInv, MaxDistance, PlaneIndex, BestPlaneIndex, BestPlaneDot);
+					}
+				}
+				// Otherwise we iterate over the cached planes
+				else
+				{
+					for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
+					{
+						FindBestPlaneScaledConvex(ScaledConvex, X, N, Scale, ScaleInv, MaxDistance, PlaneIndices[PlaneIndex], BestPlaneIndex, BestPlaneDot);
+					}
+				}
+			}
+
+			// Malformed convexes or half-spaces or capsules could have all planes rejected above.
+			// If that happens, select the most opposing plane including those that
+			// may point the same direction as N. 
+			if (BestPlaneIndex == INDEX_NONE)
+			{
+				// This always returns a valid plane.
+				BestPlaneIndex = ScaledConvex.GetMostOpposingPlane(N);
 			}
 
 			check(BestPlaneIndex != INDEX_NONE);
@@ -688,11 +758,11 @@ namespace Chaos
 			// We will use a double buffer as an optimization
 			const uint32 MaxContactPointCount = 32; // This should be tuned
 			uint32 ContactPointCount = 0;
-			FVec3 ClippedVertices1[MaxContactPointCount];
-			FVec3 ClippedVertices2[MaxContactPointCount];
 			FVec3* ClippedVertices = nullptr;
 			const FRigidTransform3* RefConvexTM;
 			FRigidTransform3 ConvexOtherToRef;
+			FVec3 ClippedVertices1[MaxContactPointCount];
+			FVec3 ClippedVertices2[MaxContactPointCount];
 
 			{
 				SCOPE_CYCLE_COUNTER_MANIFOLD_CLIP();
