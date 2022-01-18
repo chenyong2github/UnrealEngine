@@ -1,0 +1,211 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+// todo: This should be set by compute graph permutations when that is working.
+#define ENABLE_DEFORMER_CLOTH 1
+
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(InputStreamStart);
+uint DI_LOCAL(NumInfluencesPerVertex);
+float DI_LOCAL(ClothBlendWeight);
+float4x4 DI_LOCAL(ClothLocalToWorld);
+float4x4 DI_LOCAL(ClothWorldToLocal);
+Buffer<float4> DI_LOCAL(ClothBuffer);
+Buffer<float2> DI_LOCAL(ClothPositionsAndNormalsBuffer);
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadLocalToWorld, float4x4, void)
+{
+#if ENABLE_DEFORMER_CLOTH
+	return DI_LOCAL(ClothLocalToWorld);
+#else
+	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+#endif
+}
+
+DI_IMPL_READ(ReadWorldToLocal, float4x4, void)
+{
+#if ENABLE_DEFORMER_CLOTH
+	return DI_LOCAL(ClothWorldToLocal);
+#else
+	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+#endif
+}
+
+struct FVertexTriangleInfluence
+{
+	float4 PositionBaryCoordsAndDist;
+	float4 NormalBaryCoordsAndDist;
+	float4 TangentBaryCoordsAndDist;
+	uint4 SourceMeshVertIndices;
+	float Weight;
+};
+
+FVertexTriangleInfluence DI_LOCAL(GetClothInfluence)(uint VertexIndex, uint InfluenceIndex)
+{
+	const uint VertexOffset = DI_LOCAL(NumInfluencesPerVertex) * VertexIndex + DI_LOCAL(InputStreamStart);
+
+	const uint NUM_FLOAT4S_PER_VERTEX_INFLUENCE = 4; // Stride of GPUSkinApexCloth
+	const uint Offset = (VertexOffset + InfluenceIndex) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
+
+	FVertexTriangleInfluence Influence;
+
+	Influence.PositionBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset];
+	Influence.NormalBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset + 1];
+	Influence.TangentBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset + 2];
+
+	uint4 PackedIndices = asuint(DI_LOCAL(ClothBuffer)[Offset + 3]);
+	Influence.SourceMeshVertIndices.yw = (PackedIndices.xy >> 16) & 0xffff;
+	Influence.SourceMeshVertIndices.xz = PackedIndices.xy & 0xffff;
+	
+	Influence.Weight = asfloat(PackedIndices[2]);
+
+	return Influence;
+}
+
+struct FClothResult
+{
+	float ClothWeight;
+	float3 Position;
+	float3 TangentX;
+	float3 TangentZ;
+};
+
+FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
+{
+	float ClothWeight = 0;
+	float3 SimulatedPosition = float3(0, 0, 0);
+	float3 NormalPosition = float3(0, 0, 0);
+	float3 TangentPosition = float3(0, 0, 0);
+
+	int NumInfluences = 0;
+	float SumWeights = 0;
+
+	for (uint i = 0; i < DI_LOCAL(NumInfluencesPerVertex); ++i)
+	{
+		const FVertexTriangleInfluence Influence = DI_LOCAL(GetClothInfluence)(VertexIndex, i);
+
+		if (Influence.SourceMeshVertIndices.w < 0xFFFF)
+		{
+			++NumInfluences;
+
+			float3 A = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 1].x);
+			float3 B = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 1].x);
+			float3 C = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 1].x);
+
+			float3 NA = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 2]);
+			float3 NB = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 2]);
+			float3 NC = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 2]);
+
+			ClothWeight += DI_LOCAL(ClothBlendWeight) * (1.0f - (Influence.SourceMeshVertIndices.w / 65535.0f));
+
+			float Weight = 1.0f;
+			if (DI_LOCAL(NumInfluencesPerVertex) > 1)
+			{
+				// Weight is packed in the last coordinate
+				Weight = Influence.Weight;
+				SumWeights += Weight;
+			}
+			else
+			{
+				// Single influence, weight is 1.0
+				Weight = 1.0f;
+				SumWeights = 1.0f;
+			}
+
+			NormalPosition += Weight * (Influence.NormalBaryCoordsAndDist.x * (A + NA * Influence.NormalBaryCoordsAndDist.w)
+				+ Influence.NormalBaryCoordsAndDist.y * (B + NB * Influence.NormalBaryCoordsAndDist.w)
+				+ Influence.NormalBaryCoordsAndDist.z * (C + NC * Influence.NormalBaryCoordsAndDist.w));
+
+			TangentPosition += Weight * (Influence.TangentBaryCoordsAndDist.x * (A + NA * Influence.TangentBaryCoordsAndDist.w)
+				+ Influence.TangentBaryCoordsAndDist.y * (B + NB * Influence.TangentBaryCoordsAndDist.w)
+				+ Influence.TangentBaryCoordsAndDist.z * (C + NC * Influence.TangentBaryCoordsAndDist.w));
+
+			float3 TriangleBary = float3(Influence.PositionBaryCoordsAndDist.x,
+				Influence.PositionBaryCoordsAndDist.y,
+				1.0f - Influence.PositionBaryCoordsAndDist.x - Influence.PositionBaryCoordsAndDist.y);
+
+			float3 SimPosition = TriangleBary.x * (A + NA * Influence.PositionBaryCoordsAndDist.w)
+				+ TriangleBary.y * (B + NB * Influence.PositionBaryCoordsAndDist.w)
+				+ TriangleBary.z * (C + NC * Influence.PositionBaryCoordsAndDist.w);
+
+			SimulatedPosition += Weight * SimPosition;
+		}
+	}
+
+	FClothResult Result;
+	Result.ClothWeight = 0;
+	Result.Position = float3(0, 0, 0);
+	Result.TangentX = float3(0, 0, 0);
+	Result.TangentZ = float3(0, 0, 0);
+
+	if (NumInfluences > 0 && SumWeights > 1e-4f)
+	{
+		float InvWeight = 1.0f / SumWeights;
+		SimulatedPosition *= InvWeight;
+		TangentPosition *= InvWeight;
+		NormalPosition *= InvWeight;
+
+		Result.ClothWeight = ClothWeight / (float)DI_LOCAL(NumInfluencesPerVertex);
+
+		Result.Position = SimulatedPosition;
+		
+		Result.TangentX = normalize(TangentPosition - SimulatedPosition);
+		Result.TangentZ = normalize(NormalPosition - SimulatedPosition);
+
+		// Cloth data are all in world space so need to change into local space
+		Result.TangentX = mul(Result.TangentX, (half3x3)DI_LOCAL(ClothWorldToLocal));
+		Result.TangentZ = mul(Result.TangentZ, (half3x3)DI_LOCAL(ClothWorldToLocal));
+	}
+
+	return Result;
+}
+
+// Individual functions all call the same (expensive) code.
+// There is the hope that the shader compiler may optimize here.
+// But really we will need to work out a way for Compute Kernels to do some shared work once and carry the results of that in an opaque context struct.
+
+DI_IMPL_READ(ReadClothWeight, float, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_CLOTH
+	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	return Result.ClothWeight;
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadClothPosition, float3, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_CLOTH
+	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	return Result.Position;
+#else
+	return float3(0, 0, 0);
+#endif
+}
+
+DI_IMPL_READ(ReadClothTangentX, float3, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_CLOTH
+	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	return Result.TangentX;
+#else
+	return float3(1, 0, 0);
+#endif
+}
+
+DI_IMPL_READ(ReadClothTangentZ, float3, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_CLOTH
+	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	return Result.TangentZ;
+#else
+	return float3(0, 0, 1);
+#endif
+}

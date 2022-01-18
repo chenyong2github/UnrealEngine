@@ -1,0 +1,36 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+// todo: This should be set by compute graph permutations when that is working.
+#define ENABLE_DEFORMER_MORPHTARGET 1
+
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(InputStreamStart);
+
+Buffer<float> DI_LOCAL(MorphBuffer);
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadDeltaPosition, float3, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_MORPHTARGET
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 6;
+	return float3(DI_LOCAL(MorphBuffer)[BufferIndex], DI_LOCAL(MorphBuffer)[BufferIndex + 1], DI_LOCAL(MorphBuffer)[BufferIndex + 2]);
+#else
+	return float3(0, 0, 0);
+#endif
+}
+
+DI_IMPL_READ(ReadDeltaNormal, float3, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_MORPHTARGET
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 6;
+	return float3(DI_LOCAL(MorphBuffer)[BufferIndex + 3], DI_LOCAL(MorphBuffer)[BufferIndex + 4], DI_LOCAL(MorphBuffer)[BufferIndex + 5]);
+#else
+	return float3(0, 0, 0);
+#endif
+}

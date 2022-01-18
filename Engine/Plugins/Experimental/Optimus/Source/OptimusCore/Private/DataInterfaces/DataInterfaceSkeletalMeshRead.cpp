@@ -268,7 +268,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkeletalMeshReadDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float4>, BoneMatrices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightStream)
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightLookupStream)
-	SHADER_PARAMETER_SRV(Buffer<float>, MorphBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndicesIndices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
@@ -317,6 +316,7 @@ FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 FSkeletalMeshReadDataProviderProxy::FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+	BoneRevisionNumber = SkeletalMeshComponent->GetBoneTransformRevisionNumber();
 }
 
 int32 FSkeletalMeshReadDataProviderProxy::GetInvocationCount() const
@@ -341,7 +341,7 @@ FIntVector FSkeletalMeshReadDataProviderProxy::GetDispatchDim(int32 InvocationIn
 
 void FSkeletalMeshReadDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const
 {
-	// todo[CF]: Set permutations required for our skeletal mesh.
+	// todo[CF]: Set permutations required such as ENABLE_DEFORMER_BONES, MERGE_DUPLICATED_VERTICES
 }
 
 void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
@@ -361,15 +361,21 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 
 	const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
-	FRHIShaderResourceView* BoneBufferSRV = FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, SectionIdx, false);
+	const bool bPreviousFrame = false;
+	FRHIShaderResourceView* BoneBufferSRV = FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, SectionIdx, bPreviousFrame);
 
 	FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
+	check(WeightBuffer != nullptr);
 	FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
 	const bool bUnlimitedBoneInfluences = WeightBuffer->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence;
 	FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
-		
+	const bool bValidBones = (BoneBufferSRV != nullptr) && (SkinWeightBufferSRV != nullptr) && (!bUnlimitedBoneInfluences || InputWeightLookupStreamSRV != nullptr);
+
 	FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
 	FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
+	const bool bValidDuplicatedIndices = (DuplicatedIndicesIndicesSRV != nullptr) && (DuplicatedIndicesSRV != nullptr);
+
+	FRHIShaderResourceView* NullSRVBinding = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI.GetReference();
 
 	Parameters.NumVertices = RenderSection.NumVertices;
 	Parameters.NumTriangles = RenderSection.NumTriangles;
@@ -380,16 +386,15 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	Parameters.InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
 	Parameters.InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
 	Parameters.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
-	Parameters.IndexBuffer = IndexBufferSRV;
-	Parameters.PositionInputBuffer = MeshVertexBufferSRV;
-	Parameters.TangentInputBuffer = MeshTangentBufferSRV;
-	Parameters.UVInputBuffer = MeshUVBufferSRV;
-	Parameters.BoneMatrices = BoneBufferSRV;
-	Parameters.InputWeightStream = SkinWeightBufferSRV;
-	Parameters.InputWeightLookupStream = InputWeightLookupStreamSRV;
-	//Parameters.MorphBuffer = ;
-	Parameters.DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV;
-	Parameters.DuplicatedIndices = DuplicatedIndicesSRV;
+	Parameters.IndexBuffer = IndexBufferSRV != nullptr ? IndexBufferSRV : NullSRVBinding;
+	Parameters.PositionInputBuffer = MeshVertexBufferSRV != nullptr ? MeshVertexBufferSRV : NullSRVBinding;
+	Parameters.TangentInputBuffer = MeshTangentBufferSRV != nullptr ? MeshTangentBufferSRV : NullSRVBinding;
+	Parameters.UVInputBuffer = MeshUVBufferSRV != nullptr ? MeshUVBufferSRV : NullSRVBinding;
+	Parameters.BoneMatrices = BoneBufferSRV != nullptr ? BoneBufferSRV : NullSRVBinding;
+	Parameters.InputWeightStream = SkinWeightBufferSRV != nullptr ? SkinWeightBufferSRV : NullSRVBinding;
+	Parameters.InputWeightLookupStream = InputWeightLookupStreamSRV != nullptr ? InputWeightLookupStreamSRV : NullSRVBinding;
+	Parameters.DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV != nullptr ? DuplicatedIndicesIndicesSRV : NullSRVBinding;
+	Parameters.DuplicatedIndices = DuplicatedIndicesSRV != nullptr ? DuplicatedIndicesSRV : NullSRVBinding;
 
 	TArray<uint8> ParamData;
 	ParamData.SetNum(sizeof(Parameters));

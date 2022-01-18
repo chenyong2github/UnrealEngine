@@ -61,4 +61,5 @@ public:
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
+	uint32 BoneRevisionNumber = 0;
 };
