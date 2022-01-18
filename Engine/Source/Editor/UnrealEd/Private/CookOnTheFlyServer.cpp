@@ -471,13 +471,8 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	CookByTheBookOptions(nullptr),
 	CookFlags(ECookInitializationFlags::None),
 	bIsSavingPackage(false),
-	AssetRegistry(nullptr),
-	PackageDatas(MakeUnique<UE::Cook::FPackageDatas>(*this))
+	AssetRegistry(nullptr)
 {
-	PlatformManager = MakeUnique<UE::Cook::FPlatformManager>();
-	ExternalRequests = MakeUnique<UE::Cook::FExternalRequests>();
-	PackageTracker = MakeUnique<UE::Cook::FPackageTracker>(*PackageDatas.Get());
-	DiffModeHelper = MakeUnique<FDiffModeCookServerUtils>();
 }
 
 UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {}
@@ -4446,6 +4441,12 @@ void FSaveCookedPackageContext::FinishPackage()
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Initialize);
+
+	PackageDatas = MakeUnique<UE::Cook::FPackageDatas>(*this);
+	PlatformManager = MakeUnique<UE::Cook::FPlatformManager>();
+	ExternalRequests = MakeUnique<UE::Cook::FExternalRequests>();
+	PackageTracker = MakeUnique<UE::Cook::FPackageTracker>(*PackageDatas.Get());
+	DiffModeHelper = MakeUnique<FDiffModeCookServerUtils>();
 
 	BuildDefinitions.Reset(new UE::Cook::FBuildDefinitions());
 	UE::Cook::InitializeTls();
