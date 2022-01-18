@@ -93,7 +93,7 @@ namespace CADKernel
 			return GetPoint(iU, iV, true, true, normal);
 		}
 
-		void Display();
+		void Display() const;
 	};
 }
 

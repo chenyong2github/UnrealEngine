@@ -68,21 +68,21 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 	{
 		for (int32 IndexU = 0; IndexU < GetCoordinateCount(EIso::IsoU) - 1; ++IndexU)
 		{
-			const FPoint& Point = GetPoint(IndexU, IndexV);
-			const FPoint& PointU = GetPoint(IndexU + 1, IndexV);
-			const FPoint& PointV = GetPoint(IndexU, IndexV + 1);
-			const FPoint& PointUV = GetPoint(IndexU + 1, IndexV + 1);
-			const FPoint& PointUMid = GetIntermediateU(IndexU, IndexV);
-			const FPoint& PointVMid = GetIntermediateV(IndexU, IndexV);
-			const FPoint& PointUVMid = GetIntermediateUV(IndexU, IndexV);
+			const FPoint& Point_U0_V0 = GetPoint(IndexU, IndexV);
+			const FPoint& Point_U1_V1 = GetPoint(IndexU + 1, IndexV + 1);
+			const FPoint& Point_Um_V0 = GetIntermediateU(IndexU, IndexV);
+			const FPoint& Point_Um_V1 = GetIntermediateU(IndexU, IndexV+1);
+			const FPoint& Point_U0_Vm = GetIntermediateV(IndexU, IndexV);
+			const FPoint& Point_U1_Vm = GetIntermediateV(IndexU+1, IndexV);
+			const FPoint& Point_Um_Vm = GetIntermediateUV(IndexU, IndexV);
 
 			// Evaluate Sag
 			double LengthU;
-			double SagU = FCriterion::EvaluateSag(Point, PointU, PointUMid, LengthU);
+			double SagU = FCriterion::EvaluateSag(Point_U0_Vm, Point_U1_Vm, Point_Um_Vm, LengthU);
 			double LengthV;
-			double SagV = FCriterion::EvaluateSag(Point, PointV, PointVMid, LengthV);
+			double SagV = FCriterion::EvaluateSag(Point_Um_V0, Point_Um_V1, Point_Um_Vm, LengthV);
 			double LengthUV;
-			double SagUV = FCriterion::EvaluateSag(Point, PointUV, PointUVMid, LengthUV);
+			double SagUV = FCriterion::EvaluateSag(Point_U0_V0, Point_U1_V1, Point_Um_Vm, LengthUV);
 
 			for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 			{
@@ -106,99 +106,107 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 	}
 }
 
-void FCriteriaGrid::Display()
+void FCriteriaGrid::Display() const
 {
-	Open3DDebugSession(TEXT("Grid"));
+	F3DDebugSession _(TEXT("Grid"));
 
-	Open3DDebugSession(TEXT("CriteriaGrid Point 3d"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+		F3DDebugSession A(TEXT("CriteriaGrid Point 3d"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 		{
-			CADKernel::DisplayPoint(GetPoint(UIndex, VIndex), UIndex);
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(GetPoint(UIndex, VIndex), UIndex);
+			}
 		}
 	}
-	Close3DDebugSession();
 
-	Open3DDebugSession(TEXT("CriteriaGrid IntermediateU"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
+		F3DDebugSession A(TEXT("CriteriaGrid IntermediateU"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 		{
-			CADKernel::DisplayPoint(GetIntermediateU(UIndex, VIndex), EVisuProperty::ControlPoint);
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
+			{
+				CADKernel::DisplayPoint(GetIntermediateU(UIndex, VIndex), EVisuProperty::PurplePoint);
+			}
 		}
 	}
-	Close3DDebugSession();
 
-	Open3DDebugSession(TEXT("CriteriaGrid IntermediateV"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV) - 1; ++VIndex)
 	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+		F3DDebugSession A(TEXT("CriteriaGrid IntermediateV"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV) - 1; ++VIndex)
 		{
-			CADKernel::DisplayPoint(GetIntermediateV(UIndex, VIndex), EVisuProperty::ControlPoint);
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(GetIntermediateV(UIndex, VIndex), EVisuProperty::PurplePoint);
+			}
 		}
 	}
-	Close3DDebugSession();
 
-	Open3DDebugSession(TEXT("CriteriaGrid IntermediateUV"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV) - 1; ++VIndex)
 	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
+		F3DDebugSession A(TEXT("CriteriaGrid IntermediateUV"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV) - 1; ++VIndex)
 		{
-			CADKernel::DisplayPoint(GetIntermediateUV(UIndex, VIndex), EVisuProperty::ControlPoint);
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
+			{
+				CADKernel::DisplayPoint(GetIntermediateUV(UIndex, VIndex), EVisuProperty::PurplePoint);
+			}
 		}
 	}
-	Close3DDebugSession();
 
-	Open3DDebugSession(TEXT("Loop 3D"));
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 	{
-		CADKernel::Display(*Loop);
-	}
-	Close3DDebugSession();
-
-	Open3DDebugSession(TEXT("Loop 2D"));
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
-	{
-		CADKernel::Display2D(*Loop);
-	}
-	Close3DDebugSession();
-
-	Open3DDebugSession(TEXT("CriteriaGrid Point 2D"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
-	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+		F3DDebugSession A(TEXT("Loop 3D"));
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 		{
-			CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), GetCoordinate(EIso::IsoV, VIndex)));
+			CADKernel::Display(*Loop);
 		}
 	}
-	Close3DDebugSession();
 
-	Open3DDebugSession(TEXT("CriteriaGrid Point 2D Intermediate"));
-	for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 	{
-		for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+		F3DDebugSession A(TEXT("Loop 2D"));
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 		{
-			CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1))*0.5, GetCoordinate(EIso::IsoV, VIndex)), EVisuProperty::ControlPoint);
+			CADKernel::Display2D(*Loop);
 		}
 	}
-	for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
-	{
-		for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
-		{
-			CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1))*0.5), EVisuProperty::ControlPoint);
-		}
-	}
-	for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
-	{
-		for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
-		{
-			CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1))*0.5, (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1))*0.5), EVisuProperty::ControlPoint);
-		}
-	}
-	Close3DDebugSession();
 
-	Close3DDebugSession();
+	{
+		F3DDebugSession A(TEXT("CriteriaGrid Point 2D"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
+		{
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), GetCoordinate(EIso::IsoV, VIndex)));
+			}
+		}
+	}
+
+	{
+		F3DDebugSession A(TEXT("CriteriaGrid Point 2D Intermediate"));
+		for (int32 VIndex = 0; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
+		{
+			for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, GetCoordinate(EIso::IsoV, VIndex)), EVisuProperty::PurplePoint);
+			}
+		}
+		for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
+		{
+			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
+			}
+		}
+		for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
+		{
+			for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
+			{
+				CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
+			}
+		}
+	}
+
+	Wait();
 }
 
 } // namespace CADKernel

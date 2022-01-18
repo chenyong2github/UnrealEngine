@@ -718,7 +718,8 @@ namespace CADLibrary
 		}
 
 		{
-			CADKernel::FSession CADKernelSession(0.00001 / CADFileData.GetImportParameters().GetMetricUnit());
+			double GeometricTolerance = 0.00001 / CADFileData.GetImportParameters().GetMetricUnit();
+			CADKernel::FSession CADKernelSession(GeometricTolerance);
 
 			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
 
@@ -751,7 +752,7 @@ namespace CADLibrary
 			// Tessellate the body
 			TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-			FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters());
+			FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters(), GeometricTolerance);
 
 			CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
 			Mesher.MeshEntity(CADKernelModel);
@@ -800,7 +801,7 @@ namespace CADLibrary
 		// Tessellate the body
 		TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters());
+		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters(), CADKernelSession.GetGeometricTolerance());
 
 		CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
 		Mesher.MeshEntity(CADKernelBody);

@@ -283,7 +283,7 @@ namespace CADLibrary
 		TSharedRef<FModelMesh> CADKernelModelMesh = FEntity::MakeShared<FModelMesh>();
 		FParametricMesher Mesher(CADKernelModelMesh);
 
-		DefineMeshCriteria(CADKernelModelMesh, ImportParameters);
+		DefineMeshCriteria(CADKernelModelMesh, ImportParameters, 0.01);
 		Mesher.MeshEntity(CADTopologicalEntity);
 
 		FMeshConversionContext Context(ImportParameters, MeshParameters);
@@ -383,16 +383,18 @@ namespace CADLibrary
 		}
 	}
 
-	void FCADKernelTools::DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel, const FImportParameters& ImportParameters)
+	void FCADKernelTools::DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance)
 	{
 		{
 			TSharedPtr<CADKernel::FCriterion> CurvatureCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::CADCurvature);
 			MeshModel->AddCriterion(CurvatureCriterion);
+
+			TSharedPtr<CADKernel::FCriterion> MinSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MinSize, 2. * GeometricTolerance);
+			MeshModel->AddCriterion(MinSizeCriterion);
 		}
 
 		if (ImportParameters.GetMaxEdgeLength() > SMALL_NUMBER)
 		{
-
 			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.GetMaxEdgeLength() / ImportParameters.GetScaleFactor());
 			MeshModel->AddCriterion(MaxSizeCriterion);
 		}
