@@ -357,6 +357,14 @@ struct HAIRSTRANDSCORE_API FHairSimulationSetup
 	/** Strands simulation is done in local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Strands simulation is done in local space"))
 	bool bLocalSimulation = true;
+	
+	/** Scaling of the bone world linear velocity contribution */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Scaling of the bone world linear velocity contribution", EditCondition = "bLocalSimulation"))
+	float LinearVelocityScale = 0.0f;
+	
+	/** Scaling of the bone world angular velocity contribution */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Scaling of the bone world angular velocity contribution", EditCondition = "bLocalSimulation"))
+	float AngularVelocityScale = 0.0f;
 
 	/** Bone used for the simulation local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Bone used for the simulation local space", EditCondition = "bLocalSimulation"))

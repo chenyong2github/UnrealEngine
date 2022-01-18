@@ -179,6 +179,11 @@ const FString UNiagaraDataInterfaceHairStrands::BoneTransformName(TEXT("BoneTran
 const FString UNiagaraDataInterfaceHairStrands::BoneInverseName(TEXT("BoneInverse_"));
 const FString UNiagaraDataInterfaceHairStrands::BoneRotationName(TEXT("BoneRotation_"));
 
+const FString UNiagaraDataInterfaceHairStrands::BoneLinearVelocityName(TEXT("BoneLinearVelocity_"));
+const FString UNiagaraDataInterfaceHairStrands::BoneAngularVelocityName(TEXT("BoneAngularVelocity_"));
+const FString UNiagaraDataInterfaceHairStrands::BoneLinearAccelerationName(TEXT("BoneLinearAcceleration_"));
+const FString UNiagaraDataInterfaceHairStrands::BoneAngularAccelerationName(TEXT("BoneAngularAcceleration_"));
+
 const FString UNiagaraDataInterfaceHairStrands::DeformedPositionBufferName(TEXT("DeformedPositionBuffer_"));
 const FString UNiagaraDataInterfaceHairStrands::CurvesOffsetsBufferName(TEXT("CurvesOffsetsBuffer_"));
 const FString UNiagaraDataInterfaceHairStrands::RestPositionBufferName(TEXT("RestPositionBuffer_"));
@@ -233,6 +238,11 @@ struct FNDIHairStrandsParametersName
 		BoneTransformName = UNiagaraDataInterfaceHairStrands::BoneTransformName + Suffix;
 		BoneInverseName = UNiagaraDataInterfaceHairStrands::BoneInverseName + Suffix;
 		BoneRotationName = UNiagaraDataInterfaceHairStrands::BoneRotationName + Suffix;
+		
+		BoneLinearVelocityName = UNiagaraDataInterfaceHairStrands::BoneLinearVelocityName + Suffix;
+		BoneAngularVelocityName = UNiagaraDataInterfaceHairStrands::BoneAngularVelocityName + Suffix;
+		BoneLinearAccelerationName = UNiagaraDataInterfaceHairStrands::BoneLinearAccelerationName + Suffix;
+		BoneAngularAccelerationName = UNiagaraDataInterfaceHairStrands::BoneAngularAccelerationName + Suffix;
 
 		DeformedPositionBufferName = UNiagaraDataInterfaceHairStrands::DeformedPositionBufferName + Suffix;
 		CurvesOffsetsBufferName = UNiagaraDataInterfaceHairStrands::CurvesOffsetsBufferName + Suffix;
@@ -275,6 +285,11 @@ struct FNDIHairStrandsParametersName
 	FString BoneTransformName;
 	FString BoneInverseName;
 	FString BoneRotationName;
+	
+	FString BoneLinearVelocityName;
+	FString BoneLinearAccelerationName;
+	FString BoneAngularVelocityName;
+	FString BoneAngularAccelerationName;
 
 	FString DeformedPositionBufferName;
 	FString CurvesOffsetsBufferName;
@@ -441,7 +456,7 @@ void FNDIHairStrandsData::Release()
 }
 
 void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsBulkData* StrandsDatas,
-	UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld)
+	UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld, const float DeltaSeconds)
 {
 	if (Interface != nullptr)
 	{
@@ -515,7 +530,39 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 				// Convert to double for LWC
 				FMatrix44d BoneTransformDouble = BoneTransform.ToMatrixWithScale();
 				const FMatrix44d WorldTransformDouble = WorldTransform.ToMatrixWithScale();
+
+				if(DeltaSeconds != 0.0f)
+				{
+					const FMatrix44d PreviousBoneTransformDouble = PreviousBoneTransform.ToMatrixWithScale();
+					const FMatrix44d DeltaTransformDouble =  BoneTransformDouble * PreviousBoneTransformDouble.Inverse();
+					
+					const FMatrix44f DeltaTransformFloat = DeltaTransformDouble;
+					const FTransform DeltaTransform = FTransform(DeltaTransformFloat);
+					const FQuat DeltaRotation = DeltaTransform.GetRotation();
+					
+					// Apply linear velocity scale
+					BoneLinearVelocity = FMath::Clamp(1.f - SimulationSettings.SimulationSetup.LinearVelocityScale, 0.f, 1.f) * DeltaTransform.GetTranslation() / DeltaSeconds;
+					BoneLinearAcceleration = (BoneLinearVelocity-PreviousBoneLinearVelocity) / DeltaSeconds;
+
+					
+					// Apply angular velocity scale
+					BoneAngularVelocity = BoneTransform.TransformVector(DeltaRotation.GetRotationAxis() * DeltaRotation.GetAngle() *
+						FMath::Clamp(1.f - SimulationSettings.SimulationSetup.AngularVelocityScale, 0.f, 1.f)) / DeltaSeconds;
+					BoneAngularAcceleration = (BoneAngularVelocity-PreviousBoneAngularVelocity) / DeltaSeconds;
+				}
+				else
+				{
+					BoneLinearVelocity = FVector3f::Zero();
+					BoneAngularVelocity = FVector3f::Zero();
+
+					BoneLinearAcceleration = FVector3f::Zero();
+					BoneAngularAcceleration = FVector3f::Zero();
+				}
 				
+				PreviousBoneTransform = BoneTransform;
+				PreviousBoneLinearVelocity = BoneLinearVelocity;
+				PreviousBoneAngularVelocity = BoneAngularVelocity;
+
 				BoneTransformDouble = BoneTransformDouble * WorldTransformDouble.Inverse();
 				const FMatrix44d WorldTransformFloat = BoneTransformDouble;
 				BoneTransform = FTransform(WorldTransformFloat);
@@ -563,7 +610,7 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 		{
 			FTransform LocalToWorld = FTransform::Identity;
 			Interface->ExtractDatasAndResources(SystemInstance, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
-			Update(Interface, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+			Update(Interface, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld, 0.0f);
 
 			HairStrandsBuffer = new FNDIHairStrandsBuffer();
 			HairStrandsBuffer->Initialize(StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, ParamsScale);
@@ -603,6 +650,11 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		BoneTransform.Bind(ParameterMap, *ParamNames.BoneTransformName);
 		BoneInverse.Bind(ParameterMap, *ParamNames.BoneInverseName);
 		BoneRotation.Bind(ParameterMap, *ParamNames.BoneRotationName);
+
+		BoneLinearVelocity.Bind(ParameterMap, *ParamNames.BoneLinearVelocityName);
+		BoneAngularVelocity.Bind(ParameterMap, *ParamNames.BoneAngularVelocityName);
+		BoneLinearAcceleration.Bind(ParameterMap, *ParamNames.BoneLinearAccelerationName);
+		BoneAngularAcceleration.Bind(ParameterMap, *ParamNames.BoneAngularAccelerationName);
 
 		DeformedPositionBuffer.Bind(ParameterMap, *ParamNames.DeformedPositionBufferName);
 		CurvesOffsetsBuffer.Bind(ParameterMap, *ParamNames.CurvesOffsetsBufferName);
@@ -755,6 +807,10 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneTransform, BoneTransformFloat);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneInverse, BoneTransformFloat.Inverse());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneRotation, BoneTransformFloat.GetMatrixWithoutScale().ToQuat());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneLinearVelocity, ProxyData->BoneLinearVelocity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneAngularVelocity, ProxyData->BoneAngularVelocity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneLinearAcceleration, ProxyData->BoneLinearAcceleration);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneAngularAcceleration, ProxyData->BoneAngularAcceleration);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, NeedResetValue);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InterpolationMode, int32(InterpolationModeValue));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestUpdate, RestUpdateValue);
@@ -799,6 +855,10 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneTransform, FMatrix44f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneInverse, FMatrix44f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneRotation, FQuat4f::Identity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneLinearVelocity, FVector3f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneAngularVelocity, FVector3f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneLinearAcceleration, FVector3f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneAngularAcceleration, FVector3f::ZeroVector);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InterpolationMode, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestUpdate, 0);
@@ -846,6 +906,10 @@ private:
 	LAYOUT_FIELD(FShaderParameter, BoneTransform);
 	LAYOUT_FIELD(FShaderParameter, BoneInverse);
 	LAYOUT_FIELD(FShaderParameter, BoneRotation);
+	LAYOUT_FIELD(FShaderParameter, BoneLinearVelocity);
+	LAYOUT_FIELD(FShaderParameter, BoneAngularVelocity);
+	LAYOUT_FIELD(FShaderParameter, BoneLinearAcceleration);
+	LAYOUT_FIELD(FShaderParameter, BoneAngularAcceleration);
 	LAYOUT_FIELD(FShaderParameter, ResetSimulation);
 	LAYOUT_FIELD(FShaderParameter, InterpolationMode);
 	LAYOUT_FIELD(FShaderParameter, RestUpdate);
@@ -1130,7 +1194,7 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 		}
 		InstanceData->ForceReset = SourceComponent->bResetSimulation;
 	}
-	InstanceData->Update(this, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+	InstanceData->Update(this, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld, InDeltaSeconds);
 	return false;
 }
 

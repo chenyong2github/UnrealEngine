@@ -47,6 +47,10 @@ struct FDIHairStrandsContext
 	Buffer<float4>		RestSamplePositionsBuffer;
 	Buffer<float4>		MeshSampleWeightsBuffer;
 	Buffer<float>		ParamsScaleBuffer;
+	float3				BoneLinearVelocity;
+	float3				BoneAngularVelocity;
+	float3				BoneLinearAcceleration;
+	float3				BoneAngularAcceleration;
 }; 
 
 #define DIHAIRSTRANDS_DECLARE_CONSTANTS(NAME)\
@@ -82,6 +86,10 @@ int4				BoundingBoxOffsets_##NAME;\
 Buffer<float4>		RestSamplePositionsBuffer_##NAME;\
 Buffer<float4>		MeshSampleWeightsBuffer_##NAME;\
 Buffer<float>		ParamsScaleBuffer_##NAME;\
+float3				BoneLinearVelocity_##NAME;\
+float3				BoneAngularVelocity_##NAME;\
+float3				BoneLinearAcceleration_##NAME;\
+float3				BoneAngularAcceleration_##NAME;\
 
 //@todo-lh: BoundingBoxBuffer is passed around separately as SPIRV-Cross cannot translate texture atomics properly atm.
 #define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
@@ -118,6 +126,10 @@ DIContext.BoundingBoxOffsets = BoundingBoxOffsets_##NAME;\
 DIContext.RestSamplePositionsBuffer = RestSamplePositionsBuffer_##NAME;\
 DIContext.MeshSampleWeightsBuffer = MeshSampleWeightsBuffer_##NAME;\
 DIContext.ParamsScaleBuffer = ParamsScaleBuffer_##NAME;\
+DIContext.BoneLinearVelocity = BoneLinearVelocity_##NAME;\
+DIContext.BoneAngularVelocity = BoneAngularVelocity_##NAME;\
+DIContext.BoneLinearAcceleration = BoneLinearAcceleration_##NAME;\
+DIContext.BoneAngularAcceleration = BoneAngularAcceleration_##NAME;\
 
 /* -----------------------------------------------------------------
  * Vector utilities
@@ -780,8 +792,16 @@ void DIHairStrands_AdvectNodePosition(in FDIHairStrandsContext DIContext, in flo
 	{
 		const float3 ImplicitGradient =  float3(NodeMass,NodeMass,NodeMass) / DeltaTime - ForceGradient;
 		const float3 InverseGradient = float3(1.0/ImplicitGradient.x, 1.0/ImplicitGradient.y, 1.0/ImplicitGradient.z);
-
-		OutLinearVelocity += InverseGradient * ExternalForce;
+		
+		if(DIContext.LocalSimulation)
+		{
+			OutLinearVelocity += InverseGradient * ExternalForce - DIContext.BoneLinearAcceleration * DeltaTime - ( cross(DIContext.BoneAngularAcceleration, OutNodePosition) +
+				2.0 * cross(DIContext.BoneAngularVelocity, OutLinearVelocity) + cross(DIContext.BoneAngularVelocity, cross(DIContext.BoneAngularVelocity,OutNodePosition))) * DeltaTime;
+		}
+		else
+		{
+			OutLinearVelocity += InverseGradient * ExternalForce;
+		}
 		OutNodePosition += OutLinearVelocity * DeltaTime;
 	}
 }

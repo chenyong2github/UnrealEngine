@@ -97,12 +97,22 @@ struct FNDIHairStrandsData
 	void Release();
 
 	/** Update the buffers */
-	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsBulkData* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld);
+	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsBulkData* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld, const float DeltaSeconds);
 
 	inline void ResetDatas()
 	{
 		WorldTransform.SetIdentity();
 		BoneTransform.SetIdentity();
+		BoneLinearVelocity = FVector3f::Zero();
+		BoneAngularVelocity = FVector3f::Zero();
+			
+		BoneLinearAcceleration = FVector3f::Zero();
+		BoneAngularAcceleration = FVector3f::Zero();
+			
+		PreviousBoneTransform.SetIdentity();
+		PreviousBoneLinearVelocity = FVector3f::Zero();
+		PreviousBoneAngularVelocity = FVector3f::Zero();
+		
 		GlobalInterpolation = false;
 		HairGroupInstance = nullptr;
 
@@ -159,6 +169,15 @@ struct FNDIHairStrandsData
 
 			WorldTransform = OtherDatas->WorldTransform;
 			BoneTransform = OtherDatas->BoneTransform;
+			BoneLinearVelocity = OtherDatas->BoneLinearVelocity;
+			BoneAngularVelocity = OtherDatas->BoneAngularVelocity;
+			
+			BoneLinearAcceleration = OtherDatas->BoneLinearAcceleration;
+			BoneAngularAcceleration = OtherDatas->BoneAngularAcceleration;
+			
+			PreviousBoneTransform = OtherDatas->PreviousBoneTransform;
+			PreviousBoneLinearVelocity = OtherDatas->PreviousBoneLinearVelocity;
+			PreviousBoneAngularVelocity = OtherDatas->PreviousBoneAngularVelocity;
 
 			GlobalInterpolation = OtherDatas->GlobalInterpolation;
 			BindingType = OtherDatas->BindingType;
@@ -213,6 +232,27 @@ struct FNDIHairStrandsData
 
 	/** Bone transform that will be used for local strands simulation */
 	FTransform BoneTransform;
+	
+	/** Bone transform that will be used for local strands simulation */
+	FTransform PreviousBoneTransform;
+
+	/** Bone Linear Velocity */
+	FVector3f BoneLinearVelocity;
+
+	/** Bone Previous Linear Velocity */
+	FVector3f PreviousBoneLinearVelocity;
+
+	/** Bone Angular Velocity */
+	FVector3f BoneAngularVelocity;
+
+	/** Bone Previous Angular Velocity */
+	FVector3f PreviousBoneAngularVelocity;
+
+	/** Bone Linear Acceleration */
+	FVector3f BoneLinearAcceleration;
+
+	/** Bone Angular Acceleration */
+	FVector3f BoneAngularAcceleration;
 
 	/** Global Interpolation */
 	bool GlobalInterpolation;
@@ -620,6 +660,18 @@ public:
 
 	/** Name of the world rotation */
 	static const FString BoneRotationName;
+
+	/** Name of the bone linear velocity */
+	static const FString BoneLinearVelocityName;
+
+	/** Name of the bone linear acceleration */
+	static const FString BoneLinearAccelerationName;
+
+	/** Name of the bone angular velocity */
+	static const FString BoneAngularVelocityName;
+
+	/** Name of the bone angular acceleration */
+	static const FString BoneAngularAccelerationName;
 
 	/** Name of the number of strands */
 	static const FString NumStrandsName;
