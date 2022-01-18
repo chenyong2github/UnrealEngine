@@ -2968,6 +2968,7 @@ void SKismetDebugTreeView::Construct(const FArguments& InArgs)
 	bFilteredItemsDirty = false;
 	bInDebuggerTab = InArgs._InDebuggerTab;
 	SearchString = MakeShared<FString>();
+	SearchMessageItem = MakeMessageItem(LOCTEXT("NoItemsMatchSearch", "No entries match the search text").ToString());
 
 	ChildSlot
 	[
@@ -3078,6 +3079,11 @@ void SKismetDebugTreeView::UpdateFilteredItems()
 				}
 			}
 		}
+	}
+
+	if (FilteredTreeRoots.IsEmpty())
+	{
+		FilteredTreeRoots.Add(SearchMessageItem);
 	}
 
 	TreeView->RequestTreeRefresh();

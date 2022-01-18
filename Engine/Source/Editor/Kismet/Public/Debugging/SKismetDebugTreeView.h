@@ -222,6 +222,9 @@ private:
 
 	bool bFilteredItemsDirty;
 
+	/** message to display when no entries in the tree match the search text */
+	FDebugTreeItemPtr SearchMessageItem;
+
 	/** whether this tree is held within the blueprint debugger tab, used to hide context menu options */
 	bool bInDebuggerTab;
 public:
