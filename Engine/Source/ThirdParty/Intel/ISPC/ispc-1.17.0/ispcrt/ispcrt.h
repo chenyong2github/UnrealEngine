@@ -46,7 +46,13 @@ typedef enum {
     ISPCRT_UNKNOWN_ERROR = 1,
     ISPCRT_INVALID_ARGUMENT = 2,
     ISPCRT_INVALID_OPERATION = 3,
-    ISPCRT_DEVICE_LOST = 4
+    ISPCRT_OUT_OF_MEMORY = 5,
+    ISPCRT_UNINITIALIZED = 6,
+    ISPCRT_UNSUPPORTED = 7,
+    ISPCRT_DEVICE_LOWER_POWER = 8,
+    ISPCRT_DEVICE_RESET = 9,
+    ISPCRT_DEVICE_LOST = 10
+
 } ISPCRTError;
 
 typedef void (*ISPCRTErrorFunc)(ISPCRTError, const char *errorMessage);
@@ -101,8 +107,11 @@ void *ispcrtSharedPtr(ISPCRTMemoryView);
 size_t ispcrtSize(ISPCRTMemoryView);
 
 // Kernels ////////////////////////////////////////////////////////////////////
+typedef struct {
+    uint32_t stackSize;
+} ISPCRTModuleOptions;
 
-ISPCRTModule ispcrtLoadModule(ISPCRTDevice, const char *moduleFile);
+ISPCRTModule ispcrtLoadModule(ISPCRTDevice, const char *moduleFile, ISPCRTModuleOptions);
 ISPCRTKernel ispcrtNewKernel(ISPCRTDevice, ISPCRTModule, const char *name);
 
 // Task queues ////////////////////////////////////////////////////////////////
@@ -120,7 +129,6 @@ ISPCRTFuture ispcrtLaunch2D(ISPCRTTaskQueue, ISPCRTKernel, ISPCRTMemoryView para
 ISPCRTFuture ispcrtLaunch3D(ISPCRTTaskQueue, ISPCRTKernel, ISPCRTMemoryView params, size_t dim0, size_t dim1,
                             size_t dim2);
 
-void ispcrtSubmit(ISPCRTTaskQueue);
 void ispcrtSync(ISPCRTTaskQueue);
 
 // Futures and task timing ////////////////////////////////////////////////////

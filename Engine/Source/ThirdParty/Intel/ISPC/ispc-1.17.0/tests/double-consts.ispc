@@ -1,6 +1,8 @@
-// rule: skip on cpu=TGLLP
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
 
-export void f_f(uniform float RET[], uniform float aFOO[]) {
+task void f_f(uniform float RET[], uniform float aFOO[]) {
     double a = aFOO[programIndex];
     // Test parsing of double constants.
     double d1 = 1.0d40;
@@ -18,6 +20,6 @@ export void f_f(uniform float RET[], uniform float aFOO[]) {
     }
 }
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[programIndex] = 1 + programIndex;
 }

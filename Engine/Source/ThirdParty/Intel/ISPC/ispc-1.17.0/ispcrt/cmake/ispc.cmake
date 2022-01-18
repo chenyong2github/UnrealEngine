@@ -17,6 +17,13 @@ macro (add_definitions_ispc)
   list(APPEND ISPC_DEFINITIONS ${ARGN})
 endmacro ()
 
+# We can't get the file dependencies property of the custom targets
+# so we use a custom property to propoage this information through
+define_property(TARGET PROPERTY ISPC_CUSTOM_DEPENDENCIES
+    BRIEF_DOCS "Tracks list of custom target dependencies"
+    FULL_DOCS "Tracks list of custom target dependencies"
+)
+
 ###############################################################################
 ## CPU specific macros/options ################################################
 ###############################################################################
@@ -68,6 +75,21 @@ append_ispc_target_list(AVX512SKX)
 
 ## Macros ##
 
+macro (ispc_read_dependencies ISPC_DEPENDENCIES_FILE)
+  set(ISPC_DEPENDENCIES "")
+  if (EXISTS ${ISPC_DEPENDENCIES_FILE})
+    file(READ ${ISPC_DEPENDENCIES_FILE} contents)
+    string(REPLACE " " ";"     contents "${contents}")
+    string(REPLACE ";" "\\\\;" contents "${contents}")
+    string(REPLACE "\n" ";"    contents "${contents}")
+    foreach(dep ${contents})
+      if (EXISTS ${dep})
+        set(ISPC_DEPENDENCIES ${ISPC_DEPENDENCIES} ${dep})
+      endif (EXISTS ${dep})
+    endforeach(dep ${contents})
+  endif ()
+endmacro()
+
 macro (ispc_compile)
   set(ISPC_ADDITIONAL_ARGS "")
   # Check if CPU target is passed externally
@@ -90,6 +112,9 @@ macro (ispc_compile)
     set(ISPC_INCLUDE_DIR_PARMS "-I" ${ISPC_INCLUDE_DIR_PARMS})
   endif()
 
+  if (NOT CMAKE_BUILD_TYPE)
+    set (CMAKE_BUILD_TYPE "Release")
+  endif()
   #CAUTION: -O0/1 -g with ispc seg faults
   set(ISPC_FLAGS_DEBUG "-g" CACHE STRING "ISPC Debug flags")
   mark_as_advanced(ISPC_FLAGS_DEBUG)
@@ -101,8 +126,10 @@ macro (ispc_compile)
     set(ISPC_OPT_FLAGS ${ISPC_FLAGS_RELEASE})
   elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     set(ISPC_OPT_FLAGS ${ISPC_FLAGS_DEBUG})
-  else()
+  elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
     set(ISPC_OPT_FLAGS ${ISPC_FLAGS_RELWITHDEBINFO})
+  else ()
+    message(FATAL_ERROR "CMAKE_BUILD_TYPE (${CMAKE_BUILD_TYPE}) allows only the following values: Debug;Release;RelWithDebInfo")
   endif()
 
   # turn space sparated list into ';' separated list
@@ -128,18 +155,8 @@ macro (ispc_compile)
     set(outdir "${ISPC_TARGET_DIR}/local_ispc")
     set(input ${CMAKE_CURRENT_SOURCE_DIR}/${src})
 
-    set(deps "")
-    if (EXISTS ${outdir}/${fname}.dev.idep)
-      file(READ ${outdir}/${fname}.dev.idep contents)
-      string(REPLACE " " ";"     contents "${contents}")
-      string(REPLACE ";" "\\\\;" contents "${contents}")
-      string(REPLACE "\n" ";"    contents "${contents}")
-      foreach(dep ${contents})
-        if (EXISTS ${dep})
-          set(deps ${deps} ${dep})
-        endif (EXISTS ${dep})
-      endforeach(dep ${contents})
-    endif ()
+    set(ISPC_DEPENDENCIES_FILE ${outdir}/${fname}.dev.idep)
+    ispc_read_dependencies(${ISPC_DEPENDENCIES_FILE})
 
     set(results "${outdir}/${fname}.dev${ISPC_TARGET_EXT}")
     # if we have multiple targets add additional object files
@@ -161,20 +178,20 @@ macro (ispc_compile)
       OUTPUT ${results} ${ISPC_TARGET_DIR}/${fname}_ispc.h
       COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
       COMMAND ${ISPC_EXECUTABLE}
-      ${ISPC_DEFINITIONS}
-      -I ${CMAKE_CURRENT_SOURCE_DIR}
-      ${ISPC_INCLUDE_DIR_PARMS}
-      --arch=${ISPC_ARCHITECTURE}
-      --addressing=${ISPC_ADDRESSING}
-      ${ISPC_OPT_FLAGS}
-      --target=${ISPC_TARGET_ARGS}
-      --woff
-      ${ISPC_ADDITIONAL_ARGS}
-      -h ${ISPC_TARGET_DIR}/${fname}_ispc.h
-      -MMM  ${outdir}/${fname}.dev.idep
-      -o ${outdir}/${fname}.dev${ISPC_TARGET_EXT}
-      ${input}
-      DEPENDS ${input} ${deps}
+        ${ISPC_DEFINITIONS}
+        -I ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ISPC_INCLUDE_DIR_PARMS}
+        --arch=${ISPC_ARCHITECTURE}
+        --addressing=${ISPC_ADDRESSING}
+        ${ISPC_OPT_FLAGS}
+        --target=${ISPC_TARGET_ARGS}
+        --woff
+        ${ISPC_ADDITIONAL_ARGS}
+        -h ${ISPC_TARGET_DIR}/${fname}_ispc.h
+        -MMM ${ISPC_DEPENDENCIES_FILE}
+        -o ${outdir}/${fname}.dev${ISPC_TARGET_EXT}
+        ${input}
+      DEPENDS ${input} ${ISPC_DEPENDENCIES}
       COMMENT "Building ISPC object ${outdir}/${fname}.dev${ISPC_TARGET_EXT}"
     )
 
@@ -224,106 +241,132 @@ endfunction()
 ## GPU specific macros/options ################################################
 ###############################################################################
 
-find_program(ISPC_EXECUTABLE_GPU ispc-gpu DOC "Path to GEN enabled ISPC.")
+define_ispc_isa_options(XE gen9-x8 gen9-x16 xelp-x8 xelp-x16)
 
-define_ispc_isa_options(GEN genx-x8 genx-x16)
+set(ISPC_XE_ADDITIONAL_ARGS "" CACHE STRING "extra arguments to pass to ISPC for Xe targets")
 
-set(ISPC_GENX_ADDITIONAL_ARGS "" CACHE STRING "extra arguments to pass to ISPC for GEN targets")
-
-macro (ispc_compile_gpu parent_target output_prefix)
+function (ispc_compile_gpu parent_target output_prefix)
   if(ISPC_INCLUDE_DIR)
     string(REPLACE ";" ";-I;" ISPC_INCLUDE_DIR_PARMS "${ISPC_INCLUDE_DIR}")
     set(ISPC_INCLUDE_DIR_PARMS "-I" ${ISPC_INCLUDE_DIR_PARMS})
   endif()
 
   # Check If GPU target is passed externally
-  if (NOT ISPC_TARGET_GEN)
-    set(ISPC_TARGET_GEN "genx-x8")
+  if (NOT ISPC_TARGET_XE)
+    set(ISPC_TARGET_XE "gen9-x8")
   endif()
 
+  if (NOT ISPC_TARGET_DIR)
+    set(ISPC_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
+
+  set(outdir ${ISPC_TARGET_DIR})
+
+  set(ISPC_PROGRAM_COUNT 16)
+  if ("${ISPC_TARGET_XE}" STREQUAL "gen9-x8" OR
+      "${ISPC_TARGET_XE}" STREQUAL "xelp-x8")
+    set(ISPC_PROGRAM_COUNT 8)
+  endif()
+
+  set(ISPC_XE_FLAGS_DEBUG "-g" CACHE STRING "ISPC Xe Debug flags")
+  mark_as_advanced(ISPC_XE_FLAGS_DEBUG)
+  set(ISPC_XE_FLAGS_RELEASE "-O3" CACHE STRING "ISPC Xe Release flags")
+  mark_as_advanced(ISPC_XE_FLAGS_RELEASE)
+  set(ISPC_XE_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "ISPC Xe Release with Debug symbols flags")
+  mark_as_advanced(ISPC_XE_FLAGS_RELWITHDEBINFO)
+
+  if (NOT CMAKE_BUILD_TYPE)
+    set (CMAKE_BUILD_TYPE "Release")
+  endif()
+  if (WIN32 OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+    set(ISPC_XE_OPT_FLAGS ${ISPC_XE_FLAGS_RELEASE})
+  elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(ISPC_XE_OPT_FLAGS ${ISPC_XE_FLAGS_DEBUG})
+  elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    set(ISPC_XE_OPT_FLAGS ${ISPC_XE_FLAGS_RELWITHDEBINFO})
+  else ()
+    message(FATAL_ERROR "CMAKE_BUILD_TYPE (${CMAKE_BUILD_TYPE}) allows only the following values: Debug;Release;RelWithDebInfo")
+  endif()
+  # turn space sparated list into ';' separated list
+  string(REPLACE " " ";" ISPC_XE_OPT_FLAGS "${ISPC_XE_OPT_FLAGS}")
+
+  # Additional flags passed by user
+  if (NOT ISPC_XE_ADDITIONAL_ARGS)
+    set(ISPC_XE_ADDITIONAL_ARGS "")
+  endif()
+
+  # Output ISPC module format passed by user
+  if (NOT ISPC_XE_FORMAT)
+    set (ISPC_XE_FORMAT "spv")
+  endif()
+
+  if (ISPC_XE_FORMAT STREQUAL "spv")
+    set(ISPC_GPU_OUTPUT_OPT "--emit-spirv")
+    set(ISPC_GPU_TARGET_NAME ${parent_target}_spv)
+  elseif (ISPC_XE_FORMAT STREQUAL "zebin")
+    set(ISPC_GPU_OUTPUT_OPT "--emit-zebin")
+    set(ISPC_GPU_TARGET_NAME ${parent_target}_bin)
+  elseif (ISPC_XE_FORMAT STREQUAL "bc")
+    set(ISPC_GPU_OUTPUT_OPT "--emit-llvm")
+    set(ISPC_GPU_TARGET_NAME ${parent_target}_bc)
+  endif()
+
+  set(ISPC_XE_COMPILE_OUTPUTS "")
   foreach(src ${ARGN})
     get_filename_component(fname ${src} NAME_WE)
     get_filename_component(dir ${src} PATH)
 
-    message(STATUS "ISPC-GPU source file to be compiled: ${src}")
-
     set(input ${CMAKE_CURRENT_LIST_DIR}/${dir}/${fname}.ispc)
 
-    if (NOT ISPC_TARGET_DIR)
-      set(ISPC_TARGET_DIR ${CMAKE_BINARY_DIR})
-    endif()
+    set(ISPC_DEPENDENCIES_FILE ${outdir}/${fname}.gpu.dev.idep)
+    ispc_read_dependencies(${ISPC_DEPENDENCIES_FILE})
 
-    set(outdir ${ISPC_TARGET_DIR})
-
-    set(ISPC_PROGRAM_COUNT 16)
-    if ("${ISPC_TARGET_GEN}" STREQUAL "genx-x8")
-      set(ISPC_PROGRAM_COUNT 8)
-    endif()
-
-    set(ISPC_GENX_FLAGS_DEBUG "-g" CACHE STRING "ISPC GENX Debug flags")
-    mark_as_advanced(ISPC_GENX_FLAGS_DEBUG)
-    set(ISPC_GENX_FLAGS_RELEASE "-O3" CACHE STRING "ISPC GENX Release flags")
-    mark_as_advanced(ISPC_GENX_FLAGS_RELEASE)
-    set(ISPC_GENX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "ISPC GENX Release with Debug symbols flags")
-    mark_as_advanced(ISPC_GENX_FLAGS_RELWITHDEBINFO)
-
-    if (WIN32 OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-      set(ISPC_GENX_OPT_FLAGS ${ISPC_GENX_FLAGS_RELEASE})
-    elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-      set(ISPC_GENX_OPT_FLAGS ${ISPC_GENX_FLAGS_DEBUG})
-    else()
-      set(ISPC_GENX_OPT_FLAGS ${ISPC_GENX_FLAGS_RELWITHDEBINFO})
-    endif()
-    # turn space sparated list into ';' separated list
-    string(REPLACE " " ";" ISPC_GENX_OPT_FLAGS "${ISPC_GENX_OPT_FLAGS}")
-
-    # Additional flags passed by user
-    if (NOT ISPC_GENX_ADDITIONAL_ARGS)
-      set(ISPC_GENX_ADDITIONAL_ARGS "")
-    endif()
-
-    # Output ISPC module format passed by user
-    if (NOT ISPC_GENX_FORMAT)
-      set (ISPC_GENX_FORMAT "spv")
-    endif()
-
-    if (ISPC_GENX_FORMAT STREQUAL "spv")
-      set(ISPC_GPU_TARGET_NAME ${parent_target}_${fname}_spv)
-      set(ISPC_GPU_OUTPUT_OPT "--emit-spirv")
+    if (ISPC_XE_FORMAT STREQUAL "spv")
       set(result "${outdir}/${output_prefix}${parent_target}.spv")
-    elseif (ISPC_GENX_FORMAT STREQUAL "zebin")
-      set(ISPC_GPU_TARGET_NAME ${parent_target}_${fname}_bin)
-      set(ISPC_GPU_OUTPUT_OPT "--emit-zebin")
+    elseif (ISPC_XE_FORMAT STREQUAL "zebin")
       set(result "${outdir}/${output_prefix}${parent_target}.bin")
+    elseif (ISPC_XE_FORMAT STREQUAL "bc")
+      set(result "${outdir}/${output_prefix}${parent_target}.bc")
     endif()
 
-    add_custom_target(${ISPC_GPU_TARGET_NAME}
-      COMMAND ${ISPC_EXECUTABLE_GPU}
+    add_custom_command(
+      OUTPUT ${result}
+      DEPENDS ${input} ${ISPC_DEPENDENCIES}
+      COMMAND ${ISPC_EXECUTABLE}
         -I ${CMAKE_CURRENT_SOURCE_DIR}
         ${ISPC_INCLUDE_DIR_PARMS}
-        ${ISPC_GENX_OPT_FLAGS}
+        ${ISPC_XE_OPT_FLAGS}
         -DISPC_GPU
         ${ISPC_DEFINITIONS}
         --addressing=64
-        --target=${ISPC_TARGET_GEN}
+        --target=${ISPC_TARGET_XE}
         ${ISPC_GPU_OUTPUT_OPT}
         --woff
-        ${ISPC_GENX_ADDITIONAL_ARGS}
+        ${ISPC_XE_ADDITIONAL_ARGS}
         -o ${result}
         ${input}
+        -MMM ${ISPC_DEPENDENCIES_FILE}
       COMMENT "Building ISPC GPU object ${result}"
     )
+    set_source_files_properties(${result} PROPERTIES GENERATED true)
 
-    add_dependencies(${parent_target} ${ISPC_GPU_TARGET_NAME})
-
-    target_compile_definitions(${parent_target}
-    PRIVATE
-      ISPC_GPU_PROGRAM_COUNT=${ISPC_PROGRAM_COUNT}
-    )
-
-    unset(ISPC_PROGRAM_COUNT)
+    list(APPEND ISPC_XE_COMPILE_OUTPUTS ${result})
   endforeach()
-endmacro()
+
+  add_custom_target(${ISPC_GPU_TARGET_NAME} DEPENDS ${ISPC_XE_COMPILE_OUTPUTS} )
+  set_target_properties(${ISPC_GPU_TARGET_NAME} PROPERTIES
+      ISPC_CUSTOM_DEPENDENCIES ${ISPC_XE_COMPILE_OUTPUTS}
+  )
+
+  add_dependencies(${parent_target} ${ISPC_GPU_TARGET_NAME})
+
+  target_compile_definitions(${parent_target}
+  PRIVATE
+    ISPC_GPU_PROGRAM_COUNT=${ISPC_PROGRAM_COUNT}
+  )
+
+  unset(ISPC_PROGRAM_COUNT)
+endfunction()
 
 ###############################################################################
 ## Generic kernel compilation #################################################

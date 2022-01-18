@@ -1,13 +1,15 @@
-// rule: skip on cpu=TGLLP
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
 
-export void f_du(uniform float RET[], uniform double aFOO[], uniform double b) {
+task void f_du(uniform float RET[], uniform double aFOO[], uniform double b) {
     double a = aFOO[programIndex];
     RET[programIndex] = min(3 * a, (double)10.f);
     RET[programCount-1] = min(b, (double)100);
 }
 
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[programIndex] = 10;
     RET[0] = 3;
     RET[1] = 6;

@@ -58,7 +58,7 @@
 #endif
 
 ///////////////////////////////////////////////////////////////////////////
-// Gen specific primitives
+// Xe specific primitives
 
 __declspec(safe,cost0) static inline uniform int __taskIndex0() { return __task_index0(); }
 __declspec(safe,cost0) static inline uniform int __taskIndex1() { return __task_index1(); }
@@ -113,6 +113,26 @@ __declspec(safe,cost0) static inline uniform int __taskCount () { return __task_
 // Low level primitives
 
 __declspec(safe,cost0)
+static inline float16 float16bits(unsigned int16 a) {
+    return __halfbits_varying_int16(a);
+}
+
+__declspec(safe,cost0)
+static inline uniform float16 float16bits(uniform unsigned int16 a) {
+    return __halfbits_uniform_int16(a);
+}
+
+__declspec(safe,cost0)
+static inline float16 float16bits(int16 a) {
+    return __halfbits_varying_int16(a);
+}
+
+__declspec(safe,cost0)
+static inline uniform float16 float16bits(uniform int16 a) {
+    return __halfbits_uniform_int16(a);
+}
+
+__declspec(safe,cost0)
 static inline float floatbits(unsigned int a) {
     return __floatbits_varying_int32(a);
 }
@@ -141,6 +161,17 @@ __declspec(safe,cost0)
 static inline uniform double doublebits(uniform unsigned int64 a) {
     return __doublebits_uniform_int64(a);
 }
+
+__declspec(safe,cost0)
+static inline unsigned int16 intbits(float16 a) {
+    return __intbits_varying_half(a);
+}
+
+__declspec(safe,cost0)
+static inline uniform unsigned int16 intbits(uniform float16 a) {
+    return __intbits_uniform_half(a);
+}
+
 
 __declspec(safe,cost0)
 static inline unsigned int intbits(float a) {
@@ -178,6 +209,11 @@ static inline int16 broadcast(int16 v, uniform int i) {
 }
 
 __declspec(safe)
+static inline float16 broadcast(float16 v, uniform int i) {
+    return __broadcast_half(v, i);
+}
+
+__declspec(safe)
 static inline int32 broadcast(int32 v, uniform int i) {
     return __broadcast_i32(v, i);
 }
@@ -205,6 +241,11 @@ static inline int8 rotate(int8 v, uniform int i) {
 __declspec(safe)
 static inline int16 rotate(int16 v, uniform int i) {
     return __rotate_i16(v, i);
+}
+
+__declspec(safe)
+static inline float16 rotate(float16 v, uniform int i) {
+    return __rotate_half(v, i);
 }
 
 __declspec(safe)
@@ -250,6 +291,16 @@ static inline int16 shift(int16 v, uniform int i) {
 }
 
 __declspec(safe)
+static inline float16 shift(float16 v, uniform int i) {
+  varying int16 result;
+  unmasked {
+    result = __shift_half(v, i);
+  }
+  return result;
+}
+
+
+__declspec(safe)
 static inline int32 shift(int32 v, uniform int i) {
   varying int32 result;
   unmasked {
@@ -292,6 +343,11 @@ static inline int16 shuffle(int16 v, int i) {
 }
 
 __declspec(safe)
+static inline float16 shuffle(float16 v, int i) {
+    return __shuffle_half(v, i);
+}
+
+__declspec(safe)
 static inline int32 shuffle(int32 v, int i) {
     return __shuffle_i32(v, i);
 }
@@ -319,6 +375,11 @@ static inline int8 shuffle(int8 v0, int8 v1, int i) {
 __declspec(safe)
 static inline int16 shuffle(int16 v0, int16 v1, int i) {
     return __shuffle2_i16(v0, v1, i);
+}
+
+__declspec(safe)
+static inline float16 shuffle(float16 v0, float16 v1, int i) {
+    return __shuffle2_half(v0, v1, i);
 }
 
 __declspec(safe)
@@ -412,6 +473,11 @@ __declspec(safe,cost1)
 static inline unsigned int8 insert(unsigned int8 x, uniform int i,
                                     uniform unsigned int8 v) {
     return __insert_int8(x, (uniform unsigned int)i, v);
+}
+
+__declspec(safe,cost1)
+static inline float16 insert(float16 x, uniform int i, uniform float16 v) {
+    return float16bits(__insert_int16((int16)intbits(x), i, (uniform int16)intbits(v)));
 }
 
 __declspec(safe,cost1)
@@ -558,7 +624,7 @@ static inline uniform unsigned int64 packmask(bool v) {
 
 static inline void memcpy(void * uniform dst, void * uniform src,
                           uniform int32 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         for (uniform int j = 0; j < count; j++) {
             ((int8* uniform)dst)[j] = ((int8* uniform)src)[j];
         }
@@ -569,7 +635,7 @@ static inline void memcpy(void * uniform dst, void * uniform src,
 
 static inline void memcpy64(void * uniform dst, void * uniform src,
                           uniform int64 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         for (uniform int64 j = 0; j < count; j++) {
             ((int8* uniform)dst)[j] = ((int8* uniform)src)[j];
         }
@@ -588,7 +654,7 @@ static inline void memcpy(void * varying dst, void * varying src,
 
     foreach_active (i) {
         void * uniform d = da[i], * uniform s = sa[i];
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             for (uniform int j = 0; j < extract(count,i); j++) {
                 ((int8* uniform)d)[j] = ((int8* uniform)s)[j];
             }
@@ -608,7 +674,7 @@ static inline void memcpy64(void * varying dst, void * varying src,
 
     foreach_active (i) {
         void * uniform d = da[i], * uniform s = sa[i];
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             for (uniform int64 j = 0; j < extract(count,i); j++) {
                 ((int8* uniform)d)[j] = ((int8* uniform)s)[j];
             }
@@ -620,7 +686,7 @@ static inline void memcpy64(void * varying dst, void * varying src,
 
 static inline void memmove(void * uniform dst, void * uniform src,
                           uniform int32 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         if ((uintptr_t)dst - (uintptr_t)src >= (size_t)count) {
             for (uniform int j = 0; j < count; j++) {
                 ((int8* uniform)dst)[j] = ((int8* uniform)src)[j];
@@ -638,7 +704,7 @@ static inline void memmove(void * uniform dst, void * uniform src,
 
 static inline void memmove64(void * uniform dst, void * uniform src,
                              uniform int64 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         if ((uintptr_t)dst - (uintptr_t)src >= (size_t)count) {
             for (uniform int64 j = 0; j < count; j++) {
                 ((int8* uniform)dst)[j] = ((int8* uniform)src)[j];
@@ -665,7 +731,7 @@ static inline void memmove(void * varying dst, void * varying src,
     foreach_active (i) {
         void * uniform d = da[i], * uniform s = sa[i];
         uniform int c = extract(count, i);
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             if ((uintptr_t)d - (uintptr_t)s >= (size_t)c) {
                 for (uniform int j = 0; j < count; j++) {
                     ((int8* uniform)d)[j] = ((int8* uniform)s)[j];
@@ -693,7 +759,7 @@ static inline void memmove64(void * varying dst, void * varying src,
     foreach_active (i) {
         void * uniform d = da[i], * uniform s = sa[i];
         uniform int64 c = extract(count, i);
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             if ((uintptr_t)d - (uintptr_t)s >= (size_t)c) {
                 for (uniform int64 j = 0; j < count; j++) {
                     ((int8* uniform)d)[j] = ((int8* uniform)s)[j];
@@ -712,7 +778,7 @@ static inline void memmove64(void * varying dst, void * varying src,
 
 static inline void memset(void * uniform ptr, uniform int8 val,
                           uniform int32 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         for (uniform int j = 0; j < count; j++) {
             ((int8* uniform)ptr)[j] = val;
         }
@@ -723,7 +789,7 @@ static inline void memset(void * uniform ptr, uniform int8 val,
 
 static inline void memset64(void * uniform ptr, uniform int8 val,
                           uniform int64 count) {
-    if (__is_genx_target) {
+    if (__is_xe_target) {
         for (uniform int64 j = 0; j < count; j++) {
             ((int8* uniform)ptr)[j] = val;
         }
@@ -737,7 +803,7 @@ static inline void memset(void * varying ptr, int8 val, int32 count) {
     pa[programIndex] = ptr;
 
     foreach_active (i) {
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             void * uniform d = pa[i];
             for (uniform int j = 0; j < extract(count, i); j++) {
                 ((int8* uniform)d)[j] = extract(val, i);
@@ -754,7 +820,7 @@ static inline void memset64(void * varying ptr, int8 val, int64 count) {
     pa[programIndex] = ptr;
 
     foreach_active (i) {
-        if (__is_genx_target) {
+        if (__is_xe_target) {
             void * uniform d = pa[i];
             for (uniform int64 j = 0; j < extract(count, i); j++) {
                 ((int8* uniform)d)[j] = extract(val, i);
@@ -1065,6 +1131,22 @@ static inline void prefetch_nt(const void * uniform ptr) {
      __prefetch_read_uniform_nt((uniform int8 * uniform)ptr);
 }
 
+__declspec(safe,cost1)
+static inline void prefetchw_l1(const void * uniform ptr) {
+    __prefetch_write_uniform_1((uniform int8 * uniform)ptr);
+}
+
+__declspec(safe,cost1)
+static inline void prefetchw_l2(const void * uniform ptr) {
+    __prefetch_write_uniform_2((uniform int8 * uniform)ptr);
+}
+
+__declspec(safe,cost1)
+static inline void prefetchw_l3(const void * uniform ptr) {
+    __prefetch_write_uniform_3((uniform int8 * uniform)ptr);
+}
+
+
 static inline void prefetch_l1(const void * varying ptr) {
     __pseudo_prefetch_read_varying_1((int64)ptr, (IntMaskType)__mask);
 }
@@ -1079,6 +1161,21 @@ static inline void prefetch_l3(const void * varying ptr) {
 
 static inline void prefetch_nt(const void * varying ptr) {
     __pseudo_prefetch_read_varying_nt((int64)ptr, (IntMaskType)__mask);
+}
+
+__declspec(safe,cost1)
+static inline void prefetchw_l1(const void * varying ptr) {
+    __pseudo_prefetch_write_varying_1((int64)ptr, (IntMaskType)__mask);
+}
+
+__declspec(safe,cost1)
+static inline void prefetchw_l2(const void * varying ptr) {
+    __pseudo_prefetch_write_varying_2((int64)ptr, (IntMaskType)__mask);
+}
+
+__declspec(safe,cost1)
+static inline void prefetchw_l3(const void * varying ptr) {
+    __pseudo_prefetch_write_varying_3((int64)ptr, (IntMaskType)__mask);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1774,6 +1871,16 @@ static inline uniform int64 clock() {
 // Floating-Point Math
 
 __declspec(safe,cost1)
+static inline uniform bool isnan(uniform float16 v) {
+    return v != v;
+}
+
+__declspec(safe,cost1)
+static inline bool isnan(float16 v) {
+    return v != v;
+}
+
+__declspec(safe,cost1)
 static inline uniform bool isnan(uniform float v) {
     return v != v;
 }
@@ -1831,6 +1938,21 @@ static inline int64 abs(int64 a) {
 __declspec(safe,cost1)
 static inline uniform int64 abs(uniform int64 a) {
     return a > 0 ? a : -a;
+}
+
+__declspec(safe,cost1)
+static inline float16 abs(float16 a) {
+    // Floating-point hack: zeroing the high bit clears the sign
+    unsigned int16 i = intbits(a);
+    i &= 0x7fff;
+    return float16bits(i);
+}
+
+__declspec(safe,cost1)
+static inline uniform float16 abs(uniform float16 a) {
+    uniform unsigned int16 i = intbits(a);
+    i &= 0x7fff;
+    return float16bits(i);
 }
 
 __declspec(safe,cost1)
@@ -2021,11 +2143,68 @@ static inline uniform double rcp(uniform double v) {
   if (__have_native_rcpd)
     return __rcp_uniform_double(v);
   else
-    return __rcp_safe_uniform_double(v);
+      return __rcp_safe_uniform_double(v);
+}
+
+__declspec(safe)
+static inline double rcp_fast(double v) {
+    if (__have_native_rcpd) {
+        return __rcp_fast_varying_double(v);
+    } else {
+        return __rcp_safe_varying_double(v);
+    }
+}
+
+__declspec(safe)
+static inline uniform double rcp_fast(uniform double v) {
+    if (__have_native_rcpd) {
+        return __rcp_fast_uniform_double(v);
+    } else {
+        return __rcp_safe_uniform_double(v);
+    }
+}
+
+__declspec(safe)
+static inline float16 rcp(float16 v) {
+  if (__is_xe_target)
+    return __rcp_varying_half(v);
+  else
+      return (float16)(rcp((float)v));
+}
+
+__declspec(safe)
+static inline uniform float16 rcp(uniform float16 v) {
+  if (__is_xe_target)
+    return __rcp_uniform_half(v);
+  else
+    return (uniform float16)(rcp((uniform float)v));
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // min/max
+
+// float16
+
+__declspec(safe,cost1)
+static inline float16 min(float16 a, float16 b) {
+    return __min_varying_half(a, b);
+}
+
+__declspec(safe,cost1)
+static inline uniform float16 min(uniform float16 a, uniform float16 b) {
+    return __min_uniform_half(a, b);
+}
+
+__declspec(safe,cost1)
+static inline float16 max(float16 a, float16 b) {
+    return __max_varying_half(a, b);
+}
+
+__declspec(safe,cost1)
+static inline uniform float16 max(uniform float16 a, uniform float16 b) {
+    return __max_uniform_half(a, b);
+}
+
 
 // float
 
@@ -2246,6 +2425,18 @@ static inline uniform int64 max(uniform int64 a, uniform int64 b) {
 
 ///////////////////////////////////////////////////////////////////////////
 // clamps
+
+// float16
+
+__declspec(safe,cost2)
+static inline float16 clamp(float16 v, float16 low, float16 high) {
+    return min(max(v, low), high);
+}
+
+__declspec(safe,cost2)
+static inline uniform float16 clamp(uniform float16 v, uniform float16 low, uniform float16 high) {
+    return min(max(v, low), high);
+}
 
 // float
 
@@ -2827,7 +3018,11 @@ atomic_compare_exchange_local(void ** ptr, void * oldval,
 
 __declspec(safe)
 static inline float sqrt(float v) {
-    return __sqrt_varying_float(v);
+    if (__math_lib == __math_lib_svml) {
+        return __svml_sqrtf(v);
+    } else {
+        return __sqrt_varying_float(v);
+    }
 }
 
 __declspec(safe)
@@ -2837,7 +3032,11 @@ static inline uniform float sqrt(uniform float v) {
 
 __declspec(safe)
 static inline float rsqrt(float v) {
-    return __rsqrt_varying_float(v);
+    if (__math_lib == __math_lib_svml) {
+        return __svml_invsqrtf(v);
+    } else {
+        return __rsqrt_varying_float(v);
+    }
 }
 
 __declspec(safe)
@@ -3045,7 +3244,7 @@ static inline float asin(float x0) {
     bool isnan = (x > 1);
     float v;
 
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __asin_varying_float(x0);
     }
@@ -3110,7 +3309,7 @@ static inline uniform float asin(uniform float x0) {
     uniform float x = abs(x0);
     uniform bool isnan = (x > 1);
     uniform float v;
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __asin_uniform_float(x0);
     }
@@ -3298,15 +3497,18 @@ static inline uniform float cos(uniform float x_full) {
 
 __declspec(safe)
 static inline float acos(float v) {
-  if (__have_native_trigonometry && !__is_genx_target)
-    return __acos_varying_float(v);
-  else
-    return 1.57079637050628662109375 - asin(v);
+    if (__have_native_trigonometry && !__is_xe_target) {
+        return __acos_varying_float(v);
+    } else if (__math_lib == __math_lib_svml) {
+        return __svml_acosf(v);
+    } else {
+        return 1.57079637050628662109375 - asin(v);
+    }
 }
 
 __declspec(safe)
 static inline uniform float acos(uniform float v) {
-  if (__have_native_trigonometry && !__is_genx_target)
+  if (__have_native_trigonometry && !__is_xe_target)
     return __acos_uniform_float(v);
   else
     return 1.57079637050628662109375 - asin(v);
@@ -3315,7 +3517,7 @@ static inline uniform float acos(uniform float v) {
 __declspec(safe)
 static inline void sincos(float x_full, varying float * uniform sin_result,
                           varying float * uniform cos_result) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       __sincos_varying_float(x_full,sin_result,cos_result);
       return;
@@ -3390,7 +3592,7 @@ static inline void sincos(float x_full, varying float * uniform sin_result,
 __declspec(safe)
 static inline void sincos(uniform float x_full, uniform float * uniform sin_result,
                           uniform float * uniform cos_result) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       __sincos_uniform_float(x_full, sin_result, cos_result);
       return;
@@ -3616,7 +3818,7 @@ static inline uniform float tan(uniform float x_full) {
 
 __declspec(safe)
 static inline float atan(float x_full) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __atan_varying_float(x_full);
     }
@@ -3671,7 +3873,7 @@ static inline float atan(float x_full) {
 
 __declspec(safe)
 static inline uniform float atan(uniform float x_full) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __atan_uniform_float(x_full);
     }
@@ -3719,7 +3921,7 @@ static inline uniform float atan(uniform float x_full) {
 
 __declspec(safe)
 static inline float atan2(float y, float x) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __atan2_varying_float(y,x);
     }
@@ -3762,7 +3964,7 @@ static inline float atan2(float y, float x) {
 
 __declspec(safe)
 static inline uniform float atan2(uniform float y, uniform float x) {
-    if (__have_native_trigonometry && !__is_genx_target)
+    if (__have_native_trigonometry && !__is_xe_target)
     {
       return __atan2_uniform_float(y,x);
     }
@@ -3782,6 +3984,18 @@ static inline uniform float atan2(uniform float y, uniform float x) {
         uniform float offset = x_lt_0 ? (y_lt_0 ? -pi_vec : pi_vec) : 0;
         return offset + atan_arg;
     }
+}
+
+
+__declspec(safe)
+static inline float16 exp(float16 x_full) {
+    return __exp_varying_half(x_full);
+}
+
+
+__declspec(safe)
+static inline uniform float16 exp(uniform float16 x_full) {
+    return __exp_uniform_half(x_full);
 }
 
 
@@ -3993,6 +4207,18 @@ static inline void __range_reduce_log(uniform float input, uniform float * unifo
 
 
 __declspec(safe)
+static inline float16 log(float16 x_full) {
+    return __log_varying_half(x_full);
+}
+
+
+__declspec(safe)
+static inline uniform float16 log(uniform float16 x_full) {
+    return __log_uniform_half(x_full);
+}
+
+
+__declspec(safe)
 static inline float log(float x_full) {
     if (__have_native_transcendentals) {
         return __log_varying_float(x_full);
@@ -4167,6 +4393,19 @@ static inline uniform float log(uniform float x_full) {
     }
 }
 
+
+__declspec(safe)
+static inline float16 pow(float16 a, float16 b) {
+    return __pow_varying_half(a, b);
+}
+
+
+__declspec(safe)
+static inline uniform float16 pow(uniform float16 a,uniform float16 b) {
+    return __pow_uniform_half(a, b);
+}
+
+
 __declspec(safe)
 static inline float pow(float a, float b) {
     if (__have_native_transcendentals) {
@@ -4209,7 +4448,11 @@ static inline uniform float pow(uniform float a, uniform float b) {
 
 __declspec(safe)
 static inline double sqrt(double v) {
-    return __sqrt_varying_double(v);
+    if (__math_lib == __math_lib_svml) {
+        return __svml_sqrtd(v);
+    } else {
+        return __sqrt_varying_double(v);
+    }
 }
 
 __declspec(safe)
@@ -4241,10 +4484,13 @@ static inline QUAL double __rsqrt_safe_##QUAL##_double (QUAL double x)    \
 RSQRTD(varying)
 __declspec(safe)
 static inline double rsqrt(double v) {
-  if (__have_native_rsqrtd)
-    return __rsqrt_varying_double(v);
-  else
-    return __rsqrt_safe_varying_double(v);
+    if (__math_lib == __math_lib_svml) {
+        return __svml_invsqrtd(v);
+    } else if (__have_native_rsqrtd) {
+        return __rsqrt_varying_double(v);
+    } else {
+        return __rsqrt_safe_varying_double(v);
+    }
 }
 
 RSQRTD(uniform)
@@ -4255,6 +4501,25 @@ static inline uniform double rsqrt(uniform double v) {
   else
     return __rsqrt_safe_uniform_double(v);
 }
+
+__declspec(safe)
+static inline double rsqrt_fast(double v) {
+    if (__have_native_rsqrtd) {
+        return __rsqrt_fast_varying_double(v);
+    } else {
+        return __rsqrt_safe_varying_double(v);
+    }
+}
+
+__declspec(safe)
+static inline uniform double rsqrt_fast(uniform double v) {
+    if (__have_native_rsqrtd) {
+        return __rsqrt_fast_uniform_double(v);
+    } else {
+        return __rsqrt_safe_uniform_double(v);
+    }
+}
+
 __declspec(safe)
 static inline double ldexp(double x, int n) {
     unsigned int64 ex = 0x7ff0000000000000;
@@ -4318,17 +4583,6 @@ static inline double sin(double x) {
         return ret;
     }
 }
-__declspec(safe)
-static inline uniform double asin(uniform double x) {
-    if (__have_native_trigonometry)
-    {
-      return __asin_uniform_double(x);
-    }
-    else
-    {
-      return __stdlib_asin(x);
-    }
-}
 
 __declspec(safe)
 static inline uniform double sin(uniform double x) {
@@ -4341,19 +4595,15 @@ static inline uniform double sin(uniform double x) {
 }
 
 __declspec(safe)
-static inline double acos(const double v) {
-  if (__have_native_trigonometry)
-    return __acos_varying_double(v);
-  else
-    return 1.57079637050628662109375d0 - asin(v);
-}
-
-__declspec(safe)
-static inline uniform double acos(const uniform double v) {
-  if (__have_native_trigonometry)
-    return __acos_uniform_double(v);
-  else
-    return 1.57079637050628662109375d0 - asin(v);
+static inline uniform double asin(uniform double x) {
+    if (__have_native_trigonometry)
+    {
+      return __asin_uniform_double(x);
+    }
+    else
+    {
+      return __stdlib_asin(x);
+    }
 }
 
 __declspec(safe)
@@ -4404,6 +4654,25 @@ static inline uniform double cos(uniform double x) {
     }
     else
         return __stdlib_cos(x);
+}
+
+__declspec(safe)
+static inline double acos(const double v) {
+    if (__have_native_trigonometry) {
+        return __acos_varying_double(v);
+    } else if (__math_lib == __math_lib_svml) {
+        return __svml_acosd(v);
+    } else {
+        return 1.57079637050628662109375d0 - asin(v);
+    }
+}
+
+__declspec(safe)
+static inline uniform double acos(const uniform double v) {
+  if (__have_native_trigonometry)
+    return __acos_uniform_double(v);
+  else
+    return 1.57079637050628662109375d0 - asin(v);
 }
 
 __declspec(safe)
@@ -6651,7 +6920,7 @@ static const uniform int64 __idiv_table_s32[][3] = {
 __declspec(safe)
 static unmasked inline unsigned int8
 __fast_idiv(unsigned int8 numerator, uniform unsigned int8 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_uint8(numerator, divisor);
   }
   uniform int64 method = __idiv_table_u8[divisor-2][0];
@@ -6674,7 +6943,7 @@ __fast_idiv(unsigned int8 numerator, uniform unsigned int8 divisor) {
 
 __declspec(safe)
 static unmasked inline int8 __fast_idiv(int8 numerator, uniform int8 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_int8(numerator, divisor);
   }
   uniform int8 method = __idiv_table_s8[divisor-2][0];
@@ -6695,7 +6964,7 @@ static unmasked inline int8 __fast_idiv(int8 numerator, uniform int8 divisor) {
 __declspec(safe)
 static unmasked inline unsigned int16 __fast_idiv(unsigned int16 numerator,
                                                   uniform unsigned int16 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_uint16(numerator, divisor);
   }
   uniform int64 method = __idiv_table_u16[divisor-2][0];
@@ -6718,7 +6987,7 @@ static unmasked inline unsigned int16 __fast_idiv(unsigned int16 numerator,
 
 __declspec(safe)
 static unmasked inline int16 __fast_idiv(int16 numerator, uniform int16 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_int16(numerator, divisor);
   }
   uniform int64 method = __idiv_table_s16[divisor-2][0];
@@ -6740,7 +7009,7 @@ static unmasked inline int16 __fast_idiv(int16 numerator, uniform int16 divisor)
 __declspec(safe)
 static unmasked inline inline unsigned int32 __fast_idiv(unsigned int32 numerator,
                                                          uniform unsigned int32 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_uint32(numerator, divisor);
   }
   uniform int64 method = __idiv_table_u32[divisor-2][0];
@@ -6763,7 +7032,7 @@ static unmasked inline inline unsigned int32 __fast_idiv(unsigned int32 numerato
 
 __declspec(safe)
 static unmasked inline int32 __fast_idiv(int32 numerator, uniform int32 divisor) {
-  if (__is_genx_target) {
+  if (__is_xe_target) {
      return __idiv_int32(numerator, divisor);
   }
   uniform int64 method = __idiv_table_s32[divisor-2][0];
@@ -6829,7 +7098,6 @@ static unmasked inline int16 avg_down(int16 a, int16 b) {
 // Assume uniform/varying ops
 __declspec(safe)
 static inline void assume(uniform bool test) {
-    // To DO : Enable for genx. Currently calls a dummy function.
     __do_assume_uniform(test);
     return;
 }

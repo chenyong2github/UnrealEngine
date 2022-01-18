@@ -2,21 +2,21 @@
 ISPC Examples README
 ====================
 
-This directory has a number of sample ispc programs ported to GEN. Before building them,
+This directory has a number of sample ispc programs ported to Xe. Before building them,
 install the appropriate ispc compiler binary and runtime into a directory in your path.
 Add ISPC binary to your PATH. Then, do the following:
 mkdir build
 cd build
 cmake ../
 
-Some of the benchmarks are running ispc for CPU/GEN and then regular serial C++ implementations,
+Some of the benchmarks are running ispc for CPU/Xe and then regular serial C++ implementations,
 printing out execution time.
 
 Simple
 ======
 
 This is the most basic example. It executes a simple kernel on target device
-(which can be a GEN GPU or CPU) and demonstrates basics concepts
+(which can be a Xe GPU or CPU) and demonstrates basics concepts
 of ISPC Runtime API (such as device, module, kernel, memory view).
 It uses C++ API of ispcrt.
 
@@ -54,14 +54,14 @@ execute the same ISPC kernel on CPU and GPU in a semaless way.
 
 It executes the program for the given number of iterations, rendering an
 (xres x yres) image each time and measuring the computation time with
-serial and ispc implementations on CPU and GEN.
+serial and ispc implementations on CPU and Xe.
 
 
 Mandelbrot
 ==========
 
 Mandelbrot set generation.  This example is extensively documented at the
-http://ispc.github.com/example.html page. The comamnd line arguments are:
+https://ispc.github.io/example.html page. The comamnd line arguments are:
 mandelbrot [--scale=<factor>] [tasks iterations] [serial iterations]
 
 This examples also demontrates usage of C++ interface of ispcrt so you can see how to
@@ -69,7 +69,7 @@ execute the same ISPC kernel on CPU and GPU in a semaless way.
 
 It executes the program for the given number of iterations, rendering an
 image of fixed size each time and measuring the computation time with
-serial and ispc implementations on CPU and GEN.
+serial and ispc implementations on CPU and Xe.
 You can change scale of the image with --scale option.
 
 
@@ -87,7 +87,7 @@ execute the same ISPC kernel on CPU and GPU in a semaless way.
 
 It executes the program for the given number of iterations in particular
 thread space, rendering an image of fixed size each time and measuring the
-computation time with serial and ispc implementations on CPU and GEN.
+computation time with serial and ispc implementations on CPU and Xe.
 
 
 SGEMM
@@ -151,6 +151,28 @@ of the necessary data movements in an efficent way and the user does not need
 to manage copying data to/from the GPU.
 
 This example requires the oneAPI DPC++ Compiler.
+
+To enable this example please configure the build of ISPC examples using the following
+command line:
+
+cmake -DCMAKE_C_COMPILER=<dpcpp_path>/bin/clang -DCMAKE_CXX_COMPILER=<dpcpp_path>/bin/clang++ \
+      -DISPC_INCLUDE_DPCPP_EXAMPLES=ON <examples source dir>
+
+Running this example may require setting the LD_LIBRARY_PATH environmental variable to include
+oneAPI DPC++ Compiler libraries.
+
+Simple-ESIMD
+======================================
+This simple example demonstrates a basic scanerio of interoperability between ISPC
+and Explicit SIMD SYCL* Extension. It uses ISPC Runtime and runs an ISPC kernel which
+calls to ESIMD function.
+
+It is required to use include interop.cmake file to your CMakeLists.txt if you
+want to use ISPC/ESIMD interoperability feature:
+
+include(${ISPCRT_DIR}/interop.cmake)
+
+It requires oneAPI DPC++ Compiler.
 
 To enable this example please configure the build of ISPC examples using the following
 command line:

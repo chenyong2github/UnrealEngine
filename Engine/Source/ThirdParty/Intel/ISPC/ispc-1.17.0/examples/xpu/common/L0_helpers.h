@@ -36,10 +36,10 @@
 
 #include <cassert>
 #include <fstream>
-#include <vector>
-#include <sstream>
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
+#include <sstream>
+#include <vector>
 
 #include "common_helpers.h"
 
@@ -153,9 +153,12 @@ void L0InitContext(ze_driver_handle_t &hDriver, ze_device_handle_t &hDevice, ze_
 
 void L0DestroyContext(ze_driver_handle_t hDriver, ze_device_handle_t hDevice, ze_context_handle_t hContext,
                       ze_module_handle_t hModule, ze_command_queue_handle_t hCommandQueue) {
-    L0_SAFE_CALL(zeCommandQueueDestroy(hCommandQueue));
-    L0_SAFE_CALL(zeModuleDestroy(hModule));
-    L0_SAFE_CALL(zeContextDestroy(hContext));
+    if (hCommandQueue)
+        L0_SAFE_CALL(zeCommandQueueDestroy(hCommandQueue));
+    if (hModule)
+        L0_SAFE_CALL(zeModuleDestroy(hModule));
+    if (hContext)
+        L0_SAFE_CALL(zeContextDestroy(hContext));
 }
 
 void L0Create_Kernel(ze_device_handle_t &hDevice, ze_context_handle_t &hContext, ze_module_handle_t &hModule,
@@ -166,11 +169,18 @@ void L0Create_Kernel(ze_device_handle_t &hDevice, ze_context_handle_t &hContext,
     ze_kernel_desc_t kernelDesc = {};
     kernelDesc.pKernelName = name;
     L0_SAFE_CALL(zeKernelCreate(hModule, &kernelDesc, &hKernel));
+
+    // Set device/shared indirect flags
+    ze_kernel_indirect_access_flags_t kernel_flags =
+        ZE_KERNEL_INDIRECT_ACCESS_FLAG_DEVICE | ZE_KERNEL_INDIRECT_ACCESS_FLAG_SHARED;
+    L0_SAFE_CALL(zeKernelSetIndirectAccess(hKernel, kernel_flags));
 }
 
 void L0Destroy_Kernel(ze_command_list_handle_t hCommandList, ze_kernel_handle_t hKernel) {
-    L0_SAFE_CALL(zeKernelDestroy(hKernel));
-    L0_SAFE_CALL(zeCommandListDestroy(hCommandList));
+    if (hKernel)
+        L0_SAFE_CALL(zeKernelDestroy(hKernel));
+    if (hCommandList)
+        L0_SAFE_CALL(zeCommandListDestroy(hCommandList));
 }
 
 void L0Create_EventPool(ze_device_handle_t hDevice, ze_context_handle_t hContext, const size_t size,

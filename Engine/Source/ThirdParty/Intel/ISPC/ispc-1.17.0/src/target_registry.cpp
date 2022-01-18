@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019-2021, Intel Corporation
+  Copyright (c) 2019-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -110,6 +110,11 @@ TargetLibRegistry::TargetLibRegistry() {
                 m_builtins[Triple(lib->getISPCTarget(), TargetOS::custom_linux, lib->getArch()).encode()] = lib;
                 m_supported_oses[(int)TargetOS::custom_linux] = true;
             }
+            // PS5 is an alias to PS4 in terms of target files. All the tuning is done through CPU flags.
+            if (lib->getOS() == TargetOS::ps4) {
+                m_builtins[Triple(lib->getISPCTarget(), TargetOS::ps5, lib->getArch()).encode()] = lib;
+                m_supported_oses[(int)TargetOS::ps5] = true;
+            }
             break;
         case BitcodeLib::BitcodeLibType::ISPC_target:
             m_targets[Triple(lib->getISPCTarget(), lib->getOS(), lib->getArch()).encode()] = lib;
@@ -117,6 +122,10 @@ TargetLibRegistry::TargetLibRegistry() {
             // So, create it as an alias.
             if (lib->getOS() == TargetOS::linux && (lib->getArch() == Arch::arm || lib->getArch() == Arch::aarch64)) {
                 m_targets[Triple(lib->getISPCTarget(), TargetOS::custom_linux, lib->getArch()).encode()] = lib;
+            }
+            // PS5 is an alias to PS4 in terms of target files. All the tuning is done through CPU flags.
+            if (lib->getOS() == TargetOS::ps4) {
+                m_builtins[Triple(lib->getISPCTarget(), TargetOS::ps5, lib->getArch()).encode()] = lib;
             }
             break;
         }
@@ -167,6 +176,7 @@ const BitcodeLib *TargetLibRegistry::getISPCTargetLib(ISPCTarget target, TargetO
     case TargetOS::android:
     case TargetOS::ios:
     case TargetOS::ps4:
+    case TargetOS::ps5:
         os = TargetOS::linux;
         break;
     case TargetOS::error:

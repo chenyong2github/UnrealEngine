@@ -36,7 +36,6 @@
 */
 
 #include "llvmutil.h"
-#include "ispc.h"
 #include "type.h"
 
 #include <map>
@@ -48,7 +47,7 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <llvm/GenXIntrinsics/GenXIntrinsics.h>
 #endif
 
@@ -64,6 +63,7 @@ llvm::Type *LLVMTypes::Int8Type = NULL;
 llvm::Type *LLVMTypes::Int16Type = NULL;
 llvm::Type *LLVMTypes::Int32Type = NULL;
 llvm::Type *LLVMTypes::Int64Type = NULL;
+llvm::Type *LLVMTypes::Float16Type = NULL;
 llvm::Type *LLVMTypes::FloatType = NULL;
 llvm::Type *LLVMTypes::DoubleType = NULL;
 
@@ -71,6 +71,7 @@ llvm::Type *LLVMTypes::Int8PointerType = NULL;
 llvm::Type *LLVMTypes::Int16PointerType = NULL;
 llvm::Type *LLVMTypes::Int32PointerType = NULL;
 llvm::Type *LLVMTypes::Int64PointerType = NULL;
+llvm::Type *LLVMTypes::Float16PointerType = NULL;
 llvm::Type *LLVMTypes::FloatPointerType = NULL;
 llvm::Type *LLVMTypes::DoublePointerType = NULL;
 
@@ -83,6 +84,7 @@ llvm::VectorType *LLVMTypes::Int8VectorType = NULL;
 llvm::VectorType *LLVMTypes::Int16VectorType = NULL;
 llvm::VectorType *LLVMTypes::Int32VectorType = NULL;
 llvm::VectorType *LLVMTypes::Int64VectorType = NULL;
+llvm::VectorType *LLVMTypes::Float16VectorType = NULL;
 llvm::VectorType *LLVMTypes::FloatVectorType = NULL;
 llvm::VectorType *LLVMTypes::DoubleVectorType = NULL;
 
@@ -90,6 +92,7 @@ llvm::Type *LLVMTypes::Int8VectorPointerType = NULL;
 llvm::Type *LLVMTypes::Int16VectorPointerType = NULL;
 llvm::Type *LLVMTypes::Int32VectorPointerType = NULL;
 llvm::Type *LLVMTypes::Int64VectorPointerType = NULL;
+llvm::Type *LLVMTypes::Float16VectorPointerType = NULL;
 llvm::Type *LLVMTypes::FloatVectorPointerType = NULL;
 llvm::Type *LLVMTypes::DoubleVectorPointerType = NULL;
 
@@ -112,6 +115,7 @@ void InitLLVMUtil(llvm::LLVMContext *ctx, Target &target) {
     LLVMTypes::Int16Type = llvm::Type::getInt16Ty(*ctx);
     LLVMTypes::Int32Type = llvm::Type::getInt32Ty(*ctx);
     LLVMTypes::Int64Type = llvm::Type::getInt64Ty(*ctx);
+    LLVMTypes::Float16Type = llvm::Type::getHalfTy(*ctx);
     LLVMTypes::FloatType = llvm::Type::getFloatTy(*ctx);
     LLVMTypes::DoubleType = llvm::Type::getDoubleTy(*ctx);
 
@@ -119,6 +123,7 @@ void InitLLVMUtil(llvm::LLVMContext *ctx, Target &target) {
     LLVMTypes::Int16PointerType = llvm::PointerType::get(LLVMTypes::Int16Type, 0);
     LLVMTypes::Int32PointerType = llvm::PointerType::get(LLVMTypes::Int32Type, 0);
     LLVMTypes::Int64PointerType = llvm::PointerType::get(LLVMTypes::Int64Type, 0);
+    LLVMTypes::Float16PointerType = llvm::PointerType::get(LLVMTypes::Float16Type, 0);
     LLVMTypes::FloatPointerType = llvm::PointerType::get(LLVMTypes::FloatType, 0);
     LLVMTypes::DoublePointerType = llvm::PointerType::get(LLVMTypes::DoubleType, 0);
 
@@ -153,6 +158,7 @@ void InitLLVMUtil(llvm::LLVMContext *ctx, Target &target) {
     LLVMTypes::Int16VectorType = LLVMVECTOR::get(LLVMTypes::Int16Type, target.getVectorWidth());
     LLVMTypes::Int32VectorType = LLVMVECTOR::get(LLVMTypes::Int32Type, target.getVectorWidth());
     LLVMTypes::Int64VectorType = LLVMVECTOR::get(LLVMTypes::Int64Type, target.getVectorWidth());
+    LLVMTypes::Float16VectorType = LLVMVECTOR::get(LLVMTypes::Float16Type, target.getVectorWidth());
     LLVMTypes::FloatVectorType = LLVMVECTOR::get(LLVMTypes::FloatType, target.getVectorWidth());
     LLVMTypes::DoubleVectorType = LLVMVECTOR::get(LLVMTypes::DoubleType, target.getVectorWidth());
 
@@ -160,6 +166,7 @@ void InitLLVMUtil(llvm::LLVMContext *ctx, Target &target) {
     LLVMTypes::Int16VectorPointerType = llvm::PointerType::get(LLVMTypes::Int16VectorType, 0);
     LLVMTypes::Int32VectorPointerType = llvm::PointerType::get(LLVMTypes::Int32VectorType, 0);
     LLVMTypes::Int64VectorPointerType = llvm::PointerType::get(LLVMTypes::Int64VectorType, 0);
+    LLVMTypes::Float16VectorPointerType = llvm::PointerType::get(LLVMTypes::Float16VectorType, 0);
     LLVMTypes::FloatVectorPointerType = llvm::PointerType::get(LLVMTypes::FloatVectorType, 0);
     LLVMTypes::DoubleVectorPointerType = llvm::PointerType::get(LLVMTypes::DoubleVectorType, 0);
 
@@ -254,9 +261,11 @@ llvm::ConstantInt *LLVMUInt64(uint64_t ival) {
     return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*g->ctx), ival, false /*unsigned*/);
 }
 
-llvm::Constant *LLVMFloat(float fval) { return llvm::ConstantFP::get(llvm::Type::getFloatTy(*g->ctx), fval); }
+llvm::Constant *LLVMFloat16(llvm::APFloat fv) { return llvm::ConstantFP::get(llvm::Type::getHalfTy(*g->ctx), fv); }
 
-llvm::Constant *LLVMDouble(double dval) { return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*g->ctx), dval); }
+llvm::Constant *LLVMFloat(llvm::APFloat fval) { return llvm::ConstantFP::get(llvm::Type::getFloatTy(*g->ctx), fval); }
+
+llvm::Constant *LLVMDouble(llvm::APFloat dval) { return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*g->ctx), dval); }
 
 llvm::Constant *LLVMInt8Vector(int8_t ival) {
     llvm::Constant *v = LLVMInt8(ival);
@@ -348,7 +357,22 @@ llvm::Constant *LLVMUInt32Vector(const uint32_t *ivec) {
     return llvm::ConstantVector::get(vals);
 }
 
-llvm::Constant *LLVMFloatVector(float fval) {
+llvm::Constant *LLVMFloat16Vector(llvm::APFloat fval) {
+    llvm::Constant *v = LLVMFloat16(fval);
+    std::vector<llvm::Constant *> vals;
+    for (int i = 0; i < g->target->getVectorWidth(); ++i)
+        vals.push_back(v);
+    return llvm::ConstantVector::get(vals);
+}
+
+llvm::Constant *LLVMFloat16Vector(const std::vector<llvm::APFloat> &fvec) {
+    std::vector<llvm::Constant *> vals;
+    for (int i = 0; i < g->target->getVectorWidth(); ++i)
+        vals.push_back(LLVMFloat16(fvec[i]));
+    return llvm::ConstantVector::get(vals);
+}
+
+llvm::Constant *LLVMFloatVector(llvm::APFloat fval) {
     llvm::Constant *v = LLVMFloat(fval);
     std::vector<llvm::Constant *> vals;
     for (int i = 0; i < g->target->getVectorWidth(); ++i)
@@ -356,14 +380,14 @@ llvm::Constant *LLVMFloatVector(float fval) {
     return llvm::ConstantVector::get(vals);
 }
 
-llvm::Constant *LLVMFloatVector(const float *fvec) {
+llvm::Constant *LLVMFloatVector(const std::vector<llvm::APFloat> &fvec) {
     std::vector<llvm::Constant *> vals;
     for (int i = 0; i < g->target->getVectorWidth(); ++i)
         vals.push_back(LLVMFloat(fvec[i]));
     return llvm::ConstantVector::get(vals);
 }
 
-llvm::Constant *LLVMDoubleVector(double dval) {
+llvm::Constant *LLVMDoubleVector(llvm::APFloat dval) {
     llvm::Constant *v = LLVMDouble(dval);
     std::vector<llvm::Constant *> vals;
     for (int i = 0; i < g->target->getVectorWidth(); ++i)
@@ -371,7 +395,7 @@ llvm::Constant *LLVMDoubleVector(double dval) {
     return llvm::ConstantVector::get(vals);
 }
 
-llvm::Constant *LLVMDoubleVector(const double *dvec) {
+llvm::Constant *LLVMDoubleVector(const std::vector<llvm::APFloat> &dvec) {
     std::vector<llvm::Constant *> vals;
     for (int i = 0; i < g->target->getVectorWidth(); ++i)
         vals.push_back(LLVMDouble(dvec[i]));
@@ -587,8 +611,8 @@ static bool lIsFirstElementConstVector(llvm::Value *v) {
     // FIXME: skipping instruction and using getOperand(1) without checking for instruction type is incorrect!
     // This yields failing tests/write-same-loc.ispc for 32 bit targets (x86).
     // Need to understand what initial intent was here (what instruction supposed to be handled).
-    // TODO: after fixing FIXME above isGenXTarget() needs to be removed.
-    if (g->target->isGenXTarget()) {
+    // TODO: after fixing FIXME above isXeTarget() needs to be removed.
+    if (g->target->isXeTarget()) {
         if (cv == NULL && llvm::isa<llvm::Instruction>(v)) {
             cv = llvm::dyn_cast<llvm::ConstantVector>(llvm::dyn_cast<llvm::Instruction>(v)->getOperand(1));
         }
@@ -1607,7 +1631,7 @@ llvm::Value *LLVMShuffleVectors(llvm::Value *v1, llvm::Value *v2, int32_t shuf[]
     return new llvm::ShuffleVectorInst(v1, v2, vec, "shuffle", insertBefore);
 }
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 bool lIsSVMLoad(llvm::Instruction *inst) {
     Assert(inst);
 
@@ -1624,12 +1648,12 @@ bool lIsSVMLoad(llvm::Instruction *inst) {
 void lGetAddressSpace(llvm::Value *v, std::set<llvm::Value *> &done, std::set<AddressSpace> &addrSpaceVec) {
     if (done.find(v) != done.end()) {
         if (llvm::isa<llvm::PointerType>(v->getType()))
-            addrSpaceVec.insert(AddressSpace::External);
+            addrSpaceVec.insert(AddressSpace::ispc_global);
         return;
     }
     // Found global value
     if (llvm::isa<llvm::GlobalValue>(v)) {
-        addrSpaceVec.insert(AddressSpace::Global);
+        addrSpaceVec.insert(AddressSpace::ispc_generic);
         return;
     }
 
@@ -1647,7 +1671,7 @@ void lGetAddressSpace(llvm::Value *v, std::set<llvm::Value *> &done, std::set<Ad
     if (done.size() > 0 && inst == NULL) {
         // Found external pointer like "float* %aFOO"
         if (llvm::isa<llvm::PointerType>(v->getType()))
-            addrSpaceVec.insert(AddressSpace::External);
+            addrSpaceVec.insert(AddressSpace::ispc_global);
         return;
     }
 
@@ -1655,13 +1679,13 @@ void lGetAddressSpace(llvm::Value *v, std::set<llvm::Value *> &done, std::set<Ad
 
     // Found value allocated on stack like "%val = alloca [16 x float]"
     if (llvm::isa<llvm::AllocaInst>(v)) {
-        addrSpaceVec.insert(AddressSpace::Local);
+        addrSpaceVec.insert(AddressSpace::ispc_default);
         return;
     }
 
     if (inst == NULL || llvm::isa<llvm::CallInst>(v)) {
         if (llvm::isa<llvm::PointerType>(v->getType()) || (inst && lIsSVMLoad(inst)))
-            addrSpaceVec.insert(AddressSpace::External);
+            addrSpaceVec.insert(AddressSpace::ispc_global);
         return;
     }
     // For GEP we check only pointer operand, for the rest check all
@@ -1688,13 +1712,13 @@ AddressSpace GetAddressSpace(llvm::Value *v) {
     std::set<llvm::Value *> done;
     std::set<AddressSpace> addrSpaceVec;
     lGetAddressSpace(v, done, addrSpaceVec);
-    if (addrSpaceVec.find(AddressSpace::External) != addrSpaceVec.end()) {
-        return AddressSpace::External;
+    if (addrSpaceVec.find(AddressSpace::ispc_global) != addrSpaceVec.end()) {
+        return AddressSpace::ispc_global;
     }
-    if (addrSpaceVec.find(AddressSpace::Global) != addrSpaceVec.end()) {
-        return AddressSpace::Global;
+    if (addrSpaceVec.find(AddressSpace::ispc_generic) != addrSpaceVec.end()) {
+        return AddressSpace::ispc_generic;
     }
-    return AddressSpace::Local;
+    return AddressSpace::ispc_default;
 }
 #endif
 } // namespace ispc

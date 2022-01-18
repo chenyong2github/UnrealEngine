@@ -1,6 +1,8 @@
-// rule: skip on cpu=TGLLP
-// Test is unstable on TGLLP
-export void print_fuf(uniform float aFOO[], uniform float b) {
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
+// Test is unstable on tgllp
+task void print_fuf(uniform float aFOO[], uniform float b) {
     float a = aFOO[programIndex];
     uniform bool uniBoolVal = (bool)b;
     bool varBoolVal = (bool)a;
@@ -14,7 +16,7 @@ export void print_fuf(uniform float aFOO[], uniform float b) {
         print(" in simd cf: %, %.\n", varBoolVal, !varBoolVal);
 }
 
-export void print_result() {
+task void print_result() {
     assert(programCount <= 64);
     print("Test bool: uniform: true, false; varying: [false,true,true,false");
     if (programCount > 4)
@@ -43,7 +45,7 @@ export void print_result() {
               ",false,false,true,false,false,true,false,false"
               ",true,false,false,true,false,false,true,false"
               ",false,true,false,false,true,false,false,true");
-#ifndef ISPC_TARGET_GENX
+#ifndef ISPC_GPU
         print("]; in simd cf: [_________,_________,true,false");
 #else
         print("]; in simd cf: [((false)),((true)),true,false");
@@ -61,7 +63,7 @@ export void print_result() {
               ",true,true,false,true,true,false,true,true"
               ",false,true,true,false,true,true,false,true"
               ",true,false,true,true,false,true,true,false");
-#ifndef ISPC_TARGET_GENX
+#ifndef ISPC_GPU
     print("], [_________,_________,false,true");
 #else
     print("], [((true)),((false)),false,true");

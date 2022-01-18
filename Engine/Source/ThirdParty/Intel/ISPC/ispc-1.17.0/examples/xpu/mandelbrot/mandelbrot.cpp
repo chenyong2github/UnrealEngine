@@ -117,7 +117,7 @@ static int run(unsigned int width, unsigned int height, unsigned int test_iterat
         auto p_dev = ispcrt::Array<Parameters>(device, p);
 
         // Create module and kernel to execute
-        ispcrt::Module module(device, "genx_mandelbrot");
+        ispcrt::Module module(device, "xe_mandelbrot");
         ispcrt::Kernel kernel(device, module, "mandelbrot_tile");
 
         // Create task queue and execute kernel
@@ -131,13 +131,8 @@ static int run(unsigned int width, unsigned int height, unsigned int test_iterat
         for (unsigned int i = 0; i < test_iterations[0]; ++i) {
             reset_and_start_timer();
             queue.copyToDevice(p_dev);
-            queue.barrier();
-            queue.submit();
-            queue.sync();
             auto res = queue.launch(kernel, p_dev, width / p.tile_size, height / p.tile_size);
-            queue.barrier();
             queue.copyToHost(buf_dev);
-            queue.barrier();
             queue.sync();
             if (res.valid()) {
                 kernelTicks = res.time() * 1e-6;
@@ -207,7 +202,7 @@ int main(int argc, char *argv[]) {
         }
     }
     int success = 0;
-    std::cout << "Running test with " << test_iterations[0] << " iterations of ISPC on GEN and CPU and "
+    std::cout << "Running test with " << test_iterations[0] << " iterations of ISPC on Xe and CPU and "
               << test_iterations[1] << " serial iterations on " << width << " * " << height << " size." << std::endl;
     success = run(width, height, test_iterations);
 

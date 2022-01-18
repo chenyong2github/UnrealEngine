@@ -61,7 +61,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Target/TargetMachine.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <llvm/GenXIntrinsics/GenXIntrinsics.h>
 #endif
 
@@ -97,6 +97,8 @@ static const Type *lLLVMTypeToISPCType(const llvm::Type *t, bool intAsUnsigned) 
         return intAsUnsigned ? AtomicType::UniformUInt16 : AtomicType::UniformInt16;
     else if (t == LLVMTypes::Int32Type)
         return intAsUnsigned ? AtomicType::UniformUInt32 : AtomicType::UniformInt32;
+    else if (t == LLVMTypes::Float16Type)
+        return AtomicType::UniformFloat16;
     else if (t == LLVMTypes::FloatType)
         return AtomicType::UniformFloat;
     else if (t == LLVMTypes::DoubleType)
@@ -111,6 +113,8 @@ static const Type *lLLVMTypeToISPCType(const llvm::Type *t, bool intAsUnsigned) 
         return intAsUnsigned ? AtomicType::VaryingUInt16 : AtomicType::VaryingInt16;
     else if (t == LLVMTypes::Int32VectorType)
         return intAsUnsigned ? AtomicType::VaryingUInt32 : AtomicType::VaryingInt32;
+    else if (t == LLVMTypes::Float16VectorType)
+        return AtomicType::VaryingFloat16;
     else if (t == LLVMTypes::FloatVectorType)
         return AtomicType::VaryingFloat;
     else if (t == LLVMTypes::DoubleVectorType)
@@ -129,6 +133,8 @@ static const Type *lLLVMTypeToISPCType(const llvm::Type *t, bool intAsUnsigned) 
         return PointerType::GetUniform(intAsUnsigned ? AtomicType::UniformUInt32 : AtomicType::UniformInt32);
     else if (t == LLVMTypes::Int64PointerType)
         return PointerType::GetUniform(intAsUnsigned ? AtomicType::UniformUInt64 : AtomicType::UniformInt64);
+    else if (t == LLVMTypes::Float16PointerType)
+        return PointerType::GetUniform(AtomicType::UniformFloat16);
     else if (t == LLVMTypes::FloatPointerType)
         return PointerType::GetUniform(AtomicType::UniformFloat);
     else if (t == LLVMTypes::DoublePointerType)
@@ -143,6 +149,8 @@ static const Type *lLLVMTypeToISPCType(const llvm::Type *t, bool intAsUnsigned) 
         return PointerType::GetUniform(intAsUnsigned ? AtomicType::VaryingUInt32 : AtomicType::VaryingInt32);
     else if (t == LLVMTypes::Int64VectorPointerType)
         return PointerType::GetUniform(intAsUnsigned ? AtomicType::VaryingUInt64 : AtomicType::VaryingInt64);
+    else if (t == LLVMTypes::Float16VectorPointerType)
+        return PointerType::GetUniform(AtomicType::VaryingFloat16);
     else if (t == LLVMTypes::FloatVectorPointerType)
         return PointerType::GetUniform(AtomicType::VaryingFloat);
     else if (t == LLVMTypes::DoubleVectorPointerType)
@@ -299,7 +307,7 @@ static void lAddModuleSymbols(llvm::Module *module, SymbolTable *symbolTable) {
 }
 
 static void lUpdateIntrinsicsAttributes(llvm::Module *module) {
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     for (auto F = module->begin(), E = module->end(); F != E; ++F) {
         llvm::Function *Fn = &*F;
 
@@ -453,6 +461,7 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__atomic_xor_uniform_int64_global",
         "__broadcast_double",
         "__broadcast_float",
+        "__broadcast_half",
         "__broadcast_i16",
         "__broadcast_i32",
         "__broadcast_i64",
@@ -473,20 +482,13 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__delete_uniform_64rt",
         "__delete_varying_32rt",
         "__delete_varying_64rt",
-        "__divs_ui64",
-        "__divs_vi64",
-        "__divus_ui64",
-        "__divus_vi64",
         "__do_assume_uniform",
         "__do_assert_uniform",
         "__do_assert_varying",
         "__do_print",
-#ifdef ISPC_GENX_ENABLED
-        "__do_print_cm",
-        "__do_print_lz",
-        "__do_print_cm_str",
+#ifdef ISPC_XE_ENABLED
         "__send_eot",
-#endif //ISPC_GENX_ENABLED
+#endif //ISPC_XE_ENABLED
         "__doublebits_uniform_int64",
         "__doublebits_varying_int64",
         "__exclusive_scan_add_double",
@@ -507,6 +509,8 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__fastmath",
         "__float_to_half_uniform",
         "__float_to_half_varying",
+        "__halfbits_uniform_int16",
+        "__halfbits_varying_int16",
         "__floatbits_uniform_int32",
         "__floatbits_varying_int32",
         "__floor_uniform_double",
@@ -529,16 +533,20 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__insert_int8",
         "__intbits_uniform_double",
         "__intbits_uniform_float",
+        "__intbits_uniform_half",
         "__intbits_varying_double",
         "__intbits_varying_float",
+        "__intbits_varying_half",
         "__max_uniform_double",
         "__max_uniform_float",
+        "__max_uniform_half",
         "__max_uniform_int32",
         "__max_uniform_int64",
         "__max_uniform_uint32",
         "__max_uniform_uint64",
         "__max_varying_double",
         "__max_varying_float",
+        "__max_varying_half",
         "__max_varying_int32",
         "__max_varying_int64",
         "__max_varying_uint32",
@@ -552,12 +560,14 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__memset64",
         "__min_uniform_double",
         "__min_uniform_float",
+        "__min_uniform_half",
         "__min_uniform_int32",
         "__min_uniform_int64",
         "__min_uniform_uint32",
         "__min_uniform_uint64",
         "__min_varying_double",
         "__min_varying_float",
+        "__min_varying_half",
         "__min_varying_int32",
         "__min_varying_int64",
         "__min_varying_uint32",
@@ -610,10 +620,16 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__prefetch_read_uniform_2",
         "__prefetch_read_uniform_3",
         "__prefetch_read_uniform_nt",
+        "__prefetch_write_uniform_1",
+        "__prefetch_write_uniform_2",
+        "__prefetch_write_uniform_3",
         "__pseudo_prefetch_read_varying_1",
         "__pseudo_prefetch_read_varying_2",
         "__pseudo_prefetch_read_varying_3",
         "__pseudo_prefetch_read_varying_nt",
+        "__pseudo_prefetch_write_varying_1",
+        "__pseudo_prefetch_write_varying_2",
+        "__pseudo_prefetch_write_varying_3",
         "__psubs_ui8",
         "__psubs_ui16",
         "__psubs_ui32",
@@ -630,12 +646,18 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__psubus_vi16",
         "__psubus_vi32",
         "__psubus_vi64",
+        "__rcp_fast_uniform_double",
         "__rcp_fast_uniform_float",
-        "__rcp_uniform_float",
+        "__rcp_fast_uniform_half",
+        "__rcp_fast_varying_double",
         "__rcp_fast_varying_float",
-        "__rcp_varying_float",
+        "__rcp_fast_varying_half",
         "__rcp_uniform_double",
+        "__rcp_uniform_float",
+        "__rcp_uniform_half",
         "__rcp_varying_double",
+        "__rcp_varying_float",
+        "__rcp_varying_half",
         "__rdrand_i16",
         "__rdrand_i32",
         "__rdrand_i64",
@@ -661,12 +683,9 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__reduce_min_int64",
         "__reduce_min_uint32",
         "__reduce_min_uint64",
-        "__rems_ui64",
-        "__rems_vi64",
-        "__remus_ui64",
-        "__remus_vi64",
         "__rotate_double",
         "__rotate_float",
+        "__rotate_half",
         "__rotate_i16",
         "__rotate_i32",
         "__rotate_i64",
@@ -675,12 +694,14 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__round_uniform_float",
         "__round_varying_double",
         "__round_varying_float",
-        "__rsqrt_fast_varying_float",
-        "__rsqrt_uniform_float",
+        "__rsqrt_fast_uniform_double",
         "__rsqrt_fast_uniform_float",
-        "__rsqrt_varying_float",
+        "__rsqrt_fast_varying_double",
+        "__rsqrt_fast_varying_float",
         "__rsqrt_uniform_double",
+        "__rsqrt_uniform_float",
         "__rsqrt_varying_double",
+        "__rsqrt_varying_float",
         "__saturating_add_i8",
         "__saturating_add_i16",
         "__saturating_add_i32",
@@ -700,18 +721,21 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__sext_varying_bool",
         "__shift_double",
         "__shift_float",
+        "__shift_half",
         "__shift_i16",
         "__shift_i32",
         "__shift_i64",
         "__shift_i8",
         "__shuffle2_double",
         "__shuffle2_float",
+        "__shuffle2_half",
         "__shuffle2_i16",
         "__shuffle2_i32",
         "__shuffle2_i64",
         "__shuffle2_i8",
         "__shuffle_double",
         "__shuffle_float",
+        "__shuffle_half",
         "__shuffle_i16",
         "__shuffle_i32",
         "__shuffle_i64",
@@ -818,6 +842,8 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__svml_expd",
         "__svml_logd",
         "__svml_powd",
+        "__svml_sqrtd",
+        "__svml_invsqrtd",
         "__svml_sinf",
         "__svml_asinf",
         "__svml_cosf",
@@ -829,10 +855,18 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__svml_expf",
         "__svml_logf",
         "__svml_powf",
+        "__svml_sqrtf",
+        "__svml_invsqrtf",
         "__trunc_uniform_double",
         "__trunc_uniform_float",
         "__trunc_varying_double",
         "__trunc_varying_float",
+        "__log_uniform_half",
+        "__log_varying_half",
+        "__exp_uniform_half",
+        "__exp_varying_half",
+        "__pow_uniform_half",
+        "__pow_varying_half",
         "__log_uniform_float",
         "__log_varying_float",
         "__exp_uniform_float",
@@ -886,7 +920,7 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "ISPCAlloc",
         "ISPCLaunch",
         "ISPCSync",
-// ISPC_GENX_ENABLED
+// ISPC_XE_ENABLED
         "__task_index0",
         "__task_index1",
         "__task_index2",
@@ -903,23 +937,6 @@ static void lSetInternalFunctions(llvm::Module *module) {
             f->setLinkage(llvm::GlobalValue::InternalLinkage);
             // TO-DO : Revisit adding this back for ARM support.
             // g->target->markFuncWithTargetAttr(f);
-        }
-    }
-}
-
-static void lSetAlwaysInlineFunctions(llvm::Module *module) {
-    std::vector<const char *> names = {
-#ifdef ISPC_GENX_ENABLED
-        "__do_print_cm", "__do_print_lz"
-#endif /* ISPC_GENX_ENABLED */
-    };
-    for (auto name : names) {
-        llvm::Function *f = module->getFunction(name);
-        if (f) {
-            if (f->hasFnAttribute(llvm::Attribute::NoInline)) {
-                f->removeFnAttr(llvm::Attribute::NoInline);
-            }
-            f->addFnAttr(llvm::Attribute::AlwaysInline);
         }
     }
 }
@@ -980,10 +997,10 @@ void ispc::AddBitcodeToModule(const BitcodeLib *lib, llvm::Module *module, Symbo
         bcModule->setTargetTriple(mTriple.str());
         bcModule->setDataLayout(module->getDataLayout());
 
-        if (g->target->isGenXTarget()) {
+        if (g->target->isXeTarget()) {
             // Maybe we will use it for other targets in future,
-            // but now it is needed only by GenX. We need
-            // to update attributes because GenX intrinsics are
+            // but now it is needed only by Xe. We need
+            // to update attributes because Xe intrinsics are
             // separated from the others and it is not done by default
             lUpdateIntrinsicsAttributes(bcModule);
         }
@@ -1001,17 +1018,19 @@ void ispc::AddBitcodeToModule(const BitcodeLib *lib, llvm::Module *module, Symbo
             }
         }
 
+        // Remove clang ID metadata from the bitcode module, as we don't need it.
+        llvm::NamedMDNode *identMD = bcModule->getNamedMetadata("llvm.ident");
+        if (identMD) {
+            identMD->eraseFromParent();
+        }
+
         std::unique_ptr<llvm::Module> M(bcModule);
         if (llvm::Linker::linkModules(*module, std::move(M))) {
             Error(SourcePos(), "Error linking stdlib bitcode.");
         }
 
         lSetInternalFunctions(module);
-        if (g->target->isGenXTarget()) {
-            // For now this function is used for gen target only
-            // TODO: check if its usage affects CPU targets
-            lSetAlwaysInlineFunctions(module);
-        }
+
         if (symbolTable != NULL)
             lAddModuleSymbols(module, symbolTable);
         lCheckModuleIntrinsics(module);
@@ -1166,7 +1185,7 @@ void ispc::DefineStdlib(SymbolTable *symbolTable, llvm::LLVMContext *ctx, llvm::
     lDefineConstantInt("__have_native_rcpd", g->target->hasRcpd(), module, symbolTable, debug_symbols);
     lDefineConstantInt("__have_saturating_arithmetic", g->target->hasSatArith(), module, symbolTable, debug_symbols);
 
-    lDefineConstantInt("__is_genx_target", (int)(g->target->isGenXTarget()), module, symbolTable, debug_symbols);
+    lDefineConstantInt("__is_xe_target", (int)(g->target->isXeTarget()), module, symbolTable, debug_symbols);
 
     if (g->forceAlignment != -1) {
         llvm::GlobalVariable *alignment = module->getGlobalVariable("memory_alignment", true);

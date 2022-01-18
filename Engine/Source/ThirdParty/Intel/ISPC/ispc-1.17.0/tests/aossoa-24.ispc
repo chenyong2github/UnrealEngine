@@ -1,6 +1,8 @@
-// rule: skip on cpu=TGLLP
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
 
-export void f_v(uniform float RET[]) {
+task void f_v(uniform float RET[]) {
 #define width 2
 //CO    const uniform int width = 2;
     uniform int64 a[width*programCount], r[width*programCount];
@@ -18,7 +20,6 @@ export void f_v(uniform float RET[]) {
     RET[programIndex] = errs;
 }
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[programIndex] = 0;
 }
-

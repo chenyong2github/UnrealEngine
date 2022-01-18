@@ -53,7 +53,7 @@
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <llvm/GenXIntrinsics/GenXIntrinsics.h>
 #endif
 
@@ -236,9 +236,9 @@ FunctionEmitContext::FunctionEmitContext(Function *func, Symbol *funSym, llvm::F
 
     // If the function doesn't have __mask in parameters, there is no need to
     // have function mask
-    if ((func->GetType()->isExported &&
+    if (((func->GetType()->isExported || func->GetType()->IsISPCExternal()) &&
          (lf->getFunctionType()->getNumParams() == func->GetType()->GetNumParameters())) ||
-        (func->GetType()->isUnmasked) || (func->GetType()->isTask)) {
+        (func->GetType()->isUnmasked) || func->GetType()->isTask) {
         functionMaskValue = NULL;
         fullMaskPointer = NULL;
     } else {
@@ -272,9 +272,9 @@ FunctionEmitContext::FunctionEmitContext(Function *func, Symbol *funSym, llvm::F
         returnValuePtr = AllocaInst(returnType, "return_value_memory");
     }
 
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask()) {
-        /* Create return point for GenX */
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask()) {
+        /* Create return point for Xe */
         returnPoint = llvm::BasicBlock::Create(*g->ctx, "return_point", llvmFunction, 0);
         /* Load return value and return it */
         if (returnValuePtr != NULL) {
@@ -908,9 +908,9 @@ void FunctionEmitContext::EmitDefaultLabel(bool checkMask, SourcePos pos) {
     // should have been provided in the previous call to SwitchInst().
     AssertPos(currentPos, defaultBlock != NULL);
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     llvm::BasicBlock *bbDefaultImpl = NULL;
-    if (emitGenXHardwareMask()) {
+    if (emitXeHardwareMask()) {
         // Create basic block with actual default implementation
         bbDefaultImpl = CreateBasicBlock("default_impl", defaultBlock);
     }
@@ -920,8 +920,8 @@ void FunctionEmitContext::EmitDefaultLabel(bool checkMask, SourcePos pos) {
         // The previous case in the switch fell through, or we're in a
         // varying switch; terminate the current block with a jump to the
         // block for the code for the default label.
-#ifdef ISPC_GENX_ENABLED
-        if (emitGenXHardwareMask() && !inGenXSimdCF()) {
+#ifdef ISPC_XE_ENABLED
+        if (emitXeHardwareMask() && !inXeSimdCF()) {
             // Skip check, branch directly to implementation
             BranchInst(bbDefaultImpl);
         } else
@@ -930,8 +930,8 @@ void FunctionEmitContext::EmitDefaultLabel(bool checkMask, SourcePos pos) {
     }
     SetCurrentBasicBlock(defaultBlock);
 
-#ifdef ISPC_GENX_ENABLED
-    if (switchConditionWasUniform && emitGenXHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
+    if (switchConditionWasUniform && emitXeHardwareMask()) {
         // Find next basic block after default
         auto iter = nextBlocks->find(defaultBlock);
         AssertPos(currentPos, iter != nextBlocks->end());
@@ -969,7 +969,7 @@ void FunctionEmitContext::EmitDefaultLabel(bool checkMask, SourcePos pos) {
         // executed on fall through won't fail case checks from
         // above
 
-        // Branch to default/next block. It will set GenX EM
+        // Branch to default/next block. It will set Xe EM
         // for this block and restore mask for turned off lanes after
         // reaching next block
         BranchInst(bbDefaultImpl, bbNext, testVal);
@@ -1034,9 +1034,9 @@ void FunctionEmitContext::EmitCaseLabel(int value, bool checkMask, SourcePos pos
         }
     AssertPos(currentPos, bbCase != NULL);
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     llvm::BasicBlock *bbCaseImpl = NULL;
-    if (emitGenXHardwareMask()) {
+    if (emitXeHardwareMask()) {
         // Create basic block with actual case implementation
         bbCaseImpl = CreateBasicBlock(llvm::Twine(bbCase->getName()) + "_impl", bbCase);
     }
@@ -1044,15 +1044,15 @@ void FunctionEmitContext::EmitCaseLabel(int value, bool checkMask, SourcePos pos
 
     if (bblock != NULL) {
         // fall through from the previous case
-#ifdef ISPC_GENX_ENABLED
-        if (emitGenXHardwareMask() && llvm::isa<llvm::VectorType>(switchExpr->getType())) {
+#ifdef ISPC_XE_ENABLED
+        if (emitXeHardwareMask() && llvm::isa<llvm::VectorType>(switchExpr->getType())) {
             // EM will be restored after this branch.
             // We need to skip case check for lanes that are
             // turned on at this point.
-            StoreInst(GenXSimdCFPredicate(LLVMMaskAllOn), switchFallThroughMaskPtr);
+            StoreInst(XeSimdCFPredicate(LLVMMaskAllOn), switchFallThroughMaskPtr);
         }
 
-        if (emitGenXHardwareMask() && !inGenXSimdCF()) {
+        if (emitXeHardwareMask() && !inXeSimdCF()) {
             // Skip check, branch directly to implementation
             BranchInst(bbCaseImpl);
         } else
@@ -1061,8 +1061,8 @@ void FunctionEmitContext::EmitCaseLabel(int value, bool checkMask, SourcePos pos
     }
     SetCurrentBasicBlock(bbCase);
 
-#ifdef ISPC_GENX_ENABLED
-    if (switchConditionWasUniform && emitGenXHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
+    if (switchConditionWasUniform && emitXeHardwareMask()) {
         // Find the next basic block after this case
         std::map<llvm::BasicBlock *, llvm::BasicBlock *>::const_iterator iter;
         iter = nextBlocks->find(bbCase);
@@ -1084,7 +1084,7 @@ void FunctionEmitContext::EmitCaseLabel(int value, bool checkMask, SourcePos pos
             caseTest = CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_EQ, switchExpr, val, "case_test");
         }
 
-        // Branch to current case/next block. It will set GenX EM
+        // Branch to current case/next block. It will set Xe EM
         // for this block and restore mask for turned off lanes after
         // reaching next block
         BranchInst(bbCaseImpl, bbNext, caseTest);
@@ -1132,8 +1132,8 @@ void FunctionEmitContext::SwitchInst(llvm::Value *expr, llvm::BasicBlock *bbDefa
     switchConditionWasUniform =
         (llvm::isa<llvm::VectorType>(expr->getType()) == false) || (controlFlowInfo.back()->IsUniformEmulated());
 
-    // Do not make LLVM switch for GenX
-    if (switchConditionWasUniform == true && !emitGenXHardwareMask()) {
+    // Do not make LLVM switch for Xe
+    if (switchConditionWasUniform == true && !emitXeHardwareMask()) {
         // For a uniform switch condition, just wire things up to the LLVM
         // switch instruction.
         llvm::SwitchInst *s = llvm::SwitchInst::Create(expr, bbDefault, bbCases.size(), bblock);
@@ -1150,7 +1150,7 @@ void FunctionEmitContext::SwitchInst(llvm::Value *expr, llvm::BasicBlock *bbDefa
         // switch is a terminator
         bblock = NULL;
     } else {
-        if (emitGenXHardwareMask()) {
+        if (emitXeHardwareMask()) {
             // Init fall through mask
             switchFallThroughMaskPtr = AllocaInst(LLVMTypes::MaskType, "fall_through_mask");
             StoreInst(LLVMMaskAllOff, switchFallThroughMaskPtr);
@@ -1263,9 +1263,9 @@ void FunctionEmitContext::CurrentLanesReturned(Expr *expr, bool doCoherenceCheck
         }
     }
 
-    if (emitGenXHardwareMask() || (!emitGenXHardwareMask() && VaryingCFDepth() == 0)) {
-        // Don't need to create mask management instructions for GenX
-        // since execution is managed through GenX EM
+    if (emitXeHardwareMask() || (!emitXeHardwareMask() && VaryingCFDepth() == 0)) {
+        // Don't need to create mask management instructions for Xe
+        // since execution is managed through Xe EM
 
         // If there is only uniform control flow between us and the
         // function entry, then it's guaranteed that all lanes are running,
@@ -2529,6 +2529,8 @@ llvm::Value *FunctionEmitContext::gather(llvm::Value *ptr, const PointerType *pt
         funcName = g->target->is32Bit() ? "__pseudo_gather32_i64" : "__pseudo_gather64_i64";
     else if (llvmReturnType == LLVMTypes::FloatVectorType)
         funcName = g->target->is32Bit() ? "__pseudo_gather32_float" : "__pseudo_gather64_float";
+    else if (llvmReturnType == LLVMTypes::Float16VectorType)
+        funcName = g->target->is32Bit() ? "__pseudo_gather32_half" : "__pseudo_gather64_half";
     else if (llvmReturnType == LLVMTypes::Int32VectorType)
         funcName = g->target->is32Bit() ? "__pseudo_gather32_i32" : "__pseudo_gather64_i32";
     else if (llvmReturnType == LLVMTypes::Int16VectorType)
@@ -2540,11 +2542,11 @@ llvm::Value *FunctionEmitContext::gather(llvm::Value *ptr, const PointerType *pt
 
     llvm::Function *gatherFunc = m->module->getFunction(funcName);
     AssertPos(currentPos, gatherFunc != NULL);
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask()) {
-        // Predicate ISPC mask with gen execution mask so
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask()) {
+        // Predicate ISPC mask with Xe execution mask so
         // after CMSimdCFLoweringPass pseudo_gather will have correct masked value.
-        mask = GenXSimdCFPredicate(mask);
+        mask = XeSimdCFPredicate(mask);
     }
 #endif
 
@@ -2609,6 +2611,23 @@ void FunctionEmitContext::addGSMetadata(llvm::Value *v, SourcePos pos) {
     inst->setMetadata("last_column", md);
 }
 
+llvm::Value *FunctionEmitContext::AddrSpaceCast(llvm::Value *val, AddressSpace as, bool atEntryBlock) {
+    Assert(llvm::isa<llvm::PointerType>(val->getType()));
+    llvm::PointerType *pt = llvm::dyn_cast<llvm::PointerType>(val->getType());
+    if (pt->getAddressSpace() == (unsigned)as) {
+        return val;
+    }
+    llvm::PointerType *newType = llvm::PointerType::get(pt->getPointerElementType(), (unsigned)as);
+    llvm::AddrSpaceCastInst *inst;
+    if (atEntryBlock) {
+        inst = new llvm::AddrSpaceCastInst(val, newType, val->getName() + "__cast", allocaBlock->getTerminator());
+    } else {
+        inst = new llvm::AddrSpaceCastInst(val, newType, val->getName() + "__cast", bblock);
+    }
+
+    return inst;
+}
+
 llvm::Value *FunctionEmitContext::AllocaInst(llvm::Type *llvmType, llvm::Value *size, const llvm::Twine &name,
                                              int align, bool atEntryBlock) {
     if ((llvmType == NULL) || (size == NULL)) {
@@ -2617,17 +2636,16 @@ llvm::Value *FunctionEmitContext::AllocaInst(llvm::Type *llvmType, llvm::Value *
     }
 
     llvm::AllocaInst *inst = NULL;
+    unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
     if (atEntryBlock) {
         // We usually insert it right before the jump instruction at the
         // end of allocaBlock
         llvm::Instruction *retInst = allocaBlock->getTerminator();
         AssertPos(currentPos, retInst);
-        unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
         inst = new llvm::AllocaInst(llvmType, AS, size, name, retInst);
     } else {
         // Unless the caller overrode the default and wants it in the
         // current basic block
-        unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
         inst = new llvm::AllocaInst(llvmType, AS, size, name, bblock);
     }
 
@@ -2654,17 +2672,16 @@ llvm::Value *FunctionEmitContext::AllocaInst(llvm::Type *llvmType, const llvm::T
     }
 
     llvm::AllocaInst *inst = NULL;
+    unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
     if (atEntryBlock) {
         // We usually insert it right before the jump instruction at the
         // end of allocaBlock
         llvm::Instruction *retInst = allocaBlock->getTerminator();
         AssertPos(currentPos, retInst);
-        unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
         inst = new llvm::AllocaInst(llvmType, AS, name, retInst);
     } else {
         // Unless the caller overrode the default and wants it in the
         // current basic block
-        unsigned AS = llvmFunction->getParent()->getDataLayout().getAllocaAddrSpace();
         inst = new llvm::AllocaInst(llvmType, AS, name, bblock);
     }
 
@@ -2789,6 +2806,8 @@ void FunctionEmitContext::maskedStore(llvm::Value *value, llvm::Value *ptr, cons
         maskedStoreFunc = m->module->getFunction("__pseudo_masked_store_i64");
     } else if (llvmValueStorageType == LLVMTypes::FloatVectorType) {
         maskedStoreFunc = m->module->getFunction("__pseudo_masked_store_float");
+    } else if (llvmValueStorageType == LLVMTypes::Float16VectorType) {
+        maskedStoreFunc = m->module->getFunction("__pseudo_masked_store_half");
     } else if (llvmValueStorageType == LLVMTypes::Int32VectorType) {
         maskedStoreFunc = m->module->getFunction("__pseudo_masked_store_i32");
     } else if (llvmValueStorageType == LLVMTypes::Int16VectorType) {
@@ -2799,9 +2818,9 @@ void FunctionEmitContext::maskedStore(llvm::Value *value, llvm::Value *ptr, cons
     }
     AssertPos(currentPos, maskedStoreFunc != NULL);
 
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask()) {
-        mask = GenXSimdCFPredicate(mask);
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask()) {
+        mask = XeSimdCFPredicate(mask);
     }
 #endif
     std::vector<llvm::Value *> args;
@@ -2899,6 +2918,8 @@ void FunctionEmitContext::scatter(llvm::Value *value, llvm::Value *ptr, const Ty
         funcName = g->target->is32Bit() ? "__pseudo_scatter32_i64" : "__pseudo_scatter64_i64";
     } else if (llvmStorageType == LLVMTypes::FloatVectorType) {
         funcName = g->target->is32Bit() ? "__pseudo_scatter32_float" : "__pseudo_scatter64_float";
+    } else if (llvmStorageType == LLVMTypes::Float16VectorType) {
+        funcName = g->target->is32Bit() ? "__pseudo_scatter32_half" : "__pseudo_scatter64_half";
     } else if (llvmStorageType == LLVMTypes::Int32VectorType) {
         funcName = g->target->is32Bit() ? "__pseudo_scatter32_i32" : "__pseudo_scatter64_i32";
     } else if (llvmStorageType == LLVMTypes::Int16VectorType) {
@@ -2911,11 +2932,11 @@ void FunctionEmitContext::scatter(llvm::Value *value, llvm::Value *ptr, const Ty
     AssertPos(currentPos, scatterFunc != NULL);
 
     AddInstrumentationPoint("scatter");
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask()) {
-        // Predicate ISPC mask with gen execution mask so
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask()) {
+        // Predicate ISPC mask with Xe execution mask so
         // after CMSimdCFLoweringPass pseudo_scatter will have correct masked value.
-        mask = GenXSimdCFPredicate(mask);
+        mask = XeSimdCFPredicate(mask);
     }
 #endif
     std::vector<llvm::Value *> args;
@@ -2955,13 +2976,13 @@ void FunctionEmitContext::StoreInst(llvm::Value *value, llvm::Value *ptr, const 
         inst->setAlignment(llvm::MaybeAlign(g->target->getNativeVectorAlignment()).valueOrOne());
     }
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     // For uniform data like short vectors we need to add ISPC-Uniform metadata
     // to exclude these instructions from predication in SIMDCFLowering pass.
     llvm::VectorType *ty = llvm::dyn_cast<llvm::VectorType>(value->getType());
     if (ty != NULL) {
-        if (emitGenXHardwareMask() && isUniformData) {
-            GenXUniformMetadata(inst);
+        if (emitXeHardwareMask() && isUniformData) {
+            XeUniformMetadata(inst);
         }
     }
 #endif
@@ -3059,10 +3080,10 @@ void FunctionEmitContext::MemcpyInst(llvm::Value *dest, llvm::Value *src, llvm::
     args.push_back(src);
     args.push_back(count);
     args.push_back(LLVMFalse); /* not volatile */
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     llvm::Value *callinst = CallInst(mcFunc, NULL, args, "");
-    if (emitGenXHardwareMask()) {
-        GenXUniformMetadata(callinst);
+    if (emitXeHardwareMask()) {
+        XeUniformMetadata(callinst);
     }
 #else
     CallInst(mcFunc, NULL, args, "");
@@ -3112,9 +3133,9 @@ llvm::Instruction *FunctionEmitContext::BranchInst(llvm::BasicBlock *trueBlock, 
         AssertPos(currentPos, m->errorCount > 0);
         return b;
     }
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask())
-        test = GenXPrepareVectorBranch(test);
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask())
+        test = XePrepareVectorBranch(test);
 #endif
     b = llvm::BranchInst::Create(trueBlock, falseBlock, test, bblock);
     AddDebugPos(b);
@@ -3263,21 +3284,39 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
         AssertPos(currentPos, m->errorCount > 0);
         return NULL;
     }
-
-    std::vector<llvm::Value *> argVals = args;
+    std::vector<llvm::Value *> argVals;
     // Most of the time, the mask is passed as the last argument.  this
     // isn't the case for things like intrinsics, builtins, and extern "C"
     // functions from the application.  Add the mask if it's needed.
+    // There may be more arguments than function parameters for vararg case.
     unsigned int calleeArgCount = lCalleeArgCount(func, funcType);
-    AssertPos(currentPos, argVals.size() + 1 == calleeArgCount || argVals.size() == calleeArgCount);
+
+    // If we have ISPC external function without mask, we should cast all
+    // pointers to generic address space before call.
+    llvm::Function *f = llvm::dyn_cast<llvm::Function>(func);
+    if (funcType && funcType->RequiresAddrSpaceCasts(f)) {
+        for (llvm::Value *arg : args) {
+            if (llvm::isa<llvm::PointerType>(arg->getType())) {
+                llvm::Value *adrCast = AddrSpaceCast(arg, AddressSpace::ispc_generic);
+                argVals.push_back(adrCast);
+            } else {
+                argVals.push_back(arg);
+            }
+        }
+    } else {
+        argVals = args;
+    }
+
+    AssertPos(currentPos, (llvm::isa<llvm::Function>(func) && llvm::cast<llvm::Function>(func)->isVarArg()) ||
+                              argVals.size() + 1 == calleeArgCount || argVals.size() == calleeArgCount);
     if (argVals.size() + 1 == calleeArgCount) {
         llvm::Value *mask = NULL;
 
-#ifdef ISPC_GENX_ENABLED
-        if (emitGenXHardwareMask())
+#ifdef ISPC_XE_ENABLED
+        if (emitXeHardwareMask())
             // This will create mask according to current EM on SIMD CF Lowering.
             // The result will be like       mask = select (EM, AllOn, AllFalse)
-            mask = GenXSimdCFPredicate(LLVMMaskAllOn);
+            mask = XeSimdCFPredicate(LLVMMaskAllOn);
         else
 #endif
             mask = GetFullMask();
@@ -3319,7 +3358,11 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
         llvm::CallInst *cc = llvm::dyn_cast<llvm::CallInst>(ci);
         if (cc && cc->getCalledFunction()) {
             if (cc->getCalledFunction()->returnDoesNotAlias()) {
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+                cc->addRetAttr(llvm::Attribute::NoAlias);
+#else
                 cc->addAttribute(llvm::AttributeList::ReturnIndex, llvm::Attribute::NoAlias);
+#endif
             }
             // TO DO:Add x86 changes as a separate commit
             /* unsigned int argSize = cc->arg_size();
@@ -3347,7 +3390,7 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
 
         llvm::BasicBlock *bbSIMDCall = NULL;
         llvm::BasicBlock *bbSIMDCallJoin = NULL;
-        if (emitGenXHardwareMask()) {
+        if (emitXeHardwareMask()) {
             bbSIMDCall = CreateBasicBlock("varying_funcall_simd_call", bbCall);
             bbSIMDCallJoin = CreateBasicBlock("varying_funcall_simd_call_join", bbSIMDCall);
         }
@@ -3357,6 +3400,7 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
 
         // First allocate memory to accumulate the various program
         // instances' return values...
+        Assert(funcType != NULL);
         const Type *returnType = funcType->GetReturnType();
         llvm::Type *llvmReturnType = returnType->LLVMType(g->ctx);
         llvm::Value *resultPtr = NULL;
@@ -3369,10 +3413,10 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
         // currently running program instances.
         llvm::Value *oldFullMask = NULL;
         llvm::Value *maskPtr = AllocaInst(LLVMTypes::MaskType);
-        if (emitGenXHardwareMask()) {
-#ifdef ISPC_GENX_ENABLED
+        if (emitXeHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
             // Current mask will be calculated according to EM mask
-            oldFullMask = GenXSimdCFPredicate(LLVMMaskAllOn);
+            oldFullMask = XeSimdCFPredicate(LLVMMaskAllOn);
             StoreInst(oldFullMask, maskPtr, NULL, true);
 #endif
         } else {
@@ -3428,12 +3472,12 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
             // callMask = (currentMask & fpOverlap)
             llvm::Value *callMask = BinaryOperator(llvm::Instruction::And, currentMask, fpOverlap, "call_mask");
 
-            if (emitGenXHardwareMask()) {
+            if (emitXeHardwareMask()) {
                 // TODO: Seems like it is possible to move code
                 // from bbSIMDCallJoin block here. Decide if
                 // it should be done.
 
-                // Execution is performed according to EM for GenX.
+                // Execution is performed according to EM for Xe.
                 // Branch to BB where EM is applied for call.
                 BranchInst(bbSIMDCall, bbSIMDCallJoin, callMask);
                 // Emit code for call
@@ -3456,7 +3500,7 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
             // accumulate the result using the call mask.
             if (callResult != NULL && callResult->getType() != LLVMTypes::VoidType) {
                 AssertPos(currentPos, resultPtr != NULL);
-                if (emitGenXHardwareMask()) {
+                if (emitXeHardwareMask()) {
                     // This store will be predicated during SIMD CF Lowering
                     StoreInst(callResult, resultPtr);
                 } else {
@@ -3465,7 +3509,7 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
             } else
                 AssertPos(currentPos, resultPtr == NULL);
 
-            if (emitGenXHardwareMask()) {
+            if (emitXeHardwareMask()) {
                 // Finish SIMDCall BB
                 BranchInst(bbSIMDCallJoin);
                 SetCurrentBasicBlock(bbSIMDCallJoin);
@@ -3476,7 +3520,7 @@ llvm::Value *FunctionEmitContext::CallInst(llvm::Value *func, const FunctionType
             // currentMask = currentMask & ~callmask
             llvm::Value *notCallMask = BinaryOperator(llvm::Instruction::Xor, callMask, LLVMMaskAllOn, "~callMask");
             currentMask = BinaryOperator(llvm::Instruction::And, currentMask, notCallMask, "currentMask&~callMask");
-            if (emitGenXHardwareMask()) {
+            if (emitXeHardwareMask()) {
                 StoreInst(currentMask, maskPtr, NULL, true);
             } else {
                 StoreInst(currentMask, maskPtr);
@@ -3515,8 +3559,8 @@ llvm::Instruction *FunctionEmitContext::ReturnInst() {
         // Add a sync call at the end of any function that launched tasks
         SyncInst();
 
-#ifdef ISPC_GENX_ENABLED
-    if (emitGenXHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
+    if (emitXeHardwareMask()) {
         // Branch to return point. It will turn off lanes
         // in varying CF. For uniform CF it will be considered
         // as usual jmp.
@@ -3546,9 +3590,9 @@ llvm::Instruction *FunctionEmitContext::ReturnInst() {
 }
 
 llvm::Value *FunctionEmitContext::LaunchInst(llvm::Value *callee, std::vector<llvm::Value *> &argVals,
-                                             llvm::Value *launchCount[3]) {
-    if (g->target->isGenXTarget()) {
-        Error(currentPos, "\"launch\" keyword is not supported for genx-* targets");
+                                             llvm::Value *launchCount[3], const FunctionType *funcType) {
+    if (g->target->isXeTarget()) {
+        Error(currentPos, "\"launch\" keyword is not supported for Xe targets");
         return NULL;
     }
 
@@ -3557,11 +3601,20 @@ llvm::Value *FunctionEmitContext::LaunchInst(llvm::Value *callee, std::vector<ll
         return NULL;
     }
 
+    if (!(llvm::isa<llvm::Function>(callee) || llvm::isa<llvm::PointerType>(callee->getType()))) {
+        Error(currentPos, "Must provide function name or uniform function pointer to \"task\"-qualified function for "
+                          "\"launch\" expression");
+        return NULL;
+    }
+
     launchedTasks = true;
 
-    AssertPos(currentPos, llvm::isa<llvm::Function>(callee));
-    llvm::Type *argType = (llvm::dyn_cast<llvm::Function>(callee))->arg_begin()->getType();
+    AssertPos(currentPos, funcType != NULL);
+    llvm::Type *llvmFuncType = funcType->LLVMFunctionType(g->ctx);
+    AssertPos(currentPos, funcType->LLVMFunctionType(g->ctx)->getFunctionNumParams() > 0);
+    llvm::Type *argType = llvmFuncType->getFunctionParamType(0);
     AssertPos(currentPos, llvm::PointerType::classof(argType));
+
     llvm::PointerType *pt = llvm::dyn_cast<llvm::PointerType>(argType);
     AssertPos(currentPos, pt);
     AssertPos(currentPos, llvm::StructType::classof(pt->getElementType()));
@@ -3615,8 +3668,8 @@ llvm::Value *FunctionEmitContext::LaunchInst(llvm::Value *callee, std::vector<ll
 }
 
 void FunctionEmitContext::SyncInst() {
-    if (g->target->isGenXTarget()) {
-        Error(currentPos, "\"sync\" keyword is not supported for genx-* targets");
+    if (g->target->isXeTarget()) {
+        Error(currentPos, "\"sync\" keyword is not supported for Xe targets");
         return;
     }
 
@@ -3711,8 +3764,8 @@ CFInfo *FunctionEmitContext::popCFState() {
     return ci;
 }
 
-#ifdef ISPC_GENX_ENABLED
-bool FunctionEmitContext::inGenXSimdCF() const {
+#ifdef ISPC_XE_ENABLED
+bool FunctionEmitContext::inXeSimdCF() const {
     // Go backwards through controlFlowInfo, since we add new nested scopes
     // to the back.
     if (controlFlowInfo.size() > 0) {
@@ -3727,7 +3780,7 @@ bool FunctionEmitContext::inGenXSimdCF() const {
     return false;
 }
 
-llvm::Value *FunctionEmitContext::GenXSimdCFAny(llvm::Value *value) {
+llvm::Value *FunctionEmitContext::XeSimdCFAny(llvm::Value *value) {
     AssertPos(currentPos, llvm::isa<llvm::VectorType>(value->getType()));
     llvm::Value *mask = GetInternalMask();
     value = BinaryOperator(llvm::BinaryOperator::And, mask, value);
@@ -3736,7 +3789,7 @@ llvm::Value *FunctionEmitContext::GenXSimdCFAny(llvm::Value *value) {
     return llvm::CallInst::Create(Fn, value, "", bblock);
 }
 
-llvm::Value *FunctionEmitContext::GenXSimdCFPredicate(llvm::Value *value, llvm::Value *defaults) {
+llvm::Value *FunctionEmitContext::XeSimdCFPredicate(llvm::Value *value, llvm::Value *defaults) {
     AssertPos(currentPos, llvm::isa<llvm::VectorType>(value->getType()));
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
     llvm::FixedVectorType *vt = llvm::dyn_cast<llvm::FixedVectorType>(value->getType());
@@ -3765,21 +3818,21 @@ llvm::Value *FunctionEmitContext::GenXSimdCFPredicate(llvm::Value *value, llvm::
     return llvm::CallInst::Create(Fn, args, "", bblock);
 }
 
-llvm::Value *FunctionEmitContext::GenXPrepareVectorBranch(llvm::Value *value) {
+llvm::Value *FunctionEmitContext::XePrepareVectorBranch(llvm::Value *value) {
     llvm::Value *ret = value;
     // If condition is varying we just insert simdcf.any intrinsic.
     // If condition is a scalar we should change it to vector but only if we had
     // varying condition which was emulated as uniform in external scopes.
     if (!llvm::isa<llvm::VectorType>(value->getType())) {
-        if (!inGenXSimdCF())
+        if (!inXeSimdCF())
             return ret;
         ret = BroadcastValue(value, LLVMTypes::Int1VectorType);
     }
     Assert(ret != NULL);
-    return GenXSimdCFAny(ret);
+    return XeSimdCFAny(ret);
 }
 
-llvm::Value *FunctionEmitContext::GenXStartUnmaskedRegion() {
+llvm::Value *FunctionEmitContext::XeStartUnmaskedRegion() {
     auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(m->module, llvm::GenXIntrinsic::genx_unmask_begin);
     std::vector<llvm::Value *> args;
     llvm::Value *maskAlloca = AllocaInst(LLVMTypes::Int32Type);
@@ -3788,13 +3841,13 @@ llvm::Value *FunctionEmitContext::GenXStartUnmaskedRegion() {
     return maskAlloca;
 }
 
-void FunctionEmitContext::GenXEndUnmaskedRegion(llvm::Value *execMask) {
+void FunctionEmitContext::XeEndUnmaskedRegion(llvm::Value *execMask) {
     llvm::Value *restoredMask = LoadInst(execMask);
     auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(m->module, llvm::GenXIntrinsic::genx_unmask_end);
     llvm::CallInst::Create(Fn, restoredMask, "", bblock);
 }
 
-void FunctionEmitContext::GenXUniformMetadata(llvm::Value *v) {
+void FunctionEmitContext::XeUniformMetadata(llvm::Value *v) {
     llvm::Instruction *inst = llvm::dyn_cast<llvm::Instruction>(v);
     // Set ISPC-Uniform to exclude instruction from predication in CMSIMDCFLowering.
     if (inst != NULL) {
@@ -3803,26 +3856,34 @@ void FunctionEmitContext::GenXUniformMetadata(llvm::Value *v) {
     }
 }
 
-llvm::CallInst *FunctionEmitContext::GenXLZFormatStr(const std::string &str) {
-    auto *initializer = llvm::ConstantDataArray::getString(*g->ctx, str, true);
-    auto *GV = new llvm::GlobalVariable(*m->module, initializer->getType(), true /* const */,
-                                        llvm::GlobalValue::InternalLinkage, initializer, "lz_format_str");
+llvm::Constant *FunctionEmitContext::XeCreateConstantString(llvm::StringRef str, llvm::StringRef name) {
+    auto *initializer = llvm::ConstantDataArray::getString(*g->ctx, str, /* AddNull */ true);
+    auto *GV = new llvm::GlobalVariable(*m->module, initializer->getType(),
+                                        /* const */ true, llvm::GlobalValue::InternalLinkage, initializer, name,
+                                        nullptr, llvm::GlobalVariable::NotThreadLocal,
+                                        /* Constant Addrspace */ 2);
+    GV->setAlignment(llvm::MaybeAlign(g->target->getDataLayout()->getABITypeAlignment(initializer->getType())));
+    GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 
-    auto *GEP = GetElementPtrInst(GV, LLVMInt32(0), LLVMInt32(0), PointerType::GetUniform(AtomicType::UniformInt8),
-                                  "lz_format_str_ptr");
+    return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
+                                                        llvm::ArrayRef<llvm::Constant *>{LLVMInt32(0), LLVMInt32(0)});
+}
 
-    auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(m->module, llvm::GenXIntrinsic::genx_print_format_index,
-                                                      LLVMTypes::Int8PointerType);
-    return llvm::CallInst::Create(Fn, GEP, "lz_format_str_idx", bblock);
+llvm::Constant *FunctionEmitContext::XeGetOrCreateConstantString(llvm::StringRef str, llvm::StringRef name) {
+    auto *GV = m->module->getGlobalVariable(name, /* AllowInternal */ true);
+    if (GV)
+        return llvm::ConstantExpr::getInBoundsGetElementPtr(
+            GV->getValueType(), GV, llvm::ArrayRef<llvm::Constant *>{LLVMInt32(0), LLVMInt32(0)});
+    return XeCreateConstantString(str, name);
 }
 
 #endif
 
-bool FunctionEmitContext::emitGenXHardwareMask() {
-    bool emitGenXHardwareMask = g->target->isGenXTarget();
-#ifdef ISPC_GENX_ENABLED
-    emitGenXHardwareMask &= g->opt.emitGenXHardwareMask;
+bool FunctionEmitContext::emitXeHardwareMask() {
+    bool emitXeHardwareMask = g->target->isXeTarget();
+#ifdef ISPC_XE_ENABLED
+    emitXeHardwareMask &= g->opt.emitXeHardwareMask;
 #endif
-    return emitGenXHardwareMask;
+    return emitXeHardwareMask;
 }
 } // namespace ispc

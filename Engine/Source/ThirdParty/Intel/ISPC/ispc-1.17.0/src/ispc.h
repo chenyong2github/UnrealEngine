@@ -42,7 +42,7 @@
 #include "target_registry.h"
 
 #if ISPC_LLVM_VERSION < OLDEST_SUPPORTED_LLVM || ISPC_LLVM_VERSION > LATEST_SUPPORTED_LLVM
-#error "Only LLVM 8.0 - 12.0 and 13.0 development branch are supported"
+#error "Only LLVM 11.0 - 13.0 and 14.0 development branch are supported"
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -63,6 +63,9 @@
 #include <string>
 #include <vector>
 
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+#include <llvm/ADT/APFloat.h>
+#endif
 #include <llvm/ADT/StringRef.h>
 
 /** @def ISPC_MAX_NVEC maximum vector size of any of the compliation
@@ -117,6 +120,15 @@ class Type;
 struct VariableDeclaration;
 
 enum StorageClass { SC_NONE, SC_EXTERN, SC_STATIC, SC_TYPEDEF, SC_EXTERN_C };
+
+// Enumerant for address spaces.
+enum class AddressSpace {
+    ispc_default,  // 0 = ispc_private
+    ispc_global,   // 1
+    ispc_constant, // 2
+    ispc_local,    // 3
+    ispc_generic,  // 4
+};
 
 /** @brief Representation of a range of positions in a source file.
 
@@ -177,16 +189,19 @@ class Target {
 #ifdef ISPC_WASM_ENABLED
         WASM,
 #endif
-#ifdef ISPC_GENX_ENABLED
-        GENX,
+#ifdef ISPC_XE_ENABLED
+        GEN9,
+        XELP,
+        XEHPG,
 #endif
         NUM_ISAS
     };
 
-#ifdef ISPC_GENX_ENABLED
-    enum GENX_PLATFORM {
-        GENX_GEN9,
-        GENX_TGLLP,
+#ifdef ISPC_XE_ENABLED
+    enum class XePlatform {
+        gen9,
+        xe_lp,
+        xe_hpg,
     };
 #endif
 
@@ -250,18 +265,18 @@ class Target {
 
     ISA getISA() const { return m_isa; }
 
-    bool isGenXTarget() {
-#ifdef ISPC_GENX_ENABLED
-        return m_isa == Target::GENX;
+    bool isXeTarget() {
+#ifdef ISPC_XE_ENABLED
+        return m_isa == Target::GEN9 || m_isa == Target::XELP || m_isa == Target::XEHPG;
 #else
         return false;
 #endif
     }
 
-#ifdef ISPC_GENX_ENABLED
-    GENX_PLATFORM getGenxPlatform() const;
-    uint32_t getGenxGrfSize() const;
-    bool hasGenxPrefetch() const;
+#ifdef ISPC_XE_ENABLED
+    XePlatform getXePlatform() const;
+    uint32_t getXeGrfSize() const;
+    bool hasXePrefetch() const;
 #endif
 
     Arch getArch() const { return m_arch; }
@@ -533,10 +548,10 @@ struct Opt {
         Affects only >= 512 bit wide targets and only if avx512vl is available */
     bool disableZMM;
 
-#ifdef ISPC_GENX_ENABLED
-    /** Disables optimization that coalesce gathers on GenX. This is
+#ifdef ISPC_XE_ENABLED
+    /** Disables optimization that coalesce gathers on Xe. This is
         likely only useful for measuring the impact of this optimization */
-    bool disableGenXGatherCoalescing;
+    bool disableXeGatherCoalescing;
 
     /** Enables experimental support of foreach statement inside varying CF.
         Current implementation brings performance degradation due to ineffective
@@ -546,13 +561,13 @@ struct Opt {
     /** Enables emitting of genx.any intrinsics and the control flow which is
         based on impliit hardware mask. Forces generation of goto/join instructions
         in assembly.*/
-    bool emitGenXHardwareMask;
+    bool emitXeHardwareMask;
 
     /** Enables generation of masked loads implemented using svm loads which
      * may lead to out of bound reads but bring prformance improvement in
      * most of the cases.
      */
-    bool enableGenXUnsafeMaskedLoad;
+    bool enableXeUnsafeMaskedLoad;
 #endif
 };
 
@@ -649,10 +664,13 @@ struct Globals {
         manual.) */
     bool emitInstrumentation;
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     /** Arguments to pass to Vector Compiler backend for offline
     compilation to L0 binary */
     std::string vcOpts;
+
+    /* Stateless stack memory size in VC backend */
+    unsigned int stackMemSize;
 #endif
 
     bool noPragmaOnce;
@@ -754,9 +772,9 @@ enum {
 
     CHECK_MASK_AT_FUNCTION_START_COST = 16,
     PREDICATE_SAFE_IF_STATEMENT_COST = 6,
-    // For gen target we want to avoid branches as much as possible
+    // For Xe target we want to avoid branches as much as possible
     // so we use increased cost here
-    PREDICATE_SAFE_SHORT_CIRC_GENX_STATEMENT_COST = 10,
+    PREDICATE_SAFE_SHORT_CIRC_XE_STATEMENT_COST = 10,
 };
 
 extern Globals *g;

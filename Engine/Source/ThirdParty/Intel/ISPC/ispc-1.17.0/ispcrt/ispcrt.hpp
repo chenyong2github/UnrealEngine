@@ -319,16 +319,17 @@ template <typename T> using SharedVector = std::vector<T, ispcrt::SharedMemoryAl
 // Module wrapper ///////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
+
 class Module : public GenericObject<ISPCRTModule> {
   public:
     Module() = default;
-    Module(const Device &device, const char *moduleName);
+    Module(const Device &device, const char *moduleName, const ISPCRTModuleOptions &opts = ISPCRTModuleOptions{});
 };
 
 // Inlined definitions //
 
-inline Module::Module(const Device &device, const char *moduleName)
-    : GenericObject<ISPCRTModule>(ispcrtLoadModule(device.handle(), moduleName)) {}
+inline Module::Module(const Device &device, const char *moduleName, const ISPCRTModuleOptions &opts)
+    : GenericObject<ISPCRTModule>(ispcrtLoadModule(device.handle(), moduleName, opts)) {}
 
 /////////////////////////////////////////////////////////////////////////////
 // Kernel wrapper ///////////////////////////////////////////////////////////
@@ -417,8 +418,6 @@ template <typename T, AllocType AT>
 inline Future TaskQueue::launch(const Kernel &k, const Array<T,AT> &p, size_t dim0, size_t dim1, size_t dim2) const {
     return ispcrtLaunch3D(handle(), k.handle(), p.handle(), dim0, dim1, dim2);
 }
-
-inline void TaskQueue::submit() const { ispcrtSubmit(handle()); }
 
 inline void TaskQueue::sync() const { ispcrtSync(handle()); }
 

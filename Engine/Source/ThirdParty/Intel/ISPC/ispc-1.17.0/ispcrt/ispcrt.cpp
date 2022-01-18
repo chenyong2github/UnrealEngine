@@ -222,9 +222,9 @@ ISPCRT_CATCH_END(nullptr)
 // Kernels ////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-ISPCRTModule ispcrtLoadModule(ISPCRTDevice d, const char *moduleFile) ISPCRT_CATCH_BEGIN {
+ISPCRTModule ispcrtLoadModule(ISPCRTDevice d, const char *moduleFile, ISPCRTModuleOptions moduleOpts) ISPCRT_CATCH_BEGIN {
     const auto &device = referenceFromHandle<ispcrt::base::Device>(d);
-    return (ISPCRTModule)device.newModule(moduleFile);
+    return (ISPCRTModule)device.newModule(moduleFile, moduleOpts);
 }
 ISPCRT_CATCH_END(nullptr)
 
@@ -289,12 +289,6 @@ ISPCRTFuture ispcrtLaunch3D(ISPCRTTaskQueue q, ISPCRTKernel k, ISPCRTMemoryView 
     return (ISPCRTFuture)queue.launch(kernel, params, dim0, dim1, dim2);
 }
 ISPCRT_CATCH_END(nullptr)
-
-void ispcrtSubmit(ISPCRTTaskQueue q) ISPCRT_CATCH_BEGIN {
-    auto &queue = referenceFromHandle<ispcrt::base::TaskQueue>(q);
-    queue.submit();
-}
-ISPCRT_CATCH_END()
 
 void ispcrtSync(ISPCRTTaskQueue q) ISPCRT_CATCH_BEGIN {
     auto &queue = referenceFromHandle<ispcrt::base::TaskQueue>(q);

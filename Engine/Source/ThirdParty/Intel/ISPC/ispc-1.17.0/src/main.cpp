@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,11 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Signals.h>
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+#include <llvm/MC/TargetRegistry.h>
+#else
 #include <llvm/Support/TargetRegistry.h>
+#endif
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 
@@ -65,7 +69,6 @@ using namespace ispc;
 #ifndef BUILD_DATE
 #define BUILD_DATE __DATE__
 #endif
-#define BUILD_VERSION ""
 #if _MSC_VER >= 1900
 #define ISPC_VS_VERSION "Visual Studio 2015 and later"
 #else
@@ -74,13 +77,9 @@ using namespace ispc;
 #endif // ISPC_HOST_IS_WINDOWS
 
 static void lPrintVersion() {
+    printf("%s\n", ISPC_VERSION_STRING);
 #ifdef ISPC_HOST_IS_WINDOWS
-    printf("Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), %s (build date %s, LLVM %s)\n"
-           "Supported Visual Studio versions: %s.\n",
-           ISPC_VERSION, BUILD_DATE, ISPC_LLVM_VERSION_STRING, ISPC_VS_VERSION);
-#else
-    printf("Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), %s (build %s @ %s, LLVM %s)\n", ISPC_VERSION,
-           BUILD_VERSION, BUILD_DATE, ISPC_LLVM_VERSION_STRING);
+    printf("Supported Visual Studio versions: %s.\n", ISPC_VS_VERSION);
 #endif
 
 // The recommended way to build ISPC assumes custom LLVM build with a set of patches.
@@ -103,13 +102,14 @@ static void lPrintVersion() {
 #ifndef ISPC_HOST_IS_WINDOWS
     printf("    [--colored-output]\t\tAlways use terminal colors in error/warning messages\n");
 #endif
-    printf("    ");
-    char cpuHelp[2048];
-    snprintf(cpuHelp, sizeof(cpuHelp), "[--cpu=<cpu>]\t\t\tSelect target CPU type\n<cpu>={%s}\n",
-             Target::SupportedCPUs().c_str());
-    PrintWithWordBreaks(cpuHelp, 16, TerminalWidth(), stdout);
+    printf("    [--cpu=<type>]\t\t\tAn alias for [--device=<type>] switch\n");
     printf("    [-D<foo>]\t\t\t\t#define given value when running preprocessor\n");
     printf("    [--dev-stub <filename>]\t\tEmit device-side offload stub functions to file\n");
+    printf("    ");
+    char cpuHelp[2048];
+    snprintf(cpuHelp, sizeof(cpuHelp), "[--device=<type>]\t\t\tSelect target device\n<type>={%s}\n",
+             Target::SupportedCPUs().c_str());
+    PrintWithWordBreaks(cpuHelp, 16, TerminalWidth(), stdout);
     printf("    [--dllexport]\t\t\tMake non-static functions DLL exported.  Windows target only\n");
     printf("    [--dwarf-version={2,3,4}]\t\tGenerate source-level debug information with given DWARF version "
            "(triggers -g).  Ignored for Windows target\n");
@@ -117,7 +117,7 @@ static void lPrintVersion() {
     printf("    [--emit-llvm]\t\t\tEmit LLVM bitcode file as output\n");
     printf("    [--emit-llvm-text]\t\t\tEmit LLVM bitcode file as output in textual form\n");
     printf("    [--emit-obj]\t\t\tGenerate object file file as output (default)\n");
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     printf("    [--emit-spirv]\t\t\tGenerate SPIR-V file as output\n");
     // AOT compilation is temporary disabled on Windows
 #ifndef ISPC_HOST_IS_WINDOWS
@@ -161,9 +161,9 @@ static void lPrintVersion() {
     printf("        disable-loop-unroll\t\tDisable loop unrolling.\n");
     printf("        disable-zmm\t\tDisable using zmm registers for avx512 targets in favour of ymm. This also affects "
            "ABI.\n");
-#ifdef ISPC_GENX_ENABLED
-    printf("        emit-genx-hardware-mask\t\tEnable emitting of GenX implicit hardware mask.\n");
-    printf("        enable-genx-foreach-varying\t\tEnable experimental foreach support inside varying control flow.\n");
+#ifdef ISPC_XE_ENABLED
+    printf("        emit-xe-hardware-mask\t\tEnable emitting of Xe implicit hardware mask.\n");
+    printf("        enable-xe-foreach-varying\t\tEnable experimental foreach support inside varying control flow.\n");
 #endif
     printf("        fast-masked-vload\t\tFaster masked vector loads on SSE (may go past end of array)\n");
     printf("        fast-math\t\t\tPerform non-IEEE-compliant optimizations of numeric expressions\n");
@@ -188,7 +188,7 @@ static void lPrintVersion() {
     printf("    [--vectorcall/--no-vectorcall]\tEnable/disable vectorcall calling convention on Windows (x64 only). "
            "Disabled by default\n");
     printf("    [--version]\t\t\t\tPrint ispc version\n");
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     printf("    [--vc-options=<\"-option1 -option2...\">]\t\t\t\tPass additional options to Vector Compiler backend\n");
 #endif
     printf("    [--werror]\t\t\t\tTreat warnings as errors\n");
@@ -197,6 +197,9 @@ static void lPrintVersion() {
     printf("    [--x86-asm-syntax=<option>]\t\tSelect style of code if generating assembly\n");
     printf("        intel\t\t\t\tEmit Intel-style assembly\n");
     printf("        att\t\t\t\tEmit AT&T-style assembly\n");
+#ifdef ISPC_XE_ENABLED
+    printf("    [--xe-stack-mem-size=<value>\t\tSet size of stateless stack memory in VC backend.\n");
+#endif
     printf("    [@<filename>]\t\t\tRead additional arguments from the given file\n");
     printf("    <file to compile or \"-\" for stdin>\n");
     exit(ret);
@@ -229,8 +232,9 @@ static void lPrintVersion() {
     printf("        disable-handle-pseudo-memory-ops\tLeave __pseudo_* calls for gather/scatter/etc. in final IR\n");
     printf("        disable-uniform-control-flow\t\tDisable uniform control flow optimizations\n");
     printf("        disable-uniform-memory-optimizations\tDisable uniform-based coherent memory access\n");
-#ifdef ISPC_GENX_ENABLED
-    printf("        disable-genx-gather-coalescing\t\tDisable GenX gather coalescing.\n");
+#ifdef ISPC_XE_ENABLED
+    printf("        disable-xe-gather-coalescing\t\tDisable Xe gather coalescing\n");
+    printf("        enable-xe-unsafe-masked-load\t\tEnable Xe unsafe masked load\n");
 #endif
     printf("    [--print-target]\t\t\tPrint target's information\n");
     printf("    [--yydebug]\t\t\t\tPrint debugging information during parsing\n");
@@ -644,6 +648,8 @@ int main(int Argc, char *Argv[]) {
                                       "only intel and att are allowed.",
                                       argv[i] + 17);
             }
+        } else if (!strncmp(argv[i], "--device=", 9)) {
+            cpu = argv[i] + 9;
         } else if (!strncmp(argv[i], "--cpu=", 6)) {
             cpu = argv[i] + 6;
         } else if (!strcmp(argv[i], "--fast-math")) {
@@ -689,15 +695,11 @@ int main(int Argc, char *Argv[]) {
             ot = Module::BitcodeText;
         else if (!strcmp(argv[i], "--emit-obj"))
             ot = Module::Object;
-#ifdef ISPC_GENX_ENABLED
-        else if (!strcmp(argv[i], "--emit-spirv")) {
+#ifdef ISPC_XE_ENABLED
+        else if (!strcmp(argv[i], "--emit-spirv"))
             ot = Module::SPIRV;
-            // AOT compilation is temporary disabled on Windows
-#ifndef ISPC_HOST_IS_WINDOWS
-        } else if (!strcmp(argv[i], "--emit-zebin")) {
+        else if (!strcmp(argv[i], "--emit-zebin"))
             ot = Module::ZEBIN;
-#endif
-        }
 #endif
         else if (!strcmp(argv[i], "--enable-llvm-intrinsics")) {
             g->enableLLVMIntrinsics = true;
@@ -794,15 +796,15 @@ int main(int Argc, char *Argv[]) {
                 g->opt.disableGatherScatterFlattening = true;
             else if (!strcmp(opt, "disable-uniform-memory-optimizations"))
                 g->opt.disableUniformMemoryOptimizations = true;
-#ifdef ISPC_GENX_ENABLED
-            else if (!strcmp(opt, "disable-genx-gather-coalescing"))
-                g->opt.disableGenXGatherCoalescing = true;
-            else if (!strcmp(opt, "emit-genx-hardware-mask"))
-                g->opt.emitGenXHardwareMask = true;
-            else if (!strcmp(opt, "enable-genx-foreach-varying"))
+#ifdef ISPC_XE_ENABLED
+            else if (!strcmp(opt, "disable-xe-gather-coalescing"))
+                g->opt.disableXeGatherCoalescing = true;
+            else if (!strcmp(opt, "emit-xe-hardware-mask"))
+                g->opt.emitXeHardwareMask = true;
+            else if (!strcmp(opt, "enable-xe-foreach-varying"))
                 g->opt.enableForeachInsideVarying = true;
-            else if (!strcmp(opt, "enable-genx-unsafe-masked-load"))
-                g->opt.enableGenXUnsafeMaskedLoad = true;
+            else if (!strcmp(opt, "enable-xe-unsafe-masked-load"))
+                g->opt.enableXeUnsafeMaskedLoad = true;
 #endif
             else {
                 errorHandler.AddError("Unknown --opt= option \"%s\".", opt);
@@ -919,9 +921,12 @@ int main(int Argc, char *Argv[]) {
 
         else if (strncmp(argv[i], "--off-phase=", 12) == 0) {
             g->off_stages = ParsingPhases(argv[i] + strlen("--off-phase="), errorHandler);
-#ifdef ISPC_GENX_ENABLED
-        } else if (!strncmp(argv[i], "--vc-options=", 12)) {
+#ifdef ISPC_XE_ENABLED
+        } else if (!strncmp(argv[i], "--vc-options=", 13)) {
             g->vcOpts = argv[i] + strlen("--vc-options=");
+        } else if (!strncmp(argv[i], "--xe-stack-mem-size=", 20)) {
+            unsigned int memSize = atoi(argv[i] + 20);
+            g->stackMemSize = memSize;
 #endif
         } else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--version")) {
             lPrintVersion();
@@ -949,19 +954,19 @@ int main(int Argc, char *Argv[]) {
     }
 
     // Default settings for PS4
-    if (g->target_os == TargetOS::ps4) {
+    if (g->target_os == TargetOS::ps4 || g->target_os == TargetOS::ps5) {
         flags |= Module::GeneratePIC;
         if (!cpu) {
-            // Default is btver2, but do not enforce it.
-            cpu = "btver2";
+            if (g->target_os == TargetOS::ps4) {
+                // Default for PS4 is btver2, but do not enforce it.
+                cpu = "btver2";
+            } else {
+                // Default for PS5 is znver2, but do not enforce it.
+                cpu = "znver2";
+            }
         }
-        /*
-        if (cpu && std::string(cpu) != "btver2" && std::string(cpu) != "ps4") {
-            Warning(SourcePos(), "--cpu switch is ignored for PS4 target OS. btver2 (ps4) cpu is used.");
-        }
-        */
         if (arch != Arch::x86_64) {
-            Warning(SourcePos(), "--arch switch is ignored for PS4 target OS. x86-64 arch is used.");
+            Warning(SourcePos(), "--arch switch is ignored for PS4/PS5 target OS. x86-64 arch is used.");
             arch = Arch::x86_64;
         }
     }
@@ -1060,12 +1065,12 @@ int main(int Argc, char *Argv[]) {
             arch = Arch::wasm32;
             g->target_os = TargetOS::web;
         }
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
         if (ISPCTargetIsGen(target)) {
-            Assert(targets.size() == 1 && "multi-target is not supported for genx-* targets yet.");
-            // Generate .spv for gen target instead of object by default.
+            Assert(targets.size() == 1 && "multi-target is not supported for Xe targets yet.");
+            // Generate .spv for Xe target instead of object by default.
             if (ot == Module::Object) {
-                Warning(SourcePos(), "Emitting spir-v file for genx-* targets.");
+                Warning(SourcePos(), "Emitting spir-v file for Xe targets.");
                 ot = Module::SPIRV;
             }
         }

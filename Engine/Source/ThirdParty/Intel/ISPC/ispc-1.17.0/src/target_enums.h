@@ -44,14 +44,14 @@ namespace ispc {
 
 enum class CallingConv { uninitialized, defaultcall, x86_vectorcall };
 
-enum class TargetOS { windows, linux, custom_linux, freebsd, macos, android, ios, ps4, web, error };
+enum class TargetOS { windows, linux, custom_linux, freebsd, macos, android, ios, ps4, ps5, web, error };
 
 TargetOS ParseOS(std::string os);
 std::string OSToString(TargetOS os);
 std::string OSToLowerString(TargetOS os);
 TargetOS GetHostOS();
 
-enum class Arch { none, x86, x86_64, arm, aarch64, wasm32, genx32, genx64, error };
+enum class Arch { none, x86, x86_64, arm, aarch64, wasm32, xe32, xe64, error };
 
 Arch ParseArch(std::string arch);
 std::string ArchToString(Arch arch);
@@ -76,6 +76,7 @@ enum class ISPCTarget {
     avx2_i32x16,
     avx2_i64x4,
     avx512knl_i32x16,
+    avx512skx_i32x4,
     avx512skx_i32x8,
     avx512skx_i32x16,
     avx512skx_i8x64,
@@ -85,8 +86,12 @@ enum class ISPCTarget {
     neon_i32x4,
     neon_i32x8,
     wasm_i32x4,
-    genx_x8,
-    genx_x16,
+    gen9_x8,
+    gen9_x16,
+    xelp_x8,
+    xelp_x16,
+    xehpg_x8,
+    xehpg_x16,
     error
 };
 

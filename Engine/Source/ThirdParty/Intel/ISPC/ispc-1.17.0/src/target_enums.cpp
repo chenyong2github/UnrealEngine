@@ -55,10 +55,10 @@ Arch ParseArch(std::string arch) {
         return Arch::aarch64;
     } else if (arch == "wasm32") {
         return Arch::wasm32;
-    } else if (arch == "genx32") {
-        return Arch::genx32;
-    } else if (arch == "genx64") {
-        return Arch::genx64;
+    } else if (arch == "xe32") {
+        return Arch::xe32;
+    } else if (arch == "xe64") {
+        return Arch::xe64;
     }
     return Arch::error;
 }
@@ -77,10 +77,10 @@ std::string ArchToString(Arch arch) {
         return "aarch64";
     case Arch::wasm32:
         return "wasm32";
-    case Arch::genx32:
-        return "genx32";
-    case Arch::genx64:
-        return "genx64";
+    case Arch::xe32:
+        return "xe32";
+    case Arch::xe64:
+        return "xe64";
     case Arch::error:
         return "error";
     default:
@@ -136,6 +136,8 @@ ISPCTarget ParseISPCTarget(std::string target) {
         return ISPCTarget::avx512skx_i32x16;
     } else if (target == "avx512skx-i32x8") {
         return ISPCTarget::avx512skx_i32x8;
+    } else if (target == "avx512skx-i32x4") {
+        return ISPCTarget::avx512skx_i32x4;
     } else if (target == "avx512skx-i8x64") {
         return ISPCTarget::avx512skx_i8x64;
     } else if (target == "avx512skx-i16x32") {
@@ -150,10 +152,18 @@ ISPCTarget ParseISPCTarget(std::string target) {
         return ISPCTarget::neon_i32x8;
     } else if (target == "wasm-i32x4") {
         return ISPCTarget::wasm_i32x4;
-    } else if (target == "genx-x8") {
-        return ISPCTarget::genx_x8;
-    } else if (target == "genx-x16" || target == "genx") {
-        return ISPCTarget::genx_x16;
+    } else if (target == "gen9-x8") {
+        return ISPCTarget::gen9_x8;
+    } else if (target == "gen9-x16" || target == "gen9") {
+        return ISPCTarget::gen9_x16;
+    } else if (target == "xelp-x8") {
+        return ISPCTarget::xelp_x8;
+    } else if (target == "xelp-x16" || target == "xelp") {
+        return ISPCTarget::xelp_x16;
+    } else if (target == "xehpg-x8") {
+        return ISPCTarget::xehpg_x8;
+    } else if (target == "xehpg-x16") {
+        return ISPCTarget::xehpg_x16;
     }
 
     return ISPCTarget::error;
@@ -229,6 +239,8 @@ std::string ISPCTargetToString(ISPCTarget target) {
         return "avx512knl-i32x16";
     case ISPCTarget::avx512skx_i32x8:
         return "avx512skx-i32x8";
+    case ISPCTarget::avx512skx_i32x4:
+        return "avx512skx-i32x4";
     case ISPCTarget::avx512skx_i32x16:
         return "avx512skx-i32x16";
     case ISPCTarget::avx512skx_i8x64:
@@ -245,10 +257,18 @@ std::string ISPCTargetToString(ISPCTarget target) {
         return "neon-i32x8";
     case ISPCTarget::wasm_i32x4:
         return "wasm-i32x4";
-    case ISPCTarget::genx_x8:
-        return "genx-x8";
-    case ISPCTarget::genx_x16:
-        return "genx-x16";
+    case ISPCTarget::gen9_x8:
+        return "gen9-x8";
+    case ISPCTarget::gen9_x16:
+        return "gen9-x16";
+    case ISPCTarget::xelp_x8:
+        return "xelp-x8";
+    case ISPCTarget::xelp_x16:
+        return "xelp-x16";
+    case ISPCTarget::xehpg_x8:
+        return "xehpg-x8";
+    case ISPCTarget::xehpg_x16:
+        return "xehpg-x16";
     case ISPCTarget::none:
     case ISPCTarget::error:
         // Fall through
@@ -278,6 +298,7 @@ bool ISPCTargetIsX86(ISPCTarget target) {
     case ISPCTarget::avx2_i64x4:
     case ISPCTarget::avx512knl_i32x16:
     case ISPCTarget::avx512skx_i32x8:
+    case ISPCTarget::avx512skx_i32x4:
     case ISPCTarget::avx512skx_i32x16:
     case ISPCTarget::avx512skx_i8x64:
     case ISPCTarget::avx512skx_i16x32:
@@ -310,8 +331,12 @@ bool ISPCTargetIsWasm(ISPCTarget target) {
 
 bool ISPCTargetIsGen(ISPCTarget target) {
     switch (target) {
-    case ISPCTarget::genx_x8:
-    case ISPCTarget::genx_x16:
+    case ISPCTarget::gen9_x8:
+    case ISPCTarget::gen9_x16:
+    case ISPCTarget::xelp_x8:
+    case ISPCTarget::xelp_x16:
+    case ISPCTarget::xehpg_x8:
+    case ISPCTarget::xehpg_x16:
         return true;
     default:
         return false;
@@ -339,6 +364,8 @@ TargetOS ParseOS(std::string os) {
         return TargetOS::ios;
     } else if (os == "ps4") {
         return TargetOS::ps4;
+    } else if (os == "ps5") {
+        return TargetOS::ps5;
     } else if (os == "web") {
         return TargetOS::web;
     }
@@ -363,6 +390,8 @@ std::string OSToString(TargetOS os) {
         return "iOS";
     case TargetOS::ps4:
         return "PS4";
+    case TargetOS::ps5:
+        return "PS5";
     case TargetOS::web:
         return "web";
     case TargetOS::error:
@@ -389,6 +418,8 @@ std::string OSToLowerString(TargetOS os) {
         return "ios";
     case TargetOS::ps4:
         return "ps4";
+    case TargetOS::ps5:
+        return "ps5";
     case TargetOS::web:
         return "web";
     case TargetOS::error:

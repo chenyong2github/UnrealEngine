@@ -32,9 +32,9 @@
 
 cmake_minimum_required(VERSION 3.12)
 
-project(GenxExamples)
+project(XeExamples)
 
-message(STATUS "Configuring GenX examples")
+message(STATUS "Configuring Xe examples")
 
 option(ISPC_INCLUDE_DPCPP_EXAMPLES "Generate build targets for the ISPC/DPCPP interoperability examples" OFF)
 
@@ -98,8 +98,18 @@ add_subdirectory(aobench)
 add_subdirectory(mandelbrot)
 add_subdirectory(simple)
 add_subdirectory(simple-usm)
-add_subdirectory(simple-dpcpp)
-add_subdirectory(simple-dpcpp-l0)
-add_subdirectory(pipeline-dpcpp)
+
+# DPC++ related examples should not run as part of ISPC_BUILD
+# They require complete ISPC installation and ISPC_INCLUDE_DPCPP_EXAMPLES turned ON
+if (NOT ISPC_BUILD AND ISPC_INCLUDE_DPCPP_EXAMPLES)
+    include(${ISPCRT_DIR}/interop.cmake)
+    if (NOT "${CMAKE_CXX_COMPILER}" STREQUAL "${DPCPP_COMPILER}")
+        message(FATAL_ERROR "CMAKE_CXX_COMPILER should be set to " ${DPCPP_COMPILER} " when ISPC_INCLUDE_DPCPP_EXAMPLES=ON" )
+    endif()
+    add_subdirectory(simple-dpcpp)
+    add_subdirectory(simple-dpcpp-l0)
+    add_subdirectory(pipeline-dpcpp)
+    add_subdirectory(simple-esimd)
+endif()
 
 include(TestLists.txt)

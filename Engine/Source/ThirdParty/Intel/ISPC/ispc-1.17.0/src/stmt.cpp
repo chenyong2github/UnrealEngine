@@ -46,6 +46,8 @@
 #include "type.h"
 #include "util.h"
 
+#include <algorithm>
+#include <iterator>
 #include <map>
 #include <sstream>
 #include <stdio.h>
@@ -58,6 +60,7 @@
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Value.h>
 #include <llvm/Support/raw_ostream.h>
 
 using namespace ispc;
@@ -397,8 +400,8 @@ void IfStmt::EmitCode(FunctionEmitContext *ctx) const {
         return;
 
     bool emulateUniform = false;
-    if (ctx->emitGenXHardwareMask() && !isUniform) {
-        /* With "genx" target we generate uniform control flow but
+    if (ctx->emitXeHardwareMask() && !isUniform) {
+        /* With Xe target we generate uniform control flow but
            emit varying using CM simdcf.any intrinsic. We mark the scope as
            emulateUniform = true to let nested scopes know that they should
            generate vector conditions before branching.
@@ -795,8 +798,8 @@ void DoStmt::EmitCode(FunctionEmitContext *ctx) const {
     llvm::BasicBlock *bexit = ctx->CreateBasicBlock("do_exit", btest);
     bool emulateUniform = false;
     llvm::Instruction *branchInst = NULL;
-    if (ctx->emitGenXHardwareMask() && !uniformTest) {
-        /* With "genx" target we generate uniform control flow but
+    if (ctx->emitXeHardwareMask() && !uniformTest) {
+        /* With Xe target we generate uniform control flow but
            emit varying using CM simdcf.any intrinsic. We mark the scope as
            emulateUniform = true to let nested scopes know that they should
            generate vector conditions before branching.
@@ -979,8 +982,8 @@ void ForStmt::EmitCode(FunctionEmitContext *ctx) const {
     bool uniformTest = test ? test->GetType()->IsUniformType()
                             : (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(stmts));
     bool emulateUniform = false;
-    if (ctx->emitGenXHardwareMask() && !uniformTest) {
-        /* With "genx" target we generate uniform control flow but
+    if (ctx->emitXeHardwareMask() && !uniformTest) {
+        /* With Xe target we generate uniform control flow but
            emit varying using CM simdcf.any intrinsic. We mark the scope as
            emulateUniform = true to let nested scopes know that they should
            generate vector conditions before branching.
@@ -1029,7 +1032,7 @@ void ForStmt::EmitCode(FunctionEmitContext *ctx) const {
             if (test)
                 Warning(test->pos, "Uniform condition supplied to cfor/cwhile "
                                    "statement.");
-        if (!ctx->emitGenXHardwareMask())
+        if (!ctx->emitXeHardwareMask())
             AssertPos(pos, ltest->getType() == LLVMTypes::BoolType);
         ctx->BranchInst(bloop, bexit, ltest);
     } else {
@@ -1323,9 +1326,9 @@ static void lGetSpans(int dimsLeft, int nDims, int itemsLeft, bool isTiled, int 
  */
 void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
 
-#ifdef ISPC_GENX_ENABLED
-    if (ctx->emitGenXHardwareMask()) {
-        EmitCodeForGenX(ctx);
+#ifdef ISPC_XE_ENABLED
+    if (ctx->emitXeHardwareMask()) {
+        EmitCodeForXe(ctx);
         return;
     }
 #endif
@@ -1755,17 +1758,17 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->EndScope();
 }
 
-#ifdef ISPC_GENX_ENABLED
-/* Emit code for a foreach statement on GenX. We effectively emit code to run
+#ifdef ISPC_XE_ENABLED
+/* Emit code for a foreach statement on Xe. We effectively emit code to run
    the set of n-dimensional nested loops corresponding to the dimensionality of
    the foreach statement along with the extra logic to deal with mismatches
    between the vector width we're compiling to and the number of elements
    to process. Handler logic is different from the other targets due to
-   GenX Execution Mask usage. We do not need to generate different bodies
+   Xe Execution Mask usage. We do not need to generate different bodies
    for full and partial masks due to it.
 */
-void ForeachStmt::EmitCodeForGenX(FunctionEmitContext *ctx) const {
-    AssertPos(pos, g->target->isGenXTarget());
+void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
+    AssertPos(pos, g->target->isXeTarget());
 
     if (ctx->GetCurrentBasicBlock() == NULL || stmts == NULL)
         return;
@@ -1776,13 +1779,13 @@ void ForeachStmt::EmitCodeForGenX(FunctionEmitContext *ctx) const {
 
     llvm::Value *execMask = NULL;
     if (g->opt.enableForeachInsideVarying) {
-        Warning(pos, "\"foreach\" statement is not optimized for genx-* targets yet.");
+        Warning(pos, "\"foreach\" statement is not optimized for Xe targets yet.");
         ctx->SetInternalMask(LLVMMaskAllOn);
         ctx->SetFunctionMask(LLVMMaskAllOn);
-        execMask = ctx->GenXStartUnmaskedRegion();
+        execMask = ctx->XeStartUnmaskedRegion();
     } else {
-        Warning(pos, "\"foreach\" statement is not supported under varying CF for genx-* targets yet. Make sure that"
-                     " it is not called under varying CF or use \"--opt=enable-genx-foreach-varying\" to enable its "
+        Warning(pos, "\"foreach\" statement is not supported under varying CF for Xe targets yet. Make sure that"
+                     " it is not called under varying CF or use \"--opt=enable-xe-foreach-varying\" to enable its "
                      "experimental support.");
     }
     llvm::BasicBlock *bbBody = ctx->CreateBasicBlock("foreach_body", ctx->GetCurrentBasicBlock());
@@ -1871,7 +1874,7 @@ void ForeachStmt::EmitCodeForGenX(FunctionEmitContext *ctx) const {
 
     ///////////////////////////////////////////////////////////////////////////
     // foreach_test: compare varying counter with end value and branch to
-    // target or reset. GenX EM magic happens here: we turn off all lanes
+    // target or reset. Xe EM magic happens here: we turn off all lanes
     // that fail check until reset is reached. And reset is reached only when
     // all lanes fail this check due to test -> target -> step -> test loop.
     //
@@ -1895,7 +1898,7 @@ void ForeachStmt::EmitCodeForGenX(FunctionEmitContext *ctx) const {
 
     ///////////////////////////////////////////////////////////////////////////
     // foreach_body: emit code for loop body. Execution is driven by
-    // GenX Execution Mask.
+    // Xe Execution Mask.
     ctx->SetCurrentBasicBlock(bbBody);
     ctx->SetContinueTarget(bbStep[nDims - 1]);
     ctx->AddInstrumentationPoint("foreach loop body");
@@ -1909,7 +1912,7 @@ void ForeachStmt::EmitCodeForGenX(FunctionEmitContext *ctx) const {
 
     // Restore execution mask from value that was saved at the beginning
     if (execMask != NULL) {
-        ctx->GenXEndUnmaskedRegion(execMask);
+        ctx->XeEndUnmaskedRegion(execMask);
         ctx->SetInternalMask(oldMask);
         ctx->SetFunctionMask(oldFunctionMask);
     }
@@ -2050,12 +2053,12 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
     // to this)...
     llvm::Value *oldFullMask = NULL;
     bool uniformEmulated = false;
-#ifdef ISPC_GENX_ENABLED
-    if (ctx->emitGenXHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
+    if (ctx->emitXeHardwareMask()) {
         // Emulate uniform to make proper continue handler
         uniformEmulated = true;
         // Current mask will be calculated according to EM mask
-        oldFullMask = ctx->GenXSimdCFPredicate(LLVMMaskAllOn);
+        oldFullMask = ctx->XeSimdCFPredicate(LLVMMaskAllOn);
     } else
 #endif
         oldFullMask = ctx->GetFullMask();
@@ -2104,9 +2107,9 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
             ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_EQ, firstSet32Smear, programIndex);
         iterMask = ctx->I1VecToBoolVec(iterMask);
 
-        // Don't need to change this mask in GENX: execution
-        // is performed according to GenX EM
-        if (!ctx->emitGenXHardwareMask())
+        // Don't need to change this mask in XE: execution
+        // is performed according to Xe EM
+        if (!ctx->emitXeHardwareMask())
             ctx->SetInternalMask(iterMask);
 
         // Also update the bitvector of lanes left to turn off the bit for
@@ -2118,9 +2121,9 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
         ctx->StoreInst(newRemaining, maskBitsPtr);
 
         // and onward to run the loop body...
-        // Set GenX EM through simdcf.goto
+        // Set Xe EM through simdcf.goto
         // The EM will be restored when CheckForMore is reached
-        if (ctx->emitGenXHardwareMask()) {
+        if (ctx->emitXeHardwareMask()) {
             ctx->BranchInst(bbBody, bbCheckForMore, iterMask);
         } else {
             ctx->BranchInst(bbBody);
@@ -2243,12 +2246,12 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
     // off going in to this)...
     llvm::Value *oldFullMask = NULL;
     bool emulatedUniform = false;
-#ifdef ISPC_GENX_ENABLED
-    if (ctx->emitGenXHardwareMask()) {
+#ifdef ISPC_XE_ENABLED
+    if (ctx->emitXeHardwareMask()) {
         // Emulating uniform behavior for proper continue handling
         emulatedUniform = true;
         // Current mask will be calculated according to EM mask
-        oldFullMask = ctx->GenXSimdCFPredicate(LLVMMaskAllOn);
+        oldFullMask = ctx->XeSimdCFPredicate(LLVMMaskAllOn);
     } else
 #endif
         oldFullMask = ctx->GetFullMask();
@@ -2323,9 +2326,9 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         llvm::Value *loopMask =
             ctx->BinaryOperator(llvm::Instruction::And, oldMask, matchingLanes, "foreach_unique_loop_mask");
 
-        // Don't need to change this mask in GENX: execution
-        // is performed according to GenX EM
-        if (!ctx->emitGenXHardwareMask())
+        // Don't need to change this mask in XE: execution
+        // is performed according to Xe EM
+        if (!ctx->emitXeHardwareMask())
             ctx->SetInternalMask(loopMask);
 
         // Also update the bitvector of lanes left to process in subsequent
@@ -2338,9 +2341,9 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         ctx->StoreInst(newRemaining, maskBitsPtr);
 
         // and onward...
-        // Set GenX EM through simdcf.goto
+        // Set Xe EM through simdcf.goto
         // The EM will be restored when CheckForMore is reached
-        if (ctx->emitGenXHardwareMask()) {
+        if (ctx->emitXeHardwareMask()) {
             ctx->BranchInst(bbBody, bbCheckForMore, loopMask);
         } else {
             ctx->BranchInst(bbBody);
@@ -2623,9 +2626,9 @@ void SwitchStmt::EmitCode(FunctionEmitContext *ctx) const {
 
     bool isUniformCF = (type->IsUniformType() && lHasVaryingBreakOrContinue(stmts) == false);
     bool emulateUniform = false;
-#ifdef ISPC_GENX_ENABLED
-    if (ctx->emitGenXHardwareMask()) {
-        if (isUniformCF && ctx->inGenXSimdCF()) {
+#ifdef ISPC_XE_ENABLED
+    if (ctx->emitXeHardwareMask()) {
+        if (isUniformCF && ctx->inXeSimdCF()) {
             // Broadcast value to work with EM. We are doing
             // it here because it is too late to make CMP
             // broadcast through BranchInst: we need vectorized
@@ -2720,15 +2723,15 @@ void UnmaskedStmt::EmitCode(FunctionEmitContext *ctx) const {
 
     ctx->SetInternalMask(LLVMMaskAllOn);
     ctx->SetFunctionMask(LLVMMaskAllOn);
-    if (!ctx->emitGenXHardwareMask()) {
+    if (!ctx->emitXeHardwareMask()) {
         stmts->EmitCode(ctx);
     } else {
-#ifdef ISPC_GENX_ENABLED
-        // For gen we insert special intrinsics at the beginning and end of unmasked region.
+#ifdef ISPC_XE_ENABLED
+        // For Xe we insert special intrinsics at the beginning and end of unmasked region.
         // Correct execution mask will be set in CMSIMDCFLowering
-        llvm::Value *oldInternalMask = ctx->GenXStartUnmaskedRegion();
+        llvm::Value *oldInternalMask = ctx->XeStartUnmaskedRegion();
         stmts->EmitCode(ctx);
-        ctx->GenXEndUnmaskedRegion(oldInternalMask);
+        ctx->XeEndUnmaskedRegion(oldInternalMask);
 #endif
     }
     // Do not restore old mask if our basic block is over. This happends if we emit code
@@ -2822,8 +2825,8 @@ void GotoStmt::EmitCode(FunctionEmitContext *ctx) const {
     if (!ctx->GetCurrentBasicBlock())
         return;
 
-#ifdef ISPC_GENX_ENABLED
-    if ((ctx->emitGenXHardwareMask() && ctx->inGenXSimdCF()) || ctx->VaryingCFDepth() > 0) {
+#ifdef ISPC_XE_ENABLED
+    if ((ctx->emitXeHardwareMask() && ctx->inXeSimdCF()) || ctx->VaryingCFDepth() > 0) {
 #else
     if (ctx->VaryingCFDepth() > 0) {
 #endif
@@ -3021,6 +3024,12 @@ static ExprWithType lProcessPrintArgType(Expr *expr) {
         type = expr->GetType();
     }
 
+    if (Type::Equal(baseType, AtomicType::UniformFloat16)) {
+        expr = new TypeCastExpr(type->IsUniformType() ? AtomicType::UniformFloat : AtomicType::VaryingFloat, expr,
+                                expr->pos);
+        type = expr->GetType();
+    }
+
     char t = lEncodeType(type->GetAsNonConstType());
     if (t == '\0') {
         Error(expr->pos,
@@ -3040,189 +3049,150 @@ static ExprWithType lProcessPrintArgType(Expr *expr) {
 
 // Returns pointer to __do_print function
 static llvm::Function *getPrintImplFunc() {
-    llvm::Function *printImplFunc = nullptr;
-    switch (g->target->getISA()) {
-#ifdef ISPC_GENX_ENABLED
-    case Target::GENX:
-        printImplFunc = m->module->getFunction("__do_print_lz");
-        break;
-#endif /* ISPC_GENX_ENABLED */
-    default:
-        printImplFunc = m->module->getFunction("__do_print");
-        break;
-    }
+    Assert(g->target->isXeTarget() == false);
+    llvm::Function *printImplFunc = m->module->getFunction("__do_print");
     return printImplFunc;
 }
 
-#ifdef ISPC_GENX_ENABLED
+// Check if number of requested arguments in format string corresponds to actual number of arguments
+static bool checkFormatString(const std::string &format, const int nArgs, const SourcePos &pos) {
+    // We do not allow escape percent sign in ISPC as %%, so treat it as two args
+    const int argsInFormat = std::count(format.begin(), format.end(), '%');
+    if (nArgs < argsInFormat) {
+        Error(pos, "Not enough arguments are provided in print call");
+        return false;
+    } else if (nArgs > argsInFormat) {
+        Error(pos, "Too much arguments are provided in print call");
+        return false;
+    }
+    return true;
+}
+#ifdef ISPC_XE_ENABLED
+// Builds args for OCL printf function based on ISPC print args.
 class PrintArgsBuilder {
     // properly dereferenced and size extended value expressions
-    std::vector<ExprWithType> argExprs_;
-    FunctionEmitContext *ctx_;
+    std::vector<ExprWithType> argExprs;
+    FunctionEmitContext *ctx;
+
+    struct AdditionalData {
+        llvm::Value *mask;
+        enum { LeftParenthesisIdx = 0, RightParenthesisIdx, EmptyIdx, FalseIdx, TrueIdx, NumStrings };
+        std::array<llvm::Value *, NumStrings> strings;
+
+        AdditionalData() { mask = NULL; }
+        AdditionalData(FunctionEmitContext *ctx) {
+            if (ctx->emitXeHardwareMask())
+                mask = ctx->XeSimdCFPredicate(LLVMMaskAllOn);
+            else
+                mask = ctx->GetFullMask();
+            strings[AdditionalData::LeftParenthesisIdx] =
+                ctx->XeGetOrCreateConstantString("((", "ispc.print.left.parenthesis");
+            strings[AdditionalData::RightParenthesisIdx] =
+                ctx->XeGetOrCreateConstantString("))", "ispc.print.right.parenthesis");
+            strings[AdditionalData::EmptyIdx] = ctx->XeGetOrCreateConstantString("", "ispc.print.empty");
+            strings[AdditionalData::FalseIdx] = ctx->XeGetOrCreateConstantString("false", "ispc.print.false");
+            strings[AdditionalData::TrueIdx] = ctx->XeGetOrCreateConstantString("true", "ispc.print.true");
+        }
+    };
+    AdditionalData data;
 
   public:
-    PrintArgsBuilder() : argExprs_(), ctx_(NULL) {}
-    PrintArgsBuilder(FunctionEmitContext *ctx) : argExprs_(), ctx_(ctx) {}
+    PrintArgsBuilder() : ctx{NULL} {}
+    PrintArgsBuilder(FunctionEmitContext *ctxIn) : argExprs{}, ctx{ctxIn}, data{ctxIn} {}
 
     template <typename Iter>
-    PrintArgsBuilder(Iter first, Iter last, FunctionEmitContext *ctx) : argExprs_(), ctx_(ctx) {
-        std::transform(first, last, std::back_inserter(argExprs_),
+    PrintArgsBuilder(Iter first, Iter last, FunctionEmitContext *ctxIn) : PrintArgsBuilder{ctxIn} {
+        std::transform(first, last, std::back_inserter(argExprs),
                        [](Expr *expr) { return lProcessPrintArgType(expr); });
-        std::for_each(argExprs_.cbegin(), argExprs_.cend(),
+        std::for_each(argExprs.cbegin(), argExprs.cend(),
                       [](const ExprWithType &elem) { Assert(elem.expr && "must have all values processed"); });
-    }
-
-    void extendPtrTo64BitInt() {
-        std::for_each(argExprs_.begin(), argExprs_.end(), [](ExprWithType &exprWithType) {
-            if (exprWithType.expr->GetType()->IsPointerType())
-                exprWithType.expr = new TypeCastExpr(
-                    exprWithType.expr->GetType()->IsUniformType() ? AtomicType::UniformInt64 : AtomicType::VaryingInt64,
-                    exprWithType.expr, exprWithType.expr->pos);
-        });
     }
 
     // Returns new args builder with subset of original args.
     // Subset is defined with pair of indexes, element with \p end index is not included.
     PrintArgsBuilder extract(int beg, int end) const {
-        Assert(beg >= 0 && beg <= argExprs_.size() && end >= 0 && end <= argExprs_.size() &&
+        Assert(beg >= 0 && beg <= argExprs.size() && end >= 0 && end <= argExprs.size() &&
                "wrong argument: index is out of bound");
         Assert(beg <= end && "wrong arguments: beg must preceed end");
-        PrintArgsBuilder extraction(ctx_);
-        std::copy(std::next(argExprs_.begin(), beg), std::next(argExprs_.begin(), end),
-                  std::back_inserter(extraction.argExprs_));
+        PrintArgsBuilder extraction(ctx, data);
+        std::copy(std::next(argExprs.begin(), beg), std::next(argExprs.begin(), end),
+                  std::back_inserter(extraction.argExprs));
         return extraction;
     }
 
-    // the string that will later go as TYPES_IDX argument
+    // Combine all arg types into a continuous string.
     std::string generateArgTypes() const {
         std::string argTypes;
-        std::transform(argExprs_.cbegin(), argExprs_.cend(), std::back_inserter(argTypes),
+        std::transform(argExprs.cbegin(), argExprs.cend(), std::back_inserter(argTypes),
                        [](const ExprWithType &argInfo) { return argInfo.type; });
         return argTypes;
     }
 
-    // the value that will later go as ARGS_IDX argument
-    // Splits arguments into set of uints, stores them in uint[], returns pointer to it
-    llvm::Value *emitArgCode() const {
-        if (argExprs_.empty())
-            return llvm::Constant::getNullValue(LLVMTypes::Int32PointerType);
+    // Emit code for OCL printf arguments.
+    // Each generated arg is returned in the vector.
+    std::vector<llvm::Value *> emitArgCode() const {
+        if (argExprs.empty())
+            return {};
 
-        std::vector<llvm::Value *> argValues(argExprs_.size());
-        std::transform(argExprs_.cbegin(), argExprs_.cend(), argValues.begin(),
-                       [this](const ExprWithType &argInfo) { return argInfo.expr->GetValue(ctx_); });
-        std::vector<llvm::Value *> alignedArgValues;
-        createAlignedArgValues(argValues.cbegin(), argValues.cend(), std::back_inserter(alignedArgValues));
-        auto argAlloca = storeAlignedArgValues(alignedArgValues.cbegin(), alignedArgValues.cend());
-        return ctx_->BitCastInst(argAlloca, LLVMTypes::Int32PointerType);
-    }
-
-    // current implementation of __do_print_cm requires the number of uniform arguments with bool excluded
-    int countUniformArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(),
-                             [](const ExprWithType &argInfo) { return argInfo.expr->GetType()->IsUniformType(); });
-    }
-
-    // current implementation of __do_print_cm requires the number of varying arguments with bool excluded
-    int countVaryingArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(),
-                             [](const ExprWithType &argInfo) { return argInfo.expr->GetType()->IsVaryingType(); });
-    }
-
-    // current implementation of __do_print_cm requires the number of uniform arguments with bool excluded
-    int count64BitUniformArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(), [](const ExprWithType &argInfo) {
-            return argInfo.expr->GetType()->IsUniformType() &&
-                   g->target->getDataLayout()->getTypeSizeInBits(argInfo.expr->GetType()->LLVMType(g->ctx)) == 64;
-        });
-    }
-
-    // current implementation of __do_print_cm requires the number of varying arguments with bool excluded
-    int count64BitVaryingArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(), [](const ExprWithType &argInfo) {
-            return argInfo.expr->GetType()->IsVaryingType() &&
-                   g->target->getDataLayout()->getTypeSizeInBits(
-                       argInfo.expr->GetType()->LLVMType(g->ctx)->getScalarType()) == 64;
-        });
-    }
-
-    // current implementation of __do_print_cm requires the number of uniform arguments with bool excluded
-    int countNonBoolUniformArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(), [](const ExprWithType &argInfo) {
-            return argInfo.expr->GetType()->IsUniformType() && argInfo.type != PrintInfo::getEncoding4Uniform<bool>();
-        });
-    }
-
-    // current implementation of __do_print_cm requires the number of varying arguments with bool excluded
-    int countNonBoolVaryingArgs() const {
-        return std::count_if(argExprs_.cbegin(), argExprs_.cend(), [](const ExprWithType &argInfo) {
-            return argInfo.expr->GetType()->IsVaryingType() && argInfo.type != PrintInfo::getEncoding4Varying<bool>();
-        });
+        std::vector<llvm::Value *> Args;
+        // It would require at least the same amount of args. More if there're vector args.
+        Args.reserve(argExprs.size());
+        for (const ExprWithType &argInfo : argExprs)
+            writeRawArg(*argInfo.expr->GetValue(ctx), static_cast<PrintInfo::Encoding>(argInfo.type),
+                        std::back_inserter(Args));
+        return Args;
     }
 
   private:
-    // Aligned here means that every value is represented by set of i32
-    template <typename InputIter, typename OutputIter>
-    OutputIter createAlignedArgValues(InputIter first, InputIter last, OutputIter dst) const {
-        for (; first != last; ++first) {
-            auto arg = *first;
-            if (arg->getType()->isVectorTy())
-                dst = createAlignedVectorArgValue(arg, dst);
-            else
-                dst = createAlignedScalarArgValue(arg, dst);
+    PrintArgsBuilder(FunctionEmitContext *ctxIn, AdditionalData data) : argExprs{}, ctx{ctxIn}, data{std::move(data)} {}
+
+    // Emit code for ISPC print uniform arg.
+    // Most arg types are unchanged. Boolean arg should be transformed into string argument.
+    // Pointers to generated llvm::Value are stored into output iterator \p OutIt.
+    template <typename OutIter>
+    OutIter writeRawUniformArg(llvm::Value &rawArg, PrintInfo::Encoding type, OutIter OutIt) const {
+        if (type != PrintInfo::getEncoding4Uniform<bool>()) {
+            *OutIt++ = &rawArg;
+            return OutIt;
         }
-        return dst;
+        auto *argAsPred = ctx->CmpInst(llvm::Instruction::OtherOps::ICmp, llvm::CmpInst::Predicate::ICMP_NE, &rawArg,
+                                       LLVMInt32(0), "print.arg.bool.cast");
+        auto *argAsStr = ctx->SelectInst(argAsPred, data.strings[AdditionalData::TrueIdx],
+                                         data.strings[AdditionalData::FalseIdx], "print.arg.bool.str");
+        *OutIt++ = argAsStr;
+        return OutIt;
     }
 
-    // vector becomes separate scalars
-    template <typename OutputIter> OutputIter createAlignedVectorArgValue(llvm::Value *vecArg, OutputIter dst) const {
+    // Emit code for ISPC print varying arg.
+    // Each element of a vector is emitted as a separate OCL printf argument. Plus it is surounded by two string
+    // arguments to print additional parantheses when the corresponding lane is off. Pointers to generated llvm::Value
+    // are stored into output iterator \p OutIt.
+    template <typename OutIter>
+    OutIter writeRawVaryingArg(llvm::Value &rawArg, PrintInfo::Encoding type, OutIter OutIt) const {
         auto width = g->target->getVectorWidth();
-        for (auto lane = 0; lane < width; ++lane) {
-            auto scalarArg = ctx_->ExtractInst(vecArg, lane);
-            dst = createAlignedScalarArgValue(scalarArg, dst);
+        for (int idx = 0; idx != width; ++idx) {
+            auto *isLaneOn = ctx->ExtractInst(data.mask, idx, "print.arg.lane");
+            auto *leftParenthesis =
+                ctx->SelectInst(isLaneOn, data.strings[AdditionalData::EmptyIdx],
+                                data.strings[AdditionalData::LeftParenthesisIdx], "print.arg.left.par");
+            auto *rightParenthesis =
+                ctx->SelectInst(isLaneOn, data.strings[AdditionalData::EmptyIdx],
+                                data.strings[AdditionalData::RightParenthesisIdx], "print.arg.right.par");
+            auto *argElement = ctx->ExtractInst(&rawArg, idx, "print.arg.elem");
+            *OutIt++ = leftParenthesis;
+            OutIt = writeRawUniformArg(*argElement, PrintInfo::getCorrespondingEncoding4Uniform(type), OutIt);
+            *OutIt++ = rightParenthesis;
         }
-        return dst;
+        return OutIt;
     }
 
-    // 64-bit values must become 2 i32
-    template <typename OutputIter> OutputIter createAlignedScalarArgValue(llvm::Value *arg, OutputIter dst) const {
-        if (g->target->getDataLayout()->getTypeSizeInBits(arg->getType()) == 64) {
-            arg = castToIntIfNeeded(arg, LLVMTypes::Int64Type);
-            auto *lowArg = ctx_->TruncInst(arg, LLVMTypes::Int32Type);
-            auto *almostHiArg = ctx_->BinaryOperator(llvm::Instruction::LShr, arg, LLVMInt64(32));
-            auto *hiArg = ctx_->TruncInst(almostHiArg, LLVMTypes::Int32Type);
-            *dst++ = lowArg;
-            *dst++ = hiArg;
-            return dst;
-        } else {
-            Assert(g->target->getDataLayout()->getTypeSizeInBits(arg->getType()) == 32 &&
-                   "must be either 32 or 64 bit");
-            *dst++ = castToIntIfNeeded(arg, LLVMTypes::Int32Type);
-            return dst;
-        }
-    }
-
-    // creates alloca, stores values from [first, last) into it
-    // returns alloca value
-    template <typename InputIter> llvm::Value *storeAlignedArgValues(InputIter first, InputIter last) const {
-        auto numArgs = last - first;
-        auto arrTy = llvm::ArrayType::get(LLVMTypes::Int32Type, numArgs);
-        auto argAlloca = ctx_->AllocaInst(arrTy, "print_arg_ptrs");
-        for (int i = 0; first != last; ++first, ++i) {
-            auto curArgPtr = ctx_->AddElementOffset(argAlloca, i, NULL);
-            ctx_->StoreInst(*first, curArgPtr, NULL, true);
-        }
-        return argAlloca;
-    }
-
-    llvm::Value *castToIntIfNeeded(llvm::Value *val, llvm::Type *intTy) const {
-        Assert(intTy->isIntegerTy());
-        Assert(g->target->getDataLayout()->getTypeSizeInBits(val->getType()) == intTy->getPrimitiveSizeInBits());
-        if (val->getType() != intTy) {
-            if (val->getType()->isPointerTy())
-                return ctx_->PtrToIntInst(val, intTy);
-            return ctx_->BitCastInst(val, intTy);
-        }
-        return val;
+    // Emit printf OCL args (one or more) based on the single ISPC print arg \p rawArg and its \p type.
+    // Pointers to generated llvm::Value are stored into output iterator \p OutIt.
+    template <typename OutIter>
+    OutIter writeRawArg(llvm::Value &rawArg, PrintInfo::Encoding type, OutIter OutIt) const {
+        if (PrintInfo::isUniformEncoding(type))
+            return writeRawUniformArg(rawArg, type, OutIt);
+        return writeRawVaryingArg(rawArg, type, OutIt);
     }
 };
 
@@ -3243,9 +3213,10 @@ class PrintLZFormatStrBuilder {
 
     // Based on original ISPC format string, and encoded arg types
     // generates printf format string.
-    // More info is in the comment to __do_print_lz function.
     std::string get(const std::string &ISPCFormat, const std::string &argTypes, const SourcePos &pos) {
         std::string format;
+        if (!checkFormatString(ISPCFormat, argTypes.size(), pos))
+            return "";
         format.reserve(ISPCFormat.size());
         auto curISPCFormatIt = ISPCFormat.begin();
         for (auto type : argTypes) {
@@ -3356,13 +3327,15 @@ class PrintLZFormatStrBuilder {
 // info is used unchanged \p typeWeightFirst is returned.
 template <typename FormatIt, typename TypeWeightIt>
 std::tuple<FormatIt, TypeWeightIt> splitValidFormat(FormatIt formatFirst, FormatIt formatLast,
-                                                    TypeWeightIt typeWeightFirst, int LZPrintFormatLimit) {
+                                                    TypeWeightIt typeWeightFirst, int LZPrintFormatLimit,
+                                                    const std::vector<int> argWeights) {
     int sum = 0;
     // space for '\0'
     --LZPrintFormatLimit;
     for (; formatFirst != formatLast; ++formatFirst) {
         char curCh = *formatFirst;
-        if (curCh == '%') {
+        // Check that typeWeightFirst can be safely derefrenced here
+        if ((curCh == '%') && (typeWeightFirst != argWeights.end())) {
             sum += *typeWeightFirst;
             if (sum <= LZPrintFormatLimit)
                 ++typeWeightFirst;
@@ -3376,9 +3349,13 @@ std::tuple<FormatIt, TypeWeightIt> splitValidFormat(FormatIt formatFirst, Format
 
 // Splits original print into several prints with valid length format strings.
 static std::vector<PrintSliceInfo> getPrintSlices(const std::string &format, PrintLZFormatStrBuilder &formatBuilder,
-                                                  const PrintArgsBuilder &args, const int LZPrintFormatLimit) {
+                                                  const PrintArgsBuilder &args, const int LZPrintFormatLimit,
+                                                  const SourcePos &pos) {
     auto argTypes = args.generateArgTypes();
     std::vector<PrintSliceInfo> printSlices;
+    if (!checkFormatString(format, argTypes.size(), pos)) {
+        return printSlices;
+    }
     std::vector<int> argWeights(argTypes.size());
     std::transform(argTypes.begin(), argTypes.end(), argWeights.begin(), [&formatBuilder](char type) {
         return formatBuilder.getOrCreateSpecifier(static_cast<PrintInfo::Encoding>(type)).size();
@@ -3388,7 +3365,8 @@ static std::vector<PrintSliceInfo> getPrintSlices(const std::string &format, Pri
     for (auto curFormat = format.begin(), lastFormat = format.end(); curFormat != lastFormat;) {
         auto prevFormat = curFormat;
         auto prevArgWeight = curArgWeight;
-        std::tie(curFormat, curArgWeight) = splitValidFormat(curFormat, lastFormat, curArgWeight, LZPrintFormatLimit);
+        std::tie(curFormat, curArgWeight) =
+            splitValidFormat(curFormat, lastFormat, curArgWeight, LZPrintFormatLimit, argWeights);
         Assert(curFormat > prevFormat && "haven't managed to split format string");
         printSlices.push_back({std::string(prevFormat, curFormat),
                                args.extract(prevArgWeight - firstArgWeight, curArgWeight - firstArgWeight)});
@@ -3396,57 +3374,16 @@ static std::vector<PrintSliceInfo> getPrintSlices(const std::string &format, Pri
     return printSlices;
 }
 
-// prepares arguments for __do_print_cm function
-std::vector<llvm::Value *> PrintStmt::getDoPrintCMArgs(FunctionEmitContext *ctx) const {
-    std::vector<llvm::Value *> doPrintCMArgs(GENX_NUM_IDX - 2);
-    doPrintCMArgs[FORMAT_IDX] = ctx->GetStringPtr(format);
-    doPrintCMArgs[WIDTH_IDX] = LLVMInt32(g->target->getVectorWidth());
-    if (ctx->emitGenXHardwareMask()) {
-        doPrintCMArgs[MASK_IDX] = ctx->LaneMask(ctx->GenXSimdCFPredicate(LLVMMaskAllOn));
-    } else {
-        doPrintCMArgs[MASK_IDX] = ctx->LaneMask(ctx->GetFullMask());
-    }
-
-    if (values == NULL) {
-        doPrintCMArgs[ARGS_IDX] = llvm::Constant::getNullValue(LLVMTypes::Int32PointerType);
-        doPrintCMArgs[TYPES_IDX] = ctx->GetStringPtr("");
-        doPrintCMArgs[UNI_NUM_IDX] = LLVMInt32(0);
-        doPrintCMArgs[VAR_NUM_IDX] = LLVMInt32(0);
-    } else {
-        PrintArgsBuilder argsBuilder;
-        ExprList *elist = llvm::dyn_cast<ExprList>(values);
-        if (elist)
-            argsBuilder = PrintArgsBuilder(elist->exprs.begin(), elist->exprs.end(), ctx);
-        else
-            argsBuilder = PrintArgsBuilder(&values, &values + 1, ctx);
-        doPrintCMArgs[TYPES_IDX] = ctx->GetStringPtr(argsBuilder.generateArgTypes());
-        doPrintCMArgs[ARGS_IDX] = argsBuilder.emitArgCode();
-        doPrintCMArgs[UNI_NUM_IDX] = LLVMInt32(argsBuilder.countNonBoolUniformArgs());
-        doPrintCMArgs[VAR_NUM_IDX] = LLVMInt32(argsBuilder.countNonBoolVaryingArgs());
-    }
-    return doPrintCMArgs;
-}
-
-// prepares arguments for __do_print_lz function
-static std::vector<llvm::Value *> getDoPrintLZArgs(const std::string &format, PrintLZFormatStrBuilder &formatBuilder,
+// prepares arguments for __spirv_ocl_printf function
+static std::vector<llvm::Value *> getOCLPrintfArgs(const std::string &format, PrintLZFormatStrBuilder &formatBuilder,
                                                    const PrintArgsBuilder &args, FunctionEmitContext *ctx,
                                                    const SourcePos &pos) {
-    std::vector<llvm::Value *> doPrintLZArgs(PrintStmt::GENX_NUM_IDX);
+    std::vector<llvm::Value *> allArgs;
     auto argTypes = args.generateArgTypes();
-    doPrintLZArgs[PrintStmt::FORMAT_IDX] = ctx->GenXLZFormatStr(formatBuilder.get(format, argTypes, pos));
-    doPrintLZArgs[PrintStmt::WIDTH_IDX] = LLVMInt32(g->target->getVectorWidth());
-    if (ctx->emitGenXHardwareMask()) {
-        doPrintLZArgs[PrintStmt::MASK_IDX] = ctx->LaneMask(ctx->GenXSimdCFPredicate(LLVMMaskAllOn));
-    } else {
-        doPrintLZArgs[PrintStmt::MASK_IDX] = ctx->LaneMask(ctx->GetFullMask());
-    }
-    doPrintLZArgs[PrintStmt::TYPES_IDX] = ctx->GetStringPtr(argTypes);
-    doPrintLZArgs[PrintStmt::ARGS_IDX] = args.emitArgCode();
-    doPrintLZArgs[PrintStmt::UNI_NUM_IDX] = LLVMInt32(args.countUniformArgs());
-    doPrintLZArgs[PrintStmt::VAR_NUM_IDX] = LLVMInt32(args.countVaryingArgs());
-    doPrintLZArgs[PrintStmt::UNI_64_NUM_IDX] = LLVMInt32(args.count64BitUniformArgs());
-    doPrintLZArgs[PrintStmt::VAR_64_NUM_IDX] = LLVMInt32(args.count64BitVaryingArgs());
-    return doPrintLZArgs;
+    allArgs.push_back(ctx->XeCreateConstantString(formatBuilder.get(format, argTypes, pos), "lz_format_str"));
+    auto valueArgs = args.emitArgCode();
+    std::move(valueArgs.begin(), valueArgs.end(), std::back_inserter(allArgs));
+    return allArgs;
 }
 
 static PrintArgsBuilder getPrintArgsBuilder(Expr *values, FunctionEmitContext *ctx) {
@@ -3461,24 +3398,31 @@ static PrintArgsBuilder getPrintArgsBuilder(Expr *values, FunctionEmitContext *c
     }
 }
 
-void emitCode4LZPrintSlice(const PrintSliceInfo &printSlice, PrintLZFormatStrBuilder &formatBuilder,
-                           FunctionEmitContext *ctx, const SourcePos &pos) {
-    auto printImplArgs = getDoPrintLZArgs(printSlice.format_, formatBuilder, printSlice.args_, ctx, pos);
-    auto printImplFunc = getPrintImplFunc();
-    Assert(printImplFunc && "__do_print_lz function wasn't found");
-    ctx->CallInst(printImplFunc, NULL, printImplArgs, "");
+// This name should be also properly mangled. It happens later.
+static llvm::FunctionCallee getSPIRVOCLPrintfDecl() {
+    auto *PrintfTy = llvm::FunctionType::get(LLVMTypes::Int32Type,
+                                             llvm::PointerType::get(LLVMTypes::Int8Type, /* const addrspace */ 2),
+                                             /* isVarArg */ true);
+    return m->module->getOrInsertFunction("__spirv_ocl_printf", PrintfTy);
+}
+
+static void emitCode4LZPrintSlice(const PrintSliceInfo &printSlice, PrintLZFormatStrBuilder &formatBuilder,
+                                  FunctionEmitContext *ctx, const SourcePos &pos) {
+    auto printImplArgs = getOCLPrintfArgs(printSlice.format_, formatBuilder, printSlice.args_, ctx, pos);
+    auto printImplFunc = getSPIRVOCLPrintfDecl();
+    Assert(printImplFunc && "__spirv_ocl_printf declaration wasn't created");
+    ctx->CallInst(printImplFunc.getCallee(), NULL, printImplArgs, "");
 }
 
 void PrintStmt::emitCode4LZ(FunctionEmitContext *ctx) const {
     auto allArgs = getPrintArgsBuilder(values, ctx);
-    allArgs.extendPtrTo64BitInt();
     PrintLZFormatStrBuilder formatBuilder(g->target->getVectorWidth());
-    auto printSlices = getPrintSlices(format, formatBuilder, allArgs, PrintInfo::LZMaxFormatStrSize);
+    auto printSlices = getPrintSlices(format, formatBuilder, allArgs, PrintInfo::LZMaxFormatStrSize, pos);
     for (const auto &printSlice : printSlices)
         emitCode4LZPrintSlice(printSlice, formatBuilder, ctx, pos);
 }
 
-#endif // ISPC_GENX_ENABLED
+#endif // ISPC_XE_ENABLED
 
 /** Given an Expr for a value to be printed, emit the code to evaluate the
     expression and store the result to alloca's memory.  Update the
@@ -3522,6 +3466,8 @@ std::vector<llvm::Value *> PrintStmt::getDoPrintArgs(FunctionEmitContext *ctx) c
     std::string argTypes;
 
     if (values == NULL) {
+        // Check requested format
+        checkFormatString(format, 0, pos);
         llvm::Type *ptrPtrType = llvm::PointerType::get(LLVMTypes::VoidPointerType, 0);
         doPrintArgs[ARGS_IDX] = llvm::Constant::getNullValue(ptrPtrType);
     } else {
@@ -3530,6 +3476,8 @@ std::vector<llvm::Value *> PrintStmt::getDoPrintArgs(FunctionEmitContext *ctx) c
         // for the 5th __do_print() argument
         ExprList *elist = llvm::dyn_cast<ExprList>(values);
         int nArgs = elist ? elist->exprs.size() : 1;
+        // Check requested format
+        checkFormatString(format, nArgs, pos);
         // Allocate space for the array of pointers to values to be printed
         llvm::Type *argPtrArrayType = llvm::ArrayType::get(LLVMTypes::VoidPointerType, nArgs);
         llvm::Value *argPtrArray = ctx->AllocaInst(argPtrArrayType, "print_arg_ptrs");
@@ -3562,22 +3510,6 @@ std::vector<llvm::Value *> PrintStmt::getDoPrintArgs(FunctionEmitContext *ctx) c
     return doPrintArgs;
 }
 
-// prepares arguments for __do_print(_cm) function depending on target
-std::vector<llvm::Value *> PrintStmt::getPrintImplArgs(FunctionEmitContext *ctx) const {
-    std::vector<llvm::Value *> printImplArgs;
-    switch (g->target->getISA()) {
-#ifdef ISPC_GENX_ENABLED
-    case Target::GENX:
-        printImplArgs = getDoPrintCMArgs(ctx);
-        break;
-#endif // ISPC_GENX_ENABLED
-    default:
-        printImplArgs = getDoPrintArgs(ctx);
-        break;
-    }
-    return printImplArgs;
-}
-
 /* PrintStmt works closely with the __do_print() function implemented in
    the builtins-c-cpu.cpp file. In particular, the EmitCode() method here needs to
    take the arguments passed to it from ispc and generate a valid call to
@@ -3588,13 +3520,13 @@ void PrintStmt::EmitCode(FunctionEmitContext *ctx) const {
     if (!ctx->GetCurrentBasicBlock())
         return;
     ctx->SetDebugPos(pos);
-#ifdef ISPC_GENX_ENABLED
-    if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+    if (g->target->isXeTarget()) {
         emitCode4LZ(ctx);
         return;
     }
-#endif /* ISPC_GENX_ENABLED */
-    auto printImplArgs = getPrintImplArgs(ctx);
+#endif /* ISPC_XE_ENABLED */
+    auto printImplArgs = getDoPrintArgs(ctx);
     Assert(!printImplArgs.empty() && "Haven't managed to produce __do_print args");
     auto printImplFunc = getPrintImplFunc();
     AssertPos(pos, printImplFunc);
@@ -3630,7 +3562,13 @@ void AssertStmt::EmitAssertCode(FunctionEmitContext *ctx, const Type *type) cons
     }
 
     std::vector<llvm::Value *> args;
-    args.push_back(ctx->GetStringPtr(errorString));
+#ifdef ISPC_XE_ENABLED
+    if (g->target->isXeTarget()) {
+        PrintLZFormatStrBuilder formatBuilder(g->target->getVectorWidth());
+        args.push_back(ctx->XeCreateConstantString(errorString, "lz_format_str"));
+    } else
+#endif
+        args.push_back(ctx->GetStringPtr(errorString));
     llvm::Value *exprValue = expr->GetValue(ctx);
     if (exprValue == NULL) {
         free(errorString);
@@ -3638,11 +3576,11 @@ void AssertStmt::EmitAssertCode(FunctionEmitContext *ctx, const Type *type) cons
         return;
     }
     args.push_back(exprValue);
-#ifdef ISPC_GENX_ENABLED
-    if (ctx->emitGenXHardwareMask())
+#ifdef ISPC_XE_ENABLED
+    if (ctx->emitXeHardwareMask())
         // This will create mask according to current EM on SIMD CF Lowering.
         // The result will be like       mask = select (EM, AllOn, AllFalse)
-        args.push_back(ctx->GenXSimdCFPredicate(LLVMMaskAllOn));
+        args.push_back(ctx->XeSimdCFPredicate(LLVMMaskAllOn));
     else
 #endif
         args.push_back(ctx->GetFullMask());
@@ -3710,8 +3648,8 @@ int AssertStmt::EstimateCost() const { return COST_ASSERT; }
 DeleteStmt::DeleteStmt(Expr *e, SourcePos p) : Stmt(p, DeleteStmtID) { expr = e; }
 
 void DeleteStmt::EmitCode(FunctionEmitContext *ctx) const {
-    if (g->target->isGenXTarget()) {
-        Error(pos, "\"delete\" statement is not supported for genx-* targets yet.");
+    if (g->target->isXeTarget()) {
+        Error(pos, "\"delete\" statement is not supported for Xe targets yet.");
         return;
     }
 

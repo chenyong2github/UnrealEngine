@@ -1,5 +1,4 @@
-// rule: skip on arch=genx32
-// rule: skip on arch=genx64
+#include "../test_static.isph"
 
 void noinline check_val_all(uniform float *uniform alloca_ptr, uniform float RET[], uniform float aFOO[]) {
     if (alloca_ptr[programIndex] != aFOO[programIndex]) {
@@ -19,7 +18,7 @@ void noinline check_val_for(uniform int *uniform alloca_ptr, uniform float RET[]
     }
 }
 
-export void f_f(uniform float RET[], uniform float aFOO[]) {
+task void f_f(uniform float RET[], uniform float aFOO[]) {
     RET[programIndex] = 0;
     uniform float *uniform alloca_mem = (uniform float *uniform)alloca(4 * programCount);
     alloca_mem[programIndex] = aFOO[programIndex];
@@ -39,6 +38,6 @@ export void f_f(uniform float RET[], uniform float aFOO[]) {
     }
 }
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[programIndex] = 0;
 }

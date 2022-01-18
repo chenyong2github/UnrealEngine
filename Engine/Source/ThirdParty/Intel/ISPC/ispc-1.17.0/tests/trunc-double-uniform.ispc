@@ -1,6 +1,8 @@
-// rule: skip on cpu=TGLLP
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
 
-export void f_f(uniform float RET[], uniform float aFOO[]) {
+task void f_f(uniform float RET[], uniform float aFOO[]) {
     uniform float error = 0;
     RET[programIndex] = 0;
     const uniform double deltaLow = 0.2d;
@@ -42,7 +44,7 @@ export void f_f(uniform float RET[], uniform float aFOO[]) {
     }
 
     // Range -1 > val > 1 is tested separately since different
-    // emulation sequence is used for this on gen.
+    // emulation sequence is used for this on Xe.
     // Case 5: Value 0 < val < +0.5.
     baseVal = 0;
     testVal = baseVal + deltaLow;
@@ -124,6 +126,6 @@ export void f_f(uniform float RET[], uniform float aFOO[]) {
     RET[0] = error;
 }
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[0] = 0;
 }

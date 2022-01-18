@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 #include "ctx.h"
 #include "expr.h"
 #include "func.h"
+#include "ispc_version.h"
 #include "llvmutil.h"
 #include "opt.h"
 #include "stmt.h"
@@ -51,6 +52,7 @@
 #include <algorithm>
 #include <ctype.h>
 #include <fcntl.h>
+#include <iostream>
 #include <set>
 #include <sstream>
 #include <stdarg.h>
@@ -59,6 +61,7 @@
 #include <sys/types.h>
 
 #include <clang/Basic/TargetInfo.h>
+#include <clang/Basic/Version.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Frontend/Utils.h>
@@ -90,12 +93,12 @@
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <llvm/GenXIntrinsics/GenXIntrinsics.h>
 #endif
 #include <llvm/Target/TargetIntrinsicInfo.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <LLVMSPIRVLib/LLVMSPIRVLib.h>
 #include <fstream>
 #if defined(_WIN64)
@@ -180,6 +183,17 @@ Module::Module(const char *fn) {
     // DataLayout information supposed to be managed in single place in Target class.
     module->setDataLayout(g->target->getDataLayout()->getStringRepresentation());
 
+    // Version strings.
+    // Have ISPC details and LLVM details as two separate strings attached to !llvm.ident.
+    llvm::NamedMDNode *identMetadata = module->getOrInsertNamedMetadata("llvm.ident");
+    std::string ispcVersion = std::string(ISPC_VERSION_STRING);
+    std::string llvmVersion = clang::getClangToolFullVersion("LLVM");
+
+    llvm::Metadata *identNode[] = {llvm::MDString::get(*g->ctx, ispcVersion)};
+    identMetadata->addOperand(llvm::MDNode::get(*g->ctx, identNode));
+    llvm::Metadata *identNode2[] = {llvm::MDString::get(*g->ctx, llvmVersion)};
+    identMetadata->addOperand(llvm::MDNode::get(*g->ctx, identNode2));
+
     if (g->generateDebuggingSymbols) {
         llvm::TimeTraceScope TimeScope("Create Debug Data");
         // To enable debug information on Windows, we have to let llvm know, that
@@ -187,11 +201,7 @@ Module::Module(const char *fn) {
         if (g->target_os == TargetOS::windows) {
             module->addModuleFlag(llvm::Module::Warning, "CodeView", 1);
         } else {
-            // When we link with CM, "Dwarf version" and "Debug info version" is already set
-            // so we don't need to do this here.  Otherwise VerifyModule will be broken.
-            if (!g->target->isGenXTarget()) {
-                module->addModuleFlag(llvm::Module::Warning, "Dwarf Version", g->generateDWARFVersion);
-            }
+            module->addModuleFlag(llvm::Module::Warning, "Dwarf Version", g->generateDWARFVersion);
         }
         diBuilder = new llvm::DIBuilder(*module);
 
@@ -208,15 +218,8 @@ Module::Module(const char *fn) {
         } else {
             std::string directory, name;
             GetDirectoryAndFileName(g->currentDirectory, filename, &directory, &name);
-            char producerString[512];
-#if defined(BUILD_VERSION) && defined(BUILD_DATE)
-            snprintf(producerString, sizeof(producerString), "ispc version %s (build %s on %s)", ISPC_VERSION,
-                     BUILD_VERSION, BUILD_DATE);
-#else
-            snprintf(producerString, sizeof(producerString), "ispc version %s (built on %s)", ISPC_VERSION, __DATE__);
-#endif
             auto srcFile = diBuilder->createFile(name, directory);
-            // Use DW_LANG_C_plus_plus to avoid problems with debigging on gen.
+            // Use DW_LANG_C_plus_plus to avoid problems with debigging on Xe.
             // The debugger reads symbols partially when a solib file is loaded.
             // The kernel name is one of these read symbols. ISPC produces namespace
             // for example "ispc::simple_ispc". Matching the breakpoint location
@@ -224,7 +227,7 @@ Module::Module(const char *fn) {
             diCompileUnit =
                 diBuilder->createCompileUnit(llvm::dwarf::DW_LANG_C_plus_plus,          /* lang */
                                              srcFile,                                   /* filename */
-                                             producerString,                            /* producer */
+                                             ispcVersion.c_str(),                       /* producer */
                                              g->opt.level > 0 /* is optimized */, "-g", /* command line args */
                                              0 /* run time version */);
         }
@@ -318,8 +321,8 @@ Symbol *Module::AddLLVMIntrinsicDecl(const std::string &name, ExprList *args, So
     }
 
     llvm::Function *funcDecl = nullptr;
-#ifdef ISPC_GENX_ENABLED
-    if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+    if (g->target->isXeTarget()) {
         llvm::GenXIntrinsic::ID ID = llvm::GenXIntrinsic::lookupGenXIntrinsicID(name);
         if (ID == llvm::GenXIntrinsic::not_any_intrinsic) {
             Error(pos, "LLVM intrinsic \"%s\" not supported.", name.c_str());
@@ -336,7 +339,7 @@ Symbol *Module::AddLLVMIntrinsicDecl(const std::string &name, ExprList *args, So
         funcDecl = llvm::GenXIntrinsic::getGenXDeclaration(module, ID, argArr);
     }
 #endif
-    if (!g->target->isGenXTarget()) {
+    if (!g->target->isXeTarget()) {
         llvm::TargetMachine *targetMachine = g->target->GetTargetMachine();
         const llvm::TargetIntrinsicInfo *TII = targetMachine->getIntrinsicInfo();
         llvm::Intrinsic::ID ID = llvm::Function::lookupIntrinsicID(llvm::StringRef(name));
@@ -653,27 +656,27 @@ static void lCheckExportedParameterTypes(const Type *type, const std::string &na
     }
 }
 
-#ifdef ISPC_GENX_ENABLED
-// For gen target we have the same limitations in input parameters as for "export" functions
+#ifdef ISPC_XE_ENABLED
+// For Xe target we have the same limitations in input parameters as for "export" functions
 static void lCheckTaskParameterTypes(const Type *type, const std::string &name, SourcePos pos) {
     if (lRecursiveCheckValidParamType(type, false, false, name, pos) == false) {
         if (CastType<PointerType>(type))
             Error(pos,
                   "Varying pointer type parameter \"%s\" is illegal "
-                  "in an \"task\" for genx-* targets.",
+                  "in an \"task\" for Xe targets.",
                   name.c_str());
         if (CastType<StructType>(type->GetBaseType()))
             Error(pos,
                   "Struct parameter \"%s\" with vector typed "
-                  "member(s) is illegal in an \"task\" for genx-* targets.",
+                  "member(s) is illegal in an \"task\" for Xe targets.",
                   name.c_str());
         else if (CastType<VectorType>(type))
             Error(pos,
                   "Vector-typed parameter \"%s\" is illegal in an \"task\" "
-                  "for genx-* targets.",
+                  "for Xe targets.",
                   name.c_str());
         else
-            Error(pos, "Varying parameter \"%s\" is illegal in an \"task\" for genx-* targets.", name.c_str());
+            Error(pos, "Varying parameter \"%s\" is illegal in an \"task\" for Xe targets.", name.c_str());
     }
 }
 #endif
@@ -812,9 +815,10 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
                                                   ? llvm::GlobalValue::InternalLinkage
                                                   : llvm::GlobalValue::ExternalLinkage;
 
-    // For gen target all functions except genx kernel must be internal.
-    // Genx kernel functions are "export"-qualified functions and tasks.
-    if (g->target->isGenXTarget() && !functionType->isExported && !functionType->isTask)
+    // For Xe target all functions except Xe kernels, external functions and explicitly marked extern functions must
+    // be internal.
+    if (g->target->isXeTarget() && !functionType->IsISPCKernel() && !functionType->IsISPCExternal() &&
+        (storageClass != SC_EXTERN))
         linkage = llvm::GlobalValue::InternalLinkage;
 
     std::string functionName = name;
@@ -861,7 +865,7 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
     }
 
     if (functionType->isTask) {
-        if (!g->target->isGenXTarget()) {
+        if (!g->target->isXeTarget()) {
             // This also applies transitively to members I think?
             function->addParamAttr(0, llvm::Attribute::NoAlias);
         }
@@ -884,15 +888,29 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
     if (functionType->isTask && functionType->GetReturnType()->IsVoidType() == false)
         Error(pos, "Task-qualified functions must have void return type.");
 
-    if (g->target->isGenXTarget() && Type::Equal(functionType->GetReturnType(), AtomicType::Void) == false &&
-        functionType->isExported) {
-        // TODO_GEN: According to CM requirements kernel should have void type. It is strong restriction to ISPC
-        // language so we would need to think more about it in the future.
-        Error(pos, "Export-qualified functions must have void return type with \"genx\" target.");
+    // This limitation is due to ABI incompatibility between ISPC/ESIMD.
+    // ESIMD makes return value optimization transferring return value to the
+    // argument of the function.
+    if (functionType->IsISPCExternal() && functionType->GetReturnType()->IsVoidType() == false)
+        Warning(pos, "Export and extern \"C\"-qualified functions must have void return type for Xe target.");
+
+    if (functionType->isExported || functionType->isExternC || functionType->IsISPCExternal() ||
+        functionType->IsISPCKernel()) {
+        lCheckForStructParameters(functionType, pos);
     }
 
-    if (functionType->isExported || functionType->isExternC || (g->target->isGenXTarget() && functionType->isTask)) {
-        lCheckForStructParameters(functionType, pos);
+    // Mark ISPC external functions as SPIR_FUNC for Xe.
+    if (functionType->IsISPCExternal() && disableMask) {
+        function->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+        function->setDSOLocal(true);
+    }
+    // Mark with corresponding attribute
+    if (g->target->isXeTarget()) {
+        if (functionType->IsISPCKernel()) {
+            function->addFnAttr("CMGenxMain");
+        } else {
+            function->addFnAttr("CMStackCall");
+        }
     }
 
     // Loop over all of the arguments; process default values if present
@@ -905,13 +923,13 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
         Expr *defaultValue = functionType->GetParameterDefault(i);
         const SourcePos &argPos = functionType->GetParameterSourcePos(i);
 
-        // If the function is exported or in case of gen target is task, make sure that the parameter
+        // If the function is exported or in case of Xe target is task, make sure that the parameter
         // doesn't have any funky stuff going on in it.
         // JCB nomosoa - Varying is now a-ok.
         if (functionType->isExported)
             lCheckExportedParameterTypes(argType, argName, argPos);
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget() && functionType->isTask)
+#ifdef ISPC_XE_ENABLED
+        if (functionType->IsISPCKernel())
             lCheckTaskParameterTypes(argType, argName, argPos);
 #endif
 
@@ -1012,11 +1030,7 @@ bool Module::writeOutput(OutputType outputType, OutputFlags flags, const char *o
     // "Debug Info Version" constant to the module. LLVM will ignore
     // our Debug Info metadata without it.
     if (g->generateDebuggingSymbols == true) {
-        // For GenX target: when we link with CM, "Dwarf version" and "Debug info version" is already set
-        // so we don't need to do this here.  Otherwise VerifyModule will be broken.
-        if (!g->target->isGenXTarget()) {
-            module->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-        }
+        module->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
     }
 
     // SIC! (verifyModule() == TRUE) means "failed", see llvm-link code.
@@ -1050,7 +1064,7 @@ bool Module::writeOutput(OutputType outputType, OutputFlags flags, const char *o
                 if (strcasecmp(suffix, "o") && strcasecmp(suffix, "obj"))
                     fileType = "object";
                 break;
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
             case ZEBIN:
                 if (strcasecmp(suffix, "bin"))
                     fileType = "L0 binary";
@@ -1100,7 +1114,7 @@ bool Module::writeOutput(OutputType outputType, OutputFlags flags, const char *o
         return writeDevStub(outFileName);
     else if ((outputType == Bitcode) || (outputType == BitcodeText))
         return writeBitcode(module, outFileName, outputType);
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     else if (outputType == SPIRV)
         return writeSPIRV(module, outFileName);
     else if (outputType == ZEBIN)
@@ -1139,7 +1153,7 @@ bool Module::writeBitcode(llvm::Module *module, const char *outFileName, OutputT
     return true;
 }
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 bool Module::translateToSPIRV(llvm::Module *module, std::stringstream &ss) {
     std::string err;
     SPIRV::TranslatorOpts Opts;
@@ -1149,15 +1163,15 @@ bool Module::translateToSPIRV(llvm::Module *module, std::stringstream &ss) {
         llvm::cl::desc("Allow DWARF operations not listed in the OpenCL.DebugInfo.100 "
                        "specification (experimental, may produce incompatible SPIR-V "
                        "module)"));
-#if ISPC_LLVM_VERSION < ISPC_LLVM_12_0
-    Opts.setSPIRVAllowUnknownIntrinsics({"llvm.genx"});
-#else
+#if ISPC_LLVM_VERSION == ISPC_LLVM_12_0
     llvm::cl::opt<bool> SPIRVAllowUnknownIntrinsics(
         "spirv-allow-unknown-intrinsics", llvm::cl::init(true),
         llvm::cl::desc("Unknown LLVM intrinsics will be translated as external function "
                        "calls in SPIR-V"));
 
     Opts.setSPIRVAllowUnknownIntrinsicsEnabled(SPIRVAllowUnknownIntrinsics);
+#else
+    Opts.setSPIRVAllowUnknownIntrinsics({"llvm.genx"});
 #endif
     Opts.setAllowExtraDIExpressionsEnabled(SPIRVAllowExtraDIExpressions);
     Opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR);
@@ -1251,6 +1265,13 @@ bool Module::writeZEBin(llvm::Module *module, const char *outFileName) {
     if (g->vcOpts != "") {
         options.append(" " + g->vcOpts);
     }
+
+    // Add stack size info
+    // If stackMemSize has default value 0, do not set -stateless-stack-mem-size,
+    // it will be set to 8192 in VC backend by default.
+    if (g->stackMemSize > 0) {
+        options.append(" -stateless-stack-mem-size=" + std::to_string(g->stackMemSize));
+    }
     std::string internalOptions;
 
     // Use L0 binary
@@ -1300,7 +1321,7 @@ bool Module::writeZEBin(llvm::Module *module, const char *outFileName) {
     }
     return true;
 }
-#endif // ISPC_GENX_ENABLED
+#endif // ISPC_XE_ENABLED
 
 bool Module::writeObjectFileOrAssembly(OutputType outputType, const char *outFileName) {
     llvm::TargetMachine *targetMachine = g->target->GetTargetMachine();
@@ -1314,7 +1335,7 @@ bool Module::writeObjectFileOrAssembly(llvm::TargetMachine *targetMachine, llvm:
     llvm::CodeGenFileType fileType = (outputType == Object) ? llvm::CGFT_ObjectFile : llvm::CGFT_AssemblyFile;
     bool binary = (fileType == llvm::CGFT_ObjectFile);
 
-    llvm::sys::fs::OpenFlags flags = binary ? llvm::sys::fs::F_None : llvm::sys::fs::F_Text;
+    llvm::sys::fs::OpenFlags flags = binary ? llvm::sys::fs::OF_None : llvm::sys::fs::OF_Text;
 
     std::error_code error;
 
@@ -2375,7 +2396,7 @@ void Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *
         }
     }
 
-    if (g->target->isGenXTarget()) {
+    if (g->target->isXeTarget()) {
         opts.addMacroDef("taskIndex=__taskIndex()");
         opts.addMacroDef("taskCount=__taskCount()");
         opts.addMacroDef("taskCount0=__taskCount0()");
@@ -2784,19 +2805,19 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
         m = new Module(srcFile);
         if (m->CompileFile() == 0) {
             llvm::TimeTraceScope TimeScope("Backend");
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
             if (outputType == Asm || outputType == Object) {
-                if (g->target->isGenXTarget()) {
-                    Error(SourcePos(), "%s output is not supported yet for \"genx-*\" targets. ",
+                if (g->target->isXeTarget()) {
+                    Error(SourcePos(), "%s output is not supported yet for Xe targets. ",
                           (outputType == Asm) ? "assembly" : "binary");
                     return 1;
                 }
             }
-            if (g->target->isGenXTarget() && outputType == OutputType::Object) {
+            if (g->target->isXeTarget() && outputType == OutputType::Object) {
                 outputType = OutputType::ZEBIN;
             }
-            if (!g->target->isGenXTarget() && (outputType == OutputType::ZEBIN || outputType == OutputType::SPIRV)) {
-                Error(SourcePos(), "SPIR-V and L0 binary formats are supported for gen target only");
+            if (!g->target->isXeTarget() && (outputType == OutputType::ZEBIN || outputType == OutputType::SPIRV)) {
+                Error(SourcePos(), "SPIR-V and L0 binary formats are supported for Xe target only");
                 return 1;
             }
 #endif

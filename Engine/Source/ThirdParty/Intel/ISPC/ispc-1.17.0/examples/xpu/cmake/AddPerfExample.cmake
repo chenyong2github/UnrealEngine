@@ -32,8 +32,8 @@
 
 function(add_perf_example)
     set(options CM_TEST GBENCH)
-    set(oneValueArgs ISPC_SRC_NAME ISPC_TARGET_GEN CM_SRC_NAME CM_OBJ_NAME TEST_NAME CM_TEST_NAME GBENCH_TEST_NAME)
-    set(multiValueArgs ISPC_GENX_ADDITIONAL_ARGS HOST_SOURCES CM_HOST_SOURCES DPCPP_HOST_SOURCES GBENCH_SRC_NAME)
+    set(oneValueArgs ISPC_SRC_NAME ISPC_TARGET_XE CM_SRC_NAME CM_OBJ_NAME TEST_NAME CM_TEST_NAME GBENCH_TEST_NAME)
+    set(multiValueArgs ISPC_XE_ADDITIONAL_ARGS HOST_SOURCES CM_HOST_SOURCES DPCPP_HOST_SOURCES GBENCH_SRC_NAME)
     cmake_parse_arguments("parsed" "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     # Compile host code
@@ -62,18 +62,17 @@ function(add_perf_example)
     endif()
 
     # Compile device code
-    set(ISPC_EXECUTABLE_GPU ${ISPC_EXECUTABLE})
-    set(ISPC_TARGET_GEN ${parsed_ISPC_TARGET_GEN})
+    set(ISPC_TARGET_XE ${parsed_ISPC_TARGET_XE})
 
     if (WIN32)
         set(ISPC_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     else()
         set(ISPC_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
-    set(ISPC_GENX_ADDITIONAL_ARGS ${parsed_ISPC_GENX_ADDITIONAL_ARGS})
+    set(ISPC_XE_ADDITIONAL_ARGS ${parsed_ISPC_XE_ADDITIONAL_ARGS})
 
     # Add "ispcrt" suffix here to avoid CMake target conflicts with CPU examples
-    add_ispc_kernel("genx_${parsed_TEST_NAME}" "${parsed_ISPC_SRC_NAME}" "")
+    add_ispc_kernel("xe_${parsed_TEST_NAME}" "${parsed_ISPC_SRC_NAME}" "")
 
     # Show ispc source in VS solution:
     if (WIN32)
@@ -125,8 +124,8 @@ function(add_perf_example)
         list(APPEND CM_BUILD_OUTPUT ${parsed_CM_OBJ_NAME})
         add_executable(${CM_HOST_BINARY} ${parsed_CM_HOST_SOURCES} ${parsed_CM_OBJ_NAME})
         if (WIN32)
-            message(WARNING "GEN examples are not supported on Windows")
-            set_target_properties(${CM_HOST_BINARY} PROPERTIES FOLDER "GEN_Examples")
+            message(WARNING "Xe examples are not supported on Windows")
+            set_target_properties(${CM_HOST_BINARY} PROPERTIES FOLDER "Xe_Examples")
         else()
             add_custom_command(
                 OUTPUT ${parsed_CM_OBJ_NAME}

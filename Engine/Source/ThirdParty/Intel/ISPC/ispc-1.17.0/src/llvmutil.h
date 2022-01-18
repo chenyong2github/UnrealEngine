@@ -37,6 +37,7 @@
 
 #pragma once
 
+#include "ispc.h"
 #include "ispc_version.h"
 
 #include <llvm/IR/Constants.h>
@@ -74,6 +75,7 @@ struct LLVMTypes {
     static llvm::Type *Int16Type;
     static llvm::Type *Int32Type;
     static llvm::Type *Int64Type;
+    static llvm::Type *Float16Type;
     static llvm::Type *FloatType;
     static llvm::Type *DoubleType;
 
@@ -81,6 +83,7 @@ struct LLVMTypes {
     static llvm::Type *Int16PointerType;
     static llvm::Type *Int32PointerType;
     static llvm::Type *Int64PointerType;
+    static llvm::Type *Float16PointerType;
     static llvm::Type *FloatPointerType;
     static llvm::Type *DoublePointerType;
 
@@ -93,6 +96,7 @@ struct LLVMTypes {
     static llvm::VectorType *Int16VectorType;
     static llvm::VectorType *Int32VectorType;
     static llvm::VectorType *Int64VectorType;
+    static llvm::VectorType *Float16VectorType;
     static llvm::VectorType *FloatVectorType;
     static llvm::VectorType *DoubleVectorType;
 
@@ -100,6 +104,7 @@ struct LLVMTypes {
     static llvm::Type *Int16VectorPointerType;
     static llvm::Type *Int32VectorPointerType;
     static llvm::Type *Int64VectorPointerType;
+    static llvm::Type *Float16VectorPointerType;
     static llvm::Type *FloatVectorPointerType;
     static llvm::Type *DoubleVectorPointerType;
 
@@ -134,10 +139,12 @@ extern llvm::ConstantInt *LLVMUInt32(uint32_t i);
 extern llvm::ConstantInt *LLVMInt64(int64_t i);
 /** Returns an LLVM i64 constant of the given value */
 extern llvm::ConstantInt *LLVMUInt64(uint64_t i);
+/** Returns an LLVM half constant of the given value */
+extern llvm::Constant *LLVMFloat16(llvm::APFloat f);
 /** Returns an LLVM float constant of the given value */
-extern llvm::Constant *LLVMFloat(float f);
+extern llvm::Constant *LLVMFloat(llvm::APFloat f);
 /** Returns an LLVM double constant of the given value */
-extern llvm::Constant *LLVMDouble(double f);
+extern llvm::Constant *LLVMDouble(llvm::APFloat f);
 
 /** Returns an LLVM boolean vector constant of the given value smeared
     across all elements */
@@ -175,12 +182,15 @@ extern llvm::Constant *LLVMInt64Vector(int64_t i);
     across all elements */
 extern llvm::Constant *LLVMUInt64Vector(uint64_t i);
 
+/** Returns an LLVM half vector constant of the given value smeared
+    across all elements */
+extern llvm::Constant *LLVMFloat16Vector(llvm::APFloat f);
 /** Returns an LLVM float vector constant of the given value smeared
     across all elements */
-extern llvm::Constant *LLVMFloatVector(float f);
+extern llvm::Constant *LLVMFloatVector(llvm::APFloat f);
 /** Returns an LLVM double vector constant of the given value smeared
     across all elements */
-extern llvm::Constant *LLVMDoubleVector(double f);
+extern llvm::Constant *LLVMDoubleVector(llvm::APFloat f);
 
 /** Returns a constant integer or vector (according to the given type) of
     the given signed integer value. */
@@ -227,12 +237,15 @@ extern llvm::Constant *LLVMInt64Vector(const int64_t *i);
     The array should have g->target.vectorWidth elements. */
 extern llvm::Constant *LLVMUInt64Vector(const uint64_t *i);
 
+/** Returns an LLVM half vector based on the given array of values.
+    The array should have g->target.vectorWidth elements. */
+extern llvm::Constant *LLVMFloat16Vector(const std::vector<llvm::APFloat> &f);
 /** Returns an LLVM float vector based on the given array of values.
     The array should have g->target.vectorWidth elements. */
-extern llvm::Constant *LLVMFloatVector(const float *f);
+extern llvm::Constant *LLVMFloatVector(const std::vector<llvm::APFloat> &f);
 /** Returns an LLVM double vector based on the given array of values.
     The array should have g->target.vectorWidth elements. */
-extern llvm::Constant *LLVMDoubleVector(const double *f);
+extern llvm::Constant *LLVMDoubleVector(const std::vector<llvm::APFloat> &f);
 
 /** LLVM constant value representing an 'all on' SIMD lane mask */
 extern llvm::Constant *LLVMMaskAllOn;
@@ -330,9 +343,13 @@ extern llvm::Value *LLVMConcatVectors(llvm::Value *v1, llvm::Value *v2, llvm::In
 extern llvm::Value *LLVMShuffleVectors(llvm::Value *v1, llvm::Value *v2, int32_t shuf[], int shufSize,
                                        llvm::Instruction *insertBefore);
 
-#ifdef ISPC_GENX_ENABLED
-enum AddressSpace { Local, Global, External };
-
+#ifdef ISPC_XE_ENABLED
+/** This is utility function to determine memory in which pointer was created.
+    For now we use only 3 values:
+    Global is used for pointers passed to kernel externally
+    Private is used for pointers created locally with alloca
+    Generic is currently used to identify Global variables
+*/
 extern AddressSpace GetAddressSpace(llvm::Value *v);
 #endif
 } // namespace ispc

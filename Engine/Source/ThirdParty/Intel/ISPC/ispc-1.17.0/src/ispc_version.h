@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015-2021, Intel Corporation
+  Copyright (c) 2015-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@
 #pragma once
 
 #define ISPC_VERSION_MAJOR 1
-#define ISPC_VERSION_MINOR 16
-#define ISPC_VERSION "1.16.1"
+#define ISPC_VERSION_MINOR 17
+#define ISPC_VERSION "1.17.0"
 #include <llvm/Config/llvm-config.h>
 
 #define ISPC_LLVM_VERSION (LLVM_VERSION_MAJOR * 10000 + LLVM_VERSION_MINOR * 100)
@@ -49,9 +49,10 @@
 #define ISPC_LLVM_11_1 110100
 #define ISPC_LLVM_12_0 120000
 #define ISPC_LLVM_13_0 130000
+#define ISPC_LLVM_14_0 140000
 
 #define OLDEST_SUPPORTED_LLVM ISPC_LLVM_10_0
-#define LATEST_SUPPORTED_LLVM ISPC_LLVM_13_0
+#define LATEST_SUPPORTED_LLVM ISPC_LLVM_14_0
 
 #ifdef __ispc__xstr
 #undef __ispc__xstr
@@ -65,3 +66,7 @@
 #if ISPC_LLVM_VERSION < OLDEST_SUPPORTED_LLVM || ISPC_LLVM_VERSION > LATEST_SUPPORTED_LLVM
 #error "Unhandled LLVM version"
 #endif
+
+#define ISPC_VERSION_STRING                                                                                            \
+    "Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), " ISPC_VERSION " (build " BUILD_VERSION " @ " BUILD_DATE \
+    ", LLVM " ISPC_LLVM_VERSION_STRING ")"

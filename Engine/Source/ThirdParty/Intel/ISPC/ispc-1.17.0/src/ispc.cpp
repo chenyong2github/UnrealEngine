@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/Host.h>
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+#include <llvm/MC/TargetRegistry.h>
+#else
 #include <llvm/Support/TargetRegistry.h>
+#endif
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -210,7 +214,7 @@ static const bool lIsTargetValidforArch(ISPCTarget target, Arch arch) {
         if (arch != Arch::arm && arch != Arch::aarch64)
             ret = false;
     } else if (ISPCTargetIsGen(target)) {
-        if (arch != Arch::genx32 && arch != Arch::genx64)
+        if (arch != Arch::xe32 && arch != Arch::xe64)
             ret = false;
     }
 
@@ -253,6 +257,9 @@ typedef enum {
     // Broadwell. Supports AVX 2 + ADX/RDSEED/SMAP.
     CPU_Broadwell,
 
+    // Skylake. AVX2.
+    CPU_Skylake,
+
     // Knights Landing - Xeon Phi.
     // Supports AVX-512F: All the key AVX-512 features: masking, broadcast... ;
     //          AVX-512CDI: Conflict Detection;
@@ -280,7 +287,7 @@ typedef enum {
     CPU_SPR,
 #endif
 
-	// Zen 1-2-3
+    // Zen 1-2-3
     CPU_ZNVER1,
     CPU_ZNVER2,
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
@@ -312,12 +319,13 @@ typedef enum {
     CPU_AppleA14,
 #endif
 #endif
-#ifdef ISPC_GENX_ENABLED
-    CPU_GENX,
-    CPU_GENX_TGLLP,
+#ifdef ISPC_XE_ENABLED
+    GPU_SKL,
+    GPU_TGLLP,
+    GPU_XEHPG,
 #endif
-    sizeofCPUtype
-} CPUtype;
+    sizeofDeviceType
+} DeviceType;
 
 // This map is used to verify features available for supported CPUs
 // and is used to filter target dependent intrisics and report an error.
@@ -326,7 +334,7 @@ typedef enum {
 // The following LLVM files were used as reference:
 // CPU Features: <llvm>/lib/Support/X86TargetParser.cpp
 // X86 Intrinsics: <llvm>/include/llvm/IR/IntrinsicsX86.td
-std::map<CPUtype, std::set<std::string>> CPUFeatures = {
+std::map<DeviceType, std::set<std::string>> CPUFeatures = {
     {CPU_x86_64, {"mmx", "sse", "sse2"}},
     {CPU_Bonnell, {"mmx", "sse", "sse2", "ssse3"}},
     {CPU_Core2, {"mmx", "sse", "sse2", "ssse3"}},
@@ -337,6 +345,7 @@ std::map<CPUtype, std::set<std::string>> CPUFeatures = {
     {CPU_IvyBridge, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx"}},
     {CPU_Haswell, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2"}},
     {CPU_Broadwell, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2"}},
+    {CPU_Skylake, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2"}},
     {CPU_KNL, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2", "avx512"}},
     {CPU_SKX, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2", "avx512"}},
     {CPU_ICL, {"mmx", "sse", "sse2", "ssse3", "sse41", "sse42", "avx", "avx2", "avx512"}},
@@ -368,25 +377,26 @@ std::map<CPUtype, std::set<std::string>> CPUFeatures = {
     {CPU_AppleA14, {}},
 #endif
 #endif
-#ifdef ISPC_GENX_ENABLED
-    {CPU_GENX, {}},
-    {CPU_GENX_TGLLP, {}}
+#ifdef ISPC_XE_ENABLED
+    {GPU_SKL, {}},
+    {GPU_TGLLP, {}},
+    {GPU_XEHPG, {}},
 #endif
 };
 
 class AllCPUs {
   private:
     std::vector<std::vector<std::string>> names;
-    std::vector<std::set<CPUtype>> compat;
+    std::vector<std::set<DeviceType>> compat;
 
-    std::set<CPUtype> Set(int type, ...) {
-        std::set<CPUtype> retn;
+    std::set<DeviceType> Set(int type, ...) {
+        std::set<DeviceType> retn;
         va_list args;
 
-        retn.insert((CPUtype)type);
+        retn.insert((DeviceType)type);
         va_start(args, type);
         while ((type = va_arg(args, int)) != CPU_None)
-            retn.insert((CPUtype)type);
+            retn.insert((DeviceType)type);
         va_end(args);
 
         return retn;
@@ -394,8 +404,8 @@ class AllCPUs {
 
   public:
     AllCPUs() {
-        names = std::vector<std::vector<std::string>>(sizeofCPUtype);
-        compat = std::vector<std::set<CPUtype>>(sizeofCPUtype);
+        names = std::vector<std::vector<std::string>>(sizeofDeviceType);
+        compat = std::vector<std::set<DeviceType>>(sizeofDeviceType);
 
         names[CPU_None].push_back("");
 
@@ -428,6 +438,8 @@ class AllCPUs {
 
         names[CPU_Broadwell].push_back("broadwell");
 
+        names[CPU_Skylake].push_back("skylake");
+
         names[CPU_KNL].push_back("knl");
 
         names[CPU_SKX].push_back("skx");
@@ -448,6 +460,7 @@ class AllCPUs {
 
         names[CPU_ZNVER1].push_back("znver1");
         names[CPU_ZNVER2].push_back("znver2");
+        names[CPU_ZNVER2].push_back("ps5");
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
         names[CPU_ZNVER3].push_back("znver3");
 #endif
@@ -469,50 +482,58 @@ class AllCPUs {
 #endif
 #endif
 
-#ifdef ISPC_GENX_ENABLED
-        names[CPU_GENX].push_back("SKL");
-        names[CPU_GENX_TGLLP].push_back("TGLLP");
-        names[CPU_GENX_TGLLP].push_back("DG1");
+#ifdef ISPC_XE_ENABLED
+        names[GPU_SKL].push_back("skl");
+        names[GPU_TGLLP].push_back("tgllp");
+        names[GPU_TGLLP].push_back("dg1");
+        names[GPU_XEHPG].push_back("dg2");
 #endif
 
-        Assert(names.size() == sizeofCPUtype);
+        Assert(names.size() == sizeofDeviceType);
 
         compat[CPU_Silvermont] =
             Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_None);
 
         compat[CPU_KNL] = Set(CPU_KNL, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_None);
+                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
 
         compat[CPU_SKX] = Set(CPU_SKX, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_None);
+                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
-        compat[CPU_SPR] =
-            Set(CPU_SPR, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
-                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_SKX, CPU_ICL, CPU_ICX, CPU_TGL, CPU_ADL, CPU_None);
+        compat[CPU_SPR] = Set(CPU_SPR, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
+                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_SKX, CPU_ICL,
+                              CPU_ICX, CPU_TGL, CPU_ADL, CPU_None);
         compat[CPU_ADL] = Set(CPU_ADL, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_None);
+                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
 #endif
         compat[CPU_TGL] =
             Set(CPU_TGL, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
-                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_SKX, CPU_ICL, CPU_ICX, CPU_None);
-        compat[CPU_ICX] = Set(CPU_ICX, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_SKX, CPU_ICL, CPU_None);
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_SKX, CPU_ICL, CPU_ICX, CPU_None);
+        compat[CPU_ICX] =
+            Set(CPU_ICX, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_SKX, CPU_ICL, CPU_None);
 
-        compat[CPU_ICL] = Set(CPU_ICL, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                              CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_SKX, CPU_None);
+        compat[CPU_ICL] =
+            Set(CPU_ICL, CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_SKX, CPU_None);
 
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
-        compat[CPU_ZNVER3] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                                 CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_ZNVER3, CPU_None);
+        compat[CPU_ZNVER3] =
+            Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_ZNVER3, CPU_None);
 #endif
-        compat[CPU_ZNVER2] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                                 CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_ZNVER2, CPU_None);
-        compat[CPU_ZNVER1] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                                 CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_ZNVER1, CPU_None);
+        compat[CPU_ZNVER2] =
+            Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_ZNVER2, CPU_None);
+        compat[CPU_ZNVER1] =
+            Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont, CPU_SandyBridge,
+                CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_ZNVER1, CPU_None);
+        compat[CPU_Skylake] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
+                                  CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
         compat[CPU_Broadwell] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                                    CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_None);
+                                    CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
         compat[CPU_Haswell] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
-                                  CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_None);
+                                  CPU_SandyBridge, CPU_IvyBridge, CPU_Haswell, CPU_Broadwell, CPU_Skylake, CPU_None);
         compat[CPU_IvyBridge] = Set(CPU_x86_64, CPU_Bonnell, CPU_Penryn, CPU_Core2, CPU_Nehalem, CPU_Silvermont,
                                     CPU_SandyBridge, CPU_IvyBridge, CPU_None);
         compat[CPU_SandyBridge] =
@@ -543,15 +564,16 @@ class AllCPUs {
 #endif
 #endif
 
-#ifdef ISPC_GENX_ENABLED
-        compat[CPU_GENX] = Set(CPU_GENX, CPU_None);
-        compat[CPU_GENX_TGLLP] = Set(CPU_GENX_TGLLP, CPU_GENX, CPU_None);
+#ifdef ISPC_XE_ENABLED
+        compat[GPU_SKL] = Set(GPU_SKL, CPU_None);
+        compat[GPU_TGLLP] = Set(GPU_TGLLP, GPU_SKL, CPU_None);
+        compat[GPU_XEHPG] = Set(GPU_XEHPG, GPU_TGLLP, GPU_SKL, CPU_None);
 #endif
     }
 
     std::string HumanReadableListOfNames() {
         std::stringstream CPUs;
-        for (int i = CPU_x86_64; i < sizeofCPUtype; i++) {
+        for (int i = CPU_x86_64; i < sizeofDeviceType; i++) {
             CPUs << names[i][0];
             if (names[i].size() > 1) {
                 CPUs << " (synonyms: " << names[i][1];
@@ -559,30 +581,30 @@ class AllCPUs {
                     CPUs << ", " << names[i][j];
                 CPUs << ")";
             }
-            if (i < sizeofCPUtype - 1)
+            if (i < sizeofDeviceType - 1)
                 CPUs << ", ";
         }
         return CPUs.str();
     }
 
-    std::string &GetDefaultNameFromType(CPUtype type) {
-        Assert((type >= CPU_None) && (type < sizeofCPUtype));
+    std::string &GetDefaultNameFromType(DeviceType type) {
+        Assert((type >= CPU_None) && (type < sizeofDeviceType));
         return names[type][0];
     }
 
-    CPUtype GetTypeFromName(std::string name) {
-        CPUtype retn = CPU_None;
+    DeviceType GetTypeFromName(std::string name) {
+        DeviceType retn = CPU_None;
 
-        for (int i = 1; (retn == CPU_None) && (i < sizeofCPUtype); i++)
+        for (int i = 1; (retn == CPU_None) && (i < sizeofDeviceType); i++)
             for (int j = 0, je = names[i].size(); (retn == CPU_None) && (j < je); j++)
                 if (!name.compare(names[i][j]))
-                    retn = (CPUtype)i;
+                    retn = (DeviceType)i;
         return retn;
     }
 
-    bool BackwardCompatible(CPUtype what, CPUtype with) {
-        Assert((what > CPU_None) && (what < sizeofCPUtype));
-        Assert((with > CPU_None) && (with < sizeofCPUtype));
+    bool BackwardCompatible(DeviceType what, DeviceType with) {
+        Assert((what > CPU_None) && (what < sizeofDeviceType));
+        Assert((with > CPU_None) && (with < sizeofDeviceType));
         return compat[what].find(with) != compat[what].end();
     }
 };
@@ -595,7 +617,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
       m_hasScatter(false), m_hasTranscendentals(false), m_hasTrigonometry(false), m_hasRsqrtd(false), m_hasRcpd(false),
       m_hasVecPrefetch(false), m_hasSaturatingArithmetic(false), m_hasFp64Support(true),
       m_warnFtoU32IsExpensive(false) {
-    CPUtype CPUID = CPU_None, CPUfromISA = CPU_None;
+    DeviceType CPUID = CPU_None, CPUfromISA = CPU_None;
     AllCPUs a;
     std::string featuresString;
 
@@ -603,8 +625,8 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         CPUID = a.GetTypeFromName(cpu);
         if (CPUID == CPU_None) {
             Error(SourcePos(),
-                  "Error: CPU type \"%s\" unknown. Supported"
-                  " CPUs: %s.",
+                  "Error: Device type \"%s\" unknown. Supported"
+                  " devices: %s.",
                   cpu, a.HumanReadableListOfNames().c_str());
             return;
         }
@@ -644,12 +666,15 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
             break;
 #endif
 
-#ifdef ISPC_GENX_ENABLED
-        case CPU_GENX:
-            m_ispc_target = ISPCTarget::genx_x16;
+#ifdef ISPC_XE_ENABLED
+        case GPU_SKL:
+            m_ispc_target = ISPCTarget::gen9_x16;
             break;
-        case CPU_GENX_TGLLP:
-            m_ispc_target = ISPCTarget::genx_x16;
+        case GPU_TGLLP:
+            m_ispc_target = ISPCTarget::xelp_x16;
+            break;
+        case GPU_XEHPG:
+            m_ispc_target = ISPCTarget::xehpg_x16;
             break;
 #endif
 
@@ -673,6 +698,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
 #endif
         case CPU_ZNVER1:
         case CPU_ZNVER2:
+        case CPU_Skylake:
         case CPU_Broadwell:
         case CPU_Haswell:
             m_ispc_target = ISPCTarget::avx2_i32x8;
@@ -702,7 +728,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
             std::string target_string = ISPCTargetToString(m_ispc_target);
             Warning(SourcePos(),
                     "No --target specified on command-line."
-                    " Using ISA \"%s\" based on specified CPU \"%s\".",
+                    " Using ISA \"%s\" based on specified device \"%s\".",
                     target_string.c_str(), cpu);
         }
     }
@@ -721,9 +747,9 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
 #endif
         } else
 #endif
-#if ISPC_GENX_ENABLED
+#if ISPC_XE_ENABLED
             if (ISPCTargetIsGen(m_ispc_target)) {
-            arch = Arch::genx64;
+            arch = Arch::xe64;
         } else
 #endif
             arch = Arch::x86_64;
@@ -739,7 +765,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
             break;
         }
     }
-    // For gen target we do not need to create target/targetMachine
+    // For Xe target we do not need to create target/targetMachine
     if (this->m_target == NULL && !ISPCTargetIsGen(m_ispc_target)) {
         std::string error_message;
         error_message = "Invalid architecture \"";
@@ -767,17 +793,24 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
               target_string.c_str());
         return;
     }
-#ifdef ISPC_GENX_ENABLED
-    if ((ISPCTargetIsGen(m_ispc_target)) && (CPUID == CPU_GENX_TGLLP)) {
+#ifdef ISPC_XE_ENABLED
+    if ((ISPCTargetIsGen(m_ispc_target)) && (CPUID == GPU_TGLLP || CPUID == GPU_XEHPG)) {
         m_hasFp64Support = false;
     }
-    // In case of gen target addressing should correspond to host addressing. Otherwise SVM pointers will not work.
-    if (arch == Arch::genx32) {
+    // In case of Xe target addressing should correspond to host addressing. Otherwise SVM pointers will not work.
+    if (arch == Arch::xe32) {
         g->opt.force32BitAddressing = true;
-    } else if (arch == Arch::genx64) {
+    } else if (arch == Arch::xe64) {
         g->opt.force32BitAddressing = false;
     }
 #endif
+
+    // Check math library
+    if (g->mathLib == Globals::Math_SVML && !ISPCTargetIsX86(m_ispc_target)) {
+        Error(SourcePos(), "SVML math library is supported for x86 targets only.");
+        return;
+    }
+
     // Check default LLVM generated targets
     bool unsupported_target = false;
     switch (m_ispc_target) {
@@ -989,9 +1022,28 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasTranscendentals = false;
         // For MIC it is set to true due to performance reasons. The option should be tested.
         this->m_hasTrigonometry = false;
-        this->m_hasRsqrtd = this->m_hasRcpd = false;
+        this->m_hasRsqrtd = this->m_hasRcpd = true;
         this->m_hasVecPrefetch = false;
         CPUfromISA = CPU_KNL;
+        break;
+    case ISPCTarget::avx512skx_i32x4:
+        this->m_isa = Target::SKX_AVX512;
+        this->m_nativeVectorWidth = 16;
+        this->m_nativeVectorAlignment = 64;
+        this->m_dataTypeWidth = 32;
+        this->m_vectorWidth = 4;
+        this->m_maskingIsFree = true;
+        this->m_maskBitCount = 1;
+        this->m_hasHalf = true;
+        this->m_hasRand = true;
+        this->m_hasGather = this->m_hasScatter = true;
+        this->m_hasTranscendentals = false;
+        this->m_hasTrigonometry = false;
+        this->m_hasRsqrtd = this->m_hasRcpd = true;
+        this->m_hasVecPrefetch = false;
+        CPUfromISA = CPU_SKX;
+        this->m_funcAttributes.push_back(std::make_pair("prefer-vector-width", "256"));
+        this->m_funcAttributes.push_back(std::make_pair("min-legal-vector-width", "256"));
         break;
     case ISPCTarget::avx512skx_i32x8:
         this->m_isa = Target::SKX_AVX512;
@@ -1006,7 +1058,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasGather = this->m_hasScatter = true;
         this->m_hasTranscendentals = false;
         this->m_hasTrigonometry = false;
-        this->m_hasRsqrtd = this->m_hasRcpd = false;
+        this->m_hasRsqrtd = this->m_hasRcpd = true;
         this->m_hasVecPrefetch = false;
         CPUfromISA = CPU_SKX;
         this->m_funcAttributes.push_back(std::make_pair("prefer-vector-width", "256"));
@@ -1025,7 +1077,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasGather = this->m_hasScatter = true;
         this->m_hasTranscendentals = false;
         this->m_hasTrigonometry = false;
-        this->m_hasRsqrtd = this->m_hasRcpd = false;
+        this->m_hasRsqrtd = this->m_hasRcpd = true;
         this->m_hasVecPrefetch = false;
         CPUfromISA = CPU_SKX;
         if (g->opt.disableZMM) {
@@ -1159,9 +1211,9 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         unsupported_target = true;
         break;
 #endif
-#ifdef ISPC_GENX_ENABLED
-    case ISPCTarget::genx_x8:
-        this->m_isa = Target::GENX;
+#ifdef ISPC_XE_ENABLED
+    case ISPCTarget::gen9_x8:
+        this->m_isa = Target::GEN9;
         this->m_nativeVectorWidth = 8;
         this->m_nativeVectorAlignment = 64;
         this->m_vectorWidth = 8;
@@ -1173,10 +1225,25 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasTranscendentals = true;
         this->m_hasTrigonometry = true;
         this->m_hasGather = this->m_hasScatter = true;
-        CPUfromISA = CPU_GENX;
+        CPUfromISA = GPU_SKL;
         break;
-    case ISPCTarget::genx_x16:
-        this->m_isa = Target::GENX;
+    case ISPCTarget::xelp_x8:
+        this->m_isa = Target::XELP;
+        this->m_nativeVectorWidth = 8;
+        this->m_nativeVectorAlignment = 64;
+        this->m_vectorWidth = 8;
+        this->m_dataTypeWidth = 32;
+        this->m_hasHalf = true;
+        this->m_maskingIsFree = true;
+        this->m_maskBitCount = 1;
+        this->m_hasSaturatingArithmetic = true;
+        this->m_hasTranscendentals = true;
+        this->m_hasTrigonometry = true;
+        this->m_hasGather = this->m_hasScatter = true;
+        CPUfromISA = GPU_TGLLP;
+        break;
+    case ISPCTarget::gen9_x16:
+        this->m_isa = Target::GEN9;
         this->m_nativeVectorWidth = 16;
         this->m_nativeVectorAlignment = 64;
         this->m_vectorWidth = 16;
@@ -1188,11 +1255,60 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasTranscendentals = true;
         this->m_hasTrigonometry = true;
         this->m_hasGather = this->m_hasScatter = true;
-        CPUfromISA = CPU_GENX;
+        CPUfromISA = GPU_SKL;
+        break;
+    case ISPCTarget::xelp_x16:
+        this->m_isa = Target::XELP;
+        this->m_nativeVectorWidth = 16;
+        this->m_nativeVectorAlignment = 64;
+        this->m_vectorWidth = 16;
+        this->m_dataTypeWidth = 32;
+        this->m_hasHalf = true;
+        this->m_maskingIsFree = true;
+        this->m_maskBitCount = 1;
+        this->m_hasSaturatingArithmetic = true;
+        this->m_hasTranscendentals = true;
+        this->m_hasTrigonometry = true;
+        this->m_hasGather = this->m_hasScatter = true;
+        CPUfromISA = GPU_TGLLP;
+        break;
+    case ISPCTarget::xehpg_x8:
+        this->m_isa = Target::XEHPG;
+        this->m_nativeVectorWidth = 8;
+        this->m_nativeVectorAlignment = 64;
+        this->m_vectorWidth = 8;
+        this->m_dataTypeWidth = 32;
+        this->m_hasHalf = true;
+        this->m_maskingIsFree = true;
+        this->m_maskBitCount = 1;
+        this->m_hasSaturatingArithmetic = true;
+        this->m_hasTranscendentals = true;
+        this->m_hasTrigonometry = true;
+        this->m_hasGather = this->m_hasScatter = true;
+        CPUfromISA = GPU_XEHPG;
+        break;
+    case ISPCTarget::xehpg_x16:
+        this->m_isa = Target::XEHPG;
+        this->m_nativeVectorWidth = 16;
+        this->m_nativeVectorAlignment = 64;
+        this->m_vectorWidth = 16;
+        this->m_dataTypeWidth = 32;
+        this->m_hasHalf = true;
+        this->m_maskingIsFree = true;
+        this->m_maskBitCount = 1;
+        this->m_hasSaturatingArithmetic = true;
+        this->m_hasTranscendentals = true;
+        this->m_hasTrigonometry = true;
+        this->m_hasGather = this->m_hasScatter = true;
+        CPUfromISA = GPU_XEHPG;
         break;
 #else
-    case ISPCTarget::genx_x8:
-    case ISPCTarget::genx_x16:
+    case ISPCTarget::gen9_x8:
+    case ISPCTarget::gen9_x16:
+    case ISPCTarget::xelp_x8:
+    case ISPCTarget::xelp_x16:
+    case ISPCTarget::xehpg_x8:
+    case ISPCTarget::xehpg_x16:
         unsupported_target = true;
         break;
 #endif
@@ -1239,8 +1355,8 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         if ((CPUfromISA != CPU_None) && !a.BackwardCompatible(CPUID, CPUfromISA)) {
             std::string target_string = ISPCTargetToString(m_ispc_target);
             Error(SourcePos(),
-                  "The requested CPU (%s) is incompatible"
-                  " with the CPU required for %s target (%s)",
+                  "The requested device (%s) is incompatible"
+                  " with the device required for %s target (%s)",
                   cpu, target_string.c_str(), a.GetDefaultNameFromType(CPUfromISA).c_str());
             return;
         }
@@ -1288,14 +1404,14 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
 #endif
 
         // Support 'i64' and 'double' types in cm
-        if (isGenXTarget())
+        if (isXeTarget())
             featuresString += "+longlong";
 
         if (g->opt.disableFMA == false)
             options.AllowFPOpFusion = llvm::FPOpFusion::Fast;
 
-        // For gen target we do not need to create target/targetMachine
-        if (!isGenXTarget()) {
+        // For Xe target we do not need to create target/targetMachine
+        if (!isXeTarget()) {
             m_targetMachine = m_target->createTargetMachine(triple, m_cpu, featuresString, options, relocModel);
             Assert(m_targetMachine != NULL);
 
@@ -1327,8 +1443,11 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         std::string dl_string;
         if (m_targetMachine != NULL)
             dl_string = m_targetMachine->createDataLayout().getStringRepresentation();
-        if (isGenXTarget())
-            dl_string = m_arch == Arch::genx64 ? "e-p:64:64-i64:64-n8:16:32" : "e-p:32:32-i64:64-n8:16:32";
+        if (isXeTarget())
+            dl_string = m_arch == Arch::xe64 ? "e-p:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:"
+                                               "256-v512:512-v1024:1024-n8:16:32:64"
+                                             : "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:"
+                                               "256-v512:512-v1024:1024-n8:16:32:64";
 
         // 2. Finally set member data
         m_dataLayout = new llvm::DataLayout(dl_string);
@@ -1339,14 +1458,18 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_is32Bit = (getDataLayout()->getPointerSize() == 4);
 
         // TO-DO : Revisit addition of "target-features" and "target-cpu" for ARM support.
-        llvm::AttrBuilder fattrBuilder;
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+        llvm::AttrBuilder *fattrBuilder = new llvm::AttrBuilder(*g->ctx);
+#else
+        llvm::AttrBuilder *fattrBuilder = new llvm::AttrBuilder();
+#endif
 #ifdef ISPC_ARM_ENABLED
         if (m_isa == Target::NEON)
-            fattrBuilder.addAttribute("target-cpu", this->m_cpu);
+            fattrBuilder->addAttribute("target-cpu", this->m_cpu);
 #endif
         for (auto const &f_attr : m_funcAttributes)
-            fattrBuilder.addAttribute(f_attr.first, f_attr.second);
-        this->m_tf_attributes = new llvm::AttrBuilder(fattrBuilder);
+            fattrBuilder->addAttribute(f_attr.first, f_attr.second);
+        this->m_tf_attributes = fattrBuilder;
 
         Assert(this->m_vectorWidth <= ISPC_MAX_NVEC);
     }
@@ -1354,7 +1477,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
     m_valid = !error;
 
     if (printTarget) {
-        if (!isGenXTarget()) {
+        if (!isXeTarget()) {
             printf("Target Triple: %s\n", m_targetMachine->getTargetTriple().str().c_str());
             printf("Target CPU: %s\n", m_targetMachine->getTargetCPU().str().c_str());
             printf("Target Feature String: %s\n", m_targetMachine->getTargetFeatureString().str().c_str());
@@ -1425,16 +1548,16 @@ std::string Target::GetTripleString() const {
         } else if (m_arch == Arch::aarch64) {
             Error(SourcePos(), "Aarch64 is not supported on Windows.");
             exit(1);
-        } else if (m_arch == Arch::genx32) {
+        } else if (m_arch == Arch::xe32) {
             triple.setArchName("spir");
-        } else if (m_arch == Arch::genx64) {
+        } else if (m_arch == Arch::xe64) {
             triple.setArchName("spir64");
         } else {
             Error(SourcePos(), "Unknown arch.");
             exit(1);
         }
-#ifdef ISPC_GENX_ENABLED
-        if (m_arch == Arch::genx32 || m_arch == Arch::genx64) {
+#ifdef ISPC_XE_ENABLED
+        if (m_arch == Arch::xe32 || m_arch == Arch::xe64) {
             //"spir64-unknown-unknown"
             triple.setVendor(llvm::Triple::VendorType::UnknownVendor);
             triple.setOS(llvm::Triple::OSType::UnknownOS);
@@ -1456,16 +1579,16 @@ std::string Target::GetTripleString() const {
             triple.setArchName("armv7");
         } else if (m_arch == Arch::aarch64) {
             triple.setArchName("aarch64");
-        } else if (m_arch == Arch::genx32) {
+        } else if (m_arch == Arch::xe32) {
             triple.setArchName("spir");
-        } else if (m_arch == Arch::genx64) {
+        } else if (m_arch == Arch::xe64) {
             triple.setArchName("spir64");
         } else {
             Error(SourcePos(), "Unknown arch.");
             exit(1);
         }
-#ifdef ISPC_GENX_ENABLED
-        if (m_arch == Arch::genx32 || m_arch == Arch::genx64) {
+#ifdef ISPC_XE_ENABLED
+        if (m_arch == Arch::xe32 || m_arch == Arch::xe64) {
             //"spir64-unknown-unknown"
             triple.setVendor(llvm::Triple::VendorType::UnknownVendor);
             triple.setOS(llvm::Triple::OSType::UnknownOS);
@@ -1474,8 +1597,8 @@ std::string Target::GetTripleString() const {
 #endif
         triple.setVendor(llvm::Triple::VendorType::UnknownVendor);
         triple.setOS(llvm::Triple::OSType::Linux);
-        if (m_arch == Arch::x86 || m_arch == Arch::x86_64 || m_arch == Arch::aarch64 || m_arch == Arch::genx32 ||
-            m_arch == Arch::genx64) {
+        if (m_arch == Arch::x86 || m_arch == Arch::x86_64 || m_arch == Arch::aarch64 || m_arch == Arch::xe32 ||
+            m_arch == Arch::xe64) {
             triple.setEnvironment(llvm::Triple::EnvironmentType::GNU);
         } else if (m_arch == Arch::arm) {
             triple.setEnvironment(llvm::Triple::EnvironmentType::GNUEABIHF);
@@ -1552,6 +1675,16 @@ std::string Target::GetTripleString() const {
         triple.setVendor(llvm::Triple::VendorType::SCEI);
         triple.setOS(llvm::Triple::OSType::PS4);
         break;
+    case TargetOS::ps5:
+        if (m_arch != Arch::x86_64) {
+            Error(SourcePos(), "PS5 target supports only x86_64.");
+            exit(1);
+        }
+        // "x86_64-scei-ps4", as "ps5" was not yet officially upstreamed to LLVM.
+        triple.setArch(llvm::Triple::ArchType::x86_64);
+        triple.setVendor(llvm::Triple::VendorType::SCEI);
+        triple.setOS(llvm::Triple::OSType::PS4);
+        break;
     case TargetOS::web:
         if (m_arch != Arch::wasm32) {
             Error(SourcePos(), "Web target supports only wasm32.");
@@ -1594,9 +1727,13 @@ const char *Target::ISAToString(ISA isa) {
         return "avx512knl";
     case Target::SKX_AVX512:
         return "avx512skx";
-#ifdef ISPC_GENX_ENABLED
-    case Target::GENX:
-        return "genx";
+#ifdef ISPC_XE_ENABLED
+    case Target::GEN9:
+        return "gen9";
+    case Target::XELP:
+        return "xelp";
+    case Target::XEHPG:
+        return "xehpg";
 #endif
     default:
         FATAL("Unhandled target in ISAToString()");
@@ -1619,9 +1756,13 @@ const char *Target::ISAToTargetString(ISA isa) {
     case Target::WASM:
         return "wasm-i32x4";
 #endif
-#ifdef ISPC_GENX_ENABLED
-    case Target::GENX:
-        return "genx-x16";
+#ifdef ISPC_XE_ENABLED
+    case Target::GEN9:
+        return "gen9-x16";
+    case Target::XELP:
+        return "xelp-x16";
+    case Target::XEHPG:
+        return "xehpg-x16";
 #endif
     case Target::SSE2:
         return "sse2-i32x4";
@@ -1670,7 +1811,11 @@ llvm::Value *Target::StructOffset(llvm::Type *type, int element, llvm::BasicBloc
 
 void Target::markFuncWithTargetAttr(llvm::Function *func) {
     if (m_tf_attributes) {
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+        func->addFnAttrs(*m_tf_attributes);
+#else
         func->addAttributes(llvm::AttributeList::FunctionIndex, *m_tf_attributes);
+#endif
     }
 }
 
@@ -1732,24 +1877,27 @@ void Target::markFuncWithCallingConv(llvm::Function *func) {
     }
 }
 
-#ifdef ISPC_GENX_ENABLED
-Target::GENX_PLATFORM Target::getGenxPlatform() const {
+#ifdef ISPC_XE_ENABLED
+Target::XePlatform Target::getXePlatform() const {
     AllCPUs a;
     switch (a.GetTypeFromName(m_cpu)) {
-    case CPU_GENX:
-        return GENX_PLATFORM::GENX_GEN9;
-    case CPU_GENX_TGLLP:
-        return GENX_PLATFORM::GENX_TGLLP;
+    case GPU_SKL:
+        return XePlatform::gen9;
+    case GPU_TGLLP:
+        return XePlatform::xe_lp;
+    case GPU_XEHPG:
+        return XePlatform::xe_hpg;
     default:
-        return GENX_PLATFORM::GENX_GEN9;
+        return XePlatform::gen9;
     }
-    return GENX_PLATFORM::GENX_GEN9;
+    return XePlatform::gen9;
 }
 
-uint32_t Target::getGenxGrfSize() const {
-    switch (getGenxPlatform()) {
-    case GENX_GEN9:
-    case GENX_TGLLP:
+uint32_t Target::getXeGrfSize() const {
+    switch (getXePlatform()) {
+    case XePlatform::gen9:
+    case XePlatform::xe_lp:
+    case XePlatform::xe_hpg:
         return 32;
     default:
         return 32;
@@ -1757,10 +1905,10 @@ uint32_t Target::getGenxGrfSize() const {
     return 32;
 }
 
-bool Target::hasGenxPrefetch() const {
-    switch (getGenxPlatform()) {
-    case GENX_GEN9:
-    case GENX_TGLLP:
+bool Target::hasXePrefetch() const {
+    switch (getXePlatform()) {
+    case XePlatform::gen9:
+    case XePlatform::xe_lp:
         return false;
     default:
         return true;
@@ -1792,11 +1940,11 @@ Opt::Opt() {
     disableUniformMemoryOptimizations = false;
     disableCoalescing = false;
     disableZMM = false;
-#ifdef ISPC_GENX_ENABLED
-    disableGenXGatherCoalescing = false;
+#ifdef ISPC_XE_ENABLED
+    disableXeGatherCoalescing = false;
     enableForeachInsideVarying = false;
-    emitGenXHardwareMask = false;
-    enableGenXUnsafeMaskedLoad = false;
+    emitXeHardwareMask = false;
+    enableXeUnsafeMaskedLoad = false;
 #endif
 }
 
@@ -1838,6 +1986,9 @@ Globals::Globals() {
     timeTraceGranularity = 500;
     target = NULL;
     ctx = new llvm::LLVMContext;
+#ifdef ISPC_XE_ENABLED
+    stackMemSize = 0;
+#endif
 
 #ifdef ISPC_HOST_IS_WINDOWS
     _getcwd(currentDirectory, sizeof(currentDirectory));

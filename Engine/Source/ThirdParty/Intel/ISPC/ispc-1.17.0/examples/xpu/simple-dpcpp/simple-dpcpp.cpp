@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <vector>
 
 // Level Zero headers
@@ -29,8 +29,8 @@
 #include <level_zero/zes_api.h>
 
 // SYCL and interoperability headers
-#include <CL/sycl.hpp>
-#include <CL/sycl/backend/level_zero.hpp>
+#include <sycl.hpp>
+#include <sycl/ext/oneapi/backend/level_zero.hpp>
 
 #include "L0_helpers.h"
 #include "simple-dpcpp.hpp"
@@ -39,13 +39,13 @@ using namespace hostutil;
 
 DpcppApp::DpcppApp() {
     m_device = ispcrt::Device(ISPCRT_DEVICE_TYPE_GPU);
-    m_module = ispcrt::Module(m_device, "genx_simple-dpcpp");
+    m_module = ispcrt::Module(m_device, "xe_simple-dpcpp");
     m_kernel = ispcrt::Kernel(m_device, m_module, "simple_ispc");
-    m_queue  = ispcrt::TaskQueue(m_device);
+    m_queue = ispcrt::TaskQueue(m_device);
     initialized = true;
 }
 
-std::vector<float> DpcppApp::transformIspc(std::vector<float>& in) {
+std::vector<float> DpcppApp::transformIspc(std::vector<float> &in) {
     const auto count = in.size();
     std::vector<float> out(count, 0.0f);
 
@@ -59,7 +59,7 @@ std::vector<float> DpcppApp::transformIspc(std::vector<float>& in) {
     struct Parameters {
         float *in;
         float *out;
-        int    count;
+        int count;
     };
 
     Parameters p;
@@ -75,21 +75,12 @@ std::vector<float> DpcppApp::transformIspc(std::vector<float>& in) {
     m_queue.copyToDevice(p_dev);
     m_queue.copyToDevice(in_dev);
 
-    // Make sure that input arrays were copied
-    m_queue.barrier();
-
     // Launch the kernel on the device using 1 thread
     m_queue.launch(m_kernel, p_dev, 1);
-
-    // Make sure that execution completed
-    m_queue.barrier();
 
     // ispcrt::Array objects which used as outputs of ISPC kernel should be
     // explicitly copied to host from device
     m_queue.copyToHost(out_dev);
-
-    // Make sure that input arrays were copied
-    m_queue.barrier();
 
     // Execute queue and sync
     m_queue.sync();
@@ -97,7 +88,7 @@ std::vector<float> DpcppApp::transformIspc(std::vector<float>& in) {
     return out;
 }
 
-std::vector<float> DpcppApp::transformDpcpp(const std::vector<float>& in) {
+std::vector<float> DpcppApp::transformDpcpp(const std::vector<float> &in) {
     const auto count = in.size();
     std::vector<float> out(count, 0.0f);
 
@@ -106,17 +97,21 @@ std::vector<float> DpcppApp::transformDpcpp(const std::vector<float>& in) {
     // can share device context with SYCL programs implemented
     // using oneAPI DPC++ compiler
     auto nativePlatform = static_cast<ze_driver_handle_t>(m_device.nativePlatformHandle());
-    auto nativeDevice   = static_cast<ze_device_handle_t>(m_device.nativeDeviceHandle());
-    auto nativeContext  = static_cast<ze_context_handle_t>(m_device.nativeContextHandle());
-    auto nativeQueue    = static_cast<ze_command_queue_handle_t>(m_queue.nativeTaskQueueHandle());
+    auto nativeDevice = static_cast<ze_device_handle_t>(m_device.nativeDeviceHandle());
+    auto nativeContext = static_cast<ze_context_handle_t>(m_device.nativeContextHandle());
+    auto nativeQueue = static_cast<ze_command_queue_handle_t>(m_queue.nativeTaskQueueHandle());
 
-    auto platform = sycl::level_zero::make<cl::sycl::platform>(nativePlatform);
-    auto device   = sycl::level_zero::make<cl::sycl::device>(platform, nativeDevice);
-    auto ctx      = sycl::level_zero::make<cl::sycl::context>(platform.get_devices(), nativeContext);
-    auto q        = sycl::level_zero::make<cl::sycl::queue>(ctx, nativeQueue);
+    auto platform = sycl::ext::oneapi::level_zero::make_platform((uintptr_t)nativePlatform);
+    auto device = sycl::ext::oneapi::level_zero::make_device(platform, (uintptr_t)nativeDevice);
+
+    auto ctx =
+        sycl::ext::oneapi::level_zero::make_context(platform.get_devices(), (uintptr_t)nativeContext,
+                                                    /*keep ownership of nativeContext handler on ISPC side*/ true);
+    auto q = sycl::ext::oneapi::level_zero::make_queue(ctx, (uintptr_t)nativeQueue,
+                                                       /*keep ownership of nativeQueue handler on ISPC side*/ true);
 
     // Set problem space
-    sycl::range<1> range { count };
+    sycl::range<1> range{count};
     // Allocate buffers used for communication with the device
     sycl::buffer<float, 1> in_buffer(in.data(), range);
     sycl::buffer<float, 1> out_buffer(out.data(), range);
@@ -124,7 +119,7 @@ std::vector<float> DpcppApp::transformDpcpp(const std::vector<float>& in) {
     // Submit a job (implemented by a lambda function) to the queue
     q.submit([&](cl::sycl::handler &cgh) {
         // Accessors are used to access buffers on the device and on the host
-        auto in_access  = in_buffer.get_access<cl::sycl::access::mode::read>(cgh);
+        auto in_access = in_buffer.get_access<cl::sycl::access::mode::read>(cgh);
         auto out_access = out_buffer.get_access<cl::sycl::access::mode::write>(cgh);
 
         // Execute kernel in parallel instances
@@ -142,14 +137,14 @@ std::vector<float> DpcppApp::transformDpcpp(const std::vector<float>& in) {
     // Use accessor to transfer data from the device
     std::vector<float> res(count);
     const auto out_host_access = out_buffer.get_access<cl::sycl::access::mode::read>();
-    for (int i = 0; i < out_host_access.get_count(); i++) {
+    for (int i = 0; i < out_host_access.size(); i++) {
         res[i] = out_host_access[i];
     }
     return res;
 }
 
 // Compare two float vectors with an Epsilon
-static bool operator==(const std::vector<float>& l, const std::vector<float>& r) {
+static bool operator==(const std::vector<float> &l, const std::vector<float> &r) {
     constexpr float EPSILON = 0.01f;
     if (l.size() != r.size())
         return false;
@@ -181,9 +176,8 @@ bool DpcppApp::run() {
     constexpr unsigned COLW = 6;
     constexpr unsigned PREC = 3;
     for (int i = 0; i < COUNT; i++) {
-        std::cout << "out[" << std::setw(2) << i << "] = "
-                  << std::fixed << std::setw(COLW) << std::setprecision(PREC) << vout_ispc[i]
-                  << std::fixed << std::setw(COLW) << std::setprecision(PREC) << vout_dpcpp[i] << '\n';
+        std::cout << "out[" << std::setw(2) << i << "] = " << std::fixed << std::setw(COLW) << std::setprecision(PREC)
+                  << vout_ispc[i] << std::fixed << std::setw(COLW) << std::setprecision(PREC) << vout_dpcpp[i] << '\n';
     }
 
     // Compare the results

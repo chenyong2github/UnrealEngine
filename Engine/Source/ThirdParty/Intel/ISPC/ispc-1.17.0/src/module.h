@@ -45,7 +45,7 @@
 
 #include <llvm/Support/TimeProfiler.h>
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 #include <unordered_map>
 #endif
 
@@ -57,7 +57,7 @@ namespace ispc {
 
 struct DispatchHeaderInfo;
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 // Derived from ocloc_api.h
 using invokePtr = int (*)(unsigned, const char **, const uint32_t, const uint8_t **, const uint64_t *, const char **,
                           const uint32_t, const uint8_t **, const uint64_t *, const char **, uint32_t *, uint8_t ***,
@@ -65,9 +65,10 @@ using invokePtr = int (*)(unsigned, const char **, const uint32_t, const uint8_t
 using freeOutputPtr = int (*)(uint32_t *, uint8_t ***, uint64_t **, char ***);
 // clang-format off
 const std::unordered_map<std::string, std::string> ISPCToNeoCPU{
-    {"SKL", "skl"},
-    {"TGLLP", "tgllp"},
-    {"DG1", "dg1"},
+    {"skl", "skl"},
+    {"tgllp", "tgllp"},
+    {"dg1", "dg1"},
+    {"dg2", "dg2"},
 };
 // clang-format on
 #endif
@@ -122,7 +123,7 @@ class Module {
         Deps,        /** generate dependencies */
         DevStub,     /** generate device-side offload stubs */
         HostStub,    /** generate host-side offload stubs */
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
         ZEBIN, /** generate L0 binary file */
         SPIRV, /** generate spir-v file */
 #endif
@@ -204,7 +205,7 @@ class Module {
     static bool writeObjectFileOrAssembly(llvm::TargetMachine *targetMachine, llvm::Module *module,
                                           OutputType outputType, const char *outFileName);
     static bool writeBitcode(llvm::Module *module, const char *outFileName, OutputType outputType);
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     static bool translateToSPIRV(llvm::Module *module, std::stringstream &outString);
     static bool writeSPIRV(llvm::Module *module, const char *outFileName);
     static bool writeZEBin(llvm::Module *module, const char *outFileName);

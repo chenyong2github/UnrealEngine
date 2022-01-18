@@ -45,6 +45,29 @@ elseif (UNIX)
     set(TARGET_OS_LIST_FOR_LL "unix")
 endif()
 
+# Explicitly enumerate .ll and .m4 files included by target .ll files.
+# This is overly conservative, as they are added to every target .ll file.
+# But m4 doesn't support building depfile, so explicit enumeration is the
+# easiest workaround.
+list(APPEND M4_IMPLICIT_DEPENDENCIES
+    builtins/builtins-cm-32.ll
+    builtins/builtins-cm-64.ll
+    builtins/svml.m4
+    builtins/target-avx-common.ll
+    builtins/target-avx-x2.ll
+    builtins/target-avx.ll
+    builtins/target-avx1-i64x4base.ll
+    builtins/target-avx512-common-4.ll
+    builtins/target-avx512-common-8.ll
+    builtins/target-avx512-common.ll
+    builtins/target-avx512-utils.ll
+    builtins/target-neon-common.ll
+    builtins/target-sse2-common.ll
+    builtins/target-sse4-common.ll
+    builtins/target-xe.ll
+    builtins/util-xe.m4
+    builtins/util.m4)
+
 function(target_ll_to_cpp llFileName bit os_name resultFileName)
     set(inputFilePath builtins/${llFileName}.ll)
     set(includePath builtins)
@@ -63,7 +86,7 @@ function(target_ll_to_cpp llFileName bit os_name resultFileName)
             -DLLVM_VERSION=${LLVM_VERSION} -DBUILD_OS=${os_name_macro} -DRUNTIME=${bit} ${inputFilePath}
             | \"${Python3_EXECUTABLE}\" bitcode2cpp.py ${inputFilePath} --type=ispc-target --runtime=${bit} --os=${os_name_macro} --llvm_as ${LLVM_AS_EXECUTABLE}
             > ${output}
-        DEPENDS ${inputFilePath} bitcode2cpp.py
+        DEPENDS ${inputFilePath} bitcode2cpp.py ${M4_IMPLICIT_DEPENDENCIES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set(${resultFileName} ${output} PARENT_SCOPE)
@@ -212,6 +235,7 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
             set(includePath -isystem${ISPC_MACOS_SDK_PATH}/usr/include)
         else()
             # -isystemC:/gnuwin32/include/glibc
+            #set(includePath -isystem${ISPC_GNUWIN32_PATH}/include/glibc)
             set(includePath -isystem${ISPC_GNUWIN32_PATH}/usr/include)
         endif()
     elseif (APPLE)
@@ -282,7 +306,7 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
     set_source_files_properties(${resultFileName} PROPERTIES GENERATED true)
 endfunction()
 
-function(builtin_genx_to_cpp bit resultFileName)
+function(builtin_xe_to_cpp bit resultFileName)
     set(inputFilePath builtins/builtins-cm-${bit}.ll)
     set(SKIP OFF)
     if (WIN32)
@@ -294,9 +318,9 @@ function(builtin_genx_to_cpp bit resultFileName)
     endif()
 
     if ("${bit}" STREQUAL "32")
-        set(target_arch "genx32")
+        set(target_arch "xe32")
     elseif ("${bit}" STREQUAL "64")
-        set(target_arch "genx64")
+        set(target_arch "xe64")
     else()
         set(SKIP ON)
     endif()
@@ -309,7 +333,7 @@ function(builtin_genx_to_cpp bit resultFileName)
               | \"${Python3_EXECUTABLE}\" bitcode2cpp.py cm --type=builtins-c --runtime=${bit}
               --os=${os_name} --arch=${target_arch} --llvm_as ${LLVM_AS_EXECUTABLE}
               > ${output}
-          DEPENDS ${inputFilePath}
+          DEPENDS ${inputFilePath} bitcode2cpp.py
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
           )
       set(${resultFileName} ${output} PARENT_SCOPE)
@@ -387,7 +411,7 @@ function (generate_common_builtins resultList)
     if (ISPC_IOS_TARGET)
         list (APPEND supported_oses "ios")
     endif()
-    if (ISPC_PS4_TARGET)
+    if (ISPC_PS_TARGET)
         list (APPEND supported_oses "ps4")
     endif()
 
@@ -404,13 +428,13 @@ function (generate_common_builtins resultList)
             endforeach()
         endforeach()
     endforeach()
-    if (GENX_ENABLED)
+    if (XE_ENABLED)
         foreach (bit 32 64)
-            builtin_genx_to_cpp(${bit} res_genx_${bit})
-            list(APPEND tmpList ${res_genx_${bit}} )
+            builtin_xe_to_cpp(${bit} res_xe_${bit})
+            list(APPEND tmpList ${res_xe_${bit}} )
             if(MSVC)
                 # Group generated files inside Visual Studio
-                source_group("Generated Builtins" FILES ${res_genx_${bit}})
+                source_group("Generated Builtins" FILES ${res_xe_${bit}})
             endif()
         endforeach()
     endif()

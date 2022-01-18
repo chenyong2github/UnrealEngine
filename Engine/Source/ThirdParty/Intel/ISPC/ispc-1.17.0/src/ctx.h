@@ -41,6 +41,7 @@
 
 #include <map>
 
+#include <llvm/ADT/StringRef.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/InstrTypes.h>
@@ -459,6 +460,11 @@ class FunctionEmitContext {
      * Otherwise leave this as NULL. */
     llvm::Value *LoadInst(llvm::Value *ptr, const Type *type = NULL, const llvm::Twine &name = "");
 
+    /** Emits addrspacecast instruction. Depending on atEntryBlock it is generated in
+        alloca block or in the current block.
+    */
+    llvm::Value *AddrSpaceCast(llvm::Value *val, AddressSpace as, bool atEntryBlock = false);
+
     /** Emits an alloca instruction to allocate stack storage of the given
         size.  If a non-zero alignment is specified, the object is also
         allocated at the given alignment.  By default, the alloca
@@ -551,50 +557,59 @@ class FunctionEmitContext {
 
     /** Launch an asynchronous task to run the given function, passing it
         he given argument values. */
-    llvm::Value *LaunchInst(llvm::Value *callee, std::vector<llvm::Value *> &argVals, llvm::Value *launchCount[3]);
+    llvm::Value *LaunchInst(llvm::Value *callee, std::vector<llvm::Value *> &argVals, llvm::Value *launchCount[3],
+                            const FunctionType *funcType);
 
     void SyncInst();
 
     llvm::Instruction *ReturnInst();
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     /** Emit genx_simdcf_any intrinsic.
-        Required when GenX hardware mask is emitted. */
-    llvm::Value *GenXSimdCFAny(llvm::Value *value);
+        Required when Xe hardware mask is emitted. */
+    llvm::Value *XeSimdCFAny(llvm::Value *value);
 
     /** Emit genx_simdcf_predicate intrinsic
-        Required when GenX hardware mask is emitted. */
-    llvm::Value *GenXSimdCFPredicate(llvm::Value *values, llvm::Value *defaults = NULL);
+        Required when Xe hardware mask is emitted. */
+    llvm::Value *XeSimdCFPredicate(llvm::Value *values, llvm::Value *defaults = NULL);
 
     /** Start unmasked region. Sets execution mask to all-active, and return the old mask.*/
-    llvm::Value *GenXStartUnmaskedRegion();
+    llvm::Value *XeStartUnmaskedRegion();
 
     /** End unmasked region. Sets execution mask back using the value from unmask-begin.
         ISPCSIMDCFLowering expect that execMask have alloca+load+store. */
-    void GenXEndUnmaskedRegion(llvm::Value *execMask);
+    void XeEndUnmaskedRegion(llvm::Value *execMask);
 
-    /** Emit L0 format string using genx_print_format_index intrinsics. */
-    llvm::CallInst *GenXLZFormatStr(const std::string &str);
+    /** Emit a string in constant space and get pointer to its first element.
+        GEP constexpr is returned.
+        Args:
+          \p str - constant initializer;
+          \p name - constant name */
+    llvm::Constant *XeCreateConstantString(llvm::StringRef str, llvm::StringRef name = "");
+    /** Similar to XeCreateConstantString but searches for the constant with the provided name first.
+        If there's such constant returns pointer to its first element, otherwise creates new constant
+        and returns pointer to its first element. */
+    llvm::Constant *XeGetOrCreateConstantString(llvm::StringRef str, llvm::StringRef name);
 
     /** Change scalar condition to vector condition before branching if
         emulated uniform condition was found in external scopes and start SIMD control
         flow with simdcf.any intrinsic.
-        Required when GenX hardware mask is emitted. */
-    llvm::Value *GenXPrepareVectorBranch(llvm::Value *value);
+        Required when Xe hardware mask is emitted. */
+    llvm::Value *XePrepareVectorBranch(llvm::Value *value);
 
     /** Emit ISPC-Uniform metadata to llvm instruction. Instruction with
         such metadata will not be predicated in ISPCSIMDCFLowering pass.
-        Required when GenX hardware mask is emitted. */
-    void GenXUniformMetadata(llvm::Value *v);
+        Required when Xe hardware mask is emitted. */
+    void XeUniformMetadata(llvm::Value *v);
 
-    /** Check if current control flow block is inside GenX SIND CF
-        Required when GenX hardware mask is emitted. */
-    bool inGenXSimdCF() const;
+    /** Check if current control flow block is inside Xe SIND CF
+        Required when Xe hardware mask is emitted. */
+    bool inXeSimdCF() const;
 
 #endif
     /** Enables emitting of genx.any intrinsics and the control flow which is
         based on impliit hardware mask. Forces generation of goto/join instructions
         in assembly. */
-    bool emitGenXHardwareMask();
+    bool emitXeHardwareMask();
 
     /** @} */
 
@@ -659,8 +674,8 @@ class FunctionEmitContext {
         the running lanes have executed a 'continue' statement. */
     llvm::BasicBlock *continueTarget;
 
-#ifdef ISPC_GENX_ENABLED
-    /** Final basic block of the function. It is used for GenX to
+#ifdef ISPC_XE_ENABLED
+    /** Final basic block of the function. It is used for Xe to
         disable returned lanes until return point is reached. */
     llvm::BasicBlock *returnPoint;
 #endif

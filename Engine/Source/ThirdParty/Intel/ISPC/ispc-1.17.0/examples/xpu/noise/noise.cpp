@@ -105,7 +105,7 @@ static int run(int niter, int gx, int gy) {
         auto p_dev = ispcrt::Array<Parameters>(device, p);
 
         // Create module and kernel to execute
-        ispcrt::Module module(device, "genx_noise");
+        ispcrt::Module module(device, "xe_noise");
         ispcrt::Kernel kernel(device, module, "noise_ispc");
 
         // Create task queue and execute kernel
@@ -117,11 +117,8 @@ static int run(int niter, int gx, int gy) {
         for (unsigned int i = 0; i < niter; i++) {
             reset_and_start_timer();
             queue.copyToDevice(p_dev);
-            queue.barrier();
             auto res = queue.launch(kernel, p_dev, gx, gy);
-            queue.barrier();
             queue.copyToHost(buf_dev);
-            queue.barrier();
             queue.sync();
             if (res.valid()) {
                 kernelTicks = res.time() * 1e-6;
@@ -198,7 +195,7 @@ int main(int argc, char *argv[]) {
     }
     int success = 0;
 
-    std::cout << "Running test with " << niterations << " iterations of ISPC on GEN and CPU using " << gx << " * " << gy
+    std::cout << "Running test with " << niterations << " iterations of ISPC on Xe and CPU using " << gx << " * " << gy
               << " threads." << std::endl;
     success = run(niterations, gx, gy);
 

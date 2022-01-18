@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -107,13 +107,13 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Regex.h>
 #endif
-#ifdef ISPC_GENX_ENABLED
-#include "gen/GlobalsLocalization.h"
+#ifdef ISPC_XE_ENABLED
+#include "xe/GlobalsLocalization.h"
 #include <LLVMSPIRVLib/LLVMSPIRVLib.h>
 #include <llvm/GenXIntrinsics/GenXIntrOpts.h>
 #include <llvm/GenXIntrinsics/GenXIntrinsics.h>
 #include <llvm/GenXIntrinsics/GenXSPIRVWriterAdaptor.h>
-// Used for GenX gather coalescing
+// Used for Xe gather coalescing
 #include <llvm/Transforms/Utils/Local.h>
 
 // Constant in number of bytes.
@@ -140,11 +140,9 @@ static llvm::Pass *CreateDebugPassFile(int number, llvm::StringRef name);
 
 static llvm::Pass *CreateReplaceStdlibShiftPass();
 
-#ifdef ISPC_GENX_ENABLED
-static llvm::Pass *CreateGenXGatherCoalescingPass();
+#ifdef ISPC_XE_ENABLED
+static llvm::Pass *CreateXeGatherCoalescingPass();
 static llvm::Pass *CreateReplaceLLVMIntrinsics();
-static llvm::Pass *CreateFixDivisionInstructions();
-static llvm::Pass *CreateFixAddressSpace();
 static llvm::Pass *CreateDemotePHIs();
 static llvm::Pass *CreateCheckUnsupportedInsts();
 static llvm::Pass *CreateMangleOpenCLBuiltins();
@@ -482,7 +480,7 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
     optPM.add(llvm::createVerifierPass(), 0);
 
     optPM.add(new llvm::TargetLibraryInfoWrapperPass(llvm::Triple(module->getTargetTriple())));
-    if (!g->target->isGenXTarget()) {
+    if (!g->target->isXeTarget()) {
         llvm::TargetMachine *targetMachine = g->target->GetTargetMachine();
         optPM.getPM().add(createTargetTransformInfoWrapperPass(targetMachine->getTargetIRAnalysis()));
     }
@@ -498,8 +496,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         // run absolutely no optimizations, since the front-end needs us to
         // take the various __pseudo_* functions it has emitted and turn
         // them into something that can actually execute.
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             // Global DCE is required for ISPCSimdCFLoweringPass
             optPM.add(llvm::createGlobalDCEPass());
             // FIXME: temporary solution
@@ -517,13 +515,6 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
 
         optPM.add(CreateIntrinsicsOptPass(), 102);
         optPM.add(CreateIsCompileTimeConstantPass(true));
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
-            // InstructionCombining pass is required for FixDivisionInstructions
-            optPM.add(llvm::createInstructionCombiningPass());
-            optPM.add(CreateFixDivisionInstructions());
-        }
-#endif
         optPM.add(llvm::createFunctionInliningPass());
         optPM.add(CreateMakeInternalFuncsStaticPass());
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
@@ -531,8 +522,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
 #else
         optPM.add(llvm::createCFGSimplificationPass());
 #endif
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             optPM.add(llvm::createPromoteMemoryToRegisterPass());
             optPM.add(llvm::createGlobalsLocalizationPass());
             // Remove dead globals after localization
@@ -541,7 +532,6 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
             optPM.add(llvm::createSROAPass());
             optPM.add(CreateReplaceLLVMIntrinsics());
             optPM.add(CreateCheckUnsupportedInsts());
-            optPM.add(CreateFixAddressSpace());
             optPM.add(CreateMangleOpenCLBuiltins());
             // This pass is required to prepare LLVM IR for open source SPIR-V translator
             optPM.add(
@@ -562,8 +552,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
 
         optPM.add(llvm::createGlobalDCEPass(), 184);
 
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             // FIXME: temporary solution
             optPM.add(llvm::createBreakCriticalEdgesPass());
             optPM.add(CreateDemotePHIs());
@@ -648,11 +638,6 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         optPM.add(llvm::createCFGSimplificationPass());
 #endif
         optPM.add(llvm::createPruneEHPass());
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
-            optPM.add(CreateFixDivisionInstructions());
-        }
-#endif
         optPM.add(llvm::createPostOrderFunctionAttrsLegacyPass());
         optPM.add(llvm::createReversePostOrderFunctionAttrsPass());
 
@@ -680,8 +665,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         optPM.add(llvm::createSROAPass());
 
         optPM.add(llvm::createInstructionCombiningPass());
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             // Inline
             optPM.add(llvm::createCorrelatedValuePropagationPass());
             optPM.add(llvm::createInstructionCombiningPass());
@@ -703,9 +688,9 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
 
         if (g->opt.disableGatherScatterOptimizations == false && g->target->getVectorWidth() > 1) {
             optPM.add(llvm::createInstructionCombiningPass(), 255);
-#ifdef ISPC_GENX_ENABLED
-            if (g->target->isGenXTarget() && !g->opt.disableGenXGatherCoalescing)
-                optPM.add(CreateGenXGatherCoalescingPass());
+#ifdef ISPC_XE_ENABLED
+            if (g->target->isXeTarget() && !g->opt.disableXeGatherCoalescing)
+                optPM.add(CreateXeGatherCoalescingPass());
 #endif
             optPM.add(CreateImproveMemoryOpsPass());
 
@@ -763,8 +748,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         optPM.add(CreateInstructionSimplifyPass());
         optPM.add(llvm::createIndVarSimplifyPass());
         // Currently CM does not support memset/memcpy
-        // so this pass is temporary disabled for GEN.
-        if (!g->target->isGenXTarget()) {
+        // so this pass is temporary disabled for Xe.
+        if (!g->target->isXeTarget()) {
             optPM.add(llvm::createLoopIdiomPass());
         }
         optPM.add(llvm::createLoopDeletionPass());
@@ -777,8 +762,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         optPM.add(CreateIntrinsicsOptPass());
         optPM.add(CreateInstructionSimplifyPass());
         // Currently CM does not support memset/memcpy
-        // so this pass is temporary disabled for GEN.
-        if (!g->target->isGenXTarget()) {
+        // so this pass is temporary disabled for Xe.
+        if (!g->target->isXeTarget()) {
             optPM.add(llvm::createMemCpyOptPass());
         }
         optPM.add(llvm::createSCCPPass());
@@ -795,8 +780,8 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
 #endif
         optPM.add(llvm::createInstructionCombiningPass());
         optPM.add(CreateInstructionSimplifyPass());
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             optPM.add(CreateReplaceLLVMIntrinsics());
         }
 #endif
@@ -807,10 +792,9 @@ void ispc::Optimize(llvm::Module *module, int optLevel) {
         optPM.add(CreateMakeInternalFuncsStaticPass());
         optPM.add(llvm::createGlobalDCEPass());
         optPM.add(llvm::createConstantMergePass());
-#ifdef ISPC_GENX_ENABLED
-        if (g->target->isGenXTarget()) {
+#ifdef ISPC_XE_ENABLED
+        if (g->target->isXeTarget()) {
             optPM.add(CreateCheckUnsupportedInsts());
-            optPM.add(CreateFixAddressSpace());
             optPM.add(CreateMangleOpenCLBuiltins());
             // This pass is required to prepare LLVM IR for open source SPIR-V translator
             optPM.add(
@@ -1463,7 +1447,7 @@ static llvm::Value *lGetBasePtrAndOffsets(llvm::Value *ptrs, llvm::Value **offse
                 // We expect here ConstantVector as
                 // <i64 4, i64 undef, i64 undef, i64 undef, i64 undef, i64 undef, i64 undef, i64 undef>
                 llvm::ConstantVector *cv = llvm::dyn_cast<llvm::ConstantVector>(bop_var->getOperand(1));
-                llvm::Value *shuffle_offset = NULL;
+                llvm::Instruction *shuffle_offset = NULL;
                 if (cv != NULL) {
                     llvm::Value *zeroMask =
 #if ISPC_LLVM_VERSION < ISPC_LLVM_11_0
@@ -1499,7 +1483,8 @@ static llvm::Value *lGetBasePtrAndOffsets(llvm::Value *ptrs, llvm::Value **offse
 #endif
                             llvm::Constant::getNullValue(llvm::Type::getInt32Ty(*g->ctx)));
                         shuffle_offset = new llvm::ShuffleVectorInst(bop_var, llvm::UndefValue::get(bop_var_type),
-                                                                     zeroMask, "shuffle", bop_var);
+                                                                     zeroMask, "shuffle");
+                        shuffle_offset->insertAfter(bop_var);
                     }
                 }
                 if (shuffle_offset != NULL) {
@@ -2101,6 +2086,12 @@ static bool lGSToGSBaseOffsets(llvm::CallInst *callInst) {
                g->target->hasGather() ? "__pseudo_gather_base_offsets32_i16"
                                       : "__pseudo_gather_factored_base_offsets32_i16",
                true, false),
+        GSInfo("__pseudo_gather32_half",
+               g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                      : "__pseudo_gather_factored_base_offsets32_half",
+               g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                      : "__pseudo_gather_factored_base_offsets32_half",
+               true, false),
         GSInfo("__pseudo_gather32_i32",
                g->target->hasGather() ? "__pseudo_gather_base_offsets32_i32"
                                       : "__pseudo_gather_factored_base_offsets32_i32",
@@ -2138,6 +2129,12 @@ static bool lGSToGSBaseOffsets(llvm::CallInst *callInst) {
                g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i16"
                                        : "__pseudo_scatter_factored_base_offsets32_i16",
                false, false),
+        GSInfo("__pseudo_scatter32_half",
+               g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_half"
+                                       : "__pseudo_scatter_factored_base_offsets32_half",
+               g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_half"
+                                       : "__pseudo_scatter_factored_base_offsets32_half",
+               false, false),
         GSInfo("__pseudo_scatter32_i32",
                g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i32"
                                        : "__pseudo_scatter_factored_base_offsets32_i32",
@@ -2173,6 +2170,12 @@ static bool lGSToGSBaseOffsets(llvm::CallInst *callInst) {
                                       : "__pseudo_gather_factored_base_offsets64_i16",
                g->target->hasGather() ? "__pseudo_gather_base_offsets32_i16"
                                       : "__pseudo_gather_factored_base_offsets32_i16",
+               true, false),
+        GSInfo("__pseudo_gather64_half",
+               g->target->hasGather() ? "__pseudo_gather_base_offsets64_half"
+                                      : "__pseudo_gather_factored_base_offsets64_half",
+               g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                      : "__pseudo_gather_factored_base_offsets32_half",
                true, false),
         GSInfo("__pseudo_gather64_i32",
                g->target->hasGather() ? "__pseudo_gather_base_offsets64_i32"
@@ -2210,6 +2213,12 @@ static bool lGSToGSBaseOffsets(llvm::CallInst *callInst) {
                                        : "__pseudo_scatter_factored_base_offsets64_i16",
                g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i16"
                                        : "__pseudo_scatter_factored_base_offsets32_i16",
+               false, false),
+        GSInfo("__pseudo_scatter64_half",
+               g->target->hasScatter() ? "__pseudo_scatter_base_offsets64_half"
+                                       : "__pseudo_scatter_factored_base_offsets64_half",
+               g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_half"
+                                       : "__pseudo_scatter_factored_base_offsets32_half",
                false, false),
         GSInfo("__pseudo_scatter64_i32",
                g->target->hasScatter() ? "__pseudo_scatter_base_offsets64_i32"
@@ -2253,6 +2262,20 @@ static bool lGSToGSBaseOffsets(llvm::CallInst *callInst) {
         GSInfo("__pseudo_prefetch_read_varying_nt",
                g->target->hasVecPrefetch() ? "__pseudo_prefetch_read_varying_nt_native" : "__prefetch_read_varying_nt",
                g->target->hasVecPrefetch() ? "__pseudo_prefetch_read_varying_nt_native" : "__prefetch_read_varying_nt",
+               false, true),
+
+        GSInfo("__pseudo_prefetch_write_varying_1",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_1_native" : "__prefetch_write_varying_1",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_1_native" : "__prefetch_write_varying_1",
+               false, true),
+        GSInfo("__pseudo_prefetch_write_varying_2",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_2_native" : "__prefetch_write_varying_2",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_2_native" : "__prefetch_write_varying_2",
+               false, true),
+
+        GSInfo("__pseudo_prefetch_write_varying_3",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_3_native" : "__prefetch_write_varying_3",
+               g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_3_native" : "__prefetch_write_varying_3",
                false, true),
     };
 
@@ -2413,6 +2436,11 @@ static bool lGSBaseOffsetsGetMoreConst(llvm::CallInst *callInst) {
                  g->target->hasGather() ? "__pseudo_gather_base_offsets32_i16"
                                         : "__pseudo_gather_factored_base_offsets32_i16",
                  true, false),
+        GSBOInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                        : "__pseudo_gather_factored_base_offsets32_half",
+                 g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                        : "__pseudo_gather_factored_base_offsets32_half",
+                 true, false),
         GSBOInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets32_i32"
                                         : "__pseudo_gather_factored_base_offsets32_i32",
                  g->target->hasGather() ? "__pseudo_gather_base_offsets32_i32"
@@ -2443,6 +2471,11 @@ static bool lGSBaseOffsetsGetMoreConst(llvm::CallInst *callInst) {
                                          : "__pseudo_scatter_factored_base_offsets32_i16",
                  g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i16"
                                          : "__pseudo_scatter_factored_base_offsets32_i16",
+                 false, false),
+        GSBOInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_half"
+                                         : "__pseudo_scatter_factored_base_offsets32_half",
+                 g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i16"
+                                         : "__pseudo_scatter_factored_base_offsets32_half",
                  false, false),
         GSBOInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i32"
                                          : "__pseudo_scatter_factored_base_offsets32_i32",
@@ -2480,6 +2513,21 @@ static bool lGSBaseOffsetsGetMoreConst(llvm::CallInst *callInst) {
         GSBOInfo(
             g->target->hasVecPrefetch() ? "__pseudo_prefetch_read_varying_nt_native" : "__prefetch_read_varying_nt",
             g->target->hasVecPrefetch() ? "__pseudo_prefetch_read_varying_nt_native" : "__prefetch_read_varying_nt",
+            false, true),
+
+        GSBOInfo(
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_1_native" : "__prefetch_write_varying_1",
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_1_native" : "__prefetch_write_varying_1",
+            false, true),
+
+        GSBOInfo(
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_2_native" : "__prefetch_write_varying_2",
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_2_native" : "__prefetch_write_varying_2",
+            false, true),
+
+        GSBOInfo(
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_3_native" : "__prefetch_write_varying_3",
+            g->target->hasVecPrefetch() ? "__pseudo_prefetch_write_varying_3_native" : "__prefetch_write_varying_3",
             false, true),
     };
 
@@ -2554,7 +2602,7 @@ static llvm::Value *lComputeCommonPointer(llvm::Value *base, llvm::Value *offset
     Assert(firstOffset != NULL);
     llvm::Value *typeScaleValue =
         firstOffset->getType() == LLVMTypes::Int32Type ? LLVMInt32(typeScale) : LLVMInt64(typeScale);
-    if (g->target->isGenXTarget() && typeScale > 1) {
+    if (g->target->isXeTarget() && typeScale > 1) {
         firstOffset = llvm::BinaryOperator::Create(llvm::Instruction::SDiv, firstOffset, typeScaleValue,
                                                    "scaled_offset", insertBefore);
     }
@@ -2620,6 +2668,9 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
         GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets32_i16"
                                              : "__pseudo_gather_factored_base_offsets32_i16",
                       "__masked_load_i16", "__masked_load_blend_i16", LLVMTypes::Int16Type, 2),
+        GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets32_half"
+                                             : "__pseudo_gather_factored_base_offsets32_half",
+                      "__masked_load_half", "__masked_load_blend_half", LLVMTypes::Float16Type, 2),
         GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets32_i32"
                                              : "__pseudo_gather_factored_base_offsets32_i32",
                       "__masked_load_i32", "__masked_load_blend_i32", LLVMTypes::Int32Type, 4),
@@ -2638,6 +2689,9 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
         GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets64_i16"
                                              : "__pseudo_gather_factored_base_offsets64_i16",
                       "__masked_load_i16", "__masked_load_blend_i16", LLVMTypes::Int16Type, 2),
+        GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets64_half"
+                                             : "__pseudo_gather_factored_base_offsets64_half",
+                      "__masked_load_half", "__masked_load_blend_half", LLVMTypes::Float16Type, 2),
         GatherImpInfo(g->target->hasGather() ? "__pseudo_gather_base_offsets64_i32"
                                              : "__pseudo_gather_factored_base_offsets64_i32",
                       "__masked_load_i32", "__masked_load_blend_i32", LLVMTypes::Int32Type, 4),
@@ -2674,6 +2728,9 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
         ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i16"
                                                : "__pseudo_scatter_factored_base_offsets32_i16",
                        "__pseudo_masked_store_i16", LLVMTypes::Int16VectorPointerType, 2),
+        ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_half"
+                                               : "__pseudo_scatter_factored_base_offsets32_half",
+                       "__pseudo_masked_store_half", LLVMTypes::Float16VectorPointerType, 2),
         ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets32_i32"
                                                : "__pseudo_scatter_factored_base_offsets32_i32",
                        "__pseudo_masked_store_i32", LLVMTypes::Int32VectorPointerType, 4),
@@ -2692,6 +2749,9 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
         ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets64_i16"
                                                : "__pseudo_scatter_factored_base_offsets64_i16",
                        "__pseudo_masked_store_i16", LLVMTypes::Int16VectorPointerType, 2),
+        ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets64_half"
+                                               : "__pseudo_scatter_factored_base_offsets64_half",
+                       "__pseudo_masked_store_half", LLVMTypes::Float16VectorPointerType, 2),
         ScatterImpInfo(g->target->hasScatter() ? "__pseudo_scatter_base_offsets64_i32"
                                                : "__pseudo_scatter_factored_base_offsets64_i32",
                        "__pseudo_masked_store_i32", LLVMTypes::Int32VectorPointerType, 4),
@@ -2774,10 +2834,10 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
             // handled as a scalar load and broadcast across the lanes.
             Debug(pos, "Transformed gather to scalar load and broadcast!");
             llvm::Value *ptr;
-            // For gen we need to cast the base first and only after that get common pointer otherwise
+            // For Xe we need to cast the base first and only after that get common pointer otherwise
             // CM backend will be broken on bitcast i8* to T* instruction with following load.
             // For this we need to re-calculate the offset basing on type sizes.
-            if (g->target->isGenXTarget()) {
+            if (g->target->isXeTarget()) {
                 base = new llvm::BitCastInst(base, llvm::PointerType::get(scalarType, 0), base->getName(), callInst);
                 ptr = lComputeCommonPointer(base, fullOffsets, callInst, typeScale);
             } else {
@@ -2848,8 +2908,8 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
             llvm::Value *ptr;
 
             if (gatherInfo != NULL) {
-                if (g->target->isGenXTarget()) {
-                    // For gen we need to cast the base first and only after that get common pointer otherwise
+                if (g->target->isXeTarget()) {
+                    // For Xe we need to cast the base first and only after that get common pointer otherwise
                     // CM backend will be broken on bitcast i8* to T* instruction with following load.
                     // For this we need to re-calculate the offset basing on type sizes.
                     // Second bitcast to void* does not cause such problem in backend.
@@ -2863,8 +2923,8 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
                 lCopyMetadata(ptr, callInst);
                 Debug(pos, "Transformed gather to unaligned vector load!");
                 bool doBlendLoad = false;
-#ifdef ISPC_GENX_ENABLED
-                doBlendLoad = g->target->isGenXTarget() && g->opt.enableGenXUnsafeMaskedLoad;
+#ifdef ISPC_XE_ENABLED
+                doBlendLoad = g->target->isXeTarget() && g->opt.enableXeUnsafeMaskedLoad;
 #endif
                 llvm::Instruction *newCall =
                     lCallInst(doBlendLoad ? gatherInfo->blendMaskedFunc : gatherInfo->loadMaskedFunc, ptr, mask,
@@ -2889,8 +2949,8 @@ static bool lGSToLoadStore(llvm::CallInst *callInst) {
 ///////////////////////////////////////////////////////////////////////////
 // MaskedStoreOptPass
 
-#ifdef ISPC_GENX_ENABLED
-static llvm::Function *lGenXMaskedInt8Inst(llvm::Instruction *inst, bool isStore) {
+#ifdef ISPC_XE_ENABLED
+static llvm::Function *lXeMaskedInt8Inst(llvm::Instruction *inst, bool isStore) {
     std::string maskedFuncName;
     if (isStore) {
         maskedFuncName = "masked_store_i8";
@@ -2904,8 +2964,8 @@ static llvm::Function *lGenXMaskedInt8Inst(llvm::Instruction *inst, bool isStore
     return m->module->getFunction("__" + maskedFuncName);
 }
 
-static llvm::CallInst *lGenXStoreInst(llvm::Value *val, llvm::Value *ptr, llvm::Instruction *inst) {
-    Assert(g->target->isGenXTarget());
+static llvm::CallInst *lXeStoreInst(llvm::Value *val, llvm::Value *ptr, llvm::Instruction *inst) {
+    Assert(g->target->isXeTarget());
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
     Assert(llvm::isa<llvm::FixedVectorType>(val->getType()));
     llvm::FixedVectorType *valVecType = llvm::dyn_cast<llvm::FixedVectorType>(val->getType());
@@ -2922,9 +2982,10 @@ static llvm::CallInst *lGenXStoreInst(llvm::Value *val, llvm::Value *ptr, llvm::
     // correctly.
     if (valVecType->getPrimitiveSizeInBits() / 8 < 16) {
         Assert(valVecType->getScalarType() == LLVMTypes::Int8Type);
-        if (llvm::Function *maskedFunc = lGenXMaskedInt8Inst(inst, true))
+        if (llvm::Function *maskedFunc = lXeMaskedInt8Inst(inst, true)) {
+            // @__masked_store_$1(<WIDTH x $1>* nocapture, <WIDTH x $1>, <WIDTH x MASK> %mask)
             return llvm::dyn_cast<llvm::CallInst>(lCallInst(maskedFunc, ptr, val, LLVMMaskAllOn, ""));
-        else {
+        } else {
             return NULL;
         }
     }
@@ -2935,7 +2996,7 @@ static llvm::CallInst *lGenXStoreInst(llvm::Value *val, llvm::Value *ptr, llvm::
     return llvm::CallInst::Create(Fn, {svm_st_zext, val}, inst->getName());
 }
 
-static llvm::CallInst *lGenXLoadInst(llvm::Value *ptr, llvm::Type *retType, llvm::Instruction *inst) {
+static llvm::CallInst *lXeLoadInst(llvm::Value *ptr, llvm::Type *retType, llvm::Instruction *inst) {
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
     Assert(llvm::isa<llvm::FixedVectorType>(retType));
     llvm::FixedVectorType *retVecType = llvm::dyn_cast<llvm::FixedVectorType>(retType);
@@ -2952,9 +3013,12 @@ static llvm::CallInst *lGenXLoadInst(llvm::Value *ptr, llvm::Type *retType, llvm
     // correctly.
     if (retVecType->getPrimitiveSizeInBits() / 8 < 16) {
         Assert(retVecType->getScalarType() == LLVMTypes::Int8Type);
-        if (llvm::Function *maskedFunc = lGenXMaskedInt8Inst(inst, false))
-            return llvm::dyn_cast<llvm::CallInst>(lCallInst(maskedFunc, ptr, LLVMMaskAllOn, ""));
-        else {
+        if (llvm::Function *maskedFunc = lXeMaskedInt8Inst(inst, false)) {
+            // <WIDTH x $1> @__masked_load_i8(i8 *, <WIDTH x MASK> %mask)
+            // Cast pointer to i8*
+            ptr = new llvm::BitCastInst(ptr, LLVMTypes::Int8PointerType, "ptr_to_i8", inst);
+            return llvm::dyn_cast<llvm::CallInst>(lCallInst(maskedFunc, ptr, LLVMMaskAllOn, "_masked_load_i8"));
+        } else {
             return NULL;
         }
     }
@@ -2983,15 +3047,27 @@ static bool lImproveMaskedStore(llvm::CallInst *callInst) {
         const int align;
     };
 
-    MSInfo msInfo[] = {MSInfo("__pseudo_masked_store_i8", 1),  MSInfo("__pseudo_masked_store_i16", 2),
-                       MSInfo("__pseudo_masked_store_i32", 4), MSInfo("__pseudo_masked_store_float", 4),
-                       MSInfo("__pseudo_masked_store_i64", 8), MSInfo("__pseudo_masked_store_double", 8),
-                       MSInfo("__masked_store_blend_i8", 1),   MSInfo("__masked_store_blend_i16", 2),
-                       MSInfo("__masked_store_blend_i32", 4),  MSInfo("__masked_store_blend_float", 4),
-                       MSInfo("__masked_store_blend_i64", 8),  MSInfo("__masked_store_blend_double", 8),
-                       MSInfo("__masked_store_i8", 1),         MSInfo("__masked_store_i16", 2),
-                       MSInfo("__masked_store_i32", 4),        MSInfo("__masked_store_float", 4),
-                       MSInfo("__masked_store_i64", 8),        MSInfo("__masked_store_double", 8)};
+    MSInfo msInfo[] = {MSInfo("__pseudo_masked_store_i8", 1),
+                       MSInfo("__pseudo_masked_store_i16", 2),
+                       MSInfo("__pseudo_masked_store_half", 2),
+                       MSInfo("__pseudo_masked_store_i32", 4),
+                       MSInfo("__pseudo_masked_store_float", 4),
+                       MSInfo("__pseudo_masked_store_i64", 8),
+                       MSInfo("__pseudo_masked_store_double", 8),
+                       MSInfo("__masked_store_blend_i8", 1),
+                       MSInfo("__masked_store_blend_i16", 2),
+                       MSInfo("__masked_store_blend_half", 2),
+                       MSInfo("__masked_store_blend_i32", 4),
+                       MSInfo("__masked_store_blend_float", 4),
+                       MSInfo("__masked_store_blend_i64", 8),
+                       MSInfo("__masked_store_blend_double", 8),
+                       MSInfo("__masked_store_i8", 1),
+                       MSInfo("__masked_store_i16", 2),
+                       MSInfo("__masked_store_half", 2),
+                       MSInfo("__masked_store_i32", 4),
+                       MSInfo("__masked_store_float", 4),
+                       MSInfo("__masked_store_i64", 8),
+                       MSInfo("__masked_store_double", 8)};
     llvm::Function *called = callInst->getCalledFunction();
 
     int nMSFuncs = sizeof(msInfo) / sizeof(msInfo[0]);
@@ -3021,15 +3097,15 @@ static bool lImproveMaskedStore(llvm::CallInst *callInst) {
         // The mask is all on, so turn this into a regular store
         llvm::Type *rvalueType = rvalue->getType();
         llvm::Instruction *store = NULL;
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
         // InternalLinkage check is to prevent generation of SVM store when the pointer came from caller.
         // Since it can be allocated in a caller, it may be allocated on register. Possible svm store
         // is resolved after inlining. TODO: problems can be met here in case of Stack Calls.
-        if (g->target->isGenXTarget() && GetAddressSpace(lvalue) == AddressSpace::External &&
+        if (g->target->isXeTarget() && GetAddressSpace(lvalue) == AddressSpace::ispc_global &&
             callInst->getParent()->getParent()->getLinkage() != llvm::GlobalValue::LinkageTypes::InternalLinkage) {
-            store = lGenXStoreInst(rvalue, lvalue, callInst);
-        } else if (!g->target->isGenXTarget() ||
-                   (g->target->isGenXTarget() && GetAddressSpace(lvalue) == AddressSpace::Local))
+            store = lXeStoreInst(rvalue, lvalue, callInst);
+        } else if (!g->target->isXeTarget() ||
+                   (g->target->isXeTarget() && GetAddressSpace(lvalue) == AddressSpace::ispc_default))
 #endif
         {
             llvm::Type *ptrType = llvm::PointerType::get(rvalueType, 0);
@@ -3046,10 +3122,10 @@ static bool lImproveMaskedStore(llvm::CallInst *callInst) {
             llvm::ReplaceInstWithInst(callInst, store);
             return true;
         }
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
     } else {
-        if (g->target->isGenXTarget() && GetAddressSpace(lvalue) == AddressSpace::External) {
-            // In thuis case we use masked_store which on genx target causes scatter usage.
+        if (g->target->isXeTarget() && GetAddressSpace(lvalue) == AddressSpace::ispc_global) {
+            // In thuis case we use masked_store which on Xe target causes scatter usage.
             // Get the source position from the metadata attached to the call
             // instruction so that we can issue PerformanceWarning()s below.
             SourcePos pos;
@@ -3075,24 +3151,26 @@ static bool lImproveMaskedLoad(llvm::CallInst *callInst, llvm::BasicBlock::itera
 
     llvm::Function *called = callInst->getCalledFunction();
     // TODO: we should use dynamic data structure for MLInfo and fill
-    // it differently for GenX and CPU targets. It will also help
-    // to avoid declaration of GenX intrinsics for CPU targets.
+    // it differently for Xe and CPU targets. It will also help
+    // to avoid declaration of Xe intrinsics for CPU targets.
     // It should be changed seamlessly here and in all similar places in this file.
-    MLInfo mlInfo[] = {MLInfo("__masked_load_i8", 1),  MLInfo("__masked_load_i16", 2),
-                       MLInfo("__masked_load_i32", 4), MLInfo("__masked_load_float", 4),
-                       MLInfo("__masked_load_i64", 8), MLInfo("__masked_load_double", 8)};
-    MLInfo genxInfo[] = {MLInfo("__masked_load_i8", 1),        MLInfo("__masked_load_i16", 2),
-                         MLInfo("__masked_load_i32", 4),       MLInfo("__masked_load_float", 4),
-                         MLInfo("__masked_load_i64", 8),       MLInfo("__masked_load_double", 8),
-                         MLInfo("__masked_load_blend_i8", 1),  MLInfo("__masked_load_blend_i16", 2),
-                         MLInfo("__masked_load_blend_i32", 4), MLInfo("__masked_load_blend_float", 4),
-                         MLInfo("__masked_load_blend_i64", 8), MLInfo("__masked_load_blend_double", 8)};
+    MLInfo mlInfo[] = {MLInfo("__masked_load_i8", 1),    MLInfo("__masked_load_i16", 2),
+                       MLInfo("__masked_load_half", 2),  MLInfo("__masked_load_i32", 4),
+                       MLInfo("__masked_load_float", 4), MLInfo("__masked_load_i64", 8),
+                       MLInfo("__masked_load_double", 8)};
+    MLInfo xeInfo[] = {MLInfo("__masked_load_i8", 1),        MLInfo("__masked_load_i16", 2),
+                       MLInfo("__masked_load_half", 2),      MLInfo("__masked_load_i32", 4),
+                       MLInfo("__masked_load_float", 4),     MLInfo("__masked_load_i64", 8),
+                       MLInfo("__masked_load_double", 8),    MLInfo("__masked_load_blend_i8", 1),
+                       MLInfo("__masked_load_blend_i16", 2), MLInfo("__masked_load_blend_half", 2),
+                       MLInfo("__masked_load_blend_i32", 4), MLInfo("__masked_load_blend_float", 4),
+                       MLInfo("__masked_load_blend_i64", 8), MLInfo("__masked_load_blend_double", 8)};
     MLInfo *info = NULL;
-    if (g->target->isGenXTarget()) {
-        int nFuncs = sizeof(genxInfo) / sizeof(genxInfo[0]);
+    if (g->target->isXeTarget()) {
+        int nFuncs = sizeof(xeInfo) / sizeof(xeInfo[0]);
         for (int i = 0; i < nFuncs; ++i) {
-            if (genxInfo[i].func != NULL && called == genxInfo[i].func) {
-                info = &genxInfo[i];
+            if (xeInfo[i].func != NULL && called == xeInfo[i].func) {
+                info = &xeInfo[i];
                 break;
             }
         }
@@ -3120,15 +3198,15 @@ static bool lImproveMaskedLoad(llvm::CallInst *callInst, llvm::BasicBlock::itera
     } else if (maskStatus == MaskStatus::all_on) {
         // The mask is all on, so turn this into a regular load
         llvm::Instruction *load = NULL;
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
         // InternalLinkage check is to prevent generation of SVM load when the pointer came from caller.
         // Since it can be allocated in a caller, it may be allocated on register. Possible svm load
         // is resolved after inlining. TODO: problems can be met here in case of Stack Calls.
-        if (g->target->isGenXTarget() && GetAddressSpace(ptr) == AddressSpace::External &&
+        if (g->target->isXeTarget() && GetAddressSpace(ptr) == AddressSpace::ispc_global &&
             callInst->getParent()->getParent()->getLinkage() != llvm::GlobalValue::LinkageTypes::InternalLinkage) {
-            load = lGenXLoadInst(ptr, callInst->getType(), callInst);
-        } else if (!g->target->isGenXTarget() ||
-                   (g->target->isGenXTarget() && GetAddressSpace(ptr) == AddressSpace::Local))
+            load = lXeLoadInst(ptr, callInst->getType(), callInst);
+        } else if (!g->target->isXeTarget() ||
+                   (g->target->isXeTarget() && GetAddressSpace(ptr) == AddressSpace::ispc_default))
 #endif
         {
             llvm::Type *ptrType = llvm::PointerType::get(callInst->getType(), 0);
@@ -4286,6 +4364,7 @@ static bool lReplacePseudoMaskedStore(llvm::CallInst *callInst) {
     LMSInfo msInfo[] = {
         LMSInfo("__pseudo_masked_store_i8", "__masked_store_blend_i8", "__masked_store_i8"),
         LMSInfo("__pseudo_masked_store_i16", "__masked_store_blend_i16", "__masked_store_i16"),
+        LMSInfo("__pseudo_masked_store_half", "__masked_store_blend_half", "__masked_store_half"),
         LMSInfo("__pseudo_masked_store_i32", "__masked_store_blend_i32", "__masked_store_i32"),
         LMSInfo("__pseudo_masked_store_float", "__masked_store_blend_float", "__masked_store_float"),
         LMSInfo("__pseudo_masked_store_i64", "__masked_store_blend_i64", "__masked_store_i64"),
@@ -4335,6 +4414,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
     LowerGSInfo lgsInfo[] = {
         LowerGSInfo("__pseudo_gather32_i8", "__gather32_i8", true, false),
         LowerGSInfo("__pseudo_gather32_i16", "__gather32_i16", true, false),
+        LowerGSInfo("__pseudo_gather32_half", "__gather32_half", true, false),
         LowerGSInfo("__pseudo_gather32_i32", "__gather32_i32", true, false),
         LowerGSInfo("__pseudo_gather32_float", "__gather32_float", true, false),
         LowerGSInfo("__pseudo_gather32_i64", "__gather32_i64", true, false),
@@ -4342,6 +4422,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_gather64_i8", "__gather64_i8", true, false),
         LowerGSInfo("__pseudo_gather64_i16", "__gather64_i16", true, false),
+        LowerGSInfo("__pseudo_gather64_half", "__gather64_half", true, false),
         LowerGSInfo("__pseudo_gather64_i32", "__gather64_i32", true, false),
         LowerGSInfo("__pseudo_gather64_float", "__gather64_float", true, false),
         LowerGSInfo("__pseudo_gather64_i64", "__gather64_i64", true, false),
@@ -4349,6 +4430,8 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_gather_factored_base_offsets32_i8", "__gather_factored_base_offsets32_i8", true, false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets32_i16", "__gather_factored_base_offsets32_i16", true, false),
+        LowerGSInfo("__pseudo_gather_factored_base_offsets32_half", "__gather_factored_base_offsets32_half", true,
+                    false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets32_i32", "__gather_factored_base_offsets32_i32", true, false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets32_float", "__gather_factored_base_offsets32_float", true,
                     false),
@@ -4358,6 +4441,8 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_gather_factored_base_offsets64_i8", "__gather_factored_base_offsets64_i8", true, false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets64_i16", "__gather_factored_base_offsets64_i16", true, false),
+        LowerGSInfo("__pseudo_gather_factored_base_offsets64_half", "__gather_factored_base_offsets64_half", true,
+                    false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets64_i32", "__gather_factored_base_offsets64_i32", true, false),
         LowerGSInfo("__pseudo_gather_factored_base_offsets64_float", "__gather_factored_base_offsets64_float", true,
                     false),
@@ -4367,6 +4452,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_gather_base_offsets32_i8", "__gather_base_offsets32_i8", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets32_i16", "__gather_base_offsets32_i16", true, false),
+        LowerGSInfo("__pseudo_gather_base_offsets32_half", "__gather_base_offsets32_half", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets32_i32", "__gather_base_offsets32_i32", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets32_float", "__gather_base_offsets32_float", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets32_i64", "__gather_base_offsets32_i64", true, false),
@@ -4374,6 +4460,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_gather_base_offsets64_i8", "__gather_base_offsets64_i8", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets64_i16", "__gather_base_offsets64_i16", true, false),
+        LowerGSInfo("__pseudo_gather_base_offsets64_half", "__gather_base_offsets64_half", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets64_i32", "__gather_base_offsets64_i32", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets64_float", "__gather_base_offsets64_float", true, false),
         LowerGSInfo("__pseudo_gather_base_offsets64_i64", "__gather_base_offsets64_i64", true, false),
@@ -4381,6 +4468,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_scatter32_i8", "__scatter32_i8", false, false),
         LowerGSInfo("__pseudo_scatter32_i16", "__scatter32_i16", false, false),
+        LowerGSInfo("__pseudo_scatter32_half", "__scatter32_half", false, false),
         LowerGSInfo("__pseudo_scatter32_i32", "__scatter32_i32", false, false),
         LowerGSInfo("__pseudo_scatter32_float", "__scatter32_float", false, false),
         LowerGSInfo("__pseudo_scatter32_i64", "__scatter32_i64", false, false),
@@ -4388,6 +4476,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_scatter64_i8", "__scatter64_i8", false, false),
         LowerGSInfo("__pseudo_scatter64_i16", "__scatter64_i16", false, false),
+        LowerGSInfo("__pseudo_scatter64_half", "__scatter64_half", false, false),
         LowerGSInfo("__pseudo_scatter64_i32", "__scatter64_i32", false, false),
         LowerGSInfo("__pseudo_scatter64_float", "__scatter64_float", false, false),
         LowerGSInfo("__pseudo_scatter64_i64", "__scatter64_i64", false, false),
@@ -4396,6 +4485,8 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
         LowerGSInfo("__pseudo_scatter_factored_base_offsets32_i8", "__scatter_factored_base_offsets32_i8", false,
                     false),
         LowerGSInfo("__pseudo_scatter_factored_base_offsets32_i16", "__scatter_factored_base_offsets32_i16", false,
+                    false),
+        LowerGSInfo("__pseudo_scatter_factored_base_offsets32_half", "__scatter_factored_base_offsets32_half", false,
                     false),
         LowerGSInfo("__pseudo_scatter_factored_base_offsets32_i32", "__scatter_factored_base_offsets32_i32", false,
                     false),
@@ -4410,6 +4501,8 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
                     false),
         LowerGSInfo("__pseudo_scatter_factored_base_offsets64_i16", "__scatter_factored_base_offsets64_i16", false,
                     false),
+        LowerGSInfo("__pseudo_scatter_factored_base_offsets64_half", "__scatter_factored_base_offsets64_half", false,
+                    false),
         LowerGSInfo("__pseudo_scatter_factored_base_offsets64_i32", "__scatter_factored_base_offsets64_i32", false,
                     false),
         LowerGSInfo("__pseudo_scatter_factored_base_offsets64_float", "__scatter_factored_base_offsets64_float", false,
@@ -4421,6 +4514,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_scatter_base_offsets32_i8", "__scatter_base_offsets32_i8", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets32_i16", "__scatter_base_offsets32_i16", false, false),
+        LowerGSInfo("__pseudo_scatter_base_offsets32_half", "__scatter_base_offsets32_half", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets32_i32", "__scatter_base_offsets32_i32", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets32_float", "__scatter_base_offsets32_float", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets32_i64", "__scatter_base_offsets32_i64", false, false),
@@ -4428,6 +4522,7 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_scatter_base_offsets64_i8", "__scatter_base_offsets64_i8", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets64_i16", "__scatter_base_offsets64_i16", false, false),
+        LowerGSInfo("__pseudo_scatter_base_offsets64_half", "__scatter_base_offsets64_half", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets64_i32", "__scatter_base_offsets64_i32", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets64_float", "__scatter_base_offsets64_float", false, false),
         LowerGSInfo("__pseudo_scatter_base_offsets64_i64", "__scatter_base_offsets64_i64", false, false),
@@ -4444,6 +4539,15 @@ static bool lReplacePseudoGS(llvm::CallInst *callInst) {
 
         LowerGSInfo("__pseudo_prefetch_read_varying_nt", "__prefetch_read_varying_nt", false, true),
         LowerGSInfo("__pseudo_prefetch_read_varying_nt_native", "__prefetch_read_varying_nt_native", false, true),
+
+        LowerGSInfo("__pseudo_prefetch_write_varying_1", "__prefetch_write_varying_1", false, true),
+        LowerGSInfo("__pseudo_prefetch_write_varying_1_native", "__prefetch_write_varying_1_native", false, true),
+
+        LowerGSInfo("__pseudo_prefetch_write_varying_2", "__prefetch_write_varying_2", false, true),
+        LowerGSInfo("__pseudo_prefetch_write_varying_2_native", "__prefetch_write_varying_2_native", false, true),
+
+        LowerGSInfo("__pseudo_prefetch_write_varying_3", "__prefetch_write_varying_3", false, true),
+        LowerGSInfo("__pseudo_prefetch_write_varying_3_native", "__prefetch_write_varying_3_native", false, true),
     };
 
     llvm::Function *calledFunc = callInst->getCalledFunction();
@@ -4687,7 +4791,7 @@ void DebugPassFile::run(llvm::Module &module, bool init) {
     std::error_code EC;
     char fname[100];
     snprintf(fname, sizeof(fname), "%s_%d_%s.ll", init ? "init" : "ir", pnum, sanitize(std::string(pname)).c_str());
-    llvm::raw_fd_ostream OS(fname, EC, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream OS(fname, EC, llvm::sys::fs::OF_None);
     Assert(!EC && "IR dump file creation failed!");
     module.print(OS, 0);
 }
@@ -4747,126 +4851,149 @@ bool MakeInternalFuncsStaticPass::runOnModule(llvm::Module &module) {
         "__gather_factored_base_offsets32_i16",
         "__gather_factored_base_offsets32_i32",
         "__gather_factored_base_offsets32_i64",
+        "__gather_factored_base_offsets32_half",
         "__gather_factored_base_offsets32_float",
         "__gather_factored_base_offsets32_double",
         "__gather_factored_base_offsets64_i8",
         "__gather_factored_base_offsets64_i16",
         "__gather_factored_base_offsets64_i32",
         "__gather_factored_base_offsets64_i64",
+        "__gather_factored_base_offsets64_half",
         "__gather_factored_base_offsets64_float",
         "__gather_factored_base_offsets64_double",
         "__gather_base_offsets32_i8",
         "__gather_base_offsets32_i16",
         "__gather_base_offsets32_i32",
         "__gather_base_offsets32_i64",
+        "__gather_base_offsets32_half",
         "__gather_base_offsets32_float",
         "__gather_base_offsets32_double",
         "__gather_base_offsets64_i8",
         "__gather_base_offsets64_i16",
         "__gather_base_offsets64_i32",
         "__gather_base_offsets64_i64",
+        "__gather_base_offsets64_half",
         "__gather_base_offsets64_float",
         "__gather_base_offsets64_double",
         "__gather32_i8",
         "__gather32_i16",
         "__gather32_i32",
         "__gather32_i64",
+        "__gather32_half",
         "__gather32_float",
         "__gather32_double",
         "__gather64_i8",
         "__gather64_i16",
         "__gather64_i32",
         "__gather64_i64",
+        "__gather64_half",
         "__gather64_float",
         "__gather64_double",
         "__gather_elt32_i8",
         "__gather_elt32_i16",
         "__gather_elt32_i32",
         "__gather_elt32_i64",
+        "__gather_elt32_half",
         "__gather_elt32_float",
         "__gather_elt32_double",
         "__gather_elt64_i8",
         "__gather_elt64_i16",
         "__gather_elt64_i32",
         "__gather_elt64_i64",
+        "__gather_elt64_half",
         "__gather_elt64_float",
         "__gather_elt64_double",
         "__masked_load_i8",
         "__masked_load_i16",
         "__masked_load_i32",
         "__masked_load_i64",
+        "__masked_load_half",
         "__masked_load_float",
         "__masked_load_double",
         "__masked_store_i8",
         "__masked_store_i16",
         "__masked_store_i32",
         "__masked_store_i64",
+        "__masked_store_half",
         "__masked_store_float",
         "__masked_store_double",
         "__masked_store_blend_i8",
         "__masked_store_blend_i16",
         "__masked_store_blend_i32",
         "__masked_store_blend_i64",
+        "__masked_store_blend_half",
         "__masked_store_blend_float",
         "__masked_store_blend_double",
         "__scatter_factored_base_offsets32_i8",
         "__scatter_factored_base_offsets32_i16",
         "__scatter_factored_base_offsets32_i32",
         "__scatter_factored_base_offsets32_i64",
+        "__scatter_factored_base_offsets32_half",
         "__scatter_factored_base_offsets32_float",
         "__scatter_factored_base_offsets32_double",
         "__scatter_factored_base_offsets64_i8",
         "__scatter_factored_base_offsets64_i16",
         "__scatter_factored_base_offsets64_i32",
         "__scatter_factored_base_offsets64_i64",
+        "__scatter_factored_base_offsets64_half",
         "__scatter_factored_base_offsets64_float",
         "__scatter_factored_base_offsets64_double",
         "__scatter_base_offsets32_i8",
         "__scatter_base_offsets32_i16",
         "__scatter_base_offsets32_i32",
         "__scatter_base_offsets32_i64",
+        "__scatter_base_offsets32_half",
         "__scatter_base_offsets32_float",
         "__scatter_base_offsets32_double",
         "__scatter_base_offsets64_i8",
         "__scatter_base_offsets64_i16",
         "__scatter_base_offsets64_i32",
         "__scatter_base_offsets64_i64",
+        "__scatter_base_offsets64_half",
         "__scatter_base_offsets64_float",
         "__scatter_base_offsets64_double",
         "__scatter_elt32_i8",
         "__scatter_elt32_i16",
         "__scatter_elt32_i32",
         "__scatter_elt32_i64",
+        "__scatter_elt32_half",
         "__scatter_elt32_float",
         "__scatter_elt32_double",
         "__scatter_elt64_i8",
         "__scatter_elt64_i16",
         "__scatter_elt64_i32",
         "__scatter_elt64_i64",
+        "__scatter_elt64_half",
         "__scatter_elt64_float",
         "__scatter_elt64_double",
         "__scatter32_i8",
         "__scatter32_i16",
         "__scatter32_i32",
         "__scatter32_i64",
+        "__scatter32_half",
         "__scatter32_float",
         "__scatter32_double",
         "__scatter64_i8",
         "__scatter64_i16",
         "__scatter64_i32",
         "__scatter64_i64",
+        "__scatter64_half",
         "__scatter64_float",
         "__scatter64_double",
         "__prefetch_read_varying_1",
         "__prefetch_read_varying_2",
         "__prefetch_read_varying_3",
         "__prefetch_read_varying_nt",
+        "__prefetch_write_varying_1",
+        "__prefetch_write_varying_2",
+        "__prefetch_write_varying_3",
         "__keep_funcs_live",
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
         "__masked_load_blend_i8",
         "__masked_load_blend_i16",
         "__masked_load_blend_i32",
         "__masked_load_blend_i64",
+        "__masked_load_blend_half",
         "__masked_load_blend_float",
         "__masked_load_blend_double",
 #endif
@@ -5285,26 +5412,26 @@ bool ReplaceStdlibShiftPass::runOnFunction(llvm::Function &F) {
 
 static llvm::Pass *CreateReplaceStdlibShiftPass() { return new ReplaceStdlibShiftPass(); }
 
-#ifdef ISPC_GENX_ENABLED
+#ifdef ISPC_XE_ENABLED
 
 ///////////////////////////////////////////////////////////////////////////
-// GenXGatherCoalescingPass
+// XeGatherCoalescingPass
 
-/** This pass performs gather coalescing for GenX target.
+/** This pass performs gather coalescing for Xe target.
  */
-class GenXGatherCoalescing : public llvm::FunctionPass {
+class XeGatherCoalescing : public llvm::FunctionPass {
   public:
     static char ID;
-    GenXGatherCoalescing() : FunctionPass(ID) {}
+    XeGatherCoalescing() : FunctionPass(ID) {}
 
-    llvm::StringRef getPassName() const { return "GenX Gather Coalescing"; }
+    llvm::StringRef getPassName() const { return "Xe Gather Coalescing"; }
 
     bool runOnBasicBlock(llvm::BasicBlock &BB);
 
     bool runOnFunction(llvm::Function &Fn);
 };
 
-char GenXGatherCoalescing::ID = 0;
+char XeGatherCoalescing::ID = 0;
 
 // Returns pointer to pseudo_gather CallInst if inst is
 // actually a pseudo_gather
@@ -5686,7 +5813,7 @@ static bool lPrepareGEPs(llvm::BasicBlock &bb) {
                 if (GEP->getNumOperands() == 2)
                     foundGEP = GEP;
                 else
-                    foundGEP = llvm::GetElementPtrInst::Create(nullptr, ptr, {idx}, "lowered_gep", GEP);
+                    foundGEP = llvm::GetElementPtrInst::Create(PTYPE(ptr), ptr, {idx}, "lowered_gep", GEP);
 
                 ptrData[ptr][idx] = foundGEP;
             }
@@ -5698,7 +5825,11 @@ static bool lPrepareGEPs(llvm::BasicBlock &bb) {
             args.push_back(llvm::Constant::getNullValue(GEP->getOperand(1)->getType()));
             for (unsigned i = 2, end = GEP->getNumOperands(); i < end; ++i)
                 args.push_back(GEP->getOperand(i));
-            auto foundGEPUser = llvm::GetElementPtrInst::Create(nullptr, foundGEP, args, "lowered_gep_succ", GEP);
+            Assert(foundGEP != NULL);
+            Assert(llvm::isa<llvm::GetElementPtrInst>(foundGEP));
+            auto foundGEPUser = llvm::GetElementPtrInst::Create(
+                llvm::dyn_cast<llvm::GetElementPtrInst>(foundGEP)->getSourceElementType(), foundGEP, args,
+                "lowered_gep_succ", GEP);
             GEP->replaceAllUsesWith(foundGEPUser);
             lCopyMetadata(foundGEPUser, GEP);
             dead.push_back(GEP);
@@ -5725,7 +5856,7 @@ static bool lCheckForPossibleStore(llvm::Instruction *inst) {
             return true;
     } else if (auto SI = llvm::dyn_cast<llvm::StoreInst>(inst)) {
         // May introduce load-store-load sequence
-        if (GetAddressSpace(SI->getPointerOperand()) == AddressSpace::External)
+        if (GetAddressSpace(SI->getPointerOperand()) == AddressSpace::ispc_global)
             return true;
     }
 
@@ -5734,8 +5865,8 @@ static bool lCheckForPossibleStore(llvm::Instruction *inst) {
 }
 
 // Run optimization for all collected GEPs
-static bool lRunGenXCoalescing(std::map<llvm::Value *, std::map<llvm::Type *, std::vector<PtrUse>>> &ptrUses,
-                               std::vector<llvm::Instruction *> &dead) {
+static bool lRunXeCoalescing(std::map<llvm::Value *, std::map<llvm::Type *, std::vector<PtrUse>>> &ptrUses,
+                             std::vector<llvm::Instruction *> &dead) {
     bool modifiedAny = false;
 
     for (auto data : ptrUses) {
@@ -5766,7 +5897,7 @@ static bool lVectorizeLoads(llvm::BasicBlock &bb) {
         // Check for possible load-store-load sequence
         if (lCheckForPossibleStore(inst)) {
             // Perform early run of the optimization
-            modifiedAny |= lRunGenXCoalescing(ptrUses, dead);
+            modifiedAny |= lRunXeCoalescing(ptrUses, dead);
             // All current changes were applied
             ptrUses.clear();
             handledGEPs.clear();
@@ -5784,7 +5915,7 @@ static bool lVectorizeLoads(llvm::BasicBlock &bb) {
         // Since gathers work with SVM, this optimization
         // should be applied to external address space only
         llvm::Value *ptr = GEP->getPointerOperand();
-        if (GetAddressSpace(ptr) != AddressSpace::External)
+        if (GetAddressSpace(ptr) != AddressSpace::ispc_global)
             continue;
 
         // GEP was already added to the list for optimization
@@ -5800,8 +5931,9 @@ static bool lVectorizeLoads(llvm::BasicBlock &bb) {
         // It is not done now.
         if (!GEP->hasAllConstantIndices()) {
             llvm::GetElementPtrInst *newGEP = llvm::GetElementPtrInst::Create(
-                nullptr, GEP, {llvm::dyn_cast<llvm::ConstantInt>(llvm::ConstantInt::get(LLVMTypes::Int32Type, 0))},
-                "ptr_bypass", GEP->getParent());
+                GEP->getSourceElementType(), GEP,
+                {llvm::dyn_cast<llvm::ConstantInt>(llvm::ConstantInt::get(LLVMTypes::Int32Type, 0))}, "ptr_bypass",
+                GEP->getParent());
             newGEP->moveAfter(GEP);
             GEP->replaceAllUsesWith(newGEP);
             lCopyMetadata(newGEP, GEP);
@@ -5830,7 +5962,7 @@ static bool lVectorizeLoads(llvm::BasicBlock &bb) {
     }
 
     // Run optimization
-    modifiedAny |= lRunGenXCoalescing(ptrUses, dead);
+    modifiedAny |= lRunXeCoalescing(ptrUses, dead);
 
     // TODO: perform investigation on compilation failure with it
 #if 0
@@ -5842,20 +5974,20 @@ static bool lVectorizeLoads(llvm::BasicBlock &bb) {
     return modifiedAny;
 }
 
-bool GenXGatherCoalescing::runOnBasicBlock(llvm::BasicBlock &bb) {
-    DEBUG_START_PASS("GenXGatherCoalescing");
+bool XeGatherCoalescing::runOnBasicBlock(llvm::BasicBlock &bb) {
+    DEBUG_START_PASS("XeGatherCoalescing");
 
     bool modifiedAny = lPrepareGEPs(bb);
 
     modifiedAny |= lVectorizeLoads(bb);
 
-    DEBUG_END_PASS("GenXGatherCoalescing");
+    DEBUG_END_PASS("XeGatherCoalescing");
 
     return modifiedAny;
 }
 
-bool GenXGatherCoalescing::runOnFunction(llvm::Function &F) {
-    llvm::TimeTraceScope FuncScope("GenXGatherCoalescing::runOnFunction", F.getName());
+bool XeGatherCoalescing::runOnFunction(llvm::Function &F) {
+    llvm::TimeTraceScope FuncScope("XeGatherCoalescing::runOnFunction", F.getName());
     bool modifiedAny = false;
     for (llvm::BasicBlock &BB : F) {
         modifiedAny |= runOnBasicBlock(BB);
@@ -5863,12 +5995,12 @@ bool GenXGatherCoalescing::runOnFunction(llvm::Function &F) {
     return modifiedAny;
 }
 
-static llvm::Pass *CreateGenXGatherCoalescingPass() { return new GenXGatherCoalescing; }
+static llvm::Pass *CreateXeGatherCoalescingPass() { return new XeGatherCoalescing; }
 
 ///////////////////////////////////////////////////////////////////////////
 // ReplaceLLVMIntrinsics
 
-/** This pass replaces LLVM intrinsics unsupported on GenX
+/** This pass replaces LLVM intrinsics unsupported on Xe
  */
 
 class ReplaceLLVMIntrinsics : public llvm::FunctionPass {
@@ -5899,7 +6031,7 @@ restart:
             if (func->getName().equals("llvm.trap")) {
                 llvm::Type *argTypes[] = {LLVMTypes::Int1VectorType, LLVMTypes::Int16VectorType};
                 // Description of parameters for genx_raw_send_noresult can be found in target-genx.ll
-                auto Fn = +llvm::GenXIntrinsic::getGenXDeclaration(
+                auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(
                     m->module, llvm::GenXIntrinsic::genx_raw_send_noresult, argTypes);
                 llvm::SmallVector<llvm::Value *, 8> Args;
                 Args.push_back(llvm::ConstantInt::get(LLVMTypes::Int32Type, 0));
@@ -5932,8 +6064,7 @@ restart:
                     modifiedAny = true;
                     goto restart;
                 }
-            } else if (func->getName().equals("llvm.assume") ||
-                       func->getName().equals("llvm.experimental.noalias.scope.decl")) {
+            } else if (func->getName().equals("llvm.experimental.noalias.scope.decl")) {
                 // These intrinsics are not supported by backend so remove them.
                 ci->eraseFromParent();
                 modifiedAny = true;
@@ -5947,9 +6078,9 @@ restart:
                 Tys[0] = func->getReturnType(); // return type
                 Tys[1] = argType;               // value type
 
-                llvm::GenXIntrinsic::ID genxAbsID =
+                llvm::GenXIntrinsic::ID xeAbsID =
                     argType->isIntOrIntVectorTy() ? llvm::GenXIntrinsic::genx_absi : llvm::GenXIntrinsic::genx_absf;
-                auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(m->module, genxAbsID, Tys);
+                auto Fn = llvm::GenXIntrinsic::getGenXDeclaration(m->module, xeAbsID, Tys);
                 Assert(Fn);
                 llvm::Instruction *newInst = llvm::CallInst::Create(Fn, ci->getOperand(0), "");
                 if (newInst != NULL) {
@@ -5978,104 +6109,9 @@ bool ReplaceLLVMIntrinsics::runOnFunction(llvm::Function &F) {
 static llvm::Pass *CreateReplaceLLVMIntrinsics() { return new ReplaceLLVMIntrinsics(); }
 
 ///////////////////////////////////////////////////////////////////////////
-// FixDivisionInstructions
-
-/** This pass replaces instructions supported by LLVM IR, but not supported by GenX backend.
-    There is IR for i64 div, but there is no div i64 in VISA and GenX backend doesn't handle
-    this situation, so ISPC must not generate IR with i64 div.
- */
-
-class FixDivisionInstructions : public llvm::FunctionPass {
-  public:
-    static char ID;
-    FixDivisionInstructions() : FunctionPass(ID) {}
-    llvm::StringRef getPassName() const { return "Fix division instructions unsupported by VC backend"; }
-    bool runOnBasicBlock(llvm::BasicBlock &BB);
-    bool runOnFunction(llvm::Function &F);
-};
-
-char FixDivisionInstructions::ID = 0;
-
-bool FixDivisionInstructions::runOnBasicBlock(llvm::BasicBlock &bb) {
-    DEBUG_START_PASS("FixDivisionInstructions");
-    bool modifiedAny = false;
-
-    std::string name = "";
-    llvm::Function *func;
-    for (llvm::BasicBlock::iterator I = bb.begin(), E = --bb.end(); I != E; ++I) {
-        llvm::Instruction *inst = &*I;
-        // for now, all replaced inst have 2 operands
-        if (inst->getNumOperands() > 1) {
-            auto type = inst->getOperand(0)->getType();
-            // for now, all replaced inst have i64 operands
-            if ((type == LLVMTypes::Int64Type) || (type == LLVMTypes::Int64VectorType)) {
-                switch (inst->getOpcode()) {
-                case llvm::Instruction::BinaryOps::UDiv:
-                    if (type == LLVMTypes::Int64Type) {
-                        name = "__divus_ui64";
-                    } else {
-                        name = "__divus_vi64";
-                    }
-                    break;
-                case llvm::Instruction::BinaryOps::SDiv:
-                    if (type == LLVMTypes::Int64Type) {
-                        name = "__divs_ui64";
-                    } else {
-                        name = "__divs_vi64";
-                    }
-                    break;
-                case llvm::Instruction::BinaryOps::URem:
-                    if (type == LLVMTypes::Int64Type) {
-                        name = "__remus_ui64";
-                    } else {
-                        name = "__remus_vi64";
-                    }
-                    break;
-                case llvm::Instruction::BinaryOps::SRem:
-                    if (type == LLVMTypes::Int64Type) {
-                        name = "__rems_ui64";
-                    } else {
-                        name = "__rems_vi64";
-                    }
-                    break;
-                default:
-                    name = "";
-                    break;
-                }
-                if (name != "") {
-                    func = m->module->getFunction(name);
-                    Assert(func != NULL && "FixDivisionInstructions: Can't find correct function!!!");
-                    llvm::SmallVector<llvm::Value *, 8> args;
-                    args.push_back(inst->getOperand(0));
-                    args.push_back(inst->getOperand(1));
-                    llvm::Instruction *newInst = llvm::CallInst::Create(func, args, name);
-                    llvm::ReplaceInstWithInst(inst, newInst);
-                    modifiedAny = true;
-                    I = newInst->getIterator();
-                }
-            }
-        }
-    }
-    DEBUG_END_PASS("FixDivisionInstructions");
-    return modifiedAny;
-}
-
-bool FixDivisionInstructions::runOnFunction(llvm::Function &F) {
-
-    llvm::TimeTraceScope FuncScope("FixDivisionInstructions::runOnFunction", F.getName());
-    bool modifiedAny = false;
-    for (llvm::BasicBlock &BB : F) {
-        modifiedAny |= runOnBasicBlock(BB);
-    }
-    return modifiedAny;
-}
-
-static llvm::Pass *CreateFixDivisionInstructions() { return new FixDivisionInstructions(); }
-
-///////////////////////////////////////////////////////////////////////////
 // CheckUnsupportedInsts
 
-/** This pass checks if there are any functions used which are not supported currently for gen target,
+/** This pass checks if there are any functions used which are not supported currently for Xe target,
     reports error and stops compilation.
  */
 
@@ -6084,7 +6120,7 @@ class CheckUnsupportedInsts : public llvm::FunctionPass {
     static char ID;
     CheckUnsupportedInsts(bool last = false) : FunctionPass(ID) {}
 
-    llvm::StringRef getPassName() const { return "Check unsupported instructions for gen target"; }
+    llvm::StringRef getPassName() const { return "Check unsupported instructions for Xe target"; }
     bool runOnBasicBlock(llvm::BasicBlock &BB);
     bool runOnFunction(llvm::Function &F);
 };
@@ -6103,9 +6139,10 @@ bool CheckUnsupportedInsts::runOnBasicBlock(llvm::BasicBlock &bb) {
         lGetSourcePosFromMetadata(inst, &pos);
         if (llvm::CallInst *ci = llvm::dyn_cast<llvm::CallInst>(inst)) {
             llvm::Function *func = ci->getCalledFunction();
-            // Report error that prefetch is not supported on SKL and TGLLP
+
+            // Report error that prefetch is not supported on skl and tgllp
             if (func && func->getName().contains("genx.lsc.prefetch.stateless")) {
-                if (!g->target->hasGenxPrefetch()) {
+                if (!g->target->hasXePrefetch()) {
                     Error(pos, "\'prefetch\' is not supported by %s\n", g->target->getCPU().c_str());
                 }
             }
@@ -6140,7 +6177,7 @@ static llvm::Pass *CreateCheckUnsupportedInsts() { return new CheckUnsupportedIn
 ///////////////////////////////////////////////////////////////////////////
 // MangleOpenCLBuiltins
 
-/** This pass mangles SPIR-V OpenCL builtins used in gen target file
+/** This pass mangles SPIR-V OpenCL builtins used in Xe target file
  */
 
 class MangleOpenCLBuiltins : public llvm::FunctionPass {
@@ -6155,6 +6192,45 @@ class MangleOpenCLBuiltins : public llvm::FunctionPass {
 
 char MangleOpenCLBuiltins::ID = 0;
 
+static std::string mangleMathOCLBuiltin(const llvm::Function &func) {
+    Assert(func.getName().startswith("__spirv_ocl") && "wrong argument: ocl builtin is expected");
+    std::string mangledName;
+    llvm::Type *retType = func.getReturnType();
+    std::string funcName = func.getName().str();
+    std::vector<llvm::Type *> ArgTy;
+    // spirv OpenCL builtins are used for double types only
+    Assert(retType->isVectorTy() && llvm::dyn_cast<llvm::VectorType>(retType)->getElementType()->isDoubleTy() ||
+           retType->isSingleValueType() && retType->isDoubleTy());
+    if (retType->isVectorTy() && llvm::dyn_cast<llvm::VectorType>(retType)->getElementType()->isDoubleTy()) {
+        ArgTy.push_back(LLVMTypes::DoubleVectorType);
+        // _DvWIDTH suffix is used in target file to differentiate scalar
+        // and vector versions of intrinsics. Here we remove this
+        // suffix and mangle the name.
+        size_t pos = funcName.find("_DvWIDTH");
+        if (pos != std::string::npos) {
+            funcName.erase(pos, 8);
+        }
+    } else if (retType->isSingleValueType() && retType->isDoubleTy()) {
+        ArgTy.push_back(LLVMTypes::DoubleType);
+    }
+    mangleOpenClBuiltin(funcName, ArgTy, mangledName);
+    return mangledName;
+}
+
+static std::string manglePrintfOCLBuiltin(const llvm::Function &func) {
+    Assert(func.getName() == "__spirv_ocl_printf" && "wrong argument: ocl builtin is expected");
+    std::string mangledName;
+    mangleOpenClBuiltin(func.getName().str(), func.getArg(0)->getType(), mangledName);
+    return mangledName;
+}
+
+static std::string mangleOCLBuiltin(const llvm::Function &func) {
+    Assert(func.getName().startswith("__spirv_ocl") && "wrong argument: ocl builtin is expected");
+    if (func.getName() == "__spirv_ocl_printf")
+        return manglePrintfOCLBuiltin(func);
+    return mangleMathOCLBuiltin(func);
+}
+
 bool MangleOpenCLBuiltins::runOnBasicBlock(llvm::BasicBlock &bb) {
     DEBUG_START_PASS("MangleOpenCLBuiltins");
     bool modifiedAny = false;
@@ -6165,28 +6241,7 @@ bool MangleOpenCLBuiltins::runOnBasicBlock(llvm::BasicBlock &bb) {
             if (func == NULL)
                 continue;
             if (func->getName().startswith("__spirv_ocl")) {
-                std::string mangledName;
-                llvm::Type *retType = func->getReturnType();
-                std::string funcName = func->getName().str();
-                std::vector<llvm::Type *> ArgTy;
-                // spirv OpenCL builtins are used for double types only
-                Assert(retType->isVectorTy() &&
-                           llvm::dyn_cast<llvm::VectorType>(retType)->getElementType()->isDoubleTy() ||
-                       retType->isSingleValueType() && retType->isDoubleTy());
-                if (retType->isVectorTy() &&
-                    llvm::dyn_cast<llvm::VectorType>(retType)->getElementType()->isDoubleTy()) {
-                    ArgTy.push_back(LLVMTypes::DoubleVectorType);
-                    // _DvWIDTH suffix is used in target file to differentiate scalar
-                    // and vector versions of intrinsics. Here we remove this
-                    // suffix and mangle the name.
-                    size_t pos = funcName.find("_DvWIDTH");
-                    if (pos != std::string::npos) {
-                        funcName.erase(pos, 8);
-                    }
-                } else if (retType->isSingleValueType() && retType->isDoubleTy()) {
-                    ArgTy.push_back(LLVMTypes::DoubleType);
-                }
-                mangleOpenClBuiltin(funcName, ArgTy, mangledName);
+                std::string mangledName = mangleOCLBuiltin(*func);
                 func->setName(mangledName);
                 modifiedAny = true;
             }
@@ -6207,216 +6262,6 @@ bool MangleOpenCLBuiltins::runOnFunction(llvm::Function &F) {
 }
 
 static llvm::Pass *CreateMangleOpenCLBuiltins() { return new MangleOpenCLBuiltins(); }
-
-///////////////////////////////////////////////////////////////////////////
-// FixAddressSpace
-
-/** This pass fixes should go close to the end of optimizations. It fixes address space issues
-    caused by functions inlining and LLVM optimizations.
-    TODO: the implemenattion is not completed yet, it just unblocks work on openvkl kernel.
-    1. fix where needed svn.block.ld -> load, svm.block.st -> store
-    2. svm gathers/scatters <-> private gathers/scatters
-    3. ideally generate LLVM vector loads/stores in ImproveOptMemory pass, fix address space here
- */
-
-class FixAddressSpace : public llvm::FunctionPass {
-    llvm::Instruction *processVectorLoad(llvm::LoadInst *LI);
-    llvm::Instruction *processSVMVectorLoad(llvm::Instruction *LI);
-    llvm::Instruction *processVectorStore(llvm::StoreInst *SI);
-    llvm::Instruction *processSVMVectorStore(llvm::Instruction *LI);
-    void applyReplace(llvm::Instruction *Inst, llvm::Instruction *ToReplace);
-
-  public:
-    static char ID;
-    FixAddressSpace() : FunctionPass(ID) {}
-    llvm::StringRef getPassName() const { return "Fix address space"; }
-    bool runOnBasicBlock(llvm::BasicBlock &BB);
-    bool runOnFunction(llvm::Function &F);
-};
-
-char FixAddressSpace::ID = 0;
-
-void FixAddressSpace::applyReplace(llvm::Instruction *Inst, llvm::Instruction *ToReplace) {
-    lCopyMetadata(Inst, ToReplace);
-    llvm::ReplaceInstWithInst(ToReplace, Inst);
-}
-
-llvm::Instruction *FixAddressSpace::processVectorLoad(llvm::LoadInst *LI) {
-    llvm::Value *ptr = LI->getOperand(0);
-    llvm::Type *retType = LI->getType();
-
-    Assert(llvm::isa<llvm::VectorType>(LI->getType()));
-
-    if (GetAddressSpace(ptr) != AddressSpace::External)
-        return NULL;
-
-    // Ptr load should be done via inttoptr
-    bool isPtrLoad = false;
-    if (retType->getScalarType()->isPointerTy()) {
-        isPtrLoad = true;
-        auto scalarType = g->target->is32Bit() ? LLVMTypes::Int32Type : LLVMTypes::Int64Type;
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
-        retType =
-            llvm::FixedVectorType::get(scalarType, llvm::dyn_cast<llvm::FixedVectorType>(retType)->getNumElements());
-#else
-        retType = llvm::VectorType::get(scalarType, retType->getVectorNumElements());
-#endif
-    }
-    llvm::Instruction *res = lGenXLoadInst(ptr, retType, llvm::dyn_cast<llvm::Instruction>(LI));
-    Assert(res);
-
-    if (isPtrLoad) {
-        res->insertBefore(LI);
-        res = new llvm::IntToPtrInst(res, LI->getType(), "svm_ld_inttoptr");
-    }
-
-    return res;
-}
-
-llvm::Instruction *FixAddressSpace::processSVMVectorLoad(llvm::Instruction *CI) {
-    llvm::Value *ptr = CI->getOperand(0);
-    llvm::Type *retType = CI->getType();
-
-    Assert(llvm::isa<llvm::VectorType>(retType));
-
-    if (GetAddressSpace(ptr) == AddressSpace::External)
-        return NULL;
-
-    // Conevrt int64 ptr to pointer
-    ptr = new llvm::IntToPtrInst(ptr, llvm::PointerType::get(retType, 0), CI->getName() + "_inttoptr", CI);
-    llvm::Instruction *loadInst = NULL;
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
-    Assert(llvm::isa<llvm::PointerType>(ptr->getType()));
-    loadInst = new llvm::LoadInst(llvm::dyn_cast<llvm::PointerType>(ptr->getType())->getPointerElementType(), ptr,
-                                  CI->getName(), false /* not volatile */,
-                                  llvm::MaybeAlign(g->target->getNativeVectorAlignment()).valueOrOne(),
-                                  (llvm::Instruction *)NULL);
-#else
-    loadInst = new llvm::LoadInst(ptr, CI->getName(), false,
-                                  llvm::MaybeAlign(g->target->getNativeVectorAlignment()).valueOrOne(),
-                                  (llvm::Instruction *)NULL);
-#endif
-
-    Assert(loadInst);
-    return loadInst;
-}
-
-llvm::Instruction *FixAddressSpace::processVectorStore(llvm::StoreInst *SI) {
-    llvm::Value *ptr = SI->getOperand(1);
-    llvm::Value *val = SI->getOperand(0);
-    Assert(ptr != NULL);
-    Assert(val != NULL);
-
-    llvm::Type *valType = val->getType();
-
-    Assert(llvm::isa<llvm::VectorType>(valType));
-
-    if (GetAddressSpace(ptr) != AddressSpace::External)
-        return NULL;
-
-    // Ptr store should be done via ptrtoint
-    // Note: it doesn't look like a normal case for GenX target
-    if (valType->getScalarType()->isPointerTy()) {
-        auto scalarType = g->target->is32Bit() ? LLVMTypes::Int32Type : LLVMTypes::Int64Type;
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
-        valType =
-            llvm::FixedVectorType::get(scalarType, llvm::dyn_cast<llvm::FixedVectorType>(valType)->getNumElements());
-#else
-        valType = llvm::VectorType::get(scalarType, valType->getVectorNumElements());
-#endif
-        val = new llvm::PtrToIntInst(val, valType, "svm_st_val_ptrtoint", SI);
-    }
-
-    return lGenXStoreInst(val, ptr, llvm::dyn_cast<llvm::Instruction>(SI));
-}
-
-llvm::Instruction *FixAddressSpace::processSVMVectorStore(llvm::Instruction *CI) {
-    llvm::Value *ptr = CI->getOperand(0);
-    llvm::Value *val = CI->getOperand(1);
-
-    Assert(ptr != NULL);
-    Assert(val != NULL);
-
-    llvm::Type *valType = val->getType();
-
-    Assert(llvm::isa<llvm::VectorType>(valType));
-
-    if (GetAddressSpace(ptr) == AddressSpace::External)
-        return NULL;
-
-    // Conevrt int64 ptr to pointer
-    ptr = new llvm::IntToPtrInst(ptr, llvm::PointerType::get(valType, 0), CI->getName() + "_inttoptr", CI);
-
-    llvm::Instruction *storeInst = NULL;
-    storeInst = new llvm::StoreInst(val, ptr, (llvm::Instruction *)NULL,
-                                    llvm::MaybeAlign(g->target->getNativeVectorAlignment()).valueOrOne());
-    Assert(storeInst);
-    return storeInst;
-}
-
-bool FixAddressSpace::runOnBasicBlock(llvm::BasicBlock &bb) {
-    DEBUG_START_PASS("FixAddressSpace");
-    bool modifiedAny = false;
-
-restart:
-    for (llvm::BasicBlock::iterator I = bb.begin(), E = --bb.end(); I != E; ++I) {
-        llvm::Instruction *inst = &*I;
-        if (llvm::LoadInst *ld = llvm::dyn_cast<llvm::LoadInst>(inst)) {
-            if (llvm::isa<llvm::VectorType>(ld->getType())) {
-                llvm::Instruction *load_inst = processVectorLoad(ld);
-                if (load_inst != NULL) {
-                    applyReplace(load_inst, ld);
-                    modifiedAny = true;
-                    goto restart;
-                }
-            }
-        } else if (llvm::StoreInst *st = llvm::dyn_cast<llvm::StoreInst>(inst)) {
-            llvm::Value *val = st->getOperand(0);
-            Assert(val != NULL);
-            if (llvm::isa<llvm::VectorType>(val->getType())) {
-                llvm::Instruction *store_inst = processVectorStore(st);
-                if (store_inst != NULL) {
-                    applyReplace(store_inst, st);
-                    modifiedAny = true;
-                    goto restart;
-                }
-            }
-        } else if (llvm::GenXIntrinsic::getGenXIntrinsicID(inst) == llvm::GenXIntrinsic::genx_svm_block_ld_unaligned) {
-            llvm::Instruction *load_inst = processSVMVectorLoad(inst);
-            if (load_inst != NULL) {
-                applyReplace(load_inst, inst);
-                modifiedAny = true;
-                goto restart;
-            }
-        } else if (llvm::GenXIntrinsic::getGenXIntrinsicID(inst) == llvm::GenXIntrinsic::genx_svm_block_st) {
-            llvm::Instruction *store_inst = processSVMVectorStore(inst);
-            if (store_inst != NULL) {
-                applyReplace(store_inst, inst);
-                modifiedAny = true;
-                goto restart;
-            }
-        }
-    }
-    DEBUG_END_PASS("Fix address space");
-    return modifiedAny;
-}
-
-bool FixAddressSpace::runOnFunction(llvm::Function &F) {
-    // Transformations are correct when the function is not internal.
-    // This is due to address space calculation algorithm.
-    // TODO: problems can be met in case of Stack Calls
-    llvm::TimeTraceScope FuncScope("FixAddressSpace::runOnFunction", F.getName());
-    if (F.getLinkage() == llvm::GlobalValue::LinkageTypes::InternalLinkage)
-        return false;
-
-    bool modifiedAny = false;
-    for (llvm::BasicBlock &BB : F) {
-        modifiedAny |= runOnBasicBlock(BB);
-    }
-    return modifiedAny;
-}
-
-static llvm::Pass *CreateFixAddressSpace() { return new FixAddressSpace(); }
 
 class DemotePHIs : public llvm::FunctionPass {
   public:

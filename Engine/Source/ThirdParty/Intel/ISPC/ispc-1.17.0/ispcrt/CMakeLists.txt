@@ -94,6 +94,11 @@ macro(build_ispcrt SHARED_OR_STATIC TARGET_NAME)
     $<$<BOOL:${ISPCRT_BUILD_TASKING}>:ispcrt_tasking>
   )
 
+  # Security options
+  if (UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -fstack-protector-strong)
+  endif()
+
   ## Install targets + exports ##
 
   set_target_properties(${TARGET_NAME}
@@ -162,7 +167,9 @@ write_basic_package_version_file(
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
   cmake/Findlevel_zero.cmake
+  cmake/Finddpcpp_compiler.cmake
   cmake/ispc.cmake
+  cmake/interop.cmake
 DESTINATION
   ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}-${PROJECT_VERSION}
 )

@@ -143,6 +143,8 @@ const AtomicType *AtomicType::UniformInt32 = new AtomicType(AtomicType::TYPE_INT
 const AtomicType *AtomicType::VaryingInt32 = new AtomicType(AtomicType::TYPE_INT32, Variability::Varying, false);
 const AtomicType *AtomicType::UniformUInt32 = new AtomicType(AtomicType::TYPE_UINT32, Variability::Uniform, false);
 const AtomicType *AtomicType::VaryingUInt32 = new AtomicType(AtomicType::TYPE_UINT32, Variability::Varying, false);
+const AtomicType *AtomicType::UniformFloat16 = new AtomicType(AtomicType::TYPE_FLOAT16, Variability::Uniform, false);
+const AtomicType *AtomicType::VaryingFloat16 = new AtomicType(AtomicType::TYPE_FLOAT16, Variability::Varying, false);
 const AtomicType *AtomicType::UniformFloat = new AtomicType(AtomicType::TYPE_FLOAT, Variability::Uniform, false);
 const AtomicType *AtomicType::VaryingFloat = new AtomicType(AtomicType::TYPE_FLOAT, Variability::Varying, false);
 const AtomicType *AtomicType::UniformInt64 = new AtomicType(AtomicType::TYPE_INT64, Variability::Uniform, false);
@@ -169,7 +171,9 @@ bool Type::IsReferenceType() const { return (CastType<ReferenceType>(this) != NU
 
 bool Type::IsVoidType() const { return EqualIgnoringConst(this, AtomicType::Void); }
 
-bool AtomicType::IsFloatType() const { return (basicType == TYPE_FLOAT || basicType == TYPE_DOUBLE); }
+bool AtomicType::IsFloatType() const {
+    return (basicType == TYPE_FLOAT16 || basicType == TYPE_FLOAT || basicType == TYPE_DOUBLE);
+}
 
 bool AtomicType::IsIntType() const {
     return (basicType == TYPE_INT8 || basicType == TYPE_UINT8 || basicType == TYPE_INT16 || basicType == TYPE_UINT16 ||
@@ -312,6 +316,9 @@ std::string AtomicType::GetString() const {
     case TYPE_UINT32:
         ret += "unsigned int32";
         break;
+    case TYPE_FLOAT16:
+        ret += "float16";
+        break;
     case TYPE_FLOAT:
         ret += "float";
         break;
@@ -360,6 +367,9 @@ std::string AtomicType::Mangle() const {
         break;
     case TYPE_UINT32:
         ret += "u";
+        break;
+    case TYPE_FLOAT16:
+        ret += "h";
         break;
     case TYPE_FLOAT:
         ret += "f";
@@ -412,6 +422,9 @@ std::string AtomicType::GetCDeclaration(const std::string &name) const {
         break;
     case TYPE_UINT32:
         ret += "uint32_t";
+        break;
+    case TYPE_FLOAT16:
+        ret += "__fp16";
         break;
     case TYPE_FLOAT:
         ret += "float";
@@ -468,6 +481,8 @@ static llvm::Type *lGetAtomicLLVMType(llvm::LLVMContext *ctx, const AtomicType *
         case AtomicType::TYPE_INT32:
         case AtomicType::TYPE_UINT32:
             return isUniform ? LLVMTypes::Int32Type : LLVMTypes::Int32VectorType;
+        case AtomicType::TYPE_FLOAT16:
+            return isUniform ? LLVMTypes::Float16Type : LLVMTypes::Float16VectorType;
         case AtomicType::TYPE_FLOAT:
             return isUniform ? LLVMTypes::FloatType : LLVMTypes::FloatVectorType;
         case AtomicType::TYPE_INT64:
@@ -516,6 +531,9 @@ llvm::DIType *AtomicType::GetDIType(llvm::DIScope *scope) const {
             break;
         case TYPE_UINT32:
             return m->diBuilder->createBasicType("uint32", 32 /* size */, llvm::dwarf::DW_ATE_unsigned);
+            break;
+        case TYPE_FLOAT16:
+            return m->diBuilder->createBasicType("float16", 16 /* size */, llvm::dwarf::DW_ATE_float);
             break;
         case TYPE_FLOAT:
             return m->diBuilder->createBasicType("float", 32 /* size */, llvm::dwarf::DW_ATE_float);
@@ -771,8 +789,8 @@ const Symbol *EnumType::GetEnumerator(int i) const { return enumerators[i]; }
 
 PointerType *PointerType::Void = new PointerType(AtomicType::Void, Variability(Variability::Uniform), false);
 
-PointerType::PointerType(const Type *t, Variability v, bool ic, bool is, bool fr)
-    : Type(POINTER_TYPE), variability(v), isConst(ic), isSlice(is), isFrozen(fr) {
+PointerType::PointerType(const Type *t, Variability v, bool ic, bool is, bool fr, AddressSpace as)
+    : Type(POINTER_TYPE), variability(v), isConst(ic), isSlice(is), isFrozen(fr), addrSpace(as) {
     baseType = t;
 }
 
@@ -846,6 +864,12 @@ const PointerType *PointerType::GetAsFrozenSlice() const {
     if (isFrozen)
         return this;
     return new PointerType(baseType, variability, isConst, true, true);
+}
+
+const PointerType *PointerType::GetWithAddrSpace(AddressSpace as) const {
+    if (addrSpace == as)
+        return this;
+    return new PointerType(baseType, variability, isConst, isSlice, isFrozen, as);
 }
 
 const PointerType *PointerType::ResolveUnboundVariability(Variability v) const {
@@ -994,12 +1018,12 @@ llvm::Type *PointerType::LLVMType(llvm::LLVMContext *ctx) const {
         llvm::Type *ptype = NULL;
         const FunctionType *ftype = CastType<FunctionType>(baseType);
         if (ftype != NULL)
-            ptype = llvm::PointerType::get(ftype->LLVMFunctionType(ctx), 0);
+            ptype = llvm::PointerType::get(ftype->LLVMFunctionType(ctx), (unsigned)addrSpace);
         else {
             if (baseType->IsVoidType())
-                ptype = LLVMTypes::VoidPointerType;
+                ptype = llvm::PointerType::get(llvm::Type::getInt8Ty(*ctx), (unsigned)addrSpace);
             else
-                ptype = llvm::PointerType::get(baseType->LLVMStorageType(ctx), 0);
+                ptype = llvm::PointerType::get(baseType->LLVMStorageType(ctx), (unsigned)addrSpace);
         }
         return ptype;
     }
@@ -2017,7 +2041,9 @@ llvm::DIType *UndefinedStructType::GetDIType(llvm::DIScope *scope) const {
 ///////////////////////////////////////////////////////////////////////////
 // ReferenceType
 
-ReferenceType::ReferenceType(const Type *t) : Type(REFERENCE_TYPE), targetType(t) { asOtherConstType = NULL; }
+ReferenceType::ReferenceType(const Type *t, AddressSpace as) : Type(REFERENCE_TYPE), targetType(t), addrSpace(as) {
+    asOtherConstType = NULL;
+}
 
 Variability ReferenceType::GetVariability() const {
     if (targetType == NULL) {
@@ -2150,6 +2176,17 @@ const ReferenceType *ReferenceType::GetAsNonConstType() const {
     return asOtherConstType;
 }
 
+const ReferenceType *ReferenceType::GetWithAddrSpace(AddressSpace as) const {
+    if (targetType == NULL) {
+        Assert(m->errorCount > 0);
+        return NULL;
+    }
+    if (addrSpace == as)
+        return this;
+
+    return new ReferenceType(targetType, as);
+}
+
 std::string ReferenceType::GetString() const {
     if (targetType == NULL) {
         Assert(m->errorCount > 0);
@@ -2212,7 +2249,7 @@ llvm::Type *ReferenceType::LLVMType(llvm::LLVMContext *ctx) const {
         return NULL;
     }
 
-    return llvm::PointerType::get(t, 0);
+    return llvm::PointerType::get(t, (unsigned)addrSpace);
 }
 
 llvm::DIType *ReferenceType::GetDIType(llvm::DIScope *scope) const {
@@ -2260,6 +2297,10 @@ bool FunctionType::IsBoolType() const { return false; }
 bool FunctionType::IsUnsignedType() const { return false; }
 
 bool FunctionType::IsConstType() const { return false; }
+
+bool FunctionType::IsISPCKernel() const { return g->target->isXeTarget() && isTask; }
+
+bool FunctionType::IsISPCExternal() const { return g->target->isXeTarget() && (isExported || isExternC); }
 
 const Type *FunctionType::GetBaseType() const {
     FATAL("FunctionType::GetBaseType() shouldn't be called");
@@ -2457,7 +2498,7 @@ const std::string FunctionType::GetReturnTypeString() const {
 }
 
 llvm::FunctionType *FunctionType::LLVMFunctionType(llvm::LLVMContext *ctx, bool removeMask) const {
-    if (!g->target->isGenXTarget() && isTask == true) {
+    if (!g->target->isXeTarget() && isTask == true) {
         Assert(removeMask == false);
     }
 
@@ -2471,21 +2512,37 @@ llvm::FunctionType *FunctionType::LLVMFunctionType(llvm::LLVMContext *ctx, bool 
         Assert(paramTypes[i]->IsVoidType() == false);
 
         const Type *argType = paramTypes[i];
-        llvm::Type *t = argType->LLVMType(ctx);
-        if (t == NULL) {
+
+        // We should cast pointers to generic address spaces
+        // for ISPCExtenal functions (not-masked version) on Xe target
+        llvm::Type *castedArgType = argType->LLVMType(ctx);
+
+        if (IsISPCExternal() && removeMask) {
+            if (argType->IsPointerType()) {
+                const PointerType *argPtr =
+                    (CastType<PointerType>(argType))->GetWithAddrSpace(AddressSpace::ispc_generic);
+                castedArgType = argPtr->LLVMType(ctx);
+            } else if (argType->IsReferenceType()) {
+                const ReferenceType *refPtr =
+                    (CastType<ReferenceType>(argType))->GetWithAddrSpace(AddressSpace::ispc_generic);
+                castedArgType = refPtr->LLVMType(ctx);
+            }
+        }
+
+        if (castedArgType == NULL) {
             Assert(m->errorCount > 0);
             return NULL;
         }
-        llvmArgTypes.push_back(t);
+        llvmArgTypes.push_back(castedArgType);
     }
 
     // And add the function mask, if asked for
-    if (!(removeMask || isUnmasked || (g->target->isGenXTarget() && isTask))) {
+    if (!(removeMask || isUnmasked || IsISPCKernel())) {
         llvmArgTypes.push_back(LLVMTypes::MaskType);
     }
 
     std::vector<llvm::Type *> callTypes;
-    if (isTask && (!g->target->isGenXTarget())) {
+    if (isTask && (!g->target->isXeTarget())) {
         // Tasks take three arguments: a pointer to a struct that holds the
         // actual task arguments, the thread index, and the total number of
         // threads the tasks system has running.  (Task arguments are
@@ -2539,6 +2596,10 @@ const SourcePos &FunctionType::GetParameterSourcePos(int i) const {
 const std::string &FunctionType::GetParameterName(int i) const {
     Assert(i < (int)paramNames.size());
     return paramNames[i];
+}
+
+bool FunctionType::RequiresAddrSpaceCasts(const llvm::Function *func) const {
+    return IsISPCExternal() && func->getCallingConv() == llvm::CallingConv::SPIR_FUNC;
 }
 
 ///////////////////////////////////////////////////////////////////////////

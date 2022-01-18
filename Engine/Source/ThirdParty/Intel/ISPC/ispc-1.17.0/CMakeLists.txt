@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2018-2021, Intel Corporation
+#  Copyright (c) 2018-2022, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ endif()
 option(X86_ENABLED "Enable x86 support" ${X86_HOST})
 option(ARM_ENABLED "Enable ARM support" ON)
 option(WASM_ENABLED "Enable experimental Web Assembly support" OFF)
-option(GENX_ENABLED "Enable GenX support" OFF)
+option(XE_ENABLED "Enable Intel Xe support" OFF)
 option(ISPC_INCLUDE_EXAMPLES "Generate build targets for the ISPC examples" ON)
 option(ISPC_INCLUDE_DPCPP_EXAMPLES "Generate build targets for the ISPC/DPCPP interoperability examples" OFF)
 option(ISPC_INCLUDE_TESTS "Generate build targets for the ISPC tests." ON)
@@ -71,12 +71,12 @@ if (ISPC_CROSS)
     option(ISPC_MACOS_TARGET "Build ISPC with macos target support" OFF)
     option(ISPC_IOS_TARGET "Build ISPC with ios target support" ON)
     option(ISPC_ANDROID_TARGET "Build ISPC with android target support" ON)
-    option(ISPC_PS4_TARGET "Build ISPC with ps4 target support" ON)
+    option(ISPC_PS_TARGET "Build ISPC with ps4 and ps5 targets support" ON)
     # We silently disable some of cross targets. We should probably warn user or issue an error,
     # but it seems good enough.
     if (WIN32)
         set(ISPC_IOS_TARGET OFF)
-        if ((ISPC_LINUX_TARGET OR ISPC_ANDROID_TARGET OR ISPC_PS4_TARGET) AND NOT ISPC_GNUWIN32_PATH)
+        if ((ISPC_LINUX_TARGET OR ISPC_ANDROID_TARGET OR ISPC_PS_TARGET) AND NOT ISPC_GNUWIN32_PATH)
             message (FATAL_ERROR "Set ISPC_GNUWIN32_PATH variable for cross compilation to Linux/Android/PS4 e.g. C:/gnuwin32")
         endif()
         if (ISPC_MACOS_TARGET AND NOT ISPC_MACOS_SDK_PATH)
@@ -85,7 +85,7 @@ if (ISPC_CROSS)
     elseif (APPLE)
         set(ISPC_MACOS_TARGET ON)
         set(ISPC_WINDOWS_TARGET OFF)
-        set(ISPC_PS4_TARGET OFF)
+        set(ISPC_PS_TARGET OFF)
         set(ISPC_FREEBSD_TARGET OFF)
         if ((ISPC_LINUX_TARGET OR ISPC_ANDROID_TARGET) AND NOT ISPC_ANDROID_NDK_PATH)
             message (FATAL_ERROR "Set ISPC_ANDROID_NDK_PATH variable for cross compilation to Linux/Android e.g. /Users/Shared/android-ndk-r20")
@@ -101,7 +101,7 @@ if (ISPC_CROSS)
         endif()
     else()
         set(ISPC_WINDOWS_TARGET OFF)
-        set(ISPC_PS4_TARGET OFF)
+        set(ISPC_PS_TARGET OFF)
         set(ISPC_IOS_TARGET OFF)
         if (ISPC_MACOS_TARGET AND NOT ISPC_MACOS_SDK_PATH)
             message (FATAL_ERROR "Set ISPC_MACOS_SDK_PATH variable for cross compilation to MacOS e.g. /iusers/MacOSX10.14.sdk")
@@ -146,24 +146,37 @@ endif()
 
 set(ISPC_MACOS_ARM_TARGET OFF)
 if (ISPC_MACOS_TARGET AND ISPC_MACOS_SDK_PATH)
-    if (IS_SYMLINK ${ISPC_MACOS_SDK_PATH})
-        # Follow symlinks, relative and absolute.
-        file(READ_SYMLINK "${ISPC_MACOS_SDK_PATH}" ISPC_MACOS_SDK_PATH_NEW)
-        if (NOT IS_ABSOLUTE "${ISPC_MACOS_SDK_PATH_NEW}")
-            get_filename_component(ISPC_MACOS_SDK_PATH_DIR "${ISPC_MACOS_SDK_PATH}" DIRECTORY)
-            set(ISPC_MACOS_SDK_PATH_NEW "${ISPC_MACOS_SDK_PATH_DIR}/${ISPC_MACOS_SDK_PATH_NEW}")
+    # Get macOS SDK version.
+    # xcrun is known not to work for standalone SDK or in the default environment
+    # on some systems (without explicitly running "xcode-select -s <path>" first).
+    # So we try to get the version from the SDK path first, and then fall back
+    # to looking at the SDK folder name.
+    set(command "xcrun" "--sdk" ${ISPC_MACOS_SDK_PATH} "--show-sdk-version")
+    execute_process(COMMAND ${command}
+        OUTPUT_VARIABLE SDK_VER
+        RESULT_VARIABLE XCRUN_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if (NOT XCRUN_RESULT STREQUAL "0")
+        if (IS_SYMLINK ${ISPC_MACOS_SDK_PATH})
+            # Follow symlinks, relative and absolute.
+            file(READ_SYMLINK "${ISPC_MACOS_SDK_PATH}" ISPC_MACOS_SDK_PATH_NEW)
+            if (NOT IS_ABSOLUTE "${ISPC_MACOS_SDK_PATH_NEW}")
+                get_filename_component(ISPC_MACOS_SDK_PATH_DIR "${ISPC_MACOS_SDK_PATH}" DIRECTORY)
+                set(ISPC_MACOS_SDK_PATH_NEW "${ISPC_MACOS_SDK_PATH_DIR}/${ISPC_MACOS_SDK_PATH_NEW}")
+            endif()
+            set(ISPC_MACOS_SDK_PATH "${ISPC_MACOS_SDK_PATH_NEW}")
         endif()
-        set(ISPC_MACOS_SDK_PATH "${ISPC_MACOS_SDK_PATH_NEW}")
+
+        string(REGEX MATCH "MacOSX([0-9]*.[0-9]*).sdk" _ ${ISPC_MACOS_SDK_PATH})
+        set(SDK_VER "${CMAKE_MATCH_1}")
     endif()
 
-    # Grepping path to figure out the version is not the most reliable way,
-    # but it seems to be the most practical.
-    string(REGEX MATCH "MacOSX([0-9]*.[0-9]*).sdk" _ ${ISPC_MACOS_SDK_PATH})
-    set(SDK_VER "${CMAKE_MATCH_1}")
     message(STATUS "MacOS_SDK version: ${SDK_VER}")
 
     if ("${SDK_VER}" STREQUAL "")
-        message(WARNING "MacOS SDK version was not detected, assuming 11.0, enabling ARM support")
+        message(WARNING "MacOS SDK version was not detected, assuming 11.0 or later, enabling ARM support")
         set(ISPC_MACOS_ARM_TARGET ON)
     elseif("${SDK_VER}" VERSION_GREATER_EQUAL "11.0")
         message(STATUS "MacOS_SDK supports ARM (SDK ver >= 11.0)")
@@ -173,10 +186,10 @@ if (ISPC_MACOS_TARGET AND ISPC_MACOS_SDK_PATH)
     endif()
 endif()
 
-# If GenX target is enabled, generate build targets for genx examples and ISPCRT on Linux
-if (GENX_ENABLED)
+# If Xe target is enabled, generate build targets for Xe examples and ISPCRT on Linux
+if (XE_ENABLED)
     option(ISPC_INCLUDE_RT "Generate build targets for ISPC runtime." ON)
-    option(ISPC_INCLUDE_GENX_EXAMPLES "Generate build targets for the ISPC GenX examples" ON)
+    option(ISPC_INCLUDE_XE_EXAMPLES "Generate build targets for the ISPC Xe examples" ON)
 endif()
 
 if (UNIX)
@@ -232,6 +245,7 @@ find_package(BISON 3.0 REQUIRED)
             COMMAND ${BISON_EXECUTABLE} -d -t -v
                 --output=${BISON_CPP_OUTPUT}
                 ${BISON_INPUT}
+            MAIN_DEPENDENCY ${BISON_INPUT}
             COMMENT "Generating parse.cc"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
@@ -246,6 +260,7 @@ find_package(FLEX 2.6 REQUIRED)
             COMMAND ${FLEX_EXECUTABLE}
                 --outfile=${FLEX_OUTPUT}
                 ${FLEX_INPUT}
+            MAIN_DEPENDENCY ${FLEX_INPUT}
             COMMENT "Generating lex.cpp"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
@@ -253,8 +268,8 @@ find_package(FLEX 2.6 REQUIRED)
 
 set (ISPC_MASKS 1 8 16 32 64)
 
-if (NOT X86_ENABLED AND NOT ARM_ENABLED AND NOT WASM_ENABLED AND NOT GENX_ENABLED)
-    message( FATAL_ERROR "Either X86, ARM, WASM or GENX targets need to be enabled.")
+if (NOT X86_ENABLED AND NOT ARM_ENABLED AND NOT WASM_ENABLED AND NOT XE_ENABLED)
+    message( FATAL_ERROR "Either X86, ARM, WASM or XE targets need to be enabled.")
 endif ()
 
 if (X86_ENABLED)
@@ -266,7 +281,7 @@ if (X86_ENABLED)
         avx2-i8x32 avx2-i16x16
         avx2-i32x4 avx2-i32x8 avx2-i32x16 avx2-i64x4
         avx512knl-i32x16
-        avx512skx-i32x16 avx512skx-i32x8
+        avx512skx-i32x16 avx512skx-i32x8 avx512skx-i32x4
         avx512skx-i8x64 avx512skx-i16x32)
 endif()
 if (ARM_ENABLED)
@@ -293,8 +308,8 @@ endif()
 if (WASM_ENABLED)
     list(APPEND LLVM_COMPONENTS webassembly)
 endif()
-if (GENX_ENABLED)
-    list(APPEND ISPC_TARGETS genx-x16 genx-x8)
+if (XE_ENABLED)
+    list(APPEND ISPC_TARGETS gen9-x16 gen9-x8 xelp-x16 xelp-x8 xehpg-x16 xehpg-x8)
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         set(TARGET_MODIFIER "32")
         set(PB_PATH_MODIFIER "x86")
@@ -303,7 +318,7 @@ if (GENX_ENABLED)
         set(PB_PATH_MODIFIER "x64")
     endif()
 
-    list(APPEND GEN_LIBRARY_LIST LLVMGenXIntrinsics LLVMSPIRVLib)
+    list(APPEND XE_LIBRARY_LIST LLVMGenXIntrinsics LLVMSPIRVLib)
 endif()
 
 get_llvm_libfiles(LLVM_LIBRARY_LIST ${LLVM_COMPONENTS})
@@ -359,8 +374,8 @@ target_sources(${PROJECT_NAME}
         "src/lex.ll"
 )
 
-if (GENX_ENABLED)
-    target_sources(${PROJECT_NAME} PRIVATE "src/gen/GlobalsLocalization.cpp")
+if (XE_ENABLED)
+    target_sources(${PROJECT_NAME} PRIVATE "src/xe/GlobalsLocalization.cpp")
 endif()
 
 # To show stdlib.ispc in VS solution:
@@ -371,10 +386,10 @@ endif()
 
 # Build definitions
 target_compile_definitions(${PROJECT_NAME} PRIVATE ${LLVM_VERSION})
+string(TIMESTAMP BUILD_DATE "%Y%m%d")
+target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_DATE=\"${BUILD_DATE}\"
+                                                   BUILD_VERSION=\"${GIT_COMMIT_HASH}\")
 if (UNIX)
-    string(TIMESTAMP BUILD_DATE "%Y%m%d")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_DATE=\"${BUILD_DATE}\"
-                            BUILD_VERSION=\"${GIT_COMMIT_HASH}\")
     # Compile-time protection against static sized buffer overflows.
     target_compile_definitions(${PROJECT_NAME} PRIVATE "_FORTIFY_SOURCE=2")
 else()
@@ -391,8 +406,8 @@ endif()
 if (ARM_ENABLED)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_ARM_ENABLED)
 endif()
-if (GENX_ENABLED)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_GENX_ENABLED)
+if (XE_ENABLED)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_XE_ENABLED)
 endif()
 
 if (WASM_ENABLED)
@@ -422,14 +437,14 @@ endif()
 if (NOT ISPC_ANDROID_TARGET)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_ANDROID_TARGET_OFF)
 endif()
-if (NOT ISPC_PS4_TARGET)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_PS4_TARGET_OFF)
+if (NOT ISPC_PS_TARGET)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_PS_TARGET_OFF)
 endif()
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
                            ${LLVM_INCLUDE_DIRS}
-                           ${GENX_DEPS_DIR}/include
+                           ${XE_DEPS_DIR}/include
                            ${CMAKE_CURRENT_SOURCE_DIR}/src
                            ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
 
@@ -448,9 +463,9 @@ else()
                            -Wformat -Wformat-security -fpie -fwrapv)
 endif()
 
-# Set C++ standard to C++14.
+# Set C++ standard to C++17.
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES)
 
 if (NOT MSVC)
@@ -500,13 +515,13 @@ target_link_libraries(${PROJECT_NAME} ${CLANG_LIBRARY_FULL_PATH_LIST})
 # Link against LLVM libraries
 target_link_libraries(${PROJECT_NAME} ${LLVM_LIBRARY_LIST} ${CMAKE_DL_LIBS})
 
-if (GENX_ENABLED)
-    # Link against GEN libraries
-    foreach(genLib ${GEN_LIBRARY_LIST})
-        find_library(${genLib}Path NAMES ${genLib} HINTS ${GENX_DEPS_DIR}/lib)
-        list(APPEND GEN_LIBRARY_FULL_PATH_LIST ${${genLib}Path})
+if (XE_ENABLED)
+    # Link against Xe libraries
+    foreach(xeLib ${XE_LIBRARY_LIST})
+        find_library(${xeLib}Path NAMES ${xeLib} HINTS ${XE_DEPS_DIR}/lib)
+        list(APPEND XE_LIBRARY_FULL_PATH_LIST ${${xeLib}Path})
     endforeach()
-    target_link_libraries(${PROJECT_NAME} ${GEN_LIBRARY_FULL_PATH_LIST})
+    target_link_libraries(${PROJECT_NAME} ${XE_LIBRARY_FULL_PATH_LIST})
 endif()
 
 if (NOT WIN32 AND NOT APPLE)
@@ -571,7 +586,7 @@ if (ISPC_INCLUDE_EXAMPLES AND NOT ISPC_PREPARE_PACKAGE)
     )
 endif()
 
-if (ISPC_INCLUDE_GENX_EXAMPLES AND ISPC_INCLUDE_RT AND NOT ISPC_PREPARE_PACKAGE)
+if (ISPC_INCLUDE_XE_EXAMPLES AND ISPC_INCLUDE_RT AND NOT ISPC_PREPARE_PACKAGE)
     include(ExternalProject)
     if (WIN32)
         set(ISPCRT_LIB ${CMAKE_CURRENT_BINARY_DIR}/ispcrt/${CMAKE_CFG_INTDIR}/ispcrt.lib)
@@ -621,7 +636,7 @@ endif()
 # Install
 install (TARGETS ${PROJECT_NAME} DESTINATION bin)
 if (ISPC_PREPARE_PACKAGE)
-    if (GENX_ENABLED)
+    if (XE_ENABLED)
         install (DIRECTORY "${PROJECT_SOURCE_DIR}/examples/" DESTINATION examples)
     else()
         install (DIRECTORY "${PROJECT_SOURCE_DIR}/examples/" DESTINATION examples PATTERN "xpu" EXCLUDE)

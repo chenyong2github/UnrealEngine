@@ -47,9 +47,11 @@ There are a few key principles in the design of ``ispc``:
 ``ispc`` is an open source compiler with the BSD license.  It uses the
 remarkable [LLVM Compiler Infrastructure](http://llvm.org) for back-end
 code generation and optimization and is [hosted on
-github](http://github.com/ispc/ispc). It supports Windows, Mac, and
-Linux, with both x86 and x86-64 targets.  It currently supports the SSE2,
-SSE4, AVX, AVX2, and AVX512 instruction sets.
+github](http://github.com/ispc/ispc). It supports Windows, macOS, and
+Linux as a host operating system and also capable to target Android, iOS,
+and PS4/PS5.  It currently supports multiple flavours of x86 (SSE2,
+SSE4, AVX, AVX2, and AVX512), ARM (NEON), and Intel® GPU architectures
+(Gen9 and Xe family).
 
 Features
 --------
@@ -71,8 +73,9 @@ Features
     with application data structures.
             
   * Portability across over a decade of CPU
-    generations: ``ispc`` has targets for SSE2, SSE4, AVX, AVX2, and AVX512 and
-    recent Intel GPUs.
+    generations: ``ispc`` has targets for x86 SSE2, SSE4, AVX,
+    AVX2, and AVX512, as well as ARM NEON and
+    recent Intel® GPUs.
 
   * Portability across operating systems: Microsoft
     Windows, macOS, Linux, and FreeBSD are all supported
@@ -85,9 +88,10 @@ Additional Resources
 --------------------
 
 Prebuilt ``ispc`` binaries for Windows, macOS and Linux can be downloaded
-from the [ispc downloads page](http://ispc.github.com/downloads.html).
+from the [ispc downloads page](https://ispc.github.io/downloads.html).
 Latest ``ispc`` binaries corresponding to main branch can be downloaded
 from Appveyor for [Linux](https://ci.appveyor.com/api/projects/ispc/ispc/artifacts/build%2Fispc-trunk-linux.tar.gz?job=Environment%3A%20APPVEYOR_BUILD_WORKER_IMAGE%3DUbuntu1604%2C%20LLVM_VERSION%3Dlatest) and Windows ([msi](https://ci.appveyor.com/api/projects/ispc/ispc/artifacts/build%2Fispc-trunk-windows.msi?job=Environment%3A%20APPVEYOR_BUILD_WORKER_IMAGE%3DVisual%20Studio%202019%2C%20LLVM_VERSION%3Dlatest) or [zip](https://ci.appveyor.com/api/projects/ispc/ispc/artifacts/build%2Fispc-trunk-windows.zip?job=Environment%3A%20APPVEYOR_BUILD_WORKER_IMAGE%3DVisual%20Studio%202019%2C%20LLVM_VERSION%3Dlatest))
 See also additional
-[documentation](http://ispc.github.com/documentation.html) and additional
-[performance information](http://ispc.github.com/perf.html).
+[documentation](https://ispc.github.io/documentation.html) and additional
+[performance information](https://ispc.github.io/perf.html).
+If you have a bug report and have a question, you are welcome to open an [issue](https://github.com/ispc/ispc/issues) or start a [discussion](https://github.com/ispc/ispc/discussions) on GitHub.

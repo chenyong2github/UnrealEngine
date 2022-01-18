@@ -34,8 +34,19 @@
 # // Author: Filippov Ilia
 
 from collections import OrderedDict
+from enum import Enum, auto
 import re
 import traceback
+
+class SelfbuildType(Enum):
+    # not a selfbuild
+    SINGLE = auto()
+    # complete selfbuild
+    SELF = auto()
+    # first phase of selfbuild only
+    SELF_PHASE1 = auto()
+    # second phase of selfbuild only
+    SELF_PHASE2 = auto()
 
 def alloy_error(line, error_type = 1):
     global return_status
@@ -49,22 +60,6 @@ def tail_and_save(file_in, file_out, tail = 100):
 
     with open(file_out, 'w') as f_out:
         f_out.writelines(lines)
-
-
-def attach_mail_file(msg, filename, name, tail = -1):
-    if os.path.exists(filename):
-        if tail > 0:
-            tail_and_save(filename, filename + '.tail', tail)
-            fp = open(filename + '.tail', "rb")
-        else:
-            fp = open(filename, "rb")
-
-        to_attach = MIMEBase("application", "octet-stream")
-        to_attach.set_payload(fp.read())
-        encode_base64(to_attach)
-        to_attach.add_header("Content-Disposition", "attachment", filename=name)
-        fp.close()
-        msg.attach(to_attach)
 
 
 def setting_paths(llvm, ispc, sde):
@@ -113,10 +108,6 @@ def try_do_LLVM(text, command, from_validation, verbose=False):
     exit_status = proc.returncode
     if exit_status != 0:
         print_debug("ERROR.\n", from_validation, alloy_build)
-        if options.notify != "":
-            msg = MIMEMultipart()
-            attach_mail_file(msg, stability_log, "stability.log")
-            send_mail("ERROR: Non-zero exit status while executing " + command + ". Examine build log for more information.", msg)
         alloy_error("can't " + text, 1)
     print_debug("DONE.\n", from_validation, alloy_build)
 
@@ -129,6 +120,8 @@ def checkout_LLVM(component, version_LLVM, target_dir, from_validation, verbose)
     # git: "origin/release/9.x"
     if  version_LLVM == "trunk":
         GIT_TAG="main"
+    elif  version_LLVM == "13_0":
+        GIT_TAG="llvmorg-13.0.0"
     elif  version_LLVM == "12_0":
         GIT_TAG="llvmorg-12.0.1"
     elif  version_LLVM == "11_1":
@@ -171,7 +164,7 @@ def get_llvm_disable_assertions_switch(llvm_disable_assertions):
     else:
         return "  -DLLVM_ENABLE_ASSERTIONS=ON"
 
-def build_LLVM(version_LLVM, folder, tarball, debug, selfbuild, extra, from_validation, force, make, gcc_toolchain_path, llvm_disable_assertions, verbose):
+def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, force, make, gcc_toolchain_path, llvm_disable_assertions, verbose):
     print_debug("Building LLVM. Version: " + version_LLVM + ".\n", from_validation, alloy_build)
     # Here we understand what and where do we want to build
     current_path = os.getcwd()
@@ -194,9 +187,17 @@ def build_LLVM(version_LLVM, folder, tarball, debug, selfbuild, extra, from_vali
         alloy_error("you have folder " + LLVM_BIN + ".\nIf you want to rebuild use --force", 1)
     LLVM_BUILD_selfbuild = LLVM_BUILD + "_temp"
     LLVM_BIN_selfbuild = LLVM_BIN + "_temp"
-    common.remove_if_exists(LLVM_SRC)
-    common.remove_if_exists(LLVM_BUILD)
-    common.remove_if_exists(LLVM_BIN)
+
+    # Selfbuild phase2 assumes that directories are already create, for all other cases, create them.
+    if selfbuild is SelfbuildType.SINGLE or selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE1:
+        common.remove_if_exists(LLVM_SRC)
+        common.remove_if_exists(LLVM_BUILD)
+        common.remove_if_exists(LLVM_BIN)
+    if selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE1:
+        common.remove_if_exists(LLVM_BUILD_selfbuild)
+        common.remove_if_exists(LLVM_BIN_selfbuild)
+    print_debug("Using folders: " + LLVM_SRC + " " + LLVM_BUILD + " " + LLVM_BIN + " in " +
+        llvm_home + "\n", from_validation, alloy_build)
 
     # Starting from MacOS 10.9 Maverics, C and C++ library headers are part of the SDK, not the OS itself.
     # System root must be specified during the compiler build, so the compiler knows the default location to search for headers.
@@ -218,62 +219,45 @@ def build_LLVM(version_LLVM, folder, tarball, debug, selfbuild, extra, from_vali
         else:
             alloy_error("Can't find XCode (xcrun tool) - it's required on MacOS 10.9 and newer", 1)
 
-    if selfbuild:
-        common.remove_if_exists(LLVM_BUILD_selfbuild)
-        common.remove_if_exists(LLVM_BIN_selfbuild)
-    print_debug("Using folders: " + LLVM_SRC + " " + LLVM_BUILD + " " + LLVM_BIN + " in " +
-        llvm_home + "\n", from_validation, alloy_build)
-    # load llvm
-    llvm_enable_projects = ""
-    if tarball == "":
-        checkout_LLVM("llvm", version_LLVM, LLVM_SRC, from_validation, verbose)
-        llvm_enable_projects = "  -DLLVM_ENABLE_PROJECTS=\"clang"
-        if current_OS == "MacOS" and int(current_OS_version.split(".")[0]) >= 13:
-            # Starting with MacOS 10.9 Maverics, the system doesn't contain headers for standard C++ library and
-            # the default library is libc++, bit libstdc++. The headers are part of XCode now. But we are checking out
-            # headers as part of LLVM source tree, so they will be installed in clang location and clang will be able
-            # to find them. Though they may not match to the library installed in the system, but seems that this should
-            # not happen.
-            # Note, that we can also build a libc++ library, but it must be on system default location or should be passed
-            # to the linker explicitly (either through command line or environment variables). So we are not doing it
-            # currently to make the build process easier.
+    # prepare configuration parameters
+    llvm_enable_projects = " -DLLVM_ENABLE_PROJECTS=\"clang"
+    if current_OS == "MacOS" and int(current_OS_version.split(".")[0]) >= 13:
+        # Starting with MacOS 10.9 Maverics, the system doesn't contain headers for standard C++ library and
+        # the default library is libc++, bit libstdc++. The headers are part of XCode now. But we are checking out
+        # headers as part of LLVM source tree, so they will be installed in clang location and clang will be able
+        # to find them. Though they may not match to the library installed in the system, but seems that this should
+        # not happen.
+        # Note, that we can also build a libc++ library, but it must be on system default location or should be passed
+        # to the linker explicitly (either through command line or environment variables). So we are not doing it
+        # currently to make the build process easier.
 
-            # We either need to explicitly opt-out from using libcxxabi from this repo, or build and use it,
-            # otherwise a build error will occure (attempt to use just built libcxxabi, which was not built).
-            # An option to build seems to be a better one.
-            llvm_enable_projects +=";libcxx;libcxxabi"
-        if current_OS == "Linux":
-            # OpenMP is needed for GEN enabled builds.
-            # Starting from Ubuntu 20.04 libomp-dev package doesn't install omp.h to default location.
-            llvm_enable_projects +=";openmp"
-        if extra == True:
-            llvm_enable_projects +=";compiler-rt;clang-tools-extra"
-    else:
-        tar = tarball.split(" ")
-        os.makedirs(LLVM_SRC)
-        os.chdir(LLVM_SRC)
-        try_do_LLVM("untar LLVM from " + tar[0] + " ",
-                    "tar -xvzf " + tar[0] + " --strip-components 1", from_validation, verbose)
-        os.chdir("./tools")
-        os.makedirs("clang")
-        os.chdir("./clang")
-        try_do_LLVM("untar clang from " + tar[1] + " ",
-                    "tar -xvzf " + tar[1] + " --strip-components 1", from_validation, verbose)
-        os.chdir("../../")
-    # paching llvm
+        # We either need to explicitly opt-out from using libcxxabi from this repo, or build and use it,
+        # otherwise a build error will occure (attempt to use just built libcxxabi, which was not built).
+        # An option to build seems to be a better one.
+        llvm_enable_projects +=";libcxx;libcxxabi"
+    if current_OS == "Linux":
+        # OpenMP is needed for Xe enabled builds.
+        # Starting from Ubuntu 20.04 libomp-dev package doesn't install omp.h to default location.
+        llvm_enable_projects +=";openmp"
+    if extra == True:
+        llvm_enable_projects +=";compiler-rt;clang-tools-extra"
     llvm_enable_projects += "\""
-    os.chdir(LLVM_SRC)
-    patches = glob.glob(os.environ["ISPC_HOME"] + os.sep + "llvm_patches" + os.sep + "*.*")
-    for patch in patches:
-        if version_LLVM in os.path.basename(patch):
-            try_do_LLVM("patch LLVM with patch " + patch + " ", "git apply " + patch, from_validation, verbose)
-    os.chdir("../")
-    # configuring llvm, build first part of selfbuild
-    os.makedirs(LLVM_BUILD)
-    os.makedirs(LLVM_BIN)
-    selfbuild_compiler = ""
+
+    if selfbuild is SelfbuildType.SINGLE or selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE1:
+        # clone llvm repo
+        checkout_LLVM("llvm", version_LLVM, LLVM_SRC, from_validation, verbose)
+
+        # patch llvm
+        os.chdir(LLVM_SRC)
+        patches = glob.glob(os.environ["ISPC_HOME"] + os.sep + "llvm_patches" + os.sep + "*.*")
+        for patch in patches:
+            if version_LLVM in os.path.basename(patch):
+                try_do_LLVM("patch LLVM with patch " + patch + " ", "git apply " + patch, from_validation, verbose)
+        os.chdir("../")
+
+    # configuring llvm and build for first phase of selfbuild
     cmakelists_path = LLVM_SRC + "/llvm"
-    if selfbuild:
+    if selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE1:
         print_debug("Making selfbuild and use folders " + LLVM_BUILD_selfbuild + " and " +
             LLVM_BIN_selfbuild + "\n", from_validation, alloy_build)
         os.makedirs(LLVM_BUILD_selfbuild)
@@ -295,61 +279,67 @@ def build_LLVM(version_LLVM, folder, tarball, debug, selfbuild, extra, from_vali
                 "  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly" +
                 " ../" + cmakelists_path,
                 from_validation, verbose)
-        selfbuild_compiler = ("  -DCMAKE_C_COMPILER=" +llvm_home+ "/" + LLVM_BIN_selfbuild + "/bin/clang " +
-                              "  -DCMAKE_CXX_COMPILER="+llvm_home+ "/" + LLVM_BIN_selfbuild + "/bin/clang++ ")
-        try_do_LLVM("build release version for selfbuild ",
-                    make, from_validation, verbose)
-        try_do_LLVM("install release version for selfbuild ",
-                    "make install",
-                    from_validation, verbose)
+        try_do_LLVM("build release version for selfbuild ", make, from_validation, verbose)
+        try_do_LLVM("install release version for selfbuild ", "make install", from_validation, verbose)
         os.chdir("../")
 
-        print_debug("Now we have compiler for selfbuild: " + selfbuild_compiler + "\n", from_validation, alloy_build)
-    os.chdir(LLVM_BUILD)
-    build_type = "Release" if debug == False else "Debug"
-    if current_OS != "Windows":
-        try_do_LLVM("configure " + build_type + " version ",
-                "cmake -G " + "\"" + generator + "\"" + " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON" +
-                selfbuild_compiler +
-                "  -DCMAKE_INSTALL_PREFIX=" + llvm_home + "/" + LLVM_BIN +
-                "  -DCMAKE_BUILD_TYPE=" + build_type +
-                llvm_enable_projects +
-                get_llvm_enable_dump_switch(version_LLVM) +
-                get_llvm_disable_assertions_switch(llvm_disable_assertions) +
-                "  -DLLVM_INSTALL_UTILS=ON" +
-                (("  -DGCC_INSTALL_PREFIX=" + gcc_toolchain_path) if gcc_toolchain_path != "" else "") +
-                (("  -DCMAKE_C_COMPILER=" + gcc_toolchain_path+"/bin/gcc") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
-                (("  -DCMAKE_CXX_COMPILER=" + gcc_toolchain_path+"/bin/g++") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
-                (("  -DDEFAULT_SYSROOT=" + mac_system_root) if mac_system_root != "" else "") +
-                "  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86" +
-                "  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly" +
-                " ../" + cmakelists_path,
-                from_validation, verbose)
-    else:
-        try_do_LLVM("configure " + build_type + " version ",
-                'cmake -Thost=x64 -G ' + '\"' + generator + '\"' + ' -DCMAKE_INSTALL_PREFIX="..\\'+ LLVM_BIN + '" ' +
-                '  -DCMAKE_BUILD_TYPE=' + build_type +
-                llvm_enable_projects +
-                get_llvm_enable_dump_switch(version_LLVM) +
-                get_llvm_disable_assertions_switch(llvm_disable_assertions) +
-                '  -DLLVM_INSTALL_UTILS=ON' +
-                '  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86' +
-                '  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly' +
-                '  -DLLVM_LIT_TOOLS_DIR="C:\\gnuwin32\\bin" ..\\' + cmakelists_path,
-                from_validation, verbose)
+    # set compiler to use if this is selfbuild
+    selfbuild_compiler = ""
+    if selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE2:
+        selfbuild_compiler = ("  -DCMAKE_C_COMPILER=" +llvm_home+ "/" + LLVM_BIN_selfbuild + "/bin/clang " +
+                              "  -DCMAKE_CXX_COMPILER="+llvm_home+ "/" + LLVM_BIN_selfbuild + "/bin/clang++ ")
+        print_debug("Use compiler for selfbuild: " + selfbuild_compiler + "\n", from_validation, alloy_build)
 
-    # building llvm
-    if current_OS != "Windows":
-        try_do_LLVM("build LLVM ", make, from_validation, verbose)
-        try_do_LLVM("install LLVM ", "make install", from_validation, verbose)
-    else:
-        try_do_LLVM("build LLVM and then install LLVM ", "msbuild INSTALL.vcxproj /V:m /p:Platform=x64 /p:Configuration=" + build_type + " /t:rebuild", from_validation, verbose)
-    os.chdir(current_path)
+
+    # configure and build for regular build or second phase of selfbuild
+    if selfbuild is SelfbuildType.SINGLE or selfbuild is SelfbuildType.SELF or selfbuild is SelfbuildType.SELF_PHASE2:
+        os.makedirs(LLVM_BUILD)
+        os.makedirs(LLVM_BIN)
+        os.chdir(LLVM_BUILD)
+        build_type = "Release" if debug == False else "Debug"
+        if current_OS != "Windows":
+            try_do_LLVM("configure " + build_type + " version ",
+                    "cmake -G " + "\"" + generator + "\"" + " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON" +
+                    selfbuild_compiler +
+                    "  -DCMAKE_INSTALL_PREFIX=" + llvm_home + "/" + LLVM_BIN +
+                    "  -DCMAKE_BUILD_TYPE=" + build_type +
+                    llvm_enable_projects +
+                    get_llvm_enable_dump_switch(version_LLVM) +
+                    get_llvm_disable_assertions_switch(llvm_disable_assertions) +
+                    "  -DLLVM_INSTALL_UTILS=ON" +
+                    (("  -DGCC_INSTALL_PREFIX=" + gcc_toolchain_path) if gcc_toolchain_path != "" else "") +
+                    (("  -DCMAKE_C_COMPILER=" + gcc_toolchain_path+"/bin/gcc") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
+                    (("  -DCMAKE_CXX_COMPILER=" + gcc_toolchain_path+"/bin/g++") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
+                    (("  -DDEFAULT_SYSROOT=" + mac_system_root) if mac_system_root != "" else "") +
+                    "  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86" +
+                    "  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly" +
+                    " ../" + cmakelists_path,
+                    from_validation, verbose)
+        else:
+            try_do_LLVM("configure " + build_type + " version ",
+                    'cmake -Thost=x64 -G ' + '\"' + generator + '\"' + ' -DCMAKE_INSTALL_PREFIX="..\\'+ LLVM_BIN + '" ' +
+                    '  -DCMAKE_BUILD_TYPE=' + build_type +
+                    llvm_enable_projects +
+                    get_llvm_enable_dump_switch(version_LLVM) +
+                    get_llvm_disable_assertions_switch(llvm_disable_assertions) +
+                    '  -DLLVM_INSTALL_UTILS=ON' +
+                    '  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86' +
+                    '  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly' +
+                    '  -DLLVM_LIT_TOOLS_DIR="C:\\gnuwin32\\bin" ..\\' + cmakelists_path,
+                    from_validation, verbose)
+
+        # building llvm
+        if current_OS != "Windows":
+            try_do_LLVM("build LLVM ", make, from_validation, verbose)
+            try_do_LLVM("install LLVM ", "make install", from_validation, verbose)
+        else:
+            try_do_LLVM("build LLVM and then install LLVM ", "msbuild INSTALL.vcxproj /V:m /p:Platform=x64 /p:Configuration=" + build_type + " /t:rebuild", from_validation, verbose)
+        os.chdir(current_path)
 
 
 def unsupported_llvm_targets(LLVM_VERSION):
-    prohibited_list = {"6.0":["avx512skx-i32x8", "avx512skx-i8x64", "avx512skx-i16x32"],
-                       "7.0":["avx512skx-i32x8", "avx512skx-i8x64", "avx512skx-i16x32"],
+    prohibited_list = {"6.0":["avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
+                       "7.0":["avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
                        "8.0":["avx512skx-i8x64", "avx512skx-i16x32"],
                        "9.0":["avx512skx-i8x64", "avx512skx-i16x32"]
                        }
@@ -394,7 +384,7 @@ def check_targets():
                  ["SSE2", "SSE4", "AVX", "AVX2"], "-hsw", False]),
       ("KNL",    [["avx512knl-i32x16"],
                  ["SSE2", "SSE4", "AVX", "AVX2", "KNL"], "-knl", False]),
-      ("SKX",    [["avx512skx-i32x16", "avx512skx-i32x8", "avx512skx-i8x64", "avx512skx-i16x32"],
+      ("SKX",    [["avx512skx-i32x16", "avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
                  ["SSE2", "SSE4", "AVX", "AVX2", "SKX"], "-skx", False])
     ])
 
@@ -546,19 +536,15 @@ def concatenate_test_results(R1, R2):
         R[j][1] = R1[j][1] + R2[j][1]
     return R
 
-def validation_run(only, only_targets, reference_branch, number, notify, update, speed_number, make, perf_llvm, time):
+def validation_run(only, only_targets, reference_branch, number, update, speed_number, make, perf_llvm, time):
     os.chdir(os.environ["ISPC_HOME"])
     if current_OS != "Windows":
         os.environ["PATH"] = os.environ["ISPC_HOME"] + ":" + os.environ["PATH"]
-    if options.notify != "":
-        common.remove_if_exists(os.environ["ISPC_HOME"] + os.sep + "notify_log.log")
-        msg = MIMEMultipart()
     print_debug("Command: " + ' '.join(sys.argv) + "\n", False, "")
     print_debug("Folder: " + os.environ["ISPC_HOME"] + "\n", False, "")
     date = datetime.datetime.now()
     print_debug("Date: " + date.strftime('%H:%M %d/%m/%Y') + "\n", False, "")
-    newest_LLVM="12.0"
-    msg_additional_info = ""
+    newest_LLVM="13.0"
 # *** *** ***
 # Stability validation run
 # *** *** ***
@@ -568,8 +554,8 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
 # stability constant options
         stability.save_bin = False
         stability.random = False
-        stability.ispc_flags = ""
-        stability.compiler_exe = None
+        stability.ispc_flags = options.ispc_flags
+        stability.compiler_exe = options.compiler_exe
         stability.num_jobs = speed_number
         stability.verbose = False
         stability.time = time
@@ -586,7 +572,7 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
         stability.in_file = "." + os.sep + f_date + os.sep + "run_tests_log.log"
         stability.verify = False
         stability.fail_db = "fail_db.txt"
-        stability.cpu = None
+        stability.device = None
         stability.ispc_output = None
         stability.debug_check = False
 # stability varying options
@@ -622,7 +608,7 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
             archs.append("x86-64")
         if "native" in only:
             sde_targets_t = []
-        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "trunk"]:
+        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "13.0", "trunk"]:
             if i in only:
                 LLVM.append(i)
         if "current" in only:
@@ -685,13 +671,6 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
                     print_debug("Warning: target " + stability.target + " is not supported in LLVM " + LLVM[i] + "\n", False, stability_log)
                     continue
 
-                # *always* specify default values for global variables on each loop iteration
-                stability.wrapexe = ""
-                stability.compiler_exe = None
-                # choosing right compiler for a given target
-                # sometimes clang++ is not avaluable. if --ispc-build-compiler = gcc we will pass in g++ compiler
-                if options.ispc_build_compiler == "gcc":
-                    stability.compiler_exe = "g++"
                 # now set archs for targets
                 arch = archs
                 for i1 in range(0,len(arch)):
@@ -710,13 +689,7 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
                 if (stability.target in unsupported_llvm_targets(LLVM[i])):
                     print_debug("Warning: target " + stability.target + " is not supported in LLVM " + LLVM[i] + "\n", False, stability_log)
                     continue
-                # *always* specify default values for global variables on each loop iteration
-                stability.wrapexe = ""
-                stability.compiler_exe = None
-                # choosing right compiler for a given target
-                # sometimes clang++ is not avaluable. if --ispc-build-compiler = gcc we will pass in g++ compiler
-                if options.ispc_build_compiler == "gcc":
-                    stability.compiler_exe = "g++"
+
                 stability.wrapexe = get_sde() + " " + sde_targets[j][0] + " -- "
                 arch = archs
                 for i1 in range(0,len(arch)):
@@ -737,12 +710,6 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
         print_debug("\n----------------------------------------\nTOTAL:\n", False, stability_log)
         output_test_results(R)
         print_debug("__________________Watch stability.log for details_________________\n", False, stability_log)
-        if options.notify != "":
-            # e-mail header for performance test:
-            msg_additional_info += "New runfails(%d) New compfails(%d) New passes runfails(%d) New passes compfails(%d)" \
-                                                                      % (len(R[0][0]), len(R[1][0]), len(R[2][0]), len(R[3][0]))
-            attach_mail_file(msg, stability.in_file, "run_tests_log.log", 100)
-            attach_mail_file(msg, stability_log, "stability.log")
 
 # *** *** ***
 # Performance validation run
@@ -802,48 +769,9 @@ def validation_run(only, only_targets, reference_branch, number, notify, update,
             build_ispc(reference_branch, make)
         # begin validation run for performance. output is inserted into perf()
         perf.perf(performance, [])
-        if options.notify != "":
-            attach_mail_file(msg, performance.in_file, "performance.log")
-            attach_mail_file(msg, "." + os.sep + "logs" + os.sep + "perf_build.log", "perf_build.log")
     # dumping gathered info to the file
     common.ex_state.dump(alloy_folder + "test_table.dump", common.ex_state.tt)
 
-    # sending e-mail with results
-    if options.notify != "":
-        send_mail(msg_additional_info, msg)
-
-def send_mail(body_header, msg):
-    global return_status
-    try:
-        fp = open(os.environ["ISPC_HOME"] + os.sep + "notify_log.log", 'rb')
-        f_lines = fp.readlines()
-        fp.close()
-    except Exception as e:
-        print_debug("Exception: " + str(e), False, stability_log)
-        body_header += "\nUnable to open notify_log.log: " + str(sys.exc_info()) + "\n"
-        print_debug("Unable to open notify_log.log: " + str(sys.exc_info()) + "\n", False, stability_log)
-        return_status = 1
-
-    body = "Hostname: " + common.get_host_name() + "\n\n"
-
-    if  not sys.exc_info()[0] == None:
-        body += "ERROR: Exception(last) - " + str(sys.exc_info()) + '\n'
-
-    body += body_header + '\n'
-    for i in range(0, len(f_lines)):
-        body += f_lines[i][:-1]
-        body += '   \n'
-
-    attach_mail_file(msg, alloy_build, "alloy_build.log", 100) # build.log is always being sent
-    smtp_server = os.environ["SMTP_ISPC"]
-    msg['Subject'] = options.notify_subject
-    msg['From'] = "ISPC_test_system"
-    msg['To'] = options.notify
-    text = MIMEText(body, "", "KOI-8")
-    msg.attach(text)
-    s = smtplib.SMTP(smtp_server)
-    s.sendmail(options.notify, options.notify.split(" "), msg.as_string())
-    s.quit()
 
 def Main():
     global current_OS
@@ -869,28 +797,30 @@ def Main():
         parser.print_help()
         exit(1)
 
-    if options.notify != "":
-        # in case 'notify' option is used but build (in '-b' for example) failed we do not want to have trash in our message body
-        # NOTE! 'notify.log' must also be cleaned up at the beginning of every message sending function, i.e. in 'validation_run()'
-        common.remove_if_exists(os.environ["ISPC_HOME"] + os.sep + "notify_log.log")
+    # check and normalize selfbuild switches
+    selfbuild = SelfbuildType.SINGLE
+    if (options.selfbuild and (options.selfbuild_phase1 or options.selfbuild_phase2)) or (options.selfbuild_phase1 and options.selfbuild_phase2):
+        alloy_error("Only one of --selfbuild* switches can be used at the same time", 1)
+    if options.selfbuild:
+        selfbuild = SelfbuildType.SELF
+    if options.selfbuild_phase1:
+        selfbuild = SelfbuildType.SELF_PHASE1
+    if options.selfbuild_phase2:
+        selfbuild = SelfbuildType.SELF_PHASE2
 
     setting_paths(options.llvm_home, options.ispc_home, options.sde_home)
     if os.environ.get("LLVM_HOME") == None:
         alloy_error("you have no LLVM_HOME", 1)
     if os.environ.get("ISPC_HOME") == None:
         alloy_error("you have no ISPC_HOME", 1)
-    if options.notify != "":
-        if os.environ.get("SMTP_ISPC") == None:
-            alloy_error("you have no SMTP_ISPC in your environment for option notify", 1)
     if options.only != "":
-        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
+        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
         test_only = options.only.split(" ")
         for iterator in test_only:
             if not (" " + iterator + " " in test_only_r):
                 alloy_error("unknown option for only: " + iterator, 1)
-    if current_OS == "Windows":
-        if options.selfbuild == True or options.tarball != "":
-            alloy_error("Selfbuild and tarball options are unsupported on windows", 1)
+    if current_OS == "Windows" and selfbuild is not SelfbuildType.SINGLE:
+        alloy_error("Selfbuild is not supported on Windows", 1)
     global f_date
     f_date = "logs"
     common.remove_if_exists(f_date)
@@ -904,7 +834,7 @@ def Main():
     current_path = os.getcwd()
     make = "make -j" + options.speed
     if os.environ["ISPC_HOME"] != os.getcwd():
-        alloy_error("you ISPC_HOME and your current path are different! (" + os.environ["ISPC_HOME"] + " is not equal to " + os.getcwd() +
+        alloy_error("your ISPC_HOME and your current path are different! (" + os.environ["ISPC_HOME"] + " is not equal to " + os.getcwd() +
         ")\n", 2)
     if options.perf_llvm == True:
         if options.branch == "main":
@@ -920,17 +850,17 @@ def Main():
     try:
         start_time = time.time()
         if options.build_llvm:
-            build_LLVM(options.version, options.folder, options.tarball,
-                    options.debug, options.selfbuild, options.extra, False, options.force, make, options.gcc_toolchain_path, options.llvm_disable_assertions, options.verbose)
+            build_LLVM(options.version, options.folder,
+                    options.debug, selfbuild, options.extra, False, options.force, make, options.gcc_toolchain_path, options.llvm_disable_assertions, options.verbose)
         if options.validation_run:
             validation_run(options.only, options.only_targets, options.branch,
-                    options.number_for_performance, options.notify, options.update, int(options.speed),
+                    options.number_for_performance, options.update, int(options.speed),
                     make, options.perf_llvm, options.time)
         elapsed_time = time.time() - start_time
         if options.time:
             print_debug("Elapsed time: " + time.strftime('%Hh%Mm%Ssec.', time.gmtime(elapsed_time)) + "\n", False, "")
     except Exception as e:
-        print_debug("Exception: " + str(e), False, stability_log)
+        print_debug("Exception: " + str(e) + "\n", False, stability_log)
         return_status = 1
 
     # Finish execution: time reporting and copy log
@@ -968,10 +898,6 @@ import multiprocessing
 import subprocess
 import re
 from shutil import copyfile
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email.encoders import encode_base64
 # our drivers
 import run_tests
 import perf
@@ -986,16 +912,15 @@ if __name__ == '__main__':
         def format_epilog(self, formatter):
             return self.epilog
     examples =  ("Examples:\n" +
-    "Download and build LLVM from trunk\n\talloy.py -b\n" +
-    "Download and build LLVM 8.0. Rewrite LLVM folders\n\talloy.py -b --version=8.0 --force\n" +
-    "Untar files llvm.tgz clang.tgz, build LLVM from them in folder bin-from_tar\n\talloy.py -b --tarball='llvm.tgz clang.tgz' --folder=from_tar\n" +
+    "Download and build LLVM trunk\n\talloy.py -b\n" +
+    "Download and build LLVM 13.0. Rewrite LLVM folders\n\talloy.py -b --version=13.0 --force\n" +
     "Validation run with LLVM trunk; x86, x86-64; -O2;\nall supported targets; performance\n\talloy.py -r\n" +
     "Validation run with all avx targets and sse4-i8x16 without performance\n\talloy.py -r --only=stability --only-targets='avx sse4-i8x16'\n" +
     "Validation run with avx2-i32x8, all sse4 and sse2 targets\nand all targets with i32x16\n\talloy.py -r --only-targets='avx2-i32x8 sse4 i32x16 sse2'\n" +
     "Stability validation run with LLVM 7.0, 8.0; -O0; x86,\nupdate fail_db.txt with passes and fails\n\talloy.py -r --only='7.0 -O0 stability 8.0 x86' --update-errors=FP\n" +
     "Try to build compiler with all LLVM\n\talloy.py -r --only=build\n" +
     "Performance validation run with 10 runs of each test and comparing to branch 'old'\n\talloy.py -r --only=performance --compare-with=old --number=10\n" +
-    "Validation run. Update fail_db.txt with new fails, send results to my@my.com\n\talloy.py -r --update-errors=F --notify='my@my.com'\n" +
+    "Validation run. Update fail_db.txt with new fails\n\talloy.py -r --update-errors=F\n" +
     "Test KNL target (requires sde)\n\talloy.py -r --only='stability' --only-targets='avx512knl-i32x16'\n")
 
     num_threads="%s" % multiprocessing.cpu_count()
@@ -1012,7 +937,7 @@ if __name__ == '__main__':
     llvm_group = OptionGroup(parser, "Options for building LLVM",
                     "These options must be used with -b option.")
     llvm_group.add_option('--version', dest='version',
-        help='version of llvm to build: 6.0 7.0 8.0 9.0 10.0 11.0 12.0 trunk. Default: trunk', default="trunk")
+        help='version of llvm to build: 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 trunk. Default: trunk', default="trunk")
     llvm_group.add_option('--with-gcc-toolchain', dest='gcc_toolchain_path',
          help='GCC install dir to use when building clang. It is important to set when ' +
          'you have alternative gcc installation. Note that otherwise gcc from standard ' +
@@ -1021,10 +946,12 @@ if __name__ == '__main__':
         help='debug build of LLVM', default=False, action="store_true")
     llvm_group.add_option('--folder', dest='folder',
         help='folder to build LLVM in', default="")
-    llvm_group.add_option('--tarball', dest='tarball',
-        help='"llvm_tarball clang_tarball"', default="")
     llvm_group.add_option('--selfbuild', dest='selfbuild',
         help='make selfbuild of LLVM and clang', default=False, action="store_true")
+    llvm_group.add_option('--selfbuild-phase1', dest='selfbuild_phase1',
+        help='make selfbuild of LLVM and clang, first phase only', default=False, action="store_true")
+    llvm_group.add_option('--selfbuild-phase2', dest='selfbuild_phase2',
+        help='make selfbuild of LLVM and clang, second phase only', default=False, action="store_true")
     llvm_group.add_option('--llvm-disable-assertions', dest='llvm_disable_assertions',
         help='build LLVM with assertions disabled', default=False, action="store_true")
     llvm_group.add_option('--force', dest='force',
@@ -1038,13 +965,13 @@ if __name__ == '__main__':
     run_group = OptionGroup(parser, "Options for validation run",
                     "These options must be used with -r option.")
     run_group.add_option('--compare-with', dest='branch',
-        help='set performance reference point. Dafault: main', default="main")
+        help='set performance reference point. Default: main', default="main")
+    run_group.add_option('--compiler', dest='compiler_exe',
+        help='C/C++ compiler binary to use to run tests.', default=None)
+    run_group.add_option('--ispc-flags', dest='ispc_flags',
+        help='extra ispc flags.', default="")
     run_group.add_option('--number', dest='number_for_performance',
         help='number of performance runs for each test. Default: 5', default=5)
-    run_group.add_option('--notify', dest='notify',
-        help='email to sent results to', default="")
-    run_group.add_option('--notify-subject', dest='notify_subject',
-        help='set the subject of the notification email, the default is ISPC test system results', default="ISPC test system results")
     run_group.add_option('--update-errors', dest='update',
         help='rewrite fail_db.txt file according to received results (F or FP)', default="")
     run_group.add_option('--only-targets', dest='only_targets',
@@ -1054,7 +981,7 @@ if __name__ == '__main__':
     run_group.add_option('--only', dest='only',
         help='set types of tests. Possible values:\n' +
             '-O0, -O1, -O2, x86, x86-64, stability (test only stability), performance (test only performance),\n' +
-            'build (only build with different LLVM), 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, trunk, native (do not use SDE),\n' +
+            'build (only build with different LLVM), 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, trunk, native (do not use SDE),\n' +
             'current (do not rebuild ISPC), debug (only with debug info), nodebug (only without debug info, default).',
             default="")
     run_group.add_option('--perf_LLVM', dest='perf_llvm',

@@ -1,6 +1,8 @@
-// rule: skip on cpu=TGLLP
+#include "../test_static.isph"
+// rule: skip on cpu=tgllp
+// rule: skip on cpu=dg2
 
-export void f_f(uniform float RET[], uniform float aFOO[]) {
+task void f_f(uniform float RET[], uniform float aFOO[]) {
     #pragma ignore warning(perf)
     double x = aFOO[programIndex&0x3]*1d100;
     double d, ix; 
@@ -10,6 +12,6 @@ export void f_f(uniform float RET[], uniform float aFOO[]) {
     RET[programIndex] = (d < 1d-15 && !isnan(d)) ? 1.0d0 : 0.0d0; 
 }
 
-export void result(uniform float RET[]) {
+task void result(uniform float RET[]) {
     RET[programIndex] = 1.0d0;
 }
