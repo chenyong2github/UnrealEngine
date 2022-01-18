@@ -59,6 +59,8 @@ public:
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty) override;
 	virtual void Empty(bool bClearBindings = true) override;
 	virtual void Reset(bool bClearBindings = true) override;
+	virtual bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false) override;
+	virtual const FVector* GetPositionParameterValue(const FName& ParamName) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void ConvertParameterType(const FNiagaraVariable& ExistingParam, const FNiagaraTypeDefinition& NewType) override;

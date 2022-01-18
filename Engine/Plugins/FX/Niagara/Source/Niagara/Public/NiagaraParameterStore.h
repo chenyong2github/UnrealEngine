@@ -502,8 +502,8 @@ public:
 
 	FString ToString() const;
 
-	bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false);
-	const FVector* GetPositionParameterValue(const FName& ParamName) const;
+	virtual bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false);
+	virtual const FVector* GetPositionParameterValue(const FName& ParamName) const;
 	void ResolvePositions(FNiagaraLWCConverter LwcConverter);
 
 	template<typename T>

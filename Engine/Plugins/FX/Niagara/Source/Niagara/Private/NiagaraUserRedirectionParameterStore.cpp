@@ -140,6 +140,20 @@ void FNiagaraUserRedirectionParameterStore::Reset(bool bClearBindings /*= true*/
 	UserParameterRedirects.Reset();
 }
 
+bool FNiagaraUserRedirectionParameterStore::SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd)
+{
+	FNiagaraVariable PositionVar = FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), ParamName);
+	const FNiagaraVariable* Redirection = UserParameterRedirects.Find(PositionVar);
+	return FNiagaraParameterStore::SetPositionParameterValue(InValue, Redirection ? Redirection->GetName() : ParamName, bAdd);
+}
+
+const FVector* FNiagaraUserRedirectionParameterStore::GetPositionParameterValue(const FName& ParamName) const
+{
+	FNiagaraVariable PositionVar = FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), ParamName);
+	const FNiagaraVariable* Redirection = UserParameterRedirects.Find(PositionVar);
+	return FNiagaraParameterStore::GetPositionParameterValue(Redirection ? Redirection->GetName() : ParamName);
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUserRedirectionParameterStore::ConvertParameterType(const FNiagaraVariable& ExistingParam,	const FNiagaraTypeDefinition& NewType)
 {
