@@ -395,7 +395,7 @@ namespace AutomationToolDriver
 			}
 			catch (Exception Ex)
             {
-				Log.TraceError("Exception occurred between AutomationToolDriver.Main() and Automation.Process()" + ExceptionUtils.FormatException(Ex));
+				Log.TraceError(ExceptionUtils.FormatException(Ex));
             }
             finally
             {
