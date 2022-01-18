@@ -18,6 +18,7 @@
 FMobilityCustomization::FMobilityCustomization(TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 InRestrictedMobilityBits, bool InForLight)
 {
 	MobilityHandle = InMobilityHandle;
+	MobilityHandle->MarkHiddenByCustomization();
 	RestrictedMobilityBits = InRestrictedMobilityBits;
 	bForLight = InForLight;
 }
