@@ -287,8 +287,8 @@ static void GetBLASBuildData(
 		&BuildData.SizesInfo);
 }
 
-FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(FRayTracingGeometryInitializer InInitializer, FVulkanDevice* InDevice)
-	: Device(InDevice), Initializer(MoveTemp(InInitializer))
+FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& InInitializer, FVulkanDevice* InDevice)
+	: FRHIRayTracingGeometry(InInitializer), Device(InDevice)
 {
 	// Only supporting triangles initially
 	check(Initializer.GeometryType == ERayTracingGeometryType::RTGT_Triangles);

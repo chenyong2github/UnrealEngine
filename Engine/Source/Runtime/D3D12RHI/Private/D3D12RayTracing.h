@@ -31,8 +31,6 @@ public:
 		checkf(IsInRHIThread() || !IsRunningRHIInSeparateThread(), TEXT("Acceleration structure addresses can only be accessed on RHI timeline due to compaction and defragmentation."));
 		return AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
 	}
-	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
-	virtual FRayTracingAccelerationStructureSize GetSizeInfo() const final override { return SizeInfo; }
 	virtual void SetInitializer(const FRayTracingGeometryInitializer& Initializer) final override;
 
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
@@ -65,15 +63,11 @@ public:
 		return bIsAccelerationStructureDirty[GPUIndex];
 	}
 
-	uint32 IndexOffsetInBytes = 0;
-	uint32 TotalPrimitiveCount = 0; // Combined number of primitives in all mesh segments
+	using FRHIRayTracingGeometry::Initializer;
+	using FRHIRayTracingGeometry::SizeInfo;
 
-	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	static constexpr uint32 IndicesPerPrimitive = 3; // Triangle geometry only
 
-	TArray<FRayTracingGeometrySegment> Segments; // Defines addressable parts of the mesh that can be used for material assignment (one segment = one SBT record)
-	ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::None;
-
-	FBufferRHIRef  RHIIndexBuffer;
 	static FBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
@@ -92,9 +86,6 @@ public:
 	TArray<D3D12_RAYTRACING_GEOMETRY_DESC, TInlineAllocator<1>> GeometryDescs;
 
 	uint64 AccelerationStructureCompactedSize = 0;
-	FRayTracingAccelerationStructureSize SizeInfo = {};
-
-	ERayTracingGeometryInitializerType InitializerType;
 };
 
 class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild, public FNoncopyable

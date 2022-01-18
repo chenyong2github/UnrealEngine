@@ -126,6 +126,7 @@ DECLARE_CYCLE_STAT(TEXT("BuildTopLevel"), STAT_D3D12BuildTLAS, STATGROUP_D3D12Ra
 DECLARE_CYCLE_STAT(TEXT("BuildBottomLevel"), STAT_D3D12BuildBLAS, STATGROUP_D3D12RayTracing);
 DECLARE_CYCLE_STAT(TEXT("DispatchRays"), STAT_D3D12DispatchRays, STATGROUP_D3D12RayTracing);
 
+static ERayTracingAccelerationStructureFlags GetRayTracingAccelerationStructureBuildFlags(const FRayTracingGeometryInitializer& Initializer);
 
 #if UE_BUILD_SHIPPING
 inline void RegisterD3D12RayTracingGeometry(FD3D12RayTracingGeometry* Geometry) {};
@@ -256,6 +257,8 @@ static void DumpRayTracingGeometries(EDumpRayTracingGeometryMode Mode, int32 Num
 		FD3D12RayTracingGeometry* Geometry = Geometries[i];
 		uint64 SizeBytes = GetGeometrySize(*Geometry);
 
+		ERayTracingAccelerationStructureFlags GeometryBuildFlags = GetRayTracingAccelerationStructureBuildFlags(Geometry->Initializer);
+
 		if (ShownEntries < NumEntriesToShow && ShouldShow(Geometry))
 		{
 			if (bCSV)
@@ -263,10 +266,10 @@ static void DumpRayTracingGeometries(EDumpRayTracingGeometryMode Mode, int32 Num
 				const FString Row = FString::Printf(TEXT("%s,%.3f,%d,%d,%d,%d,%d\n"),
 					Geometry->DebugName.IsValid() ? *Geometry->DebugName.ToString() : TEXT("*UNKNOWN*"),
 					SizeBytes / double(1 << 20),
-					Geometry->TotalPrimitiveCount,
-					Geometry->Segments.Num(),
-					(int32)EnumHasAllFlags(Geometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction),
-					(int32)EnumHasAllFlags(Geometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate),
+					Geometry->Initializer.TotalPrimitiveCount,
+					Geometry->Initializer.Segments.Num(),
+					(int32)EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction),
+					(int32)EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate),
 					!Geometry->IsValid());
 				CSVFile->Serialize(TCHAR_TO_ANSI(*Row), Row.Len());
 			}
@@ -275,10 +278,10 @@ static void DumpRayTracingGeometries(EDumpRayTracingGeometryMode Mode, int32 Num
 				BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Name: %s - Size: %.3f MB - Prims: %d - Segments: %d -  Compaction: %d - Update: %d"),
 					Geometry->DebugName.IsValid() ? *Geometry->DebugName.ToString() : TEXT("*UNKNOWN*"),
 					SizeBytes / double(1 << 20),
-					Geometry->TotalPrimitiveCount,
-					Geometry->Segments.Num(),
-					(int32)EnumHasAllFlags(Geometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction),
-					(int32)EnumHasAllFlags(Geometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate));
+					Geometry->Initializer.TotalPrimitiveCount,
+					Geometry->Initializer.Segments.Num(),
+					(int32)EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction),
+					(int32)EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate));
 			}
 			TopSizeBytes += SizeBytes;
 			++ShownEntries;
@@ -720,9 +723,10 @@ void FD3D12RayTracingCompactionRequestHandler::RequestCompact(FD3D12RayTracingGe
 {
 	uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
 	check(InRTGeometry->AccelerationStructureBuffers[GPUIndex]);
-	check(EnumHasAllFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction) &&
-		EnumHasAllFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::FastTrace) &&
-		!EnumHasAnyFlags(InRTGeometry->BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate));
+	ERayTracingAccelerationStructureFlags GeometryBuildFlags = GetRayTracingAccelerationStructureBuildFlags(InRTGeometry->Initializer);
+	check(EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction) &&
+		EnumHasAllFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::FastTrace) &&
+		!EnumHasAnyFlags(GeometryBuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate));
 
 	FScopeLock Lock(&CS);
 	PendingRequests.Add(InRTGeometry);
@@ -3023,8 +3027,6 @@ void TranslateRayTracingGeometryDescs(const FRayTracingGeometryInitializer& Init
 
 	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
 
-	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
-
 	uint32 ComputedPrimitiveCountForValidation = 0;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < Initializer.Segments.Num(); ++SegmentIndex)
@@ -3056,7 +3058,7 @@ void TranslateRayTracingGeometryDescs(const FRayTracingGeometryInitializer& Init
 		{
 			uint32 IndexStride = Initializer.IndexBuffer->GetStride();
 			check(Initializer.IndexBuffer->GetSize() >=
-				(Segment.FirstPrimitive + Segment.NumPrimitives) * IndicesPerPrimitive * IndexStride + Initializer.IndexBufferOffset);
+				(Segment.FirstPrimitive + Segment.NumPrimitives) * FD3D12RayTracingGeometry::IndicesPerPrimitive * IndexStride + Initializer.IndexBufferOffset);
 		}
 
 		D3D12_RAYTRACING_GEOMETRY_DESC Desc = {};
@@ -3104,7 +3106,7 @@ void TranslateRayTracingGeometryDescs(const FRayTracingGeometryInitializer& Init
 				// In some cases the geometry is created with 16 bit index buffer, but it's 32 bit at build time.
 				// We conservatively set this to 32 bit to allocate acceleration structure memory.
 				Desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
-				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
+				Desc.Triangles.IndexCount = Segment.NumPrimitives * FD3D12RayTracingGeometry::IndicesPerPrimitive;
 				Desc.Triangles.VertexCount = Segment.MaxVertices;
 			}
 			else
@@ -3432,13 +3434,12 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 	return Result;
 }
 
-FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& Initializer)
-	: FD3D12AdapterChild(Adapter)
+FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& InInitializer)
+	: FRHIRayTracingGeometry(InInitializer), FD3D12AdapterChild(Adapter)
 {
 	INC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
 
 	DebugName = Initializer.DebugName.IsValid() ? Initializer.DebugName : FName(TEXT("BLAS"));
-	InitializerType = Initializer.Type;
 
 	FMemory::Memzero(bHasPendingCompactionRequests);
 	FMemory::Memzero(bRegisteredAsRenameListener);
@@ -3461,22 +3462,12 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		return;
 	}
 
-	IndexOffsetInBytes = Initializer.IndexBufferOffset;
-	TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
-
-	GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
+	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
 
 	// #yuriy_todo: get flags directly through the initializer
-	BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
+	ERayTracingAccelerationStructureFlags BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
 
-	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
-	Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
-
-	RHIIndexBuffer = Initializer.IndexBuffer;
-
-	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
-
-	GeometryDescs.SetNumUninitialized(Segments.Num());
+	GeometryDescs.SetNumUninitialized(Initializer.Segments.Num());
 	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
 
 	SetDirty(FRHIGPUMask::All(), true);
@@ -3558,7 +3549,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 
 		if (bOnAsyncThread)
 		{
-			check(InitializerType == ERayTracingGeometryInitializerType::StreamingSource);
+			check(Initializer.Type == ERayTracingGeometryInitializerType::StreamingSource);
 
 			FD3D12ResourceLocation* SrcResourceLoc_Heap = new FD3D12ResourceLocation(SrcResourceLoc.GetParentDevice());
 			FD3D12ResourceLocation::TransferOwnership(*SrcResourceLoc_Heap, SrcResourceLoc);
@@ -3630,7 +3621,7 @@ void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 		UnregisterAsRenameListener(GPUIndex);
 	}
 
-	if (InitializerType != ERayTracingGeometryInitializerType::StreamingSource)
+	if (Initializer.Type != ERayTracingGeometryInitializerType::StreamingSource)
 	{
 		for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
 		{
@@ -3638,6 +3629,8 @@ void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 			{
 				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer->GetSize());
 				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, Buffer->GetSize());
+
+				ERayTracingAccelerationStructureFlags BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
 				if (EnumHasAllFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate))
 				{
 					DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicBLASMemory, Buffer->GetSize());
@@ -3649,7 +3642,7 @@ void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 			}
 		}
 
-		DEC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, TotalPrimitiveCount);
+		DEC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, Initializer.TotalPrimitiveCount);
 		DEC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
 	}
 
@@ -3659,15 +3652,11 @@ void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 		Buffer.SafeRelease();
 	}	
 
-	IndexOffsetInBytes = 0;
-	TotalPrimitiveCount = 0;
-	BuildFlags = ERayTracingAccelerationStructureFlags::None;
-	GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	RHIIndexBuffer = nullptr;
+	Initializer = {};
+
 	AccelerationStructureCompactedSize = 0;
 	GeometryDescs = {};
 	SizeInfo = {};
-	Segments.Empty();
 	for (TArray<FHitGroupSystemParameters>& HitGroupParametersForGPU : HitGroupSystemParameters)
 	{
 		HitGroupParametersForGPU.Empty();
@@ -3683,15 +3672,15 @@ void FD3D12RayTracingGeometry::RegisterAsRenameListener(uint32 InGPUIndex)
 {
 	check(!bRegisteredAsRenameListener[InGPUIndex]);
 
-	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(RHIIndexBuffer.GetReference(), InGPUIndex);
+	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InGPUIndex);
 	if (IndexBuffer)
 	{
 		IndexBuffer->AddRenameListener(this);
 	}
 
 	TArray<FD3D12Buffer*, TInlineAllocator<1>> UniqueVertexBuffers;
-	UniqueVertexBuffers.Reserve(Segments.Num());
-	for (const FRayTracingGeometrySegment& Segment : Segments)
+	UniqueVertexBuffers.Reserve(Initializer.Segments.Num());
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), InGPUIndex);
 		if (VertexBuffer && !UniqueVertexBuffers.Contains(VertexBuffer))
@@ -3711,15 +3700,15 @@ void FD3D12RayTracingGeometry::UnregisterAsRenameListener(uint32 InGPUIndex)
 		return;
 	}
 
-	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(RHIIndexBuffer.GetReference(), InGPUIndex);
+	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InGPUIndex);
 	if (IndexBuffer)
 	{
 		IndexBuffer->RemoveRenameListener(this);
 	}
 
 	TArray<FD3D12Buffer*, TInlineAllocator<1>> UniqueVertexBuffers;
-	UniqueVertexBuffers.Reserve(Segments.Num());
-	for (const FRayTracingGeometrySegment& Segment : Segments)
+	UniqueVertexBuffers.Reserve(Initializer.Segments.Num());
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), InGPUIndex);
 		if (VertexBuffer && !UniqueVertexBuffers.Contains(VertexBuffer))
@@ -3740,12 +3729,12 @@ void FD3D12RayTracingGeometry::ResourceRenamed(FD3D12BaseShaderResource* InRenam
 	// still referenced by the previous RT scene (but not used anymore). This only happens during freeing of RHI buffers during mesh streaming.
 	if (InNewResourceLocation == nullptr)
 	{	
-		FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(RHIIndexBuffer.GetReference(), InRenamedResource->GetParentDevice()->GetGPUIndex());
+		FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InRenamedResource->GetParentDevice()->GetGPUIndex());
 		if (IndexBuffer == InRenamedResource)
 		{
-			RHIIndexBuffer = nullptr;
+			Initializer.IndexBuffer = nullptr;
 		}
-		for (FRayTracingGeometrySegment& Segment : Segments)
+		for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
 		{
 			FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), InRenamedResource->GetParentDevice()->GetGPUIndex());
 			if (VertexBuffer == InRenamedResource)
@@ -3766,16 +3755,16 @@ void FD3D12RayTracingGeometry::ResourceRenamed(FD3D12BaseShaderResource* InRenam
 void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandContext)
 {
 	// Transition vertex and index resources..
-	if (RHIIndexBuffer)
+	if (Initializer.IndexBuffer)
 	{
-		FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIIndexBuffer.GetReference());
+		FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Initializer.IndexBuffer.GetReference());
 		if (IndexBuffer->GetResource()->RequiresResourceStateTracking())
 		{
 			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, IndexBuffer->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 		}
 	}
 
-	for (const FRayTracingGeometrySegment& Segment : Segments)
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		const FBufferRHIRef& RHIVertexBuffer = Segment.VertexBuffer;
 		FD3D12Buffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIVertexBuffer.GetReference());
@@ -3788,13 +3777,13 @@ void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandCo
 
 void FD3D12RayTracingGeometry::UpdateResidency(FD3D12CommandContext& CommandContext)
 {
-	if (RHIIndexBuffer)
+	if (Initializer.IndexBuffer)
 	{
-		FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIIndexBuffer.GetReference());
+		FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Initializer.IndexBuffer.GetReference());
 		IndexBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);		
 	}
 
-	for (const FRayTracingGeometrySegment& Segment : Segments)
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		const FBufferRHIRef& RHIVertexBuffer = Segment.VertexBuffer;
 		FD3D12Buffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIVertexBuffer.GetReference());		
@@ -3805,9 +3794,11 @@ void FD3D12RayTracingGeometry::UpdateResidency(FD3D12CommandContext& CommandCont
 	AccelerationStructureBuffers[GPUIndex]->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 }
 
-void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& Initializer)
+void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 {
-	checkf(InitializerType == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FD3D12RayTracingGeometry that was created as StreamingDestination can update their initializer."));
+	checkf(Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FD3D12RayTracingGeometry that was created as StreamingDestination can update their initializer."));
+	Initializer = InInitializer;
+	Initializer.Type = ERayTracingGeometryInitializerType::StreamingDestination; // Make sure this flag is set at all times so we can verify the resource state
 
 	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
@@ -3816,19 +3807,9 @@ void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializ
 
 	DebugName = Initializer.DebugName.IsValid() ? Initializer.DebugName : FName(TEXT("BLAS"));
 
-	IndexOffsetInBytes = Initializer.IndexBufferOffset;
-	TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
-
-	GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
-
-	BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
-
 	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
-	Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
 
-	RHIIndexBuffer = Initializer.IndexBuffer;
-	
-	GeometryDescs.SetNumUninitialized(Segments.Num());
+	GeometryDescs.SetNumUninitialized(Initializer.Segments.Num());
 	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
 	
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -3846,12 +3827,14 @@ void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializ
 
 void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 {
-	TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = HitGroupSystemParameters[InGPUIndex];
-	HitGroupSystemParametersForThisGPU.Reset(Segments.Num());
+	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
 
-	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(RHIIndexBuffer.GetReference(), InGPUIndex);
+	TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = HitGroupSystemParameters[InGPUIndex];
+	HitGroupSystemParametersForThisGPU.Reset(Initializer.Segments.Num());
+
+	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InGPUIndex);
 	const uint32 IndexStride = IndexBuffer ? IndexBuffer->GetStride() : 0;
-	for (const FRayTracingGeometrySegment& Segment : Segments)
+	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), InGPUIndex);
 
@@ -3861,9 +3844,8 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 
 		if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES && IndexBuffer != nullptr)
 		{
-			static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
 			SystemParameters.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress();
-			SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexOffsetInBytes + IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
+			SystemParameters.RootConstants.IndexBufferOffsetInBytes = Initializer.IndexBufferOffset + IndexStride * Segment.FirstPrimitive * FD3D12RayTracingGeometry::IndicesPerPrimitive;
 		}
 
 		HitGroupSystemParametersForThisGPU.Add(SystemParameters);
@@ -3872,30 +3854,32 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 
 void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode, D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC& OutDesc, TArrayView<D3D12_RAYTRACING_GEOMETRY_DESC>& OutGeometryDescs) const
 {
-	if (RHIIndexBuffer)
+	if (Initializer.IndexBuffer)
 	{
-		checkf(RHIIndexBuffer->GetStride() == 2 || RHIIndexBuffer->GetStride() == 4, TEXT("Index buffer must be 16 or 32 bit."));
+		checkf(Initializer.IndexBuffer->GetStride() == 2 || Initializer.IndexBuffer->GetStride() == 4, TEXT("Index buffer must be 16 or 32 bit."));
 	}
 
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
-	const uint32 IndexStride = RHIIndexBuffer ? RHIIndexBuffer->GetStride() : 0;
+	const uint32 IndexStride = Initializer.IndexBuffer ? Initializer.IndexBuffer->GetStride() : 0;
 	const bool bIsUpdate = BuildMode == EAccelerationStructureBuildMode::Update;
 
 	// Use the pre-built descs as template and set the GPU resource pointers (current VB/IB).
 	check(OutGeometryDescs.Num() == GeometryDescs.Num());
 
-	FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIIndexBuffer.GetReference());
+	FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Initializer.IndexBuffer.GetReference());
 	FD3D12Buffer* NullTransformBufferD3D12 = CommandContext.RetrieveObject<FD3D12Buffer>(NullTransformBuffer.GetReference());
 
 	const TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = HitGroupSystemParameters[GPUIndex];
-	check(HitGroupSystemParametersForThisGPU.Num() == Segments.Num());
+	check(HitGroupSystemParametersForThisGPU.Num() == Initializer.Segments.Num());
 
-	for (int32 SegmentIndex = 0; SegmentIndex < Segments.Num(); ++SegmentIndex)
+	ERayTracingAccelerationStructureFlags BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
+	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
+	for (int32 SegmentIndex = 0; SegmentIndex < Initializer.Segments.Num(); ++SegmentIndex)
 	{
 		D3D12_RAYTRACING_GEOMETRY_DESC& Desc = OutGeometryDescs[SegmentIndex];
 		Desc = GeometryDescs[SegmentIndex]; // Copy from template
 
-		const FRayTracingGeometrySegment& Segment = Segments[SegmentIndex];
+		const FRayTracingGeometrySegment& Segment = Initializer.Segments[SegmentIndex];
 		const FHitGroupSystemParameters& SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
 
 		FD3D12Buffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Segment.VertexBuffer.GetReference());
@@ -3932,8 +3916,7 @@ void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12Comman
 
 			if (IndexBuffer)
 			{
-				static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
-				check(Desc.Triangles.IndexCount <= Segment.NumPrimitives * IndicesPerPrimitive);
+				check(Desc.Triangles.IndexCount <= Segment.NumPrimitives * FD3D12RayTracingGeometry::IndicesPerPrimitive);
 
 				Desc.Triangles.IndexFormat = (IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT);
 				Desc.Triangles.IndexBuffer = SystemParameters.IndexBuffer + SystemParameters.RootConstants.IndexBufferOffsetInBytes;
@@ -3941,7 +3924,7 @@ void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12Comman
 			else
 			{
 				// Non-indexed geometry
-				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
+				checkf(Initializer.Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
 				check(Desc.Triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
 				check(Desc.Triangles.IndexCount == 0);
 				check(Desc.Triangles.IndexBuffer == D3D12_GPU_VIRTUAL_ADDRESS(0));
@@ -4290,13 +4273,13 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 				AddResidencyHandleForResource(Geometry->AccelerationStructureBuffers[GPUIndex]->GetResource());
 
-				if (Geometry->RHIIndexBuffer)
+				if (Geometry->Initializer.IndexBuffer)
 				{
-					FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Geometry->RHIIndexBuffer.GetReference());
+					FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Geometry->Initializer.IndexBuffer.GetReference());
 					AddResidencyHandleForResource(IndexBuffer->GetResource());
 				}
 
-				for (const FRayTracingGeometrySegment& Segment : Geometry->Segments)
+				for (const FRayTracingGeometrySegment& Segment : Geometry->Initializer.Segments)
 				{
 					if (Segment.VertexBuffer)
 					{
@@ -4447,20 +4430,20 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 		if (P.Segments.Num())
 		{
-			checkf(P.Segments.Num() == Geometry->Segments.Num(),
+			checkf(P.Segments.Num() == Geometry->Initializer.Segments.Num(),
 				TEXT("If updated segments are provided, they must exactly match existing geometry segments. Only vertex buffer bindings may change."));
 
 			for (int32 i = 0; i < P.Segments.Num(); ++i)
 			{
-				checkf(P.Segments[i].MaxVertices <= Geometry->Segments[i].MaxVertices,
+				checkf(P.Segments[i].MaxVertices <= Geometry->Initializer.Segments[i].MaxVertices,
 					TEXT("Maximum number of vertices in a segment (%u) must not be smaller than what was declared during FRHIRayTracingGeometry creation (%u), as this controls BLAS memory allocation."),
-					P.Segments[i].MaxVertices, Geometry->Segments[i].MaxVertices
+					P.Segments[i].MaxVertices, Geometry->Initializer.Segments[i].MaxVertices
 				);
 
-				Geometry->Segments[i].VertexBuffer            = P.Segments[i].VertexBuffer;
-				Geometry->Segments[i].VertexBufferElementType = P.Segments[i].VertexBufferElementType;
-				Geometry->Segments[i].VertexBufferStride      = P.Segments[i].VertexBufferStride;
-				Geometry->Segments[i].VertexBufferOffset      = P.Segments[i].VertexBufferOffset;
+				Geometry->Initializer.Segments[i].VertexBuffer            = P.Segments[i].VertexBuffer;
+				Geometry->Initializer.Segments[i].VertexBufferElementType = P.Segments[i].VertexBufferElementType;
+				Geometry->Initializer.Segments[i].VertexBufferStride      = P.Segments[i].VertexBufferStride;
+				Geometry->Initializer.Segments[i].VertexBufferOffset      = P.Segments[i].VertexBufferOffset;
 			}
 		}
 	}
@@ -4568,7 +4551,8 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 		if (Geometry->IsDirty(GPUIndex))
 		{
-			if (ShouldCompactAfterBuild(Geometry->BuildFlags))
+			ERayTracingAccelerationStructureFlags GeometryBuildFlags = GetRayTracingAccelerationStructureBuildFlags(Geometry->Initializer);
+			if (ShouldCompactAfterBuild(GeometryBuildFlags))
 			{
 				GetParentDevice()->GetRayTracingCompactionRequestHandler()->RequestCompact(Geometry);
 				Geometry->bHasPendingCompactionRequests[GPUIndex] = true;
