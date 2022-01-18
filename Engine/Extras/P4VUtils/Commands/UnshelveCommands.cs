@@ -23,10 +23,10 @@ namespace P4VUtils.Commands
 			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			List<string> FileSpecs = FilesInfoToUnshelve.Select(t => t.Item1).ToList();
-			List<FStatRecord> StatRecords = await Perforce.FStatAsync(FileSpecs, CancellationToken.None);
+			List<FStatRecord> StatRecords = await Perforce.FStatAsync(FileSpecs, CancellationToken.None).ToListAsync();
 			Dictionary<string, int> CurrentFileRevisions = StatRecords.ToDictionary(r => r.DepotFile!, r => r.HaveRevision);
 			Dictionary<string, string> CurrentDepotToClientFile = StatRecords.ToDictionary(r => r.DepotFile!, r => r.ClientFile!);
-			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(FileSpecs, CancellationToken.None);
+			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(FileSpecs, CancellationToken.None).ToListAsync();
 
 			// Figure out the local path of the added file with a p4 where command
 			foreach (WhereRecord WhereRecord in WhereRecords)
@@ -84,10 +84,10 @@ namespace P4VUtils.Commands
 			List<UnshelveRecord> UnshelveRecords = await Perforce.UnshelveAsync(ChangeNumber, IntoChangeNumber, null, null, null, UnshelveOptions.None, FilesToUnshelve, CancellationToken.None);
 			if (FilesToSync.Count > 0)
 			{
-				List<SyncRecord> SyncFiles = await Perforce.SyncAsync(FilesToSync, CancellationToken.None);
+				List<SyncRecord> SyncFiles = await Perforce.SyncAsync(FilesToSync, CancellationToken.None).ToListAsync();
 				SyncFiles.ForEach(r =>
 				{
-					Logger.LogInformation("Restore file:{ClientFile} to revision:{Revision}", r.ClientFile, r.Revision);
+					Logger.LogInformation("Restore file:{ClientFile} to revision:{Revision}", r.Path, r.Revision);
 				});
 
 				List<ResolveRecord> ResolveRecords = await Perforce.ResolveAsync(-1, ResolveOptions.Automatic, FilesToResolve, CancellationToken.None);

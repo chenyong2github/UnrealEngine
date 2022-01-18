@@ -54,7 +54,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			List<FStatRecord> OpenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Empty, CancellationToken.None);
+			List<OpenedRecord> OpenedRecords = await Perforce.OpenedAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Any, CancellationToken.None).ToListAsync();
 
 			if (OpenedRecords.Count > 0)
 			{
@@ -93,7 +93,7 @@ namespace P4VUtils.Commands
 
 					Logger.LogInformation("Created pending changelist {Change}", NewChangeRecord.Number);
 
-					foreach (FStatRecord OpenedRecord in OpenedRecords)
+					foreach (OpenedRecord OpenedRecord in OpenedRecords)
 					{
 						if (OpenedRecord.ClientFile != null)
 						{

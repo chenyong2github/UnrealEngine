@@ -72,7 +72,7 @@ namespace P4VUtils.Commands
 			}
 
 			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
-			List<FStatRecord> StatRecords = await Perforce.FStatAsync(Args.Skip(1).ToList(), CancellationToken.None);
+			List<FStatRecord> StatRecords = await Perforce.FStatAsync(Args.Skip(1).ToList(), CancellationToken.None).ToListAsync();
 			List<(string, string)> FilesInfo = StatRecords.Select(r => (r.DepotFile!, r.Type!)).ToList();
 
 			return await MakeDataFilesLocalWritable(FilesInfo, Logger);

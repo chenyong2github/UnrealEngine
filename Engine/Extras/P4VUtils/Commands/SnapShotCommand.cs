@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -48,7 +49,7 @@ namespace P4VUtils.Commands
 			}
 
 			// Create the copy of the CL IFF it has files opened
-			List<FStatRecord> OpenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Empty, CancellationToken.None);
+			List<OpenedRecord> OpenedRecords = await Perforce.OpenedAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Any, CancellationToken.None).ToListAsync();
 
 			if (OpenedRecords.Count > 0)
 			{
@@ -66,7 +67,7 @@ namespace P4VUtils.Commands
 				Logger.LogInformation("Created pending changelist {Change}", NewChangeRecord.Number);
 
 				// Move the files to the new CL
-				foreach (FStatRecord OpenedRecord in OpenedRecords)
+				foreach (OpenedRecord OpenedRecord in OpenedRecords)
 				{
 					if (OpenedRecord.ClientFile != null)
 					{
@@ -79,7 +80,7 @@ namespace P4VUtils.Commands
 				await Perforce.ShelveAsync(NewChangeRecord.Number, ShelveOptions.Overwrite, new[] { "//..." }, CancellationToken.None);
 
 				// Move the files BACK to the old CL
-				foreach (FStatRecord OpenedRecord in OpenedRecords)
+				foreach (OpenedRecord OpenedRecord in OpenedRecords)
 				{
 					if (OpenedRecord.ClientFile != null)
 					{

@@ -74,7 +74,7 @@ namespace P4VUtils.Commands
 			await Perforce.MergeAsync(MergeOptions.None, NewChangeRecord.Number, -1, SourceFileSpec, TargetFileSpec, CancellationToken.None);
 			Logger.LogInformation("Merged files into changelist {Change}", NewChangeRecord.Number);
 
-			PerforceResponseList<ResolveRecord> ResolveRecords = await Perforce.TryResolveAsync(NewChangeRecord.Number, ResolveOptions.Automatic, FileSpecList.Empty, CancellationToken.None);
+			PerforceResponseList<ResolveRecord> ResolveRecords = await Perforce.TryResolveAsync(NewChangeRecord.Number, ResolveOptions.Automatic, FileSpecList.Any, CancellationToken.None);
 			if (!ResolveRecords.Succeeded)
 			{
 				Logger.LogError("Unable to resolve files. Please resolve manually.");

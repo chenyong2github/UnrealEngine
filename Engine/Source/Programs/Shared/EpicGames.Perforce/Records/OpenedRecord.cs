@@ -28,6 +28,12 @@ namespace EpicGames.Perforce
 		public string ClientFile { get; set; } = String.Empty;
 
 		/// <summary>
+		/// For a move action (either move/add or move/delete) indicates the counterpart depot path
+		/// </summary>
+		[PerforceTag("movedFile", Optional = true)]
+		public string? MovedFile { get; set; }
+
+		/// <summary>
 		/// The revision of the file (not returned if OpenedOptions.ShortOutput is set)
 		/// </summary>
 		[PerforceTag("rev", Optional = true)]
@@ -50,6 +56,12 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("change")]
 		public int Change { get; set; }
+
+		/// <summary>
+		/// New filetype for the file
+		/// </summary>
+		[PerforceTag("type")]
+		public string Type { get; set; } = String.Empty;
 
 		/// <summary>
 		/// User with the file open

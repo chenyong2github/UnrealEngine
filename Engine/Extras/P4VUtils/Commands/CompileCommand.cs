@@ -50,7 +50,7 @@ namespace P4VUtils.Commands
 
 			List<FileReference> LocalFiles = new List<FileReference>();
 
-			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(ChangeRecord.Files.ToArray(), CancellationToken.None);
+			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(ChangeRecord.Files.ToArray(), CancellationToken.None).ToListAsync();
 			foreach (WhereRecord WhereRecord in WhereRecords)
 			{
 				if(WhereRecord.Path != null)

@@ -47,7 +47,7 @@ namespace P4VUtils.Commands
 		{
 			// Get the list of opened files in the CL along with their metadata
 			Logger.LogInformation("Getting the list of files in changelist {Change}...", Change);
-			List<FStatRecord> OpenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Empty, CancellationToken.None);
+			List<OpenedRecord> OpenedRecords = await Perforce.OpenedAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Any, CancellationToken.None).ToListAsync();
 			if (OpenedRecords.Count == 0)
 			{
 				Logger.LogError("Change has no opened files. Aborting.");
@@ -58,13 +58,13 @@ namespace P4VUtils.Commands
 			Logger.LogInformation("There are {NumFiles} open files in the change.", OpenedRecords.Count);
 
 			// create a mapping of client to local files so we can re-open using local paths (needed for some actions)
-			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(OpenedRecords.Select(x => x.DepotFile!).ToArray(), CancellationToken.None);
+			List<WhereRecord> WhereRecords = await Perforce.WhereAsync(OpenedRecords.Select(x => x.DepotFile!).ToArray(), CancellationToken.None).ToListAsync();
 			Dictionary<string, string> OpenedClientToLocalMap = WhereRecords.ToDictionary(x => x.ClientFile, x => x.Path, StringComparer.OrdinalIgnoreCase);
 
 			// If any file that needs to be resolved still, we need to abort.
 			// We don't want to convert non-resolved files to plain edits,
 			// as we need to resolve the merge first!
-			List<ResolveRecord> ResolveRecords = await Perforce.ResolveAsync(Change, ResolveOptions.PreviewOnly, FileSpecList.Empty!, CancellationToken.None);
+			List<ResolveRecord> ResolveRecords = await Perforce.ResolveAsync(Change, ResolveOptions.PreviewOnly, FileSpecList.Any, CancellationToken.None);
 			if (ResolveRecords.Any())
 			{
 				Logger.LogError("The following files in the changelist need to be resolved.");
@@ -80,15 +80,15 @@ namespace P4VUtils.Commands
 			// with the same action/filetype. This should remove the integration records.
 
 			// partition our files into ones we know the actions for, and the ones we don't
-			List<FStatRecord> DeleteActions = new List<FStatRecord>();
-			List<FStatRecord> AddActions = new List<FStatRecord>();
-			List<FStatRecord> EditActions = new List<FStatRecord>();
-			List<FStatRecord> MoveAddActions = new List<FStatRecord>();
-			List<FStatRecord> MoveDeleteActions = new List<FStatRecord>();
-			List<FStatRecord> UnknownActions = new List<FStatRecord>();
+			List<OpenedRecord> DeleteActions = new List<OpenedRecord>();
+			List<OpenedRecord> AddActions = new List<OpenedRecord>();
+			List<OpenedRecord> EditActions = new List<OpenedRecord>();
+			List<OpenedRecord> MoveAddActions = new List<OpenedRecord>();
+			List<OpenedRecord> MoveDeleteActions = new List<OpenedRecord>();
+			List<OpenedRecord> UnknownActions = new List<OpenedRecord>();
 
 			// Multiple action map to the same reopen mapping, so this handles that.
-			Dictionary<FileAction, List<FStatRecord>> ActionMappings = new Dictionary<FileAction, List<FStatRecord>>()
+			Dictionary<FileAction, List<OpenedRecord>> ActionMappings = new Dictionary<FileAction, List<OpenedRecord>>()
 			{
 				[FileAction.Delete] = DeleteActions,
 				[FileAction.Branch] = AddActions,
@@ -100,9 +100,9 @@ namespace P4VUtils.Commands
 			};
 
 			// this maps all open records to a reopen action.
-			foreach (FStatRecord OpenedRecord in OpenedRecords)
+			foreach (OpenedRecord OpenedRecord in OpenedRecords)
 			{
-				List<FStatRecord>? ActionList;
+				List<OpenedRecord>? ActionList;
 				if (!ActionMappings.TryGetValue(OpenedRecord.Action, out ActionList))
 				{
 					ActionList = UnknownActions;
@@ -114,7 +114,7 @@ namespace P4VUtils.Commands
 			if (UnknownActions.Count > 0)
 			{
 				Logger.LogError("These files have unknown actions so cannot be reliably re-opened:");
-				foreach (FStatRecord OpenedRecord in UnknownActions)
+				foreach (OpenedRecord OpenedRecord in UnknownActions)
 				{
 					Logger.LogError("  {Action}: {ClientFile}", OpenedRecord.Action.ToString(), OpenedRecord.ClientFile);
 				}
@@ -133,17 +133,17 @@ namespace P4VUtils.Commands
 			// if the haveRev doesn't match the rev of the originally opened file, this was the case.
 			// so we sync -k because the local file matches the one we want, we just have to tell P4 that so it will let us check it out at that revision.
 			// If we simply sync -k to #head we might miss a legitimate submit that happened since our last resolve, and that would stomp that submit.
-			List<FStatRecord> NotSyncedOpenFiles = OpenedRecords.Where(x => x.HaveRevision != x.Revision && x.Action != FileAction.Branch && x.Action != FileAction.Add).ToList();
+			List<OpenedRecord> NotSyncedOpenFiles = OpenedRecords.Where(x => x.HaveRevision != x.Revision && x.Action != FileAction.Branch && x.Action != FileAction.Add).ToList();
 			if (NotSyncedOpenFiles.Count > 0)
 			{
 				Logger.LogWarning("The following files were not synced to the revision they were resolved to before. syncing them to the indicated rev first.");
-				foreach (FStatRecord NotSyncedOpenFile in NotSyncedOpenFiles)
+				foreach (OpenedRecord NotSyncedOpenFile in NotSyncedOpenFiles)
 				{
 					Logger.LogWarning("    {File}#{Revision} (had #{HaveRevision})", NotSyncedOpenFile.ClientFile, NotSyncedOpenFile.Revision, NotSyncedOpenFile.HaveRevision);
 				}
 				if (!Debug)
 				{
-					await Perforce.SyncAsync(SyncOptions.KeepWorkspaceFiles, -1, NotSyncedOpenFiles.Select(x => $"{x.ClientFile}#{x.Revision}").ToArray(), CancellationToken.None);
+					await Perforce.SyncAsync(SyncOptions.KeepWorkspaceFiles, -1, NotSyncedOpenFiles.Select(x => $"{x.ClientFile}#{x.Revision}").ToArray(), CancellationToken.None).ToListAsync();
 				}
 			}
 
@@ -169,7 +169,7 @@ namespace P4VUtils.Commands
 					await Perforce.EditAsync(Change, null, EditOptions.KeepWorkspaceFiles, MoveAddActions.Select(x => x.MovedFile!).ToArray(), CancellationToken.None);
 
 					// then we can open the file for move in the new location (have to use -k because the file has already been moved locally!)
-					foreach ((FStatRecord OpenedRecord, string LocalFile) in MoveAddActions.Zip(LocalFiles))
+					foreach ((OpenedRecord OpenedRecord, string LocalFile) in MoveAddActions.Zip(LocalFiles))
 					{
 						await Perforce.MoveAsync(Change, null, MoveOptions.KeepWorkspaceFiles, OpenedRecord.MovedFile!, LocalFile, CancellationToken.None);
 					}
@@ -178,7 +178,7 @@ namespace P4VUtils.Commands
 
 			// Get the list of reopened files in the CL to check their filetype
 			Logger.LogInformation("Checking the list of files reopened in changelist {Change}...", Change);
-			List<FStatRecord> ReopenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Empty!, CancellationToken.None);
+			List<OpenedRecord> ReopenedRecords = await Perforce.OpenedAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Any, CancellationToken.None).ToListAsync();
 			if (ReopenedRecords.Count == 0)
 			{
 				Logger.LogError("Change has no reopened files. This signifies an error in the script! Aborting...");
@@ -191,10 +191,10 @@ namespace P4VUtils.Commands
 			}
 
 			// Ensure the filetypes match and ensure each reopened file was in the original changelist.
-			Dictionary<string, FStatRecord> ReopenedRecordsMap = ReopenedRecords.ToDictionary(x => x.ClientFile!, x => x);
-			foreach (FStatRecord OpenedRecord in OpenedRecords)
+			Dictionary<string, OpenedRecord> ReopenedRecordsMap = ReopenedRecords.ToDictionary(x => x.ClientFile!, x => x);
+			foreach (OpenedRecord OpenedRecord in OpenedRecords)
 			{
-				FStatRecord? ReopenedRecord;
+				OpenedRecord? ReopenedRecord;
 				if (!ReopenedRecordsMap.TryGetValue(OpenedRecord.ClientFile!, out ReopenedRecord))
 				{
 					Logger.LogError("Could not find original file {ClientFile} in re-opened records. This signifies an error in the script! Aborting...", OpenedRecord.ClientFile);
@@ -215,7 +215,7 @@ namespace P4VUtils.Commands
 			return true;
 		}
 
-		static async Task ReopenFiles(string Operation, List<FStatRecord> Records, Dictionary<string, string> OpenedClientToLocalMap, Func<string[], Task> ReopenAsync, bool Debug, ILogger Logger)
+		static async Task ReopenFiles(string Operation, List<OpenedRecord> Records, Dictionary<string, string> OpenedClientToLocalMap, Func<string[], Task> ReopenAsync, bool Debug, ILogger Logger)
 		{
 			if (Records.Count > 0)
 			{
