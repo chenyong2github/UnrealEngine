@@ -1368,7 +1368,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer = Collector.GetDynamicIndexBuffer();
 
 	const uint32 NumIndices = NumSegments * TrianglesPerSegment * 3;
-	if (IndexBufferOffsets.TotalBitCount > 16/* Number of bits in a ushort*/)
+	if (IndexBufferOffsets.TotalBitCount <= 16/* Number of bits in a ushort*/)
 	{
 		InOutIndexAllocation = DynamicIndexBuffer.Allocate<uint16>(NumIndices);
 		GenerateIndexBuffer<uint16>(InOutIndexAllocation, IndexBufferOffsets, SegmentTessellation, View->GetViewDirection(), ViewOriginForDistanceCulling, DynamicDataRibbon);
