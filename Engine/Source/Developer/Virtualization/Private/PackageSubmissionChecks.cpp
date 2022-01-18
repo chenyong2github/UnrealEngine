@@ -173,12 +173,22 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	{
 		FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
 
-		// TODO: How to handle text packages
+		// TODO: How to handle text packages?
 		if (FPackageName::IsPackageExtension(PackagePath.GetHeaderExtension()) || FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
 		{
 			FPackageTrailer Trailer;
 			if (FPackageTrailer::TryLoadFromPackage(PackagePath, Trailer))
 			{
+				// The following is not expected to ever happen, currently we give a user facing error but it generally means that the asset is broken somehow.
+				ensureMsgf(Trailer.GetNumPayloads(EPayloadFilter::Referenced) == 0, TEXT("Trying to virtualize a package that already contains payload references which the workspace file should not ever contain!"));
+				if (Trailer.GetNumPayloads(EPayloadFilter::Referenced) > 0)
+				{
+					FText Message = FText::Format(	LOCTEXT("Virtualization_PkgHasReferences", "Cannot virtualize the package '{1}' as it has referenced payloads in the trailer"),
+													FText::FromString(PackagePath.GetDebugName()));
+					Errors.Add(Message);
+					return;
+				}
+
 				FPackageInfo PkgInfo;
 
 				PkgInfo.Path = MoveTemp(PackagePath);
@@ -277,7 +287,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			checkf(PayloadId.IsValid(), TEXT("PackageTrailer for package '%s' should not contain invalid FPayloadIds"), *PackageInfo.Path.GetDebugName());
 			
-			FCompressedBuffer Payload = PackageInfo.Trailer.LoadPayload(PayloadId, *PackageAr);
+			FCompressedBuffer Payload = PackageInfo.Trailer.LoadLocalPayload(PayloadId, *PackageAr);
 
 			if (PayloadId != FIoHash(Payload.GetRawHash()))
 			{
@@ -386,7 +396,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			return;
 		}
 
-		FPackageTrailerBuilder TrailerBuilder = FPackageTrailerBuilder::CreateFromTrailer(PackageInfo.Trailer, *PackageAr, PackagePath);
+		FPackageTrailerBuilder TrailerBuilder = FPackageTrailerBuilder::CreateFromTrailer(PackageInfo.Trailer, *PackageAr, PackagePath.GetPackageFName());
 		if (!TrailerBuilder.BuildAndAppendTrailer(nullptr, *CopyAr))
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppend", "Failed to append the trailer to '{0}'"),

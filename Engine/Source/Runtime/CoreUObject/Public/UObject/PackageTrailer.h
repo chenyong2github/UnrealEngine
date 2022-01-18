@@ -46,7 +46,6 @@ namespace UE
  * | Version			| uint32			| Version number of the format@see UE::EPackageTrailerVersion										|
  * | HeaderLength		| uint32			| The total size of the header on disk in bytes.													|
  * | PayloadsDataLength	| uint64			| The total size of the payload data on disk in bytes												|
- * | AccessMode			| uint8				| @see UE::EPayloadAccessMode														|
  * | NumPayloads		| int32				| The number of payloads in LookupTableArray														|
  * | LookupTableArray	| FLookupTableEntry | An array of FLookupTableEntry @see UE::Private::FLookupTableEntry									|
  * |____________________________________________________________________________________________________________________________________________|
@@ -54,7 +53,7 @@ namespace UE
  * | Array				| FCompressedBuffer | A binary blob containing all of the payloads. Individual payloads can be found via				|
  * |										 the LookupTableArray found in the header.															|
  * |____________________________________________________________________________________________________________________________________________|
- * [Footer]
+ * | [Footer]																																	|
  * | Tag				| uint64			| Should match FFooter::FooterTag, used to identify that the data being read is an FPackageTrailer	|
  * | TrailerLength		| uint64			| The total size of the trailer on disk in bytes. Can be used to find the start of the trailer when	|
  * |										  reading backwards.																				|
@@ -68,8 +67,10 @@ enum class EPayloadFilter
 {
 	/** All payload types. */
 	All,
-	/** All payloads stored locally in the package file. */
+	/** All payloads stored locally in the package trailer. */
 	Local,
+	/** All payloads that are a reference to payloads stored in the workspace domain trailer*/
+	Referenced,
 	/** All payloads stored in a virtualized backend. */
 	Virtualized
 };
@@ -79,8 +80,10 @@ enum class EPayloadStatus
 {
 	/** The payload is not registered in the package trailer */
 	NotFound = 0,
-	/** The payload is stored locally on disk */
+	/** The payload is stored locally inside the current package trailer where ever that is written to disk */
 	StoredLocally,
+	/** The payload is stored in the workspace domain trailer */
+	StoredAsReference,
 	/** The payload is virtualized and needs to be accessed via the IVirtualizationSystem */
 	StoredVirtualized,
 };
@@ -88,11 +91,15 @@ enum class EPayloadStatus
 /** Lists the various methods of payload access that the trailer supports */
 enum class EPayloadAccessMode : uint8
 {
-	/** The payloads are stored in the Payload Data segment of the trailer and the offsets in FLookupTableEntry will be relative to the start of this segment */
-	Relative = 0,
-	/** The payloads are stored in the trailer of another file (most likely the workspace domain package file) and the offsets in FLookupTableEntry are absolute offsets in that external file */
-	Referenced
+	/** The payload is stored in the Payload Data segment of the trailer and the offsets in FLookupTableEntry will be relative to the start of this segment */
+	Local = 0,
+	/** The payload is stored in another package trailer (most likely the workspace domain package file) and the offsets in FLookupTableEntry are absolute offsets in that external file */
+	Referenced,
+	/** The payload is virtualized and needs to be accessed via IVirtualizationSystem */
+	Virtualized
 };
+
+enum class EPackageTrailerVersion : uint32;
 
 namespace Private
 {
@@ -100,19 +107,20 @@ namespace Private
 struct FLookupTableEntry
 {
 	/** Size of the entry when serialized to disk in bytes */
-	static constexpr uint32 SizeOnDisk = 44;	// Identifier		| 20 bytes
+	static constexpr uint32 SizeOnDisk = 45;	// Identifier		| 20 bytes
 												// OffsetInFile		| 8 bytes
 												// CompressedSize	| 8 bytes
 												// RawSize			| 8 bytes
+												// AccessMode		| 1 byte
 
 	FLookupTableEntry() = default;
 	FLookupTableEntry(const Virtualization::FPayloadId& InIdentifier, uint64 InRawSize);
 
-	friend FArchive& operator<<(FArchive& Ar, FLookupTableEntry& Entry);
-
+	void Serialize(FArchive& Ar, EPackageTrailerVersion PackageTrailerVersion);
+	
 	[[nodiscard]] bool IsVirtualized() const
 	{
-		return OffsetInFile == INDEX_NONE;
+		return AccessMode == EPayloadAccessMode::Virtualized;
 	}
 
 	/** Identifier for the payload */
@@ -123,6 +131,8 @@ struct FLookupTableEntry
 	uint64 CompressedSize = INDEX_NONE;
 	/** The size of the payload when uncompressed. */
 	uint64 RawSize = INDEX_NONE;
+
+	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
 };
 
 } // namespace Private
@@ -139,17 +149,28 @@ public:
 	using AdditionalDataCallback = TFunction<void(FLinkerSave& LinkerSave, const class FPackageTrailer& Trailer)>;
 
 	/**
-	 * Creates a builder from an already loaded FPackageTrailer. 
+	 * Creates a builder from a pre-existing FPackageTrailer.
+	 * Payloads stored locally in the source trailer will be loaded from disk via the provided archive so that the
+	 * builder can write them to any future trailer that it creates.
 	 * 
 	 * @param Trailer		The trailer to create the builder from
 	 * @param Ar			An archive that the trailer can use to load payloads from 
-	 * @param PackagePath	Path to the package
+	 * @param PackageName	The name of the package that owns the trailer. Used for error messages.
 	 */
-	[[nodiscard]] static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, const FPackagePath& PackagePath);
+	[[nodiscard]] static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, const FName& PackageName);
+
+	/**
+	 * Creates a builder from a pre-existing FPackageTrailer that will will reference the local payloads of the
+	 * source trailer. 
+	 * This means that there is no need to load the payloads.
+	 *
+	 * @param Trailer		The trailer to create the reference from.
+	 * @param PackageName	The name of the package that owns the trailer. Used for error messages.
+	 */
+	[[nodiscard]] static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, const FName& PackageName);
 
 	FPackageTrailerBuilder() = delete;
-	FPackageTrailerBuilder(UPackage* Package);
-	FPackageTrailerBuilder(FName InPackageName);
+	FPackageTrailerBuilder(const FName& InPackageName);
 	~FPackageTrailerBuilder() = default;
 
 	// Methods that can be called while building the trailer
@@ -174,9 +195,23 @@ public:
 	/** Returns if the builder has any payload entries or not */
 	[[nodiscard]] bool IsEmpty() const;
 
+	[[nodiscard]] bool IsLocalPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
+	[[nodiscard]] bool IsReferencedPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
+	[[nodiscard]] bool IsVirtualizedPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
+
+	/** Returns the total number of payload entries in the builder */
+	[[nodiscard]] int32 GetNumPayloads() const;
+	
+	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Local */
+	[[nodiscard]] int32 GetNumLocalPayloads() const;
+	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Referenced */
+	[[nodiscard]] int32 GetNumReferencedPayloads() const;
+	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Virtualized */
+	[[nodiscard]] int32 GetNumVirtualizedPayloads() const;
+
 private:
 	
-	/** All of the data required to add a payload that is stored on disk */
+	/** All of the data required to add a payload that is stored locally within the trailer */
 	struct LocalEntry
 	{
 		LocalEntry() = default;
@@ -189,6 +224,25 @@ private:
 
 		FCompressedBuffer Payload;
 	};
+
+	/** All of the data required to add a reference to a payload stored in another trailer */
+	struct ReferencedEntry
+	{
+		ReferencedEntry() = default;
+		ReferencedEntry(int64 InOffset, int64 InCompressedSize, int64 InRawSize)
+			: Offset(InOffset)
+			, CompressedSize(InCompressedSize)
+			, RawSize(InRawSize)
+		{
+
+		}
+		~ReferencedEntry() = default;
+
+		int64 Offset = INDEX_NONE;
+		int64 CompressedSize = INDEX_NONE;
+		int64 RawSize = INDEX_NONE;
+	};
+
 
 	/** All of the data required to add a payload that is virtualized */
 	struct VirtualizedEntry
@@ -211,11 +265,10 @@ private:
 	/** Name of the package the trailer is being built for, used to give meaningful error messages */
 	FName PackageName;
 
-	/** The access mode that the trailer should have to the payloads */
-	EPayloadAccessMode AccessMode = EPayloadAccessMode::Relative;
-
 	/** Payloads that will be stored locally when the trailer is written to disk */
 	TMap<Virtualization::FPayloadId, LocalEntry> LocalEntries;
+	/** Payloads that reference entries in another trailer */
+	TMap<Virtualization::FPayloadId, ReferencedEntry> ReferencedEntries;
 	/** Payloads that are already virtualized and so will not be written to disk */
 	TMap<Virtualization::FPayloadId, VirtualizedEntry> VirtualizedEntries;
 	/** Callbacks to invoke once the trailer has been written to the end of a package */
@@ -241,13 +294,6 @@ public:
 	/** Try to load a trailer from a given package path. Note that it will always try to load the trailer from the workspace domain */
 	[[nodiscard]] static bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);
 
-	/** 
-	 * Create a new trailer that references the payloads stored elsewhere rather than storing them locally.
-	 * 
-	 * @param SourceTrailer The trailer that currently stores the payloads (typically in the workspace domain)
-	 */
-	[[nodiscard]] static FPackageTrailer CreateReference(const FPackageTrailer& SourceTrailer);
-
 	FPackageTrailer() = default;
 	~FPackageTrailer() = default;
 
@@ -256,9 +302,6 @@ public:
 
 	FPackageTrailer(FPackageTrailer&& Other) = default;
 	FPackageTrailer& operator=(FPackageTrailer&& Other) = default;
-
-	/** Serializes the trailer to the given archive */
-	[[nodiscard]] bool TrySave(FArchive& Ar);
 
 	/** 
 	 * Serializes the trailer from the given archive assuming that the seek position of the archive is already at the correct position
@@ -279,15 +322,16 @@ public:
 	[[nodiscard]] bool TryLoadBackwards(FArchive& Ar);
 
 	/** 
-	 * Loads the a payload from the provided archive 
+	 * Loads a payload that is stored locally within the package trailer. Payloads stored externally (either referenced
+	 * or virtualized) will not load.
 	 * 
 	 * @param Id The payload to load
-	 * @param Ar The archive to load the payload from, it is assumed that this archive is the package file in the workspace domain
+	 * @param Ar The archive from which the payload trailer was also loaded from
 	 * 
-	 * @return	The payload in the form of a FCompressedBuffer. If the payload does not exist in the trailer or in the archive then
-	 *			the FCompressedBuffer will be null.
+	 * @return	The payload in the form of a FCompressedBuffer. If the payload does not exist in the trailer or is not
+	 *			stored locally in the trailer then the FCompressedBuffer will be null.
 	 */
-	[[nodiscard]] FCompressedBuffer LoadPayload(const Virtualization::FPayloadId& Id, FArchive& Ar) const;
+	[[nodiscard]] FCompressedBuffer LoadLocalPayload(const Virtualization::FPayloadId& Id, FArchive& Ar) const;
 
 	/** 
 	 * Calling this indicates that the payload has been virtualized and will no longer be stored on disk. 
@@ -312,8 +356,6 @@ public:
 	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadType */
 	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Type) const;
 
-	[[nodiscard]] EPayloadAccessMode GetAccessMode() const;
-
 	struct FHeader
 	{
 		/** Unique value used to identify the header */
@@ -323,11 +365,10 @@ public:
 		 * Size of the static header data when serialized to disk in bytes. Note that we still need to 
 		 * add the size of the data in PayloadLookupTable to get the final header size on disk 
 		 */
-		static constexpr uint32 StaticHeaderSizeOnDisk = 29;	// HeaderTag			| 8 bytes
+		static constexpr uint32 StaticHeaderSizeOnDisk = 28;	// HeaderTag			| 8 bytes
 																// Version				| 4 bytes
 																// HeaderLength			| 4 bytes
 																// PayloadsDataLength	| 8 bytes
-																// AccessMode			| 1 byte
 																// NumPayloads			| 4 bytes
 
 		/** Expected tag at the start of the header */
@@ -338,8 +379,6 @@ public:
 		uint32 HeaderLength = 0;
 		/** Total length of the payloads on disk in bytes */
 		uint64 PayloadsDataLength = 0;
-		/** What sort of access to the payloads does the trailer have */
-		EPayloadAccessMode AccessMode = EPayloadAccessMode::Relative;
 		/** Lookup table for the payloads on disk */
 		TArray<Private::FLookupTableEntry> PayloadLookupTable;
 

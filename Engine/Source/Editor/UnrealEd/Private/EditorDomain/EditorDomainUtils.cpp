@@ -79,7 +79,7 @@ bool bGGlobalAddedCustomVersionsInitialized = false;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("83221BBB67B3482A8064C76349ECE07D");
+const TCHAR* EditorDomainVersion = TEXT("54D98F079D2A46A9802B2B990560285D");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");

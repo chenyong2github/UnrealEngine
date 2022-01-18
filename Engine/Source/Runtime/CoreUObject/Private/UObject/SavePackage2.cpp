@@ -810,7 +810,17 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 			// The package trailer is not supported for text based assets yet
 			if (!SaveContext.IsTextFormat() && !SaveContext.IsProceduralSave())
 			{
-				SaveContext.Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage());
+				SaveContext.Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage()->GetFName());
+			}
+			else if ((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0)
+			{
+				if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
+				{
+					if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
+					{
+						SaveContext.Linker->PackageTrailerBuilder = UE::FPackageTrailerBuilder::CreateReferenceToTrailer(*Trailer, SaveContext.GetPackage()->GetFName());
+					}
+				}
 			}
 		}
 
@@ -1728,7 +1738,14 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 	if (SaveContext.Linker->PackageTrailerBuilder.IsValid())
 	{
-		checkf(SaveContext.GetPackageWriter() == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
+		// At the moment we assume that we cannot have reference payloads in the trailer if SAVE_BulkDataByReference is not set and we
+		// cannot have locally stored payloads if SAVE_BulkDataByReference is set.
+		checkf((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0 || SaveContext.Linker->PackageTrailerBuilder->GetNumReferencedPayloads() == 0,
+			TEXT("Attempting to build a package trailer with referenced payloads but the SAVE_BulkDataByReference flag is not set. '%s'"), *SaveContext.GetPackage()->GetName());
+
+		checkf(	(SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) == 0 || SaveContext.Linker->PackageTrailerBuilder->GetNumLocalPayloads() == 0, 
+				TEXT("Attempting to build a package trailer with local payloads but the SAVE_BulkDataByReference flag is set. '%s'"), *SaveContext.GetPackage()->GetName());
+
 		checkf(SaveContext.IsTextFormat() == false, TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
 
 		SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
@@ -1736,23 +1753,8 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 		{
 			return ESavePackageResult::Error;
 		}
-	}
-	else if ((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0)
-	{
-		check(SaveContext.GetPackage() != nullptr);
-		
-		if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
-		{
-			if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
-			{
-				UE::FPackageTrailer ReferenceTrailer = UE::FPackageTrailer::CreateReference(*Trailer);
-				SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
-				if (!ReferenceTrailer.TrySave(*SaveContext.Linker))
-				{
-					return ESavePackageResult::Error;
-				}
-			}
-		}
+
+		SaveContext.Linker->PackageTrailerBuilder.Reset();
 	}
 
 	return ESavePackageResult::Success;

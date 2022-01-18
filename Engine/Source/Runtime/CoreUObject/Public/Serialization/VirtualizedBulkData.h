@@ -8,6 +8,7 @@
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
 #include "Misc/PackagePath.h"
+#include "Misc/PackageSegment.h"
 #include "Virtualization/PayloadId.h"
 
 class FArchive;
@@ -341,6 +342,8 @@ private:
 		IsTornOff					= 1 << 7,
 		/** The bulkdata object references a payload stored in a WorkspaceDomain file  */
 		ReferencesWorkspaceDomain	= 1 << 8,
+		/** The payload is stored in a package trailer, so the bulkdata object will have to poll the trailer to find the payload offset */
+		StoredInPackageTrailer		= 1 << 9,
 
 		TransientFlags				= HasRegistered | IsTornOff,
 	};
@@ -357,9 +360,9 @@ private:
 	};
 
 	/** Old legacy path that saved the payload to the end of the package */
-	void SerializeToLegacyPath(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
+	void SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 	/** The new path that saves payloads to the FPackageTrailer which is then appended to the end of the package file */
-	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
+	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 
 	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID);
 
@@ -375,8 +378,6 @@ private:
 
 	void PushData(const FPackagePath& InPackagePath);
 	FCompressedBuffer PullData() const;
-
-	FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const;
 
 	bool CanUnloadData() const;
 
@@ -427,7 +428,24 @@ private:
 		return EnumHasAnyFlags(InFlags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain);
 	}
 
+	bool IsStoredInPackageTrailer() const
+	{
+		return IsStoredInPackageTrailer(Flags);
+	}
+	static bool IsStoredInPackageTrailer(EFlags InFlags)
+	{
+		return EnumHasAnyFlags(InFlags, EFlags::StoredInPackageTrailer);
+	}
+
 	void Unregister();
+
+	/**
+	 * Checks to make sure that the payload we are saving is what we expect it to be. If not then we need to log an error to the
+	 * user, mark the archive as having an error and return.
+	 * This error is not reasonable to expect, if it occurs then it means something has gone very wrong, which is why there is
+	 * also an ensure to make sure that any instances of it occurring as properly recorded and can be investigated.
+	 */
+	bool TryPayloadValidationForSaving(const FCompressedBuffer& PayloadForSaving, FLinkerSave* LinkerSave) const;
 
 	/** 
 	 * Utility to return an apt error message if the payload is invalid when trying to save the bulkdata. It will try to provide the best info from the given options.
@@ -438,7 +456,7 @@ private:
 	FText GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const;
 
 	/** Returns true if we should use legacy serialization instead of the FPackageTrailer system. This can be removed when UE_ENABLE_VIRTUALIZATION_TOGGLE is removed. */
-	bool ShouldUseLegacySerialization(FLinkerSave& LinkerSave) const;
+	bool ShouldUseLegacySerialization(const FLinkerSave* LinkerSave) const;
 
 	/** Unique identifier for the bulkdata object itself */
 	FGuid BulkDataId;
@@ -464,7 +482,7 @@ private:
 	FPackagePath PackagePath;
 
 	/** PackageSegment to load with the packagepath (unused if the payload does not come from PackageResourceManager) */
-	EPackageSegment PackageSegment;
+	EPackageSegment PackageSegment= EPackageSegment::Header;
 
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;

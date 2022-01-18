@@ -1665,7 +1665,14 @@ struct FPackageExportTagger
 
 	if (Linker->PackageTrailerBuilder.IsValid())
 	{
-		checkf(PackageWriter == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *Package->GetName());
+		// At the moment we assume that we cannot have reference payloads in the trailer if SAVE_BulkDataByReference is not set and we
+		// cannot have locally stored payloads if SAVE_BulkDataByReference is set.
+		checkf((SaveFlags & SAVE_BulkDataByReference) != 0 || Linker->PackageTrailerBuilder->GetNumReferencedPayloads() == 0,
+			TEXT("Attempting to build a package trailer with referenced payloads but the SAVE_BulkDataByReference flag is not set. '%s'"), *Package->GetName());
+
+		checkf((SaveFlags & SAVE_BulkDataByReference) != 0 || Linker->PackageTrailerBuilder->GetNumLocalPayloads() == 0,
+			TEXT("Attempting to build a package trailer with local payloads but the SAVE_BulkDataByReference flag is set. '%s'"), *Package->GetName());
+
 		checkf(bTextFormat == false, TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *Package->GetName());
 
 		Linker->Summary.PayloadTocOffset = Linker->Tell();
@@ -1673,23 +1680,10 @@ struct FPackageExportTagger
 		{
 			return ESavePackageResult::Error;
 		}
-	}
-	else if ((SaveFlags & SAVE_BulkDataByReference) != 0)
-	{
-		if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(Package))
-		{
-			if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
-			{
-				UE::FPackageTrailer ReferenceTrailer = UE::FPackageTrailer::CreateReference(*Trailer);
-				Linker->Summary.PayloadTocOffset = Linker->Tell();
-				if (!ReferenceTrailer.TrySave(*Linker))
-				{
-					return ESavePackageResult::Error;
-				}
-			}
-		}
-	}
 
+		Linker->PackageTrailerBuilder.Reset();
+	}
+	
 	return ESavePackageResult::Success;
 }
 
@@ -2170,7 +2164,17 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						// The package trailer is not supported for text based assets yet
 						if (!bTextFormat && !ObjectSaveContext.bProceduralSave) 
 						{
-							Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter);
+							Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter->GetFName());
+						}
+						else if ((SaveFlags & SAVE_BulkDataByReference) != 0)
+						{
+							if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(InOuter))
+							{
+								if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
+								{
+									Linker->PackageTrailerBuilder = UE::FPackageTrailerBuilder::CreateReferenceToTrailer(*Trailer, InOuter->GetFName());
+								}
+							}
 						}
 					}
 
