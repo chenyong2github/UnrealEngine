@@ -36,7 +36,8 @@ private:
 	FOnShiftClicked OnShiftClicked;	
 private:
 	FSlateColor GetTextColor() const;
-	FSlateColor GetBackgroundColor() const;
+	FSlateColor GetScriptSourceColor() const;
+	FMargin GetFilterNamePadding() const;
 };
 
 /**

@@ -195,6 +195,8 @@ void InitActionMenu(TSharedRef< FSlateStyleSet > Style)
 
 	Style->Set("ActionMenu.ActionTextBlock", ActionMenuActionText);
 
+	Style->Set("GraphActionMenu.Background", new FSlateRoundedBoxBrush(FStyleColors::Background, 3.f));
+	
 	Style->Set("GraphActionMenu.ActionSourceTextBlock", ActionMenuSourceText);
 
 	Style->Set("GraphActionMenu.ActionFilterTextBlock", ActionMenuFilterText);
@@ -202,6 +204,8 @@ void InitActionMenu(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("GraphActionMenu.TemplateTabTextBlock", TemplateTabText);
 	
 	Style->Set("GraphActionMenu.FilterCheckBox", NiagaraGraphActionMenuFilterCheckBox);
+
+	Style->Set("GraphActionMenu.FilterCheckBox.Border", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 3.f));
 }
 
 void InitEmitterHeader(TSharedRef< FSlateStyleSet > Style)
