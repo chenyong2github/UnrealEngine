@@ -78,7 +78,7 @@ namespace DisplayClusterHelpers
 			{
 				if (!bCullEmpty && Item.IsEmpty())
 				{
-					OutData.Add(TVal());
+					OutData.AddDefaulted();
 				}
 				else
 				{
@@ -109,7 +109,7 @@ namespace DisplayClusterHelpers
 
 			if (InSeparator.Len() > 0 && InData.Num() > 0)
 			{
-				ResultStr.RemoveAt(ResultStr.Len() - InSeparator.Len());
+				ResultStr.RemoveAt(ResultStr.Len() - InSeparator.Len(), InSeparator.Len(), !bAddQuotes);
 			}
 
 			if (bAddQuotes)
@@ -178,7 +178,7 @@ namespace DisplayClusterHelpers
 
 			if (InPairSeparator.Len() > 0 && InData.Num() > 0)
 			{
-				ResultStr.RemoveAt(ResultStr.Len() - InPairSeparator.Len());
+				ResultStr.RemoveAt(ResultStr.Len() - InPairSeparator.Len(), InPairSeparator.Len(), !bAddQuoutes);
 			}
 
 			if (bAddQuoutes)

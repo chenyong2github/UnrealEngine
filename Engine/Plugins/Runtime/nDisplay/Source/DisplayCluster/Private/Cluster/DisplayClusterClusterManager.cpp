@@ -758,10 +758,11 @@ void FDisplayClusterClusterManager::ImportNativeInputData(TMap<FString, FString>
 	NativeInputCache = InNativeInputData;
 
 	UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data cache:"));
+
 	int32 Idx = 0;
-	for (auto It = NativeInputCache.CreateConstIterator(); It; ++It)
+	for (auto It = NativeInputCache.CreateConstIterator(); It; ++It, ++Idx)
 	{
-		UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data cache: %d - %s - %s"), Idx++, *It->Key, *It->Value);
+		UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data cache: %d - %s - %s"), Idx, *It->Key, *It->Value);
 	}
 
 	// Notify the data is available
@@ -778,11 +779,6 @@ void FDisplayClusterClusterManager::ExportNativeInputData(TMap<FString, FString>
 		NativeInputCacheReadySignal->Wait();
 		// Export data from cache
 		OutNativeInputData = NativeInputCache;
-
-		for (auto It = OutNativeInputData.CreateConstIterator(); It; ++It)
-		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
-		}
 	}
 	// Otherwise we need to send network request to download input data
 	else
@@ -791,7 +787,13 @@ void FDisplayClusterClusterManager::ExportNativeInputData(TMap<FString, FString>
 		{
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
 			ClusterNodeCtrl->GetNativeInputData(OutNativeInputData);
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (native input)."), OutNativeInputData.Num());
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d native input records."), OutNativeInputData.Num());
+
+			int32 Idx = 0;
+			for (auto It = OutNativeInputData.CreateConstIterator(); It; ++It, ++Idx)
+			{
+				UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data: %d - %s - %s"), Idx, *It->Key, *It->Value);
+			}
 		}
 	}
 }
