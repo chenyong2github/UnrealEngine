@@ -2069,7 +2069,7 @@ void FNiagaraSystemInstance::InitEmitters()
 
 	bHasGPUEmitters = false;
 
-	LocalBounds = FBox();
+	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 
 	Emitters.Empty(false);
 	UNiagaraSystem* System = GetSystem();
