@@ -295,6 +295,12 @@ public:
 		}
 	}
 
+	void ClearDescription()
+	{
+		DescriptionLength = 0;
+		DescriptionOffset = 0;
+	}
+
 	FRHIGPUMask GetGPUMask() const
 	{
 		return GPUMask;
@@ -509,6 +515,10 @@ public:
 		if (Description)
 		{
 			GpuProfilerEvents[EventIdx].SetDescription(Description, DescriptionStringBuffer);
+		}
+		else
+		{
+			GpuProfilerEvents[EventIdx].ClearDescription();
 		}
 		return GpuProfilerEvents[EventIdx].Begin(GPUMask, Name, StatName);
 	}
