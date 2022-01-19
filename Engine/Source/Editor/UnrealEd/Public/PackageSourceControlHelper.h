@@ -15,6 +15,7 @@ public:
 	bool Delete(UPackage* Package) const;
 	bool Delete(const TArray<UPackage*>& Packages) const;
 	bool AddToSourceControl(UPackage* Package) const;
+	bool AddToSourceControl(const TArray<FString>& PackageNames) const;
 	bool Checkout(UPackage* Package) const;
 	bool Checkout(const TArray<FString>& PackageNames) const;
 

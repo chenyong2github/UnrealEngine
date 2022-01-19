@@ -199,17 +199,70 @@ bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 	if (UseSourceControl())
 	{
 		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-		FSourceControlStatePtr SourceControlState = GetSourceControlProvider().GetState(PackageFilename, EStateCacheUsage::ForceUpdate);
+		return AddToSourceControl({ PackageFilename });
+	}
 
-		if (SourceControlState.IsValid() && !SourceControlState->IsSourceControlled())
+	return true;
+}
+
+bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& PackageNames) const
+{
+	if (!UseSourceControl())
+	{
+		return true;
+	}
+
+	// Convert package names to package filenames
+	TArray<FString> PackageFilenames = SourceControlHelpers::PackageFilenames(PackageNames);
+
+	// Two-pass checkout mechanism
+	TArray<FString> PackagesToAdd;
+	PackagesToAdd.Reserve(PackageFilenames.Num());
+	bool bSuccess = true;
+	
+	TArray<FSourceControlStateRef> SourceControlStates;
+	ECommandResult::Type UpdateState = GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate);
+
+	if (UpdateState != ECommandResult::Succeeded)
+	{
+		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Could not get source control state for packages"));
+		return false;
+	}
+	
+	for (FSourceControlStateRef& SourceControlState : SourceControlStates)
+	{
+		const FString& PackageFilename = SourceControlState->GetFilename();
+
+		FString OtherCheckedOutUser;
+		if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
 		{
-			UE_LOG(LogCommandletPackageHelper, Log, TEXT("Adding package %s to source control"), *PackageFilename);
-			if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), Package) != ECommandResult::Succeeded)
-			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error adding %s to source control."), *PackageFilename);
-				return false;
-			}
+			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s already checked out by %s, will not add"), *PackageFilename, *OtherCheckedOutUser);
+			bSuccess = false;
 		}
+		else if (!SourceControlState->IsCurrent())
+		{
+			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s (not at head revision), will not add"), *PackageFilename);
+			bSuccess = false;
+		}
+		else if (SourceControlState->IsAdded())
+		{
+			// Nothing to do
+		}
+		else if (!SourceControlState->IsSourceControlled())
+		{
+			PackagesToAdd.Add(PackageFilename);
+		}
+	}
+
+	// Any error up to here will be an early out
+	if (!bSuccess)
+	{
+		return false;
+	}
+
+	if (PackagesToAdd.Num())
+	{
+		return (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), PackagesToAdd) == ECommandResult::Succeeded);
 	}
 
 	return true;
