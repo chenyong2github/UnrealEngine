@@ -404,6 +404,13 @@ namespace UnrealBuildTool
 		public int AnalyzeStackSizeWarning = 300000;
 
 		/// <summary>
+		/// Enable C++ coroutine support. 
+		/// For MSVC, adds "/await:strict" to the command line. Program should #include &lt;coroutine&gt;
+		/// For Clang, adds "-fcoroutines-ts" to the command line. Program should #include &lt;experimental/coroutine&gt; (not supported in every clang toolchain)
+		/// </summary>
+		public bool bEnableCoroutines = false;
+
+		/// <summary>
 		/// Default constructor.
 		/// </summary>
         public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
@@ -484,6 +491,7 @@ namespace UnrealBuildTool
 			bHackHeaderGenerator = Other.bHackHeaderGenerator;
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;
+			bEnableCoroutines = Other.bEnableCoroutines;
 		}
 	}
 }

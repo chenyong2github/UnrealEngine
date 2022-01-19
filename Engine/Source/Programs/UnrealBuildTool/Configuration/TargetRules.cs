@@ -1205,6 +1205,13 @@ namespace UnrealBuildTool
 		public bool bEnableCppModules = false;
 
 		/// <summary>
+		/// Whether to enable support for C++20 coroutines
+		/// This option is provided to facilitate evaluation of the feature.
+		/// Expect the name of the option to change. Use of coroutines in with UE is untested and unsupported.
+		/// </summary>
+		public bool bEnableCppCoroutinesForEvaluation = false;
+
+		/// <summary>
 		/// If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -2657,6 +2664,11 @@ namespace UnrealBuildTool
 		public bool bEnableCppModules
 		{
 			get { return Inner.bEnableCppModules; }
+		}
+
+		public bool bEnableCppCoroutinesForEvaluation
+		{
+			get { return Inner.bEnableCppCoroutinesForEvaluation; }
 		}
 
 		public bool bUseMallocProfiler

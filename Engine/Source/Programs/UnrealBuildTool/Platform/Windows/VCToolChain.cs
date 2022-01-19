@@ -754,7 +754,6 @@ namespace UnrealBuildTool
 				Arguments.Add("/WX");
 			}
 
-			// Note: Should be shared with all Windows-like platforms.
 			switch (CompileEnvironment.CppStandard)
 			{
 				case CppStandardVersion.Cpp14:
@@ -783,6 +782,18 @@ namespace UnrealBuildTool
 				//  break;
 				default:
 					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
+			}
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					Arguments.Add("/await:strict");
+				}
+				else
+				{
+					Arguments.Add("-fcoroutines-ts");
+				}
 			}
 
 			if (Target.WindowsPlatform.Compiler.IsClang())
@@ -877,7 +888,6 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("-Wno-ordered-compare-function-pointers");
 				}
-
 			}
 		}
 

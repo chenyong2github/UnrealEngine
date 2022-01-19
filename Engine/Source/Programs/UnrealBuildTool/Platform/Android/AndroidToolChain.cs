@@ -845,6 +845,11 @@ namespace UnrealBuildTool
 			Result += " -x c++";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+			}
+
 			return Result;
 		}
 
@@ -860,6 +865,11 @@ namespace UnrealBuildTool
 
 			Result += " -x c++-header";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+			}
 
 			return Result;
 		}

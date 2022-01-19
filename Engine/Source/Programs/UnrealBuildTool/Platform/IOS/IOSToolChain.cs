@@ -376,6 +376,12 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+			}
+
 			return Result;
 		}
 
@@ -410,6 +416,12 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++-header";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+			}
+
 			return Result;
 		}
 
