@@ -250,6 +250,8 @@ enum class EOnlineServices : uint8
 	GameDefined_1,
 	GameDefined_2,
 	GameDefined_3,
+	// None, used internally to resolve Platform or Default if they are not configured
+	None = 253,
 	// Platform native, may not exist for all platforms
 	Platform = 254,
 	// Default, configured via ini, TODO: List specific ini section/key

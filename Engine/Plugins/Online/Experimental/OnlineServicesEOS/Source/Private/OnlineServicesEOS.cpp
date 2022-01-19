@@ -62,16 +62,9 @@ void FOnlineServicesEOS::Initialize()
 	FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
 	FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
 
-	// Init EOS SDK
-	static struct FReservedOptions
-	{
-		int32_t ApiVersion;
-		const char* BackendEnvironment;
-	} ReservedOptions = { 1, "GameDev" };
-
 	EOS_Platform_Options PlatformOptions = {};
-	PlatformOptions.Reserved = &ReservedOptions;
 	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
+	PlatformOptions.Reserved = nullptr;
 	PlatformOptions.bIsServer = EOS_FALSE;
 	PlatformOptions.OverrideCountryCode = nullptr;
 	PlatformOptions.OverrideLocaleCode = nullptr;

@@ -3,6 +3,7 @@
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineServicesDelegates.h"
 
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/LazySingleton.h"
 
 namespace UE::Online {
@@ -49,17 +50,33 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EO
 {
 	TSharedPtr<IOnlineServices> Services;
 
-	if (TSharedRef<IOnlineServices>* ServicesPtr = NamedServiceInstances.FindOrAdd(OnlineServices).Find(InstanceName))
+	if (OnlineServices == EOnlineServices::Default)
 	{
-		Services = *ServicesPtr;
+		FString Value;
+		GConfig->GetString(TEXT("OnlineServices"), TEXT("DefaultServices"), Value, GEngineIni);
+		LexFromString(OnlineServices, *Value);
 	}
-	else
+	else if (OnlineServices == EOnlineServices::Platform)
 	{
-		Services = CreateServices(OnlineServices);
-		if (Services.IsValid())
+		FString Value;
+		GConfig->GetString(TEXT("OnlineServices"), TEXT("PlatformServices"), Value, GEngineIni);
+		LexFromString(OnlineServices, *Value);
+	}
+
+	if (OnlineServices < EOnlineServices::None)
+	{
+		if (TSharedRef<IOnlineServices>* ServicesPtr = NamedServiceInstances.FindOrAdd(OnlineServices).Find(InstanceName))
 		{
-			NamedServiceInstances.FindOrAdd(OnlineServices).Add(InstanceName, Services.ToSharedRef());
-			OnOnlineServicesCreated.Broadcast(Services.ToSharedRef());
+			Services = *ServicesPtr;
+		}
+		else
+		{
+			Services = CreateServices(OnlineServices);
+			if (Services.IsValid())
+			{
+				NamedServiceInstances.FindOrAdd(OnlineServices).Add(InstanceName, Services.ToSharedRef());
+				OnOnlineServicesCreated.Broadcast(Services.ToSharedRef());
+			}
 		}
 	}
 

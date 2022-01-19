@@ -43,8 +43,9 @@ const TCHAR* LexToString(EOnlineServices Value)
 	case EOnlineServices::GameDefined_1:	return TEXT("GameDefined_1");
 	case EOnlineServices::GameDefined_2:	return TEXT("GameDefined_2");
 	case EOnlineServices::GameDefined_3:	return TEXT("GameDefined_3");
-	case EOnlineServices::Platform:			return TEXT("Platform");
 	default:								checkNoEntry(); // Intentional fallthrough
+	case EOnlineServices::None:				return TEXT("None");
+	case EOnlineServices::Platform:			return TEXT("Platform");
 	case EOnlineServices::Default:			return TEXT("Default");
 	}
 }
@@ -179,6 +180,10 @@ void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr)
 	{
 		OutValue = EOnlineServices::GameDefined_3;
 	}
+	else if (FCString::Stricmp(InStr, TEXT("None")) == 0)
+	{
+		OutValue = EOnlineServices::None;
+	}
 	else if (FCString::Stricmp(InStr, TEXT("Platform")) == 0)
 	{
 		OutValue = EOnlineServices::Platform;
@@ -189,8 +194,9 @@ void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr)
 	}
 	else
 	{
-		checkNoEntry();
-		OutValue = EOnlineServices::Default;
+		// Empty string is ok and gets mapped to "None". Anything else implies we are missing a case.
+		check(FCString::Strlen(InStr) == 0);
+		OutValue = EOnlineServices::None;
 	}
 }
 
