@@ -203,12 +203,14 @@ void FTaskTimingSharedState::SetTaskId(TaskTrace::FId InTaskId)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTaskTimingSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
+void FTaskTimingSharedState::ExtendOtherTracksFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
-		return false;
+		return;
 	}
+
+	InMenuBuilder.BeginSection("TaskGraphInsightsOptions", LOCTEXT("OthersMenu_Section_Tasks", "Tasks"));
 
 	InMenuBuilder.AddSubMenu
 	(
@@ -217,7 +219,7 @@ bool FTaskTimingSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSessi
 		FNewMenuDelegate::CreateSP(this, &FTaskTimingSharedState::BuildTasksSubMenu)
 	);
 
-	return true;
+	InMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

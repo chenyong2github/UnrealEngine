@@ -631,17 +631,6 @@ void FTaskGraphProfilerManager::ClearTaskRelations()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::SetShowTransitions(bool bInValue)
-{
-	bShowTransitions = bInValue;
-	if (!bShowTransitions)
-	{
-		TaskTimingSharedState->SetTaskId(TaskTrace::InvalidId);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 int32 FTaskGraphProfilerManager::GetDepthOfTaskExecution(double TaskStartedTime, double TaskFinishedTime, uint32 ThreadId)
 {
 	int32 Depth = -1;

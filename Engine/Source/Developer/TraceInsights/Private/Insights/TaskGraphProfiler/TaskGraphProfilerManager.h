@@ -107,7 +107,7 @@ public:
 	TSharedPtr<Insights::FTaskTimingSharedState> GetTaskTimingSharedState() { return TaskTimingSharedState;	}
 
 	bool GetShowTransitions() const { return bShowTransitions; }
-	void SetShowTransitions(bool bInValue);
+	void SetShowTransitions(bool bInValue) { bShowTransitions = bInValue; }
 
 	bool GetShowConnections() const { return bShowConnections; }
 	void SetShowConnections(bool bInValue) { bShowConnections = bInValue; }
@@ -167,7 +167,7 @@ private:
 	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
 	FLinearColor ColorCode[static_cast<uint32>(ETaskEventType::NumTaskEventTypes)];
 	bool bShowTransitions = true;
-	bool bShowConnections = false;
+	bool bShowConnections = true;
 	bool bShowPrerequisites = false;
 	bool bShowSubsequents = false;
 	bool bShowNestedTasks = false;
