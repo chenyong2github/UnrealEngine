@@ -656,6 +656,12 @@ bool FOpenXRHMDModule::InitInstance()
 		return false;
 	}
 
+	XrInstanceProperties InstanceProps;
+	InstanceProps.type = XR_TYPE_INSTANCE_PROPERTIES;
+	InstanceProps.next = nullptr;
+	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
+	UE_LOG(LogHMD, Log, TEXT("Initialized OpenXR on %S runtime version %d.%d.%d"), InstanceProps.runtimeName, XR_VERSION_MAJOR(InstanceProps.runtimeVersion), XR_VERSION_MINOR(InstanceProps.runtimeVersion), XR_VERSION_PATCH(InstanceProps.runtimeVersion));
+
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		Module->PostCreateInstance(Instance);

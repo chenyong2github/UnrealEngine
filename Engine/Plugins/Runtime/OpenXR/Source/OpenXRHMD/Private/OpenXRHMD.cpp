@@ -2063,9 +2063,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			CurrentSessionState = SessionState.state;
 
-#if 0
-			UE_LOG(LogHMD, Log, TEXT("Session state switching to %s"), OpenXRSessionStateToString(CurrentSessionState));
-#endif
+			UE_LOG(LogHMD, Verbose, TEXT("Session state switching to %s"), OpenXRSessionStateToString(CurrentSessionState));
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
@@ -2193,7 +2191,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 	ensure(IsInRenderingThread() || IsInRHIThread());
 
 	// TODO: Add a hook to resolve discarded frames before we start a new frame.
-	checkSlow(!bIsRendering);
+	UE_CLOG(!bIsRendering, LogHMD, Verbose, TEXT("Discarded previous frame and started rendering a new frame."));
 
 	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
 
