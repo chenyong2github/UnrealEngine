@@ -119,49 +119,39 @@ namespace
 			}
 		}
 	}
+}
 
-	/**
-	 * Is this hotfix file compatible with the current build
-	 * If the file has version information it is compared with compatibility
-	 * If the file has NO version information it is assumed compatible
-	 *
-	 * @param InFilename name of the file to check
-	 * @param OutFilename name of file with version information stripped
-	 *
-	 * @return true if file is compatible, false otherwise
-	 */
-	bool IsCompatibleHotfixFile(const FString& InFilename, FString& OutFilename)
+bool UOnlineHotfixManager::IsCompatibleHotfixFile(const FString& InFilename, FString& OutFilename)
+{
+	bool bHasNetVersion = false;
+	bool bCompatibleNetHotfix = false;
+	bool bHasBranchVersion = false;
+	bool bCompatibleBranchHotfix = false;
+	FString OutNetVersion;
+	FString OutBranchVersion;
+	GetFilenameAndVersion(InFilename, OutFilename, OutNetVersion, OutBranchVersion);
+
+	if (!OutNetVersion.IsEmpty())
 	{
-		bool bHasNetVersion = false;
-		bool bCompatibleNetHotfix = false;
-		bool bHasBranchVersion = false;
-		bool bCompatibleBranchHotfix = false;
-		FString OutNetVersion;
-		FString OutBranchVersion;
-		GetFilenameAndVersion(InFilename, OutFilename, OutNetVersion, OutBranchVersion);
-
-		if (!OutNetVersion.IsEmpty())
+		bHasNetVersion = true;
+		const FString NetworkVersion = GetNetworkVersion();
+		if (OutNetVersion == NetworkVersion)
 		{
-			bHasNetVersion = true;
-			const FString NetworkVersion = GetNetworkVersion();
-			if (OutNetVersion == NetworkVersion)
-			{
-				bCompatibleNetHotfix = true;
-			}
+			bCompatibleNetHotfix = true;
 		}
-
-		if (!OutBranchVersion.IsEmpty())
-		{
-			bHasBranchVersion = true;
-			const FString BranchVersion = GetBranchVersion();
-			if (OutBranchVersion == BranchVersion)
-			{
-				bCompatibleBranchHotfix = true;
-			}
-		}
-
-		return (bCompatibleNetHotfix || !bHasNetVersion) && (bCompatibleBranchHotfix || !bHasBranchVersion);
 	}
+
+	if (!OutBranchVersion.IsEmpty())
+	{
+		bHasBranchVersion = true;
+		const FString BranchVersion = GetBranchVersion();
+		if (OutBranchVersion == BranchVersion)
+		{
+			bCompatibleBranchHotfix = true;
+		}
+	}
+
+	return (bCompatibleNetHotfix || !bHasNetVersion) && (bCompatibleBranchHotfix || !bHasBranchVersion);
 }
 
 UOnlineHotfixManager::UOnlineHotfixManager() :

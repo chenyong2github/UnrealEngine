@@ -222,6 +222,19 @@ protected:
 	UWorld* GetWorld() const override;
 
 protected:
+
+	/**
+	 * Is this hotfix file compatible with the current build
+	 * If the file has version information it is compared with compatibility
+	 * If the file has NO version information it is assumed compatible
+	 *
+	 * @param InFilename name of the file to check
+	 * @param OutFilename name of file with version information stripped
+	 *
+	 * @return true if file is compatible, false otherwise
+	 */
+	bool IsCompatibleHotfixFile(const FString& InFilename, FString& OutFilename);
+
 	/**
 	 * Override this method to look at the file information for any game specific hotfix processing
 	 * NOTE: Make sure to call Super to get default handling of files
