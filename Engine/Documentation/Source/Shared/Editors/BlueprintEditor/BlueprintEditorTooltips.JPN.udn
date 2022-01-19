@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -33,7 +33,7 @@ Description:
 デフォルトモードから、ブループリントにある全プロパティのデフォルト値を編集することができます。
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Defaults
+Engine/Blueprints/Editor/Modes/Defaults/DefaultsTab
 [/VAR]
 
 [/EXCERPT:DefaultsMode]
@@ -48,10 +48,6 @@ Engine/Blueprints/Editor/Modes/Defaults
 * ブループリントのインスタンスの配置結果の表示。
 * コンポーネントの変換の視覚的な調整。
 
-[VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Components
-[/VAR]
-
 [/EXCERPT:ComponentsMode]
 
 
@@ -62,7 +58,7 @@ Engine/Blueprints/Editor/Modes/Components
 
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/GraphPanel
+Engine/Blueprints/Editor/UIComponents/GraphEditor
 [/VAR]
 
 [/EXCERPT:GraphMode]

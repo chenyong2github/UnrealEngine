@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:ACameraBlockingVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:CameraBlockingVolume クラスの概要
 Camera Blocking Volume は、Camera アクタが通過しないようにする空間の定義に使用するという点で本質的に Blocking Volume と似ています。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#camerablockingvolume
 [/VAR]
 [/EXCERPT:ACameraBlockingVolume]

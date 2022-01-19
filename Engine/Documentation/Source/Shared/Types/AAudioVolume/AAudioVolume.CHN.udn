@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:AAudioVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:AudioVolume类的概述
 Audio Volume（音频体积）让您可以在关卡中控制及应用各种音效，同时可用于创建隔间音效区，在该音效区中您可以控制在体积内和体积外能听到的内容。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#audiovolume
 [/VAR]
 [/EXCERPT:AAudioVolume]

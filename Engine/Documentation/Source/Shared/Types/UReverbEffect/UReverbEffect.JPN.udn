@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UReverbEffect
 Crumbs:
@@ -9,6 +9,6 @@ Description:ReverbEffect クラスの概要
 Reverb Effect は、簡単に調整し、レベル内に配置された Audio Volume に適用できるいくつかのプロパティを持つ定義可能なアセットです。
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview#Reverb Effects
+Engine/Audio/Overview#reverbeffects
 [/VAR]
 [/EXCERPT:UReverbEffect]

@@ -8,6 +8,6 @@ Description:Overview of the NavMeshBoundsVolume class
 NavMeshBoundsVolumes are used as a way to control where NavMeshes will be calculated in a level.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#navmeshboundsvolume
 [/VAR]
 [/EXCERPT:ANavMeshBoundsVolume]

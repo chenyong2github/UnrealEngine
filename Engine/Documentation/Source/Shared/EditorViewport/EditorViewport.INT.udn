@@ -168,7 +168,7 @@ Engine/UI/LevelEditor/Viewports/ViewModes#shadercomplexity
 Since only 4 stationary lights can overlap a given location at a time, this view will show you, in red, which stationary lights are being forced to be movable.
 
 [VAR:ToolTipFullLink]
-Engine/UI/LevelEditor/Viewports/ViewportControls#stationarylightoverlap
+Engine/UI/LevelEditor/Viewports/ViewModes#stationarylightoverlap
 [/VAR]
 
 [/EXCERPT:StationaryLightOverlapMode]

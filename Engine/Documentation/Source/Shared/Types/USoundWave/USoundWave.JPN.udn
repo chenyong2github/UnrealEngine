@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:USoundWave
 Crumbs:
@@ -9,6 +9,6 @@ Description:SoundWave  クラスの概要
 サウンド ウェーブは、サウンド キュー エディタにインポートされたオーディオ ファイルを表します。
 
 [VAR:ToolTipFullLink]
-Engine/Audio/SoundCues/Editor#Sound Wave
+Engine/Audio/SoundCues/Editor#soundwave
 [/VAR]
 [/EXCERPT:USoundWave]

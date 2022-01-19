@@ -169,7 +169,7 @@ Engine/UI/LevelEditor/Viewports/ViewModes#shadercomplexity
 由于一次只有4个光源可以在指定位置处重叠，该视图会以红色向您显示哪些静止光源是强制为可移动光源的。
 
 [VAR:ToolTipFullLink]
-Engine/UI/LevelEditor/Viewports/ViewportControls#stationarylightoverlap
+Engine/UI/LevelEditor/Viewports/ViewModes#stationarylightoverlap
 [/VAR]
 
 [/EXCERPT:StationaryLightOverlapMode]

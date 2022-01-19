@@ -7,7 +7,4 @@ Description:Overview of the NavModifierVolume class
 
 Allows applying selected NavAreaDefinition to NavMesh, using Volume's shape.
 
-[VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
-[/VAR]
 [/EXCERPT:ANavModifierVolume]

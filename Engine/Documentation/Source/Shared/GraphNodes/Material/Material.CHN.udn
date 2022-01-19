@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4615496
+INTSourceChangelist:4615496
 Availability:NoPublish
 Title:
 Crumbs:
@@ -341,7 +341,7 @@ Engine/Rendering/Materials/ExpressionReference/Custom#customtexture
 DecalDerivative 用于显式计算贴图纹理坐标的导数，假定不存在自定义 UV，避免 2x2 像素 mipmap 在贴图投射的边缘上出现穿帮，但仍然带各向异性过滤支持。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalDerivative]
 
@@ -349,7 +349,7 @@ Engine/Actors/DecalActor/DecalUserGuide
 不建议使用。建议使用 DecalDerivative。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalMipmapLevel]
 
@@ -654,7 +654,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#power
 Logarithm 表达式接收两个输入，计算 X 的对数二进制并输出结果；换言之，时间的数字应为 2 乘以自身找到 X。对数计算逐通道进行。两个输入必须拥有相同的值，除非其中一个值是一个单一浮点值。 
 
 [VAR:ToolTipFullLink]
-Engine/Rendering/Materials/ExpressionReference/Math#Logarithm
+Engine/Rendering/Materials/ExpressionReference/Math#logarithm2
 [/VAR]
 [/EXCERPT:UMaterialExpressionLogarithm2]
 

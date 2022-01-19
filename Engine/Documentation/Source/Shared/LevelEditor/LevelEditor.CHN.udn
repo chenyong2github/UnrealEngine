@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3487496
+INTSourceChangelist:3487496
 Availability:NoPublish
 Title:关卡编辑器操作
 Crumbs:
@@ -23,7 +23,7 @@ Gameplay/Framework/GameMode
 [EXCERPT:OpenGameStateBlueprint]
 处理游戏状态，例如得分、连接玩家的列表、夺旗中的山头数量、象棋游戏中每个棋子的位置、开放世界游戏中完成的任务等游戏进程中会发生变化的内容。GameState 保存在服务器和所有客户端上，可自由复制，以保持所有机器保持更新。
 [VAR:ToolTipFullLink]
-Gameplay/Framework/GameState
+Gameplay/Framework/GameMode#gamestate
 [/VAR]
 [/EXCERPT:OpenGameStateBlueprint]
 

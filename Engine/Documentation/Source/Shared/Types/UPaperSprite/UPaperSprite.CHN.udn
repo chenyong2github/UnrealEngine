@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UPaperSprite
 Crumbs:
@@ -9,6 +9,6 @@ Description:PaperSprite类的概述
 存储用于渲染单个二维精灵图标所需的数据（来自于贴图区域）。也可包含精灵图标的碰撞形状。
 
 [VAR:ToolTipFullLink]
-Engine/Paper2D/SpriteEditor
+Engine/Paper2D/Sprites
 [/VAR]
 [/EXCERPT:UPaperSprite]

@@ -1,4 +1,4 @@
-﻿NTSourceChangelist:2033300
+NTSourceChangelist:2033300
 Availability:NoPublish
 Title:
 Crumbs:
@@ -8,7 +8,4 @@ Description:
 ###マチネ
 マチネは時間とともに進行するシーンのアクタ プロパティのキーフレーム (位置を含む) を作成するツールです。レベルのシネマティック シーケンスの作成にも使用できます。
 
-[VAR:ToolTipFullLink]
-Engine/UI/Tools/MatineeAndCinematics/Matinee/UserGuide
-[/VAR]
 [/EXCERPT:Matinee]

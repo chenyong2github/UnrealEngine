@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -33,7 +33,7 @@ Description:
 通过 Defaults 模式可在蓝图上编辑任意属性的默认值。
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Defaults
+Engine/Blueprints/Editor/Modes/Defaults/DefaultsTab
 [/VAR]
 
 [/EXCERPT:DefaultsMode]
@@ -48,10 +48,6 @@ Engine/Blueprints/Editor/Modes/Defaults
 * 查看放置蓝图实例的结果。
 * 对组件变形进行视觉调整。
 
-[VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Components
-[/VAR]
-
 [/EXCERPT:ComponentsMode]
 
 
@@ -62,7 +58,7 @@ Engine/Blueprints/Editor/Modes/Components
 
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/GraphPanel
+Engine/Blueprints/Editor/UIComponents/GraphEditor
 [/VAR]
 
 [/EXCERPT:GraphMode]

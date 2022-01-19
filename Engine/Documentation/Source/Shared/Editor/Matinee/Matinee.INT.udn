@@ -7,7 +7,4 @@ Description:
 ###Matinee
 Matinee is a tool for keyframing the properties of Actors in your scene over time, including their position. It can also be used to author cinematic sequences in your level.
 
-[VAR:ToolTipFullLink]
-Engine/UI/Tools/MatineeAndCinematics/Matinee/UserGuide
-[/VAR]
 [/EXCERPT:Matinee]

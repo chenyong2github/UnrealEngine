@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UBehaviorTree
 Crumbs:
@@ -9,6 +9,6 @@ Description:BehaviorTree类的概述
 行为树
 
 [VAR:ToolTipFullLink]
-Gameplay/AI/BehaviorTrees/HowUE4BehaviorTreesDiffer
+InteractiveExperiences/ArtificialIntelligence/BehaviorTrees
 [/VAR]
 [/EXCERPT:UBehaviorTree]

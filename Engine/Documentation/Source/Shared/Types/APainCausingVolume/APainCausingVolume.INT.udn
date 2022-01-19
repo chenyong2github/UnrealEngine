@@ -8,6 +8,6 @@ Description:Overview of the PainCausingVolume class
 PainCausingVolumes are actually Physics Volumes with the added ability to inflict damage on players.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#pain-causingvolume
 [/VAR]
 [/EXCERPT:APainCausingVolume]

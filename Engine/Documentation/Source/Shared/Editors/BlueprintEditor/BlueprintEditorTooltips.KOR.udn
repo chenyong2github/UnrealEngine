@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -33,7 +33,7 @@ Description:
 디폴트 모드에서는 블루프린트의 프로퍼티 기본값을 편집할 수 있습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Defaults
+Engine/Blueprints/Editor/Modes/Defaults/DefaultsTab
 [/VAR]
 
 [/EXCERPT:DefaultsMode]
@@ -48,10 +48,6 @@ Engine/Blueprints/Editor/Modes/Defaults
 * 블루프린트 인스턴스 배치 결과 확인.
 * 컴포넌트 트랜스폼 시각적으로 조정.
 
-[VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Components
-[/VAR]
-
 [/EXCERPT:ComponentsMode]
 
 
@@ -62,7 +58,7 @@ Engine/Blueprints/Editor/Modes/Components
 
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/GraphPanel
+Engine/Blueprints/Editor/UIComponents/GraphEditor
 [/VAR]
 
 [/EXCERPT:GraphMode]

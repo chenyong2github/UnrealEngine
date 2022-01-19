@@ -8,6 +8,6 @@ Description:Overview of the AudioVolume class
 Audio Volumes allow you to control and apply various sounds in your level as well as provide an avenue to create compartmentalized audio zones where you can control what is heard inside and outside of the volume.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#audiovolume
 [/VAR]
 [/EXCERPT:AAudioVolume]

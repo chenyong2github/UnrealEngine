@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:NoPublish
 Title:UPrimitiveComponent RTTs
 Crumbs:
@@ -121,9 +121,6 @@ Engine/Physics/Collision#properties
 [EXCERPT:bCanEverAffectNavigation]
 
 이 컴포넌트가 내비게이션에 영향을 끼칠 수 있는지를 정의합니다. 끄면, 이 컴포넌트는 내비게이션에 영향을 끼치지 못합니다.
-[VAR:ToolTipFullLink]
-Engine/Physics/PhysicsBodies#collision
-[/VAR]
 [/EXCERPT:bCanEverAffectNavigation]
 
 

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:USoundClass
 Crumbs:
@@ -9,6 +9,6 @@ Description:SoundClass クラスの概要
 サウンド クラスは、多数のサウンド アセットに適用できるプロパティの集まりです。
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview#Sound Class
+Engine/Audio/Overview#soundclass
 [/VAR]
 [/EXCERPT:USoundClass]

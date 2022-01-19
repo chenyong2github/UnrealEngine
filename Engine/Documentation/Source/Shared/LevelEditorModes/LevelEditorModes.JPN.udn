@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -14,7 +14,7 @@ Description:
 Mesh Paint ツールは、レベルビューポートでスタティックメッシュの頂点カラーをインタラクティブにペイントします。固有のカラー/アルファ値を使って単一のメッシュの複数のインスタンスをペイントし、そのデータをマテリアルの中で自由に使うことができます。
 
 [VAR:ToolTipFullLink]
-Engine/UI/Tools/MeshPaintMode/VertexColor/QuickGuide
+Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/QuickGuide
 [/VAR]
 [/EXCERPT:EditorMode.EM_MeshPaint]
 
@@ -23,7 +23,7 @@ Engine/UI/Tools/MeshPaintMode/VertexColor/QuickGuide
 ランドスケープを作成するには、複数の方法があります。編集ツールで、全く新しいランドスケープの作成、およびアンリアル エンジンもしくは外部ツールであらかじめ作成された高さマップのインポートが可能になります。外部ツールを使用して作業のとっかかりとなるベースを作成すると、ランドスケープ作成プロセスが迅速化するのでお勧めです。このベースは後に、アンリアル エディタ内の編集ツールを使ってインポート、クリーン アップ、修正して、ランドスケープをカスタムし、ワールドや希望するゲームプレイにフィットさせることができます。
 
 [VAR:ToolTipFullLink]
-Engine/UI/Tools/Landscape
+Engine/Landscape
 [/VAR]
 [/EXCERPT:EditorMode.EM_Landscape]
 
@@ -32,15 +32,11 @@ Engine/UI/Tools/Landscape
 アンリアル エンジンの Foliage ツールによって、レガシー テレインおよびスタティック メッシュ、ランドスケープ上のメッシュ群をすばやくペイントまたは消去することができるようになります。これらのメッシュは、ハードウェア インスタンシングを使用してレンダリングされるバッチに自動的に統合されます。つまり、たった 1 度のドローコールで多数のインスタンスをレンダリングすることができるということです。
 
 [VAR:ToolTipFullLink]
-Engine/UI/Tools/Foliage
+Engine/Foliage
 [/VAR]
 [/EXCERPT:EditorMode.EM_Foliage]
 
 [EXCERPT:EditorMode.EM_Geometry]
 ###ジオメトリ編集
 設置されたジオメトリ ブラシの頂点を編集することができます。
-
-[VAR:ToolTipFullLink]
-Resources/ContentExamples/Brushes
-[/VAR]
 [/EXCERPT:EditorMode.EM_Geometry]

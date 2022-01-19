@@ -8,6 +8,6 @@ Description:Overview of the SoundClass class
 Sound Classes are a collection of properties that can be applied to a number of Sound Assets.
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview#Sound Class
+Engine/Audio/Overview#soundclass
 [/VAR]
 [/EXCERPT:USoundClass]

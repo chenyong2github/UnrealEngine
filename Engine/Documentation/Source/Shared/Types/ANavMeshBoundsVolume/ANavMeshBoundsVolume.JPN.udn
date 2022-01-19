@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:ANavMeshBoundsVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description: NavMeshBoundsVolume クラスの概要
 NavMeshBoundsVolume は、レベル内における Nav Mesh の計算場所を制御するために使用します。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#navmeshboundsvolume
 [/VAR]
 [/EXCERPT:ANavMeshBoundsVolume]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:USoundWave
 Crumbs:
@@ -9,6 +9,6 @@ Description:SoundWave类的概述
 Sound Wave（声音波形）代表 SoundCue 编辑器中导入的音频文件。
 
 [VAR:ToolTipFullLink]
-Engine/Audio/SoundCues/Editor#Sound Wave
+Engine/Audio/SoundCues/Editor#soundwave
 [/VAR]
 [/EXCERPT:USoundWave]

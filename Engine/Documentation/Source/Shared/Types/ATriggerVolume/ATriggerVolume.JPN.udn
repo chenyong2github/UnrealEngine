@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:ATriggerVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:TriggerVolume クラスの概要
 トリガーは、レベル内の他のオブジェクトとインタラクションする時に、イベントを発生させるアクタです。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#triggervolume
 [/VAR]
 [/EXCERPT:ATriggerVolume]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:APrecomputedVisibilityVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:PrecomputedVisibilityVolume クラスの概要
 PrecomputedVisibilityVolume は、ワールド内の位置に基づいてアクタの可視性を格納します。プレイヤーがアクセスできるエリアのみに配置されます。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#precomputedvisibilityvolume
 [/VAR]
 [/EXCERPT:APrecomputedVisibilityVolume]

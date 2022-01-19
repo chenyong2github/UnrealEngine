@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:AAudioVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:AudioVolume クラスの概要
 Audio Volume は、ボリュームの内外で聞こえるものを制御する区切られたオーディオゾーンを作成する方法を提供するだけでなく、レベル内で様々なサウンドの制御と適用を可能にします。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#audiovolume
 [/VAR]
 [/EXCERPT:AAudioVolume]

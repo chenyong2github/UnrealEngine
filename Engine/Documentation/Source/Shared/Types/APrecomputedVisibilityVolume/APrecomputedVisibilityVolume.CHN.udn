@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:APrecomputedVisibilityVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:PrecomputedVisibilityVolume类的概述
 PrecomputedVisibilityVolumes存储了Actor在世界上所处位置处的可见性。 该体积仅应放置在玩家可以访问的区域。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#precomputedvisibilityvolume
 [/VAR]
 [/EXCERPT:APrecomputedVisibilityVolume]

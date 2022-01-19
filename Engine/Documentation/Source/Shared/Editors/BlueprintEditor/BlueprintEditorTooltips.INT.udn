@@ -32,7 +32,7 @@ If checked, variables that were declared in parent blueprints and classes will a
 The defaults mode lets you edit the default values of any properties on the Blueprint.
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Defaults
+Engine/Blueprints/Editor/Modes/Defaults/DefaultsTab
 [/VAR]
 
 [/EXCERPT:DefaultsMode]
@@ -47,10 +47,6 @@ The component editing mode lets you:
 * View the results of placing an instance of a Blueprint.
 * Visually adjust component transforms.
 
-[VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/Components
-[/VAR]
-
 [/EXCERPT:ComponentsMode]
 
 
@@ -61,7 +57,7 @@ The graph editing mode is where you do all Blueprint logic.
 
 
 [VAR:ToolTipFullLink]
-Engine/Blueprints/Editor/Modes/GraphPanel
+Engine/Blueprints/Editor/UIComponents/GraphEditor
 [/VAR]
 
 [/EXCERPT:GraphMode]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:ANavMeshBoundsVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:NavMeshBoundsVolume类的概述
 NavMeshBoundsVolumes是控制关卡中的NavMeshes进行计算的位置的一种方式。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#navmeshboundsvolume
 [/VAR]
 [/EXCERPT:ANavMeshBoundsVolume]

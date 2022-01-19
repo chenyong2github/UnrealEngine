@@ -8,6 +8,6 @@ Description:Overview of the SoundWave class
 A Sound Wave is the representation of an imported audio file in the Sound Cue Editor.
 
 [VAR:ToolTipFullLink]
-Engine/Audio/SoundCues/Editor#Sound Wave
+Engine/Audio/SoundCues/Editor#soundwave
 [/VAR]
 [/EXCERPT:USoundWave]

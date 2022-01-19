@@ -8,6 +8,6 @@ Description:Overview of the PaperFlipbook class
 Flipbooks are in essence a method in which you can create animated 2D assets using Sprites and keyframing.
 
 [VAR:ToolTipFullLink]
-Engine/Paper2D/FlipbookEditor
+Engine/Paper2D/Flipbooks
 [/VAR]
 [/EXCERPT:UPaperFlipbook]

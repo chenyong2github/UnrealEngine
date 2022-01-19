@@ -340,7 +340,7 @@ Engine/Rendering/Materials/ExpressionReference/Custom#customtexture
 The DecalDerivative is used to explicitly compute a decal's texture coordinate's derivative assuming there is no custom uv, to avoid the 2x2 pixel mipmap artefacts on the edges where the decal is project to, but still with support of anisotropic filtering.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalDerivative]
 
@@ -348,7 +348,7 @@ Engine/Actors/DecalActor/DecalUserGuide
 Deprecated. Use DecalDerivative instead.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalMipmapLevel]
 
@@ -653,7 +653,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#power
 The Logarithm expression takes two inputs, compute X's logarithm base 2, and outputs the result; in other words, the number of time you should get 2 multiply itself to find X. The logarithm computation happens per channel. Both inputs must have the same number of values unless one of the values is a single float value. 
 
 [VAR:ToolTipFullLink]
-Engine/Rendering/Materials/ExpressionReference/Math#Logarithm
+Engine/Rendering/Materials/ExpressionReference/Math#logarithm2
 [/VAR]
 [/EXCERPT:UMaterialExpressionLogarithm2]
 

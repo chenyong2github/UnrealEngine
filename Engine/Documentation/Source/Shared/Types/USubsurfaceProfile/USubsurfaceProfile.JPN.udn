@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:USubsurfaceProfile
 Crumbs:
@@ -9,6 +9,6 @@ Description:SubsurfaceProfile クラスの概要
 Subsurface Scattering Profile アセットは、マテリアルで指定することができます。スクリーン空間のサブサーフェス スキャッタリングの間に「Subsurface Profile」マテリアルのみを使用します。ランタイム時に変更しないでください。ここでのプロパティはすべてマテリアルごとに設定されます。バリエーションのあるテクスチャは GBuffer のプロパティを使用しなくてはいけません。
 
 [VAR:ToolTipFullLink]
-Engine\Rendering\Materials\LightingModels\SubSurface\SSSProfileLightingModel
+Engine/Rendering/Materials/LightingModels/SubSurfaceProfile
 [/VAR]
 [/EXCERPT:USubsurfaceProfile]

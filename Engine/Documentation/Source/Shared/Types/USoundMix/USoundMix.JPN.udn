@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:USoundMix
 Crumbs:
@@ -9,6 +9,6 @@ Description:SoundMix クラスの概要
 Sound Mixes では、EQ の設定項目 (Equalizer Settings) を設定し、サウンド クラス の ボリューム と ピッチ のプロパティを変更することができます。
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview#Sound Mix
+Engine/Audio/Overview#soundmix
 [/VAR]
 [/EXCERPT:USoundMix]

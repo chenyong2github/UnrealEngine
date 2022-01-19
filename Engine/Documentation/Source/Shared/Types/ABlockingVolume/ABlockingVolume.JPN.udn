@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:ABlockingVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description:BlockingVolume クラスの概要
 Blocking Volume は、オブジェクトが通過できないコリジョン形状の役割をします。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#blockingvolume
 [/VAR]
 [/EXCERPT:ABlockingVolume]

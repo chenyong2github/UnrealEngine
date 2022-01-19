@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:APhysicsVolume
 Crumbs:
@@ -9,6 +9,6 @@ Description: PhysicsVolume クラスの概要
 Physics Volume は、キャラクターや他の物理オブジェクトに影響を及ぼす物理セットアップを操作できるボリュームです。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#physicsvolume
 [/VAR]
 [/EXCERPT:APhysicsVolume]

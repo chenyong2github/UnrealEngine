@@ -8,6 +8,6 @@ Description:Overview of the LevelStreamingVolume class
 Level Streaming Volumes are used to aid in the Level Streaming process. They provide for a simple way to encapsulate a level, as well as control when it streams in and out of memory, based on when a Player enters and exits the volume. 
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#levelstreamingvolume
 [/VAR]
 [/EXCERPT:ALevelStreamingVolume]

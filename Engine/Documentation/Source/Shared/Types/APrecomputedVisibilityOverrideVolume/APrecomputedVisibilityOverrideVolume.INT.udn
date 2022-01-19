@@ -8,6 +8,6 @@ Description:Overview of the PrecomputedVisibilityOverrideVolume class
 Precomputed Visibility Override Volumes let you manually override the visibility of Actors for their location in the world if the auto generated result of a PrecomputedVisibiltyVolume is undesired.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes/#precomputedvisibilityoverridevolume
 [/VAR]
 [/EXCERPT:APrecomputedVisibilityOverrideVolume]

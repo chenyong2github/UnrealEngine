@@ -8,6 +8,6 @@ Description:Overview of the CameraBlockingVolume class
 Camera Blocking Volumes are similar in nature to Blocking Volumes in that they are used to define a space where a Camera Actor is not intended to pass through.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#camerablockingvolume
 [/VAR]
 [/EXCERPT:ACameraBlockingVolume]

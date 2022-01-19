@@ -8,6 +8,6 @@ Description:Overview of the BlockingVolume class
 A Blocking Volume serves as a collision shape through which objects are not intended to pass.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/Volumes#Volume Types
+Engine/Actors/Volumes#blockingvolume
 [/VAR]
 [/EXCERPT:ABlockingVolume]

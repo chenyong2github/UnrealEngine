@@ -22,7 +22,7 @@ Gameplay/Framework/GameMode
 [EXCERPT:OpenGameStateBlueprint]
 Handles the state of the game, things like: score, list of connected players, number of caps in capture the flag, where the pieces are in a chess game, what missions you have completed in an open world game, etc. Stuff that changes while you play. The GameState exists on the server and all clients and can replicate freely to keep all machines up to date.
 [VAR:ToolTipFullLink]
-Gameplay/Framework/GameState
+Gameplay/Framework/GameMode#gamestate
 [/VAR]
 [/EXCERPT:OpenGameStateBlueprint]
 

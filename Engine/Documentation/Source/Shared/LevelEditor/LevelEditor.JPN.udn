@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3487496
+INTSourceChangelist:3487496
 Availability:NoPublish
 Title:レベルエディタのアクション
 Crumbs:
@@ -23,7 +23,7 @@ Gameplay/Framework/GameMode
 [EXCERPT:OpenGameStateBlueprint]
 ゲームのステートを処理します。例えば、スコア、接続されたプレイヤーのリスト、陣取りゲームの取ったアイテム数、チェス ゲームの駒の位置、オープンなワールドゲームで完了したミッションのリストなどがあります。プレイ中に変化するものが対象になります。GameState はサーバーとすべてのクライアント上に存在し、自由にレプリケートして全てのマシンを最新の状態に保つことができます。
 [VAR:ToolTipFullLink]
-Gameplay/Framework/GameState
+Gameplay/Framework/GameMode#gamestate
 [/VAR]
 [/EXCERPT:OpenGameStateBlueprint]
 

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3487496
+INTSourceChangelist:3487496
 Availability:NoPublish
 Title: 레벨 에디터 동작
 Crumbs:
@@ -23,7 +23,7 @@ Gameplay/Framework/GameMode
 [EXCERPT:OpenGameStateBlueprint]
 점수, 접속된 플레이어 목록, 깃발뺏기 게임에서의 제한 수, 체스 게임에서 말들이 있는 위치, 오픈 월드 게임에서 이미 완료한 임무 등, 플레이 와중에 변경되는 게임 상태를 처리합니다. 게임 스테이트(GameState)는 서버와 모든 클라이언트에 존재하며, 모든 기계의 최신 상태 유지를 위해 자유로이 리플리케이트 가능합니다.
 [VAR:ToolTipFullLink]
-Gameplay/Framework/GameState
+Gameplay/Framework/GameMode#gamestate
 [/VAR]
 [/EXCERPT:OpenGameStateBlueprint]
 

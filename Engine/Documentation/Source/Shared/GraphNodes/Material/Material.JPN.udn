@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3151861
+INTSourceChangelist:3151861
 Availability:NoPublish
 Title:
 Crumbs:
@@ -341,7 +341,7 @@ Engine/Rendering/Materials/ExpressionReference/Custom#customtexture
 DecalDerivative は、カスタム UV がないことを前提に、デカールのテクスチャ座標系の微分係数を明示的に計算するために使用します。これは、デカールが投影されるエッジ上で 2x2 ピクセルのミップマップ アーティファクトを生じないようにするためのものですが、異方性フィルタリングをサポートします。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalDerivative]
 
@@ -349,7 +349,7 @@ Engine/Actors/DecalActor/DecalUserGuide
 非推奨になりました。代わりに DecalDerivative を使用してください。
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalMipmapLevel]
 
@@ -654,7 +654,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#power
 この対数の式は、2 つの入力を取り、X の対数の底 2 を計算し、その結果を出力します。つまり、X を見つけるために 2 で累乗する回数です。対数の計算はチャンネル毎に行われます。片方の値が single float 値でない限り、両方の入力は同等の入力値でなくてはいけません。 
 
 [VAR:ToolTipFullLink]
-Engine/Rendering/Materials/ExpressionReference/Math#Logarithm
+Engine/Rendering/Materials/ExpressionReference/Math#logarithm2
 [/VAR]
 [/EXCERPT:UMaterialExpressionLogarithm2]
 

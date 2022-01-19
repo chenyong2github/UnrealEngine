@@ -341,7 +341,7 @@ Engine/Rendering/Materials/ExpressionReference/Custom#customtexture
 DecalDerivative 는 커스텀 UV 가 없다는 가정하에 데칼 텍스처 좌표의 파생형을 명시적으로 계산하여 데칼이 투영되는 에지의 2x2 픽셀 밉맵 부작용을 피하는데 쓰이며, 비등방성 필터링도 계속 지원됩니다.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalDerivative]
 
@@ -349,7 +349,7 @@ Engine/Actors/DecalActor/DecalUserGuide
 DecalMipmapLevel 는 커스텀 UV 가 없다 가정하고 데칼 텍스처의 밉맵 레벨을 명시적으로 계산하는데 사용됩니다. 이는 데칼이 투사되는 에지의 2x2 픽셀 밉맵 부작용을 피하기 위해 사용됩니다.
 
 [VAR:ToolTipFullLink]
-Engine/Actors/DecalActor/DecalUserGuide
+Engine/Actors/DecalActor
 [/VAR]
 [/EXCERPT:UMaterialExpressionDecalMipmapLevel]
 
@@ -654,7 +654,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#power
 Logarithm (로그) 표현식은 입력 둘을 받아서, 밑이 2 인 X 의 로그를 계산한 다음, 결과를 출력합니다. 다른 말로 X 가 2 를 몇 번 제곱해야 나오는가 입니다. 로그 계산은 채널별로 일어납니다. 두 값 중 하나가 single float 값이 아닌 다음에야 두 입력 모두 값의 수가 같아야 합니다.
 
 [VAR:ToolTipFullLink]
-Engine/Rendering/Materials/ExpressionReference/Math#Logarithm
+Engine/Rendering/Materials/ExpressionReference/Math#logarithm2
 [/VAR]
 [/EXCERPT:UMaterialExpressionLogarithm2]
 

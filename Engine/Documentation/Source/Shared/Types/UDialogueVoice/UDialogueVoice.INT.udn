@@ -8,6 +8,6 @@ Description:Overview of the DialogueVoice class
 When editing a newly created Dialogue Voice asset, you can define the Gender and Plurality of a voice actor.
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview# Dialogue Voice & Dialogue Wave
+Engine/Audio/Overview#dialoguevoiceanddialoguewave
 [/VAR]
 [/EXCERPT:UDialogueVoice]

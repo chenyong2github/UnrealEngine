@@ -8,6 +8,6 @@ Description:Overview of the ReverbEffect class
 Reverb Effects are a definable asset with several properties that can be easily adjusted and applied to any Audio Volume placed in your level.
 
 [VAR:ToolTipFullLink]
-Engine/Audio/Overview#Reverb Effects
+Engine/Audio/Overview#reverbeffects
 [/VAR]
 [/EXCERPT:UReverbEffect]

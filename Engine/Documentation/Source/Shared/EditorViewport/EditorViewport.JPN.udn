@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -169,7 +169,7 @@ Engine/UI/LevelEditor/Viewports/ViewModes#shadercomplexity
 任意の位置で一度にオーバーラップできる固定ライトは 4 つだけであるため、このビューは赤色でどの固定ライトが強制的に可動になっているかを示します。
 
 [VAR:ToolTipFullLink]
-Engine/UI/LevelEditor/Viewports/ViewportControls#stationarylightoverlap
+Engine/UI/LevelEditor/Viewports/ViewModes#stationarylightoverlap
 [/VAR]
 
 [/EXCERPT:StationaryLightOverlapMode]
