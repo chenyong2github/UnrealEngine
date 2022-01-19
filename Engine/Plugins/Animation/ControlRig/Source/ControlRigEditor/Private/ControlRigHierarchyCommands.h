@@ -111,8 +111,8 @@ public:
 	/** Toggle Shape Transform Edit*/
 	TSharedPtr< FUICommandInfo > ToggleControlShapeTransformEdit;
 
-	/** Test out space switching as it would look like for animator */
-	TSharedPtr< FUICommandInfo > TestSpaceSwitching;
+	/** Space switch as it would look like for animator */
+	TSharedPtr< FUICommandInfo > SpaceSwitching;
 
 	/** Whether to tint the icons with the element color */
 	TSharedPtr< FUICommandInfo > ShowIconColors;

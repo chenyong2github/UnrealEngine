@@ -445,7 +445,7 @@ void SRigHierarchy::BindCommands()
 		}));
 
 	CommandList->MapAction(
-		Commands.TestSpaceSwitching,
+		Commands.SpaceSwitching,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleTestSpaceSwitching),
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
 
@@ -1092,7 +1092,7 @@ void SRigHierarchy::CreateContextMenu() const
 						}
 						else if(RigHierarchyPanel->IsControlSelected())
 						{
-							InteractionSection.AddMenuEntry(Commands.TestSpaceSwitching);
+							InteractionSection.AddMenuEntry(Commands.SpaceSwitching);
 						}
 					}
 					
