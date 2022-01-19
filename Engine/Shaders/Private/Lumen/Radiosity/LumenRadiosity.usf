@@ -98,8 +98,14 @@ void LumenRadiosityDistanceFieldTracingCS(
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 
-			FConeTraceResult TraceResult;
-			ConeTraceVoxels(TraceInput, TraceResult);
+			FConeTraceResult TraceResult = (FConeTraceResult)0;
+			TraceResult.Transparency = 1;
+
+			#if TRACE_GLOBAL_SDF
+			{
+				ConeTraceVoxels(TraceInput, TraceResult);
+			}
+			#endif
 
 			if (TraceResult.Transparency < 0.5f)
 			{

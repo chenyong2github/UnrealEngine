@@ -106,7 +106,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
 constexpr uint32 GNumVoxelDirections = 6;
 constexpr uint32 GVisBufferTileSize = 4;
 
-bool Lumen::UseVoxelLighting(const FViewInfo& View)
+bool Lumen::UseVoxelLighting(const FSceneViewFamily& ViewFamily)
 {
 	if (!Lumen::IsSoftwareRayTracingSupported())
 	{
@@ -114,12 +114,12 @@ bool Lumen::UseVoxelLighting(const FViewInfo& View)
 	}
 
 	// All features user Hardware RayTracing, no need to update voxel lighting
-	if (Lumen::UseHardwareRayTracedSceneLighting()
+	if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily)
 		&& Lumen::UseHardwareRayTracedScreenProbeGather()
 		&& Lumen::UseHardwareRayTracedReflections()
 		&& Lumen::UseHardwareRayTracedRadianceCache()
 		&& Lumen::UseHardwareRayTracedTranslucencyVolume()
-		&& Lumen::ShouldVisualizeHardwareRayTracing(View))
+		&& Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily))
 	{
 		return false;
 	}
@@ -1083,14 +1083,13 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& View = Views[0];
-	if (!Lumen::UseVoxelLighting(View))
+	if (!Lumen::UseVoxelLighting(ViewFamily))
 	{
 		// No need for voxel lighting, skip update and release resources
 		View.ViewState->Lumen.VoxelVisBuffer = nullptr;
 		View.ViewState->Lumen.VoxelLighting = nullptr;
 		return;
 	}
-
 
 	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps();
 	const FIntVector ClipmapResolution = GetClipmapResolution();

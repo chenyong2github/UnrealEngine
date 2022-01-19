@@ -54,6 +54,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCompactedReflectionTraceParameters, )
 	RDG_BUFFER_ACCESS(RayTraceDispatchIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
+namespace LumenReflections
+{
+	bool UseFarFieldForReflections(const FSceneViewFamily& ViewFamily);
+	bool IsHitLightingForceEnabled();
+	bool UseHitLightingForReflections();
+};
+
 extern void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,

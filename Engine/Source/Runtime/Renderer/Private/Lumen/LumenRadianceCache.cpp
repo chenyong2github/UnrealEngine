@@ -234,7 +234,7 @@ void MarkUsedProbesForVisualize(
 {
 	extern int32 GVisualizeLumenSceneTraceRadianceCache;
 
-	if (View.Family->EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneTraceRadianceCache != 0)
+	if (View.Family->EngineShowFlags.VisualizeLumen && GVisualizeLumenSceneTraceRadianceCache != 0)
 	{
 		FMarkRadianceProbesUsedByVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByVisualizeCS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
@@ -842,10 +842,11 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 		RDG_BUFFER_ACCESS(TraceProbesIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
 	class FDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDistantScene, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FDistantScene, FDynamicSkyLight>;
 
 public:
 
@@ -1719,6 +1720,7 @@ void RenderRadianceCache(
 			PassParameters->TraceProbesIndirectArgs = TraceProbesIndirectArgs;
 
 			FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 			auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);

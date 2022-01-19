@@ -56,6 +56,12 @@ RWStructuredBuffer<FTileDataPacked> RWTileDataPacked;
 
 groupshared uint SharedTileNeedsTracing;
 
+uint2 InputViewSize;
+uint2 InputViewOffset;
+uint2 OutputViewSize;
+uint2 OutputViewOffset;
+float TanPreviewConeAngle;
+
 [numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
 void FLumenVisualizeCreateTilesCS(
 	uint2 GroupId : SV_GroupID,
@@ -65,9 +71,8 @@ void FLumenVisualizeCreateTilesCS(
 	SharedTileNeedsTracing = 0;
 	GroupMemoryBarrierWithGroupSync();
 
-	uint2 TraceCoord = DispatchThreadId;
-	uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
-	if (all(ScreenCoord < (uint2)View.ViewSizeAndInvSize.xy))
+	uint2 TraceCoord = DispatchThreadId.xy;
+	if (all(TraceCoord < OutputViewSize))
 	{
 		// TODO: hi-Z culling based on MaxTraceDistance
 		{
@@ -155,10 +160,12 @@ void FLumenVisualizeCreateRaysCS(
 	uint2 ThreadIndex = uint2(GroupThreadId % THREADGROUP_SIZE_2D, GroupThreadId / THREADGROUP_SIZE_2D);
 	FTileData TileData = UnpackTileData(TileDataPacked[GroupId]);
 	uint2 TraceCoord = TileData.TileCoord * THREADGROUP_SIZE_2D + ThreadIndex;
-	uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
-	if (all(ScreenCoord < View.BufferSizeAndInvSize.xy))
+	if (all(TraceCoord < OutputViewSize))
 	{
-		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScreenCoord, 0)).x);
+		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
+		uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
+
+		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(InputScreenCoord, 0)).x);
 		bool bIsRayValid = SceneDepth < MaxTraceDistance;
 		if (bIsRayValid)
 		{
@@ -190,23 +197,20 @@ void FLumenVisualizeApplySkylightCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID
 )
 {
-	uint2 ScreenCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
-	float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScreenCoord, 0)).x);
-
-	bool bIsRayValid = SceneDepth < MaxTraceDistance;
-	if (!bIsRayValid)
+	uint2 TraceCoord = DispatchThreadId.xy;
+	uint2 OutputScreenCoord = TraceCoord + OutputViewOffset;
+	if (all(TraceCoord < OutputViewSize))
 	{
-		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
-		float3 RayDirection = CreateRayDirection(ScreenUV);
+		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
+		uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
 
-		FConeTraceResult TraceResult = (FConeTraceResult)0;
-		if (VisualizeMode == 0)
+		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(InputScreenCoord, 0)).x);
+		bool bIsRayValid = SceneDepth < MaxTraceDistance;
+		if (!bIsRayValid)
 		{
-			TraceResult.Transparency = 1;
-			EvaluateSkyRadianceForCone(RayDirection, 0.0f, TraceResult);
+			float3 RayDirection = CreateRayDirection(ViewportUV);
+			RWRadiance[OutputScreenCoord] = EvaluateSkyRadiance(RayDirection, TanPreviewConeAngle) * View.PreExposure;
 		}
-
-		RWRadiance[ScreenCoord] = TraceResult.Lighting * View.PreExposure;
 	}
 }
 
@@ -456,8 +460,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		uint RayIndex = IterationIndex;
 		FRayData RayData = UnpackRayData(RayDataPacked[RayIndex]);
 		uint2 TraceCoord = RayData.TraceCoord;
-		uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
-		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+		uint2 OutputScreenCoord = TraceCoord + OutputViewOffset;
+		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
 
 		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
 #if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
@@ -467,7 +471,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
 		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
 
-		RayDesc Ray = CreatePrimaryRay(ScreenUV);
+		RayDesc Ray = CreatePrimaryRay(ViewportUV);
 		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
@@ -537,7 +541,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 #endif // DIM_TRACE_MODE
 
 		Result.Radiance *= View.PreExposure;
-		RWRadiance[ScreenCoord] = Result.Radiance;
+		RWRadiance[OutputScreenCoord] = Result.Radiance;
 	}
 }
 

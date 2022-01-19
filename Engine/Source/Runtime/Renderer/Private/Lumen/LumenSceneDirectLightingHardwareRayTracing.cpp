@@ -172,7 +172,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLighting
 	if (Lumen::UseHardwareRayTracedDirectLighting())
 	{
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -272,7 +272,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 		PassParameters->InlineParameters.HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
 
 		FLumenDirectLightingHardwareRayTracingBatchedCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FEnableFarFieldTracing>(Lumen::UseFarField());
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedCS> ComputeShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedCS>(PermutationVector);
 
@@ -326,7 +326,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 		);
 
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 

@@ -54,6 +54,9 @@ namespace FViewportTestHelper
 			case SFG_LightingFeatures:
 				GroupName = TEXT("Light Features");
 				break;
+			case SFG_Lumen:
+				GroupName = TEXT("Lumen");
+				break;
 			case SFG_Hidden:
 			case SFG_Transient:
 				GroupName = TEXT("Hidden");

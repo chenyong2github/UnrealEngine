@@ -647,6 +647,9 @@ protected:
 	void SetCurrentNaniteVisualizationMode(FName NewNaniteVisualizationMode) { CurrentNaniteVisualizationMode = NewNaniteVisualizationMode; }
 	FName GetCurrentNaniteVisualizationMode() const { return CurrentNaniteVisualizationMode; }
 
+	void SetCurrentLumenVisualizationMode(FName NewLumenVisualizationMode) { CurrentLumenVisualizationMode = NewLumenVisualizationMode; }
+	FName GetCurrentLumenVisualizationMode() const { return CurrentLumenVisualizationMode; }
+
 	bool HasAudioFocus() const { return bHasAudioFocus; }
 
 	/** Updates CSVProfiler camera stats */
@@ -959,6 +962,9 @@ private:
 
 	/** Current Nanite visualization mode for this game viewport */
 	FName CurrentNaniteVisualizationMode;
+
+	/** Current Lumen visualization mode for this game viewport */
+	FName CurrentLumenVisualizationMode;
 
 	/** Weak pointer to the highres screenshot dialog if it's open */
 	TWeakPtr<SWindow> HighResScreenshotDialog;

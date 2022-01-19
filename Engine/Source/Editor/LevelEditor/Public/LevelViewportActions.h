@@ -9,6 +9,7 @@
 #include "EditorStyleSet.h"
 #include "BufferVisualizationMenuCommands.h"
 #include "NaniteVisualizationMenuCommands.h"
+#include "LumenVisualizationMenuCommands.h"
 
 /**
  * Public identifiers for the viewport layouts available in LevelViewportLayoutX.h files

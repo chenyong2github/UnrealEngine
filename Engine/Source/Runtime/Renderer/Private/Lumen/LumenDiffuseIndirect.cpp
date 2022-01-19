@@ -155,14 +155,21 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-bool Lumen::UseMeshSDFTracing()
+bool Lumen::UseMeshSDFTracing(const FSceneViewFamily& ViewFamily)
 {
-	return GLumenTraceMeshSDFs != 0 && GLumenAllowTracingMeshSDFs != 0;
+	return GLumenTraceMeshSDFs != 0 
+		&& GLumenAllowTracingMeshSDFs != 0
+		&& ViewFamily.EngineShowFlags.LumenDetailTraces;
+}
+
+bool Lumen::UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily)
+{
+	return ViewFamily.EngineShowFlags.LumenGlobalTraces;
 }
 
 float Lumen::GetMaxTraceDistance()
 {
-	return FMath::Clamp(GLumenMaxTraceDistance, .01f, (float)HALF_WORLD_MAX);
+	return FMath::Clamp(GLumenMaxTraceDistance, .01f, Lumen::MaxTraceDistance);
 }
 
 void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere, bool bInCosineDistribution)

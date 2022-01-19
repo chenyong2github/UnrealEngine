@@ -1029,6 +1029,9 @@ public:
 	/** Current Nanite visualization mode */
 	FName CurrentNaniteVisualizationMode;
 
+	/** Current Nanite visualization mode */
+	FName CurrentLumenVisualizationMode;
+
 	/** Current visualize calibration color material name */
 	FName CurrentVisualizeCalibrationColorMaterialName;
 

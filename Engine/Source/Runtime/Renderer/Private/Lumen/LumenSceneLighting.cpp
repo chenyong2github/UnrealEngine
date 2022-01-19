@@ -72,9 +72,9 @@ namespace LumenSceneLighting
 	}
 }
 
-bool Lumen::UseHardwareRayTracedSceneLighting()
+bool Lumen::UseHardwareRayTracedSceneLighting(const FSceneViewFamily& ViewFamily)
 {
-	return Lumen::UseHardwareRayTracedDirectLighting() || Lumen::UseHardwareRayTracedRadiosity();
+	return Lumen::UseHardwareRayTracedDirectLighting() || Lumen::UseHardwareRayTracedRadiosity(ViewFamily);
 }
 
 namespace LumenCardUpdateContext

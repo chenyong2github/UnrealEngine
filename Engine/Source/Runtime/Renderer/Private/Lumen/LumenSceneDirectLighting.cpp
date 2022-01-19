@@ -621,12 +621,19 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER(float, SDFSurfaceBiasScale)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
-	using FPermutationDomain = TShaderPermutationDomain<FLightType, FTraceMeshSDFs>;
+	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
+	using FPermutationDomain = TShaderPermutationDomain<FLightType, FTraceGlobalSDF, FTraceMeshSDFs>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
+		// Only directional lights support mesh SDF offscreen shadowing
+		if (PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
+		{
+			PermutationVector.Set<FTraceMeshSDFs>(false);
+		}
+
 		return PermutationVector;
 	}
 
@@ -726,7 +733,7 @@ void SetupMeshSDFShadowInitializer(
 	OutInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 	OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
 	OutInitializer.WAxis = FVector4f(0, 0, 0, 1);
-	OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
+	OutInitializer.MinLightW = FMath::Min<float>(-0.5f * UE_OLD_WORLD_MAX, -SubjectBounds.SphereRadius);
 	const float MaxLightW = SubjectBounds.SphereRadius;
 	OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
 	OutInitializer.bRayTracedDistanceField = true;
@@ -1032,7 +1039,7 @@ void TraceDistanceFieldShadows(
 		&& Light.Type == ELumenLightType::Directional
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
 		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
-		&& Lumen::UseMeshSDFTracing()
+		&& Lumen::UseMeshSDFTracing(*View.Family)
 		&& ObjectBufferParameters.NumSceneObjects > 0;
 
 	if (bTraceMeshSDFs)
@@ -1073,6 +1080,7 @@ void TraceDistanceFieldShadows(
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 	PermutationVector = FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
 

@@ -31,6 +31,7 @@
 #include "Stats/StatsData.h"
 #include "BufferVisualizationData.h"
 #include "NaniteVisualizationData.h"
+#include "LumenVisualizationData.h"
 #include "FoliageType.h"
 #include "ShowFlagMenuCommands.h"
 #include "Bookmarks/BookmarkUI.h"
@@ -1572,6 +1573,30 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			/* bInOpenSubMenuOnClick = */ false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeNaniteMode")
 		);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
+		Section.AddSubMenu(
+			"VisualizeLumenViewMode",
+			LOCTEXT("VisualizeLumenViewModeDisplayName", "Lumen Visualization"),
+			LOCTEXT("LumenVisualizationMenu_ToolTip", "Select a mode for Lumen visualization"),
+			FNewMenuDelegate::CreateStatic(&FLumenVisualizationMenuCommands::BuildVisualisationSubMenu),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]()
+					{
+						const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+						const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+						check(ViewportClient.IsValid());
+						return ViewportClient->IsViewModeEnabled(VMI_VisualizeLumen);
+					})
+			),
+			EUserInterfaceActionType::RadioButton,
+						/* bInOpenSubMenuOnClick = */ false,
+						FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeLumenMode")
+						);
 	}
 
 	{

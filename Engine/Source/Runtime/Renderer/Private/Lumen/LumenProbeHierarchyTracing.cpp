@@ -265,7 +265,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FIntVector(1, 1, 1));
 	}
 
-	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing();
+	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(*View.Family);
 
 	if (bTraceMeshSDFs)
 	{
@@ -400,7 +400,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			FIntVector(ProbeOcclusionParameters.DispatchCount, 1, 1));
 	}
 
-	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing();
+	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily);
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
 

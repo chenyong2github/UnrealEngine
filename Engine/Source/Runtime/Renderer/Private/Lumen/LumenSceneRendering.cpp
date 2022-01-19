@@ -314,12 +314,12 @@ namespace Lumen
 			return true;
 		}
 
-		if (Lumen::ShouldVisualizeHardwareRayTracing(View))
+		if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
 		{
 			return true;
 		}
 
-		if (Lumen::UseHardwareRayTracedRadiosity())
+		if (Lumen::UseHardwareRayTracedRadiosity(*View.Family))
 		{
 			return true;
 		}

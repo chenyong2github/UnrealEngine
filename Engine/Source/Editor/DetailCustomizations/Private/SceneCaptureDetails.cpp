@@ -165,6 +165,9 @@ void FSceneCaptureDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout 
 			case SFG_LightingFeatures:
 				GroupName = LOCTEXT("LightingFeaturesShowFlagsMenu", "Lighting Features Show Flags");
 				break;
+			case SFG_Lumen:
+				GroupName = LOCTEXT("LumenFeaturesShowFlagsMenu", "Lumen Show Flags");
+				break;
 			case SFG_CollisionModes:
 				GroupName = LOCTEXT("CollisionModesShowFlagsMenu", "Collision Modes Show Flags");
 				break;

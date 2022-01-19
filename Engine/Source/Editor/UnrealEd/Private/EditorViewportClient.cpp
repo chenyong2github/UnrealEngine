@@ -54,6 +54,7 @@
 #include "UnrealEngine.h"
 #include "BufferVisualizationData.h"
 #include "NaniteVisualizationData.h"
+#include "LumenVisualizationData.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 
@@ -383,6 +384,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, ExposureSettings()
 	, CurrentBufferVisualizationMode(NAME_None)
 	, CurrentNaniteVisualizationMode(NAME_None)
+	, CurrentLumenVisualizationMode(NAME_None)
 	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
@@ -2625,6 +2627,23 @@ FText FEditorViewportClient::GetCurrentNaniteVisualizationModeDisplayName() cons
 	return GetNaniteVisualizationData().GetModeDisplayName(CurrentNaniteVisualizationMode);
 }
 
+void FEditorViewportClient::ChangeLumenVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_VisualizeLumen);
+	CurrentLumenVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsLumenVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_VisualizeLumen) && CurrentLumenVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentLumenVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeLumen), TEXT("In order to call GetCurrentLumenVisualizationMode(), first you must set ViewMode to VMI_VisualizeLumen."));
+	return GetLumenVisualizationData().GetModeDisplayName(CurrentLumenVisualizationMode);
+}
+
 bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
 {
 	// Get the list of requested buffers from the console
@@ -3734,6 +3753,7 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 
 	View.CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;
 	View.CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
+	View.CurrentLumenVisualizationMode = CurrentLumenVisualizationMode;
 #if RHI_RAYTRACING
 	View.CurrentRayTracingDebugVisualizationMode = CurrentRayTracingDebugVisualizationMode;
 #endif

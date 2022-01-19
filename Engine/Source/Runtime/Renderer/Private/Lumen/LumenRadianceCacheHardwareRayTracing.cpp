@@ -313,9 +313,9 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FSplatRadianceCacheIntoAtlasCS, "/Engine/Private/Lumen/LumenRadianceCacheHardwareRayTracing.usf", "SplatRadianceCacheIntoAtlasCS", SF_Compute);
 
-bool UseFarFieldForRadianceCache()
+bool UseFarFieldForRadianceCache(const FSceneViewFamily& ViewFamily)
 {
-	return Lumen::UseFarField() && CVarLumenRadianceCacheHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
+	return Lumen::UseFarField(ViewFamily) && CVarLumenRadianceCacheHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
 }
 
 bool IsHardwareRayTracingRadianceCacheIndirectDispatch()
@@ -369,7 +369,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCacheL
 			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 		}
 
-		if (UseFarFieldForRadianceCache())
+		if (UseFarFieldForRadianceCache(*View.Family))
 		{
 			// Default trace
 			{
@@ -736,7 +736,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	uint32 MaxRayCount = TraceTileResultPackedBufferElementCount;
 
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
-	const bool bUseFarField = UseFarFieldForRadianceCache() && Configuration.bFarField;
+	const bool bUseFarField = UseFarFieldForRadianceCache(*View.Family) && Configuration.bFarField;
 
 	// Default tracing of near-field, extract surface cache and material-id
 	{

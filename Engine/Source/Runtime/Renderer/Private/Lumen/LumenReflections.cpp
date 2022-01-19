@@ -894,7 +894,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		GraphBuilder, 
 		Scene,
 		View, 
-		GLumenReflectionTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(),
+		GLumenReflectionTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily),
 		SceneTextures,
 		TracingInputs,
 		ReflectionTracingParameters,

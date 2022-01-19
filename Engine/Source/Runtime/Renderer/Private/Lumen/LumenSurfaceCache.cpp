@@ -391,7 +391,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	}
 
 	// Clear indirect lighting for newly captured cards (separate pass, as it can be downsampled)
-	if (Lumen::IsRadiosityEnabled())
+	const bool bRadiosityEnabled = Lumen::IsRadiosityEnabled(ViewFamily);
+	if (bRadiosityEnabled)
 	{
 		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
 
@@ -399,7 +400,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		PassParameters->PS.View = View.ViewUniformBuffer;
 
 		FClearLumenCardsPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(Lumen::IsRadiosityEnabled() ? 2 : 1);
+		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(bRadiosityEnabled ? 2 : 1);
 		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,

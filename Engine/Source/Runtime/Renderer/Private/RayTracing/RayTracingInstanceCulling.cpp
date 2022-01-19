@@ -66,7 +66,7 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 	ViewDirection = View.GetViewDirection();
 	bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
 	bCullByRadiusOrDistance = CullInRayTracing == 3;
-	bIsRayTracingFarField = Lumen::UseFarField();
+	bIsRayTracingFarField = Lumen::UseFarField(*View.Family);
 	bCullUsingGroupIds = CVarRayTracingCullingGroupIds.GetValueOnRenderThread() != 0;
 }
 

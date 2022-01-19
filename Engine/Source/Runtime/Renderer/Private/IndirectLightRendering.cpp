@@ -737,7 +737,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 {
 	using namespace HybridIndirectLighting;
 
-	if (ViewFamily.EngineShowFlags.VisualizeLumenIndirectDiffuse != bIsVisualizePass)
+	extern int32 GLumenVisualizeIndirectDiffuse;
+	if ((GLumenVisualizeIndirectDiffuse != 0) != bIsVisualizePass)
 	{
 		return;
 	}
@@ -1369,11 +1370,12 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef DynamicBentNormalAOTexture)
 {
+	extern int32 GLumenVisualizeIndirectDiffuse;
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling 
 		|| ViewFamily.EngineShowFlags.RayTracingDebug
 		|| ViewFamily.EngineShowFlags.PathTracing
 		|| !ViewFamily.EngineShowFlags.Lighting
-		|| ViewFamily.EngineShowFlags.VisualizeLumenIndirectDiffuse)
+		|| GLumenVisualizeIndirectDiffuse != 0)
 	{
 		return;
 	}

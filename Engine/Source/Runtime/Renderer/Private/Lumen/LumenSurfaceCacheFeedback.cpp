@@ -511,8 +511,9 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	{
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
+		extern int32 GLumenVisualizeIndirectDiffuse;
 		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
-		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
+		const bool bVisualizeUsesFeedback = GLumenVisualizeIndirectDiffuse != 0 && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
 
 		extern int32 GLumenReflectionsSurfaceCacheFeedback;
 		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsSurfaceCacheFeedback != 0;

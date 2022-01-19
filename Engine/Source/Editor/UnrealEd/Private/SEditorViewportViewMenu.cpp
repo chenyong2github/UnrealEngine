@@ -49,6 +49,10 @@ FText SEditorViewportViewMenu::GetViewMenuLabel() const
 		{
 			Label = ViewportClient->GetCurrentNaniteVisualizationModeDisplayName();
 		}
+		else if (ViewMode == VMI_VisualizeLumen)
+		{
+			Label = ViewportClient->GetCurrentLumenVisualizationModeDisplayName();
+		}
 		// For any other category, return its own name
 		else
 		{

@@ -87,6 +87,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 		, GameShowFlagsString()
 		, BufferVisualizationMode()
 		, NaniteVisualizationMode()
+		, LumenVisualizationMode()
 		, ExposureSettings()
 		, FOVAngle(EditorViewportDefs::DefaultPerspectiveFOVAngle)
 		, FarViewPlane(0)
@@ -130,6 +131,10 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 	/** The Nanite visualization mode for the viewport. */
 	UPROPERTY(config)
 	FName NaniteVisualizationMode;
+
+	/** The Lumen visualization mode for the viewport. */
+	UPROPERTY(config)
+	FName LumenVisualizationMode;
 
 	/** The buffer visualization mode for the viewport. */
 	UPROPERTY(config)

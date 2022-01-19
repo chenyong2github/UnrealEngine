@@ -326,9 +326,10 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
-	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FHairStrands, FRadianceCache>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -587,7 +588,7 @@ void TraceReflections(
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
-	const bool bScreenTraces = GLumenReflectionScreenTraces != 0;
+	const bool bScreenTraces = GLumenReflectionScreenTraces != 0 && View.Family->EngineShowFlags.LumenScreenTraces;
 
 	if (bScreenTraces)
 	{
@@ -647,7 +648,7 @@ void TraceReflections(
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
 			TracingInputs,
-			WORLD_MAX,
+			Lumen::MaxTracingEndDistanceFromCamera,
 			IndirectTracingParameters.MaxTraceDistance);
 
 		RenderLumenHardwareRayTracingReflections(
@@ -725,7 +726,7 @@ void TraceReflections(
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
 			TracingInputs,
-			WORLD_MAX,
+			Lumen::MaxTracingEndDistanceFromCamera,
 			IndirectTracingParameters.MaxTraceDistance);
 
 		{
@@ -742,6 +743,7 @@ void TraceReflections(
 			}
 
 			FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FReflectionTraceVoxelsCS::FTraceGlobalSDF >(Lumen::UseGlobalSDFTracing(*View.Family));
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FRadianceCache >(bUseRadianceCache);
 			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);

@@ -219,8 +219,6 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 		TraceDistance = min(length(ToLight), MaxTraceDistance);
 	#endif
 
-	#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
-
 	#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
 	{
 		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);

@@ -133,6 +133,9 @@ public:
 	/** Changes the viewport to visualize Nanite content */
 	TSharedPtr< FUICommandInfo > VisualizeNaniteMode;
 
+	/** Changes the viewport to visualize Lumen debug views */
+	TSharedPtr< FUICommandInfo > VisualizeLumenMode;
+
 	/** Collision Draw Mode */
 	TSharedPtr< FUICommandInfo > CollisionPawn;
 	TSharedPtr< FUICommandInfo > CollisionVisibility;

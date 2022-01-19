@@ -1260,6 +1260,26 @@ public:
 	FText GetCurrentNaniteVisualizationModeDisplayName() const;
 
 	/**
+	 * Changes the Lumen visualization mode for this viewport.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 */
+	void ChangeLumenVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a Lumen visualization mode is selected.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 * @return	true if the supplied Lumen visualization mode is checked
+	 */
+	bool IsLumenVisualizationModeSelected(FName InName) const;
+
+	/**
+	 * Returns the FText display name associated with CurrentLumenVisualizationMode.
+	 */
+	FText GetCurrentLumenVisualizationModeDisplayName() const;
+
+	/**
 	* Returns whether visualize debug material is enabled.
 	*/
 	bool IsVisualizeCalibrationMaterialEnabled() const;
@@ -1580,6 +1600,7 @@ public:
 
 	FName CurrentBufferVisualizationMode;
 	FName CurrentNaniteVisualizationMode;
+	FName CurrentLumenVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;
 

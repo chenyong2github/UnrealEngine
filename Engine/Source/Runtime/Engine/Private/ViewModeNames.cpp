@@ -158,6 +158,11 @@ TArray<FText> FillViewModeDisplayNames()
 			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VirtualTexturePendingMips", "Virtual Texture Pending Mips"));
 		}
 
+		else if (ViewModeIndex == VMI_VisualizeLumen)
+		{
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeLumen", "Lumen Visualization"));
+		}
+
 		// VMI_Max
 		else if (ViewModeIndex == VMI_Max)
 		{
@@ -260,6 +265,10 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		else if (ViewModeIndex == VMI_VisualizeNanite)
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeNaniteMode"));
+		}
+		else if (ViewModeIndex == VMI_VisualizeLumen)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeLumenMode"));
 		}
 
 		//	VMI_VoxelLighting = 13,

@@ -492,9 +492,11 @@ void TraceScreenProbes(
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupLumenDiffuseTracingParameters(IndirectTracingParameters);
 
-	const bool bTraceScreen = View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid() 
+	extern int32 GLumenVisualizeIndirectDiffuse;
+	const bool bTraceScreen = View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid()
 		&& GLumenScreenProbeGatherScreenTraces != 0
-		&& !View.Family->EngineShowFlags.VisualizeLumenIndirectDiffuse;
+		&& GLumenVisualizeIndirectDiffuse == 0
+		&& View.Family->EngineShowFlags.LumenScreenTraces;
 
 	if (bTraceScreen)
 	{
@@ -559,7 +561,7 @@ void TraceScreenProbes(
 			GraphBuilder,
 			View,
 			ScreenProbeParameters,
-			WORLD_MAX,
+			Lumen::MaxTracingEndDistanceFromCamera,
 			IndirectTracingParameters.MaxTraceDistance);
 
 		RenderHardwareRayTracingScreenProbe(GraphBuilder,
@@ -624,7 +626,7 @@ void TraceScreenProbes(
 		GraphBuilder,
 		View,
 		ScreenProbeParameters,
-		WORLD_MAX,
+		Lumen::MaxTracingEndDistanceFromCamera,
 		// Make sure the shader runs on all misses to apply radiance cache + skylight
 		IndirectTracingParameters.MaxTraceDistance + 1);
 
@@ -649,7 +651,7 @@ void TraceScreenProbes(
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FRadianceCache >(bRadianceCache);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FHairStrands>(bNeedTraceHairVoxel);
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceVoxels>(!bUseHardwareRayTracing);
+		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceVoxels>(!bUseHardwareRayTracing && Lumen::UseGlobalSDFTracing(*View.Family));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceVoxelsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

@@ -19,7 +19,11 @@
 
 uint3 CullGridSize;
 uint CardGridPixelSizeShift;
-uint4 ViewDimensions;
+int VisualizeTileIndex;
+uint2 InputViewSize;
+uint2 InputViewOffset;
+uint2 OutputViewSize;
+uint2 OutputViewOffset;
 float PreviewConeAngle;
 float TanPreviewConeAngle;
 float VisualizeStepFactor;
@@ -46,8 +50,17 @@ void VisualizeQuadsCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 PixelPos = DispatchThreadId.xy + ViewDimensions.xy;
-	float2 ViewportUV = (float2(DispatchThreadId.xy) + .5f) / (ViewDimensions.zw - ViewDimensions.xy);
+	uint2 TraceCoord = DispatchThreadId.xy;
+	uint2 OutputScreenCoord = TraceCoord + OutputViewOffset;
+	float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
+	uint2 PixelPos = ViewportUV * InputViewSize + InputViewOffset;
+
+	// Clip rendering outside of bounds
+	if (any(TraceCoord >= OutputViewSize))
+	{
+		return;
+	}
+
 	float2 ScreenPosition = float2(2.0f, -2.0f) * ViewportUV + float2(-1.0f, 1.0f);
 	float3 ScreenVector = mul(float4(ScreenPosition, 1, 0), View.ScreenToTranslatedWorld).xyz;
 	float3 CameraVector = normalize(ScreenVector);
@@ -76,7 +89,7 @@ void VisualizeQuadsCS(
 	float3 Debug = -1;
 
 	bool bContinueCardTracing = false;
-#if TRACE_CARDS
+#if TRACE_MESH_SDF
 	bContinueCardTracing = true;
 #endif
 
@@ -96,25 +109,19 @@ void VisualizeQuadsCS(
 	TraceInput.CardInterpolateDepthVisibilityRadius = 10.0f;
 	//Debug = TraceInput.NumMeshSDFs / 20.0f;
 	TraceInput.bCalculateHitVelocity = true;
+	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
+	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
+	TraceInput.InitialMaxDistance = 0;
 
-	FConeTraceResult TraceResult;
-
-#if TRACE_CARDS
-#define TRACE_MODE 2
-#else
-#define TRACE_MODE 1
-#endif
-
-#if TRACE_MODE == 0
-	ConeTraceLumenCards(TraceInput, TraceResult);
-#elif TRACE_MODE == 1
-	ConeTraceVoxels(TraceInput, TraceResult);
-#elif TRACE_MODE == 2
-
-	TraceResult = (FConeTraceResult)0;
+	FConeTraceResult TraceResult = (FConeTraceResult)0;
 	TraceResult.Transparency = 1;
 
-	ConeTraceLumenScene(TraceInput, TraceResult);
+#if TRACE_MESH_SDF
+	ConeTraceLumenSceneCards(TraceInput, TraceResult);
+#endif
+
+#if TRACE_GLOBAL_SDF
+	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
 #endif
 
 #if RADIANCE_CACHE
@@ -155,7 +162,7 @@ void VisualizeQuadsCS(
 		FinalColor = float4(Debug, 0);
 	}
 
-	RWSceneColor[PixelPos] = FinalColor;
+	RWSceneColor[OutputScreenCoord] = FinalColor;
 }
 
 StructuredBuffer<uint> GlobalDistanceFieldPageFreeListAllocatorBuffer;
@@ -217,11 +224,10 @@ void VisualizeLumenVoxelsCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 PixelPos = DispatchThreadId.xy + ViewDimensions.xy;
-	float2 ViewportUV = (float2(DispatchThreadId.xy) + .5f) / (ViewDimensions.zw - ViewDimensions.xy);
+	uint2 PixelPos = DispatchThreadId.xy + OutputViewOffset;
+	float2 ViewportUV = (DispatchThreadId.xy + 0.5f) / OutputViewSize;
 	float2 ScreenPosition = float2(2.0f, -2.0f) * ViewportUV + float2(-1.0f, 1.0f);
 	float3 ScreenVector = mul(float4(ScreenPosition, 1, 0), View.ScreenToTranslatedWorld).xyz;
-
 
 	float4 LightingAndAlpha = float4(0, 0, 0, 1);
 	uint TotalNumSteps = 0;

@@ -21,6 +21,7 @@ enum EShowFlagGroup
 	SFG_LightTypes,
 	SFG_LightingComponents,
 	SFG_LightingFeatures,
+	SFG_Lumen,
 	SFG_Hidden,
 	SFG_Transient, // Hidden, and don't serialize it
 	SFG_Custom,
@@ -440,8 +441,6 @@ private:
 		SetSnap(false);
 		SetVisualizeMeshDistanceFields(false);
 		SetVisualizeGlobalDistanceField(false);
-		SetVisualizeLumenScene(false);
-		SetVisualizeLumenIndirectDiffuse(false);
 		SetVisualizeLightingOnProbes(false);
 		SetVisualizeDistanceFieldAO(false);
 		SetPhysicsField(false);

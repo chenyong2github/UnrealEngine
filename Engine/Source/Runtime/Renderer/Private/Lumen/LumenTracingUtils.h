@@ -174,15 +174,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenHZBScreenTraceParameters, )
 	SHADER_PARAMETER(FVector4f, HZBUVToScreenUVScaleBias)
 END_SHADER_PARAMETER_STRUCT()
 
-void VisualizeHardwareRayTracing(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FSceneTextureParameters& SceneTextures,
-	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
-	FLumenIndirectTracingParameters& IndirectTracingParameters,
-	FRDGTextureRef SceneColor);
-
 extern void CullMeshSDFObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,

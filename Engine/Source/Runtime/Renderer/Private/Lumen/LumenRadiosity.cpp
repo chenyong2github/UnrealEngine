@@ -168,21 +168,22 @@ namespace LumenRadiosity
 	uint32 GetNumTracesPerTexel();
 }
 
-bool Lumen::UseHardwareRayTracedRadiosity()
+bool Lumen::UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return IsRayTracingEnabled()
 		&& Lumen::UseHardwareRayTracing()
 		&& (CVarLumenRadiosityHardwareRayTracing.GetValueOnRenderThread() != 0)
-		&& IsRadiosityEnabled();
+		&& IsRadiosityEnabled(ViewFamily);
 #else
 	return false;
 #endif
 }
 
-bool Lumen::IsRadiosityEnabled()
+bool Lumen::IsRadiosityEnabled(const FSceneViewFamily& ViewFamily)
 {
-	return GLumenRadiosity != 0;
+	return GLumenRadiosity != 0 
+		&& ViewFamily.EngineShowFlags.LumenSecondaryBounces;
 }
 
 uint32 Lumen::GetRadiosityDownsampleFactor()
@@ -332,6 +333,9 @@ class FLumenRadiosityDistanceFieldTracingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
+	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -401,7 +405,7 @@ bool IsHardwareRayTracingRadiosityIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedRadiosity())
+	if (Lumen::UseHardwareRayTracedRadiosity(*View.Family))
 	{
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingRadiosityIndirectDispatch());
@@ -612,7 +616,7 @@ void LumenRadiosity::AddRadiosityPass(
 	}
 
 	// Trace rays from surface cache texels
-	if (Lumen::UseHardwareRayTracedRadiosity())
+	if (Lumen::UseHardwareRayTracedRadiosity(*View.Family))
 	{
 #if RHI_RAYTRACING
 
@@ -692,7 +696,9 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, 0.1f, 10.0f);
 		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 
-		auto ComputeShader = View.ShaderMap->GetShader<FLumenRadiosityDistanceFieldTracingCS>();
+		FLumenRadiosityDistanceFieldTracingCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenRadiosityDistanceFieldTracingCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
+		auto ComputeShader = View.ShaderMap->GetShader<FLumenRadiosityDistanceFieldTracingCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -772,10 +778,10 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
-	if (Lumen::IsRadiosityEnabled() 
+	if (Lumen::IsRadiosityEnabled(ViewFamily)
 		&& !GLumenSceneRecaptureLumenSceneEveryFrame
 		&& LumenSceneData.bFinalLightingAtlasContentsValid
-		&& (Lumen::UseHardwareRayTracedRadiosity() || TracingInputs.NumClipmapLevels > 0))
+		&& (Lumen::UseHardwareRayTracedRadiosity(ViewFamily) || TracingInputs.NumClipmapLevels > 0))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
 

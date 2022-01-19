@@ -64,6 +64,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, ReflectionOverride, SFG_Hidden, NSLOCTEXT("UnrealE
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeBuffer, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeBufferSF", "Buffer Visualization"))
 /** Needed for VMI_VisualizeNanite, Whether to enable the Nanite visualization mode. */
 SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeNanite, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeNaniteSF", "Nanite Visualization"))
+/** Needed for VMI_VisualizeLumen, Whether to enable the Lumen visualization mode. */
+SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeLumen, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeLumenSF", "Lumen Visualization"))
 /** Allows to disable all direct lighting (does not affect indirect light) */
 SHOWFLAG_FIXED_IN_SHIPPING(1, DirectLighting, SFG_LightingComponents, NSLOCTEXT("UnrealEd", "DirectLightingSF", "Direct Lighting"))
 /** Allows to disable lighting from Directional Lights */
@@ -315,10 +317,6 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeMeshDistanceFields, SFG_Visualize, NSLOCT
 SHOWFLAG_FIXED_IN_SHIPPING(0, PhysicsField, SFG_Visualize, NSLOCTEXT("UnrealEd", "PhysicsField", "Physics Field"))
 /** Global Distance field */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeGlobalDistanceField, SFG_Visualize, NSLOCTEXT("UnrealEd", "GlobalDistanceFieldSF", "Global DistanceField"))
-/** Lumen Scene */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLumenScene, SFG_Visualize, NSLOCTEXT("UnrealEd", "LumenSceneSF", "Lumen Scene"))
-/** Visualization of Lumen indirect diffuse */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLumenIndirectDiffuse, SFG_Visualize, NSLOCTEXT("UnrealEd", "LumenIndirectDiffuseSF", "Lumen Global Illumination"))
 /** Enable the debug visualization of diffuse/specular lighting (direct and indirect) using probes */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeLightingOnProbes, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeLightingOnProbesSF", "Visualize Lighting on Probes"))
 /** Screen space AO, for now SHOWFLAG_ALWAYS_ACCESSIBLE because r.GBuffer need that */
@@ -408,6 +406,18 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VirtualTextureResidency, SFG_Hidden, NSLOCTEXT("Un
 /** Debug DVR Streaming System System */
 SHOWFLAG_FIXED_IN_SHIPPING(0, DVRStreamingSystem, SFG_Hidden, NSLOCTEXT("UnrealEd", "DVRStreamingSystem", "DVR Streaming System"))
 
+/** Use screen space tracing in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenScreenTraces, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Screen Traces"))
+/** Use detail tracing in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenDetailTraces, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Detail Traces"))
+/** Use global traces in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenGlobalTraces, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Global Traces"))
+/** Use far field traces in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenFarFieldTraces, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Far Field Traces"))
+/** Compute secondary bounces in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenSecondaryBounces, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Secondary Bounces"))
+/** Compute screen space directional occlusion in Lumen */
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenScreenSpaceDirectionalOcclusion, SFG_Lumen, NSLOCTEXT("UnrealEd", "LumenSF", "Screen Space Directional Occlusion"))
 
 #undef SHOWFLAG_ALWAYS_ACCESSIBLE
 #undef SHOWFLAG_FIXED_IN_SHIPPING

@@ -568,7 +568,7 @@ void FilterScreenProbes(
 	FRDGTextureRef ScreenProbeRadianceSHDirectional = nullptr;
 	FRDGTextureRef ScreenProbeIrradianceWithBorder = nullptr;
 
-	const EScreenProbeIrradianceFormat ScreenProbeIrradianceFormat = LumenScreenProbeGather::GetScreenProbeIrradianceFormat();
+	const EScreenProbeIrradianceFormat ScreenProbeIrradianceFormat = LumenScreenProbeGather::GetScreenProbeIrradianceFormat(View.Family->EngineShowFlags);
 	if (ScreenProbeIrradianceFormat == EScreenProbeIrradianceFormat::SH3)
 	{
 		FRDGTextureDesc ScreenProbeRadianceSHAmbientDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));

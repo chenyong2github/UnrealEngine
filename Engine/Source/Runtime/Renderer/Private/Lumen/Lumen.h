@@ -24,6 +24,9 @@ namespace Lumen
 	constexpr uint32 NumResLevels = MaxResLevel - MinResLevel + 1;
 	constexpr uint32 CardTileSize = 8;
 
+	constexpr float MaxTracingEndDistanceFromCamera = 0.5f * UE_OLD_WORLD_MAX;
+	constexpr float MaxTraceDistance = 0.5f * UE_OLD_WORLD_MAX;
+
 	enum class ETracingPermutation
 	{
 		Cards,
@@ -34,13 +37,15 @@ namespace Lumen
 
 	void DebugResetSurfaceCache();
 	float GetDistanceSceneNaniteLODScaleFactor();
-	bool UseMeshSDFTracing();
+	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
+	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
 	float GetMaxTraceDistance();
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
-	bool ShouldVisualizeHardwareRayTracing(const FViewInfo& View);
+	bool ShouldVisualizeScene(const FSceneViewFamily& ViewFamily);
+	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	bool UseVirtualShadowMaps();
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
@@ -50,7 +55,7 @@ namespace Lumen
 	float GetFirstClipmapWorldExtent();
 
 	// Features
-	bool IsRadiosityEnabled();
+	bool IsRadiosityEnabled(const FSceneViewFamily& ViewFamily);
 	uint32 GetRadiosityDownsampleFactor();
 
 	// Surface cache
@@ -59,16 +64,16 @@ namespace Lumen
 	bool IsSurfaceCacheUpdateFrameFrozen();
 
 	// Software ray tracing
-	bool UseVoxelLighting(const FViewInfo& View);
+	bool UseVoxelLighting(const FSceneViewFamily& ViewFamily);
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
-	bool UseHardwareRayTracedSceneLighting();
+	bool UseHardwareRayTracedSceneLighting(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedDirectLighting();
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
-	bool UseHardwareRayTracedRadiosity();
+	bool UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily);
 
 	bool UseHardwareInlineRayTracing();
 
@@ -96,7 +101,7 @@ namespace Lumen
 	const TCHAR* GetRayTracedNormalModeName(int NormalMode);
 	float GetHardwareRayTracingPullbackBias();
 
-	bool UseFarField();
+	bool UseFarField(const FSceneViewFamily& ViewFamily);
 	float GetFarFieldMaxTraceDistance();
 	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();

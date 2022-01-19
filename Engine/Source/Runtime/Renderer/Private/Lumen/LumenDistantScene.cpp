@@ -138,9 +138,10 @@ static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
 
 namespace Lumen
 {
-	bool UseFarField()
+	bool UseFarField(const FSceneViewFamily& ViewFamily)
 	{
-		return CVarLumenFarField.GetValueOnRenderThread() != 0;
+		return CVarLumenFarField.GetValueOnRenderThread() != 0 
+			&& ViewFamily.EngineShowFlags.LumenFarFieldTraces;
 	}
 
 	float GetFarFieldMaxTraceDistance()

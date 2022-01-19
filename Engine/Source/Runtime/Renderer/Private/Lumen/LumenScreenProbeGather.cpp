@@ -315,9 +315,9 @@ namespace LumenScreenProbeGather
 		return FMath::Clamp(GLumenScreenProbeDownsampleFactor / (View.FinalPostProcessSettings.LumenFinalGatherQuality >= 6.0f ? 2 : 1), 4, 64);
 	}
 
-	bool UseScreenSpaceBentNormal()
+	bool UseScreenSpaceBentNormal(const FEngineShowFlags& ShowFlags)
 	{
-		return GLumenScreenProbeGatherReferenceMode ? false : GLumenScreenSpaceBentNormal != 0;
+		return GLumenScreenProbeGatherReferenceMode ? false : (GLumenScreenSpaceBentNormal != 0 && ShowFlags.LumenScreenSpaceDirectionalOcclusion);
 	}
 
 	bool ApplyScreenBentNormalDuringIntegration()
@@ -345,9 +345,9 @@ namespace LumenScreenProbeGather
 		return GLumenScreenProbeGatherReferenceMode ? 2 : GLumenScreenProbeDiffuseIntegralMethod;
 	}
 
-	EScreenProbeIrradianceFormat GetScreenProbeIrradianceFormat()
+	EScreenProbeIrradianceFormat GetScreenProbeIrradianceFormat(const FEngineShowFlags& ShowFlags)
 	{
-		const bool bApplyScreenBentNormal = UseScreenSpaceBentNormal() && ApplyScreenBentNormalDuringIntegration();
+		const bool bApplyScreenBentNormal = UseScreenSpaceBentNormal(ShowFlags) && ApplyScreenBentNormalDuringIntegration();
 		if (bApplyScreenBentNormal)
 		{
 			// At the moment only SH3 support bent normal path
@@ -1095,7 +1095,7 @@ void InterpolateAndIntegrate(
 			FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >(ClassificationMode);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
-			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat());
+			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat(View.Family->EngineShowFlags));
 			PermutationVector.Set< FScreenProbeIntegrateCS::FStochasticProbeInterpolation >(GLumenScreenProbeStochasticInterpolation != 0);
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
 
@@ -1730,7 +1730,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GraphBuilder, 
 		Scene,
 		View, 
-		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(),
+		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily),
 		SceneTextures,
 		LightingChannelsTexture,
 		TracingInputs,
@@ -1741,7 +1741,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FScreenProbeGatherParameters GatherParameters;
 	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, GatherParameters);
 
-	if (LumenScreenProbeGather::UseScreenSpaceBentNormal())
+	if (LumenScreenProbeGather::UseScreenSpaceBentNormal(ViewFamily.EngineShowFlags))
 	{
 		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, SceneTextures, LightingChannelsTexture, ScreenProbeParameters);
 	}
