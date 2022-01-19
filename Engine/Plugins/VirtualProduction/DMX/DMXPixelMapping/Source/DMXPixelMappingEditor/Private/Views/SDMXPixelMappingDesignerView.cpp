@@ -150,6 +150,8 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 								SAssignNew(DesignCanvasBorder, SBorder)
 								.HAlign(HAlign_Fill)
 								.VAlign(VAlign_Fill)
+								.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+								.Padding(0.0f)
 								[
 									SAssignNew(DesignCanvas, SConstraintCanvas)
 									.Visibility(EVisibility::HitTestInvisible)
