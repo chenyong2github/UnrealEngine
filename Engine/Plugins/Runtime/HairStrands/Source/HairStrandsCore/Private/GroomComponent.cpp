@@ -1512,12 +1512,12 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	}
 
 	UpdateHairGroupsDesc();
-	if(bUpdateSimulation) UpdateHairSimulation();
 	if (!GroomAsset || !GroomAsset->IsValid())
 	{
 		return;
 	}
 	InitResources();
+	if(bUpdateSimulation) UpdateHairSimulation();
 }
 
 void UGroomComponent::SetStableRasterization(bool bEnable)
@@ -1740,8 +1740,8 @@ void UGroomComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
 			
 		ReleaseResources();
 		UpdateHairGroupsDesc();
-		UpdateHairSimulation();
 		InitResources();
+		UpdateHairSimulation();
 	}
 }
 
@@ -1755,8 +1755,8 @@ void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
 
 			ReleaseResources();
 			UpdateHairGroupsDesc();
-			UpdateHairSimulation();
 			InitResources();
+			UpdateHairSimulation();
 		}
 	}
 	else
@@ -3001,7 +3001,6 @@ void UGroomComponent::OnRegister()
 {
 	Super::OnRegister();
 	UpdateHairGroupsDesc();
-	UpdateHairSimulation();
 
 	if (GUseGroomCacheStreaming)
 	{
@@ -3022,6 +3021,7 @@ void UGroomComponent::OnRegister()
 		// Buffers already initialized, just need to update them
 		UpdateGroomCache(ElapsedTime);
 	}
+	UpdateHairSimulation();
 }
 
 void UGroomComponent::OnUnregister()
