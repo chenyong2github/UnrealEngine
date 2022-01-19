@@ -6064,6 +6064,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("CurveBase")},
 			{TEXT("DataAsset")},
 			{TEXT("DataTable")},
+			{TEXT("DataLayerAsset")},
 			{TEXT("DecalActor")},
 			{TEXT("DefaultPawn")},
 			{TEXT("DialogueVoice")},

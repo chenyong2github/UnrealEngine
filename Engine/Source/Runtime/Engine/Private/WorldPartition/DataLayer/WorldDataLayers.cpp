@@ -6,6 +6,7 @@
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
 #include "Engine/CoreSettings.h"
@@ -605,6 +606,18 @@ UDataLayer* AWorldDataLayers::CreateDataLayer(FName InName, EObjectFlags InObjec
 	return NewDataLayer;
 }
 
+UDataLayerInstance* AWorldDataLayers::CreateDataLayer(const UDataLayerAsset* InDataLayerAsset)
+{
+	Modify();
+
+	const FName DataLayerUniqueName = *FString::Format(TEXT("{0}_{1}"), { InDataLayerAsset->GetName(), FGuid::NewGuid().ToString() });
+	UDataLayerInstance* NewDataLayer = NewObject<UDataLayerInstance>(this, DataLayerUniqueName, RF_Transactional | RF_NoFlags);
+	check(NewDataLayer != NULL);
+	NewDataLayer->OnCreated(InDataLayerAsset);
+	DataLayerInstances.Add(NewDataLayer);
+	return NewDataLayer;
+}
+
 bool AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers)
 {
 	bool bIsModified = false;
@@ -632,6 +645,17 @@ bool AWorldDataLayers::RemoveDataLayer(UDataLayer* InDataLayer)
 	return false;
 }
 
+bool AWorldDataLayers::RemoveDataLayer(UDataLayerInstance* InDataLayerInstance)
+{
+	if (ContainsDataLayer(InDataLayerInstance))
+	{
+		Modify();
+		DataLayerInstances.Remove(InDataLayerInstance);
+		return true;
+	}
+	return false;
+}
+
 void AWorldDataLayers::SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing)
 {
 	if (bAllowRuntimeDataLayerEditing != bInAllowRuntimeDataLayerEditing)
@@ -645,6 +669,11 @@ void AWorldDataLayers::SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataL
 bool AWorldDataLayers::ContainsDataLayer(const UDataLayer* InDataLayer) const
 {
 	return WorldDataLayers.Contains(InDataLayer);
+}
+
+bool AWorldDataLayers::ContainsDataLayer(const UDataLayerInstance* InDataLayerInstance) const 
+{
+	return DataLayerInstances.Contains(InDataLayerInstance);
 }
 
 const UDataLayer* AWorldDataLayers::GetDataLayerFromName(const FName& InDataLayerName) const

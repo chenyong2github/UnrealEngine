@@ -15,6 +15,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -1319,10 +1320,34 @@ bool AActor::AddDataLayer(const UDataLayer* DataLayer)
 	return bActorWasModified;
 }
 
+bool AActor::AddDataLayer(const UDataLayerAsset* DataLayerAsset)
+{
+	bool bActorWasModified = false;
+	if (SupportsDataLayer() && DataLayerAsset && !ContainsDataLayer(DataLayerAsset))
+	{
+		Modify();
+		bActorWasModified = true;
+		DataLayerAssets.Add(DataLayerAsset);
+	}
+	return bActorWasModified;
+}
+
 bool AActor::RemoveDataLayer(const UDataLayer* DataLayer)
 {
 	bool bActorWasModified = false;
 	if (ContainsDataLayer(DataLayer))
+	{
+		Modify();
+		bActorWasModified = true;
+		DataLayers.Remove(FActorDataLayer(DataLayer->GetFName()));
+	}
+	return bActorWasModified;
+}
+
+bool AActor::RemoveDataLayer(const UDataLayerAsset* DataLayerAsset)
+{
+	bool bActorWasModified = false;
+	if (ContainsDataLayer(DataLayerAsset))
 	{
 		if (!bActorWasModified)
 		{
@@ -1330,7 +1355,7 @@ bool AActor::RemoveDataLayer(const UDataLayer* DataLayer)
 			bActorWasModified = true;
 		}
 
-		DataLayers.Remove(FActorDataLayer(DataLayer->GetFName()));
+		DataLayerAssets.Remove(DataLayerAsset);
 	}
 	return bActorWasModified;
 }
@@ -1349,6 +1374,11 @@ bool AActor::RemoveAllDataLayers()
 bool AActor::ContainsDataLayer(const UDataLayer* DataLayer) const
 {
 	return DataLayer && DataLayers.Contains(FActorDataLayer(DataLayer->GetFName()));
+}
+
+bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
+{
+	return DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset);
 }
 
 bool AActor::HasDataLayers() const

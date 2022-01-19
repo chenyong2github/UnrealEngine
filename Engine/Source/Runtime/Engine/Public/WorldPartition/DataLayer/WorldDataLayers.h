@@ -10,6 +10,8 @@
 #include "WorldDataLayers.generated.h"
 
 class UDataLayer;
+class UDataLayerInstance;
+class UDataLayerAsset;
 
 /**
  * Actor containing all data layers for a world
@@ -18,6 +20,8 @@ UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Eve
 class ENGINE_API AWorldDataLayers : public AInfo
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class UDataLayerToAssetCommandlet;
 
 public:
 	virtual void PostLoad() override;
@@ -32,11 +36,14 @@ public:
 
 	static AWorldDataLayers* Create(UWorld* World);
 	UDataLayer* CreateDataLayer(FName InName = TEXT("DataLayer"), EObjectFlags InObjectFlags = RF_NoFlags);
+	UDataLayerInstance* CreateDataLayer(const UDataLayerAsset* InDataLayerAsset);
 	bool RemoveDataLayer(UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers);
 	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
 	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
 	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
+
+	bool RemoveDataLayer(UDataLayerInstance* InDataLayerInstance);
 
 	//~ Begin Helper Functions
 	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
@@ -57,6 +64,8 @@ public:
 	const UDataLayer* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
 	void ForEachDataLayer(TFunctionRef<bool(UDataLayer*)> Func);
 	void ForEachDataLayer(TFunctionRef<bool(UDataLayer*)> Func) const;
+
+	bool ContainsDataLayer(const UDataLayerInstance* InDataLayerInstance) const;
 
 	// DataLayer Runtime State
 	void SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDataLayerRuntimeState InState, bool bIsRecursive = false);
@@ -117,6 +126,12 @@ private:
 	UPROPERTY()
 	bool bAllowRuntimeDataLayerEditing;
 #endif
+
+	UPROPERTY()
+	TSet<TObjectPtr<UDataLayerInstance>> DataLayerInstances;
+
+	UPROPERTY()
+	TMap<FName, TWeakObjectPtr<UDataLayerInstance>> DeprecatedDataLayerNameToDataLayerInstance;
 
 	UPROPERTY()
 	TSet<TObjectPtr<UDataLayer>> WorldDataLayers;
