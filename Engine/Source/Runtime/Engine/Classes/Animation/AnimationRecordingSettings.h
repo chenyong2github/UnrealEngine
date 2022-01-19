@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Curves/RichCurve.h"
+#include "Misc/FrameRate.h"
 #include "AnimationRecordingSettings.generated.h"
 
 /** Settings describing how to record an animation */
