@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Engine/DeveloperSettings.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
