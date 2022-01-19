@@ -1112,7 +1112,12 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 					return EAnimSubsystemEnumeration::Continue;
 				});
 			}
-			
+
+			{
+				SCOPE_CYCLE_COUNTER(STAT_NativeThreadSafeUpdateAnimation);
+				CastChecked<UAnimInstance>(GetAnimInstanceObject())->NativeThreadSafeUpdateAnimation(CurrentDeltaSeconds);
+			}
+
 			{
 				SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
 				CastChecked<UAnimInstance>(GetAnimInstanceObject())->BlueprintThreadSafeUpdateAnimation(CurrentDeltaSeconds);

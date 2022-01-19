@@ -1279,8 +1279,11 @@ public:
 	// Native initialization override point
 	virtual void NativeInitializeAnimation();
 	// Native update override point. It is usually a good idea to simply gather data in this step and 
-	// for the bulk of the work to be done in NativeUpdateAnimation.
+	// for the bulk of the work to be done in NativeThreadSafeUpdateAnimation.
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
+	// Native thread safe update override point. Executed on a worker thread just prior to graph update 
+	// for linked anim instances, only called when the hosting node(s) are relevant
+	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds);
 	// Native update override point. Can be called from a worker thread. This is a good place to do any
 	// heavy lifting (as opposed to NativeUpdateAnimation_GameThread()).
 	// This function should not be used. Worker thread updates should be performed in the FAnimInstanceProxy attached to this instance.

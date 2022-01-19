@@ -58,6 +58,7 @@ DEFINE_STAT(STAT_PostUpdateAnimation);
 DEFINE_STAT(STAT_BlueprintUpdateAnimation);
 DEFINE_STAT(STAT_BlueprintPostEvaluateAnimation);
 DEFINE_STAT(STAT_NativeUpdateAnimation);
+DEFINE_STAT(STAT_NativeThreadSafeUpdateAnimation);
 DEFINE_STAT(STAT_Montage_Advance);
 DEFINE_STAT(STAT_Montage_UpdateWeight);
 DEFINE_STAT(STAT_UpdateCurves);
@@ -787,6 +788,10 @@ void UAnimInstance::NativeInitializeAnimation()
 }
 
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+{
+}
+
+void UAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 }
 
