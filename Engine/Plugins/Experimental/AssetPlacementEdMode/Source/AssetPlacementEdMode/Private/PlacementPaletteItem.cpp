@@ -2,6 +2,7 @@
 
 #include "PlacementPaletteItem.h"
 
+#include "Factories/AssetFactoryInterface.h"
 #include "Subsystems/PlacementSubsystem.h"
 
 void UPlacementPaletteClient::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

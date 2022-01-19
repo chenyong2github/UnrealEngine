@@ -49,6 +49,7 @@ protected:
 	bool HasAnyAssetsInPalette() const;
 	bool HasActiveSelection() const;
 	bool IsInSelectionTool() const;
+	void OnSMIsntancedElementsEnabledChanged();
 
 	bool bIsInSelectionTool;
 	TWeakObjectPtr<UAssetPlacementSettings> SettingsObjectAsPlacementSettings;

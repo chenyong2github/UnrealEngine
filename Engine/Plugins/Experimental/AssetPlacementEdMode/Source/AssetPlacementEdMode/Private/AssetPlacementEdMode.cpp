@@ -33,7 +33,7 @@ constexpr TCHAR UAssetPlacementEdMode::AssetPlacementEdModeID[];
 
 UAssetPlacementEdMode::UAssetPlacementEdMode()
 {
-	TAttribute<bool> IsEnabledAttr = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([]() -> bool { return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode; }));
+	TAttribute<bool> IsEnabledAttr = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&UAssetPlacementEdMode::IsEnabled));
 	Info = FEditorModeInfo(UAssetPlacementEdMode::AssetPlacementEdModeID,
 		LOCTEXT("AssetPlacementEdModeName", "Placement"),
 		FSlateIcon(FAssetPlacementEdModeStyle::Get().GetStyleSetName(), "LevelEditor.AssetPlacementEdMode"),
@@ -70,10 +70,14 @@ void UAssetPlacementEdMode::Enter()
 
 	// Enable the select tool by default.
 	GetInteractiveToolsContext()->StartTool(UPlacementModeSelectTool::ToolName);
+
+	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().AddUObject(this, &UAssetPlacementEdMode::OnSMIsntancedElementsEnabledChanged);
 }
 
 void UAssetPlacementEdMode::Exit()
 {
+	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().RemoveAll(this);
+
 	Super::Exit();
 
 	SettingsObjectAsPlacementSettings->SaveSettings();
@@ -189,7 +193,7 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 
 bool UAssetPlacementEdMode::IsEnabled()
 {
-	return SMInstanceElementDataUtil::SMInstanceElementsEnabled() && GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
+	return SMInstanceElementDataUtil::SMInstanceElementsEnabled();
 }
 
 void UAssetPlacementEdMode::ClearSelection()
@@ -225,6 +229,12 @@ bool UAssetPlacementEdMode::HasActiveSelection() const
 bool UAssetPlacementEdMode::IsInSelectionTool() const
 {
 	return bIsInSelectionTool;
+}
+
+void UAssetPlacementEdMode::OnSMIsntancedElementsEnabledChanged()
+{
+	// Disable this mode if the SM instance element cvar changed
+	Owner->DeactivateMode(UAssetPlacementEdMode::AssetPlacementEdModeID);
 }
 
 #undef LOCTEXT_NAMESPACE

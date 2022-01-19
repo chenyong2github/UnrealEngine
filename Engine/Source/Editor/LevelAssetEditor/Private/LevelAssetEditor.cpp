@@ -27,8 +27,6 @@ void FLevelAssetEditorModule::StartupModule()
 		FIsActionButtonVisible::CreateRaw(this, &FLevelAssetEditorModule::IsEnabled));
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FLevelAssetEditorModule::RegisterMenus));
-
-	FModuleManager::Get().LoadModule("AssetPlacementEdMode");
 }
 
 void FLevelAssetEditorModule::ShutdownModule()

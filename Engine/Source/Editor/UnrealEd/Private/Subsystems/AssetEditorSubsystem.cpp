@@ -32,6 +32,8 @@
 #include "Tools/LegacyEdMode.h"
 #include "ProfilingDebugging/StallDetector.h"
 
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
+
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"
 
@@ -55,6 +57,8 @@ void UAssetEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GEditor->OnEditorClose().AddUObject(this, &UAssetEditorSubsystem::OnEditorClose);
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAssetEditorSubsystem::UnregisterEditorModes);
 	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UAssetEditorSubsystem::RegisterEditorModes);
+
+	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().AddUObject(this, &UAssetEditorSubsystem::OnSMInstanceElementsEnabled);
 }
 
 void UAssetEditorSubsystem::Deinitialize()
@@ -63,6 +67,7 @@ void UAssetEditorSubsystem::Deinitialize()
 	GEditor->OnEditorClose().RemoveAll(this);
 	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().RemoveAll(this);
 
 	// Don't attempt to report usage stats if analytics isn't available
 	if (FEngineAnalytics::IsAvailable())
@@ -1013,5 +1018,10 @@ void UAssetEditorSubsystem::UnregisterEditorModes()
 	EditorModes.Empty();
 }
 
-#undef LOCTEXT_NAMESPACE
+void UAssetEditorSubsystem::OnSMInstanceElementsEnabled()
+{
+	// Let the modes know that SM instance elements may have been enabled or disabled and update state accordingly
+	OnEditorModesChanged().Broadcast();
+}
 
+#undef LOCTEXT_NAMESPACE

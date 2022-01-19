@@ -19,8 +19,15 @@ static FAutoConsoleVariableRef CVarEnableSMInstanceElements(
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
 		FGlobalComponentRecreateRenderStateContext Context;
+		SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().Broadcast();
 	})
 );
+
+FSimpleMulticastDelegate& OnSMInstanceElementsEnabledChanged()
+{
+	static FSimpleMulticastDelegate OnInstanceElementsEnabledChanged;
+	return OnInstanceElementsEnabledChanged;
+}
 
 bool SMInstanceElementsEnabled()
 {

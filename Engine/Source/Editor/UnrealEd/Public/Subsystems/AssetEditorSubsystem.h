@@ -248,6 +248,7 @@ private:
 
 	void RegisterEditorModes();
 	void UnregisterEditorModes();
+	void OnSMInstanceElementsEnabled();
 
 private:
 

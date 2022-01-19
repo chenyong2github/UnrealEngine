@@ -429,14 +429,6 @@ void ULevelEditorMiscSettings::PostEditChangeProperty( struct FPropertyChangedEv
 		FNavigationSystem::SetNavigationAutoUpdateEnabled(bNavigationAutoUpdate, EditorContext.World()->GetNavigationSystem());
 	}
 
-	if (Name == GET_MEMBER_NAME_CHECKED(ULevelEditorMiscSettings, bEnableAssetPlacementMode))
-	{
-		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
-		{
-			AssetEditorSubsystem->OnEditorModesChanged().Broadcast();
-		}
-	}
-
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
 	{
 		SaveConfig();

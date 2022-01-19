@@ -36,6 +36,8 @@ namespace SMInstanceElementDataUtil
  */
 ENGINE_API bool SMInstanceElementsEnabled();
 
+ENGINE_API FSimpleMulticastDelegate& OnSMInstanceElementsEnabledChanged();
+
 /**
  * Get the static mesh instance manager for the given instance.
  * @return The static mesh instance manager, or null if this instance cannot be managed.
