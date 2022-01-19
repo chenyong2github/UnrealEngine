@@ -195,6 +195,8 @@ void FD3D12StateCacheBase::FlushComputeShaderCache(bool bForce)
 	{
 		FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
 		CommandList.AddUAVBarrier();
+
+		INC_DWORD_STAT(STAT_D3D12UAVBarriers);
 	}
 }
 

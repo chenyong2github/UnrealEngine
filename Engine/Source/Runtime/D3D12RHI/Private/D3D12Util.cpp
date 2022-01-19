@@ -1602,6 +1602,8 @@ DEFINE_STAT(STAT_D3D12UnlockBufferTime);
 DEFINE_STAT(STAT_D3D12CommitTransientResourceTime);
 DEFINE_STAT(STAT_D3D12DecommitTransientResourceTime);
 
+DEFINE_STAT(STAT_D3D12UAVBarriers);
+
 DEFINE_STAT(STAT_D3D12NewBoundShaderStateTime);
 DEFINE_STAT(STAT_D3D12CreateBoundShaderStateTime);
 DEFINE_STAT(STAT_D3D12NumBoundShaderState);

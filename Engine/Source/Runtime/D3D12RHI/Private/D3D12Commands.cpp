@@ -470,19 +470,20 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 			continue;
 		}
 
-		const bool bUAVAccess = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
+		const bool bUAVAccessAfter = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 
 		// If targeting all pipelines and UAV access then add UAV barrier even with RHI based transitions
 		if (bDstAllPipelines)
 		{
-			bUAVBarrier |= bUAVAccess;
+			bUAVBarrier |= bUAVAccessAfter;
 		}
 
 		// Use the engine defined transitions?
 		if (GUseInternalTransitions)
 		{
 			// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
-			bUAVBarrier |= bUAVAccess;
+			const bool bUAVAccessOrUnknownBefore = EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) || Info.AccessBefore == ERHIAccess::Unknown;
+			bUAVBarrier |= (bUAVAccessOrUnknownBefore && bUAVAccessAfter);
 		}
 		else
 		{
@@ -490,7 +491,7 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 			if (!Info.Resource)
 			{
 				// Add a UAV barrier in case of no resource and after state is UAV - user probably requested a force UAV barrier here				
-				bUAVBarrier |= bUAVAccess;
+				bUAVBarrier |= bUAVAccessAfter;
 			}
 			else
 			{
