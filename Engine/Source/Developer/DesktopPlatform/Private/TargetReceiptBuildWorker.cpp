@@ -87,7 +87,7 @@ public:
 
 		for (const TPair<FString, FGuid>& FunctionVersion : Worker->FunctionVersions)
 		{
-			Builder.AddFunction(FunctionVersion.Key, FunctionVersion.Value);
+			Builder.AddFunction(FTCHARToUTF8(FunctionVersion.Key), FunctionVersion.Value);
 		}
 	}
 
@@ -331,7 +331,7 @@ void FTargetReceiptBuildWorker::PopulateWorkerFromReceipt(const FString& TargetR
 				return;
 			}
 
-			ReceiptInlineFunctionVersions.Emplace(MoveTemp(FunctionComponents[0]), MoveTemp(VersionGuid));
+			ReceiptInlineFunctionVersions.Emplace(FunctionComponents[0], MoveTemp(VersionGuid));
 		}
 		else if (Property.Name == TEXT("UnstagedRuntimeDependency"))
 		{
@@ -490,7 +490,7 @@ void FTargetReceiptBuildWorker::PopulateWorkerFromReceipt(const FString& TargetR
 		for (FCbFieldView FunctionFieldView : FunctionsArrayView)
 		{
 			FCbObjectView FunctionObjectView = FunctionFieldView.AsObjectView();
-			FunctionVersions.Emplace(FUTF8ToTCHAR(FunctionObjectView["Name"].AsString()), FunctionObjectView["Version"].AsUuid());
+			FunctionVersions.Emplace(FunctionObjectView["Name"].AsString(), FunctionObjectView["Version"].AsUuid());
 		}
 	}
 

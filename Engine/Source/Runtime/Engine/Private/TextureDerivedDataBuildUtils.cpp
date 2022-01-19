@@ -5,10 +5,13 @@
 #if WITH_EDITOR
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildFunctionRegistry.h"
+#include "DerivedDataSharedString.h"
 #include "Engine/Texture.h"
+#include "HAL/CriticalSection.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatManagerModule.h"
 #include "Interfaces/ITextureFormatModule.h"
+#include "Misc/ScopeRWLock.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "String/Find.h"
@@ -230,8 +233,18 @@ static void WriteSource(FCbWriter& Writer, const UTexture& Texture, int32 LayerI
 	Writer.EndObject();
 }
 
-bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FName& TextureFormatName)
+static FRWLock GTextureBuildFunctionLock;
+static TMap<FName, UE::DerivedData::FUtf8SharedString> GTextureBuildFunctionMap;
+
+UE::DerivedData::FUtf8SharedString FindTextureBuildFunction(const FName TextureFormatName)
 {
+	using namespace UE::DerivedData;
+
+	if (FReadScopeLock Lock(GTextureBuildFunctionLock); const FUtf8SharedString* Function = GTextureBuildFunctionMap.Find(TextureFormatName))
+	{
+		return *Function;
+	}
+
 	FName TextureFormatModuleName;
 
 	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
@@ -239,22 +252,34 @@ bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FNam
 		ITextureFormatModule* TextureFormatModule = nullptr;
 		if (!TFM->FindTextureFormatAndModule(TextureFormatName, TextureFormatModuleName, TextureFormatModule))
 		{
-			return false;
+			return {};
 		}
 	}
 
-	const int32 NameIndex = OutFunctionName.Len();
+	TStringBuilder<128> FunctionName;
 
 	// Texture format modules are inconsistent in their naming, e.g., TextureFormatUncompressed, <Platform>TextureFormat.
 	// Attempt to unify the naming of build functions as <Format>Texture.
-	OutFunctionName << TextureFormatModuleName << TEXT("Texture"_SV);
-	if (int32 Index = UE::String::FindFirst(OutFunctionName, TEXT("TextureFormat"_SV)); Index != INDEX_NONE)
+	FunctionName << TextureFormatModuleName << TEXTVIEW("Texture");
+	if (int32 Index = UE::String::FindFirst(FunctionName, TEXTVIEW("TextureFormat")); Index != INDEX_NONE)
 	{
-		OutFunctionName.RemoveAt(Index, TEXT("TextureFormat"_SV).Len());
+		FunctionName.RemoveAt(Index, TEXTVIEW("TextureFormat").Len());
 	}
 
-	const FStringView FunctionName = OutFunctionName.ToView().RightChop(NameIndex);
-	return UE::DerivedData::GetBuild().GetFunctionRegistry().FindFunctionVersion(FunctionName).IsValid();
+	FTCHARToUTF8 FunctionNameUtf8(FunctionName);
+
+	if (!GetBuild().GetFunctionRegistry().FindFunctionVersion(FunctionNameUtf8).IsValid())
+	{
+		return {};
+	}
+
+	FWriteScopeLock Lock(GTextureBuildFunctionLock);
+	FUtf8SharedString& Function = GTextureBuildFunctionMap.FindOrAdd(TextureFormatName);
+	if (Function.IsEmpty())
+	{
+		Function = FunctionNameUtf8;
+	}
+	return Function;
 }
 
 FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips, bool bUseCompositeTexture)

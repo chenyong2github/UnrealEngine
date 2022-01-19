@@ -31,17 +31,17 @@ FBuildJobContext::FBuildJobContext(
 {
 }
 
-FStringView FBuildJobContext::GetName() const
+const FSharedString& FBuildJobContext::GetName() const
 {
 	return Job.GetName();
 }
 
-void FBuildJobContext::AddConstant(FStringView Key, FCbObject&& Value)
+void FBuildJobContext::AddConstant(FUtf8StringView Key, FCbObject&& Value)
 {
 	Constants.EmplaceByHash(GetTypeHash(Key), Key, MoveTemp(Value));
 }
 
-void FBuildJobContext::AddInput(FStringView Key, const FCompressedBuffer& Value)
+void FBuildJobContext::AddInput(FUtf8StringView Key, const FCompressedBuffer& Value)
 {
 	Inputs.EmplaceByHash(GetTypeHash(Key), Key, Value);
 }
@@ -67,7 +67,7 @@ void FBuildJobContext::ResetInputs()
 	Inputs.Empty();
 }
 
-FCbObject FBuildJobContext::FindConstant(FStringView Key) const
+FCbObject FBuildJobContext::FindConstant(FUtf8StringView Key) const
 {
 	if (const FCbObject* Object = Constants.FindByHash(GetTypeHash(Key), Key))
 	{
@@ -76,7 +76,7 @@ FCbObject FBuildJobContext::FindConstant(FStringView Key) const
 	return FCbObject();
 }
 
-FSharedBuffer FBuildJobContext::FindInput(FStringView Key) const
+FSharedBuffer FBuildJobContext::FindInput(FUtf8StringView Key) const
 {
 	if (const FCompressedBuffer* Input = Inputs.FindByHash(GetTypeHash(Key), Key))
 	{
@@ -146,7 +146,7 @@ void FBuildJobContext::EndBuild()
 void FBuildJobContext::BeginAsyncBuild()
 {
 	checkf(!bIsAsyncBuild, TEXT("BeginAsyncBuild may only be called once for build of '%s' by %s."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	bIsAsyncBuild = true;
 	Owner->Begin(this);
 }
@@ -154,9 +154,9 @@ void FBuildJobContext::BeginAsyncBuild()
 void FBuildJobContext::EndAsyncBuild()
 {
 	checkf(bIsAsyncBuild, TEXT("EndAsyncBuild may only be called after BeginAsyncBuild for build of '%s' by %s."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(!bIsAsyncBuildComplete, TEXT("EndAsyncBuild may only be called once for build of '%s' by %s."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	bIsAsyncBuildComplete = true;
 	Owner->End(this, [this] { EndBuild(); });
 }
@@ -165,7 +165,7 @@ void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 {
 	checkf(!Bucket.IsNull(), TEXT("Null cache bucket not allowed for build of '%s' by %s. ")
 		TEXT("The cache can be disabled by calling SetCachePolicy(ECachePolicy::Disable)."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	CacheKey.Bucket = Bucket;
 }
 
@@ -174,14 +174,14 @@ void FBuildJobContext::SetCachePolicyMask(ECachePolicy Policy)
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::SkipData),
 		TEXT("SkipData flags may not be masked out on the cache policy for build of '%s' by %s. ")
 		TEXT("Flags for skipping data may be set indirectly through EBuildPolicy."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::KeepAlive),
 		TEXT("KeepAlive flag may not be masked out on the cache policy for build of '%s' by %s. ")
 		TEXT("Flags for cache record lifetime may be set indirectly through EBuildPolicy."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::PartialRecord),
 		TEXT("PartialRecord flag may not be masked out on the cache policy for build of '%s' by %s."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	CachePolicyMask = Policy;
 }
 
@@ -190,15 +190,15 @@ void FBuildJobContext::SetBuildPolicyMask(EBuildPolicy Policy)
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::Cache),
 		TEXT("Cache flags may not be masked out on the build policy for build of '%s' by %s. ")
 		TEXT("Flags for modifying cache operations may be set through ECachePolicy."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::CacheKeepAlive),
 		TEXT("CacheKeepAlive flag may not be masked out on the build policy for build of '%s' by %s. ")
 		TEXT("Flags for cache record lifetime may only be set through the build session."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::SkipData),
 		TEXT("SkipData flags may not be masked out on the build policy for build of '%s' by %s. ")
 		TEXT("Flags for skipping the data may only be set through the build session."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	BuildPolicyMask = Policy;
 }
 
@@ -209,7 +209,7 @@ void FBuildJobContext::SetPriority(EPriority Priority)
 void FBuildJobContext::Cancel()
 {
 	checkf(bIsAsyncBuild, TEXT("Cancel may only be called after BeginAsyncBuild for build of '%s' by %s."),
-		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	Function.CancelAsyncBuild(*this);
 }
 

@@ -13,12 +13,17 @@
 #include "HAL/PlatformProcess.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatETC2, Log, All);
 
 class FETC2TextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("ETC2Texture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("ETC2Texture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{

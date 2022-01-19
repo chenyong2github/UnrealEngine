@@ -121,8 +121,8 @@ public:
 
 	// IBuildJob Interface
 
-	inline FStringView GetName() const final { return Name; }
-	inline FStringView GetFunction() const final { return FunctionName; }
+	inline const FSharedString& GetName() const final { return Name; }
+	inline const FUtf8SharedString& GetFunction() const final { return FunctionName; }
 
 	inline ICache& GetCache() const final { return Cache; }
 	inline IBuild& GetBuild() const final { return BuildSystem; }
@@ -130,7 +130,11 @@ public:
 	void StepExecution() final;
 
 private:
-	FBuildJob(const FBuildJobCreateParams& Params, FStringView Name, FStringView FunctionName, FOnBuildComplete&& OnComplete);
+	FBuildJob(
+		const FBuildJobCreateParams& Params,
+		const FSharedString& Name,
+		const FUtf8SharedString& FunctionName,
+		FOnBuildComplete&& OnComplete);
 
 	void BeginJob();
 	void EndJob();
@@ -194,7 +198,7 @@ private:
 
 private:
 	FSharedString Name;
-	FString FunctionName{TEXT("Unknown")};
+	FUtf8SharedString FunctionName{UTF8TEXT("Unknown")};
 
 	/** Active state for the job. Always moves through states in order. */
 	EBuildJobState State{EBuildJobState::NotStarted};
@@ -242,7 +246,7 @@ private:
 	FOnBuildComplete OnComplete;
 
 	/** Keys for missing inputs. */
-	TArray<FString> MissingInputs;
+	TArray<FUtf8StringView> MissingInputs;
 
 	ICache& Cache;
 	IBuild& BuildSystem;
@@ -285,8 +289,8 @@ const TCHAR* LexToString(EBuildJobState State)
 
 FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
-	const FStringView InName,
-	const FStringView InFunctionName,
+	const FSharedString& InName,
+	const FUtf8SharedString& InFunctionName,
 	FOnBuildComplete&& InOnComplete)
 	: Name(InName)
 	, FunctionName(InFunctionName)
@@ -305,7 +309,7 @@ FBuildJob::FBuildJob(
 	const FBuildKey& InKey,
 	const FBuildPolicy& InPolicy,
 	FOnBuildComplete&& InOnComplete)
-	: FBuildJob(Params, WriteToString<64>(TEXT("Resolve: "_SV), InKey), TEXT("Unknown"_SV), MoveTemp(InOnComplete))
+	: FBuildJob(Params, {WriteToString<64>(TEXTVIEW("Resolve: "), InKey)}, UTF8TEXTVIEW("Unknown"), MoveTemp(InOnComplete))
 {
 	BuildPolicy = InPolicy;
 	DefinitionKey = InKey;
@@ -348,10 +352,10 @@ FBuildJob::~FBuildJob()
 {
 	checkf(State == EBuildJobState::NotStarted || State == EBuildJobState::Complete,
 		TEXT("Job in state %s must complete before being destroyed for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	checkf(!OnComplete,
 		TEXT("Job in state %s must invoke its completion callback before being destroyed for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 }
 
 void FBuildJob::StepExecution()
@@ -370,7 +374,7 @@ void FBuildJob::StepExecution()
 	default:
 		checkf(false,
 			TEXT("Job in state %s is not valid to be scheduled for build of '%s' by %s."),
-			LexToString(State), *Name, *FunctionName);
+			LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	}
 }
 
@@ -421,7 +425,7 @@ void FBuildJob::CreateContext()
 	{
 		const FCacheKey CacheKey{FCacheBucket(FunctionName), Action.Get().GetKey().Hash};
 		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder);
-		Action.Get().IterateConstants([this](FStringView Key, FCbObject&& Value)
+		Action.Get().IterateConstants([this](FUtf8StringView Key, FCbObject&& Value)
 		{
 			Context->AddConstant(Key, MoveTemp(Value));
 		});
@@ -438,19 +442,19 @@ void FBuildJob::CreateContext()
 	// Populate the scheduler params with the information that is available now.
 	FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
 	SchedulerParams.Key = Action.Get().GetKey();
-	Action.Get().IterateConstants([&SchedulerParams](FStringView Key, FCbObject&& Value)
+	Action.Get().IterateConstants([&SchedulerParams](FUtf8StringView Key, FCbObject&& Value)
 	{
 		const uint64 ValueSize = Value.GetSize();
 		SchedulerParams.TotalInputsSize += ValueSize;
 		SchedulerParams.ResolvedInputsSize += ValueSize;
 	});
-	Action.Get().IterateInputs([&SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	Action.Get().IterateInputs([&SchedulerParams](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		SchedulerParams.TotalInputsSize += RawSize;
 	});
 	if (Inputs)
 	{
-		Inputs.Get().IterateInputs([&SchedulerParams](FStringView Key, const FCompressedBuffer& Buffer)
+		Inputs.Get().IterateInputs([&SchedulerParams](FUtf8StringView Key, const FCompressedBuffer& Buffer)
 		{
 			SchedulerParams.ResolvedInputsSize += Buffer.GetRawSize();
 		});
@@ -692,7 +696,7 @@ void FBuildJob::EnterResolveInputData()
 	if (State == EBuildJobState::ResolveInputData)
 	{
 		MissingInputs.Reset();
-		Action.Get().IterateInputs([this, &SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.Get().IterateInputs([this, &SchedulerParams](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			if (!Inputs || Inputs.Get().FindInput(Key).IsNull())
 			{
@@ -713,7 +717,7 @@ void FBuildJob::EnterResolveInputData()
 	}
 	else
 	{
-		Action.Get().IterateInputs([this, &SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.Get().IterateInputs([this, &SchedulerParams](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			if (MissingInputs.FindByKey(Key))
 			{
@@ -724,7 +728,7 @@ void FBuildJob::EnterResolveInputData()
 
 	checkf(!MissingInputs.IsEmpty(),
 		TEXT("Job is not expected to be in state %s without missing inputs for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 
 	if (!InputResolver)
 	{
@@ -739,13 +743,13 @@ void FBuildJob::BeginResolveInputData()
 	{
 		InputResolver->ResolveInputData(Definition.Get(), Owner,
 			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
-			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
+			[this](FUtf8StringView Key) { return !!Algo::Find(MissingInputs, Key); });
 	}
 	else
 	{
 		InputResolver->ResolveInputData(Action.Get(), Owner,
 			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
-			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
+			[this](FUtf8StringView Key) { return !!Algo::Find(MissingInputs, Key); });
 	}
 }
 
@@ -766,7 +770,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 		}
 		if (Inputs)
 		{
-			Inputs.Get().IterateInputs([&Builder](FStringView Key, const FCompressedBuffer& Buffer)
+			Inputs.Get().IterateInputs([&Builder](FUtf8StringView Key, const FCompressedBuffer& Buffer)
 			{
 				Builder.AddInput(Key, Buffer);
 			});
@@ -808,7 +812,7 @@ void FBuildJob::BeginExecuteRemote()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ExecuteRemote);
 	checkf(Worker && WorkerExecutor, TEXT("Job requires a worker in state %s for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	EnumAddFlags(BuildStatus, EBuildStatus::BuildTryRemote);
 
 	FBuildPolicy RemoteBuildPolicy;
@@ -842,11 +846,7 @@ void FBuildJob::EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params)
 		{
 		case EBuildJobState::ExecuteRemote:
 		case EBuildJobState::ExecuteRemoteWait:
-			MissingInputs.Reset(Params.MissingInputs.Num());
-			for (const FStringView& Key : Params.MissingInputs)
-			{
-				MissingInputs.Emplace(Key);
-			}
+			MissingInputs = Params.MissingInputs;
 			if (!MissingInputs.IsEmpty())
 			{
 				MissingInputs.Sort();
@@ -866,7 +866,7 @@ void FBuildJob::SkipExecuteRemote()
 	checkf(State == EBuildJobState::ResolveRemoteInputData ||
 		State == EBuildJobState::ExecuteRemote || State == EBuildJobState::ExecuteRemoteRetry,
 		TEXT("Job is not expecting SkipExecuteRemote to be called in state %s for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	return AdvanceToState(EBuildJobState::ResolveInputData);
 }
 
@@ -898,7 +898,7 @@ void FBuildJob::EnterExecuteLocal()
 		}
 	}
 
-	Action.Get().IterateInputs([this](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	Action.Get().IterateInputs([this](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		const FCompressedBuffer& Buffer = Inputs.Get().FindInput(Key);
 		if (Buffer.GetRawHash() == RawHash && Buffer.GetRawSize() == RawSize)
@@ -935,7 +935,7 @@ void FBuildJob::CreateAction(TConstArrayView<FBuildInputMetaByKey> InputMeta)
 {
 	const FBuildDefinition& LocalDefinition = Definition.Get();
 	FBuildActionBuilder Builder = BuildSystem.CreateAction(Name, FunctionName);
-	LocalDefinition.IterateConstants([this, &Builder](FStringView Key, FCbObject&& Value)
+	LocalDefinition.IterateConstants([this, &Builder](FUtf8StringView Key, FCbObject&& Value)
 	{
 		Builder.AddConstant(Key, Value);
 	});
@@ -952,10 +952,11 @@ void FBuildJob::SetDefinition(FBuildDefinition&& InDefinition)
 {
 	Name = InDefinition.GetName();
 	FunctionName = InDefinition.GetFunction();
-	checkf(Definition.IsNull(), TEXT("Job already has a definition for build of '%s' by %s."), *Name, *FunctionName);
+	checkf(Definition.IsNull(), TEXT("Job already has a definition for build of '%s' by %s."),
+		*Name, *WriteToString<32>(FunctionName));
 	checkf(State == EBuildJobState::ResolveKey || State == EBuildJobState::ResolveKeyWait,
 		TEXT("Job is not expecting a definition in state %s for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	OutputBuilder = BuildSystem.CreateOutput(Name, FunctionName);
 	Definition = MoveTemp(InDefinition);
 	return AdvanceToState(EBuildJobState::ResolveInputMeta);
@@ -963,11 +964,12 @@ void FBuildJob::SetDefinition(FBuildDefinition&& InDefinition)
 
 void FBuildJob::SetAction(FBuildAction&& InAction)
 {
-	checkf(Action.IsNull(), TEXT("Job already has an action for build of '%s' by %s."), *Name, *FunctionName);
+	checkf(Action.IsNull(), TEXT("Job already has an action for build of '%s' by %s."),
+		*Name, *WriteToString<32>(FunctionName));
 	checkf(State == EBuildJobState::ResolveKey ||
 		State == EBuildJobState::ResolveInputMeta || State == EBuildJobState::ResolveInputMetaWait,
 		TEXT("Job is not expecting an action in state %s for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	Action = MoveTemp(InAction);
 	return AdvanceToState(EBuildJobState::CacheQuery);
 }
@@ -987,7 +989,7 @@ void FBuildJob::SetInputs(FBuildInputs&& InInputs)
 		break;
 	default:
 		checkf(false, TEXT("Job is not expecting inputs in state %s for build of '%s' by %s."),
-			LexToString(State), *Name, *FunctionName);
+			LexToString(State), *Name, *WriteToString<32>(FunctionName));
 		return;
 	}
 	Inputs = MoveTemp(InInputs);
@@ -1004,13 +1006,13 @@ void FBuildJob::SetOutput(const FBuildOutput& InOutput)
 		State == EBuildJobState::ExecuteRemote || State == EBuildJobState::ExecuteRemoteRetry ||
 		State == EBuildJobState::ExecuteLocal,
 		TEXT("Job is not expecting an output in state %s for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
+		LexToString(State), *Name, *WriteToString<32>(FunctionName));
 	return SetOutputNoCheck(FBuildOutput(InOutput));
 }
 
 void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput, EBuildJobState NewState)
 {
-	checkf(Output.IsNull(), TEXT("Job already has an output for build of '%s' by %s."), *Name, *FunctionName);
+	checkf(Output.IsNull(), TEXT("Job already has an output for build of '%s' by %s."), *Name, *WriteToString<32>(FunctionName));
 	Output = MoveTemp(InOutput);
 
 	if (OnComplete)
@@ -1045,7 +1047,7 @@ void FBuildJob::AdvanceToState(EBuildJobState NewState)
 		// TODO: Improve CompleteWithError to avoid unexpected state transitions.
 		//checkf(NextState < NewState,
 		//	TEXT("Job in state %s is requesting an invalid transition from %s to %s for build of '%s' by %s."),
-		//	LexToString(State), LexToString(NextState), LexToString(NewState), *Name, *FunctionName);
+		//	LexToString(State), LexToString(NextState), LexToString(NewState), *Name, *WriteToString<32>(FunctionName));
 
 		if (Owner.IsCanceled())
 		{
@@ -1191,18 +1193,18 @@ void FBuildJob::ExportBuild() const
 	FPathViews::Append(ExportPath, Key.Hash);
 	int32 ExportRootLen = ExportPath.Len();
 
-	TAnsiStringBuilder<512> Meta;
-	Meta << "Name: " << FTCHARToUTF8(Name) << LINE_TERMINATOR_ANSI;
+	TUtf8StringBuilder<512> Meta;
+	Meta << "Name: " << Name << LINE_TERMINATOR_ANSI;
 	Meta << "Cache: " << Key << LINE_TERMINATOR_ANSI;
-	Meta << "Function: " << FTCHARToUTF8(FunctionName) << LINE_TERMINATOR_ANSI;
+	Meta << "Function: " << FunctionName << LINE_TERMINATOR_ANSI;
 	Meta << "FunctionVersion: " << Action.Get().GetFunctionVersion() << LINE_TERMINATOR_ANSI;
 	Meta << "BuildSystemVersion: " << Action.Get().GetBuildSystemVersion() << LINE_TERMINATOR_ANSI;
 	if (Action.Get().HasConstants())
 	{
 		Meta << "Constants:" << LINE_TERMINATOR_ANSI;
-		Action.Get().IterateConstants([&Meta](FStringView Key, FCbObject&& Value)
+		Action.Get().IterateConstants([&Meta](FUtf8StringView Key, FCbObject&& Value)
 		{
-			Meta << "  " << FTCHARToUTF8(Key) << ":" LINE_TERMINATOR_ANSI;
+			Meta << "  " << Key << ":" LINE_TERMINATOR_ANSI;
 			Meta << "    RawHash: " << FIoHash(Value.GetHash()) << LINE_TERMINATOR_ANSI;
 			Meta << "    RawSize: " << Value.GetSize() << LINE_TERMINATOR_ANSI;
 		});
@@ -1210,9 +1212,9 @@ void FBuildJob::ExportBuild() const
 	if (Action.Get().HasInputs())
 	{
 		Meta << "Inputs:" << LINE_TERMINATOR_ANSI;
-		Action.Get().IterateInputs([&Meta](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.Get().IterateInputs([&Meta](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
-			Meta << "  " << FTCHARToUTF8(Key) << ":" LINE_TERMINATOR_ANSI;
+			Meta << "  " << Key << ":" LINE_TERMINATOR_ANSI;
 			Meta << "    RawHash: " << RawHash << LINE_TERMINATOR_ANSI;
 			Meta << "    RawSize: " << RawSize << LINE_TERMINATOR_ANSI;
 		});
@@ -1239,7 +1241,7 @@ void FBuildJob::ExportBuild() const
 		Meta << "Inputs:" << LINE_TERMINATOR_ANSI;
 		FPathViews::Append(ExportPath, TEXT("Inputs"));
 		ExportRootLen = ExportPath.Len();
-		Inputs.Get().IterateInputs([&ExportPath, ExportRootLen](FStringView Key, const FCompressedBuffer& Buffer)
+		Inputs.Get().IterateInputs([&ExportPath, ExportRootLen](FUtf8StringView Key, const FCompressedBuffer& Buffer)
 		{
 			FPathViews::Append(ExportPath, FIoHash(Buffer.GetRawHash()));
 			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*ExportPath)})
@@ -1256,7 +1258,7 @@ bool FBuildJob::ShouldExportBuild() const
 	static bool bExportAll;
 	static TArray<FName> ExportTypes = ParseExportBuildTypes(bExportAll);
 	return bExportAll
-		|| Algo::BinarySearch(ExportTypes, FName(FunctionName), FNameFastLess()) != INDEX_NONE
+		|| Algo::BinarySearch(ExportTypes, FName(FUtf8StringView(FunctionName)), FNameFastLess()) != INDEX_NONE
 		|| Algo::BinarySearch(ExportTypes, FName(Context->GetCacheKey().Bucket.ToString()), FNameFastLess()) != INDEX_NONE;
 }
 

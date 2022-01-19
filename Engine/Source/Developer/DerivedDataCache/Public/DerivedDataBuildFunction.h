@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Memory/MemoryFwd.h"
 
 class FCbObject;
@@ -41,7 +42,7 @@ public:
 	virtual ~IBuildFunction() = default;
 
 	/** Returns the name of the build function, which identifies it in a build definition. */
-	virtual FStringView GetName() const = 0;
+	virtual const FUtf8SharedString& GetName() const = 0;
 
 	/** Returns the version of the build function, which must change when the function changes. */
 	virtual FGuid GetVersion() const = 0;
@@ -82,13 +83,13 @@ public:
 	virtual ~FBuildContext() = default;
 
 	/** Returns the name by which to identify this build for logging and profiling. */
-	virtual FStringView GetName() const = 0;
+	virtual const FSharedString& GetName() const = 0;
 
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
-	virtual FCbObject FindConstant(FStringView Key) const = 0;
+	virtual FCbObject FindConstant(FUtf8StringView Key) const = 0;
 
 	/** Returns the input with the matching key, or a null buffer if not found. */
-	virtual FSharedBuffer FindInput(FStringView Key) const = 0;
+	virtual FSharedBuffer FindInput(FUtf8StringView Key) const = 0;
 
 	/** Adds a value to the build output. Must have a non-null buffer and a unique ID. */
 	virtual void AddValue(const FValueId& Id, const FValue& Value) = 0;
@@ -138,10 +139,10 @@ public:
 	virtual ~FBuildConfigContext() = default;
 
 	/** Returns the name by which to identify this build for logging and profiling. */
-	virtual FStringView GetName() const = 0;
+	virtual const FSharedString& GetName() const = 0;
 
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
-	virtual FCbObject FindConstant(FStringView Key) const = 0;
+	virtual FCbObject FindConstant(FUtf8StringView Key) const = 0;
 
 	/** Adds the error to the build output. Must be deterministic and based only on inputs. */
 	virtual void AddError(FStringView Message) = 0;

@@ -33,6 +33,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
@@ -340,17 +341,15 @@ public:
 		FOnBuildInputMetaResolved&& OnResolved) final
 	{
 		EStatus Status = EStatus::Ok;
-		TArray<FString> InputKeys;
 		TArray<FBuildInputMetaByKey> Inputs;
-		Definition.IterateInputBulkData([this, &Status, &InputKeys, &Inputs](FStringView Key, const FGuid& BulkDataId)
+		Definition.IterateInputBulkData([this, &Status, &Inputs](FUtf8StringView Key, const FGuid& BulkDataId)
 		{
-			const FCompressedBuffer& Buffer = Key == TEXT("Source"_SV)
+			const FCompressedBuffer& Buffer = Key == UTF8TEXTVIEW("Source")
 				? FindSource(SourceBuffer, Texture.Source, BulkDataId)
 				: FindSource(CompositeSourceBuffer, Texture.CompositeTexture->Source, BulkDataId);
 			if (Buffer)
 			{
-				InputKeys.Emplace(Key);
-				Inputs.Add({InputKeys.Last(), Buffer.GetRawHash(), Buffer.GetRawSize()});
+				Inputs.Add({Key, Buffer.GetRawHash(), Buffer.GetRawSize()});
 			}
 			else
 			{
@@ -367,19 +366,17 @@ public:
 		FBuildInputFilter&& Filter) final
 	{
 		EStatus Status = EStatus::Ok;
-		TArray<FString> InputKeys;
 		TArray<FBuildInputDataByKey> Inputs;
-		Definition.IterateInputBulkData([this, &Filter, &Status, &InputKeys, &Inputs](FStringView Key, const FGuid& BulkDataId)
+		Definition.IterateInputBulkData([this, &Filter, &Status, &Inputs](FUtf8StringView Key, const FGuid& BulkDataId)
 		{
 			if (!Filter || Filter(Key))
 			{
-				const FCompressedBuffer& Buffer = Key == TEXT("Source"_SV)
+				const FCompressedBuffer& Buffer = Key == UTF8TEXTVIEW("Source")
 					? FindSource(SourceBuffer, Texture.Source, BulkDataId)
 					: FindSource(CompositeSourceBuffer, Texture.CompositeTexture->Source, BulkDataId);
 				if (Buffer)
 				{
-					InputKeys.Emplace(Key);
-					Inputs.Add({InputKeys.Last(), Buffer});
+					Inputs.Add({Key, Buffer});
 				}
 				else
 				{
@@ -977,8 +974,8 @@ class FTextureBuildTask final : public FTextureAsyncCacheDerivedDataTask
 public:
 	FTextureBuildTask(
 		UTexture& Texture,
-		FStringView FunctionName,
 		FTexturePlatformData& InDerivedData,
+		const UE::DerivedData::FUtf8SharedString& FunctionName,
 		const FTextureBuildSettings* InSettingsFetchFirst, // can be nullptr
 		const FTextureBuildSettings& InSettingsFetchOrBuild,
 		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchFirstMetadata, // can be nullptr
@@ -996,8 +993,12 @@ public:
 
 		static bool bLoadedModules = LoadModules();
 
-		TStringBuilder<256> TexturePath;
-		Texture.GetPathName(nullptr, TexturePath);
+		FSharedString TexturePath;
+		{
+			TStringBuilder<256> TexturePathBuilder;
+			Texture.GetPathName(nullptr, TexturePathBuilder);
+			TexturePath = TexturePathBuilder.ToView();
+		}
 
 		IBuild& Build = GetBuild();
 		IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
@@ -1084,18 +1085,18 @@ public:
 	static UE::DerivedData::FBuildDefinition CreateDefinition(
 		UE::DerivedData::IBuild& Build,
 		UTexture& Texture,
-		FStringView TexturePath,
-		FStringView FunctionName,
+		const UE::DerivedData::FSharedString& TexturePath,
+		const UE::DerivedData::FUtf8SharedString& FunctionName,
 		const FTextureBuildSettings& Settings,
 		const bool bUseCompositeTexture)
 	{
 		UE::DerivedData::FBuildDefinitionBuilder DefinitionBuilder = Build.CreateDefinition(TexturePath, FunctionName);
-		DefinitionBuilder.AddConstant(TEXT("Settings"_SV),
+		DefinitionBuilder.AddConstant(UTF8TEXTVIEW("Settings"),
 			SaveTextureBuildSettings(Texture, Settings, 0, NUM_INLINE_DERIVED_MIPS, bUseCompositeTexture));
-		DefinitionBuilder.AddInputBulkData(TEXT("Source"_SV), Texture.Source.GetPersistentId());
+		DefinitionBuilder.AddInputBulkData(UTF8TEXTVIEW("Source"), Texture.Source.GetPersistentId());
 		if (Texture.CompositeTexture && bUseCompositeTexture)
 		{
-			DefinitionBuilder.AddInputBulkData(TEXT("CompositeSource"_SV), Texture.CompositeTexture->Source.GetPersistentId());
+			DefinitionBuilder.AddInputBulkData(UTF8TEXTVIEW("CompositeSource"), Texture.CompositeTexture->Source.GetPersistentId());
 		}
 		return DefinitionBuilder.Build();
 	}
@@ -1421,24 +1422,24 @@ private:
 	{
 		using namespace UE::DerivedData;
 
-		const FStringView Function = Output.GetFunction();
-		const FStringView Name = Output.GetName();
+		const FSharedString& Name = Output.GetName();
+		const FUtf8SharedString& Function = Output.GetFunction();
 
 		for (const FBuildOutputMessage& Message : Output.GetMessages())
 		{
 			switch (Message.Level)
 			{
 			case EBuildOutputMessageLevel::Error:
-				UE_LOG(LogTexture, Warning, TEXT("[Error] %s (Build of '%.*s' by %.*s.)"),
-					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				UE_LOG(LogTexture, Warning, TEXT("[Error] %s (Build of '%s' by %s.)"),
+					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 				break;
 			case EBuildOutputMessageLevel::Warning:
-				UE_LOG(LogTexture, Warning, TEXT("%s (Build of '%.*s' by %.*s.)"),
-					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				UE_LOG(LogTexture, Warning, TEXT("%s (Build of '%s' by %s.)"),
+					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 				break;
 			case EBuildOutputMessageLevel::Display:
-				UE_LOG(LogTexture, Display, TEXT("%s (Build of '%.*s' by %.*s.)"),
-					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				UE_LOG(LogTexture, Display, TEXT("%s (Build of '%s' by %s.)"),
+					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 				break;
 			default:
 				checkNoEntry();
@@ -1451,14 +1452,14 @@ private:
 			switch (Log.Level)
 			{
 			case EBuildOutputLogLevel::Error:
-				UE_LOG(LogTexture, Warning, TEXT("[Error] %s: %s (Build of '%.*s' by %.*s.)"),
+				UE_LOG(LogTexture, Warning, TEXT("[Error] %s: %s (Build of '%s' by %s.)"),
 					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
-					Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+					*Name, *WriteToString<32>(Function));
 				break;
 			case EBuildOutputLogLevel::Warning:
-				UE_LOG(LogTexture, Warning, TEXT("%s: %s (Build of '%.*s' by %.*s.)"),
+				UE_LOG(LogTexture, Warning, TEXT("%s: %s (Build of '%s' by %s.)"),
 					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
-					Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+					*Name, *WriteToString<32>(Function));
 				break;
 			default:
 				checkNoEntry();
@@ -1468,8 +1469,8 @@ private:
 
 		if (Output.HasError())
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%.*s' by %.*s."),
-				Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
+				*Name, *WriteToString<32>(Function));
 			return;
 		}
 
@@ -1535,10 +1536,10 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags)
 {
-	TStringBuilder<64> FunctionName;
-	if (TryFindTextureBuildFunction(FunctionName, SettingsFetchOrBuild.TextureFormatName))
+	using namespace UE::DerivedData;
+	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(SettingsFetchOrBuild.TextureFormatName); !FunctionName.IsEmpty())
 	{
-		return new FTextureBuildTask(Texture, FunctionName, DerivedData, SettingsFetch, SettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
+		return new FTextureBuildTask(Texture, DerivedData, FunctionName, SettingsFetch, SettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
 	}
 	return nullptr;
 }
@@ -1550,8 +1551,7 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 {
 	using namespace UE::DerivedData;
 
-	TStringBuilder<64> FunctionName;
-	if (TryFindTextureBuildFunction(FunctionName, Settings.TextureFormatName))
+	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(Settings.TextureFormatName); !FunctionName.IsEmpty())
 	{
 		IBuild& Build = GetBuild();
 
@@ -1561,7 +1561,7 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 		bool bUseCompositeTexture = false;
 		if (FTextureBuildTask::IsTextureValidForBuilding(Texture, CacheFlags, bUseCompositeTexture))
 		{
-			FBuildDefinition Definition = FTextureBuildTask::CreateDefinition(Build, Texture, TexturePath, FunctionName, Settings, bUseCompositeTexture);
+			FBuildDefinition Definition = FTextureBuildTask::CreateDefinition(Build, Texture, TexturePath.ToView(), FunctionName, Settings, bUseCompositeTexture);
 
 			return FTextureBuildTask::GetKey(Definition, Texture, bUseCompositeTexture);
 		}

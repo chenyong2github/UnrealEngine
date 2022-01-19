@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -29,14 +30,14 @@ class IBuildActionInternal
 public:
 	virtual ~IBuildActionInternal() = default;
 	virtual const FBuildActionKey& GetKey() const = 0;
-	virtual FStringView GetName() const = 0;
-	virtual FStringView GetFunction() const = 0;
+	virtual const FSharedString& GetName() const = 0;
+	virtual const FUtf8SharedString& GetFunction() const = 0;
 	virtual const FGuid& GetFunctionVersion() const = 0;
 	virtual const FGuid& GetBuildSystemVersion() const = 0;
 	virtual bool HasConstants() const = 0;
 	virtual bool HasInputs() const = 0;
-	virtual void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const = 0;
-	virtual void IterateInputs(TFunctionRef<void (FStringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
+	virtual void IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const = 0;
+	virtual void IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void Save(FCbWriter& Writer) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
@@ -48,8 +49,8 @@ class IBuildActionBuilderInternal
 {
 public:
 	virtual ~IBuildActionBuilderInternal() = default;
-	virtual void AddConstant(FStringView Key, const FCbObject& Value) = 0;
-	virtual void AddInput(FStringView Key, const FIoHash& RawHash, uint64 RawSize) = 0;
+	virtual void AddConstant(FUtf8StringView Key, const FCbObject& Value) = 0;
+	virtual void AddInput(FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize) = 0;
 	virtual FBuildAction Build() = 0;
 };
 
@@ -81,10 +82,10 @@ public:
 	inline const FBuildActionKey& GetKey() const { return Action->GetKey(); }
 
 	/** Returns the name by which to identify this action for logging and profiling. */
-	inline FStringView GetName() const { return Action->GetName(); }
+	inline const FSharedString& GetName() const { return Action->GetName(); }
 
 	/** Returns the name of the build function with which to build this action. */
-	inline FStringView GetFunction() const { return Action->GetFunction(); }
+	inline const FUtf8SharedString& GetFunction() const { return Action->GetFunction(); }
 
 	/** Returns whether the action has any constants. */
 	inline bool HasConstants() const { return Action->HasConstants(); }
@@ -98,14 +99,14 @@ public:
 	/** Returns the version of the build system required to build this action. */
 	inline const FGuid& GetBuildSystemVersion() const { return Action->GetBuildSystemVersion(); }
 
-	/** Visits every constant in order by key. */
-	inline void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
+	/** Visits every constant in order by key. The key view is valid for the lifetime of the action. */
+	inline void IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const
 	{
 		Action->IterateConstants(MoveTemp(Visitor));
 	}
 
-	/** Visits every input in order by key. */
-	inline void IterateInputs(TFunctionRef<void (FStringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const
+	/** Visits every input in order by key. The key view is valid for the lifetime of the action. */
+	inline void IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const
 	{
 		Action->IterateInputs(MoveTemp(Visitor));
 	}
@@ -123,7 +124,7 @@ public:
 	 * @param Action   The saved action to load.
 	 * @return A valid build action, or null on error.
 	 */
-	UE_API static FOptionalBuildAction Load(FStringView Name, FCbObject&& Action);
+	UE_API static FOptionalBuildAction Load(const FSharedString& Name, FCbObject&& Action);
 
 private:
 	friend class FOptionalBuildAction;
@@ -149,13 +150,13 @@ class FBuildActionBuilder
 {
 public:
 	/** Add a constant object with a key that is unique within this action. */
-	inline void AddConstant(FStringView Key, const FCbObject& Value)
+	inline void AddConstant(FUtf8StringView Key, const FCbObject& Value)
 	{
 		ActionBuilder->AddConstant(Key, Value);
 	}
 
 	/** Add an input with a key that is unique within this action. */
-	inline void AddInput(FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	inline void AddInput(FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		ActionBuilder->AddInput(Key, RawHash, RawSize);
 	}

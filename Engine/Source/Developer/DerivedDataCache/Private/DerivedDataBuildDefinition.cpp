@@ -6,10 +6,11 @@
 #include "Containers/Map.h"
 #include "Containers/StringConv.h"
 #include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
+#include "DerivedDataSharedString.h"
 #include "Misc/Guid.h"
+#include "Misc/StringBuilder.h"
 #include "Misc/TVariant.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -21,7 +22,7 @@ namespace UE::DerivedData::Private
 class FBuildDefinitionBuilderInternal final : public IBuildDefinitionBuilderInternal
 {
 public:
-	inline FBuildDefinitionBuilderInternal(FStringView InName, FStringView InFunction)
+	inline FBuildDefinitionBuilderInternal(const FSharedString& InName, const FUtf8SharedString& InFunction)
 		: Name(InName)
 		, Function(InFunction)
 	{
@@ -31,47 +32,50 @@ public:
 
 	~FBuildDefinitionBuilderInternal() final = default;
 
-	void AddConstant(FStringView Key, const FCbObject& Value) final
+	void AddConstant(FUtf8StringView Key, const FCbObject& Value) final
 	{
 		Add<FCbObject>(Key, Value);
 	}
 
-	void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey) final
+	void AddInputBuild(FUtf8StringView Key, const FBuildValueKey& ValueKey) final
 	{
 		Add<FBuildValueKey>(Key, ValueKey);
 	}
 
-	void AddInputBulkData(FStringView Key, const FGuid& BulkDataId) final
+	void AddInputBulkData(FUtf8StringView Key, const FGuid& BulkDataId) final
 	{
 		Add<FGuid>(Key, BulkDataId);
 	}
 
-	void AddInputFile(FStringView Key, FStringView Path) final
+	void AddInputFile(FUtf8StringView Key, FUtf8StringView Path) final
 	{
-		Add<FString>(Key, Path);
+		Add<FUtf8SharedString>(Key, Path);
 	}
 
-	void AddInputHash(FStringView Key, const FIoHash& RawHash) final
+	void AddInputHash(FUtf8StringView Key, const FIoHash& RawHash) final
 	{
 		Add<FIoHash>(Key, RawHash);
 	}
 
 	FBuildDefinition Build() final;
 
-	using InputType = TVariant<FCbObject, FBuildValueKey, FGuid, FString, FIoHash>;
+	using InputType = TVariant<FCbObject, FBuildValueKey, FGuid, FUtf8SharedString, FIoHash>;
 
-	FString Name;
-	FString Function;
-	TMap<FString, InputType> Inputs;
+	FSharedString Name;
+	FUtf8SharedString Function;
+	TMap<FUtf8SharedString, InputType> Inputs;
 
 private:
 	template <typename ValueType, typename ArgType>
-	inline void Add(FStringView Key, ArgType&& Value)
+	inline void Add(FUtf8StringView Key, ArgType&& Value)
 	{
 		const uint32 KeyHash = GetTypeHash(Key);
-		checkf(!Key.IsEmpty(), TEXT("Empty key used in definition for build of '%s' by %s."), *Name, *Function);
-		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in definition ")
-			TEXT("for build of '%s' by %s."), Key.Len(), Key.GetData(), *Name, *Function);
+		checkf(!Key.IsEmpty(),
+			TEXT("Empty key used in definition for build of '%s' by %s."),
+			*Name, *WriteToString<32>(Function));
+		checkf(!Inputs.ContainsByHash(KeyHash, Key),
+			TEXT("Duplicate key '%s' used in definition for build of '%s' by %s."),
+			*WriteToString<64>(Key), *Name, *WriteToString<32>(Function));
 		Inputs.EmplaceByHash(KeyHash, Key, InputType(TInPlaceType<ValueType>(), Forward<ArgType>(Value)));
 	}
 };
@@ -82,23 +86,23 @@ class FBuildDefinitionInternal final : public IBuildDefinitionInternal
 {
 public:
 	explicit FBuildDefinitionInternal(FBuildDefinitionBuilderInternal&& DefinitionBuilder);
-	explicit FBuildDefinitionInternal(FStringView Name, FCbObject&& Definition, bool& bOutIsValid);
+	explicit FBuildDefinitionInternal(const FSharedString& Name, FCbObject&& Definition, bool& bOutIsValid);
 
 	~FBuildDefinitionInternal() final = default;
 
 	const FBuildKey& GetKey() const final { return Key; }
 
-	FStringView GetName() const final { return Name; }
-	FStringView GetFunction() const final { return Function; }
+	const FSharedString& GetName() const final { return Name; }
+	const FUtf8SharedString& GetFunction() const final { return Function; }
 
 	bool HasConstants() const final;
 	bool HasInputs() const final;
 
-	void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const final;
-	void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const final;
-	void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const final;
-	void IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const final;
-	void IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const final;
+	void IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const final;
+	void IterateInputBuilds(TFunctionRef<void (FUtf8StringView Key, const FBuildValueKey& ValueKey)> Visitor) const final;
+	void IterateInputBulkData(TFunctionRef<void (FUtf8StringView Key, const FGuid& BulkDataId)> Visitor) const final;
+	void IterateInputFiles(TFunctionRef<void (FUtf8StringView Key, FUtf8StringView Path)> Visitor) const final;
+	void IterateInputHashes(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash)> Visitor) const final;
 
 	void Save(FCbWriter& Writer) const final;
 
@@ -116,8 +120,8 @@ public:
 	}
 
 private:
-	FString Name;
-	FString Function;
+	FSharedString Name;
+	FUtf8SharedString Function;
 	FCbObject Definition;
 	FBuildKey Key;
 	mutable std::atomic<uint32> ReferenceCount{0};
@@ -137,7 +141,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	bool bHasFiles = false;
 	bool bHasHashes = false;
 
-	for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+	for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 	{
 		if (Pair.Value.IsType<FCbObject>())
 		{
@@ -151,7 +155,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 		{
 			bHasBulkData = true;
 		}
-		else if (Pair.Value.IsType<FString>())
+		else if (Pair.Value.IsType<FUtf8SharedString>())
 		{
 			bHasFiles = true;
 		}
@@ -170,11 +174,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	if (bHasConstants)
 	{
 		Writer.BeginObject("Constants"_ASV);
-		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+		for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
 			if (Pair.Value.IsType<FCbObject>())
 			{
-				Writer.AddObject(FTCHARToUTF8(Pair.Key), Pair.Value.Get<FCbObject>());
+				Writer.AddObject(Pair.Key, Pair.Value.Get<FCbObject>());
 			}
 		}
 		Writer.EndObject();
@@ -188,12 +192,12 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	if (bHasBuilds)
 	{
 		Writer.BeginObject("Builds"_ASV);
-		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+		for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
 			if (Pair.Value.IsType<FBuildValueKey>())
 			{
 				const FBuildValueKey& ValueKey = Pair.Value.Get<FBuildValueKey>();
-				Writer.BeginObject(FTCHARToUTF8(Pair.Key));
+				Writer.BeginObject(Pair.Key);
 				Writer.AddHash("Build"_ASV, ValueKey.BuildKey.Hash);
 				Writer.AddObjectId("Id"_ASV, ValueKey.Id);
 				Writer.EndObject();
@@ -205,11 +209,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	if (bHasBulkData)
 	{
 		Writer.BeginObject("BulkData"_ASV);
-		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+		for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
 			if (Pair.Value.IsType<FGuid>())
 			{
-				Writer.AddUuid(FTCHARToUTF8(Pair.Key), Pair.Value.Get<FGuid>());
+				Writer.AddUuid(Pair.Key, Pair.Value.Get<FGuid>());
 			}
 		}
 		Writer.EndObject();
@@ -218,11 +222,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	if (bHasFiles)
 	{
 		Writer.BeginObject("Files"_ASV);
-		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+		for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
-			if (Pair.Value.IsType<FString>())
+			if (Pair.Value.IsType<FUtf8SharedString>())
 			{
-				Writer.AddString(FTCHARToUTF8(Pair.Key), Pair.Value.Get<FString>());
+				Writer.AddString(Pair.Key, Pair.Value.Get<FUtf8SharedString>());
 			}
 		}
 		Writer.EndObject();
@@ -231,11 +235,11 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	if (bHasHashes)
 	{
 		Writer.BeginObject("Hashes"_ASV);
-		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
+		for (const TPair<FUtf8SharedString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
 			if (Pair.Value.IsType<FIoHash>())
 			{
-				Writer.AddBinaryAttachment(FTCHARToUTF8(Pair.Key), Pair.Value.Get<FIoHash>());
+				Writer.AddBinaryAttachment(Pair.Key, Pair.Value.Get<FIoHash>());
 			}
 		}
 		Writer.EndObject();
@@ -251,7 +255,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 	Key.Hash = Definition.GetHash();
 }
 
-FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject&& InDefinition, bool& bOutIsValid)
+FBuildDefinitionInternal::FBuildDefinitionInternal(const FSharedString& InName, FCbObject&& InDefinition, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InDefinition.FindView("Function"_ASV).AsString())
 	, Definition(MoveTemp(InDefinition))
@@ -287,45 +291,45 @@ bool FBuildDefinitionInternal::HasInputs() const
 	return Definition["Inputs"_ASV].HasValue();
 }
 
-void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
+void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const
 {
 	for (FCbField Field : Definition["Constants"_ASV])
 	{
-		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsObject());
+		Visitor(Field.GetName(), Field.AsObject());
 	}
 }
 
-void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const
+void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FUtf8StringView Key, const FBuildValueKey& ValueKey)> Visitor) const
 {
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Builds"_ASV])
 	{
 		const FBuildKey BuildKey{Field["Build"_ASV].AsHash()};
 		const FValueId Id = Field["Id"_ASV].AsObjectId();
-		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildValueKey{BuildKey, Id});
+		Visitor(Field.GetName(), FBuildValueKey{BuildKey, Id});
 	}
 }
 
-void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const
+void FBuildDefinitionInternal::IterateInputBulkData(TFunctionRef<void (FUtf8StringView Key, const FGuid& BulkDataId)> Visitor) const
 {
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["BulkData"_ASV])
 	{
-		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsUuid());
+		Visitor(Field.GetName(), Field.AsUuid());
 	}
 }
 
-void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const
+void FBuildDefinitionInternal::IterateInputFiles(TFunctionRef<void (FUtf8StringView Key, FUtf8StringView Path)> Visitor) const
 {
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Files"_ASV])
 	{
-		Visitor(FUTF8ToTCHAR(Field.GetName()), FUTF8ToTCHAR(Field.AsString()));
+		Visitor(Field.GetName(), Field.AsString());
 	}
 }
 
-void FBuildDefinitionInternal::IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const
+void FBuildDefinitionInternal::IterateInputHashes(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash)> Visitor) const
 {
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Hashes"_ASV])
 	{
-		Visitor(FUTF8ToTCHAR(Field.GetName()), Field.AsBinaryAttachment());
+		Visitor(Field.GetName(), Field.AsBinaryAttachment());
 	}
 }
 
@@ -353,7 +357,7 @@ FBuildDefinitionBuilder CreateBuildDefinitionBuilder(IBuildDefinitionBuilderInte
 	return FBuildDefinitionBuilder(DefinitionBuilder);
 }
 
-FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function)
+FBuildDefinitionBuilder CreateBuildDefinition(const FSharedString& Name, const FUtf8SharedString& Function)
 {
 	return CreateBuildDefinitionBuilder(new FBuildDefinitionBuilderInternal(Name, Function));
 }
@@ -363,7 +367,7 @@ FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Func
 namespace UE::DerivedData
 {
 
-FOptionalBuildDefinition FBuildDefinition::Load(FStringView Name, FCbObject&& Definition)
+FOptionalBuildDefinition FBuildDefinition::Load(const FSharedString& Name, FCbObject&& Definition)
 {
 	bool bIsValid = false;
 	FOptionalBuildDefinition Out = Private::CreateBuildDefinition(

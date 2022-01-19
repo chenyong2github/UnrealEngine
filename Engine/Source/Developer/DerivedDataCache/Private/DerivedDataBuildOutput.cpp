@@ -5,10 +5,10 @@
 #include "Algo/BinarySearch.h"
 #include "Algo/Find.h"
 #include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
@@ -88,7 +88,7 @@ static bool TryLexFromString(EBuildOutputLogLevel& OutLevel, FUtf8StringView Str
 class FBuildOutputBuilderInternal final : public IBuildOutputBuilderInternal
 {
 public:
-	explicit FBuildOutputBuilderInternal(FStringView InName, FStringView InFunction)
+	explicit FBuildOutputBuilderInternal(const FSharedString& InName, const FUtf8SharedString& InFunction)
 		: Name(InName)
 		, Function(InFunction)
 	{
@@ -107,8 +107,8 @@ public:
 	bool HasError() const final { return bHasError; }
 	FBuildOutput Build() final;
 
-	FString Name;
-	FString Function;
+	FSharedString Name;
+	FUtf8SharedString Function;
 	FCbObject Meta;
 	TArray<FValueWithId> Values;
 	FCbWriter MessageWriter;
@@ -121,14 +121,27 @@ public:
 class FBuildOutputInternal final : public IBuildOutputInternal
 {
 public:
-	FBuildOutputInternal(FString&& Name, FString&& Function, FCbObject&& Meta, FCbObject&& Output, TArray<FValueWithId>&& Values);
-	FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output, bool& bOutIsValid);
-	FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output, bool& bOutIsValid);
+	FBuildOutputInternal(
+		FSharedString&& Name,
+		FUtf8SharedString&& Function,
+		FCbObject&& Meta,
+		FCbObject&& Output,
+		TArray<FValueWithId>&& Values);
+	FBuildOutputInternal(
+		const FSharedString& Name,
+		const FUtf8SharedString& Function,
+		const FCbObject& Output,
+		bool& bOutIsValid);
+	FBuildOutputInternal(
+		const FSharedString& Name,
+		const FUtf8SharedString& Function,
+		const FCacheRecord& Output,
+		bool& bOutIsValid);
 
 	~FBuildOutputInternal() final = default;
 
-	FStringView GetName() const final { return Name; }
-	FStringView GetFunction() const final { return Function; }
+	const FSharedString& GetName() const final { return Name; }
+	const FUtf8SharedString& GetFunction() const final { return Function; }
 
 	const FCbObject& GetMeta() const final { return Meta; }
 
@@ -158,8 +171,8 @@ public:
 	}
 
 private:
-	FString Name;
-	FString Function;
+	FSharedString Name;
+	FUtf8SharedString Function;
 	FCbObject Meta;
 	FCbObject Output;
 	TArray<FValueWithId> Values;
@@ -171,8 +184,8 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FBuildOutputInternal::FBuildOutputInternal(
-	FString&& InName,
-	FString&& InFunction,
+	FSharedString&& InName,
+	FUtf8SharedString&& InFunction,
 	FCbObject&& InMeta,
 	FCbObject&& InOutput,
 	TArray<FValueWithId>&& InValues)
@@ -187,7 +200,11 @@ FBuildOutputInternal::FBuildOutputInternal(
 	TryLoad();
 }
 
-FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCbObject& InOutput, bool& bOutIsValid)
+FBuildOutputInternal::FBuildOutputInternal(
+	const FSharedString& InName,
+	const FUtf8SharedString& InFunction,
+	const FCbObject& InOutput,
+	bool& bOutIsValid)
 	: Name(InName)
 	, Function(InFunction)
 	, Output(InOutput)
@@ -200,7 +217,11 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	Meta = MoveTemp(MetaField).AsObject();
 }
 
-FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCacheRecord& InOutput, bool& bOutIsValid)
+FBuildOutputInternal::FBuildOutputInternal(
+	const FSharedString& InName,
+	const FUtf8SharedString& InFunction,
+	const FCacheRecord& InOutput,
+	bool& bOutIsValid)
 	: Name(InName)
 	, Function(InFunction)
 	, Meta(InOutput.GetMeta())
@@ -345,13 +366,15 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 
 void FBuildOutputBuilderInternal::AddValue(const FValueId& Id, const FValue& Value)
 {
-	checkf(Id.IsValid(), TEXT("Null value added in output for build of '%s' by %s."), *Name, *Function);
+	checkf(Id.IsValid(), TEXT("Null value added in output for build of '%s' by %s."),
+		*Name, *WriteToString<32>(Function));
 	checkf(Id != GBuildOutputValueId,
 		TEXT("Value added with reserved ID %s from name '%hs' for build of '%s' by %s."),
-		*WriteToString<32>(Id), GBuildOutputValueName, *Name, *Function);
+		*WriteToString<32>(Id), GBuildOutputValueName, *Name, *WriteToString<32>(Function));
 	const int32 Index = Algo::LowerBoundBy(Values, Id, &FValueWithId::GetId);
 	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == Id),
-		TEXT("Duplicate ID %s used by value for build of '%s' by %s."), *WriteToString<32>(Id), *Name, *Function);
+		TEXT("Duplicate ID %s used by value for build of '%s' by %s."),
+		*WriteToString<32>(Id), *Name, *WriteToString<32>(Function));
 	Values.Insert(FValueWithId(Id, Value), Index);
 }
 
@@ -417,7 +440,7 @@ FBuildOutputBuilder CreateBuildOutputBuilder(IBuildOutputBuilderInternal* Output
 	return FBuildOutputBuilder(OutputBuilder);
 }
 
-FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function)
+FBuildOutputBuilder CreateBuildOutput(const FSharedString& Name, const FUtf8SharedString& Function)
 {
 	return CreateBuildOutputBuilder(new FBuildOutputBuilderInternal(Name, Function));
 }
@@ -427,7 +450,10 @@ FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function)
 namespace UE::DerivedData
 {
 
-FOptionalBuildOutput FBuildOutput::Load(FStringView Name, FStringView Function, const FCbObject& Output)
+FOptionalBuildOutput FBuildOutput::Load(
+	const FSharedString& Name,
+	const FUtf8SharedString& Function,
+	const FCbObject& Output)
 {
 	bool bIsValid = false;
 	FOptionalBuildOutput Out = Private::CreateBuildOutput(
@@ -439,7 +465,10 @@ FOptionalBuildOutput FBuildOutput::Load(FStringView Name, FStringView Function, 
 	return Out;
 }
 
-FOptionalBuildOutput FBuildOutput::Load(FStringView Name, FStringView Function, const FCacheRecord& Output)
+FOptionalBuildOutput FBuildOutput::Load(
+	const FSharedString& Name,
+	const FUtf8SharedString& Function,
+	const FCacheRecord& Output)
 {
 	bool bIsValid = false;
 	FOptionalBuildOutput Out = Private::CreateBuildOutput(

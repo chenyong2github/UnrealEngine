@@ -20,6 +20,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 #include "HAL/IConsoleManager.h"
 
 int32 GASTCCompressor = 0;
@@ -54,7 +55,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatASTC, Log, All);
 
 class FASTCTextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("ASTCTexture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("ASTCTexture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{

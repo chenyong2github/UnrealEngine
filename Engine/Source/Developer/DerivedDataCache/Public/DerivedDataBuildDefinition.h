@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -30,15 +31,15 @@ class IBuildDefinitionInternal
 public:
 	virtual ~IBuildDefinitionInternal() = default;
 	virtual const FBuildKey& GetKey() const = 0;
-	virtual FStringView GetName() const = 0;
-	virtual FStringView GetFunction() const = 0;
+	virtual const FSharedString& GetName() const = 0;
+	virtual const FUtf8SharedString& GetFunction() const = 0;
 	virtual bool HasConstants() const = 0;
 	virtual bool HasInputs() const = 0;
-	virtual void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const = 0;
-	virtual void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const = 0;
-	virtual void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const = 0;
-	virtual void IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const = 0;
-	virtual void IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const = 0;
+	virtual void IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const = 0;
+	virtual void IterateInputBuilds(TFunctionRef<void (FUtf8StringView Key, const FBuildValueKey& ValueKey)> Visitor) const = 0;
+	virtual void IterateInputBulkData(TFunctionRef<void (FUtf8StringView Key, const FGuid& BulkDataId)> Visitor) const = 0;
+	virtual void IterateInputFiles(TFunctionRef<void (FUtf8StringView Key, FUtf8StringView Path)> Visitor) const = 0;
+	virtual void IterateInputHashes(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash)> Visitor) const = 0;
 	virtual void Save(FCbWriter& Writer) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
@@ -50,11 +51,11 @@ class IBuildDefinitionBuilderInternal
 {
 public:
 	virtual ~IBuildDefinitionBuilderInternal() = default;
-	virtual void AddConstant(FStringView Key, const FCbObject& Value) = 0;
-	virtual void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey) = 0;
-	virtual void AddInputBulkData(FStringView Key, const FGuid& BulkDataId) = 0;
-	virtual void AddInputFile(FStringView Key, FStringView Path) = 0;
-	virtual void AddInputHash(FStringView Key, const FIoHash& RawHash) = 0;
+	virtual void AddConstant(FUtf8StringView Key, const FCbObject& Value) = 0;
+	virtual void AddInputBuild(FUtf8StringView Key, const FBuildValueKey& ValueKey) = 0;
+	virtual void AddInputBulkData(FUtf8StringView Key, const FGuid& BulkDataId) = 0;
+	virtual void AddInputFile(FUtf8StringView Key, FUtf8StringView Path) = 0;
+	virtual void AddInputHash(FUtf8StringView Key, const FIoHash& RawHash) = 0;
 	virtual FBuildDefinition Build() = 0;
 };
 
@@ -91,10 +92,10 @@ public:
 	inline const FBuildKey& GetKey() const { return Definition->GetKey(); }
 
 	/** Returns the name by which to identify this definition for logging and profiling. */
-	inline FStringView GetName() const { return Definition->GetName(); }
+	inline const FSharedString& GetName() const { return Definition->GetName(); }
 
 	/** Returns the name of the build function with which to build this definition. */
-	inline FStringView GetFunction() const { return Definition->GetFunction(); }
+	inline const FUtf8SharedString& GetFunction() const { return Definition->GetFunction(); }
 
 	/** Returns whether the definition has any constants. */
 	inline bool HasConstants() const { return Definition->HasConstants(); }
@@ -102,32 +103,32 @@ public:
 	/** Returns whether the definition has any inputs. */
 	inline bool HasInputs() const { return Definition->HasInputs(); }
 
-	/** Visits every constant in order by key. */
-	inline void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
+	/** Visits every constant in order by key. The key view is valid for the lifetime of the definition. */
+	inline void IterateConstants(TFunctionRef<void (FUtf8StringView Key, FCbObject&& Value)> Visitor) const
 	{
 		return Definition->IterateConstants(Visitor);
 	}
 
-	/** Visits every input build value in order by key. */
-	inline void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const
+	/** Visits every input build value in order by key. The key view is valid for the lifetime of the definition. */
+	inline void IterateInputBuilds(TFunctionRef<void (FUtf8StringView Key, const FBuildValueKey& ValueKey)> Visitor) const
 	{
 		return Definition->IterateInputBuilds(Visitor);
 	}
 
-	/** Visits every input bulk data in order by key. */
-	inline void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const
+	/** Visits every input bulk data in order by key. The key view is valid for the lifetime of the definition. */
+	inline void IterateInputBulkData(TFunctionRef<void (FUtf8StringView Key, const FGuid& BulkDataId)> Visitor) const
 	{
 		return Definition->IterateInputBulkData(Visitor);
 	}
 
-	/** Visits every input file in order by key. */
-	inline void IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const
+	/** Visits every input file in order by key. The key and path views are valid for the lifetime of the definition. */
+	inline void IterateInputFiles(TFunctionRef<void (FUtf8StringView Key, FUtf8StringView Path)> Visitor) const
 	{
 		return Definition->IterateInputFiles(Visitor);
 	}
 
-	/** Visits every input hash in order by key. */
-	inline void IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const
+	/** Visits every input hash in order by key. The key view is valid for the lifetime of the definition. */
+	inline void IterateInputHashes(TFunctionRef<void (FUtf8StringView Key, const FIoHash& RawHash)> Visitor) const
 	{
 		return Definition->IterateInputHashes(Visitor);
 	}
@@ -145,7 +146,7 @@ public:
 	 * @param Definition   An object saved from a build definition. Holds a reference and is cloned if not owned.
 	 * @return A valid build definition, or null on error.
 	 */
-	UE_API static FOptionalBuildDefinition Load(FStringView Name, FCbObject&& Definition);
+	UE_API static FOptionalBuildDefinition Load(const FSharedString& Name, FCbObject&& Definition);
 
 private:
 	friend class FOptionalBuildDefinition;
@@ -171,13 +172,13 @@ class FBuildDefinitionBuilder
 {
 public:
 	/** Add a constant object with a key that is unique within this definition. */
-	inline void AddConstant(FStringView Key, const FCbObject& Value)
+	inline void AddConstant(FUtf8StringView Key, const FCbObject& Value)
 	{
 		DefinitionBuilder->AddConstant(Key, Value);
 	}
 
 	/** Add a value from another build with a key that is unique within this definition. */
-	inline void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey)
+	inline void AddInputBuild(FUtf8StringView Key, const FBuildValueKey& ValueKey)
 	{
 		DefinitionBuilder->AddInputBuild(Key, ValueKey);
 	}
@@ -187,7 +188,7 @@ public:
 	 *
 	 * @param BulkDataId   Identifier that uniquely identifies this data in the IBuildInputResolver.
 	 */
-	inline void AddInputBulkData(FStringView Key, const FGuid& BulkDataId)
+	inline void AddInputBulkData(FUtf8StringView Key, const FGuid& BulkDataId)
 	{
 		DefinitionBuilder->AddInputBulkData(Key, BulkDataId);
 	}
@@ -197,7 +198,7 @@ public:
 	 *
 	 * @param Path   Path to the file relative to a mounted content root.
 	 */
-	inline void AddInputFile(FStringView Key, FStringView Path)
+	inline void AddInputFile(FUtf8StringView Key, FUtf8StringView Path)
 	{
 		DefinitionBuilder->AddInputFile(Key, Path);
 	}
@@ -207,7 +208,7 @@ public:
 	 *
 	 * @param RawHash   Hash of the raw data that will resolve it in the IBuildInputResolver.
 	 */
-	inline void AddInputHash(FStringView Key, const FIoHash& RawHash)
+	inline void AddInputHash(FUtf8StringView Key, const FIoHash& RawHash)
 	{
 		DefinitionBuilder->AddInputHash(Key, RawHash);
 	}

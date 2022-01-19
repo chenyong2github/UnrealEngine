@@ -16,6 +16,7 @@
 #include "Async/ParallelFor.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 
 THIRD_PARTY_INCLUDES_START
 	#include "nvtt/nvtt.h"
@@ -25,7 +26,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatDXT, Log, All);
 
 class FDXTTextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("DXTTexture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("DXTTexture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{

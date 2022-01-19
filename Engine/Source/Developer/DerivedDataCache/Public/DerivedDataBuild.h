@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Containers/StringFwd.h"
+#include "DerivedDataSharedStringFwd.h"
 
 #define UE_API DERIVEDDATACACHE_API
 
@@ -50,7 +50,7 @@ public:
 	 * @param Name       The name by which to identify this definition for logging and profiling.
 	 * @param Function   The name of the build function with which to build this definition.
 	 */
-	virtual FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) = 0;
+	virtual FBuildDefinitionBuilder CreateDefinition(const FSharedString& Name, const FUtf8SharedString& Function) = 0;
 
 	/**
 	 * Create a build action builder.
@@ -58,14 +58,14 @@ public:
 	 * @param Name       The name by which to identify this action for logging and profiling.
 	 * @param Function   The name of the build function that produced this action.
 	 */
-	virtual FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) = 0;
+	virtual FBuildActionBuilder CreateAction(const FSharedString& Name, const FUtf8SharedString& Function) = 0;
 
 	/**
 	 * Create a build inputs builder.
 	 *
 	 * @param Name   The name by which to identify the inputs for logging and profiling.
 	 */
-	virtual FBuildInputsBuilder CreateInputs(FStringView Name) = 0;
+	virtual FBuildInputsBuilder CreateInputs(const FSharedString& Name) = 0;
 
 	/**
 	 * Create a build output builder.
@@ -73,7 +73,7 @@ public:
 	 * @param Name       The name by which to identify this output for logging and profiling.
 	 * @param Function   The name of the build function that produced this output.
 	 */
-	virtual FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) = 0;
+	virtual FBuildOutputBuilder CreateOutput(const FSharedString& Name, const FUtf8SharedString& Function) = 0;
 
 	/**
 	 * Create a build session.
@@ -87,7 +87,10 @@ public:
 	 * @param InputResolver   The input resolver to resolve inputs for requested builds. Optional.
 	 * @param Scheduler       The scheduler for builds created through the session. Optional.
 	 */
-	virtual FBuildSession CreateSession(FStringView Name, IBuildInputResolver* InputResolver = nullptr, IBuildScheduler* Scheduler = nullptr) = 0;
+	virtual FBuildSession CreateSession(
+		const FSharedString& Name,
+		IBuildInputResolver* InputResolver = nullptr,
+		IBuildScheduler* Scheduler = nullptr) = 0;
 
 	/**
 	 * Returns the version of the build system.

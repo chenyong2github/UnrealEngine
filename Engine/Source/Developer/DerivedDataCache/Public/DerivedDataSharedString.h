@@ -4,9 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "HAL/UnrealMemory.h"
-#include "Traits/ElementType.h"
-#include "Traits/IsContiguousContainer.h"
 #include <atomic>
 
 namespace UE::DerivedData
@@ -63,11 +62,6 @@ constexpr inline auto GetNum(const TSharedString<CharType> String)
 {
 	return String.Len();
 }
-
-using FSharedString = TSharedString<TCHAR>;
-using FAnsiSharedString = TSharedString<ANSICHAR>;
-using FWideSharedString = TSharedString<WIDECHAR>;
-using FUtf8SharedString = TSharedString<UTF8CHAR>;
 
 template <typename CharType>
 inline TSharedString<CharType>::TSharedString(TSharedString&& String)
@@ -176,15 +170,3 @@ inline bool operator<(const TSharedString<CharType>& Lhs, const TSharedString<Ch
 }
 
 } // UE::DerivedData
-
-template <typename CharType>
-struct TIsContiguousContainer<UE::DerivedData::TSharedString<CharType>>
-{
-	static constexpr bool Value = true;
-};
-
-template <typename CharType>
-struct TElementType<UE::DerivedData::TSharedString<CharType>>
-{
-	using Type = CharType;
-};

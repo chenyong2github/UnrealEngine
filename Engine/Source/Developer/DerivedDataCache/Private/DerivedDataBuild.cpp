@@ -14,6 +14,7 @@
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataSharedString.h"
 #include "Misc/Guid.h"
 
 namespace UE::DerivedData::Private
@@ -58,13 +59,13 @@ DEFINE_LOG_CATEGORY(LogDerivedDataBuild);
  * - Resolves FBuildKey to FBuildDefinition
  * - Resolves FBuildDefinition to Key->(RawHash, RawSize, OptionalBuffer)
  * IBuildJob:
- * - From FBuildKey or FBuildDefinition or FBuildAction+FBuildInputs via FBuildSession
+ * - From FBuildKey or FBuildDefinition+FBuildInputs or FBuildAction+FBuildInputs via FBuildSession
  * - Represents an executing build request
  * IBuildScheduler:
  * - Schedules execution of the operations on IBuildJob
  * FBuildSession:
  * - From ICache+IBuild+IBuildScheduler+IBuildInputResolver via IBuild::CreateSession()
- * - Interface for scheduling builds from a key, definition, or action+inputs
+ * - Interface for scheduling builds from a key, definition+inputs, or action+inputs
  */
 class FBuild final : public IBuild
 {
@@ -74,27 +75,27 @@ public:
 	{
 	}
 
-	FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) final
+	FBuildDefinitionBuilder CreateDefinition(const FSharedString& Name, const FUtf8SharedString& Function) final
 	{
 		return CreateBuildDefinition(Name, Function);
 	}
 
-	FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) final
+	FBuildActionBuilder CreateAction(const FSharedString& Name, const FUtf8SharedString& Function) final
 	{
 		return CreateBuildAction(Name, Function, FunctionRegistry->FindFunctionVersion(Function), Version);
 	}
 
-	FBuildInputsBuilder CreateInputs(FStringView Name) final
+	FBuildInputsBuilder CreateInputs(const FSharedString& Name) final
 	{
 		return CreateBuildInputs(Name);
 	}
 
-	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
+	FBuildOutputBuilder CreateOutput(const FSharedString& Name, const FUtf8SharedString& Function) final
 	{
 		return CreateBuildOutput(Name, Function);
 	}
 
-	FBuildSession CreateSession(FStringView Name, IBuildInputResolver* InputResolver, IBuildScheduler* Scheduler) final
+	FBuildSession CreateSession(const FSharedString& Name, IBuildInputResolver* InputResolver, IBuildScheduler* Scheduler) final
 	{
 		return CreateBuildSession(Name, Cache, *this, Scheduler ? *Scheduler : *DefaultScheduler, InputResolver);
 	}

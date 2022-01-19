@@ -11,6 +11,7 @@
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
 #include "HAL/FileManager.h"
 #include "Memory/SharedBuffer.h"
@@ -163,7 +164,7 @@ bool FBuildWorkerProgram::ReportVersions()
 	FGuid BuildSystemVersion = BuildSystem.GetVersion();
 	IBuildFunctionRegistry& BuildFunctionRegistry = BuildSystem.GetFunctionRegistry();
 	TMap<FString, FGuid> Functions;
-	BuildFunctionRegistry.IterateFunctionVersions([&Functions](FStringView Function, const FGuid& Version)
+	BuildFunctionRegistry.IterateFunctionVersions([&Functions](FUtf8StringView Function, const FGuid& Version)
 	{
 		Functions.Emplace(Function, Version);
 	});
@@ -211,7 +212,7 @@ bool FBuildWorkerProgram::Build()
 	}
 
 	IBuild& BuildSystem = GetBuild();
-	FBuildSession Session = BuildSystem.CreateSession(TEXT("BuildWorker"_SV), this);
+	FBuildSession Session = BuildSystem.CreateSession(TEXTVIEW("BuildWorker"), this);
 	FRequestOwner Owner(EPriority::Normal);
 	{
 		FRequestBarrier Barrier(Owner);
@@ -228,7 +229,7 @@ bool FBuildWorkerProgram::Build()
 				UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Missing build action '%s'"), *ActionPath);
 				return false;
 			}
-			if (FOptionalBuildAction Action = FBuildAction::Load(ActionPath, MoveTemp(ActionObject)); Action.IsNull())
+			if (FOptionalBuildAction Action = FBuildAction::Load({ActionPath}, MoveTemp(ActionObject)); Action.IsNull())
 			{
 				UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Invalid build action '%s'"), *ActionPath);
 				return false;
@@ -251,24 +252,24 @@ bool FBuildWorkerProgram::Build()
 void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 {
 	const FBuildOutput Output = MoveTemp(Params.Output);
-	const FStringView Function = Output.GetFunction();
-	const FStringView Name = Output.GetName();
+	const FSharedString& Name = Output.GetName();
+	const FUtf8SharedString& Function = Output.GetFunction();
 
 	for (const FBuildOutputMessage& Message : Output.GetMessages())
 	{
 		switch (Message.Level)
 		{
 		case EBuildOutputMessageLevel::Error:
-			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("%s (Build of '%.*s' by %.*s.)"),
-				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("%s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 			break;
 		case EBuildOutputMessageLevel::Warning:
-			UE_LOG(LogDerivedDataBuildWorker, Warning, TEXT("%s (Build of '%.*s' by %.*s.)"),
-				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			UE_LOG(LogDerivedDataBuildWorker, Warning, TEXT("%s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 			break;
 		case EBuildOutputMessageLevel::Display:
-			UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("%s (Build of '%.*s' by %.*s.)"),
-				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("%s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
 			break;
 		default:
 			checkNoEntry();
@@ -293,8 +294,8 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 					Verbosity = ELogVerbosity::Warning;
 					break;
 				}
-				GWarn->Log(FName(Log.Category), Verbosity, FString::Printf(TEXT("%s (Build of '%.*s' by %.*s.)"),
-					*WriteToString<256>(Log.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData()));
+				GWarn->Log(FName(Log.Category), Verbosity, FString::Printf(TEXT("%s (Build of '%s' by %s.)"),
+					*WriteToString<256>(Log.Message), *Name, *WriteToString<32>(Function)));
 			}
 		}
 	}
@@ -303,7 +304,7 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 	{
 		if (Value.HasData())
 		{
-			if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Value.GetRawHash()))
+			if (TUniquePtr<FArchive> Ar = OpenOutput(Name, Value.GetRawHash()))
 			{
 				Value.GetData().Save(*Ar);
 				if (Ar->Close())
@@ -312,12 +313,12 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 				}
 			}
 			UE_LOG(LogDerivedDataBuildWorker, Error,
-				TEXT("Failed to store build output %s for build of '%.*s' by %.*s."),
-				*WriteToString<48>(Value.GetRawHash()), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				TEXT("Failed to store build output %s for build of '%s' by %s."),
+				*WriteToString<48>(Value.GetRawHash()), *Name, *WriteToString<32>(Function));
 		}
 	}
 
-	const FString OutputPath = FPaths::ChangeExtension(FString(Output.GetName()), TEXT("output"));
+	const FString OutputPath = FPathViews::ChangeExtension(Name, TEXT("output"));
 	if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*OutputPath, FILEWRITE_Silent)})
 	{
 		FCbWriter OutputWriter;
@@ -327,15 +328,15 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 	else
 	{
 		UE_LOG(LogDerivedDataBuildWorker, Error,
-			TEXT("Failed to store build output to '%s' for build of '%.*s' by %.*s."),
-			*OutputPath, Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			TEXT("Failed to store build output to '%s' for build of '%s' by %s."),
+			*OutputPath, *Name, *WriteToString<32>(Function));
 	}
 }
 
 bool FBuildWorkerProgram::ResolveInputExists(const FBuildAction& Action) const
 {
 	bool bValid = true;
-	Action.IterateInputs([this, &Action, &bValid](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	Action.IterateInputs([this, &Action, &bValid](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		TStringBuilder<256> Path;
 		GetInputPath(Action.GetName(), RawHash, Path);
@@ -344,7 +345,7 @@ bool FBuildWorkerProgram::ResolveInputExists(const FBuildAction& Action) const
 			bValid = false;
 			UE_LOG(LogDerivedDataBuildWorker, Error,
 				TEXT("Input '%s' with raw hash %s is missing for build of '%s' by %s."), *WriteToString<64>(Key),
-				*WriteToString<48>(RawHash), *WriteToString<128>(Action.GetName()), *WriteToString<32>(Action.GetFunction()));
+				*WriteToString<48>(RawHash), *Action.GetName(), *WriteToString<32>(Action.GetFunction()));
 		}
 	});
 	return bValid;
@@ -353,9 +354,8 @@ bool FBuildWorkerProgram::ResolveInputExists(const FBuildAction& Action) const
 void FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, IRequestOwner& Owner, FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
 	EStatus Status = EStatus::Ok;
-	TArray<FString> InputKeys;
 	TArray<FBuildInputDataByKey> Inputs;
-	Action.IterateInputs([this, &Action, &Filter, &InputKeys, &Inputs, &Status](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	Action.IterateInputs([this, &Action, &Filter, &Inputs, &Status](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		if (Filter && !Filter(Key))
 		{
@@ -363,15 +363,14 @@ void FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, IRequestO
 		}
 		if (TUniquePtr<FArchive> Ar = OpenInput(Action.GetName(), RawHash))
 		{
-			InputKeys.Emplace(Key);
-			Inputs.Add({InputKeys.Last(), FCompressedBuffer::Load(*Ar)});
+			Inputs.Add({Key, FCompressedBuffer::Load(*Ar)});
 		}
 		else
 		{
 			Status = EStatus::Error;
 			UE_LOG(LogDerivedDataBuildWorker, Error,
 				TEXT("Input '%s' with raw hash %s is missing for build of '%s' by %s."), *WriteToString<64>(Key),
-				*WriteToString<48>(RawHash), *WriteToString<128>(Action.GetName()), *WriteToString<32>(Action.GetFunction()));
+				*WriteToString<48>(RawHash), *Action.GetName(), *WriteToString<32>(Action.GetFunction()));
 		}
 	});
 	OnResolved({Inputs, Status});

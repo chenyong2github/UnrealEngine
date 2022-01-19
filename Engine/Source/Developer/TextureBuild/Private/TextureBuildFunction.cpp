@@ -194,15 +194,15 @@ static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFo
 
 static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
 {
-	FSharedBuffer InputBuffer = Context.FindInput(FUTF8ToTCHAR(Source.GetName()));
+	FSharedBuffer InputBuffer = Context.FindInput(Source.GetName());
 	if (!InputBuffer)
 	{
-		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input '%s'."), *WriteToString<64>(FUTF8ToTCHAR(Source.GetName())));
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input '%s'."), *WriteToString<64>(Source.GetName()));
 		return false;
 	}
 	if ( InputBuffer.GetSize() == 0 )
 	{
-		UE_LOG(LogTextureBuildFunction, Error, TEXT("Input size zero '%s'."), *WriteToString<64>(FUTF8ToTCHAR(Source.GetName())));
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Input size zero '%s'."), *WriteToString<64>(Source.GetName()));
 		return false;
 	}
 
@@ -322,12 +322,12 @@ FGuid FTextureBuildFunction::GetVersion() const
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
 	Context.SetCacheBucket(UE::DerivedData::FCacheBucket("Texture"_ASV));
-	Context.SetRequiredMemory(EstimateTextureBuildMemoryUsage(Context.FindConstant(TEXT("Settings"_SV))));
+	Context.SetRequiredMemory(EstimateTextureBuildMemoryUsage(Context.FindConstant(UTF8TEXTVIEW("Settings"))));
 }
 
 void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 {
-	const FCbObject Settings = Context.FindConstant(TEXT("Settings"_SV));
+	const FCbObject Settings = Context.FindConstant(UTF8TEXTVIEW("Settings"));
 	if (!Settings)
 	{
 		UE_LOG(LogTextureBuildFunction, Error, TEXT("Settings are not available."));

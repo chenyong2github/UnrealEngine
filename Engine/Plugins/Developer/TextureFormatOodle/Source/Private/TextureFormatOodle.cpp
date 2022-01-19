@@ -19,6 +19,7 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 #include "Tasks/Task.h"
 #include "TextureBuildFunction.h"
 #include "HAL/FileManager.h"
@@ -304,7 +305,11 @@ struct FOodleTextureVTable
 
 class FOodleTextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("OodleTexture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("OodleTexture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/StringView.h"
 #include "DerivedDataBuildTypes.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 
@@ -22,7 +22,7 @@ class IBuildSessionInternal
 {
 public:
 	virtual ~IBuildSessionInternal() = default;
-	virtual FStringView GetName() const = 0;
+	virtual const FSharedString& GetName() const = 0;
 	virtual void Build(
 		const FBuildKey& Key,
 		const FBuildPolicy& Policy,
@@ -60,7 +60,7 @@ class FBuildSession
 {
 public:
 	/** Returns the name by which to identify this session for logging and profiling. */
-	inline FStringView GetName() const
+	inline const FSharedString& GetName() const
 	{
 		return Session->GetName();
 	}

@@ -5,8 +5,9 @@
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
 #include "DerivedDataBuildPrivate.h"
+#include "DerivedDataSharedString.h"
+#include "Misc/StringBuilder.h"
 #include <atomic>
 
 namespace UE::DerivedData::Private
@@ -15,7 +16,7 @@ namespace UE::DerivedData::Private
 class FBuildInputsBuilderInternal final : public IBuildInputsBuilderInternal
 {
 public:
-	inline explicit FBuildInputsBuilderInternal(FStringView InName)
+	inline explicit FBuildInputsBuilderInternal(const FSharedString& InName)
 		: Name(InName)
 	{
 		checkf(!Name.IsEmpty(), TEXT("Build inputs require a non-empty name."));
@@ -23,20 +24,21 @@ public:
 
 	~FBuildInputsBuilderInternal() final = default;
 
-	void AddInput(FStringView Key, const FCompressedBuffer& Buffer) final
+	void AddInput(FUtf8StringView Key, const FCompressedBuffer& Buffer) final
 	{
 		const uint32 KeyHash = GetTypeHash(Key);
 		checkf(Buffer, TEXT("Null buffer used in input for build of '%s'."), *Name);
 		checkf(!Key.IsEmpty(), TEXT("Empty key used in input for build of '%s'."), *Name);
-		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in input for build of '%s'."),
-			Key.Len(), Key.GetData(), *Name);
+		checkf(!Inputs.ContainsByHash(KeyHash, Key),
+			TEXT("Duplicate key '%s' used in input for build of '%s'."),
+			*WriteToString<64>(Key), *Name);
 		Inputs.EmplaceByHash(KeyHash, Key, Buffer);
 	}
 
 	FBuildInputs Build() final;
 
-	FString Name;
-	TMap<FString, FCompressedBuffer> Inputs;
+	FSharedString Name;
+	TMap<FUtf8SharedString, FCompressedBuffer> Inputs;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,10 +50,10 @@ public:
 
 	~FBuildInputsInternal() final = default;
 
-	FStringView GetName() const final { return Name; }
+	const FSharedString& GetName() const final { return Name; }
 
-	const FCompressedBuffer& FindInput(FStringView Key) const final;
-	void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const final;
+	const FCompressedBuffer& FindInput(FUtf8StringView Key) const final;
+	void IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FCompressedBuffer& Buffer)> Visitor) const final;
 
 	inline void AddRef() const final
 	{
@@ -67,8 +69,8 @@ public:
 	}
 
 private:
-	FString Name;
-	TMap<FString, FCompressedBuffer> Inputs;
+	FSharedString Name;
+	TMap<FUtf8SharedString, FCompressedBuffer> Inputs;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
@@ -81,7 +83,7 @@ FBuildInputsInternal::FBuildInputsInternal(FBuildInputsBuilderInternal&& InputsB
 	Inputs.KeySort(TLess<>());
 }
 
-const FCompressedBuffer& FBuildInputsInternal::FindInput(FStringView Key) const
+const FCompressedBuffer& FBuildInputsInternal::FindInput(FUtf8StringView Key) const
 {
 	if (const FCompressedBuffer* Buffer = Inputs.FindByHash(GetTypeHash(Key), Key))
 	{
@@ -90,9 +92,9 @@ const FCompressedBuffer& FBuildInputsInternal::FindInput(FStringView Key) const
 	return FCompressedBuffer::Null;
 }
 
-void FBuildInputsInternal::IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const
+void FBuildInputsInternal::IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FCompressedBuffer& Buffer)> Visitor) const
 {
-	for (const TPair<FString, FCompressedBuffer>& Input : Inputs)
+	for (const TPair<FUtf8SharedString, FCompressedBuffer>& Input : Inputs)
 	{
 		Input.ApplyAfter(Visitor);
 	}
@@ -117,7 +119,7 @@ FBuildInputsBuilder CreateBuildInputsBuilder(IBuildInputsBuilderInternal* Inputs
 	return FBuildInputsBuilder(InputsBuilder);
 }
 
-FBuildInputsBuilder CreateBuildInputs(FStringView Name)
+FBuildInputsBuilder CreateBuildInputs(const FSharedString& Name)
 {
 	return CreateBuildInputsBuilder(new FBuildInputsBuilderInternal(Name));
 }

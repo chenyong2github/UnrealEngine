@@ -5,10 +5,10 @@
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequest.h"
+#include "DerivedDataSharedString.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Memory/MemoryFwd.h"
 #include "Serialization/CompactBinary.h"
@@ -35,7 +35,7 @@ public:
 
 	void BeginBuild(IRequestOwner& Owner, TUniqueFunction<void ()>&& OnEndBuild);
 
-	FStringView GetName() const final;
+	const FSharedString& GetName() const final;
 
 	inline const FCacheKey& GetCacheKey() const { return CacheKey; }
 
@@ -44,8 +44,8 @@ public:
 	inline uint64 GetRequiredMemory() const { return RequiredMemory; }
 	inline bool ShouldCheckDeterministicOutput() const { return bDeterministicOutputCheck; }
 
-	void AddConstant(FStringView Key, FCbObject&& Value);
-	void AddInput(FStringView Key, const FCompressedBuffer& Value);
+	void AddConstant(FUtf8StringView Key, FCbObject&& Value);
+	void AddInput(FUtf8StringView Key, const FCompressedBuffer& Value);
 
 	void AddError(FStringView Message) final;
 	void AddWarning(FStringView Message) final;
@@ -54,8 +54,8 @@ public:
 	void ResetInputs();
 
 private:
-	FCbObject FindConstant(FStringView Key) const final;
-	FSharedBuffer FindInput(FStringView Key) const final;
+	FCbObject FindConstant(FUtf8StringView Key) const final;
+	FSharedBuffer FindInput(FUtf8StringView Key) const final;
 
 	void AddValue(const FValueId& Id, const FValue& Value) final;
 	void AddValue(const FValueId& Id, const FCompressedBuffer& Buffer) final;
@@ -82,8 +82,8 @@ private:
 	FCacheKey CacheKey;
 	const IBuildFunction& Function;
 	FBuildOutputBuilder& OutputBuilder;
-	TMap<FString, FCbObject> Constants;
-	TMap<FString, FCompressedBuffer> Inputs;
+	TMap<FUtf8SharedString, FCbObject> Constants;
+	TMap<FUtf8SharedString, FCompressedBuffer> Inputs;
 	UE::FLazyEvent BuildCompleteEvent{EEventMode::ManualReset};
 	TUniqueFunction<void ()> OnEndBuild;
 	IRequestOwner* Owner{};

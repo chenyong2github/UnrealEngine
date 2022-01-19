@@ -12,6 +12,7 @@
 #include "DerivedDataBuildWorker.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
@@ -208,17 +209,15 @@ public:
 			//		 CompressedSize.  Once the remote execution API allows us to represent inputs with RawHash/
 			//		 RawSize, this block can be removed and we can find missing CAS inputs without having resolved
 			//		 the inputs first.
-			TArray<FString> MissingInputs;
-			TArray<FStringView> MissingInputViews;
+			TArray<FUtf8StringView> MissingInputs;
 			uint64 TotalInputSize = 0;
 			uint64 TotalMissingInputSize = 0;
 
-			Action.IterateInputs([&MissingInputs, &MissingInputViews, &Inputs, &TotalInputSize, &TotalMissingInputSize] (FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+			Action.IterateInputs([&MissingInputs, &Inputs, &TotalInputSize, &TotalMissingInputSize] (FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 				{
 					if (Inputs.IsNull() || Inputs.Get().FindInput(Key).IsNull())
 					{
 						MissingInputs.Emplace(Key);
-						MissingInputViews.Add(MissingInputs.Last());
 						TotalMissingInputSize += RawSize;
 					}
 					TotalInputSize += RawSize;
@@ -230,9 +229,9 @@ public:
 				return;
 			}
 
-			if (!MissingInputViews.IsEmpty())
+			if (!MissingInputs.IsEmpty())
 			{
-				OnComplete({Action.GetKey(), {}, MissingInputViews, EStatus::Ok});
+				OnComplete({Action.GetKey(), {}, MissingInputs, EStatus::Ok});
 				return;
 			}
 		}
@@ -552,7 +551,7 @@ FCbObject FRemoteBuildExecutionRequest::BuildWorkerDescriptor(const FBuildWorker
 	WorkerDescriptor.EndArray();
 
 	WorkerDescriptor.BeginArray("functions"_ASV);
-	Worker.IterateFunctions([&WorkerDescriptor](FStringView Name, const FGuid& Version)
+	Worker.IterateFunctions([&WorkerDescriptor](FUtf8StringView Name, const FGuid& Version)
 		{
 			WorkerDescriptor.BeginObject();
 			WorkerDescriptor.AddString("name"_ASV, Name);
@@ -773,7 +772,7 @@ void FRemoteBuildExecutionRequest::PostActionPackage_Async()
 			uint64_t AttachmentBytes{};
 			FCbPackage ActionPackage;
 
-			State.BuildInputs.Get().IterateInputs([NeedHashes = State.NeedHashes, &ActionPackage, &AttachmentBytes](FStringView Key, const FCompressedBuffer& Buffer)
+			State.BuildInputs.Get().IterateInputs([NeedHashes = State.NeedHashes, &ActionPackage, &AttachmentBytes](FUtf8StringView Key, const FCompressedBuffer& Buffer)
 				{
 					if (NeedHashes.Contains(Buffer.GetRawHash()))
 					{

@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -20,9 +21,9 @@ class IBuildInputsInternal
 {
 public:
 	virtual ~IBuildInputsInternal() = default;
-	virtual FStringView GetName() const = 0;
-	virtual const FCompressedBuffer& FindInput(FStringView Key) const = 0;
-	virtual void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const = 0;
+	virtual const FSharedString& GetName() const = 0;
+	virtual const FCompressedBuffer& FindInput(FUtf8StringView Key) const = 0;
+	virtual void IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FCompressedBuffer& Buffer)> Visitor) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
 };
@@ -33,7 +34,7 @@ class IBuildInputsBuilderInternal
 {
 public:
 	virtual ~IBuildInputsBuilderInternal() = default;
-	virtual void AddInput(FStringView Key, const FCompressedBuffer& Buffer) = 0;
+	virtual void AddInput(FUtf8StringView Key, const FCompressedBuffer& Buffer) = 0;
 	virtual FBuildInputs Build() = 0;
 };
 
@@ -55,13 +56,13 @@ class FBuildInputs
 {
 public:
 	/** Returns the name by which to identify the inputs for logging and profiling. */
-	inline FStringView GetName() const { return Inputs->GetName(); }
+	inline const FSharedString& GetName() const { return Inputs->GetName(); }
 
 	/** Finds an input by key, or a null buffer if not found. */
-	inline const FCompressedBuffer& FindInput(FStringView Key) const { return Inputs->FindInput(Key); }
+	inline const FCompressedBuffer& FindInput(FUtf8StringView Key) const { return Inputs->FindInput(Key); }
 
-	/** Visits every input in order by key. */
-	inline void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const
+	/** Visits every input in order by key. The key view is valid for the lifetime of the inputs. */
+	inline void IterateInputs(TFunctionRef<void (FUtf8StringView Key, const FCompressedBuffer& Buffer)> Visitor) const
 	{
 		Inputs->IterateInputs(Visitor);
 	}
@@ -90,7 +91,7 @@ class FBuildInputsBuilder
 {
 public:
 	/** Add an input with a key that is unique within this input. */
-	inline void AddInput(FStringView Key, const FCompressedBuffer& Buffer)
+	inline void AddInput(FUtf8StringView Key, const FCompressedBuffer& Buffer)
 	{
 		InputsBuilder->AddInput(Key, Buffer);
 	}

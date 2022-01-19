@@ -11,6 +11,7 @@
 #include "Cooker/PackageBuildDependencyTracker.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildKey.h"
+#include "DerivedDataSharedString.h"
 #include "EditorDomain/EditorDomain.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/PlatformFile.h"
@@ -337,7 +338,7 @@ void FetchCookAttachments(TArrayView<FName> PackageNames, const ITargetPlatform*
 		for (FCbField BuildDefinitionObj : BuildDefinitionListObj)
 		{
 			UE::DerivedData::FOptionalBuildDefinition BuildDefinition =
-				UE::DerivedData::FBuildDefinition::Load(TEXT("TargetDomainBuildDefinitionList"),
+				UE::DerivedData::FBuildDefinition::Load(TEXTVIEW("TargetDomainBuildDefinitionList"),
 					BuildDefinitionObj.AsObject());
 			if (!BuildDefinition)
 			{

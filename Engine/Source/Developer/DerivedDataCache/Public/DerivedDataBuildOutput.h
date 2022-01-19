@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -32,8 +33,8 @@ class IBuildOutputInternal
 {
 public:
 	virtual ~IBuildOutputInternal() = default;
-	virtual FStringView GetName() const = 0;
-	virtual FStringView GetFunction() const = 0;
+	virtual const FSharedString& GetName() const = 0;
+	virtual const FUtf8SharedString& GetFunction() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
 	virtual const FValueWithId& GetValue(const FValueId& Id) const = 0;
 	virtual TConstArrayView<FValueWithId> GetValues() const = 0;
@@ -114,10 +115,10 @@ class FBuildOutput
 {
 public:
 	/** Returns the name by which to identify this output for logging and profiling. */
-	inline FStringView GetName() const { return Output->GetName(); }
+	inline const FSharedString& GetName() const { return Output->GetName(); }
 
 	/** Returns the name of the build function that produced this output. */
-	inline FStringView GetFunction() const { return Output->GetFunction(); }
+	inline const FUtf8SharedString& GetFunction() const { return Output->GetFunction(); }
 
 	/** Returns the optional metadata. */
 	inline const FCbObject& GetMeta() const { return Output->GetMeta(); }
@@ -160,8 +161,8 @@ public:
 	 * @param Output     The saved output to load.
 	 * @return A valid build output, or null on error.
 	 */
-	UE_API static FOptionalBuildOutput Load(FStringView Name, FStringView Function, const FCbObject& Output);
-	UE_API static FOptionalBuildOutput Load(FStringView Name, FStringView Function, const FCacheRecord& Output);
+	UE_API static FOptionalBuildOutput Load(const FSharedString& Name, const FUtf8SharedString& Function, const FCbObject& Output);
+	UE_API static FOptionalBuildOutput Load(const FSharedString& Name, const FUtf8SharedString& Function, const FCacheRecord& Output);
 
 private:
 	friend class FOptionalBuildOutput;

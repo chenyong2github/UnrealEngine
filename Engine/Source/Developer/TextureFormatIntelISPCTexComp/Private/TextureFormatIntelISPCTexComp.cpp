@@ -18,6 +18,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 
 #include "ispc_texcomp.h"
 
@@ -25,7 +26,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatIntelISPCTexComp, Log, All);
 
 class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("IntelISPCTexCompTexture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("IntelISPCTexCompTexture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{

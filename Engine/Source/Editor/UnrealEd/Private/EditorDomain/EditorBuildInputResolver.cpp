@@ -8,6 +8,7 @@
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
 #include "HAL/Event.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/BulkDataRegistry.h"
@@ -36,7 +37,7 @@ public:
 	virtual void Wait() override;
 
 	/** Stores the full set of Payload Futures and completes the creation of this IRequest */
-	void SetPayloads(TArrayView<TTuple<FString, TFuture<BulkPayloadType>>> BulkPayloads, EStatus OtherStatus);
+	void SetPayloads(TArrayView<TTuple<FUtf8StringView, TFuture<BulkPayloadType>>> BulkPayloads, EStatus OtherStatus);
 
 private:
 	/** Call the OnResolve function if it has not been canceled. */
@@ -51,12 +52,12 @@ private:
 	 * Log that a BulkData has failed to resolve.
 	 * The text of the message varies depending on whether the template type is for MetaData or Data.
 	*/
-	void LogBulkDataError(FStringView Key);
+	void LogBulkDataError(FUtf8StringView Key);
 
 	/** Holds the key and TFuture handle for one of the Inputs being resolved. */
 	struct FPayloadData
 	{
-		FString Key;
+		FUtf8StringView Key;
 		TFuture<void> Future;
 	};
 
@@ -116,31 +117,34 @@ void FEditorBuildInputResolver::ResolveInputMeta(const FBuildDefinition& Definit
 	FOnBuildInputMetaResolved&& OnResolved)
 {
 	EStatus OtherStatus = EStatus::Ok;
-	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildValueKey& ValueKey)
+	Definition.IterateInputBuilds([&OtherStatus, &Definition](FUtf8StringView Key, const FBuildValueKey& ValueKey)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputMeta: resolving InputBuilds is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: Resolving input builds is not yet implemented. ")
+				TEXT("Failed to resolve input build '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
 	/** Visits every input bulk data in order by key. */
-	TArray<TTuple<FString, TFuture<UE::BulkDataRegistry::FMetaData>>, TInlineAllocator<4>> BulkPayloads;
-	Definition.IterateInputBulkData([&BulkPayloads](FStringView Key, const FGuid& BulkDataId)
+	TArray<TTuple<FUtf8StringView, TFuture<UE::BulkDataRegistry::FMetaData>>, TInlineAllocator<4>> BulkPayloads;
+	Definition.IterateInputBulkData([&BulkPayloads](FUtf8StringView Key, const FGuid& BulkDataId)
 		{
-			BulkPayloads.Add(MakeTuple(FString(Key), IBulkDataRegistry::Get().GetMeta(BulkDataId)));
+			BulkPayloads.Emplace(Key, IBulkDataRegistry::Get().GetMeta(BulkDataId));
 		});
 
-	Definition.IterateInputFiles([&OtherStatus, &Definition](FStringView Key, FStringView Path)
+	Definition.IterateInputFiles([&OtherStatus, &Definition](FUtf8StringView Key, FUtf8StringView Path)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputMeta: resolving InputFiles is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: Resolving input files is not yet implemented. ")
+				TEXT("Failed to resolve input file '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
-	Definition.IterateInputHashes([&OtherStatus, &Definition](FStringView Key, const FIoHash& RawHash)
+	Definition.IterateInputHashes([&OtherStatus, &Definition](FUtf8StringView Key, const FIoHash& RawHash)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputMeta: resolving InputHashes is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: resolving input hashes is not yet implemented. ")
+				TEXT("Failed to resolve input hash '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
@@ -152,34 +156,37 @@ void FEditorBuildInputResolver::ResolveInputData(const FBuildDefinition& Definit
 	FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
 	EStatus OtherStatus = EStatus::Ok;
-	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildValueKey& PayloadKey)
+	Definition.IterateInputBuilds([&OtherStatus, &Definition](FUtf8StringView Key, const FBuildValueKey& PayloadKey)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputData resolving InputBuilds is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: Resolving input builds is not yet implemented. ")
+				TEXT("Failed to resolve input build '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
 	/** Visits every input bulk data in order by key. */
-	TArray<TTuple<FString, TFuture<UE::BulkDataRegistry::FData>>, TInlineAllocator<4>> BulkPayloads;
-	Definition.IterateInputBulkData([&BulkPayloads, &Filter](FStringView Key, const FGuid& BulkDataId)
+	TArray<TTuple<FUtf8StringView, TFuture<UE::BulkDataRegistry::FData>>, TInlineAllocator<4>> BulkPayloads;
+	Definition.IterateInputBulkData([&BulkPayloads, &Filter](FUtf8StringView Key, const FGuid& BulkDataId)
 		{
 			if (!Filter || Filter(Key))
 			{
-				BulkPayloads.Add(MakeTuple(FString(Key), IBulkDataRegistry::Get().GetData(BulkDataId)));
+				BulkPayloads.Emplace(Key, IBulkDataRegistry::Get().GetData(BulkDataId));
 			}
 		});
 
-	Definition.IterateInputFiles([&OtherStatus, &Definition](FStringView Key, FStringView Path)
+	Definition.IterateInputFiles([&OtherStatus, &Definition](FUtf8StringView Key, FUtf8StringView Path)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputData: resolving InputFiles is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: Resolving input files is not yet implemented. ")
+				TEXT("Failed to resolve input build '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
-	Definition.IterateInputHashes([&OtherStatus, &Definition](FStringView Key, const FIoHash& RawHash)
+	Definition.IterateInputHashes([&OtherStatus, &Definition](FUtf8StringView Key, const FIoHash& RawHash)
 		{
-			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputData: resolving InputHashes is not yet implemented. Context=%.*s, Key=%.*s"),
-				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
+			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver: Resolving input hashes is not yet implemented. ")
+				TEXT("Failed to resolve input build '%s' for build of '%s' by %s."),
+				*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 			OtherStatus = EStatus::Error;
 		});
 
@@ -192,10 +199,9 @@ void FEditorBuildInputResolver::ResolveInputData(const FBuildAction& Action, IRe
 {
 	UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver does not implement ResolveInputData from FBuildAction. ")
 		TEXT("Failed to resolve input data for build of '%s' by %s."),
-		*WriteToString<128>(Action.GetName()), *WriteToString<32>(Action.GetFunction()));
+		*Action.GetName(), *WriteToString<32>(Action.GetFunction()));
 	OnResolved({{}, EStatus::Error});
 }
-
 
 template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
 TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::TResolveInputRequest(
@@ -241,7 +247,7 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::W
 
 template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
 void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::SetPayloads(
-	TArrayView<TTuple<FString, TFuture<BulkPayloadType>>> InBulkPayloads, EStatus OtherStatus)
+	TArrayView<TTuple<FUtf8StringView, TFuture<BulkPayloadType>>> InBulkPayloads, EStatus OtherStatus)
 {
 	RemainingInputCount.fetch_add(InBulkPayloads.Num(), std::memory_order_relaxed);
 
@@ -250,20 +256,20 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::S
 	// without the need for synchronization.
 	PayloadDatas.Empty(InBulkPayloads.Num());
 	Payloads.Empty(InBulkPayloads.Num());
-	for (TTuple<FString, TFuture<BulkPayloadType>>& InPair : InBulkPayloads)
+	for (TTuple<FUtf8StringView, TFuture<BulkPayloadType>>& InPair : InBulkPayloads)
 	{
 		// Initialize the elements in Payloads and PayloadDatas before creating the Future that writes to the entry.
 		FPayloadData& PayloadData = PayloadDatas.Emplace_GetRef();
 		CallbackPayloadType& Payload = Payloads.Emplace_GetRef();
-		PayloadData.Key = MoveTemp(InPair.template Get<0>());
-		// Payload.Key is a view of the FString in PayloadData; this is safe because PayloadDatas will not reallocate.
+		PayloadData.Key = MoveTemp(InPair.template Get<FUtf8StringView>());
+		// Payload.Key is a view of the key from the definition or action; this is safe because it will outlive the request.
 		Payload.Key = PayloadData.Key;
 
 		// The callback we define may be called and write the Payload element before we finish assigning the Future
 		// and it may do so either from this thread or another thread.
 		// The lambda has a TRefCountPtr to *this; if the IBuildInputResolver drops its reference to *this
 		// before the final TFuture completes, *this will be deleted when the lambda completes.
-		PayloadData.Future = InPair.template Get<1>().Next(
+		PayloadData.Future = InPair.template Get<TFuture<BulkPayloadType>>().Next(
 			[pThis = TRefCountPtr<ThisType>(this), &Payload](BulkPayloadType&& Result)
 			{
 				if (Result.bValid)
@@ -339,19 +345,17 @@ void FResolveInputDataRequest::AssignBulkPayload(FBuildInputDataByKey& OutPayloa
 }
 
 template<>
-void FResolveInputMetaRequest::LogBulkDataError(FStringView Key)
+void FResolveInputMetaRequest::LogBulkDataError(FUtf8StringView Key)
 {
-	UE_LOG(LogCore, Error, TEXT("Failed to resolve metadata for bulkdata input '%.*s' for build of '%.*s' by %.*s."),
-		Key.Len(), Key.GetData(), Definition.GetName().Len(), Definition.GetName().GetData(),
-		Definition.GetFunction().Len(), Definition.GetFunction().GetData());
+	UE_LOG(LogCore, Error, TEXT("Failed to resolve metadata for bulk data input '%s' for build of '%s' by %s."),
+		*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 }
 
 template<>
-void FResolveInputDataRequest::LogBulkDataError(FStringView Key)
+void FResolveInputDataRequest::LogBulkDataError(FUtf8StringView Key)
 {
-	UE_LOG(LogCore, Error, TEXT("Failed to resolve data for bulkdata input '%.*s' for build of '%.*s' by %.*s."),
-		Key.Len(), Key.GetData(), Definition.GetName().Len(), Definition.GetName().GetData(),
-		Definition.GetFunction().Len(), Definition.GetFunction().GetData());
+	UE_LOG(LogCore, Error, TEXT("Failed to resolve data for bulk data input '%s' for build of '%s' by %s."),
+		*WriteToString<32>(Key), *Definition.GetName(), *WriteToString<32>(Definition.GetFunction()));
 }
 
 } // namespace UE::DerivedData

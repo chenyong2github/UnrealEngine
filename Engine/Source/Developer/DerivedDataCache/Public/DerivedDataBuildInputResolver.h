@@ -22,7 +22,7 @@ namespace UE::DerivedData { struct FBuildKeyResolvedParams; }
 namespace UE::DerivedData
 {
 
-using FBuildInputFilter = TUniqueFunction<bool (FStringView Key)>;
+using FBuildInputFilter = TUniqueFunction<bool (FUtf8StringView Key)>;
 using FOnBuildInputDataResolved = TUniqueFunction<void (FBuildInputDataResolvedParams&& Params)>;
 using FOnBuildInputMetaResolved = TUniqueFunction<void (FBuildInputMetaResolvedParams&& Params)>;
 using FOnBuildKeyResolved = TUniqueFunction<void (FBuildKeyResolvedParams&& Params)>;
@@ -31,7 +31,7 @@ using FOnBuildKeyResolved = TUniqueFunction<void (FBuildKeyResolvedParams&& Para
 struct FBuildInputMetaByKey
 {
 	/** Key used to identify this input. */
-	FStringView Key;
+	FUtf8StringView Key;
 	/** Hash of the raw (uncompressed) input. */
 	FIoHash RawHash;
 	/** Size of the raw (uncompressed) input in bytes. */
@@ -42,7 +42,7 @@ struct FBuildInputMetaByKey
 struct FBuildInputDataByKey
 {
 	/** Key used to identify this input. */
-	FStringView Key;
+	FUtf8StringView Key;
 	/** Data for the input. */
 	FCompressedBuffer Data;
 };

@@ -41,7 +41,7 @@ public:
 	virtual FStringView GetHostPlatform() const = 0;
 	virtual FGuid GetBuildSystemVersion() const = 0;
 	virtual void FindFileData(TConstArrayView<FIoHash> RawHashes, IRequestOwner& Owner, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
-	virtual void IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const = 0;
+	virtual void IterateFunctions(TFunctionRef<void (FUtf8StringView Name, const FGuid& Version)> Visitor) const = 0;
 	virtual void IterateFiles(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void IterateExecutables(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void IterateEnvironment(TFunctionRef<void (FStringView Name, FStringView Value)> Visitor) const = 0;
@@ -55,7 +55,7 @@ public:
 	virtual void SetPath(FStringView Path) = 0;
 	virtual void SetHostPlatform(FStringView Name) = 0;
 	virtual void SetBuildSystemVersion(const FGuid& Version) = 0;
-	virtual void AddFunction(FStringView Name, const FGuid& Version) = 0;
+	virtual void AddFunction(FUtf8StringView Name, const FGuid& Version) = 0;
 	virtual void AddFile(FStringView Path, const FIoHash& RawHash, uint64 RawSize) = 0;
 	virtual void AddExecutable(FStringView Path, const FIoHash& RawHash, uint64 RawSize) = 0;
 	virtual void SetEnvironment(FStringView Name, FStringView Value) = 0;
@@ -103,7 +103,7 @@ struct FBuildWorkerActionCompleteParams
 {
 	FBuildActionKey Key;
 	FOptionalBuildOutput&& Output;
-	TConstArrayView<FStringView> MissingInputs;
+	TConstArrayView<FUtf8StringView> MissingInputs;
 	EStatus Status = EStatus::Error;
 };
 

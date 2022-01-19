@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "DerivedDataRequestTypes.h"
 
 template <typename FuncType> class TUniqueFunction;
@@ -34,9 +35,9 @@ class IBuildJob
 {
 public:
 	/** Returns the name by which to identify this job for logging and profiling. */
-	virtual FStringView GetName() const = 0;
+	virtual const FSharedString& GetName() const = 0;
 	/** Returns the name of the function to build with, or "Unknown" if not resolved yet. */
-	virtual FStringView GetFunction() const = 0;
+	virtual const FUtf8SharedString& GetFunction() const = 0;
 
 	/** Returns the cache associated with this job. */
 	virtual ICache& GetCache() const = 0;

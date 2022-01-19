@@ -4,8 +4,8 @@
 
 #include "Containers/StringFwd.h"
 #include "DerivedDataBuildTypes.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "Logging/LogMacros.h"
-#include "Misc/AsciiSet.h"
 
 struct FGuid;
 
@@ -40,6 +40,8 @@ IBuild* CreateBuild(ICache& Cache);
 
 // Implemented in DerivedDataBuildFunctionRegistry.cpp
 IBuildFunctionRegistry* CreateBuildFunctionRegistry();
+bool IsValidBuildFunctionName(FUtf8StringView Function);
+void AssertValidBuildFunctionName(FUtf8StringView Function, FStringView Name);
 
 // Implemented in DerivedDataBuildWorkerRegistry.cpp
 IBuildWorkerRegistry* CreateBuildWorkerRegistry();
@@ -48,21 +50,21 @@ IBuildWorkerRegistry* CreateBuildWorkerRegistry();
 IBuildScheduler* CreateBuildScheduler();
 
 // Implemented in DerivedDataBuildDefinition.cpp
-FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function);
+FBuildDefinitionBuilder CreateBuildDefinition(const FSharedString& Name, const FUtf8SharedString& Function);
 
 // Implemented in DerivedDataBuildAction.cpp
-FBuildActionBuilder CreateBuildAction(FStringView Name, FStringView Function, const FGuid& FunctionVersion, const FGuid& BuildSystemVersion);
+FBuildActionBuilder CreateBuildAction(const FSharedString& Name, const FUtf8SharedString& Function, const FGuid& FunctionVersion, const FGuid& BuildSystemVersion);
 
 // Implemented in DerivedDataBuildInput.cpp
-FBuildInputsBuilder CreateBuildInputs(FStringView Name);
+FBuildInputsBuilder CreateBuildInputs(const FSharedString& Name);
 
 // Implemented in DerivedDataBuildOutput.cpp
-FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function);
+FBuildOutputBuilder CreateBuildOutput(const FSharedString& Name, const FUtf8SharedString& Function);
 FValueId GetBuildOutputValueId();
 
 // Implemented in DerivedDataBuildSession.cpp
 FBuildSession CreateBuildSession(
-	FStringView Name,
+	const FSharedString& Name,
 	ICache& Cache,
 	IBuild& BuildSystem,
 	IBuildScheduler& Scheduler,
@@ -94,20 +96,5 @@ void CreateBuildJob(
 	const FOptionalBuildInputs& Inputs,
 	const FBuildPolicy& Policy,
 	FOnBuildComplete&& OnComplete);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline bool IsValidBuildFunctionName(FStringView Function)
-{
-	constexpr FAsciiSet Valid("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-	return !Function.IsEmpty() && FAsciiSet::HasOnly(Function, Valid);
-}
-
-inline void AssertValidBuildFunctionName(FStringView Function, FStringView Name)
-{
-	checkf(IsValidBuildFunctionName(Function),
-		TEXT("A build function name must be alphanumeric and non-empty for build of '%.*s' by '%.*s'."),
-		Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
-}
 
 } // UE::DerivedData::Private

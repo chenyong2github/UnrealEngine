@@ -2,12 +2,12 @@
 
 #include "DerivedDataBuildSession.h"
 
-#include "Containers/UnrealString.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
+#include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
 
 namespace UE::DerivedData::Private
@@ -17,7 +17,7 @@ class FBuildSessionInternal final : public IBuildSessionInternal
 {
 public:
 	FBuildSessionInternal(
-		FStringView InName,
+		const FSharedString& InName,
 		ICache& InCache,
 		IBuild& InBuildSystem,
 		IBuildScheduler& InScheduler,
@@ -30,7 +30,7 @@ public:
 	{
 	}
 
-	FStringView GetName() const final { return Name; }
+	const FSharedString& GetName() const final { return Name; }
 
 	void Build(
 		const FBuildKey& Key,
@@ -52,7 +52,7 @@ public:
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) final;
 
-	FString Name;
+	FSharedString Name;
 	ICache& Cache;
 	IBuild& BuildSystem;
 	IBuildScheduler& Scheduler;
@@ -101,7 +101,7 @@ FBuildSession CreateBuildSession(IBuildSessionInternal* Session)
 }
 
 FBuildSession CreateBuildSession(
-	FStringView Name,
+	const FSharedString& Name,
 	ICache& Cache,
 	IBuild& BuildSystem,
 	IBuildScheduler& Scheduler,

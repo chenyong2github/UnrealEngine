@@ -8,6 +8,7 @@
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildWorker.h"
+#include "DerivedDataSharedString.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/CriticalSection.h"
 #include "IO/IoHash.h"
@@ -36,10 +37,10 @@ public:
 
 	void FindFileData(TConstArrayView<FIoHash> RawHashes, IRequestOwner& Owner, FOnBuildWorkerFileDataComplete&& OnComplete) const final;
 
-	void IterateFunctions(TFunctionRef<void (FStringView WorkerName, const FGuid& Version)> Visitor) const final;
-	void IterateFiles(TFunctionRef<void (FStringView WorkerPath, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
-	void IterateExecutables(TFunctionRef<void (FStringView WorkerPath, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
-	void IterateEnvironment(TFunctionRef<void (FStringView WorkerName, FStringView Value)> Visitor) const final;
+	void IterateFunctions(TFunctionRef<void (FUtf8StringView Name, const FGuid& Version)> Visitor) const final;
+	void IterateFiles(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
+	void IterateExecutables(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
+	void IterateEnvironment(TFunctionRef<void (FStringView Name, FStringView Value)> Visitor) const final;
 
 private:
 	inline void SetName(FStringView Name) final { WorkerName = Name; }
@@ -47,7 +48,7 @@ private:
 	inline void SetHostPlatform(FStringView Name) final { HostPlatform = Name; }
 	inline void SetBuildSystemVersion(const FGuid& Version) final { BuildSystemVersion = Version; }
 
-	void AddFunction(FStringView Name, const FGuid& Version) final;
+	void AddFunction(FUtf8StringView Name, const FGuid& Version) final;
 	void AddFile(FStringView Path, const FIoHash& RawHash, uint64 RawSize) final;
 	void AddExecutable(FStringView Path, const FIoHash& RawHash, uint64 RawSize) final;
 	void SetEnvironment(FStringView Name, FStringView Value) final;
@@ -57,7 +58,7 @@ private:
 	FString WorkerPath;
 	FString HostPlatform;
 	FGuid BuildSystemVersion;
-	TArray<TTuple<FString, FGuid>> Functions;
+	TArray<TTuple<FUtf8SharedString, FGuid>> Functions;
 	TArray<TTuple<FString, FIoHash, uint64>> Files;
 	TArray<TTuple<FString, FIoHash, uint64>> Executables;
 	TArray<TTuple<FString, FString>> Environment;
@@ -77,9 +78,9 @@ void FBuildWorkerInternal::FindFileData(TConstArrayView<FIoHash> RawHashes, IReq
 	return Factory->FindFileData(RawHashes, Owner, MoveTemp(OnComplete));
 }
 
-void FBuildWorkerInternal::IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const
+void FBuildWorkerInternal::IterateFunctions(TFunctionRef<void (FUtf8StringView Name, const FGuid& Version)> Visitor) const
 {
-	for (const TTuple<FString, FGuid>& Function : Functions)
+	for (const TTuple<FUtf8SharedString, FGuid>& Function : Functions)
 	{
 		Function.ApplyAfter(Visitor);
 	}
@@ -109,11 +110,11 @@ void FBuildWorkerInternal::IterateEnvironment(TFunctionRef<void (FStringView Nam
 	}
 }
 
-void FBuildWorkerInternal::AddFunction(FStringView Name, const FGuid& Version)
+void FBuildWorkerInternal::AddFunction(FUtf8StringView Name, const FGuid& Version)
 {
 	UE_CLOG(!Version.IsValid(), LogDerivedDataBuild, Error,
-		TEXT("Version of zero is not allowed in build function with the name %.*s in build worker '%.s'."),
-		Name.Len(), Name.GetData(), *WorkerName);
+		TEXT("Version of zero is not allowed in build function with the name %s in build worker '%s'."),
+		*WriteToString<32>(Name), *WorkerName);
 	Functions.Emplace(Name, Version);
 }
 
@@ -141,7 +142,7 @@ public:
 	~FBuildWorkerRegistry();
 
 	FBuildWorker* FindWorker(
-		FStringView Function,
+		const FUtf8SharedString& Function,
 		const FGuid& FunctionVersion,
 		const FGuid& BuildSystemVersion,
 		IBuildWorkerExecutor*& OutWorkerExecutor) const final;
@@ -157,7 +158,7 @@ private:
 	mutable FRWLock Lock;
 	IBuildWorkerExecutor* Executor = nullptr;
 	TMap<IBuildWorkerFactory*, TUniquePtr<FBuildWorker>> Workers;
-	TMultiMap<TTuple<FString, FGuid>, FBuildWorker*> Functions;
+	TMultiMap<TTuple<FUtf8SharedString, FGuid>, FBuildWorker*> Functions;
 };
 
 FBuildWorkerRegistry::FBuildWorkerRegistry()
@@ -221,9 +222,9 @@ void FBuildWorkerRegistry::AddWorker(IBuildWorkerFactory* Factory)
 	Worker->Build();
 
 	FWriteScopeLock WriteLock(Lock);
-	Worker->IterateFunctions([this, Worker = Worker.Get()](FStringView Name, const FGuid& Version)
+	Worker->IterateFunctions([this, Worker = Worker.Get()](FUtf8StringView Name, const FGuid& Version)
 	{
-		Functions.Emplace(TTuple<FString, FGuid>(Name, Version), Worker);
+		Functions.Emplace(MakeTuple(FUtf8SharedString(Name), Version), Worker);
 	});
 	Workers.Emplace(Factory, MoveTemp(Worker));
 }
@@ -232,15 +233,15 @@ void FBuildWorkerRegistry::RemoveWorker(IBuildWorkerFactory* Factory)
 {
 	FWriteScopeLock WriteLock(Lock);
 	TUniquePtr<FBuildWorker>& Worker = Workers.FindChecked(Factory);
-	Worker->IterateFunctions([this, Worker = Worker.Get()] (FStringView Name, const FGuid& Version)
+	Worker->IterateFunctions([this, Worker = Worker.Get()](FUtf8StringView Name, const FGuid& Version)
 	{
-		Functions.Remove(TTuple<FString, FGuid>(Name, Version), Worker);
+		Functions.Remove(MakeTuple(FUtf8SharedString(Name), Version), Worker);
 	});
 	Workers.Remove(Factory);
 }
 
 FBuildWorker* FBuildWorkerRegistry::FindWorker(
-	FStringView Function,
+	const FUtf8SharedString& Function,
 	const FGuid& FunctionVersion,
 	const FGuid& BuildSystemVersion,
 	IBuildWorkerExecutor*& OutWorkerExecutor) const
@@ -250,7 +251,7 @@ FBuildWorker* FBuildWorkerRegistry::FindWorker(
 	{
 		TConstArrayView<FStringView> ExecutorHostPlatforms = Executor->GetHostPlatforms();
 		TArray<FBuildWorker*, TInlineAllocator<8>> FunctionWorkers;
-		Functions.MultiFind(TTuple<FString, FGuid>(Function, FunctionVersion), FunctionWorkers);
+		Functions.MultiFind(MakeTuple(Function, FunctionVersion), FunctionWorkers);
 		for (FBuildWorker* Worker : FunctionWorkers)
 		{
 			if (Worker->GetBuildSystemVersion() == BuildSystemVersion &&

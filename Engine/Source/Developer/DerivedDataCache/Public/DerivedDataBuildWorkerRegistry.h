@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/StringFwd.h"
+#include "DerivedDataSharedStringFwd.h"
 
 struct FGuid;
 
@@ -31,7 +31,7 @@ public:
 	 * @return A build worker and executor if a compatible pair was found, or null for both.
 	 */
 	virtual FBuildWorker* FindWorker(
-		FStringView Function,
+		const FUtf8SharedString& Function,
 		const FGuid& FunctionVersion,
 		const FGuid& BuildSystemVersion,
 		IBuildWorkerExecutor*& OutWorkerExecutor) const = 0;

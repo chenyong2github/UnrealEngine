@@ -68,22 +68,20 @@ public:
 		// Review build action inputs to determine if they need to be materialized/propagated 
 		// (right now, they always will be)
 
-		TArray<FString> MissingInputs;
-		TArray<FStringView> MissingInputViews;
+		TArray<FUtf8StringView> MissingInputs;
 
-		Action.IterateInputs([&](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.IterateInputs([&](FUtf8StringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			if (Inputs.IsNull() || Inputs.Get().FindInput(Key).IsNull())
 			{
 				MissingInputs.Emplace(Key);
-				MissingInputViews.Add(MissingInputs.Last());
 			}
 		});
 
-		if (!MissingInputViews.IsEmpty())
+		if (!MissingInputs.IsEmpty())
 		{
 			// Report missing inputs
-			return OnComplete({Action.GetKey(), {}, MissingInputViews, EStatus::Ok});
+			return OnComplete({Action.GetKey(), {}, MissingInputs, EStatus::Ok});
 		}
 
 		// This path will execute the build action synchronously in a scratch directory
@@ -154,7 +152,7 @@ public:
 
 		if (!Inputs.IsNull())
 		{
-			Inputs.Get().IterateInputs([&SandboxRoot](FStringView Key, const FCompressedBuffer& Buffer)
+			Inputs.Get().IterateInputs([&SandboxRoot](FUtf8StringView Key, const FCompressedBuffer& Buffer)
 			{
 				TStringBuilder<256> Path;
 				FPathViews::Append(Path, SandboxRoot, TEXT("Inputs"), FIoHash(Buffer.GetRawHash()));

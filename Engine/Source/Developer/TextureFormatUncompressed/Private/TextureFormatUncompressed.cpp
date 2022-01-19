@@ -11,12 +11,17 @@
 #include "ImageCore.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "DerivedDataSharedString.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatUncompressed, Log, All);
 
 class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 {
-	FStringView GetName() const final { return TEXT("UncompressedTexture"); }
+	const UE::DerivedData::FUtf8SharedString& GetName() const final
+	{
+		static const UE::DerivedData::FUtf8SharedString Name(UTF8TEXTVIEW("UncompressedTexture"));
+		return Name;
+	}
 
 	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
