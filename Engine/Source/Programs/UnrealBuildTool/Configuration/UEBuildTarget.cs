@@ -708,7 +708,15 @@ namespace UnrealBuildTool
 			TargetRules RulesObject;
 			using (GlobalTracer.Instance.BuildSpan("RulesAssembly.CreateTargetRules()").StartActive())
 			{
-				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
+				if (!Descriptor.IsTestsTarget) {
+					RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
+				}
+				else
+				{
+					// Get testable target first, then use its tests executable target instead
+					RulesObject = RulesAssembly.CreateTargetRules(TargetDescriptor.GetTestedTargetName(Descriptor.Name), Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
+					RulesObject = RulesObject.CreateOrGetTestTarget();
+				}
 			}
 			if ((ProjectFileGenerator.bGenerateProjectFiles == false) && !RulesObject.GetSupportedPlatforms().Contains(Descriptor.Platform))
 			{
@@ -3557,7 +3565,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the launch module
-			UEBuildModuleCPP LaunchModule = FindOrCreateCppModuleByName(Rules.LaunchModuleName, TargetRulesFile.GetFileName());
+			UEBuildModuleCPP LaunchModule = FindOrCreateCppModuleByName(Rules.LaunchModuleName, TargetRulesFile.GetFileName(), Rules.IsTestTarget());
 
 			// Get the intermediate directory for the launch module directory. This can differ from the standard engine intermediate directory because it is always configuration-specific.
 			DirectoryReference IntermediateDirectory;
@@ -4016,10 +4024,19 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create a rules object for the given module, and set any default values for this target
 		/// </summary>
-		private ModuleRules CreateModuleRulesAndSetDefaults(string ModuleName, string ReferenceChain)
+		private ModuleRules CreateModuleRulesAndSetDefaults(string ModuleName, string ReferenceChain, bool IsTestModule = false)
 		{
 			// Create the rules from the assembly
-			ModuleRules RulesObject = RulesAssembly.CreateModuleRules(ModuleName, Rules, ReferenceChain);
+			ModuleRules RulesObject;
+			if (IsTestModule)
+			{
+				RulesObject = RulesAssembly.CreateModuleRules(TargetDescriptor.GetTestedTargetName(ModuleName), new ReadOnlyTargetRules(Rules.TestedTarget), ReferenceChain);
+				RulesObject = new TestModuleRules(RulesObject);
+			}
+			else
+			{
+				RulesObject = RulesAssembly.CreateModuleRules(ModuleName, Rules, ReferenceChain);
+			}
 
 			// Set whether the module requires an IMPLEMENT_MODULE macro
 			if(!RulesObject.bRequiresImplementModule.HasValue)
@@ -4115,18 +4132,26 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ModuleName">Name of the module</param>
 		/// <param name="ReferenceChain">Chain of references causing this module to be instantiated, for display in error messages</param>
-		public UEBuildModule FindOrCreateModuleByName(string ModuleName, string ReferenceChain)
+		/// <param name="IsTestModule">Whether it's a test module or not</param>
+		public UEBuildModule FindOrCreateModuleByName(string ModuleName, string ReferenceChain, bool IsTestModule = false)
 		{
 			UEBuildModule? Module;
 			if (!Modules.TryGetValue(ModuleName, out Module))
 			{
 				// @todo projectfiles: Cross-platform modules can appear here during project generation, but they may have already
 				//   been filtered out by the project generator.  This causes the projects to not be added to directories properly.
-				ModuleRules RulesObject = CreateModuleRulesAndSetDefaults(ModuleName, ReferenceChain);
+				ModuleRules RulesObject = CreateModuleRulesAndSetDefaults(ModuleName, ReferenceChain, IsTestModule);
 				DirectoryReference ModuleDirectory = RulesObject.File.Directory;
 
+				// If we're building a test executable, include test harness dependency
+				if (!IsTestModule && ReferenceChain.Contains(typeof(TestModuleRules).Name) && Directory.Exists(RulesObject.TestsDirectory))
+				{
+					// TODO: If explicit Tests module rules exists, use that one instead
+					RulesObject.PrivateDependencyModuleNames.Add("LowLevelTestsRunner");
+				}
+
 				// Clear the bUsePrecompiled flag if we're compiling a foreign plugin; since it's treated like an engine module, it will default to true in an installed build.
-				if(RulesObject.Plugin != null && RulesObject.Plugin.File == ForeignPlugin)
+				if (RulesObject.Plugin != null && RulesObject.Plugin.File == ForeignPlugin)
 				{
 					RulesObject.bPrecompile = true;
 					RulesObject.bUsePrecompiled = false;
@@ -4164,7 +4189,7 @@ namespace UnrealBuildTool
 					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, PlatformIntermediateFolder, AppName, "Inc");
 
 					// Append the binaries subfolder, if present. We rely on this to ensure that build products can be filtered correctly.
-					if(RulesObject.BinariesSubFolder != null)
+					if (RulesObject.BinariesSubFolder != null)
 					{
 						GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, RulesObject.BinariesSubFolder);
 					}
@@ -4190,7 +4215,7 @@ namespace UnrealBuildTool
 					// If it's a game module (plugin or otherwise), add the root source directory to the include paths.
 					if (RulesObject.File.IsUnderDirectory(TargetRulesFile.Directory) || (RulesObject.Plugin != null && RulesObject.Plugin.LoadedFrom == PluginLoadedFrom.Project))
 					{
-						if(DirectoryReference.Exists(BaseSourceDirectory))
+						if (DirectoryReference.Exists(BaseSourceDirectory))
 						{
 							RulesObject.PublicIncludePaths.Add(NormalizeIncludePath(BaseSourceDirectory));
 						}
@@ -4241,10 +4266,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ModuleName">Name of the module</param>
 		/// <param name="ReferenceChain">Chain of references causing this module to be instantiated, for display in error messages</param>
+		/// <param name="IsTestModule">Whether it's a test module.</param>
 		/// <returns>New C++ module</returns>
-		public UEBuildModuleCPP FindOrCreateCppModuleByName(string ModuleName, string ReferenceChain)
+		public UEBuildModuleCPP FindOrCreateCppModuleByName(string ModuleName, string ReferenceChain, bool IsTestModule = false)
 		{
-			UEBuildModuleCPP? CppModule = FindOrCreateModuleByName(ModuleName, ReferenceChain) as UEBuildModuleCPP;
+			UEBuildModuleCPP? CppModule = FindOrCreateModuleByName(ModuleName, ReferenceChain, IsTestModule) as UEBuildModuleCPP;
 			if(CppModule == null)
 			{
 				throw new BuildException("'{0}' is not a C++ module (referenced via {1})", ModuleName, ReferenceChain);

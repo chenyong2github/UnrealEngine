@@ -1041,6 +1041,17 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Returns module's low level tests directory "Tests".
+		/// </summary>
+		public string TestsDirectory
+		{
+			get
+			{
+				return Path.Combine(Directory.FullName, "Tests");
+			}
+		}
+
 #nullable disable
 		/// <summary>
 		/// Constructor. For backwards compatibility while the parameterless constructor is being phased out, initialization which would happen here is done by 

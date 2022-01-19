@@ -16,12 +16,20 @@ namespace UnrealBuildTool
 	/// </summary>
 	class TargetDescriptor
 	{
+		public static string TEST_TARGETS_SUFFIX = "Tests";
+
 		public FileReference? ProjectFile;
 		public string Name;
 		public UnrealTargetPlatform Platform;
 		public UnrealTargetConfiguration Configuration;
 		public string Architecture;
 		public CommandLineArguments AdditionalArguments;
+		public bool IsTestsTarget = false;
+
+		public static string GetTestedTargetName(string Name)
+		{
+			return Name.Substring(0, Name.Length - TEST_TARGETS_SUFFIX.Length);
+		}
 
 		/// <summary>
 		/// Foreign plugin to compile against this target
@@ -158,6 +166,11 @@ namespace UnrealBuildTool
 				}
 			}
 			this.AdditionalArguments = new CommandLineArguments(AdditionalArguments.ToArray());
+		}
+
+		public TargetDescriptor Copy()
+		{
+			return (TargetDescriptor)this.MemberwiseClone();
 		}
 
 		public static TargetDescriptor FromTargetInfo(TargetInfo Info)

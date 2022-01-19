@@ -940,7 +940,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public delegate UEBuildModule CreateModuleDelegate(string Name, string ReferenceChain);
+		public delegate UEBuildModule CreateModuleDelegate(string Name, string ReferenceChain, bool IsTestModule = false);
 
 		/// <summary>
 		/// Public entry point to recursively create a module and all its dependencies

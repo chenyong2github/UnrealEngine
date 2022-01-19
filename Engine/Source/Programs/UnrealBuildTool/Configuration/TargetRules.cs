@@ -215,6 +215,21 @@ namespace UnrealBuildTool
 
 		private readonly string DefaultName;
 
+		private TestTargetRules? TestTargetRules;
+
+		/// <summary>
+		/// Create and return test target executable on demand for this target and its dependencies' tests.
+		/// </summary>
+		public TestTargetRules CreateOrGetTestTarget()
+		{
+			if (TestTargetRules == null)
+			{
+				TargetInfo TestsTargetInfo = new TargetInfo(Name + TargetDescriptor.TEST_TARGETS_SUFFIX, Platform, Configuration, Architecture, ProjectFile, null);
+				TestTargetRules = new TestTargetRules(this, TestsTargetInfo);
+			}
+			return TestTargetRules;	
+		}
+
 		/// <summary>
 		/// File containing the general type for this target (not including platform/group)
 		/// </summary>
@@ -1414,7 +1429,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				return (LaunchModuleNamePrivate == null && Type != global::UnrealBuildTool.TargetType.Program)? "Launch" : LaunchModuleNamePrivate;
+				return (LaunchModuleNamePrivate == null && Type != global::UnrealBuildTool.TargetType.Program) ? "Launch" : LaunchModuleNamePrivate;
 			}
 			set
 			{
@@ -1785,6 +1800,11 @@ namespace UnrealBuildTool
 		/// <returns>Array of platforms that the target supports</returns>
 		internal UnrealTargetPlatform[] GetSupportedPlatforms()
 		{
+			if (this is TestTargetRules TestTarget)
+			{
+				return TestTarget.TestedTarget.GetSupportedPlatforms();
+			}
+
 			// Otherwise take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
 			for (Type? CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
@@ -1962,6 +1982,19 @@ namespace UnrealBuildTool
 		public string Name
 		{
 			get { return Inner.Name; }
+		}
+
+		public TestTargetRules TestTarget { get { return Inner.CreateOrGetTestTarget(); } }
+
+		public TargetRules TestedTarget {
+			get
+			{
+				if (Inner is TestTargetRules)
+				{
+					return ((TestTargetRules)Inner).TestedTarget;
+				}
+				throw new Exception("Not a test target.");
+			}
 		}
 
 		internal FileReference File
@@ -2938,6 +2971,11 @@ namespace UnrealBuildTool
 		public string UEThirdPartyBinariesDirectory
 		{
 			get { return "../Binaries/ThirdParty/"; }
+		}
+
+		public bool IsTestTarget()
+		{
+			return Inner is TestTargetRules;
 		}
 
 		/// <summary>

@@ -3,13 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -259,7 +255,6 @@ namespace UnrealBuildTool
 		/// <returns>Result from the compilation</returns>
 		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference? WriteOutdatedActionsFile, bool bSkipPreBuildTargets = false)
 		{
-
 			List<TargetMakefile> TargetMakefiles = new List<TargetMakefile>();
 
 			for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
@@ -571,7 +566,7 @@ namespace UnrealBuildTool
 						XGE.ExportActions(MergedActionsToExecute);
 					}
 				}
-				else if(WriteOutdatedActionsFile != null)
+				else if (WriteOutdatedActionsFile != null)
 				{
 					OutputToolchainInfo(TargetDescriptors, Makefiles);
 
