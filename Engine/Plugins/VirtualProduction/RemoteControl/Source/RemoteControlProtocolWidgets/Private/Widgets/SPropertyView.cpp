@@ -72,7 +72,6 @@ int32 SPropertyView::DesiredWidth = 400.f;
 
 void SPropertyView::Construct(const FArguments& InArgs)
 {
-	bHasCustomPrepass = true;
 	Object = TStrongObjectPtr<UObject>(InArgs._Object);
 	RootPropertyName = InArgs._RootPropertyName;
 	NameVisibility = InArgs._NameVisibility;
