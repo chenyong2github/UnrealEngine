@@ -1541,7 +1541,7 @@ void UEditorAssetLibrary::SyncBrowserToObjects(const TArray<FString>& AssetPaths
 			}
 			else
 			{
-				UE_LOG(LogEditorScripting, Warning, TEXT("SyncBrowserToObjects. Cannot sync: %s"), *AssetPath, *FailureReason);
+				UE_LOG(LogEditorScripting, Warning, TEXT("SyncBrowserToObjects. Cannot sync %s : %s"), *AssetPath, *FailureReason);
 			}
 		}
 		if (Assets.Num() > 0)

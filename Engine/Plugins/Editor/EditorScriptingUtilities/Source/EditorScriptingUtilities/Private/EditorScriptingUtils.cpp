@@ -381,12 +381,6 @@ namespace EditorScriptingUtils
 			return FAssetData();
 		}
 
-		if (FEditorFileUtils::IsMapPackageAsset(ObjectPath))
-		{
-			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *ObjectPath);
-			return FAssetData();
-		}
-
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
 		if (!AssetData.IsValid())
@@ -394,13 +388,7 @@ namespace EditorScriptingUtils
 			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' could not be found in the Content Browser."), *ObjectPath);
 			return FAssetData();
 		}
-
-		// Prevent loading a umap...
-		if (!IsPackageFlagsSupportedForAssetLibrary(AssetData.PackageFlags))
-		{
-			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *ObjectPath);
-			return FAssetData();
-		}
+		
 		return AssetData;
 	}
 
