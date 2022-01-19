@@ -23,7 +23,63 @@ namespace Metasound
 			} // namespace NodeLayout
 		} // namespace DisplayStyle
 	} // namespace Frontend
-}
+
+	namespace DocumentPrivate
+	{
+		/*
+		 * Sets an array to a given array and updates the change ID if the array changed.
+		 * @returns true if value changed, false if not.
+		 */
+		template <typename TElementType>
+		bool SetWithChangeID(const TElementType& InNewValue, TElementType& OutValue, FGuid& OutChangeID)
+		{
+			if (OutValue != InNewValue)
+			{
+				OutValue = InNewValue;
+				OutChangeID = FGuid::NewGuid();
+				return true;
+			}
+
+			return false;
+		}
+
+		/* Array Text specialization as FText does not implement == nor does it support IsBytewiseComparable */
+		template <>
+		bool SetWithChangeID<TArray<FText>>(const TArray<FText>& InNewArray, TArray<FText>& OutArray, FGuid& OutChangeID)
+		{
+			bool bIsEqual = OutArray.Num() == InNewArray.Num();
+			if (bIsEqual)
+			{
+				for (int32 i = 0; i < InNewArray.Num(); ++i)
+				{
+					bIsEqual &= InNewArray[i].IdenticalTo(OutArray[i]);
+				}
+			}
+
+			if (!bIsEqual)
+			{
+				OutArray = InNewArray;
+				OutChangeID = FGuid::NewGuid();
+			}
+
+			return !bIsEqual;
+		}
+
+		/* Text specialization as FText does not implement == nor does it support IsBytewiseComparable */
+		template <>
+		bool SetWithChangeID<FText>(const FText& InNewText, FText& OutText, FGuid& OutChangeID)
+		{
+			if (!InNewText.IdenticalTo(OutText))
+			{
+				OutText = InNewText;
+				OutChangeID = FGuid::NewGuid();
+				return true;
+			}
+
+			return false;
+		}
+	}
+} // namespace Metasound
 
 FMetasoundFrontendNodeInterface::FMetasoundFrontendNodeInterface(const FMetasoundFrontendClassInterface& InClassInterface)
 {
@@ -123,18 +179,88 @@ bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 	return !(InLHS == InRHS);
 }
 
-FMetasoundFrontendClassMetadata::FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata)
-: ClassName(InNodeClassMetadata.ClassName)
-, Version{ InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion }
-, Type(EMetasoundFrontendClassType::External)
-, DisplayName(InNodeClassMetadata.DisplayName)
-, Description(InNodeClassMetadata.Description)
-, PromptIfMissing(InNodeClassMetadata.PromptIfMissing)
-, Author(InNodeClassMetadata.Author)
-, Keywords(InNodeClassMetadata.Keywords)
-, CategoryHierarchy(InNodeClassMetadata.CategoryHierarchy)
-, bIsDeprecated(InNodeClassMetadata.bDeprecated)
+void FMetasoundFrontendClassMetadata::SetAuthor(const FText& InAuthor)
 {
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InAuthor, Author, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(bInAutoUpdateManagesInterface, bAutoUpdateManagesInterface, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InCategoryHierarchy, CategoryHierarchy, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetKeywords(const TArray<FText>& InKeywords)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InKeywords, Keywords, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClassName& InClassName)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InClassName, ClassName, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetDescription(const FText& InDescription)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InDescription, Description, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetDisplayName(const FText& InDisplayName)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InDisplayName, DisplayName, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetIsDeprecated(bool bInIsDeprecated)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(bInIsDeprecated, bIsDeprecated, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetPromptIfMissing(const FText& InPromptIfMissing)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InPromptIfMissing, PromptIfMissing, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersionNumber& InVersion)
+{
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InVersion, Version, ChangeID);
+}
+
+FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
+{
+	FMetasoundFrontendClassMetadata NewMetadata;
+	NewMetadata.Type = InType;
+
+	// TODO: This flag is only used by the graph class' metadata.
+	// Should probably be moved elsewhere (AssetBase?) as to not
+	// get confused with behavior encapsulated on registry class
+	// descriptions/individual node class dependencies.
+	NewMetadata.bAutoUpdateManagesInterface = false;
+
+	NewMetadata.ClassName = InNodeClassMetadata.ClassName;
+	NewMetadata.Version = { InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion };
+	NewMetadata.DisplayName = InNodeClassMetadata.DisplayName;
+	NewMetadata.Description = InNodeClassMetadata.Description;
+	NewMetadata.PromptIfMissing = InNodeClassMetadata.PromptIfMissing;
+	NewMetadata.Author = InNodeClassMetadata.Author;
+	NewMetadata.Keywords = InNodeClassMetadata.Keywords;
+	NewMetadata.CategoryHierarchy = InNodeClassMetadata.CategoryHierarchy;
+	NewMetadata.bIsDeprecated = InNodeClassMetadata.bDeprecated;
+
+	return NewMetadata;
 }
 
 FMetasoundFrontendClassInput::FMetasoundFrontendClassInput(const FMetasoundFrontendClassVertex& InOther)

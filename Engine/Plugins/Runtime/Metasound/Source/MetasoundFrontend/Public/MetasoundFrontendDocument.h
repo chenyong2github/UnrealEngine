@@ -888,209 +888,158 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 {
 	GENERATED_BODY()
 
-	FMetasoundFrontendClassMetadata() = default;
-	FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
+	// Generates class metadata intended to be used as a registry descriptor from FNodeClassMetadata. Does not initialize a change ID as it is not considered to be transactional.
+	static FMetasoundFrontendClassMetadata GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType);
 
-	private:
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		FMetasoundFrontendClassName ClassName;
+private:
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	FMetasoundFrontendClassName ClassName;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		FMetasoundFrontendVersionNumber Version;
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	FMetasoundFrontendVersionNumber Version;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		FText DisplayName;
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	FText DisplayName;
 
-		UPROPERTY(EditAnywhere, Category = Metasound)
-		FText Description;
+	UPROPERTY(EditAnywhere, Category = Metasound)
+	FText Description;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		FText PromptIfMissing;
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	FText PromptIfMissing;
 
-		UPROPERTY(EditAnywhere, Category = Metasound)
-		FText Author;
+	UPROPERTY(EditAnywhere, Category = Metasound)
+	FText Author;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		TArray<FText> Keywords;
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	TArray<FText> Keywords;
 
-		UPROPERTY(EditAnywhere, Category = Metasound)
-		TArray<FText> CategoryHierarchy;
+	UPROPERTY(EditAnywhere, Category = Metasound)
+	TArray<FText> CategoryHierarchy;
 
-		// If true, this node is deprecated and should not be used in new MetaSounds.
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		bool bIsDeprecated = false;
+	// If true, this node is deprecated and should not be used in new MetaSounds.
+	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	bool bIsDeprecated = false;
 
-		// If true, auto-update will manage (add and remove)
-		// inputs/outputs associated with internally connected
-		// nodes when the interface of the given node is auto-updated.
-		UPROPERTY()
-		bool bAutoUpdateManagesInterface = false;
+	// If true, auto-update will manage (add and remove)
+	// inputs/outputs associated with internally connected
+	// nodes when the interface of the given node is auto-updated.
+	UPROPERTY()
+	bool bAutoUpdateManagesInterface = false;
 
-		// ID used to identify if any of the above have been modified,
-		// to determine if the parent class should be auto-updated.
-		UPROPERTY()
-		FGuid ChangeID;
+	// ID used to identify if any of the above have been modified,
+	// to determine if the parent class should be auto-updated.
+	UPROPERTY()
+	FGuid ChangeID;
 
-	public:
-		static FName GetAuthorPropertyName()
-		{
-			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author);
-		}
+public:
+	static FName GetAuthorPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author);
+	}
 
-		static FName GetCategoryHierarchyPropertyName()
-		{
-			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, CategoryHierarchy);
-		}
+	static FName GetCategoryHierarchyPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, CategoryHierarchy);
+	}
 
-		static FName GetClassNamePropertyName()
-		{
-			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, ClassName);
-		}
+	static FName GetClassNamePropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, ClassName);
+	}
 
-		static FName GetDescriptionPropertyName()
-		{
-			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description);
-		}
+	static FName GetDescriptionPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description);
+	}
 
-		static FName GetVersionPropertyName()
-		{
-			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version);
-		}
+	static FName GetVersionPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version);
+	}
 
-		const FMetasoundFrontendClassName& GetClassName() const
-		{
-			return ClassName;
-		}
+	const FMetasoundFrontendClassName& GetClassName() const
+	{
+		return ClassName;
+	}
 
-		bool GetAutoUpdateManagesInterface() const
-		{
-			return bAutoUpdateManagesInterface;
-		}
+	bool GetAutoUpdateManagesInterface() const
+	{
+		return bAutoUpdateManagesInterface;
+	}
 
-		void SetClassName(const FMetasoundFrontendClassName& InClassName)
-		{
-			ClassName = InClassName;
-			ChangeID = FGuid::NewGuid();
-		}
+	void SetClassName(const FMetasoundFrontendClassName& InClassName);
 
-		EMetasoundFrontendClassType GetType() const
-		{
-			return Type;
-		}
+	EMetasoundFrontendClassType GetType() const
+	{
+		return Type;
+	}
 
-		void SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface)
-		{
-			bAutoUpdateManagesInterface = bInAutoUpdateManagesInterface;
-			ChangeID = FGuid::NewGuid();
-		}
+	const FMetasoundFrontendVersionNumber& GetVersion() const
+	{
+		return Version;
+	}
 
-		void SetType(const EMetasoundFrontendClassType InType)
-		{
-			Type = InType;
-			// TODO: Type is modified while querying and swapped between
-			// to be external, so don't modify the ChangeID in this case.
-			// External/Internal should probably be a separate field.
-			// ChangeID = FGuid::NewGuid();
-		}
+	const FText& GetDisplayName() const
+	{
+		return DisplayName;
+	}
 
-		const FMetasoundFrontendVersionNumber& GetVersion() const
-		{
-			return Version;
-		}
+	const FText& GetDescription() const
+	{
+		return Description;
+	}
 
-		void SetVersion(const FMetasoundFrontendVersionNumber& InVersion)
-		{
-			Version = InVersion;
-			ChangeID = FGuid::NewGuid();
-		}
+	const FText& GetPromptIfMissing() const
+	{
+		return PromptIfMissing;
+	}
 
-		const FText& GetDisplayName() const
-		{
-			return DisplayName;
-		}
+	const FText& GetAuthor() const
+	{
+		return Author;
+	}
 
-		void SetDisplayName(const FText& InDisplayName)
-		{
-			DisplayName = InDisplayName;
-			ChangeID = FGuid::NewGuid();
-		}
+	const TArray<FText>& GetKeywords() const
+	{
+		return Keywords;
+	}
 
-		const FText& GetDescription() const
-		{
-			return Description;
-		}
+	const TArray<FText>& GetCategoryHierarchy() const
+	{
+		return CategoryHierarchy;
+	}
 
-		void SetDescription(const FText& InDescription)
-		{
-			Description = InDescription;
-			ChangeID = FGuid::NewGuid();
-		}
+	const FGuid& GetChangeID() const
+	{
+		return ChangeID;
+	}
 
-		const FText& GetPromptIfMissing() const
-		{
-			return PromptIfMissing;
-		}
+	bool GetIsDeprecated() const
+	{
+		return bIsDeprecated;
+	}
 
-		void SetPromptIfMissing(const FText& InPromptIfMissing)
-		{
-			PromptIfMissing = InPromptIfMissing;
-			ChangeID = FGuid::NewGuid();
-		}
+	void SetAuthor(const FText& InAuthor);
+	void SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface);
+	void SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy);
+	void SetDescription(const FText& InDescription);
+	void SetDisplayName(const FText& InDisplayName);
+	void SetIsDeprecated(bool bInIsDeprecated);
+	void SetKeywords(const TArray<FText>& InKeywords);
+	void SetPromptIfMissing(const FText& InPromptIfMissing);
+	void SetVersion(const FMetasoundFrontendVersionNumber& InVersion);
 
-		const FText& GetAuthor() const
-		{
-			return Author;
-		}
-
-		void SetAuthor(const FText& InAuthor)
-		{
-			Author = InAuthor;
-			ChangeID = FGuid::NewGuid();
-		}
-
-		const TArray<FText>& GetKeywords() const
-		{
-			return Keywords;
-		}
-
-		void SetKeywords(const TArray<FText>& InKeywords)
-		{
-			Keywords = InKeywords;
-			ChangeID = FGuid::NewGuid();
-		}
-
-		const TArray<FText>& GetCategoryHierarchy() const
-		{
-			return CategoryHierarchy;
-		}
-
-		void SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
-		{
-			CategoryHierarchy = InCategoryHierarchy;
-			ChangeID = FGuid::NewGuid();
-		}
-
-		const FGuid& GetChangeID() const
-		{
-			return ChangeID;
-		}
-
-		bool GetIsDeprecated() const
-		{
-			return bIsDeprecated;
-		}
-
-		void SetIsDeprecated(bool bInIsDeprecated)
-		{
-			if (bInIsDeprecated != bIsDeprecated)
-			{
-				bIsDeprecated = bInIsDeprecated;
-				ChangeID = FGuid::NewGuid();
-			}
-		}
+	void SetType(const EMetasoundFrontendClassType InType)
+	{
+		Type = InType;
+		// TODO: Type is modified while querying and swapped between
+		// to be external, so don't modify the ChangeID in this case.
+		// External/Internal should probably be a separate field.
+		// ChangeID = FGuid::NewGuid();
+	}
 };
 
 USTRUCT()
