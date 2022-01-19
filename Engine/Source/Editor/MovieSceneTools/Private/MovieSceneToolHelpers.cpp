@@ -3979,7 +3979,7 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UA
 	FInitAnimationCB InitCallback = FInitAnimationCB::CreateLambda([&AnimationRecorder,SampleRate,ExportOptions,SkelMeshComp,AnimSequence]
 	{
 		FAnimationRecordingSettings RecordingSettings;
-		RecordingSettings.SampleRate = SampleRate.AsDecimal();
+		RecordingSettings.SampleFrameRate = SampleRate;
 		RecordingSettings.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
 		RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_Auto;
 		RecordingSettings.Length = 0;

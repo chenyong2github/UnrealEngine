@@ -137,7 +137,8 @@ void UMovieSceneAnimationTrackRecorder::CreateTrackImpl()
 			FString Name = SkeletalMeshComponent->GetName();
 			FName SerializedType("Animation");
 			FString FileName = FString::Printf(TEXT("%s_%s"), *(SerializedType.ToString()), *Name);
-			float IntervalTime = SampleRate.AsDecimal() > 0.0f ? 1.0f / SampleRate.AsDecimal() : 1.0f / FAnimationRecordingSettings::DefaultSampleRate;
+
+			float IntervalTime = SampleRate.AsDecimal() > 0.0f ? 1.0f / SampleRate.AsDecimal() : FAnimationRecordingSettings::DefaultSampleFrameRate.AsInterval();
 			FAnimationFileHeader Header(SerializedType, ObjectGuid, IntervalTime);
 
 			USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
@@ -281,7 +282,7 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 
 		//Set this up here so we know that it's parent sources have also been added so we record in the correct space
 		FAnimationRecordingSettings RecordingSettings;
-		RecordingSettings.SampleRate = SampleRate.AsDecimal();
+		RecordingSettings.SampleFrameRate = SampleRate;
 		RecordingSettings.InterpMode = AnimSettings->InterpMode;
 		RecordingSettings.TangentMode = AnimSettings->TangentMode;
 		RecordingSettings.Length = 0;

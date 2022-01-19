@@ -86,7 +86,7 @@ void FMovieSceneSpawnSectionRecorder::FinalizeSection(float CurrentTime)
 		FMovieSceneBoolChannel* Channel = MovieSceneSection->GetChannelProxy().GetChannel<FMovieSceneBoolChannel>(0);
 		if (ensure(Channel))
 		{
-			double       OneFrameInterval = 1.0/GetDefault<USequenceRecorderSettings>()->DefaultAnimationSettings.SampleRate;
+			double       OneFrameInterval = GetDefault<USequenceRecorderSettings>()->DefaultAnimationSettings.SampleFrameRate.AsInterval();
 
 			FFrameRate   TickResolution   = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 			FFrameNumber StartTime        = MovieSceneSection->GetExclusiveEndFrame() - (OneFrameInterval * TickResolution).CeilToFrame();

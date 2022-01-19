@@ -7,7 +7,7 @@ float UAnimationRecordingParameters::GetRecordingDurationSeconds()
 	return bEndAfterDuration ? MaximumDurationSeconds : FAnimationRecordingSettings::UnboundedMaximumLength;
 }
 
-float UAnimationRecordingParameters::GetRecordingSampleRate()
+const FFrameRate& UAnimationRecordingParameters::GetRecordingFrameRate()
 {
-	return SampleRate;
+	return SampleFrameRate;
 }

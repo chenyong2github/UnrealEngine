@@ -44,7 +44,7 @@ FAnimationRecorder::FAnimationRecorder()
 	, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 	, AnimationSerializer(nullptr)
 {
-	SetSampleRateAndLength(FAnimationRecordingSettings::DefaultSampleRate, FAnimationRecordingSettings::DefaultMaximumLength);
+	SetSampleRateAndLength(FAnimationRecordingSettings::DefaultSampleFrameRate, FAnimationRecordingSettings::DefaultMaximumLength);
 }
 
 FAnimationRecorder::~FAnimationRecorder()
@@ -52,12 +52,12 @@ FAnimationRecorder::~FAnimationRecorder()
 	StopRecord(false);
 }
 
-void FAnimationRecorder::SetSampleRateAndLength(float SampleRateHz, float LengthInSeconds)
+void FAnimationRecorder::SetSampleRateAndLength(FFrameRate SampleFrameRate, float LengthInSeconds)
 {
-	if (SampleRateHz <= 0.f)
+	if (!SampleFrameRate.IsValid())
 	{
 		// invalid rate passed in, fall back to default
-		SampleRateHz = FAnimationRecordingSettings::DefaultSampleRate;
+		SampleFrameRate = FAnimationRecordingSettings::DefaultSampleFrameRate;
 	}
 
 	if (LengthInSeconds <= 0.f)
@@ -66,7 +66,7 @@ void FAnimationRecorder::SetSampleRateAndLength(float SampleRateHz, float Length
 		LengthInSeconds = FAnimationRecordingSettings::UnboundedMaximumLength;
 	}
 
-	IntervalTime = 1.0f / SampleRateHz;
+	RecordingRate = SampleFrameRate;
 	if (LengthInSeconds == FAnimationRecordingSettings::UnboundedMaximumLength)
 	{
 		// invalid length passed in, default to unbounded
@@ -74,7 +74,7 @@ void FAnimationRecorder::SetSampleRateAndLength(float SampleRateHz, float Length
 	}
 	else
 	{
-		MaxFrame = SampleRateHz * LengthInSeconds;
+		MaxFrame = SampleFrameRate.AsFrameNumber(LengthInSeconds);
 	}
 }
 
@@ -96,7 +96,7 @@ bool FAnimationRecorder::SetAnimCompressionScheme(UAnimBoneCompressionSettings* 
 }
 
 // Internal. Pops up a dialog to get saved asset path
-static bool PromptUserForAssetDetails(FString& AssetPath, FString& AssetName, float& OutSampleRate, float& OutMaximumDuration)
+static bool PromptUserForAssetDetails(FString& AssetPath, FString& AssetName, FFrameRate& OutSampleRate, float& OutMaximumDuration)
 {
 	TSharedRef<SCreateAnimationDlg> NewAnimDlg = SNew(SCreateAnimationDlg);
 	if (NewAnimDlg->ShowModal() != EAppReturnType::Cancel)
@@ -104,7 +104,7 @@ static bool PromptUserForAssetDetails(FString& AssetPath, FString& AssetName, fl
 		AssetPath = NewAnimDlg->GetFullAssetPath();
 		AssetName = NewAnimDlg->GetAssetName();
 		OutMaximumDuration = NewAnimDlg->GetRecordingParameters()->GetRecordingDurationSeconds();
-		OutSampleRate = NewAnimDlg->GetRecordingParameters()->GetRecordingSampleRate();
+		OutSampleRate = NewAnimDlg->GetRecordingParameters()->GetRecordingFrameRate();
 		return true;
 	}
 
@@ -116,7 +116,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	FString AssetPath;
 	FString AssetName;
 
-	float SampleRate;
+	FFrameRate SampleRate;
 	float MaximumLength;
 
 	if (!Component || !Component->SkeletalMesh || !Component->SkeletalMesh->GetSkeleton())
@@ -156,7 +156,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	if (Parent == nullptr)
 	{
 		// bad or no path passed in, do the popup
-		float SampleRate;
+		FFrameRate SampleRate;
 		float MaximumLength;
 
 		if (PromptUserForAssetDetails(ValidatedAssetPath, ValidatedAssetName, SampleRate, MaximumLength) == false)
@@ -232,7 +232,7 @@ void FAnimationRecorder::GetBoneTransforms(USkeletalMeshComponent* Component, TA
 
 void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSequence* InAnimationObject)
 {
-	TimePassed = 0.f;
+	TimePassed = 0.0;
 	AnimationObject = InAnimationObject;
 
 	AnimationObject->BoneCompressionSettings = FAnimationUtils::GetDefaultAnimationRecorderBoneCompressionSettings();
@@ -323,14 +323,11 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 	if (AnimationObject)
 	{
 		IAnimationDataController& Controller = AnimationObject->GetController();
-		int32 NumKeys = LastFrame  + 1;
+		int32 NumKeys = LastFrame.Value + 1;
 
 		// can't use TimePassed. That is just total time that has been passed, not necessarily match with frame count
-		Controller.SetPlayLength( (NumKeys>1) ? (NumKeys-1) * IntervalTime : MINIMUM_ANIMATION_LENGTH );
-
-		const float FloatDenominator = 1000.0f;
-		const float Numerator = FloatDenominator / IntervalTime;
-		Controller.SetFrameRate(FFrameRate(Numerator, FloatDenominator));
+		Controller.SetPlayLength( (NumKeys>1) ? RecordingRate.AsSeconds(LastFrame): RecordingRate.AsSeconds(1) );
+		Controller.SetFrameRate(RecordingRate);
 
 		ProcessNotifies();
 
@@ -375,8 +372,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					int32 WriteIndex = 0;
 					for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 					{
-						const float TimeToRecord = KeyIndex * IntervalTime;
-						if (RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
+						const float TimeToRecord = RecordingRate.AsSeconds(KeyIndex);
+						if(RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
 						{
 							float CurCurveValue = RecordedCurves[KeyIndex].CurveWeights[CurveIndex];
 							if (!bSeenThisCurve)
@@ -468,7 +465,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 				FText::FromString(AnimationObject->GetName()),
 				FText::AsNumber(AnimationObject->GetDataModel()->GetNumberOfKeys()),
 				FText::AsNumber(AnimationObject->GetPlayLength()),
-				FText::AsNumber(1.f / IntervalTime)
+				RecordingRate.ToPrettyText()
 				);
 					
 			if (GIsEditor)
@@ -513,8 +510,8 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 		return;
 	}
 
-	int32 NumFrames = LastFrame  + 1;
-	if (RecordedTimes.Num() != NumFrames)
+	int32 NumKeys = LastFrame.Value + 1;
+	if (RecordedTimes.Num() != NumKeys)
 	{
 		return;
 	}
@@ -530,11 +527,11 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	SubFrames.Reserve(RecordedTimes.Num());
 	Times.Reserve(RecordedTimes.Num());
 
-	for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
-		const float TimeToRecord = FrameIndex*IntervalTime;
+		const float TimeToRecord = RecordingRate.AsSeconds(KeyIndex);
 
-		FQualifiedFrameTime RecordedTime = RecordedTimes[FrameIndex];
+		FQualifiedFrameTime RecordedTime = RecordedTimes[KeyIndex];
 		FTimecode Timecode = FTimecode::FromFrameNumber(RecordedTime.Time.FrameNumber, RecordedTime.Rate);
 		
 		Hours.Add(Timecode.Hours);
@@ -622,9 +619,9 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 	if (bCheckDeltaTimeAtBeginning)
 	{
 		// in-editor we can get a long frame update because of the modal dialog used to pick paths
-		if (DeltaTime > IntervalTime && (LastFrame == 0 || LastFrame == 1))
+		if (DeltaTime > RecordingRate.AsInterval() && (LastFrame == 0 || LastFrame == 1))
 		{
-			DeltaTime = IntervalTime;
+			DeltaTime = RecordingRate.AsInterval();
 		}
 	}
 
@@ -633,8 +630,8 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 
 	// time passed has been updated
 	// now find what frames we need to update
-	int32 FramesRecorded = LastFrame;
-	int32 FramesToRecord = FPlatformMath::RoundToInt(TimePassed / IntervalTime);
+	int32 FramesRecorded = LastFrame.Value;
+	int32 FramesToRecord = RecordingRate.AsFrameNumber(TimePassed).Value;
 
 	// notifies need to be done regardless of sample rate
 	if (Component->GetAnimInstance())
@@ -662,7 +659,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 		{
 			// find what frames we need to record
 			// convert to time
-			const float CurrentTime = (FramesRecorded + 1) * IntervalTime;
+			const float CurrentTime = RecordingRate.AsSeconds(FramesRecorded + 1);
 			float BlendAlpha = (CurrentTime - PreviousTimePassed) / DeltaTime;
 
 			UE_LOG(LogAnimation, Log, TEXT("Current Frame Count : %d, BlendAlpha : %0.2f"), FramesRecorded + 1, BlendAlpha);
@@ -705,7 +702,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 	// if we passed MaxFrame, just stop it
 	if (MaxFrame != UnBoundedFrameCount && FramesRecorded >= MaxFrame)
 	{
-		UE_LOG(LogAnimation, Log, TEXT("Animation Recording exceeds the time limited (%d mins). Stopping recording animation... "), (int32)((float)MaxFrame / ((1.0f / IntervalTime) * 60.0f)));
+		UE_LOG(LogAnimation, Log, TEXT("Animation Recording exceeds the time limited (%d seconds). Stopping recording animation... "), RecordingRate.AsSeconds(MaxFrame));
 		FAnimationRecorderManager::Get().StopRecordingAnimation(Component, true);
 		return;
 	}
@@ -778,20 +775,20 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 
 				if (bRecordTransforms)
 				{
-					FTransform LocalTransform = SpacesBases[BoneIndex];
-					if (ParentIndex != INDEX_NONE)
+				FTransform LocalTransform = SpacesBases[BoneIndex];
+				if ( ParentIndex != INDEX_NONE )
+				{
+					LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex]);
+				}
+				// if record local to world, we'd like to consider component to world to be in root
+				else
+				{
+					if (bRecordLocalToWorld)
 					{
-						LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex]);
+						LocalTransform *= ComponentToWorld;
 					}
-					// if record local to world, we'd like to consider component to world to be in root
-					else
-					{
-						if (bRecordLocalToWorld)
-						{
-							LocalTransform *= ComponentToWorld;
-						}
-					}
-				
+				}
+
 					RawTrack.PosKeys.Add(FVector3f(LocalTransform.GetTranslation()));
 					RawTrack.RotKeys.Add(FQuat4f(LocalTransform.GetRotation()));
 					RawTrack.ScaleKeys.Add(FVector3f(LocalTransform.GetScale3D()));  
@@ -1003,7 +1000,7 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 {
 	SkelComp = InComponent;
 	Recorder = MakeShareable(new FAnimationRecorder());
-	Recorder->SetSampleRateAndLength(Settings.SampleRate, Settings.Length);
+	Recorder->SetSampleRateAndLength(Settings.SampleFrameRate, Settings.Length);
 	Recorder->bRecordLocalToWorld = Settings.bRecordInWorldSpace;
 	Recorder->InterpMode = Settings.InterpMode;
 	Recorder->TangentMode = Settings.TangentMode;

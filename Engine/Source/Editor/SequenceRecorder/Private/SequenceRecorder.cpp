@@ -544,7 +544,7 @@ void FSequenceRecorder::DrawDebug(UCanvas* InCanvas, APlayerController* InPlayer
 		TimeAccumulator -= Minutes * 60.0f;
 		float Seconds = FMath::FloorToFloat(TimeAccumulator);
 		TimeAccumulator -= Seconds;
-		float Frames = FMath::FloorToFloat(TimeAccumulator * GetDefault<USequenceRecorderSettings>()->DefaultAnimationSettings.SampleRate);
+		float Frames = FMath::FloorToFloat(GetDefault<USequenceRecorderSettings>()->DefaultAnimationSettings.SampleFrameRate.AsFrameTime(TimeAccumulator).AsDecimal());
 
 		FNumberFormattingOptions Options;
 		Options.MinimumIntegralDigits = 2;

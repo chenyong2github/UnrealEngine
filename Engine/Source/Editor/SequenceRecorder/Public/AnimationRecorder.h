@@ -31,10 +31,10 @@ private:
 	static const int32 UnBoundedFrameCount = -1;
 
 private:
-	float IntervalTime;
-	int32 MaxFrame;
-	int32 LastFrame;
-	float TimePassed;
+	FFrameRate RecordingRate;
+	FFrameNumber MaxFrame;
+	FFrameNumber LastFrame;
+	double TimePassed;
 	UAnimSequence* AnimationObject;
 	TArray<FTransform> PreviousSpacesBases;
 	FBlendedHeapCurve PreviousAnimCurves;
@@ -81,10 +81,10 @@ public:
 	void UpdateRecord(USkeletalMeshComponent* Component, float DeltaTime);
 	UAnimSequence* GetAnimationObject() const { return AnimationObject; }
 	bool InRecording() const { return AnimationObject != nullptr; }
-	float GetTimeRecorded() const { return TimePassed; }
+	double GetTimeRecorded() const { return TimePassed; }
 
 	/** Sets a new sample rate & max length for this recorder. Don't call while recording. */
-	void SetSampleRateAndLength(float SampleRateHz, float LengthInMinutes);
+	void SetSampleRateAndLength(FFrameRate SampleFrameRate, float LengthInSeconds);
 
 	bool SetAnimCompressionScheme(UAnimBoneCompressionSettings* Settings);
 

@@ -13,8 +13,8 @@ struct ENGINE_API FAnimationRecordingSettings
 {
 	GENERATED_BODY()
 
-	/** 30Hz default sample rate */
-	static const float DefaultSampleRate;
+	/** 30Hz default sample frame rate */
+	static const FFrameRate DefaultSampleFrameRate;
 
 	/** 1 minute default length */
 	static const float DefaultMaximumLength;
@@ -26,7 +26,7 @@ struct ENGINE_API FAnimationRecordingSettings
 		: bRecordInWorldSpace(true)
 		, bRemoveRootAnimation(true)
 		, bAutoSaveAsset(false)
-		, SampleRate((float)DefaultSampleRate)
+		, SampleFrameRate(DefaultSampleFrameRate)
 		, Length((float)DefaultMaximumLength)
 		, InterpMode(ERichCurveInterpMode::RCIM_Linear)
 		, TangentMode(ERichCurveTangentMode::RCTM_Auto)
@@ -49,9 +49,9 @@ struct ENGINE_API FAnimationRecordingSettings
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bAutoSaveAsset;
 
-	/** Sample rate of the recorded animation (in Hz) */
+	/** Sample rate of the recorded animation */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float SampleRate;
+	FFrameRate SampleFrameRate;
 
 	/** Maximum length of the animation recorded (in seconds). If zero the animation will keep on recording until stopped. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
