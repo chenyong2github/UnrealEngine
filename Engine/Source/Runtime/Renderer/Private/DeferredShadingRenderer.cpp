@@ -304,6 +304,13 @@ const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderP
 		return TEXT("(Forced by ForwardShading)");
 	}
 
+	bool bUseNanite = UseNanite(ShaderPlatform);
+
+	if (bUseNanite)
+	{
+		return TEXT("(Forced by Nanite)");
+	}
+
 	bool bDBufferAllowed = IsUsingDBuffers(ShaderPlatform);
 
 	if (bDBufferAllowed)
