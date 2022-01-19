@@ -55,9 +55,6 @@ private:
 	/** On Generate Row Delegate */
 	TSharedRef<ITableRow> MakeListViewWidget(TSharedPtr<FGameplayTag> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
-	/** Build List of Editable Containers */
-	void BuildEditableContainerList();
-
 	/** Callback function to create content for the combo button. */
 	TSharedRef<SWidget> GetListContent();
 
@@ -65,9 +62,6 @@ private:
 
 	/** Cached property handle */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
-
-	/** The array of containers this objects has */
-	TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
 
 	/** List of tags selected in the tag containers */
 	TArray< TSharedPtr<FGameplayTag> > TagList;

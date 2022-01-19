@@ -75,6 +75,18 @@ public:
 		struct FGameplayTagContainer* TagContainer; 
 	};
 
+	/**
+	 * Given a property handle, try and enumerate the editable tag containers from within it (when dealing with a struct property of type FGameplayTagContainer).
+	 * @return True if it was possible to enumerate containers (even if no containers were enumerated), or false otherwise.
+	 */
+	static bool EnumerateEditableTagContainersFromPropertyHandle(const TSharedRef<IPropertyHandle>& PropHandle, TFunctionRef<bool(const FEditableGameplayTagContainerDatum&)> Callback);
+
+	/**
+	 * Given a property handle, try and extract the editable tag containers from within it (when dealing with a struct property of type FGameplayTagContainer).
+	 * @return True if it was possible to extract containers (even if no containers were extracted), or false otherwise.
+	 */
+	static bool GetEditableTagContainersFromPropertyHandle(const TSharedRef<IPropertyHandle>& PropHandle, TArray<FEditableGameplayTagContainerDatum>& OutEditableContainers);
+
 	/** Construct the actual widget */
 	void Construct(const FArguments& InArgs, const TArray<FEditableGameplayTagContainerDatum>& EditableTagContainers);
 

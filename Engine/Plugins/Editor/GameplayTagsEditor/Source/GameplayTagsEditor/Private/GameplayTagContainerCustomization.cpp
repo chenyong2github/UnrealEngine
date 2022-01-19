@@ -23,8 +23,6 @@ void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPrope
 	FSimpleDelegate OnTagContainerChanged = FSimpleDelegate::CreateSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
 	StructPropertyHandle->SetOnPropertyValueChanged(OnTagContainerChanged);
 
-	BuildEditableContainerList();
-
 	FUIAction SearchForReferencesAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences));
 
 	HeaderRow
@@ -98,20 +96,21 @@ TSharedRef<SWidget> FGameplayTagContainerCustomization::ActiveTags()
 
 void FGameplayTagContainerCustomization::RefreshTagList()
 {
-	// Rebuild Editable Containers as container references can become unsafe
-	BuildEditableContainerList();
-
 	// Build the set of tags on any instance, collapsing common tags together
 	TSet<FGameplayTag> CurrentTagSet;
-	for (int32 ContainerIdx = 0; ContainerIdx < EditableContainers.Num(); ++ContainerIdx)
+	if (StructPropertyHandle.IsValid())
 	{
-		if (const FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer)
+		SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&CurrentTagSet](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
 		{
-			for (auto It = Container->CreateConstIterator(); It; ++It)
+			if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
 			{
-				CurrentTagSet.Add(*It);
+				for (auto It = Container->CreateConstIterator(); It; ++It)
+				{
+					CurrentTagSet.Add(*It);
+				}
 			}
-		}
+			return true;
+		});
 	}
 
 	// Convert the set into pointers for the combo
@@ -248,17 +247,18 @@ void FGameplayTagContainerCustomization::OnTagDoubleClicked(FGameplayTag Tag)
 FReply FGameplayTagContainerCustomization::OnRemoveTagClicked(FGameplayTag Tag)
 {
 	TArray<FString> NewValues;
-	for (int32 ContainerIdx = 0; ContainerIdx < EditableContainers.Num(); ++ContainerIdx)
+	SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&Tag, &NewValues](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
 	{
 		FGameplayTagContainer TagContainerCopy;
-		if (const FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer)
+		if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
 		{
 			TagContainerCopy = *Container;
 		}
 		TagContainerCopy.RemoveTag(Tag);
 
 		NewValues.Add(TagContainerCopy.ToString());
-	}
+		return true;
+	});
 
 	{
 		FScopedTransaction Transaction(LOCTEXT("RemoveGameplayTagFromContainer", "Remove Gameplay Tag"));
@@ -281,7 +281,7 @@ TSharedRef<SWidget> FGameplayTagContainerCustomization::GetListContent()
 
 	bool bReadOnly = StructPropertyHandle->IsEditConst();
 
-	TSharedRef<SGameplayTagWidget> TagWidget = SNew(SGameplayTagWidget, EditableContainers)
+	TSharedRef<SGameplayTagWidget> TagWidget = SNew(SGameplayTagWidget, TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum>()) // empty container list as built from StructPropertyHandle
 		.Filter(Categories)
 		.ReadOnly(bReadOnly)
 		.TagContainerName(StructPropertyHandle->GetPropertyDisplayName().ToString())
@@ -352,22 +352,6 @@ void FGameplayTagContainerCustomization::PostRedo( bool bSuccess )
 FGameplayTagContainerCustomization::~FGameplayTagContainerCustomization()
 {
 	GEditor->UnregisterForUndo(this);
-}
-
-void FGameplayTagContainerCustomization::BuildEditableContainerList()
-{
-	EditableContainers.Empty();
-
-	if( StructPropertyHandle.IsValid() )
-	{
-		TArray<void*> RawStructData;
-		StructPropertyHandle->AccessRawData(RawStructData);
-
-		for (int32 ContainerIdx = 0; ContainerIdx < RawStructData.Num(); ++ContainerIdx)
-		{
-			EditableContainers.Add(SGameplayTagWidget::FEditableGameplayTagContainerDatum(nullptr, (FGameplayTagContainer*)RawStructData[ContainerIdx]));
-		}
-	}	
 }
 
 #undef LOCTEXT_NAMESPACE

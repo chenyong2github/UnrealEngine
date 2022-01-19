@@ -37,11 +37,46 @@
 
 const FString SGameplayTagWidget::SettingsIniSection = TEXT("GameplayTagWidget");
 
+bool SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(const TSharedRef<IPropertyHandle>& PropHandle, TFunctionRef<bool(const FEditableGameplayTagContainerDatum&)> Callback)
+{
+	FStructProperty* StructProperty = CastField<FStructProperty>(PropHandle->GetProperty());
+	if (StructProperty && StructProperty->Struct->IsChildOf(FGameplayTagContainer::StaticStruct()))
+	{
+		PropHandle->EnumerateRawData([&Callback](void* RawData, const int32 /*DataIndex*/, const int32 /*NumDatas*/)
+		{
+			return Callback(FEditableGameplayTagContainerDatum(nullptr, static_cast<FGameplayTagContainer*>(RawData)));
+		});
+		return true;
+	}
+	return false;
+}
+
+bool SGameplayTagWidget::GetEditableTagContainersFromPropertyHandle(const TSharedRef<IPropertyHandle>& PropHandle, TArray<FEditableGameplayTagContainerDatum>& OutEditableTagContainers)
+{
+	FStructProperty* StructProperty = CastField<FStructProperty>(PropHandle->GetProperty());
+	if (StructProperty && StructProperty->Struct->IsChildOf(FGameplayTagContainer::StaticStruct()))
+	{
+		OutEditableTagContainers.Reset();
+		return EnumerateEditableTagContainersFromPropertyHandle(PropHandle, [&OutEditableTagContainers](const FEditableGameplayTagContainerDatum& EditableTagContainer)
+		{
+			OutEditableTagContainers.Add(EditableTagContainer);
+			return true;
+		});
+	}
+	return false;
+}
+
 void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEditableGameplayTagContainerDatum>& EditableTagContainers)
 {
-	// If we're in management mode, we don't need to have editable tag containers.
-	ensure(EditableTagContainers.Num() > 0 || InArgs._GameplayTagUIMode == EGameplayTagUIMode::ManagementMode);
 	TagContainers = EditableTagContainers;
+	if (InArgs._PropertyHandle.IsValid())
+	{
+		// If we're backed by a property handle then try and get the tag containers from the property handle
+		GetEditableTagContainersFromPropertyHandle(InArgs._PropertyHandle.ToSharedRef(), TagContainers);
+	}
+
+	// If we're in management mode, we don't need to have editable tag containers.
+	ensure(TagContainers.Num() > 0 || InArgs._GameplayTagUIMode == EGameplayTagUIMode::ManagementMode);
 
 	OnTagChanged = InArgs._OnTagChanged;
 	bReadOnly = InArgs._ReadOnly;
@@ -287,6 +322,12 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 void SGameplayTagWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (PropertyHandle.IsValid())
+		// If we're backed by a property handle then try and refresh the tag containers, 
+		// as they may have changed under us (eg, from object re-instancing)
+		GetEditableTagContainersFromPropertyHandle(PropertyHandle.ToSharedRef(), TagContainers);
+	}
 
 	if (bDelayRefresh)
 	{
