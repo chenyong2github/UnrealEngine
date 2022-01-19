@@ -47,16 +47,20 @@ UThumbnailInfo* FAssetTypeActions_IKRetargeter::GetThumbnailInfo(UObject* Asset)
 
 void FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu()
 {
-	TArray<UToolMenu*> MenusToExtend;
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.AnimSequence"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.BlendSpace"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.AimOffsetBlendSpace"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.BlendSpace1D"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.PoseAsset"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.AnimBlueprint"));
-
-	for (UToolMenu* Menu : MenusToExtend)
+	static const TArray<FName> MenusToExtend 
 	{
+		"ContentBrowser.AssetContextMenu.AnimSequence",
+		"ContentBrowser.AssetContextMenu.BlendSpace",
+		"ContentBrowser.AssetContextMenu.AimOffsetBlendSpace",
+		"ContentBrowser.AssetContextMenu.BlendSpace1D",
+		"ContentBrowser.AssetContextMenu.PoseAsset",
+		"ContentBrowser.AssetContextMenu.AnimBlueprint",
+		"ContentBrowser.AssetContextMenu.AnimMontage"
+	};
+
+	for (const FName& MenuName : MenusToExtend)
+	{
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(MenuName);
 		if (Menu == nullptr)
 		{
 			continue;

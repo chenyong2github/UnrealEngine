@@ -650,7 +650,6 @@ void SRetargetAnimAssetsWindow::ShowWindow(TArray<UObject*> InSelectedAssets)
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
 		.HasCloseButton(true)
-		.MaxWidth(1024.0f)
 		.IsTopmostWindow(true)
 		.SizingRule(ESizingRule::Autosized);
 	
