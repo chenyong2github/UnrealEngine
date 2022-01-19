@@ -12,6 +12,8 @@ class ITableRow;
 class STableViewBase;
 class FUICommandList;
 class UNaniteToolsArguments;
+class UNaniteAuditErrorArguments;
+class UNaniteAuditOptimizeArguments;
 class IDetailsView;
 class SNaniteTools;
 
