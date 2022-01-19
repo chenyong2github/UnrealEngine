@@ -82,12 +82,17 @@ void UNiagaraNodeWriteDataSet::Compile(class FHlslNiagaraTranslator* Translator,
 	TArray<int32> Inputs;
 	CompileInputPins(Translator, Inputs);
 
-
 	bool bGPUSim = Translator->IsCompileOptionDefined(TEXT("GPUComputeSim"));
 
 	if (bGPUSim)
 	{
 		Translator->Error(LOCTEXT("CannotRunWriteDataSetGPU", "Cannot use an event write node on GPU sims!"), this, nullptr);
+	}
+
+	bool bIsEventScript = UNiagaraScript::IsParticleEventScript(Translator->GetTargetUsage());
+	if (bIsEventScript)
+	{
+		Translator->Error(LOCTEXT("CannotRunWriteDataSetFromEventScript", "Cannot use an event write node in an Event Handler!"), this, nullptr);
 	}
 
 	FString IssuesWithStruct;
