@@ -202,12 +202,12 @@ FORCEINLINE void UCapsuleComponent::SetCapsuleHalfHeight(float HalfHeight, bool 
 FORCEINLINE float UCapsuleComponent::GetScaledCapsuleRadius() const
 {
 	const FVector& ComponentScale = GetComponentTransform().GetScale3D();
-	return CapsuleRadius * (ComponentScale.X < ComponentScale.Y ? ComponentScale.X : ComponentScale.Y);
+	return CapsuleRadius * UE_REAL_TO_FLOAT(ComponentScale.X < ComponentScale.Y ? ComponentScale.X : ComponentScale.Y);
 }
 
 FORCEINLINE float UCapsuleComponent::GetScaledCapsuleHalfHeight() const
 {
-	return CapsuleHalfHeight * GetComponentTransform().GetScale3D().Z;
+	return CapsuleHalfHeight * UE_REAL_TO_FLOAT(GetComponentTransform().GetScale3D().Z);
 }
 
 FORCEINLINE float UCapsuleComponent::GetScaledCapsuleHalfHeight_WithoutHemisphere() const

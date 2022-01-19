@@ -75,9 +75,9 @@ class UTextureRenderTargetVolume : public UTextureRenderTarget
 	ENGINE_API class UVolumeTexture* ConstructTextureVolume(UObject* InOuter, const FString& NewTexName, EObjectFlags InFlags);
 
 	//~ Begin UTexture Interface.
-	virtual float GetSurfaceWidth() const  override { return SizeX; }
-	virtual float GetSurfaceHeight()const  override { return SizeY; }
-	virtual float GetSurfaceDepth()const  override { return SizeZ; }
+	virtual float GetSurfaceWidth() const  override { return static_cast<float>(SizeX); }
+	virtual float GetSurfaceHeight()const  override { return static_cast<float>(SizeY); }
+	virtual float GetSurfaceDepth()const  override { return static_cast<float>(SizeZ); }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override;

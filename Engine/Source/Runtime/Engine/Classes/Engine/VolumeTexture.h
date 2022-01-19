@@ -82,9 +82,9 @@ public:
 	}
 
 	//~ Begin UTexture Interface
-	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
-	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
-	virtual float GetSurfaceDepth() const override { return GetSizeZ(); }
+	virtual float GetSurfaceWidth() const override { return static_cast<float>(GetSizeX()); }
+	virtual float GetSurfaceHeight() const override { return static_cast<float>(GetSizeY()); }
+	virtual float GetSurfaceDepth() const override { return static_cast<float>(GetSizeZ()); }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FTextureResource* CreateResource() override;
 #if WITH_EDITOR

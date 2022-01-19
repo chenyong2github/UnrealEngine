@@ -651,7 +651,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 			protected:
 				FArea( const float InWidth, const float InHeight )
 				: WindowPlacement(Placement_Automatic)
-				, UnscaledWindowPosition(FVector2D(0,0))
+				, UnscaledWindowPosition(FVector2D(0.0, 0.0))
 				, UnscaledWindowSize(InWidth, InHeight)
 				, bIsMaximized( false )
 				{
@@ -797,7 +797,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		static TSharedRef<FArea> NewArea( const FVector2D& WindowSize )
 		{
-			return MakeShareable( new FArea( WindowSize.X, WindowSize.Y ) );
+			return MakeShareable( new FArea( UE_REAL_TO_FLOAT(WindowSize.X), UE_REAL_TO_FLOAT(WindowSize.Y) ) );
 		}
 		
 		static TSharedRef<FStack> NewStack() 

@@ -76,11 +76,11 @@ class UTextureRenderTarget2DArray : public UTextureRenderTarget
 	ENGINE_API class UTexture2DArray* ConstructTexture2DArray(UObject* InOuter, const FString& NewTexName, EObjectFlags InFlags);
 
 	//~ Begin UTexture Interface.
-	virtual float GetSurfaceWidth() const  override { return SizeX; }
+	virtual float GetSurfaceWidth() const  override { return static_cast<float>(SizeX); }
 	// PVS-Studio notices that the implementation of GetSurfaceWidth is identical to this one
 	// and warns us. In this case, it is intentional, so we disable the warning:
-	virtual float GetSurfaceHeight()const  override { return SizeX; }	 //-V524
-	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual float GetSurfaceHeight()const  override { return static_cast<float>(SizeX); }	 //-V524
+	virtual float GetSurfaceDepth() const override { return 0.0f; }
 	virtual uint32 GetSurfaceArraySize() const override { return Slices; }
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override;

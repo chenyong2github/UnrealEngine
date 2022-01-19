@@ -239,7 +239,7 @@ private:
 		FCacheElementDebugInfo()
 			: NumTotalChunks(0)
 			, NumTimesTouched(0)
-			, TimeLoadStarted(0.0)
+			, TimeLoadStarted(0)
 			, TimeToLoad(0.0)
 			, AverageLocationInCacheWhenNeeded(0.0f)
 			, LoadingBehavior(ESoundWaveLoadingBehavior::Uninitialized)
