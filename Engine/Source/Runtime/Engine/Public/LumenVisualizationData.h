@@ -70,6 +70,7 @@ private:
 	void AddVisualizationMode(
 		const TCHAR* ModeString,
 		const FText& ModeText,
+		const FText& ModeDesc,
 		const FModeType ModeType,
 		int32 ModeID,
 		bool DefaultComposited
