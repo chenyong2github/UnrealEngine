@@ -168,7 +168,7 @@ void WorldDuplicateEventFunction(UWorld* World, bool bDuplicateForPIE, TMap<UObj
 
 #if WITH_EDITOR
 	// Fixup LandscapeGuid on World duplication
-	if (!bDuplicateForPIE)
+	if (!bDuplicateForPIE && !IsRunningCommandlet())
 	{
 		TMap<FGuid, FGuid> NewLandscapeGuids;
 		for (ALandscapeProxy* Proxy : TActorRange<ALandscapeProxy>(World, ALandscapeProxy::StaticClass(), EActorIteratorFlags::SkipPendingKill))
