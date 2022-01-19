@@ -232,10 +232,6 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	GRHITransitionPrivateData_AlignInBytes = alignof(FVulkanPipelineBarrier);
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);
 
-	// This flag allows to skip preloading the shaders when loading a material and rely on the PSO cache to load them when precompiling the PSOs in background.
-	// If PSO cache isn't enabled or present, this flag has no effect.
-	GRHISupportsLazyShaderCodeLoading = true;
-
 	// Copy source requires its own image layout.
 	EnumRemoveFlags(GRHIMergeableAccessMask, ERHIAccess::CopySrc);
 }

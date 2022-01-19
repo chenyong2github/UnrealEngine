@@ -140,7 +140,7 @@ static TAutoConsoleVariable<int32> CVarPSOFileCacheUserCacheUnusedElementCheckPe
 
 static TAutoConsoleVariable<int32> CVarLazyLoadShadersWhenPSOCacheIsPresent(
 	TEXT("r.ShaderPipelineCache.LazyLoadShadersWhenPSOCacheIsPresent"),
-	1,
+	0,
 	TEXT("Non-Zero: If we load a PSO cache, then lazy load from the shader code library. This assumes the PSO cache is more or less complete. This will only work on RHIs that support the library+Hash CreateShader API (GRHISupportsLazyShaderCodeLoading == true)."),
 	ECVF_RenderThreadSafe);
 
