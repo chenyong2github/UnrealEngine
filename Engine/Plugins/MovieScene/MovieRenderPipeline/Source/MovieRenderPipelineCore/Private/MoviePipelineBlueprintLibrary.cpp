@@ -406,19 +406,22 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 
 			for (UMovieSceneSection* Section : InTrack->GetAllSections())
 			{
+				if(!Section)
+				{
+					continue;
+				}
+				
 				if (!Section->IsActive())
 				{
 					continue;
 				}
 
-
-				// Intersect it with our local range so that any sections that fall outside our playback bounds gets discarded
+				// When a sequence is contained by a Shot Section, it can offset/clip the playback range. So we want to scan for any sections that
+				// fall entirely out of the actually evaluated range, and discard them. To do this, we transform from our parent (RootToSequenceTransform)
+				// to local space, and then compare the local camera range to that and discard it. When there is no parent, the RootToSequence transform
+				// is identity, and thus it just clips it against the normal Playback Range.
 				UMovieScene* OwningScene = Section->GetTypedOuter<UMovieScene>();
-				TRange<FFrameNumber> LocalCameraRange = TRange<FFrameNumber>::Intersection(OwningScene->GetPlaybackRange(), Section->GetRange());
-				if (LocalCameraRange.IsEmpty())
-				{
-					continue;
-				}
+				TRange<FFrameNumber> LocalCameraRange = Section->GetRange();
 
 				// Intersect it with the root range so that if the parent has trimmed down the sub-section we don't render outside that.
 				TRange<FFrameNumber> RootCameraRange = TRange<FFrameNumber>::Intersection(LocalSpace.RootClampRange, LocalCameraRange * LocalSpace.RootToSequenceTransform.InverseLinearOnly());
