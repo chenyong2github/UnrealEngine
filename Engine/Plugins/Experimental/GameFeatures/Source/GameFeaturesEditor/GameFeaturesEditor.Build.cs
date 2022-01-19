@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetRegistry",
 					"DeveloperSettings",
 					"Engine",
 					"ModularGameplay",

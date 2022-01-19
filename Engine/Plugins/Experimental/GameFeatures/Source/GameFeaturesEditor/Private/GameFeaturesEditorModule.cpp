@@ -4,15 +4,16 @@
 #include "Modules/ModuleManager.h"
 
 #include "GameFeatureData.h"
-#include "GameFeaturesSubsystemSettings.h"
 #include "Features/IPluginsEditorFeature.h"
 #include "Features/EditorFeatures.h"
 
 #include "Interfaces/IPluginManager.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "GameFeatureDataDetailsCustomization.h"
+#include "GameFeaturesEditorSettings.h"
 #include "GameFeaturePluginMetadataCustomization.h"
 #include "Logging/MessageLog.h"
 #include "SSettingsEditorCheckoutNotice.h"
@@ -30,11 +31,13 @@
 
 struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 {
-	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath)
+	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath, TSubclassOf<UGameFeatureData> GameFeatureDataClassOverride, FString GameFeatureDataNameOverride)
 		: FPluginTemplateDescription(InName, InDescription, InOnDiskPath, /*bCanContainContent=*/ true, EHostType::Runtime)
 	{
 		SortPriority = 10;
 		bCanBePlacedInEngine = false;
+		GameFeatureDataName = !GameFeatureDataNameOverride.IsEmpty() ? GameFeatureDataNameOverride : InName.ToString();
+		GameFeatureDataClass = GameFeatureDataClassOverride != nullptr ? GameFeatureDataClassOverride : TSubclassOf<UGameFeatureData>(UGameFeatureData::StaticClass());
 	}
 
 	virtual bool ValidatePathForPlugin(const FString& ProposedAbsolutePluginPath, FText& OutErrorMessage) override
@@ -77,26 +80,39 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 
 	virtual void OnPluginCreated(TSharedPtr<IPlugin> NewPlugin) override
 	{
-		TSubclassOf<UGameFeatureData> DefaultGameFeatureDataClass = GetDefault<UGameFeaturesSubsystemSettings>()->DefaultGameFeatureDataClass;
-		if (DefaultGameFeatureDataClass == nullptr)
+		// If the template includes an existing game feature data, do not create a new one.
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		TArray<FAssetData> ObjectList;
+		FARFilter AssetFilter;
+		AssetFilter.ClassNames.Add(UGameFeatureData::StaticClass()->GetFName());
+		AssetFilter.PackagePaths.Add(FName(NewPlugin->GetMountedAssetPath()));
+		AssetFilter.bRecursiveClasses = true;
+		AssetFilter.bRecursivePaths = true;
+
+		AssetRegistryModule.Get().GetAssets(AssetFilter, ObjectList);
+
+		UObject* GameFeatureDataAsset = nullptr;
+
+		if (ObjectList.Num() <= 0)
 		{
-			DefaultGameFeatureDataClass = UGameFeatureData::StaticClass();
+			// Create the game feature data asset
+			FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			GameFeatureDataAsset = AssetToolsModule.Get().CreateAsset(GameFeatureDataName, NewPlugin->GetMountedAssetPath(), GameFeatureDataClass, /*Factory=*/ nullptr);
 		}
-
-		// Create the game feature data asset
-		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-
-		UObject* NewAsset = AssetToolsModule.Get().CreateAsset(NewPlugin->GetName(), NewPlugin->GetMountedAssetPath(), DefaultGameFeatureDataClass, /*Factory=*/ nullptr);
+		else
+		{
+			GameFeatureDataAsset = ObjectList[0].GetAsset();
+		}
+		
 
 		// Activate the new game feature plugin
 		auto AdditionalFilter = [](const FString&, const FGameFeaturePluginDetails&, FBuiltInGameFeaturePluginBehaviorOptions&) -> bool { return true; };
 		UGameFeaturesSubsystem::Get().LoadBuiltInGameFeaturePlugin(NewPlugin.ToSharedRef(), AdditionalFilter);
 
 		// Edit the new game feature data
-		if (NewAsset != nullptr)
+		if (GameFeatureDataAsset != nullptr)
 		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(GameFeatureDataAsset);
 		}
 	}
 
@@ -116,6 +132,9 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 
 		return TestStr.StartsWith(DesiredRoot);
 	}
+
+	TSubclassOf<UGameFeatureData> GameFeatureDataClass;
+	FString GameFeatureDataName;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -137,19 +156,9 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 
 		// Add templates to the new plugin wizard
 		{
-			const FString PluginTemplateDir = IPluginManager::Get().FindPlugin(TEXT("GameFeatures"))->GetBaseDir() / TEXT("Templates");
+			GetMutableDefault<UGameFeaturesEditorSettings>()->OnSettingChanged().AddRaw(this, &FGameFeaturesEditorModule::OnSettingsChanged);
 
-			ContentOnlyTemplate = MakeShareable(new FGameFeaturePluginTemplateDescription(
-				LOCTEXT("PluginWizard_NewGFPContentOnlyLabel", "Game Feature (Content Only)"),
-				LOCTEXT("PluginWizard_NewGFPContentOnlyDesc", "Create a new Game Feature Plugin."),
-				PluginTemplateDir / TEXT("GameFeaturePluginContentOnly")
-			));
-
-			WithCodeTemplate = MakeShareable(new FGameFeaturePluginTemplateDescription(
-				LOCTEXT("PluginWizard_NewGFPWithCodeLabel", "Game Feature (with C++)"),
-				LOCTEXT("PluginWizard_NewGFPWithCodeDesc", "Create a new Game Feature Plugin with a minimal amount of code."),
-				PluginTemplateDir / TEXT("GameFeaturePluginWithCode")
-			));
+			CachePluginTemplates();
 
 			IModularFeatures& ModularFeatures = IModularFeatures::Get();
 			ModularFeatures.OnModularFeatureRegistered().AddRaw(this, &FGameFeaturesEditorModule::OnModularFeatureRegistered);
@@ -175,6 +184,14 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 
 		// Remove the plugin wizard override
 		{
+			if (UClass* GameFeatureClass = UGameFeaturesEditorSettings::StaticClass())
+			{
+				if (UGameFeaturesEditorSettings* GameFeatureEditorSettings = Cast<UGameFeaturesEditorSettings>(GameFeatureClass->GetDefaultObject(false)))
+				{
+					GameFeatureEditorSettings->OnSettingChanged().RemoveAll(this);
+				}
+			}
+
 			IModularFeatures& ModularFeatures = IModularFeatures::Get();
  			ModularFeatures.OnModularFeatureRegistered().RemoveAll(this);
  			ModularFeatures.OnModularFeatureUnregistered().RemoveAll(this);
@@ -183,20 +200,79 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 			{
 				OnModularFeatureUnregistered(EditorFeatures::PluginsEditor, &ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor));
 			}
-			WithCodeTemplate.Reset();
-			ContentOnlyTemplate.Reset();
+			UnregisterFunctionTemplates();
+			PluginTemplates.Empty();
 		}
 	}
 
+	void OnSettingsChanged(UObject* Settings, FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+		const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+		const FName PluginTemplatePropertyName = GET_MEMBER_NAME_CHECKED(UGameFeaturesEditorSettings, PluginTemplates);
+		if (PropertyName == PluginTemplatePropertyName
+			|| MemberPropertyName == PluginTemplatePropertyName)
+		{
+			ResetPluginTemplates();
+		}
+	}
+
+	void CachePluginTemplates()
+	{
+		PluginTemplates.Reset();
+		if (const UGameFeaturesEditorSettings* GameFeatureEditorSettings = GetDefault<UGameFeaturesEditorSettings>())
+		{
+			for (const FPluginTemplateData& PluginTemplate : GameFeatureEditorSettings->PluginTemplates)
+			{
+				PluginTemplates.Add(MakeShareable(new FGameFeaturePluginTemplateDescription(
+					PluginTemplate.Label,
+					PluginTemplate.Description,
+					PluginTemplate.Path.Path,
+					PluginTemplate.DefaultGameFeatureDataClass,
+					PluginTemplate.DefaultGameFeatureDataName)));
+			}
+		}
+	}
+
+	void ResetPluginTemplates()
+	{
+		UnregisterFunctionTemplates();
+		CachePluginTemplates();
+		RegisterPluginTemplates();
+	}
+
+	void RegisterPluginTemplates()
+	{
+		if (IModularFeatures::Get().IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
+		{
+			IPluginsEditorFeature& PluginEditor = IModularFeatures::Get().GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
+			for (const TSharedPtr<FPluginTemplateDescription> TemplateDescription : PluginTemplates)
+			{
+				PluginEditor.RegisterPluginTemplate(TemplateDescription.ToSharedRef());
+			}
+			PluginEditorExtensionDelegate = PluginEditor.RegisterPluginEditorExtension(FOnPluginBeingEdited::CreateRaw(this, &FGameFeaturesEditorModule::CustomizePluginEditing));
+		}
+	}
+
+	void UnregisterFunctionTemplates()
+	{
+		if (IModularFeatures::Get().IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
+		{
+			IPluginsEditorFeature& PluginEditor = IModularFeatures::Get().GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
+			for (const TSharedPtr<FPluginTemplateDescription> TemplateDescription : PluginTemplates)
+			{
+				PluginEditor.UnregisterPluginTemplate(TemplateDescription.ToSharedRef());
+			}
+			PluginEditor.UnregisterPluginEditorExtension(PluginEditorExtensionDelegate);
+		}
+		
+	}
 
 	void OnModularFeatureRegistered(const FName& Type, class IModularFeature* ModularFeature)
 	{
 		if (Type == EditorFeatures::PluginsEditor)
 		{
-			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
-			PluginEditor.RegisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
-			PluginEditor.RegisterPluginTemplate(WithCodeTemplate.ToSharedRef());
-			PluginEditorExtensionDelegate = PluginEditor.RegisterPluginEditorExtension(FOnPluginBeingEdited::CreateRaw(this, &FGameFeaturesEditorModule::CustomizePluginEditing));
+			ResetPluginTemplates();
 		}
 	}
 
@@ -204,10 +280,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 	{
 		if (Type == EditorFeatures::PluginsEditor)
 		{
-			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
-			PluginEditor.UnregisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
-			PluginEditor.UnregisterPluginTemplate(WithCodeTemplate.ToSharedRef());
-			PluginEditor.UnregisterPluginEditorExtension(PluginEditorExtensionDelegate);
+			UnregisterFunctionTemplates();
 		}
 	}
 
@@ -308,8 +381,9 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		return nullptr;
 	}
 private:
-	TSharedPtr<FPluginTemplateDescription> ContentOnlyTemplate;
-	TSharedPtr<FPluginTemplateDescription> WithCodeTemplate;
+	// Array of Plugin templates populated from GameFeatureDeveloperSettings. Allows projects to
+	//	specify reusable plugin templates for the plugin creation wizard.
+	TArray<TSharedPtr<FGameFeaturePluginTemplateDescription>> PluginTemplates;
 	FPluginEditorExtensionHandle PluginEditorExtensionDelegate;
 };
 

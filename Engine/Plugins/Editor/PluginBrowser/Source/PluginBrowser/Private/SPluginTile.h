@@ -36,6 +36,9 @@ private:
 	/** Updates the contents of this tile */
 	void RecreateWidgets();
 
+	/** Returns whether users are able to modify the enabled/disabled state of plugins from the plugin browser */
+	bool CanModifyPlugins() const;
+
 	/** Returns the checked state for the enabled checkbox */
 	ECheckBoxState IsPluginEnabled() const;
 

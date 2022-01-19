@@ -29,6 +29,7 @@
 #include "PropertyEditorModule.h"
 #include "IUATHelperModule.h"
 #include "DesktopPlatformModule.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Styling/StyleColors.h"
 
@@ -322,7 +323,10 @@ void SPluginTile::RecreateWidgets()
 								SNew(SCheckBox)
 									.OnCheckStateChanged(this, &SPluginTile::OnEnablePluginCheckboxChanged)
 									.IsChecked(this, &SPluginTile::IsPluginEnabled)
-									.ToolTipText(LOCTEXT("EnableDisableButtonToolTip", "Toggles whether this plugin is enabled for your current project.  You may need to restart the program for this change to take effect."))
+									.IsEnabled(this, &SPluginTile::CanModifyPlugins)
+									.ToolTipText(CanModifyPlugins() ?
+										LOCTEXT("EnableDisableButtonToolTip", "Toggles whether this plugin is enabled for your current project.  You may need to restart the program for this change to take effect.")
+										: LOCTEXT("NonEditableButtonToolTip", "Editting plugin enabled/disabled state from the Plugin Browser has been disabled for this project."))
 							]
 						// Thumbnail image
 						+ SHorizontalBox::Slot()
@@ -487,6 +491,12 @@ void SPluginTile::RecreateWidgets()
 	];
 }
 
+bool SPluginTile::CanModifyPlugins() const
+{
+	bool bValue = true;
+	GConfig->GetBool(TEXT("EditorSettings"), TEXT("bCanModifyPluginsFromBrowser"), bValue, GEditorIni);
+	return bValue;
+}
 
 ECheckBoxState SPluginTile::IsPluginEnabled() const
 {
@@ -519,6 +529,11 @@ void FindPluginDependencies(const FString& Name, TSet<FString>& Dependencies, TM
 
 void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 {
+	if (!CanModifyPlugins())
+	{
+		return;
+	}
+
 	const bool bNewEnabledState = NewCheckedState == ECheckBoxState::Checked;
 
 	const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
