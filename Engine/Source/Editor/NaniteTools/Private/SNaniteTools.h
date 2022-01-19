@@ -7,6 +7,8 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SNaniteAudit;
+class FNaniteAuditRegistry;
+class FUICommandList;
 
 struct FNaniteAuditTabs
 {
