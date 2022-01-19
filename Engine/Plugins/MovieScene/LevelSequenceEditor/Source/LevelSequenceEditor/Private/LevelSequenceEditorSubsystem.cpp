@@ -428,6 +428,7 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FSequencerBinding
 
 		// Reset position
 		Sequencer->SetLocalTimeDirectly(ResetTime.Time);
+		Sequencer->ForceEvaluate();
 
 		FVector DefaultLocation = FVector::ZeroVector;
 		FVector DefaultRotation = FVector::ZeroVector;
