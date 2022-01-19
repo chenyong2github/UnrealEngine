@@ -14,10 +14,10 @@ namespace Horde.Storage
     {
         public enum RefDbImplementations
         {
+            Memory,
             Mongo,
             Cosmos,
             DynamoDb
-
         }
 
         public enum TransactionLogWriterImplementations
@@ -109,7 +109,7 @@ namespace Horde.Storage
 
         [Required] public ReplicationLogWriterImplementations ReplicationLogWriterImplementation { get; set; } = ReplicationLogWriterImplementations.Memory;
 
-        [Required] public RefDbImplementations RefDbImplementation { get; set; } = RefDbImplementations.Mongo;
+        [Required] public RefDbImplementations RefDbImplementation { get; set; } = RefDbImplementations.Memory;
 
         [Required]
         public TreeStoreImplementations TreeStoreImplementation { get; set; } = TreeStoreImplementations.Memory;

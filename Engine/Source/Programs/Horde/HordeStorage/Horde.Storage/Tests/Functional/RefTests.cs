@@ -88,6 +88,49 @@ namespace Horde.Storage.FunctionalTests.Ref
         }
     }
 
+    [TestClass]
+    public class MemoryRefTests : RefTests
+    {
+        private MemoryRefsStore? _refsStore;
+
+        protected override async Task SeedDb(IServiceProvider provider)
+        {
+            //verify we are using the expected refs store
+            IRefsStore? refStore = provider.GetService<IRefsStore>();
+            Assert.IsTrue(RefStoreIs(refStore, typeof(MemoryRefsStore)));
+            if (refStore is CachedRefStore cachedRefStore)
+            {
+                _refsStore = (MemoryRefsStore)cachedRefStore.BackingStore;
+            }
+            else
+            {
+                _refsStore = (MemoryRefsStore)refStore!;
+            }
+
+            IBlobService blobStore = (IBlobService)provider.GetService(typeof(IBlobService))!;
+
+            await SeedRefTestData(_refsStore, blobStore);
+
+        }
+
+        protected override Task TeardownDb(IServiceProvider provider)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override async Task<RefRecord> GetTestRecord(BucketId bucket, KeyId name, IRefsStore.ExtraFieldsFlag fields)
+        {
+            var record = await _refsStore!.Get(TestNamespace, bucket, name, fields);
+            if (record == null)
+                throw new Exception("Unable to find record");
+
+            return record;
+        }
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new[] {new KeyValuePair<string, string>("Horde_Storage:RefDbImplementation", HordeStorageSettings.RefDbImplementations.Memory.ToString())};
+        }
+    }
 
     [TestClass]
     public class DynamoRefTests : RefTests

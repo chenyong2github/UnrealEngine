@@ -538,6 +538,7 @@ namespace Horde.Storage
 
             IRefsStore refsStore = settings.RefDbImplementation switch
             {
+                HordeStorageSettings.RefDbImplementations.Memory => ActivatorUtilities.CreateInstance<MemoryRefsStore>(provider),
                 HordeStorageSettings.RefDbImplementations.DynamoDb => ActivatorUtilities.CreateInstance<DynamoDbRefsStore>(provider),
                 HordeStorageSettings.RefDbImplementations.Mongo => ActivatorUtilities.CreateInstance<MongoRefsStore>(provider),
                 HordeStorageSettings.RefDbImplementations.Cosmos => ActivatorUtilities.CreateInstance<CosmosRefsStore>(provider),
@@ -561,6 +562,8 @@ namespace Horde.Storage
 
             switch (settings.RefDbImplementation)
             {
+                case HordeStorageSettings.RefDbImplementations.Memory:
+                    break;
                 case HordeStorageSettings.RefDbImplementations.Mongo:
                 case HordeStorageSettings.RefDbImplementations.Cosmos:
                     MongoSettings mongoSettings = provider.GetService<IOptionsMonitor<MongoSettings>>()!.CurrentValue;

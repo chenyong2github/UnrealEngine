@@ -29,7 +29,7 @@ namespace Horde.Storage.Implementation
 
         public BlobIdentifier[] Blobs { get; }
         public Dictionary<string, object>? Metadata { get; }
-        public DateTime? LastAccessTime { get; }
+        public DateTime? LastAccessTime { get; internal set; }
         public ContentHash ContentHash { get; }
 
         public TransactionEvent ToAddTransactionEvent()
