@@ -99,3 +99,29 @@ FSequenceEvaluatorReference USequenceEvaluatorLibrary::SetSequenceWithInertialBl
 
 	return SequenceEvaluator;
 }
+
+float USequenceEvaluatorLibrary::GetAccumulatedTime(const FSequenceEvaluatorReference& SequenceEvaluator)
+{
+	float OutAccumulatedTime = 0.0f;
+	SequenceEvaluator.CallAnimNodeFunction<FAnimNode_SequenceEvaluator>(
+		TEXT("GetAccumulatedTime"),
+		[&OutAccumulatedTime](FAnimNode_SequenceEvaluator& InSequenceEvaluator)
+		{
+			OutAccumulatedTime = InSequenceEvaluator.GetAccumulatedTime();
+		});
+
+	return OutAccumulatedTime;
+}
+
+UAnimSequenceBase* USequenceEvaluatorLibrary::GetSequence(const FSequenceEvaluatorReference& SequenceEvaluator)
+{
+	UAnimSequenceBase* OutSequence = nullptr;
+	SequenceEvaluator.CallAnimNodeFunction<FAnimNode_SequenceEvaluator>(
+		TEXT("GetAccumulatedTime"),
+		[&OutSequence](FAnimNode_SequenceEvaluator& InSequenceEvaluator)
+		{
+			OutSequence = InSequenceEvaluator.GetSequence();
+		});
+
+	return OutSequence;
+}

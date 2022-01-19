@@ -56,4 +56,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference SetSequenceWithInertialBlending(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence, float BlendTime = 0.2f);
 	
+	/** Gets the current accumulated time of the sequence evaluator */
+	UFUNCTION(BlueprintPure, Category = "Sequence Evaluator", meta = (BlueprintThreadSafe))
+	static float GetAccumulatedTime(const FSequenceEvaluatorReference& SequenceEvaluator);
+
+	/** Gets the current sequence of the sequence evaluator */
+	UFUNCTION(BlueprintPure, Category = "Sequence Evaluator", meta = (BlueprintThreadSafe))
+	static UAnimSequenceBase* GetSequence(const FSequenceEvaluatorReference& SequenceEvaluator);
 };
