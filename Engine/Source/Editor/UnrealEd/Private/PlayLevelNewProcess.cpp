@@ -71,7 +71,7 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 
 	if (InParams.GameModeOverride)
 	{
-		UnrealURLParams += FString::Printf(TEXT("?game=%s"), *InParams.GameModeOverride->GetName());
+		UnrealURLParams += FString::Printf(TEXT("?game=%s"), *InParams.GameModeOverride->GetPathName());
 	}
 
 	if (bIsDedicatedServer)
