@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Engine/DeveloperSettings.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
