@@ -31,6 +31,15 @@ namespace UE
 			);
 		};
 
+		/** Concept used to verify a user-defined attribute type with its TAttributeTypeTraits::RequiresNormalization value set to true */
+		struct CNormalizedAttribute
+		{
+			template <typename T>
+			auto Requires(T& Val) -> decltype(
+				Val.Normalize()
+			);
+		};
+
 		struct ENGINE_API AttributeTypes
 		{
 		protected:
@@ -69,6 +78,11 @@ namespace UE
 				if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::IsBlendable)	
 				{
 					static_assert(TModels<CBlendableAttribute, AttributeType>::Value, "Missing function implementations required for Attribute blending");
+
+					if  constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+					{
+						static_assert(TModels<CNormalizedAttribute, AttributeType>::Value, "Missing function implementations required for Attribute normalization");
+					}
 					
 					if constexpr (!UE::Anim::TAttributeTypeTraits<AttributeType>::StepInterpolate)
 					{

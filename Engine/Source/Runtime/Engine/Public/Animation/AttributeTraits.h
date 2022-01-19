@@ -19,7 +19,9 @@ namespace UE
 				/** Determines whether or not the type has an associated user-defined implementation of IAttributeBlendOperator. False by default */
 				WithCustomBlendOperator = false,
 				/** Determines whether or not the type should be step-interpolated rather than linearly. False by default */
-				StepInterpolate = false
+				StepInterpolate = false,
+				/** Determines whether or not the type should be normalized after any accumulation / multiplication has been applied. False by default */
+				RequiresNormalization = false
 			};
 		};
 

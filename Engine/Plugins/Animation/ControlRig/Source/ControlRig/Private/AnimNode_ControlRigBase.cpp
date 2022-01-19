@@ -442,6 +442,8 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 			AdditivePose.Curve.ConvertToAdditive(SourcePose.Curve);
 			Output = SourcePose;
 
+			UE::Anim::Attributes::ConvertToAdditive(SourcePose.CustomAttributes, AdditivePose.CustomAttributes);
+
 			FAnimationPoseData BaseAnimationPoseData(Output);
 			const FAnimationPoseData AdditiveAnimationPoseData(AdditivePose);
 			FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, InternalBlendAlpha, AAT_LocalSpaceBase);

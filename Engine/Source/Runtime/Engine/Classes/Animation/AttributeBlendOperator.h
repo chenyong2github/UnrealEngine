@@ -65,6 +65,11 @@ namespace UE
 								OutAttribute.Accumulate(Attribute, AttributeWeight, It.GetAdditiveType());
 							}
 						}
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
+						}
 					}
 				});
 
@@ -88,6 +93,11 @@ namespace UE
 						else
 						{
 							OutAttribute = Attribute.Multiply(AttributeWeight);
+						}
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
 						}
 					}
 				});				
@@ -157,6 +167,11 @@ namespace UE
 								}
 							}
 						}
+						
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
+						}
 					}
 				});
 
@@ -187,6 +202,11 @@ namespace UE
 							{
 								OutAttribute.Accumulate(Attribute, AttributeWeight, It.GetAdditiveType());
 							}
+						}
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
 						}
 					}
 				});
@@ -244,6 +264,11 @@ namespace UE
 
 						const float AttributeWeight = It.GetWeight();
 						OutAttribute = Attribute.Multiply(AttributeWeight);
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
+						}
 					}
 				});
 			}
@@ -288,7 +313,12 @@ namespace UE
 						}
 						else
 						{
-							OutAttribute = Attribute.Multiply(AttributeWeight);
+							OutAttribute = Attribute.Multiply(AttributeWeight);							
+						}
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
 						}
 					}
 				});
@@ -333,6 +363,11 @@ namespace UE
 						AttributeType& OutAttribute = *OutAttributePtr;
 
 						OutAttribute.MakeAdditive(Attribute);
+
+						if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+						{
+							OutAttribute.Normalize();
+						}
 					}
 				});
 			}
@@ -371,6 +406,11 @@ namespace UE
 
 				Output = TypedFrom;
 				Output.Interpolate(TypedTo, Alpha);
+
+				if constexpr (UE::Anim::TAttributeTypeTraits<AttributeType>::RequiresNormalization)
+				{
+					Output.Normalize();
+				}
 			}
 
 			/* Interpolate operation for non-blendable; step interpolated attribute types */

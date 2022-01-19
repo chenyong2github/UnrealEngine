@@ -124,6 +124,11 @@ struct FTransformAnimationAttribute
 	{
 		FAnimationRuntime::ConvertTransformToAdditive(Value, BaseAttribute.Value);
 	}
+
+	void Normalize()
+	{
+		Value.NormalizeRotation();
+	}
 	
 	FTransformAnimationAttribute Multiply(const float Weight) const
 	{
@@ -180,6 +185,16 @@ namespace UE
 			enum
 			{
 				IsBlendable = false,
+			};
+		};
+
+		/** Transform attribute requires normalization */
+		template<>
+		struct TAttributeTypeTraits<FTransformAnimationAttribute> : public TAttributeTypeTraitsBase<FTransformAnimationAttribute>
+		{
+			enum
+			{
+				RequiresNormalization = true,
 			};
 		};
 
