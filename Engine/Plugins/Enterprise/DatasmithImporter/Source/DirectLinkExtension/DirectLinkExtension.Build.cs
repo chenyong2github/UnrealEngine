@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"ContentBrowserData",
+					"EditorStyle",
 					"EditorWidgets",
 					"Engine",
 					"InputCore",
