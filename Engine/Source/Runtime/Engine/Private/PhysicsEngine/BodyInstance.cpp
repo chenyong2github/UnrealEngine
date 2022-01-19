@@ -4262,7 +4262,7 @@ void FBodyInstance::InitDynamicProperties_AssumesLocked()
 		FPhysicsInterface::SetSolverVelocityIterationCount_AssumesLocked(ActorHandle, VelocityIterCount);
 
 		CreateDOFLock();
-		if(!IsRigidBodyKinematic_AssumesLocked(ActorHandle))
+		if(FPhysicsInterface::IsInScene(ActorHandle) && !IsRigidBodyKinematic_AssumesLocked(ActorHandle))
 		{
 			if(!bStartAwake && !bComponentAwake)
 			{
