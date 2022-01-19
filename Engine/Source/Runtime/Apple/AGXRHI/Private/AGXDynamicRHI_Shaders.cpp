@@ -103,10 +103,7 @@ FRHIShaderLibraryRef FAGXDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Plat
 				for (uint32 i = 0; i < Header.NumLibraries; i++)
 				{
 					FString MetalLibraryFilePath = (FilePath / LibName) + FString::Printf(TEXT(".%d.metallib"), i);
-					MetalLibraryFilePath = FPaths::ConvertRelativePathToFull(MetalLibraryFilePath);
-#if !PLATFORM_MAC
 					MetalLibraryFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*MetalLibraryFilePath);
-#endif // !PLATFORM_MAC
 
 					METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewLibraryFile: %s"), *MetalLibraryFilePath)));
 					NSError* Error;

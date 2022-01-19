@@ -137,6 +137,7 @@ public:
 
 		bool bOK = false;
 		FString LibraryPlatformName = FString::Printf(TEXT("%s_%s"), *LibraryName, *Format.GetPlainNameString());
+		LibraryPlatformName.ToLowerInline();
 		volatile int32 CompiledLibraries = 0;
 		TArray<FGraphEventRef> Tasks;
 
@@ -219,6 +220,7 @@ public:
 		if (CompiledLibraries == SubLibraries.Num())
 		{
 			FString BinaryShaderFile = (OutputDir / LibraryPlatformName) + FMetalCompilerToolchain::MetalMapExtension;
+			BinaryShaderFile.ToLowerInline();
 			FArchive* BinaryShaderAr = IFileManager::Get().CreateFileWriter(*BinaryShaderFile);
 			if (BinaryShaderAr != NULL)
 			{
