@@ -17,7 +17,7 @@ namespace UE
  * @param Args	The function expects each arg to be a valid package path. Failure to provide a valid
  *				package path will result in errors being written to the log.
  */
-void DumpPayloadToc(const TArray<FString>& Args)
+void DumpPackagePayloadInfo(const TArray<FString>& Args)
 {
 	if (Args.Num() == 0)
 	{
@@ -80,7 +80,7 @@ void DumpPayloadToc(const TArray<FString>& Args)
 static FAutoConsoleCommand CCmdDumpPayloadToc = FAutoConsoleCommand(
 	TEXT("DumpPackagePayloadInfo"),
 	TEXT("Writes out information about a package's payloads to the log."),
-	FConsoleCommandWithArgsDelegate::CreateStatic(DumpPayloadToc));
+	FConsoleCommandWithArgsDelegate::CreateStatic(DumpPackagePayloadInfo));
 
 #endif //WITH_EDITORONLY_DATA
 
