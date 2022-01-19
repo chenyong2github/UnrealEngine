@@ -130,11 +130,6 @@ void UListView::ClearListItems()
 	OnItemsChanged(Added, Removed);
 
 	RequestRefresh();
-
-	if (MyListView)
-	{
-		MyListView->RebuildList();
-	}
 }
 
 void UListView::SetSelectionMode(TEnumAsByte<ESelectionMode::Type> InSelectionMode)
