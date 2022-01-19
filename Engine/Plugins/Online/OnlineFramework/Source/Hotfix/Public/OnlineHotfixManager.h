@@ -329,6 +329,8 @@ protected:
 	virtual void OnHotfixTableValueObject(UObject& Asset, const FString& RowName, const FString& ColumnName, const UObject* OldValue, const UObject* NewValue) { }
 	virtual void OnHotfixTableValueSoftObject(UObject& Asset, const FString& RowName, const FString& ColumnName, const FSoftObjectPtr& OldValue, const FSoftObjectPtr& NewValue) { }
 
+	virtual bool ShouldPerformHotfix();
+
 public:
 	UOnlineHotfixManager();
 	UOnlineHotfixManager(FVTableHelper& Helper);

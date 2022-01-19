@@ -271,7 +271,7 @@ void UOnlineHotfixManager::StartHotfixProcess()
 	UE_LOG(LogHotfixManager, Log, TEXT("Starting Hotfix Process"));
 
 	// Patching the editor this way seems like a bad idea
-	bool bShouldHotfix = IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
+	const bool bShouldHotfix = ShouldPerformHotfix();
 	if (!bShouldHotfix)
 	{
 		UE_LOG(LogHotfixManager, Warning, TEXT("Hotfixing skipped when not running game/server"));
@@ -460,7 +460,7 @@ void UOnlineHotfixManager::OnEnumerateFilesComplete(bool bWasSuccessful, const F
 void UOnlineHotfixManager::CheckAvailability(FOnHotfixAvailableComplete& InCompletionDelegate)
 {
 	// Checking for hotfixes in editor is not supported
-	bool bShouldHotfix = IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
+	const bool bShouldHotfix = ShouldPerformHotfix();
 	if (!bShouldHotfix)
 	{
 		UE_LOG(LogHotfixManager, Warning, TEXT("Hotfixing availability skipped when not running game/server"));
@@ -1937,6 +1937,11 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 	{
 		ProblemStrings.Add(TEXT("Unable to hotfix this asset type. Only DataTables, CurveTables and Curve data types are supported."));
 	}
+}
+
+bool UOnlineHotfixManager::ShouldPerformHotfix()
+{
+	return IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
 }
 
 UWorld* UOnlineHotfixManager::GetWorld() const

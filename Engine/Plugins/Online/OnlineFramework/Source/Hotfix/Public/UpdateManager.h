@@ -389,7 +389,7 @@ protected:
 	EUpdateCompletionStatus LastCompletionResult[2];
 
 	FTSTicker::FDelegateHandle TickerHandle;
-	FTimerHandle StartCheckInternalTimerHandle;
+	FTSTicker::FDelegateHandle StartCheckInternalTimerHandle;
 
 private:
 
@@ -405,10 +405,7 @@ private:
 
 	/** Fire a delegate after a given amount of time */
 	typedef TFunction<void(void)> DelayCb;
-	FTimerHandle DelayResponse(DelayCb&& Delegate, float Delay);
-
-	/** Helper function to check if a timer is running. */
-	bool IsTimerHandleActive(const FTimerHandle& TimerHandle) const;
+	FTSTicker::FDelegateHandle DelayResponse(DelayCb&& Delegate, float Delay);
 
 	friend bool SkipPatchCheck(UUpdateManager* UpdateManager);
 

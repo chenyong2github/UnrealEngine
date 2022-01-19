@@ -121,7 +121,7 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartCheckInternal(bool bInCh
 		return Result;
 	}
 
-	if (!IsTimerHandleActive(StartCheckInternalTimerHandle) &&
+	if (!StartCheckInternalTimerHandle.IsValid() &&
 		(CurrentUpdateState == EUpdateState::UpdateIdle ||
 		CurrentUpdateState == EUpdateState::UpdatePending ||
 		CurrentUpdateState == EUpdateState::UpdateComplete))
@@ -147,6 +147,7 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartCheckInternal(bool bInCh
 			{
 				// Check for a patch first, then hotfix application
 				StartPatchCheck();
+				StartCheckInternalTimerHandle.Reset();
 			};
 
 			// Give the UI state widget a chance to start listening for delegates
@@ -159,6 +160,7 @@ UUpdateManager::EUpdateStartResult UUpdateManager::StartCheckInternal(bool bInCh
 			auto StartDelegate = [this, LastResult]()
 			{
 				CheckComplete(LastResult, false);
+				StartCheckInternalTimerHandle.Reset();
 			};
 
 			StartCheckInternalTimerHandle = DelayResponse(StartDelegate, 0.1f);
@@ -642,28 +644,13 @@ void UUpdateManager::OnApplicationHasReactivated()
 	}
 }
 
-FTimerHandle UUpdateManager::DelayResponse(DelayCb&& Delegate, float Delay)
+FTSTicker::FDelegateHandle UUpdateManager::DelayResponse(DelayCb&& Delegate, float Delay)
 {
-	FTimerHandle TimerHandle;
-
-	UWorld* World = GetWorld();
-	if (ensure(World != nullptr))
-	{
-		World->GetTimerManager().SetTimer(TimerHandle, MoveTemp(Delegate), Delay, false, -1.f);
-	}
-
-	return TimerHandle;
-}
-
-bool UUpdateManager::IsTimerHandleActive(const FTimerHandle& TimerHandle) const
-{
-	UWorld* World = GetWorld();
-	if (ensure(World != nullptr))
-	{
-		return World->GetTimerManager().IsTimerActive(TimerHandle);
-	}
-
-	return false;
+	return FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, Delegate](float dts)
+		{
+			Delegate();
+			return false;
+		}), Delay);
 }
 
 UWorld* UUpdateManager::GetWorld() const
