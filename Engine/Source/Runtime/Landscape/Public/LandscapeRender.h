@@ -135,7 +135,7 @@ struct FLandscapeBatchElementParams
 #endif
 	const TUniformBuffer<FLandscapeUniformShaderParameters>* LandscapeUniformShaderParametersResource;
 	const TArray<TUniformBuffer<FLandscapeFixedGridUniformShaderParameters>>* FixedGridUniformShaderParameters;
-	const TUniformBufferRef<FLandscapeSectionLODUniformParameters>* LandscapeSectionLODUniformParameters;
+	FUniformBufferRHIRef LandscapeSectionLODUniformParameters;
 	const FLandscapeComponentSceneProxy* SceneProxy;
 	int32 CurrentLOD;
 };
@@ -502,7 +502,7 @@ struct FLandscapeRenderSystem
 	FBufferRHIRef SectionLODBiasBuffer;
 	FShaderResourceViewRHIRef SectionLODBiasSRV;
 
-	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
+	FUniformBufferRHIRef SectionLODUniformBuffer;
 
 	FCriticalSection CachedValuesCS;
 	TMap<FViewKey, TResourceArray<float>> CachedSectionLODValues;
