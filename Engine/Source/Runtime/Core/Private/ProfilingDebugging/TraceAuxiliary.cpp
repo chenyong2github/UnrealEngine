@@ -84,7 +84,7 @@ public:
 	void					ResetCommandlineChannels();
 	void					EnableChannels(const TCHAR* ChannelList);
 	void					DisableChannels(const TCHAR* ChannelList);
-	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter, const FLogCategoryBase& LogCategory);
+	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 	bool					Stop();
 	void					ResumeChannels();
 	void					PauseChannels();
@@ -114,8 +114,8 @@ private:
 	static uint32			HashChannelName(const TCHAR* Name);
 	bool					EnableChannel(const TCHAR* Channel);
 	void					DisableChannel(const TCHAR* Channel);
-	bool					SendToHost(const TCHAR* Host, const FLogCategoryBase& LogCategory);
-	bool					WriteToFile(const TCHAR* Path, const FLogCategoryBase& LogCategory);
+	bool					SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool					WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	TMap<uint32, FChannel>	CommandlineChannels;
 	FString					TraceDest;
@@ -237,7 +237,7 @@ void FTraceAuxiliaryImpl::RemoveChannel(const TCHAR* Name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter, const FLogCategoryBase& LogCategory)
+bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
 {
 	// Connect/write to file. But only if we're not already sending/writing
 	bool bConnected = UE::Trace::IsTracing();
@@ -385,7 +385,7 @@ void FTraceAuxiliaryImpl::SetTruncateFile(bool bNewTruncateFileState)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FLogCategoryBase& LogCategory)
+bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
 {
 	if (!UE::Trace::SendTo(Host))
 	{
@@ -398,7 +398,7 @@ bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FLogCategoryBase& 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FLogCategoryBase& LogCategory)
+bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
 {
 	// Default file name functor 
 	auto GetDefaultName = [] {return FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S.utrace"));};

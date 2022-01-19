@@ -16,7 +16,7 @@ public:
 	// In no logging configurations all log categories are of type FNoLoggingCategory, which has no relation with
 	// FLogCategoryBase. In order to not need to conditionally set the argument alias the type here.
 #if NO_LOGGING
-	typedef FNoLoggingCategory& FLogCategoryAlias;
+	typedef FNoLoggingCategory FLogCategoryAlias;
 #else
 	typedef FLogCategoryBase FLogCategoryAlias;
 #endif
