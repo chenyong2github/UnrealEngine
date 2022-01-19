@@ -36,17 +36,17 @@ public:
 	 * @param Desc is the information for the static mesh that will be instantiated later via AddStaticMeshInstance()
 	 * @return The index of the static mesh type 
 	 */
-	int16 FindOrAddStaticMeshDesc(const FStaticMeshInstanceVisualizationDesc& Desc) const;
+	int16 FindOrAddStaticMeshDesc(const FStaticMeshInstanceVisualizationDesc& Desc);
 
 	/** @todo: need to add a release API at some point for static mesh types */
 
 	/** 
 	 * @return the array of all the static mesh instance component information
 	 */
-	FMassInstancedStaticMeshInfoArrayView GetMutableInstancedStaticMeshInfos() const;
+	FMassInstancedStaticMeshInfoArrayView GetMutableInstancedStaticMeshInfos();
 
 	/** Mark render state of the static mesh instances dirty */
-	void DirtyStaticMeshInstances() const;
+	void DirtyStaticMeshInstances();
 
 	/** 
 	 * Store the template actor uniquely and return an index to it 
@@ -105,7 +105,7 @@ public:
 	 * @param TemplateActorIndex is the template type of the actor to compare against
 	 * @return True if actor matches the template
 	 */
-	bool DoesActorMatchTemplate(const AActor& Actor, const int16 TemplateActorIndex);
+	bool DoesActorMatchTemplate(const AActor& Actor, const int16 TemplateActorIndex) const;
 
 	TSubclassOf<AActor> GetTemplateActorClass(const int16 TemplateActorIndex);
 

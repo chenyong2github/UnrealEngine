@@ -18,20 +18,20 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 
-int16 UMassRepresentationSubsystem::FindOrAddStaticMeshDesc(const FStaticMeshInstanceVisualizationDesc& Desc) const
+int16 UMassRepresentationSubsystem::FindOrAddStaticMeshDesc(const FStaticMeshInstanceVisualizationDesc& Desc)
 {
 	check(VisualizationComponent);
 	return VisualizationComponent->FindOrAddVisualDesc(Desc);
 }
 
-FMassInstancedStaticMeshInfoArrayView UMassRepresentationSubsystem::GetMutableInstancedStaticMeshInfos() const
+FMassInstancedStaticMeshInfoArrayView UMassRepresentationSubsystem::GetMutableInstancedStaticMeshInfos()
 {
 	check(VisualizationComponent);
 	FMassInstancedStaticMeshInfoArrayView View = VisualizationComponent->GetMutableVisualInfos();
 	return MoveTemp(View);
 }
 
-void UMassRepresentationSubsystem::DirtyStaticMeshInstances() const
+void UMassRepresentationSubsystem::DirtyStaticMeshInstances()
 {
 	check(VisualizationComponent);
 	return VisualizationComponent->DirtyVisuals();
@@ -280,7 +280,7 @@ bool UMassRepresentationSubsystem::CancelSpawningInternal(const int16 TemplateAc
 	return true;
 }
 
-bool UMassRepresentationSubsystem::DoesActorMatchTemplate(const AActor& Actor, const int16 TemplateActorIndex)
+bool UMassRepresentationSubsystem::DoesActorMatchTemplate(const AActor& Actor, const int16 TemplateActorIndex) const
 {
 	UE_MT_SCOPED_READ_ACCESS(TemplateActorsMTAccessDetector);
 	if (!TemplateActors.IsValidIndex(TemplateActorIndex))
@@ -379,7 +379,7 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityAssociated(const UM
 		// Check if this mass agent already handled by this sub system, if yes than release any local spawned actor or cancel any spawn requests
 		if (HandledMassAgents.Find(MassAgent))
 		{
-			UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(*this, MassAgent);
+			UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(*EntitySubsystem, MassAgent);
 		}
 	}
 }

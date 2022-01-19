@@ -46,6 +46,7 @@ protected:
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
+	 * @param RepresentationSubsystem to use to get or spawn the actor
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @param ActorInfo is the fragment where we are going to store the actor pointer
 	 * @param Transform is the spatial information about where to spawn the actor 
@@ -54,10 +55,11 @@ protected:
 	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority);
+	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority);
 
 	/**
 	 * Release the actor to the subsystem, will only release it the actor or spawn request matches the template actor
+	 * @param RepresentationSubsystem to use to release the actor or cancel the spawning
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @param ActorInfo is the fragment where we are going to store the actor pointer
 	 * @param TemplateActorIndex is the index of the type to release
@@ -66,7 +68,7 @@ protected:
 	 * @param bCancelSpawningOnly tell to only cancel the existing spawning request and to not release the associated actor it any.
 	 * @return if the actor was release or the spawning was canceled.
 	 */
-	virtual bool ReleaseActorOrCancelSpawning(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, const bool bCancelSpawningOnly = false);
+	virtual bool ReleaseActorOrCancelSpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, const bool bCancelSpawningOnly = false);
 
 	/** 
 	 * Enable/disable a spawned actor
@@ -130,11 +132,11 @@ public:
 	 * Release an actor or cancel its spawning (calls ReleaseAnyActorOrCancelAnySpawning)
 	 * WARNING: This method will destroy the associated actor in any and by the same fact might also move the entity into a new archetype.
 	 *          So any reference to fragment might become invalid.
-	 * @param RepresentationSubsystem to use to release any actors or cancel spawning requests
+	 * @param EntitySubsystem to use to retrieve the mass agent fragments
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @return True if actor was release or spawning request was canceled
 	 */
-	static void ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent);
+	static void ReleaseAnyActorOrCancelAnySpawning(UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent);
 
 	/**
 	 * Release an actor or cancel its spawning
@@ -194,10 +196,6 @@ protected:
 	UPROPERTY(Transient)
 	UMassEntitySubsystem* CachedEntitySubsystem;
 
-	/** A cache pointer to the representation subsystem */
-	UPROPERTY(Transient)
-	UMassRepresentationSubsystem* RepresentationSubsystem;
-
 	/** Default representation when unable to spawn an actor */
 	ERepresentationType DefaultRepresentationType = ERepresentationType::None;
 
@@ -206,13 +204,6 @@ protected:
 	/** At what rate should the not visible entity be updated in seconds */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visualization", config)
 	float NotVisibleUpdateRate = 0.5f;
-};
-
-
-USTRUCT()
-struct FMassRepresentationDefaultDestructorTag : public FMassTag
-{
-	GENERATED_BODY()
 };
 
 UCLASS()
@@ -224,13 +215,8 @@ public:
 	UMassRepresentationFragmentDestructor();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	/** A cache pointer to the representation subsystem */
-	UPROPERTY(Transient)
-	UMassRepresentationSubsystem* RepresentationSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };

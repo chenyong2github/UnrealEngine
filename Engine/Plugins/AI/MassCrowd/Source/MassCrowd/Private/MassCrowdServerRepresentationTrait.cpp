@@ -20,15 +20,25 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 	// won't override any fragments that are already there
 	BuildContext.AddFragment<FDataFragment_Transform>();
 
-	if (UMassCrowdRepresentationSubsystem* RepresentationSubsystem = World.GetSubsystem<UMassCrowdRepresentationSubsystem>())
-	{
-		FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
-		RepresentationFragment.StaticMeshDescIndex = INDEX_NONE;
-		RepresentationFragment.HighResTemplateActorIndex = TemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(TemplateActor.Get()) : INDEX_NONE;
-		RepresentationFragment.LowResTemplateActorIndex = INDEX_NONE;
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	check(EntitySubsystem);
 
-		BuildContext.AddFragment<FMassRepresentationLODFragment>();
+	UMassCrowdRepresentationSubsystem* RepresentationSubsystem = World.GetSubsystem<UMassCrowdRepresentationSubsystem>();
+	check(RepresentationSubsystem);
 
-		BuildContext.AddChunkFragment<FMassVisualizationChunkFragment>();
-	}
+	FMassRepresentationSubsystemFragment Subsystem;
+	Subsystem.RepresentationSubsystem = RepresentationSubsystem;
+	uint32 SubsystemHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Subsystem));
+	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
+	BuildContext.AddSharedFragment(SubsystemFragment);
+
+	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
+	RepresentationFragment.StaticMeshDescIndex = INDEX_NONE;
+	RepresentationFragment.HighResTemplateActorIndex = TemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(TemplateActor.Get()) : INDEX_NONE;
+	RepresentationFragment.LowResTemplateActorIndex = INDEX_NONE;
+
+	BuildContext.AddFragment<FMassRepresentationLODFragment>();
+
+	// @todo figure out if this chunk fragment is really needed?
+	BuildContext.AddChunkFragment<FMassVisualizationChunkFragment>();
 }

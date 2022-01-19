@@ -9,7 +9,7 @@
 #include "GameFramework/Character.h"
 #include "Translators/MassCharacterMovementTranslators.h"
 #include "MassAgentComponent.h"
-#include "MassCrowdRepresentationSubsystem.h"
+#include "MassRepresentationSubsystem.h"
 
 UMassCrowdRepresentationProcessor::UMassCrowdRepresentationProcessor()
 {
@@ -21,9 +21,6 @@ UMassCrowdRepresentationProcessor::UMassCrowdRepresentationProcessor()
 void UMassCrowdRepresentationProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
-
-	// Override default representation subsystem by the crowd one to support parallelization
-	RepresentationSubsystem = UWorld::GetSubsystem<UMassCrowdRepresentationSubsystem>(Owner.GetWorld());
 }
 
 
@@ -94,11 +91,11 @@ void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType 
 	}
 }
 
-AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority)
+AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority)
 {
 	FTransform RootTransform = Transform;
 	
-	if (const AActor* DefaultActor = RepresentationSubsystem->GetTemplateActorClass(TemplateActorIndex).GetDefaultObject())
+	if (const AActor* DefaultActor = RepresentationSubsystem.GetTemplateActorClass(TemplateActorIndex).GetDefaultObject())
 	{
 		if (const UCapsuleComponent* CapsuleComp = DefaultActor->FindComponentByClass<UCapsuleComponent>())
 		{
@@ -106,7 +103,7 @@ AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassEntityHand
 		}
 	}
 
-	return Super::GetOrSpawnActor(MassAgent, ActorInfo, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
+	return Super::GetOrSpawnActor(RepresentationSubsystem, MassAgent, ActorInfo, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
 }
 
 void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer)

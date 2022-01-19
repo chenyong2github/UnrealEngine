@@ -16,65 +16,43 @@ UMassUpdateISMProcessor::UMassUpdateISMProcessor()
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Representation);
 }
 
-void UMassUpdateISMProcessor::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
-	if (const UWorld* World = Owner.GetWorld())
-	{
-		for (FMassUpdateISMConfig& Config : ISMConfigs)
-		{
-			Config.RepresentationSubsystem = Cast<UMassRepresentationSubsystem>(World->GetSubsystemBase(Config.RepresentationSubsystemClass ? Config.RepresentationSubsystemClass : TSubclassOf<UMassRepresentationSubsystem>(UMassRepresentationSubsystem::StaticClass())));
-		}
-	}
-}
-
 void UMassUpdateISMProcessor::ConfigureQueries()
 {
-	for (FMassUpdateISMConfig& Config : ISMConfigs)
-	{
-		if (Config.TagFilter.GetScriptStruct())
-		{
-			Config.EntityQuery.AddTagRequirement(*Config.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
-		}
-		Config.EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-		Config.EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
-		Config.EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
-		Config.EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadWrite);
-		Config.EntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
-	}
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
+	EntityQuery.AddSharedRequirement<FMassRepresentationSubsystemFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-
-	for (FMassUpdateISMConfig& Config : ISMConfigs)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [](FMassExecutionContext& Context)
 	{
-		check(Config.RepresentationSubsystem);
-		FMassInstancedStaticMeshInfoArrayView ISMInfo = Config.RepresentationSubsystem->GetMutableInstancedStaticMeshInfos();
+		UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetSharedFragment<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+		check(RepresentationSubsystem);
+		FMassInstancedStaticMeshInfoArrayView ISMInfo = RepresentationSubsystem->GetMutableInstancedStaticMeshInfos();
 
-		Config.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ISMInfo](FMassExecutionContext& Context)
+		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+		const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
+
+		const int32 NumEntities = Context.GetNumEntities();
+		for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 		{
-			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
-			const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
-			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
+			const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
+			const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
+			FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
 
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
+			if (Representation.CurrentRepresentation == ERepresentationType::StaticMeshInstance)
 			{
-				const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
-				const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
-				FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
-
-				if (Representation.CurrentRepresentation == ERepresentationType::StaticMeshInstance)
-				{
-					UpdateISMTransform(GetTypeHash(Context.GetEntity(EntityIdx)), ISMInfo[Representation.StaticMeshDescIndex], TransformFragment.GetTransform(), Representation.PrevTransform, RepresentationLOD.LODSignificance, Representation.PrevLODSignificance);
-				}
-				Representation.PrevTransform = TransformFragment.GetTransform();
-				Representation.PrevLODSignificance = RepresentationLOD.LODSignificance;
+				UpdateISMTransform(GetTypeHash(Context.GetEntity(EntityIdx)), ISMInfo[Representation.StaticMeshDescIndex], TransformFragment.GetTransform(), Representation.PrevTransform, RepresentationLOD.LODSignificance, Representation.PrevLODSignificance);
 			}
-		});
-	}
+			Representation.PrevTransform = TransformFragment.GetTransform();
+			Representation.PrevLODSignificance = RepresentationLOD.LODSignificance;
+		}
+	});
 }
 
 void UMassUpdateISMProcessor::UpdateISMTransform(int32 EntityId, FMassInstancedStaticMeshInfo& ISMInfo, const FTransform& Transform, const FTransform& PrevTransform, const float LODSignificance, const float PrevLODSignificance/* = -1.0f*/)

@@ -40,6 +40,7 @@ protected:
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
+	 * @param RepresentationSubsystem to use to get or spawn the actor
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @param ActorInfo is the fragment where we are going to store the actor pointer
 	 * @param Transform is the spatial information about where to spawn the actor 
@@ -49,7 +50,7 @@ protected:
 	 * @param Context of the execution from the entity sub system
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) override;
+	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority);
 
 	/**
 	 * Teleports the actor at the specified transform by preserving its velocity and without collision.

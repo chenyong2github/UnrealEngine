@@ -10,6 +10,8 @@
 
 #include "MassRepresentationFragments.generated.h"
 
+class UMassRepresentationSubsystem;
+
 USTRUCT()
 struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragment
 {
@@ -48,4 +50,13 @@ struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 
 	/** Value scaling from 0 to 3, 0 highest LOD we support and 3 being completely off LOD */
 	float PrevLODSignificance = -1.0f;
+};
+
+USTRUCT()
+struct FMassRepresentationSubsystemFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	UMassRepresentationSubsystem* RepresentationSubsystem = nullptr;
 };

@@ -40,7 +40,4 @@ protected:
 	// @todo the following property will be cut once new de/initializers are in
 	/** Allow subclasses to override the representation fragment deinitializer */
 	TSubclassOf<UMassProcessor> RepresentationFragmentDeinitializerClass;
-
-	UPROPERTY()
-	UScriptStruct* RepresentationDestructorTag;
 };
