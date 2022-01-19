@@ -4,8 +4,8 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Elements/Framework/TypedElementHandle.h"
-#include "UObject/Interface.h"
 #include "EditorSubsystem.h"
+#include "Templates/SubclassOf.h"
 
 #include "PlacementSubsystem.generated.h"
 

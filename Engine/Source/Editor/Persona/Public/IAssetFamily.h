@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AssetData.h"
+#include "Styling/SlateColor.h"
 
 struct FSlateBrush;
 
