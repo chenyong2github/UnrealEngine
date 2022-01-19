@@ -513,7 +513,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 		SetName(*ppOutResource, Name);
 
 		// Only track resources that cannot be accessed on the CPU.
-		if (IsGPUOnly(HeapProps.Type))
+		if (IsGPUOnly(HeapProps.Type, &HeapProps))
 		{
 			(*ppOutResource)->StartTrackingForResidency();
 		}
@@ -964,13 +964,13 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 }
 
 
-void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint64 InSize, bool bInIsTransient)
+void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint64 InSize, bool bInIsTransient, const D3D12_HEAP_PROPERTIES* CustomHeapProperties)
 {
 	SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
 	SetResource(Resource);
 	SetSize(InSize);
 
-	if (IsCPUAccessible(Resource->GetHeapType()))
+	if (IsCPUAccessible(Resource->GetHeapType(), CustomHeapProperties))
 	{
 		D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType()) ? 0 : InSize };
 		SetMappedBaseAddress(Resource->Map(&range));
