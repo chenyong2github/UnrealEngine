@@ -20,6 +20,7 @@
 #include "Chaos/PBDConstraintColor.h"
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/Sphere.h"
@@ -1216,6 +1217,119 @@ namespace Chaos
 			}
 		}
 
+		struct FOrderedClusterConnection {
+			const FRigidClustering::FClusterHandle Parent;
+			const FRigidClustering::FClusterHandle Handle0;
+			const FRigidClustering::FClusterHandle Handle1;
+			FReal Strain;
+
+			FOrderedClusterConnection()
+				: Parent(nullptr)
+				, Handle0(nullptr)
+				, Handle1(nullptr)
+				, Strain(0)
+			{}
+
+			FOrderedClusterConnection(const FRigidClustering::FClusterHandle InParent,
+				const FRigidClustering::FClusterHandle In0,
+				const FRigidClustering::FClusterHandle In1,
+				FReal InStrain)
+				: Parent(InParent)
+				, Handle0(In0)
+				, Handle1(In1)
+				, Strain(InStrain)
+			{
+				check(In0 < In1);
+			}
+			bool operator==(const FOrderedClusterConnection& R) const
+			{
+				return Equals(R);
+			}
+
+			bool Equals(const FOrderedClusterConnection& R) const
+			{
+				return Handle0 == R.Handle0 && Handle1 == R.Handle1;
+			}
+		};
+
+		uint32 GetTypeHash(const FOrderedClusterConnection& Object)
+		{
+			uint32 Hash = FCrc::MemCrc32(&Object, sizeof(FOrderedClusterConnection));
+			return Hash;
+		}
+
+		void DrawConnectionGraphImpl(const FRigidClustering& Clustering, const FChaosDebugDrawSettings& Settings)
+		{
+			auto DrawConnections = [&](TSet<FOrderedClusterConnection>& Connections, FReal MaxStrain, const FChaosDebugDrawSettings& Settings)
+			{
+				if (FMath::IsNearlyZero(MaxStrain))
+				{
+					MaxStrain = (FReal)1;
+				}
+
+				for (auto& Connection : Connections)
+				{
+					FRigidTransform3 ClusterTransform(Connection.Parent->X(), Connection.Parent->R());
+					FVec3 Pos0 = ClusterTransform.TransformPosition(Connection.Handle0->ChildToParent().GetLocation());
+					FVec3 Pos1 = ClusterTransform.TransformPosition(Connection.Handle1->ChildToParent().GetLocation());
+
+					FColor Color = FColor::Green; // FMath::Lerp(FColor::Green, FColor::Red, Connection.Strain / MaxStrain);
+
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos1, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 3);
+				}
+
+			};
+
+			//if (bChaosDebugDrawClusterConnectionGraph)
+			{
+				FReal MaxStrain = -FLT_MAX;
+				int32 NumConnections = 0;
+				const TArrayCollectionArray<FReal>& Strain = Clustering.GetStrainArray();
+
+				for (auto& ActiveCluster : Clustering.GetChildrenMap())
+				{
+					if (!ActiveCluster.Key->Disabled())
+					{
+						for (const FRigidClustering::FRigidHandle& Rigid : ActiveCluster.Value)
+						{
+							if (const FRigidClustering::FClusterHandle& Child = Rigid->CastToClustered())
+							{
+								MaxStrain = FMath::Max(MaxStrain, Child->Strain());
+							}
+						}
+						NumConnections += ActiveCluster.Value.Num();
+					}
+				}
+
+				if (NumConnections)
+				{
+					TSet<FOrderedClusterConnection> Connections;
+					Connections.Reserve(NumConnections);
+
+					for (auto& ActiveCluster : Clustering.GetChildrenMap())
+					{
+						if (!ActiveCluster.Key->Disabled())
+						{
+							for (const FRigidClustering::FRigidHandle& Rigid : ActiveCluster.Value)
+							{
+								if (const FRigidClustering::FClusterHandle& Child = Rigid->CastToClustered())
+								{
+									const FConnectivityEdgeArray& Edges = Child->ConnectivityEdges();
+									for (const TConnectivityEdge<FReal>& Edge : Edges)
+									{
+										const FRigidClustering::FRigidHandle A = (Child < Edge.Sibling) ? Child : Edge.Sibling;
+										const FRigidClustering::FRigidHandle B = (Child < Edge.Sibling) ? Edge.Sibling : Child;
+										Connections.Add(FOrderedClusterConnection(ActiveCluster.Key, A->CastToClustered(), B->CastToClustered(), Edge.Strain));
+									}
+								}
+							}
+						}
+					}
+					DrawConnections(Connections, MaxStrain, Settings);
+				}
+			}
+		}
+
 		void DrawSuspensionConstraintsImpl(const FRigidTransform3& SpaceTransform, const FPBDSuspensionConstraints& Constraints, int32 ConstraintIndex, const FChaosDebugDrawSettings& Settings)
 		{
 			FConstGenericParticleHandle Particle = Constraints.GetConstrainedParticles(ConstraintIndex)[0];
@@ -1441,6 +1555,14 @@ namespace Chaos
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
 				DrawConstraintGraphImpl(SpaceTransform, Graph, GetChaosDebugDrawSettings(Settings));
+			}
+		}
+
+		void DrawConnectionGraph(const FRigidClustering& Clustering, const FChaosDebugDrawSettings* Settings)
+		{
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawConnectionGraphImpl(Clustering, GetChaosDebugDrawSettings(Settings));
 			}
 		}
 

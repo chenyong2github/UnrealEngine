@@ -212,7 +212,8 @@ public:
 	*    the cluster body, can be updated during the evaluation of the simulation.
 	*/
 	TArrayCollectionArray<FReal>& GetStrainArray() { return MParticles.StrainsArray(); }
-
+	const TArrayCollectionArray<FReal>& GetStrainArray() const { return MParticles.StrainsArray(); }
+		
 	/**
 	*  GetParentToChildren
 	*    The parent to children map stores the currently active cluster ids (Particle Indices) as

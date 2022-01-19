@@ -63,6 +63,8 @@ struct TConnectivityEdge
 	TPBDRigidParticleHandle<T, 3>* Sibling;
 	T Strain;
 };
+typedef TConnectivityEdge<FReal> FConnectivityEdge;
+typedef TArray<FConnectivityEdge> FConnectivityEdgeArray;
 
 template<class T, int d>
 class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
