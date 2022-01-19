@@ -42,6 +42,7 @@
 #include "ControlRigContextMenuContext.h"
 #include "SRigSpacePickerWidget.h"
 #include "Settings/ControlRigSettings.h"
+#include "Slate/Private/Widgets/Views/SListPanel.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -2132,6 +2133,13 @@ bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const 
 
 FReply SRigHierarchy::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	// only allow drops onto empty space of the widget (when there's no target item under the mouse)
+	TSharedPtr<FRigTreeElement> ItemAtMouse = TreeView->FindItemAtPosition(DragDropEvent.GetScreenSpacePosition());
+	if(ItemAtMouse.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
 	return OnAcceptDrop(DragDropEvent, EItemDropZone::OntoItem, nullptr);
 }
 

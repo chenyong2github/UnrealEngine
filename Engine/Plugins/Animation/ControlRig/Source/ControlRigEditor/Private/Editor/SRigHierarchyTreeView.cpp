@@ -7,6 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Slate/Private/Widgets/Views/SListPanel.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Editor/EditorEngine.h"
@@ -615,6 +616,23 @@ TArray<FRigElementKey> SRigHierarchyTreeView::GetSelectedKeys() const
 		Keys.Add(SelectedElement->Key);
 	}
 	return Keys;
+}
+
+TSharedPtr<FRigTreeElement> SRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
+{
+	if(ItemsPanel.IsValid() && ItemsSource != nullptr)
+	{
+		const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
+		FArrangedChildren ArrangedChildren(EVisibility::Visible);
+		ItemsPanel->ArrangeChildren(MyGeometry, ArrangedChildren, true);
+
+		const int32 Index = ItemsPanel->FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition); 
+		if(ItemsSource->IsValidIndex(Index))
+		{
+			return ItemsSource->operator[](Index);
+		}
+	}
+	return TSharedPtr<FRigTreeElement>();
 }
 
 bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
