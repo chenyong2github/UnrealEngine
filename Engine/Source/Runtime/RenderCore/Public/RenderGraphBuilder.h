@@ -39,24 +39,29 @@ public:
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		ERenderTargetTexture Texture = ERenderTargetTexture::ShaderResource,
-		ERDGTextureFlags Flags = ERDGTextureFlags::None);
+		ERDGTextureFlags Flags = ERDGTextureFlags::None,
+		ERHIAccess AccessInitial = ERHIAccess::Unknown);
 
 	/** Register an external texture with a custom name. The name is only used if the texture has not already been registered. */
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		const TCHAR* NameIfNotRegistered,
 		ERenderTargetTexture RenderTargetTexture = ERenderTargetTexture::ShaderResource,
-		ERDGTextureFlags Flags = ERDGTextureFlags::None);
+		ERDGTextureFlags Flags = ERDGTextureFlags::None,
+		ERHIAccess AccessInitial = ERHIAccess::Unknown);
 
 	/** Register a external buffer to be tracked by the render graph. */
-	FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer, ERDGBufferFlags Flags = ERDGBufferFlags::None);
-	FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer, ERDGBufferFlags Flags, ERHIAccess AccessFinal);
+	FRDGBufferRef RegisterExternalBuffer(
+		const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
+		ERDGBufferFlags Flags = ERDGBufferFlags::None,
+		ERHIAccess AccessInitial = ERHIAccess::Unknown);
 
 	/** Register an external buffer with a custom name. The name is only used if the buffer has not already been registered. */
 	FRDGBufferRef RegisterExternalBuffer(
 		const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
 		const TCHAR* NameIfNotRegistered,
-		ERDGBufferFlags Flags = ERDGBufferFlags::None);
+		ERDGBufferFlags Flags = ERDGBufferFlags::None,
+		ERHIAccess AccessInitial = ERHIAccess::Unknown);
 
 	/** Create graph tracked texture from a descriptor. The CPU memory is guaranteed to be valid through execution of
 	 *  the graph, at which point it is released. The underlying RHI texture lifetime is only guaranteed for passes which

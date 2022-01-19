@@ -287,18 +287,9 @@ void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
 		{
 			if (PooledTexture)
 			{
-				// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
-				if (bExternal || bExtracted)
-				{
-					PooledTexture->Reset();
-				}
-				else
-				{
-					PooledTexture->Finalize();
-				}
+				PooledTexture->Finalize();
 			}
 
-			// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
 			if (PooledRenderTarget)
 			{
 				PooledTextureArray.Emplace(PooledRenderTarget);
@@ -361,15 +352,7 @@ void FRDGBuffer::Finalize(FRDGPooledBufferArray& PooledBufferArray)
 		}
 		else
 		{
-			if (bExternal || bExtracted)
-			{
-				PooledBuffer->Reset();
-			}
-			else
-			{
-				PooledBuffer->Finalize();
-			}
-
+			PooledBuffer->Finalize();
 			PooledBufferArray.Emplace(PooledBuffer);
 		}
 	}

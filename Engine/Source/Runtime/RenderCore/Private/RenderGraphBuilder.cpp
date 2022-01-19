@@ -654,7 +654,8 @@ void FRDGBuilder::FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FR
 FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	ERenderTargetTexture RenderTargetTexture,
-	ERDGTextureFlags Flags)
+	ERDGTextureFlags Flags,
+	ERHIAccess AccessInitial)
 {
 #if RDG_ENABLE_DEBUG
 	checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture."));
@@ -665,14 +666,15 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	{
 		Name = TEXT("External");
 	}
-	return RegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags);
+	return RegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags, AccessInitial);
 }
 
 FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TCHAR* Name,
 	ERenderTargetTexture RenderTargetTexture,
-	ERDGTextureFlags Flags)
+	ERDGTextureFlags Flags,
+	ERHIAccess AccessInitial)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags));
 	FRHITexture* ExternalTextureRHI = ExternalPooledTexture->GetRenderTargetItem().GetRHI(RenderTargetTexture);
@@ -686,9 +688,10 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const FRDGTextureDesc Desc = Translate(ExternalPooledTexture->GetDesc(), RenderTargetTexture);
 	bool bFinalizedAccess = false;
 
-	if (!EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking)
-		&& !EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV | TexCreate_DepthStencilResolveTarget))
+	if (!EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking) &&
+		!EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV | TexCreate_DepthStencilResolveTarget))
 	{
+		Flags |= ERDGTextureFlags::ReadOnly;
 		bFinalizedAccess = true;
 	}
 
@@ -719,11 +722,13 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		}
 	}
 
-	FRDGTextureSubresourceState& TextureState = Texture->GetState();
-
-	checkf(IsWholeResource(TextureState) && GetWholeResource(TextureState).Access == ERHIAccess::Unknown,
-		TEXT("Externally registered texture '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
-		TEXT("an IPooledRenderTarget reference was improperly held within a pass."), Texture->Name);
+	// The user provided a known initial state. Otherwise, we rely on the tracked state held by the pooled texture.
+	if (AccessInitial != ERHIAccess::Unknown)
+	{
+		FRDGSubresourceState State;
+		State.Access = AccessInitial;
+		InitAsWholeResource(Texture->GetState(), State);
+	}
 
 	ExternalTextures.Add(Texture->GetRHIUnchecked(), Texture);
 
@@ -732,7 +737,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	return Texture;
 }
 
-FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer, ERDGBufferFlags Flags)
+FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer, ERDGBufferFlags Flags, ERHIAccess AccessInitial)
 {
 #if RDG_ENABLE_DEBUG
 	checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer."));
@@ -743,13 +748,14 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FRDGPooledB
 	{
 		Name = TEXT("External");
 	}
-	return RegisterExternalBuffer(ExternalPooledBuffer, Name, Flags);
+	return RegisterExternalBuffer(ExternalPooledBuffer, Name, Flags, AccessInitial);
 }
 
 FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
 	const TCHAR* Name,
-	ERDGBufferFlags Flags)
+	ERDGBufferFlags Flags,
+	ERHIAccess AccessInitial)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(ExternalPooledBuffer, Name, Flags));
 
@@ -761,8 +767,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	const FRDGBufferDesc& Desc = ExternalPooledBuffer->Desc;
 	bool bFinalizedAccess = false;
 
-	if (!EnumHasAnyFlags(Flags, ERDGBufferFlags::ForceTracking)
-		&& !EnumHasAnyFlags(Desc.Usage, BUF_UnorderedAccess))
+	if (!EnumHasAnyFlags(Flags, ERDGBufferFlags::ForceTracking) && !EnumHasAnyFlags(Desc.Usage, BUF_UnorderedAccess))
 	{
 		Flags |= ERDGBufferFlags::ReadOnly;
 		bFinalizedAccess = true;
@@ -782,10 +787,13 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 		Buffer->AccessFinal = ERHIAccess::ReadOnlyExclusiveMask;
 	}
 
-	FRDGSubresourceState& BufferState = Buffer->GetState();
-	checkf(BufferState.Access == ERHIAccess::Unknown,
-		TEXT("Externally registered buffer '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
-		TEXT("an FRDGPooledBuffer reference was improperly held within a pass."), Buffer->Name);
+	// The user provided a known initial state. Otherwise, we rely on the tracked state held by the pooled buffer.
+	if (AccessInitial != ERHIAccess::Unknown)
+	{
+		FRDGSubresourceState State;
+		State.Access = AccessInitial;
+		Buffer->GetState() = State;
+	}
 
 	ExternalBuffers.Add(ExternalPooledBuffer, Buffer);
 
