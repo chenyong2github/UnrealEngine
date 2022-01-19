@@ -47,8 +47,11 @@ How to set up the sources for building, step by step:
 
 1. Clone EpicGames/UnrealEngine repository
 
-    ``git clone https://github.com/EpicGames/UnrealEngine -b release``
-    
+	``git clone https://github.com/EpicGames/UnrealEngine -b <branch>``
+	i.g. ``git clone https://github.com/EpicGames/UnrealEngine -b ue5-main``
+	You can see the more explanation about how we use branch version in root directory UnrealEngine/README.md.
+	Early access 1 and 2 can be downloadable from Releases.
+
 2. Run Setup.sh once.
 
     ``cd UnrealEngine``
