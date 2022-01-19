@@ -407,7 +407,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	if (bIsEditor || bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
-		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
+
+		// Duplicated worlds (ex: WorldPartitionRenameDuplicateBuilder) will not have a loaded path 
+		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName().IsNone() ? LevelPackage->GetFName() : LevelPackage->GetLoadedPath().GetPackageFName();
 
 		// Currently known Instancing use cases:
 		// - World Partition map template (New Level)

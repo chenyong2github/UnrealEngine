@@ -58,51 +58,58 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 		return false;
 	}
 
-	// Setup the world
-	UWorld::InitializationValues IVS;
-	IVS.RequiresHitProxies(false);
-	IVS.ShouldSimulatePhysics(false);
-	IVS.EnableTraceCollision(false);
-	IVS.CreateNavigation(false);
-	IVS.CreateAISystem(false);
-	IVS.AllowAudioPlayback(false);
-	IVS.CreatePhysicsScene(true);
-	FScopedEditorWorld EditorWorld(World, IVS);
-
-	// Make sure the world is partitioned
 	bool bResult = true;
-	if (World->HasSubsystem<UWorldPartitionSubsystem>())
+	// Setup the world
 	{
-		// Ensure the world has a valid world partition.
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		check(WorldPartition);
+		UWorld::InitializationValues IVS;
+		IVS.RequiresHitProxies(false);
+		IVS.ShouldSimulatePhysics(false);
+		IVS.EnableTraceCollision(false);
+		IVS.CreateNavigation(false);
+		IVS.CreateAISystem(false);
+		IVS.AllowAudioPlayback(false);
+		IVS.CreatePhysicsScene(true);
+		FScopedEditorWorld EditorWorld(World, IVS);
 
-		FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
-		WorldContext.SetCurrentWorld(World);
-		UWorld* PrevGWorld = GWorld;
-		GWorld = World;
-
-		// Run builder
-		bResult = Run(World, SCCHelper);
-
-		// Restore previous world
-		WorldContext.SetCurrentWorld(PrevGWorld);
-		GWorld = PrevGWorld;
-
-		// Save default configuration
-		if (bResult)
+		// Make sure the world is partitioned
+		if (World->HasSubsystem<UWorldPartitionSubsystem>())
 		{
-			if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
-				!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
+			// Ensure the world has a valid world partition.
+			UWorldPartition* WorldPartition = World->GetWorldPartition();
+			check(WorldPartition);
+
+			FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
+			WorldContext.SetCurrentWorld(World);
+			UWorld* PrevGWorld = GWorld;
+			GWorld = World;
+
+			// Run builder
+			bResult = Run(World, SCCHelper);
+
+			// Restore previous world
+			WorldContext.SetCurrentWorld(PrevGWorld);
+			GWorld = PrevGWorld;
+
+			// Save default configuration
+			if (bResult)
 			{
-				SaveConfig(CPF_Config, *WorldConfigFilename);
+				if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
+					!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
+				{
+					SaveConfig(CPF_Config, *WorldConfigFilename);
+				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogWorldPartitionBuilder, Error, TEXT("WorldPartition builders only works on partitioned maps."));
+			bResult = false;
+		}
 	}
-	else
+
+	if (bResult)
 	{
-		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("WorldPartition builders only works on partitioned maps."));
-		bResult = false;
+		bResult = PostWorldTeardown(SCCHelper);
 	}
 
 	return bResult;

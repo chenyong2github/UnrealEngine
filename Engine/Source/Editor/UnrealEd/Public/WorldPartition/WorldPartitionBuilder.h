@@ -60,7 +60,7 @@ public:
 
 protected:
 	/**
-	 * Overridable method for derived classed to perform operations when world builder process starts.
+	 * Overridable method for derived classes to perform operations when world builder process starts.
 	 * This is called before loading data (e.g. data layers, editor cells) and before calling `RunInternal`.
 	 */
 	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
@@ -68,10 +68,15 @@ protected:
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
 	/**
-	 * Overridable method for derived classed to perform operations when world builder process completes.
+	 * Overridable method for derived classes to perform operations when world builder process completes.
 	 * This is called after loading all data (e.g. data layers, editor cells) and after calling `RunInternal` for all editor cells.
 	 */
 	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return true; }
+
+	/**
+	 * Overridable method for derived classes to perform operations when world builder has unloaded the world.
+	 */
+	virtual bool PostWorldTeardown(FPackageSourceControlHelper& PackageHelper) { return true; }
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;

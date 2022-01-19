@@ -1079,6 +1079,7 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 				}
 				UPackage* DupPackage = CreateActorPackage(DstPackage, GetActorPackagingScheme(), Path);
 				DupPackage->MarkAsFullyLoaded();
+				DupPackage->MarkPackageDirty();
 				DupParams.DuplicationSeed.Add(Package, DupPackage);
 			}
 		}
@@ -1094,6 +1095,7 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 				}
 				UPackage* DupPackage = FExternalPackageHelper::CreateExternalPackage(DstPackage, Path, UActorFolder::GetExternalPackageFlags());
 				DupPackage->MarkAsFullyLoaded();
+				DupPackage->MarkPackageDirty();
 				DupParams.DuplicationSeed.Add(Package, DupPackage);
 			}
 			return true;
