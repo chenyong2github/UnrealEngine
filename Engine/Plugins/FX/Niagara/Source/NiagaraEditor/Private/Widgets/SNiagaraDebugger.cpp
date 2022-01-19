@@ -825,6 +825,10 @@ TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs&
 		SDockTab::FOnTabClosedCallback::CreateStatic(
 			[](TSharedRef<SDockTab> Self, TWeakPtr<FTabManager> TabManager)
 			{
+				UNiagaraDebugHUDSettings* HudSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
+				HudSettings->Data.bEnabled = false;
+				HudSettings->NotifyPropertyChanged();
+
 				TSharedPtr<FTabManager> OwningTabManager = TabManager.Pin();
 				if (OwningTabManager.IsValid())
 				{
@@ -835,6 +839,10 @@ TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs&
 			, TWeakPtr<FTabManager>(TabManager)
 		)
 	);
+
+	UNiagaraDebugHUDSettings* HudSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
+	HudSettings->Data.bEnabled = true;
+	HudSettings->NotifyPropertyChanged();
 
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
