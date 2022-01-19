@@ -16,8 +16,11 @@ namespace UnrealBuildTool.Rules
 					"AITestSuite",
 					"Core",
 					"CoreUObject",
+					"Engine",
 					"GameplayTags",
+					"MassEntity",
 					"SmartObjectsModule",
+					"StructUtils"
 				}
 			);
 

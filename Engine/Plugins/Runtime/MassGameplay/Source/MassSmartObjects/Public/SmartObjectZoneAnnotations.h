@@ -30,7 +30,7 @@ struct FSmartObjectList
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TArray<FSmartObjectID> SmartObjects;
+	TArray<FSmartObjectHandle> SmartObjects;
 };
 
 /** Per ZoneGraphData smart object look up data. */
@@ -59,7 +59,7 @@ struct FSmartObjectAnnotationData
 	TArray<int32> AffectedLanes;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TMap<FSmartObjectID, FSmartObjectLaneLocation> ObjectToEntryPointLookup;
+	TMap<FSmartObjectHandle, FSmartObjectLaneLocation> ObjectToEntryPointLookup;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	TMap<int32, FSmartObjectList> LaneToSmartObjectsLookup;

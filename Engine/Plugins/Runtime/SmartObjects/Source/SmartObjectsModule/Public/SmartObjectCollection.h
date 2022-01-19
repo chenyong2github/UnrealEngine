@@ -16,15 +16,19 @@ struct SMARTOBJECTSMODULE_API FSmartObjectCollectionEntry
 	GENERATED_BODY()
 public:
 	FSmartObjectCollectionEntry() = default;
-	explicit FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
+	explicit FSmartObjectCollectionEntry(const FSmartObjectHandle& SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
 
-	const FSmartObjectID& GetID() const { return ID; }
+	const FSmartObjectHandle& GetHandle() const { return Handle; }
 	const FSoftObjectPath& GetPath() const	{ return Path; }
 	USmartObjectComponent* GetComponent() const;
 	FTransform GetTransform() const { return Transform; }
 	const FBox& GetBounds() const { return Bounds; }
 	uint32 GetDefinitionIndex() const { return DefinitionIdx; }
-	FString Describe() const;
+
+	friend FString LexToString(const FSmartObjectCollectionEntry& CollectionEntry)
+	{
+		return FString::Printf(TEXT("%s - %s"), *CollectionEntry.Path.ToString(), *LexToString(CollectionEntry.Handle));
+	}
 
 protected:
 	// Only the collection can access the path since the way we reference the component
@@ -32,7 +36,7 @@ protected:
 	friend class ASmartObjectCollection;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject, meta = (ShowOnlyInnerProperties))
-	FSmartObjectID ID;
+	FSmartObjectHandle Handle;
 
 	UPROPERTY()
 	FSoftObjectPath Path;
@@ -98,7 +102,7 @@ protected:
 
 	bool AddSmartObject(USmartObjectComponent& SOComponent);
 	bool RemoveSmartObject(USmartObjectComponent& SOComponent);
-	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectID& SmartObjectID) const;
+	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectHandle& SmartObjectHandle) const;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	FBox Bounds = FBox(ForceInitToZero);
@@ -107,7 +111,7 @@ protected:
 	TArray<FSmartObjectCollectionEntry> CollectionEntries;
 
 	UPROPERTY()
-	TMap<FSmartObjectID, FSoftObjectPath> RegisteredIdToObjectMap;
+	TMap<FSmartObjectHandle, FSoftObjectPath> RegisteredIdToObjectMap;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	TArray<TObjectPtr<const USmartObjectDefinition>> Definitions;

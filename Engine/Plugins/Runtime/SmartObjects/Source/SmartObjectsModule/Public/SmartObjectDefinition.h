@@ -3,6 +3,8 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
+#include "InstancedStruct.h"
+#include "MassEntityTypes.h"
 #include "Engine/DataAsset.h"
 #include "SmartObjectDefinition.generated.h"
 
@@ -35,7 +37,7 @@ public:
  * Persistent and sharable definition of a smart object slot.
  */
 USTRUCT()
-struct SMARTOBJECTSMODULE_API FSmartObjectSlot
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 {
 	GENERATED_BODY()
 
@@ -51,6 +53,10 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FRotator Rotation = FRotator::ZeroRotator;
 
+	/** Custom data that can be added to the slot definition and access through a FSmartObjectSlotView */
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "SmartObjectSlotDefinitionData", ExcludeBaseStruct))
+	TArray<FInstancedStruct> Data;
+
 	/**
 	 * All available definitions associated to this slot.
 	 * This allows multiple frameworks to provide their specific behavior definition to the slot.
@@ -64,7 +70,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 	FColor DEBUG_DrawColor;
 #endif // WITH_EDITORONLY_DATA
 
-	FSmartObjectSlot()
+	FSmartObjectSlotDefinition()
 		: Offset(FVector::ZeroVector), Rotation(FRotator::ZeroRotator)
 #if WITH_EDITORONLY_DATA
 		, DEBUG_DrawColor(FColor::Yellow)
@@ -88,7 +94,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
 	operator int32() const { return Index; }
 
 	bool operator==(const FSmartObjectSlotIndex& Other) const { return Index == Other.Index; }
-	FString Describe() const { return FString::Printf(TEXT("[Slot:%d]"), Index); }
+	friend FString LexToString(const FSmartObjectSlotIndex& SlotIndex) { return FString::Printf(TEXT("[Slot:%d]"), SlotIndex.Index); }
 
 private:
 	UPROPERTY(Transient)
@@ -96,7 +102,7 @@ private:
 };
 
 /**
- * Asset to create sharable SmartObject definitions that can be used by different templates.
+ * SmartObject definition asset. Contains sharable information that can be used by multiple SmartObject instances at runtime.
  */
 UCLASS(BlueprintType, Blueprintable, CollapseCategories)
 class SMARTOBJECTSMODULE_API USmartObjectDefinition : public UDataAsset
@@ -116,13 +122,18 @@ public:
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
 
 	/** Returns a view on all the slot definitions */
-	TConstArrayView<FSmartObjectSlot> GetSlots() const { return Slots; }
+	TConstArrayView<FSmartObjectSlotDefinition> GetSlots() const { return Slots; }
+
+#if WITH_EDITOR
+	/** Returns a view on all the slot definitions */
+	TArrayView<FSmartObjectSlotDefinition> GetMutableSlots() { return Slots; }
+#endif
 
 	/** Return bounds encapsulating all slots */
 	FBox GetBounds() const;
 
 	/** Adds and returns a reference to a defaulted slot (used for testing purposes) */
-	FSmartObjectSlot& DebugAddSlot() { return Slots.AddDefaulted_GetRef(); }
+	FSmartObjectSlotDefinition& DebugAddSlot() { return Slots.AddDefaulted_GetRef(); }
 
 	/**
 	 * Returns the transform (in world space) of the given slot index.
@@ -151,7 +162,14 @@ public:
 	bool Validate() const;
 
 	/** Provides a description of the definition */
-	FString Describe() const;
+	friend FString LexToString(const USmartObjectDefinition& Definition)
+	{
+		return FString::Printf(TEXT("NumSlots=%d NumDefs=%d HasUserFilter=%s HasObjectFilter=%s"),
+			Definition.Slots.Num(),
+			Definition.DefaultBehaviorDefinitions.Num(),
+			*LexToString(!Definition.UserTagFilter.IsEmpty()),
+			*LexToString(!Definition.ObjectTagFilter.IsEmpty()));
+	}
 
 	/** Returns result of the last validation if `Validate` was called; unset otherwise. */
 	TOptional<bool> IsValid() const { return bValid; }
@@ -165,7 +183,7 @@ private:
 	 * will be used by AI to approach the object. Locations are relative to object's location.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
-	TArray<FSmartObjectSlot> Slots;
+	TArray<FSmartObjectSlotDefinition> Slots;
 
 	/** List of behavior definitions of different types provided to SO's user if the slot does not provide one. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
@@ -184,4 +202,24 @@ private:
 	FGameplayTagContainer ActivityTags;
 
 	mutable TOptional<bool> bValid;
+};
+
+/**
+ * Mass Fragment used to share slot definition between all slot instances using that definition.
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	FSmartObjectSlotDefinitionFragment() = default;
+	explicit FSmartObjectSlotDefinitionFragment(const USmartObjectDefinition& InObjectDefinition, const FSmartObjectSlotDefinition& InSlotDefinition)
+		: SmartObjectDefinition(&InObjectDefinition), SlotDefinition(&InSlotDefinition) {}
+
+	/** Pointer to the parent object definition to preserve slot definition pointer validity. */
+	UPROPERTY(Transient)
+	const USmartObjectDefinition* SmartObjectDefinition = nullptr;
+
+	/** Pointer to the slot definition contained by the SmartObject definition. */
+	const FSmartObjectSlotDefinition* SlotDefinition = nullptr;
 };

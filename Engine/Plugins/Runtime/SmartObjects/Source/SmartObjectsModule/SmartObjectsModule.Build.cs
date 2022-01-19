@@ -20,7 +20,9 @@ namespace UnrealBuildTool.Rules
 				"GameplayBehaviorsModule",
 				"GameplayTasks",
 				"GameplayTags",
-				"GameplayAbilities"
+				"GameplayAbilities",
+				"MassEntity",
+				"StructUtils"
 			}
 			);
 

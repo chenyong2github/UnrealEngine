@@ -47,54 +47,43 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	const FColor ClaimedColor = FColor::Yellow;
 	const FColor OccupiedColor = FColor::Red;
 
-	const TMap<FSmartObjectID, FSmartObjectRuntime>& Entries = Subsystem->DebugGetRuntimeObjects();
+	const TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState>& Entries = Subsystem->DebugGetRuntimeSlots();
 	for (auto& LookupEntry : Entries)
 	{
-		const FSmartObjectRuntime& Entry = LookupEntry.Value;
-		const FTransform LocalToWorld = Entry.GetTransform();
-		const USmartObjectDefinition& Definition = Entry.GetDefinition();
+		const FSmartObjectSlotHandle SlotHandle = LookupEntry.Key;
+		const FSmartObjectSlotClaimState& SlotState = LookupEntry.Value;
 
-		const FVector Location = LocalToWorld.GetLocation();
-		if (bApplyCulling && !IsLocationInViewCone(ViewLocation, ViewDirection, Location))
+		FSmartObjectSlotView View = Subsystem->GetSlotView(LookupEntry.Key);
+
+		const FSmartObjectSlotTransform& SlotTransform = View.GetStateData<FSmartObjectSlotTransform>();
+		FTransform Transform = SlotTransform.GetTransform();
+		if (bApplyCulling && !IsLocationInViewCone(ViewLocation, ViewDirection, Transform.GetLocation()))
 		{
 			continue;
 		}
 
-		constexpr float DebugReferencePointRadius = 10.f;
-		AddShape(FGameplayDebuggerShape::MakePoint(Location, DebugReferencePointRadius, FColorList::Grey));
-
-		for (int32 i = 0; i < Definition.GetSlots().Num(); ++i)
-		{
-			constexpr float DebugArrowThickness = 2.f;
-			constexpr float DebugCircleRadius = 40.f;
-			constexpr float DebugArrowHeadSize = 10.f;
-			TOptional<FTransform> Transform = Definition.GetSlotTransform(LocalToWorld, FSmartObjectSlotIndex(i));
-			if (!Transform.IsSet())
-			{
-				continue;
-			}
+		constexpr float DebugArrowThickness = 2.f;
+		constexpr float DebugCircleRadius = 40.f;
+		constexpr float DebugArrowHeadSize = 10.f;
 #if WITH_EDITORONLY_DATA
-			DebugColor = Definition.GetSlots()[i].DEBUG_DrawColor;
+		DebugColor = View.GetDefinition().DEBUG_DrawColor;
 #endif
-			const FVector Pos = Transform.GetValue().GetLocation() + FVector(0.0f ,0.0f ,25.0f );
-			const FVector Dir = Transform.GetValue().GetRotation().GetForwardVector();
+		const FVector Pos = Transform.GetLocation() + FVector(0.0f, 0.0f, 25.0f);
+		const FVector Dir = Transform.GetRotation().GetForwardVector();
 
-			const ESmartObjectSlotState State = Entry.GetSlotState(i);
-			FColor StateColor = FColor::Silver;
-			switch (State)
-			{
-			case ESmartObjectSlotState::Free:		StateColor = FreeColor;		break;
-			case ESmartObjectSlotState::Claimed:	StateColor = ClaimedColor;	break;
-			case ESmartObjectSlotState::Occupied:	StateColor = OccupiedColor;	break;
-			default:
-				ensureMsgf(false, TEXT("Unsupported value: %s"), *UEnum::GetValueAsString(State));
-			}
-
-			AddShape(FGameplayDebuggerShape::MakeSegment(Location, Pos, /* Thickness */1.f, FColorList::Grey));
-			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
-			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f*DebugCircleRadius, /* Thickness */5.f, StateColor));
-			AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
+		FColor StateColor = FColor::Silver;
+		switch (SlotState.GetState())
+		{
+		case ESmartObjectSlotState::Free:		StateColor = FreeColor;		break;
+		case ESmartObjectSlotState::Claimed:	StateColor = ClaimedColor;	break;
+		case ESmartObjectSlotState::Occupied:	StateColor = OccupiedColor;	break;
+		default:
+			ensureMsgf(false, TEXT("Unsupported value: %s"), *UEnum::GetValueAsString(SlotState.GetState()));
 		}
+
+		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
+		AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f * DebugCircleRadius, /* Thickness */5.f, StateColor));
+		AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
 	}
 }
 

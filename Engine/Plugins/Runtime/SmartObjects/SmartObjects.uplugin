@@ -29,7 +29,7 @@
 		{
 			"Name" : "SmartObjectsEditorModule",
 			"Type" : "Editor",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "PostEngineInit"
 		}
 	],
 	"Plugins":
@@ -40,6 +40,14 @@
 		},
 		{
 			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
+		{
+			"Name": "MassEntity",
+			"Enabled": true
+		},
+		{
+			"Name": "StructUtils",
 			"Enabled": true
 		}
 	]

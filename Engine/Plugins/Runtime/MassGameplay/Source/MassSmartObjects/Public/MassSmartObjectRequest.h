@@ -17,10 +17,10 @@ struct MASSSMARTOBJECTS_API FSmartObjectCandidate
 	GENERATED_BODY()
 
 	FSmartObjectCandidate() = default;
-	FSmartObjectCandidate(const FSmartObjectID InID, const float InCost) : ID(InID), Cost(InCost) {}
+	FSmartObjectCandidate(const FSmartObjectHandle InHandle, const float InCost) : Handle(InHandle), Cost(InCost) {}
 
 	UPROPERTY(Transient)
-	FSmartObjectID ID;
+	FSmartObjectHandle Handle;
 
 	UPROPERTY(Transient)
 	float Cost = 0.f;

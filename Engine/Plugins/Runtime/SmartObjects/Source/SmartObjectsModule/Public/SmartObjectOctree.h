@@ -16,10 +16,10 @@ struct SMARTOBJECTSMODULE_API FSmartObjectOctreeID : public TSharedFromThis<FSma
 struct SMARTOBJECTSMODULE_API FSmartObjectOctreeElement
 {
 	FBoxCenterAndExtent Bounds;
-	FSmartObjectID SmartObjectID;
+	FSmartObjectHandle SmartObjectHandle;
 	FSmartObjectOctreeIDSharedRef SharedOctreeID;
 
-	FSmartObjectOctreeElement(const FBoxCenterAndExtent& Bounds, const FSmartObjectID& SmartObjectID, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
+	FSmartObjectOctreeElement(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle& SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
 };
 
 struct FSmartObjectOctreeSemantics
@@ -37,7 +37,7 @@ struct FSmartObjectOctreeSemantics
 
 	FORCEINLINE static bool AreElementsEqual(const FSmartObjectOctreeElement& A, const FSmartObjectOctreeElement& B)
 	{
-		return A.SmartObjectID == B.SmartObjectID;
+		return A.SmartObjectHandle == B.SmartObjectHandle;
 	}
 
 	static void SetElementId(const FSmartObjectOctreeElement& Element, FOctreeElementId2 Id);
@@ -51,7 +51,7 @@ public:
 	virtual ~FSmartObjectOctree();
 
 	/** Add new node and initialize using SmartObject runtime data */
-	void AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectID& SmartObjectID, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
+	void AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle& SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID);
 	
 	/** Updates element bounds remove/add operation */
 	void UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds);

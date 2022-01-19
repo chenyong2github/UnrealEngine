@@ -4,5 +4,5 @@
 
 DEFINE_LOG_CATEGORY(LogSmartObject);
 
-const FSmartObjectSequentialID FSmartObjectSequentialID::Invalid(UE::SmartObject::InvalidID);
-const FSmartObjectID FSmartObjectID::Invalid;
+const FSmartObjectUserHandle FSmartObjectUserHandle::Invalid;
+const FSmartObjectHandle FSmartObjectHandle::Invalid;

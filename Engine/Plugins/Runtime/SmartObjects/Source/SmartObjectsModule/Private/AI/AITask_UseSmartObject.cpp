@@ -60,7 +60,7 @@ UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObjectComponent(AAIContr
 		TagsSource->GetOwnedGameplayTags(Filter.UserTags);
 	}
 
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SmartObjectComponent.GetRegisteredID(), Filter);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SmartObjectComponent.GetRegisteredHandle(), Filter);
 	return UseClaimedSmartObject(Controller, ClaimHandle, bLockAILogic);
 }
 
@@ -137,7 +137,7 @@ void UAITask_UseSmartObject::Activate()
 
 	if (OwnerController->GetPawn() == nullptr)
 	{
-		UE_VLOG(OwnerController, LogSmartObject, Error, TEXT("Pawn required to use claim handle: %s."), *ClaimedHandle.Describe());
+		UE_VLOG(OwnerController, LogSmartObject, Error, TEXT("Pawn required to use claim handle: %s."), *LexToString(ClaimedHandle));
 		return;
 	}
 

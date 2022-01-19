@@ -30,7 +30,7 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	FMassZoneGraphTargetLocation& SmartObjectLocation = Context.GetInstanceData(SmartObjectLocationHandle);
 	SmartObjectLocation.Reset();
 
-	if (!SOUser.ClaimHandle.SmartObjectID.IsValid())
+	if (!SOUser.ClaimHandle.SmartObjectHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid claimed smart object ID."));
 		return EStateTreeRunStatus::Failed;
@@ -60,7 +60,7 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 		// Find entry point on lanes for the claimed object
 		const FSmartObjectAnnotationData* AnnotationData = SOAnnotations->GetAnnotationData(LaneHandle.DataHandle);
 		checkf(AnnotationData, TEXT("FSmartObjectAnnotationData should have been created for each registered valid ZoneGraphData"));
-		const FSmartObjectLaneLocation EntryPoint = AnnotationData->ObjectToEntryPointLookup.FindChecked(SOUser.ClaimHandle.SmartObjectID);
+		const FSmartObjectLaneLocation EntryPoint = AnnotationData->ObjectToEntryPointLookup.FindChecked(SOUser.ClaimHandle.SmartObjectHandle);
 
 		// Request path along current lane to reach entry point on lane
 		MASSBEHAVIOR_LOG(Log, TEXT("Claim successful: create path along lane to reach interaction location."));

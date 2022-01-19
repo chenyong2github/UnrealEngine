@@ -10,8 +10,8 @@
 //----------------------------------------------------------------------//
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
-FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
-	: ID(SmartObjectID)
+FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectHandle& SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
+	: Handle(SmartObjectHandle)
 	, Path(&SmartObjectComponent)
 	, Transform(SmartObjectComponent.GetComponentTransform())
 	, Bounds(SmartObjectComponent.GetSmartObjectBounds())
@@ -24,10 +24,6 @@ USmartObjectComponent* FSmartObjectCollectionEntry::GetComponent() const
 	return CastChecked<USmartObjectComponent>(Path.ResolveObject(), ECastCheckedType::NullAllowed);
 }
 
-FString FSmartObjectCollectionEntry::Describe() const
-{
-	return FString::Printf(TEXT("%s - %s"), *Path.ToString(), *ID.Describe());
-}
 
 //----------------------------------------------------------------------//
 // ASmartObjectCollection 
@@ -171,18 +167,18 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 #endif // WITH_EDITOR
 
 	// Compute hash manually from strings since GetTypeHash(FSoftObjectPath) relies on a FName which implements run-dependent hash computations.
-	FSmartObjectID ID = FSmartObjectID(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
-	SOComponent.SetRegisteredID(ID);
+	FSmartObjectHandle Handle = FSmartObjectHandle(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
+	SOComponent.SetRegisteredHandle(Handle);
 
-	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([ID](const FSmartObjectCollectionEntry& Entry)
+	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([Handle](const FSmartObjectCollectionEntry& Entry)
 	{
-		return Entry.ID == ID;
+		return Entry.Handle == Handle;
 	});
 
 	if (ExistingEntry != nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("'%s[ID=%s]' already registered to collection '%s'"),
-			*GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
+		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("'%s[%s]' already registered to collection '%s'"),
+			*GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
 		return false;
 	}
 
@@ -190,41 +186,41 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	ensureMsgf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
 	uint32 DefinitionIndex = Definitions.AddUnique(Definition);
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[ID=%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
-	CollectionEntries.Emplace(ID, SOComponent, DefinitionIndex);
-	RegisteredIdToObjectMap.Add(ID, ObjectPath);
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
+	CollectionEntries.Emplace(Handle, SOComponent, DefinitionIndex);
+	RegisteredIdToObjectMap.Add(Handle, ObjectPath);
 	return true;
 }
 
 bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponent)
 {
-	FSmartObjectID ID = SOComponent.GetRegisteredID();
-	if (!ID.IsValid())
+	FSmartObjectHandle Handle = SOComponent.GetRegisteredHandle();
+	if (!Handle.IsValid())
 	{
 		return false;
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing '%s[ID=%s]' from collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing '%s[%s]' from collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *LexToString(Handle), *GetFullName());
 	const int32 Index = CollectionEntries.IndexOfByPredicate(
-		[&ID](const FSmartObjectCollectionEntry& Entry)
+		[&Handle](const FSmartObjectCollectionEntry& Entry)
 		{
-			return Entry.GetID() == ID;
+			return Entry.GetHandle() == Handle;
 		});
 
 	if (Index != INDEX_NONE)
 	{
 		CollectionEntries.RemoveAt(Index);
-		RegisteredIdToObjectMap.Remove(ID);
+		RegisteredIdToObjectMap.Remove(Handle);
 	}
 
-	SOComponent.SetRegisteredID(FSmartObjectID::Invalid);
+	SOComponent.SetRegisteredHandle(FSmartObjectHandle::Invalid);
 
 	return Index != INDEX_NONE;
 }
 
-USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSmartObjectID& SmartObjectID) const
+USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSmartObjectHandle& SmartObjectHandle) const
 {
-	const FSoftObjectPath* Path = RegisteredIdToObjectMap.Find(SmartObjectID);
+	const FSoftObjectPath* Path = RegisteredIdToObjectMap.Find(SmartObjectHandle);
 	return Path != nullptr ? CastChecked<USmartObjectComponent>(Path->ResolveObject(), ECastCheckedType::NullAllowed) : nullptr;
 }
 

@@ -125,7 +125,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 
 	for (const FSmartObjectCandidate& Candidate : View)
 	{
-		if (ClaimSmartObject(Entity, User, Candidate.ID))
+		if (ClaimSmartObject(Entity, User, Candidate.Handle))
 		{
 #if WITH_MASSGAMEPLAY_DEBUG
 			UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -134,7 +134,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 				Log,
 				TEXT("[%s] claimed [%s]"),
 				*Entity.DebugGetDescription(),
-				*Candidate.ID.Describe());
+				*LexToString(Candidate.Handle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 			break;
 		}
@@ -143,12 +143,12 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	return User.ClaimHandle.IsValid() ? EMassSmartObjectClaimResult::Succeeded : EMassSmartObjectClaimResult::Failed_NoAvailableCandidate;
 }
 
-bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectID& ObjectID) const
+bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectHandle& ObjectHandle) const
 {
 	FSmartObjectRequestFilter Filter;
 	Filter.BehaviorDefinitionClass = USmartObjectMassBehaviorDefinition::StaticClass();
 
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(ObjectID, Filter);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(ObjectHandle, Filter);
 	const bool bSuccess = ClaimHandle.IsValid();
 	if (bSuccess)
 	{
@@ -171,7 +171,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		Log,
 		TEXT("[%s] claim for [%s] %s"),
 		*Entity.DebugGetDescription(),
-		*ObjectID.Describe(),
+		*LexToString(ObjectHandle),
 		bSuccess ? TEXT("Succeeded") : TEXT("Failed"));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
@@ -190,7 +190,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 		Log,
 		TEXT("[%s] starts using [%s]"),
 		*Entity.DebugGetDescription(),
-		*User.ClaimHandle.Describe());
+		*LexToString(User.ClaimHandle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.Use<USmartObjectMassBehaviorDefinition>(User.ClaimHandle);
@@ -216,7 +216,7 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 		Log,
 		TEXT("[%s] releases handle [%s]"),
 		*Entity.DebugGetDescription(),
-		*User.ClaimHandle.Describe());
+		*LexToString(User.ClaimHandle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 #if DO_ENSURE

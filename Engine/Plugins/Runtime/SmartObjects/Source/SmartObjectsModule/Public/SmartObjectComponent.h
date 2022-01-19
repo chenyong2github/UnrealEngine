@@ -20,17 +20,17 @@ public:
 	const USmartObjectDefinition* GetDefinition() const { return DefinitionAsset; }
 	void SetDefinition(USmartObjectDefinition* Definition) { DefinitionAsset = Definition; }
 
-	FSmartObjectID GetRegisteredID() const { return RegisteredID; }
-	void SetRegisteredID(const FSmartObjectID Value) { RegisteredID = Value; }
+	FSmartObjectHandle GetRegisteredHandle() const { return RegisteredHandle; }
+	void SetRegisteredHandle(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
 
 protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
-	UPROPERTY(EditAnywhere, Category = SmartObject, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject, BlueprintReadWrite)
 	TObjectPtr<USmartObjectDefinition> DefinitionAsset;
 
-	/** RegisteredID != FSmartObject::InvalidID when registered into a collection by SmartObjectSubsystem */
+	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered into a collection by SmartObjectSubsystem */
 	UPROPERTY(Transient, VisibleAnywhere, Category = SmartObject)
-	FSmartObjectID RegisteredID;
+	FSmartObjectHandle RegisteredHandle;
 };

@@ -12,7 +12,7 @@ struct FMassEntityHandle;
 struct FMassSmartObjectUserFragment;
 struct FDataFragment_Transform;
 struct FSmartObjectClaimHandle;
-struct FSmartObjectID;
+struct FSmartObjectHandle;
 struct FZoneGraphCompactLaneLocation;
 enum class ESmartObjectSlotState : uint8;
 
@@ -95,10 +95,10 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * associated to the provided identifier.
 	 * @param Entity LW Entity associated to the user fragment
 	 * @param User Fragment of the user claiming
-	 * @param ObjectID A valid smart object identifier (method will ensure otherwise)
+	 * @param ObjectHandle A valid smart object identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectID& ObjectID) const;
+	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectHandle& ObjectHandle) const;
 
 	/**
 	 * Activates the mass gameplay behavior associated to the previously claimed smart object.

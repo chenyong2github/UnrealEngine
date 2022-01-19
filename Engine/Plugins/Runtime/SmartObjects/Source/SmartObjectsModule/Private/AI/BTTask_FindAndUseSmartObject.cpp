@@ -60,7 +60,7 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 				UseSOTask->ReadyForActivation();
 
 				NodeResult = EBTNodeResult::InProgress;
-				UE_VLOG_UELOG(MyController, LogSmartObject, Verbose, TEXT("%s claimed smart object: %s"), *GetNodeName(), *ClaimHandle.Describe());
+				UE_VLOG_UELOG(MyController, LogSmartObject, Verbose, TEXT("%s claimed smart object: %s"), *GetNodeName(), *LexToString(ClaimHandle));
 				break;
 			}
 		}

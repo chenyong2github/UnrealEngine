@@ -212,7 +212,7 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 	for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
 	{
 		FZoneGraphLaneLocation EntryPointLocation;
-		FSmartObjectID ID = Entry.GetID();
+		FSmartObjectHandle Handle = Entry.GetHandle();
 		const FVector& ObjectLocation = Entry.GetComponent()->GetComponentLocation();
 
 		const FBox QueryBounds(ObjectLocation - SearchExtent, ObjectLocation + SearchExtent);
@@ -225,24 +225,24 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 
 			const int32 LaneIndex = EntryPointLocation.LaneHandle.Index;
 
-			Data.ObjectToEntryPointLookup.Add(ID, { LaneIndex, EntryPointLocation.DistanceAlongLane });
-			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding ZG annotation for SmartObject '%s' on lane '%s'"), *ID.Describe(), *EntryPointLocation.LaneHandle.ToString());
+			Data.ObjectToEntryPointLookup.Add(Handle, { LaneIndex, EntryPointLocation.DistanceAlongLane });
+			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding ZG annotation for SmartObject '%s' on lane '%s'"), *LexToString(Handle), *EntryPointLocation.LaneHandle.ToString());
 
-			auto AddLookupEntries = [this, &Data, ID, &ObjectLocation](const int32 InLaneIndex, const FVector& LocationOnLane)
+			auto AddLookupEntries = [this, &Data, Handle, &ObjectLocation](const int32 InLaneIndex, const FVector& LocationOnLane)
 			{
 				Data.AffectedLanes.AddUnique(InLaneIndex);
-				Data.LaneToSmartObjectsLookup.FindOrAdd(InLaneIndex).SmartObjects.Add(ID);
+				Data.LaneToSmartObjectsLookup.FindOrAdd(InLaneIndex).SmartObjects.Add(Handle);
 
 				UE_VLOG_SEGMENT(this, LogZoneGraphAnnotations, Display, ObjectLocation, LocationOnLane, FColor::Green, TEXT(""));
 			};
 
 			AddLookupEntries(LaneIndex, EntryPointLocation.Position);
-			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 50.f /*radius*/, FColor::Green, TEXT("%s"), *ID.Describe());
+			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 50.f /*radius*/, FColor::Green, TEXT("%s"), *LexToString(Handle));
 		}
 		else
 		{
 			NumDiscarded++;
-			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 75.f /*radius*/, FColor::Red, TEXT("%s"), *ID.Describe());
+			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 75.f /*radius*/, FColor::Red, TEXT("%s"), *LexToString(Handle));
 		}
 	}
 

@@ -43,7 +43,7 @@ void UBlackboardKeyType_SOClaimHandle::Clear(UBlackboardComponent& OwnerComp, ui
 
 FString UBlackboardKeyType_SOClaimHandle::DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const
 {
-	return GetValue(this, MemoryBlock).Describe();
+	return LexToString(GetValue(this, MemoryBlock));
 }
 
 bool UBlackboardKeyType_SOClaimHandle::TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, const EBasicKeyOperation::Type Op) const

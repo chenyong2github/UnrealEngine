@@ -125,19 +125,20 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 			{
 				if (Result.NumCandidates < FMassSmartObjectRequestResult::MaxNumCandidates)
 				{
-					const FSmartObjectID ID = Element.SmartObjectID;
-
 					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
-					if (SmartObjectSubsystem->FindSlot(ID, Filter).IsValid())
+					const FSmartObjectRequestResult SlotResult = SmartObjectSubsystem->FindSlot(Element.SmartObjectHandle, Filter);
+					if (SlotResult.IsValid())
 					{
 						const FVector ObjectLocation = Element.Bounds.Center;
-						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(ID, FVector::DistSquared(SearchOrigin, ObjectLocation));
+						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(Element.SmartObjectHandle, FVector::DistSquared(SearchOrigin, ObjectLocation));
 
 #if WITH_MASSGAMEPLAY_DEBUG
 						if (bDisplayDebug)
 						{
 							constexpr float DebugRadius = 10.f;
-							UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, ObjectLocation, DebugRadius, DebugColor, TEXT("%s"), *ID.Describe());
+							// use more precise slot location for debug
+							UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display,
+								SmartObjectSubsystem->GetSlotLocation(SlotResult.SlotHandle).Get(ObjectLocation), DebugRadius, DebugColor, TEXT("%s"), *LexToString(Element.SmartObjectHandle));
 							UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SearchOrigin, ObjectLocation, DebugColor, TEXT(""));
 						}
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -219,11 +220,11 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 					continue;
 				}
 
-				for (const FSmartObjectID ID : SmartObjectList->SmartObjects)
+				for (const FSmartObjectHandle& Handle : SmartObjectList->SmartObjects)
 				{
 					// Find entry point using FindChecked since all smart objects added to LaneToSmartObjects lookup table
 					// were also added to the entry point lookup table
-					const FSmartObjectLaneLocation EntryPoint = GraphData->ObjectToEntryPointLookup.FindChecked(ID);
+					const FSmartObjectLaneLocation EntryPoint = GraphData->ObjectToEntryPointLookup.FindChecked(Handle);
 
 					float Cost = 0.f;
 					if (ensureMsgf(EntryPoint.LaneIndex == RequestLocation.LaneHandle.Index, TEXT("Must be on same lane to be able to use distance along lane.")))
@@ -238,12 +239,13 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 					}
 
 					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
-					if (!SmartObjectSubsystem->FindSlot(ID, Filter).IsValid())
+					FSmartObjectRequestResult FoundSlot = SmartObjectSubsystem->FindSlot(Handle, Filter);
+					if (!FoundSlot.IsValid())
 					{
 						continue;
 					}
 
-					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(ID, Cost);
+					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(Handle, Cost);
 
 #if WITH_MASSGAMEPLAY_DEBUG
 					if (bDisplayDebug)
@@ -253,7 +255,9 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 						ZoneGraphSubsystem->CalculateLocationAlongLane(RequestLaneHandle, EntryPoint.DistanceAlongLane, EntryPointLaneLocation);
 
 						constexpr float DebugRadius = 10.f;
-						UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, EntryPointLaneLocation.Position, DebugRadius, DebugColor, TEXT("%s"), *ID.Describe());
+						FVector SlotLocation = SmartObjectSubsystem->GetSlotLocation(FoundSlot.SlotHandle).Get(EntryPointLaneLocation.Position);
+						UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, DebugRadius, DebugColor, TEXT("%s"), *LexToString(FoundSlot));
+						UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
 						UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, RequestLaneLocation.Position, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
 					}
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -321,8 +325,8 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 			const bool bIsDebuggingEntity = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 			if (bIsDebuggingEntity)
 			{
-				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *SOUser.GetClaimHandle().Describe());
-				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s] for %.1f"), *Entity.DebugGetDescription(), *SOUser.GetClaimHandle().Describe(), SOUser.GetUseTime());
+				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.GetClaimHandle()));
+				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s] for %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.GetClaimHandle()), SOUser.GetUseTime());
 
 				const TOptional<FTransform> Transform = SmartObjectSubsystem->GetSlotTransform(SOUser.ClaimHandle);
 				if (Transform.IsSet())

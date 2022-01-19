@@ -5,9 +5,9 @@
 //----------------------------------------------------------------------//
 // FSmartObjectOctreeElement
 //----------------------------------------------------------------------//
-FSmartObjectOctreeElement::FSmartObjectOctreeElement(const FBoxCenterAndExtent& InBounds, const FSmartObjectID& InSmartObjectID, const FSmartObjectOctreeIDSharedRef& InSharedOctreeID)
+FSmartObjectOctreeElement::FSmartObjectOctreeElement(const FBoxCenterAndExtent& InBounds, const FSmartObjectHandle& InSmartObjectHandle, const FSmartObjectOctreeIDSharedRef& InSharedOctreeID)
 	: Bounds(InBounds)
-	, SmartObjectID(InSmartObjectID)
+	, SmartObjectHandle(InSmartObjectHandle)
 	, SharedOctreeID(InSharedOctreeID)
 {
 }
@@ -30,9 +30,9 @@ FSmartObjectOctree::~FSmartObjectOctree()
 {
 }
 
-void FSmartObjectOctree::AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectID& SmartObjectID, const FSmartObjectOctreeIDSharedRef& SharedOctreeID)
+void FSmartObjectOctree::AddNode(const FBoxCenterAndExtent& Bounds, const FSmartObjectHandle& SmartObjectHandle, const FSmartObjectOctreeIDSharedRef& SharedOctreeID)
 {
-	AddElement(FSmartObjectOctreeElement(Bounds, SmartObjectID, SharedOctreeID));
+	AddElement(FSmartObjectOctreeElement(Bounds, SmartObjectHandle, SharedOctreeID));
 }
 
 void FSmartObjectOctree::UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds)

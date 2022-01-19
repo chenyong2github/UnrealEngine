@@ -53,7 +53,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass;
 
-	TFunction<bool(FSmartObjectID)> Predicate;
+	TFunction<bool(FSmartObjectHandle)> Predicate;
 };
 
 /**
@@ -87,20 +87,20 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 {
 	GENERATED_BODY()
 
-	FSmartObjectRequestResult(const FSmartObjectID& InSmartObjectID, const FSmartObjectSlotIndex& InSlotIndex)
-		: SmartObjectID(InSmartObjectID)
-		, SlotIndex(InSlotIndex)
+	FSmartObjectRequestResult(const FSmartObjectHandle& InSmartObjectHandle, const FSmartObjectSlotHandle InSlotHandle = {})
+		: SmartObjectHandle(InSmartObjectHandle)
+		, SlotHandle(InSlotHandle)
 	{}
 
 	FSmartObjectRequestResult() = default;
 
-	bool IsValid() const { return SmartObjectID.IsValid() && SlotIndex.IsValid(); }
+	bool IsValid() const { return SmartObjectHandle.IsValid() && SlotHandle.IsValid(); }
 
 	bool operator==(const FSmartObjectRequestResult& Other) const
 	{
 		return IsValid() && Other.IsValid()
-			&& SmartObjectID == Other.SmartObjectID
-			&& SlotIndex == Other.SlotIndex;
+			&& SmartObjectHandle == Other.SmartObjectHandle
+			&& SlotHandle == Other.SlotHandle;
 	}
 
 	bool operator!=(const FSmartObjectRequestResult& Other) const
@@ -108,16 +108,16 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 		return !(*this == Other);
 	}
 	
-	FString Describe() const
+	friend FString LexToString(const FSmartObjectRequestResult& Result)
 	{
-		return FString::Printf(TEXT("Object:%s Use:%s"), *SmartObjectID.Describe(), *SlotIndex.Describe());
+		return FString::Printf(TEXT("Object:%s Slot:%s"), *LexToString(Result.SmartObjectHandle), *LexToString(Result.SlotHandle));
 	}
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
-	FSmartObjectID SmartObjectID;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
+	FSmartObjectHandle SmartObjectHandle;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
-	FSmartObjectSlotIndex SlotIndex;
+	UPROPERTY(Transient, VisibleAnywhere, Category = SmartObject)
+	FSmartObjectSlotHandle SlotHandle;
 };
 
 /**
@@ -140,8 +140,6 @@ class SMARTOBJECTSMODULE_API USmartObjectSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-	USmartObjectSubsystem();
-
 	static USmartObjectSubsystem* GetCurrent(const UWorld* World);
 
 	ESmartObjectCollectionRegistrationResult RegisterCollection(ASmartObjectCollection& InCollection);
@@ -183,7 +181,7 @@ public:
 	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
 	 * @return Identifier of a valid slot to use. Call IsValid on it to check if the search was successful.
 	 */
-	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectID ID, const FSmartObjectRequestFilter& Filter) const;
+	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter) const;
 
 	/**
 	 *	Claim smart object from a valid request result.
@@ -193,7 +191,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
 
-	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectID ID, const FSmartObjectRequestFilter& Filter = {});
+	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter = {});
 
 	/**
 	 *	Start using a claimed smart object slot.
@@ -224,9 +222,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool Release(const FSmartObjectClaimHandle& ClaimHandle);
 
+	ESmartObjectSlotState GetSlotState(FSmartObjectSlotHandle SlotHandle) const;
+
+	/**
+	 * Adds state data (through a deferred command) to a slot instance. Data must be a struct that inherits
+	 * from FSmartObjectSlotStateData and passed as a struct view (e.g. FConstStructView::Make(FSomeStruct))
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
+	 * @param InData A view on the struct to add
+	 */
+	void AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData) const;
+
+	/** Returns a view to the data associated to a valid slot handle (SlotHandle.IsValid() returns true) */
+	FSmartObjectSlotView GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const;
+
+	/** Returns a view to the data associated to a valid request result (Result.IsValid() returns true) */
+	FSmartObjectSlotView GetSlotView(const FSmartObjectRequestResult& Result) const;
+
+	/** Returns a view to the data associated to a valid claim handle (ClaimHandle.IsValid() returns true) */
+	FSmartObjectSlotView GetSlotView(const FSmartObjectClaimHandle& ClaimHandle) const;
+
 	/**
 	 * Returns the position (in world space) of the slot associated to the given claim handle.
-	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @return Position (in world space) of the slot associated to ClaimHandle.
 	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
 	 */
@@ -234,7 +251,7 @@ public:
 
 	/**
 	 * Returns the position (in world space) of the slot associated to the given claim handle.
-	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @param OutSlotLocation Position (in world space) of the slot associated to ClaimHandle.
 	 * @return Whether the location was found and assigned to 'OutSlotLocation'
 	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
@@ -244,24 +261,32 @@ public:
 
 	/**
 	 * Returns the position (in world space) of the slot associated to the given request result.
-	 * @param Result A valid request result (Result.IsValid() returns true) returned by FindValidUse or FindSmartObject.
+	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
 	 * @return Position (in world space) of the slot associated to ClaimHandle.
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectRequestResult& Result) const;
 
+	// /**
+	//  * Returns the position (in world space) of the slot represented by the provided object id and slot index.
+	//  * @param SmartObjectHandle Identifier of the smart object.
+	//  * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectHandle.
+	//  * @return Position (in world space) of the slot represented by SmartObjectHandle and SlotIndex.
+	//  * @note Method will ensure on invalid FSmartObjectHandle or an invalid index.
+	//  */
+	// TOptional<FVector> GetSlotLocation(const FSmartObjectHandle SmartObjectHandle, const FSmartObjectSlotIndex SlotIndex) const;
+
 	/**
-	 * Returns the position (in world space) of the slot represented by the provided object id and slot index.
-	 * @param SmartObjectID Identifier of the smart object.
-	 * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectID.
-	 * @return Position (in world space) of the slot represented by SmartObjectID and SlotIndex.
-	 * @note Method will ensure on invalid FSmartObjectID or an invalid index.
+	 * Returns the position (in world space) of the slot represented by the provided slot handle.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @return Position (in world space) of the slot represented by the handle.
+	 * @note Method will ensure on invalid slot handle.
 	 */
-	TOptional<FVector> GetSlotLocation(const FSmartObjectID SmartObjectID, const FSmartObjectSlotIndex SlotIndex) const;
+	TOptional<FVector> GetSlotLocation(FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given claim handle.
-	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @return Transform (in world space) of the slot associated to ClaimHandle.
 	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
 	 */
@@ -269,7 +294,7 @@ public:
 
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given claim handle.
-	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by any of the Claim methods.
 	 * @param OutSlotTransform Transform (in world space) of the slot associated to ClaimHandle.
 	 * @return Whether the transform was found and assigned to 'OutSlotTransform'
 	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
@@ -279,20 +304,28 @@ public:
 	
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given request result.
-	 * @param Result A valid request result (Result.IsValid() returns true) returned by FindValidUse or FindSmartObject.
+	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
 	 * @return Transform (in world space) of the slot associated to ClaimHandle.
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectRequestResult& Result) const;
 
+	// /**
+	//  * Returns the transform (in world space) of the slot represented by the provided object id and slot index.
+	//  * @param SmartObjectHandle Identifier of the smart object.
+	//  * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectHandle.
+	//  * @return Transform (in world space) of the slot represented by SmartObjectHandle and SlotIndex.
+	//  * @note Method will ensure on invalid FSmartObjectHandle or an invalid index.
+	//  */
+	// TOptional<FTransform> GetSlotTransform(const FSmartObjectHandle SmartObjectHandle, const FSmartObjectSlotIndex SlotIndex) const;
+
 	/**
-	 * Returns the transform (in world space) of the slot represented by the provided object id and slot index.
-	 * @param SmartObjectID Identifier of the smart object.
-	 * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectID.
-	 * @return Transform (in world space) of the slot represented by SmartObjectID and SlotIndex.
-	 * @note Method will ensure on invalid FSmartObjectID or an invalid index.
+	 * Returns the transform (in world space) of the slot represented by the provided slot handle.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @return Transform (in world space) of the slot represented by the handle.
+	 * @note Method will ensure on invalid slot handle.
 	 */
-	TOptional<FTransform> GetSlotTransform(const FSmartObjectID SmartObjectID, const FSmartObjectSlotIndex SlotIndex) const;
+	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
 
 	/** @return The octree used by the subsystem to store all registered smart objects. */
 	const FSmartObjectOctree& GetOctree() const;
@@ -331,23 +364,25 @@ protected:
 	/**
 	 * Goes through all defined slots of smart object represented by SmartObjectRuntime
 	 * and finds the first one given actor can use.
-	 * @return identifier indicating valid slot to use. Call IsValid on it to check if the search was successful.
+	 * @return Handle to a valid slot to use. Call IsValid on it to check if the search was successful.
 	 */
-	FSmartObjectSlotIndex FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
+	FSmartObjectSlotHandle FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
 
-	const USmartObjectBehaviorDefinition* Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	FSmartObjectClaimHandle Claim(FSmartObjectHandle ID, FSmartObjectSlotHandle SlotHandle);
+
+	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	void AbortAll(FSmartObjectRuntime& SmartObjectRuntime);
 
-	FSmartObjectSlotRuntimeData* GetMutableRuntimeSlot(const FSmartObjectClaimHandle& ClaimHandle);
+	FSmartObjectSlotClaimState* GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
-	void AddToSimulation(const FSmartObjectID ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
+	void AddToSimulation(const FSmartObjectHandle ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
 	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
 	void AddToSimulation(const USmartObjectComponent&);
-	void RemoveFromSimulation(const FSmartObjectID ID);
+	void RemoveFromSimulation(const FSmartObjectHandle ID);
 	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);
 	void RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent);
 
@@ -357,12 +392,13 @@ protected:
 
 	FSmartObjectOctree SmartObjectOctree;
 
-	TMap<FSmartObjectID, FSmartObjectRuntime> RuntimeSmartObjects;
+	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
+	TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState> RuntimeSlotStates;
 
 	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */
-	TArray<FSmartObjectID> RuntimeCreatedEntries;
+	TArray<FSmartObjectHandle> RuntimeCreatedEntries;
 
-	UE::SmartObject::ID NextFreeUserID;
+	uint32 NextFreeUserID = 1;
 
 	/** Flag to indicate that all entries from the baked collection are registered and new registrations will be considered runtime entries (i.e. no persistence) */
 	bool bInitialCollectionAddedToSimulation = false;
@@ -389,7 +425,8 @@ protected:
 #if WITH_SMARTOBJECT_DEBUG
 public:
 	uint32 DebugGetNumRuntimeObjects() const { return RuntimeSmartObjects.Num(); }
-	const TMap<FSmartObjectID, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
+	const TMap<FSmartObjectHandle, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
+	const TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState>& DebugGetRuntimeSlots() const { return RuntimeSlotStates; }
 	uint32 DebugGetNumRegisteredComponents() const { return DebugRegisteredComponents.Num(); }
 
 	/** Debugging helper to remove all registered smart objects from the simulation */

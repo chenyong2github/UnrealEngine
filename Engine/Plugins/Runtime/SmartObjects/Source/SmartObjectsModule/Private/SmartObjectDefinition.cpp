@@ -29,7 +29,7 @@ bool USmartObjectDefinition::Validate() const
 	// Detect null entries in slot definitions
 	for (int i = 0; i < Slots.Num(); ++i)
 	{
-		const FSmartObjectSlot& Slot = Slots[i];
+		const FSmartObjectSlotDefinition& Slot = Slots[i];
 		if (Slot.BehaviorDefinitions.Find(nullptr, NullEntryIndex))
 		{
 			UE_LOG(LogSmartObject, Error, TEXT("Null definition entry found at index %d in behavior list of slot %d"), i, NullEntryIndex);
@@ -42,7 +42,7 @@ bool USmartObjectDefinition::Validate() const
 	{
 		for (int i = 0; i < Slots.Num(); ++i)
 		{
-			const FSmartObjectSlot& Slot = Slots[i];
+			const FSmartObjectSlotDefinition& Slot = Slots[i];
 			if (Slot.BehaviorDefinitions.Num() == 0)
 			{
 				UE_LOG(LogSmartObject, Error, TEXT("Slot at index %d needs to provide a behavior definition since there is no default one in the SmartObject definition"), i);
@@ -75,7 +75,7 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 FBox USmartObjectDefinition::GetBounds() const
 {
 	FBox BoundingBox(ForceInitToZero);
-	for (const FSmartObjectSlot& Slot : GetSlots())
+	for (const FSmartObjectSlotDefinition& Slot : GetSlots())
 	{
 		BoundingBox += Slot.Offset + UE::SmartObject::DefaultSlotSize;
 		BoundingBox += Slot.Offset - UE::SmartObject::DefaultSlotSize;
@@ -87,9 +87,9 @@ TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform&
 {
 	TOptional<FTransform> Transform;
 
-	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *SlotIndex.Describe()))
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *LexToString(SlotIndex)))
 	{
-		const FSmartObjectSlot& Slot = Slots[SlotIndex];
+		const FSmartObjectSlotDefinition& Slot = Slots[SlotIndex];
 		Transform = FTransform(Slot.Rotation, Slot.Offset) * OwnerTransform;
 	}
 
@@ -107,11 +107,3 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 	return BehaviorDefinition != nullptr ? *BehaviorDefinition : nullptr;
 }
 
-FString USmartObjectDefinition::Describe() const
-{
-	return FString::Printf(TEXT("NumSlots=%d NumDefs=%d HasUserFilter=%s HasObjectFilter=%s"),
-		Slots.Num(),
-		DefaultBehaviorDefinitions.Num(),
-		*LexToString(!UserTagFilter.IsEmpty()),
-		*LexToString(!ObjectTagFilter.IsEmpty()));
-}
