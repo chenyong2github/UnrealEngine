@@ -509,12 +509,33 @@ void UControlRig::InstantiateVMFromCDO()
 	RequestInit();
 }
 
+void UControlRig::CopyExternalVariableDefaultValuesFromCDO()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+		TArray<FRigVMExternalVariable> CurrentVariables = GetExternalVariablesImpl(false);
+		TArray<FRigVMExternalVariable> CDOVariables = CDO->GetExternalVariablesImpl(false);
+		if (ensure(CurrentVariables.Num() == CDOVariables.Num()))
+		{
+			for (int32 i=0; i<CurrentVariables.Num(); ++i)
+			{
+				FRigVMExternalVariable& Variable = CurrentVariables[i];
+				FRigVMExternalVariable& CDOVariable = CDOVariables[i];
+				Variable.Property->CopyCompleteValue(Variable.Memory, CDOVariable.Memory);
+			}
+		}
+	}
+}
+
 void UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
 {
 	if(!CanExecute())
 	{
 		return;
 	}
+
+	ensure(!HasAnyFlags(RF_ClassDefaultObject));
 	
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Execute);

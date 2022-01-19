@@ -682,7 +682,7 @@ public:
 #endif
 
 	// returns the statistics information
-	UFUNCTION(BlueprintPure, Category = "RigVM")
+	UFUNCTION(BlueprintPure, Category = "RigVM", meta=(DeprecatedFunction))
 	FRigVMStatistics GetStatistics() const
 	{
 		FRigVMStatistics Statistics;

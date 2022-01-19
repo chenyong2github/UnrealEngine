@@ -422,8 +422,8 @@ public:
 	const FControlRigShapeDefinition* GetControlShapeByName(const FName& InName) const;
 #endif
 
-	UPROPERTY(transient, DuplicateTransient, VisibleAnywhere, Category = "VM", meta = (DisplayName = "VM Statistics", DisplayAfter = "VMCompileSettings"))
-	FRigVMStatistics Statistics;
+	UPROPERTY(transient, DuplicateTransient, meta = (DisplayName = "VM Statistics", DisplayAfter = "VMCompileSettings"))
+	FRigVMStatistics Statistics_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, Category = "Drawing")
 	FControlRigDrawContainer DrawContainer;

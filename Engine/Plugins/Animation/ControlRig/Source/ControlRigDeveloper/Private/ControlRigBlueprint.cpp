@@ -706,9 +706,6 @@ void UControlRigBlueprint::RecompileVM()
 			return;
 		}
 
-		CDO->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName); // need to clarify if we actually need this
-		Statistics = CDO->VM->GetStatistics();
-
 		TArray<UObject*> ArchetypeInstances;
 		CDO->GetArchetypeInstances(ArchetypeInstances);
 		for (UObject* Instance : ArchetypeInstances)
@@ -722,6 +719,7 @@ void UControlRigBlueprint::RecompileVM()
 					InstanceRig->PostInitInstanceIfRequired();
 				}
 				InstanceRig->InstantiateVMFromCDO();
+				InstanceRig->CopyExternalVariableDefaultValuesFromCDO();
 			}
 		}
 

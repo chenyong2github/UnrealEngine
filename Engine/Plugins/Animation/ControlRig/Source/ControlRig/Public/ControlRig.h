@@ -511,6 +511,9 @@ private:
 	/** Copy the VM from the default object */
 	void InstantiateVMFromCDO();
 	
+	/** Copy the default values of external variables from the default object */
+	void CopyExternalVariableDefaultValuesFromCDO();
+	
 	/** Broadcasts a notification whenever the controlrig's memory is initialized. */
 	FControlRigExecuteEvent InitializedEvent;
 
