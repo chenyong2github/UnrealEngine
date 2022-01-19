@@ -51,7 +51,13 @@ This section describes experimental algorithms for 2d feature detection.
     @defgroup xfeatures2d_nonfree Non-free 2D Features Algorithms
 
 This section describes two popular algorithms for 2d feature detection, SIFT and SURF, that are
-known to be patented. Use them at your own risk.
+known to be patented. You need to set the OPENCV_ENABLE_NONFREE option in cmake to use those. Use them at your own risk.
+
+    @defgroup xfeatures2d_match Experimental 2D Features Matching Algorithm
+
+This section describes the following matching strategies:
+    - GMS: Grid-based Motion Statistics, @cite Bian2017gms
+    - LOGOS: Local geometric support for high-outlier spatial verification, @cite Lowry2018LOGOSLG
 
 @}
 */
@@ -80,10 +86,9 @@ class CV_EXPORTS_W FREAK : public Feature2D
 {
 public:
 
-    enum
-    {
-        NB_SCALES = 64, NB_PAIRS = 512, NB_ORIENPAIRS = 45
-    };
+    static const int    NB_SCALES        = 64;
+    static const int    NB_PAIRS         = 512;
+    static const int    NB_ORIENPAIRS    = 45;
 
     /**
     @param orientationNormalized Enable orientation normalization.
@@ -160,6 +165,7 @@ LATCH is a binary descriptor based on learned comparisons of triplets of image p
 * rotationInvariance - whether or not the descriptor should compansate for orientation changes.
 * half_ssd_size - the size of half of the mini-patches size. For example, if we would like to compare triplets of patches of size 7x7x
     then the half_ssd_size should be (7-1)/2 = 3.
+* sigma - sigma value for GaussianBlur smoothing of the source image. Source image will be used without smoothing in case sigma value is 0.
 
 Note: the descriptor can be coupled with any keypoint extractor. The only demand is that if you use set rotationInvariance = True then
     you will have to use an extractor which estimates the patch orientation (in degrees). Examples for such extractors are ORB and SIFT.
@@ -170,7 +176,52 @@ Note: a complete example can be found under /samples/cpp/tutorial_code/xfeatures
 class CV_EXPORTS_W LATCH : public Feature2D
 {
 public:
-    CV_WRAP static Ptr<LATCH> create(int bytes = 32, bool rotationInvariance = true, int half_ssd_size=3);
+    CV_WRAP static Ptr<LATCH> create(int bytes = 32, bool rotationInvariance = true, int half_ssd_size = 3, double sigma = 2.0);
+};
+
+/** @brief Class implementing BEBLID (Boosted Efficient Binary Local Image Descriptor),
+ * described in @cite Suarez2020BEBLID .
+
+BEBLID \cite Suarez2020BEBLID is a efficient binary descriptor learned with boosting.
+It is able to describe keypoints from any detector just by changing the scale_factor parameter.
+In several benchmarks it has proved to largely improve other binary descriptors like ORB or
+BRISK with the same efficiency. BEBLID describes using the difference of mean gray values in
+different regions of the image around the KeyPoint, the descriptor is specifically optimized for
+image matching and patch retrieval addressing the asymmetries of these problems.
+
+If you find this code useful, please add a reference to the following paper:
+<BLOCKQUOTE> Iago Suárez, Ghesn Sfeir, José M. Buenaposada, and Luis Baumela.
+BEBLID: Boosted efficient binary local image descriptor.
+Pattern Recognition Letters, 133:366–372, 2020. </BLOCKQUOTE>
+
+The descriptor was trained using 1 million of randomly sampled pairs of patches
+(20% positives and 80% negatives) from the Liberty split of the UBC datasets
+\cite winder2007learning as described in the paper @cite Suarez2020BEBLID.
+You can check in the [AKAZE example](https://raw.githubusercontent.com/opencv/opencv/master/samples/cpp/tutorial_code/features2D/AKAZE_match.cpp)
+how well BEBLID works. Detecting 10000 keypoints with ORB and describing with BEBLID obtains
+561 inliers (75%) whereas describing with ORB obtains only 493 inliers (63%).
+*/
+class CV_EXPORTS_W BEBLID : public Feature2D
+{
+public:
+    /**
+     * @brief  Descriptor number of bits, each bit is a boosting weak-learner.
+     * The user can choose between 512 or 256 bits.
+     */
+    enum BeblidSize
+    {
+        SIZE_512_BITS = 100, SIZE_256_BITS = 101,
+    };
+    /** @brief Creates the BEBLID descriptor.
+    @param scale_factor Adjust the sampling window around detected keypoints:
+    - <b> 1.00f </b> should be the scale for ORB keypoints
+    - <b> 6.75f </b> should be the scale for SIFT detected keypoints
+    - <b> 6.25f </b> is default and fits for KAZE, SURF detected keypoints
+    - <b> 5.00f </b> should be the scale for AKAZE, MSD, AGAST, FAST, BRISK keypoints
+    @param n_bits Determine the number of bits in the descriptor. Should be either
+     BEBLID::SIZE_512_BITS or BEBLID::SIZE_256_BITS.
+    */
+    CV_WRAP static Ptr<BEBLID> create(float scale_factor, int n_bits = BEBLID::SIZE_512_BITS);
 };
 
 /** @brief Class implementing DAISY descriptor, described in @cite Tola10
@@ -192,12 +243,12 @@ DAISY::NRM_SIFT mean that descriptors are normalized for L2 norm equal to 1.0 bu
 class CV_EXPORTS_W DAISY : public Feature2D
 {
 public:
-    enum
+    enum NormalizationType
     {
         NRM_NONE = 100, NRM_PARTIAL = 101, NRM_FULL = 102, NRM_SIFT = 103,
     };
     CV_WRAP static Ptr<DAISY> create( float radius = 15, int q_radius = 3, int q_theta = 8,
-                int q_hist = 8, int norm = DAISY::NRM_NONE, InputArray H = noArray(),
+                int q_hist = 8, DAISY::NormalizationType norm = DAISY::NRM_NONE, InputArray H = noArray(),
                 bool interpolation = true, bool use_orientation = false );
 
     /** @overload
@@ -205,11 +256,11 @@ public:
      * @param keypoints of interest within image
      * @param descriptors resulted descriptors array
      */
-    virtual void compute( InputArray image, std::vector<KeyPoint>& keypoints, OutputArray descriptors ) = 0;
+    virtual void compute( InputArray image, std::vector<KeyPoint>& keypoints, OutputArray descriptors ) CV_OVERRIDE = 0;
 
     virtual void compute( InputArrayOfArrays images,
                           std::vector<std::vector<KeyPoint> >& keypoints,
-                          OutputArrayOfArrays descriptors );
+                          OutputArrayOfArrays descriptors ) CV_OVERRIDE;
 
     /** @overload
      * @param image image to extract descriptors
@@ -311,13 +362,21 @@ public:
     CV_WRAP static Ptr<VGG> create( int desc = VGG::VGG_120, float isigma = 1.4f,
                                     bool img_normalize = true, bool use_scale_orientation = true,
                                     float scale_factor = 6.25f, bool dsc_normalize = false );
-    /**
-     * @param image image to extract descriptors
-     * @param keypoints of interest within image
-     * @param descriptors resulted descriptors array
-     */
-    CV_WRAP virtual void compute( InputArray image, std::vector<KeyPoint>& keypoints, OutputArray descriptors ) = 0;
 
+    CV_WRAP virtual void setSigma(const float isigma) = 0;
+    CV_WRAP virtual float getSigma() const = 0;
+
+    CV_WRAP virtual void setUseNormalizeImage(const bool img_normalize) = 0;
+    CV_WRAP virtual bool getUseNormalizeImage() const = 0;
+
+    CV_WRAP virtual void setUseScaleOrientation(const bool use_scale_orientation) = 0;
+    CV_WRAP virtual bool getUseScaleOrientation() const = 0;
+
+    CV_WRAP virtual void setScaleFactor(const float scale_factor) = 0;
+    CV_WRAP virtual float getScaleFactor() const = 0;
+
+    CV_WRAP virtual void setUseNormalizeDescriptor(const bool dsc_normalize) = 0;
+    CV_WRAP virtual bool getUseNormalizeDescriptor() const = 0;
 };
 
 /** @brief Class implementing BoostDesc (Learning Image Descriptors with Boosting), described in
@@ -359,6 +418,12 @@ public:
 
     CV_WRAP static Ptr<BoostDesc> create( int desc = BoostDesc::BINBOOST_256,
                     bool use_scale_orientation = true, float scale_factor = 6.25f );
+
+    CV_WRAP virtual void setUseScaleOrientation(const bool use_scale_orientation) = 0;
+    CV_WRAP virtual bool getUseScaleOrientation() const = 0;
+
+    CV_WRAP virtual void setScaleFactor(const float scale_factor) = 0;
+    CV_WRAP virtual float getScaleFactor() const = 0;
 };
 
 
@@ -881,7 +946,7 @@ public:
  * The interface is equivalent to @ref Feature2D, adding operations for
  * @ref Elliptic_KeyPoint "Elliptic_KeyPoints" instead of @ref KeyPoint "KeyPoints".
  */
-class CV_EXPORTS AffineFeature2D : public Feature2D
+class CV_EXPORTS_W AffineFeature2D : public Feature2D
 {
 public:
     /**
@@ -925,11 +990,45 @@ public:
         bool useProvidedKeypoints=false ) = 0;
 };
 
+/**
+@brief Class implementing the Tree Based Morse Regions (TBMR) as described in
+@cite Najman2014 extended with scaled extraction ability.
+
+@param min_area prune areas smaller than minArea
+@param max_area_relative prune areas bigger than maxArea = max_area_relative *
+input_image_size
+@param scale_factor scale factor for scaled extraction.
+@param n_scales number of applications of the scale factor (octaves).
+
+@note This algorithm is based on Component Tree (Min/Max) as well as MSER but
+uses a Morse-theory approach to extract features.
+
+Features are ellipses (similar to MSER, however a MSER feature can never be a
+TBMR feature and vice versa).
+
+*/
+class CV_EXPORTS_W TBMR : public AffineFeature2D
+{
+public:
+    CV_WRAP static Ptr<TBMR> create(int min_area = 60,
+        float max_area_relative = 0.01f,
+        float scale_factor = 1.25f,
+        int n_scales = -1);
+
+    CV_WRAP virtual void setMinArea(int minArea) = 0;
+    CV_WRAP virtual int getMinArea() const = 0;
+    CV_WRAP virtual void setMaxAreaRelative(float maxArea) = 0;
+    CV_WRAP virtual float getMaxAreaRelative() const = 0;
+    CV_WRAP virtual void setScaleFactor(float scale_factor) = 0;
+    CV_WRAP virtual float getScaleFactor() const = 0;
+    CV_WRAP virtual void setNScales(int n_scales) = 0;
+    CV_WRAP virtual int getNScales() const = 0;
+};
 
 /** @brief Estimates cornerness for prespecified KeyPoints using the FAST algorithm
 
 @param image grayscale image where keypoints (corners) are detected.
-@param keypoints keypoints which should be tested to fit the FAST criteria. Keypoints not beeing
+@param keypoints keypoints which should be tested to fit the FAST criteria. Keypoints not being
 detected as corners are removed.
 @param threshold threshold on difference between intensity of the central pixel and pixels of a
 circle around this pixel.
@@ -942,8 +1041,48 @@ FastFeatureDetector::TYPE_5_8
 Detects corners using the FAST algorithm by @cite Rosten06 .
  */
 CV_EXPORTS void FASTForPointSet( InputArray image, CV_IN_OUT std::vector<KeyPoint>& keypoints,
-                      int threshold, bool nonmaxSuppression=true, int type=FastFeatureDetector::TYPE_9_16);
+                      int threshold, bool nonmaxSuppression=true, cv::FastFeatureDetector::DetectorType type=FastFeatureDetector::TYPE_9_16);
 
+
+//! @}
+
+
+//! @addtogroup xfeatures2d_match
+//! @{
+
+/** @brief GMS (Grid-based Motion Statistics) feature matching strategy described in @cite Bian2017gms .
+    @param size1 Input size of image1.
+    @param size2 Input size of image2.
+    @param keypoints1 Input keypoints of image1.
+    @param keypoints2 Input keypoints of image2.
+    @param matches1to2 Input 1-nearest neighbor matches.
+    @param matchesGMS Matches returned by the GMS matching strategy.
+    @param withRotation Take rotation transformation into account.
+    @param withScale Take scale transformation into account.
+    @param thresholdFactor The higher, the less matches.
+    @note
+        Since GMS works well when the number of features is large, we recommend to use the ORB feature and set FastThreshold to 0 to get as many as possible features quickly.
+        If matching results are not satisfying, please add more features. (We use 10000 for images with 640 X 480).
+        If your images have big rotation and scale changes, please set withRotation or withScale to true.
+ */
+CV_EXPORTS_W void matchGMS(const Size& size1, const Size& size2, const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2,
+                           const std::vector<DMatch>& matches1to2, CV_OUT std::vector<DMatch>& matchesGMS, const bool withRotation = false,
+                           const bool withScale = false, const double thresholdFactor = 6.0);
+
+/** @brief LOGOS (Local geometric support for high-outlier spatial verification) feature matching strategy described in @cite Lowry2018LOGOSLG .
+    @param keypoints1 Input keypoints of image1.
+    @param keypoints2 Input keypoints of image2.
+    @param nn1 Index to the closest BoW centroid for each descriptors of image1.
+    @param nn2 Index to the closest BoW centroid for each descriptors of image2.
+    @param matches1to2 Matches returned by the LOGOS matching strategy.
+    @note
+        This matching strategy is suitable for features matching against large scale database.
+        First step consists in constructing the bag-of-words (BoW) from a representative image database.
+        Image descriptors are then represented by their closest codevector (nearest BoW centroid).
+ */
+CV_EXPORTS_W void matchLOGOS(const std::vector<KeyPoint>& keypoints1, const std::vector<KeyPoint>& keypoints2,
+                             const std::vector<int>& nn1, const std::vector<int>& nn2,
+                             std::vector<DMatch>& matches1to2);
 
 //! @}
 

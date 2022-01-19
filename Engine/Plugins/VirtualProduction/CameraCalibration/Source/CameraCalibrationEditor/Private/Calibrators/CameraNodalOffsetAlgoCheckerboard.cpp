@@ -17,12 +17,11 @@
 #include <algorithm>
 
 #include "OpenCVHelper.h"
-OPENCV_INCLUDES_START
-#undef check 
+#include "PreOpenCVHeaders.h"
 #include "opencv2/core/types.hpp"
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
-OPENCV_INCLUDES_END
+#include "PostOpenCVHeaders.h"
 
 #endif //WITH_OPENCV
 

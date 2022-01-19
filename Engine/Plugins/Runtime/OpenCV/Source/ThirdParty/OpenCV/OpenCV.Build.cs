@@ -9,16 +9,17 @@ public class OpenCV : ModuleRules
 	{
 		Type = ModuleType.External;
 
+		string PlatformDir = Target.Platform.ToString();
+		string IncPath = Path.Combine(ModuleDirectory, "include");
+		string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
+        string BinaryPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../../Binaries/ThirdParty", PlatformDir));
+		
+		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string PlatformDir = Target.Platform.ToString();
-			string IncPath = Path.Combine(ModuleDirectory, "include");
 			PublicSystemIncludePaths.Add(IncPath);
 
-			string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-            string BinaryPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../../Binaries/ThirdParty", PlatformDir));
-
-			string LibName = "opencv_world331";
+			string LibName = "opencv_world455";
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug &&
 				Target.bDebugBuildsActuallyUseDebugCRT)

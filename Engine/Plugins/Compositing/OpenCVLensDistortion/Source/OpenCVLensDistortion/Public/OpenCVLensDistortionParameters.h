@@ -8,13 +8,6 @@
 // OpenCVHelper.h has its own WITH_OPENCV guards so having it guarded again here isn't necessary
 #include "OpenCVHelper.h"
 
-#if WITH_OPENCV
-OPENCV_INCLUDES_START
-#undef check // the check macro causes problems with opencv headers
-#include "opencv2/core/core.hpp"
-OPENCV_INCLUDES_END
-#endif
-
 #include "OpenCVLensDistortionParameters.generated.h"
 
 

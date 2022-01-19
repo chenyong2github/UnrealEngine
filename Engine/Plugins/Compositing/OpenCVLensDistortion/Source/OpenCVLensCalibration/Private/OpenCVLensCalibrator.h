@@ -7,11 +7,10 @@
 
 #if WITH_OPENCV
 #include "OpenCVHelper.h"
-OPENCV_INCLUDES_START
-#undef check // the check macro causes problems with opencv headers
-#include "opencv2/core/core.hpp"
+
+#include "PreOpenCVHeaders.h"
 #include "opencv2/imgcodecs.hpp"
-OPENCV_INCLUDES_END
+#include "PostOpenCVHeaders.h"
 #endif
 
 #include "OpenCVLensCalibrator.generated.h"

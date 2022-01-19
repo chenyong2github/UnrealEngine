@@ -86,8 +86,8 @@ public:
     return computeSaliencyImpl( image, saliencyMap );
   }
 
-  CV_WRAP void read( const FileNode& fn );
-  void write( FileStorage& fs ) const;
+  CV_WRAP void read( const FileNode& fn ) CV_OVERRIDE;
+  void write( FileStorage& fs ) const CV_OVERRIDE;
 
   CV_WRAP int getImageWidth() const
   {
@@ -107,7 +107,7 @@ public:
   }
 
 protected:
-  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap );
+  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap ) CV_OVERRIDE;
   CV_PROP_RW int resImWidth;
   CV_PROP_RW int resImHeight;
 
@@ -140,7 +140,7 @@ public:
   virtual ~StaticSaliencyFineGrained();
 
 protected:
-  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap );
+  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap ) CV_OVERRIDE;
 
 private:
   void calcIntensityChannel(Mat src, Mat dst);
@@ -222,7 +222,7 @@ protected:
        The saliency map is given by a single *Mat* (one for each frame of an hypothetical video
         stream).
   */
-  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap );
+  bool computeSaliencyImpl( InputArray image, OutputArray saliencyMap ) CV_OVERRIDE;
 
 private:
 
@@ -369,7 +369,7 @@ protected:
     specialized algorithm, the objectnessBoundingBox is a *vector\<Vec4i\>*. Each bounding box is
     represented by a *Vec4i* for (minX, minY, maxX, maxY).
      */
-  bool computeSaliencyImpl( InputArray image, OutputArray objectnessBoundingBox );
+  bool computeSaliencyImpl( InputArray image, OutputArray objectnessBoundingBox ) CV_OVERRIDE;
 
 private:
 
@@ -455,7 +455,7 @@ private:
   inline static float LoG( float x, float y, float delta )
   {
     float d = - ( x * x + y * y ) / ( 2 * delta * delta );
-    return -1.0f / ( (float) ( CV_PI ) * pow( delta, 4 ) ) * ( 1 + d ) * exp( d );
+    return -1.0f / ( (float) ( CV_PI ) * (delta*delta*delta*delta) ) * ( 1 + d ) * exp( d );
   }  // Laplacian of Gaussian
 
 // Read matrix from binary file
@@ -464,7 +464,7 @@ private:
   void setColorSpace( int clr = MAXBGR );
 
 // Load trained model.
-  int loadTrainedModel( std::string modelName = "" );// Return -1, 0, or 1 if partial, none, or all loaded
+  int loadTrainedModel();// Return -1, 0, or 1 if partial, none, or all loaded
 
 // Get potential bounding boxes, each of which is represented by a Vec4i for (minX, minY, maxX, maxY).
 // The trained model should be prepared before calling this function: loadTrainedModel() or trainStageI() + trainStageII().

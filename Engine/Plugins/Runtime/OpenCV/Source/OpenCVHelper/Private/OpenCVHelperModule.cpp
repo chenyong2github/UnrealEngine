@@ -9,10 +9,11 @@
 
 #if WITH_OPENCV
 #include "OpenCVHelper.h"
-OPENCV_INCLUDES_START
-#undef check 
+
+#include "PreOpenCVHeaders.h"
 #include "opencv2/unreal.hpp"
-OPENCV_INCLUDES_END
+#include "PostOpenCVHeaders.h"
+
 #endif
 
 namespace OpenCVHelperModule

@@ -4,9 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "HAL/IConsoleManager.h" // for TAutoConsoleVariable<>
-
-class IConsoleVariable;
 
 /**
  * 

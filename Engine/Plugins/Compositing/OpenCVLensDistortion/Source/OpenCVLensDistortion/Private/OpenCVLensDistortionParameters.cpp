@@ -8,11 +8,12 @@
 
 
 #if WITH_OPENCV
-OPENCV_INCLUDES_START
-#undef check // the check macro causes problems with opencv headers
+#include "PreOpenCVHeaders.h"
+
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
-OPENCV_INCLUDES_END
+
+#include "PostOpenCVHeaders.h"
 #endif
 
 

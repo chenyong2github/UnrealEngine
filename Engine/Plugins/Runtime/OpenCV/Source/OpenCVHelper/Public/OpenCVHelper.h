@@ -4,8 +4,6 @@
 #include "CoreMinimal.h"
 #include <vector>
 
-#include <type_traits>
-
 /*
 Like many third party headers, OpenCV headers require some care when importing.
 
@@ -26,22 +24,9 @@ cannot undefine the value.
 
 #include "OpenCVHelper.generated.h"
 
-#if PLATFORM_WINDOWS
-#define OPENCV_INCLUDES_START THIRD_PARTY_INCLUDES_START \
-	__pragma(warning(disable: 4190))  /* 'identifier1' has C-linkage specified, but returns UDT 'identifier2' which is incompatible with C */ \
-	__pragma(warning(disable: 6297))  /* Arithmetic overflow:  32-bit value is shifted, then cast to 64-bit value.  Results might not be an expected value. */ \
-	__pragma(warning(disable: 6294))  /* Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed. */ \
-	__pragma(warning(disable: 6201))  /* Index '<x>' is out of valid index range '<a>' to '<b>' for possibly stack allocated buffer '<variable>'. */ \
-	__pragma(warning(disable: 6269))  /* Possibly incorrect order of operations:  dereference ignored. */ \
-	__pragma(warning(disable: 4263)) /* cv::detail::BlocksCompensator::feed member function does not override any base class virtual member function */ \
-	__pragma(warning(disable: 4264)) /* cv::detail::ExposureCompensator::feed : no override available for virtual member function from base 'cv::detail::ExposureCompensator'; function is hidden */ \
-	UE_PUSH_MACRO("check")
-#else
-// TODO: when adding support for other platforms, this definition may require updating
-#define OPENCV_INCLUDES_START THIRD_PARTY_INCLUDES_START UE_PUSH_MACRO("check")
-#endif
+#define OPENCV_INCLUDES_START static_assert(false, "Include PreOpenCVHeaders.h instead of using this macro.");
 
-#define OPENCV_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check")
+#define OPENCV_INCLUDES_END static_assert(false, "Include PostOpenCVHeaders.h instead of using this macro");
 
 #if WITH_OPENCV
 

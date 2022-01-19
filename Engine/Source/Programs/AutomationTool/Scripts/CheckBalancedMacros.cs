@@ -74,6 +74,8 @@ namespace AutomationTool
 			"PostWindowsApi.h",
 			"USDIncludesStart.h",
 			"USDIncludesEnd.h",
+			"PreOpenCVHeaders.h",
+			"PostOpenCVHeaders.h",
 		};
 
 		/// <summary>

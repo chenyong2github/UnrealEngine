@@ -8,17 +8,16 @@ public class OpenCVHelper: ModuleRules
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"Core",
+				"CoreUObject",
+				"Engine"
             }
         );
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
                 "OpenCV",
                 "Projects",
-				"RHI",
             }
         );
 	}

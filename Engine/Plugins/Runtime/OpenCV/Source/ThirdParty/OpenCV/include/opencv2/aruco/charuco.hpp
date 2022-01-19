@@ -124,7 +124,7 @@ class CV_EXPORTS_W CharucoBoard : public Board {
     // size of chessboard squares side (normally in meters)
     float _squareLength;
 
-    // marker side lenght (normally in meters)
+    // marker side length (normally in meters)
     float _markerLength;
 };
 
@@ -184,8 +184,8 @@ CV_EXPORTS_W int interpolateCornersCharuco(InputArrayOfArrays markerCorners, Inp
  */
 CV_EXPORTS_W bool estimatePoseCharucoBoard(InputArray charucoCorners, InputArray charucoIds,
                                            const Ptr<CharucoBoard> &board, InputArray cameraMatrix,
-                                           InputArray distCoeffs, OutputArray rvec, OutputArray tvec,
-                                           bool useExtrinsicGuess = false);
+                                           InputArray distCoeffs, InputOutputArray rvec,
+                                           InputOutputArray tvec, bool useExtrinsicGuess = false);
 
 
 
@@ -328,13 +328,23 @@ CV_EXPORTS_W void drawDetectedDiamonds(InputOutputArray image, InputArrayOfArray
  *
  * This function return the image of a ChArUco marker, ready to be printed.
  */
-// TODO cannot be exported yet; conversion from/to Vec4i is not wrapped in core
-CV_EXPORTS void drawCharucoDiamond(const Ptr<Dictionary> &dictionary, Vec4i ids, int squareLength,
+CV_EXPORTS_W void drawCharucoDiamond(const Ptr<Dictionary> &dictionary, Vec4i ids, int squareLength,
                                    int markerLength, OutputArray img, int marginSize = 0,
                                    int borderBits = 1);
 
 
-
+/**
+ * @brief test whether the ChArUco markers are collinear
+ *
+ * @param _board layout of ChArUco board.
+ * @param _charucoIds list of identifiers for each corner in charucoCorners per frame.
+ * @return bool value, 1 (true) if detected corners form a line, 0 (false) if they do not.
+      solvePnP, calibration functions will fail if the corners are collinear (true).
+ *
+ * The number of ids in charucoIDs should be <= the number of chessboard corners in the board.  This functions checks whether the charuco corners are on a straight line (returns true, if so), or not (false).  Axis parallel, as well as diagonal and other straight lines detected.  Degenerate cases: for number of charucoIDs <= 2, the function returns true.
+ */
+CV_EXPORTS_W bool testCharucoCornersCollinear(const Ptr<CharucoBoard> &_board,
+                                              InputArray _charucoIds);
 
 //! @}
 }

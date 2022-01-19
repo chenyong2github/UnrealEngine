@@ -41,6 +41,9 @@
 #include "ximgproc/disparity_filter.hpp"
 #include "ximgproc/sparse_match_interpolator.hpp"
 #include "ximgproc/structured_edge_detection.hpp"
+#include "ximgproc/edgeboxes.hpp"
+#include "ximgproc/edge_drawing.hpp"
+#include "ximgproc/scansegment.hpp"
 #include "ximgproc/seeds.hpp"
 #include "ximgproc/segmentation.hpp"
 #include "ximgproc/fast_hough_transform.hpp"
@@ -52,6 +55,14 @@
 #include "ximgproc/fast_line_detector.hpp"
 #include "ximgproc/deriche_filter.hpp"
 #include "ximgproc/peilin.hpp"
+#include "ximgproc/fourier_descriptors.hpp"
+#include "ximgproc/ridgefilter.hpp"
+#include "ximgproc/brightedges.hpp"
+#include "ximgproc/run_length_morphology.hpp"
+#include "ximgproc/edgepreserving_filter.hpp"
+#include "ximgproc/color_match.hpp"
+#include "ximgproc/radon_transform.hpp"
+
 
 /** @defgroup ximgproc Extended Image Processing
   @{
@@ -60,6 +71,8 @@
 This module contains implementations of modern structured edge detection algorithms,
 i.e. algorithms which somehow takes into account pixel affinities in natural images.
 
+    @defgroup ximgproc_edgeboxes EdgeBoxes
+
     @defgroup ximgproc_filters Filters
 
     @defgroup ximgproc_superpixel Superpixels
@@ -67,7 +80,42 @@ i.e. algorithms which somehow takes into account pixel affinities in natural ima
     @defgroup ximgproc_segmentation Image segmentation
 
     @defgroup ximgproc_fast_line_detector Fast line detector
-  @}
+
+    @defgroup ximgproc_edge_drawing EdgeDrawing
+
+EDGE DRAWING LIBRARY FOR GEOMETRIC FEATURE EXTRACTION AND VALIDATION
+
+Edge Drawing (ED) algorithm is an proactive approach on edge detection problem. In contrast to many other existing edge detection algorithms which follow a subtractive
+approach (i.e. after applying gradient filters onto an image eliminating pixels w.r.t. several rules, e.g. non-maximal suppression and hysteresis in Canny), ED algorithm
+works via an additive strategy, i.e. it picks edge pixels one by one, hence the name Edge Drawing. Then we process those random shaped edge segments to extract higher level
+edge features, i.e. lines, circles, ellipses, etc. The popular method of extraction edge pixels from the thresholded gradient magnitudes is non-maximal supression that tests
+every pixel whether it has the maximum gradient response along its gradient direction and eliminates if it does not. However, this method does not check status of the
+neighboring pixels, and therefore might result low quality (in terms of edge continuity, smoothness, thinness, localization) edge segments. Instead of non-maximal supression,
+ED points a set of edge pixels and join them by maximizing the total gradient response of edge segments. Therefore it can extract high quality edge segments without need for
+an additional hysteresis step.
+
+    @defgroup ximgproc_fourier Fourier descriptors
+
+    @defgroup ximgproc_run_length_morphology Binary morphology on run-length encoded image
+
+    These functions support morphological operations on binary images. In order to be fast and space efficient binary images are encoded with a run-length representation.
+    This representation groups continuous horizontal sequences of "on" pixels together in a "run". A run is charactarized by the column position of the first pixel in the run, the column
+    position of the last pixel in the run and the row position. This representation is very compact for binary images which contain large continuous areas of "on" and "off" pixels. A checkerboard
+    pattern would be a good example. The representation is not so suitable for binary images created from random noise images or other images where little correlation between neighboring pixels
+    exists.
+
+    The morphological operations supported here are very similar to the operations supported in the imgproc module. In general they are fast. However on several occasions they are slower than the functions
+    from imgproc. The structuring elements of cv::MORPH_RECT and cv::MORPH_CROSS have very good support from the imgproc module. Also small structuring elements are very fast in imgproc (presumably
+    due to opencl support). Therefore the functions from this module are recommended for larger structuring elements (cv::MORPH_ELLIPSE or self defined structuring elements). A sample application
+    (run_length_morphology_demo) is supplied which allows to compare the speed of some morphological operations for the functions using run-length encoding and the imgproc functions for a given image.
+
+    Run length encoded images are stored in standard opencv images. Images have a single column of cv::Point3i elements. The number of rows is the number of run + 1. The first row contains
+    the size of the original (not encoded) image.  For the runs the following mapping is used (x: column begin, y: column end (last column), z: row).
+
+    The size of the original image is required for compatibility with the imgproc functions when the boundary handling requires that pixel outside the image boundary are
+    "on".
+
+    @}
 */
 
 namespace cv
@@ -121,12 +169,14 @@ normally a value between 0 and 1 that is multiplied with the standard deviation 
 the mean.
 @param binarizationMethod Binarization method to use. By default, Niblack's technique is used.
 Other techniques can be specified, see cv::ximgproc::LocalBinarizationMethods.
-
+@param r The user-adjustable parameter used by Sauvola's technique. This is the dynamic range
+of standard deviation.
 @sa  threshold, adaptiveThreshold
  */
 CV_EXPORTS_W void niBlackThreshold( InputArray _src, OutputArray _dst,
                                     double maxValue, int type,
-                                    int blockSize, double k, int binarizationMethod = BINARIZATION_NIBLACK );
+                                    int blockSize, double k, int binarizationMethod = BINARIZATION_NIBLACK,
+                                    double r = 128 );
 
 /** @brief Applies a binary blob thinning operation, to achieve a skeletization of the input image.
 
@@ -138,7 +188,7 @@ The function transforms a binary blob image into a skeletized form using the tec
  */
 CV_EXPORTS_W void thinning( InputArray src, OutputArray dst, int thinningType = THINNING_ZHANGSUEN);
 
-/** @brief Performs anisotropic diffusian on an image.
+/** @brief Performs anisotropic diffusion on an image.
 
  The function applies Perona-Malik anisotropic diffusion to an image. This is the solution to the partial differential equation:
 
@@ -152,7 +202,7 @@ CV_EXPORTS_W void thinning( InputArray src, OutputArray dst, int thinningType = 
 
  \f[ c\left(\|\nabla I\|\right)={\frac {1}{1+\left({\frac  {\|\nabla I\|}{K}}\right)^{2}}} \f]
 
- @param src Grayscale Source image.
+ @param src Source image with 3 channels.
  @param dst Destination image of the same size and the same number of channels as src .
  @param alpha The amount of time to step forward by on each iteration (normally, it's between 0 and 1).
  @param K sensitivity to the edges

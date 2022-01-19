@@ -1,7 +1,7 @@
 @ECHO OFF
 
 :: Specifies the version of opencv to download
-set opencv_version=3.3.1
+set opencv_version=4.5.5
 
 :: Comment the line below to exclude opencv_contrib from the build
 set use_opencv_contrib=""
@@ -57,7 +57,7 @@ pushd x64
 echo Configuring x64 build...
 
 cmake^
- -G "Visual Studio 14 2015"^
+ -G "Visual Studio 16 2019"^
  -A x64^
  -C "%~dp0\cmake_options.txt"^
  -DCMAKE_INSTALL_PREFIX=%~dp0^

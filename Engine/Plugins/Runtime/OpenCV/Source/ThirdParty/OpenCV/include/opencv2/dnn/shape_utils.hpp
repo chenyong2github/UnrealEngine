@@ -42,19 +42,15 @@
 #ifndef OPENCV_DNN_DNN_SHAPE_UTILS_HPP
 #define OPENCV_DNN_DNN_SHAPE_UTILS_HPP
 
-#include <opencv2/core.hpp>
-#include <opencv2/core/types_c.h>
+#include <opencv2/dnn/dnn.hpp>
+#include <opencv2/core/types_c.h>  // CV_MAX_DIM
+#include <iostream>
 #include <ostream>
+#include <sstream>
 
 namespace cv {
 namespace dnn {
-CV__DNN_EXPERIMENTAL_NS_BEGIN
-
-//Useful shortcut
-inline std::ostream &operator<< (std::ostream &s, cv::Range &r)
-{
-    return s << "[" << r.start << ", " << r.end << ")";
-}
+CV__DNN_INLINE_NS_BEGIN
 
 //Slicing
 
@@ -112,19 +108,15 @@ static inline Mat slice(const Mat &m, const _Range &r0, const _Range &r1, const 
 static inline Mat getPlane(const Mat &m, int n, int cn)
 {
     CV_Assert(m.dims > 2);
-    Range range[CV_MAX_DIM];
     int sz[CV_MAX_DIM];
     for(int i = 2; i < m.dims; i++)
     {
         sz[i-2] = m.size.p[i];
-        range[i] = Range::all();
     }
-    range[0] = Range(n, n+1);
-    range[1] = Range(cn, cn+1);
-    return m(range).reshape(1, m.dims-2, sz);
+    return Mat(m.dims - 2, sz, m.type(), (void*)m.ptr<float>(n, cn));
 }
 
-static inline MatShape shape(const int* dims, const int n = 4)
+static inline MatShape shape(const int* dims, const int n)
 {
     MatShape shape;
     shape.assign(dims, dims + n);
@@ -136,12 +128,32 @@ static inline MatShape shape(const Mat& mat)
     return shape(mat.size.p, mat.dims);
 }
 
+static inline MatShape shape(const MatSize& sz)
+{
+    return shape(sz.p, sz.dims());
+}
+
+static inline MatShape shape(const UMat& mat)
+{
+    return shape(mat.size.p, mat.dims);
+}
+
+#if 0  // issues with MatExpr wrapped into InputArray
+static inline
+MatShape shape(InputArray input)
+{
+    int sz[CV_MAX_DIM];
+    int ndims = input.sizend(sz);
+    return shape(sz, ndims);
+}
+#endif
+
 namespace {inline bool is_neg(int i) { return i < 0; }}
 
 static inline MatShape shape(int a0, int a1=-1, int a2=-1, int a3=-1)
 {
     int dims[] = {a0, a1, a2, a3};
-    MatShape s = shape(dims);
+    MatShape s = shape(dims, 4);
     s.erase(std::remove_if(s.begin(), s.end(), is_neg), s.end());
     return s;
 }
@@ -155,7 +167,7 @@ static inline int total(const MatShape& shape, int start = -1, int end = -1)
         return 0;
 
     int elems = 1;
-    CV_Assert(start < (int)shape.size() && end <= (int)shape.size() &&
+    CV_Assert(start <= (int)shape.size() && end <= (int)shape.size() &&
               start <= end);
     for(int i = start; i < end; i++)
     {
@@ -172,26 +184,76 @@ static inline MatShape concat(const MatShape& a, const MatShape& b)
     return c;
 }
 
-inline void print(const MatShape& shape, const String& name = "")
+static inline std::string toString(const MatShape& shape, const String& name = "")
 {
-    printf("%s: [", name.c_str());
-    size_t i, n = shape.size();
-    for( i = 0; i < n; i++ )
-        printf(" %d", shape[i]);
-    printf(" ]\n");
+    std::ostringstream ss;
+    if (!name.empty())
+        ss << name << ' ';
+    ss << '[';
+    for(size_t i = 0, n = shape.size(); i < n; ++i)
+        ss << ' ' << shape[i];
+    ss << " ]";
+    return ss.str();
+}
+static inline void print(const MatShape& shape, const String& name = "")
+{
+    std::cout << toString(shape, name) << std::endl;
+}
+static inline std::ostream& operator<<(std::ostream &out, const MatShape& shape)
+{
+    out << toString(shape);
+    return out;
 }
 
-inline int clamp(int ax, int dims)
+/// @brief Converts axis from `[-dims; dims)` (similar to Python's slice notation) to `[0; dims)` range.
+static inline
+int normalize_axis(int axis, int dims)
 {
-    return ax < 0 ? ax + dims : ax;
+    CV_Check(axis, axis >= -dims && axis < dims, "");
+    axis = (axis < 0) ? (dims + axis) : axis;
+    CV_DbgCheck(axis, axis >= 0 && axis < dims, "");
+    return axis;
 }
 
-inline int clamp(int ax, const MatShape& shape)
+static inline
+int normalize_axis(int axis, const MatShape& shape)
 {
-    return clamp(ax, (int)shape.size());
+    return normalize_axis(axis, (int)shape.size());
 }
 
-CV__DNN_EXPERIMENTAL_NS_END
+static inline
+Range normalize_axis_range(const Range& r, int axisSize)
+{
+    if (r == Range::all())
+        return Range(0, axisSize);
+    CV_CheckGE(r.start, 0, "");
+    Range clamped(r.start,
+                  r.end > 0 ? std::min(r.end, axisSize) : axisSize + r.end + 1);
+    CV_DbgCheckGE(clamped.start, 0, "");
+    CV_CheckLT(clamped.start, clamped.end, "");
+    CV_CheckLE(clamped.end, axisSize, "");
+    return clamped;
+}
+
+static inline
+bool isAllOnes(const MatShape &inputShape, int startPos, int endPos)
+{
+    CV_Assert(!inputShape.empty());
+
+    CV_CheckGE((int) inputShape.size(), startPos, "");
+    CV_CheckGE(startPos, 0, "");
+    CV_CheckLE(startPos, endPos, "");
+    CV_CheckLE((size_t)endPos, inputShape.size(), "");
+
+    for (size_t i = startPos; i < endPos; i++)
+    {
+        if (inputShape[i] != 1)
+            return false;
+    }
+    return true;
+}
+
+CV__DNN_INLINE_NS_END
 }
 }
 #endif

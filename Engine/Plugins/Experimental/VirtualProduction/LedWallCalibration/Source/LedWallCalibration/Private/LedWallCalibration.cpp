@@ -17,11 +17,10 @@
 #if WITH_OPENCV
 
 #include "OpenCVHelper.h"
-OPENCV_INCLUDES_START
-#undef check 
-#include "opencv2/opencv.hpp"
+
+#include "PreOpenCVHeaders.h"
 #include "opencv2/aruco.hpp"
-OPENCV_INCLUDES_END
+#include "PostOpenCVHeaders.h"
 
 #endif //WITH_OPENCV
 

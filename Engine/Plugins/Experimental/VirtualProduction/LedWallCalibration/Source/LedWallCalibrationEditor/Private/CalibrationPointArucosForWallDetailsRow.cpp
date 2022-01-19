@@ -31,10 +31,11 @@
 #if WITH_OPENCV
 
 #include "OpenCVHelper.h"
-OPENCV_INCLUDES_START
-#undef check 
-#include "opencv2/opencv.hpp"
-OPENCV_INCLUDES_END
+#include "PreOpenCVHeaders.h"
+
+#include "opencv2/imgproc.hpp"
+
+#include "PostOpenCVHeaders.h"
 
 #endif //WITH_OPENCV
 

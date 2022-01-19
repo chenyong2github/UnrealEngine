@@ -33,11 +33,9 @@
 #include <vector>
 
 #if WITH_OPENCV
-OPENCV_INCLUDES_START
-#undef check 
-#include "opencv2/opencv.hpp"
+#include "PreOpenCVHeaders.h"
 #include "opencv2/calib3d.hpp"
-OPENCV_INCLUDES_END
+#include "PostOpenCVHeaders.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "CameraNodalOffsetAlgoPoints"

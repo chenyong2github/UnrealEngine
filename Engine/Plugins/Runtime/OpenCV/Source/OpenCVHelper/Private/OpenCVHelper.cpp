@@ -2,15 +2,16 @@
 
 #include "OpenCVHelper.h"
 
-#if WITH_OPENCV
-
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 
-OPENCV_INCLUDES_START
-#undef check 
-#include "opencv2/opencv.hpp"
-OPENCV_INCLUDES_END
+#if WITH_OPENCV
+
+#include "PreOpenCVHeaders.h"
+
+#include "opencv2/calib3d.hpp"
+#include "PostOpenCVHeaders.h"
+
 #endif	// WITH_OPENCV
 
 void FOpenCVHelper::ConvertCoordinateSystem(FTransform& Transform, const EAxis SrcXInDstAxis, const EAxis SrcYInDstAxis, const EAxis SrcZInDstAxis)

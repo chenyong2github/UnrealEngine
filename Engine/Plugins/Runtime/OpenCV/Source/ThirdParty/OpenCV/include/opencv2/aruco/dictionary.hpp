@@ -61,9 +61,9 @@ namespace aruco {
 class CV_EXPORTS_W Dictionary {
 
     public:
-    CV_PROP Mat bytesList;         // marker code information
-    CV_PROP int markerSize;        // number of bits per dimension
-    CV_PROP int maxCorrectionBits; // maximum number of bits that can be corrected
+    CV_PROP_RW Mat bytesList;         // marker code information
+    CV_PROP_RW int markerSize;        // number of bits per dimension
+    CV_PROP_RW int maxCorrectionBits; // maximum number of bits that can be corrected
 
 
     /**
@@ -84,14 +84,24 @@ class CV_EXPORTS_W Dictionary {
     /**
      * @see generateCustomDictionary
      */
-    CV_WRAP_AS(create) static Ptr<Dictionary> create(int nMarkers, int markerSize);
+    CV_WRAP_AS(create) static Ptr<Dictionary> create(int nMarkers, int markerSize, int randomSeed=0);
 
 
     /**
      * @see generateCustomDictionary
      */
     CV_WRAP_AS(create_from) static Ptr<Dictionary> create(int nMarkers, int markerSize,
-            const Ptr<Dictionary> &baseDictionary);
+            const Ptr<Dictionary> &baseDictionary, int randomSeed=0);
+
+    /**
+     * @brief Read a new dictionary from FileNode. Format:
+     * nmarkers: 35
+     * markersize: 6
+     * marker_0: "101011111011111001001001101100000000"
+     * ...
+     * marker_34: "011111010000111011111110110101100101"
+     */
+    CV_WRAP static bool readDictionary(const cv::FileNode& fn, cv::Ptr<cv::aruco::Dictionary> &dictionary);
 
     /**
      * @see getPredefinedDictionary
@@ -120,13 +130,13 @@ class CV_EXPORTS_W Dictionary {
     /**
       * @brief Transform matrix of bits to list of bytes in the 4 rotations
       */
-    static Mat getByteListFromBits(const Mat &bits);
+    CV_WRAP static Mat getByteListFromBits(const Mat &bits);
 
 
     /**
       * @brief Transform list of bytes to matrix of bits
       */
-    static Mat getBitsFromByteList(const Mat &byteList, int markerSize);
+    CV_WRAP static Mat getBitsFromByteList(const Mat &byteList, int markerSize);
 };
 
 
@@ -138,7 +148,7 @@ class CV_EXPORTS_W Dictionary {
  * - DICT_ARUCO_ORIGINAL: standard ArUco Library Markers. 1024 markers, 5x5 bits, 0 minimum
                           distance
  */
-enum CV_EXPORTS_W_SIMPLE PREDEFINED_DICTIONARY_NAME {
+enum PREDEFINED_DICTIONARY_NAME {
     DICT_4X4_50 = 0,
     DICT_4X4_100,
     DICT_4X4_250,
@@ -155,7 +165,11 @@ enum CV_EXPORTS_W_SIMPLE PREDEFINED_DICTIONARY_NAME {
     DICT_7X7_100,
     DICT_7X7_250,
     DICT_7X7_1000,
-    DICT_ARUCO_ORIGINAL
+    DICT_ARUCO_ORIGINAL,
+    DICT_APRILTAG_16h5,     ///< 4x4 bits, minimum hamming distance between any two codes = 5, 30 codes
+    DICT_APRILTAG_25h9,     ///< 5x5 bits, minimum hamming distance between any two codes = 9, 35 codes
+    DICT_APRILTAG_36h10,    ///< 6x6 bits, minimum hamming distance between any two codes = 10, 2320 codes
+    DICT_APRILTAG_36h11     ///< 6x6 bits, minimum hamming distance between any two codes = 11, 587 codes
 };
 
 
@@ -176,7 +190,8 @@ CV_EXPORTS_W Ptr<Dictionary> getPredefinedDictionary(int dict);
   */
 CV_EXPORTS_AS(custom_dictionary) Ptr<Dictionary> generateCustomDictionary(
         int nMarkers,
-        int markerSize);
+        int markerSize,
+        int randomSeed=0);
 
 
 /**
@@ -185,6 +200,7 @@ CV_EXPORTS_AS(custom_dictionary) Ptr<Dictionary> generateCustomDictionary(
   * @param nMarkers number of markers in the dictionary
   * @param markerSize number of bits per dimension of each markers
   * @param baseDictionary Include the markers in this dictionary at the beginning (optional)
+  * @param randomSeed a user supplied seed for theRNG()
   *
   * This function creates a new dictionary composed by nMarkers markers and each markers composed
   * by markerSize x markerSize bits. If baseDictionary is provided, its markers are directly
@@ -194,7 +210,8 @@ CV_EXPORTS_AS(custom_dictionary) Ptr<Dictionary> generateCustomDictionary(
 CV_EXPORTS_AS(custom_dictionary_from) Ptr<Dictionary> generateCustomDictionary(
         int nMarkers,
         int markerSize,
-        const Ptr<Dictionary> &baseDictionary);
+        const Ptr<Dictionary> &baseDictionary,
+        int randomSeed=0);
 
 
 

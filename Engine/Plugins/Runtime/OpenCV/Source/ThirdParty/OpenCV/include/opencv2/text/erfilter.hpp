@@ -159,7 +159,7 @@ public:
     virtual void setMinProbability(float minProbability) = 0;
     virtual void setMinProbabilityDiff(float minProbabilityDiff) = 0;
     virtual void setNonMaxSuppression(bool nonMaxSuppression) = 0;
-    virtual int  getNumRejected() = 0;
+    virtual int  getNumRejected() const = 0;
 };
 
 
@@ -284,6 +284,8 @@ enum erGrouping_Modes {
     finds the branches corresponding to text groups by traversing this dendrogram with a stopping rule
     that combines the output of a rotation invariant text group classifier and a probabilistic measure
     for hierarchical clustering validity assessment.
+
+    @note This mode is not supported due NFA code removal ( https://github.com/opencv/opencv_contrib/issues/2235 )
      */
     ERGROUPING_ORIENTATION_ANY
 };

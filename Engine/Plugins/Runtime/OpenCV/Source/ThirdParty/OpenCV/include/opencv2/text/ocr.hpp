@@ -44,6 +44,8 @@
 #ifndef __OPENCV_TEXT_OCR_HPP__
 #define __OPENCV_TEXT_OCR_HPP__
 
+#include <opencv2/core.hpp>
+
 #include <vector>
 #include <string>
 
@@ -132,11 +134,11 @@ public:
      */
     virtual void run(Mat& image, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     virtual void run(Mat& image, Mat& mask, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     // aliases for scripting
     CV_WRAP String run(InputArray image, int min_confidence, int component_level=0);
@@ -238,7 +240,7 @@ public:
      */
     virtual void run(Mat& image, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     /** @brief Recognize text using HMM.
 
@@ -265,7 +267,7 @@ public:
      */
     virtual void run(Mat& image, Mat& mask, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     // aliases for scripting
     CV_WRAP String run(InputArray image, int min_confidence, int component_level=0);
@@ -288,14 +290,6 @@ public:
     @param mode HMM Decoding algorithm. Only OCR_DECODER_VITERBI is available for the moment
     (<http://en.wikipedia.org/wiki/Viterbi_algorithm>).
      */
-    static Ptr<OCRHMMDecoder> create(const Ptr<OCRHMMDecoder::ClassifierCallback> classifier,// The character classifier with built in feature extractor
-                                     const std::string& vocabulary,                    // The language vocabulary (chars when ASCII English text)
-                                                                                       //     size() must be equal to the number of classes
-                                     InputArray transition_probabilities_table,        // Table with transition probabilities between character pairs
-                                                                                       //     cols == rows == vocabulary.size()
-                                     InputArray emission_probabilities_table,          // Table with observation emission probabilities
-                                                                                       //     cols == rows == vocabulary.size()
-                                     decoder_mode mode = OCR_DECODER_VITERBI);         // HMM Decoding algorithm (only Viterbi for the moment)
 
     CV_WRAP static Ptr<OCRHMMDecoder> create(const Ptr<OCRHMMDecoder::ClassifierCallback> classifier,// The character classifier with built in feature extractor
                                      const String& vocabulary,                    // The language vocabulary (chars when ASCII English text)
@@ -405,7 +399,7 @@ public:
     This way it hides the feature extractor and the classifier itself, so developers can write
     their own OCR code.
 
-    The default character classifier and feature extractor can be loaded using the utility funtion
+    The default character classifier and feature extractor can be loaded using the utility function
     loadOCRBeamSearchClassifierCNN with all its parameters provided in
     <https://github.com/opencv/opencv_contrib/blob/master/modules/text/samples/OCRBeamSearch_CNN_model_data.xml.gz>.
      */
@@ -451,11 +445,11 @@ public:
      */
     virtual void run(Mat& image, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     virtual void run(Mat& image, Mat& mask, std::string& output_text, std::vector<Rect>* component_rects=NULL,
                      std::vector<std::string>* component_texts=NULL, std::vector<float>* component_confidences=NULL,
-                     int component_level=0);
+                     int component_level=0) CV_OVERRIDE;
 
     // aliases for scripting
     CV_WRAP String run(InputArray image, int min_confidence, int component_level=0);
@@ -480,40 +474,34 @@ public:
 
     @param beam_size Size of the beam in Beam Search algorithm.
      */
-    static Ptr<OCRBeamSearchDecoder> create(const Ptr<OCRBeamSearchDecoder::ClassifierCallback> classifier,// The character classifier with built in feature extractor
+    static CV_WRAP
+    Ptr<OCRBeamSearchDecoder> create(const Ptr<OCRBeamSearchDecoder::ClassifierCallback> classifier,// The character classifier with built in feature extractor
                                      const std::string& vocabulary,                    // The language vocabulary (chars when ASCII English text)
                                                                                        //     size() must be equal to the number of classes
                                      InputArray transition_probabilities_table,        // Table with transition probabilities between character pairs
                                                                                        //     cols == rows == vocabulary.size()
                                      InputArray emission_probabilities_table,          // Table with observation emission probabilities
                                                                                        //     cols == rows == vocabulary.size()
-                                     decoder_mode mode = OCR_DECODER_VITERBI,          // HMM Decoding algorithm (only Viterbi for the moment)
-                                     int beam_size = 500);                              // Size of the beam in Beam Search algorithm
-
-    CV_WRAP static Ptr<OCRBeamSearchDecoder> create(const Ptr<OCRBeamSearchDecoder::ClassifierCallback> classifier, // The character classifier with built in feature extractor
-                                     const String& vocabulary,                    // The language vocabulary (chars when ASCII English text)
-                                                                                       //     size() must be equal to the number of classes
-                                     InputArray transition_probabilities_table,        // Table with transition probabilities between character pairs
-                                                                                       //     cols == rows == vocabulary.size()
-                                     InputArray emission_probabilities_table,          // Table with observation emission probabilities
-                                                                                       //     cols == rows == vocabulary.size()
-                                     int mode = OCR_DECODER_VITERBI,          // HMM Decoding algorithm (only Viterbi for the moment)
-                                     int beam_size = 500);                              // Size of the beam in Beam Search algorithm
+                                     text::decoder_mode mode = OCR_DECODER_VITERBI,    // HMM Decoding algorithm (only Viterbi for the moment)
+                                     int beam_size = 500                               // Size of the beam in Beam Search algorithm
+    );
 
     /** @brief Creates an instance of the OCRBeamSearchDecoder class. Initializes HMMDecoder from the specified path.
 
     @overload
 
      */
-    CV_WRAP static Ptr<OCRBeamSearchDecoder> create(const String& filename, // The character classifier file
-                                     const String& vocabulary,                    // The language vocabulary (chars when ASCII English text)
+    static //CV_WRAP FIXIT bug in handling of Java overloads
+    Ptr<OCRBeamSearchDecoder> create(const String& filename,                           // The character classifier file
+                                     const String& vocabulary,                         // The language vocabulary (chars when ASCII English text)
                                                                                        //     size() must be equal to the number of classes
                                      InputArray transition_probabilities_table,        // Table with transition probabilities between character pairs
                                                                                        //     cols == rows == vocabulary.size()
                                      InputArray emission_probabilities_table,          // Table with observation emission probabilities
                                                                                        //     cols == rows == vocabulary.size()
-                                     int mode = OCR_DECODER_VITERBI,          // HMM Decoding algorithm (only Viterbi for the moment)
-                                     int beam_size = 500);
+                                     text::decoder_mode mode = OCR_DECODER_VITERBI,    // HMM Decoding algorithm (only Viterbi for the moment)
+                                     int beam_size = 500                               // Size of the beam in Beam Search algorithm
+    );
 protected:
 
     Ptr<OCRBeamSearchDecoder::ClassifierCallback> classifier;
@@ -553,7 +541,7 @@ public:
                      std::vector<Rect>* component_rects = NULL,
                      std::vector<std::string>* component_texts = NULL,
                      std::vector<float>* component_confidences = NULL,
-                     int component_level = OCR_LEVEL_WORD) = 0;
+                     int component_level = OCR_LEVEL_WORD) CV_OVERRIDE = 0;
 
     /** @brief Recognize text using a segmentation based word-spotting/classifier cnn.
 
@@ -584,7 +572,7 @@ public:
                      std::vector<Rect>* component_rects = NULL,
                      std::vector<std::string>* component_texts = NULL,
                      std::vector<float>* component_confidences = NULL,
-                     int component_level = OCR_LEVEL_WORD) = 0;
+                     int component_level = OCR_LEVEL_WORD) CV_OVERRIDE = 0;
 
     /** @brief Creates an instance of the OCRHolisticWordRecognizer class.
      */
