@@ -1528,7 +1528,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 	{
 		const int32 ForcedLOD = CurrentView.Family->EngineShowFlags.LOD ? (GetCVarForceLODShadow_AnyThread() != -1 ? GetCVarForceLODShadow_AnyThread() : GetCVarForceLOD_AnyThread()) : -1;
 
-		FLODMask ShadowLODToRender = CalcAndUpdateLODToRender(CurrentView, PrimitiveSceneInfoCompact.Bounds, PrimitiveSceneInfo, ForcedLOD);
+		FLODMask ShadowLODToRender = CalcAndUpdateLODToRender(CurrentView, FBoxSphereBounds(PrimitiveSceneInfoCompact.Bounds), PrimitiveSceneInfo, ForcedLOD);
 
 		if (WholeSceneDirectionalShadow)
 		{
@@ -1802,7 +1802,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 
 	if (!ReceiverPrimitives.Contains(PrimitiveSceneInfo)
 		// Far cascade only casts from primitives marked for it
-		&& TestPrimitiveFarCascadeConditions(PrimitiveSceneInfoCompact.Proxy->CastsFarShadow(), PrimitiveSceneInfoCompact.Bounds))
+		&& TestPrimitiveFarCascadeConditions(PrimitiveSceneInfoCompact.Proxy->CastsFarShadow(), FBoxSphereBounds(PrimitiveSceneInfoCompact.Bounds)))
 	{
 		FViewInfo* CurrentView;
 		const bool bWholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
@@ -1924,7 +1924,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 			{
 				if (bWholeSceneShadow)
 				{
-					const FBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
+					const FCompactBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
 					const float DistanceSquared = (Bounds.Origin - CurrentView->ShadowViewMatrices.GetViewOrigin()).SizeSquared();
 					const float LODScaleSquared = FMath::Square(CurrentView->LODDistanceFactor);
 					const bool bDrawShadowDepth = FMath::Square(Bounds.SphereRadius) > FMath::Square(GMinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
@@ -4253,7 +4253,7 @@ struct FGatherShadowPrimitivesPacket
 	void FilterPrimitiveForShadows(FDynamicShadowsTaskData& TaskData, const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 	{
 		const FPrimitiveFlagsCompact& PrimitiveFlagsCompact = PrimitiveSceneInfoCompact.PrimitiveFlagsCompact;
-		const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneInfoCompact.Bounds;
+		const FBoxSphereBounds PrimitiveBounds(PrimitiveSceneInfoCompact.Bounds);
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneInfoCompact.PrimitiveSceneInfo;
 		const FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveSceneInfoCompact.Proxy;
 

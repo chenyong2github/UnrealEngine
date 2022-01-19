@@ -20,6 +20,8 @@ class FOctreeChildNodeRef;
 class FBoxCenterAndExtent
 {
 public:
+	using FReal = FVector4::FReal;
+
 	FVector4 Center;	// LWC_TODO: Case for FVector4d
 	FVector4 Extent;
 
@@ -42,10 +44,11 @@ public:
 	}
 
 	/** FBoxSphereBounds conversion constructor. */
-	explicit FBoxCenterAndExtent(const FBoxSphereBounds& BoxSphere)
+	template<typename TExtent>
+	explicit FBoxCenterAndExtent(const UE::Math::TBoxSphereBounds<FReal, TExtent>& BoxSphere)
 	{
 		Center = BoxSphere.Origin;
-		Extent = BoxSphere.BoxExtent;
+		Extent = FVector(BoxSphere.BoxExtent);
 		Center.W = Extent.W = 0;
 	}
 
@@ -84,7 +87,8 @@ public:
 	 * Warning: this operates on the W of the bounds positions!
 	 * @return true if the boxes intersect, or false.
 	 */
-	friend FORCEINLINE bool Intersect(const FBoxSphereBounds& A,const FBoxCenterAndExtent& B)
+	template<typename TExtent>
+	friend FORCEINLINE bool Intersect(const UE::Math::TBoxSphereBounds<FReal, TExtent>& A,const FBoxCenterAndExtent& B)
 	{
 		// CenterDifference is the vector between the centers of the bounding boxes.
 		const VectorRegister CenterDifference = VectorAbs(VectorSubtract(VectorLoadFloat3_W0(&A.Origin),VectorLoadAligned(&B.Center)));

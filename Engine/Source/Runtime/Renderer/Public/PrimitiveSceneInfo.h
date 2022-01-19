@@ -178,7 +178,7 @@ class FPrimitiveSceneInfoCompact
 public:
 	FPrimitiveSceneInfo* PrimitiveSceneInfo;
 	FPrimitiveSceneProxy* Proxy;
-	FBoxSphereBounds Bounds;
+	FCompactBoxSphereBounds Bounds;
 	float MinDrawDistance;
 	float MaxDrawDistance;
 	/** Used for precomputed visibility */
@@ -724,7 +724,7 @@ struct FPrimitiveOctreeSemantics
 
 	typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
 
-	FORCEINLINE static const FBoxSphereBounds& GetBoundingBox(const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
+	FORCEINLINE static const FCompactBoxSphereBounds& GetBoundingBox(const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 	{
 		return PrimitiveSceneInfoCompact.Bounds;
 	}
