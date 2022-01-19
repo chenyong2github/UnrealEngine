@@ -173,39 +173,7 @@ struct FMaterialTextureInfo
 	ENGINE_API bool IsValid(bool bCheckTextureIndex = false) const; 
 };
 
-struct TMicRecursionGuard
-{
-	inline TMicRecursionGuard() = default;
-	inline TMicRecursionGuard(const TMicRecursionGuard& Parent)
-		: MaterialInterface(nullptr)
-		, PreviousLink(&Parent)
-	{
-	}
-
-	inline void Set(class UMaterialInterface const* InMaterialInterface)
-	{
-		check(MaterialInterface == nullptr);
-		MaterialInterface = InMaterialInterface;
-	}
-
-	inline bool Contains(class UMaterialInterface const* InMaterialInterface)
-	{
-		TMicRecursionGuard const* Link = this;
-		do
-		{
-			if (Link->MaterialInterface == InMaterialInterface)
-			{
-				return true;
-			}
-			Link = Link->PreviousLink;
-		} while (Link);
-		return false;
-	}
-
-private:
-	void const* MaterialInterface = nullptr;
-	TMicRecursionGuard const* PreviousLink = nullptr;
-};
+using TMicRecursionGuard = TMaterialRecursionGuard<class UMaterialInterface>;
 
 /** Holds information about a hierarchy of materials */
 struct FMaterialInheritanceChain

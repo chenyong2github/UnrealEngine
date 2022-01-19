@@ -28,6 +28,8 @@ enum class EMaterialFunctionUsage : uint8
 	MaterialLayerBlend
 };
 
+using FMFRecursionGuard = TMaterialRecursionGuard<class UMaterialFunctionInterface>;
+
 /**
  * A Material Function is a collection of material expressions that can be reused in different materials
  */
@@ -314,7 +316,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	virtual bool GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue) const;
+	virtual bool GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue, FMFRecursionGuard RecursionGuard = FMFRecursionGuard()) const;
 
 	ENGINE_API bool OverrideNamedScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue);
 	ENGINE_API bool OverrideNamedVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue);

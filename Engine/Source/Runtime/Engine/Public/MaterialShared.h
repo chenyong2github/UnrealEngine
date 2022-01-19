@@ -3414,3 +3414,38 @@ inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
 	return !Material.IsSky()
 		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 }
+
+template<typename T>
+struct TMaterialRecursionGuard
+{
+	inline TMaterialRecursionGuard() = default;
+	inline TMaterialRecursionGuard(const TMaterialRecursionGuard& Parent)
+		: Value(nullptr)
+		, PreviousLink(&Parent)
+	{
+	}
+
+	inline void Set(const T* InValue)
+	{
+		check(Value == nullptr);
+		Value = InValue;
+	}
+
+	inline bool Contains(const T* InValue)
+	{
+		TMaterialRecursionGuard const* Link = this;
+		do
+		{
+			if (Link->Value == InValue)
+			{
+				return true;
+			}
+			Link = Link->PreviousLink;
+		} while (Link);
+		return false;
+	}
+
+private:
+	const T* Value = nullptr;
+	TMaterialRecursionGuard const* PreviousLink = nullptr;
+};

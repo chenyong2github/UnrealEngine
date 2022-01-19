@@ -4073,14 +4073,22 @@ int32 FHLSLMaterialTranslator::AccessCollectionParameter(UMaterialParameterColle
 
 bool FHLSLMaterialTranslator::GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const
 {
-	const FMaterialFunctionCompileState* CurrentFunctionState = FunctionStacks[ShaderFrequency].Last();
+	const TArray<FMaterialFunctionCompileState*>& FunctionStack = FunctionStacks[ShaderFrequency];
+
+	// Give every function in the callstack on opportunity to override the parameter value
+	// Parameters in outer functions take priority
+	// For example, if a layer instance calls a function instance that includes an overriden parameter, we want to use the value from the layer instance rather than the function instance
 	bool bResult = false;
-	if (CurrentFunctionState->FunctionCall)
+	for (const FMaterialFunctionCompileState* FunctionState : FunctionStack)
 	{
-		const UMaterialFunctionInterface* CurrentFunction = CurrentFunctionState->FunctionCall->MaterialFunction;
+		const UMaterialFunctionInterface* CurrentFunction = (FunctionState && FunctionState->FunctionCall) ? FunctionState->FunctionCall->MaterialFunction : nullptr;
 		if (CurrentFunction)
 		{
-			bResult = CurrentFunction->GetParameterOverrideValue(ParameterType, ParameterName, OutResult);
+			if (CurrentFunction->GetParameterOverrideValue(ParameterType, ParameterName, OutResult))
+			{
+				bResult = true;
+				break;
+			}
 		}
 	}
 

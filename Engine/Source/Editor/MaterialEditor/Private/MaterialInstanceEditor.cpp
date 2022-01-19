@@ -289,8 +289,6 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 	check(InMaterialFunction);
 	MaterialFunctionOriginal = InMaterialFunction;
 
-	UMaterialFunctionInterface* Parent = InMaterialFunction->Parent;
-
 	// Working version of the function instance
 	MaterialFunctionInstance = (UMaterialFunctionInstance*)StaticDuplicateObject(InMaterialFunction, GetTransientPackage(), NAME_None, ~RF_Standalone, UMaterialFunctionInstance::StaticClass()); 
 	MaterialFunctionInstance->Parent = InMaterialFunction;
@@ -330,18 +328,6 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 		Expression->Function = NULL;
 		Expression->Material = FunctionMaterialProxy;
 
-		// The actual MFI we're adding may have multiple layers of inheritance, but for the editor, we only create a single UMaterial which represents all the parents
-		// So if any parent MFI has a parameter override, we need to bake that parameter override into the UMaterial's parameter expression here
-		FMaterialParameterMetadata ParameterMeta;
-		if (Parent && Expression->GetParameterValue(ParameterMeta))
-		{
-			const FName ParameterName = Expression->GetParameterName();
-			if (Parent->GetParameterOverrideValue(ParameterMeta.Value.Type, ParameterName, ParameterMeta))
-			{
-				Expression->SetParameterValue(ParameterName, ParameterMeta);
-			}
-		}
-
 		if (UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression))
 		{
 			FirstOutput = FunctionOutput;
@@ -358,14 +344,49 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 		FirstOutput->ConnectToPreviewMaterial(FunctionMaterialProxy, 0);
 	}
 
-	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
-	UpdateContext.AddMaterial(FunctionMaterialProxy);
-	FunctionMaterialProxy->PreEditChange(NULL);
-	FunctionMaterialProxy->PostEditChange();
+	{
+		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
+		UpdateContext.AddMaterial(FunctionMaterialProxy);
+		FunctionMaterialProxy->PreEditChange(NULL);
+		FunctionMaterialProxy->PostEditChange();
+	}
+
+	UMaterialFunctionInstance* ParentFunctionInstance = Cast<UMaterialFunctionInstance>(InMaterialFunction->Parent);
+	UMaterialInterface* FunctionInstanceParent = FunctionMaterialProxy;
+	if (ParentFunctionInstance)
+	{
+		// If our FunctionInstance inherits from *another* FunctionInstance, the parent may have overriden certain parameters
+		// These overriden values should be the default value as far as our FunctionInstance is concerned
+		// To model this, we create a MI that will hold these overriden values.  So our editor material hierarchy will look like this
+		// * UMaterial - includes the UMaterialExpressions, copied from our base UMaterialFunction
+		// * UMaterialInstance - we're creating this here, holds all parameter values overriden by our parent UMaterialFunctionInstance(s)
+		// * UMaterialInstance - will be created below, this is the object/proxy we'll be editing and potentially setting parameters on
+		UMaterialInstanceConstant* FunctionMaterialInstanceProxy = NewObject<UMaterialInstanceConstant>(GetTransientPackage(), NAME_None, RF_Transactional);
+		FunctionMaterialInstanceProxy->SetParentEditorOnly(FunctionMaterialProxy);
+		{
+			FMaterialInstanceParameterUpdateContext UpdateContext(FunctionMaterialInstanceProxy);
+			TArray<FMaterialParameterInfo> ParameterInfos;
+			TArray<FGuid> ParameterIds;
+			for (int32 ParameterTypeIndex = 0; ParameterTypeIndex < NumMaterialParameterTypes; ++ParameterTypeIndex)
+			{
+				const EMaterialParameterType ParameterType = (EMaterialParameterType)ParameterTypeIndex;
+				FunctionMaterialProxy->GetAllParameterInfoOfType(ParameterType, ParameterInfos, ParameterIds);
+				for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+				{
+					FMaterialParameterMetadata ParameterMeta;
+					if (ParentFunctionInstance->GetParameterOverrideValue(ParameterType, ParameterInfo.Name, ParameterMeta))
+					{
+						UpdateContext.SetParameterValueEditorOnly(ParameterInfo, ParameterMeta, EMaterialSetParameterValueFlags::SetCurveAtlas);
+					}
+				}
+			}
+		}
+		FunctionInstanceParent = FunctionMaterialInstanceProxy;
+	}
 
 	// Preview instance for function expressions
 	FunctionInstanceProxy = NewObject<UMaterialInstanceConstant>(GetTransientPackage(), NAME_None, RF_Transactional);
-	FunctionInstanceProxy->SetParentEditorOnly(FunctionMaterialProxy);
+	FunctionInstanceProxy->SetParentEditorOnly(FunctionInstanceParent);
 
 	MaterialFunctionInstance->OverrideMaterialInstanceParameterValues(FunctionInstanceProxy);
 	FunctionInstanceProxy->PreEditChange(NULL);

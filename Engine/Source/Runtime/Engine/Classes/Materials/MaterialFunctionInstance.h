@@ -173,7 +173,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	}
 
 public:
-	virtual bool GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue) const override;
+	virtual bool GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue, FMFRecursionGuard RecursionGuard = FMFRecursionGuard()) const override;
 	
 #endif // WITH_EDITOR
 	//~ End UMaterialFunctionInterface interface
