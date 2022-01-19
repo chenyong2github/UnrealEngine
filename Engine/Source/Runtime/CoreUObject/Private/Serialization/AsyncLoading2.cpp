@@ -835,16 +835,6 @@ public:
 				Package->GetFlags(), Package->GetInternalFlags(), RefCount);
 			checkf(false, TEXT("Package %s destroyed with RefCount"), *Package->GetName());
 		}
-		else if (RefCount < 0)
-		{
-			UE_LOG(LogStreaming, Error,
-				TEXT("RemovePackage: %s %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
-				TEXT("Package not found!"),
-				*Package->GetName(),
-				*Package->GetLoadedPath().GetDebugName(), Package->GetPackageId().Value(),
-				Package->GetFlags(), Package->GetInternalFlags());
-			checkf(false, TEXT("Package %s not found"), *Package->GetName());
-		}
 	}
 
 	void RemovePackages(const FUnreachablePackages& UnreachablePackages)
@@ -966,7 +956,7 @@ struct FPackageImportStore
 	}
 
 private:
-	void AddAsyncFlags(UPackage* ImportedPackage)
+	void PinPublicExportsForGC(UPackage* ImportedPackage)
 	{
 		UE_ASYNC_UPACKAGE_DEBUG(ImportedPackage);
 		
@@ -978,15 +968,15 @@ private:
 		{
 			if (Object->HasAllFlags(RF_Public | RF_WasLoaded))
 			{
-				checkf(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
-				Object->SetInternalFlags(EInternalObjectFlags::Async);
+				checkf(!Object->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *Object->GetFullName());
+				Object->SetInternalFlags(EInternalObjectFlags::LoaderImport);
 			}
 		}, /* bIncludeNestedObjects*/ true);
-		checkf(!ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *ImportedPackage->GetFullName());
-		ImportedPackage->SetInternalFlags(EInternalObjectFlags::Async);
+		checkf(!ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *ImportedPackage->GetFullName());
+		ImportedPackage->SetInternalFlags(EInternalObjectFlags::LoaderImport);
 	}
 
-	void ClearAsyncFlags(UPackage* ImportedPackage)
+	void UnpinPublicExportsForGC(UPackage* ImportedPackage)
 	{
 		UE_ASYNC_UPACKAGE_DEBUG(ImportedPackage);
 
@@ -998,12 +988,12 @@ private:
 		{
 			if (Object->HasAllFlags(RF_Public | RF_WasLoaded))
 			{
-				checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
-				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+				checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *Object->GetFullName());
+				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::LoaderImport);
 			}
 		}, /* bIncludeNestedObjects*/ true);
-		checkf(ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *ImportedPackage->GetFullName());
-		ImportedPackage->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+		checkf(ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *ImportedPackage->GetFullName());
+		ImportedPackage->AtomicallyClearInternalFlags(EInternalObjectFlags::LoaderImport);
 	}
 
 public:
@@ -1014,7 +1004,7 @@ public:
 			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(ImportedPackageId);
 			if (PackageRef.AddRef())
 			{
-				AddAsyncFlags(PackageRef.GetPackage());
+				PinPublicExportsForGC(PackageRef.GetPackage());
 			}
 		}
 		if (Desc.bCanBeImported)
@@ -1023,7 +1013,7 @@ public:
 			PackageRef.ClearErrorFlags();
 			if (PackageRef.AddRef())
 			{
-				AddAsyncFlags(PackageRef.GetPackage());
+				PinPublicExportsForGC(PackageRef.GetPackage());
 			}
 		}
 	}
@@ -1035,7 +1025,7 @@ public:
 			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(ImportedPackageId);
 			if (PackageRef.ReleaseRef(Desc.UPackageId, ImportedPackageId))
 			{
-				ClearAsyncFlags(PackageRef.GetPackage());
+				UnpinPublicExportsForGC(PackageRef.GetPackage());
 			}
 		}
 		if (Desc.bCanBeImported)
@@ -1044,7 +1034,7 @@ public:
 			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(Desc.UPackageId);
 			if (PackageRef.ReleaseRef(Desc.UPackageId, Desc.UPackageId))
 			{
-				ClearAsyncFlags(PackageRef.GetPackage());
+				UnpinPublicExportsForGC(PackageRef.GetPackage());
 			}
 		}
 	}
@@ -1631,18 +1621,6 @@ struct FAsyncPackage2
 		}
 	}
 
-	void PinObjectForGC(UObject* Object, bool bIsNewObject)
-	{
-		if (bIsNewObject && !IsInGameThread())
-		{
-			checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
-		}
-		else
-		{
-			Object->SetInternalFlags(EInternalObjectFlags::Async);
-		}
-	}
-
 	void ClearConstructedObjects();
 
 	/** Returns the UPackage wrapped by this, if it is valid */
@@ -1977,7 +1955,7 @@ class FAsyncLoadingThread2 final
 {
 	friend struct FAsyncPackage2;
 public:
-	FAsyncLoadingThread2(FIoDispatcher& IoDispatcher);
+	FAsyncLoadingThread2(FIoDispatcher& IoDispatcher, IAsyncPackageLoader* InUncookedPackageLoader);
 	virtual ~FAsyncLoadingThread2();
 
 private:
@@ -2058,6 +2036,8 @@ private:
 
 	/** I/O Dispatcher */
 	FIoDispatcher& IoDispatcher;
+
+	IAsyncPackageLoader* UncookedPackageLoader;
 
 	TSharedPtr<IPackageStore> PackageStore;
 	FLoadedPackageStore LoadedPackageStore;
@@ -3263,6 +3243,73 @@ void FAsyncPackage2::ImportPackagesRecursive(FIoBatch& IoBatch, IPackageStore& P
 			Data.ImportedAsyncPackages[ImportedPackageIndex++] = nullptr;
 			continue;
 		}
+#if WITH_EDITOR
+		else if (!ImportedPackageEntry.UncookedPackageName.IsNone())
+		{
+			UPackage* UncookedPackage = nullptr;
+			if (!PackageRef.AreAllPublicExportsLoaded())
+			{
+				FPackagePath ImportedPackagePath = FPackagePath::FromPackageNameUnchecked(ImportedPackageEntry.UncookedPackageName);
+				ImportedPackagePath.SetHeaderExtension(static_cast<EPackageExtension>(ImportedPackageEntry.UncookedPackageHeaderExtension));
+				AsyncLoadingThread.UncookedPackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr);
+				AsyncLoadingThread.UncookedPackageLoader->FlushLoading(INDEX_NONE);
+				UncookedPackage = FindObjectFast<UPackage>(nullptr, ImportedPackagePath.GetPackageFName());
+				if (UncookedPackage)
+				{
+					UncookedPackage->SetCanBeImportedFlag(true);
+					UncookedPackage->SetPackageId(ImportedPackageId);
+					checkf(!UncookedPackage->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *UncookedPackage->GetFullName());
+					UncookedPackage->SetInternalFlags(EInternalObjectFlags::LoaderImport);
+
+					ForEachObjectWithOuter(UncookedPackage, [this, ImportedPackageId](UObject* Object)
+					{
+						if (Object->HasAllFlags(RF_Public | RF_WasLoaded))
+						{
+							checkf(!Object->HasAnyInternalFlags(EInternalObjectFlags::LoaderImport), TEXT("%s"), *Object->GetFullName());
+							Object->SetInternalFlags(EInternalObjectFlags::LoaderImport);
+
+							TArray<FName, TInlineAllocator<64>> FullPath;
+							FullPath.Add(Object->GetFName());
+							UObject* Outer = Object->GetOuter();
+							while (Outer)
+							{
+								FullPath.Add(Outer->GetFName());
+								Outer = Outer->GetOuter();
+							}
+							TStringBuilder<256> PackageRelativeExportPath;
+							for (int32 PathIndex = FullPath.Num() - 2; PathIndex >= 0; --PathIndex)
+							{
+								TCHAR NameStr[FName::StringBufferSize];
+								uint32 NameLen = FullPath[PathIndex].ToString(NameStr);
+								for (uint32 I = 0; I < NameLen; ++I)
+								{
+									NameStr[I] = TChar<TCHAR>::ToLower(NameStr[I]);
+								}
+								PackageRelativeExportPath.Append('/');
+								PackageRelativeExportPath.Append(FStringView(NameStr, NameLen));
+							}
+							uint64 ExportHash = CityHash64(reinterpret_cast<const char*>(PackageRelativeExportPath.GetData() + 1), (PackageRelativeExportPath.Len() - 1) * sizeof(TCHAR));
+							ImportStore.StoreGlobalObject(ImportedPackageId, ExportHash, Object);
+						}
+					}, /* bIncludeNestedObjects*/ true);
+				}
+				PackageRef.SetPackage(UncookedPackage);
+				PackageRef.SetAllPublicExportsLoaded();
+			}
+			else
+			{
+				UncookedPackage = PackageRef.GetPackage();
+			}
+			if (!UncookedPackage)
+			{
+				PackageRef.SetHasFailed();
+				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("ImportPackages: SkipPackage"),
+					TEXT("Failed to load uncooked imported package with id '0x%llX' ('%s')"), ImportedPackageId.Value(), *ImportedPackageEntry.UncookedPackageName.ToString());
+			}
+			Data.ImportedAsyncPackages[ImportedPackageIndex++] = nullptr;
+			continue;
+		}
+#endif
 
 		FAsyncPackage2* ImportedPackage = nullptr;
 		bool bInserted = false;
@@ -3874,11 +3921,12 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	}
 
 	check(Object);
-	PinObjectForGC(Object, bIsNewObject);
-
+	EInternalObjectFlags FlagsToSet = EInternalObjectFlags::Async;
+	
 	if (Desc.bCanBeImported && Export.PublicExportHash)
 	{
 		check(Object->HasAnyFlags(RF_Public));
+		FlagsToSet |= EInternalObjectFlags::LoaderImport;
 		ImportStore.StoreGlobalObject(Desc.UPackageId, Export.PublicExportHash, Object);
 
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"),
@@ -3889,6 +3937,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"), TEXT("Created %s export %s. Not tracked."),
 			Object->HasAnyFlags(RF_Public) ? TEXT("public") : TEXT("private"), *Object->GetPathName());
 	}
+	Object->SetInternalFlags(FlagsToSet);
 }
 
 bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportArchive& Ar)
@@ -4858,9 +4907,10 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FA
 	return Result;
 }
 
-FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher)
+FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IAsyncPackageLoader* InUncookedPackageLoader)
 	: Thread(nullptr)
 	, IoDispatcher(InIoDispatcher)
+	, UncookedPackageLoader(InUncookedPackageLoader)
 {
 #if !WITH_IOSTORE_IN_EDITOR
 	GEventDrivenLoaderEnabled = true;
@@ -5261,11 +5311,19 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 			const EObjectFlags Flags = Obj->GetFlags();
 			const bool bHasAnyAsyncFlags = !!(InternalFlags & AsyncFlags);
 			const bool bHasAnyLoadIntermediateFlags = !!(Flags & LoadIntermediateFlags);
+			const bool bHasLoaderImportFlag = !!(InternalFlags & EInternalObjectFlags::LoaderImport);
 			const bool bWasLoaded = !!(Flags & RF_WasLoaded);
 			const bool bLoadCompleted = !!(Flags & RF_LoadCompleted);
 
 			ensureMsgf(!bHasAnyLoadIntermediateFlags,
 				TEXT("Object '%s' (ObjectFlags=%X, InternalObjectFlags=%x) should not have any load flags now")
+				TEXT(", or this check is incorrectly reached during active loading."),
+				*Obj->GetFullName(),
+				Flags,
+				InternalFlags);
+
+			ensureMsgf(!bHasLoaderImportFlag || GUObjectArray.IsDisregardForGC(Obj),
+				TEXT("Object '%s' (ObjectFlags=%X, InternalObjectFlags=%x) should not have the LoaderImport flag now")
 				TEXT(", or this check is incorrectly reached during active loading."),
 				*Obj->GetFullName(),
 				Flags,
@@ -5319,12 +5377,7 @@ FORCENOINLINE static void FilterUnreachableObjects(
 			else
 			{
 				UPackage* Package = static_cast<UPackage*>(Object);
-#if WITH_IOSTORE_IN_EDITOR
-				if (Package->HasAnyPackageFlags(PKG_Cooked))
-#endif
-				{
-					Packages.Emplace(Package);
-				}
+				Packages.Emplace(Package);
 			}
 		}
 	}
@@ -5403,7 +5456,7 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
-	if (!IsAsyncLoadingPackages())
+	if (!IsAsyncLoading())
 	{
 		LoadedPackageStore.VerifyLoadedPackages();
 		VerifyLoadFlagsWhenFinishedLoading();
@@ -5543,9 +5596,6 @@ void FAsyncPackage2::ClearConstructedObjects()
 	}
 	ConstructedObjects.Empty();
 
-	// the async flag of all GC'able public export objects in non-temp packages are handled by FGlobalImportStore::ClearAsyncFlags
-	const bool bShouldClearAsyncFlagForPublicExports = GUObjectArray.IsDisregardForGC(LinkerRoot) || !Desc.bCanBeImported;
-
 	for (FExportObject& Export : Data.Exports)
 	{
 		if (Export.bFiltered | Export.bExportLoadFailed)
@@ -5557,26 +5607,12 @@ void FAsyncPackage2::ClearConstructedObjects()
 		check(Object);
 		checkf(Object->HasAnyFlags(RF_WasLoaded), TEXT("%s"), *Object->GetFullName());
 		checkf(Object->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *Object->GetFullName());
-		if (bShouldClearAsyncFlagForPublicExports || !Object->HasAnyFlags(RF_Public))
-		{
-			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
-		}
-		else
-		{
-			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-		}
+		Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 	}
 
 	if (LinkerRoot)
 	{
-		if (bShouldClearAsyncFlagForPublicExports)
-		{
-			LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
-		}
-		else
-		{
-			LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-		}
+		LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 	}
 }
 
@@ -5740,7 +5776,12 @@ void FAsyncPackage2::CreateUPackage(const FZenPackageSummary* PackageSummary, co
 		check(LinkerRoot->HasAnyFlags(RF_WasLoaded));
 	}
 
-	PinObjectForGC(LinkerRoot, bCreatedLinkerRoot);
+	EInternalObjectFlags FlagsToSet = EInternalObjectFlags::Async;
+	if (Desc.bCanBeImported)
+	{
+		FlagsToSet |= EInternalObjectFlags::LoaderImport;
+	}
+	LinkerRoot->SetInternalFlags(FlagsToSet);
 
 	if (bCreatedLinkerRoot)
 	{
@@ -5943,7 +5984,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(FAsy
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
 	
 	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
-	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
+	return IsAsyncLoadingPackages() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
 void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
@@ -5995,7 +6036,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 			}
 		}
 
-		check(RequestId != INDEX_NONE || !IsAsyncLoading());
+		check(RequestId != INDEX_NONE || !IsAsyncLoadingPackages());
 	}
 }
 
@@ -6042,9 +6083,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 	return TimeLimit <= 0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
-IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher)
+IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IAsyncPackageLoader* InUncookedPackageLoader)
 {
-	return new FAsyncLoadingThread2(InIoDispatcher);
+	return new FAsyncLoadingThread2(InIoDispatcher, InUncookedPackageLoader);
 }
 
 #endif //WITH_ASYNCLOADING2

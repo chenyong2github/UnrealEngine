@@ -6872,7 +6872,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		GFlushAsyncLoadingTime += ElapsedTime;
 		GFlushAsyncLoadingCount++;
 
-		check(PackageID != INDEX_NONE || !IsAsyncLoading());
+		check(PackageID != INDEX_NONE || !IsAsyncLoadingPackages());
 
 	}
 }

@@ -45,6 +45,10 @@ struct FPackageStoreEntry
 	FPackageStoreExportInfo ExportInfo;
 	TArrayView<const FPackageId> ImportedPackageIds;
 	TArrayView<const FSHAHash> ShaderMapHashes;
+#if WITH_EDITOR
+	FName UncookedPackageName;
+	uint8 UncookedPackageHeaderExtension; // TODO: Can't include PackagePath.h
+#endif
 };
 
 /**

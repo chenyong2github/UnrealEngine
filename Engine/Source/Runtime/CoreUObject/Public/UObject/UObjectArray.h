@@ -145,7 +145,7 @@ struct FUObjectItem
 		while (1)
 		{
 			int32 StartValue = int32(Flags);
-			if (StartValue & int32(FlagToSet))
+			if ((StartValue & int32(FlagToSet)) == int32(FlagToSet))
 			{
 				break;
 			}

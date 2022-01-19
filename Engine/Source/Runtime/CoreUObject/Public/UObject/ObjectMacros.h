@@ -560,6 +560,7 @@ enum class EInternalObjectFlags : int32
 {
 	None = 0,
 
+	LoaderImport = 1 << 20, ///< Object is ready to be imported by another package during loading
 	Garbage = 1 << 21, ///< Garbage from logical point of view and should not be referenced. This flag is mirrored in EObjectFlags as RF_Garbage for performance
 	PersistentGarbage = 1 << 22, ///< Same as above but referenced through a persistent reference so it can't be GC'd
 	ReachableInCluster = 1 << 23, ///< External reference to object in cluster exists
@@ -572,11 +573,11 @@ enum class EInternalObjectFlags : int32
 	RootSet = 1 << 30, ///< Object will not be garbage collected, even if unreferenced.
 	PendingConstruction = 1 << 31, ///< Object didn't have its class constructor called yet (only the UObjectBase one to initialize its most basic members)
 
-	GarbageCollectionKeepFlags = Native | Async | AsyncLoading,
+	GarbageCollectionKeepFlags = Native | Async | AsyncLoading | LoaderImport,
 	MirroredFlags = Garbage | PendingKill, /// Flags mirrored in EObjectFlags
 
 	//~ Make sure this is up to date!
-	AllFlags = Garbage | PersistentGarbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
+	AllFlags = LoaderImport | Garbage | PersistentGarbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
 

@@ -18,8 +18,8 @@ class FEditorPackageLoader final
 public:
 	FEditorPackageLoader(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)
 	{
-		CookedPackageLoader.Reset(MakeAsyncPackageLoader2(InIoDispatcher));
 		UncookedPackageLoader.Reset(new FAsyncLoadingThread(/** ThreadIndex = */ 0, InEDLBootNotificationManager));
+		CookedPackageLoader.Reset(MakeAsyncPackageLoader2(InIoDispatcher, UncookedPackageLoader.Get()));
 	}
 
 	virtual ~FEditorPackageLoader () { }

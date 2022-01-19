@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IO/PackageId.h"
 #include "IO/PackageStore.h"
+#include "Misc/PackagePath.h"
 
 struct FIoContainerHeader;
 struct FFilePackageStoreEntry;
@@ -17,7 +18,7 @@ class FFilePackageStore
 {
 public:
 	FFilePackageStore();
-	virtual ~FFilePackageStore() = default;
+	virtual ~FFilePackageStore();
 
 	virtual void Initialize() override;
 	virtual void Lock() override;
@@ -36,7 +37,18 @@ private:
 		uint32 Order;
 	};
 
+#if WITH_EDITOR
+	struct FUncookedPackage
+	{
+		FName PackageName;
+		EPackageExtension HeaderExtension;
+	};
+#endif
+
 	void Update();
+#if WITH_EDITOR
+	uint64 AddUncookedPackagesFromRoot(const FString& RootPath);
+#endif
 
 	FRWLock EntriesLock;
 	FCriticalSection UpdateLock;
@@ -46,5 +58,12 @@ private:
 	TMap<FPackageId, FName> LocalizedPackages;
 	bool bNeedsUpdate = false;
 
-	static thread_local bool bIsLockedOnThread;
+#if WITH_EDITOR
+	FDelegateHandle OnContentPathMountedDelegateHandle;
+	FCriticalSection UncookedPackageRootsLock;
+	TSet<FString> PendingUncookedPackageRoots;
+	TMap<FPackageId, FUncookedPackage> UncookedPackagesMap;
+#endif
+
+	static thread_local int32 LockedOnThreadCount;
 };
