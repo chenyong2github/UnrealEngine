@@ -2603,10 +2603,10 @@ namespace AutomationScripts
 			{
 				// Default filespecs
 				OrderFileSpecs.AddRange(new OrderFileSpec[] {
-				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false, Priority = 0 },
-				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false, Priority = 0 },
-				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false, Priority = 0 }
-			});
+					new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false, Priority = 0 },
+					new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false, Priority = 0 },
+					new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false, Priority = 0 }
+				});
 			}
 
 			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
@@ -3587,14 +3587,14 @@ namespace AutomationScripts
 					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
 					if(Path.GetExtension(NoExtension) == ".m")
 					{
-					// Hack around .m.ubulk files having a double extension
-					NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
+						// Hack around .m.ubulk files having a double extension
+						NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
 					}
 					string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
 					string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
-				// First read manifest
-				List<ChunkDefinition> Chunks;
+					// First read manifest
+					List<ChunkDefinition> Chunks;
 					if (FileNameToChunks.TryGetValue(OriginalFilename, out Chunks))
 					{
 						PakList.UnionWith(Chunks);
@@ -3612,24 +3612,24 @@ namespace AutomationScripts
 						PakList.UnionWith(Chunks);
 					}
 
-				// Now run through the pak rules which may override things
-				ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
+					// Now run through the pak rules which may override things
+					ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
 
 					if (bExcludeFromPaks)
 					{
 						return;
 					}
 
-				// Actually add to chunk
-				foreach (ChunkDefinition Chunk in PakList)
+					// Actually add to chunk
+					foreach (ChunkDefinition Chunk in PakList)
 					{
 						ChunkDefinition TargetChunk = Chunk;
 
 						string OrigExt = Path.GetExtension(OriginalFilename);
 						if (OrigExt.Equals(OptionalBulkDataFileExtension))
 						{
-						// any optional files encountered we want to put in a separate pak file
-						string OptionalChunkName = Chunk.ChunkName + "optional";
+							// any optional files encountered we want to put in a separate pak file
+							string OptionalChunkName = Chunk.ChunkName + "optional";
 							if (!OptionalChunks.ContainsKey(OptionalChunkName))
 							{
 								ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
@@ -3645,15 +3645,15 @@ namespace AutomationScripts
 
 						if (bForceOneChunkPerFile)
 						{
-						// Files are only allowed to be in a single chunk
-						break;
+							// Files are only allowed to be in a single chunk
+							break;
 						}
 					}
 
 					if (!bAddedToChunk)
 					{
-					//LogInformation("No chunk assigned found for {0}. Using default chunk.", StagingFile.Key);
-					DefaultChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
+						//LogInformation("No chunk assigned found for {0}. Using default chunk.", StagingFile.Key);
+						DefaultChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
 					}
 				});
 
