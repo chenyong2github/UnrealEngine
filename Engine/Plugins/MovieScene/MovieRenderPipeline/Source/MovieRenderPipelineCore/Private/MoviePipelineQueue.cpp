@@ -93,6 +93,34 @@ void UMoviePipelineQueue::CopyFrom(UMoviePipelineQueue* InQueue)
 	QueueSerialNumber++;
 }
 
+void UMoviePipelineQueue::SetJobIndex(UMoviePipelineExecutorJob* InJob, int32 Index)
+{
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	int32 CurrentIndex = INDEX_NONE;
+	Jobs.Find(InJob, CurrentIndex);
+
+	if (CurrentIndex == INDEX_NONE)
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Cannot find Job %s in queue"), *InJob->JobName), ELogVerbosity::Error);
+		return;
+	}
+
+	if (Index > CurrentIndex)
+	{
+		--Index;
+	}
+
+	Jobs.Remove(InJob);
+	Jobs.Insert(InJob, Index);
+
+	// Ensure the serial number gets bumped at least once so the UI refreshes in case
+	// the queue we are copying from was empty.
+	QueueSerialNumber++;
+}
+
 #if WITH_EDITOR
 void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

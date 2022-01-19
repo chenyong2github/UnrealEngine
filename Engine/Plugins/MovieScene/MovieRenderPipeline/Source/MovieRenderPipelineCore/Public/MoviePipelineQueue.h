@@ -429,6 +429,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void CopyFrom(UMoviePipelineQueue* InQueue);
 	
+	/* Set the index of the given job */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetJobIndex(UMoviePipelineExecutorJob* InJob, int32 Index);
+	
 	/**
 	 * Retrieve the serial number that is incremented when a job is added or removed from this list.
 	 * @note: This field is not serialized, and not copied along with UObject duplication.
