@@ -395,6 +395,11 @@ public:
 		return BuildConfiguration;
 	}
 
+	virtual const FString& GetBuildTarget() const override
+	{
+		return BuildTargetName;
+	}
+
 	virtual EBuildConfiguration GetCookConfiguration( ) const override
 	{
 		return CookConfiguration;
@@ -2017,6 +2022,16 @@ public:
 		}
 	}
 
+	virtual void SetBuildTarget( const FString& TargetName ) override
+	{
+		if (BuildTargetName != TargetName)
+		{
+			BuildTargetName = TargetName;
+
+			Validate();
+		}
+	}
+
 	virtual void SetCookConfiguration( EBuildConfiguration Configuration ) override
 	{
 		if (CookConfiguration != Configuration)
@@ -2758,6 +2773,9 @@ private:
 
 	// Holds the desired build configuration (only used if creating new builds).
 	EBuildConfiguration BuildConfiguration;
+
+	// Holds the name of the target (matching a .cs file) to build. Needed when multiple targets of a type exist
+	FString BuildTargetName;
 
 	// Holds the build mode.
 	// Holds the build configuration name of the cooker.

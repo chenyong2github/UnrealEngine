@@ -513,6 +513,14 @@ public:
 	virtual EBuildConfiguration GetBuildConfiguration( ) const = 0;
 
 	/**
+	 * Gets the build target.
+	 *
+	 * @Return Target name to build/run (it would match a .Target.cs file)
+	 * @see SetBuildTarget
+	 */
+	virtual const FString& GetBuildTarget() const = 0;
+
+	/**
 	 * Gets the build configuration name of the cooker.
 	 *
 	 * @return Cook configuration name.
@@ -1017,10 +1025,17 @@ public:
 	virtual void SetBuildConfiguration( EBuildConfiguration Configuration ) = 0;
 
 	/**
+	 * Sets the build target.
+	 *
+	 * @param TargetName The target name to set (it would match a .Target.cs file)
+	 * @see GetBuildTarget
+	 */
+	virtual void SetBuildTarget( const FString& TargetName ) = 0;
+	/**
 	 * Sets the build configuration of the cooker.
 	 *
 	 * @param Configuration The cooker's build configuration to set.
-	 * @see GetBuildConfigurationName
+	 * @see GetCookConfiguration
 	 */
 	virtual void SetCookConfiguration( EBuildConfiguration Configuration ) = 0;
 

@@ -426,6 +426,11 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		UATCommand += (TEXT(" -cookflavor=") + Join(OptionalCookFlavors, TEXT("+")));
 	}
 
+	if (InProfile->GetBuildTarget().Len() > 0)
+	{
+		UATCommand += TEXT(" -target=") + InProfile->GetBuildTarget();
+	}
+
 	// device list
 	FString DeviceNames = TEXT("");
 	FString DeviceCommand = TEXT("");

@@ -193,43 +193,29 @@ TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValid
 	return Configurations;
 }
 
-const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfo() const
+static const FTargetInfo* FindBestTargetInfo(const FString& TargetName, bool bContentOnlyUsesEngineTargets, bool* bOutIsProjectTarget=nullptr)
 {
-	const FTargetInfo* DefaultGameTarget = nullptr;
-	const FTargetInfo* DefaultClientTarget = nullptr;
-	for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
+	bool bUseEngineTargets = false;
+	if (bContentOnlyUsesEngineTargets)
 	{
-		if (Target.Name == BuildTarget)
-		{
-			return &Target;
-		}
-		else if (Target.Type == EBuildTargetType::Game && (DefaultGameTarget == nullptr || Target.Name < DefaultGameTarget->Name))
-		{
-			DefaultGameTarget = &Target;
-		}
-		else if (Target.Type == EBuildTargetType::Client && (DefaultClientTarget == nullptr || Target.Name < DefaultClientTarget->Name))
-		{
-			DefaultClientTarget = &Target;
-		}
+		// Collect build targets. Content-only projects use Engine targets.
+		FProjectStatus ProjectStatus;
+		bUseEngineTargets =!(IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject);
 	}
-	return (DefaultGameTarget != nullptr) ? DefaultGameTarget : DefaultClientTarget;
-}
 
-const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FName PlatformName, bool& bOutIsProjectTarget) const
-{
-	// Collect build targets. Content-only projects use Engine targets.
-	FProjectStatus ProjectStatus;
-	bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
-	bOutIsProjectTarget = bHasCode;
-	
+	if (bOutIsProjectTarget != nullptr)
+	{
+		*bOutIsProjectTarget = !bUseEngineTargets;
+	}
+
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	const TArray<FTargetInfo>& TargetsRef = bHasCode ? DesktopPlatform->GetTargetsForCurrentProject() : DesktopPlatform->GetTargetsForProject(FString());
+	const TArray<FTargetInfo>& TargetsRef = bUseEngineTargets ? DesktopPlatform->GetTargetsForProject(FString()) : DesktopPlatform->GetTargetsForCurrentProject();
 
 	const FTargetInfo* DefaultGameTarget = nullptr;
 	const FTargetInfo* DefaultClientTarget = nullptr;
 	for (const FTargetInfo& Target : TargetsRef)
 	{
-		if (Target.Name == GetBuildTargetForPlatform(PlatformName))
+		if (Target.Name == TargetName)
 		{
 			return &Target;
 		}
@@ -243,7 +229,24 @@ const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FNam
 		}
 	}
 	return (DefaultGameTarget != nullptr) ? DefaultGameTarget : DefaultClientTarget;
+
 }
+
+const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfo() const
+{
+	return FindBestTargetInfo(BuildTarget, false);
+}
+
+const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FName PlatformName, bool& bOutIsProjectTarget) const
+{
+	return FindBestTargetInfo(GetBuildTargetForPlatform(PlatformName), true, &bOutIsProjectTarget);
+}
+
+const FTargetInfo* UProjectPackagingSettings::GetLaunchOnTargetInfo() const
+{
+	return FindBestTargetInfo(LaunchOnTarget, true);
+}
+
 
 EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigurationForPlatform(FName PlatformName) const
 {

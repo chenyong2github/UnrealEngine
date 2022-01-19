@@ -600,10 +600,22 @@ public:
 		PackagingSettings->SetBuildTargetForPlatform(Info->IniPlatformName, TargetName);
 		PackagingSettings->SaveConfig();
 	}
-	
+
 	static bool PackageBuildTargetIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName)
 	{
 		return GetDefault<UProjectPackagingSettings>()->GetBuildTargetForPlatform(Info->IniPlatformName) == TargetName;
+	}
+
+	static void SetLaunchOnBuildTarget(FString TargetName)
+	{
+		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+		PackagingSettings->LaunchOnTarget = TargetName;
+		PackagingSettings->SaveConfig();
+	}
+
+	static bool LaunchOnBuildTargetIsChecked(FString TargetName)
+	{
+		return GetDefault<UProjectPackagingSettings>()->GetLaunchOnTargetInfo()->Name == TargetName;
 	}
 
 	static void SetCookOnTheFly()
@@ -1529,7 +1541,6 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 			);
 		}
 
-
 		// now kick-off any devices that need to be updated
 		if (DeviceIdsToQuery.Num() > 0)
 		{
@@ -1537,6 +1548,39 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 		}
 	}
 	));
+
+	FProjectStatus ProjectStatus;
+	bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	TArray<FTargetInfo> Targets = bHasCode ? DesktopPlatform->GetTargetsForCurrentProject() : DesktopPlatform->GetTargetsForProject(FString());
+	const TArray<FTargetInfo> ValidTargets = Targets.FilterByPredicate([](const FTargetInfo& Target)
+		{
+			return Target.Type == EBuildTargetType::Game;// || Target.Type == EBuildTargetType::Client || Target.Type == EBuildTargetType::Server;
+		});
+
+	if (ValidTargets.Num() > 1)
+	{
+		FToolMenuSection& LaunchTargetSection = Menu->AddSection("QuickLaunchTarget", LOCTEXT("QuickLaunchTarget", "Quick Launch Game Target"));
+
+		for (const FTargetInfo& Target : ValidTargets)
+		{
+			LaunchTargetSection.AddMenuEntry(
+				NAME_None,
+				FText::FromString(Target.Name),
+				FText::Format(LOCTEXT("PackageTargetName", "Package the '{0}' target."), FText::FromString(Target.Name)),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetLaunchOnBuildTarget, Target.Name),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::LaunchOnBuildTargetIsChecked, Target.Name)
+				),
+				EUserInterfaceActionType::RadioButton
+			);
+		}
+
+	}
+
 }
 
 TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const

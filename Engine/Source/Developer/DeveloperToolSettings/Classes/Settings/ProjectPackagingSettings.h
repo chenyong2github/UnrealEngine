@@ -191,6 +191,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Project)
 	FString BuildTarget;
 
+	/** Name of the target to use for LaunchOn (only Game/Client targets) */
+	UPROPERTY(config)
+	FString LaunchOnTarget;
+
 	/** The directory to which the packaged project will be copied. */
 	UPROPERTY(config, EditAnywhere, Category=Project)
 	FDirectoryPath StagingDirectory;
@@ -655,6 +659,9 @@ public:
 
 	/** Gets the current build target, checking that it's valid, and the default build target if it is not */
 	const FTargetInfo* GetBuildTargetInfo() const;
+
+	/** Gets the current launch ojn target, checking that it's valid, and the default build target if it is not */
+	const FTargetInfo* GetLaunchOnTargetInfo() const;
 
 	/** For non-default object instances, this will LoadConfig for a specific platform,*/
 	void LoadSettingsForPlatform(FString PlatformName)
