@@ -64,7 +64,7 @@ if [[ $ARCHS ]]; then
 	# convert the space in xcode's multiple architecture (arm64 x86_64) argument into the standard + that UBT expects (arm64+x86_64)
 	UBT_ARCHFLAG="-architecture=${ARCHS/ /+}" 
 else
-  	UBT_ARCHFLAG=""
+	UBT_ARCHFLAG=""
 fi
 
 echo "Processing $ACTION for Target=$TARGET Platform=$PLATFORM Configuration=$CONFIGURATION $UBT_ARCHFLAG $TRAILINGARGS "

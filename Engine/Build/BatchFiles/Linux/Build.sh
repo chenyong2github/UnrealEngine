@@ -11,10 +11,10 @@ source Engine/Build/BatchFiles/Linux/SetupEnvironment.sh -dotnet Engine/Build/Ba
 
 # If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
 if [ ! -f Engine/Build/InstalledBuild.txt ]; then
-    if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
-    echo "Failed to build to build tool (UnrealBuildTool)"
-    exit 1
-  fi
+	if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
+		echo "Failed to build the build tool (UnrealBuildTool)"
+		exit 1
+	fi
 fi
 
 echo Running command : dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll "$@"
