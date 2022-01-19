@@ -52,7 +52,7 @@ namespace WindowsMixedReality
 		virtual int32 GetXRSystemFlags() const override
 		{
 			int32 XRFlags = EXRSystemFlags::IsHeadMounted;
-			if (!UWindowsMixedRealityFunctionLibrary::IsDisplayOpaque())
+			if (!UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsDisplayOpaque())
 			{
 				XRFlags |= EXRSystemFlags::IsAR;
 			}

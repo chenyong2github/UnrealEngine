@@ -4,7 +4,7 @@
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
 #include "WindowsMixedRealityHandTracking.h"
 
-bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius)
+bool UDEPRECATED_WindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius)
 {
 	TSharedPtr<FWindowsMixedRealityHandTracking> HandTracking = StaticCastSharedPtr<FWindowsMixedRealityHandTracking>(IWindowsMixedRealityHandTrackingModule::Get().GetInputDevice());
 
@@ -26,7 +26,7 @@ bool UWindowsMixedRealityHandTrackingFunctionLibrary::GetHandJointTransform(ECon
 	return false;
 }
 
-bool UWindowsMixedRealityHandTrackingFunctionLibrary::SupportsHandTracking()
+bool UDEPRECATED_WindowsMixedRealityHandTrackingFunctionLibrary::SupportsHandTracking()
 {
 	return WindowsMixedReality::FWindowsMixedRealityStatics::SupportsHandTracking();
 }

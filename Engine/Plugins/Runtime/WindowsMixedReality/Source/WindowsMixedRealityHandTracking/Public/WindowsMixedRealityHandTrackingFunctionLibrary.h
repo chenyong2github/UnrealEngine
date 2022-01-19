@@ -9,8 +9,8 @@
 #include "InputCoreTypes.h"
 #include "WindowsMixedRealityHandTrackingFunctionLibrary.generated.h"
 
-UCLASS(ClassGroup = WindowsMixedReality)
-class WINDOWSMIXEDREALITYHANDTRACKING_API UWindowsMixedRealityHandTrackingFunctionLibrary :
+UCLASS(ClassGroup = WindowsMixedReality, Deprecated, meta = (DeprecationMessage = "WMR has been deprecated, please use the Microsoft OpenXR plugin from the Marketplace."))
+class WINDOWSMIXEDREALITYHANDTRACKING_API UDEPRECATED_WindowsMixedRealityHandTrackingFunctionLibrary :
 	public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "Azure Spatial Anchors For WMR",
-	"Description" : "Microsoft Azure Spatial Anchors implementation for Windows Mixed Reality",
+	"Description" : "Microsoft Azure Spatial Anchors implementation for Windows Mixed Reality. This plugin is deprecated and will be removed in a future engine release. Please use the Microsoft OpenXR plugin from the Marketplace instead.",
 	"Category" : "Augmented Reality",
 	"CreatedBy" : "Epic Games",
 	"CreatedByURL" : "epicgames.com",

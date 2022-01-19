@@ -4,7 +4,7 @@
 #include "HoloLensModule.h"
 #include "Engine/Engine.h"
 
-UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPin(FName Name, const FTransform& PinToWorldTransform)
+UWMRARPin* UDEPRECATED_HoloLensARFunctionLibrary::CreateNamedARPin(FName Name, const FTransform& PinToWorldTransform)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -14,7 +14,7 @@ UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPin(FName Name, const FTrans
 	return ARSystem->WMRCreateNamedARPin(Name, PinToWorldTransform);
 }
 
-TArray<UWMRARPin*> UHoloLensARFunctionLibrary::LoadWMRAnchorStoreARPins()
+TArray<UWMRARPin*> UDEPRECATED_HoloLensARFunctionLibrary::LoadWMRAnchorStoreARPins()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -25,7 +25,7 @@ TArray<UWMRARPin*> UHoloLensARFunctionLibrary::LoadWMRAnchorStoreARPins()
 	return ARSystem->WMRLoadWMRAnchorStoreARPins();
 }
 
-bool UHoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
+bool UDEPRECATED_HoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -41,7 +41,7 @@ bool UHoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
 	return ARSystem->WMRSaveARPinToAnchorStore(InPin);
 }
 
-void UHoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
+void UDEPRECATED_HoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -58,7 +58,7 @@ void UHoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
 }
 
 
-void UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bool IsEnabled)
+void UDEPRECATED_HoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bool IsEnabled)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -69,7 +69,7 @@ void UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bool IsEnabled)
 }
 
 
-FIntPoint UHoloLensARFunctionLibrary::ResizeMixedRealityCamera(const FIntPoint& size)
+FIntPoint UDEPRECATED_HoloLensARFunctionLibrary::ResizeMixedRealityCamera(const FIntPoint& size)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -81,7 +81,7 @@ FIntPoint UHoloLensARFunctionLibrary::ResizeMixedRealityCamera(const FIntPoint& 
 	return newSize;
 }
 
-FTransform UHoloLensARFunctionLibrary::GetPVCameraToWorldTransform()
+FTransform UDEPRECATED_HoloLensARFunctionLibrary::GetPVCameraToWorldTransform()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -92,7 +92,7 @@ FTransform UHoloLensARFunctionLibrary::GetPVCameraToWorldTransform()
 	return ARSystem->GetPVCameraToWorldTransform();
 }
 
-bool UHoloLensARFunctionLibrary::GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion)
+bool UDEPRECATED_HoloLensARFunctionLibrary::GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -103,7 +103,7 @@ bool UHoloLensARFunctionLibrary::GetPVCameraIntrinsics(FVector2D& focalLength, i
 	return ARSystem->GetPVCameraIntrinsics(focalLength, width, height, principalPoint, radialDistortion, tangentialDistortion);
 }
 
-FVector UHoloLensARFunctionLibrary::GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate)
+FVector UDEPRECATED_HoloLensARFunctionLibrary::GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -114,7 +114,7 @@ FVector UHoloLensARFunctionLibrary::GetWorldSpaceRayFromCameraPoint(FVector2D pi
 	return ARSystem->GetWorldSpaceRayFromCameraPoint(pixelCoordinate);
 }
 
-void UHoloLensARFunctionLibrary::StartCameraCapture()
+void UDEPRECATED_HoloLensARFunctionLibrary::StartCameraCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -125,7 +125,7 @@ void UHoloLensARFunctionLibrary::StartCameraCapture()
 	ARSystem->StartCameraCapture();
 }
 
-void UHoloLensARFunctionLibrary::StopCameraCapture()
+void UDEPRECATED_HoloLensARFunctionLibrary::StopCameraCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -136,7 +136,7 @@ void UHoloLensARFunctionLibrary::StopCameraCapture()
 	ARSystem->StopCameraCapture();
 }
 
-void UHoloLensARFunctionLibrary::StartQRCodeCapture()
+void UDEPRECATED_HoloLensARFunctionLibrary::StartQRCodeCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -147,7 +147,7 @@ void UHoloLensARFunctionLibrary::StartQRCodeCapture()
 	ARSystem->SetupQRCodeTracking();
 }
 
-void UHoloLensARFunctionLibrary::StopQRCodeCapture()
+void UDEPRECATED_HoloLensARFunctionLibrary::StopQRCodeCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -158,17 +158,17 @@ void UHoloLensARFunctionLibrary::StopQRCodeCapture()
 	ARSystem->StopQRCodeTracking();
 }
 
-bool UHoloLensARFunctionLibrary::ShowKeyboard()
+bool UDEPRECATED_HoloLensARFunctionLibrary::ShowKeyboard()
 {
 	return false;
 }
 
-bool UHoloLensARFunctionLibrary::HideKeyboard()
+bool UDEPRECATED_HoloLensARFunctionLibrary::HideKeyboard()
 {
 	return false;
 }
 
-UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId)
+UWMRARPin* UDEPRECATED_HoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
@@ -178,7 +178,7 @@ UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, 
 	return ARSystem->WMRCreateNamedARPinAroundAnchor(Name, AnchorId);
 }
 
-void UHoloLensARFunctionLibrary::SetUseLegacyHandMeshVisualization(bool bUseLegacyHandMeshVisualization)
+void UDEPRECATED_HoloLensARFunctionLibrary::SetUseLegacyHandMeshVisualization(bool bUseLegacyHandMeshVisualization)
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())

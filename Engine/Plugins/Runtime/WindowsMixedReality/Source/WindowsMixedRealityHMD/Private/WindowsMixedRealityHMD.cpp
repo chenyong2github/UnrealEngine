@@ -226,7 +226,7 @@ namespace WindowsMixedReality
 		}
 
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			if (InputSim->HasPositionalTracking())
 			{
@@ -378,7 +378,7 @@ namespace WindowsMixedReality
 	bool FWindowsMixedRealityHMD::HasValidTrackingPosition()
 	{
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			return InputSim->HasPositionalTracking();
 		}
@@ -840,7 +840,7 @@ namespace WindowsMixedReality
 		}
 
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			CurrentOrientation = InputSim->GetHeadOrientation();
 			CurrentPosition = InputSim->GetHeadPosition();
@@ -911,11 +911,11 @@ namespace WindowsMixedReality
 		}
 
 		//far pointing from elbow transform
-		FPointerPoseInfo PointerPoseInfo = UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(Hand);
+		FPointerPoseInfo PointerPoseInfo = UDEPRECATED_WindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(Hand);
 		MotionControllerData.AimPosition = PointerPoseInfo.Origin;
 		MotionControllerData.AimRotation = PointerPoseInfo.Orientation;
 
-		MotionControllerData.bIsGrasped = UWindowsMixedRealityFunctionLibrary::IsGrasped(Hand);
+		MotionControllerData.bIsGrasped = UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsGrasped(Hand);
 
 		if (!SupportsHandTracking())
 		{
@@ -2320,7 +2320,7 @@ namespace WindowsMixedReality
 	HMDTrackingStatus FWindowsMixedRealityHMD::GetControllerTrackingStatus(HMDHand hand)
 	{
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			return (HMDTrackingStatus)InputSim->GetControllerTrackingStatus((EControllerHand)hand);
 		}
@@ -2412,7 +2412,7 @@ namespace WindowsMixedReality
 	HMDInputPressState WindowsMixedReality::FWindowsMixedRealityHMD::GetPressState(HMDHand hand, HMDInputControllerButtons button, bool onlyRegisterClicks)
 	{
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			bool IsPressed;
 			if (InputSim->GetPressState((EControllerHand)hand, (EHMDInputControllerButtons)button, onlyRegisterClicks, IsPressed))
@@ -2461,7 +2461,7 @@ namespace WindowsMixedReality
 	void FWindowsMixedRealityHMD::GetPointerPose(EControllerHand hand, PointerPoseInfo& pi)
 	{
 #if WITH_INPUT_SIMULATION
-		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
+		if (auto* InputSim = UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
 			FWindowsMixedRealityInputSimulationPointerPose InputSimPointerPose;
 			if (InputSim->GetHandPointerPose(hand, InputSimPointerPose))

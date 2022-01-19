@@ -479,21 +479,21 @@ bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureTyp
 		case EARCaptureType::Camera:
 			if (bOnOff)
 			{
-				UHoloLensARFunctionLibrary::StartCameraCapture();
+				UDEPRECATED_HoloLensARFunctionLibrary::StartCameraCapture();
 			}
 			else
 			{
-				UHoloLensARFunctionLibrary::StopCameraCapture();
+				UDEPRECATED_HoloLensARFunctionLibrary::StopCameraCapture();
 			}
 			break;
 		case EARCaptureType::QRCode:
 			if (bOnOff)
 			{
-				UHoloLensARFunctionLibrary::StartQRCodeCapture();
+				UDEPRECATED_HoloLensARFunctionLibrary::StartQRCodeCapture();
 			}
 			else
 			{
-				UHoloLensARFunctionLibrary::StopQRCodeCapture();
+				UDEPRECATED_HoloLensARFunctionLibrary::StopQRCodeCapture();
 			}
 			break;
 		default:
@@ -540,12 +540,12 @@ bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureTyp
 
 void FHoloLensARSystem::OnSetEnabledXRCamera(bool bOnOff)
 {
-	UHoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bOnOff);
+	UDEPRECATED_HoloLensARFunctionLibrary::SetEnabledMixedRealityCamera(bOnOff);
 }
 
 FIntPoint FHoloLensARSystem::OnResizeXRCamera(const FIntPoint& InSize)
 {
-	return UHoloLensARFunctionLibrary::ResizeMixedRealityCamera(InSize);
+	return UDEPRECATED_HoloLensARFunctionLibrary::ResizeMixedRealityCamera(InSize);
 }
 
 

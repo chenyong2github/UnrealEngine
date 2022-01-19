@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Microsoft Windows Mixed Reality",
-	"Description": "Support for Microsoft Windows Mixed Reality compatible devices.",
+	"Description": "Support for Microsoft Windows Mixed Reality compatible devices. This plugin is deprecated and will be removed in a future engine release. Please use the Microsoft OpenXR plugin from the Marketplace instead.",
 	"Category": "Virtual Reality",
 	"CreatedBy": "Microsoft Corporation",
 	"CreatedByURL": "http://www.microsoft.com",

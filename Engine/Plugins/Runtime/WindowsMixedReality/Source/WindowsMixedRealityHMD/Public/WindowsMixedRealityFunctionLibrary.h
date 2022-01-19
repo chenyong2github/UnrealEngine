@@ -64,8 +64,8 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FTrackingChangeCallback, EHMDSpatialLocatabili
 /**
 * Windows Mixed Reality Extensions Function Library
 */
-UCLASS()
-class WINDOWSMIXEDREALITYHMD_API UWindowsMixedRealityFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(Deprecated, meta = (DeprecationMessage = "WMR has been deprecated, please use the Microsoft OpenXR plugin from the Marketplace."))
+class WINDOWSMIXEDREALITYHMD_API UDEPRECATED_WindowsMixedRealityFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 

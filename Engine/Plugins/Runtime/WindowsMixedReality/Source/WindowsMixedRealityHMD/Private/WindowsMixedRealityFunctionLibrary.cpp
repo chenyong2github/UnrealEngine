@@ -12,7 +12,7 @@
 
 #include <functional>
 
-UWindowsMixedRealityFunctionLibrary::UWindowsMixedRealityFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_WindowsMixedRealityFunctionLibrary::UDEPRECATED_WindowsMixedRealityFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
@@ -27,7 +27,7 @@ WindowsMixedReality::FWindowsMixedRealityHMD* GetWindowsMixedRealityHMD() noexce
 	return nullptr;
 }
 
-FString UWindowsMixedRealityFunctionLibrary::GetVersionString()
+FString UDEPRECATED_WindowsMixedRealityFunctionLibrary::GetVersionString()
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 	if (hmd == nullptr)
@@ -38,7 +38,7 @@ FString UWindowsMixedRealityFunctionLibrary::GetVersionString()
 	return hmd->GetVersionString();
 }
 
-void UWindowsMixedRealityFunctionLibrary::ToggleImmersive(bool immersive)
+void UDEPRECATED_WindowsMixedRealityFunctionLibrary::ToggleImmersive(bool immersive)
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 	if (hmd == nullptr)
@@ -49,7 +49,7 @@ void UWindowsMixedRealityFunctionLibrary::ToggleImmersive(bool immersive)
 	hmd->EnableStereo(immersive);
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsCurrentlyImmersive()
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsCurrentlyImmersive()
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 	if (hmd == nullptr)
@@ -60,7 +60,7 @@ bool UWindowsMixedRealityFunctionLibrary::IsCurrentlyImmersive()
 	return hmd->IsCurrentlyImmersive();
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsDisplayOpaque()
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsDisplayOpaque()
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 	if (hmd == nullptr)
@@ -71,7 +71,7 @@ bool UWindowsMixedRealityFunctionLibrary::IsDisplayOpaque()
 	return hmd->IsDisplayOpaque();
 }
 
-void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
+void UDEPRECATED_WindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 	if (hmd == nullptr)
@@ -82,7 +82,7 @@ void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 	hmd->LockMouseToCenter(locked);
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
 {
 #if WITH_WINDOWS_MIXED_REALITY
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -97,7 +97,7 @@ bool UWindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
 #endif
 }
 
-FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EControllerHand hand)
+FPointerPoseInfo UDEPRECATED_WindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EControllerHand hand)
 {
 	FPointerPoseInfo info;
 	info.TrackingStatus = GetControllerTrackingStatus(hand);
@@ -122,7 +122,7 @@ FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EContro
 	return info;
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsButtonClicked(EControllerHand hand, EHMDInputControllerButtons button)
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsButtonClicked(EControllerHand hand, EHMDInputControllerButtons button)
 {
 #if WITH_WINDOWS_MIXED_REALITY
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -137,7 +137,7 @@ bool UWindowsMixedRealityFunctionLibrary::IsButtonClicked(EControllerHand hand, 
 	return false;
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsButtonDown(EControllerHand hand, EHMDInputControllerButtons button)
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsButtonDown(EControllerHand hand, EHMDInputControllerButtons button)
 {
 #if WITH_WINDOWS_MIXED_REALITY
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -152,17 +152,17 @@ bool UWindowsMixedRealityFunctionLibrary::IsButtonDown(EControllerHand hand, EHM
 	return false;
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsGrasped(EControllerHand hand)
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsGrasped(EControllerHand hand)
 {
 	return IsButtonDown(hand, EHMDInputControllerButtons::Grasp);
 }
 
-bool UWindowsMixedRealityFunctionLibrary::IsSelectPressed(EControllerHand hand)
+bool UDEPRECATED_WindowsMixedRealityFunctionLibrary::IsSelectPressed(EControllerHand hand)
 {
 	return IsButtonDown(hand, EHMDInputControllerButtons::Select);
 }
 
-EHMDTrackingStatus UWindowsMixedRealityFunctionLibrary::GetControllerTrackingStatus(EControllerHand hand)
+EHMDTrackingStatus UDEPRECATED_WindowsMixedRealityFunctionLibrary::GetControllerTrackingStatus(EControllerHand hand)
 {
 #if WITH_WINDOWS_MIXED_REALITY
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -177,7 +177,7 @@ EHMDTrackingStatus UWindowsMixedRealityFunctionLibrary::GetControllerTrackingSta
 	return EHMDTrackingStatus::NotTracked;
 }
 
-void UWindowsMixedRealityFunctionLibrary::SetFocusPointForFrame(FVector position)
+void UDEPRECATED_WindowsMixedRealityFunctionLibrary::SetFocusPointForFrame(FVector position)
 {
 #if WITH_WINDOWS_MIXED_REALITY
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();

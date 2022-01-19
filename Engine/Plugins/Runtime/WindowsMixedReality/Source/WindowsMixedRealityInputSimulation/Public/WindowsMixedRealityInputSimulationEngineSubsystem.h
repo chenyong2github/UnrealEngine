@@ -42,8 +42,8 @@ struct WINDOWSMIXEDREALITYINPUTSIMULATION_API FWindowsMixedRealityInputSimulatio
 };
 
 /** Engine subsystem that stores input simulation data for access by the XR device. */
-UCLASS(ClassGroup = WindowsMixedReality)
-class WINDOWSMIXEDREALITYINPUTSIMULATION_API UWindowsMixedRealityInputSimulationEngineSubsystem
+UCLASS(ClassGroup = WindowsMixedReality, Deprecated, meta = (DeprecationMessage = "WMR has been deprecated, please use the Microsoft OpenXR plugin from the Marketplace."))
+class WINDOWSMIXEDREALITYINPUTSIMULATION_API UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem
 	: public UEngineSubsystem
 {
 	GENERATED_BODY()
@@ -59,7 +59,7 @@ public:
 	/** Utility function to ensure input simulation is only used when enabled.
 	 * Returns the engine subsystem if it exists and if input simulation is enabled.
 	 */
-	static UWindowsMixedRealityInputSimulationEngineSubsystem* GetInputSimulationIfEnabled();
+	static UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem* GetInputSimulationIfEnabled();
 		
 	/** True if the HMD has a valid head position vector. */
 	bool HasPositionalTracking() const;

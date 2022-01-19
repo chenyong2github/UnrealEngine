@@ -384,7 +384,7 @@ void FAzureSpatialAnchorsForWMR::SubmitDiagnosticsManifestAsync(const FString& M
 
 void FAzureSpatialAnchorsForWMR::CreateNamedARPinAroundAnchor(const FString& InLocalAnchorId, UARPin*& OutARPin)
 {
-	OutARPin = UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName(InLocalAnchorId), InLocalAnchorId);
+	OutARPin = UDEPRECATED_HoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName(InLocalAnchorId), InLocalAnchorId);
 }
 
 bool FAzureSpatialAnchorsForWMR::CreateARPinAroundAzureCloudSpatialAnchor(const FString& InPinId, UAzureCloudSpatialAnchor* InAzureCloudSpatialAnchor, UARPin*& OutARPin)
@@ -423,7 +423,7 @@ bool FAzureSpatialAnchorsForWMR::CreateARPinAroundAzureCloudSpatialAnchor(const 
 	}
 
 	// create a pin around the local anchor
-	OutARPin = UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(PinIdName, InPinId);
+	OutARPin = UDEPRECATED_HoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(PinIdName, InPinId);
 	return (OutARPin != nullptr);
 	{
 		InAzureCloudSpatialAnchor->ARPin = OutARPin;

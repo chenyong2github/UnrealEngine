@@ -10,8 +10,8 @@
 #include "HoloLensARFunctionLibrary.generated.h"
 
 /** A function library that provides static/Blueprint functions for HoloLensAR.*/
-UCLASS()
-class HOLOLENSAR_API UHoloLensARFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(Deprecated, meta = (DeprecationMessage = "WMR has been deprecated, please use the Microsoft OpenXR plugin from the Marketplace."))
+class HOLOLENSAR_API UDEPRECATED_HoloLensARFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

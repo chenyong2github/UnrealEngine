@@ -16,17 +16,17 @@
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityInputSimulation"
 
-UWindowsMixedRealityInputSimulationEngineSubsystem* UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled()
+UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem* UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled()
 {
-	if (!UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled())
+	if (!UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled())
 	{
 		return nullptr;
 	}
 
-	return GEngine->GetEngineSubsystem<UWindowsMixedRealityInputSimulationEngineSubsystem>();
+	return GEngine->GetEngineSubsystem<UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem>();
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled()
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnabled()
 {
 #if WITH_EDITOR
 	// Only use input simulation when enabled
@@ -63,25 +63,25 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::IsInputSimulationEnable
 	return false;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasPositionalTracking() const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::HasPositionalTracking() const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	return bHasPositionalTracking;
 }
 
-const FQuat& UWindowsMixedRealityInputSimulationEngineSubsystem::GetHeadOrientation() const
+const FQuat& UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHeadOrientation() const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	return HeadOrientation;
 }
 
-const FVector& UWindowsMixedRealityInputSimulationEngineSubsystem::GetHeadPosition() const
+const FVector& UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHeadPosition() const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	return HeadPosition;
 }
 
-FWindowsMixedRealityInputSimulationHandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand)
+FWindowsMixedRealityInputSimulationHandState* UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand)
 {
 	if (Hand == EControllerHand::Left)
 	{
@@ -94,12 +94,12 @@ FWindowsMixedRealityInputSimulationHandState* UWindowsMixedRealityInputSimulatio
 	return nullptr;
 }
 
-const FWindowsMixedRealityInputSimulationHandState* UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand) const
+const FWindowsMixedRealityInputSimulationHandState* UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHandState(EControllerHand Hand) const
 {
-	return const_cast<UWindowsMixedRealityInputSimulationEngineSubsystem*>(this)->GetHandState(Hand);
+	return const_cast<UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem*>(this)->GetHandState(Hand);
 }
 
-ETrackingStatus UWindowsMixedRealityInputSimulationEngineSubsystem::GetControllerTrackingStatus(EControllerHand Hand) const
+ETrackingStatus UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetControllerTrackingStatus(EControllerHand Hand) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -109,7 +109,7 @@ ETrackingStatus UWindowsMixedRealityInputSimulationEngineSubsystem::GetControlle
 	return ETrackingStatus::NotTracked;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -123,7 +123,7 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointTransform(E
 	return false;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -137,7 +137,7 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandJointRadius(ECon
 	return false;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasJointPoses(EControllerHand Hand) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::HasJointPoses(EControllerHand Hand) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -147,7 +147,7 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::HasJointPoses(EControll
 	return false;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControllerHand Hand, EHMDInputControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControllerHand Hand, EHMDInputControllerButtons Button, bool OnlyRegisterClicks, bool& OutPressState) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -169,7 +169,7 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetPressState(EControll
 	return false;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandPointerPose(EControllerHand Hand, FWindowsMixedRealityInputSimulationPointerPose& OutPointerPose) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::GetHandPointerPose(EControllerHand Hand, FWindowsMixedRealityInputSimulationPointerPose& OutPointerPose) const
 {
 	FRWScopeLock ReadLock(DataMutex, SLT_ReadOnly);
 	if (const FWindowsMixedRealityInputSimulationHandState* handState = GetHandState(Hand))
@@ -183,7 +183,7 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::GetHandPointerPose(ECon
 	return false;
 }
 
-void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
+void UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
 	bool HasTracking,
 	const FQuat& NewHeadOrientation,
 	const FVector& NewHeadPosition,
@@ -203,7 +203,7 @@ void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedData(
 	}
 }
 
-void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandState(
+void UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandState(
 	EControllerHand Hand,
 	const FWindowsMixedRealityInputSimulationHandState& NewHandState)
 {
@@ -215,7 +215,7 @@ void UWindowsMixedRealityInputSimulationEngineSubsystem::UpdateSimulatedHandStat
 	HandStatePtr->PrevButtonPressed = WasButtonPressed;
 }
 
-bool UWindowsMixedRealityInputSimulationEngineSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+bool UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	// Enable input simulation only in the editor
 #if WITH_EDITOR
@@ -225,11 +225,11 @@ bool UWindowsMixedRealityInputSimulationEngineSubsystem::ShouldCreateSubsystem(U
 #endif
 }
 
-void UWindowsMixedRealityInputSimulationEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 }
 
-void UWindowsMixedRealityInputSimulationEngineSubsystem::Deinitialize()
+void UDEPRECATED_WindowsMixedRealityInputSimulationEngineSubsystem::Deinitialize()
 {
 }
 
