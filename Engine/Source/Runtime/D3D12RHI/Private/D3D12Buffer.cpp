@@ -466,9 +466,16 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 void FD3D12Buffer::Swap(FD3D12Buffer& Other)
 {
 	check(!LockedData.bLocked && !Other.LockedData.bLocked);
+
 	FRHIBuffer::Swap(Other);
 	FD3D12BaseShaderResource::Swap(Other);
 	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
+
+	check(IsHeadLink());
+	for (FLinkedObjectIterator NextBuffer(this); NextBuffer; ++NextBuffer)
+	{
+		NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
+	}
 }
 
 void FD3D12Buffer::ReleaseUnderlyingResource()
@@ -485,7 +492,7 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	{
 		check(!NextBuffer->LockedData.bLocked && NextBuffer->ResourceLocation.IsValid());
 		NextBuffer->ResourceLocation.Clear();
-		NextBuffer->RemoveAllRenameListeners();
+		NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
 	}
 }
 
