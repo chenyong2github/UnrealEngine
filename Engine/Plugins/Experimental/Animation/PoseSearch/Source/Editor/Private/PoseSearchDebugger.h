@@ -216,6 +216,11 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
 	FPoseSearchDebuggerPoseVector CostVector;
+
+	// Cost comparison of selected and active poses. A negative value indicates the cost in the selected pose is lower;
+	// a positive value indicates the cost in the selected pose is higher.
+	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
+	FPoseSearchDebuggerPoseVector CostVectorDifference;
 };
 
 
@@ -256,6 +261,7 @@ class SDebuggerDatabaseView : public SCompoundWidget
 
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetActiveRow() const { return ActiveView.ListView; }
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetDatabaseRows() const { return FilteredDatabaseView.ListView; }
+	const TSharedRef<FDebuggerDatabaseRowData>& GetPoseIdxDatabaseRow(int32 PoseIdx) const;
 
 	/** Used by database rows to acquire column-specific information */
 	using FColumnMap = TMap<FName, TSharedRef<DebuggerDatabaseColumns::IColumn>>;
@@ -410,6 +416,7 @@ public:
 	virtual FName GetName() const override;
 	virtual uint64 GetObjectId() const override;
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> GetSelectedDatabaseRows() const;
+	const TSharedRef<FDebuggerDatabaseRowData>& GetPoseIdxDatabaseRow(int32 PoseIdx) const;
 
 private:
 	/** Called each frame to draw features of the query vector & database selections */

@@ -585,6 +585,20 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	UpdateRows(State, Database);
 }
 
+const TSharedRef<FDebuggerDatabaseRowData>& SDebuggerDatabaseView::GetPoseIdxDatabaseRow(int32 PoseIdx) const
+{
+	const TSharedRef<FDebuggerDatabaseRowData>* RowPtr = UnfilteredDatabaseRows.FindByPredicate(
+		[=](TSharedRef<FDebuggerDatabaseRowData>& Row)
+	{
+		return Row->PoseIdx == PoseIdx;
+	});
+
+	check(RowPtr != nullptr);
+
+	return *RowPtr;
+}
+
+
 void SDebuggerDatabaseView::RefreshColumns()
 {
 	using namespace DebuggerDatabaseColumns;
@@ -1111,6 +1125,18 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 			//Database.SearchIndex.InverseNormalize(Pose);
 			Reader.SetValues(Pose);
 			Reflection->CostVector.ExtractFeatures(Reader);
+
+			const TSharedRef<FDebuggerDatabaseRowData>& ActiveRow = 
+				DebuggerView->GetPoseIdxDatabaseRow(State.DbPoseIdx);
+
+			TArray<float> ActiveCostDifference(Pose);
+			for (int i = 0; i < ActiveCostDifference.Num(); ++i)
+			{
+				ActiveCostDifference[i] -= ActiveRow->PoseCostInfo.CostVector[i];
+			}
+
+			Reader.SetValues(ActiveCostDifference);
+			Reflection->CostVectorDifference.ExtractFeatures(Reader);
 		}
 	}
 }
@@ -1320,6 +1346,11 @@ void SDebuggerView::DrawVisualization() const
 TArray<TSharedRef<FDebuggerDatabaseRowData>> SDebuggerView::GetSelectedDatabaseRows() const
 {
 	return DatabaseView->GetDatabaseRows()->GetSelectedItems();
+}
+
+const TSharedRef<FDebuggerDatabaseRowData>& SDebuggerView::GetPoseIdxDatabaseRow(int32 PoseIdx) const
+{
+	return DatabaseView->GetPoseIdxDatabaseRow(PoseIdx);
 }
 
 void SDebuggerView::DrawFeatures(
