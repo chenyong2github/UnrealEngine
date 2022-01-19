@@ -310,7 +310,8 @@ struct FShaderInfo
 
 	FIoChunkId ChunkId;
 	FIoBuffer CodeIoBuffer;
-	FSHAHash LibraryCodeHash;
+	// the smaller the order, the more likely this will be loaded
+	uint32 LoadOrderFactor;
 	uint64 DiskLayoutOrder = MAX_uint64;
 	TSet<struct FLegacyCookedPackage*> ReferencedByPackages;
 	TMap<FContainerTargetSpec*, EShaderType> TypeInContainer;
@@ -1117,7 +1118,7 @@ static void CreateDiskLayout(
 				{
 					if (A->DiskLayoutOrder == B->DiskLayoutOrder)
 					{
-						return A->LibraryCodeHash < B->LibraryCodeHash;
+						return A->LoadOrderFactor < B->LoadOrderFactor;
 					}
 					return A->DiskLayoutOrder < B->DiskLayoutOrder;
 				});
@@ -1423,7 +1424,7 @@ bool LoadShaderAssetInfo(const FString& Filename, TMap<FSHAHash, TSet<FName>>& O
 bool ConvertToIoStoreShaderLibrary(
 	const TCHAR* FileName,
 	TTuple<FIoChunkId, FIoBuffer>& OutLibraryIoChunk,
-	TArray<TTuple<FIoChunkId, FIoBuffer, FSHAHash>>& OutCodeIoChunks,
+	TArray<TTuple<FIoChunkId, FIoBuffer, uint32>>& OutCodeIoChunks,
 	TArray<TTuple<FSHAHash, TArray<FIoChunkId>>>& OutShaderMaps,
 	TArray<TTuple<FSHAHash, TSet<FName>>>& OutShaderMapAssetAssociations)
 {
@@ -1458,38 +1459,169 @@ bool ConvertToIoStoreShaderLibrary(
 		return false;
 	}
 
+	FIoStoreShaderCodeArchiveHeader IoStoreLibraryHeader;
+	FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(FName(FormatName), SerializedShaders, IoStoreLibraryHeader);
+	checkf(SerializedShaders.ShaderEntries.Num() == IoStoreLibraryHeader.ShaderEntries.Num(), TEXT("IoStore header has different number of shaders (%d) than the original library (%d)"), 
+		IoStoreLibraryHeader.ShaderEntries.Num(), SerializedShaders.ShaderEntries.Num());
+	checkf(SerializedShaders.ShaderMapEntries.Num() == IoStoreLibraryHeader.ShaderMapEntries.Num(), TEXT("IoStore header has different number of shadermaps (%d) than the original library (%d)"),
+		IoStoreLibraryHeader.ShaderMapEntries.Num(), SerializedShaders.ShaderMapEntries.Num());
+
+	// Load all the shaders, decompress them and recompress into groups. Each code chunk is shader group chunk now.
+	// This also updates group's compressed size, the only value left to calculate.
+	int32 GroupCount = IoStoreLibraryHeader.ShaderGroupEntries.Num();
+	OutCodeIoChunks.SetNum(GroupCount);
+	FCriticalSection DiskArchiveAccess;
+	ParallelFor(OutCodeIoChunks.Num(),
+		[&OutCodeIoChunks, &IoStoreLibraryHeader, &DiskArchiveAccess, &LibraryAr, &SerializedShaders, &OffsetToShaderCode](int32 GroupIndex)
+		{
+			FIoStoreShaderGroupEntry& Group = IoStoreLibraryHeader.ShaderGroupEntries[GroupIndex];
+			uint8* UncompressedGroupMemory = reinterpret_cast<uint8*>(FMemory::Malloc(Group.UncompressedSize));
+			check(UncompressedGroupMemory);
+
+			int32 SmallestShaderInGroupByOrdinal = MAX_int32;
+			uint8* ShaderStart = UncompressedGroupMemory;
+			// Not worth to special-case for group size of 1 (by converting to copy) - such groups are very fast to decompress and recompress.
+			for (uint32 IdxShaderInGroup = 0; IdxShaderInGroup < Group.NumShaders; ++IdxShaderInGroup)
+			{
+				int32 ShaderIndex = IoStoreLibraryHeader.ShaderIndices[Group.ShaderIndicesOffset + IdxShaderInGroup];
+				SmallestShaderInGroupByOrdinal = FMath::Min(SmallestShaderInGroupByOrdinal, ShaderIndex);
+				const FIoStoreShaderCodeEntry& Shader = IoStoreLibraryHeader.ShaderEntries[ShaderIndex];
+
+				checkf((reinterpret_cast<uint64>(ShaderStart) - reinterpret_cast<uint64>(UncompressedGroupMemory)) == Shader.UncompressedOffsetInGroup,
+					TEXT("Shader uncompressed offset in group does not agree with its actual placement: Shader.UncompressedOffsetInGroup=%llu, actual=%llu"),
+					Shader.UncompressedOffsetInGroup, (reinterpret_cast<uint64>(ShaderStart) - reinterpret_cast<uint64>(UncompressedGroupMemory))
+				);
+
+				// load and decompress the shader at the desired offset
+				const FShaderCodeEntry& IndividuallyCompressedShader = SerializedShaders.ShaderEntries[ShaderIndex];
+				{
+					// small shaders might be stored without compression, handle them here
+					if (IndividuallyCompressedShader.Size == IndividuallyCompressedShader.UncompressedSize)
+					{
+						// disk access has to be serialized between the for loops
+						FScopeLock Lock(&DiskArchiveAccess);
+						LibraryAr->Seek(OffsetToShaderCode + IndividuallyCompressedShader.Offset);
+						LibraryAr->Serialize(ShaderStart, IndividuallyCompressedShader.Size);
+					}
+					else
+					{
+						uint8* CompressedShaderMemory = reinterpret_cast<uint8*>(FMemory::Malloc(IndividuallyCompressedShader.Size));
+
+						// disk access has to be serialized between the for loops
+						{
+							FScopeLock Lock(&DiskArchiveAccess);
+							LibraryAr->Seek(OffsetToShaderCode + IndividuallyCompressedShader.Offset);
+							LibraryAr->Serialize(CompressedShaderMemory, IndividuallyCompressedShader.Size);
+						}
+
+						// This function will crash if decompression fails.
+						ShaderCodeArchive::DecompressShader(ShaderStart, IndividuallyCompressedShader.UncompressedSize, CompressedShaderMemory, IndividuallyCompressedShader.Size);
+
+						FMemory::Free(CompressedShaderMemory);
+					}
+				}
+
+				ShaderStart += IndividuallyCompressedShader.UncompressedSize;
+			}
+
+			checkf((reinterpret_cast<uint64>(ShaderStart) - reinterpret_cast<uint64>(UncompressedGroupMemory)) == Group.UncompressedSize,
+				TEXT("Uncompressed shader group size does not agree with the actual results (Group.UncompressedSize=%llu, actual=%llu)"), 
+				Group.UncompressedSize, (reinterpret_cast<uint64>(ShaderStart) - reinterpret_cast<uint64>(UncompressedGroupMemory)));
+
+			// now compress the whole group
+			int64 CompressedGroupSize = 0;
+			ShaderCodeArchive::CompressShaderUsingCurrentSettings(nullptr, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize);
+			checkf(CompressedGroupSize > 0, TEXT("CompressedGroupSize estimate seems wrong (%lld)"), CompressedGroupSize);
+
+			uint8* CompressedShaderGroupMemory = reinterpret_cast<uint8*>(FMemory::Malloc(CompressedGroupSize));
+			bool bCompressed = ShaderCodeArchive::CompressShaderUsingCurrentSettings(CompressedShaderGroupMemory, CompressedGroupSize, UncompressedGroupMemory, Group.UncompressedSize);
+			checkf(bCompressed, TEXT("We could not compress the shader group after providing an estimated memory."));
+
+			TTuple<FIoChunkId, FIoBuffer, uint32>& OutCodeIoChunk = OutCodeIoChunks[GroupIndex];
+			OutCodeIoChunk.Get<0>() = IoStoreLibraryHeader.ShaderGroupIoHashes[GroupIndex];
+			// This value is the load order factor for the group (the smaller, the more likely), that IoStore will use to sort the chunks.
+			// We calculate it as the smallest shader index in the group, which shouldn't be bad. Arguably a better way would be to get the lowest-numbered shadermap that references _any_ shader in the group, 
+			// but it's much, much slower to calculate and the resulting order would be likely the same/similar most of the time
+			checkf(SmallestShaderInGroupByOrdinal >= 0 && SmallestShaderInGroupByOrdinal < IoStoreLibraryHeader.ShaderEntries.Num(), TEXT("SmallestShaderInGroupByOrdinal has an invalid value of %d (not within [0, %d) range as expected)"),
+				SmallestShaderInGroupByOrdinal, IoStoreLibraryHeader.ShaderEntries.Num());
+			OutCodeIoChunk.Get<2>() = static_cast<uint32>(SmallestShaderInGroupByOrdinal);
+
+			if (CompressedGroupSize < Group.UncompressedSize)
+			{
+				OutCodeIoChunk.Get<1>() = FIoBuffer(CompressedGroupSize);
+				FMemory::Memcpy(OutCodeIoChunk.Get<1>().GetData(), CompressedShaderGroupMemory, CompressedGroupSize);
+				Group.CompressedSize = CompressedGroupSize;
+			}
+			else
+			{
+				// store uncompressed (unlikely, but happens for a 200-byte sized shader that happens to get its own group)
+				OutCodeIoChunk.Get<1>() = FIoBuffer(Group.UncompressedSize);
+				FMemory::Memcpy(OutCodeIoChunk.Get<1>().GetData(), UncompressedGroupMemory, Group.UncompressedSize);
+				Group.CompressedSize = Group.UncompressedSize;
+			}
+		},
+		EParallelForFlags::Unbalanced
+	);
+
+	// calculate and log stats
+	int64 TotalUncompressedSizeViaGroups = 0;	// calculate total uncompressed size twice for a sanity check
+	int64 TotalUncompressedSizeViaShaders = 0;
+	int64 TotalIndividuallyCompressedSize = 0;
+	int64 TotalGroupCompressedSize = 0;
+	for (int32 IdxGroup = 0, NumGroups = IoStoreLibraryHeader.ShaderGroupEntries.Num(); IdxGroup < NumGroups; ++IdxGroup)
+	{
+		FIoStoreShaderGroupEntry& Group = IoStoreLibraryHeader.ShaderGroupEntries[IdxGroup];
+		TotalGroupCompressedSize += Group.CompressedSize;
+		TotalUncompressedSizeViaGroups += Group.UncompressedSize;
+
+		// now go via shaders
+		for (uint32 IdxShaderInGroup = 0; IdxShaderInGroup < Group.NumShaders; ++IdxShaderInGroup)
+		{
+			int32 ShaderIndex = IoStoreLibraryHeader.ShaderIndices[Group.ShaderIndicesOffset + IdxShaderInGroup];
+			const FShaderCodeEntry& IndividuallyCompressedShader = SerializedShaders.ShaderEntries[ShaderIndex];
+
+			TotalIndividuallyCompressedSize += IndividuallyCompressedShader.Size;
+			TotalUncompressedSizeViaShaders += IndividuallyCompressedShader.UncompressedSize;
+		}
+	}
+
+	checkf(TotalUncompressedSizeViaGroups == TotalUncompressedSizeViaShaders, TEXT("Sanity check failure: total uncompressed shader size differs if calculated via shader groups (%lld) or individual shaders (%lld)"),
+		TotalUncompressedSizeViaGroups, TotalUncompressedSizeViaShaders
+		);
+
+	UE_LOG(LogIoStore, Display, TEXT("%s(%s): Recompressed %d shaders as %d groups. Library size changed from %lld KB (%.2f : 1 ratio) to %lld KB (%.2f : 1 ratio), %.2f%% of previous."),
+		*LibraryName, *FormatName.ToString(),
+		SerializedShaders.ShaderEntries.Num(), IoStoreLibraryHeader.ShaderGroupEntries.Num(),
+		TotalIndividuallyCompressedSize / 1024, static_cast<double>(TotalUncompressedSizeViaShaders) / static_cast<double>(TotalIndividuallyCompressedSize),
+		TotalGroupCompressedSize / 1024, static_cast<double>(TotalUncompressedSizeViaShaders) / static_cast<double>(TotalGroupCompressedSize),
+		100.0 * static_cast<double>(TotalGroupCompressedSize) / static_cast<double>(TotalIndividuallyCompressedSize)
+		);
+
 	FLargeMemoryWriter IoStoreLibraryAr(0, true);
-	FIoStoreShaderCodeArchive::SaveIoStoreShaderCodeArchive(SerializedShaders, IoStoreLibraryAr);
+	FIoStoreShaderCodeArchive::SaveIoStoreShaderCodeArchive(IoStoreLibraryHeader, IoStoreLibraryAr);
 	OutLibraryIoChunk.Key = FIoStoreShaderCodeArchive::GetShaderCodeArchiveChunkId(LibraryName, FormatName);
 	int64 TotalSize = IoStoreLibraryAr.TotalSize();
 	OutLibraryIoChunk.Value = FIoBuffer(FIoBuffer::AssumeOwnership, IoStoreLibraryAr.ReleaseOwnership(), TotalSize);
 
-	int32 ShaderCount = SerializedShaders.ShaderEntries.Num();
-	OutCodeIoChunks.Reserve(ShaderCount);
-	for (int32 ShaderIndex = 0; ShaderIndex < ShaderCount; ++ShaderIndex)
-	{
-		const FSHAHash& ShaderHash = SerializedShaders.ShaderHashes[ShaderIndex];
-		const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
-		TTuple<FIoChunkId, FIoBuffer, FSHAHash>& OutCodeIoChunk = OutCodeIoChunks.Emplace_GetRef(FIoStoreShaderCodeArchive::GetShaderCodeChunkId(ShaderHash), ShaderEntry.Size, ShaderHash);
-		LibraryAr->Seek(OffsetToShaderCode + ShaderEntry.Offset);
-		LibraryAr->Serialize(OutCodeIoChunk.Get<1>().Data(), ShaderEntry.Size);
-	}
-
-	int32 ShaderMapCount = SerializedShaders.ShaderMapHashes.Num();
-	OutShaderMaps.Reserve(ShaderMapCount);
-	for (int32 ShaderMapIndex = 0; ShaderMapIndex < ShaderMapCount; ++ShaderMapIndex)
-	{
-		TTuple<FSHAHash, TArray<FIoChunkId>>& OutShaderMap = OutShaderMaps.AddDefaulted_GetRef();
-		OutShaderMap.Key = SerializedShaders.ShaderMapHashes[ShaderMapIndex];
-		const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
-		int32 LookupIndexEnd = ShaderMapEntry.ShaderIndicesOffset + ShaderMapEntry.NumShaders;
-		OutShaderMap.Value.Reserve(ShaderMapEntry.NumShaders);
-		for (int32 ShaderLookupIndex = ShaderMapEntry.ShaderIndicesOffset; ShaderLookupIndex < LookupIndexEnd; ++ShaderLookupIndex)
+	int32 ShaderMapCount = IoStoreLibraryHeader.ShaderMapHashes.Num();
+	OutShaderMaps.SetNum(ShaderMapCount);
+	ParallelFor(OutShaderMaps.Num(),
+		[&OutShaderMaps, &IoStoreLibraryHeader](int32 ShaderMapIndex)
 		{
-			int32 ShaderIndex = SerializedShaders.ShaderIndices[ShaderLookupIndex];
-			OutShaderMap.Value.Add(FIoStoreShaderCodeArchive::GetShaderCodeChunkId(SerializedShaders.ShaderHashes[ShaderIndex]));
-		}
-	}
+			TTuple<FSHAHash, TArray<FIoChunkId>>& OutShaderMap = OutShaderMaps[ShaderMapIndex];
+			OutShaderMap.Key = IoStoreLibraryHeader.ShaderMapHashes[ShaderMapIndex];
+			const FIoStoreShaderMapEntry& ShaderMapEntry = IoStoreLibraryHeader.ShaderMapEntries[ShaderMapIndex];
+			int32 LookupIndexEnd = ShaderMapEntry.ShaderIndicesOffset + ShaderMapEntry.NumShaders;
+			OutShaderMap.Value.Reserve(ShaderMapEntry.NumShaders);	// worst-case, 1 group == 1 shader
+			for (int32 ShaderLookupIndex = ShaderMapEntry.ShaderIndicesOffset; ShaderLookupIndex < LookupIndexEnd; ++ShaderLookupIndex)
+			{
+				int32 ShaderIndex = IoStoreLibraryHeader.ShaderIndices[ShaderLookupIndex];
+				int32 GroupIndex = IoStoreLibraryHeader.ShaderEntries[ShaderIndex].ShaderGroupIndex;
+				OutShaderMap.Value.AddUnique(IoStoreLibraryHeader.ShaderGroupIoHashes[GroupIndex]);
+			}
+		},
+		EParallelForFlags::Unbalanced
+	);
 
 	OutShaderMapAssetAssociations.Reserve(ShaderCodeToAssets.Num());
 	for (auto& KV : ShaderCodeToAssets)
@@ -1505,7 +1637,6 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 	IOSTORE_CPU_SCOPE(ProcessShaderLibraries);
 
 	TMap<FIoChunkId, FShaderInfo*> ChunkIdToShaderInfoMap;
-	TMap<FIoChunkId, FSHAHash> AllShaderCodeHashes;
 	TMap<FSHAHash, TArray<FIoChunkId>> ShaderChunkIdsByShaderMapHash;
 	TMap<FName, TSet<FSHAHash>> PackageNameToShaderMaps;
 	TMap<FContainerTargetSpec*, TSet<FShaderInfo*>> AllContainerShaderLibraryShadersMap;
@@ -1521,7 +1652,7 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 
 				TArray<TTuple<FSHAHash, TArray<FIoChunkId>>> ShaderMaps;
 				TTuple<FIoChunkId, FIoBuffer> LibraryChunk;
-				TArray<TTuple<FIoChunkId, FIoBuffer, FSHAHash>> CodeChunks;
+				TArray<TTuple<FIoChunkId, FIoBuffer, uint32>> CodeChunks;
 				TArray<TTuple<FSHAHash, TSet<FName>>> ShaderMapAssetAssociations;
 				if (!ConvertToIoStoreShaderLibrary(*TargetFile.NormalizedSourcePath, LibraryChunk, CodeChunks, ShaderMaps, ShaderMapAssetAssociations))
 				{
@@ -1532,21 +1663,16 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 				TargetFile.SourceBuffer.Emplace(LibraryChunk.Value);
 				const bool bIsGlobalShaderLibrary = FPaths::GetCleanFilename(TargetFile.NormalizedSourcePath).StartsWith(TEXT("ShaderArchive-Global-"));
 				const FShaderInfo::EShaderType ShaderType = bIsGlobalShaderLibrary ? FShaderInfo::Global : FShaderInfo::Normal;
-				for (const TTuple<FIoChunkId, FIoBuffer, FSHAHash>& CodeChunk : CodeChunks)
+				for (const TTuple<FIoChunkId, FIoBuffer, uint32>& CodeChunk : CodeChunks)
 				{
 					const FIoChunkId& ShaderChunkId = CodeChunk.Get<0>();
-					FSHAHash* FindShaderCodeHash = AllShaderCodeHashes.Find(ShaderChunkId);
-					if (FindShaderCodeHash && *FindShaderCodeHash != CodeChunk.Get<2>())
-					{
-						UE_LOG(LogIoStore, Fatal, TEXT("Shader code chunk id collision"));
-					}
 					FShaderInfo* ShaderInfo = ChunkIdToShaderInfoMap.FindRef(ShaderChunkId);
 					if (!ShaderInfo)
 					{
 						ShaderInfo = new FShaderInfo();
 						ShaderInfo->ChunkId = ShaderChunkId;
 						ShaderInfo->CodeIoBuffer = CodeChunk.Get<1>();
-						ShaderInfo->LibraryCodeHash = CodeChunk.Get<2>();
+						ShaderInfo->LoadOrderFactor = CodeChunk.Get<2>();
 						OutShaders.Add(ShaderInfo);
 						ChunkIdToShaderInfoMap.Add(ShaderChunkId, ShaderInfo);
 					}

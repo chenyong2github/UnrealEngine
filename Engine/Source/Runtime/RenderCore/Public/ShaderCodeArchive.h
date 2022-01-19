@@ -12,26 +12,16 @@
 // enable visualization in the desktop Development builds only as it has a memory hit and writes files
 #define UE_SCA_VISUALIZE_SHADER_USAGE			(!WITH_EDITOR && UE_BUILD_DEVELOPMENT && PLATFORM_DESKTOP)
 
-struct FIoStoreShaderMapEntry
+struct FShaderMapEntry
 {
 	uint32 ShaderIndicesOffset = 0u;
 	uint32 NumShaders = 0u;
-
-	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderMapEntry& Ref)
-	{
-		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders;
-	}
-};
-
-struct FShaderMapEntry : public FIoStoreShaderMapEntry
-{
 	uint32 FirstPreloadIndex = 0u;
 	uint32 NumPreloadEntries = 0u;
 
 	friend FArchive& operator <<(FArchive& Ar, FShaderMapEntry& Ref)
 	{
-		operator<<(Ar, static_cast<FIoStoreShaderMapEntry&>(Ref));
-		return Ar << Ref.FirstPreloadIndex << Ref.NumPreloadEntries;
+		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders << Ref.FirstPreloadIndex << Ref.NumPreloadEntries;
 	}
 };
 
@@ -204,31 +194,57 @@ struct FShaderUsageVisualizer
 	/** Total number of shaders. */
 	int32 NumShaders;
 
-	/** Shader indices that were preloaded. */
-	TSet<int32> PreloadedShadersForVis;
+	/** Shader indices that we explicitly preloaded (does not include shaders preloaded as part of a compressed group). */
+	TSet<int32> ExplicitlyPreloadedShaders;
+
+	/** Shader indices that we preloaded (either explicitly or because they were a part of a compressed group). */
+	TSet<int32> PreloadedShaders;
+
+	/** Shader indices that we decompressed. */
+	TSet<int32> DecompressedShaders;
 
 	/** Shader indices that were created. */
-	TSet<int32> CreatedShadersForVis;
+	TSet<int32> CreatedShaders;
 
 	void Initialize(const int32 InNumShaders);
 
-	void MarkPreloadedForVisualization(int32 ShaderIndex)
+	inline void MarkExplicitlyPreloadedForVisualization(int32 ShaderIndex)
 	{
 		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
 		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
 		{
 			FScopeLock Lock(&VisualizeLock);
-			PreloadedShadersForVis.Add(ShaderIndex);
+			ExplicitlyPreloadedShaders.Add(ShaderIndex);
 		}
 	}
 
-	void MarkCreatedForVisualization(int32 ShaderIndex)
+	inline void MarkPreloadedForVisualization(int32 ShaderIndex)
 	{
 		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
 		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
 		{
 			FScopeLock Lock(&VisualizeLock);
-			CreatedShadersForVis.Add(ShaderIndex);
+			PreloadedShaders.Add(ShaderIndex);
+		}
+	}
+
+	inline void MarkDecompressedForVisualization(int32 ShaderIndex)
+	{
+		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
+		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
+		{
+			FScopeLock Lock(&VisualizeLock);
+			DecompressedShaders.Add(ShaderIndex);
+		}
+	}
+
+	inline void MarkCreatedForVisualization(int32 ShaderIndex)
+	{
+		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
+		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
+		{
+			FScopeLock Lock(&VisualizeLock);
+			CreatedShaders.Add(ShaderIndex);
 		}
 	}
 
@@ -236,6 +252,8 @@ struct FShaderUsageVisualizer
 #else
 	inline void Initialize(const int32 InNumShaders) {}
 	inline void MarkPreloadedForVisualization(int32 ShaderIndex) {}
+	inline void MarkExplicitlyPreloadedForVisualization(int32 ShaderIndex) {}
+	inline void MarkDecompressedForVisualization(int32 ShaderIndex) {}
 	inline void MarkCreatedForVisualization(int32 ShaderIndex) {}
 	inline void SaveShaderUsageBitmap(const FString& Name, EShaderPlatform ShaderPlatform) {}
 #endif // UE_SCA_VISUALIZE_SHADER_USAGE
@@ -331,11 +349,59 @@ protected:
 	FShaderUsageVisualizer DebugVisualizer;
 };
 
+
+
+namespace ShaderCodeArchive
+{
+	/** Decompresses the shader into caller-provided memory. Caller is assumed to allocate at least ShaderEntry uncompressed size value.
+	 * The engine will crash (LogFatal) if this function fails.
+	 */
+	RENDERCORE_API void DecompressShader(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize);
+
+	/** Compresses the shader into caller-provided memory using the current CVar settings (e.g. on Windows), which is as opposed to potentially different settings on 
+	 * the platform where the shaders are going to be decompressed (e.g. on console). It is the caller's responsibility to make sure those two match.
+	 * This function can also be used for the estimation as it will return false if the provided CompressedBufferLength isn't sufficient (it is safe to pass nullptr in that case).
+	 */
+	RENDERCORE_API bool CompressShaderUsingCurrentSettings(uint8* OutCompressedShader, int64& OutCompressedSize, const uint8* UncompressedShaderCode, int64 UncompressedSize);
+}
+
+/** Descriptor of a shader map. This concept exists in run time, so this class describes the information stored in the library for a particular FShaderMap */
+struct FIoStoreShaderMapEntry
+{
+	/** Offset to an the first shader index referenced by this shader map in the array of shader indices. */
+	uint32 ShaderIndicesOffset = 0u;
+	/** Number of shaders in this shader map. */
+	uint32 NumShaders = 0u;
+
+	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderMapEntry& Ref)
+	{
+		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders;
+	}
+};
+
+/** Descriptor of an individual shader. */
 struct FIoStoreShaderCodeEntry
 {
-	uint32 UncompressedSize = 0;
-	uint32 CompressedSize = 0;
-	uint8 Frequency;
+	union
+	{
+		uint64 Packed;
+		struct
+		{
+			/** Shader type aka frequency (vertex, pixel, etc) */
+			uint64 Frequency : SF_NumBits;	// 4 as of now
+
+			/** Each shader belongs to a (one and only) shader group (even if it is the only one shader in that group) that is compressed and decompressed together. */
+			uint64 ShaderGroupIndex : 30;
+
+			/** Offset of the uncompressed shader in a group of shaders that are compressed / decompressed together. */
+			uint64 UncompressedOffsetInGroup : 30;
+		};
+	};
+
+	FIoStoreShaderCodeEntry()
+		: Packed(0)
+	{
+	}
 
 	EShaderFrequency GetFrequency() const
 	{
@@ -344,7 +410,104 @@ struct FIoStoreShaderCodeEntry
 
 	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderCodeEntry& Ref)
 	{
-		return Ar << Ref.UncompressedSize << Ref.CompressedSize << Ref.Frequency;
+		return Ar << Ref.Packed;
+	}
+};
+
+static_assert(sizeof(FIoStoreShaderCodeEntry) == sizeof(uint64), TEXT("To reduce memory footprint, shader code entries should be as small as possible"));
+
+/** Descriptor of a group of shaders compressed together. This groups already deduplicated, and possibly unrelated, shaders, so this is a distinct concept from a shader map. */
+struct FIoStoreShaderGroupEntry
+{
+	/** Offset to an the first shader index referenced by this group in the array of shader indices. This extra level of indirection allows arbitrary grouping. */
+	uint32 ShaderIndicesOffset = 0u;
+	/** Number of shaders in this group. */
+	uint32 NumShaders = 0u;
+
+	/** Uncompressed size of the whole group. */
+	uint32 UncompressedSize = 0;
+	/** Compressed size of the whole group. */
+	uint32 CompressedSize = 0;
+
+	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderGroupEntry& Ref)
+	{
+		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders << Ref.UncompressedSize << Ref.CompressedSize;
+	}
+
+	/** Some groups can be stored uncompressed if their compression wasn't beneficial (this is very vell possible, for groups that contain only one small shader. */
+	inline bool IsGroupCompressed() const
+	{
+		return CompressedSize != UncompressedSize;
+	}
+};
+
+struct FIoStoreShaderCodeArchiveHeader
+{
+public:
+
+	/** Hashes of all shadermaps in the library */
+	TArray<FSHAHash> ShaderMapHashes;
+
+	/** Output hashes of all shaders in the library */
+	TArray<FSHAHash> ShaderHashes;
+
+	/** Chunk Ids (essentially hashes) of the shader groups - needed to be serialized as they are used for preloading. */
+	TArray<FIoChunkId> ShaderGroupIoHashes;
+
+	/** An array of a shadermap descriptors. Each shadermap can reference an arbitrary number of shaders */
+	TArray<FIoStoreShaderMapEntry> ShaderMapEntries;
+
+	/** An array of all shaders descriptors, deduplicated */
+	TArray<FIoStoreShaderCodeEntry> ShaderEntries;
+
+	/** An array of shader group descriptors */
+	TArray<FIoStoreShaderGroupEntry> ShaderGroupEntries;
+
+	/** Flat array of shaders referenced by all shadermaps. Each shadermap has a range in this array, beginning of which is
+	  * stored as ShaderIndicesOffset in the shadermap's descriptor (FIoStoreShaderMapEntry).
+	  * This is also used by the shader groups.
+	  */
+	TArray<uint32> ShaderIndices;
+
+	friend RENDERCORE_API FArchive& operator <<(FArchive& Ar, FIoStoreShaderCodeArchiveHeader& Ref);
+
+	inline uint64 GetShaderUncompressedSize(int ShaderIndex)
+	{
+		const FIoStoreShaderCodeEntry& ThisShaderEntry = ShaderEntries[ShaderIndex];
+		const FIoStoreShaderGroupEntry& GroupEntry = ShaderGroupEntries[ThisShaderEntry.ShaderGroupIndex];
+
+		for (uint32 ShaderIdxIdx = GroupEntry.ShaderIndicesOffset, StopBeforeIdxIdx = GroupEntry.ShaderIndicesOffset + GroupEntry.NumShaders; ShaderIdxIdx < StopBeforeIdxIdx; ++ShaderIdxIdx)
+		{
+			int32 GroupMemberShaderIndex = ShaderIndices[ShaderIdxIdx];
+			if (ShaderIndex == GroupMemberShaderIndex)
+			{
+				// found ourselves, now find our size by subtracting from the next neighbor or the group size
+				if (LIKELY(ShaderIdxIdx < StopBeforeIdxIdx - 1))
+				{
+					const FIoStoreShaderCodeEntry& NextShaderEntry = ShaderEntries[ShaderIndices[ShaderIdxIdx + 1]];
+					return NextShaderEntry.UncompressedOffsetInGroup - ThisShaderEntry.UncompressedOffsetInGroup;
+				}
+				else
+				{
+					return GroupEntry.UncompressedSize - ThisShaderEntry.UncompressedOffsetInGroup;
+				}
+			}
+		}
+
+		checkf(false, TEXT("Could not find shader index %d in its own group %d - library is corrupted."), ShaderIndex, ThisShaderEntry.ShaderGroupIndex);
+		return 0;
+	}
+
+	uint64 GetAllocatedSize() const
+	{
+		return sizeof(*this) +
+			ShaderMapHashes.GetAllocatedSize() +
+			ShaderHashes.GetAllocatedSize() +
+			ShaderGroupIoHashes.GetAllocatedSize() +
+			ShaderMapEntries.GetAllocatedSize() +
+			ShaderEntries.GetAllocatedSize() +
+			ShaderGroupEntries.GetAllocatedSize() +
+			ShaderIndices.GetAllocatedSize();
 	}
 };
 
@@ -353,32 +516,30 @@ class FIoStoreShaderCodeArchive : public FRHIShaderLibrary
 public:
 	RENDERCORE_API static FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName);
 	RENDERCORE_API static FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash);
-	RENDERCORE_API static void SaveIoStoreShaderCodeArchive(const FSerializedShaderArchive& SerializedShaders, FArchive& OutLibraryAr);
+	/** This function creates the archive header, including splitting shaders into groups. */
+	RENDERCORE_API static void CreateIoStoreShaderCodeArchiveHeader(const FName& Format, const FSerializedShaderArchive& SerializedShaders, FIoStoreShaderCodeArchiveHeader& OutHeader);
+	RENDERCORE_API static void SaveIoStoreShaderCodeArchive(const FIoStoreShaderCodeArchiveHeader& Header, FArchive& OutLibraryAr);
 	static FIoStoreShaderCodeArchive* Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);
 
 	virtual ~FIoStoreShaderCodeArchive();
 
 	virtual bool IsNativeLibrary() const override { return false; }
 
-	uint32 GetSizeBytes() const
+	uint64 GetSizeBytes() const
 	{
 		return sizeof(*this) +
-			ShaderMapHashes.GetAllocatedSize() +
-			ShaderMapEntries.GetAllocatedSize() +
-			ShaderHashes.GetAllocatedSize() +
-			ShaderEntries.GetAllocatedSize() +
-			ShaderIndices.GetAllocatedSize() +
-			ShaderPreloads.GetAllocatedSize();
+			Header.GetAllocatedSize() +
+			PreloadedShaderGroups.GetAllocatedSize();
 	}
 
-	virtual int32 GetNumShaders() const override { return ShaderEntries.Num(); }
-	virtual int32 GetNumShaderMaps() const override { return ShaderMapEntries.Num(); }
-	virtual int32 GetNumShadersForShaderMap(int32 ShaderMapIndex) const override { return ShaderMapEntries[ShaderMapIndex].NumShaders; }
+	virtual int32 GetNumShaders() const override { return Header.ShaderEntries.Num(); }
+	virtual int32 GetNumShaderMaps() const override { return Header.ShaderMapEntries.Num(); }
+	virtual int32 GetNumShadersForShaderMap(int32 ShaderMapIndex) const override { return Header.ShaderMapEntries[ShaderMapIndex].NumShaders; }
 
 	virtual int32 GetShaderIndex(int32 ShaderMapIndex, int32 i) const override
 	{
-		const FIoStoreShaderMapEntry& ShaderMapEntry = ShaderMapEntries[ShaderMapIndex];
-		return ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+		const FIoStoreShaderMapEntry& ShaderMapEntry = Header.ShaderMapEntries[ShaderMapIndex];
+		return Header.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
 	}
 
 	virtual int32 FindShaderMapIndex(const FSHAHash& Hash) override;
@@ -393,7 +554,7 @@ public:
 private:
 	static constexpr uint32 CurrentVersion = 1;
 
-	struct FShaderPreloadEntry
+	struct FShaderGroupPreloadEntry
 	{
 		FGraphEventRef PreloadEvent;
 		FIoRequest IoRequest;
@@ -401,7 +562,7 @@ private:
 		uint32 NumRefs : 31;
 		uint32 bNeverToBePreloaded : 1;
 
-		FShaderPreloadEntry()
+		FShaderGroupPreloadEntry()
 			: NumRefs(0)
 			, bNeverToBePreloaded(0)
 		{
@@ -409,19 +570,52 @@ private:
 	};
 
 	FIoStoreShaderCodeArchive(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);
-	bool ReleaseRef(int32 ShaderIndex);
 
 	FIoDispatcher& IoDispatcher;
 
-	TArray<FSHAHash> ShaderMapHashes;
-	TArray<FSHAHash> ShaderHashes;
-	TArray<FIoStoreShaderMapEntry> ShaderMapEntries;
-	TArray<FIoStoreShaderCodeEntry> ShaderEntries;
-	TArray<uint32> ShaderIndices;
+	/** Preloads a given shader group. */
+	bool PreloadShaderGroup(int32 ShaderGroupIndex, FGraphEventArray& OutCompletionEvents, FCoreDelegates::FAttachShaderReadRequestFunc* AttachShaderReadRequestFuncPtr = nullptr);
+
+	/** Sets up a new preload entry for preload.*/
+	void SetupPreloadEntryForLoading(int32 ShaderGroupIndex, FShaderGroupPreloadEntry& PreloadEntry);
+
+	/** Sets up a preload entry for groups that shouldn't be preloaded.*/
+	void MarkPreloadEntrySkipped(int32 ShaderGroupIndex);
+
+	/** Releases a reference to a preloaded shader group, potentially deleting it. */
+	void ReleasePreloadEntry(int32 ShaderGroupIndex);
+
+	/** Returns the index of shader group that a given shader belongs to. */
+	inline int32 GetGroupIndexForShader(int32 ShaderIndex) const
+	{
+		return Header.ShaderEntries[ShaderIndex].ShaderGroupIndex;
+	}
+
+	/** Finds or adds preload info for a shader group. Assumes lock guarding access to the info taken, never returns nullptr (except when new failed and we're already broken beyond repair)*/
+	inline FShaderGroupPreloadEntry* FindOrAddPreloadEntry(int32 ShaderGroupIndex)
+	{
+		FShaderGroupPreloadEntry*& Ptr = PreloadedShaderGroups.FindOrAdd(ShaderGroupIndex);
+		if (UNLIKELY(Ptr == nullptr))
+		{
+			Ptr = new FShaderGroupPreloadEntry;
+		}
+		return Ptr;
+	}
+
+	/** Returns true if the group contains only RTX shaders. We can avoid preloading it when running with RTX off. */
+	bool GroupOnlyContainsRaytracingShaders(int32 ShaderGroupIndex);
+
+	/** Archive header with all the metadata */
+	FIoStoreShaderCodeArchiveHeader Header;
+
+	/** Hash tables for faster searching for shader and shadermap hashes. */
 	FHashTable ShaderMapHashTable;
 	FHashTable ShaderHashTable;
-	TArray<FShaderPreloadEntry> ShaderPreloads;
-	FRWLock ShaderPreloadLock;
+
+	/** Mapping between the group index and preloaded groups. Should be only modified when lock is taken. */
+	TMap<int32, FShaderGroupPreloadEntry*> PreloadedShaderGroups;
+	/** Lock guarding access to the book-keeping info above.*/
+	FRWLock PreloadedShaderGroupsLock;
 
 	/** debug visualizer - in Shipping compiles out to an empty struct with no-op functions */
 	FShaderUsageVisualizer DebugVisualizer;
