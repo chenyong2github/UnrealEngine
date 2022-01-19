@@ -88,11 +88,15 @@ void ShutdownScripts();
 
 IPersistentExportOptions& GetPersistentExportOptions();
 
+// Max nodes are matched by these keys
+typedef NodeEventNamespace::NodeKey FNodeKey;
+typedef MtlBase* FMaterialKey;
+
 // Identifies Max node to track its changes
 class FNodeTracker: FNoncopyable
 {
 public:
-	explicit FNodeTracker(INode* InNode) : Node(InNode), Name(Node->GetName()) {}
+	explicit FNodeTracker(FNodeKey InNodeKey, INode* InNode) : NodeKey(InNodeKey), Node(InNode), Name(Node->GetName()) {}
 
 	void Invalidate()
 	{
@@ -109,12 +113,14 @@ public:
 		return InstanceHandle != 0;
 	}
 
+	FNodeKey NodeKey;
 	INode* const Node;
 	FNodeTracker* Collision = nullptr;
 	FLayerTracker* Layer = nullptr;
 	AnimHandle InstanceHandle = 0; // todo: rename - this is handle for object this node is instance of
 	FString Name; 
 	bool bInvalidated = true;
+	bool bDeleted = false;
 
 	TSharedPtr<IDatasmithActorElement> DatasmithActorElement;
 
@@ -123,10 +129,6 @@ public:
 	TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
 
 };
-
-// Max nodes are matched by these keys
-typedef NodeEventNamespace::NodeKey FNodeKey;
-typedef MtlBase* FMaterialKey;
 
 class FRenderMeshForConversion: FNoncopyable
 {
