@@ -385,7 +385,7 @@ public:
 
 		if (bDisplayToggle)
 		{
-			HandleToggleCheckBoxChanged(InArgs._ToggleChecked.Get(), InArgs._OnToggleChanged);
+			HandleToggleCheckBoxChanged(InArgs._ToggleChecked.Get(), FOnCheckStateChanged());
 		}
 	}
 
