@@ -650,7 +650,7 @@ bool FSwitchboardListener::Task_StartProcess(const FSwitchboardStartTask& InRunT
 		NewProcess->ReadPipe
 	);
 
-	if (!NewProcess->Handle.IsValid() || !FPlatformProcess::IsProcRunning(NewProcess->Handle))
+	if (!NewProcess->Handle.IsValid())
 	{
 		// Close process in case it just didn't run
 		FPlatformProcess::CloseProc(NewProcess->Handle);

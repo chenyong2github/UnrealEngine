@@ -28,9 +28,10 @@ class PriorityModifier(Enum):
 
 def get_hidden_sp_startupinfo():
     ''' Returns subprocess.startupinfo and avoids extra cmd line window in Windows. '''
-    startupinfo = subprocess.STARTUPINFO()
+    startupinfo = None
 
-    if sys.platform.startswith("win"):
+    if hasattr(subprocess, 'STARTUPINFO') and hasattr(subprocess, 'STARTF_USESHOWWINDOW'):
+        startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
     return startupinfo

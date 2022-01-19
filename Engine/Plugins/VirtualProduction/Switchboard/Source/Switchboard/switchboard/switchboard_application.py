@@ -3,6 +3,7 @@
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import threading
 from typing import Dict, List, NamedTuple, Optional
@@ -173,7 +174,7 @@ def get_multi_user_server_instance():
     return MultiUserServerInstance
 
 class RsyncServer:
-    DEFAULT_PORT = 873
+    DEFAULT_PORT = 8730
     INCOMING_LOGS_MODULE = 'device_logs'
     MAX_MONITOR_RECOVERIES = 5
     SOCKET_ERROR_EXIT_CODE = 10
@@ -284,7 +285,7 @@ hosts allow = {allowed_addrs}
     def launch(
         self, *, address: str = '0.0.0.0', port: int = DEFAULT_PORT
     ) -> bool:
-        if self.process is not None:
+        if self.is_running():
             LOGGER.warning('RsyncServer.launch: server already running')
             return False
 
@@ -292,9 +293,12 @@ hosts allow = {allowed_addrs}
         self.port = port
         self.update_config()
 
-        rsync_path = os.path.normpath(os.path.join(
-            CONFIG.ENGINE_DIR.get_value(), 'Extras', 'ThirdPartyNotUE',
-            'SwitchboardThirdParty', 'cwrsync', 'bin', 'rsync.exe'))
+        if sys.platform.startswith('win'):
+            rsync_path = os.path.normpath(os.path.join(
+                CONFIG.ENGINE_DIR.get_value(), 'Extras', 'ThirdPartyNotUE',
+                'SwitchboardThirdParty', 'cwrsync', 'bin', 'rsync.exe'))
+        else:
+            rsync_path = 'rsync'
 
         args = [rsync_path, '--daemon', '--no-detach', f'--address={address}',
                 f'--port={port}', f'--config={self.config_file.name}',

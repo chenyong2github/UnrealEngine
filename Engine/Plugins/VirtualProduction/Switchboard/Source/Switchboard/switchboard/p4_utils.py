@@ -30,7 +30,7 @@ def p4_latest_changelist(p4_path, working_dir, num_changelists=10):
     p4_command = f'p4 -ztag -F "%change%" changes -m {num_changelists} {p4_path}/...'
     LOGGER.info(f"Executing: {p4_command}")
 
-    p4_result = subprocess.check_output(p4_command, cwd=working_dir, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode()
+    p4_result = subprocess.check_output(p4_command, cwd=working_dir, shell=True, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode()
 
     if p4_result:
         return p4_result.split()
