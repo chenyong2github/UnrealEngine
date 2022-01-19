@@ -20,11 +20,11 @@ float		FDatasmithHashTools::FixedPointTolerance = 1 / 0.01f;
 const float FDatasmithHashTools::MaxInvFixPointTolerance = FLOAT_NON_FRACTIONAL;
 
 // Hash float with a fixed tolerance value.
-void FDatasmithHashTools::HashFixedPointFloatTolerance(float InValue, float InvTolerance)
+void FDatasmithHashTools::HashFixedPointFloatTolerance(double InValue, float InvTolerance)
 {
 	if (InvTolerance < MaxInvFixPointTolerance)
 	{
-		float Rounded = std::floorf(InValue * InvTolerance + 0.5f);
+		float Rounded = std::floorf((float)InValue * InvTolerance + 0.5f);
 		if (Rounded == -0.0f)
 		{
 			Rounded = 0.0f; // We want to confond negative near zero to positive near zero
@@ -34,7 +34,7 @@ void FDatasmithHashTools::HashFixedPointFloatTolerance(float InValue, float InvT
 	else
 	{
 		// No tolerance -> we take the hash value itself
-		TUpdate(InValue);
+		TUpdate((float)InValue);
 	}
 }
 
@@ -43,15 +43,15 @@ float		FDatasmithHashTools::FloatTolerance = KINDA_SMALL_NUMBER;
 const float FDatasmithHashTools::MaxFloatTolerance = 1.0f / FLOAT_NON_FRACTIONAL;
 
 // Hash float value, Use tolerance to absorb compute error
-void FDatasmithHashTools::HashFloatTolerance(float InValue, float InTolerance)
+void FDatasmithHashTools::HashFloatTolerance(double InValue, float InTolerance)
 {
 	if (InTolerance > MaxFloatTolerance)
 	{
 		// Near zero or negative
-		if (InValue <= InTolerance)
+		if ((float)InValue <= InTolerance)
 		{
 			InValue = -InValue;
-			if (InValue <= InTolerance)
+			if ((float)InValue <= InTolerance)
 			{
 				TUpdate(0.0f);
 				return; // Near zero ?
@@ -60,7 +60,7 @@ void FDatasmithHashTools::HashFloatTolerance(float InValue, float InTolerance)
 		}
 
 		// Tricky way to hash value so that near values (because of compute error) give same hash values
-		float LogValue = log10(InValue);
+		float LogValue = log10((float)InValue);
 		float IntLogValue = std::floorf(LogValue / InTolerance + 0.5f);
 		if (IntLogValue == -0.0f)
 		{
@@ -71,7 +71,7 @@ void FDatasmithHashTools::HashFloatTolerance(float InValue, float InTolerance)
 	else
 	{
 		// No tolerance -> we take the hash value itself
-		TUpdate(InValue);
+		TUpdate((float)InValue);
 	}
 }
 
@@ -128,11 +128,11 @@ static bool QuatNeglectible(FQuat InQuat, float InTolerance)
 /* Quat components values usualy are in turn (-0.5..0.5).
  * Bring back to 0.0 to 1.0 and make 0.0 turn == 1.0 turn
  */
-static float ZeroOne(float x)
+static float ZeroOne(double x)
 {
-	if (x < 0.0f)
-		x = 1.0f + x;
-	return sqrt(abs(x - x * x)); // = sqrt(abs(x * (1 - x))
+	if (x < 0.0)
+		x = 1.0 + x;
+	return (float)FMath::Sqrt(FMath::Abs(x - x * x)); // = sqrt(abs(x * (1 - x))
 }
 
 // Hash quaternion value, taking care to absorb compute error

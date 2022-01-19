@@ -503,7 +503,7 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 			for (int32 IndexComponent = 0; IndexComponent < 3; IndexComponent++)
 			{
 				const FVector& Normal = triangle.Normals[IndexComponent];
-				OutMesh->SetNormal(IndexFace * 3 + IndexComponent, Normal.X, Normal.Y, Normal.Z);
+				OutMesh->SetNormal(IndexFace * 3 + IndexComponent, (float)Normal.X, (float)Normal.Y, (float)Normal.Z);
 			}
 
 			OutMesh->SetFaceUV(IndexFace, UVChannel, triangle.UV0, triangle.UV1, triangle.UV2);

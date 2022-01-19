@@ -33,7 +33,7 @@ class FDatasmithHashTools
 	static const float MaxInvFixPointTolerance;
 
 	// Hash float with a fixed tolerance value (good for coordinates, colors).
-	void HashFixedPointFloatTolerance(float InValue, float InInvTolerance = FixedPointTolerance);
+	void HashFixedPointFloatTolerance(double InValue, float InInvTolerance = FixedPointTolerance);
 
 	// Recommended for values that come from computation, like normals, UVs, rotations...
 	static float FloatTolerance;
@@ -42,7 +42,7 @@ class FDatasmithHashTools
 	static const float MaxFloatTolerance;
 
 	// Hash float value, use tolerance to absorb compute error (good for normal, rotation...)
-	void HashFloatTolerance(float InValue, float InTolerance = FloatTolerance);
+	void HashFloatTolerance(double InValue, float InTolerance = FloatTolerance);
 
 	// Hash 3d point related value, taking care to absorb input error
 	void HashFixVector(const FVector& InVector, float InInvTolerance = FixedPointTolerance);

@@ -36,6 +36,5 @@ public class DatasmithUE4ArchiCADTarget : TargetRules
 		bHasExports = true;
 
 		GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0"); // For DirectLinkUI (see FDatasmithExporterManager::FInitOptions)
-		GlobalDefinitions.Add("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); // LARGE WORLD COORDINATES
 	}
 }
