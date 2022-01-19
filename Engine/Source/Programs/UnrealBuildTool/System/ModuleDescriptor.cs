@@ -281,7 +281,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							Log.TraceWarningTask(JsonFilePath, "Unknown platform {TargetPlatformName} while parsing deny list for module descriptor {Module.Name}");
+							Log.TraceWarningTask(JsonFilePath, $"Unknown platform {TargetPlatformName} while parsing deny list for module descriptor {Module.Name}");
 						}
 					}
 				}
