@@ -30,7 +30,7 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 	[
 		SAssignNew( SuggestionBox, SMenuAnchor )
 		.Method(GIsEditor ? EPopupMethod::CreateNewWindow : EPopupMethod::UseCurrentWindow)
-		.Placement( MenuPlacement_AboveAnchor )
+		.Placement( MenuPlacement_BelowAnchor )
 		[
 			SAssignNew(InputText, SEditableTextBox)
 			.Font(FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
