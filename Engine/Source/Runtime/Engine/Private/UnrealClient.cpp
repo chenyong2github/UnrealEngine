@@ -2218,7 +2218,10 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 	const FString FilenameSearchString = TEXT("filename=");
 
 	// FParse::Value has better handling of escape characters than FParse::Token
-	FParse::Value(Cmd, *FilenameSearchString, OutFilenameOverride);
+	if (!FParse::Value(Cmd, *FilenameSearchString, OutFilenameOverride))
+	{
+		OutFilenameOverride.Reset();
+	}
 
 	FString Arg;
 	while (FParse::Token(Cmd, Arg, true))
