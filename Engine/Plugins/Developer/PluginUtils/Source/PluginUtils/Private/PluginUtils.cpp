@@ -875,47 +875,52 @@ bool FPluginUtils::AddToPluginSearchPathIfNeeded(const FString& Dir, bool bRefre
 
 	const bool bIsEnginePlugin = FPaths::IsUnderDirectory(Dir, FPaths::EnginePluginsDir());
 	const bool bIsProjectPlugin = FPaths::IsUnderDirectory(Dir, FPaths::ProjectPluginsDir());
-	if (!bIsEnginePlugin && !bIsProjectPlugin)
+	const bool bIsModPlugin = FPaths::IsUnderDirectory(Dir, FPaths::ProjectModsDir());
+	const bool bIsEnterprisePlugin = FPaths::IsUnderDirectory(Dir, FPaths::EnterprisePluginsDir());
+	
+	if (bIsEnginePlugin || bIsProjectPlugin || bIsModPlugin || bIsEnterprisePlugin)
 	{
-		if (bUpdateProjectFile)
+		return false;
+	}
+	
+	if (bUpdateProjectFile)
+	{
+		bool bNeedToUpdate = true;
+		for (const FString& AdditionalDir : IProjectManager::Get().GetAdditionalPluginDirectories())
 		{
-			bool bNeedToUpdate = true;
-			for (const FString& AdditionalDir : IProjectManager::Get().GetAdditionalPluginDirectories())
+			if (FPaths::IsUnderDirectory(Dir, AdditionalDir))
 			{
-				if (FPaths::IsUnderDirectory(Dir, AdditionalDir))
-				{
-					bNeedToUpdate = false;
-					break;
-				}
-			}
-
-			if (bNeedToUpdate)
-			{
-				bSearchPathChanged = GameProjectUtils::UpdateAdditionalPluginDirectory(Dir, /*bAdd*/ true);
-			}
-		}
-		else
-		{
-			bool bNeedToUpdate = true;
-			for (const FString& AdditionalDir : IPluginManager::Get().GetAdditionalPluginSearchPaths())
-			{
-				if (FPaths::IsUnderDirectory(Dir, AdditionalDir))
-				{
-					bNeedToUpdate = false;
-					break;
-				}
-			}			
-
-			if (bNeedToUpdate)
-			{
-				bSearchPathChanged = IPluginManager::Get().AddPluginSearchPath(Dir, /*bShouldRefresh*/ false);
+				bNeedToUpdate = false;
+				break;
 			}
 		}
 
-		if (bSearchPathChanged && bRefreshPlugins)
+		if (bNeedToUpdate)
 		{
-			IPluginManager::Get().RefreshPluginsList();
+			bSearchPathChanged = GameProjectUtils::UpdateAdditionalPluginDirectory(Dir, /*bAdd*/ true);
 		}
+	}
+	else
+	{
+		bool bNeedToUpdate = true;
+		for (const FString& AdditionalDir : IPluginManager::Get().GetAdditionalPluginSearchPaths())
+		{
+			if (FPaths::IsUnderDirectory(Dir, AdditionalDir))
+			{
+				bNeedToUpdate = false;
+				break;
+			}
+		}			
+
+		if (bNeedToUpdate)
+		{
+			bSearchPathChanged = IPluginManager::Get().AddPluginSearchPath(Dir, /*bShouldRefresh*/ false);
+		}
+	}
+
+	if (bSearchPathChanged && bRefreshPlugins)
+	{
+		IPluginManager::Get().RefreshPluginsList();
 	}
 
 	return bSearchPathChanged;
