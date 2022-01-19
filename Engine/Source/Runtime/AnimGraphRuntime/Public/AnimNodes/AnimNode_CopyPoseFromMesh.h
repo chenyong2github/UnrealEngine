@@ -66,6 +66,7 @@ private:
 	// cache of target space bases to source space bases
 	TMap<int32, int32> BoneMapToSource;
 	TMap<FName, SmartName::UID_Type> CurveNameToUIDMap;
+	TMap<int32, int32> SourceBoneToTarget;
 
 	// Cached transforms, copied on the game thread
 	TArray<FTransform> SourceMeshTransformArray;
@@ -74,7 +75,7 @@ private:
 	TMap<FName, float> SourceCurveList;
 
 	// Cached attributes, copied on the game thread
-	UE::Anim::FHeapAttributeContainer SourceCustomAttributes;
+	UE::Anim::FMeshAttributeContainer SourceCustomAttributes;
 
 	// reinitialize mesh component 
 	void ReinitializeMeshComponent(USkeletalMeshComponent* NewSkeletalMeshComponent, USkeletalMeshComponent* TargetMeshComponent);

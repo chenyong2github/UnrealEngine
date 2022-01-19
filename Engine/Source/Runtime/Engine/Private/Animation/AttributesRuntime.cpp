@@ -155,7 +155,7 @@ void Attributes::ConvertToAdditive(const FStackAttributeContainer& BaseAttribute
 	}
 }
 
-void Attributes::CopyAndRemapAttributes(const FHeapAttributeContainer& SourceAttributes, FStackAttributeContainer& TargetAttributes, const TMap<int32, int32>& BoneMapToSource, const FBoneContainer& RequiredBones)
+void Attributes::CopyAndRemapAttributes(const FMeshAttributeContainer& SourceAttributes, FStackAttributeContainer& TargetAttributes, const TMap<int32, int32>& BoneMapToSource, const FBoneContainer& RequiredBones)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CopyAndRemapAttributes);
 
@@ -173,24 +173,26 @@ void Attributes::CopyAndRemapAttributes(const FHeapAttributeContainer& SourceAtt
 			{
 				const FAttributeId& AttributeId = AttributeIds[EntryIndex];
 
-				const FCompactPoseBoneIndex PoseBoneIndex = FCompactPoseBoneIndex(AttributeId.GetIndex());
-				const FMeshPoseBoneIndex MeshBoneIndex = RequiredBones.MakeMeshPoseIndex(PoseBoneIndex);
-				const int32* Value = BoneMapToSource.Find(MeshBoneIndex.GetInt());
-
+				const int32* Value = BoneMapToSource.Find(AttributeId.GetIndex());
 				// If there is no remapping the attribute will be dropped
 				if (Value)
 				{
-					const int32 RemappedBoneIndex = *Value;
-					const FAttributeId NewInfo(AttributeId.GetName(), RemappedBoneIndex, AttributeId.GetNamespace());
-					uint8* NewAttribute = TargetAttributes.FindOrAdd(ScriptStruct, NewInfo);
-					ScriptStruct->CopyScriptStruct(NewAttribute, SourceValues[EntryIndex].GetPtr<void>());
+					const FMeshPoseBoneIndex MeshPoseIndex(*Value);
+					const FSkeletonPoseBoneIndex RemappedPoseBoneIndex = RequiredBones.GetSkeletonPoseIndexFromMeshPoseIndex(MeshPoseIndex);
+					const FCompactPoseBoneIndex CompactPoseIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(RemappedPoseBoneIndex);
+					if (CompactPoseIndex.IsValid())
+					{
+						const FAttributeId NewInfo(AttributeId.GetName(), CompactPoseIndex.GetInt(), AttributeId.GetNamespace());
+						uint8* NewAttribute = TargetAttributes.FindOrAdd(ScriptStruct, NewInfo);
+						ScriptStruct->CopyScriptStruct(NewAttribute, SourceValues[EntryIndex].GetPtr<void>());
+					}
 				}
 			}
 		}
 	}
 }
 
-void Attributes::InterpolateAttributes(FHeapAttributeContainer& FromAttributes, const FHeapAttributeContainer& ToAttributes, float Alpha)
+void Attributes::InterpolateAttributes(FMeshAttributeContainer& FromAttributes, const FMeshAttributeContainer& ToAttributes, float Alpha)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_InterpolateAttributes);
 

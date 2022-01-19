@@ -11,6 +11,7 @@
 
 #include "Animation/AnimTypes.h"
 #include "Animation/WrappedAttribute.h"
+#include "BoneContainer.h"
 
 #include "BoneIndices.h"
 
@@ -41,6 +42,28 @@ namespace UE
 			int32 Index;
 		};
 
+		namespace Conversion
+		{
+			template<typename BoneIndexTypeA, typename BoneIndexTypeB>
+			BoneIndexTypeB MakeIndex(BoneIndexTypeA BoneIndex, const FBoneContainer& BoneContainer)
+			{
+				return BoneIndexTypeB();
+			}
+
+			template<>
+			inline FMeshPoseBoneIndex MakeIndex(FCompactPoseBoneIndex BoneIndex, const FBoneContainer& BoneContainer)
+			{
+				
+				return BoneContainer.MakeMeshPoseIndex(BoneIndex);
+			}
+			
+			template<>
+			inline FCompactPoseBoneIndex MakeIndex(FMeshPoseBoneIndex BoneIndex, const FBoneContainer& BoneContainer)
+			{
+				return BoneContainer.MakeCompactPoseIndex(BoneIndex);
+			}
+		}
+
 		/** Runtime container for Animation Attributes, providing a TMap like interface. Used in FStack*/
 		template<class BoneIndexType, typename InAllocator>
 		struct TAttributeContainer
@@ -65,6 +88,61 @@ namespace UE
 						TWrappedAttribute<InAllocator>& StructData = ValuesArray.Add_GetRef(WeakScriptStruct.Get());
 						WeakScriptStruct->CopyScriptStruct(StructData.template GetPtr<void>(), StructOnScope.template GetPtr<void>());
 					}
+				}
+			}
+					
+		public:
+
+			template<class OtherBoneIndexType, typename OtherAllocator>
+			void CopyFrom(const TAttributeContainer<OtherBoneIndexType, OtherAllocator>& Other, const FBoneContainer& BoneContainer)
+			{
+				UniqueTypes = Other.UniqueTypes;
+				AttributeIdentifiers.Empty(Other.AttributeIdentifiers.Num());
+				UniqueTypedBoneIndices.Empty(Other.UniqueTypedBoneIndices.Num());
+				Values.Empty(Other.Values.Num());
+				
+				const int32 NumTypes = Other.UniqueTypedBoneIndices.Num();
+				for (int32 TypeIndex = 0; TypeIndex < NumTypes; ++TypeIndex)
+				{
+					// Generate mapping for all contained unique bones to other container its index type
+					TMap<int32, BoneIndexType> IndexMapping;
+					const TArray<int32>& OtherTypeBoneIndices = Other.UniqueTypedBoneIndices[TypeIndex];
+					for (int32 Index : OtherTypeBoneIndices)
+					{
+						OtherBoneIndexType OtherIndex(Index);						
+						BoneIndexType MyIndex = Conversion::MakeIndex<OtherBoneIndexType, BoneIndexType>(OtherIndex, BoneContainer);
+						if (MyIndex.IsValid())
+						{
+							IndexMapping.Add(Index, MyIndex);
+						}			
+					}
+					
+					const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct = UniqueTypes[TypeIndex];
+					const TArray<FAttributeId>& OtherTypeAttributeIdentifiers = Other.AttributeIdentifiers[TypeIndex];
+					const TArray<TWrappedAttribute<OtherAllocator>>& OtherValuesArray = Other.Values[TypeIndex];					
+
+					// Populate an array entry for the type
+					TArray<FAttributeId>& TypeAttributeIdentifiers = AttributeIdentifiers.AddDefaulted_GetRef();
+					TArray<TWrappedAttribute<InAllocator>>& ValuesArray = Values.AddDefaulted_GetRef();
+					TArray<int32>& TypeBoneIndices = UniqueTypedBoneIndices.AddDefaulted_GetRef();
+
+					const int32 NumOtherAttributes = OtherTypeAttributeIdentifiers.Num();
+					for (int32 AttributeIndex = 0; AttributeIndex < NumOtherAttributes; ++AttributeIndex)
+					{
+						const FAttributeId& Id = OtherTypeAttributeIdentifiers[AttributeIndex];
+						const TWrappedAttribute<OtherAllocator>& Value = OtherValuesArray[AttributeIndex];
+
+						// If the bone index was mapped successfully - add the remapped attribute
+						if (const BoneIndexType* MyIndexPtr = IndexMapping.Find(Id.GetIndex()))
+						{
+							FAttributeId MappedId(Id.GetName(), MyIndexPtr->GetInt(), Id.GetNamespace());
+							TypeAttributeIdentifiers.Add(MappedId);
+							TWrappedAttribute<InAllocator>& StructData = ValuesArray.Add_GetRef(WeakScriptStruct.Get());							
+							WeakScriptStruct->CopyScriptStruct(StructData.template GetPtr<void>(), Value.template GetPtr<void>());
+							
+							TypeBoneIndices.AddUnique(MyIndexPtr->GetInt());
+						}
+					}	
 				}
 			}
 

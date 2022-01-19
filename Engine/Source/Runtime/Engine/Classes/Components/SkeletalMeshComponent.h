@@ -124,8 +124,8 @@ struct FAnimationEvaluationContext
 	FBlendedHeapCurve	CachedCurve;
 
 	// attribute data, swapped in from the component when we are running parallel eval
-	UE::Anim::FHeapAttributeContainer CustomAttributes;
-	UE::Anim::FHeapAttributeContainer CachedCustomAttributes;
+	UE::Anim::FMeshAttributeContainer CustomAttributes;
+	UE::Anim::FMeshAttributeContainer CachedCustomAttributes;
 
 	FAnimationEvaluationContext()
 	{
@@ -417,8 +417,8 @@ private:
 	FBlendedHeapCurve CachedCurve;
 
 	/** Current and cached attribute evaluation data, used for Update Rate optimization */
-	UE::Anim::FHeapAttributeContainer CachedAttributes;
-	UE::Anim::FHeapAttributeContainer CustomAttributes;
+	UE::Anim::FMeshAttributeContainer CachedAttributes;
+	UE::Anim::FMeshAttributeContainer CustomAttributes;
 public:
 	/** 
 	 * Get float type attribute value.
@@ -1892,12 +1892,12 @@ public:
 	* @param	OutCurves				Blended Curve
 	*/
 #if WITH_EDITOR
-	void PerformAnimationEvaluation(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve, UE::Anim::FHeapAttributeContainer& OutAttributes);
+	void PerformAnimationEvaluation(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve, UE::Anim::FMeshAttributeContainer& OutAttributes);
 
 	UE_DEPRECATED(4.26, "Please use PerformAnimationEvaluation with different signature")
 	void PerformAnimationEvaluation(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve);
 #endif
-	void PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve, UE::Anim::FHeapAttributeContainer& OutAttributes);
+	void PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve, UE::Anim::FMeshAttributeContainer& OutAttributes);
 
 	UE_DEPRECATED(4.26, "Please use PerformAnimationEvaluation with different signature")
 	void PerformAnimationProcessing(const USkeletalMesh* InSkeletalMesh, UAnimInstance* InAnimInstance, bool bInDoEvaluation, TArray<FTransform>& OutSpaceBases, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FBlendedHeapCurve& OutCurve);
@@ -2374,6 +2374,9 @@ private:
 	// Finalizes pose to OutBoneSpaceTransforms
 	void FinalizePoseEvaluationResult(const USkeletalMesh* InMesh, TArray<FTransform>& OutBoneSpaceTransforms, FVector& OutRootBoneTranslation, FCompactPose& InFinalPose) const;
 
+	// Finalizes attributes (remapping from compact to mesh bone-indices)
+	void FinalizeAttributeEvaluationResults(const FBoneContainer& BoneContainer, const UE::Anim::FHeapAttributeContainer& FinalContainer, UE::Anim::FMeshAttributeContainer& OutContainer) const;
+
 	friend class FParallelBlendPhysicsTask;
 	
 	void BlendInPhysicsInternal(FTickFunction& ThisTickFunction);
@@ -2471,12 +2474,12 @@ public:
 
 private:
 	/** Temporary array of attributes that are active on this component - keeps same buffer index as SpaceBases - Please check SkinnedMeshComponent*/
-	UE::Anim::FHeapAttributeContainer AttributesArray[2];
+	UE::Anim::FMeshAttributeContainer AttributesArray[2];
 
-	UE::Anim::FHeapAttributeContainer& GetEditableCustomAttributes() { return AttributesArray[CurrentEditableComponentTransforms]; }
+	UE::Anim::FMeshAttributeContainer& GetEditableCustomAttributes() { return AttributesArray[CurrentEditableComponentTransforms]; }
 
 public:
-	const UE::Anim::FHeapAttributeContainer& GetCustomAttributes() const { return AttributesArray[CurrentReadComponentTransforms]; }
+	const UE::Anim::FMeshAttributeContainer& GetCustomAttributes() const { return AttributesArray[CurrentReadComponentTransforms]; }
 public:
 	/** Skeletal mesh component should not be able to have its mobility set to static */
 	virtual const bool CanHaveStaticMobility() const override { return false; }

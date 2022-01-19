@@ -4755,7 +4755,11 @@ void UAnimSequence::EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData,
 		for (const FAnimatedBoneAttribute& Attribute : DataModel->GetAttributes())
 		{
 			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(Attribute.Identifier.GetBoneIndex());
-			UE::Anim::Attributes::GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext);
+			// Only add attribute if the bone its tied to exists in the currently evaluated set of bones
+			if(PoseBoneIndex.IsValid())
+			{
+				UE::Anim::Attributes::GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext);
+			}
 		}
 	}
 	else
@@ -4764,10 +4768,13 @@ void UAnimSequence::EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData,
 		for (const TPair<FAnimationAttributeIdentifier, FAttributeCurve>& BakedAttribute : AttributeCurves)
 		{
 			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BakedAttribute.Key.GetBoneIndex());
-			UE::Anim::FAttributeId Info(BakedAttribute.Key.GetName(), PoseBoneIndex);
-			uint8* AttributePtr = OutAttributes.FindOrAdd(BakedAttribute.Key.GetType(), Info);
-
-			BakedAttribute.Value.EvaluateToPtr(BakedAttribute.Key.GetType(), ExtractionContext.CurrentTime, AttributePtr);
+			// Only add attribute if the bone its tied to exists in the currently evaluated set of bones
+			if(PoseBoneIndex.IsValid())
+			{
+				UE::Anim::FAttributeId Info(BakedAttribute.Key.GetName(), PoseBoneIndex);
+				uint8* AttributePtr = OutAttributes.FindOrAdd(BakedAttribute.Key.GetType(), Info);
+				BakedAttribute.Value.EvaluateToPtr(BakedAttribute.Key.GetType(), ExtractionContext.CurrentTime, AttributePtr);
+			}
 		}
 	}
 }

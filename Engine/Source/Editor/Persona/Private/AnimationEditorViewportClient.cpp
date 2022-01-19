@@ -742,7 +742,7 @@ void FAnimationViewportClient::ShowAttributeNames(FCanvas* Canvas, FSceneView* V
 		const int32 HalfX = Viewport->GetSizeXY().X / 2 / GetDPIScale();
 		const int32 HalfY = Viewport->GetSizeXY().Y / 2 / GetDPIScale();
 
-		const UE::Anim::FHeapAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
+		const UE::Anim::FMeshAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
 
 		const int32 TransformAnimationAttributeTypeIndex = Attributes.FindTypeIndex(FTransformAnimationAttribute::StaticStruct());
 		if (TransformAnimationAttributeTypeIndex != INDEX_NONE)
@@ -1617,7 +1617,7 @@ void FAnimationViewportClient::DrawAttributes(UDebugSkelMeshComponent* MeshCompo
 {
 	if (MeshComponent && MeshComponent->SkeletalMesh)
 	{
-		const UE::Anim::FHeapAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
+		const UE::Anim::FMeshAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
 
 		const int32 TransformAnimationAttributeTypeIndex = Attributes.FindTypeIndex(FTransformAnimationAttribute::StaticStruct());
 		if (TransformAnimationAttributeTypeIndex != INDEX_NONE)

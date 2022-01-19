@@ -21,6 +21,8 @@ struct FBoneIndexBase
 
 	FORCEINLINE explicit operator bool() const { return IsValid(); }
 
+	friend FORCEINLINE uint32 GetTypeHash(const FBoneIndexBase& Index) { return GetTypeHash(Index.BoneIndex); }
+
 protected:
 	int32 BoneIndex;
 };

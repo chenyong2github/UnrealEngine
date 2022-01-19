@@ -234,7 +234,7 @@ void FAnimNode_CopyPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	if (bCopyCustomAttributes)
 	{	
 		const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
-		UE::Anim::Attributes::CopyAndRemapAttributes(SourceCustomAttributes, Output.CustomAttributes, BoneMapToSource, RequiredBones);		
+		UE::Anim::Attributes::CopyAndRemapAttributes(SourceCustomAttributes, Output.CustomAttributes, SourceBoneToTarget, RequiredBones);		
 	}
 }
 
@@ -314,6 +314,15 @@ void FAnimNode_CopyPoseFromMesh::ReinitializeMeshComponent(USkeletalMeshComponen
 						}
 					}
 				}
+			}
+
+			if (bCopyCustomAttributes)
+			{
+				SourceBoneToTarget.Reserve(BoneMapToSource.Num());
+				Algo::Transform(BoneMapToSource, SourceBoneToTarget, [](const TPair<int32, int32>& Pair)
+				{
+					return TPair<int32, int32>(Pair.Value, Pair.Key);
+				});
 			}
 		}
 	}

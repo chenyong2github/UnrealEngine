@@ -200,7 +200,7 @@ namespace UE
 				{
 					const FAttributeId& Identifier = It.GetIdentifier();
 					AttributeType* OutAttribute = OutAttributes->FindOrAdd<AttributeType>(Identifier);
-					(*OutAttribute) = It.GetHighestBoneWeightedValue();
+					AttributeType::StaticStruct()->CopyScriptStruct(OutAttribute, &It.GetHighestBoneWeightedValue());
 				});
 
 				BlendData.ForEachUniqueAttribute<AttributeType>([OutAttributes](typename FAttributeBlendData::template TSingleIterator<AttributeType>& It) -> void
@@ -221,7 +221,7 @@ namespace UE
 							const bool bHighestWeight = It.IsHighestBoneWeighted();
 							if (bHighestWeight || ExistingIndex == INDEX_NONE)
 							{
-								OutAttribute = Attribute;
+								AttributeType::StaticStruct()->CopyScriptStruct(OutAttributePtr, &Attribute);
 							}
 						}
 					}
@@ -261,7 +261,7 @@ namespace UE
 
 						// Find or add as the attribute might already exist, so Add would fail
 						AttributeType& OutAttribute = *OutAttributes->FindOrAdd<AttributeType>(Identifier);
-						OutAttribute = Attribute;
+						AttributeType::StaticStruct()->CopyScriptStruct(&OutAttribute, &Attribute);
 					}
 				});
 			}			
@@ -312,7 +312,7 @@ namespace UE
 						const float AttributeWeight = It.GetWeight();
 						if (ExistingIndex == INDEX_NONE || AttributeWeight > 0.5f)
 						{
-							OutAttribute = Attribute;
+							AttributeType::StaticStruct()->CopyScriptStruct(OutAttributePtr, &Attribute);
 						}
 					}
 				});
@@ -354,8 +354,8 @@ namespace UE
 						// 'Accumulate' value if the attribute did not yet exist, or based upon being the highest weighted attribute
 						const float AttributeWeight = It.GetWeight();
 						if (ExistingIndex == INDEX_NONE)
-						{
-							OutAttribute = Attribute;
+						{							
+							AttributeType::StaticStruct()->CopyScriptStruct(OutAttributePtr, &Attribute);
 						}
 					}
 				});
