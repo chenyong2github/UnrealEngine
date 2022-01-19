@@ -423,10 +423,10 @@ public:
 	}
 
 	/**
-	 *	Checks whether a number is a power of two.
-	 *	@param Value	Number to check
-	 *	@return			true if Value is a power of two
-	 */
+	*	Checks whether a number is a power of two.
+	*	@param Value	Number to check
+	*	@return			true if Value is a power of two
+	*/
 	template <typename T>
 	UE_NODISCARD static constexpr FORCEINLINE bool IsPowerOfTwo( T Value )
 	{
