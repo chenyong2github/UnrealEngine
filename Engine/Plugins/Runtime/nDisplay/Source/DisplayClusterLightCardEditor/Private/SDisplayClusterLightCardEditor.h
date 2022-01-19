@@ -11,6 +11,7 @@ class FLayoutExtender;
 class FSpawnTabArgs;
 class FToolBarBuilder;
 class SDockTab;
+class SDisplayClusterLightCardList;
 class ADisplayClusterRootActor;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
@@ -48,12 +49,16 @@ private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
 
+	/** Creates the widget used to show the list of light cards associated with the active root actor */
+	TSharedRef<SWidget> CreateLightCardListWidget();
+
 private:
-	/** Holds the tab manager that manages the light card editor's tabs. */
-	TSharedPtr<FTabManager> TabManager;
+	/** The light card list widget */
+	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
 
 	/** A reference to the root actor that is currently being operated on */
 	TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor;
 
+	/** Delegate handle for the OnActiveRootActorChanged delegate */
 	FDelegateHandle ActiveRootActorChangedHandle;
 };

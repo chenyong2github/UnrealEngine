@@ -2,6 +2,8 @@
 
 #include "SDisplayClusterLightCardEditor.h"
 
+#include "SDisplayClusterLightCardList.h"
+
 #include "IDisplayClusterOperator.h"
 #include "DisplayClusterRootActor.h"
 
@@ -11,6 +13,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SSplitter.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterLightCardEditor"
 
@@ -64,25 +67,25 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 {
 	ActiveRootActorChangedHandle = IDisplayClusterOperator::Get().OnActiveRootActorChanged().AddSP(this, &SDisplayClusterLightCardEditor::OnActiveRootActorChanged);
 
-    TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
-
-	// TODO: Register the various tabs for the light card editor here
-
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("nDisplayLightCardEditorLayout")
-		->AddArea
-		(
-			FTabManager::NewPrimaryArea()
-			->SetOrientation(EOrientation::Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetHideTabWell(true)
-			)
-		);
-
-	ChildSlot
+	ChildSlot                     
 	[
-		TabManager->RestoreFrom(Layout, WindowOwner).ToSharedRef()
+		SNew(SSplitter)
+		.Orientation(Orient_Horizontal)
+		
+		+SSplitter::Slot()
+		.Value(0.25f)
+		[
+			// Vertical box for the left hand panel of the editor. Add new slots here as needed for any editor UI controls
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			[
+				CreateLightCardListWidget()
+			]
+		]
+
+		+SSplitter::Slot()
+		.Value(0.75f)
 	];
 }
 
@@ -90,6 +93,12 @@ void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRoo
 {
 	ActiveRootActor = NewRootActor;
 
-	// TODO: Need to pass a refresh command to any child tabs of this widget to inform them that the active root actor has been changed.
-	// The new root actor pointer could be null, indicating that it was deleted or the user didn't select a valid root actor
+	LightCardList->SetRootActor(NewRootActor);
 }
+
+TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
+{
+	return SAssignNew(LightCardList, SDisplayClusterLightCardList);
+}
+
+#undef LOCTEXT_NAMESPACE

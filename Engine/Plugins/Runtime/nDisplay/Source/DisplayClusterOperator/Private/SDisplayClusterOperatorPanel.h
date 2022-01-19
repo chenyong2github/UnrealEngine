@@ -11,6 +11,7 @@ class FSpawnTabArgs;
 class FMenuBuilder;
 class SDockTab;
 class SWindow;
+class SDisplayClusterOperatorToolbar;
 
 /** The nDisplay operator panel that allows users to edit root actor instances with a variety of tools */
 class SDisplayClusterOperatorPanel : public SCompoundWidget
@@ -62,6 +63,9 @@ private:
 
 	/** The layout extender used by the operator's layout */
 	TSharedPtr<FLayoutExtender> LayoutExtender;
+
+	/** A reference to the operator panel's toolbar widget */
+	TSharedPtr<SDisplayClusterOperatorToolbar> Toolbar;
 
 	/** A reference to the operator panel's details view */
 	TSharedPtr<class IDetailsView> DetailsView;

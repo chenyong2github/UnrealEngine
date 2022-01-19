@@ -84,14 +84,14 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 					(
 						FTabManager::NewStack()
 							->SetExtensionId(TabExtensionId)
-							->SetSizeCoefficient(0.8f)
+							->SetSizeCoefficient(0.67f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 							->AddTab(DetailsTabId, ETabState::OpenedTab)
 							->SetHideTabWell(true)
-							->SetSizeCoefficient(0.2f)
+							->SetSizeCoefficient(0.33f)
 					)
 			)
 		);
@@ -106,6 +106,16 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 	[
 		TabManager->RestoreFrom(Layout, WindowOwner).ToSharedRef()
 	];
+
+	// TODO: Move ownership of active root controller to a view model object, instead of letting the toolbar control which root actor is active
+	if (Toolbar.IsValid())
+	{
+		TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor = Toolbar->GetActiveRootActor();
+		if (ActiveRootActor.IsValid())
+		{
+			IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(ActiveRootActor.Get());
+		}
+	}
 }
 
 TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnToolbarTab(const FSpawnTabArgs& Args)
@@ -114,7 +124,7 @@ TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnToolbarTab(const FSpawnT
 		.ShouldAutosize(true)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SNew(SDisplayClusterOperatorToolbar)
+			SAssignNew(Toolbar, SDisplayClusterOperatorToolbar)
 				.CommandList(TSharedPtr<FUICommandList>())
 		];
 }

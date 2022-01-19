@@ -26,6 +26,9 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	/** Gets the root actor that is currently selected in the toolbar */
+	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
+
 private:
 	/** 
 	 * Constructs the list of root actors that exist on the current level to use for the root actor picker dropdown.
