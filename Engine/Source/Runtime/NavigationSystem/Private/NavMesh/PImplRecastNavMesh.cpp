@@ -619,25 +619,34 @@ void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 		
 		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(NavMeshOwner->GetWorld());
 
-		// Need to keep the check !IsRunningCommandlet() for the case where maps are cooked and saved from UCookCommandlet.
-		// In that flow the nav bounds are not set (no bounds means no tiles to save and the navmesh would be saved without tiles).
-		// This flow would benefit to be revisited since navmesh serialization should not be different whether it was run or not by a commandlet.
-		// Fixes missing navmesh regression (UE-103604).
-		if (NavMeshOwner->SupportsStreaming() && NavSys && !IsRunningCommandlet())
+		if (NavMeshOwner->bIsWorldPartitioned)
 		{
-			// We save only tiles that belongs to this level
-			GetNavMeshTilesIn(NavMeshOwner->GetNavigableBoundsInLevel(NavMeshOwner->GetLevel()), TilesToSave);
+			// Ignore (leave TilesToSave empty so no tiles are saved).
+			// Navmesh data are stored in ANavigationDataChunkActor.
+			UE_LOG(LogNavigation, VeryVerbose, TEXT("%s Ar.IsSaving() no tiles are being saved because bIsWorldPartitioned=true in %s."), ANSI_TO_TCHAR(__FUNCTION__), *NavMeshOwner->GetFullName());
 		}
 		else
 		{
-			// Otherwise all valid tiles
-			dtNavMesh const* ConstNavMesh = DetourNavMesh;
-			for (int i = 0; i < ConstNavMesh->getMaxTiles(); ++i)
+			// Need to keep the check !IsRunningCommandlet() for the case where maps are cooked and saved from UCookCommandlet.
+			// In that flow the nav bounds are not set (no bounds means no tiles to save and the navmesh would be saved without tiles).
+			// This flow would benefit to be revisited since navmesh serialization should not be different whether it was run or not by a commandlet.
+			// Fixes missing navmesh regression (UE-103604).
+			if (NavMeshOwner->SupportsStreaming() && NavSys && !IsRunningCommandlet())
 			{
-				const dtMeshTile* Tile = ConstNavMesh->getTile(i);
-				if (Tile != NULL && Tile->header != NULL && Tile->dataSize > 0)
+				// We save only tiles that belongs to this level
+				GetNavMeshTilesIn(NavMeshOwner->GetNavigableBoundsInLevel(NavMeshOwner->GetLevel()), TilesToSave);
+			}
+			else
+			{
+				// Otherwise all valid tiles
+				dtNavMesh const* ConstNavMesh = DetourNavMesh;
+				for (int i = 0; i < ConstNavMesh->getMaxTiles(); ++i)
 				{
-					TilesToSave.Add(i);
+					const dtMeshTile* Tile = ConstNavMesh->getTile(i);
+					if (Tile != NULL && Tile->header != NULL && Tile->dataSize > 0)
+					{
+						TilesToSave.Add(i);
+					}
 				}
 			}
 		}

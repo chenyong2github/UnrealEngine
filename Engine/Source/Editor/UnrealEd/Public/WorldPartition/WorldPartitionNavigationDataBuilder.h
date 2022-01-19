@@ -22,9 +22,9 @@ protected:
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
-	bool GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds);
+	bool GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds) const;
 
-	bool SavePackages(const TArray<UPackage*>& PackagesToSave);
+	bool SavePackages(const TArray<UPackage*>& PackagesToSave) const;
 
 	bool bCleanBuilderPackages = false;
 };

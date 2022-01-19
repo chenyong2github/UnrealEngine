@@ -373,6 +373,10 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
 	UPROPERTY(EditAnywhere, Category = Generation)
 	uint32 bFixedTilePoolSize : 1;
 
+	/* In a world partitioned map, is this navmesh using world partitioning */
+	UPROPERTY(EditAnywhere, Category = Generation)
+	uint32 bIsWorldPartitioned : 1;
+	
 	FRecastNavMeshGenerationProperties();
 	FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh);
 };
@@ -697,6 +701,10 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category=Generation, config)
 	uint32 bSortNavigationAreasByCost:1;
 
+	/* In a world partitioned map, is this navmesh using world partitioning */
+	UPROPERTY(EditAnywhere, Category=Generation, config)
+	uint32 bIsWorldPartitioned : 1;
+	
 	/** controls whether voxel filtering will be applied (via FRecastTileGenerator::ApplyVoxelFilter). 
 	 *	Results in generated navmesh better fitting navigation bounds, but hits (a bit) generation performance */
 	UPROPERTY(EditAnywhere, Category=Generation, config, AdvancedDisplay)

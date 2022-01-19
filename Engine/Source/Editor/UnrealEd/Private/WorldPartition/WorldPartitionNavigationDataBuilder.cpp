@@ -75,7 +75,6 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	// Destroy any existing navigation data chunk actors within bounds we are generating, we will make new ones.
 	int32 Count = 0;
 	const FBox GeneratingBounds = InCellInfo.Bounds.ExpandBy(-IterativeCellOverlapSize);
-
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   GeneratingBounds %s"), *GeneratingBounds.ToString());
 	
 	for (TActorIterator<ANavigationDataChunkActor> It(World); It; ++It)
@@ -149,6 +148,8 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	}
 
 	TArray<UPackage*> PackagesToSave;
+	
+	TArray<UPackage*> PackagesToAdd;
 	TArray<UPackage*> PackagesToDelete;
 
 	for (UPackage* ActorPackage : NavigationDataChunkActorPackages)
@@ -159,6 +160,10 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			if (UPackage::IsEmptyPackage(ActorPackage))
 			{
 				PackagesToDelete.Add(ActorPackage);
+			}
+			else
+			{
+				PackagesToAdd.Add(ActorPackage);
 			}
 
 			// Save all packages (we need to also save the ones we are deleting).
@@ -186,7 +191,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	if (!PackagesToSave.IsEmpty())
 	{
 		{
-			// Checkout packages to save
+			// Checkout or remove read-only for packages to save
 			TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackages);
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Checking out %d packages."), PackagesToSave.Num());
 
@@ -222,7 +227,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Adding packages to source control."));
 
-			for (UPackage* Package : PackagesToSave)
+			for (UPackage* Package : PackagesToAdd)
 			{
 				if (!PackageHelper.AddToSourceControl(Package))
 				{
@@ -238,14 +243,14 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	return true;
 }
 
-FName GetCellName(UWorldPartition* WorldPartition, const UActorPartitionSubsystem::FCellCoord& InCellCoord)
+FName GetCellName(const UWorldPartition* WorldPartition, const UActorPartitionSubsystem::FCellCoord& InCellCoord)
 {
 	const FString PackageName = FPackageName::GetShortName(WorldPartition->GetPackage());
 	const FString PackageNameNoPIEPrefix = UWorld::RemovePIEPrefix(PackageName);
-	return FName(*FString::Printf(TEXT("%s_%i_%i"), *PackageNameNoPIEPrefix, InCellCoord.X, InCellCoord.Y));
+	return FName(*FString::Printf(TEXT("%s_%lld_%lld"), *PackageNameNoPIEPrefix, InCellCoord.X, InCellCoord.Y));
 }
 
-bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds)
+bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionNavigationDataBuilder::GenerateNavigationData);
 
@@ -289,8 +294,6 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 	}
 
 	// For each cell, gather navmesh and generate a datachunk actor
-	const FBox WorldBounds = WorldPartition->GetWorldBounds();
-
 	int32 ActorCount = 0;
 
 	// Keep track of all valid navigation data chunk actors
@@ -298,7 +301,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 
 	// A DataChunkActor will be generated for each tile touching the generating bounds.
 	const TSubclassOf<APartitionActor>& NavigationDataActorClass = ANavigationDataChunkActor::StaticClass();
-	FIntRect GeneratingBounds2D(GeneratingBounds.Min.X, GeneratingBounds.Min.Y, GeneratingBounds.Max.X, GeneratingBounds.Max.Y);
+	const FIntRect GeneratingBounds2D(GeneratingBounds.Min.X, GeneratingBounds.Min.Y, GeneratingBounds.Max.X, GeneratingBounds.Max.Y);
 	FActorPartitionGridHelper::ForEachIntersectingCell(NavigationDataActorClass, GeneratingBounds2D, World->PersistentLevel,
 		[&WorldPartition, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FIntRect& InCellBounds)->bool
 		{
@@ -354,7 +357,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 	return true;
 }
 
-bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>& PackagesToSave)
+bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>& PackagesToSave) const
 {
 	// Save packages
 	TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackages);

@@ -934,10 +934,13 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 
 			uint32 ProcessID;
 
-			const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s %s %s %s"),
+			ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+
+			const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s %s -SCCProvider=%s %s %s"),
 				*ProjectPath,
 				*InLongPackageName,
-				TEXT(" -AllowCommandletRendering -Builder=WorldPartitionNavigationDataBuilder -SCCProvider=None -log=WPNavigationBuilderLog.txt"), 
+				TEXT(" -AllowCommandletRendering -Builder=WorldPartitionNavigationDataBuilder -log=WPNavigationBuilderLog.txt"),
+				*SCCProvider.GetName().ToString(),
 				DefaultBuildNavigationOptions->bVerbose ? TEXT("-Verbose") : TEXT(""),
 				DefaultBuildNavigationOptions->bCleanPackages ? TEXT("-CleanPackages") : TEXT(""));
 				
@@ -962,6 +965,10 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 		{	
 			if (Result == 0)
 			{
+				// Force a directory watcher tick for the asset registry to get notified of the changes
+				FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
+				DirectoryWatcherModule.Get()->Tick(-1.0f);
+				
 				// Unload any loaded map
 				if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
 				{
@@ -976,10 +983,6 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 			
 				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
 				AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
-
-				// Force a directory watcher tick for the asset registry to get notified of the changes
-				FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
-				DirectoryWatcherModule.Get()->Tick(-1.0f);
 			
 				FEditorFileUtils::LoadMap(MapToLoad);
 			}
