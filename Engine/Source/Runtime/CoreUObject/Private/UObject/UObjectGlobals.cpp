@@ -972,7 +972,7 @@ UObject* StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* In
 			const FString Error = FText::Format(NSLOCTEXT("Core", "ObjectNotFound", "Failed to find object '{ClassName} {OuterName}.{ObjectName}'"), Arguments).ToString();
 			SafeLoadError(InOuter, LoadFlags, *Error);
 
-			if (InOuter)
+			if (InOuter && !InOuter->HasAnyFlags(RF_WasLoaded))
 			{
 				// Stop future repeated warnings
 				FLinkerLoad::AddKnownMissingPackage(FName(*InOuter->GetPathName()));
