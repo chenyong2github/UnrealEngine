@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "EditorStyleSet.h"
+#include "Engine/StaticMesh.h"
 
 class FNaniteToolCommands : public TCommands<FNaniteToolCommands>
 {
