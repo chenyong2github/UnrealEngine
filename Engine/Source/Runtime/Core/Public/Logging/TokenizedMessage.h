@@ -10,6 +10,7 @@
 #include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
+#include "Misc/Guid.h"
 
 /** The severity of the message type */
 namespace EMessageSeverity
