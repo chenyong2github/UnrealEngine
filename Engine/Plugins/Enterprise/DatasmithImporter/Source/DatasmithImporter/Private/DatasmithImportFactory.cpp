@@ -561,7 +561,7 @@ bool UDatasmithImportFactory::Import( FDatasmithImportContext& ImportContext )
 	{
 		ImportContext.DisplayMessages();
 
-		if ( bImportSuccess && !bOutOperationCanceled )
+		if ( bImportSuccess && !bOutOperationCanceled && !ImportContext.bIsAReimport )
 		{
 			IDatasmithContentEditorModule& ContentEditorModule = IDatasmithContentEditorModule::Get();
 			const bool bIsAutoReimportAvailable = ContentEditorModule.IsAssetAutoReimportAvailable( ImportContext.SceneAsset ).Get( false );
