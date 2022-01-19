@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 				"SourceControl",
 				"AIModule",
 				"SmartObjectsModule",
+				"MassEntity"
 			}
 			);
 
