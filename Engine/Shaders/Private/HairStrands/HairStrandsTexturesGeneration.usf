@@ -334,7 +334,7 @@ void MainPS(
 	out float4 OutTangent	: SV_Target1,
 	out float  OutCoverage	: SV_Target2,
 	out float4 OutAttribute : SV_Target3,
-	out float  OutGroupIndex : SV_Target4,
+	out float4 OutGroupIndex : SV_Target4,
 	out uint   OutTriangleMask : SV_Target5,
 	out float  OutDepthTest	: SV_Depth)
 {
@@ -424,7 +424,7 @@ void MainPS(
 		OutCoverage /= SampleCount;
 		OutTangent.xyz = (Tangent_FrameSpace + 1) * 0.5f;
 		OutTangent.w = 1;
-		OutGroupIndex = InVF_GroupIndex / 255.f;
+		OutGroupIndex = float4(InVF_GroupIndex / 255.f, 0, 0, 0);
 	}
 	else
 	{
