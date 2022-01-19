@@ -922,7 +922,15 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->NotifyPropertyChanged(); }),
+					FExecuteAction::CreateLambda([=]() 
+					{
+						Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop;
+						Settings->NotifyPropertyChanged(); 
+
+						//Reset all systems so that currently inactive systems will begin to loop.
+						FNiagaraSystemUpdateContext UpdateContext;
+						UpdateContext.AddAll(false);
+					}),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Loop; })
 				),
