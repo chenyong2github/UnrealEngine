@@ -189,13 +189,30 @@ void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, co
 
 	if (GetDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
 	{
+		bool bShouldExecute = true;
+		
 		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 			FindCommandInfoByName(InName); CommandInfo.IsValid())
 		{
-			if (CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue))
+			bShouldExecute = CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue);
+		}
+
+		if (bShouldExecute)
+		{
+			GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
+				*FString::Printf(TEXT("%s %s"), *InName, *InValue));
+			
+			EditingPresetAsset->AddOrSetConsoleObjectSavedData(
+				{
+					InName,
+					InValue,
+					ECheckBoxState::Checked
+				}
+			);
+
+			if (MainPanel->GetEditorListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
 			{
-				GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
-					*FString::Printf(TEXT("%s %s"), *InName, *InValue));
+				MainPanel->RebuildList();
 			}
 		}
 	}

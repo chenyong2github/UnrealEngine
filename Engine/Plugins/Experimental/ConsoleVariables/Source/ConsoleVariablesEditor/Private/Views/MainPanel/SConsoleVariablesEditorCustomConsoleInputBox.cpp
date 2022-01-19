@@ -130,6 +130,14 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 	];
 }
 
+SConsoleVariablesEditorCustomConsoleInputBox::~SConsoleVariablesEditorCustomConsoleInputBox()
+{
+	MainPanelWidget.Reset();
+	InputText.Reset();
+	SuggestionBox.Reset();
+	SuggestionListView.Reset();
+}
+
 FReply SConsoleVariablesEditorCustomConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent)
 {
 	if(SuggestionBox->IsOpen())
@@ -255,7 +263,7 @@ void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& In
 	}
 }
 
-FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
+FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const
 {
 	// Intercept tab if used for auto-complete
 	if (InCharacterEvent.GetCharacter() == '\t')

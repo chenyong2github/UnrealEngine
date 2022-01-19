@@ -213,6 +213,10 @@ struct FConsoleVariablesEditorCommandInfo
 			
 			return !AsVariable->GetString().Equals(InValueToCompare);
 		}
+		else if (ObjectType == EConsoleObjectType::NullObject || ObjectType == EConsoleObjectType::Command)
+		{
+			return true;
+		}
 
 		return false;
 	}

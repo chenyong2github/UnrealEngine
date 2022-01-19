@@ -72,13 +72,15 @@ public:
 
 	void Construct(const FArguments& InArgs, TWeakPtr<SConsoleVariablesEditorMainPanel> InMainPanelWidget);
 
+	virtual ~SConsoleVariablesEditorCustomConsoleInputBox() override;
+
 	//~ Begin SWidget Interface
 	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent) override;
 	//~ End SWidget Interface
 
 	void OnTextChanged(const FText& InText);
 
-	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent);
+	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const;
 
 	FReply HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
 	

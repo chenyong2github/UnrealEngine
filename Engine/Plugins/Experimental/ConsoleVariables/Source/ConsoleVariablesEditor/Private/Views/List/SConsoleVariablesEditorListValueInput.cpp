@@ -91,7 +91,7 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 			{
 				if (const IConsoleVariable* AsVariable = Item.Pin()->GetCommandInfo().Pin()->GetConsoleVariablePtr())
 				{
-					return FCString::Atof(*AsVariable->GetString());
+					return FCString::Atof(*FString::SanitizeFloat(AsVariable->GetFloat()));
 				}
 			}
 
@@ -100,9 +100,9 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 		.OnValueChanged_Lambda([this] (const float InValue)
 		{
 			check (Item.IsValid());
-			
+					
 			const FString ValueAsString = FString::SanitizeFloat(InValue);
-			
+					
 			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin();
 				!PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
@@ -110,7 +110,7 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
 					PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-			
+					
 				PinnedItem->SetCachedValue(ValueAsString);
 			}
 		})
@@ -450,6 +450,7 @@ void SConsoleVariablesEditorListValueInput_Command::Construct(const FArguments& 
 				return FReply::Unhandled();
 			})
 			.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
+			.ContentPadding(FMargin(0.f))
 			[
 				SNew(STextBlock)
 				.Justification(ETextJustify::Center)

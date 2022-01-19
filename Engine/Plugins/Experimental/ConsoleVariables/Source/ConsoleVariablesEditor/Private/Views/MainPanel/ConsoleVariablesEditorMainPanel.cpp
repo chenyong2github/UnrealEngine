@@ -54,14 +54,10 @@ TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingA
 }
 
 void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
-	const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow) const
+	const FString InConsoleCommand, const FString InValue, const bool bScrollToNewRow) const
 {
-	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
-	
-	if (EditingAsset.IsValid())
+	if (const TObjectPtr<UConsoleVariablesAsset> Asset = GetEditingAsset())
 	{
-		UConsoleVariablesAsset* Asset = EditingAsset.Get();
-
 		Asset->AddOrSetConsoleObjectSavedData(
 			{
 				InConsoleCommand,
@@ -77,7 +73,7 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::RebuildList(const FString& InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorMainPanel::RebuildList(const FString InConsoleCommandToScrollTo) const
 {
 	if (EditorList.IsValid())
 	{

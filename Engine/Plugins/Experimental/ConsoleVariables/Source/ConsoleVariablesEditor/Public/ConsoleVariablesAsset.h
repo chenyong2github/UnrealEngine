@@ -63,13 +63,13 @@ public:
 	}
 
 	/** Outputs the FConsoleVariablesEditorCommandInfo matching InCommand. Returns whether a match was found. Case sensitive. */
-	bool FindSavedDataByCommandString(const FString& InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const;
+	bool FindSavedDataByCommandString(const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const;
 
 	/** Set the value of a saved console variable if the name matches; add a new console variable to the list if a match is not found. */
 	void AddOrSetConsoleObjectSavedData(const FConsoleVariablesEditorAssetSaveData& InData);
 
 	/** Returns true if the element was found and successfully removed. */
-	bool RemoveConsoleVariable(const FString& InCommandString);
+	bool RemoveConsoleVariable(const FString InCommandString);
 
 	/** Copy data from input asset to this asset */
 	void CopyFrom(const UConsoleVariablesAsset* InAssetToCopy);

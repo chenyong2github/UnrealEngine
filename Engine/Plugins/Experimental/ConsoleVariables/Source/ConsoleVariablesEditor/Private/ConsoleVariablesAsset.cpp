@@ -2,6 +2,7 @@
 
 #include "ConsoleVariablesAsset.h"
 
+#include "ConsoleVariablesEditorModule.h"
 #include "Algo/Find.h"
 
 void UConsoleVariablesAsset::SetVariableCollectionDescription(const FString& InVariableCollectionDescription)
@@ -14,7 +15,7 @@ void UConsoleVariablesAsset::ReplaceSavedCommands(const TArray<FConsoleVariables
 	SavedCommands = Replacement;
 }
 
-bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString& InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
+bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
 {
 	if (const auto* Match = Algo::FindByPredicate(
 		SavedCommands,
@@ -32,11 +33,28 @@ bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString& InComma
 
 void UConsoleVariablesAsset::AddOrSetConsoleObjectSavedData(const FConsoleVariablesEditorAssetSaveData& InData)
 {
+	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+
+	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			ConsoleVariablesEditorModule.FindCommandInfoByName(InData.CommandName);
+		CommandInfo.IsValid())
+	{
+		const IConsoleVariable* AsVariable = CommandInfo.Pin()->GetConsoleVariablePtr();
+		
+		if (AsVariable && AsVariable->TestFlags(ECVF_RenderThreadSafe))
+		{
+			UE_LOG(LogConsoleVariablesEditor, Warning,
+				TEXT("The console variable named %s is flagged as ECVF_RenderThreadSafe. The value on the render thread will lag behind the value on the main thread by one frame if r.OneFrameThreadLag is 1."),
+				*InData.CommandName
+			);
+		}
+	}
+	
 	RemoveConsoleVariable(InData.CommandName);
 	SavedCommands.Add(InData);
 }
 
-bool UConsoleVariablesAsset::RemoveConsoleVariable(const FString& InCommandString)
+bool UConsoleVariablesAsset::RemoveConsoleVariable(const FString InCommandString)
 {
 	FConsoleVariablesEditorAssetSaveData ExistingData;
 	if (FindSavedDataByCommandString(InCommandString, ExistingData))

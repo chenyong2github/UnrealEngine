@@ -538,28 +538,35 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(
 			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 			.ContentPadding(0)
 			.Visibility_Lambda([this, PinnedItem]()
-			             {
-				             if (PinnedItem.IsValid() && PinnedItem->GetRowType() ==
-					             FConsoleVariablesEditorListRow::SingleCommand)
-				             {
-					             PinnedItem->SetDoesCurrentValueDifferFromPresetValue(
-						             PinnedItem->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(
-							             PinnedItem->GetPresetValue()));
+             {
+	             if (PinnedItem.IsValid() && PinnedItem->GetRowType() ==
+		             FConsoleVariablesEditorListRow::SingleCommand)
+	             {
+		             const TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			             PinnedItem->GetCommandInfo().Pin();
+		            
+		            if (CommandInfo.IsValid() &&
+			            CommandInfo->ObjectType == FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable)
+		            {
+			            PinnedItem->SetDoesCurrentValueDifferFromPresetValue(
+							 CommandInfo->IsCurrentValueDifferentFromInputValue(
+								 PinnedItem->GetPresetValue()));
 
-					             return PinnedItem->IsRowChecked() && PinnedItem->
-					                    DoesCurrentValueDifferFromPresetValue()
-						                    ? EVisibility::Visible
-						                    : EVisibility::Collapsed;
-				             }
+						 return PinnedItem->IsRowChecked() && PinnedItem->
+								DoesCurrentValueDifferFromPresetValue()
+									? EVisibility::Visible
+									: EVisibility::Collapsed;
+		            }
+	             }
 
-				             return EVisibility::Collapsed;
-			             })
+	             return EVisibility::Collapsed;
+             })
 			.OnClicked_Lambda([this, PinnedItem]()
-			             {
-				             PinnedItem->ResetToPresetValue();
+             {
+	             PinnedItem->ResetToPresetValue();
 
-				             return FReply::Handled();
-			             })
+	             return FReply::Handled();
+             })
 			[
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("PropertyWindow.DiffersFromDefault"))

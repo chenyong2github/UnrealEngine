@@ -23,11 +23,11 @@ public:
 	static TObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
 
 	void AddConsoleObjectToPreset(
-		const FString& InConsoleCommand, const FString& InValue,
+		const FString InConsoleCommand, const FString InValue,
 		const bool bScrollToNewRow = false) const;
 
 	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
-	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;
+	void RebuildList(const FString InConsoleCommandToScrollTo = "") const;
 
 	/**
 	 * Refresh filters and sorting.

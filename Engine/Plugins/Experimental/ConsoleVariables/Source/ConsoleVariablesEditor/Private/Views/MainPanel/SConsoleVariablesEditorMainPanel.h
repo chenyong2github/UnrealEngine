@@ -26,10 +26,10 @@ public:
 	virtual ~SConsoleVariablesEditorMainPanel() override;
 
 	/** A handler for when text is committed to the Console Input Box that appears when clicking the "Add Console Variable" button */
-	FReply ValidateConsoleInput(const FText& CommittedText);
+	FReply ValidateConsoleInput(const FText& CommittedText) const;
 
-	void RefreshMultiUserDetails();
-	void ToggleMultiUserDetails(ECheckBoxState CheckState);
+	void RefreshMultiUserDetails() const;
+	void ToggleMultiUserDetails(ECheckBoxState CheckState) const;
 
 private:
 

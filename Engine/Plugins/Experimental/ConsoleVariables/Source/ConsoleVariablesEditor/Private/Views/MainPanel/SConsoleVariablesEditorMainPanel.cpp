@@ -36,24 +36,32 @@ void SConsoleVariablesEditorMainPanel::Construct(
 	
 	ChildSlot
 	[
-		SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-		.ResizeMode(ESplitterResizeMode::FixedSize)
-		
-		+SSplitter::Slot().SizeRule(SSplitter::ESizeRule::SizeToContent)
+		SNew(SVerticalBox)
+			
+		+SVerticalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.AutoHeight()
+		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
-	        GeneratePanelToolbar()
+			GeneratePanelToolbar()
 		]
 
-		+SSplitter::Slot()
+		+SVerticalBox::Slot()
 		[
-			MainPanel.Pin()->GetEditorList().Pin()->GetOrCreateWidget()
-		]
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			.ResizeMode(ESplitterResizeMode::FixedSize)
 
-		+SSplitter::Slot()
-		[
-			SAssignNew(MultiUserDetailsBox, SVerticalBox)
-			.Visibility(EVisibility::Collapsed)
+			+SSplitter::Slot()
+			[
+				MainPanel.Pin()->GetEditorList().Pin()->GetOrCreateWidget()
+			]
+
+			+SSplitter::Slot()
+			[
+				SAssignNew(MultiUserDetailsBox, SVerticalBox)
+				.Visibility(EVisibility::Collapsed)
+			]
 		]
 	];
 
@@ -68,7 +76,7 @@ SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 	MultiUserDetailsBox.Reset();
 }
 
-FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& CommittedText)
+FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& CommittedText) const
 {
 	const FString CommandString = CommittedText.ToString().TrimStartAndEnd();
 	FString CommandKey;
@@ -122,7 +130,7 @@ FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& Commi
 	return FReply::Handled();
 }
 
-void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails()
+void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails() const
 {
 	UConcertCVarSynchronization* CVarSync = GetMutableDefault<UConcertCVarSynchronization>();
 
@@ -142,7 +150,7 @@ void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails()
 	];
 }
 
-void SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails(ECheckBoxState CheckState)
+void SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails(ECheckBoxState CheckState) const
 {
 	const bool bShouldBeVisible = CheckState == ECheckBoxState::Checked;
 	MultiUserDetailsBox->SetVisibility(bShouldBeVisible ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
@@ -155,77 +163,73 @@ void SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails(ECheckBoxState Che
 
 TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 {
-	return SNew(SBorder)
-	        .Padding(0)
-	        .BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
-			.HAlign(HAlign_Fill)
-	        [
-				SAssignNew(ToolbarHBox, SHorizontalBox)
+	return SAssignNew(ToolbarHBox, SHorizontalBox)
 				
-				// Add Console Variable input
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(2.f, 2.f)
-				[
-					SNew(SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
-				]
+			// Add Console Variable input
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
+			]
 
-				// Presets Management Button
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Fill)
-				.AutoWidth()
+			// Presets Management Button
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
+			.Padding(FMargin(8.f, 0.f, 0.f, 0.f))
+			[
+				SNew(SComboButton)
+				.ToolTipText(LOCTEXT("PresetManagementButton_Tooltip", "Export the current CVar list to a preset, or import a copy of an existing preset."))
+				.ContentPadding(4.f)
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+				.OnGetMenuContent(this, &SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu)
+				.ForegroundColor(FStyleColors::Foreground)
+				.ButtonContent()
 				[
-					SNew(SComboButton)
-					.ToolTipText(LOCTEXT("PresetManagementButton_Tooltip", "Export the current CVar list to a preset, or import a copy of an existing preset."))
-					.ContentPadding(4.f)
-					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-					.OnGetMenuContent(this, &SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu)
-					.ForegroundColor(FStyleColors::Foreground)
-					.ButtonContent()
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 4, 0)
+					.AutoWidth()
 					[
-						SNew(SHorizontalBox)
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("AssetEditor.SaveAsset"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 
-						+ SHorizontalBox::Slot()
-						.Padding(0, 1, 4, 0)
-						.AutoWidth()
-						[
-							SNew(SImage)
-							.Image(FAppStyle::Get().GetBrush("AssetEditor.SaveAsset"))
-							.ColorAndOpacity(FSlateColor::UseForeground())
-						]
-
-						+ SHorizontalBox::Slot()
-						.Padding(0, 1, 0, 0)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("PresetsToolbarButton", "Presets"))
-						]
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 0, 0)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("PresetsToolbarButton", "Presets"))
 					]
 				]
-        	];
+			];
 }
 
 void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
 {
 	if (MainPanel.Pin()->GetMultiUserManager().IsInitialized())
 	{
+		constexpr int32 ButtonBoxSize = 28;
+		
 		// Toggle Multi-User Details
 		ToolbarHBox->AddSlot()
-		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Fill)
 		.AutoWidth()
+		.Padding(FMargin(8.f, 1.f, 0.f, 1.f))
 		[
 			SNew(SBox)
-			.WidthOverride(28)
-			.HeightOverride(28)
+			.WidthOverride(ButtonBoxSize)
+			.HeightOverride(ButtonBoxSize)
 			[
 				SAssignNew(ConcertButtonPtr, SCheckBox)
-				.Padding(FMargin(4.f))
+				.Padding(4.f)
 				.ToolTipText(LOCTEXT("ShowConcertSettings_Tip", "Show the multi-user controls for Console Variables"))
 				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
-				.ForegroundColor(FStyleColors::Foreground)
+				.ForegroundColor(FSlateColor::UseForeground())
 				.IsChecked(false)
 				.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails)
 				[
