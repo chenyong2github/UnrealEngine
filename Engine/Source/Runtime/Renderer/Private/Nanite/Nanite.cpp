@@ -85,10 +85,10 @@ void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 }
 
-class FEmitShadowMapPS : public FNaniteShader
+class FEmitShadowMapPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitShadowMapPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitShadowMapPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitShadowMapPS, FNaniteGlobalShader);
 
 	class FDepthOutputTypeDim : SHADER_PERMUTATION_INT("DEPTH_OUTPUT_TYPE", 3);
 	using FPermutationDomain = TShaderPermutationDomain< FDepthOutputTypeDim >;
@@ -100,7 +100,7 @@ class FEmitShadowMapPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
+		FNaniteGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 	}
 
@@ -121,10 +121,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FEmitCubemapShadowParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-class FEmitCubemapShadowVS : public FNaniteShader
+class FEmitCubemapShadowVS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitCubemapShadowVS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowVS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowVS, FNaniteGlobalShader);
 
 	class FUseGeometryShader : SHADER_PERMUTATION_BOOL("USE_GEOMETRY_SHADER");
 	using FPermutationDomain = TShaderPermutationDomain<FUseGeometryShader>;
@@ -136,7 +136,7 @@ class FEmitCubemapShadowVS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -151,10 +151,10 @@ class FEmitCubemapShadowVS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowVS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowVS", SF_Vertex);
 
-class FEmitCubemapShadowGS : public FNaniteShader
+class FEmitCubemapShadowGS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitCubemapShadowGS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowGS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowGS, FNaniteGlobalShader);
 
 	using FParameters = FEmitCubemapShadowParameters;
 
@@ -165,17 +165,17 @@ class FEmitCubemapShadowGS : public FNaniteShader
 	
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_GEOMETRY_SHADER"), 1);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowGS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowGS", SF_Geometry);
 
-class FEmitCubemapShadowPS : public FNaniteShader
+class FEmitCubemapShadowPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitCubemapShadowPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitCubemapShadowPS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -184,7 +184,7 @@ class FEmitCubemapShadowPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
 	
@@ -193,10 +193,10 @@ class FEmitCubemapShadowPS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowPS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowPS", SF_Pixel);
 
 // Gather culling stats and build dispatch indirect buffer for per-cluster stats
-class FCalculateStatsCS : public FNaniteShader
+class FCalculateStatsCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCalculateStatsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculateStatsCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FCalculateStatsCS, FNaniteGlobalShader);
 
 	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL( "TWO_PASS_CULLING" );
 	using FPermutationDomain = TShaderPermutationDomain<FTwoPassCullingDim>;
@@ -208,7 +208,7 @@ class FCalculateStatsCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_CALCULATE_STATS"), 1);
 	}
 
@@ -225,10 +225,10 @@ class FCalculateStatsCS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FCalculateStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "CalculateStats", SF_Compute);
 
 // Calculates and accumulates per-cluster stats
-class FCalculateClusterStatsCS : public FNaniteShader
+class FCalculateClusterStatsCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCalculateClusterStatsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculateClusterStatsCS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT(FCalculateClusterStatsCS, FNaniteGlobalShader);
 
 	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL("TWO_PASS_CULLING");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
@@ -241,7 +241,7 @@ class FCalculateClusterStatsCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_CALCULATE_CLUSTER_STATS"), 1); 
 	}
 
@@ -262,10 +262,10 @@ class FCalculateClusterStatsCS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FCalculateClusterStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "CalculateClusterStats", SF_Compute);
 
-class FPrintStatsCS : public FNaniteShader
+class FPrintStatsCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FPrintStatsCS );
-	SHADER_USE_PARAMETER_STRUCT( FPrintStatsCS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FPrintStatsCS, FNaniteGlobalShader);
 
 	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL( "TWO_PASS_CULLING" );
 	class FPassDim : SHADER_PERMUTATION_INT("PRINT_PASS", NUM_PRINT_STATS_PASSES);
@@ -278,7 +278,7 @@ class FPrintStatsCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_PRINT_STATS"), 1);
 	}
 

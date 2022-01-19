@@ -13,10 +13,10 @@
 namespace Nanite
 {
 
-class FNaniteFeedbackStatusCS : public FNaniteShader
+class FNaniteFeedbackStatusCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteFeedbackStatusCS);
-	SHADER_USE_PARAMETER_STRUCT(FNaniteFeedbackStatusCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FNaniteFeedbackStatusCS, FNaniteGlobalShader);
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FQueueState>, QueueState)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InMainRasterizerArgsSWHW)
@@ -29,7 +29,7 @@ class FNaniteFeedbackStatusCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FNaniteFeedbackStatusCS, "/Engine/Private/Nanite/ClusterCulling.usf", "FeedbackStatus", SF_Compute);

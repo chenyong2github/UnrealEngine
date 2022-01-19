@@ -11,10 +11,10 @@
 
 DEFINE_GPU_STAT(NaniteEditor);
 
-class FEmitHitProxyIdPS : public FNaniteShader
+class FEmitHitProxyIdPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitHitProxyIdPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitHitProxyIdPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitHitProxyIdPS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -37,11 +37,11 @@ class FEmitHitProxyIdPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitHitProxyIdPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitHitProxyIdPS", SF_Pixel);
 
-class FEmitEditingLevelInstanceDepthPS : public FNaniteShader
+class FEmitEditingLevelInstanceDepthPS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitEditingLevelInstanceDepthPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitEditingLevelInstanceDepthPS, FNaniteGlobalShader);
 
 	using FParameters = FNaniteVisualizeLevelInstanceParameters;
 
@@ -55,7 +55,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		uint32 LevelInstanceBufferCount = 1u << (uint32)PermutationVector.Get<FSearchBufferCountDim>();
@@ -64,11 +64,11 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitEditorLevelInstanceDepthPS", SF_Pixel);
 
-class FEmitEditorSelectionDepthPS : public FNaniteShader
+class FEmitEditorSelectionDepthPS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FEmitEditorSelectionDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitEditorSelectionDepthPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitEditorSelectionDepthPS, FNaniteGlobalShader);
 
 	using FParameters = FNaniteSelectionOutlineParameters;
 
@@ -82,7 +82,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		uint32 SelectedBufferCount = 1u << (uint32)PermutationVector.Get<FSearchBufferCountDim>();

@@ -204,11 +204,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<FPackedNaniteView>,	InViews)
 END_SHADER_PARAMETER_STRUCT()
 
-class FNaniteShader : public FGlobalShader
+class FNaniteGlobalShader : public FGlobalShader
 {
 public:
-	FNaniteShader() = default;
-	FNaniteShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FNaniteGlobalShader() = default;
+	FNaniteGlobalShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	: FGlobalShader(Initializer)
 	{
 	}

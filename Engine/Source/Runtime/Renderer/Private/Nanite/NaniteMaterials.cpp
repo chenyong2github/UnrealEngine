@@ -47,10 +47,10 @@ static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
 extern int32 GNaniteIsolateInvalidCoarseMesh;
 #endif
 
-class FNaniteMarkStencilPS : public FNaniteShader
+class FNaniteMarkStencilPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteMarkStencilPS);
-	SHADER_USE_PARAMETER_STRUCT(FNaniteMarkStencilPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FNaniteMarkStencilPS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -65,10 +65,10 @@ class FNaniteMarkStencilPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FNaniteMarkStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "MarkStencilPS", SF_Pixel);
 
-class FEmitMaterialDepthPS : public FNaniteShader
+class FEmitMaterialDepthPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitMaterialDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteGlobalShader);
 
 	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
 	using FPermutationDomain = TShaderPermutationDomain<FMaterialResolveDim>;
@@ -80,7 +80,7 @@ class FEmitMaterialDepthPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -105,10 +105,10 @@ IMPLEMENT_GLOBAL_SHADER(FEmitMaterialDepthPS, "/Engine/Private/Nanite/ExportGBuf
 IMPLEMENT_GLOBAL_SHADER(FNaniteIndirectMaterialVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FNaniteMultiViewMaterialVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
 
-class FEmitSceneDepthPS : public FNaniteShader
+class FEmitSceneDepthPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitSceneDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthPS, FNaniteGlobalShader);
 
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
 	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
@@ -121,7 +121,7 @@ class FEmitSceneDepthPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -137,10 +137,10 @@ class FEmitSceneDepthPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthPS", SF_Pixel);
 
-class FEmitSceneStencilPS : public FNaniteShader
+class FEmitSceneStencilPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitSceneStencilPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitSceneStencilPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneStencilPS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -149,7 +149,7 @@ class FEmitSceneStencilPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -166,10 +166,10 @@ class FEmitSceneStencilPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitSceneStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneStencilPS", SF_Pixel);
 
-class FEmitSceneDepthStencilPS : public FNaniteShader
+class FEmitSceneDepthStencilPS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FEmitSceneDepthStencilPS);
-	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthStencilPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthStencilPS, FNaniteGlobalShader);
 
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
 	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim>;
@@ -181,7 +181,7 @@ class FEmitSceneDepthStencilPS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
@@ -200,10 +200,10 @@ class FEmitSceneDepthStencilPS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthStencilPS", SF_Pixel);
 
-class FDepthExportCS : public FNaniteShader
+class FDepthExportCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDepthExportCS);
-	SHADER_USE_PARAMETER_STRUCT(FDepthExportCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FDepthExportCS, FNaniteGlobalShader);
 
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
 	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim>;
@@ -235,11 +235,11 @@ class FDepthExportCS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
 
-class FInitializeMaterialsCS : public FNaniteShader
+class FInitializeMaterialsCS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FInitializeMaterialsCS);
-	SHADER_USE_PARAMETER_STRUCT(FInitializeMaterialsCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FInitializeMaterialsCS, FNaniteGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaterialTileCount)
@@ -253,11 +253,11 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FInitializeMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "InitializeMaterials", SF_Compute);
 
-class FClassifyMaterialsCS : public FNaniteShader
+class FClassifyMaterialsCS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FClassifyMaterialsCS);
-	SHADER_USE_PARAMETER_STRUCT(FClassifyMaterialsCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FClassifyMaterialsCS, FNaniteGlobalShader);
 
 	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
 	using FPermutationDomain = TShaderPermutationDomain<FMaterialResolveDim>;
@@ -293,7 +293,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		// TODO: Reintroduce wave-ops
 		//FPermutationDomain PermutationVector(Parameters.PermutationId);
 	}

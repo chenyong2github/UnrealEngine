@@ -300,10 +300,10 @@ public:
 	}
 };
 
-class FInstanceCull_CS : public FNaniteShader
+class FInstanceCull_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInstanceCull_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FInstanceCull_CS, FNaniteGlobalShader);
 
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST, CULLING_PASS_EXPLICIT_LIST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
@@ -324,14 +324,14 @@ class FInstanceCull_CS : public FNaniteShader
 		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
 			return false;
 
-		return FNaniteShader::ShouldCompilePermutation(Parameters);
+		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );	// Still needed for shader to compile
@@ -371,10 +371,10 @@ class FInstanceCull_CS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FInstanceCull_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "InstanceCull", SF_Compute);
 
 
-class FCompactViewsVSM_CS : public FNaniteShader
+class FCompactViewsVSM_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCompactViewsVSM_CS);
-	SHADER_USE_PARAMETER_STRUCT(FCompactViewsVSM_CS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FCompactViewsVSM_CS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -383,7 +383,7 @@ class FCompactViewsVSM_CS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
 		// Get data from GPUSceneParameters rather than View.
@@ -406,10 +406,10 @@ class FCompactViewsVSM_CS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FCompactViewsVSM_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "CompactViewsVSM_CS", SF_Compute);
 
 
-class FInstanceCullVSM_CS : public FNaniteShader
+class FInstanceCullVSM_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCullVSM_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInstanceCullVSM_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FInstanceCullVSM_CS, FNaniteGlobalShader);
 
 	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
@@ -424,7 +424,7 @@ class FInstanceCullVSM_CS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
+		FNaniteGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 
@@ -457,10 +457,10 @@ class FInstanceCullVSM_CS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER( FInstanceCullVSM_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "InstanceCullVSM", SF_Compute );
 
 
-class FPersistentClusterCull_CS : public FNaniteShader
+class FPersistentClusterCull_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FPersistentClusterCull_CS );
-	SHADER_USE_PARAMETER_STRUCT( FPersistentClusterCull_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FPersistentClusterCull_CS, FNaniteGlobalShader);
 
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
@@ -517,12 +517,12 @@ class FPersistentClusterCull_CS : public FNaniteShader
 			return false;
 		}
 
-		return FNaniteShader::ShouldCompilePermutation(Parameters);
+		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
@@ -533,10 +533,10 @@ class FPersistentClusterCull_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FPersistentClusterCull_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "PersistentClusterCull", SF_Compute);
 
-class FInitClusterBatches_CS : public FNaniteShader
+class FInitClusterBatches_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInitClusterBatches_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInitClusterBatches_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FInitClusterBatches_CS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -551,10 +551,10 @@ class FInitClusterBatches_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInitClusterBatches_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitClusterBatches", SF_Compute);
 
-class FInitCandidateNodes_CS : public FNaniteShader
+class FInitCandidateNodes_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInitCandidateNodes_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInitCandidateNodes_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FInitCandidateNodes_CS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -569,10 +569,10 @@ class FInitCandidateNodes_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInitCandidateNodes_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitCandidateNodes", SF_Compute);
 
-class FInitArgs_CS : public FNaniteShader
+class FInitArgs_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInitArgs_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInitArgs_CS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FInitArgs_CS, FNaniteGlobalShader);
 
 	class FOcclusionCullingDim : SHADER_PERMUTATION_BOOL( "OCCLUSION_CULLING" );
 	class FDrawPassIndexDim : SHADER_PERMUTATION_INT( "DRAW_PASS_INDEX", 3 );	// 0: no, 1: set, 2: add
@@ -596,10 +596,10 @@ class FInitArgs_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInitArgs_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitArgs", SF_Compute);
 
-class FCalculateSafeRasterizerArgs_CS : public FNaniteShader
+class FCalculateSafeRasterizerArgs_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCalculateSafeRasterizerArgs_CS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculateSafeRasterizerArgs_CS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FCalculateSafeRasterizerArgs_CS, FNaniteGlobalShader);
 
 	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
 	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
@@ -644,10 +644,10 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
-class FMicropolyRasterizeCS : public FNaniteShader
+class FMicropolyRasterizeCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FMicropolyRasterizeCS );
-	SHADER_USE_PARAMETER_STRUCT( FMicropolyRasterizeCS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FMicropolyRasterizeCS, FNaniteGlobalShader);
 
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
@@ -692,14 +692,14 @@ class FMicropolyRasterizeCS : public FNaniteShader
 			return false;
 		}
 
-		return FNaniteShader::ShouldCompilePermutation(Parameters);
+		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
@@ -712,10 +712,10 @@ class FMicropolyRasterizeCS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FMicropolyRasterizeCS, "/Engine/Private/Nanite/Rasterizer.usf", "MicropolyRasterize", SF_Compute);
 
-class FHWRasterizeVS : public FNaniteShader
+class FHWRasterizeVS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FHWRasterizeVS );
-	SHADER_USE_PARAMETER_STRUCT( FHWRasterizeVS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FHWRasterizeVS, FNaniteGlobalShader);
 
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
@@ -791,7 +791,7 @@ class FHWRasterizeVS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 
 		// Get data from GPUSceneParameters rather than View.
@@ -834,10 +834,10 @@ class FHWRasterizeVS : public FNaniteShader
 IMPLEMENT_GLOBAL_SHADER(FHWRasterizeVS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeVS", SF_Vertex);
 
 // TODO: Consider making a common base shader class for VS and MS (where possible)
-class FHWRasterizeMS : public FNaniteShader
+class FHWRasterizeMS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHWRasterizeMS);
-	SHADER_USE_PARAMETER_STRUCT(FHWRasterizeMS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FHWRasterizeMS, FNaniteGlobalShader);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
@@ -905,7 +905,7 @@ class FHWRasterizeMS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 
 		// Get data from GPUSceneParameters rather than View.
@@ -938,10 +938,10 @@ class FHWRasterizeMS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FHWRasterizeMS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeMS", SF_Mesh);
 
-class FHWRasterizePS : public FNaniteShader
+class FHWRasterizePS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FHWRasterizePS );
-	SHADER_USE_PARAMETER_STRUCT( FHWRasterizePS, FNaniteShader );
+	SHADER_USE_PARAMETER_STRUCT( FHWRasterizePS, FNaniteGlobalShader);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
@@ -1027,12 +1027,12 @@ class FHWRasterizePS : public FNaniteShader
 			return false;
 		}
 
-		return FNaniteShader::ShouldCompilePermutation(Parameters);
+		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 

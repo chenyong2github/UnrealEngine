@@ -72,10 +72,10 @@ static FIntVector4 GetVisualizeScales(int32 ModeID)
 	return FIntVector4(INDEX_NONE, 0, 0, 0);
 }
 
-class FNaniteVisualizeCS : public FNaniteShader
+class FNaniteVisualizeCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteVisualizeCS);
-	SHADER_USE_PARAMETER_STRUCT(FNaniteVisualizeCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FNaniteVisualizeCS, FNaniteGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -84,7 +84,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	}
 
@@ -111,11 +111,11 @@ class FNaniteVisualizeCS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FNaniteVisualizeCS, "/Engine/Private/Nanite/Visualize.usf", "VisualizeCS", SF_Compute);
 
-class FMaterialComplexityCS : public FNaniteShader
+class FMaterialComplexityCS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FMaterialComplexityCS);
-	SHADER_USE_PARAMETER_STRUCT(FMaterialComplexityCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FMaterialComplexityCS, FNaniteGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -136,16 +136,16 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMaterialComplexityCS, "/Engine/Private/Nanite/MaterialComplexity.usf", "CalculateMaterialComplexity", SF_Compute);
 
-class FExportDebugViewPS : public FNaniteShader
+class FExportDebugViewPS : public FNaniteGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FExportDebugViewPS);
-	SHADER_USE_PARAMETER_STRUCT(FExportDebugViewPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FExportDebugViewPS, FNaniteGlobalShader);
 
 	class FSearchBufferCountDim : SHADER_PERMUTATION_INT("EDITOR_SELECTED_BUFFER_COUNT_LOG_2", 25);
 	using FPermutationDomain = TShaderPermutationDomain<FSearchBufferCountDim>;
@@ -177,7 +177,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -188,10 +188,10 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/DebugViews.usf", "ExportDebugViewPS", SF_Pixel);
 
 // TODO: Move to common location outside of Nanite
-class FHTileVisualizeCS : public FNaniteShader
+class FHTileVisualizeCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHTileVisualizeCS);
-	SHADER_USE_PARAMETER_STRUCT(FHTileVisualizeCS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FHTileVisualizeCS, FNaniteGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureMetadata, HTileBuffer)
