@@ -878,17 +878,9 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 			else
 #endif
 			{
-#if USE_BULKDATA_STREAMING_TOKEN
-				FByteBulkData TmpBulkData;
-				TmpBulkData.Serialize(Ar, Owner, Idx, false);
-				bIsLODOptional = TmpBulkData.IsOptional();
-
-				StreamingBulkData = TmpBulkData.CreateStreamingToken();
-#else
 				StreamingBulkData.Serialize(Ar, Owner, Idx, false);
 				bIsLODOptional = StreamingBulkData.IsOptional();
-#endif
-			
+
 				if (StreamingBulkData.GetBulkDataSize() == 0)
 				{
 					bDiscardBulkData = true;

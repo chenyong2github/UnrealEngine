@@ -15,8 +15,6 @@
 
 #include "LandscapeComponent.generated.h"
 
-#define LANDSCAPE_LOD_STREAMING_USE_TOKEN (!WITH_EDITORONLY_DATA && USE_BULKDATA_STREAMING_TOKEN)
-
 class ALandscape;
 class ALandscapeProxy;
 class FLightingBuildOptions;
@@ -113,16 +111,14 @@ class FLandscapeComponentDerivedData
 	    On device, freed once it has been decompressed. */
 	TArray<uint8> CompressedLandscapeData;
 
-#if LANDSCAPE_LOD_STREAMING_USE_TOKEN
-	TArray<FBulkDataStreamingToken> StreamingLODDataArray;
-#else
 	TArray<FByteBulkData> StreamingLODDataArray;
-#endif
 	
 	/** Cached render data. Only valid on device. */
 	TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe > CachedRenderData;
 
+	UE_DEPRECATED(5.0, "The path will not be valid when staged via the IoStore, functionality is being removed")
 	FPackagePath CachedLODDataPackagePath;
+	UE_DEPRECATED(5.0, "The path will not be valid when staged via the IoStore, functionality is being removed")
 	EPackageSegment CachedLODDataPackageSegment;
 
 	friend class ULandscapeLODStreamingProxy;
@@ -434,16 +430,15 @@ class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
 	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::LandscapeMeshMobile; }
 	//~ End UStreamableRenderAsset Interface
 
-	UE_DEPRECATED(5.0, "Use GetMipDataPackagePath instead")
+	UE_DEPRECATED(5.0, "The mip will not be able to return a valid file name when staged via the IoStore, functionality is being removed")
 	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
+	UE_DEPRECATED(5.0, "The mip will not be able to return a valid package path when staged via the IoStore, functionality is being removed")
 	LANDSCAPE_API bool GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutBulkDataPackagePath, EPackageSegment& OutPackageSegment) const;
-
 
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 	LANDSCAPE_API TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> GetRenderData() const;
 
-	typedef typename TChooseClass<LANDSCAPE_LOD_STREAMING_USE_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result BulkDataType;
-	LANDSCAPE_API BulkDataType& GetStreamingLODBulkData(int32 LODIdx) const;
+	LANDSCAPE_API FByteBulkData& GetStreamingLODBulkData(int32 LODIdx) const;
 
 	static LANDSCAPE_API void CancelAllPendingStreamingActions();
 

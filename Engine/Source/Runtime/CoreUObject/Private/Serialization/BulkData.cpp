@@ -1952,36 +1952,16 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 	}
 }
 
-#if USE_BULKDATA_STREAMING_TOKEN 
-FBulkDataStreamingToken FUntypedBulkData::CreateStreamingToken() const
-{
-	// Checks since we are casting signed 64bit values to unsigned 32bit
-	check(GetBulkDataOffsetInFile() >= 0);
-	check(GetBulkDataOffsetInFile() < TNumericLimits<uint32>::Max());
-	check(GetBulkDataSize() >= 0);
-	check(GetBulkDataSize() < TNumericLimits<uint32>::Max());
-
-	return FBulkDataStreamingToken((uint32)GetBulkDataOffsetInFile(), (uint32)GetBulkDataSize());
-}
-
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
-{
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	PackagePath = FPackagePath::FromLocalPath(Filename, PackageSegment);
-	return CreateStreamingRequestForRange(PackagePath, PackageSegment, RangeArray, Priority, CompleteCallback);
-}
-
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPackagePath& PackagePath, EPackageSegment PackageSegment, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
-{
-	check(PackagePath.IsEmpty() == false);
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
+{	
 	check(RangeArray.Num() > 0);
 
-	const FBulkDataStreamingToken& Start = *(RangeArray[0]);
-	const FBulkDataStreamingToken& End = *(RangeArray[RangeArray.Num()-1]);
+	const FUntypedBulkData& Start = *(RangeArray[0]);
+	const FUntypedBulkData& End = *(RangeArray[RangeArray.Num()-1]);
 
-	check(Start.IsValid());
-	check(End.IsValid());
+	const FPackagePath& PackagePath = Start.GetPackagePath();
+	const EPackageSegment PackageSegment = Start.GetPackageSegment();
+	check(PackagePath.IsEmpty() == false);
 
 	// TODO: The caller is assuming that their specified PackageSegments are the way in which bulkdata is stored for their package
 	// To allow more flexible bulkdata storage, we will need to eliminate this interface and have them provide an array of bulkdatas.
@@ -1994,8 +1974,8 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPack
 		return nullptr;
 	}
 
-	const int64 ReadOffset = Start.GetOffset();
-	const int64 ReadSize = (End.GetOffset() + End.GetBulkDataSize()) - ReadOffset;
+	const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
+	const int64 ReadSize = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
 
 	check(ReadSize > 0);
 
@@ -2011,51 +1991,6 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPack
 		return nullptr;
 	}
 }
-
-#else
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
-{
-	checkf(RangeArray.Num() > 0, TEXT("RangeArray cannot be empty"));
-
-	const FUntypedBulkData& Start = *(RangeArray[0]);
-
-	checkf(!Start.IsInlined(), TEXT("Cannot stream inlined BulkData"));
-
-	if (Start.IsUsingIODispatcher())
-	{
-		const FUntypedBulkData& End = *RangeArray[RangeArray.Num() - 1];
-
-		checkf(Start.IsInSeparateFile(),
-			TEXT("Attempting to CreateStreamingRequestForRange on %s when the IoDispatcher is enabled, this operation is not supported!"),
-			Start.IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
-		checkf(End.IsInSeparateFile() && Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
-			*Start.GetPackagePath().GetDebugName(Start.GetPackageSegment()), *End.GetPackagePath().GetDebugName(End.GetPackageSegment()));
-
-		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
-		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
-
-		checkf(ReadLength > 0, TEXT("Read length is 0"));
-
-		TUniquePtr<IBulkDataIORequest> IoRequest = CreateBulkDataIoDispatcherRequest(Start.CreateChunkId(), ReadOffset, ReadLength, CompleteCallback, nullptr, ConvertToIoDispatcherPriority(Priority));
-
-		return IoRequest.Release();
-	}
-	else
-	{
-		const FUntypedBulkData& End = *RangeArray[RangeArray.Num() - 1];
-
-		checkf(Start.GetPackagePath() == End.GetPackagePath(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
-			*Start.GetPackagePath().GetDebugName(), *End.GetPackagePath().GetDebugName());
-
-		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
-		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
-
-		checkf(ReadLength > 0, TEXT("Read length is 0"));
-
-		return Start.CreateStreamingRequest(0, ReadLength, Priority, CompleteCallback, nullptr);
-	}
-}
-#endif //USE_BULKDATA_STREAMING_TOKEN
 
 FBulkDataIORequest::FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
 	: FileHandle(InFileHandle)

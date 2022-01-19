@@ -460,12 +460,6 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (Mesh && RenderData)
 	{
-#if USE_BULKDATA_STREAMING_TOKEN
-		FPackagePath PackagePath;
-		EPackageSegment PackageSegment;
-		verify(Mesh->GetMipDataPackagePath(ResourceState.AssetLODBias + PendingFirstLODIdx, PackagePath, PackageSegment));
-#endif	
-
 		SetAsyncFileCallback(Context);
 
 		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
@@ -479,8 +473,6 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		TaskSynchronization.Increment();
 
 		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
-			STREAMINGTOKEN_PARAM(PackagePath)
-			STREAMINGTOKEN_PARAM(PackageSegment)
 			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);

@@ -3735,7 +3735,6 @@ void FLandscapeComponentDerivedData::InitializeFromUncompressedData(const TArray
 	FinalArchive << CompressedSize;
 	FinalArchive.Serialize(TempCompressedMemory.GetData(), CompressedSize);
 
-#if !LANDSCAPE_LOD_STREAMING_USE_TOKEN
 	const int32 NumStreamingLODs = StreamingLODs.Num();
 	StreamingLODDataArray.Empty(NumStreamingLODs);
 	for (int32 Idx = 0; Idx < NumStreamingLODs; ++Idx)
@@ -3752,7 +3751,6 @@ void FLandscapeComponentDerivedData::InitializeFromUncompressedData(const TArray
 			LODData.Unlock();
 		}
 	}
-#endif
 }
 
 void FLandscapeComponentDerivedData::Serialize(FArchive& Ar, UObject* Owner)
@@ -3767,26 +3765,25 @@ void FLandscapeComponentDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 		StreamingLODDataArray.AddDefaulted(NumStreamingLODs);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	CachedLODDataPackagePath.Empty();
 	CachedLODDataPackageSegment = EPackageSegment::Header;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for (int32 Idx = 0; Idx < NumStreamingLODs; ++Idx)
 	{
-#if LANDSCAPE_LOD_STREAMING_USE_TOKEN
-		FByteBulkData LODData;
-		LODData.Serialize(Ar, Owner, Idx);
-		StreamingLODDataArray[Idx] = LODData.CreateStreamingToken();
-#else
 		FByteBulkData& LODData = StreamingLODDataArray[Idx];
 		LODData.Serialize(Ar, Owner, Idx);
-#endif
-#if USE_BULKDATA_STREAMING_TOKEN
-		if (CachedLODDataPackagePath.IsEmpty() && !!(LODData.GetBulkDataFlags() & BULKDATA_Force_NOT_InlinePayload))
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (CachedLODDataPackagePath.IsEmpty() && 
+			!!(LODData.GetBulkDataFlags() & BULKDATA_Force_NOT_InlinePayload) &&
+			LODData.IsUsingIODispatcher() == false)
 		{
 			CachedLODDataPackagePath = LODData.GetPackagePath();
 			CachedLODDataPackageSegment = LODData.GetPackageSegment();
 		}
-#endif
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -4386,7 +4383,12 @@ bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FStri
 {
 	FPackagePath PackagePath;
 	EPackageSegment PackageSegment;
-	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const bool bResult = GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (bResult)
 	{
 		OutBulkDataFilename = PackagePath.GetLocalFullPath(PackageSegment);
 		return true;
@@ -4400,8 +4402,11 @@ bool ULandscapeLODStreamingProxy::GetMipDataPackagePath(const int32 MipIndex, FP
 	const int32 NumStreamingLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
 	if (MipIndex >= 0 && MipIndex < NumStreamingLODs)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OutPackagePath = LandscapeComponent->PlatformData.CachedLODDataPackagePath;
 		OutPackageSegment = LandscapeComponent->PlatformData.CachedLODDataPackageSegment;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 		return true;
 	}
 	return false;
@@ -4409,19 +4414,10 @@ bool ULandscapeLODStreamingProxy::GetMipDataPackagePath(const int32 MipIndex, FP
 
 FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 MipIndex) const
 {
-#if LANDSCAPE_LOD_STREAMING_USE_TOKEN
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
-	{
-		return MakeIoFilenameHash(PackagePath);
-	}
-#else
 	if (LandscapeComponent && LandscapeComponent->PlatformData.StreamingLODDataArray.IsValidIndex(MipIndex))
 	{
 		return LandscapeComponent->PlatformData.StreamingLODDataArray[MipIndex].GetIoFilenameHash();
 	}
-#endif
 	else
 	{
 		return INVALID_IO_FILENAME_HASH;
@@ -4485,7 +4481,7 @@ TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> ULandscapeLODStreami
 	return LandscapeComponent->PlatformData.CachedRenderData;
 }
 
-typename ULandscapeLODStreamingProxy::BulkDataType& ULandscapeLODStreamingProxy::GetStreamingLODBulkData(int32 LODIdx) const
+FByteBulkData& ULandscapeLODStreamingProxy::GetStreamingLODBulkData(int32 LODIdx) const
 {
 	check(LandscapeComponent);
 	return LandscapeComponent->PlatformData.StreamingLODDataArray[LODIdx];

@@ -23,13 +23,8 @@
 #endif
 
 // Enable the following to use the more compact FBulkDataStreamingToken in places where it is implemented
-#define USE_BULKDATA_STREAMING_TOKEN !USE_NEW_BULKDATA && !WITH_IOSTORE_IN_EDITOR
-
-#if USE_BULKDATA_STREAMING_TOKEN
-	#define STREAMINGTOKEN_PARAM(param) param,
-#else
-	#define STREAMINGTOKEN_PARAM(param) 
-#endif
+#define USE_BULKDATA_STREAMING_TOKEN DEPRECATED_MACRO(5.0, "USE_BULKDATA_STREAMING_TOKEN now always evaluates to 0 and will be removed") 0
+#define STREAMINGTOKEN_PARAM(param) DEPRECATED_MACRO(5.0, "STREAMINGTOKEN_PARAM now always evaluates to a NOP")
 
 class IMappedFileHandle;
 class IMappedFileRegion;
@@ -117,52 +112,7 @@ private:
 	int64 Size;
 };
 
-#if USE_BULKDATA_STREAMING_TOKEN 
-/**
- * Some areas of code currently find FUntypedBulkData too bloated for use so were storing smaller parts of it
- * and performing the file IO manually. This is an attempt to wrap that functionality in a single place to make
- * it easier to replace in the future.
- * This structure will represent the area of a file that a FUntypedBulkData points to.
- * The structure does not contain info on which file it is however (as that would increase the data
- * size by an unacceptable amount) and it is assumed that this knowledge is being kept at a higher level.
- *
- * This is intended only to exist for a short time to aid the transition to a new system.
- */
-struct COREUOBJECT_API FBulkDataStreamingToken
-{
-public:
-	static constexpr uint32 InvalidOffset = TNumericLimits<uint32>::Max();
-
-public:
-	FBulkDataStreamingToken() {}
-	FBulkDataStreamingToken(uint32 InOffsetInFile, uint32 InBulkDataSize)
-		: OffsetInFile(InOffsetInFile)
-		, BulkDataSize(InBulkDataSize)
-	{
-	}
-
-	bool IsValid() const
-	{ 
-		return OffsetInFile != InvalidOffset && BulkDataSize > 0;
-	}
-
-	uint32 GetOffset() const
-	{
-		return OffsetInFile;
-	}
-
-	uint32 GetBulkDataSize() const
-	{
-		return BulkDataSize;
-	}
-
-private:
-	uint32 OffsetInFile{ InvalidOffset };
-	uint32 BulkDataSize{ 0 };
-};
-#else
 class FBulkDataStreamingToken; // Forward declared but not implemented
-#endif
 
 /**
  * @documentation @todo documentation
@@ -296,11 +246,7 @@ public:
 	friend class FExportArchive;
 	friend class UE::Virtualization::FVirtualizedUntypedBulkData; // To allow access to AttachedAr
 
-#if USE_BULKDATA_STREAMING_TOKEN
-	using BulkDataRangeArray = TArray<FBulkDataStreamingToken*, TInlineAllocator<8>>;	
-#else
 	using BulkDataRangeArray = TArray<FUntypedBulkData*, TInlineAllocator<8>>;
-#endif //USE_BULKDATA_STREAMING_TOKEN
 
 	/*-----------------------------------------------------------------------------
 		Constructors and operators
@@ -728,36 +674,19 @@ public:
 	 */
 	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
-#if USE_BULKDATA_STREAMING_TOKEN 
-
-	/**
-	 * Creates a FBulkDataStreamingToken representing the area of the file that the FUntypedBulkData represents. See the declaration of
-	 * FBulkDataStreamingToken for further details.
-	 *
-	 * @return	A FBulkDataStreamingToken valid for the FUntypedBulkData.
-	 */
-	FBulkDataStreamingToken CreateStreamingToken() const;
-
 	/**
 	 * Create an async read request for a range of bulk data streaming tokens
 	 * The request will read all data between the two given streaming tokens objects. They must both represent areas of data in the file!
 	 * There is no way to validate this and it is up to the caller to make sure that it is correct.
 	 * The memory to be read into will be automatically allocated the size of which can be retrieved by calling IBulkDataIORequest::GetSize()
 	 *
-	 * @param PackagePath		The PackagePath to read from.
-	 * @param PackageSegment	The PackageSegment to read from.
 	 * @param Start				The bulk data to start reading from.
 	 * @param End				The bulk data to finish reading from.
 	 * @param Priority			Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
 	 * @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
 	 * @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
-	static IBulkDataIORequest* CreateStreamingRequestForRange(const FPackagePath& PackagePath, EPackageSegment PackageSegment, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
-	UE_DEPRECATED(4.26, "Use version that takes a FPackagePath instead")
-	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
-#else
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
-#endif //USE_BULKDATA_STREAMING_TOKEN
 
 	/** Enable the given flags in the given accumulator variable. */
 	static void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);

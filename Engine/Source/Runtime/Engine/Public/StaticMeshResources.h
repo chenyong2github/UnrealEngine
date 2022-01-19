@@ -393,7 +393,7 @@ public:
 	/** Sum of all vertex and index buffer sizes. Calculated in SerializeBuffers */
 	uint32 BuffersSize;
 
-	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
+	FByteBulkData StreamingBulkData;
 
 #if STATS
 	uint32 StaticMeshIndexMemory;

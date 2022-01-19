@@ -251,29 +251,17 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context)
 	FLandscapeMobileRenderData* RenderData = Context.RenderData;
 	if (LandscapeProxy && RenderData)
 	{
-#if USE_BULKDATA_STREAMING_TOKEN
-		FPackagePath PackagePath;
-		EPackageSegment PackageSegment;
-		verify(LandscapeProxy->GetMipDataPackagePath(PendingFirstLODIdx, PackagePath, PackageSegment));
-#endif
-
 		SetAsyncFileCallback(Context);
 
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
 			FBulkDataInterface::BulkDataRangeArray BulkDataArray;
-#if !LANDSCAPE_LOD_STREAMING_USE_TOKEN && USE_BULKDATA_STREAMING_TOKEN
-			FBulkDataStreamingToken StreamingToken = LandscapeProxy->GetStreamingLODBulkData(Index).CreateStreamingToken();
-			BulkDataArray.Add(&StreamingToken);
-#else
 			BulkDataArray.Add(&LandscapeProxy->GetStreamingLODBulkData(Index));
-#endif
+
 			if (BulkDataArray[0]->GetBulkDataSize() > 0)
 			{
 				TaskSynchronization.Increment();
 				IORequests[Index] = FBulkDataInterface::CreateStreamingRequestForRange(
-					STREAMINGTOKEN_PARAM(PackagePath)
-					STREAMINGTOKEN_PARAM(PackageSegment)
 					BulkDataArray,
 					bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 					&AsyncFileCallback);
@@ -406,7 +394,7 @@ void FLandscapeMeshMobileStreamIn_GPUDataOnly::GetStagingData(const FContext& Co
 	{
 		for (int32 Idx = PendingFirstLODIdx; Idx < CurrentFirstLODIdx; ++Idx)
 		{
-			ULandscapeLODStreamingProxy::BulkDataType& BulkData = LandscapeProxy->GetStreamingLODBulkData(Idx);
+			FByteBulkData& BulkData = LandscapeProxy->GetStreamingLODBulkData(Idx);
 			if (BulkData.GetBulkDataSize() > 0)
 			{
 				StagingLODDataSizes[Idx] = BulkData.GetBulkDataSize();

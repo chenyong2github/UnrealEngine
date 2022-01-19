@@ -149,7 +149,7 @@ public:
 	/** Precooked ray tracing geometry. Used as source data to build skeletal mesh instance ray tracing geometry. */
 	FRayTracingGeometry SourceRayTracingGeometry;
 
-	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
+	FByteBulkData StreamingBulkData;
 
 	/** Whether buffers of this LOD is inlined (i.e. stored in .uexp instead of .ubulk) */
 	uint32 bStreamedDataInlined : 1;

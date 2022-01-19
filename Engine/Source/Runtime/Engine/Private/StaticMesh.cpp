@@ -786,16 +786,8 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			else
 #endif
 			{
-#if USE_BULKDATA_STREAMING_TOKEN
-				FByteBulkData TmpBulkData;
-				TmpBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = TmpBulkData.IsOptional();
-
-				StreamingBulkData = TmpBulkData.CreateStreamingToken();			
-#else
 				StreamingBulkData.Serialize(Ar, Owner, Index, false);
 				bIsOptionalLOD = StreamingBulkData.IsOptional();
-#endif
 
 #if WITH_EDITORONLY_DATA
 				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
@@ -805,13 +797,8 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 				{
 					TmpBuff.Empty(BulkDataSize);
 					TmpBuff.AddUninitialized(BulkDataSize);
-					
 					void* Dest = TmpBuff.GetData();
-#if USE_BULKDATA_STREAMING_TOKEN	
-					TmpBulkData.GetCopy(&Dest);
-#else
 					StreamingBulkData.GetCopy(&Dest);
-#endif //#if USE_BULKDATA_STREAMING_TOKEN
 				}
 #endif
 			}
@@ -6254,61 +6241,12 @@ int32 UStaticMesh::CalcCumulativeLODSize(int32 NumLODs) const
 	return Accum;
 }
 
-#if USE_BULKDATA_STREAMING_TOKEN
-bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
-{
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
-	{
-		OutBulkDataFilename = PackagePath.GetLocalFullPath(PackageSegment);
-		return true;
-	}
-	return false;
-}
-
-bool UStaticMesh::GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment) const
-{
-	// TODO: this is slow. Should cache the name once per mesh
-	FPackagePath PackagePath = GetOutermost()->GetLoadedPath();
-	// Handle name redirection and localization
-	{
-		FString PackageName = PackagePath.GetPackageName();
-		const FCoreRedirectObjectName RedirectedName =
-			FCoreRedirects::GetRedirectedName(
-				ECoreRedirectFlags::Type_Package,
-				FCoreRedirectObjectName(NAME_None, NAME_None, *PackageName));
-		FString LocalizedName;
-		LocalizedName = FPackageName::GetDelegateResolvedPackagePath(RedirectedName.PackageName.ToString());
-		LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
-		if (LocalizedName != PackageName)
-		{
-			PackagePath = FPackagePath::FromPackageNameChecked(LocalizedName);
-		}
-	}
-	bool bSucceed = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
-	check(bSucceed);
-	OutPackagePath = MoveTemp(PackagePath);
-	OutPackageSegment = MipIndex < GetDefaultMinLOD() ? EPackageSegment::BulkDataOptional : EPackageSegment::BulkDataDefault;
-	return true;
-}
-#endif // USE_BULKDATA_STREAMING_TOKEN
-
 FIoFilenameHash UStaticMesh::GetMipIoFilenameHash(const int32 MipIndex) const
 {
-#if USE_BULKDATA_STREAMING_TOKEN
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	if (GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment))
-	{
-		return MakeIoFilenameHash(PackagePath);
-	}
-#else
 	if (GetRenderData() && GetRenderData()->LODResources.IsValidIndex(MipIndex))
 	{
 		return GetRenderData()->LODResources[MipIndex].StreamingBulkData.GetIoFilenameHash();
 	}
-#endif
 	else
 	{
 		return INVALID_IO_FILENAME_HASH;
@@ -6317,13 +6255,7 @@ FIoFilenameHash UStaticMesh::GetMipIoFilenameHash(const int32 MipIndex) const
 
 bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
 {
-#if USE_BULKDATA_STREAMING_TOKEN
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	return GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment) && IPackageResourceManager::Get().DoesPackageExist(PackagePath, PackageSegment);
-#else
 	return GetRenderData() && GetRenderData()->LODResources.IsValidIndex(MipIndex) && GetRenderData()->LODResources[MipIndex].StreamingBulkData.DoesExist();
-#endif
 }
 
 bool UStaticMesh::HasPendingRenderResourceInitialization() const
