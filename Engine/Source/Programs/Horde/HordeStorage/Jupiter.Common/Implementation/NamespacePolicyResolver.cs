@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
@@ -35,7 +36,20 @@ namespace Jupiter.Common
                 };
             }
 
-            return _namespaceSettings.CurrentValue.Policies[ns.ToString()];
+            if (_namespaceSettings.CurrentValue.Policies.TryGetValue(ns.ToString(),
+                    out NamespaceSettings.PerNamespaceSettings? settings))
+            {
+                return settings;
+            }
+
+            // attempt to find the default mapping
+            if (_namespaceSettings.CurrentValue.Policies.TryGetValue("*",
+                    out NamespaceSettings.PerNamespaceSettings? defaultSettings))
+            {
+                return defaultSettings;
+            }
+
+            throw new ArgumentException($"Unable to find a valid policy for namespace {ns}");
         }
     }
 }
