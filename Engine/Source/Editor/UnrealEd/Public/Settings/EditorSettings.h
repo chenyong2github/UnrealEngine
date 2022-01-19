@@ -80,6 +80,22 @@ class UNREALED_API UEditorSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category= DerivedDataCache, AdvancedDisplay, meta = (DisplayName = "Project Shared DDC Path", ConfigRestartRequired = true))
 	FDirectoryPath SharedDerivedDataCache;
 
+	/** Whether to enable any DDC Notifications */
+	UPROPERTY(EditAnywhere, config, Category = "Derived Data Cache Notifications", meta = (DisplayName = "Enable Notifcations", ConfigRestartRequired = false))
+	bool bEnableDDCNotifications = true;
+
+	/** Whether to enable the Horde Storage notification */
+	UPROPERTY(EditAnywhere, config, Category = "Derived Data Cache Notifications", meta = (DisplayName = "Notify Use Horde Storage", ConfigRestartRequired = false, EditCondition = "bEnableDDCNotifications"))
+	bool bNotifyUseHordeStorage = true;
+
+	/** Whether to enable the DDC path notification */
+	UPROPERTY(EditAnywhere, config, Category = "Derived Data Cache Notifications", meta = (DisplayName = "Notify Setup DDC Path", ConfigRestartRequired = false, EditCondition = "bEnableDDCNotifications"))
+	bool bNotifySetupDDCPath = true;
+
+	/** Whether to enable the DDC path notification */
+	UPROPERTY(EditAnywhere, config, Category = "Derived Data Cache Notifications", meta = (DisplayName = "Notify Enable S3 DDC", ConfigRestartRequired = false, EditCondition = "bEnableDDCNotifications"))
+	bool bNotifyEnableS3DD = true;
+
 	/** Whether to enable the S3 derived data cache backend */
 	UPROPERTY(EditAnywhere, config, Category="Derived Data Cache S3", meta = (DisplayName = "Enable AWS S3 Cache", ConfigRestartRequired = true))
 	bool bEnableS3DDC = true;

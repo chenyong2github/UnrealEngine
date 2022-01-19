@@ -40,7 +40,7 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
 		if (Usage->IsLocal() != bLocal)
-		{
+	{
 			continue;
 		}
 
@@ -70,7 +70,7 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
 		if (Usage->IsLocal() != bLocal)
-		{
+	{
 			continue;
 		}
 
@@ -103,11 +103,11 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 bool FDerivedDataInformation::GetHasRemoteCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-	{
-		if (!Usage->IsLocal())
 		{
+		if (!Usage->IsLocal())
+	{
 			return true;
-		}
+	}
 	}
 	return false;
 }
@@ -115,11 +115,11 @@ bool FDerivedDataInformation::GetHasRemoteCache()
 bool FDerivedDataInformation::GetHasZenCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-	{
-		if (Usage->GetCacheType().Equals(TEXT("Zen")))
 		{
+		if (Usage->GetCacheType().Equals(TEXT("Zen")))
+	{
 			return true;
-		}
+	}
 	}
 	return false;
 }
@@ -127,11 +127,11 @@ bool FDerivedDataInformation::GetHasZenCache()
 bool FDerivedDataInformation::GetHasHordeStorageCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-	{
-		if (Usage->GetCacheType().Equals(TEXT("Horde Storage")))
 		{
+		if (Usage->GetCacheType().Equals(TEXT("Horde Storage")))
+	{
 			return true;
-		}
+	}
 	}
 	return false;
 }
@@ -140,7 +140,7 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 {
 	RemoteCacheState = ERemoteCacheState::Unavailable;
 
-	if (GetHasRemoteCache())
+	if ( GetHasRemoteCache() )
 	{
 		const double OldLastGetTime = LastGetTime;
 		const double OldLastPutTime = LastPutTime;
@@ -166,32 +166,34 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 
 	if (const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>(); DDCProjectSettings && DDCProjectSettings->EnableWarnings)
 	{
-		if (const UEditorSettings* EditorSettings = GetDefault<UEditorSettings>())
+		const UEditorSettings* EditorSettings = GetDefault<UEditorSettings>();
+
+		if (EditorSettings && EditorSettings->bEnableDDCNotifications)
 		{
-			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && !GetHasHordeStorageCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter")) != 0))
+			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && EditorSettings->bNotifyUseHordeStorage && !GetHasHordeStorageCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter"))!=0))
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "It is recommended that you use a DDC graph that supports Horde Storage. Please check any -ddc commandline overrides."));
 			}
-			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path"));
 			}
-			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalSharedDDCPath && EditorSettings->GlobalSharedDDCPath.Path.IsEmpty())
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalSharedDDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalSharedDDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Shared DDC Path"));
 			}
-			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && !EditorSettings->bEnableS3DDC)
+			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bNotifyEnableS3DD && !EditorSettings->bEnableS3DDC)
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache"));
 			}
-			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && EditorSettings->GlobalS3DDCPath.Path.IsEmpty())
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalS3DDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathdWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
 			}
 		}
 	}
