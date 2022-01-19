@@ -61,8 +61,8 @@ public:
 class FVirtualShadowMapPerLightCacheEntry
 {
 public:
-	FVirtualShadowMapPerLightCacheEntry(int32 NumScenePrimitives)
-		: RenderedPrimitives(false, NumScenePrimitives)
+	FVirtualShadowMapPerLightCacheEntry(int32 MaxPersistentScenePrimitiveIndex)
+		: RenderedPrimitives(false, MaxPersistentScenePrimitiveIndex)
 	{
 	}
 

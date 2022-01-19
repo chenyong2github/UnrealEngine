@@ -341,7 +341,7 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManag
 	}
 	else
 	{
-		NewLightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->Primitives.Num());
+		NewLightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->GetMaxPersistentPrimitiveIndex());
 	}
 
 	// return entry
@@ -642,6 +642,10 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
 		for (auto& CacheEntry : PrevCacheEntries)
+		{
+			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
+		}
+		for (auto& CacheEntry : CacheEntries)
 		{
 			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 		}
