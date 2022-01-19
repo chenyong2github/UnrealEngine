@@ -464,6 +464,7 @@ FGameplayCueNotify_SoundParameterInterfaceInfo::FGameplayCueNotify_SoundParamete
 
 FGameplayCueNotify_SoundInfo::FGameplayCueNotify_SoundInfo()
 {
+	Sound = nullptr;
 	SoundCue = nullptr;
 	LoopingFadeOutDuration = 0.5f;
 	LoopingFadeVolumeLevel = 0.0f;
