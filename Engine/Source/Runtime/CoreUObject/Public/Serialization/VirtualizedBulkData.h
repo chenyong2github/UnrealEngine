@@ -529,6 +529,11 @@ using FIntVirtualizedBulkData	= TVirtualizedBulkData<int32>;
 using FFloatVirtualizedBulkData	= TVirtualizedBulkData<float>;
 
 /** 
+ * NOTE: FPayloadToc/FTocEntry are now strictly legacy and are only used by the experimental sidecar system.
+ * They will be removed when the sidecar storage is changed to use FPackageTrailer instead.
+ */
+
+/** 
   * Represents an entry to the table of contents found at the start of a payload sidecar file.
   * This might be moved to it's own header and the table of contents made into a proper class 
   * if we decide that we want to make access of the payload sidecar file a generic feature.
