@@ -32,6 +32,8 @@ public:
 	TSharedPtr<FUICommandInfo> SelectNextUsage;
 	TSharedPtr<FUICommandInfo> CreateAssetFromSelection;
 
+	TSharedPtr<FUICommandInfo> OpenAddEmitterMenu;
+	
 	/** Toggles the preview pane's grid */
 	TSharedPtr<FUICommandInfo> TogglePreviewGrid;
 	TSharedPtr<FUICommandInfo> ToggleInstructionCounts;

@@ -17,7 +17,7 @@ class SNiagaraScriptGraph : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraScriptGraph)
-		: _ForegroundColor(FEditorStyle::GetColor("DefaultForeground"))
+		: _ForegroundColor(FEditorStyle::GetColor("Graph.ForegroundColor"))
 		, _ZoomToFitOnLoad(false)
 	{}
 		/** The text displayed in the title bar of the graph. */

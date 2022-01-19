@@ -280,9 +280,16 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 			UNiagaraOverviewNode* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
 			EmitterOverviewNode->Initialize(&OwnerSystem, EmitterHandle.GetId());
 
-			FVector2D EmitterOverviewNodeLocation = RightNode != nullptr
-				? FVector2D(RightNode->NodePosX + SystemOverviewNodePadding, RightNode->NodePosY)
-				: SystemOverviewGraph->GetGoodPlaceForNewNode();
+			FVector2D CurrentPos(EmitterOverviewNode->NodePosX, EmitterOverviewNode->NodePosY);
+			FVector2D EmitterOverviewNodeLocation = CurrentPos;
+
+			// callbacks in CreateNode might have set an explicit position already. If so, we don't update the position
+			if(EmitterOverviewNodeLocation.IsZero())
+			{
+				EmitterOverviewNodeLocation = RightNode != nullptr
+					? FVector2D(RightNode->NodePosX + SystemOverviewNodePadding, RightNode->NodePosY)
+					: SystemOverviewGraph->GetGoodPlaceForNewNode();
+			}
 
 			checkf(EmitterOverviewNode != nullptr, TEXT("Emitter overview node creation failed!"));
 			EmitterOverviewNode->NodePosX = EmitterOverviewNodeLocation.X;

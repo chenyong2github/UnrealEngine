@@ -13,6 +13,7 @@
 #include "NiagaraObjectSelection.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
+#include "GraphEditAction.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorModule.h"
 #include "GraphEditorActions.h"
@@ -103,7 +104,13 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnDistributeNodesV)
 	);
 
-
+	Commands->MapAction(FNiagaraEditorCommands::Get().OpenAddEmitterMenu,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OpenAddEmitterMenu),
+		FCanExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::CanAddEmitters),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateSP(this, &SNiagaraOverviewGraph::CanAddEmitters)
+	);
+	
 	GraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(Commands)
 		.Appearance(AppearanceInfo)
@@ -114,6 +121,8 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 
 	GraphEditor->SetNodeFactory(MakeShared<FNiagaraOverviewGraphNodeFactory>());
 
+	GraphEditor->GetCurrentGraph()->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateSP(this, &SNiagaraOverviewGraph::OnNodesCreated));
+	
 	FNiagaraGraphViewSettings ViewSettings = ViewModel->GetViewSettings();
 	if (ViewSettings.IsValid())
 	{
@@ -193,6 +202,54 @@ void SNiagaraOverviewGraph::PreClose()
 	}
 }
 
+void SNiagaraOverviewGraph::OpenAddEmitterMenu()
+{
+	FNiagaraAssetPickerListViewOptions ViewOptions;
+	ViewOptions.SetCategorizeUserDefinedCategory(true);
+	ViewOptions.SetCategorizeLibraryAssets(true);
+
+	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
+	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);	
+
+	TSharedPtr<SNiagaraAssetPickerList> AssetPickerList;
+	
+	SAssignNew(AssetPickerList, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+	.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
+	.ViewOptions(ViewOptions)
+	.TabOptions(TabOptions)
+	.OnTemplateAssetActivated_Lambda([this](const FAssetData& AssetData) {
+		FSlateApplication::Get().DismissAllMenus();
+		ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
+	});
+	
+	TSharedRef<SWidget> EmitterAddSubMenu =
+		SNew(SBorder)
+		.BorderImage(FNiagaraEditorStyle::Get().GetBrush("GraphActionMenu.Background"))
+		.Padding(0.0f)
+		[
+			SNew(SBox)
+			.WidthOverride(450.0f)
+			.HeightOverride(500.0f)
+			[
+				AssetPickerList.ToSharedRef()
+			]
+		];
+
+	FSlateApplication::Get().PushMenu(SharedThis(this), FWidgetPath(), EmitterAddSubMenu, FSlateApplication::Get().GetCursorPos(), FPopupTransitionEffect::None);
+
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([AssetPickerList]()
+	{
+		FSlateApplication::Get().SetKeyboardFocus(AssetPickerList->GetSearchBox());
+	}));
+}
+
+bool SNiagaraOverviewGraph::CanAddEmitters() const
+{
+	return ViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset ? true : false;
+}
+
 FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
 {
 	if (ViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
@@ -201,10 +258,7 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 
 		MenuBuilder.BeginSection(TEXT("NiagaraOverview_EditGraph"), LOCTEXT("EditGraph", "Edit Graph"));
 		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("EmitterAddLabel", "Add Emitter"),
-				LOCTEXT("EmitterAddToolTip", "Add an existing emitter"),
-				FNewMenuDelegate::CreateSP(this, &SNiagaraOverviewGraph::CreateAddEmitterMenuContent, InGraph));
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenAddEmitterMenu);
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("CommentsLabel", "Add Comment"),
@@ -335,48 +389,6 @@ void SNiagaraOverviewGraph::PositionPastedNodes(const TSet<UEdGraphNode*>& Paste
 	}
 }
 
-void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph)
-{
-	TArray<FRefreshItemSelectorDelegate*> RefreshItemSelectorDelegates;
-	RefreshItemSelectorDelegates.Add(&RefreshItemSelector);
-	FNiagaraAssetPickerListViewOptions ViewOptions;
-	ViewOptions.SetCategorizeUserDefinedCategory(true);
-	ViewOptions.SetCategorizeLibraryAssets(true);
-
-	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
-	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
-	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
-	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);	
-
-	TSharedPtr<SNiagaraAssetPickerList> AssetPickerList;
-	
-	SAssignNew(AssetPickerList, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
-	.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
-	.ViewOptions(ViewOptions)
-	.TabOptions(TabOptions)
-	.RefreshItemSelectorDelegates(RefreshItemSelectorDelegates)
-	.OnTemplateAssetActivated_Lambda([this, InGraph](const FAssetData& AssetData) {
-		FSlateApplication::Get().DismissAllMenus();
-		ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
-	});
-	
-	TSharedRef<SWidget> EmitterAddSubMenu =
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Padding(0.0f)
-		[
-			SNew(SBox)
-			.WidthOverride(450.0f)
-			.HeightOverride(500.0f)
-			[
-				AssetPickerList.ToSharedRef()
-			]
-		];
-
-	MenuBuilder.AddWidget(EmitterAddSubMenu, FText());
-	FSlateApplication::Get().SetKeyboardFocus(AssetPickerList->GetSearchBox());
-}
-
 void SNiagaraOverviewGraph::ZoomToFit()
 {
 	GraphEditor->ZoomToFit(true);
@@ -425,6 +437,28 @@ void SNiagaraOverviewGraph::OnDistributeNodesV()
 	if (GraphEditor.IsValid())
 	{
 		GraphEditor->OnDistributeNodesV();
+	}
+}
+
+void SNiagaraOverviewGraph::OnNodesCreated(const FEdGraphEditAction& Action)
+{
+	if((Action.Action & GRAPHACTION_AddNode) != 0)
+	{
+		FVector2D PasteLocation = GraphEditor->GetPasteLocation();
+		int32 NodeCounter = 0;
+
+		for(const UEdGraphNode* NewNode : Action.Nodes)
+		{
+			UEdGraphNode* EditableNode = const_cast<UEdGraphNode*>(NewNode);
+			EditableNode->NodePosX = PasteLocation.X + NodeCounter * 300.f;
+			EditableNode->NodePosY = PasteLocation.Y;
+			NodeCounter++;
+		}
+
+		if(Action.Nodes.Num() == 1)
+		{
+			GraphEditor->JumpToNode(Action.Nodes.Array()[0]);
+		}
 	}
 }
 

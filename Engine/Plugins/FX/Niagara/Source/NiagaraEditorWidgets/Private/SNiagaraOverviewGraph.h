@@ -22,15 +22,15 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-public:
-	FRefreshItemSelectorDelegate RefreshItemSelector;
-
 private:
 	void ViewModelSelectionChanged();
 
 	void GraphSelectionChanged(const TSet<UObject*>& SelectedNodes);
 
 	void PreClose();
+	
+	void OpenAddEmitterMenu();
+	bool CanAddEmitters() const;
 
 	/** Called to create context menu when right-clicking on graph */
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
@@ -44,10 +44,11 @@ private:
 	/** Called when nodes are pasted in the System Overview View Model. */
 	void NodesPasted(const TSet<UEdGraphNode*>& PastedNodes);
 
+	/** A callback function to position nodes after they've been created */
+	void OnNodesCreated(const FEdGraphEditAction& Action);
+	
 	/** Sets the position on a group of newly pasted nodes. */
 	void PositionPastedNodes(const TSet<UEdGraphNode*>& PastedNodes);
-
-	void CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph);
 
 	void ZoomToFit();
 	void ZoomToFitAll();
