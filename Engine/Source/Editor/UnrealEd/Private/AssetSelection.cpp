@@ -616,7 +616,7 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 			PlacementInfo.PreferredLevel = DesiredLevel;
 			PlacementInfo.NameOverride = Name;
 			PlacementInfo.FinalizedTransform = ActorTransform;
-			PlacementInfo.FactoryOverride = Factory->GetClass();
+			PlacementInfo.FactoryOverride = Factory;
 
 			FPlacementOptions PlacementOptions;
 			PlacementOptions.bIsCreatingPreviewElements = FLevelEditorViewportClient::IsDroppingPreviewActor();

@@ -8,7 +8,7 @@
 
 #include "PlacementPaletteItem.generated.h"
 
-class UAssetFactoryInterface;
+class IAssetFactoryInterface;
 class UInstancedPlacemenClientSettings;
 
 UCLASS(NotPlaceable)
@@ -27,7 +27,7 @@ public:
 	TObjectPtr<UInstancedPlacemenClientSettings> SettingsObject = nullptr;
 
 	UPROPERTY()
-	TSubclassOf<UAssetFactoryInterface> FactoryInterfaceClass;
+	TScriptInterface<IAssetFactoryInterface> FactoryInterface;
 
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;

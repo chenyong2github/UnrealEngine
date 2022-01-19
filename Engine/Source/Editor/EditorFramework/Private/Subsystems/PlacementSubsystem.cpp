@@ -37,7 +37,7 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 	for (const FAssetPlacementInfo& PlacementInfo : InPlacementInfos)
 	{
 		const FAssetData& AssetData = PlacementInfo.AssetToPlace;
-		TScriptInterface<IAssetFactoryInterface> FactoryInterface = GetAssetFactoryFromFactoryClass(PlacementInfo.FactoryOverride);
+		TScriptInterface<IAssetFactoryInterface> FactoryInterface = PlacementInfo.FactoryOverride;
 		if (!FactoryInterface)
 		{
 			FactoryInterface = FindAssetFactoryFromAssetData(AssetData);
@@ -119,7 +119,7 @@ void UPlacementSubsystem::RegisterPlacementFactories()
 	PlacementFactoriesRegistered.Broadcast();
 }
 
-TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::GetAssetFactoryFromFactoryClass(TSubclassOf<UAssetFactoryInterface> InFactoryInterfaceClass) const
+TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::GetAssetFactoryFromFactoryClass(TSubclassOf<UClass> InFactoryInterfaceClass) const
 {
 	if (InFactoryInterfaceClass)
 	{

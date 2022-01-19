@@ -36,7 +36,7 @@ struct EDITORFRAMEWORK_API FAssetPlacementInfo
 
 	// If set, will use the given factory to place the asset, instead of allowing the placement subsystem to determine which factory to use.
 	UPROPERTY()
-	TSubclassOf<UAssetFactoryInterface> FactoryOverride;
+	TScriptInterface<IAssetFactoryInterface> FactoryOverride;
 
 	/**
 	 * The Guid which corresponds to the item that should be placed.
@@ -108,7 +108,7 @@ public:
 
 	FSimpleMulticastDelegate& OnPlacementFactoriesRegistered();
 
-	TScriptInterface<IAssetFactoryInterface> GetAssetFactoryFromFactoryClass(TSubclassOf<UAssetFactoryInterface> InFactoryInterfaceClass) const;
+	TScriptInterface<IAssetFactoryInterface> GetAssetFactoryFromFactoryClass(TSubclassOf<UClass> InFactoryInterfaceClass) const;
 
 private:
 	void RegisterPlacementFactories();

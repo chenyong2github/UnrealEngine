@@ -98,7 +98,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 					{
 						FAssetPlacementInfo NewInfo;
 						NewInfo.AssetToPlace = ItemToPlace->AssetPath.TryLoad();
-						NewInfo.FactoryOverride = ItemToPlace->FactoryInterfaceClass;
+						NewInfo.FactoryOverride = ItemToPlace->FactoryInterface;
 						NewInfo.ItemGuid = ItemToPlace->ClientGuid;
 						NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 						NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);

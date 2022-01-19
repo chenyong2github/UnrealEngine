@@ -165,13 +165,12 @@ bool UAssetPlacementSettings::DoesActivePaletteSupportElement(const FTypedElemen
 
 			// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
 			// Not all elements (legacy via actors) do this reliably, so additionally check the supplied factory for a match. 
-			if (!Item->FactoryInterfaceClass.Get())
+			if (!Item->FactoryInterface.GetInterface())
 			{
 				continue;
 			}
 
-			TScriptInterface<IAssetFactoryInterface> FactoryInterface = GEditor->GetEditorSubsystem<UPlacementSubsystem>()->GetAssetFactoryFromFactoryClass(Item->FactoryInterfaceClass);
-			FAssetData FoundAssetDataFromFactory = FactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
+			FAssetData FoundAssetDataFromFactory = Item->FactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
 			if (FoundAssetDataFromFactory.ToSoftObjectPath() == Item->AssetPath)
 			{
 				return true;

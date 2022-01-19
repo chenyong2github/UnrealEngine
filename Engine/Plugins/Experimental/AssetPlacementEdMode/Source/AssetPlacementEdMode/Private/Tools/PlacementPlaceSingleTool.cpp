@@ -248,7 +248,7 @@ void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay&
 
 				PlacementInfo = MakeUnique<FAssetPlacementInfo>();
 				PlacementInfo->AssetToPlace = ItemToPlace->AssetPath.TryLoad();
-				PlacementInfo->FactoryOverride = ItemToPlace->FactoryInterfaceClass;
+				PlacementInfo->FactoryOverride = ItemToPlace->FactoryInterface;
 				PlacementInfo->ItemGuid = ItemToPlace->ClientGuid;
 				PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
 				PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
