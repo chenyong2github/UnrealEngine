@@ -2794,15 +2794,18 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 			case ERigControlValueType::Minimum:
 			case ERigControlValueType::Maximum:
 			{
+				if(bSetupUndo)
+				{
+					Modify();
+				}
+
 				if(InValueType == ERigControlValueType::Minimum)
 				{
 					InControlElement->Settings.MinimumValue = InValue;
-					InControlElement->Settings.ApplyLimits(InControlElement->Settings.MinimumValue);
 				}
 				else
 				{
 					InControlElement->Settings.MaximumValue = InValue;
-					InControlElement->Settings.ApplyLimits(InControlElement->Settings.MaximumValue);
 				}
 				
 				Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
