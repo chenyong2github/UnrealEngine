@@ -114,10 +114,9 @@ struct TFormatSpecifier
 template<> \
 struct TFormatSpecifier<type> \
 {  \
-	FORCEINLINE static const TCHAR (&GetFormatSpecifier())[5] \
+	FORCEINLINE static decltype(auto) GetFormatSpecifier() \
 	{ \
-		static const TCHAR Spec[5] = TEXT(format); \
-		return Spec; \
+		return TEXT(format); \
 	} \
 };
 
