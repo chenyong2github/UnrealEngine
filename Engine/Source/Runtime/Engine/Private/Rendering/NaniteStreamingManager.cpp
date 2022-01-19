@@ -640,7 +640,7 @@ void FStreamingManager::Add( FResources* Resources )
 	LLM_SCOPE_BYTAG(Nanite);
 	if (Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID)
 	{
-		check(Resources->RootData.Num() > 0);
+		check(Resources->HasData());
 		Resources->HierarchyOffset = Hierarchy.Allocator.Allocate(Resources->HierarchyNodes.Num());
 		Resources->NumHierarchyNodes = Resources->HierarchyNodes.Num();
 		Hierarchy.TotalUpload += Resources->HierarchyNodes.Num();

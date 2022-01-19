@@ -801,7 +801,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		if (StaticMesh->GetRenderData())
 		{
 			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
-			if (Resources.RootData.Num() > 0)
+			if (Resources.HasData())
 			{
 				const FString PositionStr = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
 				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NanitePositionPrecision", "Position Precision: {0}"), FText::FromString(PositionStr)));
@@ -853,7 +853,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		if (StaticMesh->GetRenderData())
 		{
 			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
-			if (Resources.RootData.Num() > 0)
+			if (Resources.HasData())
 			{
 				// Nanite Mesh Information
 				const FText NaniteTriangleCount = FText::AsNumber(Resources.NumInputTriangles);
