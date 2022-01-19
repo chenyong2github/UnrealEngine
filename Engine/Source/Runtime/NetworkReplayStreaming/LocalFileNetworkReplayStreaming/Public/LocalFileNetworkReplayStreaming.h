@@ -671,8 +671,8 @@ protected:
 public:
 	static const FString& GetDefaultDemoSavePath();
 	static FString GetDemoFullFilename(const FString& DemoPath, const FString& FileName);
-	static bool CleanUpOldReplays(FString DemoPath = GetDefaultDemoSavePath());
-	static bool GetDemoFreeStorageSpace(uint64& DiskFreeSpace, FString DemoPath);
+	static bool CleanUpOldReplays(const FString& DemoPath = GetDefaultDemoSavePath());
+	static bool GetDemoFreeStorageSpace(uint64& DiskFreeSpace, const FString& DemoPath);
 
 
 

@@ -2596,7 +2596,7 @@ FString FLocalFileNetworkReplayStreamer::GetDemoFullFilename(const FString& Stre
 	}
 }
 
-bool FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace(uint64& DiskFreeSpace, FString DemoPath)
+bool FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace(uint64& DiskFreeSpace, const FString& DemoPath)
 {
 #if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 	int64 AllocatedUsed = 0;
@@ -2630,7 +2630,7 @@ bool FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace(uint64& DiskFreeSp
 	return true;
 }
 
-bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(FString DemoPath)
+bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath)
 {
 	const int32 MaxDemos = FNetworkReplayStreaming::GetMaxNumberOfAutomaticReplays();
 	const bool bUnlimitedDemos = (MaxDemos <= 0);
@@ -2674,7 +2674,7 @@ bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(FString DemoPath)
 		{
 			// Convert the replay name to a full path, making sure to remove the file extension
 			// that GetDemoFullFilename will add.
-			AutoReplay = GetDemoFullFilename(DemoPath,AutoReplay); // DL: this makes me sick... we know the full path because we passed it in above..
+			AutoReplay = GetDemoFullFilename(DemoPath, AutoReplay); // DL: this makes me sick... we know the full path because we passed it in above..
 			AutoReplay.RemoveFromEnd(FNetworkReplayStreaming::GetReplayFileExtension());
 
 			FDateTime Timestamp = FileManager.GetTimeStamp(*AutoReplay);
@@ -3458,7 +3458,7 @@ void FLocalFileNetworkReplayStreamingFactory::Flush()
 
 void FLocalFileNetworkReplayStreamingFactory::StartupModule()
 {
-	FLocalFileNetworkReplayStreamer::CleanUpOldReplays();
+	FLocalFileNetworkReplayStreamer::CleanUpOldReplays(FLocalFileNetworkReplayStreamer::GetDefaultDemoSavePath());
 }
 
 void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()

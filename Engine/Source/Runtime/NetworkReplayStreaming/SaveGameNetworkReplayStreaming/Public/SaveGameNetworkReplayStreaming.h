@@ -160,10 +160,14 @@ private:
 	// Although this isn't used on the GameThread, it should only be created / destroyed
 	// from the same thread. Therefore, no need to make it thread safe (for now).
 	mutable TWeakPtr<FSaveGameOptionInfo> WeakOptionInfo;
+
+	friend class FSaveGameNetworkReplayStreamingFactory;
 };
 
 class SAVEGAMENETWORKREPLAYSTREAMING_API FSaveGameNetworkReplayStreamingFactory : public FLocalFileNetworkReplayStreamingFactory
 {
 public:
-	virtual TSharedPtr< INetworkReplayStreamer > CreateReplayStreamer();
+	virtual void StartupModule() override;
+
+	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;
 };

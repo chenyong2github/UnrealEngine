@@ -1815,7 +1815,12 @@ TFunction<bool(const TCHAR*, EGameDelegates_SaveGame, FString&)> FSaveGameNetwor
 
 IMPLEMENT_MODULE(FSaveGameNetworkReplayStreamingFactory, SaveGameNetworkReplayStreaming)
 
-TSharedPtr< INetworkReplayStreamer > FSaveGameNetworkReplayStreamingFactory::CreateReplayStreamer()
+void FSaveGameNetworkReplayStreamingFactory::StartupModule()
+{
+	FSaveGameNetworkReplayStreamer::CleanUpOldReplays(FSaveGameNetworkReplayStreamer::GetDefaultDemoSavePath());
+}
+
+TSharedPtr<INetworkReplayStreamer> FSaveGameNetworkReplayStreamingFactory::CreateReplayStreamer()
 {
 	if (IPlatformFeaturesModule::Get().GetSaveGameSystem() == nullptr)
 	{
