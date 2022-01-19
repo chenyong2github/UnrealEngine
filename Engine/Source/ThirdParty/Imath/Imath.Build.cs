@@ -23,20 +23,13 @@ public class Imath : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			string WindowsPlatformDirectory = Path.Combine(
+			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
-				Target.WindowsPlatform.GetArchitectureSubpath());
+				Target.WindowsPlatform.GetArchitectureSubpath(),
+				"lib");
 
-			string BinDirectory = Path.Combine(WindowsPlatformDirectory, "bin");
-			string LibDirectory = Path.Combine(WindowsPlatformDirectory, "lib");
-
-			string DynamicLibName = "Imath-3_1" + LibPostfix + ".dll";
 			string StaticLibName = "Imath-3_1" + LibPostfix + ".lib";
-
-			RuntimeDependencies.Add(
-				Path.Combine("$(TargetOutputDir)", DynamicLibName),
-				Path.Combine(BinDirectory, DynamicLibName));
 
 			PublicAdditionalLibraries.Add(
 				Path.Combine(LibDirectory, StaticLibName));

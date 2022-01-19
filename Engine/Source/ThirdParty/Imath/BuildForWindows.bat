@@ -40,8 +40,7 @@ cmake -G "Visual Studio 16 2019" %SOURCE_LOCATION%^
     -DCMAKE_INSTALL_INCLUDEDIR="%INSTALL_INCLUDEDIR%"^
     -DCMAKE_INSTALL_BINDIR="%INSTALL_BIN_DIR%"^
     -DCMAKE_INSTALL_LIBDIR="%INSTALL_LIB_DIR%"^
-    -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"^
-    -DCMAKE_CXX_FLAGS_RELEASE="/Zi /Ob2"^
+    -DBUILD_SHARED_LIBS=FALSE^
     -DBUILD_TESTING=OFF
 if %errorlevel% neq 0 exit /B %errorlevel%
 
@@ -53,20 +52,12 @@ echo Installing Imath for Debug...
 cmake --install . --config Debug
 if %errorlevel% neq 0 exit /B %errorlevel%
 
-echo Copying Imath PDB file for Debug
-xcopy bin\Debug\*.pdb %INSTALL_LOCATION%\%INSTALL_BIN_DIR%
-if %errorlevel% neq 0 exit /B %errorlevel%
-
 echo Building Imath for Release...
 cmake --build . --config Release -j8
 if %errorlevel% neq 0 exit /B %errorlevel%
 
 echo Installing Imath for Release...
 cmake --install . --config Release
-if %errorlevel% neq 0 exit /B %errorlevel%
-
-echo Copying Imath PDB file for Release
-xcopy bin\Release\*.pdb %INSTALL_LOCATION%\%INSTALL_BIN_DIR%
 if %errorlevel% neq 0 exit /B %errorlevel%
 
 popd

@@ -60,10 +60,9 @@ set_target_properties(Imath::ImathConfig PROPERTIES
 )
 
 # Create imported target Imath::Imath
-add_library(Imath::Imath SHARED IMPORTED)
+add_library(Imath::Imath STATIC IMPORTED)
 
 set_target_properties(Imath::Imath PROPERTIES
-  INTERFACE_COMPILE_DEFINITIONS "IMATH_DLL"
   INTERFACE_COMPILE_FEATURES "cxx_std_11"
   INTERFACE_COMPILE_OPTIONS "/EHsc"
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include"
