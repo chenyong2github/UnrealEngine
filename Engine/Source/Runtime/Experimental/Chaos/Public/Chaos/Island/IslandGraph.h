@@ -222,8 +222,9 @@ public:
 	 * Link two islands to each other for future island traversal
 	 * @param FirstIsland First island index to be linked
 	 * @param SecondIsland Second island index to be linked
+	 * @param bNonStationary Boolean to check if at least one of the 2 nodes are non stationary
 	 */
-	void ParentIslands(const int32 FirstIsland, const int32 SecondIsland);
+	void ParentIslands(const int32 FirstIsland, const int32 SecondIsland,const bool bNonStationary);
 
 	/**
 	 * Given an edge index we try to attach islands. 
@@ -306,6 +307,24 @@ public:
 	* @return First available color 
 	*/
 	int32 PickColor(const FGraphNode& GraphNode, const int32 OtherIndex, TQueue<int32>& NodeQueue);
+
+	/**
+	* Check if at least one of the 2 edge nodes is moving
+	* @param EdgeIndex Index of the edge to check
+	* @return Boolean to check if the edge is moving or not
+	*/
+	bool IsEdgeMoving(const int32 EdgeIndex)
+	{
+		if(GraphEdges.IsValidIndex(EdgeIndex))
+		{
+			const FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+			if(GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes.IsValidIndex(GraphEdge.SecondNode))
+			{
+				return !GraphNodes[GraphEdge.FirstNode].bStationaryNode || !GraphNodes[GraphEdge.SecondNode].bStationaryNode;
+			}
+		}
+		return false;
+	}
 	
 	/** List of graph nodes */
 	TSparseArray<FGraphNode> GraphNodes;
