@@ -307,17 +307,30 @@ namespace Jupiter
                 bool PassAllChecks(HealthCheckRegistration check) => true;
 
                 // Ready checks in Kubernetes is to verify that the service is working, if this returns false the app will not get any traffic (load balancer ignores it)
-                endpoints.MapHealthChecks("/health/ready", options: new HealthCheckOptions()
+                endpoints.MapHealthChecks("/health/readiness", options: new HealthCheckOptions()
                 {
                     Predicate = jupiterSettings.DisableHealthChecks ? PassAllChecks : (check) => check.Tags.Contains("self"),
                 });
 
                 // Live checks in Kubernetes to see if the pod is working as it should, if this returns false the entire pod is killed
-                endpoints.MapHealthChecks("/health/live", options: new HealthCheckOptions()
+                endpoints.MapHealthChecks("/health/liveness", options: new HealthCheckOptions()
                 {
                     Predicate = jupiterSettings.DisableHealthChecks ? PassAllChecks : (check) => check.Tags.Contains("services"),
                 });
 
+                endpoints.MapGet("/health/ready", async context =>
+                {
+                    context.Response.StatusCode = 200;
+                    context.Response.Headers.ContentType = "text/plain";
+                    await context.Response.Body.WriteAsync(Encoding.ASCII.GetBytes("Healthy"));
+                });
+
+                endpoints.MapGet("/health/live", async context =>
+                {
+                    context.Response.StatusCode = 200;
+                    context.Response.Headers.ContentType = "text/plain";
+                    await context.Response.Body.WriteAsync(Encoding.ASCII.GetBytes("Healthy"));
+                });
                 OnUseEndpoints(env, endpoints);
                 
                 endpoints.MapControllers();
