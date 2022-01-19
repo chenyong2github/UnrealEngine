@@ -3285,7 +3285,7 @@ void FAsyncPackage2::ImportPackagesRecursive(FIoBatch& IoBatch, IPackageStore& P
 								{
 									NameStr[I] = TChar<TCHAR>::ToLower(NameStr[I]);
 								}
-								PackageRelativeExportPath.Append('/');
+								PackageRelativeExportPath.AppendChar('/');
 								PackageRelativeExportPath.Append(FStringView(NameStr, NameLen));
 							}
 							uint64 ExportHash = CityHash64(reinterpret_cast<const char*>(PackageRelativeExportPath.GetData() + 1), (PackageRelativeExportPath.Len() - 1) * sizeof(TCHAR));
