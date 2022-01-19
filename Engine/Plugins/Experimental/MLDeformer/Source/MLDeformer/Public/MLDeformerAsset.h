@@ -196,6 +196,7 @@ public:
 	int32 GetNumFramesForTraining() const;
 	int32 GetCacheSizeInMegabytes() const { return CacheSizeInMegabytes; }
 	float GetDeltaCutoffLength() const { return DeltaCutoffLength; }
+	float GetNoiseAmount() const { return NoiseAmount; }
 #endif
 
 public:
@@ -317,9 +318,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (EditCondition = "LossFunction == ELossFunction::Shrinkage", ClampMin = "0.0"))
 	float ShrinkageThreshold = 0.1f;
 
-	/** The percentage of noise to add. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "100.0")) // A percentage.
-	float NoiseAmount = 0.5;
+	/** The percentage of noise to add. Adding some noise can make the system generalize better. Generally you want a low percentage, such as 0.5.
+	  * Currently using noise will disable the caching system, which will slow down training a lot. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "5.0")) // A percentage.
+	float NoiseAmount = 0.0;
 
 	/** The loss function to use during model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")

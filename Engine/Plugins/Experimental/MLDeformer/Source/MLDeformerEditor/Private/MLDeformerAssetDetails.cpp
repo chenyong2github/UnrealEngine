@@ -320,6 +320,24 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 	SettingsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, ShrinkageSpeed));
 	SettingsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, ShrinkageThreshold));
 	SettingsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, NoiseAmount));
+	if (DeformerAsset)
+	{
+		// Check if the noise amount is greater than 0, if so, show a warning about slow training times.
+		const FText WarningText = LOCTEXT("NoiseWarning", "Adding noise will disable caching, which will slow down training a lot.");
+		FDetailWidgetRow& WarningRow = SettingsCategoryBuilder.AddCustomRow(FText::FromString("NoiseWarning"), true)
+			.Visibility((DeformerAsset->GetNoiseAmount() > 0.0f) ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Warning)
+					.Message(WarningText)
+				]
+			];
+	}
+
 	SettingsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeviceType));
 }
 

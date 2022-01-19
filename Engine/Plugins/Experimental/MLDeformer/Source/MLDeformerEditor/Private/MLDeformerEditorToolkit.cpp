@@ -726,6 +726,11 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 		}
 	}
 	else
+	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, NoiseAmount))
+	{
+		EditorData->GetDetailsView()->ForceRefresh();
+	}
+	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed))
 	{
 		EditorData->UpdateTestAnimPlaySpeed();

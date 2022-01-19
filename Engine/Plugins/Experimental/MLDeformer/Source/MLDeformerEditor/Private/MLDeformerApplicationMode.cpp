@@ -46,7 +46,7 @@ FMLDeformerApplicationMode::FMLDeformerApplicationMode(
 	TabFactories.RegisterFactory(MakeShared<FMLDeformerTimelineTabSummoner>(MLDeformerEditor));
 
 	// Create tab layout.
-	TabLayout = FTabManager::NewLayout("Standalone_MLDeformerEditor_Layout_v0.028")
+	TabLayout = FTabManager::NewLayout("Standalone_MLDeformerEditor_Layout_v0.029")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
