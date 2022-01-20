@@ -146,8 +146,14 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 
 		if (ForceBakedRapidIteration || ForceAttributeTrimming)
 		{
-			NiagaraSystem->bBakeOutRapidIteration = ForceBakedRapidIteration;
-			NiagaraSystem->bTrimAttributes = ForceAttributeTrimming;
+			if (ForceBakedRapidIteration)
+			{
+				NiagaraSystem->SetBakeOutRapidIterationOnCook(true);
+			}
+			if (ForceAttributeTrimming)
+			{
+				NiagaraSystem->SetTrimAttributesOnCook(true);
+			}
 
 			NiagaraSystem->RequestCompile(true);
 			NiagaraSystem->WaitForCompilationComplete(true);

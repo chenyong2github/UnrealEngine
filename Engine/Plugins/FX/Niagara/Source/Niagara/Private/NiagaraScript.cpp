@@ -827,24 +827,18 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			SystemSpawnIdx = Scripts.Add(EmitterOwner->GetSystemSpawnScript());
 			SystemUpdateIdx = Scripts.Add(EmitterOwner->GetSystemUpdateScript());
 
-			if (EmitterOwner->bBakeOutRapidIteration)
-			{
-				Id.bUsesRapidIterationParams = false;
-			}
-			if (EmitterOwner->bDisableDebugSwitches)
-			{
-				Id.bDisableDebugSwitches = true;
-			}
-			if (EmitterOwner->bCompressAttributes)
+			Id.bUsesRapidIterationParams = EmitterOwner->ShouldUseRapidIterationParameters();
+			Id.bDisableDebugSwitches = EmitterOwner->ShouldDisableDebugSwitches();
+			if (EmitterOwner->ShouldCompressAttributes())
 			{
 				Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
 			}
-			if (EmitterOwner->bIgnoreParticleReadsForAttributeTrim)
+			if (EmitterOwner->ShouldIgnoreParticleReadsForAttributeTrim())
 			{
 				Id.AdditionalDefines.Add(TEXT("IgnoreParticleReadsForAttributeTrim"));
 			}
 
-			bool TrimAttributes = EmitterOwner->bTrimAttributes;
+			bool TrimAttributes = EmitterOwner->ShouldTrimAttributes();
 			if (TrimAttributes)
 			{
 				auto TrimAttributesSupported = [=](const UNiagaraEmitter* OtherEmitter)
@@ -870,7 +864,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				};
 
 				// if this emitter is being referenced by another emitter (PartilceRead) then don't worry about trimming attributes
-				if (!EmitterOwner->bIgnoreParticleReadsForAttributeTrim)
+				if (!EmitterOwner->ShouldIgnoreParticleReadsForAttributeTrim())
 				{
 					for (const FNiagaraEmitterHandle& EmitterHandle : EmitterOwner->GetEmitterHandles())
 					{
@@ -962,11 +956,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
 		}
 
-		if (!Emitter->bBakeOutRapidIteration)
-		{
-			Id.bUsesRapidIterationParams = true;
-		}
-
 		// Has simulation stages
 		{
 
@@ -1009,15 +998,9 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 		SystemSpawnIdx = Scripts.Add(System->GetSystemSpawnScript());
 		SystemUpdateIdx = Scripts.Add(System->GetSystemUpdateScript());
 
-		if (System->bBakeOutRapidIteration)
-		{
-			Id.bUsesRapidIterationParams = false;
-		}
-		if (System->bDisableDebugSwitches)
-		{
-			Id.bDisableDebugSwitches = true;
-		}
-		if (System->bCompressAttributes)
+		Id.bUsesRapidIterationParams = System->ShouldUseRapidIterationParameters();
+		Id.bDisableDebugSwitches = System->ShouldDisableDebugSwitches();
+		if (System->ShouldCompressAttributes())
 		{
 			Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
 		}
@@ -1543,22 +1526,9 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		bool bUsesRapidIterationParams = true;
 
 #if WITH_EDITORONLY_DATA
-		if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+		if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
 		{
-			if ( UNiagaraSystem* System = Emitter->GetTypedOuter<UNiagaraSystem>() )
-			{
-				if (System->bBakeOutRapidIteration)
-				{
-					bUsesRapidIterationParams = false;
-				}
-			}
-		}
-		else if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
-		{
-			if (System->bBakeOutRapidIteration)
-			{
-				bUsesRapidIterationParams = false;
-			}
+			bUsesRapidIterationParams = System->ShouldUseRapidIterationParameters();
 		}
 #endif
 

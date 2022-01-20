@@ -1710,6 +1710,12 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 				Script->MarkScriptAndSourceDesynchronized(TEXT("Static variable changed!"), FGuid::NewGuid());
 			}
 		}
+
+		UNiagaraSystem& NiagaraSystem = GetSystemViewModel()->GetSystem();
+		if (NiagaraSystem.ShouldUseRapidIterationParameters() == false)
+		{
+			NiagaraSystem.RequestCompile(false);
+		}
 	}
 	else
 	{

@@ -54,14 +54,6 @@ namespace NiagaraScriptCookStats
 int32 GEnableNiagaraRuntimeCycleCounts = 0;
 static FAutoConsoleVariableRef CVarEnableNiagaraRuntimeCycleCounts(TEXT("fx.EnableNiagaraRuntimeCycleCounts"), GEnableNiagaraRuntimeCycleCounts, TEXT("Toggle for runtime cylce counts tracking Niagara's frame time. \n"), ECVF_ReadOnly);
 
-static int GNiagaraForceSystemsToCookOutRapidIterationOnLoad = 0;
-static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnLoad(
-	TEXT("fx.NiagaraForceSystemsToCookOutRapidIterationOnLoad"),
-	GNiagaraForceSystemsToCookOutRapidIterationOnLoad,
-	TEXT("When enabled UNiagaraSystem's bBakeOutRapidIteration will be forced to true on PostLoad of the system."),
-	ECVF_Default
-);
-
 static int GNiagaraLogDDCStatusForSystems = 0;
 static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 	TEXT("fx.NiagaraLogDDCStatusForSystems"),
@@ -107,6 +99,8 @@ static FAutoConsoleVariableRef CVarNiagaraCompileDDCWaitTimeout(
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+, bCompileForEdit(false)
+, bBakeOutRapidIteration(false)
 , bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
@@ -886,12 +880,6 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 			UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 		}
 
-		if (GNiagaraForceSystemsToCookOutRapidIterationOnLoad == 1 && !bBakeOutRapidIteration)
-		{
-			bSystemScriptsAreSynchronized = false;
-			bBakeOutRapidIteration = true;
-		}
-		
 		if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 		{
 			if (IsRunningCommandlet())
@@ -1029,15 +1017,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 			NiagaraEmitterCompiledDataStruct->SerializeTaggedProperties(Ar, (uint8*)&ConstCastSharedRef<FNiagaraEmitterCompiledData>(EmitterCompiledData[EmitterIndex]).Get(), NiagaraEmitterCompiledDataStruct, nullptr);
 		}
 	}
-
-#if WITH_EDITOR
-	if ((IsRunningCookCommandlet() || GIsCookerLoadingPackage) && Ar.IsLoading())
-	{
-		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
-		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
-		bDisableDebugSwitches = bDisableDebugSwitches || bDisableDebugSwitchesOnCook;
-	}
-#endif
 }
 
 #if WITH_EDITOR

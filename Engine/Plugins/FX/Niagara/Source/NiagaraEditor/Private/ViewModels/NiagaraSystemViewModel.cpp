@@ -95,6 +95,8 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions)
 {
 	System = &InSystem;
+	System->bCompileForEdit = true;
+
 	RegisteredHandle = RegisterViewModelWithMap(System, this);
 
 	bCanModifyEmittersFromTimeline = InOptions.bCanModifyEmittersFromTimeline;
@@ -176,6 +178,7 @@ void FNiagaraSystemViewModel::Cleanup()
 
 	if (System)
 	{
+		System->bCompileForEdit = false;
 		System->OnSystemPostEditChange().Remove(SystemChangedDelegateHandle);
 	}
 

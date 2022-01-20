@@ -547,12 +547,26 @@ public:
 	static void RecomputeExecutionOrderForEmitter(UNiagaraEmitter* InEmitter);
 	static void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
 
-	/** Experimental feature that allows us to bake out rapid iteration parameters during the normal compile process. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	FORCEINLINE bool ShouldUseRapidIterationParameters() const { return bCompileForEdit ? !bBakeOutRapidIteration : !bBakeOutRapidIterationOnCook; }
+	FORCEINLINE bool ShouldTrimAttributes() const { return bCompileForEdit ? bTrimAttributes : bTrimAttributesOnCook; }
+	FORCEINLINE bool ShouldIgnoreParticleReadsForAttributeTrim() const { return bIgnoreParticleReadsForAttributeTrim; }
+	FORCEINLINE bool ShouldDisableDebugSwitches() const { return bCompileForEdit ? bDisableDebugSwitches : bDisableDebugSwitchesOnCook; }
+	FORCEINLINE bool ShouldCompressAttributes() const { return bCompressAttributes; }
+
+	FORCEINLINE void SetBakeOutRapidIterationOnCook(bool bBakeOut) { bBakeOutRapidIteration = bBakeOut; bBakeOutRapidIterationOnCook = bBakeOut; }
+	FORCEINLINE void SetTrimAttributesOnCook(bool bTrim) { bTrimAttributes = bTrim; bTrimAttributesOnCook = bTrim; }
+
+	/** When enabled we compile for the edit path, which can result in slower system performance but faster editor responsiveness. */
+	UPROPERTY(transient)
+	uint32 bCompileForEdit : 1;
+
+protected:
+	/** When enable constant values are baked into the scripts while editing the system, this will increase iteration times but improve performance. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta=(DisplayName="Bake Rapid Iteration Parameters During Edit"))
 	uint32 bBakeOutRapidIteration : 1;
 
-	/** If true bBakeOutRapidIteration will be made to be true during cooks  */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
+	/** When enabled constant values are baked into scripts to improve performance. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta=(DisplayName="Bake Rapid Iteration Parameters"))
 	uint32 bBakeOutRapidIterationOnCook : 1;
 
 	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
@@ -560,26 +574,25 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bCompressAttributes : 1;
 
-	/** If true Particle attributes will be removed from the DataSet if they are unnecessary (are never read by ParameterMap) */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	/** When enabled we trim particle attributes while editing the system. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta=(DisplayName="Trim Attributes During Edit"))
 	uint32 bTrimAttributes : 1;
-
-	/** If true bTrimAttributes will be made to be true during cooks */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
+	/** If true Particle attributes will be removed from the DataSet if they are unnecessary (are never read by ParameterMap) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Trim Attributes"))
 	uint32 bTrimAttributesOnCook : 1;
 
 	/** If true ParticleReads will not absolutely prevent attribute trimming - User must ensure that the appropriate attributes are preserved on the source emitter! */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bIgnoreParticleReadsForAttributeTrim : 1;
 
-	/** If true all debug switches will be ignored in the editor. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	/** When enable debug switches are disabled while editing the system. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches During Edit"))
 	uint32 bDisableDebugSwitches : 1;
-
-	/** If true all debug switches will be ignored for cooked builds */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
+	/** When enabled debug switches are disabled when compiling the system. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches"))
 	uint32 bDisableDebugSwitchesOnCook : 1;
 
+public:
 	/** Subscriptions to definitions of parameters. */
 	UPROPERTY()
 	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;

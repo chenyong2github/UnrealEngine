@@ -2206,7 +2206,7 @@ ENiagaraFunctionDebugState FCompileConstantResolver::CalculateDebugState() const
 	const UNiagaraSystem* OwnerSystem = System ? System : (Emitter ? Cast<const UNiagaraSystem>(Emitter->GetOuter()) : nullptr);
 	if ( OwnerSystem != nullptr )
 	{
-		return OwnerSystem->bDisableDebugSwitches ? ENiagaraFunctionDebugState::NoDebug : DebugState;
+		return OwnerSystem->ShouldDisableDebugSwitches() ? ENiagaraFunctionDebugState::NoDebug : DebugState;
 	}
 
 	// Translator
