@@ -1404,8 +1404,8 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
+		.SetCheckedForegroundColor(FStyleColors::White)
+		.SetCheckedHoveredForegroundColor(FStyleColors::White)
 		.SetPadding(ToggleButtonMargins);
 
 	//@todo Recolor - Get rid of this. ToggleButtonCheckbox is what we should use
