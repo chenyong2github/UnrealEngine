@@ -17,6 +17,7 @@
 #include "AnimGraphCommands.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RotationOffsetBlendSpace
@@ -118,6 +119,18 @@ void UAnimGraphNode_RotationOffsetBlendSpace::SetAnimationAsset(UAnimationAsset*
 	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
 		Node.SetBlendSpace(BlendSpace);
+	}
+}
+
+void UAnimGraphNode_RotationOffsetBlendSpace::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
+{
+	if(InContext.GetAssets().Num() > 0)
+	{
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InContext.GetAssets()[0]))
+		{
+			FAnimNode_BlendSpacePlayer& AnimNode = InContext.GetAnimNode<FAnimNode_BlendSpacePlayer>();
+			AnimNode.SetBlendSpace(BlendSpace);
+		}
 	}
 }
 
