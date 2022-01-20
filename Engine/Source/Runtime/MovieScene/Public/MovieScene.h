@@ -1015,10 +1015,6 @@ public:
 
 	UMovieSceneNodeGroupCollection& GetNodeGroups() { return *NodeGroupCollection; }
 
-	/** The timecode at which this movie scene section is based (ie. when it was recorded) */
-	UPROPERTY()
-	FMovieSceneTimecodeSource TimecodeSource;
-
 #endif	// WITH_EDITORONLY_DATA
 
 public:

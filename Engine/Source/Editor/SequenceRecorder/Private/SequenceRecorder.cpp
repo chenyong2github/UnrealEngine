@@ -763,8 +763,6 @@ bool FSequenceRecorder::StartRecordingInternal(UWorld* World)
 			{
 				CurrentSequence = LevelSequence;
 
-				LevelSequence->GetMovieScene()->TimecodeSource = SequenceRecorderUtils::GetTimecodeSource();
-
 				FAssetRegistryModule::AssetCreated(LevelSequence);
 
 				RefreshNextSequence();

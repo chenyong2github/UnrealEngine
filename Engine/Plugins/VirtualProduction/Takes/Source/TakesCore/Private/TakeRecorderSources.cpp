@@ -333,7 +333,6 @@ void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, cons
 
 	UE_LOG(LogTakesCore, Log, TEXT("StartRecording: %s"), *CurrentTimecode.ToString());
 
-	InSequence->GetMovieScene()->TimecodeSource = CurrentTimecode;
 	StartRecordingPreRecordedSources(InCurrentFrameTime);
 }
 
