@@ -4896,6 +4896,11 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		CalcNavMeshProperties(TiledMeshParameters.maxTiles, TiledMeshParameters.maxPolys);
 		Config.MaxPolysPerTile = TiledMeshParameters.maxPolys;
 
+		DetourMesh->setWalkableClimb(Config.AgentMaxClimb);
+		DetourMesh->setWalkableHeight(Config.AgentHeight);
+		DetourMesh->setWalkableRadius(Config.AgentRadius);
+		DetourMesh->setBVQuantFactor(1.f / Config.cs);
+
 		if (TiledMeshParameters.maxTiles == 0)
 		{
 			UE_LOG(LogNavigation, Warning, TEXT("ConstructTiledNavMesh: Failed to create navmesh of size 0."));
