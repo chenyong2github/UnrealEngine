@@ -326,7 +326,8 @@ void FDynamicPrimitiveUniformBuffer::Set(
 	bool bReceivesDecals,
 	bool bHasPrecomputedVolumetricLightmap,
 	bool bDrawsVelocity,
-	bool bOutputVelocity)
+	bool bOutputVelocity,
+	const FCustomPrimitiveData* CustomPrimitiveData)
 {
 	check(IsInRenderingThread());
 	UniformBuffer.SetContents(
@@ -342,9 +343,24 @@ void FDynamicPrimitiveUniformBuffer::Set(
 			.OutputVelocity(bOutputVelocity)
 			.DrawsVelocity(bDrawsVelocity)
 			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+			.CustomPrimitiveData(CustomPrimitiveData)
 		.Build()
 	);
 	UniformBuffer.InitResource();
+}
+
+void FDynamicPrimitiveUniformBuffer::Set(
+	const FMatrix& LocalToWorld,
+	const FMatrix& PreviousLocalToWorld,
+	const FBoxSphereBounds& WorldBounds,
+	const FBoxSphereBounds& LocalBounds,
+	const FBoxSphereBounds& PreSkinnedLocalBounds,
+	bool bReceivesDecals,
+	bool bHasPrecomputedVolumetricLightmap,
+	bool bDrawsVelocity,
+	bool bOutputVelocity)
+{
+	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bDrawsVelocity, bOutputVelocity, nullptr);
 }
 
 void FDynamicPrimitiveUniformBuffer::Set(
@@ -357,7 +373,7 @@ void FDynamicPrimitiveUniformBuffer::Set(
 	bool bDrawsVelocity,
 	bool bOutputVelocity)
 {
-	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bDrawsVelocity, bOutputVelocity);
+	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bDrawsVelocity, bOutputVelocity, nullptr);
 }
 
 FLightMapInteraction FLightMapInteraction::Texture(

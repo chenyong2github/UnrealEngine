@@ -2588,6 +2588,18 @@ public:
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
 		bool bDrawsVelocity,
+		bool bOutputVelocity,
+		const FCustomPrimitiveData* CustomPrimitiveData);
+
+	ENGINE_API void Set(
+		const FMatrix& LocalToWorld,
+		const FMatrix& PreviousLocalToWorld,
+		const FBoxSphereBounds& WorldBounds,
+		const FBoxSphereBounds& LocalBounds,
+		const FBoxSphereBounds& PreSkinnedLocalBounds,
+		bool bReceivesDecals,
+		bool bHasPrecomputedVolumetricLightmap,
+		bool bDrawsVelocity,
 		bool bOutputVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
