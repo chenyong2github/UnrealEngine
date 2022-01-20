@@ -1197,7 +1197,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	// Always register end frame updates. This path is short circuited if a worker thread
 	// exists.
 	GTraceAuxiliary.StartEndFramePump();
-	if (FPlatformProcess::SupportsMultithreading() && !FForkProcessHelper::IsForkRequested())
+	if (!FForkProcessHelper::IsForkRequested())
 	{
 		GTraceAuxiliary.StartWorkerThread();
 	}
