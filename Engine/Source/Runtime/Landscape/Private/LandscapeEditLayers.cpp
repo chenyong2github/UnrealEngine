@@ -1433,10 +1433,18 @@ bool ALandscape::IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming)
 bool ALandscape::IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation)
 {
 	check(InMaterialResource);
-	if (bInWaitForCompilation && !InMaterialResource->IsGameThreadShaderMapComplete())
+	if (InMaterialResource->IsGameThreadShaderMapComplete())
+	{
+		return true;
+	}
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Landscape_WaitForMaterialCompilation);
-		InMaterialResource->FinishCompilation();
+		InMaterialResource->SubmitCompileJobs(EShaderCompileJobPriority::ForceLocal);
+		if (bInWaitForCompilation)
+		{
+			InMaterialResource->FinishCompilation();
+		}
 	}
 	return InMaterialResource->IsGameThreadShaderMapComplete();
 }
