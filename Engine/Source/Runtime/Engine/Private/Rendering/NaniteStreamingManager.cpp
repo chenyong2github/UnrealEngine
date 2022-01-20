@@ -14,6 +14,11 @@
 #include "Async/ParallelFor.h"
 #include "Misc/Compression.h"
 
+#if WITH_EDITOR
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
+#endif
+
 #define MAX_LEGACY_REQUESTS_PER_UPDATE		32u		// Legacy IO requests are slow and cause lots of bubbles, so we NEED to limit them.
 
 #define MAX_REQUESTS_HASH_TABLE_SIZE		(MAX_STREAMING_REQUESTS << 1)
@@ -581,10 +586,6 @@ void FStreamingManager::InitRHI()
 
 #if !WITH_EDITOR
 	PendingPageStagingMemory.SetNumUninitialized( MaxPendingPages * MAX_PAGE_DISK_SIZE );
-	for (int32 i = 0; i < PendingPages.Num(); i++)
-	{
-		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * MAX_PAGE_DISK_SIZE;
-	}
 #endif
 
 	RequestsHashTable	= new FRequestsHashTable();
@@ -593,6 +594,10 @@ void FStreamingManager::InitRHI()
 	ImposterData.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ImposterDataInitial"), sizeof(uint32));
 	ClusterPageData.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ClusterPageDataInitial"), sizeof(uint32));
 	Hierarchy.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.HierarchyInitial"), sizeof(uint32));	// Dummy allocation to make sure it is a valid resource
+
+#if WITH_EDITOR
+	RequestOwner = new UE::DerivedData::FRequestOwner(UE::DerivedData::EPriority::Normal);
+#endif
 }
 
 void FStreamingManager::ReleaseRHI()
@@ -601,6 +606,11 @@ void FStreamingManager::ReleaseRHI()
 	{
 		return;
 	}
+
+#if WITH_EDITOR
+	delete RequestOwner;
+	RequestOwner = nullptr;
+#endif
 
 	LLM_SCOPE_BYTAG(Nanite);
 	for (uint32 BufferIndex = 0; BufferIndex < MaxStreamingReadbackBuffers; ++BufferIndex)
@@ -1134,22 +1144,28 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				CommittedStreamingPageMap.Add(PendingPage.InstallKey, StreamingPage);
 
 #if WITH_EDITOR
-				// Make sure we only lock each resource BulkData once.
-				const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(*Resources);
-				const uint8* BulkDataPtr;
-				if (!BulkDataPtrPtr)
+				const uint8* SrcPtr;
+				if ((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
 				{
-					FByteBulkData& BulkData = (*Resources)->StreamablePages;
-					check(BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0);
-					BulkDataPtr = (const uint8*)BulkData.LockReadOnly();
-					ResourceToBulkPointer.Add(*Resources, BulkDataPtr);
+					SrcPtr = (const uint8*)PendingPage.SharedBuffer.GetData();
 				}
 				else
 				{
-					BulkDataPtr = *BulkDataPtrPtr;
+					// Make sure we only lock each resource BulkData once.
+					const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(*Resources);
+					if (BulkDataPtrPtr)
+					{
+						SrcPtr = *BulkDataPtrPtr + PageStreamingState.BulkOffset;
+					}
+					else
+					{
+						FByteBulkData& BulkData = (*Resources)->StreamablePages;
+						check(BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0);
+						const uint8* BulkDataPtr = (const uint8*)BulkData.LockReadOnly();
+						ResourceToBulkPointer.Add(*Resources, BulkDataPtr);
+						SrcPtr = BulkDataPtr + PageStreamingState.BulkOffset;
+					}
 				}
-			
-				const uint8* SrcPtr = BulkDataPtr + PageStreamingState.BulkOffset;
 #else
 				const uint8* SrcPtr = PendingPage.MemoryPtr;
 #endif
@@ -1213,7 +1229,9 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 			FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
 		}
 
-#if !WITH_EDITOR
+#if WITH_EDITOR
+		Task.PendingPage->SharedBuffer.Reset();
+#else
 		if (Task.PendingPage->AsyncRequest)
 		{
 			check(Task.PendingPage->AsyncRequest->PollCompletion());	
@@ -1485,7 +1503,12 @@ uint32 FStreamingManager::DetermineReadyPages()
 			uint32 PendingPageIndex = ( StartPendingPageIndex + i ) % MaxPendingPages;
 			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
 			
-#if WITH_EDITOR == 0
+#if WITH_EDITOR
+			if (!PendingPage.bReady)
+			{
+				break;
+			}
+#else
 			if (PendingPage.AsyncRequest)
 			{
 				if (!PendingPage.AsyncRequest->PollCompletion())
@@ -1873,6 +1896,12 @@ void FStreamingManager::AsyncUpdate()
 	uint32 MaxSelectedPages = MaxPendingPages - NumPendingPages;
 	if( PrioritizedRequestsHeap.Num() > 0 )
 	{
+		using namespace UE::DerivedData;
+#if WITH_EDITOR
+		TArray<FCacheGetChunkRequest> DDCRequests;
+		DDCRequests.Reserve(MaxSelectedPages);
+#endif
+
 		TArray< FPageKey > SelectedPages;
 		TSet< FPageKey > SelectedPagesSet;
 			
@@ -1922,6 +1951,10 @@ void FStreamingManager::AsyncUpdate()
 
 			FIoBatch Batch;
 			FPendingPage* LastPendingPage = nullptr;
+
+#if WITH_EDITOR
+			const FValueId NaniteValueId = FValueId::FromName("NaniteStreamingData");
+#endif
 				
 			// Register Pages
 			{
@@ -1930,6 +1963,7 @@ void FStreamingManager::AsyncUpdate()
 				for( const FPageKey& SelectedKey : SelectedPages )
 				{
 					FPendingPage& PendingPage = PendingPages[ NextPendingPageIndex ];
+					PendingPage = FPendingPage();
 
 					FStreamingPageInfo** FreePage = nullptr;
 						
@@ -1974,23 +2008,46 @@ void FStreamingManager::AsyncUpdate()
 #endif
 
 					if (FreePage)
+					{
 						UnregisterPage((*FreePage)->RegisteredKey);
+					}
 
 					const FPageStreamingState& PageStreamingState = ( *Resources )->PageStreamingStates[ SelectedKey.PageIndex ];
 					check( !(*Resources)->IsRootPage( SelectedKey.PageIndex ) );
 
-#if !WITH_EDITOR
+#if WITH_EDITOR
+					if((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
+					{
+						FCacheKey Key;
+						Key.Bucket = FCacheBucket(TEXT("StaticMesh"));
+						Key.Hash = (*Resources)->DDCKeyHash;
+
+						check(!(*Resources)->DDCRawHash.IsZero());
+
+						FCacheGetChunkRequest Request;
+						Request.Id = NaniteValueId;
+						Request.Key = Key;
+						Request.RawOffset = PageStreamingState.BulkOffset;
+						Request.RawSize = PageStreamingState.BulkSize;
+						Request.RawHash = (*Resources)->DDCRawHash;
+						Request.UserData = NextPendingPageIndex;
+						DDCRequests.Add(Request);
+					}
+					else
+					{
+						PendingPage.bReady = true;
+					}
+#else
 					if (!bLegacyRequest)
 					{
 						// Use IODispatcher when available
 						LastPendingPage = &PendingPage;
 						FIoChunkId ChunkID = BulkData.CreateChunkId();
 						FIoReadOptions ReadOptions;
+						PendingPage.MemoryPtr = PendingPageStagingMemory.GetData() + NextPendingPageIndex * MAX_PAGE_DISK_SIZE;
 						ReadOptions.SetRange(BulkData.GetBulkDataOffsetInFile() + PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
 						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
 						PendingPage.Request = Batch.Read(ChunkID, ReadOptions, IoDispatcherPriority_Low);
-						PendingPage.AsyncHandle = nullptr;
-						PendingPage.AsyncRequest = nullptr;
 					}
 					else
 					{
@@ -2001,6 +2058,7 @@ void FStreamingManager::AsyncUpdate()
 						Task.PendingPage = &PendingPage;
 						Task.BulkOffset = PageStreamingState.BulkOffset;
 						Task.BulkSize = PageStreamingState.BulkSize;
+						NumLegacyRequestsIssued++;
 					}
 #endif
 					const float RequestSizeMB = PageStreamingState.BulkSize * (1.0f / 1048576.0f);
@@ -2022,14 +2080,30 @@ void FStreamingManager::AsyncUpdate()
 #endif
 
 					RegisterStreamingPage( Page, SelectedKey );
-
-					if (bLegacyRequest)
-						NumLegacyRequestsIssued++;
-
 				}
 			}
 
-#if !WITH_EDITOR
+#if WITH_EDITOR
+			if (DDCRequests.Num() > 0)
+			{
+				FRequestBarrier Barrier(*RequestOwner);	// This is a critical section on the owner. It does not constrain ordering
+				GetCache().GetChunks(DDCRequests, *RequestOwner,
+					[this](FCacheGetChunkResponse&& Response)
+					{
+						if(Response.Status == EStatus::Ok)
+						{
+							const uint32 PendingPageIndex = (uint32)Response.UserData;
+							PendingPages[PendingPageIndex].SharedBuffer = MoveTemp(Response.RawData);
+							PendingPages[PendingPageIndex].bReady = true;
+						}
+						else
+						{
+							UE_LOG(LogNaniteStreaming, Error, TEXT("DDC request failed."));
+						}
+					});
+				DDCRequests.Empty();
+			}
+#else
 			if (LastPendingPage)
 			{
 				// Issue batch

@@ -72,6 +72,11 @@
 #include "StaticMeshCompiler.h"
 #include "AssetCompilingManager.h"
 #include "ObjectCacheContext.h"
+
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
+#include "DerivedDataCacheRecord.h"
+#include "DerivedDataValue.h"
 #endif // #if WITH_EDITOR
 
 #include "Engine/StaticMeshSocket.h"
@@ -1647,7 +1652,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		}
 	}
 
-	NaniteResources.Serialize( Ar, Owner );
+	NaniteResources.Serialize( Ar, Owner, bCooked );
 
 	// Inline the distance field derived data for cooked builds
 	if (bCooked)
@@ -2388,7 +2393,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("3006d21f867648a68cf4edee185446b7")
+#define STATICMESH_DERIVEDDATA_VER TEXT("24983DE8033B49EE8B6566C299172A6C")
 
 const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2726,12 +2731,50 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		const FString KeySuffix = BuildStaticMeshDerivedDataKeySuffix(TargetPlatform, Owner, LODGroup);
 		DerivedDataKey = BuildStaticMeshDerivedDataKey(KeySuffix);
 
-		TArray<uint8> DerivedData;
-		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
+		using namespace UE::DerivedData;
+
+		static const FValueId MeshDataId = FValueId::FromName("MeshData");
+		static const FValueId NaniteStreamingDataId = FValueId::FromName("NaniteStreamingData");
+
+		FCacheKey CacheKey;
+		CacheKey.Bucket = FCacheBucket(TEXT("StaticMesh"));
+		CacheKey.Hash = FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(DerivedDataKey)));
+
+		FSharedBuffer MeshDataBuffer;
+		FIoHash NaniteStreamingDataHash;
 		{
-			COOK_STAT(Timer.AddHit(DerivedData.Num()));
-			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
+			FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::Default);
+			PolicyBuilder.AddValuePolicy(NaniteStreamingDataId, ECachePolicy::Default | ECachePolicy::SkipData);
+			
+			FCacheGetRequest Request;
+			Request.Name = Owner->GetPathName();
+			Request.Key = CacheKey;
+			Request.Policy = PolicyBuilder.Build();
+
+			FRequestOwner RequestOwner(EPriority::Blocking);
+			
+			GetCache().Get(MakeArrayView(&Request, 1), RequestOwner,
+				[&MeshDataBuffer, &NaniteStreamingDataHash](FCacheGetResponse&& Response)
+				{
+					MeshDataBuffer = Response.Record.GetValue(MeshDataId).GetData().Decompress();
+					NaniteStreamingDataHash = Response.Record.GetValue(NaniteStreamingDataId).GetRawHash();
+				});
+			RequestOwner.Wait();
+		}
+
+		if (!MeshDataBuffer.IsNull())
+		{
+			COOK_STAT(Timer.AddHit(MeshDataBuffer.GetSize()));
+
+			FMemoryReaderView Ar(MakeArrayView((const uint8*)MeshDataBuffer.GetData(), MeshDataBuffer.GetSize()), /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
+
+			check(NaniteResources.StreamablePages.GetBulkDataSize() == 0);
+			if (NaniteResources.ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
+			{
+				NaniteResources.DDCKeyHash = CacheKey.Hash;
+				NaniteResources.DDCRawHash = NaniteStreamingDataHash;
+			}
 
 			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
 			{
@@ -2797,6 +2840,23 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				}
 			}
 			
+			int64 TotalPushedBytes = 0;
+			FCacheRecordBuilder RecordBuilder(CacheKey);
+			if (NaniteResources.HasStreamingData())
+			{
+				// Compress streaming data, add it to record builder and remove it from BulkData
+				FByteBulkData& BulkData = NaniteResources.StreamablePages;
+				TotalPushedBytes += BulkData.GetBulkDataSize();
+				FValue Value = FValue::Compress(FSharedBuffer::MakeView(BulkData.LockReadOnly(), BulkData.GetBulkDataSize()));
+				RecordBuilder.AddValue(NaniteStreamingDataId, Value);
+				BulkData.Unlock();
+				BulkData.RemoveBulkData();
+
+				NaniteResources.ResourceFlags |= NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC;
+				NaniteResources.DDCKeyHash = CacheKey.Hash;
+				NaniteResources.DDCRawHash = Value.GetRawHash();
+			}
+			
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
@@ -2820,26 +2880,39 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 #if WITH_EDITOR
 			//Do not save ddc when we are forcing the regeneration of ddc in automation test
 			//No need to take more space in the ddc.
-			if (GIsAutomationTesting && Owner->BuildCacheAutomationTestGuid.IsValid())
+			if (GIsAutomationTesting && Owner->BuildCacheAutomationTestGuid.IsValid() && !NaniteResources.HasStreamingData())
 			{
 				bSaveDDC = false;
 			}
 #endif
-			int64 DerivedDataNum = Ar.TotalSize();
-			bool bCanStoreInDDC = DerivedDataNum <= TNumericLimits<TArrayView<uint8>::SizeType>::Max();
-			if (bSaveDDC && bCanStoreInDDC)
-			{
-				TArrayView<uint8> DataView(Ar.GetData(), DerivedDataNum);
-				GetDerivedDataCacheRef().Put(*DerivedDataKey, DataView, Owner->GetPathName());
-			}
 
+			if (bSaveDDC)
+			{
+				RecordBuilder.AddValue(MeshDataId, FSharedBuffer::MakeView(Ar.GetData(), Ar.TotalSize()));
+				TotalPushedBytes += Ar.TotalSize();
+
+				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::Default);
+				PolicyBuilder.AddValuePolicy(NaniteStreamingDataId, ECachePolicy::Default | ECachePolicy::KeepAlive);
+
+				FRequestOwner RequestOwner(UE::DerivedData::EPriority::Blocking);
+				const FCachePutRequest PutRequest = { FSharedString(TEXT("StaticMesh")), RecordBuilder.Build(), PolicyBuilder.Build() };
+				GetCache().Put(MakeArrayView(&PutRequest, 1),
+					RequestOwner,
+					[](FCachePutResponse&& Response)
+					{
+						check(Response.Status == EStatus::Ok);
+					});
+
+				RequestOwner.Wait();
+			}
+			
 			double T1 = FPlatformTime::Seconds();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
 				T1-T0,
 				*Owner->GetPathName()
 				);
 			FPlatformAtomics::InterlockedAdd(&StaticMeshDerivedDataTimings::BuildCycles, T1 - T0);
-			COOK_STAT(Timer.AddMiss(DerivedDataNum));
+			COOK_STAT(Timer.AddMiss(TotalPushedBytes));
 		}
 	}
 
@@ -4336,15 +4409,24 @@ void UStaticMesh::WillNeverCacheCookedPlatformDataAgain()
 
 void UStaticMesh::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
+	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
+	PlatformRenderData.NaniteResources.DropBulkData();
 }
 
 void UStaticMesh::ClearAllCachedCookedPlatformData()
 {
+	for (ITargetPlatform* TargetPlatform : GetTargetPlatformManagerRef().GetActiveTargetPlatforms())
+	{
+		ClearCachedCookedPlatformData(TargetPlatform);
+	}
+
 	GetRenderData()->NextCachedRenderData.Reset();
 }
 
 void UStaticMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
+	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
+	PlatformRenderData.NaniteResources.RebuildBulkDataFromDDC();
 }
 
 bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)

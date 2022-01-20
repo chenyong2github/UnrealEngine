@@ -28,6 +28,13 @@
 #include "Elements/SMInstance/SMInstanceManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
+#if WITH_EDITOR
+#include "DerivedDataCache.h"
+#include "DerivedDataValueId.h"
+#include "DerivedDataRequestOwner.h"
+#include "DerivedDataCacheRecord.h"
+#endif
+
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
 #endif
@@ -152,7 +159,7 @@ bool FResources::ReleaseResources()
 	return true;
 }
 
-void FResources::Serialize(FArchive& Ar, UObject* Owner)
+void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -160,9 +167,31 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 	FStripDataFlags StripFlags( Ar, 0 );
 	if( !StripFlags.IsDataStrippedForServer() )
 	{
-		Ar << ResourceFlags;
+		uint32 StoredResourceFlags;
+		if (Ar.IsSaving() && bCooked)
+		{
+			// Disable DDC store when saving out a cooked build
+			StoredResourceFlags = ResourceFlags & ~NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC;
+			Ar << StoredResourceFlags;
+		}
+		else
+		{
+			Ar << ResourceFlags;
+			StoredResourceFlags = ResourceFlags;
+		}
+		
+		if (StoredResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
+		{
+#if !WITH_EDITOR
+			checkf(false, TEXT("DDC streaming should only happen in editor"));
+#endif
+		}
+		else
+		{
+			StreamablePages.Serialize(Ar, Owner, 0);
+		}
+
 		Ar << RootData;
-		StreamablePages.Serialize(Ar, Owner, 0);
 		Ar << PageStreamingStates;
 		Ar << HierarchyNodes;
 		Ar << HierarchyRootOffsets;
@@ -174,8 +203,70 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		Ar << NumInputVertices;
 		Ar << NumInputMeshes;
 		Ar << NumInputTexCoords;
+
+#if !WITH_EDITOR
+		check(!HasStreamingData() || StreamablePages.GetBulkDataSize() > 0);
+#endif
 	}
 }
+
+bool FResources::HasStreamingData() const
+{
+	return (uint32)PageStreamingStates.Num() > NumRootPages;
+}
+
+#if WITH_EDITOR
+void FResources::DropBulkData()
+{
+	if (!HasStreamingData())
+	{
+		return;
+	}
+
+	check((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) != 0);
+	StreamablePages.RemoveBulkData();
+}
+
+void FResources::RebuildBulkDataFromDDC()
+{
+	if (!HasStreamingData())
+	{
+		return;
+	}
+
+	check((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) != 0u);
+
+	using namespace UE::DerivedData;
+	
+	FCacheKey Key;
+	Key.Bucket = FCacheBucket(TEXT("StaticMesh"));
+	Key.Hash = DDCKeyHash;
+	check(!DDCKeyHash.IsZero());
+	
+	FCacheGetChunkRequest Request;
+	Request.Id = FValueId::FromName("NaniteStreamingData");
+	Request.Key = Key;
+	Request.RawHash = DDCRawHash;
+	check(!DDCRawHash.IsZero());
+
+	FSharedBuffer SharedBuffer;
+	FRequestOwner RequestOwner(EPriority::Blocking);
+	GetCache().GetChunks(MakeArrayView(&Request, 1), RequestOwner,
+		[&SharedBuffer](FCacheGetChunkResponse&& Response)
+		{
+			check(Response.Status == EStatus::Ok);
+			SharedBuffer = MoveTemp(Response.RawData);
+		});
+
+	RequestOwner.Wait();
+
+	StreamablePages.Lock(LOCK_READ_WRITE);
+	uint8* Ptr = (uint8*)StreamablePages.Realloc(SharedBuffer.GetSize());
+	FMemory::Memcpy(Ptr, SharedBuffer.GetData(), SharedBuffer.GetSize());
+	StreamablePages.Unlock();
+	StreamablePages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+}
+#endif
 
 void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 {

@@ -1216,11 +1216,11 @@ void FGeometryCollectionNaniteData::Serialize(FArchive& Ar, UGeometryCollection*
 			}
 		}
 
-		NaniteResource.Serialize(Ar, Owner);
+		NaniteResource.Serialize(Ar, Owner, true);
 	}
 	else if (Ar.IsLoading())
 	{
-		NaniteResource.Serialize(Ar, Owner);
+		NaniteResource.Serialize(Ar, Owner, true);
 	
 		if (!Owner->EnableNanite)
 		{

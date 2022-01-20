@@ -313,8 +313,9 @@ struct FInstanceDraw
 	uint32 ViewId;
 };
 
-#define NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR 0x1
-#define NANITE_RESOURCE_FLAG_HAS_IMPOSTER 0x2
+#define NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR		0x1
+#define NANITE_RESOURCE_FLAG_HAS_IMPOSTER			0x2
+#define NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC	0x4
 
 struct FResources
 {
@@ -342,10 +343,19 @@ struct FResources
 	uint32	NumHierarchyNodes		= 0;
 	uint32	PersistentHash			= INVALID_PERSISTENT_HASH;
 
+#if WITH_EDITOR
+	FIoHash							DDCKeyHash;
+	FIoHash							DDCRawHash;
+
+	ENGINE_API void DropBulkData();
+	ENGINE_API void RebuildBulkDataFromDDC();
+#endif
+
 	ENGINE_API void InitResources(const UObject* Owner);
 	ENGINE_API bool ReleaseResources();
 
-	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
+	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, bool bCooked);
+	ENGINE_API bool HasStreamingData() const;
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }

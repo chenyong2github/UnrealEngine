@@ -11,15 +11,21 @@
 #define SANITY_CHECK_STREAMING_REQUESTS		0		// Performs a number of sanity checks of streaming requests to verify their integrity.
 													// Must match define in ClusterCulling.ush
 
-class IFileCacheHandle;
+namespace UE
+{
+	namespace DerivedData
+	{
+		class FRequestOwner; // Can't include DDC headers from here, so we have to forward declare
+	}
+}
 
 namespace Nanite
 {
 
 struct FPageKey
 {
-	uint32 RuntimeResourceID;
-	uint32 PageIndex;
+	uint32 RuntimeResourceID	= INDEX_NONE;
+	uint32 PageIndex			= INDEX_NONE;
 };
 
 FORCEINLINE uint32 GetTypeHash( const FPageKey& Key )
@@ -84,20 +90,23 @@ struct FRootPageInfo
 
 struct FPendingPage
 {
-#if !WITH_EDITOR
-	uint8*					MemoryPtr;
+#if WITH_EDITOR
+	FSharedBuffer			SharedBuffer;
+	bool					bReady = false;
+#else
+	uint8*					MemoryPtr = nullptr;
 	FIoRequest				Request;
 
 	// Legacy compatibility
 	// Delete when we can rely on IoStore
-	IAsyncReadFileHandle*	AsyncHandle;
-	IAsyncReadRequest*		AsyncRequest;
+	IAsyncReadFileHandle*	AsyncHandle = nullptr;
+	IAsyncReadRequest*		AsyncRequest = nullptr;
 #endif
 
-	uint32					GPUPageIndex;
+	uint32					GPUPageIndex = INDEX_NONE;
 	FPageKey				InstallKey;
 #if !UE_BUILD_SHIPPING
-	uint32					BytesLeftToStream;
+	uint32					BytesLeftToStream = 0;
 #endif
 };
 
@@ -235,6 +244,8 @@ private:
 	FAsyncState								AsyncState;
 
 #if WITH_EDITOR
+	UE::DerivedData::FRequestOwner*			RequestOwner;
+
 	uint64									PageRequestRecordHandle = (uint64)-1;
 	TMap<FPageKey, uint32>					PageRequestRecordMap;
 #endif
