@@ -1714,7 +1714,7 @@ float FNiagaraSystemInstance::GetLODDistance()
 	}
 
 	check(World);
-	const FVector EffectLocation = WorldTransform.GetLocation();
+	const FVector EffectLocation = WorldTransform.GetLocation() + (FVector(LWCTile) * FLargeWorldRenderScalar::GetTileSize());
 	LODDistance = DefaultLODDistance;
 
 	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads

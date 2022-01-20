@@ -2286,9 +2286,10 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				const uint32 MaxDisplayParticles = Settings.bUseMaxParticlesToDisplay ? Settings.MaxParticlesToDisplay : 0xFFFFFFFF;
 				uint32 NumDisplayedParticles = 0;
 
+				FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(false);
 				for (uint32 iInstance = 0; iInstance < DataBuffer->GetNumInstances(); ++iInstance)
 				{
-					const FVector ParticalLocalPosition = PositionReader.Get(iInstance);
+					const FVector ParticalLocalPosition = LwcConverter.ConvertSimulationPositionToWorld(PositionReader.Get(iInstance));
 					const FVector ParticleWorldPosition = bParticlesLocalSpace ? SystemTransform.TransformPosition(ParticalLocalPosition) : ParticalLocalPosition;
 
 					const FPlane ClipPosition = SceneView->Project(ParticleWorldPosition);
