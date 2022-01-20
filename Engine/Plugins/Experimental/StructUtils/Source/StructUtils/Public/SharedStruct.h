@@ -49,6 +49,8 @@ private:
 	FStructSharedMemory(const UScriptStruct& InScriptStruct, const uint8* InStructMemory = nullptr)
 		: ScriptStruct(InScriptStruct)
 	{
+		ScriptStruct.InitializeStruct(StructMemory);
+		
 		if (InStructMemory)
 		{
 			ScriptStruct.CopyScriptStruct(StructMemory, InStructMemory);
