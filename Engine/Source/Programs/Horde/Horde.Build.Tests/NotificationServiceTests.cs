@@ -1,22 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HordeCommon;
 using HordeServer.Api;
 using HordeServer.Models;
+using HordeServer.Notifications;
+using HordeServer.Notifications.Impl;
 using HordeServer.Utilities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using MongoDB.Bson;
 using Moq;
-
+using StackExchange.Redis;
 using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 
 namespace HordeServerTests
 {
 	using JobId = ObjectId<IJob>;
 
+	public class FakeNotificationSink : INotificationSink
+	{
+		public List<JobScheduledNotification> JobScheduledNotifications = new();
+		public int JobScheduledCallCount;
+		
+		public Task NotifyJobScheduledAsync(List<JobScheduledNotification> Notifications)
+		{
+			JobScheduledNotifications.AddRange(Notifications);
+			JobScheduledCallCount++;
+			return Task.CompletedTask;
+		}
+
+		public Task NotifyJobCompleteAsync(IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome) { throw new NotImplementedException(); }
+		public Task NotifyJobCompleteAsync(IUser User, IStream JobStream, IJob Job, IGraph Graph, LabelOutcome Outcome) { throw new NotImplementedException(); }
+		public Task NotifyJobStepCompleteAsync(IUser User, IStream JobStream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<ILogEventData> JobStepEventData) { throw new NotImplementedException(); }
+		public Task NotifyLabelCompleteAsync(IUser User, IJob Job, IStream Stream, ILabel Label, int LabelIdx, LabelOutcome Outcome, List<(string, JobStepOutcome, Uri)> StepData) { throw new NotImplementedException(); }
+		public Task NotifyIssueUpdatedAsync(IIssue Issue) { throw new NotImplementedException(); }
+		public Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null) { throw new NotImplementedException(); }
+		public Task NotifyDeviceServiceAsync(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null) { throw new NotImplementedException(); }
+	}
+	
+
 	[TestClass]
-	public class NotificationServiceTests
+	public class NotificationServiceTests : TestSetup
 	{
 		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph)
 		{
@@ -56,13 +83,40 @@ namespace HordeServerTests
 			Job.SetupGet(x => x.Batches).Returns(Batches);
 			return Job.Object;
 		}
-
+		
 		[TestMethod]
-		[Ignore]
-		public Task NotifyLabelUpdateTests()
+		public async Task NotifyJobScheduled()
 		{
-			// #1 
-			return Task.CompletedTask;
+			FakeNotificationSink FakeSink = new();
+			NotificationService Service = GetNotificationService(FakeSink);
+			Fixture Fixture = await CreateFixtureAsync();
+			IPool Pool = await PoolService.CreatePoolAsync("BogusPool", Properties: new Dictionary<string, string>());
+
+			Assert.AreEqual(0, FakeSink.JobScheduledNotifications.Count);
+			Service.NotifyJobScheduled(Pool, false, Fixture.Job1, Fixture.Graph, SubResourceId.Random());
+			Service.NotifyJobScheduled(Pool, false, Fixture.Job2, Fixture.Graph, SubResourceId.Random());
+			
+			// Currently no good way to wait for NotifyJobScheduled() to complete as the execution is completely async in background task (see ExecuteAsync)
+			await Task.Delay(1000);
+			await Clock.AdvanceAsync(Service.NotificationBatchInterval + TimeSpan.FromMinutes(5));
+			Assert.AreEqual(2, FakeSink.JobScheduledNotifications.Count);
+			Assert.AreEqual(1, FakeSink.JobScheduledCallCount);
+		}
+
+		private NotificationService GetNotificationService(INotificationSink? Sink)
+		{
+			ILogger<NotificationService> Logger = ServiceProvider.GetRequiredService<ILogger<NotificationService>>();
+			IDatabase Database = GetRedisConnectionPool().GetDatabase();
+			List<INotificationSink> Sinks = new ();
+			if (Sink != null) Sinks.Add(Sink);
+			
+			NotificationService Service = new NotificationService(
+				Sinks, ServerSettingsMon, Logger, GraphCollection, SubscriptionCollection,
+				NotificationTriggerCollection, UserCollection, JobService, StreamService, IssueService, LogFileService,
+				new NoOpDogStatsd(), Database, Clock);
+
+			Service.Ticker.StartAsync().Wait(5000);
+			return Service;
 		}
 
 		//public void NotifyLabelUpdate(IJob Job, IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates)

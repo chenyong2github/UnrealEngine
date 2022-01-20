@@ -31,13 +31,14 @@ using StatsdClient;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 using HordeServer.Notifications;
 using HordeServer.Services;
+using StackExchange.Redis;
 
 namespace HordeServer.Notifications.Impl
 {
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
-	/// Wraps funtionality for delivering notifications.
+	/// Wraps functionality for delivering notifications.
 	/// </summary>
 	public class NotificationService : BackgroundService, INotificationService
 	{
@@ -90,6 +91,11 @@ namespace HordeServer.Notifications.Impl
 		/// Instance of the <see cref="IDogStatsd"/>.
 		/// </summary>
 		private readonly IDogStatsd DogStatsd;
+
+		/// <summary>
+		/// Redis database
+		/// </summary>
+		private readonly IDatabase RedisDatabase;
 		
 		/// <summary>
 		/// Settings for the application.
@@ -110,11 +116,23 @@ namespace HordeServer.Notifications.Impl
 		/// Settings for the application.
 		/// </summary>
 		private readonly ILogger<NotificationService> Logger;
+		
+		/// <summary>
+		/// Ticker for running batch sender method
+		/// </summary>
+		internal ITicker Ticker;
+
+		/// <summary>
+		/// Interval at which queued notifications should be sent as a batch 
+		/// </summary>
+		internal TimeSpan NotificationBatchInterval = TimeSpan.FromHours(12);
+		
+		static string RedisQueueListKey(string NotificationType) => "NotificationService.queued." + NotificationType;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NotificationService(IEnumerable<INotificationSink> Sinks, IOptionsMonitor<ServerSettings> Settings, ILogger<NotificationService> Logger, IGraphCollection GraphCollection, ISubscriptionCollection SubscriptionCollection, INotificationTriggerCollection TriggerCollection, IUserCollection UserCollection, JobService JobService, StreamService StreamService, IIssueService IssueService, ILogFileService LogFileService, IDogStatsd DogStatsd)
+		public NotificationService(IEnumerable<INotificationSink> Sinks, IOptionsMonitor<ServerSettings> Settings, ILogger<NotificationService> Logger, IGraphCollection GraphCollection, ISubscriptionCollection SubscriptionCollection, INotificationTriggerCollection TriggerCollection, IUserCollection UserCollection, JobService JobService, StreamService StreamService, IIssueService IssueService, ILogFileService LogFileService, IDogStatsd DogStatsd, IDatabase RedisDatabase, IClock Clock)
 		{
 			this.Sinks = Sinks.ToList();
 			this.Settings = Settings;
@@ -128,11 +146,14 @@ namespace HordeServer.Notifications.Impl
 			this.IssueService = IssueService;
 			this.LogFileService = LogFileService;
 			this.DogStatsd = DogStatsd;
+			this.RedisDatabase = RedisDatabase;
 
 			IssueService.OnIssueUpdated += NotifyIssueUpdated;
 			JobService.OnJobStepComplete += NotifyJobStepComplete;
 			JobService.OnJobScheduled += NotifyJobScheduled;
 			JobService.OnLabelUpdate += NotifyLabelUpdate;
+			
+			this.Ticker = Clock.AddSharedTicker<NotificationService>(NotificationBatchInterval, TickEveryTwelveHoursAsync, Logger);
 		}
 
 		/// <inheritdoc/>
@@ -146,6 +167,7 @@ namespace HordeServer.Notifications.Impl
 			JobService.OnLabelUpdate -= NotifyLabelUpdate;
 
 			GC.SuppressFinalize(this);
+			Ticker.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -205,7 +227,7 @@ namespace HordeServer.Notifications.Impl
 		{
 			if (Pool.EnableAutoscaling && !PoolHasAgentsOnline)
 			{
-//				EnqueueTasks(Sink => Sink.NotifyJobScheduledAsync(Pool, PoolHasAgentsOnline, Job, Graph, BatchId));
+				EnqueueTasks(Sink => EnqueueNotificationForBatchSending(new JobScheduledNotification(Job.Id.ToString(), Job.Name, Pool.Name)));
 			}
 		}
 
@@ -263,10 +285,72 @@ namespace HordeServer.Notifications.Impl
 			}
 		}
 
+		/// <summary>
+		/// Enqueue a notification in Redis for batch sending later on 
+		/// </summary>
+		/// <param name="Notification"></param>
+		/// <typeparam name="T">Any INotification type</typeparam>
+		private async Task EnqueueNotificationForBatchSending<T>(T Notification) where T : INotification
+		{
+			try
+			{
+				byte[] Data = JsonSerializer.SerializeToUtf8Bytes(Notification);
+				await RedisDatabase.ListRightPushAsync(RedisQueueListKey(typeof(T).ToString()), Data);
+			}
+			catch (Exception e)
+			{
+				Logger.LogError(e, "Unable to serialize and queue notification {Type} for batch sending in Redis", Notification.GetType());
+			}
+		}
+
+		private async ValueTask TickEveryTwelveHoursAsync(CancellationToken StoppingToken)
+		{
+			List<JobScheduledNotification> JobScheduledNotifications = await GetAllQueuedNotificationsAsync<JobScheduledNotification>();
+
+			foreach (INotificationSink Sink in Sinks)
+			{
+				await Sink.NotifyJobScheduledAsync(JobScheduledNotifications);
+			}
+		}
+		
+		/// <summary>
+		/// Get and clear all queued notifications of type T from Redis
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns>Deserialized notifications</returns>
+		/// <exception cref="Exception"></exception>
+		private async Task<List<T>> GetAllQueuedNotificationsAsync<T>() where T : INotification
+		{
+			// Reading and deleting the entire list from Redis in this way is not thread-safe.
+			// But likely not a big deal considering the alternative of distributed locks.
+			string RedisKey = RedisQueueListKey(typeof(T).ToString());
+			RedisValue[] RawNotifications = await RedisDatabase.ListRangeAsync(RedisKey);
+			await RedisDatabase.KeyDeleteAsync(RedisKey);
+
+			List<T> Notifications = new List<T>();
+			foreach (byte[] Data in RawNotifications)
+			{
+				try
+				{
+					T? Notification = JsonSerializer.Deserialize<T>(Data);
+					if (Notification == null) throw new Exception("Unable to deserialize");
+					Notifications.Add(Notification);
+				}
+				catch (Exception e)
+				{
+					Logger.LogError(e, "Unable to deserialize notification data of {Type}", typeof(T));
+				}
+			}
+
+			return Notifications;
+		}
+
 		/// <inheritdoc/>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
 		protected async override Task ExecuteAsync(CancellationToken StoppingToken)
 		{
+			await Ticker.StartAsync();
+			
 			// This background service just waits for tasks to finish and prints any exception info. The only reason to do this is to
 			// ensure we finish processing everything before shutdown.
 			using (CancellationTask StoppingTask = new CancellationTask(StoppingToken))
@@ -316,6 +400,8 @@ namespace HordeServer.Notifications.Impl
 					}
 				}
 			}
+			
+			await Ticker.StopAsync();
 		}
 
 		internal Task ExecuteBackgroundForTest(CancellationToken StoppingToken)

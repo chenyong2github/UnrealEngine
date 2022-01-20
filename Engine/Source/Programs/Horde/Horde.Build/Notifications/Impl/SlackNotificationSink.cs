@@ -280,30 +280,37 @@ namespace HordeServer.Notifications.Impl
 		#endregion
 		
 		/// <inheritdoc/>
-		public async Task NotifyJobScheduledAsync(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId)
+		public async Task NotifyJobScheduledAsync(List<JobScheduledNotification> Notifications)
 		{
 			if (Settings.JobNotificationChannel != null)
 			{
-				Logger.LogInformation("Sending Slack notification for scheduled job {JobId}, batch {BatchId} to channel {SlackChannel}", Job.Id, BatchId, Settings.JobNotificationChannel );
-				await SendJobScheduledOnEmptyAutoScaledPoolMessageAsync($"#{Settings.JobNotificationChannel}", Pool, PoolHasAgentsOnline, Job, Graph, BatchId);
+				string JobIds = string.Join(", ", Notifications.Select(x => x.JobId));
+				Logger.LogInformation("Sending Slack notification for scheduled job IDs {JobIds} to channel {SlackChannel}", JobIds, Settings.JobNotificationChannel);
+				await SendJobScheduledOnEmptyAutoScaledPoolMessageAsync($"#{Settings.JobNotificationChannel}", Notifications);
 			}
 		}
 		
-		private Task SendJobScheduledOnEmptyAutoScaledPoolMessageAsync(string Recipient, IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId)
+		private async Task SendJobScheduledOnEmptyAutoScaledPoolMessageAsync(string Recipient, List<JobScheduledNotification> Notifications)
 		{
-			string JobUrl = Settings.DashboardUrl + "/job/" + Job.Id;
+			string JobIds = string.Join(", ", Notifications.Select(x => x.JobId));
+				
+			StringBuilder Sb = new();
+			foreach (JobScheduledNotification Notification in Notifications)
+			{
+				string JobUrl = Settings.DashboardUrl + "/job/" + Notification.JobId;
+				Sb.AppendLine($"Job `{Notification.JobName}` with ID <{JobUrl}|{Notification.JobId}> in pool `{Notification.PoolName}`");
+			}
 			
 			Color OutcomeColor = BlockKitAttachmentColors.Warning;
 			BlockKitAttachment Attachment = new BlockKitAttachment();
 			Attachment.Color = OutcomeColor;
-			Attachment.FallbackText = $"Job scheduled in an auto-scaled pool with no agents online. Job ID {Job.Id}";
+			Attachment.FallbackText = $"Job(s) scheduled in an auto-scaled pool with no agents online. Job IDs {JobIds}";
 
-			Attachment.Blocks.Add(new HeaderBlock($"Job scheduled in empty pool", false, true));
-
-			Attachment.Blocks.Add(new SectionBlock($"A <{JobUrl}|job> was scheduled in an auto-scaled pool but with no current agents online."));
-			Attachment.Blocks.Add(new SectionBlock($"Job {Job.Name}\nJob ID <{JobUrl}|{Job.Id}>\nPool {Pool.Name}"));
-
-			return SendMessageAsync(Recipient, Attachments: new[] { Attachment });
+			Attachment.Blocks.Add(new HeaderBlock($"Jobs scheduled in empty pool", false, true));
+			Attachment.Blocks.Add(new SectionBlock($"One or more jobs were scheduled in an auto-scaled pool but with no current agents online."));
+			Attachment.Blocks.Add(new SectionBlock(Sb.ToString()));
+			
+			await SendMessageAsync(Recipient, Attachments: new[] { Attachment });
 		}
 
 		#region Job Complete

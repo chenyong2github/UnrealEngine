@@ -3,10 +3,8 @@
 using HordeCommon;
 using HordeServer.Api;
 using HordeServer.Models;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace HordeServer.Notifications
@@ -19,13 +17,9 @@ namespace HordeServer.Notifications
 		/// <summary>
 		/// Send notifications that a job has been scheduled
 		/// </summary>
-		/// <param name="Pool">Pool for which job scheduled in</param>
-		/// <param name="PoolHasAgentsOnline">True if there are agents online in the pool</param>
-		/// <param name="Job">The job containing the batch that has been scheduled</param>
-		/// <param name="Graph">Graph used for the job</param>
-		/// <param name="BatchId">The batch id</param>
+		/// <param name="Notifications">List of notifications to send</param>
 		/// <returns>Async task</returns>
-		Task NotifyJobScheduledAsync(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId);
+		Task NotifyJobScheduledAsync(List<JobScheduledNotification> Notifications);
 		
 		/// <summary>
 		/// Send notifications that a job has completed
