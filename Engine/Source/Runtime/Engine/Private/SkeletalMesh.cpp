@@ -6621,10 +6621,6 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				RayTracingInstance.Materials.Add(MeshBatch);
 			}
 
-		#if WITH_EDITORONLY_DATA
-			MeshObject->SectionIndexPreview = SectionIndexPreview;
-			MeshObject->MaterialIndexPreview = MaterialIndexPreview;
-		#endif
 			if (bAnySegmentUsesWorldPositionOffset)
 			{
 				RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
@@ -6680,6 +6676,11 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 			OutRayTracingInstances.Add(RayTracingInstance);
+			
+		#if WITH_EDITORONLY_DATA
+			MeshObject->SectionIndexPreview = SectionIndexPreview;
+			MeshObject->MaterialIndexPreview = MaterialIndexPreview;
+		#endif
 		}
 	}
 }
