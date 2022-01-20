@@ -13,7 +13,7 @@ extension VideoViewController : ARSCNViewDelegate {
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
         
         if let pov = renderer.pointOfView {
-            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, withTransform: pov.simdTransform, atTime: Timecode.create().toTimeInterval())
+            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, transform: pov.simdTransform, time: Timecode.create().toTimeInterval())
         }
         
     }

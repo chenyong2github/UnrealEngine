@@ -6,6 +6,7 @@
 
 #import "PassthroughShaderTypes.h"
 #import "ObjCUtility.h"
-#import <LiveLinkProvider/LiveLink.h>
+#import <UE5LiveLinkProvider/UE5LiveLink.h>
+#import <UE4LiveLinkProvider/UE4LiveLink.h>
 
 #endif /* VCAM_Bridging_Header_h */

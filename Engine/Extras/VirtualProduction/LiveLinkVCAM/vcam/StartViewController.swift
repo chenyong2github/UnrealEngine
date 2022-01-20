@@ -18,6 +18,8 @@ class StartViewController : BaseViewController {
     @IBOutlet weak var headerView : HeaderView!
     @IBOutlet weak var versionLabel : UILabel!
 
+    @IBOutlet weak var restartView : UIView!
+
     @IBOutlet weak var entryView : UIView!
     @IBOutlet weak var entryViewYConstraint : NSLayoutConstraint!
 
@@ -29,12 +31,18 @@ class StartViewController : BaseViewController {
     private var tapGesture : UITapGestureRecognizer!
     private var oscConnection : OSCTCPConnection?
     
-    private var liveLink : LiveLinkProvider?
+    public var multicastWatchdogSocket  : GCDAsyncUdpSocket?
+    
+    private var liveLink : LiveLink?
     private var liveLinkTimer : Timer?
     
     @objc dynamic let appSettings = AppSettings.shared
     private var observers = [NSKeyValueObservation]()
 
+    var ipAddressIsDemoMode : Bool {
+        self.ipAddress.text == "demo.mode"
+    }
+    
     override var preferredStatusBarStyle: UIStatusBarStyle {
           return .lightContent
     }
@@ -42,6 +50,8 @@ class StartViewController : BaseViewController {
     override func viewDidLoad() {
         
         super.viewDidLoad();
+        
+        self.restartView.isHidden = true
         
         if let infoDict = Bundle.main.infoDictionary {
             self.versionLabel.text = String(format: "v%@ (%@)", infoDict["CFBundleShortVersionString"] as! String, infoDict["CFBundleVersion"] as! String)
@@ -96,14 +106,71 @@ class StartViewController : BaseViewController {
         
         // any change to the subject name will remove & re-add the camera subject.
         observers.append(observe(\.appSettings.liveLinkSubjectName, options: [.old,.new], changeHandler: { object, change in
-            self.liveLink?.removeCameraSubject(change.oldValue)
+            self.liveLink?.removeCameraSubject(change.oldValue!)
             self.liveLink?.addCameraSubject(self.appSettings.liveLinkSubjectName)
         }))
-        
-        LiveLink.initialize(self)
-        self.liveLink = LiveLink.createProvider("VCAM IOS")
-        self.liveLink?.addCameraSubject(AppSettings.shared.liveLinkSubjectName);
+        observers.append(observe(\.appSettings.engineVersion, options: [.old,.new], changeHandler: { object, change in
+            if LiveLink.initialized {
+                self.restartView.isHidden = !LiveLink.requiresRestart
+            }
+        }))
 
+
+    }
+    
+    func restartLiveLink() {
+
+        do {
+            try LiveLink.initialize(self)
+
+        } catch LiveLinkError.unknownEngineVersion {
+
+            // if there is no engine version (first run), then we ask the user to choose.
+            let askVersionAlert = UIAlertController(title: NSLocalizedString("version-title", value:"Engine Version", comment: "Title of an settings screen."),
+                                                    message: NSLocalizedString("version-choose", value:"Choose the version of Unreal Engine you will be connecting to. This selection can be modified later in the app's settings.", comment: "Message for seelecting the correct version of unreal engine."), preferredStyle: .alert)
+            askVersionAlert.addAction(UIAlertAction(title: "Unreal Engine 4", style: .default, handler: { _ in
+                LiveLink.engineVersion = .ue4
+                self.restartLiveLink()
+            }))
+            askVersionAlert.addAction(UIAlertAction(title: "Unreal Engine 5", style: .default, handler: { _ in
+                LiveLink.engineVersion = .ue5
+                self.restartLiveLink()
+            }))
+            self.present(askVersionAlert, animated: true)
+            return
+        } catch {
+            
+        }
+        
+        // stop the provider & restart livelink here
+        if self.liveLink != nil {
+            Log.info("Restarting Messaging Engine.")
+            try? LiveLink.restart()
+            self.liveLink = nil
+        }
+
+        Log.info("Initializing LiveLink Provider.")
+
+        self.liveLink = try? LiveLink("VCAM IOS")
+        self.liveLink?.addCameraSubject(AppSettings.shared.liveLinkSubjectName)
+
+        if let videoViewController = self.presentedViewController as? VideoViewController {
+            if !self.ipAddressIsDemoMode {
+                videoViewController.liveLink = self.liveLink
+            }
+        }
+
+        multicastWatchdogSocket?.close()
+        Log.info("Starting multicast watchdog.")
+        multicastWatchdogSocket = GCDAsyncUdpSocket(delegate: self, delegateQueue: DispatchQueue.main)
+        do {
+            try multicastWatchdogSocket?.enableReusePort(true)
+            try multicastWatchdogSocket?.bind(toPort: 6665)
+            try multicastWatchdogSocket?.joinMulticastGroup("230.0.0.1")
+            try multicastWatchdogSocket?.beginReceiving()
+        } catch {
+            Log.info("Error creating watchdog : \(error.localizedDescription)")
+        }
     }
     
     override func viewWillAppear(_ animated : Bool) {
@@ -113,8 +180,12 @@ class StartViewController : BaseViewController {
         
         liveLinkTimer?.invalidate()
         liveLinkTimer = Timer.scheduledTimer(withTimeInterval: 1.0/10.0, repeats: true, block: { timer in
-            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, withTransform: simd_float4x4(), atTime: Timecode.create().toTimeInterval())
+            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, transform: simd_float4x4(), time: Timecode.create().toTimeInterval())
         })
+        
+        if !LiveLink.initialized {
+            restartLiveLink();
+        }
     }
     
     override func viewDidDisappear(_ animated: Bool) {
@@ -186,7 +257,7 @@ class StartViewController : BaseViewController {
         
         AppSettings.shared.lastConnectionAddress = self.ipAddress.text!
 
-        if self.ipAddress.text == "demo.mode" {
+        if self.ipAddressIsDemoMode {
             
             self.performSegue(withIdentifier: "showVideoViewDemoMode", sender: self)
 
@@ -255,5 +326,22 @@ extension StartViewController : UITextFieldDelegate {
         
         return true
     }
-    
+}
+
+extension StartViewController : GCDAsyncUdpSocketDelegate {
+
+    func udpSocketDidClose(_ sock: GCDAsyncUdpSocket, withError error: Error?) {
+        Log.error("Multicast watchdog closed : restarting LiveLink.")
+        restartLiveLink()
+    }
+}
+
+extension StartViewController : UE5LiveLinkLogDelegate, UE4LiveLinkLogDelegate {
+
+    func ue5LogMessage(_ message: String!) {
+        Log.info(message)
+    }
+    func ue4LogMessage(_ message: String!) {
+        Log.info(message)
+    }
 }

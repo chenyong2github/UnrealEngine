@@ -21,11 +21,12 @@ class AppSettings : NSObject {
     class func defaultLiveLinkSubjectName() -> String {
         UIDevice.current.name.toUnrealCompatibleString()
     }
-    
+
     private class Keys {
         static let didAcceptEULA = "didAcceptEULA"
         static let lastConnectionAddress = "lastConnectionAddress"
         
+        static let engineVersion = "engineVersion"
         static let liveLinkSubjectName = "liveLinkSubjectName"
 
         static let timecodeSource = "timecodeSource"
@@ -43,6 +44,7 @@ class AppSettings : NSObject {
             Keys.didAcceptEULA : false,
             Keys.lastConnectionAddress : "",
 
+            Keys.engineVersion : "",
             Keys.liveLinkSubjectName : defaultLiveLinkSubjectName(),
             
             Keys.timecodeSource : 1,
@@ -86,7 +88,13 @@ class AppSettings : NSObject {
             UserDefaults.standard.set(lastConnectionAddress, forKey: Keys.lastConnectionAddress)
         }
     }
-    
+
+    @objc dynamic var engineVersion : String = UserDefaults.standard.string(forKey: Keys.engineVersion) ?? "" {
+        didSet {
+            UserDefaults.standard.set(engineVersion, forKey: Keys.engineVersion)
+        }
+    }
+
     @objc dynamic var liveLinkSubjectName : String = UserDefaults.standard.string(forKey: Keys.liveLinkSubjectName) ?? defaultLiveLinkSubjectName() {
         didSet {
             UserDefaults.standard.set(liveLinkSubjectName, forKey: Keys.liveLinkSubjectName)
