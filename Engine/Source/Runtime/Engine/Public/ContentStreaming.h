@@ -14,6 +14,7 @@
 class AActor;
 class FSoundSource;
 class UPrimitiveComponent;
+class FSoundWaveData;
 class FSoundWaveProxy;
 class ICompressedAudioInfo;
 class UTexture2D;
@@ -128,7 +129,7 @@ private:
 	const uint8*  CachedData;
 	int32 CachedDataNumBytes;
 
-	TWeakPtr<FSoundWaveProxy, ESPMode::ThreadSafe> CorrespondingWave;
+	TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> CorrespondingWave;
 	FName CorrespondingWaveName;
 
 	// The index of this chunk in the sound wave's full set of chunks of compressed audio.

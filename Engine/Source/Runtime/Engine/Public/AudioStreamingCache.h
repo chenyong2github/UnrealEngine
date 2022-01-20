@@ -37,7 +37,7 @@ public:
 		FChunkKey(const FChunkKey& Other);
 
 		FChunkKey(
-			  const FSoundWaveProxyPtr& InSoundWave
+			  const FSoundWavePtr& InSoundWave
 			, uint32 InChunkIndex
 #if WITH_EDITOR
 			, uint32 InChunkRevision = 0
@@ -48,7 +48,7 @@ public:
 
 
 	private:
-		TWeakPtr<FSoundWaveProxy, ESPMode::ThreadSafe> SoundWaveProxyWeakPtr;
+		TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveWeakPtr;
 
 	public:
 		FName SoundWaveName = FName();
@@ -62,7 +62,7 @@ public:
 		inline bool operator==(const FChunkKey& Other) const;
 
 		bool IsChunkStale();
-		bool IsSoundWaveValid() const { return SoundWaveProxyWeakPtr.IsValid(); }
+		bool IsSoundWaveValid() const { return SoundWaveWeakPtr.Pin().IsValid(); }
 		// Forward FSoundWaveProxy interface
 		ESoundWaveLoadingBehavior GetLoadingBehavior() const;
 		FStreamedAudioChunk& GetChunk(uint32 InChunkIndex) const;

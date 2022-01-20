@@ -136,6 +136,310 @@ namespace SoundWaveCookStats
 }
 #endif
 
+FSoundWaveData::~FSoundWaveData()
+{
+	// at this point, first chunk data should have been cleared by the last reference holder
+	// (see USoundWave::BeginDestroy and ~FSoundWaveProxy implmentations)
+	ensure(FirstChunk.GetData() == nullptr);
+}
+
+void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
+{
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
+
+	NameCached = InWave.GetFName();
+
+	// cache package name
+	if (UPackage* Package = InWave.GetPackage())
+	{
+		PackageNameCached = Package->GetFName();
+	}
+
+	// cache the runtime format for the wave
+	if (GEngine)
+	{
+		FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
+		if (LocalAudioDevice)
+		{
+			RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(&InWave);
+		}
+	}
+
+	SoundWaveKeyCached = FObjectKey(&InWave);
+	CuePoints = InWave.CuePoints;
+	SampleRate = InWave.GetSampleRateForCurrentPlatform();
+	Duration = InWave.Duration;
+	NumChannels = InWave.NumChannels;
+	
+	// GetNumChunks() can't be called w/o RunningPlateformData
+	NumChunks = 0;
+	if (RunningPlatformData.NumChunks > 0)
+	{
+		NumChunks = InWave.GetNumChunks();
+	}
+
+	NumFrames = (int32)(Duration * (float)SampleRate);
+
+	// update shared flags
+	bIsLooping = InWave.IsLooping();
+	bIsTemplate = InWave.IsTemplate();
+	bIsStreaming = InWave.IsStreaming(nullptr);
+	bUseBinkAudio = InWave.bUseBinkAudio;
+	bSeekableStreaming = InWave.bSeekableStreaming;
+	bShouldUseStreamCaching = InWave.ShouldUseStreamCaching();
+}
+
+uint32 FSoundWaveData::GetNumChunks() const
+{
+	// This function shouldn't be called on audio marked "ForceInline."
+	ensureMsgf(LoadingBehavior != ESoundWaveLoadingBehavior::ForceInline, TEXT("Calling GetNumChunks without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+		, *GetFName().ToString(), EnumToString(LoadingBehavior));
+
+	return RunningPlatformData.Chunks.Num();
+}
+
+FSoundWaveData::MaxChunkSizeResults FSoundWaveData::GetMaxChunkSizeResults() const
+{
+	MaxChunkSizeResults Results;
+
+	for (auto& Chunk : RunningPlatformData.Chunks)
+	{
+		Results.MaxUnevictableSize = FMath::Max<uint32>(Results.MaxUnevictableSize, Chunk.AudioDataSize);
+		Results.MaxSizeInCache += Chunk.AudioDataSize;
+	}
+
+	return Results;
+}
+
+uint32 FSoundWaveData::GetSizeOfChunk(uint32 ChunkIndex) const
+{
+	check(ChunkIndex < GetNumChunks());
+
+	// This function shouldn't be called on audio marked "ForceInline."
+	ensureMsgf(RunningPlatformData.NumChunks
+		, TEXT("Calling GetNumChunks() without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+		, *GetFName().ToString()
+		, EnumToString(LoadingBehavior));
+
+	check((ChunkIndex < (uint32)GetNumChunks()));
+	return RunningPlatformData.Chunks[ChunkIndex].AudioDataSize;
+}
+
+void FSoundWaveData::ReleaseCompressedAudio()
+{
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
+
+	FirstChunk = FAudioChunkHandle();
+}
+
+bool FSoundWaveData::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform) const
+{
+	if (IsTemplate() || IsRunningDedicatedServer())
+	{
+		return false;
+	}
+
+	const FPlatformAudioCookOverrides* CompressionOverrides = nullptr;
+
+	if (GIsEditor)
+	{
+		if (TargetPlatform)
+		{
+			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+		}
+	}
+	else
+	{
+		// TargetPlatform is not available on consoles/mobile, so we have to grab it ourselves:
+		CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
+	}
+
+	if (CompressionOverrides)
+	{
+#if WITH_EDITOR
+		FName PlatformSpecificFormat;
+		FString HashedString = *Format.ToString();
+		FPlatformAudioCookOverrides::GetHashSuffix(CompressionOverrides, HashedString);
+		PlatformSpecificFormat = *HashedString;
+#else
+		// on non-editor builds, we cache the concatenated format in a static FName.
+		static FName PlatformSpecificFormat;
+		static FName CachedFormat;
+		if (!Format.IsEqual(CachedFormat))
+		{
+			FString HashedString = *Format.ToString();
+			FPlatformAudioCookOverrides::GetHashSuffix(CompressionOverrides, HashedString);
+			PlatformSpecificFormat = *HashedString;
+
+			CachedFormat = Format;
+		}
+#endif // WITH_EDITOR
+		return CompressedFormatData.Contains(PlatformSpecificFormat);
+	}
+	else
+	{
+		return CompressedFormatData.Contains(Format);
+	}
+}
+
+FByteBulkData* FSoundWaveData::GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides)
+{
+	if (IsTemplate() || IsRunningDedicatedServer())
+	{
+		return nullptr;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveProxy::GetCompressedData);
+	FName PlatformSpecificFormat = USoundWave::GetPlatformSpecificFormat(Format, CompressionOverrides);
+
+	bool bContainedValidData = CompressedFormatData.Contains(PlatformSpecificFormat);
+	if (!bContainedValidData)
+	{
+		// the proxy does not support interaction w/ FDerivedAudioDataCompressor
+		return nullptr;
+	}
+
+	FByteBulkData* Result = &CompressedFormatData.GetFormat(PlatformSpecificFormat);
+	check(Result);
+	return Result->GetBulkDataSize() > 0 ? Result : NULL; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
+}
+
+bool FSoundWaveData::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
+{
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
+	if (GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
+	{
+#if WITH_EDITORONLY_DATA
+		// Unable to load chunks from the cache. Rebuild the sound and attempt to precache it.
+		UE_LOG(LogAudio, Display, TEXT("GetChunkData failed, rebuilding %s"), *GetPackageName().ToString());
+
+		//		ForceRebuildPlatformData();
+		if (GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
+		{
+			UE_LOG(LogAudio, Warning, TEXT("Failed to build sound %s."), *GetPackageName().ToString());
+		}
+		else
+		{
+			// Succeeded after rebuilding platform data
+			return true;
+		}
+#else
+		// Failed to find the SoundWave chunk in the cooked package.
+		UE_LOG(LogAudio, Warning, TEXT("GetChunkData failed while streaming. Ensure the following package is cooked: %s"), *GetPackageName().ToString());
+#endif // #if WITH_EDITORONLY_DATA
+		return false;
+	}
+	return true;
+}
+
+bool FSoundWaveData::IsZerothChunkDataLoaded() const
+{
+	return ZerothChunkData.GetView().Num() > 0;
+}
+
+const TArrayView<uint8> FSoundWaveData::GetZerothChunkDataView() const
+{
+	FBulkDataBuffer<uint8>::ViewType View = ZerothChunkData.GetView();
+	check(View.Num() <= MAX_int32);
+	return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
+}
+
+void FSoundWaveData::EnsureZerothChunkIsLoaded()
+{
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
+
+	// If the zeroth chunk is already loaded, early exit.
+	if (ZerothChunkData.GetView().Num() > 0 || !bShouldUseStreamCaching)
+	{
+		return;
+	}
+
+	// #if WITH_EDITOR
+#ifdef WITH_EDITOR
+	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
+	uint8* TempChunkBuffer = nullptr;
+	int32 ChunkSizeInBytes = GetChunkFromDDC(0, &TempChunkBuffer, true);
+	// Since we block for the DDC in the previous call we should always have the chunk loaded.
+	if (ChunkSizeInBytes == 0)
+	{
+		return;
+	}
+
+	ZerothChunkData.Reset(TempChunkBuffer, ChunkSizeInBytes);
+
+#else // WITH_EDITOR
+	// Otherwise, the zeroth chunk is cooked out to SharedRuntimeData::RunningPlatformData, and we just need to retrieve it.
+	check(GetNumChunks() > 0);
+	const FStreamedAudioChunk& ZerothChunk = GetChunk(0);
+	// Some sanity checks to ensure that the bulk size set up
+	UE_CLOG(ZerothChunk.BulkData.GetBulkDataSize() != ZerothChunk.DataSize, LogAudio, Warning
+		, TEXT("Bulk data serialized out had a mismatched size with the DataSize field. Soundwave: %s Bulk Data Reported Size: %d Bulk Data Actual Size: %ld")
+		, *GetFullName(), ZerothChunk.DataSize, ZerothChunk.BulkData.GetBulkDataSize());
+
+	ZerothChunkData = ZerothChunk.BulkData.GetCopyAsBuffer(ZerothChunk.AudioDataSize, true);
+#endif // WITH_EDITOR
+}
+
+#if WITH_EDITOR
+int32 FSoundWaveData::GetCurrentChunkRevision() const
+{
+	return CurrentChunkRevision;
+}
+#endif // #if WITH_EDITOR
+
+FStreamedAudioChunk& FSoundWaveData::GetChunk(uint32 ChunkIndex)
+{
+	// This function shouldn't be called on audio marked "ForceInline."
+	ensureMsgf(RunningPlatformData.NumChunks
+		, TEXT("Calling GetNumChunks() without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+		, *GetFName().ToString()
+		, EnumToString(LoadingBehavior));
+
+	check((ChunkIndex < (uint32)GetNumChunks()));
+	return RunningPlatformData.Chunks[ChunkIndex];
+}
+
+int32 FSoundWaveData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
+{
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
+	// This function shouldn't be called on audio marked "ForceInline."
+	ensureMsgf(RunningPlatformData.NumChunks
+		, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+		, *GetFName().ToString()
+		, EnumToString(LoadingBehavior));
+
+	return RunningPlatformData.GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded);
+}
+
+#if WITH_EDITORONLY_DATA
+FString FSoundWaveData::GetDerivedDataKey() const
+{
+	check(RunningPlatformData.NumChunks);
+
+	// This function shouldn't be called on audio marked "ForceInline."
+	ensureMsgf(RunningPlatformData.NumChunks
+		, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+		, *GetFName().ToString()
+		, EnumToString(LoadingBehavior));
+
+	return RunningPlatformData.DerivedDataKey;
+}
+#endif // #if WITH_EDITORONLY_DATA
+
+
+int32 USoundWave::GetResourceSize() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->ResourceSize;
+}
+
+const uint8* USoundWave::GetResourceData() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetResourceData();
+}
+
+
 ITargetPlatform* USoundWave::GetRunningPlatform()
 {
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
@@ -283,7 +587,6 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	bCachedSampleRateFromPlatformSettings = false;
 	bSampleRateManuallyReset = false;
 	CachedSampleRateOverride = 0.0f;
-	SoundWaveDataPtr->LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
 
 	bProcedural = false;
 	bRequiresStopFade = false;
@@ -1227,16 +1530,10 @@ void USoundWave::PostLoad()
 	INC_FLOAT_STAT_BY(STAT_AudioBufferTime, Duration);
 	INC_FLOAT_STAT_BY(STAT_AudioBufferTimeChannels, NumChannels * Duration);
 
-	// cache current state as a proxy if loading behavior dictates we'll be using the streaming cache
+	// update shared state if loading behavior dictates we'll be using the streaming cache
 	if (ActualLoadingBehavior != ESoundWaveLoadingBehavior::ForceInline)
 	{
-		// cache current state as a proxy
-		InternalProxy = CreateSoundWaveProxy();
-		if (InternalProxy.IsValid())
-		{
-			// release dupe handle already held by 'this'
-			InternalProxy->ReleaseCompressedAudio();
-		}
+		SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
 	}
 }
 
@@ -1343,11 +1640,19 @@ void USoundWave::BeginDestroy()
 	FlushAsyncLoadingDataFormats();
 #endif
 
-	ReleaseCompressedAudio();
+	// the FSoundWaveDataPtr is not able to release the handle itself
+	// (weakptr that is already invalid in ~FSoundWaveData)
+	// so we need to Release our handle to the chunk in the streaming cache
+	// if we are the last one holding a refernce to SoundWaveDataPtr
+	if (SoundWaveDataPtr.GetSharedReferenceCount() == 1)
+	{
+		ReleaseCompressedAudio();
+	}
 }
 
 void USoundWave::InitAudioResource(FByteBulkData& CompressedData)
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
 	check(SoundWaveDataPtr);
 
 	if (!SoundWaveDataPtr->ResourceSize)
@@ -1396,6 +1701,7 @@ void USoundWave::InitAudioResource(FByteBulkData& CompressedData)
 
 bool USoundWave::InitAudioResource(FName Format)
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
 	check(SoundWaveDataPtr);
 
 	if (!SoundWaveDataPtr->ResourceSize && (!FPlatformProperties::SupportsAudioStreaming() || !IsStreaming(nullptr)))
@@ -1868,6 +2174,8 @@ void USoundWave::BakeEnvelopeAnalysis()
 
 void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// maxtodo: test this, stale data? looping? channel count?
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	check(SoundWaveDataPtr);
 
@@ -2150,15 +2458,6 @@ void USoundWave::FinishDestroy()
 		ClearAllCachedCookedPlatformData();
 	}
 #endif
-
-	if (FApp::CanEverRenderAudio())
-	{
-		if (!InternalProxy.IsValid())
-		{
-			InternalProxy = CreateSoundWaveProxy();
-		}
-		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(InternalProxy);
-	}
 }
 
 void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
@@ -2663,18 +2962,14 @@ bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 
 FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 {
-	check(SoundWaveDataPtr);
-
 #if WITH_EDITORONLY_DATA
 	EnsureZerothChunkIsLoaded();
 #endif // #if WITH_EDITORONLY_DATA
 
 	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
-	SoundWaveDataPtr->bUseBinkAudio = bUseBinkAudio;
-	SoundWaveDataPtr->bSeekableStreaming = bSeekableStreaming;
-	SoundWaveDataPtr->bIsStreaming = IsStreaming(nullptr);
-	SoundWaveDataPtr->bShouldUseStreamCaching = ShouldUseStreamCaching();
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
 
 	return MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(this);
 }
@@ -2689,10 +2984,8 @@ TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxy
 
 	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
-	SoundWaveDataPtr->bUseBinkAudio = bUseBinkAudio;
-	SoundWaveDataPtr->bSeekableStreaming = bSeekableStreaming;
-	SoundWaveDataPtr->bIsStreaming = IsStreaming(nullptr);
-	SoundWaveDataPtr->bShouldUseStreamCaching = ShouldUseStreamCaching();
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
 
 	return MakeUnique<FSoundWaveProxy>(this);
 }
@@ -2752,7 +3045,7 @@ void USoundWave::UpdatePlatformData()
 	}
 }
 
-float USoundWave::GetSampleRateForCurrentPlatform()
+float USoundWave::GetSampleRateForCurrentPlatform() const
 {
 	if (bProcedural)
 	{
@@ -3355,145 +3648,246 @@ ESoundWaveLoadingBehavior USoundWave::GetLoadingBehavior(bool bCheckSoundClasses
 
 FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 	: SoundWaveDataPtr(InWave->SoundWaveDataPtr)
-	, NameCached(InWave->GetFName())
-	, SoundWaveKeyCached(FObjectKey(InWave))
-	, SampleRate(InWave->GetSampleRateForCurrentPlatform())
-	, NumChannels(InWave->NumChannels)
-	, CuePoints(InWave->CuePoints)
-	, NumChunks(0)
-	, Duration(InWave->Duration)
-	, NumFrames((int32)(Duration* (float)InWave->SampleRate))
-	, bIsLooping(InWave->IsLooping())
-	, bIsTemplate(InWave->IsTemplate())
 {
 	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-
-	if (UPackage* Package = InWave->GetPackage())
-	{
-		PackageNameCached = Package->GetFName();
-	}
 
 	// this should have been allocated by the USoundWave and should always be valid
 	check(SoundWaveDataPtr);
 
-
-	// cache the runtime format for this wave
-	if (GEngine)
+	// if we are force inline, we need to make sure the shared data is pulled from the DDC
+	// before we attempt to use a decoder on the proxy (not using stream caching)
+	if (SoundWaveDataPtr->GetLoadingBehavior() == ESoundWaveLoadingBehavior::ForceInline && !InWave->GetResourceData())
 	{
-		FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
-		if (LocalAudioDevice)
-		{
-			RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(InWave);
-
-			// if we are force inline, we need to make sure the shared data is pulled from the DDC
-			// before we attempt to use a decoder on the proxy (not using stream caching)
-			if (SoundWaveDataPtr->LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline && !InWave->GetResourceData())
-			{
-				InWave->InitAudioResource(RuntimeFormat);
-				check(SoundWaveDataPtr->ResourceSize > 0);
-			}
-		}
+		InWave->InitAudioResource(SoundWaveDataPtr->GetRuntimeFormat());
+		check(SoundWaveDataPtr->GetResourceSize() > 0);
 	}
+}
 
-	if (InWave->SoundWaveDataPtr->RunningPlatformData.NumChunks > 0)
+FSoundWaveProxy::~FSoundWaveProxy()
+{
+	// the FSoundWaveDataPtr is not able to release the handle itself
+	// (weakptr that is already invalid in ~FSoundWaveData)
+	// so we need to Release our handle to the chunk in the streaming cache
+	// if we are the last one holding a refernce to SoundWaveDataPtr
+	if (SoundWaveDataPtr.GetSharedReferenceCount() == 1)
 	{
-		NumChunks = InWave->GetNumChunks();
+		ReleaseCompressedAudio();
 	}
+}
 
-	// force updates of flags shared w/ the sound wave
-	// (assignment is to avoid these calls to const functions w/ mutable side effects being from being optimized out)
-	SoundWaveDataPtr->bIsStreaming = InWave->IsStreaming(nullptr);
-	SoundWaveDataPtr->bShouldUseStreamCaching = InWave->ShouldUseStreamCaching();
+
+#if WITH_EDITOR
+int32 FSoundWaveProxy::GetCurrentChunkRevision() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetCurrentChunkRevision();
+}
+#endif // #if WITH_EDITOR
+
+FStreamedAudioChunk& FSoundWaveProxy::GetChunk(uint32 ChunkIndex)
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetChunk(ChunkIndex);
+}
+
+int32 FSoundWaveProxy::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded);
+}
+
+#if WITH_EDITORONLY_DATA
+FString FSoundWaveProxy::GetDerivedDataKey() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetDerivedDataKey();
+}
+#endif // #if WITH_EDITORONLY_DATA
+
+int32 FSoundWaveProxy::GetResourceSize() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetResourceSize();
+}
+
+const uint8* FSoundWaveProxy::GetResourceData() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetResourceData();
+}
+
+const FSoundWavePtr FSoundWaveProxy::GetSoundWaveData()
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr;
 }
 
 void FSoundWaveProxy::ReleaseCompressedAudio()
 {
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 	check(SoundWaveDataPtr);
-	SoundWaveDataPtr->FirstChunk = FAudioChunkHandle();
+	return SoundWaveDataPtr->ReleaseCompressedAudio();
+}
+
+void FSoundWaveProxy::EnsureZerothChunkIsLoaded()
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->EnsureZerothChunkIsLoaded();
+}
+
+bool FSoundWaveProxy::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetChunkData(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded);
+}
+
+const FName& FSoundWaveProxy::GetFName() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetFName();
+}
+
+const FName& FSoundWaveProxy::GetPackageName() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetPackageName();
+}
+
+const FName& FSoundWaveProxy::GetRuntimeFormat() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetRuntimeFormat();
+}
+
+const FObjectKey& FSoundWaveProxy::GetFObjectKey() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetFObjectKey();
+}
+
+float FSoundWaveProxy::GetDuration() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetDuration();
+}
+
+float FSoundWaveProxy::GetSampleRate() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetSampleRate();
+}
+
+int32 FSoundWaveProxy::GetNumFrames() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetNumFrames();
+}
+
+uint32 FSoundWaveProxy::GetNumChunks()
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetNumChunks();
+}
+
+const uint32 FSoundWaveProxy::GetNumChannels() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetNumChannels();
 }
 
 uint32 FSoundWaveProxy::GetSizeOfChunk(uint32 ChunkIndex) const
 {
-	check(ChunkIndex < GetNumChunks());
-	return GetChunk(ChunkIndex).AudioDataSize;
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetSizeOfChunk(ChunkIndex);
+}
+
+const TArray<FSoundWaveCuePoint>& FSoundWaveProxy::GetCuePoints() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetCuePoints();
+}
+
+FSoundWaveData::MaxChunkSizeResults FSoundWaveProxy::GetMaxChunkSizeResults() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetMaxChunkSizeResults();
+}
+
+bool FSoundWaveProxy::IsLooping() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsLooping();
+}
+
+bool FSoundWaveProxy::IsTemplate() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsTemplate();
+}
+
+bool FSoundWaveProxy::IsStreaming() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsStreaming();
+}
+
+bool FSoundWaveProxy::UseBinkAudio() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->UseBinkAudio();
+}
+
+bool FSoundWaveProxy::IsRetainingAudio() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsRetainingAudio();
+}
+
+bool FSoundWaveProxy::ShouldUseStreamCaching() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->ShouldUseStreamCaching();
+}
+
+bool FSoundWaveProxy::IsSeekableStreaming() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsSeekableStreaming();
+}
+
+bool FSoundWaveProxy::IsZerothChunkDataLoaded() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->IsZerothChunkDataLoaded();
+}
+
+bool FSoundWaveProxy::WasLoadingBehaviorOverridden() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->WasLoadingBehaviorOverridden();
 }
 
 bool FSoundWaveProxy::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform) const
 {
 	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->HasCompressedData(Format, TargetPlatform);
+}
 
-	if (IsTemplate() || IsRunningDedicatedServer())
-	{
-		return false;
-	}
+ESoundWaveLoadingBehavior FSoundWaveProxy::GetLoadingBehavior() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetLoadingBehavior();
+}
 
-	const FPlatformAudioCookOverrides* CompressionOverrides = nullptr;
-
-	if (GIsEditor)
-	{
-		if (TargetPlatform)
-		{
-			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
-		}
-	}
-	else
-	{
-		// TargetPlatform is not available on consoles/mobile, so we have to grab it ourselves:
-		CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
-	}
-
-	if (CompressionOverrides)
-	{
-#if WITH_EDITOR
-		FName PlatformSpecificFormat;
-		FString HashedString = *Format.ToString();
-		FPlatformAudioCookOverrides::GetHashSuffix(CompressionOverrides, HashedString);
-		PlatformSpecificFormat = *HashedString;
-#else
-		// on non-editor builds, we cache the concatenated format in a static FName.
-		static FName PlatformSpecificFormat;
-		static FName CachedFormat;
-		if (!Format.IsEqual(CachedFormat))
-		{
-			FString HashedString = *Format.ToString();
-			FPlatformAudioCookOverrides::GetHashSuffix(CompressionOverrides, HashedString);
-			PlatformSpecificFormat = *HashedString;
-
-			CachedFormat = Format;
-		}
-#endif // WITH_EDITOR
-		return SoundWaveDataPtr->CompressedFormatData.Contains(PlatformSpecificFormat);
-	}
-	else
-	{
-		return SoundWaveDataPtr->CompressedFormatData.Contains(Format);
-	}
-
+const TArrayView<uint8> FSoundWaveProxy::GetZerothChunkDataView() const
+{
+	check(SoundWaveDataPtr);
+	return SoundWaveDataPtr->GetZerothChunkDataView();
 }
 
 FByteBulkData* FSoundWaveProxy::GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides)
 {
 	check(SoundWaveDataPtr);
-
-	if (IsTemplate() || IsRunningDedicatedServer())
-	{
-		return nullptr;
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveProxy::GetCompressedData);
-	FName PlatformSpecificFormat = USoundWave::GetPlatformSpecificFormat(Format, CompressionOverrides);
-
-	bool bContainedValidData = SoundWaveDataPtr->CompressedFormatData.Contains(PlatformSpecificFormat);
-	if (!bContainedValidData)
-	{
-		// the proxy does not support interaction w/ FDerivedAudioDataCompressor
-		return nullptr;
-	}
-
-	FByteBulkData* Result = &SoundWaveDataPtr->CompressedFormatData.GetFormat(PlatformSpecificFormat);
-	check(Result);
-	return Result->GetBulkDataSize() > 0 ? Result : NULL; // we don't return empty bulk data...but we save it to avoid thrashing the DDC
+	return SoundWaveDataPtr->GetCompressedData(Format, CompressionOverrides);
 }
 
 TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback)
@@ -3507,7 +3901,7 @@ TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr
 
 		if (ensure(SoundWaveProxy->IsZerothChunkDataLoaded()))
 		{
-			if (SoundWaveProxy->SoundWaveDataPtr->bShouldUseStreamCaching)
+			if (SoundWaveProxy->SoundWaveDataPtr->ShouldUseStreamCaching())
 			{
 				if (SoundWaveProxy->GetNumChunks() > 1)
 				{
@@ -3527,142 +3921,3 @@ TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr
 
 	return {};
 }
-
-
-bool FSoundWaveProxy::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
-{
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-	if (GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
-	{
-#if WITH_EDITORONLY_DATA
-		// Unable to load chunks from the cache. Rebuild the sound and attempt to precache it.
-		UE_LOG(LogAudio, Display, TEXT("GetChunkData failed, rebuilding %s"), *GetPackageName().ToString());
-
-		//		ForceRebuildPlatformData();
-		if (GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
-		{
-			UE_LOG(LogAudio, Warning, TEXT("Failed to build sound %s."), *GetPackageName().ToString());
-		}
-		else
-		{
-			// Succeeded after rebuilding platform data
-			return true;
-		}
-#else
-		// Failed to find the SoundWave chunk in the cooked package.
-		UE_LOG(LogAudio, Warning, TEXT("GetChunkData failed while streaming. Ensure the following package is cooked: %s"), *GetPackageName().ToString());
-#endif // #if WITH_EDITORONLY_DATA
-		return false;
-	}
-	return true;
-}
-
-bool FSoundWaveProxy::IsZerothChunkDataLoaded() const
-{
-	check(SoundWaveDataPtr);
-	return SoundWaveDataPtr->ZerothChunkData.GetView().Num() > 0;
-}
-
-const TArrayView<uint8> FSoundWaveProxy::GetZerothChunkDataView() const
-{
-	check(SoundWaveDataPtr);
-	FBulkDataBuffer<uint8>::ViewType View = SoundWaveDataPtr->ZerothChunkData.GetView();
-	check(View.Num() <= MAX_int32);
-	return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
-}
-
-void FSoundWaveProxy::EnsureZerothChunkIsLoaded()
-{
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-	check(SoundWaveDataPtr);
-
-	// If the zeroth chunk is already loaded, early exit.
-	if (SoundWaveDataPtr->ZerothChunkData.GetView().Num() > 0 || !SoundWaveDataPtr->bShouldUseStreamCaching)
-	{
-		return;
-	}
-
-// #if WITH_EDITOR
-#ifdef WITH_EDITOR
-	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
-	uint8* TempChunkBuffer = nullptr;
-	int32 ChunkSizeInBytes = GetChunkFromDDC(0, &TempChunkBuffer, true);
-	// Since we block for the DDC in the previous call we should always have the chunk loaded.
-	if (ChunkSizeInBytes == 0)
-	{
-		return;
-	}
-
-	SoundWaveDataPtr->ZerothChunkData.Reset(TempChunkBuffer, ChunkSizeInBytes);
-
-#else // WITH_EDITOR
-	// Otherwise, the zeroth chunk is cooked out to SharedRuntimeData::RunningPlatformData, and we just need to retrieve it.
-	check(GetNumChunks() > 0);
-	const FStreamedAudioChunk& ZerothChunk = GetChunk(0);
-	// Some sanity checks to ensure that the bulk size set up
-	UE_CLOG(ZerothChunk.BulkData.GetBulkDataSize() != ZerothChunk.DataSize, LogAudio, Warning, TEXT("Bulk data serialized out had a mismatched size with the DataSize field. Soundwave: %s Bulk Data Reported Size: %d Bulk Data Actual Size: %ld"), *GetFullName(), ZerothChunk.DataSize, ZerothChunk.BulkData.GetBulkDataSize());
-
-	ZerothChunkData = ZerothChunk.BulkData.GetCopyAsBuffer(ZerothChunk.AudioDataSize, true);
-#endif // WITH_EDITOR
-}
-
-uint32 FSoundWaveProxy::GetNumChunks() const
-{
-	check(SoundWaveDataPtr);
-
-	// This function shouldn't be called on audio marked "ForceInline."
-	ensureMsgf(SoundWaveDataPtr->LoadingBehavior != ESoundWaveLoadingBehavior::ForceInline, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
-		, *GetFName().ToString(), EnumToString(SoundWaveDataPtr->LoadingBehavior));
-
-	return SoundWaveDataPtr->RunningPlatformData.Chunks.Num();
-}
-
-#if WITH_EDITOR
-int32 FSoundWaveProxy::GetCurrentChunkRevision() const
-{
-	check(SoundWaveDataPtr);
-	return SoundWaveDataPtr->CurrentChunkRevision;
-}
-#endif // #if WITH_EDITOR
-
-const FStreamedAudioChunk& FSoundWaveProxy::GetChunk(uint32 ChunkIndex) const
-{
-	// This function shouldn't be called on audio marked "ForceInline."
-	check(SoundWaveDataPtr);
-	ensureMsgf(SoundWaveDataPtr->RunningPlatformData.NumChunks
-		, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
-		, *GetFName().ToString()
-		, EnumToString(SoundWaveDataPtr->LoadingBehavior));
-
-	check((ChunkIndex < (uint32)GetNumChunks()));
- 	return SoundWaveDataPtr->RunningPlatformData.Chunks[ChunkIndex];
-}
-
-int32 FSoundWaveProxy::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
-{
-	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-	// This function shouldn't be called on audio marked "ForceInline."
-	check(SoundWaveDataPtr);
-	ensureMsgf(SoundWaveDataPtr->RunningPlatformData.NumChunks
-		, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
-		, *GetFName().ToString()
-		, EnumToString(SoundWaveDataPtr->LoadingBehavior));
-
-	return SoundWaveDataPtr->RunningPlatformData.GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded);
-}
-
-#if WITH_EDITORONLY_DATA
-FString FSoundWaveProxy::GetDerivedDataKey() const
-{
-	check(SoundWaveDataPtr);
-	check(SoundWaveDataPtr->RunningPlatformData.NumChunks);
-
-	// This function shouldn't be called on audio marked "ForceInline."
-	ensureMsgf(SoundWaveDataPtr->RunningPlatformData.NumChunks
-		, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
-		, *GetFName().ToString()
-		, EnumToString(SoundWaveDataPtr->LoadingBehavior));
-
-	return SoundWaveDataPtr->RunningPlatformData.DerivedDataKey;
-}
-#endif // #if WITH_EDITORONLY_DATA

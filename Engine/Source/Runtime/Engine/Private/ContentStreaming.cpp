@@ -1453,7 +1453,7 @@ FAudioChunkHandle::FAudioChunkHandle()
 FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxyPtr&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
 	: CachedData(InData)
 	, CachedDataNumBytes(NumBytes)
-	, CorrespondingWave(InSoundWave)
+	, CorrespondingWave(InSoundWave->GetSoundWaveData())
 	, CorrespondingWaveName(SoundWaveName)
 	, ChunkIndex(InChunkIndex)
 #if WITH_EDITOR
@@ -1557,18 +1557,18 @@ uint32 FAudioChunkHandle::Num() const
 
 bool FAudioChunkHandle::IsValid() const
 {
-	return GetData() != nullptr;
+	return GetData() && CorrespondingWave.Pin().IsValid();
 }
 
 #if WITH_EDITOR
 bool FAudioChunkHandle::IsStale() const
 {
-	FSoundWaveProxyPtr ProxyPtr = CorrespondingWave.Pin();
+	TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveDataPtr = CorrespondingWave.Pin();
 
-	if (ProxyPtr.IsValid())
+	if (SoundWaveDataPtr.IsValid())
 	{
 		// NOTE: While this is currently safe in editor, there's no guarantee the USoundWave will be kept alive during the lifecycle of this chunk handle.
-		return ChunkGeneration != ProxyPtr->GetCurrentChunkRevision();
+		return ChunkGeneration != SoundWaveDataPtr->GetCurrentChunkRevision();
 	}
 	else
 	{

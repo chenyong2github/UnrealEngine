@@ -227,24 +227,23 @@ static FAutoConsoleCommand GDisableProfilingAudioCacheCommand(
 
 
 FAudioChunkCache::FChunkKey::FChunkKey(const FChunkKey& Other)
-	: SoundWaveProxyWeakPtr(Other.SoundWaveProxyWeakPtr)
+	: SoundWaveWeakPtr(Other.SoundWaveWeakPtr)
 	, ChunkIndex(Other.ChunkIndex)
 	, ObjectKey(Other.ObjectKey)
 #if WITH_EDITOR
 	, ChunkRevision(Other.ChunkRevision)
 #endif // #if WITH_EDITOR
 {
-	if (FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if (FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		SoundWaveName = ProxyPtr->GetFName();
-		ProxyPtr->ReleaseCompressedAudio();
+		SoundWaveName = SoundWaveDataPtr->GetFName();
 	}
 }
 
 
 FAudioChunkCache::FChunkKey& FAudioChunkCache::FChunkKey::operator=(const FChunkKey& Other)
 {
-	SoundWaveProxyWeakPtr = Other.SoundWaveProxyWeakPtr;
+	SoundWaveWeakPtr = Other.SoundWaveWeakPtr;
 	SoundWaveName = Other.SoundWaveName;
 	ChunkIndex = Other.ChunkIndex;
 	ObjectKey = Other.ObjectKey;
@@ -257,22 +256,22 @@ FAudioChunkCache::FChunkKey& FAudioChunkCache::FChunkKey::operator=(const FChunk
 	return *this;
 }
 
-FAudioChunkCache::FChunkKey::FChunkKey(const FSoundWaveProxyPtr& InSoundWave, uint32 InChunkIndex
+FAudioChunkCache::FChunkKey::FChunkKey(const FSoundWavePtr& InSoundWave, uint32 InChunkIndex
 #if WITH_EDITOR
 	, uint32 InChunkRevision
 #endif // #if WITH_EDITOR
 )
 
-	: SoundWaveProxyWeakPtr(InSoundWave)
+	: SoundWaveWeakPtr(InSoundWave)
 	, ChunkIndex(InChunkIndex)
 #if WITH_EDITOR
 	, ChunkRevision(InChunkRevision)
 #endif // #if WITH_EDITOR
 {
-	if (FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if (FSoundWavePtr SoundWavePtr = SoundWaveWeakPtr.Pin())
 	{
-		SoundWaveName = ProxyPtr->GetFName();
-		ObjectKey = ProxyPtr->GetFObjectKey();
+		SoundWaveName = SoundWavePtr->GetFName();
+		ObjectKey = SoundWavePtr->GetFObjectKey();
 	}
 }
 
@@ -288,11 +287,11 @@ bool FAudioChunkCache::FChunkKey::operator==(const FChunkKey& Other) const
 
 bool FAudioChunkCache::FChunkKey::IsChunkStale()
 {
-	if(FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if(FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		return !ProxyPtr.IsValid()
+		return !SoundWaveDataPtr.IsValid()
 #if WITH_EDITOR
-		|| (ProxyPtr->GetCurrentChunkRevision() != ChunkRevision)
+			|| (SoundWaveDataPtr->GetCurrentChunkRevision() != ChunkRevision)
 #endif // #if WITH_EDITOR
 		;
 
@@ -303,9 +302,9 @@ bool FAudioChunkCache::FChunkKey::IsChunkStale()
 
 ESoundWaveLoadingBehavior FAudioChunkCache::FChunkKey::GetLoadingBehavior() const
 {
-	if(FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if(FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		return ProxyPtr->GetLoadingBehavior();
+		return SoundWaveDataPtr->GetLoadingBehavior();
 	}
 
 	return ESoundWaveLoadingBehavior::Uninitialized;
@@ -313,26 +312,25 @@ ESoundWaveLoadingBehavior FAudioChunkCache::FChunkKey::GetLoadingBehavior() cons
 
 FStreamedAudioChunk& FAudioChunkCache::FChunkKey::GetChunk(uint32 InChunkIndex) const
 {
-	FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin();
+	FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin();
 
 	// the Weakptr should be valid here since it's from a shared ptr up the stack
-	check(ProxyPtr.IsValid());
-	check(ProxyPtr->SoundWaveDataPtr);
+	check(SoundWaveDataPtr.IsValid());
 
 	// This function shouldn't be called on audio marked "ForceInline."
-	ensureMsgf(ProxyPtr->GetLoadingBehavior() != ESoundWaveLoadingBehavior::ForceInline, TEXT("Calling GetNumChunks on a FSoundWaveProxy that is Force-Inlined is not allowed! SoundWave: %s - %s")
-		, *ProxyPtr->GetFName().ToString(), EnumToString(ProxyPtr->GetLoadingBehavior()));
+	ensureMsgf(SoundWaveDataPtr->GetLoadingBehavior() != ESoundWaveLoadingBehavior::ForceInline, TEXT("Calling GetNumChunks on a FSoundWaveProxy that is Force-Inlined is not allowed! SoundWave: %s - %s")
+		, *SoundWaveDataPtr->GetFName().ToString(), EnumToString(SoundWaveDataPtr->GetLoadingBehavior()));
 
-	check((ChunkIndex < (uint32)ProxyPtr->GetNumChunks()));
+	check((ChunkIndex < (uint32)SoundWaveDataPtr->GetNumChunks()));
 
-	return ProxyPtr->SoundWaveDataPtr->RunningPlatformData.Chunks[ChunkIndex];
+	return SoundWaveDataPtr->GetChunk(ChunkIndex);
 }
 
 uint32 FAudioChunkCache::FChunkKey::GetNumChunks() const
 {
-	if (FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if (FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		return ProxyPtr->GetNumChunks();
+		return SoundWaveDataPtr->GetNumChunks();
 	}
 	
 	return 0;
@@ -340,9 +338,9 @@ uint32 FAudioChunkCache::FChunkKey::GetNumChunks() const
 
 bool FAudioChunkCache::FChunkKey::IsRetainingAudio() const
 {
-	if (FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if (FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		return ProxyPtr->IsRetainingAudio();
+		return SoundWaveDataPtr->IsRetainingAudio();
 	}
 
 	return false;
@@ -350,18 +348,18 @@ bool FAudioChunkCache::FChunkKey::IsRetainingAudio() const
 
 void FAudioChunkCache::FChunkKey::ReleaseCompressedAudio()
 {
-	if (FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if (FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		check(ProxyPtr.IsValid());
-		ProxyPtr->ReleaseCompressedAudio();
+		check(SoundWaveDataPtr.IsValid());
+		SoundWaveDataPtr->ReleaseCompressedAudio();
 	}
 }
 
 bool FAudioChunkCache::FChunkKey::WasLoadingBehaviorOverridden() const
 {
-	if(FSoundWaveProxyPtr ProxyPtr = SoundWaveProxyWeakPtr.Pin())
+	if(FSoundWavePtr SoundWaveDataPtr = SoundWaveWeakPtr.Pin())
 	{
-		return ProxyPtr->WasLoadingBehaviorOverridden();
+		return SoundWaveDataPtr->WasLoadingBehaviorOverridden();
 	}
 
 	return false;
@@ -517,7 +515,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const FSoundWaveP
 		checkf(ChunkIndex != 0, TEXT("Decoder tried to access the zeroth chunk through the streaming manager. Use USoundWave::GetZerothChunk() instead."));
 
 		FAudioChunkCache::FChunkKey ChunkKey(
-			  SoundWave
+			  SoundWave->GetSoundWaveData()
 			, ChunkIndex
 #if WITH_EDITOR
 			, (uint32)SoundWave->GetCurrentChunkRevision()
@@ -548,7 +546,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const FSoundWaveP
 		if (NextChunk != INDEX_NONE)
 		{
 			FAudioChunkCache::FChunkKey NextChunkKey(
-				SoundWave
+				SoundWave->GetSoundWaveData()
 				, ((uint32)NextChunk)
 #if WITH_EDITOR
 				, (uint32)SoundWave->GetCurrentChunkRevision()
@@ -684,7 +682,7 @@ bool FCachedAudioStreamingManager::RequestChunk(const FSoundWaveProxyPtr& SoundW
 	if (Cache && ensure(SoundWave.IsValid()))
 	{
 		FAudioChunkCache::FChunkKey ChunkKey(
-			SoundWave
+			  SoundWave->GetSoundWaveData()
 			, ChunkIndex
 #if WITH_EDITOR
 			, (uint32)SoundWave->GetCurrentChunkRevision()

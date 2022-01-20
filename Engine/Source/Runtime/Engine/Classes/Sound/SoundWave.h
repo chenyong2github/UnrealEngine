@@ -24,6 +24,7 @@
 #include "IAudioProxyInitializer.h"
 #include "SoundWave.generated.h"
 
+class FSoundWaveData;
 class ITargetPlatform;
 struct FActiveSound;
 struct FSoundParseParameters;
@@ -316,39 +317,6 @@ struct ISoundWaveClient
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
 
-struct FSoundWave
-{
-	UE_NONCOPYABLE(FSoundWave);
-
-	FSoundWave() = default;
-
-	/** Zeroth Chunk of audio for sources that use Load On Demand. */
-	FBulkDataBuffer<uint8> ZerothChunkData;
-
-	/** The streaming derived data for this sound on this platform. */
-	FStreamedAudioPlatformData RunningPlatformData;
-
-	FAudioChunkHandle FirstChunk;
-	FFormatContainer CompressedFormatData;
-
-	int32 ResourceSize;
-	FBulkDataBuffer<uint8> ResourceData;
-
-	ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
-
-	// shared flags
-	std::atomic<bool> bIsStreaming;
-	std::atomic<bool> bUseBinkAudio;
-	std::atomic<bool> bSeekableStreaming;
-	std::atomic<bool> bShouldUseStreamCaching;
-	std::atomic<bool> bLoadingBehaviorOverridden;
-
-#if WITH_EDITOR
-	std::atomic<int32> CurrentChunkRevision;
-#endif // #if WITH_EDITOR
-
-}; // struct FSoundWave
-
 
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
@@ -529,7 +497,7 @@ private:
 	TArray<FSoundWaveClientPtr> SourcesPlaying;
 
 	// This is the sample rate retrieved from platform settings.
-	float CachedSampleRateOverride;
+	mutable float CachedSampleRateOverride;
 
 	// We cache a soundwave's loading behavior on the first call to USoundWave::GetLoadingBehaviorForWave(true);
 	// Caches resolved loading behavior from the SoundClass graph. Must be called on the game thread.
@@ -586,7 +554,7 @@ public:
 private:
 
 	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
-	uint8 bCachedSampleRateFromPlatformSettings : 1;
+	mutable uint8 bCachedSampleRateFromPlatformSettings : 1;
 
 	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
 	uint8 bSampleRateManuallyReset : 1;
@@ -668,7 +636,7 @@ public:
 	/** Resource index to cross reference with buffers */
 	int32 ResourceID;
 
-	int32 GetResourceSize() { check(SoundWaveDataPtr);  return SoundWaveDataPtr->ResourceSize; }
+	int32 GetResourceSize() const;
 
 	/** Cache the total used memory recorded for this SoundWave to keep INC/DEC consistent */
 	int32 TrackedMemoryUsage;
@@ -734,7 +702,7 @@ public:
 	/** Memory containing the data copied from the compressed bulk data */
 
 public:
-	const uint8* GetResourceData() { check(SoundWaveDataPtr);  return SoundWaveDataPtr->ResourceData.GetView().GetData(); }
+	const uint8* GetResourceData() const;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	FByteBulkData RawData;
@@ -1013,7 +981,7 @@ public:
 	/*
 	* Returns a sample rate if there is a specific sample rate override for this platform, -1.0 otherwise.
 	*/
-	float GetSampleRateForCurrentPlatform();
+	float GetSampleRateForCurrentPlatform() const;
 
 	/**
 	* Return the platform compression overrides set for the current platform.
@@ -1094,29 +1062,33 @@ public:
 		return (ESoundWavePrecacheState)PrecacheState.GetValue();
 	}
 
-	TSharedPtr<FSoundWave, ESPMode::ThreadSafe> SoundWaveDataPtr{ MakeShared<FSoundWave>() };
+	TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveDataPtr{ MakeShared<FSoundWaveData>() };
 
 private:
 	friend class FSoundWaveProxy;
 };
 
 
-using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
-class ENGINE_API FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
+class ENGINE_API FSoundWaveData
 {
 public:
-	IMPL_AUDIOPROXY_CLASS(FSoundWaveProxy);
+	UE_NONCOPYABLE(FSoundWaveData);
 
-	explicit FSoundWaveProxy(USoundWave* InWave);
-	FSoundWaveProxy(const FSoundWaveProxy& Other) = default;
-
-	Audio::IProxyDataPtr Clone() const override
+	struct MaxChunkSizeResults
 	{
-		LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-		return MakeUnique<FSoundWaveProxy>(*this);
-	}
+		uint32 MaxUnevictableSize = 0;
+		uint32 MaxSizeInCache = 0;
+	};
+	
+	// ctor
+	FSoundWaveData() = default;
 
-	// UObject Interface cached data getters
+	// dtor
+	~FSoundWaveData();
+
+	// non-const arg for internal call to FAudioDevice::GetRuntimeFormat
+	void InitializeDataFromSoundWave(USoundWave& InWave);
+
 	const FName& GetFName() const { return NameCached; }
 	const FName& GetPackageName() const { return PackageNameCached; }
 	const FName& GetRuntimeFormat() const { return RuntimeFormat; }
@@ -1125,6 +1097,9 @@ public:
 	float GetSampleRate() const { return SampleRate; }
 	uint32 GetNumChannels() const { return NumChannels; }
 	const TArray<FSoundWaveCuePoint>& GetCuePoints() const { return CuePoints; }
+
+	MaxChunkSizeResults GetMaxChunkSizeResults() const;
+
 	uint32 GetNumChunks() const;
 	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
 	int32 GetNumFrames() const { return NumFrames; }
@@ -1132,55 +1107,165 @@ public:
 
 	void ReleaseCompressedAudio();
 
-	bool UseBinkAudio() const { check(SoundWaveDataPtr); return SoundWaveDataPtr->bUseBinkAudio; }
-	bool IsStreaming() const { check(SoundWaveDataPtr); return SoundWaveDataPtr->bIsStreaming; }
+	bool UseBinkAudio() const { return bUseBinkAudio; }
+	bool IsStreaming() const { return bIsStreaming; }
 	bool IsLooping() const { return bIsLooping; }
-	bool IsSeekableStreaming() const { check(SoundWaveDataPtr);  return SoundWaveDataPtr->bIsStreaming && SoundWaveDataPtr->bSeekableStreaming; }
-	bool IsRetainingAudio() const { check(SoundWaveDataPtr);  return SoundWaveDataPtr->FirstChunk.IsValid(); }
-	bool WasLoadingBehaviorOverridden() const { check(SoundWaveDataPtr); return SoundWaveDataPtr->bLoadingBehaviorOverridden; }
-	ESoundWaveLoadingBehavior GetLoadingBehavior() const { check(SoundWaveDataPtr); return SoundWaveDataPtr->LoadingBehavior; }
+	bool ShouldUseStreamCaching() const { return bShouldUseStreamCaching; }
+	bool IsSeekableStreaming() const {  return bIsStreaming && bSeekableStreaming; }
+	bool IsRetainingAudio() const {  return FirstChunk.IsValid(); }
+	bool WasLoadingBehaviorOverridden() const { return bLoadingBehaviorOverridden; }
+	ESoundWaveLoadingBehavior GetLoadingBehavior() const { return LoadingBehavior; }
 
 	bool IsTemplate() const { return bIsTemplate; }
 
-	virtual bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
-	virtual FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
+ 	bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
+ 	FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
+ 
+	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+ 
+ 	bool IsZerothChunkDataLoaded() const;
+ 	const TArrayView<uint8> GetZerothChunkDataView() const;
+ 	void EnsureZerothChunkIsLoaded();
+ 
+ #if WITH_EDITOR
+ 	int32 GetCurrentChunkRevision() const;
+ #endif // #if WITH_EDITOR
+ 
+ 	FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
+ 	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
 
-	static TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
+#if WITH_EDITORONLY_DATA
+ 	FString GetDerivedDataKey() const;
+#endif // #if WITH_EDITORONLY_DATA
+
+	int32 GetResourceSize() { return ResourceSize; }
+	const uint8* GetResourceData() const { return ResourceData.GetView().GetData(); }
+	uint32 GetNumChannels() { return NumChannels; }
+
+
+private:
+	/** Zeroth Chunk of audio for sources that use Load On Demand. */
+	FBulkDataBuffer<uint8> ZerothChunkData;
+
+	/** The streaming derived data for this sound on this platform. */
+	FStreamedAudioPlatformData RunningPlatformData;
+
+	FAudioChunkHandle FirstChunk;
+
+	FFormatContainer CompressedFormatData;
+
+	int32 ResourceSize;
+
+	FBulkDataBuffer<uint8> ResourceData;
+
+	ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
+
+#if WITH_EDITOR
+	std::atomic<int32> CurrentChunkRevision;
+#endif // #if WITH_EDITOR
+
+	FName NameCached;
+	FName PackageNameCached;
+	FName RuntimeFormat{ "FSoundWaveProxy_InvalidFormat" };
+	FObjectKey SoundWaveKeyCached;
+	TArray<FSoundWaveCuePoint> CuePoints;
+
+	float SampleRate;
+	float Duration;
+
+	uint32 NumChannels;
+	uint32 NumChunks;
+	int32 NumFrames;
+
+	// shared flags
+	uint8 bIsLooping : 1;
+	uint8 bIsTemplate : 1;
+	uint8 bIsStreaming : 1;
+	uint8 bUseBinkAudio : 1;
+	uint8 bSeekableStreaming : 1;
+	uint8 bShouldUseStreamCaching : 1;
+	uint8 bLoadingBehaviorOverridden : 1;
+
+	friend class USoundWave;
+}; // class FSoundWaveData
+
+using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
+class ENGINE_API FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
+{
+public:
+	IMPL_AUDIOPROXY_CLASS(FSoundWaveProxy);
+
+	explicit FSoundWaveProxy(USoundWave* InWave);
+
+	FSoundWaveProxy(const FSoundWaveProxy& Other) = default;
+
+	~FSoundWaveProxy();
+
+	Audio::IProxyDataPtr Clone() const override
+	{
+		LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+		return MakeUnique<FSoundWaveProxy>(*this);
+	}
+
+	// USoundWave Interface
+	void ReleaseCompressedAudio();
+	void EnsureZerothChunkIsLoaded();
 	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
+	// Getters
+	const FName& GetFName() const;
+	const FName& GetPackageName() const;
+	const FName& GetRuntimeFormat() const;
+	const FObjectKey& GetFObjectKey() const;
+
+	float GetDuration() const;
+	float GetSampleRate() const;
+
+	int32 GetNumFrames() const;
+	uint32 GetNumChunks(); const
+	uint32 GetNumChannels() const;
+	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
+	const TArray<FSoundWaveCuePoint>& GetCuePoints() const;
+
+	FSoundWaveData::MaxChunkSizeResults GetMaxChunkSizeResults() const;
+
+	bool IsLooping() const;
+	bool IsTemplate() const;
+	bool IsStreaming() const;
+	bool UseBinkAudio() const;
+	bool IsRetainingAudio() const;
+	bool ShouldUseStreamCaching() const;
+	bool IsSeekableStreaming() const;
 	bool IsZerothChunkDataLoaded() const;
+	bool WasLoadingBehaviorOverridden() const;
+	bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
+
+	ESoundWaveLoadingBehavior GetLoadingBehavior() const;
+
 	const TArrayView<uint8> GetZerothChunkDataView() const;
-	void EnsureZerothChunkIsLoaded();
+
+	FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
+
+	static TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
+
 
 #if WITH_EDITOR
 	int32 GetCurrentChunkRevision() const;
 #endif // #if WITH_EDITOR
 
-	const FStreamedAudioChunk& GetChunk(uint32 ChunkIndex) const;
+	FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
 	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
+
+#if WITH_EDITORONLY_DATA
 	FString GetDerivedDataKey() const;
+#endif // #if WITH_EDITORONLY_DATA
 
-	int32 GetResourceSize() { check(SoundWaveDataPtr);  return SoundWaveDataPtr->ResourceSize; }
-	uint8* GetResourceData() { check(SoundWaveDataPtr); return SoundWaveDataPtr->ResourceData.GetView().GetData(); }
+	int32 GetResourceSize() const;
+	const uint8* GetResourceData() const;
 
-	uint32 GetNumChannels() { return NumChannels; }	
-
-	TSharedPtr<FSoundWave, ESPMode::ThreadSafe> SoundWaveDataPtr;
+	const FSoundWavePtr GetSoundWaveData();
 
 private:
-	FName NameCached;
-	FName PackageNameCached;
-	FObjectKey SoundWaveKeyCached;
-	FName RuntimeFormat{ "FSoundWaveProxy_InvalidFormat" };
-
-	float SampleRate;
-	uint32 NumChannels;
-	TArray<FSoundWaveCuePoint> CuePoints;
-	uint32 NumChunks;
-	float Duration;
-	int32 NumFrames;
-
-	bool bIsLooping { false };
-	bool bIsTemplate { false };
+	TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveDataPtr;
 };
 

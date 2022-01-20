@@ -114,8 +114,10 @@ namespace EAudioMixerChannel
 
 class USoundWave;
 class FSoundWaveProxy;
+class FSoundWaveData;
 class ICompressedAudioInfo;
 using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
+using FSoundWavePtr = TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe>;
 
 
 namespace Audio
