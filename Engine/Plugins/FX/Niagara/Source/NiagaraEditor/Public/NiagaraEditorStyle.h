@@ -1,30 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Styling/ISlateStyle.h"
+
+#include "Styling/SlateStyle.h"
 
 /** Manages the style which provides resources for niagara editor widgets. */
-class NIAGARAEDITOR_API FNiagaraEditorStyle
+class NIAGARAEDITOR_API FNiagaraEditorStyle : public FSlateStyleSet
 {
 public:
-
-	static void Initialize();
-
+	static void Register();
+	static void Unregister();
 	static void Shutdown();
 
 	/** reloads textures used by slate renderer */
 	static void ReloadTextures();
 
 	/** @return The Slate style set for niagara editor widgets */
-	static const ISlateStyle& Get();
+	static const FNiagaraEditorStyle& Get();
 
-	static FName GetStyleSetName();
+	static void ReinitializeStyle();
 
-private:
+private:	
+	FNiagaraEditorStyle();
+	void InitStats();
+	void InitAssetPicker();
+	void InitActionMenu();
+	void InitEmitterHeader();
+	void InitParameters();
+	void InitParameterMapView();
+	void InitCodeView();
+	void InitSelectedEmitter();
+	void InitToolbarIcons();
+	void InitTabIcons();
+	void InitIcons();
+	void InitOverview();
+	void InitEmitterDetails();
+	void InitAssetColors();
+	void InitThumbnails();
+	void InitClassIcon();
+	void InitStackIcons();
+	void InitNiagaraSequence();
+	void InitPlatformSet();
+	void InitDropTarget();
+	void InitScriptGraph();
+	void InitDebuggerStyle();
+	void InitBakerStyle();
+	void InitCommonColors();
+	void InitOutlinerStyle();
+	void InitScalabilityColors();
+	void InitScalabilityIcons();
 
-	static TSharedRef< class FSlateStyleSet > Create();
-
-private:
-
-	static TSharedPtr< class FSlateStyleSet > NiagaraEditorStyleInstance;
+	static TSharedPtr<FNiagaraEditorStyle> NiagaraEditorStyle;
 };

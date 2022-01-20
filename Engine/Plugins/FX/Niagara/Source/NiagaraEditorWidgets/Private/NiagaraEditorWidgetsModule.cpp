@@ -113,7 +113,7 @@ void FNiagaraEditorWidgetsModule::StartupModule()
 	WidgetProvider = MakeShared<FNiagaraEditorWidgetProvider>();
 	NiagaraEditorModule.RegisterWidgetProvider(WidgetProvider.ToSharedRef());
 
-	FNiagaraEditorWidgetsStyle::Initialize();
+	FNiagaraEditorWidgetsStyle::Register();
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterface", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceDetailsBase::MakeInstance));
@@ -174,8 +174,7 @@ FNiagaraEditorWidgetsModule& FNiagaraEditorWidgetsModule::Get()
 
 void FNiagaraEditorWidgetsModule::ReinitializeStyle()
 {
-	FNiagaraEditorWidgetsStyle::Shutdown();
-	FNiagaraEditorWidgetsStyle::Initialize();
+	FNiagaraEditorWidgetsStyle::ReinitializeStyle();
 }
 
 TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, float DefaultHeight)

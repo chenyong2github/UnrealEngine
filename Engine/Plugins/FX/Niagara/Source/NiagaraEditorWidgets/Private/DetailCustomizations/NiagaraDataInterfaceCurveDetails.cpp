@@ -1407,14 +1407,14 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 		FOnGetContent::CreateSP(this, &FNiagaraDataInterfaceCurveDetailsBase::GetCurveToCopyMenu),
 		NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "Import", "Import"),
 		NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CopyCurveAsset", "Import data from another Curve asset"),
-		FSlateIcon(FNiagaraEditorWidgetsStyle::GetStyleSetName(), "NiagaraEditor.CurveDetails.Import"));
+		FSlateIcon(FNiagaraEditorWidgetsStyle::Get().GetStyleSetName(), "NiagaraEditor.CurveDetails.Import"));
 
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(FExecuteAction::CreateSP(this, &FNiagaraDataInterfaceCurveDetailsBase::OnShowInCurveEditor)),
 		NAME_None,
 		LOCTEXT("CurveOverviewLabel", "Curve Overview"),
 		LOCTEXT("ShowInCurveOverviewToolTip", "Show this curve in the curve overview."),
-		FSlateIcon(FNiagaraEditorWidgetsStyle::GetStyleSetName(), "NiagaraEditor.CurveDetails.ShowInOverview"));
+		FSlateIcon(FNiagaraEditorWidgetsStyle::Get().GetStyleSetName(), "NiagaraEditor.CurveDetails.ShowInOverview"));
 
 	ToolBarBuilder.AddSeparator();
 

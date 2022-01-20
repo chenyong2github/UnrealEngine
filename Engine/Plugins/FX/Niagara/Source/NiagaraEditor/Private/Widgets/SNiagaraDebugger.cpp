@@ -301,7 +301,7 @@ namespace NiagaraOutlinerTab
 					NAME_None,
 					LOCTEXT("Capture", "Capture"),
 					LOCTEXT("CaptureTooltip", "Triggers a capture of outliner info from the connected session."),
-					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.Capture"),
+					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.Capture"),
 					EUserInterfaceActionType::Button
 				);
 			}
@@ -324,7 +324,7 @@ namespace NiagaraOutlinerTab
 					NAME_None,
 					LOCTEXT("GatherOutlinerPerfData", "Perf"),
 					LOCTEXT("GatherOutlinerPerfDataTooltip", "Gather Performance data during outliner capture."),
-					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.Outliner.CapturePerf"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.ToggleStats"),
 					EUserInterfaceActionType::ToggleButton
 				);
 			}
@@ -791,7 +791,7 @@ void SNiagaraDebugger::RegisterTabSpawner()
 	.SetDisplayName(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTab", "Niagara Debugger"))
 	.SetTooltipText(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTooltipText", "Open the Niagara Debugger Tab."))
 	.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
-	.SetIcon(FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Tab.Debugger"));
+	.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.Debugger"));
 }
 
 void SNiagaraDebugger::UnregisterTabSpawner()
@@ -899,7 +899,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 				NAME_None,
 				LOCTEXT("Play", "Play"),
 				LOCTEXT("PlayTooltip", "Simulations will play as normal"),
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.PlayIcon"),
+				FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.PlayIcon"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
@@ -914,7 +914,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 				NAME_None,
 				LOCTEXT("Pause", "Pause"),
 				LOCTEXT("PauseTooltip", "Pause all simulations"),
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.PauseIcon"),
+				FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.PauseIcon"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
@@ -937,7 +937,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 				NAME_None,
 				CreateTAttribute<FText>([=]() { return Settings->Data.bLoopTimeEnabled ? FText::Format(LOCTEXT("PlaybackLoopFormat", "Loop Every\n{0} Seconds"), FText::AsNumber(Settings->Data.LoopTime)) : LOCTEXT("Loop", "Loop"); }),
 				LOCTEXT("LoopTooltip", "Loop all simulations, i.e. one shot effects will loop"),
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.LoopIcon"),
+				FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.LoopIcon"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
@@ -952,7 +952,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 				NAME_None,
 				LOCTEXT("Step", "Step"),
 				LOCTEXT("StepTooltip", "Step all simulations a single frame then pause them"),
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.StepIcon"),
+				FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.StepIcon"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
@@ -967,7 +967,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 				NAME_None,
 				CreateTAttribute<FText>([=]() { return  FText::Format(LOCTEXT("PlaybackSpeedFormat", "Speed\n{0} x"), FText::AsNumber(Settings->Data.PlaybackRate)); }),
 				LOCTEXT("SlowTooltip", "When enabled adjusts the playback speed for simulations."),
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.SpeedIcon"),
+				FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Debugger.SpeedIcon"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}

@@ -323,7 +323,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("CreateNote_Yes", "Add Note"))
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.IsEnabled_Lambda([&]()
 			{
 				return !DescriptionTextBox->GetText().IsEmpty();
@@ -337,7 +337,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 		.Padding(5.f)
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Dark")
 			.Text(LOCTEXT("CreateNote_No", "Cancel"))
 			.OnClicked_Lambda(CancelPressed)
 		]

@@ -938,7 +938,7 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterStackIssueGenerator(FNiagaraPlatformSet::StaticStruct()->GetFName(), new FNiagaraPlatformSetIssueGenerator());
 
 
-	FNiagaraEditorStyle::Initialize();
+	FNiagaraEditorStyle::Register();
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.NiagaraEditor.ReinitializeStyle"),
 		TEXT("Reinitializes the style for the niagara editor module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
@@ -1723,8 +1723,7 @@ void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
 
 void FNiagaraEditorModule::ReinitializeStyle()
 {
-	FNiagaraEditorStyle::Shutdown();
-	FNiagaraEditorStyle::Initialize();
+	FNiagaraEditorStyle::ReinitializeStyle();
 }
 
 void FNiagaraEditorModule::EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct)

@@ -527,7 +527,7 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 						.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 						[
 							SNew(SImage)
-							.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Apply.Small"))
+							.Image(FAppStyle::Get().GetBrush("AssetEditor.Apply"))
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()

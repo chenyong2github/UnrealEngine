@@ -466,7 +466,6 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 		FNiagaraEmitterInstance* InInstance = EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().IsValid() ? EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
 
 		FToolBarBuilder ToolBarBuilder(nullptr, FMultiBoxCustomization::None, nullptr, true);
-		ToolBarBuilder.SetStyle(&FNiagaraEditorStyle::Get(), FName("OverviewStackNodeThumbnailToolBar"));
 		ToolBarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 		
 		for (int32 StackEntryIndex = 0; StackEntryIndex < PreviewStackEntries.Num(); StackEntryIndex++)

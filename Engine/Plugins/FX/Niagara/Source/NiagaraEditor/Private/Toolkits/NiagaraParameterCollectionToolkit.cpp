@@ -229,7 +229,7 @@ void FNiagaraParameterCollectionToolkit::ExtendToolbar()
 	// 					GetEmitterMenuContent,
 	// 					LOCTEXT("AddEmitterButtonText", "Add Emitter"),
 	// 					LOCTEXT("AddEmitterButtonTextToolTip", "Adds an emitter to the system from an existing emitter asset."),
-	// 					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.AddEmitter"));
+	// 					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.AddEmitter"));
 	// 			}
 	// 			ToolbarBuilder.EndSection();
 	// 		}

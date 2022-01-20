@@ -274,7 +274,7 @@ void FNiagaraParameterDefinitionsToolkit::ExtendToolbar()
 				{
 					ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Apply,
 						NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-						FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Apply"),
+						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Apply"),
 						FName(TEXT("ApplyNiagaraEmitter")));
 				}
 				ToolbarBuilder.EndSection();

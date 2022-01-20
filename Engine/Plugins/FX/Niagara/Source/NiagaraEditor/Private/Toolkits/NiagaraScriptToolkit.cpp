@@ -627,7 +627,7 @@ void FNiagaraScriptToolkit::ExtendToolbar()
 			ToolbarBuilder.BeginSection("Apply");
 			ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Apply,
 				NAME_None, TAttribute<FText>(), TAttribute<FText>(), 
-				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Apply"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.Apply"),
 				FName(TEXT("ApplyNiagaraScript")));
 			ToolbarBuilder.EndSection();
 
@@ -731,7 +731,7 @@ FText FNiagaraScriptToolkit::GetCompileStatusTooltip() const
 
 FSlateIcon FNiagaraScriptToolkit::GetRefreshStatusImage() const
 {
-	return FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Niagara.Asset.ReimportAsset.Default");
+	return FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Refresh");
 }
 
 FText FNiagaraScriptToolkit::GetRefreshStatusTooltip() const

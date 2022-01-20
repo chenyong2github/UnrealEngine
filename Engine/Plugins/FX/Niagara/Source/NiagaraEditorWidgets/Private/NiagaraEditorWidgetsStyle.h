@@ -1,30 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Styling/ISlateStyle.h"
+
+#include "Styling/SlateStyle.h"
 
 /** Manages the style which provides resources for niagara editor widgets. */
-class FNiagaraEditorWidgetsStyle
+class FNiagaraEditorWidgetsStyle : public FSlateStyleSet
 {
 public:
 
-	static void Initialize();
-
+	static void Register();
+	static void Unregister();
 	static void Shutdown();
 
 	/** reloads textures used by slate renderer */
 	static void ReloadTextures();
 
 	/** @return The Slate style set for niagara editor widgets */
-	static const ISlateStyle& Get();
+	static const FNiagaraEditorWidgetsStyle& Get();
 
-	static FName GetStyleSetName();
-
+	static void ReinitializeStyle();
 private:
+	FNiagaraEditorWidgetsStyle();
 
-	static TSharedRef< class FSlateStyleSet > Create();
-
-private:
-
-	static TSharedPtr< class FSlateStyleSet > NiagaraEditorWidgetsStyleInstance;
+	static TSharedPtr<FNiagaraEditorWidgetsStyle> NiagaraEditorWidgetsStyle;
 };
