@@ -8,6 +8,10 @@
 #include "EngineModule.h"
 #include "RendererInterface.h"
 
+THIRD_PARTY_INCLUDES_START
+#include "dxgi1_4.h"
+THIRD_PARTY_INCLUDES_END
+
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 
@@ -191,6 +195,19 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D11Device* Direct3DDe
 	}
 }
 
+void LogMemoryInfo(const FD3D11Adapter& InAdapter)
+{
+	TRefCountPtr<IDXGIAdapter3> Adapter3;
+	const HRESULT AdapterHR = InAdapter.DXGIAdapter->QueryInterface(IID_PPV_ARGS(Adapter3.GetInitReference()));
+	if (SUCCEEDED(AdapterHR))
+	{
+		DXGI_QUERY_VIDEO_MEMORY_INFO LocalMemoryInfo{};
+		VERIFYD3D11RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &LocalMemoryInfo));
+		UE_LOG(LogD3D11RHI, Error, TEXT("\tBudget:\t%7.2f MB"), LocalMemoryInfo.Budget / (1024.0f * 1024));
+		UE_LOG(LogD3D11RHI, Error, TEXT("\tUsed:\t%7.2f MB"), LocalMemoryInfo.CurrentUsage / (1024.0f * 1024));
+	}
+}
+
 static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 {
 	if (D3DResult == E_OUTOFMEMORY)
@@ -206,7 +223,16 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 #if STATS
 		GetRendererModule().DebugLogOnCrash();
 #endif
-		FPlatformMisc::RequestExit(true);
+		static IConsoleVariable* GPUCrashOOM = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashOnOutOfMemory"));
+		if (GPUCrashOOM && GPUCrashOOM->GetInt())
+		{
+			LogMemoryInfo(GD3D11RHI->GetAdapter());
+			UE_LOG(LogD3D11RHI, Fatal, TEXT("Out of video memory trying to allocate a rendering resource"));
+		}
+		else
+		{
+			FPlatformMisc::RequestExit(true);
+		}
 	}
 }
 

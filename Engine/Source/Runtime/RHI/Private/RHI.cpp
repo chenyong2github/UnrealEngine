@@ -1250,6 +1250,13 @@ static TAutoConsoleVariable<int32> CVarGPUCrashDump(
 	ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<int32> CVarGPUCrashOnOutOfMemory(
+	TEXT("r.GPUCrashOnOutOfMemory"),
+	0,
+	TEXT("Enable crash reporting on GPU OOM"),
+	ECVF_ReadOnly
+);
+
 static TAutoConsoleVariable<int32> CVarGPUCrashDebuggingAftermathMarkers(
 	TEXT("r.GPUCrashDebugging.Aftermath.Markers"),
 	0,

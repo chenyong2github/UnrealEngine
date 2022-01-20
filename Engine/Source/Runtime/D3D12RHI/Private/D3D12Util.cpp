@@ -680,7 +680,7 @@ void LogMemoryInfo(FD3D12Adapter* InAdapter)
 
 extern CORE_API bool GIsGPUCrashed;
 
-static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
+static void TerminateOnOutOfMemory(ID3D12Device* InDevice, HRESULT D3DResult, bool bCreatingTextures)
 {
 #if PLATFORM_WINDOWS
 	if (bCreatingTextures)
@@ -694,7 +694,29 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 #if STATS
 	GetRendererModule().DebugLogOnCrash();
 #endif
-	FPlatformMisc::RequestExit(true);
+
+	static IConsoleVariable* GPUCrashOOM = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashOnOutOfMemory"));
+	if (GPUCrashOOM && GPUCrashOOM->GetInt())
+	{
+		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
+		// If no device provided then try and log the DRED status of each device
+		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
+			{
+				if (InDevice == nullptr || InDevice == IterationDevice->GetDevice())
+				{
+					FD3D12Adapter* Adapter = IterationDevice->GetParentAdapter();
+					LogMemoryInfo(Adapter);
+				}
+			});
+
+		UE_LOG(LogD3D12RHI, Fatal, TEXT("Out of video memory trying to allocate a rendering resource"));
+	}
+	else
+	{
+		// Exit silently without reporting a crash because an OOM is not necessarily our fault
+		FPlatformMisc::RequestExit(true);
+	}
+
 #else // PLATFORM_WINDOWS
 	UE_LOG(LogInit, Fatal, TEXT("Out of video memory trying to allocate a rendering resource"));
 #endif // !PLATFORM_WINDOWS
@@ -823,7 +845,7 @@ namespace D3D12RHI
 		
 		if (D3DResult == E_OUTOFMEMORY)
 		{
-			TerminateOnOutOfMemory(D3DResult, false);
+			TerminateOnOutOfMemory(Device, D3DResult, false);
 		}
 		else
 		{
@@ -868,7 +890,7 @@ namespace D3D12RHI
 		}
 		else if (D3DResult == E_OUTOFMEMORY)
 		{
-			TerminateOnOutOfMemory(D3DResult, true);
+			TerminateOnOutOfMemory(Device, D3DResult, true);
 
 #if STATS
 			GetRendererModule().DebugLogOnCrash();

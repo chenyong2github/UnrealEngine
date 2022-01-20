@@ -945,6 +945,8 @@ public:
 		GPUProfilingData.RegisterGPUDispatch(GroupCount);
 	}
 
+	inline const FD3D11Adapter& GetAdapter() const { return Adapter; }
+
 protected:
 	FD3DGPUProfiler GPUProfilingData;
 
