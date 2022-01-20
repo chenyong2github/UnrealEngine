@@ -160,7 +160,7 @@ public:
 	ENGINE_API virtual void LoadFromMemoryArchive(FMemoryArchive & Ar);
 	
 	/** Apply serialized data to skeletal mesh in game thread */
-	ENGINE_API virtual void ApplyEditorData(USkeletalMesh * SkeletalMesh) const;
+	ENGINE_API virtual void ApplyEditorData(USkeletalMesh * SkeletalMesh, bool bIsSerializeSaving) const;
 	
 protected:
 	bool bApplyMorphTargetsData = false;

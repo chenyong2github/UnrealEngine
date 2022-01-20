@@ -135,6 +135,9 @@ public:
 	// Movable
 	FSkeletalMeshCompilationContext(FSkeletalMeshCompilationContext&&) = default;
 	FSkeletalMeshCompilationContext& operator=(FSkeletalMeshCompilationContext&&) = default;
+	
+	//True if this compilation context is start from a serialize save
+	bool bIsSerializeSaving = false;
 };
 
 class FSkeletalMeshPostLoadContext : public FSkeletalMeshCompilationContext

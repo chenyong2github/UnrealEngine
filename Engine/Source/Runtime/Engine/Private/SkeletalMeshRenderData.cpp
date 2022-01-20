@@ -412,7 +412,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			//Apply the morphtargets change if any
 			if (FinishBuildMorphTargetData.IsValid())
 			{
-				FinishBuildMorphTargetData->ApplyEditorData(Owner);
+				FinishBuildMorphTargetData->ApplyEditorData(Owner, ContextPtr->bIsSerializeSaving);
 			}
 
 			int32 T1 = FPlatformTime::Cycles();

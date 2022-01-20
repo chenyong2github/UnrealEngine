@@ -1627,17 +1627,18 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 }
 
 #if WITH_EDITOR
-void CachePlatform(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform, FSkeletalMeshRenderData* PlatformRenderData)
+void CachePlatform(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform, FSkeletalMeshRenderData* PlatformRenderData, const bool bIsSerializeSaving)
 {
 	//Cache the platform, dcc should be valid so it will be fast
 	check(TargetPlatform);
 	FSkeletalMeshBuildContext Context;
+	Context.bIsSerializeSaving = bIsSerializeSaving;
 	PlatformRenderData->Cache(TargetPlatform, Mesh, &Context);
 }
 
 FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);
 
-static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform)
+static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform, const bool bIsSerializeSaving)
 {
 	const FString PlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Mesh);
 	FSkeletalMeshRenderData* PlatformRenderData = Mesh->GetResourceForRendering();
@@ -1656,7 +1657,7 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 	{
 		// Cache render data for this platform and insert it in to the linked list.
 		PlatformRenderData = new FSkeletalMeshRenderData();
-		CachePlatform(Mesh, TargetPlatform, PlatformRenderData);
+		CachePlatform(Mesh, TargetPlatform, PlatformRenderData, bIsSerializeSaving);
 		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
 		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
@@ -1750,15 +1751,16 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 				FSkeletalMeshRenderData* LocalSkeletalMeshRenderData = GetSkeletalMeshRenderData();
 #if WITH_EDITORONLY_DATA
 				const ITargetPlatform* ArchiveCookingTarget = Ar.CookingTarget();
+				constexpr bool bIsSerializeSaving = true;
 				if (ArchiveCookingTarget)
 				{
-					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, ArchiveCookingTarget);
+					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, ArchiveCookingTarget, bIsSerializeSaving);
 				}
 				else
 				{
 					//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
 					check(RunningPlatform != NULL);
-					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform);
+					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform, bIsSerializeSaving);
 				}
 #endif
 				if (bCooked)
@@ -1784,22 +1786,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 					}
 				}
 				LocalSkeletalMeshRenderData->Serialize(Ar, this);
-
-#if WITH_EDITOR
-				//We need to get the skeletalmesh ddc cache with the running platform to retrieve the ddc editor data LODModel which can be different because of chunking, reduction and morph targets.
-				//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
-				if(ArchiveCookingTarget && ArchiveCookingTarget != RunningPlatform)
-				{
-					check(RunningPlatform != NULL);
-					const FString CookPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(ArchiveCookingTarget, this);
-					const FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, this);
-					if (CookPlatformDerivedDataKey != RunningPlatformDerivedDataKey)
-					{
-						FSkeletalMeshRenderData RunningPlatformSkeletalMeshRenderData;
-						CachePlatform(this, RunningPlatform, &RunningPlatformSkeletalMeshRenderData);
-					}
-				}
-#endif
 			}
 		}
 	}
@@ -4660,13 +4646,26 @@ void USkeletalMesh::ValidateBoneWeights(const ITargetPlatform* TargetPlatform)
 void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	// Make sure to cache platform data so it doesn't happen lazily during serialization of the skeletal mesh
-	GetPlatformSkeletalMeshRenderData(this, TargetPlatform);
+	constexpr bool bIsSerializeSaving = false;
+	GetPlatformSkeletalMeshRenderData(this, TargetPlatform, bIsSerializeSaving);
 	ValidateBoneWeights(TargetPlatform);
 }
 
 void USkeletalMesh::ClearAllCachedCookedPlatformData()
 {
 	GetResourceForRendering()->NextCachedRenderData.Reset();
+	
+	if (FApp::CanEverRender())
+	{
+		// We need to keep the ddc editor data LODModel for rendering; it can be different (The number of sections, the number of vertices, the number of morphtargets) because of chunking, build or reduction setting that are or will be per platform.
+		//Normally this call should be able to read values out of ddc rather than rebuilding, because the ddc for the running platform was cached when we loaded the asset.
+		ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+		check(RunningPlatform != NULL);
+		const FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, this);
+		FSkeletalMeshRenderData RunningPlatformSkeletalMeshRenderData;
+		constexpr bool bIsSerializeSaving = false;
+		CachePlatform(this, RunningPlatform, &RunningPlatformSkeletalMeshRenderData, bIsSerializeSaving);
+	}
 }
 
 extern FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);

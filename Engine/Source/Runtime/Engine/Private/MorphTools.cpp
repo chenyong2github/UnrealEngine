@@ -11,6 +11,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "UObject/GarbageCollection.h"
+#include "Algo/AnyOf.h"
 
 /** compare based on base mesh source vertex indices */
 struct FCompareMorphTargetDeltas
@@ -167,7 +168,7 @@ TUniquePtr<FFinishBuildMorphTargetData> UMorphTarget::CreateFinishBuildMorphTarg
 	return MakeUnique<FFinishBuildMorphTargetData>();
 }
 
-void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) const
+void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh, bool bIsSerializeSaving) const
 {
 	//Return if we do not need to apply data
 	if (!bApplyMorphTargetsData)
@@ -195,11 +196,30 @@ void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) 
 	for (const TPair<FName, TArray<FMorphTargetLODModel>>& TargetNameAndMorphLODModels : MorphLODModelsPerTargetName)
 	{
 		FName MorphTargetName = TargetNameAndMorphLODModels.Key;
+		const TArray<FMorphTargetLODModel>& MorphTargetLODModels = TargetNameAndMorphLODModels.Value;
+		int32 MorphLODModelNumber = MorphTargetLODModels.Num();
+
 		UMorphTarget * MorphTarget = ExistingMorphTargets.FindRef(MorphTargetName);
 		if (!MorphTarget)
 		{
-			MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
-			check(MorphTarget);
+			if (!Algo::AnyOf(MorphTargetLODModels, [](const FMorphTargetLODModel& Model) { return Model.Vertices.Num() > 0;}))
+			{
+				//Skip this empty morphtarget
+				continue;
+			}
+			//When we save the cook result we should never have to build a new morph target
+			//When saving cook build, we call GetPlatformSkeletalMeshRenderData in USkeletalMesh::BeginCacheForCookedPlatformData
+			//which happen before the serialization of that cook skeletalmesh
+			if (!bIsSerializeSaving)
+			{
+				MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+				check(MorphTarget);
+			}
+			else
+			{
+				UE_ASSET_LOG(LogSkeletalMesh, Error, SkeletalMesh, TEXT("Cannot cache a skeletalmesh during a serialize if some morph targets need to be created. The solution is to Pre cache the skeletalmesh before the serialization so no morph target get created."));
+				continue;
+			}
 		}
 		else
 		{
@@ -207,8 +227,7 @@ void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) 
 		}
 		MorphTarget->EmptyMorphLODModels();
 		SkeletalMesh->GetMorphTargets().Add(MorphTarget);
-		const TArray<FMorphTargetLODModel>&MorphTargetLODModels = TargetNameAndMorphLODModels.Value;
-		int32 MorphLODModelNumber = MorphTargetLODModels.Num();
+		
 		MorphTarget->GetMorphLODModels().AddDefaulted(MorphLODModelNumber);
 		for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
 		{
