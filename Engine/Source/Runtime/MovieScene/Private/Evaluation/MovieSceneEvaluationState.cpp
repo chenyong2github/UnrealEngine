@@ -346,7 +346,22 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 					}
 
 					TArray<UObject*, TInlineAllocator<1>> FoundObjects;
-					Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+					
+					if (Possessable->GetSpawnableObjectBindingID().IsValid())
+					{
+						for (TWeakObjectPtr<> BoundObject : Possessable->GetSpawnableObjectBindingID().ResolveBoundObjects(SequenceID, Player))
+						{
+							if (BoundObject.IsValid())
+							{
+								FoundObjects.Add(BoundObject.Get());
+							}
+						}
+					}
+					else
+					{
+						Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+					}
+					
 					Bindings = BoundObjects.Find(InGuid);
 					for (UObject* Object : FoundObjects)
 					{
@@ -357,7 +372,22 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 			else
 			{
 				TArray<UObject*, TInlineAllocator<1>> FoundObjects;
-				Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+
+				if (Possessable->GetSpawnableObjectBindingID().IsValid())
+				{
+					for (TWeakObjectPtr<> BoundObject : Possessable->GetSpawnableObjectBindingID().ResolveBoundObjects(SequenceID, Player))
+					{
+						if (BoundObject.IsValid())
+						{
+							FoundObjects.Add(BoundObject.Get());
+						}
+					}				
+				}
+				else
+				{
+					Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+				}
+				
 				Bindings = BoundObjects.Find(InGuid);
 				for (UObject* Object : FoundObjects)
 				{

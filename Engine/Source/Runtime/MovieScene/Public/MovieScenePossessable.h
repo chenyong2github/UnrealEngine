@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "IMovieScenePlayer.h"
+#include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSequenceID.h"
 #include "MovieScenePossessable.generated.h"
 
 /**
@@ -129,6 +132,21 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Actor)
 	TArray<FName> Tags;
 
+	/* Get the optional binding id for binding to a spawnable */
+	const FMovieSceneObjectBindingID& GetSpawnableObjectBindingID() const 
+	{
+		return SpawnableObjectBindingID;
+	}
+
+	/* Set the optional binding id for binding to a spawnable */
+	void SetSpawnableObjectBindingID(const FMovieSceneObjectBindingID& InSpawnableObjectBindingID)
+	{
+		SpawnableObjectBindingID = InSpawnableObjectBindingID;
+	}
+
+	/* Bind the potential spawnable object to this possessable by setting the ObjectBindingID */
+	MOVIESCENE_API bool BindSpawnableObject(FMovieSceneSequenceID SequenceID, UObject* Object, IMovieScenePlayer* Player);
+
 private:
 
 	/** Unique identifier of the possessable object. */
@@ -153,4 +171,8 @@ private:
 	/** GUID relating to this possessable's parent, if applicable. */
 	UPROPERTY()
 	FGuid ParentGuid;
+
+	/** Optional object binding ID if this possessable possesses a spawnable */
+	UPROPERTY()
+	FMovieSceneObjectBindingID SpawnableObjectBindingID;
 };

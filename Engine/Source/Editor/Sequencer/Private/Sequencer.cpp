@@ -1138,8 +1138,11 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 		}
 	}
 
-	OwnerSequence->BindPossessableObject(PossessableGuid, InObject, BindingContext);
-	
+	if (!OwnerMovieScene->FindPossessable(PossessableGuid)->BindSpawnableObject(GetFocusedTemplateID(), &InObject, this))
+	{
+		OwnerSequence->BindPossessableObject(PossessableGuid, InObject, BindingContext);
+	}
+		
 	// Broadcast if a parent actor was added as a result of adding this object
 	if (ParentActorAdded && ParentGuid.IsValid())
 	{
@@ -7537,7 +7540,10 @@ void FSequencer::AddActorsToBinding(FGuid InObjectBinding, const TArray<AActor*>
 				}
 
 				ActorToAdd->Modify();
-				OwnerSequence->BindPossessableObject(InObjectBinding, *ActorToAdd, GetPlaybackContext());
+				if (!OwnerMovieScene->FindPossessable(InObjectBinding)->BindSpawnableObject(GetFocusedTemplateID(), ActorToAdd, this))
+				{
+					OwnerSequence->BindPossessableObject(InObjectBinding, *ActorToAdd, GetPlaybackContext());
+				}
 				++NumObjectsAdded;
 			}
 			else
@@ -10114,7 +10120,11 @@ TArray<FGuid> FSequencer::ExpandMultiplePossessableBindings(FGuid PossessableGui
 				NewPossessable->SetParent(ParentGuid);
 			}
 
-			Sequence->BindPossessableObject(NewPossessableGuid, *FoundObject, BindingContext);
+			if (!NewPossessable->BindSpawnableObject(GetFocusedTemplateID(), FoundObject, this))
+			{
+				Sequence->BindPossessableObject(NewPossessableGuid, *FoundObject, BindingContext);
+			}
+
 			NewPossessableGuids.Add(NewPossessableGuid);
 
 			// Create copies of the tracks
