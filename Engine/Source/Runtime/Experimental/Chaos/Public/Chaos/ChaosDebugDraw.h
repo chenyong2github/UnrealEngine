@@ -65,6 +65,7 @@ namespace Chaos
 				FRealSingle InContactLen,
 				FRealSingle InContactWidth,
 				FRealSingle InContactPhiWidth,
+				FRealSingle InContactInfoWidth,
 				FRealSingle InContactOwnerWidth,
 				FRealSingle InConstraintAxisLen,
 				FRealSingle InJointComSize,
@@ -93,6 +94,7 @@ namespace Chaos
 				, ContactLen(InContactLen)
 				, ContactWidth(InContactWidth)
 				, ContactPhiWidth(InContactPhiWidth)
+				, ContactInfoWidth(InContactInfoWidth)
 				, ContactOwnerWidth(InContactOwnerWidth)
 				, ConstraintAxisLen(InConstraintAxisLen)
 				, JointComSize(InJointComSize)
@@ -123,6 +125,7 @@ namespace Chaos
 			FRealSingle ContactLen;
 			FRealSingle ContactWidth;
 			FRealSingle ContactPhiWidth;
+			FRealSingle ContactInfoWidth;
 			FRealSingle ContactOwnerWidth;
 			FRealSingle ConstraintAxisLen;
 			FRealSingle JointComSize;
