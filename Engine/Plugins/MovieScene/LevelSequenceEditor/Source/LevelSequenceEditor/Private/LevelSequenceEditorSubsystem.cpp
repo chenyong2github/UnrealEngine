@@ -8,6 +8,7 @@
 #include "LevelSequenceEditorCommands.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerSettings.h"
@@ -60,8 +61,30 @@ void ULevelSequenceEditorSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		return SelectedActors.Num() > 0;
 	};
 
+	auto AreMovieSceneSectionsSelected = [this](const int32 MinSections = 1) {
+		const TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+		if (!Sequencer)
+		{
+			return false;
+		}
+
+		TArray<UMovieSceneSection*> SelectedSections;
+		Sequencer->GetSelectedSections(SelectedSections);
+		return (SelectedSections.Num() >= MinSections);
+	};
+
 	/* Commands for this subsystem */
 	CommandList = MakeShareable(new FUICommandList);
+
+	CommandList->MapAction(FLevelSequenceEditorCommands::Get().SnapSectionsToTimelineUsingSourceTimecode,
+		FExecuteAction::CreateUObject(this, &ULevelSequenceEditorSubsystem::SnapSectionsToTimelineUsingSourceTimecodeInternal),
+		FCanExecuteAction::CreateLambda(AreMovieSceneSectionsSelected)
+	);
+
+	CommandList->MapAction(FLevelSequenceEditorCommands::Get().SyncSectionsUsingSourceTimecode,
+		FExecuteAction::CreateUObject(this, &ULevelSequenceEditorSubsystem::SyncSectionsUsingSourceTimecodeInternal),
+		FCanExecuteAction::CreateLambda(AreMovieSceneSectionsSelected, 2)
+	);
 
 	CommandList->MapAction(FLevelSequenceEditorCommands::Get().BakeTransform,
 		FExecuteAction::CreateUObject(this, &ULevelSequenceEditorSubsystem::BakeTransformInternal)
@@ -90,12 +113,14 @@ void ULevelSequenceEditorSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		FExecuteAction::CreateUObject(this, &ULevelSequenceEditorSubsystem::RemoveInvalidBindingsInternal));
 
 	/* Menu extenders */
-	BakeTransformMenuExtender = MakeShareable(new FExtender);
-	BakeTransformMenuExtender->AddMenuExtension("Transform", EExtensionHook::After, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
+	TransformMenuExtender = MakeShareable(new FExtender);
+	TransformMenuExtender->AddMenuExtension("Transform", EExtensionHook::After, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
+		MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().SnapSectionsToTimelineUsingSourceTimecode);
+		MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().SyncSectionsUsingSourceTimecode);
 		MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().BakeTransform);
 		}));
 
-	SequencerModule.GetActionsMenuExtensibilityManager()->AddExtender(BakeTransformMenuExtender);
+	SequencerModule.GetActionsMenuExtensibilityManager()->AddExtender(TransformMenuExtender);
 
 	FixActorReferencesMenuExtender = MakeShareable(new FExtender);
 	FixActorReferencesMenuExtender->AddMenuExtension("Bindings", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
@@ -146,6 +171,195 @@ TSharedPtr<ISequencer> ULevelSequenceEditorSubsystem::GetActiveSequencer()
 	}
 
 	return nullptr;
+}
+
+void ULevelSequenceEditorSubsystem::SnapSectionsToTimelineUsingSourceTimecodeInternal()
+{
+	const TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (!Sequencer)
+	{
+		return;
+	}
+
+	const UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	TArray<UMovieSceneSection*> Sections;
+	Sequencer->GetSelectedSections(Sections);
+	if (Sections.IsEmpty())
+	{
+		return;
+	}
+
+	SnapSectionsToTimelineUsingSourceTimecode(Sections);
+}
+
+void ULevelSequenceEditorSubsystem::SnapSectionsToTimelineUsingSourceTimecode(const TArray<UMovieSceneSection*>& Sections)
+{
+	const TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (!Sequencer)
+	{
+		return;
+	}
+
+	const UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	FScopedTransaction SnapSectionsToTimelineUsingSourceTimecodeTransaction(LOCTEXT("SnapSectionsToTimelineUsingSourceTimecode_Transaction", "Snap Sections to Timeline using Source Timecode"));
+	bool bAnythingChanged = false;
+
+	const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+
+	for (UMovieSceneSection* Section : Sections)
+	{
+		if (!Section || !Section->HasStartFrame())
+		{
+			continue;
+		}
+
+		const FTimecode SectionSourceTimecode = Section->TimecodeSource.Timecode;
+		if (SectionSourceTimecode == FTimecode())
+		{
+			// Do not move sections with default values for source timecode.
+			continue;
+		}
+
+		const FFrameNumber SectionSourceStartFrameNumber = SectionSourceTimecode.ToFrameNumber(TickResolution);
+
+		// Account for any trimming at the start of the section when computing the
+		// target frame number to move this section to.
+		const FFrameNumber SectionOffsetFrames = Section->GetOffsetTime().Get(FFrameTime()).FloorToFrame();
+		const FFrameNumber TargetFrameNumber = SectionSourceStartFrameNumber + SectionOffsetFrames;
+
+		const FFrameNumber SectionCurrentStartFrameNumber = Section->GetInclusiveStartFrame();
+
+		const FFrameNumber Delta = -(SectionCurrentStartFrameNumber - TargetFrameNumber);
+
+		Section->MoveSection(Delta);
+
+		bAnythingChanged |= (Delta.Value != 0);
+	}
+
+	if (bAnythingChanged)
+	{
+		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+	}
+}
+
+void ULevelSequenceEditorSubsystem::SyncSectionsUsingSourceTimecodeInternal()
+{
+	const TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (!Sequencer)
+	{
+		return;
+	}
+
+	const UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	TArray<UMovieSceneSection*> Sections;
+	Sequencer->GetSelectedSections(Sections);
+	if (Sections.Num() < 2)
+	{
+		return;
+	}
+
+	SyncSectionsUsingSourceTimecode(Sections);
+}
+
+void ULevelSequenceEditorSubsystem::SyncSectionsUsingSourceTimecode(const TArray<UMovieSceneSection*>& Sections)
+{
+	const TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (!Sequencer)
+	{
+		return;
+	}
+
+	const UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	// Pull out all of the valid sections that have a start frame and verify
+	// we have at least two sections to sync.
+	TArray<UMovieSceneSection*> SectionsToSync;
+	for (UMovieSceneSection* Section : Sections)
+	{
+		if (Section && Section->HasStartFrame())
+		{
+			SectionsToSync.Add(Section);
+		}
+	}
+
+	if (SectionsToSync.Num() < 2)
+	{
+		return;
+	}
+
+	FScopedTransaction SyncSectionsUsingSourceTimecodeTransaction(LOCTEXT("SyncSectionsUsingSourceTimecode_Transaction", "Sync Sections Using Source Timecode"));
+	bool bAnythingChanged = false;
+
+	const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+
+	const UMovieSceneSection* FirstSection = SectionsToSync[0];
+	const FFrameNumber FirstSectionSourceTimecode = FirstSection->TimecodeSource.Timecode.ToFrameNumber(TickResolution);
+	const FFrameNumber FirstSectionCurrentStartFrame = FirstSection->GetInclusiveStartFrame();
+	const FFrameNumber FirstSectionOffsetFrames = FirstSection->GetOffsetTime().Get(FFrameTime()).FloorToFrame();
+	SectionsToSync.RemoveAt(0);
+
+	for (UMovieSceneSection* Section : SectionsToSync)
+	{
+		const FFrameNumber SectionSourceTimecode = Section->TimecodeSource.Timecode.ToFrameNumber(TickResolution);
+		const FFrameNumber SectionCurrentStartFrame = Section->GetInclusiveStartFrame();
+		const FFrameNumber SectionOffsetFrames = Section->GetOffsetTime().Get(FFrameTime()).FloorToFrame();
+
+		const FFrameNumber TimecodeDelta = SectionSourceTimecode - FirstSectionSourceTimecode;
+		const FFrameNumber CurrentDelta = (SectionCurrentStartFrame - SectionOffsetFrames) - (FirstSectionCurrentStartFrame - FirstSectionOffsetFrames);
+		const FFrameNumber Delta = -CurrentDelta + TimecodeDelta;
+
+		Section->MoveSection(Delta);
+
+		bAnythingChanged |= (Delta.Value != 0);
+	}
+
+	if (bAnythingChanged)
+	{
+		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+	}
 }
 
 void ULevelSequenceEditorSubsystem::BakeTransformInternal()

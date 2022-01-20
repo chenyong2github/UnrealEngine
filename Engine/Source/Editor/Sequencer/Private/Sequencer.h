@@ -264,9 +264,6 @@ public:
 	/** Shrink time*/
 	void ShrinkTime(FFrameTime InDeltaTime);
 
-	/** Sync using source timecode */
-	void SyncSectionsUsingSourceTimecode();
-
 	/**
 	 * @return Movie scene tools used by the sequencer
 	 */

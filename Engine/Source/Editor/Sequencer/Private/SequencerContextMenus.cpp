@@ -480,15 +480,6 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanAutoSize(); }))
 	);
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SyncSectionsUsingSourceTimecode", "Synchronize using Source Timecode"),
-		LOCTEXT("SyncSectionsUsingSourceTimecodeTooltip", "Sync selected sections using the source timecode.  The first selected section will be unchanged and subsequent sections will be adjusted according to their source timecode as relative to the first section's."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { return Shared->Sequencer->SyncSectionsUsingSourceTimecode(); }),
-			FCanExecuteAction::CreateLambda([=]{ return (Shared->Sequencer->GetSelection().GetSelectedSections().Num() > 1); }))
-	);
-
 	MenuBuilder.BeginSection("SequencerInterpolation", LOCTEXT("KeyInterpolationMenu", "Key Interpolation"));
 	
 	MenuBuilder.AddMenuEntry(

@@ -16,6 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequenceEditor, Log, All);
 
 class FExtender;
 class UMovieSceneCompiledDataManager;
+class UMovieSceneSection;
 
 USTRUCT(BlueprintType)
 struct FMovieSceneScriptingParams
@@ -43,6 +44,14 @@ public:
 
 	void OnSequencerCreated(TSharedRef<ISequencer> InSequencer);
 	
+	/** Snap sections to timeline using source timecode */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void SnapSectionsToTimelineUsingSourceTimecode(const TArray<UMovieSceneSection*>& Sections);
+
+	/** Sync section using source timecode */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void SyncSectionsUsingSourceTimecode(const TArray<UMovieSceneSection*>& Sections);
+
 	/** Bake transform */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	void BakeTransform(const TArray<FSequencerBindingProxy>& ObjectBindings, const FFrameTime& BakeInTime, const FFrameTime& BakeOutTime, const FFrameTime& BakeInterval, const FMovieSceneScriptingParams& Params = FMovieSceneScriptingParams());
@@ -75,6 +84,8 @@ private:
 
 	TSharedPtr<ISequencer> GetActiveSequencer();
 	
+	void SnapSectionsToTimelineUsingSourceTimecodeInternal();
+	void SyncSectionsUsingSourceTimecodeInternal();
 	void BakeTransformInternal();
 	void AddActorsToBindingInternal();
 	void ReplaceBindingWithActorsInternal();
@@ -89,7 +100,7 @@ private:
 
 	TSharedPtr<FUICommandList> CommandList;
 
-	TSharedPtr<FExtender> BakeTransformMenuExtender;
+	TSharedPtr<FExtender> TransformMenuExtender;
 	TSharedPtr<FExtender> FixActorReferencesMenuExtender;
 
 	TSharedPtr<FExtender> AssignActorMenuExtender;

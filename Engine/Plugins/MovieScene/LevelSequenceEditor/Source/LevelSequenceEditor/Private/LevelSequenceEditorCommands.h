@@ -20,6 +20,9 @@ public:
 	TSharedPtr<FUICommandInfo> CreateNewMasterSequenceInLevel;
 	TSharedPtr<FUICommandInfo> ToggleCinematicViewportCommand;
 	
+	TSharedPtr<FUICommandInfo> SnapSectionsToTimelineUsingSourceTimecode;
+	TSharedPtr<FUICommandInfo> SyncSectionsUsingSourceTimecode;
+
 	TSharedPtr<FUICommandInfo> BakeTransform;
 	TSharedPtr<FUICommandInfo> FixActorReferences;
 

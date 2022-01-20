@@ -286,9 +286,6 @@ public:
 	/** Remove selected nodes from folder. */
 	TSharedPtr< FUICommandInfo > RemoveFromFolder;
 
-	/** Sync sections using source timecode. */
-	TSharedPtr< FUICommandInfo > SyncSectionsUsingSourceTimecode;
-
 	/** Turns the range slider on and off. */
 	TSharedPtr< FUICommandInfo > ToggleShowRangeSlider;
 

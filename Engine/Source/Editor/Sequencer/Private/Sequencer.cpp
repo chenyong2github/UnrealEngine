@@ -2230,54 +2230,6 @@ bool FSequencer::IsPilotCamera() const
 	return false;
 }
 
-void FSequencer::SyncSectionsUsingSourceTimecode()
-{
-	FScopedTransaction SyncSectionsUsingSourceTimecodeTransaction( LOCTEXT("SyncSectionsUsingSourceTimecode_Transaction", "Sync Sections Using Source Timecode") );
-	bool bAnythingChanged = false;
-
-	TArray<UMovieSceneSection*> Sections;
-	for (auto Section : GetSelection().GetSelectedSections())
-	{
-		if (Section.IsValid() && Section->HasStartFrame())
-		{
-			Sections.Add(Section.Get());
-		}
-	}
-
-	if (Sections.Num() < 2) 
-	{
-		return;
-	}
-
-	const UMovieSceneSection* FirstSection = Sections[0];
-	FFrameNumber FirstSectionSourceTimecode = FirstSection->TimecodeSource.Timecode.ToFrameNumber(GetFocusedTickResolution());
-	FFrameNumber FirstSectionCurrentStartFrame = FirstSection->GetInclusiveStartFrame();
-	Sections.RemoveAt(0);
-
-	for (auto Section : Sections)
-	{
-		if (Section->HasStartFrame())
-		{
-			FFrameNumber SectionSourceTimecode = Section->TimecodeSource.Timecode.ToFrameNumber(GetFocusedTickResolution());
-			FFrameNumber SectionCurrentStartFrame = Section->GetInclusiveStartFrame();
-
-			FFrameNumber TimecodeDelta = SectionSourceTimecode - FirstSectionSourceTimecode;
-			FFrameNumber CurrentDelta = SectionCurrentStartFrame - FirstSectionCurrentStartFrame;
-			FFrameNumber Delta = -CurrentDelta + TimecodeDelta;
-
-			Section->MoveSection(Delta);
-
-			bAnythingChanged = bAnythingChanged || (Delta.Value != 0);
-		}
-	}
-
-	if (bAnythingChanged)
-	{
-		NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
-	}
-}
-
-
 void FSequencer::OnActorsDropped( const TArray<TWeakObjectPtr<AActor> >& Actors )
 {
 	AddActors(Actors);
@@ -12970,11 +12922,6 @@ void FSequencer::BindCommands()
 		FIsActionChecked(),
 		FIsActionButtonVisible::CreateLambda([this] { return ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) != nullptr && IVREditorModule::Get().IsVREditorModeActive() == false; }) //@todo VREditor: Creating a camera while in VR mode disrupts the hmd. This is a temporary fix by hiding the button when in VR mode.
 	);
-
-	SequencerCommandBindings->MapAction(
-		Commands.SyncSectionsUsingSourceTimecode,
-		FExecuteAction::CreateSP( this, &FSequencer::SyncSectionsUsingSourceTimecode ),
-		FCanExecuteAction::CreateLambda( [this]{ return (GetSelection().GetSelectedSections().Num() > 1); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.FixPossessableObjectClass,

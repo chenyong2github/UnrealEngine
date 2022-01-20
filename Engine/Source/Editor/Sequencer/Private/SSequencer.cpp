@@ -2069,11 +2069,6 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimOrExtendSectionLeft);
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimOrExtendSectionRight);
 
-	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
-	{
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SyncSectionsUsingSourceTimecode);
-	}
-
 	MenuBuilder.EndSection();
 
 	// selection range actions
