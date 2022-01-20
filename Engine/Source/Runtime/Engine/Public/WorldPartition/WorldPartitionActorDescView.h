@@ -30,7 +30,7 @@ public:
 	bool GetActorIsEditorOnly() const;
 	bool GetLevelBoundsRelevant() const;
 	bool GetActorIsHLODRelevant() const;
-	inline FName GetHLODLayer() const;
+	FName GetHLODLayer() const;
 	const TArray<FName>& GetDataLayers() const;
 	FName GetActorPackage() const;
 	FName GetActorPath() const;
