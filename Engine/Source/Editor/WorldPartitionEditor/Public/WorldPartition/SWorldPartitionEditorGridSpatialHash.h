@@ -20,8 +20,6 @@ public:
 
 	int32 PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
 
-	virtual FReply ReloadMiniMap() override;
-
 private:
 	void UpdateWorldMiniMapDetails();
 	FBox2D          WorldMiniMapBounds;

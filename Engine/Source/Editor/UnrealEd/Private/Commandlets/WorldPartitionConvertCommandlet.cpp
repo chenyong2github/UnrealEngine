@@ -664,22 +664,6 @@ void UWorldPartitionConvertCommandlet::OnWorldLoaded(UWorld* World)
 	}
 }
 
-void UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture(UWorld* World)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture);
-
-	UE_SCOPED_TIMER(TEXT("CreateWorldMiniMapTexture"), LogWorldPartitionConvertCommandlet, Display);
-
-	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, /*bCreateNewMiniMap*/true);
-	if (!WorldMiniMap)
-	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to create Minimap. WorldPartitionMiniMap actor not found in the persistent level."));
-		return;
-	}
-
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), TEXT("MinimapTexture"), WorldMiniMap->MiniMapWorldBounds);
-}
-
 int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::Main);
@@ -1355,12 +1339,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	bool bForceInitializeWorld = false;
 	bool bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(MainWorld, bForceInitializeWorld);
-
-	// Create the world's minimap, do not create the minimap if only merging
-	if (!bOnlyMergeSubLevels && !Switches.Contains(TEXT("SkipMiniMapGeneration")))
-	{
-		CreateWorldMiniMapTexture(MainWorld);
-	}
 
 	// After conversion, convert actors to external actors
 	UPackage* LevelPackage = MainLevel->GetPackage();

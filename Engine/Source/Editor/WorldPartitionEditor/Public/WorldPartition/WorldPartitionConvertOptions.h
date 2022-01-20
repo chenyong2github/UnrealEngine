@@ -36,9 +36,6 @@ public:
 	bool bSkipStableGUIDValidation;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
-	bool bSkipMiniMapGeneration;
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
 	bool bOnlyMergeSubLevels;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)

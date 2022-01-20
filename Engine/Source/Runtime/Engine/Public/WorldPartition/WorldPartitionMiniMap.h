@@ -64,10 +64,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
 	TObjectPtr<UTexture2D> MiniMapTexture;
 
-	/*MiniMap Size*/
-	UPROPERTY(EditAnywhere, Category = WorldPartitionMiniMap, meta=(UIMin = "256", UIMax = "8192"))
-	int32 MiniMapSize = 1024;
-
 	/*MiniMap Tile Size*/
 	UPROPERTY(EditAnywhere, Category = WorldPartitionMiniMap, meta = (UIMin = "256", UIMax = "8192"))
 	int32 MiniMapTileSize = 1024;

@@ -39,8 +39,6 @@ public:
 	}
 };
 
-static TAutoConsoleVariable<int32> CVarShowReloadMiniMapButton(TEXT("wp.MiniMap.ShowReloadButton"), 0, TEXT("Show reload MiniMap button."));
-
 SWorldPartitionEditorGrid2D::FEditorCommands::FEditorCommands()
 	: TCommands<FEditorCommands>
 (
@@ -157,14 +155,6 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						.AutoWrapText(true)
 						.IsEnabled(true)
 						.Text(LOCTEXT("ShowCellCoords", "Show Cell Coords"))
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("ReloadMiniMap", "Reload MiniMap"))
-						.Visibility_Lambda([]() {return CVarShowReloadMiniMapButton.GetValueOnAnyThread() != 0 ? EVisibility::Visible : EVisibility::Hidden;})
-						.OnClicked(this, &SWorldPartitionEditorGrid2D::ReloadMiniMap)
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()

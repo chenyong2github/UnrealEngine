@@ -396,11 +396,6 @@ FString UWorldPartitionConvertOptions::ToCommandletArgs() const
 		CommandletArgsBuilder.Append(TEXT(" -SkipStableGUIDValidation"));
 	}
 
-	if (bSkipMiniMapGeneration)
-	{
-		CommandletArgsBuilder.Append(TEXT(" -SkipMiniMapGeneration"));
-	}
-
 	if (bDeleteSourceLevels)
 	{
 		CommandletArgsBuilder.Append(TEXT(" -DeleteSourceLevels"));

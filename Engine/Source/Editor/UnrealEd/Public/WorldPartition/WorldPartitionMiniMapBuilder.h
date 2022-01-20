@@ -32,6 +32,5 @@ private:
 	UPROPERTY(Transient, VisibleAnywhere, Category = WorldPartitionMiniMap)
 	TObjectPtr<AWorldPartitionMiniMap> WorldMiniMap = nullptr;
 	FBox EditorBounds;
-	int32 IterativeCellSize;
 	bool bAutoSubmit;
 };

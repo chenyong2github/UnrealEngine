@@ -55,7 +55,6 @@ public:
 	virtual uint32 PaintSelection(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, uint32 LayerId) const;
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
-	virtual FReply ReloadMiniMap() { return FReply::Handled(); }
 	virtual FReply FocusSelection();
 
 protected:

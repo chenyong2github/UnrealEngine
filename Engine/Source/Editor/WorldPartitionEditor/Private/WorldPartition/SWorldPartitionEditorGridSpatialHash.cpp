@@ -72,36 +72,6 @@ void SWorldPartitionEditorGridSpatialHash::Tick(const FGeometry& AllottedGeometr
 	}
 }
 
-FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
-{
-	UE_LOG(LogTemp, Log, TEXT("Reload MiniMap has been clicked"));
-
-	//Create a new MiniMap if there isn't one.
-	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
-	if (!WorldMiniMap)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create Minimap. WorldPartitionMiniMap actor not found in the persistent level."));
-		return FReply::Handled();
-	}
-
-	WorldMiniMap->Modify();
-
-
-	// Updating VT is not supported for now
-	if (WorldMiniMap->MiniMapTexture != nullptr)
-	{
-		WorldMiniMap->MiniMapTexture->VirtualTextureStreaming = false;
-	}
-
-	WorldMiniMap->UVOffset.bIsValid = false;
-
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), TEXT("MinimapTexture"), WorldMiniMap->MiniMapWorldBounds);
-
-	UpdateWorldMiniMapDetails();
-
-	return FReply::Handled();
-}
-
 void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 {
 	auto WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World);
