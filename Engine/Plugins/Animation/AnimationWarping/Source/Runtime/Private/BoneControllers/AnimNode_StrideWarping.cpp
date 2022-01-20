@@ -25,6 +25,7 @@ void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
 		{
 			DebugLine += FString::Printf(TEXT("\n - Locomotion Speed: (%.3fd)"), LocomotionSpeed);
 #if WITH_EDITORONLY_DATA
+			DebugLine += FString::Printf(TEXT("\n - Root Motion Delta Attribute Found: %s)"), (bFoundRootMotionAttribute) ? TEXT("true") : TEXT("false"));
 			DebugLine += FString::Printf(TEXT("\n - Root Motion Direction: (%s)"), *(CachedRootMotionDeltaTranslation.GetSafeNormal().ToCompactString()));
 			DebugLine += FString::Printf(TEXT("\n - Root Motion Speed: (%.3fd)"), CachedRootMotionDeltaSpeed);
 #endif
@@ -80,23 +81,27 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 	FTransform RootMotionTransformDelta = FTransform::Identity;
-#if !WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
+	bFoundRootMotionAttribute = false;
+#else
 	FVector CachedRootMotionDeltaTranslation = FVector::ZeroVector;
 #endif
 	if (bGraphDrivenWarping)
 	{
 		// Graph driven stride warping will override the manual stride direction with the intent of the current animation sub-graph's accumulated root motion
 		bGraphDrivenWarping = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
-		if (ensureMsgf(bGraphDrivenWarping, TEXT(
-			"Graph driven Stride Warping expected a root motion delta to be present in the attribute stream.\n"
-			"Check that the evaluating Animation Sequence(s) have: \"Enable Root Motion\" enabled.")))
+		if (bGraphDrivenWarping)
 		{
 			CachedRootMotionDeltaTranslation = RootMotionTransformDelta.GetTranslation();
 			ActualStrideDirection = CachedRootMotionDeltaTranslation.GetSafeNormal();
+#if WITH_EDITORONLY_DATA
+			// Graph driven Stride Warping expects a root motion delta to be present in the attribute stream.
+			bFoundRootMotionAttribute = true;
+#endif
 		}
 		else
 		{
-			// Early exit on broken graph driven behavior 
+			// Early exit on missing root motion delta attribute
 			return;
 		}
 	}

@@ -141,4 +141,9 @@ private:
 	
 	// Internal orientation warping angle
 	float ActualOrientationAngle = 0.f;
+
+#if WITH_EDITORONLY_DATA
+	// Whether we found a root motion delta attribute in the attribute stream on graph driven mode
+	bool bFoundRootMotionAttribute = false;
+#endif
 };

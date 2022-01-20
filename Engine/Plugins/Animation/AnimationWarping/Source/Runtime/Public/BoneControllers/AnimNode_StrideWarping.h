@@ -185,8 +185,11 @@ private:
 #if WITH_EDITORONLY_DATA
 	// Internal cached debug root motion delta translation
 	FVector CachedRootMotionDeltaTranslation = FVector::ZeroVector;
-
+	
 	// Internal cached debug root motion speed
 	float CachedRootMotionDeltaSpeed = 0.f;
+
+	// Whether we found a root motion delta attribute in the attribute stream on graph driven mode
+	bool bFoundRootMotionAttribute = false;
 #endif
 };

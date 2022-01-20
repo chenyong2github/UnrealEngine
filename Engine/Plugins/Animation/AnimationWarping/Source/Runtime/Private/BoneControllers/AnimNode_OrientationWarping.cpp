@@ -51,6 +51,9 @@ void FAnimNode_OrientationWarping::GatherDebugData(FNodeDebugData& DebugData)
 			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(ActualOrientationAngle));
 			DebugLine += FString::Printf(TEXT("\n - Locomotion Angle: (%.3fd)"), FMath::RadiansToDegrees(LocomotionAngle));
 			DebugLine += FString::Printf(TEXT("\n - Locomotion Delta Angle Threshold: (%.3fd)"), LocomotionAngleDeltaThreshold);
+#if WITH_EDITORONLY_DATA
+			DebugLine += FString::Printf(TEXT("\n - Root Motion Delta Attribute Found: %s)"), (bFoundRootMotionAttribute) ? TEXT("true") : TEXT("false"));
+#endif
 		}
 		DebugLine += FString::Printf(TEXT("\n - Distributed Bone Orientation Alpha: (%.3fd)"), DistributedBoneOrientationAlpha);
 		if (const UEnum* TypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EAxis")))
@@ -102,6 +105,10 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		ensureMsgf(bGraphDrivenWarping, TEXT("Graph driven Orientation Warping expected a valid root motion delta provider interface."));
 	}
 
+#if WITH_EDITORONLY_DATA
+	bFoundRootMotionAttribute = false;
+#endif
+
 	// We will likely need to revisit LocomotionAngle participating as an input to orientation warping.
 	// Without velocity information from the motion model (such as the capsule), LocomotionAngle isn't enough
 	// information in isolation for all cases when deciding to warp.
@@ -122,10 +129,13 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		bGraphDrivenWarping = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
 
 		// Graph driven orientation warping will modify the incoming root motion to orient towards the intended locomotion angle
-		if (ensureMsgf(bGraphDrivenWarping, TEXT(
-			"Graph driven Orientation Warping expected a root motion delta to be present in the attribute stream.\n"
-			"Check that the evaluating Animation Sequence(s) have: \"Enable Root Motion\" enabled.")))
+		if (bGraphDrivenWarping)
 		{
+#if WITH_EDITORONLY_DATA
+			// Graph driven Orientation Warping expects a root motion delta to be present in the attribute stream.
+			bFoundRootMotionAttribute = true;
+#endif
+
 			// In UE, forward is defined as +x; consequently this is also true when sampling an actor's velocity. Historically the skeletal 
 			// mesh component forward will not match the actor, requiring us to correct the rotation before sampling the LocomotionForward.
 			// In order to make orientation warping 'pure' in the future we will need to provide more context about the intent of
@@ -177,7 +187,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		}
 		else
 		{
-			// Early exit on broken graph driven behavior 
+			// Early exit on missing root motion delta attribute
 			return;
 		}
 	} 
