@@ -191,6 +191,39 @@ class FAmbientCubemapCompositePS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
+// Setups all shader parameters related to skylight.
+FSkyDiffuseLightingParameters GetSkyDiffuseLightingParameters(const FSkyLightSceneProxy* SkyLight, float DynamicBentNormalAO)
+{
+	float SkyLightContrast = 0.01f;
+	float SkyLightOcclusionExponent = 1.0f;
+	FVector4f SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
+	EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
+	if (SkyLight)
+	{
+		FDistanceFieldAOParameters Parameters(SkyLight->OcclusionMaxDistance, SkyLight->Contrast);
+		SkyLightContrast = Parameters.Contrast;
+		SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
+		SkyLightOcclusionTintAndMinOcclusion = FVector4f(SkyLight->OcclusionTint);
+		SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
+		SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
+	}
+
+	// Scale and bias to remap the contrast curve to [0,1]
+	const float Min = 1 / (1 + FMath::Exp(-SkyLightContrast * (0 * 10 - 5)));
+	const float Max = 1 / (1 + FMath::Exp(-SkyLightContrast * (1 * 10 - 5)));
+	const float Mul = 1.0f / (Max - Min);
+	const float Add = -Min / (Max - Min);
+
+	FSkyDiffuseLightingParameters Out;
+	Out.OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
+	Out.ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
+	Out.OcclusionExponent = SkyLightOcclusionExponent;
+	Out.OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
+	Out.ApplyBentNormalAO = DynamicBentNormalAO;
+	Out.InvSkySpecularOcclusionStrength = 1.0f / FMath::Max(CVarSkySpecularOcclusionStrength.GetValueOnRenderThread(), 0.1f);
+	return Out;
+}
+
 /** Pixel shader that does tiled deferred culling of reflection captures, then sorts and composites them. */
 class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 {
@@ -280,15 +313,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-
-		// Sky light parameters.
-		SHADER_PARAMETER(FVector4f, OcclusionTintAndMinOcclusion)
-		SHADER_PARAMETER(FVector3f, ContrastAndNormalizeMulAdd)
-		SHADER_PARAMETER(float, ApplyBentNormalAO)
-		SHADER_PARAMETER(float, InvSkySpecularOcclusionStrength)
-		SHADER_PARAMETER(float, OcclusionExponent)
-		SHADER_PARAMETER(float, OcclusionCombineMode)
-
 		// Distance field AO parameters.
 		// TODO. FDFAOUpsampleParameters
 		SHADER_PARAMETER(FVector2f, AOBufferBilinearUVMax)
@@ -313,6 +337,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER(float, CloudSkyAOFarDepthKm)
 		SHADER_PARAMETER(int32, CloudSkyAOEnabled)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyDiffuseLightingParameters, SkyDiffuseLighting)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -1184,36 +1209,7 @@ static void AddSkyReflectionPass(
 	// Setup the parameters of the shader.
 	{
 		// Setups all shader parameters related to skylight.
-		{
-			FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
-
-			float SkyLightContrast = 0.01f;
-			float SkyLightOcclusionExponent = 1.0f;
-			FVector4f SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
-			EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
-			if (SkyLight)
-			{
-				FDistanceFieldAOParameters Parameters(SkyLight->OcclusionMaxDistance, SkyLight->Contrast);
-				SkyLightContrast = Parameters.Contrast;
-				SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
-				SkyLightOcclusionTintAndMinOcclusion = FVector4f(SkyLight->OcclusionTint);
-				SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
-				SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
-			}
-
-			// Scale and bias to remap the contrast curve to [0,1]
-			const float Min = 1 / (1 + FMath::Exp(-SkyLightContrast * (0 * 10 - 5)));
-			const float Max = 1 / (1 + FMath::Exp(-SkyLightContrast * (1 * 10 - 5)));
-			const float Mul = 1.0f / (Max - Min);
-			const float Add = -Min / (Max - Min);
-
-			PassParameters->PS.OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
-			PassParameters->PS.ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
-			PassParameters->PS.OcclusionExponent = SkyLightOcclusionExponent;
-			PassParameters->PS.OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
-			PassParameters->PS.ApplyBentNormalAO = DynamicBentNormalAO;
-			PassParameters->PS.InvSkySpecularOcclusionStrength = 1.0f / FMath::Max(CVarSkySpecularOcclusionStrength.GetValueOnRenderThread(), 0.1f);
-		}
+		PassParameters->PS.SkyDiffuseLighting = GetSkyDiffuseLightingParameters(Scene->SkyLight, DynamicBentNormalAO);
 
 		// Setups all shader parameters related to distance field AO
 		{

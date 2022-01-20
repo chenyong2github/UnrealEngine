@@ -21,6 +21,7 @@
 #include "ShaderDebug.h"
 #include "Lumen/LumenRadianceCache.h"
 #include "Lumen/LumenScreenProbeGather.h"
+#include "IndirectLightRendering.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -230,22 +231,16 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, Voxel_TanConeAngle)
-
 		SHADER_PARAMETER(uint32, MultipleScatterSampleCount)
-
 		SHADER_PARAMETER(float,  HairDualScatteringRoughnessOverride)
 		SHADER_PARAMETER(float, TransmissionDensityScaleFactor)
 		SHADER_PARAMETER(float, HairDistanceThreshold)
-
-		SHADER_PARAMETER(FVector4f, SkyLight_OcclusionTintAndMinOcclusion)
-
-		SHADER_PARAMETER(uint32, SkyLight_OcclusionCombineMode)
-		SHADER_PARAMETER(float, SkyLight_OcclusionExponent)
 		SHADER_PARAMETER(uint32, bHairUseViewHairCount)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyDiffuseLightingParameters, SkyDiffuseLighting)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
@@ -352,22 +347,8 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 			case 2: IntegrationType = EHairLightingIntegrationType::SH; break;
 		}
 	}
-
-	float SkyLightContrast = 0.01f;
-	float SkyLightOcclusionExponent = 1.0f;
-	FVector4f SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
-	EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
-	if (FSkyLightSceneProxy* SkyLight = Scene->SkyLight)
-	{
-		SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
-		SkyLightOcclusionTintAndMinOcclusion = FVector4f(SkyLight->OcclusionTint);
-		SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
-		SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
-	}
-
-	PassParameters->SkyLight_OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
-	PassParameters->SkyLight_OcclusionExponent = SkyLightOcclusionExponent;
-	PassParameters->SkyLight_OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
+	
+	PassParameters->SkyDiffuseLighting = GetSkyDiffuseLightingParameters(Scene->SkyLight, 1.0f /*DynamicBentNormalAO*/);
 	PassParameters->Voxel_TanConeAngle = FMath::Tan(FMath::DegreesToRadians(GetHairStrandsSkyLightingConeAngle()));
 	PassParameters->HairDistanceThreshold = FMath::Max(GHairStrandsSkyLightingDistanceThreshold, 1.f);
 	PassParameters->bHairUseViewHairCount = VisibilityData.ViewHairCountTexture && GHairStrandsSkyLightingUseHairCountTexture ? 1 : 0;

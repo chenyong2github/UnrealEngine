@@ -10,6 +10,7 @@
 #include "../BRDF.ush"
 #include "../ReflectionEnvironmentShared.ush"
 #include "../SkyLightingShared.ush"
+#include "../SkyLightingDiffuseShared.ush"
 #include "../DistanceFieldAOShared.ush"
 #include "../ShadingModels.ush"
 #include "../LightGridCommon.ush"
@@ -151,11 +152,6 @@ void AddSample(uint SampleOffset, uint SampleIt, const float3 D, const float3 W)
 #endif //PERMUTATION_DEBUG
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-float4 SkyLight_OcclusionTintAndMinOcclusion;
-float SkyLight_OcclusionExponent;
-uint SkyLight_OcclusionCombineMode;
 
 float HairDistanceThreshold;
 uint bHairUseViewHairCount;
@@ -631,6 +627,7 @@ float3 ReflectionEnvironmentUniformSampling(
 // Spherical based harmonic integration
 
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
+
 float3 ReflectionEnvironmentSH(
 	FGBufferData GBuffer,
 	float2 ScreenPosition,
@@ -639,62 +636,13 @@ float3 ReflectionEnvironmentSH(
 	uint MacroGroupId,
 	bool bDebugEnabled)
 {
-	const float PreExposure = GetPreExposure();
-	const float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraToPixel = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float AmbientOcclusion = 1.0f;
+	const float3 BentNormal = GBuffer.WorldNormal;
+	const float3 DiffuseColor = GBuffer.BaseColor; // not used
+	const float2 BufferUV = SvPosition * View.BufferSizeAndInvSize.zw; // not used
 
-	const float3 V = -CameraToPixel;
-	const float3 T = GBuffer.WorldNormal;
-	const float3 N = T;
-	const float3 L = normalize(V - N * dot(V, N));
-
-	FHairTransmittanceData TransmittanceData = GetHairTransmittance(
-		V,
-		L,
-		GBuffer,
-		InitHairTransmittanceMask(),
-		View.HairScatteringLUTTexture, 
-		View.HairScatteringLUTSampler,
-		View.HairComponents);
-
-	bool bEvalMultiScatter = true;
-	float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
-
-	// This logic mimic the ReflecitonEnvironemtPixelShader.usf. Ideallyw we should share the same 
-	// code/path, but the various permutation make the code a bit obscure
-	// Need to take into account DFAO?
-	float3 Lighting = 0;
-	{
-	#if 0
-		// Diffuse SH lighting. Require to have GI data laydown during the based pass
-		float AmbientOcclusion = 1;
-		float SkyVisibility = 1;
-		float3 SkyLightingNormal = GBuffer.WorldNormal;
-
-		// Apply DFAO controls
-		SkyVisibility = pow(SkyVisibility, SkyLight_OcclusionExponent);
-		SkyVisibility = lerp(SkyVisibility, 1, SkyLight_OcclusionTintAndMinOcclusion.w);
-
-		// Combine with other AO sources
-		if (SkyLight_OcclusionCombineMode == 0)
-		{
-			// Combine with min which nicely avoids over-occlusion in cases where strong DFAO is present along with strong SSAO (distant trees)
-			SkyVisibility = min(SkyVisibility, min(GBuffer.GBufferAO, AmbientOcclusion));
-		}
-		else
-		{
-			// Combine with mul, which continues to add SSAO depth even indoors.  SSAO will need to be tweaked to be less strong.
-			SkyVisibility = SkyVisibility * min(GBuffer.GBufferAO, AmbientOcclusion);
-		}
-		const float3 DiffuseLighting = PreExposure * GetSkySHDiffuse(L) * View.SkyLightColor.rgb;
-		Lighting = SkyVisibility * DiffuseLighting * f_s + (1 - SkyVisibility) * SkyLight_OcclusionTintAndMinOcclusion.xyz * f_s;
-	#else
-		// Probe lighting
-		const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
-		const float  PixelSceneDepth = GBuffer.Depth;
-		Lighting = PreExposure * GatherRadiance(L, GBuffer.Roughness, PixelPosition, PixelSceneDepth, WorldPosition) * f_s;
-	#endif
-	}
+	// Note this code is enabled only if sky lighting is dynamic
+	const float3 Lighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
 
 	// Transform NaNs to black, transform negative colors to black.
 	return -min(-Lighting, 0.0);

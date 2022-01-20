@@ -52,3 +52,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 } // HybridIndirectLighting
+
+// Sky light parameters.
+BEGIN_SHADER_PARAMETER_STRUCT(FSkyDiffuseLightingParameters, )
+	SHADER_PARAMETER(FVector4f, OcclusionTintAndMinOcclusion)
+	SHADER_PARAMETER(FVector3f, ContrastAndNormalizeMulAdd)
+	SHADER_PARAMETER(float, ApplyBentNormalAO)
+	SHADER_PARAMETER(float, InvSkySpecularOcclusionStrength)
+	SHADER_PARAMETER(float, OcclusionExponent)
+	SHADER_PARAMETER(float, OcclusionCombineMode)
+END_SHADER_PARAMETER_STRUCT()
+
+FSkyDiffuseLightingParameters GetSkyDiffuseLightingParameters(const FSkyLightSceneProxy* SkyLight, float DynamicBentNormalAO);
