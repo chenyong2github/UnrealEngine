@@ -373,6 +373,7 @@ private:
 		SetReflectionOverride(false);
 		SetVisualizeBuffer(false);
 		SetVisualizeNanite(false);
+		SetVisualizeLumen(false);
 		SetVectorFields(false);
 		SetGBufferHints(false);
 		SetCompositeEditorPrimitives(InitMode == ESFIM_Editor || InitMode == ESFIM_VREditing);
@@ -471,6 +472,14 @@ private:
 		SetVisualizeStrataMaterial(false);
 		SetDrawOnlyVSMInvalidatingGeo(false);
 		SetSingleLayerWaterRefractionFullPrecision(false);
+
+		SetVisualizeLumen(false);
+		SetLumenScreenTraces(false);
+		SetLumenDetailTraces(false);
+		SetLumenGlobalTraces(false);
+		SetLumenFarFieldTraces(false);
+		SetLumenSecondaryBounces(false);
+		SetLumenScreenSpaceDirectionalOcclusion(false);
 	}
 
 
