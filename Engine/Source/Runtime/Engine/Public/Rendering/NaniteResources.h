@@ -346,7 +346,6 @@ struct FResources
 	ENGINE_API bool ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
-	ENGINE_API bool HasData() const { return RootData.Num() > 0; }
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }

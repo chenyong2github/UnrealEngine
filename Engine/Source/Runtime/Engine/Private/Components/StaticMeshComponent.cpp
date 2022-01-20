@@ -1618,7 +1618,7 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 	const bool bAllowNanite = true;
 #endif
 
-	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.HasData();
+	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num();
 }
 
 void UStaticMeshComponent::ReleaseResources()

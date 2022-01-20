@@ -246,7 +246,7 @@ void UMassVisualizationComponent::EndVisualChanges()
 				{
 					StaticMeshRenderData = StaticMesh->GetRenderData();
 				}
-				const bool bNaniteISMC = UseNanite(InstancedStaticMeshComponent->GetScene()->GetShaderPlatform()) && StaticMeshRenderData && StaticMeshRenderData->NaniteResources.HasData();
+				const bool bNaniteISMC = UseNanite(InstancedStaticMeshComponent->GetScene()->GetShaderPlatform()) && StaticMeshRenderData && StaticMeshRenderData->NaniteResources.PageStreamingStates.Num();
 				if (bNaniteISMC)
 				{
 

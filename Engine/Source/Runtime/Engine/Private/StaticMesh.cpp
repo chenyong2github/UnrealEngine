@@ -3214,12 +3214,30 @@ int32 UStaticMesh::GetNumTexCoords(int32 LODIndex) const
 
 int32 UStaticMesh::GetNumNaniteVertices() const
 {
-	return HasValidNaniteData() ? GetRenderData()->NaniteResources.NumInputVertices : 0;
+	int32 NumVertices = 0;
+	if (HasValidNaniteData())
+	{
+		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
+		if (Resources.RootData.Num() > 0)
+		{
+			NumVertices = Resources.NumInputVertices;
+		}
+	}
+	return NumVertices;
 }
 
 int32 UStaticMesh::GetNumNaniteTriangles() const
 {
-	return HasValidNaniteData() ? GetRenderData()->NaniteResources.NumInputTriangles : 0;
+	int32 NumTriangles = 0;
+	if (HasValidNaniteData())
+	{
+		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
+		if (Resources.RootData.Num() > 0)
+		{
+			NumTriangles = Resources.NumInputTriangles;
+		}
+	}
+	return NumTriangles;
 }
 
 int32 UStaticMesh::GetNumLODs() const
@@ -3261,7 +3279,7 @@ bool UStaticMesh::HasValidNaniteData() const
 {
 	if (const FStaticMeshRenderData* SMRenderData = GetRenderData())
 	{
-		return SMRenderData->NaniteResources.HasData();
+		return SMRenderData->NaniteResources.PageStreamingStates.Num() > 0;
 	}
 
 	return false;
