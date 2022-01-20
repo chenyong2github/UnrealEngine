@@ -276,6 +276,9 @@ private:
 	/** The previously used sRGB flag. */
 	bool LastSrgb;
 
+	/** True if the texture has been cleared. */
+	bool bIsCleared;
+
 	/** Texture sample queue. */
 	TSharedPtr<FMediaTextureSampleQueue, ESPMode::ThreadSafe> SampleQueue;
 
