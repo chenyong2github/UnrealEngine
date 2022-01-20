@@ -1159,6 +1159,7 @@ public:
 		ALandscapeProxy* LandscapeProxy = this->EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		MeshComponent = NewObject<UStaticMeshComponent>(LandscapeProxy, NAME_None, RF_Transient);
 		MeshComponent->SetStaticMesh(PlaneMesh);
+		MeshComponent->SetCanEverAffectNavigation(false);
 		MeshComponent->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		MeshComponent->RegisterComponent();
 
