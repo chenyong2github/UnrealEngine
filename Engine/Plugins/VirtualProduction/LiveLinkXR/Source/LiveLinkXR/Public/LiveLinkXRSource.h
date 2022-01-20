@@ -63,6 +63,9 @@ private:
 	// Enumerate and save all connected and trackable XR devices
 	void EnumerateTrackedDevices();
 
+	// Callback when the a livelink subject has been added
+	void OnLiveLinkSubjectAdded(FLiveLinkSubjectKey InSubjectKey);
+
 private:
 	ILiveLinkClient* Client;
 
@@ -86,6 +89,9 @@ private:
 	
 	// List of subjects we've already encountered
 	TSet<FName> EncounteredSubjects;
+
+	// List of subjects to automatically set to rebroadcast
+	TSet<FName> SubjectsToRebroadcast;
 
 	// Deferred start delegate handle.
 	FDelegateHandle DeferredStartDelegateHandle;
@@ -131,4 +137,7 @@ private:
 	
 	// Timestamp when we last enumerated devices
 	double LastEnumerationTimestamp = 0.0;
+
+	// Delegate for when the LiveLink client has ticked
+	FDelegateHandle OnSubjectAddedDelegate;
 };

@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkSubjectSettings.h"
 #include "LiveLinkXR.h"
 #include "LiveLinkXRSourceSettings.h"
 #include "Misc/CoreDelegates.h"
@@ -53,6 +54,11 @@ FLiveLinkXRSource::~FLiveLinkXRSource()
 		FCoreDelegates::OnEndFrame.Remove(DeferredStartDelegateHandle);
 	}
 
+	if (Client)
+	{
+		Client->OnLiveLinkSubjectAdded().Remove(OnSubjectAddedDelegate);
+	}
+
 	Stop();
 
 	if (Thread != nullptr)
@@ -67,6 +73,8 @@ void FLiveLinkXRSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceG
 {
 	Client = InClient;
 	SourceGuid = InSourceGuid;
+
+	OnSubjectAddedDelegate = Client->OnLiveLinkSubjectAdded().AddRaw(this, &FLiveLinkXRSource::OnLiveLinkSubjectAdded);
 }
 
 void FLiveLinkXRSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
@@ -252,12 +260,32 @@ void FLiveLinkXRSource::Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName Su
 
 	if (!EncounteredSubjects.Contains(SubjectName))
 	{
+		// If the LiveLink client already knows about this subject, then it must have been added via a preset
+		// Only new subjects should be set to rebroadcast by default. Presets should respect the existing settings
+		if (!Client->GetSubjects(true, true).Contains(FLiveLinkSubjectKey(SourceGuid, SubjectName)))
+		{
+			SubjectsToRebroadcast.Add(SubjectName);
+		}
+
 		FLiveLinkStaticDataStruct StaticData(FLiveLinkTransformStaticData::StaticStruct());
 		Client->PushSubjectStaticData_AnyThread({SourceGuid, SubjectName}, ULiveLinkTransformRole::StaticClass(), MoveTemp(StaticData));
 		EncounteredSubjects.Add(SubjectName);
 	}
 
 	Client->PushSubjectFrameData_AnyThread({ SourceGuid, SubjectName }, MoveTemp(*FrameDataToSend));
+}
+
+void FLiveLinkXRSource::OnLiveLinkSubjectAdded(FLiveLinkSubjectKey InSubjectKey)
+{
+	// Set rebroadcast to true for any new subjects
+	if (SubjectsToRebroadcast.Contains(InSubjectKey.SubjectName))
+	{
+		ULiveLinkSubjectSettings* SubjectSettings = Cast<ULiveLinkSubjectSettings>(Client->GetSubjectSettings(InSubjectKey));
+		if (SubjectSettings)
+		{
+			SubjectSettings->bRebroadcastSubject = true;
+		}
+	}
 }
 
 const FString FLiveLinkXRSource::GetDeviceTypeName(EXRTrackedDeviceType DeviceType)
