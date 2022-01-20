@@ -2354,7 +2354,6 @@ namespace VulkanRHI
 					{
 						BufferAllocationsToRelease.Add(BufferAllocation);
 						FreeAllocations.RemoveAtSwap(Index, 1, false);
-						//break;
 					}
 				}
 			}
@@ -2720,51 +2719,80 @@ namespace VulkanRHI
 		VULKAN_FREE_TRACK_INFO(Track);
 	}
 
+	uint32 FMemoryManager::CalculateBufferAlignment(FVulkanDevice& InDevice, const VkBufferUsageFlags BufferUsageFlags)
+	{
+		const VkPhysicalDeviceLimits& Limits = InDevice.GetLimits();
+
+		const bool bIsTexelBuffer = VKHasAnyFlags(BufferUsageFlags, (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT));
+		const bool bIsStorageBuffer = VKHasAnyFlags(BufferUsageFlags, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+		const bool bIsVertexOrIndexBuffer = VKHasAnyFlags(BufferUsageFlags, (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT));
+		const bool bIsAccelerationStructureBuffer = VKHasAnyFlags(BufferUsageFlags, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR);
+		const bool bIsUniformBuffer = VKHasAnyFlags(BufferUsageFlags, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+		uint32 Alignment = 1;
+
+		if (bIsTexelBuffer || bIsStorageBuffer)
+		{
+			Alignment = FMath::Max(Alignment, (uint32)Limits.minTexelBufferOffsetAlignment);
+			Alignment = FMath::Max(Alignment, (uint32)Limits.minStorageBufferOffsetAlignment);
+		}
+		else if (bIsVertexOrIndexBuffer)
+		{
+			// No alignment restrictions on Vertex or Index buffers, leave it at 1
+		}
+		else if (bIsAccelerationStructureBuffer)
+		{
+			Alignment = FMath::Max(Alignment, GRHIRayTracingAccelerationStructureAlignment);
+		}
+		else if (bIsUniformBuffer)
+		{
+			Alignment = FMath::Max(Alignment, (uint32)Limits.minUniformBufferOffsetAlignment);
+		}
+		else
+		{
+			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x"), (uint32)BufferUsageFlags);
+		}
+
+		return Alignment;
+	}
+
+	float FMemoryManager::CalculateBufferPriority(const VkBufferUsageFlags BufferUsageFlags)
+	{
+		float Priority = VULKAN_MEMORY_MEDIUM_PRIORITY;
+
+		if (VKHasAnyFlags(BufferUsageFlags, (VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT)))
+		{
+			Priority = VULKAN_MEMORY_HIGHEST_PRIORITY;
+		}
+		else if (VKHasAnyFlags(BufferUsageFlags, (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)))
+		{
+			Priority = VULKAN_MEMORY_MEDIUM_PRIORITY;
+		}
+		else if (VKHasAnyFlags(BufferUsageFlags, (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)))
+		{
+			Priority = VULKAN_MEMORY_LOW_PRIORITY;
+		}
+		else if (VKHasAnyFlags(BufferUsageFlags, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT))
+		{
+			Priority = VULKAN_MEMORY_HIGHER_PRIORITY;
+		}
+		else
+		{
+			checkf(false, TEXT("Unknown priority for VkBufferUsageFlags combination: 0x%x"), (uint32)BufferUsageFlags);
+		}
+
+		return Priority;
+	}
+
 	bool FMemoryManager::AllocateBufferPooled(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, uint32 Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line)
 	{
 		SCOPED_NAMED_EVENT(FResourceHeapManager_AllocateBufferPooled, FColor::Cyan);
 		check(OutAllocation.Type == EVulkanAllocationEmpty);
-		const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
-		uint32 Alignment = 1;
 
-		float Priority = VULKAN_MEMORY_MEDIUM_PRIORITY;
+		uint32 Alignment = CalculateBufferAlignment(*Device, BufferUsageFlags);
+		const float Priority = CalculateBufferPriority(BufferUsageFlags);
 
-		bool bIsTexelBuffer = (BufferUsageFlags & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)) != 0;
-		bool bIsStorageBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0;
-		if (bIsTexelBuffer || bIsStorageBuffer)
-		{
-			Alignment = FMath::Max(Alignment, bIsTexelBuffer ? (uint32)Limits.minTexelBufferOffsetAlignment : 0);
-			Alignment = FMath::Max(Alignment, bIsStorageBuffer ? (uint32)Limits.minStorageBufferOffsetAlignment : 0);
-		}
-		else
-		{
-			bool bIsVertexOrIndexBuffer = (BufferUsageFlags & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) != 0;
-			bool bIsAccelerationStructureBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR) != 0;
-			if (bIsVertexOrIndexBuffer)
-			{
-				// No alignment restrictions on Vertex or Index buffers, can live on CPU mem
-				Priority = VULKAN_MEMORY_LOW_PRIORITY;
-			}
-			else if (bIsAccelerationStructureBuffer)
-			{
-				Alignment = FMath::Max(Alignment, GRHIRayTracingAccelerationStructureAlignment);
-			}
-			else
-			{
-				// Uniform buffer
-				ensure((BufferUsageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-				Alignment = FMath::Max(Alignment, (uint32)Limits.minUniformBufferOffsetAlignment);
-
-				Priority = VULKAN_MEMORY_HIGHER_PRIORITY;
-			}
-		}
-
-		if (BufferUsageFlags & (VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT))
-		{
-			Priority = VULKAN_MEMORY_HIGHEST_PRIORITY;
-		}
-
-		int32 PoolSize = (int32)GetPoolTypeForAlloc(Size, Alignment);
+		const int32 PoolSize = (int32)GetPoolTypeForAlloc(Size, Alignment);
 		if (PoolSize != (int32)EPoolSizes::SizesCount)
 		{
 			Size = PoolSizes[PoolSize];
@@ -4194,7 +4222,7 @@ namespace VulkanRHI
 			if (Alloc.State == FVulkanAllocationInternal::EALLOCATED)
 			{
 				FVulkanEvictable* EvictableOwner = Alloc.AllocationOwner;
-				if(!EvictableOwner->CanMove())
+				if((EvictableOwner == nullptr) || !EvictableOwner->CanMove())
 				{
 					return false;
 				}

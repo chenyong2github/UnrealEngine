@@ -23,6 +23,7 @@
 #include "RHIValidation.h"
 #include "IHeadMountedDisplayModule.h"
 #include "VulkanRenderpass.h"
+#include "VulkanTransientResourceAllocator.h"
 
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
@@ -74,6 +75,16 @@ static FAutoConsoleVariableRef GCVarInputAttachmentShaderRead(
 	TEXT("Whether to use VK_ACCESS_SHADER_READ_BIT an input attachments to workaround rendering issues\n")
 	TEXT("0 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT (default)\n")
 	TEXT("1 use: VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT\n"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanEnableTransientResourceAllocator = 0;
+static FAutoConsoleVariableRef GCVarEnableTransientResourceAllocator(
+	TEXT("r.Vulkan.EnableTransientResourceAllocator"),
+	GVulkanEnableTransientResourceAllocator,
+	TEXT("Whether to enable the TransientResourceAllocator to reduce memory usage\n")
+	TEXT("0 to disabled (default)\n")
+	TEXT("1 to enable\n"),
 	ECVF_ReadOnly
 );
 
@@ -1776,6 +1787,15 @@ void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 void FVulkanDynamicRHI::VulkanSetImageLayout( VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange )
 {
 	::VulkanSetImageLayout( CmdBuffer, Image, OldLayout, NewLayout, SubresourceRange );
+}
+
+IRHITransientResourceAllocator* FVulkanDynamicRHI::RHICreateTransientResourceAllocator()
+{
+	if (GVulkanEnableTransientResourceAllocator)
+	{
+		return new FVulkanTransientResourceAllocator(Device->GetOrCreateTransientHeapCache());
+	}
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

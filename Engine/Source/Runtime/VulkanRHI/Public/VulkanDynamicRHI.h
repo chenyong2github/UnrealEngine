@@ -11,6 +11,7 @@ class FVulkanFramebuffer;
 class FVulkanDevice;
 class FVulkanQueue;
 class IHeadMountedDisplayVulkanExtensions;
+struct FRHITransientHeapAllocation;
 
 // TODO: fix Lock/Unlock Vertex/Index buffer
 #define VULKAN_BUFFER_LOCK_THREADSAFE 0
@@ -179,6 +180,12 @@ public:
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
 	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format) final override;
+
+	// Transient Resource Functions and Helpers
+	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() final override;
+	uint64 RHICalcTexturePlatformSize(const FRHITextureCreateInfo& InCreateInfo, uint32& OutAlign);
+	FRHITexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, FRHIResourceCreateInfo& InResourceCreateInfo, ERHIAccess InResourceState, const FRHITransientHeapAllocation* InAllocation);
+	FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo & InCreateInfo, FRHIResourceCreateInfo & InResourceCreateInfo, const FRHITransientHeapAllocation* InAllocation);
 
 	virtual FBufferRHIRef CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
 	{

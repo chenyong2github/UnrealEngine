@@ -774,6 +774,8 @@ namespace VulkanRHI
 		void Init();
 		void Deinit();
 
+		static uint32 CalculateBufferAlignment(FVulkanDevice& InDevice, const VkBufferUsageFlags BufferUsageFlags);
+		static float CalculateBufferPriority(const VkBufferUsageFlags BufferUsageFlags);
 
 		void FreeVulkanAllocation(FVulkanAllocation& Allocation, EVulkanFreeFlags FreeFlags = EVulkanFreeFlag_None);
 		void FreeVulkanAllocationPooledBuffer(FVulkanAllocation& Allocation);

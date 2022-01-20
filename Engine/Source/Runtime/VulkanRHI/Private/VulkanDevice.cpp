@@ -13,6 +13,7 @@
 #include "Misc/FileHelper.h"
 #include "VulkanPlatform.h"
 #include "VulkanLLM.h"
+#include "VulkanTransientResourceAllocator.h"
 
 TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar(
 	TEXT("r.Vulkan.AllowAsyncCompute"),
@@ -771,6 +772,36 @@ void FVulkanDevice::SetupFormats()
 					);
 			}
 		}
+
+#define VULKAN_CHECK_FORMAT_CAPABILITY(PF_Name) if (EnumHasAllFlags(GPixelFormats[PixelFormatIndex].Capabilities, EPixelFormatCapabilities::PF_Name)) { CapabilitiesString += TEXT(#PF_Name) TEXT(", ");}
+
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Pixel Format Capabilities for Vulkan:"));
+		for (int32 PixelFormatIndex = 0; PixelFormatIndex < PF_MAX; ++PixelFormatIndex)
+		{
+			if (GPixelFormats[PixelFormatIndex].Supported)
+			{
+				FString CapabilitiesString;
+
+				VULKAN_CHECK_FORMAT_CAPABILITY(TextureSample);
+				VULKAN_CHECK_FORMAT_CAPABILITY(TextureCube);
+				VULKAN_CHECK_FORMAT_CAPABILITY(RenderTarget);
+				VULKAN_CHECK_FORMAT_CAPABILITY(DepthStencil);
+				VULKAN_CHECK_FORMAT_CAPABILITY(TextureBlendable);
+				VULKAN_CHECK_FORMAT_CAPABILITY(TextureAtomics);
+				
+				VULKAN_CHECK_FORMAT_CAPABILITY(Buffer);
+				VULKAN_CHECK_FORMAT_CAPABILITY(VertexBuffer);
+				VULKAN_CHECK_FORMAT_CAPABILITY(IndexBuffer);
+				VULKAN_CHECK_FORMAT_CAPABILITY(BufferAtomics);
+
+				VULKAN_CHECK_FORMAT_CAPABILITY(UAV);
+
+				UE_LOG(LogVulkanRHI, Warning, TEXT("%24s : %s"), GPixelFormats[PixelFormatIndex].Name, *CapabilitiesString);
+			}
+		}
+
+#undef VULKAN_CHECK_FORMAT_CAPABILITY
+
 	}
 #endif
 }
@@ -1405,6 +1436,12 @@ void FVulkanDevice::Destroy()
 		ComputeContext->ReleasePendingState();
 	}
 
+	if (TransientHeapCache)
+	{
+		delete TransientHeapCache;
+		TransientHeapCache = nullptr;
+	}
+
 	// Flush all pending deletes before destroying the device and any Vulkan context objects.
 	// Repeat until no new deletes are added
 	int32 NumDeletes = 0;
@@ -1489,7 +1526,6 @@ void FVulkanDevice::Destroy()
 #endif
 	}
 
-	
 	DeferredDeletionQueue.Clear();
 
 	MemoryManager.Deinit();
@@ -1659,4 +1695,13 @@ void FVulkanDevice::VulkanSetObjectName(VkObjectType Type, uint64_t Handle, cons
 		DebugMarkers.SetDebugName(Device, &Info);
 	}
 #endif // VULKAN_ENABLE_DRAW_MARKERS
+}
+
+FVulkanTransientHeapCache& FVulkanDevice::GetOrCreateTransientHeapCache()
+{
+	if (!TransientHeapCache)
+	{
+		TransientHeapCache = FVulkanTransientHeapCache::Create(this);
+	}
+	return *TransientHeapCache;
 }

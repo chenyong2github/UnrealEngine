@@ -10,6 +10,7 @@
 #include "Containers/ResourceArray.h"
 #include "VulkanLLM.h"
 #include "VulkanRayTracing.h"
+#include "VulkanTransientResourceAllocator.h"
 
 static TMap<FVulkanResourceMultiBuffer*, VulkanRHI::FPendingBufferLock> GPendingLockIBs;
 static FCriticalSection GPendingLockIBsMutex;
@@ -69,7 +70,49 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 	}
 }
 
-FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
+
+VkBufferUsageFlags FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(FVulkanDevice* InDevice, EBufferUsageFlags InUEUsage, bool bZeroSize)
+{
+	// Always include TRANSFER_SRC since hardware vendors confirmed it wouldn't have any performance cost and we need it for some debug functionalities.
+	VkBufferUsageFlags OutVkUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+	auto TranslateFlag = [&OutVkUsage, &InUEUsage](EBufferUsageFlags SearchUEFlag, VkBufferUsageFlags AddedIfFound, VkBufferUsageFlags AddedIfNotFound = 0)
+	{
+		const bool HasFlag = EnumHasAnyFlags(InUEUsage, SearchUEFlag);
+		OutVkUsage |= HasFlag ? AddedIfFound : AddedIfNotFound;
+	};
+
+	TranslateFlag(BUF_VertexBuffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	TranslateFlag(BUF_IndexBuffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	TranslateFlag(BUF_StructuredBuffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+#if VULKAN_RHI_RAYTRACING
+	TranslateFlag(BUF_AccelerationStructure, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR);
+#endif
+
+	if (!bZeroSize)
+	{
+		TranslateFlag(BUF_UnorderedAccess, VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
+		TranslateFlag(BUF_DrawIndirect, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+		TranslateFlag(BUF_KeepCPUAccessible, (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT));
+		TranslateFlag(BUF_ShaderResource, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
+
+		TranslateFlag(BUF_Volatile, 0, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+#if VULKAN_RHI_RAYTRACING
+		if (InDevice->GetOptionalExtensions().HasRaytracingExtensions())
+		{
+			OutVkUsage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+			TranslateFlag(BUF_AccelerationStructure, 0, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR);
+		}
+#endif
+	}
+
+	return OutVkUsage;
+}
+
+FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList, const FRHITransientHeapAllocation* InTransientHeapAllocation)
 	: FRHIBuffer(InSize, InUEUsage, InStride)
 	, VulkanRHI::FDeviceChild(InDevice)
 	, BufferUsageFlags(0)
@@ -79,57 +122,12 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
 
-	// Always include TRANSFER_SRC since hardware vendors confirmed it wouldn't have any performance cost and we need it for some debug functionalities.
-	BufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-	if (EnumHasAnyFlags(InUEUsage, BUF_VertexBuffer))
+	const bool bZeroSize = (InSize == 0);
+	BufferUsageFlags = UEToVKBufferUsageFlags(InDevice, InUEUsage, bZeroSize);
+	
+	if (!bZeroSize)
 	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	}
-	if (EnumHasAnyFlags(InUEUsage, BUF_IndexBuffer))
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	}
-	if (EnumHasAnyFlags(InUEUsage, BUF_StructuredBuffer))
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-	}
-#if VULKAN_RHI_RAYTRACING
-	if (EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure))
-	{
-		BufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-	}
-#endif
-
-	if (InSize > 0)
-	{
-		const bool bStatic = EnumHasAnyFlags(InUEUsage, BUF_Static);
-		const bool bDynamic = EnumHasAnyFlags(InUEUsage, BUF_Dynamic);
 		const bool bVolatile = EnumHasAnyFlags(InUEUsage, BUF_Volatile);
-		const bool bShaderResource = EnumHasAnyFlags(InUEUsage, BUF_ShaderResource);
-		const bool bIsUniformBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0;
-		const bool bUAV = EnumHasAnyFlags(InUEUsage, BUF_UnorderedAccess);
-		const bool bIndirect = EnumHasAllFlags(InUEUsage, BUF_DrawIndirect);
-		const bool bCPUReadable = EnumHasAnyFlags(InUEUsage, BUF_KeepCPUAccessible);
-
-		BufferUsageFlags |= bVolatile ? 0 : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		BufferUsageFlags |= (bShaderResource && !bIsUniformBuffer) ? VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 0;
-		BufferUsageFlags |= bUAV ? VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT : 0;
-		BufferUsageFlags |= bIndirect ? VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT : 0;
-		BufferUsageFlags |= bCPUReadable ? (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT) : 0;
-
-#if VULKAN_RHI_RAYTRACING
-		if (InDevice->GetOptionalExtensions().HasRaytracingExtensions())
-		{
-			BufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-
-			if (!EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure))
-			{
-				BufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-			}
-		}
-#endif
-
 		if (bVolatile)
 		{
 			bool bRenderThread = IsInRenderingThread();
@@ -153,23 +151,44 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 		{
 			VkDevice VulkanDevice = InDevice->GetInstanceHandle();
 
-			VkMemoryPropertyFlags BufferMemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-			const bool bUnifiedMem = InDevice->HasUnifiedMemory();
-			if (bUnifiedMem)
-			{
-				BufferMemFlags |= (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-			}
-
-			NumBuffers = bDynamic ? NUM_BUFFERS : 1;
+			NumBuffers = GetNumBuffersFromUsage(InUEUsage);
 			check(NumBuffers <= UE_ARRAY_COUNT(Buffers));
 
-			for (uint32 Index = 0; Index < NumBuffers; ++Index)
+			const bool bUnifiedMem = InDevice->HasUnifiedMemory();
+
+			if (InTransientHeapAllocation != nullptr)
 			{
-				if(!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], this, InSize, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
+				const uint32 BufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, BufferUsageFlags);
+				const uint32 AlignedSize = Align(InSize, BufferAlignment);
+
+				Buffers[0] = FVulkanTransientHeap::GetVulkanAllocation(*InTransientHeapAllocation);
+				Buffers[0].Size = InSize;
+				check(Buffers[0].Offset % BufferAlignment == 0);
+				for (uint32 Index = 1; Index < NumBuffers; ++Index)
 				{
-					InDevice->GetMemoryManager().HandleOOM();
+					Buffers[Index] = Buffers[Index - 1];
+					Buffers[Index].Offset += AlignedSize;
+					Buffers[Index].Size = InSize;
+					check((Buffers[Index].Offset + InSize) <= InTransientHeapAllocation->Size);
 				}
 			}
+			else
+			{
+				VkMemoryPropertyFlags BufferMemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+				if (bUnifiedMem)
+				{
+					BufferMemFlags |= (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+				}
+
+				for (uint32 Index = 0; Index < NumBuffers; ++Index)
+				{
+					if (!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], this, InSize, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
+					{
+						InDevice->GetMemoryManager().HandleOOM();
+					}
+				}
+			}
+
 			Current.Alloc.Reference(Buffers[DynamicBufferIndex]);
 			Current.Handle = (VkBuffer)Current.Alloc.VulkanHandle;
 			Current.Offset = Current.Alloc.Offset;
@@ -475,15 +494,30 @@ void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 	::Swap(VolatileLockInfo, Other.VolatileLockInfo);
 }
 
-FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& ResourceCreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
 
-	if (CreateInfo.bWithoutNativeResource)
+	if (ResourceCreateInfo.bWithoutNativeResource)
 	{
-		return new FVulkanResourceMultiBuffer(nullptr, 0, BUF_None, 0, CreateInfo, nullptr);
+		return new FVulkanResourceMultiBuffer(nullptr, 0, BUF_None, 0, ResourceCreateInfo, nullptr);
 	}
-	return new FVulkanResourceMultiBuffer(Device, Size, Usage, Stride, CreateInfo, nullptr);
+	return new FVulkanResourceMultiBuffer(Device, Size, Usage, Stride, ResourceCreateInfo, nullptr);
+}
+
+FRHIBuffer* FVulkanDynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, FRHIResourceCreateInfo& InResourceCreateInfo, const FRHITransientHeapAllocation* InTransientHeapAllocation)
+{
+	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
+
+	if (InTransientHeapAllocation == nullptr)
+	{
+		return this->RHICreateBuffer(InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, ERHIAccess::None, InResourceCreateInfo);
+	}
+
+	checkf(!EnumHasAnyFlags(InCreateInfo.Usage, BUF_AccelerationStructure), TEXT("AccelerationStructure not yet supported as TransientResource."));
+	checkf(!InResourceCreateInfo.bWithoutNativeResource, TEXT("WithoutNativeResource not yet supported as TransientResource."));
+
+	return new FVulkanResourceMultiBuffer(Device, InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, InResourceCreateInfo, nullptr, InTransientHeapAllocation);
 }
 
 void* FVulkanDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)

@@ -12,6 +12,7 @@ class FVulkanDescriptorSetCache;
 class FVulkanDescriptorPool;
 class FVulkanDescriptorPoolsManager;
 class FVulkanCommandListContextImmediate;
+class FVulkanTransientHeapCache;
 #if VULKAN_USE_NEW_QUERIES
 class FVulkanOcclusionQueryPool;
 #else
@@ -523,6 +524,8 @@ public:
 		return QueueFamilyProps;
 	}
 
+	FVulkanTransientHeapCache& GetOrCreateTransientHeapCache();
+
 
 private:
 	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);
@@ -547,6 +550,8 @@ private:
 	VulkanRHI::FStagingManager StagingManager;
 
 	VulkanRHI::FFenceManager FenceManager;
+
+	FVulkanTransientHeapCache* TransientHeapCache = nullptr;
 
 	// Active on ES3.1
 	FVulkanDescriptorSetCache* DescriptorSetCache = nullptr;

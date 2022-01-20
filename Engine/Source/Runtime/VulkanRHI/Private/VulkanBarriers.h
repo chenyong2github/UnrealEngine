@@ -23,7 +23,12 @@ struct FVulkanPipelineBarrier
 	bool bHasMemoryBarrier;
 
 	// We need to keep the texture pointers around, because we need to call OnTransitionResource on them, and we need mip and layer counts for the tracking code.
-	TArray<FVulkanTextureBase*, TInlineAllocator<2>> Textures;
+	struct ImageBarrierExtraData
+	{
+		FVulkanTextureBase* BaseTexture = nullptr;
+		bool IsAliasingBarrier = false;
+	};
+	TArray<ImageBarrierExtraData, TInlineAllocator<2>> ImageBarrierExtras;
 
 	void AddMemoryBarrier(VkAccessFlags SrcAccessFlags, VkAccessFlags DstAccessFlags, VkPipelineStageFlags SrcStageMask, VkPipelineStageFlags DstStageMask);
 	void AddImageLayoutTransition(VkImage Image, VkImageLayout SrcLayout, VkImageLayout DstLayout, const VkImageSubresourceRange& SubresourceRange);
