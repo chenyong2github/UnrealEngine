@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionResaveActorsBuilder.h"
-
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "PackageSourceControlHelper.h"
@@ -12,8 +11,8 @@
 #include "UObject/MetaData.h"
 #include "UObject/SavePackage.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ReferenceCluster.h"
 #include "ActorFolder.h"
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionResaveActorsBuilder, All, All);
 
@@ -210,12 +209,109 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 		}
 	};
 
-	// Rename pass
 	if (bSwitchActorPackagingSchemeToReduced)
 	{
 		World->PersistentLevel->ActorPackagingScheme = EActorPackagingScheme::Reduced;
 
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, WorldPackage, &AddAndSavePackage, &CheckOutAndSavePackage](const FWorldPartitionActorDesc* ActorDesc)
+		// Build clusters
+		TArray<TPair<FGuid, TArray<FGuid>>> ActorsWithRefs;
+		for (FActorDescList::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		{
+			ActorsWithRefs.Emplace(ActorDescIterator->GetGuid(), ActorDescIterator->GetReferences());
+		}
+
+		TArray<TArray<FGuid>> Clusters = GenerateObjectsClusters(ActorsWithRefs);
+
+		for (const TArray<FGuid>& Cluster : Clusters)
+		{
+			TArray<UPackage*> PackagesToSave;
+
+			// Load actor clusters
+			TArray<FWorldPartitionReference> ActorReferences;
+			for (const FGuid& ActorGuid : Cluster)
+			{
+				ActorReferences.Emplace(WorldPartition, ActorGuid);
+			}
+
+			// Change packaging of all actors in the current cluster
+			for (FWorldPartitionReference& ActorReference : ActorReferences)
+			{
+				const FWorldPartitionActorDesc* ActorDesc = ActorReference.Get();
+				AActor* Actor = ActorDesc->GetActor();
+
+				if (!Actor)
+				{
+					PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
+					++FailCount;
+					continue;
+				}
+				else
+				{
+					++LoadCount;
+
+					UPackage* Package = Actor->GetExternalPackage();
+					check(Package);
+
+					if (!bReportOnly)
+					{
+						if (SCCHelper.Checkout(Package))
+						{
+							// Always mark this package for deletion, as it will contain a temporary redirector to fixup references
+							PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
+
+							// Move actor back into world's package
+							Actor->SetPackageExternal(false);
+
+							// Gather dependant objects that also needs to be moved along with the actor
+							TArray<UObject*> DependantObjects;
+							ForEachObjectWithPackage(Package, [&DependantObjects](UObject* Object)
+							{
+								if (!Cast<UMetaData>(Object))
+								{
+									DependantObjects.Add(Object);
+								}
+								return true;
+							}, false);
+
+							// Move dependant objects into the new world package temporarily
+							for (UObject* DependantObject : DependantObjects)
+							{
+								DependantObject->Rename(nullptr, WorldPackage, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+							}
+
+							// Move actor in its new package
+							Actor->SetPackageExternal(true);
+
+							// Also move dependant objects into the new package
+							UPackage* NewActorPackage = Actor->GetExternalPackage();
+							for (UObject* DependantObject : DependantObjects)
+							{
+								DependantObject->Rename(nullptr, NewActorPackage, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+							}
+
+							PackagesToSave.Add(NewActorPackage);
+						}
+						else
+						{
+							// It is possible the resave can't checkout everything. Continue processing.
+							UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
+							++FailCount;
+							continue;
+						}
+					}
+				}
+			}
+
+			// Save modified actors
+			for (UPackage* PackageToSave : PackagesToSave)
+			{
+				AddAndSavePackage(PackageToSave, TEXT("Actor"));
+			}
+		}
+	}
+	else
+	{
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, &CheckOutAndSavePackage](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			ON_SCOPE_EXIT
 			{
@@ -234,131 +330,40 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 			{
 				++LoadCount;
 
-				UPackage* Package = Actor->GetExternalPackage();
-				check(Package);
-
-				if (!bReportOnly)
+				if (bEnableActorFolders)
 				{
-					if (SCCHelper.Checkout(Package))
+					if (!Actor->CreateOrUpdateActorFolder())
 					{
-						// Always mark this package for deletion, as it will contain a temporary redirector to fixup references
-						PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
-
-						// Move actor back into world's package
-						Actor->SetPackageExternal(false);
-
-						// Gather dependant objects that also needs to be moved along with the actor
-						TArray<UObject*> DependantObjects;
-						ForEachObjectWithPackage(Package, [&DependantObjects](UObject* Object)
-						{
-							if (!Cast<UMetaData>(Object))
-							{
-								DependantObjects.Add(Object);
-							}
-							return true;
-						}, false);
-
-						// Move dependant objects into the new world package temporarily, so we can save the original actor package with its redirector
-						for (UObject* DependantObject : DependantObjects)
-						{
-							DependantObject->Rename(nullptr, WorldPackage, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-						}
-
-						// Replace old actor package with a redirector to the new actor
-						UObjectRedirector* Redirector = NewObject<UObjectRedirector>(Actor->GetWorld(), Actor->GetFName(), RF_Standalone | RF_Public);
-						Redirector->DestinationObject = Actor;
-						Redirector->SetExternalPackage(Package);
-
-						// Save original actor package containing a single redirector to the actor
-						FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-						FSavePackageArgs SaveArgs;
-						SaveArgs.TopLevelFlags = RF_Standalone;
-						if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
-						{
-							UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package redirector %s."), *Package->GetName());
-							++FailCount;
-							return true;
-						}
-
-						// Move actor in its new package
-						Actor->SetPackageExternal(true);
-
-						// Also move dependant objects into the new package
-						UPackage* NewActorPackage = Actor->GetExternalPackage();
-						for (UObject* DependantObject : DependantObjects)
-						{
-							DependantObject->Rename(nullptr, NewActorPackage, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-						}
-
-						return AddAndSavePackage(NewActorPackage, TEXT("Actor"));
-					}
-					else
-					{
-						// It is possible the resave can't checkout everything. Continue processing.
-						UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
+						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to create actor folder for actor %s."), *Actor->GetName());
 						++FailCount;
 						return true;
 					}
+				}
+
+				UPackage* Package = Actor->GetExternalPackage();
+				check(Package);
+
+				if (bResaveDirtyActorDescsOnly)
+				{
+					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = Actor->CreateActorDesc();
+
+					if (ActorDesc->Equals(NewActorDesc.Get()))
+					{
+						return true;
+					}
+
+					UE_LOG(LogWorldPartitionResaveActorsBuilder, Log, TEXT("Package %s needs to be resaved."), *Package->GetName());
+				}
+
+				if (!bReportOnly)
+				{
+					return CheckOutAndSavePackage(Package, TEXT("Actor"), /*bErrorAtFailCheckout*/ false);
 				}
 			}
 
 			return true;
 		});
 	}
-
-	// Normal save pass
-	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, &CheckOutAndSavePackage](const FWorldPartitionActorDesc* ActorDesc)
-	{
-		ON_SCOPE_EXIT
-		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Failed)"), LoadCount, SaveCount, FailCount);
-		};
-
-		AActor* Actor = ActorDesc->GetActor();
-
-		if (!Actor)
-		{
-			PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
-			++FailCount;
-			return true;
-		}
-		else
-		{
-			++LoadCount;
-
-			if (bEnableActorFolders)
-			{
-				if (!Actor->CreateOrUpdateActorFolder())
-				{
-					UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to create actor folder for actor %s."), *Actor->GetName());
-					++FailCount;
-					return true;
-				}
-			}
-
-			UPackage* Package = Actor->GetExternalPackage();
-			check(Package);
-
-			if (bResaveDirtyActorDescsOnly)
-			{
-				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = Actor->CreateActorDesc();
-
-				if (ActorDesc->Equals(NewActorDesc.Get()))
-				{
-					return true;
-				}
-
-				UE_LOG(LogWorldPartitionResaveActorsBuilder, Log, TEXT("Package %s needs to be resaved."), *Package->GetName());
-			}
-
-			if (!bReportOnly)
-			{
-				return CheckOutAndSavePackage(Package, TEXT("Actor"), /*bErrorAtFailCheckout*/ false);
-			}
-		}
-
-		return true;
-	});
 
 	if (!bReportOnly)
 	{
