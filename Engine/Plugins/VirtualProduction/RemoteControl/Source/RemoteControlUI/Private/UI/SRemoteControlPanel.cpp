@@ -951,7 +951,8 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 
 	if (SelectedNode)
 	{
-		if (SelectedNode->GetRCType() != SRCPanelTreeNode::Group)
+		if (SelectedNode->GetRCType() != SRCPanelTreeNode::Group &&
+			SelectedNode->GetRCType() != SRCPanelTreeNode::FieldChild) // Field Child does not contain entity ID, that is why it should not be processed
 		{
 			TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(SelectedNode->GetRCId()).Pin();
 			SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(Entity, Preset->GetExposedEntityType(SelectedNode->GetRCId()));
