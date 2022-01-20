@@ -2,25 +2,26 @@
 
 #include "SRCPanelExposedEntity.h"
 
+#include "ActorTreeItem.h"
+#include "Components/ActorComponent.h"
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ActorTreeItem.h"
 #include "GameFramework/Actor.h"
+#include "Modules/ModuleManager.h"
 #include "RemoteControlEntity.h"
-#include "RemoteControlPreset.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
-#include "SRCPanelDragHandle.h"
+#include "RemoteControlPreset.h"
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "SRCPanelDragHandle.h"
 #include "Styling/SlateIconFinder.h"
-#include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
@@ -103,9 +104,12 @@ void SRCPanelExposedEntity::CreateRebindComponentMenuContent(FMenuBuilder& SubMe
 		TArray<UObject*> BoundObjects = Entity->GetBoundObjects();
 		if (BoundObjects.Num() && BoundObjects[0])
 		{
-			if (AActor* OwnerActor = BoundObjects[0]->GetTypedOuter<AActor>())
+			if (BoundObjects[0]->IsA<UActorComponent>())
 			{
-				OwnerActor->GetComponents(Entity->GetSupportedBindingClass(), ComponentArray);
+				if (AActor* OwnerActor = BoundObjects[0]->GetTypedOuter<AActor>())
+				{
+					OwnerActor->GetComponents(Entity->GetSupportedBindingClass(), ComponentArray);
+				}
 			}
 		}
 
