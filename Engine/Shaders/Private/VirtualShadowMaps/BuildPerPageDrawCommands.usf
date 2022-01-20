@@ -35,7 +35,9 @@ uint VisibleInstancesBufferNum;
 
 struct FVSMCullingBatchInfo
 {
+	float3 CullingViewOriginOffset;
 	uint FirstPrimaryView;
+	float3 CullingViewOriginTile;
 	uint NumPrimaryViews;
 };
 
@@ -46,7 +48,14 @@ uint FirstPrimaryView;
 uint NumPrimaryViews;
 uint DynamicInstanceIdOffset;
 uint DynamicInstanceIdMax;
+
+float3 CullingViewOriginOffset;
+float3 CullingViewOriginTile;
+
 #endif // ENABLE_BATCH_MODE
+
+
+float MaxMaterialPositionInvalidationRange;
 
 StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
 
@@ -142,7 +151,12 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	FVSMCullingBatchInfo VSMCullingBatchInfo;
 	VSMCullingBatchInfo.FirstPrimaryView = FirstPrimaryView;
 	VSMCullingBatchInfo.NumPrimaryViews = NumPrimaryViews;
+	VSMCullingBatchInfo.CullingViewOriginOffset = CullingViewOriginOffset;
+	VSMCullingBatchInfo.CullingViewOriginTile = CullingViewOriginTile;
 #endif // ENABLE_BATCH_MODE
+
+	FLWCVector3 CullingViewWorldOrigin = MakeLWCVector3(VSMCullingBatchInfo.CullingViewOriginTile, VSMCullingBatchInfo.CullingViewOriginOffset);
+
 
 	uint CurrentBatchProcessingMode = 0U;
 	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, GetItemDataOffset(BatchInfo, CurrentBatchProcessingMode));
@@ -170,11 +184,20 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 
+	// Stop invalidations from material if further away than the threshold
+	bool bMaterialInvalidates = DrawCommandDesc.bMaterialMayModifyPosition;
+	BRANCH
+	if (MaxMaterialPositionInvalidationRange >= 0.0f && bMaterialInvalidates)
+	{
+		float DistSq = length2(LWCToFloat(LWCSubtract(LWCMultiply(InstanceData.LocalBoundsCenter, InstanceData.LocalToWorld), CullingViewWorldOrigin)));
+		bMaterialInvalidates = DistSq < Square(MaxMaterialPositionInvalidationRange);
+	}
+
 	// A thing is considered to have moved (which causes it to render into cached pages) if:
 	// It was uploaded this frame, OR
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber
 		// it has a material that uses WPO or PDO, OR
-		|| DrawCommandDesc.bMaterialMayModifyPosition
+		|| bMaterialInvalidates
 		// the primitive was "revealed" this frame - i.e., transitioned from culled -> visible on CPU
 		|| WasPrimitiveRevealed(GetPrimitiveData(InstanceData.PrimitiveId).PersistentPrimitiveIndex);
 
@@ -264,7 +287,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 	// If the instance has WPO or PDO and rendered to any mip, queue for invalidation. This will be processed the before next frame (after a new HZB is built)
 	// and invalidate any visible pages.
-	if (ThreadTotalForAllViews > 0U && DrawCommandDesc.bMaterialMayModifyPosition)
+	if (ThreadTotalForAllViews > 0U && bMaterialInvalidates)
 	{
 		MarkInstanceForInvalidation(InstanceId);
 	}
