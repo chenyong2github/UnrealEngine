@@ -2,6 +2,7 @@
 
 #include "Commandlets/WorldPartitionCommandletHelpers.h"
 
+#include "Engine/World.h"
 #include "PackageSourceControlHelper.h"
 #include "SourceControlHelpers.h"
 #include "UObject/SavePackage.h"

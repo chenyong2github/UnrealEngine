@@ -7,6 +7,7 @@
 #include "UObject/UObjectAnnotation.h"
 
 class FPackageSourceControlHelper;
+class UWorld;
 
 namespace WorldPartitionCommandletHelpers
 {

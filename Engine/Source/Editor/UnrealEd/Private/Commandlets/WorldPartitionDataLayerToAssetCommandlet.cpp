@@ -8,8 +8,11 @@
 
 #include "Algo/Copy.h"
 #include "Algo/Accumulate.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetToolsModule.h"
 #include "DataLayer/DataLayerFactory.h"
+#include "Engine/World.h"
 #include "Logging/LogVerbosity.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"

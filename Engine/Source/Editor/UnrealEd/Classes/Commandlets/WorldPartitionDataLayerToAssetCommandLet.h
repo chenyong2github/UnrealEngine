@@ -20,6 +20,7 @@ class UDataLayer;
 class UDataLayerAsset;
 class UDataLayerInstance;
 class UDataLayerFactory;
+class UWorld;
 
 UCLASS(Transient)
 class UDataLayerConversionInfo : public UObject
