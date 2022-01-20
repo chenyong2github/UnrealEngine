@@ -1012,6 +1012,8 @@ void APlayerController::ServerShortTimeout_Implementation()
 
 void APlayerController::AddCheats(bool bForce)
 {
+	// Cheat manager is completely disabled in shipping by default
+#if UE_WITH_CHEAT_MANAGER
 	UWorld* World = GetWorld();
 	check(World);
 
@@ -1027,17 +1029,18 @@ void APlayerController::AddCheats(bool bForce)
 		CheatManager = NewObject<UCheatManager>(this, CheatClass);
 		CheatManager->InitCheatManager();
 	}
+#endif
 }
 
 void APlayerController::EnableCheats()
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// In non-shipping builds this can be called to enable cheats in multiplayer and override AllowCheats
+#if !UE_BUILD_SHIPPING
 	AddCheats(true);
 #else
 	AddCheats();
 #endif
 }
-
 
 void APlayerController::SpawnDefaultHUD()
 {

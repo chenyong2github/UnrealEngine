@@ -312,8 +312,9 @@ public:
 	 * Object that manages "cheat" commands.
 	 *
 	 * By default:
-	 *   - Debug and Development builds will force it to be instantiated (@see APlayerController::EnableCheats).
-	 *   - Test and Shipping builds will only instantiate it if the authoritative game mode allows cheats (@see AGameModeBase::AllowCheats).
+	 *	 - In Shipping configurations, the manager is always disabled because UE_WITH_CHEAT_MANAGER is 0
+	 *   - When playing in the editor, cheats are always enabled
+	 *   - In other cases, cheats are enabled by default in single player games but can be forced on with the EnableCheats console command
 	 * 
 	 * This behavior can be changed either by overriding APlayerController::EnableCheats or AGameModeBase::AllowCheats.
 	 */
@@ -553,7 +554,7 @@ public:
 	uint16 LastCompletedSeamlessTravelCount;
 
 public:
-	/** Enables cheats within the game */
+	/** Run from the console to try and manually enable cheats which are disabled by default in multiplayer, games can override this */
 	UFUNCTION(exec)
 	virtual void EnableCheats();
 
@@ -1834,7 +1835,7 @@ public:
 	/** Clears out 'left-over' audio components. */
 	virtual void CleanUpAudioComponents();
 
-	/** Notifies the server that the client has ticked gameplay code, and should no longer get the extended "still loading" timeout grace period */
+	/** Called to try and enable cheats for this player, happens during initialization or from AllowCheats command */
 	virtual void AddCheats(bool bForce = false);
 
 	/** Spawn a HUD (make sure that PlayerController always has valid HUD, even if ClientSetHUD() hasn't been called */

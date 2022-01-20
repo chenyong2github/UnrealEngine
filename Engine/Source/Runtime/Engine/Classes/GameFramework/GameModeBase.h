@@ -466,7 +466,7 @@ public:
 	//~=============================================================================
 	// Engine hooks
 
-	/** @return true if player is allowed to access the cheats */
+	/** Return true if player should be allowed to use cheats by default */
 	virtual bool AllowCheats(APlayerController* P);
 
 	/** Returns true if replays will start/stop during gameplay starting/stopping */
