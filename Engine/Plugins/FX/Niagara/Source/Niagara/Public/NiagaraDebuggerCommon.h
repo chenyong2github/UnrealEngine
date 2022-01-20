@@ -412,9 +412,23 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 
 	FNiagaraDebugHUDSettingsData();
 
+	bool IsEnabled() const
+	{
+	#if WITH_EDITORONLY_DATA
+		return bWidgetEnabled && bHudEnabled;
+	#else
+		return bHudEnabled;
+	#endif
+	}
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	bool bWidgetEnabled = false;
+#endif
+
 	/** Master control for all HUD features. */
 	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Enabled"))
-	bool bEnabled = true;
+	bool bHudEnabled = true;
 
 	/**
 	When enabled all Niagara systems that pass the filter will have the simulation data buffers validation.

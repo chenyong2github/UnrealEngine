@@ -124,9 +124,16 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			{
 				if (UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>())
 				{
-					if (!Settings->Data.bEnabled)
+					if (
+#if WITH_EDITORONLY_DATA
+						!Settings->Data.bWidgetEnabled ||
+#endif
+						!Settings->Data.bHudEnabled )
 					{
-						Settings->Data.bEnabled = true;
+#if WITH_EDITORONLY_DATA
+						Settings->Data.bWidgetEnabled = true;
+#endif
+						Settings->Data.bHudEnabled = true;
 						Settings->PostEditChange();
 					}
 				}

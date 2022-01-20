@@ -165,8 +165,8 @@ void FNiagaraDebuggerClient::HandleDebugHUDSettingsMessage(const FNiagaraDebugHU
 
 				//TODO: Move these to just take direct from the debug hud per worldman?
 				//Possibly move the debug hud itself to the debugger client rather than having one per world man and they all share global state.
-				const ENiagaraDebugPlaybackMode PlaybackMode = Message.bEnabled ? Message.PlaybackMode : ENiagaraDebugPlaybackMode::Play;
-				const float PlaybackRate = Message.bEnabled && Message.bPlaybackRateEnabled ? Message.PlaybackRate : 1.0f;
+				const ENiagaraDebugPlaybackMode PlaybackMode = Message.IsEnabled() ? Message.PlaybackMode : ENiagaraDebugPlaybackMode::Play;
+				const float PlaybackRate = Message.IsEnabled() && Message.bPlaybackRateEnabled ? Message.PlaybackRate : 1.0f;
 				WorldMan.SetDebugPlaybackMode(PlaybackMode);
 				WorldMan.SetDebugPlaybackRate(PlaybackRate);
 			};
@@ -174,7 +174,7 @@ void FNiagaraDebuggerClient::HandleDebugHUDSettingsMessage(const FNiagaraDebugHU
 		FNiagaraWorldManager::ForAllWorldManagers(ApplySettingsToWorldMan);
 			
 		//TODO: Move usage to come direct from settings struct instead of this CVar.
-		const float GlobalLoopTime = Message.bEnabled && Message.bLoopTimeEnabled && Message.PlaybackMode == ENiagaraDebugPlaybackMode::Loop ? Message.LoopTime : 0.0f;
+		const float GlobalLoopTime = Message.IsEnabled() && Message.bLoopTimeEnabled && Message.PlaybackMode == ENiagaraDebugPlaybackMode::Loop ? Message.LoopTime : 0.0f;
 		ExecuteConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.GlobalLoopTime %.3f"), GlobalLoopTime), true);
 	}
 }

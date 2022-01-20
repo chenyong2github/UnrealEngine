@@ -91,7 +91,15 @@ namespace NiagaraDebugLocal
 	static TTuple<const TCHAR*, const TCHAR*, TFunction<void(FString)>> GDebugConsoleCommands[] =
 	{
 		// Main HUD commands
-		MakeTuple(TEXT("Enabled="), TEXT("Enable or disable the HUD"), [](FString Arg) {Settings.bEnabled = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("Enabled="), TEXT("Enable or disable the HUD"),
+			[](FString Arg)
+			{
+				Settings.bHudEnabled = FCString::Atoi(*Arg) != 0;
+				#if WITH_EDITORONLY_DATA
+				Settings.bWidgetEnabled = true;
+				#endif
+			}
+		),
 		MakeTuple(TEXT("ValidateSystemSimulationDataBuffers="), TEXT("Enable or disable validation on system data buffers"), [](FString Arg) {Settings.bValidateSystemSimulationDataBuffers = FCString::Atoi(*Arg) != 0; }),
 		MakeTuple(TEXT("bValidateParticleDataBuffers="), TEXT("Enable or disable validation on particle data buffers"), [](FString Arg) {Settings.bValidateParticleDataBuffers = FCString::Atoi(*Arg) != 0; }),
 
@@ -683,7 +691,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	}
 
 	// When not enabled do nothing
-	if (!Settings.bEnabled)
+	if (!Settings.IsEnabled())
 	{
 		return;
 	}
@@ -995,7 +1003,7 @@ void FNiagaraDebugHud::DebugDrawCallback(UCanvas* Canvas, APlayerController* PC)
 {
 	using namespace NiagaraDebugLocal;
 
-	if (!Settings.bEnabled)
+	if (!Settings.IsEnabled())
 	{
 		return;
 	}
