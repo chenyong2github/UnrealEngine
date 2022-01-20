@@ -11,10 +11,13 @@
 #include "AI/NavigationModifier.h"
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "Math/GenericOctree.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class INavRelevantInterface;
 class FNavigationOctree;
 typedef FNavigationRelevantDataFilter FNavigationOctreeFilter;
+
+LLM_DECLARE_TAG(NavigationOctree);
 
 struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 {
@@ -132,6 +135,8 @@ public:
  */
 	inline void AddElement(const FNavigationOctreeElement& Element)
 	{
+		LLM_SCOPE_BYTAG(NavigationOctree);
+
 		DEC_MEMORY_STAT_BY(STAT_NavigationMemory, OctreeSizeBytes);
 		DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
 		TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>::AddElement(Element);

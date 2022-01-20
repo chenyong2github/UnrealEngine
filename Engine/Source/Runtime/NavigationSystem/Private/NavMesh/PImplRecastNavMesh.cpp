@@ -206,14 +206,11 @@ static void DetourFree(void* Original, dtAllocHint Hint)
 	DEC_MEMORY_STAT_BY(STAT_Navigation_RecastMemory, Size);
 #endif // STATS
 
-	LLM_SCOPE(ELLMTag::NavigationRecast);
-
 	FMemory::Free(Original);
 }
 
 static void RecastFree(void* Original)
 {
-	LLM_SCOPE(ELLMTag::NavigationRecast);
 #if STATS
 	const uint32 Size = FMemory::GetAllocSize(Original);
 	DEC_DWORD_STAT_BY(STAT_NavigationMemory, Size);

@@ -2381,19 +2381,24 @@ void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNaviga
 
 			if (!HasVoxelCache(ElementData->VoxelData, CachedVoxels, NumCachedVoxels))
 			{
-						// rasterize
+
+				// rasterize
 				PrepareVoxelCache(ElementData->CollisionData, ModifierInstance, SpanData);
 				CachedVoxels = SpanData.GetData();
 				NumCachedVoxels = SpanData.Num();
 
-						// encode
-				const int32 PrevElementMemory = ElementData->GetAllocatedSize();
-				FNavigationRelevantData* ModData = (FNavigationRelevantData*)&ElementData;
-				AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
+				// encode
+				{
+					LLM_SCOPE_BYTAG(NavigationOctree);
 
-				const int32 NewElementMemory = ElementData->GetAllocatedSize();
-				const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
-				INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
+					const int32 PrevElementMemory = ElementData->GetAllocatedSize();
+					FNavigationRelevantData* ModData = (FNavigationRelevantData*)&ElementData;
+					AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
+
+					const int32 NewElementMemory = ElementData->GetAllocatedSize();
+					const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
+					INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
+				}
 			}
 		}
 		else

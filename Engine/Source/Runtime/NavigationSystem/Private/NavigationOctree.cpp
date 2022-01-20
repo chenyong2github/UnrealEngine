@@ -4,6 +4,8 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "NavigationSystem.h"
 
+LLM_DEFINE_TAG(NavigationOctree);
+
 
 //----------------------------------------------------------------------//
 // FNavigationOctree
@@ -41,6 +43,8 @@ void FNavigationOctree::SetNavigableGeometryStoringMode(ENavGeometryStoringMode 
 
 void FNavigationOctree::DemandLazyDataGathering(FNavigationRelevantData& ElementData)
 {
+	LLM_SCOPE_BYTAG(NavigationOctree);
+
 	UObject* ElementOb = ElementData.GetOwner();
 	if (ElementOb == nullptr)
 	{
@@ -107,6 +111,8 @@ void FNavigationOctree::DemandLazyDataGathering(FNavigationRelevantData& Element
 
 void FNavigationOctree::DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface)
 {
+	LLM_SCOPE_BYTAG(NavigationOctree);
+
 	if (IsLazyGathering(ChildNavInterface))
 	{
 		ChildNavInterface.GetNavigationData(ElementData);
@@ -132,6 +138,8 @@ bool FNavigationOctree::IsLazyGathering(const INavRelevantInterface& ChildNavInt
 
 void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Element)
 {
+	LLM_SCOPE_BYTAG(NavigationOctree);
+
 	if (!Bounds.IsValid)
 	{
 		UE_LOG(LogNavigation, Warning, TEXT("%s: Ignoring %s because bounds are invalid."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(ElementOb));
@@ -216,6 +224,8 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 
 void FNavigationOctree::AppendToNode(const FOctreeElementId2& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Element)
 {
+	LLM_SCOPE_BYTAG(NavigationOctree);
+
 	FNavigationOctreeElement OrgData = GetElementById(Id);
 
 	Element = OrgData;
