@@ -2420,15 +2420,6 @@ bool FTaskGraphInterface::IsMultithread()
 	return FPlatformProcess::SupportsMultithreading() || (FForkProcessHelper::IsForkedMultithreadInstance() && GAllowTaskGraphForkMultithreading);
 }
 
-
-// Statics and some implementations from FBaseGraphTask and FGraphEvent
-
-static FBaseGraphTask::TSmallTaskAllocator TheSmallTaskAllocator;
-FBaseGraphTask::TSmallTaskAllocator& FBaseGraphTask::GetSmallTaskAllocator()
-{
-	return TheSmallTaskAllocator;
-}
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void FBaseGraphTask::LogPossiblyInvalidSubsequentsTask(const TCHAR* TaskName)
 {

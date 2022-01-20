@@ -10,6 +10,7 @@
 #include "Misc/IQueuedWork.h"
 #include "Async/Fundamental/Scheduler.h"
 #include "Experimental/Containers/FAAArrayQueue.h"
+#include "Experimental/ConcurrentLinearAllocator.h"
 
 #include <atomic>
 
@@ -232,7 +233,7 @@ private:
 class CORE_API FQueuedLowLevelThreadPool final : public FQueuedThreadPool
 {
 	/* Internal data of the scheduler used for cancellation */
-	struct FQueuedWorkInternalData : IQueuedWorkInternalData
+	struct FQueuedWorkInternalData : TConcurrentLinearObject<FQueuedWorkInternalData, FTaskGraphBlockAllocationTag>, IQueuedWorkInternalData
 	{
 		LowLevelTasks::FTask Task;
 

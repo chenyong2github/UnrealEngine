@@ -21,6 +21,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Templates/RefCounting.h"
 #include "Containers/LockFreeFixedSizeAllocator.h"
+#include "Experimental/ConcurrentLinearAllocator.h"
 #include "Misc/MemStack.h"
 #include "Templates/Atomic.h"
 
@@ -449,6 +450,17 @@ public:
 	static void BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskThreads, bool bDoBackgroundThreads, TFunction<void(ENamedThreads::Type CurrentThread)>& Callback);
 };
 
+struct FTaskGraphBlockAllocationTag : FDefaultBlockAllocationTag
+{
+	static constexpr uint32 BlockSize = 64 * 1024;
+	static constexpr bool AllowOversizedBlocks = false;
+	static constexpr bool RequiresAccurateSize = false;
+	static constexpr bool InlineBlockAllocation = true;
+	static constexpr const TCHAR* TagName = TEXT("TaskGraphLinear");
+
+	using Allocator = TBlockAllocationCache<BlockSize, FAlignedAllocator>;
+};
+
 /** 
  *	Base class for all tasks. 
  *	Tasks go through a very specific life stage progression, and this is verified.
@@ -456,15 +468,6 @@ public:
 
 class FBaseGraphTask
 {
-public:
-
-	// Allocator for small tasks.
-	enum
-	{
-		/** Total size in bytes for a small task that will use the custom allocator **/
-		SMALL_TASK_SIZE = 256 + sizeof(LowLevelTasks::FTask)
-	};
-	typedef TLockFreeFixedSizeAllocator_TLSCache<SMALL_TASK_SIZE, PLATFORM_CACHE_LINE_SIZE, FNoopCounter, true> TSmallTaskAllocator;
 protected:
 	/** 
 	 *	Constructor
@@ -515,9 +518,6 @@ protected:
 	/** Logs a task name that may contain invalid subsequents. Debug only. */
 	static void CORE_API LogPossiblyInvalidSubsequentsTask(const TCHAR* TaskName);
 #endif
-
-	/** Singleton to retrieve the small task allocator **/
-	static CORE_API TSmallTaskAllocator& GetSmallTaskAllocator();
 
 	/** 
 	 *	An indication that a prerequisite has been completed. Reduces the number of prerequisites by one and if no prerequisites are outstanding, it queues the task for execution.
@@ -860,7 +860,7 @@ public:
  *	Embeds a user defined task, as exemplified above, for doing the work and provides the functionality for setting up and handling prerequisites and subsequents
  **/
 template<typename TTask>
-class TGraphTask final : public FBaseGraphTask
+class TGraphTask final : public TConcurrentLinearObject<TGraphTask<TTask>, FTaskGraphBlockAllocationTag>, public FBaseGraphTask
 {
 public:
 	/** 
@@ -924,11 +924,6 @@ public:
 	static FConstructor CreateTask(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
 		int32 NumPrereq = Prerequisites ? Prerequisites->Num() : 0;
-		if (sizeof(TGraphTask) <= FBaseGraphTask::SMALL_TASK_SIZE)
-		{
-			void *Mem = FBaseGraphTask::GetSmallTaskAllocator().Allocate();
-			return FConstructor(new (Mem) TGraphTask(TTask::GetSubsequentsMode() == ESubsequentsMode::FireAndForget ? NULL : FGraphEvent::CreateGraphEvent(), NumPrereq), Prerequisites, CurrentThreadIfKnown);
-		}
 		return FConstructor(new TGraphTask(TTask::GetSubsequentsMode() == ESubsequentsMode::FireAndForget ? NULL : FGraphEvent::CreateGraphEvent(), NumPrereq), Prerequisites, CurrentThreadIfKnown);
 	}
 
@@ -998,15 +993,7 @@ private:
 
 	void DeleteTask() final override
 	{
-		if (sizeof(TGraphTask) <= FBaseGraphTask::SMALL_TASK_SIZE)
-		{
-			this->TGraphTask::~TGraphTask();
-			FBaseGraphTask::GetSmallTaskAllocator().Free(this);
-		}
-		else
-		{
-			delete this;
-		}
+		delete this;
 	}
 
 	// Internals 
@@ -1112,11 +1099,6 @@ private:
 	**/
 	static FConstructor CreateTask(FGraphEventRef SubsequentsToAssume, const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		if (sizeof(TGraphTask) <= FBaseGraphTask::SMALL_TASK_SIZE)
-		{
-			void *Mem = FBaseGraphTask::GetSmallTaskAllocator().Allocate();
-			return FConstructor(new (Mem) TGraphTask(SubsequentsToAssume, Prerequisites ? Prerequisites->Num() : 0), Prerequisites, CurrentThreadIfKnown);
-		}
 		return FConstructor(new TGraphTask(SubsequentsToAssume, Prerequisites ? Prerequisites->Num() : 0), Prerequisites, CurrentThreadIfKnown);
 	}
 

@@ -3,7 +3,9 @@
 #pragma once
 #include "Async/Fundamental/Task.h"
 #include "Async/Fundamental/Scheduler.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Experimental/Containers/FAAArrayQueue.h"
+#include "Experimental/ConcurrentLinearAllocator.h"
 #include "Templates/RefCounting.h"
 #include <atomic>
 
@@ -43,7 +45,7 @@ class TLocalWorkQueue
 {
 	UE_NONCOPYABLE(TLocalWorkQueue);
 
-	struct FInternalData : public FThreadSafeRefCountedObject
+	struct FInternalData : public TConcurrentLinearObject<FInternalData, FTaskGraphBlockAllocationTag>, public FThreadSafeRefCountedObject
 	{
 		FAAArrayQueue<TaskType> TaskQueue;	
 		std::atomic_int ActiveWorkers {0};
