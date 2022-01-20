@@ -13,6 +13,7 @@
 #include "UI/CameraCalibrationEditorStyle.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -30,49 +31,53 @@ void SLensEvaluation::Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibr
 		SNew(SBorder)
 		.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
 		[
-			SNew(SHorizontalBox)
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				SNew(SHorizontalBox)
 
-			//Tracking section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeTrackingWidget()
-			]
-			//Raw Input FIZ section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeRawInputFIZWidget()
-			]
-			//Evaluated FIZ section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeEvaluatedFIZWidget()
-			]
-			//Distortion section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeDistortionWidget()
-			]
-			//Image Center section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeIntrinsicsWidget()
-			]
-			//Nodal offset section
-			+ SHorizontalBox::Slot()
-			.Padding(5.0f, 5.0f)
-			.FillWidth(0.2f)
-			[
-				MakeNodalOffsetWidget()	
+				//Tracking section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeTrackingWidget()
+				]
+				//Raw Input FIZ section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeRawInputFIZWidget()
+				]
+				//Evaluated FIZ section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeEvaluatedFIZWidget()
+				]
+				//Distortion section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeDistortionWidget()
+				]
+				//Image Center section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeIntrinsicsWidget()
+				]
+				//Nodal offset section
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 5.0f)
+				.FillWidth(0.2f)
+				[
+					MakeNodalOffsetWidget()	
+				]
 			]
 		]
 	];
