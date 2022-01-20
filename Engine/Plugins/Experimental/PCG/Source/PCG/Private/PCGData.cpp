@@ -17,6 +17,13 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetExclusions() const
 		});
 }
 
+TArray<FPCGTaggedData> FPCGDataCollection::GetAllSettings() const
+{
+	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
+		return Data.Usage == EPCGDataUsage::Settings;
+		});
+}
+
 const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaultSettings) const
 {
 	if (!InDefaultSettings)
@@ -43,4 +50,9 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputs(const FPCGDataCollecti
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetExclusions(const FPCGDataCollection& InCollection)
 {
 	return InCollection.GetExclusions();
+}
+
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetAllSettings(const FPCGDataCollection& InCollection)
+{
+	return InCollection.GetAllSettings();
 }

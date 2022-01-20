@@ -133,5 +133,9 @@ bool FPCGSurfaceSamplerElement::Execute(FPCGContextPtr Context) const
 		}
 	}
 
+	// Finally, forward any exclusions/settings
+	Outputs.Append(Context->InputData.GetExclusions());
+	Outputs.Append(Context->InputData.GetAllSettings());
+
 	return true;
 }

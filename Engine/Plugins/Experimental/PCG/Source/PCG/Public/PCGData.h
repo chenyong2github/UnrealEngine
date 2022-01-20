@@ -52,6 +52,7 @@ struct FPCGDataCollection
 
 	TArray<FPCGTaggedData> GetInputs() const;
 	TArray<FPCGTaggedData> GetExclusions() const;
+	TArray<FPCGTaggedData> GetAllSettings() const;
 
 	template<typename SettingsType>
 	const SettingsType* GetSettings() const;
@@ -84,4 +85,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetExclusions(const FPCGDataCollection& InCollection);
+
+	UFUNCTION(BlueprintCallable, Category = Data)
+	static TArray<FPCGTaggedData> GetAllSettings(const FPCGDataCollection& InCollection);
 };
