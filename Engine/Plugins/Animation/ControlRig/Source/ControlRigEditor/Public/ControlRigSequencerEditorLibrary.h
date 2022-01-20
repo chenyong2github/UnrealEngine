@@ -28,11 +28,13 @@ struct FControlRigSequencerBindingProxy
 
 	FControlRigSequencerBindingProxy()
 		: ControlRig(nullptr)
+		, Track(nullptr)
 	{}
 
-	FControlRigSequencerBindingProxy(const FSequencerBindingProxy& InProxy, UControlRig* InControlRig)
+	FControlRigSequencerBindingProxy(const FSequencerBindingProxy& InProxy, UControlRig* InControlRig, UMovieSceneControlRigParameterTrack* InTrack)
 		: Proxy(InProxy)
 		, ControlRig(InControlRig)
+		, Track(InTrack)
 	{}
 
 	UPROPERTY(BlueprintReadOnly, Category = ControlRig)
@@ -40,6 +42,9 @@ struct FControlRigSequencerBindingProxy
 
 	UPROPERTY(BlueprintReadOnly, Category = ControlRig)
 	TObjectPtr<UControlRig> ControlRig;
+
+	UPROPERTY(BlueprintReadOnly, Category = ControlRig)
+	TObjectPtr<UMovieSceneControlRigParameterTrack> Track;
 };
 
 /**
@@ -809,6 +814,20 @@ public:
 	static bool CollapseControlRigAnimLayers(ULevelSequence* InSequence,UMovieSceneControlRigParameterTrack* InTrack, bool bKeyReduce = false, float Tolerance = 0.001f);
 
 	/*
+	 * Get the default parent key, can be used a parent space.
+	 *
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static FRigElementKey GetDefaultParentKey();
+
+	/*
+	 * Get the default world space key, can be used a world space.
+	 *
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static FRigElementKey GetWorldSpaceReferenceKey();
+
+	/*
 	 * Set the a key for the Control Rig Space for the Control at the specified time. If space is the same as the current no key witll be set.
 	 *
 	 * @param InSequence Sequence to set the space
@@ -820,19 +839,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool SetControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName, const FRigElementKey& InSpaceKey, FFrameNumber InTime,  ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
-
-	/*Set the a key for the Control Rig Space for the Control at the specified time.If space is the same as the current no key witll be set.
-	*
-	* @param InSequence Sequence to set the space
-	* @param InControlRig ControlRig with the Control
-	* @param InControlName The name of the Control
-	* @param InSpaceKey  The new space for the Control
-	* @param InTime Time to change the space.
-	* @param TimeUnit Unit for the InTime, either in display rate or tick resolution
-	* 
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool DeleteControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName,  FFrameNumber InTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 
 	/** Bake specified Control Rig Controls to a specified Space based upon the current settings
 	* @param InSequence Sequence to bake

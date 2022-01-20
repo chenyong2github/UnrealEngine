@@ -69,6 +69,7 @@ TArray<FControlRigSequencerBindingProxy> UControlRigSequencerEditorLibrary::GetC
 					if (Track && Track->GetControlRig())
 					{
 						FControlRigSequencerBindingProxy BindingProxy;
+						BindingProxy.Track = Track;
 						BindingProxy.ControlRig = Track->GetControlRig();
 						BindingProxy.Proxy.BindingID = Binding.GetObjectGuid();
 						BindingProxy.Proxy.Sequence = LevelSequence;
@@ -2188,43 +2189,6 @@ bool UControlRigSequencerEditorLibrary::SetControlRigSpace(ULevelSequence* Level
 	return bValid;
 }
 
-bool UControlRigSequencerEditorLibrary::DeleteControlRigSpace(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
-{
-	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
-	bool bValid = false;
-
-	if (WeakSequencer.IsValid() && ControlRig && ControlName != NAME_None)
-	{
-		if (FRigControlElement* Element = ControlRig->FindControl(ControlName))
-		{
-			TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
-			FScopedTransaction Transaction(LOCTEXT("KeyControlRigSpace", "Key Control Rig Space"));
-			FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlName, Sequencer.Get(), false /*bCreateIfNeeded*/);
-			if (SpaceChannelAndSection.SpaceChannel)
-			{
-				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
-				{
-					InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), LevelSequence->GetMovieScene()->GetDisplayRate(), LevelSequence->GetMovieScene()->GetTickResolution()).RoundToFrame();
-				}
-				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(SpaceChannelAndSection.SectionToKey);
-				FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(ControlRig, Sequencer.Get(), ControlName, SpaceChannelAndSection.SpaceChannel, ParamSection, InTime);
-				bValid = true;
-			}
-			else
-			{
-				UE_LOG(LogControlRig, Error, TEXT("Can not find Space Channel"));
-				return false;
-			}
-		}
-		else
-		{
-			UE_LOG(LogControlRig, Error, TEXT("Can not find Control with that Name"));
-			return false;
-		}
-	}
-	return bValid;
-}
-
 bool UControlRigSequencerEditorLibrary::BakeControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, TArray<FName>& InControlNames, FRigSpacePickerBakeSettings InSettings, ESequenceTimeUnit TimeUnit)
 {
 	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(InSequence);
@@ -2313,6 +2277,16 @@ bool UControlRigSequencerEditorLibrary::RenameControlRigControlChannels(ULevelSe
 	}
 	
 	return bValid;
+}
+
+FRigElementKey UControlRigSequencerEditorLibrary::GetDefaultParentKey()
+{
+	return URigHierarchy::GetDefaultParentKey();
+}
+
+FRigElementKey UControlRigSequencerEditorLibrary::GetWorldSpaceReferenceKey()
+{
+	return URigHierarchy::GetWorldSpaceReferenceKey();
 }
 
 #undef LOCTEXT_NAMESPACE
