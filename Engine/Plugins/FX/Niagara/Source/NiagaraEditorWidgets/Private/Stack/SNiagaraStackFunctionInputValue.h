@@ -115,6 +115,7 @@ private:
 	void CreateScratchSelected();
 
 	void ParameterHandleSelected(FNiagaraParameterHandle Handle);
+	void ConversionHandleSelected(FNiagaraVariable Handle, UNiagaraScript* ConversionScript);
 
 	EVisibility GetResetButtonVisibility() const;
 

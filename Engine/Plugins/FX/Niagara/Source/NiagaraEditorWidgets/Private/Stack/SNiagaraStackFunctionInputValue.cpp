@@ -743,6 +743,11 @@ void SNiagaraStackFunctionInputValue::ParameterHandleSelected(FNiagaraParameterH
 	FunctionInput->SetLinkedValueHandle(Handle);
 }
 
+void SNiagaraStackFunctionInputValue::ConversionHandleSelected(FNiagaraVariable Handle, UNiagaraScript* ConversionScript)
+{
+	FunctionInput->SetLinkedInputViaConversionScript(Handle, ConversionScript);
+}
+
 EVisibility SNiagaraStackFunctionInputValue::GetResetButtonVisibility() const
 {
 	return FunctionInput->CanReset() ? EVisibility::Visible : EVisibility::Hidden;
@@ -1076,7 +1081,8 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 
 	// Link existing attribute
 	TArray<FNiagaraParameterHandle> AvailableHandles;
-	FunctionInput->GetAvailableParameterHandles(AvailableHandles);
+	TMap<FNiagaraVariable, UNiagaraScript*> AvailableConversionHandles;
+	FunctionInput->GetAvailableParameterHandles(AvailableHandles, AvailableConversionHandles);
 
 	const FString RootCategoryName = FString("Link Inputs");
 	const FText MapInputFormat = LOCTEXT("LinkInputFormat", "Link this input to {0}");
@@ -1098,6 +1104,36 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 			
 			LinkAction->SetParameterVariable(FNiagaraVariable(FunctionInput->GetInputType(), AvailableHandle.GetParameterHandleString()));
 			LinkAction->SourceData = NiagaraSourceData;
+
+			OutAllActions.Add(LinkAction);
+		}
+	}
+
+	const FText ConvertInputFormat = LOCTEXT("ConvertInputFormat", "Link this input to {0} via a conversion script");
+	for (const auto& Entry : AvailableConversionHandles)
+	{
+		FNiagaraVariable ParameterVariable = Entry.Key;
+		UNiagaraScript* ConversionScript = Entry.Value;
+		const FNiagaraParameterHandle& AvailableHandle(ParameterVariable.GetName());
+		TArray<FName> HandleParts = AvailableHandle.GetHandleParts();
+		FNiagaraNamespaceMetadata NamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(HandleParts);
+		if (NamespaceMetadata.IsValid())
+		{			
+			// Only add handles which are in known namespaces to prevent collecting parameter handles
+			// which are being used to configure modules and dynamic inputs in the stack graphs.
+			const FText Category = NamespaceMetadata.DisplayName;
+			const FText DisplayName = FText::FromName(AvailableHandle.GetParameterHandleString());
+			const FText Tooltip = FText::Format(ConvertInputFormat, FText::FromName(AvailableHandle.GetParameterHandleString()));
+
+			TSharedPtr<FNiagaraMenuAction_Generic> LinkAction(new FNiagaraMenuAction_Generic(
+				FNiagaraMenuAction_Generic::FOnExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputValue::ConversionHandleSelected, ParameterVariable, ConversionScript),
+				DisplayName, ENiagaraMenuSections::General, {RootCategoryName, Category.ToString()}, Tooltip, FText()));
+
+			LinkAction->SetParameterVariable(ParameterVariable);
+
+			// set the source data from the script
+			TTuple<EScriptSource, FText> Source = FNiagaraEditorUtilities::GetScriptSource(ConversionScript);
+			LinkAction->SourceData = FNiagaraActionSourceData(Source.Key, Source.Value, true);;
 
 			OutAllActions.Add(LinkAction);
 		}

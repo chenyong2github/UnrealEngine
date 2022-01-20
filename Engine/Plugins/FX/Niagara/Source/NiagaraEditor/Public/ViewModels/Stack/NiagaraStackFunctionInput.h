@@ -131,7 +131,7 @@ public:
 	void SetLinkedValueHandle(const FNiagaraParameterHandle& InParameterHandle);
 
 	/** Gets the current set of available parameter handles which can be assigned to this input. */
-	void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles) const;
+	void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles) const;
 
 	/** Gets the function node form the script graph if the current value mode is DefaultFunction. */
 	UNiagaraNodeFunctionCall* GetDefaultFunctionNode() const;
@@ -253,6 +253,7 @@ public:
 	TArray<UNiagaraScript*> GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType) const;
 
 	void SetLinkedInputViaConversionScript(const FName& LinkedInputName, const FNiagaraTypeDefinition& FromType);
+	void SetLinkedInputViaConversionScript(const FNiagaraVariable& LinkedInput, UNiagaraScript* ConversionScript);
 	void SetClipboardContentViaConversionScript(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
 	void ChangeScriptVersion(FGuid NewScriptVersion);
@@ -366,6 +367,8 @@ private:
 	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
+
+	UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache) const;
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function

@@ -30,7 +30,6 @@
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
-#include "NiagaraStackEditorData.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "ScopedTransaction.h"
 #include "EdGraph/EdGraphPin.h"
@@ -600,7 +599,6 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
-		UNiagaraScript* FunctionScript = InputValues.DynamicNode->FunctionScript;
 		FVersionedNiagaraScriptData* ScriptData = InputValues.DynamicNode->GetScriptData();
 		if (ScriptData != nullptr)
 		{
@@ -1330,8 +1328,21 @@ FName GetNamespaceForUsage(ENiagaraScriptUsage Usage)
 	}
 }
 
-void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles) const
+UNiagaraScript* UNiagaraStackFunctionInput::FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache) const
 {
+	if (UNiagaraScript** CacheEntry = ConversionScriptCache.Find(FromType))
+	{
+		return *CacheEntry;
+	}
+	TArray<UNiagaraScript*> Scripts = GetPossibleConversionScripts(FromType);
+	ConversionScriptCache.Add(FromType, Scripts.Num() == 0? nullptr : Scripts[0]);
+	return ConversionScriptCache[FromType];
+}
+
+void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles) const
+{
+	TMap<FNiagaraTypeDefinition, UNiagaraScript*> ConversionScriptCache;
+	
 	// Engine Handles.
 	for (const FNiagaraVariable& SystemVariable : FNiagaraConstants::GetEngineConstants())
 	{
@@ -1339,11 +1350,29 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 		{
 			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(SystemVariable));
 		}
+		else if (UNiagaraScript* ConversionScript = FindConversionScript(SystemVariable.GetType(), ConversionScriptCache))
+		{
+			AvailableConversionHandles.Add(SystemVariable, ConversionScript);
+		}
 	}
 
-	UNiagaraNodeOutput* CurrentOutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode);
-	UNiagaraEmitter* Emitter = nullptr;
+	// user parameters
+	TArray<FNiagaraVariable> ExposedVars;
+	GetSystemViewModel()->GetSystem().GetExposedParameters().GetParameters(ExposedVars);
+	for (const FNiagaraVariable& ExposedVar : ExposedVars)
+	{
+		if (ExposedVar.GetType() == InputType)
+		{
+			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(ExposedVar));
+		}
+		else if (UNiagaraScript* ConversionScript = FindConversionScript(ExposedVar.GetType(), ConversionScriptCache))
+		{
+			AvailableConversionHandles.Add(ExposedVar, ConversionScript);
+		}
+	}
 
+	// gather variables from the parameter map history
+	UNiagaraEmitter* Emitter = nullptr;
 	TArray<UNiagaraNodeOutput*> AllOutputNodes;
 	if (GetEmitterViewModel().IsValid())
 	{
@@ -1354,19 +1383,8 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 	{
 		GetSystemViewModel()->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph()->GetNodesOfClass<UNiagaraNodeOutput>(AllOutputNodes);
 	}
-	
+	UNiagaraNodeOutput* CurrentOutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode);
 	TArray<FName> StackContextRoots = FNiagaraStackGraphUtilities::StackContextResolution(Emitter, CurrentOutputNode);
-
-	TArray<FNiagaraVariable> ExposedVars;
-	GetSystemViewModel()->GetSystem().GetExposedParameters().GetParameters(ExposedVars);
-	for (const FNiagaraVariable& ExposedVar : ExposedVars)
-	{
-		if (ExposedVar.GetType() == InputType)
-		{
-			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(ExposedVar));
-		}
-	}
-
 	for (UNiagaraNodeOutput* OutputNode : AllOutputNodes)
 	{
 		// Check if this is in a spawn event handler and the emitter is not using interpolated spawn so we
@@ -1407,32 +1425,43 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 					for (int32 j = 0; j < Builder.Histories[0].Variables.Num(); j++)
 					{
 						FNiagaraVariable& HistoryVariable = Builder.Histories[0].Variables[j];
-						FNiagaraVariable& AliasedHistoryVariable = Builder.Histories[0].VariablesWithOriginalAliasesIntact[j];
 						FNiagaraParameterHandle AvailableHandle = FNiagaraParameterHandle(HistoryVariable.GetName());
-						if (HistoryVariable.GetType() == InputType)
+
+						// check if the variable was written to
+						bool bWritten = false;
+						for (const FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[j])
 						{
-							for (const FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[j])
+							if (Cast<UNiagaraNodeParameterMapSet>(WritePin.Pin->GetOwningNode()) != nullptr)
 							{
-								if (Cast<UNiagaraNodeParameterMapSet>(WritePin.Pin->GetOwningNode()) != nullptr)
+								bWritten = true;
+								break;
+							}
+						}
+
+						if (bWritten)
+						{
+							if (HistoryVariable.GetType() == InputType)
+							{
+								AvailableParameterHandles.AddUnique(AvailableHandle);
+								AvailableParameterHandlesForThisOutput.AddUnique(AvailableHandle);
+
+								// Check to see if any variables can be converted to StackContext. This may be more portable for people to setup.
+								for (int32 StackRootIdx = 0; StackRootIdx < StackContextRoots.Num(); StackRootIdx++)
 								{
-									AvailableParameterHandles.AddUnique(AvailableHandle);
-									AvailableParameterHandlesForThisOutput.AddUnique(AvailableHandle);
-
-									// Check to see if any variables can be converted to StackContext. This may be more portable for people to setup.
-									for (int32 StackRootIdx = 0; StackRootIdx < StackContextRoots.Num(); StackRootIdx++)
+									if (HistoryVariable.IsInNameSpace(StackContextRoots[StackRootIdx]))
 									{
-										if (HistoryVariable.IsInNameSpace(StackContextRoots[StackRootIdx]))
-										{
-											// We do a replace here so that we can leave modifiers and other parts intact that might also be aliased.
-											FString NewName = HistoryVariable.GetName().ToString().Replace(*StackContextRoots[StackRootIdx].ToString(), *FNiagaraConstants::StackContextNamespace.ToString());
+										// We do a replace here so that we can leave modifiers and other parts intact that might also be aliased.
+										FString NewName = HistoryVariable.GetName().ToString().Replace(*StackContextRoots[StackRootIdx].ToString(), *FNiagaraConstants::StackContextNamespace.ToString());
 
-											FNiagaraParameterHandle AvailableAliasedHandle = FNiagaraParameterHandle(*NewName);
-											AvailableParameterHandles.AddUnique(AvailableAliasedHandle);
-											AvailableParameterHandlesForThisOutput.AddUnique(AvailableAliasedHandle);
-										}
+										FNiagaraParameterHandle AvailableAliasedHandle = FNiagaraParameterHandle(*NewName);
+										AvailableParameterHandles.AddUnique(AvailableAliasedHandle);
+										AvailableParameterHandlesForThisOutput.AddUnique(AvailableAliasedHandle);
 									}
-									break;
 								}
+							}
+							else if (UNiagaraScript* ConversionScript = FindConversionScript(HistoryVariable.GetType(), ConversionScriptCache))
+							{
+								AvailableConversionHandles.Add(HistoryVariable, ConversionScript);
 							}
 						}
 					}
@@ -1470,6 +1499,10 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 				if (CollectionParam.GetType() == InputType)
 				{
 					AvailableParameterHandles.AddUnique(FNiagaraParameterHandle(CollectionParam.GetName()));
+				}
+				else if (UNiagaraScript* ConversionScript = FindConversionScript(CollectionParam.GetType(), ConversionScriptCache))
+				{
+					AvailableConversionHandles.Add(CollectionParam, ConversionScript);
 				}
 			}
 		}
@@ -2312,6 +2345,24 @@ void UNiagaraStackFunctionInput::SetLinkedInputViaConversionScript(const FName& 
 	}
 }
 
+void UNiagaraStackFunctionInput::SetLinkedInputViaConversionScript(const FNiagaraVariable& LinkedInput, UNiagaraScript* ConversionScript)
+{
+	if (ConversionScript == nullptr)
+	{
+		return;
+	}
+	FScopedTransaction ScopedTransaction(LOCTEXT("SetConversionInput", "Make auto-convert dynamic input"));
+	SetDynamicInput(ConversionScript);
+	for (UNiagaraStackFunctionInput* ChildInput : GetChildInputs())
+	{
+		if (LinkedInput.GetType() == ChildInput->GetInputType())
+		{
+			ChildInput->SetLinkedValueHandle(FNiagaraParameterHandle(LinkedInput.GetName()));
+			break;
+		}
+	}
+}
+
 void UNiagaraStackFunctionInput::SetClipboardContentViaConversionScript(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput)
 {
 	TArray<UNiagaraScript*> NiagaraScripts = GetPossibleConversionScripts(ClipboardFunctionInput.InputType);
@@ -2741,7 +2792,8 @@ void UNiagaraStackFunctionInput::GetDefaultLinkedHandleOrLinkedFunctionFromDefau
 	{
 		// If there are a chain of linked values use the first one that's available, otherwise just use the last one.
 		TArray<FNiagaraParameterHandle> AvailableHandles;
-		GetAvailableParameterHandles(AvailableHandles);
+		TMap<FNiagaraVariable, UNiagaraScript*> ConversionHandles;
+		GetAvailableParameterHandles(AvailableHandles, ConversionHandles);
 		for (FLinkedHandleOrFunctionNode& LinkedValue : LinkedValues)
 		{
 			if (LinkedValue.LinkedFunctionCallNode.IsValid() ||
