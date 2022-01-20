@@ -93,6 +93,22 @@ void ULiveLinkComponentController::OnSubjectRoleChanged()
 		}
 #endif
 	}
+
+	if (OnControllerMapUpdatedDelegate.IsBound())
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+		OnControllerMapUpdatedDelegate.Broadcast();
+	}
+}
+
+void ULiveLinkComponentController::SetSubjectRepresentation(FLiveLinkSubjectRepresentation InSubjectRepresentation)
+{
+	SubjectRepresentation = InSubjectRepresentation;
+
+	if (IsControllerMapOutdated())
+	{
+		OnSubjectRoleChanged();
+	}
 }
 
 void ULiveLinkComponentController::SetControllerClassForRole(TSubclassOf<ULiveLinkRole> RoleClass, TSubclassOf<ULiveLinkControllerBase> DesiredControllerClass)
@@ -286,6 +302,8 @@ void ULiveLinkComponentController::ConvertOldControllerSystem()
 	Controller_DEPRECATED = nullptr;
 }
 
+#endif //WITH_EDITOR
+
 bool ULiveLinkComponentController::IsControllerMapOutdated() const
 {
 	TArray<TSubclassOf<ULiveLinkRole>> SelectedRoleHierarchy = GetSelectedRoleHierarchyClasses(SubjectRepresentation.Role);
@@ -310,8 +328,6 @@ bool ULiveLinkComponentController::IsControllerMapOutdated() const
 
 	return false;
 }
-
-#endif //WITH_EDITOR
 
 TArray<TSubclassOf<ULiveLinkRole>> ULiveLinkComponentController::GetSelectedRoleHierarchyClasses(const TSubclassOf<ULiveLinkRole> InCurrentRoleClass) const
 {
