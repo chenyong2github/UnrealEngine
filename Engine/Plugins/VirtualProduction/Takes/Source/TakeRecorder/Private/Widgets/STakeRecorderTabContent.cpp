@@ -43,7 +43,7 @@ void STakeRecorderTabContent::Construct(const FArguments& InArgs)
 
 EActiveTimerReturnType STakeRecorderTabContent::OnActiveTimer(double InCurrentTime, float InDeltaTime)
 {
-	if (!CurrentMode.IsSet())
+	if (!GetMode().IsSet())
 	{
 		SetupForRecording((UTakePreset*)nullptr);
 	}
@@ -60,16 +60,26 @@ const FSlateBrush* STakeRecorderTabContent::GetIcon() const
 	return IconAttribute.Get();
 }
 
-ETakeRecorderPanelMode STakeRecorderTabContent::GetMode() const
+TOptional<ETakeRecorderPanelMode> STakeRecorderTabContent::GetMode() const
 {
-	return CurrentMode.Get(ETakeRecorderPanelMode::NewRecording);
+	if (WeakPanel.IsValid())
+	{
+		return WeakPanel.Pin()->GetMode();
+	}
+	else if (WeakAssetEditor.IsValid())
+	{
+		return ETakeRecorderPanelMode::EditingPreset;
+	}
+	else
+	{
+		return TOptional<ETakeRecorderPanelMode>();
+	}
 }
 
 void STakeRecorderTabContent::SetupForRecording(UTakePreset* BasePreset)
 {
 	WeakAssetEditor = nullptr;
 
-	CurrentMode    = ETakeRecorderPanelMode::NewRecording;
 	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
 	IconAttribute  = FAppStyle::Get().GetBrush("SequenceRecorder.TabIcon");
 
@@ -94,7 +104,6 @@ void STakeRecorderTabContent::SetupForRecording(ULevelSequence* LevelSequenceAss
 {
 	WeakAssetEditor = nullptr;
 
-	CurrentMode    = ETakeRecorderPanelMode::NewRecording;
 	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
 	IconAttribute  = FTakeRecorderStyle::Get().GetBrush("TakeRecorder.TabIcon");
 
@@ -119,7 +128,6 @@ void STakeRecorderTabContent::SetupForRecordingInto(ULevelSequence* LevelSequenc
 {
 	WeakAssetEditor = nullptr;
 
-	CurrentMode    = ETakeRecorderPanelMode::NewRecording;
 	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
 	IconAttribute  = FTakeRecorderStyle::Get().GetBrush("TakeRecorder.TabIcon");
 
@@ -144,7 +152,6 @@ void STakeRecorderTabContent::SetupForEditing(TSharedPtr<FTakePresetToolkit> InT
 {
 	WeakPanel = nullptr;
 
-	CurrentMode    = ETakeRecorderPanelMode::EditingPreset;
 	TitleAttribute = MakeAttributeSP(InToolkit.Get(), &FTakePresetToolkit::GetToolkitName);
 	IconAttribute  = MakeAttributeSP(InToolkit.Get(), &FTakePresetToolkit::GetTabIcon);
 
@@ -168,7 +175,6 @@ void STakeRecorderTabContent::SetupForViewing(ULevelSequence* LevelSequence)
 {
 	WeakAssetEditor = nullptr;
 
-	CurrentMode    = ETakeRecorderPanelMode::ReviewingRecording;
 	TitleAttribute = FText::FromString(LevelSequence->GetName());
 	IconAttribute  = FSlateIconFinder::FindIconBrushForClass(ULevelSequence::StaticClass());
 

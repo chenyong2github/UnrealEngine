@@ -39,7 +39,8 @@ ETakeRecorderPanelMode UTakeRecorderPanel::GetMode() const
 		return ETakeRecorderPanelMode::NewRecording;
 	}
 
-	return WeakTabContent.Pin()->GetMode();
+	TOptional<ETakeRecorderPanelMode> Mode = WeakTabContent.Pin()->GetMode();
+	return Mode.IsSet() ? Mode.GetValue() : ETakeRecorderPanelMode::NewRecording;
 }
 
 void UTakeRecorderPanel::SetupForRecording_TakePreset(UTakePreset* TakePresetAsset)

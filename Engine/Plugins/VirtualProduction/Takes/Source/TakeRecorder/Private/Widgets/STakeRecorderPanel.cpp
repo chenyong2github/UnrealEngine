@@ -6,6 +6,7 @@
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Recorder/TakeRecorder.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
+#include "Recorder/TakeRecorderPanel.h"
 #include "ScopedSequencerPanel.h"
 #include "ITakeRecorderModule.h"
 #include "TakesCoreBlueprintLibrary.h"
@@ -598,6 +599,24 @@ void STakeRecorderPanel::ClearPendingTake()
 	{
 		LevelSequence->CopyMetaData(BaseSources);
 	}
+}
+
+TOptional<ETakeRecorderPanelMode> STakeRecorderPanel::GetMode() const
+{
+	if (SuppliedLevelSequence)
+	{
+		return ETakeRecorderPanelMode::ReviewingRecording;	
+	}
+	else if (RecordingLevelSequence)
+	{
+		return ETakeRecorderPanelMode::NewRecording;	
+	}
+	else if (RecordIntoLevelSequence)
+	{
+		return ETakeRecorderPanelMode::RecordingInto;	
+	}
+
+	return TOptional<ETakeRecorderPanelMode>();
 }
 
 UTakePreset* STakeRecorderPanel::AllocateTransientPreset()

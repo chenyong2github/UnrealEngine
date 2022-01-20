@@ -27,7 +27,7 @@ public:
 
 	const FSlateBrush* GetIcon() const;
 
-	ETakeRecorderPanelMode GetMode() const;
+	TOptional<ETakeRecorderPanelMode> GetMode() const;
 
 	void SetupForRecording(ULevelSequence* LevelSequenceAsset);
 
@@ -69,7 +69,6 @@ private:
 
 private:
 
-	TOptional<ETakeRecorderPanelMode> CurrentMode;
 	TAttribute<FText> TitleAttribute;
 	TAttribute<const FSlateBrush*> IconAttribute;
 	TWeakPtr<STakeRecorderPanel> WeakPanel;

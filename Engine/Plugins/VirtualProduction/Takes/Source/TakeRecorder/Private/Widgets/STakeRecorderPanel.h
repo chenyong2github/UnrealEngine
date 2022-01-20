@@ -9,6 +9,7 @@
 
 enum class ECheckBoxState : uint8;
 enum class ETakeRecorderMode : uint8;
+enum class ETakeRecorderPanelMode : uint8;
 
 struct FAssetData;
 struct ITakeRecorderSourceTreeItem;
@@ -70,6 +71,8 @@ public:
 	TSharedPtr<STakeRecorderCockpit> GetCockpitWidget() const { return CockpitWidget; }
 
 	void ClearPendingTake();
+
+	TOptional<ETakeRecorderPanelMode> GetMode() const;
 
 private:
 
