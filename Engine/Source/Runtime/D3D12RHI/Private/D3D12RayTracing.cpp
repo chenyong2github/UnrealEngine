@@ -3584,11 +3584,6 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		
 		Initializer.OfflineData->Discard();
 	}
-
-	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
-	{
-		RegisterAsRenameListener(GPUIndex);
-	}
 }
 
 void FD3D12RayTracingGeometry::Swap(FD3D12RayTracingGeometry& Other)
@@ -3729,39 +3724,33 @@ void FD3D12RayTracingGeometry::UnregisterAsRenameListener(uint32 InGPUIndex)
 
 void FD3D12RayTracingGeometry::ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation)
 {
-	// Empty resource location is used on destruction of the base shader resource but this
-	// shouldn't happen for RT Geometries because it keeps smart pointers to it's resources.
-	check(InNewResourceLocation != nullptr);
-
-	// Recreate the hit group parameters which cache the address to the index and vertex buffers directly if the geometry is fully valid
-	uint32 GPUIndex = InRenamedResource->GetParentDevice()->GetGPUIndex();
-	if (BuffersValid(GPUIndex))
-	{
-		SetupHitGroupSystemParameters(GPUIndex);
-	}
-}
-
-bool FD3D12RayTracingGeometry::BuffersValid(uint32 GPUIndex) const
-{
-	if (Initializer.IndexBuffer)
-	{
-		const FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), GPUIndex);
-		if (!IndexBuffer->ResourceLocation.IsValid())
+	// If there is no valid resource location (released) then release  as listener to the resource and mark the raytracing geometry dirty 
+	// (can't be used anymore since one of its pending resources are invalid now).
+	// Ideally this should not happen with correct order of destruction but it can happen that the RT geometry gets deleted a bit later than the buffers because it's
+	// still referenced by the previous RT scene (but not used anymore). This only happens during freeing of RHI buffers during mesh streaming.
+	if (InNewResourceLocation == nullptr)
+	{	
+		FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InRenamedResource->GetParentDevice()->GetGPUIndex());
+		if (IndexBuffer == InRenamedResource)
 		{
-			return false;
+			Initializer.IndexBuffer = nullptr;
 		}
-	}
-
-	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
-	{
-		const FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), GPUIndex);
-		if (!VertexBuffer->ResourceLocation.IsValid())
+		for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
 		{
-			return false;
+			FD3D12Buffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Segment.VertexBuffer.GetReference(), InRenamedResource->GetParentDevice()->GetGPUIndex());
+			if (VertexBuffer == InRenamedResource)
+			{
+				Segment.VertexBuffer = nullptr;
+			}
 		}
-	}
 
-	return true;
+		SetDirty(FRHIGPUMask::FromIndex(InRenamedResource->GetParentDevice()->GetGPUIndex()), true);
+	}
+	else
+	{
+		// Recreate the hit group parameters which cache the address to the index and vertex buffers directly
+		SetupHitGroupSystemParameters(InRenamedResource->GetParentDevice()->GetGPUIndex());
+	}
 }
 
 void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandContext)
@@ -3844,7 +3833,6 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 	TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = HitGroupSystemParameters[InGPUIndex];
 	HitGroupSystemParametersForThisGPU.Reset(Initializer.Segments.Num());
 
-	check(BuffersValid(InGPUIndex));
 	FD3D12Buffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Initializer.IndexBuffer.GetReference(), InGPUIndex);
 	const uint32 IndexStride = IndexBuffer ? IndexBuffer->GetStride() : 0;
 	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
@@ -3878,7 +3866,6 @@ void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12Comman
 
 	// Use the pre-built descs as template and set the GPU resource pointers (current VB/IB).
 	check(OutGeometryDescs.Num() == GeometryDescs.Num());
-	checkf(BuffersValid(GPUIndex), TEXT("Index & vertex buffers should be valid (not streamed out) when building the acceleration structure"));
 
 	FD3D12Buffer* IndexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Initializer.IndexBuffer.GetReference());
 	FD3D12Buffer* NullTransformBufferD3D12 = CommandContext.RetrieveObject<FD3D12Buffer>(NullTransformBuffer.GetReference());
@@ -4284,8 +4271,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 				checkf(!Geometry->IsDirty(CommandContext.GetGPUIndex()),
 					TEXT("Acceleration structures for all geometries must be built before building the top level acceleration structure for the scene."));
-				checkf(Geometry->BuffersValid(CommandContext.GetGPUIndex()),
-					TEXT("Index & vertex buffers for all geometries must be valid (streamed in) when adding geometry to the top level acceleration structure for the scene"));
 
 				AddResidencyHandleForResource(Geometry->AccelerationStructureBuffers[GPUIndex]->GetResource());
 

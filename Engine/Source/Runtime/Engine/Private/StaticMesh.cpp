@@ -1881,8 +1881,6 @@ void UStaticMesh::RequestUpdateCachedRenderState() const
 	{
 		CoarseMeshSM->RequestUpdateCachedRenderState(this);
 	}
-
-	// TODO: Need to mark all DynamicRayTracingGeometries used in FStaticMeshSceneProxy referencing this StaticMesh as either invalid or request a recreation (UE-139474)
 }
 
 

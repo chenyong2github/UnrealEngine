@@ -62,7 +62,6 @@ public:
 	{
 		return bIsAccelerationStructureDirty[GPUIndex];
 	}
-	bool BuffersValid(uint32 GPUIndex) const;
 
 	using FRHIRayTracingGeometry::Initializer;
 	using FRHIRayTracingGeometry::SizeInfo;

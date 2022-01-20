@@ -702,7 +702,6 @@ protected:
 	void InitializeInternal(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
 	{
 		check(InBaseShaderResource);
-		checkf(BaseShaderResource == nullptr || BaseShaderResource == InBaseShaderResource, TEXT("Either BaseShaderResource is not set yet or when it is it can't change (after rename)"));
 
 		// Only register the first time - init can be called again during rename
 		if (BaseShaderResource == nullptr)
@@ -741,18 +740,7 @@ protected:
 		check(InRenamedResource == BaseShaderResource);
 		if (InNewResourceLocation)
 		{
-			// Only recreate the view if new location is valid
-			if (InNewResourceLocation->IsValid())
-			{
-				RecreateView();
-			}
-			else
-			{
-#if DO_CHECK || USING_CODE_ANALYSIS
-				// Mark as invalid for usage
-				bInitialized = false;
-#endif
-			}
+			RecreateView();
 		}
 		else
 		{
