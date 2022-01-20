@@ -617,6 +617,28 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 
 	IDetailCategoryBuilder& ActorCategory = DetailBuilder.EditCategory("Actor", FText::GetEmpty(), ECategoryPriority::Uncommon );
 
+	if (GetSelectedActors().Num() == 1)
+	{
+		if (AActor* Actor = GEditor->GetSelectedActors()->GetTop<AActor>())
+		{
+			const FText ActorGuidText = FText::FromString(Actor->GetActorGuid().ToString());
+			ActorCategory.AddCustomRow( LOCTEXT("ActorGuid", "ActorGuid") )
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ActorGuid", "Actor Guid"))
+					.ToolTipText(LOCTEXT("ActorGuid_ToolTip", "Actor Guid"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				.ValueContent()
+				[
+					SNew(STextBlock)
+						.Text(ActorGuidText)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.IsEnabled(false)
+				];
+		}
+	};
 
 #if 1
 	// Create the info buttons per level

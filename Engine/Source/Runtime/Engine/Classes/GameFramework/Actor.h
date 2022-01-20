@@ -817,8 +817,11 @@ private:
 protected:
 	/**
 	 * The GUID for this actor.
+	 *
+	 * Note: Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
+	 *       See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
 	 */
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
+	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid ActorGuid;
 
 	/** DataLayers the actor belongs to.*/
