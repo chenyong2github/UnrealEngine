@@ -38,20 +38,20 @@ public:
 
 	/** Get an already-requested extension for an WidgetBlueprint. */
 	template<typename ExtensionType>
-    static ExtensionType* GetExtension(UWidgetBlueprint* InWidgetBlueprint)
+    static ExtensionType* GetExtension(const UWidgetBlueprint* InWidgetBlueprint)
 	{
 		return Cast<ExtensionType>(GetExtension(InWidgetBlueprint, ExtensionType::StaticClass()));
 	}
 
 	/** Get an already-requested extension for an WidgetBlueprint. */
-	static UWidgetBlueprintExtension* GetExtension(UWidgetBlueprint* InWidgetBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType);
+	static UWidgetBlueprintExtension* GetExtension(const UWidgetBlueprint* InWidgetBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType);
 
 	/** Get all subsystems currently present on an WidgetBlueprint */
-	static TArray<UWidgetBlueprintExtension*> GetExtensions(UWidgetBlueprint* InWidgetBlueprint);
+	static TArray<UWidgetBlueprintExtension*> GetExtensions(const UWidgetBlueprint* InWidgetBlueprint);
 
 	/** Iterate over all registered WidgetBlueprintExtensions in an WidgetBlueprint */
 	template<typename Predicate>
-	static void ForEachExtension(UWidgetBlueprint* InWidgetBlueprint, Predicate Pred)
+	static void ForEachExtension(const UWidgetBlueprint* InWidgetBlueprint, Predicate Pred)
 	{
 		for (UBlueprintExtension* BlueprintExtension : InWidgetBlueprint->Extensions)
 		{

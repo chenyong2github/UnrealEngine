@@ -1,43 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UMGEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/UObjectHash.h"
-#include "Editor.h"
 
-#include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetBlueprintGeneratedClass.h"
-#include "Settings/WidgetDesignerSettings.h"
-#include "WidgetBlueprint.h"
+#include "Animation/MarginTrackEditor.h"
+#include "Animation/MovieSceneSequenceEditor_WidgetAnimation.h"
+#include "Animation/Sequencer2DTransformTrackEditor.h"
 #include "Animation/WidgetAnimation.h"
-
+#include "Animation/WidgetMaterialTrackEditor.h"
 #include "AssetToolsModule.h"
-#include "IAssetTypeActions.h"
 #include "AssetTypeActions_SlateVectorArtData.h"
 #include "AssetTypeActions_WidgetBlueprint.h"
 #include "AssetTypeActions_WidgetBlueprintGeneratedClass.h"
-#include "KismetCompilerModule.h"
-#include "WidgetBlueprintCompiler.h"
-
-#include "ISequencerModule.h"
-#include "Animation/MarginTrackEditor.h"
-#include "Animation/Sequencer2DTransformTrackEditor.h"
-#include "Animation/WidgetMaterialTrackEditor.h"
-#include "Animation/MovieSceneSequenceEditor_WidgetAnimation.h"
-#include "IUMGModule.h"
-#include "Designer/DesignerCommands.h"
-#include "Navigation/SWidgetDesignerNavigation.h"
-
-#include "ClassIconFinder.h"
-
-#include "UMGEditorProjectSettings.h"
-#include "ISettingsModule.h"
-#include "SequencerSettings.h"
-
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "BlueprintEditorModule.h"
-#include "PropertyEditorModule.h"
+#include "Designer/DesignerCommands.h"
 #include "DynamicEntryBoxDetails.h"
+#include "Editor.h"
+#include "IAssetTypeActions.h"
+#include "ISequencerModule.h"
+#include "ISettingsModule.h"
+#include "IUMGModule.h"
+#include "KismetCompilerModule.h"
 #include "ListViewBaseDetails.h"
+#include "Modules/ModuleManager.h"
+#include "Navigation/SWidgetDesignerNavigation.h"
+#include "PropertyEditorModule.h"
+#include "SequencerSettings.h"
+#include "UMGEditorProjectSettings.h"
+#include "UObject/UObjectHash.h"
+#include "WidgetBlueprint.h"
+#include "WidgetBlueprintCompiler.h"
 #include "WidgetBlueprintThumbnailRenderer.h"
 #include "WidgetThumbnailCustomization.h"
 
@@ -79,6 +72,8 @@ public:
 		DesignerExtensibilityManager = MakeShared<FDesignerExtensibilityManager>();
 
 		DesignerExtensibilityManager->AddDesignerExtensionFactory(SWidgetDesignerNavigation::MakeDesignerExtension());
+
+		PropertyBindingExtensibilityManager = MakeShared<FPropertyBindingExtensibilityManager>();
 
 		// Register widget blueprint compiler we do this no matter what.
 		IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
@@ -171,6 +166,7 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 	virtual TSharedPtr<FDesignerExtensibilityManager> GetDesignerExtensibilityManager() override { return DesignerExtensibilityManager; }
+	virtual TSharedPtr<FPropertyBindingExtensibilityManager> GetPropertyBindingExtensibilityManager() override { return PropertyBindingExtensibilityManager; }
 
 	/** Register settings objects. */
 	void RegisterSettings()
@@ -264,6 +260,7 @@ private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 	TSharedPtr<FDesignerExtensibilityManager> DesignerExtensibilityManager;
+	TSharedPtr<FPropertyBindingExtensibilityManager> PropertyBindingExtensibilityManager;
 
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle MarginTrackEditorCreateTrackEditorHandle;

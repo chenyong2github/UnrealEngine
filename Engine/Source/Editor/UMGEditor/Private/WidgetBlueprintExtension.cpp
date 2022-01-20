@@ -23,7 +23,7 @@ UWidgetBlueprintExtension* UWidgetBlueprintExtension::RequestExtension(UWidgetBl
 }
 
 
-UWidgetBlueprintExtension* UWidgetBlueprintExtension::GetExtension(UWidgetBlueprint* InBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType)
+UWidgetBlueprintExtension* UWidgetBlueprintExtension::GetExtension(const UWidgetBlueprint* InBlueprint, TSubclassOf<UWidgetBlueprintExtension> InExtensionType)
 {
 	// Look for an existing extension
 	for (UBlueprintExtension* Extension : InBlueprint->Extensions)
@@ -38,7 +38,7 @@ UWidgetBlueprintExtension* UWidgetBlueprintExtension::GetExtension(UWidgetBluepr
 }
 
 
-TArray<UWidgetBlueprintExtension*> UWidgetBlueprintExtension::GetExtensions(UWidgetBlueprint* InBlueprint)
+TArray<UWidgetBlueprintExtension*> UWidgetBlueprintExtension::GetExtensions(const UWidgetBlueprint* InBlueprint)
 {
 	TArray<UWidgetBlueprintExtension*> Extensions;
 
