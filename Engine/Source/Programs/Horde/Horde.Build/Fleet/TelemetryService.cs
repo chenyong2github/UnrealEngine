@@ -109,7 +109,7 @@ namespace HordeServer.Services
 				}
 				foreach (ILease Lease in Leases)
 				{
-					if (Lease.StartTime < BucketMaxTime && Lease.FinishTime >= BucketMinTime)
+					if (Lease.StartTime < BucketMaxTime && (!Lease.FinishTime.HasValue || Lease.FinishTime >= BucketMinTime))
 					{
 						List<PoolId>? LeasePools;
 						if (AgentToPoolIds.TryGetValue(Lease.AgentId, out LeasePools))
