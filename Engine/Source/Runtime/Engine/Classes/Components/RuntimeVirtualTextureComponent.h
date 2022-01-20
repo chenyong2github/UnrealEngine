@@ -43,7 +43,7 @@ protected:
 
 	/** Hide primitives in the main pass. Hidden primitives will be those that draw to this virtual texture with 'Draw in Main Pass' set to 'From Virtual Texture'. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
-	bool bHidePrimitives = false;
+	bool bHidePrimitives = true;
 
 	/** Texture object containing streamed low mips. This can reduce rendering update cost. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
@@ -86,6 +86,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualTexture")
 	void Invalidate(FBoxSphereBounds const& WorldBounds);
 
+	/** Set the runtime virtual texture object on this component. */
+	void SetVirtualTexture(URuntimeVirtualTexture* InVirtualTexture);
+
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
@@ -127,6 +130,8 @@ public:
 #endif
 
 #if WITH_EDITOR
+	/** Get the BoundsAlignActor on this component. */
+	void SetBoundsAlignActor(AActor* InActor) { BoundsAlignActor = InActor; }
 	/** Get the BoundsAlignActor on this component. */
 	TSoftObjectPtr<AActor>& GetBoundsAlignActor() { return BoundsAlignActor; }
 	/** Get if SnapBoundsToLandscape is set on this component. */

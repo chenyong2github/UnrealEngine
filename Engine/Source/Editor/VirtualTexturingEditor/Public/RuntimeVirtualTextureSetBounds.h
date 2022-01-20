@@ -9,5 +9,5 @@ class URuntimeVirtualTextureComponent;
 namespace RuntimeVirtualTexture
 {
 	/** Set the transform on a URuntimeVirtualTextureComponent so that it includes the bounds of all associated primitives in the current world. */
-	void SetBounds(URuntimeVirtualTextureComponent* InComponent);
+	void VIRTUALTEXTURINGEDITOR_API SetBounds(URuntimeVirtualTextureComponent* InComponent);
 };

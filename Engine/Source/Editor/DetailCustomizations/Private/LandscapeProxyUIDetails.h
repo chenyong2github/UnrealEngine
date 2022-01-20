@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
-#include "Internationalization/Text.h"
+#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
 class ALandscapeProxy;
@@ -24,6 +22,12 @@ public:
 private:
 	/** Use MakeInstance to create an instance of this class */
 	FLandscapeProxyUIDetails();
+
+		/** Returns true if SetBounds button is enabled */
+	bool IsCreateRuntimeVirtualTextureVolumeEnabled() const;
+	/** Callback for Set Bounds button */
+	FReply CreateRuntimeVirtualTextureVolume();
 	
 	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
+	ALandscapeProxy* LandscapeProxy = nullptr;
 };

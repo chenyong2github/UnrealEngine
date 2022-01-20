@@ -492,6 +492,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
 	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = VirtualTexture)
+	bool bSetCreateRuntimeVirtualTextureVolumes;
+
 	/** 
 	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
 	 * Lower values reduce vertex count when rendering to the runtime virtual texture but decrease accuracy when using values that require vertex interpolation.

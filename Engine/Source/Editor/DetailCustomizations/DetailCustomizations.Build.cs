@@ -66,6 +66,7 @@ public class DetailCustomizations : ModuleRules
 				"RenderCore",
 				"ToolWidgets",
 				"MaterialEditor",
+				"VirtualTexturingEditor",
 			}
 		);
 

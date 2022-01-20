@@ -40,6 +40,12 @@ void URuntimeVirtualTextureComponent::OnUnregister()
 
 #endif
 
+void URuntimeVirtualTextureComponent::SetVirtualTexture(URuntimeVirtualTexture* InVirtualTexture) 
+{
+	VirtualTexture = InVirtualTexture; 
+	MarkRenderStateDirty();
+}
+
 void URuntimeVirtualTextureComponent::GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const
 {
 	OutHidePrimitiveEditor = bHidePrimitives;
