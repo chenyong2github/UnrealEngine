@@ -121,11 +121,19 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 		{
 			const FMeshBatchElement& BatchElement = MeshBatch.Elements[BatchElementIndex];
 			FMeshDrawCommand& MeshDrawCommand = DrawListContext->AddCommand(SharedMeshDrawCommand, NumElements);
+			
 			EFVisibleMeshDrawCommandFlags Flags = SharedFlags;
-
-			if (BatchElement.DynamicPrimitiveData != nullptr && BatchElement.DynamicPrimitiveData->bForceInstanceCulling)
+			if (BatchElement.bForceInstanceCulling)
 			{
 				Flags |= EFVisibleMeshDrawCommandFlags::ForceInstanceCulling;
+			}
+			if (BatchElement.bPreserveInstanceOrder)
+			{
+				// TODO: add support for bPreserveInstanceOrder on mobile
+				if (ensureMsgf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("FMeshBatchElement::bPreserveInstanceOrder is currently only supported on non-mobile platforms.")))
+				{					
+					Flags |= EFVisibleMeshDrawCommandFlags::PreserveInstanceOrder;
+				}
 			}
 
 			DataOffset = 0;

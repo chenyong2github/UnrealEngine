@@ -1608,6 +1608,20 @@ void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int
 	BatchElement0.InstancedLODIndex = LODIndex;
 	BatchElement0.UserIndex = 0;
 	BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
+	
+	if (OutMeshBatch.MaterialRenderProxy)
+	{
+		// If the material on the mesh batch is translucent, then preserve the instance draw order to prevent flickering
+		// TODO: This should use depth sorting of instances instead, once that is implemented for GPU Scene instances
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+		
+		// NOTE: For now, this feature is not supported for mobile platforms
+		if (FeatureLevel > ERHIFeatureLevel::ES3_1)
+		{
+			const FMaterial& Material = OutMeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+			BatchElement0.bPreserveInstanceOrder = IsTranslucentBlendMode(Material.GetBlendMode());
+		}
+	}
 
 	BatchElement0.NumInstances = NumInstances;
 }

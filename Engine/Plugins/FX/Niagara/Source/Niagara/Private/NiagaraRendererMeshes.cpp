@@ -949,7 +949,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		// * Are distance culled
 		// * Are culled because of mismatched MeshIndex
 		// * Are culled because of mismatched VisibilityTag
-		GPUSceneRes.DynamicPrimitiveData.bForceInstanceCulling = true;
+		OutMeshBatchElement.bForceInstanceCulling = true;
 
 		GPUSceneRes.DynamicPrimitiveData.DataWriterGPU = FGPUSceneWriteDelegate::CreateLambda(				
 			[&GPUSceneRes](FRDGBuilder& GraphBuilder, const FGPUSceneWriteDelegateParams& Params)

@@ -13,11 +13,15 @@ void FInstanceCullingMergedContext::MergeBatches()
 	IndirectArgs.Empty(TotalIndirectArgs);
 	DrawCommandDescs.Empty(TotalIndirectArgs);
 	InstanceIdOffsets.Empty(TotalIndirectArgs);
+	PayloadData.Empty(TotalPayloads);
 	ViewIds.Empty(TotalViewIds);
+	DrawCommandCompactionData.Empty(TotalCompactionDrawCommands);
+	CompactionBlockDataIndices.Empty(TotalCompactionBlocks);
 
 	BatchInfos.AddDefaulted(Batches.Num());
 	uint32 InstanceIdBufferOffset = 0U;
 	uint32 InstanceDataByteOffset = 0U;
+	uint32 TempCompactionInstanceOffset = 0U;
 	const uint32 InstanceIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(FeatureLevel);
 
 	// Index that maps from each command to the corresponding batch - maybe not the utmost efficiency
@@ -34,6 +38,9 @@ void FInstanceCullingMergedContext::MergeBatches()
 
 		check(InstanceCullingContext.DrawCommandDescs.Num() == InstanceCullingContext.IndirectArgs.Num());
 		DrawCommandDescs.Append(InstanceCullingContext.DrawCommandDescs);
+
+		BatchInfo.PayloadDataOffset = PayloadData.Num();
+		PayloadData.Append(InstanceCullingContext.PayloadData);
 
 		check(InstanceCullingContext.InstanceIdOffsets.Num() == InstanceCullingContext.IndirectArgs.Num());
 		InstanceIdOffsets.AddDefaulted(InstanceCullingContext.InstanceIdOffsets.Num());
@@ -79,8 +86,26 @@ void FInstanceCullingMergedContext::MergeBatches()
 		Result.IndirectArgsByteOffset = BatchInfo.IndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
 
 		BatchInfo.InstanceDataWriteOffset = InstanceIdBufferOffset;
+
+		// Append the compaction data, but fix up the offsets for the batch
+		BatchInfo.CompactionDataOffset = DrawCommandCompactionData.Num();
+		const uint32 CompactionBlockOffset = CompactionBlockDataIndices.Num();
+		for (auto CompactionData : InstanceCullingContext.DrawCommandCompactionData)
+		{			
+			CompactionData.BlockOffset += CompactionBlockOffset;
+			CompactionData.IndirectArgsIndex += BatchInfo.IndirectArgsOffset;
+			CompactionData.SrcInstanceIdOffset += TempCompactionInstanceOffset;
+			CompactionData.DestInstanceIdOffset += InstanceIdBufferOffset;
+			DrawCommandCompactionData.Add(CompactionData);
+		}
+		for (uint32 CompactionDataIndex : InstanceCullingContext.CompactionBlockDataIndices)
+		{
+			CompactionBlockDataIndices.Add(CompactionDataIndex + BatchInfo.CompactionDataOffset);
+		}
+		TempCompactionInstanceOffset += InstanceCullingContext.NumCompactionInstances;
+
+		// Advance offset into instance ID and per-instance buffer
 		InstanceIdBufferOffset += BatchTotalInstances;
-		// Advance offset into per-instance buffer
 		InstanceDataByteOffset += FInstanceCullingContext::StepInstanceDataOffset(FeatureLevel, BatchTotalInstances, BatchTotalDraws) * InstanceIdBufferStride;
 	}
 }
@@ -119,7 +144,11 @@ void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FI
 #endif 
 
 	TotalIndirectArgs += Context->IndirectArgs.Num();
+	TotalPayloads += Context->PayloadData.Num();
 	TotalViewIds += Context->ViewIds.Num();
 	InstanceIdBufferSize += Context->TotalInstances * Context->ViewIds.Num();
 	TotalInstances += Context->TotalInstances;
+	TotalCompactionDrawCommands += Context->DrawCommandCompactionData.Num();
+	TotalCompactionBlocks += Context->CompactionBlockDataIndices.Num();
+	TotalCompactionInstances += Context->NumCompactionInstances;
 }

@@ -1262,10 +1262,13 @@ enum class EFVisibleMeshDrawCommandFlags : uint8
 	HasPrimitiveIdStreamIndex = 1U << 1U,
 
 	/** If set, forces individual instances to always be culled independently from the primitive */
-	ForceInstanceCulling = 1U << 2U,	
+	ForceInstanceCulling = 1U << 2U,
 
-	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex | ForceInstanceCulling,
-	NumBits = 3U
+	/** If set, requires that instances preserve their original draw order in the draw command */
+	PreserveInstanceOrder = 1U << 3U,
+
+	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex | ForceInstanceCulling | PreserveInstanceOrder,
+	NumBits = 4U
 };
 ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);
 static_assert(uint32(EFVisibleMeshDrawCommandFlags::All) < (1U << uint32(EFVisibleMeshDrawCommandFlags::NumBits)), "EFVisibleMeshDrawCommandFlags::NumBits too small to represent all flags in EFVisibleMeshDrawCommandFlags.");

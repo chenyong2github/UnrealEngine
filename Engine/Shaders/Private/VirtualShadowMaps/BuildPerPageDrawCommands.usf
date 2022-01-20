@@ -165,19 +165,18 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		return;
 	}
 
-	const bool bDynamicInstanceDataOffset = (WorkSetup.Item.Payload & 1U) != 0U;
+	const FInstanceCullingPayload Payload = LoadInstanceCullingPayload(WorkSetup.Item.Payload, BatchInfo);
+
 	uint InstanceDataOffset = WorkSetup.Item.InstanceDataOffset;
 
-	if (bDynamicInstanceDataOffset)
+	if (Payload.bDynamicInstanceDataOffset)
 	{
 		InstanceDataOffset += BatchInfo.DynamicInstanceIdOffset;
 		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < BatchInfo.DynamicInstanceIdMax);
 	}
 
-	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
-	// Work item payload stores the IndirectArgsOffset, which must be offset for the batch.
-	uint IndirectArgIndex = BatchInfo.IndirectArgOffset + (WorkSetup.Item.Payload >> 1U);
-	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[IndirectArgIndex];
+	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);	
+	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[Payload.IndirectArgIndex];
 
 	const bool bNearClip = (NEAR_CLIP != 0);
 
@@ -266,7 +265,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 #endif // USE_HZB_OCCLUSION
 
 						++ThreadTotalForAllViews;
-						WriteCmd(MipViewId, InstanceId, IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
+						WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
 					}
 					else
 					{
@@ -295,7 +294,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_DRAWN, ThreadTotalForAllViews);
 
 	// Accumulate total number of instances for each indirect argument, is also used to allocate space and output compact range of instances later
-	InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], ThreadTotalForAllViews);
+	InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], ThreadTotalForAllViews);
 }
 
 Buffer<uint> DrawIndirectArgsBuffer;

@@ -38,6 +38,13 @@ enum class EInstanceCullingMode
 	Stereo,
 };
 
+enum class EInstanceCullingFlags : uint8
+{
+	None 							= 0,			
+	DrawOnlyVSMInvalidatingGeometry	= 1 << 0,
+	NoInstanceOrderPreservation		= 1 << 1,
+};
+ENUM_CLASS_FLAGS(EInstanceCullingFlags)
 
 // Enumeration of the specialized command processing variants
 enum class EBatchProcessingMode : uint32
@@ -58,7 +65,16 @@ class FInstanceProcessingGPULoadBalancer;
 class FInstanceCullingContext
 {
 public:
+	enum class EInstanceFlags : uint8
+	{
+		None 						= 0,			
+		DynamicInstanceDataOffset 	= 1 << 0,
+		ForceInstanceCulling 		= 1 << 1,
+		PreserveInstanceOrder		= 1 << 2
+	};
+
 	static constexpr uint32 IndirectArgsNumWords = 5;
+	static constexpr uint32 CompactionBlockNumInstances = 64;
 	RENDERER_API static uint32 GetInstanceIdBufferStride(ERHIFeatureLevel::Type FeatureLevel);
 	RENDERER_API static uint32 StepInstanceDataOffset(ERHIFeatureLevel::Type FeatureLevel, uint32 NumStepInstances, uint32 NumStepDraws);
 
@@ -74,8 +90,8 @@ public:
 		FInstanceCullingManager* InInstanceCullingManager, 
 		TArrayView<const int32> InViewIds, 
 		const TRefCountPtr<IPooledRenderTarget>& InPrevHZB,
-		EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, 
-		bool bInDrawOnlyVSMInvalidatingGeometry = false, 
+		EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal,
+		EInstanceCullingFlags InFlags = EInstanceCullingFlags::None,
 		EBatchProcessingMode InSingleInstanceProcessingMode = EBatchProcessingMode::UnCulled
 	);
 	RENDERER_API ~FInstanceCullingContext();
@@ -83,6 +99,7 @@ public:
 	static RENDERER_API const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder);
 
 	static bool IsOcclusionCullingEnabled();
+	
 
 	/**
 	 * Call to empty out the culling commands & other culling data.
@@ -91,17 +108,19 @@ public:
 
 	bool IsEnabled() const { return bIsEnabled; }
 
+	bool IsInstanceOrderPreservationEnabled() const;
+
 	/**
 	 * Add command to cull a range of instances for the given mesh draw command index.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, uint32 NumInstances);
+	void AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, uint32 RunOffset, uint32 NumInstances, EInstanceFlags InstanceFlags);
 
 	/**
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, const uint32* Runs, uint32 NumRuns);
+	void AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, const uint32* Runs, uint32 NumRuns, EInstanceFlags InstanceFlags);
 
 	/*
 	 * Allocate space for indirect draw call argumens for a given MeshDrawCommand and initialize with draw command data.
@@ -163,7 +182,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> PrevHZB = nullptr;
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
-	bool bDrawOnlyVSMInvalidatingGeometry = false;
+	EInstanceCullingFlags Flags = EInstanceCullingFlags::None;
 
 	uint32 TotalInstances = 0U;
 
@@ -185,10 +204,67 @@ public:
 		uint32 bMaterialMayModifyPosition;
 	};
 
+	struct FPayloadData
+	{
+		uint32 bDynamicInstanceDataOffset_IndirectArgsIndex;
+		uint32 InstanceDataOffset;
+		uint32 RunInstanceOffset;
+		uint32 CompactionDataIndex;
+
+		FPayloadData() = default;
+		FPayloadData(
+			bool bInDynamicInstanceDataOffset,
+			uint32 InIndirectArgsIndex,
+			uint32 InInstanceDataOffset,
+			uint32 InRunInstanceOffset,
+			uint32 InCompactionDataIndex)
+			: bDynamicInstanceDataOffset_IndirectArgsIndex(InIndirectArgsIndex | (bInDynamicInstanceDataOffset ? (1u << 31u) : 0u))
+			, InstanceDataOffset(InInstanceDataOffset)
+			, RunInstanceOffset(InRunInstanceOffset)
+			, CompactionDataIndex(InCompactionDataIndex)
+		{
+			checkSlow(InIndirectArgsIndex < (1u << 31u));
+		}
+	};
+
+	struct FCompactionData
+	{
+		static const uint32 NumViewBits = 8;
+
+		uint32 NumInstances_NumViews;
+		uint32 BlockOffset;
+		uint32 IndirectArgsIndex;
+		uint32 SrcInstanceIdOffset;
+		uint32 DestInstanceIdOffset;
+
+		FCompactionData() = default;
+		FCompactionData(
+			uint32 InNumInstances,
+			uint32 InNumViews,
+			uint32 InBlockOffset,
+			uint32 InIndirectArgsIndex,
+			uint32 InSrcInstanceIdOffset,
+			uint32 InDestInstanceIdOffset)
+			: NumInstances_NumViews(InNumViews | (InNumInstances << NumViewBits))
+			, BlockOffset(InBlockOffset)
+			, IndirectArgsIndex(InIndirectArgsIndex)
+			, SrcInstanceIdOffset(InSrcInstanceIdOffset)
+			, DestInstanceIdOffset(InDestInstanceIdOffset)
+		{
+			checkSlow(InNumViews < (1u << NumViewBits));
+			checkSlow(InNumInstances < (1u << (32 - NumViewBits)));
+		}
+	};
+
 	TArray<FMeshDrawCommandInfo> MeshDrawCommandInfos;
 	TArray<FRHIDrawIndexedIndirectParameters> IndirectArgs;
 	TArray<FDrawCommandDesc> DrawCommandDescs;
+	TArray<FPayloadData> PayloadData;
 	TArray<uint32> InstanceIdOffsets;
+
+	TArray<FCompactionData> DrawCommandCompactionData;	
+	TArray<uint32> CompactionBlockDataIndices;	
+	uint32 NumCompactionInstances = 0U;
 
 	using LoadBalancerArray = TStaticArray<FInstanceProcessingGPULoadBalancer*, static_cast<uint32>(EBatchProcessingMode::Num)>;
 	// Driver for collecting items using one mode of processing
@@ -200,4 +276,6 @@ public:
 	// Processing mode to use for single-instance primitives, default to skip culling, as this is already done on CPU. 
 	EBatchProcessingMode SingleInstanceProcessingMode = EBatchProcessingMode::UnCulled;
 };
+
+ENUM_CLASS_FLAGS(FInstanceCullingContext::EInstanceFlags)
 

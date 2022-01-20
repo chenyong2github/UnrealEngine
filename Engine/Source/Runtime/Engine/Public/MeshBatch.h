@@ -76,7 +76,6 @@ struct FMeshBatchDynamicPrimitiveData
 	EGPUSceneGPUWritePass DataWriterGPUPass = EGPUSceneGPUWritePass::None;
 	uint16 PayloadDataFlags = 0;
 	uint32 NumInstanceCustomDataFloats = 0;
-	bool bForceInstanceCulling = false;
 
 	FORCEINLINE void SetPayloadDataFlags(uint16 Flags, bool bValue)
 	{
@@ -203,6 +202,8 @@ struct FMeshBatchElement
 	uint32 bUserDataIsColorVertexBuffer : 1;
 	uint32 bIsSplineProxy : 1;
 	uint32 bIsInstanceRuns : 1;
+	uint32 bForceInstanceCulling : 1;
+	uint32 bPreserveInstanceOrder : 1;
 
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Conceptual element index used for debug viewmodes. */
@@ -254,6 +255,8 @@ struct FMeshBatchElement
 	,	bUserDataIsColorVertexBuffer(false)
 	,	bIsSplineProxy(false)
 	,	bIsInstanceRuns(false)
+	,	bForceInstanceCulling(false)
+	,	bPreserveInstanceOrder(false)
 #if UE_ENABLE_DEBUG_DRAWING
 	,	VisualizeElementIndex(INDEX_NONE)
 #endif

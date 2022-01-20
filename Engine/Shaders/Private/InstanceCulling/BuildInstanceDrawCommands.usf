@@ -5,10 +5,16 @@
 	#define USES_PER_INSTANCE_RANDOM 1
 #endif
 
+#if ENABLE_INSTANCE_COMPACTION
+	// Currently, instance compaction is the only reason to need extended payload data, so tie it to the permutation for now
+	#define ENABLE_EXTENDED_INSTANCE_CULLING_PAYLOADS 1
+#endif
+
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../LightmapData.ush"
 #include "InstanceCullingCommon.ush"
+#include "InstanceCompactionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../Nanite/HZBCull.ush"
 #include "../WaveOpUtil.ush"
@@ -18,6 +24,7 @@
 	// Enable a load balancer optimization where all items are expected to have a single instance
 	#define LOAD_BALANCER_SINGLE_INSTANCE_MODE 1
 #endif
+
 
 #include "InstanceCullingLoadBalancer.ush"
 
@@ -45,6 +52,11 @@ int bDrawOnlyVSMInvalidatingGeometry;
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
 RWStructuredBuffer<float4> InstanceIdsBufferOutMobile;
 RWBuffer<uint> DrawIndirectArgsBufferOut;
+
+// Used for draw commands that need to use compaction to preserve instance order
+StructuredBuffer<FPackedDrawCommandCompactionData> DrawCommandCompactionData;
+RWStructuredBuffer<uint> CompactInstanceIdsBufferOut;
+RWStructuredBuffer<uint> CompactionBlockCounts;
 
 // this is just to avoid compiling packing code for unrelated shaders
 #define USES_PACKED_INSTANCE_DATA (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
@@ -150,6 +162,15 @@ void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData
 	checkStructuredBufferAccessSlow(InstanceIdsBufferOut, Offset);
 	InstanceIdsBufferOut[Offset] = PackedId;
 #endif
+}
+
+void WriteInstanceForCompaction(uint Offset, bool bVisible, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
+{
+	checkSlow(InstanceId < GPUSceneNumInstances);
+
+	uint PackedId = bVisible ? InstanceId | (ViewIdIndex << 28U) : 0xFFFFFFFFU;
+	checkStructuredBufferAccessSlow(CompactInstanceIdsBufferOut, Offset);
+	CompactInstanceIdsBufferOut[Offset] = PackedId;	
 }
 
 bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc)
@@ -259,42 +280,65 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 		return;
 	}
 
-	// Check dynamic flag
-	const bool bDynamicInstanceDataOffset = (WorkSetup.Item.Payload & 1U) != 0U;
-	uint InstanceDataOffset = WorkSetup.Item.InstanceDataOffset;
+	// Extract the draw command payload
+	const FInstanceCullingPayload Payload = LoadInstanceCullingPayload(WorkSetup.Item.Payload, BatchInfo);
 
-	if (bDynamicInstanceDataOffset)
+	uint InstanceId = WorkSetup.Item.InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
+
+	// Check dynamic flag to offset the instance ID
+	if (Payload.bDynamicInstanceDataOffset)
 	{
-		InstanceDataOffset += BatchInfo.DynamicInstanceIdOffset;
-		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < BatchInfo.DynamicInstanceIdMax);
+		InstanceId += BatchInfo.DynamicInstanceIdOffset;
+		checkSlow(InstanceId < BatchInfo.DynamicInstanceIdMax);
 	}
 
-	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
-
-	// Work item payload stores the IndirectArgsOffset, which must be offset for the batch.
-	uint IndirectArgIndex = BatchInfo.IndirectArgOffset + (WorkSetup.Item.Payload >> 1U);
-
-	// TODO: Add unpack and store as bit flags
 	// Load auxiliary per-instanced-draw command info
-	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[IndirectArgIndex];
+	const FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[Payload.IndirectArgIndex];
+
+	// Extract compaction data (if applicable)	
+#if ENABLE_INSTANCE_COMPACTION
+	const bool bCompactInstances = Payload.CompactionDataIndex != 0xFFFFFFFFU;
+#else
+	const bool bCompactInstances = false;
+#endif
+	uint CompactOutputInstanceIndex = 0;
+	FDrawCommandCompactionData CompactionData = (FDrawCommandCompactionData)0;	
+	BRANCH
+	if (bCompactInstances)
+	{
+		CompactionData = UnpackDrawCommandCompactionData(DrawCommandCompactionData[Payload.CompactionDataIndex]);
+		
+		const uint WorkItemLocalInstanceOffset = WorkSetup.Item.InstanceDataOffset - Payload.InstanceDataOffset;
+		CompactOutputInstanceIndex = Payload.RunInstanceOffset + WorkItemLocalInstanceOffset + uint(WorkSetup.LocalItemIndex);
+	}
 
 	// TODO: This must be read-modify-written when batching such that the final offset that is fed to the VS is correct.
 	//       Then we don't need to add the batch offset (BatchInfo.InstanceDataWriteOffset)
-	uint InstanceDataOutputOffset = InstanceIdOffsetBuffer[IndirectArgIndex];
+	const uint InstanceDataOutputOffset = InstanceIdOffsetBuffer[Payload.IndirectArgIndex];
 
-	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+	const FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 
 	if (!ShouldRenderInstance(InstanceData, DrawCommandDesc))
 	{
 		return;
 	}
 
+	uint NumVisibleInstances = 0;
 #if STEREO_CULLING_MODE
-	if (IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 0U) || IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 1U))
+	const bool bVisible = IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 0U) || IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 1U);
+	NumVisibleInstances += bVisible ? 2 : 0;
+	
+	BRANCH
+	if (bCompactInstances)
 	{
-		uint OutputOffset = 0U;
-		InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);
-
+		const uint OutputOffset = CompactOutputInstanceIndex * 2U;
+		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 0U, bVisible, InstanceId, InstanceData, 0U);
+		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 1U, bVisible, InstanceId, InstanceData, 1U);
+	}
+	else if (bVisible)
+	{
+		uint OutputOffset;
+		InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);				
 		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, InstanceData, 0U);
 		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, InstanceData, 1U);
 	}
@@ -303,18 +347,35 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 	{
 		// Culling is disabled for multi-view
-		if (IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex))
+		const bool bVisible = IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex);
+		NumVisibleInstances += bVisible ? 1 : 0;
+		
+		BRANCH
+		if (bCompactInstances)
 		{
-			uint OutputOffset = 0;
-			// TOOD: if all items in the group-batch target the same draw args the more efficient warp-collective functions can be used
+			const uint OutputOffset = CompactOutputInstanceIndex * BatchInfo.NumViewIds + ViewIdIndex;
+			WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset, bVisible, InstanceId, InstanceData, ViewIdIndex);
+		}
+		else if (bVisible)
+		{
+			// TODO: if all items in the group-batch target the same draw args the more efficient warp-collective functions can be used
 			//       detected as FInstanceBatch.NumItems == 1. Can switch dynamically or bin the items that fill a group and dispatch separately with permutation.
 			// TODO: if the arg only has a single item, and culling is not enabled, then we can skip the atomics. Again do dynamically or separate permutation.
-			InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 1U, OutputOffset);
+			uint OutputOffset;
+			InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 1U, OutputOffset);
 
 			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, InstanceData, ViewIdIndex);
 		}
 	}
 #endif // STEREO_CULLING_MODE
+
+	BRANCH
+	if (bCompactInstances && NumVisibleInstances > 0)
+	{
+		// Determine compaction block and atomically increment its count			
+		const uint BlockIndex = GetCompactionBlockIndexFromInstanceIndex(CompactOutputInstanceIndex);
+		InterlockedAdd(CompactionBlockCounts[CompactionData.BlockOffset + BlockIndex], NumVisibleInstances);
+	}
 }
 
 
