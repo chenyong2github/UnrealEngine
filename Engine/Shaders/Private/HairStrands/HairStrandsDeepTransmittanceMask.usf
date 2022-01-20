@@ -541,13 +541,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			return;
 		}
 
-		FGBufferData GBuffer = (FGBufferData)0;
-		GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-		GBuffer.WorldNormal = Sample.Tangent;
-		GBuffer.BaseColor = Sample.BaseColor;
-		GBuffer.Roughness = Sample.Roughness;
-		GBuffer.Specular = Sample.Specular;
-
 		const uint MacroGroupIndex = clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
 
 		FTransmittanceSettings Settings;

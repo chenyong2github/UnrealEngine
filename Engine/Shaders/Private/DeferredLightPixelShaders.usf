@@ -22,6 +22,7 @@
 
 #if USE_HAIR_LIGHTING == 1
 #include "HairStrands/HairStrandsVisibilityCommon.ush"
+#include "HairStrands/HairStrandsVisibilityUtils.ush"
 #endif
 #include "HairStrands/HairStrandsCommon.ush"
 #include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
@@ -364,20 +365,7 @@ void DeferredLightPixelMain(
 	const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 	FScreenSpaceData HairScreenSpaceData = (FScreenSpaceData)0;
 	HairScreenSpaceData.AmbientOcclusion = 1;
-	HairScreenSpaceData.GBuffer.WorldNormal = Sample.Tangent;
-	HairScreenSpaceData.GBuffer.BaseColor = Sample.BaseColor;
-	HairScreenSpaceData.GBuffer.Roughness = Sample.Roughness;
-	HairScreenSpaceData.GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-	HairScreenSpaceData.GBuffer.DiffuseColor = 0;
-	HairScreenSpaceData.GBuffer.SpecularColor = 0;
-	HairScreenSpaceData.GBuffer.Specular = Sample.Specular;
-	HairScreenSpaceData.GBuffer.Metallic = 0;
-	HairScreenSpaceData.GBuffer.Depth = SceneDepth;
-	HairScreenSpaceData.GBuffer.GBufferAO = 1;
-	HairScreenSpaceData.GBuffer.CustomData = float4(HairStrands.HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
-	HairScreenSpaceData.GBuffer.IndirectIrradiance = 0;
-	HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
-	HairScreenSpaceData.GBuffer.PerObjectGBufferData = 0;
+	HairScreenSpaceData.GBuffer = HairSampleToGBufferData(Sample, HairStrands.HairDualScatteringRoughnessOverride);
 
 	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * HairScreenSpaceData.GBuffer.Depth, HairScreenSpaceData.GBuffer.Depth, 1), View.ScreenToTranslatedWorld).xyz;
 	const float3 CameraVector = normalize(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);

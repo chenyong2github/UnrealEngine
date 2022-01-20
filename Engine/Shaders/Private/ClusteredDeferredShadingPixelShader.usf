@@ -27,6 +27,7 @@
 #if USE_HAIR_LIGHTING == 1
 	#include "HairStrands/HairStrandsCommon.ush"
 	#include "HairStrands/HairStrandsVisibilityCommon.ush"
+	#include "HairStrands/HairStrandsVisibilityUtils.ush"
 	#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
 	#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush" 
 #endif // USE_HAIR_LIGHTING
@@ -391,22 +392,8 @@ void ClusteredShadingPixelShader(
 	const float2 LocalPosition = PixelCoord - View.ViewRectMin.xy;
 	FScreenSpaceData ScreenSpaceData = (FScreenSpaceData)0;
 	{
-		// HAIR_TODO: make a HairSampleToGbuffer helper function
 		ScreenSpaceData.AmbientOcclusion = 1;
-		ScreenSpaceData.GBuffer.WorldNormal = Sample.Tangent;
-		ScreenSpaceData.GBuffer.BaseColor = Sample.BaseColor;
-		ScreenSpaceData.GBuffer.Roughness = Sample.Roughness;
-		ScreenSpaceData.GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
-		ScreenSpaceData.GBuffer.DiffuseColor = 0;
-		ScreenSpaceData.GBuffer.SpecularColor = 0;
-		ScreenSpaceData.GBuffer.Specular = Sample.Specular;
-		ScreenSpaceData.GBuffer.Metallic = 0;
-		ScreenSpaceData.GBuffer.Depth = SceneDepth;
-		ScreenSpaceData.GBuffer.GBufferAO = 1;
-		ScreenSpaceData.GBuffer.CustomData = float4(HairStrands.HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
-		ScreenSpaceData.GBuffer.IndirectIrradiance = 0;
-		ScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
-		ScreenSpaceData.GBuffer.PerObjectGBufferData = 0;
+		ScreenSpaceData.GBuffer = HairSampleToGBufferData(Sample, HairStrands.HairDualScatteringRoughnessOverride);
 	}
 
 	const float Dither = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
