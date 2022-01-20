@@ -2066,9 +2066,11 @@ struct FHairGrid
 {
 	struct FCurve
 	{
-		uint32 CurveIndex = 0;
-		float  Radius = 0;
-		uint8  GroupIndex = 0;
+		FVector3f BaseColor = FVector3f::ZeroVector;
+		float     Roughness = 0;
+		uint32    CurveIndex = 0;
+		float     Radius = 0;
+		uint8     GroupIndex = 0;
 	};
 
 	struct FVoxel
@@ -2133,6 +2135,10 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 				const FVector3f& P1 = In.StrandsPoints.PointsPosition[Index1];
 				const float R0 = In.StrandsPoints.PointsRadius[Index0];
 				const float R1 = In.StrandsPoints.PointsRadius[Index1];
+				const FVector3f C0(In.StrandsPoints.PointsBaseColor[Index0].R, In.StrandsPoints.PointsBaseColor[Index0].G, In.StrandsPoints.PointsBaseColor[Index0].B);
+				const FVector3f C1(In.StrandsPoints.PointsBaseColor[Index1].R, In.StrandsPoints.PointsBaseColor[Index1].G, In.StrandsPoints.PointsBaseColor[Index1].B);
+				const float Rough0 = In.StrandsPoints.PointsRoughness[Index0];
+				const float Rough1 = In.StrandsPoints.PointsRoughness[Index1];
 				const FVector3f Segment = P1 - P0;
 
 				// This is a coarse/non-conservative voxelization, by ray-marching segment, instead of walking intersected voxels
@@ -2142,7 +2148,6 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 				{
 					const float T = float(StepIt) / float(StepCount);
 					const FVector3f P = P0 + Segment * T;
-					const float R = FMath::Lerp(R0, R1, T);
 					const FIntVector Coord = ToCoord(P, Out.Resolution, Out.MinBound, Out.VoxelSize);
 					const uint32 LinearCoord = ToLinearCoord(Coord, Out.Resolution);
 					if (LinearCoord != PrevLinearCoord)
@@ -2150,7 +2155,9 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 						FHairGrid::FCurve RCurve;
 						RCurve.CurveIndex = CurveIt;
 						RCurve.GroupIndex = GroupIndex;
-						RCurve.Radius = R;
+						RCurve.Radius = FMath::Lerp(R0, R1, T);
+						RCurve.BaseColor = FVector3f(FMath::Lerp(C0.X, C1.X, T), FMath::Lerp(C0.Y, C1.Y, T), FMath::Lerp(C0.Z, C1.Z, T));
+						RCurve.Roughness = FMath::Lerp(Rough0, Rough1, T);
 						Out.Voxels[LinearCoord].VoxelCurves.Add(RCurve);
 
 						PrevLinearCoord = LinearCoord;
@@ -2163,30 +2170,33 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 	}
 }
 
-FORCEINLINE void SearchCell(const FHairStrandsVoxelData& In, const FIntVector& C, uint8& Out)
+FORCEINLINE void SearchCell(const FHairStrandsVoxelData& In, const FIntVector& C, FHairStrandsVoxelData::FData& Out)
 {
 	const uint32 I = GroomBuilder_Voxelization::ToIndex(C, In.Resolution);
-	if (In.GroupIndices[I] != FHairStrandsVoxelData::InvalidGroupIndex)
+	if (In.Datas[I].GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex)
 	{
-		Out = In.GroupIndices[I];
+		Out = In.Datas[I];
 	}
 }
 
 } // namespace GroomBuilder_Voxelization
 
-uint8 FHairStrandsVoxelData::GetGroupIndex(const FVector3f& P) const
+FHairStrandsVoxelData::FData FHairStrandsVoxelData::GetData(const FVector3f& P) const
 {
 	const uint32 MaxLookupDistance = FMath::Max3(Resolution.X, Resolution.Y, Resolution.Z) * 0.5f;
 	const FIntVector C = GroomBuilder_Voxelization::ToCellCoord(P, MinBound, MaxBound, Resolution);
 
-	uint8 GroupIndex = FHairStrandsVoxelData::InvalidGroupIndex;
+	FHairStrandsVoxelData::FData Out;
+	Out.GroupIndex = FHairStrandsVoxelData::InvalidGroupIndex;
+	Out.BaseColor = FVector3f::ZeroVector;
+	Out.Roughness = 0.f;
 	for (int32 Offset = 1; Offset <= int32(MaxLookupDistance); ++Offset)
 	{
 		// Center
 		{
 			bool bIsValid = false;
 			const FIntVector CellCoord = GroomBuilder_Voxelization::ClampToVolume(C, Resolution, bIsValid);
-			if (bIsValid) GroomBuilder_Voxelization::SearchCell(*this, CellCoord, GroupIndex);
+			if (bIsValid) GroomBuilder_Voxelization::SearchCell(*this, CellCoord, Out);
 		}
 
 		// Top & Bottom
@@ -2196,8 +2206,8 @@ uint8 FHairStrandsVoxelData::GetGroupIndex(const FVector3f& P) const
 			bool bIsValid0 = false, bIsValid1 = false;
 			const FIntVector CellCoord0 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(X, Y, Offset), Resolution, bIsValid0);
 			const FIntVector CellCoord1 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(X, Y, -Offset), Resolution, bIsValid1);
-			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, GroupIndex);
-			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, GroupIndex);
+			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, Out);
+			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, Out);
 		}
 
 		const int32 OffsetMinusOne = Offset - 1;
@@ -2208,8 +2218,8 @@ uint8 FHairStrandsVoxelData::GetGroupIndex(const FVector3f& P) const
 			bool bIsValid0 = false, bIsValid1 = false;
 			const FIntVector CellCoord0 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(X, Offset, Z), Resolution, bIsValid0);
 			const FIntVector CellCoord1 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(X, -Offset, Z), Resolution, bIsValid1);
-			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, GroupIndex);
-			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, GroupIndex);
+			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, Out);
+			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, Out);
 		}
 
 		// Left & Right
@@ -2219,22 +2229,22 @@ uint8 FHairStrandsVoxelData::GetGroupIndex(const FVector3f& P) const
 			bool bIsValid0 = false, bIsValid1 = false;
 			const FIntVector CellCoord0 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(Offset, Y, Z), Resolution, bIsValid0);
 			const FIntVector CellCoord1 = GroomBuilder_Voxelization::ClampToVolume(C + FIntVector(-Offset, Y, Z), Resolution, bIsValid1);
-			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, GroupIndex);
-			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, GroupIndex);
+			if (bIsValid0) GroomBuilder_Voxelization::SearchCell(*this, CellCoord0, Out);
+			if (bIsValid1) GroomBuilder_Voxelization::SearchCell(*this, CellCoord1, Out);
 		}
 
 		// Early out if we have found a valid group index during a ring/layer step.
-		if (GroupIndex != InvalidGroupIndex)
+		if (Out.GroupIndex != InvalidGroupIndex)
 		{
 			break;
 		}
 	}
 
 	// No valid group index has been found. In this case force the group index to 0
-	check(GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex);
-	if (GroupIndex == FHairStrandsVoxelData::InvalidGroupIndex) { GroupIndex = 0; } 
+	check(Out.GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex);
+	if (Out.GroupIndex == FHairStrandsVoxelData::InvalidGroupIndex) { Out.GroupIndex = 0; }
 
-	return GroupIndex;
+	return Out;
 }
 
 void FGroomBuilder::VoxelizeGroupIndex(const FHairDescriptionGroups& In, FHairStrandsVoxelData& Out)
@@ -2244,12 +2254,14 @@ void FGroomBuilder::VoxelizeGroupIndex(const FHairDescriptionGroups& In, FHairSt
 	Out.MinBound = Grid.MinBound;
 	Out.MaxBound = Grid.MaxBound;
 	Out.Resolution = Grid.Resolution;
-	Out.GroupIndices.SetNum(Grid.Voxels.Num());
+	Out.Datas.SetNum(Grid.Voxels.Num());
 
-	TArray<uint8> GroupBins;
+	TArray<uint16> GroupBins;
 	for (uint32 I=0,VoxelCount=Grid.Voxels.Num();I<VoxelCount;++I)
 	{
-		Out.GroupIndices[I] = FHairStrandsVoxelData::InvalidGroupIndex;
+		Out.Datas[I].GroupIndex = FHairStrandsVoxelData::InvalidGroupIndex;
+		Out.Datas[I].BaseColor = FVector3f::ZeroVector;
+		Out.Datas[I].Roughness = 0.f;
 
 		// 1. For a given voxel, build an histogram of all the groups falling into this voxel
 		GroupBins.Init(0, 64u);
@@ -2258,24 +2270,33 @@ void FGroomBuilder::VoxelizeGroupIndex(const FHairDescriptionGroups& In, FHairSt
 			check(Curve.GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex);
 			check(Curve.GroupIndex < GroupBins.Num());
 			GroupBins[Curve.GroupIndex]++;
+			Out.Datas[I].BaseColor += Curve.BaseColor;
+			Out.Datas[I].Roughness += Curve.Roughness;
+		}
+
+		const uint32 CurveCount = Grid.Voxels[I].VoxelCurves.Num() > 0;
+		if (CurveCount > 0)
+		{
+			Out.Datas[I].BaseColor /= float(CurveCount);
+			Out.Datas[I].Roughness /= float(CurveCount);
 		}
 
 		// 2. Select the hair group having the largest count
-		if (Grid.Voxels[I].VoxelCurves.Num() > 1)
+		if (CurveCount > 1)
 		{
 			uint32 MaxBinCount = 0u;
 			for (uint8 GroupIndex = 0, GroupCount = GroupBins.Num(); GroupIndex < GroupCount; ++GroupIndex)
 			{
 				if (GroupBins[GroupIndex] > MaxBinCount)
 				{
-					Out.GroupIndices[I] = GroupIndex;
+					Out.Datas[I].GroupIndex = GroupIndex;
 					MaxBinCount = GroupBins[GroupIndex];
 				}
 			}
 		}
-		else if (Grid.Voxels[I].VoxelCurves.Num() == 1)
+		else if (CurveCount == 1)
 		{
-			Out.GroupIndices[I] = Grid.Voxels[I].VoxelCurves[0].GroupIndex;
+			Out.Datas[I].GroupIndex = Grid.Voxels[I].VoxelCurves[0].GroupIndex;
 		}
 	}
 }

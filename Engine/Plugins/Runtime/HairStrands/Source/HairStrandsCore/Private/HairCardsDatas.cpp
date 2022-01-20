@@ -20,6 +20,7 @@ void FHairCardsBulkData::Serialize(FArchive& Ar)
 	Ar << Positions;
 	Ar << Normals;
 	Ar << UVs;
+	Ar << Materials;
 	Ar << Indices;
 	Ar << BoundingBox;
 }

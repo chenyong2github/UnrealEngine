@@ -522,6 +522,7 @@ struct FHairCardsRestResource : public FHairCommonResource
 		Total += BulkData.Normals.GetAllocatedSize();
 		Total += BulkData.Indices.GetAllocatedSize();
 		Total += BulkData.UVs.GetAllocatedSize();
+		Total += BulkData.Materials.GetAllocatedSize();
 		return Total;
 	}
 
@@ -535,20 +536,21 @@ struct FHairCardsRestResource : public FHairCommonResource
 
 	FHairCardsVertexBuffer NormalsBuffer;
 	FHairCardsVertexBuffer UVsBuffer;
+	FHairCardsVertexBuffer MaterialsBuffer;
 
 	FSamplerStateRHIRef DepthSampler = nullptr;
 	FSamplerStateRHIRef TangentSampler = nullptr;
 	FSamplerStateRHIRef CoverageSampler = nullptr;
 	FSamplerStateRHIRef AttributeSampler = nullptr;
 	FSamplerStateRHIRef AuxilaryDataSampler = nullptr;
-	FSamplerStateRHIRef GroupIndexSampler = nullptr;
+	FSamplerStateRHIRef MaterialSampler = nullptr;
 
 	FTextureReferenceRHIRef	DepthTexture = nullptr;
 	FTextureReferenceRHIRef	CoverageTexture = nullptr;
 	FTextureReferenceRHIRef	TangentTexture = nullptr;
 	FTextureReferenceRHIRef	AttributeTexture = nullptr;
 	FTextureReferenceRHIRef	AuxilaryDataTexture = nullptr;
-	FTextureReferenceRHIRef	GroupIndexTexture = nullptr;
+	FTextureReferenceRHIRef	MaterialTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairCardsBulkData& BulkData;
@@ -738,14 +740,14 @@ struct FHairMeshesRestResource : public FHairCommonResource
 	FSamplerStateRHIRef CoverageSampler = nullptr;
 	FSamplerStateRHIRef AttributeSampler = nullptr;
 	FSamplerStateRHIRef AuxilaryDataSampler = nullptr;
-	FSamplerStateRHIRef GroupIndexSampler = nullptr;
+	FSamplerStateRHIRef MaterialSampler = nullptr;
 
 	FTextureReferenceRHIRef	DepthTexture = nullptr;
 	FTextureReferenceRHIRef	CoverageTexture = nullptr;
 	FTextureReferenceRHIRef	TangentTexture = nullptr;
 	FTextureReferenceRHIRef	AttributeTexture = nullptr;
 	FTextureReferenceRHIRef	AuxilaryDataTexture = nullptr;
-	FTextureReferenceRHIRef	GroupIndexTexture = nullptr;
+	FTextureReferenceRHIRef	MaterialTexture = nullptr;
 
 	/* Reference to the hair strands render data */
 	const FHairMeshesBulkData& BulkData;

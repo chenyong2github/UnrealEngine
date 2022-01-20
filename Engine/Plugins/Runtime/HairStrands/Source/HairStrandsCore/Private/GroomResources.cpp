@@ -570,6 +570,7 @@ FHairCardsRestResource::FHairCardsRestResource(const FHairCardsBulkData& InBulkD
 	RestIndexBuffer(InBulkData.Indices),
 	NormalsBuffer(),
 	UVsBuffer(),
+	MaterialsBuffer(),
 	BulkData(InBulkData)
 {
 
@@ -581,12 +582,14 @@ void FHairCardsRestResource::InternalAllocate()
 	CreateBuffer<FHairCardsPositionFormat>(BulkData.Positions, RestPositionBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_PositionBuffer"), ResourceName));
 	CreateBuffer<FHairCardsNormalFormat>(BulkData.Normals, NormalsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_NormalBuffer"), ResourceName));
 	CreateBuffer<FHairCardsUVFormat>(BulkData.UVs, UVsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_UVBuffer"), ResourceName));
+	CreateBuffer<FHairCardsMaterialFormat>(BulkData.Materials, MaterialsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_MaterialBuffer"), ResourceName));
 
 	FSamplerStateRHIRef DefaultSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	DepthSampler = DefaultSampler;
 	TangentSampler = DefaultSampler;
 	CoverageSampler = DefaultSampler;
 	AttributeSampler = DefaultSampler;
+	MaterialSampler = DefaultSampler;
 }
 
 void FHairCardsRestResource::InternalRelease()
@@ -600,6 +603,7 @@ void FHairCardsRestResource::InitResource()
 	RestPositionBuffer.InitResource();
 	NormalsBuffer.InitResource();
 	UVsBuffer.InitResource();
+	MaterialsBuffer.InitResource();
 }
 
 void FHairCardsRestResource::ReleaseResource()
@@ -609,6 +613,7 @@ void FHairCardsRestResource::ReleaseResource()
 	RestPositionBuffer.ReleaseResource();
 	NormalsBuffer.ReleaseResource();
 	UVsBuffer.ReleaseResource();
+	MaterialsBuffer.ReleaseResource();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

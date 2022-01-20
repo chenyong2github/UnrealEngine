@@ -397,7 +397,7 @@ enum class EHairAtlasTextureType : uint8
 	Attribute,
 	Coverage,
 	AuxilaryData,
-	GroupIndex
+	Material
 };
 
 /**

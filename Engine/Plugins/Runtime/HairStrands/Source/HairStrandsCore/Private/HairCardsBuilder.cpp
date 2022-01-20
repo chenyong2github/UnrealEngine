@@ -3335,7 +3335,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("9c");
+	return TEXT("9d");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3712,12 +3712,14 @@ bool InternalImportGeometry(
 	OutBulk.Positions.SetNum(PointCount);
 	OutBulk.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
 	OutBulk.UVs.SetNum(PointCount);
+	OutBulk.Materials.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
 		OutBulk.Positions[PointIt] = FVector4f(Out.Cards.Positions[PointIt], 0);
 		OutBulk.UVs[PointIt] = Out.Cards.UVs[PointIt];
 		OutBulk.Normals[PointIt * 2] = FVector4f(Out.Cards.Tangents[PointIt], 0);
 		OutBulk.Normals[PointIt * 2 + 1] = FVector4f(Out.Cards.Normals[PointIt], TangentFrameSigns[PointIt]);
+		OutBulk.Materials[PointIt] = 0;
 	}
 
 	OutBulk.Indices.SetNum(IndexCount);
@@ -3755,8 +3757,12 @@ bool InternalImportGeometry(
 	}
 
 	// Used voxelized hair group (from hair strands) to assign hair group index to card vertices
-	TArray<uint32> CardGroupIndices;
-	CardGroupIndices.Init(0u, CardsCount);
+	TArray<FVector3f> CardBaseColor;
+	TArray<float> CardsRoughness;
+	TArray<uint8> CardGroupIndices;
+	CardGroupIndices.Init(0u, CardsCount);					// Per-card
+	CardBaseColor.Init(FVector3f::ZeroVector, PointCount);	// Per-vertex
+	CardsRoughness.Init(0.f, PointCount);					// Per-vertex
 	if (InStrandsVoxelData.IsValid())
 	{
 		for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
@@ -3773,11 +3779,13 @@ bool InternalImportGeometry(
 				const uint32 VertexIndex = Out.Cards.Indices[CardsIndexOffset + IndexIt];
 				const FVector3f& P = Out.Cards.Positions[VertexIndex];
 
-				const uint8 GroupIndex = InStrandsVoxelData.GetGroupIndex(P);
-				if (GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex)
+				FHairStrandsVoxelData::FData VoxelData = InStrandsVoxelData.GetData(P);
+				if (VoxelData.GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex)
 				{
-					check(GroupIndex < GroupBins.Num());
-					GroupBins[GroupIndex]++;
+					check(VoxelData.GroupIndex < GroupBins.Num());
+					GroupBins[VoxelData.GroupIndex]++;
+					CardBaseColor[VertexIndex] = VoxelData.BaseColor;
+					CardsRoughness[VertexIndex] = VoxelData.Roughness;
 				}
 			}
 
@@ -3808,18 +3816,25 @@ bool InternalImportGeometry(
 			const float CoordU = Out.Cards.CoordU[VertexIndex];
 			const float InterpolatedCardLength = FMath::Lerp(0.f, CardLength, CoordU);
 
-			// Instead of storing the interoplated card length, store the actual max length of the card, 
-			// as reconstructing the strands length, based on interpolatd CardLength will be too prone to numerical issue.
+			// Instead of storing the interpolated card length, store the actual max length of the card, 
+			// as reconstructing the strands length, based on interpolated CardLength will be too prone to numerical issue.
 			// This means that the strand length retrieves in shader will be an over estimate of the actual length
-			const FFloat16 hCardLength = CardLength;  // InterpolatedCardLength;			
+			const FFloat16 hCardLength = CardLength;  // InterpolatedCardLength;
 
 			// Encode cards length & group index into the .W component of position
 			const uint32 EncodedW = hCardLength.Encoded | (CardGroupIndices[CardIt] << 16u);
 			OutBulk.Positions[VertexIndex].W = *(float*)&EncodedW;
+
+			// Encode the base color in (cheap) sRGB in XYZ. The W component remains unused
+			OutBulk.Materials[VertexIndex] =
+				(uint32(FMath::Sqrt(CardBaseColor[VertexIndex].X) * 255.f)    )|
+				(uint32(FMath::Sqrt(CardBaseColor[VertexIndex].Y) * 255.f)<<8 )|
+				(uint32(FMath::Sqrt(CardBaseColor[VertexIndex].Z) * 255.f)<<16)|
+				(uint32(CardsRoughness[VertexIndex]               * 255.f)<<24);
 		}
 	}
 
-	// Patch Cards RootUV by transfering the guides root UV onto the cards
+	// Patch Cards RootUV by transferring the guides root UV onto the cards
 	if (InStrandsData.IsValid())
 	{
 		// 1. Extract all roots

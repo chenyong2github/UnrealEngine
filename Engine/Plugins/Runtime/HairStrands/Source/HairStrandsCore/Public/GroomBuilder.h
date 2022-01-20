@@ -27,15 +27,21 @@ class UGroomAsset;
 struct FHairStrandsVoxelData
 {
 	static const uint8 InvalidGroupIndex = 0xFF;
+	struct FData
+	{
+		FVector3f BaseColor;
+		float Roughness;
+		uint8 GroupIndex;
+	};
 
 	FVector3f MinBound;
 	FVector3f MaxBound;
 	FIntVector Resolution;
-	TArray<uint8> GroupIndices;
+	TArray<FData> Datas;
 
 	// Return the (closest) group index corresponding to position P
-	uint8 GetGroupIndex(const FVector3f& P) const;
-	bool IsValid() const { return GroupIndices.Num() > 0; }
+	FData GetData(const FVector3f& P) const;
+	bool IsValid() const { return Datas.Num() > 0; }
 };
 
 // Data flow overview

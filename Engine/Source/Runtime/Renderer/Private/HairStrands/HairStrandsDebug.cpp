@@ -203,6 +203,7 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 	case 11:  return EHairStrandsDebugMode::RenderVisCluster;
 	case 12:  return EHairStrandsDebugMode::RenderHairTangent;
 	case 13:  return EHairStrandsDebugMode::RenderHairControlPoints;
+	case 14:  return EHairStrandsDebugMode::RenderHairGroup;
 	default:  return EHairStrandsDebugMode::NoneDebug;
 	};
 }

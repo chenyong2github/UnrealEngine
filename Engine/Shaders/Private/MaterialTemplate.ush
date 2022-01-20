@@ -381,6 +381,7 @@ struct FMaterialPixelParameters
 #if HAIR_CARD_MESH_FACTORY
 	float2	HairPrimitiveUV;		// AtlasUV
 	float2  HairPrimitiveRootUV;	// RootUV
+	float4	HairPrimitiveMaterial;	// Card material
 	float   HairPrimitiveLength;	// Card length
 	float	HairPrimitiveGroupIndex;// Card group index
 #endif
@@ -1339,7 +1340,7 @@ float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 #if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsBaseColor(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #elif HAIR_CARD_MESH_FACTORY
-	return GetHairStrandsBaseColor(Parameters.HairPrimitiveUV);
+	return GetHairStrandsBaseColor(Parameters.HairPrimitiveUV, Parameters.HairPrimitiveMaterial.xyz);
 #else
 	return float3(0,0,0);
 #endif
@@ -1350,7 +1351,7 @@ float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 #if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #elif HAIR_CARD_MESH_FACTORY
-	return GetHairStrandsRoughness(Parameters.HairPrimitiveUV);
+	return GetHairStrandsRoughness(Parameters.HairPrimitiveUV, Parameters.HairPrimitiveMaterial.w);
 #else
 	return 0;
 #endif

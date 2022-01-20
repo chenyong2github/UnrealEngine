@@ -19,14 +19,13 @@ enum class EGroomCacheType : uint8;
 //  * 10/10 bits for UV -> max 1024/1024 rect resolution
 //  * 12 bits for cards count -> 4000 cards for a hair group
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParameters, HAIRSTRANDSCORE_API)
-	SHADER_PARAMETER(uint32, bInvertUV)
-	SHADER_PARAMETER(uint32, bUseTextureRootUV)
-	SHADER_PARAMETER(uint32, bUseTextureGroupIndex)
+	SHADER_PARAMETER(uint32, Flags)
 	SHADER_PARAMETER(uint32, MaxVertexCount)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, NormalsBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, UVsBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, MaterialsBuffer)
 
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, DepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
@@ -38,8 +37,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParamet
 	SHADER_PARAMETER_SAMPLER(SamplerState, AttributeSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, AuxilaryDataTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AuxilaryDataSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GroupIndexTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GroupIndexSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, MaterialTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, MaterialSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
@@ -66,7 +65,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
 
 	SHADER_PARAMETER_SRV(Buffer<float2>, Attribute0Buffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, Attribute1Buffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>,   Attribute1Buffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, MaterialBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
 

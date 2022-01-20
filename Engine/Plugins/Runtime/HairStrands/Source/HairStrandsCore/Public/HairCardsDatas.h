@@ -45,6 +45,15 @@ struct FHairCardsUVFormat
 	static const EPixelFormat Format = PF_A32B32G32R32F; // TODO
 };
 
+struct FHairCardsMaterialFormat
+{
+	typedef uint32 Type;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UByte4;
+	static const EPixelFormat Format = PF_R8G8B8A8;
+};
+
 struct FHairCardsNormalFormat
 {
 	typedef FPackedNormal Type;
@@ -261,6 +270,7 @@ struct FHairCardsBulkData
 		Positions.Empty();
 		Normals.Empty();
 		UVs.Empty();
+		Materials.Empty();
 		Indices.Empty();
 	}
 
@@ -276,6 +286,7 @@ struct FHairCardsBulkData
 	TArray<FHairCardsPositionFormat::Type> Positions;
 	TArray<FHairCardsNormalFormat::Type> Normals;
 	TArray<FHairCardsUVFormat::Type> UVs;
+	TArray<FHairCardsMaterialFormat::Type> Materials;
 	TArray<FHairCardsIndexFormat::Type> Indices;
 	FBox BoundingBox;
 

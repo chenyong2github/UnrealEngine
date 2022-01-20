@@ -43,6 +43,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #if HAIR_CARD_MESH_FACTORY
 	float2 HairPrimitiveUV							: HAIR_PRIMITIVE_UV;	// Atlas UV
 	float2 HairPrimitiveRootUV						: HAIR_PRIMITIVE_ROOTUV;// UV at the root point of the cards
+	float4 HairPrimitiveMaterial					: HAIR_PRIMITIVE_MATERIAL;
 	float  HairPrimitiveLength						: HAIR_PRIMITIVE_LENGTH;
 	nointerpolation float HairPrimitiveGroupIndex	: HAIR_PRIMITIVE_GROUPINDEX;
 #endif

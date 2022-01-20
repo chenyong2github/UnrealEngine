@@ -416,14 +416,14 @@ class FHairStrandTextureDilationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Source_CoverageTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Source_TangentTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Source_AttributeTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Source_GroupIndexTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Source_MaterialTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TriangleMaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_DepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_CoverageTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_TangentTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_AttributeTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_GroupIndexTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Target_MaterialTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -447,13 +447,13 @@ static void AddTextureDilationPass(
 	FRDGTextureRef Source_CoverageTexture,
 	FRDGTextureRef Source_TangentTexture,
 	FRDGTextureRef Source_AttributeTexture,
-	FRDGTextureRef Source_GroupIndexTexture,
+	FRDGTextureRef Source_MaterialTexture,
 
 	FRDGTextureRef Target_DepthTexture,
 	FRDGTextureRef Target_CoverageTexture,
 	FRDGTextureRef Target_TangentTexture,
 	FRDGTextureRef Target_AttributeTexture,
-	FRDGTextureRef Target_GroupIndexTexture)
+	FRDGTextureRef Target_MaterialTexture)
 {
 	FHairStrandTextureDilationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandTextureDilationCS::FParameters>();
 	Parameters->Resolution				= Resolution;
@@ -462,12 +462,12 @@ static void AddTextureDilationPass(
 	Parameters->Source_CoverageTexture	= Source_CoverageTexture;
 	Parameters->Source_TangentTexture	= Source_TangentTexture;
 	Parameters->Source_AttributeTexture = Source_AttributeTexture;
-	Parameters->Source_GroupIndexTexture= Source_GroupIndexTexture;
+	Parameters->Source_MaterialTexture  = Source_MaterialTexture;
 	Parameters->Target_DepthTexture		= GraphBuilder.CreateUAV(Target_DepthTexture);
 	Parameters->Target_CoverageTexture	= GraphBuilder.CreateUAV(Target_CoverageTexture);
 	Parameters->Target_TangentTexture	= GraphBuilder.CreateUAV(Target_TangentTexture);
 	Parameters->Target_AttributeTexture = GraphBuilder.CreateUAV(Target_AttributeTexture);
-	Parameters->Target_GroupIndexTexture= GraphBuilder.CreateUAV(Target_GroupIndexTexture);
+	Parameters->Target_MaterialTexture  = GraphBuilder.CreateUAV(Target_MaterialTexture);
 
 	TShaderMapRef<FHairStrandTextureDilationCS> ComputeShader(ShaderMap);
 	FIntVector DispatchCount = FComputeShaderUtils::GetGroupCount(Resolution, FIntPoint(8, 4));
@@ -520,7 +520,7 @@ static void InternalAllocateStrandsTexture_Attribute(UTexture2D* Out, const FInt
 	InternalAllocateStrandsTexture(Out, Resolution, 1, PF_B8G8R8A8, ETextureSourceFormat::TSF_BGRA8);
 }
 
-static void InternalAllocateStrandsTexture_GroupIndex(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)
+static void InternalAllocateStrandsTexture_Material(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount)
 {
 	InternalAllocateStrandsTexture(Out, Resolution, 1, PF_B8G8R8A8, ETextureSourceFormat::TSF_BGRA8);
 }
@@ -541,7 +541,7 @@ FStrandsTexturesOutput FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(c
 	Output.Coverage = FHairStrandsCore::CreateTexture(PackageName, Resolution, TEXT("_Opacity"), InternalAllocateStrandsTexture_Coverage);
 	Output.Tangent = FHairStrandsCore::CreateTexture(PackageName, Resolution, TEXT("_Tangent"), InternalAllocateStrandsTexture_Tangent);
 	Output.Attribute = FHairStrandsCore::CreateTexture(PackageName, Resolution, TEXT("_Attribute"), InternalAllocateStrandsTexture_Attribute);
-	Output.GroupIndex = FHairStrandsCore::CreateTexture(PackageName, Resolution, TEXT("_GroupIndex"), InternalAllocateStrandsTexture_GroupIndex);
+	Output.Material = FHairStrandsCore::CreateTexture(PackageName, Resolution, TEXT("_Material"), InternalAllocateStrandsTexture_Material);
 	return Output;
 }
 #endif
@@ -582,6 +582,7 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, MaxDistance)
 		SHADER_PARAMETER(int32, TracingDirection)
+		SHADER_PARAMETER(uint32, bHasMaterialData)
 
 		SHADER_PARAMETER(uint32, UVsChannelIndex)
 		SHADER_PARAMETER(uint32, UVsChannelCount)
@@ -591,6 +592,7 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, InVF_PositionOffset)
 		SHADER_PARAMETER_SRV(Buffer, InVF_PositionBuffer)
 		SHADER_PARAMETER_SRV(Buffer, InVF_Attribute0Buffer)
+		SHADER_PARAMETER_SRV(Buffer, InVF_MaterialBuffer)
 		SHADER_PARAMETER(uint32, InVF_ControlPointCount)
 		SHADER_PARAMETER(uint32, InVF_GroupIndex)
 
@@ -651,6 +653,7 @@ static void InternalGenerateHairStrandsTextures(
 	
 	FRHIShaderResourceView* InHairStrands_PositionBuffer,
 	FRHIShaderResourceView* InHairStrands_AttributeBuffer,
+	FRHIShaderResourceView* InHairStrands_MaterialBuffer,
 	const FVector& InHairStrands_PositionOffset,
 	float InHairStrands_Radius,
 	float InHairStrands_Length,
@@ -662,10 +665,11 @@ static void InternalGenerateHairStrandsTextures(
 	FRDGTextureRef OutTangentTexture,
 	FRDGTextureRef OutCoverageTexture,
 	FRDGTextureRef OutRootUVStrandsUSeedTexture,
-	FRDGTextureRef OutGroupIndexTexture,
+	FRDGTextureRef OutMaterialTexture,
 	FRDGTextureRef OutTriangleMask)
 {
 	const FIntPoint OutputResolution = OutDepthTexture->Desc.Extent;
+	const bool bHasMaterialData = InHairStrands_MaterialBuffer != nullptr;
 
 	FHairStrandsTexturePS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairStrandsTexturePS::FParameters>();
 	ParametersPS->OutputResolution = OutputResolution;
@@ -675,6 +679,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->NormalsBuffer = InMeshNormalsBuffer;
 	ParametersPS->MaxDistance = FMath::Abs(InMaxDistance);
 	ParametersPS->TracingDirection = InTracingDirection;
+	ParametersPS->bHasMaterialData = bHasMaterialData ? 1u : 0u;
 
 	ParametersPS->UVsChannelIndex = UVsChannelIndex;
 	ParametersPS->UVsChannelCount = UVsChannelCount;
@@ -682,6 +687,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->InVF_PositionBuffer = InHairStrands_PositionBuffer;
 	ParametersPS->InVF_PositionOffset = InHairStrands_PositionOffset;
 	ParametersPS->InVF_Attribute0Buffer = InHairStrands_AttributeBuffer;
+	ParametersPS->InVF_MaterialBuffer = bHasMaterialData ? InHairStrands_MaterialBuffer : InHairStrands_AttributeBuffer;
 	ParametersPS->InVF_Radius = InHairStrands_Radius;
 	ParametersPS->InVF_Length = InHairStrands_Length;
 	ParametersPS->InVF_ControlPointCount = InHairStrands_ControlPointCount;
@@ -704,7 +710,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 	ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutCoverageTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 	ParametersPS->RenderTargets[3] = FRenderTargetBinding(OutRootUVStrandsUSeedTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-	ParametersPS->RenderTargets[4] = FRenderTargetBinding(OutGroupIndexTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+	ParametersPS->RenderTargets[4] = FRenderTargetBinding(OutMaterialTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 	ParametersPS->RenderTargets[5] = FRenderTargetBinding(OutTriangleMask, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 	ParametersPS->RenderTargets.DepthStencil = FDepthStencilBinding(
 		OutDepthTestTexture,
@@ -890,9 +896,9 @@ static void InternalBuildStrandsTextures_GPU(
 
 	Desc.Format = PF_B8G8R8A8;
 	Desc.ClearValue = FClearValueBinding::Transparent;
-	FRDGTextureRef GroupIndexTexture[2];
-	GroupIndexTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.GroupIndexTexture"));
-	GroupIndexTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.GroupIndexTexture"));
+	FRDGTextureRef MaterialTexture[2];
+	MaterialTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.MaterialTexture"));
+	MaterialTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.MaterialTexture"));
 
 	Desc.Format = PF_R32_UINT;
 	Desc.ClearValue = FClearValueBinding::Black;
@@ -1011,6 +1017,7 @@ static void InternalBuildStrandsTextures_GPU(
 
 				GroupData.Strands.RestResource->PositionBuffer.SRV,
 				GroupData.Strands.RestResource->Attribute0Buffer.SRV,
+				GroupData.Strands.RestResource->MaterialBuffer.SRV,
 				GroupData.Strands.RestResource->GetPositionOffset(),
 				RenderingData.GeometrySettings.HairWidth * 0.5f,
 				GroupData.Strands.RestResource->BulkData.MaxLength,
@@ -1022,7 +1029,7 @@ static void InternalBuildStrandsTextures_GPU(
 				TangentTexture[0],
 				CoverageTexture[0],
 				AttributeTexture[0],
-				GroupIndexTexture[0],
+				MaterialTexture[0],
 				TriangleMaskTexture);
 
 			bClear = false;
@@ -1046,13 +1053,13 @@ static void InternalBuildStrandsTextures_GPU(
 			CoverageTexture[SourceIndex],
 			TangentTexture[SourceIndex],
 			AttributeTexture[SourceIndex],
-			GroupIndexTexture[SourceIndex],
+			MaterialTexture[SourceIndex],
 
 			DepthTexture[TargetIndex],
 			CoverageTexture[TargetIndex],
 			TangentTexture[TargetIndex],
 			AttributeTexture[TargetIndex],
-			GroupIndexTexture[TargetIndex]);
+			MaterialTexture[TargetIndex]);
 
 		SourceIndex = TargetIndex;
 	}
@@ -1061,7 +1068,7 @@ static void InternalBuildStrandsTextures_GPU(
 	AddReadbackPass(GraphBuilder, 4, CoverageTexture[TargetIndex]	, Output.Coverage);
 	AddReadbackPass(GraphBuilder, 4, TangentTexture[TargetIndex]	, Output.Tangent);
 	AddReadbackPass(GraphBuilder, 4, AttributeTexture[TargetIndex]	, Output.Attribute);
-	AddReadbackPass(GraphBuilder, 4, GroupIndexTexture[TargetIndex]	, Output.GroupIndex);
+	AddReadbackPass(GraphBuilder, 4, MaterialTexture[TargetIndex]	, Output.Material);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

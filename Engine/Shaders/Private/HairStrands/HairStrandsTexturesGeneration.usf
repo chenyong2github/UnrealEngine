@@ -81,9 +81,12 @@ float3 ComputeTangent(
 int2 OutputResolution;
 uint VertexCount;
 uint PrimitiveCount;
+uint bHasMaterialData;
 
 Buffer<uint4> InVF_PositionBuffer;
-Buffer<float4> InVF_Attribute0Buffer;
+Buffer<float2> InVF_Attribute0Buffer;
+Buffer<float4> InVF_MaterialBuffer;
+
 float3 InVF_PositionOffset;
 float InVF_Radius;
 float InVF_Length;
@@ -132,7 +135,8 @@ bool Trace(
 	inout float3 OutTangent,
 	inout float2 OutRootUV, 
 	inout float  OutU, 
-	inout float  OutSeed)
+	inout float  OutSeed,
+	inout float4 OutMaterial)
 {
 	bool bIsValid = false;
 
@@ -266,6 +270,14 @@ bool Trace(
 						const uint4 PackedCP_P0 = InVF_PositionBuffer[P0];
 						const uint4 PackedCP_P1 = InVF_PositionBuffer[P1];
 
+						float4 Material0 = 0;
+						float4 Material1 = 0;
+						if (bHasMaterialData)
+						{
+							Material0 = InVF_MaterialBuffer[P0];
+							Material1 = InVF_MaterialBuffer[P1];
+						}
+
 						const FHairControlPoint CP_Curr = UnpackHairControlPoint(PackedCP_P0, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
 						const FHairControlPoint CP_Next = UnpackHairControlPoint(PackedCP_P1, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
 
@@ -291,6 +303,7 @@ bool Trace(
 							OutSeed		= Attributes0.Seed;
 							OutRootUV	= Attributes0.RootUV;
 							OutU		= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
+							OutMaterial = lerp(Material0, Material1, VertexU);
 
 							bIsValid = true;
 
@@ -334,7 +347,7 @@ void MainPS(
 	out float4 OutTangent	: SV_Target1,
 	out float  OutCoverage	: SV_Target2,
 	out float4 OutAttribute : SV_Target3,
-	out float4 OutGroupIndex : SV_Target4,
+	out float4 OutMaterial  : SV_Target4,
 	out uint   OutTriangleMask : SV_Target5,
 	out float  OutDepthTest	: SV_Depth)
 {
@@ -349,7 +362,7 @@ void MainPS(
 	OutCoverage = 0;
 	OutTangent = 0;
 	OutAttribute = 0;
-	OutGroupIndex = 0;
+	OutMaterial = 0;
 	OutDepthTest = 1;
 
 	float3 Tangent_ObjectSpace = 0;
@@ -397,13 +410,15 @@ void MainPS(
 		float2 SampleRootUV = 0;
 		float  SampleU = 0;
 		float  SampleSeed = 0;
-		if (Trace(RayO, RayD, MaxDistance, bDebugEnable, SampleDepth, SampleCoverage, SampleTangent, SampleRootUV, SampleU, SampleSeed))
+		float4 SampleMaterial = 0;
+		if (Trace(RayO, RayD, MaxDistance, bDebugEnable, SampleDepth, SampleCoverage, SampleTangent, SampleRootUV, SampleU, SampleSeed, SampleMaterial))
 		{
 			if (SampleDepth < OutDepth)
 			{
 				OutAttribute.xy = SampleRootUV;
 				OutAttribute.z = SampleU;
 				OutAttribute.w = SampleSeed;
+				OutMaterial.xyz= SampleMaterial.xyz;
 			}
 
 			OutDepth = min(OutDepth, SampleDepth);
@@ -424,7 +439,7 @@ void MainPS(
 		OutCoverage /= SampleCount;
 		OutTangent.xyz = (Tangent_FrameSpace + 1) * 0.5f;
 		OutTangent.w = 1;
-		OutGroupIndex = float4(InVF_GroupIndex / 255.f, 0, 0, 0);
+		OutMaterial.w = InVF_GroupIndex / 255.f;
 	}
 	else
 	{
@@ -432,7 +447,7 @@ void MainPS(
 		OutCoverage = 0;
 		OutTangent = 0;
 		OutAttribute = 0;
-		OutGroupIndex = 0;
+		OutMaterial = 0;
 	}
 
 	OutDepth = saturate(OutDepth / MaxDistance);
@@ -457,13 +472,13 @@ Texture2D<float>  Source_DepthTexture;
 Texture2D<float>  Source_CoverageTexture;
 Texture2D<float4> Source_TangentTexture;
 Texture2D<float4> Source_AttributeTexture;
-Texture2D<float4> Source_GroupIndexTexture;
+Texture2D<float4> Source_MaterialTexture;
 
 RWTexture2D<float>  Target_DepthTexture;
 RWTexture2D<float>  Target_CoverageTexture;
 RWTexture2D<float4> Target_TangentTexture;
 RWTexture2D<float4> Target_AttributeTexture;
-RWTexture2D<float4> Target_GroupIndexTexture;
+RWTexture2D<float4> Target_MaterialTexture;
 
 // Dilate the source texture (Depth/Coverage/Tanget/Attribute), using a distance to triangle edge metric. 
 // Original valid pixel are marked into the triangleMasktexture during the texture generation. Then 
@@ -490,7 +505,7 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 		Target_CoverageTexture[PixelCoord]	= Source_CoverageTexture.Load(uint3(PixelCoord, 0));
 		Target_TangentTexture[PixelCoord]	= Source_TangentTexture.Load(uint3(PixelCoord, 0));
 		Target_AttributeTexture[PixelCoord] = Source_AttributeTexture.Load(uint3(PixelCoord, 0));
-		Target_GroupIndexTexture[PixelCoord] = Source_GroupIndexTexture.Load(uint3(PixelCoord, 0));
+		Target_MaterialTexture[PixelCoord]  = Source_MaterialTexture.Load(uint3(PixelCoord, 0));
 		return;
 	}
 	else
@@ -499,7 +514,7 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 		float Target_Coverage = 0;
 		float4 Target_Tangent = 0;
 		float4 Target_Attribute = 0;
-		float Target_GroupIndex = 0;
+		float4 Target_Material = 0;
 
 		// Find the closest neighbor from triangle, amoung valid neighbord
 		bool bIsDilatedPixelValid = false;
@@ -522,7 +537,7 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 				Target_Coverage		= Source_CoverageTexture.Load(uint3(NPixelCoord, 0));
 				Target_Tangent		= Source_TangentTexture.Load(uint3(NPixelCoord, 0));
 				Target_Attribute	= Source_AttributeTexture.Load(uint3(NPixelCoord, 0));
-				Target_GroupIndex	= Source_GroupIndexTexture.Load(uint3(NPixelCoord, 0)).x;
+				Target_Material		= Source_MaterialTexture.Load(uint3(NPixelCoord, 0));
 				MinDistance			= NDistance;
 				bIsDilatedPixelValid= true;
 			}
@@ -535,7 +550,7 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 			Target_CoverageTexture[PixelCoord]	= Target_Coverage;
 			Target_TangentTexture[PixelCoord]	= Target_Tangent;
 			Target_AttributeTexture[PixelCoord] = Target_Attribute;
-			Target_GroupIndexTexture[PixelCoord] = float4(Target_GroupIndex,0,0,0);
+			Target_MaterialTexture[PixelCoord]  = Target_Material;
 
 			TriangleMaskTexture[PixelCoord] = PackDistance(MinDistance);
 		}
