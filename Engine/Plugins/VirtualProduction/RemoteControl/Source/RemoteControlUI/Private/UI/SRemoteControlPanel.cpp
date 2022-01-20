@@ -1057,6 +1057,8 @@ FReply SRemoteControlPanel::OnClickSettingsButton()
 
 void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterface)
 {
+	// Clear the widget cache on material compiled to make sure we have valid property nodes for IPropertyRowGenerator
+	WidgetRegistry->Clear();
 	Refresh();
 }
 
