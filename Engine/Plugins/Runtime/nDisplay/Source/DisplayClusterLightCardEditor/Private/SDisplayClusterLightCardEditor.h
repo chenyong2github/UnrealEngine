@@ -12,6 +12,7 @@ class FSpawnTabArgs;
 class FToolBarBuilder;
 class SDockTab;
 class SDisplayClusterLightCardList;
+class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
@@ -20,7 +21,6 @@ class SDisplayClusterLightCardEditor : public SCompoundWidget
 public:
 	/** The name of the tab that the light card editor lives in */
 	static const FName TabName;
-
 
 	/** Registers the light card editor with the global tab manager and adds it to the operator panel's extension tab stack */
 	static void RegisterTabSpawner();
@@ -45,6 +45,9 @@ public:
 
 	void Construct(const FArguments& args, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
 
+	/** The current active root actor for this light card editor. */
+	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
+
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
@@ -52,9 +55,15 @@ private:
 	/** Creates the widget used to show the list of light cards associated with the active root actor */
 	TSharedRef<SWidget> CreateLightCardListWidget();
 
+	/** Create the 3d viewport widget. */
+	TSharedRef<SWidget> CreateViewportWidget();
+
 private:
 	/** The light card list widget */
 	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
+
+	/** The 3d viewport. */
+	TSharedPtr<SDisplayClusterLightCardEditorViewport> ViewportView;
 
 	/** A reference to the root actor that is currently being operated on */
 	TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor;

@@ -5,6 +5,8 @@
 #include "SDisplayClusterLightCardList.h"
 
 #include "IDisplayClusterOperator.h"
+#include "Viewport/DisplayClusterLightCardEditorViewport.h"
+
 #include "DisplayClusterRootActor.h"
 
 #include "Framework/Docking/TabManager.h"
@@ -55,7 +57,7 @@ TSharedRef<SDockTab> SDisplayClusterLightCardEditor::SpawnInTab(const FSpawnTabA
 
 void SDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuilder)
 {
-	// TODO: Any toolbar buttons needed for the lightcards editor can be added to the operator panel's toobar using this toolbar extender
+	// TODO: Any toolbar buttons needed for the lightcards editor can be added to the operator panel's toolbar using this toolbar extender
 }
 
 SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
@@ -77,28 +79,40 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 		[
 			// Vertical box for the left hand panel of the editor. Add new slots here as needed for any editor UI controls
 			SNew(SVerticalBox)
-
 			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
 				CreateLightCardListWidget()
 			]
 		]
-
 		+SSplitter::Slot()
-		.Value(0.75f)
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.FillHeight(0.75f)
+			[
+				CreateViewportWidget()
+			]
+		]
 	];
 }
 
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
+	// The new root actor pointer could be null, indicating that it was deleted or the user didn't select a valid root actor
 	ActiveRootActor = NewRootActor;
-
 	LightCardList->SetRootActor(NewRootActor);
+	ViewportView->SetRootActor(NewRootActor);
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 {
 	return SAssignNew(LightCardList, SDisplayClusterLightCardList);
+}
+
+TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
+{
+	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this));
 }
 
 #undef LOCTEXT_NAMESPACE

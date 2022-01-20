@@ -22,6 +22,7 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"UnrealEd",
 				"EditorStyle",
 				"WorkspaceMenuStructure",
+				"AdvancedPreviewScene",
 			});
 	}
 }
