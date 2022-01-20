@@ -332,6 +332,11 @@ void FNiagaraScriptGraphViewModel::PasteNodes()
 
 	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
 	
+	if (ClipboardContent == nullptr)
+	{
+		return;
+	}
+	
 	TSet<UEdGraphNode*> PastedNodes;
 	FEdGraphUtilities::ImportNodesFromText(Graph, ClipboardContent->ExportedNodes, PastedNodes);
 	
@@ -446,7 +451,7 @@ bool FNiagaraScriptGraphViewModel::CanPasteNodes() const
 	}
 
 	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
-	return FEdGraphUtilities::CanImportNodesFromText(Graph, ClipboardContent->ExportedNodes);
+	return ClipboardContent? FEdGraphUtilities::CanImportNodesFromText(Graph, ClipboardContent->ExportedNodes) : false;
 }
 
 void FNiagaraScriptGraphViewModel::DuplicateNodes()

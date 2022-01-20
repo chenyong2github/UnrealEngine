@@ -189,7 +189,7 @@ void FNiagaraStackClipboardUtilities::PasteSelection(const TArray<UNiagaraStackE
 	{
 		const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
 
-		FText TransactionMessage = SelectedEntries[0]->GetPasteTransactionText(ClipboardContent);
+		FText TransactionMessage = ClipboardContent? SelectedEntries[0]->GetPasteTransactionText(ClipboardContent) : FText();
 		if (TransactionMessage.IsEmptyOrWhitespace())
 		{
 			TransactionMessage = LOCTEXT("PasteSelectionTransaction", "Paste to niagara stack.");
