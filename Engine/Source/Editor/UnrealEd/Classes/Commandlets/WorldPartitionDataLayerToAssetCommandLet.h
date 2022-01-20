@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectAnnotation.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Commandlets/Commandlet.h"
 #include "Commandlets/WorldPartitionCommandletHelpers.h"
 #include "PackageSourceControlHelper.h"
