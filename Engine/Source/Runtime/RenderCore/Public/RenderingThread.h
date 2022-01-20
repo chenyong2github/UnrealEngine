@@ -78,6 +78,15 @@ extern RENDERCORE_API void TickRenderingTickables();
 extern RENDERCORE_API void StartRenderCommandFenceBundler();
 extern RENDERCORE_API void StopRenderCommandFenceBundler();
 
+class RENDERCORE_API FCoreRenderDelegates
+{
+public:
+	DECLARE_MULTICAST_DELEGATE(FOnFlushRenderingCommandsStart);
+	static FOnFlushRenderingCommandsStart OnFlushRenderingCommandsStart;
+
+	DECLARE_MULTICAST_DELEGATE(FOnFlushRenderingCommandsEnd);
+	static FOnFlushRenderingCommandsEnd OnFlushRenderingCommandsEnd;
+};
 ////////////////////////////////////
 // Render thread suspension
 ////////////////////////////////////

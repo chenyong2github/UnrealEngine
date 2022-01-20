@@ -106,7 +106,12 @@ protected:
 	void HandleStopPreLoadScreen();
 	void CleanUpResources();
 
-	void HandleReleaseFontResources(const class FSlateFontCache& InFontCache);
+	//Helpers that setup and clean-up delegates that only need to be active while we are playing an EarlyStartup PreLoadScreen
+	void RegisterDelegatesForEarlyStartupPlay();
+	void CleanUpDelegatesForEarlyStartupPlay();
+
+	void HandleFlushRenderingCommandsStart();
+	void HandleFlushRenderingCommandsEnd();
 
 	//Singleton Instance
 	struct FPreLoadScreenManagerDelete

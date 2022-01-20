@@ -32,6 +32,9 @@
 // Globals
 //
 
+FCoreRenderDelegates::FOnFlushRenderingCommandsStart FCoreRenderDelegates::OnFlushRenderingCommandsStart;
+FCoreRenderDelegates::FOnFlushRenderingCommandsEnd FCoreRenderDelegates::OnFlushRenderingCommandsEnd;
+
 UE_TRACE_CHANNEL_DEFINE(RenderCommandsChannel);
 
 RENDERCORE_API bool GIsThreadedRendering = false;
@@ -1281,6 +1284,7 @@ void FlushRenderingCommands()
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FlushRenderingCommands);
+	FCoreRenderDelegates::OnFlushRenderingCommandsStart.Broadcast();
 	FSuspendRenderingTickables SuspendRenderingTickables;
 
 	// Need to flush GT because render commands from threads other than GT are sent to
@@ -1310,6 +1314,8 @@ void FlushRenderingCommands()
 
 	// Delete the objects which were enqueued for deferred cleanup before the command queue flush.
 	delete PendingCleanupObjects;
+
+	FCoreRenderDelegates::OnFlushRenderingCommandsEnd.Broadcast();
 }
 
 void FlushPendingDeleteRHIResources_GameThread()
