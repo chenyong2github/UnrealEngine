@@ -47,27 +47,27 @@ public:
 		FVector4 RangeOriginZ;
 
 		/** X size of the bounds box extent of 4 texture/mesh instances */
-		FVector4 ExtentX;
+		FVector4f ExtentX;
 		/** Y size of the bounds box extent of 4 texture/mesh instances */
-		FVector4 ExtentY;
+		FVector4f ExtentY;
 		/** Z size of the bounds box extent of 4 texture/mesh instances */
-		FVector4 ExtentZ;
+		FVector4f ExtentZ;
 
 		/** Sphere radii for the bounding sphere of 4 texture/mesh instances */
-		FVector4 Radius;
+		FVector4f Radius;
 
 		/** The relative box the bound was computed with. Aligned to be interpreted as FVector4  */
 		MS_ALIGN(16) FUintVector4 PackedRelativeBox;
 
 		/** Minimal distance (between the bounding sphere origin and the view origin) for which this entry is valid */
-		FVector4 MinDistanceSq;
+		FVector4f MinDistanceSq;
 		/** Minimal range distance (between the bounding sphere origin and the view origin) for which this entry is valid */
-		FVector4 MinRangeSq;
+		FVector4f MinRangeSq;
 		/** Maximal range distance (between the bounding sphere origin and the view origin) for which this entry is valid */
-		FVector4 MaxRangeSq;
+		FVector4f MaxRangeSq;
 
 		/** Last visibility time for this bound, used for priority */
-		FVector4 LastRenderTime; //(FApp::GetCurrentTime() - Component->LastRenderTime);
+		FVector4f LastRenderTime; //(FApp::GetCurrentTime() - Component->LastRenderTime);
 
 
 		void Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float LastRenderTime, const FVector& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq);

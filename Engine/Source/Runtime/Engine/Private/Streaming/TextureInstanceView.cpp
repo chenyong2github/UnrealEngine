@@ -353,6 +353,11 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 	{
 		const FRenderAssetInstanceView::FBounds4& CurrentBounds4 = View->GetBounds4(Bounds4Index);
 
+		// LWC_TODO - Origin values are loaded from doubles, the remaining values are loaded from floats
+		// Could potentially perform some of these operations with float VectorRegisters, which could potentially be more efficient
+		// (Otherwise we're paying cost to convert these values to double VectorRegisters on load)
+		// Tricky to manage precision though, as with large worlds, distance between object and view origin can potentially overflow float capacity
+
 		// Calculate distance of viewer to bounding sphere.
 		const VectorRegister OriginX = VectorLoadAligned( &CurrentBounds4.OriginX );
 		const VectorRegister OriginY = VectorLoadAligned( &CurrentBounds4.OriginY );
