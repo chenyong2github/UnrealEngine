@@ -335,6 +335,7 @@ namespace HordeServer
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
 			Services.AddSingleton<AutoscaleService>();
+			Services.AddSingleton<AutoscaleServiceV2>();
 
 			if (Enum.TryParse(Settings.AgentPoolSizeStrategy, out PoolSizeStrategy PoolSizeStrategy))
 			{
