@@ -7,13 +7,14 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 #include "Templates/SharedPointer.h"
-#include "PlayerId.h"
+#include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
 #include "Templates/SharedPointer.h"
-#include "IPixelStreamingStatsConsumer.h"
+
+#include "IInputDevice.h"
 
 class UTexture2D;
-class UPixelStreamerInputComponent;
+class UPixelStreamingInput;
 
 /**
 * The public interface to this module
@@ -64,7 +65,7 @@ public:
 	 * is that of the underlying shared pointer.
 	 * @return A reference to the input device.
 	 */
-	virtual class FInputDevice& GetInputDevice() = 0;
+	virtual IInputDevice& GetInputDevice() = 0;
 
 	/**
 	 * Add any player config JSON to the given object which relates to
@@ -107,7 +108,7 @@ public:
 	/**
 	 * Get the audio sink associated with a specific peer/player.
 	 */
-	virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) = 0;
+	virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) = 0;
 
 	/**
 	 * Get an audio sink that has no peers/players listening to it.
@@ -118,29 +119,17 @@ public:
 	 * Tell the input device about a new pixel streaming input component.
 	 * @param InInputComponent - The new pixel streaming input component.
 	 */
-	virtual void AddInputComponent(UPixelStreamerInputComponent* InInputComponent) = 0;
+	virtual void AddInputComponent(UPixelStreamingInput* InInputComponent) = 0;
 
 	/*
 	 * Tell the input device that a pixel streaming input component is no longer
 	 * relevant.
 	 * @param InInputComponent - The pixel streaming input component which is no longer relevant.
 	 */
-	virtual void RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent) = 0;
+	virtual void RemoveInputComponent(UPixelStreamingInput* InInputComponent) = 0;
 
 	/*
 	 * Get the input components currently attached to Pixel Streaming.
 	 */
-	virtual const TArray<UPixelStreamerInputComponent*> GetInputComponents() = 0;
-
-	/*
-	 * Add a callback that gets fired any time a stat is updated during Pixel Streaming.
-	 * @param Callback - The callback that is fired when the stat changes.
-	 */
-	virtual void AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) = 0;
-
-	/*
-	 * Remove the callback for any stat changed.
-	 * @param Callback - The callback to remove.
-	 */
-	virtual void RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) = 0;
+	virtual const TArray<UPixelStreamingInput*> GetInputComponents() = 0;
 };

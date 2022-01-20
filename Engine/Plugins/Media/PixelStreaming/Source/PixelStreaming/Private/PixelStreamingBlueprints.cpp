@@ -3,12 +3,12 @@
 #include "PixelStreamingBlueprints.h"
 #include "PixelStreamingPrivate.h"
 #include "Misc/FileHelper.h"
-#include "PixelStreamerInputComponent.h"
+#include "PixelStreamingInputComponent.h"
 #include "PixelStreamingAudioComponent.h"
 
 void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FString MimeType, FString FileExtension)
 {
-	IPixelStreamingModule* Module = FPixelStreamingModule::GetModule();
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
 	if (Module)
 	{
 		Module->SendFileData(ByteArray, MimeType, FileExtension);
@@ -17,7 +17,7 @@ void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FSt
 
 void UPixelStreamingBlueprints::SendFile(FString FilePath, FString MimeType, FString FileExtension)
 {
-	IPixelStreamingModule* Module = FPixelStreamingModule::GetModule();
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
 	if (Module)
 	{
 		TArray<uint8> ByteData;
@@ -28,14 +28,14 @@ void UPixelStreamingBlueprints::SendFile(FString FilePath, FString MimeType, FSt
 		}
 		else
 		{
-			UE_LOG(PixelStreamer, Error, TEXT("FileHelper failed to load file data"));
+			UE_LOG(LogPixelStreaming, Error, TEXT("FileHelper failed to load file data"));
 		}
 	}
 }
 
 void UPixelStreamingBlueprints::FreezeFrame(UTexture2D* Texture)
 {
-	IPixelStreamingModule* Module = FPixelStreamingModule::GetModule();
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
 	if (Module)
 	{
 		Module->FreezeFrame(Texture);
@@ -44,14 +44,14 @@ void UPixelStreamingBlueprints::FreezeFrame(UTexture2D* Texture)
 
 void UPixelStreamingBlueprints::UnfreezeFrame()
 {
-	IPixelStreamingModule* Module = FPixelStreamingModule::GetModule();
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
 	if (Module)
 	{
 		Module->UnfreezeFrame();
 	}
 }
 
-UPixelStreamerDelegates* UPixelStreamingBlueprints::GetPixelStreamerDelegates()
+UPixelStreamingDelegates* UPixelStreamingBlueprints::GetPixelStreamingDelegates()
 {
-	return UPixelStreamerDelegates::GetPixelStreamerDelegates();
+	return UPixelStreamingDelegates::GetPixelStreamingDelegates();
 }

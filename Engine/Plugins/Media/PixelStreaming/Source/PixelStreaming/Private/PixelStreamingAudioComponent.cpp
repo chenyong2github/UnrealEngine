@@ -7,7 +7,7 @@
 
 UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, PlayerToHear(FPlayerId())
+	, PlayerToHear(FPixelStreamingPlayerId())
 	, bAutoFindPeer(true)
 	, Buffer()
 	, bIsListeningToPeer(false)
@@ -22,19 +22,19 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 	// Only output this warning if we are actually running this component (not in commandlet).
 	if (!bPixelStreamingLoaded && !IsRunningCommandlet())
 	{
-		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+		UE_LOG(LogPixelStreaming, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
 	}
 
-	//this->NumChannels = 2; //2 channels seem to cause problems
-	this->PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
-	this->SetComponentTickEnabled(bPixelStreamingLoaded);
-	this->bAutoActivate = true;
+	//NumChannels = 2; //2 channels seem to cause problems
+	PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
+	SetComponentTickEnabled(bPixelStreamingLoaded);
+	bAutoActivate = true;
 };
 
 int32 UPixelStreamingAudioComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 {
 	// Not listening to peer, return zero'd buffer.
-	if (!this->bIsListeningToPeer)
+	if (!bIsListeningToPeer)
 	{
 		return 0;
 	}
@@ -43,7 +43,7 @@ int32 UPixelStreamingAudioComponent::OnGenerateAudio(float* OutAudio, int32 NumS
 	{
 		FScopeLock Lock(&CriticalSection);
 
-		int32 NumSamplesToCopy = FGenericPlatformMath::Min(NumSamples, this->Buffer.Num());
+		int32 NumSamplesToCopy = FGenericPlatformMath::Min(NumSamples, Buffer.Num());
 
 		// Not enough samples to copy anything across
 		if (NumSamplesToCopy <= 0)
@@ -55,12 +55,12 @@ int32 UPixelStreamingAudioComponent::OnGenerateAudio(float* OutAudio, int32 NumS
 		for (int SampleIndex = 0; SampleIndex < NumSamplesToCopy; SampleIndex++)
 		{
 			// Convert from int16 to float audio
-			*OutAudio = ((float)this->Buffer[SampleIndex]) / 32767.0f;
+			*OutAudio = ((float)Buffer[SampleIndex]) / 32767.0f;
 			OutAudio++;
 		}
 
 		// Remove front NumSamples from the local buffer
-		this->Buffer.RemoveAt(0, NumSamplesToCopy, false);
+		Buffer.RemoveAt(0, NumSamplesToCopy, false);
 		return NumSamplesToCopy;
 	}
 }
@@ -68,18 +68,18 @@ int32 UPixelStreamingAudioComponent::OnGenerateAudio(float* OutAudio, int32 NumS
 bool UPixelStreamingAudioComponent::UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate)
 {
 
-	if (InNumChannels != this->NumChannels || InSampleRate != this->SampleRate)
+	if (InNumChannels != NumChannels || InSampleRate != SampleRate)
 	{
 
 		// Critical Section - empty buffer because sample rate/num channels changed
 		FScopeLock Lock(&CriticalSection);
-		this->Buffer.Empty();
+		Buffer.Empty();
 
 		//this is the smallest buffer size we can set without triggering internal checks to fire
-		this->PreferredBufferLength = FGenericPlatformMath::Max(512, InSampleRate * InNumChannels / 100);
-		this->NumChannels = InNumChannels;
-		this->SampleRate = InSampleRate;
-		this->Initialize(this->SampleRate);
+		PreferredBufferLength = FGenericPlatformMath::Max(512, InSampleRate * InNumChannels / 100);
+		NumChannels = InNumChannels;
+		SampleRate = InSampleRate;
+		Initialize(SampleRate);
 
 		return true;
 	}
@@ -89,18 +89,18 @@ bool UPixelStreamingAudioComponent::UpdateChannelsAndSampleRate(int InNumChannel
 
 void UPixelStreamingAudioComponent::OnBeginGenerate()
 {
-	this->bComponentWantsAudio = true;
+	bComponentWantsAudio = true;
 }
 
 void UPixelStreamingAudioComponent::OnEndGenerate()
 {
-	this->bComponentWantsAudio = false;
+	bComponentWantsAudio = false;
 }
 
 void UPixelStreamingAudioComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
-	this->Reset();
+	Reset();
 }
 
 bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
@@ -108,64 +108,68 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 
 	if (!IPixelStreamingModule::IsAvailable())
 	{
-		UE_LOG(PixelStreamer, Verbose, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+		UE_LOG(LogPixelStreaming, Verbose, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
 		return false;
 	}
 
 	IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
+	if (!PixelStreamingModule.IsReady())
+	{
+		return false;
+	}
 
-	this->PlayerToHear = PlayerToListenTo;
+	PlayerToHear = PlayerToListenTo;
 
-	IPixelStreamingAudioSink* CandidateSink = this->WillListenToAnyPlayer() ? PixelStreamingModule.GetUnlistenedAudioSink() : PixelStreamingModule.GetPeerAudioSink(FPlayerId(this->PlayerToHear));
+	IPixelStreamingAudioSink* CandidateSink = WillListenToAnyPlayer() ? PixelStreamingModule.GetUnlistenedAudioSink() : PixelStreamingModule.GetPeerAudioSink(FPixelStreamingPlayerId(PlayerToHear));
 
 	if (CandidateSink == nullptr)
 	{
 		return false;
 	}
 
-	this->AudioSink = CandidateSink;
-	this->AudioSink->AddAudioConsumer(this);
+	AudioSink = CandidateSink;
+	AudioSink->AddAudioConsumer(this);
 
 	return true;
 }
 
 void UPixelStreamingAudioComponent::Reset()
 {
-	this->PlayerToHear = FString();
-	this->bIsListeningToPeer = false;
-	if (this->AudioSink)
+	PlayerToHear = FString();
+	bIsListeningToPeer = false;
+	if (AudioSink)
 	{
-		this->AudioSink->RemoveAudioConsumer(this);
+		AudioSink->RemoveAudioConsumer(this);
 	}
-	this->AudioSink = nullptr;
+	AudioSink = nullptr;
 
 	// Critical section
 	{
 		FScopeLock Lock(&CriticalSection);
-		this->Buffer.Empty();
+		Buffer.Empty();
 	}
 }
 
 bool UPixelStreamingAudioComponent::IsListeningToPlayer()
 {
-	return this->bIsListeningToPeer;
+	return bIsListeningToPeer;
 }
 
 bool UPixelStreamingAudioComponent::WillListenToAnyPlayer()
 {
-	return this->PlayerToHear == FString();
+	return PlayerToHear == FString();
 }
 
 void UPixelStreamingAudioComponent::ConsumeRawPCM(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames)
 {
 
-	if (!this->bComponentWantsAudio)
+	if (!bComponentWantsAudio)
 	{
 		return;
 	}
 
 	// Trigger a latent update for channels and sample rate, if required
-	bool bSampleRateOrChannelMismatch = this->UpdateChannelsAndSampleRate(NChannels, InSampleRate);
+	bool bSampleRateOrChannelMismatch = UpdateChannelsAndSampleRate(NChannels, InSampleRate);
 
 	// If there was a mismatch then skip this incoming audio until this the samplerate/channels update is completed on the gamethread
 	if (bSampleRateOrChannelMismatch)
@@ -179,39 +183,39 @@ void UPixelStreamingAudioComponent::ConsumeRawPCM(const int16_t* AudioData, int 
 	// Critical Section
 	{
 		FScopeLock Lock(&CriticalSection);
-		this->Buffer.Append(AudioData, NSamples);
-		checkf((uint32)this->Buffer.Num() < this->SampleRate,
+		Buffer.Append(AudioData, NSamples);
+		checkf((uint32)Buffer.Num() < SampleRate,
 			TEXT("Pixel Streaming Audio Component internal buffer is getting too big, for some reason OnGenerateAudio is not consuming samples quickly enough."))
 	}
 }
 
 void UPixelStreamingAudioComponent::OnConsumerAdded()
 {
-	this->bIsListeningToPeer = true;
+	bIsListeningToPeer = true;
 }
 
 void UPixelStreamingAudioComponent::OnConsumerRemoved()
 {
-	this->Reset();
+	Reset();
 }
 
 void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 
 	// if auto connect turned off don't bother
-	if (!this->bAutoFindPeer)
+	if (!bAutoFindPeer)
 	{
 		return;
 	}
 
 	// if listening to a peer don't auto connect
-	if (this->bIsListeningToPeer)
+	if (bIsListeningToPeer)
 	{
 		return;
 	}
 
-	if (this->ListenTo(this->PlayerToHear))
+	if (ListenTo(PlayerToHear))
 	{
-		UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming audio component found a WebRTC peer to listen to."));
+		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming audio component found a WebRTC peer to listen to."));
 	}
 }

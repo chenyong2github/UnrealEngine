@@ -39,14 +39,15 @@ namespace PixelStreamingStatNames
 	const FName TotalEncodeTime			  = FName(TEXT("totalEncodeTime"));
 	const FName TotalPacketSendDelay	  = FName(TEXT("totalPacketSendDelay"));
 	const FName FramesEncoded			  = FName(TEXT("framesEncoded"));
+	const FName QualityController		  = FName(TEXT("qualityController"));
 
 	// Calculated stats
-	const FName FramesSentPerSecond	   = FName(TEXT("transmit fps"));
-	const FName Bitrate				   = FName(TEXT("bitrate (kb/s)"));
+	const FName FramesSentPerSecond	   = FName(TEXT("transmitFps"));
+	const FName Bitrate				   = FName(TEXT("bitrate"));
 	const FName MeanQPPerSecond		   = FName(TEXT("qp"));
-	const FName MeanEncodeTime		   = FName(TEXT("encode time (ms)"));
-	const FName EncodedFramesPerSecond = FName(TEXT("encode fps"));
-	const FName MeanSendDelay		   = FName(TEXT("capture to send (ms)"));
-	const FName SourceFps			   = FName(TEXT("capture fps"));
+	const FName MeanEncodeTime		   = FName(TEXT("encodeTime"));
+	const FName EncodedFramesPerSecond = FName(TEXT("encodeFps"));
+	const FName MeanSendDelay		   = FName(TEXT("captureToSend"));
+	const FName SourceFps			   = FName(TEXT("captureFps"));
 
 } // namespace PixelStreamingStatNames

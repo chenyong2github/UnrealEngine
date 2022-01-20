@@ -7,7 +7,7 @@
 #include "PixelStreamingModule.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Containers/Array.h"
-#include "PixelStreamerDelegates.h"
+#include "PixelStreamingDelegates.h"
 #include "PixelStreamingBlueprints.generated.h"
 
 UCLASS()
@@ -54,11 +54,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Freeze Frame")
 	static void UnfreezeFrame();
 
-	// PixelStreamerDelegates
+	// PixelStreamingDelegates
 	/**
 	 * Get the singleton. This allows application-specific blueprints to bind
 	 * to delegates of interest.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Pixel Streamer Delegates")
-	static UPixelStreamerDelegates* GetPixelStreamerDelegates();
+	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Delegates")
+	static UPixelStreamingDelegates* GetPixelStreamingDelegates();
 };

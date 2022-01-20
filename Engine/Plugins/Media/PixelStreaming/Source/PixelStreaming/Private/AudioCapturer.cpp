@@ -5,8 +5,8 @@
 #include "SampleBuffer.h"
 #include "Engine/GameEngine.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAudioCapturer, Log, All);
-DEFINE_LOG_CATEGORY(LogAudioCapturer);
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingAudioCapturer, Log, All);
+DEFINE_LOG_CATEGORY(LogPixelStreamingAudioCapturer);
 
 // These are copied from webrtc internals
 #define CHECKinitialized_() \
@@ -24,10 +24,10 @@ DEFINE_LOG_CATEGORY(LogAudioCapturer);
 		};                       \
 	}
 
-constexpr int FAudioCapturer::SampleRate;
-constexpr int FAudioCapturer::NumChannels;
+constexpr int UE::PixelStreaming::FAudioCapturer::SampleRate;
+constexpr int UE::PixelStreaming::FAudioCapturer::NumChannels;
 
-void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
+void UE::PixelStreaming::FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
 {
 	if (!(bInitialized && bRecordingInitialized))
 	{
@@ -41,12 +41,12 @@ void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* 
 		if (!bFormatChecked)
 		{
 			bFormatChecked = true;
-			UE_LOG(LogAudioCapturer, Error, TEXT("Audio samplerate needs to be 48000hz"));
+			UE_LOG(LogPixelStreamingAudioCapturer, Error, TEXT("Audio samplerate needs to be 48000hz"));
 		}
 		return;
 	}
 
-	UE_LOG(LogAudioCapturer, VeryVerbose, TEXT("captured %d samples, %dc, %dHz"), NumSamples, NumChannels, SampleRate);
+	UE_LOG(LogPixelStreamingAudioCapturer, VeryVerbose, TEXT("captured %d samples, %dc, %dHz"), NumSamples, NumChannels, SampleRate);
 
 	Audio::TSampleBuffer<float> Buffer(AudioData, NumSamples, InNumChannels, SampleRate);
 	// Mix to stereo if required, since PixelStreaming only accepts stereo at the moment
@@ -78,7 +78,7 @@ void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* 
 			{
 				DeviceBuffer->SetRecordedBuffer(RecordingBuffer.GetData(), BytesPer10Ms / (sizeof(uint16) * NumChannels));
 				DeviceBuffer->DeliverRecordedData();
-				UE_LOG(LogAudioCapturer, VeryVerbose, TEXT("passed %d bytes"), BytesPer10Ms);
+				UE_LOG(LogPixelStreamingAudioCapturer, VeryVerbose, TEXT("passed %d bytes"), BytesPer10Ms);
 			}
 		}
 
@@ -86,13 +86,13 @@ void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* 
 	}
 }
 
-int32 FAudioCapturer::ActiveAudioLayer(AudioLayer* audioLayer) const
+int32 UE::PixelStreaming::FAudioCapturer::ActiveAudioLayer(AudioLayer* audioLayer) const
 {
 	*audioLayer = AudioDeviceModule::kDummyAudio;
 	return 0;
 }
 
-int32 FAudioCapturer::RegisterAudioCallback(webrtc::AudioTransport* audioCallback)
+int32 UE::PixelStreaming::FAudioCapturer::RegisterAudioCallback(webrtc::AudioTransport* audioCallback)
 {
 	FScopeLock Lock(&DeviceBufferCS);
 	DeviceBuffer->RegisterAudioCallback(audioCallback);
@@ -100,7 +100,7 @@ int32 FAudioCapturer::RegisterAudioCallback(webrtc::AudioTransport* audioCallbac
 	return 0;
 }
 
-int32 FAudioCapturer::Init()
+int32 UE::PixelStreaming::FAudioCapturer::Init()
 {
 	if (bInitialized)
 		return 0;
@@ -121,19 +121,19 @@ int32 FAudioCapturer::Init()
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 	if (!AudioDevice)
 	{
-		UE_LOG(LogAudioCapturer, Warning, TEXT("No audio device"));
+		UE_LOG(LogPixelStreamingAudioCapturer, Warning, TEXT("No audio device"));
 		return -1;
 	}
 
 	bInitialized = true;
 	AudioDevice->RegisterSubmixBufferListener(this);
 
-	UE_LOG(LogAudioCapturer, Verbose, TEXT("Init"));
+	UE_LOG(LogPixelStreamingAudioCapturer, Verbose, TEXT("Init"));
 
 	return 0;
 }
 
-int32 FAudioCapturer::Terminate()
+int32 UE::PixelStreaming::FAudioCapturer::Terminate()
 {
 	if (!bInitialized)
 		return 0;
@@ -158,91 +158,91 @@ int32 FAudioCapturer::Terminate()
 		DeviceBuffer.Reset();
 	}
 
-	UE_LOG(LogAudioCapturer, Verbose, TEXT("Terminate"));
+	UE_LOG(LogPixelStreamingAudioCapturer, Verbose, TEXT("Terminate"));
 
 	return 0;
 }
 
-bool FAudioCapturer::Initialized() const
+bool UE::PixelStreaming::FAudioCapturer::Initialized() const
 {
 	return bInitialized;
 }
 
-int16 FAudioCapturer::PlayoutDevices()
+int16 UE::PixelStreaming::FAudioCapturer::PlayoutDevices()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int16 FAudioCapturer::RecordingDevices()
+int16 UE::PixelStreaming::FAudioCapturer::RecordingDevices()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::PlayoutDeviceName(
+int32 UE::PixelStreaming::FAudioCapturer::PlayoutDeviceName(
 	uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::RecordingDeviceName(
+int32 UE::PixelStreaming::FAudioCapturer::RecordingDeviceName(
 	uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::SetPlayoutDevice(uint16 index)
+int32 UE::PixelStreaming::FAudioCapturer::SetPlayoutDevice(uint16 index)
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-int32 FAudioCapturer::SetPlayoutDevice(WindowsDeviceType device)
+int32 UE::PixelStreaming::FAudioCapturer::SetPlayoutDevice(WindowsDeviceType device)
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-int32 FAudioCapturer::SetRecordingDevice(uint16 index)
+int32 UE::PixelStreaming::FAudioCapturer::SetRecordingDevice(uint16 index)
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-int32 FAudioCapturer::SetRecordingDevice(WindowsDeviceType device)
+int32 UE::PixelStreaming::FAudioCapturer::SetRecordingDevice(WindowsDeviceType device)
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-int32 FAudioCapturer::PlayoutIsAvailable(bool* available)
+int32 UE::PixelStreaming::FAudioCapturer::PlayoutIsAvailable(bool* available)
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::InitPlayout()
+int32 UE::PixelStreaming::FAudioCapturer::InitPlayout()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-bool FAudioCapturer::PlayoutIsInitialized() const
+bool UE::PixelStreaming::FAudioCapturer::PlayoutIsInitialized() const
 {
 	CHECKinitialized__BOOL();
 	return false;
 }
 
-int32 FAudioCapturer::RecordingIsAvailable(bool* available)
+int32 UE::PixelStreaming::FAudioCapturer::RecordingIsAvailable(bool* available)
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::InitRecording()
+int32 UE::PixelStreaming::FAudioCapturer::InitRecording()
 {
 	CHECKinitialized_();
 
@@ -258,104 +258,104 @@ int32 FAudioCapturer::InitRecording()
 	return 0;
 }
 
-bool FAudioCapturer::RecordingIsInitialized() const
+bool UE::PixelStreaming::FAudioCapturer::RecordingIsInitialized() const
 {
 	CHECKinitialized__BOOL();
 	return bRecordingInitialized == true;
 }
 
-int32 FAudioCapturer::StartPlayout()
+int32 UE::PixelStreaming::FAudioCapturer::StartPlayout()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::StopPlayout()
+int32 UE::PixelStreaming::FAudioCapturer::StopPlayout()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-bool FAudioCapturer::Playing() const
+bool UE::PixelStreaming::FAudioCapturer::Playing() const
 {
 	CHECKinitialized__BOOL();
 	return false;
 }
 
-int32 FAudioCapturer::StartRecording()
+int32 UE::PixelStreaming::FAudioCapturer::StartRecording()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::StopRecording()
+int32 UE::PixelStreaming::FAudioCapturer::StopRecording()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-bool FAudioCapturer::Recording() const
+bool UE::PixelStreaming::FAudioCapturer::Recording() const
 {
 	CHECKinitialized__BOOL();
 	return bRecordingInitialized;
 }
 
-int32 FAudioCapturer::InitSpeaker()
+int32 UE::PixelStreaming::FAudioCapturer::InitSpeaker()
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-bool FAudioCapturer::SpeakerIsInitialized() const
+bool UE::PixelStreaming::FAudioCapturer::SpeakerIsInitialized() const
 {
 	CHECKinitialized__BOOL();
 	return false;
 }
 
-int32 FAudioCapturer::InitMicrophone()
+int32 UE::PixelStreaming::FAudioCapturer::InitMicrophone()
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-bool FAudioCapturer::MicrophoneIsInitialized() const
+bool UE::PixelStreaming::FAudioCapturer::MicrophoneIsInitialized() const
 {
 	CHECKinitialized__BOOL();
 	return true;
 }
 
-int32 FAudioCapturer::StereoPlayoutIsAvailable(bool* available) const
+int32 UE::PixelStreaming::FAudioCapturer::StereoPlayoutIsAvailable(bool* available) const
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::SetStereoPlayout(bool enable)
+int32 UE::PixelStreaming::FAudioCapturer::SetStereoPlayout(bool enable)
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::StereoPlayout(bool* enabled) const
+int32 UE::PixelStreaming::FAudioCapturer::StereoPlayout(bool* enabled) const
 {
 	CHECKinitialized_();
 	return -1;
 }
 
-int32 FAudioCapturer::StereoRecordingIsAvailable(bool* available) const
+int32 UE::PixelStreaming::FAudioCapturer::StereoRecordingIsAvailable(bool* available) const
 {
 	CHECKinitialized_();
 	*available = true;
 	return 0;
 }
 
-int32 FAudioCapturer::SetStereoRecording(bool enable)
+int32 UE::PixelStreaming::FAudioCapturer::SetStereoRecording(bool enable)
 {
 	CHECKinitialized_();
 	return 0;
 }
 
-int32 FAudioCapturer::StereoRecording(bool* enabled) const
+int32 UE::PixelStreaming::FAudioCapturer::StereoRecording(bool* enabled) const
 {
 	CHECKinitialized_();
 	*enabled = true;

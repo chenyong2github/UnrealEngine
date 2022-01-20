@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InputDevice.h"
-#include "PixelStreamerInputComponent.h"
-#include "PixelStreamingSettings.h"
+#include "PixelStreamingInputComponent.h"
+#include "Settings.h"
 #include "PixelStreamingModule.h"
 #include "ProtocolDefs.h"
 #include "JavaScriptKeyCodes.inl"
@@ -18,109 +18,115 @@
 #include "Framework/Application/SlateUser.h"
 #include "EditorPixelStreamingSettings.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(PixelStreamerInputDevice, Log, VeryVerbose);
-DEFINE_LOG_CATEGORY(PixelStreamerInputDevice);
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingInputDevice, Log, VeryVerbose);
+DEFINE_LOG_CATEGORY(LogPixelStreamingInputDevice);
 
-DECLARE_LOG_CATEGORY_EXTERN(PixelStreamerInput, Log, VeryVerbose);
-DEFINE_LOG_CATEGORY(PixelStreamerInput);
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingInput, Log, VeryVerbose);
+DEFINE_LOG_CATEGORY(LogPixelStreamingInput);
 
-/**
- * When reading input from a browser then the cursor position will be sent
- * across with mouse events. We want to use this position and avoid getting the
- * cursor position from the operating system. This is not relevant to touch
- * events.
- */
-class FCursor : public ICursor
+namespace UE
 {
-public:
-	FCursor() {}
-	virtual ~FCursor() = default;
-	virtual FVector2D GetPosition() const override { return Position; }
-	virtual void SetPosition(const int32 X, const int32 Y) override { Position = FVector2D(X, Y); };
-	virtual void SetType(const EMouseCursor::Type InNewCursor) override{};
-	virtual EMouseCursor::Type GetType() const override { return EMouseCursor::Type::Default; };
-	virtual void GetSize(int32& Width, int32& Height) const override{};
-	virtual void Show(bool bShow) override{};
-	virtual void Lock(const RECT* const Bounds) override{};
-	virtual void SetTypeShape(EMouseCursor::Type InCursorType, void* CursorHandle) override{};
-
-private:
-	/** The cursor position sent across with mouse events. */
-	FVector2D Position;
-};
-
-/**
-* Wrap the GenericApplication layer so we can replace the cursor and override
-* certain behavior.
-*/
-class FApplicationWrapper : public GenericApplication
-{
-public:
-	FApplicationWrapper(TSharedPtr<GenericApplication> InWrappedApplication)
-		: GenericApplication(MakeShareable(new FCursor()))
-		, WrappedApplication(InWrappedApplication)
+	namespace PixelStreaming
 	{
-		// Whether we want to always consider the mouse as attached. This allow
-		// us to run Pixel Streaming on a machine which has no physical mouse
-		// and just let the browser supply mouse positions.
-		const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
-		check(Settings);
-		bMouseAlwaysAttached = Settings->bPixelStreamerMouseAlwaysAttached;
-	}
+		/**
+		 * When reading input from a browser then the cursor position will be sent
+		 * across with mouse events. We want to use this position and avoid getting the
+		 * cursor position from the operating system. This is not relevant to touch
+		 * events.
+		 */
+		class FCursor : public ICursor
+		{
+		public:
+			FCursor() {}
+			virtual ~FCursor() = default;
+			virtual FVector2D GetPosition() const override { return Position; }
+			virtual void SetPosition(const int32 X, const int32 Y) override { Position = FVector2D(X, Y); };
+			virtual void SetType(const EMouseCursor::Type InNewCursor) override{};
+			virtual EMouseCursor::Type GetType() const override { return EMouseCursor::Type::Default; };
+			virtual void GetSize(int32& Width, int32& Height) const override{};
+			virtual void Show(bool bShow) override{};
+			virtual void Lock(const RECT* const Bounds) override{};
+			virtual void SetTypeShape(EMouseCursor::Type InCursorType, void* CursorHandle) override{};
 
-	/**
-	 * Functions passed directly to the wrapped application.
-	 */
+		private:
+			/** The cursor position sent across with mouse events. */
+			FVector2D Position;
+		};
 
-	virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) { WrappedApplication->SetMessageHandler(InMessageHandler); }
-	virtual void PollGameDeviceState(const float TimeDelta) { WrappedApplication->PollGameDeviceState(TimeDelta); }
-	virtual void PumpMessages(const float TimeDelta) { WrappedApplication->PumpMessages(TimeDelta); }
-	virtual void ProcessDeferredEvents(const float TimeDelta) { WrappedApplication->ProcessDeferredEvents(TimeDelta); }
-	virtual void Tick(const float TimeDelta) { WrappedApplication->Tick(TimeDelta); }
-	virtual TSharedRef<FGenericWindow> MakeWindow() { return WrappedApplication->MakeWindow(); }
-	virtual void InitializeWindow(const TSharedRef<FGenericWindow>& Window, const TSharedRef<FGenericWindowDefinition>& InDefinition, const TSharedPtr<FGenericWindow>& InParent, const bool bShowImmediately) { WrappedApplication->InitializeWindow(Window, InDefinition, InParent, bShowImmediately); }
-	virtual void SetCapture(const TSharedPtr<FGenericWindow>& InWindow) { WrappedApplication->SetCapture(InWindow); }
-	virtual void* GetCapture(void) const { return WrappedApplication->GetCapture(); }
-	virtual FModifierKeysState GetModifierKeys() const { return WrappedApplication->GetModifierKeys(); }
-	virtual TSharedPtr<FGenericWindow> GetWindowUnderCursor() { return WrappedApplication->GetWindowUnderCursor(); }
-	virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow>& InWindow) { WrappedApplication->SetHighPrecisionMouseMode(Enable, InWindow); };
-	virtual bool IsUsingHighPrecisionMouseMode() const { return WrappedApplication->IsUsingHighPrecisionMouseMode(); }
-	virtual bool IsUsingTrackpad() const { return WrappedApplication->IsUsingTrackpad(); }
-	virtual bool IsGamepadAttached() const { return WrappedApplication->IsGamepadAttached(); }
-	virtual void RegisterConsoleCommandListener(const FOnConsoleCommandListener& InListener) { WrappedApplication->RegisterConsoleCommandListener(InListener); }
-	virtual void AddPendingConsoleCommand(const FString& InCommand) { WrappedApplication->AddPendingConsoleCommand(InCommand); }
-	virtual FPlatformRect GetWorkArea(const FPlatformRect& CurrentWindow) const { return WrappedApplication->GetWorkArea(CurrentWindow); }
-	virtual bool TryCalculatePopupWindowPosition(const FPlatformRect& InAnchor, const FVector2D& InSize, const FVector2D& ProposedPlacement, const EPopUpOrientation::Type Orientation, /*OUT*/ FVector2D* const CalculatedPopUpPosition) const { return WrappedApplication->TryCalculatePopupWindowPosition(InAnchor, InSize, ProposedPlacement, Orientation, CalculatedPopUpPosition); }
-	virtual void GetInitialDisplayMetrics(FDisplayMetrics& OutDisplayMetrics) const { WrappedApplication->GetInitialDisplayMetrics(OutDisplayMetrics); }
-	virtual EWindowTitleAlignment::Type GetWindowTitleAlignment() const { return WrappedApplication->GetWindowTitleAlignment(); }
-	virtual EWindowTransparency GetWindowTransparencySupport() const { return WrappedApplication->GetWindowTransparencySupport(); }
-	virtual void DestroyApplication() { WrappedApplication->DestroyApplication(); }
-	virtual IInputInterface* GetInputInterface() { return WrappedApplication->GetInputInterface(); }
-	virtual ITextInputMethodSystem* GetTextInputMethodSystem() { return WrappedApplication->GetTextInputMethodSystem(); }
-	virtual void SendAnalytics(IAnalyticsProvider* Provider) { WrappedApplication->SendAnalytics(Provider); }
-	virtual bool SupportsSystemHelp() const { return WrappedApplication->SupportsSystemHelp(); }
-	virtual void ShowSystemHelp() { WrappedApplication->ShowSystemHelp(); }
-	virtual bool ApplicationLicenseValid(FPlatformUserId PlatformUser = PLATFORMUSERID_NONE) { return WrappedApplication->ApplicationLicenseValid(PlatformUser); }
+		/**
+		* Wrap the GenericApplication layer so we can replace the cursor and override
+		* certain behavior.
+		*/
+		class FApplicationWrapper : public GenericApplication
+		{
+		public:
+			FApplicationWrapper(TSharedPtr<GenericApplication> InWrappedApplication)
+				: GenericApplication(MakeShareable(new FCursor()))
+				, WrappedApplication(InWrappedApplication)
+			{
+				// Whether we want to always consider the mouse as attached. This allow
+				// us to run Pixel Streaming on a machine which has no physical mouse
+				// and just let the browser supply mouse positions.
+				const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
+				check(Settings);
+				bMouseAlwaysAttached = Settings->bMouseAlwaysAttached;
+			}
 
-	/**
-	 * Functions with overridden behavior.
-	 */
-	virtual bool IsCursorDirectlyOverSlateWindow() const { return true; }
-	virtual bool IsMouseAttached() const { return bMouseAlwaysAttached ? true : WrappedApplication->IsMouseAttached(); }
+			/**
+			 * Functions passed directly to the wrapped application.
+			 */
 
-	TSharedPtr<GenericApplication> WrappedApplication;
-	bool bMouseAlwaysAttached;
-};
+			virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) { WrappedApplication->SetMessageHandler(InMessageHandler); }
+			virtual void PollGameDeviceState(const float TimeDelta) { WrappedApplication->PollGameDeviceState(TimeDelta); }
+			virtual void PumpMessages(const float TimeDelta) { WrappedApplication->PumpMessages(TimeDelta); }
+			virtual void ProcessDeferredEvents(const float TimeDelta) { WrappedApplication->ProcessDeferredEvents(TimeDelta); }
+			virtual void Tick(const float TimeDelta) { WrappedApplication->Tick(TimeDelta); }
+			virtual TSharedRef<FGenericWindow> MakeWindow() { return WrappedApplication->MakeWindow(); }
+			virtual void InitializeWindow(const TSharedRef<FGenericWindow>& Window, const TSharedRef<FGenericWindowDefinition>& InDefinition, const TSharedPtr<FGenericWindow>& InParent, const bool bShowImmediately) { WrappedApplication->InitializeWindow(Window, InDefinition, InParent, bShowImmediately); }
+			virtual void SetCapture(const TSharedPtr<FGenericWindow>& InWindow) { WrappedApplication->SetCapture(InWindow); }
+			virtual void* GetCapture(void) const { return WrappedApplication->GetCapture(); }
+			virtual FModifierKeysState GetModifierKeys() const { return WrappedApplication->GetModifierKeys(); }
+			virtual TSharedPtr<FGenericWindow> GetWindowUnderCursor() { return WrappedApplication->GetWindowUnderCursor(); }
+			virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow>& InWindow) { WrappedApplication->SetHighPrecisionMouseMode(Enable, InWindow); };
+			virtual bool IsUsingHighPrecisionMouseMode() const { return WrappedApplication->IsUsingHighPrecisionMouseMode(); }
+			virtual bool IsUsingTrackpad() const { return WrappedApplication->IsUsingTrackpad(); }
+			virtual bool IsGamepadAttached() const { return WrappedApplication->IsGamepadAttached(); }
+			virtual void RegisterConsoleCommandListener(const FOnConsoleCommandListener& InListener) { WrappedApplication->RegisterConsoleCommandListener(InListener); }
+			virtual void AddPendingConsoleCommand(const FString& InCommand) { WrappedApplication->AddPendingConsoleCommand(InCommand); }
+			virtual FPlatformRect GetWorkArea(const FPlatformRect& CurrentWindow) const { return WrappedApplication->GetWorkArea(CurrentWindow); }
+			virtual bool TryCalculatePopupWindowPosition(const FPlatformRect& InAnchor, const FVector2D& InSize, const FVector2D& ProposedPlacement, const EPopUpOrientation::Type Orientation, /*OUT*/ FVector2D* const CalculatedPopUpPosition) const { return WrappedApplication->TryCalculatePopupWindowPosition(InAnchor, InSize, ProposedPlacement, Orientation, CalculatedPopUpPosition); }
+			virtual void GetInitialDisplayMetrics(FDisplayMetrics& OutDisplayMetrics) const { WrappedApplication->GetInitialDisplayMetrics(OutDisplayMetrics); }
+			virtual EWindowTitleAlignment::Type GetWindowTitleAlignment() const { return WrappedApplication->GetWindowTitleAlignment(); }
+			virtual EWindowTransparency GetWindowTransparencySupport() const { return WrappedApplication->GetWindowTransparencySupport(); }
+			virtual void DestroyApplication() { WrappedApplication->DestroyApplication(); }
+			virtual IInputInterface* GetInputInterface() { return WrappedApplication->GetInputInterface(); }
+			virtual ITextInputMethodSystem* GetTextInputMethodSystem() { return WrappedApplication->GetTextInputMethodSystem(); }
+			virtual void SendAnalytics(IAnalyticsProvider* Provider) { WrappedApplication->SendAnalytics(Provider); }
+			virtual bool SupportsSystemHelp() const { return WrappedApplication->SupportsSystemHelp(); }
+			virtual void ShowSystemHelp() { WrappedApplication->ShowSystemHelp(); }
+			virtual bool ApplicationLicenseValid(FPlatformUserId PlatformUser = PLATFORMUSERID_NONE) { return WrappedApplication->ApplicationLicenseValid(PlatformUser); }
 
-const FVector2D FInputDevice::UnfocusedPos(-1.0f, -1.0f);
-const size_t FInputDevice::MessageHeaderOffset = 3;
+			/**
+			 * Functions with overridden behavior.
+			 */
+			virtual bool IsCursorDirectlyOverSlateWindow() const { return true; }
+			virtual bool IsMouseAttached() const { return bMouseAlwaysAttached ? true : WrappedApplication->IsMouseAttached(); }
 
-FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
+			TSharedPtr<GenericApplication> WrappedApplication;
+			bool bMouseAlwaysAttached;
+		};
+	} // namespace PixelStreaming
+} // namespace UE
+
+const FVector2D UE::PixelStreaming::FInputDevice::UnfocusedPos(-1.0f, -1.0f);
+const size_t UE::PixelStreaming::FInputDevice::MessageHeaderOffset = 3;
+
+UE::PixelStreaming::FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
 	, MessageHandler(InMessageHandler)
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
-	, PixelStreamingModule(FPixelStreamingModule::GetModule())
+	, PixelStreamingModule(UE::PixelStreaming::FPixelStreamingModule::GetModule())
 {
 	if (GEngine->GameViewport && !GEngine->GameViewport->HasSoftwareCursor(EMouseCursor::Default))
 	{
@@ -132,16 +138,16 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		// Check to see if we want to hide the cursor (by making it invisible).
 		// This is required if we want to make the cursor client-side (displayed
 		// only by the the browser).
-		bool bHideCursor = PixelStreamingSettings::IsPixelStreamingHideCursor();
+		bool bHideCursor = UE::PixelStreaming::Settings::IsPixelStreamingHideCursor();
 		if (bHideCursor)
 		{
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerHiddenCursorClassName);
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerHiddenCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->HiddenCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->HiddenCursorClassName);
 		}
 		else
 		{
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerDefaultCursorClassName);
-			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->PixelStreamerTextEditBeamCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->DefaultCursorClassName);
+			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->TextEditBeamCursorClassName);
 		}
 	}
 }
@@ -158,7 +164,7 @@ void QuantizeAndNormalize(const FVector2D& InPos, uint16& OutX, uint16& OutY)
 
 bool FilterKey(const FKey& Key)
 {
-	for (auto&& FilteredKey : PixelStreamingSettings::FilteredKeys)
+	for (auto&& FilteredKey : UE::PixelStreaming::Settings::FilteredKeys)
 	{
 		if (FilteredKey == Key)
 			return false;
@@ -166,7 +172,7 @@ bool FilterKey(const FKey& Key)
 	return true;
 }
 
-void FInputDevice::Tick(float DeltaTime)
+void UE::PixelStreaming::FInputDevice::Tick(float DeltaTime)
 {
 	FEvent Event;
 	while (Events.Dequeue(Event))
@@ -183,7 +189,7 @@ void FInputDevice::Tick(float DeltaTime)
 				uint8 JavaScriptKeyCode;
 				bool IsRepeat;
 				Event.GetKeyDown(JavaScriptKeyCode, IsRepeat);
-				const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
+				const FKey* AgnosticKey = UE::PixelStreaming::JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
 				if (FilterKey(*AgnosticKey))
 				{
 					const uint32* KeyCodePtr;
@@ -192,7 +198,7 @@ void FInputDevice::Tick(float DeltaTime)
 					uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
 					uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
 					MessageHandler->OnKeyDown(KeyCode, CharacterCode, IsRepeat);
-					UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
+					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
 				}
 			}
 			break;
@@ -200,7 +206,7 @@ void FInputDevice::Tick(float DeltaTime)
 			{
 				uint8 JavaScriptKeyCode;
 				Event.GetKeyUp(JavaScriptKeyCode);
-				const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
+				const FKey* AgnosticKey = UE::PixelStreaming::JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
 				if (FilterKey(*AgnosticKey))
 				{
 					const uint32* KeyCodePtr;
@@ -209,7 +215,7 @@ void FInputDevice::Tick(float DeltaTime)
 					uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
 					uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
 					MessageHandler->OnKeyUp(KeyCode, CharacterCode, false); // Key up events are never repeats.
-					UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
+					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
 				}
 			}
 			break;
@@ -218,7 +224,7 @@ void FInputDevice::Tick(float DeltaTime)
 				TCHAR UnicodeCharacter;
 				Event.GetCharacterCode(UnicodeCharacter);
 				MessageHandler->OnKeyChar(UnicodeCharacter, false); // Key press repeat not yet available but are not intrinsically used.
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_PRESSED: Character = '%c'"), UnicodeCharacter);
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("KEY_PRESSED: Character = '%c'"), UnicodeCharacter);
 			}
 			break;
 			case EventType::MOUSE_ENTER:
@@ -230,7 +236,7 @@ void FInputDevice::Tick(float DeltaTime)
 				// Make sure the viewport is active.
 				FSlateApplication::Get().ProcessApplicationActivationEvent(true);
 
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("MOUSE_ENTER"));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_ENTER"));
 			}
 			break;
 			case EventType::MOUSE_LEAVE:
@@ -238,7 +244,7 @@ void FInputDevice::Tick(float DeltaTime)
 				// Restore normal application layer.
 				FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper->WrappedApplication);
 
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("MOUSE_LEAVE"));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_LEAVE"));
 			}
 			break;
 			case EventType::MOUSE_MOVE:
@@ -254,7 +260,7 @@ void FInputDevice::Tick(float DeltaTime)
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
 				MessageHandler->OnRawMouseMove(DeltaX, DeltaY);
-				UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); CursorPos = (%d, %d); Delta = (%d, %d)"), PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), DeltaX, DeltaY);
+				UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); CursorPos = (%d, %d); Delta = (%d, %d)"), PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), DeltaX, DeltaY);
 			}
 			break;
 			case EventType::MOUSE_DOWN:
@@ -275,7 +281,7 @@ void FInputDevice::Tick(float DeltaTime)
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
 				MessageHandler->OnMouseDown(GEngine->GameViewport->GetWindow()->GetNativeWindow(), Button, CursorPos);
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 
 				// The browser may be faking a mouse when touching so it will send
 				// over a mouse down event.
@@ -291,7 +297,7 @@ void FInputDevice::Tick(float DeltaTime)
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
 				MessageHandler->OnMouseUp(Button);
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("MOUSE_UP: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_UP: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 			}
 			break;
 			case EventType::MOUSE_WHEEL:
@@ -303,7 +309,7 @@ void FInputDevice::Tick(float DeltaTime)
 				const float SpinFactor = 1 / 120.0f;
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				MessageHandler->OnMouseWheel(Delta * SpinFactor, CursorPos);
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("MOUSE_WHEEL: Delta = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Delta, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_WHEEL: Delta = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Delta, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 			}
 			break;
 			case EventType::TOUCH_START:
@@ -315,7 +321,7 @@ void FInputDevice::Tick(float DeltaTime)
 				Event.GetTouch(TouchIndex, PosX, PosY, Force);
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				MessageHandler->OnTouchStarted(GEngine->GameViewport->GetWindow()->GetNativeWindow(), CursorPos, Force / 255.0f, TouchIndex, 0); // TODO: ControllerId?
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
 
 				// If the user starts a touch then they may be focusing an editable
 				// widget.
@@ -331,7 +337,7 @@ void FInputDevice::Tick(float DeltaTime)
 				Event.GetTouch(TouchIndex, PosX, PosY, Force);
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				MessageHandler->OnTouchEnded(CursorPos, TouchIndex, 0); // TODO: ControllerId?
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
+				UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 			}
 			break;
 			case EventType::TOUCH_MOVE:
@@ -343,7 +349,7 @@ void FInputDevice::Tick(float DeltaTime)
 				Event.GetTouch(TouchIndex, PosX, PosY, Force);
 				FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
 				MessageHandler->OnTouchMoved(CursorPos, Force / 255.0f, TouchIndex, 0); // TODO: ControllerId?
-				UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
+				UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
 			}
 			break;
 			case EventType::GAMEPAD_PRESS:
@@ -358,7 +364,7 @@ void FInputDevice::Tick(float DeltaTime)
 					break;
 				}
 				MessageHandler->OnControllerButtonPressed(ControllerButton, (int32_t)ControllerId, bIsRepeat);
-				UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_PRESS: ControllerId = %d; ButtonIndex = %d; IsRepeat = %d"), ControllerId, ButtonIndex, bIsRepeat);
+				UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("GAMEPAD_PRESS: ControllerId = %d; ButtonIndex = %d; IsRepeat = %d"), ControllerId, ButtonIndex, bIsRepeat);
 			}
 			break;
 			case EventType::GAMEPAD_RELEASE:
@@ -372,7 +378,7 @@ void FInputDevice::Tick(float DeltaTime)
 					break;
 				}
 				MessageHandler->OnControllerButtonReleased(ControllerButton, (int32_t)ControllerId, false);
-				UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_RELEASE: ControllerId = %d; ButtonIndex = %d;"), ControllerId, ButtonIndex);
+				UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("GAMEPAD_RELEASE: ControllerId = %d; ButtonIndex = %d;"), ControllerId, ButtonIndex);
 			}
 			break;
 			case EventType::GAMEPAD_ANALOG:
@@ -387,12 +393,12 @@ void FInputDevice::Tick(float DeltaTime)
 					break;
 				}
 				MessageHandler->OnControllerAnalog(ControllerAxis, (int32_t)ControllerId, AnalogValue);
-				UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; AxisIndex = %d; AnalogValue = %.4f;"), ControllerId, AxisIndex, AnalogValue);
+				UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; AxisIndex = %d; AnalogValue = %.4f;"), ControllerId, AxisIndex, AnalogValue);
 			}
 			break;
 			default:
 			{
-				UE_LOG(PixelStreamerInputDevice, Error, TEXT("Unknown Pixel Streaming event %d with word 0x%016llx"), static_cast<int>(Event.Event), Event.Data.Word);
+				UE_LOG(LogPixelStreamingInputDevice, Error, TEXT("Unknown Pixel Streaming event %d with word 0x%016llx"), static_cast<int>(Event.Event), Event.Data.Word);
 			}
 			break;
 		}
@@ -401,21 +407,22 @@ void FInputDevice::Tick(float DeltaTime)
 	FString UIInteraction;
 	while (UIInteractions.Dequeue(UIInteraction))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
+		for (UPixelStreamingInput* InputComponent : PixelStreamingModule->GetInputComponents())
 		{
 			InputComponent->OnInputEvent.Broadcast(UIInteraction);
-			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("UIInteraction = %s"), *UIInteraction);
+			UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("UIInteraction = %s"), *UIInteraction);
 		}
 	}
 
+	
 	FString Command;
 	while (Commands.Dequeue(Command))
 	{
-		UPixelStreamerInputComponent::OnCommand(Command);
+		UPixelStreamingInput::OnCommand(Command);
 	}
 }
 
-FGamepadKeyNames::Type FInputDevice::ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis)
+FGamepadKeyNames::Type UE::PixelStreaming::FInputDevice::ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis)
 {
 	switch (AnalogAxis)
 	{
@@ -457,7 +464,7 @@ FGamepadKeyNames::Type FInputDevice::ConvertAxisIndexToGamepadAxis(uint8 AnalogA
 	}
 }
 
-FGamepadKeyNames::Type FInputDevice::ConvertButtonIndexToGamepadButton(uint8 ButtonIndex)
+FGamepadKeyNames::Type UE::PixelStreaming::FInputDevice::ConvertButtonIndexToGamepadButton(uint8 ButtonIndex)
 {
 	switch (ButtonIndex)
 	{
@@ -537,52 +544,52 @@ FGamepadKeyNames::Type FInputDevice::ConvertButtonIndexToGamepadButton(uint8 But
 	}
 }
 
-void FInputDevice::SendControllerEvents()
+void UE::PixelStreaming::FInputDevice::SendControllerEvents()
 {
 }
 
-void FInputDevice::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
+void UE::PixelStreaming::FInputDevice::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 {
 	MessageHandler = InMessageHandler;
 }
 
-bool FInputDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool UE::PixelStreaming::FInputDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	return true;
 }
 
-void FInputDevice::SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value)
+void UE::PixelStreaming::FInputDevice::SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value)
 {
 }
 
-void FInputDevice::SetChannelValues(int32 ControllerId, const FForceFeedbackValues& values)
+void UE::PixelStreaming::FInputDevice::SetChannelValues(int32 ControllerId, const FForceFeedbackValues& values)
 {
 }
 
-void FInputDevice::ProcessEvent(const FEvent& InEvent)
+void UE::PixelStreaming::FInputDevice::ProcessEvent(const FEvent& InEvent)
 {
-	bool Success = Events.Enqueue(InEvent);
-	checkf(Success, TEXT("Unable to enqueue new event of type %d"), static_cast<int>(InEvent.Event));
+	bool bSuccess = Events.Enqueue(InEvent);
+	checkf(bSuccess, TEXT("Unable to enqueue new event of type %d"), static_cast<int>(InEvent.Event));
 }
 
-void FInputDevice::ProcessUIInteraction(const FString& InDescriptor)
+void UE::PixelStreaming::FInputDevice::ProcessUIInteraction(const FString& InDescriptor)
 {
-	bool Success = UIInteractions.Enqueue(InDescriptor);
-	checkf(Success, TEXT("Unable to enqueue new UI Interaction %s"), *InDescriptor);
+	bool bSuccess = UIInteractions.Enqueue(InDescriptor);
+	checkf(bSuccess, TEXT("Unable to enqueue new UI Interaction %s"), *InDescriptor);
 }
 
-void FInputDevice::ProcessCommand(const FString& InDescriptor)
+void UE::PixelStreaming::FInputDevice::ProcessCommand(const FString& InDescriptor)
 {
-	if (PixelStreamingSettings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
+	if (UE::PixelStreaming::Settings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
 	{
-		bool Success = Commands.Enqueue(InDescriptor);
-		checkf(Success, TEXT("Unable to enqueue new Command %s"), *InDescriptor);
+		bool bSuccess = Commands.Enqueue(InDescriptor);
+		checkf(bSuccess, TEXT("Unable to enqueue new Command %s"), *InDescriptor);
 	}
 }
 
-void FInputDevice::FindFocusedWidget()
+void UE::PixelStreaming::FInputDevice::FindFocusedWidget()
 {
-	FSlateApplication::Get().ForEachUser([&](FSlateUser& User) {
+	FSlateApplication::Get().ForEachUser([this](FSlateUser& User) {
 		TSharedPtr<SWidget> FocusedWidget = User.GetFocusedWidget();
 
 		static FName SEditableTextType(TEXT("SEditableText"));
@@ -624,7 +631,7 @@ void FInputDevice::FindFocusedWidget()
 namespace
 {
 
-#define GET(Type, Var) Type Var = PixelStreamingProtocol::ParseBuffer<Type>(Data, Size)
+#define GET(Type, Var) Type Var = UE::PixelStreaming::Protocol::ParseBuffer<Type>(Data, Size)
 
 	// XY positions are the ratio (0.0..1.0) along a viewport axis, quantized
 	// into an uint16 (0..65536). This allows the browser viewport and player
@@ -733,9 +740,9 @@ namespace
 	};
 } // namespace
 
-void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
+void UE::PixelStreaming::FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 {
-	using namespace PixelStreamingProtocol;
+	using namespace UE::PixelStreaming::Protocol;
 
 	const uint8* Data = Buffer.data.data();
 	uint32 Size = (uint32)Buffer.data.size();
@@ -746,15 +753,15 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 	{
 		case EToStreamerMsg::UIInteraction:
 		{
-			FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
+			FString Descriptor = UE::PixelStreaming::Protocol::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 			ProcessUIInteraction(Descriptor);
 			break;
 		}
 		case EToStreamerMsg::Command:
 		{
-			FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
+			FString Descriptor = UE::PixelStreaming::Protocol::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("Command: %s"), *Descriptor);
 			ProcessCommand(Descriptor);
 			break;
 		}
@@ -763,7 +770,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 			GET(FKeyCodeType, KeyCode);
 			GET(FRepeatType, Repeat);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("key down: %d, repeat: %d"), KeyCode, Repeat);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("key down: %d, repeat: %d"), KeyCode, Repeat);
 
 			FEvent KeyDownEvent(EventType::KEY_DOWN);
 			KeyDownEvent.SetKeyDown(KeyCode, Repeat != 0);
@@ -774,7 +781,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		{
 			GET(FKeyCodeType, KeyCode);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("key up: %d"), KeyCode);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("key up: %d"), KeyCode);
 
 			FEvent KeyUpEvent(EventType::KEY_UP);
 			KeyUpEvent.SetKeyUp(KeyCode);
@@ -785,7 +792,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		{
 			GET(FCharacterType, Character);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("key press: '%c'"), Character);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("key press: '%c'"), Character);
 
 			FEvent KeyPressEvent(EventType::KEY_PRESS);
 			KeyPressEvent.SetCharCode(Character);
@@ -795,15 +802,15 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		case EToStreamerMsg::MouseEnter:
 		{
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseEnter"));
-			ProcessEvent(FEvent(FInputDevice::EventType::MOUSE_ENTER));
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseEnter"));
+			ProcessEvent(FEvent(UE::PixelStreaming::FInputDevice::EventType::MOUSE_ENTER));
 			break;
 		}
 		case EToStreamerMsg::MouseLeave:
 		{
 			checkf(Size == 0, TEXT("%d"), Size);
-			ProcessEvent(FEvent(FInputDevice::EventType::MOUSE_LEAVE));
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseLeave"));
+			ProcessEvent(FEvent(UE::PixelStreaming::FInputDevice::EventType::MOUSE_LEAVE));
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseLeave"));
 			break;
 		}
 		case EToStreamerMsg::MouseDown:
@@ -812,7 +819,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 			GET(FPosType, PosX);
 			GET(FPosType, PosY);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseDown at (%d, %d), button %d"), PosX, PosY, Button);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseDown at (%d, %d), button %d"), PosX, PosY, Button);
 
 			UnquantizeAndDenormalize(PosX, PosY);
 
@@ -827,7 +834,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 			GET(FPosType, PosX);
 			GET(FPosType, PosY);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseUp at (%d, %d), button %d"), PosX, PosY, Button);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseUp at (%d, %d), button %d"), PosX, PosY, Button);
 
 			UnquantizeAndDenormalize(PosX, PosY);
 
@@ -843,7 +850,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 			GET(FDeltaType, DeltaX);
 			GET(FDeltaType, DeltaY);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseMove to (%d, %d), delta (%d, %d)"), PosX, PosY, DeltaX, DeltaY);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseMove to (%d, %d), delta (%d, %d)"), PosX, PosY, DeltaX, DeltaY);
 
 			UnquantizeAndDenormalize(PosX, PosY);
 			UnquantizeAndDenormalize(DeltaX, DeltaY);
@@ -859,7 +866,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 			GET(FPosType, PosX);
 			GET(FPosType, PosY);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseWheel, delta %d"), Delta);
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseWheel, delta %d"), Delta);
 
 			UnquantizeAndDenormalize(PosX, PosY);
 
@@ -872,7 +879,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		{
 			FTouchesType Touches = GetTouches(Data, Size);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("TouchStart: %s"), *TouchesToString(Touches));
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchStart: %s"), *TouchesToString(Touches));
 
 			for (const FTouch& Touch : Touches)
 			{
@@ -889,7 +896,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		{
 			FTouchesType Touches = GetTouches(Data, Size);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("TouchEnd: %s"), *TouchesToString(Touches));
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchEnd: %s"), *TouchesToString(Touches));
 
 			for (const FTouch& Touch : Touches)
 			{
@@ -908,7 +915,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 		{
 			FTouchesType Touches = GetTouches(Data, Size);
 			checkf(Size == 0, TEXT("%d"), Size);
-			UE_LOG(PixelStreamerInput, Verbose, TEXT("TouchMove: %s"), *TouchesToString(Touches));
+			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchMove: %s"), *TouchesToString(Touches));
 
 			for (const FTouch& Touch : Touches)
 			{
@@ -961,7 +968,7 @@ void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 
 #undef GET
 
-void FInputDevice::FEvent::GetMouseClick(EMouseButtons::Type& OutButton, uint16& OutPosX, uint16& OutPosY)
+void UE::PixelStreaming::FInputDevice::FEvent::GetMouseClick(EMouseButtons::Type& OutButton, uint16& OutPosX, uint16& OutPosY)
 {
 	check(Event == EventType::MOUSE_DOWN || Event == EventType::MOUSE_UP);
 	// https://developer.mozilla.org/en-US/docs/Web/Events/mousedown
@@ -995,7 +1002,7 @@ void FInputDevice::FEvent::GetMouseClick(EMouseButtons::Type& OutButton, uint16&
 		break;
 		default:
 		{
-			UE_LOG(PixelStreamerInputDevice, Error, TEXT("Unknown Pixel Streaming mouse click with button %d and word 0x%016llx"), Button, Data.Word);
+			UE_LOG(LogPixelStreamingInputDevice, Error, TEXT("Unknown Pixel Streaming mouse click with button %d and word 0x%016llx"), Button, Data.Word);
 		}
 		break;
 	}

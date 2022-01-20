@@ -25,55 +25,55 @@ namespace
 {
 	NV_ENC_PARAMS_RC_MODE ConvertRateControlModeNVENC(AVEncoder::FVideoEncoder::RateControlMode mode)
 	{
-		switch(mode)
+		switch (mode)
 		{
-		case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP:
-			return NV_ENC_PARAMS_RC_CONSTQP;
-		case AVEncoder::FVideoEncoder::RateControlMode::VBR:
-			return NV_ENC_PARAMS_RC_VBR;
-		default:
-		case AVEncoder::FVideoEncoder::RateControlMode::CBR:
-			return NV_ENC_PARAMS_RC_CBR;
+			case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP:
+				return NV_ENC_PARAMS_RC_CONSTQP;
+			case AVEncoder::FVideoEncoder::RateControlMode::VBR:
+				return NV_ENC_PARAMS_RC_VBR;
+			default:
+			case AVEncoder::FVideoEncoder::RateControlMode::CBR:
+				return NV_ENC_PARAMS_RC_CBR;
 		}
 	}
 
 	NV_ENC_MULTI_PASS ConvertMultipassModeNVENC(AVEncoder::FVideoEncoder::MultipassMode mode)
 	{
-		switch(mode)
+		switch (mode)
 		{
-		case AVEncoder::FVideoEncoder::MultipassMode::DISABLED:
-			return NV_ENC_MULTI_PASS_DISABLED;
-		case AVEncoder::FVideoEncoder::MultipassMode::QUARTER:
-			return NV_ENC_TWO_PASS_QUARTER_RESOLUTION;
-		default:
-		case AVEncoder::FVideoEncoder::MultipassMode::FULL:
-			return NV_ENC_TWO_PASS_FULL_RESOLUTION;
+			case AVEncoder::FVideoEncoder::MultipassMode::DISABLED:
+				return NV_ENC_MULTI_PASS_DISABLED;
+			case AVEncoder::FVideoEncoder::MultipassMode::QUARTER:
+				return NV_ENC_TWO_PASS_QUARTER_RESOLUTION;
+			default:
+			case AVEncoder::FVideoEncoder::MultipassMode::FULL:
+				return NV_ENC_TWO_PASS_FULL_RESOLUTION;
 		}
 	}
 
 	GUID ConvertH264Profile(AVEncoder::FVideoEncoder::H264Profile profile)
 	{
-		switch(profile)
+		switch (profile)
 		{
-		default:
-		case AVEncoder::FVideoEncoder::H264Profile::AUTO:
-			return NV_ENC_CODEC_PROFILE_AUTOSELECT_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::BASELINE:
-			return NV_ENC_H264_PROFILE_BASELINE_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::MAIN:
-			return NV_ENC_H264_PROFILE_MAIN_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::HIGH:
-			return NV_ENC_H264_PROFILE_HIGH_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::HIGH444:
-			return NV_ENC_H264_PROFILE_HIGH_444_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::STEREO:
-			return NV_ENC_H264_PROFILE_STEREO_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY:
-			return NV_ENC_H264_PROFILE_SVC_TEMPORAL_SCALABILTY;
-		case AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH:
-			return NV_ENC_H264_PROFILE_PROGRESSIVE_HIGH_GUID;
-		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH:
-			return NV_ENC_H264_PROFILE_CONSTRAINED_HIGH_GUID;
+			default:
+			case AVEncoder::FVideoEncoder::H264Profile::AUTO:
+				return NV_ENC_CODEC_PROFILE_AUTOSELECT_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::BASELINE:
+				return NV_ENC_H264_PROFILE_BASELINE_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::MAIN:
+				return NV_ENC_H264_PROFILE_MAIN_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::HIGH:
+				return NV_ENC_H264_PROFILE_HIGH_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::HIGH444:
+				return NV_ENC_H264_PROFILE_HIGH_444_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::STEREO:
+				return NV_ENC_H264_PROFILE_STEREO_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY:
+				return NV_ENC_H264_PROFILE_SVC_TEMPORAL_SCALABILTY;
+			case AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH:
+				return NV_ENC_H264_PROFILE_PROGRESSIVE_HIGH_GUID;
+			case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH:
+				return NV_ENC_H264_PROFILE_CONSTRAINED_HIGH_GUID;
 		}
 	}
 } // namespace
@@ -82,37 +82,37 @@ namespace AVEncoder
 {
 	// Console variables for NVENC
 
-	TAutoConsoleVariable<int32>  CVarNVENCIntraRefreshPeriodFrames(
-	TEXT("NVENC.IntraRefreshPeriodFrames"),
-	0,
-	TEXT("The total number of frames between each intra refresh. Smallers values will cause intra refresh more often. Default: 0. Values <= 0 will disable intra refresh."),
-	ECVF_Default);
+	TAutoConsoleVariable<int32> CVarNVENCIntraRefreshPeriodFrames(
+		TEXT("NVENC.IntraRefreshPeriodFrames"),
+		0,
+		TEXT("The total number of frames between each intra refresh. Smallers values will cause intra refresh more often. Default: 0. Values <= 0 will disable intra refresh."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<int32>  CVarNVENCIntraRefreshCountFrames(
-	TEXT("NVENC.IntraRefreshCountFrames"),
-	0,
-	TEXT("The total number of frames within the intra refresh period that should be used as 'intra refresh' frames. Smaller values make stream recovery quicker at the cost of more bandwidth usage. Default: 0."),
-	ECVF_Default);
+	TAutoConsoleVariable<int32> CVarNVENCIntraRefreshCountFrames(
+		TEXT("NVENC.IntraRefreshCountFrames"),
+		0,
+		TEXT("The total number of frames within the intra refresh period that should be used as 'intra refresh' frames. Smaller values make stream recovery quicker at the cost of more bandwidth usage. Default: 0."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<bool>  CVarNVENCKeyframeQPUseLastQP(
-	TEXT("NVENC.KeyframeQPUseLastQP"),
-	true,
-	TEXT("If true QP of keyframes is no worse than the last frame transmitted (may cost latency), if false, it may be keyframe QP may be worse if network conditions require it (lower latency/worse quality). Default: true."),
-	ECVF_Default);
+	TAutoConsoleVariable<bool> CVarNVENCKeyframeQPUseLastQP(
+		TEXT("NVENC.KeyframeQPUseLastQP"),
+		true,
+		TEXT("If true QP of keyframes is no worse than the last frame transmitted (may cost latency), if false, it may be keyframe QP may be worse if network conditions require it (lower latency/worse quality). Default: true."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<bool>  CVarNVENCEnableStats(
-	TEXT("NVENC.EnableStats"),
-	false,
-	TEXT("Whether to enable NVENC stats or not. Default: false."),
-	ECVF_Default);
+	TAutoConsoleVariable<bool> CVarNVENCEnableStats(
+		TEXT("NVENC.EnableStats"),
+		false,
+		TEXT("Whether to enable NVENC stats or not. Default: false."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<int32>  CVarNVENCKeyframeInterval(
-	TEXT("NVENC.KeyframeInterval"),
-	300,
-	TEXT("Every N frames an IDR frame is sent. Default: 300. Note: A value <= 0 will disable sending of IDR frames on an interval."),
-	ECVF_Default);
+	TAutoConsoleVariable<int32> CVarNVENCKeyframeInterval(
+		TEXT("NVENC.KeyframeInterval"),
+		300,
+		TEXT("Every N frames an IDR frame is sent. Default: 300. Note: A value <= 0 will disable sending of IDR frames on an interval."),
+		ECVF_Default);
 
-	template<typename T>
+	template <typename T>
 	void NVENCCommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
 	{
 		T Value;
@@ -127,11 +127,14 @@ namespace AVEncoder
 		FString ValueMatch(Match);
 		ValueMatch.Append(TEXT("="));
 		FString Value;
-		if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
-			if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
+		if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value))
+		{
+			if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase))
+			{
 				CVar->Set(true, ECVF_SetByCommandline);
 			}
-			else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase)) {
+			else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase))
+			{
 				CVar->Set(false, ECVF_SetByCommandline);
 			}
 		}
@@ -145,8 +148,7 @@ namespace AVEncoder
 	{
 		// CVar changes can only be triggered from the game thread
 
-		AsyncTask(ENamedThreads::GameThread, []()
-		{ 
+		AsyncTask(ENamedThreads::GameThread, []() {
 			// Values
 			NVENCCommandLineParseValue(TEXT("-NVENCIntraRefreshPeriodFrames="), CVarNVENCIntraRefreshPeriodFrames);
 			NVENCCommandLineParseValue(TEXT("-NVENCIntraRefreshCountFrames="), CVarNVENCIntraRefreshCountFrames);
@@ -157,17 +159,15 @@ namespace AVEncoder
 			NVENCCommandLineParseOption(TEXT("-NVENCEnableStats"), CVarNVENCEnableStats);
 
 			// When NVENC stats CVar changes, change the output to screen flag.
-            CVarNVENCEnableStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* ChangedCVar)
-            {
-                FNVENCStats::Get().SetOutputToScreen(CVarNVENCEnableStats.GetValueOnAnyThread());
-            }));
+			CVarNVENCEnableStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* ChangedCVar) {
+				FNVENCStats::Get().SetOutputToScreen(CVarNVENCEnableStats.GetValueOnAnyThread());
+			}));
 
-			if(CVarNVENCEnableStats.GetValueOnAnyThread())
+			if (CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				FNVENCStats::Get().SetOutputToScreen(true);
 			}
 		});
-        
 	}
 
 	static bool GetEncoderInfo(FNVENCCommon& NVENC, FVideoEncoderInfo& EncoderInfo);
@@ -177,7 +177,7 @@ namespace AVEncoder
 	{
 		FNVENCCommon& NVENC = FNVENCCommon::Setup();
 		bool bIsAvailable = NVENC.GetIsAvailable();
-		if(bIsAvailable)
+		if (bIsAvailable)
 		{
 			OutEncoderInfo.CodecType = ECodecType::H264;
 		}
@@ -187,17 +187,18 @@ namespace AVEncoder
 	void FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory& InFactory)
 	{
 		FNVENCCommon& NVENC = FNVENCCommon::Setup();
-		if(NVENC.GetIsAvailable() && IsRHIDeviceNVIDIA())
+		if (NVENC.GetIsAvailable() && IsRHIDeviceNVIDIA())
 		{
 			FVideoEncoderInfo EncoderInfo;
-			if(GetEncoderInfo(NVENC, EncoderInfo))
+			if (GetEncoderInfo(NVENC, EncoderInfo))
 			{
 				InFactory.Register(EncoderInfo, []() { return TUniquePtr<FVideoEncoder>(new FVideoEncoderNVENC_H264()); });
 			}
 		}
 	}
 
-	FVideoEncoderNVENC_H264::FVideoEncoderNVENC_H264() : NVENC(FNVENCCommon::Setup()) 
+	FVideoEncoderNVENC_H264::FVideoEncoderNVENC_H264()
+		: NVENC(FNVENCCommon::Setup())
 	{
 		// Parse NVENC settings from command line (if any relevant ones are passed)
 		NVENCParseCommandLineFlags();
@@ -207,38 +208,38 @@ namespace AVEncoder
 
 	bool FVideoEncoderNVENC_H264::Setup(TSharedRef<FVideoEncoderInput> InputFrameFactory, const FLayerConfig& InitConfig)
 	{
-		if(!NVENC.GetIsAvailable())
+		if (!NVENC.GetIsAvailable())
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC not avaliable"));
 			return false;
 		}
 
 		FrameFormat = InputFrameFactory->GetFrameFormat();
-		switch(FrameFormat)
+		switch (FrameFormat)
 		{
 #if PLATFORM_WINDOWS
-		case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-		case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-			EncoderDevice = InputFrameFactory->GetD3D11EncoderDevice();
-			break;
+			case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+			case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+				EncoderDevice = InputFrameFactory->GetD3D11EncoderDevice();
+				break;
 #endif
-		case AVEncoder::EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
-			EncoderDevice = InputFrameFactory->GetCUDAEncoderContext();
-			break;
-		case AVEncoder::EVideoFrameFormat::Undefined:
-		default:
-			UE_LOG(LogEncoderNVENC, Error, TEXT("Frame format %s is not supported by NVENC_Encoder on this platform."), *ToString(FrameFormat));
-			return false;
+			case AVEncoder::EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
+				EncoderDevice = InputFrameFactory->GetCUDAEncoderContext();
+				break;
+			case AVEncoder::EVideoFrameFormat::Undefined:
+			default:
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Frame format %s is not supported by NVENC_Encoder on this platform."), *ToString(FrameFormat));
+				return false;
 		}
 
-		if(!EncoderDevice)
+		if (!EncoderDevice)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC needs encoder device."));
 			return false;
 		}
 
 		FLayerConfig mutableConfig = InitConfig;
-		if(mutableConfig.MaxFramerate == 0)
+		if (mutableConfig.MaxFramerate == 0)
 		{
 			mutableConfig.MaxFramerate = 60;
 		}
@@ -249,7 +250,7 @@ namespace AVEncoder
 	FVideoEncoder::FLayer* FVideoEncoderNVENC_H264::CreateLayer(uint32 layerIdx, FLayerConfig const& config)
 	{
 		auto const layer = new FNVENCLayer(layerIdx, config, *this);
-		if(!layer->Setup())
+		if (!layer->Setup())
 		{
 			delete layer;
 			return nullptr;
@@ -261,7 +262,7 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
-		for(FVideoEncoder::FLayer* Layer : Layers)
+		for (FVideoEncoder::FLayer* Layer : Layers)
 		{
 			FVideoEncoderNVENC_H264::FNVENCLayer* NVLayer = static_cast<FVideoEncoderNVENC_H264::FNVENCLayer*>(Layer);
 			NVLayer->Encode(InFrame, EncodeOptions);
@@ -270,7 +271,7 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::Flush()
 	{
-		for(FVideoEncoder::FLayer* Layer : Layers)
+		for (FVideoEncoder::FLayer* Layer : Layers)
 		{
 			FVideoEncoderNVENC_H264::FNVENCLayer* NVLayer = static_cast<FVideoEncoderNVENC_H264::FNVENCLayer*>(Layer);
 			NVLayer->Flush();
@@ -279,7 +280,7 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::Shutdown()
 	{
-		for(FVideoEncoder::FLayer* Layer : Layers)
+		for (FVideoEncoder::FLayer* Layer : Layers)
 		{
 			FVideoEncoderNVENC_H264::FNVENCLayer* NVLayer = static_cast<FVideoEncoderNVENC_H264::FNVENCLayer*>(Layer);
 			NVLayer->Shutdown();
@@ -290,7 +291,11 @@ namespace AVEncoder
 
 	// --- FVideoEncoderNVENC_H264::FLayer ------------------------------------------------------------
 	FVideoEncoderNVENC_H264::FNVENCLayer::FNVENCLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderNVENC_H264& encoder)
-		: FLayer(config), Encoder(encoder), NVENC(FNVENCCommon::Setup()), CodecGUID(NV_ENC_CODEC_H264_GUID), LayerIndex(layerIdx)
+		: FLayer(config)
+		, Encoder(encoder)
+		, NVENC(FNVENCCommon::Setup())
+		, CodecGUID(NV_ENC_CODEC_H264_GUID)
+		, LayerIndex(layerIdx)
 	{
 	}
 
@@ -298,11 +303,11 @@ namespace AVEncoder
 
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::Setup()
 	{
-		if(CreateSession() && CreateInitialConfig())
+		if (CreateSession() && CreateInitialConfig())
 		{
 			// create encoder
 			NVENCSTATUS Result = NVENC.nvEncInitializeEncoder(NVEncoder, &EncoderInitParams);
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to initialize NvEnc encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
 				return false;
@@ -318,30 +323,30 @@ namespace AVEncoder
 
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::CreateSession()
 	{
-		if(!NVEncoder)
+		if (!NVEncoder)
 		{
 			// create the encoder session
 			NVENCStruct(NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS, OpenEncodeSessionExParams);
 			OpenEncodeSessionExParams.apiVersion = NVENCAPI_VERSION;
 			OpenEncodeSessionExParams.device = Encoder.EncoderDevice;
 
-			switch(Encoder.FrameFormat)
+			switch (Encoder.FrameFormat)
 			{
-			case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-			case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-				OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
-				break;
-			case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
-				OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_CUDA;
-				break;
-			default:
-				UE_LOG(LogEncoderNVENC, Error, TEXT("FrameFormat %s unavailable."), *ToString(Encoder.FrameFormat));
-				return false;
-				break;
+				case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+				case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+					OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
+					break;
+				case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
+					OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_CUDA;
+					break;
+				default:
+					UE_LOG(LogEncoderNVENC, Error, TEXT("FrameFormat %s unavailable."), *ToString(Encoder.FrameFormat));
+					return false;
+					break;
 			}
 
 			auto const result = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &NVEncoder);
-			if(result != NV_ENC_SUCCESS)
+			if (result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 				NVEncoder = nullptr;
@@ -375,7 +380,7 @@ namespace AVEncoder
 		NVENCStruct(NV_ENC_PRESET_CONFIG, PresetConfig);
 		PresetConfig.presetCfg.version = NV_ENC_CONFIG_VER;
 		auto const result = NVENC.nvEncGetEncodePresetConfigEx(NVEncoder, EncoderInitParams.encodeGUID, EncoderInitParams.presetGUID, EncoderInitParams.tuningInfo, &PresetConfig);
-		if(result != NV_ENC_SUCCESS)
+		if (result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to get NvEnc preset config (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			return false;
@@ -397,20 +402,20 @@ namespace AVEncoder
 		*/
 		int32 IntraRefreshPeriodFrames = CVarNVENCIntraRefreshPeriodFrames.GetValueOnAnyThread();
 		int32 IntraRefreshCountFrames = CVarNVENCIntraRefreshCountFrames.GetValueOnAnyThread();
-		bool bIntraRefreshSupported = GetEncoderCapability(NVENC, NVEncoder, NV_ENC_CAPS_SUPPORT_INTRA_REFRESH) > 0; 
+		bool bIntraRefreshSupported = GetEncoderCapability(NVENC, NVEncoder, NV_ENC_CAPS_SUPPORT_INTRA_REFRESH) > 0;
 		bool bIntraRefreshEnabled = IntraRefreshPeriodFrames > 0;
 
-		if (bIntraRefreshEnabled && bIntraRefreshSupported) 
+		if (bIntraRefreshEnabled && bIntraRefreshSupported)
 		{
 			EncoderConfig.encodeCodecConfig.h264Config.enableIntraRefresh = 1;
 			EncoderConfig.encodeCodecConfig.h264Config.intraRefreshPeriod = IntraRefreshPeriodFrames;
 			EncoderConfig.encodeCodecConfig.h264Config.intraRefreshCnt = IntraRefreshCountFrames;
-			
+
 			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh enabled."));
 			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh period set to = %d"), IntraRefreshPeriodFrames);
 			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh count = %d"), IntraRefreshCountFrames);
 		}
-		else if(bIntraRefreshEnabled && !bIntraRefreshSupported)
+		else if (bIntraRefreshEnabled && !bIntraRefreshSupported)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC intra refresh capability is not supported on this device, cannot use this feature"));
 		}
@@ -419,7 +424,7 @@ namespace AVEncoder
 		* IDR period - how often to send IDR (instantaneous decode refresh) frames, a.k.a keyframes. This can stabilise a stream that dropped/lost some frames (but at the cost of more bandwidth).
 		*/
 		int32 IdrPeriod = CVarNVENCKeyframeInterval.GetValueOnAnyThread();
-		if(IdrPeriod > 0)
+		if (IdrPeriod > 0)
 		{
 			EncoderConfig.encodeCodecConfig.h264Config.idrPeriod = IdrPeriod;
 		}
@@ -451,11 +456,11 @@ namespace AVEncoder
 		uint64 PreReconfigureCycles = FPlatformTime::Cycles64();
 
 		FScopeLock lock(&ConfigMutex);
-		if(NeedsReconfigure)
+		if (NeedsReconfigure)
 		{
 			UpdateConfig();
-			
-			if(EncoderInitParams.frameRateNum != CurrentConfig.MaxFramerate)
+
+			if (EncoderInitParams.frameRateNum != CurrentConfig.MaxFramerate)
 			{
 				EncoderInitParams.frameRateNum = CurrentConfig.MaxFramerate;
 			}
@@ -464,14 +469,14 @@ namespace AVEncoder
 			FMemory::Memcpy(&ReconfigureParams.reInitEncodeParams, &EncoderInitParams, sizeof(EncoderInitParams));
 
 			auto const result = NVENC.nvEncReconfigureEncoder(NVEncoder, &ReconfigureParams);
-			if(result != NV_ENC_SUCCESS)
+			if (result != NV_ENC_SUCCESS)
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to update NVENC encoder configuration (%s)"), *NVENC.GetErrorString(NVEncoder, result));
 
 			NeedsReconfigure = false;
 
 			uint64 PostReconfigureCycles = FPlatformTime::Cycles64();
 
-			if(CVarNVENCEnableStats.GetValueOnAnyThread())
+			if (CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				// The time it took to do nvEncEncodePicture
 				double ReconfigureDeltaMs = FPlatformTime::ToMilliseconds64(PostReconfigureCycles - PreReconfigureCycles);
@@ -482,7 +487,7 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::UpdateLastEncodedQP(uint32 InLastEncodedQP)
 	{
-		if(InLastEncodedQP == LastEncodedQP)
+		if (InLastEncodedQP == LastEncodedQP)
 		{
 			// QP is the same, do nothing.
 			return;
@@ -505,14 +510,14 @@ namespace AVEncoder
 		RateControlParams.averageBitRate = CurrentConfig.TargetBitrate > -1 ? CurrentConfig.TargetBitrate : DEFAULT_BITRATE;
 		RateControlParams.maxBitRate = CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : DEFAULT_BITRATE; // Not used for CBR
 		RateControlParams.multiPass = ConvertMultipassModeNVENC(CurrentConfig.MultipassMode);
-		RateControlParams.minQP = {MinQP, MinQP, MinQP};
-		RateControlParams.maxQP = {MaxQP, MaxQP, MaxQP}; 
+		RateControlParams.minQP = { MinQP, MinQP, MinQP };
+		RateControlParams.maxQP = { MaxQP, MaxQP, MaxQP };
 		RateControlParams.enableMinQP = CurrentConfig.QPMin > -1;
 		RateControlParams.enableMaxQP = CurrentConfig.QPMax > -1;
 
 		// If we have QP ranges turned on use the last encoded QP to guide the max QP for an i-frame, so the i-frame doesn't look too blocky
 		// Note: this does nothing if we have i-frames turned off.
-		if(RateControlParams.enableMaxQP && LastEncodedQP > 0 && CVarNVENCKeyframeQPUseLastQP.GetValueOnAnyThread())
+		if (RateControlParams.enableMaxQP && LastEncodedQP > 0 && CVarNVENCKeyframeQPUseLastQP.GetValueOnAnyThread())
 		{
 			RateControlParams.maxQP.qpIntra = LastEncodedQP;
 		}
@@ -522,7 +527,7 @@ namespace AVEncoder
 		NV_ENC_CONFIG_H264& H264Config = EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config;
 		H264Config.enableFillerDataInsertion = CurrentConfig.FillData ? 1 : 0;
 
-		if(CurrentConfig.RateControlMode == AVEncoder::FVideoEncoder::RateControlMode::CBR && CurrentConfig.FillData)
+		if (CurrentConfig.RateControlMode == AVEncoder::FVideoEncoder::RateControlMode::CBR && CurrentConfig.FillData)
 		{
 			// `outputPictureTimingSEI` is used in CBR mode to fill video frame with data to match the requested bitrate.
 			H264Config.outputPictureTimingSEI = 1;
@@ -532,7 +537,7 @@ namespace AVEncoder
 	void FVideoEncoderNVENC_H264::FNVENCLayer::EncodeBuffer(FInputOutput* Buffer)
 	{
 		checkf(Buffer, TEXT("Cannot encode null buffer."));
-		if(Buffer == nullptr)
+		if (Buffer == nullptr)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Cannot proceed with encoding in NVENC - buffer was nullptr."));
 			return;
@@ -547,13 +552,13 @@ namespace AVEncoder
 
 		uint64 StartQueueEncodeCycles = FPlatformTime::Cycles64();
 
-		if(Buffer && !RegisterInputTexture(Buffer))
+		if (Buffer && !RegisterInputTexture(Buffer))
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to register texture in NVENC"));
 			DestroyBuffer(Buffer);
 			return;
 		}
-		
+
 		Buffer->SubmitTimeCycles = StartQueueEncodeCycles;
 		Buffer->PicParams.version = NV_ENC_PIC_PARAMS_VER;
 		Buffer->PicParams.inputWidth = Buffer->Width;
@@ -567,7 +572,7 @@ namespace AVEncoder
 		MaybeReconfigure();
 
 		// check if we have not reconfigued the buffer size
-		if(Buffer->SourceFrame && (Buffer->Width != EncoderInitParams.encodeWidth || Buffer->Height != EncoderInitParams.encodeHeight))
+		if (Buffer->SourceFrame && (Buffer->Width != EncoderInitParams.encodeWidth || Buffer->Height != EncoderInitParams.encodeHeight))
 		{
 			DestroyBuffer(Buffer);
 			return;
@@ -578,7 +583,7 @@ namespace AVEncoder
 		NVENCSTATUS Result = NVENC.nvEncEncodePicture(NVEncoder, &(Buffer->PicParams));
 
 		uint64 PostnvEncEncodePictureCycles = FPlatformTime::Cycles64();
-		if(CVarNVENCEnableStats.GetValueOnAnyThread())
+		if (CVarNVENCEnableStats.GetValueOnAnyThread())
 		{
 			// The time it took to do nvEncEncodePicture
 			double ProcessFramesFuncDeltaMs = FPlatformTime::ToMilliseconds64(PostnvEncEncodePictureCycles - PrenvEncEncodePictureCycles);
@@ -586,13 +591,13 @@ namespace AVEncoder
 		}
 
 		// We have an encoded bitstream - to use it we must bitstream lock, read, unlock (and then pass out the encoded output the whoever needs it)
-		if(Result == NV_ENC_SUCCESS)
+		if (Result == NV_ENC_SUCCESS)
 		{
 			ProcessEncodedBuffer(Buffer);
 
 			UnregisterInputTexture(Buffer);
 
-			if(CVarNVENCEnableStats.GetValueOnAnyThread())
+			if (CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				uint64 EndQueueEncodeCycles = FPlatformTime::Cycles64();
 				double QueueEncodeMs = FPlatformTime::ToMilliseconds64(EndQueueEncodeCycles - StartQueueEncodeCycles);
@@ -605,8 +610,8 @@ namespace AVEncoder
 		{
 			// Something went wrong
 			UE_LOG(LogEncoderNVENC, Error, TEXT("nvEncEncodePicture returned %s"), *NVENC.GetErrorString(NVEncoder, Result));
-			
-			if(Buffer)
+
+			if (Buffer)
 			{
 				DestroyBuffer(Buffer);
 			}
@@ -615,9 +620,21 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
+		// This encode is single threaded and blocking, if someone else is encoding right now, we wait.
+		while (bIsProcessingFrame) 
+		{
+			// According to UE docs
+			// Sleep this thread for Seconds. 0.0 means release the current time slice to let other threads get some attention.
+			FPlatformProcess::Sleep(0.0f);
+		}
+
+		checkf(!bIsProcessingFrame, TEXT("NVENC encoder should only ever be called one thread at a time."));
+
+		bIsProcessingFrame = true;
+
 		FInputOutput* Buffer = GetOrCreateBuffer(static_cast<const FVideoEncoderInputFrameImpl*>(InFrame));
 
-		if(!Buffer)
+		if (!Buffer)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Cannot encode null buffer."));
 			return;
@@ -627,7 +644,7 @@ namespace AVEncoder
 		Buffer->PicParams = {};
 		Buffer->PicParams.encodePicFlags = 0;
 
-		if(EncodeOptions.bForceKeyFrame)
+		if (EncodeOptions.bForceKeyFrame)
 		{
 			LastKeyFrameTime = FDateTime::UtcNow();
 			Buffer->PicParams.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEIDR;
@@ -640,23 +657,13 @@ namespace AVEncoder
 		Buffer->PicParams.inputTimeStamp = Buffer->TimeStamp = InFrame->GetTimestampUs();
 
 		EncodeBuffer(Buffer);
+
+		bIsProcessingFrame = false;
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Flush()
 	{
-		// Empty the FrameToBufferMapping
-
-		// As destroy buffer also modifies the frames to buffer mapping we must remove entries by copying keys first.
-		TArray<const AVEncoder::FVideoEncoderInputFrame*> Frames;
-		FrameToBufferMapping.GetKeys(Frames);
-		for(const AVEncoder::FVideoEncoderInputFrame* StoredFrame : Frames)
-		{
-			FInputOutput* Buffer = *FrameToBufferMapping.Find(StoredFrame);
-			DestroyBuffer(Buffer);
-		}
-
-		Frames.Empty();
-		FrameToBufferMapping.Empty();
+		DestroyBuffer(InputOutputBuffer);
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Shutdown()
@@ -667,7 +674,7 @@ namespace AVEncoder
 		{
 			FInputOutput* EmptyBuffer = CreateBuffer();
 
-			if(!EmptyBuffer)
+			if (!EmptyBuffer)
 			{
 				return;
 			}
@@ -679,12 +686,12 @@ namespace AVEncoder
 			EncodeBuffer(EmptyBuffer);
 		}
 
-		if(NVEncoder)
+		if (NVEncoder)
 		{
 			UE_LOG(LogEncoderNVENC, Log, TEXT("Attempting to destroy NVENC encoder."));
 
 			auto const result = NVENC.nvEncDestroyEncoder(NVEncoder);
-			if(result != NV_ENC_SUCCESS)
+			if (result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to destroy NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
@@ -696,7 +703,6 @@ namespace AVEncoder
 		}
 	}
 
-
 	void FVideoEncoderNVENC_H264::FNVENCLayer::ProcessEncodedBuffer(FInputOutput* Buffer)
 	{
 		uint64 StartProcessFramesFuncCycles;
@@ -705,13 +711,13 @@ namespace AVEncoder
 		StartProcessFramesFuncCycles = FPlatformTime::Cycles64();
 
 		// lock output buffers for CPU access
-		if(LockOutputBuffer(Buffer))
+		if (LockOutputBuffer(Buffer))
 		{
-			if(Encoder.OnEncodedPacket)
+			if (Encoder.OnEncodedPacket)
 			{
 				FCodecPacket Packet = FCodecPacket::Create(static_cast<const uint8*>(Buffer->BitstreamData), Buffer->BitstreamDataSize);
 
-				if(Buffer->PictureType & NV_ENC_PIC_TYPE_IDR)
+				if (Buffer->PictureType & NV_ENC_PIC_TYPE_IDR)
 				{
 					UE_LOG(LogEncoderNVENC, Verbose, TEXT("Generated IDR Frame"));
 					Packet.IsKeyFrame = true;
@@ -729,7 +735,7 @@ namespace AVEncoder
 				Packet.Framerate = EncoderInitParams.frameRateNum;
 
 				// Stats
-				if(CVarNVENCEnableStats.GetValueOnAnyThread())
+				if (CVarNVENCEnableStats.GetValueOnAnyThread())
 				{
 					// The time it took to do just the encode part
 					double ProcessFramesFuncDeltaMs = FPlatformTime::ToMilliseconds64(FinishedEncodingCycles - StartProcessFramesFuncCycles);
@@ -741,18 +747,17 @@ namespace AVEncoder
 				}
 
 				// Send frame to OnEncodedPacket listener, such as WebRTC.
-				if(Encoder.OnEncodedPacket)
+				if (Encoder.OnEncodedPacket)
 				{
 					Encoder.OnEncodedPacket(LayerIndex, Buffer->SourceFrame, Packet);
 				}
 			}
 
-			if(!UnlockOutputBuffer(Buffer))
+			if (!UnlockOutputBuffer(Buffer))
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unlock output buffer."));
 				DestroyBuffer(Buffer);
 			}
-
 		}
 		else
 		{
@@ -767,7 +772,7 @@ namespace AVEncoder
 		NVENCStruct(NV_ENC_CAPS_PARAM, CapsParam);
 		CapsParam.capsToQuery = CapsToQuery;
 		auto const result = NVENC.nvEncGetEncodeCaps(NVEncoder, CodecGUID, &CapsParam, &CapsValue);
-		if(result != NV_ENC_SUCCESS)
+		if (result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to query for NVENC capability %d (%s)."), CapsToQuery, *NVENC.GetErrorString(NVEncoder, result));
 			return 0;
@@ -777,38 +782,23 @@ namespace AVEncoder
 
 	FVideoEncoderNVENC_H264::FNVENCLayer::FInputOutput* FVideoEncoderNVENC_H264::FNVENCLayer::GetOrCreateBuffer(const FVideoEncoderInputFrameImpl* InFrame)
 	{
-		FInputOutput* Buffer = nullptr;
 
-		if(FrameToBufferMapping.Contains(InFrame))
+		if (InputOutputBuffer == nullptr)
 		{
-			Buffer = *FrameToBufferMapping.Find(InFrame);
-			checkf(Buffer, TEXT("Frame was mapped to a nullptr buffer, this indicate a buffer was not removed when it should have been."));
-
-			if(Buffer)
-			{
-				// Check for buffer and Frame texture resolution mismatch
-				if(InFrame->GetWidth() != Buffer->Width || InFrame->GetHeight() != Buffer->Height)
-				{
-					DestroyBuffer(Buffer);
-					Buffer = nullptr;
-				}
-				// Resolution of existing buffer is a match, so set our frame as the source frame
-				else
-				{
-					Buffer->SourceFrame = InFrame;
-				}
-			}
-			
+			InputOutputBuffer = CreateBuffer();
 		}
-		// No existing buffer for this frame
 		else
 		{
-			Buffer = CreateBuffer();
-			Buffer->SourceFrame = InFrame;
-			FrameToBufferMapping.Add(InFrame, Buffer);
+			// Check for buffer and Frame texture resolution mismatch
+			if (InFrame->GetWidth() != InputOutputBuffer->Width || InFrame->GetHeight() != InputOutputBuffer->Height)
+			{
+				DestroyBuffer(InputOutputBuffer);
+				InputOutputBuffer = CreateBuffer();
+			}
 		}
 
-		return Buffer;
+		InputOutputBuffer->SourceFrame = InFrame;
+		return InputOutputBuffer;
 	}
 
 	FVideoEncoderNVENC_H264::FNVENCLayer::FInputOutput* FVideoEncoderNVENC_H264::FNVENCLayer::CreateBuffer()
@@ -819,7 +809,7 @@ namespace AVEncoder
 		NVENCStruct(NV_ENC_CREATE_BITSTREAM_BUFFER, CreateParam);
 		{
 			auto const result = NVENC.nvEncCreateBitstreamBuffer(NVEncoder, &CreateParam);
-			if(result != NV_ENC_SUCCESS)
+			if (result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 				DestroyBuffer(Buffer);
@@ -835,15 +825,14 @@ namespace AVEncoder
 	void FVideoEncoderNVENC_H264::FNVENCLayer::DestroyBuffer(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot destroy buffer in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return;
 		}
 
-		// Remove from our mapping of frames to buffers
-		if(InBuffer->SourceFrame)
+		// Release the AVEncoder frame
+		if (InBuffer->SourceFrame)
 		{
-			FrameToBufferMapping.Remove(InBuffer->SourceFrame);
 			InBuffer->SourceFrame->Release();
 		}
 
@@ -852,10 +841,10 @@ namespace AVEncoder
 
 		// Destroy output buffer - if any
 		UnlockOutputBuffer(InBuffer);
-		if(InBuffer->OutputBitstream)
+		if (InBuffer->OutputBitstream)
 		{
 			auto const result = NVENC.nvEncDestroyBitstreamBuffer(NVEncoder, InBuffer->OutputBitstream);
-			if(result != NV_ENC_SUCCESS)
+			if (result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to destroy NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
@@ -866,12 +855,13 @@ namespace AVEncoder
 		InBuffer->InputTexture = nullptr;
 
 		delete InBuffer;
+		InBuffer = nullptr;
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::CreateResourceDIRECTX(FInputOutput* InBuffer, NV_ENC_REGISTER_RESOURCE& RegisterParam, FIntPoint TextureSize)
 	{
 		checkf(InBuffer, TEXT("Cannot create DirectX resource in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return;
 		}
@@ -880,20 +870,20 @@ namespace AVEncoder
 		D3D11_TEXTURE2D_DESC Desc;
 		static_cast<ID3D11Texture2D*>(InBuffer->InputTexture)->GetDesc(&Desc);
 
-		switch(Desc.Format)
+		switch (Desc.Format)
 		{
-		case DXGI_FORMAT_NV12:
-			InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_NV12;
-			break;
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-			InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_ABGR;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
-			break;
-		default:
-			UE_LOG(LogEncoderNVENC, Error, TEXT("Invalid input texture format for NVENC (%d)"), Desc.Format);
-			return;
+			case DXGI_FORMAT_NV12:
+				InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_NV12;
+				break;
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+				InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_ABGR;
+				break;
+			case DXGI_FORMAT_B8G8R8A8_UNORM:
+				InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
+				break;
+			default:
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Invalid input texture format for NVENC (%d)"), Desc.Format);
+				return;
 		}
 
 		InBuffer->Width = TextureSize.X;
@@ -912,12 +902,13 @@ namespace AVEncoder
 	void FVideoEncoderNVENC_H264::FNVENCLayer::CreateResourceCUDAARRAY(FInputOutput* InBuffer, NV_ENC_REGISTER_RESOURCE& RegisterParam, FIntPoint TextureSize)
 	{
 		checkf(InBuffer, TEXT("Cannot create CUDA array in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return;
 		}
 
-		switch(InBuffer->SourceFrame->GetCUDA().UnderlyingRHI) {
+		switch (InBuffer->SourceFrame->GetCUDA().UnderlyingRHI)
+		{
 			case FVideoEncoderInputFrame::EUnderlyingRHI::Vulkan:
 				InBuffer->Pitch = TextureSize.X * GPixelFormats[EPixelFormat::PF_A8R8G8B8].BlockBytes;
 				break;
@@ -944,36 +935,36 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::RegisterInputTexture(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot register texture in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(!InBuffer->InputTexture && InBuffer->PicParams.encodePicFlags != NV_ENC_PIC_FLAG_EOS)
+		if (!InBuffer->InputTexture && InBuffer->PicParams.encodePicFlags != NV_ENC_PIC_FLAG_EOS)
 		{
 			checkf(InBuffer->SourceFrame, TEXT("Cannot register texture if source frame is null."));
 
 			void* TextureToCompress = nullptr;
 
-			switch(InBuffer->SourceFrame->GetFormat())
+			switch (InBuffer->SourceFrame->GetFormat())
 			{
 #if PLATFORM_WINDOWS
-			case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-				TextureToCompress = InBuffer->SourceFrame->GetD3D11().EncoderTexture;
-				break;
-			case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-				UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC got passed a DX12 texture which it does not support, make sure it has been shared with a DX11 context and pass that texture instead."));
-				return false; // NVENC cant encode a D3D12 texture directly this should be converted to D3D11
+				case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+					TextureToCompress = InBuffer->SourceFrame->GetD3D11().EncoderTexture;
+					break;
+				case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+					UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC got passed a DX12 texture which it does not support, make sure it has been shared with a DX11 context and pass that texture instead."));
+					return false; // NVENC cant encode a D3D12 texture directly this should be converted to D3D11
 #endif
-			case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
-				TextureToCompress = InBuffer->SourceFrame->GetCUDA().EncoderTexture;
-				break;
-			case AVEncoder::EVideoFrameFormat::Undefined:
-			default:
-				break;
+				case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
+					TextureToCompress = InBuffer->SourceFrame->GetCUDA().EncoderTexture;
+					break;
+				case AVEncoder::EVideoFrameFormat::Undefined:
+				default:
+					break;
 			}
 
-			if(!TextureToCompress)
+			if (!TextureToCompress)
 			{
 				UE_LOG(LogEncoderNVENC, Fatal, TEXT("Got passed a null texture to encode."));
 				return false;
@@ -984,33 +975,33 @@ namespace AVEncoder
 
 			FIntPoint TextureSize(InBuffer->SourceFrame->GetWidth(), InBuffer->SourceFrame->GetHeight());
 
-			switch(InBuffer->SourceFrame->GetFormat())
+			switch (InBuffer->SourceFrame->GetFormat())
 			{
 #if PLATFORM_WINDOWS
-			case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-			case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-				CreateResourceDIRECTX(InBuffer, RegisterParam, TextureSize);
-				break;
+				case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+				case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+					CreateResourceDIRECTX(InBuffer, RegisterParam, TextureSize);
+					break;
 #endif
-			case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
-				CreateResourceCUDAARRAY(InBuffer, RegisterParam, TextureSize);
-				break;
-			case AVEncoder::EVideoFrameFormat::Undefined:
-			default:
-				break;
+				case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
+					CreateResourceCUDAARRAY(InBuffer, RegisterParam, TextureSize);
+					break;
+				case AVEncoder::EVideoFrameFormat::Undefined:
+				default:
+					break;
 			}
 
 			RegisterParam.resourceToRegister = InBuffer->InputTexture;
 
 			NVENCSTATUS Result = NVENC.nvEncRegisterResource(NVEncoder, &RegisterParam);
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to register input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
 				return false;
 			}
 			InBuffer->RegisteredInput = RegisterParam.registeredResource;
 
-			if(!MapInputTexture(InBuffer))
+			if (!MapInputTexture(InBuffer))
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Could not map input texture, cannot proceed with encoding this buffer."));
 				return false;
@@ -1023,20 +1014,20 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::UnregisterInputTexture(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot unregister texture in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(!UnmapInputTexture(InBuffer))
+		if (!UnmapInputTexture(InBuffer))
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unmap input texture."));
 		}
 
-		if(InBuffer->RegisteredInput)
+		if (InBuffer->RegisteredInput)
 		{
 			NVENCSTATUS Result = NVENC.nvEncUnregisterResource(NVEncoder, InBuffer->RegisteredInput);
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unregister input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
 				InBuffer->InputTexture = nullptr;
@@ -1052,17 +1043,17 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::MapInputTexture(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot map texture in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(!InBuffer->MappedInput)
+		if (!InBuffer->MappedInput)
 		{
 			NVENCStruct(NV_ENC_MAP_INPUT_RESOURCE, MapInputResource);
 			MapInputResource.registeredResource = InBuffer->RegisteredInput;
 			NVENCSTATUS Result = NVENC.nvEncMapInputResource(NVEncoder, &MapInputResource);
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to map input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
 				return false;
@@ -1076,15 +1067,15 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::UnmapInputTexture(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot unmap texture in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(InBuffer->MappedInput)
+		if (InBuffer->MappedInput)
 		{
 			NVENCSTATUS Result = NVENC.nvEncUnmapInputResource(NVEncoder, InBuffer->MappedInput);
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unmap input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
 				InBuffer->MappedInput = nullptr;
@@ -1098,12 +1089,12 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::LockOutputBuffer(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot lock output buffer in NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(!InBuffer->BitstreamData)
+		if (!InBuffer->BitstreamData)
 		{
 			uint64 PreLockCycles = FPlatformTime::Cycles64();
 
@@ -1112,14 +1103,14 @@ namespace AVEncoder
 			LockBitstreamParam.outputBitstream = InBuffer->OutputBitstream;
 			NVENCSTATUS Result = NVENC.nvEncLockBitstream(NVEncoder, &LockBitstreamParam);
 
-			if(CVarNVENCEnableStats.GetValueOnAnyThread())
+			if (CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				uint64 PostLockCycles = FPlatformTime::Cycles64();
 				double LockLatencyMs = FPlatformTime::ToMilliseconds64(PostLockCycles - PreLockCycles);
 				FNVENCStats::Get().SetLockOutputBufferLatency(LockLatencyMs);
 			}
 
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to lock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
 				return false;
@@ -1139,25 +1130,25 @@ namespace AVEncoder
 	bool FVideoEncoderNVENC_H264::FNVENCLayer::UnlockOutputBuffer(FInputOutput* InBuffer)
 	{
 		checkf(InBuffer, TEXT("Cannot unregister texture NVENC - buffer was nullptr."));
-		if(!InBuffer)
+		if (!InBuffer)
 		{
 			return false;
 		}
 
-		if(InBuffer->BitstreamData)
+		if (InBuffer->BitstreamData)
 		{
 			uint64 PreUnlockCycles = FPlatformTime::Cycles64();
 
 			NVENCSTATUS Result = NVENC.nvEncUnlockBitstream(NVEncoder, InBuffer->OutputBitstream);
 
-			if(CVarNVENCEnableStats.GetValueOnAnyThread())
+			if (CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				uint64 PostUnlockCycles = FPlatformTime::Cycles64();
 				double UnlockLatencyMs = FPlatformTime::ToMilliseconds64(PostUnlockCycles - PreUnlockCycles);
 				FNVENCStats::Get().SetUnlockOutputBufferLatency(UnlockLatencyMs);
 			}
 
-			if(Result != NV_ENC_SUCCESS)
+			if (Result != NV_ENC_SUCCESS)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unlock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
 				return false;
@@ -1179,15 +1170,15 @@ namespace AVEncoder
 		TRefCountPtr<IDXGIAdapter> Adapter;
 
 		HRESULT Result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)DXGIFactory1.GetInitReference());
-		if(Result != S_OK)
+		if (Result != S_OK)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create DX factory for NVENC."));
 			return false;
 		}
 
-		for(int GpuIndex = 0; GpuIndex < MAX_GPU_INDEXES; GpuIndex++)
+		for (int GpuIndex = 0; GpuIndex < MAX_GPU_INDEXES; GpuIndex++)
 		{
-			if((Result = DXGIFactory1->EnumAdapters(GpuIndex, Adapter.GetInitReference())) != S_OK)
+			if ((Result = DXGIFactory1->EnumAdapters(GpuIndex, Adapter.GetInitReference())) != S_OK)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to enum GPU #%d for NVENC."), GpuIndex);
 				return false;
@@ -1195,13 +1186,14 @@ namespace AVEncoder
 
 			DXGI_ADAPTER_DESC AdapterDesc;
 			Adapter->GetDesc(&AdapterDesc);
-			if(AdapterDesc.VendorId != 0x10DE) // NVIDIA
+			if (AdapterDesc.VendorId != 0x10DE) // NVIDIA
 			{
 				continue;
 			}
 
-			if((Result = D3D11CreateDevice(Adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, NULL, 0, D3D11_SDK_VERSION, OutEncoderDevice.GetInitReference(), NULL,
-			                               OutEncoderDeviceContext.GetInitReference())) != S_OK)
+			if ((Result = D3D11CreateDevice(Adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, NULL, 0, D3D11_SDK_VERSION, OutEncoderDevice.GetInitReference(), NULL,
+					 OutEncoderDeviceContext.GetInitReference()))
+				!= S_OK)
 			{
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create D3D11 device for NVENC."));
 			}
@@ -1229,7 +1221,7 @@ namespace AVEncoder
 
 		NVENCSTATUS NvResult = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession);
 		// UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
-		if(NvResult != NV_ENC_SUCCESS)
+		if (NvResult != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
 			EncoderSession = nullptr;
@@ -1249,7 +1241,7 @@ namespace AVEncoder
 
 		NVENCSTATUS NvResult = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession);
 		//	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
-		if(NvResult != NV_ENC_SUCCESS)
+		if (NvResult != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
 			EncoderSession = nullptr;
@@ -1263,8 +1255,8 @@ namespace AVEncoder
 		NVENCStruct(NV_ENC_CAPS_PARAM, CapsParam);
 		CapsParam.capsToQuery = InCapsToQuery;
 		NVENCSTATUS Result = NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue);
-		
-		if(Result != NV_ENC_SUCCESS)
+
+		if (Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to query for NVENC capability %d (error %d)."), InCapsToQuery, Result);
 			return 0;
@@ -1280,31 +1272,31 @@ namespace AVEncoder
 
 		OutSupportedProfiles = 0;
 		NVENCSTATUS Result = NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs);
-		
-		if(Result != NV_ENC_SUCCESS)
+
+		if (Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to query profiles supported by NvEnc (error: %d)."), Result);
 			return false;
 		}
-		for(uint32 Index = 0; Index < NumProfileGUIDs; ++Index)
+		for (uint32 Index = 0; Index < NumProfileGUIDs; ++Index)
 		{
-			if(memcmp(&NV_ENC_H264_PROFILE_BASELINE_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
+			if (memcmp(&NV_ENC_H264_PROFILE_BASELINE_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
 			{
 				OutSupportedProfiles |= H264Profile_Baseline;
-				if(GetEncoderCapability(NVENC, InEncoder, NV_ENC_CAPS_SUPPORT_CONSTRAINED_ENCODING))
+				if (GetEncoderCapability(NVENC, InEncoder, NV_ENC_CAPS_SUPPORT_CONSTRAINED_ENCODING))
 				{
 					OutSupportedProfiles |= H264Profile_ConstrainedBaseline;
 				}
 			}
-			else if(memcmp(&NV_ENC_H264_PROFILE_MAIN_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
+			else if (memcmp(&NV_ENC_H264_PROFILE_MAIN_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
 			{
 				OutSupportedProfiles |= H264Profile_Main;
 			}
-			else if(memcmp(&NV_ENC_H264_PROFILE_HIGH_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
+			else if (memcmp(&NV_ENC_H264_PROFILE_HIGH_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
 			{
 				OutSupportedProfiles |= H264Profile_High;
 			}
-			else if(memcmp(&NV_ENC_H264_PROFILE_CONSTRAINED_HIGH_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
+			else if (memcmp(&NV_ENC_H264_PROFILE_CONSTRAINED_HIGH_GUID, &ProfileGUIDs[Index], sizeof(GUID)) == 0)
 			{
 				OutSupportedProfiles |= H264Profile_ConstrainedHigh;
 			}
@@ -1318,29 +1310,29 @@ namespace AVEncoder
 		uint32_t InputFmtCount = 0;
 		NV_ENC_BUFFER_FORMAT InputFormats[MaxInputFmtCount];
 		NVENCSTATUS Result = NVENC.nvEncGetInputFormats(InEncoder, NV_ENC_CODEC_H264_GUID, InputFormats, MaxInputFmtCount, &InputFmtCount);
-		if(Result != NV_ENC_SUCCESS)
+		if (Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to query input formats supported by NvEnc (error: %d)."), Result);
 			return false;
 		}
 
-		for(uint32_t Index = 0; Index < InputFmtCount; ++Index)
+		for (uint32_t Index = 0; Index < InputFmtCount; ++Index)
 		{
-			switch(InputFormats[Index])
+			switch (InputFormats[Index])
 			{
-			case NV_ENC_BUFFER_FORMAT_IYUV:
-				break;
-			case NV_ENC_BUFFER_FORMAT_NV12:
-				break;
-			case NV_ENC_BUFFER_FORMAT_ARGB:
-				break;
-			case NV_ENC_BUFFER_FORMAT_ABGR:
+				case NV_ENC_BUFFER_FORMAT_IYUV:
+					break;
+				case NV_ENC_BUFFER_FORMAT_NV12:
+					break;
+				case NV_ENC_BUFFER_FORMAT_ARGB:
+					break;
+				case NV_ENC_BUFFER_FORMAT_ABGR:
 #if PLATFORM_WINDOWS
-				OutSupportedInputFormats.Push(EVideoFrameFormat::D3D11_R8G8B8A8_UNORM);
-				OutSupportedInputFormats.Push(EVideoFrameFormat::D3D12_R8G8B8A8_UNORM);
+					OutSupportedInputFormats.Push(EVideoFrameFormat::D3D11_R8G8B8A8_UNORM);
+					OutSupportedInputFormats.Push(EVideoFrameFormat::D3D12_R8G8B8A8_UNORM);
 #endif
-				OutSupportedInputFormats.Push(EVideoFrameFormat::CUDA_R8G8B8A8_UNORM);
-				break;
+					OutSupportedInputFormats.Push(EVideoFrameFormat::CUDA_R8G8B8A8_UNORM);
+					break;
 			}
 		}
 		return true;
@@ -1358,25 +1350,25 @@ namespace AVEncoder
 		TRefCountPtr<ID3D11Device> EncoderDevice;
 		TRefCountPtr<ID3D11DeviceContext> EncoderDeviceContext;
 
-		if(!CreateEncoderDevice(EncoderDevice, EncoderDeviceContext))
+		if (!CreateEncoderDevice(EncoderDevice, EncoderDeviceContext))
 		{
 			bSuccess = false;
 		}
 
-		if((EncoderSession = CreateEncoderSession(NVENC, EncoderDevice)) == nullptr)
+		if ((EncoderSession = CreateEncoderSession(NVENC, EncoderDevice)) == nullptr)
 		{
 			bSuccess = false;
 		}
 #endif
 		// if we dont already have an encoder session try with CUDA if its avaliable
-		if(!EncoderSession && FModuleManager::GetModulePtr<FCUDAModule>("CUDA"))
+		if (!EncoderSession && FModuleManager::GetModulePtr<FCUDAModule>("CUDA"))
 		{
 			FCUDAModule& CUDAModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-			if(CUDAModule.IsAvailable())
+			if (CUDAModule.IsAvailable())
 			{
 				EncoderSession = CreateEncoderSession(NVENC, CUDAModule.GetCudaContext());
 				bSuccess = EncoderSession != nullptr;
-			} 
+			}
 			else
 			{
 				bSuccess = false;
@@ -1384,7 +1376,7 @@ namespace AVEncoder
 		}
 
 		// if we dont have a session by now opt out. this will cause NVENC to not register
-		if(!EncoderSession || !bSuccess)
+		if (!EncoderSession || !bSuccess)
 		{
 			return false;
 		}
@@ -1395,10 +1387,11 @@ namespace AVEncoder
 
 		int LevelMax = GetEncoderCapability(NVENC, EncoderSession, NV_ENC_CAPS_LEVEL_MAX);
 		int LevelMin = GetEncoderCapability(NVENC, EncoderSession, NV_ENC_CAPS_LEVEL_MIN);
-		if(LevelMin > 0 && LevelMax > 0 && LevelMax >= LevelMin)
+		if (LevelMin > 0 && LevelMax > 0 && LevelMax >= LevelMin)
 		{
 			EncoderInfo.H264.MinLevel = (LevelMin > 9) ? LevelMin : 9;
-			EncoderInfo.H264.MaxLevel = (LevelMax < 9) ? 9 : (LevelMax > NV_ENC_LEVEL_H264_52) ? NV_ENC_LEVEL_H264_52 : LevelMax;
+			EncoderInfo.H264.MaxLevel = (LevelMax < 9) ? 9 : (LevelMax > NV_ENC_LEVEL_H264_52) ? NV_ENC_LEVEL_H264_52
+																							   : LevelMax;
 		}
 		else
 		{
@@ -1406,13 +1399,13 @@ namespace AVEncoder
 			bSuccess = false;
 		}
 
-		if(!GetEncoderSupportedProfiles(NVENC, EncoderSession, EncoderInfo.H264.SupportedProfiles) || !GetEncoderSupportedInputFormats(NVENC, EncoderSession, EncoderInfo.SupportedInputFormats))
+		if (!GetEncoderSupportedProfiles(NVENC, EncoderSession, EncoderInfo.H264.SupportedProfiles) || !GetEncoderSupportedInputFormats(NVENC, EncoderSession, EncoderInfo.SupportedInputFormats))
 		{
 			bSuccess = false;
 		}
 
 		// destroy encoder session
-		if(EncoderSession)
+		if (EncoderSession)
 		{
 			NVENC.nvEncDestroyEncoder(EncoderSession);
 		}

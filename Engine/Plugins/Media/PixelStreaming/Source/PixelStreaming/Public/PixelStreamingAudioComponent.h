@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PlayerId.h"
+#include "PixelStreamingPlayerId.h"
 #include "Components/SynthComponent.h"
 #include "IPixelStreamingAudioConsumer.h"
 #include "IPixelStreamingAudioSink.h"
@@ -13,7 +13,7 @@
  * Allows in-engine playback of incoming WebRTC audio from a particular Pixel Streaming player/peer using their mic in the browser.
  * Note: Each audio component associates itself with a particular Pixel Streaming player/peer (using the the Pixel Streaming player id).
  */
-UCLASS(Blueprintable, ClassGroup = (PixelStreamer), meta = (BlueprintSpawnableComponent))
+UCLASS(Blueprintable, ClassGroup = (PixelStreaming), meta = (BlueprintSpawnableComponent))
 class PIXELSTREAMING_API UPixelStreamingAudioComponent : public USynthComponent, public IPixelStreamingAudioConsumer
 {
 	GENERATED_BODY()

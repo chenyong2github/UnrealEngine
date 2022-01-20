@@ -1,100 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "WebRTCIncludes.h"
+#include "IPixelStreamingAudioSink.h"
+#include "IPixelStreamingAudioConsumer.h"
+#include "Containers/Set.h"
 
-#include "Templates/Function.h"
-#include "Containers/Array.h"
-#include "IMediaAudioSample.h"
-#include "MediaObjectPool.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/PlatformTime.h"
+namespace UE {
+	namespace PixelStreaming {
+		// This is a PixelStreaming sink AND a WebRTC sink.
+		// It collects audio coming in from a WebRTC audio source and passes into into UE's audio system.
+		class FAudioSink : public webrtc::AudioTrackSinkInterface, public IPixelStreamingAudioSink
+		{
+		public:
+			FAudioSink()
+				: AudioConsumers(){};
 
-using FAudioSampleRef = TSharedRef<IMediaAudioSample, ESPMode::ThreadSafe>;
+			// Note: destructor will call destroy on any attached audio consumers
+			virtual ~FAudioSink();
 
-class FAudioSample :
-	public IMediaAudioSample,
-	public IMediaPoolable
-{
-public:
-	void Init(const void* AudioData, uint32 BitsPerSample, uint32 InSampleRate, uint32 InNumChannels, uint32 InNumFrames)
-	{
-		check(BitsPerSample == 16); // `EMediaAudioSampleFormat::Int16` is hardcoded
+			// Begin AudioTrackSinkInterface
+			void OnData(const void* audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms) override;
+			// End AudioTrackSinkInterface
 
-		NumChannels = InNumChannels;
-		SampleRate = InSampleRate;
-		NumFrames = InNumFrames;
-		Timestamp = FTimespan::FromSeconds(FPlatformTime::Seconds());
-		Buffer = TArray<uint8>(reinterpret_cast<const uint8*>(AudioData), NumChannels * sizeof(int16) * InNumFrames);
+			// Begin IPixelStreamingAudioSink
+			void AddAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer) override;
+			void RemoveAudioConsumer(IPixelStreamingAudioConsumer* AudioConsumer) override;
+			bool HasAudioConsumers() override;
+			// End IPixelStreamingAudioSink
 
-		UE_LOG(PixelPlayer, VeryVerbose, TEXT("Audio: %dc, %dHz, %d samples"), NumChannels, SampleRate, NumFrames);
+		private:
+			void UpdateAudioSettings(int InNumChannels, int InSampleRate);
+
+		private:
+			TSet<IPixelStreamingAudioConsumer*> AudioConsumers;
+		};
 	}
-
-	const void* GetBuffer() override
-	{
-		return Buffer.GetData();
-	}
-
-	uint32 GetChannels() const override
-	{
-		return NumChannels;
-	}
-
-	FTimespan GetDuration() const override
-	{
-		return FTimespan::FromSeconds(static_cast<double>(NumFrames) / SampleRate);
-	}
-
-	EMediaAudioSampleFormat GetFormat() const override
-	{
-		return EMediaAudioSampleFormat::Int16;
-	}
-
-	uint32 GetFrames() const override
-	{
-		return NumFrames;
-	}
-
-	uint32 GetSampleRate() const override
-	{
-		return SampleRate;
-	}
-
-	FMediaTimeStamp GetTime() const override
-	{
-		return Timestamp;
-	}
-
-private:
-	uint32 NumChannels;
-	uint32 SampleRate;
-	uint32 NumFrames;
-	FMediaTimeStamp Timestamp;
-	TArray<uint8> Buffer;
-};
-
-using FAudioSamplePool = TMediaObjectPool<FAudioSample>;
-
-class FAudioSink : public webrtc::AudioTrackSinkInterface
-{
-public:
-	using FDelegate = TUniqueFunction<void(const FAudioSampleRef&)>;
-
-	explicit FAudioSink(FDelegate&& InDelegate)
-		: Delegate(MoveTemp(InDelegate))
-	{
-	}
-
-private:
-	void OnData(const void* AudioData, int32 BitsPerSample, int32 SampleRate, SIZE_T NumberOfChannels, SIZE_T NumberOfFrames) override
-	{
-		TSharedRef<FAudioSample, ESPMode::ThreadSafe> Sample = SamplePool.AcquireShared();
-		Sample->Init(AudioData, BitsPerSample, SampleRate, NumberOfChannels, NumberOfFrames);
-		Delegate(Sample);
-	}
-
-private:
-	FDelegate Delegate;
-	FAudioSamplePool SamplePool;
-};
+}
