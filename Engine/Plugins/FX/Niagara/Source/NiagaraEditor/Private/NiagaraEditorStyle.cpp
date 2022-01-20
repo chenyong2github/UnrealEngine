@@ -289,8 +289,8 @@ void InitParameters(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.StaticIcon", new IMAGE_PLUGIN_BRUSH("Icons/staticpill_16x", Icon16x16));
 	Style->Set("NiagaraEditor.Pins.StaticConnected", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Connected", Icon16x16));
 	Style->Set("NiagaraEditor.Pins.StaticDisconnected", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Disconnected", Icon16x16));
-	Style->Set("NiagaraEditor.Pins.StaticConnectedHovered", new IMAGE_BRUSH("Icons/StaticPin_Connected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
-	Style->Set("NiagaraEditor.Pins.StaticDisconnectedHovered", new IMAGE_BRUSH("Icons/StaticPin_Disconnected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
+	Style->Set("NiagaraEditor.Pins.StaticConnectedHovered", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Connected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
+	Style->Set("NiagaraEditor.Pins.StaticDisconnectedHovered", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Disconnected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
 }
 
 void InitParameterMapView(TSharedRef< FSlateStyleSet > Style)
@@ -333,7 +333,7 @@ void InitCodeView(TSharedRef< FSlateStyleSet > Style)
 
 
 	const FTextBlockStyle ErrorText = FTextBlockStyle(NormalText)
-		.SetUnderlineBrush(IMAGE_BRUSH("White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
+		.SetUnderlineBrush(IMAGE_CORE_BRUSH("Old/White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
 		.SetColorAndOpacity(FLinearColor::Red);
 		
 	Style->Set("TextEditor.NormalText", NormalText);
@@ -343,7 +343,7 @@ void InitCodeView(TSharedRef< FSlateStyleSet > Style)
 	FTextBlockStyle NormalHlslText = FTextBlockStyle(NormalText)
 		.SetFont(HlslFont);
 	const FTextBlockStyle HlslErrorText = FTextBlockStyle(NormalHlslText)
-		.SetUnderlineBrush(IMAGE_BRUSH("White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
+		.SetUnderlineBrush(IMAGE_CORE_BRUSH("Old/White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
 		.SetColorAndOpacity(FLinearColor::Red);
 	
 	Style->Set("SyntaxHighlight.HLSL.Normal", FTextBlockStyle(NormalHlslText).SetColorAndOpacity(FLinearColor(FColor(189, 183, 107))));
