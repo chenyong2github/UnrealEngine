@@ -3008,6 +3008,13 @@ void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxIm
 					continue;
 				}
 
+				// If copying properties to a spawnable object, the template object must be updated
+				FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(InObjectBinding.Key);
+				if (Spawnable)
+				{
+					Spawnable->CopyObjectTemplate(*FoundObject, *InSequence);
+				}
+
 				UMovieSceneFloatTrack* FloatTrack = MovieScene->FindTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid, TrackName);
 				if (FloatTrack)
 				{
