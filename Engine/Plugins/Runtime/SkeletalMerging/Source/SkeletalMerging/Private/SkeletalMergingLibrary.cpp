@@ -292,7 +292,7 @@ void USkeletalMergingLibrary::AddCurveNames(USkeleton* InSkeleton, const TMap<FN
 	});
 	InSkeleton->VerifySmartNames(USkeleton::AnimCurveMappingName, CurveSmartNames);
 		
-	for(const TPair<FName, const FCurveMetaData*> CurveMetaDataPair : InCurves)
+	for(const TPair<FName, const FCurveMetaData*>& CurveMetaDataPair : InCurves)
 	{
 		if (CurveMetaDataPair.Value)
 		{
