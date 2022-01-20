@@ -473,13 +473,12 @@ private:
 		SetDrawOnlyVSMInvalidatingGeo(false);
 		SetSingleLayerWaterRefractionFullPrecision(false);
 
-		SetVisualizeLumen(false);
-		SetLumenScreenTraces(false);
-		SetLumenDetailTraces(false);
-		SetLumenGlobalTraces(false);
-		SetLumenFarFieldTraces(false);
-		SetLumenSecondaryBounces(false);
-		SetLumenScreenSpaceDirectionalOcclusion(false);
+		SetLumenScreenTraces(true);
+		SetLumenDetailTraces(true);
+		SetLumenGlobalTraces(true);
+		SetLumenFarFieldTraces(true);
+		SetLumenSecondaryBounces(true);
+		SetLumenScreenSpaceDirectionalOcclusion(true);
 	}
 
 
