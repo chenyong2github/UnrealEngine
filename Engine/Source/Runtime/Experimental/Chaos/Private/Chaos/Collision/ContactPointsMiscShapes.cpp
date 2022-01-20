@@ -140,14 +140,6 @@ namespace Chaos
 		{
 			B.ContactManifold(*ConvexImplicit, AToBTM, CullDistance, ContactPoints);
 		}
-
-		// Note: All results we got are in ShapeB's local space
-		for (FContactPoint& ContactPoint : ContactPoints)
-		{
-			// Calculate the shape contact points
-			ContactPoint.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(ContactPoint.ShapeContactPoints[1]);
-			ContactPoint.ShapeContactPoints[1] = ContactPoint.ShapeContactPoints[1] - ContactPoint.Phi * ContactPoint.ShapeContactNormal;
-		}
 	}
 
 	// A is the implicit here, we want to return a contact point on B (trimesh)

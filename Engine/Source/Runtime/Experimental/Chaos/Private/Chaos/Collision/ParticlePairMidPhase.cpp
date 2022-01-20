@@ -119,6 +119,8 @@ namespace Chaos
 		const bool bIsSphere1 = (ImplicitType1 == ImplicitObjectType::Sphere);
 		const bool bIsCapsule0 = (ImplicitType0 == ImplicitObjectType::Capsule);
 		const bool bIsCapsule1 = (ImplicitType1 == ImplicitObjectType::Capsule);
+		const bool bIsTriangle0 = (ImplicitType0 == ImplicitObjectType::TriangleMesh) || (ImplicitType0 == ImplicitObjectType::HeightField);
+		const bool bIsTriangle1 = (ImplicitType1 == ImplicitObjectType::TriangleMesh) || (ImplicitType1 == ImplicitObjectType::HeightField);
 
 		const bool bAllowBoundsChecked = bChaos_Collision_MidPhase_EnableBoundsChecks && bHasBounds0 && bHasBounds1;
 		Flags.bEnableAABBCheck = bAllowBoundsChecked && !(bIsSphere0 && bIsSphere1);	// No AABB test if both are spheres
@@ -131,7 +133,7 @@ namespace Chaos
 		}
 
 		// Do not try to reuse manifold points for capsules or spheres (against anything)
-		Flags.bEnableManifoldUpdate = bChaos_Collision_EnableManifoldUpdate && !bIsSphere0 && !bIsSphere1 && !bIsCapsule0 && !bIsCapsule1;
+		Flags.bEnableManifoldUpdate = bChaos_Collision_EnableManifoldUpdate && !bIsSphere0 && !bIsSphere1 && !bIsCapsule0 && !bIsCapsule1 && !bIsTriangle0 && !bIsTriangle1;
 	}
 
 	FSingleShapePairCollisionDetector::~FSingleShapePairCollisionDetector()
@@ -277,7 +279,7 @@ namespace Chaos
 
 			// If the constraint was not used last frame, it needs to be reset. 
 			// Otherwise we will try to reuse it below
-			if (!bWasUpdatedLastTick || bUseCCD)
+			if (!bWasUpdatedLastTick  || (Constraint->GetManifoldPoints().Num() == 0) || bUseCCD)
 			{
 				// Clear all manifold data including saved contact data
 				Constraint->ResetManifold();

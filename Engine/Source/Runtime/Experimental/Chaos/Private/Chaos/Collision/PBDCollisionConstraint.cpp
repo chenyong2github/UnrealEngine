@@ -41,6 +41,12 @@ namespace Chaos
 	bool bChaos_Manifold_EnableFrictionRestore = true;
 	FAutoConsoleVariableRef CVarChaos_Manifold_EnableFrictionRestore(TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), bChaos_Manifold_EnableFrictionRestore, TEXT(""));
 	
+	// The margin to use when we are colliding a convex shape against a zero-margin shape. E.g., Box-Triangle.
+	// When both shapes have a margin we use the minimum margin, but we don't want to use a zero margin because we hit the EPA degenerate case
+	// NOTE: This is currently disabled - margins for convex-trimesh cause bigger problems than the EPA issue
+	FRealSingle Chaos_Collision_ConvexZeroMargin = 0.0f;
+	FAutoConsoleVariableRef CVarChaos_Collision_ConvexZeroMargin(TEXT("p.Chaos.Collision.ConvexZeroMargin"), Chaos_Collision_ConvexZeroMargin, TEXT(""));
+
 	struct FCollisionTolerances
 	{
 		// Multiplied by the contact margin to produce a distance within which contacts are considered to be the same point
@@ -260,7 +266,7 @@ namespace Chaos
 		// One shape in a collision will always have a margin. Only triangles have zero margin and we don't 
 		// collide two triangles. If we have a triangle, it is always the second shape.
 		// The collision tolerance is used for knowing whether a new contact matches an existing one.
-		// If we have two non-quadratic shapes, we use the smallest margin on both shapes.
+		// If we have two non-quadratic shapes, we use the smallest margin on both shapes (unless one shape has zero margin).
 		// If we have a quadratic shape versus a non-quadratic, we don't need a margin on the non-quadratic.
 		// For non-quadratics the collision tolerance is the smallest non-zero margin. 
 		// For quadratic shapes we want a collision tolerance much smaller than the radius.
@@ -269,9 +275,23 @@ namespace Chaos
 		const FReal QuadraticToleranceScale = 0.05f;
 		if (!bIsQuadratic0 && !bIsQuadratic1)
 		{
-			CollisionMargins[0] = FMath::Min(Margin0, Margin1);
-			CollisionMargins[1] = CollisionMargins[0];
-			CollisionTolerance = ((Margin0 < Margin1) || (Margin1 == 0)) ? Margin0 : Margin1;
+			// If one shape has a zero margin, enforce a minimum margin to avoid the EPA degenerate case. E.g., Box-Triangle
+			// If both shapes have a margin, use the smaller margin on both shapes. E.g., Box-Box
+			// We should never see both shapes with zero margin, but if we did we'd end up with a zero margin
+			if ((Margin0 == FReal(0)) || (Margin1 == FReal(0)))
+			{
+				const FReal MinMargin = Chaos_Collision_ConvexZeroMargin;
+				const FReal NonZeroMargin = FMath::Max(Margin0, Margin1);
+				CollisionMargins[0] = FMath::Min(MinMargin, NonZeroMargin);
+				CollisionMargins[1] = CollisionMargins[0];
+				CollisionTolerance = NonZeroMargin;
+			}
+			else
+			{
+				CollisionMargins[0] = FMath::Min(Margin0, Margin1);
+				CollisionMargins[1] = CollisionMargins[0];
+				CollisionTolerance = CollisionMargins[0];
+			}
 		}
 		else if (bIsQuadratic0 && bIsQuadratic1)
 		{
