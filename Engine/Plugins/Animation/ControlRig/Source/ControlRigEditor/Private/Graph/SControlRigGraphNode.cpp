@@ -107,9 +107,20 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		static void VisitPinRecursively(URigVMPin* InPin, TArray<URigVMPin*>& OutPins)
 		{
 			OutPins.Add(InPin);
-			for (URigVMPin* SubPin : InPin->GetSubPins())
+
+			if (InPin->GetCPPType() == TEXT("FRotator"))
 			{
-				VisitPinRecursively(SubPin, OutPins);
+				TArray<URigVMPin*> SubPins = InPin->GetSubPins();
+				OutPins.Add(SubPins[2]);	
+				OutPins.Add(SubPins[0]);	
+				OutPins.Add(SubPins[1]);	
+			}
+			else
+			{				
+				for (URigVMPin* SubPin : InPin->GetSubPins())
+				{
+					VisitPinRecursively(SubPin, OutPins);
+				}
 			}
 		}
 	};
@@ -968,7 +979,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 #else
 								URigVMMemoryStorage* Memory = ActiveObject->GetVM()->GetDebugMemory();
 								// We mark PPF_ExternalEditor so that default values are also printed
-								const FString DebugValue = Memory->GetDataAsStringSafe(WatchOperand->GetRegisterIndex(), PPF_ExternalEditor);
+								const FString DebugValue = Memory->GetDataAsStringSafe(WatchOperand->GetRegisterIndex(), PPF_ExternalEditor | STRUCT_ExportTextItemNative);
 								if(!DebugValue.IsEmpty())
 								{
 									DefaultValues = URigVMPin::SplitDefaultValue(DebugValue);
@@ -978,13 +989,32 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 						}
 
 						FString WatchText;
-
 						if (DefaultValues.Num() == 1)
 						{
-							WatchText = DefaultValues[0];
+							// Fixing the order of values in the rotator to match the order in the pins (x, y, z)
+							if (ModelPin->GetCPPType() == TEXT("FRotator"))
+							{
+								TArray<FString> Values;
+								FString TrimmedText = DefaultValues[0].LeftChop(1).RightChop(1); //Remove ()
+								TrimmedText.ParseIntoArray(Values, TEXT(","));
+								Values.Swap(0, 1);
+								Values.Swap(0, 2);
+								WatchText = FString(TEXT("(")) + FString::Join(Values, TEXT(",")) + FString(TEXT(")"));
+								UScriptStruct* RotatorStruct = TBaseStructure<FRotator>::Get();
+								for (TFieldIterator<FProperty> It(RotatorStruct); It; ++It)
+								{
+									FName PropertyName = It->GetFName();
+									WatchText.ReplaceInline(*PropertyName.ToString(), *It->GetDisplayNameText().ToString());
+								}
+							}
+							else
+							{								
+								WatchText = DefaultValues[0];
+							}
 						}
 						else if (DefaultValues.Num() > 1)
 						{
+							// todo: Fix order of values in rotators within other structures
 							WatchText = FString::Printf(TEXT("%s"), *FString::Join(DefaultValues, TEXT("\n")));
 						}
 

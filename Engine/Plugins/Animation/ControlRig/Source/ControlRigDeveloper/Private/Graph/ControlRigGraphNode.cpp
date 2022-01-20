@@ -121,7 +121,7 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 						{
 							if(NewVariable.VarName == VariableName)
 							{
-								const FString DefaultValue = NewVariable.DefaultValue;
+								FString DefaultValue = NewVariable.DefaultValue;
 								if(DefaultValue.IsEmpty())
 								{
 									static const FString VariableString = TEXT("Variable");
@@ -129,6 +129,15 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 								}
 								else
 								{
+									// Change the order of values in rotators so that they match the pin order
+									if (!NewVariable.VarType.IsContainer() && NewVariable.VarType.PinSubCategoryObject == TBaseStructure<FRotator>::Get())
+									{
+										TArray<FString> Values;
+										DefaultValue.ParseIntoArray(Values, TEXT(","));
+										Values.Swap(0, 1);
+										Values.Swap(0, 2);
+										DefaultValue = FString::Join(Values, TEXT(","));										
+									}
 									SubTitle = FString::Printf(TEXT("Default %s"), *DefaultValue);
 								}
 								break;
