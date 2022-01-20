@@ -434,7 +434,7 @@ void FGenericCrashContext::InitializeFromConfig()
 	// Write a marker file to disk indicating the user has allowed unattended crash reports being
 	// sent. This allows us to submit reports for crashes during static initialization when user
 	// settings are not available. 
-	FString MarkerFilePath = FString::Printf(TEXT("%s/NotAllowedUnattendedBugReports"), FPlatformProcess::ApplicationSettingsDir());
+	FString MarkerFilePath = FPaths::Combine(FPlatformProcess::ApplicationSettingsDir(), TEXT("NotAllowedUnattendedBugReports"));
 	if (!NCached::UserSettings.bSendUnattendedBugReports)
 	{
 		TUniquePtr<IFileHandle> File(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*MarkerFilePath));

@@ -701,7 +701,7 @@ int32 ReportCrashForMonitor(
 		// Crashes before config system is ready (e.g. during static init) we cannot know the user
 		// settings for sending unattended. We check for the existense of the marker file from previous
 		// sessions, otherwise we cannot send a report at all.
-		FString NotAllowedUnattendedBugReportMarkerPath = FString::Printf(TEXT("%s/NotAllowedUnattendedBugReports"), FWindowsPlatformProcess::ApplicationSettingsDir());
+		FString NotAllowedUnattendedBugReportMarkerPath = FPaths::Combine(FWindowsPlatformProcess::ApplicationSettingsDir(), TEXT("NotAllowedUnattendedBugReports"));
 		if (::PathFileExistsW(*NotAllowedUnattendedBugReportMarkerPath))
 		{
 			bSendUnattendedBugReports = false;
