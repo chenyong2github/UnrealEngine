@@ -511,7 +511,8 @@ namespace Metasound
 							ParentMetaSoundAsset->ConformObjectDataToInterfaces();
 						}
 
-						InDocument->SynchronizeDependencies();
+						InDocument->RemoveUnreferencedDependencies();
+						InDocument->SynchronizeDependencyMetadata();
 					}
 				}
 			}
@@ -528,7 +529,8 @@ namespace Metasound
 					NewNode->SetNodeStyle(Style);
 				}
 
-				InDocument->SynchronizeDependencies();
+				InDocument->RemoveUnreferencedDependencies();
+				InDocument->SynchronizeDependencyMetadata();
 			}
 
 			return bDidEdit;

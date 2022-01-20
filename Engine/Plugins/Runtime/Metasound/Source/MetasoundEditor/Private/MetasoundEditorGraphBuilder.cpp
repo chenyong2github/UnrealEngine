@@ -1187,7 +1187,7 @@ namespace Metasound
 
 						if (ensure(GraphHandle->RemoveNode(*NodeHandle)))
 						{
-							GraphHandle->GetOwningDocument()->SynchronizeDependencies();
+							GraphHandle->GetOwningDocument()->RemoveUnreferencedDependencies();
 						}
 					}
 					break;

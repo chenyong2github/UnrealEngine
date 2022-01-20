@@ -955,11 +955,12 @@ namespace Metasound
 			/** Attempts to find an existing Metasound class description corresponding
 			 * to a dependency which matches the provided class information. If the
 			 * class is not found in the current dependencies, it is added to the 
-			 * dependencies.
+			 * dependencies. If found and bInRefreshFromRegistry is set (optional)
+			 * , copies the version found in the registry to the document.
 			 *
 			 * @return A pointer to the object, or nullptr on error.
 			 */
-			virtual FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) = 0; 
+			virtual FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey, bool bInRefreshFromRegistry = false) = 0;
 
 			/** Returns an existing Metasound class description corresponding to 
 			 * a dependency which matches the provided class information.
@@ -991,15 +992,14 @@ namespace Metasound
 			virtual void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) = 0;
 			virtual void ClearInterfaceVersions() = 0;
 
-			/** Updates dependency with given registry key if found with that in the active registry
-			  *
-			  * @return True if found (and subsequently updated), false if not found.
+			/** Removes all dependencies which are no longer referenced by any graphs within this document.
 			  */
-			virtual const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) = 0;
+			virtual void RemoveUnreferencedDependencies() = 0;
 
-			/** Removes all dependencies which are no longer referenced by any graphs within this document
+			/** Synchronizes all dependency Metadata in document with that found in the registry. If not found
+			  * in the registry, no action taken.  Returns array of pointers to classes that were modified.
 			  */
-			virtual void SynchronizeDependencies() = 0;
+			virtual TArray<FConstClassAccessPtr> SynchronizeDependencyMetadata() = 0;
 
 			/** Returns an array of all subgraphs for this document. */
 			virtual TArray<FGraphHandle> GetSubgraphHandles() = 0;

@@ -407,7 +407,7 @@ namespace Metasound
 				virtual FConstClassAccessPtr FindClassWithID(FGuid InClassID) const override { return FConstClassAccessPtr(); }
 
 				virtual FConstClassAccessPtr FindClass(const FNodeRegistryKey& InKey) const override { return FConstClassAccessPtr(); }
-				virtual FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) override { return FConstClassAccessPtr(); }
+				virtual FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey, bool bInRefreshFromRegistry) override { return FConstClassAccessPtr(); }
 				virtual FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override{ return FConstClassAccessPtr(); }
 				virtual FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return IGraphController::GetInvalidHandle(); }
@@ -420,8 +420,8 @@ namespace Metasound
 				virtual void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
 				virtual const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return Invalid::GetInvalidDocumentMetadata(); }
 
-				virtual const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) override { return nullptr; }
-				virtual void SynchronizeDependencies() override { }
+				virtual void RemoveUnreferencedDependencies() override { }
+				virtual TArray<FConstClassAccessPtr> SynchronizeDependencyMetadata() override { return { }; }
 
 				virtual TArray<FGraphHandle> GetSubgraphHandles() override { return TArray<FGraphHandle>(); }
 

@@ -46,7 +46,7 @@ namespace Metasound
 			FConstClassAccessPtr FindClass(const FNodeRegistryKey& InKey) const override;
 			FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override;
 
-			FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) override;
+			FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey, bool bInRefreshFromRegistry) override;
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
 			FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
@@ -59,8 +59,8 @@ namespace Metasound
 			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
 			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;
 
-			const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) override;
-			void SynchronizeDependencies() override;
+			void RemoveUnreferencedDependencies() override;
+			TArray<FConstClassAccessPtr> SynchronizeDependencyMetadata() override;
 
 			FGraphHandle GetRootGraph() override;
 			FConstGraphHandle GetRootGraph() const override;

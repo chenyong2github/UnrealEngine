@@ -664,7 +664,7 @@ namespace Metasound
 				GraphClass->Interface.Inputs.Reset();
 				GraphClass->Interface.Outputs.Reset();
 				OwningDocument->ClearInterfaceVersions();
-				OwningDocument->SynchronizeDependencies();
+				OwningDocument->RemoveUnreferencedDependencies();
 			}
 		}
 
@@ -1398,7 +1398,7 @@ namespace Metasound
 
 				NumRemoved += GraphClass->Graph.Nodes.RemoveAll(IsNodeWithID);
 
-				OwningDocument->SynchronizeDependencies();
+				OwningDocument->RemoveUnreferencedDependencies();
 
 				return (NumRemoved > 0);
 			}

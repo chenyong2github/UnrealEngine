@@ -232,20 +232,20 @@ namespace Metasound
 			return DocumentPtr.GetClassWithRegistryKey(InKey);
 		}
 
-		FConstClassAccessPtr FDocumentController::FindOrAddClass(const FNodeRegistryKey& InKey)
+		FConstClassAccessPtr FDocumentController::FindOrAddClass(const FNodeRegistryKey& InKey, bool bInRefreshFromRegistry)
 		{
 			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 			{
 				FConstClassAccessPtr ClassPtr = FindClass(InKey);
 
-				auto AddClass = [=](FMetasoundFrontendClass&& NewClassDescription)
+				auto AddClass = [=](FMetasoundFrontendClass&& NewClassDescription, const FGuid& NewClassID)
 				{
 					FConstClassAccessPtr NewClassPtr;
 
 					// Cannot add a subgraph using this method because dependencies
 					// of external graph are not added in this method.
 					check(EMetasoundFrontendClassType::Graph != NewClassDescription.Metadata.GetType());
-					NewClassDescription.ID = FGuid::NewGuid();
+					NewClassDescription.ID = NewClassID;
 
 					Document->Dependencies.Add(MoveTemp(NewClassDescription));
 					NewClassPtr = FindClass(InKey);
@@ -264,15 +264,22 @@ namespace Metasound
 						FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
 						if (NewClass.Metadata.GetVersion().Major != MetasoundClass->Metadata.GetVersion().Major)
 						{
-							return AddClass(MoveTemp(NewClass));
+							return AddClass(MoveTemp(NewClass), FGuid::NewGuid());
 						}
+					}
+
+					if (bInRefreshFromRegistry)
+					{
+						FGuid ClassID = MetasoundClass->ID;
+						FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
+						return AddClass(MoveTemp(NewClass), ClassID);
 					}
 
 					return ClassPtr;
 				}
 
 				FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
-				return AddClass(MoveTemp(NewClass));
+				return AddClass(MoveTemp(NewClass), FGuid::NewGuid());
 			}
 
 			return FConstClassAccessPtr();
@@ -363,33 +370,7 @@ namespace Metasound
 			return ClassPtr;
 		}
 
-		const FMetasoundFrontendClass* FDocumentController::SynchronizeDependency(const FNodeRegistryKey& InKey)
-		{
-			FMetasoundFrontendDocument* Document = DocumentPtr.Get();
-			if (!ensure(Document))
-			{
-				return nullptr;
-			}
-
-			for (FMetasoundFrontendClass& Class : Document->Dependencies)
-			{
-				const FNodeRegistryKey DependencyRegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(Class.Metadata);
-				if (InKey == DependencyRegistryKey)
-				{
-					const FGuid ClassID = Class.ID;
-					FMetasoundFrontendClass RegisteredClass = GenerateClassDescription(InKey);
-					RegisteredClass.ID = ClassID;
-					Class = RegisteredClass;
-					return &Class;
-				}
-			}
-
-			FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
-			NewClass.ID = FGuid::NewGuid();
-			return &Document->Dependencies.Add_GetRef(NewClass);
-		}
-
-		void FDocumentController::SynchronizeDependencies()
+		void FDocumentController::RemoveUnreferencedDependencies()
 		{
 			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 			{
@@ -422,9 +403,33 @@ namespace Metasound
 					};
 
 					NumDependenciesRemovedThisItr = Document->Dependencies.RemoveAllSwap(IsDependencyUnreferenced);
-				}
-				while (NumDependenciesRemovedThisItr > 0);
+				} while (NumDependenciesRemovedThisItr > 0);
 			}
+		}
+
+		TArray<FConstClassAccessPtr> FDocumentController::SynchronizeDependencyMetadata()
+		{
+			TArray<FConstClassAccessPtr> UpdatedClassPtrs;
+
+			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
+			{
+				for (FMetasoundFrontendClass& Class : Document->Dependencies)
+				{
+					FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Class.Metadata);
+
+					FMetasoundFrontendClass RegistryVersion;
+					if (FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(RegistryKey, RegistryVersion))
+					{
+						if (Class.Metadata.GetChangeID() != RegistryVersion.Metadata.GetChangeID())
+						{
+							Class.Metadata = MoveTemp(RegistryVersion.Metadata);
+							UpdatedClassPtrs.Add(FindClass(RegistryKey));
+						}
+					}
+				}
+			}
+
+			return UpdatedClassPtrs;
 		}
 
 		FGraphHandle FDocumentController::GetRootGraph()

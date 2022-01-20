@@ -795,7 +795,12 @@ namespace Metasound
 				});
 			});
 
+			// Maintain the NodeID to ensure the editor layer maintains node representation parity.
 			const FGuid ReplacedNodeGuid = GetID();
+
+			// Maintain class ID to ensure all nodes created & preexisting reference the same dependency.
+			const FGuid ClassID = GetClassID();
+
 			if (!ensureAlways(GetOwningGraph()->RemoveNode(*this)))
 			{
 				return this->AsShared();
@@ -804,9 +809,11 @@ namespace Metasound
 			// Make sure classes are up-to-date with registered versions of class.
 			// Note that this may break other nodes in the graph that have stale
 			// class API, but that's on the caller to fix-up or report invalid state.
-			const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(RegisteredClass->Metadata);
+			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(RegisteredClass->Metadata);
 			FDocumentHandle Document = GetOwningGraph()->GetOwningDocument();
-			ensureAlways(Document->SynchronizeDependency(RegistryKey) != nullptr);
+
+			constexpr bool bRefreshFromRegistry = true;
+			ensureAlways(Document->FindOrAddClass(RegistryKey, bRefreshFromRegistry).Get() != nullptr);
 
 			FNodeHandle ReplacementNode = GetOwningGraph()->AddNode(RegisteredClass->Metadata, ReplacedNodeGuid);
 			if (!ensureAlways(ReplacementNode->IsValid()))
