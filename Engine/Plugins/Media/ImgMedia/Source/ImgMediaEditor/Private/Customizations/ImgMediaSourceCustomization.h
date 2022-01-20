@@ -42,6 +42,15 @@ public:
 		return MakeShareable(new FImgMediaSourceCustomization());
 	}
 
+	/**
+	 * Get the path to the currently selected image sequence.
+	 *
+	 * @param InPropertyHandle A property that is a child of the top level ImgMediaSource property.
+	 * 
+	 * @return Sequence path string.
+	 */
+	static FString GetSequencePathFromChildProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle);
+
 protected:
 
 	/**
@@ -101,9 +110,9 @@ private:
 	EVisibility HandleSequencePathWarningIconVisibility() const;
 
 	/** Returns the property for SequencePath. */
-	TSharedPtr<IPropertyHandle> GetSequencePathProperty() const;
+	static TSharedPtr<IPropertyHandle> GetSequencePathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle);
 	/** Returns the property for SequencePath->Path. */
-	TSharedPtr<IPropertyHandle> GetSequencePathPathProperty() const;
+	static TSharedPtr<IPropertyHandle> GetSequencePathPathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle);
 	/** Returns the property for IsPathRelativeToProjectRoot. */
 	TSharedPtr<IPropertyHandle> GetPathRelativeToRootProperty() const;
 	/** Returns the value of IsPathRelativeToProjectRoot. */

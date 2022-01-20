@@ -51,7 +51,7 @@ void FImgMediaSourceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> I
 						SNew(STextBlock)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.Text(LOCTEXT("SequencePathPropertyName", "Sequence Path"))
-							.ToolTipText(GetSequencePathProperty()->GetToolTipText())
+							.ToolTipText(GetSequencePathProperty(PropertyHandle)->GetToolTipText())
 					]
 
 				+ SHorizontalBox::Slot()
@@ -286,10 +286,10 @@ void FImgMediaSourceCustomization::AddCameraMipDistances(IDetailGroup& InCameraG
 /* FImgMediaSourceCustomization implementation
  *****************************************************************************/
 
-FString FImgMediaSourceCustomization::GetSequencePath() const
+FString FImgMediaSourceCustomization::GetSequencePathFromChildProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 {
 	FString FilePath;
-	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathPathProperty();
+	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathPathProperty(InPropertyHandle);
 	if (SequencePathProperty.IsValid())
 	{
 		if (SequencePathProperty->GetValue(FilePath) != FPropertyAccess::Success)
@@ -297,6 +297,13 @@ FString FImgMediaSourceCustomization::GetSequencePath() const
 			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not get SequencePath."));
 		}
 	}
+
+	return FilePath;
+}
+
+FString FImgMediaSourceCustomization::GetSequencePath() const
+{
+	FString FilePath = GetSequencePathFromChildProperty(PropertyHandle);
 
 	return FilePath;
 }
@@ -318,13 +325,13 @@ FString FImgMediaSourceCustomization::GetRelativePathRoot() const
 }
 
 
-TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathProperty() const
+TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 {
 	TSharedPtr<IPropertyHandle> SequencePathProperty;
 
-	if ((PropertyHandle.IsValid()) && (PropertyHandle->IsValidHandle()))
+	if ((InPropertyHandle.IsValid()) && (InPropertyHandle->IsValidHandle()))
 	{
-		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+		TSharedPtr<IPropertyHandle> ParentHandle = InPropertyHandle->GetParentHandle();
 		if (ParentHandle.IsValid())
 		{
 			SequencePathProperty = ParentHandle->GetChildHandle("SequencePath");
@@ -334,11 +341,11 @@ TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathPropert
 	return SequencePathProperty;
 }
 
-TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathPathProperty() const
+TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathPathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 {
 	TSharedPtr<IPropertyHandle> SequencePathPathProperty;
 
-	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathProperty();
+	TSharedPtr<IPropertyHandle> SequencePathProperty = GetSequencePathProperty(InPropertyHandle);
 	if (SequencePathProperty.IsValid())
 	{
 		SequencePathPathProperty = SequencePathProperty->GetChildHandle("Path");
@@ -421,7 +428,7 @@ void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FStr
 	SetPathRelativeToRoot(bIsRelativePath);
 
 	// update property
-	TSharedPtr<IPropertyHandle> SequencePathPathProperty = GetSequencePathPathProperty();
+	TSharedPtr<IPropertyHandle> SequencePathPathProperty = GetSequencePathPathProperty(PropertyHandle);
 	if (SequencePathPathProperty.IsValid())
 	{
 		if (SequencePathPathProperty->SetValue(PickedDir) != FPropertyAccess::Success)
