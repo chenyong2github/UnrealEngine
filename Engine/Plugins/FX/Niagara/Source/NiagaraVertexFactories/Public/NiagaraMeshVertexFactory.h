@@ -16,9 +16,6 @@ ParticleVertexFactory.h: Particle vertex factory definitions.
 #include "SceneManagement.h"
 #include "VertexFactory.h"
 
-// This is temporarily disabled because of some outstanding issues that will require some upcoming work
-#define NIAGARA_ENABLE_GPU_SCENE_MESHES 0
-
 class FMaterial;
 class FVertexBuffer;
 struct FDynamicReadBuffer;

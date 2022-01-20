@@ -18,6 +18,7 @@
 #include "PipelineStateCache.h"
 #include "NiagaraCullProxyComponent.h"
 #include "IXRTrackingSystem.h"
+#include "FXRenderingUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
@@ -244,17 +245,12 @@ int32 FNiagaraRendererMeshes::GetLODIndex(int32 MeshIndex) const
 	return MeshData.RenderData->LODResources.IsValidIndex(LODIndex) ? LODIndex : INDEX_NONE;
 }
 
-void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FMeshElementCollector* Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
+void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneViewFamily& ViewFamily, FMeshElementCollector& Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
 {
-	ParticleMeshRenderData.Collector = Collector;
+	ParticleMeshRenderData.Collector = &Collector;
 	
-#if NIAGARA_ENABLE_GPU_SCENE_MESHES
-	ParticleMeshRenderData.bUseGPUScene = Collector != nullptr
-		&& FeatureLevel > ERHIFeatureLevel::ES3_1	
+	ParticleMeshRenderData.bUseGPUScene = FeatureLevel > ERHIFeatureLevel::ES3_1	
 		&& UseGPUScene(SceneProxy->GetScene().GetShaderPlatform(), FeatureLevel);
-#else
-	ParticleMeshRenderData.bUseGPUScene = false;
-#endif
 
 	// Anything to render?
 	ParticleMeshRenderData.DynamicDataMesh = static_cast<FNiagaraDynamicDataMesh*>(InDynamicData);
@@ -270,25 +266,28 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 		return;
 	}
 
-	// If all materials are translucent we can pickup the low latency data
-	bool bAllTranslucentMaterials = true;
+	// Check if any materials are translucent and if we can pickup the low latency data
+	ParticleMeshRenderData.bIsGpuLowLatencyTranslucency =
+		bGpuLowLatencyTranslucency &&
+		!SceneProxy->CastsVolumetricTranslucentShadow() &&
+		ParticleMeshRenderData.DynamicDataMesh->Materials.Num() > 0 &&
+		ParticleMeshRenderData.DynamicDataMesh->IsGpuLowLatencyTranslucencyEnabled();
 	ParticleMeshRenderData.bHasTranslucentMaterials = false;
 	for (FMaterialRenderProxy* MaterialProxy : ParticleMeshRenderData.DynamicDataMesh->Materials)
 	{
 		check(MaterialProxy);
 		const FMaterial& Material = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bTranslucent = IsTranslucentBlendMode(BlendMode);		
-		ParticleMeshRenderData.bHasTranslucentMaterials |= bTranslucent;
-		bAllTranslucentMaterials &= bTranslucent;
-	}
-	bAllTranslucentMaterials &= ParticleMeshRenderData.bHasTranslucentMaterials;
+		const bool bTranslucent = IsTranslucentBlendMode(BlendMode);
 
-	ParticleMeshRenderData.bIsGpuLowLatencyTranslucency =
-		bAllTranslucentMaterials &&
-		bGpuLowLatencyTranslucency &&
-		!SceneProxy->CastsVolumetricTranslucentShadow() &&
-		ParticleMeshRenderData.DynamicDataMesh->IsGpuLowLatencyTranslucencyEnabled();
+		ParticleMeshRenderData.bHasTranslucentMaterials |= bTranslucent;
+
+		// If even one material can cause the mesh to render before FFXSystemInterface::PostRenderOpaque, we cannot use low latency data
+		ParticleMeshRenderData.bIsGpuLowLatencyTranslucency =
+			ParticleMeshRenderData.bIsGpuLowLatencyTranslucency &&
+			!FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(ViewFamily, *SceneProxy, Material);
+	}
+	
 	ParticleMeshRenderData.SourceParticleData = ParticleMeshRenderData.DynamicDataMesh->GetParticleDataToRender(ParticleMeshRenderData.bIsGpuLowLatencyTranslucency);
 	
 	// Anything to render?
@@ -951,6 +950,9 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		// * Are culled because of mismatched VisibilityTag
 		OutMeshBatchElement.bForceInstanceCulling = true;
 
+		// Force it to preserve instance order if we are sorted so that GPU Scene's instance culling doesn't scramble them
+		OutMeshBatchElement.bPreserveInstanceOrder = ParticleMeshRenderData.bNeedsSort;
+
 		GPUSceneRes.DynamicPrimitiveData.DataWriterGPU = FGPUSceneWriteDelegate::CreateLambda(				
 			[&GPUSceneRes](FRDGBuilder& GraphBuilder, const FGPUSceneWriteDelegateParams& Params)
 			{
@@ -1146,7 +1148,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	// Prepare our particle render data
 	// This will also determine if we have anything to render
 	FParticleMeshRenderData ParticleMeshRenderData;
-	PrepareParticleMeshRenderData(ParticleMeshRenderData, &Collector, DynamicDataRender, SceneProxy);
+	PrepareParticleMeshRenderData(ParticleMeshRenderData, ViewFamily, Collector, DynamicDataRender, SceneProxy);
 
 	if (ParticleMeshRenderData.SourceParticleData == nullptr )
 	{
@@ -1326,10 +1328,16 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 	check(SceneProxy);
 
+	const int32 ViewIndex = 0;
+	const FSceneView* View = Context.ReferenceView;
+	const bool bIsInstancedStereo = View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View);
+
+	check(View->Family);
+
 	// Prepare our particle render data
 	// This will also determine if we have anything to render
 	FParticleMeshRenderData ParticleMeshRenderData;
-	PrepareParticleMeshRenderData(ParticleMeshRenderData, nullptr, DynamicDataRender, SceneProxy);
+	PrepareParticleMeshRenderData(ParticleMeshRenderData, *View->Family, Context.RayTracingMeshResourceCollector, DynamicDataRender, SceneProxy);
 
 	if (ParticleMeshRenderData.SourceParticleData == nullptr)
 	{
@@ -1345,9 +1353,6 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 	PrepareParticleRenderBuffers(ParticleMeshRenderData, Context.RayTracingMeshResourceCollector.GetDynamicReadBuffer());
 
-	const int32 ViewIndex = 0;
-	const FSceneView* View = Context.ReferenceView;
-	const bool bIsInstancedStereo = View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View);
 
 	// Initialize sort parameters that are mesh/section invariant
 	FNiagaraGPUSortInfo SortInfo;

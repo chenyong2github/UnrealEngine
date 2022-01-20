@@ -52,6 +52,18 @@ namespace Lumen
 	{
 		return GLumenTranslucencyReflections != 0 && View.Family->EngineShowFlags.LumenReflections;
 	}
+
+	bool ShouldRenderInTranslucencyRadianceCacheMarkPass(const FPrimitiveSceneProxy& PrimitiveSceneProxy, const FMaterial& Material)
+	{
+		const EBlendMode BlendMode = Material.GetBlendMode();
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+		const ETranslucencyLightingMode TranslucencyLightingMode = Material.GetTranslucencyLightingMode();
+
+		return bIsTranslucent
+			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
+			&& PrimitiveSceneProxy.ShouldRenderInMainPass()
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain());
+	}
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkPassUniformParameters, )
@@ -136,12 +148,24 @@ bool GetLumenTranslucencyRadianceCacheMarkShaders(
 	return true;
 }
 
+bool CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(
+	const FScene& Scene,
+	const FSceneViewFamily& ViewFamily,
+	const FPrimitiveSceneProxy& PrimitiveSceneProxy,
+	const FMaterial& Material)
+{
+	const FSceneView* View = ViewFamily.Views[0];
+	check(View);
+
+	return ShouldRenderLumenDiffuseGI(&Scene, *View) && Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(PrimitiveSceneProxy, Material);	
+}
+
 void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	if (MeshBatch.bUseForMaterial 
-		&& DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel))
+		&& PrimitiveSceneProxy
 		&& ViewIfDynamicMeshCommand
 		//@todo - this filter should be done at a higher level
 		&& ShouldRenderLumenDiffuseGI(Scene, *ViewIfDynamicMeshCommand))
@@ -154,17 +178,7 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 			{
 				auto TryAddMeshBatch = [this](const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material) -> bool
 				{
-					const EBlendMode BlendMode = Material.GetBlendMode();
-					const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-					const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-					const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-					const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-					const ETranslucencyLightingMode TranslucencyLightingMode = Material.GetTranslucencyLightingMode();
-
-					if (bIsTranslucent
-						&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
-						&& PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass()
-						&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+					if (Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(*PrimitiveSceneProxy, Material))
 					{
 						const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 						FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -185,6 +199,9 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 						FMeshMaterialShaderElementData ShaderElementData;
 						ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
+						const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+						const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+						const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 						const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
 
 						BuildMeshDrawCommands(

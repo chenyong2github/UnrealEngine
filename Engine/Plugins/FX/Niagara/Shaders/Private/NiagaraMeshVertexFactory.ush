@@ -506,8 +506,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.ParticleToWorldNoScale[1] *= InstInvScale.y;
 	Intermediates.ParticleToWorldNoScale[2] *= InstInvScale.z;
 #else
-	const FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();
-	
 	NiagaraMeshParticleTransformsParams Params;
 	Params.ParticleIndex				= Intermediates.ParticleIndex;
 	Params.SystemLWCTile				= NiagaraMeshVF.SystemLWCTile;
@@ -550,10 +548,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Params.PrevCameraOrigin 			= LWCHackToFloat(ResolvedView.PrevWorldCameraOrigin);
 	Params.PrevCameraForwardDir			= ResolvedView.PrevViewToTranslatedWorld[2].xyz;
 	Params.PrevCameraUpDir				= ResolvedView.PrevViewToTranslatedWorld[1].xyz;
-	Params.PrimitiveLocalToWorld		= LWCHackToFloat(PrimitiveData.LocalToWorld);
-	Params.PrimitiveWorldToLocal 		= LWCHackToFloat(PrimitiveData.WorldToLocal);
-	Params.PrimitivePrevLocalToWorld 	= LWCHackToFloat(PrimitiveData.PreviousLocalToWorld);
-	Params.PrimitiveInvNonUniformScale	= PrimitiveData.InvNonUniformScale;
+	Params.PrimitiveLocalToWorld		= LWCHackToFloat(Intermediates.SceneData.Primitive.LocalToWorld);
+	Params.PrimitiveWorldToLocal 		= LWCHackToFloat(Intermediates.SceneData.Primitive.WorldToLocal);
+	Params.PrimitivePrevLocalToWorld 	= LWCHackToFloat(Intermediates.SceneData.Primitive.PreviousLocalToWorld);
+	Params.PrimitiveInvNonUniformScale	= Intermediates.SceneData.Primitive.InvNonUniformScale;
 
 	NiagaraMeshParticleTransforms Transforms = NiagaraCalculateMeshParticleTransforms(Params);
 
@@ -682,7 +680,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	const float DetSign = Intermediates.SceneData.InstanceData.DeterminantSign;
 
 	TangentToWorld0 = normalize(TangentToWorld[0]);
-	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Intermediates.TangentDeterminant) * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveDataFromUniformBuffer().Flags));
+	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Intermediates.TangentDeterminant) * DetSign);
 }
 
 FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)

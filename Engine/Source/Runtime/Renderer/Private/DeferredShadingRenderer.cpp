@@ -53,7 +53,6 @@
 #include "HairStrands/HairStrandsData.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "PhysicsFieldRendering.h"
-#include "GPUSortManager.h"
 #include "NaniteVisualizationData.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
@@ -2137,6 +2136,26 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #endif // RHI_RAYTRACING
 
+	// Dynamic vertex and index buffers need to be committed before rendering.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+		DynamicIndexBufferForInitViews.Commit();
+		DynamicVertexBufferForInitViews.Commit();
+		DynamicReadBufferForInitViews.Commit();
+	}
+
+	// Notify the FX system that the scene is about to be rendered.
+	if (FXSystem && Views.IsValidIndex(0))
+	{
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
+		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
+		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+		{
+			GPUSortManager->OnPreRender(GraphBuilder);
+		}
+	}
+
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
@@ -2230,14 +2249,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
-	// Dynamic vertex and index buffers need to be committed before rendering.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-		DynamicIndexBufferForInitViews.Commit();
-		DynamicVertexBufferForInitViews.Commit();
-		DynamicReadBufferForInitViews.Commit();
-	}
-
 	// Strata initialisation is always run even when not enabled.
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
 	Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
@@ -2245,18 +2256,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (DepthPass.IsComputeStencilDitherEnabled())
 	{
 		AddDitheredStencilFillPass(GraphBuilder, Views, SceneTextures.Depth.Target, DepthPass);
-	}
-
-	// Notify the FX system that the scene is about to be rendered.
-	if (FXSystem && Views.IsValidIndex(0))
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
-		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
-		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
-		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
-		{
-			GPUSortManager->OnPreRender(GraphBuilder);
-		}
 	}
 
 	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCache::Transitions"), [this](FRHICommandList& InRHICmdList)
