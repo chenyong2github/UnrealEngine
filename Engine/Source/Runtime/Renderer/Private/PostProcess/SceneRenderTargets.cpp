@@ -260,6 +260,8 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
 	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
 	, MobileScreenShadowMask(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileScreenShadowMask))
+	, WorldNormalRoughness(GRenderTargetPool.MakeSnapshot(SnapshotSource.WorldNormalRoughness))
+	, ScreenSpaceReflection(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceReflection))
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
@@ -1348,11 +1350,18 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
 	
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(GetCurrentFeatureLevel());
 	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
 	{
 		float FarDepth = (float)ERHIZBuffer::FarPlane;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
+	}
+	else if (AllowScreenSpaceReflection(ShaderPlatform))
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding(FLinearColor(0, 0, 1, 0)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		Desc.Flags |= GFastVRamConfig.GBufferA;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, WorldNormalRoughness, TEXT("WorldNormalRoughness"));
 	}
 }
 
@@ -2013,6 +2022,8 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
 	MobileScreenShadowMask.SafeRelease();
+	WorldNormalRoughness.SafeRelease();
+	ScreenSpaceReflection.SafeRelease();
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 
@@ -2531,6 +2542,14 @@ static void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	SceneTextureParameters.VirtualTextureFeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+
+	// Mobile world normal
+	{
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(SceneContext.GetCurrentFeatureLevel());
+		const bool bUseWorldNormalRoughness = AllowScreenSpaceReflection(ShaderPlatform) && !IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
+		SceneTextureParameters.WorldNormalRoughnessTexture = (bUseWorldNormalRoughness && SceneContext.WorldNormalRoughness)? GetRDG(SceneContext.WorldNormalRoughness) : BlackDefault2D;
+		SceneTextureParameters.WorldNormalRoughnessTextureSampler = TStaticSamplerState<>::GetRHI();
+	}
 
 	// Mobile GBuffer
 	{

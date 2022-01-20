@@ -2163,6 +2163,13 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPixelDepthOffset(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileAllowScreenSpaceReflection(
+	TEXT("r.Mobile.AllowSSR"),
+	0,
+	TEXT("Whether to allow screen space reflection for ES3.1 feature level."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
 	TEXT("r.Mobile.SupportGPUScene"),
 	0,

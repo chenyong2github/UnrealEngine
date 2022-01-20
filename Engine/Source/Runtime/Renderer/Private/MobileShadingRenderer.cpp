@@ -175,6 +175,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequriesAmbientOcclusionPass = false;
+	bRequriesScreenSpaceReflectionPass = false;
 
 	// Don't do occlusion queries when doing scene captures
 	for (FViewInfo& View : Views)
@@ -339,6 +340,17 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS()
 		// Only support forward shading, we don't want to break tiled deferred shading.
+		&& !bDeferredShading;
+
+	bRequriesScreenSpaceReflectionPass = AllowScreenSpaceReflection(ShaderPlatform)
+		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
+		&& ViewFamily.EngineShowFlags.ScreenSpaceReflections
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !Views[0].bIsReflectionCapture
+		&& !Views[0].bIsPlanarReflection
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
 		&& !bDeferredShading;
 
 	// Whether we need to store depth for post-processing
@@ -779,6 +791,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					RenderHzb(GraphBuilder, MobileSceneTexturesPerView[ViewIndex]);
+
+					RenderScreenSpaceReflection(GraphBuilder, Views[ViewIndex], SceneContext);
 				}
 
 				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
@@ -891,6 +905,16 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		FoveationTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
+
+	if (bRequriesScreenSpaceReflectionPass && SceneContext.WorldNormalRoughness)
+	{
+		SceneColorRenderPassInfo.ColorRenderTargets[1].RenderTarget = SceneContext.GetWorldNormalRoughnessSurface();
+		SceneColorRenderPassInfo.ColorRenderTargets[1].ResolveTarget = nullptr;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].ArraySlice = -1;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].MipIndex = 0;
+		SceneColorRenderPassInfo.ColorRenderTargets[1].Action = ERenderTargetActions::Clear_Store;
+	}
+
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
@@ -1589,7 +1613,8 @@ bool FMobileSceneRenderer::RenderHzb(
 
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-		bool bShouldBuildHZB = bHZBOcclusion; // Not only HZB occlusion needs HZB, such as SSR, etc.
+		// Not only HZB occlusion needs HZB, such as SSR, etc...
+		bool bShouldBuildHZB = bHZBOcclusion;
 		if (bShouldBuildHZB)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);

@@ -86,6 +86,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MobileCustomStencilTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VirtualTextureFeedbackUAV)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, WorldNormalRoughnessTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, WorldNormalRoughnessTextureSampler)
 	// GBuffer
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferATexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferBTexture)

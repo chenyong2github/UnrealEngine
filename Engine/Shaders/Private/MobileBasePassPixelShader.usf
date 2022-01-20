@@ -597,6 +597,8 @@ void Main(
 	// MALI supports only up to 4 input attachements (GBufferA,GBufferB,GBufferC + SceneDepth)
 	// will have to change GBuffer format to fit GBufferD into this limit
 	//, out half4 OutGBufferD	: SV_Target5
+#else
+	, out half4 OutWorldNormalRoughness : SV_Target1
 #endif
 #if OUTPUT_PIXEL_DEPTH_OFFSET
     , out float OutDepth : SV_Depth
@@ -681,6 +683,53 @@ void Main(
 	FMobileShadingModelContext ShadingModelContext = (FMobileShadingModelContext)0;
 	ShadingModelContext.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
+<<<<<<< HEAD
+=======
+#if !DEFERRED_SHADING_PATH
+	OutWorldNormalRoughness.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
+	OutWorldNormalRoughness.b = GBuffer.Roughness;
+#endif
+
+	//setting custom adv data, use for many shadingModel
+	FAdvancedData AdvancedData;
+	AdvancedData.Subsurface = GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).rgb;
+	AdvancedData.CustomData0 = GetMaterialCustomData0(MaterialParameters);
+	AdvancedData.CustomData1 = GetMaterialCustomData1(MaterialParameters);
+
+half3 LightColor = MobileDirectionalLight.DirectionalLightColor.rgb;
+float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz;
+#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELSUBSURFACE
+	half3 CtrLightColor = GetShadingModelSubsurface1(MaterialParameters);
+	half CtrLightScale = GetShadingModelSubsurface2(MaterialParameters).x;
+	LightColor = CtrLightScale * CtrLightColor;
+#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
+	half3 CtrLightColor = GetShadingModelHairTest1(MaterialParameters);
+	half CtrLightScale = GetShadingModelHairTest2(MaterialParameters).x;
+	LightColor = CtrLightScale * CtrLightColor;
+#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIR
+	half3 CtrLightColor = GetShadingModelHair1(MaterialParameters);
+	half CtrLightScale = GetShadingModelHair2(MaterialParameters).x;
+	LightColor = CtrLightScale * CtrLightColor;
+#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELEYE
+	half3 CtrLightColor = GetShadingModelEye1(MaterialParameters);
+	half CtrLightScale = GetShadingModelEye2(MaterialParameters).x;
+	LightColor = CtrLightScale * CtrLightColor;
+#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELCLOTH
+	half3 CtrLightColor = GetShadingModelCloth1(MaterialParameters);
+	half CtrLightScale = GetShadingModelCloth2(MaterialParameters);
+	LightColor = CtrLightScale * CtrLightColor;
+#elif NUM_MATERIAL_OUTPUTS_GETSCENELIGHTPARAMETER
+	LightVector = GetSceneLightParameter0(MaterialParameters);
+	LightColor =  GetSceneLightParameter1(MaterialParameters);
+#endif
+
+	half NoL = dot(MaterialParameters.WorldNormal, LightVector);
+	//float RoL = max(0, dot(float3(MaterialParameters.ReflectionVector), LightVector));
+	half3 H = normalize(MaterialParameters.CameraVector + LightVector);
+	half NoH = max(0, dot(MaterialParameters.WorldNormal, H));
+	half NoV = (dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector));
+
+>>>>>>> e23c5dd7b3e (Support screen space reflection and optimize for the mobile platform.)
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	float TopMaterialCoverage = ShadingModelContext.Opacity;
 
@@ -817,6 +866,7 @@ void Main(
 	#else
 		Color += SpecularIBL * ShadingModelContext.SpecularColor;
 	#endif
+
 #endif
 #endif /* FULLY_ROUGH */
 

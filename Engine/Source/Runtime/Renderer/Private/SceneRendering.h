@@ -2066,6 +2066,9 @@ protected:
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 	void ReleasePixelProjectedReflectionOutputs();
 
+	void RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSceneRenderTargets& SceneContext);
+	void RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture, FRDGTextureRef WorldNormalRoughnessTexture, FRDGTextureRef ScreenSpaceReflectionTexture);
+
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();
 private:
@@ -2081,6 +2084,7 @@ private:
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequriesAmbientOcclusionPass;
+	bool bRequriesScreenSpaceReflectionPass;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;
