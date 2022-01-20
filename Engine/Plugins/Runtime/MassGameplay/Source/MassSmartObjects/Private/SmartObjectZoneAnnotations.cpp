@@ -15,9 +15,9 @@
 
 void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 {
-#if WITH_EDITOR
 	SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(GetWorld());
 
+#if WITH_EDITOR
 	// Monitor collection changes to rebuild our lookup data
 	if (SmartObjectSubsystem != nullptr)
 	{
@@ -144,6 +144,10 @@ void USmartObjectZoneAnnotations::TickAnnotation(const float DeltaTime, FZoneGra
 
 		Data.bInitialTaggingCompleted = true;
 	}
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	MarkRenderStateDirty();
+#endif
 }
 
 #if WITH_EDITOR
@@ -160,6 +164,8 @@ void USmartObjectZoneAnnotations::OnUnregister()
 
 void USmartObjectZoneAnnotations::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
 	FProperty* Property = PropertyChangedEvent.Property;
 	FProperty* MemberProperty = nullptr;
 	if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode())
@@ -175,6 +181,51 @@ void USmartObjectZoneAnnotations::PostEditChangeChainProperty(FPropertyChangedCh
 		}
 	}
 }
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy)
+{
+	UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
+	if (ZoneGraph == nullptr)
+	{
+		return;
+	}
+
+	for (FSmartObjectAnnotationData& Data : SmartObjectAnnotationDataArray)
+	{
+		const FZoneGraphStorage* ZoneStorage = Data.DataHandle.IsValid() ? ZoneGraph->GetZoneGraphStorage(Data.DataHandle) : nullptr;
+		if (ZoneStorage == nullptr)
+		{
+			continue;
+		}
+
+		const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
+		if (Collection == nullptr)
+		{
+			return;
+		}
+
+		for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
+		{
+			FSmartObjectHandle Handle = Entry.GetHandle();
+			const FSmartObjectLaneLocation* SOLaneLocation = Data.ObjectToEntryPointLookup.Find(Handle);
+			if (SOLaneLocation == nullptr)
+			{
+				continue;
+			}
+
+			const FVector& ObjectLocation = Entry.GetComponent()->GetComponentLocation();
+			FZoneGraphLaneLocation EntryPointLocation;
+            UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneStorage, SOLaneLocation->LaneIndex, SOLaneLocation->DistanceAlongLane, EntryPointLocation);
+			const FColor Color = FColor::Silver;
+			constexpr float SphereRadius = 25.f;
+            DebugProxy->Spheres.Emplace(SphereRadius, EntryPointLocation.Position, Color);
+			DebugProxy->Spheres.Emplace(SphereRadius, ObjectLocation, Color);
+			DebugProxy->DashedLines.Emplace(ObjectLocation, EntryPointLocation.Position, Color, /*dash size*/10.f);
+		}
+	}
+}
+#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 
 void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationData& Data, const FZoneGraphStorage& Storage)
 {

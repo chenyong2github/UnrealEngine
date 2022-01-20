@@ -86,6 +86,10 @@ protected:
 	virtual void PostZoneGraphDataAdded(const AZoneGraphData& ZoneGraphData) override;
 	virtual void PreZoneGraphDataRemoved(const AZoneGraphData& ZoneGraphData) override;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
+#endif
+
 	/** Filter specifying which lanes the behavior is applied to. */
 	UPROPERTY(EditAnywhere, Category = SmartObject)
 	FZoneGraphTagFilter AffectedLaneTags;
@@ -110,9 +114,7 @@ protected:
 	FDelegateHandle OnMainCollectionChangedHandle;
 #endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
 	/** Cached SmartObjectSubsystem */
 	UPROPERTY(Transient)
 	USmartObjectSubsystem* SmartObjectSubsystem = nullptr;
-#endif // WITH_EDITORONLY_DATA
 };
