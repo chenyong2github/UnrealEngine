@@ -184,34 +184,6 @@ void UStreamingSettings::PostInitProperties()
 #endif // #if WITH_EDITOR
 }
 
-#if WITH_EDITOR
-void UStreamingSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	static FName NAME_EventDrivenLoaderEnabled(TEXT("EventDrivenLoaderEnabled"));
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
-	if (PropertyChangedEvent.Property)
-	{
-		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
-
-		bool bDisableEDLWarning = false;
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.DisableEDLDeprecationWarnings"), /* out */ bDisableEDLWarning, GEngineIni);
-
-		if (PropertyChangedEvent.Property->GetFName() == NAME_EventDrivenLoaderEnabled && !EventDrivenLoaderEnabled && !bDisableEDLWarning)
-		{
-			FNotificationInfo Info(NSLOCTEXT("CoreSettings", "EventDrivenLoaderDisabled", "Disabling the Event Driven Loader will result in using deprecated loading path"));
-			Info.bFireAndForget = true;
-			Info.bUseLargeFont = true;
-			Info.bUseThrobber = false;
-			Info.bUseSuccessFailIcons = false;
-			Info.ExpireDuration = 3.0f;
-			FSlateNotificationManager::Get().AddNotification(Info);
-		}
-	}
-}
-#endif // #if WITH_EDITOR
-
 UGarbageCollectionSettings::UGarbageCollectionSettings()
 : Super()
 {

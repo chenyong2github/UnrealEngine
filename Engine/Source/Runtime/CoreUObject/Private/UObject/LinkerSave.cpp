@@ -216,8 +216,7 @@ FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
 		const FPackageIndex *Found = ObjectIndicesMap.Find(Object);
 		if (Found)
 		{
-			if (IsEventDrivenLoaderEnabledInCookedBuilds() &&
-				IsCooking() && CurrentlySavingExport.IsExport() &&
+			if (IsCooking() && CurrentlySavingExport.IsExport() &&
 				Object->GetOutermost()->GetFName() != GLongCoreUObjectPackageName && // We assume nothing in coreuobject ever loads assets in a constructor
 				*Found != CurrentlySavingExport) // would be weird, but I can't be a dependency on myself
 			{

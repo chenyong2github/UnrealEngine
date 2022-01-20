@@ -1306,14 +1306,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 		}
 	}
 
-	if (FPlatformProperties::RequiresCookedData() &&
-		Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0 &&
-		!IsEventDrivenLoaderEnabledInCookedBuilds())
-	{
-		UE_LOG(LogLinker, Fatal, TEXT("Package %s contains preload dependency data but the current build does not support it. Make sure Event Driven Loader is enabled and rebuild the game executable."),
-			*GetArchiveName())
-	}
-
 #if PLATFORM_WINDOWS
 	if (!FPlatformProperties::RequiresCookedData() &&
 		// We can't check the post tag if the file is an EDL cooked package

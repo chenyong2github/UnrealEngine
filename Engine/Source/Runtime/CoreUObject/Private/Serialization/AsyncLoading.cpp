@@ -4547,17 +4547,6 @@ FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificati
 	// Current these two vars are always on or off together but can be made separate
 	GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabled();
 
-	if (IsEventDrivenLoaderEnabled())
-	{
-		UE_CLOG(!IsEventDrivenLoaderEnabledInCookedBuilds(), LogStreaming, Fatal,
-			TEXT("Event driven async loader is being used but it does NOT seem to be enabled in project settings."));
-	}
-	else if (FPlatformProperties::RequiresCookedData())
-	{
-		UE_CLOG(IsEventDrivenLoaderEnabledInCookedBuilds(), LogStreaming, Fatal,
-			TEXT("Event driven async loader is NOT being used but it seems to be enabled in project settings."));
-	}
-
 	PrecacheHandler = new FPrecacheCallbackHandler();
 	QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
 	CancelLoadingEvent = FPlatformProcess::GetSynchEventFromPool();
@@ -4574,15 +4563,6 @@ FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificati
 		FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled ? TEXT("true") : TEXT("false"),
 		FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled ? TEXT("true") : TEXT("false"));
 
-	bool bDisableEDLWarning = false;
-	if (GConfig)
-	{
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.DisableEDLDeprecationWarnings"), /* out */ bDisableEDLWarning, GEngineIni);
-	}
-	if (!GEventDrivenLoaderEnabled && !bDisableEDLWarning)
-	{
-		UE_LOG(LogStreaming, Warning, TEXT("Event Driven Loader is disabled. Loading code will use deprecated path which will be removed in future release."));
-	}
 #endif
 }
 
@@ -8047,33 +8027,12 @@ static FAutoConsoleCommand DumpSerializeCmd(
 
 bool IsEventDrivenLoaderEnabledInCookedBuilds()
 {
-	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
-	{
-		FEventDrivenLoaderEnabledInCookedBuildsInit()
-		{
-			check(GConfig || IsEngineExitRequested());
-			if (GConfig)
-			{
-				// Ensure that the streaming settings from the config have been applied 
-				ApplyCVarSettingsFromIni(TEXT("/Script/Engine.StreamingSettings"), *GEngineIni, ECVF_SetByProjectSetting);
-			}
-		}
-	} EventDrivenLoaderEnabledInCookedBuilds;
-
-	static const bool bNoEDL = !UE_BUILD_SHIPPING && FParse::Param(FCommandLine::Get(), TEXT("NOEDL"));
-	return !bNoEDL && (GEventDrivenLoaderEnabledInCookedBuilds != 0);
+	return true;
 }
 
 bool IsEventDrivenLoaderEnabled()
 {
-	static struct FEventDrivenLoaderEnabledInit
-	{
-		FEventDrivenLoaderEnabledInit()
-		{
-			GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabledInCookedBuilds() && FPlatformProperties::RequiresCookedData();
-		}
-	} EventDrivenLoaderEnabledInit;
-	return GEventDrivenLoaderEnabled;
+	return FPlatformProperties::RequiresCookedData();
 }
 
 //#pragma clang optimize on

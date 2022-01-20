@@ -182,7 +182,7 @@ FString FArchiveSaveTagExports::GetArchiveName() const
 
 FArchive& FArchiveSaveTagExports::operator<<(FWeakObjectPtr& Value)
 {
-	if (IsEventDrivenLoaderEnabledInCookedBuilds() && IsCooking())
+	if (IsCooking())
 	{
 		// Always serialize weak pointers for the purposes of object tagging
 		UObject* Object = static_cast<UObject*>(Value.Get(true));
@@ -229,7 +229,7 @@ FArchive& FArchiveSaveTagExports::operator<<(UObject*& Obj)
 		// If this is a CDO, gather it's subobjects and serialize them
 		if (Obj->HasAnyFlags(RF_ClassDefaultObject))
 		{
-			if (IsEventDrivenLoaderEnabledInCookedBuilds() && IsCooking())
+			if (IsCooking())
 			{
 				// Gets all subobjects defined in a class, including the CDO, CDO components and blueprint-created components
 				TArray<UObject*> ObjectTemplates;
@@ -409,7 +409,7 @@ FString FArchiveSaveTagImports::GetArchiveName() const
 
 FArchive& FArchiveSaveTagImports::operator<< (struct FWeakObjectPtr& Value)
 {
-	if (IsEventDrivenLoaderEnabledInCookedBuilds() && IsCooking())
+	if (IsCooking())
 	{
 		// Always serialize weak pointers for the purposes of object tagging
 		UObject* Object = static_cast<UObject*>(Value.Get(true));
@@ -492,7 +492,7 @@ FArchive& FArchiveSaveTagImports::operator<<( UObject*& Obj )
 				UClass* ClassObj = Cast<UClass>(Obj);
 
 				// Don't recurse into CDOs if we're already ignoring dependencies, we only want to recurse into our outer chain in that case
-				if (IsEventDrivenLoaderEnabledInCookedBuilds() && IsCooking() && !bIsNative && !bIgnoreDependencies && ClassObj)
+				if (IsCooking() && !bIsNative && !bIgnoreDependencies && ClassObj)
 				{
 					// We don't want to add this to Dependencies, we simply want it to be an import so that a serialization before creation dependency can be created to the CDO
 					FScopeIgnoreDependencies IgnoreDependencies(*this);
@@ -2316,8 +2316,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						UObject* Template = Obj->GetArchetype();
 						if (Template)
 						{
-							// If we're not cooking for the event driven loader, exclude the CDO
-							if (Template != Class->GetDefaultObject() || (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform))
+							if (Template != Class->GetDefaultObject() || TargetPlatform)
 							{
 								ImportTagger << Template;
 							}
@@ -2381,7 +2380,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 							}
 						}
 
-						if (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform)
+						if (TargetPlatform)
 						{
 							TArray<UObject*> Deps;
 							Obj->GetPreloadDependencies(Deps);
@@ -2559,7 +2558,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 
 							if( !Obj->HasAnyFlags(RF_Public) && !Obj->HasAnyFlags(RF_Transient))
 							{
-								if (!IsEventDrivenLoaderEnabledInCookedBuilds() || !TargetPlatform || !ObjPackage->HasAnyPackageFlags(PKG_CompiledIn))
+								if (!TargetPlatform || !ObjPackage->HasAnyPackageFlags(PKG_CompiledIn))
 								{
 									PrivateObjects.Add(Obj);
 								}
@@ -3135,7 +3134,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						checkf(false, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Linker->ImportMap[i].ObjectName.ToString(), *Linker->ImportMap[i].ClassName.ToString());
 					}
 				}
-				if (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform)
+				if (TargetPlatform)
 				{
 					EDLCookChecker.AddExport(InOuter); // the package isn't actually in the export map, but that is ok, we add it as export anyway for error checking
 					for (int32 i = 0; i < Linker->ImportMap.Num(); i++)
@@ -3331,7 +3330,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 								Export.ClassIndex = FPackageIndex();
 							}
 
-							if (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform)
+							if (TargetPlatform)
 							{
 								UObject* Archetype = Export.Object->GetArchetype();
 								check(Archetype);
@@ -3382,7 +3381,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 								//	*(Export.Object->GetPathName()),
 								//	*(Export.Object->GetOuter()->GetPathName()));
 
-								if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
+								if (Linker->IsCooking())
 								{
 									// Only packages are allowed to have no outer
 									ensureMsgf(Export.OuterIndex != FPackageIndex() || Export.Object->IsA(UPackage::StaticClass()), TEXT("Export %s has no valid outer when cooking!"), *Export.Object->GetPathName());
@@ -3400,7 +3399,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				Linker->Summary.PreloadDependencyOffset = Linker->Tell();
 				Linker->Summary.PreloadDependencyCount = -1;
 
-				if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
+				if (Linker->IsCooking())
 				{
 #if WITH_EDITOR
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(bIgnoreHeaderDiffs);
@@ -3953,7 +3952,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 										Import.SetPackageName(ImportPackage->GetFName());
 									}
 
-									if (Linker->IsCooking() && IsEventDrivenLoaderEnabledInCookedBuilds())
+									if (Linker->IsCooking())
 									{
 										// Only package imports are allowed to have no outer
 										ensureMsgf(Import.OuterIndex != FPackageIndex() || Import.ClassName == NAME_Package, TEXT("Import %s has no valid outer when cooking!"), *Import.XObject->GetPathName());

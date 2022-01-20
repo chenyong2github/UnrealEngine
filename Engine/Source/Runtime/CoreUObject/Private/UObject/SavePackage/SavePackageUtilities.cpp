@@ -1365,7 +1365,7 @@ FEDLCookChecker::FEDLCookChecker()
 
 void FEDLCookChecker::SetActiveIfNeeded()
 {
-	bIsActive = IsEventDrivenLoaderEnabledInCookedBuilds() && !FParse::Param(FCommandLine::Get(), TEXT("DisableEDLCookChecker"));
+	bIsActive = !FParse::Param(FCommandLine::Get(), TEXT("DisableEDLCookChecker"));
 }
 
 void FEDLCookChecker::Reset()
@@ -2039,22 +2039,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 	TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;
 	TUniquePtr<FLargeMemoryWriterWithRegions> MappedBulkArchive;
 
-	static const struct FCookerUseSeparateSegments
-	{
-		bool bEnable = false;
-
-		FCookerUseSeparateSegments()
-		{
-			GConfig->GetBool(TEXT("Core.System"), TEXT("UseSeperateBulkDataFiles"), /* out */ bEnable, GEngineIni);
-
-			if (IsEventDrivenLoaderEnabledInCookedBuilds())
-			{
-				// Always split bulk data when splitting cooked files
-				bEnable = true;
-			}
-		}
-	} CookerUseSeparateSegments;
-	const bool bSeparateSegmentsEnabled = CookerUseSeparateSegments.bEnable && Linker->IsCooking();
+	const bool bSeparateSegmentsEnabled = Linker->IsCooking();
 
 	int64 LinkerStart = 0;
 	if (PackageWriter || bSeparateSegmentsEnabled)

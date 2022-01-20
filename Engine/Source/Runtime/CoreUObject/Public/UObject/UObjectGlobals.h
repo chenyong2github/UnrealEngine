@@ -514,6 +514,8 @@ COREUOBJECT_API void CancelAsyncLoading();
 /**
 * Returns true if the event driven loader is enabled in cooked builds
 */
+UE_DEPRECATED(5.0, "Any call to IsEventDrivenLoaderEnabledInCookedBuilds can be removed. "
+		"Cooked packages are always split into different files/segments and headers will always contain preload dependencies.")
 COREUOBJECT_API bool IsEventDrivenLoaderEnabledInCookedBuilds();
 
 /**

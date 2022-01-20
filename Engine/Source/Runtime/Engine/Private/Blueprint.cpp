@@ -1269,20 +1269,6 @@ void UBlueprint::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPl
 				break;
 			}
 			
-			// EDL is required, because we need to enforce a preload dependency on the CDO (see UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies). This is
-			// difficult to support in the non-EDL case, because we have to enforce the dependency at runtime, which can lead to unpredictable results in a cooked build.
-			if(bResult && !IsEventDrivenLoaderEnabledInCookedBuilds())
-			{
-				bResult = false;
-
-				static bool bWarnOnEDLDisabled = true;
-				if (bWarnOnEDLDisabled)
-				{
-					UE_LOG(LogBlueprint, Warning, TEXT("Cannot cook Blueprint component data for faster instancing at runtime, because Event-Driven Loading (EDL) has been disabled. Re-enable EDL to support this feature, or disable the option to cook Blueprint component data."));
-					bWarnOnEDLDisabled = false;
-				}
-			}
-
 			return bResult;
 		};
 

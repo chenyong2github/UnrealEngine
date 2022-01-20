@@ -437,7 +437,6 @@ bool FArchiveStackTrace::LoadPackageIntoMemory(const TCHAR* InFilename, FPackage
 		// Handle EDL packages (uexp files)
 		TUniquePtr<FArchive> ExpFileArchive = nullptr;
 		OutPackageData.Size = UAssetFileArchive->TotalSize();
-		if (IsEventDrivenLoaderEnabledInCookedBuilds())
 		{
 			FString UExpFilename = FPaths::ChangeExtension(InFilename, TEXT("uexp"));
 			ExpFileArchive.Reset(IFileManager::Get().CreateFileReader(*UExpFilename));
