@@ -32,6 +32,16 @@ public:
 	virtual TSharedRef<class SWidget> CreateWorldPartitionEditor();
 
 	/**
+	 * Returns placement grid size setting that should be assigned to new AWorldSettings actors.
+	 */
+	virtual int32 GetPlacementGridSize() const;
+
+	/**
+	 * Returns foliage grid size setting that should be assigned to new AWorldSettings actors.
+	 */
+	virtual int32 GetInstancedFoliageGridSize() const;
+
+	/**
 	 * 
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;

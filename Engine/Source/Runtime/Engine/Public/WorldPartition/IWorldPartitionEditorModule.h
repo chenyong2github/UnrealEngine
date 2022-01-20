@@ -14,6 +14,9 @@ public:
 
 	virtual bool ConvertMap(const FString& InLongPackageName) = 0;
 
+	virtual int32 GetPlacementGridSize() const = 0;
+	virtual int32 GetInstancedFoliageGridSize() const = 0;
+
 	/** Triggered when a world is added. */
 	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FWorldPartitionCreated, UWorld*);
 

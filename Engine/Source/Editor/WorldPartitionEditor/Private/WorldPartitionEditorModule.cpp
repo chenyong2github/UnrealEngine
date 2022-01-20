@@ -174,6 +174,17 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
 }
 
+int32 FWorldPartitionEditorModule::GetPlacementGridSize() const
+{
+	// Currently shares setting with Foliage. Can be changed when exposed.
+	return GetDefault<UWorldPartitionEditorSettings>()->InstancedFoliageGridSize;
+}
+
+int32 FWorldPartitionEditorModule::GetInstancedFoliageGridSize() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->InstancedFoliageGridSize;
+}
+
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
@@ -379,6 +390,7 @@ void FWorldPartitionEditorModule::RegisterWorldPartitionLayout(FLayoutExtender& 
 UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 {
 	CommandletClass = UWorldPartitionConvertCommandlet::StaticClass();
+	InstancedFoliageGridSize = 25600;
 }
 
 FString UWorldPartitionConvertOptions::ToCommandletArgs() const

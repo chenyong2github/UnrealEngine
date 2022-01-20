@@ -560,7 +560,7 @@ protected:
 public:
 #if WITH_EDITORONLY_DATA
 	/** Size of the grid for instanced foliage actors */
-	UPROPERTY(EditAnywhere, Category = Foliage)
+	UPROPERTY(EditAnywhere, Category = WorldPartition)
 	uint32 InstancedFoliageGridSize;
 
 	/** Size of the grid for navigation data chunk actors */
@@ -575,7 +575,7 @@ public:
 	uint32 NavigationDataBuilderLoadingCellSize;
 	
 	/** Default size of the grid for placed elements from the editor */
-	UPROPERTY(EditAnywhere, Category=Editor)
+	UPROPERTY()
 	uint32 DefaultPlacementGridSize;
 #endif
 

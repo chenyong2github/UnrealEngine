@@ -32,6 +32,7 @@
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
@@ -675,6 +676,13 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		// New maps should include GridSize in name
 		WorldSettings->bIncludeGridSizeInNameForFoliageActors = true;
 		WorldSettings->bIncludeGridSizeInNameForPartitionedActors = true;
+
+		if (IWorldPartitionEditorModule* WorldPartitionEditorModulePtr = FModuleManager::GetModulePtr<IWorldPartitionEditorModule>("WorldPartitionEditor"))
+		{
+			WorldSettings->InstancedFoliageGridSize = WorldPartitionEditorModulePtr->GetInstancedFoliageGridSize();
+			WorldSettings->DefaultPlacementGridSize = WorldPartitionEditorModulePtr->GetPlacementGridSize();
+		}
+
 		WorldSettings->MarkPackageDirty();
 
 		WorldPartition->DefaultHLODLayer = nullptr;
