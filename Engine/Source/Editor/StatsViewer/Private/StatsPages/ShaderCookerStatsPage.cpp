@@ -118,27 +118,27 @@ public:
 void FShaderCookerStats::Initialize(uint32 Index)
 {
 	TArray<FString> PlatformNames;
-	for (int32 Platform = 0; Platform < SP_NumPlatforms; ++Platform)
-	{
-		// ShaderPlatformToShaderFormatName asserts if it's passed a deprecated value, so we'll filter out the removed platforms here.
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		switch (Platform)
-		{
-			case SP_METAL_SM5_NOTESS_REMOVED:
-			case SP_VULKAN_SM5_LUMIN_REMOVED:
-			case SP_VULKAN_ES3_1_LUMIN_REMOVED:
-				continue;
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PlatformNames.Reserve(SP_NumPlatforms);
 
-		FString FormatName = ShaderPlatformToShaderFormatName((EShaderPlatform)Platform).ToString();
-		if (FormatName.Len() > 0)
+	for (int32 PlatformIndex = 0; PlatformIndex < SP_NumPlatforms; ++PlatformIndex)
+	{
+		const EShaderPlatform Platform = static_cast<EShaderPlatform>(PlatformIndex);
+
+		const FName ShaderFormatName = FDataDrivenShaderPlatformInfo::IsValid(Platform)
+			? ShaderPlatformToShaderFormatName(Platform) : NAME_None;
+
+		if (ShaderFormatName != NAME_None)
 		{
+			FString FormatName = ShaderFormatName.ToString();
 			if (FormatName.StartsWith(TEXT("SF_")))
 			{
 				FormatName.MidInline(3, MAX_int32, false);
 			}
 			PlatformNames.Add(MoveTemp(FormatName));
+		}
+		else
+		{
+			PlatformNames.Add(TEXT("unknown"));
 		}
 	}
 	FShaderCookerStatsSet& Set = StatSets[Index];
