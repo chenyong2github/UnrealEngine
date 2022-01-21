@@ -27,14 +27,17 @@ public:
 	}
 
 	void ResizeBuffers();
-
+	int32 TotalNumAttributes = 0;
 	FIntVector NumCells = FIntVector::ZeroValue;
+	FIntVector NumTiles = FIntVector::ZeroValue;
 	float Precision = 0;
 	int ResetValue = 0;
 
 	bool NeedsRealloc = false;
 	
 	FTextureRWBuffer3D RasterizationBuffer;
+
+	FReadBuffer PerAttributeData;
 
 #if STATS
 	int32 GPUMemory = 0;
@@ -60,6 +63,10 @@ class NIAGARA_API UNiagaraDataInterfaceRasterizationGrid3D : public UNiagaraData
 	GENERATED_UCLASS_BODY()
 
 public:	
+
+	// Number of attributes stored on the grid
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	float Precision;
@@ -112,6 +119,8 @@ public:
 
 	static const FName SetNumCellsFunctionName;
 	static const FName SetFloatResetValueFunctionName;	
+
+	static const FString PerAttributeDataName;
 
 protected:
 	//~ UNiagaraDataInterface interface
