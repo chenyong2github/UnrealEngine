@@ -315,7 +315,7 @@ namespace Horde.Storage.Implementation
                 // if we have done all the replication events we should do in a single run we abort
                 if (countOfReplicationsDone > _replicatorSettings.MaxReplicationsPerRun)
                 {
-                    linkedTokenSource.Cancel();
+                    cancellationTokenSource.Cancel();
                     return;
                 }
                 using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental", new SpanCreationSettings {Parent = parentSpanContext});
