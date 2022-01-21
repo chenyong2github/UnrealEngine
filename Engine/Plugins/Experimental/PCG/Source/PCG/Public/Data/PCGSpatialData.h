@@ -50,7 +50,7 @@ public:
 	virtual float GetDensityAtPosition(const FVector& InPosition) const PURE_VIRTUAL(UPCGSpatialData::GetDensityAtPosition, return 0;);
 
 	/** Discretizes the data into points */
-	UFUNCTION(BlueprintCallable, Category = Data)
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual const UPCGPointData* ToPointData() const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
 
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */

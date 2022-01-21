@@ -114,7 +114,7 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 		const FName DefaultNodeName = Settings->GetDefaultNodeName();
 		if (DefaultNodeName != NAME_None)
 		{
-			FName NodeName = MakeUniqueObjectName(GetOuter(), UPCGNode::StaticClass(), DefaultNodeName);
+			FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
 			Node->Rename(*NodeName.ToString());
 		}
 #endif

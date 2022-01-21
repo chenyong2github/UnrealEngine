@@ -26,6 +26,16 @@ TArray<FPCGPoint>& UPCGPointData::GetMutablePoints()
 	return Points;
 }
 
+const UPCGPointData::PointOctree& UPCGPointData::GetOctree() const
+{
+	if (bOctreeIsDirty)
+	{
+		RebuildOctree();
+	}
+
+	return Octree;
+}
+
 FBox UPCGPointData::GetBounds() const
 {
 	if (bBoundsAreDirty)

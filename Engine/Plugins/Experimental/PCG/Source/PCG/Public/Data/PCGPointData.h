@@ -57,6 +57,8 @@ class UPCGPointData : public UPCGSpatialData
 	GENERATED_BODY()
 
 public:
+	typedef TOctree2<FPCGPointRef, FPCGPointRefSemantics> PointOctree;
+
 	void Initialize(AActor* InActor);
 
 	// ~Begin UPCGSpatialData interface
@@ -79,6 +81,8 @@ public:
 
 	TArray<FPCGPoint>& GetMutablePoints();
 
+	const PointOctree& GetOctree() const;
+
 protected:
 	void RebuildOctree() const;
 	void RecomputeBounds() const;
@@ -87,7 +91,7 @@ protected:
 	TArray<FPCGPoint> Points;
 
 	mutable FCriticalSection CachedDataLock;
-	mutable TOctree2<FPCGPointRef, FPCGPointRefSemantics> Octree;
+	mutable PointOctree Octree;
 	mutable FBox Bounds; // TODO: review if this needs to be threadsafe
 	mutable bool bBoundsAreDirty = true;
 	mutable bool bOctreeIsDirty = true;

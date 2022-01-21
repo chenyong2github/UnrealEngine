@@ -49,8 +49,9 @@ bool FPCGSurfaceSamplerElement::Execute(FPCGContextPtr Context) const
 
 		// Conceptually, we will break down the surface bounds in a N x M grid
 		const bool bApplyDensity = Settings->bApplyDensityToPoints;
-		const FVector::FReal InterstitialDistance = Settings->PointRadius;
-		const FVector::FReal InnerCellSize = 2 * Settings->Looseness * Settings->PointRadius;
+		const FVector::FReal PointRadius = Settings->PointRadius;
+		const FVector::FReal InterstitialDistance = 2 * PointRadius;
+		const FVector::FReal InnerCellSize = 2 * Settings->Looseness * PointRadius;
 		const FVector::FReal CellSize = InterstitialDistance + InnerCellSize;
 		
 		check(CellSize > 0);
@@ -114,8 +115,8 @@ bool FPCGSurfaceSamplerElement::Execute(FPCGContextPtr Context) const
 
 					FPCGPoint Point;
 					Point.Transform = FTransform(FVector(CurrentX + RandX * InnerCellSize, CurrentY + RandY * InnerCellSize, 0));
-					Point.Extents = FVector(InterstitialDistance);
-					Point.Density = bApplyDensity ? Chance / Ratio : 1.0f;
+					Point.Extents = FVector(PointRadius);
+					Point.Density = bApplyDensity ? ((Ratio - Chance) / Ratio) : 1.0f;
 					Point.Seed = RandomSource.GetCurrentSeed();
 
 					Point = SpatialInput->TransformPoint(Point);

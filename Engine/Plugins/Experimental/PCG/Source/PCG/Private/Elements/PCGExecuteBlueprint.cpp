@@ -72,11 +72,15 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 bool FPCGExecuteBlueprintElement::Execute(FPCGContextPtr Context) const
 {
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
-	check(Settings && Settings->BlueprintElementInstance);
 
 	if (Settings && Settings->BlueprintElementInstance)
 	{
 		Settings->BlueprintElementInstance->Execute(Context->InputData, Context->OutputData);
+	}
+	else
+	{
+		// Nothing to do but forward data
+		Context->OutputData = Context->InputData;
 	}
 	
 	return true;
