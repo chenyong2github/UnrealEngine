@@ -786,7 +786,7 @@ void UModel::GroupAllNodes(ULevel* Level, const TArray<ULightComponentBase*>& Li
 	{
 		const FBspNode& Node = Nodes[NodeIndex];
 
-		if (Node.NumVertices > 0 && HasStaticLightingCache[Node.ComponentIndex])
+		if (Node.NumVertices > 0 && HasStaticLightingCache.Num() && HasStaticLightingCache[Node.ComponentIndex])
 		{
 			const FBspSurf& Surf = Surfs[Node.iSurf];
 			PlaneMap.AddPlane(FPlane(Surf.Plane), NodeIndex);	// LWC_TODO: Perf pessimization
@@ -974,7 +974,7 @@ void UModel::GroupAllNodes(ULevel* Level, const TArray<ULightComponentBase*>& Li
 			// add the relevant lights to the nodegroup
 			TArray<ULightComponent*>* RelevantLights = ComponentRelevantLights.Find(Nodes[NodeIndex].ComponentIndex);
 			check(RelevantLights);
-			for (int32 LightIndex = 0; LightIndex < RelevantLights->Num(); LightIndex++)
+			for (int32 LightIndex = 0; RelevantLights && LightIndex < RelevantLights->Num(); LightIndex++)
 			{
 				NodeGroup->RelevantLights.AddUnique((*RelevantLights)[LightIndex]);
 			}

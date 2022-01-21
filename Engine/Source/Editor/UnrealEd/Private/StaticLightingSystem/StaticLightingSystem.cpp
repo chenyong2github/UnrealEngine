@@ -1639,7 +1639,7 @@ void FStaticLightingSystem::AddBSPStaticLightingInfo(ULevel* Level, bool bBuildL
 	{
 		FNodeGroup* NodeGroup = It.Value();
 
-		if (NodeGroup->Nodes.Num())
+		if (NodeGroup->Nodes.Num() && Level->ModelComponents.Num())
 		{
 			// get one of the surfaces/components from the NodeGroup
 			// @todo: Remove need for GetSurfaceLightMapResolution to take a surfaceindex, or a ModelComponent :)
