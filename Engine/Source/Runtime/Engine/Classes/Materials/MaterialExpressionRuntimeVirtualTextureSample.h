@@ -9,21 +9,35 @@
 #include "MaterialExpressionRuntimeVirtualTextureSample.generated.h"
 
 /**
- * Defines how MipValue is used.
+ * Set how Mip levels are calculated.
  * Internally we will convert to ETextureMipValueMode which is used by internal APIs.
- * ETextureMipValueMode has more options then are valid for runtime virtual texture.
  */
 UENUM()
 enum ERuntimeVirtualTextureMipValueMode
 {
-	/* Use hardware computed sample's mip level with automatic anisotropic filtering support. */
-	RVTMVM_None UMETA(DisplayName = "None (use computed mip level)"),
+	/* 
+	 * Use default computed mip level. Takes into account UV scaling from using the WorldPosition pin.
+	 */
+	RVTMVM_None UMETA(DisplayName = "Default"),
 
-	/* Explicitly compute the sample's mip level. Disables anisotropic filtering. */
-	RVTMVM_MipLevel UMETA(DisplayName = "MipLevel (absolute, 0 is full resolution)"),
+	/* 
+	 * Use an absolute mip level from the MipValue pin. 
+	 * 0 is full resolution.
+	 */
+	RVTMVM_MipLevel UMETA(DisplayName = "Mip Level"),
 
-	/* Bias the hardware computed sample's mip level. Disables anisotropic filtering. */
-	RVTMVM_MipBias UMETA(DisplayName = "MipBias (relative to the computed mip level)"),
+	/* 
+	 * Bias the default computed mip level using the MipValue pin. 
+	 * Negative values increase resolution.
+	 */
+	RVTMVM_MipBias UMETA(DisplayName = "Mip Bias"),
+
+	/* 
+	 * This is like 'Default' but it ignores the WorldPosition pin when computing the mip level.
+	 * It uses the actual pixel WorldPosition instead.
+	 * This can prevent sampling mip 0 if the WorldPosition pin gives a constant value.
+	 */
+	RVTMVM_RecalculateDerivatives UMETA(DisplayName = "Ignore Input WorldPosition "),
 
 	RVTMVM_MAX,
 };
@@ -76,7 +90,7 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Enable adaptive page table"))
 	bool bAdaptive = false;
 
-	/** Defines how the MipValue property is applied to the virtual texture lookup. */
+	/** Defines how the mip level is calculated for the virtual texture lookup. */
 	UPROPERTY(EditAnywhere, Category = TextureSample)
 	TEnumAsByte<enum ERuntimeVirtualTextureMipValueMode> MipValueMode = RVTMVM_None;
 

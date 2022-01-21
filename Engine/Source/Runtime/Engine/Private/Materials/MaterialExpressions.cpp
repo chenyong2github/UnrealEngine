@@ -2607,18 +2607,32 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	
 	// Compile the mip level for the current mip value mode
 	ETextureMipValueMode TextureMipLevelMode = TMVM_None;
-	int32 MipValueIndex = INDEX_NONE;
-	if (MipValue.GetTracedInput().Expression != nullptr)
+	int32 MipValue0Index = INDEX_NONE;
+	int32 MipValue1Index = INDEX_NONE;
+	const bool bMipValueExpressionValid = MipValue.GetTracedInput().Expression != nullptr;
+	if (MipValueMode == RVTMVM_MipLevel && bMipValueExpressionValid)
 	{
-		switch (MipValueMode)
-		{
-		case RVTMVM_MipLevel: TextureMipLevelMode = TMVM_MipLevel; break;
-		case RVTMVM_MipBias: TextureMipLevelMode = TMVM_MipBias; break;
-		}
-		if (TextureMipLevelMode != TMVM_None)
-		{
-			MipValueIndex = MipValue.Compile(Compiler);
-		}
+		TextureMipLevelMode = TMVM_MipLevel;
+		MipValue0Index = MipValue.Compile(Compiler);
+	}
+	else if (MipValueMode == RVTMVM_MipBias && bMipValueExpressionValid)
+	{
+		TextureMipLevelMode = TMVM_MipBias;
+		MipValue0Index = MipValue.Compile(Compiler);
+	}
+	else if (MipValueMode == RVTMVM_RecalculateDerivatives)
+	{
+		// Calculate derivatives from world position.
+		TextureMipLevelMode = TMVM_Derivative;
+		const int32 WorldPos = Compiler->WorldPosition(WPT_CameraRelative);
+		const int32 WorldPositionDdx = Compiler->DDX(WorldPos);
+		const int32 UDdx = Compiler->Dot(WorldPositionDdx, Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1]);
+		const int32 VDdx = Compiler->Dot(WorldPositionDdx, Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2]);
+		MipValue0Index = Compiler->AppendVector(UDdx, VDdx);
+		const int32 WorldPositionDdy = Compiler->DDY(WorldPos);
+		const int32 UDdy = Compiler->Dot(WorldPositionDdy, Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1]);
+		const int32 VDdy = Compiler->Dot(WorldPositionDdy, Uniforms[ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2]);
+		MipValue1Index = Compiler->AppendVector(UDdy, VDdy);
 	}
 
 	// Convert texture address mode to matching sampler source mode.
@@ -2643,7 +2657,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			TextureCodeIndex[TexureLayerIndex],
 			CoordinateIndex, 
 			SAMPLERTYPE_VirtualMasks,
-			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SamplerSourceMode,
+			MipValue0Index, MipValue1Index, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
 			bAutomaticMipViewBias, bAdaptive);
 	}
