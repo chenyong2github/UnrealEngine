@@ -577,7 +577,7 @@ int32 ULandscapeComponent::GetNumMaterials() const
 }
 
 #if WITH_EDITOR
-bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if (ElementIndex == 0)
 	{
@@ -585,6 +585,7 @@ bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& 
 		{
 			OutOwner = this;
 			OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ULandscapeComponent, OverrideMaterial);
+			OutProperty = ULandscapeComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeComponent, OverrideMaterial));
 	
 			return true;
 		}
@@ -592,6 +593,7 @@ bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& 
 		{
 			OutOwner = Proxy;
 			OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ALandscapeProxy, LandscapeHoleMaterial);
+			OutProperty = ALandscapeProxy::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeHoleMaterial));
 			return true;
 		}
 	}

@@ -1108,12 +1108,13 @@ int32 UTextRenderComponent::GetNumMaterials() const
 }
 
 #if WITH_EDITOR
-bool UTextRenderComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool UTextRenderComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if (ElementIndex == 0)
 	{
 		OutOwner = this;
 		OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(UTextRenderComponent, TextMaterial);
+		OutProperty = UTextRenderComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UTextRenderComponent, TextMaterial));
 		return true;
 	}
 

@@ -3043,7 +3043,7 @@ bool USceneComponent::IsVisible() const
 }
 
 #if WITH_EDITOR
-bool USceneComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool USceneComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	// Should be overriden in inherited classes
 	return false;

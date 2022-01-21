@@ -136,6 +136,13 @@ public:
 	virtual bool CheckIsBoundToPropertyPath(const FString& InPropertyPath) const;
 
 	/**
+	 * Check whether given property string is bound to the property
+	 * @param InPathString Given Property String, this is the path without duplicates
+	 * return true if the property bound to given path
+	 */
+	virtual bool CheckIsBoundToString(const FString& InPath) const;
+
+	/**
 	 * Check whether any of the given objects are bound to this property
 	 * @param InObjects Objects to check
 	 * return true if at least one object is bound to the property

@@ -311,6 +311,11 @@ bool FRemoteControlProperty::CheckIsBoundToPropertyPath(const FString& InPath) c
 	return FieldPathInfo.ToPathPropertyString() == InPath;
 }
 
+bool FRemoteControlProperty::CheckIsBoundToString(const FString& InPath) const
+{
+	return FieldPathInfo.ToString() == InPath;
+}
+
 bool FRemoteControlProperty::ContainsBoundObjects(TArray<UObject*> InObjects) const
 {
 	const TArray<UObject*> BoundObjects = GetBoundObjects();

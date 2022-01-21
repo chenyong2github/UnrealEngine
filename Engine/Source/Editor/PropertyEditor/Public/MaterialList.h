@@ -228,13 +228,14 @@ private:
 	void GoToAssetInContentBrowser( TWeakObjectPtr<UObject> Object );
 
 	/**
-	 * Get Material handle for given component
+	 * Get Property Row Extenssion Arguments.
+	 * The extension arguments is needed to add button or custom widget to property row.
 	 *
 	 * @param InDetailBuilder The builder for laying custom details.
 	 * @param InCurrentComponent The current component using the current material.
-	 * @return Property Handle pointer
+	 * @return Generate Global Row Extension Args
 	 */
-	TSharedPtr<IPropertyHandle> GetMaterialHandle(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const;
+	struct FOnGenerateGlobalRowExtensionArgs GetGlobalRowExtensionArgs(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const;
 
 	/**
 	 * Get row extension widget

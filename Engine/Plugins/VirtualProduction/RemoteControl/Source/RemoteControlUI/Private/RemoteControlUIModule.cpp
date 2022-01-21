@@ -5,6 +5,7 @@
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
 #include "Commands/RemoteControlCommands.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EditorStyleSet.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
@@ -13,6 +14,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "MaterialEditor/DEditorParameterValue.h"
+#include "Materials/Material.h"
 #include "PropertyHandle.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
@@ -43,6 +45,90 @@ static const FName DetailsTabIdentifiers[] = {
 	"LevelEditorSelectionDetails4"
 };
 
+FRCExposesPropertyArgs::FRCExposesPropertyArgs()
+	: PropertyHandle(nullptr)
+	, OwnerObject(nullptr)
+	, PropertyPath(TEXT(""))
+	, Property(nullptr)
+	, Id(FGuid::NewGuid())
+{
+}
+
+FRCExposesPropertyArgs::FRCExposesPropertyArgs(const FOnGenerateGlobalRowExtensionArgs& InExtensionArgs)
+	: PropertyHandle(InExtensionArgs.PropertyHandle)
+	, OwnerObject(InExtensionArgs.OwnerObject)
+	, PropertyPath(InExtensionArgs.PropertyPath)
+	, Property(InExtensionArgs.Property)
+	, Id(FGuid::NewGuid())
+{
+}
+
+FRCExposesPropertyArgs::FRCExposesPropertyArgs(FOnGenerateGlobalRowExtensionArgs&& InExtensionArgs)
+	: PropertyHandle(InExtensionArgs.PropertyHandle)
+	, OwnerObject(InExtensionArgs.OwnerObject)
+	, PropertyPath(InExtensionArgs.PropertyPath)
+	, Property(InExtensionArgs.Property)
+	, Id(FGuid::NewGuid())
+{
+}
+
+FRCExposesPropertyArgs::FRCExposesPropertyArgs(TSharedPtr<IPropertyHandle>& InPropertyHandle)
+	: PropertyHandle(InPropertyHandle)
+	, Id(FGuid::NewGuid())
+{
+}
+
+FRCExposesPropertyArgs::FRCExposesPropertyArgs(UObject* InOwnerObject, const FString& InPropertyPath, FProperty* InProperty)
+	: OwnerObject(InOwnerObject)
+	, PropertyPath(InPropertyPath)
+	, Property(InProperty)
+	, Id(FGuid::NewGuid())
+{
+}
+
+FRCExposesPropertyArgs::EType FRCExposesPropertyArgs::GetType() const
+{
+	if (PropertyHandle.IsValid())
+	{
+		return EType::E_Handle;
+	}
+	if (OwnerObject && !PropertyPath.IsEmpty() && Property)
+	{
+		return EType::E_OwnerObject;
+	}
+
+	return EType::E_None;
+}
+
+bool FRCExposesPropertyArgs::IsValid() const
+{
+	const EType Type = GetType();
+	return Type == EType::E_Handle || Type == EType::E_OwnerObject;
+}
+
+
+FProperty* FRCExposesPropertyArgs::GetProperty() const
+{
+	const EType Type = GetType();
+	if (Type == EType::E_Handle)
+	{
+		PropertyHandle->GetProperty();
+	}
+	else
+	{
+		return Property;
+	}
+
+	return nullptr;
+}
+
+FProperty* FRCExposesPropertyArgs::GetPropertyChecked() const
+{
+	FProperty* PropertyChecked = GetProperty();
+	check(PropertyChecked);
+	return PropertyChecked;
+}
+
 namespace RemoteControlUIModule
 {
 	const TArray<FName>& GetCustomizedStructNames()
@@ -63,28 +149,51 @@ namespace RemoteControlUIModule
 		Toolkit->InitRemoteControlPresetEditor(Mode, EditWithinLevelEditor, Preset);
 	}
 
-	bool IsStaticOrSkeletalMaterial(TSharedPtr<IPropertyHandle> InParentPropertyHandle)
+	FObjectProperty* GetObjectProperty(const FRCExposesPropertyArgs& InPropertyArgs)
 	{
-		if (!InParentPropertyHandle.IsValid() || !InParentPropertyHandle->IsValidHandle() || InParentPropertyHandle->GetNumOuterObjects() == 0)
+		if (!ensureMsgf(InPropertyArgs.IsValid(), TEXT("Extension Property Args not valid")))
+		{
+			return nullptr;
+		}
+
+		FRCFieldPathInfo RCFieldPathInfo(InPropertyArgs.PropertyPath);
+		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject);
+		FRCFieldResolvedData ResolvedData = RCFieldPathInfo.GetResolvedData();
+		return CastField<FObjectProperty>(InPropertyArgs.GetProperty());
+	}
+
+	bool IsStaticOrSkeletalMaterial(const FRCExposesPropertyArgs& InPropertyArgs)
+	{
+		if (!InPropertyArgs.IsValid())
 		{
 			return false;
 		}
 
-		if (FProperty* OwnerProperty = InParentPropertyHandle->GetProperty())
+		const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
+
+		// Only in case of Owner Object is applicable for MaterialInterface
+		if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 		{
-			TArray<UObject*> OuterObjects;
+			FProperty* Property = InPropertyArgs.GetProperty();
 
-			InParentPropertyHandle->GetOuterObjects(OuterObjects);
+			if (!ensure(Property))
+			{
+				return false;
+			}
 
-			const bool bIsStaticMaterial = OwnerProperty->GetFName() == UStaticMesh::GetStaticMaterialsName() && OuterObjects[0]->GetClass()->IsChildOf(UStaticMesh::StaticClass());
-			
-			const bool bIsSkeletalMaterial = OwnerProperty->GetFName() == USkeletalMesh::GetMaterialsMemberName() && OuterObjects[0]->GetClass()->IsChildOf(USkeletalMesh::StaticClass());
+			FObjectProperty* ObjectProperty = GetObjectProperty(InPropertyArgs);
 
-			return bIsStaticMaterial || bIsSkeletalMaterial;
+			if (!ObjectProperty)
+			{
+				return false;
+			}
+
+			return Property->GetFName() == UMaterialInterface::StaticClass()->GetFName() && (InPropertyArgs.OwnerObject->GetClass()->IsChildOf(UStaticMesh::StaticClass()) || InPropertyArgs.OwnerObject->GetClass()->IsChildOf(USkeletalMesh::StaticClass()));
 		}
 
 		return false;
 	}
+
 
 	bool IsTransientObjectAllowListed(UObject* Object)
 	{
@@ -318,50 +427,51 @@ void FRemoteControlUIModule::UnbindRemoteControlCommands()
 
 void FRemoteControlUIModule::HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions)
 {
-	// Expose/Unexpose button.
+	const FRCExposesPropertyArgs ExposesPropertyArgs(InArgs);
 
-	FPropertyRowExtensionButton& ExposeButton = OutExtensions.AddDefaulted_GetRef();
-	ExposeButton.Icon = TAttribute<FSlateIcon>::Create(
-		[this, PropertyHandle = InArgs.PropertyHandle]
+	if (ExposesPropertyArgs.IsValid())
+	{
+		// Expose/Unexpose button.
+		FPropertyRowExtensionButton& ExposeButton = OutExtensions.AddDefaulted_GetRef();
+		ExposeButton.Icon = TAttribute<FSlateIcon>::Create(
+			[this, ExposesPropertyArgs]
 		{
-			return OnGetExposedIcon(PropertyHandle);
+			return OnGetExposedIcon(ExposesPropertyArgs);
 		});
 
-	ExposeButton.Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FRemoteControlUIModule::GetExposePropertyButtonText, InArgs.PropertyHandle));
-	ExposeButton.ToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FRemoteControlUIModule::GetExposePropertyButtonTooltip, InArgs.PropertyHandle));
-	ExposeButton.UIAction = FUIAction(
-		FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnToggleExposeProperty, InArgs.PropertyHandle),
-		FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, InArgs.PropertyHandle),
-		FGetActionCheckState::CreateRaw(this, &FRemoteControlUIModule::GetPropertyExposedCheckState, InArgs.PropertyHandle),
-		FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, InArgs.PropertyHandle)
-	);
+		ExposeButton.Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FRemoteControlUIModule::GetExposePropertyButtonText, ExposesPropertyArgs));
+		ExposeButton.ToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FRemoteControlUIModule::GetExposePropertyButtonTooltip, ExposesPropertyArgs));
+		ExposeButton.UIAction = FUIAction(
+			FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnToggleExposeProperty, ExposesPropertyArgs),
+			FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, ExposesPropertyArgs),
+			FGetActionCheckState::CreateRaw(this, &FRemoteControlUIModule::GetPropertyExposedCheckState, ExposesPropertyArgs),
+			FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, ExposesPropertyArgs)
+		);
 
-	// Override material(s) warning.
+		// Override material(s) warning.
+		FPropertyRowExtensionButton& OverrideMaterialButton = OutExtensions.AddDefaulted_GetRef();
 
-	FPropertyRowExtensionButton& OverrideMaterialButton = OutExtensions.AddDefaulted_GetRef();
-
-	OverrideMaterialButton.Icon = TAttribute<FSlateIcon>::Create(
-		[this, PropertyHandle = InArgs.PropertyHandle]
+		OverrideMaterialButton.Icon = TAttribute<FSlateIcon>::Create(
+			[this, ExposesPropertyArgs]
 		{
-			return OnGetOverrideMaterialsIcon(PropertyHandle);
+			return OnGetOverrideMaterialsIcon(ExposesPropertyArgs);
 		}
 		);
 
-	OverrideMaterialButton.Label = LOCTEXT("OverrideMaterial", "Override Material");
-
-	OverrideMaterialButton.ToolTip = LOCTEXT("OverrideMaterialToolTip", "Click to override this material in order to expose this property to Remote Control.");
-
-	OverrideMaterialButton.UIAction = FUIAction(
-		FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::TryOverridingMaterials, InArgs.PropertyHandle),
-		FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty, InArgs.PropertyHandle),
-		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty, InArgs.PropertyHandle)
-	);
+		OverrideMaterialButton.Label = LOCTEXT("OverrideMaterial", "Override Material");
+		OverrideMaterialButton.ToolTip = LOCTEXT("OverrideMaterialToolTip", "Click to override this material in order to expose this property to Remote Control.");
+		OverrideMaterialButton.UIAction = FUIAction(
+			FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::TryOverridingMaterials, ExposesPropertyArgs),
+			FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty, ExposesPropertyArgs),
+			FGetActionCheckState(),
+			FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty, ExposesPropertyArgs)
+		);
+	}
 
 	WeakDetailsTreeNode = InArgs.OwnerTreeNode;
 }
 
-FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const
+FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(const FRCExposesPropertyArgs& InPropertyArgs) const
 {
 	FName BrushName("NoBrush");
 
@@ -369,7 +479,7 @@ FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> 
 	{
 		if (Panel->GetPreset())
 		{
-			EPropertyExposeStatus Status = GetPropertyExposeStatus(Handle);
+			EPropertyExposeStatus Status = GetPropertyExposeStatus(InPropertyArgs);
 			if (Status == EPropertyExposeStatus::Exposed)
 			{
 				BrushName = "Level.VisibleIcon16x";
@@ -384,23 +494,24 @@ FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> 
 	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), BrushName);
 }
 
-bool FRemoteControlUIModule::CanToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle) const
+bool FRemoteControlUIModule::CanToggleExposeProperty(const FRCExposesPropertyArgs InPropertyArgs) const
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		return Handle && ShouldDisplayExposeIcon(Handle.ToSharedRef());
+		return InPropertyArgs.IsValid() && ShouldDisplayExposeIcon(InPropertyArgs);
 	}
 
 	return false;
 }
 
-ECheckBoxState FRemoteControlUIModule::GetPropertyExposedCheckState(TSharedPtr<IPropertyHandle> Handle) const
+
+ECheckBoxState FRemoteControlUIModule::GetPropertyExposedCheckState(const FRCExposesPropertyArgs InPropertyArgs) const
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		if (Panel->GetPreset())
 		{
-			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
+			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(InPropertyArgs);
 			if (ExposeStatus == EPropertyExposeStatus::Exposed)
 			{
 				return ECheckBoxState::Checked;
@@ -411,37 +522,38 @@ ECheckBoxState FRemoteControlUIModule::GetPropertyExposedCheckState(TSharedPtr<I
 	return ECheckBoxState::Unchecked;
 }
 
-void FRemoteControlUIModule::OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle)
+void FRemoteControlUIModule::OnToggleExposeProperty(const FRCExposesPropertyArgs InPropertyArgs)
 {
-	if (!ensureMsgf(Handle && Handle->IsValidHandle(), TEXT("Property could not be exposed because the handle was invalid.")))
+	if (!ensureMsgf(InPropertyArgs.IsValid(), TEXT("Property could not be exposed because the extension args was invalid.")))
 	{
 		return;
 	}
 
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		Panel->ToggleProperty(Handle);
+		Panel->ToggleProperty(InPropertyArgs);
 	}
 }
 
-FRemoteControlUIModule::EPropertyExposeStatus FRemoteControlUIModule::GetPropertyExposeStatus(const TSharedPtr<IPropertyHandle>& Handle) const
+FRemoteControlUIModule::EPropertyExposeStatus FRemoteControlUIModule::GetPropertyExposeStatus(const FRCExposesPropertyArgs& InPropertyArgs) const
 {
-	if (Handle && Handle->IsValidHandle())
+	if (InPropertyArgs.IsValid())
 	{
 		if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 		{
-			return Panel->IsExposed(Handle) ? EPropertyExposeStatus::Exposed : EPropertyExposeStatus::Unexposed;
+			return Panel->IsExposed(InPropertyArgs) ? EPropertyExposeStatus::Exposed : EPropertyExposeStatus::Unexposed;
 		}
 	}
 
 	return EPropertyExposeStatus::Unexposable;
 }
 
-FSlateIcon FRemoteControlUIModule::OnGetOverrideMaterialsIcon(TSharedPtr<IPropertyHandle> Handle) const
+
+FSlateIcon FRemoteControlUIModule::OnGetOverrideMaterialsIcon(const FRCExposesPropertyArgs& InPropertyArgs) const
 {
 	FName BrushName("NoBrush");
 
-	if (IsStaticOrSkeletalMaterialProperty(Handle))
+	if (IsStaticOrSkeletalMaterialProperty(InPropertyArgs))
 	{
 		BrushName = "Icons.Warning";
 	}
@@ -449,21 +561,20 @@ FSlateIcon FRemoteControlUIModule::OnGetOverrideMaterialsIcon(TSharedPtr<IProper
 	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), BrushName);
 }
 
-bool FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty(TSharedPtr<IPropertyHandle> Handle) const
+
+bool FRemoteControlUIModule::IsStaticOrSkeletalMaterialProperty(const FRCExposesPropertyArgs InPropertyArgs) const
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin()) // Check whether the panel is active.
 	{
-		if (Panel->GetPreset() && Handle && Handle->IsValidHandle()) // Ensure that we have a valid preset and handle.
+		if (Panel->GetPreset() && InPropertyArgs.IsValid()) // Ensure that we have a valid preset and handle.
 		{
-			if (TSharedPtr<IPropertyHandle> ParentHandle = Handle->GetParentHandle())
-			{
-				return RemoteControlUIModule::IsStaticOrSkeletalMaterial(ParentHandle);
-			}
+			return RemoteControlUIModule::IsStaticOrSkeletalMaterial(InPropertyArgs);
 		}
 	}
 
 	return false;
 }
+
 
 void FRemoteControlUIModule::AddGetPathOption(FMenuBuilder& MenuBuilder, AActor* SelectedActor)
 {
@@ -495,60 +606,121 @@ TSharedRef<FExtender> FRemoteControlUIModule::ExtendLevelViewportContextMenuForR
 	return Extender.ToSharedRef();
 }
 
-bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const
+bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const FRCExposesPropertyArgs& InPropertyArgs) const
 {
-	if (FProperty* Prop = PropertyHandle->GetProperty())
+	if (!InPropertyArgs.IsValid())
 	{
-		// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
-		if (Prop->GetOwnerStruct() && Prop->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
-		{
-			return false;
-		}
+		return false;
+	}
 
-		// Don't display an expose icon for Static or Skeletal Materials as they need to be overriden.
-		if (TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle())
-		{
-			if (RemoteControlUIModule::IsStaticOrSkeletalMaterial(ParentHandle))
-			{
-				return false;
-			}
-		}
+
+	if (RemoteControlUIModule::IsStaticOrSkeletalMaterial(InPropertyArgs))
+	{
+		return false;
+	}
+
+	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
+
+	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = InPropertyArgs.PropertyHandle;
 
 		if (PropertyHandle->GetNumOuterObjects() == 1)
 		{
 			TArray<UObject*> OuterObjects;
 			PropertyHandle->GetOuterObjects(OuterObjects);
 
-			if (OuterObjects[0])
+			if (!IsAllowedOwnerObjects(OuterObjects))
 			{
-				// Don't display an expose icon for default objects.
-				if (OuterObjects[0]->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
-				{
-					return false;
-				}
-
-				// Don't display an expose icon for transient objects such as material editor parameters.
-				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient) && !RemoteControlUIModule::IsTransientObjectAllowListed(OuterObjects[0]))
-				{
-					return false;
-				}
+				return false;
 			}
 		}
 	}
+	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		if (!IsAllowedOwnerObjects({ InPropertyArgs.OwnerObject }))
+		{
+			return false;
+		}
+	}
+
 
 	for (const TPair<FDelegateHandle, FOnDisplayExposeIcon>& DelegatePair : ExternalFilterDelegates)
 	{
 		if (DelegatePair.Value.IsBound())
 		{
-			if (!DelegatePair.Value.Execute(PropertyHandle))
+			if (!DelegatePair.Value.Execute(InPropertyArgs))
 			{
 				return false;
 			}
 		}
 	}
 
+
 	return true;
 }
+
+bool FRemoteControlUIModule::ShouldSkipOwnPanelProperty(const FRCExposesPropertyArgs& InPropertyArgs) const
+{
+	if (!InPropertyArgs.IsValid())
+	{
+		return false;
+	}
+
+	auto CheckOwnProperty = [](FProperty* InProp)
+	{
+		if (!InProp)
+		{
+			return false;
+		}
+
+
+		// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
+		if (InProp->GetOwnerStruct() && InProp->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
+		{
+			return true;
+		}
+
+		return false;
+	};
+
+	const FRCExposesPropertyArgs::EType ArgsType = InPropertyArgs.GetType();
+
+	if (ArgsType == FRCExposesPropertyArgs::EType::E_Handle)
+	{
+		if (TSharedPtr<IPropertyHandle> PropertyHandle = InPropertyArgs.PropertyHandle)
+		{
+			CheckOwnProperty(PropertyHandle->GetProperty());
+		}
+	}
+	else if (ArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		return CheckOwnProperty(InPropertyArgs.Property);
+	}
+
+	return false;
+}
+
+bool FRemoteControlUIModule::IsAllowedOwnerObjects(TArray<UObject*> InOuterObjects) const
+{
+	if (InOuterObjects[0])
+	{
+		// Don't display an expose icon for default objects.
+		if (InOuterObjects[0]->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+		{
+			return false;
+		}
+
+		// Don't display an expose icon for transient objects such as material editor parameters.
+		if (InOuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient) && !RemoteControlUIModule::IsTransientObjectAllowListed(InOuterObjects[0]))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 void FRemoteControlUIModule::RegisterStructCustomizations()
 {
@@ -616,12 +788,12 @@ void FRemoteControlUIModule::RegisterWidgetFactories()
 	RegisterWidgetFactoryForType(FRemoteControlInstanceMaterial::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
 }
 
-FText FRemoteControlUIModule::GetExposePropertyButtonTooltip(TSharedPtr<IPropertyHandle> Handle) const
+FText FRemoteControlUIModule::GetExposePropertyButtonTooltip(const FRCExposesPropertyArgs InPropertyArgs) const
 {
 	if (URemoteControlPreset* Preset = GetActivePreset())
 	{
 		const FText PresetName = FText::FromString(Preset->GetName());
-		if (GetPropertyExposeStatus(Handle) == EPropertyExposeStatus::Exposed)
+		if (GetPropertyExposeStatus(InPropertyArgs) == EPropertyExposeStatus::Exposed)
 		{
 			return FText::Format(LOCTEXT("ExposePropertyToolTip", "Unexpose this property from RemoteControl Preset '{0}'."), PresetName);
 		}
@@ -634,9 +806,10 @@ FText FRemoteControlUIModule::GetExposePropertyButtonTooltip(TSharedPtr<IPropert
 	return LOCTEXT("InvalidExposePropertyTooltip", "Invalid Preset");
 }
 
-FText FRemoteControlUIModule::GetExposePropertyButtonText(TSharedPtr<IPropertyHandle> Handle) const
+
+FText FRemoteControlUIModule::GetExposePropertyButtonText(const FRCExposesPropertyArgs InPropertyArgs) const
 {
-	if (GetPropertyExposeStatus(Handle) == EPropertyExposeStatus::Exposed)
+	if (GetPropertyExposeStatus(InPropertyArgs) == EPropertyExposeStatus::Exposed)
 	{
 		return LOCTEXT("ExposePropertyToolTip", "Unexpose property");
 	}
@@ -646,156 +819,219 @@ FText FRemoteControlUIModule::GetExposePropertyButtonText(TSharedPtr<IPropertyHa
 	}
 }
 
-void FRemoteControlUIModule::TryOverridingMaterials(TSharedPtr<IPropertyHandle> ForThisProperty)
+void FRemoteControlUIModule::TryOverridingMaterials(const FRCExposesPropertyArgs InPropertyArgs)
 {
-	if (!ensureMsgf(ForThisProperty && ForThisProperty->IsValidHandle(), TEXT("Property could not be exposed because the handle was invalid.")))
+	if (!ensureMsgf(InPropertyArgs.IsValid(), TEXT("Property could not be exposed because the handle was invalid.")))
 	{
 		return;
 	}
 
-	UObject* OriginalMaterialAsObject;
+	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
 
-	if (ForThisProperty->GetValue(OriginalMaterialAsObject) == FPropertyAccess::Success)
+	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
 	{
-		if (UMaterialInterface* OriginalMaterial = Cast<UMaterialInterface>(OriginalMaterialAsObject))
+		UObject* OriginalMaterialAsObject = nullptr;
+		TSharedPtr<IPropertyHandle> PropertyHandle = InPropertyArgs.PropertyHandle;
+
+		if (PropertyHandle->GetValue(OriginalMaterialAsObject) == FPropertyAccess::Success)
 		{
-			FName MaterialSlotNameToBeOverriden;
-
-			// NOTE : Obtain the source object information from the property.
-
-			if (ForThisProperty->GetNumOuterObjects() == 1)
+			if (UMaterialInterface* OriginalMaterial = Cast<UMaterialInterface>(OriginalMaterialAsObject))
 			{
-				TArray<UObject*> OuterObjects;
+				FName MaterialSlotNameToBeOverriden;
 
-				ForThisProperty->GetOuterObjects(OuterObjects);
+				// NOTE : Obtain the source object information from the property.
 
-				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(OuterObjects[0]))
+				if (PropertyHandle->GetNumOuterObjects() == 1)
 				{
-					// NOTE : As 'StaticMaterials' must be protected for async build, always use the accessors even internally.
+					TArray<UObject*> OuterObjects;
 
-					for (FStaticMaterial StaticMaterial : StaticMesh->GetStaticMaterials())
+					PropertyHandle->GetOuterObjects(OuterObjects);
+
+					check(OuterObjects.Num());
+
+					if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(OuterObjects[0]))
 					{
-						if (StaticMaterial.MaterialInterface == OriginalMaterial)
+						// NOTE : As 'StaticMaterials' must be protected for async build, always use the accessors even internally.
+						for (const FStaticMaterial StaticMaterial : StaticMesh->GetStaticMaterials())
 						{
-							MaterialSlotNameToBeOverriden = StaticMaterial.MaterialSlotName;
+							if (StaticMaterial.MaterialInterface == OriginalMaterial)
+							{
+								MaterialSlotNameToBeOverriden = StaticMaterial.MaterialSlotName;
 
-							break;
+								break;
+							}
 						}
 					}
-				}
-				else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(OuterObjects[0]))
-				{
-					// NOTE : As 'Materials' must be protected for async build, always use the accessors even internally.
-
-					for (FSkeletalMaterial SkeletalMaterial : SkeletalMesh->GetMaterials())
+					else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(OuterObjects[0]))
 					{
-						if (SkeletalMaterial.MaterialInterface == OriginalMaterial)
+						// NOTE : As 'Materials' must be protected for async build, always use the accessors even internally.
+						for (const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials())
 						{
-							MaterialSlotNameToBeOverriden = SkeletalMaterial.MaterialSlotName;
+							if (SkeletalMaterial.MaterialInterface == OriginalMaterial)
+							{
+								MaterialSlotNameToBeOverriden = SkeletalMaterial.MaterialSlotName;
 
-							break;
+								break;
+							}
+						}
+					}
+
+					if (!ensureMsgf(!MaterialSlotNameToBeOverriden.IsNone(), TEXT("Material Property could not be exposed because the property does not contain any valid slot names.")))
+					{
+						return;
+					}
+
+					if (UMeshComponent* MeshComponentToBeModified = GetSelectedMeshComponentToBeModified(OuterObjects[0], OriginalMaterial))
+					{
+						FScopedTransaction Transaction(LOCTEXT("OverrideMaterial", "Override Material"));
+						const int32 TargetMaterialIndex = MeshComponentToBeModified->GetMaterialIndex(MaterialSlotNameToBeOverriden);
+
+						if (FComponentEditorUtils::AttemptApplyMaterialToComponent(MeshComponentToBeModified, OriginalMaterial, TargetMaterialIndex))
+						{
+							RefreshPanels();
 						}
 					}
 				}
 			}
+		}
+	}
+	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		FRCFieldPathInfo RCFieldPathInfo(InPropertyArgs.PropertyPath);
+		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject);
+		FRCFieldResolvedData ResolvedData = RCFieldPathInfo.GetResolvedData();
+		FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InPropertyArgs.Property);
 
-			if (!ensureMsgf(!MaterialSlotNameToBeOverriden.IsNone(), TEXT("Material Property could not be exposed because the property does not contain any valid slot names.")))
+		if (!ObjectProperty)
+		{
+			return;
+		}
+
+		// Material can't be null
+		UMaterialInterface* OriginalMaterial = Cast<UMaterialInterface>(ObjectProperty->GetObjectPropertyValue(ResolvedData.ContainerAddress));
+		OriginalMaterial = OriginalMaterial ? OriginalMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
+		if (OriginalMaterial)
+		{
+			int32 MaterialIndex = INDEX_NONE;
+
+			int32 StartPathArrayIndex = -1;
+			int32 EndPathArrayIndex = -1;
+			InPropertyArgs.PropertyPath.FindChar('[', StartPathArrayIndex);
+			InPropertyArgs.PropertyPath.FindChar(']', EndPathArrayIndex);
+
+			if (StartPathArrayIndex != INDEX_NONE && EndPathArrayIndex != INDEX_NONE)
+			{
+				const FString MaterialSlotNameToBeOverriden = InPropertyArgs.PropertyPath.Mid(StartPathArrayIndex + 1, EndPathArrayIndex - 1 - StartPathArrayIndex);
+				LexFromString(MaterialIndex, *MaterialSlotNameToBeOverriden);
+			}
+
+			if (!ensureMsgf(MaterialIndex > -1, TEXT("Material Property could not be exposed because the property does not contain any valid slot index.")))
 			{
 				return;
 			}
-		
-			// NOTE : Obtain the actor and/or object information from the details panel.
 
-			TArray<TWeakObjectPtr<AActor>> SelectedActors;
-
-			TArray<TWeakObjectPtr<UObject>> SelectedObjects;
-
-			if (TSharedPtr<IDetailTreeNode> OwnerTreeNode = WeakDetailsTreeNode.Pin())
-			{
-				if (IDetailsView* DetailsView = OwnerTreeNode->GetNodeDetailsView())
-				{
-					SelectedActors = DetailsView->GetSelectedActors();
-
-					SelectedObjects = DetailsView->GetSelectedObjects();
-				}
-			}
-			else if (SharedDetailsPanel.IsValid()) // Fallback to global detail panel reference if Detail Tree Node is invalid.
-			{
-				SelectedActors = SharedDetailsPanel->GetSelectedActors();
-			
-				SelectedObjects = SharedDetailsPanel->GetSelectedObjects();
-			}
-
-			TWeakObjectPtr<UMeshComponent> MeshComponentToBeModified;
-
-			if (SelectedActors.Num()) // If user selected actor then get the component from it.
-			{
-				// NOTE : Allow single selection only.
-
-				if (!ensureMsgf(SelectedActors.Num() == 1, TEXT("Property could not be exposed as multiple actor(s) are selected.")))
-				{
-					return;
-				}
-
-				for (TWeakObjectPtr<AActor> SelectedActor : SelectedActors)
-				{
-					TInlineComponentArray<UMeshComponent*> MeshComponents(SelectedActor.Get());
-
-					// NOTE : First mesh component that has the material slot gets served (FCFS approach).
-
-					for (UMeshComponent* MeshComponent : MeshComponents)
-					{
-						TArray<FName> MaterialSlots = MeshComponent->GetMaterialSlotNames();
-
-						if (MaterialSlots.Contains(MaterialSlotNameToBeOverriden))
-						{
-							MeshComponentToBeModified = MeshComponent;
-
-							break;
-						}
-					}
-				}
-			}
-			else if (SelectedObjects.Num()) // If user selected a component then proceed with it.
-			{
-				// NOTE : Allow single selection only.
-
-				if (!ensureMsgf(SelectedObjects.Num() == 1, TEXT("Property could not be exposed as multiple component(s) are selected.")))
-				{
-					return;
-				}
-
-				for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
-				{
-					if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(SelectedObject))
-					{
-						TArray<FName> MaterialSlots = MeshComponent->GetMaterialSlotNames();
-
-						if (MaterialSlots.Contains(MaterialSlotNameToBeOverriden))
-						{
-							MeshComponentToBeModified = MeshComponent;
-
-							break;
-						}
-					}
-				}
-			}
-
-			if (MeshComponentToBeModified.IsValid())
+			if (UMeshComponent* MeshComponentToBeModified = GetSelectedMeshComponentToBeModified(InPropertyArgs.OwnerObject, OriginalMaterial))
 			{
 				FScopedTransaction Transaction(LOCTEXT("OverrideMaterial", "Override Material"));
 
-				const int32 TargetMaterialIndex = MeshComponentToBeModified->GetMaterialIndex(MaterialSlotNameToBeOverriden);
-
-				if (FComponentEditorUtils::AttemptApplyMaterialToComponent(MeshComponentToBeModified.Get(), OriginalMaterial, TargetMaterialIndex))
+				if (FComponentEditorUtils::AttemptApplyMaterialToComponent(MeshComponentToBeModified, OriginalMaterial, MaterialIndex))
 				{
 					RefreshPanels();
 				}
 			}
 		}
-
 	}
 }
+
+UMeshComponent* FRemoteControlUIModule::GetSelectedMeshComponentToBeModified(UObject* InOwnerObject, UMaterialInterface* InOriginalMaterial)
+{
+	// NOTE : Obtain the actor and/or object information from the details panel.
+
+	TArray<TWeakObjectPtr<AActor>> SelectedActors;
+
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+
+	if (TSharedPtr<IDetailTreeNode> OwnerTreeNode = WeakDetailsTreeNode.Pin())
+	{
+		if (IDetailsView* DetailsView = OwnerTreeNode->GetNodeDetailsView())
+		{
+			SelectedActors = DetailsView->GetSelectedActors();
+
+			SelectedObjects = DetailsView->GetSelectedObjects();
+		}
+	}
+	else if (SharedDetailsPanel.IsValid()) // Fallback to global detail panel reference if Detail Tree Node is invalid.
+	{
+		SelectedActors = SharedDetailsPanel->GetSelectedActors();
+
+		SelectedObjects = SharedDetailsPanel->GetSelectedObjects();
+	}
+
+	UMeshComponent* MeshComponentToBeModified = nullptr;
+
+	auto GetComponentToBeModified = [InOwnerObject](UMeshComponent* InMeshComponent)
+	{
+		UMeshComponent* ModifinedComponent = nullptr;
+
+		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(InMeshComponent))
+		{
+			if (StaticMeshComponent->GetStaticMesh() == InOwnerObject)
+			{
+				ModifinedComponent = InMeshComponent;
+			}
+		}
+		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InMeshComponent))
+		{
+			if (SkeletalMeshComponent->SkeletalMesh == InOwnerObject)
+			{
+				ModifinedComponent = InMeshComponent;
+			}
+		}
+
+		return ModifinedComponent;
+	};
+
+	if (SelectedActors.Num()) // If user selected actor then get the component from it.
+	{
+		// NOTE : Allow single selection only.
+
+		if (!ensureMsgf(SelectedActors.Num() == 1, TEXT("Property could not be exposed as multiple actor(s) are selected.")))
+		{
+			return nullptr;
+		}
+
+		for (TWeakObjectPtr<AActor> SelectedActor : SelectedActors)
+		{
+			TInlineComponentArray<UMeshComponent*> MeshComponents(SelectedActor.Get());
+
+			// NOTE : First mesh component that has the material slot gets served (FCFS approach).
+
+			for (UMeshComponent* MeshComponent : MeshComponents)
+			{
+				MeshComponentToBeModified = GetComponentToBeModified(MeshComponent);
+			}
+		}
+	}
+	else if (SelectedObjects.Num()) // If user selected a component then proceed with it.
+	{
+		// NOTE : Allow single selection only.
+		if (!ensureMsgf(SelectedObjects.Num() == 1, TEXT("Property could not be exposed as multiple component(s) are selected.")))
+		{
+			return nullptr;
+		}
+
+		for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+		{
+			if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(SelectedObject))
+			{
+				MeshComponentToBeModified = GetComponentToBeModified(MeshComponent);
+			}
+		}
+	}
+
+	return MeshComponentToBeModified;
+}
+
 
 void FRemoteControlUIModule::RefreshPanels()
 {

@@ -10,6 +10,7 @@
 
 class FDelegateHandle;
 class FRCPanelWidgetRegistry;
+struct FOnGenerateGlobalRowExtensionArgs;
 struct FRemoteControlEntity;
 class IPropertyHandle;
 class IDetailCategoryBuilder;
@@ -35,6 +36,74 @@ struct FGenerateWidgetArgs
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 };
 
+/**
+ * Exposed property arguments
+ * The struct is wrapper struct to generate Remote Control Entity from IPropertyHandle or OwnerObject with Property Path and Property instance 
+ */
+struct FRCExposesPropertyArgs
+{
+	/**
+	 * Type of the Extension arguments
+	 */
+	enum class EType : uint8
+	{
+		E_Handle,
+		E_OwnerObject,
+		E_None
+	};
+
+	FRCExposesPropertyArgs();
+	FRCExposesPropertyArgs(const FOnGenerateGlobalRowExtensionArgs& InExtensionArgs);
+	FRCExposesPropertyArgs(FOnGenerateGlobalRowExtensionArgs&& InExtensionArgs);
+	FRCExposesPropertyArgs(TSharedPtr<IPropertyHandle>& InPropertyHandle);
+	FRCExposesPropertyArgs(UObject* InOwnerObject, const FString& InPropertyPath, FProperty* InProperty);
+
+
+	/** whether extensions arguments valid*/
+	bool IsValid() const;
+
+	/* Get Type of the Extension Arguments */
+	EType GetType() const;
+
+	/** Get property on the exposed arguments type */
+	FProperty* GetProperty() const;
+
+	/** Checked version of Get Property */
+	FProperty* GetPropertyChecked() const;
+
+	friend FORCEINLINE bool operator==(const FRCExposesPropertyArgs& LHS, const FRCExposesPropertyArgs& RHS)
+	{
+		return LHS.Id == RHS.Id;
+	}
+
+	friend FORCEINLINE bool operator!=(const FRCExposesPropertyArgs& LHS, const FRCExposesPropertyArgs& RHS)
+	{
+		return LHS.Id != RHS.Id;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRCExposesPropertyArgs& InArgs)
+	{
+		return GetTypeHash(InArgs.Id);
+	}
+
+public:
+	/** The detail row's property handle. */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+
+	/** Owner object for the property extension */
+	UObject* OwnerObject;
+
+	/** Path of the exposed property */
+	FString PropertyPath;
+
+	/** Exposed property */
+	FProperty* Property;
+
+private:
+	/** Unique generated ID of the struct */
+	FGuid Id;
+};
+
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SRCPanelTreeNode>, FOnGenerateRCWidget, const FGenerateWidgetArgs& /*Args*/);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateExtensions, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
@@ -42,7 +111,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateExtensions, TArray<TSharedRef<cla
 /**
  * Filter queried in order to determine if a property should be displayed.
  */
-DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDisplayExposeIcon, TSharedRef<IPropertyHandle> /*PropertyHandle*/);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDisplayExposeIcon, const FRCExposesPropertyArgs& /*InPropertyArgs*/);
 
 /**
  * Callback called to customize the display of a metadata entry for entities.

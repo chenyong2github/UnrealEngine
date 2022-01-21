@@ -1412,7 +1412,7 @@ protected:
 
 public:
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath) override;
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
 	virtual void Activate(bool bReset=false) override;
 	virtual void Deactivate() override;

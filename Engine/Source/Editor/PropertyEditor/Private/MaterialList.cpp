@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
+
 #define LOCTEXT_NAMESPACE "PropertyCustomizationHelpers"
 
 /** Definition of extra widgets delegate for bottom material value field. */
@@ -167,6 +168,7 @@ namespace ValueExtender
 
 TSharedRef<SWidget> FMaterialItemView::CreateValueContent(IDetailLayoutBuilder& InDetailBuilder, const TArray<FAssetData>& OwnerAssetDataArray, UActorComponent* InActorComponent)
 {	
+
 	return
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
@@ -335,110 +337,34 @@ void FMaterialItemView::GoToAssetInContentBrowser( TWeakObjectPtr<UObject> Objec
 	}
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-TSharedPtr<IPropertyHandle> FMaterialItemView::GetMaterialHandle(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const
+
+FOnGenerateGlobalRowExtensionArgs FMaterialItemView::GetGlobalRowExtensionArgs(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const
 {
+	FOnGenerateGlobalRowExtensionArgs OnGenerateGlobalRowExtensionArgs;
+
 	USceneComponent* SceneComponent = Cast<USceneComponent>(InCurrentComponent);
 	if (!SceneComponent)
 	{
-		return nullptr;
+		return OnGenerateGlobalRowExtensionArgs;
 	}
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	UObject* OwnerObject = nullptr;
 	FString PropertyPath;
-	if (SceneComponent->GetMaterialPropertyPath(MaterialItem.SlotIndex, OwnerObject, PropertyPath))
+	FProperty* MaterialProperty = nullptr;
+	if (SceneComponent->GetMaterialPropertyPath(MaterialItem.SlotIndex, OwnerObject, PropertyPath, MaterialProperty))
 	{
-		TArray<FString> PathArray;
-		// Split full path to array
-		PropertyPath.ParseIntoArray(PathArray, TEXT("."));
-
-		for (int32 PathArrayIndex = 0; PathArrayIndex < PathArray.Num(); ++PathArrayIndex)
-		{
-			const FString& PathArrayItem = PathArray[PathArrayIndex];
-
-			int32 StartPathArrayIndex = -1;
-			int32 EndPathArrayIndex = -1;
-			PathArrayItem.FindChar('[', StartPathArrayIndex);
-			PathArrayItem.FindChar(']', EndPathArrayIndex);
-
-			// Get a property name without array 
-			FString PropertyName = (StartPathArrayIndex != -1) ? PathArrayItem.Mid(0, StartPathArrayIndex) : PathArrayItem;
-
-			// create a property handle if that is first path element
-			if (PathArrayIndex == 0)
-			{
-				UClass* OwnerObjectClass = OwnerObject->GetClass();
-
-				// Exception for UStaticMesh
-				// StaticMaterials property does not contain EditAnywhere flag which is required for PropertyHandle generation
-				if (OwnerObjectClass == UStaticMesh::StaticClass())
-				{					
-					FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetStaticMaterialsName());
-					check(Property);
-
-					const EPropertyFlags OriginalPropertyFlags = Property->GetPropertyFlags();
-					Property->SetPropertyFlags(CPF_Edit);
-					PropertyHandle = InDetailBuilder.AddObjectPropertyData( { OwnerObject }, *PropertyName);
-					Property->SetPropertyFlags(OriginalPropertyFlags);
-				}
-				else
-				{
-					PropertyHandle = InDetailBuilder.AddObjectPropertyData( { OwnerObject }, *PropertyName);
-				}				
-			}
-
-			if (PropertyHandle.IsValid())
-			{
-				// Then check if property path contain array element like Materials[0]
-				if(const TSharedPtr<IPropertyHandleArray> HandleArray = PropertyHandle->AsArray())
-				{
-					if (StartPathArrayIndex != INDEX_NONE && EndPathArrayIndex != INDEX_NONE)
-					{
-						const FString ArrayIndexStr = PathArrayItem.Mid(StartPathArrayIndex + 1, EndPathArrayIndex - 1 - StartPathArrayIndex);
-
-						int32 ArrayIndex = INDEX_NONE;
-						LexFromString(ArrayIndex, *ArrayIndexStr);
-
-						uint32 HandleArrayElementsNum = 0;
-						HandleArray->GetNumElements(HandleArrayElementsNum);
-						if (ensure(ArrayIndex != INDEX_NONE) && ensure(ArrayIndex < static_cast<int32>(HandleArrayElementsNum)))
-						{
-							PropertyHandle = HandleArray->GetElement(ArrayIndex);
-						}
-					}
-				}
-				// Property Handle is inner struct element if we have more then 1 element in path array PathArray
-				// For example Materials[0].MaterialInterface 
-				if (PathArrayIndex != 0)
-				{
-					// Make sure the property name is valid
-					if (ensure(!PropertyName.IsEmpty()))
-					{
-						PropertyHandle = PropertyHandle->GetChildHandle(*PropertyName);
-					}
-					else
-					{
-						PropertyHandle = nullptr;
-					}
-				}
-			}
-		}
+		OnGenerateGlobalRowExtensionArgs.OwnerObject = OwnerObject;
+		OnGenerateGlobalRowExtensionArgs.PropertyPath = PropertyPath;
+		OnGenerateGlobalRowExtensionArgs.Property = MaterialProperty;
 	}
 
-	return PropertyHandle;
+	return OnGenerateGlobalRowExtensionArgs;
 }
-PRAGMA_ENABLE_OPTIMIZATION;
+
 
 TSharedPtr<SWidget> FMaterialItemView::GetGlobalRowExtensionWidget(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const
 {
-	const TSharedPtr<IPropertyHandle> MaterialPropertyHandle = GetMaterialHandle(InDetailBuilder, InCurrentComponent);
-
-	if (!MaterialPropertyHandle)
-	{
-		return SNullWidget::NullWidget;
-	}
-		
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -446,8 +372,7 @@ TSharedPtr<SWidget> FMaterialItemView::GetGlobalRowExtensionWidget(IDetailLayout
 	TArray<FPropertyRowExtensionButton> ExtensionButtons;
 
 	// Add custom property extensions
-	FOnGenerateGlobalRowExtensionArgs RowExtensionArgs;
-	RowExtensionArgs.PropertyHandle = MaterialPropertyHandle;
+	FOnGenerateGlobalRowExtensionArgs RowExtensionArgs = GetGlobalRowExtensionArgs(InDetailBuilder, InCurrentComponent);
 	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(RowExtensionArgs, ExtensionButtons);
 
 	// Build extension toolbar 

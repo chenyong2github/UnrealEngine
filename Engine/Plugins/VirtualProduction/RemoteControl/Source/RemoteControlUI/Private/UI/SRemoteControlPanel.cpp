@@ -31,7 +31,6 @@
 #include "RemoteControlLogger.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
-#include "RemoteControlUIModule.h"
 #include "RemoteControlSettings.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
@@ -60,6 +59,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
+
 
 namespace RemoteControlPanelUtils
 {
@@ -111,7 +111,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		{
 			UpdateEntityDetailsView(EntityList->GetSelection());
 			UpdateRebindButtonVisibility();
-			CachedExposedProperties.Reset();
+			CachedExposedPropertyArgs.Reset();
 		})
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	
@@ -386,23 +386,66 @@ void SRemoteControlPanel::PostRedo(bool bSuccess)
 	Refresh();
 }
 
-bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyHandle)
+bool SRemoteControlPanel::IsExposed(const FRCExposesPropertyArgs& InPropertyArgs)
 {
-	if (CachedExposedProperties.Contains(TWeakPtr<IPropertyHandle>{PropertyHandle}))
+	if (!ensure(InPropertyArgs.IsValid()))
 	{
-		return true;
+		return false;
 	}
-	
-	TArray<UObject*> OuterObjects;
-	PropertyHandle->GetOuterObjects(OuterObjects);
-	const FString Path = PropertyHandle->GeneratePathToProperty();
 
+	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
+
+	auto CheckCachedExposedArgs = [this, InPropertyArgs](const TArray<UObject*> InOwnerObjects, const FString& InPath, bool bIsCheckIsBoundByFullPath)
+	{
+		if (CachedExposedPropertyArgs.Contains(InPropertyArgs))
+		{
+			return true;
+		}
+
+		const bool bAllObjectsExposed = IsAllObjectsExposed(InOwnerObjects, InPath, bIsCheckIsBoundByFullPath);
+
+		if (bAllObjectsExposed)
+		{
+			CachedExposedPropertyArgs.Emplace(InPropertyArgs);
+		}
+
+		return bAllObjectsExposed;
+	};
+
+	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
+	{
+		TArray<UObject*> OuterObjects;
+		InPropertyArgs.PropertyHandle->GetOuterObjects(OuterObjects);
+		const FString Path = InPropertyArgs.PropertyHandle->GeneratePathToProperty();
+
+		constexpr bool bIsCheckIsBoundByFullPath = true;
+		return CheckCachedExposedArgs({ OuterObjects }, Path, bIsCheckIsBoundByFullPath);
+	}
+	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		constexpr bool bIsCheckIsBoundByFullPath = false;
+		return CheckCachedExposedArgs({ InPropertyArgs.OwnerObject }, InPropertyArgs.PropertyPath, bIsCheckIsBoundByFullPath);
+	}
+
+	// It never should hit this point
+	ensure(false);
+
+	return false;
+}
+
+
+bool SRemoteControlPanel::IsAllObjectsExposed(TArray<UObject*> InOuterObjects, const FString& InPath, bool bUsingDuplicatesInPath)
+{
 	TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
 	for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 	{
 		if (TSharedPtr<FRemoteControlProperty> Property = WeakProperty.Pin())
 		{
-			if (Property->CheckIsBoundToPropertyPath(Path))
+			// If that was exposed by property path it should be checked by the full path with duplicated like propertypath.propertypath[0]
+			// If that was exposed by the owner object it should be without duplicated in the path, just propertypath[0]
+			const bool Isbound = bUsingDuplicatesInPath ? Property->CheckIsBoundToPropertyPath(InPath) : Property->CheckIsBoundToString(InPath);
+
+			if (Isbound)
 			{
 				PotentialMatches.Add(Property);
 			}
@@ -411,13 +454,13 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 
 	bool bAllObjectsExposed = true;
 
-	for (UObject* OuterObject : OuterObjects)
+	for (UObject* OuterObject : InOuterObjects)
 	{
 		bool bFoundPropForObject = false;
 
 		for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
 		{
-			if (Property->ContainsBoundObjects(OuterObjects))
+			if (Property->ContainsBoundObjects({ InOuterObjects } ))
 			{
 				bFoundPropForObject = true;
 				break;
@@ -427,46 +470,72 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 		bAllObjectsExposed &= bFoundPropForObject;
 	}
 
-	if (bAllObjectsExposed)
-	{
-		CachedExposedProperties.Emplace(PropertyHandle);
-	}
-	
 	return bAllObjectsExposed;
 }
 
-void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle)
+void SRemoteControlPanel::ToggleProperty(const FRCExposesPropertyArgs& InPropertyArgs)
 {
-	TSet<UObject*> UniqueOuterObjects;
+	if (!ensure(InPropertyArgs.IsValid()))
 	{
-		// Make sure properties are only being exposed once per object.
-		TArray<UObject*> OuterObjects;
-		PropertyHandle->GetOuterObjects(OuterObjects);
-		UniqueOuterObjects.Append(MoveTemp(OuterObjects));
+		return;
 	}
 
-	if (IsExposed(PropertyHandle))
+	if (IsExposed(InPropertyArgs))
 	{
 		FScopedTransaction Transaction(LOCTEXT("UnexposeProperty", "Unexpose Property"));
 		Preset->Modify();
-		Unexpose(PropertyHandle);
+		Unexpose(InPropertyArgs);
 		return;
 	}
-	if (UniqueOuterObjects.Num())
+
+
+	auto PreExpose = [this]()
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeProperty", "Expose Property"));
 		Preset->Modify();
-		
-		for (UObject* Object : UniqueOuterObjects)
+	};
+
+	auto PostExpose = [this, InPropertyArgs]()
+	{
+		Refresh();
+		CachedExposedPropertyArgs.Emplace(InPropertyArgs);
+	};
+
+	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
+	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
+	{
+		TSet<UObject*> UniqueOuterObjects;
 		{
-			if (Object)
-			{
-				constexpr bool bCleanDuplicates = true; //GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
-				ExposeProperty(Object, FRCFieldPathInfo{PropertyHandle->GeneratePathToProperty(), bCleanDuplicates});
-			}
+			// Make sure properties are only being exposed once per object.
+			TArray<UObject*> OuterObjects;
+			InPropertyArgs.PropertyHandle->GetOuterObjects(OuterObjects);
+			UniqueOuterObjects.Append(MoveTemp(OuterObjects));
 		}
-		
-		CachedExposedProperties.Emplace(PropertyHandle);
+
+		if (UniqueOuterObjects.Num())
+		{
+			PreExpose();
+
+			for (UObject* Object : UniqueOuterObjects)
+			{
+				if (Object)
+				{
+					constexpr bool bCleanDuplicates = true; // GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
+					ExposeProperty(Object, FRCFieldPathInfo{ InPropertyArgs.PropertyHandle->GeneratePathToProperty(), bCleanDuplicates });
+				}
+			}
+
+			PostExpose();
+		}
+	}
+	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		PreExpose();
+
+		constexpr bool bCleanDuplicates = true; // GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
+		ExposeProperty(InPropertyArgs.OwnerObject, FRCFieldPathInfo{ InPropertyArgs.PropertyPath, bCleanDuplicates });
+
+		PostExpose();
 	}
 }
 
@@ -806,34 +875,54 @@ void SRemoteControlPanel::Refresh()
 	EntityList->Refresh();
 }
 
-void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
-{
-	TArray<UObject*> OuterObjects;
-	Handle->GetOuterObjects(OuterObjects);
-	const FString Path = Handle->GeneratePathToProperty();
 
-	// Find an exposed property with the same path.
-	TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
-	for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
+void SRemoteControlPanel::Unexpose(const FRCExposesPropertyArgs& InPropertyArgs)
+{
+	if (!InPropertyArgs.IsValid())
 	{
-		if (TSharedPtr<FRemoteControlProperty> Property = WeakProperty.Pin())
+		return;
+	}
+
+	auto CheckAndExpose = [&](TArray<UObject*> InOuterObjects, const FString& InPath)
+	{
+		// Find an exposed property with the same path.
+		TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
+		for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 		{
-			if (Property->CheckIsBoundToPropertyPath(Path))
+			if (TSharedPtr<FRemoteControlProperty> Property = WeakProperty.Pin())
 			{
-				PotentialMatches.Add(Property);
+				if (Property->CheckIsBoundToString(InPath))
+				{
+					PotentialMatches.Add(Property);
+				}
 			}
 		}
-	}
 
-	for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
-	{
-		if (Property->ContainsBoundObjects(OuterObjects))
+		for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
 		{
-			Preset->Unexpose(Property->GetId());
-			break;
+			if (Property->ContainsBoundObjects(InOuterObjects))
+			{
+				Preset->Unexpose(Property->GetId());
+				break;
+			}
 		}
+	};
+
+	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
+
+	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
+	{
+		TArray<UObject*> OuterObjects;
+		InPropertyArgs.PropertyHandle->GetOuterObjects(OuterObjects);
+
+		CheckAndExpose(OuterObjects, InPropertyArgs.PropertyHandle->GeneratePathToProperty());
+	}
+	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
+	{
+		CheckAndExpose({ InPropertyArgs.OwnerObject }, InPropertyArgs.PropertyPath);
 	}
 }
+
 
 void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 {
@@ -1041,12 +1130,12 @@ void SRemoteControlPanel::OnAssetRenamed(const FAssetData& Asset, const FString&
 
 void SRemoteControlPanel::OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
 {
-	CachedExposedProperties.Empty();
+	CachedExposedPropertyArgs.Empty();
 }
 
 void SRemoteControlPanel::OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
 {
-	CachedExposedProperties.Empty();
+	CachedExposedPropertyArgs.Empty();
 }
 
 FReply SRemoteControlPanel::OnClickSettingsButton()
@@ -1061,5 +1150,7 @@ void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterfa
 	WidgetRegistry->Clear();
 	Refresh();
 }
+
+
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

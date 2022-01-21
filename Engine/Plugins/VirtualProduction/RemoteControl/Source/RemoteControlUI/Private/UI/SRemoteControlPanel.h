@@ -5,6 +5,7 @@
 #include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
 #include "IDetailTreeNode.h"
+#include "RemoteControlUIModule.h"
 #include "Styling/SlateTypes.h"
 #include "RemoteControlFieldPath.h"
 #include "UObject/StrongObjectPtr.h"
@@ -65,16 +66,24 @@ public:
 	const URemoteControlPreset* GetPreset() const { return Preset.Get(); }
 
 	/**
-	 * @param Handle The handle representing the property to check.
+	 * @param InArgs extension arguments
 	 * @return Whether a property is exposed or not.
 	 */
-	bool IsExposed(const TSharedPtr<IPropertyHandle>& PropertyHandle);
+	bool IsExposed(const FRCExposesPropertyArgs& InArgs);
+
+	/**
+	 * @param InOuterObjects outer objects to check
+	 * @param InPropertyPath full property path
+	 * @param bUsingDuplicatesInPath whether duplications like property.property[1] should be exists or just property[1]
+	 * @return Whether objects is exposed or not.
+	 */
+	bool IsAllObjectsExposed(TArray<UObject*> InOuterObjects, const FString& InPropertyPath, bool bUsingDuplicatesInPath);
 
 	/**
 	 * Exposes or unexposes a property.
-	 * @param Handle The handle of the property to toggle.
+	 * @param InArgs The extension arguments of the property to toggle.
 	 */
-	void ToggleProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle);
+	void ToggleProperty(const FRCExposesPropertyArgs& InArgs);
 
 	/**
 	 * @return Whether or not the panel is in edit mode.
@@ -111,7 +120,7 @@ private:
 	void UnregisterEvents();
 
 	/** Unexpose a field from the preset. */
-	void Unexpose(const TSharedPtr<IPropertyHandle>& Handle);
+	void Unexpose(const FRCExposesPropertyArgs& InArgs);
 
 	/** Handle the using toggling the edit mode check box. */
 	void OnEditModeCheckboxToggle(ECheckBoxState State);
@@ -223,8 +232,8 @@ private:
 	TSharedPtr<SBox> EntityProtocolDetails;
 	/** Whether to show the rebind all button. */
 	bool bShowRebindButton = false;
-	/** Cache of exposed properties. */
-	TSet<TWeakPtr<IPropertyHandle>> CachedExposedProperties;
+	/** Cache of exposed property arguments. */
+	TSet<FRCExposesPropertyArgs> CachedExposedPropertyArgs;
 	/** Preset name widget. */
 	TSharedPtr<STextBlock> PresetNameTextBlock;
 	/** Holds a cache of widgets. */

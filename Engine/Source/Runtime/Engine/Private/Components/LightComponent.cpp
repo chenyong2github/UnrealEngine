@@ -906,12 +906,13 @@ void ULightComponent::DestroyRenderState_Concurrent()
 }
 
 #if WITH_EDITOR
-bool ULightComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool ULightComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if (ElementIndex == 0)
 	{
 		OutOwner = this;
 		OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, LightFunctionMaterial);
+		OutProperty = ULightComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULightComponent, LightFunctionMaterial));
 		return true;
 	}
 

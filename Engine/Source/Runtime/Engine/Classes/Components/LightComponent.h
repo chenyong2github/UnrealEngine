@@ -443,7 +443,7 @@ protected:
 
 	//~ Begin USceneComponent Interface
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath) override;
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
 	//~ End USceneComponent Interface
 

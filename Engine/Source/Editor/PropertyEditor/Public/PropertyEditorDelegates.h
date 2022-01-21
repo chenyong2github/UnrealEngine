@@ -90,12 +90,25 @@ DECLARE_DELEGATE_RetVal(bool, FIsPropertyEditingEnabled );
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFinishedChangingProperties, const FPropertyChangedEvent&);
 
+/**
+ * A property row extension arguments is displayed at the end of a property row, either inline or as a button.
+ */
 struct FOnGenerateGlobalRowExtensionArgs
-{
+{	
 	/** The detail row's property handle. */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+
 	/** The detail row's owner tree node. */
 	TWeakPtr<IDetailTreeNode> OwnerTreeNode;
+
+	/** Owner object for the property extension */
+	UObject* OwnerObject = nullptr;
+
+	/** Path of the exposed property */
+	FString PropertyPath = TEXT("");
+
+	/** Exposed property */
+	FProperty* Property = nullptr;
 };
 
 /** 

@@ -107,29 +107,29 @@ private:
 	bool CanToggleEditMode() const;	
 	bool IsInEditMode() const;
 
-	/** Handle creating the property row extensions.  */
+	/** Handle creating the row extensions.  */
 	void HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions);
 
-	/** Handle getting the icon displayed in the property row extension. */
-	FSlateIcon OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const;
+	/** Handle getting the icon displayed in the row extension. */
+	FSlateIcon OnGetExposedIcon(const FRCExposesPropertyArgs& InArgs) const;
 
 	/** Handle getting the expose button visibility. */
-	bool CanToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle) const;
+	bool CanToggleExposeProperty(const FRCExposesPropertyArgs InArgs) const;
 
 	/** Is the property currently exposed? */
-	ECheckBoxState GetPropertyExposedCheckState(TSharedPtr<IPropertyHandle> Handle) const;
+	ECheckBoxState GetPropertyExposedCheckState(const FRCExposesPropertyArgs InArgs) const;
 
 	/** Handle clicking the expose button. */
-	void OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle);
+	void OnToggleExposeProperty(const FRCExposesPropertyArgs InArgs);
 
 	/** Returns whether a property is exposed, unexposed or unexposable. */
-	EPropertyExposeStatus GetPropertyExposeStatus(const TSharedPtr<IPropertyHandle>& Handle) const;
+	EPropertyExposeStatus GetPropertyExposeStatus(const FRCExposesPropertyArgs& InArgs) const;
 
-	/** Handle getting the icon displayed in the property row extension. */
-	FSlateIcon OnGetOverrideMaterialsIcon(TSharedPtr<IPropertyHandle> Handle) const;
+	/** Handle getting the icon displayed in the row extension. */
+	FSlateIcon OnGetOverrideMaterialsIcon(const FRCExposesPropertyArgs& InArgs) const;
 
 	/** Handle getting the override materials button visibility. */
-	bool IsStaticOrSkeletalMaterialProperty(TSharedPtr<IPropertyHandle> Handle) const;
+	bool IsStaticOrSkeletalMaterialProperty(const FRCExposesPropertyArgs InArgs) const;
 
 	/** Handle adding an option to get the object path in the actors' context menu. */
 	void AddGetPathOption(class FMenuBuilder& MenuBuilder, AActor* SelectedActor);
@@ -137,8 +137,13 @@ private:
 	/** Handle adding the menu extender for the actors. */
 	TSharedRef<FExtender> ExtendLevelViewportContextMenuForRemoteControl(const TSharedRef<FUICommandList> CommandList, TArray<AActor*> SelectedActors);
 
-	/** Returns whether a given property should have an exposed icon. */
-	bool ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const;
+	/** Returns whether a given extension args should have an exposed icon. */
+	bool ShouldDisplayExposeIcon(const FRCExposesPropertyArgs& InArgs) const;
+
+	/** Return true if the extension args from remote control panel */
+	bool ShouldSkipOwnPanelProperty(const FRCExposesPropertyArgs& InArgs) const;
+
+	bool IsAllowedOwnerObjects(TArray<UObject*> InOuterObjects) const;
 
 	//~ Handle struct details customizations for common RC types.
 	void RegisterStructCustomizations();
@@ -152,13 +157,16 @@ private:
 	void RegisterWidgetFactories();
 
 	/** Returns expose button tooltip based on exposed state */
-	FText GetExposePropertyButtonTooltip(TSharedPtr<IPropertyHandle> Handle) const;
+	FText GetExposePropertyButtonTooltip(const FRCExposesPropertyArgs InArgs) const;
 
 	/** Returns expose button text based on exposed state */
-	FText GetExposePropertyButtonText(TSharedPtr<IPropertyHandle> Handle) const;
+	FText GetExposePropertyButtonText(const FRCExposesPropertyArgs InArgs) const;
 	
 	/** Attempts to replace the static or skeletal materials with their corressponding overrides. */
-	void TryOverridingMaterials(TSharedPtr<IPropertyHandle> ForThisProperty);
+	void TryOverridingMaterials(const FRCExposesPropertyArgs InArgs);
+
+	/** Return Selected Mesh Component by given OwnerObject and MaterialInterface */
+	UMeshComponent* GetSelectedMeshComponentToBeModified(UObject* InOwnerObject,  UMaterialInterface* InOriginalMaterial);
 
 	/** Attempts to refresh the details panel. */
 	void RefreshPanels();

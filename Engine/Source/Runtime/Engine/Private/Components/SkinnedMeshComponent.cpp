@@ -2429,18 +2429,23 @@ bool USkinnedMeshComponent::UpdateOverlapsImpl(const TOverlapArrayView* PendingO
 }
 
 #if WITH_EDITOR
-bool USkinnedMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool USkinnedMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if(OverrideMaterials.IsValidIndex(ElementIndex))
 	{
 		OutOwner = this;
 		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, OverrideMaterials), ElementIndex);
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials))))
+		{
+			OutProperty = ArrayProperty->Inner;
+		}
 		return true;
 	}
 	if (SkeletalMesh && SkeletalMesh->GetMaterials().IsValidIndex(ElementIndex))
 	{
 		OutOwner = SkeletalMesh;
 		OutPropertyPath = FString::Printf(TEXT("%s[%d].%s"), *USkeletalMesh::GetMaterialsMemberName().ToString(), ElementIndex, GET_MEMBER_NAME_STRING_CHECKED(FSkeletalMaterial, MaterialInterface));
+		OutProperty = FSkeletalMaterial::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FSkeletalMaterial, MaterialInterface));
 		return true;
 	}
 

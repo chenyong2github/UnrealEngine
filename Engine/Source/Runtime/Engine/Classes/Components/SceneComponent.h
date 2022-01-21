@@ -844,9 +844,10 @@ public:
 	 * @param ElementIndex		- The element to access the material of.
 	 * @param OutOwner			- Property UObject owner.
 	 * @param OutPropertyPath	- Full material property path.
+	 * @param OutProperty		- Material Property.
 	 * @return true if that was successfully resolved and component has material
 	 */
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath);
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty);
 #endif // WITH_EDITOR
 
 protected:

@@ -4445,12 +4445,17 @@ int32 UParticleSystemComponent::GetNumMaterials() const
 }
 
 #if WITH_EDITOR
-bool UParticleSystemComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool UParticleSystemComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if (EmitterMaterials.IsValidIndex(ElementIndex))
 	{
 		OutOwner = this;
 		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UParticleSystemComponent, EmitterMaterials), ElementIndex);
+
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UParticleSystemComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UParticleSystemComponent, EmitterMaterials))))
+		{
+			OutProperty = ArrayProperty->Inner;
+		}
 		return true;
 	}
 	if (Template && Template->Emitters.IsValidIndex(ElementIndex))
@@ -4463,6 +4468,7 @@ bool UParticleSystemComponent::GetMaterialPropertyPath(int32 ElementIndex, UObje
 			{
 				OutOwner = EmitterLODLevel->RequiredModule;
 				OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(UParticleModuleRequired, Material);
+				OutProperty = UParticleModuleRequired::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UParticleModuleRequired, Material));
 				return true;
 			}
 		}

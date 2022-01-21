@@ -2528,12 +2528,16 @@ void UStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMate
 }
 
 #if WITH_EDITOR
-bool UStaticMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+bool UStaticMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if(OverrideMaterials.IsValidIndex(ElementIndex))
 	{				
 		OutOwner = this;
 		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, OverrideMaterials), ElementIndex);
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials))))
+		{
+			OutProperty = ArrayProperty->Inner;
+		}
 
 		return true;
 	}
@@ -2541,6 +2545,7 @@ bool UStaticMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*&
 	{
 		OutOwner = GetStaticMesh();
 		OutPropertyPath = FString::Printf(TEXT("%s[%d].%s"), *UStaticMesh::GetStaticMaterialsName().ToString(), ElementIndex, GET_MEMBER_NAME_STRING_CHECKED(FStaticMaterial, MaterialInterface));
+		OutProperty = FStaticMaterial::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FStaticMaterial, MaterialInterface));
 
 		return true;
 	}
