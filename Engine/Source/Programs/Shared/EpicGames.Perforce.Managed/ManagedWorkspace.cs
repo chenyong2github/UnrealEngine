@@ -816,8 +816,6 @@ namespace EpicGames.Perforce.Managed
 				// Wait for the have table update to finish
 				await UpdateHaveTableTask;
 
-				await LogFortniteStatsInfoAsync(Perforce);
-
 				// Update the state of the current stream, if necessary
 				StreamSnapshot? Contents;
 				if(CacheFile == null)
@@ -833,13 +831,9 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				await LogFortniteStatsInfoAsync(Perforce);
-
 				// Sync all the appropriate files
 				await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
 				await AddFilesToWorkspaceAsync(Perforce, Contents, bFakeSync, CancellationToken);
-
-				await LogFortniteStatsInfoAsync(Perforce);
 			}
 
 			Logger.LogInformation("Completed in {ElapsedTime}s", $"{Timer.Elapsed.TotalSeconds:0.0}");

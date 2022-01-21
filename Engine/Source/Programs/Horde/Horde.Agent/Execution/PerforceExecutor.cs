@@ -207,13 +207,11 @@ namespace HordeAgent.Execution
 
 		protected override async Task<bool> SetupAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
 		{
-			await Workspace.Repository.LogFortniteStatsInfoAsync(Workspace.PerforceClient);
 			return await SetupAsync(Step, Workspace.WorkspaceDir, SharedStorageDir, EnvVars, Logger, CancellationToken);
 		}
 
 		protected override async Task<bool> ExecuteAsync(BeginStepResponse Step, ILogger Logger, CancellationToken CancellationToken)
 		{
-			await Workspace.Repository.LogFortniteStatsInfoAsync(Workspace.PerforceClient);
 			return await ExecuteAsync(Step, Workspace.WorkspaceDir, SharedStorageDir, EnvVars, Logger, CancellationToken);
 		}
 
