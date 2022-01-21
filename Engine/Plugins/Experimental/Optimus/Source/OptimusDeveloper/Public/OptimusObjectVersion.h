@@ -13,6 +13,8 @@ struct OPTIMUSDEVELOPER_API FOptimusObjectVersion
 	{
 		InitialVersion,
 
+		SwitchToMeshDeformerBase,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

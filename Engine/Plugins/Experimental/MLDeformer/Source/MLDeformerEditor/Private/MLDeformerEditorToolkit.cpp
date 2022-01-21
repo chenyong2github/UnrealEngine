@@ -38,7 +38,6 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "UObject/Object.h"
 #include "Components/TextRenderComponent.h"
-#include "OptimusMeshDeformer.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -515,20 +514,11 @@ UMLDeformerComponent* FMLDeformerEditorToolkit::AddMLDeformerComponentToActor(EM
 	return Component;
 }
 
-void FMLDeformerEditorToolkit::AddMeshDeformerToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const
+void FMLDeformerEditorToolkit::AddMeshDeformerToActor(EMLDeformerEditorActorIndex ActorIndex, UMeshDeformer* MeshDeformer) const
 {
 	FMLDeformerEditorActor& EditorActor = EditorData->GetEditorActor(ActorIndex);
 	USkinnedMeshComponent* SkelMeshComponent = EditorActor.SkelMeshComponent;
-	if (ComputeGraph == nullptr)
-	{
-		SkelMeshComponent->SetMeshDeformer(nullptr);
-	}
-	else
-	{
-		UOptimusMeshDeformer* MeshDeformer = NewObject<UOptimusMeshDeformer>(SkelMeshComponent);
-		MeshDeformer->ComputeGraph = ComputeGraph;
-		SkelMeshComponent->SetMeshDeformer(MeshDeformer);
-	}
+	SkelMeshComponent->SetMeshDeformer(MeshDeformer);
 }
 
 void FMLDeformerEditorToolkit::CreateBaseActor(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene, const FName& Name, FLinearColor LabelColor, FLinearColor WireframeColor)
@@ -641,8 +631,8 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 
 	// Create the component with the deformer graph on it.
 	UMLDeformerVizSettings* VizSettings = EditorData->GetDeformerAsset()->GetVizSettings();
-	UComputeGraph* ComputeGraph = VizSettings->GetDeformerGraph();
-	AddMeshDeformerToActor(EMLDeformerEditorActorIndex::DeformedTest, ComputeGraph);
+	UMeshDeformer* MeshDeformer = VizSettings->GetDeformerGraph();
+	AddMeshDeformerToActor(EMLDeformerEditorActorIndex::DeformedTest, MeshDeformer);
 
 	// Create the ground truth actor.
 	const FLinearColor GroundTruthLabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.GroundTruth.LabelColor");

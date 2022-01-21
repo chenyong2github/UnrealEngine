@@ -10,7 +10,7 @@
 class UAnimInstance;
 class UMLDeformerAsset;
 class UMLDeformerComponent;
-class UComputeGraph;
+class UMeshDeformer;
 class IPersonaToolkit;
 class UDebugSkelMeshComponent;
 class IDetailsView;
@@ -108,7 +108,7 @@ public:
 	void UpdateTestAnimPlaySpeed();
 	void UpdateDeformerGraph();
 	static FString GetDefaultDeformerGraphAssetPath();
-	static UComputeGraph* LoadDefaultDeformerGraph();
+	static UMeshDeformer* LoadDefaultDeformerGraph();
 	void SetAnimFrame(int32 FrameNumber);
 	void CreateHeatMapAssets();
 	void ClampFrameIndex();
@@ -161,7 +161,7 @@ private:
 	TObjectPtr<UMaterial> HeatMapMaterial;
 
 	/** The heatmap material. */
-	TObjectPtr<UComputeGraph> HeatMapDeformerGraph;
+	TObjectPtr<UMeshDeformer> HeatMapDeformerGraph;
 
 	/** The world that our actors are inside. */
 	TObjectPtr<UWorld> World;

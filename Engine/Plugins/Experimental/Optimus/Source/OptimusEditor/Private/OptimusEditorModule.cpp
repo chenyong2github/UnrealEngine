@@ -15,7 +15,6 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
-#include "OptimusMeshDeformerAssetActions.h"
 #include "OptimusResourceDescription.h"
 #include "PropertyEditorModule.h"
 #include "SOptimusEditorGraphExplorer.h"
@@ -37,10 +36,6 @@ void FOptimusEditorModule::StartupModule()
 	TSharedRef<IAssetTypeActions> OptimusDeformerAssetAction = MakeShared<FOptimusDeformerAssetActions>();
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
-
-	TSharedRef<IAssetTypeActions> OptimusMeshDeformerAssetAction = MakeShared<FOptimusMeshDeformerAssetActions>();
-	AssetTools.RegisterAssetTypeActions(OptimusMeshDeformerAssetAction);
-	RegisteredAssetTypeActions.Add(OptimusMeshDeformerAssetAction);
 
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphCommands::Register();

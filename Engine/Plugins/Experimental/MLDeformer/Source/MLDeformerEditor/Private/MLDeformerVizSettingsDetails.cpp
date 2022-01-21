@@ -34,6 +34,7 @@
 
 #include "GeometryCache.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/MeshDeformer.h"
 #include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerVizSettingsDetails"
@@ -250,8 +251,8 @@ void FMLDeformerVizSettingsDetails::OnResetToDefaultDeformerGraph(TSharedPtr<IPr
 	UMLDeformerAsset* DeformerAsset = GetMLDeformerAsset();
 	UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
 
-	UComputeGraph* DefaultGraph = FMLDeformerEditorData::LoadDefaultDeformerGraph();
-	PropertyHandle->SetValue(DefaultGraph);
+	UMeshDeformer* MeshDeformer = FMLDeformerEditorData::LoadDefaultDeformerGraph();
+	PropertyHandle->SetValue(MeshDeformer);
 }
 
 bool FMLDeformerVizSettingsDetails::IsResetToDefaultDeformerGraphVisible(TSharedPtr<IPropertyHandle> PropertyHandle)

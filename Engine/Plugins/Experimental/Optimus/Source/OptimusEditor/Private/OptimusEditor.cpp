@@ -13,7 +13,6 @@
 #include "OptimusActionStack.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDeformer.h"
-#include "OptimusMeshDeformer.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 
@@ -315,13 +314,13 @@ void FOptimusEditor::OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMes
 
 void FOptimusEditor::InstallDataProviders()
 {
-	SkeletalMeshComponent->SetMeshDeformer(MeshDeformer);
+	// SkeletalMeshComponent->SetMeshDeformer(MeshDeformer);
 }
 
 
 void FOptimusEditor::RemoveDataProviders()
 {
-	SkeletalMeshComponent->SetMeshDeformer(nullptr);
+	// SkeletalMeshComponent->SetMeshDeformer(nullptr);
 }
 
 
@@ -706,9 +705,7 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	SkeletalMeshComponent->bSelectable = false;
 	SkeletalMeshComponent->MarkRenderStateDirty();
 
-	MeshDeformer = NewObject<UOptimusMeshDeformer>(SkeletalMeshComponent);
-	MeshDeformer->ComputeGraph = DeformerObject;
-	SkeletalMeshComponent->SetMeshDeformer(MeshDeformer);
+	SkeletalMeshComponent->SetMeshDeformer(DeformerObject);
 
 	InPreviewScene->AddComponent(SkeletalMeshComponent, FTransform::Identity);
 	InPreviewScene->SetPreviewMeshComponent(SkeletalMeshComponent);

@@ -7,12 +7,15 @@
 #include "IOptimusPathResolver.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
+#include "Animation/MeshDeformer.h"
+#include "Animation/MeshDeformerInstance.h"
 
 #include "ComputeFramework/ComputeGraph.h"
+#include "ComputeFramework/ComputeGraphInstance.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "Logging/TokenizedMessage.h"
 #include "Types/OptimusType_ShaderText.h"
-
+#include "Misc/TVariant.h"
 #include "OptimusDeformer.generated.h"
 
 class UComputeDataProvider;
@@ -25,25 +28,28 @@ class UOptimusNode_CustomComputeKernel;
 enum class EOptimusDiagnosticLevel : uint8;
 
 
-USTRUCT()
-struct FOptimus_ShaderParameterBinding
-{
-	GENERATED_BODY()
-	
-	UPROPERTY()
-	TObjectPtr<const UOptimusNode> ValueNode = nullptr;
-	
-	UPROPERTY()
-	int32 KernelIndex = INDEX_NONE;
-	
-	UPROPERTY()
-	int32 ParameterIndex = INDEX_NONE;
-};
-
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
+
+
+USTRUCT()
+struct FOptimusComputeGraphInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EOptimusNodeGraphType GraphType;
+
+	UPROPERTY()
+	FName GraphName;
+
+	UPROPERTY(transient)
+	bool bExecuteTrigger = false;
+
+	UPROPERTY()
+	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
+};
 
 
 /**
@@ -52,7 +58,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const T
   */
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
-	public UComputeGraph,
+	public UMeshDeformer,
 	public IInterface_PreviewMeshProvider,
 	public IOptimusPathResolver,
 	public IOptimusNodeGraphCollectionOwner,
@@ -194,23 +200,21 @@ public:
 
 	/// UObject overrides
 	void Serialize(FArchive& Ar) override;
+
+	// UMeshDeformer overrides
+	UMeshDeformerInstance* CreateInstance(UMeshComponent* InMeshComponent) override;
 	
-
-	/// UComputeGraph overrides
-	void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const override;
-	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
-
-	/// IInterface_PreviewMeshProvider overrides
+	// IInterface_PreviewMeshProvider overrides
 	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	USkeletalMesh* GetPreviewMesh() const override;
 
-	/// IOptimusNodeGraphCollectionRoot overrides
+	// IOptimusNodeGraphCollectionRoot overrides
 	IOptimusNodeGraphCollectionOwner* ResolveCollectionPath(const FString& InPath) override;
 	UOptimusNodeGraph* ResolveGraphPath(const FString& InGraphPath) override;
 	UOptimusNode* ResolveNodePath(const FString& InNodePath) override;
 	UOptimusNodePin* ResolvePinPath(const FString& InPinPath) override;
 
-	/// IOptimusNodeGraphCollectionOwner overrides
+	// IOptimusNodeGraphCollectionOwner overrides
 	IOptimusNodeGraphCollectionOwner* GetCollectionOwner() const override { return nullptr; }
 	IOptimusNodeGraphCollectionOwner* GetCollectionRoot() const override { return const_cast<UOptimusDeformer*>(this); }
 	FString GetCollectionPath() const override { return FString(); }
@@ -246,15 +250,26 @@ public:
 
 protected:
 	friend class UOptimusNodeGraph;
+	friend class UOptimusDeformerInstance;
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
+
+	// The compute graphs to execute.
+	UPROPERTY()
+	TArray<FOptimusComputeGraphInfo> ComputeGraphs;
 	
 private:
 	UOptimusNodeGraph* ResolveGraphPath(const FStringView InPath, FStringView& OutRemainingPath) const;
 	UOptimusNode* ResolveNodePath(const FStringView InPath, FStringView& OutRemainingPath) const;
 	int32 GetUpdateGraphIndex() const;
-	
 
+	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
+	// the error message to pass back, if the compilation failed.
+	using FOptimusCompileResult = TVariant<FEmptyVariantState, UComputeGraph*, TSharedRef<FTokenizedMessage>>;
+	FOptimusCompileResult CompileNodeGraphToComputeGraph(
+		const UOptimusNodeGraph *InNodeGraph
+		);
+	
 	FOptimusType_CompilerDiagnostic ProcessCompilationMessage(
 		const UOptimusNode* InKernelNode,
 		const FString& InMessage
@@ -270,17 +285,8 @@ private:
 	TArray<TObjectPtr<UOptimusResourceDescription>> ResourceDescriptions;
 
 	UPROPERTY(transient)
-	TObjectPtr<UOptimusActionStack> ActionStack;
+	TObjectPtr<UOptimusActionStack> ActionStack = nullptr;
 
-	// Lookup into Graphs array from the UComputeGraph kernel index. 
-	UPROPERTY()
-	TArray<TWeakObjectPtr<const UOptimusNode>> CompilingKernelToNode;
-
-	// List of parameter bindings and which value nodes they map to.
-	UPROPERTY()
-	TArray<FOptimus_ShaderParameterBinding> AllParameterBindings;
-
-	
 	FOptimusGlobalNotifyDelegate GlobalNotifyDelegate;
 
 	FOptimusCompileBegin CompileBeginDelegate;
@@ -288,5 +294,4 @@ private:
 	FOptimusCompileEnd CompileEndDelegate;
 
 	FOptimusGraphCompileMessageDelegate CompileMessageDelegate;
-
 };

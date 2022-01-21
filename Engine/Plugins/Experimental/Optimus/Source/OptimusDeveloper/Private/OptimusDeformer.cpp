@@ -2,7 +2,6 @@
 
 #include "OptimusDeformer.h"
 
-#include "Actions/OptimusNodeActions.h"
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
@@ -23,20 +22,22 @@
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_DataInterface.h"
 #include "IOptimusComputeKernelProvider.h"
+#include "OptimusComputeGraph.h"
+#include "OptimusDeformerInstance.h"
 #include "OptimusFunctionNodeGraph.h"
 #include "Misc/UObjectToken.h"
 
-#include "RenderingThread.h"
+#include "Components/MeshComponent.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
+#include "RenderingThread.h"
 #include "UObject/Package.h"
-#include "Internationalization/Regex.h"
-#include "Nodes/OptimusNode_ComputeKernelFunction.h"
-#include "Nodes/OptimusNode_CustomComputeKernel.h"
+
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
 static const FName DefaultResourceName("Resource");
 static const FName DefaultVariableName("Variable");
+
 
 
 UOptimusDeformer::UOptimusDeformer()
@@ -558,19 +559,7 @@ static void CollectNodes(
 
 bool UOptimusDeformer::Compile()
 {
-	int32 UpdateGraphIndex = -1;
-	const UOptimusNodeGraph* UpdateGraph = nullptr;
-	for (int32 GraphIndex = 0; GraphIndex < Graphs.Num(); ++GraphIndex)
-	{
-		const UOptimusNodeGraph* NodeGraph = Graphs[GraphIndex];
-		if (NodeGraph->GetGraphType() == EOptimusNodeGraphType::Update)
-		{
-			UpdateGraph = NodeGraph;
-			UpdateGraphIndex = GraphIndex;
-			break;
-		}
-	}
-	if (!UpdateGraph)
+	if (!GetUpdateGraph())
 	{
 		CompileBeginDelegate.Broadcast(this);
 		CompileMessageDelegate.Broadcast(
@@ -578,12 +567,63 @@ bool UOptimusDeformer::Compile()
 		CompileEndDelegate.Broadcast(this);
 		return false;
 	}
+
+	ComputeGraphs.Reset();
 	
+	CompileBeginDelegate.Broadcast(this);
+	
+	// Wait for rendering to be done.
+	FlushRenderingCommands();
+
+	for (const UOptimusNodeGraph* Graph: Graphs)
+	{
+		// HACK: Only do update graphs, until we can validate passing trigger information to
+		// the deformer instance.
+		if (Graph->GetGraphType() != EOptimusNodeGraphType::Update)
+		{
+			continue;
+		}
+		
+		FOptimusCompileResult Result = CompileNodeGraphToComputeGraph(Graph);
+		if (Result.IsType<UComputeGraph *>())
+		{
+			FOptimusComputeGraphInfo Info;
+			Info.GraphType = Graph->GraphType;
+			Info.GraphName = Graph->GetFName();
+			Info.ComputeGraph = Result.Get<UComputeGraph*>();
+			ComputeGraphs.Add(Info);
+		}
+		else if (Result.IsType<TSharedRef<FTokenizedMessage>>())
+		{
+			ComputeGraphs.Reset();
+			CompileMessageDelegate.Broadcast(Result.Get<TSharedRef<FTokenizedMessage>>());
+			break;
+		}
+	}
+	
+	CompileEndDelegate.Broadcast(this);
+
+	for (const FOptimusComputeGraphInfo& ComputeGraphInfo: ComputeGraphs)
+	{
+		ComputeGraphInfo.ComputeGraph->UpdateResources();
+	}
+
+	
+	return true;
+}
+
+
+UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComputeGraph(
+	const UOptimusNodeGraph* InNodeGraph
+	)
+{
+	FOptimusCompileResult Result;
+
 	// HACK: Find an interface node that has no output pins. That's our terminal node.
 	// FIXME: Resource nodes can be terminals too.
 	TArray<const UOptimusNode*> TerminalNodes;
 	
-	for (const UOptimusNode* Node: UpdateGraph->GetAllNodes())
+	for (const UOptimusNode* Node: InNodeGraph->GetAllNodes())
 	{
 		const UOptimusNode_DataInterface* TerminalNode = Cast<const UOptimusNode_DataInterface>(Node);
 
@@ -606,24 +646,13 @@ bool UOptimusDeformer::Compile()
 
 	if (TerminalNodes.IsEmpty())
 	{
-		CompileBeginDelegate.Broadcast(this);
-		CompileMessageDelegate.Broadcast(
-			FTokenizedMessage::Create(EMessageSeverity::CriticalError, LOCTEXT("NoDataInterfaceFound", "No data interface terminal nodes found. Compilation aborted.")));
-		CompileEndDelegate.Broadcast(this);
-		return false;
+		Result.Set<TSharedRef<FTokenizedMessage>>(FTokenizedMessage::Create(
+			EMessageSeverity::CriticalError,
+			LOCTEXT("NoDataInterfaceFound", "No data interface terminal nodes found. Compilation aborted.")));
+		return Result;
 	}
 
-	CompileBeginDelegate.Broadcast(this);
-
-	// Wait for rendering to be done.
-	FlushRenderingCommands();
-	
-	// Clean out any existing data.
-	KernelInvocations.Reset();
-	DataInterfaces.Reset();
-	GraphEdges.Reset();
-	CompilingKernelToNode.Reset();
-	AllParameterBindings.Reset();
+	UOptimusComputeGraph* ComputeGraph = NewObject<UOptimusComputeGraph>(this);
 
 	TArray<FNodeWithTraversalContext> ConnectedNodes;
 	CollectNodes(TerminalNodes, ConnectedNodes);
@@ -701,7 +730,7 @@ bool UOptimusDeformer::Compile()
 			FOptimus_KernelParameterBindingList KernelParameterBindings;
 			FKernelWithDataBindings BoundKernel;
 
-			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
+			BoundKernel.KernelNodeIndex = InNodeGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
 			UComputeKernelSource *KernelSource = KernelProvider->CreateComputeKernel(
@@ -714,9 +743,8 @@ bool UOptimusDeformer::Compile()
 				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
 					LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted."));
 				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
-				CompileMessageDelegate.Broadcast(Message);
-				CompileEndDelegate.Broadcast(this);
-				return false;
+				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
+				return Result;
 			}
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
@@ -724,9 +752,8 @@ bool UOptimusDeformer::Compile()
 				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
 					LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."));
 				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
-				CompileMessageDelegate.Broadcast(Message);
-				CompileEndDelegate.Broadcast(this);
-				return false;
+				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
+				return Result;
 			}
 			
 			BoundKernel.Kernel->KernelSource = KernelSource;
@@ -738,28 +765,28 @@ bool UOptimusDeformer::Compile()
 				ShaderParameterBinding.ValueNode = Binding.ValueNode;
 				ShaderParameterBinding.KernelIndex = BoundKernels.Num();
 				ShaderParameterBinding.ParameterIndex = ParameterIndex;
-				AllParameterBindings.Add(ShaderParameterBinding);
+				ComputeGraph->KernelParameterBindings.Add(ShaderParameterBinding);
 			}
 
 			BoundKernels.Add(BoundKernel);
 
-			KernelInvocations.Add(BoundKernel.Kernel);
-			CompilingKernelToNode.Add(ConnectedNode.Node);
+			ComputeGraph->KernelInvocations.Add(BoundKernel.Kernel);
+			ComputeGraph->KernelToNode.Add(ConnectedNode.Node);
 		}
 	}
 
 	// Now that we've collected all the pieces, time to line them up.
 	for (TPair<const UOptimusNode *, UOptimusComputeDataInterface *>&Item: NodeDataInterfaceMap)
 	{
-		DataInterfaces.Add(Item.Value);
+		ComputeGraph->DataInterfaces.Add(Item.Value);
 	}
 	for (TPair<const UOptimusNodePin *, UOptimusComputeDataInterface *>&Item: LinkDataInterfaceMap)
 	{
-		DataInterfaces.Add(Item.Value);
+		ComputeGraph->DataInterfaces.Add(Item.Value);
 	}
 
 	// Create the graph edges.
-	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); KernelIndex++)
+	for (int32 KernelIndex = 0; KernelIndex < ComputeGraph->KernelInvocations.Num(); KernelIndex++)
 	{
 		const FKernelWithDataBindings& BoundKernel = BoundKernels[KernelIndex];
 		const TArray<FShaderFunctionDefinition>& KernelInputs = BoundKernel.Kernel->KernelSource->ExternalInputs;
@@ -784,10 +811,10 @@ bool UOptimusDeformer::Compile()
 				GraphEdge.bKernelInput = true;
 				GraphEdge.KernelIndex = KernelIndex;
 				GraphEdge.KernelBindingIndex = KernelBindingIndex;
-				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
+				GraphEdge.DataInterfaceIndex = ComputeGraph->DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
 				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
-				GraphEdges.Add(GraphEdge);
+				ComputeGraph->GraphEdges.Add(GraphEdge);
 			}
 		}
 
@@ -811,99 +838,18 @@ bool UOptimusDeformer::Compile()
 				GraphEdge.bKernelInput = false;
 				GraphEdge.KernelIndex = KernelIndex;
 				GraphEdge.KernelBindingIndex = KernelBindingIndex;
-				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
+				GraphEdge.DataInterfaceIndex = ComputeGraph->DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
 				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
-				GraphEdges.Add(GraphEdge);
+				ComputeGraph->GraphEdges.Add(GraphEdge);
 			}
 		}
 	}
 
-	// Let folks know _before_ we update resources.
-	CompileEndDelegate.Broadcast(this);
-
-	UpdateResources();
-	
-	return true;
+	Result.Set<UComputeGraph *>(ComputeGraph);
+	return Result;
 }
 
-
-void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
-{
-	// Find the Optimus objects from the raw kernel index.
-	if (CompilingKernelToNode.IsValidIndex(InKernelIndex))
-	{
-		UOptimusNode* Node = const_cast<UOptimusNode*>(CompilingKernelToNode[InKernelIndex].Get());
-		
-		if (ensure(Node))
-		{
-			IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Node);
-			if (ensure(KernelProvider != nullptr))
-			{
-				TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
-
-				// This is a compute kernel as expected so broadcast the compile errors.
-				for (FString const& CompileError : InCompileErrors)
-				{
-					FOptimusType_CompilerDiagnostic Diagnostic = ProcessCompilationMessage(Node, CompileError);
-					if (Diagnostic.Level != EOptimusDiagnosticLevel::None)
-					{
-						Diagnostics.Add(Diagnostic);
-					}
-				}
-
-				KernelProvider->SetCompilationDiagnostics(Diagnostics);
-			}
-		}
-	}
-}
-
-
-FOptimusType_CompilerDiagnostic UOptimusDeformer::ProcessCompilationMessage(
-		const UOptimusNode* InKernelNode,
-		const FString& InMessage
-		)
-{
-	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
-	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
-
-	// TODO: Parsing diagnostics rightfully belongs at the shader compiler level, especially if
-	// the shader compiler is rewriting.
-	static const FRegexPattern MessagePattern(TEXT(R"(^\s*(.*?)\((\d+),(\d+)(-(\d+))?\):\s*(error|warning)\s+[A-Z0-9]+:\s*(.*)$)"));
-
-	FRegexMatcher Matcher(MessagePattern, InMessage);
-	if (!Matcher.FindNext())
-	{
-		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Cannot parse message from shader compiler: [%s]"), *InMessage);
-		return {};
-	}
-
-	// FString NodeName = Matcher.GetCaptureGroup(1);
-	const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
-	const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));
-	const FString ColumnEndStr = Matcher.GetCaptureGroup(5);
-	const int32 ColumnEnd = ColumnEndStr.IsEmpty() ? ColumnStart : FCString::Atoi(*ColumnEndStr);
-	const FString SeverityStr = Matcher.GetCaptureGroup(6);
-	const FString MessageStr = Matcher.GetCaptureGroup(7);
-
-	EMessageSeverity::Type Severity = EMessageSeverity::Error; 
-	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::Error;
-	if (SeverityStr == TEXT("warning"))
-	{
-		Level = EOptimusDiagnosticLevel::Warning;
-		Severity = EMessageSeverity::Warning;
-	}
-
-	// Set a dummy lambda for token activation because the default behavior for FUObjectToken is
-	// to pop up the asset browser :-/
-	static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
-	FString DiagnosticStr = FString::Printf(TEXT("%s (line %d)"), *MessageStr, LineNumber);
-	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity, FText::FromString(DiagnosticStr));
-	Message->AddToken(FUObjectToken::Create(InKernelNode)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
-	CompileMessageDelegate.Broadcast(Message);
-
-	return FOptimusType_CompilerDiagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
-}
 
 template<typename Allocator>
 static void StringViewSplit(
@@ -1091,28 +1037,42 @@ void UOptimusDeformer::Serialize(FArchive& Ar)
 	// Mark with a custom version. This has the nice side-benefit of making the asset indexer
 	// skip this object if the plugin is not loaded.
 	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
+
+	// UComputeGraph stored the number of kernels separately, we need to skip over it or the
+	// stream is out of sync.
+	if (Ar.CustomVer(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::SwitchToMeshDeformerBase)
+	{
+		int32 NumKernels = 0;
+		Ar << NumKernels;
+		for (int32 Index = 0; Index < NumKernels; Index++)
+		{
+			int32 NumResources = 0;
+			Ar << NumResources;
+
+			// If this turns out to be not zero in some asset, we have to add in the entirety
+			// of FComputeKernelResource::SerializeShaderMap
+			check(NumResources == 0); 
+		}
+	}
 }
 
 
-void UOptimusDeformer::GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const
+UMeshDeformerInstance* UOptimusDeformer::CreateInstance(UMeshComponent* InMeshComponent)
 {
-	for (const FOptimus_ShaderParameterBinding& Binding: AllParameterBindings)
+	if (InMeshComponent == nullptr)
 	{
-		if (Binding.KernelIndex == InKernelIndex)
-		{
-			const UOptimusNode_ConstantValue *ValueNode = Cast<const UOptimusNode_ConstantValue>(Binding.ValueNode);
-
-			// This may happen if the node has been GC'd.
-			if (ValueNode)
-			{
-				TArray<uint8> ValueData = ValueNode->GetShaderValue();
-				if (!ValueData.IsEmpty())
-				{
-					OutBindings.Emplace(Binding.ParameterIndex, MoveTemp(ValueData));
-				}
-			}
-		}
+		return nullptr;
 	}
+
+	UOptimusDeformerInstance* Instance = NewObject<UOptimusDeformerInstance>();
+	Instance->MeshComponent = InMeshComponent;
+	Instance->SetupFromDeformer(this);
+
+	// Make sure all the instances know when we finish compiling so they can update their
+	// local state to match.
+	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer);
+	
+	return Instance;
 }
 
 

@@ -29,9 +29,9 @@
 #include "Math/NumericLimits.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ComputeFramework/ComputeGraph.h"
-#include "OptimusMeshDeformer.h"
 
 #include "SSimpleTimeSlider.h"
+#include "Animation/MeshDeformer.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorData"
 
@@ -214,15 +214,12 @@ void FMLDeformerEditorData::UpdateDeformerGraph()
 	{
 		UMLDeformerVizSettings* VizSettings = MLDeformerAsset->GetVizSettings();
 		check(VizSettings);
-		UComputeGraph* ComputeGraph = MLDeformerAsset->GetInferenceNeuralNetwork() ? VizSettings->GetDeformerGraph() : nullptr;
+		UMeshDeformer* MeshDeformer = MLDeformerAsset->GetInferenceNeuralNetwork() ? VizSettings->GetDeformerGraph() : nullptr;
 		
 		const bool bUseHeatMapDeformer = VizSettings->GetShowHeatMap();
-		ComputeGraph = bUseHeatMapDeformer ? HeatMapDeformerGraph.Get() : ComputeGraph;
-		
-		UOptimusMeshDeformer* MeshDeformer = NewObject<UOptimusMeshDeformer>(SkelMeshComponent);
-		MeshDeformer->ComputeGraph = ComputeGraph;
-		SkelMeshComponent->SetMeshDeformer(MeshDeformer);
+		SkelMeshComponent->SetMeshDeformer(bUseHeatMapDeformer ? HeatMapDeformerGraph.Get() : MeshDeformer);
 	}
+	
 }
 
 void FMLDeformerEditorData::InitAssets()
@@ -537,8 +534,8 @@ void FMLDeformerEditorData::CreateHeatMapAssets()
 	check(HeatMapMaterial);
 
 	const FString HeatMapDeformerPath = TEXT("/MLDeformer/Deformers/DebugMLDeformerGraph.DebugMLDeformerGraph");
-	UObject* DeformerObject = StaticLoadObject(UComputeGraph::StaticClass(), nullptr, *HeatMapDeformerPath);
-	HeatMapDeformerGraph = Cast<UComputeGraph>(DeformerObject);
+	UObject* DeformerObject = StaticLoadObject(UMeshDeformer::StaticClass(), nullptr, *HeatMapDeformerPath);
+	HeatMapDeformerGraph = Cast<UMeshDeformer>(DeformerObject);
 	check(HeatMapDeformerGraph);
 }
 
@@ -733,11 +730,11 @@ FString FMLDeformerEditorData::GetDefaultDeformerGraphAssetPath()
 	return FString(TEXT("/MLDeformer/Deformers/DefaultMLDeformerGraph.DefaultMLDeformerGraph"));
 }
 
-UComputeGraph* FMLDeformerEditorData::LoadDefaultDeformerGraph()
+UMeshDeformer* FMLDeformerEditorData::LoadDefaultDeformerGraph()
 {
 	const FString GraphAssetPath = FMLDeformerEditorData::GetDefaultDeformerGraphAssetPath();
-	UObject* Object = StaticLoadObject(UComputeGraph::StaticClass(), nullptr, *GraphAssetPath);
-	UComputeGraph* DeformerGraph = Cast<UComputeGraph>(Object);
+	UObject* Object = StaticLoadObject(UMeshDeformer::StaticClass(), nullptr, *GraphAssetPath);
+	UMeshDeformer* DeformerGraph = Cast<UMeshDeformer>(Object);
 	if (DeformerGraph == nullptr)
 	{
 		UE_LOG(LogMLDeformer, Warning, TEXT("Failed to load default ML Deformer compute graph from: %s"), *GraphAssetPath);
@@ -756,7 +753,7 @@ void FMLDeformerEditorData::SetDefaultDeformerGraphIfNeeded()
 	// Initialize the asset on the default plugin deformer graph.
 	if (GetDeformerAsset()->GetVizSettings()->GetDeformerGraph() == nullptr)
 	{
-		UComputeGraph* DefaultGraph = FMLDeformerEditorData::LoadDefaultDeformerGraph();
+		UMeshDeformer* DefaultGraph = LoadDefaultDeformerGraph();
 		GetDeformerAsset()->GetVizSettings()->SetDeformerGraph(DefaultGraph);
 	}
 }

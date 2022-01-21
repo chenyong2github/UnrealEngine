@@ -10,6 +10,7 @@
 class UAnimSequence;
 class UComputeGraph;
 class UGeometryCache;
+class UMeshDeformer;
 
 // The visualization mode, which selects whether you want to view the training data, or test your already trained model.
 UENUM()
@@ -63,7 +64,7 @@ public:
 	bool GetDrawMLDeformedActor() const { return bDrawMLDeformedActor; }
 	bool GetDrawGroundTruthActor() const { return bDrawGroundTruthActor; }
 	bool GetXRayDeltas() const { return bXRayDeltas; }
-	UComputeGraph* GetDeformerGraph() const { return DeformerGraph; }
+	UMeshDeformer* GetDeformerGraph() const { return DeformerGraph; }
 	EMLDeformerVizMode GetVisualizationMode() const { return VisualizationMode; }
 	EMLDeformerVizMode GetTempVisualizationMode() const { return TempVisualizationMode; }
 	EMLDeformerHeatMapMode GetHeatMapMode() const { return HeatMapMode; }
@@ -71,7 +72,7 @@ public:
 	float GetGroundTruthLerp() const { return HeatMapMode == EMLDeformerHeatMapMode::GroundTruth ? GroundTruthLerp : 0.f; }
 	
 	void SetTempVisualizationMode(EMLDeformerVizMode Mode) { TempVisualizationMode = Mode; }
-	void SetDeformerGraph(UComputeGraph* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
+	void SetDeformerGraph(UMeshDeformer* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
 #endif
 
 public:
@@ -87,7 +88,7 @@ public:
 
 	/** The deformer graph to use on the asset editor's deformed test actor. */
 	UPROPERTY(EditAnywhere, Category = "Test Assets")
-	TObjectPtr<UComputeGraph> DeformerGraph = nullptr;
+	TObjectPtr<UMeshDeformer> DeformerGraph = nullptr;
 
 	/** The geometry cache that represents the ground truth of the test anim sequence. */
 	UPROPERTY(EditAnywhere, Category = "Test Assets")
