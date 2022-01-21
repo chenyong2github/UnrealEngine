@@ -128,7 +128,7 @@ bool FIOSAudioSoundBuffer::ReadCompressedInfo(USoundWave* InWave)
 	}
 
 	InWave->InitAudioResource(FName(TEXT("ADPCM")));
-	if (InWave->SoundWaveDataPtr->ResourceSize <= 0)
+	if (InWave->GetResourceSize() <= 0)
 	{
 		InWave->RemoveAudioResource();
 		return false;
