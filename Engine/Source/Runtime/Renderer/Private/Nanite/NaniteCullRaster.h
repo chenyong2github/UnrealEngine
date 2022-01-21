@@ -191,6 +191,7 @@ struct FRasterState
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
@@ -208,6 +209,7 @@ void CullRasterize(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,	// Number of non-mip views
 	const FSharedContext& SharedContext,

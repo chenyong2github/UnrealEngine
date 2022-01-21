@@ -1415,6 +1415,7 @@ static void RenderShadowDepthAtlasNanite(
 	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
 	FScene& Scene,
+	const FViewInfo& SceneView,
 	const FSortedShadowMapAtlas& ShadowMapAtlas,
 	const int32 AtlasIndex)
 {
@@ -1512,6 +1513,7 @@ static void RenderShadowDepthAtlasNanite(
 			Nanite::CullRasterize(
 				GraphBuilder,
 				Scene,
+				SceneView,
 				PackedViews,
 				SharedContext,
 				CullingContext,
@@ -1530,6 +1532,7 @@ static void RenderShadowDepthAtlasNanite(
 			Nanite::CullRasterize(
 				GraphBuilder,
 				Scene,
+				SceneView,
 				PackedViewsNoNearClip,
 				SharedContext,
 				CullingContext,
@@ -1695,7 +1698,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 		if (bNaniteEnabled)
 		{
-			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ShadowMapAtlas, AtlasIndex);
+			const FViewInfo& SceneView = Views[0];
+			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, SceneView, ShadowMapAtlas, AtlasIndex);
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
@@ -1750,12 +1754,15 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 
+			const FViewInfo& SceneView = Views[0];
+
 			auto FilterAndRenderVirtualShadowMaps = [
 				&SortedShadowsForShadowDepthPass = SortedShadowsForShadowDepthPass,
 					&SharedContext,
 					&RasterContext,
 					&VirtualShadowMapArray = VirtualShadowMapArray,
 					&GraphBuilder,
+					&SceneView,
 					bUpdateStreaming,
 					bVSMUseHZB,
 					Scene = Scene,
@@ -1823,6 +1830,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					Nanite::CullRasterize(
 						GraphBuilder,
 						*Scene,
+						SceneView,
 						VirtualShadowViews,
 						NumPrimaryViews,
 						SharedContext,
@@ -2051,9 +2059,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 					const bool bExtractStats = Nanite::IsStatFilterActive(CubeFaceFilterName);
 
+					const FViewInfo& SceneView = Views[0];
 					Nanite::CullRasterize(
 						GraphBuilder,
 						*Scene,
+						SceneView,
 						PackedViews,
 						SharedContext,
 						CullingContext,

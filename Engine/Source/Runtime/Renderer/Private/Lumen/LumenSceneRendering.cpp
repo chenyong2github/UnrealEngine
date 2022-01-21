@@ -2460,6 +2460,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 							Nanite::CullRasterize(
 								GraphBuilder,
 								*Scene,
+								*SharedView,
 								NaniteViews,
 								SharedContext,
 								CullingContext,
@@ -2491,6 +2492,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 							Nanite::CullRasterize(
 								GraphBuilder,
 								*Scene,
+								*SharedView,
 								{ PackedView },
 								SharedContext,
 								CullingContext,
@@ -2524,6 +2526,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						Nanite::CullRasterize(
 							GraphBuilder,
 							*Scene,
+							*SharedView,
 							{ PackedView },
 							SharedContext,
 							CullingContext,

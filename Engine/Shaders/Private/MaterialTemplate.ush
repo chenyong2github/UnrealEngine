@@ -25,8 +25,6 @@
 // Merge conflicts on this line should be resolved by generating a new GUID
 // GUID = 4E3A3611-FB00-4498-AF79-80F57CBC06A8
 
-#define USE_ANALYTIC_DERIVATIVES	(IS_NANITE_FACTORY)
-
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
 #endif
@@ -130,6 +128,14 @@
 #define HAS_INSTANCE_WORLD_TO_LOCAL_PS	(NEEDS_INSTANCE_WORLD_TO_LOCAL_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
 
 #define IS_HAIR_FACTORY (HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY)
+
+#if IS_NANITE_PASS
+	#define ALLOW_CLIP 0
+	#define CLIP(x)
+#else
+	#define ALLOW_CLIP 1
+	#define CLIP(x) clip(x)
+#endif
 
 #define TEMPLATE_USES_STRATA			(PROJECT_STRATA && MATERIAL_IS_STRATA)
 #define STRATA_OPAQUE_MATERIAL			(TEMPLATE_USES_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
@@ -291,7 +297,7 @@ struct FMaterialPixelParameters
 	 * See ApplyPixelDepthOffsetToMaterialParameters for the details */
 	float2 ViewBufferUV;
 
-#if IS_NANITE_FACTORY
+#if IS_NANITE_PASS
 	float4 PrevScreenPosition;
 #endif
 
@@ -357,18 +363,18 @@ struct FMaterialPixelParameters
 	float2	LightmapUVs_DDY;
 #endif
 
-#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_FACTORY
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
 	half4 PerInstanceParams;
 #endif
 
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 
-#if IS_NANITE_FACTORY
+#if IS_NANITE_PASS
 	uint InstanceId;
 #endif
 
-#if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
+#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
 	uint CustomDataOffset;
 	uint CustomDataCount;
 #endif
@@ -1006,7 +1012,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 /** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
 float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)
 {
-#if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
+#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
 	const uint FloatIndex = uint(Index);
 	BRANCH
 	if (FloatIndex < Parameters.CustomDataCount)
@@ -1160,7 +1166,7 @@ float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_FACTORY
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;
@@ -2973,7 +2979,7 @@ void ClipLODTransition(float2 SvPosition, float DitherFactor)
 		half RetVal = (DitherFactor < 0.0) ?
 			(DitherFactor + 1.0 > RandomVal) :
 			(DitherFactor < RandomVal);
-		clip(RetVal - .001);
+		CLIP(RetVal - .001);
 	}
 }
 
@@ -3018,11 +3024,11 @@ void GetMaterialClippingShadowDepth(FMaterialPixelParameters Parameters, FPixelM
 {
 	ClipLODTransition(Parameters);
 	#if MATERIALBLENDING_MASKED
-		clip(GetMaterialMask(PixelMaterialInputs));
+		CLIP(GetMaterialMask(PixelMaterialInputs));
 	#elif TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY
-		clip(GetMaterialMaskedOpacity(PixelMaterialInputs));
+		CLIP(GetMaterialMaskedOpacity(PixelMaterialInputs));
 	#elif MATERIALBLENDING_TRANSLUCENT
-		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
+		CLIP(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
 	#endif
 }
 
@@ -3032,11 +3038,11 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 {
 	ClipLODTransition(Parameters);
 	#if MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
-		clip(GetMaterialMaskInputRaw(PixelMaterialInputs) - 1.0f / 255.0f);
+		CLIP(GetMaterialMaskInputRaw(PixelMaterialInputs) - 1.0f / 255.0f);
 	#elif MATERIALBLENDING_MASKED
-		clip(GetMaterialMask(PixelMaterialInputs)); 
+		CLIP(GetMaterialMask(PixelMaterialInputs)); 
 	#elif MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
-		clip(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
+		CLIP(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
 	#endif
 }
 
@@ -3078,9 +3084,9 @@ void GetMaterialCoverageAndClipping(FMaterialPixelParameters Parameters, FPixelM
 		float Noise = frac( dot( float2( 171.0, 231.0 ) / 71, Pos.xy ) );
 		float Dither = ( Dither5 * 5 + Noise ) * (1.0 / 6.0);
 
-		clip( GetMaterialMask(PixelMaterialInputs) + Dither - 0.5 );
+		CLIP( GetMaterialMask(PixelMaterialInputs) + Dither - 0.5 );
 	#else
-		clip(GetMaterialMask(PixelMaterialInputs));
+		CLIP(GetMaterialMask(PixelMaterialInputs));
 	#endif
 #endif
 }
@@ -3110,10 +3116,10 @@ uint DiscardMaterialWithPixelCoverage(FMaterialPixelParameters MaterialParameter
 		float Mask = (OriginalMask - MaskClip) / (1.0 - MaskClip);
 		uint CurrentPixelCoverage = GetDerivativeCoverageFromMask(Mask);
 		// Discard pixel shader if all sample are masked to avoid computing other material inputs.
-		clip(float(CurrentPixelCoverage) - 0.5);
+		CLIP(float(CurrentPixelCoverage) - 0.5);
 		return CurrentPixelCoverage;
 	}
-	clip(OriginalMask - MaskClip);
+	CLIP(OriginalMask - MaskClip);
 	return 0xF;
 }
 

@@ -711,7 +711,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 				bPrimaryContext
 			);
 			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize, VIEW_FLAG_HZBTEST);
-			Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, SharedContext, CullingContext, RasterContext, RasterState);
+			Nanite::CullRasterize(GraphBuilder, *Scene, Views[ViewIndex], { PackedView }, SharedContext, CullingContext, RasterContext, RasterState);
 			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
 		}
 	}

@@ -74,6 +74,24 @@
 #define NEEDS_VERTEX_FACTORY_INTERPOLATION				0
 #endif
 
+// Nanite deferred material shading
+#ifndef IS_NANITE_SHADING_PASS
+#define IS_NANITE_SHADING_PASS 0
+#endif
+
+// Nanite programmable rasterizer
+#ifndef IS_NANITE_RASTER_PASS
+#define IS_NANITE_RASTER_PASS 0
+#endif
+
+#ifndef IS_NANITE_PASS
+#define IS_NANITE_PASS (IS_NANITE_SHADING_PASS || IS_NANITE_RASTER_PASS)
+#endif
+
+#ifndef USE_ANALYTIC_DERIVATIVES
+#define USE_ANALYTIC_DERIVATIVES 0
+#endif
+
 #ifndef GBUFFER_HAS_VELOCITY
 #define GBUFFER_HAS_VELOCITY							0
 #endif

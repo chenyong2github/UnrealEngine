@@ -12,6 +12,9 @@
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "SceneTextureReductions.h"
 #include "RenderGraphUtils.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 
 DEFINE_GPU_STAT(NaniteRaster);
 
@@ -633,6 +636,8 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
 
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,	InTotalPrevDrawClusters )
@@ -712,10 +717,9 @@ class FMicropolyRasterizeCS : public FNaniteGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FMicropolyRasterizeCS, "/Engine/Private/Nanite/Rasterizer.usf", "MicropolyRasterize", SF_Compute);
 
-class FHWRasterizeVS : public FNaniteGlobalShader
+class FHWRasterizeVS : public FNaniteMaterialShader
 {
-	DECLARE_GLOBAL_SHADER( FHWRasterizeVS );
-	SHADER_USE_PARAMETER_STRUCT( FHWRasterizeVS, FNaniteGlobalShader);
+	DECLARE_SHADER_TYPE(FHWRasterizeVS, Material);
 
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
@@ -731,13 +735,22 @@ class FHWRasterizeVS : public FNaniteGlobalShader
 
 	using FParameters = FRasterizePassParameters;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FHWRasterizeVS() = default;
+	FHWRasterizeVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FNaniteMaterialShader(Initializer)
 	{
-		if (!DoesPlatformSupportNanite(Parameters.Platform))
-		{
-			return false;
-		}
+		Bindings.BindForLegacyShaderParameters(
+			this,
+			Initializer.PermutationId,
+			Initializer.ParameterMap,
+			*FParameters::FTypeInfo::GetStructMetadata(),
+			// Don't require full bindings, we use FMaterialShader::SetParameters
+			false
+		);
+	}
 
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
@@ -786,16 +799,14 @@ class FHWRasterizeVS : public FNaniteGlobalShader
 			return false;
 		}
 
-		return true;
+		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
@@ -830,14 +841,21 @@ class FHWRasterizeVS : public FNaniteGlobalShader
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 		}
 	}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	{
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
+
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+	}
 };
-IMPLEMENT_GLOBAL_SHADER(FHWRasterizeVS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeVS", SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizeVS, TEXT("/Engine/Private/Nanite/Rasterizer.usf"), TEXT("HWRasterizeVS"), SF_Vertex);
 
 // TODO: Consider making a common base shader class for VS and MS (where possible)
-class FHWRasterizeMS : public FNaniteGlobalShader
+class FHWRasterizeMS : public FNaniteMaterialShader
 {
-	DECLARE_GLOBAL_SHADER(FHWRasterizeMS);
-	SHADER_USE_PARAMETER_STRUCT(FHWRasterizeMS, FNaniteGlobalShader);
+	DECLARE_SHADER_TYPE(FHWRasterizeMS, Material);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
@@ -852,13 +870,22 @@ class FHWRasterizeMS : public FNaniteGlobalShader
 
 	using FParameters = FRasterizePassParameters;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FHWRasterizeMS() = default;
+	FHWRasterizeMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FNaniteMaterialShader(Initializer)
 	{
-		if (!DoesPlatformSupportNanite(Parameters.Platform))
-		{
-			return false;
-		}
+		Bindings.BindForLegacyShaderParameters(
+			this,
+			Initializer.PermutationId,
+			Initializer.ParameterMap,
+			*FParameters::FTypeInfo::GetStructMetadata(),
+			// Don't require full bindings, we use FMaterialShader::SetParameters
+			false
+		);
+	}
 
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
 		if (!FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier1(Parameters.Platform))
 		{
 			// Only some platforms support mesh shaders with tier1 support
@@ -900,16 +927,14 @@ class FHWRasterizeMS : public FNaniteGlobalShader
 			return false;
 		}
 
-		return true;
+		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), 4); // Mesh and primitive shaders use an index of 4 instead of 5
@@ -935,13 +960,21 @@ class FHWRasterizeMS : public FNaniteGlobalShader
 		// Force shader model 6.0+
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
-};
-IMPLEMENT_GLOBAL_SHADER(FHWRasterizeMS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeMS", SF_Mesh);
 
-class FHWRasterizePS : public FNaniteGlobalShader
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	{
+		FRHIMeshShader* ShaderRHI = RHICmdList.GetBoundMeshShader();
+
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+	}
+};
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizeMS, TEXT("/Engine/Private/Nanite/Rasterizer.usf"), TEXT("HWRasterizeMS"), SF_Mesh);
+
+class FHWRasterizePS : public FNaniteMaterialShader
 {
-	DECLARE_GLOBAL_SHADER( FHWRasterizePS );
-	SHADER_USE_PARAMETER_STRUCT( FHWRasterizePS, FNaniteGlobalShader);
+public:
+	DECLARE_SHADER_TYPE(FHWRasterizePS, Material);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
@@ -953,20 +986,40 @@ class FHWRasterizePS : public FNaniteGlobalShader
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
-	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FMeshShaderDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
+	using FPermutationDomain = TShaderPermutationDomain
+	<
+		FInterpOptDim,
+		FRasterTechniqueDim,
+		FMultiViewDim,
+		FMeshShaderDim,
+		FPrimShaderDim,
+		FVisualizeDim,
+		FVirtualTextureTargetDim,
+		FClusterPerPageDim,
+		FNearClipDim
+	>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FHWRasterizePS() = default;
+	FHWRasterizePS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+	: FNaniteMaterialShader(Initializer)
 	{
-		if (!DoesPlatformSupportNanite(Parameters.Platform))
-		{
-			return false;
-		}
+		Bindings.BindForLegacyShaderParameters(
+			this,
+			Initializer.PermutationId,
+			Initializer.ParameterMap,
+			*FParameters::FTypeInfo::GetStructMetadata(),
+			// Don't require full bindings, we use FMaterialShader::SetParameters
+			false
+		);
+	}
 
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
@@ -1027,17 +1080,15 @@ class FHWRasterizePS : public FNaniteGlobalShader
 			return false;
 		}
 
-		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
+		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
 	}
 
-	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
@@ -1058,8 +1109,16 @@ class FHWRasterizePS : public FNaniteGlobalShader
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 		}
 	}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
+	{
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
+	}
 };
-IMPLEMENT_GLOBAL_SHADER(FHWRasterizePS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizePS", SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizePS, TEXT("/Engine/Private/Nanite/Rasterizer.usf"), TEXT("HWRasterizePS"), SF_Pixel);
 
 namespace Nanite
 {
@@ -1494,6 +1553,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 void AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
@@ -1516,9 +1577,20 @@ void AddPass_Rasterize(
 
 	check(RasterState.CullMode == CM_CW || RasterState.CullMode == CM_CCW);		// CM_None not implemented
 
+	UMaterial* DefaultMaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
+	check(DefaultMaterialInterface);
+
+	const FMaterialRenderProxy* RasterMaterialProxy = DefaultMaterialInterface->GetRenderProxy();
+	check(RasterMaterialProxy);
+
+	const FMaterial& RasterMaterial = RasterMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterMaterialProxy);
+	const FMaterialShaderMap* RasterShaderMap = RasterMaterial.GetRenderingThreadShaderMap();
+	check(RasterShaderMap);
+
 	auto* RasterPassParameters = GraphBuilder.AllocParameters<FHWRasterizePS::FParameters>();
 	auto* CommonPassParameters = &RasterPassParameters->Common;
 
+	CommonPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
 	CommonPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
 
 	if (ViewsBuffer)
@@ -1627,7 +1699,8 @@ void AddPass_Rasterize(
 	PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-	auto PixelShader = SharedContext.ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
+	auto PixelShader = RasterShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
+	check(!PixelShader.IsNull());
 
 	if (bUseMeshShader)
 	{
@@ -1641,13 +1714,14 @@ void AddPass_Rasterize(
 		PermutationVectorMS.Set<FHWRasterizeMS::FNearClipDim>(bNearClip);
 		PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorMS.Set<FHWRasterizeMS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-		auto MeshShader = SharedContext.ShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
+		auto MeshShader = RasterShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
+		check(!MeshShader.IsNull());
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[MeshShader, PixelShader, RasterPassParameters, ViewRect, RPInfo, bMainPass](FRHICommandList& RHICmdList)
+			[MeshShader, PixelShader, RasterPassParameters, RasterMaterialProxy, &RasterMaterial, ViewRect, &SceneView, RPInfo, bMainPass](FRHICommandList& RHICmdList)
 		{
 			
 			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
@@ -1668,6 +1742,9 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+			MeshShader->SetParameters(RHICmdList, SceneView, RasterMaterialProxy, RasterMaterial);
+			PixelShader->SetParameters(RHICmdList, SceneView, RasterMaterialProxy, RasterMaterial);
 			
 			SetShaderParameters(RHICmdList, MeshShader, MeshShader.GetMeshShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
@@ -1693,13 +1770,14 @@ void AddPass_Rasterize(
 		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
-		auto VertexShader = SharedContext.ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
+		auto VertexShader = RasterShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
+		check(!VertexShader.IsNull());
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, RPInfo, bMainPass](FRHICommandList& RHICmdList)
+			[VertexShader, PixelShader, RasterPassParameters, RasterMaterialProxy, &RasterMaterial, &SceneView, ViewRect, bUsePrimitiveShader, RPInfo, bMainPass](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
@@ -1719,6 +1797,9 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+			VertexShader->SetParameters(RHICmdList, SceneView, RasterMaterialProxy, RasterMaterial);
+			PixelShader->SetParameters(RHICmdList, SceneView, RasterMaterialProxy, RasterMaterial);
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
@@ -1931,6 +2012,7 @@ static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalSha
 static void CullRasterizeMultiPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,
 	const FSharedContext& SharedContext,
@@ -1987,6 +2069,7 @@ static void CullRasterizeMultiPass(
 		CullRasterize(
 			GraphBuilder,
 			Scene,
+			SceneView,
 			RangeViews,
 			RangeNumPrimaryViews,
 			SharedContext,
@@ -2003,6 +2086,7 @@ static void CullRasterizeMultiPass(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,	// Number of non-mip views
 	const FSharedContext& SharedContext,
@@ -2021,7 +2105,20 @@ void CullRasterize(
 	if (Views.Num() > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 	{
 		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
-		CullRasterizeMultiPass(GraphBuilder, Scene, Views, NumPrimaryViews, SharedContext, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
+		CullRasterizeMultiPass(
+			GraphBuilder,
+			Scene,
+			SceneView,
+			Views,
+			NumPrimaryViews,
+			SharedContext,
+			CullingContext,
+			RasterContext,
+			RasterState,
+			OptionalInstanceDraws,
+			VirtualShadowMapArray,
+			bExtractStats
+		);
 		return;
 	}
 
@@ -2250,6 +2347,8 @@ void CullRasterize(
 	AddPass_Rasterize(
 		GraphBuilder,
 		Views,
+		Scene,
+		SceneView,
 		SharedContext,
 		RasterContext,
 		RasterState,
@@ -2330,6 +2429,8 @@ void CullRasterize(
 		AddPass_Rasterize(
 			GraphBuilder,
 			Views,
+			Scene,
+			SceneView,
 			SharedContext,
 			RasterContext,
 			RasterState,
@@ -2368,6 +2469,7 @@ void CullRasterize(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
+	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
@@ -2380,6 +2482,7 @@ void CullRasterize(
 	CullRasterize(
 		GraphBuilder,
 		Scene,
+		SceneView,
 		Views,
 		Views.Num(),
 		SharedContext,

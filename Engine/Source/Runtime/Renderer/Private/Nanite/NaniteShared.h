@@ -10,6 +10,8 @@
 #include "RenderGraphUtils.h"
 #include "Rendering/NaniteResources.h"
 #include "NaniteFeedback.h"
+#include "MaterialShaderType.h"
+#include "MaterialShader.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
@@ -218,13 +220,49 @@ public:
 		return DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
-	/**
-	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
-	*/
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	}
+};
+
+class FNaniteMaterialShader : public FMaterialShader
+{
+public:
+	FNaniteMaterialShader() = default;
+	FNaniteMaterialShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FMaterialShader(Initializer)
+	{
+	}
+	
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
+		return
+			DoesPlatformSupportNanite(Parameters.Platform) &&
+			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
+			Parameters.MaterialParameters.bIsDefaultMaterial;
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_MATERIAL_SHADER"), 1);
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+		OutEnvironment.SetDefine(TEXT("IS_NANITE_RASTER_PASS"), 1);
+		OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
+
+		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 0);
+		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 0);
+
+		// Force definitions of GetObjectWorldPosition(), etc..
+		OutEnvironment.SetDefine(TEXT("HAS_PRIMITIVE_UNIFORM_BUFFER"), 1);
 	}
 };
 

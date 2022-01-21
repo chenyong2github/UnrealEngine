@@ -3,9 +3,62 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 #include "../VirtualShadowMaps/StaticCaching.ush"
 #include "WritePixel.ush"
+
+#if IS_NANITE_RASTER_PASS
+
+#include "/Engine/Generated/Material.ush"
+
+struct FVertexFactoryInterpolantsVSToPS
+{
+	nointerpolation float4 LightMapCoordinate : TEXCOORD3;
+	nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
+};
+
+struct FVertexFactoryInput
+{
+};
+
+struct FVertexFactoryIntermediates
+{
+	float3x3 TangentToLocal;
+};
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	return Intermediates;
+};
+
+float3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentToLocal;
+}
+
+FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, UlongType Pixel, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+{
+	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
+	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(UlongType Pixel, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+{
+	const FNaniteView NaniteView = GetNaniteView(0);
+	return GetMaterialPixelParameters(NaniteView, Pixel, Interpolants, SvPosition);
+}
+
+#endif
 
 #define SUBPIXEL_BITS				8
 #define SUBPIXEL_SAMPLES			(1 << SUBPIXEL_BITS)
@@ -1037,6 +1090,14 @@ VSOut HWRasterizeVS(
 			TriangleIndices = uint3( TriangleIndices.x, TriangleIndices.z, TriangleIndices.y );
 		}
 
+	#if IS_NANITE_RASTER_PASS
+		FVertexFactoryInput Input = (FVertexFactoryInput)0;
+		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+
+		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
+	#endif
+
 		uint VertIndex = TriangleIndices[ VertexID ];
 		float4 PointClipNoScaling;
 		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PointClipNoScaling);
@@ -1110,6 +1171,18 @@ void HWRasterizePS(VSOut In)
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
 	#else
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
+	#endif
+
+	#if IS_NANITE_RASTER_PASS
+		const uint DepthInt = asuint(DeviceZ);
+		const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
+
+		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+
+		// Material parameter inputs
+		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(PackedPixel, Interpolants, In.Position /*SvPosition*/);
+		FPixelMaterialInputs PixelMaterialInputs;
+		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /* bIsFrontFace */);
 	#endif
 
 		WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, PageTranslation);

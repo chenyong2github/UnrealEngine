@@ -69,7 +69,7 @@ struct FSharedBasePassInterpolants
 	float  VertexCloudShadow: TEXCOORD8;
 #endif
 
-#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !IS_NANITE_FACTORY
+#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !IS_NANITE_PASS
 	float3 PixelPositionExcludingWPO : TEXCOORD9;
 #endif
 
@@ -93,7 +93,7 @@ struct FSharedBasePassInterpolants
 	#endif
 #endif
 
-#if WRITES_VELOCITY_TO_GBUFFER && !IS_NANITE_FACTORY
+#if WRITES_VELOCITY_TO_GBUFFER && !IS_NANITE_PASS
 	// .xy is clip position, pre divide by w; .w is clip W; .z is 0 or 1 to mask out the velocity output
 	float4 VelocityPrevScreenPosition : VELOCITY_PREV_POS;
 #endif

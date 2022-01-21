@@ -2446,6 +2446,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				Nanite::CullRasterize(
 					GraphBuilder,
 					*Scene,
+					View,
 					{ PackedView },
 					SharedContext,
 					CullingContext,

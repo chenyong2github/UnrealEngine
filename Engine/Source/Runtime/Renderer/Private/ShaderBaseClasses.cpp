@@ -335,6 +335,7 @@ IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIVertexShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIGeometryShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIPixelShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeShader);
+IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIMeshShader);
 
 #endif
 
