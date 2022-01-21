@@ -1278,6 +1278,7 @@ namespace Metasound
 					{
 						if (FMetasoundAssetBase* EditedMetaSound = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Asset))
 						{
+							EditedMetaSound->RebuildReferencedAssetClassKeys();
 							if (EditedMetaSound->IsReferencedAsset(*MetaSoundAsset))
 							{
 								EditedReferencingMetaSounds.Add(EditedMetaSound);

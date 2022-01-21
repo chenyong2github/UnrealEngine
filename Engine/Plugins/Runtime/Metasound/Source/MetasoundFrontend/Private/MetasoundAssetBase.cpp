@@ -83,8 +83,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 	if (InRegistrationOptions.bRebuildReferencedAssetClassKeys)
 	{
-		TSet<FNodeRegistryKey> ReferencedKeys = IMetaSoundAssetManager::GetChecked().GetReferencedKeys(*this);
-		SetReferencedAssetClassKeys(MoveTemp(ReferencedKeys));
+		RebuildReferencedAssetClassKeys();
 	}
 
 	if (InRegistrationOptions.bRegisterDependencies)
@@ -351,7 +350,8 @@ void FMetasoundAssetBase::CacheDependencyRegistryData()
 					*GetOwningAssetName(),
 					*Class.Metadata.GetClassName().ToString());
 				UE_LOG(LogMetaSound, Warning,
-					TEXT("Asset may fail to build runtime graph unless re-registered after dependency with given key is loaded."));
+					TEXT("Asset '%s' may fail to build runtime graph unless re-registered after dependency with given key is loaded."),
+					*GetOwningAssetName());
 			}
 		}
 	}
@@ -779,6 +779,14 @@ TArray<const FMetasoundFrontendClassInput*> FMetasoundAssetBase::GetTransmittabl
 	Algo::TransformIf(Doc.RootGraph.Interface.Inputs, Inputs, IsTransmittable, [] (const FMetasoundFrontendClassInput& Input) { return &Input; });
 
 	return Inputs;
+}
+
+void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
+{
+	using namespace Metasound::Frontend;
+
+	TSet<FNodeRegistryKey> ReferencedKeys = IMetaSoundAssetManager::GetChecked().GetReferencedKeys(*this);
+	SetReferencedAssetClassKeys(MoveTemp(ReferencedKeys));
 }
 
 const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() const
