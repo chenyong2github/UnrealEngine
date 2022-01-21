@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Containers/ContainersFwd.h"
 #include "Misc/FrameTime.h"
+#include "Misc/QualifiedFrameTime.h"
+#include "Misc/Timecode.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneFwd.h"
 #include "KeyParams.h"
@@ -15,7 +17,6 @@
 #include "Generators/MovieSceneEasingFunction.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneFrameMigration.h"
-#include "Misc/QualifiedFrameTime.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "MovieSceneSection.generated.h"
@@ -148,6 +149,35 @@ public:
 	UPROPERTY()
 	float ManualEaseOutTime_DEPRECATED;
 #endif
+};
+
+USTRUCT(BlueprintType)
+struct FMovieSceneTimecodeSource
+{
+	GENERATED_BODY()
+
+	FMovieSceneTimecodeSource(FTimecode InTimecode)
+		: Timecode(InTimecode)
+	{}
+
+	FMovieSceneTimecodeSource()
+		: Timecode(FTimecode())
+	{}
+
+	FORCEINLINE bool operator==(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode == Other.Timecode;
+	}
+	FORCEINLINE bool operator!=(const FMovieSceneTimecodeSource& Other) const
+	{
+		return Timecode != Other.Timecode;
+	}
+
+public:
+
+	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timecode")
+	FTimecode Timecode;
 };
 
 /**

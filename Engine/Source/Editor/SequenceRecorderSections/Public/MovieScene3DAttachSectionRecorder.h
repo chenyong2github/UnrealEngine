@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "GameFramework/Actor.h"
 #include "MovieScene.h"
+#include "MovieSceneSection.h"
 #include "IMovieSceneSectionRecorder.h"
 #include "IMovieSceneSectionRecorderFactory.h"
 

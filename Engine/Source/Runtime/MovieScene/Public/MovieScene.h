@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
-#include "Misc/Timecode.h"
 #include "Templates/SubclassOf.h"
 #include "Templates/Casts.h"
 #include "MovieSceneFwd.h"
@@ -25,6 +24,7 @@ class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 struct FMovieSceneChannelMetaData;
+struct FMovieSceneTimecodeSource;
 
 //delegates for use when some data in the MovieScene changes, WIP right now, hopefully will replace delegates on ISequencer
 //and be used for moving towards a true MVC system
@@ -41,35 +41,6 @@ struct FMovieSceneExpansionState
 
 	UPROPERTY()
 	bool bExpanded;
-};
-
-USTRUCT(BlueprintType)
-struct FMovieSceneTimecodeSource
-{
-	GENERATED_BODY()
-
-	FMovieSceneTimecodeSource(FTimecode InTimecode)
-		: Timecode(InTimecode)
-	{}
-
-	FMovieSceneTimecodeSource()
-		: Timecode(FTimecode())
-	{}
-
-	FORCEINLINE bool operator==(const FMovieSceneTimecodeSource& Other) const
-	{
-		return Timecode == Other.Timecode;
-	}
-	FORCEINLINE bool operator!=(const FMovieSceneTimecodeSource& Other) const
-	{
-		return Timecode != Other.Timecode;
-	}
-
-public:
-
-	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timecode")
-	FTimecode Timecode;
 };
 
 USTRUCT(BlueprintType)
