@@ -150,14 +150,12 @@ ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 				FText ErrorText;
 				if (!Asset->GetExternalPackage() && EnumHasAnyFlags(TopLevelFlags, RF_Standalone))
 				{
-					ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveMissingStandaloneFlag",
-						"The Asset {Name} being saved does not have any of the provided object flags (0x{Flags}); saving the package would cause data loss. "
-						"Run with -dpcvars=save.FixupStandaloneFlags=1 to add the RF_Standalone flag."), Arguments);
+					ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveMissingStandaloneFlag", "The Asset {Name} being saved does not have any of the provided object flags (0x{Flags}); saving the package would cause data loss. Run with -dpcvars=save.FixupStandaloneFlags=1 to add the RF_Standalone flag."), 
+						Arguments);
 				}
 				else
 				{
-					ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveMissingTopLevelFlags",
-						"The Asset {Name} being saved does not have any of the provided object flags (0x{Flags}); saving the package would cause data loss."),
+					ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveMissingTopLevelFlags", "The Asset {Name} being saved does not have any of the provided object flags (0x{Flags}); saving the package would cause data loss."),	
 						Arguments);
 				}
 				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());

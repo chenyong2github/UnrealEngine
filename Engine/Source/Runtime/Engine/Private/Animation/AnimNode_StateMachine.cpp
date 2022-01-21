@@ -792,8 +792,7 @@ void FAnimNode_StateMachine::Evaluate_AnyThread(FPoseContext& Output)
 		{ 
 			UAnimBlueprint* AnimBlueprint = Output.AnimInstanceProxy->GetAnimBlueprint();
 
-			FText Message = FText::Format(LOCTEXT("CurrentStateIsConduitWarning", 
-			"Current state is a conduit and will reset to ref pose. This can happen if a conduit is an entry state and there isn't at least one valid transition to take. Conduit({0}), State Machine({1}), AnimBlueprint({2})."),
+			FText Message = FText::Format(LOCTEXT("CurrentStateIsConduitWarning", "Current state is a conduit and will reset to ref pose. This can happen if a conduit is an entry state and there isn't at least one valid transition to take. Conduit({0}), State Machine({1}), AnimBlueprint({2})."),
 				FText::FromName(Machine->MachineName), FText::FromName(GetCurrentStateName()), FText::FromString(GetPathNameSafe(AnimBlueprint)));
 			Output.LogMessage(EMessageSeverity::Error, Message);
 		}

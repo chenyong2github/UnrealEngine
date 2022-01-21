@@ -1082,9 +1082,7 @@ bool FFileSystemCacheStore::RunSpeedTest(
 	const FString AbsoluteCachePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*CachePath);
 	if (AbsoluteCachePath.Len() > MAX_CACHE_DIR_LEN)
 	{
-		const FText ErrorMessage = FText::Format(NSLOCTEXT("DerivedDataCache", "PathTooLong",
-			"Cache path {0} is longer than {1} characters... "
-			"please adjust [DerivedDataBackendGraph] paths to be shorter (this leaves more room for cache keys)."),
+		const FText ErrorMessage = FText::Format(NSLOCTEXT("DerivedDataCache", "PathTooLong", "Cache path {0} is longer than {1} characters... please adjust [DerivedDataBackendGraph] paths to be shorter (this leaves more room for cache keys)."),
 			FText::FromString(AbsoluteCachePath), FText::AsNumber(MAX_CACHE_DIR_LEN));
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
 		UE_LOG(LogDerivedDataCache, Fatal, TEXT("%s"), *ErrorMessage.ToString());

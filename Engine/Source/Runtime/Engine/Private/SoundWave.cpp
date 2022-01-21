@@ -2213,8 +2213,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			{
 				if ((bStreaming && LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline))
 				{
-					FNotificationInfo Info(NSLOCTEXT("Engine", "ForeStreamingAndForceInlineNotCompatible"
-						, "Force Streaming cannot be true while loading behavior is set to Force Inline. (Force Streaming disabled)"));
+					FNotificationInfo Info(NSLOCTEXT("Engine", "ForeStreamingAndForceInlineNotCompatible", "Force Streaming cannot be true while loading behavior is set to Force Inline. (Force Streaming disabled)"));
 					Info.ExpireDuration = 5.0f;
 					Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
 					FSlateNotificationManager::Get().AddNotification(Info);
