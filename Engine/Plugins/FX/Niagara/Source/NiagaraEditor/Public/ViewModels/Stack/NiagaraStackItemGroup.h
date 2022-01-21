@@ -9,6 +9,7 @@
 
 class FNiagaraEmitterHandleViewModel;
 class UNiagaraStackItemGroupFooter;
+struct FSlateBrush;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackItemGroup : public UNiagaraStackEntry
@@ -27,6 +28,12 @@ public:
 	virtual bool GetIsEnabled() const override;
 	virtual void SetIsEnabled(bool bEnabled) {}
 	virtual bool SupportsChangeEnabled() const { return false; }
+
+	virtual bool SupportsIcon() const { return false; }
+	virtual const FSlateBrush* GetIconBrush() const { return nullptr; };
+
+	virtual bool SupportsSecondaryIcon() const { return false; }
+	virtual const FSlateBrush* GetSecondaryIconBrush() const { return nullptr; };
 
 	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
 

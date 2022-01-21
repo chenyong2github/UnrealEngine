@@ -12,12 +12,34 @@
 class FNiagaraScriptViewModel;
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSystemSettingsGroup : public UNiagaraStackItemGroup
+class NIAGARAEDITOR_API UNiagaraStackSystemPropertiesGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 		
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData,	UObject* InOwner, FNiagaraParameterStore* InParameterStore);
+	void Initialize(FRequiredEntryData InRequiredEntryData);
+
+	virtual bool SupportsIcon() const override { return true; }
+	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual bool GetCanExpandInOverview() const override { return false; }
+	virtual bool GetShouldShowInStack() const override { return false; }
+
+protected:
+	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+};
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackSystemUserParametersGroup : public UNiagaraStackItemGroup
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
+
+	virtual bool SupportsIcon() const override { return true; }
+	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual bool GetCanExpandInOverview() const override { return false; }
+	virtual bool GetShouldShowInStack() const override { return false; }
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -33,16 +55,20 @@ private:
 };
 
 UCLASS()
-class UNiagaraStackParameterStoreItem : public UNiagaraStackItem
+class NIAGARAEDITOR_API UNiagaraStackParameterStoreItem : public UNiagaraStackItem
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
+	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore, INiagaraStackItemGroupAddUtilities* InGroupAddUtilities);
 
 	virtual FText GetDisplayName() const override;
 
 	virtual FText GetTooltipText() const override;
+
+	virtual bool GetShouldShowInOverview() const override { return false; }
+
+	INiagaraStackItemGroupAddUtilities* GetGroupAddUtilities() const { return GroupAddUtilities; }
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -54,5 +80,6 @@ private:
 private:
 	TWeakObjectPtr<UObject> Owner;
 	FNiagaraParameterStore* ParameterStore;
+	INiagaraStackItemGroupAddUtilities* GroupAddUtilities;
 	FDelegateHandle ParameterStoreChangedHandle;
 };

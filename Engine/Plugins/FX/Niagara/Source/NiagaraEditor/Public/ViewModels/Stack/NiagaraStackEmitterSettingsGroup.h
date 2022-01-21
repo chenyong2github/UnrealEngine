@@ -27,9 +27,12 @@ public:
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
 	virtual void ResetToBase() override;
 
-	virtual bool IsExpandedByDefault() const override;
 	virtual bool SupportsIcon() const override { return true; }
 	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual bool IsExpandedByDefault() const override;
+
+	virtual bool GetShouldShowInOverview() const override { return false; }
 
 protected:
 	virtual void FinalizeInternal() override;
@@ -65,6 +68,7 @@ public:
 	virtual bool IsExpandedByDefault() const override { return false; }
 	virtual bool SupportsIcon() const override { return false; }
 	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual bool GetShouldShowInOverview() const override { return false; }
 
 protected:
 
@@ -77,24 +81,6 @@ private:
 	TObjectPtr<UNiagaraStackSummaryViewObject> FilteredObject;
 };
 
-
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEmitterSettingsGroup : public UNiagaraStackItemGroup
-{
-	GENERATED_BODY()
-
-public:
-	UNiagaraStackEmitterSettingsGroup();
-
-protected:
-	void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-
-private:
-	UPROPERTY()
-	TObjectPtr<UNiagaraStackEmitterPropertiesItem> PropertiesItem;
-};
-
-
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackEmitterSummaryGroup : public UNiagaraStackItemGroup
 {
@@ -102,6 +88,11 @@ class NIAGARAEDITOR_API UNiagaraStackEmitterSummaryGroup : public UNiagaraStackI
 
 public:
 	UNiagaraStackEmitterSummaryGroup();
+
+	virtual bool SupportsIcon() const override { return true; }
+	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual bool GetCanExpandInOverview() const override { return false; }
+	virtual bool GetShouldShowInStack() const override { return false; }
 
 protected:
 	void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

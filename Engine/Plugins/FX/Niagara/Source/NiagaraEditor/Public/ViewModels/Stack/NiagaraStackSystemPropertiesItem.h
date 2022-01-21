@@ -22,6 +22,8 @@ public:
 
 	virtual bool IsExpandedByDefault() const override;
 
+	virtual bool GetShouldShowInOverview() const override { return false; }
+
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 

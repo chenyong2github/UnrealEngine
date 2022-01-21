@@ -220,6 +220,11 @@ UObject* UNiagaraStackEntry::GetDisplayedObject() const
 	return nullptr;
 }
 
+FGuid UNiagaraStackEntry::GetSelectionId() const
+{
+	return FGuid();
+}
+
 UNiagaraStackEditorData& UNiagaraStackEntry::GetStackEditorData() const
 {
 	return *StackEditorData;
@@ -356,6 +361,11 @@ bool UNiagaraStackEntry::HasFrontDivider() const
 }
 
 bool UNiagaraStackEntry::GetShouldShowInStack() const
+{
+	return true;
+}
+
+bool UNiagaraStackEntry::GetShouldShowInOverview() const
 {
 	return true;
 }

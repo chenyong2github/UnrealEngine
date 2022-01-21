@@ -1,56 +1,60 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewStack.h"
-#include "NiagaraSystem.h"
-#include "NiagaraSystemEditorData.h"
-#include "NiagaraStackEditorData.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
-#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
-#include "ViewModels/Stack/NiagaraStackEntry.h"
-#include "ViewModels/Stack/NiagaraStackItemGroup.h"
-#include "ViewModels/Stack/NiagaraStackItem.h"
-#include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "NiagaraEditorWidgetsStyle.h"
-#include "NiagaraEditorWidgetsUtilities.h"
-#include "SNiagaraStack.h"
-#include "Stack/SNiagaraStackItemGroupAddButton.h"
-#include "Stack/SNiagaraStackIssueIcon.h"
-#include "Stack/SNiagaraStackRowPerfWidget.h"
-#include "NiagaraStackCommandContext.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraEditorModule.h"
-#include "NiagaraNodeAssignment.h"
-#include "Widgets/SNiagaraParameterName.h"
-#include "SNiagaraOverviewInlineParameterBox.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SToolTip.h"
+
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Widgets/Colors/SColorBlock.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraEditorWidgetsUtilities.h"
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraStackCommandContext.h"
+#include "NiagaraStackEditorData.h"
+#include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
 #include "ScopedTransaction.h"
+#include "SNiagaraOverviewInlineParameterBox.h"
+#include "SNiagaraStack.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
+#include "Stack/SNiagaraStackItemGroupAddButton.h"
+#include "Stack/SNiagaraStackRowPerfWidget.h"
 #include "Styling/StyleColors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/Stack/NiagaraStackItem.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SNiagaraParameterName.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
 class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 {
-	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow) {}
-		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
+	SLATE_BEGIN_ARGS(SNiagaraSystemOverviewEntryListRow)
+		: _Style(&GetDefaultStyle())
+		{}
+		SLATE_STYLE_ARGUMENT(FTableRowStyle, Style)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
 		SLATE_EVENT(FOnTableRowDragLeave, OnDragLeave)
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
@@ -68,26 +72,10 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		StackViewModel = InStackViewModel;
 		StackEntry = InStackEntry;
 		StackCommandContext = InStackCommandContext;
-		IssueIconVisibility = InArgs._IssueIconVisibility;
 		FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 
 		ExpandedImage = FCoreStyle::Get().GetBrush("TreeArrow_Expanded");
 		CollapsedImage = FCoreStyle::Get().GetBrush("TreeArrow_Collapsed");
-		
-		FMargin ContentPadding;
-		if (StackEntry->IsA<UNiagaraStackItem>())
-		{
-			BackgroundColor = FStyleColors::Panel;
-			ContentPadding = FMargin(0, 1, 0, 1);
-		}
-		else
-		{
-			BackgroundColor = FStyleColors::Header;
-			ContentPadding = FMargin(0, 2, 0, 2);
-		}
-
-		DisabledBackgroundColor = FStyleColors::Recessed;
-		IsolatedBackgroundColor = FStyleColors::Select;
 
 		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = StackEntry->GetSystemViewModel();
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = StackEntry->GetEmitterViewModel();
@@ -96,25 +84,23 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelForEmitter(EmitterViewModel->GetEmitter());
 		}
 
-		StackEntry->OnStructureChanged().AddSP(this, &SNiagaraSystemOverviewEntryListRow::InvalidateChildrenCount);
+		StackEntry->OnStructureChanged().AddSP(this, &SNiagaraSystemOverviewEntryListRow::InvalidateCachedData);
 
+		TSharedPtr<SOverlay> RowOverlay;
 		STableRow<UNiagaraStackEntry*>::Construct(STableRow<UNiagaraStackEntry*>::FArguments()
-			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.TableViewRow")
+			.Style(InArgs._Style)
 			.OnDragDetected(InArgs._OnDragDetected)
 			.OnDragLeave(InArgs._OnDragLeave)
 			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		[
-			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(FStyleColors::Recessed)
-				.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
-				.Padding(FMargin(0, 1, 0, 1))
-				[
+			SAssignNew(RowOverlay, SOverlay)
+			+ SOverlay::Slot()
+			[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(TAttribute<FSlateColor>(this, &SNiagaraSystemOverviewEntryListRow::GetBackgroundColor))
-					.Padding(ContentPadding)
+					.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("Niagara.TableViewRowBorder"))
+					.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
+					.Padding(FMargin(0, 0, 0, 1))
 					[
 						SNew(SHorizontalBox)
 						// Expand button
@@ -122,10 +108,10 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Center)
-						.Padding(3, 0, 1, 0)
+						.Padding(0, 0, 0, 0)
 						[					
 							SNew(SButton)
-							.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+							.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
 							.Visibility_Lambda([=]()
 							{
 								if (StackEntry->GetCanExpandInOverview())
@@ -152,8 +138,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 								StackEntry->SetIsExpandedInOverview(bWillBeExpanded);									
 								return FReply::Handled();
 							})
-							.ForegroundColor(FSlateColor::UseForeground())
-							.ContentPadding(2)
+							.ContentPadding(FMargin(0.0f, 1.0f))
 							[
 								SNew(SImage)
 								.Image(this, &SNiagaraSystemOverviewEntryListRow::GetExpandButtonImage)
@@ -165,18 +150,50 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 						[
 							InArgs._Content.Widget
 						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(2, 0, 2, 0)
-						[
-							SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
-							.Visibility(IssueIconVisibility)
-						]
 					]
+			]
+			// Stack Issue Highlight
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(this, &SNiagaraSystemOverviewEntryListRow::GetIsssueHighlightColor)
+				.Visibility_Static(&SNiagaraOverviewStack::GetIssueIconVisibility, StackEntry)
+				.Padding(FMargin(0, 0, 0, 1))
+				[
+					SNew(SBox)
+					.WidthOverride(2)
+					.HeightOverride(10)
 				]
+			]
 		],
 		InOwnerTableView);
+
+		if (StackEntry->IsA<UNiagaraStackItem>())
+		{
+			// Execution Category Item Highlight
+			RowOverlay->AddSlot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(1, 0, 0, 0))
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(IconColor)
+				.Padding(FMargin(0))
+				[
+					SNew(SBox)
+					.WidthOverride(2)
+				]
+			];
+		}
+	}
+
+	static const FTableRowStyle& GetDefaultStyle()
+	{
+		return FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.SystemOverview.TableViewRow.Item");
 	}
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
@@ -261,46 +278,18 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 	}
 
 private:
-	FSlateColor GetBackgroundColor() const
-	{
-		if (IsSelected())
-		{
-			return FStyleColors::Select;
-		}
-		// robk - hack bandaid fix
-		if (StackEntry->IsFinalized())
-		{
-			return DisabledBackgroundColor;
-		}
-		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = StackEntry->GetSystemViewModel();
-		if (SystemViewModel->GetSystem().GetIsolateEnabled())
-		{
-			TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelPtr = EmitterHandleViewModel.Pin();
-			if (EmitterHandleViewModelPtr.IsValid() && !EmitterHandleViewModelPtr->GetIsIsolated())
-			{
-				return IsolatedBackgroundColor;
-			}
-		}
-
-		return StackEntry->GetIsEnabledAndOwnerIsEnabled() ? BackgroundColor : DisabledBackgroundColor;
-	}
-
 	FMargin GetInnerContentPadding() const
 	{
-		if (IssueIconVisibility.Get() == EVisibility::Visible)
-		{
-			return FMargin(5, 0, 1, 0);
-		}
-		else
-		{
-			return FMargin(5, 0, 5, 0);
-		}
+		float InnerContentLeftPadding = StackEntry->IsA<UNiagaraStackItem>() ? 5 : 0;
+		float InnerContentRightPadding = 1;
+		return FMargin(InnerContentLeftPadding, 1, 1, 1);
 	}
 
 	const FSlateBrush* GetExpandButtonImage() const
 	{
 		return StackEntry->GetIsExpandedInOverview() ? ExpandedImage : CollapsedImage;
 	}
+	
 
 	uint32 GetOverviewChildrenCount() const
 	{
@@ -314,23 +303,50 @@ private:
         return ChildrenCount.GetValue();
 	}
 
-	void InvalidateChildrenCount(ENiagaraStructureChangedFlags Flags)
+	void InvalidateCachedData(ENiagaraStructureChangedFlags Flags)
 	{
 		ChildrenCount.Reset();
+		IssueHighlightColor.Reset();
+	}
+
+	FSlateColor GetIsssueHighlightColor() const
+	{
+		if (IssueHighlightColor.IsSet() == false)
+		{
+			if (StackEntry->GetTotalNumberOfErrorIssues() > 0)
+			{
+				IssueHighlightColor = FStyleColors::AccentRed.GetSpecifiedColor().Desaturate(.15f);
+			}
+			else if (StackEntry->GetTotalNumberOfWarningIssues() > 0)
+			{
+				IssueHighlightColor = FStyleColors::AccentYellow.GetSpecifiedColor().Desaturate(.15f);
+			}
+			else if (StackEntry->GetTotalNumberOfInfoIssues() > 0)
+			{
+				IssueHighlightColor = FStyleColors::AccentBlue.GetSpecifiedColor().Desaturate(.15f);
+			}
+			else if (StackEntry->GetTotalNumberOfCustomNotes() > 0)
+			{
+				IssueHighlightColor = FStyleColors::AccentGray.GetSpecifiedColor().Desaturate(.15f);
+			}
+			else
+			{
+				IssueHighlightColor = FStyleColors::Transparent;
+			}
+		}
+		return IssueHighlightColor.GetValue();
 	}
 
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;
 	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
-	FSlateColor BackgroundColor;
-	FSlateColor DisabledBackgroundColor;
-	FSlateColor IsolatedBackgroundColor;
 	TAttribute<EVisibility> IssueIconVisibility;
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 	const FSlateBrush* ExpandedImage = nullptr;
 	const FSlateBrush* CollapsedImage = nullptr;
 	mutable TOptional<uint32> ChildrenCount;
+	mutable TOptional<FSlateColor> IssueHighlightColor;
 };
 
 class SNiagaraSystemOverviewEnabledCheckBox : public SCompoundWidget
@@ -600,6 +616,7 @@ void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackVie
 	ChildSlot
 	[
 		SAssignNew(EntryListView, SListView<UNiagaraStackEntry*>)
+		.Clipping(EWidgetClipping::OnDemand)
 		.ListItemsSource(&FlattenedEntryList)
 		.OnGenerateRow(this, &SNiagaraOverviewStack::OnGenerateRowForEntry)
 		.OnSelectionChanged(this, &SNiagaraOverviewStack::OnSelectionChanged)
@@ -650,9 +667,24 @@ void SNiagaraOverviewStack::Tick(const FGeometry& AllottedGeometry, const double
 	RefreshEntryList();
 }
 
+EVisibility SNiagaraOverviewStack::GetIssueIconVisibility(UNiagaraStackEntry* StackEntry)
+{
+	bool bDisplayIcon;
+	if (StackEntry->IsA<UNiagaraStackItemGroup>() && StackEntry->GetCanExpandInOverview() && StackEntry->GetIsExpandedInOverview())
+	{
+		// If the entry is a group and it can expand and it is expanded, we only want to show the stack issue icon if the group itself has issues.
+		bDisplayIcon = StackEntry->GetIssues().Num() > 0;
+	}
+	else
+	{
+		bDisplayIcon = StackEntry->HasIssuesOrAnyChildHasIssues();
+	}
+	return bDisplayIcon ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 void SNiagaraOverviewStack::AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain)
 {
-	if (AcceptableClasses.ContainsByPredicate([&] (UClass* Class) { return EntryToAdd.IsA(Class); }))
+	if (AcceptableClasses.ContainsByPredicate([&] (UClass* Class) { return EntryToAdd.IsA(Class); }) && EntryToAdd.GetShouldShowInOverview())
 	{
 		EntryList.Add(&EntryToAdd);
 		EntryObjectKeyToParentChain.Add(FObjectKey(&EntryToAdd), ParentChain);
@@ -718,15 +750,20 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 {
 	FVector2D IconSize = FNiagaraEditorWidgetsStyle::Get().GetVector("NiagaraEditor.Stack.IconSize");
 	TSharedPtr<SWidget> Content;
+	const FTableRowStyle* RowStyle = &SNiagaraSystemOverviewEntryListRow::GetDefaultStyle();
 	if (Item->IsA<UNiagaraStackItem>())
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
-		TSharedPtr<SWidget> IndentContent;
-
-		// we give icons priority for the indent content
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 		if (StackItem->SupportsIcon())
 		{
-			IndentContent = SNew(SBox)
+			// Icon
+			ContentBox->AddSlot()
+			.Padding(0, 1, 0, 1)
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 				.WidthOverride(IconSize.X)
 				.HeightOverride(IconSize.Y)
@@ -735,46 +772,35 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				[
 					SNew(SImage)
 					.Image_UObject(StackItem, &UNiagaraStackItem::GetIconBrush)
-				];
+					.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
+				]
+			];
 		}
-		// if we didn't have an icon but we specified a custom indent, we use that instead
-		else if(StackItem->GetCustomOverviewIndent().IsSet())
-		{
-			float IndentValue = StackItem->GetCustomOverviewIndent().GetValue();
-			IndentContent = SNew(SBox)
-				.WidthOverride(IndentValue)
-				.HeightOverride(1.f);
-		}
-		// otherwise, use a default
-		else
-		{
-			IndentContent = SNew(SBox)
-				.WidthOverride(IconSize.X)
-				.HeightOverride(IconSize.Y);
-		}
-		
-		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
-			// Indent content
-			+ SHorizontalBox::Slot()
-			.Padding(0, 1, 2, 1)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				IndentContent.ToSharedRef()
-			]
-			// Name
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(3, 2, 0, 2)
-			[
-				SNew(SNiagaraSystemOverviewItemName, StackItem)
-			]
-			+ SHorizontalBox::Slot()
-            .AutoWidth()
-            .Padding(2, 0, 2, 0)
-            [
-                SNew(SNiagaraStackRowPerfWidget, Item)
-            ];
+		// Name
+		ContentBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(4, 2, 0, 2)
+		[
+			SNew(SNiagaraSystemOverviewItemName, StackItem)
+		];
+		// Issue Icon
+		ContentBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(4.0f, 0.0f)
+		[
+			SNew(SNiagaraStackIssueIcon, StackViewModel, StackItem)
+			.IconMode(SNiagaraStackIssueIcon::EIconMode::Compact)
+			.Visibility_Static(&SNiagaraOverviewStack::GetIssueIconVisibility, Item)
+		];
+		// Perf widget
+		ContentBox->AddSlot()
+        .AutoWidth()
+        .Padding(2, 0, 2, 0)
+        [
+            SNew(SNiagaraStackRowPerfWidget, Item)
+        ];
 
 		TSharedRef<SHorizontalBox> OptionsBox = SNew(SHorizontalBox);
 		
@@ -893,47 +919,94 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			];
 		}
 		
-		Content = ContentBox;		
+		Content = ContentBox;	
+		RowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.SystemOverview.TableViewRow.Item");
 	}
 	else if (Item->IsA<UNiagaraStackItemGroup>())
 	{
 		UNiagaraStackItemGroup* StackItemGroup = CastChecked<UNiagaraStackItemGroup>(Item);
-		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
-			// Execution category icon
-			+ SHorizontalBox::Slot()
-			.Padding(0, 0, 2, 0)
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
+		
+		// Icon
+		if (StackItemGroup->SupportsIcon())
+		{
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(2, 1, 2, 1)
+				[
+					SNew(SBox)
+					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+					.WidthOverride(IconSize.X)
+					.HeightOverride(IconSize.Y)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image_UObject(StackItemGroup, &UNiagaraStackItemGroup::GetIconBrush)
+						.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
+					]
+				];
+		}
+
+		// Name
+		ContentBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			[
-				SNew(SBox)
-				.WidthOverride(IconSize.X)
-				.HeightOverride(IconSize.Y)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(Item->GetExecutionSubcategoryName(), true)))
-					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(Item->GetExecutionCategoryName())))
-					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-				]
-			]
-			// Name
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(3, 2, 0, 2)
+			.Padding(1, 2, 0, 2)
 			[
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
 				.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-			+ SHorizontalBox::Slot()
-            .AutoWidth()
-            .Padding(6, 0, 5, 0)
-            [
-                SNew(SNiagaraStackRowPerfWidget, Item)
-            ];
+			];
+
+		// Issue Icon
+		ContentBox->AddSlot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(4.0f, 0.0f)
+			[
+				SNew(SNiagaraStackIssueIcon, StackViewModel, StackItemGroup)
+				.IconMode(SNiagaraStackIssueIcon::EIconMode::Compact)
+				.Visibility_Static(&SNiagaraOverviewStack::GetIssueIconVisibility, Item)
+			];
+
+		// Secondary Icon
+		if (StackItemGroup->SupportsSecondaryIcon())
+		{
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(4, 1, 0, 1)
+				[
+					SNew(SBox)
+					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+					.WidthOverride(IconSize.X)
+					.HeightOverride(IconSize.Y)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image_UObject(StackItemGroup, &UNiagaraStackItemGroup::GetSecondaryIconBrush)
+					]
+				];
+		}
+
+		// Spacer
+		ContentBox->AddSlot()
+			[
+				SNew(SSpacer)
+			];
+
+		// Perf 
+		ContentBox->AddSlot()
+			.AutoWidth()
+			.Padding(6, 0, 5, 0)
+			[
+				SNew(SNiagaraStackRowPerfWidget, Item)
+			];
 
 		// Delete button
 		if (StackItemGroup->SupportsDelete())
@@ -946,16 +1019,16 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.IsFocusable(false)
-					.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
 					.ToolTipText(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonToolTip, StackItemGroup)
 					.OnClicked(this, &SNiagaraOverviewStack::OnItemGroupDeleteClicked, StackItemGroup)
 					.IsEnabled(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonIsEnabled, StackItemGroup)
 					.Visibility(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonVisibility, StackItemGroup)
 					.Content()
 					[
-						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
 					]
 				];
 		}
@@ -979,28 +1052,29 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		if (StackItemGroup->GetAddUtilities() != nullptr)
 		{
 			ContentBox->AddSlot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(0, 0, 1, 0)
 			[
-				SNew(SNiagaraStackItemGroupAddButton, *StackItemGroup)
+				SNew(SNiagaraStackItemGroupAddButton, StackItemGroup, StackItemGroup->GetAddUtilities())
 				.Width(22)
 			];
 		}
 
 		Content = ContentBox;
+		RowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.SystemOverview.TableViewRow.Group");
 	}
 	else
 	{
 		Content = SNullWidget::NullWidget;
 	}
 
-
 	return SNew(SNiagaraSystemOverviewEntryListRow, StackViewModel, Item, StackCommandContext.ToSharedRef(), OwnerTable)
+		.Style(RowStyle)
 		.OnDragDetected(this, &SNiagaraOverviewStack::OnRowDragDetected, TWeakObjectPtr<UNiagaraStackEntry>(Item))
 		.OnDragLeave(this, &SNiagaraOverviewStack::OnRowDragLeave)
 		.OnCanAcceptDrop(this, &SNiagaraOverviewStack::OnRowCanAcceptDrop)
 		.OnAcceptDrop(this, &SNiagaraOverviewStack::OnRowAcceptDrop)
-		.IssueIconVisibility(this, &SNiagaraOverviewStack::GetIssueIconVisibility)
 	[
 		Content.ToSharedRef()
 	];
@@ -1149,11 +1223,6 @@ FReply SNiagaraOverviewStack::OnRowAcceptDrop(const FDragDropEvent& InDragDropEv
 {
 	bool bHandled = FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(InDragDropEvent, InDropZone, InTargetEntry, UNiagaraStackEntry::EDropOptions::Overview);
 	return bHandled ? FReply::Handled() : FReply::Unhandled();
-}
-
-EVisibility SNiagaraOverviewStack::GetIssueIconVisibility() const
-{
-	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SNiagaraOverviewStack::OnItemGroupEnabledStateChanged(ECheckBoxState InCheckState, UNiagaraStackItemGroup* Group)

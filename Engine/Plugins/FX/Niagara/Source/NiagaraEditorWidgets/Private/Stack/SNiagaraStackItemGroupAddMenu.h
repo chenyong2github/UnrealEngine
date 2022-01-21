@@ -21,7 +21,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraStackItemGroupAddMenu) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TWeakObjectPtr<UNiagaraStackItemGroup> InItemGroup, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex);
+	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InSourceEntry, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex);
 
 	TSharedPtr<SWidget> GetFilterTextBox();
 
@@ -32,7 +32,7 @@ private:
 
 private:
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
-	TWeakObjectPtr<UNiagaraStackItemGroup> StackItemGroup;
+	TWeakObjectPtr<UNiagaraStackEntry> SourceEntry;
 	int32 InsertIndex;
 
 	TSharedPtr<SNiagaraStackAddSelector> ActionSelector;

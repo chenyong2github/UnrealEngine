@@ -58,7 +58,7 @@ class FRenderItemGroupAddUtilities : public TNiagaraStackItemGroupAddUtilities<U
 {
 public:
 	FRenderItemGroupAddUtilities(TSharedRef<FNiagaraEmitterViewModel> InEmitterViewModel, FRenderItemGroupAddUtilities::FOnItemAdded OnItemAdded = FRenderItemGroupAddUtilities::FOnItemAdded())
-		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("RenderGroupAddItemName", "Renderer"), EAddMode::AddFromAction, true, OnItemAdded)
+		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("RenderGroupAddItemName", "Renderer"), EAddMode::AddFromAction, true, false, OnItemAdded)
 		, EmitterViewModel(InEmitterViewModel)
 	{
 	}

@@ -33,14 +33,9 @@ public:
 
 	virtual bool SupportsChangeEnabled() const { return false; }
 	void SetIsEnabled(bool bInIsEnabled);
-
 	
 	virtual bool SupportsIcon() const { return false; }
 	virtual const FSlateBrush* GetIconBrush() const;
-	/** The custom overview indent can be used as a backup indent in the overview stack.
-	 *  If an icon exists, the icon will be used instead, and if no custom overview indent is specified and no icon is set, we use a default indent
-	 */
-	virtual TOptional<float> GetCustomOverviewIndent() { return TOptional<float>();}
 
 	virtual bool SupportsResetToBase() const { return false; }
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const { return false; }

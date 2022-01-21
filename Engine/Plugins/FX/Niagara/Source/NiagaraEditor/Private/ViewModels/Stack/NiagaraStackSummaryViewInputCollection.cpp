@@ -20,7 +20,6 @@
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
-#include "ViewModels/Stack/NiagaraStackSimulationStagesGroup.h"
 #include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
 
 

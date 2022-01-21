@@ -8,6 +8,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/StarshipCoreStyle.h"
 #include "Classes/EditorStyleSettings.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
@@ -76,8 +77,7 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	const FTextBlockStyle CategoryText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
 	FSlateFontInfo CategoryFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.BoldFont"));
 	FTextBlockStyle StackGroupText = FTextBlockStyle(CategoryText)
-		.SetFont(CategoryFont)
-		.SetTransformPolicy(ETextTransformPolicy::ToUpper);
+		.SetFont(CategoryFont);
 
 	Set("NiagaraEditor.Stack.GroupText", StackGroupText);
 
@@ -92,8 +92,7 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 
 	FSlateFontInfo NormalFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 	FTextBlockStyle StackItemText = FTextBlockStyle(CategoryText)
-		.SetFont(NormalFont)
-		.SetTransformPolicy(ETextTransformPolicy::ToUpper);
+		.SetFont(NormalFont);
 
 	Set("NiagaraEditor.Stack.ItemText", StackItemText);
 	
@@ -297,6 +296,14 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 
 	FSlateBoxBrush StackRowSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::Select);
 	FSlateBoxBrush StackRowSubduedSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::SelectInactive);
+	
+	Set("Niagara.CompactStackIssue.Error", new IMAGE_BRUSH("Icons/StackIssueError", Icon8x8));
+	Set("Niagara.CompactStackIssue.Warning", new IMAGE_BRUSH("Icons/StackIssueWarning", Icon8x8));
+	Set("Niagara.CompactStackIssue.Info", new IMAGE_BRUSH("Icons/StackIssueInfo", Icon8x8));
+	Set("Niagara.CompactStackIssue.Message", new IMAGE_BRUSH("Icons/StackIssueMessage", Icon8x8));
+
+	Set("Niagara.TableViewRowBorder", new BOX_BRUSH("Icons/Row", FMargin(3.0f / 8.0f), FStyleColors::Recessed));
+
 	Set("NiagaraEditor.Stack.TableViewRow", FTableRowStyle(NormalTableRowStyle)
 		.SetUseParentRowBrush(true)
  		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Transparent))
@@ -309,11 +316,29 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 		.SetInactiveBrush(StackRowSubduedSelectionBrush)
 		.SetInactiveHoveredBrush(StackRowSelectionBrush));
 
-	Set("NiagaraEditor.SystemOverview.TableViewRow", FTableRowStyle(NormalTableRowStyle)
+	Set("NiagaraEditor.SystemOverview.TableViewRow.Item", FTableRowStyle(NormalTableRowStyle)
 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
 		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
-		.SetSelectedTextColor(FStyleColors::ForegroundInverted)
-		.SetInactiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, GetDefault<UEditorStyleSettings>()->GetSubduedSelectionColor())));
+		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+		.SetSelectorFocusedBrush(CORE_BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), FStarshipCoreStyle::GetCoreStyle().GetSlateColor("SelectorColor")))
+		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
+		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
+		.SetTextColor(FStyleColors::Foreground));
+
+	Set("NiagaraEditor.SystemOverview.TableViewRow.Group", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header))
+		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
+		.SetSelectorFocusedBrush(CORE_BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), FStarshipCoreStyle::GetCoreStyle().GetSlateColor("SelectorColor")))
+		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
+		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
+		.SetTextColor(FStyleColors::Foreground));
 
 	Set("NiagaraEditor.Stack.BackgroundColor", FLinearColor(FColor(96, 96, 96)));
 	Set("NiagaraEditor.Stack.Item.HeaderBackgroundColor", FLinearColor(FColor(48, 48, 48)));
@@ -425,5 +450,63 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	Set("NiagaraEditor.Scope.Particles", FLinearColor(FColor(131, 218, 9)));
 	Set("NiagaraEditor.Scope.ScriptPersistent", FLinearColor(FColor(255, 247, 77)));
 	Set("NiagaraEditor.Scope.ScriptTransient", FLinearColor(FColor(255, 247, 77)));
+
+	FButtonStyle SimpleButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton");
+	float NormalDesaturate = .25f;
+	float DisabledDesaturate = .5;
+
+	FLinearColor SystemIconColor = GetColor("NiagaraEditor.Stack.IconColor.System");
+	FButtonStyle SystemAddItemButtonStyle = SimpleButtonStyle;
+	SystemAddItemButtonStyle
+		.SetNormalForeground(SystemIconColor.Desaturate(NormalDesaturate))
+		.SetHoveredForeground(SystemIconColor)
+		.SetPressedForeground(SystemIconColor.Desaturate(NormalDesaturate))
+		.SetDisabledForeground(SystemIconColor.Desaturate(DisabledDesaturate));
+
+	FLinearColor EmitterIconColor = GetColor("NiagaraEditor.Stack.IconColor.Emitter");
+	FButtonStyle EmitterAddItemButtonStyle = SimpleButtonStyle;
+	EmitterAddItemButtonStyle
+		.SetNormalForeground(EmitterIconColor.Desaturate(NormalDesaturate))
+		.SetHoveredForeground(EmitterIconColor)
+		.SetPressedForeground(EmitterIconColor.Desaturate(NormalDesaturate))
+		.SetDisabledForeground(EmitterIconColor.Desaturate(DisabledDesaturate));
+
+	FLinearColor ParticleIconColor = GetColor("NiagaraEditor.Stack.IconColor.Particle");
+	FButtonStyle ParticleAddItemButtonStyle = SimpleButtonStyle;
+	ParticleAddItemButtonStyle
+		.SetNormalForeground(ParticleIconColor.Desaturate(NormalDesaturate))
+		.SetHoveredForeground(ParticleIconColor)
+		.SetPressedForeground(ParticleIconColor.Desaturate(NormalDesaturate))
+		.SetDisabledForeground(ParticleIconColor.Desaturate(DisabledDesaturate));
+
+	FLinearColor RenderIconColor = GetColor("NiagaraEditor.Stack.IconColor.Render");
+	FButtonStyle RenderAddItemButtonStyle = SimpleButtonStyle;
+	RenderAddItemButtonStyle
+		.SetNormalForeground(RenderIconColor.Desaturate(NormalDesaturate))
+		.SetHoveredForeground(RenderIconColor)
+		.SetPressedForeground(RenderIconColor.Desaturate(NormalDesaturate))
+		.SetDisabledForeground(RenderIconColor.Desaturate(DisabledDesaturate));
+
+	FButtonStyle LabeledAddItemButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
+	LabeledAddItemButtonStyle
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Panel, 4))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Recessed, 4))
+		.SetNormalPadding(FMargin(2.0f, 0.0f))
+		.SetPressedPadding(FMargin(2.0f, 0.0f));
+
+	FButtonStyle StackSimpleButtonStyle = SimpleButtonStyle;
+	StackSimpleButtonStyle
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetHoveredForeground(FStyleColors::ForegroundHover)
+		.SetPressedForeground(FStyleColors::Foreground)
+		.SetDisabledForeground(FStyleColors::Foreground.GetSpecifiedColor().Desaturate(DisabledDesaturate));
+
+	Set("NiagaraEditor.Stack.AddItemButton.System", SystemAddItemButtonStyle);
+	Set("NiagaraEditor.Stack.AddItemButton.Emitter", EmitterAddItemButtonStyle);
+	Set("NiagaraEditor.Stack.AddItemButton.Particle", ParticleAddItemButtonStyle);
+	Set("NiagaraEditor.Stack.AddItemButton.Render", RenderAddItemButtonStyle);
+	Set("NiagaraEditor.Stack.LabeledAddItemButton", LabeledAddItemButtonStyle);
+	Set("NiagaraEditor.Stack.SimpleButton", StackSimpleButtonStyle);
 }
 

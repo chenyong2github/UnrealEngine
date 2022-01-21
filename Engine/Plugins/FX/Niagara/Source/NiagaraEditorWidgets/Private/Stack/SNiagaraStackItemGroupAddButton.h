@@ -5,7 +5,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class UNiagaraStackItemGroup;
+class UNiagaraStackEntry;
+class INiagaraStackItemGroupAddUtilities;
 class SComboButton;
 
 class SNiagaraStackItemGroupAddButton : public SCompoundWidget
@@ -17,7 +18,7 @@ public:
 		SLATE_ARGUMENT(float, Width)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackItemGroup& InStackItemGroup);
+	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InSourceEntry, INiagaraStackItemGroupAddUtilities* InAddUtilities);
 
 private:
 	TSharedRef<SWidget> GetAddMenu();
@@ -25,7 +26,8 @@ private:
 	FReply AddDirectlyButtonClicked();
 
 private:
-	TWeakObjectPtr<UNiagaraStackItemGroup> StackItemGroupWeak;
+	TWeakObjectPtr<UNiagaraStackEntry> SourceEntryWeak;
+	INiagaraStackItemGroupAddUtilities* AddUtilities;
 	TSharedPtr<SComboButton> AddActionButton;
 	static const float TextIconSize;
 };

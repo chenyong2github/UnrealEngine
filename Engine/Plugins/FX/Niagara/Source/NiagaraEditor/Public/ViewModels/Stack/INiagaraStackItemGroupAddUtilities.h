@@ -67,6 +67,8 @@ public:
 	/** Gets the generic name for the type of item to add e.g. "Module" */
 	virtual FText GetAddItemName() const = 0;
 
+	virtual bool GetShowLabel() const = 0;
+
 	/** Gets whether or not the add actions should be automatically expanded in the UI. */
 	virtual bool GetAutoExpandAddActions() const = 0;
 
@@ -94,14 +96,16 @@ public:
 class FNiagaraStackItemGroupAddUtilities : public INiagaraStackItemGroupAddUtilities
 {
 public:
-	FNiagaraStackItemGroupAddUtilities(FText InAddItemName, EAddMode InAddMode, bool bInAutoExpandAddActions)
+	FNiagaraStackItemGroupAddUtilities(FText InAddItemName, EAddMode InAddMode, bool bInAutoExpandAddActions, bool bInShowLabel)
 		: AddItemName(InAddItemName)
+		, bShowLabel(bInShowLabel)
 		, bAutoExpandAddActions(bInAutoExpandAddActions)
 		, AddMode(InAddMode)
 	{
 	}
 
 	virtual FText GetAddItemName() const override { return AddItemName; }
+	virtual bool GetShowLabel() const override { return bShowLabel; }
 	virtual bool GetAutoExpandAddActions() const override { return bAutoExpandAddActions; }
 	virtual EAddMode GetAddMode() const override { return AddMode; }
 
@@ -110,6 +114,7 @@ public:
 
 protected:
 	FText AddItemName;
+	bool bShowLabel;
 	bool bAutoExpandAddActions;
 	EAddMode AddMode;
 };
@@ -121,8 +126,8 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnItemAdded, AddedItemType);
 
 public:
-	TNiagaraStackItemGroupAddUtilities(FText InAddItemName, EAddMode InAddMode, bool bInAutoExpandAddActions, FOnItemAdded InOnItemAdded)
-		: FNiagaraStackItemGroupAddUtilities(InAddItemName, InAddMode, bInAutoExpandAddActions)
+	TNiagaraStackItemGroupAddUtilities(FText InAddItemName, EAddMode InAddMode, bool bInAutoExpandAddActions, bool bInShowLabel, FOnItemAdded InOnItemAdded)
+		: FNiagaraStackItemGroupAddUtilities(InAddItemName, InAddMode, bInAutoExpandAddActions, bInShowLabel)
 		, OnItemAdded(InOnItemAdded)
 	{
 	}

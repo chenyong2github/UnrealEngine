@@ -22,6 +22,8 @@ namespace FNiagaraStackEditorWidgetsUtilities
 
 	FName GetIconColorNameForExecutionCategory(FName ExecutionCategoryName);
 
+	FName GetAddItemButtonStyleNameForExecutionCategory(FName ExecutionCategoryName);
+
 	FText GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode);
 
 	FText GetIconToolTipForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode);

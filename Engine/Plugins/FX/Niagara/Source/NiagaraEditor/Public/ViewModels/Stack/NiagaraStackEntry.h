@@ -251,6 +251,8 @@ public:
 
 	virtual UObject* GetDisplayedObject() const;
 
+	virtual FGuid GetSelectionId() const;
+
 	UNiagaraStackEditorData& GetStackEditorData() const;
 
 	FString GetStackEditorDataKey() const;
@@ -289,6 +291,8 @@ public:
 	int32 GetIndentLevel() const;
 
 	virtual bool GetShouldShowInStack() const;
+
+	virtual bool GetShouldShowInOverview() const;
 
 	void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
 	

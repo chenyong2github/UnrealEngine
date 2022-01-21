@@ -6,11 +6,10 @@
 #include "NiagaraStackRoot.generated.h"
 
 class FNiagaraEmitterViewModel;
-class UNiagaraStackSystemSettingsGroup;
-class UNiagaraStackEmitterSettingsGroup;
+class UNiagaraStackSystemPropertiesGroup;
+class UNiagaraStackSystemUserParametersGroup;
+class UNiagaraStackEmitterPropertiesGroup;
 class UNiagaraStackScriptItemGroup;
-class UNiagaraStackEventHandlerGroup;
-class UNiagaraStackSimulationStagesGroup;
 class UNiagaraStackRenderItemGroup;
 class UNiagaraStackEmitterSummaryGroup;
 class UNiagaraStackSummaryViewCollapseButton;
@@ -41,7 +40,10 @@ private:
 
 private:
 	UPROPERTY()
-	TObjectPtr<UNiagaraStackSystemSettingsGroup> SystemSettingsGroup;
+	TObjectPtr<UNiagaraStackSystemPropertiesGroup> SystemPropertiesGroup;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackSystemUserParametersGroup> SystemUserParametersGroup;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackScriptItemGroup> SystemSpawnGroup;
@@ -50,7 +52,7 @@ private:
 	TObjectPtr<UNiagaraStackScriptItemGroup> SystemUpdateGroup;
 
 	UPROPERTY()
-	TObjectPtr<UNiagaraStackEmitterSettingsGroup> EmitterSettingsGroup;
+	TObjectPtr<UNiagaraStackEmitterPropertiesGroup> EmitterPropertiesGroup;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackEmitterSummaryGroup> EmitterSummaryGroup;
@@ -66,12 +68,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackScriptItemGroup> ParticleUpdateGroup;
-
-	UPROPERTY()
-	TObjectPtr<UNiagaraStackEventHandlerGroup> AddEventHandlerGroup;
-
-	UPROPERTY()
-	TObjectPtr<UNiagaraStackSimulationStagesGroup> AddSimulationStageGroup;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackRenderItemGroup> RenderGroup;

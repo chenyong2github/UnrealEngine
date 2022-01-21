@@ -43,8 +43,6 @@ public:
 
 	virtual bool SupportsRename() const override { return true; }
 
-	virtual TOptional<float> GetCustomOverviewIndent() override;
-
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 

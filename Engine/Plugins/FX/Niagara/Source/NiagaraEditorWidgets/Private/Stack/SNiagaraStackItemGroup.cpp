@@ -88,7 +88,7 @@ TSharedRef<SWidget> SNiagaraStackItemGroup::ConstructAddButton()
 	INiagaraStackItemGroupAddUtilities* AddUtilities = Group->GetAddUtilities();
 	if (AddUtilities != nullptr)
 	{
-		return SNew(SNiagaraStackItemGroupAddButton, *Group);
+		return SNew(SNiagaraStackItemGroupAddButton, Group, AddUtilities);
 	}
 	return SNullWidget::NullWidget;
 }

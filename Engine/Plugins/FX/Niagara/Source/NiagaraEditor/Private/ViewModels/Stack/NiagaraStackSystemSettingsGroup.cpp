@@ -58,7 +58,7 @@ class FParameterStoreGroupAddUtiliites : public TNiagaraStackItemGroupAddUtiliti
 {
 public:
 	FParameterStoreGroupAddUtiliites(UObject& InParameterStoreOwner, FNiagaraParameterStore& InParameterStore, UNiagaraStackEditorData& InStackEditorData, FOnItemAdded InOnItemAdded)
-		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("ScriptGroupAddItemName", "Parameter"), EAddMode::AddFromAction, true, InOnItemAdded)
+		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("ScriptGroupAddItemName", "Parameter"), EAddMode::AddFromAction, true, false, InOnItemAdded)
 		, ParameterStoreOwner(InParameterStoreOwner)
 		, ParameterStore(InParameterStore)
 		, StackEditorData(InStackEditorData)
@@ -96,37 +96,20 @@ private:
 	UNiagaraStackEditorData& StackEditorData;
 };
 
-void UNiagaraStackSystemSettingsGroup::Initialize(
-	FRequiredEntryData InRequiredEntryData,
-	UObject* InOwner,
-	FNiagaraParameterStore* InParameterStore)
+void UNiagaraStackSystemPropertiesGroup::Initialize(FRequiredEntryData InRequiredEntryData)
 {
-	AddUtilities = MakeShared<FParameterStoreGroupAddUtiliites>(*InOwner, *InParameterStore, *InRequiredEntryData.StackEditorData,
-		FParameterStoreGroupAddUtiliites::FOnItemAdded::CreateUObject(this, &UNiagaraStackSystemSettingsGroup::ParameterAdded));
-	FText DisplayName = LOCTEXT("SystemSettingsGroupName", "System Settings");
-	FText Tooltip = LOCTEXT("SystemSettingsTooltip", "Settings of the System.");
-	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, AddUtilities.Get());
-
-	Owner = InOwner;
-	UserParameterStore = InParameterStore;
+	FText DisplayName = LOCTEXT("SystemPropertiesGroupName", "Properties");
+	FText Tooltip = LOCTEXT("SystemSettingsTooltip", "Properties set for the entire system.");
+	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, nullptr);
 }
 
-void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+const FSlateBrush* UNiagaraStackSystemPropertiesGroup::GetIconBrush() const
 {
-	if (UserParameterStore != nullptr)
-	{
-		UNiagaraStackParameterStoreItem* UserParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
-			[=](UNiagaraStackParameterStoreItem* CurrentItem) { return true; });
+	return FAppStyle::Get().GetBrush("Icons.Details");
+}
 
-		if (UserParameterStoreItem == nullptr)
-		{
-			UserParameterStoreItem = NewObject<UNiagaraStackParameterStoreItem>(this);
-			UserParameterStoreItem->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), UserParameterStore);
-		}
-
-		NewChildren.Add(UserParameterStoreItem);
-	}
-
+void UNiagaraStackSystemPropertiesGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
 	UNiagaraStackSystemPropertiesItem* SystemPropertiesItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackSystemPropertiesItem>(CurrentChildren,
 		[=](UNiagaraStackSystemPropertiesItem* CurrentItem) { return true; });
 
@@ -140,7 +123,46 @@ void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNia
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-void UNiagaraStackSystemSettingsGroup::ParameterAdded(FNiagaraVariable AddedParameter)
+void UNiagaraStackSystemUserParametersGroup::Initialize(
+	FRequiredEntryData InRequiredEntryData,
+	UObject* InOwner,
+	FNiagaraParameterStore* InParameterStore)
+{
+	AddUtilities = MakeShared<FParameterStoreGroupAddUtiliites>(*InOwner, *InParameterStore, *InRequiredEntryData.StackEditorData,
+		FParameterStoreGroupAddUtiliites::FOnItemAdded::CreateUObject(this, &UNiagaraStackSystemUserParametersGroup::ParameterAdded));
+	FText DisplayName = LOCTEXT("SystemUserParametersGroupName", "User Parameters");
+	FText Tooltip = LOCTEXT("SystemUserParametersTooltip", "Parameters for the system which are exposed externally.");
+	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, AddUtilities.Get());
+
+	Owner = InOwner;
+	UserParameterStore = InParameterStore;
+}
+
+const FSlateBrush* UNiagaraStackSystemUserParametersGroup::GetIconBrush() const
+{
+	return FAppStyle::Get().GetBrush("Icons.Edit");
+}
+
+void UNiagaraStackSystemUserParametersGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
+	if (UserParameterStore != nullptr)
+	{
+		UNiagaraStackParameterStoreItem* UserParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
+			[=](UNiagaraStackParameterStoreItem* CurrentItem) { return true; });
+
+		if (UserParameterStoreItem == nullptr)
+		{
+			UserParameterStoreItem = NewObject<UNiagaraStackParameterStoreItem>(this);
+			UserParameterStoreItem->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), UserParameterStore, AddUtilities.Get());
+		}
+
+		NewChildren.Add(UserParameterStoreItem);
+	}
+
+	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+void UNiagaraStackSystemUserParametersGroup::ParameterAdded(FNiagaraVariable AddedParameter)
 {
 	if (AddedParameter.GetType().IsDataInterface())
 	{
@@ -158,7 +180,8 @@ void UNiagaraStackSystemSettingsGroup::ParameterAdded(FNiagaraVariable AddedPara
 void UNiagaraStackParameterStoreItem::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	UObject* InOwner,
-	FNiagaraParameterStore* InParameterStore)
+	FNiagaraParameterStore* InParameterStore,
+	INiagaraStackItemGroupAddUtilities* InGroupAddUtilities)
 {
 	Super::Initialize(InRequiredEntryData, TEXT("ParameterStoreItem"));
 
@@ -166,6 +189,7 @@ void UNiagaraStackParameterStoreItem::Initialize(
 	ParameterStore = InParameterStore;
 	ParameterStoreChangedHandle = ParameterStore->AddOnChangedHandler(
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackParameterStoreItem::ParameterStoreChanged));
+	GroupAddUtilities = InGroupAddUtilities;
 }
 
 FText UNiagaraStackParameterStoreItem::GetDisplayName() const

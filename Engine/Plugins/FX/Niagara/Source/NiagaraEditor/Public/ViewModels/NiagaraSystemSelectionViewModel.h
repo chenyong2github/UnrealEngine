@@ -60,6 +60,8 @@ public:
 
 	void AddEntryToSelectionByDisplayedObjectKeyDeferred(const FObjectKey& InObjectKey);
 
+	void AddEntryToSelectionBySelectionIdDeferred(const FGuid& InSelectionId);
+
 	bool Refresh();
 
 	void RefreshDeferred();
@@ -101,6 +103,8 @@ private:
 	FOnSelectionChanged OnSystemIsSelectedChangedDelegate;
 
 	TArray<FObjectKey> DeferredDisplayedObjectKeysToAddToSelection;
+
+	TArray<FGuid> DeferredSelectionIdsToAddToSelection;
 
 	bool bRefreshIsPending;
 };

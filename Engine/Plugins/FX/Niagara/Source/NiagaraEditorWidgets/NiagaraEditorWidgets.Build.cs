@@ -31,6 +31,7 @@ public class NiagaraEditorWidgets : ModuleRules
             "EditorWidgets",
 			"ApplicationCore",
 			"CurveEditor",
+			"ToolWidgets",
 		});
 
 		PrivateIncludePathModuleNames.AddRange(new string[] {

@@ -1087,11 +1087,6 @@ void UNiagaraStackModuleItem::Refresh()
 	}
 }
 
-TOptional<float> UNiagaraStackModuleItem::GetCustomOverviewIndent()
-{
-	return 8.f;
-}
-
 bool UNiagaraStackModuleItem::GetIsEnabled() const
 {
 	return bIsEnabled;

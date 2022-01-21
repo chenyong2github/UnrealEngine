@@ -27,6 +27,8 @@ public:
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
 	virtual void ResetToBase() override;
 
+	virtual FGuid GetSelectionId() const override { return EventScriptUsageId; }
+
 	FGuid GetEventScriptUsageId() const { return EventScriptUsageId; };
 
 protected:

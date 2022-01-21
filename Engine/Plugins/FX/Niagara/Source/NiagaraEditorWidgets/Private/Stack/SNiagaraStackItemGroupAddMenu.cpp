@@ -22,9 +22,9 @@
 
 bool SNiagaraStackItemGroupAddMenu::bLibraryOnly = true;
 
-void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, TWeakObjectPtr<UNiagaraStackItemGroup> InItemGroup, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
+void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, UNiagaraStackEntry* InSourceEntry, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
 {
-	StackItemGroup = InItemGroup;
+	SourceEntry = InSourceEntry;
 	AddUtilities = InAddUtilities;
 	InsertIndex = InInsertIndex;
 	bSetFocusOnNextTick = true;
@@ -82,7 +82,7 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, TWeakObj
 	                .AllowMultiselect(false)
 	                .OnDoesItemPassCustomFilter(this, &SNiagaraStackItemGroupAddMenu::DoesItemPassCustomFilter)
 	                .ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
-	                .ExpandInitially(false)
+	                .ExpandInitially(AddUtilities->GetAutoExpandAddActions())
 	                .OnGetSectionData_Lambda([](const ENiagaraMenuSections& Section)
 	                {
 	                    if(Section == ENiagaraMenuSections::Suggested)
@@ -137,9 +137,9 @@ void SNiagaraStackItemGroupAddMenu::OnItemActivated(const TSharedPtr<FNiagaraMen
 		FSlateApplication::Get().DismissAllMenus();
 		CurrentAction->Execute();
 
-		if(StackItemGroup.IsValid())
+		if(SourceEntry.IsValid())
 		{
-			StackItemGroup->SetIsExpandedInOverview(true);
+			SourceEntry->SetIsExpandedInOverview(true);
 		}
 	}	
 }

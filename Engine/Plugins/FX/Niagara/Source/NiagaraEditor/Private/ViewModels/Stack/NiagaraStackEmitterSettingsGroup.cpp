@@ -13,6 +13,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorStyle.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackEmitterItemGroup"
 
@@ -202,26 +203,6 @@ void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiag
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-
-
-
-UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()
-	: PropertiesItem(nullptr)
-{
-}
-
-void UNiagaraStackEmitterSettingsGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
-{
-	if (PropertiesItem == nullptr)
-	{
-		PropertiesItem = NewObject<UNiagaraStackEmitterPropertiesItem>(this);
-		PropertiesItem->Initialize(CreateDefaultChildRequiredData());
-	}
-	NewChildren.Add(PropertiesItem);
-
-	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
-}
-
 UNiagaraStackEmitterSummaryGroup::UNiagaraStackEmitterSummaryGroup()
 	: SummaryItem(nullptr)
 {
@@ -237,6 +218,11 @@ void UNiagaraStackEmitterSummaryGroup::RefreshChildrenInternal(const TArray<UNia
 	NewChildren.Add(SummaryItem);
 
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+const FSlateBrush* UNiagaraStackEmitterSummaryGroup::GetIconBrush() const
+{
+	return FAppStyle::Get().GetBrush("Icons.Edit");
 }
 
 

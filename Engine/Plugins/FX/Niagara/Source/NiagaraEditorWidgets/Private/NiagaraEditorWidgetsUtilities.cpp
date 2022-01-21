@@ -139,7 +139,29 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(
 	}
 }
 
-
+FName FNiagaraStackEditorWidgetsUtilities::GetAddItemButtonStyleNameForExecutionCategory(FName ExecutionCategoryName)
+{
+	if (ExecutionCategoryName == UNiagaraStackEntry::FExecutionCategoryNames::System)
+	{
+		return "NiagaraEditor.Stack.AddItemButton.System";
+	}
+	else if (ExecutionCategoryName == UNiagaraStackEntry::FExecutionCategoryNames::Emitter)
+	{
+		return "NiagaraEditor.Stack.AddItemButton.Emitter";
+	}
+	else if (ExecutionCategoryName == UNiagaraStackEntry::FExecutionCategoryNames::Particle)
+	{
+		return "NiagaraEditor.Stack.AddItemButton.Particle";
+	}
+	else if (ExecutionCategoryName == UNiagaraStackEntry::FExecutionCategoryNames::Render)
+	{
+		return "NiagaraEditor.Stack.AddItemButton.Render";
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
 
 FText FNiagaraStackEditorWidgetsUtilities::GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode)
 {
