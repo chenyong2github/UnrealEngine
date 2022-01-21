@@ -618,7 +618,7 @@ void FControlRigArgumentDefaultNode::GenerateChildContent(IDetailChildrenBuilder
 	for (TSharedRef<SWidget> Pin : Pins)
 	{
 		TSharedRef<SGraphPin> SPin = StaticCastSharedRef<SGraphPin>(Pin);
-		SPin->GetPinObj()->bNotConnectable = true;
+		SPin->EnableDragAndDrop(false);
 	}
 }
 

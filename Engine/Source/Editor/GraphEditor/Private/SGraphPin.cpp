@@ -79,7 +79,7 @@ SGraphPin::SGraphPin()
 	, bOnlyShowDefaultValue(false)
 	, bIsMovingLinks(false)
 	, bUsePinColorForText(false)
-
+	, bDragAndDropEnabled(true)
 {
 	IsEditable = true;
 
@@ -452,7 +452,7 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 				}
 			}
 
-			if (!MouseEvent.IsShiftDown() && !GraphPinObj->bNotConnectable)
+			if (!MouseEvent.IsShiftDown() && !GraphPinObj->bNotConnectable && bDragAndDropEnabled)
 			{
 				// Start a drag-drop on the pin
 				if (ensure(OwnerNodePinned.IsValid()))

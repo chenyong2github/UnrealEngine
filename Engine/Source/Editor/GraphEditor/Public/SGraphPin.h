@@ -211,6 +211,9 @@ public:
 	/** @returns true if we have a valid PinValueInspector tooltip */
 	bool HasInteractiveTooltip() const;
 
+	/** Enables or disables drag and drop on the pin */
+	void EnableDragAndDrop(bool bEnable) { bDragAndDropEnabled = bEnable; }
+
 protected:
 
 	/** If true the graph pin subclass is responsible for setting the IsEnabled delegates for the aspects it cares about. If false, the default value widget enabling is done by the base class */
@@ -347,4 +350,7 @@ protected:
 
 	/** TRUE if the pin should use the Pin's color for the text */
 	bool bUsePinColorForText;
+
+	/** TRUE if the pin should allow any drag and drop */
+	bool bDragAndDropEnabled;
 };
