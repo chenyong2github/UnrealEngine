@@ -255,19 +255,53 @@ FDisplayClusterShaderParameters_ICVFX::FCameraSettings FDisplayClusterViewportCo
 	Result.Resource.ViewportId = InCameraViewport.GetId();
 	Result.Local2WorldTransform = OriginComp->GetComponentTransform();
 
-	Result.SoftEdge.X = CameraSettings.SoftEdge.Horizontal;
-	Result.SoftEdge.Y = CameraSettings.SoftEdge.Vertical;
-	Result.SoftEdge.Z = 0;
-
-	float RealThicknessScaleValue = 0.1f;
+	const float RealThicknessScaleValue = 0.1f;
 	Result.InnerCameraBorderColor = CameraSettings.Border.Color;
 	Result.InnerCameraBorderThickness = CameraSettings.Border.Enable ? CameraSettings.Border.Thickness * RealThicknessScaleValue : 0.0f;
 	Result.InnerCameraFrameAspectRatio = (float)CameraSettings.RenderSettings.CustomFrameSize.CustomWidth / (float)CameraSettings.RenderSettings.CustomFrameSize.CustomHeight;
 
 	const FString InnerFrustumID = InCameraComponent.GetCameraUniqueId();
 	const int32 CameraRenderOrder = RootActor.GetInnerFrustumPriority(InnerFrustumID);
-
 	Result.RenderOrder = (CameraRenderOrder<0) ? CameraSettings.RenderSettings.RenderOrder : CameraRenderOrder;
+
+	// softedge adjustments
+	const float Overscan = (CameraSettings.CustomFrustum.FieldOfViewMultiplier > 0) ? CameraSettings.CustomFrustum.FieldOfViewMultiplier : 1;
+
+	// remap values from 0-1 GUI range into acceptable 0.0 - 0.25 shader range
+	Result.SoftEdge.X = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Horizontal) / Overscan; // Left
+	Result.SoftEdge.Y = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Vertical) / Overscan; // Top
+	Result.SoftEdge.Z = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Horizontal) / Overscan; // right
+	Result.SoftEdge.W = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Vertical) / Overscan; // bottom
+
+	// default - percents
+	const float ConvertToPercent = 0.01f;
+	float Left = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Left * ConvertToPercent);
+	float Right = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Right * ConvertToPercent);
+	float Top = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Top * ConvertToPercent);
+	float Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Bottom * ConvertToPercent);
+
+	if (CameraSettings.CustomFrustum.Mode == EDisplayClusterConfigurationViewportCustomFrustumMode::Pixels)
+	{
+		float FrameWidth = RootActor.GetStageSettings().DefaultFrameSize.Width * CameraSettings.BufferRatio;
+		float FrameHeight = RootActor.GetStageSettings().DefaultFrameSize.Height * CameraSettings.BufferRatio;
+
+		if (CameraSettings.RenderSettings.CustomFrameSize.bUseCustomSize)
+		{
+			FrameWidth = CameraSettings.RenderSettings.CustomFrameSize.CustomWidth * CameraSettings.BufferRatio;
+			FrameHeight = CameraSettings.RenderSettings.CustomFrameSize.CustomHeight * CameraSettings.BufferRatio;
+		}
+
+		Left = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Left / FrameWidth);
+		Right = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Right / FrameWidth);
+		Top = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Top / FrameHeight);
+		Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CameraSettings.CustomFrustum.Bottom / FrameHeight);
+	}
+
+	// recalculate soft edge related offsets based on frustum
+	Result.SoftEdge.X /= (1 + Left + Right);
+	Result.SoftEdge.Y /= (1 + Top + Bottom);
+	Result.SoftEdge.Z /= (1 + Left + Right);
+	Result.SoftEdge.W /= (1 + Top + Bottom);
 
 	return Result;
 }

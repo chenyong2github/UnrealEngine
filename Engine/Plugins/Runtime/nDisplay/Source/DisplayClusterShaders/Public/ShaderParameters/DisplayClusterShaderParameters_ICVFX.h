@@ -195,7 +195,7 @@ public:
 
 	public:
 		FDisplayClusterShaderParametersICVFX_ViewportResource Resource;
-		FVector SoftEdge;
+		FVector4 SoftEdge;
 
 		FLinearColor InnerCameraBorderColor = FLinearColor::Black;
 		float InnerCameraBorderThickness = 0.1f;

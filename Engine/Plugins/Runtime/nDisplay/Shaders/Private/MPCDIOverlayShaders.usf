@@ -109,9 +109,33 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 		//! UV.z <= UV.w &&
 		if (Weight >= 0)
 		{
-			float2 ToSoftEdge = saturate((abs(ToEdge) - 1.0f + InnerCameraSoftEdge.xy) / InnerCameraSoftEdge.xy);
-			float CameraTextureAlpha = Pow2(saturate(1 - Pow2(dot(ToSoftEdge, ToSoftEdge))));
-			CameraColor.w = CameraTextureAlpha;			
+			CameraColor.w = 1;
+			
+			//InnerCameraSoftEdge.xyzw values are used to pass left/top/right/bottom soft edge values
+			if(CameraUV.x < InnerCameraSoftEdge.x) // left 
+			{
+				float CameraTextureAlphaLeft = Pow2(saturate(abs(CameraUV.x) / InnerCameraSoftEdge.x));
+				CameraColor.w *= CameraTextureAlphaLeft;
+			}
+			else
+			if(CameraUV.x > (1 - InnerCameraSoftEdge.z)) // right
+			{
+				float CameraTextureAlphaRight = Pow2(saturate(abs(1 - CameraUV.x) / InnerCameraSoftEdge.z));
+				CameraColor.w *= CameraTextureAlphaRight;
+			}
+
+			
+			if(CameraUV.y < (InnerCameraSoftEdge.y)) // top
+			{
+				float CameraTextureAlphaTop = Pow2(saturate(abs(CameraUV.y) / InnerCameraSoftEdge.y));
+				CameraColor.w *= CameraTextureAlphaTop;
+			}
+			else
+			if(CameraUV.y > (1 - InnerCameraSoftEdge.w)) // bottom
+			{
+				float CameraTextureAlphaBottom = Pow2(saturate(abs(1 - CameraUV.y) / InnerCameraSoftEdge.w));
+				CameraColor.w *= CameraTextureAlphaBottom;
+			}
 		}
 	}
 
