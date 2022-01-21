@@ -332,6 +332,14 @@ void FPropertyRowGenerator::UnregisterInstancedCustomPropertyTypeLayout(FName Pr
 	}
 }
 
+void FPropertyRowGenerator::InvalidateCachedState()
+{
+	for (const TSharedPtr<FComplexPropertyNode>& ComplexRootNode : RootPropertyNodes)
+	{
+		ComplexRootNode->InvalidateCachedState();
+	}
+}
+
 void FPropertyRowGenerator::Tick(float DeltaTime)
 {
 	for (TSharedPtr<IDetailCustomization>& Customization : CustomizationClassInstancesPendingDelete)
