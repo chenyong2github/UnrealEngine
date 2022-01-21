@@ -101,6 +101,9 @@ public:
 	// @return the index of this expression within the parser's storage
 	int32 GetIndex() const { return Index; }
 
+	// returns true if the expressoin is valid
+	FORCEINLINE bool IsValid() const { return GetIndex() != INDEX_NONE; }
+
 	// returns the parent of this expression
 	// @return the parent of this expression
 	const FRigVMExprAST* GetParent() const;
@@ -1405,6 +1408,7 @@ private:
 	TMap<FRigVMASTProxy, int32> NodeExpressionIndex;
 	TArray<FRigVMExprAST*> Expressions;
 	TArray<FRigVMExprAST*> RootExpressions;
+	TArray<FRigVMExprAST*> DeletedExpressions;
 	FRigVMBlockExprAST* ObsoleteBlock;
 
 	TArray<FRigVMASTProxy> NodeProxies;
