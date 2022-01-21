@@ -667,6 +667,16 @@ public:
 	{
 		return GetDefault<UCookerSettings>()->bCookOnTheFlyForLaunchOn;
 	}
+
+	static void SetRefreshPlatformStatus()
+	{
+		ITurnkeySupportModule::Get().UpdateSdkInfo();
+	}
+
+	static bool CanRefreshPlatformStatus()
+	{
+		return true;
+	}
 };
 
 class FTurnkeySupportCommands : public TCommands<FTurnkeySupportCommands>
@@ -1650,6 +1660,16 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const
 					true
 				);
 			}
+
+			PlatformsSection.AddMenuEntry(
+				NAME_None,
+				LOCTEXT("RefreshPlatformStatus", "Refresh platform status"),
+				LOCTEXT("RefreshPlatformStatusDescription", "Update all platforms and device information"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
+				FUIAction(
+				FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetRefreshPlatformStatus),
+				FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanRefreshPlatformStatus))
+			);
 
 			if (UnsupportedPlatforms.Num() != 0)
 			{
