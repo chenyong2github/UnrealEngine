@@ -90,12 +90,12 @@ struct FTemplateMapInfo
 	TSoftObjectPtr<UTexture2D> ThumbnailTexture;
 
 	/** The Texture associated with this map template */
-	UPROPERTY(config)
-	FString Thumbnail;
+	UPROPERTY(config, meta = (AllowedClasses = "Texture2D"))
+	FSoftObjectPath Thumbnail;
 
 	/** The object path to the template map */
-	UPROPERTY(config)
-	FString Map;
+	UPROPERTY(config, meta = (AllowedClasses = "World"))
+	FSoftObjectPath Map;
 
 	/** Optional display name override for this map template  */
 	UPROPERTY()
@@ -157,6 +157,7 @@ public:
 	UPROPERTY()
 	TArray<FString> SortedSpriteCategories_DEPRECATED;
 
+	UE_DEPRECATED(5.0, "This variable may no longer contain the correct template maps for the project and this property will no longer be publically accessible in the future. Use GetDefaultTemplateMapInfos to get the default list of template maps for a project")
 	/** List of info for all known template maps */
 	UPROPERTY(config)
 	TArray<FTemplateMapInfo> TemplateMapInfos;
@@ -786,6 +787,8 @@ public:
 	 */
 	bool IsTemplateMap( const FString& MapName ) const;
 
+	void RebuildTemplateMapData();
+
 	/**
 	 * Returns true if the user is currently interacting with a viewport.
 	 */
@@ -920,12 +923,11 @@ public:
 	DECLARE_DELEGATE_RetVal(const TArray<FTemplateMapInfo>&, FGetTemplateMapInfos);
 	FGetTemplateMapInfos& OnGetTemplateMapInfos() { return GetTemplateMapInfosDelegate; }
 
-	/** List template maps */
-	const TArray<FTemplateMapInfo>& GetTemplateMapInfos() const
-	{
-		return GetTemplateMapInfosDelegate.IsBound() ? GetTemplateMapInfosDelegate.Execute() : TemplateMapInfos;
-	}
+	/** Gets the canonical list of map templates that should be visible in new level picker. This function calls OnGetTemplateMapInfos to allow runtime override of the default maps */
+	const TArray<FTemplateMapInfo>& GetTemplateMapInfos() const;
 
+	/** Gets the project default map templates without any runtime overrides */
+	const TArray<FTemplateMapInfo>& GetProjectDefaultMapTemplates() const;
 protected:
 
 	/** Called when global editor selection changes */
@@ -980,6 +982,9 @@ private:
 
 	/* Delegate to override TemplateMapInfos */
 	FGetTemplateMapInfos GetTemplateMapInfosDelegate;
+
+	/** Transient unsaved version of template map infos used by the editor. */
+	TArray<FTemplateMapInfo> TemplateMapInfoCache;
 
 	/**
 	* Internal helper function to count how many dirty packages require checkout.

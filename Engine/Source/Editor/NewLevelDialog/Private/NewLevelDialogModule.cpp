@@ -344,7 +344,7 @@ private:
 		// Build a list of items - one for each template
 		for (const FTemplateMapInfo& TemplateMapInfo : TemplateMapInfos)
 		{
-			if (!bShowPartitionedTemplates && ULevel::GetIsLevelPartitionedFromPackage(FName(*TemplateMapInfo.Map)))
+			if (!bShowPartitionedTemplates && ULevel::GetIsLevelPartitionedFromPackage(FName(*TemplateMapInfo.Map.ToString())))
 			{
 				continue;
 			}
@@ -355,7 +355,7 @@ private:
 			Item->Name = TemplateMapInfo.DisplayName;
 
 			UTexture2D* ThumbnailTexture = nullptr;
-			if (!TemplateMapInfo.Thumbnail.IsEmpty())
+			if (TemplateMapInfo.Thumbnail.IsValid())
 			{
 				FSoftObjectPath SoftObjectPath(TemplateMapInfo.Thumbnail);
 				ThumbnailTexture = Cast<UTexture2D>(SoftObjectPath.ResolveObject());
@@ -407,7 +407,7 @@ private:
 
 				if (Item->Name.IsEmpty())
 				{
-					Item->Name = FText::FromString(FPaths::GetBaseFilename(TemplateMapInfo.Map));
+					Item->Name = FText::FromString(FPaths::GetBaseFilename(TemplateMapInfo.Map.ToString()));
 				}
 			}
 
@@ -471,7 +471,7 @@ private:
 		const TSharedPtr<FNewLevelTemplateItem> Template = Items[0];
 		if (Template->Type == FNewLevelTemplateItem::NewLevelType::Template)
 		{
-			OutTemplateMapPackageName = Template->TemplateMapInfo.Map;
+			OutTemplateMapPackageName = Template->TemplateMapInfo.Map.ToString();
 		}
 		else if (Template->Type == FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition)
 		{

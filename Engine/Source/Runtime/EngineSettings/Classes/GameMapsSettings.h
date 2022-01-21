@@ -66,6 +66,31 @@ enum class ESubLevelStripMode : uint8
 	IsChildOf
 };
 
+
+/** Used by new level dialog. */
+USTRUCT()
+struct FTemplateMapInfoOverride
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** The thumbnail to display in the new level dialog */
+	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "Texture2D"))
+	FSoftObjectPath Thumbnail;
+
+	/** The path to the template map */
+	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "World"))
+	FSoftObjectPath Map;
+
+	/** The display name of the map template in the level dialog. If this is empty the thumbnail name will be used */
+	UPROPERTY(config, EditAnywhere, Category = DefaultMaps)
+	FText DisplayName;
+
+	FTemplateMapInfoOverride()
+	{
+	}
+};
+
+
 UCLASS(config=Engine, defaultconfig)
 class ENGINESETTINGS_API UGameMapsSettings
 	: public UObject
@@ -125,6 +150,10 @@ public:
 	/** If set, this map will be loaded when the Editor starts up. */
 	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="World"))
 	FSoftObjectPath EditorStartupMap;
+
+	/** Map templates that should show up in the new level dialog. This will completely override the default maps chosen by the default editor */
+	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(ConfigRestartRequired=true))
+	TArray<FTemplateMapInfoOverride> EditorTemplateMapOverrides;
 #endif
 
 	/** The default options that will be appended to a map being loaded. */

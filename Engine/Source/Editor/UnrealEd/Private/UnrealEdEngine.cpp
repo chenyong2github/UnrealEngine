@@ -69,6 +69,7 @@
 #include "Logging/MessageLog.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "ProfilingDebugging/StallDetector.h"
+#include "GameMapsSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
@@ -78,6 +79,8 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	Super::Init(InEngineLoop);
 
 	RegisterEditorElements();
+
+	RebuildTemplateMapData();
 
 	// Display warnings to the user about disk space issues
 	ValidateFreeDiskSpace();
@@ -407,7 +410,8 @@ void UUnrealEdEngine::PreExit()
 	Super::PreExit();
 }
 
-
+// Disable deprecated property warnings which are accessed when destructed here
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UUnrealEdEngine::~UUnrealEdEngine()
 {
 	if (this == GUnrealEd)
@@ -415,7 +419,7 @@ UUnrealEdEngine::~UUnrealEdEngine()
 		GUnrealEd = NULL; 
 	}
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UUnrealEdEngine::FinishDestroy()
 {
@@ -891,6 +895,16 @@ bool UUnrealEdEngine::PreferToStreamLevelsInPIE() const
 	return GetDefault<ULevelEditorPlaySettings>()->bPreferToStreamLevelsInPIE;
 }
 
+const TArray<FTemplateMapInfo>& UUnrealEdEngine::GetTemplateMapInfos() const
+{
+	return GetTemplateMapInfosDelegate.IsBound() ? GetTemplateMapInfosDelegate.Execute() : GetProjectDefaultMapTemplates();
+}
+
+const TArray<FTemplateMapInfo>& UUnrealEdEngine::GetProjectDefaultMapTemplates() const
+{
+	return TemplateMapInfoCache;
+}
+
 void UUnrealEdEngine::OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild)
 {
 	if (bWasAsyncBuild)
@@ -929,6 +943,31 @@ void UUnrealEdEngine::TakeHighResScreenShots()
 	}
 }
 
+
+void UUnrealEdEngine::RebuildTemplateMapData()
+{
+	const TArray<FTemplateMapInfoOverride> TemplateMapOverrides = GetDefault<UGameMapsSettings>()->EditorTemplateMapOverrides;
+
+	if (TemplateMapOverrides.Num() > 0)
+	{
+		TemplateMapInfoCache.Reset(TemplateMapOverrides.Num());
+
+		for (const FTemplateMapInfoOverride& Override : TemplateMapOverrides)
+		{
+			FTemplateMapInfo NewInfo;
+			NewInfo.Thumbnail = Override.Thumbnail;
+			NewInfo.Map = Override.Map;
+			NewInfo.DisplayName = Override.DisplayName;
+			TemplateMapInfoCache.Add(MoveTemp(NewInfo));
+		}
+	}
+	else
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TemplateMapInfoCache = TemplateMapInfos;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
 
 void UUnrealEdEngine::SetCurrentClass( UClass* InClass )
 {
