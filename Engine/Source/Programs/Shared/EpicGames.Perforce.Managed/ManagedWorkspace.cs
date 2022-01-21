@@ -771,44 +771,6 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <summary>
-		/// Debug code
-		/// </summary>
-		/// <param name="Perforce"></param>
-		/// <returns></returns>
-		public async Task<bool> LogFortniteStatsInfoAsync(IPerforceConnection Perforce)
-		{
-			bool bError = false;
-			FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
-
-			List<PerforceResponse<FStatRecord>> Record = await Perforce.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }).ToListAsync();
-
-			string PerforceState;
-			if (Record.Count == 0)
-			{
-				PerforceState = "no records";
-			}
-			else if (Record[0].Error != null)
-			{
-				PerforceState = Record[0].Error?.ToString() ?? "null";
-			}
-			else
-			{
-				try
-				{
-					PerforceState = $"head {Record[0].Data.HeadRevision}, have {Record[0].Data.HaveRevision}";
-					bError = Record[0].Data.HaveRevision == 0;
-				}
-				catch (Exception Ex)
-				{
-					PerforceState = $"Ex: {Ex}";
-				}
-			}
-
-			Logger.LogInformation("Check {File}: {State}, {Perforce}", LocalFile, FileReference.Exists(LocalFile) ? "exists" : "does not exist", PerforceState);
-			return bError;
-		}
-
-		/// <summary>
 		/// Switches to the given stream
 		/// </summary>
 		/// <param name="Perforce">The perforce connection</param>
@@ -1885,29 +1847,6 @@ namespace EpicGames.Perforce.Managed
 			await SaveAsync(TransactionState.Clean, CancellationToken);
 		}
 
-		static readonly Utf8String StatsFileName = "StatsV2.json";
-
-		static async Task LogPerforceCommandAsync(string ArgumentList, ILogger Logger)
-		{
-			Logger.LogInformation("Running command: {ArgList}", ArgumentList);
-			using (ManagedProcessGroup ChildProcessGroup = new ManagedProcessGroup())
-			{
-				using (ManagedProcess ChildProcess = new ManagedProcess(ChildProcessGroup, "p4.exe", ArgumentList, null, null, null, ProcessPriorityClass.Normal))
-				{
-					for (; ; )
-					{
-						string? Line = await ChildProcess.ReadLineAsync();
-						if (Line == null)
-						{
-							break;
-						}
-						Logger.LogInformation("{0}", Line);
-					}
-					ChildProcess.WaitForExit();
-				}
-			}
-		}
-
 		/// <summary>
 		/// Syncs a batch of files
 		/// </summary>
@@ -1940,116 +1879,10 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				WorkspaceFileToSync? StatsFile = FilesToSync[BeginIdx..EndIdx].FirstOrDefault(x => x.StreamFile.Path.EndsWith(StatsFileName));
-				if(StatsFile != null)
-				{
-					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
-					{
-						Logger.LogInformation("Sync: {DepotFile}#{Revision}", FilesToSync[Idx].StreamFile.Path, FilesToSync[Idx].StreamFile.Revision);
-					}
-					await LogFortniteStatsInfoAsync(Client);
-				}
-
 				using PerforceConnection ClientWithFileList = new PerforceConnection(Client.Settings, Client.Logger);
 				ClientWithFileList.GlobalOptions.Add($"-x\"{SyncFileName}\"");
-				if (StatsFile != null)
-				{
-					ClientWithFileList.GlobalOptions.Add($"-Zdebug=dm=2");
-				}
 
-				List<SyncRecord> Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
-				if (StatsFile != null)
-				{
-					try
-					{
-						foreach (SyncRecord Record in Records)
-						{
-							Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
-						}
-						bool bMissing = await LogFortniteStatsInfoAsync(Client);
-
-						Action<List<SyncRecord>> PrintSyncRecords = Records =>
-						{
-							foreach (SyncRecord Record in Records)
-							{
-								Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
-							}
-						};
-
-						FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
-						if (!FileReference.Exists(LocalFile) || bMissing)
-						{
-							string[] Lines = await FileReference.ReadAllLinesAsync(SyncFileName);
-							foreach (string Line in Lines)
-							{
-								Logger.LogInformation("SyncList: {Line}", Line);
-							}
-
-							string Connection = $"-p {Client.Settings.ServerAndPort} -u {Client.Settings.UserName} -c {Client.Settings.ClientName}";
-							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile}", Logger);
-							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.ToLower()}", Logger);
-							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.Replace('\\', '/')}", Logger);
-
-							for (int Idx = 0; ; Idx++)
-							{
-								Logger.LogInformation("Loop {Idx}: Check {File} - {State}", Idx, LocalFile, FileReference.Exists(LocalFile) ? "exists" : "does not exist");
-
-								if (Idx == 0)
-								{
-									//
-								}
-								else if (Idx == 1)
-								{
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
-									PrintSyncRecords(Records);
-								}
-								else if (Idx == 2)
-								{
-									await Task.Delay(5000);
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
-									PrintSyncRecords(Records);
-								}
-								else if (Idx == 3)
-								{
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
-									PrintSyncRecords(Records);
-								}
-								else if (Idx == 4)
-								{
-									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { $"{StatsFile.StreamFile.Path}#{StatsFile.StreamFile.Revision}" }, CancellationToken).ToListAsync(CancellationToken);
-									PrintSyncRecords(Records);
-								}
-								else if (Idx == 5)
-								{
-									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { LocalFile.FullName }, CancellationToken).ToListAsync(CancellationToken);
-									PrintSyncRecords(Records);
-								}
-								else
-								{
-									break;
-								}
-
-								List<PerforceResponse<FStatRecord>> StatRecords = await Client.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken).ToListAsync(CancellationToken);
-								foreach (PerforceResponse<FStatRecord> StatResponse in StatRecords)
-								{
-									if (StatResponse.Succeeded)
-									{
-										FStatRecord StatRecord = StatResponse.Data;
-										Logger.LogInformation("  File {File}, Action {Action}, Chg {Chg}, HeadChg {HeadChg}, HeadRev {HeadRev}, HaveRev {HaveRev}", StatRecord.DepotFile, StatRecord.Action, StatRecord.ChangeNumber, StatRecord.HeadChange, StatRecord.HeadRevision, StatRecord.HaveRevision);
-									}
-									else
-									{
-										Logger.LogInformation("  Response: {Response}", StatResponse.ToString());
-									}
-								}
-							}
-						}
-					}
-					catch (Exception Ex)
-					{
-						Logger.LogDebug(Ex, "Exception while checking for stats file");
-					}
-				}
+				await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 			}
 		}
 
