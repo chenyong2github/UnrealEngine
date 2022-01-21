@@ -122,10 +122,12 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 #endif // WITH_EDITORONLY_DATA
 	}
 
-	// Caches commonly used class MetaData that isn't required for finding & building dependencies into local graph.
 	// Must be completed after auto-update to ensure all non-transient referenced dependency data is up-to-date (ex.
 	// class version), which is required for most accurately caching current registry metadata.
-	CacheDependencyRegistryData();
+	if (InRegistrationOptions.bCacheDependencyMetaDataFromRegistry)
+	{
+		CacheDependencyRegistryData();
+	}
 
 	// Registers node by copying document. Updates to document require re-registration.
 	class FNodeRegistryEntry : public INodeRegistryEntry

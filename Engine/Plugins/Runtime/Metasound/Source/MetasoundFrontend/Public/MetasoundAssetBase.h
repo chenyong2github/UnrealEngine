@@ -122,8 +122,13 @@ public:
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
 	void AddDefaultInterfaces();
+
+	// Caches commonly used class MetaData that isn't required for finding & building dependencies into runtime graph.
 	void CacheDependencyRegistryData();
+
+	// Clears commonly used class MetaData that isn't required for finding & building dependencies into runtime graph.
 	void ClearDependencyRegistryData();
+
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA
