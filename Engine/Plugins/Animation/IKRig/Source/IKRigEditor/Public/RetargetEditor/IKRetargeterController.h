@@ -56,7 +56,7 @@ public:
 	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
 	void CleanChainMapping();
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
-	void AutoMapChains();
+	void AutoMapChains() const;
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
 	void OnRetargetChainRenamed(UIKRigDefinition* IKRig, FName OldChainName, FName NewChainName) const;
 	/** Callback when IK Rig chain is removed. */
@@ -118,6 +118,9 @@ public:
 private:
 
 	FRetargetChainMap* GetChainMap(const FName& TargetChainName) const;
+
+	/** Sort the Asset ChainMapping based on the StartBone of the target chains. */
+	void SortChainMapping() const;
 
 	/** The actual asset that this Controller modifies. */
 	UIKRetargeter* Asset = nullptr;

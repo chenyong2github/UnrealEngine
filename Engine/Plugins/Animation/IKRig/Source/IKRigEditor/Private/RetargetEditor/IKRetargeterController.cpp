@@ -155,23 +155,8 @@ void UIKRetargeterController::CleanChainMapping()
 		}
 	}
 
-	// enforce the same chain order as the target IK rig
-	Asset->ChainMapping.Sort([this](const FRetargetChainMap& A, const FRetargetChainMap& B)
-	{
-		const TArray<FBoneChain>& BoneChains = Asset->TargetIKRigAsset->GetRetargetChains();
-		
-		const int32 IndexA = BoneChains.IndexOfByPredicate([&A](const FBoneChain& Chain)
-		{
-			return A.TargetChain == Chain.ChainName;
-		});
-
-		const int32 IndexB = BoneChains.IndexOfByPredicate([&B](const FBoneChain& Chain)
-		{
-			return B.TargetChain == Chain.ChainName;
-		});
- 
-		return IndexA < IndexB;
-	});
+	// enforce the chain order based on the StartBone index
+	SortChainMapping();
 
 	BroadcastNeedsReinitialized();
 }
@@ -221,7 +206,7 @@ void UIKRetargeterController::CleanPoseList()
 	BroadcastNeedsReinitialized();
 }
 
-void UIKRetargeterController::AutoMapChains()
+void UIKRetargeterController::AutoMapChains() const
 {
 	TArray<FName> SourceChainNames;
 	GetSourceChainNames(SourceChainNames);
@@ -257,6 +242,9 @@ void UIKRetargeterController::AutoMapChains()
 			ChainMap.SourceChain = SourceChainNames[HighestScoreIndex];
 		}
 	}
+
+	// sort them
+	SortChainMapping();
 
 	// force update with latest mapping
 	BroadcastNeedsReinitialized();
@@ -485,6 +473,44 @@ FRetargetChainMap* UIKRetargeterController::GetChainMap(const FName& TargetChain
 	}
 
 	return nullptr;
+}
+
+void UIKRetargeterController::SortChainMapping() const
+{
+	Asset->ChainMapping.Sort([this](const FRetargetChainMap& A, const FRetargetChainMap& B)
+	{
+		const TArray<FBoneChain>& BoneChains = Asset->TargetIKRigAsset->GetRetargetChains();
+		const FIKRigSkeleton& TargetSkeleton = Asset->TargetIKRigAsset->Skeleton;
+
+		// look for chains
+		const int32 IndexA = BoneChains.IndexOfByPredicate([&A](const FBoneChain& Chain)
+		{
+			return A.TargetChain == Chain.ChainName;
+		});
+
+		const int32 IndexB = BoneChains.IndexOfByPredicate([&B](const FBoneChain& Chain)
+		{
+			return B.TargetChain == Chain.ChainName;
+		});
+
+		// compare their StartBone Index 
+		if (IndexA > INDEX_NONE && IndexB > INDEX_NONE)
+		{
+			const int32 StartBoneIndexA = TargetSkeleton.GetBoneIndexFromName(BoneChains[IndexA].StartBone.BoneName);
+			const int32 StartBoneIndexB = TargetSkeleton.GetBoneIndexFromName(BoneChains[IndexB].StartBone.BoneName);
+
+			if (StartBoneIndexA == StartBoneIndexB)
+			{
+				// fallback to sorting alphabetically
+				return BoneChains[IndexA].ChainName.LexicalLess(BoneChains[IndexB].ChainName);
+			}
+				
+			return StartBoneIndexA < StartBoneIndexB;	
+		}
+
+		// sort them according to the target ik rig if previously failed 
+		return IndexA < IndexB;
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

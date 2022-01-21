@@ -341,6 +341,7 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRigRetargetChainList::MakeListRowWidget )
 			.OnMouseButtonClick(this, &SIKRigRetargetChainList::OnItemClicked)
+			.OnContextMenuOpening(this, &SIKRigRetargetChainList::CreateContextMenu)
 			.ItemHeight( 22.0f )
 			.HeaderRow
 			(
@@ -464,6 +465,38 @@ FReply SIKRigRetargetChainList::OnKeyDown(const FGeometry& MyGeometry, const FKe
 	}
 	
 	return FReply::Unhandled();
+}
+
+TSharedPtr<SWidget> SIKRigRetargetChainList::CreateContextMenu()
+{
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
+
+	MenuBuilder.BeginSection("Chains", LOCTEXT("ChainsSection", "Chains"));
+
+	const FUIAction Action = FUIAction( FExecuteAction::CreateSP(this, &SIKRigRetargetChainList::SortChainList));
+	static const FText Label = LOCTEXT("SortChainsLabel", "Sort Chains");
+	static const FText Tooltip = LOCTEXT("SortChainsTooltip", "Sort chain list in hierarchical order. This does not affect the retargeting behavior.");
+	MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), Action);
+
+	MenuBuilder.EndSection();
+	
+	return MenuBuilder.MakeWidget();
+}
+
+void SIKRigRetargetChainList::SortChainList()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	if (const UIKRigController* AssetController = Controller->AssetController)
+	{
+		AssetController->SortRetargetChains();
+		RefreshView();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

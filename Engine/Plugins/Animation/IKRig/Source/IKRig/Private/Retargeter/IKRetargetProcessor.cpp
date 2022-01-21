@@ -931,9 +931,13 @@ bool UIKRetargetProcessor::InitializeRoots()
 
 bool UIKRetargetProcessor::InitializeBoneChainPairs()
 {
-	check(RetargeterAsset->GetSourceIKRig() && RetargeterAsset->GetTargetIKRig());
+	const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig();
+	const UIKRigDefinition* SourceIKRig = RetargeterAsset->GetSourceIKRig();
+	
+	check(SourceIKRig && TargetIKRig);
 
-	const TArray<FRetargetChainMap>& ChainMapping = RetargeterAsset->GetChainMapping();
+	// check that chains are available in both IKRig assets before sorting them based on StartBone index
+	const TArray<FRetargetChainMap>& ChainMapping = RetargeterAsset->GetChainMapping();	
 	for (const FRetargetChainMap& ChainMap : ChainMapping)
 	{
 		// get target bone chain
@@ -975,6 +979,22 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 		}
 	}
 
+	// sort the chains based on their StartBone's index
+	auto ChainsSorter = [this](const FRetargetChainPair& A, const FRetargetChainPair& B)
+	{
+		const int32 IndexA = A.TargetBoneIndices.Num() > 0 ? A.TargetBoneIndices[0] : INDEX_NONE;
+		const int32 IndexB = B.TargetBoneIndices.Num() > 0 ? B.TargetBoneIndices[0] : INDEX_NONE;
+		if (IndexA == IndexB)
+		{
+			// fallback to sorting alphabetically
+			return A.TargetBoneChainName.LexicalLess(B.TargetBoneChainName);
+		}
+		return IndexA < IndexB;
+	};
+	
+	ChainPairsFK.Sort(ChainsSorter);
+	ChainPairsIK.Sort(ChainsSorter);
+	
 	// record which bones in the target skeleton are being retargeted
 	for (const FRetargetChainPairFK& FKChainPair : ChainPairsFK)
 	{

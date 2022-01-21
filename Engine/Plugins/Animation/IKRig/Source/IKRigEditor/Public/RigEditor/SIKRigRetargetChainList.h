@@ -151,6 +151,12 @@ private:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 	/** END SWidget interface */
 
+	/** list view OnContextMenuOpening callback */
+	TSharedPtr< SWidget > CreateContextMenu();
+	
+	/** sort chain list callback */
+	void SortChainList();
+
 	friend SIKRigRetargetChainRow;
 	friend FIKRigEditorController;
 };
