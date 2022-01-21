@@ -5,7 +5,7 @@
 #include "SDisplayClusterLightCardList.h"
 
 #include "IDisplayClusterOperator.h"
-#include "Viewport/DisplayClusterLightCardEditorViewport.h"
+#include "Viewport/DisplayClusterLightcardEditorViewport.h"
 
 #include "DisplayClusterRootActor.h"
 
