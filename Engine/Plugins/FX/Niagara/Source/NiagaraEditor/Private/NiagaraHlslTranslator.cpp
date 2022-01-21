@@ -5370,7 +5370,7 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					else
 					{
 						DataInterface = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(const_cast<UClass*>(InVariable.GetType().GetClass()));
-						check(DataInterface != nullptr);
+						checkf(DataInterface != nullptr, TEXT("GetDuplicatedDataInterfaceCDOForClass failed for Variable(%s) Class(%s)"), *InVariable.GetName().ToString(), *InVariable.GetType().GetClass()->GetName());
 					}
 					if (ensure(DataInterface))
 					{
