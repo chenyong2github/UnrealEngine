@@ -204,7 +204,7 @@ protected:
 	 */
 	virtual FHttpThread* CreateHttpThread();
 
-	void InitializeFlushTimeLimits();
+	void ReloadFlushTimeLimits();
 
 protected:
 	/** List of Http requests that are actively being processed */

@@ -45,11 +45,13 @@ void FHttpManager::Initialize()
 		Thread->StartThread();
 	}
 
-	InitializeFlushTimeLimits();
+	UpdateConfigs();
 }
 
-void FHttpManager::InitializeFlushTimeLimits()
+void FHttpManager::ReloadFlushTimeLimits()
 {
+	FlushTimeLimitsMap.Reset();
+
 	//Save int values of Default and FullFlush?
 	for (EHttpFlushReason Reason : TEnumRange<EHttpFlushReason>())
 	{
@@ -174,6 +176,8 @@ void FHttpManager::OnEndFramePostFork()
 
 void FHttpManager::UpdateConfigs()
 {
+	ReloadFlushTimeLimits();
+
 	if (Thread)
 	{
 		Thread->UpdateConfigs();
