@@ -139,6 +139,11 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 		return; 
 	}
 
+	if (!Controller->SkeletonView.IsValid())
+	{
+		return;
+	}
+
 	UIKRigController* AssetController = Controller->AssetController;
 	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
 	if (!IKRigAsset->DrawBones)
