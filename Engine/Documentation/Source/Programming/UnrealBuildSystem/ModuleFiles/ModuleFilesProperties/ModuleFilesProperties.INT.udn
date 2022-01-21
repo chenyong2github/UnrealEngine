@@ -18,6 +18,8 @@ $ PluginDirectory (String): Property for the directory containing this plugin. U
 
 $ ModuleDirectory (String): Property for the directory containing this module. Useful for adding paths to third party dependencies.
 
+$ TestsDirectory (String): Returns module's low level tests directory "Tests".
+
 $ IsVcPackageSupported (Boolean): Returns if VcPkg is supported for the build configuration.
 
 

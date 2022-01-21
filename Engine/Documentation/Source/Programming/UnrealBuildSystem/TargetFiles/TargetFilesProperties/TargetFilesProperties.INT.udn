@@ -16,6 +16,8 @@ $ ProjectFile (FileReference): Path to the project file for the project containi
 
 $ Version (ReadOnlyBuildVersion): The current build version
 
+$ NameSuffix (String): Optional suffix to append to Name
+
 $ HostPlatform (UnrealTargetPlatform): Gets the host platform being built on
 
 $ bGenerateProjectFiles (Boolean): Expose the bGenerateProjectFiles flag to targets, so we can modify behavior as appropriate for better intellisense
@@ -239,6 +241,8 @@ $ bSupportEditAndContinue (Boolean): Whether to support edit and continue.  Only
 $ bOmitFramePointers (Boolean): Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC.
 
 $ bEnableCppModules (Boolean): Whether to enable support for C++20 modules
+
+$ bEnableCppCoroutinesForEvaluation (Boolean): Whether to enable support for C++20 coroutines This option is provided to facilitate evaluation of the feature. Expect the name of the option to change. Use of coroutines in with UE is untested and unsupported.
 
 $ bUseMallocProfiler (Boolean): If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 
