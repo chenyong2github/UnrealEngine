@@ -17,14 +17,21 @@ enum class ETurnkeyPlatformSdkStatus : uint8
 	OutOfDate,
 	NoSdk,
 	Error,
-	FlashValid,
-	FlashOutOfDate,
 	// @todo turnkey: add AutoSdkValid and ManualSdkValid, with Valid a Combination of both
+};
+
+enum class ETurnkeyDeviceStatus : uint8
+{
+	Unknown,
+	InvalidPrerequisites,
+	SoftwareValid,
+	SoftwareInvalid,
 };
 
 struct FTurnkeySdkInfo
 {
 	ETurnkeyPlatformSdkStatus Status = ETurnkeyPlatformSdkStatus::Unknown;
+	ETurnkeyDeviceStatus DeviceStatus = ETurnkeyDeviceStatus::Unknown;
 	FText SdkErrorInformation;
 	FString InstalledVersion;
 	FString AutoSDKVersion; // only valid for platform, not device

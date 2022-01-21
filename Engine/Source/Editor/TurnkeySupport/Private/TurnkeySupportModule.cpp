@@ -829,8 +829,9 @@ static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr
 		{
 			// get the status, or Unknown if it's not there
 			ETurnkeyPlatformSdkStatus Status = DeviceId.Len() ? ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).Status : ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, false).Status;
+			bool bDeviceWarning = (DeviceId.Len() && ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).DeviceStatus != ETurnkeyDeviceStatus::SoftwareValid);
 
-			if (Status == ETurnkeyPlatformSdkStatus::OutOfDate || Status == ETurnkeyPlatformSdkStatus::NoSdk || Status == ETurnkeyPlatformSdkStatus::FlashOutOfDate)
+			if (Status == ETurnkeyPlatformSdkStatus::OutOfDate || Status == ETurnkeyPlatformSdkStatus::NoSdk || bDeviceWarning)
 			{
 				return FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Warning"));
 			}
@@ -1152,13 +1153,13 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 						FText::GetEmpty()
 					);
 
-					if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::FlashValid)
+					if (SdkInfo.DeviceStatus == ETurnkeyDeviceStatus::SoftwareValid)
 					{
 						SubMenuBuilder.AddMenuEntry(
-							LOCTEXT("Turnkey_ForceRepairDevice", "Repair Device"),
+							LOCTEXT("Turnkey_ForceRepairDevice", "Force Update Device"),
 							LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
 							FSlateIcon(),
-							FExecuteAction::CreateStatic(TurnkeyInstallSdk, IniPlatformName.ToString(), true, false, DeviceId)
+							FExecuteAction::CreateStatic(TurnkeyInstallSdk, IniPlatformName.ToString(), false, true, DeviceId)
 						);
 					}
 					else
@@ -1867,6 +1868,20 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	}
 	SdkInfo.bCanInstallFullSdk = FlagsString.Contains(TEXT("Support_FullSdk"));
 	SdkInfo.bCanInstallAutoSdk = FlagsString.Contains(TEXT("Support_AutoSdk"));
+
+	SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::Unknown;
+	if (FlagsString.Contains(TEXT("Device_InvalidPrerequisites")))
+	{
+		SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::InvalidPrerequisites;
+	}
+	else if (FlagsString.Contains(TEXT("Device_InstallSoftwareValid")))
+	{
+		SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::SoftwareValid;
+	}
+	else if (FlagsString.Contains(TEXT("Device_InstallSoftwareInvalid")))
+	{
+		SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::SoftwareInvalid;
+	}
 
 	return true;
 }
