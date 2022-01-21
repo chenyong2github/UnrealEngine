@@ -264,13 +264,13 @@ void FTopologicalEdge::Delete()
 	SetDeleted();
 }
 
-TSharedPtr<FTopologicalFace> FTopologicalEdge::GetFace() const
+FTopologicalFace* FTopologicalEdge::GetFace() const
 {
 	if(Loop != nullptr)
 	{
 		return Loop->GetFace();
 	}
-	return TSharedPtr<FTopologicalFace>();
+	return nullptr;
 }
 
 void FTopologicalEdge::ComputeCrossingPointCoordinates()

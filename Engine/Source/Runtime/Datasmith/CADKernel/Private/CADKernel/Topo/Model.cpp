@@ -86,6 +86,10 @@ void FModel::RemoveEmptyBodies()
 			NewBodies.Emplace(Body);
 			NbBody++;
 		}
+		else
+		{
+			Body->Delete();
+		}
 	}
 	Swap(NewBodies, Bodies);
 	FMessage::Printf(Log, TEXT("After RemoveEmptyBodies, Body count %d shell count %d \n"), NbBody, NbShell);

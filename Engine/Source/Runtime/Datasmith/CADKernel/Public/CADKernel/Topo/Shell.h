@@ -10,165 +10,170 @@
 
 namespace CADKernel
 {
-	class FTopologicalFace;
-	class FBody;
+class FTopologicalFace;
+class FBody;
 
-	struct FFaceSubset;
+struct FFaceSubset;
 
-	class CADKERNEL_API FOrientedFace : public TOrientedEntity<FTopologicalFace>
+class CADKERNEL_API FOrientedFace : public TOrientedEntity<FTopologicalFace>
+{
+public:
+	FOrientedFace(TSharedPtr<FTopologicalFace>& InEntity, EOrientation InOrientation)
+		: TOrientedEntity(InEntity, InOrientation)
 	{
-	public:
-		FOrientedFace(TSharedPtr<FTopologicalFace>& InEntity, EOrientation InOrientation)
-			: TOrientedEntity(InEntity, InOrientation)
-		{
-		}
+	}
 
-		FOrientedFace(const FOrientedFace& OrientiredEntity)
-			: TOrientedEntity(OrientiredEntity)
-		{
-		}
-
-		FOrientedFace()
-			: TOrientedEntity()
-		{
-		}
-	};
-
-	class CADKERNEL_API FShell : public FTopologicalEntity, public FMetadataDictionary
+	FOrientedFace(const FOrientedFace& OrientiredEntity)
+		: TOrientedEntity(OrientiredEntity)
 	{
-		friend FEntity;
-		friend class FBody;
+	}
 
-	private:
-		TArray<FOrientedFace> TopologicalFaces;
-		TWeakPtr<FBody> HostedBy;
+	FOrientedFace()
+		: TOrientedEntity()
+	{
+	}
+};
 
-		FShell() = default;
+class CADKERNEL_API FShell : public FTopologicalEntity, public FMetadataDictionary
+{
+	friend FEntity;
+	friend class FBody;
 
-		FShell(const TArray<FOrientedFace> InTopologicalFaces, bool bIsInnerShell = false)
-			: FTopologicalEntity()
-			, TopologicalFaces(InTopologicalFaces)
+private:
+	TArray<FOrientedFace> TopologicalFaces;
+	FBody* HostedBy;
+
+	FShell() = default;
+
+	FShell(const TArray<FOrientedFace> InTopologicalFaces, bool bIsInnerShell = false)
+		: FTopologicalEntity()
+		, TopologicalFaces(InTopologicalFaces)
+	{
+		if (bIsInnerShell)
 		{
-			if (bIsInnerShell)
-			{
-				SetInner();
-			}
+			SetInner();
+		}
+	}
+
+	FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, bool bIsInnerShell = true);
+
+	FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, const TArray<EOrientation>& InOrientations, bool bIsInnerShell = true);
+
+
+public:
+
+	virtual void Serialize(FCADKernelArchive& Ar) override
+	{
+		FTopologicalEntity::Serialize(Ar);
+		SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
+		SerializeIdent(Ar, &HostedBy);
+		FMetadataDictionary::Serialize(Ar);
+	}
+
+	virtual void SpawnIdent(FDatabase& Database) override
+	{
+		if (!FEntity::SetId(Database))
+		{
+			return;
 		}
 
-		FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, bool bIsInnerShell = true);
+		SpawnIdentOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces, Database);
+	}
 
-		FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, const TArray<EOrientation>& InOrientations, bool bIsInnerShell = true);
+	virtual void ResetMarkersRecursively() override
+	{
+		ResetMarkers();
+		ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
+	}
 
+	FBody* GetHost()
+	{
+		return HostedBy;
+	}
 
-	public:
+	void SetHost(FBody* Body)
+	{
+		HostedBy = Body;
+	}
 
-		virtual void Serialize(FCADKernelArchive& Ar) override
+	void CompleteMetadata()
+	{
+		if (HostedBy != nullptr)
 		{
-			FTopologicalEntity::Serialize(Ar);
-			SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
-			SerializeIdent(Ar, HostedBy);
-			FMetadataDictionary::Serialize(Ar);
+			CompleteDictionary((const FMetadataDictionary&)*HostedBy);
 		}
+	}
 
-		virtual void SpawnIdent(FDatabase& Database) override
-		{
-			if (!FEntity::SetId(Database))
-			{
-				return;
-			}
+	void Empty(int32 NewSize = 0);
 
-			SpawnIdentOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces, Database);
-		}
-
-		virtual void ResetMarkersRecursively() override
-		{
-			ResetMarkers();
-			ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
-		}
-
-		TWeakPtr<FBody>& GetHost()
-		{
-			return HostedBy;
-		}
-
-		void SetHost(TSharedPtr<FBody> Body)
-		{
-			HostedBy = Body;
-		}
-
-		void CompleteMetadata()
-		{
-			if (HostedBy.IsValid())
-			{
-				CompleteDictionary((const FMetadataDictionary&) * HostedBy.Pin());
-			}
-		}
-
-		void Empty(int32 NewSize = 0);
-
-		void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
-		void Add(TArray<TSharedPtr<FTopologicalFace>> Faces);
+	void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
+	void Add(TArray<FTopologicalFace*> Faces);
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
 
-		virtual EEntity GetEntityType() const override
-		{
-			return EEntity::Shell;
-		}
+	virtual EEntity GetEntityType() const override
+	{
+		return EEntity::Shell;
+	}
 
-		TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const;
+	TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const;
 
-		virtual int32 FaceCount() const override
-		{
-			return TopologicalFaces.Num();
-		}
+	virtual int32 FaceCount() const override
+	{
+		return TopologicalFaces.Num();
+	}
 
-		void ReplaceFaces(TArray<FOrientedFace>& NewFaces)
-		{
-			Swap(TopologicalFaces, NewFaces);
-			NewFaces.Empty();
-		}
+	void ReplaceFaces(TArray<FOrientedFace>& NewFaces)
+	{
+		Swap(TopologicalFaces, NewFaces);
+		NewFaces.Empty();
+	}
 
-		const TArray<FOrientedFace>& GetFaces() const
-		{
-			return TopologicalFaces;
-		}
+	const TArray<FOrientedFace>& GetFaces() const
+	{
+		return TopologicalFaces;
+	}
 
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
+	TArray<FOrientedFace>& GetFaces()
+	{
+		return TopologicalFaces;
+	}
 
-		virtual void Merge(TSharedPtr<FShell>& Shell);
+	virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
 
-		virtual void SpreadBodyOrientation() override;
+	virtual void Merge(TSharedPtr<FShell>& Shell);
 
-		void CheckTopology(TArray<FFaceSubset>& SubShells);
-		virtual void FillTopologyReport(FTopologyReport& Report) const override;
+	virtual void SpreadBodyOrientation() override;
 
-		/**
-		 * @return true if the shell has at least one border edge 
-		 */
-		bool IsOpenShell();
+	void CheckTopology(TArray<FFaceSubset>& SubShells);
+	virtual void FillTopologyReport(FTopologyReport& Report) const override;
 
-		bool IsInner() const
-		{
-			return ((States & EHaveStates::IsInner) == EHaveStates::IsInner);
-		}
+	/**
+	 * @return true if the shell has at least one border edge
+	 */
+	bool IsOpenShell();
 
-		bool IsOutter() const
-		{
-			return ((States & EHaveStates::IsInner) != EHaveStates::IsInner);
-		}
+	bool IsInner() const
+	{
+		return ((States & EHaveStates::IsInner) == EHaveStates::IsInner);
+	}
 
-		void SetInner()
-		{
-			States |= EHaveStates::IsInner;
-		}
+	bool IsOutter() const
+	{
+		return ((States & EHaveStates::IsInner) != EHaveStates::IsInner);
+	}
 
-		void SetOutter()
-		{
-			States &= ~EHaveStates::IsInner;
-		}
-	};
+	void SetInner()
+	{
+		States |= EHaveStates::IsInner;
+	}
+
+	void SetOutter()
+	{
+		States &= ~EHaveStates::IsInner;
+	}
+};
 }
 

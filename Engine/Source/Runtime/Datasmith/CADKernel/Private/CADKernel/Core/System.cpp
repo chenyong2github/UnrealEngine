@@ -137,12 +137,12 @@ void FSystem::InitializeCADKernel()
 	FSystem::Get().SetVerboseLevel(EVerboseLevel::Log);
 }
 
-FString FSystem::GetToolkitVersion() const
+FString FSystem::GetToolkitVersion()
 {
 	return UTF8_TO_TCHAR(TOOLKIT_VERSION_ASCII);
 }
 
-FString FSystem::GetCompilationDate() const
+FString FSystem::GetCompilationDate()
 {
 	return UTF8_TO_TCHAR(__DATE__);
 }
@@ -151,7 +151,8 @@ void FSystem::PrintHeader()
 {
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));
 	FMessage::Printf(Log, TEXT("\n"));
-	FMessage::Printf(Log, TEXT("\tDatasmith CAD Kernel Toolkit release %s (%s)\n"),* GetToolkitVersion(),* GetCompilationDate());
+
+	FMessage::Printf(Log, TEXT("\tDatasmith CAD Kernel Toolkit release %s (%s)\n"), UTF8_TO_TCHAR(TOOLKIT_VERSION_ASCII), UTF8_TO_TCHAR(__DATE__));
 	FMessage::Printf(Log, TEXT("\t" EPIC_COPYRIGHT "\n"));
 	FMessage::Printf(Log, TEXT("\n"));
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));

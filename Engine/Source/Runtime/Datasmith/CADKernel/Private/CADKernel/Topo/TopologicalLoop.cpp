@@ -58,7 +58,8 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 }
 
 FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections)
-	: bExternalLoop(true)
+	: Face(nullptr)
+	, bExternalLoop(true)
 {
 	Edges.Reserve(InEdges.Num());
 	for (int32 Index = 0; Index < InEdges.Num(); ++Index)
@@ -151,7 +152,7 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
 
 	double LoopMeanLength = LoopLength / EdgeCount;
 	double MinEdgeLength = LoopMeanLength * 0.01;
-	MinEdgeLength = FMath::Max(MinEdgeLength, Face.Pin()->GetCarrierSurface()->Get3DTolerance());
+	MinEdgeLength = FMath::Max(MinEdgeLength, Face->GetCarrierSurface()->Get3DTolerance());
 
 	LoopSampling.Empty(PointCount);
 
@@ -462,7 +463,7 @@ bool FTopologicalLoop::Orient()
 #endif
 
 		bSucceed = false;
-		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d is doubtful\n"), Face.Pin()->GetId());
+		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d is doubtful\n"), Face->GetId());
 	}
 
 	if ((WrongOrientationCount > GoodOrientationCount) == bExternalLoop)

@@ -116,6 +116,15 @@ namespace CADKernel
 			}
 		}
 
+		void UnlinkTwinEntities()
+		{
+			for (EntityType* Entity : TwinsEntities)
+			{
+				Entity->ResetTopologicalLink();
+			}
+			TwinsEntities.Empty();
+		}
+
 #ifdef CADKERNEL_DEV
 		virtual FInfoEntity& GetInfo(FInfoEntity& Info) const override;
 #endif

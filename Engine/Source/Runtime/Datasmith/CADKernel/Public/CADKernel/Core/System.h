@@ -55,8 +55,8 @@ namespace CADKernel
 
 		void CloseLogFiles();
 
-		FString GetToolkitVersion() const;
-		FString GetCompilationDate() const;
+		static FString GetToolkitVersion();
+		static FString GetCompilationDate();
 
 		FVisu* GetVisu() const
 		{

@@ -31,7 +31,7 @@ FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMe
 	, InnerSegmentsIntersectionTool(InGrid)
 	, InnerToLoopSegmentsIntersectionTool(InGrid)
 	, InnerToOuterSegmentsIntersectionTool(InGrid)
-	, GeometricTolerance(Grid.GetFace()->GetCarrierSurface()->Get3DTolerance())
+	, GeometricTolerance(InGrid.GetFace().GetCarrierSurface()->Get3DTolerance())
 	, SquareGeometricTolerance(FMath::Square(GeometricTolerance))
 	, SquareGeometricTolerance2(2. * SquareGeometricTolerance)
 	, MeshingTolerance(GeometricTolerance* GeometricToMeshingToleranceFactor)
@@ -44,7 +44,7 @@ FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMe
 #ifdef DEBUG_ISOTRIANGULATOR
 
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
-	if (InGrid.GetFace()->GetId() == FaceToDebug)
+	if (Grid.GetFace().GetId() == FaceToDebug)
 #endif
 	{
 		bDisplay = true;
@@ -61,7 +61,7 @@ bool FIsoTriangulator::Triangulate()
 {
 	EGridSpace DisplaySpace = EGridSpace::UniformScaled;
 #ifdef DEBUG_ISOTRIANGULATOR
-	F3DDebugSession _(bDisplay, FString::Printf(TEXT("Triangulate %d"), Grid.GetFace()->GetId()));
+	F3DDebugSession _(bDisplay, FString::Printf(TEXT("Triangulate %d"), Grid.GetFace().GetId()));
 #endif
 
 	FTimePoint StartTime = FChrono::Now();
@@ -87,7 +87,7 @@ bool FIsoTriangulator::Triangulate()
 	if (!LoopCleaner.Run())
 	{
 		MesherReport.Logs.AddDegeneratedLoop();
-		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated loop\n"), Grid.GetFace()->GetId());
+		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated loop\n"), Grid.GetFace().GetId());
 		return false;
 	}
 
@@ -406,7 +406,7 @@ void FIsoTriangulator::BuildThinZoneSegments()
 		ThinZoneSegments.Add(&Segment);
 	};
 
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Grid.GetFace()->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Grid.GetFace().GetLoops())
 	{
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
@@ -1566,7 +1566,7 @@ bool FIsoTriangulator::CanCycleBeMeshed(const TArray<FIsoSegment*>& Cycle, FInte
 	{
 		if (CycleIntersectionTool.DoesIntersect(*Segment))
 		{
-			FMessage::Printf(Log, TEXT("A cycle of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace()->GetId());
+			FMessage::Printf(Log, TEXT("A cycle of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace().GetId());
 
 #ifdef DEBUG_CAN_CYCLE_BE_FIXED_AND_MESHED
 			if (bDisplay)

@@ -101,7 +101,7 @@ const int32 FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
 
 void FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
 {
-	NodeCoordinates.Reserve(LastIdUsed);
+	NodeCoordinates.Reserve(LastIdUsed+1);
 
 	for (const TArray<FPoint>* PointArray : GlobalPointCloud)
 	{

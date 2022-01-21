@@ -125,6 +125,11 @@ void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<F
 	for (FIdent EntityId : EntityIds)
 	{
 		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
 		if (AddedComponents.Find(EntityId) == nullptr)
 		{
 			AddedComponents.Add(EntityId);
@@ -182,6 +187,11 @@ void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& 
 	for (FIdent EntityId : SelectionIds)
 	{
 		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
 		switch(Entity->GetEntityType())
 		{
 		case EEntity::Model:
@@ -204,7 +214,7 @@ void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& 
 	while(NotYetSerialized.Dequeue(EntityIdToSave))
 	{
 		TSharedPtr<FEntity> Entity = GetEntity(EntityIdToSave);
-		if (!Entity.IsValid())
+		if (!Entity.IsValid() || Entity->IsDeleted())
 		{
 			continue;
 		}
@@ -243,14 +253,7 @@ void FDatabase::Serialize(FCADKernelArchive& Ar)
 	{
 		Progess.Increase();
 
-		if (!Entity.IsValid())
-		{
-			EEntity Type = EEntity::NullEntity;
-			Ar << Type;
-			continue;
-		}
-
-		if (Entity->IsDeleted())
+		if (!Entity.IsValid() || Entity->IsDeleted())
 		{
 			EEntity Type = EEntity::NullEntity;
 			Ar << Type;
@@ -309,7 +312,7 @@ void FDatabase::CleanArchiveEntities()
 	int32 ShellCount = 0;
 	for (TSharedPtr<FEntity> Entity : ArchiveEntities)
 	{
-		if (Entity.IsValid())
+		if (Entity.IsValid() && !Entity->IsDeleted())
 		{
 			switch (Entity->GetEntityType())
 			{
@@ -368,7 +371,7 @@ void FDatabase::CleanArchiveEntities()
 	// find independent faces and shells
 	for (TSharedPtr<FEntity> Entity : ArchiveEntities)
 	{
-		if (Entity.IsValid())
+		if (Entity.IsValid() && !Entity->IsDeleted())
 		{
 			switch (Entity->GetEntityType())
 			{
@@ -425,6 +428,11 @@ uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEn
 	EntityCount = 0;
 	for (TSharedPtr<FEntity> Entity : SelectedEntities)
 	{
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
 		Entity->SpawnIdent(*this);
 	}
 	bForceSpawning = false;
@@ -433,6 +441,11 @@ uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEn
 
 uint32 FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool bInForceSpawning)
 {
+	if (!Entity.IsValid() || Entity->IsDeleted())
+	{
+		return 0;
+	}
+
 	bForceSpawning = bInForceSpawning;
 	EntityCount = 0;
 	Entity->SpawnIdent(*this);
@@ -459,6 +472,11 @@ void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, con
 	ExpandSelection(Entities, Filters, EntitySet);
 	for (TSharedPtr<FEntity> Entity : EntitySet)
 	{
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
 		Selection.Add(Entity);
 	}
 }
@@ -467,12 +485,22 @@ void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, con
 {
 	for (TSharedPtr<FEntity> Entity : Entities)
 	{
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
 		ExpandSelection(Entity, Filter, Selection);
 	}
 }
 
 void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
 {
+	if (!Entity.IsValid() || Entity->IsDeleted())
+	{
+		return;
+	}
+
 	EEntity Type = Entity->GetEntityType();
 
 	if (Filter.Contains(Type))
@@ -594,7 +622,7 @@ void FDatabase::GetEntitiesOfTypes(const TSet<EEntity>& Filter, TArray<TSharedPt
 	OutEntities.Empty(100);
 	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
 	{
-		if (!Entity.IsValid())
+		if (!Entity.IsValid() || Entity->IsDeleted())
 		{
 			continue;
 		}
@@ -610,7 +638,7 @@ TSharedPtr<FEntity> FDatabase::GetFirstEntityOfType(EEntity Type) const
 {
 	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
 	{
-		if (!Entity.IsValid())
+		if (!Entity.IsValid() || Entity->IsDeleted())
 		{
 			continue;
 		}

@@ -10,6 +10,7 @@
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
+#include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologyReport.h"
 
@@ -120,8 +121,7 @@ void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLo
 
 void FTopologicalFace::AddLoop(const TSharedPtr<FTopologicalLoop>& InLoop)
 {
-	TSharedRef<FTopologicalFace> Face = StaticCastSharedRef<FTopologicalFace>(AsShared());
-	InLoop->SetSurface(Face);
+	InLoop->SetSurface(this);
 	if (Loops.Num() > 0)
 	{
 		InLoop->SetAsInnerBoundary();
@@ -283,7 +283,7 @@ void FTopologicalFace::SpawnIdent(FDatabase& Database)
 FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalEntity::GetInfo(Info)
-		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
+		.Add(TEXT("Hosted by"), HostedBy)
 		.Add(TEXT("Carrier Surface"), CarrierSurface)
 		.Add(TEXT("Boundary"), (FSurfacicBoundary&) Boundary)
 		.Add(TEXT("Loops"), Loops)
@@ -440,7 +440,7 @@ void FTopologicalFace::DefineSurfaceType()
 					}
 				}
 
-				TSharedPtr<FTopologicalFace> Neighbor;
+				FTopologicalFace* Neighbor = nullptr;
 				{
 					for(FTopologicalEdge* NeighborEdge : Edge->GetTwinsEntities() )
 					{
@@ -452,7 +452,7 @@ void FTopologicalFace::DefineSurfaceType()
 					}
 				}
 
-				ensure(Neighbor.IsValid());
+				ensure(Neighbor != nullptr);
 
 				// it's not a quad surface
 				if (Neighbor->SurfaceCorners.Num() == 0)
@@ -513,6 +513,101 @@ void FTopologicalFace::DefineSurfaceType()
 	default:
 		QuadType = EQuadType::Other;
 		break;
+	}
+}
+
+
+void FFaceSubset::SetMainShell(TMap<FShell*, int32>& ShellToFaceCount)
+{
+	if (ShellToFaceCount.Num() == 0)
+	{
+		return;
+	}
+
+	int32 MaxFaceCount = 0;
+	FShell* CandidateShell = nullptr;
+
+	for (TPair<FShell*, int32>& Pair : ShellToFaceCount)
+	{
+		if (Pair.Value > MaxFaceCount)
+		{
+			MaxFaceCount = Pair.Value;
+			CandidateShell = Pair.Key;
+		}
+	}
+
+	if ((CandidateShell != nullptr) && ((CandidateShell->FaceCount() / 2 + 1) < MaxFaceCount))
+	{
+		MainShell = CandidateShell;
+	}
+}
+
+void FFaceSubset::SetMainBody(TMap<FBody*, int32>& BodyToFaceCount)
+{
+	if (BodyToFaceCount.Num() == 0)
+	{
+		return;
+	}
+
+	FBody* CandidateBody = nullptr;
+	int32 MaxFaceCount = 0;
+	for (TPair<FBody*, int32>& Pair : BodyToFaceCount)
+	{
+		if (Pair.Value > MaxFaceCount)
+		{
+			MaxFaceCount = Pair.Value;
+			CandidateBody = Pair.Key;
+		}
+	}
+
+	// if Faces come mainly from MainBody
+	if ((CandidateBody != nullptr) && ((Faces.Num() / 2) <= MaxFaceCount))
+	{
+		MainBody = CandidateBody;
+	}
+}
+
+void FFaceSubset::SetMainName(TMap<FString, int32>& NameToFaceCount)
+{
+	if (NameToFaceCount.Num() == 0)
+	{
+		return;
+	}
+
+	int32 MaxInstance = Faces.Num() / 3;
+	for (TPair<FString, int32>& Pair : NameToFaceCount)
+	{
+		if (Pair.Value > MaxInstance)
+		{
+			MaxInstance = Pair.Value;
+			MainName = Pair.Key;
+		}
+	}
+}
+
+void FFaceSubset::SetMainColor(TMap<uint32, int32>& ColorToFaceCount)
+{
+	int32 MaxInstance = 0;
+	for (TPair<uint32, int32>& Pair : ColorToFaceCount)
+	{
+		if (Pair.Value > MaxInstance)
+		{
+			MaxInstance = Pair.Value;
+			MainColor = Pair.Key;
+		}
+	}
+}
+
+void FFaceSubset::SetMainMaterial(TMap<uint32, int32>& MaterialToFaceCount)
+{
+	int32 MaxInstance = 0;
+	for (TPair<uint32, int32>& Pair : MaterialToFaceCount)
+	{
+		if (Pair.Value > MaxInstance)
+		{
+			MaxInstance = Pair.Value;
+			MainColor = Pair.Key;
+		}
 	}
 }
 

@@ -137,7 +137,7 @@ void FParametricMesher::MeshEntities()
 
 	if (Faces.Num() > 1)
 	{
-		TArray<TSharedPtr<FTopologicalFace>> OtherEntities;
+		TArray<FTopologicalFace*> OtherEntities;
 
 		FMessage::Printf(Log, TEXT("  Isolate QuadPatch\n"));
 		FTimePoint IsolateQuadPatchStartTime = FChrono::Now();
@@ -206,21 +206,21 @@ void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 	ActiveEdge.SetApplyCriteria();
 }
 
-void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
+void FParametricMesher::Mesh(FTopologicalFace& Face)
 {
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
-	bDisplay = (Face->GetId() == FaceToDebug);
+	bDisplay = (Face.GetId() == FaceToDebug);
 #endif
 
-	ensureCADKernel(!Face->IsDeleted());
-	ensureCADKernel(!Face->IsMeshed());
+	ensureCADKernel(!Face.IsDeleted());
+	ensureCADKernel(!Face.IsMeshed());
 
-	FMessage::Printf(EVerboseLevel::Debug, TEXT("Meshing of surface %d\n"), Face->GetId());
+	FMessage::Printf(EVerboseLevel::Debug, TEXT("Meshing of surface %d\n"), Face.GetId());
 
 	FProgress _(1, TEXT("Meshing Entities : Mesh Surface"));
 
 #ifdef DEBUG_CADKERNEL
-	F3DDebugSession S(bDisplayDebugMeshStep, FString::Printf(TEXT("Mesh of surface %d"), Face->GetId()));
+	F3DDebugSession S(bDisplayDebugMeshStep, FString::Printf(TEXT("Mesh of surface %d"), Face.GetId()));
 #endif
 
 	FTimePoint StartTime = FChrono::Now();
@@ -235,26 +235,26 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 	if (Grid.IsDegenerated())
 	{
 		MesherReport.Logs.AddDegeneratedGrid();
-		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face->GetId());
-		Face->SetMeshed();
+		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face.GetId());
+		Face.SetMeshed();
 		return;
 	}
 
 
 	FTimePoint IsoTriangulerStartTime = FChrono::Now();
 
-	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face->GetOrCreateMesh(MeshModel));
+	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face.GetOrCreateMesh(MeshModel));
 
 	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh, MesherReport);
 	if (IsoTrianguler.Triangulate())
 	{
-		if (Face->IsBackOriented())
+		if (Face.IsBackOriented())
 		{
 			SurfaceMesh->InverseOrientation();
 		}
 		MeshModel->AddMesh(SurfaceMesh);
 	}
-	Face->SetMeshed();
+	Face.SetMeshed();
 
 	FDuration TriangulateDuration = FChrono::Elapse(IsoTriangulerStartTime);
 	FDuration Duration = FChrono::Elapse(StartTime);
@@ -285,7 +285,7 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 		FTimePoint StartTime = FChrono::Now();
 		Grid.SearchThinZones();
 
-		if (Grid.GetFace()->HasThinZone())
+		if (Grid.GetFace().HasThinZone())
 		{
 #ifdef DEBUG_THIN_ZONES
 			{
@@ -315,15 +315,15 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 
 void FParametricMesher::MeshFaceLoops(FGrid& Grid)
 {
-	TSharedRef<FTopologicalFace> Face = Grid.GetFace();
+	const FTopologicalFace& Face = Grid.GetFace();
 
 	FTimePoint StartTime = FChrono::Now();
 
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
-			Mesh(*Edge.Entity, *Face);
+			Mesh(*Edge.Entity, Face);
 		}
 	}
 
@@ -391,9 +391,9 @@ static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWi
 	}
 }
 
-void FParametricMesher::Mesh(TSharedRef<FTopologicalVertex> InVertex)
+void FParametricMesher::Mesh(FTopologicalVertex& InVertex)
 {
-	InVertex->GetOrCreateMesh(GetMeshModel());
+	InVertex.GetOrCreateMesh(GetMeshModel());
 }
 
 //#define DEBUG_INTERSECTEDGEISOS
@@ -401,7 +401,7 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalVertex> InVertex)
 void DebugIntersectEdgeIsos(const FTopologicalFace& Face, const TArray<double>& IsoCoordinates, EIso TypeIso);
 #endif
 
-void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
+void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& Face)
 {
 	{
 		FTopologicalEdge& ActiveEdge = *InEdge.GetLinkActiveEntity();
@@ -765,21 +765,16 @@ void FParametricMesher::GenerateEdgeElements(FTopologicalEdge& Edge)
 	ActiveEdge.SetMeshed();
 }
 
-void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<TSharedPtr<FTopologicalFace>>& OtherSurfaces) const
+void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<FTopologicalFace*>& OtherSurfaces) const
 {
-	TArray<TSharedPtr<FTopologicalFace>> FlatQuadsAndTriangles;
+	TArray<FTopologicalFace*> FlatQuadsAndTriangles;
 	FlatQuadsAndTriangles.Reserve(Faces.Num());
 	QuadSurfaces.Reserve(Faces.Num() * 2);
 	OtherSurfaces.Reserve(Faces.Num());
 
 	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
 	{
-		if (Face->IsDeleted())
-		{
-			continue;
-		}
-
-		if (Face->IsMeshed())
+		if (Face->IsDeleted() || Face->IsMeshed())
 		{
 			continue;
 		}
@@ -787,36 +782,37 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 		Face->ComputeSurfaceSideProperties();
 	}
 
-	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (const TSharedPtr<FTopologicalFace>& FacePtr : Faces)
 	{
-		Face->DefineSurfaceType();
-		switch (Face->GetQuadType())
+		FTopologicalFace& Face = *FacePtr;
+		Face.DefineSurfaceType();
+		switch (Face.GetQuadType())
 		{
 		case EQuadType::Quadrangular:
 			double LocalMinCurvature;
 			double LocalMaxCurvature;
-			GetMinMax(Face->GetCurvature(EIso::IsoU).Max, Face->GetCurvature(EIso::IsoV).Max, LocalMinCurvature, LocalMaxCurvature);
+			GetMinMax(Face.GetCurvature(EIso::IsoU).Max, Face.GetCurvature(EIso::IsoV).Max, LocalMinCurvature, LocalMaxCurvature);
 			if (LocalMaxCurvature > ConstMinCurvature)
 			{
-				QuadSurfaces.Emplace(LocalMaxCurvature, Face.ToSharedRef());
+				QuadSurfaces.Emplace(LocalMaxCurvature, &Face);
 				if (LocalMinCurvature > ConstMinCurvature)
 				{
-					QuadSurfaces.Emplace(LocalMinCurvature, Face.ToSharedRef());
+					QuadSurfaces.Emplace(LocalMinCurvature, &Face);
 				}
 			}
 			else
 			{
-				FlatQuadsAndTriangles.Add(Face);
-				OtherSurfaces.Add(Face);
+				FlatQuadsAndTriangles.Add(&Face);
+				OtherSurfaces.Add(&Face);
 			}
 			break;
 		case EQuadType::Triangular:
-			FlatQuadsAndTriangles.Add(Face);
-			OtherSurfaces.Add(Face);
+			FlatQuadsAndTriangles.Add(&Face);
+			OtherSurfaces.Add(&Face);
 			break;
 		case EQuadType::Unset:
 		default:
-			OtherSurfaces.Add(Face);
+			OtherSurfaces.Add(&Face);
 		}
 	}
 
@@ -832,7 +828,7 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 		Open3DDebugSession(TEXT("Quad Entities"));
 		for (const FCostToFace& Quad : QuadSurfaces)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Quad.Face->GetId(), Quad.Cost));
+			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Quad.Face.GetId(), Quad.Cost));
 			Display(Quad.Face);
 		}
 		Close3DDebugSession();
@@ -843,7 +839,7 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 		Open3DDebugSession(TEXT("Flat Quads & Triangles"));
 		for (const TSharedPtr<FTopologicalFace>& Face : FlatQuadsAndTriangles)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face->GetId()));
+			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face.GetId()));
 			Display(Face);
 		}
 		Close3DDebugSession();
@@ -854,7 +850,7 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 		Open3DDebugSession(TEXT("Other Entities"));
 		for (const TSharedPtr<FTopologicalFace>& Face : OtherSurfaces)
 		{
-			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face->GetId()));
+			//FGraphicSession _(FString::Printf(TEXT("Face %d %f"), Face.GetId()));
 			Display(StaticCastSharedPtr<FTopologicalFace>(Face));
 		}
 		Close3DDebugSession();
@@ -862,7 +858,7 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 #endif
 }
 
-void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<TSharedPtr<FTopologicalFace>>>& OutStrips)
+void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<FTopologicalFace*>>& OutStrips)
 {
 	const double GeometricTolerance = 20. * MeshModel->GetGeometricTolerance();
 
@@ -870,33 +866,33 @@ void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedS
 
 	for (FCostToFace& Quad : QuadTrimmedSurfaceSet)
 	{
-		TSharedPtr<FTopologicalFace> Surface = Quad.Face;
-		const FSurfaceCurvature& Curvatures = Surface->GetCurvatures();
+		FTopologicalFace* Face = Quad.Face;
+		const FSurfaceCurvature& Curvatures = Face->GetCurvatures();
 
 		EIso Axe = (!RealCompare(Quad.Cost, Curvatures[EIso::IsoU].Max)) ? EIso::IsoU : EIso::IsoV;
 
 		if (Axe == EIso::IsoU)
 		{
-			if (Surface->HasMarker1())
+			if (Face->HasMarker1())
 			{
 				continue;
 			}
-			Surface->SetMarker1();
+			Face->SetMarker1();
 		}
 		else
 		{
-			if (Surface->HasMarker2())
+			if (Face->HasMarker2())
 			{
 				continue;
 			}
-			Surface->SetMarker2();
+			Face->SetMarker2();
 		}
 
-		TArray<TSharedPtr<FTopologicalFace>>* QuadStrip = &OutStrips.Emplace_GetRef();
+		TArray<FTopologicalFace*>* QuadStrip = &OutStrips.Emplace_GetRef();
 		QuadStrip->Reserve(QuadTrimmedSurfaceSet.Num());
-		QuadStrip->Add(Surface);
+		QuadStrip->Add(Face);
 
-		const TArray<FEdge2DProperties>& SideProperties = Surface->GetSideProperties();
+		const TArray<FEdge2DProperties>& SideProperties = Face->GetSideProperties();
 
 		int32 StartSideIndex = 0;
 		for (; StartSideIndex < 4; StartSideIndex++)
@@ -914,87 +910,86 @@ void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedS
 		bool bFirstStep = true;
 		int32 SideIndex = StartSideIndex;
 
-		while (Surface)
+		while (Face)
 		{
-			int32 EdgeIndex = Surface->GetStartEdgeIndexOfSide(SideIndex);
-			double SideLength = Surface->GetSideProperties()[SideIndex].Length3D;
-			TSharedPtr<FTopologicalEdge> Edge = Surface->GetLoops()[0]->GetEdges()[EdgeIndex].Entity;
+			int32 EdgeIndex = Face->GetStartEdgeIndexOfSide(SideIndex);
+			double SideLength = Face->GetSideProperties()[SideIndex].Length3D;
+			TSharedPtr<FTopologicalEdge> Edge = Face->GetLoops()[0]->GetEdges()[EdgeIndex].Entity;
 
-			Surface.Reset();
+			Face = nullptr;
 			FTopologicalEdge* NextEdge = Edge->GetFirstTwinEdge();
 			if (NextEdge)
 			{
-				Surface = (TSharedPtr<FTopologicalFace>)NextEdge->GetLoop()->GetFace();
-				ensureCADKernel(Surface);
+				Face = NextEdge->GetLoop()->GetFace();
 			}
 
-			if (Surface && (Surface->GetQuadType() == EQuadType::Quadrangular || Surface->GetQuadType() == EQuadType::Triangular))
+			if (Face && (Face->GetQuadType() == EQuadType::Quadrangular || Face->GetQuadType() == EQuadType::Triangular))
 			{
 				// check side length
-				int32 LocalEdgeIndex = Surface->GetLoops()[0]->GetEdgeIndex(*NextEdge);
-				SideIndex = Surface->GetSideIndex(LocalEdgeIndex);
-				double OtherSideLength = Surface->GetSideProperties()[SideIndex].Length3D;
+				int32 LocalEdgeIndex = Face->GetLoops()[0]->GetEdgeIndex(*NextEdge);
+				SideIndex = Face->GetSideIndex(LocalEdgeIndex);
+				double OtherSideLength = Face->GetSideProperties()[SideIndex].Length3D;
 
 				GetMinMax(OtherSideLength, SideLength);
 				if (SideLength - OtherSideLength > GeometricTolerance)
 				{
-					Surface = nullptr;
+					Face = nullptr;
 				}
 			}
 			else
 			{
-				Surface = nullptr;
+				Face = nullptr;
 			}
 
-			if (Surface)
+			if (Face)
 			{
 				// Set as processed in a direction
-				const TArray<FEdge2DProperties>& LocalSideProperties = Surface->GetSideProperties();
+				const TArray<FEdge2DProperties>& LocalSideProperties = Face->GetSideProperties();
 				if (LocalSideProperties[SideIndex].IsoType == EIso::IsoU)
 				{
-					if (Surface->HasMarker1())
+					if (Face->HasMarker1())
 					{
-						Surface = nullptr;
+						Face = nullptr;
 					}
 					else
 					{
-						Surface->SetMarker1();
+						Face->SetMarker1();
 					}
 				}
 				else
 				{
-					if (Surface->HasMarker2())
+					if (Face->HasMarker2())
 					{
-						Surface = nullptr;
+						Face = nullptr;
 					}
 					else
 					{
-						Surface->SetMarker2();
+						Face->SetMarker2();
 					}
 				}
 			}
 
-			if (Surface)
+			if (Face)
 			{
 				// it's a quad or a tri => add
-				if (Surface->GetQuadType() != EQuadType::Other)
+				if (Face->GetQuadType() != EQuadType::Other)
 				{
-					QuadStrip->Add(Surface);
+					QuadStrip->Add(Face);
 				}
 
-				if (Surface->GetQuadType() == EQuadType::Triangular)
+				if (Face->GetQuadType() == EQuadType::Triangular)
 				{
 					// stop
-					Surface = nullptr;
+					Face = nullptr;
 				}
 			}
 
-			if (!Surface)
+			if (!Face)
 			{
 				if (bFirstStep)
 				{
 					bFirstStep = false;
-					Surface = (*QuadStrip)[0];
+					Face = (*QuadStrip)[0];
 					SideIndex = (StartSideIndex + 2) % 4;
 					continue;
 				}
@@ -1035,13 +1030,13 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 	const double GeometricTolerance = 20. * MeshModel->GetGeometricTolerance();
 
-	TArray<TSharedPtr<FTopologicalFace>> CandidateFacesForMesh; // first in first out
+	TArray<FTopologicalFace*> CandidateFacesForMesh; // first in first out
 	CandidateFacesForMesh.Reserve(100);
 
-	TArray<TSharedPtr<FTopologicalFace>> SecondChoiceOfCandidateFacesForMesh; // first in first out
+	TArray<FTopologicalFace*> SecondChoiceOfCandidateFacesForMesh; // first in first out
 	SecondChoiceOfCandidateFacesForMesh.Reserve(100);
 
-	TFunction<void(TSharedRef<FTopologicalFace>)> MeshFace = [&](TSharedRef<FTopologicalFace> Face)
+	TFunction<void(FTopologicalFace&)> MeshFace = [&](FTopologicalFace& Face)
 	{
 #ifdef DISPLAYDEBUGMESHFACEBYFACESTEP
 		Open3DDebugSession(TEXT("Surface " + Utils::ToFString(Face->GetId()));
@@ -1051,22 +1046,22 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		Mesh(Face);
 
 #ifdef DISPLAYDEBUGMESHFACEBYFACESTEP
-		Open3DDebugSession(TEXT("Mesh " + Utils::ToFString(Face->GetId()));
-		DisplayMesh((FFaceMesh&)Face->GetOrCreateMesh(GetMeshModel()));
+		Open3DDebugSession(TEXT("Mesh " + Utils::ToFString(Face.GetId()));
+		DisplayMesh((FFaceMesh&)Face.GetOrCreateMesh(GetMeshModel()));
 		Close3DDebugSession();
 		//Wait();
 #endif
 
-		if (Face->HasMarker1())
+		if (Face.HasMarker1())
 		{
-			CandidateFacesForMesh.RemoveSingle(Face);
+			CandidateFacesForMesh.RemoveSingle(&Face);
 		}
-		if (Face->HasMarker2())
+		if (Face.HasMarker2())
 		{
-			SecondChoiceOfCandidateFacesForMesh.RemoveSingle(Face);
+			SecondChoiceOfCandidateFacesForMesh.RemoveSingle(&Face);
 		}
 
-		const TSharedPtr<FTopologicalLoop> Loop = Face->GetLoops()[0];
+		const TSharedPtr<FTopologicalLoop> Loop = Face.GetLoops()[0];
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
 			const TSharedPtr<FTopologicalEdge> Edge = OrientedEdge.Entity;
@@ -1078,13 +1073,8 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 					continue;
 				}
 
-				TSharedPtr<FTopologicalFace> NextFace = NextEdge->GetFace();
-				if (!NextFace.IsValid())
-				{
-					continue;
-				}
-
-				if (!NextFace->HasMarker3())
+				FTopologicalFace* NextFace = NextEdge->GetFace();
+				if ((NextFace == nullptr) || !NextFace->HasMarker3())
 				{
 					// not in the scope of surface to mesh
 					continue;
@@ -1134,9 +1124,9 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		}
 	};
 
-	TFunction<void(TSharedRef<FTopologicalFace>)> MeshFacesByFront = [&](TSharedRef<FTopologicalFace> Face)
+	TFunction<void(FTopologicalFace&)> MeshFacesByFront = [&](FTopologicalFace& Face)
 	{
-		if (Face->IsMeshed())
+		if (Face.IsMeshed())
 		{
 			return;
 		}
@@ -1146,7 +1136,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		while (CandidateFacesForMesh.Num() || SecondChoiceOfCandidateFacesForMesh.Num())
 		{
 			// the candidate are sorted according to the number of meshed side 
-			Algo::Sort(CandidateFacesForMesh, [](TSharedPtr<FTopologicalFace> Surface1, TSharedPtr<FTopologicalFace> Surface2) { return Surface1->MeshedSideNum() > Surface2->MeshedSideNum(); });
+			Algo::Sort(CandidateFacesForMesh, [](FTopologicalFace* Surface1, FTopologicalFace* Surface2) { return Surface1->MeshedSideNum() > Surface2->MeshedSideNum(); });
 
 			int32 IndexOfBestCandidate = -1;
 			double CandidateMeshedSideRatio = 0;
@@ -1168,7 +1158,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 				int32 Index = 0;
 				for (; Index < CandidateFacesForMesh.Num(); ++Index)
 				{
-					TSharedPtr<FTopologicalFace> CandidateSurface = CandidateFacesForMesh[Index];
+					FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
 					if (CandidateSurface->MeshedSideNum() < MaxMeshedSideNum)
 					{
 						break;
@@ -1186,7 +1176,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 				{
 					for (; Index < CandidateFacesForMesh.Num(); ++Index)
 					{
-						TSharedPtr<FTopologicalFace> CandidateSurface = CandidateFacesForMesh[Index];
+						FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
 						if (CandidateMeshedSideRatio < CandidateSurface->MeshedSideRatio())
 						{
 							CandidateMeshedSideRatio = CandidateSurface->MeshedSideRatio();
@@ -1197,25 +1187,24 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 				if (IndexOfBestCandidate >= 0)
 				{
-					ensureCADKernel(CandidateFacesForMesh[IndexOfBestCandidate].IsValid());
-					MeshFace(CandidateFacesForMesh[IndexOfBestCandidate].ToSharedRef());
+					MeshFace(*CandidateFacesForMesh[IndexOfBestCandidate]);
 					continue;
 				}
 			}
 
 			for (int32 Index = 0; Index < SecondChoiceOfCandidateFacesForMesh.Num(); ++Index)
 			{
-				TSharedPtr<FTopologicalFace> CandidateSurface = SecondChoiceOfCandidateFacesForMesh[Index];
+				FTopologicalFace* CandidateSurface = SecondChoiceOfCandidateFacesForMesh[Index];
 				if (CandidateMeshedSideRatio < CandidateSurface->MeshedSideRatio())
 				{
 					CandidateMeshedSideRatio = CandidateSurface->MeshedSideRatio();
 					IndexOfBestCandidate = Index;
 				}
 			}
+
 			if (IndexOfBestCandidate >= 0)
 			{
-				ensureCADKernel(SecondChoiceOfCandidateFacesForMesh[IndexOfBestCandidate].IsValid());
-				MeshFace(SecondChoiceOfCandidateFacesForMesh[IndexOfBestCandidate].ToSharedRef());
+				MeshFace(*SecondChoiceOfCandidateFacesForMesh[IndexOfBestCandidate]);
 			}
 		}
 	};
@@ -1223,8 +1212,8 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 	// the front is initialized with quad surface
 	for (const FCostToFace& Quad : QuadTrimmedSurfaceSet)
 	{
-		TSharedPtr<FTopologicalFace> Surface = Quad.Face;
-		MeshFacesByFront(Surface.ToSharedRef());
+		FTopologicalFace* Face = Quad.Face;
+		MeshFacesByFront(*Face);
 	}
 
 	// the the other surface
@@ -1232,7 +1221,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 	{
 		if (!Face->IsMeshed())
 		{
-			MeshFacesByFront(Face.ToSharedRef());
+			MeshFacesByFront(*Face);
 		}
 	}
 

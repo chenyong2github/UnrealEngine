@@ -253,7 +253,7 @@ namespace CADKernel
 		FThinZoneChronos Chronos;
 
 	protected:
-		const FGrid& Grid;
+		FGrid& Grid;
 
 		double Tolerance;
 		double SquareTolerance;
@@ -270,7 +270,7 @@ namespace CADKernel
 
 	public:
 
-		FThinZone2DFinder(const FGrid& InGrid)
+		FThinZone2DFinder(FGrid& InGrid)
 			: Grid(InGrid)
 			, SegmentFatory()
 		{

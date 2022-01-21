@@ -10,131 +10,130 @@
 
 namespace CADKernel
 {
-	class FCriterion;
-	class FGrid;
-	class FThinZoneSide;
-	class FTopologicalEntity;
-	class FTopologicalLoop;
+class FCriterion;
+class FGrid;
+class FThinZoneSide;
+class FTopologicalEntity;
+class FTopologicalLoop;
 
-	struct FCostToFace
+struct FCostToFace
+{
+	double Cost;
+	FTopologicalFace* Face;
+
+	FCostToFace(double NewCost, FTopologicalFace* NewFace)
+		: Cost(NewCost)
+		, Face(NewFace)
 	{
-		double Cost;
-		TSharedRef<FTopologicalFace> Face;
+	}
+};
 
-		FCostToFace(double NewCost, TSharedRef<FTopologicalFace> NewFace)
-			: Cost(NewCost)
-			, Face(NewFace)
-		{
-		}
+class CADKERNEL_API FMesherParameters : public FParameters
+{
+public:
+	FParameter InconsistencyAngle;
 
-	};
+	FMesherParameters();
 
-	class CADKERNEL_API FMesherParameters : public FParameters
+	void SetInconsistencyAngle(const double Value)
 	{
-	public:
-		FParameter InconsistencyAngle;
+		InconsistencyAngle = Value;
+	}
+};
 
-		FMesherParameters();
+class CADKERNEL_API FParametricMesher
+{
+protected:
 
-		void SetInconsistencyAngle(const double Value)
-		{
-			InconsistencyAngle = Value;
-		}
-	};
+	/**
+	 * Limit of flatness of quad face
+	 */
+	const double ConstMinCurvature = 0.001;
 
-	class CADKERNEL_API FParametricMesher
+	TSharedRef<FModelMesh> MeshModel;
+	TSharedRef<FMesherParameters> Parameters;
+
+	TArray<TSharedPtr<FTopologicalFace>> Faces;
+	TArray<TSharedPtr<FTopologicalEdge>> Edges;
+	TArray<TSharedPtr<FTopologicalVertex>> Vertices;
+
+	FMesherReport MesherReport;
+
+	bool bDisplay = false;
+
+public:
+
+	FParametricMesher(TSharedRef<FModelMesh> MeshModel);
+
+	const TSharedRef<FModelMesh>& GetMeshModel() const
 	{
-	protected:
+		return MeshModel;
+	}
 
-		/**
-		 * Limit of flatness of quad face
-		 */
-		const double ConstMinCurvature = 0.001;
+	TSharedRef<FModelMesh>& GetMeshModel()
+	{
+		return MeshModel;
+	}
 
-		TSharedRef<FModelMesh> MeshModel;
-		TSharedRef<FMesherParameters> Parameters;
+	void InitParameters(const FString& ParametersString);
 
-		TArray<TSharedPtr<FTopologicalFace>> Faces;
-		TArray<TSharedPtr<FTopologicalEdge>> Edges;
-		TArray<TSharedPtr<FTopologicalVertex>> Vertices;
+	const TSharedRef<FMesherParameters>& GetParameters() const
+	{
+		return Parameters;
+	}
 
-		FMesherReport MesherReport;
+	void MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities);
 
-		bool bDisplay = false;
+	template<typename EntityType>
+	void MeshEntity(TSharedRef<EntityType>& Entity)
+	{
+		MeshEntity((TSharedRef<FTopologicalEntity>&) Entity);
+	}
 
-	public:
+	void MeshEntity(TSharedRef<FModel>& InModel)
+	{
+		MeshEntity((TSharedRef<FTopologicalEntity>&) InModel);
+	}
 
-		FParametricMesher(TSharedRef<FModelMesh> MeshModel);
+	void MeshEntity(TSharedRef<FTopologicalEntity>& InEntity)
+	{
+		TArray<TSharedPtr<FEntity>> Entities;
+		Entities.Add(InEntity);
+		MeshEntities(Entities);
+	}
 
-		const TSharedRef<FModelMesh>& GetMeshModel() const
-		{
-			return MeshModel;
-		}
+	void Mesh(FTopologicalFace& Face);
+	void Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& CarrierFace);
+	void Mesh(FTopologicalVertex& Vertex);
 
-		TSharedRef<FModelMesh>& GetMeshModel()
-		{
-			return MeshModel;
-		}
+	void MeshFaceLoops(FGrid& Grid);
 
-		void InitParameters(const FString& ParametersString);
+	void MeshThinZoneEdges(FGrid&);
+	void MeshThinZoneSide(const FThinZoneSide& Side);
+	void GetThinZoneBoundary(const FThinZoneSide& Side);
 
-		const TSharedRef<FMesherParameters>& GetParameters() const
-		{
-			return Parameters;
-		}
+	void GenerateCloud(FGrid& Grid);
 
-		void MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities);
+	void PrintReport();
 
-		template<typename EntityType>
-		void MeshEntity(TSharedRef<EntityType>& Entity)
-		{
-			MeshEntity((TSharedRef<FTopologicalEntity>&) Entity);
-		}
+protected:
 
-		void MeshEntity(TSharedRef<FModel>& InModel)
-		{
-			MeshEntity((TSharedRef<FTopologicalEntity>&) InModel);
-		}
-
-		void MeshEntity(TSharedRef<FTopologicalEntity>& InEntity)
-		{
-			TArray<TSharedPtr<FEntity>> Entities;
-			Entities.Add(InEntity);
-			MeshEntities(Entities);
-		}
-
-		void Mesh(TSharedRef<FTopologicalFace> Face);
-		void Mesh(FTopologicalEdge& InEdge, FTopologicalFace& CarrierFace);
-		void Mesh(TSharedRef<FTopologicalVertex> Vertex);
-
-		void MeshFaceLoops(FGrid& Grid);
-
-		void MeshThinZoneEdges(FGrid&);
-		void MeshThinZoneSide(const FThinZoneSide& Side);
-		void GetThinZoneBoundary(const FThinZoneSide& Side);
-
-		void GenerateCloud(FGrid& Grid);
-
-		void PrintReport();
-
-	protected:
-
-		void MeshEntities();
+	void MeshEntities();
 
 
-		void IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<TSharedPtr<FTopologicalFace>>& OtherSurfaces) const;
+	void IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<FTopologicalFace*>& OtherSurfaces) const;
 
-		void LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<TSharedPtr<FTopologicalFace>>>& OutStrips);
-		void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
+	void LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<FTopologicalFace*>>& OutStrips);
+	void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
 
-		void ApplyEdgeCriteria(FTopologicalEdge& Edge);
-		void ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face);
+	void ApplyEdgeCriteria(FTopologicalEdge& Edge);
+	void ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face);
 
-		/**
-		 * Generate Edge Elements on active edge from Edge cutting points
-		 */
-		void GenerateEdgeElements(FTopologicalEdge& Edge);
-	};
+	/**
+	 * Generate Edge Elements on active edge from Edge cutting points
+	 */
+	void GenerateEdgeElements(FTopologicalEdge& Edge);
+};
 
 } // namespace CADKernel
 

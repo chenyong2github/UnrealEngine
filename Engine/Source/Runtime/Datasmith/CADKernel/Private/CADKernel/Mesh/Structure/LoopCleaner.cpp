@@ -87,7 +87,7 @@ bool FLoopCleaner::CleanLoops()
 
 		if (!RemoveSelfIntersectionsOfLoop())
 		{
-			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace()->GetId());
+			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
 			return false;
 		}
 
@@ -98,7 +98,7 @@ bool FLoopCleaner::CleanLoops()
 
 		if (!RemoveLoopPicks())
 		{
-			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace()->GetId());
+			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
 			return false;
 		}
 

@@ -62,16 +62,15 @@ void FShell::Empty(int32 NewSize)
 	TopologicalFaces.Empty(NewSize);
 }
 
-void FShell::Add(TArray<TSharedPtr<FTopologicalFace>> Faces)
+void FShell::Add(TArray<FTopologicalFace*> Faces)
 {
-	TSharedPtr<FShell> Shell = StaticCastSharedRef<FShell>(AsShared());
-
 	TopologicalFaces.Reserve(TopologicalFaces.Num() + Faces.Num());
 
-	for(TSharedPtr<FTopologicalFace>& Face : Faces)
+	for(FTopologicalFace* Face : Faces)
 	{
-		TopologicalFaces.Emplace(Face, Face->IsBackOriented() ? EOrientation::Back : EOrientation::Front);
-		Face->SetHost(Shell);
+		TSharedPtr<FTopologicalFace> FacePtr = StaticCastSharedRef<FTopologicalFace>(Face->AsShared());
+		TopologicalFaces.Emplace(FacePtr, Face->IsBackOriented() ? EOrientation::Back : EOrientation::Front);
+		Face->SetHost(this);
 	}
 }
 
@@ -81,14 +80,14 @@ void FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Or
 	TSharedPtr<FTopologicalFace> Face = InTopologicalFace;
 	TopologicalFaces.Emplace(Face, Orientation);
 
-	Face->SetHost(StaticCastSharedRef<FShell>(AsShared()));
+	Face->SetHost(this);
 }
 
 #ifdef CADKERNEL_DEV
 FInfoEntity& FShell::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
-		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
+		.Add(TEXT("Hosted by"), (FEntity*) HostedBy)
 		.Add(TEXT("TopologicalFaces"), (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces)
 		.Add(*this);
 }
@@ -165,10 +164,10 @@ void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 
 	int32 ProcessFaceCount = 0;
 
-	TArray<TSharedPtr<FTopologicalFace>> Front;
-	TFunction<void(const TSharedPtr<FTopologicalFace>&, FFaceSubset&)> GetNeighboringFaces = [&](const TSharedPtr<FTopologicalFace>& Face, FFaceSubset& Shell)
+	TArray<FTopologicalFace*> Front;
+	TFunction<void(const FTopologicalFace&, FFaceSubset&)> GetNeighboringFaces = [&](const FTopologicalFace& Face, FFaceSubset& Shell)
 	{
-		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
 			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 			{
@@ -201,13 +200,8 @@ void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 					}
 					NextEdge->SetMarker1();
 
-					TSharedPtr<FTopologicalFace> NextFace = NextEdge->GetFace();
-					if (!NextFace.IsValid())
-					{
-						continue;
-					}
-
-					if (NextFace->HasMarker1())
+					FTopologicalFace* NextFace = NextEdge->GetFace();
+					if ((NextFace == nullptr) || NextFace->HasMarker1())
 					{
 						continue;
 					}
@@ -222,13 +216,13 @@ void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 	{
 		while (Front.Num())
 		{
-			TSharedPtr<FTopologicalFace> Face = Front.Pop();
+			FTopologicalFace* Face = Front.Pop();
 			Shell.Faces.Add(Face);
-			GetNeighboringFaces(Face, Shell);
+			GetNeighboringFaces(*Face, Shell);
 		}
 	};
 
-	for (const FOrientedFace& OrientedFace : GetFaces())
+	for (FOrientedFace& OrientedFace : GetFaces())
 	{
 		if (OrientedFace.Entity->HasMarker1())
 		{
@@ -239,7 +233,7 @@ void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 		Shell.Faces.Reserve(TopologicalFaceCount - ProcessFaceCount);
 		Front.Empty(TopologicalFaceCount);
 
-		const TSharedPtr<FTopologicalFace>& Face = OrientedFace.Entity;
+		FTopologicalFace* Face = OrientedFace.Entity.Get();
 
 		Front.Empty(TopologicalFaceCount);
 		Face->SetMarker1();

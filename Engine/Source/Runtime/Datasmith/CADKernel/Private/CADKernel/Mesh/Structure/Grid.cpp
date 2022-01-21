@@ -15,18 +15,18 @@
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace CADKernel
 {
-FGrid::FGrid(TSharedRef<FTopologicalFace>& InFace, TSharedRef<FModelMesh>& InMeshModel)
+FGrid::FGrid(FTopologicalFace& InFace, TSharedRef<FModelMesh>& InMeshModel)
 	: Face(InFace)
-	, FaceTolerance(InFace->GetIsoTolerances())
-	, Tolerance3D(InFace->GetCarrierSurface()->Get3DTolerance())
+	, FaceTolerance(InFace.GetIsoTolerances())
+	, Tolerance3D(InFace.GetCarrierSurface()->Get3DTolerance())
 	, MinimumElementSize(Tolerance3D * 2.)
 	, MeshModel(InMeshModel)
 	, ThinZoneFinder(*this)
-	, CuttingCoordinates(Face->GetCuttingPointCoordinates())
+	, CuttingCoordinates(InFace.GetCuttingPointCoordinates())
 {
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
-	bDisplay = (Face->GetId() == FaceToDebug);
-	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), Face->GetId()));
+	bDisplay = (Face.GetId() == FaceToDebug);
+	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), Face.GetId()));
 #endif
 }
 
@@ -108,21 +108,21 @@ void FGrid::DefineCuttingParameters(EIso Iso, FCuttingGrid& Neighbors)
 {
 	FTimePoint StartTime = FChrono::Now();
 
-	const FSurfacicBoundary& Boundary = Face->GetBoundary();
+	const FSurfacicBoundary& Boundary = Face.GetBoundary();
 
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 	TArray<double> CuttingPointTmp;
 #endif
 	if (Neighbors[Iso].Num())
 	{
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 		TArray<FCuttingPoint> Extremities;
 		Extremities.Reserve(2);
 		Extremities.Emplace(Boundary[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
 		Extremities.Emplace(Boundary[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
-		FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Extremities, CuttingPointTmp);
+		FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face.GetCrossingPointCoordinates(Iso), Face.GetCrossingPointDeltaMaxs(Iso), Extremities, CuttingPointTmp);
 #endif
-		FMesherTools::ComputeFinalCuttingPointsWithPreferredCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Neighbors[Iso], Boundary[Iso], Face->GetCuttingCoordinatesAlongIso(Iso));
+		FMesherTools::ComputeFinalCuttingPointsWithPreferredCuttingPoints(Face.GetCrossingPointCoordinates(Iso), Face.GetCrossingPointDeltaMaxs(Iso), Neighbors[Iso], Boundary[Iso], Face.GetCuttingCoordinatesAlongIso(Iso));
 	}
 	else
 	{
@@ -130,10 +130,10 @@ void FGrid::DefineCuttingParameters(EIso Iso, FCuttingGrid& Neighbors)
 		Extremities.Reserve(2);
 		Extremities.Emplace(Boundary[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
 		Extremities.Emplace(Boundary[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
-		FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Extremities, Face->GetCuttingCoordinatesAlongIso(Iso));
+		FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face.GetCrossingPointCoordinates(Iso), Face.GetCrossingPointDeltaMaxs(Iso), Extremities, Face.GetCuttingCoordinatesAlongIso(Iso));
 	}
 
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 	if (bDisplay)
 	{
 		EIso OtherIso = Other(Iso);
@@ -168,7 +168,7 @@ void FGrid::DefineCuttingParameters(EIso Iso, FCuttingGrid& Neighbors)
 		}
 		{
 			F3DDebugSession _(FString::Printf(TEXT("%s From Neighbours"), IsoNames[Iso]));
-			for (double CuttingU : Face->GetCuttingCoordinatesAlongIso(Iso))
+			for (double CuttingU : Face.GetCuttingCoordinatesAlongIso(Iso))
 			{
 				if (Iso == EIso::IsoU)
 				{
@@ -188,23 +188,23 @@ void FGrid::DefineCuttingParameters(EIso Iso, FCuttingGrid& Neighbors)
 	Chronos.DefineCuttingParametersDuration = FChrono::Elapse(StartTime);
 }
 
-//#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+//#define DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 void FGrid::GetPreferredUVCuttingParametersFromLoops(FCuttingGrid& CuttingParametersFromLoops)
 {
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 	F3DDebugSession _(bDisplay, TEXT("GetPreferredUVCoordinatesFromNeighbours"));
 
 	if (bDisplay)
 	{
 		{
 			F3DDebugSession _(TEXT("Surface 2D"));
-			CADKernel::Display2D(*Face->GetCarrierSurface());
+			CADKernel::Display2D(*Face.GetCarrierSurface());
 		}
 	}
 #endif
 
 	int32 nbPoints = 0;
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
@@ -215,13 +215,13 @@ void FGrid::GetPreferredUVCuttingParametersFromLoops(FCuttingGrid& CuttingParame
 	CuttingParametersFromLoops[EIso::IsoU].Reserve(nbPoints);
 	CuttingParametersFromLoops[EIso::IsoV].Reserve(nbPoints);
 
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
 			const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
 
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 			if (bDisplay)
 			{
 				F3DDebugSession _(FString::Printf(TEXT("Edge %d"), Edge->GetId()));
@@ -257,14 +257,14 @@ void FGrid::GetPreferredUVCuttingParametersFromLoops(FCuttingGrid& CuttingParame
 			TArray<FPoint2D> EdgePoints2D;
 			Edge->Approximate2DPoints(ProjectedPointCoords, EdgePoints2D);
 
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 			F3DDebugSession _(bDisplay, ("Nodes"));
 #endif
 			for (int32 Index = 0; Index < EdgePoints2D.Num(); ++Index)
 			{
 				CuttingParametersFromLoops[EIso::IsoU].Emplace(EdgePoints2D[Index].U, ECoordinateType::OtherCoordinate);
 				CuttingParametersFromLoops[EIso::IsoV].Emplace(EdgePoints2D[Index].V, ECoordinateType::OtherCoordinate);
-#ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+#ifdef DEBUG_GET_PREFERRED_UVCOORDINATES_FROM_NEIGHBOURS
 				if (bDisplay)
 				{
 					DisplayPoint(EdgePoints2D[Index]);
@@ -339,11 +339,11 @@ bool FGrid::GeneratePointCloud()
 	{
 		for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU, ++Index)
 		{
-			Points2D[EGridSpace::Default2D][Index].Set(Face->GetCuttingCoordinatesAlongIso(EIso::IsoU)[IPointU], Face->GetCuttingCoordinatesAlongIso(EIso::IsoV)[IPointV]);
+			Points2D[EGridSpace::Default2D][Index].Set(Face.GetCuttingCoordinatesAlongIso(EIso::IsoU)[IPointU], Face.GetCuttingCoordinatesAlongIso(EIso::IsoV)[IPointV]);
 		}
 	}
 
-	Face->EvaluateGrid(*this);
+	Face.EvaluateGrid(*this);
 
 	ComputeMaxElementSize();
 
@@ -933,12 +933,12 @@ void SlightlyDisplacedPolyline(TArray<FPoint2D>& D2Points, const FSurfacicBounda
 bool FGrid::GetMeshOfLoops()
 {
 	int32 ThinZoneNum = 0;
-	if (Face->HasThinZone())
+	if (Face.HasThinZone())
 	{
 		ThinZoneNum = ThinZoneFinder.GetThinZones().Num();
 	}
 
-	int32 LoopCount = Face->GetLoops().Num();
+	int32 LoopCount = Face.GetLoops().Num();
 	FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount + ThinZoneNum);
 
 	FaceLoops3D.Reserve(LoopCount);
@@ -949,13 +949,13 @@ bool FGrid::GetMeshOfLoops()
 	F3DDebugSession _(bDisplay, ("GetLoopMesh"));
 #endif
 
-	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 	{
 		int32 LoopNodeCount = 0;
 
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
-			LoopNodeCount += Edge.Entity->GetLinkActiveEdge()->GetCuttingPoints().Num() + 2;
+			LoopNodeCount += Edge.Entity->GetLinkActiveEdge()->GetMesh()->GetNodeCount() + 2;
 		}
 
 		TArray<FPoint2D>& Loop2D = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
@@ -1170,7 +1170,7 @@ bool FGrid::GetMeshOfLoops()
 	}
 
 	// Fit boundaries to Surface bounds.
-	const FSurfacicBoundary& Bounds = Face->GetBoundary();
+	const FSurfacicBoundary& Bounds = Face.GetBoundary();
 	for (TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::Default2D])
 	{
 		for (FPoint2D& Point : Loop)
@@ -1292,7 +1292,7 @@ void FGrid::ScaleGrid()
 		Grid[EIso::IsoV].Add(MiddleV);
 
 		FSurfacicSampling MiddlePoints;
-		Face->EvaluatePointGrid(Grid, MiddlePoints);
+		Face.EvaluatePointGrid(Grid, MiddlePoints);
 
 		int32 StartIndexUp = GetMiddleIndex(CuttingCoordinates[EIso::IsoV], MiddleV);
 		int32 StartIndexDown = StartIndexUp - 1;
@@ -1330,7 +1330,7 @@ void FGrid::ScaleGrid()
 		Grid[EIso::IsoV] = CuttingCoordinates[EIso::IsoV];
 
 		FSurfacicSampling MiddlePoints;
-		Face->EvaluatePointGrid(Grid, MiddlePoints);
+		Face.EvaluatePointGrid(Grid, MiddlePoints);
 
 		int32 StartIndexUp = GetMiddleIndex(CuttingCoordinates[EIso::IsoU], MiddleU);
 		int32 StartIndexDown = StartIndexUp - 1;

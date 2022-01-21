@@ -114,6 +114,14 @@ public:
 		TopologicalLink.Reset();
 	}
 
+	/**
+	 * Unlink all twin entities
+	 */
+	void UnlinkTwinEntities()
+	{
+		TopologicalLink->UnlinkTwinEntities();
+	}
+
 	const bool IsThinZone() const
 	{
 		return ((States & EHaveStates::ThinZone) == EHaveStates::ThinZone);

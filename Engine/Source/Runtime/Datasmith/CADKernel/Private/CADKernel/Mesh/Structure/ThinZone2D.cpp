@@ -612,7 +612,7 @@ void FThinZone2DFinder::SearchThinZones()
 
 	if (ThinZones.Num() > 0)
 	{
-		Grid.GetFace()->SetHasThinZone();
+		Grid.GetFace().SetHasThinZone();
 	}
 
 #ifdef DISPLAY_THIN_ZONES
@@ -684,7 +684,7 @@ void FThinZone2DFinder::BuildLoopSegments()
 	double Length = 0;
 	double SegmentLength = Tolerance / 5.;
 
-	const TArray<TSharedPtr<FTopologicalLoop>>& Loops = Grid.GetFace()->GetLoops();
+	const TArray<TSharedPtr<FTopologicalLoop>>& Loops = Grid.GetFace().GetLoops();
 
 	FirstLoopLength = -1.;
 	for (const TSharedPtr<FTopologicalLoop>& Loop : Loops)

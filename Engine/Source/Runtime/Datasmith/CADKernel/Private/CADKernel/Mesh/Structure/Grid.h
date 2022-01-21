@@ -71,7 +71,7 @@ class FGrid : public FHaveStates
 {
 protected:
 
-	const TSharedRef<FTopologicalFace> Face;
+	FTopologicalFace& Face;
 	const FSurfacicTolerance FaceTolerance;
 	const double Tolerance3D;
 	const double MinimumElementSize;
@@ -157,7 +157,7 @@ public:
 	FGridChronos Chronos;
 
 public:
-	FGrid(TSharedRef<FTopologicalFace>& InFace, TSharedRef<FModelMesh>& InShellMesh);
+	FGrid(FTopologicalFace& InFace, TSharedRef<FModelMesh>& InShellMesh);
 
 #ifndef CADKERNEL_DEV
 	virtual ~FGrid() = default;
@@ -458,7 +458,12 @@ public:
 		return Normals;
 	}
 
-	TSharedRef<FTopologicalFace> GetFace() const
+	const FTopologicalFace& GetFace() const
+	{
+		return Face;
+	}
+
+	FTopologicalFace& GetFace()
 	{
 		return Face;
 	}

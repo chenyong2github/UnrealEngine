@@ -41,7 +41,7 @@ namespace CADKernel
 		{
 			ensureCADKernel(InNodes.Num() > 0);
 
-			int32 FaceLoopCount = Grid.GetFace()->LoopCount();
+			int32 FaceLoopCount = Grid.GetFace().LoopCount();
 			int32 LoopCount = 0;
 			{
 				TArray<int32> LoopVertexCount;

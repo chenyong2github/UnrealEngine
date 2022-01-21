@@ -11,7 +11,7 @@ namespace CADKernel
 void FBody::AddShell(TSharedRef<FShell> Shell)
 {
 	Shells.Add(Shell);
-	Shell->HostedBy = StaticCastSharedRef<FBody>(AsShared());
+	Shell->HostedBy = this;
 }
 
 void FBody::RemoveEmptyShell()
@@ -23,6 +23,10 @@ void FBody::RemoveEmptyShell()
 		if (Shell->FaceCount() > 0)
 		{
 			NewShells.Emplace(Shell);
+		}
+		else
+		{
+			Shell->Delete();
 		}
 	}
 	Swap(NewShells, Shells);

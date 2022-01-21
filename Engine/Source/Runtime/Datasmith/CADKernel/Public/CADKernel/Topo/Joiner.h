@@ -5,120 +5,126 @@
 
 namespace CADKernel
 {
-	class FModel;
-	class FSession;
-	class FShell;
-	class FTopologicalEdge;
-	class FTopologicalFace;
-	class FTopologicalVertex;
 
-	class CADKERNEL_API FJoiner
-	{
-		friend class FThinZone;
-		friend class FThinZoneFinder;
+class FModel;
+class FSession;
+class FShell;
+class FTopologicalEdge;
+class FTopologicalFace;
+class FTopologicalVertex;
 
-	protected:
+class CADKERNEL_API FJoiner
+{
+	friend class FThinZone;
+	friend class FThinZoneFinder;
 
-		FSession& Session;
+protected:
 
-		TArray<TSharedPtr<FShell>> Shells;
-		TArray<TSharedPtr<FTopologicalFace>> Faces;
+	FSession& Session;
 
-		double JoiningTolerance;
-		double JoiningToleranceSquare;
+	TArray<TSharedPtr<FShell>> Shells;
+	TArray<TSharedPtr<FTopologicalFace>> Faces;
 
-	public:
+	double JoiningTolerance;
+	double JoiningToleranceSquare;
 
-		FJoiner(FSession& InSession, const TSharedRef<FModel>& Shells, double Tolerance);
-		FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
-		FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
+public:
 
-		void JoinFaces();
-		//void JoinFaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges);
+	FJoiner(FSession& InSession, const TSharedRef<FModel>& Shells, double Tolerance);
+	FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
+	FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
 
-		/**
-		 * Check topology of each body
-		 */
-		void CheckTopology();
+	void JoinFaces();
+	//void JoinFaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges);
 
-		//void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
-		//void SortByShell(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
-		//void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
+	/**
+	 * Check topology of each body
+	 */
+	void CheckTopology();
 
-		/**
-		 * Split into connected shell and put each shell into the appropriate body
-		 */
-		void SplitIntoConnectedShell();
+	//void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
+	//void SortByShell(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
+	//void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
 
-	private:
+	/**
+	 * Split into connected shell and put each shell into the appropriate body
+	 */
+	void SplitIntoConnectedShell();
 
-		/**
-		 * Call by constructor.
-		 * For each shell, add their faces into Faces array, complete the metadata and set the states for the joining process
-		 */
-		void InitFaces();
+	/**
+	 * Unlink Non-Manifold Vertex i.e. Vertex belong to tow or more shell
+	 */
+	void UnlinkNonManifoldVertex();
 
-		void EmptyShells();
+private:
 
-		void RemoveFacesFromShell();
+	/**
+	 * Call by constructor.
+	 * For each shell, add their faces into Faces array, complete the metadata and set the states for the joining process
+	 */
+	void InitFaces();
 
-		/**
-		 * Return an array of active vertices.
-		 */
-		void GetVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	void EmptyShells();
 
-		/**
-		 * Return an array of active border vertices.
-		 */
-		void GetBorderVertices(TArray<TSharedPtr<FTopologicalVertex>>& BorderVertices);
+	void RemoveFacesFromShell();
 
-		/**
-		 * Merge Border Vertices with other vertices.
-		 * @param Vertices: the initial array of active vertices, this array is updated at the end of the process
-		 */
-		void MergeCoincidentVertices(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToMerge);
+	/**
+	 * Return an array of active vertices.
+	 */
+	void GetVertices(TArray<FTopologicalVertex*>& Vertices);
 
-		/**
-		 * Merge Border Vertices with other vertices.
-		 * @param Vertices: the initial array of active vertices, this array is updated at the end of the process
-		 */
-		void MergeBorderVerticesWithCoincidentOtherVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	/**
+	 * Return an array of active border vertices.
+	 */
+	void GetBorderVertices(TArray<FTopologicalVertex*>& BorderVertices);
 
-		//void FixCollapsedEdges();
-		void CheckSelfConnectedEdge();
-		void RemoveIsolatedEdges(); // Usefull ???
+	/**
+	 * Merge Border Vertices with other vertices.
+	 * @param Vertices: the initial array of active vertices, this array is updated at the end of the process
+	 */
+	void MergeCoincidentVertices(TArray<FTopologicalVertex*>& VerticesToMerge);
 
-		/**
-		 * First step, trivial edge merge i.e. couple of edges with same extremity vertex
-		 */
-		void MergeCoincidentEdges(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	/**
+	 * Merge Border Vertices with other vertices.
+	 * @param Vertices: the initial array of active vertices, this array is updated at the end of the process
+	 */
+	void MergeBorderVerticesWithCoincidentOtherVertices(TArray<FTopologicalVertex*>& Vertices);
 
-		/**
-		 * Second step, parallel edges but with different length. the longest must be split
-		 */
-		void StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	//void FixCollapsedEdges();
+	void CheckSelfConnectedEdge();
+	void RemoveIsolatedEdges(); // Useful ???
 
-		/**
-		 * Split the edge to split except if one side is too small (JoiningTolerance). In this case (too small), the EdgeToSplit is not split but linked to EdgeToLink. 
-		 * @return the created vertex or TSharedPtr<FTopologicalVertex>()
-		 */
-		TSharedPtr<FTopologicalVertex> SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit);
+	/**
+	 * First step, trivial edge merge i.e. couple of edges with same extremity vertex
+	 */
+	void MergeCoincidentEdges(TArray<FTopologicalVertex*>& Vertices);
 
-		/**
-		 * For each loop of each surface, check if successive edges are unconnected and if their common vertices are connected only to them. 
-		 * These edges are merged into one edge. 
-		 * E.g. :
-		 * Face A has 3 successive unconnected edges. If these 3 edges are merged to give only one edge, the new edge could be linked to its parallel edge of Face B 
-		 * 
-		 *              \                          Face A                                   |    Face C
-		 *               \                                                                  |
-		 *    Face E     CV ------------------- UV ------------------ UV ----------------- CV --------------------
-		 *               CV -------------------------------------------------------------- CV --------------------
-		 *               /                         Face B                                   |    Face D
-		 *              /                                                                   |
-		 */
-		void MergeUnconnectedAdjacentEdges();
+	/**
+	 * Second step, parallel edges but with different length. the longest must be split
+	 */
+	void StitchParallelEdges(TArray<FTopologicalVertex*>& Vertices);
 
-	};
+	/**
+	 * Split the edge to split except if one side is too small (JoiningTolerance). In this case (too small), the EdgeToSplit is not split but linked to EdgeToLink.
+	 * @return the created vertex or TSharedPtr<FTopologicalVertex>()
+	 */
+	TSharedPtr<FTopologicalVertex> SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit);
+
+	/**
+	 * For each loop of each surface, check if successive edges are unconnected and if their common vertices are connected only to them.
+	 * These edges are merged into one edge.
+	 * E.g. :
+	 * Face A has 3 successive unconnected edges. If these 3 edges are merged to give only one edge, the new edge could be linked to its parallel edge of Face B
+	 *
+	 *              \                          Face A                                   |    Face C
+	 *               \                                                                  |
+	 *    Face E     CV ------------------- UV ------------------ UV ----------------- CV --------------------
+	 *               CV -------------------------------------------------------------- CV --------------------
+	 *               /                         Face B                                   |    Face D
+	 *              /                                                                   |
+	 */
+	void MergeUnconnectedAdjacentEdges();
+
+};
 
 } // namespace CADKernel

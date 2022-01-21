@@ -226,9 +226,9 @@ namespace CADKernel
 
 		void PresampleIsoCircle(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates, EIso Iso)
 		{
-			constexpr const double ThreeOverPi = 3 / PI;
+			constexpr const double SixOverPi = 6 / PI;
 			double Delta = InBoundaries.Length(Iso);
-			int32 SampleCount = /*FMath::Max(3, */ (int32)(Delta * ThreeOverPi + 1)/*)*/;
+			int32 SampleCount = /*FMath::Max(3, */ (int32)(Delta * SixOverPi + 1)/*)*/;
 			Delta /= SampleCount;
 
 			Coordinates[Iso].Empty(SampleCount + 1);
