@@ -209,7 +209,7 @@ namespace Turnkey.Commands
 							{
 								if (Device.bCanConnect)
 								{
-									FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
+									FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type, CurrentSdk: Device.SoftwareVersion);
 
 									if (MatchingInstallableSdk == null)
 									{
