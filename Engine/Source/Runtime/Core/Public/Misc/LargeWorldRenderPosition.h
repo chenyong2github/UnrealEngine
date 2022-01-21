@@ -14,6 +14,31 @@ public:
 	CORE_API static double GetTileSize();
 	CORE_API static FVector3f GetTileFor(FVector InPosition);
 
+	static double MakeTile(double InValue)
+	{
+		return FMath::FloorToDouble(InValue / GetTileSize() + 0.5);
+	}
+
+	static double MakeQuantizedTile(double InValue, double InQuantization)
+	{
+		return FMath::FloorToDouble((InValue / GetTileSize()) * InQuantization + 0.5) / InQuantization;
+	}
+
+	static FVector MakeTile(const FVector& InValue)
+	{
+		return FVector(MakeTile(InValue.X), MakeTile(InValue.Y), MakeTile(InValue.Z));
+	}
+
+	static FVector MakeQuantizedTile(const FVector& InValue, double InQuantization)
+	{
+		return FVector(MakeQuantizedTile(InValue.X, InQuantization), MakeQuantizedTile(InValue.Y, InQuantization), MakeQuantizedTile(InValue.Z, InQuantization));
+	}
+
+	CORE_API static FMatrix44f SafeCastMatrix(const FMatrix& Matrix);
+	CORE_API static FMatrix44f MakeToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld);
+	CORE_API static FMatrix44f MakeFromRelativeWorldMatrix(const FVector Origin, const FMatrix& FromWorld);
+	CORE_API static FMatrix44f MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld);
+
 	float GetTile() const { return (float)Tile; }
 	float GetOffset() const { return (float)Offset; }
 	double GetTileAsDouble() const { return Tile; }
@@ -27,7 +52,7 @@ public:
 	FLargeWorldRenderScalar(double InAbsolute)
 	{
 		// Tiles are centered on the origin
-		Tile = FMath::FloorToDouble(InAbsolute / GetTileSize() + 0.5);
+		Tile = MakeTile(InAbsolute);
 		Offset = InAbsolute - GetTileOffset();
 		Validate(InAbsolute);
 	}
@@ -67,16 +92,6 @@ public:
 	FVector GetTileOffset() const { return FVector(X.GetTileOffset(), Y.GetTileOffset(), Z.GetTileOffset()); }
 	FVector3f GetOffset() const { return FVector3f(X.GetOffset(), Y.GetOffset(), Z.GetOffset()); }
 	FVector GetAbsolute() const { return FVector(X.GetAbsolute(), Y.GetAbsolute(), Z.GetAbsolute()); }
-
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-	CORE_API FMatrix44f MakeToRelativeWorldMatrix(const FMatrix& ToWorld) const;
-	CORE_API FMatrix44f MakeClampedToRelativeWorldMatrix(const FMatrix& ToWorld) const;
-	CORE_API FMatrix44f MakeFromRelativeWorldMatrix(const FMatrix& FromWorld) const;
-#else
-	FMatrix44f MakeToRelativeWorldMatrix(const FMatrix& ToWorld) const { return ToWorld; }
-	FMatrix44f MakeClampedToRelativeWorldMatrix(const FMatrix& ToWorld) const { return ToWorld; }
-	FMatrix44f MakeFromRelativeWorldMatrix(const FMatrix& FromWorld) const { return FromWorld; }
-#endif
 
 	FLargeWorldRenderPosition(const FVector3f& InWorldPosition)
 		: X(InWorldPosition.X)

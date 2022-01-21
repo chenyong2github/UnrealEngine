@@ -18,18 +18,26 @@ FRelativeViewMatrices FRelativeViewMatrices::Create(const FViewMatrices& Matrice
 
 FRelativeViewMatrices FRelativeViewMatrices::Create(const FInitializer& Initializer)
 {
-	const FLargeWorldRenderPosition AbsoluteOrigin(Initializer.ViewToWorld.GetOrigin());
+	const double TileSize = FLargeWorldRenderScalar::GetTileSize();
+
+	// We allow a fractional tile position here
+	// Tile offset is applied beofre WorldToView transform, but after ViewToWorld transform
+	// This means that if we use a regular tile offset, the remaining offset in the relative matrices may become too large (>TileSize/2)
+	// Allowing for a fractional tile lets us use the same value for both matrices
+	// Quantization factor is somewhat arbitrary...controls distribution of precision between tile fraction and relative offset
+	const FVector ViewOrigin = Initializer.ViewToWorld.GetOrigin();
+	const FVector ViewOriginTile = FLargeWorldRenderScalar::MakeQuantizedTile(ViewOrigin, 8.0);
 
 	FRelativeViewMatrices Result;
-	Result.TilePosition = AbsoluteOrigin.GetTile();
-	Result.RelativeWorldToView = AbsoluteOrigin.MakeFromRelativeWorldMatrix(Initializer.WorldToView);
-	Result.ViewToRelativeWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(Initializer.ViewToWorld);
+	Result.TilePosition = ViewOriginTile;
+	Result.RelativeWorldToView = FLargeWorldRenderScalar::MakeFromRelativeWorldMatrix(ViewOriginTile * TileSize, Initializer.WorldToView);
+	Result.ViewToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(ViewOriginTile * TileSize, Initializer.ViewToWorld);
 	Result.ViewToClip = FMatrix44f(Initializer.ViewToClip);
 	Result.ClipToView = FMatrix44f(Initializer.ClipToView);
 	Result.RelativeWorldToClip = Result.RelativeWorldToView * Result.ViewToClip;
 	Result.ClipToRelativeWorld = Result.ClipToView * Result.ViewToRelativeWorld;
 
-	Result.PrevViewToRelativeWorld = AbsoluteOrigin.MakeClampedToRelativeWorldMatrix(Initializer.PrevViewToWorld);
+	Result.PrevViewToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(ViewOriginTile * TileSize, Initializer.PrevViewToWorld);
 	Result.PrevClipToView = FMatrix44f(Initializer.PrevClipToView);
 	Result.PrevClipToRelativeWorld = Result.PrevClipToView * Result.PrevViewToRelativeWorld;
 	return Result;

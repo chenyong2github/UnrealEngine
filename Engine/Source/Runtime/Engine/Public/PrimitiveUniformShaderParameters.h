@@ -262,7 +262,7 @@ public:
 		Parameters.TilePosition = AbsoluteWorldPosition.GetTile();
 
 		{
-			Parameters.LocalToRelativeWorld = AbsoluteWorldPosition.MakeToRelativeWorldMatrix(AbsoluteLocalToWorld);
+			Parameters.LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(TilePositionOffset, AbsoluteLocalToWorld);
 			Parameters.RelativeWorldToLocal = Parameters.LocalToRelativeWorld.Inverse();
 		}
 
@@ -271,7 +271,7 @@ public:
 
 		if (bHasPreviousLocalToWorld)
 		{
-			Parameters.PreviousLocalToRelativeWorld = AbsoluteWorldPosition.MakeClampedToRelativeWorldMatrix(AbsolutePreviousLocalToWorld);
+			Parameters.PreviousLocalToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(TilePositionOffset, AbsolutePreviousLocalToWorld);
 			Parameters.PreviousRelativeWorldToLocal = Parameters.PreviousLocalToRelativeWorld.Inverse();
 		}
 		else

@@ -472,7 +472,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 		InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 		InstanceUploadInfo.PrimitiveID = GetPrimitiveID(Scene, PrimitiveID);
-		InstanceUploadInfo.PrimitiveToWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
+		InstanceUploadInfo.PrimitiveToWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), LocalToWorld);
 
 		{
 			bool bHasPrecomputedVolumetricLightmap{};
@@ -481,7 +481,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 			FMatrix PreviousLocalToWorld;
 			Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-			InstanceUploadInfo.PrevPrimitiveToWorld = AbsoluteOrigin.MakeClampedToRelativeWorldMatrix(PreviousLocalToWorld);;
+			InstanceUploadInfo.PrevPrimitiveToWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), PreviousLocalToWorld);;
 		}
 
 		InstanceUploadInfo.PayloadDataFlags = PrimitiveSceneProxy->GetPayloadDataFlags();
@@ -2366,7 +2366,7 @@ void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 	{
 		const FMatrix LocalToWorld = Scene->PrimitiveTransforms[PrimitiveId];
 		const FLargeWorldRenderPosition AbsoluteOrigin(LocalToWorld.GetOrigin());
-		LocalToRelativeWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
+		LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), LocalToWorld);
 	}
 	InstanceOriginAndId		= LocalToRelativeWorld.GetOrigin();
 	InstanceTransform1		= LocalToRelativeWorld.GetScaledAxis(EAxis::X);
