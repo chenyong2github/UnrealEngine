@@ -57,47 +57,13 @@ FTimingProfilerCommands::~FTimingProfilerCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FTimingProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(ToggleFramesTrackVisibility,
-		"Frames",
-		"Toggles the visibility of the Frames track.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleTimingViewVisibility,
-		"Timing",
-		"Toggles the visibility of the main Timing view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleTimersViewVisibility,
-		"Timers",
-		"Toggles the visibility of the Timers view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleCallersTreeViewVisibility,
-		"Callers",
-		"Toggles the visibility of the Callers tree view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleCalleesTreeViewVisibility,
-		"Callees",
-		"Toggles the visibility of the Callees tree view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleStatsCountersViewVisibility,
-		"Counters",
-		"Toggles the visibility of the Counters view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
-
-	UI_COMMAND(ToggleLogViewVisibility,
-		"Log",
-		"Toggles the visibility of the Log view.",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord());
+	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleTimersViewVisibility, "Timers", "Toggles the visibility of the Timers view.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleCallersTreeViewVisibility, "Callers", "Toggles the visibility of the Callers tree view.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleCalleesTreeViewVisibility, "Callees", "Toggles the visibility of the Callees tree view.", EUserInterfaceActionType::ToggleButton,FInputChord());
+	UI_COMMAND(ToggleStatsCountersViewVisibility, "Counters", "Toggles the visibility of the Counters view.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleLogViewVisibility, "Log", "Toggles the visibility of the Log view.", EUserInterfaceActionType::ToggleButton,FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
