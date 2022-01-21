@@ -158,21 +158,21 @@ FText UIKRig_PoleSolver::GetNiceName() const
 
 bool UIKRig_PoleSolver::GetWarningMessage(FText& OutWarningMessage) const
 {
-	if (Effector->GoalName == NAME_None)
+	if (RootName == NAME_None)
 	{
-		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goal.");
+		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
 		return true;
 	}
-
+	
 	if (EndName == NAME_None)
 	{
 		OutWarningMessage = LOCTEXT("MissingEnd", "Missing end bone.");
 		return true;
 	}
 	
-	if (RootName == NAME_None)
+	if (Effector->GoalName == NAME_None)
 	{
-		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
+		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goal.");
 		return true;
 	}
 	
@@ -187,6 +187,7 @@ bool UIKRig_PoleSolver::GetWarningMessage(FText& OutWarningMessage) const
 
 void UIKRig_PoleSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 {
+	Effector->Modify();
 	Effector->GoalName = NewGoal.GoalName;
 	Effector->BoneName = NewGoal.BoneName;
 }
@@ -195,6 +196,7 @@ void UIKRig_PoleSolver::RemoveGoal(const FName& GoalName)
 {
 	if (Effector->GoalName == GoalName)
 	{
+		Effector->Modify();
 		Effector->GoalName = NAME_None;
 		Effector->BoneName = NAME_None;
 	}
@@ -204,6 +206,7 @@ void UIKRig_PoleSolver::RenameGoal(const FName& OldName, const FName& NewName)
 {
 	if (Effector->GoalName == OldName)
 	{
+		Effector->Modify();
 		Effector->GoalName = NewName;
 	}
 }
@@ -212,6 +215,7 @@ void UIKRig_PoleSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneN
 {
 	if (Effector->GoalName == GoalName)
 	{
+		Effector->Modify();
 		Effector->BoneName = NewBoneName;
 	}
 }

@@ -14,6 +14,8 @@ class IKRIG_API UIKRig_PoleSolverEffector : public UObject
 
 public:
 
+	UIKRig_PoleSolverEffector() { SetFlags(RF_Transactional); }
+	
 	UPROPERTY(VisibleAnywhere, Category = "Pole Solver Effector")
 	FName GoalName = NAME_None;
 

@@ -182,6 +182,7 @@ bool UIKRig_LimbSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKR
 
 void UIKRig_LimbSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 {
+	Effector->Modify();
 	Effector->GoalName = NewGoal.GoalName;
 	Effector->BoneName = NewGoal.BoneName;
 }
@@ -190,6 +191,7 @@ void UIKRig_LimbSolver::RemoveGoal(const FName& GoalName)
 {
 	if (Effector->GoalName == GoalName)
 	{
+		Effector->Modify();
 		Effector->GoalName = NAME_None;
 		Effector->BoneName = NAME_None;
 	}
