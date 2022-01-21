@@ -1878,9 +1878,6 @@ bool UEdGraphSchema_Niagara::PinTypesValidForNumericConversion(FEdGraphPinType A
 		return true;
 	else if (AType.PinCategory == PinCategoryType && BType.PinCategory == PinCategoryType)
 		return true;
-	else if (BType.PinCategory == PinCategoryType && AType.PinCategory == PinCategoryType)
-		return true;
-
 
 	return false;
 }
