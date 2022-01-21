@@ -672,7 +672,7 @@ static bool DoesAnyAdapterSupportSM6(const TArray<TSharedPtr<FD3D12Adapter>>& Ad
 	for (const TSharedPtr<FD3D12Adapter>& Adapter : Adapters)
 	{
 		// TODO: D3D_FEATURE_LEVEL_12_2
-		if (Adapter->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && Adapter->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_5)
+		if (Adapter->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && Adapter->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_6)
 		{
 			return true;
 		}

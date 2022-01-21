@@ -6,7 +6,7 @@
 #include "ShaderCompilerCommon.h"
 
 // TODO: Lock D3D12 to SM 6.6 min spec
-#define USE_SHADER_MODEL_6_6 0
+#define USE_SHADER_MODEL_6_6 1
 
 struct FShaderTarget;
 
