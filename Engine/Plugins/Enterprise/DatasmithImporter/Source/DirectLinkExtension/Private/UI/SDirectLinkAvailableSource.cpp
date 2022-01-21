@@ -8,6 +8,7 @@
 
 #include "Styling/SlateBrush.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SScrollBar.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
