@@ -302,8 +302,8 @@ public:
 		H* HazardPointer;
 		do
 		{
-			HazardPointer = (H*)Record->SetHazard(Hazard->load(std::memory_order_relaxed));
-		} while (HazardPointer != Hazard->load(std::memory_order_relaxed));
+			HazardPointer = (H*)Record->SetHazard(Hazard->load(std::memory_order_acquire));
+		} while (HazardPointer != Hazard->load(std::memory_order_acquire));
 		return HazardPointer;
 	}
 
