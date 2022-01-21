@@ -2370,6 +2370,11 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 		GenerateKDopAsSimpleCollision(StaticMesh, Dirs);
 	}
 
+	// Refresh collision change back to staticmesh components, this must be done after the build.
+	// Some derived components rely on data computed in the build for collision computation. For example,
+	// USplineMeshComponent uses the static mesh's extended bounds in its convex collision computation.
+	RefreshCollisionChangeComponentsOnly(*StaticMesh);
+
 	//If there is less the 2 materials in the fbx file there is no need to reorder them
 	//If we have import a LOD other then the base, the material array cannot be sorted, because only the base LOD reorder the material array
 	if (LODIndex == 0 && StaticMesh->GetStaticMaterials().Num() > 1)
@@ -2688,6 +2693,8 @@ bool UnFbx::FFbxImporter::FillCollisionModelList(FbxNode* Node)
 
 bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& InNodeName)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ImportCollisionModels);
+
 	// find collision models
 	bool bRemoveEmptyKey = false;
 	FbxString EmptyKey;
@@ -2936,9 +2943,13 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 	// Create new GUID
 	StaticMesh->GetBodySetup()->InvalidatePhysicsData();
 
-	// refresh collision change back to staticmesh components
-	RefreshCollisionChange(*StaticMesh);
-		
+	// Update collision on the static mesh
+	// Note: do not refresh collision on components here, this must occur after the static mesh build.
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CreateStaticMeshNavCollision);
+		StaticMesh->CreateNavCollision(true);
+	}
+
 	return bAtLeastOneCollisionMeshImported;
 }
 #undef LOCTEXT_NAMESPACE

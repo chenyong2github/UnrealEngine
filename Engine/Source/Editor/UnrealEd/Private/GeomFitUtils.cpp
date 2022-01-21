@@ -623,6 +623,26 @@ void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMeshes)
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }
 
+void RefreshCollisionChangeComponentsOnly(UStaticMesh& StaticMesh)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RefreshCollisionChangeComponentsOnly)
+
+	for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+	{
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+		if (StaticMeshComponent->GetStaticMesh() == &StaticMesh)
+		{
+			// it needs to recreate IF it already has been created
+			if (StaticMeshComponent->IsPhysicsStateCreated())
+			{
+				StaticMeshComponent->RecreatePhysicsState();
+			}
+		}
+	}
+
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
 /* *************************** DEPRECATED ******************************** */
 void RefreshCollisionChange(const UStaticMesh* StaticMesh)
 {

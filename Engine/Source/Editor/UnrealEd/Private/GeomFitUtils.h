@@ -134,6 +134,17 @@ UNREALED_API void RefreshCollisionChange(UStaticMesh& StaticMesh);
  */
 UNREALED_API void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMeshes);
 
+/**
+ * Refresh Collision Change Components Only
+ *
+ * Collision has been changed, so it will need to recreate physics state to reflect it
+ * Utilities functions to propagate BodySetup change for StaticMesh to its component
+ * Use this method if static mesh nav collision has already been updated elsewhere.
+ *
+ * @param	StaticMesh	StaticMesh that collision has been changed for
+ */
+UNREALED_API void RefreshCollisionChangeComponentsOnly(UStaticMesh& StaticMesh);
+
 UE_DEPRECATED(4.15, "This version of RefreshCollisionChange is deprecated. Please use RefreshCollisionChange(UStaticMesh&) instead.")
 UNREALED_API void RefreshCollisionChange(const UStaticMesh* StaticMesh);
 	
