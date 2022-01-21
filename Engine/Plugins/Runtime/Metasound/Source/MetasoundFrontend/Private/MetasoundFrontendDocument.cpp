@@ -241,7 +241,7 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
 
-void FMetasoundFrontendClass::CacheRegistryData()
+bool FMetasoundFrontendClass::CacheRegistryData()
 {
 	using namespace Metasound::Frontend;
 
@@ -280,16 +280,16 @@ void FMetasoundFrontendClass::CacheRegistryData()
 
 			Algo::Transform(Class.Interface.Outputs, InterfaceMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
 			Algo::ForEach(Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output) { CacheRegistryVertexMetadata(Output); });
-		}
-		else
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to load document dependency class metadata: Missing dependency with key '%s'"), *Key);
-		}
 
-		Interface.InputStyle = Class.Interface.InputStyle;
-		Interface.OutputStyle = Class.Interface.OutputStyle;
-		Style = Class.Style;
+			Interface.InputStyle = Class.Interface.InputStyle;
+			Interface.OutputStyle = Class.Interface.OutputStyle;
+			Style = Class.Style;
+
+			return true;
+		}
 	}
+
+	return false;
 }
 
 void FMetasoundFrontendClass::ClearRegistryData()

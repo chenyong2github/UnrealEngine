@@ -1080,8 +1080,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	 * Caches metadata found in the registry on the class
 	 * that is not necessary for serialization or core graph
 	 * generation.
+	 *
+	 * @return - Whether class was found in the registry & data was cached successfully.
 	 */
-	void CacheRegistryData();
+	bool CacheRegistryData();
 
 	/*
 	 * Clears cached metadata found in the registry on the class

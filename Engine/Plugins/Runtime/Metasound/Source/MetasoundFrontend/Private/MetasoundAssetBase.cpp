@@ -342,7 +342,15 @@ void FMetasoundAssetBase::CacheDependencyRegistryData()
 	{
 		for (FMetasoundFrontendClass& Class : Document->Dependencies)
 		{
-			Class.CacheRegistryData();
+			if (!Class.CacheRegistryData())
+			{
+				UE_LOG(LogMetaSound, Warning,
+					TEXT("'%s' failed to cache dependency registry data: Registry missing class with key '%s'"),
+					*GetOwningAssetName(),
+					*Class.Metadata.GetClassName().ToString());
+				UE_LOG(LogMetaSound, Warning,
+					TEXT("Asset may fail to build runtime graph unless re-registered after dependency with given key is loaded."));
+			}
 		}
 	}
 }
