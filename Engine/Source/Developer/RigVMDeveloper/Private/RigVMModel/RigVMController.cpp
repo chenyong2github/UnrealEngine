@@ -3581,14 +3581,16 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMCollapseNodesAction CollapseAction;
-	CollapseAction.Title = TEXT("Collapse Nodes");
+
+	FString CollapseNodeName = GetValidNodeName(InCollapseNodeName.IsEmpty() ? FString(TEXT("CollapseNode")) : InCollapseNodeName);
 
 	if (bSetupUndoRedo)
 	{
+		CollapseAction = FRigVMCollapseNodesAction(this, Nodes, CollapseNodeName); 
+		CollapseAction.Title = TEXT("Collapse Nodes");
 		ActionStack->BeginAction(CollapseAction);
 	}
 
-	FString CollapseNodeName = GetValidNodeName(InCollapseNodeName.IsEmpty() ? FString(TEXT("CollapseNode")) : InCollapseNodeName);
 	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *CollapseNodeName);
 	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
 	CollapseNode->Position = Center;
@@ -3934,11 +3936,6 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 	if (bSetupUndoRedo)
 	{
-		CollapseAction.LibraryNodePath = CollapseNode->GetName();
-		for (URigVMNode* InNode : InNodes)
-		{
-			CollapseAction.CollapsedNodesPaths.Add(InNode->GetName());
-		}
 		ActionStack->EndAction(CollapseAction);
 	}
 
@@ -3970,10 +3967,11 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMExpandNodeAction ExpandAction;
-	ExpandAction.Title = FString::Printf(TEXT("Expand '%s' Node"), *InNode->GetName());
 
 	if (bSetupUndoRedo)
 	{
+		ExpandAction = FRigVMExpandNodeAction(this, InNode);
+		ExpandAction.Title = FString::Printf(TEXT("Expand '%s' Node"), *InNode->GetName());
 		ActionStack->BeginAction(ExpandAction);
 	}
 
@@ -4630,10 +4628,6 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 	}
 
 	// l) remove the library node from the graph
-	if (bSetupUndoRedo)
-	{
-		ExpandAction.LibraryNodePath = InNode->GetName();
-	}
 	RemoveNode(InNode, false, true);
 
 	if (bSetupUndoRedo)

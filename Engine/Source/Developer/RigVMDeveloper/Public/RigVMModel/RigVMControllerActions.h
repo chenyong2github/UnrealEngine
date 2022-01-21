@@ -1260,7 +1260,7 @@ struct FRigVMCollapseNodesAction : public FRigVMBaseAction
 public:
 
 	FRigVMCollapseNodesAction();
-	FRigVMCollapseNodesAction(const TArray<URigVMNode*>& InNodes, const FString& InNodePath);
+	FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath);
 	virtual ~FRigVMCollapseNodesAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
@@ -1269,7 +1269,13 @@ public:
 	FString LibraryNodePath;
 
 	UPROPERTY()
+	FString CollapsedNodesContent;
+
+	UPROPERTY()
 	TArray<FString> CollapsedNodesPaths;
+
+	UPROPERTY()
+	TArray<FString> CollapsedNodesLinks;
 };
 
 /**
@@ -1283,13 +1289,19 @@ struct FRigVMExpandNodeAction : public FRigVMBaseAction
 public:
 
 	FRigVMExpandNodeAction();
-	FRigVMExpandNodeAction(URigVMLibraryNode* InLibraryNode);
+	FRigVMExpandNodeAction(URigVMController* InController, URigVMLibraryNode* InLibraryNode);
 	virtual ~FRigVMExpandNodeAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
 	UPROPERTY()
 	FString LibraryNodePath;
+
+	UPROPERTY()
+	FString LibraryNodeContent;
+
+	UPROPERTY()
+	TArray<FString> LibraryNodeLinks;
 
 	UPROPERTY()
 	TArray<FString> ExpandedNodePaths;

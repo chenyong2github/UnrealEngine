@@ -1480,13 +1480,29 @@ FRigVMCollapseNodesAction::FRigVMCollapseNodesAction()
 {
 }
 
-FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(const TArray<URigVMNode*>& InNodes, const FString& InNodePath)
+FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath)
 	: LibraryNodePath(InNodePath)
 {
+	TArray<FName> NodesToExport;
 	for (URigVMNode* InNode : InNodes)
 	{
+		NodesToExport.Add(InNode->GetFName());
 		CollapsedNodesPaths.Add(InNode->GetName());
+
+		// find the links external to the nodes to be collapsed
+		TArray<URigVMLink*> Links = InNode->GetLinks();
+		for(URigVMLink* Link : Links)
+		{
+			if(InNodes.Contains(Link->GetSourcePin()->GetNode()) &&
+				InNodes.Contains(Link->GetTargetPin()->GetNode()))
+			{
+				continue;
+			}
+			CollapsedNodesLinks.Add(Link->GetPinPathRepresentation());
+		}
 	}
+
+	CollapsedNodesContent = InController->ExportNodesToText(NodesToExport);
 }
 
 bool FRigVMCollapseNodesAction::Undo(URigVMController* InController)
@@ -1495,8 +1511,29 @@ bool FRigVMCollapseNodesAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	TArray<URigVMNode*> ExpandedNodes = InController->ExpandLibraryNode(*LibraryNodePath, false);
-	return ExpandedNodes.Num() == CollapsedNodesPaths.Num();
+
+	// remove the library node
+	if(!InController->RemoveNodeByName(*LibraryNodePath, false, true, false))
+	{
+		return false;
+	}
+
+	const TArray<FName> RecoveredNodes = InController->ImportNodesFromText(CollapsedNodesContent, false, false);
+	if(RecoveredNodes.Num() != CollapsedNodesPaths.Num())
+	{
+		return false;
+	}
+
+	for(const FString& CollapsedNodesLink : CollapsedNodesLinks)
+	{
+		FString Source, Target;
+		if(URigVMLink::SplitPinPathRepresentation(CollapsedNodesLink, Source, Target))
+		{
+			InController->AddLink(Source, Target, false, false);
+		}
+	}
+
+	return true;
 }
 
 bool FRigVMCollapseNodesAction::Redo(URigVMController* InController)
@@ -1522,9 +1559,18 @@ FRigVMExpandNodeAction::FRigVMExpandNodeAction()
 {
 }
 
-FRigVMExpandNodeAction::FRigVMExpandNodeAction(URigVMLibraryNode* InLibraryNode)
+FRigVMExpandNodeAction::FRigVMExpandNodeAction(URigVMController* InController, URigVMLibraryNode* InLibraryNode)
 	: LibraryNodePath(InLibraryNode->GetName())
 {
+	TArray<FName> NodesToExport;
+	NodesToExport.Add(InLibraryNode->GetFName());
+	LibraryNodeContent = InController->ExportNodesToText(NodesToExport);
+
+	TArray<URigVMLink*> Links = InLibraryNode->GetLinks();
+	for(URigVMLink* Link : Links)
+	{
+		LibraryNodeLinks.Add(Link->GetPinPathRepresentation());
+	}
 }
 
 bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
@@ -1534,14 +1580,31 @@ bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
 		return false;
 	}
 
-	TArray<FName> NodeNames;
+	// remove the expanded nodes
 	for (const FString& NodePath : ExpandedNodePaths)
 	{
-		NodeNames.Add(*NodePath);
+		if(!InController->RemoveNodeByName(*NodePath, false, true, false))
+		{
+			return false;
+		}
 	}
 
-	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, *LibraryNodePath, false);
-	return LibraryNode != nullptr;
+	const TArray<FName> RecoveredNodes = InController->ImportNodesFromText(LibraryNodeContent, false, false);
+	if(RecoveredNodes.Num() != 1)
+	{
+		return false;
+	}
+
+	for(const FString& LibraryNodeLink : LibraryNodeLinks)
+	{
+		FString Source, Target;
+		if(URigVMLink::SplitPinPathRepresentation(LibraryNodeLink, Source, Target))
+		{
+			InController->AddLink(Source, Target, false, false);
+		}
+	}
+
+	return true;
 }
 
 bool FRigVMExpandNodeAction::Redo(URigVMController* InController)

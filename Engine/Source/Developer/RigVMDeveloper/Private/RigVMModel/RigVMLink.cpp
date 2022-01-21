@@ -73,6 +73,11 @@ FString URigVMLink::GetPinPathRepresentation()
 	return FString::Printf(TEXT("%s -> %s"), *GetSourcePin()->GetPinPath(), *GetTargetPin()->GetPinPath());
 }
 
+bool URigVMLink::SplitPinPathRepresentation(const FString& InString, FString& OutSource, FString& OutTarget)
+{
+	return InString.Split(TEXT(" -> "), &OutSource, &OutTarget);
+}
+
 void URigVMLink::PrepareForCopy()
 {
 	if (URigVMPin* CurrentSourcePin = GetSourcePin())
