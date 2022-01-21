@@ -3,6 +3,7 @@
 #pragma once
 
 class FSceneViewFamily;
+class FPrimitiveSceneProxy;
 class FMaterial;
 
 /**
