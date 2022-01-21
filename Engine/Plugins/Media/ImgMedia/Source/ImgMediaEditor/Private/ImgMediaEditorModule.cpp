@@ -7,6 +7,7 @@
 #include "AssetToolsModule.h"
 #include "AssetTools/ImgMediaSourceActions.h"
 #include "Customizations/ImgMediaSourceCustomization.h"
+#include "Customizations/ImgMediaSourceCustomizationImportInfo.h"
 #include "IAssetTools.h"
 #include "ImgMediaSource.h"
 #include "PropertyEditorModule.h"
@@ -42,11 +43,13 @@ protected:
 	void RegisterCustomizations()
 	{
 		CustomizedStructName = FImgMediaSourceCustomizationSequenceProxy::StaticStruct()->GetFName();
+		ImportInfoStructName = FImgMediaSourceImportInfo::StaticStruct()->GetFName();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
 #if WITH_EDITORONLY_DATA
 			PropertyModule.RegisterCustomPropertyTypeLayout(CustomizedStructName, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FImgMediaSourceCustomization::MakeInstance));
+			PropertyModule.RegisterCustomPropertyTypeLayout(ImportInfoStructName, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FImgMediaSourceCustomizationImportInfo::MakeInstance));
 #endif // WITH_EDITORONLY_DATA
 		}
 	}
@@ -57,6 +60,7 @@ protected:
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
 #if WITH_EDITORONLY_DATA
+			PropertyModule.UnregisterCustomPropertyTypeLayout(ImportInfoStructName);
 			PropertyModule.UnregisterCustomPropertyTypeLayout(CustomizedStructName);
 #endif // WITH_EDITORONLY_DATA
 		}
@@ -90,6 +94,7 @@ private:
 
 	/** Customization name to avoid reusing staticstruct during shutdown. */
 	FName CustomizedStructName;
+	FName ImportInfoStructName;
 
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;

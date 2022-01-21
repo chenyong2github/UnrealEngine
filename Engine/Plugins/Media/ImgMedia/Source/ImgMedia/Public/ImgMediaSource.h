@@ -22,6 +22,13 @@ struct IMGMEDIA_API FImgMediaSourceCustomizationSequenceProxy
 	GENERATED_BODY()
 };
 
+/** Information on the images that have been imported. */
+USTRUCT(BlueprintType)
+struct IMGMEDIA_API FImgMediaSourceImportInfo
+{
+	GENERATED_BODY()
+};
+
 /**
  * Media source for EXR image sequences.
  *
@@ -73,6 +80,10 @@ public:
 	FImgMediaSourceCustomizationSequenceProxy SequenceProxy;
 
 #endif // WITH_EDITORONLY_DATA
+
+	/** Info concerning the imported images. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence)
+	FImgMediaSourceImportInfo ImportInfo;
 
 public:
 
