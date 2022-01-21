@@ -43,8 +43,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1"))
 	int32 RandomSeed;
 
-	/** Chance to shatter each mesh.  Useful when shattering multiple selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Chance To Fracture Per Mesh", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	/** Chance to shatter each selected bone.  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Chance To Fracture Per Bone", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float ChanceToFracture;
 
 	/** Generate a fracture pattern across all selected meshes.  */

@@ -101,6 +101,18 @@ void FFractureToolContext::ConvertSelectionToLeafNodes(int32 Index, TArray<int32
 	}	
 }
 
+void FFractureToolContext::RandomReduceSelection(float ProbToKeep)
+{
+	FRandomStream RandStream(GetSeed());
+	for (int32 i = 0; i < SelectedBones.Num(); i++)
+	{
+		if (RandStream.GetFraction() >= ProbToKeep) // range does not include 1, so if ProbToKeep is 1 this will never remove
+		{
+			SelectedBones.RemoveAtSwap(i);
+			i--;
+		}
+	}
+}
 
 void FFractureToolContext::ConvertSelectionToRigidNodes()
 {

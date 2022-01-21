@@ -24,6 +24,8 @@ public:
 	void ConvertSelectionToEmbeddedGeometryNodes();
 	void ConvertSelectionToClusterNodes();
 	void RemoveRootNodes();
+	/// @param ProbToKeep The chance to keep each bone in the selection
+	void RandomReduceSelection(float ProbToKeep);
 	
 	const TArray<int32>& GetSelection() const { return SelectedBones; }
 	TArray<int32>& GetSelection() { return SelectedBones; }
