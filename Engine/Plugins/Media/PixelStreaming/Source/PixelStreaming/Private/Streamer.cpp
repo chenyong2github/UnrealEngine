@@ -51,6 +51,7 @@ UE::PixelStreaming::FStreamer::~FStreamer()
 {
 	DeleteAllPlayerSessions();
 	P2PPeerConnectionFactory = nullptr;
+	SFUPeerConnectionFactory = nullptr;
 	WebRtcSignallingThread->Stop();
 	rtc::CleanupSSL();
 }

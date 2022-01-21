@@ -21,15 +21,11 @@ namespace UE {
         class FGPUFencePoller
         {
             public:
-                static FGPUFencePoller& Get();
-
-            private:
-                /* Private constructor because the intended usage is through the static Get method. */
                 FGPUFencePoller();
-
-            public:
+                void Shutdown();
                 virtual ~FGPUFencePoller();
                 void AddJob(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bKeepPolling, TFunction<void()> FenceDoneCallback);
+                static FGPUFencePoller* Get();
 
             private:
                 struct FPollJob
@@ -63,6 +59,8 @@ namespace UE {
             private:
                 FPollerRunnable Runnable;
                 FRunnableThread* Thread;
+
+                static FGPUFencePoller* Instance;
         };
     }
 }

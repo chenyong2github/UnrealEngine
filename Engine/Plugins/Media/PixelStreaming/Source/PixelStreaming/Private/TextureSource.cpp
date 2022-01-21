@@ -78,7 +78,7 @@ void UE::PixelStreaming::FTextureSourceBackBuffer::OnBackBufferReady_RenderThrea
 
 		UE::PixelStreaming::CopyTexture(FrameBuffer, WriteBuffer.Texture, WriteBuffer.Fence);
 
-		UE::PixelStreaming::FGPUFencePoller::Get().AddJob(WriteBuffer.Fence, bEnabled, [this, &WriteBuffer]() {
+		UE::PixelStreaming::FGPUFencePoller::Get()->AddJob(WriteBuffer.Fence, bEnabled, [this, &WriteBuffer]() {
 			// This lambda is called only once the GPUFence is done
 			{
 				FScopeLock Lock(&CriticalSection);

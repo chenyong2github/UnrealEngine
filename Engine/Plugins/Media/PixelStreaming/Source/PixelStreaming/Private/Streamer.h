@@ -9,13 +9,14 @@
 #include "HAL/Thread.h"
 #include "IPixelStreamingSessions.h"
 #include "ThreadSafePlayerSessions.h"
+#include "FixedFPSPump.h"
+#include "GPUFencePoller.h"
 
 namespace UE {
 	namespace PixelStreaming {
 		class FPlayerSession;
 		class FVideoEncoderFactory;
 		class FSimulcastEncoderFactory;
-		class FStreamer;
 		class FSetSessionDescriptionObserver;
 
 		class FStreamer : public FSignallingServerConnectionObserver, public IPixelStreamingSessions
@@ -36,6 +37,8 @@ namespace UE {
 			void SetStreamingStarted(bool bStarted) { bStreamingStarted = bStarted; }
 			FSignallingServerConnection* GetSignallingServerConnection() const { return SignallingServerConnection.Get(); }
 			FVideoEncoderFactory* GetP2PVideoEncoderFactory() const { return P2PVideoEncoderFactory; }
+			FFixedFPSPump& GetPumpThread() { return PumpThread; }
+			FGPUFencePoller& GetFencePollerThread() { return FencePollerThread; }
 
 			// data coming from the engine
 			void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
@@ -121,6 +124,9 @@ namespace UE {
 
 			FThreadSafePlayerSessions PlayerSessions;
 			FStats Stats;
+
+			FFixedFPSPump PumpThread;
+			FGPUFencePoller FencePollerThread;
 
 			TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
 			TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;

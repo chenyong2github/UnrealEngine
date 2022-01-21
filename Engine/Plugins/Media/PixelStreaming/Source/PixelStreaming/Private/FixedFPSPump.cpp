@@ -7,23 +7,35 @@
 #include "FrameBuffer.h"
 #include "PlayerSession.h"
 
-UE::PixelStreaming::FFixedFPSPump& UE::PixelStreaming::FFixedFPSPump::Get()
+/*
+* ---------- FFixedFPSPump ----------------
+*/
+
+UE::PixelStreaming::FFixedFPSPump* UE::PixelStreaming::FFixedFPSPump::Instance = nullptr;
+
+UE::PixelStreaming::FFixedFPSPump* UE::PixelStreaming::FFixedFPSPump::Get()
 {
-	static UE::PixelStreaming::FFixedFPSPump Pump = UE::PixelStreaming::FFixedFPSPump();
-	return Pump;
+	checkf(Instance, TEXT("You should not try to Get() and instance of the pump before it has been constructed somewhere yet."));
+	return UE::PixelStreaming::FFixedFPSPump::Instance;
 }
 
 UE::PixelStreaming::FFixedFPSPump::FFixedFPSPump()
 	: NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
 {
 	PumpThread = MakeUnique<FThread>(TEXT("PumpThread"), [this]() { PumpLoop(); });
+	UE::PixelStreaming::FFixedFPSPump::Instance = this;
 }
 
 UE::PixelStreaming::FFixedFPSPump::~FFixedFPSPump()
 {
+	Shutdown();
+	PumpThread->Join();
+}
+
+void UE::PixelStreaming::FFixedFPSPump::Shutdown()
+{
 	bThreadRunning = false;
 	NextPumpEvent->Trigger();
-	PumpThread->Join();
 }
 
 void UE::PixelStreaming::FFixedFPSPump::UnregisterVideoSource(FPixelStreamingPlayerId PlayerId)
@@ -33,8 +45,9 @@ void UE::PixelStreaming::FFixedFPSPump::UnregisterVideoSource(FPixelStreamingPla
 	NextPumpEvent->Trigger();
 }
 
-void UE::PixelStreaming::FFixedFPSPump::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<UE::PixelStreaming::IPumpedVideoSource> Source)
+void UE::PixelStreaming::FFixedFPSPump::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, UE::PixelStreaming::IPumpedVideoSource* Source)
 {
+	checkf(Source, TEXT("Cannot register a nullptr VideoSource."));
 	FScopeLock Guard(&SourcesGuard);
 	VideoSources.Add(PlayerId, Source);
 	NextPumpEvent->Trigger();
@@ -58,18 +71,12 @@ void UE::PixelStreaming::FFixedFPSPump::PumpLoop()
 			const int32 FrameId = NextFrameId++;
 
 			// Pump each video source
-			TMap<FPixelStreamingPlayerId, rtc::scoped_refptr<UE::PixelStreaming::IPumpedVideoSource>>::TIterator Iter = VideoSources.CreateIterator();
+			TMap<FPixelStreamingPlayerId, IPumpedVideoSource*>::TIterator Iter = VideoSources.CreateIterator();
 			for(; Iter; ++Iter)
 			{
-				rtc::scoped_refptr<UE::PixelStreaming::IPumpedVideoSource>& VideoSource = Iter.Value();
 
-				// If the pump is the last thing holding this video source, remove the video source.
-				if(VideoSource->HasOneRef())
-				{
-					Iter.RemoveCurrent();
-					continue;
-				}
-				
+				IPumpedVideoSource* VideoSource = Iter.Value();
+
 				if(VideoSource->IsReadyForPump())
 				{
 					VideoSource->OnPump(FrameId);

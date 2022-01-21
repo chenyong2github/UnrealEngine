@@ -5,22 +5,30 @@
 * ------------- UE::PixelStreaming::FGPUFencePoller ---------------------
 */
 
-UE::PixelStreaming::FGPUFencePoller& UE::PixelStreaming::FGPUFencePoller::Get()
+UE::PixelStreaming::FGPUFencePoller* UE::PixelStreaming::FGPUFencePoller::Instance = nullptr;
+
+UE::PixelStreaming::FGPUFencePoller* UE::PixelStreaming::FGPUFencePoller::Get()
 {
-	static UE::PixelStreaming::FGPUFencePoller Poller;
-	return Poller;
+	checkf(Instance, TEXT("You should not try to Get() and instance of the poller before it has been constructed somewhere yet."));
+	return UE::PixelStreaming::FGPUFencePoller::Instance;
 }
 
 UE::PixelStreaming::FGPUFencePoller::FGPUFencePoller()
 	: Runnable()
 	, Thread(FRunnableThread::Create(&Runnable, TEXT("Pixel Streaming GPUFencePoller")))
 {
+	UE::PixelStreaming::FGPUFencePoller::Instance = this;
 }
 
 UE::PixelStreaming::FGPUFencePoller::~FGPUFencePoller()
 {
-	Runnable.Stop();
+	Shutdown();
 	Thread->Kill(true);
+}
+
+void UE::PixelStreaming::FGPUFencePoller::Shutdown()
+{
+	Runnable.Stop();
 }
 
 void UE::PixelStreaming::FGPUFencePoller::AddJob(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bKeepPolling, TFunction<void()> FenceDoneCallback)
@@ -38,6 +46,7 @@ UE::PixelStreaming::FGPUFencePoller::FPollJob::FPollJob(FGPUFenceRHIRef InFence,
 	, bKeepPolling(bInKeepPolling)
 	, FenceDoneCallback(InFenceDoneCallback)
 {
+	
 }
 
 UE::PixelStreaming::FGPUFencePoller::FPollJob::FPollJob()
@@ -126,9 +135,11 @@ uint32 UE::PixelStreaming::FGPUFencePoller::FPollerRunnable::Run()
 void UE::PixelStreaming::FGPUFencePoller::FPollerRunnable::Stop()
 {
 	bIsRunning = false;
+	JobAddedEvent->Trigger();
 }
 
 void UE::PixelStreaming::FGPUFencePoller::FPollerRunnable::Exit()
 {
 	bIsRunning = false;
+	JobAddedEvent->Trigger();
 }

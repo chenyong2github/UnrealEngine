@@ -8,6 +8,9 @@
 namespace UE {
 	namespace PixelStreaming {
 
+		/*
+		* Interface for video sources that get pumped through `OnPump`.
+		*/
 		class IPumpedVideoSource : public rtc::RefCountInterface
 		{
 			public:
@@ -29,23 +32,20 @@ namespace UE {
 		class FFixedFPSPump
 		{
 
-		private:
-			// Private constructor as there should only ever be one instance of this class and the intended design is to use the static Get() method.
+		public:
 			FFixedFPSPump();
 			~FFixedFPSPump();
-			void PumpLoop();
-
-		public:
-			
-			// Single accessor.
-			static FFixedFPSPump& Get();
-
-			void RegisterVideoSource(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<IPumpedVideoSource> Source);
+			void Shutdown();
+			void RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* Source);
 			void UnregisterVideoSource(FPixelStreamingPlayerId PlayerId);
+			static FFixedFPSPump* Get();
+
+		private:
+			void PumpLoop();
 
 		private:
 			FCriticalSection SourcesGuard;
-			TMap<FPixelStreamingPlayerId, rtc::scoped_refptr<IPumpedVideoSource>> VideoSources;
+			TMap<FPixelStreamingPlayerId, IPumpedVideoSource*> VideoSources;
 
 
 			TUniquePtr<FThread> PumpThread;
@@ -54,6 +54,7 @@ namespace UE {
 			FEvent* NextPumpEvent;
 			int32 NextFrameId = 0;
 
+			static FFixedFPSPump* Instance;
 		};
 	}
 }

@@ -21,6 +21,7 @@ rtc::RefCountReleaseStatus UE::PixelStreaming::FVideoSourceBase::Release() const
 	const rtc::RefCountReleaseStatus Status = RefCount.DecRef();
 	if (Status == rtc::RefCountReleaseStatus::kDroppedLastRef)
 	{
+		UE::PixelStreaming::FFixedFPSPump::Get()->UnregisterVideoSource(PlayerId);
 		delete this;
 	}
 	return Status;
@@ -29,13 +30,13 @@ rtc::RefCountReleaseStatus UE::PixelStreaming::FVideoSourceBase::Release() const
 void UE::PixelStreaming::FVideoSourceBase::Initialize()
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
-	UE::PixelStreaming::FFixedFPSPump::Get().RegisterVideoSource(PlayerId, this);
+
+	UE::PixelStreaming::FFixedFPSPump::Get()->RegisterVideoSource(PlayerId, this);
 }
 
 UE::PixelStreaming::FVideoSourceBase::~FVideoSourceBase()
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kEnded;
-	UE::PixelStreaming::FFixedFPSPump::Get().UnregisterVideoSource(PlayerId);
 }
 
 void UE::PixelStreaming::FVideoSourceBase::OnPump(int32 FrameId)
