@@ -11,7 +11,7 @@ public class Crunch : ModuleRules
         string BasePath = Target.UEThirdPartySourceDirectory + "Crunch/";
         PublicSystemIncludePaths.Add(BasePath + "include");
 
-        if (Target.Type == TargetType.Editor)
+        if (Target.bCompileAgainstEditor)
         {
             // link with lib to allow encoding
             string LibPath = BasePath + "Lib/";

@@ -50,7 +50,7 @@ public class SlateReflector : ModuleRules
 		);
 
 		// Editor builds include SessionServices to populate the remote target drop-down for remote widget snapshots
-		if (Target.Type == TargetType.Editor)
+		if (Target.bCompileAgainstEditor)
 		{
 			PublicDefinitions.Add("SLATE_REFLECTOR_HAS_SESSION_SERVICES=1");
 

@@ -33,7 +33,7 @@ public class EditorStyle : ModuleRules
 			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac
 			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Linux
 			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.LinuxArm64;
-		if (Target.Type == TargetType.Editor || (Target.Type == TargetType.Program && IsDesktopPlatformType))
+		if (Target.bCompileAgainstEditor || (Target.Type == TargetType.Program && IsDesktopPlatformType))
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
