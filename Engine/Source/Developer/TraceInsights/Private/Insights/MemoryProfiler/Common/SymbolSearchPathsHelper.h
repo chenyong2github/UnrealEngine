@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
 #include "Internationalization/Text.h"
 #include "TraceServices/Private/Model/ModuleProvider.h"
 
