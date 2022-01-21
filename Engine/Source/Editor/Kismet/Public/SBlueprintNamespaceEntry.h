@@ -7,6 +7,7 @@
 #include "Widgets/Views/SListView.h"
 #include "SlateFwd.h"
 
+class SComboButton;
 class SSuggestionTextBox;
 
 /** A custom widget class that provides support for Blueprint namespace entry and/or selection. */
@@ -42,6 +43,13 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	/**
+	 * Set the current namespace to the given identifier.
+	 * 
+	 * @param InNamespace	New namespace identifier. May be an empty string.
+	 */
+	void SetCurrentNamespace(const FString& InNamespace);
+
 protected:
 	void OnTextChanged(const FText& InText);
 	void OnTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
@@ -58,6 +66,7 @@ private:
 	FString CurrentNamespace;
 	TArray<TSharedPtr<FString>> ListItems;
 
+	TSharedPtr<SComboButton> ComboButton;
 	TSharedPtr<SSuggestionTextBox> TextBox;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<SListView<TSharedPtr<FString>>> ListView;

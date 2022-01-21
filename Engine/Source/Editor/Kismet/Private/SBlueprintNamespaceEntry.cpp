@@ -38,7 +38,8 @@ void SBlueprintNamespaceEntry::Construct(const FArguments& InArgs)
 		+SHorizontalBox::Slot()
 		.AutoWidth()
 		[
-			SNew(SComboButton)
+			SAssignNew(ComboButton, SComboButton)
+			.CollapseMenuOnParentFocus(true)
 			.OnGetMenuContent(this, &SBlueprintNamespaceEntry::OnGetNamespaceListMenuContent)
 			.ButtonContent()
 			[
@@ -46,6 +47,15 @@ void SBlueprintNamespaceEntry::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+}
+
+void SBlueprintNamespaceEntry::SetCurrentNamespace(const FString& InNamespace)
+{
+	// Pass through the text box in order to validate the string before committing it to the current value.
+	if (TextBox.IsValid())
+	{
+		TextBox->SetText(FText::FromString(InNamespace));
+	}
 }
 
 void SBlueprintNamespaceEntry::OnTextChanged(const FText& InText)
@@ -140,7 +150,7 @@ TSharedRef<SWidget> SBlueprintNamespaceEntry::OnGetNamespaceListMenuContent()
 
 	// Construct the list view widget that we'll use for the menu content.
 	SAssignNew(ListView, SListView<TSharedPtr<FString>>)
-		.SelectionMode(ESelectionMode::Single)
+		.SelectionMode(ESelectionMode::SingleToggle)
 		.ListItemsSource(&ListItems)
 		.OnGenerateRow(this, &SBlueprintNamespaceEntry::OnGenerateRowForNamespaceList)
 		.OnSelectionChanged(this, &SBlueprintNamespaceEntry::OnNamespaceListSelectionChanged);
@@ -235,8 +245,20 @@ void SBlueprintNamespaceEntry::OnNamespaceListSelectionChanged(TSharedPtr<FStrin
 		SelectNamespace(*Item);
 	}
 
-	// Switch focus back to the text box; this will close the popup as a result.
-	if (TextBox.IsValid())
+	// Clear the search filter text.
+	if (SearchBox.IsValid())
+	{
+		SearchBox->SetText(FText::GetEmpty());
+	}
+
+	// Close the combo button menu after a selection.
+	if (ComboButton.IsValid())
+	{
+		ComboButton->SetIsOpen(false);
+	}
+
+	// Switch focus back to the text box if present and visible.
+	if (TextBox.IsValid() && TextBox->GetVisibility() == EVisibility::Visible)
 	{
 		FSlateApplication::Get().SetKeyboardFocus(TextBox);
 		FSlateApplication::Get().SetUserFocus(0, TextBox);

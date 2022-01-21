@@ -30,7 +30,7 @@ class SMultiLineEditableTextBox;
 class UEdGraphNode_Documentation;
 class UK2Node_Variable;
 class FSubobjectEditorTreeNode;
-class SSuggestionTextBox;
+class SBlueprintNamespaceEntry;
 
 /**
  * Variable network replication options.
@@ -772,9 +772,6 @@ protected:
 	void OnNamespaceSelected(const FString& InNamespace);
 	void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList);
 	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
-
-private:
-	TSharedPtr<SSuggestionTextBox> ImportEntryTextBox;
 };
 
 /** Blueprint Interface List Details */
@@ -859,12 +856,24 @@ protected:
 	/** Callback for when a new Blueprint namespace value is entered */
 	void OnNamespaceValueCommitted(const FString& InNamespace);
 
+	/** Determine Blueprint namespace "reset to default" button visibility */
+	bool ShouldShowNamespaceResetToDefault() const;
+
+	/** Invoked when the Blueprint namespace "reset to default" button is clicked */
+	void OnNamespaceResetToDefaultValue();
+
 private:
 	/** Weak reference to the Blueprint editor */
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
 
 	/** Combo button used to choose a parent class */
 	TSharedPtr<SComboButton> ParentClassComboButton;
+
+	/** Handle to the customized namespace property */
+	TSharedPtr<IPropertyHandle> NamespacePropertyHandle;
+
+	/** Widget used for namespace value customization */
+	TSharedPtr<SBlueprintNamespaceEntry> NamespaceValueWidget;
 
 	/** Desired width for namespace value customization */
 	static float NamespacePropertyValueCustomization_MinDesiredWidth;

@@ -6033,19 +6033,9 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& In
 			return;
 		}
 
-		FProperty* NamespaceProperty = UBlueprint::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintNamespace));
-		check(NamespaceProperty);
-
-		// Notify that the property is about to change.
-		Blueprint->PreEditChange(NamespaceProperty);
-
-		// Update the Blueprint's current namespace value.
-		Blueprint->BlueprintNamespace = InNamespace;
-		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-
-		// Call PostEditChange() to alert others to the value change.
-		FPropertyChangedEvent PropertyChangedEvent(NamespaceProperty, EPropertyChangeType::ValueSet);
-		Blueprint->PostEditChangeProperty(PropertyChangedEvent);
+		// Update the current namespace value. This will handle pre/post-edit change notifications, etc.
+		check(NamespacePropertyHandle.IsValid());
+		NamespacePropertyHandle->SetValue(InNamespace);
 
 		// Ensure that the new path is added into the namespace registry.
 		// @todo_namespaces - Find and remove old path if no longer in use.
@@ -6060,6 +6050,29 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& In
 				BlueprintEditor->ImportNamespace(InNamespace);
 			}
 		}
+	}
+}
+
+bool FBlueprintGlobalOptionsDetails::ShouldShowNamespaceResetToDefault() const
+{
+	check(NamespacePropertyHandle.IsValid());
+	return NamespacePropertyHandle->CanResetToDefault();
+}
+
+void FBlueprintGlobalOptionsDetails::OnNamespaceResetToDefaultValue()
+{
+	// Standard reset-to-default path.
+	check(NamespacePropertyHandle.IsValid());
+	NamespacePropertyHandle->ResetToDefault();
+
+	// Get the value after having been reset.
+	FString DefaultNamespaceValue;
+	NamespacePropertyHandle->GetValue(DefaultNamespaceValue);
+
+	// Update the entry widget to reflect the new value.
+	if (NamespaceValueWidget.IsValid())
+	{
+		NamespaceValueWidget->SetCurrentNamespace(DefaultNamespaceValue);
 	}
 }
 
@@ -6175,7 +6188,7 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 		}
 
 		static FName BlueprintNamespacePropertyName = GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintNamespace);
-		TSharedRef<IPropertyHandle> NamespacePropertyHandle = DetailLayout.GetProperty(BlueprintNamespacePropertyName);
+		NamespacePropertyHandle = DetailLayout.GetProperty(BlueprintNamespacePropertyName);
 		DetailLayout.EditDefaultProperty(NamespacePropertyHandle)->CustomWidget()
 			.NameContent()
 			[
@@ -6184,12 +6197,16 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 			.ValueContent()
 			.MinDesiredWidth(NamespacePropertyValueCustomization_MinDesiredWidth)
 			[
-				SNew(SBlueprintNamespaceEntry)
+				SAssignNew(NamespaceValueWidget, SBlueprintNamespaceEntry)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.AllowTextEntry(true)
 				.CurrentNamespace(Blueprint->BlueprintNamespace)
 				.OnNamespaceSelected(this, &FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted)
-			];
+			]
+			.OverrideResetToDefault(FResetToDefaultOverride::Create(
+				TAttribute<bool>(this, &FBlueprintGlobalOptionsDetails::ShouldShowNamespaceResetToDefault),
+				FSimpleDelegate::CreateSP(this, &FBlueprintGlobalOptionsDetails::OnNamespaceResetToDefaultValue))
+			);
 	}
 }
 

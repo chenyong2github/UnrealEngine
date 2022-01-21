@@ -25,6 +25,8 @@
 #include "IDocumentation.h"
 #include "SSubobjectEditor.h"
 #include "SBlueprintContextTargetMenu.h"
+#include "SBlueprintNamespaceEntry.h"
+#include "BlueprintEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintGraphContextMenu"
 
@@ -249,6 +251,32 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 	FBlueprintActionContext MenuContext;
 	ConstructActionContext(MenuContext);
 
+	TSharedPtr<SWidget> AddImportTargetContent = SNullWidget::NullWidget;
+	if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+	{
+		SAssignNew(AddImportTargetContent, SBox)
+			.ToolTipText(LOCTEXT("ImportActionLabelTooltip", "Choose a namespace to import and load additional actions."))
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ImportActionButtonLabel", "Import Actions From:"))
+			]
+			+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f, 0.f)
+			[
+				SNew(SBlueprintNamespaceEntry)
+					.AllowTextEntry(false)
+					.OnFilterNamespaceList(this, &SBlueprintActionMenu::OnFilterImportNamespaceList)
+					.OnNamespaceSelected(this, &SBlueprintActionMenu::OnNamespaceSelectedForImport)
+			]
+		];
+	}
+
 	TSharedPtr<SComboButton> TargetContextSubMenuButton;
 	// @TODO: would be nice if we could use a checkbox style for this, and have a different state for open/closed
 	SAssignNew(TargetContextSubMenuButton, SComboButton)
@@ -260,6 +288,10 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 		[
 			SAssignNew(ContextTargetSubMenu, SBlueprintContextTargetMenu, MenuContext)
 				.OnTargetMaskChanged(this, &SBlueprintActionMenu::OnContextTargetsChanged)
+				.CustomTargetContent()
+				[
+					AddImportTargetContent.ToSharedRef()
+				]
 		];
 
 	// Build the widget layout
@@ -569,6 +601,58 @@ void SBlueprintActionMenu::TryInsertPromoteToVariable(FBlueprintActionContext co
 			LocalPromoteAction->MyBlueprintEditor = EditorPtr;
 			OutAllActions.AddAction( LocalPromoteAction );
 		}
+	}
+}
+
+void SBlueprintActionMenu::OnFilterImportNamespaceList(TArray<FString>& InOutNamespaceList)
+{
+	FBlueprintActionContext MenuContext;
+	ConstructActionContext(MenuContext);
+
+	for (const UBlueprint* Blueprint : MenuContext.Blueprints)
+	{
+		InOutNamespaceList.RemoveSwap(Blueprint->BlueprintNamespace);
+
+		for (const FString& ImportedNamespace : Blueprint->ImportedNamespaces)
+		{
+			InOutNamespaceList.RemoveSwap(ImportedNamespace);
+		}
+	}
+}
+
+void SBlueprintActionMenu::OnNamespaceSelectedForImport(const FString& InNamespace)
+{
+	bool bWasAdded = false;
+
+	FBlueprintActionContext MenuContext;
+	ConstructActionContext(MenuContext);
+
+	// Add to the blueprint's list of imports.
+	if (!InNamespace.IsEmpty())
+	{
+		for (UBlueprint* Blueprint : MenuContext.Blueprints)
+		{
+			if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, InNamespace))
+			{
+				bWasAdded = true;
+			}
+		}
+	}
+
+	if (bWasAdded)
+	{
+		// Import the namespace into the current editor context. This may load additional type assets.
+		TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
+		if (BlueprintEditorPtr.IsValid())
+		{
+			BlueprintEditorPtr->ImportNamespace(InNamespace);
+			BlueprintEditorPtr->RefreshInspector();
+		}
+
+		// Now that additional types have been loaded/imported, update the menu to include any additional action(s).
+		const bool bPreserveExpansion = true;
+		const bool bHandleOnSelectionEvent = false;
+		GraphActionMenu->RefreshAllActions(bPreserveExpansion, bHandleOnSelectionEvent);
 	}
 }
 

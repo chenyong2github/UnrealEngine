@@ -48,6 +48,7 @@ class SBlueprintContextTargetMenu : public SBorder
 public:
 	SLATE_BEGIN_ARGS(SBlueprintContextTargetMenu){}
 		SLATE_EVENT(FOnTargetMaskChanged, OnTargetMaskChanged)
+		SLATE_NAMED_SLOT(FArguments, CustomTargetContent)
 	SLATE_END_ARGS()
 
 	// SWidget interface

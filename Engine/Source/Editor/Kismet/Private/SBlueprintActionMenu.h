@@ -69,8 +69,14 @@ protected:
 	/**  */
 	void ConstructActionContext(FBlueprintActionContext& ContextDescOut);
 
-	/** Functioin to try to insert a promote to variable entry if it is possible to do so. */
+	/** Function to try to insert a promote to variable entry if it is possible to do so. */
 	void TryInsertPromoteToVariable(FBlueprintActionContext const& Context, FGraphActionListBuilderBase& OutAllActions);
+
+	/** Callback to filter the list of namespaces available for import. */
+	void OnFilterImportNamespaceList(TArray<FString>& InOutNamespaceList);
+
+	/** Invoked when an available namespace is selected for import. */
+	void OnNamespaceSelectedForImport(const FString& InNamespace);
 
 private:
 	UEdGraph* GraphObj;

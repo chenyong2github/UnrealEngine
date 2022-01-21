@@ -21,7 +21,7 @@ namespace EContextTargetFlags
 		TARGET_PinObject			= 0x00000008 UMETA(DisplayName="Pin Type Class", ToolTip="Include functions and variables that belong to this pin type."),
 		TARGET_SiblingPinObjects	= 0x00000010 UMETA(DisplayName="Other Object Outputs", ToolTip="Include functions and variables that belong to any of this node's output types."),
 		TARGET_BlueprintLibraries	= 0x00000020 UMETA(DisplayName="Libraries", ToolTip="Include static functions that are globally accessible (belonging to function/macro libraries, etc.)."),
-		TARGET_NonImportedTypes		= 0x00000040 UMETA(DisplayName="Non-Imported Types", ToolTip="Include functions from namespaces that are not imported by this Blueprint."),
+		TARGET_NonImportedTypes		= 0x00000040 UMETA(DisplayName="Non-Imported Types", ToolTip="Include functions from loaded types that are not imported by this Blueprint."),
 
 		// +1 to the last flag (so we can easily iterate these flags)
 		ContextTargetFlagsEnd UMETA(Hidden),
