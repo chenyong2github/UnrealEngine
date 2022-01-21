@@ -3,12 +3,14 @@
 #include "DatasmithContentEditorModule.h"
 
 #include "AssetTypeActions_DatasmithScene.h"
+#include "DatasmithAreaLightActorDetailsPanel.h"
 #include "DatasmithContentEditorStyle.h"
 #include "DatasmithImportInfoCustomization.h"
 #include "DatasmithSceneActorDetailsPanel.h"
-#include "DatasmithAreaLightActorDetailsPanel.h"
+#include "DatasmithSceneDetails.h"
 
 #include "DatasmithAssetImportData.h"
+#include "DatasmithScene.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Engine/Blueprint.h"
@@ -255,6 +257,7 @@ private:
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 		PropertyModule.RegisterCustomPropertyTypeLayout(FDatasmithImportInfo::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDatasmithImportInfoCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(UDatasmithScene::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDatasmithSceneDetails::MakeDetails));
 	}
 
 	void UnregisterDetailCustomization()
@@ -265,6 +268,7 @@ private:
 		{
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 			PropertyModule.UnregisterCustomPropertyTypeLayout(FDatasmithImportInfo::StaticStruct()->GetFName());
+			PropertyModule.UnregisterCustomClassLayout(UDatasmithScene::StaticClass()->GetFName());
 		}
 	}
 

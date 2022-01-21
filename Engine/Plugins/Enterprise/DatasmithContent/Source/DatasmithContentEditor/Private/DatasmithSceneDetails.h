@@ -21,12 +21,5 @@ public:
 
 private:
 
-	FReply OnSelectFile();
-
-	void ForceRefreshDetails();
-
-	TWeakPtr< IDetailLayoutBuilder > DetailBuilderWeakPtr;
-
-	TWeakObjectPtr< class UDatasmithScene > DatasmithScenePtr;
 };
 

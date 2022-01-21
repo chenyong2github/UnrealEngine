@@ -77,8 +77,8 @@ namespace UE::DatasmithImporter
 		(
 			SAssignNew(AvailableSourceWindow, SDirectLinkAvailableSource)
 			.WidgetWindow(Window)
-			.ProceedButtonLabel(FText(LOCTEXT("ImportSelectedLabel", "Import Selected")))
-			.ProceedButtonTooltip(FText(LOCTEXT("ImportSelectedTooltip", "Import selected directlink source.")))
+			.ProceedButtonLabel(FText(LOCTEXT("SelectLabel", "Select")))
+			.ProceedButtonTooltip(FText::GetEmpty())
 		);
 
 		FSlateApplication::Get().AddModalWindow(Window, ParentWindow);
