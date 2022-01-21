@@ -321,6 +321,8 @@ TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 			// Send phase
 
+			const bool bCanUseLocalTempFile = ZenService.GetInstance().IsServiceRunningLocally();
+
 			for (const FCbAttachment& Attachment : Attachments)
 			{
 				if (!Attachment.IsCompressedBinary())
@@ -334,7 +336,7 @@ TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 				if (NeedChunks.Contains(AttachmentHash))
 				{
 					FSharedBuffer AttachmentData = Attachment.AsCompressedBinary().GetCompressed().ToShared();
-					if (AttachmentData.GetSize() >= StandaloneThresholdBytes)
+					if (bCanUseLocalTempFile && AttachmentData.GetSize() >= StandaloneThresholdBytes)
 					{
 						// Write to temporary file. To avoid race conditions we derive
 						// the file name from a salt value and the attachment hash

@@ -126,6 +126,7 @@ public:
 	UE_API bool GetStats(FZenStats& stats) const;
 	UE_API bool IsServiceRunning();
 	UE_API bool IsServiceReady();
+	UE_API bool IsServiceRunningLocally() const { return bIsRunningLocally; }
 
 	static uint16 GetAutoLaunchedPort() { return AutoLaunchedPort; }
 
@@ -142,6 +143,7 @@ private:
 	uint16 Port;
 	static inline uint16 AutoLaunchedPort = 0;
 	bool bHasLaunchedLocal = false;
+	bool bIsRunningLocally = true;
 };
 
 } // namespace UE::Zen

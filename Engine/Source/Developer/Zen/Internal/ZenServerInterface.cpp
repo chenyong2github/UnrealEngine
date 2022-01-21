@@ -24,6 +24,7 @@
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "String/LexFromString.h"
+#include "SocketSubsystem.h"
 
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"
@@ -169,6 +170,46 @@ ReadUInt16FromConfig(const TCHAR* Section, const TCHAR* Key, uint16& Value, cons
 	Value = (uint16)ValueInt32;
 }
 
+static bool
+IsLocalHost(const FString& Host)
+{
+	if (Host.Compare(FString(TEXT("localhost")), ESearchCase::IgnoreCase) == 0)
+	{
+		return true;
+	}
+
+	if (Host.Compare(FString(TEXT("127.0.0.1"))) == 0)
+	{
+		return true;
+	}
+
+	ISocketSubsystem& SocketSubsystem = *ISocketSubsystem::Get();
+
+	const TSharedPtr<FInternetAddr> Addr = SocketSubsystem.GetAddressFromString(Host);
+	if (!Addr)
+	{
+		UE_LOG(LogZenServiceInstance, Warning, TEXT("Failed to get internet address from host '%s'"), *Host);
+		return false;
+	}
+
+	TArray<TSharedPtr<FInternetAddr>> LocalAddresses;
+	if (!SocketSubsystem.GetLocalAdapterAddresses(LocalAddresses))
+	{
+		UE_LOG(LogZenServiceInstance, Warning, TEXT("Failed to find local adapter addresses"));
+		return false;
+	}
+
+	for (const auto& Local : LocalAddresses)
+	{
+		if (*Local == *Addr)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void
 FServiceSettings::ReadFromConfig()
 {
@@ -308,6 +349,27 @@ FServiceSettings::TryApplyAutoLaunchOverride()
 		FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
 		ConnectExistingSettings.HostName = TEXT("localhost");
 		ConnectExistingSettings.Port = 1337;
+		return true;
+	}
+
+	FString Host;
+	if  (FParse::Value(FCommandLine::Get(), TEXT("-NoZenAutoLaunch="), Host))
+	{
+		SettingsVariant.Emplace<FServiceConnectSettings>();
+		FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+
+		int32 PortDelimIndex = INDEX_NONE;
+		if (Host.FindChar(TEXT(':'), PortDelimIndex))
+		{
+			ConnectExistingSettings.HostName = Host.Left(PortDelimIndex);
+			LexFromString(ConnectExistingSettings.Port, Host.RightChop(PortDelimIndex + 1));
+		}
+		else
+		{
+			ConnectExistingSettings.HostName = Host;
+			ConnectExistingSettings.Port = 1337;
+		}
+
 		return true;
 	}
 #endif
@@ -559,6 +621,7 @@ FZenServiceInstance::Initialize()
 		if (bHasLaunchedLocal)
 		{
 			AutoLaunchedPort = Port;
+			bIsRunningLocally = true;
 		}
 	}
 	else
@@ -566,6 +629,7 @@ FZenServiceInstance::Initialize()
 		const FServiceConnectSettings& ConnectExistingSettings = Settings.SettingsVariant.Get<FServiceConnectSettings>();
 		HostName = ConnectExistingSettings.HostName;
 		Port = ConnectExistingSettings.Port;
+		bIsRunningLocally = IsLocalHost(HostName);
 	}
 	URL = WriteToString<64>(TEXT("http://"), HostName, TEXT(":"), Port, TEXT("/"));
 }
