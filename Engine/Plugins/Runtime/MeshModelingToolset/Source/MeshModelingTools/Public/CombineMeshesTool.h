@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "BaseTools/BaseCreateFromSelectedTool.h"
@@ -64,7 +65,10 @@ public:
  * Simple tool to combine multiple meshes into a single mesh asset
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionMeshEditingTool, 
+	// Disallow auto-accept switch-away because it's easy to accidentally make an extra asset in duplicate mode,
+	// and it's not great in combine mode either.
+	public IInteractiveToolExclusiveToolAPI
 {
 	GENERATED_BODY()
 

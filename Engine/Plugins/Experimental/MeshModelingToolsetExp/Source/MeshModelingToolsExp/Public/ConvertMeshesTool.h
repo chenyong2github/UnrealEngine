@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "ConvertMeshesTool.generated.h"
 
@@ -37,7 +38,9 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UConvertMeshesTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLSEXP_API UConvertMeshesTool : public UMultiSelectionMeshEditingTool,
+	// Disallow auto-accept switch-away for the tool
+	public IInteractiveToolExclusiveToolAPI
 {
 	GENERATED_BODY()
 
