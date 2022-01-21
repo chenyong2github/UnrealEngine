@@ -296,6 +296,11 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 	TRefCountPtr<IDxcResult> CompileResult;
 	VERIFYHRESULT(DXCCompileWrapper(Compiler, TextBlob, Arguments, CompileResult));
 
+	if (!CompileResult.IsValid())
+	{
+		return -1;
+	}
+
 	HRESULT CompileResultCode;
 	CompileResult->GetStatus(&CompileResultCode);
 	if (SUCCEEDED(CompileResultCode))
