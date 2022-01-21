@@ -19,8 +19,13 @@
 
 #include "/Engine/Private/RayTracing/TraceRayInlineCommon.ush"
 
+#if COMPILER_VULKAN
+#include "/Engine/Private/RayTracing/TraceRayInlineVulkan.ush"
+#endif // COMPILER_VULKAN
+
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS 0
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS 0
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX 1
 
 FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure AccelerationStructure,
 	uint RayFlags,
@@ -52,6 +57,10 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 
 		TraceRayResult.Bookmark[0] = asuint(TraceRayResult.HitT);
 		TraceRayResult.Bookmark[1] = asuint(TraceRayResult.HitT);
+
+	#if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+		TraceRayResult.ObjectToWorld3x4 = RayQ.CommittedObjectToWorld3x4();
+	#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
 	}
 
 	return TraceRayResult;
@@ -79,5 +88,18 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 #ifndef PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS 0
 #endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS
+
+#ifndef PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES 0
+#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES
+
+#ifndef PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX 0
+#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX
+
+#ifndef FRayTracingSceneMetadataRecord
+// Not used, but must be a valid structure declaration as it may appear in interfaces, resource declarations, etc.
+struct FRayTracingSceneMetadataRecord { uint Dummy; };
+#endif // FRayTracingSceneMetadataRecord
 
 #endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING

@@ -17,6 +17,9 @@ struct FTraceRayInlineResult
 
 	uint Bookmark[2];
 
+	// Only valid when PLATFORM_SUPPORTS_INLINE_RAY_TRACING_INSTANCE_MATRIX is 1
+	float3x4 ObjectToWorld3x4;
+
 	// Only valid when PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS is 1
 	float3 WorldGeometryNormal;
 

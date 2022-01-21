@@ -129,6 +129,14 @@ FRayTracingInstanceDescriptor BuildPlatformRayTracingInstanceDesc(uint InstanceM
 
 #endif // OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
 
+// Indices and vertex positions of the ray tracing geometry triangle.
+// Used for loading and interpolation of per-vertex attributes and computing per-triangle normals.
+struct FTriangleBaseAttributes
+{
+	uint3 Indices;
+	float3 LocalPositions[3];
+};
+
 struct FBasicRayData
 {
 	float3 Origin;

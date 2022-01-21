@@ -52,12 +52,6 @@ float3 LoadVertexPositionFloat3(ByteAddressBuffer SourceBuffer, uint Index, uint
 
 // Explicitly declare "system" resources that will be available to all hit group shaders.
 
-struct FTriangleBaseAttributes
-{
-	uint3 Indices;
-	float3 LocalPositions[3];
-};
-
 FTriangleBaseAttributes LoadTriangleBaseAttributes(uint PrimitiveId)
 {
 	FTriangleBaseAttributes Result = (FTriangleBaseAttributes)0;
