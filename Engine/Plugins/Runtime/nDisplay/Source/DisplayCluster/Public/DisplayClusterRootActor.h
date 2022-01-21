@@ -53,7 +53,6 @@ public:
 	~ADisplayClusterRootActor();
 
 public:
-
 	/**
 	 * Initialializes the instance with specified config data
 	 *
@@ -391,5 +390,9 @@ private:
 
 	FOnPreviewUpdated OnPreviewGenerated;
 	FOnPreviewUpdated OnPreviewDestroyed;
+
+private:
+	// ViewStatesReferences needs to be referenced to ReferenceCollector
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif
 };

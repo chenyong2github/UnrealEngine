@@ -268,6 +268,27 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor(bool bUpdateAll
 	return false;
 }
 
+void ADisplayClusterRootActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	ADisplayClusterRootActor* This = CastChecked<ADisplayClusterRootActor>(InThis);
+
+	for (IDisplayClusterViewport* ViewportIt : This->ViewportManager->GetViewports())
+	{
+		TIndirectArray<FSceneViewStateReference>& ViewStates = ((FDisplayClusterViewport*)ViewportIt)->ViewStates;
+
+		for (int32 ViewIndex = 0; ViewIndex < ViewStates.Num(); ViewIndex++)
+		{
+			FSceneViewStateInterface* Ref = ViewStates[ViewIndex].GetReference();
+			if (Ref)
+			{
+				Ref->AddReferencedObjects(Collector);
+			}
+		}
+	}
+
+	Super::AddReferencedObjects(This, Collector);
+}
+
 void ADisplayClusterRootActor::RenderPreview_Editor()
 {
 	if (UpdatePreviewConfiguration_Editor(false))

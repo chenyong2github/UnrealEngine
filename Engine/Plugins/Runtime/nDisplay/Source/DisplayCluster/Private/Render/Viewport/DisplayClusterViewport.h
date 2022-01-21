@@ -115,6 +115,7 @@ public:
 	bool    ImplPreview_CalculateStereoViewOffset(const uint32 InContextNum, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation);
 	FMatrix ImplPreview_GetStereoProjectionMatrix(const uint32 InContextNum);
 
+	// preview rendering view states
 	TIndirectArray<FSceneViewStateReference> ViewStates;
 	FSceneViewStateInterface* GetViewState(int32 ViewIndex);
 #endif //WITH_EDITOR

@@ -168,7 +168,7 @@ FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(int32 ViewIndex)
 		ViewStates[ViewIndex].Allocate(FeatureLevel);
 		ViewStateInterface = ViewStates[ViewIndex].GetReference();
 	}
-	
+
 	return ViewStateInterface;
 }
 
