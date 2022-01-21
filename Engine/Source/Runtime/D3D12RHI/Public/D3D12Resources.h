@@ -838,6 +838,7 @@ public:
 	void AddRenameListener(FD3D12ShaderResourceRenameListener* InRenameListener)
 	{
 		FScopeLock Lock(&RenameListenersCS);
+		check(!RenameListeners.Contains(InRenameListener));
 		RenameListeners.Add(InRenameListener);
 	}
 
@@ -858,7 +859,8 @@ public:
 		ResourceLocation.Swap(Other.ResourceLocation);
 		ResourceLocation.SetOwner(this);
 		::Swap(BufferAlignment, Other.BufferAlignment);
-		::Swap(RenameListeners, Other.RenameListeners);
+
+		// NOTE: Don't swap the rename listeners because these are still referencing the original BaseShaderResource
 	}
 
 	void RemoveAllRenameListeners()
