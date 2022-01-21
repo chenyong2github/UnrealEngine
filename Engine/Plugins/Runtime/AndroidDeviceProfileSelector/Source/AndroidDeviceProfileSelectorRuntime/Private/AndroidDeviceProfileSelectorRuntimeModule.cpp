@@ -77,6 +77,17 @@ static const TMap<FName,FString>& GetDeviceSelectorParams()
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_Chipset, GetParam(FString(TEXT("unknown")), TEXT("chipset")));
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_HMDSystemName, HMDRequestedProfileName);
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB, FString::Printf(TEXT("%d"), TotalPhysicalGB));
+
+#if PLATFORM_ANDROID
+		// allow ConfigRules to override cvars first
+		const TMap<FString, FString>& ConfigRules = FAndroidMisc::GetConfigRulesTMap();
+		for (const TPair<FString, FString>& Pair : ConfigRules)
+		{
+			const FString& VariableName = Pair.Key;
+			const FString& VariableValue = Pair.Value;
+			AndroidParams.Add(FName(FString::Printf(TEXT("SRC_ConfigRuleVar[%s]"), *VariableName)), *VariableValue);
+		}
+#endif
 	}
 	return AndroidParams;
 }
@@ -135,6 +146,15 @@ bool FAndroidDeviceProfileSelectorRuntimeModule::GetSelectorPropertyValue(const 
 		PropertyValueOUT = *Found;
 		return true;
 	}
+	// Special case for non-existent config rule variables
+	// they should return true and a value of '[null]'
+	// this prevents configrule issues from throwing errors.
+	if (PropertyType.ToString().StartsWith(TEXT("SRC_ConfigRuleVar[")))
+	{
+		PropertyValueOUT = TEXT("[null]");
+		return true;
+	}
+
 	return false;
 }
 

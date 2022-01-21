@@ -186,7 +186,7 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 #if !UE_BUILD_SHIPPING
 #if PLATFORM_ANDROID
 		// allow ConfigRules to override cvars first
-		TMap<FString, FString> ConfigRules = FAndroidMisc::GetConfigRulesTMap();
+		const TMap<FString, FString>& ConfigRules = FAndroidMisc::GetConfigRulesTMap();
 		for (const TPair<FString, FString>& Pair : ConfigRules)
 		{
 			FString Key = Pair.Key;

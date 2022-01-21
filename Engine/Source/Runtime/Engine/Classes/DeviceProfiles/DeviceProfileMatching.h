@@ -76,7 +76,7 @@ struct FDPMatchingRulestructBase
 	FString AppendFragments;
 
 	UPROPERTY()
-	FString SetSrc;
+	FString SetUserVar;
 
 	virtual const FDPMatchingRulestructBase* GetOnTrue() const { return nullptr; };
 	virtual const FDPMatchingRulestructBase* GetOnFalse() const { return nullptr; };
