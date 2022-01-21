@@ -7,12 +7,9 @@
 #include "Logging/LogMacros.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-	
-////////////////////////////////////////////////////////////////////////////////
 class CORE_API FTraceAuxiliary
 {
 public:
-
 	// In no logging configurations all log categories are of type FNoLoggingCategory, which has no relation with
 	// FLogCategoryBase. In order to not need to conditionally set the argument alias the type here.
 #if NO_LOGGING
@@ -20,7 +17,7 @@ public:
 #else
 	typedef FLogCategoryBase FLogCategoryAlias;
 #endif
-	
+
 	enum class EConnectionType
 	{
 		/**
@@ -40,12 +37,12 @@ public:
 
 	struct Options
 	{
-		/** When set trace will not start a worker thread, instead it is updated from end frame delegate. */
+		/** When set, trace will not start a worker thread, instead it is updated from end frame delegate. */
 		bool bNoWorkerThread = false;
-		/** When set the target file will be truncated if it already exists */ 
+		/** When set, the target file will be truncated if it already exists. */
 		bool bTruncateFile = false;
 	};
-	
+
 	/**
 	 * Start tracing to a target (network connection or file) with an active set of channels. If a connection is
 	 * already active this call does nothing.
@@ -79,13 +76,13 @@ public:
 	 * @param CommandLine to use for initializing
 	 */
 	static void Initialize(const TCHAR* CommandLine);
-	
+
 	/**
 	 * Initialize channels that use the config driven presets.
 	 * @param CommandLine to use for initializing
 	 */
 	static void InitializePresets(const TCHAR* CommandLine);
-	
+
 	/**
 	 * Shut down Trace systems.
 	 */
@@ -103,4 +100,3 @@ public:
 	 */
 	static void EnableChannels();
 };
-
