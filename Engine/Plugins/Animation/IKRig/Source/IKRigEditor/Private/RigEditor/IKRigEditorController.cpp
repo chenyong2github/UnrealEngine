@@ -33,7 +33,7 @@ TOptional<FTransform> UIKRigBoneDetails::GetTransform(EIKRigTransformType::Type 
 	FTransform LocalTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 	const bool* IsRelative = nullptr;
-	
+
 	const int32 BoneIndex = AssetPtr->Skeleton.GetBoneIndexFromName(SelectedBone);
 	if(BoneIndex == INDEX_NONE)
 	{
@@ -45,8 +45,21 @@ TOptional<FTransform> UIKRigBoneDetails::GetTransform(EIKRigTransformType::Type 
 		case EIKRigTransformType::Current:
 		{
 			IsRelative = CurrentTransformRelative;
-			GlobalTransform = AnimInstancePtr->GetSkelMeshComponent()->GetBoneTransform(BoneIndex);
-			LocalTransform = AnimInstancePtr->GetSkelMeshComponent()->GetBoneSpaceTransforms()[BoneIndex];
+			
+			USkeletalMeshComponent* SkeletalMeshComponent = AnimInstancePtr->GetSkelMeshComponent();
+			const bool IsSkelMeshValid = SkeletalMeshComponent != nullptr &&
+										SkeletalMeshComponent->SkeletalMesh != nullptr;
+			if (IsSkelMeshValid)
+			{
+				GlobalTransform = SkeletalMeshComponent->GetBoneTransform(BoneIndex);
+				const TArray<FTransform>& LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
+				LocalTransform = LocalTransforms.IsValidIndex(BoneIndex) ? LocalTransforms[BoneIndex] : FTransform::Identity;
+			}
+			else
+			{
+				GlobalTransform = AssetPtr->Skeleton.CurrentPoseGlobal[BoneIndex];
+				LocalTransform = AssetPtr->Skeleton.CurrentPoseLocal[BoneIndex];
+			}
 			break;
 		}
 		case EIKRigTransformType::Reference:

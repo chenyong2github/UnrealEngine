@@ -216,6 +216,13 @@ void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalM
 	{
 		return; // already set to this skeletal mesh
 	}
+
+	// we do not reset the current skeletal mesh to keep track of the last valid one but we still need to reinit 
+	if (!InNewSkeletalMesh)
+	{
+		EditorController->AssetController->BroadcastNeedsReinitialized();
+		return;
+	}
 	
 	// update asset with new skeletal mesh (will copy new skeleton data)
 	if (!EditorController->AssetController->SetSkeletalMesh(InNewSkeletalMesh))
