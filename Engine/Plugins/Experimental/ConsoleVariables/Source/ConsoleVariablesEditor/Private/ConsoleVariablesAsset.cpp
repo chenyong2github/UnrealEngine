@@ -17,8 +17,8 @@ void UConsoleVariablesAsset::ReplaceSavedCommands(const TArray<FConsoleVariables
 
 bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
 {
-	if (const auto* Match = Algo::FindByPredicate(
-		SavedCommands,
+	if (const auto Match = 
+		SavedCommands.FindByPredicate(
 		[&InCommandString] (const FConsoleVariablesEditorAssetSaveData& Comparator)
 		{
 			return Comparator.CommandName.Equals(InCommandString);
