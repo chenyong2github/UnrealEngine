@@ -24,9 +24,15 @@ public:
 
 protected:
 
+	struct FMipRequestStatus
+	{
+		FSharedBuffer Buffer;
+		bool bRequestIssued = false;
+	};
+
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
 	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCHandles;
-	TArray<FSharedBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCBuffers;
+	TArray<FMipRequestStatus, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCMipRequestStatus;
 	UE::DerivedData::FRequestOwner DDCRequestOwner;
 
 	// ****************************
