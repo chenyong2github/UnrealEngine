@@ -133,6 +133,14 @@ void FDisplayClusterViewport::HandleEndScene()
 		UninitializedProjectionPolicy = ProjectionPolicy;
 		ProjectionPolicy.Reset();
 	}
+
+#if WITH_EDITOR
+	// cleanup view states
+	for (int32 ViewIndex = 0; ViewIndex < ViewStates.Num(); ViewIndex++)
+	{
+		ViewStates[ViewIndex].Destroy();
+	}
+#endif //WITH_EDITOR
 }
 
 bool FDisplayClusterViewport::ShouldUseAdditionalTargetableResource() const

@@ -7,6 +7,7 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 
 #include "DisplayClusterViewportConfigurationHelpers.h"
+#include "DisplayClusterViewportConfigurationHelpers_Postprocess.h"
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "IDisplayClusterProjection.h"
@@ -91,6 +92,13 @@ bool FDisplayClusterViewportConfigurationProjectionPolicy::UpdateCameraPolicy(FD
 bool FDisplayClusterViewportConfigurationProjectionPolicy::UpdateCameraPolicy_Base(FDisplayClusterViewport& DstViewport, UCameraComponent* const InCameraComponent, float FOVMultiplier)
 {
 	check(InCameraComponent);
+
+	// add camera's post processing materials
+	FMinimalViewInfo DesiredView;
+	const float DeltaTime = RootActor.GetWorldDeltaSeconds();
+	InCameraComponent->GetCameraView(DeltaTime, DesiredView);
+
+	DstViewport.CustomPostProcessSettings.AddCustomPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, DesiredView.PostProcessSettings, 1.0, true);
 
 	FDisplayClusterProjectionCameraPolicySettings PolicyCameraSettings;
 	PolicyCameraSettings.FOVMultiplier = FOVMultiplier;

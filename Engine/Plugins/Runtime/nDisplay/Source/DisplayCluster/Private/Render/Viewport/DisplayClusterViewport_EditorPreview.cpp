@@ -89,6 +89,9 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		//ViewInitOptions.OverlayColor = FLinearColor::Black;
 
+		// initialize view states
+		ViewInitOptions.SceneViewStateInterface = GetViewState(InContextNum);
+		
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
 		View->bIsSceneCapture = true;
@@ -144,6 +147,29 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 	}
 
 	return nullptr;
+}
+
+FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(int32 ViewIndex)
+{
+	while (ViewIndex >= ViewStates.Num())
+	{
+		ViewStates.Add(new FSceneViewStateReference());
+	}
+
+	FSceneViewStateInterface* ViewStateInterface = ViewStates[ViewIndex].GetReference();
+	if (ViewStateInterface == NULL)
+	{
+		ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		if (Owner.GetCurrentWorld() != nullptr)
+		{
+			FeatureLevel = Owner.GetCurrentWorld()->Scene->GetFeatureLevel();
+		}
+
+		ViewStates[ViewIndex].Allocate(FeatureLevel);
+		ViewStateInterface = ViewStates[ViewIndex].GetReference();
+	}
+	
+	return ViewStateInterface;
 }
 
 enum EDisplayClusterEyeType
