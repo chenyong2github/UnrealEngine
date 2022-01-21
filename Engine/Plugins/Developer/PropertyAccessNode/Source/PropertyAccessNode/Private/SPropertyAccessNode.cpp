@@ -154,15 +154,18 @@ TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TS
 		}
 		else
 		{
+			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+			const FText UnderlyingPath = PropertyAccessEditor.MakeTextPath(K2Node_PropertyAccess->GetPath());	
 			const FText& CompilationContext = K2Node_PropertyAccess->GetCompiledContext();
 			const FText& CompilationContextDesc = K2Node_PropertyAccess->GetCompiledContextDesc();
 			if(CompilationContext.IsEmpty() && CompilationContextDesc.IsEmpty())
 			{
-				return TextPath;
+
+				return FText::Format(LOCTEXT("ToolTipFormat", "Access property '{0}'\nNative: {1}"), TextPath, UnderlyingPath);
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("CompiledAccessToolTipFormat", "Access property '{0}'\n{1}\n{2}"), TextPath, CompilationContext, CompilationContextDesc);
+				return FText::Format(LOCTEXT("CompiledAccessToolTipFormat", "Access property '{0}'\nNative: {1}\n{2}\n{3}"), TextPath, UnderlyingPath, CompilationContext, CompilationContextDesc);
 			}
 		}
 	});

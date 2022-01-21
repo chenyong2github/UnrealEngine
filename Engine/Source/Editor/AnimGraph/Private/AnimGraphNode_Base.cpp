@@ -299,6 +299,16 @@ void UAnimGraphNode_Base::InternalPinCreation(TArray<UEdGraphPin*>* OldPins)
 		// Create the output pin, if needed
 		CreateOutputPins();
 	}
+
+	if(HasValidBlueprint())
+	{
+		// Update any binding's display text
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+		for(TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
+		{
+			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath, GetBlueprint()->SkeletonGeneratedClass);
+		}
+	}
 }
 
 void UAnimGraphNode_Base::AllocateDefaultPins()
@@ -1002,7 +1012,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 						Binding.ArrayIndex = InArgs.PinName.GetNumber() - 1;
 					}
 					PropertyAccessEditor.MakeStringPath(InBindingChain, Binding.PropertyPath);
-					Binding.PathAsText = PropertyAccessEditor.MakeTextPath(Binding.PropertyPath);
+					Binding.PathAsText = PropertyAccessEditor.MakeTextPath(Binding.PropertyPath, Blueprint->SkeletonGeneratedClass);
 					Binding.Type = LeafField.IsA<UFunction>() ? EAnimGraphNodePropertyBindingType::Function : EAnimGraphNodePropertyBindingType::Property;
 					Binding.bIsBound = true;
 					AnimGraphNode->RecalculateBindingType(Binding);
@@ -1159,15 +1169,17 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 					}
 					else
 					{
+						IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+						const FText UnderlyingPath = PropertyAccessEditor.MakeTextPath(BindingPtr->PropertyPath);
 						const FText& CompilationContext = BindingPtr->CompiledContext;
 						const FText& CompilationContextDesc = BindingPtr->CompiledContextDesc;
 						if(CompilationContext.IsEmpty() && CompilationContextDesc.IsEmpty())
 						{
-							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormat", "Pin is bound to property '{0}'"), BindingPtr->PathAsText), ECurrentValueType::Binding);
+							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormat", "Pin is bound to property '{0}'\nNative: {1}"), BindingPtr->PathAsText, UnderlyingPath), ECurrentValueType::Binding);
 						}
 						else
 						{
-							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormatWithDesc", "Pin is bound to property '{0}'\n{1}\n{2}"), BindingPtr->PathAsText, CompilationContext, CompilationContextDesc), ECurrentValueType::Binding);
+							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormatWithDesc", "Pin is bound to property '{0}'\nNative: {1}\n{2}\n{2}"), BindingPtr->PathAsText, UnderlyingPath, CompilationContext, CompilationContextDesc), ECurrentValueType::Binding);
 						}
 					}
 				}
@@ -1644,7 +1656,7 @@ void UAnimGraphNode_Base::HandleVariableRenamed(UBlueprint* InBlueprint, UClass*
 		for(const int32& RenameIndex : RenameIndices)
 		{
 			BindingPair.Value.PropertyPath[RenameIndex] = InNewVarName.ToString();
-			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath);
+			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath, GetAnimBlueprint()->SkeletonGeneratedClass);
 		}
 	}
 }
@@ -1679,7 +1691,7 @@ void UAnimGraphNode_Base::ReplaceReferences(UBlueprint* InBlueprint, UBlueprint*
 		for(const int32& RenameIndex : ReplaceIndices)
 		{
 			BindingPair.Value.PropertyPath[RenameIndex] = ReplacementProperty->GetName();
-			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath);
+			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath, GetAnimBlueprint()->SkeletonGeneratedClass);
 		}
 	}
 }

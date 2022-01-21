@@ -68,9 +68,9 @@ public:
 		return MakeUnique<FPropertyAccessLibraryCompiler>(&InArgs.Library, InArgs.ClassContext, InArgs.OnDetermineBatchId);
 	}
 
-	virtual FText MakeTextPath(const TArray<FString>& InPath) const override
+	virtual FText MakeTextPath(const TArray<FString>& InPath, const UStruct* InStruct = nullptr) const override
 	{
-		return PropertyAccess::MakeTextPath(InPath);
+		return PropertyAccess::MakeTextPath(InPath, InStruct);
 	};
 };
 

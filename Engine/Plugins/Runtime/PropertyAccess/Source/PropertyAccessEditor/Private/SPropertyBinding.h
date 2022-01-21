@@ -37,7 +37,7 @@ protected:
 		}
 
 		FFunctionInfo(UFunction* InFunction)
-			: DisplayName(FText::FromName(InFunction->GetFName()))
+			: DisplayName(InFunction->HasMetaData("ScriptName") ? InFunction->GetMetaDataText("ScriptName") : FText::FromName(InFunction->GetFName()))
 			, Tooltip(InFunction->GetMetaData("Tooltip"))
 			, FuncName(InFunction->GetFName())
 			, Function(InFunction)

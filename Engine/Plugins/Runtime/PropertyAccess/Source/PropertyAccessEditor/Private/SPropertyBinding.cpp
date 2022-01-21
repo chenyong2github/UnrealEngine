@@ -310,8 +310,35 @@ bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<US
 			}
 		}
 	});
+
+	if(UClass* Class = Cast<UClass>(InStruct))
+	{
+		ForEachBindableFunction(Class, [this, &BindableCount, &VisitedStructs, RecursionDepth](const FFunctionInfo& Info)
+		{
+			FProperty* ReturnProperty = Info.Function->GetReturnProperty();
+			
+			// We can get here if we accept non-leaf UObject functions, so if so we need to check the return value for compatibility
+			if(!Args.bAllowUObjectFunctions || Args.OnCanBindProperty.Execute(ReturnProperty))
+			{
+				BindableCount++;
+			}
+
+			// Only show bindable subobjects, structs and variables if we're generating pure bindings.
+			if(Args.bGeneratePureBindings)
+			{
+				if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
+				{
+					HasBindablePropertiesRecursive(ObjectPropertyBase->PropertyClass, VisitedStructs, RecursionDepth + 1);
+				}
+				else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
+				{
+					HasBindablePropertiesRecursive(StructProperty->Struct, VisitedStructs, RecursionDepth + 1);
+				}
+			}
+		});
+	}
 	
-	return BindableCount > 0;				
+	return BindableCount > 0;
 }
 
 TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
@@ -504,6 +531,23 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 		FEdGraphPinType PinType;
 		Schema->ConvertPropertyToPinType(InProperty, PinType);
 
+		FText PropertyDisplayName;
+		if(InProperty->IsNative())
+		{
+			if(const FString* ScriptNamePtr = InProperty->FindMetaData("ScriptName"))
+			{
+				PropertyDisplayName = FText::FromString(*ScriptNamePtr);
+			}
+			else
+			{
+				PropertyDisplayName = FText::FromString(InProperty->GetName());
+			}
+		}
+		else
+		{
+			PropertyDisplayName = FText::FromString(InProperty->GetDisplayNameText().ToString());
+		}
+		
 		return SNew(SHorizontalBox)
 			.ToolTipText(InProperty->GetToolTipText())
 			+SHorizontalBox::Slot()
@@ -527,7 +571,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 			.Padding(4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromName(InProperty->GetFName()))
+				.Text(PropertyDisplayName)
 			];
 	};
 
@@ -607,15 +651,21 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 					{
 						if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
 						{
-							MenuBuilder.AddSubMenu(
-								MakeFunctionWidget(Info),
-								FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(ObjectPropertyBase->PropertyClass), NewBindingChain));
+							if (HasBindableProperties(ObjectPropertyBase->PropertyClass))
+							{
+								MenuBuilder.AddSubMenu(
+									MakeFunctionWidget(Info),
+									FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(ObjectPropertyBase->PropertyClass), NewBindingChain));
+							}
 						}
 						else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
 						{
-							MenuBuilder.AddSubMenu(
-								MakeFunctionWidget(Info),
-								FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(StructProperty->Struct), NewBindingChain));
+							if (HasBindableProperties(StructProperty->Struct))
+							{
+								MenuBuilder.AddSubMenu(
+									MakeFunctionWidget(Info),
+									FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(StructProperty->Struct), NewBindingChain));
+							}
 						}
 					}
 				});

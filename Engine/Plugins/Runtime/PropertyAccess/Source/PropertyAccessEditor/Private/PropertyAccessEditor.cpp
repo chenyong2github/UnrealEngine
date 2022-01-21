@@ -485,8 +485,8 @@ struct FPropertyAccessEditorSystem
 				FPropertyAccessCopyContext CopyContext;
 				CopyContext.Object = OutCopy.AssociatedObject;
 				CopyContext.ContextId = OutCopy.ContextId;
-				CopyContext.SourcePathAsText = PropertyAccess::MakeTextPath(OutCopy.SourcePath);
-				CopyContext.DestPathAsText = PropertyAccess::MakeTextPath(OutCopy.DestPath);
+				CopyContext.SourcePathAsText = PropertyAccess::MakeTextPath(OutCopy.SourcePath, InStruct);
+				CopyContext.DestPathAsText = PropertyAccess::MakeTextPath(OutCopy.DestPath, InStruct);
 				CopyContext.bSourceThreadSafe = DestContext.bWasThreadSafe;
 				CopyContext.bDestThreadSafe = SrcContext.bWasThreadSafe;
 				
@@ -551,7 +551,12 @@ namespace PropertyAccess
 		// Special case for object properties
 		if(InPropertyA->IsA<FObjectPropertyBase>() && InPropertyB->IsA<FObjectPropertyBase>())
 		{
-			return EPropertyAccessCompatibility::Compatible;
+			const FObjectPropertyBase* ObjectPropertyA = CastField<FObjectPropertyBase>(InPropertyA);
+			const FObjectPropertyBase* ObjectPropertyB = CastField<FObjectPropertyBase>(InPropertyB);
+			if(ObjectPropertyA->PropertyClass->IsChildOf(ObjectPropertyB->PropertyClass))
+			{
+				return EPropertyAccessCompatibility::Compatible;
+			}
 		}
 
 		// Extract underlying types for enums
@@ -689,18 +694,88 @@ namespace PropertyAccess
 		});
 	}
 
-	FText MakeTextPath(const TArray<FString>& InPath)
+	FText MakeTextPath(const TArray<FString>& InPath, const UStruct* InStruct = nullptr)
 	{
 		TStringBuilder<128> StringBuilder;
-
-		if(InPath.Num())
+		
+		if(InPath.Num() > 0)
 		{
-			StringBuilder.Append(InPath[0]);
-
-			for(int32 SegmentIndex = 1; SegmentIndex < InPath.Num(); ++SegmentIndex)
+			const int32 LastIndex = InPath.Num() - 1;
+			bool bResolved = InStruct != nullptr;
+			
+			if(InStruct)
 			{
-				StringBuilder.Append(TEXT("."));
-				StringBuilder.Append(InPath[SegmentIndex]);
+				IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+				auto PropertyFunction = [&StringBuilder](FProperty* InProperty, int32 InArrayIndex, bool bLast)
+				{
+					if(InProperty->IsNative())
+					{
+						if(const FString* ScriptNamePtr = InProperty->FindMetaData("ScriptName"))
+						{
+							StringBuilder.Append(*ScriptNamePtr);
+						}
+						else
+						{
+							StringBuilder.Append(InProperty->GetName());
+						}
+					}
+					else
+					{
+						StringBuilder.Append(InProperty->GetDisplayNameText().ToString());
+					}
+
+					if(InArrayIndex != INDEX_NONE)
+					{
+						StringBuilder.Appendf(TEXT("[%d]"), InArrayIndex);
+					}
+
+					if(!bLast)
+					{
+						StringBuilder.Append(TEXT("."));
+					}
+				};
+				
+				ResolveArgs.PropertyFunction = [&PropertyFunction, LastIndex](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+				{
+					PropertyFunction(InProperty, InStaticArrayIndex, InSegmentIndex == LastIndex);
+				};
+				ResolveArgs.ArrayFunction = [&PropertyFunction, LastIndex](int32 InSegmentIndex, FArrayProperty* InProperty, int32 InArrayIndex)
+				{
+					PropertyFunction(InProperty, InArrayIndex, InSegmentIndex == LastIndex);
+				};
+				ResolveArgs.FunctionFunction = [&StringBuilder, LastIndex](int32 InSegmentIndex, UFunction* InFunction, FProperty* /*ReturnProperty*/)
+				{
+					if(const FString* ScriptNamePtr = InFunction->FindMetaData("ScriptName"))
+					{
+						StringBuilder.Append(*ScriptNamePtr);
+					}
+					else
+					{
+						StringBuilder.Append(InFunction->GetName());
+					}
+
+					if(InSegmentIndex != LastIndex)
+					{
+						StringBuilder.Append(TEXT("."));
+					}
+				};
+				
+				if(FPropertyAccessEditorSystem::ResolvePropertyAccess(InStruct, InPath, ResolveArgs).Result == EPropertyAccessResolveResult::Failed)
+				{
+					bResolved = false;
+				}
+			}
+
+			// Fallback to string concatenation if we didnt/couldnt resolve 
+			if(!bResolved)
+			{
+				StringBuilder.Append(InPath[0]);
+
+				for(int32 SegmentIndex = 1; SegmentIndex < InPath.Num(); ++SegmentIndex)
+				{
+					StringBuilder.Append(TEXT("."));
+					StringBuilder.Append(InPath[SegmentIndex]);
+				}
 			}
 		}
 

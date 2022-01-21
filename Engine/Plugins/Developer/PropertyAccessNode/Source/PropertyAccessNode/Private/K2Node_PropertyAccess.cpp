@@ -126,7 +126,7 @@ void UK2Node_PropertyAccess::SetPath(const TArray<FString>& InPath)
 	Path = InPath;
 
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-	TextPath = PropertyAccessEditor.MakeTextPath(Path);
+	TextPath = PropertyAccessEditor.MakeTextPath(Path, GetBlueprint()->SkeletonGeneratedClass);
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
 	ResolvePropertyAccess();
 	ReconstructNode();
@@ -137,7 +137,7 @@ void UK2Node_PropertyAccess::SetPath(TArray<FString>&& InPath)
 	Path = MoveTemp(InPath);
 	
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-	TextPath = PropertyAccessEditor.MakeTextPath(Path);
+	TextPath = PropertyAccessEditor.MakeTextPath(Path, GetBlueprint()->SkeletonGeneratedClass);
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
 	ResolvePropertyAccess();
 	ReconstructNode();
@@ -160,6 +160,10 @@ void UK2Node_PropertyAccess::AllocatePins(UEdGraphPin* InOldOutputPin)
 
 	if(UBlueprint* Blueprint = GetBlueprint())
 	{
+		// Keep text path up to date
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+		TextPath = PropertyAccessEditor.MakeTextPath(Path, GetBlueprint()->SkeletonGeneratedClass);
+		
 		UEdGraphPin* OutputPin = nullptr;
 	
 		if(InOldOutputPin != nullptr && InOldOutputPin->LinkedTo.Num() > 0 && InOldOutputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
@@ -318,7 +322,7 @@ void UK2Node_PropertyAccess::HandleVariableRenamed(UBlueprint* InBlueprint, UCla
 	for(const int32& RenameIndex : RenameIndices)
 	{
 		Path[RenameIndex] = InNewVarName.ToString();
-		TextPath = PropertyAccessEditor.MakeTextPath(Path);
+		TextPath = PropertyAccessEditor.MakeTextPath(Path, GetBlueprint()->SkeletonGeneratedClass);
 	}
 }
 
@@ -350,7 +354,7 @@ void UK2Node_PropertyAccess::ReplaceReferences(UBlueprint* InBlueprint, UBluepri
 	for(const int32& RenameIndex : ReplaceIndices)
 	{
 		Path[RenameIndex] = ReplacementProperty->GetName();
-		TextPath = PropertyAccessEditor.MakeTextPath(Path);
+		TextPath = PropertyAccessEditor.MakeTextPath(Path, GetBlueprint()->SkeletonGeneratedClass);
 	}
 }
 

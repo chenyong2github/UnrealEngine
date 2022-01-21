@@ -31,7 +31,7 @@ namespace PropertyAccess
 	extern void MakeStringPath(const TArray<FBindingChainElement>& InBindingChain, TArray<FString>& OutStringPath);
 
 	// Makes a text path from an array of path segments 
-	extern FText MakeTextPath(const TArray<FString>& InPath);
+	extern FText MakeTextPath(const TArray<FString>& InPath, const UStruct* InStruct);
 }
 
 // A helper structure used to compile a property access library

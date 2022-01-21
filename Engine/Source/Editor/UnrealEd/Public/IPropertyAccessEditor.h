@@ -362,6 +362,8 @@ public:
 	// Make a property access library compiler, used for building a FPropertyAccessLibrary
 	virtual TUniquePtr<IPropertyAccessLibraryCompiler> MakePropertyAccessCompiler(const FPropertyAccessLibraryCompilerArgs& InArgs) const = 0;
 
-	// Make a text representation of a property path 
-	virtual FText MakeTextPath(const TArray<FString>& InPath) const = 0;
+	// Make a text representation of a property path
+	// @param	InPath		The path to use to generate the text path
+	// @param	InStruct	Optional struct to resolve against - if this is supplied then the text path can use 'correct' display names
+	virtual FText MakeTextPath(const TArray<FString>& InPath, const UStruct* InStruct = nullptr) const = 0;
 };
