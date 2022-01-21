@@ -302,6 +302,11 @@ namespace HordeServer.Models
 		public int MaxConformCount { get; set; }
 
 		/// <summary>
+		/// The root ACL
+		/// </summary>
+		public Acl? RootAcl { get; set; }
+
+		/// <summary>
 		/// Randomly generated JWT signing key
 		/// </summary>
 		public byte[]? JwtSigningKey { get; set; }

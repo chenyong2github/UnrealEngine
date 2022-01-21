@@ -29,9 +29,9 @@ namespace HordeServer.Services
 	public class GlobalPermissionsCache
 	{
 		/// <summary>
-		/// The global permissions list
+		/// The root acl
 		/// </summary>
-		public GlobalPermissions? GlobalPermissions { get; set; }
+		public Acl? RootAcl { get; set; }
 	}
 
 	/// <summary>
@@ -80,11 +80,6 @@ namespace HordeServer.Services
 		DatabaseService DatabaseService;
 
 		/// <summary>
-		/// The global permissions singleton
-		/// </summary>
-		ISingletonDocument<GlobalPermissions> GlobalPermissions;
-
-		/// <summary>
 		/// The settings object
 		/// </summary>
 		ServerSettings Settings;
@@ -93,12 +88,10 @@ namespace HordeServer.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service instance</param>
-		/// <param name="GlobalPermissions">The global permissions instance</param>
 		/// <param name="Settings">The settings object</param>
-		public AclService(DatabaseService DatabaseService, ISingletonDocument<GlobalPermissions> GlobalPermissions, IOptionsMonitor<ServerSettings> Settings)
+		public AclService(DatabaseService DatabaseService, IOptionsMonitor<ServerSettings> Settings)
 		{
 			this.DatabaseService = DatabaseService;
-			this.GlobalPermissions = GlobalPermissions;
 			this.Settings = Settings.CurrentValue;
 
 			List<AclAction> AdminActions = new List<AclAction>();
@@ -127,19 +120,10 @@ namespace HordeServer.Services
 		/// Gets the root ACL scope table
 		/// </summary>
 		/// <returns>Scopes instance</returns>
-		public Task<GlobalPermissions> GetGlobalPermissionsAsync()
+		public async Task<Acl> GetRootAcl()
 		{
-			return GlobalPermissions.GetAsync();
-		}
-
-		/// <summary>
-		/// Updates the root ACL scopes
-		/// </summary>
-		/// <param name="NewPermissions">New permissions</param>
-		/// <returns>Async task</returns>
-		public Task<bool> TryUpdateGlobalPermissionsAsync(GlobalPermissions NewPermissions)
-		{
-			return GlobalPermissions.TryUpdateAsync(NewPermissions);
+			Globals Globals = await DatabaseService.GetGlobalsAsync();
+			return Globals.RootAcl ?? new Acl();
 		}
 
 		/// <summary>
@@ -151,20 +135,20 @@ namespace HordeServer.Services
 		/// <returns>Async task</returns>
 		public async Task<bool> AuthorizeAsync(AclAction Action, ClaimsPrincipal User, GlobalPermissionsCache? Cache = null)
 		{
-			GlobalPermissions? GlobalPermissions;
+			Acl? RootAcl;
 			if(Cache == null)
 			{
-				GlobalPermissions = await GetGlobalPermissionsAsync();
+				RootAcl = await GetRootAcl();
 			}
-			else if(Cache.GlobalPermissions == null)
+			else if(Cache.RootAcl == null)
 			{
-				GlobalPermissions = Cache.GlobalPermissions = await GetGlobalPermissionsAsync();
+				RootAcl = Cache.RootAcl = await GetRootAcl();
 			}
 			else
 			{
-				GlobalPermissions = Cache.GlobalPermissions;
+				RootAcl = Cache.RootAcl;
 			}
-			return GlobalPermissions.Acl.Authorize(Action, User) ?? DefaultAcl.Authorize(Action, User) ?? false;
+			return RootAcl.Authorize(Action, User) ?? DefaultAcl.Authorize(Action, User) ?? false;
 		}
 
 		/// <summary>

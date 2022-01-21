@@ -49,7 +49,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Config file version number
 		/// </summary>
-		const int Version = 5;
+		const int Version = 6;
 
 		DatabaseService DatabaseService;
 		ProjectService ProjectService;
@@ -150,6 +150,7 @@ namespace HordeServer.Services
 				Globals.PerforceClusters = CachedGlobalConfig.PerforceClusters;
 				Globals.ScheduledDowntime = CachedGlobalConfig.Downtime;
 				Globals.MaxConformCount = CachedGlobalConfig.MaxConformCount;
+				Globals.RootAcl = Acl.Merge(null, CachedGlobalConfig.Acl);
 
 				await UpdateStorageConfigAsync(GlobalConfig.Storage);
 

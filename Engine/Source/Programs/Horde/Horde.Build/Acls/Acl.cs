@@ -769,10 +769,6 @@ namespace HordeServer.Models
 				{
 					break;
 				}
-				else if (Type == BsonType.Int32)
-				{
-					Values.Add((AclAction)Context.Reader.ReadInt32());
-				}
 				else
 				{
 					Values.Add((AclAction)Enum.Parse(typeof(AclAction), Context.Reader.ReadString()));
@@ -793,17 +789,5 @@ namespace HordeServer.Models
 			}
 			Context.Writer.WriteEndArray();
 		}
-	}
-
-	/// <summary>
-	/// Represents an access control list for an object in the database
-	/// </summary>
-	[SingletonDocument("5e39b51941b875626e600193")]
-	public class GlobalPermissions : SingletonBase
-	{
-		/// <summary>
-		/// The global ACL object
-		/// </summary>
-		public Acl Acl { get; set; } = new Acl();
 	}
 }
