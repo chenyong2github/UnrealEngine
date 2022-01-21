@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMPythonUtils.h"
 
@@ -106,5 +106,7 @@ void RigVMPythonUtils::PrintPythonContext(const FString& InBlueprintPath)
 		RigVMPythonUtils::Print(BlueprintName, Command);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif

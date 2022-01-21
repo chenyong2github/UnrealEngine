@@ -48,4 +48,6 @@ bool FSlateInvalidationWidgetReasonLexTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE
+
 #endif //WITH_AUTOMATION_WORKER

@@ -46,4 +46,3 @@ private:
 
 IMPLEMENT_MODULE(FTurnkeyIOModule, TurnkeyIO);
 
-#undef LOCTEXT_NAMESPACE
