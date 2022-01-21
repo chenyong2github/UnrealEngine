@@ -148,6 +148,7 @@ void FIniCookedEditorPackageManager::FilterGatheredPackages(TArray<FName>& Packa
 			}
 			return false;
 		});
+	PackageNames.Remove(NAME_None);
 }
 
 void FIniCookedEditorPackageManager::GetEnginePackagesToCook(TArray<FName>& PackagesToCook) const
