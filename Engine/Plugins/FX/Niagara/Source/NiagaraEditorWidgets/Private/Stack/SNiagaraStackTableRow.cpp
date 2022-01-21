@@ -354,7 +354,12 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
  								.BorderBackgroundColor(FStyleColors::Select)
 								.Padding(0)
 								[
-									ChildContent.ToSharedRef()
+									SNew(SBorder)
+									.BorderImage(this, &SNiagaraStackTableRow::GetSelectionBorderBrush)
+									.Padding(0)
+									[
+										ChildContent.ToSharedRef()
+									]
 								]
 							]
 						]

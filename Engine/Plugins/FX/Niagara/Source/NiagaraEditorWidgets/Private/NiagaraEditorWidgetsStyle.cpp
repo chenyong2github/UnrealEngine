@@ -298,10 +298,14 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	FSlateBoxBrush StackRowSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::Select);
 	FSlateBoxBrush StackRowSubduedSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::SelectInactive);
 	Set("NiagaraEditor.Stack.TableViewRow", FTableRowStyle(NormalTableRowStyle)
-		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::White))
-		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::White))
+		.SetUseParentRowBrush(true)
+ 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Transparent))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Transparent))
 		.SetActiveBrush(StackRowSelectionBrush)
 		.SetActiveHoveredBrush(StackRowSelectionBrush)
+		.SetParentRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
 		.SetInactiveBrush(StackRowSubduedSelectionBrush)
 		.SetInactiveHoveredBrush(StackRowSelectionBrush));
 
