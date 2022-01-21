@@ -43,9 +43,12 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 	{
 		ensure(ReflectionSceneProxy->ViewRect[0].Min.X >= 0);
 
+		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
+		const FPlane4f TranslatedReflectionPlane(ReflectionSceneProxy->ReflectionPlane.TranslateBy(PreViewTranslation));
+
 		// Need to set W separately due to FVector = FPlane, which sets W to 1.0.
-		OutParameters.ReflectionPlane = ReflectionSceneProxy->ReflectionPlane;
-		OutParameters.ReflectionPlane.W = ReflectionSceneProxy->ReflectionPlane.W;
+		OutParameters.ReflectionPlane = TranslatedReflectionPlane;
+		OutParameters.ReflectionPlane.W = TranslatedReflectionPlane.W;
 
 		PlanarReflectionTextureValue = ReflectionSceneProxy->RenderTarget;
 
@@ -79,7 +82,7 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 				(ViewRect.Height() / 2.0f + ViewRect.Min.Y) * InvBufferSizeY);
 		}
 
-		OutParameters.PlanarReflectionOrigin = ReflectionSceneProxy->PlanarReflectionOrigin;
+		OutParameters.PlanarReflectionOrigin = PreViewTranslation + ReflectionSceneProxy->PlanarReflectionOrigin;
 		OutParameters.PlanarReflectionXAxis = ReflectionSceneProxy->PlanarReflectionXAxis;
 		OutParameters.PlanarReflectionYAxis = ReflectionSceneProxy->PlanarReflectionYAxis;
 		OutParameters.InverseTransposeMirrorMatrix = ReflectionSceneProxy->InverseTransposeMirrorMatrix;

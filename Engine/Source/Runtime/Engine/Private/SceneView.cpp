@@ -2490,9 +2490,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.PrevClipToRelativeWorld = RelativeMatrices.PrevClipToRelativeWorld;
 
 	// Convert global clipping plane to translated world space
-	const FVector3f TranslatedGlobalClippingPlaneOrigin = GlobalClippingPlane.GetOrigin() + InViewMatrices.GetPreViewTranslation();
-	const FVector3f TranslatedGlobalClippingPlaneNormal = GlobalClippingPlane.GetNormal();
-	const FPlane4f TranslatedGlobalClippingPlane(TranslatedGlobalClippingPlaneOrigin, TranslatedGlobalClippingPlaneNormal);
+	const FPlane4f TranslatedGlobalClippingPlane(GlobalClippingPlane.TranslateBy(InViewMatrices.GetPreViewTranslation()));
 
 	ViewUniformShaderParameters.GlobalClippingPlane = FVector4(TranslatedGlobalClippingPlane.X, TranslatedGlobalClippingPlane.Y, TranslatedGlobalClippingPlane.Z, -TranslatedGlobalClippingPlane.W);
 

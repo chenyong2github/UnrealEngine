@@ -862,7 +862,7 @@ void Main(
 		BRANCH
 		if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
 		{
-			half4 PlanarReflection = GetPlanarReflection(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.WorldNormal, GBuffer.Roughness);
+			half4 PlanarReflection = GetPlanarReflection(MaterialParameters.WorldPosition_CamRelative, MaterialParameters.WorldNormal, GBuffer.Roughness);
 			// Planar reflections win over reflection environment
 			SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
 		}

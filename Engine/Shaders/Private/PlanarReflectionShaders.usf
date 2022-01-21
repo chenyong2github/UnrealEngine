@@ -76,7 +76,7 @@ void PrefilterPlanarReflectionPS(
 	if (KernelRadiusY > 0)
 	{
 		// Compute distance from camera origin to the camera vector intersection with the reflection plane
-		float CenterDistanceToPlane = -(dot(LWCHackToFloat(PrimaryView.WorldCameraOrigin), PlanarReflectionStruct.ReflectionPlane.xyz) - PlanarReflectionStruct.ReflectionPlane.w) / dot(normalize(ScreenVector), PlanarReflectionStruct.ReflectionPlane.xyz);
+		float CenterDistanceToPlane = -(dot(PrimaryView.TranslatedWorldCameraOrigin, PlanarReflectionStruct.ReflectionPlane.xyz) - PlanarReflectionStruct.ReflectionPlane.w) / dot(normalize(ScreenVector), PlanarReflectionStruct.ReflectionPlane.xyz);
 		// Note: reading from depth after the temporal AA pass
 		// This works without jittering because we disable temporal AA jittering for planar reflections
 		float CenterSceneDepth = CalcSceneDepth(BufferUV);
@@ -141,13 +141,13 @@ void PlanarReflectionPS(
 
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
-	float3 WorldPosition = ScreenVector * GBuffer.Depth + LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	float3 TranslatedWorldPosition = ResolvedView.TranslatedWorldCameraOrigin + ScreenVector * GBuffer.Depth;
 
 	// Skip unlit pixels (skybox)
 	BRANCH
 	if (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT)
 	{
-		OutColor = ComputePlanarReflections(WorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
+		OutColor = ComputePlanarReflections(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
 
 		OutColor.xyz *= View.PreExposure;
 	}

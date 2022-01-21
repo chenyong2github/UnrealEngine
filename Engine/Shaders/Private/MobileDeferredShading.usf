@@ -252,8 +252,10 @@ void MobileDirectLightPS(
 	}
 	
 	float2 ScreenPos = UVAndScreenPos.zw;
-	float3 WorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	half3 CameraVector = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
+	float3 TranslatedWorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	
+	half3 CameraVector = normalize(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 	half NoV = max(0, dot(GBuffer.WorldNormal, CameraVector));
 	half3 ReflectionVector = GBuffer.WorldNormal * (NoV * 2.0) - CameraVector;
 	
@@ -303,9 +305,9 @@ void MobileDirectLightPS(
 	uint NumLocalReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
 	uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
 
-	float3 SpecularIBL = CompositeReflectionCapturesAndSkylight(
+	float3 SpecularIBL = CompositeReflectionCapturesAndSkylightTWS(
 		1.0f,
-		WorldPosition,
+		TranslatedWorldPosition,
 		ReflectionVector,//RayDirection,
 		GBuffer.Roughness,
 		GBuffer.IndirectIrradiance,
@@ -319,7 +321,7 @@ void MobileDirectLightPS(
 	BRANCH
 	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
 	{
-		half4 PlanarReflection = GetPlanarReflection(WorldPosition, GBuffer.WorldNormal, GBuffer.Roughness);
+		half4 PlanarReflection = GetPlanarReflection(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness);
 		// Planar reflections win over reflection environment
 		SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
 	}

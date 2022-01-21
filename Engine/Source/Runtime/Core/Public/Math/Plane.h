@@ -178,6 +178,14 @@ public:
 	TPlane<T> TransformByUsingAdjointT(const TMatrix<T>& M, T DetM, const TMatrix<T>& TA) const;
 
 	/**
+	 * Get the result of translating the plane by the given offset
+	 *
+	 * @param V The translation amount
+	 * @return The result of transform.
+	 */
+	TPlane<T> TranslateBy(const TVector<T>& V) const;
+
+	/**
 	 * Check if two planes are identical.
 	 *
 	 * @param V The other plane.
@@ -475,6 +483,12 @@ template<typename T>
 FORCEINLINE TPlane<T> TPlane<T>::Flip() const
 {
 	return TPlane<T>(-X, -Y, -Z, -W);
+}
+
+template<typename T>
+FORCEINLINE TPlane<T> TPlane<T>::TranslateBy(const TVector<T>& V) const
+{
+	return TPlane<T>(GetOrigin() + V, GetNormal());
 }
 
 template<typename T>
