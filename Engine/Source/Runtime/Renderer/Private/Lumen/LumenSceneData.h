@@ -392,7 +392,7 @@ public:
 	TArray<FRenderBounds> PrimitiveModifiedBounds;
 
 	// Primitive groups
-	TSparseElementArray<FLumenPrimitiveGroup> PrimitiveGroups;
+	TSparseSpanArray<FLumenPrimitiveGroup> PrimitiveGroups;
 	// Maps RayTracingGroupId to a specific Primitive Group Index
 	Experimental::TRobinHoodHashMap<int32, int32> RayTracingGroups;
 
@@ -456,6 +456,7 @@ public:
 	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex);
 	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
+	void ResetAndConsolidate();
 
 	void AddMeshCards(int32 PrimitiveGroupIndex);
 	void UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCardsIndex, const FMeshCardsBuildData& MeshCardsBuildData);

@@ -598,6 +598,21 @@ void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Pr
 	}
 }
 
+void FLumenSceneData::ResetAndConsolidate()
+{
+	// Reset arrays, but keep allocated memory for 1024 elements
+	PendingAddOperations.Reset();
+	PendingRemoveOperations.Reset(1024);
+	PendingUpdateOperations.Reset();
+	PendingUpdateOperations.Reserve(1024);
+
+	// Batch consolidate SparseSpanArrays
+	PrimitiveGroups.Consolidate();
+	MeshCards.Consolidate();
+	Cards.Consolidate();
+	PageTable.Consolidate();
+}
+
 void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)
 {
 	if (bTrackAllPrimitives)
@@ -670,7 +685,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 			if (PrimitiveGroup.Primitives.Num() == 0)
 			{
-				LumenSceneData.PrimitiveGroups.Free(PrimitiveGroupIndex);
+				LumenSceneData.PrimitiveGroups.RemoveSpan(PrimitiveGroupIndex, 1);
 			}
 		}
 	}
@@ -741,7 +756,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					}
 					else
 					{
-						PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+						PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
 						ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
@@ -798,7 +813,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 							if (SurfaceAreaRatio < GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio)
 							{
-								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
 								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
@@ -833,7 +848,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
-								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
 
 								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
@@ -854,7 +869,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					}
 					else
 					{
-						const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+						const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
 						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
@@ -912,11 +927,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		}
 	}
 
-	// Reset arrays, but keep allocated memory for 1024 elements
-	LumenSceneData.PendingAddOperations.Reset();
-	LumenSceneData.PendingRemoveOperations.Reset(1024);
-	LumenSceneData.PendingUpdateOperations.Reset();
-	LumenSceneData.PendingUpdateOperations.Reserve(1024);
+	LumenSceneData.ResetAndConsolidate();
 }
 
 void FLumenSceneData::RemoveAllMeshCards()

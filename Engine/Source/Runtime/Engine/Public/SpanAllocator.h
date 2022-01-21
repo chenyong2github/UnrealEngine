@@ -62,6 +62,14 @@ public:
 		PendingFreeSpans.Add(FLinearAllocation{ BaseOffset, Num });
 	}
 
+	void Reset()
+	{
+		MaxSize = 0;
+		FirstNonEmptySpan = 0;
+		FreeSpans.Reset();
+		PendingFreeSpans.Reset();
+	}
+
 	inline int32 GetSparselyAllocatedSize() const
 	{
 		int32 AllocatedSize = MaxSize;
@@ -87,6 +95,11 @@ public:
 	FORCEINLINE int32 GetNumPendingFreeSpans() const
 	{
 		return PendingFreeSpans.Num();
+	}
+
+	SIZE_T GetAllocatedSize() const
+	{
+		return FreeSpans.GetAllocatedSize() + PendingFreeSpans.GetAllocatedSize();
 	}
 
 #if DO_CHECK

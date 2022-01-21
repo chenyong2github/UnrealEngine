@@ -1120,7 +1120,7 @@ struct FLumenSurfaceCacheUpdatePrimitivesTask
 {
 public:
 	FLumenSurfaceCacheUpdatePrimitivesTask(
-		const TSparseElementArray<FLumenPrimitiveGroup>& InPrimitiveGroups,
+		const TSparseSpanArray<FLumenPrimitiveGroup>& InPrimitiveGroups,
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
 		int32 InFirstPrimitiveGroupIndex,
@@ -1188,7 +1188,7 @@ public:
 		}
 	}
 
-	const TSparseElementArray<FLumenPrimitiveGroup>& PrimitiveGroups;
+	const TSparseSpanArray<FLumenPrimitiveGroup>& PrimitiveGroups;
 	FVector ViewOrigin;
 	int32 FirstPrimitiveGroupIndex;
 	int32 NumPrimitiveGroupsPerPacket;
