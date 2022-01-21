@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UCContentCommandlets.cpp: Various commmandlets.
@@ -55,6 +54,7 @@
 
 #include "PackageHelperFunctions.h"
 #include "PackageTools.h"
+#include "UObject/PackageTrailer.h"
 
 DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
@@ -1041,6 +1041,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlyUnversioned = Switches.Contains(TEXT("OnlyUnversioned"));
 	/** whether we should only save packages saved by licenseed */
 	bOnlyLicenseed = Switches.Contains(TEXT("OnlyLicenseed"));
+	/** whether we should only save packages contianing virtualized bulkdata payloads */
+	bOnlyVirtualized = Switches.Contains(TEXT("OnlyVirtualized"));
 	/** only process packages containing materials */
 	bOnlyMaterials = Switches.Contains(TEXT("onlymaterials"));
 	/** determine if we are building navigation data for the map packages on the pass. **/
@@ -1376,7 +1378,7 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 	const int32 LicenseeUEPackageVersion = PackageLinker->Summary.GetFileVersionLicenseeUE();
 
 	// validate that this package meets the minimum requirement
-	if ( MinResaveUEVersion != IGNORE_PACKAGE_VERSION && UEPackageVersion < MinResaveUEVersion )
+	if (MinResaveUEVersion != IGNORE_PACKAGE_VERSION && UEPackageVersion < MinResaveUEVersion)
 	{
 		bSavePackage = false;
 		return;
@@ -1388,7 +1390,7 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 						 (MaxResaveUEVersion != IGNORE_PACKAGE_VERSION && UEPackageVersion <= MaxResaveUEVersion) ||
 						 (MaxResaveLicenseeUEVersion != IGNORE_PACKAGE_VERSION && LicenseeUEPackageVersion <= MaxResaveLicenseeUEVersion);
 	// If not, don't resave it.
-	if ( !bAllowResave )
+	if (!bAllowResave)
 	{
 		bSavePackage = false;
 		return;
@@ -1414,7 +1416,7 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 	}
 
 	// Check if the package was saved by licensees
-	if ( bOnlyLicenseed)
+	if (bOnlyLicenseed)
 	{
 		if (!PackageLinker->Summary.SavedByEngineVersion.IsLicenseeVersion())
 		{
@@ -1429,8 +1431,19 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 		}
 	}
 
+	// Check if the package contains virtualized bulkdata payloads
+	if (bOnlyVirtualized)
+	{
+		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
+		if (Trailer == nullptr || Trailer->GetNumPayloads(UE::EPayloadFilter::Virtualized) == 0)
+		{
+			bSavePackage = false;
+			return;
+		}
+	}
+
 	// Check if the package contains any instances of the class that needs to be resaved.
-	if ( ResaveClasses.Num() > 0 )
+	if (ResaveClasses.Num() > 0)
 	{
 		bSavePackage = false;
 		for (int32 ExportIndex = 0; !bSavePackage && ExportIndex < PackageLinker->ExportMap.Num(); ExportIndex++)

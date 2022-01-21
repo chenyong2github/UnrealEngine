@@ -102,6 +102,9 @@ protected:
 	/** Only save packages that been saved by a licensee **/
 	bool bOnlyLicenseed;
 
+	/** Only save packages containing bulkdata payloads that have been virtualized **/
+	bool bOnlyVirtualized;
+
 	/** Should we build navigation data for the packages we are saving? **/
 	bool bShouldBuildNavigationData;
 
