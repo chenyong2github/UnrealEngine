@@ -455,6 +455,7 @@ namespace RobinHoodHashTable_Private
 				KeyVals.SetNumUnsafeInternal(0);
 				KeyVals.Empty();
 				FreeList.Empty();
+				Hashes.Empty();
 			}
 
 			void Reserve(SizeType ReserveNum)

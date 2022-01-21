@@ -60,6 +60,7 @@
 #include "PrimitiveInstanceUpdateCommand.h"
 #include "OIT/OIT.h"
 #include "ShadingEnergyConservation.h"
+#include "Experimental/Containers/RobinHoodHashTable.h"
 #include "SpanAllocator.h"
 
 /** Factor by which to grow occlusion tests **/
@@ -3497,15 +3498,15 @@ private:
 		FBoxSphereBounds StaticMeshBounds;
 	};
 
-	TMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
-	TMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
-	TMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
 	TMap<FPrimitiveSceneProxy*, FUpdateInstanceCommand> UpdatedInstances;
-	TMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
-	TMap<const FPrimitiveSceneProxy*, float> UpdatedOcclusionBoundsSlacks;
-	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
-	TSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
-	TSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
+	Experimental::TRobinHoodHashMap<const FPrimitiveSceneProxy*, float> UpdatedOcclusionBoundsSlacks;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
 
 	/** 
 	 * The number of visible lights in the scene
