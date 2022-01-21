@@ -3474,13 +3474,14 @@ private:
 	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
+private:
 #if RHI_RAYTRACING
-	void UpdateRayTracingGroupBounds_AddPrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
-	void UpdateRayTracingGroupBounds_RemovePrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
-	void UpdateRayTracingGroupBounds_UpdatePrimitives(TSet<FPrimitiveSceneProxy*>& PrimitiveProxies);
+	void UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
+	void UpdateRayTracingGroupBounds_RemovePrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
+	template<typename ValueType>
+	inline void UpdateRayTracingGroupBounds_UpdatePrimitives(const Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, ValueType>& UpdatedTransforms);
 #endif
 
-private:
 	struct FUpdateTransformCommand
 	{
 		FBoxSphereBounds WorldBounds;
@@ -3501,7 +3502,7 @@ private:
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
-	TMap<FPrimitiveSceneProxy*, FUpdateInstanceCommand> UpdatedInstances;
+	Experimental::TRobinHoodHashMap<FPrimitiveSceneProxy*, FUpdateInstanceCommand> UpdatedInstances;
 	Experimental::TRobinHoodHashMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
 	Experimental::TRobinHoodHashMap<const FPrimitiveSceneProxy*, float> UpdatedOcclusionBoundsSlacks;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
