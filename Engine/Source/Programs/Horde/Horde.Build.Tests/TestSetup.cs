@@ -213,7 +213,6 @@ namespace HordeServerTests
 
 			Services.AddSingleton<IStorageService, SimpleStorageService>();
 
-			Services.AddSingleton<ISingletonDocument<GlobalPermissions>>(new SingletonDocumentStub<GlobalPermissions>());
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 		}
 

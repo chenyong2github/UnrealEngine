@@ -26,7 +26,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using AgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
-using GlobalPermissions = HordeServer.Models.GlobalPermissions;
 using ISession = Microsoft.AspNetCore.Http.ISession;
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
