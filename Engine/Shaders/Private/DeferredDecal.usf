@@ -6,12 +6,13 @@
 
 #include "DecalCommon.ush"
 
+// large world coordinate tile position
+float4 DecalTilePosition;
 // from SvPosition to decal space (for position), used like this: mul(float4(SvPosition.xyz, 1), SvPositionToDecal);
 float4x4 SvPositionToDecal;
 // to transform position from decal space to world space, for normals use transpose of inverse
 float4x4 DecalToWorld;
-// to transform position from world space to decal space, for normals use transpose of inverse
-float4x4 WorldToDecal;
+float3 DecalToWorldInvScale;
 // decal orientation in world space, X axis. Used for ObjectOrientation material expression
 float3 DecalOrientation;
 // x - Fade alpha from screen size fading

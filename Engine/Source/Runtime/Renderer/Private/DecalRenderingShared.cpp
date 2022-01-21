@@ -72,10 +72,11 @@ public:
 	FDeferredDecalPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMaterialShader(Initializer)
 	{
+		DecalTilePosition.Bind(Initializer.ParameterMap, TEXT("DecalTilePosition"));
 		SvPositionToDecal.Bind(Initializer.ParameterMap,TEXT("SvPositionToDecal"));
 		DecalToWorld.Bind(Initializer.ParameterMap,TEXT("DecalToWorld"));
-		WorldToDecal.Bind(Initializer.ParameterMap,TEXT("WorldToDecal"));
-		DecalOrientation.Bind(Initializer.ParameterMap,TEXT("DecalOrientation"));
+		DecalToWorldInvScale.Bind(Initializer.ParameterMap, TEXT("DecalToWorldInvScale"));
+		DecalOrientation.Bind(Initializer.ParameterMap, TEXT("DecalOrientation"));
 		DecalParams.Bind(Initializer.ParameterMap, TEXT("DecalParams"));
 	}
 
@@ -87,19 +88,24 @@ public:
 		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxyForRendering);
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxyForRendering, Material, View);
 
-		FTransform ComponentTrans = DecalProxy.ComponentTrans;
+		const FLargeWorldRenderPosition AbsoluteOrigin(View.ViewMatrices.GetInvViewMatrix().GetOrigin());
+		const FVector3f TilePosition = AbsoluteOrigin.GetTile();
+		const FMatrix WorldToDecalMatrix = DecalProxy.ComponentTrans.ToInverseMatrixWithScale();
+		const FMatrix44f RelativeWorldToDecalMatrix = AbsoluteOrigin.MakeFromRelativeWorldMatrix(WorldToDecalMatrix);
+		const FMatrix DecalToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
+		const FMatrix44f RelativeDecalToWorldMatrix = AbsoluteOrigin.MakeToRelativeWorldMatrix(DecalToWorldMatrix);
+		const FVector3f OrientationVector = DecalProxy.ComponentTrans.GetUnitAxis(EAxis::X);
 
-		FMatrix44f WorldToComponent = ComponentTrans.ToInverseMatrixWithScale();
-
-		// Set the transform from screen space to light space.
-		if(SvPositionToDecal.IsBound())
+		if (DecalTilePosition.IsBound())
+		{
+			SetShaderValue(RHICmdList, ShaderRHI, DecalTilePosition, TilePosition);
+		}
+		if (SvPositionToDecal.IsBound())
 		{
 			FVector2D InvViewSize = FVector2D(1.0f / View.ViewRect.Width(), 1.0f / View.ViewRect.Height());
 
 			// setup a matrix to transform float4(SvPosition.xyz,1) directly to Decal (quality, performance as we don't need to convert or use interpolator)
-
 			//	new_xy = (xy - ViewRectMin.xy) * ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1, 1);
-
 			//  transformed into one MAD:  new_xy = xy * ViewSizeAndInvSize.zw * float2(2,-2)      +       (-ViewRectMin.xy) * ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1, 1);
 
 			float Mx = 2.0f * InvViewSize.X;
@@ -114,25 +120,21 @@ public:
 					FPlane( 0, My,   0,  0),
 					FPlane( 0,  0,   1,  0),
 					FPlane(Ax, Ay,   0,  1)
-				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToComponent;
+				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToDecalMatrix;
 
 			SetShaderValue(RHICmdList, ShaderRHI, SvPositionToDecal, SvPositionToDecalValue);
 		}
-
-		// Set the transform from light space to world space
-		if(DecalToWorld.IsBound())
+		if (DecalToWorld.IsBound())
 		{
-			const FMatrix44f DecalToWorldValue = ComponentTrans.ToMatrixWithScale();
-			
-			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorld, DecalToWorldValue);
+			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorld, RelativeDecalToWorldMatrix);
 		}
-
-		SetShaderValue(RHICmdList, ShaderRHI, WorldToDecal, WorldToComponent);
-
+		if (DecalToWorldInvScale.IsBound())
+		{
+			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorldInvScale, RelativeDecalToWorldMatrix.GetScaleVector().Reciprocal());
+		}
 		if (DecalOrientation.IsBound())
 		{
-			// can get DecalOrientation form DecalToWorld matrix, but it will require binding whole matrix and normalizing axis in the shader
-			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, FVector3f(ComponentTrans.GetUnitAxis(EAxis::X)));
+			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, OrientationVector);
 		}
 		
 		float LifetimeAlpha = 1.0f;
@@ -148,8 +150,9 @@ public:
 
 private:
 	LAYOUT_FIELD(FShaderParameter, SvPositionToDecal);
+	LAYOUT_FIELD(FShaderParameter, DecalTilePosition);
 	LAYOUT_FIELD(FShaderParameter, DecalToWorld);
-	LAYOUT_FIELD(FShaderParameter, WorldToDecal);
+	LAYOUT_FIELD(FShaderParameter, DecalToWorldInvScale);
 	LAYOUT_FIELD(FShaderParameter, DecalOrientation);
 	LAYOUT_FIELD(FShaderParameter, DecalParams);
 };

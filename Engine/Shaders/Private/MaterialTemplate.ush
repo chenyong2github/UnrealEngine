@@ -964,7 +964,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 	FLWCVector3 GetActorWorldPosition(FMaterialVertexParameters Parameters)
 	{
 	#if DECAL_PRIMITIVE
-		return LWCPromote(DecalToWorld[3].xyz);
+		return MakeLWCVector3(DecalTilePosition, DecalToWorld[3].xyz);
 	#else
 		return GetPrimitiveData(Parameters).ActorWorldPosition;
 	#endif
@@ -973,7 +973,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 	FLWCVector3 GetActorWorldPosition(FMaterialPixelParameters Parameters)
 	{
 	#if DECAL_PRIMITIVE
-		return LWCPromote(DecalToWorld[3].xyz);
+		return MakeLWCVector3(DecalTilePosition, DecalToWorld[3].xyz);
 	#else
 		return GetPrimitiveData(Parameters).ActorWorldPosition;
 	#endif
@@ -2782,14 +2782,9 @@ float3 TransformTangentNormalToWorld(MaterialFloat3x3 TangentToWorld, float3 Tan
 	// To transform the normals use tranpose(Inverse(DecalToWorld)) = transpose(WorldToDecal)
 	// But we want to only rotate the normals (we don't want to non-uniformaly scale them).
 	// We assume the matrix is only a scale and rotation, and we remove non-uniform scale:
-	float3 lengthSqr = { length2(DecalToWorld._m00_m01_m02),
-							length2(DecalToWorld._m10_m11_m12),
-							length2(DecalToWorld._m20_m21_m22) };
-
-	float3 scale = rsqrt(lengthSqr);
 				
 	// Pre-multiply by the inverse of the non-uniform scale in DecalToWorld
-	float4 ScaledNormal = float4(-TangentNormal.z * scale.x, TangentNormal.y * scale.y, TangentNormal.x * scale.z, 0.f);
+	float4 ScaledNormal = float4(-TangentNormal.z * DecalToWorldInvScale.x, TangentNormal.y * DecalToWorldInvScale.y, TangentNormal.x * DecalToWorldInvScale.z, 0.f);
 
 	// Compute the normal 
 	return normalize(mul(ScaledNormal, DecalToWorld).xyz);
