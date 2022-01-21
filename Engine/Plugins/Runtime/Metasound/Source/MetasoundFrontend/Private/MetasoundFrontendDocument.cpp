@@ -2,8 +2,10 @@
 
 #include "MetasoundFrontendDocument.h"
 
+#include "Algo/ForEach.h"
 #include "Algo/Transform.h"
 #include "IAudioParameterInterfaceRegistry.h"
+#include "Logging/LogMacros.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
@@ -237,6 +239,74 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 {
 	using namespace Metasound::DocumentPrivate;
 	SetWithChangeID(InVersion, Version, ChangeID);
+}
+
+void FMetasoundFrontendClass::CacheRegistryData()
+{
+	using namespace Metasound::Frontend;
+
+	const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(Metadata);
+	FMetasoundFrontendClass Class;
+
+	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+	if (ensure(Registry))
+	{
+		if (Registry->FindFrontendClassFromRegistered(Key, Class))
+		{
+			Metadata = Class.Metadata;
+
+			using FNameTypeKey = TPair<FName, FName>;
+			TMap<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> InterfaceMembers;
+
+			auto MakePairFromVertex = [](const FMetasoundFrontendClassVertex& InVertex)
+			{
+				const FNameTypeKey Key(InVertex.Name, InVertex.TypeName);
+				return TPair<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> { Key, &InVertex.Metadata };
+			};
+
+			auto CacheRegistryVertexMetadata = [&](FMetasoundFrontendClassVertex& OutVertex)
+			{
+				const FNameTypeKey Key(OutVertex.Name, OutVertex.TypeName);
+				if (const FMetasoundFrontendVertexMetadata* RegVertex = InterfaceMembers.FindRef(Key))
+				{
+					OutVertex.Metadata = *RegVertex;
+				}
+			};
+
+			Algo::Transform(Class.Interface.Inputs, InterfaceMembers, [&](const FMetasoundFrontendClassInput& Input) { return MakePairFromVertex(Input); });
+			Algo::ForEach(Interface.Inputs, [&](FMetasoundFrontendClassInput& Input) { CacheRegistryVertexMetadata(Input); });
+
+			InterfaceMembers.Reset();
+
+			Algo::Transform(Class.Interface.Outputs, InterfaceMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
+			Algo::ForEach(Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output) { CacheRegistryVertexMetadata(Output); });
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to load document dependency class metadata: Missing dependency with key '%s'"), *Key);
+		}
+
+		Interface.InputStyle = Class.Interface.InputStyle;
+		Interface.OutputStyle = Class.Interface.OutputStyle;
+		Style = Class.Style;
+	}
+}
+
+void FMetasoundFrontendClass::ClearRegistryData()
+{
+	Metadata.DisplayName = { };
+	Metadata.Description = { };
+	Metadata.PromptIfMissing = { };
+	Metadata.Author = { };
+	Metadata.Keywords.Reset();
+	Metadata.CategoryHierarchy.Reset();
+
+	Algo::ForEach(Interface.Inputs, [](FMetasoundFrontendClassInput& Input) { Input.Metadata = { }; });
+	Algo::ForEach(Interface.Outputs, [](FMetasoundFrontendClassOutput& Output) { Output.Metadata = { }; });
+
+	Interface.InputStyle = { };
+	Interface.OutputStyle = { };
+	Style = { };
 }
 
 FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)

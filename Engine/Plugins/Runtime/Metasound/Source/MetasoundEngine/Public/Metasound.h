@@ -96,6 +96,25 @@ namespace Metasound
 		{
 			InMetaSound.VersionAsset();
 		}
+
+		// Clear dependency registry data both when saving and loading to clear
+		// out any fields (ex. text) that should not be serialized on the asset.
+		// Once a save is run on all pre-5.0 generated assets, this can be safely
+		// only run during *saving* persistent, non-transactional data.
+		if (InArchive.IsPersistent() && !InArchive.IsTransacting())
+		{
+			InMetaSound.ClearDependencyRegistryData();
+		}
+
+#if WITH_EDITOR
+		// When the editor is loaded, flag for synchronization required
+		// so that the registry data is reloaded post serialization for
+		// any open editors.
+		if (InArchive.IsSaving())
+		{
+			InMetaSound.SetSynchronizationRequired();
+		}
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA

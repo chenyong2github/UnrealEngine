@@ -122,6 +122,8 @@ public:
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
 	void AddDefaultInterfaces();
+	void CacheDependencyRegistryData();
+	void ClearDependencyRegistryData();
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA

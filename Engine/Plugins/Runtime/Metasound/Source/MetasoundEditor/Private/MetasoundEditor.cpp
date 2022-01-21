@@ -2257,6 +2257,8 @@ namespace Metasound
 
 			if (MetasoundAsset->GetSynchronizationRequired())
 			{
+				MetasoundAsset->CacheDependencyRegistryData();
+
 				// Capture before synchronizing as the flag is cleared therein.
 				const bool bShouldRefreshDetails = MetasoundAsset->GetSynchronizationUpdateDetails();
 				FGraphBuilder::SynchronizeGraph(*Metasound);

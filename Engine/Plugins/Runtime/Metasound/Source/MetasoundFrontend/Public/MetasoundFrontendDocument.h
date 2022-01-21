@@ -824,6 +824,9 @@ public:
 	{
 		ChangeID = FGuid::NewGuid();
 	}
+
+	// Required to allow caching registry data without modifying the ChangeID
+	friend struct FMetasoundFrontendClass;
 };
 
 
@@ -1040,6 +1043,9 @@ public:
 		// External/Internal should probably be a separate field.
 		// ChangeID = FGuid::NewGuid();
 	}
+
+	// Required to allow caching registry data without modifying the ChangeID
+	friend struct FMetasoundFrontendClass;
 };
 
 USTRUCT()
@@ -1049,18 +1055,6 @@ struct FMetasoundFrontendClassStyle
 
 	UPROPERTY()
 	FMetasoundFrontendClassStyleDisplay Display;
-};
-
-USTRUCT()
-struct FMetasoundFrontendEditorData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FMetasoundFrontendVersion Version;
-
-	UPROPERTY()
-	TArray<uint8> Data;
 };
 
 USTRUCT()
@@ -1080,10 +1074,21 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	FMetasoundFrontendClassInterface Interface;
 
 	UPROPERTY()
-	FMetasoundFrontendEditorData EditorData;
-
-	UPROPERTY()
 	FMetasoundFrontendClassStyle Style;
+
+	/*
+	 * Caches metadata found in the registry on the class
+	 * that is not necessary for serialization or core graph
+	 * generation.
+	 */
+	void CacheRegistryData();
+
+	/*
+	 * Clears cached metadata found in the registry on the class
+	 * that is not necessary for serialization or core graph
+	 * generation.
+	 */
+	void ClearRegistryData();
 };
 
 USTRUCT()
@@ -1120,9 +1125,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 
 	UPROPERTY(EditAnywhere, Category = Metadata)
 	FMetasoundFrontendDocumentMetadata Metadata;
-
-	UPROPERTY()
-	FMetasoundFrontendEditorData EditorData;
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
