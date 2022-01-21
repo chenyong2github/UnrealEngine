@@ -12,7 +12,7 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "Engine/TextureDefines.h"
 #include "MaterialShared.h"
 #include "TextureResource.h"
@@ -156,7 +156,7 @@ struct FTextureSource
 		const FTextureSourceBlock* InBlocks,
 		int32 InNumLayers,
 		int32 InNumBlocks,
-		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData);
+		UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData);
 
 	ENGINE_API void InitLayered(
 		int32 NewSizeX,
@@ -175,7 +175,7 @@ struct FTextureSource
 		int32 NewNumLayers,
 		int32 NewNumMips,
 		const ETextureSourceFormat* NewLayerFormat,
-		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
+		UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData
 	);
 
 	/**
@@ -211,7 +211,7 @@ struct FTextureSource
 		int32 NewNumSlices,
 		int32 NewNumMips,
 		ETextureSourceFormat NewFormat,
-		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
+		UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData
 	);
 
 	/**
@@ -463,7 +463,7 @@ private:
 	TDontCopy<FRWLock> BulkDataLock;
 #endif
 	/** The bulk source data. */
-	UE::Virtualization::FByteVirtualizedBulkData BulkData;
+	UE::Serialization::FEditorBulkData BulkData;
 	
 	/** Number of mips that are locked. */
 	uint32 NumLockedMips;

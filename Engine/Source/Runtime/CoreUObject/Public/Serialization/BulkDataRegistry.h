@@ -17,8 +17,7 @@
 class IBulkDataRegistry;
 class UPackage;
 struct FGuid;
-struct FUntypedBulkData;
-namespace UE::Virtualization { class FVirtualizedUntypedBulkData; }
+namespace UE::Serialization { class FEditorBulkData; }
 
 DECLARE_DELEGATE_RetVal(IBulkDataRegistry*, FSetBulkDataRegistry);
 
@@ -56,9 +55,9 @@ public:
 	COREUOBJECT_API static IBulkDataRegistry& Get();
 	
 	/** Register a BulkData with the registry. Its payload and metadata will be fetchable by its GetIdentifier. */
-	virtual void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) = 0;
+	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) = 0;
 	/** Report that a BulkData is leaving memory and its in-memory payload (if it had one) is no longer available. */
-	virtual void OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) = 0;
+	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) = 0;
 
 	/** Return the metadata for the given registered BulkData; returns false if not registered. */
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) = 0;
@@ -98,7 +97,7 @@ public:
 	COREUOBJECT_API FResaveSizeTracker();
 	COREUOBJECT_API ~FResaveSizeTracker();
 
-	COREUOBJECT_API void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData);
+	COREUOBJECT_API void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData);
 	COREUOBJECT_API uint64 GetBulkDataResaveSize(FName PackageName);
 
 private:

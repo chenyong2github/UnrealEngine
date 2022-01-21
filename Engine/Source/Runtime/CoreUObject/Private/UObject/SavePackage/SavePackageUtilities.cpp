@@ -9,16 +9,16 @@
 #include "HAL/FileManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/AssetRegistryInterface.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PathViews.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "SaveContext.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
-#include "Serialization/VirtualizedBulkData.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "UObject/Class.h"
 #include "UObject/GCScopeLock.h"
@@ -30,9 +30,9 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
-#include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY(LogSavePackage);
 UE_TRACE_CHANNEL_DEFINE(SaveTimeChannel);
@@ -1944,12 +1944,12 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 
 	FLargeMemoryWriter Ar(0, true /* bIsPersistent */);
 
-	uint32 VersionNumber = UE::Virtualization::FTocEntry::PayloadSidecarFileVersion;
+	uint32 VersionNumber = UE::Serialization::FTocEntry::PayloadSidecarFileVersion;
 	Ar << VersionNumber;
 
 	int64 TocPosition = Ar.Tell();
 
-	TArray<UE::Virtualization::FTocEntry> TableOfContents;
+	TArray<UE::Serialization::FTocEntry> TableOfContents;
 	TableOfContents.SetNum(Linker.SidecarDataToAppend.Num());
 
 	// First we write an empty table of contents to the file to reserve the space

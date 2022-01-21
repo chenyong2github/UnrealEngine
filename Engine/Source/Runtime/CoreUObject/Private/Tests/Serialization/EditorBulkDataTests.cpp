@@ -2,20 +2,20 @@
 
 #include "Algo/AllOf.h"
 #include "Memory/SharedBuffer.h"
+#include "Serialization/EditorBulkData.h"
+#include "Serialization/EditorBulkDataReader.h"
+#include "Serialization/EditorBulkDataWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
-#include "Serialization/VirtualizedBulkData.h"
-#include "Serialization/VirtualizedBulkDataReader.h"
-#include "Serialization/VirtualizedBulkDataWriter.h"
 #include "Templates/UniquePtr.h"
 
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS && WITH_EDITORONLY_DATA
 
-namespace UE::Virtualization
+namespace UE::Serialization
 {
 	
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
@@ -34,17 +34,17 @@ TUniquePtr<uint8[]> CreateRandomData(int64 BufferSize)
 }
 
 /**
- * This test creates a very basic VirtualizedBulkData object with in memory payload and validates that we are able to retrieve the 
+ * This test creates a very basic FEditorBulkData object with in memory payload and validates that we are able to retrieve the 
  * payload via both TFuture and callback methods. It then creates copies of the object and makes sure that we can get the payload from
  * the copies, even when the original source object has been reset.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestBasic, TEXT("System.Core.Virtualization.BulkData.Basic"), TestFlags)
-bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestBasic, TEXT("System.CoreUObject.Serialization.EditorBulkData.Basic"), TestFlags)
+bool FEditorBulkDataTestBasic::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 
-	auto ValidateBulkData = [this, &SourceBuffer, BufferSize](const FVirtualizedUntypedBulkData& BulkDataToValidate, const TCHAR* Label)
+	auto ValidateBulkData = [this, &SourceBuffer, BufferSize](const FEditorBulkData& BulkDataToValidate, const TCHAR* Label)
 		{
 			FSharedBuffer RetrievedBuffer = BulkDataToValidate.GetPayload().Get();
 			TestEqual(FString::Printf(TEXT("%s buffer length"),Label), (int64)RetrievedBuffer.GetSize(), BufferSize);
@@ -52,17 +52,17 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 		};
 
 	// Create a basic bulkdata (but retain ownership of the buffer!)
-	FByteVirtualizedBulkData BulkData;
+	FEditorBulkData BulkData;
 	BulkData.UpdatePayload(FSharedBuffer::MakeView(SourceBuffer.Get(), BufferSize));
 
 	// Test accessing the data from the bulkdata object
 	ValidateBulkData(BulkData, TEXT("Retrieved"));
 
 	// Create a new bulkdata object via the copy constructor
-	FByteVirtualizedBulkData BulkDataCopy(BulkData);
+	FEditorBulkData BulkDataCopy(BulkData);
 
 	// Create a new bulkdata object and copy by assignment (note we assign some junk data that will get overwritten)
-	FByteVirtualizedBulkData BulkDataAssignment;
+	FEditorBulkData BulkDataAssignment;
 	BulkDataAssignment.UpdatePayload(FUniqueBuffer::Alloc(128).MoveToShared());
 	BulkDataAssignment = BulkData;
 
@@ -81,13 +81,13 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 }
 
 /**
- * This test will validate how VirtualizedBulkData behaves when it has no associated payload and make sure 
+ * This test will validate how FEditorBulkData behaves when it has no associated payload and make sure 
  * that our assumptions are correct.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestEmpty, TEXT("System.Core.Virtualization.BulkData.Empty"), TestFlags)
-bool FVirtualizationWrapperTestEmpty::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestEmpty, TEXT("System.CoreUObject.Serialization.EditorBulkData.Empty"), TestFlags)
+bool FEditorBulkDataTestEmpty::RunTest(const FString& Parameters)
 {
-	FByteVirtualizedBulkData BulkData;
+	FEditorBulkData BulkData;
 
 	// Validate the general accessors
 	TestEqual(TEXT("Return value of ::GetBulkDataSize()"), BulkData.GetPayloadSize(), (int64)0);
@@ -105,10 +105,10 @@ bool FVirtualizationWrapperTestEmpty::RunTest(const FString& Parameters)
 }
 
 /**
- * Test the various methods for updating the payload that a FVirtualizedUntypedBulkData owns
+ * Test the various methods for updating the payload that a FEditorBulkData owns
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestUpdatePayload, TEXT("System.Core.Virtualization.BulkData.UpdatePayload"), TestFlags)
-bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestUpdatePayload, TEXT("System.CoreUObject.Serialization.EditorBulkData.UpdatePayload"), TestFlags)
+bool FEditorBulkDataTestUpdatePayload::RunTest(const FString& Parameters)
 {
 	// Create a memory buffer of all zeros
 	const int64 BufferSize = 1024;
@@ -116,7 +116,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 	FMemory::Memzero(OriginalData.Get(), BufferSize);
 
 	// Pass the buffer to to bulkdata but retain ownership
-	FByteVirtualizedBulkData BulkData;
+	FEditorBulkData BulkData;
 	BulkData.UpdatePayload(FSharedBuffer::MakeView(OriginalData.Get(), BufferSize));
 
 	// Access the payload, edit it and push it back into the bulkdata object
@@ -179,29 +179,29 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 }
 
 /**
- * This test will create a buffer, then serialize it to a VirtualizedBulkData object via FVirtualizedBulkDataWriter.
- * Then we will serialize the VirtualizedBulkData object back to a second buffer and compare the results.
+ * This test will create a buffer, then serialize it to a FEditorBulkData object via FEditorBulkDataWriter.
+ * Then we will serialize the FEditorBulkData object back to a second buffer and compare the results.
  * If the reader and writers are working then the ReplicatedBuffer should be the same as the original SourceBuffer.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestReaderWriter, TEXT("System.Core.Virtualization.BulkData.Reader/Writer"), TestFlags)
-bool FVirtualizationWrapperTestReaderWriter::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestReaderWriter, TEXT("System.CoreUObject.Serialization.EditorBulkData.Reader/Writer"), TestFlags)
+bool FEditorBulkDataTestReaderWriter::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 
 	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 	TUniquePtr<uint8[]> ReplicatedBuffer = MakeUnique<uint8[]>(BufferSize);
 
-	FByteVirtualizedBulkData BulkData;
+	FEditorBulkData BulkData;
 
 	// Serialize the SourceBuffer to BulkData 
 	{
-		FVirtualizedBulkDataWriter WriterAr(BulkData);
+		FEditorBulkDataWriter WriterAr(BulkData);
 		WriterAr.Serialize(SourceBuffer.Get(), BufferSize);
 	}
 
 	// Serialize BulkData back to ReplicatedBuffer
 	{
-		FVirtualizedBulkDataReader ReaderAr(BulkData);
+		FEditorBulkDataReader ReaderAr(BulkData);
 		ReaderAr.Serialize(ReplicatedBuffer.Get(), BufferSize);
 	}
 
@@ -212,9 +212,9 @@ bool FVirtualizationWrapperTestReaderWriter::RunTest(const FString& Parameters)
 	// Test writing nothing to an empty bulkdata object and then reading that bulkdata object
 	// to make sure that we deal with null buffers properly.
 	{
-		FByteVirtualizedBulkData EmptyBulkData;
-		FVirtualizedBulkDataWriter WriterAr(EmptyBulkData);
-		FVirtualizedBulkDataReader ReaderAr(EmptyBulkData);
+		FEditorBulkData EmptyBulkData;
+		FEditorBulkDataWriter WriterAr(EmptyBulkData);
+		FEditorBulkDataReader ReaderAr(EmptyBulkData);
 	}
 	return true;
 }
@@ -224,15 +224,15 @@ bool FVirtualizationWrapperTestReaderWriter::RunTest(const FString& Parameters)
  * as bulkdata objects again. This should help find problems where the data saved and loaded are mismatched.
  * Note that this does not check the package saving code paths, only direct serialization to buffers.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestSerializationToMemory, TEXT("System.Core.Virtualization.BulkData.SerializationToMemory"), TestFlags)
-bool FVirtualizationWrapperTestSerializationToMemory::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestSerializationToMemory, TEXT("System.CoreUObject.Serialization.EditorBulkData.SerializationToMemory"), TestFlags)
+bool FEditorBulkDataTestSerializationToMemory::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 
 	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 	
-	FByteVirtualizedBulkData EmptyBulkData;
-	FByteVirtualizedBulkData ValidBulkData;
+	FEditorBulkData EmptyBulkData;
+	FEditorBulkData ValidBulkData;
 	ValidBulkData.UpdatePayload(FSharedBuffer::Clone(SourceBuffer.Get(), BufferSize));
 	
 	TArray<uint8> MemoryBuffer;
@@ -250,7 +250,7 @@ bool FVirtualizationWrapperTestSerializationToMemory::RunTest(const FString& Par
 
 	// Read in
 	{
-		FByteVirtualizedBulkData SerializedBulkData;
+		FEditorBulkData SerializedBulkData;
 
 		FMemoryReader ReaderAr(MemoryBuffer, bIsArPersistent);
 
@@ -277,18 +277,18 @@ bool FVirtualizationWrapperTestSerializationToMemory::RunTest(const FString& Par
  * This set of tests validate that the BulkData's identifier works how we expect it too. It should remain unique in all cases except
  * move semantics.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestIdentifiers, TEXT("System.Core.Virtualization.BulkData.Identifiers"), TestFlags)
-bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestIdentifiers, TEXT("System.CoreUObject.Serialization.EditorBulkData.Identifiers"), TestFlags)
+bool FEditorBulkDataTestIdentifiers::RunTest(const FString& Parameters)
 {
 	// Some basic tests with an invalid id
 	{
-		FByteVirtualizedBulkData BulkData;
+		FEditorBulkData BulkData;
 		TestFalse(TEXT("BulkData with no payload should return an invalid identifier"), BulkData.GetIdentifier().IsValid());
 
-		FByteVirtualizedBulkData CopiedBulkData(BulkData);
+		FEditorBulkData CopiedBulkData(BulkData);
 		TestFalse(TEXT("Copying a bulkdata with an invalid id should result in an invalid id"), CopiedBulkData.GetIdentifier().IsValid());
 
-		FByteVirtualizedBulkData AssignedBulkData; 
+		FEditorBulkData AssignedBulkData;
 		AssignedBulkData = BulkData;
 		TestFalse(TEXT("Assigning a a bulkdata with an invalid id should result in an invalid id"), AssignedBulkData.GetIdentifier().IsValid());
 		
@@ -298,16 +298,16 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 	// Some basic tests with a valid id
 	{
-		FByteVirtualizedBulkData BulkData;
+		FEditorBulkData BulkData;
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared()); // Assigning this payload should cause BulkData to gain an identifier
 		TestTrue(TEXT("BulkData with a payload should returns a valid identifier"), BulkData.GetIdentifier().IsValid());
 
 		const FGuid OriginalGuid = BulkData.GetIdentifier();
 
-		FByteVirtualizedBulkData CopiedBulkData(BulkData);
+		FEditorBulkData CopiedBulkData(BulkData);
 		TestNotEqual(TEXT("Copying a bulkdata with a valid id should result in a unique identifier"), BulkData.GetIdentifier(), CopiedBulkData.GetIdentifier());
 
-		FByteVirtualizedBulkData AssignedBulkData;
+		FEditorBulkData AssignedBulkData;
 		AssignedBulkData = BulkData;
 		TestNotEqual(TEXT("Assignment operator creates different identifiers"), BulkData.GetIdentifier(), AssignedBulkData.GetIdentifier());
 
@@ -322,24 +322,24 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 	// Test move constructor
 	{	
-		FVirtualizedUntypedBulkData BulkData;
+		FEditorBulkData BulkData;
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 
 		FGuid OriginalGuid = BulkData.GetIdentifier();
 
-		FVirtualizedUntypedBulkData MovedBulkData = MoveTemp(BulkData);
+		FEditorBulkData MovedBulkData = MoveTemp(BulkData);
 
 		TestEqual(TEXT("Move constructor should preserve the identifier"), MovedBulkData.GetIdentifier(), OriginalGuid);
 	}
 
 	// Test move assignment
 	{
-		FVirtualizedUntypedBulkData BulkData;
+		FEditorBulkData BulkData;
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 
 		FGuid OriginalGuid = BulkData.GetIdentifier();
 
-		FVirtualizedUntypedBulkData MovedBulkData;
+		FEditorBulkData MovedBulkData;
 		MovedBulkData = MoveTemp(BulkData);
 
 		TestEqual(TEXT("Move assignment should preserve the identifier"), MovedBulkData.GetIdentifier(), OriginalGuid);
@@ -349,12 +349,12 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 	{
 		const uint32 NumToTest = 10;
 
-		TArray<FByteVirtualizedBulkData> BulkDataArray;
+		TArray<FEditorBulkData> BulkDataArray;
 		TArray<FGuid> GuidArray;
 
 		for (uint32 Index = 0; Index < NumToTest; ++Index)
 		{
-			BulkDataArray.Add(FByteVirtualizedBulkData());
+			BulkDataArray.Add(FEditorBulkData());
 
 			// Leave some with invalid ids and some with valid ones
 			if (Index % 2 == 0)
@@ -376,7 +376,7 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 		// Now insert a new item, moving all of the existing entries and make sure that
 		// the identifiers are unchanged.
-		BulkDataArray.Insert(FByteVirtualizedBulkData(), 0);
+		BulkDataArray.Insert(FEditorBulkData(), 0);
 
 		for (uint32 Index = 0; Index < NumToTest; ++Index)
 		{
@@ -387,7 +387,7 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 	// Test that adding a payload to a reset bulkdata object or one that has had a zero length payload applied
 	// will correctly show the original id once it has a valid payload.
 	{
-		FByteVirtualizedBulkData BulkData;
+		FEditorBulkData BulkData;
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		
 		const FGuid OriginalGuid = BulkData.GetIdentifier();
@@ -407,13 +407,13 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 	// Test that serialization does not change the identifier (in this case serializing to and from a memory buffer) 
 	{
-		FByteVirtualizedBulkData SrcData;
+		FEditorBulkData SrcData;
 		SrcData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 
 		TArray<uint8> MemoryBuffer;
 		const bool bIsArPersistent = true;
 
-		FByteVirtualizedBulkData DstData;
+		FEditorBulkData DstData;
 
 		// Serialize the SourceBuffer to BulkData 
 		{
@@ -432,7 +432,7 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 	// Test that serialization does not change the identifier (in this case serializing to and from a memory buffer) 
 	{
-		FByteVirtualizedBulkData SrcData;
+		FEditorBulkData SrcData;
 		SrcData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 
 		const FGuid OriginalIdentifier = SrcData.GetIdentifier();
@@ -441,7 +441,7 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 		TArray<uint8> MemoryBuffer;
 		const bool bIsArPersistent = true;
 
-		FByteVirtualizedBulkData DstData;
+		FEditorBulkData DstData;
 
 		// Serialize the SourceBuffer to BulkData 
 		{
@@ -464,11 +464,11 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestZeroSizedAllocs, TEXT("System.Core.Virtualization.BulkData.ZeroSizedAllocs"), TestFlags)
-bool FVirtualizationWrapperTestZeroSizedAllocs::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestZeroSizedAllocs, TEXT("System.CoreUObject.Serialization.EditorBulkData.ZeroSizedAllocs"), TestFlags)
+bool FEditorBulkDataTestZeroSizedAllocs::RunTest(const FString& Parameters)
 {
 	{
-		FByteVirtualizedBulkData Empty;
+		FEditorBulkData Empty;
 		TestNull(TEXT("Empty bulkdata returning a payload"), Empty.GetPayload().Get().GetData());
 		TestNull(TEXT("Empty bulkdata returning a compressed payload"), Empty.GetCompressedPayload().Get().Decompress().GetData());
 
@@ -477,12 +477,12 @@ bool FVirtualizationWrapperTestZeroSizedAllocs::RunTest(const FString& Parameter
 	}
 
 	{
-		FByteVirtualizedBulkData EmptySrc;
+		FEditorBulkData EmptySrc;
 		
 		FLargeMemoryWriter ArWrite(0, true);
 		EmptySrc.Serialize(ArWrite, nullptr);
 
-		FByteVirtualizedBulkData EmptyDst;
+		FEditorBulkData EmptyDst;
 
 		FLargeMemoryReader ArRead(ArWrite.GetData(), ArWrite.TotalSize(), ELargeMemoryReaderFlags::Persistent);
 		EmptyDst.Serialize(ArRead, nullptr);
@@ -495,7 +495,7 @@ bool FVirtualizationWrapperTestZeroSizedAllocs::RunTest(const FString& Parameter
 	}
 
 	{
-		FByteVirtualizedBulkData ZeroAlloc;
+		FEditorBulkData ZeroAlloc;
 		ZeroAlloc.UpdatePayload(FUniqueBuffer::Alloc(0).MoveToShared());
 
 		TestNull(TEXT("ZeroAlloc bulkdata returning a payload"), ZeroAlloc.GetPayload().Get().GetData());
@@ -508,6 +508,6 @@ bool FVirtualizationWrapperTestZeroSizedAllocs::RunTest(const FString& Parameter
 	return true;
 }
 
-} // namespace UE::Virtualization
+} // namespace UE::Serialization
 
 #endif //WITH_DEV_AUTOMATION_TESTS && WITH_EDITORONLY_DATA

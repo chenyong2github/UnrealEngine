@@ -7,7 +7,7 @@
 #include "MessageLogModule.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "PackageSubmissionChecks.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "VirtualizationSourceControlUtilities.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"

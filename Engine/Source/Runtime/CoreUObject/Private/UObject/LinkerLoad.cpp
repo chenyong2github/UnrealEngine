@@ -42,7 +42,7 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/LoadTimeTracePrivate.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/StringBuilder.h"
@@ -5539,10 +5539,10 @@ void FLinkerLoad::AttachBulkData( UObject* Owner, FUntypedBulkData* BulkData )
 	BulkDataLoaders.Add( BulkData );
 }
 
-void FLinkerLoad::AttachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData)
+void FLinkerLoad::AttachBulkData(UE::Serialization::FEditorBulkData* BulkData)
 {
-	check(VirtualizedBulkDataLoaders.Find(BulkData) == INDEX_NONE);
-	VirtualizedBulkDataLoaders.Add(BulkData);	
+	check(EditorBulkDataLoaders.Find(BulkData) == INDEX_NONE);
+	EditorBulkDataLoaders.Add(BulkData);
 }
 
 /**
@@ -5561,9 +5561,9 @@ void FLinkerLoad::DetachBulkData( FUntypedBulkData* BulkData, bool bEnsureBulkDa
 	BulkData->DetachFromArchive( this, bEnsureBulkDataIsLoaded );
 }
 
-void FLinkerLoad::DetachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded)
+void FLinkerLoad::DetachBulkData(UE::Serialization::FEditorBulkData* BulkData, bool bEnsureBulkDataIsLoaded)
 {
-	int32 RemovedCount = VirtualizedBulkDataLoaders.Remove(BulkData);
+	int32 RemovedCount = EditorBulkDataLoaders.Remove(BulkData);
 	if (RemovedCount != 1)
 	{
 		UE_LOG(LogLinker, Fatal, TEXT("Detachment inconsistency: %i (%s)"), RemovedCount, *GetDebugName());
@@ -5591,13 +5591,13 @@ void FLinkerLoad::DetachAllBulkData(bool bEnsureAllBulkDataIsLoaded)
 
 	// Then virtualized bulkdata
 	{
-		TArray<UE::Virtualization::FVirtualizedUntypedBulkData*> BulkDataToDetach = VirtualizedBulkDataLoaders;
-		for (UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : BulkDataToDetach)
+		TArray<UE::Serialization::FEditorBulkData*> BulkDataToDetach = EditorBulkDataLoaders;
+		for (UE::Serialization::FEditorBulkData* BulkData : BulkDataToDetach)
 		{
 			check(BulkData != nullptr);
 			BulkData->DetachFromDisk(this, bEnsureAllBulkDataIsLoaded);
 		}
-		VirtualizedBulkDataLoaders.Empty();
+		EditorBulkDataLoaders.Empty();
 	}
 }
 

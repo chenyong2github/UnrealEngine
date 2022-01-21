@@ -48,7 +48,7 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath)
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FVirtualizedUntypedBulkData with an unknown error"), *PackagePath.GetDebugName());
+		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FPackageTrailer with an unknown error"), *PackagePath.GetDebugName());
 	}
 }
 

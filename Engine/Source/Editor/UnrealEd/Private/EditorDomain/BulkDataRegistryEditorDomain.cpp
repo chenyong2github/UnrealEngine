@@ -155,7 +155,7 @@ void FBulkDataRegistryEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> 
 	}
 }
 
-void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
+void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	if (!BulkData.GetIdentifier().IsValid())
 	{
@@ -163,7 +163,7 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 	}
 
 	FName PackageName = NAME_None;
-	UE::Virtualization::FVirtualizedUntypedBulkData CopyBulk(BulkData.CopyTornOff());
+	UE::Serialization::FEditorBulkData CopyBulk(BulkData.CopyTornOff());
 	if (Owner
 		&& Owner->GetFileSize() // We only record the BulkDataList for disk packages
 		&& !Owner->GetHasBeenEndLoaded() // We only record BulkDatas that are loaded before the package finishes loading
@@ -182,7 +182,7 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 	ResaveSizeTracker.Register(Owner, BulkData);
 }
 
-void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
+void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData)
 {
 	const FGuid& Key = BulkData.GetIdentifier();
 	FWriteScopeLock RegistryScopeLock(RegistryLock);
@@ -215,7 +215,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 			return Promise.GetFuture();
 		}
 
-		UE::Virtualization::FVirtualizedUntypedBulkData& BulkData = Existing->BulkData;
+		UE::Serialization::FEditorBulkData& BulkData = Existing->BulkData;
 		if (!BulkData.HasPlaceholderPayloadId())
 		{
 			TPromise<UE::BulkDataRegistry::FMetaData> Promise;
@@ -249,7 +249,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 
 TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(const FGuid& BulkDataId)
 {
-	TOptional<UE::Virtualization::FVirtualizedUntypedBulkData> CopyBulk;
+	TOptional<UE::Serialization::FEditorBulkData> CopyBulk;
 	{
 		bool bIsWriteLock = false;
 		FRWScopeLock RegistryScopeLock(RegistryLock, SLT_ReadOnly);
@@ -269,7 +269,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 
 			if (!Existing->BulkData.HasPlaceholderPayloadId() && !Existing->bHasTempPayload)
 			{
-				// The contract of FVirtualizedUntypedBulkData does not guarantee that GetCompressedPayload() is a quick operation (it may load the data
+				// The contract of FEditorBulkData does not guarantee that GetCompressedPayload() is a quick operation (it may load the data
 				// synchronously), so copy the BulkData into a temporary and call it outside the lock
 				CopyBulk.Emplace(Existing->BulkData);
 				break;
@@ -314,7 +314,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 	}
 
 	// We are calling a function that returns a TFuture on the stack-local CopyBulk, which would cause a read-after-free if the asynchronous TFuture could
-	// read from the BulkData. However, the contract of FVirtualizedUntypedBulkData guarantees that the TFuture gets a copy of all data it needs and
+	// read from the BulkData. However, the contract of FEditorBulkData guarantees that the TFuture gets a copy of all data it needs and
 	// does not read from the BulkData after returning from GetCompressedPayload, so a read-after-free is not possible.
 	return CopyBulk->GetCompressedPayload().Next([](FCompressedBuffer Payload)
 		{
@@ -343,7 +343,7 @@ void FBulkDataRegistryEditorDomain::Tick(float DeltaTime)
 	TickCook(DeltaTime, false /* bTickComplete */);
 }
 
-void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
+void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	FScopeLock PendingPackageScopeLock(&PendingPackageLock);
 	check(bActive); // Registrations should not come in after we destruct, and AsyncTasks should check bActive before calling
@@ -389,12 +389,12 @@ void FBulkDataRegistryEditorDomain::PruneTempLoadedPayloads()
 	}
 }
 
-void FBulkDataRegistryEditorDomain::WritePayloadIdToCache(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) const
+void FBulkDataRegistryEditorDomain::WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData) const
 {
 	check(!PackageName.IsNone());
 	TArray<uint8> Bytes;
 	FMemoryWriter Writer(Bytes);
-	const_cast<UE::Virtualization::FVirtualizedUntypedBulkData&>(BulkData).SerializeForRegistry(Writer);
+	const_cast<UE::Serialization::FEditorBulkData&>(BulkData).SerializeForRegistry(Writer);
 	UE::EditorDomain::PutBulkDataPayloadId(PackageName, BulkData.GetIdentifier(), MakeSharedBufferFromArray(MoveTemp(Bytes)));
 }
 
@@ -422,7 +422,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 				return;
 			}
 			FMemoryReaderView Reader(MakeArrayView(Buffer));
-			UE::Virtualization::FVirtualizedUntypedBulkData CachedBulkData;
+			UE::Serialization::FEditorBulkData CachedBulkData;
 			CachedBulkData.SerializeForRegistry(Reader);
 			const FGuid& BulkDataId = NewPending->GetBulkDataId();
 			if (Reader.IsError() || CachedBulkData.GetIdentifier() != BulkDataId)
@@ -455,7 +455,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 				return;
 			}
 
-			UE::Virtualization::FVirtualizedUntypedBulkData& ExistingBulkData = ExistingRegisteredBulk->BulkData;
+			UE::Serialization::FEditorBulkData& ExistingBulkData = ExistingRegisteredBulk->BulkData;
 			check(ExistingBulkData.GetIdentifier() == BulkDataId);
 			if (ExistingBulkData.HasPlaceholderPayloadId())
 			{
@@ -595,13 +595,13 @@ void FPendingPackage::ReadCache()
 		{
 			return;
 		}
-		for (const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData : CachedBulkDatas)
+		for (const UE::Serialization::FEditorBulkData& BulkData : CachedBulkDatas)
 		{
 			FGuid BulkDataId = BulkData.GetIdentifier();
 			FRegisteredBulk& TargetRegisteredBulk = Owner->Registry.FindOrAdd(BulkData.GetIdentifier());
 
 			bool bCachedLocationMatches = true;
-			UE::Virtualization::FVirtualizedUntypedBulkData& TargetBulkData = TargetRegisteredBulk.BulkData;
+			UE::Serialization::FEditorBulkData& TargetBulkData = TargetRegisteredBulk.BulkData;
 			if (!TargetBulkData.GetIdentifier().IsValid())
 			{
 				TargetBulkData = BulkData;
@@ -664,7 +664,7 @@ void FPendingPackage::WriteCache()
 	}
 
 	// Sort the list by guid, to avoid indeterminism in the list
-	BulkDatas.Sort([](const UE::Virtualization::FVirtualizedUntypedBulkData& A, const UE::Virtualization::FVirtualizedUntypedBulkData& B)
+	BulkDatas.Sort([](const UE::Serialization::FEditorBulkData& A, const UE::Serialization::FEditorBulkData& B)
 		{
 			return A.GetIdentifier() < B.GetIdentifier();
 		});
@@ -676,7 +676,7 @@ void FPendingPackage::WriteCache()
 }
 
 FUpdatePayloadWorker::FUpdatePayloadWorker(FBulkDataRegistryEditorDomain* InBulkDataRegistry,
-	const UE::Virtualization::FVirtualizedUntypedBulkData& InSourceBulk)
+	const UE::Serialization::FEditorBulkData& InSourceBulk)
 	: BulkData(InSourceBulk)
 	, BulkDataRegistry(InBulkDataRegistry)
 {
@@ -772,7 +772,7 @@ void FPendingPayloadId::Cancel()
 	Request.Cancel();
 }
 
-void Serialize(FArchive& Ar, TArray<UE::Virtualization::FVirtualizedUntypedBulkData>& Datas)
+void Serialize(FArchive& Ar, TArray<UE::Serialization::FEditorBulkData>& Datas)
 {
 	int32 Num = Datas.Num();
 	Ar << Num;
@@ -792,13 +792,13 @@ void Serialize(FArchive& Ar, TArray<UE::Virtualization::FVirtualizedUntypedBulkD
 		}
 		for (int32 n = 0; n < Num; ++n)
 		{
-			UE::Virtualization::FVirtualizedUntypedBulkData& BulkData = Datas.Emplace_GetRef();
+			UE::Serialization::FEditorBulkData& BulkData = Datas.Emplace_GetRef();
 			BulkData.SerializeForRegistry(Ar);
 		}
 	}
 	else
 	{
-		for (UE::Virtualization::FVirtualizedUntypedBulkData& BulkData : Datas)
+		for (UE::Serialization::FEditorBulkData& BulkData : Datas)
 		{
 			BulkData.SerializeForRegistry(Ar);
 		}

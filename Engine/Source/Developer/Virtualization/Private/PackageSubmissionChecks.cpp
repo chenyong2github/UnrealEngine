@@ -9,7 +9,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"

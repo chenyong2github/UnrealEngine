@@ -23,7 +23,7 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Serialization/CustomVersion.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "Containers/StaticArray.h"
 #include "MeshDescription.generated.h"
 
@@ -1342,7 +1342,7 @@ private:
 	FRWLock       BulkDataLock;
 #endif
 	/** Internally store bulk data as bytes */
-	UE::Virtualization::FByteVirtualizedBulkData BulkData;
+	UE::Serialization::FEditorBulkData BulkData;
 
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;

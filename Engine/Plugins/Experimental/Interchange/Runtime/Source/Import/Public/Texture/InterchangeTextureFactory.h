@@ -6,7 +6,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "Misc/TVariant.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "Texture/InterchangeBlockedTexturePayloadData.h"
 #include "Texture/InterchangeSlicedTexturePayloadData.h"
 #include "Texture/InterchangeTextureLightProfilePayloadData.h"
@@ -37,7 +37,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		FProcessedPayload& operator=(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant&& InPayloadVariant);
 
 		UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant SettingsFromPayload;
-		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID PayloadAndId;
+		UE::Serialization::FEditorBulkData::FSharedBufferWithID PayloadAndId;
 	};
 }
 

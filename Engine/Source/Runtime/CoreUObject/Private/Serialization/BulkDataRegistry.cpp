@@ -11,7 +11,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeRWLock.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectGlobals.h"
@@ -29,8 +29,8 @@ public:
 	FBulkDataRegistryNull() = default;
 	virtual ~FBulkDataRegistryNull() {}
 
-	virtual void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override {}
-	virtual void OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override {}
+	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override {}
+	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override {}
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override
 	{
 		TPromise<UE::BulkDataRegistry::FMetaData> Promise;
@@ -55,7 +55,7 @@ public:
 	FBulkDataRegistryTrackBulkDataToResave() = default;
 	virtual ~FBulkDataRegistryTrackBulkDataToResave() {}
 
-	virtual void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override
+	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override
 	{
 		ResaveSizeTracker.Register(Owner, BulkData);
 	}
@@ -170,7 +170,7 @@ void FResaveSizeTracker::OnPostEngineInit()
 	}
 }
 
-void FResaveSizeTracker::Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
+void FResaveSizeTracker::Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	if (!BulkData.GetIdentifier().IsValid() || !BulkData.IsMemoryOnlyPayload())
 	{

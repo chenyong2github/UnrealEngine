@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 
 #if WITH_EDITORONLY_DATA
 
-namespace UE::Virtualization
+namespace UE::Serialization
 {
 
-class FVirtualizedBulkDataWriter : public FArchive
+class FEditorBulkDataWriter : public FArchive
 {
 public:
-	FVirtualizedBulkDataWriter(FVirtualizedUntypedBulkData& InBulkData, bool bIsPersistent = false)
+	FEditorBulkDataWriter(FEditorBulkData& InBulkData, bool bIsPersistent = false)
 		: BulkData(InBulkData)
 	{
 		SetIsSaving(true);
@@ -45,14 +45,14 @@ public:
 		}
 	}
 
-	~FVirtualizedBulkDataWriter()
+	~FEditorBulkDataWriter()
 	{
 		// Remove the slack from the allocated bulk data
 		Buffer = FMemory::Realloc(Buffer, DataLength, DEFAULT_ALIGNMENT);
 		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(Buffer, DataLength, FMemory::Free));
 	}
 
-	/** Returns if the FVirtualizedBulkDataWriter has a valid bulkdata payload or not */
+	/** Returns if the FEditorBulkDataWriter has a valid bulkdata payload or not */
 	bool IsValid() const
 	{
 		return Buffer != nullptr;
@@ -105,12 +105,12 @@ public:
 
 	virtual FString GetArchiveName() const
 	{
-		return TEXT("FVirtualizedBulkDataWriter");
+		return TEXT("FEditorBulkDataWriter");
 	}
 
 protected:
 	/** The target bulkdata object */
-	FVirtualizedUntypedBulkData& BulkData;
+	FEditorBulkData& BulkData;
 
 	/** Pointer to the data buffer */
 	void* Buffer;
@@ -124,6 +124,6 @@ protected:
 	int64 DataLength;
 };
 
-} // namespace UE::Virtualization
+} // namespace UE::Serialization
 
 #endif //WITH_EDITORONLY_DATA

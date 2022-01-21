@@ -15,7 +15,6 @@
 
 class FObjectPostSaveContext;
 struct FUntypedBulkData;
-namespace UE::Virtualization { class FVirtualizedUntypedBulkData; }
 
 /*----------------------------------------------------------------------------
 	FLinkerSave.
@@ -112,7 +111,7 @@ public:
 		FCompressedBuffer Payload;
 	};
 
-	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file (currently an experimental feature) */
+	/** Used by FEditorBulkData to add payloads to be added to the payload sidecar file (currently an experimental feature) */
 	TArray<FSidecarStorageInfo> SidecarDataToAppend;
 	
 	/** Gathers all payloads while save the package, so that they can be stored in a single data structure @see FPackageTrailer */

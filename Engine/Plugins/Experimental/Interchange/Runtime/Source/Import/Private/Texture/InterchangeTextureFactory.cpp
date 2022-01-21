@@ -268,7 +268,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	}
 
 #if WITH_EDITORONLY_DATA
-	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.Init(
 			Image.SizeX,
@@ -290,7 +290,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTexture2DSourceData(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTexture2DSourceData(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		if (BlockedImage.BlocksData.Num() > 1)
 		{
@@ -330,7 +330,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTextureSourceData(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceData(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.InitLayered(
 			SlicedImage.SizeX,
@@ -352,7 +352,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, const FImportLightProfile& LightProfile, UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, const FImportLightProfile& LightProfile, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		const FImportImage& ImportImage = LightProfile;
 		SetupTextureSourceData(TextureLightProfile, ImportImage, MoveTemp(BufferAndId));

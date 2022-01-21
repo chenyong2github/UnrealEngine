@@ -30,7 +30,7 @@ FPayloadId::FPayloadId(const FSharedBuffer& Payload)
 }
 
 // TODO: Currently only used for backwards compatibility, we might want to make this private and allow 
-// FVirtualizedUntypedBulkData::CreateFromBulkData to access it by being a friend.
+// FEditorBulkData::CreateFromBulkData to access it by being a friend.
 FPayloadId::FPayloadId(const FGuid& Guid)
 {
 	if (Guid.IsValid())

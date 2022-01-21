@@ -14,20 +14,20 @@
 class FArchive;
 class UObject;
 
-// When enabled it will be possible for specific bulkdata objects to opt out of being virtualized
-// This is a development feature and not expected to be used
+// When enabled it will be possible for specific editor bulkdata objects to opt out of being virtualized
+// This is a development feature and not expected to be used!
 #define UE_ENABLE_VIRTUALIZATION_TOGGLE 1
 
-//TODO: At some point it might be a good idea to uncomment this to make sure that FVirtualizedUntypedBulkData is
+//TODO: At some point it might be a good idea to uncomment this to make sure that FEditorBulkData is
 //		never used at runtime (requires a little too much reworking of some assets for now though)
 //#if WITH_EDITORONLY_DATA
 
-namespace UE::Virtualization
+namespace UE::Serialization
 {
 
 namespace Private
 {
-/** A wrapper around the oodle compression settings used by FVirtualizedUntypedBulkData. */
+/** A wrapper around the oodle compression settings used by FEditorBulkData. */
 struct FCompressionSettings
 {
 	COREUOBJECT_API FCompressionSettings();
@@ -70,7 +70,7 @@ enum class ECompressionOptions : uint8
 };
 
 /**
- * The goal of this class is to provide an editor time version of BulkData that will work with the content
+ * The goal of this class is to provide an editor time version of BulkData that will work with the asset
  * virtualization system.
  *
  * Assuming that the DDC is hot, the virtualized payloads are accessed relatively infrequently, usually when the package
@@ -96,20 +96,20 @@ enum class ECompressionOptions : uint8
  */
 
 /** The base class with no type */
-class COREUOBJECT_API FVirtualizedUntypedBulkData
+class COREUOBJECT_API FEditorBulkData
 {
 public:
-	FVirtualizedUntypedBulkData() = default;
-	FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&& Other);
-	FVirtualizedUntypedBulkData& operator=(FVirtualizedUntypedBulkData&& Other);
+	FEditorBulkData() = default;
+	FEditorBulkData(FEditorBulkData&& Other);
+	FEditorBulkData& operator=(FEditorBulkData&& Other);
 
-	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other);
-	FVirtualizedUntypedBulkData& operator=(const FVirtualizedUntypedBulkData& Other);
+	FEditorBulkData(const FEditorBulkData& Other);
+	FEditorBulkData& operator=(const FEditorBulkData& Other);
 
-	~FVirtualizedUntypedBulkData();
+	~FEditorBulkData();
 
 	/** 
-	 * Convenience method to make it easier to convert from BulkData to FVirtualizedBulkData and sets the Guid 
+	 * Convenience method to make it easier to convert from FUntypedBulkData to FEditorBulkData and sets the Guid 
 	 *
 	 * @param BulkData	The bulkdata object to create from.
 	 * @param Guid		A guid associated with the bulkdata object which will be used to identify the payload.
@@ -153,7 +153,7 @@ public:
 	FGuid GetIdentifier() const;
 
 	/** Returns an unique identifier for the content of the payload. */
-	const FPayloadId& GetPayloadId() const 
+	const UE::Virtualization::FPayloadId& GetPayloadId() const
 	{ 
 		return PayloadContentId; 
 	}
@@ -218,10 +218,10 @@ public:
 		FSharedBufferWithID& operator=(const FSharedBufferWithID&) = delete;
 
 	private:
-		friend FVirtualizedUntypedBulkData;
+		friend FEditorBulkData;
 
 		FSharedBuffer Payload;
-		FPayloadId PayloadId;
+		UE::Virtualization::FPayloadId PayloadId;
 	};
 
 	/**
@@ -247,7 +247,7 @@ public:
 	 * These settings will continue to be used until the bulkdata object is reset, a subsequent
 	 * call to ::SetCompressionOptions is made or the owning package is serialized to disk.
 	 * 
-	 * @param Option	The high level option to use. @see UE::Virtualization::ECompressionOptions
+	 * @param Option	The high level option to use. @see UE::Serialization::ECompressionOptions
 	 */ 
 	void SetCompressionOptions(ECompressionOptions Option);
 
@@ -280,9 +280,9 @@ public:
 	void TearOff();
 
 	/** Make a torn-off copy of this bulk data. */
-	FVirtualizedUntypedBulkData CopyTornOff() const 
+	FEditorBulkData CopyTornOff() const
 	{ 
-		return FVirtualizedUntypedBulkData(*this, ETornOff()); 
+		return FEditorBulkData(*this, ETornOff());
 	}
 
 	// Functions used by the BulkDataRegistry
@@ -300,7 +300,7 @@ public:
 
 	/**
 	 * Register this BulkData with the BulkData registry, if it is valid for registration.
-	 * This function is called automatically when necessary by VirtualizedBulkData internals, 
+	 * This function is called automatically when necessary by EditorBulkData internals, 
 	 * but external callers can call it to provide information about the owner if it was previously
 	 * registered anonymously by UpdatePayload.
 	 */
@@ -313,7 +313,7 @@ public:
 
 protected:
 	enum class ETornOff {};
-	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff);
+	FEditorBulkData(const FEditorBulkData& Other, ETornOff);
 
 private:
 	friend struct FTocEntry;
@@ -364,7 +364,7 @@ private:
 	/** The new path that saves payloads to the FPackageTrailer which is then appended to the end of the package file */
 	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 
-	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID);
+	void UpdatePayloadImpl(FSharedBuffer&& InPayload, UE::Virtualization::FPayloadId&& InPayloadID);
 
 	FCompressedBuffer GetDataInternal() const;
 
@@ -462,7 +462,7 @@ private:
 	FGuid BulkDataId;
 
 	/** Unique identifier for the contents of the payload*/
-	FPayloadId PayloadContentId;
+	UE::Virtualization::FPayloadId PayloadContentId;
 
 	/** Pointer to the payload if it is held in memory (it has been updated but not yet saved to disk for example) */
 	FSharedBuffer Payload;
@@ -499,34 +499,7 @@ private:
 	Private::FCompressionSettings CompressionSettings;
 };
 
-ENUM_CLASS_FLAGS(FVirtualizedUntypedBulkData::EFlags);
-
-//TODO: Probably remove this and change FVirtualizedUntypedBulkData to always be TVirtualizedBulkData<uint8>
-/** Type safe versions */
-template<typename DataType>
-class TVirtualizedBulkData final : public FVirtualizedUntypedBulkData
-{
-public:
-	TVirtualizedBulkData() = default;
-	~TVirtualizedBulkData() = default;
-	TVirtualizedBulkData(const TVirtualizedBulkData& Other) = default;
-	TVirtualizedBulkData(TVirtualizedBulkData&& Other) = default;
-	TVirtualizedBulkData& operator=(const TVirtualizedBulkData& Other) = default;
-	TVirtualizedBulkData& operator=(TVirtualizedBulkData&& Other) = default;
-
-	TVirtualizedBulkData<DataType> CopyTornOff() const
-	{
-		return TVirtualizedBulkData<DataType>(*this, ETornOff());
-	}
-
-protected:
-	TVirtualizedBulkData(const TVirtualizedBulkData<DataType>& Other, ETornOff) : FVirtualizedUntypedBulkData(Other, ETornOff()) {}
-};
-
-using FByteVirtualizedBulkData	= TVirtualizedBulkData<uint8>;
-using FWordVirtualizedBulkData	= TVirtualizedBulkData<uint16>;
-using FIntVirtualizedBulkData	= TVirtualizedBulkData<int32>;
-using FFloatVirtualizedBulkData	= TVirtualizedBulkData<float>;
+ENUM_CLASS_FLAGS(FEditorBulkData::EFlags);
 
 /** 
  * NOTE: FPayloadToc/FTocEntry are now strictly legacy and are only used by the experimental sidecar system.
@@ -541,7 +514,7 @@ using FFloatVirtualizedBulkData	= TVirtualizedBulkData<float>;
 struct COREUOBJECT_API FTocEntry
 {
 	FTocEntry() = default;
-	FTocEntry(const FVirtualizedUntypedBulkData& BulkData)
+	FTocEntry(const FEditorBulkData& BulkData)
 		: Identifier(BulkData.PayloadContentId)
 		, OffsetInFile(BulkData.OffsetInFile)
 		, UncompressedSize(BulkData.PayloadSize)
@@ -555,7 +528,7 @@ struct COREUOBJECT_API FTocEntry
 	static constexpr uint32 PayloadSidecarFileVersion = 1;
 
 	/** Identifier for the payload */
-	FPayloadId Identifier;
+	UE::Virtualization::FPayloadId Identifier;
 	/** The offset into the file where we can find the payload, note that a virtualized payload will have an offset of INDEX_NONE */
 	int64 OffsetInFile = INDEX_NONE;
 	/** The size of the payload when uncompressed. */
@@ -570,10 +543,10 @@ class COREUOBJECT_API FPayloadToc
 {
 public:
 
-	void AddEntry(const FVirtualizedUntypedBulkData& BulkData);
-	bool FindEntry(const FPayloadId& Identifier, FTocEntry& OutEntry);
+	void AddEntry(const FEditorBulkData& BulkData);
+	bool FindEntry(const UE::Virtualization::FPayloadId& Identifier, FTocEntry& OutEntry);
 
-	const TArray<UE::Virtualization::FTocEntry>& GetContents() const;
+	const TArray<FTocEntry>& GetContents() const;
 
 	friend FArchive& operator<<(FArchive& Ar, FPayloadToc& TableOfContents);
 	friend void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents);
@@ -589,9 +562,9 @@ private:
 		AUTOMATIC_VERSION = AUTOMATIC_VERSION_PLUS_ONE - 1
 	};
 
-	TArray<UE::Virtualization::FTocEntry> Contents;
+	TArray<FTocEntry> Contents;
 };
 
-} // namespace UE::Virtualization
+} // namespace UE::Serialization
 
 //#endif //WITH_EDITORONLY_DATA

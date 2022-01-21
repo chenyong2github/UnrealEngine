@@ -6,12 +6,12 @@
 #include "MeshAttributes.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/EditorBulkDataReader.h"
+#include "Serialization/EditorBulkDataWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/NameAsStringProxyArchive.h"
-#include "Serialization/VirtualizedBulkDataReader.h"
-#include "Serialization/VirtualizedBulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UE5CookerObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
@@ -2080,7 +2080,7 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 	if( !MeshDescription.IsEmpty() )
 	{
 		const bool bIsPersistent = true;
-		UE::Virtualization::FVirtualizedBulkDataWriter Ar(BulkData, bIsPersistent);
+		UE::Serialization::FEditorBulkDataWriter Ar(BulkData, bIsPersistent);
 		Ar << MeshDescription;
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
@@ -2116,7 +2116,7 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 #endif //WITH_EDITOR
 
 		const bool bIsPersistent = true;
-		UE::Virtualization::FVirtualizedBulkDataReader Ar(BulkData, bIsPersistent);
+		UE::Serialization::FEditorBulkDataReader Ar(BulkData, bIsPersistent);
 
 		// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
 		// is serialized with the same versioning.

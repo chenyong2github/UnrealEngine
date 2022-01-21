@@ -11,7 +11,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
 #include "Serialization/BulkDataRegistry.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "Templates/RefCounting.h"
 #include "TickableEditorObject.h"
 
@@ -28,18 +28,18 @@ class FBulkDataRegistryEditorDomain;
 struct FRegisteredBulk
 {
 	FRegisteredBulk() = default;
-	FRegisteredBulk(UE::Virtualization::FVirtualizedUntypedBulkData&& InBulkData, FName InPackageName = NAME_None)
+	FRegisteredBulk(UE::Serialization::FEditorBulkData&& InBulkData, FName InPackageName = NAME_None)
 		:BulkData(MoveTemp(InBulkData)), PackageName(InPackageName)
 	{
 	}
 
-	UE::Virtualization::FVirtualizedUntypedBulkData BulkData;
+	UE::Serialization::FEditorBulkData BulkData;
 	FName PackageName;
 	bool bHasTempPayload = false;
 };
 
 /** Serialize an array of BulkDatas into or out of bytes saved/load from the registry's persistent cache. */
-void Serialize(FArchive& Ar, TArray<UE::Virtualization::FVirtualizedUntypedBulkData>& InDatas);
+void Serialize(FArchive& Ar, TArray<UE::Serialization::FEditorBulkData>& InDatas);
 
 /** A collection of bulkdatas that should be sent to the cache for the given package. */
 class FPendingPackage
@@ -50,7 +50,7 @@ public:
 	FPendingPackage(const FPendingPackage& Other) = delete;
 
 	void Cancel();
-	void AddBulkData(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
+	void AddBulkData(const UE::Serialization::FEditorBulkData& BulkData)
 	{
 		BulkDatas.Add(BulkData);
 	}
@@ -72,8 +72,8 @@ private:
 		Flag_Canceled = 1 << 2,
 	};
 	FName PackageName;
-	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> BulkDatas;
-	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> CachedBulkDatas;
+	TArray<UE::Serialization::FEditorBulkData> BulkDatas;
+	TArray<UE::Serialization::FEditorBulkData> CachedBulkDatas;
 	UE::DerivedData::FRequestOwner BulkDataListCacheRequest;
 	FBulkDataRegistryEditorDomain* Owner;
 	/**
@@ -110,7 +110,7 @@ class FUpdatePayloadWorker : public FNonAbandonableTask
 {
 public:
 	FUpdatePayloadWorker(FBulkDataRegistryEditorDomain* InBulkDataRegistry,
-		const UE::Virtualization::FVirtualizedUntypedBulkData& InSourceBulk);
+		const UE::Serialization::FEditorBulkData& InSourceBulk);
 
 	void DoWork();
 	TStatId GetStatId() const
@@ -119,7 +119,7 @@ public:
 	}
 
 private:
-	UE::Virtualization::FVirtualizedUntypedBulkData BulkData;
+	UE::Serialization::FEditorBulkData BulkData;
 	TRefCountPtr<FTaskSharedDataLock> SharedDataLock;
 	FBulkDataRegistryEditorDomain* BulkDataRegistry;
 };
@@ -165,8 +165,8 @@ public:
 	virtual ~FBulkDataRegistryEditorDomain();
 
 	// IBulkDataRegistry interface
-	virtual void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override;
-	virtual void OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override;
+	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override;
+	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override;
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) override;
 	virtual uint64 GetBulkDataResaveSize(FName PackageName) override;
@@ -178,12 +178,12 @@ public:
 	virtual TStatId GetStatId() const override { return TStatId(); }
 
 private:
-	void AddPendingPackageBulkData(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData);
+	void AddPendingPackageBulkData(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData);
 	void PollPendingPackages(bool bWaitForCooldown);
 	void AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize);
 	void PruneTempLoadedPayloads();
 	void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
-	void WritePayloadIdToCache(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) const;
+	void WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData) const;
 	void ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
 		TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings);
 

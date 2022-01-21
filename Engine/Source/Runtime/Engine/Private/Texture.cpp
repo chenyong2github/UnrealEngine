@@ -1224,19 +1224,19 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	}
 
 	BulkData.UpdatePayload(Buffer.MoveToShared());
-	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	const FTextureSourceBlock* InBlocks,
 	int32 InNumLayers,
 	int32 InNumBlocks,
-	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData)
+	UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData)
 {
 	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
 
 	BulkData.UpdatePayload(MoveTemp(NewData));
-	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitLayered(
@@ -1275,7 +1275,7 @@ void FTextureSource::InitLayered(
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(TotalBytes).MoveToShared());
 	}
 
-	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitLayered(
@@ -1285,7 +1285,7 @@ void FTextureSource::InitLayered(
 	int32 NewNumLayers,
 	int32 NewNumMips,
 	const ETextureSourceFormat* NewLayerFormat,
-	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData)
+	UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData)
 {
 	InitLayeredImpl(
 		NewSizeX,
@@ -1297,7 +1297,7 @@ void FTextureSource::InitLayered(
 	);
 
 	BulkData.UpdatePayload(MoveTemp(NewData));
-	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
 void FTextureSource::Init(
@@ -1318,7 +1318,7 @@ void FTextureSource::Init(
 	int32 NewNumSlices,
 	int32 NewNumMips,
 	ETextureSourceFormat NewFormat,
-	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
+	UE::Serialization::FEditorBulkData::FSharedBufferWithID NewData
 )
 {
 	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, MoveTemp(NewData));
@@ -1387,11 +1387,11 @@ void FTextureSource::InitWithCompressedSourceData(
 	// Disable the internal bulkdata compression if the source data is already compressed
 	if (CompressionFormat == TSCF_None)
 	{
-		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+		BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 	}
 	else
 	{
-		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Disabled);
+		BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Disabled);
 	}
 }
 
@@ -1459,7 +1459,7 @@ void FTextureSource::Compress()
 	}
 	else
 	{
-		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Disabled);
+		BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Disabled);
 	}
 }
 
@@ -1554,7 +1554,7 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 			UE_CLOG(CompressionFormat == TSCF_JPEG, LogTexture, Warning, TEXT("Call to FTextureSource::UnlockMip will cause texture source to lose it's jpeg storage format"));
 
 			BulkData.UpdatePayload(LockedMipData.Release());
-			BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+			BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 
 			bPNGCompressed = false;
 			CompressionFormat = TSCF_None;

@@ -3,22 +3,22 @@
 #pragma once
 
 #include "Serialization/BufferReader.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 
 #if WITH_EDITORONLY_DATA
 
-namespace UE::Virtualization
+namespace UE::Serialization
 {
 
 namespace Private
 {
 
-/** Wraps access to the FVirtualizedUntypedBulkData data for FVirtualizedBulkDataReader
+/** Wraps access to the FEditorBulkData data for FEditorBulkDataReader
 so that it can be done before the FBufferReaderBase constructor is called */
 class DataAccessWrapper
 {
 protected:
-	DataAccessWrapper(FVirtualizedUntypedBulkData& InBulkData)
+	DataAccessWrapper(FEditorBulkData& InBulkData)
 		: Payload(InBulkData.GetPayload().Get())
 
 	{
@@ -51,18 +51,18 @@ private:
 
 } // namespace Private
 
-class FVirtualizedBulkDataReader : protected Private::DataAccessWrapper, public FBufferReaderBase
+class FEditorBulkDataReader : protected Private::DataAccessWrapper, public FBufferReaderBase
 {
 public:
-	FVirtualizedBulkDataReader(FVirtualizedUntypedBulkData& InBulkData, bool bIsPersistent = false)
+	FEditorBulkDataReader(FEditorBulkData& InBulkData, bool bIsPersistent = false)
 		: DataAccessWrapper(InBulkData)
 		, FBufferReaderBase(GetData(), GetDataLength(), false, bIsPersistent)
 	{
 	}
 
-	virtual ~FVirtualizedBulkDataReader() = default;
+	virtual ~FEditorBulkDataReader() = default;
 
-	/** Returns if the FVirtualizedBulkDataReader has a valid bulkdata payload or not */
+	/** Returns if the FEditorBulkDataReader has a valid bulkdata payload or not */
 	bool IsValid() const
 	{
 		return Private::DataAccessWrapper::IsValid();
@@ -81,10 +81,10 @@ public:
 
 	virtual FString GetArchiveName() const
 	{
-		return TEXT("FVirtualizedBulkDataReader");
+		return TEXT("FEditorBulkDataReader");
 	}
 };
 
-} // namespace UE::Virtualization
+} // namespace UE::Serialization
 
 #endif //WITH_EDITORONLY_DATA

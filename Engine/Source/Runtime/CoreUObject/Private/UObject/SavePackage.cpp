@@ -65,7 +65,7 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/PackageWriter.h"
 #include "Serialization/UnversionedPropertySerialization.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"

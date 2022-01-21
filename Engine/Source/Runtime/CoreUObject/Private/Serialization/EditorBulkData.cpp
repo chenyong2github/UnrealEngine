@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Serialization/VirtualizedBulkData.h"
+#include "Serialization/EditorBulkData.h"
 
 #include "Compression/OodleDataCompression.h"
 #include "HAL/FileManager.h"
@@ -21,28 +21,27 @@
 
 /** When enabled the non-virtualized bulkdata objects will attach to the FLinkerLoader for the package that they are loaded from */
 #if WITH_EDITOR
-	#define VBD_ALLOW_LINKERLOADER_ATTACHMENT 1
+	#define UE_ALLOW_LINKERLOADER_ATTACHMENT 1
 #else
-	#define VBD_ALLOW_LINKERLOADER_ATTACHMENT 0
+	#define UE_ALLOW_LINKERLOADER_ATTACHMENT 0
 #endif //WITH_EDITOR
 
 /** When enabled we will fatal log if we detect corrupted data rather than logging an error and returning a null FCompressedBuffer/FSharedBuffer. */
-#define VBD_CORRUPTED_PAYLOAD_IS_FATAL 0
+#define UE_CORRUPTED_PAYLOAD_IS_FATAL 0
 
-
-#if VBD_CORRUPTED_PAYLOAD_IS_FATAL
-	#define VBD_CORRUPTED_DATA_SEVERITY Fatal
+#if UE_CORRUPTED_PAYLOAD_IS_FATAL
+	#define UE_CORRUPTED_DATA_SEVERITY Fatal
 #else
-	#define VBD_CORRUPTED_DATA_SEVERITY Error
+	#define UE_CORRUPTED_DATA_SEVERITY Error
 #endif // VBD_CORRUPTED_PAYLOAD_IS_FATAL
 
-namespace UE::Virtualization
+namespace UE::Serialization
 {
 /** This console variable should only exist for testing */
 static TAutoConsoleVariable<bool> CVarShouldLoadFromSidecar(
 	TEXT("Serialization.LoadFromSidecar"),
 	false,
-	TEXT("When true FVirtualizedUntypedBulkData will load from the sidecar file"));
+	TEXT("When true FEditorBulkData will load from the sidecar file"));
 
 /** 
  * Prefer loading from the package trailer (load the trailer, parse the look up, then load the payload) over 
@@ -51,17 +50,17 @@ static TAutoConsoleVariable<bool> CVarShouldLoadFromSidecar(
 static TAutoConsoleVariable<bool> CVarShouldLoadFromTrailer(
 	TEXT("Serialization.LoadFromTrailer"),
 	false,
-	TEXT("When true FVirtualizedUntypedBulkData will load payloads via the package trailer rather than the package itself"));
+	TEXT("When true FEditorBulkData will load payloads via the package trailer rather than the package itself"));
 
 static TAutoConsoleVariable<bool> CVarShouldValidatePayload(
 	TEXT("Serialization.ValidatePayloads"),
 	false,
-	TEXT("When true FVirtualizedUntypedBulkData validate any payload loaded from the sidecar file"));
+	TEXT("When true FEditorBulkData validate any payload loaded from the sidecar file"));
 
 static TAutoConsoleVariable<bool> CVarShouldAllowSidecarSyncing(
 	TEXT("Serialization.AllowSidecarSyncing"),
 	false,
-	TEXT("When true FVirtualizedUntypedBulkData will attempt to sync it's .upayload file via sourcecontrol if the first attempt to load from it fails"));
+	TEXT("When true FEditorBulkData will attempt to sync it's .upayload file via sourcecontrol if the first attempt to load from it fails"));
 
 /** When enabled the bulkdata object will try pushing the payload when saved to disk as part of a package.
   * This is legacy behavior and likely to be removed
@@ -118,11 +117,11 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegme
 	{
 		TCHAR SystemErrorMsg[2048] = { 0 };
 		FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
-		UE_LOG(LogVirtualization, Error, TEXT("Could not open the file '%s' for reading due to system error: '%s' (%d))"), *PackagePath.GetDebugNameWithExtension(PackageSegment), SystemErrorMsg, SystemError);
+		UE_LOG(LogSerialization, Error, TEXT("Could not open the file '%s' for reading due to system error: '%s' (%d))"), *PackagePath.GetDebugNameWithExtension(PackageSegment), SystemErrorMsg, SystemError);
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FVirtualizedUntypedBulkData with an unknown error"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
+		UE_LOG(LogSerialization, Error, TEXT("Could not open (%s) to read FEditorBulkData with an unknown error"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
 	}
 }
 
@@ -133,7 +132,7 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegme
  * If the contents are validated we check the loaded result against the members of a bulkdata object to 
  * see if they match.
  */
-bool IsDataValid(const FVirtualizedUntypedBulkData& BulkData, const FCompressedBuffer& Payload)
+bool IsDataValid(const FEditorBulkData& BulkData, const FCompressedBuffer& Payload)
 {
 	if (!Payload.IsNull())
 	{
@@ -211,9 +210,9 @@ void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
 }
 
 /** Utility for accessing IVirtualizationSourceControlUtilities from the modular feature system. */
-Experimental::IVirtualizationSourceControlUtilities* GetSourceControlInterface()
+UE::Virtualization::Experimental::IVirtualizationSourceControlUtilities* GetSourceControlInterface()
 {
-	return (Experimental::IVirtualizationSourceControlUtilities*)IModularFeatures::Get().GetModularFeatureImplementation(FName("VirtualizationSourceControlUtilities"), 0);
+	return (UE::Virtualization::Experimental::IVirtualizationSourceControlUtilities*)IModularFeatures::Get().GetModularFeatureImplementation(FName("VirtualizationSourceControlUtilities"), 0);
 }
 
 namespace Private
@@ -304,14 +303,14 @@ ECompressedBufferCompressionLevel FCompressionSettings::GetCompressionLevel()
 
 } // namespace Private
 
-FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&& Other)
+FEditorBulkData::FEditorBulkData(FEditorBulkData&& Other)
 {
 	*this = MoveTemp(Other);
 }
 
-FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(FVirtualizedUntypedBulkData&& Other)
+FEditorBulkData& FEditorBulkData::operator=(FEditorBulkData&& Other)
 {
-	// The same as the default move constructor, except we need to handle registration and deregistration
+	// The same as the default move constructor, except we need to handle registration and unregistration
 	Unregister();
 	Other.Unregister();
 
@@ -332,12 +331,12 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(FVirtualized
 	return *this;
 }
 
-FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other)
+FEditorBulkData::FEditorBulkData(const FEditorBulkData& Other)
 {
 	*this = Other;
 }
 
-FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtualizedUntypedBulkData& Other)
+FEditorBulkData& FEditorBulkData::operator=(const FEditorBulkData& Other)
 {
 	// Torn-off BulkDatas remain torn-off even when being copied into from a non-torn-off BulkData
 	// Remaining torn-off is a work-around necessary for FTextureSource::CopyTornOff to avoid registering a new
@@ -385,7 +384,7 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtu
 	return *this;
 }
 
-FVirtualizedUntypedBulkData::~FVirtualizedUntypedBulkData()
+FEditorBulkData::~FEditorBulkData()
 {
 	if (AttachedAr != nullptr)
 	{
@@ -395,19 +394,19 @@ FVirtualizedUntypedBulkData::~FVirtualizedUntypedBulkData()
 	Unregister();
 }
 
-FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff)
+FEditorBulkData::FEditorBulkData(const FEditorBulkData& Other, ETornOff)
 {
 	EnumAddFlags(Flags, EFlags::IsTornOff);
 	*this = Other; // We rely on operator= preserving the torn-off flag
 }
 
-void FVirtualizedUntypedBulkData::TearOff()
+void FEditorBulkData::TearOff()
 {
 	Unregister();
 	EnumAddFlags(Flags, EFlags::IsTornOff);
 }
 
-void FVirtualizedUntypedBulkData::Register(UObject* Owner)
+void FEditorBulkData::Register(UObject* Owner)
 {
 #if WITH_EDITOR
 	if (BulkDataId.IsValid() && PayloadSize > 0 && !EnumHasAnyFlags(Flags, EFlags::IsTornOff))
@@ -418,7 +417,7 @@ void FVirtualizedUntypedBulkData::Register(UObject* Owner)
 #endif
 }
 
-void FVirtualizedUntypedBulkData::Unregister()
+void FEditorBulkData::Unregister()
 {
 #if WITH_EDITOR
 	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
@@ -448,16 +447,16 @@ static FGuid CreateUniqueGuid(const FGuid& NonUniqueGuid, const UObject* Owner, 
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Warning,
+		UE_LOG(LogSerialization, Warning,
 			TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
 			DebugName);
 		return FGuid::NewGuid();
 	}
 }
 
-void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid, UObject* Owner)
+void FEditorBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid, UObject* Owner)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::CreateFromBulkData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::CreateFromBulkData);
 	
 	checkf(!BulkDataId.IsValid(), 
 		TEXT("Calling ::CreateFromBulkData on a bulkdata object that already has a valid identifier! Package: '%s'"),
@@ -465,7 +464,7 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 
 	Reset();
 
-#if VBD_ALLOW_LINKERLOADER_ATTACHMENT
+#if UE_ALLOW_LINKERLOADER_ATTACHMENT
 	AttachedAr = InBulkData.AttachedAr;
 	if (AttachedAr != nullptr)
 	{
@@ -478,7 +477,7 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 	if (InBulkData.GetBulkDataSize() > 0)
 	{
 		BulkDataId = CreateUniqueGuid(InGuid, Owner, *InBulkData.GetPackagePath().GetDebugName());
-		PayloadContentId = FPayloadId(BulkDataId);
+		PayloadContentId = UE::Virtualization::FPayloadId(BulkDataId);
 		bWasKeyGuidDerived = true;
 	}
 	
@@ -508,7 +507,7 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 	Register(Owner);
 }
 
-void FVirtualizedUntypedBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
+void FEditorBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
 {
 	if (BulkDataId.IsValid())
 	{
@@ -518,9 +517,9 @@ void FVirtualizedUntypedBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
 	}
 }
 
-void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister)
+void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::Serialize);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::Serialize);
 
 	if (Ar.IsTransacting())
 	{
@@ -631,7 +630,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 
 		if (Ar.IsSaving())
 		{
-			checkf(Ar.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+			checkf(Ar.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
 			const EFlags UpdatedFlags = BuildFlagsForSerialization(Ar, bKeepFileDataByReference);
 
@@ -758,7 +757,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			else
 			{
 				// TODO: This check is for older virtualized formats that might be seen in older test projects.
-				UE_CLOG(IsDataVirtualized(), LogVirtualization, Error, TEXT("Payload in '%s' is virtualized in an older format and should be re-saved!"), *Owner->GetName());
+				UE_CLOG(IsDataVirtualized(), LogSerialization, Error, TEXT("Payload in '%s' is virtualized in an older format and should be re-saved!"), *Owner->GetName());
 				if (!IsDataVirtualized())
 				{
 					Ar << OffsetInFile;
@@ -793,7 +792,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 					
 				if (!PackagePath.IsEmpty() && CacheableArchive != nullptr)
 				{
-#if VBD_ALLOW_LINKERLOADER_ATTACHMENT
+#if UE_ALLOW_LINKERLOADER_ATTACHMENT
 					AttachedAr = CacheableArchive;
 					AttachedAr->AttachBulkData(this);
 #endif //VBD_ALLOW_LINKERLOADER_ATTACHMENT
@@ -829,7 +828,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 	}
 }
 
-void FVirtualizedUntypedBulkData::SerializeForRegistry(FArchive& Ar)
+void FEditorBulkData::SerializeForRegistry(FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
@@ -871,7 +870,7 @@ void FVirtualizedUntypedBulkData::SerializeForRegistry(FArchive& Ar)
 	Ar << OffsetInFile;
 }
 
-bool FVirtualizedUntypedBulkData::CanSaveForRegistry() const
+bool FEditorBulkData::CanSaveForRegistry() const
 {
 	return BulkDataId.IsValid() && PayloadSize > 0 && !IsMemoryOnlyPayload()
 		&& EnumHasAnyFlags(Flags, EFlags::IsTornOff) && !EnumHasAnyFlags(Flags, EFlags::HasRegistered)
@@ -879,13 +878,14 @@ bool FVirtualizedUntypedBulkData::CanSaveForRegistry() const
 }
 
 
-FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
+FCompressedBuffer FEditorBulkData::LoadFromDisk() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromDisk);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromDisk);
 
 	if (PackagePath.IsEmpty())
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Cannot load a payload with an empty filename!"));
+		// Bulkdata objects without a valid package path should not get this far when attempting to access a payload!
+		UE_LOG(LogSerialization, Error, TEXT("Cannot load a payload as the package path is empty!"));
 		return FCompressedBuffer();
 	}
 
@@ -894,18 +894,18 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 		// Note that this code path is purely for debugging and not expected to be enabled by default
 		if (CVarShouldValidatePayload.GetValueOnAnyThread())
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Validating payload loaded from sidecar file: '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_LOG(LogSerialization, Verbose, TEXT("Validating payload loaded from sidecar file: '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 
 			// Load both payloads then generate a FPayloadId from them, since this identifier is a hash of the buffers content
 			// we only need to verify them against PayloadContentId to be sure that the data is correct.
 			FCompressedBuffer SidecarBuffer = LoadFromSidecarFile();
 			FCompressedBuffer AssetBuffer = LoadFromPackageFile();
 
-			FPayloadId SidecarId(SidecarBuffer.Decompress());
-			FPayloadId AssetId(AssetBuffer.Decompress());
+			UE::Virtualization::FPayloadId SidecarId(SidecarBuffer.Decompress());
+			UE::Virtualization::FPayloadId AssetId(AssetBuffer.Decompress());
 
-			UE_CLOG(SidecarId != PayloadContentId, LogVirtualization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *SidecarId.ToString(), *PayloadContentId.ToString());
-			UE_CLOG(AssetId != PayloadContentId, LogVirtualization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *AssetId.ToString(), *PayloadContentId.ToString())
+			UE_CLOG(SidecarId != PayloadContentId, LogSerialization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *SidecarId.ToString(), *PayloadContentId.ToString());
+			UE_CLOG(AssetId != PayloadContentId, LogSerialization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *AssetId.ToString(), *PayloadContentId.ToString())
 
 			return SidecarBuffer;
 		}
@@ -927,11 +927,11 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 	}
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageFile() const
+FCompressedBuffer FEditorBulkData::LoadFromPackageFile() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromPackageFile);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromPackageFile);
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the package file: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
+	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the package file: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
 
 	// Open a reader to the file
 	TUniquePtr<FArchive> BulkArchive;
@@ -970,11 +970,11 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageFile() const
 	return PayloadFromDisk;
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageTrailer() const
+FCompressedBuffer FEditorBulkData::LoadFromPackageTrailer() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromPackageTrailer);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromPackageTrailer);
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the package trailer: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
+	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the package trailer: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
 
 	// TODO: Could just get the trailer from the owning FLinkerLoad if still attached
 
@@ -1018,9 +1018,9 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageTrailer() const
 	}	
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Verbosity) const
+FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Verbosity) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromSidecarFileInternal);
 
 	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, EPackageSegment::PayloadSidecar);
 	if (Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary)
@@ -1030,7 +1030,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal(Error
 
 		if (Version != FTocEntry::PayloadSidecarFileVersion)
 		{
-			UE_CLOG(Verbosity > ErrorVerbosity::None, LogVirtualization, Error, TEXT("Unknown version (%u) found in '%s'"), Version, *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_CLOG(Verbosity > ErrorVerbosity::None, LogSerialization, Error, TEXT("Unknown version (%u) found in '%s'"), Version, *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			return FCompressedBuffer();
 		}
 
@@ -1058,12 +1058,12 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal(Error
 			}
 			else if(Verbosity > ErrorVerbosity::None)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			}
 		}
 		else if(Verbosity > ErrorVerbosity::None)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("Unable to find payload '%s' in '%s'"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 		}
 	}
 	else if(Verbosity > ErrorVerbosity::None)
@@ -1074,11 +1074,11 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal(Error
 	return FCompressedBuffer();
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFile() const
+FCompressedBuffer FEditorBulkData::LoadFromSidecarFile() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromSidecarFile);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromSidecarFile);
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the sidecar file: '%s'"), 
+	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the sidecar file: '%s'"),
 		*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 
 	if (CVarShouldAllowSidecarSyncing.GetValueOnAnyThread())
@@ -1086,10 +1086,10 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFile() const
 		FCompressedBuffer PayloadFromDisk = LoadFromSidecarFileInternal(ErrorVerbosity::None);
 		if (PayloadFromDisk.IsNull())
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Initial load from sidecar failed, attempting to sync the file: '%s'"), 
+			UE_LOG(LogSerialization, Verbose, TEXT("Initial load from sidecar failed, attempting to sync the file: '%s'"),
 				*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 
-			if (Experimental::IVirtualizationSourceControlUtilities* SourceControlInterface = GetSourceControlInterface())
+			if (UE::Virtualization::Experimental::IVirtualizationSourceControlUtilities* SourceControlInterface = GetSourceControlInterface())
 			{
 				// SyncPayloadSidecarFile should log failure cases, so there is no need for us to add log messages here
 				if (SourceControlInterface->SyncPayloadSidecarFile(PackagePath))
@@ -1099,7 +1099,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFile() const
 			}
 			else
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed to find IVirtualizationSourceControlUtilities, unable to try and sync: '%s'"), 
+				UE_LOG(LogSerialization, Error, TEXT("Failed to find IVirtualizationSourceControlUtilities, unable to try and sync: '%s'"),
 					*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			}
 		}
@@ -1112,22 +1112,23 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFile() const
 	}
 }
 
-bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FCompressedBuffer& InPayload, const EFlags PayloadFlags) const
+bool FEditorBulkData::SerializeData(FArchive& Ar, FCompressedBuffer& InPayload, const EFlags PayloadFlags) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::SerializeData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::SerializeData);
 
-	if (Ar.IsSaving()) // Saving to virtualized bulkdata format
+	if (Ar.IsSaving())
 	{
 		Ar << InPayload;
 		return true;
 	}
-	else if (Ar.IsLoading() && !IsReferencingOldBulkData(PayloadFlags)) // Loading from virtualized bulkdata format
+	else if (Ar.IsLoading() && !IsReferencingOldBulkData(PayloadFlags))
 	{
 		Ar << InPayload;
 		return InPayload.IsNull();
 	}
-	else if (Ar.IsLoading()) // Loading from old bulkdata format
+	else if (Ar.IsLoading()) 
 	{
+		// Loading from old bulkdata format
 		const int64 Size = GetPayloadSize();
 		FUniqueBuffer LoadPayload = FUniqueBuffer::Alloc(Size);
 
@@ -1150,7 +1151,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FCompressedBuffer&
 	}
 }
 
-void FVirtualizedUntypedBulkData::PushData(const FPackagePath& InPackagePath)
+void FEditorBulkData::PushData(const FPackagePath& InPackagePath)
 {
 	checkf(IsDataVirtualized() == false || Payload.IsNull(), TEXT("Cannot have a valid payload in memory if the payload is virtualized!")); // Sanity check
 
@@ -1158,10 +1159,10 @@ void FVirtualizedUntypedBulkData::PushData(const FPackagePath& InPackagePath)
 	// currently virtualized (either we have an updated payload in memory or the 
 	// payload is currently non-virtualized and stored on disk)
 	
-	IVirtualizationSystem& VirtualizationSystem = IVirtualizationSystem::Get();
+	UE::Virtualization::IVirtualizationSystem& VirtualizationSystem = UE::Virtualization::IVirtualizationSystem::Get();
 	if (!IsDataVirtualized() && GetPayloadSize() > 0 && VirtualizationSystem.IsEnabled())
 	{ 
-		TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::PushData);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::PushData);
 
 		// We should only need to load from disk at this point if we are going from
 		// a non-virtualized payload to a virtualized one. If the bulkdata is merely being
@@ -1175,7 +1176,7 @@ void FVirtualizedUntypedBulkData::PushData(const FPackagePath& InPackagePath)
 		RecompressForSerialization(PayloadToPush, Flags);
 
 		// TODO: We could make this a config option?
-		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, EStorageType::Local, InPackagePath.GetPackageName()))
+		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, UE::Virtualization::EStorageType::Local, InPackagePath.GetPackageName()))
 		{
 			EnumAddFlags(Flags, EFlags::IsVirtualized);
 			EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain | EFlags::LegacyFileIsCompressed);
@@ -1193,11 +1194,11 @@ void FVirtualizedUntypedBulkData::PushData(const FPackagePath& InPackagePath)
 	}	
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::PullData() const
+FCompressedBuffer FEditorBulkData::PullData() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::PullData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::PullData);
 
-	FCompressedBuffer PulledPayload = IVirtualizationSystem::Get().PullData(PayloadContentId);
+	FCompressedBuffer PulledPayload = UE::Virtualization::IVirtualizationSystem::Get().PullData(PayloadContentId);
 
 	if (PulledPayload)
 	{
@@ -1210,18 +1211,18 @@ FCompressedBuffer FVirtualizedUntypedBulkData::PullData() const
 	return PulledPayload;
 }
 
-bool FVirtualizedUntypedBulkData::CanUnloadData() const
+bool FEditorBulkData::CanUnloadData() const
 {
 	// We cannot unload the data if are unable to reload it from a file
 	return IsDataVirtualized() || (PackagePath.IsEmpty() == false && AttachedAr != nullptr);
 }
 
-bool FVirtualizedUntypedBulkData::IsMemoryOnlyPayload() const
+bool FEditorBulkData::IsMemoryOnlyPayload() const
 {
 	return !Payload.IsNull() && !IsDataVirtualized() && PackagePath.IsEmpty();
 }
 
-void FVirtualizedUntypedBulkData::Reset()
+void FEditorBulkData::Reset()
 {
 	// Note that we do not reset the BulkDataId
 	if (AttachedAr != nullptr)
@@ -1241,7 +1242,7 @@ void FVirtualizedUntypedBulkData::Reset()
 	CompressionSettings.Reset();
 }
 
-void FVirtualizedUntypedBulkData::UnloadData()
+void FEditorBulkData::UnloadData()
 {
 	if (CanUnloadData())
 	{
@@ -1249,9 +1250,9 @@ void FVirtualizedUntypedBulkData::UnloadData()
 	}
 }
 
-void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
+void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::DetachFromDisk);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::DetachFromDisk);
 
 	check(Ar);
 	check(Ar == AttachedAr || AttachedAr == nullptr || AttachedAr->IsProxyOf(Ar));
@@ -1283,13 +1284,13 @@ void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePaylo
 	AttachedAr = nullptr;	
 }
 
-FGuid FVirtualizedUntypedBulkData::GetIdentifier() const
+FGuid FEditorBulkData::GetIdentifier() const
 {
 	checkf(GetPayloadSize() == 0 || BulkDataId.IsValid(), TEXT("If bulkdata has a valid payload then it should have a valid BulkDataId"));
 	return BulkDataId;
 }
 
-void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
+void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
 {
 	const int64 OffsetPos = LinkerSave.Tell();
 
@@ -1300,7 +1301,7 @@ void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave,
 	// The lambda is mutable so that PayloadToSerialize is not const (due to FArchive api not accepting const values)
 	auto SerializePayload = [this, OffsetPos, PayloadToSerialize, UpdatedFlags, Owner](FLinkerSave& LinkerSave, FArchive& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
 	{
-		checkf(ExportsArchive.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+		checkf(ExportsArchive.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
 		SerializeData(DataArchive, PayloadToSerialize, UpdatedFlags);
 
@@ -1356,11 +1357,11 @@ void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave,
 																				// this point however we test LinkerSave != nullptr to enter this branch.
 }
 
-void FVirtualizedUntypedBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
+void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
 {
 	auto OnPayloadWritten = [this, UpdatedFlags](FLinkerSave& LinkerSave, const FPackageTrailer& Trailer) mutable
 	{
-		checkf(LinkerSave.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+		checkf(LinkerSave.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
 		int64 PayloadOffset = Trailer.FindPayloadOffsetInFile(PayloadContentId);
 
@@ -1399,9 +1400,9 @@ void FVirtualizedUntypedBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerS
 	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID)
+void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, UE::Virtualization::FPayloadId&& InPayloadID)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayloadImpl);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayloadImpl);
 
 	if (AttachedAr != nullptr)
 	{
@@ -1448,9 +1449,9 @@ void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, F
 	}
 }
 
-FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
+FCompressedBuffer FEditorBulkData::GetDataInternal() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::GetDataInternal);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::GetDataInternal);
 
 	// Early out there isn't any data to actually load
 	if (GetPayloadSize() == 0)
@@ -1471,8 +1472,8 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 		
 		checkf(Payload.IsNull(), TEXT("Pulling data somehow assigned it to the bulk data object!")); //Make sure that we did not assign the buffer internally
 
-		UE_CLOG(CompressedPayload.IsNull(), LogVirtualization, Error, TEXT("Failed to pull payload '%s'"), *PayloadContentId.ToString());
-		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *PayloadContentId.ToString());
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *PayloadContentId.ToString());
+		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *PayloadContentId.ToString());
 		
 		return CompressedPayload;
 	}
@@ -1482,8 +1483,8 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 		
 		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
 
-		UE_CLOG(CompressedPayload.IsNull(), LogVirtualization, Error, TEXT("Failed to load payload '%s"), *PayloadContentId.ToString());
-		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("Payload '%s' loaded from '%s' is corrupt! Check the file on disk."),
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to load payload '%s"), *PayloadContentId.ToString());
+		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Payload '%s' loaded from '%s' is corrupt! Check the file on disk."),
 			*PayloadContentId.ToString(), 
 			*PackagePath.GetDebugName());
 
@@ -1491,7 +1492,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 	}
 }
 
-TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
+TFuture<FSharedBuffer> FEditorBulkData::GetPayload() const
 {
 	TPromise<FSharedBuffer> Promise;
 	
@@ -1516,7 +1517,7 @@ TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
 	return Promise.GetFuture();
 }
 
-TFuture<FCompressedBuffer>FVirtualizedUntypedBulkData::GetCompressedPayload() const
+TFuture<FCompressedBuffer>FEditorBulkData::GetCompressedPayload() const
 {
 	TPromise<FCompressedBuffer> Promise;
 
@@ -1528,25 +1529,25 @@ TFuture<FCompressedBuffer>FVirtualizedUntypedBulkData::GetCompressedPayload() co
 	return Promise.GetFuture();
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload)
+void FEditorBulkData::UpdatePayload(FSharedBuffer InPayload)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayload);
-	FPayloadId NewPayloadId(InPayload);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayload);
+	UE::Virtualization::FPayloadId NewPayloadId(InPayload);
 	UpdatePayloadImpl(MoveTemp(InPayload), MoveTemp(NewPayloadId));
 }
 
-FVirtualizedUntypedBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
+FEditorBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
 	: Payload(MoveTemp(InPayload))
 	, PayloadId(Payload)
 {
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBufferWithID InPayload)
+void FEditorBulkData::UpdatePayload(FSharedBufferWithID InPayload)
 {
 	UpdatePayloadImpl(MoveTemp(InPayload.Payload), MoveTemp(InPayload.PayloadId));
 }
 
-void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressionOptions Option)
+void FEditorBulkData::SetCompressionOptions(ECompressionOptions Option)
 {
 	switch (Option)
 	{
@@ -1570,7 +1571,7 @@ void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressionOptions Opti
 	}
 }
 
-void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressedBufferCompressor Compressor, ECompressedBufferCompressionLevel CompressionLevel)
+void FEditorBulkData::SetCompressionOptions(ECompressedBufferCompressor Compressor, ECompressedBufferCompressionLevel CompressionLevel)
 {
 	CompressionSettings.Set(Compressor, CompressionLevel);
 
@@ -1584,27 +1585,29 @@ void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressedBufferCompres
 	}
 }
 
-FCustomVersionContainer FVirtualizedUntypedBulkData::GetCustomVersions(FArchive& InlineArchive)
+FCustomVersionContainer FEditorBulkData::GetCustomVersions(FArchive& InlineArchive)
 {
 	return InlineArchive.GetCustomVersions();
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayloadId()
+void FEditorBulkData::UpdatePayloadId()
 {
 	UpdateKeyIfNeeded();
 }
 
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
-void FVirtualizedUntypedBulkData::SetVirtualizationOptOut(bool bOptOut)
+
+void FEditorBulkData::SetVirtualizationOptOut(bool bOptOut)
 {
 	if (ShouldAllowVirtualizationOptOut())
 	{
 		bSkipVirtualization = bOptOut;
 	}	
 }
+
 #endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
 
-void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()
+void FEditorBulkData::UpdateKeyIfNeeded()
 {
 	// If this was created from old BulkData then the key is generated from an older FGuid, we
 	// should recalculate it based off the payload to keep the key consistent in the future.
@@ -1614,7 +1617,7 @@ void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()
 
 		// Load the payload from disk (or memory) so that we can hash it
 		FSharedBuffer InPayload = GetDataInternal().Decompress();
-		PayloadContentId = FPayloadId(InPayload);
+		PayloadContentId = UE::Virtualization::FPayloadId(InPayload);
 
 		// Store as the in memory payload, since this method is only called during saving 
 		// we know it will get cleared anyway.
@@ -1623,7 +1626,7 @@ void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()
 	}
 }
 
-void FVirtualizedUntypedBulkData::RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const
+void FEditorBulkData::RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const
 {
 	Private::FCompressionSettings CurrentSettings(InOutPayload);
 	Private::FCompressionSettings TargetSettings;
@@ -1665,7 +1668,7 @@ void FVirtualizedUntypedBulkData::RecompressForSerialization(FCompressedBuffer& 
 	}
 }
 
-FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSerialization(FArchive& Ar, bool bKeepFileDataByReference) const
+FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar, bool bKeepFileDataByReference) const
 {
 	if (Ar.IsSaving())
 	{
@@ -1730,7 +1733,7 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 	}
 }
 
-bool FVirtualizedUntypedBulkData::TryPayloadValidationForSaving(const FCompressedBuffer& PayloadForSaving, FLinkerSave* LinkerSave) const
+bool FEditorBulkData::TryPayloadValidationForSaving(const FCompressedBuffer& PayloadForSaving, FLinkerSave* LinkerSave) const
 {
 	if (!IsDataValid(*this, PayloadForSaving) || (GetPayloadSize() > 0 && PayloadForSaving.IsNull()))
 	{
@@ -1744,7 +1747,7 @@ bool FVirtualizedUntypedBulkData::TryPayloadValidationForSaving(const FCompresse
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("%s"), *ErrorMessage);
+			UE_LOG(LogSerialization, Error, TEXT("%s"), *ErrorMessage);
 		}
 
 		return false;
@@ -1755,34 +1758,37 @@ bool FVirtualizedUntypedBulkData::TryPayloadValidationForSaving(const FCompresse
 	}
 }
 
-FText FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const
+FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const
 {
 	const FText GuidID = FText::FromString(GetIdentifier().ToString());
 
 	if (Linker != nullptr)
 	{
+		// We know the package we are saving to.
 		const FText PackageName = FText::FromString(Linker->LinkerRoot->GetName());
 		
-		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPkg", 
+		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadToPkg", 
 								"Attempting to save bulkdata {0} with an invalid payload to package '{1}'. The package probably needs to be reverted/recreated to fix this."), 						
 								GuidID, PackageName);
 	}
 	else if(!PackagePath.IsEmpty())
 	{
+		// We don't know where we are saving to, but we do know the package where the payload came from.
 		const FText PackageName = FText::FromString(PackagePath.GetPackageName());
 
-		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPath", 
+		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadFromPkg", 
 								"Attempting to save bulkdata {0} with an invalid payload from package '{1}'. The package probably needs to be reverted/recreated to fix this."),
 								GuidID, PackageName);
 	}
 	else
 	{
-		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPath", "Attempting to save bulkdata {0} with an invalid payload, source unknown"),
+		// We don't know where the payload came from or where it is being saved to.
+		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadPath", "Attempting to save bulkdata {0} with an invalid payload, source unknown"),
 								GuidID);
 	}
 }
 
-bool FVirtualizedUntypedBulkData::ShouldUseLegacySerialization(const FLinkerSave* LinkerSave) const
+bool FEditorBulkData::ShouldUseLegacySerialization(const FLinkerSave* LinkerSave) const
 {
 	if (LinkerSave == nullptr)
 	{
@@ -1814,7 +1820,7 @@ FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
 	Record << SA_VALUE(TEXT("UncompressedSize"), Entry.UncompressedSize);
 }
 
-void FPayloadToc::AddEntry(const FVirtualizedUntypedBulkData& BulkData)
+void FPayloadToc::AddEntry(const FEditorBulkData& BulkData)
 {
 	if (BulkData.GetPayloadId().IsValid())
 	{
@@ -1822,7 +1828,7 @@ void FPayloadToc::AddEntry(const FVirtualizedUntypedBulkData& BulkData)
 	}
 }
 
-bool FPayloadToc::FindEntry(const FPayloadId& Identifier, FTocEntry& OutEntry)
+bool FPayloadToc::FindEntry(const UE::Virtualization::FPayloadId& Identifier, FTocEntry& OutEntry)
 {
 	for (const FTocEntry& Entry : Contents)
 	{
@@ -1836,7 +1842,7 @@ bool FPayloadToc::FindEntry(const FPayloadId& Identifier, FTocEntry& OutEntry)
 	return false;
 }
 
-const TArray<UE::Virtualization::FTocEntry>& FPayloadToc::GetContents() const
+const TArray<FTocEntry>& FPayloadToc::GetContents() const
 {
 	return Contents;
 }
@@ -1861,9 +1867,10 @@ void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents)
 	Record << SA_VALUE(TEXT("Entries"), TableOfContents.Contents);
 }
 
-} // namespace UE::Virtualization
+} // namespace UE::Serialization
 
-#undef VBD_ALLOW_LINKERLOADER_ATTACHMENT
-#undef VBD_CORRUPTED_DATA_SEVERITY
+#undef UE_CORRUPTED_DATA_SEVERITY
+#undef UE_CORRUPTED_PAYLOAD_IS_FATAL
+#undef UE_ALLOW_LINKERLOADER_ATTACHMENT
 
 //#endif //WITH_EDITORONLY_DATA
