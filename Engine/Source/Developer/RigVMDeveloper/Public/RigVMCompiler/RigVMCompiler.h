@@ -113,6 +113,19 @@ public:
 	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InHeadCPPType, const FString& InSegmentPath);
 	
 #endif
+
+	TSharedPtr<FRigVMParserAST> AST;
+	
+	struct FCopyOpInfo
+	{
+		FRigVMCopyOp Op;
+		const FRigVMAssignExprAST* AssignExpr;
+		const FRigVMVarExprAST* SourceExpr;
+		const FRigVMVarExprAST* TargetExpr;
+	};
+
+	// operators that have been delayed for injection into the bytecode
+	TMap<FRigVMOperand, FCopyOpInfo> DeferredCopyOps;
 };
 
 UCLASS(BlueprintType)
@@ -178,6 +191,19 @@ private:
 	void TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 	void TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
+	void AddCopyOperator(
+		const FRigVMCopyOp& InOp,
+		const FRigVMAssignExprAST* InAssignExpr,
+		const FRigVMVarExprAST* InSourceExpr,
+		const FRigVMVarExprAST* InTargetExpr,
+		FRigVMCompilerWorkData& WorkData,
+		bool bDelayCopyOperations = true);
+
+	void AddCopyOperator(
+		const FRigVMCompilerWorkData::FCopyOpInfo& CopyOpInfo,
+		FRigVMCompilerWorkData& WorkData,
+		bool bDelayCopyOperations = true);
+
 	void InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
@@ -206,6 +232,6 @@ private:
 	{
 		ReportError(FString::Printf(Fmt, Args...));
 	}
-
+	
 	friend class FRigVMCompilerImportErrorContext;
 };
