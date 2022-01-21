@@ -392,7 +392,7 @@ FText SAutomationTestItem::GetExcludeReason() const
 	FName Reason;
 	bool IsToBeSkipped = TestStatus->IsToBeSkipped(&Reason);
 
-	return IsToBeSkipped ? FText::FromName(Reason) : LOCTEXT("", "");
+	return IsToBeSkipped ? FText::FromName(Reason) : FText();
 }
 
 void SAutomationTestItem::SetSkipFlag(ECheckBoxState Enable)
