@@ -2003,7 +2003,14 @@ static void WritePages(	FResources& Resources,
 	const uint32 TotalPageDiskSize = TotalRootDiskSize + TotalStreamingDiskSize;
 	UE_LOG(LogStaticMesh, Log, TEXT("WritePages:"), NumPages);
 	UE_LOG(LogStaticMesh, Log, TEXT("  Root: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalRootGPUSize, NumRootPages, TotalRootGPUSize / (float)NumRootPages, TotalRootGPUSize / (float(NumRootPages) * ROOT_PAGE_GPU_SIZE) * 100.0f);
-	UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * STREAMING_PAGE_GPU_SIZE) * 100.0f);
+	if(NumStreamingPages > 0)
+	{
+		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * STREAMING_PAGE_GPU_SIZE) * 100.0f);
+	}
+	else
+	{
+		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: 0 bytes."));
+	}
 	UE_LOG(LogStaticMesh, Log, TEXT("  Page data disk size: %d bytes. Fixup data size: %d bytes."), TotalPageDiskSize, TotalFixupSize);
 	UE_LOG(LogStaticMesh, Log, TEXT("  Total GPU size: %d bytes, Total disk size: %d bytes."), TotalPageGPUSize, TotalPageDiskSize + TotalFixupSize);
 
