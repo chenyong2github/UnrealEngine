@@ -133,7 +133,7 @@ void AccumulateEdgeLength(
 	bEdgeStopedByIncrement = bEdgeStopedByIncrement || bStopNowIncrement;
 	bEdgeStopedByDecrement = bEdgeStopedByDecrement || bStopNowDecrement;
 
-	EdgeLength += (bEdgeStopedByIncrement || bEdgeStopedByDecrement) ? 0 : 1;
+	EdgeLength += (bEdgeStopedByIncrement || bEdgeStopedByDecrement) ? taa_ushort(0) : taa_ushort(1);
 }
 
 taa_half ComputeDistanceToEdge(
@@ -158,12 +158,12 @@ taa_half ComputeDistanceToEdge(
 	if (!bEdgeStopedByIncrementN && !bEdgeStopedByIncrementP && !bEdgeStopedByDecrementP && !bEdgeStopedByDecrementN)
 	{
 		// No aliasing in the neighborhood.
-		TexelCenterOffsetToEdge = 0.0;
+		TexelCenterOffsetToEdge = taa_half(0.0);
 	}
 	else if (bEdgeStopedByIncrementN && bEdgeStopedByIncrementP)
 	{
 		// Looks like InputC is concave detail
-		TexelCenterOffsetToEdge = 0.5;
+		TexelCenterOffsetToEdge = taa_half(0.5);
 	}
 	else if (bEdgeStopedByDecrementN && bEdgeStopedByDecrementP)
 	{
@@ -173,12 +173,12 @@ taa_half ComputeDistanceToEdge(
 	else if (bEdgeStopedByIncrementN) // && bEdgeStopedByDecrementP)
 	{
 		// Looks like staircasing from - to +
-		TexelCenterOffsetToEdge = 0.5 - (EdgeLengthN + 0.5) * fEdgeInvLength;
+		TexelCenterOffsetToEdge = taa_half(0.5) - (EdgeLengthN + taa_half(0.5)) * fEdgeInvLength;
 	}
 	else if (bEdgeStopedByIncrementP) // && bEdgeStopedByDecrementN)
 	{
 		// Looks like staircasing from + to -
-		TexelCenterOffsetToEdge = 0.5 - (EdgeLengthP + 0.5) * fEdgeInvLength;
+		TexelCenterOffsetToEdge = taa_half(0.5) - (EdgeLengthP + taa_half(0.5)) * fEdgeInvLength;
 	}
 
 	return TexelCenterOffsetToEdge;
@@ -275,8 +275,8 @@ void MainCS(
 		#endif
 
 		bBrowseVerticaly = (TotalVarHN + TotalVarH + TotalVarHS) > (TotalVarVE + TotalVarV + TotalVarVW);
-		BrowseDirection[0] = bBrowseVerticaly ? 0 : 1;
-		BrowseDirection[1] = bBrowseVerticaly ? 1 : 0;
+		BrowseDirection[0] = bBrowseVerticaly ? taa_short(0) : taa_short(1);
+		BrowseDirection[1] = bBrowseVerticaly ? taa_short(1) : taa_short(0);
 
 		FLATTEN
 		if (bBrowseVerticaly[0])
@@ -306,7 +306,7 @@ void MainCS(
 		
 		bool2 WorthBrowsing = LumaDelta > CONFIG_MIN_LUMA_ALIASING;
 
-		taa_half2 BrowseDelta = saturate(LumaDelta * rcp(CONFIG_MIN_LUMA_ALIASING));
+		taa_half2 BrowseDelta = saturate(LumaDelta * rcp(taa_half(CONFIG_MIN_LUMA_ALIASING)));
 		
 		taa_ushort2 EdgeLengthP = 0;
 		taa_ushort2 EdgeLengthN = 0;

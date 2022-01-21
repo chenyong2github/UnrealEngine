@@ -127,7 +127,7 @@ FLWCType LWCRound(FLWCType V) { FLWCType VN = LWCNormalizeTile(V); return LWCCon
 FLWCType LWCTrunc(FLWCType V) { FLWCType VN = LWCNormalizeTile(V); return LWCConstructor(LWCGetTile(VN), trunc(VN.Offset)); }
 
 // These rely on +/-inf being handled properly by various min/max operations
-FFloatType LWCSign(FLWCType V) { return sign(LWCToFloat(V)); }
+FFloatType LWCSign(FLWCType V) { return FFloatType(sign(LWCToFloat(V))); }
 FFloatType LWCSaturate(FLWCType V) { return saturate(LWCToFloat(V)); }
 FFloatType LWCClampScalar(FLWCType V, float Low, float High) { return clamp(LWCToFloat(V), Low, High); }
 

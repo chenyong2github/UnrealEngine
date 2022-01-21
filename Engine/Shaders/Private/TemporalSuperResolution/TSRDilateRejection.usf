@@ -8,6 +8,7 @@
 #define TILE_SIZE 8
 
 
+
 //------------------------------------------------------- PARAMETERS
 
 Texture2D<taa_half> HistoryRejectionTexture;

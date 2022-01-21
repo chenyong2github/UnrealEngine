@@ -71,7 +71,7 @@ void MainCS(
 		
 		taa_short2 SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 			InputPixelPos,
-			kOffsets3x3[i], kOffsets3x3[i],
+			taa_short2(kOffsets3x3[i]), taa_short2(kOffsets3x3[i]),
 			InputPixelPosMin, InputPixelPosMax);
 
 		taa_halfC Color = TransformColorForClampingBox(FilteredInputTexture[SampleInputPixelPos]);

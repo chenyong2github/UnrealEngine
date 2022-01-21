@@ -43,7 +43,7 @@ void MainCS(
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 	taa_short2 LaneOffsetSign = GetLaneOffsetSign();
 
@@ -69,9 +69,9 @@ void MainCS(
 			{
 				taa_short2 Offset;
 				#if CONFIG_SAMPLES == 9
-					Offset = kOffsets3x3[kSquareIndexes3x3[i]];
+					Offset = taa_short2(kOffsets3x3[kSquareIndexes3x3[i]]);
 				#elif CONFIG_SAMPLES == 5
-					Offset = kOffsets3x3[kPlusIndexes3x3[i]];
+					Offset = taa_short2(kOffsets3x3[kPlusIndexes3x3[i]]);
 				#endif
 					
 				SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
@@ -167,8 +167,8 @@ void MainCS(
 			float2 NeighborPixelVelocity0;
 			float2 NeighborPixelVelocity1;
 
-			taa_half NeighborPixelVelocityLength0;
-			taa_half NeighborPixelVelocityLength1;
+			float NeighborPixelVelocityLength0;
+			float NeighborPixelVelocityLength1;
 			
 			bool bNeighborIsParallaxRejected0;
 			bool bNeighborIsParallaxRejected1;
@@ -219,11 +219,11 @@ void MainCS(
 				const uint NeightbordId1 = i + 1 + CONFIG_SAMPLE_PAIRS;
 			
 				#if CONFIG_SAMPLES == 9
-					Offset0 = kOffsets3x3[kSquareIndexes3x3[NeightbordId0]];
-					Offset1 = kOffsets3x3[kSquareIndexes3x3[NeightbordId1]];
+					Offset0 = taa_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId0]]);
+					Offset1 = taa_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId1]]);
 				#elif CONFIG_SAMPLES == 5
-					Offset0 = kOffsets3x3[kPlusIndexes3x3[NeightbordId0]];
-					Offset1 = kOffsets3x3[kPlusIndexes3x3[NeightbordId1]];
+					Offset0 = taa_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId0]]);
+					Offset1 = taa_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId1]]);
 				#endif
 					
 				NeighborEncodedVelocity0 = EncodedVelocityNeighborhood[NeightbordId0];
@@ -296,7 +296,7 @@ void MainCS(
 			float2 HoleFillingVelocity = HoleFillingPixelVelocity * InputPixelVelocityToScreenVelocity;
 
 			EndodedScreenVelocity = EncodeVelocityToTexture(float3(HoleFillingVelocity, 0.0)).xy;
-			HoleFilledVelocityMask = taa_half(HoleFillingOutOfRange) * saturate(MaxHollFillPixelVelocity - VelocityDelta);
+			HoleFilledVelocityMask = taa_half(HoleFillingOutOfRange) * taa_half(saturate(MaxHollFillPixelVelocity - VelocityDelta));
 		}
 
 		// Remove noise from high frequency rejections.
@@ -306,7 +306,7 @@ void MainCS(
 		RejectHighFrequency = max(RejectHighFrequency, HoleFilledVelocityMask);
 	}
 
-	if (all(InputPixelPos < InputInfo_ViewportMax))
+	if (all(InputPixelPos < taa_short2(InputInfo_ViewportMax)))
 	{
 		HoleFilledVelocityOutput[InputPixelPos] = EndodedScreenVelocity;
 		HoleFilledVelocityMaskOutput[InputPixelPos] = taa_half2(HoleFilledVelocityMask, RejectHighFrequency);

@@ -70,7 +70,7 @@ void MainCS(
 	float4 Debug = 0;
 	
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
@@ -225,7 +225,7 @@ void MainCS(
 		float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
 		float2 RotationalPrevScreen = RotationalPrevClip.xy / RotationalPrevClip.w;
 			
-		taa_half PixelParallaxVelocity = taa_half(0.5) * length(taa_half2(RotationalPrevScreen - PrevScreen) * InputInfo_ViewportSize);
+		taa_half PixelParallaxVelocity = taa_half(0.5) * length(taa_half2(RotationalPrevScreen - PrevScreen) * taa_half2(InputInfo_ViewportSize));
 		taa_half HistorySubdetailAdditionalParralax = (HistorySubdetailRejectionFactor - taa_half(1.0)) * PixelParallaxVelocity;
 
 		// PixelParallaxVelocity can be +inf and generate NaN if HistorySubdetailRejectionFactor = 1.0;
@@ -295,10 +295,10 @@ void MainCS(
 		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 		{
 			uint2 Random = Rand3DPCG16(int3((InputPixelPos - InputInfo_ViewportMin) / 2, View.StateFrameIndexMod8)).xy;
-			float2 E = Hammersley16(0, 1, Random);
+			taa_half E = taa_half(Hammersley16(0, 1, Random).x);
 
-			HalfResInputSceneColor = QuantizeForFloatRenderTarget(HalfResInputSceneColor, E.x, OutputQuantizationError);
-			HalfResDecimatedColor = QuantizeForFloatRenderTarget(HalfResDecimatedColor, E.x, OutputQuantizationError);
+			HalfResInputSceneColor = QuantizeForFloatRenderTarget(HalfResInputSceneColor, E, OutputQuantizationError);
+			HalfResDecimatedColor = QuantizeForFloatRenderTarget(HalfResDecimatedColor, E, OutputQuantizationError);
 		}
 		#endif
 
@@ -314,9 +314,9 @@ void MainCS(
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
 		uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
-		float2 E = Hammersley16(0, 1, Random);
+		taa_half E = taa_half(Hammersley16(0, 1, Random).x);
 
-		DecimatedColor = QuantizeForFloatRenderTarget(DecimatedColor, E.x, OutputQuantizationError);
+		DecimatedColor = QuantizeForFloatRenderTarget(DecimatedColor, E, OutputQuantizationError);
 	}
 	#endif
 

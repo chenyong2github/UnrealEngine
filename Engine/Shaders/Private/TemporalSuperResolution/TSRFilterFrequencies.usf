@@ -123,7 +123,7 @@ void MainCS(
 	#if CONFIG_USE_DYNAMIC_SPREAD_FACTOR
 		taa_short2 DynamicSpreadFactor = (
 			taa_short(CONFIG_KERNEL_SPREAD_FACTOR) +
-			taa_short2((InputPixelPos % taa_short(2)) ^ (InputPixelPos.yx % taa_short(2))));
+			taa_short2((taa_ushort2(InputPixelPos) % taa_ushort(2)) ^ (taa_ushort2(InputPixelPos.yx) % taa_ushort(2))));
 	#else
 		taa_short2 DynamicSpreadFactor = taa_short(CONFIG_KERNEL_SPREAD_FACTOR);
 	#endif
@@ -236,14 +236,14 @@ void MainCS(
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
 		uint2 Random = Rand3DPCG16(int3(OutputPixelPos, View.StateFrameIndexMod8)).xy;
-		float2 E = Hammersley16(0, 1, Random);
+		taa_half E = taa_half(Hammersley16(0, 1, Random).x);
 		
 		FilteredInput = QuantizeForFloatRenderTarget(FilteredInput, E.x, OutputQuantizationError);
 		FilteredHistory = QuantizeForFloatRenderTarget(FilteredHistory, E.x, OutputQuantizationError);
 	}
 	#endif
 
-	OutputPixelPos.x = all(OutputPixelPos < LowFrequencyInfo_ViewportMax) ? OutputPixelPos.x : ~taa_short(0);
+	OutputPixelPos.x = all(OutputPixelPos < taa_short2(LowFrequencyInfo_ViewportMax)) ? OutputPixelPos.x : ~taa_short(0);
 
 	FilteredInputOutput[OutputPixelPos] = FilteredInput;
 	FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory;

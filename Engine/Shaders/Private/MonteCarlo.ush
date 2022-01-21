@@ -86,7 +86,7 @@ float2 JitteredR2( uint Index, uint NumSamples, float2 Jitter, float JitterAmoun
 	const float d0 = 0.76;
 	const float i0 = 0.7;
 
-	return frac( a * Index + ( JitterAmount * 0.5 * d0 * sqrt(PI) * rsqrt( NumSamples ) ) * Jitter );
+	return frac( a * float(Index) + ( JitterAmount * 0.5 * d0 * sqrt(PI) * rsqrt( float(NumSamples) ) ) * Jitter );
 }
 
 // R2 Jittered point sequence. Progressive

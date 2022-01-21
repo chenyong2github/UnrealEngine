@@ -11,7 +11,7 @@
 
 //------------------------------------------------------- PARAMETERS
 
-Texture2D<uint> AntiAliasingTexture;
+Texture2D<taa_ushort> AntiAliasingTexture;
 RWTexture2D<uint> AntiAliasingOutput;
 
 
@@ -23,7 +23,7 @@ taa_half2 SampleAntiAliasing(taa_short2 KernelCenter, taa_short2 Offset)
 		KernelCenter + Offset,
 		InputPixelPosMin, InputPixelPosMax);
 	
-	uint EncodedInputTexelOffset = AntiAliasingTexture[SampleInputPixelPos];
+	taa_ushort EncodedInputTexelOffset = AntiAliasingTexture[SampleInputPixelPos];
 
 	return DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
 }

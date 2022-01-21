@@ -94,7 +94,7 @@ void MainCS(
 	{
 		taa_short2 SampleInputPixelPos = AddAndClampPixelOffset(
 			RejectionPixelPos,
-			kOffsets3x3[i], kOffsets3x3[i],
+			taa_short2(kOffsets3x3[i]), taa_short2(kOffsets3x3[i]),
 			HistoryRejectionViewport.xy, HistoryRejectionViewport.zw - 1);
 
 		InSamples[i] = HistoryRejectionTexture[SampleInputPixelPos];

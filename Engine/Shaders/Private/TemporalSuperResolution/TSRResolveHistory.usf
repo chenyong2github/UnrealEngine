@@ -103,7 +103,7 @@ void MainCS(
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	taa_halfC LowFrequencyColor = 0.0;
@@ -159,10 +159,10 @@ void MainCS(
 
 				float2 PixelOffset = abs(SamplePixelPos - OutputPixelPos);
 
-				float kernelWeight = MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C);
+				taa_half kernelWeight = taa_half(MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C));
 				
-				float LowFrequencyHdrWeight  = HdrWeight4(SampleLowFrequencyColor);
-				float HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * InvSampleHistoryValidity);
+				taa_half LowFrequencyHdrWeight  = HdrWeight4(SampleLowFrequencyColor);
+				taa_half HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * InvSampleHistoryValidity);
 
 				LowFrequencyColor   += (kernelWeight * LowFrequencyHdrWeight)  * SampleLowFrequencyColor;
 				LowFrequencyWeight  += (kernelWeight * LowFrequencyHdrWeight);
@@ -170,14 +170,14 @@ void MainCS(
 				HighFrequencyColor  += (kernelWeight * HighFrequencyHdrWeight) * SampleHighFrequencyColor;
 				HighFrequencyWeight += (kernelWeight * HighFrequencyHdrWeight) * SampleHistoryValidity;
 
-				HistoryValidity       += max(kernelWeight, 0.0) * SampleHistoryValidity;
-				HistoryValidityWeight += max(kernelWeight, 0.0);
+				HistoryValidity       += max(kernelWeight, taa_half(0.0)) * SampleHistoryValidity;
+				HistoryValidityWeight += max(kernelWeight, taa_half(0.0));
 			}
 		}
 
 		LowFrequencyColor  *= rcp(LowFrequencyWeight);
 		HighFrequencyColor *= SafeRcp(HighFrequencyWeight);
-		HistoryValidity *= HistoryValidityMultiply / HistoryValidityWeight;
+		HistoryValidity *= taa_half(HistoryValidityMultiply) / HistoryValidityWeight;
 	}
 	
 	// Compute final output
@@ -193,7 +193,7 @@ void MainCS(
 		FinalOutputColor = LowFrequencyColor * Weights[0] + HighFrequencyColor * Weights[1];
 	}
 
-	taa_short2 OutputPixelPosition = InvalidateOutputPixelPos(OutputViewRectMin + DispatchThreadId, OutputViewRectMax);
+	taa_short2 OutputPixelPosition = InvalidateOutputPixelPos(taa_short2(OutputViewRectMin + DispatchThreadId), OutputViewRectMax);
 	
 	// Output final scene color Mip0
 	{
@@ -206,8 +206,8 @@ void MainCS(
 
 		taa_halfC HalfResOutput = FinalOutputColor * taa_half(0.25);
 		taa_short2 HalfResOutputPixelPos;
-		HalfResOutputPixelPos[0] = (OutputPixelPosition[0] >> taa_short(1)) | (((OutputPixelPosition[0] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
-		HalfResOutputPixelPos[1] = (OutputPixelPosition[1] >> taa_short(1)) | (((OutputPixelPosition[1] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
+		HalfResOutputPixelPos[0] = (OutputPixelPosition[0] >> taa_short(1)) | (((OutputPixelPosition[0] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
+		HalfResOutputPixelPos[1] = (OutputPixelPosition[1] >> taa_short(1)) | (((OutputPixelPosition[1] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
 			
 		#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
 		BRANCH

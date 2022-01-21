@@ -348,10 +348,13 @@ uint GetGroupThreadIndex(uint GroupThreadIndex, uint GroupWaveIndex)
 	uint GroupWaveOffset = WaveGetLaneCount() * GroupWaveIndex;
 
 	// Do not share
+	uint ComputedGroupThreadIndex;
 	ISOLATE
 	{
-		return GroupWaveOffset + WaveGetLaneIndex();
+		ComputedGroupThreadIndex = GroupWaveOffset + WaveGetLaneIndex();
 	}
+
+	return ComputedGroupThreadIndex;
 }
 #else
 {
@@ -1118,7 +1121,7 @@ uint EncodeHoleFillingVelocity(float2 PixelVelocity)
 	uint iEncodedAngle = uint(round(EncodedAngle)) & (AngleBitDepth - 1);
 
 	float EncodedLength = length(PixelVelocity) * LengthPixelPrecision;
-	uint iEncodedLength = clamp(ceil(EncodedLength), 0, LengthBitDepth - 1);
+	uint iEncodedLength = clamp(uint(ceil(EncodedLength)), 0u, LengthBitDepth - 1u);
 
 	uint EncodedHoleFillingVelocity = iEncodedAngle * LengthBitDepth + iEncodedLength;
 	return EncodedHoleFillingVelocity;

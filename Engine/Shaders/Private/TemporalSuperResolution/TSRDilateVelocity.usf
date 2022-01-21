@@ -71,7 +71,7 @@ void MainCS(
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
@@ -83,7 +83,7 @@ void MainCS(
 	float DeviceZ = SceneDepthTexture[InputPixelPos];
 
 	float ClosestDeviceZ = DeviceZ;
-	float2 VelocityPixelOffset = float2(0.0, 0.0);
+	int2 VelocityPixelOffset = int2(0, 0);
 	float ParallaxFactorForHistory = 1.0;
 	float ParallaxFactorForHistoryRejection = 1.0;
 	#if AA_CROSS
@@ -158,8 +158,8 @@ void MainCS(
 	BRANCH
 	if (VelocityExtrapolationMultiplier > 0.0)
 	{
-		int2 PixelCoord1 = int2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset * 1.0);
-		int2 PixelCoord2 = int2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset * 2.0);
+		int2 PixelCoord1 = int2(InputBufferUV * InputInfo_Extent) + VelocityPixelOffset * 1;
+		int2 PixelCoord2 = int2(InputBufferUV * InputInfo_Extent) + VelocityPixelOffset * 2;
 
 		PixelCoord2 = clamp(PixelCoord2, InputPixelPosMin, InputPixelPosMax);
 
@@ -195,7 +195,7 @@ void MainCS(
 	{
 		FinalScreenVelocity = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ);
 		
-		float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset)];
+		float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent) + VelocityPixelOffset];
 
 		#if CONFIG_USE_SCENE_VELOCITY
 		{
@@ -267,7 +267,7 @@ void MainCS(
 		//DilatedVelocityOutput[OutputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		DilatedVelocityOutput[OutputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		ClosestDepthOutput[OutputPixelPos] = ClosestDeviceZ;
-		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(ParallaxFactorForHistory) | (CompressParallaxFactor(ParallaxFactorForHistoryRejection) << 4);
+		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(taa_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(taa_half(ParallaxFactorForHistoryRejection)) << 4);
 
 		// Output motion blur velocity flatten
 		#if DIM_MOTION_BLUR_DIRECTIONS > 0

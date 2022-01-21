@@ -22,7 +22,7 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;

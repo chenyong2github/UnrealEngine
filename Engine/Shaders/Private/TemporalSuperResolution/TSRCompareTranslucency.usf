@@ -105,8 +105,8 @@ void MainCS(
 {
 	float4 Debug = 0;
 	
-	uint2 InputPixelPos = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+	taa_short2 InputPixelPos = taa_short2(
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
@@ -226,9 +226,9 @@ void MainCS(
 			PrevTranslucency *= rcp(taa_half(CONFIG_SAMPLES));
 		#endif
 
-		PrevTranslucency *= PrevTranslucencyPreExposureCorrection;
-		PrevTranslucencyMin *= PrevTranslucencyPreExposureCorrection;
-		PrevTranslucencyMax *= PrevTranslucencyPreExposureCorrection;
+		PrevTranslucency    *= taa_half(PrevTranslucencyPreExposureCorrection);
+		PrevTranslucencyMin *= taa_half(PrevTranslucencyPreExposureCorrection);
+		PrevTranslucencyMax *= taa_half(PrevTranslucencyPreExposureCorrection);
 	}
 
 	taa_half Rejection = 1.0;
@@ -251,7 +251,7 @@ void MainCS(
 	}
 	#endif
 
-	if (all(InputPixelPos < InputInfo_ViewportMax))
+	if (all(InputPixelPos < taa_short2(InputInfo_ViewportMax)))
 	{
 		TranslucencyRejectionOutput[InputPixelPos] = Rejection;
 

@@ -15,7 +15,7 @@ float2 SnapToClosestPixelCenterUVEx(float2 SampleUV, float2 TextureSize, float2 
 
 float2 SnapToClosestPixelCenterUV(float2 SampleUV, float2 TextureSize, float2 TextureInvSize, const uint MipLevel = 0)
 {
-	return SnapToClosestPixelCenterUVEx(SampleUV, TextureSize, TextureInvSize, 1u << MipLevel, rcp(float(1u << MipLevel)));
+	return SnapToClosestPixelCenterUVEx(SampleUV, TextureSize, TextureInvSize, float(1u << MipLevel), rcp(float(1u << MipLevel)));
 }
 
 
@@ -58,7 +58,7 @@ FBilinearSampleInfos GetBilinearSampleLevelInfosEx(float2 SampleUV, float2 Textu
 
 FBilinearSampleInfos GetBilinearSampleLevelInfos(float2 SampleUV, float2 TextureSize, float2 TextureInvSize, const uint MipLevel = 0)
 {
-	return GetBilinearSampleLevelInfosEx(SampleUV, TextureSize, TextureInvSize, 1u << MipLevel, rcp(float(1u << MipLevel)));
+	return GetBilinearSampleLevelInfosEx(SampleUV, TextureSize, TextureInvSize, float(1u << MipLevel), rcp(float(1u << MipLevel)));
 }
 
 /** Return the weight of a sample <SampleId>. */
@@ -91,7 +91,7 @@ void Bicubic2DCatmullRom(in float2 UV, in float2 Size, in float2 InvSize, out fl
 	UV *= Size;
 
 	float2 tc = floor(UV - 0.5) + 0.5;
-	half2 f = UV - tc;
+	half2 f = half2(UV - tc);
 	half2 f2 = f * f;
 	half2 f3 = f2 * f;
 

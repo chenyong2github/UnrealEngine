@@ -358,16 +358,16 @@ void MainCS(
 			// Fetch the 2x2 neighborhood of the velocity
 			#if CONFIG_INTERPOLATE_VELOCITY
 			UNROLL_N(DPV_PIXEL_PER_LANE)
-			for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
+			for (uint PixelId2 = 0; PixelId2 < DPV_PIXEL_PER_LANE; PixelId2++)
 			{
-				taa_short2 LocalInputPixelPos0 = dpv_access_pixel(InputPixelPos, PixelId);
-				taa_short2 LocalInputPixelPos1 = LocalInputPixelPos0 + taa_short2(sign(dpv_access_pixel(dKO, PixelId)));
+				taa_short2 LocalInputPixelPos0 = dpv_access_pixel(InputPixelPos, PixelId2);
+				taa_short2 LocalInputPixelPos1 = LocalInputPixelPos0 + taa_short2(sign(dpv_access_pixel(dKO, PixelId2)));
 				LocalInputPixelPos1 = ClampPixelOffset(LocalInputPixelPos1, InputPixelPosMin, InputPixelPosMax);
 
-				RawEncodedVelocityNeighborhood[0][PixelId] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos0.y)];
-				RawEncodedVelocityNeighborhood[1][PixelId] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos0.y)];
-				RawEncodedVelocityNeighborhood[2][PixelId] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos1.y)];
-				RawEncodedVelocityNeighborhood[3][PixelId] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos1.y)];
+				RawEncodedVelocityNeighborhood[0][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos0.y)];
+				RawEncodedVelocityNeighborhood[1][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos0.y)];
+				RawEncodedVelocityNeighborhood[2][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos1.y)];
+				RawEncodedVelocityNeighborhood[3][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos1.y)];
 			}
 			#endif
 		}
@@ -521,8 +521,6 @@ void MainCS(
 	taa_half2 ClosestInputLuma4;
 	
 	
-	taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
-		
 	bool2 bUpdateSubpixelDetails;
 	bool2x2 bKOSign;
 
@@ -629,7 +627,7 @@ void MainCS(
 			if (SampleId == 0)
 			{
 				taa_half2x2 dPP =  RawdPPArray[SampleId];
-				ToneWeight = max(ToneWeight, ToneWeight > 0.2 ? 0.0 : ComputeSampleWeigth(1.0, dPP, /* MinimalContribution = */ 0.0));
+				ToneWeight = max(ToneWeight, ToneWeight > taa_half(0.2) ? taa_half(0.0).xx : ComputeSampleWeigth(taa_half(1.0), dPP, /* MinimalContribution = */ 0.0));
 			}
 			#endif
 
@@ -741,7 +739,7 @@ void MainCS(
 				dpv_lo(PrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
 			FCatmullRomSamples Samples1 = GetBicubic2DCatmullRomSamples(
 				dpv_hi(PrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
-				
+			
 			taa_halfC RawLowFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 			taa_halfC RawHighFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 			taa_half2 RawMetadata[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
@@ -766,9 +764,6 @@ void MainCS(
 					UNROLL_N(2)
 					for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
 					{
-						float2 SampleUV0 = clamp(Samples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-						float2 SampleUV1 = clamp(Samples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-					
 						float2 SampleUV = PixelId == 0 ? SampleUV0 : SampleUV1;
 						
 						RawLowFrequency[i][PixelId]      = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
@@ -1049,7 +1044,7 @@ void MainCS(
 		// Compute the maximum output validity.
 		taa_half2 OutputValidity = (
 			clamp(RejectedValidity + DesiredCurrentContribution, taa_half(0.0), PredictionOnlyValidity) +
-			clamp(RejectedValidity + DesiredCurrentContribution * PrevHistoryRejectionWeight * RejectionConfidentEnough - PredictionOnlyValidity, 0.0, 1.0 - PredictionOnlyValidity));
+			clamp(RejectedValidity + DesiredCurrentContribution * PrevHistoryRejectionWeight * RejectionConfidentEnough - PredictionOnlyValidity, taa_half(0.0), taa_half(1.0) - PredictionOnlyValidity));
 
 		#if !CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 			FLATTEN
@@ -1199,7 +1194,7 @@ void MainCS(
 			FinalLowFrequencyWeight = saturate(CurrentFrameSampleCount + PrevLowFrequencySampleCount);
 			
 			#if 1
-				FinalLowFrequencyWeight = saturate(floor(255.0 * (CurrentFrameSampleCount + PrevLowFrequencySampleCount)) * rcp(255.0));
+				FinalLowFrequencyWeight = saturate(floor(taa_half(255.0) * (CurrentFrameSampleCount + PrevLowFrequencySampleCount)) * rcp(taa_half(255.0)));
 			#endif
 		}
 		#endif
@@ -1420,7 +1415,7 @@ void MainCS(
 		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 		{
 			uint2 Random = Rand3DPCG16(int3(dpv_lo(LocalHistoryPixelPos), View.StateFrameIndexMod8)).xy;
-			float E = Hammersley16(0, 1, Random).x;
+			taa_half E = taa_half(Hammersley16(0, 1, Random).x);
 
 			PremultipliedHighFrequencyColor = QuantizeForFloatRenderTarget(PremultipliedHighFrequencyColor, E, HistoryQuantizationError);
 			FinalLowFrequencyColor = QuantizeForFloatRenderTarget(FinalLowFrequencyColor, E, HistoryQuantizationError);
@@ -1488,8 +1483,8 @@ void MainCS(
 			taa_halfCx2 HalfResOutput = OutputColor * taa_half(0.25);
 			//taa_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> taa_short(1)) | (((LocalHistoryPixelPos & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
 			taa_short2x2 HalfResOutputPixelPos;
-			HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> taa_short(1)) | (((LocalHistoryPixelPos[0] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
-			HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> taa_short(1)) | (((LocalHistoryPixelPos[1] & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
+			HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> taa_short(1)) | (((LocalHistoryPixelPos[0] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
+			HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> taa_short(1)) | (((LocalHistoryPixelPos[1] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
 			
 			#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
 			BRANCH

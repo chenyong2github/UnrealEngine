@@ -69,7 +69,7 @@ void MainCS(
 	float4 Debug = 0.0;
 
 	uint2 DispatchThreadId = (
-		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
 	uint2 HistoryPixelPos = DispatchThreadId / SUB_PIXEL_GRID_SIZE;
@@ -96,7 +96,7 @@ void MainCS(
 		taa_subpixel_payload SubpixelDetails = taa_subpixel_payload(RawHistory3 >> SubpixelShift) & SUB_PIXEL_BIT_MASK;
 
 		Debug.r = UncompressParallaxFactor(SubpixelDetails);
-		Debug.b = SubpixelId;
+		Debug.b = float(SubpixelId);
 	}
 
 	#if DEBUG_OUTPUT && 0
