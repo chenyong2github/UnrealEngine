@@ -10,28 +10,25 @@
 
 DEFINE_LOG_CATEGORY(LogComputeFramework);
 
-static int32 GComputeFrameworkMode = 1;
-static FAutoConsoleVariableRef CVarComputeFrameworkMode(
-	TEXT("r.ComputeFramework.mode"),
-	GComputeFrameworkMode,
-	TEXT("The mode Compute Framework should operate.\n")
-	TEXT("    0: disabled (Default)\n")
-	TEXT("    1: enabled\n"),
+static int32 GComputeFrameworkEnable = 1;
+static FAutoConsoleVariableRef CVarComputeFrameworkEnable(
+	TEXT("r.ComputeFramework.Enable"),
+	GComputeFrameworkEnable,
+	TEXT("Enable the Compute Framework.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 FAutoConsoleCommand CmdRebuildComputeGraphs(
-	TEXT("compute.RebuildComputeGraphs"),
+	TEXT("r.ComputeFramework.RebuildComputeGraphs"),
 	TEXT("Force all loaded UComputeGraph objects to rebuild."),
 	FConsoleCommandDelegate::CreateStatic(ComputeFramework::RebuildComputeGraphs)
 );
 
 namespace ComputeFramework
 {
-	bool IsEnabled(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
+	bool IsEnabled(EShaderPlatform ShaderPlatform)
 	{
-		return GComputeFrameworkMode > 0
-			&& FDataDrivenShaderPlatformInfo::GetSupportsComputeFramework(ShaderPlatform);
+		return (GComputeFrameworkEnable > 0)	&& FDataDrivenShaderPlatformInfo::GetSupportsComputeFramework(ShaderPlatform);
 	}
 
 	void RebuildComputeGraphs()

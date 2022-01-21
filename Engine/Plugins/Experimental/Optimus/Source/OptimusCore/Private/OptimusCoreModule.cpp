@@ -2,11 +2,20 @@
 
 #include "OptimusCoreModule.h"
 
+#include "ComputeFramework/ComputeFramework.h"
 #include "Features/IModularFeatures.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "ShaderCore.h"
+
+static int32 GDeformerGraphEnable = 1;
+static FAutoConsoleVariableRef CVarDeformerGraphEnable(
+	TEXT("a.DeformerGraph.Enable"),
+	GDeformerGraphEnable,
+	TEXT("Enable the Deformer Graph.\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 void FOptimusCoreModule::StartupModule()
 {
@@ -23,8 +32,7 @@ void FOptimusCoreModule::ShutdownModule()
 
 bool FOptimusCoreModule::IsEnabled(EShaderPlatform Platform)
 {
-	// todo: Per platform enable?
-	return true;
+	return (GDeformerGraphEnable > 0) && ComputeFramework::IsEnabled(Platform);
 }
 
 TSoftObjectPtr<UMeshDeformer> FOptimusCoreModule::GetDefaultMeshDeformer()
