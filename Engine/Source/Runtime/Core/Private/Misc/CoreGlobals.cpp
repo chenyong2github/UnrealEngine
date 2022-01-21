@@ -381,8 +381,6 @@ bool					GIsGameThreadIdInitialized		= false;
 void					(*GFlushStreamingFunc)(void)	  = &appNoop;
 /** Whether to emit begin/ end draw events.																	*/
 bool					GEmitDrawEvents					= false;
-/** Whether forward DrawEvents to the RHI or keep them only on the Commandlist. */
-bool					GCommandListOnlyDrawEvents		= false;
 /** Whether we want the rendering thread to be suspended, used e.g. for tracing.							*/
 bool					GShouldSuspendRenderingThread	= false;
 /** Determines what kind of trace should occur, NAME_None for none.											*/
@@ -433,21 +431,9 @@ bool GetEmitDrawEvents()
 	return GEmitDrawEvents;
 }
 
-bool CORE_API GetEmitDrawEventsOnlyOnCommandlist()
-{
-	return GCommandListOnlyDrawEvents;
-}
-
 void CORE_API SetEmitDrawEvents(bool EmitDrawEvents)
 {
 	GEmitDrawEvents = EmitDrawEvents;
-	GCommandListOnlyDrawEvents = !GEmitDrawEvents;
-}
-
-void CORE_API EnableEmitDrawEventsOnlyOnCommandlist()
-{
-	GCommandListOnlyDrawEvents = !GEmitDrawEvents;
-	GEmitDrawEvents = true;
 }
 
 void ToggleGDebugPUCrashedFlag(const TArray<FString>& Args)

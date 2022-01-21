@@ -1328,7 +1328,8 @@ bool ULocalPlayer::HandleExecCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 bool ULocalPlayer::HandleToggleDrawEventsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
-#if WITH_PROFILEGPU
+//Added ability to toggle this on during a test build if needed
+#if WITH_PROFILEGPU || UE_BUILD_TEST
 	if( GetEmitDrawEvents() )
 	{
 		SetEmitDrawEvents(false);

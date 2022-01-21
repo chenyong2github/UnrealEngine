@@ -726,14 +726,8 @@ struct FScopedLoadingState
 };
 #endif
 
-
 bool CORE_API GetEmitDrawEvents();
-
-bool CORE_API GetEmitDrawEventsOnlyOnCommandlist();
-
 void CORE_API SetEmitDrawEvents(bool EmitDrawEvents);
-
-void CORE_API EnableEmitDrawEventsOnlyOnCommandlist();
 
 /** Array to help visualize weak pointers in the debugger */
 class FChunkedFixedUObjectArray;

@@ -737,24 +737,12 @@ void FRHICommandEndDrawingViewport::Execute(FRHICommandListBase& CmdList)
 
 void FRHICommandPushEvent::Execute(FRHICommandListBase& CmdList)
 {
-#if	RHI_COMMAND_LIST_DEBUG_TRACES
-	if (GetEmitDrawEventsOnlyOnCommandlist())
-	{
-		return;
-	}
-#endif
 	RHISTAT(PushEvent);
 	INTERNAL_DECORATOR_COMPUTE(RHIPushEvent)(Name, Color);
 }
 
 void FRHICommandPopEvent::Execute(FRHICommandListBase& CmdList)
 {
-#if	RHI_COMMAND_LIST_DEBUG_TRACES
-	if (GetEmitDrawEventsOnlyOnCommandlist())
-	{
-		return;
-	}
-#endif
 	RHISTAT(PopEvent);
 	INTERNAL_DECORATOR_COMPUTE(RHIPopEvent)();
 }

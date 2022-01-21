@@ -1671,6 +1671,21 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+// If we are in Debug, Development, or Test/Shipping with ALLOW_PROFILEGPU... enabled, then automatically allow draw events.
+// Command lines allow disabling of draw events if WITH_PROGILEGPU is enabled. Test/Shipping on their own require explicit opt in.
+#if WITH_PROFILEGPU	
+	if (!FParse::Param(FCommandLine::Get(), TEXT("nodrawevents")))
+	{
+		SetEmitDrawEvents(true);
+	}
+// Continue to protect shipping build from emitdrawevents (if needed in shipping, ALLOW_PROFILEGPU_IN_SHIPPING should be used instead to enable WITH_PROFILEGPU)
+#elif !UE_BUILD_SHIPPING
+	if (FParse::Param(FCommandLine::Get(), TEXT("emitdrawevents")))
+	{
+		SetEmitDrawEvents(true);
+	}
+#endif
+
 #if !UE_BUILD_SHIPPING
 	if (FPlatformProperties::SupportsQuit())
 	{
@@ -1686,11 +1701,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 	}
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("emitdrawevents")))
-	{
-		SetEmitDrawEvents(true);
-	}
-
 	// Activates malloc frame profiler from the command line 
 	// Recommend enabling bGenerateSymbols to ensure callstacks can resolve and bRetainFramePointers to ensure frame pointers remain valid.
 	// Also disabling the hitch detector ALLOW_HITCH_DETECTION=0 helps ensure quicker more accurate runs.
@@ -1700,14 +1710,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
 	}
 #endif // !UE_BUILD_SHIPPING
-
-#if RHI_COMMAND_LIST_DEBUG_TRACES
-	// Enable command-list-only draw events if we haven't already got full draw events enabled.
-	if (!GetEmitDrawEvents())
-	{
-		EnableEmitDrawEventsOnlyOnCommandlist();
-	}
-#endif // RHI_COMMAND_LIST_DEBUG_TRACES
 
 	// Switch into executable's directory (may be required by some of the platform file overrides)
 	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
