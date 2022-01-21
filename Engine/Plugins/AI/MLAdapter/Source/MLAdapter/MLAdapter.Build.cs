@@ -26,13 +26,15 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "CoreUObject",
                     "Engine",
+					"EnhancedInput",
                     "GameplayTags",
                     "AIModule",
                     "InputCore",
                     "Json",
                     "JsonUtilities",
                     "GameplayAbilities",
-                }
+					"NeuralNetworkInference"
+				}
             );
 
             PrivateDependencyModuleNames.AddRange(

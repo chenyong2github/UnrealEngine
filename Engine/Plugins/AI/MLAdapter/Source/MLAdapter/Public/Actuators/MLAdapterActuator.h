@@ -10,7 +10,7 @@
 class AActor;
 struct FMLAdapterDescription;
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable, EditInlineNew)
 class MLADAPTER_API UMLAdapterActuator : public UMLAdapterAgentElement
 {
 	GENERATED_BODY()

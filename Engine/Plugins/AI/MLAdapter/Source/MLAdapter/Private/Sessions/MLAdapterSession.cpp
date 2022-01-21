@@ -318,6 +318,7 @@ bool UMLAdapterSession::IsReady() const
 		&& (CachedGameMode->HasMatchEnded() == false);
 }
 
+// todo bmulcahy we probably need to support AddAgent(UClass* Agent) for games that have multiple agents of various types
 FMLAdapter::FAgentID UMLAdapterSession::AddAgent()
 {
 	FScopeLock Lock(&AgentOpCS);
@@ -331,7 +332,6 @@ FMLAdapter::FAgentID UMLAdapterSession::AddAgent()
 	UMLAdapterAgent* NewAgent = FMLAdapter::NewObject<UMLAdapterAgent>(this, AgentClass);
 
 	NewAgent->SetAgentID(Agents.Add(NewAgent));
-	NewAgent->Configure(NewAgent->GetConfig());
 
 	return NewAgent->GetAgentID();
 }
@@ -469,8 +469,8 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	if (Agent.GetAvatar() != nullptr)
 	{
 		// skipping.
-		UE_LOG(LogUnrealEditorMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar.")
-			, Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
+		UE_LOG(LogUnrealEditorMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar."),
+			Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
 		return false;
 	}
 	if (bForceSearch == false && AwaitingAvatar.Find(&Agent) != INDEX_NONE)
@@ -495,7 +495,7 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	if (InWorld != nullptr)
 	{
 		// @todo might want to make special cases for Controllers and 
-		UClass* AvatarClass = Agent.GetConfig().AvatarClass;
+		UClass* AvatarClass = Agent.AvatarClass;
 		if (ensure(AvatarClass))
 		{
 			for (TActorIterator<AActor> It(InWorld, AvatarClass); It; ++It)

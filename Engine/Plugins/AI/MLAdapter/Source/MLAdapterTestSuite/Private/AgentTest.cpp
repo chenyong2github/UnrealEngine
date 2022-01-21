@@ -15,7 +15,6 @@ struct FMockAgentConfig_Actors : public FMLAdapterAgentConfig
 {
 	FMockAgentConfig_Actors()
 	{
-		AvatarClass = AActor::StaticClass();
 		bAutoRequestNewAvatarUponClearingPrev = false;
 	}
 };
@@ -24,7 +23,6 @@ struct FMockAgentConfig_OnlyActor : public FMLAdapterAgentConfig
 {
 	FMockAgentConfig_OnlyActor()
 	{
-		AvatarClass = AActor::StaticClass();
 		bAvatarClassExact = true;
 		bAutoRequestNewAvatarUponClearingPrev = false;
 	}

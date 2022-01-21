@@ -19,7 +19,7 @@ struct FMLAdapterSpaceDescription;
 
 
 USTRUCT()
-struct FMLAdapterParameterMap
+struct MLADAPTER_API FMLAdapterParameterMap
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ struct FMLAdapterParameterMap
 };
 
 USTRUCT()
-struct FMLAdapterAgentConfig
+struct MLADAPTER_API FMLAdapterAgentConfig
 {
 	GENERATED_BODY()
 
@@ -51,8 +51,6 @@ struct FMLAdapterAgentConfig
 	UPROPERTY()
 	bool bAutoRequestNewAvatarUponClearingPrev = true;
 
-	TSubclassOf<AActor> AvatarClass;
-
 	FMLAdapterParameterMap& AddSensor(const FName SensorName, FMLAdapterParameterMap&& Parameters = FMLAdapterParameterMap());
 	FMLAdapterParameterMap& AddActuator(const FName ActuatorName, FMLAdapterParameterMap&& Parameters = FMLAdapterParameterMap());
 };
@@ -69,6 +67,9 @@ class MLADAPTER_API UMLAdapterAgent : public UObject
     GENERATED_BODY()
 public:
 	UMLAdapterAgent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual void PostInitProperties() override;
+
 	virtual void BeginDestroy() override;
 
 	virtual bool RegisterSensor(UMLAdapterSensor& Sensor);
@@ -138,13 +139,15 @@ public:
 protected:
 	virtual void ShutDownSensorsAndActuators();
 
-
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MLAdapter)
+	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = MLAdapter)
 	TArray<UMLAdapterSensor*> Sensors;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MLAdapter)
+	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = MLAdapter)
 	TArray<UMLAdapterActuator*> Actuators;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
+	TSubclassOf<AActor> AvatarClass;
 
 private:
 	UPROPERTY()

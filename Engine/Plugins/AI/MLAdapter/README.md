@@ -120,4 +120,4 @@ You'll probably see repeaded `WSAECONNREFUSED` warning reported while the UE5 in
 If you get the warning when the UE5 instance is fully up and running make sure the project has MLAdapter plugin enabled and it's listening on the port you're expecting. To force a specific port you can use `-MLAdapterPort=XXXXX` command line parameter for the UE5 instance and `--port=XXXXX` for the python script. 
 
 ## Feedback
-Please send your feedback to mieszko.zielinski@epicgames.com
+Please send your feedback to ml-adapter@epicgames.com

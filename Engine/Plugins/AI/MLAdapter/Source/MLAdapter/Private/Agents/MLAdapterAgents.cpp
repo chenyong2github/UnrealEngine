@@ -70,14 +70,22 @@ UMLAdapterAgent::UMLAdapterAgent(const FObjectInitializer& ObjectInitializer)
 	AgentID = FMLAdapter::InvalidAgentID;
 	bEverHadAvatar = false;
 	bRegisteredForPawnControllerChange = false;
+}
 
-	AgentConfig.AddSensor(TEXT("Camera"));
-	AgentConfig.AddSensor(TEXT("Movement"));
-	AgentConfig.AddSensor(TEXT("Input"));
-	AgentConfig.AddActuator(UMLAdapterActuator_InputKey::StaticClass()->GetFName());
-	AgentConfig.Actuators.Add(UMLAdapterActuator_InputKey::StaticClass()->GetFName(), FMLAdapterParameterMap());
-	AgentConfig.AvatarClass = APlayerController::StaticClass();
-	AgentConfig.bAutoRequestNewAvatarUponClearingPrev = true;
+void UMLAdapterAgent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		Actuators.Sort(FAgentElementSort());
+		Sensors.Sort(FAgentElementSort());
+
+		if (AvatarClass != nullptr)
+		{
+			GetSession().RequestAvatarForAgent(*this);
+		}
+	}
 }
 
 void UMLAdapterAgent::BeginDestroy()
@@ -224,7 +232,7 @@ void UMLAdapterAgent::Configure(const FMLAdapterAgentConfig& NewConfig)
 {
 	ShutDownSensorsAndActuators();
 
-	TSubclassOf<AActor> PreviousAvatarClass = AgentConfig.AvatarClass;
+	TSubclassOf<AActor> PreviousAvatarClass = AvatarClass;
 	AgentConfig = NewConfig;
 
 	for (const TTuple<FName, FMLAdapterParameterMap>& KeyValue : AgentConfig.Actuators)
@@ -257,22 +265,23 @@ void UMLAdapterAgent::Configure(const FMLAdapterAgentConfig& NewConfig)
 
 	if (NewConfig.AvatarClassName != NAME_None)
 	{
-		AgentConfig.AvatarClass = FindObject<UClass>(ANY_PACKAGE, *NewConfig.AvatarClassName.ToString());
+		AvatarClass = FindObject<UClass>(ANY_PACKAGE, *NewConfig.AvatarClassName.ToString());
 	}
-	if (!AgentConfig.AvatarClass)
+
+	if (!AvatarClass)
 	{
-		AgentConfig.AvatarClass = AActor::StaticClass();
+		AvatarClass = AActor::StaticClass();
 	}
 
-	ensure(AgentConfig.AvatarClass || Avatar);
+	ensure(AvatarClass || Avatar);
 
-	if (AgentConfig.AvatarClass && (Avatar == nullptr || IsSuitableAvatar(*Avatar) == false))
+	if (AvatarClass && (Avatar == nullptr || !IsSuitableAvatar(*Avatar)))
 	{
 		SetAvatar(nullptr);
 
 		// if avatar class changed make sure the following RequestAvatarForAgent actually tries to find an avatar
 		// rather than just ignoring the request due to the agent already being in AwaitingAvatar
-		const bool bForceUpdate = (AgentConfig.AvatarClass != PreviousAvatarClass);
+		const bool bForceUpdate = (AvatarClass != PreviousAvatarClass);
 
 		// note that after this call we might not have the avatar just yet 
 		// since the world might not have any. The Session will make sure to 
@@ -333,8 +342,8 @@ void UMLAdapterAgent::GetObservationSpaceDescription(FMLAdapterSpaceDescription&
 bool UMLAdapterAgent::IsSuitableAvatar(AActor& InAvatar) const
 {	
 	return AgentConfig.bAvatarClassExact 
-		? InAvatar.GetClass() == AgentConfig.AvatarClass.Get()
-		: InAvatar.IsA(AgentConfig.AvatarClass);
+		? InAvatar.GetClass() == AvatarClass.Get()
+		: InAvatar.IsA(AvatarClass);
 }
 
 void UMLAdapterAgent::SetAvatar(AActor* InAvatar)
@@ -347,8 +356,8 @@ void UMLAdapterAgent::SetAvatar(AActor* InAvatar)
 
 	if (InAvatar != nullptr && IsSuitableAvatar(*InAvatar) == false)
 	{
-		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)")
-			, AgentID, *InAvatar->GetName(), *GetNameSafe(AgentConfig.AvatarClass));
+		UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)"),
+			AgentID, *InAvatar->GetName(), *GetNameSafe(AvatarClass));
 		return;
 	}
 

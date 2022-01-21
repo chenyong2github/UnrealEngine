@@ -1,15 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MLAdapterInferenceAgent.h"
+#include "Agents/MLAdapterAgent_Inference.h"
 #include "MLAdapterTypes.h"
-#include "MLAdapterInferenceTypes.h"
 #include "HAL/UnrealMemory.h"
 
-void UMLAdapterInferenceAgent::Think(const float DeltaTime)
+void UMLAdapterAgent_Inference::PostInitProperties()
+{
+	UNeuralNetwork* NeuralNetwork = (UNeuralNetwork*)NeuralNetworkPath.TryLoad();
+	
+	if (NeuralNetwork != nullptr)
+	{
+		Brain = NeuralNetwork;
+	}
+
+	Super::PostInitProperties();
+}
+
+void UMLAdapterAgent_Inference::Think(const float DeltaTime)
 {
 	if (Brain == nullptr)
 	{
-		UE_LOG(LogMLAdapterInference, Warning, TEXT("Agent beginning to Think but Brain is null"));
+		UE_LOG(LogUnrealEditorMLAdapter, Warning, TEXT("Agent beginning to Think but Brain is null, Skipping."));
 		return;
 	}
 

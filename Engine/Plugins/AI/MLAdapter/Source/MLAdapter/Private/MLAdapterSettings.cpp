@@ -15,21 +15,21 @@ UMLAdapterSettings::UMLAdapterSettings(const FObjectInitializer& ObjectInitializ
 TSubclassOf<UMLAdapterManager> UMLAdapterSettings::GetManagerClass()
 {
 	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(ManagerClass);
-	TSubclassOf<UMLAdapterManager> LocalClass = LocalClassName.ResolveClass();
+	TSubclassOf<UMLAdapterManager> LocalClass = LocalClassName.TryLoadClass<UMLAdapterManager>();
 	return LocalClass;
 }
 
 TSubclassOf<UMLAdapterSession> UMLAdapterSettings::GetSessionClass()
 {
 	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(SessionClass);
-	TSubclassOf<UMLAdapterSession> LocalClass = LocalClassName.ResolveClass();
+	TSubclassOf<UMLAdapterSession> LocalClass = LocalClassName.TryLoadClass<UMLAdapterSession>();
 	return LocalClass;
 }
 
 TSubclassOf<UMLAdapterAgent> UMLAdapterSettings::GetAgentClass()
 {
 	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(DefaultAgentClass);
-	TSubclassOf<UMLAdapterAgent> LocalClass = LocalClassName.ResolveClass();
+	TSubclassOf<UMLAdapterAgent> LocalClass = LocalClassName.TryLoadClass<UMLAdapterAgent>();
 	return LocalClass;
 }
 

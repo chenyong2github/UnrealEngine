@@ -44,4 +44,55 @@ namespace FMLAdapterInputHelper
 			}
 		}
 	}
+
+	TSharedPtr<FMLAdapter::FSpace> ConstructEnhancedInputSpaceDef(const TArray<UInputAction*>& TrackedActions)
+	{
+		uint32 DiscreteActionCount = 0;
+		uint32 AxisActionCount = 0;
+
+		for (const UInputAction* InputAction : TrackedActions)
+		{
+			switch (InputAction->ValueType)
+			{
+			case EInputActionValueType::Boolean:
+				++DiscreteActionCount;
+				break;
+			case EInputActionValueType::Axis1D:
+				AxisActionCount += 1;
+				break;
+			case EInputActionValueType::Axis2D:
+				AxisActionCount += 2;
+				break;
+			case EInputActionValueType::Axis3D:
+				AxisActionCount += 3;
+				break;
+			default:
+				checkf(false, TEXT("Unsupported value type for input action value!"));
+				break;
+			}
+		}
+
+		FMLAdapter::FSpace* Result = nullptr;
+
+		if (DiscreteActionCount > 0 && AxisActionCount > 0)
+		{
+			Result = new FMLAdapter::FSpace_Tuple({
+				MakeShareable(new FMLAdapter::FSpace_MultiDiscrete(DiscreteActionCount)),
+				MakeShareable(new FMLAdapter::FSpace_Box({AxisActionCount})) });
+		}
+		else if (DiscreteActionCount > 0)
+		{
+			Result = new FMLAdapter::FSpace_MultiDiscrete(DiscreteActionCount);
+		}
+		else if (AxisActionCount > 0)
+		{
+			Result = new FMLAdapter::FSpace_Box({ AxisActionCount });
+		}
+		else
+		{
+			Result = new FMLAdapter::FSpace_Dummy();
+		}
+
+		return MakeShareable(Result);
+	}
 }
