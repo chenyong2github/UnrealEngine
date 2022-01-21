@@ -17,15 +17,13 @@ void UConsoleVariablesAsset::ReplaceSavedCommands(const TArray<FConsoleVariables
 
 bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
 {
-	if (const auto Match = 
-		SavedCommands.FindByPredicate(
-		[&InCommandString] (const FConsoleVariablesEditorAssetSaveData& Comparator)
-		{
-			return Comparator.CommandName.Equals(InCommandString);
-		}))
+	for (const FConsoleVariablesEditorAssetSaveData& Command : SavedCommands)
 	{
-		OutValue = *Match;
-		return true;
+		if (Command.CommandName.Equals(InCommandString))
+		{
+			OutValue = Command;
+			return true;
+		}
 	}
 	
 	return false;
