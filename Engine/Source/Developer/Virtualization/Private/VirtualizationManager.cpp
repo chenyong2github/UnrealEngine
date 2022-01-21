@@ -298,6 +298,11 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
 
+	if (Requests.IsEmpty())
+	{
+		return true;
+	}
+
 	TArray<FPushRequest> ValidatedRequests;
 	ValidatedRequests.Reserve(Requests.Num());
 
