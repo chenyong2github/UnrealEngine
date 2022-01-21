@@ -13,6 +13,39 @@
 #include "Misc/DisplayClusterLog.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+namespace DisplayClusterRenderTargetManager
+{
+	static EPixelFormat ImplGetCustomFormat(EDisplayClusterViewportCaptureMode CaptureMode)
+	{
+		// Pre-defined formats for targets:
+		switch (CaptureMode)
+		{
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+			return EPixelFormat::PF_B8G8R8A8;
+
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+			return EPixelFormat::PF_FloatRGBA;
+
+		default:
+			break;
+		}
+
+		return EPixelFormat::PF_Unknown;
+	}
+
+	static void ImplViewportTextureResourceLogging(const FDisplayClusterViewport* InViewport, const uint32 ContextNum, const FString& ResourceId, const FDisplayClusterViewportTextureResource* InTextureResource)
+	{
+		if (InTextureResource != nullptr && InTextureResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+		{
+			// Log: New resource created
+			UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new %s resource (%dx%d) for viewport '%s':%d"), *ResourceId, InTextureResource->GetSizeX(), InTextureResource->GetSizeY(), *InViewport->GetId(), ContextNum);
+		}
+	}
+};
+
+using namespace DisplayClusterRenderTargetManager;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FDisplayClusterRenderTargetManager
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterRenderTargetManager::FDisplayClusterRenderTargetManager()
@@ -24,29 +57,11 @@ FDisplayClusterRenderTargetManager::~FDisplayClusterRenderTargetManager()
 {
 }
 
-static EPixelFormat ImplGetCustomFormat(EDisplayClusterViewportCaptureMode CaptureMode)
-{
-	// Pre-defined formats for targets:
-	switch (CaptureMode)
-	{
-	case EDisplayClusterViewportCaptureMode::Chromakey:
-		return EPixelFormat::PF_B8G8R8A8;
-
-	case EDisplayClusterViewportCaptureMode::Lightcard:
-		return EPixelFormat::PF_FloatRGBA;
-
-	default:
-		break;
-	}
-
-	return EPixelFormat::PF_Unknown;
-}
-
-bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame)
+bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
 	bool bResult = true;
 
-	if(ResourcesPool->BeginReallocateRenderTargetResources(InViewport))
+	if(ResourcesPool->BeginReallocateResources(InRenderFrameSettings, InViewport))
 	{
 		// ReAllocate Render targets for all viewports
 		for (FDisplayClusterRenderFrame::FFrameRenderTarget& FrameRenderTargetIt : InOutRenderFrame.RenderTargets)
@@ -54,7 +69,7 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 			if (FrameRenderTargetIt.bShouldUseRenderTarget)
 			{
 				// reallocate
-				FDisplayClusterRenderTargetResource* NewResource = ResourcesPool->AllocateRenderTargetResource(FrameRenderTargetIt.RenderTargetSize, ImplGetCustomFormat(FrameRenderTargetIt.CaptureMode));
+				FDisplayClusterViewportRenderTargetResource* NewResource = ResourcesPool->AllocateRenderTargetResource(FrameRenderTargetIt.RenderTargetSize, ImplGetCustomFormat(FrameRenderTargetIt.CaptureMode));
 				if (NewResource != nullptr)
 				{
 					// Set RenderFrame resource
@@ -77,6 +92,12 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 									if (ViewportPtr->Contexts[ViewIt.ContextNum].bDisableRender == false)
 									{
 										ViewportPtr->RenderTargets[ViewIt.ContextNum] = NewResource;
+
+										if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+										{
+											// Log: New resource created
+											UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new ViewportRenderTarget resource %08X (%dx%d) for viewport '%s'"), NewResource, NewResource->GetSizeX(), NewResource->GetSizeY(), *ViewportPtr->GetId());
+										}
 									}
 								}
 							}
@@ -85,12 +106,6 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 				}
 			}
 		}
-
-		ResourcesPool->FinishReallocateRenderTargetResources();
-	}
-
-	if (ResourcesPool->BeginReallocateTextureResources(InViewport))
-	{
 
 		// Allocate viewport internal resources
 		for (FDisplayClusterViewport* ViewportIt : InViewports)
@@ -108,16 +123,19 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 
 				check(ViewportIt->InputShaderResources.Num() > 0);
 				ViewportIt->InputShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat);
+				ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("InputShader"), ViewportIt->InputShaderResources[ContextNum]);
 
 				// Allocate custom resources:
 				if (bShouldUseAdditionalTargetableResource)
 				{
 					ViewportIt->AdditionalTargetableResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, true, CustomFormat);
+					ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("AdditionalRTT"), ViewportIt->AdditionalTargetableResources[ContextNum]);
 				}
 
 				if (ContextIt.NumMips > 1)
 				{
 					ViewportIt->MipsShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat, ContextIt.NumMips);
+					ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("Mips"), ViewportIt->MipsShaderResources[ContextNum]);
 				}
 			}
 		}
@@ -131,7 +149,7 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 			bResult = false;
 		}
 
-		ResourcesPool->FinishReallocateTextureResources();
+		ResourcesPool->FinishReallocateResources();
 	}
 
 	return bResult;
@@ -176,14 +194,20 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 	}
 
 	// Reallocate frame target resources
-	TArray<FDisplayClusterTextureResource*> NewFrameTargetResources;
-	TArray<FDisplayClusterTextureResource*> NewAdditionalFrameTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> NewFrameTargetResources;
+	TArray<FDisplayClusterViewportTextureResource*> NewAdditionalFrameTargetableResources;
 
 	for (uint32 FrameTargetsIt = 0; FrameTargetsIt < FrameTargetsAmount; FrameTargetsIt++)
 	{
-		FDisplayClusterTextureResource* NewResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
-		if (NewResource)
+		FDisplayClusterViewportTextureResource* NewResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
+		if (NewResource != nullptr)
 		{
+			if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+			{
+				// Log: New resource created
+				UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new RenderFrame resource (%dx%d)"), NewResource->GetSizeX(), NewResource->GetSizeY());
+			}
+
 			// calc and assign backbuffer offset (side_by_side, top_bottom)
 			NewResource->BackbufferFrameOffset = InOutRenderFrame.FrameRect.Min + TargetLocation;
 			TargetLocation += TargetOffset;
@@ -192,9 +216,15 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 
 		if (InRenderFrameSettings.bShouldUseAdditionalFrameTargetableResource)
 		{
-			FDisplayClusterTextureResource* NewAdditionalResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
-			if (NewAdditionalResource)
+			FDisplayClusterViewportTextureResource* NewAdditionalResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
+			if (NewAdditionalResource != nullptr)
 			{
+				if (NewAdditionalResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+				{
+					// Log: New resource created
+					UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new RenderFrame2 resource (%dx%d)"), NewAdditionalResource->GetSizeX(), NewAdditionalResource->GetSizeY());
+				}
+
 				NewAdditionalFrameTargetableResources.Add(NewAdditionalResource);
 			}
 		}

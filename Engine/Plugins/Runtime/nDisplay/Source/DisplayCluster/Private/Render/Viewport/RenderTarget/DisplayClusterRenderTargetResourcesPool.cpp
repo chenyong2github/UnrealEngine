@@ -1,52 +1,91 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterRenderTargetResourcesPool.h"
-
-#include "DisplayClusterRenderTargetResource.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
+#include "RHICommandList.h"
 #include "Engine/RendererSettings.h"
 #include "RenderingThread.h"
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// FDisplayClusterViewportResourceSettings
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterViewportResourceSettings::FDisplayClusterViewportResourceSettings(class FViewport* InViewport)
+namespace DisplayClusterRenderTargetResourcesPool
 {
-	if (InViewport)
+	static void ImplInitializeViewportResourcesRHI(const TArrayView<FDisplayClusterViewportResource*>& InResources)
 	{
-		FRHITexture2D* ViewportTexture = InViewport->GetRenderTargetTexture();
-		if (ViewportTexture)
+		TArray<FDisplayClusterViewportResource*> ResourcesForRenderThread(InResources);
+
+		ENQUEUE_RENDER_COMMAND(DisplayCluster_InitializeViewportResourcesRHI)(
+			[NewResources = std::move(ResourcesForRenderThread)](FRHICommandListImmediate& RHICmdList)
 		{
-			Format = ViewportTexture->GetFormat();
-			bShouldUseSRGB = EnumHasAnyFlags(ViewportTexture->GetFlags(), TexCreate_SRGB);
-			DisplayGamma = InViewport->GetDisplayGamma();
+			for (FDisplayClusterViewportResource* ResourceIt : NewResources)
+			{
+				ResourceIt->InitResource();
+			}
+		});
+	}
+
+	static void ImplReleaseViewportResourcesRHI(const TArrayView<FDisplayClusterViewportResource*>& InResources)
+	{
+		TArray<FDisplayClusterViewportResource*> ResourcesForRenderThread(InResources);
+
+		ENQUEUE_RENDER_COMMAND(DisplayCluster_ReleaseViewportResourcesRHI)(
+			[ReleasedResources = std::move(ResourcesForRenderThread)](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FDisplayClusterViewportResource* ResourceIt : ReleasedResources)
+			{
+				ResourceIt->ReleaseResource();
+				delete ResourceIt;
+			}
+		});
+	}
+
+	static FDisplayClusterViewportResourceSettings* ImplCreateViewportResourceSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FViewport* InViewport)
+	{
+		FDisplayClusterViewportResourceSettings Result;
+
+		if (InViewport != nullptr)
+		{
+			FRHITexture2D* ViewportTexture = InViewport->GetRenderTargetTexture();
+			if (ViewportTexture != nullptr)
+			{
+				EPixelFormat Format = ViewportTexture->GetFormat();
+				bool bShouldUseSRGB = EnumHasAnyFlags(ViewportTexture->GetFlags(), TexCreate_SRGB);
+				float Gamma = InViewport->GetDisplayGamma();
+
+				return new FDisplayClusterViewportResourceSettings(InRenderFrameSettings.ClusterNodeId, Format, bShouldUseSRGB, Gamma);
+			}
 		}
+
+		// Get default settings for preview rendering:
+		static TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
+		EPixelFormat Format = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
+
+		// default gamma for preview in editor
+		float Gamma = 2.2f;
+
+		// By default sRGB disabled (Preview rendering)
+		bool bShouldUseSRGB = false;
+
+		return new FDisplayClusterViewportResourceSettings(InRenderFrameSettings.ClusterNodeId, Format, bShouldUseSRGB, Gamma);
 	}
-	else
+
+	static bool IsTextureSizeValidImpl(const FIntPoint& InSize)
 	{
-		// Get settings for preview rendering:
-		static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-		Format = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
+		static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
 
-		// Use default values
-		//@todo: Get gamma and SRGB from editor
-		bShouldUseSRGB = false;
-		DisplayGamma = 2.2f;
+		// just check the texture size is valid
+		if (InSize.X <= 0 || InSize.Y <= 0 || InSize.X > MaxTextureSize || InSize.Y > MaxTextureSize)
+		{
+			return false;
+		}
+
+
+		//@todo - maybe check free size of video memory before texture allocation
+
+		return true;
 	}
-}
+};
 
-FDisplayClusterViewportResourceSettings::FDisplayClusterViewportResourceSettings(class FRHITexture2D* InTexture)
-{
-	if (InTexture)
-	{
-		Size = InTexture->GetSizeXY();
-		Format = InTexture->GetFormat();
-		bShouldUseSRGB = EnumHasAnyFlags(InTexture->GetFlags(), TexCreate_SRGB);
-
-		bIsRenderTargetable = EnumHasAnyFlags(InTexture->GetFlags(), TexCreate_RenderTargetable);
-		NumMips = InTexture->GetNumMips();
-	}
-}
+using namespace DisplayClusterRenderTargetResourcesPool;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FDisplayClusterRenderTargetResourcesPool
@@ -57,119 +96,138 @@ FDisplayClusterRenderTargetResourcesPool::FDisplayClusterRenderTargetResourcesPo
 
 FDisplayClusterRenderTargetResourcesPool::~FDisplayClusterRenderTargetResourcesPool()
 {
-	ReleaseRenderTargetResources(RenderTargetResources);
-	ReleaseRenderTargetResources(UnusedRenderTargetResources);
-	ReleaseTextureResources(TextureResources);
-	ReleaseTextureResources(UnusedTextureResources);
+	// Release all resources
+	ImplReleaseResources<FDisplayClusterViewportRenderTargetResource>(RenderTargetResources);
+	ImplReleaseResources<FDisplayClusterViewportTextureResource>(TextureResources);
 }
 
-bool FDisplayClusterRenderTargetResourcesPool::IsTextureSizeValid(const FIntPoint& InSize) const
+template <typename TViewportResourceType>
+void FDisplayClusterRenderTargetResourcesPool::ImplBeginReallocateResources(TArray<TViewportResourceType*>& InOutViewportResources)
 {
-	static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+	check(ResourceSettings != nullptr);
 
-	// just check the texture size is valid
-	if (InSize.X <= 0 || InSize.Y <= 0 || InSize.X > MaxTextureSize || InSize.Y > MaxTextureSize)
+	// Mark cluster node resources as unused
+	for (TViewportResourceType* ResourceIt : InOutViewportResources)
 	{
+		if (ResourceIt != nullptr && ResourceIt->GetResourceSettingsConstRef().IsClusterNodeNameEqual(*ResourceSettings))
+		{
+			ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Unused);
+		}
+	}
+}
+
+template <typename TViewportResourceType>
+void FDisplayClusterRenderTargetResourcesPool::ImplFinishReallocateResources(TArray<TViewportResourceType*>& InOutViewportResources)
+{
+	// Collect new and unused resources 
+	TArray<TViewportResourceType*> NewResources;
+	TArray<TViewportResourceType*> UnusedResources;
+
+	for (TViewportResourceType* ResourceIt : InOutViewportResources)
+	{
+		if (ResourceIt != nullptr)
+		{
+			check(ResourceIt->GetViewportResourceState(EDisplayClusterViewportResourceState::Deleted) == false);
+
+			if (ResourceIt->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+			{
+				// Collect new resources
+				NewResources.Add(ResourceIt);
+				ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Initialized);
+			}
+			else if (ResourceIt->GetViewportResourceState(EDisplayClusterViewportResourceState::Unused) == true)
+			{
+				// Collect unused resources
+				UnusedResources.Add(ResourceIt);
+				ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Deleted);
+			}
+		}
+	}
+
+	// Init RHI for new resources
+	if (NewResources.Num() > 0)
+	{
+		// Send to rendering thread
+		ImplInitializeViewportResourcesRHI(TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(NewResources.GetData()), NewResources.Num()));
+	}
+
+	// Remove unused resources
+	if (UnusedResources.Num() > 0)
+	{
+		// Remove GameThread resource references
+		for (TViewportResourceType* ResourceIt : UnusedResources)
+		{
+			int ResourceIndex = INDEX_NONE;
+			while (InOutViewportResources.Find(ResourceIt, ResourceIndex))
+			{
+				InOutViewportResources.RemoveAt(ResourceIndex);
+			}
+		}
+
+		// Send to released resources to rendering thread
+		ImplReleaseViewportResourcesRHI(TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(UnusedResources.GetData()), UnusedResources.Num()));
+	}
+}
+
+template <typename TViewportResourceType>
+void FDisplayClusterRenderTargetResourcesPool::ImplReleaseResources(TArray<TViewportResourceType*>& InOutViewportResources)
+{
+	// Send all resources to rendering thread
+	ImplReleaseViewportResourcesRHI(TArray<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(InOutViewportResources.GetData()), InOutViewportResources.Num()));
+
+	// Reset refs on game thread too
+	InOutViewportResources.Empty();
+}
+
+template <typename TViewportResourceType>
+TViewportResourceType* FDisplayClusterRenderTargetResourcesPool::ImplAllocateResource(TArray<TViewportResourceType*>& InOutViewportResources, const FDisplayClusterViewportResourceSettings& InSettings)
+{
+	if (!IsTextureSizeValidImpl(InSettings.Size))
+	{
+		return nullptr;
+	}
+
+	// Unused resources marked for current cluster node
+	auto ExistAndUnusedResourceIndex = InOutViewportResources.IndexOfByPredicate([InSettings](const TViewportResourceType* ResourceIt)
+	{
+		if (ResourceIt != nullptr && ResourceIt->GetViewportResourceState(EDisplayClusterViewportResourceState::Unused) == true)
+		{
+			return ResourceIt->GetResourceSettingsConstRef().IsResourceSettingsEqual(InSettings);
+		}
+
 		return false;
-	}
-
-
-	//@todo - maybe check free size of video memory before texture allocation
-
-	return true;
-}
-
-// --------------------------------------------------------------------------------------------------------------------------------------
-
-bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateRenderTargetResources(class FViewport* InViewport)
-{
-	if (pRenderTargetResourceSettings == nullptr)
-	{
-		pRenderTargetResourceSettings = new FDisplayClusterViewportResourceSettings(InViewport);
-
-		UnusedRenderTargetResources = RenderTargetResources;
-		RenderTargetResources.Empty();
-		return true;
-	}
-
-	return false;
-}
-
-FDisplayClusterRenderTargetResource* FDisplayClusterRenderTargetResourcesPool::AllocateRenderTargetResource(const FIntPoint& InSize, enum EPixelFormat CustomPixelFormat)
-{
-	if (pRenderTargetResourceSettings == nullptr || !IsTextureSizeValid(InSize))
-	{
-		return nullptr;
-	}
-
-	FDisplayClusterViewportResourceSettings RequiredResourceSettings = *pRenderTargetResourceSettings;
-	RequiredResourceSettings.Size = InSize;
-
-	if (CustomPixelFormat != PF_Unknown)
-	{
-		RequiredResourceSettings.Format = CustomPixelFormat;
-	}
-
-	auto UnusedResourceIndex = UnusedRenderTargetResources.IndexOfByPredicate([RequiredResourceSettings](const FDisplayClusterRenderTargetResource* ResourceIt)
-	{
-		return ResourceIt && ResourceIt->IsResourceSettingsEqual(RequiredResourceSettings);
 	});
 
-	if (UnusedResourceIndex != INDEX_NONE)
+	if (ExistAndUnusedResourceIndex != INDEX_NONE)
 	{
 		// Use exist resource again
-		FDisplayClusterRenderTargetResource* ExistResource = UnusedRenderTargetResources[UnusedResourceIndex];
-		UnusedRenderTargetResources[UnusedResourceIndex] = nullptr;
+		TViewportResourceType* ExistResource = InOutViewportResources[ExistAndUnusedResourceIndex];
 
-		RenderTargetResources.Add(ExistResource);
+		// Clear unused state for re-used resource
+		ExistResource->ClearViewportResourceState(EDisplayClusterViewportResourceState::Unused);
+
 		return ExistResource;
 	}
 
 	// Create new resource:
-	FDisplayClusterRenderTargetResource* NewResource = new FDisplayClusterRenderTargetResource(RequiredResourceSettings);
-	RenderTargetResources.Add(NewResource);
-	CreatedRenderTargetResources.Add(NewResource);
+	TViewportResourceType* NewResource = new TViewportResourceType(InSettings);
+	InOutViewportResources.Add(NewResource);
 
 	return NewResource;
 }
 
-void FDisplayClusterRenderTargetResourcesPool::FinishReallocateRenderTargetResources()
+bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateResources(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FViewport* InViewport)
 {
-	if (pRenderTargetResourceSettings != nullptr)
+	check(ResourceSettings == nullptr);
+
+	// Initialize settings for new render frame
+	ResourceSettings = ImplCreateViewportResourceSettings(InRenderFrameSettings, InViewport);
+
+	if(ResourceSettings != nullptr)
 	{
-		delete pRenderTargetResourceSettings;
-		pRenderTargetResourceSettings = nullptr;
-
-		ReleaseRenderTargetResources(UnusedRenderTargetResources);
-		UnusedRenderTargetResources.Empty();
-
-		if (CreatedRenderTargetResources.Num() > 0)
-		{
-			// Send all new resource to render thread in single cmd
-			ENQUEUE_RENDER_COMMAND(InitRenderTargetCommand)(
-				[NewResources = std::move(CreatedRenderTargetResources)](FRHICommandListImmediate& RHICmdList)
-			{
-				for (FDisplayClusterRenderTargetResource* NewResourceIt : NewResources)
-				{
-					NewResourceIt->InitResource();
-				}
-			});
-
-			CreatedRenderTargetResources.Empty();
-		}
-	}
-}
-
-// --------------------------------------------------------------------------------------------------------------------------------------
-
-bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateTextureResources(class FViewport* InViewport)
-{
-	if (pTextureResourceSettings == nullptr)
-	{
-		pTextureResourceSettings = new FDisplayClusterViewportResourceSettings(InViewport);
-
-		UnusedTextureResources = TextureResources;
-		TextureResources.Empty();
+		// Begin reallocate resources for current cluster node
+		ImplBeginReallocateResources<FDisplayClusterViewportRenderTargetResource>(RenderTargetResources);
+		ImplBeginReallocateResources<FDisplayClusterViewportTextureResource>(TextureResources);
 
 		return true;
 	}
@@ -177,123 +235,29 @@ bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateTextureResources(c
 	return false;
 }
 
-FDisplayClusterTextureResource* FDisplayClusterRenderTargetResourcesPool::AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, enum EPixelFormat CustomPixelFormat, int32 InNumMips)
+void FDisplayClusterRenderTargetResourcesPool::FinishReallocateResources()
 {
-	if (pTextureResourceSettings == nullptr || !IsTextureSizeValid(InSize))
+	if (ResourceSettings != nullptr)
 	{
-		return nullptr;
-	}
+		// Finish reallocate resources for current cluster node
+		ImplFinishReallocateResources<FDisplayClusterViewportRenderTargetResource>(RenderTargetResources);
+		ImplFinishReallocateResources<FDisplayClusterViewportTextureResource>(TextureResources);
 
-	FDisplayClusterViewportResourceSettings RequiredResourceSettings = *pTextureResourceSettings;
-	RequiredResourceSettings.Size = InSize;
-	RequiredResourceSettings.bIsRenderTargetable = bIsRenderTargetable;
-	RequiredResourceSettings.NumMips = InNumMips;
-
-	if (CustomPixelFormat != PF_Unknown)
-	{
-		RequiredResourceSettings.Format = CustomPixelFormat;
-	}
-
-	auto UnusedResourceIndex = UnusedTextureResources.IndexOfByPredicate([RequiredResourceSettings](const FDisplayClusterTextureResource* ResourceIt)
-	{
-		return ResourceIt && ResourceIt->IsResourceSettingsEqual(RequiredResourceSettings);
-	});
-
-	if (UnusedResourceIndex != INDEX_NONE)
-	{
-		// Use exist resource again
-		FDisplayClusterTextureResource* ExistResource = UnusedTextureResources[UnusedResourceIndex];
-		UnusedTextureResources[UnusedResourceIndex] = nullptr;
-
-		TextureResources.Add(ExistResource);
-		return ExistResource;
-	}
-
-	// Create new resource:
-	FDisplayClusterTextureResource* NewResource = new FDisplayClusterTextureResource(RequiredResourceSettings);
-	TextureResources.Add(NewResource);
-	CreatedTextureResources.Add(NewResource);
-
-	return NewResource;
-}
-
-void FDisplayClusterRenderTargetResourcesPool::FinishReallocateTextureResources()
-{
-	if (pTextureResourceSettings != nullptr)
-	{
-		delete pTextureResourceSettings;
-		pTextureResourceSettings = nullptr;
-
-		ReleaseTextureResources(UnusedTextureResources);
-		UnusedTextureResources.Empty();
-
-		// Send all new resource to render thread in single cmd
-		if (CreatedTextureResources.Num() > 0)
-		{
-			ENQUEUE_RENDER_COMMAND(InitTextureResourceCommand)(
-				[NewResources = std::move(CreatedTextureResources)](FRHICommandListImmediate& RHICmdList)
-			{
-				for (FDisplayClusterTextureResource* NewResourceIt : NewResources)
-				{
-					NewResourceIt->InitDynamicRHI();
-				}
-			});
-
-			CreatedTextureResources.Empty();
-		}
+		delete ResourceSettings;
+		ResourceSettings = nullptr;
 	}
 }
 
-// --------------------------------------------------------------------------------------------------------------------------------------
-
-void FDisplayClusterRenderTargetResourcesPool::ReleaseRenderTargetResources(TArray<FDisplayClusterRenderTargetResource*>& InOutResources)
+FDisplayClusterViewportRenderTargetResource* FDisplayClusterRenderTargetResourcesPool::AllocateRenderTargetResource(const FIntPoint& InSize, enum EPixelFormat CustomPixelFormat)
 {
-	TArray<FDisplayClusterRenderTargetResource*> ExistResourcesForRemove;
-	for (FDisplayClusterRenderTargetResource* It : InOutResources)
-	{
-		if (It != nullptr)
-		{
-			ExistResourcesForRemove.Add(It);
-		}
-	}
-	InOutResources.Empty();
+	check(ResourceSettings != nullptr);
 
-	if (ExistResourcesForRemove.Num() > 0)
-	{
-		ENQUEUE_RENDER_COMMAND(ReleaseRenderTargetResourceCommand)(
-			[RemovedResources = std::move(ExistResourcesForRemove)](FRHICommandListImmediate& RHICmdList)
-		{
-			for (FDisplayClusterRenderTargetResource* RemovedResourceIt : RemovedResources)
-			{
-				RemovedResourceIt->ReleaseResource();
-				delete RemovedResourceIt;
-			}
-		});
-	}
+	return ImplAllocateResource<FDisplayClusterViewportRenderTargetResource>(RenderTargetResources, FDisplayClusterViewportResourceSettings(*ResourceSettings, InSize, CustomPixelFormat));
 }
 
-void FDisplayClusterRenderTargetResourcesPool::ReleaseTextureResources(TArray<FDisplayClusterTextureResource*>& InOutResources)
+FDisplayClusterViewportTextureResource* FDisplayClusterRenderTargetResourcesPool::AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, enum EPixelFormat CustomPixelFormat, int32 InNumMips)
 {
-	TArray<FDisplayClusterTextureResource*> ExistResourcesForRemove;
-	for (FDisplayClusterTextureResource* It : InOutResources)
-	{
-		if (It != nullptr)
-		{
-			ExistResourcesForRemove.Add(It);
-		}
-	}
-	InOutResources.Empty();
+	check(ResourceSettings != nullptr);
 
-	if (ExistResourcesForRemove.Num() > 0)
-	{
-		ENQUEUE_RENDER_COMMAND(ReleaseTextureResourceCommand)(
-			[RemovedResources = std::move(ExistResourcesForRemove)](FRHICommandListImmediate& RHICmdList)
-		{
-			for (FDisplayClusterTextureResource* RemovedResourceIt : RemovedResources)
-			{
-				RemovedResourceIt->ReleaseRHI();
-				delete RemovedResourceIt;
-			}
-		});
-	}
+	return ImplAllocateResource<FDisplayClusterViewportTextureResource>(TextureResources, FDisplayClusterViewportResourceSettings(*ResourceSettings, InSize, CustomPixelFormat, bIsRenderTargetable, InNumMips));
 }

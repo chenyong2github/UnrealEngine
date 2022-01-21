@@ -3,15 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHI.h"
-#include "RHICommandList.h"
-#include "RHIResources.h"
+#include "DisplayClusterRenderTargetResource.h"
 
-class FDisplayClusterRenderTargetResource;
-class FDisplayClusterTextureResource;
-struct FDisplayClusterViewportResourceSettings;
-class FViewport;
-
+struct FDisplayClusterRenderFrameSettings;
 
 class FDisplayClusterRenderTargetResourcesPool
 {
@@ -20,31 +14,30 @@ public:
 	~FDisplayClusterRenderTargetResourcesPool();
 
 public:
-	bool BeginReallocateRenderTargetResources(FViewport* InViewport);
-	FDisplayClusterRenderTargetResource* AllocateRenderTargetResource(const FIntPoint& InSize, EPixelFormat CustomPixelFormat);
-	void FinishReallocateRenderTargetResources();
+	bool BeginReallocateResources(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, class FViewport* InViewport);
+	void FinishReallocateResources();
 
-public:
-	bool BeginReallocateTextureResources(FViewport* InViewport);
-	FDisplayClusterTextureResource* AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, EPixelFormat CustomPixelFormat, int32 NumMips = 1);
-	void FinishReallocateTextureResources();
-
-protected:
-	void ReleaseRenderTargetResources(TArray<FDisplayClusterRenderTargetResource*>& InOutResources);
-	void ReleaseTextureResources(TArray<FDisplayClusterTextureResource*>& InOutResources);
-
-	bool IsTextureSizeValid(const FIntPoint& InSize) const;
+	FDisplayClusterViewportRenderTargetResource* AllocateRenderTargetResource(const FIntPoint& InSize, EPixelFormat CustomPixelFormat);
+	FDisplayClusterViewportTextureResource*      AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, EPixelFormat CustomPixelFormat, int32 NumMips = 1);
 
 private:
-	// Current render target settings (initialize from BeginReallocateRenderTargetResources)
-	FDisplayClusterViewportResourceSettings* pRenderTargetResourceSettings = nullptr;
-	FDisplayClusterViewportResourceSettings* pTextureResourceSettings = nullptr;
+	template <typename TViewportResourceType>
+	void ImplBeginReallocateResources(TArray<TViewportResourceType*>& InOutViewportResources);
 
-	TArray<FDisplayClusterRenderTargetResource*> RenderTargetResources;
-	TArray<FDisplayClusterRenderTargetResource*> UnusedRenderTargetResources;
-	TArray<FDisplayClusterRenderTargetResource*> CreatedRenderTargetResources;
+	template <typename TViewportResourceType>
+	void ImplFinishReallocateResources(TArray<TViewportResourceType*>& InOutViewportResources);
 
-	TArray<FDisplayClusterTextureResource*> TextureResources;
-	TArray<FDisplayClusterTextureResource*> UnusedTextureResources;
-	TArray<FDisplayClusterTextureResource*> CreatedTextureResources;
+	template <typename TViewportResourceType>
+	TViewportResourceType* ImplAllocateResource(TArray<TViewportResourceType*>& InOutViewportResources, const FDisplayClusterViewportResourceSettings& InSettings);
+
+	template <typename TViewportResourceType>
+	void ImplReleaseResources(TArray<TViewportResourceType*>& InOutViewportResources);
+
+private:
+	// Current render resource settings
+	FDisplayClusterViewportResourceSettings* ResourceSettings = nullptr;
+
+	// Viewport render resources
+	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargetResources;
+	TArray<FDisplayClusterViewportTextureResource*>      TextureResources;
 };

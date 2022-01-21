@@ -5,8 +5,8 @@
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 
-class FDisplayClusterRenderTargetResource;
-class FDisplayClusterTextureResource;
+class FDisplayClusterViewportRenderTargetResource;
+class FDisplayClusterViewportTextureResource;
 class FDisplayClusterViewportProxyData;
 class IDisplayClusterViewportManagerProxy;
 class FDisplayClusterViewportManagerProxy;
@@ -129,20 +129,20 @@ protected:
 	TArray<FDisplayClusterViewport_Context> Contexts;
 
 	// View family render to this resources
-	TArray<FDisplayClusterRenderTargetResource*> RenderTargets;
+	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargets;
 
 	// Projection policy output resources
-	TArray<FDisplayClusterTextureResource*> OutputFrameTargetableResources;
-	TArray<FDisplayClusterTextureResource*> AdditionalFrameTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> OutputFrameTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> AdditionalFrameTargetableResources;
 
 #if WITH_EDITOR
 	FTextureRHIRef OutputPreviewTargetableResource;
 #endif
 
 	// unique viewport resources
-	TArray<FDisplayClusterTextureResource*> InputShaderResources;
-	TArray<FDisplayClusterTextureResource*> AdditionalTargetableResources;
-	TArray<FDisplayClusterTextureResource*> MipsShaderResources;
+	TArray<FDisplayClusterViewportTextureResource*> InputShaderResources;
+	TArray<FDisplayClusterViewportTextureResource*> AdditionalTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> MipsShaderResources;
 
 	const FDisplayClusterViewportManagerProxy& Owner;
 	IDisplayClusterShaders& ShadersAPI;

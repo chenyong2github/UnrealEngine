@@ -64,7 +64,7 @@ const IDisplayClusterViewportManagerProxy& FDisplayClusterViewportProxy::GetOwne
 	return Owner;
 }
 
-bool ImplGetTextureResources_RenderThread(const TArray<FDisplayClusterTextureResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
+bool ImplGetTextureResources_RenderThread(const TArray<FDisplayClusterViewportTextureResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
 {
 	check(OutResources.Num() == 0);
 
@@ -74,7 +74,7 @@ bool ImplGetTextureResources_RenderThread(const TArray<FDisplayClusterTextureRes
 
 		for (int32 ResourceIndex = 0; ResourceIndex < OutResources.Num(); ResourceIndex++)
 		{
-			OutResources[ResourceIndex] = InResources[ResourceIndex]->GetTextureResource();
+			OutResources[ResourceIndex] = InResources[ResourceIndex]->GetViewportResourceRHI();
 		}
 
 		return true;
@@ -132,14 +132,14 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 				}
 				else
 				{
-					FDisplayClusterRenderTargetResource* Input = RenderTargets[ContextIt];
+					FDisplayClusterViewportRenderTargetResource* Input = RenderTargets[ContextIt];
 					if (Input == nullptr || Input->IsInitialized() == false)
 					{
 						OutResources.Empty();
 						return false;
 					}
 
-					OutResources[ContextIt] = Input->GetRenderTargetTexture();
+					OutResources[ContextIt] = Input->GetViewportRenderTargetResourceRHI();
 				}
 			}
 		}
@@ -213,11 +213,11 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 
 			for (int32 ContextIt = 0; ContextIt < AdditionalFrameTargetableResources.Num(); ContextIt++)
 			{
-				FDisplayClusterTextureResource* Src = AdditionalFrameTargetableResources[ContextIt];
-				FDisplayClusterTextureResource* Dst = OutputFrameTargetableResources[ContextIt];
+				FDisplayClusterViewportTextureResource* Src = AdditionalFrameTargetableResources[ContextIt];
+				FDisplayClusterViewportTextureResource* Dst = OutputFrameTargetableResources[ContextIt];
 
-				FRHITexture2D* Input = Src ? Src->GetTextureResource() : nullptr;
-				FRHITexture2D* Output = Dst ? Dst->GetTextureResource() : nullptr;
+				FRHITexture2D* Input = Src ? Src->GetViewportResourceRHI() : nullptr;
+				FRHITexture2D* Output = Dst ? Dst->GetViewportResourceRHI() : nullptr;
 
 				if (Input && Output)
 				{

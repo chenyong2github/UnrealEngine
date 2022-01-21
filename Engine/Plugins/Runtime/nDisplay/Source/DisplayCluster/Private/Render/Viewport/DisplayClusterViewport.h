@@ -16,8 +16,8 @@
 #include "SceneViewExtensionContext.h"
 #include "OpenColorIODisplayExtension.h"
 
-class FDisplayClusterRenderTargetResource;
-class FDisplayClusterTextureResource;
+class FDisplayClusterViewportRenderTargetResource;
+class FDisplayClusterViewportTextureResource;
 class FDisplayClusterViewportManager;
 class FDisplayClusterRenderTargetManager;
 class FDisplayClusterRenderFrameManager;
@@ -230,20 +230,20 @@ protected:
 	TArray<FDisplayClusterViewport_Context> Contexts;
 
 	// View family render to this resources
-	TArray<FDisplayClusterRenderTargetResource*> RenderTargets;
+	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargets;
 	
 	// Projection policy output resources
-	TArray<FDisplayClusterTextureResource*> OutputFrameTargetableResources;
-	TArray<FDisplayClusterTextureResource*> AdditionalFrameTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> OutputFrameTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> AdditionalFrameTargetableResources;
 
 #if WITH_EDITOR
 	FTextureRHIRef OutputPreviewTargetableResource;
 #endif
 
 	// unique viewport resources
-	TArray<FDisplayClusterTextureResource*> InputShaderResources;
-	TArray<FDisplayClusterTextureResource*> AdditionalTargetableResources;
-	TArray<FDisplayClusterTextureResource*> MipsShaderResources;
+	TArray<FDisplayClusterViewportTextureResource*> InputShaderResources;
+	TArray<FDisplayClusterViewportTextureResource*> AdditionalTargetableResources;
+	TArray<FDisplayClusterViewportTextureResource*> MipsShaderResources;
 
 	FDisplayClusterViewportManager& Owner;
 
