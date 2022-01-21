@@ -745,7 +745,6 @@ namespace DatasmithRevitExporter
 						CurrentBatchSize = 0;
 
 						// Send metadata to DirectLink.
-						DatasmithScene.CleanUp();
 						DatasmithDirectLink.UpdateScene(DatasmithScene);
 
 						MetadataEvent.WaitOne(DelayExport);
@@ -779,6 +778,8 @@ namespace DatasmithRevitExporter
 					ElementData.ElementMetaData.SetAssociatedElement(Actor);
 
 					FUtils.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
+
+					DatasmithScene.AddMetaData(ElementData.ElementMetaData);
 
 					++CurrentBatchSize;
 
@@ -820,7 +821,6 @@ namespace DatasmithRevitExporter
 			if (CurrentBatchSize > 0)
 			{
 				// Send remaining chunk of metadata.
-				DatasmithScene.CleanUp();
 				DatasmithDirectLink.UpdateScene(DatasmithScene);
 			}
 
