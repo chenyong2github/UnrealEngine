@@ -235,6 +235,7 @@ void UGameFeaturesSubsystem::UnloadGameFeatureData(const UGameFeatureData* GameF
 void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName)
 {
 	check(GameFeatureToAdd);
+	FString PluginRootPath = TEXT("/") + PluginName + TEXT("/");
 	UAssetManager& LocalAssetManager = UAssetManager::Get();
 
 	LocalAssetManager.PushBulkScanning();
@@ -243,7 +244,8 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 	{
 		for (FDirectoryPath& Path : TypeInfo.Directories)
 		{
-			Path.Path = TEXT("/") + PluginName + TEXT("/") + Path.Path;
+			// Convert plugin-relative paths to full package paths
+			FixPluginPackagePath(Path.Path, PluginRootPath, false);
 		}
 
 		// This function also fills out runtime data on the copy
