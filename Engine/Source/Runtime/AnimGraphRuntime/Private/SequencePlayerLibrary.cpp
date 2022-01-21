@@ -102,67 +102,66 @@ FSequencePlayerReference USequencePlayerLibrary::SetSequenceWithInertialBlending
 	return SequencePlayer;
 }
 
-float USequencePlayerLibrary::GetAccumulatedTime(const FSequencePlayerReference& SequencePlayer)
+FSequencePlayerReference USequencePlayerLibrary::GetSequence(const FSequencePlayerReference& SequencePlayer, UAnimSequenceBase*& SequenceBase)
 {
 	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
-		TEXT("GetAccumulatedTime"),
-		[](FAnimNode_SequencePlayer& InSequencePlayer)
+		TEXT("GetSequence"),
+		[&SequenceBase](FAnimNode_SequencePlayer& InSequencePlayer)
 		{
-			return InSequencePlayer.GetAccumulatedTime();
+			SequenceBase = InSequencePlayer.GetSequence();
 		});
 
-	UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not get accumulated time on sequence player."));
-	return 0.f;
+	return SequencePlayer;
+}
+
+float USequencePlayerLibrary::GetAccumulatedTime(const FSequencePlayerReference& SequencePlayer)
+{
+	float AccumulatedTime = 0.f;
+	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("GetAccumulatedTime"),
+		[&AccumulatedTime](FAnimNode_SequencePlayer& InSequencePlayer)
+		{
+			AccumulatedTime = InSequencePlayer.GetAccumulatedTime();
+		});
+
+	return AccumulatedTime;
 }
 
 float USequencePlayerLibrary::GetStartPosition(const FSequencePlayerReference& SequencePlayer)
 {
+	float StartPosition = 0.f;
 	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
 		TEXT("GetStartPosition"),
-		[](FAnimNode_SequencePlayer& InSequencePlayer)
+		[&StartPosition](FAnimNode_SequencePlayer& InSequencePlayer)
 		{
-			return InSequencePlayer.GetStartPosition();
+			StartPosition = InSequencePlayer.GetStartPosition();
 		});
 
-	UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not get start position on sequence player."));
-	return 0.f;
+	return StartPosition;
 }
 
 float USequencePlayerLibrary::GetPlayRate(const FSequencePlayerReference& SequencePlayer)
 {
+	float PlayRate = 1.f;
 	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
 		TEXT("GetPlayRate"),
-		[](FAnimNode_SequencePlayer& InSequencePlayer)
+		[&PlayRate](FAnimNode_SequencePlayer& InSequencePlayer)
 		{
-			return InSequencePlayer.GetPlayRate();
+			PlayRate = InSequencePlayer.GetPlayRate();
 		});
 
-	UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not get play rate on sequence player."));
-	return 1.f;
+	return PlayRate;
 }
 
 bool USequencePlayerLibrary::GetLoopAnimation(const FSequencePlayerReference& SequencePlayer)
 {
+	bool bLoopAnimation = false;
 	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
 		TEXT("GetLoopAnimation"),
-		[](FAnimNode_SequencePlayer& InSequencePlayer)
+		[&bLoopAnimation](FAnimNode_SequencePlayer& InSequencePlayer)
 		{
-			return InSequencePlayer.GetLoopAnimation();
+			bLoopAnimation = InSequencePlayer.GetLoopAnimation();
 		});
 
-	UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not get looping state on sequence player."));
-	return false;
-}
-
-UAnimSequenceBase* USequencePlayerLibrary::GetSequence(const FSequencePlayerReference& SequencePlayer)
-{
-	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
-		TEXT("GetSequence"),
-		[](FAnimNode_SequencePlayer& InSequencePlayer)
-		{
-			return InSequencePlayer.GetSequence();
-		});
-
-	UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not get sequence on sequence player."));
-	return nullptr;
+	return bLoopAnimation;
 }
