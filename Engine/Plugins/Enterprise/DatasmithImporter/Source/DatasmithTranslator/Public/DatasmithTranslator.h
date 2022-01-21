@@ -48,13 +48,13 @@ public:
 	virtual FName GetFName() const = 0;
 
 	/**
-	 * Called on the CDO to initialize this Translator implementation
+	 * Called to initialize this Translator instance
 	 * @param OutCapabilities	Declared capabilities for this Translator
 	 */
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) {}
 
 	/**
-	 * Called on the CDO, additional validation step to ensure the given file is supported (Optional)
+	 * Additional validation step to ensure the given file is supported (Optional)
 	 *
 	 * @param Source	Candidate Source
 	 * @returns			True if the given source is supported by this Translator

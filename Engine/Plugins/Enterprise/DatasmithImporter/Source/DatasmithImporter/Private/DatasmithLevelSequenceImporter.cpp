@@ -3,6 +3,7 @@
 #include "DatasmithLevelSequenceImporter.h"
 
 #include "DatasmithAnimationElements.h"
+#include "DatasmithAreaLightActor.h"
 #include "DatasmithDefinitions.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithSceneActor.h"
@@ -376,6 +377,11 @@ namespace DatasmithLevelSequenceImporterImpl
 		if (USceneComponent* SceneComp = Actor->GetRootComponent())
 		{
 			SceneComp->SetMobility(EComponentMobility::Movable);
+		}
+
+		if (ADatasmithAreaLightActor* DatasmithAreaLightActor = Cast<ADatasmithAreaLightActor>(Actor))
+		{
+			DatasmithAreaLightActor->Mobility = EComponentMobility::Movable;
 		}
 	}
 

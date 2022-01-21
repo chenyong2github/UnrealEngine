@@ -57,7 +57,7 @@ namespace DatasmithNativeTranslatorImpl
 		{
 			// Make sure the new UDatasmithMesh object is not created while a garbage collection is performed
 			FGCScopeGuard GCGuard;
-			// Setting the RF_Standalone bitmask on the new UDatasmithMesh object, to make sure it is not garbage collected 
+			// Setting the RF_Standalone bitmask on the new UDatasmithMesh object, to make sure it is not garbage collected
 			// while loading and processing the udsmesh file. This can happen on very big meshes (5M+ triangles)
 			DatasmithMesh = NewObject< UDatasmithMesh >(GetTransientPackage(), NAME_None, RF_Standalone);
 		}
@@ -126,7 +126,7 @@ namespace DatasmithNativeTranslatorImpl
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
 		// Do not compute normals and tangents during conversion since we have other operations to apply
-		// on the mesh that might invalidate them anyway and we must also validate the mesh to detect 
+		// on the mesh that might invalidate them anyway and we must also validate the mesh to detect
 		// vertex positions containing NaN before doing computation as MikkTSpace crashes on NaN values.
 		const bool bSkipNormalsAndTangents = true;
 		FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, GroupNamePerGroupIndex, bSkipNormalsAndTangents);
@@ -190,7 +190,7 @@ bool FDatasmithNativeTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLe
 	FDatasmithAnimationSerializer AnimSerializer;
 	if (LevelSequenceElement->GetFile() && IFileManager::Get().FileExists(LevelSequenceElement->GetFile()))
 	{
-		AnimSerializer.Deserialize(LevelSequenceElement, LevelSequenceElement->GetFile());
+		return AnimSerializer.Deserialize(LevelSequenceElement, LevelSequenceElement->GetFile());
 	}
-	return true;
+	return false;
 }

@@ -1433,7 +1433,11 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 			if (ImportContext.SceneTranslator)
 			{
 				FDatasmithLevelSequencePayload LevelSequencePayload;
-				ImportContext.SceneTranslator->LoadLevelSequence(SequenceElement.ToSharedRef(), LevelSequencePayload);
+				if (!ImportContext.SceneTranslator->LoadLevelSequence(SequenceElement.ToSharedRef(), LevelSequencePayload))
+				{
+					FString ErrorMessage = LOCTEXT("FailedToLoad", "Failed to load some animation sequences: ").ToString() + SequenceElement->GetName() + TEXT("\n");
+					ImportContext.LogError(FText::FromString(ErrorMessage));
+				}
 			}
 
 			ULevelSequence*& ImportedLevelSequence = ImportContext.ImportedLevelSequences.FindOrAdd( SequenceElement.ToSharedRef() );

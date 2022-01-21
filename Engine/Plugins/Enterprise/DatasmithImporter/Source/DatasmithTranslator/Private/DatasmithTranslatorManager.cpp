@@ -56,7 +56,7 @@ TSharedPtr<IDatasmithTranslator> FDatasmithTranslatorManager::SelectFirstCompati
 		{
 			FDatasmithTranslatorCapabilities Capabilities;
 			Impl->Initialize(Capabilities);
-			if (Capabilities.bIsEnabled )
+			if (Capabilities.bIsEnabled)
 			{
 				for (const FFileFormatInfo& SupportedFormat : Capabilities.SupportedFileFormats)
 				{
