@@ -203,7 +203,7 @@ namespace UE
 			
 			bool FMeshDescriptionImporter::FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh)
 			{
-				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh) || !ensure(Mesh->GetDeformerCount() == 0))
+				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh))
 				{
 					return false;
 				}
@@ -1233,6 +1233,35 @@ namespace UE
 			//////////////////////////////////////////////////////////////////////////
 			/// FFbxMesh implementation
 
+			void GetMaterialIndex(FbxMesh* Mesh, TArray<int32>& MaterialIndexes)
+			{
+				int32 PolygonCount = Mesh->GetPolygonCount();
+				if (FbxGeometryElementMaterial* GeometryElementMaterial = Mesh->GetElementMaterial())
+				{
+					FbxLayerElementArrayTemplate<int32>& IndexArray = GeometryElementMaterial->GetIndexArray();
+					MaterialIndexes.Reset();
+					switch (GeometryElementMaterial->GetMappingMode())
+					{
+						case FbxGeometryElement::eByPolygon:
+						{
+							if (IndexArray.GetCount() == PolygonCount)
+							{
+								for (int i = 0; i < PolygonCount; ++i)
+								{
+									MaterialIndexes.AddUnique(IndexArray.GetAt(i));
+								}
+							}
+						}
+						break;
+						case FbxGeometryElement::eAllSame:
+						{
+							MaterialIndexes.AddUnique(IndexArray.GetAt(0));
+						}
+						break;
+					}
+				}
+			}
+
 			void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
 			{
 				int32 GeometryCount = SDKScene->GetGeometryCount();
@@ -1280,16 +1309,52 @@ namespace UE
 						const int32 MeshUVCount = Mesh->GetElementUVCount();
 						MeshNode->SetCustomUVCount(MeshUVCount);
 						
-						//Add Material dependencies, we use always the first fbx node that instance the fbx geometry to grab the materials.
-						if (FbxNode* FbxMeshNode = Mesh->GetNode())
+						//Add Material dependencies, we use always the first fbx node that instance the fbx geometry to grab the fbx surface materials.
 						{
-							const int32 MaterialCount = FbxMeshNode->GetMaterialCount();
-							for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+							//Grab all Material indexes use by the mesh
+							TArray<int32> MaterialIndexes;
+							int32 PolygonCount = Mesh->GetPolygonCount();
+							if (FbxGeometryElementMaterial* GeometryElementMaterial = Mesh->GetElementMaterial())
 							{
-								FbxSurfaceMaterial* FbxMaterial = FbxMeshNode->GetMaterial(MaterialIndex);
-								FString MaterialName = FFbxHelper::GetFbxObjectName(FbxMaterial);
-								FString MaterialUid = TEXT("\\Material\\") + MaterialName;
-								MeshNode->SetMaterialDependencyUid(MaterialUid);
+								FbxLayerElementArrayTemplate<int32>& IndexArray = GeometryElementMaterial->GetIndexArray();
+								switch (GeometryElementMaterial->GetMappingMode())
+								{
+									case FbxGeometryElement::eByPolygon:
+									{
+										if (IndexArray.GetCount() == PolygonCount)
+										{
+											for (int i = 0; i < PolygonCount; ++i)
+											{
+												MaterialIndexes.AddUnique(IndexArray.GetAt(i));
+											}
+										}
+									}
+									break;
+
+									case FbxGeometryElement::eAllSame:
+									{
+										if (IndexArray.GetCount() > 0)
+										{
+											MaterialIndexes.AddUnique(IndexArray.GetAt(0));
+										}
+									}
+									break;
+								}
+							}
+							if (FbxNode* FbxMeshNode = Mesh->GetNode())
+							{
+								bool bAddAllNodeMaterials = (MaterialIndexes.Num() == 0);
+								const int32 MaterialCount = FbxMeshNode->GetMaterialCount();
+								for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+								{
+									FbxSurfaceMaterial* FbxMaterial = FbxMeshNode->GetMaterial(MaterialIndex);
+									FString MaterialName = FFbxHelper::GetFbxObjectName(FbxMaterial);
+									FString MaterialUid = TEXT("\\Material\\") + MaterialName;
+									if (bAddAllNodeMaterials || MaterialIndexes.Contains(MaterialIndex))
+									{
+										MeshNode->SetMaterialDependencyUid(MaterialUid);
+									}
+								}
 							}
 						}
 					}

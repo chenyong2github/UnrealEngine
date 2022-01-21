@@ -1177,6 +1177,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					{
 						continue;
 					}
+					if (!MaterialFactoryNode->IsEnabled())
+					{
+						continue;
+					}
 					UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
 					if (!MaterialInterface)
 					{

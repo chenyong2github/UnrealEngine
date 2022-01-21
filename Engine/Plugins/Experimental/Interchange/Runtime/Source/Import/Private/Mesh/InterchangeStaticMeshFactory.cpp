@@ -318,6 +318,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 					{
 						continue;
 					}
+					if (!MaterialFactoryNode->IsEnabled())
+					{
+						continue;
+					}
 
 					FName MaterialSlotName = *MaterialFactoryNode->GetDisplayLabel();
 					UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());

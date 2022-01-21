@@ -691,11 +691,15 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 				SceneNode->GetCustomAssetInstanceUid(MeshDependency);
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
+					const UInterchangeMeshNode* MeshDependencyNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(MeshDependency));
 					SkeletalMeshFactoryNode->AddTargetNodeUid(MeshDependency);
-					BaseNodeContainer->GetNode(MeshDependency)->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
+					MeshDependencyNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
+					MeshDependencyNode->GetMaterialDependencies(MaterialDependencies);
 				}
-
-				SceneNode->GetMaterialDependencyUids(MaterialDependencies);
+				else
+				{
+					SceneNode->GetMaterialDependencyUids(MaterialDependencies);
+				}
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
@@ -709,6 +713,7 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 				const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialDependencies[MaterialIndex]);
 				if (BaseNodeContainer->IsNodeUidValid(MaterialFactoryNodeUid))
 				{
+					BaseNodeContainer->GetNode(MaterialFactoryNodeUid)->SetEnabled(true);
 					//Create a factory dependency so Material asset are import before the skeletal mesh asset
 					TArray<FString> FactoryDependencies;
 					SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);

@@ -83,7 +83,11 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 		//import materials
 		for (const UInterchangeMaterialNode* MaterialNode : MaterialNodes)
 		{
-			CreateMaterialFactoryNode(MaterialNode);
+			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = CreateMaterialFactoryNode(MaterialNode))
+			{
+				//By default we do not create the materials, every node with mesh attribute can enable them. So we wont create unused materials.
+				MaterialFactoryNode->SetEnabled(false);
+			}
 		}
 	}
 
@@ -488,11 +492,15 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToStaticMesh(UInterchangeStati
 				SceneNode->GetCustomAssetInstanceUid(MeshDependency);
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
+					const UInterchangeMeshNode* MeshDependencyNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(MeshDependency));
 					StaticMeshFactoryNode->AddTargetNodeUid(MeshDependency);
-					BaseNodeContainer->GetNode(MeshDependency)->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
+					MeshDependencyNode->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
+					MeshDependencyNode->GetMaterialDependencies(MaterialDependencies);
 				}
-				
-				SceneNode->GetMaterialDependencyUids(MaterialDependencies);
+				else
+				{
+					SceneNode->GetMaterialDependencyUids(MaterialDependencies);
+				}
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
@@ -507,6 +515,7 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToStaticMesh(UInterchangeStati
 				const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialDependencies[MaterialIndex]);
 				if (BaseNodeContainer->IsNodeUidValid(MaterialFactoryNodeUid))
 				{
+					BaseNodeContainer->GetNode(MaterialFactoryNodeUid)->SetEnabled(true);
 					// Create a factory dependency so Material asset are imported before the skeletal mesh asset
 					TArray<FString> FactoryDependencies;
 					StaticMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
