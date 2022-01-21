@@ -417,8 +417,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 	}
 
 	SCOPED_BOOT_TIMING("LoadModule");
-//  TODO NDarnell we should be using trace metadata to label the module
-//	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("LoadModule %s"), *InModuleName.ToString()));
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("LoadModule_%s"), *InModuleName.ToString()));
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Module Load"), STAT_ModuleLoad, STATGROUP_LoadTime);
 
 #if	STATS
