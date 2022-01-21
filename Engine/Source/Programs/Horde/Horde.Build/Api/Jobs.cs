@@ -404,6 +404,26 @@ namespace HordeServer.Api
 			this.Labels = Labels;
 		}
 	}
+	
+	/// <summary>
+	/// The timing info for 
+	/// </summary>
+	public class FindJobTimingsResponse
+	{
+		/// <summary>
+		/// Timing info for each job
+		/// </summary>
+		public Dictionary<string, GetJobTimingResponse> Timings { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Timings">Timing info for each job</param>
+		public FindJobTimingsResponse(Dictionary<string, GetJobTimingResponse> Timings)
+		{
+			this.Timings = Timings;
+		}
+	}
 
 	/// <summary>
 	/// Request used to update a jobstep

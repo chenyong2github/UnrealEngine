@@ -563,8 +563,12 @@ namespace HordeServer.Controllers
 			}
 
 			IJobTiming JobTiming = await JobService.GetJobTimingAsync(Job);
-
 			IGraph Graph = await JobService.GetGraphAsync(Job);
+			return PropertyFilter.Apply(CreateJobTimingResponse(Job, Graph, JobTiming), Filter);
+		}
+
+		private static GetJobTimingResponse CreateJobTimingResponse(IJob Job, IGraph Graph, IJobTiming JobTiming)
+		{
 			Dictionary<INode, TimingInfo> NodeToTimingInfo = Job.GetTimingInfo(Graph, JobTiming);
 
 			Dictionary<string, GetStepTimingInfoResponse> Steps = new Dictionary<string, GetStepTimingInfoResponse>();
@@ -584,7 +588,49 @@ namespace HordeServer.Controllers
 				Labels.Add(new GetLabelTimingInfoResponse(Label, TimingInfo));
 			}
 
-			return PropertyFilter.Apply(new GetJobTimingResponse(Steps, Labels), Filter);
+			return new GetJobTimingResponse(Steps, Labels);
+		}
+		
+		/// <summary>
+		/// Find timing information about the graph for multiple jobs
+		/// </summary>
+		/// <param name="StreamId">The stream to search in</param>
+		/// <param name="Templates">List of templates to find</param>
+		/// <param name="Filter">Filter for the fields to return</param>
+		/// <param name="Count">Number of results to return</param>
+		/// <returns>Job timings for each job ID</returns>
+		[HttpGet]
+		[Route("/api/v1/jobs/timing")]
+		[ProducesResponseType(typeof(FindJobTimingsResponse), 200)]
+		public async Task<ActionResult<object>> FindJobTimingsAsync(
+			[FromQuery] string? StreamId = null,
+			[FromQuery(Name = "template")] string[]? Templates = null,
+			[FromQuery] PropertyFilter? Filter = null,
+			[FromQuery] int Count = 100)
+		{
+			if (StreamId == null)
+			{
+				return BadRequest("Missing/invalid query parameter streamId");
+			}
+
+			TemplateRefId[] TemplateRefIds = Templates switch
+			{
+				{ Length: > 0 } => Templates.Select(x => new TemplateRefId(x)).ToArray(),
+				_ => Array.Empty<TemplateRefId>()
+			};
+
+			List<IJob> Jobs = await JobService.FindJobsByStreamWithTemplatesAsync(new StreamId(StreamId), TemplateRefIds, Count: Count, ConsistentRead: false);
+
+			Dictionary<string, GetJobTimingResponse> JobTimings = await Jobs.ToAsyncEnumerable()
+				.WhereAwait(async Job => await JobService.AuthorizeAsync(Job, AclAction.ViewJob, User, null))
+				.ToDictionaryAwaitAsync(x => ValueTask.FromResult(x.Id.ToString()), async Job =>
+				{
+					IJobTiming JobTiming = await JobService.GetJobTimingAsync(Job);
+					IGraph Graph = await JobService.GetGraphAsync(Job);
+					return CreateJobTimingResponse(Job, Graph, JobTiming);
+				});
+			
+			return PropertyFilter.Apply(new FindJobTimingsResponse(JobTimings), Filter);
 		}
 
 		/// <summary>

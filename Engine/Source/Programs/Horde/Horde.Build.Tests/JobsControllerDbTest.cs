@@ -59,5 +59,16 @@ namespace HordeServerTests
 	        Assert.IsTrue(StepRes.AbortRequested);
 //	        Assert.AreEqual("Anonymous", StepRes.AbortByUser);
         }
+        
+        [TestMethod]
+        public async Task FindJobTimingsTest()
+        {
+	        Fixture Fixture = await CreateFixtureAsync();
+	        IJob Job = Fixture.Job1;
+	        string[] Templates = { Job.TemplateId.ToString() };
+	        object Obj = (await JobsController.FindJobTimingsAsync(Fixture.Stream!.Id.ToString(), Templates)).Value!;
+	        FindJobTimingsResponse Res = (Obj as FindJobTimingsResponse)!;
+	        Assert.AreEqual(1, Res.Timings.Count);
+        }
     }
 }
