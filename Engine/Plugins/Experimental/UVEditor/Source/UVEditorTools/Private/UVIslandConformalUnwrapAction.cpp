@@ -4,7 +4,7 @@
 
 #include "Algo/Unique.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
-#include "Selection/DynamicMeshSelection.h"
+#include "Selection/UVEditorDynamicMeshSelection.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "PreviewMesh.h"
 #include "ToolSetupUtil.h"
@@ -19,7 +19,7 @@ using namespace UE::Geometry;
 
 UUVIslandConformalUnwrapAction::UUVIslandConformalUnwrapAction()
 {
-	CurrentSelection = MakeShared<UE::Geometry::FDynamicMeshSelection>();
+	CurrentSelection = MakeShared<UE::Geometry::FUVEditorDynamicMeshSelection>();
 }
 
 void UUVIslandConformalUnwrapAction::SetWorld(UWorld* WorldIn)
@@ -40,7 +40,7 @@ void UUVIslandConformalUnwrapAction::Shutdown()
 }
 
 
-void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection)
+void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FUVEditorDynamicMeshSelection* NewSelection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_SetSelection);
 	
@@ -51,7 +51,7 @@ void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, 
 	}
 	else
 	{
-		(*CurrentSelection) = UE::Geometry::FDynamicMeshSelection();
+		(*CurrentSelection) = UE::Geometry::FUVEditorDynamicMeshSelection();
 	}
 
 	UpdateVisualizations();
@@ -59,7 +59,7 @@ void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, 
 
 bool UUVIslandConformalUnwrapAction::PreCheckAction() 
 {
-	if (!CurrentSelection || CurrentSelection->Type != FDynamicMeshSelection::EType::Triangle
+	if (!CurrentSelection || CurrentSelection->Type != FUVEditorDynamicMeshSelection::EType::Triangle
 		|| CurrentSelection->Mesh == nullptr || SelectionTargetIndex == INDEX_NONE)
 	{
 		ParentTool->GetToolManager()->DisplayMessage(

@@ -10,7 +10,7 @@
 
 #include "UVIslandConformalUnwrapAction.generated.h"
 
-PREDECLARE_GEOMETRY(class FDynamicMeshSelection);
+PREDECLARE_GEOMETRY(class FUVEditorDynamicMeshSelection);
 
 UCLASS()
 class UVEDITORTOOLS_API UUVIslandConformalUnwrapAction : public UUVToolAction
@@ -24,7 +24,7 @@ public:
 	void SetWorld(UWorld* WorldIn) override;
 	void Setup(UInteractiveTool* ParentToolIn) override;
 	void Shutdown() override;
-	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection);
+	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FUVEditorDynamicMeshSelection* NewSelection);
 
 protected:
 
@@ -33,7 +33,7 @@ protected:
 	int32 MaxIslandSize;
 
 	int32 SelectionTargetIndex;
-	TSharedPtr<UE::Geometry::FDynamicMeshSelection> CurrentSelection;
+	TSharedPtr<UE::Geometry::FUVEditorDynamicMeshSelection> CurrentSelection;
 
 	bool GatherIslandTids();
 	bool PreCheckAction();

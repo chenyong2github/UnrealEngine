@@ -17,8 +17,8 @@
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "PreviewMesh.h"
-#include "Selection/MeshSelectionMechanic.h"
-#include "Selection/DynamicMeshSelection.h"
+#include "Selection/UVEditorMeshSelectionMechanic.h"
+#include "Selection/UVEditorDynamicMeshSelection.h"
 #include "ToolSetupUtil.h"
 #include "UVEditorUXSettings.h"
 #include "EngineAnalytics.h"
@@ -42,9 +42,9 @@ namespace UVSelectToolLocals
 	// eids from our stored vid pairs.
 
 	/** If selection is a non-empty edge selection, update its eids using stored vid pairs. */
-	void UpdateSelectionEidsAfterMeshChange(FDynamicMeshSelection& SelectionInOut, TArray<FIndex2i>* VidPairsIn)
+	void UpdateSelectionEidsAfterMeshChange(FUVEditorDynamicMeshSelection& SelectionInOut, TArray<FIndex2i>* VidPairsIn)
 	{
-		if (!SelectionInOut.Mesh || SelectionInOut.Type != FDynamicMeshSelection::EType::Edge)
+		if (!SelectionInOut.Mesh || SelectionInOut.Type != FUVEditorDynamicMeshSelection::EType::Edge)
 		{
 			// No update necessary
 			return;
@@ -67,21 +67,21 @@ namespace UVSelectToolLocals
 	}
 
 	/** If selection mechanic holds a non-empty edge selection, update its eids using stored vid pairs. */
-	void UpdateSelectionEidsAfterMeshChange(UMeshSelectionMechanic& SelectionMechanic, TArray<FIndex2i>* VidPairsIn)
+	void UpdateSelectionEidsAfterMeshChange(UUVEditorMeshSelectionMechanic& SelectionMechanic, TArray<FIndex2i>* VidPairsIn)
 	{
-		const FDynamicMeshSelection& CurrentSelection = SelectionMechanic.GetCurrentSelection();
-		if (CurrentSelection.Mesh && CurrentSelection.Type == FDynamicMeshSelection::EType::Edge)
+		const FUVEditorDynamicMeshSelection& CurrentSelection = SelectionMechanic.GetCurrentSelection();
+		if (CurrentSelection.Mesh && CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 		{
-			FDynamicMeshSelection UpdatedSelection = CurrentSelection;
+			FUVEditorDynamicMeshSelection UpdatedSelection = CurrentSelection;
 			UpdateSelectionEidsAfterMeshChange(UpdatedSelection, VidPairsIn);
 			SelectionMechanic.SetSelection(UpdatedSelection, false, false);
 		}
 	}
 
-	void GetVidPairsFromSelection(const FDynamicMeshSelection& SelectionIn, TArray<FIndex2i>& VidPairsOut)
+	void GetVidPairsFromSelection(const FUVEditorDynamicMeshSelection& SelectionIn, TArray<FIndex2i>& VidPairsOut)
 	{
 		VidPairsOut.Reset();
-		if (!SelectionIn.Mesh || SelectionIn.Type != FDynamicMeshSelection::EType::Edge)
+		if (!SelectionIn.Mesh || SelectionIn.Type != FUVEditorDynamicMeshSelection::EType::Edge)
 		{
 			// No vid pairs to add
 			return;
@@ -114,8 +114,8 @@ namespace UVSelectToolLocals
 		 * @param EdgeVidPairsBeforeIn
 		 * @param EdgeVidPairsAfterIn
 		 */
-		FSelectionChange(const FDynamicMeshSelection& SelectionBeforeIn,
-			const FDynamicMeshSelection& SelectionAfterIn,
+		FSelectionChange(const FUVEditorDynamicMeshSelection& SelectionBeforeIn,
+			const FUVEditorDynamicMeshSelection& SelectionAfterIn,
 			const FTransform& GizmoBeforeIn,
 			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBeforeIn,
 			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsAfterIn
@@ -128,8 +128,8 @@ namespace UVSelectToolLocals
 		{
 			// Make sure that for both selections, if we have a non-empty edge selection, we have vid pairs.
 			ensure(!(
-				(SelectionBefore.Mesh && SelectionBefore.Type == FDynamicMeshSelection::EType::Edge && !EdgeVidPairsBefore)
-				|| (SelectionAfter.Mesh && SelectionAfter.Type == FDynamicMeshSelection::EType::Edge && !EdgeVidPairsAfter)));
+				(SelectionBefore.Mesh && SelectionBefore.Type == FUVEditorDynamicMeshSelection::EType::Edge && !EdgeVidPairsBefore)
+				|| (SelectionAfter.Mesh && SelectionAfter.Type == FUVEditorDynamicMeshSelection::EType::Edge && !EdgeVidPairsAfter)));
 		}
 
 		virtual void Apply(UObject* Object) override
@@ -165,8 +165,8 @@ namespace UVSelectToolLocals
 		}
 
 	protected:
-		FDynamicMeshSelection SelectionBefore;
-		FDynamicMeshSelection SelectionAfter;
+		FUVEditorDynamicMeshSelection SelectionBefore;
+		FUVEditorDynamicMeshSelection SelectionAfter;
 		FTransform GizmoBefore;
 
 		TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBefore;
@@ -314,31 +314,10 @@ void UUVSelectTool::Setup()
 	ToolActions->Initialize(this);
 	AddToolPropertySource(ToolActions);
 
-	SelectionMechanic = NewObject<UMeshSelectionMechanic>();
+	SelectionMechanic = NewObject<UUVEditorMeshSelectionMechanic>();
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
-	
-	FMeshSelectionMechanicStyle SelectionStyle;
-	
-	SelectionStyle.TriangleColor = FUVEditorUXSettings::SelectionTriangleFillColor;
-	SelectionStyle.LineColor = FUVEditorUXSettings::SelectionTriangleWireframeColor;
-	SelectionStyle.PointColor = FUVEditorUXSettings::SelectionTriangleWireframeColor;
-	SelectionStyle.TriangleOpacity = FUVEditorUXSettings::SelectionTriangleOpacity;
-	SelectionStyle.LineThickness = FUVEditorUXSettings::SelectionLineThickness;
-	SelectionStyle.PointThickness = FUVEditorUXSettings::SelectionPointThickness;
-	SelectionStyle.LineAndPointDepthBias = FUVEditorUXSettings::SelectionWireframeDepthBias;
-	SelectionStyle.TriangleDepthBias = FUVEditorUXSettings::SelectionTriangleDepthBias;
-	
-	SelectionStyle.HoverLineAndPointDepthBias = FUVEditorUXSettings::SelectionHoverWireframeDepthBias;
-	SelectionStyle.HoverTriangleDepthBias = FUVEditorUXSettings::SelectionHoverTriangleDepthBias;
-	SelectionStyle.HoverPointColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
-	SelectionStyle.HoverEdgeColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
-	SelectionStyle.HoverTriangleEdgeColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
-	SelectionStyle.HoverTriangleFillColor = FUVEditorUXSettings::SelectionHoverTriangleFillColor;
-	SelectionStyle.HoverTriangleOpacity = FUVEditorUXSettings::SelectionHoverTriangleOpacity;
-	
-	SelectionMechanic->SetVisualizationStyle(SelectionStyle);
 		
 	// Make it so that our selection mechanic creates undo/redo transactions that go to a selection
 	// change router, which we use to route to the current selection mechanic on each tool invocation.
@@ -350,17 +329,17 @@ void UUVSelectTool::Setup()
 	}
 	ChangeRouter->CurrentSelectTool = this;
 
-	SelectionMechanic->EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection,
-		const FDynamicMeshSelection& NewSelection)
+	SelectionMechanic->EmitSelectionChange = [this](const FUVEditorDynamicMeshSelection& OldSelection,
+		const FUVEditorDynamicMeshSelection& NewSelection)
 	{
 		TUniquePtr<TArray<FIndex2i>> VidPairsBefore;
 		TUniquePtr<TArray<FIndex2i>> VidPairsAfter;
-		if (OldSelection.Type == FDynamicMeshSelection::EType::Edge)
+		if (OldSelection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 		{
 			VidPairsBefore = MakeUnique<TArray<FIndex2i>>();
 			GetVidPairsFromSelection(OldSelection, *VidPairsBefore);
 		}
-		if (NewSelection.Type == FDynamicMeshSelection::EType::Edge)
+		if (NewSelection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 		{
 			VidPairsAfter = MakeUnique<TArray<FIndex2i>>();
 			GetVidPairsFromSelection(NewSelection, *VidPairsAfter);
@@ -500,7 +479,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())
 	{
 		// (The broadcast here is so that we still broadcast on undo)
-		SelectionMechanic->SetSelection(UMeshSelectionMechanic::FDynamicMeshSelection(), true, true);
+		SelectionMechanic->SetSelection(UUVEditorMeshSelectionMechanic::FUVEditorDynamicMeshSelection(), true, true);
 	}
 
 	ChangeRouter->CurrentSelectTool = nullptr;
@@ -546,7 +525,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	RecordAnalytics();
 }
 
-void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection)
+void UUVSelectTool::SetSelection(const FUVEditorDynamicMeshSelection& NewSelection)
 {
 	SelectionMechanic->SetSelection(NewSelection, true, 
 		false); // Don't emit undo because this function is called from undo
@@ -563,27 +542,27 @@ void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection)
 	UUVToolViewportButtonsAPI::ESelectionMode CurrentMode = ViewportButtonsAPI->GetSelectionMode();
 	switch (NewSelection.Type)
 	{
-	case FDynamicMeshSelection::EType::Vertex:
+	case FUVEditorDynamicMeshSelection::EType::Vertex:
 		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Vertex)
 		{
 			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Vertex, false);
-			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Vertex;
+			SelectionMechanic->SelectionMode = EUVEditorMeshSelectionMode::Vertex;
 		}
 		break;
-	case FDynamicMeshSelection::EType::Edge:
+	case FUVEditorDynamicMeshSelection::EType::Edge:
 		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Edge)
 		{
 			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Edge, false);
-			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Edge;
+			SelectionMechanic->SelectionMode = EUVEditorMeshSelectionMode::Edge;
 		}
 		break;
-	case FDynamicMeshSelection::EType::Triangle:
+	case FUVEditorDynamicMeshSelection::EType::Triangle:
 		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Triangle
 			&& CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Island
 			&& CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Mesh)
 		{
 			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Triangle, false);
-			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Triangle;
+			SelectionMechanic->SelectionMode = EUVEditorMeshSelectionMode::Triangle;
 		}
 		break;
 	}
@@ -602,7 +581,7 @@ void UUVSelectTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 
 void UUVSelectTool::UpdateGizmo()
 {
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 
 	if (!Selection.IsEmpty())
 	{
@@ -618,28 +597,28 @@ void UUVSelectTool::UpdateGizmo()
 
 void UUVSelectTool::UpdateSelectionMode()
 {
-	EMeshSelectionMechanicMode TargetMode;
+	EUVEditorMeshSelectionMode TargetMode;
 	switch (ViewportButtonsAPI->GetSelectionMode())
 	{
 	case UUVToolViewportButtonsAPI::ESelectionMode::Vertex:
-		TargetMode = EMeshSelectionMechanicMode::Vertex;
+		TargetMode = EUVEditorMeshSelectionMode::Vertex;
 		break;	
 	case UUVToolViewportButtonsAPI::ESelectionMode::Edge:
-		TargetMode = EMeshSelectionMechanicMode::Edge;
+		TargetMode = EUVEditorMeshSelectionMode::Edge;
 		break;
 	case UUVToolViewportButtonsAPI::ESelectionMode::Triangle:
-		TargetMode = EMeshSelectionMechanicMode::Triangle;
+		TargetMode = EUVEditorMeshSelectionMode::Triangle;
 		break;
 	case UUVToolViewportButtonsAPI::ESelectionMode::Island:
-		TargetMode = EMeshSelectionMechanicMode::Component;
+		TargetMode = EUVEditorMeshSelectionMode::Component;
 		break;
 	case UUVToolViewportButtonsAPI::ESelectionMode::Mesh:
-		TargetMode = EMeshSelectionMechanicMode::Mesh;
+		TargetMode = EUVEditorMeshSelectionMode::Mesh;
 		break;
 	default:
 		// We shouldn't ever get "none" as the selection mode...
 		ensure(false);
-		TargetMode = EMeshSelectionMechanicMode::Vertex;
+		TargetMode = EUVEditorMeshSelectionMode::Vertex;
 		break;
 	}
 	SelectionMechanic->ChangeSelectionMode(TargetMode); // broadcast and emit undo if needed
@@ -653,7 +632,7 @@ void UUVSelectTool::OnSelectionChanged()
 
 	ClearWarning();
 
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 
 	GetVidPairsFromSelection(Selection, CurrentSelectionVidPairs);
 
@@ -682,7 +661,7 @@ void UUVSelectTool::OnSelectionChanged()
 		// Note the selected vids
 		TSet<int32> VidSet;
 		TSet<int32> TidSet;
-		if (Selection.Type == FDynamicMeshSelection::EType::Triangle)
+		if (Selection.Type == FUVEditorDynamicMeshSelection::EType::Triangle)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
 
@@ -719,7 +698,7 @@ void UUVSelectTool::OnSelectionChanged()
 				}
 			}
 		}
-		else if (Selection.Type == FDynamicMeshSelection::EType::Edge)
+		else if (Selection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
 
@@ -752,7 +731,7 @@ void UUVSelectTool::OnSelectionChanged()
 					Target->UnwrapVidToAppliedVid(EdgeVids.B)));
 			}
 		}
-		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
+		else if (Selection.Type == FUVEditorDynamicMeshSelection::EType::Vertex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
 
@@ -803,7 +782,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 	LivePreviewLineSet->Clear();
 	LivePreviewPointSet->Clear();
 
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 	if (!Selection.IsEmpty())
 	{
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
@@ -973,7 +952,7 @@ void UUVSelectTool::RequestAction(ESelectToolAction ActionType)
 
 void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 {
-	auto MaybeAddAnalyticsActionHistoryItem = [this, &ActionType](FDynamicMeshSelection::EType ExpectedType)
+	auto MaybeAddAnalyticsActionHistoryItem = [this, &ActionType](FUVEditorDynamicMeshSelection::EType ExpectedType)
 	{
 		if (!SelectionMechanic->GetCurrentSelection().IsEmpty() && (SelectionMechanic->GetCurrentSelection().Type == ExpectedType))
 		{
@@ -992,12 +971,12 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_Sew);
 	
-			MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Edge);
+			MaybeAddAnalyticsActionHistoryItem(FUVEditorDynamicMeshSelection::EType::Edge);
 
 			const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
-			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
+			SelectionMechanic->SetSelection(FUVEditorDynamicMeshSelection(), false, true);
 			SewAction->ExecuteAction(*EmitChangeAPI);
 
 			EmitChangeAPI->EndUndoTransaction();
@@ -1008,12 +987,12 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_IslandConformalUnwrap);
 			
-			MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Triangle);
+			MaybeAddAnalyticsActionHistoryItem(FUVEditorDynamicMeshSelection::EType::Triangle);
 
 			const FText TransactionName(LOCTEXT("ConformalUnwrapCompleteTransactionName", "Conformal Unwrap Islands"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
-			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
+			SelectionMechanic->SetSelection(FUVEditorDynamicMeshSelection(), false, true);
 			IslandConformalUnwrapAction->ExecuteAction(*EmitChangeAPI);
 
 			EmitChangeAPI->EndUndoTransaction();
@@ -1021,7 +1000,7 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		break;
 	case ESelectToolAction::Split:
 		
-		MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Edge);
+		MaybeAddAnalyticsActionHistoryItem(FUVEditorDynamicMeshSelection::EType::Edge);
 		
 		ApplySplit();
 	default:
@@ -1033,7 +1012,7 @@ void UUVSelectTool::ApplySplit()
 {
 	using namespace UVSelectToolLocals;
 
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 
 	if (Selection.IsEmpty())
 	{
@@ -1041,11 +1020,11 @@ void UUVSelectTool::ApplySplit()
 			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UVs. Selection was empty."),
 			EToolMessageLevel::UserWarning);
 	}
-	else if (Selection.Type == FDynamicMeshSelection::EType::Edge)
+	else if (Selection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 	{
 		ApplySplitEdges();
 	}
-	else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
+	else if (Selection.Type == FUVEditorDynamicMeshSelection::EType::Vertex)
 	{
 		ApplySplitBowtieVertices();
 	}
@@ -1059,8 +1038,8 @@ void UUVSelectTool::ApplySplit()
 
 void UUVSelectTool::ApplySplitEdges()
 {
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
-	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FDynamicMeshSelection::EType::Edge))
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FUVEditorDynamicMeshSelection::EType::Edge))
 	{
 		return;
 	}
@@ -1110,7 +1089,7 @@ void UUVSelectTool::ApplySplitEdges()
 	// Clear selection here so that it is restored on undo
 	// TODO: We could apply a new selection after the change, but this should only happen
 	// once we apply a new selection on split, which we currently don't do.
-	SelectionMechanic->SetSelection(FDynamicMeshSelection(), true, true);
+	SelectionMechanic->SetSelection(FUVEditorDynamicMeshSelection(), true, true);
 
 	// Perform the update
 	TArray<int32> AppliedTids = TidSet.Array();
@@ -1128,8 +1107,8 @@ void UUVSelectTool::ApplySplitEdges()
 
 void UUVSelectTool::ApplySplitBowtieVertices()
 {
-	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
-	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FDynamicMeshSelection::EType::Vertex))
+	const FUVEditorDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FUVEditorDynamicMeshSelection::EType::Vertex))
 	{
 		return;
 	}
@@ -1168,10 +1147,10 @@ void UUVSelectTool::ApplySplitBowtieVertices()
 	EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
 	// Emit selection clear first so that we restore it on undo
-	FDynamicMeshSelection NewSelection = SelectionMechanic->GetCurrentSelection(); // save type, etc
+	FUVEditorDynamicMeshSelection NewSelection = SelectionMechanic->GetCurrentSelection(); // save type, etc
 	// TODO: This emitted transaction doesn't actually need to broadcast on redo, but we don't yet
 	// have support for that.
-	SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true); // don't broadcast, do emit undo
+	SelectionMechanic->SetSelection(FUVEditorDynamicMeshSelection(), false, true); // don't broadcast, do emit undo
 
 	// Perform the update
 	TArray<int32> AppliedTids = TidSet.Array();

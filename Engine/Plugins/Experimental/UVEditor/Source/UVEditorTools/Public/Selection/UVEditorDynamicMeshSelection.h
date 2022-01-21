@@ -10,9 +10,9 @@ namespace Geometry {
 class FDynamicMesh3;
 
 /**
- * Class that represents a selection in a dynamic mesh.
+ * Class that represents a selection in a dynamic mesh, for use in the UV editor.
  */
-class FDynamicMeshSelection
+class UVEDITORTOOLS_API FUVEditorDynamicMeshSelection
 {
 public:
 	enum class EType
@@ -46,7 +46,7 @@ public:
 		return SelectedIDs.IsEmpty();
 	}
 
-	bool operator==(const FDynamicMeshSelection& Other)
+	bool operator==(const FUVEditorDynamicMeshSelection& Other)
 	{
 		return Mesh == Other.Mesh
 			&& Type == Other.Type
@@ -56,7 +56,7 @@ public:
 			&& SelectedIDs.Includes(Other.SelectedIDs);
 	}
 
-	bool operator!=(const FDynamicMeshSelection& Other)
+	bool operator!=(const FUVEditorDynamicMeshSelection& Other)
 	{
 		return !(*this == Other);
 	}

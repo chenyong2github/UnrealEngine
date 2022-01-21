@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Selection/MeshSelectionMechanic.h"
+#include "Selection/UVEditorMeshSelectionMechanic.h"
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
@@ -17,12 +17,13 @@
 #include "Spatial/GeometrySet3.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
+#include "UVEditorUXSettings.h"
 
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "UMeshSelectionMechanic"
+#define LOCTEXT_NAMESPACE "UUVEditorMeshSelectionMechanic"
 
-namespace MeshSelectionMechanicLocals
+namespace UVEditorMeshSelectionMechanicLocals
 {
 	/**
 	 * Class that can be used to apply/revert selection changes. Expects that the mesh selection
@@ -31,8 +32,8 @@ namespace MeshSelectionMechanicLocals
 	class FMeshSelectionMechanicSelectionChange : public FToolCommandChange
 	{
 	public:
-		FMeshSelectionMechanicSelectionChange(const FDynamicMeshSelection& OldSelection,
-			const FDynamicMeshSelection& NewSelection)
+		FMeshSelectionMechanicSelectionChange(const FUVEditorDynamicMeshSelection& OldSelection,
+			const FUVEditorDynamicMeshSelection& NewSelection)
 			: Before(OldSelection)
 			, After(NewSelection)
 		{
@@ -40,7 +41,7 @@ namespace MeshSelectionMechanicLocals
 
 		virtual void Apply(UObject* Object) override
 		{
-			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
+			UUVEditorMeshSelectionMechanic* Mechanic = Cast<UUVEditorMeshSelectionMechanic>(Object);
 			if (Mechanic)
 			{
 				Mechanic->SetSelection(After, true, false);
@@ -49,7 +50,7 @@ namespace MeshSelectionMechanicLocals
 
 		virtual void Revert(UObject* Object) override
 		{
-			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
+			UUVEditorMeshSelectionMechanic* Mechanic = Cast<UUVEditorMeshSelectionMechanic>(Object);
 			if (Mechanic)
 			{
 				Mechanic->SetSelection(Before, true, false);
@@ -58,12 +59,12 @@ namespace MeshSelectionMechanicLocals
 
 		virtual FString ToString() const override
 		{
-			return TEXT("MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange");
+			return TEXT("UVEditorMeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange");
 		}
 
 	protected:
-		FDynamicMeshSelection Before;
-		FDynamicMeshSelection After;
+		FUVEditorDynamicMeshSelection Before;
+		FUVEditorDynamicMeshSelection After;
 	};
 
 	template <typename InElementType>
@@ -75,21 +76,21 @@ namespace MeshSelectionMechanicLocals
 		}
 	}
 	
-	FDynamicMeshSelection::EType ToCompatibleDynamicMeshSelectionType(const EMeshSelectionMechanicMode& Mode)
+	FUVEditorDynamicMeshSelection::EType ToCompatibleDynamicMeshSelectionType(const EUVEditorMeshSelectionMode& Mode)
 	{
 		switch (Mode)
 		{
-			case EMeshSelectionMechanicMode::Mesh:
-			case EMeshSelectionMechanicMode::Component:
-			case EMeshSelectionMechanicMode::Triangle:
-				return FDynamicMeshSelection::EType::Triangle;
-			case EMeshSelectionMechanicMode::Edge:
-				return FDynamicMeshSelection::EType::Edge;
-			case EMeshSelectionMechanicMode::Vertex:
-				return FDynamicMeshSelection::EType::Vertex;
+			case EUVEditorMeshSelectionMode::Mesh:
+			case EUVEditorMeshSelectionMode::Component:
+			case EUVEditorMeshSelectionMode::Triangle:
+				return FUVEditorDynamicMeshSelection::EType::Triangle;
+			case EUVEditorMeshSelectionMode::Edge:
+				return FUVEditorDynamicMeshSelection::EType::Edge;
+			case EUVEditorMeshSelectionMode::Vertex:
+				return FUVEditorDynamicMeshSelection::EType::Vertex;
 		}
 		checkNoEntry();
-		return FDynamicMeshSelection::EType::Vertex;
+		return FUVEditorDynamicMeshSelection::EType::Vertex;
 	}
 
 	// Returns the marquee selection rectangle, obtained from the given CameraRectangle, projected to the XY plane
@@ -270,9 +271,9 @@ namespace MeshSelectionMechanicLocals
 
 		return Result;
 	}
-} // namespace MeshSelectionMechanicLocals
+} // namespace UVEditorMeshSelectionMechanicLocals
 
-void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
+void UUVEditorMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
 
@@ -280,11 +281,11 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>();
 	MarqueeMechanic->bUseExternalClickDragBehavior = true;
 	MarqueeMechanic->Setup(ParentToolIn);
-	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleStarted);
+	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UUVEditorMeshSelectionMechanic::OnDragRectangleStarted);
 	// TODO(Performance) :DynamicMarqueeSelection It would be cool to have the marquee selection update dynamically as
 	//  the rectangle gets changed, right now this isn't interactive for large meshes so we disabled it
-	// MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleChanged);
-	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleFinished);
+	// MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UUVEditorMeshSelectionMechanic::OnDragRectangleChanged);
+	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &UUVEditorMeshSelectionMechanic::OnDragRectangleFinished);
 
 	USingleClickOrDragInputBehavior* ClickOrDragBehavior = NewObject<USingleClickOrDragInputBehavior>();
 	ClickOrDragBehavior->Initialize(this, MarqueeMechanic);
@@ -292,7 +293,7 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	ParentTool->AddInputBehavior(ClickOrDragBehavior);
 	
-	Settings = NewObject<UMeshSelectionMechanicProperties>(ParentToolIn);
+	Settings = NewObject<UUVEditorMeshSelectionMechanicProperties>(ParentToolIn);
 	Settings->RestoreProperties(ParentToolIn);
 	AddToolPropertySource(Settings);
 
@@ -303,10 +304,10 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 		FInputRayHit Hit;
 		if (Settings->bShowHoveredElements)
 		{
-			EMeshSelectionMechanicMode Mode = SelectionMode;
-			if (Mode != EMeshSelectionMechanicMode::Vertex && Mode != EMeshSelectionMechanicMode::Edge)
+			EUVEditorMeshSelectionMode Mode = SelectionMode;
+			if (Mode != EUVEditorMeshSelectionMode::Vertex && Mode != EUVEditorMeshSelectionMode::Edge)
 			{
-				Mode = EMeshSelectionMechanicMode::Triangle;
+				Mode = EUVEditorMeshSelectionMode::Triangle;
 			}
 
 			// We don't bother with the depth since there aren't competing hover behaviors
@@ -321,10 +322,10 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	};
 	HoverBehavior->OnUpdateHoverFunc = [this](const FInputDeviceRay& Pos)
 	{
-		EMeshSelectionMechanicMode Mode = SelectionMode;
-		if (SelectionMode != EMeshSelectionMechanicMode::Vertex && SelectionMode != EMeshSelectionMechanicMode::Edge)
+		EUVEditorMeshSelectionMode Mode = SelectionMode;
+		if (SelectionMode != EUVEditorMeshSelectionMode::Vertex && SelectionMode != EUVEditorMeshSelectionMode::Edge)
 		{
-			Mode = EMeshSelectionMechanicMode::Triangle;
+			Mode = EUVEditorMeshSelectionMode::Triangle;
 		}
 		
 		HoverPointSet->Clear();
@@ -334,20 +335,25 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 		TSet<int32> Hovered = RayCast(Pos, Mode);
 		for (int32 Id : Hovered)
 		{
-			if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+			if (SelectionMode == EUVEditorMeshSelectionMode::Vertex)
 			{
 				const FVector& P = CurrentSelection.Mesh->GetVertexRef(Id);
-				const FRenderablePoint PointToRender(P, VisualizationStyle.HoverPointColor, VisualizationStyle.PointThickness);
+				const FRenderablePoint PointToRender(P, 
+					FUVEditorUXSettings::SelectionHoverTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionPointThickness);
 				
 				HoverPointSet->AddPoint(PointToRender);
 			}
-			else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
+			else if (SelectionMode == EUVEditorMeshSelectionMode::Edge)
 			{
 				const FIndex2i EdgeVids = CurrentSelection.Mesh->GetEdgeV(Id);
 				const FVector& A = CurrentSelection.Mesh->GetVertexRef(EdgeVids.A);
 				const FVector& B = CurrentSelection.Mesh->GetVertexRef(EdgeVids.B);
 				
-				HoverLineSet->AddLine(A, B, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
+				HoverLineSet->AddLine(A, B, 
+					FUVEditorUXSettings::SelectionHoverTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionLineThickness,
+					FUVEditorUXSettings::SelectionHoverWireframeDepthBias);
 			}
 			else
 			{
@@ -356,10 +362,14 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 				const FVector& B = CurrentSelection.Mesh->GetVertex(Vids[1]);
 				const FVector& C = CurrentSelection.Mesh->GetVertex(Vids[2]);
 
-				HoverLineSet->AddLine(A, B, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
-				HoverLineSet->AddLine(B, C, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
-				HoverLineSet->AddLine(C, A, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
-				HoverTriangleSet->AddTriangle(A, B, C, FVector::ZAxisVector, VisualizationStyle.HoverTriangleFillColor, HoverTriangleSetMaterial);
+				HoverLineSet->AddLine(A, B, FUVEditorUXSettings::SelectionHoverTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionLineThickness, FUVEditorUXSettings::SelectionHoverWireframeDepthBias);
+				HoverLineSet->AddLine(B, C, FUVEditorUXSettings::SelectionHoverTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionLineThickness, FUVEditorUXSettings::SelectionHoverWireframeDepthBias);
+				HoverLineSet->AddLine(C, A, FUVEditorUXSettings::SelectionHoverTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionLineThickness, FUVEditorUXSettings::SelectionHoverWireframeDepthBias);
+				HoverTriangleSet->AddTriangle(A, B, C, FVector::ZAxisVector, 
+					FUVEditorUXSettings::SelectionHoverTriangleFillColor, HoverTriangleSetMaterial);
 			}
 
 			return true;
@@ -380,9 +390,11 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	TriangleSet = NewObject<UTriangleSetComponent>();
 	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
 	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
-	TriangleSet->TranslucencySortPriority = VisualizationStyle.TriangleDepthBias;	
+	TriangleSet->TranslucencySortPriority = FUVEditorUXSettings::SelectionTriangleDepthBias;	
 	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
-		VisualizationStyle.TriangleColor, VisualizationStyle.TriangleDepthBias, VisualizationStyle.TriangleOpacity);
+		FUVEditorUXSettings::SelectionTriangleFillColor, 
+		FUVEditorUXSettings::SelectionTriangleDepthBias, 
+		FUVEditorUXSettings::SelectionTriangleOpacity);
 	
 	PointSet = NewObject<UPointSetComponent>();
 	PointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial( GetParentTool()->GetToolManager(), true));
@@ -396,21 +408,23 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	HoverLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), false));
 	HoverTriangleSet = NewObject<UTriangleSetComponent>();
 	HoverTriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
-		VisualizationStyle.HoverTriangleFillColor, VisualizationStyle.HoverTriangleDepthBias, VisualizationStyle.HoverTriangleOpacity);
+		FUVEditorUXSettings::SelectionHoverTriangleFillColor, 
+		FUVEditorUXSettings::SelectionHoverTriangleDepthBias, 
+		FUVEditorUXSettings::SelectionHoverTriangleOpacity);
 
 	// Add default selection change emitter if one was not provided.
 	if (!EmitSelectionChange)
 	{
-		EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection)
+		EmitSelectionChange = [this](const FUVEditorDynamicMeshSelection& OldSelection, const FUVEditorDynamicMeshSelection& NewSelection)
 		{
 			GetParentTool()->GetToolManager()->EmitObjectChange(this, 
-				MakeUnique<MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange>(OldSelection, NewSelection),
+				MakeUnique<UVEditorMeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange>(OldSelection, NewSelection),
 				LOCTEXT("SelectionChangeMessage", "Selection Change"));
 		};
 	}
 }
 
-void UMeshSelectionMechanic::SetWorld(UWorld* World)
+void UUVEditorMeshSelectionMechanic::SetWorld(UWorld* World)
 {
 	auto RegisterComponent = [this](UMeshComponent* Component)
 	{
@@ -470,7 +484,7 @@ void UMeshSelectionMechanic::SetWorld(UWorld* World)
 	RegisterComponent(HoverPointSet);
 }
 
-void UMeshSelectionMechanic::Shutdown()
+void UUVEditorMeshSelectionMechanic::Shutdown()
 {
 	if (PreviewGeometryActor)
 	{
@@ -479,49 +493,20 @@ void UMeshSelectionMechanic::Shutdown()
 	}
 }
 
-void UMeshSelectionMechanic::AddSpatial(TSharedPtr<FDynamicMeshAABBTree3> SpatialIn, const FTransform& TransformIn)
+void UUVEditorMeshSelectionMechanic::AddSpatial(TSharedPtr<FDynamicMeshAABBTree3> SpatialIn, const FTransform& TransformIn)
 {
 	MeshSpatials.Add(SpatialIn);
 	MeshTransforms.Add(TransformIn);
 }
 
-const FDynamicMeshSelection& UMeshSelectionMechanic::GetCurrentSelection() const
+const FUVEditorDynamicMeshSelection& UUVEditorMeshSelectionMechanic::GetCurrentSelection() const
 {
 	return CurrentSelection;
 }
 
-void UMeshSelectionMechanic::SetVisualizationStyle(const FMeshSelectionMechanicStyle& StyleIn)
+void UUVEditorMeshSelectionMechanic::SetSelection(const FUVEditorDynamicMeshSelection& Selection, bool bBroadcast, bool bEmitChange)
 {
-	VisualizationStyle = StyleIn;
-
-	if (TriangleSet) {
-		// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
-		// where multiple translucent layers are drawn on top of each other but still need depth sorting.
-		TriangleSet->TranslucencySortPriority = VisualizationStyle.TriangleDepthBias;
-	}
-
-	if (TriangleSetMaterial) {
-		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.TriangleColor);
-		TriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), VisualizationStyle.TriangleOpacity);
-		TriangleSetMaterial->SetScalarParameterValue(TEXT("PercentDepthOffset"), VisualizationStyle.TriangleDepthBias);
-	}
-	
-	if (HoverTriangleSet) {
-		// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
-		// where multiple translucent layers are drawn on top of each other but still need depth sorting.
-		HoverTriangleSet->TranslucencySortPriority = VisualizationStyle.HoverTriangleDepthBias;
-	}
-	
-	if (HoverTriangleSetMaterial) {
-		HoverTriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.HoverTriangleFillColor);
-		HoverTriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), VisualizationStyle.HoverTriangleOpacity);
-		HoverTriangleSetMaterial->SetScalarParameterValue(TEXT("PercentDepthOffset"), VisualizationStyle.HoverTriangleDepthBias);
-	}
-}
-
-void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast, bool bEmitChange)
-{
-	FDynamicMeshSelection OriginalSelection = CurrentSelection;
+	FUVEditorDynamicMeshSelection OriginalSelection = CurrentSelection;
 	CurrentSelection = Selection;
 
 	// Adjust the mesh in which the selection lives
@@ -564,7 +549,7 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 	RebuildDrawnElements(FTransform(CurrentSelectionCentroid));
 }
 
-void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransform)
+void UUVEditorMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransform)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements);
 
@@ -586,7 +571,7 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			MeshTransforms[CurrentSelectionIndex].TransformPosition(VectorIn));
 	};
 
-	if (CurrentSelection.Type == FDynamicMeshSelection::EType::Triangle)
+	if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Triangle)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements_Triangle);
 		
@@ -600,16 +585,18 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			{
 				Points[i] = TransformToApply(CurrentSelection.Mesh->GetVertex(Vids[i]));
 			}
-			TriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), VisualizationStyle.TriangleColor, TriangleSetMaterial);
+			TriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), FUVEditorUXSettings::SelectionTriangleFillColor, TriangleSetMaterial);
 			for (int i = 0; i < 3; ++i)
 			{
 				int NextIndex = (i + 1) % 3;
 				LineSet->AddLine(Points[i], Points[NextIndex],
-					VisualizationStyle.LineColor, VisualizationStyle.LineThickness, VisualizationStyle.LineAndPointDepthBias);
+					FUVEditorUXSettings::SelectionTriangleWireframeColor, 
+					FUVEditorUXSettings::SelectionLineThickness, 
+					FUVEditorUXSettings::SelectionWireframeDepthBias);
 			}
 		}
 	}
-	else if (CurrentSelection.Type == FDynamicMeshSelection::EType::Edge)
+	else if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements_Edge);
 
@@ -620,10 +607,12 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			LineSet->AddLine(
 				TransformToApply(CurrentSelection.Mesh->GetVertex(EdgeVids.A)),
 				TransformToApply(CurrentSelection.Mesh->GetVertex(EdgeVids.B)),
-				VisualizationStyle.LineColor, VisualizationStyle.LineThickness, VisualizationStyle.LineAndPointDepthBias);
+				FUVEditorUXSettings::SelectionTriangleWireframeColor, 
+				FUVEditorUXSettings::SelectionLineThickness, 
+				FUVEditorUXSettings::SelectionWireframeDepthBias);
 		}
 	}
-	else if (CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex)
+	else if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Vertex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements_Vertex);
 
@@ -631,15 +620,15 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 		for (int32 Vid : CurrentSelection.SelectedIDs)
 		{
 			FRenderablePoint PointToRender(TransformToApply(CurrentSelection.Mesh->GetVertex(Vid)),
-				VisualizationStyle.PointColor,
-				VisualizationStyle.PointThickness,
-				VisualizationStyle.LineAndPointDepthBias);
+				FUVEditorUXSettings::SelectionTriangleWireframeColor,
+				FUVEditorUXSettings::SelectionPointThickness,
+				FUVEditorUXSettings::SelectionWireframeDepthBias);
 			PointSet->AddPoint(PointToRender);
 		}
 	}
 }
 
-void UMeshSelectionMechanic::UpdateCentroid()
+void UUVEditorMeshSelectionMechanic::UpdateCentroid()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_UpdateCentroid);
 
@@ -649,7 +638,7 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		return;
 	}
 
-	if (CurrentSelection.Type == FDynamicMeshSelection::EType::Edge)
+	if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Edge)
 	{
 		for (int32 Eid : CurrentSelection.SelectedIDs)
 		{
@@ -657,7 +646,7 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		}
 		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
 	}
-	else if (CurrentSelection.Type == FDynamicMeshSelection::EType::Triangle)
+	else if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Triangle)
 	{
 		for (int32 Tid : CurrentSelection.SelectedIDs)
 		{
@@ -665,7 +654,7 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		}
 		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
 	}
-	if (CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex)
+	if (CurrentSelection.Type == FUVEditorDynamicMeshSelection::EType::Vertex)
 	{
 		for (int32 Vid : CurrentSelection.SelectedIDs)
 		{
@@ -679,7 +668,7 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		CurrentSelection.Mesh->GetShapeChangeStamp() : TNumericLimits<uint32>::Max();
 }
 
-FVector3d UMeshSelectionMechanic::GetCurrentSelectionCentroid()
+FVector3d UUVEditorMeshSelectionMechanic::GetCurrentSelectionCentroid()
 {
 	if (!CurrentSelection.Mesh)
 	{
@@ -694,24 +683,24 @@ FVector3d UMeshSelectionMechanic::GetCurrentSelectionCentroid()
 }
 
 
-void UMeshSelectionMechanic::SetDrawnElementsTransform(const FTransform& Transform)
+void UUVEditorMeshSelectionMechanic::SetDrawnElementsTransform(const FTransform& Transform)
 {
 	PreviewGeometryActor->SetActorTransform(Transform);
 }
 
-void UMeshSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
+void UUVEditorMeshSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	// Cache the camera state
 	MarqueeMechanic->Render(RenderAPI);
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 }
 
-void UMeshSelectionMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+void UUVEditorMeshSelectionMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	MarqueeMechanic->DrawHUD(Canvas, RenderAPI);
 }
 
-FInputRayHit UMeshSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
+FInputRayHit UUVEditorMeshSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	// TODO We could account for what modifiers would do and return an accurate depth here but for now this simple code works fine
 
@@ -721,16 +710,16 @@ FInputRayHit UMeshSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPo
 	return Hit;	
 }
 
-void UMeshSelectionMechanic::ClearCurrentSelection()
+void UUVEditorMeshSelectionMechanic::ClearCurrentSelection()
 {
 	CurrentSelection.SelectedIDs.Empty();
 	CurrentSelection.Mesh = nullptr;
-	CurrentSelection.Type = MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
+	CurrentSelection.Type = UVEditorMeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
 	CurrentSelectionIndex = IndexConstants::InvalidID;
 }
 
 
-void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMode& TargetMode)
+void UUVEditorMeshSelectionMechanic::ChangeSelectionMode(const EUVEditorMeshSelectionMode& TargetMode)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode);
 	
@@ -740,14 +729,14 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		return;
 	}
 	
-	const FDynamicMeshSelection OriginalSelection = CurrentSelection;
+	const FUVEditorDynamicMeshSelection OriginalSelection = CurrentSelection;
 	
 	auto VerticesToEdges = [this, &OriginalSelection]()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_VerticesToEdges);
 		
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Edge;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Edge;
 
 		for (int32 Vid : OriginalSelection.SelectedIDs)
 		{
@@ -771,7 +760,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_VerticesToTriangles);
 		
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Triangle;
 		
 		for (int32 Vid : OriginalSelection.SelectedIDs)
 		{
@@ -796,7 +785,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_EdgesToVertices);
 		
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Vertex;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Vertex;
 		
 		for (int32 Eid : OriginalSelection.SelectedIDs)
 		{
@@ -812,7 +801,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_EdgesToTriangles);
 		
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Triangle;
 		
 		TArray<int32> FoundTriangles;
 		for (int32 Eid : OriginalSelection.SelectedIDs)
@@ -847,7 +836,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_TrianglesToVertices);
 		
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Vertex;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Vertex;
 
 		for (int32 Tid : OriginalSelection.SelectedIDs)
 		{
@@ -863,7 +852,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_ChangeSelectionMode_TrianglesToEdges);
 			
 		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Type = FDynamicMeshSelection::EType::Edge;
+		CurrentSelection.Type = FUVEditorDynamicMeshSelection::EType::Edge;
 	
 		for (int32 Tid : OriginalSelection.SelectedIDs)
 		{
@@ -876,60 +865,60 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 
 	switch (SelectionMode)
 	{
-	case EMeshSelectionMechanicMode::Vertex:
+	case EUVEditorMeshSelectionMode::Vertex:
 		switch (TargetMode)
 		{
-		case EMeshSelectionMechanicMode::Vertex:
+		case EUVEditorMeshSelectionMode::Vertex:
 			// Do nothing
 			break;
 
-		case EMeshSelectionMechanicMode::Edge:
+		case EUVEditorMeshSelectionMode::Edge:
 			VerticesToEdges();
 			break;
 			
-		case EMeshSelectionMechanicMode::Triangle:
-		case EMeshSelectionMechanicMode::Component:
-		case EMeshSelectionMechanicMode::Mesh:
+		case EUVEditorMeshSelectionMode::Triangle:
+		case EUVEditorMeshSelectionMode::Component:
+		case EUVEditorMeshSelectionMode::Mesh:
 			VerticesToTriangles();
 			break;
 		}
 		break; // SelectionMode
 	
-	case EMeshSelectionMechanicMode::Edge:
+	case EUVEditorMeshSelectionMode::Edge:
 		switch (TargetMode)
 		{
-		case EMeshSelectionMechanicMode::Vertex:
+		case EUVEditorMeshSelectionMode::Vertex:
 			EdgesToVertices();
 			break;
 
-		case EMeshSelectionMechanicMode::Edge:
+		case EUVEditorMeshSelectionMode::Edge:
 			// Do nothing
 			break;
 
-		case EMeshSelectionMechanicMode::Mesh:
-		case EMeshSelectionMechanicMode::Triangle:
-		case EMeshSelectionMechanicMode::Component:
+		case EUVEditorMeshSelectionMode::Mesh:
+		case EUVEditorMeshSelectionMode::Triangle:
+		case EUVEditorMeshSelectionMode::Component:
 			EdgesToTriangles();
 			break;
 		}
 		break; // SelectionMode
 	
-	case EMeshSelectionMechanicMode::Mesh:
-	case EMeshSelectionMechanicMode::Triangle:
-	case EMeshSelectionMechanicMode::Component:
+	case EUVEditorMeshSelectionMode::Mesh:
+	case EUVEditorMeshSelectionMode::Triangle:
+	case EUVEditorMeshSelectionMode::Component:
 		switch (TargetMode)
 		{
-		case EMeshSelectionMechanicMode::Vertex:
+		case EUVEditorMeshSelectionMode::Vertex:
 			TrianglesToVertices();
 			break;
 
-		case EMeshSelectionMechanicMode::Edge:
+		case EUVEditorMeshSelectionMode::Edge:
 			TrianglesToEdges();
 			break;
 
-		case EMeshSelectionMechanicMode::Mesh:
-		case EMeshSelectionMechanicMode::Triangle:
-		case EMeshSelectionMechanicMode::Component:
+		case EUVEditorMeshSelectionMode::Mesh:
+		case EUVEditorMeshSelectionMode::Triangle:
+		case EUVEditorMeshSelectionMode::Component:
 			// Do nothing
 			break;
 		}
@@ -949,7 +938,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 }
 
 
-void UMeshSelectionMechanic::UpdateCurrentSelection(const TSet<int32>& NewSelection, bool CalledFromOnDragRectangleChanged)
+void UUVEditorMeshSelectionMechanic::UpdateCurrentSelection(const TSet<int32>& NewSelection, bool CalledFromOnDragRectangleChanged)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_UpdateCurrentSelection);
 	
@@ -973,7 +962,7 @@ void UMeshSelectionMechanic::UpdateCurrentSelection(const TSet<int32>& NewSelect
 	{
 		for (int32 Index : NewSelection)
 		{
-			MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Index);
+			UVEditorMeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Index);
 		}
 	}
 	else if (ShouldRemoveFromSelection())
@@ -990,16 +979,16 @@ void UMeshSelectionMechanic::UpdateCurrentSelection(const TSet<int32>& NewSelect
 		ClearCurrentSelection();
 	}
 	
-	CurrentSelection.Type = MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
+	CurrentSelection.Type = UVEditorMeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
 }
 
-void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
+void UUVEditorMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked);
 	
-	FDynamicMeshSelection OriginalSelection = CurrentSelection;
+	FUVEditorDynamicMeshSelection OriginalSelection = CurrentSelection;
 	
-	if (CurrentSelection.Type != MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
+	if (CurrentSelection.Type != UVEditorMeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
 	{
 		ClearCurrentSelection();
 	}
@@ -1020,7 +1009,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	}
 }
 
-TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSelectionMechanicMode Mode)
+TSet<int32> UUVEditorMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EUVEditorMeshSelectionMode Mode)
 {
 	// TODO if the selection mode is Vertex, Edge or Triangle we'll return at most one index, if the selection mode is
 	// Component or Mesh we'll return a set of components. Perhaps it would be better to use TVariant here (and maybe
@@ -1046,7 +1035,7 @@ TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSel
 
 	if (HitTid != IndexConstants::InvalidID)
 	{
-		if (Mode == EMeshSelectionMechanicMode::Component)
+		if (Mode == EUVEditorMeshSelectionMode::Component)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Component);
 
@@ -1057,7 +1046,7 @@ TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSel
 			ensure(MeshSelectedComponent.Components.Num() == 1); // Expect each triangle to only be in a single component
 			Result.Append(MoveTemp(MeshSelectedComponent.Components[0].Indices));
 		}
-		else if (Mode == EMeshSelectionMechanicMode::Edge)
+		else if (Mode == EUVEditorMeshSelectionMode::Edge)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
 			// TODO: We'll need the ability to hit occluded triangles to see if there is a better edge to snap to.
@@ -1084,7 +1073,7 @@ TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSel
 				Result = TSet<int32>{Nearest.ID};
 			}
 		}
-		else if (Mode == EMeshSelectionMechanicMode::Vertex)
+		else if (Mode == EUVEditorMeshSelectionMode::Vertex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
 			// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
@@ -1109,13 +1098,13 @@ TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSel
 				Result = TSet<int32>{Nearest.ID};
 			}
 		}
-		else if (Mode == EMeshSelectionMechanicMode::Triangle)
+		else if (Mode == EUVEditorMeshSelectionMode::Triangle)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
 
 			Result = TSet<int32>{HitTid};
 		}
-		else if (Mode == EMeshSelectionMechanicMode::Mesh)
+		else if (Mode == EUVEditorMeshSelectionMode::Mesh)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Mesh);
 
@@ -1133,11 +1122,11 @@ TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSel
 	return Result;
 }
 
-void UMeshSelectionMechanic::OnDragRectangleStarted()
+void UUVEditorMeshSelectionMechanic::OnDragRectangleStarted()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleStarted); // Mark start of drag sequence
 	
-	if (CurrentSelection.Type != MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
+	if (CurrentSelection.Type != UVEditorMeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
 	{
 		ClearCurrentSelection();	
 	}
@@ -1145,7 +1134,7 @@ void UMeshSelectionMechanic::OnDragRectangleStarted()
 	PreDragSelection = CurrentSelection;
 }
 
-void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
+void UUVEditorMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged);
 	
@@ -1157,7 +1146,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 		{
 			for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
 			{
-				// TODO UMeshSelectionMechanic is currently assuming that the provided mesh transform is identity, which is
+				// TODO UUVEditorMeshSelectionMechanic is currently assuming that the provided mesh transform is identity, which is
 				//  the case in the UV editor, this restriction should be lifted. When we do this we should also apply the
 				//  (inverse) transform to the CurrentRectangle query rays. Search :ApplyTransformToQuery
 				ensure(MeshTransforms[MeshIndex].Identical(&FTransform::Identity, 0));
@@ -1184,11 +1173,11 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 
 		return RectangleSelectedIDs;
 	};
-	using namespace MeshSelectionMechanicLocals;
+	using namespace UVEditorMeshSelectionMechanicLocals;
 	FAxisAlignedBox2d RectangleXY = GetRectangleXY(CurrentRectangle);
 	
 	TSet<int32> RectangleSelectedIDs;
-	if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+	if (SelectionMode == EUVEditorMeshSelectionMode::Vertex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged_Vertex);
 	
@@ -1201,7 +1190,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 	
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddVertexIDsToSelection);
 	}
-	else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
+	else if (SelectionMode == EUVEditorMeshSelectionMode::Edge)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged_Edge);
 		
@@ -1214,7 +1203,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddEdgeIDsToSelection);
 	}
-	else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
+	else if (SelectionMode == EUVEditorMeshSelectionMode::Triangle)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged_Triangle);
 		
@@ -1227,7 +1216,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 	
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddTriangleIDsToSelection);
 	}
-	else if (SelectionMode == EMeshSelectionMechanicMode::Component)
+	else if (SelectionMode == EUVEditorMeshSelectionMode::Component)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged_Component);
 		
@@ -1249,7 +1238,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 	
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddTriangleIDsToSelection);
 	}
-	else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
+	else if (SelectionMode == EUVEditorMeshSelectionMode::Mesh)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleChanged_Mesh);
 		
@@ -1282,7 +1271,7 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 	RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 }
 
-void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& CurrentRectangle, bool bCancelled)
+void UUVEditorMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& CurrentRectangle, bool bCancelled)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleFinished); // Mark end of drag sequence
 
@@ -1301,7 +1290,7 @@ void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Cur
 	}
 }
 
-void UMeshSelectionMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
+void UUVEditorMeshSelectionMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
 	switch (ModifierID)
 	{

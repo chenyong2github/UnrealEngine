@@ -16,11 +16,11 @@
 
 #include "UVSelectTool.generated.h"
 
-PREDECLARE_GEOMETRY(class FDynamicMeshSelection);
+PREDECLARE_GEOMETRY(class FUVEditorDynamicMeshSelection);
 class APreviewGeometryActor;
 class FToolCommandChange;
 class ULineSetComponent;
-class UMeshSelectionMechanic;
+class UUVEditorMeshSelectionMechanic;
 class UPointSetComponent;
 class UToolTargetManager;
 class UCombinedTransformGizmo;
@@ -114,7 +114,7 @@ public:
 	}
 
 	// Used by undo/redo changes to update the tool state
-	void SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection);
+	void SetSelection(const UE::Geometry::FUVEditorDynamicMeshSelection& NewSelection);
 	void SetGizmoTransform(const FTransform& NewTransform);
 
 	// UInteractiveTool
@@ -157,7 +157,7 @@ protected:
 	TObjectPtr<UUVToolViewportButtonsAPI> ViewportButtonsAPI = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UMeshSelectionMechanic> SelectionMechanic = nullptr;
+	TObjectPtr<UUVEditorMeshSelectionMechanic> SelectionMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;

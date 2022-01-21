@@ -6,7 +6,7 @@
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
-#include "Selection/DynamicMeshSelection.h"
+#include "Selection/UVEditorDynamicMeshSelection.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "PreviewMesh.h"
 #include "ToolSetupUtil.h"
@@ -21,7 +21,7 @@ using namespace UE::Geometry;
 
 UUVSeamSewAction::UUVSeamSewAction()
 {
-	CurrentSelection = MakeShared<UE::Geometry::FDynamicMeshSelection>();
+	CurrentSelection = MakeShared<UE::Geometry::FUVEditorDynamicMeshSelection>();
 }
 
 void UUVSeamSewAction::SetWorld(UWorld* WorldIn)
@@ -75,7 +75,7 @@ void UUVSeamSewAction::Shutdown()
 }
 
 
-void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection)
+void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FUVEditorDynamicMeshSelection* NewSelection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_SetSelection);
 	
@@ -86,12 +86,12 @@ void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geom
 	}
 	else
 	{
-		(*CurrentSelection) = UE::Geometry::FDynamicMeshSelection();
+		(*CurrentSelection) = UE::Geometry::FUVEditorDynamicMeshSelection();
 	}
 
 	EdgeSewCandidates.Reset();
 
-	if (SelectionTargetIndex != -1 && CurrentSelection && CurrentSelection->Type == FDynamicMeshSelection::EType::Edge)
+	if (SelectionTargetIndex != -1 && CurrentSelection && CurrentSelection->Type == FUVEditorDynamicMeshSelection::EType::Edge)
 	{
 		// TODO(Performance) This loop is very slow for large selections
 		TRACE_CPUPROFILER_EVENT_SCOPE(FindSewEdgeOppositePairing_Loop);
@@ -166,7 +166,7 @@ bool UUVSeamSewAction::PreCheckAction()
 		return false;
 	}
 
-	if (CurrentSelection->Type != FDynamicMeshSelection::EType::Edge)
+	if (CurrentSelection->Type != FUVEditorDynamicMeshSelection::EType::Edge)
 	{
 		ParentTool->GetToolManager()->DisplayMessage(
 			LOCTEXT("SewErrorSelectionNotEdge", "Cannot sew UVs. Selection was not an edge."),

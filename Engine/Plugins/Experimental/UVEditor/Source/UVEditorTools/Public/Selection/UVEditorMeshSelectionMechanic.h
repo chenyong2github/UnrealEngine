@@ -9,11 +9,11 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "InteractionMechanic.h"
 #include "InteractiveTool.h"
-#include "Selection/DynamicMeshSelection.h"
+#include "Selection/UVEditorDynamicMeshSelection.h"
 #include "Mechanics/RectangleMarqueeMechanic.h"
 #include "ToolContextInterfaces.h" //FViewCameraState
 
-#include "MeshSelectionMechanic.generated.h"
+#include "UVEditorMeshSelectionMechanic.generated.h"
 
 class UTriangleSetComponent;
 class ULineSetComponent;
@@ -22,7 +22,7 @@ class APreviewGeometryActor;
 class UMaterialInstanceDynamic;
 struct FCameraRectangle;
 
-enum class EMeshSelectionMechanicMode
+enum class EUVEditorMeshSelectionMode
 {
 	Component,
 	
@@ -37,7 +37,7 @@ enum class EMeshSelectionMechanicMode
 };
 
 UCLASS()
-class MODELINGCOMPONENTS_API UMeshSelectionMechanicProperties : public UInteractiveToolPropertySet
+class UVEDITORTOOLS_API UUVEditorMeshSelectionMechanicProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -47,44 +47,21 @@ public:
 	bool bShowHoveredElements = true;
 };
 
-// These values are all overwritten
-// TODO Directly use the values in FUVEditorUXSettings when MeshSelectionMechanic is moved into UV Editor module, we can
-//  also remove the SetVisualizationStyle
-struct MODELINGCOMPONENTS_API FMeshSelectionMechanicStyle
-{
-	FColor TriangleColor = FColor::Yellow;
-	FColor LineColor = FColor::Yellow;
-	FColor PointColor = FColor::Yellow;
-	float TriangleOpacity = 0.3;
-	float LineThickness = 1.5;
-	float PointThickness = 6;
-	float LineAndPointDepthBias = 4;
-	float TriangleDepthBias = 3;
-	
-	FColor HoverPointColor = FColor::FromHex("0E86FF");
-	FColor HoverEdgeColor = FColor::FromHex("0E86FF");
-	FColor HoverTriangleEdgeColor = FColor::FromHex("0E86FF");
-	FColor HoverTriangleFillColor = FColor::FromHex("4E719B");
-	float HoverTriangleOpacity = 1;
-	float HoverLineAndPointDepthBias = 6;
-	float HoverTriangleDepthBias = 5;
-};
-
 /**
- * Mechanic for selecting elements of a dynamic mesh.
+ * Mechanic for selecting elements of a dynamic mesh in the UV editor.
  * 
  * TODO: Currently only able to select unoccluded elements.
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UMeshSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget
+class UVEDITORTOOLS_API UUVEditorMeshSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 
 public:
 	using FDynamicMeshAABBTree3 = UE::Geometry::FDynamicMeshAABBTree3;
-	using FDynamicMeshSelection = UE::Geometry::FDynamicMeshSelection;
+	using FUVEditorDynamicMeshSelection = UE::Geometry::FUVEditorDynamicMeshSelection;
 
-	virtual ~UMeshSelectionMechanic() {}
+	virtual ~UUVEditorMeshSelectionMechanic() {}
 
 	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown() override;
@@ -104,10 +81,9 @@ public:
 	// without rebuilding it, when the change is a transformation.
 	void SetDrawnElementsTransform(const FTransform& Transform);
 
-	virtual const FDynamicMeshSelection& GetCurrentSelection() const;
-	void ChangeSelectionMode(const EMeshSelectionMechanicMode& TargetMode);
-	void SetVisualizationStyle(const FMeshSelectionMechanicStyle& StyleIn);
-	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
+	virtual const FUVEditorDynamicMeshSelection& GetCurrentSelection() const;
+	void ChangeSelectionMode(const EUVEditorMeshSelectionMode& TargetMode);
+	virtual void SetSelection(const FUVEditorDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
@@ -123,11 +99,11 @@ public:
 	// IModifierToggleBehaviorTarget implementation
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	
-	TSet<int32> RayCast(const FInputDeviceRay& ClickPos, EMeshSelectionMechanicMode Mode);
+	TSet<int32> RayCast(const FInputDeviceRay& ClickPos, EUVEditorMeshSelectionMode Mode);
 
 	FSimpleMulticastDelegate OnSelectionChanged;
 
-	EMeshSelectionMechanicMode SelectionMode;
+	EUVEditorMeshSelectionMode SelectionMode;
 
 	/**
 	 * Function to use for emitting selection change events. If not set, Setup() will attach a version that
@@ -136,7 +112,7 @@ public:
 	 * OnSelectionChanged on redo, undo, or both, to allow selection change events to be used as bookends
 	 * around topology changes.
 	 */ 
-	TUniqueFunction<void(const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection)> EmitSelectionChange;
+	TUniqueFunction<void(const FUVEditorDynamicMeshSelection& OldSelection, const FUVEditorDynamicMeshSelection& NewSelection)> EmitSelectionChange;
 
 protected:
 
@@ -147,7 +123,7 @@ protected:
 	bool ShouldRestartSelection() const { return !bCtrlToggle && !bShiftToggle; }
 
 	UPROPERTY()
-	TObjectPtr<UMeshSelectionMechanicProperties> Settings = nullptr;
+	TObjectPtr<UUVEditorMeshSelectionMechanicProperties> Settings = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
@@ -180,12 +156,10 @@ protected:
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
 	TArray<FTransform> MeshTransforms;
-	FDynamicMeshSelection CurrentSelection;
-	FDynamicMeshSelection PreDragSelection;
+	FUVEditorDynamicMeshSelection CurrentSelection;
+	FUVEditorDynamicMeshSelection PreDragSelection;
 	int32 CurrentSelectionIndex = IndexConstants::InvalidID;
 	FViewCameraState CameraState;
-
-	FMeshSelectionMechanicStyle VisualizationStyle;
 
 	bool bShiftToggle = false;
 	bool bCtrlToggle = false;

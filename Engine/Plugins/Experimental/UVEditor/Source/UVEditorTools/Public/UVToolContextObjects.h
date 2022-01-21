@@ -7,7 +7,6 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h" // FDynamicMeshChange for TUniquePtr
 #include "InteractiveToolManager.h"
-#include "Selection/DynamicMeshSelection.h"
 #include "GeometryBase.h"
 
 #include "UVToolContextObjects.generated.h"

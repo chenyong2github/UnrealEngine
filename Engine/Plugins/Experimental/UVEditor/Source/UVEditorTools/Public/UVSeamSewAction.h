@@ -10,7 +10,7 @@
 
 #include "UVSeamSewAction.generated.h"
 
-PREDECLARE_GEOMETRY(class FDynamicMeshSelection);
+PREDECLARE_GEOMETRY(class FUVEditorDynamicMeshSelection);
 class APreviewGeometryActor;
 class ULineSetComponent;
 
@@ -45,7 +45,7 @@ public:
 	void Setup(UInteractiveTool* ParentToolIn) override;
 	void Shutdown() override;
 
-	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection);
+	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FUVEditorDynamicMeshSelection* NewSelection);
 	virtual void UpdateVisualizations() override;
 
 protected:
@@ -59,7 +59,7 @@ protected:
 	TObjectPtr<ULineSetComponent> SewEdgePairingLineSet = nullptr;
 
 	int32 SelectionTargetIndex;
-	TSharedPtr<UE::Geometry::FDynamicMeshSelection> CurrentSelection;
+	TSharedPtr<UE::Geometry::FUVEditorDynamicMeshSelection> CurrentSelection;
 
 	int32 FindSewEdgeOppositePairing(int32 UnwrapEid) const;
 	bool PreCheckAction() override;
