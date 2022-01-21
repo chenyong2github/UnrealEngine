@@ -236,16 +236,14 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 {
 	check(GameFeatureToAdd);
 	UAssetManager& LocalAssetManager = UAssetManager::Get();
-	LocalAssetManager.PushBulkScanning();
 
-	FString PluginRootPath = TEXT("/") + PluginName + TEXT("/");
+	LocalAssetManager.PushBulkScanning();
 
 	for (FPrimaryAssetTypeInfo TypeInfo : GameFeatureToAdd->GetPrimaryAssetTypesToScan())
 	{
 		for (FDirectoryPath& Path : TypeInfo.Directories)
 		{
-			// Convert plugin-relative paths to full package paths
-			FixPluginPackagePath(Path.Path, PluginRootPath, false);
+			Path.Path = TEXT("/") + PluginName + TEXT("/") + Path.Path;
 		}
 
 		// This function also fills out runtime data on the copy
