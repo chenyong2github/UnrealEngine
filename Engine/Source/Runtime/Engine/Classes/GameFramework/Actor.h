@@ -3910,6 +3910,7 @@ private:
 	}
 	friend class UWorld;
 	friend class UEngine;
+	friend class UExternalActorsCommandlet;
 	friend class UWorldPartitionConvertCommandlet;
 };
 #endif
