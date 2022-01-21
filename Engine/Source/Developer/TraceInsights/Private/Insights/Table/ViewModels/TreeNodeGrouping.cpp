@@ -145,6 +145,12 @@ template<> float TTreeNodeGroupingByUniqueValue<float>::GetValue(const FTableCel
 template<> double TTreeNodeGroupingByUniqueValue<double>::GetValue(const FTableCellValue& CellValue) { return CellValue.Double; }
 template<> const TCHAR* TTreeNodeGroupingByUniqueValue<const TCHAR*>::GetValue(const FTableCellValue& CellValue) { return CellValue.CString; }
 
+template<>
+FText TTreeNodeGroupingByUniqueValue<const TCHAR*>::GetValueAsText(const FTableColumn& Column, const FTableTreeNode& Node)
+{
+	return Column.GetValueAsText(Node);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTreeNodeGroupingByNameFirstLetter
 ////////////////////////////////////////////////////////////////////////////////////////////////////

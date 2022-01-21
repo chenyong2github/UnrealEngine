@@ -122,6 +122,10 @@ public:
 
 private:
 	static Type GetValue(const FTableCellValue& CellValue);
+	static FText GetValueAsText(const FTableColumn& Column, const FTableTreeNode& Node)
+	{
+		return Column.GetValueAsTooltipText(Node);
+	}
 };
 
 template<typename Type>
@@ -147,7 +151,8 @@ void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNod
 
 		FTableTreeNodePtr GroupPtr = nullptr;
 
-		const TOptional<FTableCellValue> CellValue = GetColumn()->GetValue(*NodePtr);
+		const FTableColumn& Column = *GetColumn();
+		const TOptional<FTableCellValue> CellValue = Column.GetValue(*NodePtr);
 		if (CellValue.IsSet())
 		{
 			const Type Value = GetValue(CellValue.GetValue());
@@ -155,8 +160,13 @@ void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNod
 			FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(Value);
 			if (!GroupPtrPtr)
 			{
-				FName GroupName(GetColumn()->GetValueAsText(*NodePtr).ToString());
-				GroupPtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
+				FText ValueAsText = GetValueAsText(Column, *NodePtr);
+				FStringView GroupName(ValueAsText.ToString());
+				if (GroupName.Len() >= NAME_SIZE)
+				{
+					GroupName = FStringView(GroupName.GetData(), NAME_SIZE - 1);
+				}
+				GroupPtr = MakeShared<FTableTreeNode>(FName(GroupName, 0), InParentTable);
 				GroupPtr->SetExpansion(false);
 				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
 				GroupMap.Add(Value, GroupPtr);
