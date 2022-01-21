@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "CommonAnimatedSwitcher.h"
+
 #include "CommonWidgetPaletteCategories.h"
-#include "Components/WidgetSwitcherSlot.h"
 #include "Components/PanelSlot.h"
-#include "Widgets/SOverlay.h"
+#include "Components/WidgetSwitcherSlot.h"
+#include "Templates/UnrealTemplate.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SOverlay.h"
 
 UCommonAnimatedSwitcher::UCommonAnimatedSwitcher(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -90,6 +93,11 @@ void UCommonAnimatedSwitcher::SetDisableTransitionAnimation(bool bDisableAnimati
 	bInstantTransition = bDisableAnimation;
 }
 
+bool UCommonAnimatedSwitcher::IsCurrentlySwitching() const
+{
+	return bCurrentlySwitching;
+}
+
 void UCommonAnimatedSwitcher::HandleSlateActiveIndexChanged(int32 ActiveIndex)
 {
 	if (Slots.IsValidIndex(ActiveWidgetIndex))
@@ -144,6 +152,8 @@ void UCommonAnimatedSwitcher::SetActiveWidgetIndex_Internal(int32 Index)
 		return;
 	}
 #endif
+	
+	TGuardValue<bool> bCurrentlySwitchingGuard(bCurrentlySwitching, true);
 
 	if (Index >= 0 && Index < Slots.Num() && (Index != ActiveWidgetIndex || !bSetOnce))
 	{

@@ -43,6 +43,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
 	void SetDisableTransitionAnimation(bool bDisableAnimation);
 
+	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
+	bool IsCurrentlySwitching() const;
+
 protected:
 	virtual void HandleSlateActiveIndexChanged(int32 ActiveIndex);
 
@@ -78,6 +81,7 @@ protected:
 	bool bInstantTransition = false;
 
 	bool bSetOnce = false;
+	bool bCurrentlySwitching = false;
 
 private:
 	void SetActiveWidgetIndex_Internal(int32 Index);
