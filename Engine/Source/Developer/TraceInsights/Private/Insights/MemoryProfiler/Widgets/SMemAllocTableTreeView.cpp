@@ -19,8 +19,10 @@
 
 // Insights
 #include "Insights/InsightsStyle.h"
+#include "Insights/MemoryProfiler/Common/SymbolSearchPathsHelper.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByCallstack.h"
+#include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByHeap.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingBySize.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
@@ -32,8 +34,6 @@
 #include "Insights/ViewModels/FilterConfigurator.h"
 
 #include <limits>
-
-#include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByHeap.h"
 
 #define LOCTEXT_NAMESPACE "SMemAllocTableTreeView"
 
@@ -1026,12 +1026,12 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 
 FText SMemAllocTableTreeView::GetSymbolResolutionTooltip() const
 {
-	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
-	TStringBuilder<2048> Sb;
-	uint32 Index = 0;
-	ModuleProvider->EnumerateSymbolSearchPaths([&Sb, &Index](FStringView Path) { Sb << ++Index << TEXT(": ") << Path << TEXT("\n");});
-	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths:\n{0}"),
-		FText::FromStringView(Sb));
+	const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get());
+	if (ModuleProvider)
+	{
+		return FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider);
+	}
+	return FText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1052,7 +1052,7 @@ FText SMemAllocTableTreeView::GetQueryInfoTooltip() const
 
 void SMemAllocTableTreeView::InternalCreateGroupings()
 {
-	STableTreeView::InternalCreateGroupings();
+	Insights::STableTreeView::InternalCreateGroupings();
 
 	int32 Index = 1; // after the Flat ("All") grouping
 

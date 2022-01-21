@@ -13,6 +13,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
+#include "Insights/MemoryProfiler/Common/SymbolSearchPathsHelper.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
 #include "Insights/MemoryProfiler/Widgets/SMemAllocTableTreeView.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerWindow.h"
@@ -180,6 +181,16 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 			.ToolTipText(LOCTEXT("RunQueryBtnToolTipText", "Run Memory Query.\nThe resulting list of allocations will be available in a tree view."))
 			.OnClicked(this, &SMemInvestigationView::RunQuery)
 		]
+	
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(20.0f, 0.0f)
+		.HAlign(HAlign_Left)
+		[
+			SAssignNew(SymbolPathsTextBlock, STextBlock)
+			.Text(GetSymbolPathsText())
+			.AutoWrapText(true)
+		]
 	;
 
 	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
@@ -331,7 +342,7 @@ void SMemInvestigationView::InsightsManager_OnSessionChanged()
 
 void SMemInvestigationView::Reset()
 {
-	//...
+	SymbolPathsTextBlock->SetText(GetSymbolPathsText());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,6 +452,19 @@ void SMemInvestigationView::QueryTarget_OnSelectionChanged(TSharedPtr<Insights::
 	{
 		QueryTargetComboBox->SetSelectedItem(InTarget);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+FText SMemInvestigationView::GetSymbolPathsText() const
+{
+	if (Session)
+	{
+		if (const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get()))
+		{
+			return FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider);
+		}
+	}
+	return FText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
