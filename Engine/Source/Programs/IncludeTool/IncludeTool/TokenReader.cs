@@ -430,7 +430,7 @@ namespace IncludeTool
 			else if(Character == '<' && Context.HasFlag(TokenReaderContext.IncludeDirective))
 			{
 				StringBuilder Builder = new StringBuilder("<");
-				while(Builder[Builder.Length - 1] != '>')
+				while(Builder[Builder.Length - 1] != '>' && ColumnIdx < Text.Lines[LineIdx].Length)
 				{
 					Builder.Append(Text[LineIdx, ColumnIdx]);
 					ColumnIdx++;
