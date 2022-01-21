@@ -1146,11 +1146,7 @@ bool UMRMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Colli
 	if (TempPosition && TempIndices)
 	{
 		// Copy the vertices
-		CollisionData->Vertices.Reset(TempPosition->Num());
-		for (auto Position = 0; Position < TempPosition->Num(); ++Position)
-		{
-			CollisionData->Vertices[Position] = (*TempPosition)[Position];
-		}
+		CollisionData->Vertices = *TempPosition;
 		
 		// Copy the indices
 		const auto& Indices = *TempIndices;
