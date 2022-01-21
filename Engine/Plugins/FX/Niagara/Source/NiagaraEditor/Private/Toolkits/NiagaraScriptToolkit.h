@@ -141,9 +141,7 @@ private:
 
 	FSlateIcon GetRefreshStatusImage() const;
 	FText GetRefreshStatusTooltip() const;
-	FSlateIcon GetVersioningImage() const;
 	FText GetVersionButtonLabel() const;
-	const FSlateBrush* GetVersioningBrush() const;
 
 	bool IsEditScriptDifferentFromOriginalScript() const;
 

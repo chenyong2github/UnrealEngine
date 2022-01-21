@@ -554,7 +554,6 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabVersioning(const FSpawnTabAr
             ]
         ];
 
-	SpawnedTab->SetTabIcon(TAttribute<const FSlateBrush*>(this, &FNiagaraScriptToolkit::GetVersioningBrush));
 	return SpawnedTab;
 }
 
@@ -651,7 +650,7 @@ void FNiagaraScriptToolkit::ExtendToolbar()
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ModuleVersioning, NAME_None,
                     TAttribute<FText>(ScriptToolkit, &FNiagaraScriptToolkit::GetVersionButtonLabel),
                     LOCTEXT("NiagaraShowModuleVersionsTooltip", "Manage different versions of this module script."),
-                    TAttribute<FSlateIcon>(ScriptToolkit, &FNiagaraScriptToolkit::GetVersioningImage));
+                    FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"));
 
 				FUIAction DropdownAction;
 				DropdownAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([ScriptToolkit]() { return ScriptToolkit->EditedNiagaraScript.Script->GetAllAvailableVersions().Num() > 1; });
@@ -739,16 +738,6 @@ FText FNiagaraScriptToolkit::GetRefreshStatusTooltip() const
 	return LOCTEXT("Refresh_Status", "Currently dependencies up-to-date. Consider refreshing if status isn't accurate.");
 }
 
-FSlateIcon FNiagaraScriptToolkit::GetVersioningImage() const
-{
-	if (EditedNiagaraScript.Script && EditedNiagaraScript.Script->IsVersioningEnabled())
-	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On");
-	}
-	
-	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.Off");
-}
-
 FText FNiagaraScriptToolkit::GetVersionButtonLabel() const
 {
 	FText BaseLabel = LOCTEXT("NiagaraShowModuleVersions", "Versioning");
@@ -761,16 +750,6 @@ FText FNiagaraScriptToolkit::GetVersionButtonLabel() const
 		}
 	}
 	return BaseLabel;
-}
-
-const FSlateBrush* FNiagaraScriptToolkit::GetVersioningBrush() const
-{
-	if (EditedNiagaraScript.Script && EditedNiagaraScript.Script->IsVersioningEnabled())
-	{
-		return FAppStyle::Get().GetBrush("SourceControl.StatusIcon.On");
-	}
-	
-	return FAppStyle::Get().GetBrush("SourceControl.StatusIcon.Off");
 }
 
 void FNiagaraScriptToolkit::CompileScript(bool bForce)
