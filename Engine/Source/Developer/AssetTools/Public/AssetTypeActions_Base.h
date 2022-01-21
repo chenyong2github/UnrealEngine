@@ -60,6 +60,16 @@ public:
 		return TArray<FAssetData>(InAssetDatas);
 	}
 
+	virtual bool CanRename(const FAssetData& InAsset, FText* OutErrorMsg) const override
+	{
+		return true;
+	}
+
+	virtual bool CanDuplicate(const FAssetData& InAsset, FText* OutErrorMsg) const override
+	{
+		return true;
+	}
+
 	virtual bool CanFilter() override
 	{
 		return true;

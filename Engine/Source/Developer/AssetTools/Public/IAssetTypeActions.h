@@ -67,6 +67,12 @@ public:
 	/** Allows overriding asset activation to perform asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. Return true if you have overridden the behavior. */
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
 
+	/** Returns true if this asset can be renamed */
+	virtual bool CanRename(const FAssetData& InAsset, FText* OutErrorMsg) const = 0;
+
+	/** Returns true if this asset can be duplicated */
+	virtual bool CanDuplicate(const FAssetData& InAsset, FText* OutErrorMsg) const = 0;
+
 	/** Returns the set of asset data that is valid to load. */
 	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) = 0;
 

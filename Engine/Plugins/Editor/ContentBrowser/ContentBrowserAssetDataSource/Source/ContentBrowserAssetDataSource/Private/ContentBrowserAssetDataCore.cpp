@@ -327,6 +327,14 @@ bool CanDuplicateAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserA
 		return false;
 	}
 
+	if (TSharedPtr<IAssetTypeActions> AssetTypeActions = InAssetPayload.GetAssetTypeActions())
+	{
+		if (!AssetTypeActions->CanDuplicate(InAssetPayload.GetAssetData(), OutErrorMsg))
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -702,6 +710,14 @@ bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 		if (!AssetViewUtils::IsValidObjectPathForCreate(ObjectPath, ValidationErrorMsg))
 		{
 			SetOptionalErrorMessage(OutErrorMsg, ValidationErrorMsg);
+			return false;
+		}
+	}
+
+	if (TSharedPtr<IAssetTypeActions> AssetTypeActions = InAssetPayload.GetAssetTypeActions())
+	{
+		if (!AssetTypeActions->CanRename(InAssetPayload.GetAssetData(), OutErrorMsg))
+		{
 			return false;
 		}
 	}
