@@ -61,8 +61,6 @@ class FWorldPartitionStreamingGenerator
 					{
 						// Dirty, unsaved actor for PIE
 						FWorldPartitionActorDesc* ActorDesc = ModifiedActorsDescList->AddActor(Actor);
-						ActorDesc->SetContainer(const_cast<UActorDescContainer*>(InContainer));
-						ActorDesc->OnRegister(Actor->GetWorld());
 						OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), ActorDesc);
 						continue;
 					}
@@ -81,8 +79,6 @@ class FWorldPartitionStreamingGenerator
 				if (IsValid(Actor) && Actor->IsPackageExternal() && Actor->IsMainPackageActor() && !Actor->IsEditorOnly() && !InContainer->GetActorDesc(Actor->GetActorGuid()))
 				{
 					FWorldPartitionActorDesc* ActorDesc = ModifiedActorsDescList->AddActor(Actor);
-					ActorDesc->SetContainer(const_cast<UActorDescContainer*>(InContainer));
-					ActorDesc->OnRegister(Actor->GetWorld());
 					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
 				}
 			}

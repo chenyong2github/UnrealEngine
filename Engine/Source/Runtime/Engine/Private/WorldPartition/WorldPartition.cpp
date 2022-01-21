@@ -426,26 +426,30 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
-			UActorDescContainer::Initialize(World, PackageName, [&](FWorldPartitionActorDesc* ActorDesc)
+			UActorDescContainer::Initialize(World, PackageName);
+			check(bContainerInitialized);
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Hash);
+			for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 			{
-				// This will get called by UActorDescContainer after having initialized all ActorDescs and before calling OnRegister on the ActorDesc
 				if (bIsInstanced)
 				{
-					const FString LongActorPackageName = ActorDesc->ActorPackage.ToString();
+					const FString LongActorPackageName = ActorDescIterator->ActorPackage.ToString();
 					const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 					const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDesc->TransformInstance(SourceWorldPath, RemappedWorldPath);
+					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath);
 				}
 
 				if (bIsEditor && !bIsCooking)
 				{
-					HashActorDesc(ActorDesc);
+					HashActorDesc(*ActorDescIterator);
 				}
-			});
-			check(bContainerInitialized);
+			}
 		}
 	}
 
@@ -557,6 +561,9 @@ void UWorldPartition::Uninitialize()
 		}
 
 		WorldDataLayersActor = FWorldPartitionReference();
+
+		PinnedActors.Empty();
+		PinnedActorRefs.Empty();
 
 		EditorHash = nullptr;
 #endif		
@@ -1334,6 +1341,64 @@ uint32 UWorldPartition::GetWantedEditorCellSize() const
 void UWorldPartition::SetEditorWantedCellSize(uint32 InCellSize)
 {
 	EditorHash->SetEditorWantedCellSize(InCellSize);
+}
+
+AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
+{
+	if (FWorldPartitionReference* PinnedActor = PinnedActors.Find(ActorGuid))
+	{
+		return (*PinnedActor).IsValid() ? (*PinnedActor)->GetActor() : nullptr;
+	}
+
+	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> AddReferences = [this, &AddReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& ReferenceMap)
+	{
+		if (ReferenceMap.Contains(ActorGuid))
+		{
+			return;
+		}
+
+		if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid); ActorDescPtr != nullptr && ActorDescPtr->IsValid())
+		{
+			ReferenceMap.Emplace(ActorGuid, ActorDescPtr);
+			
+			const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get(); 
+			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
+			{
+				AddReferences(ReferencedActor, ReferenceMap);
+			}
+		}
+	};
+	
+	if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid))
+	{
+		if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get())
+		{
+			FWorldPartitionReference& PinnedActor = PinnedActors.Emplace(ActorGuid, ActorDescPtr);
+
+			// If the pinned actor has references, we must also create references to those to ensure they are added
+			TMap<FGuid, FWorldPartitionReference>& References = PinnedActorRefs.Emplace(ActorGuid);
+
+			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
+			{
+				AddReferences(ReferencedActor, References);
+			}
+
+			return PinnedActor.IsValid() ? PinnedActor->GetActor() : nullptr;
+		}
+	}
+
+	return nullptr;
+}
+
+void UWorldPartition::UnpinActor(const FGuid& ActorGuid)
+{
+	PinnedActors.Remove(ActorGuid);
+	PinnedActorRefs.Remove(ActorGuid);
+}
+
+bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
+{
+	return PinnedActors.Contains(ActorGuid);
 }
 
 void UWorldPartition::OnWorldRenamed()

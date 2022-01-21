@@ -154,6 +154,11 @@ public:
 
 	uint32 GetWantedEditorCellSize() const;
 	void SetEditorWantedCellSize(uint32 InCellSize);
+
+	// Actors pinning
+	AActor* PinActor(const FGuid& ActorGuid);
+	void UnpinActor(const FGuid& ActorGuid);
+	bool IsActorPinned(const FGuid& ActorGuid) const;
 #endif
 
 public:
@@ -241,6 +246,9 @@ private:
 	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange);
 
 	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
+
+	TMap<FGuid, FWorldPartitionReference> PinnedActors;
+	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
 #endif
 
 #if !UE_BUILD_SHIPPING

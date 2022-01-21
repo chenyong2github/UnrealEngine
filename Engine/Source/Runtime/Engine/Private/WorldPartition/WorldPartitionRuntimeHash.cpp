@@ -34,10 +34,6 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	// Release references (will unload actors that were not already loaded in the Editor)
 	AlwaysLoadedActorsForPIE.Empty();
 
-	for (FActorDescList::TIterator<> ActorDescIterator(&ModifiedActorDescListForPIE); ActorDescIterator; ++ActorDescIterator)
-	{
-		ActorDescIterator->OnUnregister();
-	}
 	ModifiedActorDescListForPIE.Empty();
 }
 

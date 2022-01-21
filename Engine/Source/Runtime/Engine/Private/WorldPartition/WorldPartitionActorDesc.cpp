@@ -153,11 +153,6 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	OutData.Append(PayloadData);
 }
 
-UWorld* FWorldPartitionActorDesc::GetWorld() const
-{
-	return Container ? Container->GetWorld() : nullptr;
-}
-
 void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To)
 {
 	check(!HardRefCount);

@@ -245,16 +245,15 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 		}
 		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
 		{
-			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get();
-
-			if (ActorDesc)
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get(); ActorDesc && !ActorDesc->GetDataLayers().IsEmpty())
 			{
-				if (UWorld* World = ActorDesc->GetWorld())
+				const UActorDescContainer* ActorDescContainer = ActorDescItem->ActorDescHandle.Container.Get();
+				const UWorld* World = ActorDescContainer ? ActorDescContainer->GetWorld() : nullptr;
+				const AWorldDataLayers* WorldDataLayers = World ? World->GetWorldDataLayers() : nullptr;
+			
+				if (WorldDataLayers)
 				{
-					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
-					{
-						DataLayerObjects = WorldDataLayers->GetDataLayerObjects(ActorDesc->GetDataLayers());
-					}
+					DataLayerObjects = WorldDataLayers->GetDataLayerObjects(ActorDesc->GetDataLayers());
 				}
 			}
 		}

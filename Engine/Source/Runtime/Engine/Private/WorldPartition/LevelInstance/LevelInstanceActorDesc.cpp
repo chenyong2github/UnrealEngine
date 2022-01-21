@@ -74,30 +74,30 @@ bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) cons
 	return false;
 }
 
-void FLevelInstanceActorDesc::OnRegister(UWorld* InWorld)
+void FLevelInstanceActorDesc::SetContainer(UActorDescContainer* InContainer)
 {
-	FWorldPartitionActorDesc::OnRegister(InWorld);
+	FWorldPartitionActorDesc::SetContainer(InContainer);
 
-	check(!LevelInstanceContainer);
-
-	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
+	if (Container)
 	{
-		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+		check(!LevelInstanceContainer);
+
+		if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
 		{
-			LevelInstanceContainer = RegisterActorDescContainer(LevelPackage, InWorld);
-			check(LevelInstanceContainer);
+			if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+			{
+				LevelInstanceContainer = RegisterActorDescContainer(LevelPackage, Container->GetWorld());
+				check(LevelInstanceContainer);
+			}
 		}
 	}
-}
-
-void FLevelInstanceActorDesc::OnUnregister()
-{
-	FWorldPartitionActorDesc::OnUnregister();
-
-	if (LevelInstanceContainer)
+	else
 	{
-		UnregisterActorDescContainer(LevelInstanceContainer);
-		LevelInstanceContainer = nullptr;
+		if (LevelInstanceContainer)
+		{
+			UnregisterActorDescContainer(LevelInstanceContainer);
+			LevelInstanceContainer = nullptr;
+		}
 	}
 }
 

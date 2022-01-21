@@ -36,12 +36,8 @@ protected:
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FLevelInstanceActorDesc");
-	}
-	virtual void OnRegister(UWorld* InWorld) override;
-	virtual void OnUnregister() override;
+	virtual FString GetReferencerName() const override { return TEXT("FLevelInstanceActorDesc"); }
+	virtual void SetContainer(UActorDescContainer* InContainer) override;
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;

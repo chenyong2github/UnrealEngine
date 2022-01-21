@@ -18,7 +18,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend class FWorldPartitionActorDesc;
 
 public:
-	void Initialize(UWorld* World, FName InPackageName, TFunctionRef<void(FWorldPartitionActorDesc*)> PreRegister = [](FWorldPartitionActorDesc*) {});
+	void Initialize(UWorld* World, FName InPackageName);
 	virtual void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;
@@ -32,10 +32,6 @@ public:
 
 	/** Removes an actor desc without the need to load a package */
 	virtual void RemoveActor(const FGuid& ActorGuid);
-
-	AActor* PinActor(const FGuid& ActorGuid);
-	void UnpinActor(const FGuid& ActorGuid);
-	bool IsActorPinned(const FGuid& ActorGuid) const { return PinnedActors.Contains(ActorGuid); }
 
 	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
 
@@ -59,6 +55,11 @@ protected:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
+	//~ Begin FActorDescList Interface
+	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
+	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
+	//~ End FActorDescList Interface
+
 	// Events
 	void OnWorldRenamed(UWorld* RenamedWorld);
 	virtual void OnWorldRenamed();
@@ -73,9 +74,6 @@ protected:
 
 	bool ShouldHandleActorEvent(const AActor* Actor);
 
-	TMap<FGuid, FWorldPartitionReference> PinnedActors;
-	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
-	
 	bool bContainerInitialized;
 
 	FName ContainerPackageName;

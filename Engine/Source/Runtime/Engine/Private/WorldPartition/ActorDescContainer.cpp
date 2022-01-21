@@ -20,7 +20,7 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 #endif
 {}
 
-void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunctionRef<void(FWorldPartitionActorDesc*)> PreRegister)
+void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 {
 	check(!World || World == InWorld);
 	World = InWorld;
@@ -106,15 +106,8 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 
 		if (ActorDesc.IsValid())
 		{
-			ActorDesc->SetContainer(this);
 			AddActorDescriptor(ActorDesc.Release());
 		}
-	}
-
-	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
-	{
-		PreRegister(*ActorDescIterator);
-		ActorDescIterator->OnRegister(World);
 	}
 
 	RegisterEditorDelegates();
@@ -126,9 +119,6 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 void UActorDescContainer::Uninitialize()
 {
 #if WITH_EDITOR
-	PinnedActors.Empty();
-	PinnedActorRefs.Empty();
-
 	if (bContainerInitialized)
 	{
 		UnregisterEditorDelegates();
@@ -139,7 +129,7 @@ void UActorDescContainer::Uninitialize()
 	{
 		if (FWorldPartitionActorDesc* ActorDesc = ActorDescPtr.Get())
 		{
-			ActorDesc->OnUnregister();
+			RemoveActorDescriptor(ActorDesc);
 		}
 		ActorDescPtr.Reset();
 	}
@@ -164,6 +154,18 @@ void UActorDescContainer::BeginDestroy()
 }
 
 #if WITH_EDITOR
+void UActorDescContainer::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+{
+	FActorDescList::AddActorDescriptor(ActorDesc);
+	ActorDesc->SetContainer(this);
+}
+
+void UActorDescContainer::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+{
+	ActorDesc->SetContainer(nullptr);
+	FActorDescList::RemoveActorDescriptor(ActorDesc);
+}
+
 
 void UActorDescContainer::OnWorldRenamed(UWorld* RenamedWorld)
 {
@@ -214,7 +216,6 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				else
 				{
 					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
-					AddedActorDesc->SetContainer(this);
 					OnActorDescAdded(AddedActorDesc);
 				}
 			}
@@ -256,62 +257,8 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	{
 		OnActorDescRemoved(ExistingActorDesc->Get());
 		RemoveActorDescriptor(ExistingActorDesc->Get());
-		ExistingActorDesc->Get()->SetContainer(nullptr);
 		ExistingActorDesc->Reset();
 	}
-}
-
-AActor* UActorDescContainer::PinActor(const FGuid& ActorGuid)
-{
-	if (FWorldPartitionReference* PinnedActor = PinnedActors.Find(ActorGuid))
-	{
-		return (*PinnedActor).IsValid() ? (*PinnedActor)->GetActor() : nullptr;
-	}
-
-	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> AddReferences = [this, &AddReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& ReferenceMap)
-	{
-		if (ReferenceMap.Contains(ActorGuid))
-		{
-			return;
-		}
-
-		if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid); ActorDescPtr != nullptr && ActorDescPtr->IsValid())
-		{
-			ReferenceMap.Emplace(ActorGuid, ActorDescPtr);
-			
-			const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get(); 
-			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
-			{
-				AddReferences(ReferencedActor, ReferenceMap);
-			}
-		}
-	};
-	
-	if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid))
-	{
-		if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get())
-		{
-			FWorldPartitionReference& PinnedActor = PinnedActors.Emplace(ActorGuid, ActorDescPtr);
-
-			// If the pinned actor has references, we must also create references to those to ensure they are added
-			TMap<FGuid, FWorldPartitionReference>& References = PinnedActorRefs.Emplace(ActorGuid);
-
-			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
-			{
-				AddReferences(ReferencedActor, References);
-			}
-
-			return PinnedActor.IsValid() ? PinnedActor->GetActor() : nullptr;
-		}
-	}
-
-	return nullptr;
-}
-
-void UActorDescContainer::UnpinActor(const FGuid& ActorGuid)
-{
-	PinnedActors.Remove(ActorGuid);
-	PinnedActorRefs.Remove(ActorGuid);
 }
 
 void UActorDescContainer::LoadAllActors(TArray<FWorldPartitionReference>& OutReferences)
@@ -348,15 +295,11 @@ void UActorDescContainer::UnregisterEditorDelegates()
 
 void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
-	NewActorDesc->OnRegister(World);
-
 	OnActorDescAddedEvent.Broadcast(NewActorDesc);
 }
 
 void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
 	OnActorDescRemovedEvent.Broadcast(ActorDesc);
-
-	ActorDesc->OnUnregister();
 }
 #endif

@@ -13,6 +13,7 @@ class ENGINE_API FActorDescList
 
 public:
 	FActorDescList() {}
+	virtual ~FActorDescList() {}
 
 	// Non-copyable
 	FActorDescList(const FActorDescList&) = delete;
@@ -141,8 +142,8 @@ public:
 	};
 
 protected:
-	void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
-	void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
 	TUniquePtr<FWorldPartitionActorDesc>* GetActorDescriptor(const FGuid& ActorGuid);
 
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;

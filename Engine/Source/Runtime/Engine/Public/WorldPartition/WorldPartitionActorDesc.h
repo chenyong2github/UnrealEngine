@@ -125,7 +125,7 @@ protected:
 		return HardRefCount;
 	}
 
-	void SetContainer(UActorDescContainer* InContainer)
+	virtual void SetContainer(UActorDescContainer* InContainer)
 	{
 		check(!Container || !InContainer);
 		Container = InContainer;
@@ -160,8 +160,6 @@ public:
 
 	void SerializeTo(TArray<uint8>& OutData);
 
-	UWorld* GetWorld() const;
-
 protected:
 	FWorldPartitionActorDesc();
 
@@ -175,9 +173,6 @@ protected:
 	}
 
 	virtual void Serialize(FArchive& Ar);
-
-	virtual void OnRegister(UWorld* InWorld) {}
-	virtual void OnUnregister() {}
 
 	// Persistent
 	FGuid							Guid;
