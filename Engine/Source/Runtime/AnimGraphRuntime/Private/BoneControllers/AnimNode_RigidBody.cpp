@@ -148,6 +148,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody()
 	, bEnabled(false)
 	, bSimulationStarted(false)
 	, bCheckForBodyTransformInit(false)
+	, bInitialized(false)
 #if WITH_EDITORONLY_DATA
 	, bComponentSpaceSimulation_DEPRECATED(true)
 #endif
@@ -1430,13 +1431,20 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_PreUpdate"), STAT_RigidBody_PreUpdate, STATGR
 
 void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_RigidBody_PreUpdate);
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody"));
+
+	if (!bInitialized)
+	{
+		InitPhysics(InAnimInstance);
+		bInitialized = true;
+	}
+
 	// Don't update geometry if RBN is disabled
 	if(!bEnabled)
 	{
 		return;
 	}
-
-	SCOPE_CYCLE_COUNTER(STAT_RigidBody_PreUpdate);
 
 	USkeletalMeshComponent* SKC = InAnimInstance->GetSkelMeshComponent();
 	APawn* PawnOwner = InAnimInstance->TryGetPawnOwner();
@@ -1504,7 +1512,8 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_Update"), STAT_RigidBody_Update, STATGROUP_An
 
 void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 {
-	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody"));
+	
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
 	// Avoid this work if RBN is disabled, as the results would be discarded
 	if(!bEnabled)
@@ -1799,11 +1808,6 @@ void FAnimNode_RigidBody::AddImpulseAtLocation(FVector Impulse, FVector Location
 		}
 	}
 #endif
-}
-
-void FAnimNode_RigidBody::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
-{
-	InitPhysics(InAnimInstance);
 }
 
 #if WITH_EDITORONLY_DATA
