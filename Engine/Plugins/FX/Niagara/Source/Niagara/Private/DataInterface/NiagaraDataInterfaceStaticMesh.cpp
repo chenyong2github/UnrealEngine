@@ -57,6 +57,7 @@ namespace NDIStaticMeshLocal
 			InitialVersion = 0,
 			RefactoredV1 = 1,
 			LargeWorldCoordinates = 2,
+			LargeWorldCoordinates2 = 2,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
@@ -1597,7 +1598,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 	{
 		FNiagaraFunctionSignature Sig = BaseSignature;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Vertex"));
-		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Normal"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Bitangent"));
@@ -1697,7 +1698,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		FNiagaraFunctionSignature Sig = BaseSignature;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Triangle"));
 		Sig.Inputs.Emplace_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("BaryCoord"))).SetValue(FVector3f(1.0f / 3.0f));
-		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Normal"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Bitangent"));
@@ -1746,7 +1747,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 	{
 		FNiagaraFunctionSignature Sig = BaseSignature;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Index")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 
@@ -1965,10 +1966,12 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 		}
 	}
 
-	if (FunctionSignature.FunctionVersion < EDIFunctionVersion::LargeWorldCoordinates)
+	if (FunctionSignature.FunctionVersion < EDIFunctionVersion::LargeWorldCoordinates2)
 	{
 		if (
+			(FunctionSignature.Name == GetVertexName) ||
 			(FunctionSignature.Name == GetVertexWSName) ||
+			(FunctionSignature.Name == GetTriangleName) ||
 			(FunctionSignature.Name == GetTriangleWSName) ||
 			(FunctionSignature.Name == GetSocketTransformName) ||
 			(FunctionSignature.Name == GetSocketTransformWSName) ||
@@ -1978,7 +1981,7 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 			(FunctionSignature.Name == GetUnfilteredSocketTransformWSName) )
 		{
 			check(FunctionSignature.Outputs[0].GetName() == TEXT("Position"));
-			check(FunctionSignature.Outputs[0].GetType() == FNiagaraTypeDefinition::GetVec3Def());
+			check(FunctionSignature.Outputs[0].GetType() == FNiagaraTypeDefinition::GetVec3Def() || FunctionSignature.Outputs[0].GetType() == FNiagaraTypeDefinition::GetPositionDef());
 			FunctionSignature.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 		}
 	}
