@@ -75,6 +75,7 @@ void URecomputeUVsTool::Setup()
 
 	RecomputeUVsOpFactory = NewObject<URecomputeUVsOpFactory>();
 	RecomputeUVsOpFactory->OriginalMesh = InputMesh;
+	RecomputeUVsOpFactory->InputGroups = ActiveGroupSet;
 	RecomputeUVsOpFactory->Settings = Settings;
 	RecomputeUVsOpFactory->TargetTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	RecomputeUVsOpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
@@ -216,6 +217,10 @@ void URecomputeUVsTool::UpdateActiveGroupLayer()
 		FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*InputMesh, SelectedName);
 		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
 		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(InputMesh.Get(), FoundAttrib);
+	}
+	if (RecomputeUVsOpFactory)
+	{
+		RecomputeUVsOpFactory->InputGroups = ActiveGroupSet;
 	}
 }
 

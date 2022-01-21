@@ -28,7 +28,7 @@ enum class ERecomputeUVsPropertiesIslandMode
 {
 	// Values must match UE::Geometry::ERecomputeUVsIslandMode
 
-	/** Use Polygroups defined by Active PolyGroup property to define initial UV islands */
+	/** Use Polygroups defined by Active PolyGroup property to define initial UV islands. */
 	PolyGroups = 0 UMETA(DisplayName = "PolyGroups"),
 	/** Use existing UV Layer to define UV islands, i.e. re-solve UV flattening based on existing UVs */
 	ExistingUVs = 1
@@ -65,8 +65,11 @@ class MODELINGOPERATORS_API URecomputeUVsToolProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 
-	/** Generation method for initial UV islands */
-	UPROPERTY(EditAnywhere, Category = "UV Unwrap")
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bEnablePolygroupSupport = true;
+
+	/** Generation method for initial UV islands.*/
+	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (EditCondition = "bEnablePolygroupSupport", EditConditionHides, HideEditConditionToggle = true))
 	ERecomputeUVsPropertiesIslandMode IslandGeneration = ERecomputeUVsPropertiesIslandMode::ExistingUVs;
 
 	/** Type of UV flattening algorithm to use */

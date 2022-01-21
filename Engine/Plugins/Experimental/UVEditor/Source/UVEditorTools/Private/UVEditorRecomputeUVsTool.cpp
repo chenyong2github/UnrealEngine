@@ -52,6 +52,7 @@ void UUVEditorRecomputeUVsTool::Setup()
 	Settings = NewObject<URecomputeUVsToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
+	Factories.SetNum(Targets.Num());
 
 	if (Targets.Num() == 1)
 	{
@@ -62,8 +63,13 @@ void UUVEditorRecomputeUVsTool::Setup()
 		AddToolPropertySource(PolygroupLayerProperties);
 		UpdateActiveGroupLayer();
 	}
+	else
+	{
+		Settings->bEnablePolygroupSupport = false;
+		Settings->IslandGeneration = ERecomputeUVsPropertiesIslandMode::ExistingUVs;
+	}
 
-	Factories.SetNum(Targets.Num());
+	
 	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
 	{
 		TObjectPtr<UUVEditorToolMeshInput> Target = Targets[TargetIndex];
@@ -209,6 +215,12 @@ void UUVEditorRecomputeUVsTool::UpdateActiveGroupLayer()
 			FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*Targets[0]->AppliedCanonical, SelectedName);
 			ensureMsgf(FoundAttrib, TEXT("Selected attribute not found! Falling back to Default group layer."));
 			ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get(), FoundAttrib);
+		}
+	}
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	{
+		if (Factories[TargetIndex]) {
+			Factories[TargetIndex]->InputGroups = ActiveGroupSet;
 		}
 	}
 }
