@@ -3,7 +3,6 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
-#include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 #include "../VirtualShadowMaps/StaticCaching.ush"
 #include "WritePixel.ush"
@@ -11,52 +10,7 @@
 #if IS_NANITE_RASTER_PASS
 
 #include "/Engine/Generated/Material.ush"
-
-struct FVertexFactoryInterpolantsVSToPS
-{
-	nointerpolation float4 LightMapCoordinate : TEXCOORD3;
-	nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
-	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
-	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
-};
-
-struct FVertexFactoryInput
-{
-};
-
-struct FVertexFactoryIntermediates
-{
-	float3x3 TangentToLocal;
-};
-
-FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
-{
-	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
-	return Intermediates;
-};
-
-float3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
-{
-	return Intermediates.TangentToLocal;
-}
-
-FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
-{
-	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
-	return Result;
-}
-
-FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, UlongType Pixel, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
-{
-	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
-	return Result;
-}
-
-FMaterialPixelParameters GetMaterialPixelParameters(UlongType Pixel, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
-{
-	const FNaniteView NaniteView = GetNaniteView(0);
-	return GetMaterialPixelParameters(NaniteView, Pixel, Interpolants, SvPosition);
-}
+#include "NaniteVertexFactory.ush"
 
 #endif
 
@@ -781,14 +735,14 @@ struct VSOut
 	float4 Position							: SV_Position;
 };
 
-VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, out float4 PointClipNoScaling)
+VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, float3 WorldPositionOffset, out float4 PointClipNoScaling)
 {
 	VSOut Out;
 
 	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 	float3 PointLocal = DecodePosition( VertIndex, Cluster );
 	float3 PointRotated = LocalToTranslatedWorld[0].xyz * PointLocal.xxx + LocalToTranslatedWorld[1].xyz * PointLocal.yyy + LocalToTranslatedWorld[2].xyz * PointLocal.zzz;
-	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz;
+	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz + WorldPositionOffset;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 	PointClipNoScaling = PointClip;
 #if CLUSTER_PER_PAGE
@@ -958,7 +912,8 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (GroupThreadID < Cluster.NumVerts)
 	{
 		float4 PointClipNoScaling;
-		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, GroupThreadID, PointClipNoScaling);
+		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
+		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, GroupThreadID, WorldPositionOffset, PointClipNoScaling);
 #if VERTEX_TO_TRIANGLE_MASKS
 		PrimOutput.Out.PixelValue = ((VisibleIndex + 1) << 7);
 		PrimOutput.Out.ToTriangleMasks = uint4(GroupVertexToTriangleMasks[GroupThreadID][0],
@@ -1030,11 +985,13 @@ void HWRasterizeMS(
 		MESH_SHADER_WRITE_PRIMITIVE(TriangleIndex, Attributes);
 	}
 
+	float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
+
 	const uint Vertex0 = GroupThreadID + 0;
 	if (Vertex0 < Cluster.NumVerts)
 	{
 		float4 PointClipNoScaling;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PointClipNoScaling);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, WorldPositionOffset, PointClipNoScaling);
 		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
 	}
 
@@ -1043,7 +1000,7 @@ void HWRasterizeMS(
 	if (Vertex1 < Cluster.NumVerts)
 	{
 		float4 PointClipNoScaling;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PointClipNoScaling);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, WorldPositionOffset, PointClipNoScaling);
 		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
 	}
 #endif
@@ -1090,9 +1047,13 @@ VSOut HWRasterizeVS(
 			TriangleIndices = uint3( TriangleIndices.x, TriangleIndices.z, TriangleIndices.y );
 		}
 
+		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
+
 	#if IS_NANITE_RASTER_PASS
 		FVertexFactoryInput Input = (FVertexFactoryInput)0;
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+
+		 // TODO: PROG_RASTER
 
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
@@ -1100,7 +1061,7 @@ VSOut HWRasterizeVS(
 
 		uint VertIndex = TriangleIndices[ VertexID ];
 		float4 PointClipNoScaling;
-		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PointClipNoScaling);
+		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, WorldPositionOffset, PointClipNoScaling);
 	#if PIXEL_VALUE
 		Out.PixelValue  = ((VisibleIndex + 1) << 7) | TriIndex;
 	#endif
@@ -1117,6 +1078,8 @@ void HWRasterizePS(VSOut In, PrimitiveAttributes Primitive)
 void HWRasterizePS(VSOut In)
 #endif
 {
+	// TODO: PROG_RASTER (Resolve view and patch multi-view)
+
 #if NANITE_MESH_SHADER_INTERP == 1
 	float3 InterpPos = In.InterpPosition.xyz / In.InterpPosition.www;
 	InterpPos.xy = (InterpPos.xy * float2(0.5f, -0.5f)) + 0.5f;
@@ -1167,11 +1130,15 @@ void HWRasterizePS(VSOut In)
 		
 	#if VIRTUAL_TEXTURE_TARGET
 		FPageInfo PageInfo = UnpackPageInfo(In.PackedPageInfo);
-		FNaniteView NaniteView = GetNaniteView(PageInfo.ViewId);
+		const FNaniteView NaniteView = GetNaniteView(PageInfo.ViewId);
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
 	#else
+		const FNaniteView NaniteView = GetNaniteView(0);
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 	#endif
+
+		float MaterialMask = 1.0f; // TODO: PROG_RASTER
+		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
 	#if IS_NANITE_RASTER_PASS
 		const uint DepthInt = asuint(DeviceZ);
@@ -1180,15 +1147,23 @@ void HWRasterizePS(VSOut In)
 		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 
 		// Material parameter inputs
-		FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(PackedPixel, Interpolants, In.Position /*SvPosition*/);
+		
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, Interpolants, In.Position /*SvPosition*/);
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /* bIsFrontFace */);
+
+		 // TODO: PROG_RASTER
 	#endif
 
-		WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, PageTranslation);
-	#if VISUALIZE
-		WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, PageTranslation);
-		InterlockedAdd(OutDbgBuffer32[PixelPos], In.VisualizeValues.y);
-	#endif
+		DeviceZ += MaterialDepthOffset;
+
+		if (MaterialMask >= 0)
+		{
+			WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, PageTranslation);
+		#if VISUALIZE
+			WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, PageTranslation);
+			InterlockedAdd(OutDbgBuffer32[PixelPos], In.VisualizeValues.y);
+		#endif
+		}
 	}
 }

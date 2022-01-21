@@ -238,10 +238,22 @@ public:
 	
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
+		const bool bProgrammableRaster = 
+		(
+			Parameters.MaterialParameters.bIsMasked ||
+			Parameters.MaterialParameters.bHasPixelDepthOffsetConnected ||
+			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition ||
+			Parameters.MaterialParameters.bWritesEveryPixel == false
+		);
+
+		const bool bValidMaterial = 
+			Parameters.MaterialParameters.bIsDefaultMaterial || 
+			(Parameters.MaterialParameters.bIsUsedWithNanite && bProgrammableRaster);
+
 		return
 			DoesPlatformSupportNanite(Parameters.Platform) &&
 			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
-			Parameters.MaterialParameters.bIsDefaultMaterial;
+			bValidMaterial;
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
