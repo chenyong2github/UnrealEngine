@@ -57,7 +57,7 @@ namespace NDIStaticMeshLocal
 			InitialVersion = 0,
 			RefactoredV1 = 1,
 			LargeWorldCoordinates = 2,
-			LargeWorldCoordinates2 = 2,
+			LargeWorldCoordinates2 = 3,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1

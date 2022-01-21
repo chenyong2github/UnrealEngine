@@ -41,7 +41,7 @@ struct FNiagaraSkelMeshDIFunctionVersion
 		AddedValidConnectivity = 7,
 		AddedInputBardCoordToGetFilteredTriangleAt = 8,
 		LargeWorldCoordinates = 9,
-		LargeWorldCoordinates2 = 9,
+		LargeWorldCoordinates2 = 10,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
