@@ -122,7 +122,7 @@ int32 SBackgroundBlur::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 			if (Strength > 0.f)
 			{
 				FSlateRect RenderBoundingRect = AllottedGeometry.GetRenderBoundingRect();
-				FPaintGeometry PaintGeometry(RenderBoundingRect.GetTopLeft(), RenderBoundingRect.GetSize(), 1.0f);
+				FPaintGeometry PaintGeometry(RenderBoundingRect.GetTopLeft(), RenderBoundingRect.GetSize(), AllottedGeometry.GetAccumulatedLayoutTransform().GetScale());
 
 				int32 RenderTargetWidth = FMath::RoundToInt(RenderBoundingRect.GetSize().X);
 				int32 RenderTargetHeight = FMath::RoundToInt(RenderBoundingRect.GetSize().Y);
