@@ -1482,6 +1482,15 @@ FString UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TSharedP
 					break;
 				}
 			}
+
+			/**	TMap<FGameplayTag, ValueType> GameplayTagMap; */
+			if (FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+			{
+				if (GetFieldMetaData(MapProperty->KeyProp))
+				{
+					break;
+				}
+			}
 		}
 		PropertyHandle = PropertyHandle->GetParentHandle();
 	}
