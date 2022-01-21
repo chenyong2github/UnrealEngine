@@ -714,6 +714,20 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Decides whether to include the "Tests" folder at the root of the module as part of the compilation.
+		/// By default this folder is excluded from the module's compilation.
+		/// The "Tests" folder should be reserved for low level tests but there are exceptions to this rule.
+		/// </summary>
+		public bool bBuildIncludeTestsFolder
+		{
+			get { return bBuildIncludeTestsFolderOverride ?? false; }
+		}
+		/// <summary>
+		/// Set this override to true in derived target classes to include the "Tests" folder at the root of the module in the compilation.
+		/// </summary>
+		protected bool? bBuildIncludeTestsFolderOverride;
+
 
 		/// <summary>
 		/// The number of source files in this module before unity build will be activated for that module.  If set to
