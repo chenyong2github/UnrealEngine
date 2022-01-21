@@ -229,8 +229,11 @@ void UCommonUIActionRouterBase::Deinitialize()
 {
 	Super::Deinitialize();
 	
-	FSlateApplication::Get().OnFocusChanging().RemoveAll(this);
-	FSlateApplication::Get().UnregisterInputPreProcessor(AnalogCursor);
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnFocusChanging().RemoveAll(this);
+		FSlateApplication::Get().UnregisterInputPreProcessor(AnalogCursor);
+	}
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	SetActiveRoot(nullptr);
 	HeldKeys.Empty();

@@ -328,7 +328,10 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UCommonInputSubsystem::Deinitialize()
 {
 	Super::Deinitialize();
-	FSlateApplication::Get().UnregisterInputPreProcessor(CommonInputPreprocessor);
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().UnregisterInputPreProcessor(CommonInputPreprocessor);
+	}
 	CommonInputPreprocessor.Reset();
 
 	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
