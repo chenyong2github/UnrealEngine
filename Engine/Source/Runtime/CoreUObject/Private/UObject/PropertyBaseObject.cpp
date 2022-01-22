@@ -26,7 +26,7 @@ FObjectPropertyBase::FObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_
 	PropertyClass = Prop.ClassFunc ? Prop.ClassFunc() : nullptr;
 }
 FObjectPropertyBase::FObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParamsWithoutClass& Prop, EPropertyFlags AdditionalPropertyFlags /*= CPF_None*/)
-	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop, AdditionalPropertyFlags)
 	, PropertyClass(nullptr)
 {
 }
