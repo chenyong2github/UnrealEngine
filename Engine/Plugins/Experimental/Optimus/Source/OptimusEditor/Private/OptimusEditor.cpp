@@ -929,7 +929,8 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 
 	// Create the title bar widget
 	TSharedPtr<SWidget> TitleBarWidget = SNew(SOptimusGraphTitleBar)
-		.OptimusEditor(SharedThis(this));
+		.OptimusEditor(SharedThis(this))
+		.OnGraphCrumbClickedEvent_Lambda([this](UOptimusNodeGraph* InNodeGraph) { SetEditGraph(InNodeGraph);});
 
 	return SNew(SGraphEditor)
 		.AdditionalCommands(GraphEditorCommands)

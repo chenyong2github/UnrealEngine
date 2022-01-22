@@ -5,10 +5,9 @@
 #include "Delegates/Delegate.h"
 
 
-class UOptimusEditorGraph;
-
+class UOptimusNodeGraph;
 
 // A collection of delegates used by the Optimus editor.
 
-/// A simple delegate that fires when the Optimus graph has changed in some way.
-DECLARE_DELEGATE_OneParam(FOptimusGraphEvent, UOptimusEditorGraph*);
+/// A simple delegate that fires when the Optimus when a specific graph should be opened.
+DECLARE_DELEGATE_OneParam(FOptimusOpenGraphEvent, UOptimusNodeGraph*);

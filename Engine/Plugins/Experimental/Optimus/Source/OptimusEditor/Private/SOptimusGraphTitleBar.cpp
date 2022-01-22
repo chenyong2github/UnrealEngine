@@ -5,9 +5,9 @@
 #include "OptimusEditor.h"
 #include "OptimusEditorGraph.h"
 
+#include "OptimusNodeGraph.h"
+
 #include "EditorStyleSet.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "GraphEditor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -30,7 +30,7 @@
 void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 {
 	OptimusEditor = InArgs._OptimusEditor;
-	OnDifferentGraphCrumbClicked = InArgs._OnDifferentGraphCrumbClicked;
+	OnGraphCrumbClickedEvent = InArgs._OnGraphCrumbClickedEvent;
 
 	// Set-up shared breadcrumb defaults (from SGraphTitleBar::Construct)
 	FMargin BreadcrumbTrailPadding = FMargin(4.f, 2.f);
@@ -128,7 +128,7 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							.VAlign(VAlign_Center)
 							[
-								SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UEdGraph*>)
+								SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UOptimusNodeGraph*>)
 								.ButtonStyle(FEditorStyle::Get(), "GraphBreadcrumbButton")
 								.TextStyle(FEditorStyle::Get(), "GraphBreadcrumbButtonText")
 								.ButtonContentPadding(BreadcrumbTrailPadding)
@@ -154,32 +154,37 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 		]
 	];
 
-	RebuildBreadcrumbTrail();
+	Refresh();
 	BreadcrumbTrailScrollBox->ScrollToEnd();
 }
 
 
 void SOptimusGraphTitleBar::Refresh()
 {
-	RebuildBreadcrumbTrail();
+ 	// This doesn't do much until we have nested graphs.
+ 	BreadcrumbTrail->ClearCrumbs(false);
+
+    if (const TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin())
+ 	{
+	    if (const UOptimusEditorGraph *EditorGraph = Editor->GetGraph(); EditorGraph->GetModelGraph())
+ 		{
+ 			BuildBreadcrumbTrail(EditorGraph->GetModelGraph());
+ 		}
+ 	}
 }
 
 
-void SOptimusGraphTitleBar::RebuildBreadcrumbTrail()
+void SOptimusGraphTitleBar::BuildBreadcrumbTrail(UOptimusNodeGraph* InGraph)
 {
-	// This doesn't do much until we have nested graphs.
-	BreadcrumbTrail->ClearCrumbs(false);
-
-	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
-	if (Editor)
-	{
-		UOptimusEditorGraph *EditorGraph = Editor->GetGraph();
-		auto CrumbName = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UOptimusEditorGraph*>(&SOptimusGraphTitleBar::GetTitleForOneCrumb, EditorGraph));
-		BreadcrumbTrail->PushCrumb(CrumbName, EditorGraph);
-	}
-
+ 	// Traverse upwards first so that parents get pushed onto the breadcrumb trail first.
+ 	if (InGraph->GetParentGraph())
+ 	{
+ 		BuildBreadcrumbTrail(InGraph->GetParentGraph());
+ 	}
+ 		
+	const auto CrumbName = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UOptimusNodeGraph*>(&SOptimusGraphTitleBar::GetGraphTitle, InGraph));
+	BreadcrumbTrail->PushCrumb(CrumbName, InGraph);
 }
-
 
 const FSlateBrush* SOptimusGraphTitleBar::GetGraphTypeIcon() const
 {
@@ -188,25 +193,15 @@ const FSlateBrush* SOptimusGraphTitleBar::GetGraphTypeIcon() const
 	return FEditorStyle::GetBrush(TEXT("GraphEditor.Function_24x"));
 }
 
-
-FText SOptimusGraphTitleBar::GetTitleForOneCrumb(const UOptimusEditorGraph* Graph)
+FText SOptimusGraphTitleBar::GetGraphTitle(const UOptimusNodeGraph* InGraph)
 {
-	const UEdGraphSchema* Schema = Graph->GetSchema();
-
-	FGraphDisplayInfo DisplayInfo;
-	Schema->GetGraphDisplayInformation(*Graph, /*out*/ DisplayInfo);
-
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("BreadcrumbDisplayName"), DisplayInfo.DisplayName);
-	Args.Add(TEXT("BreadcrumbNotes"), FText::FromString(DisplayInfo.GetNotesAsString()));
-	return FText::Format(LOCTEXT("BreadcrumbTitle", "{BreadcrumbDisplayName} {BreadcrumbNotes}"), Args);
+ 	return FText::FromName(InGraph->GetFName());
 }
 
 
-
-void SOptimusGraphTitleBar::OnBreadcrumbClicked(UEdGraph* const& Graph)
+void SOptimusGraphTitleBar::OnBreadcrumbClicked(UOptimusNodeGraph* const& InModelGraph) const
 {
-	OnDifferentGraphCrumbClicked.ExecuteIfBound(Cast<UOptimusEditorGraph>(Graph));
+	OnGraphCrumbClickedEvent.ExecuteIfBound(InModelGraph);
 }
 
 

@@ -39,6 +39,12 @@ const FName UOptimusNodeGraph::UpdateGraphName("UpdateGraph");
 const TCHAR* UOptimusNodeGraph::LibraryRoot = TEXT("@Library");
 
 
+UOptimusNodeGraph* UOptimusNodeGraph::GetParentGraph() const
+{
+	return Cast<UOptimusNodeGraph>(GetOuter());
+}
+
+
 FString UOptimusNodeGraph::GetGraphPath() const
 {
 	// The path is local to the root of the node graph collection owner hierarchy, excluding the

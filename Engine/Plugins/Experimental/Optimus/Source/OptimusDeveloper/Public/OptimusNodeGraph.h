@@ -61,6 +61,8 @@ public:
 	static const FName SetupGraphName;
 	static const FName UpdateGraphName;
 	static const TCHAR* LibraryRoot;
+
+	UOptimusNodeGraph *GetParentGraph() const;
 	
 	FString GetGraphPath() const;
 

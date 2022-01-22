@@ -12,7 +12,7 @@
 
 class FOptimusEditor;
 class SScrollBox;
-class UEdGraph;
+class UOptimusNodeGraph;
 template<typename> class SBreadcrumbTrail;
 
 class SOptimusGraphTitleBar : public SCompoundWidget
@@ -21,10 +21,10 @@ public:
 	SLATE_BEGIN_ARGS(SOptimusGraphTitleBar)
 	{}
 		SLATE_ARGUMENT(TWeakPtr<FOptimusEditor>, OptimusEditor)
-		SLATE_EVENT(FOptimusGraphEvent, OnDifferentGraphCrumbClicked)
+		SLATE_EVENT(FOptimusOpenGraphEvent, OnGraphCrumbClickedEvent)
 	SLATE_END_ARGS()
 
-	~SOptimusGraphTitleBar();
+	~SOptimusGraphTitleBar() override;
 
 	void Construct(const FArguments& InArgs);
 
@@ -32,13 +32,13 @@ public:
 	void Refresh();
 
 private:
-	void RebuildBreadcrumbTrail();
+	void BuildBreadcrumbTrail(UOptimusNodeGraph* InGraph);
 
 	const FSlateBrush* GetGraphTypeIcon() const;
 
-	static FText GetTitleForOneCrumb(const UOptimusEditorGraph* Graph);
+	static FText GetGraphTitle(const UOptimusNodeGraph* InGraph);
 
-	void OnBreadcrumbClicked(UEdGraph* const& Graph);
+	void OnBreadcrumbClicked(UOptimusNodeGraph* const& InModelGraph) const;
 
 	FText GetDeformerTitle() const;
 	EVisibility IsDeformerTitleVisible() const;
@@ -50,8 +50,8 @@ private:
 	TSharedPtr<SScrollBox> BreadcrumbTrailScrollBox;
 
 	// Breadcrumb trail widget
-	TSharedPtr< SBreadcrumbTrail<UEdGraph*> > BreadcrumbTrail;
+	TSharedPtr< SBreadcrumbTrail<UOptimusNodeGraph*> > BreadcrumbTrail;
 
 	// Callback for switching graph levels.
-	FOptimusGraphEvent OnDifferentGraphCrumbClicked;
+	FOptimusOpenGraphEvent OnGraphCrumbClickedEvent;
 };
