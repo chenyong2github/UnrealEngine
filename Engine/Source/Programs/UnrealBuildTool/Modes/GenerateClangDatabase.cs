@@ -111,6 +111,15 @@ namespace UnrealBuildTool
 										throw new BuildException($"Unsupported C++ standard type set: {ModuleCompileEnvironment.CppStandard}");
 								}
 
+								if (ModuleCompileEnvironment.bEnableCoroutines)
+								{
+									CommandBuilder.AppendFormat(" -fcoroutines-ts");
+									if (!ModuleCompileEnvironment.bEnableExceptions)
+									{
+										CommandBuilder.AppendFormat(" -Wno-coroutine-missing-unhandled-exception");
+									}
+								}
+
 								foreach (FileItem ForceIncludeFile in ModuleCompileEnvironment.ForceIncludeFiles)
 								{
 									CommandBuilder.AppendFormat(" -include \"{0}\"", ForceIncludeFile.FullName);

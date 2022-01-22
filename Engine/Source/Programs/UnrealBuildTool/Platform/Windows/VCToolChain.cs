@@ -538,11 +538,13 @@ namespace UnrealBuildTool
 			{
 				// Enable C++ exception handling, but not C exceptions.
 				Arguments.Add("/EHsc");
+				Arguments.Add("/DPLATFORM_EXCEPTIONS_DISABLED=0");
 			}
 			else
 			{
 				// This is required to disable exception handling in VC platform headers.
 				AddDefinition(Arguments, "_HAS_EXCEPTIONS=0");
+				Arguments.Add("/DPLATFORM_EXCEPTIONS_DISABLED=1");
 			}
 
 			// If enabled, create debug information.

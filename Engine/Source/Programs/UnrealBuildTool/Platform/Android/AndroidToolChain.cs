@@ -711,10 +711,12 @@ namespace UnrealBuildTool
 			if (CompileEnvironment.bEnableExceptions)
 			{
 				Result += " -fexceptions";
+				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
 			}
 			else
 			{
 				Result += " -fno-exceptions";
+				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=1";
 			}
 
 			// Conditionally enable (default disabled) generation of information about every class with virtual functions for use by the C++ runtime type identification features
@@ -822,20 +824,35 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCppStandardCompileArgument(CppStandardVersion Version)
+		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
 		{
-			switch (Version)
+			string Result;
+			switch (CompileEnvironment.CppStandard)
 			{
 				case CppStandardVersion.Cpp14:
-					return " -std=c++14";
+					Result = " -std=c++14";
+					break;
 				case CppStandardVersion.Latest:
 				case CppStandardVersion.Cpp17:
-					return " -std=c++17";
+					Result = " -std=c++17";
+					break;
 				case CppStandardVersion.Cpp20:
-					return " -std=c++20";
+					Result = " -std=c++20";
+					break;
 				default:
-					throw new BuildException($"Unsupported C++ standard type set: {Version}");
+					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
 			}
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+				if (!CompileEnvironment.bEnableExceptions)
+				{
+					Result += " -Wno-coroutine-missing-unhandled-exception";
+				}
+			}
+
+			return Result;
 		}
 
 		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
@@ -843,12 +860,7 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			Result += " -x c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 
 			return Result;
 		}
@@ -864,12 +876,7 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			Result += " -x c++-header";
-			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 
 			return Result;
 		}

@@ -200,20 +200,35 @@ namespace UnrealBuildTool
 			return FullClangVersion;
 		}
 
-		protected static string GetCppStandardCompileArgument(CppStandardVersion Version)
+		protected static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
 		{
-			switch (Version)
+			string Result;
+			switch (CompileEnvironment.CppStandard)
 			{
 				case CppStandardVersion.Cpp14:
-					return " -std=c++14";
-				case CppStandardVersion.Cpp17:
-					return " -std=c++17";
+					Result = " -std=c++14";
+					break;
 				case CppStandardVersion.Latest:
+				case CppStandardVersion.Cpp17:
+					Result = " -std=c++17";
+					break;
 				case CppStandardVersion.Cpp20:
-					return " -std=c++20";
+					Result = " -std=c++20";
+					break;
 				default:
-					throw new BuildException($"Unsupported C++ standard type set: {Version}");
+					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
 			}
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+				if (!CompileEnvironment.bEnableExceptions)
+				{
+					Result += " -Wno-coroutine-missing-unhandled-exception";
+				}
+			}
+
+			return Result;
 		}
 
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)

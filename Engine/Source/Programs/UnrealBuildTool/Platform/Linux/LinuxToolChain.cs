@@ -810,33 +810,42 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", myKey, myValue);
 		}
 
-		static string GetCompilerStandardVersion_CPP(CppStandardVersion Version)
+		static string GetCompilerStandardVersion_CPP(CppCompileEnvironment CompileEnvironment)
 		{
-			switch (Version)
+			string Result;
+			switch (CompileEnvironment.CppStandard)
 			{
 				case CppStandardVersion.Cpp14:
-					return " -std=c++14";
-				case CppStandardVersion.Cpp17:
-					return " -std=c++17";
+					Result = " -std=c++14";
+					break;
 				case CppStandardVersion.Latest:
+				case CppStandardVersion.Cpp17:
+					Result = " -std=c++17";
+					break;
 				case CppStandardVersion.Cpp20:
-					return " -std=c++20";
+					Result = " -std=c++20";
+					break;
 				default:
-					throw new BuildException($"Unsupported C++ standard type set: {Version}");
+					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
 			}
+
+			if (CompileEnvironment.bEnableCoroutines)
+			{
+				Result += " -fcoroutines-ts";
+				if (!CompileEnvironment.bEnableExceptions)
+				{
+					Result += " -Wno-coroutine-missing-unhandled-exception";
+				}
+			}
+
+			return Result;
 		}
 
 		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x c++";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
-
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -853,7 +862,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c++";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -882,7 +891,7 @@ namespace UnrealBuildTool
 			Result += " -x objective-c";
 			Result += " -fobjc-abi-version=2";
 			Result += " -fobjc-legacy-dispatch";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 
@@ -890,13 +899,7 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x c++-header";
-			Result += GetCompilerStandardVersion_CPP(CompileEnvironment.CppStandard);
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
-
+			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
 

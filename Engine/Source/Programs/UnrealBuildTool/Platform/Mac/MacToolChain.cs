@@ -196,6 +196,8 @@ namespace UnrealBuildTool
 			Result += " -fpascal-strings";
 
 			Result += " -fexceptions";
+			Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
+
 			Result += " -fasm-blocks";
 
 			if(CompileEnvironment.bHideSymbolsByDefault)
@@ -301,13 +303,8 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
 
 			return Result;
 		}
@@ -316,7 +313,7 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
@@ -340,13 +337,8 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c++-header";
-			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
-
-			if (CompileEnvironment.bEnableCoroutines)
-			{
-				Result += " -fcoroutines-ts";
-			}
 
 			return Result;
 		}
