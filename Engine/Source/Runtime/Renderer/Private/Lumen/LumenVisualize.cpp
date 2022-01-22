@@ -310,8 +310,9 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 	class FTraceMeshSDF : SHADER_PERMUTATION_BOOL("TRACE_MESH_SDF");
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
+	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDF, FTraceGlobalSDF, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDF, FTraceGlobalSDF, FRadianceCache, FTraceHeightfields>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -722,6 +723,7 @@ void VisualizeLumenScene(
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceGlobalSDF>(bTraceGlobalSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
+		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing());
 		PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);

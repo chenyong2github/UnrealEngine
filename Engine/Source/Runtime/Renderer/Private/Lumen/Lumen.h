@@ -105,6 +105,8 @@ namespace Lumen
 	float GetFarFieldMaxTraceDistance();
 	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();
+
+	bool UseHeightfieldTracing();
 };
 
 namespace LumenHardwareRayTracing

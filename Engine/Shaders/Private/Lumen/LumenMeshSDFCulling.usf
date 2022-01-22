@@ -35,6 +35,70 @@ float LengthSq(float3 X)
 }
 
 #if COMPUTESHADER
+
+groupshared uint GSNumCulledObjects;
+groupshared uint GSCulledObjectIndex[THREADGROUP_SIZE];
+groupshared uint GSGlobalWriteBaseIndex;
+
+uint MaxNumObjects;
+RWBuffer<uint> RWNumCulledObjects;
+RWBuffer<uint> RWCulledObjectIndexBuffer;
+
+uint bShouldCull;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void CullHeightfieldObjectsForViewCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID
+)
+{
+	RWNumCulledObjects[1] = MaxNumObjects;
+
+	GSNumCulledObjects = 0;
+	GroupMemoryBarrierWithGroupSync();
+
+	uint ObjectIndex = DispatchThreadId.x;
+	
+	bool bShouldKeep = ObjectIndex < MaxNumObjects;
+	if (bShouldKeep)
+	{
+		if (bShouldCull)
+		{
+			uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * ObjectIndex);
+			FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+
+			// Fetch card
+			int LocalCardIndex = MeshCardsData.CardLookup[LUMEN_MESH_CARDS_Z_UP_INDEX];
+			FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
+
+			float MaxCullingDistance = length(LumenCardData.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) + length(LumenCardData.LocalExtent);
+			bShouldKeep = MaxCullingDistance < CardTraceEndDistanceFromCamera;
+		}
+	}
+
+	if (bShouldKeep)
+	{
+		uint LocalWriteIndex;
+		InterlockedAdd(GSNumCulledObjects, 1u, LocalWriteIndex);
+		GSCulledObjectIndex[LocalWriteIndex] = ObjectIndex;
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId.x == 0)
+	{
+		uint GlobalWriteBaseIndex;
+		InterlockedAdd(RWNumCulledObjects[0], GSNumCulledObjects, GSGlobalWriteBaseIndex);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId.x < GSNumCulledObjects)
+	{
+		uint GlobalWriteIndex = GSGlobalWriteBaseIndex + GroupThreadId.x;
+		RWCulledObjectIndexBuffer[GlobalWriteIndex] = GSCulledObjectIndex[GroupThreadId.x];
+	}
+}
+
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void CullMeshSDFObjectsForViewCS(
 	uint3 GroupId : SV_GroupID,

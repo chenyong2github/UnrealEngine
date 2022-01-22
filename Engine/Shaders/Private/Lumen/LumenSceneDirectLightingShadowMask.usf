@@ -24,9 +24,7 @@
 #endif
 #define DISTANCE_FIELD_IN_VIEW_UB 1
 #define DF_SHADOW_QUALITY 2
-#include "../GlobalDistanceFieldShared.ush"
-#include "../GlobalDistanceFieldUtils.ush"
-#include "../DistanceFieldLightingShared.ush"
+#include "LumenTracingCommon.ush"
 #include "../DistanceFieldShadowingShared.ush"
 #include "LumenSceneDirectLighting.ush"
 
@@ -256,6 +254,15 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 		ShadowFactor = GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
 	}
 	#endif
+
+#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS
+	float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
+
+	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
+	FGlobalSDFTraceResult HeightfieldResult = ShadowTraceHeightfield(TraceInput);
+
+	ShadowFactor *= GlobalSDFTraceResultIsHit(HeightfieldResult) ? 0.0f : 1.0f;
+#endif
 
 	return ShadowFactor;
 }

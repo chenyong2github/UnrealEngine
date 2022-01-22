@@ -30,6 +30,13 @@ FAutoConsoleVariableRef CVarMeshSDFRadiusThreshold(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldCullForView(
+	TEXT("r.LumenScene.Heightfield.CullForView"),
+	1,
+	TEXT("Enables Heightfield culling (default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
 uint32 CullMeshSDFObjectsForViewGroupSize = 64;
 
 class FCullMeshSDFObjectsForViewCS : public FGlobalShader
@@ -303,6 +310,103 @@ void FillGridParameters(
 	}
 }
 
+struct FObjectCullingContext
+{
+	uint32 NumCullGridCells = 0;
+	uint32 MaxNumberOfCulledObjects = 0;
+
+	FRDGBufferRef ObjectIndirectArguments = nullptr;
+
+	// View culled object index buffer
+	FRDGBufferRef ObjectIndexBuffer = nullptr;
+
+	FRDGBufferRef NumGridCulledObjects = nullptr;
+	FRDGBufferRef GridCulledObjectIndicesArray = nullptr;
+	FRDGBufferRef NumCulledObjectsToCompact = nullptr;
+	FRDGBufferRef CulledObjectsToCompactArray = nullptr;
+
+	FRDGBufferRef GridCulledObjectStartOffsetArray = nullptr;
+};
+
+class FCullHeightfieldObjectsForViewCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCullHeightfieldObjectsForViewCS)
+	SHADER_USE_PARAMETER_STRUCT(FCullHeightfieldObjectsForViewCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
+		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
+		SHADER_PARAMETER(int, MaxNumObjects)
+		SHADER_PARAMETER(int, bShouldCull)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNumCulledObjects)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectIndexBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), CullMeshSDFObjectsForViewGroupSize);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCullHeightfieldObjectsForViewCS, "/Engine/Private/Lumen/LumenMeshSDFCulling.usf", "CullHeightfieldObjectsForViewCS", SF_Compute);
+
+void CullHeightfieldObjectsForView(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	float MaxMeshSDFInfluenceRadius,
+	float CardTraceEndDistanceFromCamera,
+	FRDGBufferRef& NumCulledObjects,
+	FRDGBufferRef& CulledObjectIndexBuffer
+)
+{
+	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+
+	uint32 NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
+	uint32 MaxNumHeightfields = FMath::RoundUpToPowerOfTwo(LumenSceneData.HeightfieldMeshCardsIndices.Num());
+
+	NumCulledObjects = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2), TEXT("Lumen.NumCulledHeightfieldObjects"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumCulledObjects, PF_R32_UINT), 0);
+	CulledObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumHeightfields), TEXT("Lumen.CulledHeightfieldObjectIndices"));
+
+	FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
+	SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+
+	FCullHeightfieldObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullHeightfieldObjectsForViewCS::FParameters>();
+	{
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+		PassParameters->CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
+		PassParameters->MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
+		PassParameters->MaxNumObjects = NumHeightfields;
+		PassParameters->bShouldCull = CVarLumenSceneHeightfieldCullForView.GetValueOnRenderThread() != 0;
+
+		PassParameters->RWNumCulledObjects = GraphBuilder.CreateUAV(NumCulledObjects, PF_R32_UINT);
+		PassParameters->RWCulledObjectIndexBuffer = GraphBuilder.CreateUAV(CulledObjectIndexBuffer, PF_R32_UINT);
+	}
+
+	auto ComputeShader = View.ShaderMap->GetShader<FCullHeightfieldObjectsForViewCS>();
+	const int32 GroupSize = FMath::DivideAndRoundUp<int32>(NumHeightfields, CullMeshSDFObjectsForViewGroupSize);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("CullHeightfieldsForView"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(GroupSize, 1, 1));
+}
+
 void CullMeshSDFObjectsForView(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -446,6 +550,20 @@ void CullMeshSDFObjectsToProbes(
 		CardTraceEndDistanceFromCamera,
 		Context);
 
+	FRDGBufferRef NumCulledHeightfieldObjects;
+	FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
+	CullHeightfieldObjectsForView(
+		GraphBuilder,
+		Scene,
+		View,
+		MaxMeshSDFInfluenceRadius,
+		CardTraceEndDistanceFromCamera,
+		NumCulledHeightfieldObjects,
+		CulledHeightfieldObjectIndexBuffer
+	);
+	OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
+	OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
+
 	// Scatter mesh SDF objects into a temporary array of {ObjectIndex, ProbeIndex}
 	{
 		FRDGBufferUAVRef NumGridCulledMeshSDFObjectsUAV = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
@@ -583,6 +701,20 @@ void CullMeshSDFObjectsToViewGrid(
 			MaxMeshSDFInfluenceRadius,
 			CardTraceEndDistanceFromCamera,
 			Context);
+
+		FRDGBufferRef NumCulledHeightfieldObjects;
+		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
+		CullHeightfieldObjectsForView(
+			GraphBuilder,
+			Scene,
+			View,
+			MaxMeshSDFInfluenceRadius,
+			CardTraceEndDistanceFromCamera,
+			NumCulledHeightfieldObjects,
+			CulledHeightfieldObjectIndexBuffer
+		);
+		OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
+		OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
 
 		// Scatter mesh SDF objects into a temporary array of {ObjectIndex, GridCellIndex}
 		{

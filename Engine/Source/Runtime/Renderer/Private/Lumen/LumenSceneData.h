@@ -36,6 +36,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, NumCards)
 	SHADER_PARAMETER(uint32, NumMeshCards)
 	SHADER_PARAMETER(uint32, NumCardPages)
+	SHADER_PARAMETER(uint32, NumHeightfields)
 	SHADER_PARAMETER(uint32, MaxConeSteps)
 	SHADER_PARAMETER(FVector2f, PhysicalAtlasSize)
 	SHADER_PARAMETER(FVector2f, InvPhysicalAtlasSize)
@@ -47,6 +48,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, HeightfieldMeshCardsIndicesBuffer)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PageTableBuffer)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
@@ -403,6 +405,11 @@ public:
 	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
 	FRWBufferStructured MeshCardsBuffer;
+
+	// Heightfield indices
+	//TSparseUniqueList<uint32, TInlineAllocator<8>> HeightfieldMeshCardsIndices;
+	TSparseSpanArray<uint32> HeightfieldMeshCardsIndices;
+	FRWByteAddressBuffer HeightfieldMeshCardsIndicesBuffer;
 
 	// GPUScene instance index to MeshCards mapping
 	FUniqueIndexList PrimitivesToUpdateMeshCards;

@@ -248,7 +248,8 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 		
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands>;
+	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands, FTraceHeightfields>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -608,6 +609,7 @@ void TraceScreenProbes(
 				FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfieldTracing());
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(

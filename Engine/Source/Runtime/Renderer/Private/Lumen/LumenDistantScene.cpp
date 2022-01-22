@@ -136,6 +136,13 @@ static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
+	TEXT("r.LumenScene.Heightfield.Tracing"),
+	0,
+	TEXT("Enables heightfield tracing (default = 0)"),
+	ECVF_RenderThreadSafe
+);
+
 namespace Lumen
 {
 	bool UseFarField(const FSceneViewFamily& ViewFamily)
@@ -154,8 +161,15 @@ namespace Lumen
 		return CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread();
 	}
 
-	FVector GetFarFieldReferencePos() {
+	FVector GetFarFieldReferencePos()
+	{
 		return FVector(0.0f, 0.0f, CVarLumenFarFieldReferencePosZ.GetValueOnRenderThread());
+	}
+
+	bool UseHeightfieldTracing()
+	{
+		// TODO: Validate that there are heightfields..
+		return CVarLumenSceneHeightfieldTracing.GetValueOnRenderThread() != 0;
 	}
 }
 

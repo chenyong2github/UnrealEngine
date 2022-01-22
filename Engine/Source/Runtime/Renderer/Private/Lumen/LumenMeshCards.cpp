@@ -390,6 +390,41 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		}
 	}
 
+	// Update heightfield index buffer
+	{
+		FLumenMeshCards NullMeshCards;
+		NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false);
+
+		// Scan looking for heightfields..
+		for (int32 MeshCardsIndex : LumenSceneData.MeshCardsIndicesToUpdateInBuffer)
+		{
+			const FLumenMeshCards& MeshCards = LumenSceneData.MeshCards.IsAllocated(MeshCardsIndex) ? LumenSceneData.MeshCards[MeshCardsIndex] : NullMeshCards;
+			if (MeshCards.bLandscape)
+			{
+				const int32 SpanIndex = LumenSceneData.HeightfieldMeshCardsIndices.AddSpan(1);
+				LumenSceneData.HeightfieldMeshCardsIndices[SpanIndex] = MeshCardsIndex;
+			}
+		}
+
+		uint32 NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
+		uint32 HeightfieldsBufferCount = FMath::Max(NumHeightfields, 4u);
+		uint32 HeightfieldsBufferNumBytes = HeightfieldsBufferCount * sizeof(uint32);
+		// Round to nearest 16 bytes..
+		HeightfieldsBufferNumBytes = FMath::DivideAndRoundUp(HeightfieldsBufferNumBytes, 16u) * 16u;
+		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.HeightfieldMeshCardsIndicesBuffer, HeightfieldsBufferNumBytes, TEXT("Lumen.MeshCards"));
+
+		LumenSceneData.ByteBufferUploadBuffer.Init(HeightfieldsBufferCount, sizeof(uint32), false, TEXT("LumenUploadBuffer"));
+		for (uint32 Index = 0; Index < NumHeightfields; ++Index)
+		{
+			uint32 MeshCardsIndex = LumenSceneData.HeightfieldMeshCardsIndices[Index];
+			LumenSceneData.ByteBufferUploadBuffer.Add(Index, &MeshCardsIndex);
+		}
+
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.HeightfieldMeshCardsIndicesBuffer, false);
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+	}
+
 	// Upload MeshCards
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateSceneInstanceIndexToMeshCardsIndexBuffer);

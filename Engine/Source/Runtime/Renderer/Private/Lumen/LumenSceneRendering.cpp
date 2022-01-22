@@ -1924,6 +1924,9 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.CardPageData = LumenSceneData.CardPageBuffer.SRV;
 	OutParameters.PageTableBuffer = LumenSceneData.GetPageTableBufferSRV();
 	OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV;
+	check(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.SRV);
+	OutParameters.NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
+	OutParameters.HeightfieldMeshCardsIndicesBuffer = LumenSceneData.HeightfieldMeshCardsIndicesBuffer.SRV;
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{

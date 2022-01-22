@@ -294,7 +294,8 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 		
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
-	using FPermutationDomain = TShaderPermutationDomain<FHairStrands>;
+	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FTraceHeightfields>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -706,6 +707,7 @@ void TraceReflections(
 
 					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
+					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfieldTracing());
 					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(

@@ -41,6 +41,14 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldNumClipmaps(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+int32 GAOGlobalDistanceFieldHeightfield = 1;
+FAutoConsoleVariableRef CVarAOGlobalDistanceFieldHeightfield(
+	TEXT("r.AOGlobalDistanceField.Heightfield"),
+	GAOGlobalDistanceFieldHeightfield,
+	TEXT("Whether to voxelize Heightfield into the global distance field.\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GAOUpdateGlobalDistanceField = 1;
 FAutoConsoleVariableRef CVarAOUpdateGlobalDistanceField(
 	TEXT("r.AOUpdateGlobalDistanceField"),
@@ -2177,7 +2185,7 @@ void UpdateGlobalDistanceFieldVolume(
 						}
 
 						// Compose heightfields into global SDF pages
-						if (UpdateRegionHeightfield.ComponentDescriptions.Num() > 0)
+						if (GAOGlobalDistanceFieldHeightfield != 0 && UpdateRegionHeightfield.ComponentDescriptions.Num() > 0)
 						{
 							RDG_EVENT_SCOPE(GraphBuilder, "ComposeHeightfieldsIntoPages");
 
