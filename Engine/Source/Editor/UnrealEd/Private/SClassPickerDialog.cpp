@@ -60,9 +60,9 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 					continue;
 				}
 
-					if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
-					{
-						// Don't add if we are looking for editor classes only and this isn't an editor only class
+				if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
+				{
+					// Don't add if we are looking for editor classes only and this isn't an editor only class
 					continue;
 				}
 			}
