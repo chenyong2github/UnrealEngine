@@ -17,8 +17,7 @@
 		{
 			"Name": "UVEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "UVEditorTools",
@@ -28,8 +27,7 @@
 		{
 			"Name": "UVEditorToolsEditorOnly",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
