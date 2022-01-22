@@ -78,7 +78,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
-#define VALIDATE_PRIMITIVE_PACKED_INDEX 0
+#define VALIDATE_PRIMITIVE_PACKED_INDEX UE_BUILD_DEBUG
 
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
@@ -5158,7 +5158,20 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			bPathTracingNeedsInvalidation = true;
 		}
 	}
+>>>> ORIGINAL //Fortnite/Dev-PerfTest/Engine/Source/Runtime/Renderer/Private/RendererScene.cpp#27
+
+	UpdatedAttachmentRoots.Reset();
+	UpdatedTransforms.Reset();
+	UpdatedCustomPrimitiveParams.Reset();
+	OverridenPreviousTransforms.Reset();
+	UpdatedOcclusionBoundsSlacks.Reset();
+	DistanceFieldSceneDataUpdates.Reset();
+	AddedPrimitiveSceneInfos.Reset();
+==== THEIRS //Fortnite/Dev-PerfTest/Engine/Source/Runtime/Renderer/Private/RendererScene.cpp#28
+
+==== YOURS //marc.audy_Release-5.0/Engine/Source/Runtime/Renderer/Private/RendererScene.cpp
 	
+<<<<
 	UpdatedAttachmentRoots.Empty();
 	UpdatedTransforms.Empty();
 	UpdatedInstances.Empty();
