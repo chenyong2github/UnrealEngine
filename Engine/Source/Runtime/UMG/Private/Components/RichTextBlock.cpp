@@ -13,6 +13,7 @@
 #include "Framework/Text/IRichTextMarkupWriter.h"
 #include "RenderingThread.h"
 #include "Editor/WidgetCompilerLog.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

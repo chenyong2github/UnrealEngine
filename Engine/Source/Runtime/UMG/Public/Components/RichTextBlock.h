@@ -12,6 +12,7 @@
 #include "RichTextBlock.generated.h"
 
 class SRichTextBlock;
+class UMaterialInstanceDynamic;
 class URichTextBlockDecorator;
 
 /** Simple struct for rich text styles */
