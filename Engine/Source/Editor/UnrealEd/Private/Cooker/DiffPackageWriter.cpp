@@ -115,6 +115,7 @@ void FDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	bIsDifferent = false;
 	bDiffCallstack = false;
+	bHasStartedSecondSave = false;
 	DiffMap.Reset();
 
 	BeginInfo = Info;
@@ -310,6 +311,7 @@ FLinkerDiffPackageWriter::FLinkerDiffPackageWriter(TUniquePtr<ICookedPackageWrit
 
 void FLinkerDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
+	bHasStartedSecondSave = false;
 	BeginInfo = Info;
 	Inner->BeginPackage(Info);
 	SetupOtherAlgorithm();
