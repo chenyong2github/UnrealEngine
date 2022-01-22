@@ -60,6 +60,7 @@ typedef FAndroidTypes FPlatformTypes;
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK		1 // movies will start before engine is initalized
 #define PLATFORM_SUPPORTS_GEOMETRY_SHADERS			0
 #define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING	1
+#define PLATFORM_USE_ANSI_POSIX_MALLOC				1
 #define PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING 1
 
 #define PLATFORM_CODE_SECTION(Name)					__attribute__((section(Name)))

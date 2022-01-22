@@ -5,14 +5,6 @@
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 
-#ifndef USE_ALIGNED_MALLOC
-	#if PLATFORM_MAC || PLATFORM_IOS
-		#define USE_ALIGNED_MALLOC 1
-	#else
-		#define USE_ALIGNED_MALLOC 0
-	#endif
-#endif
-
 CORE_API void* AnsiMalloc(SIZE_T Size, uint32 Alignment);
 CORE_API void* AnsiRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment);
 CORE_API void AnsiFree(void* Ptr);

@@ -51,13 +51,13 @@ struct FOsAllocator
 
 struct FAlignedAllocator
 {
-	static constexpr bool SupportsAlignment = !(PLATFORM_MAC || PLATFORM_IOS || PLATFORM_TVOS); //TODO: UHT on Mac OS returned false alignment.
+	static constexpr bool SupportsAlignment = true;
 
 	FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
 	{
 #if DO_CHECK
 		void* Ret = AnsiMalloc(Size, Alignment);
-		check(!SupportsAlignment || IsAligned(Ret, Alignment));
+		check(IsAligned(Ret, Alignment));
 		return Ret;
 #else
 		return AnsiMalloc(Size, Alignment);

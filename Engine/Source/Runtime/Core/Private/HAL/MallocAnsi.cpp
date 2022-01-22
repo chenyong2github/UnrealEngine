@@ -9,9 +9,9 @@
 #include "Math/UnrealMathUtility.h"
 #include "Templates/AlignmentTemplates.h"
 
-#if PLATFORM_UNIX
+#if PLATFORM_UNIX || PLATFORM_SWITCH
 	#include <malloc.h>
-#endif // PLATFORM_UNIX
+#endif // PLATFORM_UNIX || PLATFORM_SWITCH
 
 #if PLATFORM_IOS
 	#include "mach/mach.h"
@@ -23,7 +23,7 @@
 
 void* AnsiMalloc(SIZE_T Size, uint32 Alignment)
 {
-#if USE_ALIGNED_MALLOC
+#if PLATFORM_USES__ALIGNED_MALLOC
 	void* Result = _aligned_malloc( Size, Alignment );
 #elif PLATFORM_USE_ANSI_POSIX_MALLOC
 	void* Result;
@@ -49,20 +49,20 @@ void* AnsiMalloc(SIZE_T Size, uint32 Alignment)
 
 static SIZE_T AnsiGetAllocationSize(void* Original)
 {
-#if	USE_ALIGNED_MALLOC
+#if	PLATFORM_USES__ALIGNED_MALLOC
 	return _aligned_msize(Original, 16, 0); // Assumes alignment of 16
 #elif PLATFORM_USE_ANSI_POSIX_MALLOC || PLATFORM_USE_ANSI_MEMALIGN
 	return malloc_usable_size(Original);
 #else
 	return *((SIZE_T*)((uint8*)Original - sizeof(void*) - sizeof(SIZE_T)));
-#endif // USE_ALIGNED_MALLOC
+#endif // PLATFORM_USES__ALIGNED_MALLOC
 }
 
 void* AnsiRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment)
 {
 	void* Result;
 
-#if USE_ALIGNED_MALLOC
+#if PLATFORM_USES__ALIGNED_MALLOC
 	if (Ptr && NewSize)
 	{
 		Result = _aligned_realloc(Ptr, NewSize, Alignment);
@@ -129,7 +129,7 @@ void* AnsiRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment)
 
 void AnsiFree(void* Ptr)
 {
-#if USE_ALIGNED_MALLOC
+#if PLATFORM_USES__ALIGNED_MALLOC
 	_aligned_free(Ptr);
 #elif PLATFORM_USE_ANSI_POSIX_MALLOC || PLATFORM_USE_ANSI_MEMALIGN
 	free(Ptr);
