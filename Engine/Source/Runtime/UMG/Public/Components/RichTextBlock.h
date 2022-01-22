@@ -113,6 +113,13 @@ public:
 	UFUNCTION()
 	void ClearAllDefaultStyleOverrides();
 
+	/**
+	 * Creates a dynamic material for the default font or returns it if it already
+	 * exists
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	UMaterialInstanceDynamic* GetDefaultDynamicMaterial();
+
 public:
 	URichTextBlock(const FObjectInitializer& ObjectInitializer);
 

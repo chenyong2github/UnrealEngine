@@ -284,6 +284,30 @@ void URichTextBlock::ClearAllDefaultStyleOverrides()
 	}
 }
 
+UMaterialInstanceDynamic* URichTextBlock::GetDefaultDynamicMaterial()
+{
+	TObjectPtr<UObject>& MaterialObject = bOverrideDefaultStyle ? DefaultTextStyleOverride.Font.FontMaterial : DefaultTextStyle.Font.FontMaterial;
+
+	if (UMaterialInterface* Material = Cast<UMaterialInterface>(MaterialObject.Get()))
+	{
+		UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
+
+		if (!DynamicMaterial)
+		{
+			BeginDefaultStyleOverride();
+
+			DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
+			DefaultTextStyleOverride.Font.FontMaterial = DynamicMaterial;
+			
+			ApplyUpdatedDefaultTextStyle();
+		}
+
+		return DynamicMaterial;
+	}
+
+	return nullptr;
+}
+
 void URichTextBlock::SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity)
 {
 	BeginDefaultStyleOverride();
