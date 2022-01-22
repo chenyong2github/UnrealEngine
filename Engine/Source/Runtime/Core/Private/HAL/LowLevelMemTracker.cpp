@@ -3733,7 +3733,7 @@ namespace LLMPrivate
 	*/
 	void FLLMCsvWriter::Write(FStringView Text)
 	{
-		Archive->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR, TCHAR>(Text.GetData(), Text.Len()).Get()), Text.Len() * sizeof(ANSICHAR));
+		Archive->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(Text.GetData(), Text.Len()).Get()), Text.Len() * sizeof(ANSICHAR));
 	}
 
 	void FLLMCsvWriter::CreateArchive()
