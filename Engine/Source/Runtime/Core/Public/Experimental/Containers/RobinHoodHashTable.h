@@ -208,7 +208,6 @@ namespace RobinHoodHashTable_Private
 			FreeList.Reset(1);
 			//push a dummy
 			FreeList.Push(FSpan{ INDEX_NONE, INDEX_NONE });
-			NumElements = 0;
 		}
 
 		int Num() const
