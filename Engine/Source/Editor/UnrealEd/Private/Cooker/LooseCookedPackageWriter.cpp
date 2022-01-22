@@ -355,10 +355,8 @@ void FLooseCookedPackageWriter::UpdateManifest(FRecord& Record)
 
 bool FLooseCookedPackageWriter::GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData)
 {
-	FPackageWriterRecords::FPackage& BaseRecord = Records.FindRecordChecked(Info.InputPackageName);
-	FRecord& Record = static_cast<FRecord&>(BaseRecord);
 	FArchiveStackTrace::FPackageData ExistingPackageData;
-	FArchiveStackTrace::LoadPackageIntoMemory(*Record.Packages[Info.MultiOutputIndex].Info.LooseFilePath, ExistingPackageData, OutData.Data);
+	FArchiveStackTrace::LoadPackageIntoMemory(*Info.LooseFilePath, ExistingPackageData, OutData.Data);
 	OutData.Size = ExistingPackageData.Size;
 	OutData.HeaderSize = ExistingPackageData.HeaderSize;
 	OutData.StartOffset = ExistingPackageData.StartOffset;
