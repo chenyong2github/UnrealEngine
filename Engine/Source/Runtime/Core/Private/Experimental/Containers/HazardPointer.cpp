@@ -40,6 +40,7 @@ CORE_API FHazardPointerCollection::FHazardRecord* FHazardPointerCollection::Grow
 	lst->Next.store(p, std::memory_order_release);
 	TotalNumHazardRecords += HazardChunkSize; //keep count of HazardPointers, there should not be too many (maybe 2 per thread)
 
+	HazardRecordBlocks.Add(p);
 	checkSlow(p->Records[0].GetHazard() == nullptr);
 	return &p->Records[0];
 }

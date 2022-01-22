@@ -89,7 +89,7 @@ protected:
 private:
 	struct FAlignedElement
 	{
-		alignas(PLATFORM_CACHE_LINE_SIZE * 2) std::atomic<uintptr_t> Value;
+		alignas(PLATFORM_CACHE_LINE_SIZE * 2) std::atomic<uintptr_t> Value = {};
 	};
 
 	alignas(PLATFORM_CACHE_LINE_SIZE * 2) uint32 Head { ~0u };
