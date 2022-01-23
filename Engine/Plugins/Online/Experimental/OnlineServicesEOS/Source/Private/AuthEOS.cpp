@@ -339,6 +339,12 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		}
 	}
 	TOnlineAsyncOpRef<FAuthLogin> Op = GetOp<FAuthLogin>(MoveTemp(Params));
+	// Are we already logged in?
+	if (GetAccountIdByPlatformUserId(Params.PlatformUserId).IsOk())
+	{
+		Op->SetError(Errors::Auth::AlreadyLoggedIn());
+		return Op->GetHandle();
+	}
 
 	EOS_Auth_LoginOptions LoginOptions = { };
 	LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
@@ -718,8 +724,7 @@ TOnlineResult<FAuthGetAccountByAccountId> FAuthEOS::GetAccountByAccountId(FAuthG
 {
 	if (TSharedRef<FAccountInfoEOS>* const FoundAccount = AccountInfos.Find(Params.LocalUserId))
 	{
-		FAuthGetAccountByAccountId::Result Result;
-		Result.AccountInfo = *FoundAccount;
+		FAuthGetAccountByAccountId::Result Result = { *FoundAccount };
 		return TOnlineResult<FAuthGetAccountByAccountId>(Result);
 	}
 	else
