@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "AssetRegistryModule.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "Misc/Base64.h"
 #include "UObject/ObjectSaveContext.h"
@@ -86,10 +87,9 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 
 				NewActorDesc->Init(ActorDescInitData);
 			
-				//check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
-
 				if (!bIsValidClass)
 				{
+					UE_LOG(LogWorldPartition, Warning, TEXT("Invalid class `%s` for actor guid `%s` ('%s') from package '%s'"), *NewClassName.ToString(), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
 					return nullptr;
 				}
 

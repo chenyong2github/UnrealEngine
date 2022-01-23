@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/ActorDescList.h"
+#include "WorldPartition/WorldPartitionLog.h"
 
 #if WITH_EDITOR
 FWorldPartitionActorDesc* FActorDescList::AddActor(const AActor* InActor)
@@ -69,9 +70,17 @@ void FActorDescList::Empty()
 void FActorDescList::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);
-	TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(ActorDesc);
-	ActorsByGuid.Add(ActorDesc->GetGuid(), NewActorDesc);
-	ActorsByName.Add(ActorDesc->GetActorName(), NewActorDesc);
+
+	if (const TUniquePtr<FWorldPartitionActorDesc>* const* ExistingActorDesc = ActorsByGuid.Find(ActorDesc->GetGuid()))
+	{
+		UE_LOG(LogWorldPartition, Warning, TEXT("Duplicated actor descriptor guid '%s' detected: `%s` (existing: `%s`)"), *ActorDesc->GetGuid().ToString(), *ActorDesc->GetActorName().ToString(), *(*ExistingActorDesc)->Get()->GetActorName().ToString());
+	}
+	else
+	{
+		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(ActorDesc);
+		ActorsByGuid.Add(ActorDesc->GetGuid(), NewActorDesc);
+		ActorsByName.Add(ActorDesc->GetActorName(), NewActorDesc);
+	}
 }
 
 void FActorDescList::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc)

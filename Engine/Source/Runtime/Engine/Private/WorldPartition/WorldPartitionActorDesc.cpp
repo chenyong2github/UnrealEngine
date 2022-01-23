@@ -322,7 +322,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 			}
 			else
 			{
-				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor '%s' from package '%s'"), *GetActorName().ToString(), *ActorPackage.ToString());
+				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor guid `%s` ('%s') from package '%s'"), *Guid.ToString(), *GetActorName().ToString(), *ActorPackage.ToString());
 			}
 		}
 	}
