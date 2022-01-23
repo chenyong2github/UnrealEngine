@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 class FSceneViewFamily;
 class FPrimitiveSceneProxy;
 class FMaterial;

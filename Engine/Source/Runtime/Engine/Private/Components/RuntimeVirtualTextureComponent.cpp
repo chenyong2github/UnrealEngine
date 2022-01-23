@@ -111,6 +111,11 @@ FBoxSphereBounds URuntimeVirtualTextureComponent::CalcBounds(const FTransform& L
 	return FBoxSphereBounds(FBox(FVector(0.f, 0.f, 0.f), FVector(1.f, 1.f, 1.f))).TransformBy(LocalToWorld);
 }
 
+void URuntimeVirtualTextureComponent::SetBoundsAlignActor(AActor* InActor)
+{
+	BoundsAlignActor = InActor;
+}
+
 FTransform URuntimeVirtualTextureComponent::GetTexelSnapTransform() const
 {
 	FVector Offset(ForceInitToZero);

@@ -6,7 +6,9 @@
 #include "DirectLinkExtensionModule.h"
 #include "IDirectLinkManager.h"
 
+#include "EditorStyleSet.h"
 #include "Styling/SlateBrush.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"

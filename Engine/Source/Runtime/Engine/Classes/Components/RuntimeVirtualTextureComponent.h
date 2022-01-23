@@ -131,7 +131,7 @@ public:
 
 #if WITH_EDITOR
 	/** Get the BoundsAlignActor on this component. */
-	void SetBoundsAlignActor(AActor* InActor) { BoundsAlignActor = InActor; }
+	void SetBoundsAlignActor(AActor* InActor);
 	/** Get the BoundsAlignActor on this component. */
 	TSoftObjectPtr<AActor>& GetBoundsAlignActor() { return BoundsAlignActor; }
 	/** Get if SnapBoundsToLandscape is set on this component. */

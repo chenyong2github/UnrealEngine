@@ -3,6 +3,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 

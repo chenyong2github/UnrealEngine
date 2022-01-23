@@ -3,6 +3,7 @@
 #include "Commandlets/WorldPartitionCommandletHelpers.h"
 
 #include "Engine/World.h"
+#include "HAL/PlatformFileManager.h"
 #include "PackageSourceControlHelper.h"
 #include "SourceControlHelpers.h"
 #include "UObject/SavePackage.h"
