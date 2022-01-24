@@ -307,6 +307,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdates(FOnlineAccountIdHan
 		// Todo: Schema things.
 
 		EOS_Lobby_AttributeData AttributeData;
+		AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
 		AttributeData.Key = KeyConverter.Get();
 		AttributeData.Value.AsUtf8 = ValueConverter.Get();
 		AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;

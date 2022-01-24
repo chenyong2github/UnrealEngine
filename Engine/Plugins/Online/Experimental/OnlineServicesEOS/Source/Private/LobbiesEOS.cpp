@@ -230,6 +230,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 	{
 		const auto& Params = InAsyncOp.GetParams();
 		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		LobbyData->GetLobbyImpl()->LocalName = Params.LocalName;
 
 		// Remove notification pause for joining local users.
 		TArray<TSharedRef<FLobbyNotificationPauseHandle>> ClearedPauses;
@@ -333,6 +334,7 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOS::JoinLobby(FJoinLobby::Params&& InP
 		}
 		else
 		{
+			LobbyData->GetLobbyImpl()->LocalName = InAsyncOp.GetParams().LocalName;
 			// Remove notification pause for joining local users.
 			TArray<TSharedRef<FLobbyNotificationPauseHandle>> ClearedPauses;
 			InAsyncOp.Data.Set<TArray<TSharedRef<FLobbyNotificationPauseHandle>>>(LobbyNotificationPauseKeyName, MoveTemp(ClearedPauses));
@@ -344,7 +346,7 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOS::JoinLobby(FJoinLobby::Params&& InP
 				AddActiveLobby(LocalUser.LocalUserId, LobbyData.ToSharedRef());
 			}
 
-			InAsyncOp.SetResult(FJoinLobby::Result{});
+			InAsyncOp.SetResult(FJoinLobby::Result{ LobbyData->GetLobbyImpl()});
 		}
 	})
 	.Enqueue(GetSerialQueue());
@@ -671,6 +673,24 @@ TOnlineAsyncOpHandle<FModifyLobbyMemberAttributes> FLobbiesEOS::ModifyLobbyMembe
 	.Enqueue(GetSerialQueue(Params.LocalUserId));
 
 	return Op->GetHandle();
+}
+
+TOnlineResult<FGetJoinedLobbies> FLobbiesEOS::GetJoinedLobbies(FGetJoinedLobbies::Params&& Params)
+{
+	if (const TSet<TSharedRef<FLobbyDataEOS>>* Lobbies = ActiveLobbies.Find(Params.LocalUserId))
+	{
+		FGetJoinedLobbies::Result Result;
+		Result.Lobbies.Reserve(Lobbies->Num());
+		for (const TSharedRef<FLobbyDataEOS>& LobbyDataEOS : *Lobbies)
+		{
+			Result.Lobbies.Emplace(LobbyDataEOS->GetLobbyImpl());
+		}
+		return TOnlineResult<FGetJoinedLobbies>(MoveTemp(Result));
+	}
+	else
+	{
+		return TOnlineResult<FGetJoinedLobbies>(Errors::InvalidUser());
+	}
 }
 
 void FLobbiesEOS::HandleLobbyUpdated(const EOS_Lobby_LobbyUpdateReceivedCallbackInfo* Data)
@@ -1443,7 +1463,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyDataImpl>> FLobbiesEOS::Mod
 	DetailsResult.GetOkValue()->ApplyLobbyDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Complete. Result: %d"), Future.Get());
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Complete. Result: %s"), *LexToString(Future.Get()));
 
 		// Todo: Handle "no change" better.
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
@@ -1489,7 +1509,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyMemberDataImpl>> FLobbiesEO
 	DetailsResult.GetOkValue()->ApplyLobbyMemberDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Complete. Result: %d"), Future.Get());
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Complete. Result: %s"), *LexToString(Future.Get()));
 
 		// Todo: Handle "no change" better.
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)

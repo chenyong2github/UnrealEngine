@@ -849,9 +849,11 @@ BEGIN_ONLINE_STRUCT_META(FModifyLobbyMemberAttributes::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Params)
+	ONLINE_STRUCT_FIELD(FGetJoinedLobbies::Params, LocalUserId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Result)
+	ONLINE_STRUCT_FIELD(FGetJoinedLobbies::Result, Lobbies)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetReceivedInvitations::Params)
