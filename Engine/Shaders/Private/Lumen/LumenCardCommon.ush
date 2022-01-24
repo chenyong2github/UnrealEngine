@@ -39,8 +39,8 @@ struct FLumenCardData
 #define LUMEN_CARD_DATA_STRIDE 7
 #define LUMEN_CARD_PAGE_DATA_STRIDE 5
 
-// The card index for heightfield data
-#define LUMEN_MESH_CARDS_Z_UP_INDEX 0
+// Heightfields are a special case and they always have only one card
+#define LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX 0
 
 // Fetch from scene card buffer
 // Note: layout must match FLumenCardData in C++

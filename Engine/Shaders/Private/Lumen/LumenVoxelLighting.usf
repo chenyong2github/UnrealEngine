@@ -255,7 +255,7 @@ void CullToVoxelClipmapCS(
 		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 		// Fetch card
-		FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + MeshCardsData.CardLookup[LUMEN_MESH_CARDS_Z_UP_INDEX]);
+		FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
 
 		float3 WorldObjectCenter;
 		float3 WorldObjectExtent;
@@ -319,7 +319,7 @@ void SetupVoxelTracesCS(
 	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 	// Fetch card
-	FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + MeshCardsData.CardLookup[LUMEN_MESH_CARDS_Z_UP_INDEX]);
+	FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
 
 	float3 ObjectCenter;
 	float3 ObjectExtent;

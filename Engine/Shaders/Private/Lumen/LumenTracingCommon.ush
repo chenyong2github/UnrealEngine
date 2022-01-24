@@ -802,7 +802,7 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 	// Fetch card
-	int LocalCardIndex = MeshCardsData.CardLookup[LUMEN_MESH_CARDS_Z_UP_INDEX];
+	int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
 	FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
 
 	// Convert ray to local space
@@ -912,7 +912,7 @@ FTraceMeshHeightfieldShadedResult ShadeHeightfieldTrace(
 	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 	// Fetch card
-	int LocalCardIndex = MeshCardsData.CardLookup[LUMEN_MESH_CARDS_Z_UP_INDEX];
+	int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
 	FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
 
 	// Convert ray to local space
