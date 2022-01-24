@@ -32,6 +32,11 @@ echo === Making Mac artifacts writeable ===
 chmod -R u+w $DIR/Mac
 
 echo
+echo === Copying vcpkg.json ===
+mkdir -p $DIR/Mac/x86_64-osx
+cp $DIR/vcpkg.json $DIR/Mac/x86_64-osx/vcpkg.json
+
+echo
 echo === Running vcpkg in manifest mode ===
 # --x-manifest-root tells it to consume build directives in vcpkg.json
 # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative

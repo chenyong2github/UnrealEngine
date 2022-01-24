@@ -4,6 +4,6 @@
   "description": "Unreal Engine 5 dependencies installed with vcpkg",
   "dependencies": [
     "protobuf",
-    "grpc"
+    "re2"
   ]
 }

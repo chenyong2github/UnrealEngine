@@ -1,8 +1,9 @@
 {
-  "name": "ue5",
+  "name": "vcpkg",
   "version-string": "0.0.0",
-  "description": "Unreal Engine 5 dependencies built with vcpkg",
+  "description": "Unreal Engine 5 dependencies installed with vcpkg",
   "dependencies": [
-    "grpc"
+    "protobuf",
+    "re2"
   ]
 }

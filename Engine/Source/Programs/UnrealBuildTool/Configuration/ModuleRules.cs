@@ -1399,7 +1399,7 @@ namespace UnrealBuildTool
 			string? Architecture = null;
 			string Linkage = string.Empty;
 			string Toolset = string.Empty;
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				Platform = "windows";
 				Architecture = Target.WindowsPlatform.Architecture.ToString().ToLowerInvariant();
@@ -1411,7 +1411,7 @@ namespace UnrealBuildTool
 				{
 					Linkage = "-static-md";
 				}
-				Toolset = "-v141";
+				Toolset = "-v142";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{

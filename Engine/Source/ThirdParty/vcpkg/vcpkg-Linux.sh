@@ -53,6 +53,13 @@ echo === Making LinuxArm64 artifacts writeable ===
 chmod -R u+w $DIR/LinuxArm64
 
 echo
+echo === Copying vcpkg.json ===
+mkdir -p $DIR/Linux/x86_64-unknown-linux-gnu
+mkdir -p $DIR/LinuxArm64/aarch64-unknown-linux-gnueabi
+cp $DIR/vcpkg.json $DIR/Linux/x86_64-unknown-linux-gnu/vcpkg.json
+cp $DIR/vcpkg.json $DIR/LinuxArm64/aarch64-unknown-linux-gnueabi/vcpkg.json
+
+echo
 echo === Running vcpkg in manifest mode ===
 # --x-manifest-root tells it to consume build directives in vcpkg.json
 # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative

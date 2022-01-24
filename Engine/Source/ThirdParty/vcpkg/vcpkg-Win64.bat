@@ -9,7 +9,7 @@ set VCPKG_VERSION=2021.05.12
 set VCPKG_FEATURE_FLAGS=manifests
 
 :: the triplet to build
-set VCPKG_TRIPLETS=x64-windows-static-md-v141;x64-windows-static-v141;x64-windows-static-md-v142;x64-windows-static-v142
+set VCPKG_TRIPLETS=x64-windows-static-md-v142;x64-windows-static-v142
 
 :: the Unreal platform
 set UE_PLATFORM=Win64
@@ -31,6 +31,9 @@ attrib -R .\%UE_PLATFORM%\*.* /s
 echo:
 echo === Running vcpkg in manifest mode ===
 FOR %%T IN (%VCPKG_TRIPLETS%) DO (
+    mkdir .\%UE_PLATFORM%\%%T
+    copy /Y .\vcpkg.json .\%UE_PLATFORM%\%%T\vcpkg.json
+
     vcpkg-%UE_PLATFORM%\vcpkg.exe install ^
         --overlay-ports=.\overlay-ports ^
         --overlay-triplets=.\overlay-triplets ^
