@@ -57,6 +57,12 @@ void UVirtualHeightfieldMeshComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
+void UVirtualHeightfieldMeshComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
+{
+	Super::ApplyWorldOffset(InOffset, bWorldShift);
+	MarkRenderStateDirty();
+}
+
 ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextureVolume() const
 {
 	return VirtualTextureRef;
