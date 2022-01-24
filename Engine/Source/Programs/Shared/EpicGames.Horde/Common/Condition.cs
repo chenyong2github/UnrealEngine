@@ -640,7 +640,12 @@ namespace EpicGames.Horde.Common
 
 		public override Condition Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return Condition.Parse(reader.GetString());
+			string? String = reader.GetString();
+			if(String == null)
+			{
+				throw new InvalidOperationException();
+			}
+			return Condition.Parse(String);
 		}
 
 		public override void Write(Utf8JsonWriter writer, Condition value, JsonSerializerOptions options)
