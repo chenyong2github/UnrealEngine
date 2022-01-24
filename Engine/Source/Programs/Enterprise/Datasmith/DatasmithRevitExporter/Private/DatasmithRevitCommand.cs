@@ -80,13 +80,6 @@ namespace DatasmithRevitExporter
 
 			Debug.Assert(FDirectLink.Get() != null);
 
-			// Holding ctrl will force full sync. 
-			if (FDirectLink.Get().SyncCount > 0 && (System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
-			{
-				FDirectLink.DestroyInstance(FDirectLink.Get(), InCommandData.Application.Application);
-				FDirectLink.ActivateInstance(Doc);
-			}
-
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
 				InCommandData.Application.Application,
 				Doc,
@@ -133,6 +126,7 @@ namespace DatasmithRevitExporter
 		}
 	}
 
+#if false // AutoSync is temporary disabled
 	[Transaction(TransactionMode.Manual)]
 	public class DatasmithAutoSyncRevitCommand : DatasmithRevitCommand
 	{
@@ -145,6 +139,7 @@ namespace DatasmithRevitExporter
 			return Result.Succeeded;
 		}
 	}
+#endif
 
 	// Add-in external command Export to Unreal Datasmith. 
 	[Transaction(TransactionMode.Manual)]
