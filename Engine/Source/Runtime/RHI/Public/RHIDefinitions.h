@@ -1778,6 +1778,8 @@ enum class ETextureCreateFlags : uint64
 	External                		  = 1ull << 34,
 	/** Don't automatically transfer across GPUs in multi-GPU scenarios.  For example, if you are transferring it yourself manually. */
 	MultiGPUGraphIgnore				  = 1ull << 35,
+	/** Texture needs to support atomic operations */
+    Atomic64Compatible                = 1ull << 36,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 

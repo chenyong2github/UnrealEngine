@@ -135,8 +135,13 @@ struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
 	}
 
 	EPixelFormat PixelFormat{ PF_Unknown };
+
 	// PixelFormat for the Resource that aliases our current resource.
 	EPixelFormat UAVAliasPixelFormat{ PF_Unknown };
+
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
+	bool bRequires64BitAtomicSupport{ false };
+#endif
 
 	// Used primarily to help treat this resource description as writable.
 	inline bool NeedsUAVAliasWorkarounds() const { return UAVAliasPixelFormat != PF_Unknown; }

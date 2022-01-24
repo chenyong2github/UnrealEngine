@@ -985,6 +985,10 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		TextureDesc.UAVAliasPixelFormat = GetBlockCompressedFormatUAVAliasFormat(Format);
 	}
 
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
+	TextureDesc.bRequires64BitAtomicSupport = EnumHasAnyFlags(Flags, ETextureCreateFlags::Atomic64Compatible);
+#endif
+
 	// Set up the texture bind flags.
 	bool bCreateRTV;
 	bool bCreateDSV;

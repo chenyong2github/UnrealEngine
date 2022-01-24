@@ -82,7 +82,8 @@ struct Intel_MetricsDiscovery_ContextData
 
 #if INTEL_EXTENSIONS
 THIRD_PARTY_INCLUDES_START
-#include "igd11ext.h"
+	#define INTC_IGDEXT_D3D11 1
+	#include "igdext.h"
 THIRD_PARTY_INCLUDES_END
 #endif // INTEL_EXTENSIONS
 
@@ -841,8 +842,8 @@ protected:
 
 #if INTEL_EXTENSIONS
 	// Context and functions for Intel extension framework utility library
-	INTC::ExtensionContext* IntelExtensionContext;
-	INTC::D3D11_EXTENSION_FUNCS_01000001* IntelD3D11ExtensionFuncs;
+	INTCExtensionContext* IntelExtensionContext;
+	bool bIntelSupportsUAVOverlap;
 #endif // INTEL_EXTENSIONS
 
 	// set by UpdateMSAASettings(), get by GetMSAAQuality()

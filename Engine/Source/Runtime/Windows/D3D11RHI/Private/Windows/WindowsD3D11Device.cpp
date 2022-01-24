@@ -89,22 +89,6 @@ struct AmdAgsInfo
 static AmdAgsInfo AmdInfo;
 #endif
 
-#if INTEL_EXTENSIONS
-// Filled in during InitD3DDevice if IsRHIDeviceIntel
-struct IntelD3D11Extensions
-{
-	INTC::D3D11_EXTENSION_FUNCS_01000001 D3D11ExtensionFuncs;
-
-	INTC::ExtensionInfo ExtensionInfo;
-	INTC::ExtensionAppInfo ExtensionAppInfo;
-
-	INTC::PFNINTCDX11EXT_D3D11CREATEDEVICEEXTENSIONCONTEXT1 CreateDeviceExtensionContext;
-	INTC::PFNINTCDX11EXT_D3D11DESTROYDEVICEEXTENSIONCONTEXT DestroyDeviceExtensionContext;
-	INTC::PFNINTCDX11EXT_D3D11GETSUPPORTEDVERSIONS GetSupportedVersions;
-};
-static IntelD3D11Extensions IntelExtensions;
-#endif // INTEL_EXTENSIONS
-
 static TAutoConsoleVariable<int32> CVarAMDUseMultiThreadedDevice(
 	TEXT("r.AMDD3D11MultiThreadedDevice"),
 	0,
@@ -1376,117 +1360,105 @@ void FD3D11DynamicRHI::StartIntelExtensions()
 		return;
 	}
 
-	HMODULE IntelDriverDLL = LoadLibraryA(ID3D11_UMD_DLL);
+	const INTCExtensionVersion AtomicsRequiredVersion = { 3, 4, 1 }; // version 3.4.1
+	const INTCExtensionVersion UAVOverlapRequiredVersion = { 1, 1, 0 };
 
-	if (IntelDriverDLL)
+	INTCExtensionVersion* SupportedExtensionsVersions = nullptr;
+	uint32_t SupportedExtensionsVersionCount = 0;
+	INTCExtensionInfo INTCExtensionInfo = {};
+
+	if (FAILED(INTC_LoadExtensionsLibrary(false)))
 	{
-		HMODULE IntelExtensionDLL = INTC::D3D11LoadIntelExtensionsLibrary(true);
+		UE_LOG(LogD3D11RHI, Log, TEXT("Failed to load Intel Extensions Library"));
+	}
 
-		if (IntelExtensionDLL)
+	if (SUCCEEDED(INTC_D3D11_GetSupportedVersions(Direct3DDevice, nullptr, &SupportedExtensionsVersionCount)))
+	{
+		SupportedExtensionsVersions = new INTCExtensionVersion[SupportedExtensionsVersionCount]{};
+	}
+
+	if (SUCCEEDED(INTC_D3D11_GetSupportedVersions(Direct3DDevice, SupportedExtensionsVersions, &SupportedExtensionsVersionCount)) && SupportedExtensionsVersions != nullptr)
+	{
+		for (uint32_t i = 0; i < SupportedExtensionsVersionCount; i++)
 		{
-#pragma warning(push)
-#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
-			IntelExtensions.CreateDeviceExtensionContext = (INTC::PFNINTCDX11EXT_D3D11CREATEDEVICEEXTENSIONCONTEXT1)(GetProcAddress(IntelExtensionDLL, "D3D11CreateDeviceExtensionContext1"));
-			IntelExtensions.DestroyDeviceExtensionContext = (INTC::PFNINTCDX11EXT_D3D11DESTROYDEVICEEXTENSIONCONTEXT)(GetProcAddress(IntelExtensionDLL, "D3D11DestroyDeviceExtensionContext"));
-			IntelExtensions.GetSupportedVersions = (INTC::PFNINTCDX11EXT_D3D11GETSUPPORTEDVERSIONS)(GetProcAddress(IntelExtensionDLL, "D3D11GetSupportedVersions"));
-#pragma warning(pop)
-
-			if (IntelExtensions.CreateDeviceExtensionContext && IntelExtensions.DestroyDeviceExtensionContext && IntelExtensions.GetSupportedVersions)
+			if ((SupportedExtensionsVersions[i].HWFeatureLevel >= AtomicsRequiredVersion.HWFeatureLevel) &&
+				(SupportedExtensionsVersions[i].APIVersion >= AtomicsRequiredVersion.APIVersion) &&
+				(SupportedExtensionsVersions[i].Revision >= AtomicsRequiredVersion.Revision) &&
+				!GRHISupportsAtomicUInt64)
 			{
-				bool bRequiredVersionFound = false;
-				bool bEnabled = false;
+				UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions loaded requested version Atomics Version: %u.%u.%u"),
+					SupportedExtensionsVersions[i].HWFeatureLevel,
+					SupportedExtensionsVersions[i].APIVersion,
+					SupportedExtensionsVersions[i].Revision);
 
-				uint32 SupportedVersionCount = 0;
-				uint32* SupportedVersions = nullptr;
+				INTCExtensionInfo.RequestedExtensionVersion = SupportedExtensionsVersions[i];
+				GRHISupportsAtomicUInt64 = true;
+			}
 
-				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Major = 1;
-				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Minor = 0;
-				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Revision = 1;
+			if ((SupportedExtensionsVersions[i].HWFeatureLevel >= UAVOverlapRequiredVersion.HWFeatureLevel) &&
+				(SupportedExtensionsVersions[i].APIVersion >= UAVOverlapRequiredVersion.APIVersion) &&
+				(SupportedExtensionsVersions[i].Revision >= UAVOverlapRequiredVersion.Revision) &&
+				!bIntelSupportsUAVOverlap)
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions loaded requested version for UAVOverlap: %u.%u.%u"),
+					SupportedExtensionsVersions[i].HWFeatureLevel,
+					SupportedExtensionsVersions[i].APIVersion,
+					SupportedExtensionsVersions[i].Revision);
 
-				if (SUCCEEDED(IntelExtensions.GetSupportedVersions(Direct3DDevice, &SupportedVersionCount, SupportedVersions)))
+				if (SupportedExtensionsVersions[i].HWFeatureLevel >= INTCExtensionInfo.RequestedExtensionVersion.HWFeatureLevel &&
+					SupportedExtensionsVersions[i].APIVersion >= INTCExtensionInfo.RequestedExtensionVersion.APIVersion &&
+					SupportedExtensionsVersions[i].Revision >= INTCExtensionInfo.RequestedExtensionVersion.Revision)
 				{
-					SupportedVersions = new uint32[SupportedVersionCount];
-					if (SUCCEEDED(IntelExtensions.GetSupportedVersions(Direct3DDevice, &SupportedVersionCount, SupportedVersions)))
-					{
-						for (uint32 i = 0; i < SupportedVersionCount; i++)
-						{
-							INTC::ExtensionVersion* SupportedVersion = (INTC::ExtensionVersion*)&SupportedVersions[i];
-
-							UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions support version Full=%d, Major=%d, Minor=%d, Revision=%d"), SupportedVersion->FullVersion, SupportedVersion->Version.Major, SupportedVersion->Version.Minor, SupportedVersion->Version.Revision);
-
-							if (IntelExtensions.ExtensionInfo.requestedExtensionVersion.FullVersion == SupportedVersion->FullVersion)
-							{
-								bRequiredVersionFound = true;
-								break;
-							}
-						}
-					}
+					INTCExtensionInfo.RequestedExtensionVersion = SupportedExtensionsVersions[i];
 				}
+				bIntelSupportsUAVOverlap = true;
+			}
 
-				if (SupportedVersions)
-				{
-					delete[] SupportedVersions;
-				}
-
-				if (!bRequiredVersionFound)
-				{
-					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework version required is not supported"));
-					return;
-				}
-
-				IntelExtensions.ExtensionAppInfo.pEngineName = L"Unreal Engine";
-				IntelExtensions.ExtensionAppInfo.engineVersion = 4;
-
-				FMemory::Memset(&IntelExtensions.D3D11ExtensionFuncs, 0, sizeof(INTC::D3D11_EXTENSION_FUNCS_01000001));
-				IntelD3D11ExtensionFuncs = &IntelExtensions.D3D11ExtensionFuncs;
-
-				HRESULT hr = IntelExtensions.CreateDeviceExtensionContext(
-					Direct3DDevice,
-					&IntelExtensionContext,
-					(void**)&IntelD3D11ExtensionFuncs,
-					sizeof(INTC::D3D11_EXTENSION_FUNCS_01000001),
-					&IntelExtensions.ExtensionInfo,
-					&IntelExtensions.ExtensionAppInfo);
-
-				if (hr == S_OK)
-				{
-					if (IntelExtensions.ExtensionInfo.returnedExtensionVersion.FullVersion == IntelExtensions.ExtensionInfo.requestedExtensionVersion.FullVersion)
-					{
-						bEnabled = true;
-						UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework enabled"));
-					}
-					else
-					{
-						UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework version required is not supported"));
-					}
-				}
-				else if (hr == E_OUTOFMEMORY)
-				{
-					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
-				}
-				else if (hr == E_INVALIDARG)
-				{
-					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
-				}
-
-				if (!bEnabled)
-				{
-					StopIntelExtensions();
-				}
+			if (GRHISupportsAtomicUInt64 && bIntelSupportsUAVOverlap)
+			{
+				break;
 			}
 		}
-		else
-		{
-			UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework not found"));
-		}
+	}
+
+	check(IntelExtensionContext == nullptr);
+	INTCExtensionAppInfo AppInfo = {};
+	AppInfo.pEngineName = TEXT("Unreal Engine");
+	AppInfo.EngineVersion = 5;
+
+	HRESULT hr = INTC_D3D11_CreateDeviceExtensionContext(Direct3DDevice, &IntelExtensionContext, &INTCExtensionInfo, &AppInfo);
+	bool bEnabled = false;
+	if (SUCCEEDED(hr))
+	{
+		bEnabled = true;
+		UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework enabled"));
+	}
+	else if (hr == E_OUTOFMEMORY)
+	{
+		UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
+	}
+	else if (hr == E_INVALIDARG)
+	{
+		UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
+	}
+
+	if (!bEnabled)
+	{
+		GRHISupportsAtomicUInt64 = false;
+		StopIntelExtensions();
+	}
+
+	if (SupportedExtensionsVersions != nullptr)
+	{
+		delete[] SupportedExtensionsVersions;
 	}
 }
 
 void FD3D11DynamicRHI::StopIntelExtensions()
 {
-	if(IntelExtensionContext && IntelExtensions.DestroyDeviceExtensionContext && bAllowVendorDevice)
+	if(IntelExtensionContext && bAllowVendorDevice)
 	{
-		HRESULT hr = IntelExtensions.DestroyDeviceExtensionContext(&IntelExtensionContext);
+		HRESULT hr = INTC_DestroyDeviceExtensionContext(&IntelExtensionContext);
 
 		if (hr == S_OK)
 		{
@@ -1498,7 +1470,6 @@ void FD3D11DynamicRHI::StopIntelExtensions()
 		}
 
 		IntelExtensionContext = nullptr;
-		IntelD3D11ExtensionFuncs = nullptr;
 	}
 }
 #endif // INTEL_EXTENSIONS
@@ -2029,15 +2000,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		CACHE_NV_AFTERMATH_ENABLED();
 
-		if (GRHISupportsAtomicUInt64)
-		{
-			UE_LOG(LogD3D11RHI, Log, TEXT("RHI has support for 64 bit atomics"));
-		}
-		else
-		{
-			UE_LOG(LogD3D11RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
-		}
-
 #if PLATFORM_WINDOWS
 		IUnknown* RenderDoc;
 		IID RenderDocID;
@@ -2109,6 +2071,15 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			StartIntelExtensions();
 		}
 #endif // INTEL_EXTENSIONS
+
+		if (GRHISupportsAtomicUInt64)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("RHI has support for 64 bit atomics"));
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
+		}
 
 #if INTEL_METRICSDISCOVERY
 		if (IsRHIDeviceIntel() && bAllowVendorDevice)

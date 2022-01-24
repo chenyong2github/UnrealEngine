@@ -923,7 +923,10 @@ static void CreatePipelineStateWithExtensions(ID3D12PipelineState** PSO, FD3D12A
 		}
 		else if (Extension.VendorId == 0x8086) // INTEL
 		{
-			// TODO: https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+			// https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+			// No special create override needed, pass through to default:
+			CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+			return;
 		}
 	}
 

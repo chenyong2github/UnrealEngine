@@ -2,7 +2,7 @@
 <TpsData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>Intel Extensions Framework</Name>
   <Location>//UE4/Dev-Rendering/Engine/Source/ThirdParty/Intel/ExtensionsFramework</Location>
-  <Function>We include the file in our source and call the functions in there. No binary files or libraries (object), just a pair of headers. Exact same case as NVAPI and AMD_AGS.</Function>
+  <Function>Allows for enhanced rendering functionality on Intel GPUs.</Function>
   <Eula>Included in the header file.</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>

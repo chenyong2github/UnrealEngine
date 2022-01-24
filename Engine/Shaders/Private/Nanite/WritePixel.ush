@@ -14,6 +14,8 @@
 #define RASTER_TECHNIQUE_AMD_DX11	3
 #define RASTER_TECHNIQUE_AMD_DX12	4
 #define RASTER_TECHNIQUE_DEPTHONLY	5
+#define RASTER_TECHNIQUE_INTC_DX11	6
+#define RASTER_TECHNIQUE_INTC_DX12	7
 
 #if RASTER_TECHNIQUE == RASTER_TECHNIQUE_FALLBACK
 #define COHERENCY_FLAG globallycoherent
@@ -46,6 +48,14 @@ RWTexture2D<uint> 						LockBuffer;
 
 #elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
 #include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
+
+#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX11
+#define INTEL_SHADER_EXT_UAV_SLOT u7
+#include "/Engine/Shared/ThirdParty/Intel/IntelExtensions.h"
+
+#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX12
+#define INTEL_SHADER_EXT_UAV_SLOT u7
+#include "/Engine/Shared/ThirdParty/Intel/IntelExtensions12.h"
 #endif
 
 void WritePixel(
@@ -78,6 +88,12 @@ void WritePixel(
 	AmdDxExtShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
 #elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
 	AmdExtD3DShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
+#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX11
+	IntelExt_Init();
+	IntelExt_InterlockedMaxUint64(OutBuffer, PixelPos, Pixel);
+#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX12
+	IntelExt_Init();
+	IntelExt_InterlockedMaxUint64(OutBuffer, PixelPos, Pixel);
 #else
 	// YOLO SYNC: Surprisingly this seems to work in practice (for compute, not pixel). Tested on 2080Ti and 1080.
 	uint PrevDepth;

@@ -38,6 +38,8 @@ public class D3D12RHI : ModuleRules
             PrecompileForTargets = PrecompileTargetsType.None;
         }
 
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+
         if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
             Target.Platform == UnrealTargetPlatform.HoloLens)
 		{

@@ -9,8 +9,8 @@
 #if !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "nvapi.h"
-#include "amd_ags.h"
+	#include "nvapi.h"
+	#include "amd_ags.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
@@ -842,6 +842,17 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		}
 		else
 #endif
+#if INTEL_EXTENSIONS
+		if (EnumHasAnyFlags(Flags, ETextureCreateFlags::Atomic64Compatible) && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+		{
+			INTC_D3D11_TEXTURE2D_DESC IntelDesc{};
+			IntelDesc.EmulatedTyped64bitAtomics = true;
+			IntelDesc.pD3D11Desc = &TextureDesc;
+
+			VERIFYD3D11RESULT(INTC_D3D11_CreateTexture2D(IntelExtensionContext, &IntelDesc, CreateInfo.BulkData != nullptr ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : nullptr, TextureResource.GetInitReference()));
+		}
+		else
+#endif
 		{
 			SafeCreateTexture2D(Direct3DDevice, Format, &TextureDesc, CreateInfo.BulkData != NULL ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : NULL, TextureResource.GetInitReference());
 		}
@@ -1321,7 +1332,20 @@ FTexture2DRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX,uint32 S
 		SubResourceData[MipIndex].SysMemSlicePitch = MipSize;
 	}
 
-	SafeCreateTexture2D(Direct3DDevice, Format, &TextureDesc,SubResourceData,TextureResource.GetInitReference());
+#if INTEL_EXTENSIONS
+	if (EnumHasAnyFlags(Flags, ETextureCreateFlags::Atomic64Compatible) && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+	{
+		INTC_D3D11_TEXTURE2D_DESC IntelDesc{};
+		IntelDesc.EmulatedTyped64bitAtomics = true;
+		IntelDesc.pD3D11Desc = &TextureDesc;
+
+		INTC_D3D11_CreateTexture2D(IntelExtensionContext, &IntelDesc, SubResourceData, TextureResource.GetInitReference());
+	}
+	else
+#endif
+	{
+		SafeCreateTexture2D(Direct3DDevice, Format, &TextureDesc, SubResourceData, TextureResource.GetInitReference());
+	}
 
 	if (TempBufferSize != ZeroBufferSize)
 	{

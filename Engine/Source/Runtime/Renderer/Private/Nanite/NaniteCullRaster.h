@@ -43,6 +43,12 @@ enum class ERasterTechnique : uint8
 	// Use 32-bit atomics for depth, no payload.
 	DepthOnly = 5,
 
+	// Use 64-bit atomics provided by Intel vendor extension [Direct3D 11].
+	INTCAtomicsD3D11 = 6,
+
+	// Use 64-bit atomics provided by Intel vendor extension [Direct3D 12].
+	INTCAtomicsD3D12 = 7,
+
 	// Add before this.
 	NumTechniques
 };

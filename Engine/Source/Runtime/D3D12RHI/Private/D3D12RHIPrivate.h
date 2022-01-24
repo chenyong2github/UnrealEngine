@@ -225,6 +225,8 @@ struct FD3D12RayTracingPipelineInfo
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 
+struct INTCExtensionContext;
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
@@ -1066,6 +1068,8 @@ public:
 	void SetAmdSupportedExtensionFlags(uint32 Flags) { AmdSupportedExtensionFlags = Flags; }
 	uint32 GetAmdSupportedExtensionFlags() const { return AmdSupportedExtensionFlags; }
 
+	INTCExtensionContext* GetIntelExtensionContext() { return IntelExtensionContext; }
+
 protected:
 
 	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
@@ -1087,6 +1091,8 @@ protected:
 	 */
 	AGSContext* AmdAgsContext;
 	uint32 AmdSupportedExtensionFlags;
+
+	INTCExtensionContext* IntelExtensionContext = nullptr;
 
 	/** A buffer in system memory containing all zeroes of the specified size. */
 	void* ZeroBuffer;

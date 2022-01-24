@@ -64,7 +64,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LE
 	AmdAgsContext(NULL),
 #if INTEL_EXTENSIONS
 	IntelExtensionContext(nullptr),
-	IntelD3D11ExtensionFuncs(nullptr),
+	bIntelSupportsUAVOverlap(false),
 #endif
 	bCurrentDepthStencilStateIsReadOnly(false),
 	CurrentDepthTexture(NULL),

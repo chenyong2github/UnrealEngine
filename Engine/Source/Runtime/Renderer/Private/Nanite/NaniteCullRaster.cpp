@@ -273,7 +273,9 @@ public:
 
 		if ((RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
@@ -287,7 +289,9 @@ public:
 	{
 		if (RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Need to force optimization for driver injection to work correctly.
 			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
@@ -295,7 +299,8 @@ public:
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 		}
 
-		if (RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		if (RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) || 
+			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Force shader model 6.0+
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
@@ -762,7 +767,9 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
@@ -827,7 +834,9 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Need to force optimization for driver injection to work correctly.
 			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
@@ -835,7 +844,8 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Force shader model 6.0+
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
@@ -903,7 +913,9 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
@@ -949,7 +961,9 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Need to force optimization for driver injection to work correctly.
 			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
@@ -1031,7 +1045,9 @@ public:
 
 		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
@@ -1095,7 +1111,9 @@ public:
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Need to force optimization for driver injection to work correctly.
 			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
@@ -1103,7 +1121,8 @@ public:
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
 		{
 			// Force shader model 6.0+
 			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
@@ -1900,6 +1919,9 @@ FRasterContext InitRasterContext(
 	{
 		// Determine what is providing support for atomics.
 #if PLATFORM_WINDOWS
+		// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
+		static const bool bIsDx12 = FCString::Stristr(GDynamicRHI->GetName(), TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
+
 		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[SharedContext.FeatureLevel]))
 		{
 			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
@@ -1917,9 +1939,6 @@ FRasterContext InitRasterContext(
 		}
 		else if (IsRHIDeviceAMD())
 		{
-			// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
-			static const bool bIsDx12 = FCString::Stristr(GDynamicRHI->GetName(), TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
-
 			// Support is provided through AGS.
 			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::AMDAtomicsD3D12 : ERasterTechnique::AMDAtomicsD3D11;
 
@@ -1928,6 +1947,10 @@ FRasterContext InitRasterContext(
 			{
 				RasterContext.RasterScheduling = ERasterScheduling::HardwareOnly;
 			}
+		}
+		else if (IsRHIDeviceIntel())
+		{
+			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::INTCAtomicsD3D12 : ERasterTechnique::INTCAtomicsD3D11;
 		}
 #else
 		RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
@@ -1938,8 +1961,8 @@ FRasterContext InitRasterContext(
 
 	RasterContext.DepthBuffer	= ExternalDepthBuffer ? ExternalDepthBuffer :
 								  GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DepthBuffer32") );
-	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.VisBuffer64") );
-	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer64") );
+	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | ETextureCreateFlags::Atomic64Compatible), TEXT("Nanite.VisBuffer64") );
+	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | ETextureCreateFlags::Atomic64Compatible), TEXT("Nanite.DbgBuffer64") );
 	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer32") );
 	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("Nanite.LockBuffer") );
 	

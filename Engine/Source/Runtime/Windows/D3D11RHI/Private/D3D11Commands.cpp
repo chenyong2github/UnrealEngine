@@ -20,9 +20,6 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include "nvapi.h"
 	#include "amd_ags.h"
-#if INTEL_EXTENSIONS
-	#include "igd11ext.h"
-#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
@@ -1885,9 +1882,9 @@ void FD3D11DynamicRHI::EnableUAVOverlap()
 	else if (IsRHIDeviceIntel())
 	{
 #if INTEL_EXTENSIONS
-		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap)
+		if (bIntelSupportsUAVOverlap)
 		{
-			IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap(IntelExtensionContext);
+			INTC_D3D11_BeginUAVOverlap(IntelExtensionContext);
 		}
 #endif
 	}
@@ -1915,9 +1912,9 @@ void FD3D11DynamicRHI::DisableUAVOverlap()
 	else if (IsRHIDeviceIntel())
 	{
 #if INTEL_EXTENSIONS
-		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap)
+		if (bIntelSupportsUAVOverlap)
 		{
-			IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap(IntelExtensionContext);
+			INTC_D3D11_EndUAVOverlap(IntelExtensionContext);
 		}
 #endif
 	}

@@ -23,6 +23,14 @@
 #else
 	#define NV_API_ENABLE 0
 #endif
+
+#if INTEL_EXTENSIONS
+	#define INTC_IGDEXT_D3D12 1
+
+	THIRD_PARTY_INCLUDES_START
+	#include "igdext.h"
+	THIRD_PARTY_INCLUDES_END
+#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
@@ -1037,6 +1045,90 @@ void FD3D12DynamicRHI::Init()
 		}
 	}
 #endif // AMD_API_ENABLE
+
+#if INTEL_EXTENSIONS
+	if (IsRHIDeviceIntel() && bAllowVendorDevice)
+	{
+		const INTCExtensionVersion AtomicsRequiredVersion = { 3, 4, 1 }; //version 3.4.1
+		INTCExtensionVersion* SupportedExtensionsVersions = nullptr;
+		uint32_t SupportedExtensionsVersionCount = 0;
+		INTCExtensionInfo INTCExtensionInfo{};
+
+		if (FAILED(INTC_LoadExtensionsLibrary(false)))
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Failed to load Intel Extensions Library"));
+		}
+
+		if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(GetAdapter().GetD3DDevice(), nullptr, &SupportedExtensionsVersionCount)))
+		{
+			SupportedExtensionsVersions = new INTCExtensionVersion[SupportedExtensionsVersionCount]{};
+		}
+
+		if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(GetAdapter().GetD3DDevice(), SupportedExtensionsVersions, &SupportedExtensionsVersionCount)) && SupportedExtensionsVersions != nullptr)
+		{
+			for (uint32_t i = 0; i < SupportedExtensionsVersionCount; i++)
+			{
+				if ((SupportedExtensionsVersions[i].HWFeatureLevel >= AtomicsRequiredVersion.HWFeatureLevel) &&
+					(SupportedExtensionsVersions[i].APIVersion >= AtomicsRequiredVersion.APIVersion) &&
+					(SupportedExtensionsVersions[i].Revision >= AtomicsRequiredVersion.Revision))
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions loaded requested version: %u.%u.%u"),
+						SupportedExtensionsVersions[i].HWFeatureLevel,
+						SupportedExtensionsVersions[i].APIVersion,
+						SupportedExtensionsVersions[i].Revision);
+
+					INTCExtensionInfo.RequestedExtensionVersion = SupportedExtensionsVersions[i];
+					GRHISupportsAtomicUInt64 = true;
+					break;
+				}
+			}
+		}
+
+		check(IntelExtensionContext == nullptr);
+		INTCExtensionAppInfo AppInfo{};
+		AppInfo.pEngineName = TEXT("Unreal Engine");
+		AppInfo.EngineVersion = 5;
+
+		HRESULT hr = INTC_D3D12_CreateDeviceExtensionContext(GetAdapter().GetD3DDevice(), &IntelExtensionContext, &INTCExtensionInfo, &AppInfo);
+
+		bool bEnabled = false;
+		if (SUCCEEDED(hr))
+		{
+			bEnabled = true;
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework enabled"));
+		}
+		else if (hr == E_OUTOFMEMORY)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
+		}
+		else if (hr == E_INVALIDARG)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
+		}
+
+		if (!bEnabled && IntelExtensionContext)
+		{
+			hr = INTC_DestroyDeviceExtensionContext(&IntelExtensionContext);
+
+			if (hr == S_OK)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework unloaded"));
+			}
+			else if (hr == E_INVALIDARG)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework error when unloading"));
+			}
+
+			IntelExtensionContext = nullptr;
+		}
+
+		if (SupportedExtensionsVersions != nullptr)
+		{
+			delete[] SupportedExtensionsVersions;
+		}
+
+	}
+#endif INTEL_EXTENSIONS
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
 

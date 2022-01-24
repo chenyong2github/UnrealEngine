@@ -8,6 +8,14 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 #include "EngineModule.h"
 #include "HAL/LowLevelMemTracker.h"
 
+#if INTEL_EXTENSIONS
+	#define INTC_IGDEXT_D3D12 1
+
+	THIRD_PARTY_INCLUDES_START
+	#include "igdext.h"
+	THIRD_PARTY_INCLUDES_END
+#endif
+
 D3D12RHI_API int32 GD3D12AsyncDeferredDeletion = ASYNC_DEFERRED_DELETION;
 
 static FAutoConsoleVariableRef CVarAsyncDeferredDeletion(
@@ -502,7 +510,21 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 	}
 #endif // D3D12_RHI_RAYTRACING
 
-	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	HRESULT hr = S_OK;
+#if INTEL_EXTENSIONS
+	if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+	{
+		INTC_D3D12_RESOURCE_DESC_0001 IntelLocalDesc{};
+		IntelLocalDesc.pD3D12Desc = &LocalDesc;
+		IntelLocalDesc.EmulatedTyped64bitAtomics = true;
+
+		hr = INTC_D3D12_CreateCommittedResource(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), &HeapProps, HeapFlags, &IntelLocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
+	else
+#endif
+	{
+		hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
 	if (SUCCEEDED(hr))
 	{
 		// Set the output pointer
@@ -543,7 +565,22 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD
 	ID3D12Heap* Heap = BackingHeap->GetHeap();
 
 	TRefCountPtr<ID3D12Resource> pResource;
-	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	HRESULT hr = S_OK;
+#if INTEL_EXTENSIONS
+	if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+	{
+		FD3D12ResourceDesc LocalDesc = InDesc;
+		INTC_D3D12_RESOURCE_DESC_0001 IntelLocalDesc{};
+		IntelLocalDesc.pD3D12Desc = &LocalDesc;
+		IntelLocalDesc.EmulatedTyped64bitAtomics = true;
+
+		hr = INTC_D3D12_CreatePlacedResource(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), Heap, HeapOffset, &IntelLocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
+	else
+#endif
+	{
+		hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
 	if (SUCCEEDED(hr))
 	{
 		FD3D12Device* Device = BackingHeap->GetParentDevice();
