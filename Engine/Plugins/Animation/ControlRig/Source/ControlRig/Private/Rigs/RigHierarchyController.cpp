@@ -1751,7 +1751,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	return NumElementsRemoved == 1;
 }
 
-FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo, bool bPrintPythonCommand)
+FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo, bool bPrintPythonCommand, bool bClearSelection)
 {
 	if(!IsValid())
 	{
@@ -1774,7 +1774,7 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	}
 #endif
 
-	const bool bRenamed = RenameElement(Element, InName);
+	const bool bRenamed = RenameElement(Element, InName, bClearSelection);
 
 #if WITH_EDITOR
 	if(!bRenamed && TransactionPtr.IsValid())
@@ -1783,7 +1783,7 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	}
 	TransactionPtr.Reset();
 
-	if (bRenamed)
+	if (bRenamed && bClearSelection)
 	{
 		ClearSelection();
 	}
@@ -1804,7 +1804,7 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	return bRenamed ? Element->GetKey() : FRigElementKey();
 }
 
-bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FName &InName)
+bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FName &InName, bool bClearSelection)
 {
 	if(InElement == nullptr)
 	{
@@ -1820,6 +1820,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 
 	// deselect the key that no longer exists
 	// no need to trigger a reselect since we always clear selection after rename
+	const bool bWasSelected = Hierarchy->IsSelected(InElement); 
 	if (Hierarchy->IsSelected(InElement))
 	{
 		DeselectElement(OldKey);
@@ -1869,6 +1870,11 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	Hierarchy->PreviousNameMap.FindOrAdd(NewKey) = OldKey;
 	Hierarchy->IncrementTopologyVersion();
 	Notify(ERigHierarchyNotification::ElementRenamed, InElement);
+
+	if (!bClearSelection && bWasSelected)
+	{
+		SelectElement(InElement->GetKey(), true);
+	}
 
 	return true;
 }

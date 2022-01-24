@@ -358,10 +358,11 @@ public:
 	 * @param InName The new name to set for the element
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
 	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
+	 * @param bClearSelection True if the selection should be cleared after a rename
 	 * @return Returns the new element key used for the element
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FRigElementKey RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo = false, bool bPrintPythonCommand = false);
+    FRigElementKey RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo = false, bool bPrintPythonCommand = false, bool bClearSelection = true);
 
 	/**
 	 * Adds a new parent to an element. For elements that allow only one parent the parent will be replaced (Same as ::SetParent).
@@ -553,9 +554,10 @@ private:
 	 * Renames an existing element in the hierarchy
 	 * @param InElement The element to rename
 	 * @param InName The new name to set for the element
+	 * @param bClearSelection True if the selection should be cleared after a rename
 	 * @return Returns true if successful.
 	 */
-    bool RenameElement(FRigBaseElement* InElement, const FName &InName);
+    bool RenameElement(FRigBaseElement* InElement, const FName &InName, bool bClearSelection = true);
 
 	/**
 	 * Removes an existing parent from an element in the hierarchy. For elements that allow only one parent the element will be unparented (same as ::RemoveAllParents)

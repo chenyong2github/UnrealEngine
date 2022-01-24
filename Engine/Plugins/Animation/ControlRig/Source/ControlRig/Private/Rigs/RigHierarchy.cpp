@@ -2088,6 +2088,42 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 		return;
 	}
 	ModifiedEvent.Broadcast(InNotifType, this, InElement);
+
+#if WITH_EDITOR
+
+	// certain events needs to be forwarded to the listening hierarchies.
+	// this mainly has to do with topological change within the hierarchy.
+	switch (InNotifType)
+	{
+		case ERigHierarchyNotification::ElementAdded:
+		case ERigHierarchyNotification::ElementRemoved:
+		case ERigHierarchyNotification::ElementRenamed:
+		case ERigHierarchyNotification::ParentChanged:
+		case ERigHierarchyNotification::ParentWeightsChanged:
+		{
+			ensure(InElement != nullptr);
+				
+			for(FRigHierarchyListener& Listener : ListeningHierarchies)
+			{
+				URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+				if (ListeningHierarchy)
+				{			
+					if(const FRigBaseElement* ListeningElement = ListeningHierarchy->Find( InElement->GetKey()))
+					{
+						ListeningHierarchy->Notify(InNotifType, ListeningElement);
+					}
+				}
+			}
+
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+#endif
 }
 
 FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,

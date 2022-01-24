@@ -2096,7 +2096,7 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 		const FName SanitizedName = *SanitizedNameStr;
 		FName ResultingName = NAME_None;
 
-		ResultingName = Controller->RenameElement(OldKey, SanitizedName, true, true).Name;
+		ResultingName = Controller->RenameElement(OldKey, SanitizedName, true, true, false).Name;
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 		return ResultingName;
 	}
