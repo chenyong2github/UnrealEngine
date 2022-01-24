@@ -26,6 +26,11 @@ bool UNiagaraMergeable::Equals(const UNiagaraMergeable* Other)
 
 	for (TFieldIterator<FProperty> PropertyIterator(this->GetClass()); PropertyIterator; ++PropertyIterator)
 	{
+		if (PropertyIterator->HasAnyPropertyFlags(CPF_Transient))
+		{
+			// Transient properties should not be used to determine merge equality.
+			continue;
+		}
 		if (PropertyIterator->Identical(
 			PropertyIterator->ContainerPtrToValuePtr<void>(this),
 			PropertyIterator->ContainerPtrToValuePtr<void>(Other), PPF_DeepComparison) == false)
