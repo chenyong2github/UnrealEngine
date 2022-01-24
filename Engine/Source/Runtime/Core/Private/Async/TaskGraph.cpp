@@ -2064,7 +2064,7 @@ private:
 
 	bool IsCurrentThreadKnown() final override
 	{
-		return FPlatformTLS::GetTlsValue(PerThreadIDTLSSlot) != nullptr || LowLevelTasks::FScheduler::GetActiveTask() != nullptr;
+		return FPlatformTLS::GetTlsValue(PerThreadIDTLSSlot) != nullptr || LowLevelTasks::FTask::GetActiveTask() != nullptr;
 	}
 
 	ENamedThreads::Type GetCurrentThreadIfKnown(bool bLocalQueue) final override
@@ -2308,7 +2308,7 @@ private:
 		}
 		else 
 		{
-			const LowLevelTasks::FTask* Task = LowLevelTasks::FScheduler::GetActiveTask();
+			const LowLevelTasks::FTask* Task = LowLevelTasks::FTask::GetActiveTask();
 			if (Task != nullptr)
 			{
 				ENamedThreads::Type ThreadConversion[int(LowLevelTasks::ETaskPriority::Count)] = { ENamedThreads::HighThreadPriority, ENamedThreads::NormalThreadPriority, ENamedThreads::BackgroundThreadPriority, ENamedThreads::BackgroundThreadPriority, ENamedThreads::BackgroundThreadPriority };

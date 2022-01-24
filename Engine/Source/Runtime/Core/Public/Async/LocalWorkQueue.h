@@ -61,7 +61,7 @@ public:
 	{
 		if (Priority == LowLevelTasks::ETaskPriority::Count)
 		{
-			const LowLevelTasks::FTask* ActiveTask = LowLevelTasks::FScheduler::Get().GetActiveTask();
+			const LowLevelTasks::FTask* ActiveTask = LowLevelTasks::FTask::GetActiveTask();
 			if (ActiveTask)
 			{
 				Priority = ActiveTask->GetPriority();

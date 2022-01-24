@@ -100,7 +100,6 @@ namespace LowLevelTasks
 			Foreground,
 		};
 
-		static thread_local FTask* ActiveTask;
 		static thread_local FSchedulerTls* ActiveScheduler;
 		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local EWorkerType WorkerType;
@@ -110,9 +109,6 @@ namespace LowLevelTasks
 	public:
 		CORE_API bool IsWorkerThread() const;
 
-		//get the active task if any
-		CORE_API static const FTask* GetActiveTask();
-
 		// returns true if the current thread execution is in the context of busy-waiting
 		CORE_API static bool IsBusyWaiting();
 
@@ -120,11 +116,6 @@ namespace LowLevelTasks
 		CORE_API static uint32 GetAffinityIndex();
 
 	protected:
-		inline static bool PermitBackgroundWork()
-		{
-			return ActiveTask && ActiveTask->IsBackgroundTask();
-		}
-
 		inline static bool IsBackgroundWorker()
 		{
 			return WorkerType == EWorkerType::Background;
@@ -135,8 +126,6 @@ namespace LowLevelTasks
 	{
 		UE_NONCOPYABLE(FScheduler);
 		static constexpr uint32 WorkerSpinCycles = 53;
-
-		static thread_local FTask* ActiveTask;
 
 		static CORE_API FScheduler Singleton;
 

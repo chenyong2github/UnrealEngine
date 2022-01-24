@@ -13,7 +13,7 @@ namespace LowLevelTasks
 	DEFINE_LOG_CATEGORY(LowLevelTasks);
 
 	thread_local FSchedulerTls::FLocalQueueType* FSchedulerTls::LocalQueue = nullptr;
-	thread_local FTask* FSchedulerTls::ActiveTask = nullptr;
+	thread_local FTask* FTask::ActiveTask = nullptr;
 	thread_local FSchedulerTls* FSchedulerTls::ActiveScheduler = nullptr;
 	thread_local FSchedulerTls::EWorkerType FSchedulerTls::WorkerType = FSchedulerTls::EWorkerType::None;
 	thread_local uint32 FSchedulerTls::BusyWaitingDepth = 0;
@@ -25,7 +25,7 @@ namespace LowLevelTasks
 		RegisteredLocalQueue = FSchedulerTls::LocalQueue == nullptr;
 		if (RegisteredLocalQueue)
 		{
-			bool bPermitBackgroundWork = FSchedulerTls::PermitBackgroundWork();
+			bool bPermitBackgroundWork = FTask::PermitBackgroundWork();
 			FSchedulerTls::LocalQueue = FSchedulerTls::FLocalQueueType::AllocateLocalQueue(Scheduler.QueueRegistry, bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
 		}
 	}
@@ -34,7 +34,7 @@ namespace LowLevelTasks
 	{
 		if (RegisteredLocalQueue)
 		{
-			bool bPermitBackgroundWork = FSchedulerTls::PermitBackgroundWork();
+			bool bPermitBackgroundWork = FTask::PermitBackgroundWork();
 			FSchedulerTls::FLocalQueueType::DeleteLocalQueue(FSchedulerTls::LocalQueue, bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
 			FSchedulerTls::LocalQueue = nullptr;
 		}
@@ -217,11 +217,6 @@ namespace LowLevelTasks
 		}
 	}
 
-	const FTask* FSchedulerTls::GetActiveTask() 
-	{
-		return ActiveTask;
-	}
-
 	bool FSchedulerTls::IsWorkerThread() const
 	{
 		return WorkerType != FSchedulerTls::EWorkerType::None && ActiveScheduler == this;
@@ -239,31 +234,6 @@ namespace LowLevelTasks
 			return LocalQueue->GetAffinityIndex();
 		}
 		return ~0;
-	}
-
-	void FTask::InheritParentData(const TCHAR*& DebugName, ETaskPriority& Priority)
-	{
-		const FTask* ActiveTask = FSchedulerTls::GetActiveTask();
-		if (ActiveTask != nullptr)
-		{
-			if(DebugName == nullptr)
-			{
-				DebugName = ActiveTask->GetDebugName();
-			}
-			if (Priority == ETaskPriority::Inherit)
-			{
-				Priority = ActiveTask->GetPriority();
-			}
-			UserData = ActiveTask->GetUserData();
-		}
-		else
-		{
-			if (Priority == ETaskPriority::Inherit)
-			{
-				Priority = ETaskPriority::Default;
-			}
-			UserData = nullptr;
-		}
 	}
 
 	template<FTask* (FSchedulerTls::FLocalQueueType::*DequeueFunction)(bool, bool), bool bIsBusyWaiting>
@@ -287,8 +257,8 @@ namespace LowLevelTasks
 						WakeUpWorker(!bPermitBackgroundWork);
 					}
 				}
-				FTask* OldTask = FSchedulerTls::ActiveTask;
-				FSchedulerTls::ActiveTask = Task;
+				FTask* OldTask = FTask::ActiveTask;
+				FTask::ActiveTask = Task;
 				{
 #if UE_TASK_TRACE_ENABLED
 					if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(TaskTrace::TaskChannel))
@@ -300,7 +270,7 @@ namespace LowLevelTasks
 #endif
 					Task->ExecuteTask();
 				}
-				FSchedulerTls::ActiveTask = OldTask;
+				FTask::ActiveTask = OldTask;
 				return true;
 			}
 			return false;
@@ -406,7 +376,7 @@ namespace LowLevelTasks
 		uint32 WaitCount = 0;
 		bool HasWokenEmergencyWorker = false;
 		const bool bIsBackgroundWorker = FSchedulerTls::IsBackgroundWorker();
-		bool bPermitBackgroundWork = FSchedulerTls::PermitBackgroundWork() || ForceAllowBackgroundWork;
+		bool bPermitBackgroundWork = FTask::PermitBackgroundWork() || ForceAllowBackgroundWork;
 		FSchedulerTls::FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
 		while (true)
 		{

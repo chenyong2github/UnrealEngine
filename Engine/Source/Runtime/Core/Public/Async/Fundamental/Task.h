@@ -203,6 +203,8 @@ namespace LowLevelTasks
 		friend class FScheduler;
 		UE_NONCOPYABLE(FTask); //means non movable
 
+		static thread_local FTask* ActiveTask;
+
 	public: //Public Interface
 		//means the task is completed and this taskhandle can be recycled
 		inline bool IsCompleted(std::memory_order MemoryOrder = std::memory_order_seq_cst) const
@@ -225,7 +227,12 @@ namespace LowLevelTasks
 			return State == ETaskState::Ready || State == ETaskState::CanceledAndReady; 
 		}
 
-		
+		//get the currently active task if any
+		CORE_API static const FTask* GetActiveTask()
+		{
+			return ActiveTask;
+		}
+
 		//try to cancel the task if it has not been launched yet and ExecuteTaskOnSuccess is true the continuation will run immediately.
 		inline bool TryCancel(bool ExecuteTaskOnSuccess = true);
 
@@ -268,15 +275,46 @@ namespace LowLevelTasks
 		inline ~FTask();
 
 	private: //Interface of the Scheduler
+		inline static bool PermitBackgroundWork()
+		{
+			return ActiveTask && ActiveTask->IsBackgroundTask();
+		}
+
 		inline bool TryPrepareLaunch();
 		//after calling this function the task can be considered dead
 		inline void ExecuteTask();
-		CORE_API void InheritParentData(const TCHAR*& DebugName, ETaskPriority& Priority);
+		inline void InheritParentData(ETaskPriority& Priority);
 	};
 
    /******************
 	* IMPLEMENTATION *
 	******************/
+
+	inline ETaskPriority FTask::GetPriority() const 
+	{ 
+		return PackedData.load(std::memory_order_relaxed).GetPriority(); 
+	}
+
+	inline void FTask::InheritParentData(ETaskPriority& Priority)
+	{
+		const FTask* LocalActiveTask = FTask::GetActiveTask();
+		if (LocalActiveTask != nullptr)
+		{
+			if (Priority == ETaskPriority::Inherit)
+			{
+				Priority = LocalActiveTask->GetPriority();
+			}
+			UserData = LocalActiveTask->GetUserData();
+		}
+		else
+		{
+			if (Priority == ETaskPriority::Inherit)
+			{
+				Priority = ETaskPriority::Default;
+			}
+			UserData = nullptr;
+		}
+	}
 
 	template<typename TRunnable, typename TContinuation>
 	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting)
@@ -301,7 +339,7 @@ namespace LowLevelTasks
 				return true;
 			}
 		};
-		InheritParentData(InDebugName, InPriority);
+		InheritParentData(InPriority);
 		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready, bAllowBusyWaiting), std::memory_order_release);
 	}
 
@@ -326,7 +364,7 @@ namespace LowLevelTasks
 				return true;
 			}
 		};
-		InheritParentData(InDebugName, InPriority);
+		InheritParentData(InPriority);
 		PackedData.store(FPackedData(InDebugName, InPriority, ETaskState::Ready, bAllowBusyWaiting), std::memory_order_release);
 	}
 
@@ -395,11 +433,6 @@ namespace LowLevelTasks
 		//as by defitition the task can be considered dead
 		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
 		PackedData.store(FPackedData(LocalPackedData, Canceled ? ETaskState::CanceledAndCompleted : ETaskState::Completed), std::memory_order_seq_cst);
-	}
-
-	inline ETaskPriority FTask::GetPriority() const 
-	{ 
-		return PackedData.load(std::memory_order_relaxed).GetPriority(); 
 	}
 
 	inline const TCHAR* FTask::GetDebugName() const
