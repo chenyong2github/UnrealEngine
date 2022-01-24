@@ -37,60 +37,6 @@ static TAutoConsoleVariable<bool> CVarBPImportParentClassNamespaces(
 	false,
 	TEXT("Enables import of parent class namespaces when opening a Blueprint for editing."));
 
-static void UpdateNamespaceFeatureSettingsCVarSinkFunction()
-{
-	// Note: Do NOT try to access settings objects below during the initial editor load! They rely on the config being loaded, which may not have occurred yet.
-	if (GIsInitialLoad || !GEditor)
-	{
-		return;
-	}
-
-	auto CheckAndUpdateSettingValueLambda = [](bool& CurValue, const bool NewValue) -> bool
-	{
-		if (CurValue != NewValue)
-		{
-			CurValue = NewValue;
-			return true;
-		}
-
-		return false;
-	};
-
-	bool bWasUpdated = false;
-
-	// Blueprint editor settings.
-	UBlueprintEditorSettings* BlueprintEditorSettingsPtr = GetMutableDefault<UBlueprintEditorSettings>();
-	bWasUpdated |= CheckAndUpdateSettingValueLambda(BlueprintEditorSettingsPtr->bEnableNamespaceFilteringFeatures, CVarBPEnableNamespaceFilteringFeatures.GetValueOnGameThread());
-	bWasUpdated |= CheckAndUpdateSettingValueLambda(BlueprintEditorSettingsPtr->bEnableNamespaceImportingFeatures, CVarBPEnableNamespaceImportingFeatures.GetValueOnGameThread());
-
-	if (bWasUpdated)
-	{
-		// Refresh all relevant open Blueprint editor UI elements.
-		// @todo_namespaces - Move this into PostEditChangeProperty() on the appropriate settings object(s).
-		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
-		{
-			TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
-			for (UObject* Asset : EditedAssets)
-			{
-				if (Asset && Asset->IsA<UBlueprint>())
-				{
-					TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
-					if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
-					{
-						TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
-						BlueprintEditorPtr->RefreshEditors();
-						BlueprintEditorPtr->RefreshInspector();
-					}
-				}
-			}
-		}
-	}
-}
-
-static FAutoConsoleVariableSink CVarUpdateNamespaceFeatureSettingsSink(
-	FConsoleCommandDelegate::CreateStatic(&UpdateNamespaceFeatureSettingsCVarSinkFunction)
-);
-
 // ---
 
 class FClassViewerNamespaceFilter : public IClassViewerFilter
@@ -274,6 +220,63 @@ bool FBlueprintNamespaceHelper::IsImportedAsset(const FAssetData& InAssetData) c
 
 	// Return whether or not the namespace was added, explicitly or otherwise.
 	return IsIncludedInNamespaceList(Namespace);
+}
+
+namespace UE::Editor::Kismet::Private
+{
+	static void OnUpdateNamespaceEditorFeatureConsoleFlag(IConsoleVariable* InCVar, bool* InValuePtr)
+	{
+		check(InCVar);
+
+		// Skip if not set by console command; in that case we're updating the flag directly.
+		if ((InCVar->GetFlags() & ECVF_SetByMask) != ECVF_SetByConsole)
+		{
+			return;
+		}
+
+		// Update the editor setting (referenced) to match the console variable's new setting.
+		check(InValuePtr);
+		*InValuePtr = InCVar->GetBool();
+
+		// Refresh the Blueprint editor UI environment in response to the console variable change.
+		FBlueprintNamespaceUtilities::RefreshBlueprintEditorFeatures();
+	}
+}
+
+void FBlueprintNamespaceHelper::RefreshEditorFeatureConsoleFlags()
+{
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+
+	// Register callbacks to respond to flag changes via console.
+	static bool bIsInitialized = false;
+	if (!bIsInitialized)
+	{
+		auto InitCVarFlag = [](IConsoleVariable* InCVar, bool& InValueRef)
+		{
+			using namespace UE::Editor::Kismet::Private;
+			InCVar->OnChangedDelegate().AddStatic(&OnUpdateNamespaceEditorFeatureConsoleFlag, &InValueRef);
+		};
+
+		InitCVarFlag(CVarBPEnableNamespaceFilteringFeatures.AsVariable(), BlueprintEditorSettings->bEnableNamespaceFilteringFeatures);
+		InitCVarFlag(CVarBPEnableNamespaceImportingFeatures.AsVariable(), BlueprintEditorSettings->bEnableNamespaceImportingFeatures);
+
+		bIsInitialized = true;
+	}
+
+	// Update console variables to match current Blueprint editor settings.
+	static bool bIsUpdating = false;
+	if (!bIsUpdating)
+	{
+		TGuardValue<bool> ScopeGuard(bIsUpdating, true);
+
+		auto SetCVarFlag = [](IConsoleVariable* InCVar, bool& InValueRef)
+		{
+			InCVar->Set(InValueRef);
+		};
+
+		SetCVarFlag(CVarBPEnableNamespaceFilteringFeatures.AsVariable(), BlueprintEditorSettings->bEnableNamespaceFilteringFeatures);
+		SetCVarFlag(CVarBPEnableNamespaceImportingFeatures.AsVariable(), BlueprintEditorSettings->bEnableNamespaceImportingFeatures);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

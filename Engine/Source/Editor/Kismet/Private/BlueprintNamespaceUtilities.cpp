@@ -6,6 +6,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "EdGraphSchema_K2.h"
 #include "Misc/AssertionMacros.h"
+#include "BlueprintEditorModule.h"
+#include "Toolkits/ToolkitManager.h"
 
 namespace UE::Editor::Kismet::Private
 {
@@ -249,4 +251,31 @@ FBlueprintNamespaceUtilities::FOnDefaultBlueprintNamespaceTypeChanged& FBlueprin
 {
 	using namespace UE::Editor::Kismet::Private;
 	return OnDefaultBlueprintNamespaceTypeChangedDelegate;
+}
+
+void FBlueprintNamespaceUtilities::RefreshBlueprintEditorFeatures()
+{
+	if (!GEditor)
+	{
+		return;
+	}
+
+	// Refresh all relevant open Blueprint editor UI elements.
+	if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
+		for (UObject* Asset : EditedAssets)
+		{
+			if (Asset && Asset->IsA<UBlueprint>())
+			{
+				TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
+				if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
+				{
+					TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
+					BlueprintEditorPtr->RefreshEditors();
+					BlueprintEditorPtr->RefreshInspector();
+				}
+			}
+		}
+	}
 }

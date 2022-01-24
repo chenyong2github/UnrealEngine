@@ -94,6 +94,11 @@ public:
 		return PinTypeSelectorFilter;
 	}
 
+	/**
+	 * Utility method used to keep console flags in sync with the current Blueprint editor settings environment.
+	 */
+	static void RefreshEditorFeatureConsoleFlags();
+
 private:
 	// Path tree that stores imported namespace identifiers for the associated Blueprint.
 	TUniquePtr<FBlueprintNamespacePathTree> NamespacePathTree;

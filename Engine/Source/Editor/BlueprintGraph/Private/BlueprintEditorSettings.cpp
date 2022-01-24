@@ -10,6 +10,8 @@
 #include "Editor.h"
 #include "BlueprintTypePromotion.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "BlueprintNamespaceHelper.h"
+#include "BlueprintNamespaceUtilities.h"
 
 UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,6 +39,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, BreakpointReloadMethod(EBlueprintBreakpointReloadMethod::RestoreAll)
 	, bEnablePinValueInspectionTooltips(true)
 	// Experimental
+	, bEnableNamespaceEditorFeatures(false)
 	, bEnableNamespaceFilteringFeatures(false)
 	, bEnableNamespaceImportingFeatures(false)
 	, bFavorPureCastNodes(false)
@@ -100,6 +103,19 @@ void UBlueprintEditorSettings::OnAssetRemoved(UObject* Object)
 	}
 }
 
+void UBlueprintEditorSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	// Initialize transient flags and console variables for namespace editor features from the config.
+	// @todo_namespaces - May be removed once dependent code is changed to utilize the config setting.
+	bEnableNamespaceFilteringFeatures = bEnableNamespaceEditorFeatures;
+	bEnableNamespaceImportingFeatures = bEnableNamespaceEditorFeatures;
+
+	// Update console flags to match the current configuration.
+	FBlueprintNamespaceHelper::RefreshEditorFeatureConsoleFlags();
+}
+
 void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -123,6 +139,20 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	if (bShouldRebuildRegistry)
 	{
 		FBlueprintActionDatabase::Get().RefreshAll();
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bEnableNamespaceEditorFeatures))
+	{
+		// Update transient settings and console variable flags to reflect the new config setting value.
+		// @todo_namespaces - May be removed once dependent code is changed to utilize the config setting.
+		bEnableNamespaceFilteringFeatures = bEnableNamespaceEditorFeatures;
+		bEnableNamespaceImportingFeatures = bEnableNamespaceEditorFeatures;
+
+		// Update console flags to match the current configuration.
+		FBlueprintNamespaceHelper::RefreshEditorFeatureConsoleFlags();
+
+		// Refresh the Blueprint editor UI environment to match current settings.
+		FBlueprintNamespaceUtilities::RefreshBlueprintEditorFeatures();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

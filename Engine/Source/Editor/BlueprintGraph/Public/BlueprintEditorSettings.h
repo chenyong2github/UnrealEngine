@@ -145,14 +145,18 @@ public:
 
 // Experimental
 public:
+	/** Whether to enable namespace importing and filtering features in the Blueprint editor */
+	UPROPERTY(config, EditAnywhere, Category = Experimental)
+	bool bEnableNamespaceEditorFeatures;
+
 	/** Whether to enable namespace filtering features in the Blueprint editor */
-	// @todo_namespaces - Make this a non-transient editable config property.
-	UPROPERTY(Transient/*, Category = Experimental*/)
+	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
+	UPROPERTY(Transient)
 	bool bEnableNamespaceFilteringFeatures;
 
 	/** Whether to enable namespace importing features in the Blueprint editor */
-	// @todo_namespaces - Make this a non-transient editable config property.
-	UPROPERTY(Transient/*, Category = Experimental*/)
+	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
+	UPROPERTY(Transient)
 	bool bEnableNamespaceImportingFeatures;
 
 	// The list of namespaces to always expose in any Blueprint (local per-user)
@@ -255,6 +259,7 @@ public:
 
 protected:
 	//~ Begin UObject Interface
+	virtual void PostInitProperties();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 	

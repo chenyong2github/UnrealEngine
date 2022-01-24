@@ -67,4 +67,9 @@ public:
 	/** Delegate invoked whenever the default Blueprint namespace type changes. */
 	DECLARE_MULTICAST_DELEGATE(FOnDefaultBlueprintNamespaceTypeChanged);
 	static FOnDefaultBlueprintNamespaceTypeChanged& OnDefaultBlueprintNamespaceTypeChanged();
+
+	/**
+	 * Refresh the Blueprint editor environment to align with current namespace editor feature settings.
+	 */
+	static void RefreshBlueprintEditorFeatures();
 };
