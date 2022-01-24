@@ -284,15 +284,22 @@ void FD3D12DescriptorCache::SetVertexBuffers(FD3D12VertexBufferCache& Cache)
 	CmdContext->CommandListHandle.UpdateResidency(Cache.ResidencyHandles, Count);
 	CmdContext->CommandListHandle->IASetVertexBuffers(0, Count, Cache.CurrentVertexBufferViews);
 
-	for (uint32 i = 0; i < Count; ++i)
+	// Only set the state when using internal tracking (we have to trust high level state setup for external transitions)
+	// Problem is that Cache can contain buffers which have already transitioned to another state but are still left in the vertex buffer cache (nothing new bound on that slot yet)
+	// This is 'fine' as long as these vertex buffers are not used but will be bound via above call as vertex buffers with possible incorrect state.
+	// The vertex buffer state should be validated on each draw in RHIValidation to catch incorrect usage then.
+	if (CmdContext->CommandListHandle.GetTransitionMode() == ED3D12ResourceBarrierTransitionMode::Internal)
 	{
-		if (Cache.CurrentVertexBufferResources[i])
+		for (uint32 i = 0; i < Count; ++i)
 		{
-			FD3D12Resource* Resource = Cache.CurrentVertexBufferResources[i]->GetResource();
-			if (Resource && Resource->RequiresResourceStateTracking())
+			if (Cache.CurrentVertexBufferResources[i])
 			{
-				check(Resource->GetSubresourceCount() == 1);
-				FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+				FD3D12Resource* Resource = Cache.CurrentVertexBufferResources[i]->GetResource();
+				if (Resource && Resource->RequiresResourceStateTracking())
+				{
+					check(Resource->GetSubresourceCount() == 1);
+					FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+				}
 			}
 		}
 	}
@@ -570,7 +577,7 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 			D3D12_RESOURCE_STATES State = (ShaderStage == SF_Compute) ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			if (SRVs[SlotIndex]->IsDepthStencilResource())
 			{
-				if (GUseInternalTransitions)
+				if (CommandList.GetTransitionMode() == ED3D12ResourceBarrierTransitionMode::Internal)
 				{
 					State |= D3D12_RESOURCE_STATE_DEPTH_READ;
 				}

@@ -505,7 +505,7 @@ FGPUTimingCalibrationTimestamp FD3D12CommandListManager::GetCalibrationTimestamp
 	return Result;
 }
 
-FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, bool bHasBackbufferWriteTransition)
+FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, ED3D12ResourceBarrierTransitionMode bInTransitionMode, bool bHasBackbufferWriteTransition)
 {
 	FD3D12CommandListHandle List;
 	if (!ReadyLists.Dequeue(List))
@@ -515,7 +515,7 @@ FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12Comman
 	}
 
 	check(List.GetCommandListType() == CommandListType);
-	List.Reset(CommandAllocator, ShouldTrackCommandListTime() && !(bHasBackbufferWriteTransition && bExcludeBackbufferWriteTransitionTime));
+	List.Reset(CommandAllocator, bInTransitionMode, ShouldTrackCommandListTime() && !(bHasBackbufferWriteTransition && bExcludeBackbufferWriteTransitionTime));
 	return List;
 }
 
@@ -1024,7 +1024,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FBarrierDescInfo&
 			ResourceBarrierCommandAllocator = ResourceBarrierCommandAllocatorManager.ObtainCommandAllocator();
 		}
 
-		hResourceBarrierList = ObtainCommandList(*ResourceBarrierCommandAllocator, InBarrierDescInfo.BackBufferBarrierDescs.Num() > 0);
+		hResourceBarrierList = ObtainCommandList(*ResourceBarrierCommandAllocator, ED3D12ResourceBarrierTransitionMode::External, InBarrierDescInfo.BackBufferBarrierDescs.Num() > 0);
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 		hResourceBarrierList.UpdateResidency(InBarrierDescInfo.ResidencyHandles.GetData(), InBarrierDescInfo.ResidencyHandles.Num());

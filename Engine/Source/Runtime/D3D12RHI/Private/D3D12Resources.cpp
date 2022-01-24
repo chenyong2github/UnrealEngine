@@ -1026,8 +1026,6 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 			else
 			{
 				// Force in the readable state when there are different states (or use just state of subresource 0?)
-				// ideally restore all subresources in correct state? needed for when not using GUseInternalTransitions anymore because then it needs to match the set state from the engine
-				check(GUseInternalTransitions);
 				CreateState = CurrentResource->GetReadableState();
 			}
 			ResourceStateMode = ED3D12ResourceStateMode::MultiState;

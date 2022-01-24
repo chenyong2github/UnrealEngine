@@ -172,7 +172,7 @@ namespace RHIValidation
 
 		TRHIPipelineArray<FPipelineState> States;
 
-		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline Pipeline, void* CreateTrace);
+		void BeginTransition   (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline Pipeline, ERHITransitionAccessMode TransitionAccessMode, void* CreateTrace);
 		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline Pipeline, void* CreateTrace);
 		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
 		void SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, ERHIPipeline Pipeline, bool bAllow);
@@ -551,7 +551,8 @@ namespace RHIValidation
 		Signal,
 		Wait,
 		AllUAVsOverlap,
-		SpecificUAVOverlap
+		SpecificUAVOverlap,
+		SetTransitionAccessMode,
 	};
 
 	struct FUniformBufferResource
@@ -642,9 +643,14 @@ namespace RHIValidation
 				FResourceIdentity Identity;
 				bool bAllow;
 			} Data_SpecificUAVOverlap;
+
+			struct
+			{
+				ERHITransitionAccessMode TransitionAccessMode;
+			} Data_SetTransitionAccessMode;
 		};
 
-		RHI_API EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const;
+		RHI_API EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, ERHITransitionAccessMode& TransitionAccessMode) const;
 
 		static inline FOperation BeginTransitionResource(FResourceIdentity Identity, FState PreviousState, FState NextState, EResourceTransitionFlags Flags, void* CreateBacktrace)
 		{
@@ -784,6 +790,14 @@ namespace RHIValidation
 			Op.Data_SpecificUAVOverlap.bAllow = bAllow;
 			return MoveTemp(Op);
 		}
+
+		static inline FOperation SetTransitionAccessMode(ERHITransitionAccessMode Mode)
+		{
+			FOperation Op;
+			Op.Type = EOpType::SetTransitionAccessMode;
+			Op.Data_SetTransitionAccessMode.TransitionAccessMode = Mode;
+			return MoveTemp(Op);
+		}
 	};
 
 	struct FOperationsList
@@ -791,12 +805,12 @@ namespace RHIValidation
 		TArray<FOperation> Operations;
 		int32 OperationPos = 0;
 
-		inline EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap)
+		inline EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, ERHITransitionAccessMode& TransitionAccessMode)
 		{
 			EReplayStatus Status = EReplayStatus::Normal;
 			for (; OperationPos < Operations.Num(); ++OperationPos)
 			{
-				Status |= Operations[OperationPos].Replay(Pipeline, bAllowAllUAVsOverlap);
+				Status |= Operations[OperationPos].Replay(Pipeline, bAllowAllUAVsOverlap, TransitionAccessMode);
 				if (EnumHasAllFlags(Status, EReplayStatus::Waiting))
 				{
 					break;
@@ -960,6 +974,11 @@ namespace RHIValidation
 			AddOp(FOperation::SpecificUAVOverlap(Identity, bAllow));
 		}
 
+		inline void SetTransitionAccessMode(ERHITransitionAccessMode Mode)
+		{
+			AddOp(FOperation::SetTransitionAccessMode(Mode));
+		}
+
 		inline void Dispatch()
 		{
 			UAVTrackers[int32(EUAVMode::Compute)].DrawOrDispatch(this, FState(ERHIAccess::UAVCompute, Pipeline));
@@ -1010,6 +1029,7 @@ namespace RHIValidation
 		{
 			bool bWaiting = false;
 			bool bAllowAllUAVsOverlap = false;
+			ERHITransitionAccessMode TransitionAccessMode = ERHITransitionAccessMode::Default;
 
 			FOperationsList Ops;
 		} static RHI_API OpQueues[int32(ERHIPipeline::Num)];

@@ -572,7 +572,7 @@ FD3D12LinearQueryHeap::~FD3D12LinearQueryHeap()
 	ReleaseResources();
 }
 
-int32 FD3D12LinearQueryHeap::BeginQuery(FD3D12CommandListHandle CmdListHandle)
+int32 FD3D12LinearQueryHeap::BeginQuery(FD3D12CommandListHandle& CmdListHandle)
 {
 	const int32 SlotIdx = AllocateQueryHeapSlot();
 	const int32 HeapIdx = SlotIdx >> SlotToHeapIdxShift;
@@ -589,7 +589,7 @@ int32 FD3D12LinearQueryHeap::BeginQuery(FD3D12CommandListHandle CmdListHandle)
 	return SlotIdx - TailSlot;
 }
 
-int32 FD3D12LinearQueryHeap::EndQuery(FD3D12CommandListHandle CmdListHandle)
+int32 FD3D12LinearQueryHeap::EndQuery(FD3D12CommandListHandle& CmdListHandle)
 {
 	const int32 SlotIdx = AllocateQueryHeapSlot();
 	const int32 HeapIdx = SlotIdx >> SlotToHeapIdxShift;

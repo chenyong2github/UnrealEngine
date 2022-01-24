@@ -9,6 +9,13 @@ D3D12CommandList.h: Implementation of D3D12 Command List functions
 
 class FD3D12Device;
 
+enum class ED3D12ResourceBarrierTransitionMode
+{
+	Internal,		//< Use the RHI internal transition and resource tracking on the command list
+	External,		//< Use the RHITransition to push the resource transitions (optionally can validate the state via the internal transitions)
+					//< NOTE: only works when all RHITransitions are fully defined and don't contain any ERHIAccess::Unknown states
+};
+
 class FD3D12CommandAllocator : public FNoncopyable
 {
 public:
@@ -65,7 +72,7 @@ private:
 
 		// Reset the command list with a specified command allocator and optional initial state.
 		// Note: Command lists can be reset immediately after they are submitted for execution.
-		void Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime);
+		void Reset(FD3D12CommandAllocator& CommandAllocator, ED3D12ResourceBarrierTransitionMode bInTransitionMode, bool bTrackExecTime);
 
 		bool IsComplete(uint64 Generation)
 		{
@@ -251,6 +258,9 @@ private:
 		// Value should be only used for identity, not for synchronization. Valid values are guaranteed to be > 0.
 		uint64 CommandListID;
 
+		// Barrier transition mode used on the command list
+		ED3D12ResourceBarrierTransitionMode ResourceBarrierTransitionMode;
+
 		// Batches resource barriers together until it's explicitly flushed
 		FD3D12ResourceBarrierBatcher ResourceBarrierBatcher;
 
@@ -385,10 +395,10 @@ public:
 
 	// Reset the command list with a specified command allocator and optional initial state.
 	// Note: Command lists can be reset immediately after they are submitted for execution.
-	void Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime = false)
+	void Reset(FD3D12CommandAllocator& CommandAllocator, ED3D12ResourceBarrierTransitionMode bInTransitionMode, bool bTrackExecTime)
 	{
 		check(CommandListData);
-		CommandListData->Reset(CommandAllocator, bTrackExecTime);
+		CommandListData->Reset(CommandAllocator, bInTransitionMode, bTrackExecTime);
 	}
 	
 	ID3D12CommandList* CommandList() const
@@ -521,6 +531,18 @@ public:
 	{
 		check(CommandListData);
 		return CommandListData->TrackedResourceState.GetResourceState(pResource);
+	}
+
+	ED3D12ResourceBarrierTransitionMode GetTransitionMode() const
+	{
+		check(CommandListData);
+		return CommandListData->ResourceBarrierTransitionMode;
+	}
+
+	void SetTransitionMode(ED3D12ResourceBarrierTransitionMode InMode)
+	{
+		check(CommandListData);
+		CommandListData->ResourceBarrierTransitionMode = InMode;
 	}
 
 	D3D12RHI_API void AddPendingResourceBarrier(FD3D12Resource* Resource, D3D12_RESOURCE_STATES State, uint32 SubResource);

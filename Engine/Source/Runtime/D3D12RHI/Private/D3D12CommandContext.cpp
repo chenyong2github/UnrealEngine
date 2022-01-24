@@ -140,6 +140,9 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12Command
 	FMemory::Memzero(CurrentRenderTargets);
 	StateCache.Init(GetParentDevice(), this, nullptr);
 	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
+
+	// Set the default transition access mode
+	TransitionAccessMode = ERHITransitionAccessMode::Default;
 }
 
 FD3D12CommandContext::~FD3D12CommandContext()
@@ -316,7 +319,8 @@ void FD3D12CommandContext::OpenCommandList()
 	ConditionalObtainCommandAllocator();
 
 	// Get a new command list
-	CommandListHandle = GetCommandListManager().ObtainCommandList(*CommandAllocator);
+	ED3D12ResourceBarrierTransitionMode TransitionMode = TransitionAccessMode == ERHITransitionAccessMode::DisallowUnknown ? ED3D12ResourceBarrierTransitionMode::External: ED3D12ResourceBarrierTransitionMode::Internal;
+	CommandListHandle = GetCommandListManager().ObtainCommandList(*CommandAllocator, TransitionMode);
 	CommandListHandle.SetCurrentOwningContext(this);
 
 	// Notify the descriptor cache about the new command list
@@ -424,6 +428,12 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 			// Restore the state from the previous command list.
 			OpenCommandList();
 		}
+	}
+	else
+	{
+		// just update the transition access mode then if nothing has been enqueued yet (can also close and enqueue empty command but feels a lot less efficient)
+		ED3D12ResourceBarrierTransitionMode TransitionMode = TransitionAccessMode == ERHITransitionAccessMode::DisallowUnknown ? ED3D12ResourceBarrierTransitionMode::External : ED3D12ResourceBarrierTransitionMode::Internal;
+		CommandListHandle.SetTransitionMode(TransitionMode);
 	}
 
 	return CommandListHandle;
