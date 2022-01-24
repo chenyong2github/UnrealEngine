@@ -13,6 +13,7 @@
 
 namespace UE::Online {
 
+class FAuthEOS;
 struct FLobbyPrerequisitesEOS;
 class FLobbyDataEOS;
 class FLobbyDataRegistryEOS;
@@ -20,8 +21,8 @@ class FLobbyDetailsEOS;
 class FLobbyInviteDataEOS;
 class FOnlineServicesEOS;
 class FLobbySearchEOS;
-struct FLobbyDataChanges;
-struct FLobbyMemberDataChanges;
+struct FClientLobbyDataChanges;
+struct FClientLobbyMemberDataChanges;
 	
 class FLobbiesEOS : public FLobbiesCommon
 {
@@ -32,7 +33,7 @@ public:
 	virtual void PreShutdown() override;
 
 	virtual TOnlineAsyncOpHandle<FCreateLobby> CreateLobby(FCreateLobby::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FFindLobby> FindLobby(FFindLobby::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FFindLobbies> FindLobbies(FFindLobbies::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinLobby> JoinLobby(FJoinLobby::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveLobby> LeaveLobby(FLeaveLobby::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FInviteLobbyMember> InviteLobbyMember(FInviteLobbyMember::Params&& Params) override;
@@ -68,7 +69,7 @@ protected:
 	{
 		static constexpr TCHAR Name[] = TEXT("JoinLobbyImpl");
 
-		struct Params : public FJoinLobby::Params
+		struct Params
 		{
 			// The lobby handle data.
 			TSharedPtr<FLobbyDataEOS> LobbyData;
@@ -113,6 +114,7 @@ protected:
 	};
 
 	TOnlineAsyncOpHandle<FJoinLobbyMemberImpl> JoinLobbyMemberImplOp(FJoinLobbyMemberImpl::Params&& Params);
+	TFuture<TDefaultErrorResult<FJoinLobbyMemberImpl>> JoinLobbyMemberImpl(FJoinLobbyMemberImpl::Params&& Params);
 
 	struct FLeaveLobbyImpl
 	{
@@ -256,8 +258,11 @@ protected:
 			FOnlineAccountIdHandle LocalUserId;
 
 			// The changes to apply to the lobby data.
-			TSharedPtr<FLobbyDataChanges> Changes;
+			TSharedPtr<FClientLobbyDataChanges> Changes;
 		};
+
+		// Todo: += operator.
+		// Mergeable op must be queued by lobby id.
 
 		struct Result
 		{
@@ -279,8 +284,11 @@ protected:
 			FOnlineAccountIdHandle LocalUserId;
 
 			// The changes to apply to the lobby member data.
-			TSharedPtr<FLobbyMemberDataChanges> Changes;
+			TSharedPtr<FClientLobbyMemberDataChanges> Changes;
 		};
+
+		// Todo: += operator.
+		// Mergeable op must be queued on union of lobby id + lobby member account id.
 
 		struct Result
 		{
@@ -288,6 +296,32 @@ protected:
 	};
 
 	TFuture<TDefaultErrorResult<FModifyLobbyMemberDataImpl>> ModifyLobbyMemberDataImpl(FModifyLobbyMemberDataImpl::Params&& Params);
+
+	struct FProcessLobbyNotificationImpl
+	{
+		static constexpr TCHAR Name[] = TEXT("ProcessLobbyNotificationImpl");
+
+		struct Params
+		{
+			// The lobby handle data.
+			TSharedPtr<FLobbyDataEOS> LobbyData;
+
+			// Joining / mutated members.
+			TSet<EOS_ProductUserId> MutatedMembers;
+
+			// Leaving members.
+			TMap<EOS_ProductUserId, ELobbyMemberLeaveReason> LeavingMembers;
+		};
+
+		// Todo: += operator.
+		// Mergeable op must be queued by lobby id.
+
+		struct Result
+		{
+		};
+	};
+
+	TOnlineAsyncOpHandle<FProcessLobbyNotificationImpl> ProcessLobbyNotificationImplOp(FProcessLobbyNotificationImpl::Params&& Params);
 
 	FString LobbyBucketId;
 

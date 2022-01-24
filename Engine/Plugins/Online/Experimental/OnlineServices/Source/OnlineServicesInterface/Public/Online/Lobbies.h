@@ -5,29 +5,78 @@
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/CoreOnline.h"
 #include "Online/OnlineMeta.h"
+#include "Misc/TVariant.h"
 
 namespace UE::Online {
 
-typedef FName FLobbySchemaId;
-typedef FName FLobbyAttributeId;
-using FLobbyVariant = FString; // TODO:  Import FVariantData
+using FLobbySchemaId = FName;
+using FLobbyAttributeId = FName;
+
+class FLobbyVariant
+{
+public:
+	using FVariantType = TVariant<FString, int64, double, bool>;
+	FLobbyVariant() = default;
+	FLobbyVariant(const FLobbyVariant& InOther) : VariantData(InOther.VariantData) {}
+	FLobbyVariant(FLobbyVariant&& InOther) : VariantData(MoveTemp(InOther.VariantData)) {}
+	FLobbyVariant& operator=(FLobbyVariant&&) = default;
+	FLobbyVariant& operator=(const FLobbyVariant&) = default;
+
+	template<typename ValueType>
+	FLobbyVariant(const ValueType& InData) { Set(MoveTempIfPossible(InData)); }
+	void Set(const TCHAR* AsString) { VariantData.Emplace<FString>(AsString); }
+	void Set(const FString& AsString) { VariantData.Emplace<FString>(AsString); }
+	void Set(FString&& AsString) { VariantData.Emplace<FString>(MoveTemp(AsString)); }
+	void Set(int64 AsInt) { VariantData.Emplace<int64>(AsInt); }
+	void Set(double AsDouble) { VariantData.Emplace<double>(AsDouble); }
+	void Set(bool bAsBool) { VariantData.Emplace<bool>(bAsBool); }
+	ONLINESERVICESINTERFACE_API int64 GetInt64() const;
+	ONLINESERVICESINTERFACE_API double GetDouble() const;
+	ONLINESERVICESINTERFACE_API bool GetBoolean() const;
+	ONLINESERVICESINTERFACE_API FString GetString() const;
+
+	ONLINESERVICESINTERFACE_API bool operator==(const FLobbyVariant& Other) const;
+	bool operator!=(const FLobbyVariant& Other) const { return !(*this == Other); }
+public:
+	FVariantType VariantData;
+};
+ONLINESERVICESINTERFACE_API const FString LexToString(const FLobbyVariant& Variant);
+ONLINESERVICESINTERFACE_API void LexFromString(FLobbyVariant& Variant, const TCHAR* InStr);
 
 enum class ELobbyJoinPolicy : uint8
 {
 	/** 
 	* Lobby can be found through searches based on attribute matching,
-	*  by knowing the lobby id, or by invitation.
+	* by knowing the lobby id, or by invitation.
 	*/
 	PublicAdvertised,
 
-	/**  Lobby may be joined by knowing the lobby id or by invitation. */
+	/** Lobby may be joined by knowing the lobby id or by invitation. */
 	PublicNotAdvertised,
 
-	/**  Lobby may only be joined by invitation. */
+	/** Lobby may only be joined by invitation. */
 	InvitationOnly,
 };
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyJoinPolicy Policy);
 ONLINESERVICESINTERFACE_API void LexFromString(ELobbyJoinPolicy& OutPolicy, const TCHAR* InStr);
+
+enum class ELobbyMemberLeaveReason
+{
+	/** The lobby member explicitly left the lobby. */
+	Left,
+
+	/** The lobby member was kicked from the lobby by the lobby owner. */
+	Kicked,
+
+	/** The lobby member unexpectedly left. */
+	Disconnected,
+
+	/**
+	* The lobby was destroyed by the service.
+	* All members have left.
+	*/
+	Closed
+};
 
 enum class ELobbyAttributeVisibility
 {
@@ -52,7 +101,7 @@ struct FLobby
 	int32 MaxMembers;
 	ELobbyJoinPolicy JoinPolicy;
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-	TArray<TSharedRef<const FLobbyMember>> Members;
+	TMap<FOnlineAccountIdHandle, TSharedRef<const FLobbyMember>> Members;
 };
 
 struct FJoinLobbyLocalUserData
@@ -132,33 +181,33 @@ struct FCreateLobby
 	};
 };
 
-struct FFindLobby
+struct FFindLobbies
 {
-	static constexpr TCHAR Name[] = TEXT("FindLobby");
+	static constexpr TCHAR Name[] = TEXT("FindLobbies");
 
-	/** Input struct for Lobbies::FindLobby */
+	/** Input struct for Lobbies::FindLobbies */
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
 		FOnlineAccountIdHandle LocalUserId;
 
-		/** 
+		/**
 		* Max results to return in one search.
 		*  Actual count may be smaller based on implementation.
 		*/
 		uint32 MaxResults = 20;
 
-		/**  Filters to apply when searching for lobbies. */
+		/** Filters to apply when searching for lobbies. */
 		TArray<FFindLobbySearchFilter> Filters;
 
-		/**  Find lobbies containing the target user. */
+		/** Find lobbies containing the target user. */
 		TOptional<FOnlineAccountIdHandle> TargetUser;
 
-		/**  Find join info for the target lobby id. */
+		/** Find join info for the target lobby id. */
 		TOptional<FOnlineLobbyIdHandle> LobbyId;
 	};
 
-	/** Output struct for Lobbies::FindLobby */
+	/** Output struct for Lobbies::FindLobbies */
 	struct Result
 	{
 		TArray<TSharedRef<const FLobby>> Lobbies;
@@ -187,16 +236,16 @@ struct FJoinLobby
 	/** Input struct for Lobbies::JoinLobby */
 	struct Params
 	{
-		/**  The local user agent which will perform the action. */
+		/** The local user agent which will perform the action. */
 		FOnlineAccountIdHandle LocalUserId;
 
-		/**  The local name for the lobby. */
+		/** The local name for the lobby. */
 		FName LocalName;
 
-		/**  The id of the lobby to be joined. */
+		/** The id of the lobby to be joined. */
 		FOnlineLobbyIdHandle LobbyId;
 
-		/**  Local users who will be joining the lobby. */
+		/** Local users who will be joining the lobby. */
 		TArray<FJoinLobbyLocalUserData> LocalUsers;
 	};
 
@@ -215,10 +264,10 @@ struct FLeaveLobby
 	/** Input struct for Lobbies::LeaveLobby */
 	struct Params
 	{
-		/**  The local user agent which will perform the action. */
+		/** The local user agent which will perform the action. */
 		FOnlineAccountIdHandle LocalUserId;
 
-		/**  Id of the lobby to leave. */
+		/** Id of the lobby to leave. */
 		FOnlineLobbyIdHandle LobbyId;
 	};
 
@@ -235,13 +284,13 @@ struct FInviteLobbyMember
 	/** Input struct for Lobbies::InviteLobbyMember */
 	struct Params
 	{
-		/**  The local user agent which will perform the action. */
+		/** The local user agent which will perform the action. */
 		FOnlineAccountIdHandle LocalUserId;
 
-		/**  Id of the lobby for which the invitation will be sent. */
+		/** Id of the lobby for which the invitation will be sent. */
 		FOnlineLobbyIdHandle LobbyId;
 
-		/**  Id of the player who will be sent the invitation. */
+		/** Id of the player who will be sent the invitation. */
 		FOnlineAccountIdHandle TargetUserId;
 	};
 
@@ -258,10 +307,10 @@ struct FDeclineLobbyInvitation
 	/** Input struct for Lobbies::DeclineLobbyInvitation */
 	struct Params
 	{
-		/**  The local user agent which will perform the action. */
+		/** The local user agent which will perform the action. */
 		FOnlineAccountIdHandle LocalUserId;
 
-		// Id of the lobby for which the invitations will be declined.
+		/** Id of the lobby for which the invitations will be declined. */
 		FOnlineLobbyIdHandle LobbyId;
 	};
 
@@ -421,7 +470,7 @@ struct FGetJoinedLobbies
 	/** Output struct for Lobbies::GetJoinedLobbies */
 	struct Result
 	{
-		TArray<TSharedRef<FLobby>> Lobbies;
+		TArray<TSharedRef<const FLobby>> Lobbies;
 	};
 };
 
@@ -478,26 +527,50 @@ struct FLobbyMemberLeft
 	/** Member data access. */
 	TSharedRef<const FLobbyMember> Member;
 
+	/** Context for the member leaving. */
+	ELobbyMemberLeaveReason Reason;
+
 };
 
 /** Struct for LobbyLeaderChanged event */
 struct FLobbyLeaderChanged
 {
+	/** Lobby data access. */
+	TSharedRef<const FLobby> Lobby;
+
+	/** Leader data access. */
+	TSharedRef<const FLobbyMember> Leader;
 };
 
 /** Struct for LobbySchemaChanged event */
 struct FLobbySchemaChanged
 {
+	/** Lobby data access. */
+	TSharedRef<const FLobby> Lobby;
 };
 
 /** Struct for LobbyAttributesChanged event */
 struct FLobbyAttributesChanged
 {
+	/** Lobby data access. */
+	TSharedRef<const FLobby> Lobby;
+
+	/** Attribute keys which changed. */
+	TSet<FLobbyAttributeId> ChangedAttributes;
+
 };
 
 /** Struct for LobbyMemberAttributesChanged event */
 struct FLobbyMemberAttributesChanged
 {
+	/** Lobby data access. */
+	TSharedRef<const FLobby> Lobby;
+
+	/** Member data access. */
+	TSharedRef<const FLobbyMember> Member;
+
+	/** Attribute keys which changed. */
+	TSet<FLobbyAttributeId> ChangedAttributes;
 };
 
 /** Struct for LobbyInvitationAdded event */
@@ -547,7 +620,7 @@ public:
 	 * @param Params for the FindLobby call
 	 * @return
 	 */
-	virtual TOnlineAsyncOpHandle<FFindLobby> FindLobby(FFindLobby::Params&& Params) = 0;
+	virtual TOnlineAsyncOpHandle<FFindLobbies> FindLobbies(FFindLobbies::Params&& Params) = 0;
 
 	/**
 	 * Try to rejoin previously joined lobbies.
@@ -774,10 +847,10 @@ BEGIN_ONLINE_STRUCT_META(FCreateLobby::Result)
 	ONLINE_STRUCT_FIELD(FCreateLobby::Result, Lobby)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FFindLobby::Params)
+BEGIN_ONLINE_STRUCT_META(FFindLobbies::Params)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FFindLobby::Result)
+BEGIN_ONLINE_STRUCT_META(FFindLobbies::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRestoreLobbies::Params)

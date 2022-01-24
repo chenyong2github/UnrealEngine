@@ -150,7 +150,7 @@ void FLobbiesCommon::RegisterCommands()
 	TOnlineComponent<ILobbies>::RegisterCommands();
 
 	RegisterCommand(&FLobbiesCommon::CreateLobby);
-	RegisterCommand(&FLobbiesCommon::FindLobby);
+	RegisterCommand(&FLobbiesCommon::FindLobbies);
 	RegisterCommand(&FLobbiesCommon::RestoreLobbies);
 	RegisterCommand(&FLobbiesCommon::JoinLobby);
 	RegisterCommand(&FLobbiesCommon::LeaveLobby);
@@ -177,9 +177,9 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesCommon::CreateLobby(FCreateLobby::Par
 	return Operation->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FFindLobby> FLobbiesCommon::FindLobby(FFindLobby::Params&& Params)
+TOnlineAsyncOpHandle<FFindLobbies> FLobbiesCommon::FindLobbies(FFindLobbies::Params&& Params)
 {
-	TOnlineAsyncOpRef<FFindLobby> Operation = GetOp<FFindLobby>(MoveTemp(Params));
+	TOnlineAsyncOpRef<FFindLobbies> Operation = GetOp<FFindLobbies>(MoveTemp(Params));
 	Operation->SetError(Errors::NotImplemented());
 	return Operation->GetHandle();
 }
@@ -273,52 +273,70 @@ TOnlineResult<FGetReceivedInvitations> FLobbiesCommon::GetReceivedInvitations(FG
 
 TOnlineEvent<void(const FLobbyJoined&)> FLobbiesCommon::OnLobbyJoined()
 {
-	return OnLobbyJoinedEvent;
+	return LobbyEvents.OnLobbyJoined;
 }
 
 TOnlineEvent<void(const FLobbyLeft&)> FLobbiesCommon::OnLobbyLeft()
 {
-	return OnLobbyLeftEvent;
+	return LobbyEvents.OnLobbyLeft;
 }
 
 TOnlineEvent<void(const FLobbyMemberJoined&)> FLobbiesCommon::OnLobbyMemberJoined()
 {
-	return OnLobbyMemberJoinedEvent;
+	return LobbyEvents.OnLobbyMemberJoined;
 }
 
 TOnlineEvent<void(const FLobbyMemberLeft&)> FLobbiesCommon::OnLobbyMemberLeft()
 {
-	return OnLobbyMemberLeftEvent;
+	return LobbyEvents.OnLobbyMemberLeft;
 }
 
 TOnlineEvent<void(const FLobbyLeaderChanged&)> FLobbiesCommon::OnLobbyLeaderChanged()
 {
-	return OnLobbyLeaderChangedEvent;
+	return LobbyEvents.OnLobbyLeaderChanged;
 }
 
 TOnlineEvent<void(const FLobbySchemaChanged&)> FLobbiesCommon::OnLobbySchemaChanged()
 {
-	return OnLobbySchemaChangedEvent;
+	return LobbyEvents.OnLobbySchemaChanged;
 }
 
 TOnlineEvent<void(const FLobbyAttributesChanged&)> FLobbiesCommon::OnLobbyAttributesChanged()
 {
-	return OnLobbyAttributesChangedEvent;
+	return LobbyEvents.OnLobbyAttributesChanged;
 }
 
 TOnlineEvent<void(const FLobbyMemberAttributesChanged&)> FLobbiesCommon::OnLobbyMemberAttributesChanged()
 {
-	return OnLobbyMemberAttributesChangedEvent;
+	return LobbyEvents.OnLobbyMemberAttributesChanged;
 }
 
 TOnlineEvent<void(const FLobbyInvitationAdded&)> FLobbiesCommon::OnLobbyInvitationAdded()
 {
-	return OnLobbyInvitationAddedEvent;
+	return LobbyEvents.OnLobbyInvitationAdded;
 }
 
 TOnlineEvent<void(const FLobbyInvitationRemoved&)> FLobbiesCommon::OnLobbyInvitationRemoved()
 {
-	return OnLobbyInvitationRemovedEvent;
+	return LobbyEvents.OnLobbyInvitationRemoved;
+}
+
+// todo: TFuture<void> does not work as expected with "Then".
+TFuture<int> AwaitNextGameTick()
+{
+	TSharedRef<TPromise<int>> Promise = MakeShared<TPromise<int>>();
+	TFuture<int> Future = Promise->GetFuture();
+
+	FTSTicker::GetCoreTicker().AddTicker(
+	TEXT("FLobbiesCommon::AwaitNextGameTick"),
+	0.f,
+	[Promise](float)
+	{
+		Promise->EmplaceValue();
+		return false;
+	});
+
+	return Future;
 }
 
 TFuture<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> FLobbiesCommon::AwaitInvitation(
@@ -348,7 +366,12 @@ TFuture<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> FLobbiesCommon::Await
 			{
 				FTSTicker::GetCoreTicker().RemoveTicker(AwaitState->OnAwaitExpiredHandle);
 				AwaitState->bSignaled = true;
-				AwaitState->Promise.EmplaceValue(LobbyId);
+
+				AwaitNextGameTick()
+				.Then([AwaitState, LobbyId](TFuture<int>&&)
+				{
+					AwaitState->Promise.EmplaceValue(LobbyId);
+				});
 			}
 		}
 	});
@@ -517,7 +540,9 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	//----------------------------------------------------------------------------------------------
 	// Test 1:
 	//    Step 1: Create a lobby with primary user.
-	//    Step 2: Leave lobby with primary user.
+	//    Step 2: Modify lobby attribute.
+	//    Step 3: Modify lobby member attribute.
+	//    Step 4: Leave lobby with primary user.
 	//----------------------------------------------------------------------------------------------
 
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
@@ -534,18 +559,117 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 		Params.SchemaName = TEXT("test");
 		Params.MaxMembers = 2;
 		Params.JoinPolicy = ELobbyJoinPolicy::InvitationOnly;
-		//Params.Attributes;
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {}});
+		Params.Attributes.Add(TEXT("test_attribute_key"), TEXT("test_attribute_value"));
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {{TEXT("test_attribute_key"), TEXT("test_attribute_value")}}});
 		return Params;
 	})
 	.Then(CaptureOperationStepResult<FCreateLobby>(*Op, CreateLobbyKeyName, &FLobbiesCommon::CreateLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
+		const FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
+		const FCreateLobby::Result& CreateResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
+
 		// Check both lobby joined events were received and in the correct order.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
 		if (EventCapture->GetTotalNotificationsReceived() != 2
 			|| EventCapture->LobbyJoined.Num() != 1 || EventCapture->LobbyMemberJoined.Num() != 1
 			|| EventCapture->LobbyJoined[0].GlobalIndex > EventCapture->LobbyMemberJoined[0].GlobalIndex)
+		{
+			InAsyncOp.SetError(Errors::Cancelled());
+		}
+
+		// Check lobby attributes are set to the expected values.
+		if (!CreateResult.Lobby->Attributes.OrderIndependentCompareEqual(
+			TMap<FLobbyAttributeId, FLobbyVariant>{{TEXT("test_attribute_key"), TEXT("test_attribute_value")}}))
+		{
+			InAsyncOp.SetError(Errors::Cancelled());
+		}
+
+		const TSharedRef<const FLobbyMember>* MemberData = CreateResult.Lobby->Members.Find(User1Info.AccountInfo->UserId);
+		if (CreateResult.Lobby->Members.Num() == 1 && MemberData != nullptr)
+		{
+			if (!(**MemberData).Attributes.OrderIndependentCompareEqual(
+				TMap<FLobbyAttributeId, FLobbyVariant>{{TEXT("test_attribute_key"), TEXT("test_attribute_value")}}))
+			{
+				InAsyncOp.SetError(Errors::Cancelled());
+			}
+		}
+		else
+		{
+			InAsyncOp.SetError(Errors::Cancelled());
+		}
+	})
+	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
+	{
+		// Prepare for next test check.
+		GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName)->Empty();
+
+		const FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
+		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
+
+		FModifyLobbyAttributes::Params Params;
+		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
+		Params.MutatedAttributes = {{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}};
+		return Params;
+	})
+	.Then(ConsumeOperationStepResult<FModifyLobbyAttributes>(*Op, &FLobbiesCommon::ModifyLobbyAttributes))
+	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
+	{
+		// Check that modification event was received.
+		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
+		if (EventCapture->LobbyAttributesChanged.Num() == 1)
+		{
+			const FLobbyAttributesChanged& Notification = EventCapture->LobbyAttributesChanged[0].Notification;
+			if (!Notification.ChangedAttributes.Difference(TSet<FLobbyAttributeId>{TEXT("test_attribute_key")}).IsEmpty() ||
+				!Notification.Lobby->Attributes.OrderIndependentCompareEqual(TMap<FLobbyAttributeId, FLobbyVariant>{{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}}))
+			{
+				InAsyncOp.SetError(Errors::Cancelled());
+			}
+		}
+		else
+		{
+			InAsyncOp.SetError(Errors::Cancelled());
+		}
+	})
+	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
+	{
+		// Prepare for next test check.
+		GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName)->Empty();
+
+		const FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
+		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
+
+		FModifyLobbyMemberAttributes::Params Params;
+		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
+		Params.MutatedAttributes = {{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}};
+		return Params;
+	})
+	.Then(ConsumeOperationStepResult<FModifyLobbyMemberAttributes>(*Op, &FLobbiesCommon::ModifyLobbyMemberAttributes))
+	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
+	{
+		const FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
+
+		// Check that modification event was received.
+		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
+		if (EventCapture->LobbyMemberAttributesChanged.Num() == 1)
+		{
+			const FLobbyMemberAttributesChanged& Notification = EventCapture->LobbyMemberAttributesChanged[0].Notification;
+			if (const TSharedRef<const FLobbyMember>* MemberData = Notification.Lobby->Members.Find(User1Info.AccountInfo->UserId))
+			{
+				if (!Notification.ChangedAttributes.Difference(TSet<FLobbyAttributeId>{TEXT("test_attribute_key")}).IsEmpty() ||
+					!(**MemberData).Attributes.OrderIndependentCompareEqual(TMap<FLobbyAttributeId, FLobbyVariant>{{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}}))
+				{
+					InAsyncOp.SetError(Errors::Cancelled());
+				}
+			}
+			else
+			{
+				InAsyncOp.SetError(Errors::Cancelled());
+			}
+		}
+		else
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
@@ -661,15 +785,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FJoinLobby>(*Op, &FLobbiesCommon::JoinLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check both lobby joined events were received and in the correct order.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
 		if (EventCapture->GetTotalNotificationsReceived() != 1 || EventCapture->LobbyMemberJoined.Num() != 1)
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
@@ -687,15 +808,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FLeaveLobby>(*Op, &FLobbiesCommon::LeaveLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check for expected events.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
-		if (EventCapture->GetTotalNotificationsReceived() != 1|| EventCapture->LobbyMemberLeft.Num())
+		if (EventCapture->GetTotalNotificationsReceived() != 1 || EventCapture->LobbyMemberLeft.Num() != 1)
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
@@ -713,8 +831,6 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FLeaveLobby>(*Op, &FLobbiesCommon::LeaveLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check for expected events.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
 		if (EventCapture->GetTotalNotificationsReceived() != 2
@@ -723,7 +839,6 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 
 	//----------------------------------------------------------------------------------------------
@@ -770,12 +885,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		// Search for lobby from create
-		FFindLobby::Params Params;
+		FFindLobbies::Params Params;
 		Params.LocalUserId = User2Info.AccountInfo->UserId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})
-	.Then(CaptureOperationStepResult<FFindLobby>(*Op, FindLobbyKeyName, &FLobbiesCommon::FindLobby))
+	.Then(CaptureOperationStepResult<FFindLobbies>(*Op, FindLobbyKeyName, &FLobbiesCommon::FindLobbies))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
 		// Prepare for next test check.
@@ -783,9 +898,8 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 
 		const FFunctionalTestLoginUser::Result& User2Info = GetOpDataChecked<FFunctionalTestLoginUser::Result>(InAsyncOp, User2KeyName);
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
-		const FFindLobby::Result& FindResults = GetOpDataChecked<FFindLobby::Result>(InAsyncOp, FindLobbyKeyName);
+		const FFindLobbies::Result& FindResults = GetOpDataChecked<FFindLobbies::Result>(InAsyncOp, FindLobbyKeyName);
 
-		// Not a valid expectation without a custom bucket.
 		if (FindResults.Lobbies.Num() != 1)
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
@@ -802,15 +916,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FJoinLobby>(*Op, &FLobbiesCommon::JoinLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check both lobby joined events were received and in the correct order.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
 		if (EventCapture->GetTotalNotificationsReceived() != 1 || EventCapture->LobbyMemberJoined.Num() != 1)
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
@@ -828,15 +939,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FLeaveLobby>(*Op, &FLobbiesCommon::LeaveLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check for expected events.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
-		if (EventCapture->GetTotalNotificationsReceived() != 1|| EventCapture->LobbyMemberLeft.Num())
+		if (EventCapture->GetTotalNotificationsReceived() != 1|| EventCapture->LobbyMemberLeft.Num() != 1)
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
@@ -854,8 +962,6 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 	.Then(ConsumeOperationStepResult<FLeaveLobby>(*Op, &FLobbiesCommon::LeaveLobby))
 	.Then([this](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
-	// todo: currently busted
-	#if 0
 		// Check for expected events.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
 		if (EventCapture->GetTotalNotificationsReceived() != 2
@@ -864,7 +970,6 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
-	#endif
 	})
 
 	//----------------------------------------------------------------------------------------------
@@ -960,7 +1065,7 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>> FLobbiesCommon
 	LogoutParams.LocalUserId = AccountInfo->UserId;
 
 	AuthInterface->Logout(MoveTemp(LogoutParams))
-	.OnComplete([Promise, PlatformUserId = Params.PlatformUserId](const TOnlineResult<FAuthLogout>& LogoutResult) mutable
+	.OnComplete([Promise, PlatformUserId = Params.PlatformUserId](const TOnlineResult<FAuthLogout>& LogoutResult)
 	{
 		if (LogoutResult.IsError())
 		{

@@ -109,6 +109,20 @@ public:
 	TSet<FLobbyAttributeId> ClearedAttributes;
 };
 
+struct FLobbyEvents final
+{
+	TOnlineEventCallable<void(const FLobbyJoined&)> OnLobbyJoined;
+	TOnlineEventCallable<void(const FLobbyLeft&)> OnLobbyLeft;
+	TOnlineEventCallable<void(const FLobbyMemberJoined&)> OnLobbyMemberJoined;
+	TOnlineEventCallable<void(const FLobbyMemberLeft&)> OnLobbyMemberLeft;
+	TOnlineEventCallable<void(const FLobbyLeaderChanged&)> OnLobbyLeaderChanged;
+	TOnlineEventCallable<void(const FLobbySchemaChanged&)> OnLobbySchemaChanged;
+	TOnlineEventCallable<void(const FLobbyAttributesChanged&)> OnLobbyAttributesChanged;
+	TOnlineEventCallable<void(const FLobbyMemberAttributesChanged&)> OnLobbyMemberAttributesChanged;
+	TOnlineEventCallable<void(const FLobbyInvitationAdded&)> OnLobbyInvitationAdded;
+	TOnlineEventCallable<void(const FLobbyInvitationRemoved&)> OnLobbyInvitationRemoved;
+};
+
 class FLobbySchema final
 {
 public:
@@ -185,7 +199,7 @@ public:
 
 	// ILobbies
 	virtual TOnlineAsyncOpHandle<FCreateLobby> CreateLobby(FCreateLobby::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FFindLobby> FindLobby(FFindLobby::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FFindLobbies> FindLobbies(FFindLobbies::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRestoreLobbies> RestoreLobbies(FRestoreLobbies::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinLobby> JoinLobby(FJoinLobby::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveLobby> LeaveLobby(FLeaveLobby::Params&& Params) override;
@@ -505,16 +519,7 @@ protected:
 		};
 	}
 
-	TOnlineEventCallable<void(const FLobbyJoined&)> OnLobbyJoinedEvent;
-	TOnlineEventCallable<void(const FLobbyLeft&)> OnLobbyLeftEvent;
-	TOnlineEventCallable<void(const FLobbyMemberJoined&)> OnLobbyMemberJoinedEvent;
-	TOnlineEventCallable<void(const FLobbyMemberLeft&)> OnLobbyMemberLeftEvent;
-	TOnlineEventCallable<void(const FLobbyLeaderChanged&)> OnLobbyLeaderChangedEvent;
-	TOnlineEventCallable<void(const FLobbySchemaChanged&)> OnLobbySchemaChangedEvent;
-	TOnlineEventCallable<void(const FLobbyAttributesChanged&)> OnLobbyAttributesChangedEvent;
-	TOnlineEventCallable<void(const FLobbyMemberAttributesChanged&)> OnLobbyMemberAttributesChangedEvent;
-	TOnlineEventCallable<void(const FLobbyInvitationAdded&)> OnLobbyInvitationAddedEvent;
-	TOnlineEventCallable<void(const FLobbyInvitationRemoved&)> OnLobbyInvitationRemovedEvent;
+	FLobbyEvents LobbyEvents;
 
 	TSharedPtr<FLobbySchemaRegistry> LobbySchemaRegistry;
 	TSharedPtr<FLobbySchema> ServiceSchema;

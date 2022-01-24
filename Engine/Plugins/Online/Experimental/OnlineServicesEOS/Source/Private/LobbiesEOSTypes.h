@@ -20,7 +20,9 @@ class FLobbyDataRegistryEOS;
 class FLobbyDetailsInfoEOS;
 class FLobbyInviteDataEOSRegistry;
 class FLobbySchema;
+struct FLobbyEvents;
 class FAuthEOS;
+struct FClientLobbyMemberSnapshot;
 
 inline EOS_ELobbyPermissionLevel TranslateJoinPolicy(ELobbyJoinPolicy JoinPolicy)
 {
@@ -33,95 +35,273 @@ inline EOS_ELobbyPermissionLevel TranslateJoinPolicy(ELobbyJoinPolicy JoinPolicy
 	};
 }
 
-using FLobbySearchParameters = FFindLobby::Params;
-
-struct FLobbyDataChanges
+inline ELobbyJoinPolicy TranslateJoinPolicy(EOS_ELobbyPermissionLevel JoinPolicy)
 {
+	switch (JoinPolicy)
+	{
+	case EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED:	return ELobbyJoinPolicy::PublicAdvertised;
+	case EOS_ELobbyPermissionLevel::EOS_LPL_JOINVIAPRESENCE:	return ELobbyJoinPolicy::PublicNotAdvertised;
+	default:									checkNoEntry(); // Intentional fallthrough
+	case EOS_ELobbyPermissionLevel::EOS_LPL_INVITEONLY:	return ELobbyJoinPolicy::InvitationOnly;
+	};
+}
+
+using FLobbySearchParameters = FFindLobbies::Params;
+
+/**
+ * Local changes to a member to be applied to an existing lobby member snapshot.
+ */
+struct FClientLobbyMemberDataChanges
+{
+	/** New or changed attributes. */
+	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
+
+	/** Attributes to be cleared. */
+	TSet<FLobbyAttributeId> ClearedAttributes;
+};
+
+/**
+ * Local changes to a lobby to be applied to an existing lobby snapshot.
+ */
+struct FClientLobbyDataChanges
+{
+	/** Local name for the lobby. */
+	TOptional<FName> LocalName;
+
+	/** Setting for new join policy. */
 	TOptional<ELobbyJoinPolicy> JoinPolicy;
 
-	// New or changed attributes.
+	/** Setting for lobby ownership change. */
+	TOptional<FOnlineAccountIdHandle> OwnerAccountId;
+
+	/** Setting for lobby schema change. */
+	TOptional<FLobbySchemaId> LobbySchema;
+
+	/** New or changed attributes. */
 	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
 
-	// Attributes to be cleared.
+	/** Attributes to be cleared. */
 	TSet<FLobbyAttributeId> ClearedAttributes;
+
+	/** Members to be added or changed. */
+	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>> MutatedMembers;
+
+	/** Members to be removed. */
+	TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeavingMembers;
 };
 
-struct FLobbyMemberDataChanges
-{
-	// New or changed attributes.
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-
-	// Attributes to be cleared.
-	TSet<FLobbyAttributeId> ClearedAttributes;
-};
-
+/**
+* Common components required to handle lobby requests.
+* To handle lifetime issues, only FLobbiesEOS should contain a strong reference to prerequisites.
+* Any other component should only store a weak reference.
+*/
 struct FLobbyPrerequisitesEOS
 {
 	EOS_HLobby LobbyInterfaceHandle = {};
-	TSharedRef<FAuthEOS> AuthInterface;
+	TWeakPtr<FAuthEOS> AuthInterface;
 	TSharedRef<const FLobbySchemaRegistry> SchemaRegistry;
 	TSharedRef<const FLobbySchema> ServiceSchema;
 };
 
+/**
+* Lobby snapshot data.
+* All contained data has been translated from EOS types.
+* Attributes have had their schema transformations applied.
+*/
+struct FClientLobbySnapshot
+{
+	FOnlineAccountIdHandle OwnerAccountId;
+	FName LocalName;
+	FName SchemaName;
+	int32 MaxMembers;
+	ELobbyJoinPolicy JoinPolicy;
+	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
+	TSet<FOnlineAccountIdHandle> Members;
+};
+
+struct FClientLobbyMemberSnapshot : public FLobbyMember
+{
+	bool bIsLocalMember = false;
+};
+
+struct FApplyLobbyUpdateResult
+{
+	TArray<FOnlineAccountIdHandle> LeavingLocalMembers;
+};
+
+/** Lobby data as seen by the client. */
+struct FClientLobbyData final
+{
+public:
+	FClientLobbyData(FOnlineLobbyIdHandle LobbyId);
+
+	TSharedRef<const FLobby> GetPublicDataPtr() const { return PublicData; }
+	const FLobby& GetPublicData() const { return *PublicData; }
+
+	TSharedPtr<const FClientLobbyMemberSnapshot> GetMemberData(FOnlineAccountIdHandle MemberAccountId) const;
+
+	/**
+	 * Apply updated lobby data and generate changes.
+	 * The LeaveReason provides context for members who have left since the most recent snapshot.
+	 * Changing a lobby generates events for the local client.
+	 */
+	FApplyLobbyUpdateResult ApplyLobbyUpdateFromServiceSnapshot(
+		FClientLobbySnapshot&& LobbySnapshot,
+		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
+		TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>&& LeaveReasons = TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>(),
+		FLobbyEvents* LobbyEvents = nullptr);
+
+	/**
+	 * Apply updated lobby data and generate changes.
+	 * Changing a lobby generates events for the local client.
+	 */
+	FApplyLobbyUpdateResult ApplyLobbyUpdateFromLocalChanges(FClientLobbyDataChanges&& Changes, FLobbyEvents& LobbyEvents);
+
+private:
+
+	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
+	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromSnapshot(
+		TMap<FLobbyAttributeId, FLobbyVariant>&& AttributeSnapshot,
+		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
+
+	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
+	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromChanges(
+		TMap<FLobbyAttributeId, FLobbyVariant>&& MutatedAttributes,
+		TSet<FLobbyAttributeId>&& ClearedAttributes,
+		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
+
+	/**
+	 * The shared pointer given back to user code with lobby operation results and notifications.
+	 * Any changes to this data are immediately available to users.
+	 */
+	TSharedRef<FLobby> PublicData;
+
+	/** Mutable lobby member data storage. */
+	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> MemberDataStorage;
+
+	/**
+	 * Keep track of which members are local to the client.
+	 * When all local members have been removed all members will be removed.
+	 */
+	TSet<FOnlineAccountIdHandle> LocalMembers;
+};
+
+/**
+ * Lobby details are created for each user within the EOS lobby client. Certain operations such as
+ * joining a lobby or applying an update to a lobby / member attributes require using the correct
+ * lobby details handle.
+ */
 enum class ELobbyDetailsSource
 {
+	/**
+	 * The lobby has been joined and is considered active.
+	 * Valid for lobby / member updates.
+	 */
 	Active,
+
+	/**
+	 * The details originated from an invitation sent to the user.
+	 * Valid for joining.
+	 */
 	Invite,
+
+	/**
+	 * The details originated from an event generated by the EOS overlay.
+	 * Valid for joining.
+	 */
 	UiEvent,
+
+	/**
+	 * The details originated from a lobby search result.
+	 * Valid for joining.
+	 */
 	Search
 };
 
+/** Lobby details is created based on the passed in user and is required to join a lobby. */
 class FLobbyDetailsEOS final : public TSharedFromThis<FLobbyDetailsEOS>
 {
 public:
 	UE_NONCOPYABLE(FLobbyDetailsEOS);
 
-	static TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> CreateFromLobbyId(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites, EOS_LobbyId LobbyId, FOnlineAccountIdHandle MemberHandle);
-	static TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> CreateFromInviteId(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites, const char* InviteId);
-	static TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> CreateFromUiEventId(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites, EOS_UI_EventId UiEventId);
-	static TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> CreateFromSearchResult(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites, EOS_HLobbySearch SearchHandle, uint32_t ResultIndex);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromLobbyId(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		FOnlineAccountIdHandle LocalUserId,
+		EOS_LobbyId LobbyId);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromInviteId(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		FOnlineAccountIdHandle LocalUserId,
+		const char* InviteId);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromUiEventId(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		FOnlineAccountIdHandle LocalUserId,
+		EOS_UI_EventId UiEventId);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromSearchResult(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		FOnlineAccountIdHandle LocalUserId,
+		EOS_HLobbySearch SearchHandle,
+		uint32_t ResultIndex);
 
 	FLobbyDetailsEOS() = delete;
 	~FLobbyDetailsEOS();
 
-	bool IsValid() const { return LobbyDetailsHandle != InvalidLobbyDetailsHandle; }
 	EOS_HLobbyDetails GetEOSHandle() const { return LobbyDetailsHandle; }
 	const TSharedRef<FLobbyDetailsInfoEOS>& GetInfo() const { return LobbyDetailsInfo; }
 	ELobbyDetailsSource GetDetailsSource() const { return LobbyDetailsSource; }
+	FOnlineAccountIdHandle GetAssociatedUser() const { return AssociatedLocalUser; }
 
-	TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobby>>> GetLobbyData(FOnlineAccountIdHandle LocalUserId, FOnlineLobbyIdHandle LobbyIdHandle) const;
-	TDefaultErrorResultInternal<TSharedPtr<FLobbyMember>> GetLobbyMemberData(FOnlineAccountIdHandle MemberHandle) const;
-	TFuture<EOS_EResult> ApplyLobbyDataUpdates(FOnlineAccountIdHandle LocalUserId, FLobbyDataChanges Changes) const;
-	TFuture<EOS_EResult> ApplyLobbyMemberDataUpdates(FOnlineAccountIdHandle LocalUserId, FLobbyMemberDataChanges Changes) const;
+	/**
+	 * Retrieve a lobby data snapshot from the EOS lobby details object.
+	 * The lobby schema will be used to translate attribute data before returning.
+	 */
+	TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> GetLobbySnapshot() const;
+
+	/**
+	 * Retrieve lobby member data snapshot from the EOS lobby details object.
+	 * The lobby schema will be used to translate attribute data before returning.
+	 */
+	TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> GetLobbyMemberSnapshot(FOnlineAccountIdHandle MemberHandle) const;
+
+	/**
+	 * Apply client side lobby changes to the lobby service.
+	 * The lobby schema will be used to translate any changed attributes before sending.
+	 */
+	TFuture<EOS_EResult> ApplyLobbyDataUpdateFromLocalChanges(FOnlineAccountIdHandle LocalUserId, const FClientLobbyDataChanges& Changes) const;
+
+	/**
+	 * Apply client side lobby member changes to the lobby service.
+	 * The lobby schema will be used to translate any changed attributes before sending.
+	 */
+	TFuture<EOS_EResult> ApplyLobbyMemberDataUpdateFromLocalChanges(FOnlineAccountIdHandle LocalUserId, const FClientLobbyMemberDataChanges& Changes) const;
 
 private:
 	template <typename, ESPMode>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
-	FLobbyDetailsEOS(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites, const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo, ELobbyDetailsSource LobbyDetailsSource, EOS_HLobbyDetails LobbyDetailsHandle);
-
-	TPair<FLobbyAttributeId, FLobbyVariant> TranslateLobbyAttribute(const EOS_Lobby_Attribute& LobbyAttribute) const;
-	TDefaultErrorResultInternal<TMap<FLobbyAttributeId, FLobbyVariant>> GetLobbyAttributes() const;
-	TDefaultErrorResultInternal<TMap<FLobbyAttributeId, FLobbyVariant>> GetLobbyMemberAttributes(EOS_ProductUserId TargetMemberProductUserId) const;
-	TSharedRef<FLobbyMember> CreateLobbyMember(FOnlineAccountIdHandle MemberHandle, TMap<FLobbyAttributeId, FLobbyVariant> Attributes) const;
+	FLobbyDetailsEOS(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
+		FOnlineAccountIdHandle LocalUserId,
+		ELobbyDetailsSource LobbyDetailsSource,
+		EOS_HLobbyDetails LobbyDetailsHandle);
 
 	static const EOS_HLobbyDetails InvalidLobbyDetailsHandle;
 	TSharedRef<FLobbyPrerequisitesEOS> Prerequisites;
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
-	EOS_HLobbyDetails LobbyDetailsHandle = InvalidLobbyDetailsHandle;
+	FOnlineAccountIdHandle AssociatedLocalUser;
 	ELobbyDetailsSource LobbyDetailsSource;
+	EOS_HLobbyDetails LobbyDetailsHandle = InvalidLobbyDetailsHandle;
 };
 
+/** Lobby details info allows direct access to some of the lobby properties. */
 class FLobbyDetailsInfoEOS final
 {
 public:
 	UE_NONCOPYABLE(FLobbyDetailsInfoEOS);
 	FLobbyDetailsInfoEOS() = default;
 
-	static TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsInfoEOS>> Create(EOS_HLobbyDetails LobbyDetailsHandle);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>> Create(EOS_HLobbyDetails LobbyDetailsHandle);
 
-	bool IsValid() const { return LobbyDetailsInfo.IsValid(); }
-
-	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->LobbyId; }
+	const EOS_LobbyDetails_Info& Get() const { check(LobbyDetailsInfo); return *LobbyDetailsInfo; }
 
 private:
 	struct FEOSLobbyDetailsInfoDeleter
@@ -132,17 +312,16 @@ private:
 		}
 	};
 
+	using FLobbyDetailsInfoPtr = TUniquePtr<EOS_LobbyDetails_Info, FEOSLobbyDetailsInfoDeleter>;
+
+	template <typename, ESPMode>
+	friend class SharedPointerInternals::TIntrusiveReferenceController;
+	FLobbyDetailsInfoEOS(FLobbyDetailsInfoPtr&& LobbyDetailsInfo);
+
 	TUniquePtr<EOS_LobbyDetails_Info, FEOSLobbyDetailsInfoDeleter> LobbyDetailsInfo;
 };
 
-class FLobbyNotificationPauseHandle
-{
-public:
-	UE_NONCOPYABLE(FLobbyNotificationPauseHandle);
-	FLobbyNotificationPauseHandle() = default;
-	virtual ~FLobbyNotificationPauseHandle() = default;
-};
-
+/** Lobby data is the bookkeeping object for a lobby. It contains the client-side representation of a lobby. */
 class FLobbyDataEOS final : public TSharedFromThis<FLobbyDataEOS>
 {
 public:
@@ -150,46 +329,40 @@ public:
 
 	FLobbyDataEOS() = delete;
 
-	static TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>> Create(
-		FOnlineAccountIdHandle LocalUserId,
+	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> Create(
 		FOnlineLobbyIdHandle LobbyIdHandle,
 		const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 		FUnregisterFn UnregisterFn = FUnregisterFn());
 
 	~FLobbyDataEOS();
 
-	FOnlineLobbyIdHandle GetLobbyIdHandle() const { return LobbyImpl->LobbyId; }
-	const TSharedRef<FLobby>& GetLobbyImpl() const { return LobbyImpl; }
-	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyIdEOS(); }
+	FOnlineLobbyIdHandle GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
+	const TSharedRef<FClientLobbyData>& GetClientLobbyData() const { return ClientLobbyData; }
+	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->Get().LobbyId; }
 	const FString& GetLobbyId() const { return LobbyId; }
-	TSet<FOnlineAccountIdHandle>& GetLocalMembers() { return LocalMembers; }
 
-	// Pause lobby notifications for the target local user.
-	TSharedRef<FLobbyNotificationPauseHandle> PauseLobbyNotifications(FOnlineAccountIdHandle LocalUserId);
-
-	// Returns false if there is an existing notification pause for the target local user.
-	bool CanNotify(FOnlineAccountIdHandle LocalUserId);
-
-	void SetUserLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);
+	void AddUserLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);
 	TSharedPtr<FLobbyDetailsEOS> GetUserLobbyDetails(FOnlineAccountIdHandle LocalUserId) const;
+
+	/**
+	 * Active lobby details are needed to process lobby notifications. Search for and return active
+	 * lobby details if available.
+	 */
+	TSharedPtr<FLobbyDetailsEOS> GetActiveLobbyDetails() const;
 
 private:
 	template <typename, ESPMode>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
 
 	FLobbyDataEOS(
-		FOnlineLobbyIdHandle LobbyIdHandle,
-		const TSharedRef<FLobby>& LobbyImpl,
+		const TSharedRef<FClientLobbyData>& ClientLobbyData,
 		const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
 		FUnregisterFn UnregisterFn);
 
-	FOnlineLobbyIdHandle LobbyIdHandle;
-	TSharedRef<FLobby> LobbyImpl;
+	TSharedRef<FClientLobbyData> ClientLobbyData;
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
 	FUnregisterFn UnregisterFn;
 	FString LobbyId;
-	TSet<FOnlineAccountIdHandle> LocalMembers;
-	TMap<FOnlineAccountIdHandle, TSharedRef<FLobbyNotificationPauseHandle>> NotificationPauses;
 	TMap<FOnlineAccountIdHandle, TSharedPtr<FLobbyDetailsEOS>> UserLobbyDetails;
 };
 
@@ -201,9 +374,7 @@ public:
 
 	TSharedPtr<FLobbyDataEOS> Find(EOS_LobbyId EOSLobbyId) const;
 	TSharedPtr<FLobbyDataEOS> Find(FOnlineLobbyIdHandle LobbyIdHandle) const;
-	TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>> FindOrCreateFromLobbyId(FOnlineAccountIdHandle LocalUserId, EOS_LobbyId LobbyId);
-	TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>> FindOrCreateFromUiEventId(FOnlineAccountIdHandle LocalUserId, EOS_UI_EventId UiEventId);
-	TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
+	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
 
 private:
 	void Register(const TSharedRef<FLobbyDataEOS>& LobbyIdHandleData);
@@ -232,12 +403,15 @@ private:
 	char Data[MaxLobbyInviteIdSize] = {};
 };
 
+/**
+* Lobby invite data will keep the lobby object valid until the invitation has been accepted or rejected.
+*/
 class FLobbyInviteDataEOS final
 {
 public:
 	FLobbyInviteDataEOS() = delete;
 
-	static TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyInviteDataEOS>>> CreateFromInviteId(
+	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> CreateFromInviteId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		const TSharedRef<FLobbyDataRegistryEOS>& LobbyDataRegistry,
 		FOnlineAccountIdHandle LocalUserId,
@@ -272,20 +446,22 @@ private:
 	FString InviteId;
 };
 
-// The lobby search object is meant to hold the lifetimes of lobby search results so that the
-// lobby details will be discoverable during a join operation.
+/**
+* The lobby search object is meant to hold the lifetimes of lobby search results so that the
+* lobby details will be discoverable during a join operation.
+*/
 class FLobbySearchEOS final
 {
 public:
 	FLobbySearchEOS() = delete;
 
-	static TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbySearchEOS>>> Create(
+	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> Create(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		const TSharedRef<FLobbyDataRegistryEOS>& LobbyRegistry,
 		const FLobbySearchParameters& Params);
 
 	TArray<TSharedRef<const FLobby>> GetLobbyResults() const;
-	const TArray<TSharedPtr<FLobbyDataEOS>>& GetLobbyData();
+	const TArray<TSharedRef<FLobbyDataEOS>>& GetLobbyData();
 
 private:
 	class FSearchHandle
@@ -310,10 +486,10 @@ private:
 
 	template <typename, ESPMode>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
-	FLobbySearchEOS(const TSharedRef<FSearchHandle>& SearchHandle, TArray<TSharedPtr<FLobbyDataEOS>>&& Lobbies);
+	FLobbySearchEOS(const TSharedRef<FSearchHandle>& SearchHandle, TArray<TSharedRef<FLobbyDataEOS>>&& Lobbies);
 
 	TSharedRef<FSearchHandle> SearchHandle;
-	TArray<TSharedPtr<FLobbyDataEOS>> Lobbies;
+	TArray<TSharedRef<FLobbyDataEOS>> Lobbies;
 };
 
 /* UE::Online */ }

@@ -14,7 +14,9 @@
 namespace UE::Online {
 
 static const FString LobbyDataKeyName = TEXT("LobbyData");
-static const FString LobbyNotificationPauseKeyName = TEXT("LobbyNotificationPause");
+static const FString LobbyDetailsKeyName = TEXT("LobbyDetails");
+static const FString LobbyChangesKeyName = TEXT("LobbyChanges");
+static const FString LobbyMemberChangesKeyName = TEXT("LobbyMemberChanges");
 
 static const int32 MaxAttributeSize = 1000;
 
@@ -45,7 +47,7 @@ void FLobbiesEOS::Initialize()
 
 	LobbyPrerequisites = MakeShared<FLobbyPrerequisitesEOS>(FLobbyPrerequisitesEOS{
 		LobbyInterfaceHandle,
-		StaticCastSharedPtr<FAuthEOS>(Services.GetAuthInterface()).ToSharedRef(),
+		StaticCastSharedPtr<FAuthEOS>(Services.GetAuthInterface()),
 		LobbySchemaRegistry.ToSharedRef(),
 		ServiceSchema.ToSharedRef()});
 
@@ -104,7 +106,9 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 
 	Op->Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		// Step 1: Call create lobby.
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
 		const FTCHARToUTF8 BucketIdUTF8(*LobbyBucketId);
 
 		// The lobby will be created as invitation only.
@@ -121,66 +125,100 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 		CreateLobbyOptions.bDisableHostMigration = false; // todo: handle
 		CreateLobbyOptions.bEnableRTCRoom = false; // todo: handle
 
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Start. Member: %s"), *ToLogString(Params.LocalUserId));
-
 		return EOS_Async<EOS_Lobby_CreateLobbyCallbackInfo>(EOS_Lobby_CreateLobby, LobbyPrerequisites->LobbyInterfaceHandle, CreateLobbyOptions); 
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, const EOS_Lobby_CreateLobbyCallbackInfo* Data)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Complete. Result: %d"), Data->ResultCode);
+		// Step 2: Start creating the lobby data from the EOS lobby details object.
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
 
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: errors
 			InAsyncOp.SetError(Errors::Unknown(FromEOSError(Data->ResultCode)));
-			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>>().GetFuture();
+			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>().GetFuture();
+		}
+
+		TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> LobbyDetailsResult =
+			FLobbyDetailsEOS::CreateFromLobbyId(LobbyPrerequisites.ToSharedRef(), Params.LocalUserId, Data->LobbyId);
+		if (LobbyDetailsResult.IsError())
+		{
+			// Todo: manually call eos destroy lobby here.
+
+			// Todo: errors
+			InAsyncOp.SetError(MoveTemp(LobbyDetailsResult.GetErrorValue()));
+			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>().GetFuture();
 		}
 		
-		return LobbyDataRegistry->FindOrCreateFromLobbyId(InAsyncOp.GetParams().LocalUserId, Data->LobbyId);
+		return LobbyDataRegistry->FindOrCreateFromLobbyDetails(InAsyncOp.GetParams().LocalUserId, LobbyDetailsResult.GetOkValue());
 	})
-	.Then([this, DestroyLobbyDuringCreate](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, TDefaultErrorResultInternal<TSharedPtr<FLobbyDataEOS>>&& Result)
+	.Then([this, DestroyLobbyDuringCreate](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>&& Result)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		// Step 3: Store the lobby data on the async op properties.
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
 
 		if (Result.IsError())
 		{
 			// Todo: destroy lobby.
+			// Change DestroyLobbyImpl to take an EOS_LobbyId instead of an FLobbyDataEOS.
 
 			// Todo: errors
 			InAsyncOp.SetError(Errors::Unknown(MoveTemp(Result.GetErrorValue())));
 			return;
 		}
 
-		TSharedRef<FLobbyDataEOS> LobbyData = Result.GetOkValue().ToSharedRef();
-
-		// Pause notifications for all joining local users.
-		TArray<TSharedRef<FLobbyNotificationPauseHandle>> PauseHandles;
-		for (const FJoinLobbyLocalUserData& UserData : Params.LocalUsers)
-		{
-			PauseHandles.Add(LobbyData->PauseLobbyNotifications(UserData.LocalUserId));
-		}
-
+		// Store lobby data on the operation.
+		TSharedRef<FLobbyDataEOS> LobbyData = Result.GetOkValue();
 		InAsyncOp.Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, MoveTemp(LobbyData));
-		InAsyncOp.Data.Set<TArray<TSharedRef<FLobbyNotificationPauseHandle>>>(LobbyNotificationPauseKeyName, MoveTemp(PauseHandles));
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
-		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		// Step 4: Set attributes for the lobby creator.
 
-		// Add creator attributes.
-		FModifyLobbyMemberDataImpl::Params ModifyLobbyMemberDataParams;
-		ModifyLobbyMemberDataParams.LobbyData = LobbyData;
-		ModifyLobbyMemberDataParams.LocalUserId = Params.LocalUserId;
-		ModifyLobbyMemberDataParams.Changes = MakeShared<FLobbyMemberDataChanges>();
-		//ModifyLobbyMemberDataParams.Changes->MutatedAttributes;
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
-		return ModifyLobbyMemberDataImpl(MoveTemp(ModifyLobbyMemberDataParams));
+		// Add creator attributes if set.
+		// Todo: make this nicer.
+		const FJoinLobbyLocalUserData* UserData = Params.LocalUsers.FindByPredicate(
+		[LocalUserId = Params.LocalUserId](const FJoinLobbyLocalUserData& Data)
+		{
+			return LocalUserId == Data.LocalUserId;
+		});
+
+		TSharedRef<FClientLobbyMemberDataChanges> LobbyOwnerAttributes = MakeShared<FClientLobbyMemberDataChanges>();
+
+		// Add owner attributes to operation data.
+		// CreatingMemberData is used to update the local lobby data and for dispatching notifications once creation has completed.
+		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>> CreatingMemberData;
+		CreatingMemberData.Reserve(Params.LocalUsers.Num());
+		CreatingMemberData.Add(Params.LocalUserId, LobbyOwnerAttributes);
+		InAsyncOp.Data.Set<TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>>(LobbyMemberChangesKeyName, MoveTemp(CreatingMemberData));
+
+		if (UserData)
+		{
+			LobbyOwnerAttributes->MutatedAttributes = UserData->Attributes;
+
+			FModifyLobbyMemberDataImpl::Params ModifyLobbyMemberDataParams;
+			ModifyLobbyMemberDataParams.LobbyData = LobbyData;
+			ModifyLobbyMemberDataParams.LocalUserId = Params.LocalUserId;
+			ModifyLobbyMemberDataParams.Changes = LobbyOwnerAttributes;
+
+			return ModifyLobbyMemberDataImpl(MoveTemp(ModifyLobbyMemberDataParams));
+		}
+		else
+		{
+			return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>>().GetFuture();
+		}
 	})
 	.Then([this, DestroyLobbyDuringCreate](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, TDefaultErrorResult<FModifyLobbyMemberDataImpl>&& ModifyLobbyOwnerResult)
 	{
-		const auto& Params = InAsyncOp.GetParams();
-		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		// Step 5: Handle result
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
+		TSharedRef<FLobbyDataEOS> LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
 		if (ModifyLobbyOwnerResult.IsError())
 		{
@@ -193,29 +231,38 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp)
 	{
-		// Todo: Add other local members.
+		// Step 6: Todo: Add other local members.
+
+		// Store member attributes on the operation.
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
-		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		// Step 7: Add lobby attributes, set lobby join policy to user setting.
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		// Track lobby changes to sync client-side cache at operation completion.
+		TSharedRef<FClientLobbyDataChanges> LobbyChanges = MakeShared<FClientLobbyDataChanges>();
+		InAsyncOp.Data.Set<TSharedRef<FClientLobbyDataChanges>>(LobbyChangesKeyName, LobbyChanges);
+		LobbyChanges->MutatedAttributes = Params.Attributes;
+		LobbyChanges->JoinPolicy = Params.JoinPolicy;
 
 		// Add lobby attributes.
 		// Set lobby privacy setting to the user provided value.
-
 		FModifyLobbyDataImpl::Params ModifyLobbyDataParams;
 		ModifyLobbyDataParams.LobbyData = LobbyData;
 		ModifyLobbyDataParams.LocalUserId = Params.LocalUserId;
-		ModifyLobbyDataParams.Changes = MakeShared<FLobbyDataChanges>();
-		ModifyLobbyDataParams.Changes->MutatedAttributes = Params.Attributes;
-		ModifyLobbyDataParams.Changes->JoinPolicy = Params.JoinPolicy;
+		ModifyLobbyDataParams.Changes = LobbyChanges;
 
 		return ModifyLobbyDataImpl(MoveTemp(ModifyLobbyDataParams));
 	})
 	.Then([this, DestroyLobbyDuringCreate](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, TDefaultErrorResult<FModifyLobbyDataImpl>&& ModifyLobbyResult) mutable
 	{
-		const auto& Params = InAsyncOp.GetParams();
-		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		// Step 8: Handle result.
+
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
 		if (ModifyLobbyResult.IsError())
 		{
@@ -228,32 +275,40 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
-		auto LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
-		LobbyData->GetLobbyImpl()->LocalName = Params.LocalName;
+		// Step 9: Add the lobby to the active list for each member, apply changes to the cached
+		// lobby object, and signal notifications.
+		// The active lobbies list holds a reference to the lobby data to keep it from being cleaned up.
 
-		// Remove notification pause for joining local users.
-		TArray<TSharedRef<FLobbyNotificationPauseHandle>> ClearedPauses;
-		InAsyncOp.Data.Set<TArray<TSharedRef<FLobbyNotificationPauseHandle>>>(LobbyNotificationPauseKeyName, MoveTemp(ClearedPauses));
+		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
 		// Mark the lobby active for each member.
-		// Lobby activation / deactivation will dispatch lobby join / leave notifications.
 		for (const FJoinLobbyLocalUserData& LocalUser : Params.LocalUsers)
 		{
 			AddActiveLobby(LocalUser.LocalUserId, LobbyData);
 		}
 
-		InAsyncOp.SetResult(FCreateLobby::Result{LobbyData->GetLobbyImpl()});
+		// Add member changes to the lobby changes object.
+		const TSharedRef<FClientLobbyDataChanges>& LobbyChanges = GetOpDataChecked<TSharedRef<FClientLobbyDataChanges>>(InAsyncOp, LobbyChangesKeyName);
+		const TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>& MemberChanges =
+			GetOpDataChecked<TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>>(InAsyncOp, LobbyMemberChangesKeyName);
+		LobbyChanges->MutatedMembers = MemberChanges;
+		LobbyChanges->LocalName = InAsyncOp.GetParams().LocalName;
+
+		// Make local changes to lobby data and generate notifications.
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(*LobbyChanges), LobbyEvents);
+
+		InAsyncOp.SetResult(FCreateLobby::Result{LobbyData->GetClientLobbyData()->GetPublicDataPtr()});
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FFindLobby> FLobbiesEOS::FindLobby(FFindLobby::Params&& InParams)
+TOnlineAsyncOpHandle<FFindLobbies> FLobbiesEOS::FindLobbies(FFindLobbies::Params&& InParams)
 {
-	TOnlineAsyncOpRef<FFindLobby> Op = GetOp<FFindLobby>(MoveTemp(InParams));
-	const FFindLobby::Params& Params = Op->GetParams();
+	TOnlineAsyncOpRef<FFindLobbies> Op = GetOp<FFindLobbies>(MoveTemp(InParams));
+	const FFindLobbies::Params& Params = Op->GetParams();
 
 	if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 	{
@@ -264,11 +319,11 @@ TOnlineAsyncOpHandle<FFindLobby> FLobbiesEOS::FindLobby(FFindLobby::Params&& InP
 	// Invalidate previous search results.
 	ActiveSearchResults.Remove(Params.LocalUserId);
 
-	Op->Then([this](TOnlineAsyncOp<FFindLobby>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FFindLobbies>& InAsyncOp)
 	{
 		return FLobbySearchEOS::Create(LobbyPrerequisites.ToSharedRef(), LobbyDataRegistry.ToSharedRef(), InAsyncOp.GetParams());
 	})
-	.Then([this](TOnlineAsyncOp<FFindLobby>& InAsyncOp, TDefaultErrorResultInternal<TSharedPtr<FLobbySearchEOS>> Result)
+	.Then([this](TOnlineAsyncOp<FFindLobbies>& InAsyncOp, TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>> Result)
 	{
 		if (Result.IsError())
 		{
@@ -277,11 +332,11 @@ TOnlineAsyncOpHandle<FFindLobby> FLobbiesEOS::FindLobby(FFindLobby::Params&& InP
 		}
 		else
 		{
-			ActiveSearchResults.Add(InAsyncOp.GetParams().LocalUserId, Result.GetOkValue().ToSharedRef());
-			InAsyncOp.SetResult(FFindLobby::Result{Result.GetOkValue()->GetLobbyResults()});
+			ActiveSearchResults.Add(InAsyncOp.GetParams().LocalUserId, Result.GetOkValue());
+			InAsyncOp.SetResult(FFindLobbies::Result{Result.GetOkValue()->GetLobbyResults()});
 		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -306,15 +361,9 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOS::JoinLobby(FJoinLobby::Params&& InP
 
 	Op->Then([this, LobbyData](TOnlineAsyncOp<FJoinLobby>& InAsyncOp)
 	{
-		const FJoinLobby::Params& Params = InAsyncOp.GetParams();
+		// Join all users to the lobby.
 
-		// Pause notifications for all joining local users.
-		TArray<TSharedRef<FLobbyNotificationPauseHandle>> PauseHandles;
-		for (const FJoinLobbyLocalUserData& UserData : Params.LocalUsers)
-		{
-			PauseHandles.Add(LobbyData->PauseLobbyNotifications(UserData.LocalUserId));
-		}
-		InAsyncOp.Data.Set<TArray<TSharedRef<FLobbyNotificationPauseHandle>>>(LobbyNotificationPauseKeyName, MoveTemp(PauseHandles));
+		const FJoinLobby::Params& Params = InAsyncOp.GetParams();
 
 		FJoinLobbyImpl::Params JoinParams;
 		JoinParams.LobbyData = LobbyData;
@@ -323,31 +372,41 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOS::JoinLobby(FJoinLobby::Params&& InP
 		JoinParams.LocalUsers = Params.LocalUsers;
 		return JoinLobbyImpl(MoveTemp(JoinParams));
 	})
-	.Then([this, LobbyData](TOnlineAsyncOp<FJoinLobby>& InAsyncOp, TDefaultErrorResult<FJoinLobbyImpl> Result)
+	.Then([this](TOnlineAsyncOp<FJoinLobby>& InAsyncOp, TDefaultErrorResult<FJoinLobbyImpl> Result)
 	{
-		const auto& Params = InAsyncOp.GetParams();
-
+		// Handle result.
 		if (Result.IsError())
 		{
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
+	})
+	.Then([this, LobbyData](TOnlineAsyncOp<FJoinLobby>& InAsyncOp)
+	{
+		// Mark the lobby active for each member.
+		// Add users to local lobby data and dispatch notifications.
+
+		const FJoinLobby::Params& Params = InAsyncOp.GetParams();
+
+		// Mark the lobby active for each member.
+		for (const FJoinLobbyLocalUserData& LocalUser : Params.LocalUsers)
 		{
-			LobbyData->GetLobbyImpl()->LocalName = InAsyncOp.GetParams().LocalName;
-			// Remove notification pause for joining local users.
-			TArray<TSharedRef<FLobbyNotificationPauseHandle>> ClearedPauses;
-			InAsyncOp.Data.Set<TArray<TSharedRef<FLobbyNotificationPauseHandle>>>(LobbyNotificationPauseKeyName, MoveTemp(ClearedPauses));
-
-			// Mark the lobby active for each member.
-			// Lobby activation / deactivation will dispatch lobby join / leave notifications.
-			for (const FJoinLobbyLocalUserData& LocalUser : Params.LocalUsers)
-			{
-				AddActiveLobby(LocalUser.LocalUserId, LobbyData.ToSharedRef());
-			}
-
-			InAsyncOp.SetResult(FJoinLobby::Result{ LobbyData->GetLobbyImpl()});
+			AddActiveLobby(LocalUser.LocalUserId, LobbyData.ToSharedRef());
 		}
+
+		// todo: figure out a butter way to handle attribute parameters.
+		FClientLobbyDataChanges LobbyChanges;
+		LobbyChanges.LocalName = InAsyncOp.GetParams().LocalName;
+
+		for (const FJoinLobbyLocalUserData& LocalUser : Params.LocalUsers)
+		{
+			TSharedRef<FClientLobbyMemberDataChanges> MemberDataChanges = MakeShared<FClientLobbyMemberDataChanges>();
+			MemberDataChanges->MutatedAttributes = LocalUser.Attributes;
+			LobbyChanges.MutatedMembers.Add(LocalUser.LocalUserId, MoveTemp(MemberDataChanges));
+		}
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(LobbyChanges), LobbyEvents);
+
+		InAsyncOp.SetResult(FJoinLobby::Result{ LobbyData->GetClientLobbyData()->GetPublicDataPtr()});
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -374,6 +433,8 @@ TOnlineAsyncOpHandle<FLeaveLobby> FLobbiesEOS::LeaveLobby(FLeaveLobby::Params&& 
 
 	Op->Then([this, LobbyData](TOnlineAsyncOp<FLeaveLobby>& InAsyncOp)
 	{
+		// Remove the user from the EOS lobby.
+
 		const FLeaveLobby::Params& Params = InAsyncOp.GetParams();
 
 		FLeaveLobbyImpl::Params LeaveParams;
@@ -383,11 +444,18 @@ TOnlineAsyncOpHandle<FLeaveLobby> FLobbiesEOS::LeaveLobby(FLeaveLobby::Params&& 
 	})
 	.Then([this, LobbyData](TOnlineAsyncOp<FLeaveLobby>& InAsyncOp, TDefaultErrorResult<FLeaveLobbyImpl> Result)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		const FLeaveLobby::Params& Params = InAsyncOp.GetParams();
 
-		if (LobbyData)
+		// Remove the user from the local lobby data and dispatch notifications.
+		FClientLobbyDataChanges LobbyChanges;
+		LobbyChanges.LeavingMembers.Add(Params.LocalUserId, ELobbyMemberLeaveReason::Left);
+		FApplyLobbyUpdateResult ApplyResult = LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(LobbyChanges), LobbyEvents);
+
+		// Remove the lobby from the active list for the user.
+		// The lobby data will be cleaned up once all references are removed.
+		for (FOnlineAccountIdHandle LeavingMember : ApplyResult.LeavingLocalMembers)
 		{
-			RemoveActiveLobby(Params.LocalUserId, LobbyData.ToSharedRef());
+			RemoveActiveLobby(LeavingMember, LobbyData.ToSharedRef());
 		}
 
 		if (Result.IsError())
@@ -438,7 +506,7 @@ TOnlineAsyncOpHandle<FInviteLobbyMember> FLobbiesEOS::InviteLobbyMember(FInviteL
 			InAsyncOp.SetResult(FInviteLobbyMember::Result{});
 		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -475,7 +543,7 @@ TOnlineAsyncOpHandle<FDeclineLobbyInvitation> FLobbiesEOS::DeclineLobbyInvitatio
 			InAsyncOp.SetResult(FDeclineLobbyInvitation::Result{});
 		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -491,12 +559,21 @@ TOnlineAsyncOpHandle<FKickLobbyMember> FLobbiesEOS::KickLobbyMember(FKickLobbyMe
 		return Op->GetHandle();
 	}
 
+	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+	if (!LobbyData)
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+	Op->Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, LobbyData.ToSharedRef());
+
 	Op->Then([this](TOnlineAsyncOp<FKickLobbyMember>& InAsyncOp)
 	{
 		const FKickLobbyMember::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
 		FKickLobbyMemberImpl::Params KickParams;
-		KickParams.LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+		KickParams.LobbyData = LobbyData;
 		KickParams.LocalUserId = Params.LocalUserId;
 		KickParams.TargetUserId = Params.TargetUserId;
 		return KickLobbyMemberImpl(MoveTemp(KickParams));
@@ -508,12 +585,19 @@ TOnlineAsyncOpHandle<FKickLobbyMember> FLobbiesEOS::KickLobbyMember(FKickLobbyMe
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
-		{
-			InAsyncOp.SetResult(FKickLobbyMember::Result{});
-		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Then([this](TOnlineAsyncOp<FKickLobbyMember>& InAsyncOp)
+	{
+		const FKickLobbyMember::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		// Update local cache and fire events.
+		FClientLobbyDataChanges LobbyChanges;
+		LobbyChanges.LeavingMembers.Add(Params.TargetUserId, ELobbyMemberLeaveReason::Kicked);
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(LobbyChanges), LobbyEvents);
+		InAsyncOp.SetResult(FKickLobbyMember::Result{});
+	})
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -529,12 +613,21 @@ TOnlineAsyncOpHandle<FPromoteLobbyMember> FLobbiesEOS::PromoteLobbyMember(FPromo
 		return Op->GetHandle();
 	}
 
+	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+	if (!LobbyData)
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+	Op->Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, LobbyData.ToSharedRef());
+
 	Op->Then([this](TOnlineAsyncOp<FPromoteLobbyMember>& InAsyncOp)
 	{
 		const FPromoteLobbyMember::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
 
 		FPromoteLobbyMemberImpl::Params PromoteParams;
-		PromoteParams.LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+		PromoteParams.LobbyData = LobbyData;
 		PromoteParams.LocalUserId = Params.LocalUserId;
 		PromoteParams.TargetUserId = Params.TargetUserId;
 		return PromoteLobbyMemberImpl(MoveTemp(PromoteParams));
@@ -546,12 +639,19 @@ TOnlineAsyncOpHandle<FPromoteLobbyMember> FLobbiesEOS::PromoteLobbyMember(FPromo
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
-		{
-			InAsyncOp.SetResult(FPromoteLobbyMember::Result{});
-		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Then([this](TOnlineAsyncOp<FPromoteLobbyMember>& InAsyncOp)
+	{
+		const FPromoteLobbyMember::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		// Update local cache and fire events.
+		FClientLobbyDataChanges LobbyChanges;
+		LobbyChanges.OwnerAccountId = Params.TargetUserId;
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(LobbyChanges), LobbyEvents);
+		InAsyncOp.SetResult(FPromoteLobbyMember::Result{});
+	})
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -567,15 +667,27 @@ TOnlineAsyncOpHandle<FModifyLobbyJoinPolicy> FLobbiesEOS::ModifyLobbyJoinPolicy(
 		return Op->GetHandle();
 	}
 
+	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+	if (!LobbyData)
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+	Op->Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, LobbyData.ToSharedRef());
+
 	Op->Then([this](TOnlineAsyncOp<FModifyLobbyJoinPolicy>& InAsyncOp)
 	{
 		const FModifyLobbyJoinPolicy::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		TSharedRef<FClientLobbyDataChanges> LobbyChanges = MakeShared<FClientLobbyDataChanges>();
+		InAsyncOp.Data.Set<TSharedRef<FClientLobbyDataChanges>>(LobbyChangesKeyName, LobbyChanges);
+		LobbyChanges->JoinPolicy = Params.JoinPolicy;
 
 		FModifyLobbyDataImpl::Params ModifyLobbyDataParams;
-		ModifyLobbyDataParams.LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+		ModifyLobbyDataParams.LobbyData = LobbyData;
 		ModifyLobbyDataParams.LocalUserId = Params.LocalUserId;
-		ModifyLobbyDataParams.Changes = MakeShared<FLobbyDataChanges>();
-		ModifyLobbyDataParams.Changes->JoinPolicy = Params.JoinPolicy;
+		ModifyLobbyDataParams.Changes = LobbyChanges;
 		return ModifyLobbyDataImpl(MoveTemp(ModifyLobbyDataParams));
 	})
 	.Then([this](TOnlineAsyncOp<FModifyLobbyJoinPolicy>& InAsyncOp, TDefaultErrorResult<FModifyLobbyDataImpl> Result)
@@ -585,12 +697,17 @@ TOnlineAsyncOpHandle<FModifyLobbyJoinPolicy> FLobbiesEOS::ModifyLobbyJoinPolicy(
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
-		{
-			InAsyncOp.SetResult(FModifyLobbyJoinPolicy::Result{});
-		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Then([this](TOnlineAsyncOp<FModifyLobbyJoinPolicy>& InAsyncOp)
+	{
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		const TSharedRef<FClientLobbyDataChanges>& LobbyChanges = GetOpDataChecked<TSharedRef<FClientLobbyDataChanges>>(InAsyncOp, LobbyChangesKeyName);
+
+		// Update local cache and fire events.
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(*LobbyChanges), LobbyEvents);
+		InAsyncOp.SetResult(FModifyLobbyJoinPolicy::Result{});
+	})
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -606,16 +723,28 @@ TOnlineAsyncOpHandle<FModifyLobbyAttributes> FLobbiesEOS::ModifyLobbyAttributes(
 		return Op->GetHandle();
 	}
 
+	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+	if (!LobbyData)
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+	Op->Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, LobbyData.ToSharedRef());
+
 	Op->Then([this](TOnlineAsyncOp<FModifyLobbyAttributes>& InAsyncOp)
 	{
 		const FModifyLobbyAttributes::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		TSharedRef<FClientLobbyDataChanges> LobbyChanges = MakeShared<FClientLobbyDataChanges>();
+		InAsyncOp.Data.Set<TSharedRef<FClientLobbyDataChanges>>(LobbyChangesKeyName, LobbyChanges);
+		LobbyChanges->MutatedAttributes = Params.MutatedAttributes;
+		LobbyChanges->ClearedAttributes = Params.ClearedAttributes;
 
 		FModifyLobbyDataImpl::Params ModifyLobbyDataParams;
 		ModifyLobbyDataParams.LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
 		ModifyLobbyDataParams.LocalUserId = Params.LocalUserId;
-		ModifyLobbyDataParams.Changes = MakeShared<FLobbyDataChanges>();
-		ModifyLobbyDataParams.Changes->MutatedAttributes = Params.MutatedAttributes;
-		ModifyLobbyDataParams.Changes->ClearedAttributes = Params.ClearedAttributes;
+		ModifyLobbyDataParams.Changes = LobbyChanges;
 		return ModifyLobbyDataImpl(MoveTemp(ModifyLobbyDataParams));
 	})
 	.Then([this](TOnlineAsyncOp<FModifyLobbyAttributes>& InAsyncOp, TDefaultErrorResult<FModifyLobbyDataImpl> Result)
@@ -625,12 +754,17 @@ TOnlineAsyncOpHandle<FModifyLobbyAttributes> FLobbiesEOS::ModifyLobbyAttributes(
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
-		{
-			InAsyncOp.SetResult(FModifyLobbyAttributes::Result{});
-		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Then([this](TOnlineAsyncOp<FModifyLobbyAttributes>& InAsyncOp)
+	{
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		const TSharedRef<FClientLobbyDataChanges>& LobbyChanges = GetOpDataChecked<TSharedRef<FClientLobbyDataChanges>>(InAsyncOp, LobbyChangesKeyName);
+
+		// Update local cache and fire events.
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(*LobbyChanges), LobbyEvents);
+		InAsyncOp.SetResult(FModifyLobbyAttributes::Result{});
+	})
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -646,16 +780,28 @@ TOnlineAsyncOpHandle<FModifyLobbyMemberAttributes> FLobbiesEOS::ModifyLobbyMembe
 		return Op->GetHandle();
 	}
 
+	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+	if (!LobbyData)
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+	Op->Data.Set<TSharedRef<FLobbyDataEOS>>(LobbyDataKeyName, LobbyData.ToSharedRef());
+
 	Op->Then([this](TOnlineAsyncOp<FModifyLobbyMemberAttributes>& InAsyncOp)
 	{
 		const FModifyLobbyMemberAttributes::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+
+		TSharedRef<FClientLobbyMemberDataChanges> LobbyMemberChanges = MakeShared<FClientLobbyMemberDataChanges>();
+		InAsyncOp.Data.Set<TSharedRef<FClientLobbyMemberDataChanges>>(LobbyMemberChangesKeyName, LobbyMemberChanges);
+		LobbyMemberChanges->MutatedAttributes = Params.MutatedAttributes;
+		LobbyMemberChanges->ClearedAttributes = Params.ClearedAttributes;
 
 		FModifyLobbyMemberDataImpl::Params ModifyLobbyMemberDataParams;
-		ModifyLobbyMemberDataParams.LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
+		ModifyLobbyMemberDataParams.LobbyData = LobbyData;
 		ModifyLobbyMemberDataParams.LocalUserId = Params.LocalUserId;
-		ModifyLobbyMemberDataParams.Changes = MakeShared<FLobbyMemberDataChanges>();
-		ModifyLobbyMemberDataParams.Changes->MutatedAttributes = Params.MutatedAttributes;
-		ModifyLobbyMemberDataParams.Changes->ClearedAttributes = Params.ClearedAttributes;
+		ModifyLobbyMemberDataParams.Changes = LobbyMemberChanges;
 		return ModifyLobbyMemberDataImpl(MoveTemp(ModifyLobbyMemberDataParams));
 	})
 	.Then([this](TOnlineAsyncOp<FModifyLobbyMemberAttributes>& InAsyncOp, TDefaultErrorResult<FModifyLobbyMemberDataImpl> Result)
@@ -665,12 +811,20 @@ TOnlineAsyncOpHandle<FModifyLobbyMemberAttributes> FLobbiesEOS::ModifyLobbyMembe
 			// TODO: Error codes
 			InAsyncOp.SetError(Errors::Unknown(Result.GetErrorValue()));
 		}
-		else
-		{
-			InAsyncOp.SetResult(FModifyLobbyMemberAttributes::Result{});
-		}
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Then([this](TOnlineAsyncOp<FModifyLobbyMemberAttributes>& InAsyncOp)
+	{
+		const FModifyLobbyMemberAttributes::Params& Params = InAsyncOp.GetParams();
+		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, LobbyDataKeyName);
+		const TSharedRef<FClientLobbyMemberDataChanges>& LobbyMemberChanges = GetOpDataChecked<TSharedRef<FClientLobbyMemberDataChanges>>(InAsyncOp, LobbyMemberChangesKeyName);
+
+		// Update local cache and fire events.
+		FClientLobbyDataChanges LobbyChanges;
+		LobbyChanges.MutatedMembers.Add(Params.LocalUserId, LobbyMemberChanges);
+		LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromLocalChanges(MoveTemp(LobbyChanges), LobbyEvents);
+		InAsyncOp.SetResult(FModifyLobbyMemberAttributes::Result{});
+	})
+	.Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -683,7 +837,7 @@ TOnlineResult<FGetJoinedLobbies> FLobbiesEOS::GetJoinedLobbies(FGetJoinedLobbies
 		Result.Lobbies.Reserve(Lobbies->Num());
 		for (const TSharedRef<FLobbyDataEOS>& LobbyDataEOS : *Lobbies)
 		{
-			Result.Lobbies.Emplace(LobbyDataEOS->GetLobbyImpl());
+			Result.Lobbies.Emplace(LobbyDataEOS->GetClientLobbyData()->GetPublicDataPtr());
 		}
 		return TOnlineResult<FGetJoinedLobbies>(MoveTemp(Result));
 	}
@@ -695,68 +849,88 @@ TOnlineResult<FGetJoinedLobbies> FLobbiesEOS::GetJoinedLobbies(FGetJoinedLobbies
 
 void FLobbiesEOS::HandleLobbyUpdated(const EOS_Lobby_LobbyUpdateReceivedCallbackInfo* Data)
 {
-#if 0
-	EOS_STRUCT(EOS_Lobby_LobbyUpdateReceivedCallbackInfo, (
-		/** Context that was passed into EOS_Lobby_AddNotifyLobbyUpdateReceived */
-		void* ClientData;
-		/** The ID of the lobby */
-		EOS_LobbyId LobbyId;
-	));
-#endif
-
 	if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyUpdated] Received update. Lobby: %s"), *LobbyData->GetLobbyId());
+		FProcessLobbyNotificationImpl::Params Params;
+		Params.LobbyData = LobbyData;
+
+		ProcessLobbyNotificationImplOp(MoveTemp(Params))
+		.OnComplete([LobbyData](const TOnlineResult<FProcessLobbyNotificationImpl>& Result)
+		{
+			if (Result.IsError())
+			{
+				// Todo: handle failure to update lobby from snapshot.
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyUpdated] Failed to apply update. Lobby: %s, Error: %s"), *LobbyData->GetLobbyId(), *Result.GetErrorValue().GetLogString());
+			}
+		});
 	}
 }
 
 void FLobbiesEOS::HandleLobbyMemberUpdated(const EOS_Lobby_LobbyMemberUpdateReceivedCallbackInfo* Data)
 {
-#if 0
-	EOS_STRUCT(EOS_Lobby_LobbyMemberUpdateReceivedCallbackInfo, (
-		/** Context that was passed into EOS_Lobby_AddNotifyLobbyMemberUpdateReceived */
-		void* ClientData;
-		/** The ID of the lobby */
-		EOS_LobbyId LobbyId;
-		/** The Product User ID of the lobby member */
-		EOS_ProductUserId TargetUserId;
-	));
-#endif
-
-	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->TargetUserId);
-	if (LocalUserId.IsValid())
+	if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 	{
-		if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
+		FProcessLobbyNotificationImpl::Params Params;
+		Params.LobbyData = LobbyData;
+		Params.MutatedMembers.Add(Data->TargetUserId);
+
+		ProcessLobbyNotificationImplOp(MoveTemp(Params))
+		.OnComplete([LobbyData](const TOnlineResult<FProcessLobbyNotificationImpl>& Result)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberUpdated] Received update. Lobby: %s, Member: %s"),
-				*LobbyData->GetLobbyId(), *ToLogString(LocalUserId));
-		}
+			if (Result.IsError())
+			{
+				// Todo: handle failure to update lobby from snapshot.
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberUpdated] Failed to apply update. Lobby: %s, Error: %s"), *LobbyData->GetLobbyId(), *Result.GetErrorValue().GetLogString());
+			}
+		});
 	}
 }
 
 void FLobbiesEOS::HandleLobbyMemberStatusReceived(const EOS_Lobby_LobbyMemberStatusReceivedCallbackInfo* Data)
 {
-#if 0
-	EOS_STRUCT(EOS_Lobby_LobbyMemberStatusReceivedCallbackInfo, (
-		/** Context that was passed into EOS_Lobby_AddNotifyLobbyMemberStatusReceived */
-		void* ClientData;
-		/** The ID of the lobby */
-		EOS_LobbyId LobbyId;
-		/** The Product User ID of the lobby member */
-		EOS_ProductUserId TargetUserId;
-		/** Latest status of the user */
-		EOS_ELobbyMemberStatus CurrentStatus;
-	));
-#endif
-
-	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->TargetUserId);
-	if (LocalUserId.IsValid())
+	if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 	{
-		if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
+		FProcessLobbyNotificationImpl::Params Params;
+		Params.LobbyData = LobbyData;
+
+		switch (Data->CurrentStatus)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberStatusReceived] Received update. Lobby: %s, Member: %s, Statsu: %d"),
-				*LobbyData->GetLobbyId(), *ToLogString(LocalUserId), Data->CurrentStatus);
+		case EOS_ELobbyMemberStatus::EOS_LMS_JOINED:
+			// Fetch member snapshot on join.
+			Params.MutatedMembers.Add(Data->TargetUserId);
+			break;
+
+		case EOS_ELobbyMemberStatus::EOS_LMS_PROMOTED:
+			// No member data needed, only lobby snapshot.
+			break;
+
+		case EOS_ELobbyMemberStatus::EOS_LMS_LEFT:
+			Params.LeavingMembers.Add(Data->TargetUserId, ELobbyMemberLeaveReason::Left);
+			break;
+
+		case EOS_ELobbyMemberStatus::EOS_LMS_DISCONNECTED:
+			Params.LeavingMembers.Add(Data->TargetUserId, ELobbyMemberLeaveReason::Disconnected);
+			break;
+
+		case EOS_ELobbyMemberStatus::EOS_LMS_KICKED:
+			Params.LeavingMembers.Add(Data->TargetUserId, ELobbyMemberLeaveReason::Kicked);
+			break;
+
+		default: checkNoEntry(); // Intentional fallthrough
+		case EOS_ELobbyMemberStatus::EOS_LMS_CLOSED:
+			Params.LeavingMembers.Add(Data->TargetUserId, ELobbyMemberLeaveReason::Closed);
+			break;
 		}
+
+		ProcessLobbyNotificationImplOp(MoveTemp(Params))
+		.OnComplete([LobbyData](const TOnlineResult<FProcessLobbyNotificationImpl>& Result)
+		{
+			if (Result.IsError())
+			{
+				// Todo: handle failure to update lobby from snapshot.
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberUpdated] Failed to apply update. Lobby: %s, Error: %s"), *LobbyData->GetLobbyId(), *Result.GetErrorValue().GetLogString());
+			}
+		});
 	}
 }
 
@@ -780,7 +954,7 @@ void FLobbiesEOS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceivedC
 	if (LocalUserId.IsValid())
 	{
 		FLobbyInviteDataEOS::CreateFromInviteId(LobbyPrerequisites.ToSharedRef(), LobbyDataRegistry.ToSharedRef(), LocalUserId, Data->InviteId, Data->TargetUserId)
-		.Then([this](TFuture<TDefaultErrorResultInternal<TSharedPtr<FLobbyInviteDataEOS>>>&& Future)
+		.Then([this](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>>&& Future)
 		{
 			if (Future.Get().IsError())
 			{
@@ -795,7 +969,7 @@ void FLobbiesEOS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceivedC
 					*Future.Get().GetOkValue()->GetLobbyData()->GetLobbyId(),
 					*ToLogString(Future.Get().GetOkValue()->GetReceiver()),
 					*ToLogString(Future.Get().GetOkValue()->GetSender()));
-				AddActiveInvite(Future.Get().GetOkValue().ToSharedRef());
+				AddActiveInvite(Future.Get().GetOkValue());
 			}
 		});
 	}
@@ -910,45 +1084,16 @@ void FLobbiesEOS::UnregisterHandlers()
 
 void FLobbiesEOS::AddActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
 {
-	if (LobbyData->GetLocalMembers().IsEmpty())
-	{
-		// Notify lobby added.
-		OnLobbyJoinedEvent.Broadcast(FLobbyJoined{LobbyData->GetLobbyImpl()});
-	}
-
+	// Add bookkeeping for the user.
 	ActiveLobbies.FindOrAdd(LocalUserId).Add(LobbyData);
-	LobbyData->GetLocalMembers().Add(LocalUserId);
-
-	// Todo: make this better.
-	for (const TSharedRef<const FLobbyMember>& MemberData : LobbyData->GetLobbyImpl()->Members)
-	{
-		if (MemberData->AccountId == LocalUserId)
-		{
-			OnLobbyMemberJoinedEvent.Broadcast(FLobbyMemberJoined{LobbyData->GetLobbyImpl(), MemberData});
-			break;
-		}
-	}
 }
 
 void FLobbiesEOS::RemoveActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
 {
-	// Todo: make this better.
-	for (const TSharedRef<const FLobbyMember>& MemberData : LobbyData->GetLobbyImpl()->Members)
+	// Remove bookkeeping for the local user.
+	if (TSet<TSharedRef<FLobbyDataEOS>>* Lobbies = ActiveLobbies.Find(LocalUserId))
 	{
-		if (MemberData->AccountId == LocalUserId)
-		{
-			OnLobbyMemberLeftEvent.Broadcast(FLobbyMemberLeft{LobbyData->GetLobbyImpl(), MemberData});
-			break;
-		}
-	}
-
-	ActiveLobbies.FindOrAdd(LocalUserId).Remove(LobbyData);
-	LobbyData->GetLocalMembers().Remove(LocalUserId);
-
-	if (LobbyData->GetLocalMembers().IsEmpty())
-	{
-		// Notify lobby removed.
-		OnLobbyLeftEvent.Broadcast(FLobbyLeft{LobbyData->GetLobbyImpl()});
+		Lobbies->Remove(LobbyData);
 	}
 }
 
@@ -961,11 +1106,11 @@ void FLobbiesEOS::AddActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite)
 	if (ActiveUserInvites.Find(LobbyId) == nullptr)
 	{
 		ActiveUserInvites.Add(LobbyId, Invite);
-		OnLobbyInvitationAddedEvent.Broadcast(
+		LobbyEvents.OnLobbyInvitationAdded.Broadcast(
 			FLobbyInvitationAdded{
 				Invite->GetReceiver(),
 				Invite->GetSender(),
-				Invite->GetLobbyData()->GetLobbyImpl()
+				Invite->GetLobbyData()->GetClientLobbyData()->GetPublicDataPtr()
 			});
 	}
 }
@@ -974,11 +1119,11 @@ void FLobbiesEOS::RemoveActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invi
 {
 	ActiveInvites.FindOrAdd(Invite->GetReceiver()).Remove(Invite->GetLobbyData()->GetLobbyIdHandle());
 
-	OnLobbyInvitationRemovedEvent.Broadcast(
+	LobbyEvents.OnLobbyInvitationRemoved.Broadcast(
 		FLobbyInvitationRemoved{
 			Invite->GetReceiver(),
 			Invite->GetSender(),
-			Invite->GetLobbyData()->GetLobbyImpl()
+			Invite->GetLobbyData()->GetClientLobbyData()->GetPublicDataPtr()
 		});
 }
 
@@ -1021,7 +1166,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FJoinLobbyImpl>> FLobbiesEOS::JoinLobby
 		JoinLobbyMemberParams.LocalUserId = UserData.LocalUserId;
 		JoinLobbyMemberParams.Attributes = MoveTemp(UserData.Attributes);
 
-		auto JoinMemberPromise = MakeShared<TPromise<TDefaultErrorResult<FJoinLobbyMemberImpl>>>();
+		TSharedRef<TPromise<TDefaultErrorResult<FJoinLobbyMemberImpl>>> JoinMemberPromise = MakeShared<TPromise<TDefaultErrorResult<FJoinLobbyMemberImpl>>>();
 		JoinLobbyMemberImplOp(MoveTemp(JoinLobbyMemberParams))
 		.OnComplete([JoinMemberPromise](const TOnlineResult<FJoinLobbyMemberImpl>& Result)
 		{
@@ -1039,7 +1184,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FJoinLobbyImpl>> FLobbiesEOS::JoinLobby
 	}
 
 	TPromise<TDefaultErrorResult<FJoinLobbyImpl>> Promise;
-	auto Future = Promise.GetFuture();
+	TFuture<TDefaultErrorResult<FJoinLobbyImpl>> Future = Promise.GetFuture();
 
 	WhenAll(MoveTemp(PendingMemberJoins))
 	.Then([this, Promise = MoveTemp(Promise), Params = MoveTemp(Params)](TFuture<TArray<TDefaultErrorResult<FJoinLobbyMemberImpl>>>&& Results) mutable
@@ -1114,7 +1259,7 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 
 	Op->Then([this, LobbyDetails, LobbyData = Params.LobbyData](TOnlineAsyncOp<FJoinLobbyMemberImpl>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		const FLobbiesEOS::FJoinLobbyMemberImpl::Params& Params = InAsyncOp.GetParams();
 
 		EOS_Lobby_JoinLobbyOptions JoinLobbyOptions = {};
 		JoinLobbyOptions.ApiVersion = EOS_LOBBY_JOINLOBBY_API_LATEST;
@@ -1122,15 +1267,10 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 		JoinLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
 		JoinLobbyOptions.bPresenceEnabled = false;
 		JoinLobbyOptions.LocalRTCOptions = nullptr;
-
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Start. Lobby: %s, Member: %s"),
-			*LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
-
 		return EOS_Async<EOS_Lobby_JoinLobbyCallbackInfo>(EOS_Lobby_JoinLobby, LobbyPrerequisites->LobbyInterfaceHandle, JoinLobbyOptions);
 	})
 	.Then([this](TOnlineAsyncOp<FJoinLobbyMemberImpl>& InAsyncOp, const EOS_Lobby_JoinLobbyCallbackInfo* Data)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Complete. Result: %d"), Data->ResultCode);
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// TODO: Error codes
@@ -1139,17 +1279,17 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 	})
 	.Then([this](TOnlineAsyncOp<FJoinLobbyMemberImpl>& InAsyncOp)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		const FLobbiesEOS::FJoinLobbyMemberImpl::Params& Params = InAsyncOp.GetParams();
 		FModifyLobbyMemberDataImpl::Params ModifyParams;
 		ModifyParams.LobbyData = Params.LobbyData;
 		ModifyParams.LocalUserId = Params.LocalUserId;
-		ModifyParams.Changes = MakeShared<FLobbyMemberDataChanges>();
+		ModifyParams.Changes = MakeShared<FClientLobbyMemberDataChanges>();
 		ModifyParams.Changes->MutatedAttributes = Params.Attributes;
 		return ModifyLobbyMemberDataImpl(MoveTemp(ModifyParams));
 	})
 	.Then([this](TOnlineAsyncOp<FJoinLobbyMemberImpl>& InAsyncOp, TDefaultErrorResult<FModifyLobbyMemberDataImpl>&& Result)
 	{
-		const auto& Params = InAsyncOp.GetParams();
+		const FLobbiesEOS::FJoinLobbyMemberImpl::Params& Params = InAsyncOp.GetParams();
 
 		if (Result.IsError())
 		{
@@ -1159,7 +1299,7 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 			LeaveLobbyParams.LocalUserId = Params.LocalUserId;
 
 			TPromise<void> Promise;
-			auto Future = Promise.GetFuture();
+			TFuture<void> Future = Promise.GetFuture();
 
 			LeaveLobbyImpl(MoveTemp(LeaveLobbyParams))
 			.Then([this, InAsyncOp = InAsyncOp.AsShared(), ErrorResult = MoveTemp(Result.GetErrorValue()), Promise = MoveTemp(Promise)](TFuture<TDefaultErrorResult<FLeaveLobbyImpl>>&& Future) mutable
@@ -1185,7 +1325,7 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 	{
 		InAsyncOp.SetResult(FJoinLobbyMemberImpl::Result{});
 	})
-	.Enqueue(GetSerialQueue(Params.LocalUserId));
+	.Enqueue(GetSerialQueue(InParams.LocalUserId));
 
 	return Op->GetHandle();
 }
@@ -1209,7 +1349,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FLeaveLobbyImpl>> FLobbiesEOS::LeaveLob
 	LeaveLobbyOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
 
 	TPromise<TDefaultErrorResult<FLeaveLobbyImpl>> Promise;
-	auto Future = Promise.GetFuture();
+	TFuture<TDefaultErrorResult<FLeaveLobbyImpl>> Future = Promise.GetFuture();
 
 	EOS_Async<EOS_Lobby_LeaveLobbyCallbackInfo>(EOS_Lobby_LeaveLobby, LobbyPrerequisites->LobbyInterfaceHandle, LeaveLobbyOptions)
 	.Then([Promise = MoveTemp(Promise)](TFuture<const EOS_Lobby_LeaveLobbyCallbackInfo*>&& Future) mutable
@@ -1247,7 +1387,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FDestroyLobbyImpl>> FLobbiesEOS::Destro
 	DestroyLobbyOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
 
 	TPromise<TDefaultErrorResult<FDestroyLobbyImpl>> Promise;
-	auto Future = Promise.GetFuture();
+	TFuture<TDefaultErrorResult<FDestroyLobbyImpl>> Future = Promise.GetFuture();
 
 	EOS_Async<EOS_Lobby_DestroyLobbyCallbackInfo>(EOS_Lobby_DestroyLobby, LobbyPrerequisites->LobbyInterfaceHandle, DestroyLobbyOptions)
 	.Then([Promise = MoveTemp(Promise)](TFuture<const EOS_Lobby_DestroyLobbyCallbackInfo*>&& Future) mutable
@@ -1286,7 +1426,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FInviteLobbyMemberImpl>> FLobbiesEOS::I
 	SendInviteOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
 
 	TPromise<TDefaultErrorResult<FInviteLobbyMemberImpl>> Promise;
-	auto Future = Promise.GetFuture();
+	TFuture<TDefaultErrorResult<FInviteLobbyMemberImpl>> Future = Promise.GetFuture();
 
 	EOS_Async<EOS_Lobby_SendInviteCallbackInfo>(EOS_Lobby_SendInvite, LobbyPrerequisites->LobbyInterfaceHandle, SendInviteOptions)
 	.Then([Promise = MoveTemp(Promise)](TFuture<const EOS_Lobby_SendInviteCallbackInfo*>&& Future) mutable
@@ -1444,15 +1584,16 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyDataImpl>> FLobbiesEOS::Mod
 		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyDataImpl>>(Errors::InvalidParams()).GetFuture();
 	}
 
-	TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> DetailsResult = FLobbyDetailsEOS::CreateFromLobbyId(
-		LobbyPrerequisites.ToSharedRef(), Params.LobbyData->GetLobbyIdEOS(), Params.LocalUserId);
-	if (DetailsResult.IsError())
+	TSharedPtr<FLobbyDetailsEOS> LobbyDetails = Params.LobbyData->GetUserLobbyDetails(Params.LocalUserId);
+	if (!LobbyDetails)
 	{
-		// Todo: Errors
-		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyDataImpl>>(Errors::Unknown(MoveTemp(DetailsResult.GetErrorValue()))).GetFuture();
+		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyDataImpl>>(Errors::InvalidParams()).GetFuture();
 	}
 
-	// todo: check local user is lobby owner
+	if (Params.LocalUserId != Params.LobbyData->GetClientLobbyData()->GetPublicData().OwnerAccountId)
+	{
+		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyDataImpl>>(Errors::InvalidParams()).GetFuture();
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Start. Lobby: %s, Member: %s"),
 		*Params.LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
@@ -1460,7 +1601,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyDataImpl>> FLobbiesEOS::Mod
 	TPromise<TDefaultErrorResult<FModifyLobbyDataImpl>> Promise;
 	TFuture<TDefaultErrorResult<FModifyLobbyDataImpl>> Future = Promise.GetFuture();
 
-	DetailsResult.GetOkValue()->ApplyLobbyDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
+	LobbyDetails->ApplyLobbyDataUpdateFromLocalChanges(Params.LocalUserId, *Params.Changes)
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Complete. Result: %s"), *LexToString(Future.Get()));
@@ -1492,25 +1633,18 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyMemberDataImpl>> FLobbiesEO
 		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>>(Errors::InvalidParams()).GetFuture();
 	}
 
-	TDefaultErrorResultInternal<TSharedPtr<FLobbyDetailsEOS>> DetailsResult = FLobbyDetailsEOS::CreateFromLobbyId(
-		LobbyPrerequisites.ToSharedRef(), Params.LobbyData->GetLobbyIdEOS(), Params.LocalUserId);
-	if (DetailsResult.IsError())
+	TSharedPtr<FLobbyDetailsEOS> LobbyDetails = Params.LobbyData->GetUserLobbyDetails(Params.LocalUserId);
+	if (!LobbyDetails)
 	{
-		// Todo: Errors
-		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>>(Errors::Unknown(MoveTemp(DetailsResult.GetErrorValue()))).GetFuture();
+		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>>(Errors::InvalidParams()).GetFuture();
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Start. Lobby: %s, Member: %s"),
-		*Params.LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
 
 	TPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>> Promise;
 	TFuture<TDefaultErrorResult<FModifyLobbyMemberDataImpl>> Future = Promise.GetFuture();
 
-	DetailsResult.GetOkValue()->ApplyLobbyMemberDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
+	LobbyDetails->ApplyLobbyMemberDataUpdateFromLocalChanges(Params.LocalUserId, *Params.Changes)
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Complete. Result: %s"), *LexToString(Future.Get()));
-
 		// Todo: Handle "no change" better.
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
 		{
@@ -1523,6 +1657,100 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyMemberDataImpl>> FLobbiesEO
 	});
 
 	return Future;
+}
+
+TOnlineAsyncOpHandle<FLobbiesEOS::FProcessLobbyNotificationImpl> FLobbiesEOS::ProcessLobbyNotificationImplOp(FProcessLobbyNotificationImpl::Params&& InParams)
+{
+	TOnlineAsyncOpRef<FProcessLobbyNotificationImpl> Op = GetOp<FProcessLobbyNotificationImpl>(MoveTemp(InParams));
+	const FProcessLobbyNotificationImpl::Params& Params = Op->GetParams();
+
+	if (!Params.LobbyData.IsValid())
+	{
+		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+
+	Op->Then([this](TOnlineAsyncOp<FProcessLobbyNotificationImpl>& InAsyncOp)
+	{
+		const FProcessLobbyNotificationImpl::Params& Params = InAsyncOp.GetParams();
+
+		// Notifications do not always indicate a user. Try to find a valid lobby details object to
+		// handle acquiring data snapshots.
+		TSharedPtr<FLobbyDetailsEOS> LobbyDetails = Params.LobbyData->GetActiveLobbyDetails();
+		if (!LobbyDetails.IsValid())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesEOS::ProcessLobbyNotificationImplOp] Failed to find active lobby details to process lobby notificaions: Lobby: %s"),
+				*Params.LobbyData->GetLobbyId());
+			InAsyncOp.SetError(Errors::Unknown());
+			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>>().GetFuture();
+		}
+
+		InAsyncOp.Data.Set<TSharedRef<FLobbyDetailsEOS>>(LobbyDetailsKeyName, LobbyDetails.ToSharedRef());
+
+		// Fetch lobby snapshot. Fetching the snapshot resolves the account ids of all lobby members in the snapshot.
+		return LobbyDetails->GetLobbySnapshot();
+	})
+	.Then([this](TOnlineAsyncOp<FProcessLobbyNotificationImpl>& InAsyncOp, TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>&& LobbySnapshotResult)
+	{
+		const FProcessLobbyNotificationImpl::Params& Params = InAsyncOp.GetParams();
+		TSharedRef<FLobbyDetailsEOS> LobbyDetails = GetOpDataChecked<TSharedRef<FLobbyDetailsEOS>>(InAsyncOp, LobbyDetailsKeyName);
+
+		if (LobbySnapshotResult.IsError())
+		{
+			// Todo: errors.
+			InAsyncOp.SetError(Errors::Unknown(MoveTempIfPossible(LobbySnapshotResult.GetErrorValue())));
+			return;
+		}
+
+		// Get member snapshots.
+		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+		LobbyMemberSnapshots.Reserve(Params.MutatedMembers.Num());
+		for (EOS_ProductUserId MutatedMember : Params.MutatedMembers)
+		{
+			const FOnlineAccountIdHandle MutatedMemberAccountId = FindAccountId(MutatedMember);
+			if (MutatedMemberAccountId.IsValid())
+			{
+				TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> MemberSnapshotResult = LobbyDetails->GetLobbyMemberSnapshot(MutatedMemberAccountId);
+				if (MemberSnapshotResult.IsError())
+				{
+					// Todo: errors.
+					InAsyncOp.SetError(Errors::Unknown(MoveTempIfPossible(MemberSnapshotResult.GetErrorValue())));
+					return;
+				}
+				LobbyMemberSnapshots.Add(MutatedMemberAccountId, MoveTemp(MemberSnapshotResult.GetOkValue()));
+			}
+		}
+
+		// Translate leaving members from EOS_ProductUserId to FOnlineAccountIdHandle.
+		TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeavingMemberReason;
+		LeavingMemberReason.Reserve(Params.LeavingMembers.Num());
+		for (const TPair<EOS_ProductUserId, ELobbyMemberLeaveReason>& LeavingMember : Params.LeavingMembers)
+		{
+			const FOnlineAccountIdHandle LeavingMemberAccountId = FindAccountId(LeavingMember.Key);
+			if (LeavingMemberAccountId.IsValid())
+			{
+				LeavingMemberReason.Add(LeavingMemberAccountId, LeavingMember.Value);
+			}
+		}
+
+		// Apply updates and fire notifications.
+		FApplyLobbyUpdateResult Result = Params.LobbyData->GetClientLobbyData()->ApplyLobbyUpdateFromServiceSnapshot(
+			MoveTemp(*LobbySnapshotResult.GetOkValue()),
+			MoveTemp(LobbyMemberSnapshots),
+			MoveTemp(LeavingMemberReason),
+			&LobbyEvents);
+
+		// Remove active users if needed.
+		for (FOnlineAccountIdHandle LeavingMember : Result.LeavingLocalMembers)
+		{
+			RemoveActiveLobby(LeavingMember, Params.LobbyData.ToSharedRef());
+		}
+
+		InAsyncOp.SetResult(FProcessLobbyNotificationImpl::Result{});
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
 }
 
 /* UE::Online */ }
