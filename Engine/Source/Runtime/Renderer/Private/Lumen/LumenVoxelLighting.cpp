@@ -472,13 +472,6 @@ class FVoxelTraceCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FVoxelTraceCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "VoxelTraceCS", SF_Compute);
 
-struct FVisibilityBufferData
-{
-	float NormalizedHitDistance;
-	uint32 HitObjectId;
-	uint32 HitObjectType;
-};
-
 class FHeightfieldVoxelTraceCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHeightfieldVoxelTraceCS)
@@ -498,8 +491,6 @@ class FHeightfieldVoxelTraceCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, VoxelCoordToUVScale)
 		SHADER_PARAMETER(FVector3f, VoxelCoordToUVBias)
 		SHADER_PARAMETER(uint32, ClipmapIndex)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<FVisibilityBufferData>, VisibilityBufferData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<uint>, NumVisibilityBufferData)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
