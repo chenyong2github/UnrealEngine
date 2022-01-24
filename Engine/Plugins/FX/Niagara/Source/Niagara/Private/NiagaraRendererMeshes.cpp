@@ -248,9 +248,13 @@ int32 FNiagaraRendererMeshes::GetLODIndex(int32 MeshIndex) const
 void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneViewFamily& ViewFamily, FMeshElementCollector& Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
 {
 	ParticleMeshRenderData.Collector = &Collector;
-	
+
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
 	ParticleMeshRenderData.bUseGPUScene = FeatureLevel > ERHIFeatureLevel::ES3_1	
 		&& UseGPUScene(SceneProxy->GetScene().GetShaderPlatform(), FeatureLevel);
+#else
+	ParticleMeshRenderData.bUseGPUScene = false;
+#endif
 
 	// Anything to render?
 	ParticleMeshRenderData.DynamicDataMesh = static_cast<FNiagaraDynamicDataMesh*>(InDynamicData);

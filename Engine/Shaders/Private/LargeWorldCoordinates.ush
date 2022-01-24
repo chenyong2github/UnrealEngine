@@ -348,6 +348,12 @@ FLWCVector3 LWCGetOrigin(FLWCMatrix InMatrix)
 	return MakeLWCVector3(LWCGetTile(InMatrix), InMatrix.M[3].xyz);
 }
 
+void LWCSetOrigin(inout FLWCMatrix InOutMatrix, FLWCVector3 Origin)
+{
+	LWCSetTile(InOutMatrix, LWCGetTile(Origin));
+	InOutMatrix.M[3].xyz = Origin.Offset;
+}
+
 #define FLWCType FLWCScalar
 #define FFloatType float
 #define FBoolType bool

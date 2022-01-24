@@ -34,6 +34,11 @@ float4x4 NiagaraComposeTransformMatrix(float3 S, float3x3 R, float3 T)
 		T, 1.0f);
 }
 
+FLWCMatrix NiagaraComposeTransformMatrix(float3 S, float3x3 R, FLWCVector3 T)
+{
+	return MakeLWCMatrix(LWCGetTile(T), NiagaraComposeTransformMatrix(S, R, T.Offset));
+}
+
 float4x4 NiagaraComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
 {
 	float3x3 InvScaleMat = float3x3(
@@ -57,6 +62,11 @@ float4x4 NiagaraComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
 		-T, 1.0f);
 
 	return mul(InvTransMat, InvRotScale44);
+}
+
+FLWCInverseMatrix NiagaraComposeInvTransformMatrix(float3 S, float3x3 R, FLWCVector3 T)
+{
+	return MakeLWCInverseMatrix(LWCGetTile(T), NiagaraComposeInvTransformMatrix(S, R, T.Offset));
 }
 
 float3x3 NiagaraFindRotationBetweenNormals(float3 A, float3 B)

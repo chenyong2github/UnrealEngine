@@ -16,6 +16,10 @@ ParticleVertexFactory.h: Particle vertex factory definitions.
 #include "SceneManagement.h"
 #include "VertexFactory.h"
 
+// Disable this define to test disabling the use of GPU Scene with Niagara mesh renderer
+// NOTE: Changing this will also require you to make a trivial change to the mesh factory shader, or it may use cached shaders
+#define NIAGARA_ENABLE_GPU_SCENE_MESHES 1
+
 class FMaterial;
 class FVertexBuffer;
 struct FDynamicReadBuffer;

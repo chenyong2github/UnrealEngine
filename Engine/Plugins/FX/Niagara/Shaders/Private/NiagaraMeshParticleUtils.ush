@@ -27,15 +27,15 @@ struct NiagaraMeshParticleSRT
 {
 	float3 Scale;
 	float3x3 Rotation;
-	float3 Translation;
+	FLWCVector3 Translation;
 };
 
 // Transform data for a single mesh particle, used for rendering and culling
 struct NiagaraMeshParticleTransforms
 {
-	float4x4 LocalToWorld;
-	float4x4 WorldToLocal;
-	float4x4 PrevLocalToWorld;
+	FLWCMatrix LocalToWorld;
+	FLWCInverseMatrix WorldToLocal;
+	FLWCMatrix PrevLocalToWorld;
 	float3x3 LocalToWorldNoScale;
 };
 
@@ -78,12 +78,12 @@ struct NiagaraMeshParticleSRTParams
 	float4 VelocityDirMag;
 
 	// Camera basis vectors (in world space)
-	float3 CameraOrigin;
+	FLWCVector3 CameraOrigin;
 	float3 CameraForwardDir;
 	float3 CameraUpDir;
 
 	// Primitive transform data
-	float4x4 PrimitiveLocalToWorld;
+	FLWCMatrix PrimitiveLocalToWorld;
 	float3 PrimitiveInvNonUniformScale;
 };
 
@@ -138,37 +138,33 @@ struct NiagaraMeshParticleTransformsParams
 	float4 VelocityDirMag;
 	float4 PrevVelocityDirMag;
 
-	// Camera basis vectors (in world space)
-	float3 CameraOrigin;
+	// Camera position and basis vectors (in world space)
+	FLWCVector3 CameraOrigin;
 	float3 CameraForwardDir;
 	float3 CameraUpDir;
-	float3 PrevCameraOrigin;
+	FLWCVector3 PrevCameraOrigin;
 	float3 PrevCameraForwardDir;
 	float3 PrevCameraUpDir;
 
 	// Primitive transform data
-	float4x4 PrimitiveLocalToWorld;
-	float4x4 PrimitiveWorldToLocal;
-	float4x4 PrimitivePrevLocalToWorld;
+	FLWCMatrix PrimitiveLocalToWorld;
+	FLWCInverseMatrix PrimitiveWorldToLocal;
+	FLWCMatrix PrimitivePrevLocalToWorld;
 	float3 PrimitiveInvNonUniformScale;
 };
 
 // Transforms a local-space position to world space
-float3 NiagaraLocalToWorldPos(float3 LocalSpacePos, NiagaraMeshParticleSRTParams Params)
+FLWCVector3 NiagaraLocalToWorldPos(float3 LocalSpacePos, NiagaraMeshParticleSRTParams Params)
 {
-	return
-		Params.PrimitiveLocalToWorld[0].xyz * LocalSpacePos.x +
-		Params.PrimitiveLocalToWorld[1].xyz * LocalSpacePos.y +
-		Params.PrimitiveLocalToWorld[2].xyz * LocalSpacePos.z +
-		Params.PrimitiveLocalToWorld[3].xyz;
+	return LWCMultiply(LocalSpacePos, Params.PrimitiveLocalToWorld);
 }
 
 // Transforms a simulation-space position to world space
-float3 NiagaraSimToWorldPos(float3 SimSpacePos, NiagaraMeshParticleSRTParams Params)
+FLWCVector3 NiagaraSimToWorldPos(FLWCVector3 SimSpacePos, NiagaraMeshParticleSRTParams Params)
 {
 	if (Params.bLocalSpace)
 	{
-		return NiagaraLocalToWorldPos(SimSpacePos, Params);
+		return NiagaraLocalToWorldPos(LWCToFloat(SimSpacePos), Params);
 	}
 	
 	return SimSpacePos;
@@ -178,9 +174,9 @@ float3 NiagaraSimToWorldPos(float3 SimSpacePos, NiagaraMeshParticleSRTParams Par
 float3 NiagaraLocalToWorldVec(float3 LocalSpaceVec, NiagaraMeshParticleSRTParams Params)
 {
 	return
-		Params.PrimitiveInvNonUniformScale.x * Params.PrimitiveLocalToWorld[0].xyz * LocalSpaceVec.xxx +
-		Params.PrimitiveInvNonUniformScale.y * Params.PrimitiveLocalToWorld[1].xyz * LocalSpaceVec.yyy +
-		Params.PrimitiveInvNonUniformScale.z * Params.PrimitiveLocalToWorld[2].xyz * LocalSpaceVec.zzz;
+		Params.PrimitiveInvNonUniformScale.x * Params.PrimitiveLocalToWorld.M[0].xyz * LocalSpaceVec.xxx +
+		Params.PrimitiveInvNonUniformScale.y * Params.PrimitiveLocalToWorld.M[1].xyz * LocalSpaceVec.yyy +
+		Params.PrimitiveInvNonUniformScale.z * Params.PrimitiveLocalToWorld.M[2].xyz * LocalSpaceVec.zzz;
 }
 
 // Transforms a world-space direction vector to local space
@@ -188,9 +184,9 @@ float3 NiagaraWorldToLocalVec(float3 WorldSpaceVec, NiagaraMeshParticleSRTParams
 {
 	float3x3 InvRot =
 	{
-		Params.PrimitiveInvNonUniformScale.x * Params.PrimitiveLocalToWorld[0].xyz,
-		Params.PrimitiveInvNonUniformScale.y * Params.PrimitiveLocalToWorld[1].xyz,
-		Params.PrimitiveInvNonUniformScale.z * Params.PrimitiveLocalToWorld[2].xyz
+		Params.PrimitiveInvNonUniformScale.x * Params.PrimitiveLocalToWorld.M[0].xyz,
+		Params.PrimitiveInvNonUniformScale.y * Params.PrimitiveLocalToWorld.M[1].xyz,
+		Params.PrimitiveInvNonUniformScale.z * Params.PrimitiveLocalToWorld.M[2].xyz
 	};
 	InvRot = transpose(InvRot);
 	return mul(WorldSpaceVec, InvRot);
@@ -231,7 +227,7 @@ float4 NiagaraGetVelocityDirMag(int VelocityDataOffset, float3 DefaultVelocity, 
 }
 
 // Constructs a rotation matrix that satisfies the mesh particle's FacingMode
-float3x3 NiagaraGetMeshFacingMatrix(float3 ParticleSimPosition, NiagaraMeshParticleSRTParams Params)
+float3x3 NiagaraGetMeshFacingMatrix(FLWCVector3 ParticleSimPosition, NiagaraMeshParticleSRTParams Params)
 {
 	float3 WorldX = float3(1, 0, 0);
 	float3 WorldZ = float3(0, 0, 1);
@@ -255,9 +251,9 @@ float3x3 NiagaraGetMeshFacingMatrix(float3 ParticleSimPosition, NiagaraMeshParti
 
 		case MESH_FACING_CAMERA_POSITION:
 		{
-			float3 WorldPosition = NiagaraSimToWorldPos(ParticleSimPosition, Params);
-			float3 CameraVector = Params.CameraOrigin - WorldPosition;
-			FacingDir = NiagaraWorldToSimVec(normalize(CameraVector), Params);
+			FLWCVector3 WorldPosition = NiagaraSimToWorldPos(ParticleSimPosition, Params);
+			float3 CameraDir = LWCNormalize(LWCSubtract(Params.CameraOrigin, WorldPosition));
+			FacingDir = NiagaraWorldToSimVec(CameraDir, Params);
 			break;
 		}
 
@@ -329,11 +325,11 @@ float3x3 NiagaraGetMeshFacingMatrix(float3 ParticleSimPosition, NiagaraMeshParti
 }
 
 // Calculates the simulation-space CameraOffset of the mesh particle 
-float3 NiagaraCalculateCameraOffset(float3 ParticleSimPosition, NiagaraMeshParticleSRTParams Params)
+float3 NiagaraCalculateCameraOffset(FLWCVector3 ParticleSimPosition, NiagaraMeshParticleSRTParams Params)
 {
-	float3 WorldPosition = NiagaraSimToWorldPos(ParticleSimPosition, Params);
+	FLWCVector3 WorldPosition = NiagaraSimToWorldPos(ParticleSimPosition, Params);
 	float Offset = NiagaraSafeGetFloat(Params.CameraOffsetDataOffset, Params.ParticleIndex, Params.DefaultCameraOffset);
-	float3 CameraVector = NiagaraWorldToSimVec(normalize(Params.CameraOrigin - WorldPosition), Params);
+	float3 CameraVector = NiagaraWorldToSimVec(LWCNormalize(LWCSubtract(Params.CameraOrigin, WorldPosition)), Params);
 
 	return CameraVector * Offset;
 }
@@ -342,9 +338,18 @@ float3 NiagaraCalculateCameraOffset(float3 ParticleSimPosition, NiagaraMeshParti
 NiagaraMeshParticleSRT NiagaraCalculateMeshParticleSRT(NiagaraMeshParticleSRTParams Params)
 {
 	float3 ParticleSimPosition = NiagaraSafeGetVec3(Params.PositionDataOffset, Params.ParticleIndex, Params.DefaultPosition);
-	float3 ParticlePosition = Params.bLocalSpace ? ParticleSimPosition : LWCHackToFloat(MakeLWCVector3(Params.SystemLWCTile, ParticleSimPosition));
 	float4 ParticleRotation = NiagaraSafeGetVec4(Params.RotationDataOffset, Params.ParticleIndex, Params.DefaultRotation);
 	float3 ParticleScale = NiagaraSafeGetVec3(Params.ScaleDataOffset, Params.ParticleIndex, Params.DefaultScale);
+	
+	FLWCVector3 ParticlePosition;
+	if (Params.bLocalSpace)
+	{
+		ParticlePosition = MakeLWCVector3((float3)0, ParticleSimPosition);
+	}
+	else
+ 	{
+		ParticlePosition = MakeLWCVector3(Params.SystemLWCTile, ParticleSimPosition);
+	}
 
 	NiagaraMeshParticleSRT SRT;
 
@@ -367,17 +372,17 @@ NiagaraMeshParticleSRT NiagaraCalculateMeshParticleSRT(NiagaraMeshParticleSRTPar
 	SRT.Translation = ParticlePosition;
 
 	// Apply CameraOffset
-	SRT.Translation += NiagaraCalculateCameraOffset(SRT.Translation, Params);
+	SRT.Translation = LWCAdd(SRT.Translation, NiagaraCalculateCameraOffset(SRT.Translation, Params));
 	
 	// Apply MeshOffset
 	if (Params.bMeshOffsetIsWorldSpace)
 	{
-		SRT.Translation += NiagaraWorldToSimVec(Params.MeshOffset, Params);
+		SRT.Translation = LWCAdd(SRT.Translation, NiagaraWorldToSimVec(Params.MeshOffset, Params));
 	}
 	else
 	{
 		// NOTE: MeshOffset here is mesh-local, not Primitive-local
-		SRT.Translation += mul(Params.MeshOffset * ParticleScale, SRT.Rotation);
+		SRT.Translation = LWCAdd(SRT.Translation, mul(Params.MeshOffset * ParticleScale, SRT.Rotation));
 	}
 
 	return SRT;
@@ -442,7 +447,7 @@ NiagaraMeshParticleTransforms NiagaraCalculateMeshParticleTransforms(NiagaraMesh
 		PrevParticleSRT = ParticleSRT;
 		
 		const float3 Velocity = Params.VelocityDirMag.xyz * Params.VelocityDirMag.w;		
-		PrevParticleSRT.Translation -= Velocity * Params.DeltaSeconds;
+		PrevParticleSRT.Translation = LWCSubtract(PrevParticleSRT.Translation, Velocity * Params.DeltaSeconds);
 	}
 
 	NiagaraMeshParticleTransforms Output;
@@ -454,11 +459,11 @@ NiagaraMeshParticleTransforms NiagaraCalculateMeshParticleTransforms(NiagaraMesh
 	if (Params.bLocalSpace)
 	{
 		// Transform from primitive to world space
-		Output.LocalToWorld = mul(Output.LocalToWorld, Params.PrimitiveLocalToWorld);
-		Output.WorldToLocal = mul(Params.PrimitiveWorldToLocal, Output.WorldToLocal);
-		Output.PrevLocalToWorld = mul(Output.PrevLocalToWorld, Params.PrimitivePrevLocalToWorld);
+		Output.LocalToWorld = LWCMultiply(LWCToFloat(Output.LocalToWorld), Params.PrimitiveLocalToWorld);
+		Output.WorldToLocal = LWCMultiply(Params.PrimitiveWorldToLocal, LWCToFloat(Output.WorldToLocal));
+		Output.PrevLocalToWorld = LWCMultiply(LWCToFloat(Output.PrevLocalToWorld), Params.PrimitivePrevLocalToWorld);
 
-		float3x3 PrimLocalToWorldNoScale = (float3x3)Params.PrimitiveLocalToWorld;
+		float3x3 PrimLocalToWorldNoScale = LWCToFloat3x3(Params.PrimitiveLocalToWorld);
 		PrimLocalToWorldNoScale[0] *= Params.PrimitiveInvNonUniformScale.x;
 		PrimLocalToWorldNoScale[1] *= Params.PrimitiveInvNonUniformScale.y;
 		PrimLocalToWorldNoScale[2] *= Params.PrimitiveInvNonUniformScale.z;

@@ -154,23 +154,23 @@ void UpdateMeshInstancesCS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_Grou
 	Params.DefaultPrevCameraOffset 		= DefaultPrevCameraOffset;
 	Params.VelocityDirMag				= NiagaraGetVelocityDirMag(VelocityDataOffset, DefaultVelocity, ParticleIndex);
 	Params.PrevVelocityDirMag			= NiagaraGetVelocityDirMag(PrevVelocityDataOffset, DefaultPrevVelocity, ParticleIndex);
-	Params.CameraOrigin 				= LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	Params.CameraOrigin 				= PrimaryView.WorldCameraOrigin;
 	Params.CameraForwardDir				= View.ViewForward;
 	Params.CameraUpDir					= View.ViewUp;
-	Params.PrevCameraOrigin 			= LWCHackToFloat(PrimaryView.PrevWorldCameraOrigin);
+	Params.PrevCameraOrigin 			= PrimaryView.PrevWorldCameraOrigin;
 	Params.PrevCameraForwardDir			= View.PrevViewToTranslatedWorld[2].xyz;
 	Params.PrevCameraUpDir				= View.PrevViewToTranslatedWorld[1].xyz;
-	Params.PrimitiveLocalToWorld		= LWCHackToFloat(PrimitiveData.LocalToWorld);
-	Params.PrimitiveWorldToLocal 		= LWCHackToFloat(PrimitiveData.WorldToLocal);
-	Params.PrimitivePrevLocalToWorld 	= LWCHackToFloat(PrimitiveData.PreviousLocalToWorld);
+	Params.PrimitiveLocalToWorld		= PrimitiveData.LocalToWorld;
+	Params.PrimitiveWorldToLocal 		= PrimitiveData.WorldToLocal;
+	Params.PrimitivePrevLocalToWorld 	= PrimitiveData.PreviousLocalToWorld;
 	Params.PrimitiveInvNonUniformScale	= PrimitiveData.InvNonUniformScale;
 
 	NiagaraMeshParticleTransforms Transforms = NiagaraCalculateMeshParticleTransforms(Params);
 
 	// Transform the bounding center to world-space and distance cull
 	{
-		float3 BCenter = mul(float4(LocalBoundingCenter, 1.0f), Transforms.LocalToWorld).xyz;
-		float3 CamVec = BCenter - LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+		FLWCVector3 BCenter = LWCMultiply(LocalBoundingCenter, Transforms.LocalToWorld);
+		float3 CamVec = LWCToFloat(LWCSubtract(BCenter, PrimaryView.WorldCameraOrigin));
 		float CamDistSq = dot(CamVec, CamVec);
 		if (CamDistSq < DistanceCullRangeSquared.x  || CamDistSq > DistanceCullRangeSquared.y)
 		{
@@ -180,6 +180,16 @@ void UpdateMeshInstancesCS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_Grou
 		}
 	}
 
+	// The transforms solved are currently relative to the system LWC tile. We need to re-base it to the 
+	// Primitive's current tile
+	FLWCMatrix LocalToWorld = Transforms.LocalToWorld;
+	FLWCMatrix PrevLocalToWorld = Transforms.PrevLocalToWorld;
+	FLWCVector3 NewTileOrigin = MakeLWCVector3(PrimitiveData.TilePosition, (float3)0);
+	FLWCVector3 PrimitiveOffset = LWCSubtract(LWCGetOrigin(Transforms.LocalToWorld), NewTileOrigin);
+	FLWCVector3 PrevPrimitiveOffset = LWCSubtract(LWCGetOrigin(Transforms.PrevLocalToWorld), NewTileOrigin);
+	LWCSetOrigin(LocalToWorld, MakeLWCVector3(PrimitiveData.TilePosition, LWCToFloat(PrimitiveOffset)));
+	LWCSetOrigin(PrevLocalToWorld, MakeLWCVector3(PrimitiveData.TilePosition, LWCToFloat(PrevPrimitiveOffset)));
+
 	const uint PayloadDataFlags = GetPayloadDataFlags();
 	InitializeInstanceSceneData(
 		InstanceId,
@@ -188,10 +198,10 @@ void UpdateMeshInstancesCS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_Grou
  		PayloadDataFlags,
  		1,
  		0.0f,
-		Transforms.LocalToWorld
+		LocalToWorld.M
 	);
 	
 	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(PrimitiveId, PayloadDataFlags, LocalInstanceId);
-	WriteInstanceDynamicData(PayloadOffsets, Transforms.PrevLocalToWorld); 	
+	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld.M);
 	WriteInstanceCustomData(PayloadOffsets, 0, float4(asfloat(ParticleIndex), 0.0f, 0.0f, 0.0f));
 }

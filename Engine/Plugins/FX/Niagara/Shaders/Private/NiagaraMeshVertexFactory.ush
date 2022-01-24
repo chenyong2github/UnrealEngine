@@ -542,22 +542,22 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Params.DefaultPrevCameraOffset 		= NiagaraMeshVF.DefaultPrevCameraOffset;
 	Params.VelocityDirMag				= Intermediates.ParticleVelocity;
 	Params.PrevVelocityDirMag			= NiagaraGetVelocityDirMag(NiagaraMeshVF.PrevVelocityDataOffset, NiagaraMeshVF.DefaultPrevVelocity, Intermediates.ParticleIndex);
-	Params.CameraOrigin 				= LWCHackToFloat(ResolvedView.WorldCameraOrigin);
+	Params.CameraOrigin 				= ResolvedView.WorldCameraOrigin;
 	Params.CameraForwardDir				= ResolvedView.ViewForward;
 	Params.CameraUpDir					= ResolvedView.ViewUp;
-	Params.PrevCameraOrigin 			= LWCHackToFloat(ResolvedView.PrevWorldCameraOrigin);
+	Params.PrevCameraOrigin 			= ResolvedView.PrevWorldCameraOrigin;
 	Params.PrevCameraForwardDir			= ResolvedView.PrevViewToTranslatedWorld[2].xyz;
 	Params.PrevCameraUpDir				= ResolvedView.PrevViewToTranslatedWorld[1].xyz;
-	Params.PrimitiveLocalToWorld		= LWCHackToFloat(Intermediates.SceneData.Primitive.LocalToWorld);
-	Params.PrimitiveWorldToLocal 		= LWCHackToFloat(Intermediates.SceneData.Primitive.WorldToLocal);
-	Params.PrimitivePrevLocalToWorld 	= LWCHackToFloat(Intermediates.SceneData.Primitive.PreviousLocalToWorld);
+	Params.PrimitiveLocalToWorld		= Intermediates.SceneData.Primitive.LocalToWorld;
+	Params.PrimitiveWorldToLocal 		= Intermediates.SceneData.Primitive.WorldToLocal;
+	Params.PrimitivePrevLocalToWorld 	= Intermediates.SceneData.Primitive.PreviousLocalToWorld;
 	Params.PrimitiveInvNonUniformScale	= Intermediates.SceneData.Primitive.InvNonUniformScale;
 
 	NiagaraMeshParticleTransforms Transforms = NiagaraCalculateMeshParticleTransforms(Params);
 
-	Intermediates.ParticleToWorld 			= Transforms.LocalToWorld;
-	Intermediates.WorldToParticle 			= Transforms.WorldToLocal;
-	Intermediates.PrevParticleToWorld		= Transforms.PrevLocalToWorld;
+	Intermediates.ParticleToWorld 			= LWCHackToFloat(Transforms.LocalToWorld);
+	Intermediates.WorldToParticle 			= LWCHackToFloat(Transforms.WorldToLocal);
+	Intermediates.PrevParticleToWorld		= LWCHackToFloat(Transforms.PrevLocalToWorld);
 	Intermediates.ParticleToWorldNoScale	= Transforms.LocalToWorldNoScale;
 #endif // (VF_USE_PRIMITIVE_SCENE_DATA == 1)
 
@@ -921,4 +921,3 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 #endif // #if COMPUTESHADER || RAYHITGROUPSHADER
 
 #include "/Engine/Private/VertexFactoryDefaultInterface.ush"
-

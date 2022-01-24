@@ -125,8 +125,10 @@ void FNiagaraMeshVertexFactory::InitRHI()
 			}
 		}
 
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
 		// TODO: Support GPU Scene on mobile? Maybe only for CPU particles?
 		AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xFF);
+#endif
 
 		//if (Streams.Num() > 0)
 		{
@@ -152,6 +154,7 @@ void FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactor
 	OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraMeshVF"));
 
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
 	const ERHIFeatureLevel::Type MaxSupportedFeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
 
 	// TODO: Support GPU Scene on mobile?
@@ -160,6 +163,7 @@ void FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactor
 	
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
 	OutEnvironment.SetDefine(TEXT("VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+#endif
 
 	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
 	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
@@ -175,10 +179,16 @@ void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 	UpdateRHI();
 }
 
-#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
-	| EVertexFactoryFlags::SupportsDynamicLighting \
-	| EVertexFactoryFlags::SupportsRayTracing \
-	| EVertexFactoryFlags::SupportsPrimitiveIdStream)
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
+	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
+		| EVertexFactoryFlags::SupportsDynamicLighting \
+		| EVertexFactoryFlags::SupportsRayTracing \
+		| EVertexFactoryFlags::SupportsPrimitiveIdStream)
+#else
+	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
+		| EVertexFactoryFlags::SupportsDynamicLighting \
+		| EVertexFactoryFlags::SupportsRayTracing)
+#endif
 #define NIAGARA_MESH_VF_FLAGS_EX (NIAGARA_MESH_VF_FLAGS | EVertexFactoryFlags::SupportsPrecisePrevWorldPos)
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
