@@ -1570,7 +1570,7 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
-				MeshNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				MeshNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
 				NodeContainer.AddNode(MeshNode);
 				return MeshNode;
 			}

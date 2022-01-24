@@ -5,10 +5,6 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNode.h"
 
-#if WITH_ENGINE
-#include "Engine/StaticMesh.h"
-#endif
-
 #include "InterchangeStaticMeshFactoryNode.generated.h"
 
 
@@ -16,15 +12,10 @@ namespace UE
 {
 	namespace Interchange
 	{
-		struct FStaticMeshNodeStaticData : public FBaseNodeStaticData
+		struct INTERCHANGENODES_API FStaticMeshNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetLodDependenciesBaseKey()
-			{
-				static FString LodDependencies_BaseKey = TEXT("Lod_Dependencies");
-				return LodDependencies_BaseKey;
-			}
+			static const FString& GetLodDependenciesBaseKey();
 		};
-
 	} // namespace Interchange
 } // namespace UE
 
@@ -35,13 +26,7 @@ class INTERCHANGENODES_API UInterchangeStaticMeshFactoryNode : public UInterchan
 	GENERATED_BODY()
 
 public:
-	UInterchangeStaticMeshFactoryNode()
-	{
-#if WITH_ENGINE
-		AssetClass = nullptr;
-#endif
-		LodDependencies.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey());
-	}
+	UInterchangeStaticMeshFactoryNode();
 
 	/**
 	 * Initialize node data
@@ -50,183 +35,74 @@ public:
 	 * @param InAssetClass - The class the StaticMesh factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	void InitializeStaticMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
-	{
-		bIsNodeClassInitialized = false;
-		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+	void InitializeStaticMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass);
 
-		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
-		FillAssetClassFromAttribute();
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Super::Serialize(Ar);
-#if WITH_ENGINE
-		if (Ar.IsLoading())
-		{
-			// Make sure the class is properly set when we compile with engine, this will set the bIsNodeClassInitialized to true.
-			SetNodeClassFromClassAttribute();
-		}
-#endif //#if WITH_ENGINE
-	}
+	virtual void Serialize(FArchive& Ar) override;
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
-	virtual FString GetTypeName() const override
-	{
-		const FString TypeName = TEXT("StaticMeshNode");
-		return TypeName;
-	}
+	virtual FString GetTypeName() const override;
 
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
-	{
-		FString KeyDisplayName = NodeAttributeKey.Key;
-		if (NodeAttributeKey.Key.Equals(UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()))
-		{
-			KeyDisplayName = TEXT("LOD Dependencies Count");
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()))
-		{
-			KeyDisplayName = TEXT("LOD Dependencies Index ");
-			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
-			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-			if (IndexPosition < NodeAttributeKey.Key.Len())
-			{
-				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-			}
-			return KeyDisplayName;
-		}
-		return Super::GetKeyDisplayName(NodeAttributeKey);
-	}
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	virtual class UClass* GetObjectClass() const override
-	{
-		ensure(bIsNodeClassInitialized);
-#if WITH_ENGINE
-		return AssetClass.Get() != nullptr ? AssetClass.Get() : UStaticMesh::StaticClass();
-#else
-		return nullptr;
-#endif
-	}
-
-	virtual FGuid GetHash() const override
-	{
-		return Attributes->GetStorageHash();
-	}
+	virtual class UClass* GetObjectClass() const override;
 
 public:
 	/** Return The number of LOD this static mesh has.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	int32 GetLodDataCount() const
-	{
-		return LodDependencies.GetCount();
-	}
+	int32 GetLodDataCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	void GetLodDataUniqueIds(TArray<FString>& OutLodDataUniqueIds) const
-	{
-		LodDependencies.GetNames(OutLodDataUniqueIds);
-	}
+	void GetLodDataUniqueIds(TArray<FString>& OutLodDataUniqueIds) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool AddLodDataUniqueId(const FString& LodDataUniqueId)
-	{
-		return LodDependencies.AddName(LodDataUniqueId);
-	}
+	bool AddLodDataUniqueId(const FString& LodDataUniqueId);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool RemoveLodDataUniqueId(const FString& LodDataUniqueId)
-	{
-		return LodDependencies.RemoveName(LodDataUniqueId);
-	}
+	bool RemoveLodDataUniqueId(const FString& LodDataUniqueId);
 
-	/** Return false if the Attribute was not set previously.*/
+	/** Query weather the static mesh factory should replace the vertex color. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool GetCustomVertexColorReplace(bool& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorReplace, bool)
-	}
+	bool GetCustomVertexColorReplace(bool& AttributeValue) const;
 
+	/** Set weather the static mesh factory should replace the vertex color. Return false if the attribute cannot be set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool SetCustomVertexColorReplace(const bool& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorReplace, bool)
-	}
+	bool SetCustomVertexColorReplace(const bool& AttributeValue);
 
-	/** Return false if the Attribute was not set previously.*/
+	/** Query weather the static mesh factory should ignore the vertex color. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool GetCustomVertexColorIgnore(bool& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorIgnore, bool)
-	}
+	bool GetCustomVertexColorIgnore(bool& AttributeValue) const;
 
+	/** Set weather the static mesh factory should ignore the vertex color. Return false if the attribute cannot be set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool SetCustomVertexColorIgnore(const bool& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorIgnore, bool)
-	}
+	bool SetCustomVertexColorIgnore(const bool& AttributeValue);
 
-	/** Return false if the Attribute was not set previously.*/
+	/** Query weather the static mesh factory should override the vertex color. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool GetCustomVertexColorOverride(FColor& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorOverride, FColor)
-	}
+	bool GetCustomVertexColorOverride(FColor& AttributeValue) const;
 
+	/** Set weather the static mesh factory should override the vertex color. Return false if the attribute cannot be set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	bool SetCustomVertexColorOverride(const FColor& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorOverride, FColor)
-	}
+	bool SetCustomVertexColorOverride(const FColor& AttributeValue);
+
 private:
 
-	void FillAssetClassFromAttribute()
-	{
-#if WITH_ENGINE
-		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
-		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
-		if (ClassName.Equals(UStaticMesh::StaticClass()->GetName()))
-		{
-			AssetClass = UStaticMesh::StaticClass();
-			bIsNodeClassInitialized = true;
-		}
-#endif
-	}
-
-	bool SetNodeClassFromClassAttribute()
-	{
-		if (!bIsNodeClassInitialized)
-		{
-			FillAssetClassFromAttribute();
-		}
-		return bIsNodeClassInitialized;
-	}
-
-	bool IsEditorOnlyDataDefined()
-	{
-#if WITH_EDITORONLY_DATA
-		return true;
-#else
-		return false;
-#endif
-	}
+	void FillAssetClassFromAttribute();
+	bool SetNodeClassFromClassAttribute();
+	bool IsEditorOnlyDataDefined();
 
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 	const UE::Interchange::FAttributeKey Macro_CustomVertexColorReplaceKey = UE::Interchange::FAttributeKey(TEXT("VertexColorReplace"));
 	const UE::Interchange::FAttributeKey Macro_CustomVertexColorIgnoreKey = UE::Interchange::FAttributeKey(TEXT("VertexColorIgnore"));
 	const UE::Interchange::FAttributeKey Macro_CustomVertexColorOverrideKey = UE::Interchange::FAttributeKey(TEXT("VertexColorOverride"));
 
-	UE::Interchange::FNameAttributeArrayHelper LodDependencies;
+	UE::Interchange::TArrayAttributeHelper<FString> LodDependencies;
 protected:
 #if WITH_ENGINE
-	TSubclassOf<UStaticMesh> AssetClass = nullptr;
+	TSubclassOf<class UStaticMesh> AssetClass = nullptr;
 #endif
 	bool bIsNodeClassInitialized = false;
 };

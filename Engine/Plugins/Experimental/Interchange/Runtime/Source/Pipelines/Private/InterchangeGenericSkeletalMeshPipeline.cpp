@@ -240,18 +240,18 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 	}
 }
 
-bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
+void UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 {
 	if (!bImportSkeletalMeshes)
 	{
 		//Nothing to import
-		return true;
+		return;
 	}
 
 	if (ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_None && ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
 	{
 		//Nothing to import
-		return true;
+		return;
 	}
 	const bool bConvertStaticMeshToSkeletalMesh = (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
@@ -413,7 +413,6 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 			CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 		}
 	}
-	return true;
 }
 
 
@@ -643,7 +642,7 @@ UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericAssetsPipeline::CreateSk
 		return nullptr;
 	}
 	// Creating a UMaterialInterface
-	SkeletalMeshLodDataNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+	SkeletalMeshLodDataNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
 	BaseNodeContainer->AddNode(SkeletalMeshLodDataNode);
 	return SkeletalMeshLodDataNode;
 }

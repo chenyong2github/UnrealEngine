@@ -214,9 +214,9 @@ public:
 
 protected:
 
-	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
+	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 
-	virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
+	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
 
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override
 	{
@@ -277,7 +277,7 @@ private:
 	/**
 	 * This function will create any skeletalmesh we need to create according to the pipeline options
 	 */
-	bool ExecutePreImportPipelineSkeletalMesh();
+	void ExecutePreImportPipelineSkeletalMesh();
 
 	/**
 	 * This function will finish creating the skeletalmesh asset

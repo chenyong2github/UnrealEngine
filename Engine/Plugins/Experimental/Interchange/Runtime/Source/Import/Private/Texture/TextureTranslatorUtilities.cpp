@@ -39,7 +39,7 @@ namespace UE::Interchange::Private
 			return false;
 		}
 
-		TextureNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+		TextureNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
 		TextureNode->SetPayLoadKey(Filename);
 
 		BaseNodeContainer.AddNode(TextureNode);

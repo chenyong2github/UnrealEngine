@@ -21,7 +21,7 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 	//Find all translated node we need for this pipeline
 	BaseNodeContainer->IterateNodes([&PipelineMeshesUtilities, &BaseNodeContainer, &SkeletonRootNodeUids](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
-		if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset)
+		if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::TranslatedAsset)
 		{
 			if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
 			{
@@ -35,7 +35,7 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 	//Find all translated scene node we need for this pipeline
 	BaseNodeContainer->IterateNodes([&PipelineMeshesUtilities, &BaseNodeContainer, &SkeletonRootNodeUids](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
-		if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::NodeContainerType_TranslatedScene)
+		if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::TranslatedScene)
 		{
 			if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
 			{

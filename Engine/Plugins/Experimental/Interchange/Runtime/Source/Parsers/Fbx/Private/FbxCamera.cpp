@@ -51,7 +51,7 @@ namespace UE
 					return nullptr;
 				}
 
-				CameraNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				CameraNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
 				NodeContainer.AddNode(CameraNode);
 
 				return CameraNode;

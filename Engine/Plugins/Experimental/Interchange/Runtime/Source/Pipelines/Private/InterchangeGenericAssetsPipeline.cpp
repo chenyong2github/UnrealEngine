@@ -32,12 +32,12 @@ void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineSta
 	SaveSettings(PipelineStackName);
 }
 
-bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAssetsPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
-		return false;
+		return;
 	}
 
 	BaseNodeContainer = InBaseNodeContainer;
@@ -54,7 +54,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	{
 		switch(Node->GetNodeContainerType())
 		{
-			case EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset:
+			case EInterchangeNodeContainerType::TranslatedAsset:
 			{
 				if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Node))
 				{
@@ -222,23 +222,21 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	}
 
 	ImplementUseSourceNameForAssetOption();
-
-	return true;
 }
 
-bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
 {
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
 	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
 	{
-		return false;
+		return;
 	}
 
 	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
 	if (!Node)
 	{
-		return false;
+		return;
 	}
 
 	PostImportSkeletalMesh(CreatedAsset, Node);
@@ -247,8 +245,6 @@ bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 	PostImportPhysicsAssetImport(CreatedAsset, Node);
 
 	PostImportTextureAssetImport(CreatedAsset, bIsAReimport);
-
-	return true;
 }
 
 UInterchangeMaterialFactoryNode* UInterchangeGenericAssetsPipeline::CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode)
@@ -447,7 +443,7 @@ UInterchangeStaticMeshLodDataNode* UInterchangeGenericAssetsPipeline::CreateStat
 		return nullptr;
 	}
 
-	StaticMeshLodDataNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+	StaticMeshLodDataNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
 	BaseNodeContainer->AddNode(StaticMeshLodDataNode);
 	return StaticMeshLodDataNode;
 }

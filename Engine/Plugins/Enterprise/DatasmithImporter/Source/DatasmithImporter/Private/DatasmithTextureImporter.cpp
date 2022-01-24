@@ -409,11 +409,11 @@ UE::Interchange::FAssetImportResultRef FDatasmithTextureImporter::CreateTextureA
 	return UInterchangeManager::GetInterchangeManager().ImportAssetAsync( ContentPath, ScopedSourceData.GetSourceData(), ImportAssetParameters );
 }
 
-bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
+void UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 {
 	if ( !TextureElement.IsValid() )
 	{
-		return false;
+		return;
 	}
 
 	TArray< FString > Nodes;
@@ -421,13 +421,13 @@ bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 
 	if ( Nodes.Num() <= 0)
 	{
-		return false;
+		return;
 	}
 
 	UInterchangeTextureNode* TextureTranslatedNode = Cast<UInterchangeTextureNode >( BaseNodeContainer->GetNode( Nodes[0] ) );
 	if (!ensure(TextureTranslatedNode))
 	{
-		return false;
+		return;
 	}
 
 	FString DisplayLabel = TextureTranslatedNode->GetDisplayLabel();
@@ -435,7 +435,7 @@ bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 	UInterchangeTextureFactoryNode* TextureFactoryNode = NewObject<UInterchangeTextureFactoryNode>(BaseNodeContainer, NAME_None);
 	if (!ensure(TextureFactoryNode))
 	{
-		return false;
+		return;
 	}
 	//Creating a UTexture2D
 	TextureFactoryNode->InitializeTextureNode(NodeUID, DisplayLabel, UTexture2D::StaticClass()->GetName(), TextureTranslatedNode->GetDisplayLabel());
@@ -549,8 +549,6 @@ bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 	{
 		TextureFactoryNode->SetCustomFilter( TexFilter.GetValue() );
 	}
-
-	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

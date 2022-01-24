@@ -13,13 +13,9 @@ namespace UE
 	namespace Interchange
 	{
 
-		struct FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
+		struct INTERCHANGENODES_API FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetMeshUidsBaseKey()
-			{
-				static FString MeshUids_BaseKey = TEXT("__MeshUids__Key");
-				return MeshUids_BaseKey;
-			}
+			static const FString& GetMeshUidsBaseKey();
 		};
 
 	}//ns Interchange
@@ -31,123 +27,52 @@ class INTERCHANGENODES_API UInterchangeSkeletalMeshLodDataNode : public UInterch
 	GENERATED_BODY()
 
 public:
-	UInterchangeSkeletalMeshLodDataNode()
-		:UInterchangeBaseNode()
-	{
-		MeshUids.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey());
-	}
+	UInterchangeSkeletalMeshLodDataNode();
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
-	virtual FString GetTypeName() const override
-	{
-		const FString TypeName = TEXT("SkeletalMeshLodDataNode");
-		return TypeName;
-	}
+	virtual FString GetTypeName() const override;
 
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
-	{
-		FString KeyDisplayName = NodeAttributeKey.Key;
-		if (NodeAttributeKey.Key.Equals(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
-		{
-			KeyDisplayName = TEXT("Mesh count");
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
-		{
-			KeyDisplayName = TEXT("Mesh index ");
-			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
-			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-			if (IndexPosition < NodeAttributeKey.Key.Len())
-			{
-				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-			}
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey == Macro_CustomSkeletonUidKey)
-		{
-			KeyDisplayName = TEXT("Skeleton factory node");
-			return KeyDisplayName;
-		}
-		return Super::GetKeyDisplayName(NodeAttributeKey);
-	}
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
-	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
-	{
-		if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
-		{
-			return FString(TEXT("Meshes"));
-		}
-		return Super::GetAttributeCategory(NodeAttributeKey);
-	}
-
-	virtual FGuid GetHash() const override
-	{
-		return Attributes->GetStorageHash();
-	}
-
+	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
 public:
-	/** Return false if the Attribute was not set previously.*/
+	/** Query the LOD skeletal mesh factory skeleton reference. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool GetCustomSkeletonUid(FString& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletonUid, FString);
-	}
+	bool GetCustomSkeletonUid(FString& AttributeValue) const;
 
+	/** Set the LOD skeletal mesh factory skeleton reference. Return false if the attribute cannot be set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool SetCustomSkeletonUid(const FString& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonUid, FString)
-	}
+	bool SetCustomSkeletonUid(const FString& AttributeValue);
 
-	/* Mesh Uids: It can be either a scene or a mesh node uid. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
-
+	/* Return the number of mesh geometry this LOD will be made of. Mesh uids can be either a scene or a mesh node. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	int32 GetMeshUidsCount() const
-	{
-		return MeshUids.GetCount();
-	}
+	int32 GetMeshUidsCount() const;
 
+	/* Query all mesh geometry this LOD will be made of. Mesh uids can be either a scene or a mesh node. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	void GetMeshUids(TArray<FString>& OutBlendShapeNames) const
-	{
-		MeshUids.GetNames(OutBlendShapeNames);
-	}
+	void GetMeshUids(TArray<FString>& OutMeshNames) const;
 
+	/* Add one mesh geometry use to create this LOD geometry. Mesh uids can be either a scene or a mesh node. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool AddMeshUid(const FString& BlendShapeName)
-	{
-		return MeshUids.AddName(BlendShapeName);
-	}
+	bool AddMeshUid(const FString& MeshName);
 
+	/* Remove one mesh geometry use to create this LOD geometry. Mesh uids can be either a scene or a mesh node. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool RemoveMeshUid(const FString& BlendShapeName)
-	{
-		return MeshUids.RemoveName(BlendShapeName);
-	}
+	bool RemoveMeshUid(const FString& MeshName);
 
+	/* Remove all mesh geometry use to create this LOD geometry. Mesh uids can be either a scene or a mesh node. If its a scene it mean we want the mesh factory to bake the geo payload with the global transform of the scene node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMeshLodData")
-	bool RemoveAllMeshes()
-	{
-		return MeshUids.RemoveAllNames();
-	}
+	bool RemoveAllMeshes();
 
 private:
 
-	bool IsEditorOnlyDataDefined()
-	{
-#if WITH_EDITORONLY_DATA
-		return true;
-#else
-		return false;
-#endif
-	}
+	bool IsEditorOnlyDataDefined();
 
-	//SkeletalMesh
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonUidKey = UE::Interchange::FAttributeKey(TEXT("__SkeletonUid__Key"));
 
-	UE::Interchange::FNameAttributeArrayHelper MeshUids;
+	UE::Interchange::TArrayAttributeHelper<FString> MeshUids;
 protected:
 };

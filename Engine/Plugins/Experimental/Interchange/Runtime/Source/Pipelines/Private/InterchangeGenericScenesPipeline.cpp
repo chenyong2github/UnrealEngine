@@ -18,12 +18,12 @@
 #include "Engine/SpotLight.h"
 #include "Engine/StaticMeshActor.h"
 
-bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAssetsPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
-		return false;
+		return;
 	}
 
 	TArray<UInterchangeSceneNode*> SceneNodes;
@@ -33,7 +33,7 @@ bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 	{
 		switch(Node->GetNodeContainerType())
 		{
-		case EInterchangeNodeContainerType::NodeContainerType_TranslatedScene:
+		case EInterchangeNodeContainerType::TranslatedScene:
 		{
 			if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
 			{
@@ -52,8 +52,6 @@ bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 			CreateActorFactoryNode(SceneNode, InBaseNodeContainer);
 		}
 	}
-
-	return true;
 }
 
 void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
@@ -86,7 +84,7 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 		return;
 	}
 
-	ActorFactoryNode->InitializeNode(TEXT("Factory_") + SceneNode->GetUniqueID(), SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+	ActorFactoryNode->InitializeNode(TEXT("Factory_") + SceneNode->GetUniqueID(), SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
 
 	if (!SceneNode->GetParentUid().IsEmpty())
 	{

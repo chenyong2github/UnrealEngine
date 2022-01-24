@@ -35,7 +35,7 @@ public:
 	void InitializeSkeletonNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
 	{
 		bIsNodeClassInitialized = false;
-		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
 		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
 		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
 		FillAssetClassFromAttribute();

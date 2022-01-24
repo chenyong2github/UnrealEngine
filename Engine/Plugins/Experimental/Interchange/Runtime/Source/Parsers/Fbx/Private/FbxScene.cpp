@@ -264,7 +264,7 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
-				TransformNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedScene);
+				TransformNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::TranslatedScene);
 				NodeContainer.AddNode(TransformNode);
 				return TransformNode;
 			}

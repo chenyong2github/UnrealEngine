@@ -13,31 +13,12 @@ namespace UE
 	namespace Interchange
 	{
 
-		struct FSceneNodeStaticData : public FBaseNodeStaticData
+		struct INTERCHANGENODES_API FSceneNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetNodeSpecializeTypeBaseKey()
-			{
-				static FString SceneNodeSpecializeType_BaseKey = TEXT("SceneNodeSpecializeType");
-				return SceneNodeSpecializeType_BaseKey;
-			}
-
-			static const FString& GetMaterialDependencyUidsBaseKey()
-			{
-				static FString MaterialDependencyUids_BaseKey = TEXT("__MaterialDependencyUidsBaseKey__");
-				return MaterialDependencyUids_BaseKey;
-			}
-
-			static const FString& GetJointSpecializeTypeString()
-			{
-				static FString JointSpecializeTypeString = TEXT("Joint");
-				return JointSpecializeTypeString;
-			}
-
-			static const FString& GetLodGroupSpecializeTypeString()
-			{
-				static FString JointSpecializeTypeString = TEXT("LodGroup");
-				return JointSpecializeTypeString;
-			}
+			static const FString& GetNodeSpecializeTypeBaseKey();
+			static const FString& GetMaterialDependencyUidsBaseKey();
+			static const FString& GetJointSpecializeTypeString();
+			static const FString& GetLodGroupSpecializeTypeString();
 		};
 
 	}//ns Interchange
@@ -49,296 +30,128 @@ class INTERCHANGENODES_API UInterchangeSceneNode : public UInterchangeBaseNode
 	GENERATED_BODY()
 
 public:
-	UInterchangeSceneNode()
-	:UInterchangeBaseNode()
-	{
-		NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey());
-		MaterialDependencyUids.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey());
-	}
+	UInterchangeSceneNode();
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
-	virtual FString GetTypeName() const override
-	{
-		const FString TypeName = TEXT("SceneNode");
-		return TypeName;
-	}
+	virtual FString GetTypeName() const override;
 
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
-	{
-		FString KeyDisplayName = NodeAttributeKey.Key;
-		if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
-		{
-			KeyDisplayName = TEXT("Specialized type count");
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
-		{
-			KeyDisplayName = TEXT("Specialized type index ");
-			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
-			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-			if (IndexPosition < NodeAttributeKey.Key.Len())
-			{
-				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-			}
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
-		{
-			KeyDisplayName = TEXT("Material dependencies count");
-			return KeyDisplayName;
-		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
-		{
-			KeyDisplayName = TEXT("Material dependency index ");
-			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
-			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-			if (IndexPosition < NodeAttributeKey.Key.Len())
-			{
-				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-			}
-			return KeyDisplayName;
-		}
-		return Super::GetKeyDisplayName(NodeAttributeKey);
-	}
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
-	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
-	{
-		if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
-		{
-			return FString(TEXT("SpecializeType"));
-		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
-		{
-			return FString(TEXT("MaterialDependencies"));
-		}
-		else if (NodeAttributeKey == Macro_CustomLocalTransformKey
-				 || NodeAttributeKey == Macro_CustomGlobalTransformKey
-				 || NodeAttributeKey == Macro_CustomAssetInstanceUidKey)
-		{
-			return FString(TEXT("Scene"));
-		}
-		return Super::GetAttributeCategory(NodeAttributeKey);
-	}
-
-	virtual FGuid GetHash() const override
-	{
-		return Attributes->GetStorageHash();
-	}
+	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
 	/**
 	 * Icon name are simply create by adding "InterchangeIcon_" in front of the specialized type. If there is no special type the function will return NAME_None which will use the default icon.
 	 */
-	virtual FName GetIconName() const override
-	{
-		FString SpecializedType;
-		GetSpecializedType(0, SpecializedType);
-		if (SpecializedType.IsEmpty())
-		{
-			return NAME_None;
-		}
-		SpecializedType = TEXT("SceneGraphIcon.") + SpecializedType;
-		return FName(*SpecializedType);
-	}
+	virtual FName GetIconName() const override;
 
-	/** Return true if this node contains the specialized type parameter.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool IsSpecializedTypeContains(const FString& SpecializedType) const
-	{
-		TArray<FString> SpecializedTypes;
-		GetSpecializedTypes(SpecializedTypes);
-		for (const FString& SpecializedTypeRef : SpecializedTypes)
-		{
-			if (SpecializedTypeRef.Equals(SpecializedType))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+	bool IsSpecializedTypeContains(const FString& SpecializedType) const;
 
 	/** Specialized type are scene node special type like (Joint or LODGroup).*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	int32 GetSpecializedTypeCount() const
-	{
-		return NodeSpecializeTypes.GetCount();
-	}
+	int32 GetSpecializedTypeCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetSpecializedType(const int32 Index, FString& OutSpecializedType) const
-	{
-		NodeSpecializeTypes.GetName(Index, OutSpecializedType);
-	}
+	void GetSpecializedType(const int32 Index, FString& OutSpecializedType) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetSpecializedTypes(TArray<FString>& OutSpecializedTypes) const
-	{
-		NodeSpecializeTypes.GetNames(OutSpecializedTypes);
-	}
+	void GetSpecializedTypes(TArray<FString>& OutSpecializedTypes) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool AddSpecializedType(const FString& SpecializedType)
-	{
-		return NodeSpecializeTypes.AddName(SpecializedType);
-	}
+	bool AddSpecializedType(const FString& SpecializedType);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool RemoveSpecializedType(const FString& SpecializedType)
-	{
-		return NodeSpecializeTypes.RemoveName(SpecializedType);
-	}
+	bool RemoveSpecializedType(const FString& SpecializedType);
 
 	/** Asset dependencies are the asset on which this node depend.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	int32 GetMaterialDependencyUidsCount() const
-	{
-		return MaterialDependencyUids.GetCount();
-	}
+	int32 GetMaterialDependencyUidsCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetMaterialDependencyUid(const int32 Index, FString& OutMaterialDependencyUid) const
-	{
-		MaterialDependencyUids.GetName(Index, OutMaterialDependencyUid);
-	}
+	void GetMaterialDependencyUid(const int32 Index, FString& OutMaterialDependencyUid) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetMaterialDependencyUids(TArray<FString>& OutMaterialDependencyUids) const
-	{
-		MaterialDependencyUids.GetNames(OutMaterialDependencyUids);
-	}
+	void GetMaterialDependencyUids(TArray<FString>& OutMaterialDependencyUids) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool AddMaterialDependencyUid(const FString& MaterialDependencyUid)
-	{
-		return MaterialDependencyUids.AddName(MaterialDependencyUid);
-	}
+	bool AddMaterialDependencyUid(const FString& MaterialDependencyUid);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool RemoveMaterialDependencyUid(const FString& MaterialDependencyUid)
-	{
-		return MaterialDependencyUids.RemoveName(MaterialDependencyUid);
-	}
+	bool RemoveMaterialDependencyUid(const FString& MaterialDependencyUid);
 
 	//Default transform is the transform we have in the node (no bind pose, no time evaluation).
 
 	/** Return the default scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomLocalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(LocalTransform, FTransform);
-	}
+	bool GetCustomLocalTransform(FTransform& AttributeValue) const;
 
 	/** Store the default scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomLocalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LocalTransform, FTransform);
-	}
+	bool SetCustomLocalTransform(const FTransform& AttributeValue);
 
 	/** Return the default scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomGlobalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(GlobalTransform, FTransform);
-	}
+	bool GetCustomGlobalTransform(FTransform& AttributeValue) const;
 
 	/** Store the default scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomGlobalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GlobalTransform, FTransform);
-	}
+	bool SetCustomGlobalTransform(const FTransform& AttributeValue);
 
 	//Bind pose transform is the transform of the joint when the binding with the mesh was done.
 	//This attribute should be set only if we have a joint.
 
 	/** Return the bind pose scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseLocalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseLocalTransform, FTransform);
-	}
+	bool GetCustomBindPoseLocalTransform(FTransform& AttributeValue) const;
 
 	/** Store the bind pose scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseLocalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseLocalTransform, FTransform);
-	}
+	bool SetCustomBindPoseLocalTransform(const FTransform& AttributeValue);
 
 	/** Return the bind pose scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseGlobalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseGlobalTransform, FTransform);
-	}
+	bool GetCustomBindPoseGlobalTransform(FTransform& AttributeValue) const;
 
 	/** Store the bind pose scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseGlobalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseGlobalTransform, FTransform);
-	}
+	bool SetCustomBindPoseGlobalTransform(const FTransform& AttributeValue);
 
 	//Time zero transform is the transform of the node at time zero.
 	//This is useful when there is no bind pose or when we import rigid mesh.
 
 	/** Return the time zero scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroLocalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroLocalTransform, FTransform);
-	}
+	bool GetCustomTimeZeroLocalTransform(FTransform& AttributeValue) const;
 
 	/** Store the time zero scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroLocalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroLocalTransform, FTransform);
-	}
+	bool SetCustomTimeZeroLocalTransform(const FTransform& AttributeValue);
 
 	/** Return the time zero scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroGlobalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroGlobalTransform, FTransform);
-	}
+	bool GetCustomTimeZeroGlobalTransform(FTransform& AttributeValue) const;
 
 	/** Store the time zero scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroGlobalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroGlobalTransform, FTransform);
-	}
+	bool SetCustomTimeZeroGlobalTransform(const FTransform& AttributeValue);
 
 	/** Return the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomGeometricTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(GeometricTransform, FTransform);
-	}
+	bool GetCustomGeometricTransform(FTransform& AttributeValue) const;
 
 	/** Store the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomGeometricTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GeometricTransform, FTransform);
-	}
+	bool SetCustomGeometricTransform(const FTransform& AttributeValue);
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomAssetInstanceUid(FString& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AssetInstanceUid, FString);
-	}
+	bool GetCustomAssetInstanceUid(FString& AttributeValue) const;
 
 	/** Tells which asset, if any, a scene node is instantiating */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomAssetInstanceUid(const FString& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AssetInstanceUid, FString);
-	}
+	bool SetCustomAssetInstanceUid(const FString& AttributeValue);
 
 private:
 	//Scene Attribute Keys
@@ -351,6 +164,6 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomGeometricTransformKey = UE::Interchange::FAttributeKey(TEXT("GeometricTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomAssetInstanceUidKey = UE::Interchange::FAttributeKey(TEXT("AssetInstanceUid"));
 
-	UE::Interchange::FNameAttributeArrayHelper NodeSpecializeTypes;
-	UE::Interchange::FNameAttributeArrayHelper MaterialDependencyUids;
+	UE::Interchange::TArrayAttributeHelper<FString> NodeSpecializeTypes;
+	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencyUids;
 };

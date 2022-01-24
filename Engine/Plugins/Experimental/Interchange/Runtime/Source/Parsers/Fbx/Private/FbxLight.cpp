@@ -50,7 +50,7 @@ namespace UE
 					return nullptr;
 				}
 
-				LightNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				LightNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
 				NodeContainer.AddNode(LightNode);
 
 				return LightNode;

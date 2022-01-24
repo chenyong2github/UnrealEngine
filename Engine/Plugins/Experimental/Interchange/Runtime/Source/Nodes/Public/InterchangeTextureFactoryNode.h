@@ -38,7 +38,7 @@ public:
 	{
 		//Initialize
 		bIsTextureNodeClassInitialized = false;
-		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_FactoryData);
+		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
 		
 		//Set the class
 		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");

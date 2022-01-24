@@ -181,7 +181,7 @@ bool UInterchangeUDIMTranslator::Translate(UInterchangeBaseNodeContainer& BaseNo
 
 	FString DisplayLabel = PreUDIMName + PostUDIMName;
 
-	TextureNode->InitializeNode(Filename, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+	TextureNode->InitializeNode(Filename, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
 	TextureNode->SetPayLoadKey(Filename);
 
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();

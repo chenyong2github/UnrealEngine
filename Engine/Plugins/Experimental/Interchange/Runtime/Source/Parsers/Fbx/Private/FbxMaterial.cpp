@@ -34,7 +34,7 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
-				MaterialNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				MaterialNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
 				MaterialNode->SetPayLoadKey(NodeUid);
 				NodeContainer.AddNode(MaterialNode);
 				return MaterialNode;
@@ -51,7 +51,7 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UTexture2D
-				TextureNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				TextureNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
 				//All texture translator expect a file has the payload key
 				FString NormalizeFilePath = TextureFilePath;
 				FPaths::NormalizeFilename(NormalizeFilePath);

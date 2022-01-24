@@ -13,7 +13,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWindow.h"
 
-bool UInterchangeGraphInspectorPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
+void UInterchangeGraphInspectorPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 {
 	//Create and show the graph inspector UI dialog
 	TSharedPtr<SWindow> ParentWindow;
@@ -35,5 +35,4 @@ bool UInterchangeGraphInspectorPipeline::ExecutePreImportPipeline(UInterchangeBa
 	);
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-	return true;
 }
