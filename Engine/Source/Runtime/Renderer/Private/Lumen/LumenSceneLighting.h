@@ -126,6 +126,25 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
+class FCopyRadiosityToAtlasPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyRadiosityToAtlasPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyRadiosityToAtlasPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityCardCaptureAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityNumFramesAccumulatedCardCaptureAtlas)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
 // Must match LIGHT_TYPE_* in LumenSceneDirectLighting.usf
 enum class ELumenLightType
 {
@@ -177,4 +196,7 @@ namespace Lumen
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);
+
+	inline EPixelFormat GetIndirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
+	inline EPixelFormat GetNumFramesAccumulatedAtlasFormat() { return PF_R8; }
 };

@@ -435,9 +435,12 @@ public:
 	// Generated
 	TRefCountPtr<IPooledRenderTarget> DirectLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> IndirectLightingAtlas;
+	TRefCountPtr<IPooledRenderTarget> RadiosityNumFramesAccumulatedAtlas;
 	TRefCountPtr<IPooledRenderTarget> FinalLightingAtlas;
 
 	// Radiosity probes
+	TRefCountPtr<IPooledRenderTarget> RadiosityTraceRadianceAtlas;
+	TRefCountPtr<IPooledRenderTarget> RadiosityTraceHitDistanceAtlas;
 	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHRedAtlas;
 	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHGreenAtlas;
 	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHBlueAtlas;
@@ -511,9 +514,11 @@ public:
 
 	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
 
-	FShaderResourceViewRHIRef GetPageTableBufferSRV() { return PageTableBuffer.SRV;  };
+	FShaderResourceViewRHIRef GetPageTableBufferSRV() const { return PageTableBuffer.SRV;  };
 
 	int32 GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const;
+
+	void CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef& LastCardBufferForResampleSRV, FShaderResourceViewRHIRef& LastPageTableBufferForResampleSRV);
 
 private:
 
@@ -533,6 +538,9 @@ private:
 	TSparseSpanArray<FLumenPageTableEntry> PageTable;
 	TArray<int32> PageTableIndicesToUpdateInBuffer;
 	FRWByteAddressBuffer PageTableBuffer;
+
+	FRWBufferStructured LastCardBufferForResample;
+	FRWByteAddressBuffer LastPageTableBufferForResample;
 
 	// List of allocation which can be deallocated on demand, ordered by last used frame
 	// FeedbackFrameIndex, PageTableIndex

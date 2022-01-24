@@ -24,14 +24,25 @@ struct FLumenMinimalPayload : FMinimalPayload
 		return bIsTranslucent;
 	}
 
+	void SetIsTwoSided(uint bIsTwoSided)
+	{
+		PackedData[MATERIAL_INDEX] = (PackedData[MATERIAL_INDEX] & 0xBFFFFFFF) | ((bIsTwoSided & 0x01) << 30);
+	}
+
+	uint IsTwoSided()
+	{
+		uint bIsTwoSided = (PackedData[MATERIAL_INDEX] >> 30) & 0x1;
+		return bIsTwoSided;
+	}
+
 	void SetMaterialShaderIndex(uint MaterialShaderIndex)
 	{
-		PackedData[MATERIAL_INDEX] = (PackedData[MATERIAL_INDEX] & 0x80000000) | (MaterialShaderIndex & 0x7FFFFFFF);
+		PackedData[MATERIAL_INDEX] = (PackedData[MATERIAL_INDEX] & 0xC0000000) | (MaterialShaderIndex & 0x3FFFFFFF);
 	}
 
 	uint GetMaterialShaderIndex()
 	{
-		uint MaterialShaderIndex = PackedData[MATERIAL_INDEX] & 0x7FFFFFFF;
+		uint MaterialShaderIndex = PackedData[MATERIAL_INDEX] & 0x3FFFFFFF;
 		return MaterialShaderIndex;
 	}
 

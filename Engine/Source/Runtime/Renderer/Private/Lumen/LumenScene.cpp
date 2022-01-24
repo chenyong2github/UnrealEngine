@@ -45,7 +45,7 @@ public:
 		OutData[3].W = *(float*)&ResLevelSizeInTiles.Y;
 
 		const uint32 LastUpdateFrame = 0;
-		OutData[4] = FVector4f(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f, 0.0f);
+		OutData[4] = FVector4f(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f);
 
 		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}

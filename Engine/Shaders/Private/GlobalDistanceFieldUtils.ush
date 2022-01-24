@@ -56,6 +56,9 @@ struct FGlobalSDFTraceResult
 	float HitTime;
 	uint HitClipmapIndex;
 	uint TotalStepsTaken;
+
+	// Amount the surface was expanded at the hit
+	float ExpandSurfaceAmount;
 };
 
 bool GlobalSDFTraceResultIsHit(FGlobalSDFTraceResult TraceResult)
@@ -69,6 +72,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 	TraceResult.HitTime = -1.0f;
 	TraceResult.HitClipmapIndex = 0;
 	TraceResult.TotalStepsTaken = 0;
+	TraceResult.ExpandSurfaceAmount = 0;
 
 	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart + TraceInput.MinTraceDistance * TraceInput.WorldRayDirection);
 	float MaxDistance = TraceInput.InitialMaxDistance;
@@ -127,6 +131,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 				{
 					TraceResult.HitTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, 0.0f);
 					TraceResult.HitClipmapIndex = ClipmapIndex;
+					TraceResult.ExpandSurfaceAmount = ExpandSurfaceAmount;
 					break;
 				}
 

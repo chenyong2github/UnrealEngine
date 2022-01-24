@@ -89,6 +89,7 @@ public:
 
 	FRDGTextureRef DirectLightingAtlas;
 	FRDGTextureRef IndirectLightingAtlas;
+	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas;
 	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef VoxelLighting;
 

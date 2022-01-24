@@ -6,59 +6,78 @@
 
 #pragma once
 
+#include "../../MonteCarlo.ush"
+
 // Must match LumenRadiosityProbeGather.cpp
-#define RAY_BUFFER_STRIDE_IN_TILES 512
-#define RAY_BUFFER_MICRO_TILE_SIZE 8
-#define NUM_RAY_DIRECTIONS 8
-#define RADIOSITY_DOWNSAMPLE_FACTOR 2
-#define RADIOSITY_TILE_SIZE (CARD_TILE_SIZE / RADIOSITY_DOWNSAMPLE_FACTOR)
-#define PROBE_SH_TILE_SIZE 4
-#define PROBE_SH_TILES_PER_CARD_TILE (CARD_TILE_SIZE / PROBE_SH_TILE_SIZE)
-#define RADIOSITY_TEXELS_PER_PROBE_SH (CARD_TILE_SIZE / PROBE_SH_TILE_SIZE)
+#define RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR 1
 
 StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
 
-RWTexture2D<float3> RWTraceRadianceBuffer;
-Texture2D<float3> TraceRadianceBuffer;
+// Probe trace radiance in hemisphere layout
+Texture2D<float3> TraceRadianceAtlas;
 
-uint NumTracesPerTexel;
-uint NumTracesPerTexelModMask;
-uint NumTracesPerTexelDivShift;
+// Probe trace hit distance
+Texture2D<float> TraceHitDistanceAtlas;
 
+// Number of texels between Radiosity probes, always a power of two
+uint ProbeSpacingInRadiosityTexels;
+
+// Shift to apply to divide by ProbeSpacingInRadiosityTexels
+uint ProbeSpacingInRadiosityTexelsDivideShift;
+
+// CARD_TILE_SIZE / ProbeSpacingInRadiosityTexels
+uint RadiosityTileSize;
+
+// Resolution of the hemisphere trace layout in one dimension
+uint HemisphereProbeResolution;
+
+// HemisphereProbeResolution * HemisphereProbeResolution
+uint NumTracesPerProbe;
+
+// When >= 0, specifies a fixed temporal index for debugging
+int FixedJitterIndex;
+
+// Size of the Radiosity physical texture
 uint2 RadiosityAtlasSize;
-float4 RadiosityRayDirections[NUM_RAY_DIRECTIONS];
 
-void UnswizzleTexelTraceCoords(
-	uint LinearTraceIndex,
-	inout uint CardTileIndex,
-	inout uint2 CoordInCardTile,
-	inout uint TraceIndex)
+// Length of the temporal jitter pattern, and controls the weight of the temporal accumulation history
+uint MaxFramesAccumulated;
+
+// Returns the jitter offset in the range [0, ProbeSpacingInRadiosityTexels - 1]
+uint2 GetProbeJitter(uint IndirectLightingTemporalIndex)
 {
-	TraceIndex = LinearTraceIndex & NumTracesPerTexelModMask;
-	LinearTraceIndex = LinearTraceIndex >> NumTracesPerTexelDivShift;
-
-	const uint LinearIndexInCardTile = LinearTraceIndex % (RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE);
-	CoordInCardTile = uint2(LinearIndexInCardTile % RADIOSITY_TILE_SIZE, LinearIndexInCardTile / RADIOSITY_TILE_SIZE) * RADIOSITY_DOWNSAMPLE_FACTOR;
-	LinearTraceIndex = LinearTraceIndex / (RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE);
-
-	CardTileIndex = LinearTraceIndex;
+	uint TemporalIndex = (FixedJitterIndex < 0 ? IndirectLightingTemporalIndex : FixedJitterIndex);
+	return Hammersley16(TemporalIndex % MaxFramesAccumulated, MaxFramesAccumulated, 0) * ProbeSpacingInRadiosityTexels;
 }
 
-uint2 GetRadiosityTraceAtlasCoord(uint CardTileIndex, uint2 CoordInCardTile, uint TraceIndex)
+void UnswizzleCardTileIndex(
+	uint RadiosityProbeIndex,
+	inout uint CardTileIndex,
+	inout uint2 CoordInCardTile)
 {
-	CoordInCardTile /= RADIOSITY_DOWNSAMPLE_FACTOR;
+	uint NumProbesPerTile = RadiosityTileSize * RadiosityTileSize;
+	CardTileIndex = RadiosityProbeIndex / NumProbesPerTile;
+	uint LinearIndexInCardTile = RadiosityProbeIndex - CardTileIndex * NumProbesPerTile;
+	uint2 ProbeCoord = uint2(LinearIndexInCardTile % RadiosityTileSize, LinearIndexInCardTile / RadiosityTileSize);
 
-	uint RayBufferIndex = (CardTileIndex * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE + (CoordInCardTile.y * RADIOSITY_TILE_SIZE + CoordInCardTile.x)) * NumTracesPerTexel + TraceIndex;
+	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+	CoordInCardTile = ProbeCoord * ProbeSpacingInRadiosityTexels + GetProbeJitter(CardPage.IndirectLightingTemporalIndex);
+}
 
-	uint IndexInRayBufferTile = RayBufferIndex % (RAY_BUFFER_MICRO_TILE_SIZE * RAY_BUFFER_MICRO_TILE_SIZE);
-	uint RayBufferTileIndex = RayBufferIndex / (RAY_BUFFER_MICRO_TILE_SIZE * RAY_BUFFER_MICRO_TILE_SIZE);
+void UnswizzleTexelTraceCoords(
+	uint DispatchThreadId,
+	inout uint CardTileIndex,
+	inout uint2 CoordInCardTile,
+	inout uint2 TraceTexelCoord)
+{
+	uint RadiosityProbeIndex = DispatchThreadId / NumTracesPerProbe;
 
-	uint2 RayBufferCoord;
-	RayBufferCoord.x = (RayBufferTileIndex % RAY_BUFFER_STRIDE_IN_TILES) * RAY_BUFFER_MICRO_TILE_SIZE + (IndexInRayBufferTile % RAY_BUFFER_MICRO_TILE_SIZE);
-	RayBufferCoord.y = (RayBufferTileIndex / RAY_BUFFER_STRIDE_IN_TILES) * RAY_BUFFER_MICRO_TILE_SIZE + (IndexInRayBufferTile / RAY_BUFFER_MICRO_TILE_SIZE);
+	UnswizzleCardTileIndex(RadiosityProbeIndex, CardTileIndex, CoordInCardTile);
 
-	return RayBufferCoord;
+	uint LinearTexelIndex = DispatchThreadId - RadiosityProbeIndex * NumTracesPerProbe;
+	TraceTexelCoord = uint2(LinearTexelIndex % HemisphereProbeResolution, LinearTexelIndex / HemisphereProbeResolution);
 }
 
 struct FRadiosityTexel
@@ -71,9 +90,10 @@ struct FRadiosityTexel
 	float3x3 WorldToLocalRotation;
 
 	uint2 AtlasCoord;
+	uint IndirectLightingTemporalIndex;
 };
 
-FRadiosityTexel GetRadiosityTexel(uint CardTileIndex, uint2 CoordInCardTile)
+FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCardPage)
 {
 	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
 	RadiosityTexel.Opacity = 0.0f;
@@ -81,75 +101,102 @@ FRadiosityTexel GetRadiosityTexel(uint CardTileIndex, uint2 CoordInCardTile)
 	RadiosityTexel.WorldPosition = float3(0.0f, 0.0f, 0.0f);
 	RadiosityTexel.WorldNormal = float3(0.0f, 0.0f, 0.0f);
 
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (CoordInCardPage + 0.5f * RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR);
+	float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (CoordInCardPage + 0.5f * RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR);
+
+	if (all(CoordInCardPage < (uint2)CardPage.SizeInTexels))
+	{
+		RadiosityTexel.bInsideAtlas = true;
+		RadiosityTexel.AtlasCoord = AtlasUV * RadiosityAtlasSize;
+		RadiosityTexel.IndirectLightingTemporalIndex = CardPage.IndirectLightingTemporalIndex;
+		RadiosityTexel.WorldToLocalRotation = Card.WorldToLocalRotation;
+
+		#if RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR == 2
+		{
+			float4 Opacity4 = LumenCardScene.OpacityAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
+
+			float TotalOpacity = dot(Opacity4, 1.0f);
+			RadiosityTexel.Opacity = TotalOpacity / 4.0f;
+
+			if (RadiosityTexel.Opacity > 0.0f)
+			{
+				float4 Depth4 = 1.0f - LumenCardScene.DepthAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
+				float4 NormalX4 = LumenCardScene.NormalAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
+				float4 NormalY4 = LumenCardScene.NormalAtlas.GatherGreen(GlobalBilinearClampedSampler, AtlasUV);
+
+				float Depth = dot(Depth4, Opacity4) / TotalOpacity;
+				float2 EncodedNormal;
+				EncodedNormal.x = dot(NormalX4, Opacity4) / TotalOpacity;
+				EncodedNormal.y = dot(NormalY4, Opacity4) / TotalOpacity;
+
+				RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+				RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, EncodedNormal);
+			}
+		}
+		#else
+		{
+			RadiosityTexel.Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+			if (RadiosityTexel.Opacity > 0.0f)
+			{
+				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+				RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
+			}
+		}
+		#endif
+	}
+
+	return RadiosityTexel;
+}
+
+FRadiosityTexel GetRadiosityTexelFromCardTile(uint CardTileIndex, uint2 CoordInCardTile)
+{
+	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
+	RadiosityTexel.bInsideAtlas = false;
+
 	if (CardTileIndex < CardTileAllocator[0])
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
 		uint2 CoordInCardPage = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-		float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (CoordInCardPage + 0.5f * RADIOSITY_DOWNSAMPLE_FACTOR);
-		float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (CoordInCardPage + 0.5f * RADIOSITY_DOWNSAMPLE_FACTOR);
-
-		if (all(CoordInCardPage < (uint2)CardPage.SizeInTexels))
-		{
-			RadiosityTexel.bInsideAtlas = true;
-			RadiosityTexel.AtlasCoord = AtlasUV * RadiosityAtlasSize;
-			RadiosityTexel.WorldToLocalRotation = Card.WorldToLocalRotation;
-
-			#if RADIOSITY_DOWNSAMPLE_FACTOR == 2
-			{
-				float4 Opacity4 = LumenCardScene.OpacityAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
-
-				float TotalOpacity = dot(Opacity4, 1.0f);
-				RadiosityTexel.Opacity = TotalOpacity / 4.0f;
-
-				if (RadiosityTexel.Opacity > 0.0f)
-				{
-					float4 Depth4 = 1.0f - LumenCardScene.DepthAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
-					float4 NormalX4 = LumenCardScene.NormalAtlas.GatherRed(GlobalBilinearClampedSampler, AtlasUV);
-					float4 NormalY4 = LumenCardScene.NormalAtlas.GatherGreen(GlobalBilinearClampedSampler, AtlasUV);
-
-					float Depth = dot(Depth4, Opacity4) / TotalOpacity;
-					float2 EncodedNormal;
-					EncodedNormal.x = dot(NormalX4, Opacity4) / TotalOpacity;
-					EncodedNormal.y = dot(NormalY4, Opacity4) / TotalOpacity;
-
-					RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-					RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, EncodedNormal);
-				}
-			}
-			#else
-			{
-				RadiosityTexel.Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-				if (RadiosityTexel.Opacity > 0.0f)
-				{
-					float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-					RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-					RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
-				}
-			}
-			#endif
-		}
+		RadiosityTexel = GetRadiosityTexel(CardPage, CoordInCardPage);
 	}
 
 	return RadiosityTexel;
 }
 
-float3 GetWorldRayDirection(FRadiosityTexel RadiosityTexel, uint2 CoordInCardTile, uint TraceIndex)
-{
-	// Jitter rays in a 2x2 texel pattern
-	uint2 TraceTileCoord = (CoordInCardTile / RADIOSITY_DOWNSAMPLE_FACTOR) % 2;
-	uint TraceDirectionIndex = (TraceIndex + 2 * (TraceTileCoord.x + 2 * TraceTileCoord.y)) % NUM_RAY_DIRECTIONS;
-
-	float3x3 TangentBasis = GetTangentBasisFrisvad(RadiosityTexel.WorldNormal);
-	float3 LocalRayDirection = RadiosityRayDirections[TraceDirectionIndex].xyz;
-	return mul(LocalRayDirection, TangentBasis);
-}
-
-// Coord in persistent radiosity probe SH atlas
-uint2 GetRadiosityProbeSHAtlasCoord(FLumenCardPageData CardPage, FCardTileData CardTile, uint2 CoordInCardTile)
+// Coord in persistent radiosity probe atlas
+uint2 GetRadiosityProbeAtlasCoord(FLumenCardPageData CardPage, FCardTileData CardTile, uint2 CoordInCardTile)
 {
 	uint2 AtlasCoord = CardPage.PhysicalAtlasCoord + CardTile.TileCoord * uint2(CARD_TILE_SIZE, CARD_TILE_SIZE) + CoordInCardTile;
-	return AtlasCoord / PROBE_SH_TILE_SIZE;
+	return AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift;
+}
+
+float2 GetProbeTexelCenter(uint IndirectLightingTemporalIndex, uint2 ProbeTileCoord)
+{
+#define JITTER_RAY_DIRECTION 1
+#if JITTER_RAY_DIRECTION
+	uint2 RandomSeed = Rand3DPCG16(int3(ProbeTileCoord, 0)).xy;
+	uint TemporalIndex = (FixedJitterIndex < 0 ? IndirectLightingTemporalIndex : FixedJitterIndex);
+	return Hammersley16(TemporalIndex % MaxFramesAccumulated, MaxFramesAccumulated, RandomSeed);
+#else
+	return float2(0.5, 0.5);
+#endif
+}
+
+void GetRadiosityRay(FRadiosityTexel RadiosityTexel, uint2 ProbeTileCoord, uint2 TracingTexelCoord, out float3 WorldRayDirection, out float ConeHalfAngle)
+{
+	float2 ProbeTexelCenter = GetProbeTexelCenter(RadiosityTexel.IndirectLightingTemporalIndex, ProbeTileCoord);
+	float2 ProbeUV = (TracingTexelCoord + ProbeTexelCenter) / float(HemisphereProbeResolution);
+
+	//@todo - cosine distribution?
+	// Sample generation must match probe occlusion
+	float3 LocalRayDirection = HemiOctahedronToUnitVector(ProbeUV * 2 - 1);
+
+	float3x3 TangentBasis = GetTangentBasisFrisvad(RadiosityTexel.WorldNormal);
+	WorldRayDirection = mul(LocalRayDirection, TangentBasis);
+
+	ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(NumTracesPerProbe));
 }

@@ -56,7 +56,7 @@ namespace Lumen
 
 	// Features
 	bool IsRadiosityEnabled(const FSceneViewFamily& ViewFamily);
-	uint32 GetRadiosityDownsampleFactor();
+	uint32 GetRadiosityAtlasDownsampleFactor();
 
 	// Surface cache
 	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();

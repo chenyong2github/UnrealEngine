@@ -167,6 +167,8 @@ void FLumenVisualizeCreateRaysCS(
 
 		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(InputScreenCoord, 0)).x);
 		bool bIsRayValid = SceneDepth < MaxTraceDistance;
+
+		//@todo - this assumes ray tracing hits the same thing as the rasterizer, which is not true with backfaces
 		if (bIsRayValid)
 		{
 			uint ThreadOffset;
@@ -491,7 +493,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 		int LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
-		const bool bCullBackFacingTriangles = true;
+		const bool bCullBackFacingTriangles = false;
 		const bool bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(

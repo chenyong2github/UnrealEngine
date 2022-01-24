@@ -307,11 +307,14 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 		const int PrimitiveInstanceIndex = TraceResult.InstanceIndex - HitData.BaseInstanceIndex;
 		Payload.SetInstanceIndex(PrimitiveInstanceIndex);
 
-		uint MaterialShaderIndex = HitData.UserData & 0x7FFFFFFF;
+		uint MaterialShaderIndex = HitData.UserData & 0x3FFFFFFF;
 		Payload.SetMaterialShaderIndex(MaterialShaderIndex);
 
 		uint bIsTranslucent = (HitData.UserData >> 31) & 0x1;
 		Payload.SetIsTranslucent(bIsTranslucent);
+
+		uint bIsTwoSided = (HitData.UserData >> 30) & 0x1;
+		Payload.SetIsTwoSided(bIsTwoSided);
 
 		float3 WorldNormal = TraceResult.WorldGeometryNormal;
 		Payload.SetWorldNormal(WorldNormal);
@@ -397,12 +400,19 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	inout uint bValidSurfaceCache
 )
 {
-	float3 Radiance = 0;
-
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
-	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, bValidSurfaceCache);
+	float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, bValidSurfaceCache);
+	
+	float3 Radiance = 0;
+
+	// The Surface Cache lighting was computed using the front face, don't leak to the backface
+	if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || Payload.IsTwoSided())
+	{
+		Radiance = SurfaceCacheRadiance;
+	}
+
 	return Radiance;
 }
 
@@ -492,7 +502,13 @@ float3 CalculateRayTracedLighting(
 	else
 	{
 		bool bValidSurfaceCache = false;
-		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, bValidSurfaceCache);
+		float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, bValidSurfaceCache);
+
+		// The Surface Cache lighting was computed using the front face, don't leak to the backface
+		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
+		{
+			Radiance += SurfaceCacheRadiance;
+		}
 	}
 	return Radiance;
 }

@@ -117,6 +117,7 @@ void SetLightingUpdateAtlasSize(FIntPoint PhysicalAtlasSize, int32 UpdateFactor,
 }
 
 IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FCopyRadiosityToAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CopyRadiosityToAtlasPS", SF_Pixel);
 
 bool FRasterizeToCardsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
@@ -239,6 +240,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			{
 				AddClearRenderTargetPass(GraphBuilder, TracingInputs.DirectLightingAtlas);
 				AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, TracingInputs.RadiosityNumFramesAccumulatedAtlas);
 				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
 			}
 
@@ -263,10 +265,12 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				TracingInputs,
 				GlobalShaderMap,
 				TracingInputs.IndirectLightingAtlas,
+				TracingInputs.RadiosityNumFramesAccumulatedAtlas,
 				IndirectLightingCardUpdateContext);
 
 			LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.DirectLightingAtlas);
 			LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectLightingAtlas);
+			LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.RadiosityNumFramesAccumulatedAtlas);
 			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
 
 			LumenSceneData.bFinalLightingAtlasContentsValid = true;

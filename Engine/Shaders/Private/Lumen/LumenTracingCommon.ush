@@ -315,6 +315,7 @@ struct FConeTraceResult
 	float NumSteps;
 	float NumOverlaps;
 	float OpaqueHitDistance;
+	float ExpandSurfaceAmount;
 	float3 Debug;
 	float3 WorldVelocity;
 };
@@ -1339,6 +1340,7 @@ void ConeTraceVoxels(
 	OutResult.Transparency = LightingAndAlpha.a;
 	OutResult.NumSteps = SDFTraceResult.TotalStepsTaken;
 	OutResult.OpaqueHitDistance = GlobalSDFTraceResultIsHit(SDFTraceResult) ? SDFTraceResult.HitTime : TraceInput.MaxTraceDistance;
+	OutResult.ExpandSurfaceAmount = SDFTraceResult.ExpandSurfaceAmount;
 }
 
 #endif

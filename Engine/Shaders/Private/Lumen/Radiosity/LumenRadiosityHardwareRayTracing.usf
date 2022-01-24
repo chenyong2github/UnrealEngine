@@ -19,12 +19,16 @@
 #include "../LumenCardTile.ush"
 #include "LumenRadiosity.ush"
 
+RWTexture2D<float3> RWTraceRadianceAtlas;
+RWTexture2D<float> RWTraceHitDistanceAtlas;
+
 RaytracingAccelerationStructure TLAS;
 
 float MinTraceDistance;
 float MaxTraceDistance;
 float MinTraceDistanceToSampleSurface;
 float SurfaceBias;
+float AvoidSelfIntersectionTraceDistance;
 float MaxRayIntensity;
 uint NumThreadsToDispatch;
 float TanRadiosityRayConeHalfAngle;
@@ -34,48 +38,73 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 {	
 #if DIM_INDIRECT_DISPATCH
 	uint GlobalThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchRaysIndex(), THREADGROUP_SIZE);
-	if (GlobalThreadIndex >= CardTileAllocator[0] * NumTracesPerTexel * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE)
+	if (GlobalThreadIndex >= CardTileAllocator[0] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize)
 	{
 		return;
 	}
 #else
 	for (uint GlobalThreadIndex = DispatchRaysIndex().x;
-		GlobalThreadIndex < CardTileAllocator[0] * NumTracesPerTexel * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE;
+		GlobalThreadIndex < CardTileAllocator[0] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize;
 		GlobalThreadIndex += NumThreadsToDispatch)
 #endif
 	{
-		// Run one trace per thread
-		uint CardTileIndex = 0;
-		uint2 CoordInCardTile = 0;
-		uint TraceIndex = 0;
-		UnswizzleTexelTraceCoords(GlobalThreadIndex, CardTileIndex, CoordInCardTile, TraceIndex);
+		uint CardTileIndex;
+		uint2 CoordInCardTile;
+		uint2 TraceTexelCoord;
+		UnswizzleTexelTraceCoords(GlobalThreadIndex, CardTileIndex, CoordInCardTile, TraceTexelCoord);
 
-		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(CardTileIndex, CoordInCardTile);
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexelFromCardTile(CardTileIndex, CoordInCardTile);
+
 		if (RadiosityTexel.bInsideAtlas)
 		{
 			float3 Radiance = 0.0f;
+			float TraceHitDistance = MaxTraceDistance;
 
 			if (RadiosityTexel.Opacity > 0.0f)
 			{
 				float3 WorldPosition = RadiosityTexel.WorldPosition;
 				float3 WorldNormal = RadiosityTexel.WorldNormal;
-				float3 WorldRayDirection = GetWorldRayDirection(RadiosityTexel, CoordInCardTile, TraceIndex);
+				
+				float3 WorldRayDirection;
+				float ConeHalfAngle;
+				GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle);
 
 				RayDesc Ray;
 				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
 				Ray.Direction = WorldRayDirection;
 				Ray.TMin = MinTraceDistance;
-				Ray.TMax = MaxTraceDistance;
 
 				FRayCone RayCone = (FRayCone)0;
-				float ConeHalfAngle = acosFast(1.0f - 1.0f / NumTracesPerTexel);
 				RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
 				const bool bCullBackFacingTriangles = true;
 				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
 
+#if DIM_AVOID_SELF_INTERSECTION_TRACE
+				// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
+				Ray.TMax = AvoidSelfIntersectionTraceDistance;
+				FRayTracedLightingResult RayResult = CreateRayTracedLightingResult();
+
+				if (Ray.TMax > Ray.TMin)
+				{
+					Context.bCullBackFacingTriangles = true;
+					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+				}
+
+				// Second trace - remaining ray with backface culling enabled to reduce leaking when starting from a point inside the mesh
+				if (!RayResult.bIsHit)
+				{
+					Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
+					Ray.TMax = MaxTraceDistance;
+					
+					Context.bCullBackFacingTriangles = false;
+					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+				}
+#else
+				Ray.TMax = MaxTraceDistance;
 				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+#endif
 
 				if (RayResult.TraceHitDistance < MinTraceDistanceToSampleSurface)
 				{
@@ -86,21 +115,28 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				{
 					Radiance = RayResult.Radiance;
 
-					float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);
-
-					if (MaxLighting > MaxRayIntensity * View.OneOverPreExposure)
-					{
-						Radiance *= MaxRayIntensity * View.OneOverPreExposure / MaxLighting;
-					}
+					// Recalculate TraceHitDistance to incorporate biases
+					float3 HitPosition = Ray.Origin + Ray.Direction * RayResult.TraceHitDistance;
+					TraceHitDistance = length(RadiosityTexel.WorldPosition - HitPosition);
 				}
 				else
 				{
-					Radiance = EvaluateSkyRadiance(WorldRayDirection, TanRadiosityRayConeHalfAngle);
+					Radiance = EvaluateSkyRadiance(WorldRayDirection, tan(ConeHalfAngle));
+				}
+
+				float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);
+
+				if (MaxLighting > MaxRayIntensity * View.OneOverPreExposure)
+				{
+					Radiance *= MaxRayIntensity * View.OneOverPreExposure / MaxLighting;
 				}
 			}
 
-			uint2 TraceAtlasCoord = GetRadiosityTraceAtlasCoord(CardTileIndex, CoordInCardTile, TraceIndex);
-			RWTraceRadianceBuffer[TraceAtlasCoord] = Radiance;
+			FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+			FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+			uint2 RadiosityProbeTracingAtlasCoord = GetRadiosityProbeAtlasCoord(CardPage, CardTile, CoordInCardTile) * HemisphereProbeResolution + TraceTexelCoord;
+			RWTraceRadianceAtlas[RadiosityProbeTracingAtlasCoord] = Radiance;
+			RWTraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord] = TraceHitDistance;
 		}
 	}
 }

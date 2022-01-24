@@ -9,6 +9,8 @@
 #include "LumenCardCommon.ush"
 #include "LumenCardTile.ush"
 #include "LumenSceneLighting.ush"
+#include "LumenSurfaceCacheSampling.ush"
+#include "Radiosity/LumenRadiosity.ush"
 
 #ifndef THREADGROUP_SIZE
 	#define THREADGROUP_SIZE 1
@@ -33,7 +35,6 @@ StructuredBuffer<uint> MaxUpdateBucket;
 RWStructuredBuffer<uint> RWCardPageTileAllocator;
 StructuredBuffer<uint> CardPageTileAllocator;
 
-uint SurfaceCacheUpdateFrameIndex;
 uint FreezeUpdateFrame;
 uint CardPageNum;
 uint MaxDirectLightingTilesToUpdate;
@@ -318,6 +319,7 @@ void BuildCardsUpdateListCS(
 				RWIndirectLightingCardPageIndexData))
 			{
 				CardPage.LastIndirectLightingUpdateFrameIndex = SurfaceCacheUpdateFrameIndex;
+				CardPage.IndirectLightingTemporalIndex = CardPage.IndirectLightingTemporalIndex + 1;
 				bUpdatedCardPage = true;
 			}
 
@@ -424,11 +426,15 @@ void RasterizeToCardsVS(
 		float2 ScreenUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
 		float2 AtlasUV = ScreenUV;
 
+#if RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR == 1
+		float2 IndirectLightingAtlasUV = AtlasUV;
+#else
 		// When sampling from a downsampled Indirect Lighting atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
 		float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * IndirectLightingAtlasSize;
 		float2 ClampBorder = 0.5f / CardWidthInTexels;
 		float2 IndirectLightingTexCoord = clamp(TexCoord, ClampBorder, 1.0f - ClampBorder);
 		float2 IndirectLightingAtlasUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, IndirectLightingTexCoord);
+#endif
 
 		float2 ScreenPosition = float2(2.0f, -2.0f) * ScreenUV + float2(-1.0f, 1.0f);
 		OutPosition = float4(ScreenPosition, 0, 1);
@@ -441,12 +447,6 @@ void RasterizeToCardsVS(
 		CardInterpolants.CardPageIndex = CardPageIndex;
 	}
 }
-
-Texture2D AlbedoAtlas;
-Texture2D EmissiveAtlas;
-Texture2D DirectLightingAtlas;
-Texture2D IndirectLightingAtlas;
-Texture2D OpacityAtlas;
 
 float DiffuseReflectivityOverride;
 
@@ -467,7 +467,7 @@ void CombineLumenSceneLighting(
 
 	float3 FinalLighting = (DirectLighting + IndirectLighting) * Diffuse_Lambert(Albedo) + Emissive;
 
-	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
+	// Secure against strange values, as we are writing it to a persistent atlas with a feedback loop
 	FinalLighting = max(MakeFinite(FinalLighting), float3(0.0f, 0.0f, 0.0f));
 
 	OutFinalLighting = float4(FinalLighting, 0);
@@ -496,4 +496,62 @@ void ClearLumenCardCapturePS(
 	OutAlbedo = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	OutNormals = float4(0.5f, 0.5f, 0.0f, 0.0f);
 	OutEmissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+Buffer<uint4> NewCardPageResampleData;
+Texture2D RadiosityNumFramesAccumulatedAtlas;
+
+void ResampleRadiosityHistoryToCardCaptureAtlasPS(
+	float4 SvPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	float2 InRectUV : TEXCOORD1,
+	float InRectIndex : RECT_INDEX,
+	out float3 OutRadiosityCardCaptureAtlas : SV_Target0,
+	out float OutRadiosityNumFramesAccumulatedCardCaptureAtlas : SV_Target1)
+{
+	OutRadiosityCardCaptureAtlas = 0;
+	OutRadiosityNumFramesAccumulatedCardCaptureAtlas = 0;
+
+	uint CardIndex = NewCardPageResampleData[InRectIndex * 2 + 0].x;
+
+	if (CardIndex != LUMEN_INVALID_CARD_INDEX)
+	{
+		// Load new card attributes manually
+		float4 NewCardUVRect = asfloat(NewCardPageResampleData[InRectIndex * 2 + 1]);
+		float2 NewCardUV = InRectUV * (NewCardUVRect.zw - NewCardUVRect.xy) + NewCardUVRect.xy;
+
+		// LumenCardScene contains the old card structure during the resample
+		FLumenCardData OldCard = GetLumenCardData(CardIndex);
+
+		// Assuming card extent hasn't changed
+		float2 LocalSamplePosition = GetCardLocalPosition(OldCard.LocalExtent, NewCardUV, 0.0f).xy;
+
+		// Test the high res pages first
+		FLumenCardSample CardSample = ComputeSurfaceCacheSample(OldCard, CardIndex, LocalSamplePosition, 0.0f, true);
+
+		if (!CardSample.bValid)
+		{
+			CardSample = ComputeSurfaceCacheSample(OldCard, CardIndex, LocalSamplePosition, 0.0f, false);
+		}
+
+		if (CardSample.bValid)
+		{
+			OutRadiosityCardCaptureAtlas = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).xyz;
+			OutRadiosityNumFramesAccumulatedCardCaptureAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).x;
+		}
+	}
+}
+
+Texture2D RadiosityCardCaptureAtlas;
+Texture2D RadiosityNumFramesAccumulatedCardCaptureAtlas;
+
+void CopyRadiosityToAtlasPS(
+	float4 SvPosition : SV_POSITION,
+	float2 AtlasUV : TEXCOORD0,
+	out float3 OutRadiosityAtlas : SV_Target0,
+	out float OutRadiosityNumFramesAccumulatedAtlas : SV_Target1
+	)
+{
+	OutRadiosityAtlas = Texture2DSampleLevel(RadiosityCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+	OutRadiosityNumFramesAccumulatedAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 }

@@ -141,7 +141,7 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	float2 PageUV = frac(CardUV * SizeInPages);
 	float2 PhysicalAtlasUV = (PageUV * (AtlasScale - 1.0f) + AtlasBias + 0.5f) * LumenCardScene.InvPhysicalAtlasSize;
 	
-	// Indirect lighting cane be sampled from a downsampled atlas
+	// Indirect lighting can be sampled from a downsampled atlas
 	float ILFactor = LumenCardScene.IndirectLightingAtlasDownsampleFactor;
 	float2 IndirectLightingPhysicalAtlasUV = (PageUV * (AtlasScale / ILFactor - 1.0f) + AtlasBias / ILFactor + 0.5f) * ILFactor * LumenCardScene.InvPhysicalAtlasSize;
 

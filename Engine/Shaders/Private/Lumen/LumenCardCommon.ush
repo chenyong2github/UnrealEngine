@@ -98,6 +98,9 @@ struct FLumenCardPageData
 
 	uint LastDirectLightingUpdateFrameIndex;
 	uint LastIndirectLightingUpdateFrameIndex;
+
+	// Increments each time the page has Radiosity updated, needs to be consecutive for the sample pattern
+	uint IndirectLightingTemporalIndex;
 };
 
 RWStructuredBuffer<float4> RWLumenCardPageDataBuffer;
@@ -129,6 +132,7 @@ FLumenCardPageData GetLumenCardPageData(uint CardPageId)
 
 	CardPageData.LastDirectLightingUpdateFrameIndex = asuint(Vector4.x);
 	CardPageData.LastIndirectLightingUpdateFrameIndex = asuint(Vector4.y);
+	CardPageData.IndirectLightingTemporalIndex = asuint(Vector4.z);
 
 	// Derived properties
 	CardPageData.bMapped = CardPageData.SizeInTexels.x > 0;
@@ -146,7 +150,7 @@ void SetCardPageUpdateData(uint CardPageId, FLumenCardPageData CardPageData)
 	uint4 Vector4;
 	Vector4.x = CardPageData.LastDirectLightingUpdateFrameIndex;
 	Vector4.y = CardPageData.LastIndirectLightingUpdateFrameIndex;
-	Vector4.z = 0;
+	Vector4.z = CardPageData.IndirectLightingTemporalIndex;
 	Vector4.w = 0;
 
 	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
@@ -211,13 +215,13 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	return MeshCardsData;
 }
 
-float3 GetCardLocalPosition(FLumenCardData Card, float2 CardUV, float Depth)
+float3 GetCardLocalPosition(float3 CardLocalExtent, float2 CardUV, float Depth)
 {
 	CardUV.x = 1.0f - CardUV.x;
 
 	float3 LocalPosition;
-	LocalPosition.xy = Card.LocalExtent.xy * (1.0f - 2.0f * CardUV);
-	LocalPosition.z = -Card.LocalExtent.z + Depth * 2.0f * Card.LocalExtent.z;
+	LocalPosition.xy = CardLocalExtent.xy * (1.0f - 2.0f * CardUV);
+	LocalPosition.z = -CardLocalExtent.z + Depth * 2.0f * CardLocalExtent.z;
 
 	return LocalPosition;
 }
@@ -226,8 +230,8 @@ void GetCardLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, float2 U
 {
 	float2 CardUVMin = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMin);
 	float2 CardUVMax = lerp(CardPage.CardUVRect.xw, CardPage.CardUVRect.zy, UVMax);
-	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card, CardUVMin, 0.0f);
-	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card, CardUVMax, 1.0f);
+	float3 CardPageLocalBoxMin = GetCardLocalPosition(Card.LocalExtent, CardUVMin, 0.0f);
+	float3 CardPageLocalBoxMax = GetCardLocalPosition(Card.LocalExtent, CardUVMax, 1.0f);
 
 	CardPageLocalCenter = 0.5f * (CardPageLocalBoxMax + CardPageLocalBoxMin);
 	CardPageLocalExtent = 0.5f * (CardPageLocalBoxMax - CardPageLocalBoxMin);
@@ -240,7 +244,7 @@ void GetCardPageLocalBBox(FLumenCardPageData CardPage, FLumenCardData Card, out 
 
 float3 GetCardWorldPosition(FLumenCardData Card, float2 CardUV, float Depth)
 {
-	float3 LocalPosition = GetCardLocalPosition(Card, CardUV, Depth);
+	float3 LocalPosition = GetCardLocalPosition(Card.LocalExtent, CardUV, Depth);
 	float3 WorldPosition = mul(Card.WorldToLocalRotation, LocalPosition) + Card.Origin;
 	return WorldPosition;
 }

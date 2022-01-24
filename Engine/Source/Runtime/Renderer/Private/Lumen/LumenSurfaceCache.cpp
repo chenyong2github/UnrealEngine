@@ -104,6 +104,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenRectsParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCopyRadiosityToAtlasParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FCopyRadiosityToAtlasPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
@@ -157,9 +163,15 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FView
 
 	// Indirect Lighting
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), Lumen::GetIndirectLightingAtlasFormat(), FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 		Desc.AutoWritable = false;
 		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, IndirectLightingAtlas, TEXT("Lumen.SceneIndirectLighting"));
+	}
+
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), Lumen::GetNumFramesAccumulatedAtlasFormat(), FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, RadiosityNumFramesAccumulatedAtlas, TEXT("Lumen.SceneNumFramesAccumulatedAtlas"));
 	}
 
 	// Final Lighting
@@ -179,7 +191,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	const FViewInfo& View,
 	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	FRDGBufferSRVRef CardCaptureRectBufferSRV,
-	const FCardCaptureAtlas& CardCaptureAtlas)
+	const FCardCaptureAtlas& CardCaptureAtlas,
+	const FResampledCardCaptureAtlas& ResampledCardCaptureAtlas)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "CopyCardsToSurfaceCache");
@@ -193,6 +206,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	FRDGTextureRef DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
 	FRDGTextureRef IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
+	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
 	FRDGTextureRef FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 
 	// Create rect buffer
@@ -362,7 +376,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 			{
 				FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
 
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ENoAction, 0);
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ELoad, 0);
 				PassParameters->PS.View = View.ViewUniformBuffer;
 				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
 				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
@@ -394,38 +408,75 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	const bool bRadiosityEnabled = Lumen::IsRadiosityEnabled(ViewFamily);
 	if (bRadiosityEnabled)
 	{
-		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
+		extern int32 GLumenSceneSurfaceCacheResampleLighting;
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
-		PassParameters->PS.View = View.ViewUniformBuffer;
+		if (GLumenSceneSurfaceCacheResampleLighting && ResampledCardCaptureAtlas.IndirectLighting != nullptr)
+		{
+			FCopyRadiosityToAtlasParameters* PassParameters = GraphBuilder.AllocParameters<FCopyRadiosityToAtlasParameters>();
 
-		FClearLumenCardsPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(bRadiosityEnabled ? 2 : 1);
-		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+			PassParameters->RenderTargets[1] = FRenderTargetBinding(RadiosityNumFramesAccumulatedAtlas, ERenderTargetLoadAction::ELoad, 0);
+			
+			PassParameters->PS.View = View.ViewUniformBuffer;
+			PassParameters->PS.RadiosityCardCaptureAtlas = ResampledCardCaptureAtlas.IndirectLighting;
+			PassParameters->PS.RadiosityNumFramesAccumulatedCardCaptureAtlas = ResampledCardCaptureAtlas.NumFramesAccumulated;
 
-		FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,
-			View.ShaderMap,
-			RDG_EVENT_NAME("Clear IndirectLighting"),
-			PixelShader,
-			PassParameters,
-			LumenSceneData.GetRadiosityAtlasSize(),
-			SurfaceCacheRectBufferSRV,
-			CardPagesToRender.Num(),
-			/*BlendState*/ nullptr,
-			/*RasterizerState*/ nullptr,
-			/*DepthStencilState*/ nullptr,
-			/*StencilRef*/ 0,
-			/*TextureSize*/ LumenSceneData.GetRadiosityAtlasSize(),
-			/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
-			Lumen::GetRadiosityDownsampleFactor());
+			FCopyRadiosityToAtlasPS::FPermutationDomain PermutationVector;
+			auto PixelShader = View.ShaderMap->GetShader<FCopyRadiosityToAtlasPS>(PermutationVector);
+
+			FPixelShaderUtils::AddRasterizeToRectsPass<FCopyRadiosityToAtlasPS>(GraphBuilder,
+				View.ShaderMap,
+				RDG_EVENT_NAME("CopyRadiosity"),
+				PixelShader,
+				PassParameters,
+				LumenSceneData.GetRadiosityAtlasSize(),
+				SurfaceCacheRectBufferSRV,
+				CardPagesToRender.Num(),
+				/*BlendState*/ nullptr,
+				/*RasterizerState*/ nullptr,
+				/*DepthStencilState*/ nullptr,
+				/*StencilRef*/ 0,
+				/*TextureSize*/ CardCaptureAtlasSize,
+				/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
+				/*DownsampleFactor*/ Lumen::GetRadiosityAtlasDownsampleFactor());
+		}
+		else
+		{
+			FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
+
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+			PassParameters->RenderTargets[1] = FRenderTargetBinding(RadiosityNumFramesAccumulatedAtlas, ERenderTargetLoadAction::ELoad, 0);
+		
+			PassParameters->PS.View = View.ViewUniformBuffer;
+
+			FClearLumenCardsPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(2);
+			auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
+
+			FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,
+				View.ShaderMap,
+				RDG_EVENT_NAME("Clear IndirectLighting"),
+				PixelShader,
+				PassParameters,
+				LumenSceneData.GetRadiosityAtlasSize(),
+				SurfaceCacheRectBufferSRV,
+				CardPagesToRender.Num(),
+				/*BlendState*/ nullptr,
+				/*RasterizerState*/ nullptr,
+				/*DepthStencilState*/ nullptr,
+				/*StencilRef*/ 0,
+				/*TextureSize*/ LumenSceneData.GetRadiosityAtlasSize(),
+				/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
+				/*DownsampleFactor*/ Lumen::GetRadiosityAtlasDownsampleFactor());
+		}
 	}
 
 	// Clear lighting for newly captured cards
 	{
 		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(DirectLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
-		PassParameters->RenderTargets[1] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(DirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
 		PassParameters->PS.View = View.ViewUniformBuffer;
 
 		FClearLumenCardsPS::FPermutationDomain PermutationVector;
@@ -455,6 +506,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
 	LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(DirectLightingAtlas);
 	LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(IndirectLightingAtlas);
+	LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityNumFramesAccumulatedAtlas);
 	LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(FinalLightingAtlas);
 }
 
@@ -653,5 +705,6 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 	ClearAtlas(GraphBuilder, LumenSceneData.DirectLightingAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.IndirectLightingAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.FinalLightingAtlas);
 }

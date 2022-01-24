@@ -60,6 +60,8 @@ public:
 	FMeshCommandOneFrameArray MeshDrawCommands;
 	TArray<int32, SceneRenderingAllocator> MeshDrawPrimitiveIds;
 
+	FResampledCardCaptureAtlas ResampledCardCaptureAtlas;
+
 	void Reset()
 	{
 		CardPagesToRender.Reset();
@@ -390,6 +392,7 @@ private:
 		const class FLumenCardTracingInputs& TracingInputs,
 		FGlobalShaderMap* GlobalShaderMap,
 		FRDGTextureRef RadiosityAtlas,
+		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 		const FLumenCardUpdateContext& CardUpdateContext);
 
 	void ClearLumenSurfaceCacheAtlas(
@@ -401,7 +404,8 @@ private:
 		const FViewInfo& View,
 		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 		FRDGBufferSRVRef CardCaptureRectBufferSRV,
-		const struct FCardCaptureAtlas& CardCaptureAtlas);
+		const struct FCardCaptureAtlas& CardCaptureAtlas,
+		const struct FResampledCardCaptureAtlas& ResampledCardCaptureAtlas);
 
 	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
 
