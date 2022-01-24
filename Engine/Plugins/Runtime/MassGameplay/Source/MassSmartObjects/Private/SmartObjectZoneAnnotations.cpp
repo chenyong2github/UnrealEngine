@@ -121,6 +121,20 @@ const FSmartObjectAnnotationData* USmartObjectZoneAnnotations::GetAnnotationData
 	return &SmartObjectAnnotationDataArray[Index];
 }
 
+TOptional<FSmartObjectLaneLocation> USmartObjectZoneAnnotations::GetSmartObjectLaneLocation(const FZoneGraphDataHandle& DataHandle, const FSmartObjectHandle& SmartObjectHandle) const
+{
+	TOptional<FSmartObjectLaneLocation> SmartObjectLaneLocation;
+	if (const FSmartObjectAnnotationData* AnnotationData = GetAnnotationData(DataHandle))
+	{
+		const int32 Index = AnnotationData->SmartObjectToLaneLocationIndexLookup.FindChecked(SmartObjectHandle);
+		if (AnnotationData->SmartObjectLaneLocations.IsValidIndex(Index))
+		{
+			SmartObjectLaneLocation = AnnotationData->SmartObjectLaneLocations[Index];
+		}
+	}
+	return SmartObjectLaneLocation;
+}
+
 void USmartObjectZoneAnnotations::TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& BehaviorTagContainer)
 {
 	if (!BehaviorTag.IsValid())
@@ -130,7 +144,7 @@ void USmartObjectZoneAnnotations::TickAnnotation(const float DeltaTime, FZoneGra
 
 	for (FSmartObjectAnnotationData& Data : SmartObjectAnnotationDataArray)
 	{
-		if (Data.bInitialTaggingCompleted || !Data.IsValid() || Data.ObjectToEntryPointLookup.IsEmpty())
+		if (Data.bInitialTaggingCompleted || !Data.IsValid() || Data.SmartObjectToLaneLocationIndexLookup.IsEmpty())
 		{
 			continue;
 		}
@@ -159,32 +173,32 @@ void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* Debu
 		return;
 	}
 
-	for (FSmartObjectAnnotationData& Data : SmartObjectAnnotationDataArray)
+	const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
+	if (Collection == nullptr)
 	{
-		const FZoneGraphStorage* ZoneStorage = Data.DataHandle.IsValid() ? ZoneGraph->GetZoneGraphStorage(Data.DataHandle) : nullptr;
+		return;
+	}
+
+	for (FSmartObjectAnnotationData& AnnotationData : SmartObjectAnnotationDataArray)
+	{
+		const FZoneGraphStorage* ZoneStorage = AnnotationData.DataHandle.IsValid() ? ZoneGraph->GetZoneGraphStorage(AnnotationData.DataHandle) : nullptr;
 		if (ZoneStorage == nullptr)
 		{
 			continue;
 		}
 
-		const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
-		if (Collection == nullptr)
-		{
-			return;
-		}
-
 		for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
 		{
-			FSmartObjectHandle Handle = Entry.GetHandle();
-			const FSmartObjectLaneLocation* SOLaneLocation = Data.ObjectToEntryPointLookup.Find(Handle);
-			if (SOLaneLocation == nullptr)
+			int32* Index = AnnotationData.SmartObjectToLaneLocationIndexLookup.Find(Entry.GetHandle());
+			if (Index == nullptr)
 			{
 				continue;
 			}
+			const FSmartObjectLaneLocation& SOLaneLocation = AnnotationData.SmartObjectLaneLocations[*Index];
 
 			const FVector& ObjectLocation = Entry.GetComponent()->GetComponentLocation();
 			FZoneGraphLaneLocation EntryPointLocation;
-			UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneStorage, SOLaneLocation->LaneIndex, SOLaneLocation->DistanceAlongLane, EntryPointLocation);
+			UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneStorage, SOLaneLocation.LaneIndex, SOLaneLocation.DistanceAlongLane, EntryPointLocation);
 			const FColor Color = FColor::Silver;
 			constexpr float SphereRadius = 25.f;
 			DebugProxy->Spheres.Emplace(SphereRadius, EntryPointLocation.Position, Color);
@@ -256,53 +270,58 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 
 	const int32 NumSO = Collection->GetEntries().Num();
 	const int32 NumLanes = Storage.Lanes.Num();
-	Data.ObjectToEntryPointLookup.Empty(NumSO);
-	Data.LaneToSmartObjectsLookup.Empty(NumLanes);
+	Data.SmartObjectLaneLocations.Empty(NumSO);
+	Data.SmartObjectToLaneLocationIndexLookup.Empty(NumSO);
+	Data.LaneToLaneLocationIndicesLookup.Empty(NumLanes);
 	Data.AffectedLanes.Empty(NumLanes);
 
 	for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
 	{
-		FZoneGraphLaneLocation EntryPointLocation;
 		FSmartObjectHandle Handle = Entry.GetHandle();
 		const FVector& ObjectLocation = Entry.GetComponent()->GetComponentLocation();
-
 		const FBox QueryBounds(ObjectLocation - SearchExtent, ObjectLocation + SearchExtent);
 
+		FZoneGraphLaneLocation LaneLocation;
 		float DistanceSqr = 0.f;
-		const bool bFound = UE::ZoneGraph::Query::FindNearestLane(Storage, QueryBounds, AffectedLaneTags, EntryPointLocation, DistanceSqr);
+		const bool bFound = UE::ZoneGraph::Query::FindNearestLane(Storage, QueryBounds, AffectedLaneTags, LaneLocation, DistanceSqr);
 		if (bFound)
 		{
 			NumAdded++;
 
-			const int32 LaneIndex = EntryPointLocation.LaneHandle.Index;
+			const int32 LaneIndex = LaneLocation.LaneHandle.Index;
 
-			Data.ObjectToEntryPointLookup.Add(Handle, { LaneIndex, EntryPointLocation.DistanceAlongLane });
-			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding ZG annotation for SmartObject '%s' on lane '%s'"), *LexToString(Handle), *EntryPointLocation.LaneHandle.ToString());
+			const int32 SOLaneLocationIndex = Data.SmartObjectLaneLocations.Add(FSmartObjectLaneLocation(Handle, LaneIndex, LaneLocation.DistanceAlongLane));
+			Data.SmartObjectToLaneLocationIndexLookup.Add(Handle, SOLaneLocationIndex);
+			Data.AffectedLanes.AddUnique(LaneIndex);
+			Data.LaneToLaneLocationIndicesLookup.FindOrAdd(LaneIndex).SmartObjectLaneLocationIndices.Add(SOLaneLocationIndex);
 
-			auto AddLookupEntries = [this, &Data, Handle, &ObjectLocation](const int32 InLaneIndex, const FVector& LocationOnLane)
-			{
-				Data.AffectedLanes.AddUnique(InLaneIndex);
-				Data.LaneToSmartObjectsLookup.FindOrAdd(InLaneIndex).SmartObjects.Add(Handle);
-
-				UE_VLOG_SEGMENT(this, LogZoneGraphAnnotations, Display, ObjectLocation, LocationOnLane, FColor::Green, TEXT(""));
-			};
-
-			AddLookupEntries(LaneIndex, EntryPointLocation.Position);
-			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 50.f /*radius*/, FColor::Green, TEXT("%s"), *LexToString(Handle));
+			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding ZG annotation for SmartObject '%s' on lane '%s'"), *LexToString(Handle), *LaneLocation.LaneHandle.ToString());
+			UE_VLOG_SEGMENT(this, LogSmartObject, Display, ObjectLocation, LaneLocation.Position, FColor::Green, TEXT(""));
+			UE_VLOG_LOCATION(this, LogSmartObject, Display, ObjectLocation, 50.f /*radius*/, FColor::Green, TEXT("%s"), *LexToString(Handle));
 		}
 		else
 		{
 			NumDiscarded++;
-			UE_VLOG_LOCATION(this, LogZoneGraphAnnotations, Display, ObjectLocation, 75.f /*radius*/, FColor::Red, TEXT("%s"), *LexToString(Handle));
+			UE_VLOG_LOCATION(this, LogSmartObject, Display, ObjectLocation, 75.f /*radius*/, FColor::Red, TEXT("%s"), *LexToString(Handle));
 		}
 	}
 
-	Data.ObjectToEntryPointLookup.Shrink();
+	// Sort all entry points per distance on lane
+	for (auto It(Data.LaneToLaneLocationIndicesLookup.CreateIterator()); It; ++It)
+	{
+		It.Value().SmartObjectLaneLocationIndices.Sort([Locations = Data.SmartObjectLaneLocations](const int32 FirstIndex, const int32 SecondIndex)
+		{
+			return Locations[FirstIndex].DistanceAlongLane < Locations[SecondIndex].DistanceAlongLane;
+		});
+	}
+
+	Data.SmartObjectLaneLocations.Shrink();
+	Data.SmartObjectToLaneLocationIndexLookup.Shrink();
 	Data.AffectedLanes.Shrink();
-	Data.LaneToSmartObjectsLookup.Shrink();
+	Data.LaneToLaneLocationIndicesLookup.Shrink();
 	Data.bInitialTaggingCompleted = false;
 
-	UE_VLOG_UELOG(this, LogZoneGraphAnnotations, Log, TEXT("Summary: %d entry points added, %d discarded%s."), NumAdded, NumDiscarded, NumDiscarded == 0 ? TEXT("") : TEXT(" (too far from any lane)"));
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Summary: %d entry points added, %d discarded%s."), NumAdded, NumDiscarded, NumDiscarded == 0 ? TEXT("") : TEXT(" (too far from any lane)"));
 }
 
 void USmartObjectZoneAnnotations::RebuildForAllGraphs()

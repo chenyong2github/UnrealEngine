@@ -10,11 +10,22 @@
 class AZoneGraphData;
 class USmartObjectSubsystem;
 
-/** Minimal amount of data to search and compare lane locations within the same graph. */
+/** Struct to keep track of a SmartObject entry point on a given lane. */
 USTRUCT()
 struct FSmartObjectLaneLocation
 {
 	GENERATED_BODY()
+
+	FSmartObjectLaneLocation() = default;
+	FSmartObjectLaneLocation(const FSmartObjectHandle InObjectHandle, const int32 InLaneIndex, const float InDistanceAlongLane)
+        : ObjectHandle(InObjectHandle)
+        , LaneIndex(InLaneIndex)
+        , DistanceAlongLane(InDistanceAlongLane)
+	{
+	}
+
+	UPROPERTY()
+	FSmartObjectHandle ObjectHandle;
 
 	UPROPERTY()
 	int32 LaneIndex = INDEX_NONE;
@@ -23,14 +34,17 @@ struct FSmartObjectLaneLocation
 	float DistanceAlongLane = 0.0f;
 };
 
-/** Simple struct to wrap the container to be able to use in a TMap */
+/**
+ * Struct to store indices to all entry points on a given lane.
+ * Used as a container wrapper to be able to use in a TMap.
+ */
 USTRUCT()
-struct FSmartObjectList
+struct FSmartObjectLaneLocationIndices
 {
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TArray<FSmartObjectHandle> SmartObjects;
+	TArray<int32> SmartObjectLaneLocationIndices;
 };
 
 /** Per ZoneGraphData smart object look up data. */
@@ -47,8 +61,9 @@ struct FSmartObjectAnnotationData
 	{
 		DataHandle = {};
 		AffectedLanes.Reset();
-		ObjectToEntryPointLookup.Reset();
-		LaneToSmartObjectsLookup.Reset();
+		SmartObjectLaneLocations.Reset();
+		SmartObjectToLaneLocationIndexLookup.Reset();
+		LaneToLaneLocationIndicesLookup.Reset();
 	}
 
 	/** Handle of the ZoneGraphData that this smart object annotation data is associated to */
@@ -59,10 +74,13 @@ struct FSmartObjectAnnotationData
 	TArray<int32> AffectedLanes;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TMap<FSmartObjectHandle, FSmartObjectLaneLocation> ObjectToEntryPointLookup;
+	TArray<FSmartObjectLaneLocation> SmartObjectLaneLocations;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TMap<int32, FSmartObjectList> LaneToSmartObjectsLookup;
+	TMap<FSmartObjectHandle, int32> SmartObjectToLaneLocationIndexLookup;
+
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	TMap<int32, FSmartObjectLaneLocationIndices> LaneToLaneLocationIndicesLookup;
 
 	bool bInitialTaggingCompleted = false;
 };
@@ -77,6 +95,7 @@ class MASSSMARTOBJECTS_API USmartObjectZoneAnnotations : public UZoneGraphAnnota
 
 public:
 	const FSmartObjectAnnotationData* GetAnnotationData(FZoneGraphDataHandle DataHandle) const;
+	TOptional<FSmartObjectLaneLocation> GetSmartObjectLaneLocation(const FZoneGraphDataHandle& DataHandle, const FSmartObjectHandle& SmartObjectHandle) const;
 
 protected:
 	virtual void PostSubsystemsInitialized() override;

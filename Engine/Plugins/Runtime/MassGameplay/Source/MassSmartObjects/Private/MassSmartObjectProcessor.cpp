@@ -214,17 +214,19 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 					continue;
 				}
 
-				const FSmartObjectList* SmartObjectList = GraphData->LaneToSmartObjectsLookup.Find(RequestLaneHandle.Index);
-				if (SmartObjectList == nullptr || !ensureMsgf(SmartObjectList->SmartObjects.Num() > 0, TEXT("Lookup table should only contains lanes with one or more associated object(s).")))
+				const FSmartObjectLaneLocationIndices* SmartObjectList = GraphData->LaneToLaneLocationIndicesLookup.Find(RequestLaneHandle.Index);
+				if (SmartObjectList == nullptr || !ensureMsgf(SmartObjectList->SmartObjectLaneLocationIndices.Num() > 0, TEXT("Lookup table should only contains lanes with one or more associated object(s).")))
 				{
 					continue;
 				}
 
-				for (const FSmartObjectHandle& Handle : SmartObjectList->SmartObjects)
+				for (const int32 Index : SmartObjectList->SmartObjectLaneLocationIndices)
 				{
 					// Find entry point using FindChecked since all smart objects added to LaneToSmartObjects lookup table
 					// were also added to the entry point lookup table
-					const FSmartObjectLaneLocation EntryPoint = GraphData->ObjectToEntryPointLookup.FindChecked(Handle);
+					check(GraphData->SmartObjectLaneLocations.IsValidIndex(Index));
+					const FSmartObjectLaneLocation& EntryPoint = GraphData->SmartObjectLaneLocations[Index];
+					const FSmartObjectHandle Handle = EntryPoint.ObjectHandle;
 
 					float Cost = 0.f;
 					if (ensureMsgf(EntryPoint.LaneIndex == RequestLocation.LaneHandle.Index, TEXT("Must be on same lane to be able to use distance along lane.")))

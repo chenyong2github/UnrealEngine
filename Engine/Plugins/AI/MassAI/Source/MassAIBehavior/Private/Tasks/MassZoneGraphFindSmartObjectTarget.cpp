@@ -45,26 +45,27 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	const FZoneGraphTag SmartObjectTag = GetDefault<UMassSmartObjectSettings>()->SmartObjectTag;
 	const USmartObjectZoneAnnotations* SOAnnotations = Cast<USmartObjectZoneAnnotations>(AnnotationSubsystem.GetFirstAnnotationForTag(SmartObjectTag));
 
-	
 	SmartObjectLocation.LaneHandle = LaneHandle;
 	SmartObjectLocation.NextExitLinkType = EZoneLaneLinkType::None;
 	SmartObjectLocation.NextLaneHandle.Reset();
 	SmartObjectLocation.bMoveReverse = false;
 	SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
-	SmartObjectLocation.EndOfPathPosition = SOUser.GetTargetLocation();
+	SmartObjectLocation.EndOfPathPosition = SOUser.TargetLocation;
 	// Let's start moving toward the interaction a bit before the entry point.
 	SmartObjectLocation.AnticipationDistance.Set(100.f);
 
+	// Find entry point on lane for the claimed object
+	TOptional<FSmartObjectLaneLocation> SmartObjectLaneLocation;
 	if (SOAnnotations != nullptr)
 	{
-		// Find entry point on lanes for the claimed object
-		const FSmartObjectAnnotationData* AnnotationData = SOAnnotations->GetAnnotationData(LaneHandle.DataHandle);
-		checkf(AnnotationData, TEXT("FSmartObjectAnnotationData should have been created for each registered valid ZoneGraphData"));
-		const FSmartObjectLaneLocation EntryPoint = AnnotationData->ObjectToEntryPointLookup.FindChecked(SOUser.ClaimHandle.SmartObjectHandle);
+		SmartObjectLaneLocation = SOAnnotations->GetSmartObjectLaneLocation(LaneHandle.DataHandle, SOUser.ClaimHandle.SmartObjectHandle);
+	}
 
+	if (SmartObjectLaneLocation.IsSet())
+	{
 		// Request path along current lane to reach entry point on lane
 		MASSBEHAVIOR_LOG(Log, TEXT("Claim successful: create path along lane to reach interaction location."));
-		SmartObjectLocation.TargetDistance = EntryPoint.DistanceAlongLane;
+		SmartObjectLocation.TargetDistance = SmartObjectLaneLocation.GetValue().DistanceAlongLane;
 	}
 	else
 	{
