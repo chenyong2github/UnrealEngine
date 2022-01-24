@@ -12,8 +12,10 @@
 #include "FixedFPSPump.h"
 #include "GPUFencePoller.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		class FPlayerSession;
 		class FVideoEncoderFactory;
 		class FSimulcastEncoderFactory;
@@ -90,6 +92,7 @@ namespace UE {
 			void SetLocalDescription(webrtc::PeerConnectionInterface* PeerConnection, FSetSessionDescriptionObserver* Observer, webrtc::SessionDescriptionInterface* SDP);
 			FString GetAudioStreamID() const;
 			FString GetVideoStreamID() const;
+			rtc::scoped_refptr<webrtc::AudioDeviceModule> CreateAudioDeviceModule() const;
 
 		private:
 			FString SignallingServerUrl;
@@ -131,5 +134,5 @@ namespace UE {
 			TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
 			TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;
 		};
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE
