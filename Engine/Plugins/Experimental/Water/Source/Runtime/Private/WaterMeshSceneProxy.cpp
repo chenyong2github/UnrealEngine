@@ -117,11 +117,7 @@ FWaterMeshSceneProxy::FWaterMeshSceneProxy(UWaterMeshComponent* Component)
 
 	WaterMeshUserDataBuffers = new WaterMeshUserDataBuffersType(WaterInstanceDataBuffers);
 
-	// Far distance mesh
-	FarDistanceWaterInstanceData = Component->GetFarDistanceInstanceData();
-	FarDistanceMaterial = Component->FarDistanceMaterial;
-
-	FarDistanceMaterialIndex = WaterQuadTree.BuildMaterialIndices(FarDistanceMaterial);
+	WaterQuadTree.BuildMaterialIndices();
 }
 
 FWaterMeshSceneProxy::~FWaterMeshSceneProxy()
@@ -178,9 +174,6 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 	}
 
 	const int32 NumBuckets = WaterQuadTree.GetWaterMaterials().Num() * DensityCount;
-	const int32 NumFarInstances = FarDistanceWaterInstanceData.Streams[0].Num();
-	const bool bHasFarWaterMesh = FarDistanceMaterial && NumFarInstances > 0;
-	const int32 FarBucketIndex = FarDistanceMaterialIndex * DensityCount + DensityCount - 1;
 
 	TArray<FWaterQuadTree::FTraversalOutput, TInlineAllocator<4>> WaterInstanceDataPerView;
 
@@ -248,14 +241,6 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			WaterQuadTree.BuildWaterTileInstanceData(TraversalDesc, WaterInstanceData);
 
 			HistoricalMaxViewInstanceCount = FMath::Max(HistoricalMaxViewInstanceCount, WaterInstanceData.InstanceCount);
-
-			// Add far distance mesh data to the instance tile data to have it render instanced together with the qater quad tree and possibly merge if it has the same material
-			if (bHasFarWaterMesh)
-			{
-				check(FarDistanceMaterialIndex != INDEX_NONE);
-				WaterInstanceData.BucketInstanceCounts[FarBucketIndex] += NumFarInstances;
-				WaterInstanceData.InstanceCount += NumFarInstances;
-			}
 		}
 	}
 
@@ -394,19 +379,6 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 				for (int32 StreamIdx = 0; StreamIdx < WaterInstanceDataBuffersType::NumBuffers; ++StreamIdx)
 				{
 					WaterInstanceDataBuffers->GetBufferMemory(StreamIdx)[WriteIndex] = Data.Data[StreamIdx];
-				}
-			}
-
-			if (bHasFarWaterMesh)
-			{
-				check(FarDistanceWaterInstanceData.Streams[1].Num() == NumFarInstances);
-				const int32 WriteStartOffset = WaterInstanceData.BucketInstanceCounts[FarBucketIndex];
-
-				for (int32 StreamIdx = 0; StreamIdx < WaterInstanceDataBuffersType::NumBuffers; ++StreamIdx)
-				{
-					TArrayView<FVector4f> BufferMemory = WaterInstanceDataBuffers->GetBufferMemory(StreamIdx);
-					check(WriteStartOffset + NumFarInstances <= BufferMemory.Num());
-					FMemory::Memcpy(BufferMemory.GetData() + WriteStartOffset, FarDistanceWaterInstanceData.Streams[StreamIdx].GetData(), NumFarInstances * sizeof(FVector4f));
 				}
 			}
 		}

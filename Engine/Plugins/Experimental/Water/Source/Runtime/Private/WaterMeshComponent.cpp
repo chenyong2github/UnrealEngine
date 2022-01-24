@@ -501,52 +501,17 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		return true;
 	});
 
-	WaterQuadTree.Unlock(true);
-
-	MarkRenderStateDirty();
-
-	// Build the far distance mesh instances. These are 8 tiles around the water quad tree
+	// Build the far distance mesh instances if needed
 	if (IsMaterialUsedWithWater(FarDistanceMaterial) && FarDistanceMeshExtent > 0.0f)
 	{
 		UsedMaterials.Add(FarDistanceMaterial);
 
-		for (int32 StreamIdx = 0; StreamIdx < FWaterTileInstanceData::NumStreams; ++StreamIdx)
-		{
-			FarDistanceWaterInstanceData.Streams[StreamIdx].SetNum(8);
-		}
-
-		const FVector2D WaterCenter = WaterQuadTree.GetTileRegion().GetCenter();
-		const FVector2D WaterExtents = WaterQuadTree.GetTileRegion().GetExtent();
-		const FVector2D WaterSize = WaterQuadTree.GetTileRegion().GetSize();
-		const FVector2D TileOffets[] = { {-1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, -1.0f}, {0.0f, -1.0f}, {-1.0f, -1.0f}, {-1.0f, 0.0f} };
-		for (int32 i = 0; i < 8; i++)
-		{
-			const FVector2D TilePos = WaterCenter + TileOffets[i] * (WaterExtents + 0.5f * FarDistanceMeshExtent);
-			FVector2D TileScale;
-			TileScale.X = (TileOffets[i].X == 0.0f) ? WaterSize.X : FarDistanceMeshExtent;
-			TileScale.Y = (TileOffets[i].Y == 0.0f) ? WaterSize.Y : FarDistanceMeshExtent;
-
-			// Build instance data
-			FVector4 InstanceData[FWaterTileInstanceData::NumStreams];
-			InstanceData[0] = FVector4(TilePos, FVector2D(FarMeshHeight, 0.0f));
-			InstanceData[1] = FVector4(FVector2D::ZeroVector, TileScale);
-#if WITH_WATER_SELECTION_SUPPORT
-			InstanceData[2] = FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear();
-#endif // WITH_WATER_SELECTION_SUPPORT
-
-			for (int32 StreamIdx = 0; StreamIdx < FWaterTileInstanceData::NumStreams; ++StreamIdx)
-			{
-				FarDistanceWaterInstanceData.Streams[StreamIdx][i] = InstanceData[StreamIdx];
-			}
-		}
+		WaterQuadTree.AddFarMesh(FarDistanceMaterial, FarDistanceMeshExtent, FarMeshHeight);
 	}
-	else
-	{
-		for(int32 StreamIdx = 0; StreamIdx < FWaterTileInstanceData::NumStreams; ++StreamIdx)
-		{
-			FarDistanceWaterInstanceData.Streams[StreamIdx].Empty();
-		}
-	}
+
+	WaterQuadTree.Unlock(true);
+
+	MarkRenderStateDirty();
 }
 
 void UWaterMeshComponent::Update()

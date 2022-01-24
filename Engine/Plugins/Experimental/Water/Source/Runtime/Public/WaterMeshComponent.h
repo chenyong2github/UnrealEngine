@@ -48,8 +48,6 @@ public:
 
 	const TSet<UMaterialInterface*>& GetUsedMaterialsSet() const { return UsedMaterials; }
 
-	FWaterTileInstanceData GetFarDistanceInstanceData() const { return FarDistanceWaterInstanceData; }
-
 	void MarkWaterMeshGridDirty() { bNeedsRebuild = true; }
 
 	int32 GetTessellationFactor() const { return FMath::Clamp(TessellationFactor + TessFactorBiasScalability, 1, 12); }
@@ -127,9 +125,6 @@ private:
 
 	/** Cached CVarWaterMeshLODScaleBias to detect changes in scalability */
 	float LODScaleBiasScalability = 0.0f;
-
-	/** Instance data for the far distance mesh */
-	FWaterTileInstanceData FarDistanceWaterInstanceData;
 
 	/** Highest tessellation factor of a water tile. Max number of verts on the side of a tile will be (2^TessellationFactor)+1)  */
 	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1", ClampMax = "12"))

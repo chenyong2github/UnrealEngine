@@ -80,9 +80,4 @@ private:
 	int32 ForceCollapseDensityLevel = TNumericLimits<int32>::Max();
 
 	mutable int32 HistoricalMaxViewInstanceCount = 0;
-
-	/** Instance data for the far distance mesh */
-	int32 FarDistanceMaterialIndex;
-	FWaterTileInstanceData FarDistanceWaterInstanceData;
-	UMaterialInterface* FarDistanceMaterial = nullptr;
 };

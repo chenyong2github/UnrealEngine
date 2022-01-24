@@ -419,6 +419,8 @@ void FWaterQuadTree::InitTree(const FBox2D& InBounds, float InTileSize, FIntPoin
 	ensure(InExtentInTiles.X > 0);
 	ensure(InExtentInTiles.Y > 0);
 
+	FarMeshData.Clear();
+
 	// Maximum number of allocated leaf nodes for this config
 	MaxLeafCount = InExtentInTiles.X*InExtentInTiles.Y*4;
 	LeafSize = InTileSize;
@@ -529,12 +531,53 @@ void FWaterQuadTree::AddLake(const TArray<FVector2D>& InPoly, const FBox& InLake
 	AddLakeRecursive(InPoly, LakeBounds, FVector2D(InLakeBounds.Min.Z, InLakeBounds.Max.Z), true, TreeDepth * 2, InWaterBodyIndex);
 }
 
-int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMaterial)
+void FWaterQuadTree::AddFarMesh(const UMaterialInterface* InFarMeshMaterial, double InFarDistanceMeshExtent, double InFarDistanceMeshHeight)
+{
+	// Checking for not being read only here to keep things consistent with the other Add functions. In reality the FarMesh isn't added to the QuadTree itself, so it could technically be done whenever.
+	ensure(!bIsReadOnly);
+	ensure(InFarMeshMaterial);
+
+	// Early out when there would be no far mesh rendering anyway
+	if (InFarMeshMaterial == nullptr || InFarDistanceMeshExtent == 0.0)
+	{
+		return;
+	}
+
+	// Far mesh is always 8 tiles around the quadtree region (marked as Q in diagram below) 
+	//  _ _ _
+	// |_|_|_|
+	// |_|Q|_|
+	// |_|_|_|
+	FarMeshData.InstanceData.SetNum(8);
+	FarMeshData.Material = InFarMeshMaterial;
+
+	const FVector2D WaterCenter = GetTileRegion().GetCenter();
+	const FVector2D WaterExtents = GetTileRegion().GetExtent();
+	const FVector2D WaterSize = GetTileRegion().GetSize();
+	const FVector2D TileOffets[] = { {-1.0, 1.0}, {0.0, 1.0}, {1.0, 1.0}, {1.0, 0.0}, {1.0, -1.0}, {0.0, -1.0}, {-1.0, -1.0}, {-1.0, 0.0} };
+
+	for (int32 i = 0; i < 8; i++)
+	{
+		const FVector2D TilePos = WaterCenter + TileOffets[i] * (WaterExtents + 0.5 * InFarDistanceMeshExtent);
+		FVector2D TileScale;
+		TileScale.X = (TileOffets[i].X == 0.0) ? WaterSize.X : InFarDistanceMeshExtent;
+		TileScale.Y = (TileOffets[i].Y == 0.0) ? WaterSize.Y : InFarDistanceMeshExtent;
+
+		// Build instance data
+		FarMeshData.InstanceData[i].Data[0] = FVector4(TilePos, FVector2D(InFarDistanceMeshHeight, 0.0));
+		FarMeshData.InstanceData[i].Data[1] = FVector4(FVector2D::ZeroVector, TileScale);
+#if WITH_WATER_SELECTION_SUPPORT
+		FarMeshData.InstanceData[i].Data[2] = FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear();
+#endif // WITH_WATER_SELECTION_SUPPORT
+	}
+}
+
+void FWaterQuadTree::BuildMaterialIndices()
 {
 	int32 NextIdx = 0;
 	TMap<FMaterialRenderProxy*, int32> MatToIdxMap;
 
-	auto GetMatIdx = [&NextIdx, &MatToIdxMap](UMaterialInterface* Material)
+	auto GetMatIdx = [&NextIdx, &MatToIdxMap](const UMaterialInterface* Material)
 	{
 		if (!Material)
 		{
@@ -558,7 +601,8 @@ int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMateri
 		Data.RiverToOceanMaterialIndex = GetMatIdx(Data.RiverToOceanMaterial);
 	}
 
-	const int32 FarDistMatIdx = GetMatIdx(FarDistanceMaterial);
+	// Special case handling for Far Mesh
+	FarMeshData.MaterialIndex = GetMatIdx(FarMeshData.Material);
 
 	WaterMaterials.Empty(MatToIdxMap.Num());
 	WaterMaterials.AddUninitialized(MatToIdxMap.Num());
@@ -567,8 +611,6 @@ int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMateri
 	{
 		WaterMaterials[It->Value] = It->Key;
 	}
-
-	return FarDistMatIdx;
 }
 
 void FWaterQuadTree::BuildWaterTileInstanceData(const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const
@@ -576,6 +618,26 @@ void FWaterQuadTree::BuildWaterTileInstanceData(const FTraversalDesc& InTraversa
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildWaterTileInstanceData);
 	check(bIsReadOnly);
 	NodeData.Nodes[0].SelectLOD(NodeData, TreeDepth, InTraversalDesc, Output);
+
+	// Append Far Mesh tiles
+	if (FarMeshData.InstanceData.Num() > 0 && FarMeshData.MaterialIndex != INDEX_NONE)
+	{
+		const int32 FarMeshTileCount = FarMeshData.InstanceData.Num();
+		ensure(FarMeshTileCount == 8);
+
+		// Bucket index calculation is MaterialIndex*DensityCount+CurrentDensity. Since far mesh doesn't have any Density(aka LOD) steps and should render only using a 2 triangle quad, we enter it only into the last Density bucket (this always corresponds to a 2 triangle quad). 
+		const int32 BucketIndex = FarMeshData.MaterialIndex * InTraversalDesc.DensityCount + (InTraversalDesc.DensityCount - 1);
+		Output.BucketInstanceCounts[BucketIndex] += FarMeshTileCount;
+		Output.InstanceCount += FarMeshTileCount;
+
+		const int32 StartIndex = Output.StagingInstanceData.AddUninitialized(FarMeshTileCount);
+
+		for (int32 i = 0; i < FarMeshTileCount; i++)
+		{
+			Output.StagingInstanceData[StartIndex + i] = FarMeshData.InstanceData[i];
+			Output.StagingInstanceData[StartIndex + i].BucketIndex = BucketIndex;
+		}
+	}
 }
 
 bool FWaterQuadTree::QueryInterpolatedTileBaseHeightAtLocation(const FVector2D& InWorldLocationXY, float& OutHeight) const
