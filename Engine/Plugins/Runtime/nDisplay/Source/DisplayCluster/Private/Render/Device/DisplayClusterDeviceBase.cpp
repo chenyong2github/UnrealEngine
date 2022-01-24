@@ -426,17 +426,14 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 			{
 				if (ViewportManager->BeginNewFrame(InViewport, InWorld, OutRenderFrame))
 				{
-					if (OutRenderFrame.DesiredNumberOfViews > 0)
-					{
-						// Begin use viewport manager for current frame
-						ViewportManagerPtr = ViewportManager;
+					// Begin use viewport manager for current frame
+					ViewportManagerPtr = ViewportManager;
 
-						// Send viewport manager proxy on render thread
-						NewViewportManagerProxy = ViewportManager->GetProxy();
+					// Send viewport manager proxy on render thread
+					NewViewportManagerProxy = ViewportManager->GetProxy();
 
-						// update total number of views for this frame (in multiple families)
-						DesiredNumberOfViews = OutRenderFrame.DesiredNumberOfViews;
-					}
+					// update total number of views for this frame (in multiple families)
+					DesiredNumberOfViews = OutRenderFrame.DesiredNumberOfViews;
 				}
 			}
 		}

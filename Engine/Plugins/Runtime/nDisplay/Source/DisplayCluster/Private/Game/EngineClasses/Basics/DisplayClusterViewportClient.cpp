@@ -903,7 +903,7 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 	}
 
 	FDisplayClusterRenderFrame RenderFrame;
-	if (ViewportManager->BeginNewFrame(InViewport, MyWorld, RenderFrame) == false || RenderFrame.DesiredNumberOfViews < 1)
+	if (ViewportManager->BeginNewFrame(InViewport, MyWorld, RenderFrame) == false)
 	{
 		return false;
 	}

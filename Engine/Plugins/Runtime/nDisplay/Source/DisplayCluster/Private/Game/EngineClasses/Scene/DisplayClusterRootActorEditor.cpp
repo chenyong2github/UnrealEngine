@@ -308,7 +308,7 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 		{
 			// Update preview viewports from settings
 			FDisplayClusterRenderFrame PreviewRenderFrame;
-			if (ViewportManager->BeginNewFrame(nullptr, PreviewWorld, PreviewRenderFrame) && PreviewRenderFrame.DesiredNumberOfViews > 0)
+			if (ViewportManager->BeginNewFrame(nullptr, PreviewWorld, PreviewRenderFrame))
 			{
 				ViewportManager->RenderInEditor(PreviewRenderFrame, nullptr);
 				// Send event about RTT changed

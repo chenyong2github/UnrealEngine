@@ -108,9 +108,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	}
 
 	FSceneInterface* PreviewScene = CurrentWorld->Scene;
-
-	bool bHasRender = false;
-
 	FEngineShowFlags EngineShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
 	//Experimental code from render team, now always disabled
@@ -176,25 +173,19 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 					Canvas.Clear(FLinearColor::Black);
 
 					GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
-					bHasRender = true;
 				}
 			}
 		}
 	}
 
-	if (bHasRender)
-	{
-		// Handle special viewports game-thread logic at frame end
-		// custom postprocess single frame flag must be removed at frame end on game thread
-		FinalizeNewFrame();
+	// Handle special viewports game-thread logic at frame end
+	// custom postprocess single frame flag must be removed at frame end on game thread
+	FinalizeNewFrame();
 
-		// After all render target rendered call nDisplay frame rendering:
-		RenderFrame(InViewport);
+	// After all render target rendered call nDisplay frame rendering:
+	RenderFrame(InViewport);
 
-		return true;
-	}
-
-	return false;
+	return true;
 }
 
 #endif
