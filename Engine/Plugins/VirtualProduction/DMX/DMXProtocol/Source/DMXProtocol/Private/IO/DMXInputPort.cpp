@@ -16,21 +16,82 @@ DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX
 
 #define LOCTEXT_NAMESPACE "DMXInputPort"
 
+namespace UE::DMX::DMXInputPort
+{
+	/** Finds an Input port by its name, optionally logging when it can't be found */
+	static const FDMXInputPortSharedPtr FindInputPortByName(const FString& PortName, bool bPrintToLogIfNotFound = true)
+	{
+		const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortName](const FDMXInputPortSharedPtr& InputPort)
+			{
+				return InputPort->GetPortName() == PortName;
+			});
+
+		if (InputPortPtr)
+		{
+			return *InputPortPtr;
+		}
+		else if (bPrintToLogIfNotFound)
+		{
+			UE_LOG(LogDMXProtocol, Warning, TEXT("Could not find Input Port '%s'. Available Input Ports and their names can be found in in Project settings -> Plugins -> DMX."), *PortName);
+		}
+
+		return nullptr;
+	}
+
+	/** Tests the console command, returns true if they yield a valid port. Logs issues otherwise. Handles ? commands. */
+	static bool VerifyConsoleCommandArguments(const FString& ConsoleCommand, int32 MinNumExpectedArgs, const TArray<FString>& Args)
+	{
+		check(MinNumExpectedArgs >= 1);
+
+		if (Args.Num() < MinNumExpectedArgs)
+		{
+			UE_LOG(LogDMXProtocol, Warning, TEXT("Console Command %s failed. Insufficient arguments specified."), *ConsoleCommand);
+			UE_LOG(LogDMXProtocol, Warning, TEXT("Use '%s ?' for help. Use '%s PortName ?' to print the current configuration to logs."), *ConsoleCommand, *ConsoleCommand);
+			return false;
+		}
+
+		const FString& PortName = Args[0];
+		const FDMXInputPortSharedPtr InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName);
+		if (InputPort.IsValid())
+		{
+			// Log the port if the console command sets the second arg to '?' (e.g. 'DMX.SetInputPortProtocol InputPortA ?')
+			if (Args.Num() == 2 && Args[1] == TEXT("?"))
+			{
+				UE_LOG(LogDMXProtocol, Log, TEXT("Input Port: %s"), *InputPort->GetPortName());
+
+				FDMXInputPortConfig PortConfig = InputPort->MakeInputPortConfig();
+				UE_LOG(LogDMXProtocol, Log, TEXT("Protocol: %s"), *PortConfig.GetProtocolName().ToString());
+				UE_LOG(LogDMXProtocol, Log, TEXT("Communication Type: %i"), static_cast<int32>(PortConfig.GetCommunicationType()));
+				UE_LOG(LogDMXProtocol, Log, TEXT("Device Address: %s"), *PortConfig.GetDeviceAddress());
+
+				UE_LOG(LogDMXProtocol, Log, TEXT("Local Universe Start: %i"), PortConfig.GetLocalUniverseStart());
+				UE_LOG(LogDMXProtocol, Log, TEXT("Num Universes: %i"), PortConfig.GetNumUniverses());
+				UE_LOG(LogDMXProtocol, Log, TEXT("Extern Universe Start: %i"), PortConfig.GetExternUniverseStart());
+				UE_LOG(LogDMXProtocol, Log, TEXT("Priority Strategy: %i"), static_cast<int32>(PortConfig.GetPortPriorityStrategy()));
+				UE_LOG(LogDMXProtocol, Log, TEXT("Priority:	%i"), PortConfig.GetPriority());
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
+
 /** Helper to override a member variable of an Input Port */
 #define DMX_OVERRIDE_INPUTPORT_VAR(MemberName, PortName, Value) \
 { \
-	const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortName](const FDMXInputPortSharedPtr& InputPort) \
-		{ \
-			return InputPort->GetPortName() == PortName; \
-		}); \
-	if (InputPortPtr) \
+	const FDMXInputPortSharedPtr OverRideInputPortMacro_InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName); \
+	if (OverRideInputPortMacro_InputPort.IsValid()) \
 	{ \
-		const FDMXInputPortConfig OldInputPortConfig = (*InputPortPtr)->MakeInputPortConfig(); \
+		const FDMXInputPortConfig OldInputPortConfig = OverRideInputPortMacro_InputPort->MakeInputPortConfig(); \
 		FDMXInputPortConfigParams InputPortConfigParams = FDMXInputPortConfigParams(OldInputPortConfig); \
 		InputPortConfigParams.MemberName = Value; \
-		FDMXInputPortConfig NewInputPortConfig((*InputPortPtr)->GetPortGuid(), InputPortConfigParams); \
+		FDMXInputPortConfig NewInputPortConfig(OverRideInputPortMacro_InputPort->GetPortGuid(), InputPortConfigParams); \
 		constexpr bool bForceUpdateRegistrationWithProtocol = true; \
-		(*InputPortPtr)->UpdateFromConfig(NewInputPortConfig, bForceUpdateRegistrationWithProtocol); \
+		OverRideInputPortMacro_InputPort->UpdateFromConfig(NewInputPortConfig, bForceUpdateRegistrationWithProtocol); \
 	} \
 }
 
@@ -40,7 +101,8 @@ static FAutoConsoleCommand GDMXSetInputPortProtocolCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
@@ -52,6 +114,14 @@ static FAutoConsoleCommand GDMXSetInputPortProtocolCommand(
 			{
 				DMX_OVERRIDE_INPUTPORT_VAR(ProtocolName, PortName, ProtocolNameValue);
 			}
+			else
+			{
+				UE_LOG(LogDMXProtocol, Warning, TEXT("Console command DMX.SetInputPortProtocol failed. Protocol '%s' does not exist or is not loaded. Available protocols are: "), *ProtocolNameValue.ToString());
+				for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
+				{
+					UE_LOG(LogDMXProtocol, Warning, TEXT("%s"), *ProtocolName.ToString());
+				}
+			}
 		})
 );
 
@@ -61,7 +131,8 @@ static FAutoConsoleCommand GDMXSetInputPortDeviceAddressCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
@@ -79,19 +150,38 @@ static FAutoConsoleCommand GDMXSetInputPortLocalUniverseStartCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
 
 			const FString& PortName = Args[0];
-			const FString& LocalUniverseStartValueString = Args[1];
-			int32 LocalUniverseStartValue;
-			if (LexTryParseString<int32>(LocalUniverseStartValue, *LocalUniverseStartValueString))
+			const FDMXInputPortSharedPtr InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName);
+
+			if (InputPort.IsValid())
 			{
-				if (LocalUniverseStartValue >= 0 && LocalUniverseStartValue <= DMX_MAX_UNIVERSE)
+				if (const IDMXProtocolPtr& Protocol = InputPort->GetProtocol())
 				{
-					DMX_OVERRIDE_INPUTPORT_VAR(LocalUniverseStart, PortName, LocalUniverseStartValue);
+					const FString& LocalUniverseStartValueString = Args[1];
+					int32 LocalUniverseStartValue;
+					if (LexTryParseString<int32>(LocalUniverseStartValue, *LocalUniverseStartValueString))
+					{
+						const int32 NumUniverses = InputPort->GetLocalUniverseEnd() - InputPort->GetLocalUniverseStart() + 1;
+
+						const int32 ExternUniverseStart = InputPort->ConvertLocalToExternUniverseID(LocalUniverseStartValue);
+						const int32 ExternUniverseEnd = InputPort->ConvertLocalToExternUniverseID(LocalUniverseStartValue + NumUniverses - 1);
+
+						if (Protocol->IsValidUniverseID(ExternUniverseStart) &&
+							Protocol->IsValidUniverseID(ExternUniverseEnd))
+						{
+							DMX_OVERRIDE_INPUTPORT_VAR(LocalUniverseStart, PortName, LocalUniverseStartValue);
+						}
+						else
+						{
+							UE_LOG(LogDMXProtocol, Warning, TEXT("Console command DMX.SetInputPortLocalUniverseStart failed. Local Universe Start '%s' along with Num Universes '%i' results in a Universe range that is not supported by the Protocol of the Port."), *LocalUniverseStartValueString, NumUniverses);
+						}
+					}
 				}
 			}
 		})
@@ -103,19 +193,39 @@ static FAutoConsoleCommand GDMXSetInputPortNumUniversesCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
 
 			const FString& PortName = Args[0];
-			const FString& NumUniversesValueString = Args[1];
-			int32 NumUniversesValue;
-			if (LexTryParseString<int32>(NumUniversesValue, *NumUniversesValueString))
+			const FDMXInputPortSharedPtr InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName);
+
+			if (InputPort.IsValid())
 			{
-				if (NumUniversesValue >= 0 && NumUniversesValue <= DMX_MAX_UNIVERSE)
+				if (const IDMXProtocolPtr& Protocol = InputPort->GetProtocol())
 				{
-					DMX_OVERRIDE_INPUTPORT_VAR(NumUniverses, PortName, NumUniversesValue);
+					const FString& NumUniversesValueString = Args[1];
+					int32 NumUniversesValue;
+					if (LexTryParseString<int32>(NumUniversesValue, *NumUniversesValueString))
+					{
+						const int32 LocalUniverseStart = InputPort->GetLocalUniverseStart();
+
+						const int32 ExternUniverseStart = InputPort->ConvertLocalToExternUniverseID(LocalUniverseStart);
+						const int32 ExternUniverseEnd = ExternUniverseStart + NumUniversesValue - 1;
+
+						if (NumUniversesValue > 0 &&
+							Protocol->IsValidUniverseID(ExternUniverseStart) &&
+							Protocol->IsValidUniverseID(ExternUniverseEnd))
+						{
+							DMX_OVERRIDE_INPUTPORT_VAR(NumUniverses, PortName, NumUniversesValue);
+						}
+						else
+						{
+							UE_LOG(LogDMXProtocol, Warning, TEXT("Console command DMX.SetInputPortNumUniverses failed. Local Universe Start '%i' along with Num Universes '%s' results in a Universe range that is not supported by the Protocol of the Port."), LocalUniverseStart, *NumUniversesValueString);
+						}
+					}
 				}
 			}
 		})
@@ -127,19 +237,36 @@ static FAutoConsoleCommand GDMXSetInputPortExternUniverseStartCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
 
 			const FString& PortName = Args[0];
-			const FString& ExternUniverseStartValueString = Args[1];
-			int32 ExternUniverseStartValue;
-			if (LexTryParseString<int32>(ExternUniverseStartValue, *ExternUniverseStartValueString))
+			const FDMXInputPortSharedPtr InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName);
+
+			if (InputPort.IsValid())
 			{
-				if (ExternUniverseStartValue >= 0 && ExternUniverseStartValue <= DMX_MAX_UNIVERSE)
+				const FString& ExternUniverseStartValueString = Args[1];
+				int32 ExternUniverseStartValue;
+				if (LexTryParseString<int32>(ExternUniverseStartValue, *ExternUniverseStartValueString))
 				{
-					DMX_OVERRIDE_INPUTPORT_VAR(ExternUniverseStart, PortName, ExternUniverseStartValue);
+					if (const IDMXProtocolPtr& Protocol = InputPort->GetProtocol())
+					{
+						const int32 NumUniverses = InputPort->GetLocalUniverseEnd() - InputPort->GetLocalUniverseStart() + 1;
+						const int32 ExternUniverseEnd = ExternUniverseStartValue + NumUniverses - 1;
+
+						if (Protocol->IsValidUniverseID(ExternUniverseStartValue) &&
+							Protocol->IsValidUniverseID(ExternUniverseEnd))
+						{
+							DMX_OVERRIDE_INPUTPORT_VAR(ExternUniverseStart, PortName, ExternUniverseStartValue);
+						}
+						else
+						{
+							UE_LOG(LogDMXProtocol, Warning, TEXT("Console command DMX.SetInputPortExternUniverseStart failed. Extern Universe Start '%s' along with Num Universes '%i' results in a Universe range that is not supported by the Protocol of the Port."), *ExternUniverseStartValueString, NumUniverses);
+						}
+					}
 				}
 			}
 		})
@@ -151,7 +278,8 @@ static FAutoConsoleCommand GDMXSetInputPortPriorityStrategyCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
@@ -182,7 +310,8 @@ static FAutoConsoleCommand GDMXSetInputPortPriorityCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 2)
+			constexpr int32 MinNumExpectedArgs = 2;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
@@ -203,31 +332,29 @@ static FAutoConsoleCommand GDMXResetInputPortToProjectSettings(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			if (Args.Num() < 1)
+			constexpr int32 MinNumExpectedArgs = 1;
+			if (!UE::DMX::DMXInputPort::VerifyConsoleCommandArguments(TEXT("DMX.SetInputPortProtocol"), MinNumExpectedArgs, Args))
 			{
 				return;
 			}
 
 			const FString& PortName = Args[0];
-			const FDMXInputPortSharedRef* PortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortName](const FDMXInputPortSharedPtr& InputPort)
-				{
-					return InputPort->GetPortName() == PortName;
-				});
 
-			if (PortPtr)
+			const FDMXInputPortSharedPtr InputPort = UE::DMX::DMXInputPort::FindInputPortByName(PortName);
+			if(InputPort.IsValid())
 			{
 				const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 				if (ProtocolSettings)
 				{
-					const FDMXInputPortConfig* PortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([PortPtr](const FDMXInputPortConfig& InputPortConfig)
+					const FDMXInputPortConfig* PortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([InputPort](const FDMXInputPortConfig& InputPortConfig)
 						{
-							return InputPortConfig.GetPortGuid() == (*PortPtr)->GetPortGuid();
+							return InputPortConfig.GetPortGuid() == InputPort->GetPortGuid();
 						});
 
 					if (PortConfigPtr)
 					{
 						FDMXInputPortConfig PortConfig = *PortConfigPtr;
-						(*PortPtr)->UpdateFromConfig(PortConfig);
+						InputPort->UpdateFromConfig(PortConfig);
 					}
 				}
 			}

@@ -53,7 +53,7 @@ struct DMXPROTOCOL_API FDMXOutputPortConfigParams
 	int32 NumUniverses;
 	int32 ExternUniverseStart;
 	int32 Priority;
-	double DelaySeconds;
+	double Delay;
 	FFrameRate DelayFrameRate;
 
 	// DEPRECATED 5.0. Instead please use the DestinationAddresses array.
@@ -94,7 +94,7 @@ public:
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
 	FORCEINLINE int32 GetPriority() const { return Priority; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
-	int32 GetDelaySeconds() const;
+	FORCEINLINE double GetDelay() const { return Delay; }
 	FORCEINLINE const FFrameRate& GetDelayFrameRate() const { return DelayFrameRate; }
 
 	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Use FDMXOutputPortConfig::GetDestinationAddresses instead. ")

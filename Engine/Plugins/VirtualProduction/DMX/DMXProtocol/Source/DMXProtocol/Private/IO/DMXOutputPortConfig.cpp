@@ -21,7 +21,7 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 	, NumUniverses(OutputPortConfig.GetNumUniverses())
 	, ExternUniverseStart(OutputPortConfig.GetExternUniverseStart())
 	, Priority(OutputPortConfig.GetPriority())
-	, DelaySeconds(OutputPortConfig.GetDelaySeconds())
+	, Delay(OutputPortConfig.GetDelay())
 	, DelayFrameRate(OutputPortConfig.GetDelayFrameRate())
 {}
 
@@ -53,12 +53,13 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	, NumUniverses(InitializationData.NumUniverses)
 	, ExternUniverseStart(InitializationData.ExternUniverseStart)
 	, Priority(InitializationData.Priority)
-	, Delay(InitializationData.DelaySeconds * InitializationData.DelayFrameRate.AsDecimal())
+	, Delay(InitializationData.Delay)
 	, DelayFrameRate(InitializationData.DelayFrameRate)
 	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
+
 	check(PortGuid.IsValid());
 	check(!ProtocolName.IsNone())
 
@@ -137,11 +138,6 @@ void FDMXOutputPortConfig::MakeValid()
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 		PortName = ProtocolSettings->GetUniqueOutputPortName();
 	}
-}
-
-int32 FDMXOutputPortConfig::GetDelaySeconds() const
-{
-	return Delay / DelayFrameRate.AsDecimal();
 }
 
 FString FDMXOutputPortConfig::GetDeviceAddress() const

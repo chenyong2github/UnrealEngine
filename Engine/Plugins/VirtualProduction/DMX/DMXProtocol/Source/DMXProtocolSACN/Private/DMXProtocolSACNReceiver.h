@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "Templates/Atomic.h"
 
@@ -111,6 +112,9 @@ private:
 
 	/** The destination when packets are received */
 	TSharedPtr<FInternetAddr> ReceivedDestinationInternetAddr;
+
+	/** Critical section to be used when assigned input ports are changed */
+	FCriticalSection ChangeAssignedInputPortsCriticalSection;
 
 	/** Flag indicating that the thread is stopping. */
 	TAtomic<bool> bStopping;

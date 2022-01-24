@@ -95,12 +95,16 @@ bool FDMXProtocolArtNetReceiver::EqualsEndpoint(const FString& IPAddress) const
 void FDMXProtocolArtNetReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(!AssignedInputPorts.Contains(InputPort));
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 	AssignedInputPorts.Add(InputPort);
 }
 
 void FDMXProtocolArtNetReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(AssignedInputPorts.Contains(InputPort));
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 	AssignedInputPorts.Remove(InputPort);
 }
 
@@ -146,6 +150,8 @@ void FDMXProtocolArtNetReceiver::Update(const FTimespan& SocketWaitTime)
 	{
 		return;
 	}
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 
 	uint32 Size = 0;
 	int32 Read = 0;

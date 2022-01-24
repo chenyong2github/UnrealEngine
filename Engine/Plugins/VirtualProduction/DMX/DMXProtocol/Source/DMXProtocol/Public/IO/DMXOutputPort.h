@@ -158,6 +158,9 @@ public:
 	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Please use FDMXOutputPort::GetDestinationAddresses instead.")
 	FString GetDestinationAddress() const;
 
+	/** Returns the output port's delay in seconds */
+	FORCEINLINE double GetDelaySeconds() const { return DelaySeconds; }
+
 public:
 	//~ Begin DMXPort Interface 
 	virtual bool IsRegistered() const override;

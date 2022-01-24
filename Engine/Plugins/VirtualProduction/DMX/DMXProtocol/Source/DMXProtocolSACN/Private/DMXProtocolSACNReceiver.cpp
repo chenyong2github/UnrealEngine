@@ -109,6 +109,8 @@ bool FDMXProtocolSACNReceiver::EqualsEndpoint(const FString& IPAddress) const
 void FDMXProtocolSACNReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(!AssignedInputPorts.Contains(InputPort));
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 	AssignedInputPorts.Add(InputPort);
 
 	// Join the multicast groups for the ports where needed
@@ -140,6 +142,8 @@ void FDMXProtocolSACNReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, E
 void FDMXProtocolSACNReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(AssignedInputPorts.Contains(InputPort));
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 	AssignedInputPorts.Remove(InputPort);
 
 	// Leave multicast groups outside of remaining port's universe ranges
@@ -208,6 +212,8 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 	{
 		return;
 	}
+
+	const FScopeLock ChangeAssignedInputPortsLock(&ChangeAssignedInputPortsCriticalSection);
 
 	uint32 Size = 0;
 	int32 NumBytesRead = 0;
