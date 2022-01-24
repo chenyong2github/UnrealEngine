@@ -323,6 +323,23 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetInputArguments() const
 	return Inputs;
 }
 
+TArray<FRigVMGraphVariableDescription> URigVMGraph::GetOutputArguments() const
+{
+	TArray<FRigVMGraphVariableDescription> Outputs;
+	if (URigVMFunctionReturnNode* ReturnNode = GetReturnNode())
+	{
+		for (URigVMPin* Pin : ReturnNode->GetPins())
+		{			
+			FRigVMGraphVariableDescription Description;
+			Description.Name = Pin->GetFName();
+			Description.CPPType = Pin->GetCPPType();
+			Description.CPPTypeObject = Pin->GetCPPTypeObject();
+			Outputs.Add(Description);			
+		}
+	}
+	return Outputs;
+}
+
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()
 {
 	return ModifiedEvent;

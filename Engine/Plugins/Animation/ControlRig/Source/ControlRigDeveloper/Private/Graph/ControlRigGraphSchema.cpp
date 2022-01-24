@@ -67,6 +67,11 @@ FControlRigLocalVariableNameValidator::FControlRigLocalVariableNameValidator(con
 		{
 			Names.Add(InputArgument.Name.ToString());
 		}
+
+		for (const FRigVMGraphVariableDescription& OutputArgument : Graph->GetOutputArguments())
+		{
+			Names.Add(OutputArgument.Name.ToString());
+		}
 	}
 }
 

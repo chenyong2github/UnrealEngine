@@ -8113,8 +8113,28 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		SetPinDefaultValue(Pin, InDefaultValue, true, bSetupUndoRedo, false);
 	}
 
-	RefreshFunctionPins(Graph->GetEntryNode(), true);
-	RefreshFunctionPins(Graph->GetReturnNode(), true);
+	URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode();
+	if (!EntryNode)
+	{
+		EntryNode = NewObject<URigVMFunctionEntryNode>(Graph, TEXT("Entry"));
+		Graph->Nodes.Add(EntryNode);
+		RefreshFunctionPins(EntryNode, false);
+
+		Notify(ERigVMGraphNotifType::NodeAdded, EntryNode);
+	}
+
+	URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode();
+	if (!ReturnNode)
+	{
+		ReturnNode = NewObject<URigVMFunctionReturnNode>(Graph, TEXT("Return"));
+		Graph->Nodes.Add(ReturnNode);
+		RefreshFunctionPins(ReturnNode, false);
+
+		Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
+	}
+
+	RefreshFunctionPins(EntryNode, true);
+	RefreshFunctionPins(ReturnNode, true);
 	RefreshFunctionReferences(LibraryNode, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)

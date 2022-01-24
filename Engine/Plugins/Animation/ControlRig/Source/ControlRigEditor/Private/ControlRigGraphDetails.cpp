@@ -113,12 +113,15 @@ void FControlRigArgumentGroupLayout::HandleModifiedEvent(ERigVMGraphNotifType In
 	switch (InNotifType)
 	{
 		case ERigVMGraphNotifType::PinAdded:
+		case ERigVMGraphNotifType::PinRenamed:
 		case ERigVMGraphNotifType::PinRemoved:
 		case ERigVMGraphNotifType::PinIndexChanged:
 		case ERigVMGraphNotifType::PinTypeChanged:
 		{
 			URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);
-			if (Pin->GetNode() == LibraryNode)
+			if (Pin->GetNode() == LibraryNode ||
+				(Pin->GetNode()->IsA<URigVMFunctionEntryNode>() && Pin->GetNode()->GetOuter() == Graph) ||
+				(Pin->GetNode()->IsA<URigVMFunctionReturnNode>() && Pin->GetNode()->GetOuter() == Graph))
 			{
 				OnRebuildChildren.ExecuteIfBound();
 			}
@@ -483,16 +486,19 @@ FText FControlRigArgumentLayout::OnGetArgToolTipText() const
 
 void FControlRigArgumentLayout::OnArgNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
 {
-	if (!NewText.IsEmpty() && PinPtr.IsValid() && ControlRigBlueprintPtr.IsValid() && !ShouldPinBeReadOnly())
+	if (InTextCommit == ETextCommit::OnEnter)
 	{
-		URigVMPin* Pin = PinPtr.Get();
-		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
-		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Pin->GetNode()))
+		if (!NewText.IsEmpty() && PinPtr.IsValid() && ControlRigBlueprintPtr.IsValid() && !ShouldPinBeReadOnly())
 		{
-			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
+			URigVMPin* Pin = PinPtr.Get();
+			UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Pin->GetNode()))
 			{
-				const FString& NewName = NewText.ToString();
-				Controller->RenameExposedPin(Pin->GetFName(), *NewName, true, true);
+				if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
+				{
+					const FString& NewName = NewText.ToString();
+					Controller->RenameExposedPin(Pin->GetFName(), *NewName, true, true);
+				}
 			}
 		}
 	}

@@ -128,6 +128,10 @@ public:
 	// Returns the input arguments of this graph
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray<FRigVMGraphVariableDescription> GetInputArguments() const;
+	
+	// Returns the output arguments of this graph
+    UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+    TArray<FRigVMGraphVariableDescription> GetOutputArguments() const;
 
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.
