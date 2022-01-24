@@ -641,7 +641,7 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 	{
 		// Something has changed on the owner (including properties of this component)
 		// In the case of splines, this is where we'd get notified if some component properties (incl. spline vertices) have changed
-		if(HasSplineComponent())
+		if(HasSplineComponent() || Cast<AVolume>(Actor) != nullptr)
 		{
 			DirtyGenerated(true);
 		}

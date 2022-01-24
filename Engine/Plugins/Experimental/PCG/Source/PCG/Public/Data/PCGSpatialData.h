@@ -39,7 +39,7 @@ public:
 
 	/** Returns the bounds in which the density is always 1 */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual FBox GetStrictBounds() const { return GetBounds(); }
+	virtual FBox GetStrictBounds() const { return FBox(EForceInit::ForceInit); }
 
 	/** Returns the expected data normal (for surfaces) or eventual projection axis (for volumes) */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -59,7 +59,7 @@ public:
 
 	/** Transform a full point similar to TransformPosition */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const { return InPoint; }
+	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 
 	/** Returns true if the data has a non-trivial transform */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

@@ -23,6 +23,14 @@ const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData() const
 	return CachedPointData;
 }
 
+FPCGPoint UPCGSpatialData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	FPCGPoint TransformedPoint = InPoint;
+	TransformedPoint.Transform.SetTranslation(TransformPosition(InPoint.Transform.GetLocation()));
+	TransformedPoint.Density = GetDensityAtPosition(InPoint.Transform.GetLocation());
+	return TransformedPoint;
+}
+
 UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOther) const
 {
 	UPCGIntersectionData* IntersectionData = NewObject<UPCGIntersectionData>(const_cast<UPCGSpatialData*>(this));

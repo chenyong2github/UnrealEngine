@@ -33,9 +33,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TObjectPtr<AVolume> Volume = nullptr;
 
+	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);
-	FBox StrictBounds = FBox(EForceInit::ForceInit);
 
-	FTransform VolumeTransform = FTransform::Identity;
-	FBox VolumeLocalBounds = FBox(EForceInit::ForceInit);
+	UPROPERTY()
+	FBox StrictBounds = FBox(EForceInit::ForceInit);
 };

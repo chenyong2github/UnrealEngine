@@ -50,6 +50,11 @@ void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 		CachedStrictBounds = CachedStrictBounds.Overlap(InData->GetStrictBounds());
 		CachedDimension = FMath::Max(CachedDimension, InData->GetDimension());
 	}
+
+	if (!FirstNonTrivialTransformData && InData->HasNonTrivialTransform())
+	{
+		FirstNonTrivialTransformData = InData;
+	}
 }
 
 int UPCGUnionData::GetDimension() const
@@ -105,41 +110,42 @@ float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
 
 FVector UPCGUnionData::TransformPosition(const FVector& InPosition) const
 {
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	if (FirstNonTrivialTransformData)
 	{
-		if (Datum->HasNonTrivialTransform())
-		{
-			return Datum->TransformPosition(InPosition);
-		}
+		return FirstNonTrivialTransformData->TransformPosition(InPosition);
 	}
-
-	return Super::TransformPosition(InPosition);
+	else
+	{
+		return Super::TransformPosition(InPosition);
+	}
 }
 
 FPCGPoint UPCGUnionData::TransformPoint(const FPCGPoint& InPoint) const
 {
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	if (FirstNonTrivialTransformData)
 	{
-		if (Datum->HasNonTrivialTransform())
-		{
-			return Datum->TransformPoint(InPoint);
-		}
-	}
+		FPCGPoint TransformedPoint = FirstNonTrivialTransformData->TransformPoint(InPoint);
 
-	return Super::TransformPoint(InPoint);
+		const int32 DataCount = Data.Num();
+		for(int32 DataIndex = 0; DataIndex < DataCount && TransformedPoint.Density < 1.0f; ++DataIndex)
+		{
+			if (Data[DataIndex] != FirstNonTrivialTransformData)
+			{
+				PCGUnionDataMaths::UpdateDensity(TransformedPoint.Density, Data[DataIndex]->GetDensityAtPosition(TransformedPoint.Transform.GetLocation()), DensityFunction);
+			}
+		}
+
+		return TransformedPoint;
+	}
+	else
+	{
+		return Super::TransformPoint(InPoint);
+	}
 }
 
 bool UPCGUnionData::HasNonTrivialTransform() const
 {
-	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
-	{
-		if (Datum->HasNonTrivialTransform())
-		{
-			return true;
-		}
-	}
-
-	return Super::HasNonTrivialTransform();
+	return (FirstNonTrivialTransformData != nullptr || Super::HasNonTrivialTransform());
 }
 
 const UPCGPointData* UPCGUnionData::CreatePointData() const

@@ -54,6 +54,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	TArray<TObjectPtr<const UPCGSpatialData>> Data;
 
+	UPROPERTY()
+	TObjectPtr<const UPCGSpatialData> FirstNonTrivialTransformData = nullptr;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGUnionType UnionType = EPCGUnionType::LeftToRightPriority;
 

@@ -16,12 +16,6 @@ void UPCGVolumeData::Initialize(AVolume* InVolume, AActor* InTargetActor)
 
 	// TODO: Compute the strict bounds, we must find a FBox inscribed into the oriented box.
 	// Currently, we'll leave the strict bounds empty and fall back to checking against the local box
-	if (UBrushComponent* BrushComponent = Volume->GetBrushComponent())
-	{
-		VolumeTransform = BrushComponent->GetComponentTransform();
-		FBoxSphereBounds LocalBoxSphereBounds = BrushComponent->CalcBounds(FTransform::Identity);
-		VolumeLocalBounds = FBox::BuildAABB(LocalBoxSphereBounds.Origin, LocalBoxSphereBounds.BoxExtent);
-	}
 }
 
 void UPCGVolumeData::Initialize(const FBox& InBounds, AActor* InTargetActor)
@@ -59,7 +53,7 @@ float UPCGVolumeData::GetDensityAtPosition(const FVector& InPosition) const
 		}
 		else
 		{
-			return VolumeLocalBounds.IsInside(VolumeTransform.InverseTransformPosition(InPosition)) ? 1.0f : 0.0f;
+			return Volume->EncompassesPoint(InPosition) ? 1.0f : 0.0f;
 		}
 	}
 	else

@@ -21,7 +21,7 @@ void UPCGDifferenceData::Initialize(const UPCGSpatialData* InData)
 
 void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
 {
-	check(InDifference && InDifference->GetDimension() == Source->GetDimension());
+	check(InDifference);
 
 	if (!Difference)
 	{
@@ -112,7 +112,14 @@ FVector UPCGDifferenceData::TransformPosition(const FVector& InPosition) const
 FPCGPoint UPCGDifferenceData::TransformPoint(const FPCGPoint& InPoint) const
 {
 	check(Source);
-	return Source->TransformPoint(InPoint);
+	FPCGPoint TransformedPoint = Source->TransformPoint(InPoint);
+
+	if (Difference && TransformedPoint.Density > 0)
+	{
+		TransformedPoint.Density = FMath::Max(0, TransformedPoint.Density - Difference->GetDensityAtPosition(TransformedPoint.Transform.GetLocation()));
+	}
+
+	return TransformedPoint;
 }
 
 bool UPCGDifferenceData::HasNonTrivialTransform() const
