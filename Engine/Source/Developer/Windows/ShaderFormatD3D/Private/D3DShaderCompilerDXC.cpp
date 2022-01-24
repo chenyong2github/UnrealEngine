@@ -298,7 +298,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 
 	if (!CompileResult.IsValid())
 	{
-		return -1;
+		return E_FAIL;
 	}
 
 	HRESULT CompileResultCode;
