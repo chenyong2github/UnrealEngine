@@ -83,11 +83,12 @@ protected:
 		const FTrajectorySample& Sample, 
 		float DeltaSeconds) const;
 
-	// This function returns the desired rotation for Sample without taking control rotation velocity into consideration.
-	// Control rotation velocity integration will be added to the result of this function when appropriate.
-	virtual FRotator GetBaseRotationWS(
-		const UCharacterMovementComponent* MoveComponent,
+	// This function outputs a new rotator obtained by integrating Sample forward by IntegrationDelta based on the
+	// dynamics specified in MovementComponent
+	virtual FRotator StepRotationWS(
+		const UCharacterMovementComponent* MovementComponent,
 		const FTrajectorySample& Sample,
-		const FRotator& SampleBaseRotationWS,
-		float DeltaSeconds) const;
+		const FRotator& PrevRotator,
+		const FRotator& ControlRotationTotalDelta,
+		float IntegrationDelta) const;
 };
