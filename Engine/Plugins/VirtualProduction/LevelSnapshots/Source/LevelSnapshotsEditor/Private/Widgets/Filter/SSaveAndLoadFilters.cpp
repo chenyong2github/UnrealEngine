@@ -108,7 +108,7 @@ void SSaveAndLoadFilters::Construct(const FArguments& InArgs, ULevelSnapshotsEdi
             .Padding(0, 1, 0, 0)
             [
               SNew(STextBlock)
-              .Text(LOCTEXT("SavedToolbarButton", "Load/Save Filter"))
+              .Text(LOCTEXT("SavedToolbarButton", "Save / Load Preset"))
             ]
           ]
     ];
