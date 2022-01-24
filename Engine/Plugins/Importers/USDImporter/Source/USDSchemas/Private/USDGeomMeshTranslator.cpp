@@ -122,7 +122,7 @@ namespace UsdGeomMeshTranslatorImpl
 			const int32 NumTriangles = LODIndexToMeshDescription[ 0 ].Triangles().Num();
 			if ( NumTriangles >= Context.NaniteTriangleThreshold )
 			{
-				UE_LOG( LogUsd, Log, TEXT( "Trying to enable Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
+				UE_LOG( LogUsd, Verbose, TEXT( "Trying to enable Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
 					*Prim.GetPrimPath().GetString(),
 					NumTriangles,
 					Context.NaniteTriangleThreshold
@@ -130,7 +130,7 @@ namespace UsdGeomMeshTranslatorImpl
 			}
 			else
 			{
-				UE_LOG( LogUsd, Log, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
+				UE_LOG( LogUsd, Verbose, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
 					*Prim.GetPrimPath().GetString(),
 					NumTriangles,
 					Context.NaniteTriangleThreshold

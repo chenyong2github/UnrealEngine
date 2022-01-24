@@ -168,6 +168,8 @@ TOptional< UE::Internal::FUsdMessageLog > FUsdLogManager::MessageLog;
 int32 FUsdLogManager::MessageLogRefCount;
 FCriticalSection FUsdLogManager::MessageLogLock;
 
+TSet<FString> LoggedMessages;
+
 void FUsdLogManager::LogMessage( EMessageSeverity::Type Severity, const FText& Message )
 {
 	LogMessage( FTokenizedMessage::Create( Severity, Message ) );
@@ -177,17 +179,24 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 {
 	bool bMessageProcessed = false;
 
-#if WITH_EDITOR
-	if ( MessageLog )
 	{
-		FScopeLock Lock( &MessageLogLock );
-		if ( MessageLog ) // Make sure it's still valid
+		FScopeLock Lock(&MessageLogLock);
+		const FString& Str = Message->ToText().ToString();
+		if (LoggedMessages.Contains(Str))
 		{
-			MessageLog->Push( Message );
+			return;
+		}
+
+		LoggedMessages.Add(Str);
+
+#if WITH_EDITOR
+		if (MessageLog)
+		{
+			MessageLog->Push(Message);
 			bMessageProcessed = true;
 		}
-	}
 #endif
+	}
 
 	if ( !bMessageProcessed )
 	{
@@ -209,6 +218,8 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 void FUsdLogManager::EnableMessageLog()
 {
 	FScopeLock Lock( &MessageLogLock );
+
+	LoggedMessages.Reset();
 
 	if ( ++MessageLogRefCount == 1 )
 	{
