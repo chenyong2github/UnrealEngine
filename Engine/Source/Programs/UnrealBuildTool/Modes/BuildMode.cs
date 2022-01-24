@@ -506,6 +506,10 @@ namespace UnrealBuildTool
 						}
 						HotReloadTargetIdx = Idx;
 					}
+					else if (MergedActionsToExecute.Count > 0)
+					{
+						HotReload.CheckForLiveCodingSessionActive(TargetDescriptors[Idx], Makefiles[Idx], BuildConfiguration);
+					}
 				}	
 
 				if (HotReloadTargetIdx != -1)

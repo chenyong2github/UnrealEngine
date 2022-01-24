@@ -181,12 +181,6 @@ namespace UnrealBuildTool
 				TargetDescriptor.HotReloadMode = GetDefaultMode(TargetDescriptor, BuildConfiguration);
 			}
 
-			// Guard against a live coding session for this target being active
-			if (BuildConfiguration.bAllowHotReloadFromIDE && TargetDescriptor.HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
-			{
-				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
-			}
-
 			// Apply the previous hot reload state
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.Disabled)
 			{
@@ -215,6 +209,17 @@ namespace UnrealBuildTool
 				PatchedOldLocationToNewLocation = HotReload.PatchActionGraphWithNames(TargetDescriptor.HotReloadModuleNameToSuffix, Makefile, Actions);
 			}
 			return PatchedOldLocationToNewLocation;
+		}
+
+		public static void CheckForLiveCodingSessionActive(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
+		{
+			// Guard against a live coding session for this target being active
+			if (BuildConfiguration.bAllowHotReloadFromIDE && TargetDescriptor.HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
+			{
+				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile."
+					+" If you are attempting to package a build, then there are pending project changes that need to be compiled."
+					+" Exit the editor and build the project prior to attempting to package a build");
+			}
 		}
 
 		/// <summary>
