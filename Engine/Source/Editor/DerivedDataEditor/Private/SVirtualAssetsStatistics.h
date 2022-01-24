@@ -36,6 +36,8 @@ private:
 
 	TSharedPtr<SNotificationItem> PullRequestNotificationItem;
 
+	TSharedPtr<class SScrollBox> ScrollBox;
+
 	bool	IsPulling = false;
 	uint32	NumPullRequests = 0;
 	float	PullNotificationTimer = 0.0f;
