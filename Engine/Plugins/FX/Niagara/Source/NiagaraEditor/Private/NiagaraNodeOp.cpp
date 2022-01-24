@@ -131,6 +131,17 @@ void UNiagaraNodeOp::OnPostSynchronizationInReallocatePins()
 	HandleStaticOutputPinUpgrade();		
 }
 
+FNiagaraTypeDefinition UNiagaraNodeOp::ResolveCustomNumericType(const TArray<FNiagaraTypeDefinition>& NonNumericInputs) const
+{
+	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
+	if (OpInfo && OpInfo->CustomNumericResolveFunction.IsBound())
+	{
+		return OpInfo->CustomNumericResolveFunction.Execute(NonNumericInputs);
+	}
+	
+	return FNiagaraTypeDefinition::GetGenericNumericDef();
+}
+
 
 void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {

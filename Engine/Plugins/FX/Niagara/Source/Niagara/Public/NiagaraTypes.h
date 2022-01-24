@@ -400,6 +400,8 @@ enum class ENiagaraNumericOutputTypeSelectionMode : uint8
 	Smallest,
 	/** Selects the base scalar type for this numeric inputs. */
 	Scalar,
+	/** Selects the type based on custom logic from the node. */
+	Custom,
 };
 
 /** 

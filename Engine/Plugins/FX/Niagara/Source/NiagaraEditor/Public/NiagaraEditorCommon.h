@@ -73,8 +73,12 @@ public:
 	bool CreateHlslForAddedInputs(int32 InputCount, FString& HlslResult) const;
 
 	DECLARE_DELEGATE_RetVal_OneParam(int32, FStaticVariableResolve, const TArray<int32>& );
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInputTypeValidation, const TArray<FNiagaraTypeDefinition>&, FText& );;
+	DECLARE_DELEGATE_RetVal_OneParam(FNiagaraTypeDefinition, FCustomNumericResolve, const TArray<FNiagaraTypeDefinition>& )
 
 	FStaticVariableResolve StaticVariableResolveFunction;
+	FInputTypeValidation InputTypeValidationFunction;
+	FCustomNumericResolve CustomNumericResolveFunction;
 
 	/** Whether or not you can upgrade type to static on connection.*/
 	bool bSupportsStaticResolution;

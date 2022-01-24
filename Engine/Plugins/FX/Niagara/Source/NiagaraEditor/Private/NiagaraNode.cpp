@@ -780,9 +780,18 @@ void UNiagaraNode::NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema,
 	for (UEdGraphPin* OutputPin : OutputPins)
 	{
 		FNiagaraTypeDefinition OutputPinType = Schema->PinToTypeDefinition(OutputPin);
-		if (NonNumericInputs.Num() > 0 && GetNumericOutputTypeSelectionMode() != ENiagaraNumericOutputTypeSelectionMode::None)
+		ENiagaraNumericOutputTypeSelectionMode NumericMode = GetNumericOutputTypeSelectionMode();
+		if (NonNumericInputs.Num() > 0 && NumericMode != ENiagaraNumericOutputTypeSelectionMode::None)
 		{
-			FNiagaraTypeDefinition OutputNumericType = FNiagaraTypeDefinition::GetNumericOutputType(NonNumericInputs, GetNumericOutputTypeSelectionMode());
+			FNiagaraTypeDefinition OutputNumericType;
+			if (NumericMode == ENiagaraNumericOutputTypeSelectionMode::Custom)
+			{
+				OutputNumericType = ResolveCustomNumericType(NonNumericInputs);
+			}
+			else
+			{
+				OutputNumericType = FNiagaraTypeDefinition::GetNumericOutputType(NonNumericInputs, NumericMode);
+			}
 			if (OutputNumericType != FNiagaraTypeDefinition::GetGenericNumericDef())
 			{
 				if (OutputPinType == FNiagaraTypeDefinition::GetGenericNumericDef())
@@ -814,15 +823,21 @@ void UNiagaraNode::NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema,
 	}
 }
 
+FNiagaraTypeDefinition UNiagaraNode::ResolveCustomNumericType(const TArray<FNiagaraTypeDefinition>&) const
+{
+	checkf(false, TEXT("Not implemented for node type"));
+	return FNiagaraTypeDefinition::GetFloatDef();
+}
+
 
 void UNiagaraNode::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache)
 {
-// Fix up numeric input pins and keep track of numeric types to decide the output type.
-FPinCollectorArray InputPins;
-GetInputPins(InputPins);
-FPinCollectorArray OutputPins;
-GetOutputPins(OutputPins);
-NumericResolutionByPins(Schema, InputPins, OutputPins, bSetInline, PinCache);
+	// Fix up numeric input pins and keep track of numeric types to decide the output type.
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+	FPinCollectorArray OutputPins;
+	GetOutputPins(OutputPins);
+	NumericResolutionByPins(Schema, InputPins, OutputPins, bSetInline, PinCache);
 }
 
 void UNiagaraNode::GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const

@@ -87,6 +87,7 @@ protected:
 	//~ End UNiagaraNodeWithDynamicPins Interface
 
 	virtual void OnPostSynchronizationInReallocatePins() override;
+	virtual FNiagaraTypeDefinition ResolveCustomNumericType(const TArray<FNiagaraTypeDefinition>& NonNumericInputs) const override;
 
 	void HandleStaticInputPinUpgrade(UEdGraphPin* InputPin);
 	void HandleStaticOutputPinUpgrade();

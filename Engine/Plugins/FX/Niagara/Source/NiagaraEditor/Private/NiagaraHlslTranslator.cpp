@@ -6600,6 +6600,7 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 		});
 
 	TArray<UEdGraphPin*> InputPins;
+	TArray<FNiagaraTypeDefinition> InputTypes;
 	Operation->GetInputPins(InputPins);
 
 	bool bAllPinsStatic = true;
@@ -6609,6 +6610,7 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 			if (Operation->IsAddPin(InputPins[InputIdx]))
 				continue;
 			FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(InputPins[InputIdx]);
+			InputTypes.Add(InputType);
 			if (!InputType.IsStatic())
 				bAllPinsStatic = false;
 		}
@@ -6623,6 +6625,13 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 		}
 	}
 
+	FText ValidationError;
+	if (OpInfo && OpInfo->InputTypeValidationFunction.IsBound() && OpInfo->InputTypeValidationFunction.Execute(InputTypes, ValidationError) == false)
+	{
+		Error(ValidationError, Operation, OutputPins[0]);
+		Outputs.Add(INDEX_NONE);
+		return;
+	}
 
 	if (OpInfo && OpInfo->StaticVariableResolveFunction.IsBound() && bAllPinsStatic)
 	{
@@ -8887,7 +8896,7 @@ int32 FHlslNiagaraTranslator::CompilePin(const UEdGraphPin* Pin)
 		{
 			if (TypeDef == FNiagaraTypeDefinition::GetParameterMapDef())
 			{
-				Error(FText::FromString(TEXT("Parameter Maps must be created via an Input Node, not the default value of a pin! Please connect to a valid input Parameter Map.")), Cast<UNiagaraNode>(Pin->GetOwningNode()), nullptr);
+				Error(FText::FromString(TEXT("Parameter Maps must be created via an Input Node, not the default value of a pin! Please connect to a valid input Parameter Map.")), Cast<UNiagaraNode>(Pin->GetOwningNode()), Pin);
 				return INDEX_NONE;
 			}
 			else

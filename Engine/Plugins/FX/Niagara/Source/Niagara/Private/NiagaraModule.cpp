@@ -1181,6 +1181,7 @@ bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& Typ
 FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode)
 {
 	checkf(SelectionMode != ENiagaraNumericOutputTypeSelectionMode::None, TEXT("Can not get numeric output type with selection mode none."));
+	checkf(SelectionMode != ENiagaraNumericOutputTypeSelectionMode::Custom, TEXT("Can not get numeric output type with selection mode custom."));
 
 	//This may need some work. Should work fine for now.
 	if (SelectionMode == ENiagaraNumericOutputTypeSelectionMode::Scalar)
