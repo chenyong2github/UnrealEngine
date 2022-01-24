@@ -11265,12 +11265,16 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 
 void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin)
 {
+	// it is important we copy things that define the identity of the pin
+	// things that defines the state of the pin is copied during GetPinState()
+	// though addmittedly these two functions have overlaps currently
 	InOutPin->bIsConstant = InPin->bIsConstant;
 	InOutPin->Direction = InPin->Direction;
 	InOutPin->CPPType = InPin->CPPType;
 	InOutPin->CPPTypeObjectPath = InPin->CPPTypeObjectPath;
 	InOutPin->CPPTypeObject = InPin->CPPTypeObject;
 	InOutPin->DefaultValue = InPin->DefaultValue;
+	InOutPin->bIsDynamicArray = InPin->bIsDynamicArray;
 }
 
 bool URigVMController::ShouldStructBeUnfolded(const UStruct* Struct)

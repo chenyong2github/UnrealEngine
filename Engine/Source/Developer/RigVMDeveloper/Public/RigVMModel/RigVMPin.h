@@ -414,6 +414,10 @@ private:
 
 #endif
 
+	// if new members are added to the pin in the future 
+	// it is important to search for all existing usages of all members
+	// to make sure things are copied/initialized properly
+	
 	UPROPERTY()
 	ERigVMPinDirection Direction;
 
