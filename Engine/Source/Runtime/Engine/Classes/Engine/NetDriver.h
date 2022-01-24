@@ -959,9 +959,9 @@ public:
 	uint32						OutPacketsLost;
 	/** Total packets lost that have been sent by the server since the net driver's creation  */
 	uint32						OutTotalPacketsLost;
-	UE_DEPRECATED(5.1, "Use GetTotalOutOfOrderPackets instead.")
+	UE_DEPRECATED(5.0, "Use GetTotalOutOfOrderPackets instead.")
 	uint32						InOutOfOrderPackets = 0;
-	UE_DEPRECATED(5.1, "OutOutOfOrderPackets is not updated and is now deprecated.")
+	UE_DEPRECATED(5.0, "OutOutOfOrderPackets is not updated and is now deprecated.")
 	uint32						OutOutOfOrderPackets = 0;
 	/** Tracks the total number of voice packets sent */
 	uint32						VoicePacketsSent;

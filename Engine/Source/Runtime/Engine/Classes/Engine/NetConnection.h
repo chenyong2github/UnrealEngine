@@ -1558,7 +1558,7 @@ private:
 	/** Out of order packet tracking/correction */
 
 	/** Stat tracking for the total number of out of order packets, for this connection */
-	UE_DEPRECATED(5.1, "Use GetTotalOutOfOrderPackets instead.")
+	UE_DEPRECATED(5.0, "Use GetTotalOutOfOrderPackets instead.")
 	int32 TotalOutOfOrderPackets = 0;
 
 	/** Stat tracking for the total number of out of order packets lost */

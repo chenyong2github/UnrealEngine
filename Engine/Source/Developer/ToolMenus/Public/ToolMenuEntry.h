@@ -193,7 +193,7 @@ public:
 
 	FToolMenuEntryWidgetData WidgetData;
 
-	UE_DEPRECATED(5.1, "Use MakeCustomWidget instead")
+	UE_DEPRECATED(5.0, "Use MakeCustomWidget instead")
 	FNewToolMenuWidget MakeWidget;
 
 	/** Optional delegate that returns a widget to use as this menu entry */

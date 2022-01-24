@@ -141,7 +141,7 @@ public:
 		FText* OutFailReason = nullptr;
 	};
 
-	struct UE_DEPRECATED(5.1, "FMountPluginParams is deprecated; please use FLoadPluginParams instead") FMountPluginParams;
+	struct UE_DEPRECATED(5.0, "FMountPluginParams is deprecated; please use FLoadPluginParams instead") FMountPluginParams;
 	/**
 	 * Parameters for mounting a plugin.
 	 */
@@ -195,7 +195,7 @@ public:
 	 * @note Will fail if the plugin already exists
 	 */
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "CreateAndMountNewPlugin is deprecated; please use CreateAndLoadNewPlugin instead")
+	UE_DEPRECATED(5.0, "CreateAndMountNewPlugin is deprecated; please use CreateAndLoadNewPlugin instead")
 	static TSharedPtr<IPlugin> CreateAndMountNewPlugin(const FString& PluginName, const FString& PluginLocation, const FNewPluginParams& CreationParams, const FMountPluginParams& MountParams, FText& FailReason);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -210,7 +210,7 @@ public:
 	 * @note Will fail if the plugin already exists
 	 */
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "CreateAndMountNewPlugin is deprecated; please use CreateAndLoadNewPlugin instead")
+	UE_DEPRECATED(5.0, "CreateAndMountNewPlugin is deprecated; please use CreateAndLoadNewPlugin instead")
 	static TSharedPtr<IPlugin> CreateAndMountNewPlugin(const FString& PluginName, const FString& PluginLocation, const FNewPluginParamsWithDescriptor& CreationParams, const FMountPluginParams& MountParams, FText& FailReason);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -263,7 +263,7 @@ public:
 	 * @return The mounted plugin or null on failure
 	 */
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "MountPlugin is deprecated; please use LoadPlugin instead")
+	UE_DEPRECATED(5.0, "MountPlugin is deprecated; please use LoadPlugin instead")
 	static TSharedPtr<IPlugin> MountPlugin(const FString& PluginName, const FString& PluginLocation, const FMountPluginParams& MountParams, FText& FailReason);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

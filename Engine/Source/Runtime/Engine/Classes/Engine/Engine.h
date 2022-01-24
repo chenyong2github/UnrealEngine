@@ -2538,7 +2538,7 @@ public:
 	FAudioDeviceHandle GetActiveAudioDevice();
 
 	/** @return whether we currently have more than one local player */
-	UE_DEPRECATED(5.1, "IsSplitScreen was only ever checking if there are more than one local player. Use HasMultipleLocalPlayers instead.")
+	UE_DEPRECATED(5.0, "IsSplitScreen was only ever checking if there are more than one local player. Use HasMultipleLocalPlayers instead.")
 	virtual bool IsSplitScreen(UWorld *InWorld);
 
 	/** @returns whether there are currently multiple local players in the given world */

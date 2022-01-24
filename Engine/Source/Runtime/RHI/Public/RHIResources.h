@@ -54,7 +54,7 @@ enum class EClearBinding;
 class RHI_API FRHIResource
 {
 public:
-	UE_DEPRECATED(5.1, "FRHIResource(bool) is deprecated, please use FRHIResource(ERHIResourceType)")
+	UE_DEPRECATED(5.0, "FRHIResource(bool) is deprecated, please use FRHIResource(ERHIResourceType)")
 	FRHIResource(bool InbDoNotDeferDelete=false)
 		: ResourceType(RRT_None)
 	{
