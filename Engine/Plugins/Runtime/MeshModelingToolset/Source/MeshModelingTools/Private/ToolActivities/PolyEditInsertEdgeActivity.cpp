@@ -336,19 +336,6 @@ void UPolyEditInsertEdgeActivity::ConditionallyUpdatePreview(
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& NewEndPoint, int32 NewEndTopologyID, bool bNewEndIsCorner,
 	int32 NewCommonGroupID, int32 NewBoundaryIndex)
 {
-	//if (InputGroupEdgeID != NewGroupID
-	//	|| (NewInteractiveInputLength && Settings->PositionMode != EEdgeLoopPositioningMode::Even
-	//		&& *NewInteractiveInputLength != InteractiveInputLength))
-	//{
-	//	InputGroupEdgeID = NewGroupID;
-	//	if (NewInteractiveInputLength)
-	//	{
-	//		InteractiveInputLength = *NewInteractiveInputLength;
-	//	}
-	//	PreviewEdges.Reset();
-	//	ActivityContext->Preview->InvalidateResult();
-	//}
-
 	if (bShowingBaseMesh 
 		|| bEndIsCorner != bNewEndIsCorner || EndTopologyID != NewEndTopologyID
 		|| EndPoint.bIsVertex != NewEndPoint.bIsVertex || EndPoint.ElementID != NewEndPoint.ElementID
@@ -697,13 +684,12 @@ bool UPolyEditInsertEdgeActivity::GetHoveredItem(const FRay& WorldRay,
 		FRay EdgeRay((FVector)StartVert, (FVector)PointOut.Tangent, true);
 		float DistDownEdge = EdgeRay.GetParameter((FVector)Position);
 
-		PositionOut = (FVector3d)EdgeRay.PointAt(DistDownEdge);
-
 		// See if the point is at a vertex in the group edge span.
 		if (DistDownEdge <= Settings->VertexTolerance)
 		{
 			PointOut.bIsVertex = true;
 			PointOut.ElementID = StartVid;
+			PositionOut = StartVert;
 			if (EdgeSegmentID > 0)
 			{
 				// Average with previous normalized edge vector
@@ -716,6 +702,7 @@ bool UPolyEditInsertEdgeActivity::GetHoveredItem(const FRay& WorldRay,
 		{
 			PointOut.bIsVertex = true;
 			PointOut.ElementID = EndVid;
+			PositionOut = EndVert;
 			if (EdgeSegmentID + 2 < GroupEdge.Span.Vertices.Num())
 			{
 				PointOut.Tangent += UE::Geometry::Normalized(
@@ -728,6 +715,7 @@ bool UPolyEditInsertEdgeActivity::GetHoveredItem(const FRay& WorldRay,
 			PointOut.bIsVertex = false;
 			PointOut.ElementID = Eid;
 			PointOut.EdgeTValue = DistDownEdge / EdgeLength;
+			PositionOut = (FVector3d)EdgeRay.PointAt(DistDownEdge);
 			if (ActivityContext->CurrentMesh->GetEdgeV(Eid).A != StartVid)
 			{
 				PointOut.EdgeTValue = 1 - PointOut.EdgeTValue;
