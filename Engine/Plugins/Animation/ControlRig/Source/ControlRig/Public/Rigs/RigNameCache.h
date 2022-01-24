@@ -33,6 +33,11 @@ public:
 	, Type(ERigNameOp::None)
 	{}
 
+	FORCEINLINE static uint32 GetTypeHash(const FName& InName)
+	{
+		return HashCombine(InName.GetComparisonIndex().ToUnstableInt(), uint32(InName.GetNumber()));
+	}
+	
 	static FRigNameOp Concat(const FName& InA, const FName& InB);
 	static FRigNameOp Left(const FName& InA, const uint32 InCount);
 	static FRigNameOp Right(const FName& InA, const uint32 InCount);
