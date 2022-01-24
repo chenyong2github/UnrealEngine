@@ -1073,9 +1073,9 @@ void FModeTool_GeometryModify::SetCurrentModifier( UGeomModifier* InModifier )
 	CurrentModifier->WasActivated();
 }
 
-UGeomModifier* FModeTool_GeometryModify::GetCurrentModifier() { return CurrentModifier; }
+UGeomModifier* FModeTool_GeometryModify::GetCurrentModifier() const { return CurrentModifier; }
 
-int32 FModeTool_GeometryModify::GetNumModifiers() { return Modifiers.Num(); }
+int32 FModeTool_GeometryModify::GetNumModifiers() const { return Modifiers.Num(); }
 
 FModeTool_GeometryModify::FModeTool_GeometryModify()
 {

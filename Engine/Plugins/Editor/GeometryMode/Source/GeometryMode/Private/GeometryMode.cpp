@@ -308,9 +308,17 @@ void FGeometryModeToolkit::OnModifierToolBarButtonClicked(UGeomModifier* Modifie
 
 ECheckBoxState FGeometryModeToolkit::IsModifierChecked(UGeomModifier* Modifier) const
 {
-	return (GetGeometryModeTool()->GetCurrentModifier() == Modifier)
-		? ECheckBoxState::Checked
-		: ECheckBoxState::Unchecked;
+	if (const FEdModeGeometry* Mode = (const FEdModeGeometry*) GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry))
+	{
+		if (const FModeTool_GeometryModify* Tool = (const FModeTool_GeometryModify*) Mode->GetCurrentTool())
+		{
+			return (Tool->GetCurrentModifier() == Modifier)
+				? ECheckBoxState::Checked
+				: ECheckBoxState::Unchecked;
+		}
+	}
+
+	return ECheckBoxState::Unchecked;
 }
 
 FReply FGeometryModeToolkit::OnApplyClicked()

@@ -219,9 +219,9 @@ public:
 	virtual FString GetName() const override { return TEXT("Modifier"); }
 
 	void SetCurrentModifier( UGeomModifier* InModifier );
-	UGeomModifier* GetCurrentModifier();
+	UGeomModifier* GetCurrentModifier() const;
 
-	int32 GetNumModifiers();
+	int32 GetNumModifiers() const;
 
 	/**
 	 * @return		true if the delta was handled by this editor mode tool.
