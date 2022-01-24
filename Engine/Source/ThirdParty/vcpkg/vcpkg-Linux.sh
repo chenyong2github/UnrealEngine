@@ -15,7 +15,7 @@ if [[ ! -d "${UE_SDKS_ROOT}" ]]; then
 fi
 
 # Full path to toolchain root
-export LINUX_MULTIARCH_ROOT="${LINUX_MULTIARCH_ROOT:-${UE_SDKS_ROOT}/HostLinux/Linux_x64/v18_clang-11.0.1-centos7}"
+export LINUX_MULTIARCH_ROOT="${LINUX_MULTIARCH_ROOT:-${UE_SDKS_ROOT}/HostLinux/Linux_x64/v19_clang-11.0.1-centos7}"
 
 # Sanity compiler existence
 if [[ ! -d "${LINUX_MULTIARCH_ROOT}" ]]; then

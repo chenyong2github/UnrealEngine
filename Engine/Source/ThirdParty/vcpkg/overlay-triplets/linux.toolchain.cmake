@@ -10,8 +10,8 @@ if(NOT _VCPKG_UE_LINUX_TOOLCHAIN)
     set(ARCHITECTURE_TRIPLE "aarch64-unknown-linux-gnueabi" CACHE STRING "")
   endif()
 
-  set(UE_INCLUDE $ENV{THIRD_PARTY}/Linux/LibCxx/include)
-  set(UE_LIBS $ENV{THIRD_PARTY}/Linux/LibCxx/lib/Linux/${ARCHITECTURE_TRIPLE})
+  set(UE_INCLUDE $ENV{THIRD_PARTY}/Unix/LibCxx/include)
+  set(UE_LIBS $ENV{THIRD_PARTY}/Unix/LibCxx/lib/Linux/${ARCHITECTURE_TRIPLE})
 
   set(CMAKE_CROSSCOMPILING ON CACHE BOOL "")
 
@@ -41,7 +41,7 @@ if(NOT _VCPKG_UE_LINUX_TOOLCHAIN)
 
   # Compile options
   include_directories(BEFORE SYSTEM ${UE_INCLUDE} ${UE_INCLUDE}/c++/v1)
-  add_compile_options(-fPIC -fms-extensions -fno-math-errno -fno-exceptions -fdiagnostics-absolute-paths)
+  add_compile_options(-fPIC -fms-extensions -fno-math-errno -fdiagnostics-absolute-paths)
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
   if(VCPKG_TARGET_ARCHITECTURE STREQUAL "x64")
     add_compile_options(-mssse3)
