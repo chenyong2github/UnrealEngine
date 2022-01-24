@@ -92,6 +92,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMLDeformerDebugDataInterfaceParameters, )
 	SHADER_PARAMETER(int32, HeatMapMode)
 	SHADER_PARAMETER(float, HeatMapScale)
 	SHADER_PARAMETER(float, GroundTruthLerp)
+	SHADER_PARAMETER(uint32, GroundTruthBufferSize)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float3>, PositionGroundTruthBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -290,6 +291,7 @@ void FMLDeformerDebugDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR
 	Parameters.HeatMapMode = HeatMapMode;
 	Parameters.HeatMapScale = HeatMapScale;
 	Parameters.GroundTruthLerp = GroundTruthLerp;
+	Parameters.GroundTruthBufferSize = GroundTruthPositions.Num();
 	Parameters.PositionGroundTruthBuffer = GroundTruthBufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
