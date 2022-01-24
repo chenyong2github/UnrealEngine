@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNode.h"
 
+#if WITH_ENGINE
+#include "Engine/SkeletalMesh.h"
+#endif
+
 #include "InterchangeSkeletalMeshFactoryNode.generated.h"
 
 //Interchange namespace
@@ -140,7 +144,7 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> LodDependencies;
 protected:
 #if WITH_ENGINE
-	TSubclassOf<class USkeletalMesh> AssetClass = nullptr;
+	TSubclassOf<USkeletalMesh> AssetClass = nullptr;
 #endif
 	bool bIsNodeClassInitialized = false;
 };

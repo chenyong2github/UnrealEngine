@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNode.h"
 
+#if WITH_ENGINE
+#include "Engine/StaticMesh.h"
+#endif
+
 #include "InterchangeStaticMeshFactoryNode.generated.h"
 
 
@@ -102,7 +106,7 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> LodDependencies;
 protected:
 #if WITH_ENGINE
-	TSubclassOf<class UStaticMesh> AssetClass = nullptr;
+	TSubclassOf<UStaticMesh> AssetClass = nullptr;
 #endif
 	bool bIsNodeClassInitialized = false;
 };

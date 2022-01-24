@@ -6,6 +6,10 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "UObject/UObjectGlobals.h"
 
+#if WITH_ENGINE
+#include "Materials/MaterialInterface.h"
+#endif
+
 #include "InterchangeMaterialFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
@@ -132,7 +136,7 @@ private:
 
 protected:
 #if WITH_ENGINE
-	TSubclassOf<UTexture> AssetClass = nullptr;
+	TSubclassOf<UMaterialInterface> AssetClass = nullptr;
 #endif
 	bool bIsMaterialNodeClassInitialized = false;
 
