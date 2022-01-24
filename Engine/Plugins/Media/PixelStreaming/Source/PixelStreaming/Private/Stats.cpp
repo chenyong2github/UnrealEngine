@@ -104,6 +104,11 @@ void UE::PixelStreaming::FStats::FireStatChanged_GameThread(FPixelStreamingPlaye
 {
 	checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
 
+	if (IsEngineExitRequested())
+	{
+		return;
+	}
+
 	if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 	{
 		Delegates->OnPixelStreamerStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
@@ -112,6 +117,13 @@ void UE::PixelStreaming::FStats::FireStatChanged_GameThread(FPixelStreamingPlaye
 
 void UE::PixelStreaming::FStats::RemovePeerStat_GameThread(FPixelStreamingPlayerId PlayerId)
 {
+	checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
+
+	if (IsEngineExitRequested())
+	{
+		return;
+	}
+
 	PeerStats.Remove(PlayerId);
 
 	if (PlayerId == SFU_PLAYER_ID)
@@ -232,6 +244,11 @@ bool UE::PixelStreaming::FStats::StoreApplicationStat_GameThread(UE::PixelStream
 void UE::PixelStreaming::FStats::AddOnPeerStatChangedCallback_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback)
 {
 	checkf(IsInGameThread(), TEXT("This method was not called from the game thread."));
+
+	if (IsEngineExitRequested())
+	{
+		return;
+	}
 
 	UE::PixelStreaming::FPeerStats* SinglePeerStats = PeerStats.Find(PlayerId);
 	if (!SinglePeerStats)
