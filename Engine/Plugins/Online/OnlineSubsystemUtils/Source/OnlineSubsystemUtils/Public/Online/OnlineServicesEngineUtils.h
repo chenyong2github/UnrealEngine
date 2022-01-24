@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "Online/Auth.h"
+#include "Online/OnlineServices.h"
 
 class UWorld;
 struct FWorldContext;
@@ -71,5 +72,19 @@ public:
 
 /** @return the single instance of the online services utils interface */
 ONLINESUBSYSTEMUTILS_API IOnlineServicesEngineUtils* GetServicesEngineUtils();
+
+inline IOnlineServicesPtr GetServices(const UWorld* World, EOnlineServices OnlineServices = EOnlineServices::Default)
+{
+	FName Identifier;
+#if UE_EDITOR // at present, multiple worlds are only possible in the editor
+	if (World != nullptr)
+	{
+		IOnlineServicesEngineUtils* Utils = GetServicesEngineUtils();
+		check(Utils);
+		Identifier = Utils->GetOnlineIdentifier(World);
+	}
+#endif
+	return GetServices(OnlineServices, Identifier);
+}
 
 /* UE::Online */ }
