@@ -2,6 +2,8 @@
 
 #pragma once
 
+// NOTE: UE_LARGE_WORLD_COORDINATES_DISABLED has temporarily been overridden in the build scripts.
+
 // Use float based world coordinates throughout. Note: This is unsupported!
 #ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
 #define UE_LARGE_WORLD_COORDINATES_DISABLED 0

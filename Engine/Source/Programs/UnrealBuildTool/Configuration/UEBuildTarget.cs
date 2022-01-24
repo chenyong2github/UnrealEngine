@@ -3704,7 +3704,14 @@ namespace UnrealBuildTool
 
 			// Add the 'Engine/Source' path as a global include path for all modules
 			GlobalCompileEnvironment.UserIncludePaths.Add(UnrealBuildTool.EngineSourceDirectory);
-
+						
+			// LWC_TODO: Very temp! Enforce no LWC toggling.
+			int PreviousDefinition = GlobalCompileEnvironment.Definitions.FindIndex(s => s.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED"));
+			if (PreviousDefinition >= 0)
+			{
+				GlobalCompileEnvironment.Definitions.RemoveAt(PreviousDefinition);
+			}
+			
 			//@todo.PLATFORM: Do any platform specific tool chain initialization here if required
 
 			UnrealTargetConfiguration EngineTargetConfiguration = Configuration == UnrealTargetConfiguration.DebugGame ? UnrealTargetConfiguration.Development : Configuration;
