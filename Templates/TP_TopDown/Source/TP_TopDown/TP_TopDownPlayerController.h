@@ -23,9 +23,6 @@ protected:
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
-	/** Resets HMD orientation in VR. */
-	void OnResetVR();
-
 	/** Navigate player to the current mouse cursor location. */
 	void MoveToMouseCursor();
 
