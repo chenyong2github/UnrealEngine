@@ -2947,9 +2947,6 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			Connection->Close(ENetCloseResult::ObjectReplicatorReceivedBunchFail);
 			return;
 		}
-
-		// Set the scope name now that we can lookup the NetGUID from the replicator
-		UE_NET_TRACE_SET_SCOPE_OBJECTID(ContentBlockScope, Replicator->ObjectNetGUID);
 	
 		// Check to see if the actor was destroyed
 		// If so, don't continue processing packets on this channel, or we'll trigger an error otherwise
@@ -2961,6 +2958,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			Broken = 1;		
 			break;
 		}
+
+		// Set the scope name now that we can lookup the NetGUID from the replicator
+		UE_NET_TRACE_SET_SCOPE_OBJECTID(ContentBlockScope, Replicator->ObjectNetGUID);
 
 		if ( bHasUnmapped )
 		{
