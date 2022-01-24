@@ -2229,7 +2229,9 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				UpdatePlatformData();
 				MarkPackageDirty();
 
-				if (Name == LoadingBehaviorFName && LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline)
+				// if we are force inline, we need to make sure the shared data is pulled from the DDC
+				// before we attempt to use a decoder on the proxy (not using stream caching)
+				if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline)
 				{
 					if (GEngine)
 					{
@@ -2238,8 +2240,6 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 						{
 							FName RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(this);
 
-							// if we are force inline, we need to make sure the shared data is pulled from the DDC
-							// before we attempt to use a decoder on the proxy (not using stream caching)
 							if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline && !GetResourceData())
 							{
 								InitAudioResource(RuntimeFormat);
