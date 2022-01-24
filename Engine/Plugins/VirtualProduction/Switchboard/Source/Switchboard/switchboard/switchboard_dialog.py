@@ -1310,8 +1310,8 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
                 device_widget.update_engine_changelist(
                     required_cl=self.engine_changelist if self.engine_changelist != EMPTY_SYNC_ENTRY else None, 
-                    current_device_cl=device.engine_changelist,
-                    built_device_cl=device.built_engine_changelist
+                    synched_cl=device.engine_changelist,
+                    built__cl=device.built_engine_changelist
                 )
 
     @QtCore.Slot(object)
@@ -1424,8 +1424,8 @@ class SwitchboardDialog(QtCore.QObject):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
         device_widget.update_engine_changelist(
             required_cl=self.engine_changelist if self.engine_changelist != EMPTY_SYNC_ENTRY else None,
-            current_device_cl=device.engine_changelist,
-            built_device_cl=device.built_engine_changelist
+            synched_cl=device.engine_changelist,
+            built__cl=device.built_engine_changelist
         )
 
         cl = device.engine_changelist
@@ -1437,7 +1437,10 @@ class SwitchboardDialog(QtCore.QObject):
     @QtCore.Slot(object)
     def device_built_engine_changelist_changed(self, device):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-        device_widget.update_build_info(current_cl=device.engine_changelist, built_cl=device.built_engine_changelist)
+        device_widget.update_build_info(
+            synched_cl=device.engine_changelist,
+            built_cl=device.built_engine_changelist
+        )
 
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):

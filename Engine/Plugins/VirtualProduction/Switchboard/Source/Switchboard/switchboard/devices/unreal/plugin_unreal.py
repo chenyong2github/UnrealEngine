@@ -37,6 +37,9 @@ from switchboard.tools.insights_launcher import InsightsLauncher
 from .listener_watcher import ListenerWatcher
 from .redeploy_dialog import RedeployListenerDialog
 from . import version_helpers
+from ...util import p4_changelist_inspection
+from ...util.p4_changelist_inspection import P4Error
+
 
 class ProgramStartQueueItem:
     '''
@@ -2344,20 +2347,20 @@ class DeviceWidgetUnreal(DeviceWidget):
 
         self.project_changelist_label.show()
 
-    def update_engine_changelist(self, required_cl: str, current_device_cl: str, built_device_cl: str):
+    def update_engine_changelist(self, required_cl: str, synched_cl: str, built__cl: str):
         if not CONFIG.BUILD_ENGINE.get_value():
             return
         
-        self.engine_changelist_label.setText(f'E: {current_device_cl}')
+        self.engine_changelist_label.setText(f'E: {synched_cl}')
         if not self.exclude_from_build:
             self.engine_changelist_label.show()
 
         self.sync_button.show()
         self.build_button.show()
         
-        is_synched = required_cl is None or required_cl == current_device_cl
+        is_synched = required_cl is None or required_cl == synched_cl
         self._set_engine_changelist_is_synched(is_synched)
-        self.update_build_info(current_cl=current_device_cl, built_cl=built_device_cl)
+        self.update_build_info(synched_cl=synched_cl, built_cl=built__cl)
 
     def _set_project_changelist_is_synched(self, is_synched: bool):
         self._is_project_synched = is_synched
@@ -2377,19 +2380,28 @@ class DeviceWidgetUnreal(DeviceWidget):
         needs_resync = not self._is_project_synched or not self._is_engine_synched
         sb_widgets.set_qt_property(self.sync_button, 'not_synched', needs_resync)
             
-    def update_build_info(self, current_cl: str, built_cl: str):
-        def set_desired_tooltip(current_cl: str, built_cl: str):
-            desired_tooltip = f"Build changelist.\n\nBuild required.\nCurrent: {current_cl}\nBuilt: {built_cl}" \
-                if self._needs_rebuild else f"Build changelist (not required - built CL {built_cl} matches synched CL)"
-            self._desired_build_button_tooltip = desired_tooltip
-            self._update_build_button_tooltip()
-        
-        if built_cl is not None and current_cl is not None and CONFIG.BUILD_ENGINE.get_value():
-            self._needs_rebuild = int(built_cl) != int(current_cl)
+    def update_build_info(self, synched_cl: str, built_cl: str):
+        if built_cl is not None and synched_cl is not None and CONFIG.BUILD_ENGINE.get_value():
+            try:
+                earlier_cl = min(int(built_cl), int(synched_cl))
+                later_cl = max(int(built_cl), int(synched_cl))
+                self._needs_rebuild = p4_changelist_inspection.has_source_code_changes(
+                    earlier_cl,
+                    later_cl,
+                    CONFIG.P4_ENGINE_PATH.get_value()
+                )
+            except P4Error as error:
+                LOGGER.error(f"Couldn't check {built_cl} - {built_cl} for source code changes."
+                             f" Reason: {error.message}")
+                # Assume that non-equal CL numbers have source changes
+                self._needs_rebuild = int(built_cl) != int(synched_cl)
         else:
             self._needs_rebuild = False
 
-        set_desired_tooltip(current_cl, built_cl)
+        desired_tooltip = f"Build changelist.\n\nBuild required.\nSynched: {synched_cl}\nBuilt: {built_cl}" \
+            if self._needs_rebuild else f"Build changelist (not required - built CL {built_cl} matches synched CL)"
+        self._desired_build_button_tooltip = desired_tooltip
+        self._update_build_button_tooltip()
         self._refresh_build_info_ui()
         
     def _refresh_build_info_ui(self):

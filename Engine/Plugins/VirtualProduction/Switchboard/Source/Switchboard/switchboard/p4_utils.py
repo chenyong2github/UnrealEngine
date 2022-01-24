@@ -68,7 +68,7 @@ def run(cmd, args=[], input=None):
     return r
 
 
-def valueForMarshalledKey(obj, key):
+def valueForMarshalledKey(obj: dict, key: str):
     ''' The P4 marshal is using bytes as keys instead of strings,
     so this makes the conversion and returns the desired value for the given key.
 
@@ -77,6 +77,14 @@ def valueForMarshalledKey(obj, key):
         key(str): The key identifying the dict key desired from the object.
     '''
     return obj[key.encode('utf-8')].decode()
+
+
+def hasValueForMarshalledKey(obj: dict, key: str):
+    '''
+    Checks whether a key exists.
+    See valueForMarshalledKey.
+    '''
+    return key.encode('utf-8') in obj
 
 
 def workspaceInPath(ws, localpath):
