@@ -538,7 +538,7 @@ void FWaterQuadTree::AddFarMesh(const UMaterialInterface* InFarMeshMaterial, dou
 	ensure(InFarMeshMaterial);
 
 	// Early out when there would be no far mesh rendering anyway
-	if (InFarMeshMaterial == nullptr || InFarDistanceMeshExtent == 0.0)
+	if (InFarMeshMaterial == nullptr || InFarDistanceMeshExtent <= 0.0)
 	{
 		return;
 	}
