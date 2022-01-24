@@ -49,7 +49,8 @@ void USmartObjectAssetEditorTool::CreateGizmos()
 			},
 			[this, Index](const FTransform NewTransform)
 			{
-				FSmartObjectSlotDefinition& SlotDefinition = Definition->GetMutableSlots()[Index];
+				const TArrayView<FSmartObjectSlotDefinition> SlotDefinitions = Definition->GetMutableSlots();
+				FSmartObjectSlotDefinition& SlotDefinition = SlotDefinitions[Index];
 				SlotDefinition.Offset = NewTransform.GetTranslation();
 				SlotDefinition.Rotation = NewTransform.Rotator();
 			},
