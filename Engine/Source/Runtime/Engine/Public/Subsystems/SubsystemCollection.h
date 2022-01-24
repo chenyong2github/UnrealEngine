@@ -74,6 +74,8 @@ private:
 
 	void RemoveAndDeinitializeSubsystem(USubsystem* Subsystem);
 
+	void UpdateSubsystemArrayInternal(UClass* SubsystemClass, TArray<USubsystem*>& SubsystemArray) const;
+
 	TMap<UClass*, USubsystem*> SubsystemMap;
 
 	mutable TMap<UClass*, TArray<USubsystem*>> SubsystemArrayMap;

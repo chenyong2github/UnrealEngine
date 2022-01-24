@@ -72,20 +72,25 @@ const TArray<USubsystem*>& FSubsystemCollectionBase::GetSubsystemArrayInternal(U
 	{
 		TArray<USubsystem*>& NewList = SubsystemArrayMap.Add(SubsystemClass);
 
-		for (auto Iter = SubsystemMap.CreateConstIterator(); Iter; ++Iter)
-		{
-			UClass* KeyClass = Iter.Key();
-			if (KeyClass->IsChildOf(SubsystemClass))
-			{
-				NewList.Add(Iter.Value());
-			}
-		}
+		UpdateSubsystemArrayInternal(SubsystemClass, NewList);
 
 		return NewList;
 	}
 
 	const TArray<USubsystem*>& List = SubsystemArrayMap.FindChecked(SubsystemClass);
 	return List;
+}
+
+void FSubsystemCollectionBase::UpdateSubsystemArrayInternal(UClass* SubsystemClass, TArray<USubsystem*>& SubsystemArray) const
+{
+	for (auto Iter = SubsystemMap.CreateConstIterator(); Iter; ++Iter)
+	{
+		UClass* KeyClass = Iter.Key();
+		if (KeyClass->IsChildOf(SubsystemClass))
+		{
+			SubsystemArray.Add(Iter.Value());
+		}
+	}
 }
 
 void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
@@ -134,6 +139,13 @@ void FSubsystemCollectionBase::Initialize(UObject* NewOuter)
 			{
 				AddAndInitializeSubsystem(SubsystemClass);
 			}
+		}
+
+		// Update Internal Arrays without emptying it so that existing refs remain valid
+		for (auto& Pair : SubsystemArrayMap)
+		{
+			Pair.Value.Empty();
+			UpdateSubsystemArrayInternal(Pair.Key, Pair.Value);
 		}
 
 		// Statically track collections
