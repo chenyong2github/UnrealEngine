@@ -2000,7 +2000,7 @@ struct WeightedKeyDataAdapter
 
 	KeyDataHandle GetKeyDataHandle(int32 KeyIndexToQuery) const
 	{
-		return KeyIndexToQuery * 3;
+		return KeyIndexToQuery * 5;
 	};
 
 	constexpr float GetKeyValue(KeyDataHandle Handle) const
