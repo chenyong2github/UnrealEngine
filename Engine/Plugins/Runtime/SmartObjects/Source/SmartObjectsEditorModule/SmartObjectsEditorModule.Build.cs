@@ -13,17 +13,21 @@ namespace UnrealBuildTool.Rules
 
 			PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"AdvancedPreviewScene",
 				"Core",
 				"CoreUObject",
+				"ComponentVisualizers",
+				"EditorInteractiveToolsFramework",
 				"Engine",
 				"InputCore",
-				"AssetTools",
-				"EditorFramework",
-				"UnrealEd",
-				"SourceControl",
-				"AIModule",
+				"InteractiveToolsFramework",
+				"MassEntity",
+				"PropertyEditor",
+				"SlateCore",
+				"Slate",
 				"SmartObjectsModule",
-				"MassEntity"
+				"SourceControl",
+				"UnrealEd"
 			}
 			);
 
