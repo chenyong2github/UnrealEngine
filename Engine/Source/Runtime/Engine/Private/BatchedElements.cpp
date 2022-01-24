@@ -768,25 +768,6 @@ FSceneView FBatchedElements::CreateProxySceneView(const FMatrix& ProjectionMatri
 	return FSceneView(ProxyViewInitOptions);
 }
 
-bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, bool bNeedToSwitchVerticalAxis, const FMatrix& Transform, uint32 ViewportSizeX, uint32 ViewportSizeY, bool bHitTesting, float Gamma, const FSceneView* View, EBlendModeFilter::Type Filter) const
-{
-	if ( View )
-	{
-		// Going to ignore these parameters in favor of just using the values directly from the scene view, so ensure that they're identical.
-		check(Transform == View->ViewMatrices.GetViewProjectionMatrix());
-		check(ViewportSizeX == View->UnscaledViewRect.Width());
-		check(ViewportSizeY == View->UnscaledViewRect.Height());
-
-		return Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, *View, bHitTesting, Gamma, Filter);
-	}
-	else
-	{
-		FIntRect ViewRect = FIntRect(0, 0, ViewportSizeX, ViewportSizeY);
-
-		return Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, CreateProxySceneView(Transform, ViewRect), bHitTesting, Gamma, Filter);
-	}
-}
-
 bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, bool bNeedToSwitchVerticalAxis, const FSceneView& View, bool bHitTesting, float Gamma /* = 1.0f */, EBlendModeFilter::Type Filter /* = EBlendModeFilter::All */) const
 {
 	const FRelativeViewMatrices RelativeMatrices = FRelativeViewMatrices::Create(View.ViewMatrices);

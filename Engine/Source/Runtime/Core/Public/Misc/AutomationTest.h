@@ -1245,12 +1245,6 @@ public:
 	 */
 	virtual void AddWarning( const FString& InWarning, int32 StackOffset = 0);
 
-	UE_DEPRECATED(4.16, "Use AddInfo")
-	FORCEINLINE void AddLogItem(const FString& InLogItem)
-	{
-		AddInfo(InLogItem, 0);
-	}
-
 	/**
 	 * Adds a log item to this test
 	 *

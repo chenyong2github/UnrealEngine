@@ -227,16 +227,6 @@ public:
 	UE_DEPRECATED(4.21, "MakeManifestFromJSON(const FString& ManifestJSON) has been deprecated.  Please use MakeManifestFromData(const TArray<uint8>& ManifestData) instead.")
 	virtual IBuildManifestPtr MakeManifestFromJSON(const FString& ManifestJSON) = 0;
 
-	UE_DEPRECATED(4.16, "Please use EnumeratePatchData instead.")
-	virtual bool EnumerateManifestData(const FString& ManifestFilePath, const FString& OutputFile, bool bIncludeSizes)
-	{
-		BuildPatchServices::FPatchDataEnumerationConfiguration Configuration;
-		Configuration.InputFile = ManifestFilePath;
-		Configuration.OutputFile = OutputFile;
-		Configuration.bIncludeSizes = bIncludeSizes;
-		return EnumeratePatchData(Configuration);
-	}
-
 	UE_DEPRECATED(4.21, "Please use ChunkBuildDirectory instead.")
 	virtual bool GenerateChunksManifestFromDirectory(const BuildPatchServices::FGenerationConfiguration& Configuration)
 	{

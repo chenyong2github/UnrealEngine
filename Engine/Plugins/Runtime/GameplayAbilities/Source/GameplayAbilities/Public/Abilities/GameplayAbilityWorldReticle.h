@@ -33,10 +33,6 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** Accessor for checking, before instantiating, if this WorldReticle will replicate. */
-	UE_DEPRECATED(4.12, "Call AActor::GetIsReplicated instead")
-	bool GetReplicates() const { return GetIsReplicated(); }
-
 	// ------------------------------
 
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;

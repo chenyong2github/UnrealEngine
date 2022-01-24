@@ -23,9 +23,6 @@ namespace FBTNodeBPImplementationHelper
 	/** checks if given object implements GenericEventName and/or AIEventName BP events, and returns an result as flags set on return integer 
 	 *	@return flags set in returned integer indicate kinds of events implemented by given object */
 	AIMODULE_API int32 CheckEventImplementationVersion(FName GenericEventName, FName AIEventName, const UObject& Object, const UClass& StopAtClass);
-
-	UE_DEPRECATED(4.11, "This version of CheckEventImplementationVersion is deprecated. Please use the one taking reference to UObject and StopAtClass rather than a pointers.")
-	AIMODULE_API int32 CheckEventImplementationVersion(FName GenericEventName, FName AIEventName, const UObject* Ob, const UClass* StopAtClass);
 }
 
 UCLASS(meta=(RestrictedToClasses="BTNode"))

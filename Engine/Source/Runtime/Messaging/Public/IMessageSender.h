@@ -48,7 +48,3 @@ public:
 	/** Virtual destructor. */
 	virtual ~IMessageSender() { }
 };
-
-
-UE_DEPRECATED(4.15, "ISendMessages has been renamed to IMessageSender")
-typedef IMessageSender ISendMessages;

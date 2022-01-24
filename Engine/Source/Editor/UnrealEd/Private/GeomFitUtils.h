@@ -144,7 +144,3 @@ UNREALED_API void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMesh
  * @param	StaticMesh	StaticMesh that collision has been changed for
  */
 UNREALED_API void RefreshCollisionChangeComponentsOnly(UStaticMesh& StaticMesh);
-
-UE_DEPRECATED(4.15, "This version of RefreshCollisionChange is deprecated. Please use RefreshCollisionChange(UStaticMesh&) instead.")
-UNREALED_API void RefreshCollisionChange(const UStaticMesh* StaticMesh);
-	

@@ -527,11 +527,6 @@ UObject* UAssetToolsImpl::CreateAsset(const FString& AssetName, const FString& P
 	return NewObj;
 }
 
-UObject* UAssetToolsImpl::CreateAsset(UClass* AssetClass, UFactory* Factory, FName CallingContext /*= NAME_None*/)
-{
-	return CreateAssetWithDialog(AssetClass, Factory, CallingContext);
-}
-
 UObject* UAssetToolsImpl::CreateAssetWithDialog(UClass* AssetClass, UFactory* Factory, FName CallingContext)
 {
 	if (Factory != nullptr)
@@ -1101,11 +1096,6 @@ void UAssetToolsImpl::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>&
 void UAssetToolsImpl::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap)
 {
 	AssetRenameManager->RenameReferencingSoftObjectPaths(PackagesToCheck, AssetRedirectorMap);
-}
-
-TArray<UObject*> UAssetToolsImpl::ImportAssets(const FString& DestinationPath)
-{
-	return ImportAssetsWithDialog(DestinationPath);
 }
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialog(const FString& DestinationPath)

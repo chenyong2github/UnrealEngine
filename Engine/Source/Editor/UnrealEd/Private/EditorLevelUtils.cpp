@@ -988,12 +988,6 @@ void UEditorLevelUtils::PrivateDestroyLevel(ULevel* InLevel)
 	}
 }
 
-ULevel* UEditorLevelUtils::CreateNewLevel(UWorld* InWorld, bool bMoveSelectedActorsIntoNewLevel, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename)
-{
-	ULevelStreaming* StreamingLevel = CreateNewStreamingLevelForWorld(*InWorld, LevelStreamingClass, DefaultFilename, bMoveSelectedActorsIntoNewLevel);
-	return StreamingLevel->GetLoadedLevel();
-}
-
 void UEditorLevelUtils::DeselectAllSurfacesInLevel(ULevel* InLevel)
 {
 	if (InLevel)

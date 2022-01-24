@@ -6403,101 +6403,6 @@ void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*
 	}
 }
 
-/************************************************************************/
-/*  DEPRECATED FUNCTIONALITY                                            */
-/************************************************************************/
-IMeshReduction* FMeshUtilities::GetStaticMeshReductionInterface()
-{
-	IMeshReductionManagerModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
-	return Module.GetStaticMeshReductionInterface();
-}
-
-IMeshReduction* FMeshUtilities::GetSkeletalMeshReductionInterface()
-{
-	IMeshReductionManagerModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
-	return Module.GetSkeletalMeshReductionInterface();
-}
-
-IMeshMerging* FMeshUtilities::GetMeshMergingInterface()
-{
-	IMeshReductionManagerModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
-	return Module.GetMeshMergingInterface();
-}
-
-void FMeshUtilities::MergeActors(
-	const TArray<AActor*>& SourceActors,
-	const FMeshMergingSettings& InSettings,
-	UPackage* InOuter,
-	const FString& InBasePackageName,
-	TArray<UObject*>& OutAssetsToSync,
-	FVector& OutMergedActorLocation,
-	bool bSilent) const
-{
-	checkf(SourceActors.Num(), TEXT("No actors supplied for merging"));
-	
-	// Collect all primitive components
-	TInlineComponentArray<UPrimitiveComponent*> PrimComps;
-	for (AActor* Actor : SourceActors)
-	{
-		Actor->GetComponents<UPrimitiveComponent>(PrimComps);
-	}
-
-	// Filter only components we want (static mesh and shape)
-	TArray<UPrimitiveComponent*> ComponentsToMerge;
-	for (UPrimitiveComponent* PrimComponent : PrimComps)
-	{
-		UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(PrimComponent);
-		if (MeshComponent && 
-			MeshComponent->GetStaticMesh() != nullptr &&
-			MeshComponent->GetStaticMesh()->GetNumSourceModels() > 0)
-		{
-			ComponentsToMerge.Add(MeshComponent);
-		}
-
-		UShapeComponent* ShapeComponent = Cast<UShapeComponent>(PrimComponent);
-		if (ShapeComponent)
-		{
-			ComponentsToMerge.Add(ShapeComponent);
-		}
-	}
-
-	checkf(SourceActors.Num(), TEXT("No valid components found in actors supplied for merging"));
-
-	UWorld* World = SourceActors[0]->GetWorld();
-	checkf(World != nullptr, TEXT("Invalid world retrieved from Actor"));
-	const float ScreenSize = TNumericLimits<float>::Max();
-
-	const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	Module.MergeComponentsToStaticMesh(ComponentsToMerge, World, InSettings, nullptr, InOuter, InBasePackageName, OutAssetsToSync, OutMergedActorLocation, ScreenSize, bSilent);
-}
-
-void FMeshUtilities::MergeStaticMeshComponents(
-	const TArray<UStaticMeshComponent*>& ComponentsToMerge,
-	UWorld* World,
-	const FMeshMergingSettings& InSettings,
-	UPackage* InOuter,
-	const FString& InBasePackageName,
-	TArray<UObject*>& OutAssetsToSync,
-	FVector& OutMergedActorLocation,
-	const float ScreenSize,
-	bool bSilent /*= false*/) const
-{
-	const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-
-	// Convert array of StaticMeshComponents to PrimitiveComponents
-	TArray<UPrimitiveComponent*> PrimCompsToMerge;
-	Algo::Transform(ComponentsToMerge, PrimCompsToMerge, [](UStaticMeshComponent* StaticMeshComp) { return StaticMeshComp; });
-
-	Module.MergeComponentsToStaticMesh(PrimCompsToMerge, World, InSettings, nullptr, InOuter, InBasePackageName, OutAssetsToSync, OutMergedActorLocation, ScreenSize, bSilent);
-}
-
-void FMeshUtilities::CreateProxyMesh(const TArray<AActor*>& InActors, const struct FMeshProxySettings& InMeshProxySettings, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, FCreateProxyDelegate InProxyCreatedDelegate, const bool bAllowAsync,
-	const float ScreenAreaSize /*= 1.0f*/)
-{
-	const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	Module.CreateProxyMesh(InActors, InMeshProxySettings, InOuter, InProxyBasePackageName, InGuid, InProxyCreatedDelegate, bAllowAsync, ScreenAreaSize);
-}
-
 bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2f>& OutTexCoords) const
 {
 	// Create a copy of original mesh (only copy necessary data)
@@ -6603,11 +6508,6 @@ bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int
 bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const
 {
 	return GenerateUniqueUVsForStaticMesh(RawMesh, TextureResolution, false, OutTexCoords);
-}
-
-void FMeshUtilities::FlattenMaterialsWithMeshData(TArray<UMaterialInterface*>& InMaterials, TArray<FRawMeshExt>& InSourceMeshes, TMap<FMeshIdAndLOD, TArray<int32>>& InMaterialIndexMap, TArray<bool>& InMeshShouldBakeVertexData, const FMaterialProxySettings &InMaterialProxySettings, TArray<FFlattenMaterial> &OutFlattenedMaterials) const
-{
-	checkf(false, TEXT("Function is removed, use functionality in new MeshMergeUtilities Module"));
 }
 
 #undef LOCTEXT_NAMESPACE

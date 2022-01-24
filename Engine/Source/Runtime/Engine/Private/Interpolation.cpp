@@ -889,17 +889,6 @@ void AMatineeActor::InitInterp()
 		// Cache whether or not we want to enable extreme content within this sequence
 		bShouldShowGore = true;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if( GetWorld() != NULL && GetWorld()->GetWorldSettings() != NULL )
-		{
-			AGameState const* const GameState = GetWorld()->GetGameState<AGameState>();
-			if( GameState != NULL )
-			{
-				bShouldShowGore = GameState->ShouldShowGore();
-			}
-		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 		for(int32 GroupIndex=0; GroupIndex<MatineeData->InterpGroups.Num(); GroupIndex++)
 		{
 			UInterpGroup* Group = MatineeData->InterpGroups[GroupIndex];

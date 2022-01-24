@@ -857,16 +857,6 @@ struct ENGINE_API FAnimNode_Base
 	virtual ~FAnimNode_Base() {}
 
 	/** Deprecated functions */
-	UE_DEPRECATED(4.17, "Please use Initialize_AnyThread instead")
-	virtual void Initialize(const FAnimationInitializeContext& Context);
-	UE_DEPRECATED(4.17, "Please use CacheBones_AnyThread instead")
-	virtual void CacheBones(const FAnimationCacheBonesContext& Context) {}
-	UE_DEPRECATED(4.17, "Please use Update_AnyThread instead")
-	virtual void Update(const FAnimationUpdateContext& Context) {}
-	UE_DEPRECATED(4.17, "Please use Evaluate_AnyThread instead")
-	virtual void Evaluate(FPoseContext& Output) { check(false); }
-	UE_DEPRECATED(4.17, "Please use EvaluateComponentSpace_AnyThread instead")
-	virtual void EvaluateComponentSpace(FComponentSpacePoseContext& Output) { check(false); }
 	UE_DEPRECATED(4.20, "Please use ResetDynamics with an ETeleportPhysics flag instead")
 	virtual void ResetDynamics() {}
 	UE_DEPRECATED(5.0, "Please use IGraphMessage instead")
@@ -961,10 +951,6 @@ protected:
 
 	/** Get the LOD threshold at which this node is enabled. Node is enabled if the current LOD >= threshold. */
 	virtual int32 GetLODThreshold() const { return INDEX_NONE; }
-
-	/** Deprecated function */
-	UE_DEPRECATED(4.17, "Please use OnInitializeAnimInstance instead")
-	virtual void RootInitialize(const FAnimInstanceProxy* InProxy) {}
 
 	/** Called once, from game thread as the parent anim instance is created */
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance);

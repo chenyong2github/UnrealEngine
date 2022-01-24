@@ -26,10 +26,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase)
 	TObjectPtr<class UParticleSystem> PS_CameraEffect;
 
-	/** The effect to use for non extreme content */
-	UPROPERTY()
-	TObjectPtr<class UParticleSystem> PS_CameraEffectNonExtremeContent_DEPRECATED;
-
 	/** Camera this emitter is attached to, will be notified when emitter is destroyed */
 	UPROPERTY(transient)
 	TObjectPtr<class APlayerCameraManager> BaseCamera;

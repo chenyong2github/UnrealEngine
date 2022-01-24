@@ -47,7 +47,7 @@ enum class EBlendProfileMode : uint8;
 // SSkeletonTree
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-class SSkeletonTree : public ISkeletonTree, public FSelfRegisteringEditorUndoClient, public FGCObject
+class SSkeletonTree : public ISkeletonTree, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS( SSkeletonTree )
@@ -81,16 +81,6 @@ public:
 	virtual void SelectItemsBy(TFunctionRef<bool(const TSharedRef<ISkeletonTreeItem>&, bool&)> Predicate) const override;
 	virtual void DuplicateAndSelectSocket(const FSelectedSocketInfo& SocketInfoToDuplicate, const FName& NewParentBoneName = FName()) override;
 
-	virtual void RegisterOnObjectSelected(const FOnObjectSelected& Delegate) override
-	{
-		OnObjectSelectedMulticast.Add(Delegate);
-	}
-
-	virtual void UnregisterOnObjectSelected(SWidget* Widget) override
-	{
-		OnObjectSelectedMulticast.RemoveAll(Widget);
-	}
-
 	virtual FDelegateHandle RegisterOnSelectionChanged(const FOnSkeletonTreeSelectionChanged& Delegate) override
 	{
 		return OnSelectionChangedMulticast.Add(Delegate);
@@ -109,13 +99,6 @@ public:
 	/** FSelfRegisteringEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
-
-	/** FGCObject interface */
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("SSkeletonTree");
-	}
 
 	/** Creates the tree control and then populates */
 	void CreateTreeColumns();
@@ -408,9 +391,6 @@ private:
 	/** Delegate for when an item is selected */
 	FOnSkeletonTreeSelectionChangedMulticast OnSelectionChangedMulticast;
 
-	UE_DEPRECATED(4.17, "Please use OnSelectionChangedMulticast")
-	FOnObjectSelectedMulticast OnObjectSelectedMulticast;
-
 	/** Selection recursion guard flag */
 	bool bSelecting;
 
@@ -428,9 +408,6 @@ private:
 
 	/** Compiled filter search terms. */
 	TSharedPtr<class FTextFilterExpressionEvaluator> TextFilterPtr;
-
-	/** Proxy object used to display and edit bone transforms in details panels. Note this is only kept for backwards compatibility (used with OnObjectSelectedMulticast) */
-	class UBoneProxy* BoneProxy;
 
 	/** Whether to allow operations that modify the mesh */
 	bool bAllowMeshOperations;

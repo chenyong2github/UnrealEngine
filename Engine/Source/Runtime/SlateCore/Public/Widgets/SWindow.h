@@ -325,14 +325,6 @@ public:
 		/** Should this window be focused immediately after it is shown? */
 		SLATE_ARGUMENT( bool, FocusWhenFirstShown )
 
-		UE_DEPRECATED(4.16, "ActivateWhenFirstShown(bool) is deprecated. Please use ActivationPolicy(EWindowActivationPolicy) instead")
-		FArguments& ActivateWhenFirstShown(bool bActivateWhenFirstShown)
-		{
-			// Previously ActivateWhenFirstShown was being used as always activating, so we use Always here to ensure same behavior.
-			_ActivationPolicy = bActivateWhenFirstShown ? EWindowActivationPolicy::Always : EWindowActivationPolicy::Never;
-			return Me();
-		}
-
 		/** When should this window be activated upon being shown? */
 		SLATE_ARGUMENT( EWindowActivationPolicy, ActivationPolicy )
 
@@ -796,12 +788,6 @@ public:
 	TWeakPtr<SWidget> GetWidgetFocusedOnDeactivate()
 	{
 		return WidgetFocusedOnDeactivate;
-	}
-
-	UE_DEPRECATED(4.16, "ActivateWhenFirstShown() is deprecated. Please use ActivationPolicy() instead.")
-	bool ActivateWhenFirstShown() const
-	{
-		return ActivationPolicy() != EWindowActivationPolicy::Never;
 	}
 
 	/** @return the window activation policy used when showing the window */

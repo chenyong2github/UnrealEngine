@@ -3271,14 +3271,6 @@ public:
 };
 } // namespace MoveSelectedActors
 
-
-void UEditorEngine::MoveSelectedActorsToLevel( ULevel* InDestLevel )
-{
-	// do the actual work...
-	UEditorLevelUtils::MoveSelectedActorsToLevel( InDestLevel );
-}
-
-
 TArray<UFoliageType*> UEditorEngine::GetFoliageTypesInWorld(UWorld* InWorld)
 {
 	TSet<UFoliageType*> FoliageSet;

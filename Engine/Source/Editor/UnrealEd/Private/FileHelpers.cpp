@@ -4283,14 +4283,6 @@ bool FEditorFileUtils::SaveWorlds(UWorld* InWorld, const FString& RootPath, cons
 	return bSavedAll;
 }
 
-/**
- * DEPRECATED in version 4.18, Call FFileHelper::IsFilenameValidForSaving instead
- */
-bool FEditorFileUtils::IsFilenameValidForSaving( const FString& Filename, FText& OutError )
-{
-	return FFileHelper::IsFilenameValidForSaving(Filename, OutError);
-}
-
 void FEditorFileUtils::LoadDefaultMapAtStartup()
 {
 	FString EditorStartupMap;

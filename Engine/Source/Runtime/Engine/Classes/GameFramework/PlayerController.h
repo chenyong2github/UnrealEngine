@@ -1192,12 +1192,6 @@ public:
 		ClientPlayForceFeedback_Internal(ForceFeedbackEffect, Params);
 	}
 
-	UE_DEPRECATED(4.22, "Use version that specifies parameters using a struct instead of a list of parameters")
-	void ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, bool bLooping, bool bIgnoreTimeDilation, FName Tag);
-
-	UE_DEPRECATED(4.18, "Use version that specifies parameters using a struct instead of a list of parameters")
-	void ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, bool bLooping, FName Tag);
-
 	/** 
 	 * Stops a playing force feedback pattern
 	 * @param	ForceFeedbackEffect		If set only patterns from that effect will be stopped

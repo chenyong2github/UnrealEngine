@@ -518,11 +518,6 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
 		CSV_SCOPED_TIMING_STAT(Animation, NativeUpdate);
 		NativeUpdateAnimation(DeltaSeconds);
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		// @todo: remove once deprecated - called for backwards-compatibility¬
-		NativeUpdateAnimation_WorkerThread(DeltaSeconds);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
@@ -792,10 +787,6 @@ void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 }
 
 void UAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
-{
-}
-
-void UAnimInstance::NativeUpdateAnimation_WorkerThread(float DeltaSeconds)
 {
 }
 
@@ -3288,11 +3279,6 @@ UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAni
 	}
 
 	return nullptr;
-}
-
-FAnimMontageInstance* UAnimInstance::GetActiveInstanceForMontage(UAnimMontage const& Montage) const
-{
-	return GetActiveInstanceForMontage(&Montage);
 }
 
 FAnimMontageInstance* UAnimInstance::GetActiveInstanceForMontage(const UAnimMontage* Montage) const

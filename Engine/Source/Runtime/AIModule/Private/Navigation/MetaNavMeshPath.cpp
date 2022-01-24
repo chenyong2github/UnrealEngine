@@ -274,16 +274,3 @@ void FMetaNavMeshPath::DebugDraw(const ANavigationData* NavData, const FColor Pa
 #endif // ENABLE_DRAW_DEBUG
 }
 
-//----------------------------------------------------------------------//
-// DEPRECATED
-//----------------------------------------------------------------------//
-TArray<FVector> FMetaNavMeshPath::GetWaypoints() const 
-{ 
-	TArray<FVector> VectorWaypoints;
-	VectorWaypoints.Reserve(Waypoints.Num());
-	for (const FMetaPathWayPoint& Waypoint : Waypoints)
-	{
-		VectorWaypoints.Add(Waypoint);
-	}
-	return VectorWaypoints; 
-}

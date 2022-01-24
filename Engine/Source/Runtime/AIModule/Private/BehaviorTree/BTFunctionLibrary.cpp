@@ -30,11 +30,6 @@ namespace FBTNodeBPImplementationHelper
 
 		return (bGeneric ? Generic : NoImplementation) | (bAI ? AISpecific : NoImplementation);
 	}
-
-	int32 CheckEventImplementationVersion(FName GenericEventName, FName AIEventName, const UObject* Ob, const UClass* StopAtClass)
-	{
-		return (Ob && StopAtClass) ? CheckEventImplementationVersion(GenericEventName, AIEventName, *Ob, *StopAtClass) : NoImplementation;
-	}
 }
 
 //----------------------------------------------------------------------//

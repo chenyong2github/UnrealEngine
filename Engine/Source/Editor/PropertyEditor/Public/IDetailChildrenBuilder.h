@@ -138,41 +138,4 @@ public:
 	{
 		return AddExternalStructureProperty(ChildStructure, PropertyName, FAddPropertyParams().UniqueId(UniqueIdName));
 	}
-
-	UE_DEPRECATED(4.17, "AddChildCustomBuilder has been deprecated.  Use AddCustomBuilder instead")
-	IDetailChildrenBuilder& AddChildCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> InCustomBuilder)
-	{
-		return AddCustomBuilder(InCustomBuilder);
-	}
-
-	UE_DEPRECATED(4.17, "AddChildGroup has been deprecated.  Use AddGroup instead")
-	class IDetailGroup& AddChildGroup(FName GroupName, const FText& LocalizedDisplayName)
-	{
-		return AddGroup(GroupName, LocalizedDisplayName);
-	}
-
-	UE_DEPRECATED(4.17, "AddChildContent has been deprecated.  Use AddCustomRow instead ")
-	class FDetailWidgetRow& AddChildContent(const FText& SearchString)
-	{
-		return AddCustomRow(SearchString);
-	}
-
-	UE_DEPRECATED(4.17, "AddChildProperty has been deprecated.  Use AddProperty instead ")
-	class IDetailPropertyRow& AddChildProperty(TSharedRef<IPropertyHandle> PropertyHandle)
-	{
-		return AddProperty(PropertyHandle);
-	}
-
-	UE_DEPRECATED(4.17, "AddChildStructure has been deprecated.  Use AddExternalStructureProperty instead ")
-	class IDetailPropertyRow* AddChildStructure(TSharedRef<FStructOnScope> ChildStructure, FName PropertyName, FName UniqueIdName)
-	{
-		return AddExternalStructureProperty(ChildStructure, PropertyName, FAddPropertyParams().UniqueId(UniqueIdName));
-	}
-
-	UE_DEPRECATED(4.17, "This version of AddStructure has been deprecated.  Use AddAllExternalStructureProperties instead ")
-	virtual TArray<TSharedPtr<IPropertyHandle>> AddStructure(TSharedRef<FStructOnScope> ChildStructure)
-	{
-		return AddAllExternalStructureProperties(ChildStructure);
-	}
-
 };

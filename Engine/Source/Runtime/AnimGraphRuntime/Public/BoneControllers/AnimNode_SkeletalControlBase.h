@@ -104,8 +104,6 @@ protected:
 
 	// use this function to evaluate for skeletal control base
 	virtual void EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context);
-	UE_DEPRECATED(4.16, "Please use EvaluateSkeletalControl_AnyThread.")
-	virtual void EvaluateBoneTransforms(USkeletalMeshComponent* SkelComp, FCSPose<FCompactPose>& MeshBases, TArray<FBoneTransform>& OutBoneTransforms) {}
 	// Evaluate the new component-space transforms for the affected bones.
 	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms);
 	// return true if it is valid to Evaluate

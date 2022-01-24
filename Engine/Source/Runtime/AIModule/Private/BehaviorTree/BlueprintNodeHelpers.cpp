@@ -299,13 +299,5 @@ namespace BlueprintNodeHelpers
 			}
 		}
 	}
-
-	//----------------------------------------------------------------------//
-	// DEPRECATED
-	//----------------------------------------------------------------------//
-	bool HasBlueprintFunction(FName FuncName, const UObject* Object, const UClass* StopAtClass)
-	{
-		return Object && StopAtClass && HasBlueprintFunction(FuncName, *Object, *StopAtClass);
-	}
 }
 

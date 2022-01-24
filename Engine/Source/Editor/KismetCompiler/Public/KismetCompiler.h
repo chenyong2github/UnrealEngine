@@ -255,21 +255,6 @@ public:
 		FName NameParameter;
 	};
 
-	UE_DEPRECATED(4.17, "Use version that takes Category and SubCategory as FName, and PinContainerType instead of separate booleans for array, set, and map")
-	UK2Node_TemporaryVariable* SpawnInternalVariable(UEdGraphNode* SourceNode, const FString& Category, const FString& SubCategory, UObject* SubcategoryObject, bool bIsArray, bool bIsSet = false, bool bIsMap = false, const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType());
-
-	UE_DEPRECATED(4.18, "Use version that takes Category and SubCategory as FName")
-	UK2Node_TemporaryVariable* SpawnInternalVariable(UEdGraphNode* SourceNode, const FNameParameterHelper Category, const FString& SubCategory, UObject* SubcategoryObject = nullptr, EPinContainerType PinContainerType = EPinContainerType::None, const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType())
-	{
-		return SpawnInternalVariable(SourceNode, *Category, FName(*SubCategory), SubcategoryObject, PinContainerType, ValueTerminalType);
-	}
-
-	//UE_DEPRECATED(4.18, "Remove when removing versions that take subcategory as FString. Required to avoid ambiguity")
-	UK2Node_TemporaryVariable* SpawnInternalVariable(UEdGraphNode* SourceNode, const FNameParameterHelper Category, const TCHAR* SubCategory, UObject* SubcategoryObject = nullptr, EPinContainerType PinContainerType = EPinContainerType::None, const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType())
-	{
-		return SpawnInternalVariable(SourceNode, *Category, FName(SubCategory), SubcategoryObject, PinContainerType, ValueTerminalType);
-	}
-
 	UK2Node_TemporaryVariable* SpawnInternalVariable(UEdGraphNode* SourceNode, FName Category, FName SubCategory = NAME_None, UObject* SubcategoryObject = nullptr, EPinContainerType PinContainerType = EPinContainerType::None, const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType());
 
 	bool UsePersistentUberGraphFrame() const;

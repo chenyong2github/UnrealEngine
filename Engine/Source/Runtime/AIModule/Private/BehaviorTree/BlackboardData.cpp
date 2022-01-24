@@ -307,15 +307,3 @@ bool UBlackboardData::IsChildOf(const UBlackboardData& OtherAsset) const
 	return (TmpParent == &OtherAsset);
 }
 
-//----------------------------------------------------------------------//
-// DEPRECATED
-//----------------------------------------------------------------------//
-bool UBlackboardData::HasParent(const UBlackboardData* TestParent) const
-{
-	if (Parent == TestParent)
-	{
-		return true;
-	}
-
-	return Parent ? Parent->HasParent(TestParent) : false;
-}

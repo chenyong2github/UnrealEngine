@@ -36,9 +36,6 @@ public:
 		float AcceptanceRadius = -1.f, EAIOptionFlag::Type StopOnOverlap = EAIOptionFlag::Default, EAIOptionFlag::Type AcceptPartialPath = EAIOptionFlag::Default,
 		bool bUsePathfinding = true, bool bLockAILogic = true, bool bUseContinuosGoalTracking = false, EAIOptionFlag::Type ProjectGoalOnNavigation = EAIOptionFlag::Default);
 
-	UE_DEPRECATED(4.12, "This function is now depreacted, please use version with FAIMoveRequest parameter")
-	void SetUp(AAIController* Controller, FVector GoalLocation, AActor* GoalActor = nullptr, float AcceptanceRadius = -1.f, bool bUsePathfinding = true, EAIOptionFlag::Type StopOnOverlap = EAIOptionFlag::Default, EAIOptionFlag::Type AcceptPartialPath = EAIOptionFlag::Default);
-
 	/** Allows custom move request tweaking. Note that all MoveRequest need to 
 	 *	be performed before PerformMove is called. */
 	FAIMoveRequest& GetMoveRequestRef() { return MoveRequest; }

@@ -265,12 +265,6 @@ public:
 	 */
 	virtual void UnregisterCustomClassLayout( FName ClassName );
 
-	UE_DEPRECATED(4.18, "This version of RegisterCustomPropertyTypeLayout has been deprecated.  For per-details instance customization call IDetailsView::RegisterInstancedCustomPropertyTypeLayout")
-	virtual void RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier, TSharedPtr<IDetailsView> ForSpecificInstance);
-
-	UE_DEPRECATED(4.18, "This version of UnregisterCustomPropertyTypeLayout has been deprecated.  For per-details instance customization call IDetailsView::UnregisterInstancedCustomPropertyTypeLayout")
-	virtual void UnregisterCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> InIdentifier, TSharedPtr<IDetailsView> ForSpecificInstance);
-
 	/**
 	 * Registers a property type customization
 	 * A property type is a specific FProperty type, a struct, or enum type

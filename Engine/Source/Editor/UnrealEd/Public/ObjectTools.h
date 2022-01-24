@@ -484,19 +484,6 @@ namespace ObjectTools
 	 */
 	UNREALED_API void GetDirectoryFromObjectPath(const UObject* Obj, FString& OutResult);
 
-
-	/**
-	 * Exports the specified objects to file.
-	 *
-	 * @param	ObjectsToExport					The set of objects to export.
-	 * @param	bPromptIndividualFilenames		If true, prompt individually for filenames.  If false, bulk export to a single directory.
-	 * @param	ExportPath						receives the value of the path the user chose for exporting.
-	 * @param	bUseProvidedExportPath			If true and out_ExportPath is specified, use the value in out_ExportPath as the export path w/o prompting for a directory when applicable
-	 */
-	UE_DEPRECATED(4.17, "ObjectTools::ExportObjects is deprecated.  Use AssetTools::ExportObjects instead")
-	UNREALED_API void ExportObjects( const TArray<UObject*>& ObjectsToExport, bool bPromptIndividualFilenames, FString* ExportPath = NULL, bool bUseProvidedExportPath = false );
-
-
 	/** Options for in use object tagging */
 	enum EInUseSearchOption
 	{

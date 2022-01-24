@@ -373,12 +373,3 @@ public:
 	/** Virtual destructor. */
 	virtual ~IMessageContext() { }
 };
-
-
-/** Type definition for shared pointers to instances of IMessageContext. */
-UE_DEPRECATED(4.16, "IMessageContextPtr is deprecated. Please use 'TSharedPtr<IMessageContext, ESPMode::ThreadSafe>' instead!")
-typedef TSharedPtr<IMessageContext, ESPMode::ThreadSafe> IMessageContextPtr;
-
-/** Type definition for shared references to instances of IMessageContext. */
-UE_DEPRECATED(4.16, "IMessageContextRef is deprecated. Please use 'TSharedRef<IMessageContext, ESPMode::ThreadSafe>' instead!")
-typedef TSharedRef<IMessageContext, ESPMode::ThreadSafe> IMessageContextRef;

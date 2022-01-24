@@ -324,20 +324,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static const TArray<ULevel*> GetLevels(UWorld* World);
 
-	UE_DEPRECATED(4.17, "The CreateNewLevel method to create streaming levels has been deprecated. Use CreateNewStreamingLevelForWorld instead")
-	static UNREALED_API ULevel* CreateNewLevel(UWorld* InWorld, bool bMoveSelectedActorsIntoNewLevel, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""));
-
-
-	/**
-	 * Moves the specified list of actors to the specified level
-	 *
-	 * @param	ActorsToMove		List of actors to move
-	 * @param	DestLevelStreaming	The level streaming object associated with the destination level
-	 * @param	OutNumMovedActors	The number of actors that were successfully moved to the new level
-	 */
-	UE_DEPRECATED(4.17, "The MovesActorsToLevel method has been deprecated. Use MoveActorsToLevel instead")
-	static void MovesActorsToLevel(TArray< AActor* >& ActorsToMove, ULevelStreaming* DestLevelStreaming, int32& OutNumMovedActors);
-
 private:
 	/**
 	* Utility methods used by RemoveLevelsFromWorld

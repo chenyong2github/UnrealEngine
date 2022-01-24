@@ -154,7 +154,6 @@ FString FWebBrowserSingleton::ApplicationCacheDir() const
 }
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FWebBrowserWindowFactory
 	: public IWebBrowserWindowFactory
 {
@@ -181,17 +180,18 @@ public:
 		bool ShowErrorMessage = true,
 		FColor BackgroundColor = FColor(255, 255, 255, 255)) override
 	{
-		return IWebBrowserModule::Get().GetSingleton()->CreateBrowserWindow(
-			OSWindowHandle,
-			InitialURL,
-			bUseTransparency,
-			bThumbMouseButtonNavigation,
-			ContentsToLoad,
-			ShowErrorMessage,
-			BackgroundColor);
+		FCreateBrowserWindowSettings Settings;
+		Settings.OSWindowHandle = OSWindowHandle;
+		Settings.InitialURL = MoveTemp(InitialURL);
+		Settings.bUseTransparency = bUseTransparency;
+		Settings.bThumbMouseButtonNavigation = bThumbMouseButtonNavigation;
+		Settings.ContentsToLoad = MoveTemp(ContentsToLoad);
+		Settings.bShowErrorMessage = ShowErrorMessage;
+		Settings.BackgroundColor = BackgroundColor;
+
+		return IWebBrowserModule::Get().GetSingleton()->CreateBrowserWindow(Settings);
 	}
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 class FNoWebBrowserWindowFactory
 	: public IWebBrowserWindowFactory
@@ -483,31 +483,6 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(
 	}
 #endif
 	return nullptr;
-}
-
-TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(
-	void* OSWindowHandle,
-	FString InitialURL,
-	bool bUseTransparency,
-	bool bThumbMouseButtonNavigation,
-	TOptional<FString> ContentsToLoad,
-	bool ShowErrorMessage,
-	FColor BackgroundColor,
-	int BrowserFrameRate,
-	const TArray<FString>& AltRetryDomains)
-{
-	FCreateBrowserWindowSettings Settings;
-	Settings.OSWindowHandle = OSWindowHandle;
-	Settings.InitialURL = InitialURL;
-	Settings.bUseTransparency = false;// bUseTransparency;
-	Settings.bThumbMouseButtonNavigation = bThumbMouseButtonNavigation;
-	Settings.ContentsToLoad = ContentsToLoad;
-	Settings.bShowErrorMessage = ShowErrorMessage;
-	Settings.BackgroundColor = FColor::Black;// BackgroundColor;
-	Settings.BrowserFrameRate = BrowserFrameRate;
-	Settings.AltRetryDomains = AltRetryDomains;
-
-	return CreateBrowserWindow(Settings);
 }
 
 TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FCreateBrowserWindowSettings& WindowSettings)
@@ -802,16 +777,6 @@ FString FWebBrowserSingleton::GetCurrentLocaleCode()
 	}
 	return LocaleCode;
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void FWebBrowserSingleton::DeleteBrowserCookies(FString URL, FString CookieName, TFunction<void(int)> Completed)
-{
-	if (DefaultCookieManager.IsValid())
-	{
-		DefaultCookieManager->DeleteCookies(URL, CookieName, Completed);
-	}
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TSharedPtr<IWebBrowserCookieManager> FWebBrowserSingleton::GetCookieManager(TOptional<FString> ContextId) const
 {

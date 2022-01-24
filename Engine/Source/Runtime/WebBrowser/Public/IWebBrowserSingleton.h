@@ -109,45 +109,14 @@ public:
 	/**
 	 * Create a new web browser window
 	 *
-	 * @param OSWindowHandle Handle of OS Window that the browser will be displayed in (can be null)
-	 * @param InitialURL URL that the browser should initially navigate to
-	 * @param bUseTransparency Whether to allow transparent rendering of pages
-	 * @param ContentsToLoad Optional string to load as a web page
-	 * @param ShowErrorMessage Whether to show an error message in case of loading errors.
-	 * @param BackgroundColor Opaque background color used before a document is loaded and when no document color is specified.
-	 * @param BrowserFrameRate The framerate of the browser in FPS
+	 * @param Settings Struct containing browser window settings
 	 * @return New Web Browser Window Interface (may be null if not supported)
 	 */
-	UE_DEPRECATED(4.11, "Please use the new overload that takes a settings struct.")
-	virtual TSharedPtr<IWebBrowserWindow> CreateBrowserWindow(
-		void* OSWindowHandle,
-		FString InitialURL,
-		bool bUseTransparency,
-		bool bThumbMouseButtonNavigation,
-		TOptional<FString> ContentsToLoad = TOptional<FString>(),
-		bool ShowErrorMessage = true,
-		FColor BackgroundColor = FColor(255, 255, 255, 255),
-		int BrowserFrameRate = 24,
-		const TArray<FString>& AltRetryDomains = TArray<FString>()) = 0;
-
 	virtual TSharedPtr<IWebBrowserWindow> CreateBrowserWindow(const FCreateBrowserWindowSettings& Settings) = 0;
 
 #if	BUILD_EMBEDDED_APP
 	virtual TSharedPtr<IWebBrowserWindow> CreateNativeBrowserProxy() = 0;
 #endif
-
-	/**
-	 * Delete all browser cookies.
-	 *
-	 * Removes all matching cookies. Leave both URL and CookieName blank to delete the entire cookie database.
-	 * The actual deletion will be scheduled on the browser IO thread, so the operation may not have completed when the function returns.
-	 *
-	 * @param URL The base URL to match when searching for cookies to remove. Use blank to match all URLs.
-	 * @param CookieName The name of the cookie to delete. If left unspecified, all cookies will be removed.
-	 * @param Completed A callback function that will be invoked asynchronously on the game thread when the deletion is complete passing in the number of deleted objects.
-	 */
-	UE_DEPRECATED(4.11, "Please use the CookieManager instead via GetCookieManager().")
-	virtual void DeleteBrowserCookies(FString URL = TEXT(""), FString CookieName = TEXT(""), TFunction<void(int)> Completed = nullptr) = 0;
 
 	virtual TSharedPtr<class IWebBrowserCookieManager> GetCookieManager() const = 0;
 

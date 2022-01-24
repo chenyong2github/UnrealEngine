@@ -710,12 +710,6 @@ public:
 	 */
 	static bool FixPackageNameCase(FString& LongPackageName, FStringView Extension);
 
-	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertLongPackageNameToFilename instead, which also works on nested paths")
-	static bool ConvertRootPathToContentPath(const FString& RootPath, FString& OutContentPath);
-
-	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertFilenameToLongPackageName instead")
-	static FString PackageFromPath(const TCHAR* InPathName);
-
 	/** Override whether a package exist or not. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesPackageExistOverride, FName);
 	static FDoesPackageExistOverride& DoesPackageExistOverride()

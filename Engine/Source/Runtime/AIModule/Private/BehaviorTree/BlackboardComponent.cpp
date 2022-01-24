@@ -397,23 +397,6 @@ void UBlackboardComponent::ResumeObserverNotifications(bool bSendQueuedObserverN
 	QueuedUpdates.Empty();
 }
 
-void UBlackboardComponent::PauseUpdates()
-{
-	bPausedNotifies = true;
-}
-
-void UBlackboardComponent::ResumeUpdates()
-{
-	bPausedNotifies = false;
-
-	for (int32 UpdateIndex = 0; UpdateIndex < QueuedUpdates.Num(); UpdateIndex++)
-	{
-		NotifyObservers(QueuedUpdates[UpdateIndex]);
-	}
-
-	QueuedUpdates.Empty();
-}
-
 void UBlackboardComponent::NotifyObservers(FBlackboard::FKey KeyID) const
 {
 	TMultiMap<uint8, FOnBlackboardChangeNotificationInfo>::TKeyIterator KeyIt(Observers, KeyID);

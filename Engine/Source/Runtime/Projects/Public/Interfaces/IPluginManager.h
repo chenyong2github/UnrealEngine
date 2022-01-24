@@ -324,14 +324,6 @@ public:
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() = 0;
 
 	/**
-	 * Gets status about all currently known plug-ins.
-	 *
-	 * @return	 Array of plug-in status objects.
-	 */
-	UE_DEPRECATED(4.18, "QueryStatusForAllPlugins() has been deprecated. Please use GetDiscoveredPlugins() instead.")
-	virtual TArray<FPluginStatus> QueryStatusForAllPlugins() const = 0;
-
-	/**
 	 * Stores the specified path, utilizing it in future search passes when 
 	 * searching for available plugins. Optionally refreshes the manager after 
 	 * the new path has been added.

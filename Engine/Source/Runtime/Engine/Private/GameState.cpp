@@ -43,11 +43,6 @@ void AGameState::DefaultTimer()
 	GetWorldTimerManager().SetTimer(TimerHandle_DefaultTimer, this, &AGameState::DefaultTimer, GetWorldSettings()->GetEffectiveTimeDilation() / GetWorldSettings()->DemoPlayTimeDilation, true);
 }
 
-bool AGameState::ShouldShowGore() const
-{
-	return true;
-}
-
 void AGameState::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();

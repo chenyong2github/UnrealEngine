@@ -60,84 +60,7 @@ struct FOverlappingCorners;
 class IMeshUtilities : public IModuleInterface
 {
 public:
-	/************************************************************************/
-	/*  DEPRECATED FUNCTIONALITY                                            */
-	/************************************************************************/
 
-	/**
-	* Harvest static mesh components from input actors
-	* and merge into signle mesh grouping them by unique materials
-	*
-	* @param SourceActors				List of actors to merge
-	* @param InSettings				Settings to use
-	* @param InOuter					Outer if required
-	* @param InBasePackageName			Destination package name for a generated assets. Used if Outer is null.
-	* @param UseLOD					-1 if you'd like to build for all LODs. If you specify, that LOD mesh for source meshes will be used to merge the mesh
-	*									This is used by hierarchical building LODs
-	* @param OutAssetsToSync			Merged mesh assets
-	* @param OutMergedActorLocation	World position of merged mesh
-	*/
-
-	virtual void MergeActors(
-		const TArray<AActor*>& SourceActors,
-		const FMeshMergingSettings& InSettings,
-		UPackage* InOuter,
-		const FString& InBasePackageName,
-		TArray<UObject*>& OutAssetsToSync, 
-		FVector& OutMergedActorLocation, 
-		bool bSilent=false) const = 0;
-	/**
-	* MergeStaticMeshComponents
-	*
-	* @param ComponentsToMerge - Components to merge
-	* @param World - World in which the component reside
-	* @param InSettings	- Settings to use
-	* @param InOuter - Outer if required
-	* @param InBasePackageName - Destination package name for a generated assets. Used if Outer is null.
-	* @param UseLOD	-1 if you'd like to build for all LODs. If you specify, that LOD mesh for source meshes will be used to merge the mesh
-	*									This is used by hierarchical building LODs
-	* @param OutAssetsToSync Merged mesh assets
-	* @param OutMergedActorLocation	World position of merged mesh
-	* @param ViewDistance Distance for LOD determination
-	* @param bSilent Non-verbose flag
-	* @return void
-	*/
-	virtual void MergeStaticMeshComponents(
-		const TArray<UStaticMeshComponent*>& ComponentsToMerge,
-		UWorld* World,
-		const FMeshMergingSettings& InSettings,
-		UPackage* InOuter,
-		const FString& InBasePackageName,
-		TArray<UObject*>& OutAssetsToSync,
-		FVector& OutMergedActorLocation,
-		const float ScreenAreaSize,
-		bool bSilent /*= false*/) const = 0;
-	
-	/**
-	* Creates a (proxy)-mesh combining the static mesh components from the given list of actors (at the moment this requires having Simplygon)
-	*
-	* @param InActors - List of Actors to merge
-	* @param InMeshProxySettings - Merge settings
-	* @param InOuter - Package for a generated assets, if NULL new packages will be created for each asset
-	* @param InProxyBasePackageName - Will be used for naming generated assets, in case InOuter is not specified ProxyBasePackageName will be used as long package name for creating new packages
-	* @param InGuid - Guid identifying the data used for this proxy job
-	* @param InProxyCreatedDelegate - Delegate callback for when the proxy is finished
-	* @param bAllowAsync - Flag whether or not this call could be run async (SimplygonSwarm)
-	*/
-	virtual void CreateProxyMesh(const TArray<class AActor*>& InActors, const struct FMeshProxySettings& InMeshProxySettings, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, FCreateProxyDelegate InProxyCreatedDelegate, const bool bAllowAsync = false, const float ScreenAreaSize = 1.0f) = 0;
-
-	/**
-	* FlattenMaterialsWithMeshData
-	*
-	* @param InMaterials - List of unique materials used by InSourceMeshes
-	* @param InSourceMeshes - List of raw meshes used to flatten the materials with (vertex data)
-	* @param InMaterialIndexMap - Map used for mapping the raw meshes to the correct materials
-	* @param InMeshShouldBakeVertexData - Array of flags to determine whether or not a mesh requires to have its vertex data baked down
-	* @param InMaterialProxySettings - Settings for creating the flattened material
-	* @param OutFlattenedMaterials - List of flattened materials (one for each mesh)
-	*/
-	virtual	void FlattenMaterialsWithMeshData(TArray<UMaterialInterface*>& InMaterials, TArray<struct FRawMeshExt>& InSourceMeshes, TMap<FMeshIdAndLOD, TArray<int32>>& InMaterialIndexMap, TArray<bool>& InMeshShouldBakeVertexData, const FMaterialProxySettings &InMaterialProxySettings, TArray<FFlattenMaterial> &OutFlattenedMaterials) const = 0;
-	
 	/**
 	* Calculates (new) non-overlapping UV coordinates for the given Raw Mesh
 	*
@@ -150,14 +73,6 @@ public:
 	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const = 0;
 	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2f>& OutTexCoords) const = 0;
 	
-	/** Returns the mesh reduction plugin if available. */
-	virtual IMeshReduction* GetStaticMeshReductionInterface() = 0;
-
-	/** Returns the mesh reduction plugin if available. */
-	virtual IMeshReduction* GetSkeletalMeshReductionInterface() = 0;
-
-	/** Returns the mesh merging plugin if available. */
-	virtual IMeshMerging* GetMeshMergingInterface() = 0;
 public:
 	/** Returns a string uniquely identifying this version of mesh utilities. */
 	virtual const FString& GetVersionString() const = 0;

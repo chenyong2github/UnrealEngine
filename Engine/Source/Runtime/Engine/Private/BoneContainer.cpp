@@ -640,8 +640,3 @@ bool FBoneReference::IsValidToEvaluate(const FBoneContainer& RequiredBones) cons
 {
 	return (BoneIndex != INDEX_NONE && RequiredBones.Contains(BoneIndex));
 }
-
-bool FBoneReference::IsValid(const FBoneContainer& RequiredBones) const
-{
-	return IsValidToEvaluate(RequiredBones);
-}

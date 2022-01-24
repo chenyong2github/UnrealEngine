@@ -12,16 +12,6 @@ class ITargetDeviceProxy;
 class ITargetDeviceProxyManager;
 class ITargetDeviceServiceManager;
 
-
-/** Type definition for shared pointers to instances of ITargetDeviceProxyManager. */
-UE_DEPRECATED(4.16, "ITargetDeviceProxyManagerPtr is deprecated. Please use 'TSharedPtr<ITargetDeviceProxyManager>' instead!")
-typedef TSharedPtr<class ITargetDeviceProxyManager> ITargetDeviceProxyManagerPtr;
-
-/** Type definition for shared references to instances of ITargetDeviceProxyManager. */
-UE_DEPRECATED(4.16, "ITargetDeviceProxyManagerRef is deprecated. Please use 'TSharedPtr<ITargetDeviceProxyManager>' instead!")
-typedef TSharedRef<class ITargetDeviceProxyManager> ITargetDeviceProxyManagerRef;
-
-
 /**
  * Interface for device proxy managers.
  */

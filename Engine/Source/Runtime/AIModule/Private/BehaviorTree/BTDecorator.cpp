@@ -209,10 +209,3 @@ void UBTDecorator::UpdateFlowAbortMode()
 #endif
 }
 
-//----------------------------------------------------------------------//
-// DEPRECATED
-//----------------------------------------------------------------------//
-void UBTDecorator::InitializeDecorator(uint8 InChildIndex)
-{
-	InitializeParentLink(InChildIndex);
-}

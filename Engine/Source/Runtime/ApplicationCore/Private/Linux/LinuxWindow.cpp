@@ -826,11 +826,6 @@ bool FLinuxWindow::IsUtilityWindow() const
 	return bIsUtilityWindow;
 }
 
-bool FLinuxWindow::IsActivateWhenFirstShown() const
-{
-	return GetActivationPolicy() != EWindowActivationPolicy::Never;
-}
-
 EWindowActivationPolicy FLinuxWindow::GetActivationPolicy() const
 {
 	return Definition->ActivationPolicy;

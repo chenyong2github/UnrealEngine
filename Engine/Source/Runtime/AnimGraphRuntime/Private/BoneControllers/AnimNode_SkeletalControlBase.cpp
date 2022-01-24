@@ -146,11 +146,6 @@ void FAnimNode_SkeletalControlBase::AddDebugNodeData(FString& OutDebugData)
 
 void FAnimNode_SkeletalControlBase::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Call legacy implementation for backwards compatibility
-	EvaluateBoneTransforms(Output.AnimInstanceProxy->GetSkelMeshComponent(), Output.Pose, OutBoneTransforms);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_SkeletalControlBase::SetAlpha(float InAlpha)

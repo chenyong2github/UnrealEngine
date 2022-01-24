@@ -22,10 +22,6 @@ class FLevelSequenceSpawnRegister;
 class FViewportClient;
 class UCameraComponent;
 
-struct UE_DEPRECATED(4.15, "Please use FMovieSceneSequencePlaybackSettings.") FLevelSequencePlaybackSettings
-	: public FMovieSceneSequencePlaybackSettings
-{};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelSequencePlayerCameraCutEvent, UCameraComponent*, CameraComponent);
 
 USTRUCT(BlueprintType)
@@ -132,13 +128,6 @@ public:
 	UCameraComponent* GetActiveCameraComponent() const { return CachedCameraComponent.Get(); }
 
 public:
-
-	/**
-	 * Access the level sequence this player is playing
-	 * @return the level sequence currently assigned to this player
-	 */
-	UE_DEPRECATED(4.15, "Please use GetSequence instead.")
-	ULevelSequence* GetLevelSequence() const { return Cast<ULevelSequence>(Sequence); }
 
 	// IMovieScenePlayer interface
 	virtual UObject* GetPlaybackContext() const override;

@@ -1887,28 +1887,6 @@ TArray<TSharedRef<IPlugin>> FPluginManager::GetDiscoveredPlugins()
 	return Plugins;
 }
 
-TArray< FPluginStatus > FPluginManager::QueryStatusForAllPlugins() const
-{
-	TArray< FPluginStatus > PluginStatuses;
-	PluginStatuses.Reserve(AllPlugins.Num());
-
-	for( const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins )
-	{
-		const TSharedRef< FPlugin >& Plugin = PluginPair.Value;
-		
-		FPluginStatus PluginStatus;
-		PluginStatus.Name = Plugin->Name;
-		PluginStatus.PluginDirectory = FPaths::GetPath(Plugin->FileName);
-		PluginStatus.bIsEnabled = Plugin->bEnabled;
-		PluginStatus.Descriptor = Plugin->Descriptor;
-		PluginStatus.LoadedFrom = Plugin->GetLoadedFrom();
-
-		PluginStatuses.Add( PluginStatus );
-	}
-
-	return PluginStatuses;
-}
-
 bool FPluginManager::AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh)
 {
 	bool bAlreadyExists = false;

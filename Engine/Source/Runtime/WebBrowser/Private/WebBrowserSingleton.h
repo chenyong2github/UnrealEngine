@@ -78,24 +78,11 @@ public:
 		TSharedPtr<FCEFWebBrowserWindow>& BrowserWindowParent,
 		TSharedPtr<FWebBrowserWindowInfo>& BrowserWindowInfo) override;
 
-	TSharedPtr<IWebBrowserWindow> CreateBrowserWindow(
-		void* OSWindowHandle,
-		FString InitialURL,
-		bool bUseTransparency,
-		bool bThumbMouseButtonNavigation,
-		TOptional<FString> ContentsToLoad = TOptional<FString>(),
-		bool ShowErrorMessage = true,
-		FColor BackgroundColor = FColor(255, 255, 255, 255),
-		int BrowserFrameRate = 24,
-		const TArray<FString>& AltRetryDomains = TArray<FString>()) override;
-
 	TSharedPtr<IWebBrowserWindow> CreateBrowserWindow(const FCreateBrowserWindowSettings& Settings) override;
 
 #if	BUILD_EMBEDDED_APP
 	TSharedPtr<IWebBrowserWindow> CreateNativeBrowserProxy() override;
 #endif
-
-	virtual void DeleteBrowserCookies(FString URL = TEXT(""), FString CookieName = TEXT(""), TFunction<void(int)> Completed = nullptr) override;
 
 	virtual TSharedPtr<IWebBrowserCookieManager> GetCookieManager() const override
 	{

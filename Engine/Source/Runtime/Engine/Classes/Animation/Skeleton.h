@@ -948,17 +948,6 @@ public:
 	 */
 	ENGINE_API bool RecreateBoneTree(USkeletalMesh* InSkelMesh);
 
-	/** This is const accessor for BoneTree
-	 *  Understand there will be a lot of need to access BoneTree, but 
-	 *	Anybody modifying BoneTree will corrupt animation data, so will need to make sure it's not modifiable outside of Skeleton
-	 *	You can add new BoneNode but you can't modify current list. The index will be referenced by Animation data.
-	 */
-	UE_DEPRECATED(4.14, "GetBoneTree should not be called. Please use GetBoneTranslationRetargetingMode()/SetBoneTranslationRetargetingMode() functions instead")
-	const TArray<FBoneNode>& GetBoneTree()	const
-	{ 
-		return BoneTree;	
-	}
-
 	// @todo document
 	const TArray<FTransform>& GetRefLocalPoses( FName RetargetSource = NAME_None ) const 
 	{

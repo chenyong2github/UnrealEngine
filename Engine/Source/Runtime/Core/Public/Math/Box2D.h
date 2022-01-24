@@ -39,17 +39,6 @@ public:
 	 * Creates and initializes a new box.
 	 *
 	 * The box extents are initialized to zero and the box is marked as invalid.
-	 */
-	UE_DEPRECATED(4.16, "Use ForceInit constructor instead.")
-	TBox2<T>( int32 )
-	{
-		Init();
-	}
-
-	/**
-	 * Creates and initializes a new box.
-	 *
-	 * The box extents are initialized to zero and the box is marked as invalid.
 	 *
 	 * @param EForceInit Force Init Enum.
 	 */

@@ -179,14 +179,6 @@ public:
 		return AnimClassInterface;
 	}
 
-	// Get the Blueprint Generated Class associated with this context, if there is one.
-	// Note: This can return NULL, so check the result.
-	UE_DEPRECATED(4.11, "GetAnimBlueprintClass() is deprecated, UAnimBlueprintGeneratedClass should not be directly used at runtime. Please use GetAnimClassInterface() instead.")
-	UAnimBlueprintGeneratedClass* GetAnimBlueprintClass() const
-	{
-		return Cast<UAnimBlueprintGeneratedClass>(IAnimClassInterface::GetActualAnimClass(AnimClassInterface));
-	}
-
 	/** Get the last DeltaSeconds passed into PreUpdate() */
 	float GetDeltaSeconds() const
 	{

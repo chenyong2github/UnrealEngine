@@ -137,7 +137,6 @@ public:
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithVerse() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContentOrVerse() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;
-	virtual TArray< FPluginStatus > QueryStatusForAllPlugins() const override;
 	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;
 	const TSet<FString>& GetAdditionalPluginSearchPaths() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetPluginsWithPakFile() const override;

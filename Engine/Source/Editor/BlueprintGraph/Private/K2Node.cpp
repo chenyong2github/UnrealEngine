@@ -55,7 +55,6 @@ namespace UK2Node_Private
 UK2Node::UK2Node(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bAllowSplitPins_DEPRECATED = true;
 	OrphanedPinSaveMode = ESaveOrphanPinMode::SaveAllButExec;
 }
 
@@ -1292,14 +1291,7 @@ void UK2Node::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 
 bool UK2Node::CanSplitPin(const UEdGraphPin* Pin) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// AllowSplitPins is deprecated. Remove this block when that function is eventually removed.
-	if (AllowSplitPins())
-	{
-		return (Pin->GetOwningNode() == this && !Pin->bNotConnectable && Pin->LinkedTo.Num() == 0 && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return false;
+	return (Pin->GetOwningNode() == this && !Pin->bNotConnectable && Pin->LinkedTo.Num() == 0 && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct);
 }
 
 UK2Node* UK2Node::ExpandSplitPin(FKismetCompilerContext* CompilerContext, UEdGraph* SourceGraph, UEdGraphPin* Pin)

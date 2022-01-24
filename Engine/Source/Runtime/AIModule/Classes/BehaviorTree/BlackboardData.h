@@ -177,8 +177,4 @@ protected:
 
 	/** @return key ID from name */
 	FBlackboard::FKey InternalGetKeyID(const FName& KeyName, EKeyLookupMode LookupMode) const;
-
-	/** check if parent chain contains given blackboard data */
-	UE_DEPRECATED(4.14, "This function is deprecated, please use IsChildOf instead.")
-	bool HasParent(const UBlackboardData* TestParent) const;
 };

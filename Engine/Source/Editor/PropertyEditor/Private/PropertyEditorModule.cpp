@@ -475,31 +475,6 @@ void FPropertyEditorModule::RegisterCustomPropertyTypeLayout( FName PropertyType
 	}
 }
 
-void FPropertyEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier, TSharedPtr<IDetailsView> ForSpecificInstance)
-{
-	if (ForSpecificInstance.IsValid())
-	{
-		ForSpecificInstance->RegisterInstancedCustomPropertyTypeLayout(PropertyTypeName, PropertyTypeLayoutDelegate, Identifier);
-	}
-	else
-	{
-		RegisterCustomPropertyTypeLayout(PropertyTypeName, PropertyTypeLayoutDelegate, Identifier);
-	}
-}
-
-void FPropertyEditorModule::UnregisterCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> InIdentifier, TSharedPtr<IDetailsView> ForSpecificInstance)
-{
-	if (ForSpecificInstance.IsValid())
-	{
-		ForSpecificInstance->UnregisterInstancedCustomPropertyTypeLayout(PropertyTypeName, InIdentifier);
-	}
-	else
-	{
-		UnregisterCustomPropertyTypeLayout(PropertyTypeName, InIdentifier);
-	}
-}
-
-
 void FPropertyEditorModule::UnregisterCustomPropertyTypeLayout( FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> Identifier)
 {
 	if (!PropertyTypeName.IsValid() || (PropertyTypeName == NAME_None))

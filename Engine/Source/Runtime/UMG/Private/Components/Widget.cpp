@@ -1078,11 +1078,6 @@ const FText UWidget::GetPaletteCategory()
 	return LOCTEXT("Uncategorized", "Uncategorized");
 }
 
-const FSlateBrush* UWidget::GetEditorIcon()
-{
-	return nullptr;
-}
-
 EVisibility UWidget::GetVisibilityInDesigner() const
 {
 	return bHiddenInDesigner ? EVisibility::Collapsed : EVisibility::Visible;

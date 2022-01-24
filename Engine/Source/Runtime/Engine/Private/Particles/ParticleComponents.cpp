@@ -8339,17 +8339,7 @@ void AEmitterCameraLensEffectBase::ActivateLensEffect()
 	check(World);
 	if( !IsNetMode(NM_DedicatedServer) )
 	{
-		UParticleSystem* PSToActuallySpawn = PS_CameraEffect;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		AGameState* GameState = World->GetGameState<AGameState>();
-		if(GameState && !GameState->ShouldShowGore() )
-		{
-			PSToActuallySpawn = PS_CameraEffectNonExtremeContent_DEPRECATED;
-		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		if( PSToActuallySpawn != NULL )
+		if (PS_CameraEffect)
 		{
 			SetTemplate( PS_CameraEffect );
 		}
@@ -8368,11 +8358,6 @@ void AEmitterCameraLensEffectBase::DeactivateLensEffect()
 bool AEmitterCameraLensEffectBase::IsLooping() const
 {
 	if ((PS_CameraEffect != nullptr) && PS_CameraEffect->IsLooping())
-	{
-		return true;
-	}
-
-	if ((PS_CameraEffectNonExtremeContent_DEPRECATED != nullptr) && PS_CameraEffectNonExtremeContent_DEPRECATED->IsLooping())
 	{
 		return true;
 	}

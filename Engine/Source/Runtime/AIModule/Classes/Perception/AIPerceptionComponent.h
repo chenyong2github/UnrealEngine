@@ -408,9 +408,6 @@ public:
 	FActorPerceptionInfoUpdatedDelegate OnTargetPerceptionInfoUpdated;
 
 protected:
-	UE_DEPRECATED(4.11, "Function has been renamed and made public. Please use UpdatePerceptionAllowList instead")
-	void UpdatePerceptionFilter(FAISenseID Channel, bool bNewValue);
-
 	FActorPerceptionContainer& GetPerceptualData() { return PerceptualData; }
 	const FActorPerceptionContainer& GetPerceptualData() const { return PerceptualData; }
 

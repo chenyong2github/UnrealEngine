@@ -740,12 +740,6 @@ public:
 	/** Get the linear drive's strength parameters */
 	void GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit);
 
-	UE_DEPRECATED(4.15, "Please call SetOrientationDriveTwistAndSwing. Note the order of bools is reversed (Make sure to pass Twist and then Swing)")
-	void SetAngularPositionDrive(bool bInEnableSwingDrive, bool bInEnableTwistDrive)
-	{
-		SetOrientationDriveTwistAndSwing(bInEnableTwistDrive, bInEnableSwingDrive);
-	}
-
 	/** Set which twist and swing orientation drives are enabled. Only applicable when Twist And Swing drive mode is used */
 	void SetOrientationDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
 
@@ -774,12 +768,6 @@ public:
 	const FRotator& GetAngularOrientationTarget() const
 	{
 		return ProfileInstance.AngularDrive.OrientationTarget;
-	}
-
-	UE_DEPRECATED(4.15, "Please call SetAngularVelocityDriveTwistAndSwing. Note the order of bools is reversed (Make sure to pass Twist and then Swing)")
-	void SetAngularVelocityDrive(bool bInEnableSwingDrive, bool bInEnableTwistDrive)
-	{
-		SetAngularVelocityDriveTwistAndSwing(bInEnableTwistDrive, bInEnableSwingDrive);
 	}
 
 	/** Set which twist and swing angular velocity drives are enabled. Only applicable when Twist And Swing drive mode is used */

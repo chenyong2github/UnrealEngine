@@ -752,10 +752,7 @@ struct FBoneReference
 	// it triggers ensure in those functions
 	ENGINE_API bool Initialize(const USkeleton* Skeleton);
 
-	/** Deprecated functions */
-	UE_DEPRECATED(4.17, "Please use IsValidToEvaluate instead")
-	ENGINE_API bool IsValid(const FBoneContainer& RequiredBones) const;
-	
+
 	/** return true if it has valid set up */
 	bool HasValidSetup() const
 	{

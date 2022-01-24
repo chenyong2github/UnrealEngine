@@ -11,16 +11,6 @@
 class FString;
 class ITargetDeviceService;
 
-
-/** Type definition for shared pointers to instances of ITargetDeviceServiceManager. */
-UE_DEPRECATED(4.16, "ITargetDeviceServiceManagerPtr is deprecated. Please use 'TSharedPtr<ITargetDeviceServiceManager>' instead!")
-typedef TSharedPtr<class ITargetDeviceServiceManager> ITargetDeviceServiceManagerPtr;
-
-/** Type definition for shared references to instances of ITargetDeviceServiceManager. */
-UE_DEPRECATED(4.16, "ITargetDeviceServiceManagerRef is deprecated. Please use 'TSharedPtr<ITargetDeviceServiceManager>' instead!")
-typedef TSharedRef<class ITargetDeviceServiceManager> ITargetDeviceServiceManagerRef;
-
-
 /**
  * Interface for target device service managers.
  */

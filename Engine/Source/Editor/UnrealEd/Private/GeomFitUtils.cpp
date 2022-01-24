@@ -642,12 +642,3 @@ void RefreshCollisionChangeComponentsOnly(UStaticMesh& StaticMesh)
 
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }
-
-/* *************************** DEPRECATED ******************************** */
-void RefreshCollisionChange(const UStaticMesh* StaticMesh)
-{
-	if (StaticMesh)
-	{
-		RefreshCollisionChange(const_cast<UStaticMesh&>(*StaticMesh));
-	}
-}

@@ -67,9 +67,6 @@ public:
 	/** TODO: describe */
 	bool IsUtilityWindow() const;
 
-	UE_DEPRECATED(4.16, "IsActivateWhenFirstShown() is deprecated. Please use GetActivationPolicy() instead")
-	bool IsActivateWhenFirstShown() const;
-
 	/** @return the window activation policy used when showing the window */
 	EWindowActivationPolicy GetActivationPolicy() const;
 	

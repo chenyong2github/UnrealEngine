@@ -67,9 +67,6 @@ public:
 	/** Called periodically, overridden by subclasses */
 	virtual void DefaultTimer();
 
-	UE_DEPRECATED(4.14, "ShouldShowGore is deprecated, it is not supported by newer assets")
-	virtual bool ShouldShowGore() const;
-
 	//~ Begin AActor Interface
 	virtual void PostInitializeComponents() override;
 	//~ End AActor Interface

@@ -524,16 +524,6 @@ public:
 	 */
 	UNREALED_API static bool PromptToCheckoutLevels(bool bCheckDirty, ULevel* SpecificLevelToCheckOut);
 
-	/**
-	 * Checks to see if a filename is valid for saving.
-	 * A filename must be under FPlatformMisc::GetMaxPathLength() to be saved
-	 *
-	 * @param Filename	Filename, with or without path information, to check.
-	 * @param OutError	If an error occurs, this is the reason why
-	 */
-	UE_DEPRECATED(4.18, "Call FFileHelper::IsFilenameValidForSaving instead")
-	UNREALED_API static bool IsFilenameValidForSaving(const FString& Filename, FText& OutError);
-
 	/** Loads a simple example map */
 	UNREALED_API static void LoadDefaultMapAtStartup();
 	

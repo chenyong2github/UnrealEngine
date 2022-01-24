@@ -758,15 +758,6 @@ public:
 	virtual bool CaptureMouseOnLaunch() override;
 
 	/**
-	 * Sets whether or not the cursor is locked to the viewport when the viewport captures the mouse
-	 */
-	UE_DEPRECATED(4.13, "Mouse locking is now controlled by an enum value. Please call UGameViewportClient::SetMouseLockMode(EMouseLockMode) instead.")
-	void SetLockDuringCapture(bool InLockDuringCapture)
-	{
-		SetMouseLockMode( InLockDuringCapture ? EMouseLockMode::LockOnCapture : EMouseLockMode::DoNotLock );
-	}
-
-	/**
 	 * Gets whether or not the cursor is locked to the viewport when the viewport captures the mouse
 	 */
 	virtual bool LockDuringCapture() override

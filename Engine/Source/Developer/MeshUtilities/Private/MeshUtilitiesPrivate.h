@@ -17,45 +17,6 @@
 
 class FMeshUtilities : public IMeshUtilities
 {
-public:
-	UE_DEPRECATED(4.17, "Use functionality in new MeshReduction Module")
-	virtual IMeshReduction* GetStaticMeshReductionInterface() override;
-	
-	UE_DEPRECATED(4.17, "Use functionality in new MeshReduction Module")
-	virtual IMeshReduction* GetSkeletalMeshReductionInterface() override;
-	
-	UE_DEPRECATED(4.17, "Use functionality in new MeshReduction Module")
-	virtual IMeshMerging* GetMeshMergingInterface() override;
-	
-	UE_DEPRECATED(4.17, "Use functionality in new MeshMergeUtilities Module")
-	virtual void MergeActors(
-		const TArray<AActor*>& SourceActors,
-		const FMeshMergingSettings& InSettings,
-		UPackage* InOuter,
-		const FString& InBasePackageName,
-		TArray<UObject*>& OutAssetsToSync,
-		FVector& OutMergedActorLocation,
-		bool bSilent = false) const override;
-
-	UE_DEPRECATED(4.17, "Use functionality in new MeshMergeUtilities Module")
-	virtual void MergeStaticMeshComponents(
-		const TArray<UStaticMeshComponent*>& ComponentsToMerge,
-		UWorld* World,
-		const FMeshMergingSettings& InSettings,
-		UPackage* InOuter,
-		const FString& InBasePackageName,
-		TArray<UObject*>& OutAssetsToSync,
-		FVector& OutMergedActorLocation,
-		const float ScreenSize,
-		bool bSilent = false) const override;
-
-	UE_DEPRECATED(4.17, "Use functionality in new MeshMergeUtilities Module")
-	virtual void CreateProxyMesh(const TArray<AActor*>& InActors, const struct FMeshProxySettings& InMeshProxySettings, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, FCreateProxyDelegate InProxyCreatedDelegate, const bool bAllowAsync,
-	const float ScreenAreaSize = 1.0f) override;
-
-	UE_DEPRECATED(4.17, "Function is removed, use functionality in new MeshMergeUtilities Module")
-	virtual void FlattenMaterialsWithMeshData(TArray<UMaterialInterface*>& InMaterials, TArray<FRawMeshExt>& InSourceMeshes, TMap<FMeshIdAndLOD, TArray<int32>>& InMaterialIndexMap, TArray<bool>& InMeshShouldBakeVertexData, const FMaterialProxySettings &InMaterialProxySettings, TArray<FFlattenMaterial> &OutFlattenedMaterials) const override;
-
 private:
 	/** Cached version string. */
 	FString VersionString;

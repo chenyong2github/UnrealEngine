@@ -375,11 +375,6 @@ void UCrowdFollowingComponent::UpdateDestinationForMovingGoal(const FVector& New
 	CurrentDestination.Set(Path->GetBaseActor(), NewDestination);
 }
 
-bool UCrowdFollowingComponent::UpdateCachedGoal(FVector& NewGoalPos)
-{
-	return ShouldTrackMovingGoal(NewGoalPos);
-}
-
 void UCrowdFollowingComponent::ApplyCrowdAgentVelocity(const FVector& NewVelocity, const FVector& DestPathCorner, bool bTraversingLink, bool bIsNearEndOfPath)
 {
 	bCanCheckMovingTooFar = !bTraversingLink && bIsNearEndOfPath;
@@ -414,11 +409,6 @@ void UCrowdFollowingComponent::ApplyCrowdAgentVelocity(const FVector& NewVelocit
 void UCrowdFollowingComponent::ApplyCrowdAgentPosition(const FVector& NewPosition)
 {
 	// base implementation does nothing
-}
-
-void UCrowdFollowingComponent::SetCrowdSimulation(bool bEnable)
-{
-	SetCrowdSimulationState(bEnable ? ECrowdSimulationState::Enabled : ECrowdSimulationState::ObstacleOnly);
 }
 
 void UCrowdFollowingComponent::SetCrowdSimulationState(ECrowdSimulationState NewState)

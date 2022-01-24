@@ -2097,11 +2097,6 @@ bool FTextLayout::RemoveLine(int32 LineIndex)
 	return true;
 }
 
-void FTextLayout::AddLine( const TSharedRef< FString >& Text, const TArray< TSharedRef< IRun > >& Runs )
-{
-	AddLine(FNewLineData(Text, Runs));
-}
-
 void FTextLayout::AddLine( const FNewLineData& NewLine )
 {
 	{

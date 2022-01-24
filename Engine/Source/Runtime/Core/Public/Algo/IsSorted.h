@@ -58,37 +58,6 @@ namespace Algo
 	/**
 	 * Tests if a range is sorted by its element type's operator<.
 	 *
-	 * @param  Array      A pointer to the array to test for being sorted.
-	 * @param  ArraySize  The number of elements in the array.
-	 *
-	 * @return true if the range is sorted, false otherwise.
-	 */
-	template <typename T>
-	UE_DEPRECATED(4.16, "IsSorted taking a pointer and size has been deprecated - please pass a TArrayView instead")
-	FORCEINLINE bool IsSorted(const T* Array, int32 ArraySize)
-	{
-		return AlgoImpl::IsSortedBy(Array, ArraySize, FIdentityFunctor(), TLess<>());
-	}
-
-	/**
-	 * Tests if a range is sorted by a user-defined predicate.
-	 *
-	 * @param  Array      A pointer to the array to test for being sorted.
-	 * @param  ArraySize  The number of elements in the array.
-	 * @param  Pred       A binary sorting predicate which describes the ordering of the elements in the array.
-	 *
-	 * @return true if the range is sorted, false otherwise.
-	 */
-	template <typename T, typename PredType>
-	UE_DEPRECATED(4.16, "IsSorted taking a pointer and size has been deprecated - please pass a TArrayView instead")
-	FORCEINLINE bool IsSorted(const T* Array, int32 ArraySize, PredType Pred)
-	{
-		return AlgoImpl::IsSortedBy(Array, ArraySize, FIdentityFunctor(), MoveTemp(Pred));
-	}
-
-	/**
-	 * Tests if a range is sorted by its element type's operator<.
-	 *
 	 * @param  Range  The container to test for being sorted.
 	 *
 	 * @return true if the range is sorted, false otherwise.

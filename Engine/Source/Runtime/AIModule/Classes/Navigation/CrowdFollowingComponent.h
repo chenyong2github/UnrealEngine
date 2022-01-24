@@ -141,9 +141,6 @@ class AIMODULE_API UCrowdFollowingComponent : public UPathFollowingComponent, pu
 	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
 #endif // ENABLE_VISUAL_LOG
 
-	UE_DEPRECATED(4.11, "Use SetCrowdSimulationState function instead.")
-	virtual void SetCrowdSimulation(bool bEnable);
-
 	UE_DEPRECATED_FORGAME(4.16, "Use ApplyCrowdAgentVelocity function with bIsNearEndOfPath param instead.")
 	virtual void ApplyCrowdAgentVelocity(const FVector& NewVelocity, const FVector& DestPathCorner, bool bTraversingLink) {}
 
@@ -184,9 +181,6 @@ protected:
 
 	/** if set, move velocity will be updated in every tick */
 	uint8 bUpdateDirectMoveVelocity : 1;
-
-	UE_DEPRECATED(4.11, "Please use IsCrowdSimulationEnabled(), SetCrowdSimulationState() and SimulationState member for initialization.")
-	uint8 bEnableCrowdSimulation : 1;
 
 	/** set when agent is registered in crowd simulation (either controlled or an obstacle) */
 	uint8 bRegisteredWithCrowdSimulation : 1;
@@ -248,8 +242,6 @@ protected:
 	bool HasMovedDuringPause() const;
 	void UpdateCachedDirections(const FVector& NewVelocity, const FVector& NextPathCorner, bool bTraversingLink);
 
-	UE_DEPRECATED(4.12, "This function is now deprecated and was renamed to ShouldTrackMovingGoal.")
-	virtual bool UpdateCachedGoal(FVector& NewGoalPos);
 	virtual bool ShouldTrackMovingGoal(FVector& OutGoalLocation) const;
 	
 	void RegisterCrowdAgent();

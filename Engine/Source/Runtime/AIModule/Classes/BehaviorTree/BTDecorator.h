@@ -138,12 +138,6 @@ protected:
 		bNotifyDeactivation = !TIsSame<decltype(&UBTDecorator::OnNodeDeactivation), OnNodeDeactivation>::Value;
 		bNotifyProcessed = !TIsSame<decltype(&UBTDecorator::OnNodeProcessed), OnNodeProcessed>::Value;
 	}
-
-	//----------------------------------------------------------------------//
-	// DEPRECATED
-	//----------------------------------------------------------------------//
-	UE_DEPRECATED(4.12, "This function is deprecated, please use InitializeParentLink instead.")
-	void InitializeDecorator(uint8 InChildIndex);
 };
 
 #define INIT_DECORATOR_NODE_NOTIFY_FLAGS() \

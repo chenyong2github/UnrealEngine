@@ -225,10 +225,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual UObject* CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None, const bool bCallConfigureProperties = true) = 0;
 
-	/** Opens an asset picker dialog and creates an asset with the chosen path */
-	UE_DEPRECATED(4.17, "This version of CreateAsset has been deprecated.  Use CreateAssetWithDialog instead")
-	virtual UObject* CreateAsset(UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None) = 0;
-
 	/** Opens an asset picker dialog and creates an asset with the path chosen in the dialog */
 	virtual UObject* CreateAssetWithDialog(UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None) = 0;
 
@@ -273,9 +269,6 @@ public:
 
 	/** Event issued at the end of the rename process */
 	virtual FAssetPostRenameEvent& OnAssetPostRename() = 0;
-
-	UE_DEPRECATED(4.17, "This version of ImportAssets has been deprecated.  Use ImportAssetsWithDialog instead")
-	virtual TArray<UObject*> ImportAssets(const FString& DestinationPath) = 0;
 
 	/**
 	 * Opens a file open dialog to choose files to import to the destination path.

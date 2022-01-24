@@ -376,10 +376,6 @@ public:
 	UPROPERTY()
 	uint32 bEnableLODLocking:1;
 
-	/** If true, actors can be grouped and grouping rules will be maintained. When deactivated, any currently existing groups will still be preserved.*/
-	UE_DEPRECATED(4.17, "bGroupingActive has been deprecated.  Use UActorGroupingUtils::IsGroupingActive instead")
-	uint32 bGroupingActive:1;
-
 	UPROPERTY(config)
 	FString HeightMapExportClassName;
 
@@ -1955,14 +1951,6 @@ public:
 	void ExportMap(UWorld* InWorld, const TCHAR* InFilename, bool bExportSelectedActorsOnly);
 
 	/**
-	 * Moves selected actors to the current level.
-	 *
-	 * @param	InLevel		The destination level.
-	 */
-	UE_DEPRECATED(4.17, "MoveSelectedActorsToLevel has been deprecated.  Use UEditorLevelUtils::MoveSelectedActorsToLevel instead")
-	void MoveSelectedActorsToLevel( ULevel* InLevel );
-
-	/**
 	 *	Returns list of all foliage types used in the world
 	 * 
 	 * @param	InWorld	 The target world.
@@ -3169,10 +3157,6 @@ protected:
 
 	// Handle requests from slate application to open assets.
 	bool HandleOpenAsset(UObject* Asset);
-
-public:
-	UE_DEPRECATED(4.17, "IsUsingWorldAssets is now always true, remove any code that assumes it could be false")
-	static bool IsUsingWorldAssets() { return true; }
 
 private:
 	/** Handler for when any asset is loaded in the editor */

@@ -152,9 +152,6 @@ public:
 
 	virtual void Tick (float DeltaTime) override;
 
-	UE_DEPRECATED(4.17, "IsUsingWorldAssets is now always true, remove any code that assumes it could be false")
-	static bool IsUsingWorldAssets() { return true; }
-
 	virtual void ReadLockEnumerateTagToAssetDatas(TFunctionRef<void(FName TagName, const TArray<const FAssetData*>& Assets)> Callback) const override;
 
 	virtual bool IsPathBeautificationNeeded(const FString& InAssetPath) const override;

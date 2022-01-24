@@ -1039,12 +1039,3 @@ private:
 	/** Sigfnifies that the handler array is being accessed and other threads should wait or skip */
 	FCriticalSection		HandlersCS;
 };
-
-
-/** Type definition for shared pointers to instances of FMessageEndpoint. */
-UE_DEPRECATED(4.16, "FMessageEndpointPtr is deprecated. Please use 'TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>' instead!")
-typedef TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> FMessageEndpointPtr;
-
-/** Type definition for shared references to instances of FMessageEndpoint. */
-UE_DEPRECATED(4.16, "FMessageEndpointRef is deprecated. Please use 'TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>' instead!")
-typedef TSharedRef<FMessageEndpoint, ESPMode::ThreadSafe> FMessageEndpointRef;

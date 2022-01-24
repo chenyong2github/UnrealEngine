@@ -943,10 +943,6 @@ public:
 	 */
 	virtual void OnCreationFromPalette() { }
 
-	/** Gets the editor icon */
-	UE_DEPRECATED(4.12, "GetEditorIcon is deprecated. Please define widget icons in your style set in the form ClassIcon.MyWidget, and register your style through FClassIconFinder::(Un)RegisterIconSource")
-	virtual const FSlateBrush* GetEditorIcon();
-
 	/** Allows general fixups and connections only used at editor time. */
 	virtual void ConnectEditorData() { }
 
@@ -1005,16 +1001,6 @@ protected:
 	/** Function called after the underlying SWidget is constructed. */
 	virtual void OnWidgetRebuilt();
 	
-#if WITH_EDITOR
-	/** Utility method for building a design time wrapper widget. */
-	UE_DEPRECATED(4.17, "Don't call this function in RebuildWidget any more.  Override RebuildDesignWidget, and build the wrapper there; widgets that derive from Panel already do this.  If you need to recreate the dashed outline you can use CreateDesignerOutline inside RebuildDesignWidget.")
-	TSharedRef<SWidget> BuildDesignTimeWidget(TSharedRef<SWidget> WrapWidget) { return CreateDesignerOutline(WrapWidget); }
-#else
-	/** Just returns the incoming widget in non-editor builds. */
-	UE_DEPRECATED(4.17, "Don't call this function in RebuildWidget any more.  Override RebuildDesignWidget, and build the wrapper there; widgets that derive from Panel already do this.  If you need to recreate the dashed outline you can use CreateDesignerOutline inside RebuildDesignWidget.")
-	FORCEINLINE TSharedRef<SWidget> BuildDesignTimeWidget(TSharedRef<SWidget> WrapWidget) { return WrapWidget; }
-#endif
-
 #if WITH_EDITOR
 	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content);
 

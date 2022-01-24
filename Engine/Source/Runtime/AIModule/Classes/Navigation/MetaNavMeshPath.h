@@ -129,8 +129,4 @@ protected:
 
 	/** switch to next waypoint  */
 	bool MoveToNextSection(const FVector& AgentLocation);
-
-public:
-	UE_DEPRECATED(4.16, "Waypoint type of MetaPaths has been changed. Use the new GetWaypointArray")
-	TArray<FVector> GetWaypoints() const;
 };

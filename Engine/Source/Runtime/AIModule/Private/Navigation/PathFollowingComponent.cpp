@@ -430,20 +430,6 @@ FAIRequestID UPathFollowingComponent::RequestMove(const FAIMoveRequest& RequestD
 	return MoveId;
 }
 
-bool UPathFollowingComponent::UpdateMove(FNavPathSharedPtr InPath, FAIRequestID RequestID)
-{
-	if (InPath == Path && RequestID.IsEquivalent(CurrentRequestId))
-	{
-		return HandlePathUpdateEvent();
-	}
-
-	UE_VLOG(GetOwner(), LogPathFollowing, Error, TEXT("UpdateMove is ignored! path:%s requestId:%s"),
-		(InPath == Path) ? TEXT("ok") : TEXT("DIFFERENT"),
-		RequestID.IsEquivalent(CurrentRequestId) ? TEXT("ok") : TEXT("NOT CURRENT"));
-
-	return false;
-}
-
 void UPathFollowingComponent::AbortMove(const UObject& Instigator, FPathFollowingResultFlags::Type AbortFlags, FAIRequestID RequestID, EPathFollowingVelocityMode VelocityMode)
 {
 	UE_VLOG(GetOwner(), LogPathFollowing, Log, TEXT("AbortMove: RequestID(%u) Instigator(%s)"), RequestID, *Instigator.GetName());
@@ -1866,60 +1852,6 @@ void UPathFollowingComponent::OnWaitingPathTimeout()
 }
 
 // deprecated functions
-FAIRequestID UPathFollowingComponent::RequestMove(FNavPathSharedPtr InPath, FRequestCompletedSignature OnComplete, const AActor* InDestinationActor, float InAcceptanceRadius, bool bInStopOnOverlap, FCustomMoveSharedPtr InGameData)
-{
-	FAIMoveRequest MoveReq;
-	if (InDestinationActor)
-	{
-		MoveReq.SetGoalActor(InDestinationActor);
-	}
-	else
-	{
-		MoveReq.SetGoalLocation(InPath.IsValid() && InPath->GetPathPoints().Num() ? InPath->GetPathPoints().Last().Location : FAISystem::InvalidLocation);
-	}
-
-	MoveReq.SetAcceptanceRadius(InAcceptanceRadius);
-	MoveReq.SetReachTestIncludesAgentRadius(bInStopOnOverlap);
-	MoveReq.SetUserData(InGameData);
-
-	return RequestMove(MoveReq, InPath);
-}
-
-FAIRequestID UPathFollowingComponent::RequestMove(FNavPathSharedPtr InPath, const AActor* InDestinationActor, float InAcceptanceRadius, bool bInStopOnOverlap, FCustomMoveSharedPtr InGameData)
-{
-	FAIMoveRequest MoveReq;
-	if (InDestinationActor)
-	{
-		MoveReq.SetGoalActor(InDestinationActor);
-	}
-	else
-	{
-		MoveReq.SetGoalLocation(InPath.IsValid() && InPath->GetPathPoints().Num() ? InPath->GetPathPoints().Last().Location : FAISystem::InvalidLocation);
-	}
-
-	MoveReq.SetAcceptanceRadius(InAcceptanceRadius);
-	MoveReq.SetReachTestIncludesAgentRadius(bInStopOnOverlap);
-	MoveReq.SetUserData(InGameData);
-
-	return RequestMove(MoveReq, InPath);
-}
-
-void UPathFollowingComponent::AbortMove(const FString& Reason, FAIRequestID RequestID, bool bResetVelocity, bool bSilent, uint8 MessageFlags)
-{
-	const FPathFollowingResultFlags::Type AbortDetails =
-		(MessageFlags == EPathFollowingMessage::NoPath) ? FPathFollowingResultFlags::InvalidPath :
-		(MessageFlags == EPathFollowingMessage::OtherRequest) ? FPathFollowingResultFlags::NewRequest :
-		FPathFollowingResultFlags::None;
-
-	UE_VLOG(GetOwner(), LogPathFollowing, Log, TEXT("AbortMove with reason(%s)"), *Reason);
-	AbortMove(*this, AbortDetails, RequestID, bResetVelocity ? EPathFollowingVelocityMode::Reset : EPathFollowingVelocityMode::Keep);
-}
-
-void UPathFollowingComponent::PauseMove(FAIRequestID RequestID, bool bResetVelocity)
-{
-	PauseMove(RequestID, bResetVelocity ? EPathFollowingVelocityMode::Reset : EPathFollowingVelocityMode::Keep);
-}
-
 EPathFollowingAction::Type UPathFollowingComponent::GetPathActionType() const
 {
 	switch (Status)
@@ -1944,21 +1876,6 @@ EPathFollowingAction::Type UPathFollowingComponent::GetPathActionType() const
 FVector UPathFollowingComponent::GetPathDestination() const
 {
 	return Path.IsValid() ? Path->GetDestinationLocation() : FVector::ZeroVector;
-}
-
-void UPathFollowingComponent::OnPathFinished(EPathFollowingResult::Type Result)
-{
-	OnPathFinished(Result, FPathFollowingResultFlags::None);
-}
-
-bool UPathFollowingComponent::HasReached(const FVector& TestPoint, float InAcceptanceRadius, bool bExactSpot) const
-{
-	return HasReached(TestPoint, bExactSpot ? EPathFollowingReachMode::ExactLocation : EPathFollowingReachMode::OverlapAgent, InAcceptanceRadius);
-}
-
-bool UPathFollowingComponent::HasReached(const AActor& TestGoal, float InAcceptanceRadius, bool bExactSpot, bool bUseNavAgentGoalLocation) const
-{
-	return HasReached(TestGoal, bExactSpot ? EPathFollowingReachMode::ExactLocation : EPathFollowingReachMode::OverlapAgentAndGoal, InAcceptanceRadius, bUseNavAgentGoalLocation);
 }
 
 #undef SHIPPING_STATIC

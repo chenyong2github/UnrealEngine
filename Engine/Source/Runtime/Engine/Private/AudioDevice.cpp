@@ -5984,38 +5984,6 @@ bool FAudioDevice::FCreateComponentParams::ShouldUseAttenuation() const
 	return true;
 }
 
-UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World, AActor* Actor, bool bPlay, bool bStopWhenOwnerDestroyed, const FVector* Location, USoundAttenuation* AttenuationSettings, USoundConcurrency* ConcurrencySettings)
-{
-	TUniquePtr<FCreateComponentParams> Params;
-
-	if (Actor)
-	{
-		Params = MakeUnique<FCreateComponentParams>(Actor);
-	}
-	else if (World)
-	{
-		Params = MakeUnique<FCreateComponentParams>(World);
-	}
-	else
-	{
-		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDeviceRaw());
-	}
-
-	Params->bPlay = bPlay;
-	Params->bStopWhenOwnerDestroyed = bStopWhenOwnerDestroyed;
-	Params->AttenuationSettings = AttenuationSettings;
-
-	if (ConcurrencySettings)
-	{
-		Params->ConcurrencySet.Add(ConcurrencySettings);
-	}
-	if (Location)
-	{
-		Params->SetLocation(*Location);
-	}
-	return CreateComponent(Sound, *Params);
-}
-
 UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, const FCreateComponentParams& Params)
 {
 	check(IsInGameThread());

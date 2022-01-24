@@ -227,12 +227,3 @@ FString FAIMoveRequest::ToString() const
 		);
 }
 
-FAIMoveRequest& FAIMoveRequest::SetStopOnOverlap(bool bStop)
-{
-	return SetReachTestIncludesAgentRadius(bStop);
-}
-
-bool FAIMoveRequest::CanStopOnOverlap() const
-{
-	return IsReachTestIncludingAgentRadius();
-}

@@ -396,15 +396,8 @@ void SWidget::OnFocusLost(const FFocusEvent& InFocusEvent)
 {
 }
 
-void SWidget::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath)
-{
-}
-
 void SWidget::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	OnFocusChanging(PreviousFocusPath, NewWidgetPath);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FReply SWidget::OnKeyChar( const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent )

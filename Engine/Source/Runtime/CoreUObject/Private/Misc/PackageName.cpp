@@ -791,23 +791,6 @@ bool FPackageName::TryConvertLongPackageNameToFilename(const FString& InLongPack
 	return false;
 }
 
-bool FPackageName::ConvertRootPathToContentPath( const FString& RootPath, FString& OutContentPath)
-{
-	const auto& Paths = FLongPackagePathsSingleton::Get();
-	FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
-	for (const auto& Pair : Paths.ContentRootToPath)
-	{
-		if (FPathViews::IsParentPathOf(Pair.RootPath, RootPath))
-		{
-			OutContentPath = Pair.ContentPath;
-			return true;
-		}
-	}
-
-	// This is not a long package name or the root folder is not handled in the above cases
-	return false;
-}
-
 FString FPackageName::LongPackageNameToFilename(const FString& InLongPackageName, const FString& InExtension)
 {
 	FString Result;
@@ -2051,20 +2034,6 @@ const FString& FPackageName::GetTextMapPackageExtension()
 {
 	static FString TextMapPackageExtension(LexToString(EPackageExtension::TextMap));
 	return TextMapPackageExtension;
-}
-
-FString FPackageName::PackageFromPath(const TCHAR* InPathName)
-{
-	FString PackageName;
-	if (FPackageName::TryConvertFilenameToLongPackageName(InPathName, PackageName))
-	{
-		return PackageName;
-	}
-	else
-	{
-		// Not a valid package filename
-		return InPathName;
-	}
 }
 
 bool FPackageName::IsTextPackageExtension(const TCHAR* Ext)

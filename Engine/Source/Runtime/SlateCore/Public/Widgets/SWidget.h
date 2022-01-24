@@ -346,10 +346,6 @@ public:
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent);
 
 	/** Called whenever a focus path is changing on all the widgets within the old and new focus paths */
-	UE_DEPRECATED(4.13, "Please use the newer version of OnFocusChanging that takes a FocusEvent")
-	virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath);
-
-	/** Called whenever a focus path is changing on all the widgets within the old and new focus paths */
 	virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent);
 
 	/**

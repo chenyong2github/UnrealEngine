@@ -58,7 +58,6 @@
 #include "SkeletonTreeVirtualBoneItem.h"
 
 #include "BoneSelectionWidget.h"
-#include "BoneProxy.h"
 #include "SkeletonTreeSelection.h"
 #include "Widgets/Layout/SGridPanel.h"
 
@@ -194,23 +193,12 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 		RegisterOnSelectionChanged(FOnSkeletonTreeSelectionChanged::CreateRaw(PreviewScene.Pin().Get(), &IPersonaPreviewScene::HandleSkeletonTreeSelectionChanged));
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if(InSkeletonTreeArgs.OnObjectSelected.IsBound())
-	{
-		RegisterOnObjectSelected(InSkeletonTreeArgs.OnObjectSelected);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	if (InSkeletonTreeArgs.OnSelectionChanged.IsBound())
 	{
 		RegisterOnSelectionChanged(InSkeletonTreeArgs.OnSelectionChanged);
 	}
 
 	FCoreUObjectDelegates::OnPackageReloaded.AddSP(this, &SSkeletonTree::HandlePackageReloaded);
-
-	BoneProxy = NewObject<UBoneProxy>(GetTransientPackage());
-	BoneProxy->SkelMeshComponent = PreviewScene.IsValid() ? PreviewScene.Pin()->GetPreviewMeshComponent() : nullptr;
-	BoneProxy->bIsTickable = true;
 
 	// Create our pinned commands before we bind commands
 	IPinnedCommandListModule& PinnedCommandListModule = FModuleManager::LoadModuleChecked<IPinnedCommandListModule>(TEXT("PinnedCommandList"));
@@ -1449,11 +1437,6 @@ void SSkeletonTree::OnSelectionChanged(TSharedPtr<ISkeletonTreeItem> Selection, 
 							if (BoneIndex != INDEX_NONE)
 							{
 								GetPreviewScene()->SetSelectedBone(BoneName, SelectInfo);
-								BoneProxy->BoneName = BoneName;
-
-								PRAGMA_DISABLE_DEPRECATION_WARNINGS
-								OnObjectSelectedMulticast.Broadcast(BoneProxy);
-								PRAGMA_ENABLE_DEPRECATION_WARNINGS
 								break;
 							}
 						}
@@ -1465,18 +1448,10 @@ void SSkeletonTree::OnSelectionChanged(TSharedPtr<ISkeletonTreeItem> Selection, 
 						USkeletalMeshSocket* Socket = SocketItem->GetSocket();
 						FSelectedSocketInfo SocketInfo(Socket, SocketItem->GetParentType() == ESocketParentType::Skeleton);
 						GetPreviewScene()->SetSelectedSocket(SocketInfo);
-
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						OnObjectSelectedMulticast.Broadcast(SocketInfo.Socket);
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 					else if (Item->IsOfType<FSkeletonTreeAttachedAssetItem>())
 					{
 						GetPreviewScene()->DeselectAll();
-
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						OnObjectSelectedMulticast.Broadcast(nullptr);
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 				PreviewComponent->PostInitMeshObject(PreviewComponent->MeshObject);
@@ -1490,10 +1465,6 @@ void SSkeletonTree::OnSelectionChanged(TSharedPtr<ISkeletonTreeItem> Selection, 
 			// Tell the preview scene if the user ctrl-clicked the selected bone/socket to de-select it
 			GetPreviewScene()->DeselectAll();
 		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnObjectSelectedMulticast.Broadcast(nullptr);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	TArrayView<TSharedPtr<ISkeletonTreeItem>> ArrayView(SelectedItems);
@@ -1722,10 +1693,6 @@ void SSkeletonTree::SetSelectedSocket( const FSelectedSocketInfo& SocketInfo )
 				SkeletonTreeView->RequestScrollIntoView(SkeletonRow);
 			}
 		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnObjectSelectedMulticast.Broadcast(SocketInfo.Socket);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -1747,11 +1714,6 @@ void SSkeletonTree::SetSelectedBone( const FName& BoneName, ESelectInfo::Type In
 				SkeletonTreeView->RequestScrollIntoView(SkeletonRow);
 			}
 		}
-
-		BoneProxy->BoneName = BoneName;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnObjectSelectedMulticast.Broadcast(BoneProxy);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -1761,10 +1723,6 @@ void SSkeletonTree::DeselectAll()
 	{
 		TGuardValue<bool> RecursionGuard(bSelecting, true);
 		SkeletonTreeView->ClearSelection();
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnObjectSelectedMulticast.Broadcast(nullptr);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -2373,11 +2331,6 @@ ESkeletonTreeFilterResult SSkeletonTree::HandleFilterSkeletonTreeItem(const FSke
 	}
 
 	return Result;
-}
-
-void SSkeletonTree::AddReferencedObjects( FReferenceCollector& Collector )
-{
-	Collector.AddReferencedObject(BoneProxy);
 }
 
 void SSkeletonTree::HandleSelectedBoneChanged(const FName& InBoneName, ESelectInfo::Type InSelectInfo)

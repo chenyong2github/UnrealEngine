@@ -231,20 +231,6 @@ public:
 		float OpacityMaskRefVal = .5f
 		);
 
-	/** 
-	 *Draws the batch
-	 *
-	 * @param Transform	The transform matrix for each viewport (View->ViewProjectionMatrix)
-	 * @param ViewportSizeX	The width of the viewport
-	 * @param ViewportSizeY The height of the viewport
-	 * @param bHitTesting	Whether or not we are hit testing
-	 * @param Gamma			Optional gamma override
-	 * @param View			Optional FSceneView for shaders that need access to view constants
-	 * @param DepthTexture	DepthTexture for manual depth testing with editor compositing in the pixel shader
-	 */
-	UE_DEPRECATED(4.14, "Deprecated. Use the FBatchedElements::Draw method that takes a non-optional FSceneView parameter instead")
-	bool Draw(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, bool bNeedToSwitchVerticalAxis, const FMatrix& Transform, uint32 ViewportSizeX, uint32 ViewportSizeY, bool bHitTesting, float Gamma = 1.0f, const FSceneView* View = nullptr, EBlendModeFilter::Type Filter = EBlendModeFilter::All) const;
-	
 	/**
 	 * Draws the batch
 	 *

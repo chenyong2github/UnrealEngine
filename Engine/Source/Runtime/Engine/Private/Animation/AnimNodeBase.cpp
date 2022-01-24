@@ -81,50 +81,24 @@ void FComponentSpacePoseContext::ResetToRefPose()
 /////////////////////////////////////////////////////
 // FAnimNode_Base
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void FAnimNode_Base::Initialize(const FAnimationInitializeContext& Context)
-{
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 void FAnimNode_Base::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Initialize(Context);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_Base::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	CacheBones(Context);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_Base::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Update(Context);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_Base::Evaluate_AnyThread(FPoseContext& Output)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Evaluate(Output);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_Base::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	EvaluateComponentSpace(Output);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FAnimNode_Base::IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy)
@@ -135,10 +109,6 @@ bool FAnimNode_Base::IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy)
 
 void FAnimNode_Base::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
-	// Call legacy implementation for backwards compatibility
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RootInitialize(InProxy);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimNode_Base::ResetDynamics(ETeleportType InTeleportType)

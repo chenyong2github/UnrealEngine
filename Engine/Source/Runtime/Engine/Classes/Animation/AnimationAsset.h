@@ -629,21 +629,6 @@ struct FRootMotionMovementParams
 private:
 	ENGINE_API static FVector RootMotionScale;
 
-	// TODO: Remove when we make RootMotionTransform private
-	FORCEINLINE FTransform& GetRootMotionTransformInternal()
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RootMotionTransform;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	FORCEINLINE const FTransform& GetRootMotionTransformInternal() const
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RootMotionTransform;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
 public:
 	
 	UPROPERTY()
@@ -652,11 +637,11 @@ public:
 	UPROPERTY()
 	float BlendWeight;
 
-	// To be made private
-	UE_DEPRECATED(4.13, "RootMotionTransform should not be accessed directly, please use GetRootMotionTransform() to read it or one of the set/accumulate functions to modify it")
+private:
 	UPROPERTY()
 	FTransform RootMotionTransform;
 
+public:
 	FRootMotionMovementParams()
 		: bHasRootMotion(false)
 		, BlendWeight(0.f)
@@ -669,29 +654,29 @@ public:
 		: bHasRootMotion(Other.bHasRootMotion)
 		, BlendWeight(Other.BlendWeight)
 	{
-		GetRootMotionTransformInternal() = Other.GetRootMotionTransformInternal();
+		RootMotionTransform = Other.RootMotionTransform;
 	}
 
 	FRootMotionMovementParams(const FRootMotionMovementParams&& Other)
 		: bHasRootMotion(Other.bHasRootMotion)
 		, BlendWeight(Other.BlendWeight)
 	{
-		GetRootMotionTransformInternal() = Other.GetRootMotionTransformInternal();
+		RootMotionTransform = Other.RootMotionTransform;
 	}
 
 	FRootMotionMovementParams& operator=(const FRootMotionMovementParams& Other)
 	{
 		bHasRootMotion = Other.bHasRootMotion;
 		BlendWeight = Other.BlendWeight;
-		GetRootMotionTransformInternal() = Other.GetRootMotionTransformInternal();
+		RootMotionTransform = Other.RootMotionTransform;
 		return *this;
 	}
 
 	void Set(const FTransform& InTransform)
 	{
 		bHasRootMotion = true;
-		GetRootMotionTransformInternal() = InTransform;
-		GetRootMotionTransformInternal().SetScale3D(RootMotionScale);
+		RootMotionTransform = InTransform;
+		RootMotionTransform.SetScale3D(RootMotionScale);
 		BlendWeight = 1.f;
 	}
 
@@ -703,8 +688,8 @@ public:
 		}
 		else
 		{
-			GetRootMotionTransformInternal() = InTransform * GetRootMotionTransformInternal();
-			GetRootMotionTransformInternal().SetScale3D(RootMotionScale);
+			RootMotionTransform = InTransform * RootMotionTransform;
+			RootMotionTransform.SetScale3D(RootMotionScale);
 		}
 	}
 
@@ -712,7 +697,7 @@ public:
 	{
 		if (MovementParams.bHasRootMotion)
 		{
-			Accumulate(MovementParams.GetRootMotionTransformInternal());
+			Accumulate(MovementParams.RootMotionTransform);
 		}
 	}
 
@@ -721,8 +706,8 @@ public:
 		const ScalarRegister VBlendWeight(InBlendWeight);
 		if (bHasRootMotion)
 		{
-			GetRootMotionTransformInternal().AccumulateWithShortestRotation(InTransform, VBlendWeight);
-			GetRootMotionTransformInternal().SetScale3D(RootMotionScale);
+			RootMotionTransform.AccumulateWithShortestRotation(InTransform, VBlendWeight);
+			RootMotionTransform.SetScale3D(RootMotionScale);
 			BlendWeight += InBlendWeight;
 		}
 		else
@@ -736,7 +721,7 @@ public:
 	{
 		if (MovementParams.bHasRootMotion)
 		{
-			AccumulateWithBlend(MovementParams.GetRootMotionTransformInternal(), InBlendWeight);
+			AccumulateWithBlend(MovementParams.RootMotionTransform, InBlendWeight);
 		}
 	}
 
@@ -753,28 +738,28 @@ public:
 		{
 			AccumulateWithBlend(FTransform(), WeightLeft);
 		}
-		GetRootMotionTransformInternal().NormalizeRotation();
+		RootMotionTransform.NormalizeRotation();
 	}
 
 	FRootMotionMovementParams ConsumeRootMotion(float Alpha)
 	{
 		const ScalarRegister VAlpha(Alpha);
-		FTransform PartialRootMotion = (GetRootMotionTransformInternal()*VAlpha);
+		FTransform PartialRootMotion = (RootMotionTransform*VAlpha);
 		PartialRootMotion.SetScale3D(RootMotionScale); // Reset scale after multiplication above
 		PartialRootMotion.NormalizeRotation();
-		GetRootMotionTransformInternal() = GetRootMotionTransformInternal().GetRelativeTransform(PartialRootMotion);
-		GetRootMotionTransformInternal().NormalizeRotation(); //Make sure we are normalized, this needs to be investigated further
+		RootMotionTransform = RootMotionTransform.GetRelativeTransform(PartialRootMotion);
+		RootMotionTransform.NormalizeRotation(); //Make sure we are normalized, this needs to be investigated further
 
 		FRootMotionMovementParams ReturnParams;
 		ReturnParams.Set(PartialRootMotion);
 
 		check(PartialRootMotion.IsRotationNormalized());
-		check(GetRootMotionTransformInternal().IsRotationNormalized());
+		check(RootMotionTransform.IsRotationNormalized());
 		return ReturnParams;
 	}
 
-	const FTransform& GetRootMotionTransform() const { return GetRootMotionTransformInternal(); }
-	void ScaleRootMotionTranslation(float TranslationScale) { GetRootMotionTransformInternal().ScaleTranslation(TranslationScale); }
+	const FTransform& GetRootMotionTransform() const { return RootMotionTransform; }
+	void ScaleRootMotionTranslation(float TranslationScale) { RootMotionTransform.ScaleTranslation(TranslationScale); }
 };
 
 // This structure is used to either advance or synchronize animation players

@@ -2347,9 +2347,6 @@ public:
 	 * @return The tooltip for this object.
 	 */
 	FText GetToolTipTextByIndex(int32 NameIndex) const;
-
-	UE_DEPRECATED(4.16, "GetToolTipText with name index is deprecated, call GetToolTipTextByIndex instead")
-	FText GetToolTipText(int32 NameIndex) const { return GetToolTipTextByIndex(NameIndex); }
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -2525,31 +2522,6 @@ public:
 	{
 		out_TextValue = GetDisplayValueAsText(EnumeratorValue);
 	}
-
-	// Deprecated Functions
-	UE_DEPRECATED(4.16, "FindEnumIndex is deprecated, call GetIndexByName or GetValueByName instead")
-	int32 FindEnumIndex(FName InName) const { return GetIndexByName(InName, EGetByNameFlags::ErrorIfNotFound); }
-
-	UE_DEPRECATED(4.16, "FindEnumRedirects is deprecated, call GetIndexByNameString instead")
-	static int32 FindEnumRedirects(const UEnum* Enum, FName EnumEntryName) { return Enum->GetIndexByNameString(EnumEntryName.ToString()); }
-
-	UE_DEPRECATED(4.16, "GetEnum is deprecated, call GetNameByIndex instead")
-	FName GetEnum(int32 InIndex) const { return GetNameByIndex(InIndex); }
-
-	UE_DEPRECATED(4.16, "GetEnumNameStringByValue is deprecated, call GetNameStringByValue instead")
-	FString GetEnumNameStringByValue(int64 InValue) const { return GetNameStringByValue(InValue); }
-
-	UE_DEPRECATED(4.16, "GetEnumName is deprecated, call GetNameStringByIndex instead")
-	FString GetEnumName(int32 InIndex) const { return GetNameStringByIndex(InIndex); }
-
-	UE_DEPRECATED(4.16, "GetDisplayNameText with name index is deprecated, call GetDisplayNameTextByIndex instead")
-	FText GetDisplayNameText(int32 NameIndex) const { return GetDisplayNameTextByIndex(NameIndex); }
-
-	UE_DEPRECATED(4.16, "GetEnumText with name index is deprecated, call GetDisplayNameTextByIndex instead")
-	FText GetEnumText(int32 NameIndex) const { return GetDisplayNameTextByIndex(NameIndex); }
-
-	UE_DEPRECATED(4.16, "GetEnumTextByValue with name index is deprecated, call GetDisplayNameTextByValue instead")
-	FText GetEnumTextByValue(int64 Value) { return GetDisplayNameTextByValue(Value);  }
 
 	// UObject interface.
 	virtual void Serialize(FArchive& Ar) override;

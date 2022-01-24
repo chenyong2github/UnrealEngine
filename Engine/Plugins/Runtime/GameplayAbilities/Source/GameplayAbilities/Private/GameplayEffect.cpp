@@ -3514,7 +3514,6 @@ void FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectRemoved(FAct
 		ABILITY_LOG(Warning, TEXT("InternalOnActiveGameplayEffectRemoved called with no GameplayEffect: %s"), *Effect.Handle.ToString());
 	}
 
-	Effect.EventSet.DEPRECATED_OnEffectRemoved.Broadcast();
 	Effect.EventSet.OnEffectRemoved.Broadcast(GameplayEffectRemovalInfo);
 
 	OnActiveGameplayEffectRemovedDelegate.Broadcast(Effect);

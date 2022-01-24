@@ -551,9 +551,6 @@ public:
 	 */
 	static void ConvertCSTransformToBoneSpace(const FTransform& ComponentTransform, FCSPose<FCompactPose>& MeshBases, FTransform& InOutCSBoneTM, FCompactPoseBoneIndex BoneIndex, EBoneControlSpace Space);
 
-	UE_DEPRECATED(4.16, "Please use the ConvertCSTransformToBoneSpace with a transform as the first argument")
-	static void ConvertCSTransformToBoneSpace(USkeletalMeshComponent* SkelComp, FCSPose<FCompactPose>& MeshBases, FTransform& InOutCSBoneTM, FCompactPoseBoneIndex BoneIndex, EBoneControlSpace Space);
-
 	/** 
 	 * Convert a FTransform in a specified bone space to ComponentSpace.
 	 * @param	ComponentTransform	The transform of the component. Only used if Space == BCS_WorldSpace
@@ -563,9 +560,6 @@ public:
 	 * @param	Space				The space that the transform is in.
 	 */
 	static void ConvertBoneSpaceTransformToCS(const FTransform& ComponentTransform, FCSPose<FCompactPose>& MeshBases, FTransform& InOutBoneSpaceTM, FCompactPoseBoneIndex BoneIndex, EBoneControlSpace Space);
-
-	UE_DEPRECATED(4.16, "Please use the ConvertBoneSpaceTransformToCS with a transform as the first argument")
-	static void ConvertBoneSpaceTransformToCS(USkeletalMeshComponent* SkelComp, FCSPose<FCompactPose>& MeshBases, FTransform& InOutBoneSpaceTM, FCompactPoseBoneIndex BoneIndex, EBoneControlSpace Space);
 
 	// FA2Pose/FA2CSPose Interfaces for template functions
 	static FTransform GetSpaceTransform(FA2Pose& Pose, int32 Index);

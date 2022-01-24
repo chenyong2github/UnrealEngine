@@ -148,9 +148,6 @@ struct GAMEPLAYABILITIES_API FAggregatorModChannel
 	 */
 	void GetAllAggregatorMods(EGameplayModEvaluationChannel Channel, OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const;
 
-	UE_DEPRECATED(4.17, "Use GetAllAggregatorMods")
-	void DebugGetAllAggregatorMods(EGameplayModEvaluationChannel Channel, OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const { return GetAllAggregatorMods(Channel, OutMods); }
-	
 	/**
 	 * Called when the mod channel's gameplay effect dependencies have potentially been swapped out for new ones, like when GE arrays are cloned.
 	 * Updates mod handles appropriately.
@@ -260,9 +257,6 @@ struct GAMEPLAYABILITIES_API FAggregatorModChannelContainer
 	 */
 	void GetAllAggregatorMods(OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const;
 
-	UE_DEPRECATED(4.17, "Use GetAllAggregatorMods")
-	void DebugGetAllAggregatorMods(OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const { return GetAllAggregatorMods(OutMods); }
-
 	/**
 	 * Called when the container's gameplay effect dependencies have potentially been swapped out for new ones, like when GE arrays are cloned.
 	 * Updates each channel appropriately.
@@ -343,9 +337,6 @@ struct GAMEPLAYABILITIES_API FAggregator : public TSharedFromThis<FAggregator>
 	 */
 	void GetAllAggregatorMods(OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const;
 
-	UE_DEPRECATED(4.17, "Use GetAllAggregatorMods")
-	void DebugGetAllAggregatorMods(OUT TMap<EGameplayModEvaluationChannel, const TArray<FAggregatorMod>*>& OutMods) const { return GetAllAggregatorMods(OutMods); }
-	
 	/**
 	 * Called when the aggregator's gameplay effect dependencies have potentially been swapped out for new ones, like when GE arrays are cloned.
 	 * Updates the modifier channel container appropriately, as well as directly-specified dependents.

@@ -130,17 +130,6 @@ public:
 #endif
 
 public:
-	/** 
-	 * Creates an empty node of the given type. 
-	 * User is fully responsible for building the node. Most nodes should be created through
-	 * a FGraphNodeCreator builder.
-	 */
-	template <typename NodeClass>
-	UE_DEPRECATED(4.17, "Use CreateIntermediateNode instead.")
-	NodeClass* CreateBlankNode()
-	{
-		return CreateIntermediateNode<NodeClass>();
-	}
 
 	template <typename NodeClass>
 	NodeClass* CreateIntermediateNode()

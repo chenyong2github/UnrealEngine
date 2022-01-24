@@ -388,43 +388,6 @@ class ENGINE_API UAnimInstance : public UObject
 	UPROPERTY(Category = RootMotion, EditDefaultsOnly)
 	TEnumAsByte<ERootMotionMode::Type> RootMotionMode;
 
-#if WITH_EDITORONLY_DATA
-	/** DeltaTime **/
-	UPROPERTY()
-	float DeltaTime_DEPRECATED;
-
-	/** 
-	 * DEPRECATED: No longer used.
-	 * Allows this anim instance to update its native update, blend tree, montages and asset players on
-	 * a worker thread. this requires certain conditions to be met:
-	 * - All access of variables in the blend tree should be a direct access of a member variable
-	 * - No BlueprintUpdateAnimation event should be used (i.e. the event graph should be empty). Only native update is permitted.
-	 */
-	UE_DEPRECATED(4.15, "This variable is no longer used. Use bUseMultiThreadedAnimationUpdate on the UAnimBlueprint to control this.")
-	UPROPERTY()
-	uint8 bRunUpdatesInWorkerThreads_DEPRECATED : 1;
-
-	/** 
-	 * DEPRECATED: No longer used.
-	 * Whether we can use parallel updates for our animations.
-	 * Conditions affecting this include:
-	 * - Use of BlueprintUpdateAnimation
-	 * - Use of non 'fast-path' EvaluateGraphExposedInputs in the node graph
-	 */
-	UE_DEPRECATED(4.15, "This variable is no longer used. Use bUseMultiThreadedAnimationUpdate on the UAnimBlueprint to control this.")
-	UPROPERTY()
-	uint8 bCanUseParallelUpdateAnimation_DEPRECATED : 1;
-
-
-	/**
-	 * Selecting this option will cause the compiler to emit warnings whenever a call into Blueprint
-	 * is made from the animation graph. This can help track down optimizations that need to be made.
-	 */
-	UE_DEPRECATED(4.15, "This variable is no longer used. Use bWarnAboutBlueprintUsage on the UAnimBlueprint to control this.")
-	UPROPERTY()
-	uint8 bWarnAboutBlueprintUsage_DEPRECATED : 1;
-#endif
-
 	/**
 	 * Allows this anim instance to update its native update, blend tree, montages and asset players on
 	 * a worker thread. This flag is propagated from the UAnimBlueprint to this instance by the compiler.
@@ -788,10 +751,6 @@ public:
 	/** Get Currently active montage instance.
 		Note that there might be multiple Active at the same time. This will only return the first active one it finds. **/
 	FAnimMontageInstance* GetActiveMontageInstance() const;
-
-	/** Get Active FAnimMontageInstance for given Montage asset. Will return NULL if Montage is not currently Active. */
-	UE_DEPRECATED(4.13, "Please use GetActiveInstanceForMontage(const UAnimMontage* Montage)")
-	FAnimMontageInstance* GetActiveInstanceForMontage(UAnimMontage const& Montage) const;
 
 	/** Get Active FAnimMontageInstance for given Montage asset. Will return NULL if Montage is not currently Active. */
 	FAnimMontageInstance* GetActiveInstanceForMontage(const UAnimMontage* Montage) const;
@@ -1284,11 +1243,6 @@ public:
 	// Native thread safe update override point. Executed on a worker thread just prior to graph update 
 	// for linked anim instances, only called when the hosting node(s) are relevant
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds);
-	// Native update override point. Can be called from a worker thread. This is a good place to do any
-	// heavy lifting (as opposed to NativeUpdateAnimation_GameThread()).
-	// This function should not be used. Worker thread updates should be performed in the FAnimInstanceProxy attached to this instance.
-	UE_DEPRECATED(4.15, "This function is only called for backwards-compatibility. It is no longer called on a worker thread.")
-	virtual void NativeUpdateAnimation_WorkerThread(float DeltaSeconds);
 	// Native Post Evaluate override point
 	virtual void NativePostEvaluateAnimation();
 	// Native Uninitialize override point

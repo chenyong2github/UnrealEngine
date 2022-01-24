@@ -58,8 +58,3 @@ protected:
 	/** Virtual destructor. */
 	virtual ~IMessageTransport() { }
 };
-
-
-/** Type definition for shared references to instances of ITransportMessages. */
-UE_DEPRECATED(4.16, "IMessageTransportRef is deprecated. Please use 'TSharedRef<IMessageTransport, ESPMode::ThreadSafe>' instead!")
-typedef TSharedRef<IMessageTransport, ESPMode::ThreadSafe> IMessageTransportRef;

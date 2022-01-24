@@ -84,14 +84,6 @@ public:
 	/** resume observer change notifications and, optionally, process the queued observation list */
 	void ResumeObserverNotifications(bool bSendQueuedObserverNotifications);
 
-	/** pause change notifies and add them to queue */
-	UE_DEPRECATED(4.15, "Please call PauseObserverUpdates.")
-	void PauseUpdates();
-
-	/** resume change notifies and process queued list */
-	UE_DEPRECATED(4.15, "Please call ResumeObserverNotifications.")
-	void ResumeUpdates();
-
 	/** @return associated behavior tree component */
 	UBrainComponent* GetBrainComponent() const;
 

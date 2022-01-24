@@ -877,11 +877,6 @@ void UAIPerceptionComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) con
 //----------------------------------------------------------------------//
 // deprecated
 //----------------------------------------------------------------------//
-void UAIPerceptionComponent::UpdatePerceptionFilter(FAISenseID Channel, bool bNewValue)
-{
-	UpdatePerceptionAllowList(Channel, bNewValue);
-}
-
 void UAIPerceptionComponent::GetPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const
 {
 	GetCurrentlyPerceivedActors(SenseToUse, OutActors);

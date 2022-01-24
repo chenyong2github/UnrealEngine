@@ -132,12 +132,6 @@ public:
 
 	virtual class FViewport* GetViewport() = 0;
 	virtual void ResizeFrame(uint32 NewSizeX,uint32 NewSizeY,EWindowMode::Type NewWindowMode) = 0;
-
-	UE_DEPRECATED(4.13, "The version of FViewportFrame::ResizeFrame that takes a position is deprecated (the position was never used). Please use the version that doesn't take a position instead.")
-	void ResizeFrame(uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode, int32, int32)
-	{
-		ResizeFrame(NewSizeX, NewSizeY, NewWindowMode);
-	}
 };
 
 /**

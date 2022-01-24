@@ -239,8 +239,3 @@ public:
 	/** Virtual destructor. */
 	virtual ~IImageWrapper() { }
 };
-
-
-/** Type definition for shared pointers to instances of IImageWrapper. */
-UE_DEPRECATED(4.16, "IImageWrapperPtr is deprecated. Please use 'TSharedPtr<IImageWrapper>' instead!")
-typedef TSharedPtr<IImageWrapper> IImageWrapperPtr;

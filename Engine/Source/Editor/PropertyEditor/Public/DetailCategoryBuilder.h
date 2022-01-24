@@ -201,22 +201,4 @@ public:
 	* This is designed to be used for dynamic display of advanced properties.
 	*/
 	virtual void SetShowAdvanced(bool bShowAdvanced) = 0;
-
-	UE_DEPRECATED(4.17, "AddExternalProperty is deprecated.  Use AddExternalObjectProperty instead")
-	IDetailPropertyRow* AddExternalProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default)
-	{
-		return AddExternalObjectProperty(Objects, PropertyName, Location);
-	}
-
-	UE_DEPRECATED(4.17, "AddExternalProperty is deprecated.  Use AddExternalStructureProperty instead")
-	IDetailPropertyRow* AddExternalProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default)
-	{
-		return AddExternalStructureProperty(StructData, PropertyName, Location);
-	}
-
-	UE_DEPRECATED(4.17, "AddExternalProperty is deprecated.  Use AddAllExternalStructureProperties instead")
-	TArray<TSharedPtr<IPropertyHandle>> AddExternalProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location = EPropertyLocation::Default)
-	{
-		return AddAllExternalStructureProperties(StructData, Location);
-	}
 };

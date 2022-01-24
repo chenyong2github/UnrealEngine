@@ -169,9 +169,8 @@ UEdGraphNode::UEdGraphNode(const FObjectInitializer& ObjectInitializer)
 	, AdvancedPinDisplay(ENodeAdvancedPins::NoPins)
 	, EnabledState(ENodeEnabledState::Enabled)
 	, bUserSetEnabledState(false)
-	, bAllowSplitPins_DEPRECATED(false)
-	, bIsNodeEnabled_DEPRECATED(true)
 #if WITH_EDITORONLY_DATA
+	, bIsNodeEnabled_DEPRECATED(true)
 	, bCanResizeNode(false)
 	, bUnrelated(false)
 	, bCommentBubblePinned(false)
@@ -547,20 +546,11 @@ FString UEdGraphNode::GetDocumentationExcerptName() const
 	return FString::Printf(TEXT("%s%s"), MyClass->GetPrefixCPP(), *MyClass->GetName());
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSlateIcon UEdGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 {
-	// @todo: Remove with GetPaletteIcon
-	FName DeprecatedName = GetPaletteIcon(OutColor);
-	if (!DeprecatedName.IsNone())
-	{
-		return FSlateIcon("EditorStyle", DeprecatedName);
-	}
-	
 	static const FSlateIcon Icon = FSlateIcon("EditorStyle", "GraphEditor.Default_16x");
 	return Icon;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FString UEdGraphNode::GetDescriptiveCompiledName() const
 {

@@ -308,18 +308,13 @@ private:
 	UPROPERTY()
 	uint8 bUserSetEnabledState:1;
 
-protected:
-	/** (DEPRECATED) Value used for AllowSplitPins(). Do not override. */
-	uint8 bAllowSplitPins_DEPRECATED:1;
-
-private:
+#if WITH_EDITORONLY_DATA
 	/** (DEPRECATED) FALSE if the node is a disabled, which eliminates it from being compiled */
 	UPROPERTY()
 	uint8 bIsNodeEnabled_DEPRECATED:1;
 
 public:
 
-#if WITH_EDITORONLY_DATA
 	/** If true, this node can be resized and should be drawn with a resize handle */
 	UPROPERTY()
 	uint8 bCanResizeNode:1;
@@ -630,16 +625,7 @@ public:
 	virtual bool ShouldOverridePinNames() const { return false; }
 
 	/** Whether or not struct pins belonging to this node should be allowed to be split or not. */
-	UE_DEPRECATED(4.14, "Please call CanSplitPin and provide the specific Pin to split.")
-	virtual bool AllowSplitPins() const { return bAllowSplitPins_DEPRECATED; }
-
-	/** Whether or not struct pins belonging to this node should be allowed to be split or not. */
-	virtual bool CanSplitPin(const UEdGraphPin* Pin) const 
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return AllowSplitPins();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	virtual bool CanSplitPin(const UEdGraphPin* Pin) const { return false; }
 
 	/** Gets the overridden name for the specified pin, if any */
 	virtual FText GetPinNameOverride(const UEdGraphPin& Pin) const { return FText::GetEmpty(); }
@@ -788,10 +774,6 @@ public:
 	 * Default behavior is to return the class name (including prefix)
 	 */
 	virtual FString GetDocumentationExcerptName() const;
-
-	/** @return Icon to use in menu or on node */
-	UE_DEPRECATED(4.13, "Please override 'virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const;' instead.")
-	virtual FName GetPaletteIcon(FLinearColor& OutColor) const { return NAME_None; }
 
 	/** @return Icon to use in menu or on node */
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const;

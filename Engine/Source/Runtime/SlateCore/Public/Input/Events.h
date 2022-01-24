@@ -40,9 +40,6 @@ enum class EFocusCause : uint8
 	WindowActivate,
 };
 
-UE_DEPRECATED(4.18, "EKeyboardFocusCause is deprecated and was renamed to EFocusCause. Please use that type instead.")
-typedef EFocusCause EKeyboardFocusCause;
-
 /**
  * FFocusEvent is used when notifying widgets about keyboard focus changes
  * It is passed to event handlers dealing with keyboard focus

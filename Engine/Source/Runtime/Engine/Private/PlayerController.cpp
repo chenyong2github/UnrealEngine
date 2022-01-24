@@ -3946,23 +3946,6 @@ void APlayerController::K2_ClientPlayForceFeedback(class UForceFeedbackEffect* F
 	ClientPlayForceFeedback(ForceFeedbackEffect, Params);
 }
 
-void APlayerController::ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, bool bLooping, bool bIgnoreTimeDilation, FName Tag)
-{
-	FForceFeedbackParameters Params;
-	Params.Tag = Tag;
-	Params.bLooping = bLooping;
-	Params.bIgnoreTimeDilation = bIgnoreTimeDilation;
-	ClientPlayForceFeedback(ForceFeedbackEffect, Params);
-}
-
-void APlayerController::ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, bool bLooping, FName Tag)
-{
-	FForceFeedbackParameters Params;
-	Params.Tag = Tag;
-	Params.bLooping = bLooping;
-	ClientPlayForceFeedback(ForceFeedbackEffect, Params);
-}
-
 void APlayerController::ClientStopForceFeedback_Implementation( UForceFeedbackEffect* ForceFeedbackEffect, FName Tag)
 {
 	if (ForceFeedbackEffect == NULL && Tag == NAME_None)

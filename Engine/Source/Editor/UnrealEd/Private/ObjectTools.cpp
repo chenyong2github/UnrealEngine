@@ -4201,28 +4201,6 @@ namespace ObjectTools
 	}
 
 	/**
-	 * Exports the specified objects to file.
-	 *
-	 * @param	ObjectsToExport					The set of objects to export.
-	 * @param	bPromptIndividualFilenames		If true, prompt individually for filenames.  If false, bulk export to a single directory.
-	 * @param	ExportPath						receives the value of the path the user chose for exporting.
-	 * @param	bUseProvidedExportPath			If true and out_ExportPath is specified, use the value in out_ExportPath as the export path w/o prompting for a directory when applicable
-	 */
-	void ExportObjects(const TArray<UObject*>& ObjectsToExport, bool bPromptIndividualFilenames, FString* ExportPath/*=NULL*/, bool bUseProvidedExportPath /*= false*/ )
-	{
-		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-
-		if (ExportPath && bUseProvidedExportPath && !bPromptIndividualFilenames)
-		{
-			AssetToolsModule.Get().ExportAssets(ObjectsToExport, *ExportPath);
-		}
-		else
-		{
-			AssetToolsModule.Get().ExportAssetsWithDialog(ObjectsToExport, bPromptIndividualFilenames);
-		}
-	}
-
-	/**
 	 * Tags objects which are in use by levels specified by the search option
 	 *
 	 * @param SearchOption	 The search option for finding in use objects

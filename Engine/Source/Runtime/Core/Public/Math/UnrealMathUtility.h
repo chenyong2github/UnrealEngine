@@ -770,12 +770,6 @@ public:
 		return Delta;
 	}
 
-	UE_DEPRECATED(4.12, "Please use FindDeltaAngleRadians(float A1, float A2) instead of FindDeltaAngle(float A1, float A2).")
-	UE_NODISCARD static constexpr float FindDeltaAngle(float A1, float A2)
-	{
-		return FindDeltaAngleRadians(A1, A2);
-	}
-
 	/** Given a heading which may be outside the +/- PI range, 'unwind' it back into that range. */
 	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
 	UE_NODISCARD static constexpr T UnwindRadians(T A)
