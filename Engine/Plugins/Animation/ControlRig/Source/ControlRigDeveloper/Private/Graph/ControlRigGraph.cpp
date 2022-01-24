@@ -395,6 +395,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false);
 				if (EdNode)
 				{
+					static UObject* NewOuter = GetTransientPackage();
+					
 					// Rename the soon to be deleted object to a unique name, so that other objects can use
 					// the old name
 					{
@@ -404,10 +406,10 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 						do
 						{
 							DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *EdNode->GetName(), Index++); 
-							ExistingObject = StaticFindObject(/*Class=*/ NULL, EdNode->GetOuter(), *DeletedName, true);						
+							ExistingObject = StaticFindObject(/*Class=*/ NULL, NewOuter, *DeletedName, true);						
 						}
 						while (ExistingObject);
-						EdNode->Rename(*DeletedName);
+						EdNode->Rename(*DeletedName, NewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 					}
 					RemoveNode(EdNode, true);
 					NotifyGraphChanged();

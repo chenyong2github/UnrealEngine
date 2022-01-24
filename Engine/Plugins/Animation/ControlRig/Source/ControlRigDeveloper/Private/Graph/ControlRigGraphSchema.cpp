@@ -1664,7 +1664,11 @@ bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNo
 {
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode(), true, false, true);
+		if (GEditor)
+		{
+			GEditor->CancelTransaction(0);
+		}
+		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode(), true, true, true);
 	}
 	return false;
 }
