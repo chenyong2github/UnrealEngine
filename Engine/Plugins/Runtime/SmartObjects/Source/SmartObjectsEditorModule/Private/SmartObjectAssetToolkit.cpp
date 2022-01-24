@@ -16,7 +16,7 @@
 const FName FSmartObjectAssetToolkit::PreviewSettingsTabID(TEXT("SmartObjectAssetToolkit_Preview"));
 
 //----------------------------------------------------------------------//
-// USmartObjectEditorTool
+// USmartObjectAssetEditorTool
 //----------------------------------------------------------------------//
 void USmartObjectAssetEditorTool::Initialize(UInteractiveToolsContext* InteractiveToolsContext, USmartObjectDefinition* SmartObjectDefinition, USmartObjectComponent* SmartObjectComponent)
 {
@@ -87,6 +87,7 @@ void USmartObjectAssetEditorTool::RebuildGizmos()
 //----------------------------------------------------------------------//
 FSmartObjectAssetToolkit::FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseAssetToolkit(InOwningAssetEditor)
+	, Tool(nullptr)
 {
 	FPreviewScene::ConstructionValues PreviewSceneArgs;
 	AdvancedPreviewScene = MakeUnique<FAdvancedPreviewScene>(PreviewSceneArgs);
@@ -97,43 +98,43 @@ FSmartObjectAssetToolkit::FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEd
 
 	// Setup our default layout
 	StandaloneDefaultLayout = FTabManager::NewLayout(FName("SmartObjectAssetEditorLayout1"))
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->SetOrientation(Orient_Vertical)
-		->Split
+		->AddArea
 		(
-			FTabManager::NewSplitter()
-			->SetOrientation(Orient_Horizontal)
+			FTabManager::NewPrimaryArea()
+			->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.7f)
-				->AddTab(ViewportTabID, ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
-			->Split
-			(
-			FTabManager::NewSplitter()
-				->SetOrientation(Orient_Vertical)
-				->SetSizeCoefficient(0.3f)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.3f)
-					->AddTab(PreviewSettingsTabID, ETabState::OpenedTab)
-					->SetHideTabWell(true)
-				)
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Horizontal)
 				->Split
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.7f)
-					->AddTab(DetailsTabID, ETabState::OpenedTab)
+					->AddTab(ViewportTabID, ETabState::OpenedTab)
 					->SetHideTabWell(true)
 				)
+				->Split
+				(
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(0.3f)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.3f)
+						->AddTab(PreviewSettingsTabID, ETabState::OpenedTab)
+						->SetHideTabWell(true)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.7f)
+						->AddTab(DetailsTabID, ETabState::OpenedTab)
+						->SetHideTabWell(true)
+					)
+				)
 			)
-		)
-	);
+		);
 }
 
 TSharedPtr<FEditorViewportClient> FSmartObjectAssetToolkit::CreateEditorViewportClient() const

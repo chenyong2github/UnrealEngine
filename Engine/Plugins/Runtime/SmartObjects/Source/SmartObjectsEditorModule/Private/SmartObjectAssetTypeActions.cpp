@@ -1,4 +1,6 @@
-﻿#include "SmartObjectAssetTypeActions.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SmartObjectAssetTypeActions.h"
 
 #include "SmartObjectAssetEditor.h"
 #include "SmartObjectDefinition.h"

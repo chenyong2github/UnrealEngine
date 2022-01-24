@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-//#include "SmartObjectComponent.h"
 #include "Tools/BaseAssetToolkit.h"
 #include "AdvancedPreviewScene.h"
 #include "EdModeInteractiveToolsContext.h"
@@ -9,11 +8,9 @@
 
 class FEditorViewportClient;
 class UAssetEditor;
-class IPropertyChangeListener;
 class UTransformProxy;
 class UCombinedTransformGizmo;
 class UInteractiveToolsContext;
-class UInteractiveGizmoManager;
 class USmartObjectComponent;
 class USmartObjectDefinition;
 

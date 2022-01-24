@@ -1,4 +1,6 @@
-﻿#include "SmartObjectAssetEditorViewportClient.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SmartObjectAssetEditorViewportClient.h"
 
 #include "ComponentVisualizer.h"
 #include "SmartObjectComponent.h"
