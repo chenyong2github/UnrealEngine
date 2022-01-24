@@ -759,7 +759,7 @@ FLinkerLoad* GetPackageLinker
 			PackageFName = FName(*PackageName);
 			if (!FPackagePath::TryFromMountedName(PackageName, PackagePath))
 			{
-				LogGetPackageLinkerError(InExistingContext, InPackagePath, LOCTEXT("InvalidPackageRedirect", "GetDelegateResolvedPackagePath or GetLocalizedPackagePath returned path to unmounted contentroot"), InOuter, LoadFlags);
+				LogGetPackageLinkerError(InExistingContext, InPackagePath, LOCTEXT("UnmountedContentRoot", "GetDelegateResolvedPackagePath or GetLocalizedPackagePath returned path to unmounted contentroot"), InOuter, LoadFlags);
 				return nullptr;
 			}
 		}

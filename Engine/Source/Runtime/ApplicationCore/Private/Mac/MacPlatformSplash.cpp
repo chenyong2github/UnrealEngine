@@ -222,7 +222,7 @@ void FMacPlatformSplash::Show()
 					}
 					else
 					{
-						VersionInfo = FText::Format( NSLOCTEXT( "UnrealEd", "UnrealEdTitleWithVersion_F", "Unreal Editor {0}  -  {1}" ), Version, GameName );
+						VersionInfo = FText::Format( NSLOCTEXT( "UnrealEd", "UnrealEdTitleWithVersionWithGameName_F", "Unreal Editor {0}  -  {1}" ), Version, GameName );
 						AppName = FText::Format( NSLOCTEXT( "UnrealEd", "UnrealEdTitle_F", "Unreal Editor - {0}" ), GameName );
 					}
 

@@ -111,7 +111,7 @@ bool ISourceControlProvider::TryToDownloadFileFromBackgroundThread(const TShared
 	// TryToDownloadFileFromBackgroundThread is unsupported by this source control provider
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
-	FText Message = FText::Format(LOCTEXT("UnsupportedOperation", "TryToDownloadFileFromBackgroundThread is not supported by source control provider '{ProviderName}'"), Arguments);
+	FText Message = FText::Format(LOCTEXT("UnsupportedOperationTryToDownloadFileFromBackgroundThread", "TryToDownloadFileFromBackgroundThread is not supported by source control provider '{ProviderName}'"), Arguments);
 
 	InOperation->AddErrorMessge(Message);
 
@@ -122,7 +122,7 @@ ECommandResult::Type ISourceControlProvider::SwitchWorkspace(FStringView NewWork
 {
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
-	FText Message = FText::Format(LOCTEXT("UnsupportedOperation", "SwitchWorkspace is not supported by source control provider '{ProviderName}'"), Arguments);
+	FText Message = FText::Format(LOCTEXT("UnsupportedOperationSwitchWorkspace", "SwitchWorkspace is not supported by source control provider '{ProviderName}'"), Arguments);
 
 	OutResultInfo.ErrorMessages.Add(Message);
 

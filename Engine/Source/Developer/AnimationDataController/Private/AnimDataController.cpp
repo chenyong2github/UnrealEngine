@@ -268,7 +268,7 @@ void UAnimDataController::UpdateCurveNamesFromSkeleton(const USkeleton* Skeleton
 	}
 	else
 	{
-		ReportError(LOCTEXT("InvalidSkeletonError", "Invalid USkeleton supplied"));
+		ReportError(LOCTEXT("UpdateCurveInvalidSkeletonError", "Invalid USkeleton supplied"));
 	}
 }
 
@@ -323,7 +323,7 @@ void UAnimDataController::FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton, ERa
 	}
 	else
 	{
-		ReportError(LOCTEXT("InvalidSkeletonError", "Invalid USkeleton supplied "));
+		ReportError(LOCTEXT("FindOrAddCurveInvalidSkeletonError", "Invalid USkeleton supplied "));
 	}
 }
 
@@ -721,7 +721,7 @@ bool UAnimDataController::SetCurveFlags(const FAnimationCurveIdentifier& CurveId
 
 	if (Curve)
 	{
-		CONDITIONAL_TRANSACTION(LOCTEXT("SetCurveFlag", "Setting Raw Curve Flags"));
+		CONDITIONAL_TRANSACTION(LOCTEXT("SetRawCurveFlag", "Setting Raw Curve Flags"));
 
 		const int32 CurrentFlags = Curve->GetCurveTypeFlags();
 

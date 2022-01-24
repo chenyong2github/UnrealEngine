@@ -270,7 +270,7 @@ TUniquePtr<FChange> FAddFloatCurveAction::ExecuteInternal(UAnimDataModel* Model,
 
 FString FAddFloatCurveAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("AddFloatCurveAction_Description", "Adding float curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddFloatCurveAction_Format", "Adding float curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
 FAddTransformCurveAction::FAddTransformCurveAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags, const FTransformCurve& InTransformCurve) : CurveId(InCurveId), Flags(InFlags)
@@ -311,7 +311,7 @@ TUniquePtr<FChange> FAddTransformCurveAction::ExecuteInternal(UAnimDataModel* Mo
 
 FString FAddTransformCurveAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("AddFloatCurveAction_Description", "Adding transform curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
+	return FText::Format(LOCTEXT("AddTransformCurveAction_Description", "Adding transform curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
 TUniquePtr<FChange> FAddRichCurveKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)

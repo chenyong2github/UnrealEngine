@@ -25,7 +25,7 @@ void FAssetTypeActions_TextureCube::GetActions(const TArray<UObject*>& InObjects
 		Section.AddMenuEntry(
 			"Texture_TextureCuberray",
 			LOCTEXT("Texture_TextureCuberray", "Create Texture Cube Array"),
-			LOCTEXT("Texture_CreateTexture2DArrayTooltip", "Creates a new texture cube array."),
+			LOCTEXT("Texture_CreateTextureCubeArrayTooltip", "Creates a new texture cube array."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.TextureCube"),
 			FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_TextureCube::ExecuteCreateTextureArray, Textures), FCanExecuteAction())
 		);

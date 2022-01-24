@@ -1188,32 +1188,33 @@ void UBlendSpace::ValidateSampleData()
 				else
 				{
 					static FName NAME_LoadErrors("LoadErrors");
+					static const FText HasSampleText = LOCTEXT("EmptyAnimationData_HasSampleShort", "has sample");
 					FMessageLog LoadErrors(NAME_LoadErrors);
 
 					TSharedRef<FTokenizedMessage> Message = LoadErrors.Error();
-					Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData1", "BlendSpace")));
+					Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData_BlendSpace", "BlendSpace")));
 					Message->AddToken(FAssetNameToken::Create(GetPathName(), FText::FromString(GetName())));
 					if (!bAnimationExists)
 					{
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has a sample with no/invalid animation. Recommend to remove sample point or set new animation.")));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData_HasSample", "has a sample with no/invalid animation. Recommend to remove sample point or set new animation.")));
 					}
 					else if (!bSampleInBounds)
 					{
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has sample")));
+						Message->AddToken(FTextToken::Create(HasSampleText));
 						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData3", "that is invalid due to being out of bounds. Recommend adjusting it.")));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData_SampleNotInBounds", "that is invalid due to being out of bounds. Recommend adjusting it.")));
 					}
 					else if (!bSampleIsUnique)
 					{
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has sample")));
+						Message->AddToken(FTextToken::Create(HasSampleText));
 						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData3", "that is not unique. Recommend adjusting it.")));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData_NotUnique", "that is not unique. Recommend adjusting it.")));
 					}
 					else
 					{
 						// Shouldn't get here
 						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
-						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "is invalid.")));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData_IsInvalid", "is invalid.")));
 					}
 					LoadErrors.Notify();
 				}
