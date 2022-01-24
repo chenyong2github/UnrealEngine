@@ -126,7 +126,7 @@ namespace UnrealBuildTool
 								}
 								foreach (string Definition in ModuleCompileEnvironment.Definitions)
 								{
-									CommandBuilder.AppendFormat(" -D\"{0}\"", Definition);
+									CommandBuilder.AppendFormat(" -D\"{0}\"", Definition.Replace("\"", "\\\""));
 								}
 								foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
 								{
