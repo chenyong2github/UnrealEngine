@@ -7,6 +7,7 @@
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
 
+class IImageWrapper;
 class IPropertyHandle;
 class SNotificationItem;
 
@@ -48,6 +49,20 @@ private:
 	void SetTileWidth(int32 InWidth);
 
 	/**
+	 * Gets the current tile height of each image in pixels.
+	 *
+	 * @return Height.
+	 */
+	TOptional<int32> GetTileHeight() const;
+
+	/**
+	 * Sets the tile height of each image in pixels.
+	 *
+	 * @param InHeight Height to set.
+	 */
+	void SetTileHeight(int32 InHeight);
+
+	/**
 	 * Called when the import sequence button is clicked.
 	 * 
 	 * @return Whether this handled the event or not.
@@ -57,14 +72,34 @@ private:
 	/**
 	 * Async function to import all files in the sequence and generate tiles/mips.
 	 *
-	 * @param SequencePath				Path to look for files.
-	 * @param ConfirmNotification		Notification that will be updated with progress and closed when done.
+	 * @param SequencePath			Path to look for files.
+	 * @param ConfirmNotification	Notification that will be updated with progress and closed when done.
+	 * @param InTileWidth			Desired width of tiles. 
+	 * @param InTileHeight			Desired height of tiles.
 	 */
-	static void ImportFiles(const FString& SequencePath, TSharedPtr<SNotificationItem> ConfirmNotification);
+	static void ImportFiles(const FString& SequencePath,
+		TSharedPtr<SNotificationItem> ConfirmNotification,
+		int32 InTileWidth, int32 InTileHeight);
+
+	/**
+	 * Imports a single image and writes out 1 or more files.
+	 * Tiles and mips may be generated.
+	 * This does NOT run on the game thread.
+	 * 
+	 * @param InImageWrapper	ImageWrapper to read/write the image.
+	 * @param InTileWidth		Desired width of tiles. 
+	 * @param InTileHeight		Desired height of tiles.
+	 * @param InName			Full path and name of file to write to WITHOUT the extension (e.g. no .exr)
+	 * @param FileExtension		Extension to append to the file name.
+	 */
+	static void ImportImage(TSharedPtr<IImageWrapper>& InImageWrapper,
+		int32 InTileWidth, int32 InTileHeight, const FString& InName, const FString& FileExtension);
 
 	/** Stores our property. */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 
 	/** Tile width for each image in pixels. */
 	int32 TileWidth = 0;
+	/** Tile height for each image in pixels. */
+	int32 TileHeight = 0;
 };
