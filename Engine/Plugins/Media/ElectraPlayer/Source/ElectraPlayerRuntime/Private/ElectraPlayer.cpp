@@ -1067,23 +1067,13 @@ bool FElectraPlayer::Seek(const FTimespan& Time)
 {
 	if (CurrentPlayer.Get())
 	{
-		FTimespan CurrentPos = GetTime();
-		double Distance = (Time - CurrentPos).GetTotalSeconds();
-		// If the new position is close to the current position do not perform a seek.
-		if (Distance < -0.01 || Distance > 0.01)
-		{
-			FTimespan Target;
-			CalculateTargetSeekTime(Target, Time);
-			Electra::IAdaptiveStreamingPlayer::FSeekParam seek;
-			seek.Time.SetFromTimespan(Target);
-			bInitialSeekPerformed = true;
-			CurrentPlayer->AdaptivePlayer->SeekTo(seek);
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] IMediaPlayer::Seek(%.3f) ignored. Only %.3f seconds away from current position @%.3f"), this, CurrentPlayer.Get(), Time.GetTotalSeconds(), Distance, CurrentPos.GetTotalSeconds());
-		}
+		FTimespan Target;
+		CalculateTargetSeekTime(Target, Time);
+		Electra::IAdaptiveStreamingPlayer::FSeekParam seek;
+		seek.Time.SetFromTimespan(Target);
+		bInitialSeekPerformed = true;
+		CurrentPlayer->AdaptivePlayer->SeekTo(seek);
+		return true;
 	}
 	return false;
 }
@@ -1423,13 +1413,13 @@ FString FElectraPlayer::GetTrackName(EPlayerTrackType TrackType, int32 TrackInde
 
 /**
  * Selects a specified track for playback.
- * 
+ *
  * Note:
  *   There is currently no concept of selecting a track based on metadata, only by index.
  *   The idea being that before selecting a track by index the application needs to check
  *   the metadata beforehand (eg. call GetTrackLanguage()) to figure out the index of the
  *   track it wants to play.
- * 
+ *
  *   The underlying player however needs to select tracks based on metadata alone instead
  *   of an index in case the track layout changes dynamically during playback.
  *   For example, a part of the presentation could have both English and French audio,
@@ -1438,7 +1428,7 @@ FString FElectraPlayer::GetTrackName(EPlayerTrackType TrackType, int32 TrackInde
  *   player needs to automatically switch from French to English and back to French, or
  *   index 1 -> 0 -> 1 (assuming French was the starting language of choice).
  *   Indices are therefore meaningless to the underlying player.
- * 
+ *
  *   SelectTrack() is currently called implicitly by FMediaPlayerFacade::SelectDefaultTracks()
  *   when EMediaEvent::TracksChanged is received. This is why this event is NOT sent out
  *   in HandlePlayerEventTracksChanged() when the underlying player notifies us about a
@@ -1599,17 +1589,17 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 		switch(InEvent->GetOrigin())
 		{
 			default:
-			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::TimedMetadata:		
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::TimedMetadata:
 			{
 				Meta->Origin = FMetaDataDecoderOutput::EOrigin::TimedMetadata;
 				break;
 			}
-			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream:		
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream:
 			{
 				Meta->Origin = FMetaDataDecoderOutput::EOrigin::EventStream;
 				break;
 			}
-			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream:	
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream:
 			{
 				Meta->Origin = FMetaDataDecoderOutput::EOrigin::InbandEventStream;
 				break;
@@ -1794,6 +1784,11 @@ void FElectraPlayer::HandleDeferredPlayerEvents()
 			case FPlayerMetricEventBase::EType::PlaybackStopped:
 			{
 				HandlePlayerEventPlaybackStopped();
+				break;
+			}
+			case FPlayerMetricEventBase::EType::SeekCompleted:
+			{
+				HandlePlayerEventSeekCompleted();
 				break;
 			}
 			case FPlayerMetricEventBase::EType::Error:
@@ -2103,7 +2098,7 @@ void FElectraPlayer::HandlePlayerEventBufferingEnd(Electra::Metrics::EBufferingR
 			Statistics.InitialBufferingDuration = BufferingDuration;
 			break;
 		case Electra::Metrics::EBufferingReason::Seeking:
-			MediaStateOnSeekFinished();
+			// End of seek buffering is not relevant here.
 			break;
 		case Electra::Metrics::EBufferingReason::Rebuffering:
 			if (BufferingDuration > Statistics.LongestRebufferingDuration)
@@ -2475,6 +2470,11 @@ void FElectraPlayer::HandlePlayerEventPlaybackStopped()
 	}
 }
 
+void FElectraPlayer::HandlePlayerEventSeekCompleted()
+{
+	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Seek completed"), this, CurrentPlayer.Get());
+	MediaStateOnSeekFinished();
+}
 
 void FElectraPlayer::HandlePlayerEventError(const FString& ErrorReason)
 {

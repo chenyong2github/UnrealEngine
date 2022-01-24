@@ -199,8 +199,6 @@ namespace Electra
 			FrontDTS.SetToInvalid();
 			PushedDuration.SetToZero();
 			PlayableDuration.SetToZero();
-			MaxDuration.SetToZero();
-			MaxDataSize = 0;
 			CurrentMemInUse = 0;
 			NumCurrentAccessUnits = 0;
 			bEndOfData = false;
@@ -210,8 +208,6 @@ namespace Electra
 		FTimeValue			FrontDTS;
 		FTimeValue			PushedDuration;
 		FTimeValue			PlayableDuration;
-		FTimeValue			MaxDuration;
-		int64				MaxDataSize;
 		int64				CurrentMemInUse;
 		int64				NumCurrentAccessUnits;
 		bool				bEndOfData;
@@ -263,14 +259,14 @@ namespace Electra
 		//! Returns the number of access units currently in the FIFO.
 		int64 Num() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			return AccessUnits.Num();
 		}
 
 		//! Returns the amount of memory currently allocated.
 		int64 AllocatedSize() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			return CurrentMemInUse;
 		}
 
@@ -281,37 +277,25 @@ namespace Electra
 		}
 
 		//! Returns all vital statistics.
-		void GetStats(FAccessUnitBufferInfo& OutStats, const FConfiguration* Limit = nullptr) const
+		void GetStats(FAccessUnitBufferInfo& OutStats) const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			Limit = Limit ? Limit : &Config;
+			FScopeLock Lock(&AccessLock);
 			OutStats.FrontDTS = FrontDTS;
 			OutStats.PushedDuration = PushedDuration;
 			OutStats.PlayableDuration = PlayableDuration;
-			OutStats.MaxDuration = Limit->MaxDuration;
-			OutStats.MaxDataSize = Limit->MaxDataSize;
 			OutStats.CurrentMemInUse = CurrentMemInUse;
 			OutStats.NumCurrentAccessUnits = AccessUnits.Num();
 			OutStats.bEndOfData = bEndOfData;
 			OutStats.bLastPushWasBlocked = bLastPushWasBlocked;
 		}
 
-		//! Sets the maximum amount of memory/number of AUs this FIFO is allowed to allocate.
-		void CapacitySet(const FConfiguration& InConfig)
-		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			Flush();
-			Config = InConfig;
-		}
-
 		//! Adds an access unit to the FIFO. Returns true if successful, false if the FIFO has insufficient free space.
 		bool Push(FAccessUnit*& AU, const FConfiguration* Limit = nullptr, const FExternalBufferInfo* ExternalInfo = nullptr)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			// Pushing new data unconditionally clears the EOD flag even if the buffer is currently full.
 			// The attempt to push implies there will be more data.
 			bEndOfData = false;
-			Limit = Limit ? Limit : &Config;
 			ExternalInfo = ExternalInfo ? ExternalInfo : &ZeroExternalInfo;
 			if (CanPush(AU, Limit, ExternalInfo))
 			{
@@ -349,7 +333,7 @@ namespace Electra
 		//! Removes and returns the oldest access unit from the FIFO. Returns false if the FIFO is empty.
 		bool Pop(FAccessUnit*& OutAU)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			if (Num())
 			{
 				OutAU = AccessUnits.Pop();
@@ -399,7 +383,7 @@ namespace Electra
 		//!
 		bool PeekAndAddRef(FAccessUnit*& OutAU)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			if (Num())
 			{
 				OutAU = AccessUnits.Front();
@@ -416,7 +400,7 @@ namespace Electra
 		//!
 		bool ContainsPTS(const FTimeValue& InPTS) const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			if (AccessUnits.Num())
 			{
 				return AccessUnits.FrontRef()->PTS <= InPTS && InPTS < AccessUnits.BackRef()->PTS + AccessUnits.BackRef()->Duration;
@@ -426,7 +410,7 @@ namespace Electra
 
 		bool ContainsFuturePTS(const FTimeValue& InPTS) const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			if (AccessUnits.Num())
 			{
 				return InPTS <= AccessUnits.BackRef()->PTS + AccessUnits.BackRef()->Duration;
@@ -481,7 +465,7 @@ namespace Electra
 		FTimeValue PrepareForDecodeStartingAt(FTimeValue DecodeStartTime)
 		{
 			FTimeValue TaggedDuration(FTimeValue::GetZero());
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			int32 RemoveUpTo = -1;
 			for(int32 i=0; i<AccessUnits.Num(); ++i)
 			{
@@ -541,7 +525,7 @@ namespace Electra
 		//! Removes all elements from the FIFO
 		void Flush()
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			while(AccessUnits.Num())
 			{
 				FAccessUnit::Release(AccessUnits.Pop());
@@ -558,14 +542,14 @@ namespace Electra
 		//! Checks if the buffer has reached the end-of-data marker (marker is set and no more data is in the buffer).
 		bool IsEndOfData() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			return bEndOfData && AccessUnits.IsEmpty();
 		}
 
 		// Checks if the end-of-data flag has been set. There may still be data in the buffer though!
 		bool IsEODFlagSet() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			return bEndOfData;
 		}
 
@@ -576,7 +560,7 @@ namespace Electra
 		}
 
 		// Helper class to lock the AU buffer
-		class FScopedLock : private TMediaNoncopyable<FScopedLock>
+		class FScopedLock
 		{
 		public:
 			explicit FScopedLock(const FAccessUnitBuffer& owner)
@@ -589,7 +573,9 @@ namespace Electra
 				mOwner.AccessLock.Unlock();
 			}
 		private:
-			FScopedLock();
+			FScopedLock() = delete;
+			FScopedLock(const FScopedLock&) = delete;
+			FScopedLock& operator= (const FScopedLock&) = delete;
 			const FAccessUnitBuffer& mOwner;
 		};
 
@@ -597,11 +583,16 @@ namespace Electra
 		//! Checks if an access unit can be pushed to the FIFO. Returns true if successful, false if the FIFO has insufficient free space.
 		bool CanPush(const FAccessUnit* AU, const FConfiguration* Limit, const FExternalBufferInfo* ExternalInfo)
 		{
+			check(Limit);
+			if (!Limit)
+			{
+				return false;
+			}
 			check(Limit->MaxDuration > FTimeValue::GetZero());
 			check(AU->Duration.IsValid() && !AU->Duration.IsInfinity());
 			// If tagged with a drop state we unconditionally accept the AU. These are early ones that won't get decoded.
-			// They should appear at the beginning and end of a stream only and we do need the data that will be decoded
-			// so the ones to be dropped should not be taken into account.
+			// They should appear at the beginning and end of a stream only and since we need the following data that
+			// will be decoded we have to accept those first.
 			if (AU->DropState != 0)
 			{
 				return true;
@@ -627,8 +618,7 @@ namespace Electra
 			return false;
 		}
 
-		mutable FMediaCriticalSection				AccessLock;
-		FConfiguration								Config;
+		mutable FCriticalSection					AccessLock;
 		FExternalBufferInfo							ZeroExternalInfo;
 		TMediaQueueDynamicNoLock<FAccessUnit*>		AccessUnits;
 		FMediaSemaphore								NumInSemaphore;
@@ -653,10 +643,9 @@ namespace Electra
 		FMultiTrackAccessUnitBuffer();
 		~FMultiTrackAccessUnitBuffer();
 		void SetParallelTrackMode();
-		void CapacitySet(const FAccessUnitBuffer::FConfiguration& Config);
 		void SelectTrackWhenAvailable(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
 		void AddUpcomingBuffer(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
-		bool Push(FAccessUnit*& AU, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization);
+		bool Push(FAccessUnit*& AU, const FAccessUnitBuffer::FConfiguration* BufferConfiguration, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization);
 		void PushEndOfDataFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
 		void PushEndOfDataAll();
 		void Flush();
@@ -667,7 +656,7 @@ namespace Electra
 		{ return ActiveOutputBufferInfo; }
 
 		// Helper class to lock the AU buffer
-		class FScopedLock : private TMediaNoncopyable<FScopedLock>
+		class FScopedLock
 		{
 		public:
 			explicit FScopedLock(TSharedPtrTS<FMultiTrackAccessUnitBuffer> Self)
@@ -713,8 +702,7 @@ namespace Electra
 		void RemoveUnusedBuffers();
 		void GetEnqueuedBufferInfo(FAccessUnitBuffer::FExternalBufferInfo& OutInfo, bool bForSwitchOverChain);
 
-		FMediaCriticalSection							AccessLock;
-		FAccessUnitBuffer::FConfiguration				BufferConfiguration;				//!< Buffer configuration.
+		FCriticalSection								AccessLock;
 		TMap<FString, TSharedPtrTS<FAccessUnitBuffer>>	TrackBuffers;						//!< Map of track buffers. One per track ID.
 		TArray<FQueuedBuffer>							UpcomingBufferChain;
 		TArray<FQueuedBuffer>							SwitchOverBufferChain;

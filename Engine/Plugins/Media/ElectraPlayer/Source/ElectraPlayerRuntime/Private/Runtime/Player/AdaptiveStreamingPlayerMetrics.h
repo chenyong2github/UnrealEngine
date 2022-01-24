@@ -325,6 +325,12 @@ public:
 	virtual void ReportPlaybackStopped() = 0;
 
 	/**
+	 * Called when a seek has completed such that the first new data is ready.
+	 * Future data may still be buffering.
+	 */
+	virtual void ReportSeekCompleted() = 0;
+
+	/**
 	 * Called when an error occurs. Errors always result in termination of playback.
 	 */
 	virtual void ReportError(const FString& ErrorReason) = 0;

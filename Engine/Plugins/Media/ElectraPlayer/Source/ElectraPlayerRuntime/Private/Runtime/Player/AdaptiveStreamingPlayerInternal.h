@@ -422,6 +422,7 @@ struct FMetricEvent
 		PlaybackEnded,
 		PlaybackJumped,
 		PlaybackStopped,
+		SeekCompleted,
 		LicenseKey,
 		Errored,
 		LogMessage,
@@ -623,6 +624,12 @@ struct FMetricEvent
 	{
 		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
 		Evt->Type = EType::PlaybackStopped;
+		return Evt;
+	}
+	static TSharedPtrTS<FMetricEvent> ReportSeekCompleted()
+	{
+		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
+		Evt->Type = EType::SeekCompleted;
 		return Evt;
 	}
 	static TSharedPtrTS<FMetricEvent> ReportError(const FErrorDetail& ErrorDetail)
@@ -1536,6 +1543,22 @@ private:
 		FRenderState		Audio;
 	};
 
+	struct FSeekVars
+	{
+		FSeekVars()
+		{
+			Clear();
+		}
+		void Clear()
+		{
+			bForScrubbing = false;
+			bScrubPrerollDone = false;
+		}
+
+		bool	bForScrubbing;
+		bool	bScrubPrerollDone;
+	};
+
 	struct FStreamBitrateInfo
 	{
 		FStreamBitrateInfo()
@@ -1699,6 +1722,7 @@ private:
 	void CheckForErrors();
 
 	double GetMinBufferTimeBeforePlayback();
+	bool HaveEnoughBufferedDataToStartPlayback();
 
 	FTimeValue ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd);
 
@@ -1839,6 +1863,7 @@ private:
 	FLiveSyncVars														LiveSyncVars;
 	FPrerollVars														PrerollVars;
 	FPostrollVars														PostrollVars;
+	FSeekVars															SeekVars;
 	EPlayerState														LastBufferingState;
 	double																PlaybackRate;
 	FTimeValue															RebufferDetectedAtPlayPos;
@@ -1855,7 +1880,6 @@ private:
 
 	bool																bShouldBePaused;
 	bool																bShouldBePlaying;
-	bool																bSeekPending;
 
 	FInternalLoopState													CurrentLoopState;
 	FLoopParam															CurrentLoopParam;

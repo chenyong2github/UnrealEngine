@@ -16,10 +16,7 @@ namespace Electra
 
 	TSharedPtrTS<FAccessUnitBuffer> FMultiTrackAccessUnitBuffer::CreateNewBuffer()
 	{
-		// All buffers here are internally unbounded as we need them to accept all incoming data.
-		// Limits are used on the active buffer only.
 		TSharedPtrTS<FAccessUnitBuffer> NewBuffer = MakeSharedTS<FAccessUnitBuffer>();
-		NewBuffer->CapacitySet(FAccessUnitBuffer::FConfiguration(1024 << 20, 3600.0));
 		return NewBuffer;
 	}
 
@@ -33,13 +30,7 @@ namespace Electra
 		bIsParallelTrackMode = true;
 	}
 
-
-	void FMultiTrackAccessUnitBuffer::CapacitySet(const FAccessUnitBuffer::FConfiguration& Config)
-	{
-		BufferConfiguration = Config;
-	}
-
-	bool FMultiTrackAccessUnitBuffer::Push(FAccessUnit*& AU, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization)
+	bool FMultiTrackAccessUnitBuffer::Push(FAccessUnit*& AU, const FAccessUnitBuffer::FConfiguration* BufferConfiguration, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization)
 	{
 		check(AU->BufferSourceInfo.IsValid());
 
@@ -57,7 +48,6 @@ namespace Electra
 		// Pushing data to either buffer means that there is data and we are not at EOD here any more.
 		// This does not necessarily mean that the selected track is not at EOD. Just that some track is not.
 		bEndOfData = false;
-
 
 		bool bIsSwitchOverAU = false;
 		for(auto &SwitchBuf : SwitchOverBufferChain)
@@ -82,7 +72,7 @@ namespace Electra
 
 		AccessLock.Unlock();
 
-		bool bWasPushed = TrackBuffer->Push(AU, &BufferConfiguration, &EnqueuedBufferInfo);
+		bool bWasPushed = TrackBuffer->Push(AU, BufferConfiguration, &EnqueuedBufferInfo);
 		bLastPushWasBlocked = TrackBuffer->WasLastPushBlocked();
 
 		return bWasPushed;
@@ -109,7 +99,7 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::PushEndOfDataAll()
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		bEndOfData = true;
 		// Push an end-of-data into all tracks.
 		for(auto& It : TrackBuffers)
@@ -132,7 +122,7 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::Flush()
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		if (bIsParallelTrackMode)
 		{
 			// Flush all existing buffers but keep them in the track map.
@@ -150,7 +140,7 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::PurgeAll()
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		// Get rid of all buffers
 		TrackBuffers.Empty();
 		Clear();
@@ -161,7 +151,7 @@ namespace Electra
 	{
 		if (InBufferSourceInfo.IsValid())
 		{
-			FMediaCriticalSection::ScopedLock lock(AccessLock);
+			FScopeLock lock(&AccessLock);
 			if (SwitchOverBufferChain.Num() == 0)
 			{
 				FQueuedBuffer Next;
@@ -224,7 +214,7 @@ namespace Electra
 	{
 		if (InBufferSourceInfo.IsValid())
 		{
-			FMediaCriticalSection::ScopedLock lock(AccessLock);
+			FScopeLock lock(&AccessLock);
 			// Add to the current or the switch-over chain?
 			if (SwitchOverBufferChain.Num())
 			{
@@ -249,20 +239,20 @@ namespace Electra
 
 	FTimeValue FMultiTrackAccessUnitBuffer::GetLastPoppedPTS()
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		return LastPoppedPTS;
 	}
 
 	FTimeValue FMultiTrackAccessUnitBuffer::GetLastPoppedDTS()
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		return LastPoppedDTS;
 	}
 
 	TSharedPtrTS<FAccessUnitBuffer> FMultiTrackAccessUnitBuffer::GetSelectedTrackBuffer()
 	{
 		TSharedPtrTS<FAccessUnitBuffer> TrackBuffer;
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		FScopeLock lock(&AccessLock);
 		if (ActiveOutputBufferInfo.IsValid() && TrackBuffers.Contains(ActiveOutputBufferInfo->PeriodAdaptationSetID))
 		{
 			TrackBuffer = TrackBuffers[ActiveOutputBufferInfo->PeriodAdaptationSetID];
@@ -276,11 +266,9 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::GetStats(FAccessUnitBufferInfo& OutStats)
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
-		// Stats are always returned with the configuration for one buffer, not
-		// any summation of enqueued buffers.
+		FScopeLock lock(&AccessLock);
 		TSharedPtrTS<const FAccessUnitBuffer> Buf = GetSelectedTrackBuffer();
-		Buf->GetStats(OutStats, &BufferConfiguration);
+		Buf->GetStats(OutStats);
 		if (Buf == EmptyBuffer)
 		{
 			OutStats.bEndOfData = bEndOfData;

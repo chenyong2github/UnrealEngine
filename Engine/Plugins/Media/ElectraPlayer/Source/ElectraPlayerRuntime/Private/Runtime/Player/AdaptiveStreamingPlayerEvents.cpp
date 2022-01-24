@@ -50,25 +50,29 @@ void FAdaptiveStreamingPlayer::DispatchSegmentDownloadedEvent(TSharedPtrTS<IStre
 void FAdaptiveStreamingPlayer::DispatchBufferUtilizationEvent(EStreamType BufferType)
 {
 	const FAccessUnitBufferInfo* BufferStats = nullptr;
+	const FAccessUnitBuffer::FConfiguration* BufferConfig = nullptr;
 	if (BufferType == EStreamType::Video)
 	{
 		BufferStats = &VideoBufferStats.StreamBuffer;
+		BufferConfig = &PlayerConfig.StreamBufferConfigVideo;
 	}
 	else if (BufferType == EStreamType::Audio)
 	{
 		BufferStats = &AudioBufferStats.StreamBuffer;
+		BufferConfig = &PlayerConfig.StreamBufferConfigAudio;
 	}
 	else if (BufferType == EStreamType::Subtitle)
 	{
 		BufferStats = &TextBufferStats.StreamBuffer;
+		BufferConfig = &PlayerConfig.StreamBufferConfigText;
 	}
 	if (BufferStats)
 	{
 		Metrics::FBufferStats stats;
 		stats.BufferType = BufferType;
-		stats.MaxDurationInSeconds = BufferStats->MaxDuration.GetAsSeconds();
+		stats.MaxDurationInSeconds = BufferConfig ? BufferConfig->MaxDuration.GetAsSeconds() : 0.0;
 		stats.DurationInUse 	   = BufferStats->PushedDuration.GetAsSeconds();
-		stats.MaxByteCapacity      = BufferStats->MaxDataSize;
+		stats.MaxByteCapacity      = BufferConfig ? BufferConfig->MaxDataSize : 0;
 		stats.BytesInUse		   = BufferStats->CurrentMemInUse;
 		DispatchEvent(FMetricEvent::ReportBufferUtilization(stats));
 	}

@@ -1330,7 +1330,7 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(TSharedPtr<FDecoderIn
 */
 // TODO: set the proper flags. This may require a larger intermediate output queue. Needs experimenting.
 	VTDecodeFrameFlags DecodeFlags = kVTDecodeFrame_EnableAsynchronousDecompression | kVTDecodeFrame_EnableTemporalProcessing;
-	if (bRecreatingSession)
+	if (bRecreatingSession || !AU->AdjustedPTS.IsValid())
 	{
 		DecodeFlags = kVTDecodeFrame_DoNotOutputFrame;
 	}

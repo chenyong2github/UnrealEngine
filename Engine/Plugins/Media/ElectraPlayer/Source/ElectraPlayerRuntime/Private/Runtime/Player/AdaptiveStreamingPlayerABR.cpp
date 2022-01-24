@@ -166,6 +166,7 @@ namespace Electra
 		virtual void ReportPlaybackEnded() override;
 		virtual void ReportJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason) override {}
 		virtual void ReportPlaybackStopped() override {}
+		virtual void ReportSeekCompleted() override {}
 		virtual void ReportError(const FString& ErrorReason) override {}
 		virtual void ReportLogMessage(IInfoLog::ELevel InLogLevel, const FString& LogMessage, int64 PlayerWallclockMilliseconds) override {}
 		virtual void ReportDroppedVideoFrame() override {}

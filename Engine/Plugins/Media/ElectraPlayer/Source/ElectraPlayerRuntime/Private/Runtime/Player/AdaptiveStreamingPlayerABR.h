@@ -146,6 +146,7 @@ public:
 	virtual void ReportPlaybackEnded() = 0;
 	virtual void ReportJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason) = 0;
 	virtual void ReportPlaybackStopped() = 0;
+	virtual void ReportSeekCompleted() = 0;
 	virtual void ReportError(const FString& ErrorReason) = 0;
 	virtual void ReportLogMessage(IInfoLog::ELevel LogLevel, const FString& LogMessage, int64 PlayerWallclockMilliseconds) = 0;
 	virtual void ReportDroppedVideoFrame() = 0;
