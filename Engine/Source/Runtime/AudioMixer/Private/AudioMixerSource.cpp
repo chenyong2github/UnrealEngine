@@ -1201,7 +1201,7 @@ namespace Audio
 		if (MixerSourceVoice)
 		{
 			// Release the source using the propagation interface
-			if (AudioDevice->SourceDataOverridePluginInterface && WaveInstance->GetUseSpatialization())
+			if (AudioDevice->SourceDataOverridePluginInterface)
 			{
 				uint32 SourceId = MixerSourceVoice->GetSourceId();
 				AudioDevice->SourceDataOverridePluginInterface->OnReleaseSource(SourceId);

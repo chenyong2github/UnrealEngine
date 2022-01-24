@@ -453,7 +453,6 @@ namespace Audio
 			uint8 bIsExternalSend:1;
 			uint8 bUseOcclusionPlugin:1;
 			uint8 bUseReverbPlugin:1;
-			uint8 bUseSourceDataOverridePlugin:1;
 			uint8 bIsDone:1;
 			uint8 bIsLastBuffer:1;
 			uint8 bEnableBusSends : 1;
