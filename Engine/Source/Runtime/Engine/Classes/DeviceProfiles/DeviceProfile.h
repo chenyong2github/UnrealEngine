@@ -163,10 +163,15 @@ private:
 #if ALLOW_OTHER_PLATFORM_CONFIG
 public:
 	const TMap<FString, FString>& GetAllExpandedCVars();
+	const TMap<FString, FString>& GetAllPreviewCVars();
 	void AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge);
+	void AddPreviewCVars(const TMap<FString, FString>& CVarsToMerge);
 	void ClearAllExpandedCVars();
 private:
 	/** Resolved CVars, including expanded scalability cvars used to properly emulate one platform on another */
 	TMap<FString, FString> AllExpandedCVars;
+
+	/** The set of cvars that can be previewed (a subset of AllExpandedCVars) */
+	TMap<FString, FString> AllPreviewCVars;
 #endif
 };

@@ -410,6 +410,9 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, bool bV
 					}
 				}
 
+				IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Key);
+				EConsoleVariableFlags PreviewFlag = (CVar != nullptr) ? (EConsoleVariableFlags)(CVar->GetFlags() & ECVF_Preview) : ECVF_Default;
+
 				if (Key.StartsWith(TEXT("sg.")))
 				{
 					// @todo ini: If anything in here was already set, overwrite it or skip it?
@@ -421,12 +424,12 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, bool bV
 
 					for (const auto& ScalabilityPair : ScalabilityCVars)
 					{
-						Visit(ScalabilityPair.Key, ScalabilityPair.Value, ECVF_SetByScalability);
+						Visit(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability | PreviewFlag));
 					}
 				}
 				else
 				{
-					Visit(Key, Value, SectionPair.SetBy);
+					Visit(Key, Value, (EConsoleVariableFlags)(SectionPair.SetBy | PreviewFlag));
 				}
 			}
 		}
@@ -462,13 +465,13 @@ static bool GetConfigValueFromRuntimeSources(FName PlatformName, IConsoleVariabl
 	LastSetBy = ECVF_SetByConstructor;
 
 	IConsoleManager::VisitPlatformCVarsForEmulation(PlatformName, true, 
-		[&VariableName, &OutValue, &LastSetBy](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)
+		[&VariableName, &OutValue, &LastSetBy](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetByAndPreview)
 		{
 			// if this key is the variable, set it at the current SetBy level
 			if (CVarName == VariableName)
 			{
 				OutValue = CVarValue;
-				LastSetBy = SetBy;
+				LastSetBy = (EConsoleVariableFlags)(SetByAndPreview & ECVF_SetByMask);
 			}
 		});
 

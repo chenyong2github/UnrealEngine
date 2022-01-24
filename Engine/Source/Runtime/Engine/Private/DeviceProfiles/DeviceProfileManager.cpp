@@ -175,6 +175,9 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	// if we are just caching, this also contains the set of all CVars (including expanding scalability groups)
 	TMap<FString, FString> CVarsAlreadySetList;
 
+	// previewable subset of CVarsAlreadySetList
+	TMap<FString, FString> PreviewableCVars;
+
 	// reset some global state for "active DP" mode
 	if (Mode == EDeviceProfileMode::DPM_SetCVars)
 	{
@@ -243,24 +246,6 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	}
 
 	FString SectionSuffix = *FString::Printf(TEXT(" %s"), *UDeviceProfile::StaticClass()->GetName());
-
-#if WITH_EDITOR
-	TArray<FString> PreviewAllowlistCVars;
-	TArray<FString> PreviewDenylistCVars;
-	bool bFoundAllowDeny = false;
-	if (Mode == EDeviceProfileMode::DPM_CacheValues)
-	{
-		// Walk up the device profile tree to find the most specific device profile with a Denylist or Allowlist of cvars to apply, and use those Allow/Denylists.
-		for(FString CurrentProfileName = DeviceProfileName, CurrentSectionName = DeviceProfileName + SectionSuffix;
-			PreviewAllowlistCVars.Num()==0 && PreviewDenylistCVars.Num()==0 && !CurrentProfileName.IsEmpty() && AvailableProfiles.Contains(CurrentSectionName);
-			CurrentProfileName = GConfig->GetStr(*CurrentSectionName, TEXT("BaseProfileName"), GDeviceProfilesIni), CurrentSectionName = CurrentProfileName + SectionSuffix)
-		{
-			ConfigSystem->GetArray(*CurrentSectionName, TEXT("PreviewAllowlistCVars"), PreviewAllowlistCVars, GDeviceProfilesIni);
-			ConfigSystem->GetArray(*CurrentSectionName, TEXT("PreviewDenylistCVars"), PreviewDenylistCVars, GDeviceProfilesIni);
-		}
-	}
-#endif
-
 
 	TSet<FString> FragmentCVarKeys;
 	TArray<FString> SelectedFragmentCVars;
@@ -392,31 +377,9 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 					{
 						if (!CVarsAlreadySetList.Find(CVarKey))
 						{
-#if WITH_EDITOR
-							if (Mode == EDeviceProfileMode::DPM_CacheValues)
-							{
-								if (PreviewDenylistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); }))
-								{
-									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewDenylistCVars: [[%s]]"), *CVarKey);
-									continue;
-								}
-								
-								bool bIsPreviewCVar = false;
-								if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarKey))
-								{
-									bIsPreviewCVar = CVar->TestFlags(ECVF_Preview);
-								}
-								if (bIsPreviewCVar == false && (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); })))
-								{
-									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewAllowlistCVars: [[%s]]"), *CVarKey);
-									continue;
-								}
-							}
-#endif
-
+							IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarKey);
 							if (Mode == EDeviceProfileMode::DPM_SetCVars)
 							{
-								IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarKey);
 								if (CVar)
 								{
 									// remember the previous value
@@ -445,6 +408,19 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 
 								// cache key with value
 								CVarsAlreadySetList.Add(CVarKey, CVarValue);
+
+#if WITH_EDITOR
+								// if this is previewable, add it to the list - and also make any expanded scalability cvars previewable
+								if (CVar->TestFlags(EConsoleVariableFlags::ECVF_Preview))
+								{
+									if (bIsScalabilityBucket)
+									{
+										// don't overwrite any existing cvars when expanding
+										ExpandScalabilityCVar(ConfigSystem, CVarKey, CVarValue, PreviewableCVars, false);
+									}
+									PreviewableCVars.Add(CVarKey, CVarValue);
+								}
+#endif
 							}
 							// actually set the cvar if not just caching
 							else
@@ -489,6 +465,9 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	{
 		UDeviceProfile* Profile = UDeviceProfileManager::Get().FindProfile(DeviceProfileName, false);
 		Profile->AddExpandedCVars(CVarsAlreadySetList);
+
+		// now remember all previewable cvars
+		Profile->AddPreviewCVars(PreviewableCVars);
 	}
 #endif
 }
@@ -566,14 +545,20 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile()
 void UDeviceProfileManager::ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile)
 {
 	TMap<FString, FString> CVarsToAdd;
+	TMap<FString, FString> PreviewCVars;
 	IConsoleManager::VisitPlatformCVarsForEmulation(*DeviceProfile->DeviceType, false,
-		[&CVarsToAdd](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)
+		[&CVarsToAdd, &PreviewCVars](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetByAndPreview)
 		{
 			CVarsToAdd.Add(CVarName, CVarValue);
+			if (SetByAndPreview & EConsoleVariableFlags::ECVF_Preview)
+			{
+				PreviewCVars.Add(CVarName, CVarValue);
+			}
 		});
 
 	// we now have all the cvars for this platform without _any_ device profiles, so now add those into the map
 	DeviceProfile->AddExpandedCVars(CVarsToAdd);
+	DeviceProfile->AddPreviewCVars(PreviewCVars);
 
 	// and finalize them into a cache
 	ProcessDeviceProfileIniSettings(DeviceProfile->GetName(), EDeviceProfileMode::DPM_CacheValues);
@@ -958,7 +943,7 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 
 	UE_LOG(LogDeviceProfileManager, Log, TEXT("SetPreviewDeviceProfile preview to %s"), *DeviceProfile->GetName());
 	// apply the preview DP cvars.
-	for (const auto& Pair : DeviceProfile->GetAllExpandedCVars())
+	for (const auto& Pair : DeviceProfile->GetAllPreviewCVars())
 	{
 		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Pair.Key);
 		// skip over scalability group cvars (maybe they shouldn't be left in the AllExpandedCVars?)
@@ -1369,6 +1354,18 @@ public:
 			{
 				Ar.Logf(TEXT("All cvars found for deviceprofile %s"), Cmd);
 				for (const auto& Pair : DeviceProfile->GetAllExpandedCVars())
+				{
+					Ar.Logf(TEXT("%s = %s"), *Pair.Key, *Pair.Value);
+				}
+			}
+		}
+		else if (FParse::Command(&Cmd, TEXT("dpdumppreview")))
+		{
+			UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(Cmd, false);
+			if (DeviceProfile)
+			{
+				Ar.Logf(TEXT("All preview cvars found for deviceprofile %s"), Cmd);
+				for (const auto& Pair : DeviceProfile->GetAllPreviewCVars())
 				{
 					Ar.Logf(TEXT("%s = %s"), *Pair.Key, *Pair.Value);
 				}

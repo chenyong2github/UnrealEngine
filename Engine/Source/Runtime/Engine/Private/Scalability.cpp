@@ -15,77 +15,77 @@ static TAutoConsoleVariable<float> CVarResolutionQuality(
 	100.0f,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 10..100, default: 100"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarViewDistanceQuality(
 	TEXT("sg.ViewDistanceQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarAntiAliasingQuality(
 	TEXT("sg.AntiAliasingQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarShadowQuality(
 	TEXT("sg.ShadowQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarGlobalIlluminationQuality(
 	TEXT("sg.GlobalIlluminationQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarReflectionQuality(
 	TEXT("sg.ReflectionQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarPostProcessQuality(
 	TEXT("sg.PostProcessQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarTextureQuality(
 	TEXT("sg.TextureQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarEffectsQuality(
 	TEXT("sg.EffectsQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarFoliageQuality(
 	TEXT("sg.FoliageQuality"),
 	3,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarShadingQuality(
 	TEXT("sg.ShadingQuality"),
 	Scalability::DefaultQualityLevel,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 0:low, 1:med, 2:high, 3:epic, 4:cinematic, default: 3"),
-	ECVF_ScalabilityGroup);
+	ECVF_ScalabilityGroup | ECVF_Preview);
 
 static TAutoConsoleVariable<int32> CVarViewDistanceQuality_NumLevels(
 	TEXT("sg.ViewDistanceQuality.NumLevels"),

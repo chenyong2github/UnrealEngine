@@ -386,6 +386,17 @@ const TMap<FString, FString>& UDeviceProfile::GetAllExpandedCVars()
 	return AllExpandedCVars;
 }
 
+const TMap<FString, FString>& UDeviceProfile::GetAllPreviewCVars()
+{
+	// expand on first use
+	if (AllPreviewCVars.Num() == 0)
+	{
+		UDeviceProfileManager::Get().ExpandDeviceProfileCVars(this);
+	}
+
+	return AllPreviewCVars;
+}
+
 void UDeviceProfile::AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge)
 {
 	// merge the cvars, overwriting any existing ones
@@ -395,9 +406,18 @@ void UDeviceProfile::AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge
 	}
 }
 
+void UDeviceProfile::AddPreviewCVars(const TMap<FString, FString>& CVarsToMerge)
+{
+	for (const auto& Pair : CVarsToMerge)
+	{
+		AllPreviewCVars.Add(Pair.Key, Pair.Value);
+	}
+}
+
 void UDeviceProfile::ClearAllExpandedCVars()
 {
 	AllExpandedCVars.Empty();
+	AllPreviewCVars.Empty();
 }
 
 
