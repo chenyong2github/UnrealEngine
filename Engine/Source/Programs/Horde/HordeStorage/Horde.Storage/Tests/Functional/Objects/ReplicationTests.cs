@@ -438,6 +438,36 @@ namespace Horde.Storage.FunctionalTests.References
         }
 
         [TestMethod]
+        public async Task ReplicationLogOldBucket()
+        {
+            // the namespace exists but the bucket id is from a old bucket that does not exist anymore
+            CompactBinaryWriter writer = new CompactBinaryWriter();
+            writer.BeginObject();
+            writer.AddString("thisIsAField", "stringField");
+            writer.EndObject();
+
+            byte[] objectData = writer.Save();
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
+
+            await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("firstObject"), objectHash, DateTime.Now.AddDays(-1));
+
+            string eventBucket = DateTime.Now.AddDays(-60).ToReplicationBucketIdentifier();
+            Guid eventId = Guid.NewGuid();
+
+            {
+                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/replication-log/incremental/{TestNamespace}?lastBucket={eventBucket}&lastEvent={eventId}");
+                Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
+                
+                string s = await result.Content.ReadAsStringAsync();
+                
+                ProblemDetails? problem = await result.Content.ReadFromJsonAsync<ProblemDetails?>();
+                Assert.IsNotNull(problem);
+            }
+
+            CollectionAssert.AreEqual(new [] {TestNamespace}, await _replicationLog.GetNamespaces().ToArrayAsync());
+        }
+
+        [TestMethod]
         public async Task ReplicationLogEmptyLog()
         {
             // the namespace does not exist

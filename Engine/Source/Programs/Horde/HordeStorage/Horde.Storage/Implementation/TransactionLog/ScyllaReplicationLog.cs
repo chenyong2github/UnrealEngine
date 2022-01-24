@@ -167,6 +167,8 @@ namespace Horde.Storage.Implementation
         {
             using IScope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
 
+            // ignore any bucket that is older then a cutoff, as that can cause us to end up scanning thru a lot of hours that will never exist (incremental logs are deleted after 7 days)
+            DateTime oldCutoff = DateTime.UtcNow.AddDays(-14);
 
             DateTime startBucketTime;
 
@@ -174,6 +176,12 @@ namespace Horde.Storage.Implementation
             {
                 long bucket = FromReplicationBucketIdentifier(lastBucket);
                 startBucketTime = DateTime.FromFileTimeUtc(bucket);
+                if (startBucketTime < oldCutoff)
+                {
+                    // attempting to use a old bucket, this will not exist anymore so will break here
+                    yield break;
+                }
+
                 yield return bucket;
             }
             else
@@ -185,8 +193,6 @@ namespace Horde.Storage.Implementation
                 startBucketTime = oldestTimestamp;
             }
 
-            // ignore any bucket that is older then a cutoff, as that can cause us to end up scanning thru a lot of hours that will never exist (incremental logs are deleted after 7 days)
-            DateTime oldCutoff = DateTime.UtcNow.AddDays(-14);
             // we returned the start bucket earlier so now we start with the next one
             DateTime bucketTime = startBucketTime.AddHours(1.0).ToHourlyBucket();
             while(bucketTime < DateTime.UtcNow && bucketTime > oldCutoff)
@@ -354,7 +360,6 @@ namespace Horde.Storage.Implementation
 
         [Cassandra.Mapping.Attributes.Column("blob_namespace")]
         public string BlobNamespace { get; set; }
-
     }
 
     [Cassandra.Mapping.Attributes.Table("replication_namespace")]
