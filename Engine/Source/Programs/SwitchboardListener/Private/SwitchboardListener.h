@@ -24,6 +24,7 @@ struct FSwitchboardRefreshMosaicsTask;
 struct FSwitchboardRedeployListenerTask;
 struct FSwitchboardFixExeFlagsTask;
 struct FSwitchboardMinimizeWindowsTask;
+struct FSwitchboardSetInactiveTimeoutTask;
 
 class FInternetAddr;
 class FSocket;
@@ -95,6 +96,8 @@ struct FRedeployStatus
 
 class FSwitchboardListener
 {
+	static const FIPv4Endpoint InvalidEndpoint;
+
 public:
 	explicit FSwitchboardListener(const FSwitchboardCommandLineOptions& InOptions);
 	~FSwitchboardListener();
@@ -124,6 +127,7 @@ private:
 	bool Task_RefreshMosaics(const FSwitchboardRefreshMosaicsTask& InRefreshMosaicsTask);
 	bool Task_FixExeFlags(const FSwitchboardFixExeFlagsTask& InFixExeFlagsTask);
 	bool Task_MinimizeWindows(const FSwitchboardMinimizeWindowsTask& InRefreshMosaicsTask);
+	bool Task_SetInactiveTimeout(const FSwitchboardSetInactiveTimeoutTask& InTimeoutTask);
 
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
 	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);
@@ -147,6 +151,7 @@ private:
 	TUniquePtr<FTcpListener> SocketListener;
 	TQueue<TPair<FIPv4Endpoint, TSharedPtr<FSocket>>, EQueueMode::Spsc> PendingConnections;
 	TMap<FIPv4Endpoint, TSharedPtr<FSocket>> Connections;
+	TMap<FIPv4Endpoint, float> InactiveTimeouts;
 	TMap<FIPv4Endpoint, double> LastActivityTime;
 	TMap<FIPv4Endpoint, TArray<uint8>> ReceiveBuffer;
 

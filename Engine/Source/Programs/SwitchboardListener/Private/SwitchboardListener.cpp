@@ -45,9 +45,12 @@ static void FillOutMosaicTopologies(TArray<FMosaicTopo>& MosaicTopos);
 #endif // PLATFORM_WINDOWS
 
 
+const FIPv4Endpoint FSwitchboardListener::InvalidEndpoint(FIPv4Address::LanBroadcast, 0);
+
+
 namespace
 {
-	const double SecondsUntilInactiveClientDisconnect = 5.0;
+	const double DefaultInactiveTimeoutSeconds = 5.0;
 
 	bool TryFindIdInBrokenMessage(const FString& InMessage, FGuid& OutGuid)
 	{
@@ -291,6 +294,7 @@ bool FSwitchboardListener::Tick()
 			Connections.Add(Connection);
 
 			FIPv4Endpoint ClientEndpoint = Connection.Key;
+			InactiveTimeouts.FindOrAdd(ClientEndpoint, DefaultInactiveTimeoutSeconds);
 			LastActivityTime.FindOrAdd(ClientEndpoint, FPlatformTime::Seconds());
 
 			// Send current state upon connection
@@ -480,6 +484,11 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		{
 			const FSwitchboardMinimizeWindowsTask& Task = static_cast<const FSwitchboardMinimizeWindowsTask&>(InTask);
 			return Task_MinimizeWindows(Task);
+		}
+		case ESwitchboardTaskType::SetInactiveTimeout:
+		{
+			const FSwitchboardSetInactiveTimeoutTask& Task = static_cast<const FSwitchboardSetInactiveTimeoutTask&>(InTask);
+			return Task_SetInactiveTimeout(Task);
 		}
 		default:
 		{
@@ -1551,6 +1560,8 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	// The monitor auto-closes when monitored program closes.
 	MonitorProcess->UUID = Process->UUID;
 	MonitorProcess->bUpdateClientsWithStdout = false;
+	MonitorProcess->Recipient = InvalidEndpoint;
+	MonitorProcess->Name = TEXT("flipmode_monitor");
 
 	FlipModeMonitors.Add(MonitorProcess);
 
@@ -1569,7 +1580,8 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 	}
 
 	// Get stdout.
-	const FString StdOut(UTF8_TO_TCHAR(FlipModeMonitor->Output.GetData()));
+	FUTF8ToTCHAR StdoutConv(reinterpret_cast<const ANSICHAR*>(FlipModeMonitor->Output.GetData()), FlipModeMonitor->Output.Num());
+	const FString StdOut(StdoutConv.Get());
 
 	// Clear out the StdOut array.
 	FlipModeMonitor->Output.Empty();
@@ -1958,15 +1970,38 @@ bool FSwitchboardListener::Task_MinimizeWindows(const FSwitchboardMinimizeWindow
 #endif // PLATFORM_WINDOWS
 }
 
+bool FSwitchboardListener::Task_SetInactiveTimeout(const FSwitchboardSetInactiveTimeoutTask& InTimeoutTask)
+{
+	const FIPv4Endpoint& Client = InTimeoutTask.Recipient;
+	const float RequestedTimeout = InTimeoutTask.TimeoutSeconds;
+
+	if (RequestedTimeout < DefaultInactiveTimeoutSeconds)
+	{
+		SendMessage(CreateTaskDeclinedMessage(InTimeoutTask, "Requested timeout too low", {}), Client);
+		return false;
+	}
+
+	float& ClientTimeout = InactiveTimeouts[Client];
+	if (RequestedTimeout != ClientTimeout)
+	{
+		UE_LOG(LogSwitchboard, Display, TEXT("Changing client %s inactive timeout from %.0f to %.0f seconds"),
+			*Client.ToString(), ClientTimeout, RequestedTimeout);
+		ClientTimeout = RequestedTimeout;
+	}
+
+	return true;
+}
+
 void FSwitchboardListener::CleanUpDisconnectedSockets()
 {
 	const double CurrentTime = FPlatformTime::Seconds();
 	for (const TPair<FIPv4Endpoint, double>& LastActivity : LastActivityTime)
 	{
 		const FIPv4Endpoint& Client = LastActivity.Key;
-		if (CurrentTime - LastActivity.Value > SecondsUntilInactiveClientDisconnect)
+		const float ClientTimeout = InactiveTimeouts[Client];
+		if (CurrentTime - LastActivity.Value > ClientTimeout)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("Client %s has been inactive for more than %.1fs -- closing connection"), *Client.ToString(), SecondsUntilInactiveClientDisconnect);
+			UE_LOG(LogSwitchboard, Warning, TEXT("Client %s has been inactive for more than %.1fs -- closing connection"), *Client.ToString(), ClientTimeout);
 			TUniquePtr<FSwitchboardDisconnectTask> DisconnectTask = MakeUnique<FSwitchboardDisconnectTask>(FGuid(), Client);
 			DisconnectTasks.Enqueue(MoveTemp(DisconnectTask));
 		}
@@ -1994,6 +2029,7 @@ void FSwitchboardListener::DisconnectClient(const FIPv4Endpoint& InClientEndpoin
 	const FString Client = InClientEndpoint.ToString();
 	UE_LOG(LogSwitchboard, Display, TEXT("Client %s disconnected"), *Client);
 	Connections.Remove(InClientEndpoint);
+	InactiveTimeouts.Remove(InClientEndpoint);
 	LastActivityTime.Remove(InClientEndpoint);
 	ReceiveBuffer.Remove(InClientEndpoint);
 }
@@ -2052,11 +2088,13 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 
 				int32 ReturnCode = 0;
 				FPlatformProcess::GetProcReturnCode(Process->Handle, &ReturnCode);
-				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
+				UE_LOG(LogSwitchboard, Display, TEXT("Process %d (%s) exited with returncode: %d"),
+					Process->PID, *Process->Name, ReturnCode);
 
-				if (ReturnCode != 0)
+				if (ReturnCode != 0 && Process->Output.Num() > 0)
 				{
-					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), UTF8_TO_TCHAR(Process->Output.GetData()));
+					FUTF8ToTCHAR StdoutConv(reinterpret_cast<const ANSICHAR*>(Process->Output.GetData()), Process->Output.Num());
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), StdoutConv.Get());
 				}
 
 				// Notify remote client, which implies that this is a program managed by it.
@@ -2117,6 +2155,11 @@ bool FSwitchboardListener::OnIncomingConnection(FSocket* InSocket, const FIPv4En
 
 bool FSwitchboardListener::SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint)
 {
+	if (InEndpoint == InvalidEndpoint)
+	{
+		return false;
+	}
+
 	if (Connections.Contains(InEndpoint))
 	{
 		TSharedPtr<FSocket> ClientSocket = Connections[InEndpoint];

@@ -190,6 +190,11 @@ bool RunSwitchboardListener(const FSwitchboardCommandLineOptions& Options)
 		const double DeltaTime = CurrentTime - LastTime;
 		LastTime = CurrentTime;
 
+		if (DeltaTime > 0.1)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("Hitch detected; %.3f seconds since prior tick"), DeltaTime);
+		}
+
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
 		// Pump & Tick objects

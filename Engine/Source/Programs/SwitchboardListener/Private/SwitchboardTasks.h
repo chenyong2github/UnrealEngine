@@ -21,6 +21,7 @@ enum class ESwitchboardTaskType : uint8
 	RedeployListener,
 	RefreshMosaics,
 	MinimizeWindows,
+	SetInactiveTimeout,
 };
 
 
@@ -230,5 +231,22 @@ struct FSwitchboardMinimizeWindowsTask : public FSwitchboardTask
 	FSwitchboardMinimizeWindowsTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint)
 		: FSwitchboardTask{ ESwitchboardTaskType::MinimizeWindows, TEXT("minimize windows"), InTaskId, InEndpoint }
 	{}
+};
+
+struct FSwitchboardSetInactiveTimeoutTask : public FSwitchboardTask
+{
+	FSwitchboardSetInactiveTimeoutTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, double InTimeoutSeconds)
+		: FSwitchboardTask{ ESwitchboardTaskType::SetInactiveTimeout, TEXT("set inactive timeout"), InTaskId, InEndpoint }
+		, TimeoutSeconds(InTimeoutSeconds)
+	{}
+
+	double TimeoutSeconds;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(TimeoutSeconds));
+	}
+	//~ End FSwitchboardTask interface
 };
 

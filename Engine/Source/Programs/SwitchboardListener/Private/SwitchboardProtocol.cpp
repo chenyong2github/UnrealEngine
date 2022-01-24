@@ -283,6 +283,16 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		OutTask = MakeUnique<FSwitchboardMinimizeWindowsTask>(MessageID, InEndpoint);
 		return true;
 	}
+	else if (CommandName == TEXT("set inactive timeout"))
+	{
+		TSharedPtr<FJsonValue> SecondsField = TryGetCommandRequiredField(JsonData, TEXT("seconds"));
+
+		if (SecondsField.IsValid())
+		{
+			OutTask = MakeUnique<FSwitchboardSetInactiveTimeoutTask>(MessageID, InEndpoint, SecondsField->AsNumber());
+			return true;
+		}
+	}
 
 	return false;
 }

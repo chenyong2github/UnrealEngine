@@ -401,6 +401,15 @@ class DeviceUnreal(Device):
             value=switchboard_application.RsyncServer.DEFAULT_PORT,
             tool_tip='Port number on which the rsync server should listen.'
         ),
+        'listener_inactive_timeout': IntSetting(
+            attr_name='listener_inactive_timeout',
+            nice_name='Listener Timeout',
+            value=5,
+            tool_tip=(
+                'Tells the connected Listener to wait at least N seconds '
+                'between network messages before considering the connection '
+                'to Switchboard lost and closing it with a timeout error.')
+        ),
     }
 
     unreal_started_signal = QtCore.Signal()
@@ -1843,6 +1852,12 @@ class DeviceUnreal(Device):
                 LOGGER.warning(
                     f"{self.name} already running {prog.name} {prog.puuid}")
                 self.do_program_running_update(prog=prog)
+
+        # override listener "inactive" timeout
+        _, msg = message_protocol.create_set_inactive_timeout_message(
+            DeviceUnreal.csettings['listener_inactive_timeout'].get_value()
+        )
+        self.unreal_client.send_message(msg)
 
         # request roles and changelists
         self._request_roles_file()

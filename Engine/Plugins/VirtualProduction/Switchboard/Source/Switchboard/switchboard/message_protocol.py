@@ -122,3 +122,10 @@ def create_minimize_windows_message():
     message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 
+def create_set_inactive_timeout_message(timeout_seconds: int):
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'set inactive timeout', 'id': str(cmd_id),
+           'seconds': timeout_seconds}
+    message = json.dumps(cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
