@@ -957,35 +957,53 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 		return false;
 	}
 
+	// Only update the viewports of the current node. If there isn't one, which is normal in Editor, we update them all.
+
 	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
-	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->Cluster->GetNode(NodeId);
+	TArray<UDisplayClusterConfigurationClusterNode*, TInlineAllocator<1>> Nodes;
 
-	if (!Node)
+	if (NodeId.IsEmpty())
 	{
-		UE_LOG(LogDisplayClusterGame, Warning, TEXT("NodeId '%s' not found in ConfigData"), *NodeId);
-		return false;
+		ConfigData->Cluster->Nodes.GenerateValueArray(Nodes);
 	}
-	
-	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+	else
 	{
-		if (ViewportItem.Value)
+		UDisplayClusterConfigurationClusterNode* Node = ConfigData->Cluster->GetNode(NodeId);
+
+		if (!Node)
 		{
-			ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
-		}
-	}
-	
-	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
-	{
-		if (!NodeItem.Value)
-		{
-			continue;
+			UE_LOG(LogDisplayClusterGame, Warning, TEXT("NodeId '%s' not found in ConfigData"), *NodeId);
+			return false;
 		}
 
-		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
+		Nodes.Add(Node);
+	}
+
+	for (const UDisplayClusterConfigurationClusterNode* Node: Nodes)
+	{
+		check(Node != nullptr);
+
+		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
 		{
 			if (ViewportItem.Value)
 			{
 				ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
+			}
+		}
+
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
+		{
+			if (!NodeItem.Value)
+			{
+				continue;
+			}
+
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
+			{
+				if (ViewportItem.Value)
+				{
+					ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
+				}
 			}
 		}
 	}
