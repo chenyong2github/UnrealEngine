@@ -12,7 +12,7 @@
  * Responses back to the source of the UI interactions may also be sent.
  */
 UCLASS(Blueprintable, ClassGroup = (PixelStreaming), meta = (BlueprintSpawnableComponent))
-class UPixelStreamingInput : public UActorComponent
+class PIXELSTREAMING_API UPixelStreamingInput : public UActorComponent
 {
 	GENERATED_BODY()
 
