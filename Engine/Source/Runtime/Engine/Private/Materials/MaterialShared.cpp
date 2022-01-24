@@ -2235,7 +2235,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			if (!ShaderMap && !FPlatformProperties::RequiresCookedData())
 			{
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
-				if (bSkipCompilationOnPostLoad == false)
+				if (bSkipCompilationOnPostLoad == false || IsDefaultMaterial())
 				{
 					FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 				}
