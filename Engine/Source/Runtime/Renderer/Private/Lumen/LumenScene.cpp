@@ -821,6 +821,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
 								PrimitiveGroup.WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
+								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
@@ -859,6 +860,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.CardResolutionScale = 1.0f;
 								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
+								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
@@ -877,6 +879,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.CardResolutionScale = 1.0f;
 						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
+						PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 						PrimitiveGroup.bLandscape = ScenePrimitiveInfo->Proxy->SupportsHeightfieldRepresentation();

@@ -18,7 +18,7 @@ namespace Lumen
 {
 	constexpr uint32 NumAxisAlignedDirections = 6;
 
-	void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene);
+	void UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FScene* Scene);
 };
 
 

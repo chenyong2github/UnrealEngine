@@ -1924,9 +1924,10 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.CardPageData = LumenSceneData.CardPageBuffer.SRV;
 	OutParameters.PageTableBuffer = LumenSceneData.GetPageTableBufferSRV();
 	OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV;
-	check(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.SRV);
+
+	FRDGBufferRef HeightfieldMeshCardsIndices = GraphBuilder.RegisterExternalBuffer(LumenSceneData.HeightfieldMeshCardsIndicesBuffer, TEXT("Lumen.HeightfieldMeshCardsIndices"));
+	OutParameters.HeightfieldMeshCardsIndicesBuffer = GraphBuilder.CreateSRV(HeightfieldMeshCardsIndices);
 	OutParameters.NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
-	OutParameters.HeightfieldMeshCardsIndicesBuffer = LumenSceneData.HeightfieldMeshCardsIndicesBuffer.SRV;
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
@@ -2163,7 +2164,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 		UpdateGlobalLightingState(Scene, View, LumenSceneData);
 
-		Lumen::UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
+		Lumen::UpdateCardSceneBuffer(GraphBuilder, ViewFamily, Scene);
 
 		// Init transient render targets for capturing cards
 		FCardCaptureAtlas CardCaptureAtlas;

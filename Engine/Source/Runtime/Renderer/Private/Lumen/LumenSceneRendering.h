@@ -79,7 +79,7 @@ namespace Lumen
 };
 
 extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters);
-extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList);
+extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRDGBuilder& GraphBuilder);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )
 	SHADER_PARAMETER(float, MaxRoughnessToTrace)

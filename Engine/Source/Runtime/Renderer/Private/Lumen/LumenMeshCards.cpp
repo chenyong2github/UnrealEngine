@@ -253,10 +253,11 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	static_assert(DataStrideInFloat4s == 8, "Data stride doesn't match");
 }
 
-void Lumen::UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene)
+void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FScene* Scene)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
 	SCOPED_DRAW_EVENT(RHICmdList, UpdateCardSceneBuffer);
@@ -312,7 +313,7 @@ void Lumen::UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FS
 		}
 	}
 
-	UpdateLumenMeshCards(*Scene, Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList);
+	UpdateLumenMeshCards(*Scene, Scene->DistanceFieldSceneData, LumenSceneData, GraphBuilder);
 
 	const uint32 MaxUploadBufferSize = 64 * 1024;
 	if (LumenSceneData.UploadBuffer.GetNumBytes() > MaxUploadBufferSize)
@@ -335,16 +336,18 @@ int32 FLumenSceneData::GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSce
 	return -1;
 }
 
-void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList)
+void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenMeshCards);
 
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+
 	extern int32 GLumenSceneUploadEveryFrame;
 	if (GLumenSceneUploadEveryFrame)
 	{
+		LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty = true;
 		LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Reset();
-
 		for (int32 i = 0; i < LumenSceneData.MeshCards.Num(); i++)
 		{
 			LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Add(i);
@@ -391,38 +394,30 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 	}
 
 	// Update heightfield index buffer
+	if (!LumenSceneData.HeightfieldMeshCardsIndicesBuffer.IsValid() || LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty)
 	{
-		FLumenMeshCards NullMeshCards;
-		NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false);
+		const int32 HeightfieldMeshCardsIndicesBufferSize = FMath::DivideAndRoundUp<uint32>(FMath::Max(LumenSceneData.HeightfieldMeshCardsIndices.Num(), 1), 1024u) * 1024u;
 
-		// Scan looking for heightfields..
-		for (int32 MeshCardsIndex : LumenSceneData.MeshCardsIndicesToUpdateInBuffer)
+		TArray<uint32, SceneRenderingAllocator> Indices;
+		Indices.SetNumUninitialized(LumenSceneData.HeightfieldMeshCardsIndices.Num());
+
+		for (int32 IndexInIndexArray = 0; IndexInIndexArray < LumenSceneData.HeightfieldMeshCardsIndices.Num(); ++IndexInIndexArray)
 		{
-			const FLumenMeshCards& MeshCards = LumenSceneData.MeshCards.IsAllocated(MeshCardsIndex) ? LumenSceneData.MeshCards[MeshCardsIndex] : NullMeshCards;
-			if (MeshCards.bLandscape)
+			if (LumenSceneData.HeightfieldMeshCardsIndices.IsAllocated(IndexInIndexArray))
 			{
-				const int32 SpanIndex = LumenSceneData.HeightfieldMeshCardsIndices.AddSpan(1);
-				LumenSceneData.HeightfieldMeshCardsIndices[SpanIndex] = MeshCardsIndex;
+				Indices[IndexInIndexArray] = LumenSceneData.HeightfieldMeshCardsIndices[IndexInIndexArray];
+			}
+			else
+			{
+				Indices[IndexInIndexArray] = UINT32_MAX;
 			}
 		}
 
-		uint32 NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
-		uint32 HeightfieldsBufferCount = FMath::Max(NumHeightfields, 4u);
-		uint32 HeightfieldsBufferNumBytes = HeightfieldsBufferCount * sizeof(uint32);
-		// Round to nearest 16 bytes..
-		HeightfieldsBufferNumBytes = FMath::DivideAndRoundUp(HeightfieldsBufferNumBytes, 16u) * 16u;
-		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.HeightfieldMeshCardsIndicesBuffer, HeightfieldsBufferNumBytes, TEXT("Lumen.MeshCards"));
+		FRDGBufferRef IndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(HeightfieldMeshCardsIndicesBufferSize * sizeof(uint32)), TEXT("Lumen.HeightfieldMeshCardsIndices"));
+		GraphBuilder.QueueBufferUpload(IndexBuffer, Indices.GetData(), Indices.Num() * sizeof(uint32), ERDGInitialDataFlags::None);
 
-		LumenSceneData.ByteBufferUploadBuffer.Init(HeightfieldsBufferCount, sizeof(uint32), false, TEXT("LumenUploadBuffer"));
-		for (uint32 Index = 0; Index < NumHeightfields; ++Index)
-		{
-			uint32 MeshCardsIndex = LumenSceneData.HeightfieldMeshCardsIndices[Index];
-			LumenSceneData.ByteBufferUploadBuffer.Add(Index, &MeshCardsIndex);
-		}
-
-		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.HeightfieldMeshCardsIndicesBuffer, false);
-		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldMeshCardsIndicesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		LumenSceneData.HeightfieldMeshCardsIndicesBuffer = GraphBuilder.ConvertToExternalBuffer(IndexBuffer);
+		LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty = false;
 	}
 
 	// Upload MeshCards
@@ -699,7 +694,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 			FMeshCardsBuildData MeshCardsBuildData;
 			BuildMeshCardsDataForHeightfield(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
 
-			PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
+			AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup);
 		}
 		else if (PrimitiveGroup.HasMergedInstances())
 		{
@@ -708,7 +703,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 			FMeshCardsBuildData MeshCardsBuildData;
 			BuildMeshCardsDataForMergedInstances(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
 
-			PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
+			AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup);
 		}
 		else
 		{
@@ -729,7 +724,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 			if (CardRepresentationData)
 			{
 				const FMeshCardsBuildData& MeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
-				PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
+				AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup);
 			}
 		}
 
@@ -782,9 +777,10 @@ bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f 
 	return bCardPassedCulling && bCardPassedLODTest;
 }
 
-int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale)
+void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, FLumenPrimitiveGroup& PrimitiveGroup)
 {
-	const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
+	PrimitiveGroup.MeshCardsIndex = -1;
+	PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 
 	const FVector3f LocalToWorldScale = LocalToWorld.GetScaleVector();
 	const FVector3f ScaledBoundSize = MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
@@ -815,6 +811,7 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 			const int32 FirstCardIndex = Cards.AddSpan(NumCards);
 
 			const int32 MeshCardsIndex = MeshCards.AddSpan(1);
+			PrimitiveGroup.MeshCardsIndex = MeshCardsIndex;
 			MeshCards[MeshCardsIndex].Initialize(
 				LocalToWorld,
 				MeshCardsBuildData.Bounds,
@@ -826,6 +823,15 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 
+			if (PrimitiveGroup.bLandscape)
+			{
+				const int32 IndexInHeighfieldMeshCardsIndices = HeightfieldMeshCardsIndices.AddSpan(1);
+				PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = IndexInHeighfieldMeshCardsIndices;
+				HeightfieldMeshCardsIndices[IndexInHeighfieldMeshCardsIndices] = MeshCardsIndex;
+
+				bHeightfieldMeshCardsIndicesBufferDirty = true;
+			}
+
 			// Add cards
 			int32 LocalCardIndex = 0;
 			for (int32 CardIndexInBuildData = 0; CardIndexInBuildData < NumBuildDataCards; ++CardIndexInBuildData)
@@ -836,7 +842,7 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 				{
 					const int32 CardInsertIndex = FirstCardIndex + LocalCardIndex;
 
-					Cards[CardInsertIndex].Initialize(ResolutionScale, LocalToWorld, CardBuildData, LocalCardIndex, MeshCardsIndex, CardIndexInBuildData);
+					Cards[CardInsertIndex].Initialize(PrimitiveGroup.CardResolutionScale, LocalToWorld, CardBuildData, LocalCardIndex, MeshCardsIndex, CardIndexInBuildData);
 					CardIndicesToUpdateInBuffer.Add(CardInsertIndex);
 
 					++LocalCardIndex;
@@ -844,12 +850,8 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 			}
 
 			MeshCards[MeshCardsIndex].UpdateLookup(Cards);
-
-			return MeshCardsIndex;
 		}
 	}
-
-	return -1;
 }
 
 void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
@@ -866,9 +868,16 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 		Cards.RemoveSpan(MeshCardsInstance.FirstCardIndex, MeshCardsInstance.NumCards);
 		MeshCards.RemoveSpan(PrimitiveGroup.MeshCardsIndex, 1);
 
+		if (PrimitiveGroup.IndexInHeighfieldMeshCardsIndices >= 0)
+		{
+			HeightfieldMeshCardsIndices.RemoveSpan(PrimitiveGroup.IndexInHeighfieldMeshCardsIndices, 1);
+			bHeightfieldMeshCardsIndicesBufferDirty = true;
+		}
+
 		MeshCardsIndicesToUpdateInBuffer.Add(PrimitiveGroup.MeshCardsIndex);
 
 		PrimitiveGroup.MeshCardsIndex = -1;
+		PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 
 		// Update surface cache mapping
 		for (const FPrimitiveSceneInfo* ScenePrimitive : PrimitiveGroup.Primitives)
