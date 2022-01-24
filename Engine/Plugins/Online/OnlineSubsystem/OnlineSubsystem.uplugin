@@ -22,5 +22,11 @@
 			"Name": "OnlineSubsystem",
 			"LoadingPolicy": "Always"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "OnlineBase",
+			"Enabled": true
+		}
 	]
 }

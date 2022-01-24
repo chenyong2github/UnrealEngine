@@ -12,7 +12,8 @@ public class OnlineServicesInterface : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"CoreOnline"
+				"CoreOnline",
+				"OnlineBase"
 			}
 		);
 

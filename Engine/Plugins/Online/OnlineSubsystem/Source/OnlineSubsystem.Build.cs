@@ -12,6 +12,7 @@ public class OnlineSubsystem : ModuleRules
 			new string[] {
 				"Json",
 				"CoreOnline",
+				"OnlineBase",
 				"SignalProcessing"
 			}
 		);
