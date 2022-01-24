@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartitionMiniMap.generated.h"
 
 /** Coordinates of the tile in Minimap texture */
@@ -50,6 +51,8 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool IsUserManaged() const final { return false; }
+	virtual bool SupportsDataLayer() const final { return false; }
 #endif
 
 	/*WorldBounds for MinMapTexture*/
@@ -63,6 +66,10 @@ public:
 	/*MiniMap Texture for displaying on world partition window*/
 	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
 	TObjectPtr<UTexture2D> MiniMapTexture;
+
+	/*Datalayers excluded from MiniMap rendering*/
+	UPROPERTY(EditAnywhere, Category = WorldPartitionMiniMap)
+	TSet<FActorDataLayer> ExcludedDataLayers;
 
 	/*MiniMap Tile Size*/
 	UPROPERTY(EditAnywhere, Category = WorldPartitionMiniMap, meta = (UIMin = "256", UIMax = "8192"))

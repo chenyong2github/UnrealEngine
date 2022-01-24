@@ -38,6 +38,8 @@
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/WorldPartitionMiniMap.h"
+#include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "Modules/ModuleManager.h"
@@ -699,6 +701,8 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		{
 			WorldDataLayers = AWorldDataLayers::Create(World);
 		}
+
+		FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
 	}
 
 	if (!WorldPartition->EditorHash)

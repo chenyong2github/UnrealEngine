@@ -81,6 +81,7 @@ protected:
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
 	TSet<FName> DataLayerLabels;
+	TSet<FName> ExcludedDataLayerLabels;
 	bool bLoadNonDynamicDataLayers = true;
 	bool bLoadInitiallyActiveDataLayers = true;
 
