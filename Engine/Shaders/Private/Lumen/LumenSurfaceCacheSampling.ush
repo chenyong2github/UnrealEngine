@@ -415,15 +415,16 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIn
 	SurfaceCacheSample.Opacity = 1.0f;
 	SurfaceCacheSample.bValid = false;
 
+	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+
 #if ENABLE_VISUALIZE_MODE == 1
 	if (VisualizeMode == VISUALIZE_MODE_SURFACE_CACHE)
 	{
-		SurfaceCacheSample.Lighting = float3(1, 0, 1) * View.OneOverPreExposure;
+		SurfaceCacheSample.Lighting = (MeshCardsIndex < LumenCardScene.NumMeshCards ? float3(1, 0, 1) : float3(1, 1, 0)) * View.OneOverPreExposure;
 		SurfaceCacheSample.Opacity = 1.0f;
 	}
 #endif
 
-	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
 	if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 	{
 		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);

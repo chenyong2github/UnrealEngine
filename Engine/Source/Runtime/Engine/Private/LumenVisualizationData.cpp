@@ -44,7 +44,7 @@ void FLumenVisualizationData::Initialize()
 		AddVisualizationMode(
 			TEXT("SurfaceCache"),
 			LOCTEXT("SurfaceCache", "Surface Cache"),
-			LOCTEXT("SurfaceCacheDesc", "Visualizes Lumen surface cache and marks with pink missing surface cache coverage"),
+			LOCTEXT("SurfaceCacheDesc", "Visualizes Lumen surface cache and marks with pink (parts of mesh) and yellow (entire mesh) missing surface cache coverage"),
 			FModeType::Standard,
 			LUMEN_VISUALIZE_SURFACE_CACHE,
 			true);

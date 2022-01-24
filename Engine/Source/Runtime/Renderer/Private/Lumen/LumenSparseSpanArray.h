@@ -30,24 +30,23 @@ public:
 		check(NumElements > 0);
 
 		const int32 InsertIndex = SpanAllocator.Allocate(NumElements);
-		if (InsertIndex + NumElements > Elements.Num())
+		
+		// Resize element array
+		if (SpanAllocator.GetMaxSize() > Elements.Num())
 		{
-			// Resize element array
-			const int32 NumElementsToAdd = (InsertIndex + NumElements) - Elements.Num();
+			const int32 NumElementsToAdd = SpanAllocator.GetMaxSize() - Elements.Num();
 			Elements.AddDefaulted(NumElementsToAdd);
-			AllocatedElementsBitArray.Add(true, NumElementsToAdd);
+			AllocatedElementsBitArray.Add(false, NumElementsToAdd);
 		}
-		else
-		{
-			// Reuse existing elements
-			for (int32 ElementIndex = InsertIndex; ElementIndex < InsertIndex + NumElements; ++ElementIndex)
-			{
-				checkSlow(!IsAllocated(ElementIndex));
-				Elements[ElementIndex] = ElementType();
-			}
 
-			AllocatedElementsBitArray.SetRange(InsertIndex, NumElements, true);
+		// Reuse existing elements
+		for (int32 ElementIndex = InsertIndex; ElementIndex < InsertIndex + NumElements; ++ElementIndex)
+		{
+			checkSlow(!IsAllocated(ElementIndex));
+			Elements[ElementIndex] = ElementType();
 		}
+
+		AllocatedElementsBitArray.SetRange(InsertIndex, NumElements, true);
 
 		return InsertIndex;
 	}
