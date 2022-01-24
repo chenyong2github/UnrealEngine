@@ -31,7 +31,7 @@ public:
 
 	void Initialize(const TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe>& InAttributes, const FString& BaseKeyName)
 	{
-		check(Attributes.IsValid());
+		check(InAttributes.IsValid());
 		Attributes = InAttributes;
 		KeyCount = BaseKeyName;
 	}
