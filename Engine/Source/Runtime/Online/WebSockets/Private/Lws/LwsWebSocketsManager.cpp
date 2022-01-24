@@ -20,6 +20,8 @@
 #include "Misc/Fork.h"
 #include "Stats/Stats.h"
 
+LLM_DEFINE_TAG(WebSockets);
+
 namespace {
 	static const struct lws_extension LwsExtensions[] = {
 		{
@@ -357,7 +359,7 @@ int FLwsWebSocketsManager::CallbackWrapper(lws* Connection, lws_callback_reasons
 void FLwsWebSocketsManager::Tick()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLwsWebSocketsManager_Tick);
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(WebSockets);
 
 	{
 		FLwsWebSocket* SocketToStart;

@@ -57,7 +57,7 @@ bool FOnlineAsyncTaskManager::Init(void)
 
 uint32 FOnlineAsyncTaskManager::Run(void)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(OnlineSubsystem);
 
 	InvocationCount++;
 	// This should not be set yet

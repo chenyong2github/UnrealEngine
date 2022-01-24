@@ -31,10 +31,13 @@
 #include "Net/Core/Connection/NetCloseResult.h"
 #include "Net/NetConnectionFaultRecovery.h"
 #include "Net/TrafficControl.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #include "NetConnection.generated.h"
 
 #define NETCONNECTION_HAS_SETENCRYPTIONKEY 1
+
+LLM_DECLARE_TAG_API(NetConnection, ENGINE_API);
 
 class FInternetAddr;
 class FObjectReplicator;

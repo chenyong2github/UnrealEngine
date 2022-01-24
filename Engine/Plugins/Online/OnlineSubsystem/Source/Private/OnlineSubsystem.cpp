@@ -30,6 +30,8 @@
 #include "Interfaces/OnlineTournamentInterface.h"
 #include "Interfaces/OnlineStatsInterface.h"
 
+LLM_DEFINE_TAG(OnlineSubsystem);
+
 DEFINE_LOG_CATEGORY(LogOnline);
 DEFINE_LOG_CATEGORY(LogOnlineGame);
 DEFINE_LOG_CATEGORY(LogOnlineChat);

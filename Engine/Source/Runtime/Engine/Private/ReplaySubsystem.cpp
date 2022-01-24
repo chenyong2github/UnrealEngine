@@ -99,7 +99,7 @@ void UReplaySubsystem::OnSeamlessLevelTransition(UWorld* CurrentWorld)
 
 void UReplaySubsystem::RecordReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions, TSharedPtr<IAnalyticsProvider> AnalyticsProvider)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("NOREPLAYS")))
 	{
@@ -215,7 +215,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 
 bool UReplaySubsystem::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	UWorld* CurrentWorld = WorldOverride != nullptr ? WorldOverride : GetWorld();
 
@@ -380,6 +380,8 @@ bool UReplaySubsystem::IsPlaying() const
 
 void UReplaySubsystem::AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data)
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	UWorld* CurrentWorld = GetWorld();
 
 	if (CurrentWorld != nullptr && CurrentWorld->GetDemoNetDriver() != nullptr)
@@ -395,6 +397,8 @@ void UReplaySubsystem::AddEvent(const FString& Group, const FString& Meta, const
 
 void UReplaySubsystem::AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data)
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	UWorld* CurrentWorld = GetWorld();
 
 	if (CurrentWorld != nullptr && CurrentWorld->GetDemoNetDriver() != nullptr)
@@ -457,6 +461,8 @@ void UReplaySubsystem::RequestCheckpoint()
 
 void UReplaySubsystem::SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits)
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	UWorld* CurrentWorld = GetWorld();
 
 	if (CurrentWorld != nullptr && CurrentWorld->GetDemoNetDriver() != nullptr)

@@ -22,6 +22,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "GameFramework/GameStateBase.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Engine/DemoNetDriver.h"
 #include "Serialization/MemoryReader.h"
@@ -33,6 +34,9 @@
 #if WITH_EDITOR
 #include "UObject/ObjectRedirector.h"
 #endif // WITH_EDITOR
+
+DECLARE_LLM_MEMORY_STAT(TEXT("GuidCache"), STAT_GuidCacheLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(GuidCache, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_GuidCacheLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
 // ( OutPacketId == GUID_PACKET_NOT_ACKED ) == NAK'd		(this GUID is not acked, and is not pending either, so sort of waiting)
 // ( OutPacketId == GUID_PACKET_ACKED )		== FULLY ACK'd	(this GUID is fully acked, and we no longer need to send full path)
@@ -412,6 +416,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 		{
 			if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Channel->Describe()))
 			{
+				LLM_SCOPE_BYTAG(GuidCache);
 				GuidCache->ImportedNetGuids.Add( NetGUID );
 			}
 		}
@@ -449,6 +454,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 		{
 			if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Channel->Describe()))
 			{
+				LLM_SCOPE_BYTAG(GuidCache);
 				GuidCache->ImportedNetGuids.Add(NetGUID);
 			}
 		}
@@ -2763,7 +2769,7 @@ FNetworkGUID FNetGUIDCache::AssignNewNetGUIDFromPath_Server( const FString& Path
 
 void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const FNetGuidCacheObject& CacheObject )
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(GuidCache);
 
 	// We're pretty strict in this function, we expect everything to have been handled before we get here
 	check( !ObjectLookup.Contains( NetGUID ) );
@@ -3045,6 +3051,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FNetGUIDCache::StartAsyncLoadingPackage(FNetGuidCacheObject& CacheObject, const FNetworkGUID NetGUID, const bool bWasAlreadyAsyncLoading)
 {
+	LLM_SCOPE_BYTAG(GuidCache);
+
 	// Something else is already async loading this package, calling load again will add our callback to the existing load request
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PendingAsyncPackages.Add(CacheObject.PathName, NetGUID);
@@ -3066,6 +3074,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FNetGUIDCache::AsyncPackageCallback(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result)
 {
+	LLM_SCOPE_BYTAG(GuidCache);
+
 	check(Package == nullptr || Package->IsFullyLoaded());
 
 	if (FPendingAsyncLoadRequest const * const PendingLoadRequest = PendingAsyncLoadRequests.Find(PackageName))
@@ -3155,7 +3165,7 @@ static bool ObjectLevelHasFinishedLoading( UObject* Object, UNetDriver* Driver )
 
 UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped )
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(GuidCache);
 
 	if ( !ensure( NetGUID.IsValid() ) )
 	{

@@ -10,6 +10,7 @@
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineSubsystemNames.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class FOnlineNotificationHandler;
 class FOnlineNotificationTransportManager;
@@ -42,6 +43,8 @@ class IOnlineStats;
 class IOnlineGameActivity;
 class IOnlineGameItemStats;
 class IOnlineGameMatches;
+
+LLM_DECLARE_TAG_API(OnlineSubsystem, ONLINESUBSYSTEM_API);
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnline, Log, All);
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineGame, Log, All);

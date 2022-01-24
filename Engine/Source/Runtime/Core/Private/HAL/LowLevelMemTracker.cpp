@@ -77,6 +77,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("LLM Overhead"), STAT_LLMOverheadTotal, STATGROUP_L
 
 DEFINE_STAT(STAT_EngineSummaryLLM);
 DEFINE_STAT(STAT_ProjectSummaryLLM);
+DEFINE_STAT(STAT_NetworkingSummaryLLM);
 
 /*
  * LLM stats referenced by ELLMTagNames

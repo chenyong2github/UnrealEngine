@@ -13,6 +13,7 @@
 #include "UObject/UObjectHash.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/NetConnection.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "ReplicationGraphTypes.generated.h"
 
 class AActor;
@@ -24,6 +25,8 @@ class UReplicationGraph;
 struct FActorDestructionInfo;
 
 REPLICATIONGRAPH_API DECLARE_LOG_CATEGORY_EXTERN( LogReplicationGraph, Log, All );
+
+LLM_DECLARE_TAG_API(NetRepGraph, REPLICATIONGRAPH_API);
 
 // Check aliases for within the system. The intention is that these can be flipped to checkSlow once the system is stable.
 

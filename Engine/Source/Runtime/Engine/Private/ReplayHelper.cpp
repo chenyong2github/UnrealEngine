@@ -2079,7 +2079,7 @@ void FReplayHelper::ResetState()
 
 void FReplayHelper::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	if (InLevel && !InLevel->bClientOnlyVisible && (World == InWorld) && HasLevelStreamingFixes() && InWorld->IsPlayingReplay())
 	{

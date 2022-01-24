@@ -12,6 +12,9 @@
 #include "Engine/EngineTypes.h"
 #include "UObject/UnrealType.h"
 #include "UObject/GCObject.h"
+#include "HAL/LowLevelMemTracker.h"
+
+LLM_DECLARE_TAG_API(NetObjReplicator, ENGINE_API);
 
 class FNetFieldExportGroup;
 class FOutBunch;

@@ -1111,7 +1111,7 @@ double GTickFlushDemoDriverTimeSeconds = 0.0;
 
 void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DemoRecording);
 
 	GTickFlushDemoDriverTimeSeconds = 0.0;
@@ -1198,7 +1198,7 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 
 void UDemoNetDriver::TickDispatch(float DeltaSeconds)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	// Set the context on the world for this driver's level collection.
 	const int32 FoundCollectionIndex = World ? World->GetLevelCollections().IndexOfByPredicate([this](const FLevelCollection& Collection)
@@ -2442,7 +2442,7 @@ private:
 
 void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 	SCOPED_NAMED_EVENT(UDemoNetDriver_TickDemoPlayback, FColor::Purple);
 	if (World && World->IsInSeamlessTravel())
 	{

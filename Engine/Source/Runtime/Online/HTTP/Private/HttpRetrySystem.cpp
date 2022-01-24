@@ -3,11 +3,14 @@
 #include "HttpRetrySystem.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Math/RandomStream.h"
 #include "HttpModule.h"
 #include "Http.h"
 #include "HttpManager.h"
 #include "Stats/Stats.h"
+
+LLM_DEFINE_TAG(HTTP);
 
 namespace FHttpRetrySystem
 {
@@ -303,7 +306,7 @@ static FRandomStream TempRandomStream(4435261);
 bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount, uint32* FailedCount, uint32* CompletedCount)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_Update);
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(HTTP);
 
 	bool bIsGreen = true;
 

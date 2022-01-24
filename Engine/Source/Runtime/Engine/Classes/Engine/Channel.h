@@ -6,7 +6,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/CoreNet.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Channel.generated.h"
+
+LLM_DECLARE_TAG_API(NetChannel, ENGINE_API);
 
 class FInBunch;
 class FOutBunch;

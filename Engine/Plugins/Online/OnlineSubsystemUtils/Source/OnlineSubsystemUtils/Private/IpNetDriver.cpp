@@ -1146,7 +1146,7 @@ bool UIpNetDriver::InitListen( FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 
 void UIpNetDriver::TickDispatch(float DeltaTime)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(NetDriver);
 
 	Super::TickDispatch( DeltaTime );
 

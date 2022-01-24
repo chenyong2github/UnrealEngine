@@ -39,6 +39,11 @@
 #include "SocketSubsystem.h"
 #include "Math/NumericLimits.h"
 #include "UObject/UnrealNames.h"
+#include "HAL/LowLevelMemStats.h"
+
+DECLARE_LLM_MEMORY_STAT(TEXT("NetConnection"), STAT_NetConnectionLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(NetConnection, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetConnectionLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
+
 
 static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime(TEXT("net.PingExcludeFrameTime"), 0,
 	TEXT("If true, game frame times are subtracted from calculated ping to approximate actual network ping"));
@@ -297,7 +302,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
 	// The allocations could *probably* be moved somewhere else (like InitBase), but that
 	// causes failure to connect for some reason, and for now this is easier.
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE_BYTAG(NetConnection);
 
 	MaxChannelSize = CVarMaxChannelSize.GetValueOnAnyThread();
 	if (MaxChannelSize <= 0)

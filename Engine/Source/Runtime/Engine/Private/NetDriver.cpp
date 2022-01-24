@@ -13,7 +13,7 @@
 #include "Misc/App.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -79,6 +79,9 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
+
+DECLARE_LLM_MEMORY_STAT(TEXT("NetDriver"), STAT_NetDriverLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(NetDriver, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetDriverLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
 // Default net driver stats
 DEFINE_STAT(STAT_Ping);
@@ -499,6 +502,8 @@ void UNetDriver::PostReloadConfig(FProperty* PropertyToLoad)
 
 void UNetDriver::LoadChannelDefinitions()
 {
+	LLM_SCOPE_BYTAG(NetDriver);
+
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		if (ServerConnection != nullptr)
@@ -687,6 +692,8 @@ bool ShouldEnableScopeSecondsTimers()
 
 void UNetDriver::TickFlush(float DeltaSeconds)
 {
+	LLM_SCOPE_BYTAG(NetDriver);
+
 	TGuardValue<bool> GuardInNetTick(bInTick, true);
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkOutgoing);
@@ -3425,6 +3432,8 @@ void UNetDriver::RemoveNetworkActor(AActor* Actor)
 
 void UNetDriver::NotifyActorRenamed(AActor* ThisActor, FName PreviousName)
 {
+	LLM_SCOPE_BYTAG(NetDriver);
+
 	const bool bIsServer = IsServer();
 	const bool bIsActorStatic = !GuidCache->IsDynamicObject(ThisActor);
 	const bool bActorHasRole = ThisActor->GetRemoteRole() != ROLE_None;
@@ -5293,11 +5302,13 @@ UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 
 UChannel* UNetDriver::InternalCreateChannelByName(const FName& ChName)
 {
+	LLM_SCOPE_BYTAG(NetChannel);
 	return NewObject<UChannel>(GetTransientPackage(), ChannelDefinitionMap[ChName].ChannelClass);
 }
 
 void UNetDriver::ReleaseToChannelPool(UChannel* Channel)
 {
+	LLM_SCOPE_BYTAG(NetChannel);
 	check(IsValid(Channel));
 	if (Channel->ChName == NAME_Actor && CVarActorChannelPool.GetValueOnAnyThread() != 0)
 	{
@@ -5505,6 +5516,8 @@ bool UNetDriver::NetObjectIsDynamic(const UObject *Object) const
 
 void UNetDriver::AddClientConnection(UNetConnection* NewConnection)
 {
+	LLM_SCOPE_BYTAG(NetDriver);
+
 	SCOPE_CYCLE_COUNTER(Stat_NetDriverAddClientConnection);
 
 	UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("AddClientConnection: Added client connection: %s"),
@@ -5629,6 +5642,8 @@ void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDrive
 
 void UNetDriver::InitDestroyedStartupActors()
 {
+	LLM_SCOPE_BYTAG(NetDriver);
+
 	if (World)
 	{
 		// add startup actors destroyed before the creation of this net driver

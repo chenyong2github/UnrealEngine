@@ -299,6 +299,8 @@ void UReplicationGraph::Serialize(FArchive& Ar)
 
 void UReplicationGraph::InitForNetDriver(UNetDriver* InNetDriver)
 {
+	LLM_SCOPE_BYTAG(NetRepGraph);
+
 	NetDriver = InNetDriver;
 
 	InitGlobalActorClassSettings();
@@ -569,6 +571,8 @@ void UReplicationGraph::InitializeActorsInWorld(UWorld* InWorld)
 
 void UReplicationGraph::InitializeForWorld(UWorld* World)
 {
+	LLM_SCOPE_BYTAG(NetRepGraph);
+
 	ActiveNetworkActors.Reset();
 	GlobalActorReplicationInfoMap.ResetActorMap();
 
@@ -597,6 +601,7 @@ void UReplicationGraph::InitializeForWorld(UWorld* World)
 
 void UReplicationGraph::AddNetworkActor(AActor* Actor)
 {
+	LLM_SCOPE_BYTAG(NetRepGraph);
 	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_AddNetworkActor);
 
 	if (IsActorValidForReplicationGather(Actor) == false)
@@ -864,6 +869,8 @@ FNativeClassAccumulator NoChangeClassAccumulator;
 
 int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 {
+	LLM_SCOPE_BYTAG(NetRepGraph);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CVar_RepGraph_Pause)
 	{

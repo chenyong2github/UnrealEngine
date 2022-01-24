@@ -1103,7 +1103,7 @@ private:
 
 bool UGameInstance::PlayReplayPlaylist(const FReplayPlaylistParams& PlaylistParams)
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	return FGameInstanceReplayPlaylistHelper::StartReplay(PlaylistParams, this);
 }

@@ -21,6 +21,10 @@
 #include "Misc/ScopeExit.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "HAL/LowLevelMemStats.h"
+
+DECLARE_LLM_MEMORY_STAT(TEXT("NetObjReplicator"), STAT_NetObjReplicatorLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(NetObjReplicator, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetObjReplicatorLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
 DECLARE_CYCLE_STAT(TEXT("Custom Delta Property Rep Time"), STAT_NetReplicateCustomDeltaPropTime, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
@@ -480,6 +484,8 @@ bool FObjectReplicator::ValidateAgainstState( const UObject* ObjectState )
 
 void FObjectReplicator::InitWithObject(UObject* InObject, UNetConnection* InConnection, bool bUseDefaultState)
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
+
 	check(GetObject() == nullptr);
 	check(ObjectClass == nullptr);
 	check(bLastUpdateEmpty == false);
@@ -529,7 +535,10 @@ void FObjectReplicator::InitWithObject(UObject* InObject, UNetConnection* InConn
 
 	InitRecentProperties(Source);
 
-	Connection->Driver->AllOwnedReplicators.Add(this);
+	{
+		LLM_SCOPE_BYTAG(NetDriver);
+		Connection->Driver->AllOwnedReplicators.Add(this);
+	}
 
 	if (GbPushModelSkipUndirtiedFastArrays)
 	{
@@ -1384,6 +1393,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 
 void FObjectReplicator::UpdateGuidToReplicatorMap()
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
 	SCOPE_CYCLE_COUNTER(STAT_NetUpdateGuidToReplicatorMap);
 
 	if (Connection->Driver->IsServer())
@@ -1430,6 +1440,7 @@ void FObjectReplicator::UpdateGuidToReplicatorMap()
 	{
 		if (!ReferencedGuids.Contains(GUID))
 		{
+			LLM_SCOPE_BYTAG(NetDriver);
 			Connection->Driver->GuidToReplicatorMap.FindOrAdd(GUID).Add(this);
 		}
 	}
@@ -1861,6 +1872,8 @@ void FObjectReplicator::ForceRefreshUnreliableProperties()
 
 void FObjectReplicator::PostSendBunch( FPacketIdRange & PacketRange, uint8 bReliable )
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
+
 	const UObject* Object = GetObject();
 
 	if ( Object == nullptr )
@@ -2007,6 +2020,8 @@ void FObjectReplicator::CountBytes(FArchive& Ar) const
 
 void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bunch )
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
+
 	if (Connection == nullptr)
 	{
 		return;
@@ -2324,6 +2339,8 @@ void FObjectReplicator::QueuePropertyRepNotify(
 	const int32 ElementIndex,
 	TArray<uint8>& MetaData)
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
+
 	if (!Property->HasAnyPropertyFlags(CPF_RepNotify))
 	{
 		return;

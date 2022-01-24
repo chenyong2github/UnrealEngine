@@ -18,7 +18,7 @@
 #include "IPAddress.h"
 #include "Net/NetAnalyticsTypes.h"
 #include "Net/NetConnectionIdHandler.h"
-
+#include "HAL/LowLevelMemTracker.h"
 #include "NetDriver.generated.h"
 
 /**
@@ -312,6 +312,8 @@
  *	queue, will be added to the queue instead of being processed immediately.
  *
  */
+
+LLM_DECLARE_TAG_API(NetDriver, ENGINE_API);
 
 class Error;
 class FNetGUIDCache;

@@ -29,7 +29,10 @@
 #include "Net/DataBunch.h"
 #include "Net/NetAnalyticsTypes.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "PackageMapClient.generated.h"
+
+LLM_DECLARE_TAG_API(GuidCache, ENGINE_API);
 
 class UNetConnection;
 class UNetDriver;

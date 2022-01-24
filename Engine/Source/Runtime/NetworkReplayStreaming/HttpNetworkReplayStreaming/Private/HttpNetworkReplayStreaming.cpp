@@ -2002,7 +2002,7 @@ bool FHttpNetworkReplayStreamer::DecompressResponse(FHttpResponsePtr HttpRespons
 
 void FHttpNetworkReplayStreamer::HttpDownloadFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, int32 RequestedStreamChunkIndex, bool bStreamWasLive )
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingStream, HttpRequest );
 
@@ -2482,7 +2482,7 @@ void FHttpNetworkReplayStreamer::ProcessRequestInternal( TSharedPtr< class IHttp
 
 void FHttpNetworkReplayStreamer::Tick( const float DeltaTime )
 {
-	LLM_SCOPE(ELLMTag::Networking);
+	LLM_SCOPE(ELLMTag::Replays);
 
 	// Attempt to process the next http request
 	if ( ProcessNextHttpRequest() )

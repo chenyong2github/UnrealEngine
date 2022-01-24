@@ -25,6 +25,7 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "Misc/NetworkVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "HAL/LowLevelMemStats.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogRep);
@@ -39,6 +40,9 @@ DECLARE_CYCLE_STAT(TEXT("ActorChan_CleanUp"), Stat_ActorChanCleanUp, STATGROUP_N
 DECLARE_CYCLE_STAT(TEXT("ActorChan_PostNetInit"), Stat_PostNetInit, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("Channel ReceivedRawBunch"), Stat_ChannelReceivedRawBunch, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("ActorChan_FindOrCreateRep"), Stat_ActorChanFindOrCreateRep, STATGROUP_Net);
+
+DECLARE_LLM_MEMORY_STAT(TEXT("NetChannel"), STAT_NetChannelLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(NetChannel, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetChannelLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
 extern int32 GDoReplicationContextString;
 extern int32 GNetDormancyValidate;
@@ -1005,6 +1009,8 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 
 FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 {
+	LLM_SCOPE_BYTAG(NetChannel);
+
 	using namespace UE::Net;
 
 	if (!ensure(ChIndex != -1))
@@ -1758,6 +1764,8 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 
 void UControlChannel::QueueMessage(const FOutBunch* Bunch)
 {
+	LLM_SCOPE_BYTAG(NetChannel);
+
 	if (QueuedMessages.Num() >= MAX_QUEUED_CONTROL_MESSAGES)
 	{
 		// we're out of room in our extra buffer as well, so kill the connection
@@ -2078,6 +2086,8 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 		// so it won't actually check to see whether or not the Object was marked PendingKill.
 		if (bKeepReplicators && CompIt.Value()->GetObject() != nullptr)
 		{
+			LLM_SCOPE_BYTAG(NetConnection);
+
 			// If we want to keep the replication state of the actor/sub-objects around, transfer ownership to the connection
 			// This way, if this actor opens another channel on this connection, we can reclaim or use this replicator to compare state, etc.
 			// For example, we may want to see if any state changed since the actor went dormant, and is now active again. 
@@ -2176,6 +2186,8 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 
 	if (!bIsServer && QueuedBunches.Num() > 0 && ChIndex >= 0 && !bForDestroy)
 	{
+		LLM_SCOPE_BYTAG(NetConnection);
+
 		checkf(ActorNetGUID.IsValid(), TEXT("UActorChannel::Cleanup: ActorNetGUID is invalid! Channel: %i"), ChIndex);
 		
 		TArray<UActorChannel*>& ChannelsStillProcessing = Connection->KeepProcessingActorChannelBunchesMap.FindOrAdd(ActorNetGUID);
@@ -2619,6 +2631,8 @@ bool UActorChannel::ProcessQueuedBunches()
 
 void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 {
+	LLM_SCOPE_BYTAG(NetChannel);
+
 	using namespace UE::Net;
 
 	check(!Closing);
@@ -2964,6 +2978,7 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 
 		if ( bHasUnmapped )
 		{
+			LLM_SCOPE_BYTAG(NetDriver);
 			Connection->Driver->UnmappedReplicators.Add( &Replicator.Get() );
 		}
 	}
@@ -3358,6 +3373,7 @@ int64 UActorChannel::ReplicateActor()
 
 			if (Actor->bNetTemporary)
 			{
+				LLM_SCOPE_BYTAG(NetConnection);
 				Connection->SentTemporaries.Add(Actor);
 			}
 		}
@@ -3917,8 +3933,9 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 		// Add this sub-object to the ImportedNetGuids list so we can possibly map this object if needed
 		if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Describe()))
 		{
-		Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
-	}
+			LLM_SCOPE_BYTAG(GuidCache);
+			Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
+		}
 	}
 
 	return SubObj;
