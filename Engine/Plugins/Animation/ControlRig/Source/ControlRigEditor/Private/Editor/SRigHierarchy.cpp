@@ -1354,6 +1354,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		ControlRigEditor.IsValid() && 
 		Mesh != nullptr)
 	{
+		ControlRigEditor.Pin()->UpdateMeshInAnimInstance(Mesh);
 		ControlRigEditor.Pin()->GetPersonaToolkit()->SetPreviewMesh(Mesh, true);
 	}
 

@@ -4037,6 +4037,15 @@ void FControlRigEditor::RebindToSkeletalMeshComponent()
 	}
 }
 
+void FControlRigEditor::UpdateMeshInAnimInstance(USkeletalMesh* InNewSkeletalMesh)
+{
+	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+	if (EditorSkelComp)
+	{
+		EditorSkelComp->GetAnimInstance()->CurrentSkeleton = InNewSkeletalMesh->GetSkeleton();
+	}
+}
+
 void FControlRigEditor::UpdateStaleWatchedPins()
 {
 	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
