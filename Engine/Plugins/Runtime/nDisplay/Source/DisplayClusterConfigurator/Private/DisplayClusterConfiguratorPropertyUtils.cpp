@@ -168,11 +168,14 @@ int32 DisplayClusterConfiguratorPropertyUtils::FindMapHandleIndexFromKey(TShared
 		// We have to iterate to find the true index.
 		// There is a discrepency between MapHelper and MapHandle indices.
 		const int32 InternalIndex = MapHelper.FindInternalIndex(Idx);
-		FString* LocalKey = (FString*)MapHelper.GetKeyPtr(InternalIndex);
-		if (LocalKey && *LocalKey == Key)
+		if (InternalIndex != INDEX_NONE)
 		{
-			Index = Idx;
-			break;
+			FString* LocalKey = (FString*)MapHelper.GetKeyPtr(InternalIndex);
+			if (LocalKey && *LocalKey == Key)
+			{
+				Index = Idx;
+				break;
+			}
 		}
 	}
 

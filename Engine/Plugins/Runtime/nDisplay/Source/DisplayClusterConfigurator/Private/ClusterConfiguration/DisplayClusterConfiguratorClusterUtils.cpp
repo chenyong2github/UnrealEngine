@@ -711,8 +711,8 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(UDisp
 			}
 			
 			RemoveKeyFromMap(ClusterNodeParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes), *KeyPtr);
-
-			ClusterNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
+			ensure (ClusterNode->GetPackage() == GetTransientPackage());
+			
 			ClusterNode->SetFlags(RF_Transient);
 
 			if (bRemovingPrimaryNode)
@@ -910,9 +910,10 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveViewportFromClusterNode(UDis
 			ViewportParent->Modify();
 
 			RemoveKeyFromMap(ViewportParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports), *KeyPtr);
-
-			Viewport->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
+			ensure (Viewport->GetPackage() == GetTransientPackage());
+			
 			Viewport->SetFlags(RF_Transient);
+			
 			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ViewportParent, true);
 			
 			return true;
