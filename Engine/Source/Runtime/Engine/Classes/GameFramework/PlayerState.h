@@ -458,10 +458,19 @@ public:
 	 * Associate an online unique id with this player
 	 * @param InUniqueId the unique id associated with this player
 	 */
+	UE_DEPRECATED(5.0, "Use SetUniqueId(FUniqueNetIdRepl) instead")
 	virtual void SetUniqueId(const FUniqueNetIdPtr& InUniqueId);
 
-	/** Sets the value of UniqueId without causing other side effects to this instance. */
+	/**
+	 * Associate an online unique id with this player
+	 * @param InUniqueId the unique id associated with this player
+	 */
 	void SetUniqueId(const FUniqueNetIdRepl& NewUniqueId);
+	
+	/**
+	 * Associate an online unique id with this player
+	 * @param InUniqueId the unique id associated with this player
+	 */
 	void SetUniqueId(FUniqueNetIdRepl&& NewUniqueId);
 
 	/** Called on both the client and server when unique ID has been modified */

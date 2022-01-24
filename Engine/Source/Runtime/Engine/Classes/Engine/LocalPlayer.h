@@ -473,7 +473,10 @@ public:
 	FUniqueNetIdRepl GetCachedUniqueNetId() const;
 
 	/** Sets the players current cached unique net id */
+	UE_DEPRECATED(5.0, "Use SetCachedUniqueNetId with FUniqueNetIdRepl")
 	void SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId);
+	/** Sets the players current cached unique net id */
+	void SetCachedUniqueNetId(const FUniqueNetIdRepl& NewUniqueNetId);
 
 	/** 
 	 * Retrieves the preferred unique net id. This is for backwards compatibility for games that don't use the cached unique net id logic

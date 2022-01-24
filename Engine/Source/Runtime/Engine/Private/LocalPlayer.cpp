@@ -1624,6 +1624,11 @@ void ULocalPlayer::SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId)
 	CachedUniqueNetId = NewUniqueNetId;
 }
 
+void ULocalPlayer::SetCachedUniqueNetId(const FUniqueNetIdRepl& NewUniqueNetId)
+{
+	CachedUniqueNetId = NewUniqueNetId;
+}
+
 FUniqueNetIdRepl ULocalPlayer::GetPreferredUniqueNetId() const
 {
 	// Prefer the cached unique net id (only if it's valid)

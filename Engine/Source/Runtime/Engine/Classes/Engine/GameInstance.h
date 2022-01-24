@@ -353,7 +353,15 @@ public:
 	 *
 	 * @return the unique id of the primary player on this machine
 	 */
+	UE_DEPRECATED(5.0, "Use GetPrimaryPlayerUniqueIdRepl.")
 	FUniqueNetIdPtr GetPrimaryPlayerUniqueId() const;
+
+	/**
+	 * Get the unique id for the primary player on this machine (others are splitscreen children)
+	 *
+	 * @return the unique id of the primary player on this machine
+	 */
+	FUniqueNetIdRepl GetPrimaryPlayerUniqueIdRepl() const;
 
 	void CleanupGameViewport();
 

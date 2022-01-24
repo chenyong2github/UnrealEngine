@@ -956,6 +956,12 @@ APlayerController* UGameInstance::GetPrimaryPlayerController(bool bRequiresValid
 
 FUniqueNetIdPtr UGameInstance::GetPrimaryPlayerUniqueId() const
 {
+	FUniqueNetIdRepl UniqueIdRepl = GetPrimaryPlayerUniqueIdRepl();
+	return UniqueIdRepl.GetV1();
+}
+
+FUniqueNetIdRepl UGameInstance::GetPrimaryPlayerUniqueIdRepl() const
+{
 	ULocalPlayer* PrimaryLP = nullptr;
 
 	TArray<ULocalPlayer*>::TConstIterator LocalPlayerIt = GetLocalPlayerIterator();
@@ -974,7 +980,7 @@ FUniqueNetIdPtr UGameInstance::GetPrimaryPlayerUniqueId() const
 		LocalUserId = PrimaryLP->GetPreferredUniqueNetId();
 	}
 
-	return LocalUserId.GetUniqueNetId();
+	return LocalUserId;
 }
 
 ULocalPlayer* UGameInstance::FindLocalPlayerFromControllerId(const int32 ControllerId) const

@@ -30,6 +30,10 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 	{
 	}
 
+	FUniqueNetIdRepl(TYPE_OF_NULLPTR)
+	{
+	}
+
 	FUniqueNetIdRepl(const FUniqueNetIdRepl& InWrapper)
 		: FUniqueNetIdWrapper(InWrapper.Variant)
 	{

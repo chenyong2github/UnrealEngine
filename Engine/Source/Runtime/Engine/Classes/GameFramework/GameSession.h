@@ -83,7 +83,16 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param UniqueId uniqueId they sent over on Login
 	 * @param bWasFromInvite was this from an invite
 	 */
+	UE_DEPRECATED(5.0, "Use RegisterPlayer with FUniqueNetIdRepl")
 	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite);
+
+	/**
+	 * Register a player with the online service session
+	 * @param NewPlayer player to register
+	 * @param UniqueId uniqueId they sent over on Login
+	 * @param bWasFromInvite was this from an invite
+	 */
+	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId, bool bWasFromInvite);
 
 	/**
 	 * Called by GameMode::PostLogin to give session code chance to do work after PostLogin
@@ -120,7 +129,16 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param UniqueId id of the player to unregister
 	 */
 	virtual void UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
+
+	/**
+	 * Unregister players from the online service session
+	 *
+	 * @param SessionName name of session to unregister from
+	 * @param Players ids of the players to unregister
+	 */
+	UE_DEPRECATED(5.0, "Use UnregisterPlayers with FUniqueNetIdRepl")
 	virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players);
+	virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRepl >& Players);
 	
 	/**
 	 * Unregister a player from the online service session
@@ -260,8 +278,14 @@ protected:
  * @param PlayerNetId the id to search for
  * @return the player controller if found, otherwise NULL
  */
+UE_DEPRECATED(5.0, "Use GetPlayerControllerFromNetId with FUniqueNetIdRepl")
 ENGINE_API APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetId& PlayerNetId);
 
-
+/**
+ * Returns the player controller associated with this net id
+ * @param PlayerNetId the id to search for
+ * @return the player controller if found, otherwise NULL
+ */
+ENGINE_API APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetIdRepl& PlayerNetId);
 
 

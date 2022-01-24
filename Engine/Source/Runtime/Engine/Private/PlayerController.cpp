@@ -3644,7 +3644,7 @@ bool APlayerController::ServerUnblockPlayer_Validate(FUniqueNetIdRepl PlayerId)
 
 APlayerController* APlayerController::GetPlayerControllerForMuting(const FUniqueNetIdRepl& PlayerNetId)
 {
-	return GetPlayerControllerFromNetId(GetWorld(), *PlayerNetId.GetUniqueNetId());
+	return GetPlayerControllerFromNetId(GetWorld(), PlayerNetId);
 }
 
 bool APlayerController::IsPlayerMuted(const FUniqueNetId& PlayerId)

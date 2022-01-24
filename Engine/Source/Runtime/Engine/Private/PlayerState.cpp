@@ -157,7 +157,7 @@ void APlayerState::OverrideWith(APlayerState* PlayerState)
 {
 	SetIsSpectator(PlayerState->IsSpectator());
 	SetIsOnlyASpectator(PlayerState->IsOnlyASpectator());
-	SetUniqueId(PlayerState->GetUniqueId().GetUniqueNetId());
+	SetUniqueId(PlayerState->GetUniqueId());
 	SetPlayerNameInternal(PlayerState->GetPlayerName());
 }
 
@@ -168,7 +168,7 @@ void APlayerState::CopyProperties(APlayerState* PlayerState)
 	PlayerState->SetCompressedPing(GetCompressedPing());
 	PlayerState->ExactPing = ExactPing;
 	PlayerState->SetPlayerId(GetPlayerId());
-	PlayerState->SetUniqueId(GetUniqueId().GetUniqueNetId());
+	PlayerState->SetUniqueId(GetUniqueId());
 	PlayerState->SetPlayerNameInternal(GetPlayerName());
 	PlayerState->SetStartTime(GetStartTime());
 	PlayerState->SavedNetworkAddress = SavedNetworkAddress;

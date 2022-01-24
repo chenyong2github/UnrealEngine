@@ -85,10 +85,10 @@ void URejoinCheck::CheckRejoinStatus(const FOnRejoinCheckComplete& InCompletionD
 			IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World);
 			if (IdentityInt.IsValid())
 			{
-				FUniqueNetIdPtr PrimaryUniqueId = GameInstance->GetPrimaryPlayerUniqueId();
+				FUniqueNetIdRepl PrimaryUniqueId = GameInstance->GetPrimaryPlayerUniqueIdRepl();
 				if (ensure(PrimaryUniqueId.IsValid()))
 				{
-					ULocalPlayer* LP = GameInstance->FindLocalPlayerFromUniqueNetId(*PrimaryUniqueId);
+					ULocalPlayer* LP = GameInstance->FindLocalPlayerFromUniqueNetId(PrimaryUniqueId);
 					if (ensure(LP))
 					{
 						FOnFindFriendSessionCompleteDelegate CompletionDelegate;

@@ -78,12 +78,12 @@ void UShowLoginUICallbackProxy::OnShowLoginUICompleted(FUniqueNetIdPtr UniqueId,
 		ULocalPlayer* LocalPlayer = MyPlayerController->GetLocalPlayer();
 		if (LocalPlayer != nullptr)
 		{
-			LocalPlayer->SetCachedUniqueNetId(UniqueId);
+			LocalPlayer->SetCachedUniqueNetId(FUniqueNetIdRepl(UniqueId));
 		}
 
 		if (MyPlayerController->PlayerState != nullptr)
 		{
-			MyPlayerController->PlayerState->SetUniqueId(UniqueId);
+			MyPlayerController->PlayerState->SetUniqueId(FUniqueNetIdRepl(UniqueId));
 		}
 	}
 

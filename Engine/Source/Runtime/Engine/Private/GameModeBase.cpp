@@ -737,7 +737,7 @@ FString AGameModeBase::InitNewPlayer(APlayerController* NewPlayerController, con
 	}
 
 	// Register the player with the session
-	GameSession->RegisterPlayer(NewPlayerController, UniqueId.GetUniqueNetId(), UGameplayStatics::HasOption(Options, TEXT("bIsFromInvite")));
+	GameSession->RegisterPlayer(NewPlayerController, UniqueId, UGameplayStatics::HasOption(Options, TEXT("bIsFromInvite")));
 
 	// Find a starting spot
 	FString ErrorMessage;

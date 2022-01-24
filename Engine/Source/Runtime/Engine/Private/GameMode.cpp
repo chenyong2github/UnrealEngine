@@ -708,7 +708,7 @@ bool AGameMode::FindInactivePlayer(APlayerController* PC)
 			OldPlayerState->SetIsInactive(true);
 			// Set the uniqueId to nullptr so it will not kill the player's registration 
 			// in UnregisterPlayerWithSession()
-			OldPlayerState->SetUniqueId(nullptr);
+			OldPlayerState->SetUniqueId(FUniqueNetIdRepl());
 			OldPlayerState->Destroy();
 			PC->PlayerState->OnReactivated();
 			return true;

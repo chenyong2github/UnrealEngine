@@ -18,12 +18,12 @@ DEFINE_LOG_CATEGORY(LogGameSession);
 
 static TAutoConsoleVariable<int32> CVarMaxPlayersOverride( TEXT( "net.MaxPlayersOverride" ), 0, TEXT( "If greater than 0, will override the standard max players count. Useful for testing full servers." ) );
 
-/** 
- * Returns the player controller associated with this net id
- * @param PlayerNetId the id to search for
- * @return the player controller if found, otherwise NULL
- */
 APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetId& PlayerNetId)
+{
+	return GetPlayerControllerFromNetId(World, FUniqueNetIdRepl(PlayerNetId.AsShared()));
+}
+
+APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetIdRepl& PlayerNetId)
 {
 	if (PlayerNetId.IsValid())
 	{
@@ -32,10 +32,10 @@ APlayerController* GetPlayerControllerFromNetId(UWorld* World, const FUniqueNetI
 		{
 			APlayerController* PlayerController = Iterator->Get();
 			// Determine if this is a player with replication
-			if (PlayerController && PlayerController->PlayerState != NULL && PlayerController->PlayerState->GetUniqueId().IsValid())
+			if (PlayerController && PlayerController->PlayerState && PlayerController->PlayerState->GetUniqueId().IsValid())
 			{
 				// If the ids match, then this is the right player.
-				if (*PlayerController->PlayerState->GetUniqueId() == PlayerNetId)
+				if (PlayerController->PlayerState->GetUniqueId() == PlayerNetId)
 				{
 					return PlayerController;
 				}
@@ -229,6 +229,11 @@ int32 AGameSession::GetNextPlayerID()
 
 void AGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite)
 {
+	RegisterPlayer(NewPlayer, FUniqueNetIdRepl(UniqueId), bWasFromInvite);
+}
+
+void AGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId, bool bWasFromInvite)
+{
 	if (NewPlayer != NULL)
 	{
 		// Set the player's ID.
@@ -243,8 +248,7 @@ void AGameSession::UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl&
 {
 	UWorld* World = GetWorld();
 	if (GetNetMode() != NM_Standalone &&
-		UniqueId.IsValid() &&
-		UniqueId->IsValid())
+		UniqueId.IsValid())
 	{
 		// Remove the player from the session
 		UOnlineEngineInterface::Get()->UnregisterPlayer(World, InSessionName, UniqueId);
@@ -260,6 +264,22 @@ void AGameSession::UnregisterPlayers(FName InSessionName, const TArray<FUniqueNe
 		// Remove the player from the session
 		TArray<FUniqueNetIdWrapper> PlayerIdsAsWrappers;
 		for (const FUniqueNetIdRef& PlayerId : Players)
+		{
+			PlayerIdsAsWrappers.Emplace(PlayerId);
+		}
+		UOnlineEngineInterface::Get()->UnregisterPlayers(World, InSessionName, PlayerIdsAsWrappers);
+	}
+}
+
+void AGameSession::UnregisterPlayers(FName InSessionName, const TArray<FUniqueNetIdRepl>& Players)
+{
+	UWorld * World = GetWorld();
+	if (GetNetMode() != NM_Standalone &&
+		Players.Num() > 0)
+	{
+		// Remove the player from the session
+		TArray<FUniqueNetIdWrapper> PlayerIdsAsWrappers;
+		for (const FUniqueNetIdRepl& PlayerId : Players)
 		{
 			PlayerIdsAsWrappers.Emplace(PlayerId);
 		}
