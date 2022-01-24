@@ -1,6 +1,14 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+# Suppress printing of directory stack
+pushd () {
+    command pushd "$@" > /dev/null
+}
+popd () {
+    command popd "$@" > /dev/null
+}
+
 # Azure specific fix to allow installing NodeJS from NodeSource
 if test -f "/etc/apt/sources.list.d/azure-cli.list"; then
     sudo touch /etc/apt/sources.list.d/nodesource.list
@@ -12,7 +20,7 @@ fi
 
 declare -A Packages
 num_rows=6
-num_cols=8
+num_cols=6
 
 # Versions are from current working release versions
 # No version for turnserver at the moment, see below why:
@@ -40,38 +48,29 @@ Packages[3,4]="min"
 Packages[3,5]="npm --version"
 Packages[3,6]="sudo npm install -g npm | sudo npm cache clean -f | sudo npm install -g npm@latest"
 Packages[4,1]="y"
-Packages[4,2]="express fw"
-Packages[4,3]="4.17.1"
+Packages[4,2]="JSON jq"
+Packages[4,3]="1.6"
 Packages[4,4]="min"
-Packages[4,5]="sudo npm show express version"
-Packages[4,6]="sudo npm install express -f"
+Packages[4,5]="jq --version"
+Packages[4,6]="sudo apt-get install -y jq"
 Packages[5,1]="y"
-Packages[5,2]="STUN server"
-Packages[5,3]="0.0.1"
+Packages[5,2]="vulkan-utils"
+Packages[5,3]="1.2.131"
 Packages[5,4]="min"
-Packages[5,5]="sudo npm show cirrus-webserver version"
-Packages[5,6]="sudo npm install cirrus-webserver -f"
+Packages[5,5]="sudo apt show vulkan-utils 2>/dev/null | grep Version"
+Packages[5,6]="sudo apt-get install -y vulkan-utils"
 Packages[6,1]="y"
-Packages[6,2]="JSON jq"
-Packages[6,3]="1.6"
+Packages[6,2]="pulseaudio"
+Packages[6,3]="13.99"
 Packages[6,4]="min"
-Packages[6,5]="jq --version"
-Packages[6,6]="sudo apt-get install -y jq"
-Packages[7,1]="y"
-Packages[7,2]="vulkan-utils"
-Packages[7,3]="1.2.131"
-Packages[7,4]="min"
-Packages[7,5]="sudo apt show vulkan-utils 2>/dev/null | grep Version"
-Packages[7,6]="sudo apt-get install -y vulkan-utils"
-Packages[8,1]="y"
-Packages[8,2]="pulseaudio"
-Packages[8,3]="13.99"
-Packages[8,4]="min"
-Packages[8,5]="pulseaudio --version"
-Packages[8,6]="sudo apt-get install -y pulseaudio"
+Packages[6,5]="pulseaudio --version"
+Packages[6,6]="sudo apt-get install -y pulseaudio"
 
 # Install npm packages at the correct place
-pushd ../.. 2&>1
+pushd ../..
+
+# Install npm packages
+npm install
 
 # Check what to install
 for ((i=1;i<=num_cols;i++)) do
@@ -117,9 +116,9 @@ done
 for ((i=1;i<=num_cols;i++)) do
  if [ "${Packages[$i,1]}" != "n" ]; then
   if [[ "${Packages[$i,6]}" == :* ]]; then
-   printf "Will not install %s because %s" "${Packages[$i,2]}" "${Packages[$i,6]}"
+   printf "Will not install %s because %s\n" "${Packages[$i,2]}" "${Packages[$i,6]}"
   else
-   printf "Executing command: %s" "${Packages[$i,6]}"
+   printf "Executing command: %s\n" "${Packages[$i,6]}"
    eval "${Packages[$i,6]}"
   fi
  fi
