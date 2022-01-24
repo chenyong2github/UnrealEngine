@@ -227,11 +227,15 @@ namespace LowLevelTasks
 			return State == ETaskState::Ready || State == ETaskState::CanceledAndReady; 
 		}
 
+#if PLATFORM_DESKTOP
 		//get the currently active task if any
-		CORE_API static const FTask* GetActiveTask()
+		CORE_API static const FTask* GetActiveTask();
+#else
+		FORCEINLINE const FTask* GetActiveTask()
 		{
 			return ActiveTask;
 		}
+#endif
 
 		//try to cancel the task if it has not been launched yet and ExecuteTaskOnSuccess is true the continuation will run immediately.
 		inline bool TryCancel(bool ExecuteTaskOnSuccess = true);

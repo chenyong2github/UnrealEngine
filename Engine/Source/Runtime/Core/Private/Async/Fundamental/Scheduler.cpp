@@ -217,6 +217,13 @@ namespace LowLevelTasks
 		}
 	}
 
+#if PLATFORM_DESKTOP
+	const FTask* FTask::GetActiveTask()
+	{
+		return ActiveTask;
+	}
+#endif
+
 	bool FSchedulerTls::IsWorkerThread() const
 	{
 		return WorkerType != FSchedulerTls::EWorkerType::None && ActiveScheduler == this;
