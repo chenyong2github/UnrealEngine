@@ -341,7 +341,7 @@ const float* FDMXEntityFixturePatchCache::GetNormalizedMatrixAttributeValueFromC
 
 const FDMXNormalizedAttributeValueMap* FDMXEntityFixturePatchCache::GetAllNormalizedMatrixAttributeValuesFromCell(int32 CellIndex) const
 {
-	if (bValid && CachedRawValuesPerMatrixCell.IsValidIndex(CellIndex))
+	if (bValid && CachedNormalizedValuesPerMatrixCell.IsValidIndex(CellIndex))
 	{
 		return &CachedNormalizedValuesPerMatrixCell[CellIndex];
 	}
