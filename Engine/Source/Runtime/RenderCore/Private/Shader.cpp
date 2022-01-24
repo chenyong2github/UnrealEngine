@@ -112,6 +112,8 @@ static TLinkedList<FShaderPipelineType*>*	GShaderPipelineList = nullptr;
 
 static FSHAHash ShaderSourceDefaultHash; //will only be read (never written) for the cooking case
 
+bool RenderCore_IsStrataEnabled();
+
 /**
  * Find the shader pipeline type with the given name.
  * @return NULL if no type matched.
@@ -1768,8 +1770,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-		const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+		const bool bStrataEnabled = RenderCore_IsStrataEnabled();
 		if (bStrataEnabled)
 		{
 			KeyString += TEXT("_STRATA");

@@ -303,6 +303,8 @@ FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedCommentFix;
 FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedSamplerFixup;
 #endif // #if WITH_EDITOR
 
+bool Engine_IsStrataEnabled();
+
 /** Returns whether the given expression class is allowed. */
 bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction)
 {
@@ -18626,8 +18628,7 @@ int32  UMaterialExpressionClearCoatNormalCustomOutput::Compile(class FMaterialCo
 	}
 	else
 	{
-		static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-		const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+		const bool bStrata = Engine_IsStrataEnabled();
 		if (!bStrata)
 		{
 			return CompilerError(Compiler, TEXT("Input missing"));

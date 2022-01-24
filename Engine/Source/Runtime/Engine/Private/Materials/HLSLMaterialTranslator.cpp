@@ -46,6 +46,8 @@ static inline bool IsDebugTextureSampleEnabled()
 	return IsAnalyticDerivEnabled() && (GDebugTextureSampleEnabled != 0);
 }
 
+bool Engine_IsStrataEnabled();
+
 /** @return the vector type containing a given number of components. */
 static inline EMaterialValueType GetVectorType(uint32 NumComponents)
 {
@@ -1045,8 +1047,7 @@ bool FHLSLMaterialTranslator::Translate()
 				Errorf(TEXT("SingleLayerWater materials cannot be combined with other shading models.")); // Simply untested for now
 			}
 
-			static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-			const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+			const bool bStrata = Engine_IsStrataEnabled();
 			if (Material->GetMaterialInterface() && !Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>()
 				&& !bStrata
 				)

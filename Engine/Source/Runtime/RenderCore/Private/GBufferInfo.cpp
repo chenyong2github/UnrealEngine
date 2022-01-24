@@ -19,7 +19,7 @@ static const int32 EGBufferFormat_Force16BitsPerChannel = 5;
 
 
 // Strata::IsEnabled is only accessible in the Renderer module
-static bool IsStrataEnabled()
+bool RenderCore_IsStrataEnabled()
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
 	return CVar->GetInt() > 0;
@@ -238,7 +238,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 	int32 TargetVelocity = -1;
 
 	// Strata ouputs material data through UAV. Only SceneColor, PrecalcShadow & Velocity data are still emitted through RenderTargets
-	const bool bStrata = IsStrataEnabled();
+	const bool bStrata = RenderCore_IsStrataEnabled();
 	if (bStrata)
 	{
 		TargetGBufferA = -1;

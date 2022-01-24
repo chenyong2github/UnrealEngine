@@ -139,6 +139,12 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
 	TEXT("Enables the new (WIP) material HLSL generator.\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+bool Engine_IsStrataEnabled()
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	return CVar && CVar->GetValueOnAnyThread() > 0;
+}
+
 #if WITH_EDITOR
 const FMaterialsWithDirtyUsageFlags FMaterialsWithDirtyUsageFlags::DefaultAnnotation;
 
@@ -2724,9 +2730,7 @@ static void AddStrataShadingModelFromMaterialShadingModel(FStrataMaterialInfo& O
 void UMaterial::ConvertMaterialToStrataMaterial()
 {
 #if WITH_EDITOR
-	static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	const bool bStrataEnabled = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
-
+	const bool bStrataEnabled = Engine_IsStrataEnabled();
 	if (!bStrataEnabled)
 	{
 		return;
@@ -3875,9 +3879,7 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
-
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+	const bool bStrataEnabled = Engine_IsStrataEnabled();
 	if (bStrataEnabled && FrontMaterial.IsConnected())
 	{
 		FStrataMaterialInfo StrataMaterialInfo;
@@ -5303,8 +5305,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bUsesShadingModelFromMaterialExpression,
 	bool bIsTranslucencyWritingVelocity)
 {
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+	const bool bStrataEnabled = Engine_IsStrataEnabled();
 
 	if (Domain == MD_PostProcess)
 	{
