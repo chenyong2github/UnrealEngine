@@ -324,7 +324,7 @@ namespace HordeServer.Models
 				foreach (SchedulePattern Pattern in Patterns)
 				{
 					DateTime PatternTriggerTime = Pattern.GetNextTriggerTimeUtc(LastTimeUtc, TimeZone);
-					if (NextTriggerTimeUtc == null || NextTriggerTimeUtc < PatternTriggerTime)
+					if (NextTriggerTimeUtc == null || PatternTriggerTime < NextTriggerTimeUtc)
 					{
 						NextTriggerTimeUtc = PatternTriggerTime;
 					}

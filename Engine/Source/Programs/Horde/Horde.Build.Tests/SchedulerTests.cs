@@ -176,6 +176,23 @@ namespace HordeServerTests
 		}
 
 		[TestMethod]
+		public void MultiPatternTest()
+		{
+			DateTime StartTime = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
+			Clock.UtcNow = StartTime;
+
+			Schedule Schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
+			Schedule.Patterns.Add(new SchedulePattern(null, 11 * 60, 0, 0));
+			Schedule.Patterns.Add(new SchedulePattern(null, 19 * 60, 0, 0));
+
+			DateTime? NextTime = Schedule.GetNextTriggerTimeUtc(StartTime, TimeZoneInfo.Utc);
+			Assert.AreEqual(StartTime + TimeSpan.FromHours(11), NextTime!.Value);
+
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
+			Assert.AreEqual(StartTime + TimeSpan.FromHours(19), NextTime!.Value);
+		}
+
+		[TestMethod]
 		public async Task NoSubmittedChangeTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
