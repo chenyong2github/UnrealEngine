@@ -284,6 +284,19 @@ public:
 	static CORE_API bool UseDropFormatTimecodeByDefaultWhenSupported();
 
 	/**
+	 * Returns true if the given frame rate string represents a supported drop frame timecode frame rate, or false otherwise.
+	 * 
+	 * Drop frame timecode is only supported for NTSC_30 (29.97 FPS) or NTSC_60 (59.94 FPS) frame rates.
+	 */
+	static bool IsValidDropFormatTimecodeRate(const FString& InRateString)
+	{
+		const FString NTSC_30_DF = "29.97df";
+		const FString NTSC_60_DF = "59.94df";
+
+		return (InRateString == NTSC_30_DF || InRateString == NTSC_60_DF);
+	}
+
+	/**
 	 * Get the Qualified Timecode formatted in HH:MM:SS:FF or HH:MM:SS;FF depending on if this represents drop-frame timecode or not.
 	 * @param bForceSignDisplay - Forces the timecode to be prepended with a positive or negative sign.
 								  Standard behavior is to only show the sign when the value is negative.
