@@ -155,6 +155,11 @@ void FUncontrolledChangelistsModule::OnAssetAdded(const struct FAssetData& Asset
 	{
 		return;
 	}
+	
+	if (!FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+	{
+		return; // If the package does not exist on disk there is nothing more to do
+	}
 
 	const FString LocalFullPath(PackagePath.GetLocalFullPath());
 
