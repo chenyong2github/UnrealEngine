@@ -133,3 +133,12 @@ protected:
 
 	friend class UAnimCompress_PerTrackCompression;
 };
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bAnim_PerTrackCompression_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bAnim_PerTrackCompression_ISPC_Enabled = true;
+#else
+extern bool bAnim_PerTrackCompression_ISPC_Enabled;
+#endif

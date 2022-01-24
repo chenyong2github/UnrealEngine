@@ -103,8 +103,17 @@ static TAutoConsoleVariable<int32> CVarVelocityTest(
 	ECVF_Cheat | ECVF_RenderThreadSafe);
 #endif // if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bGPUSkin_CopyBones_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarGPUSkinCopyBonesISPCEnabled(TEXT("r.GPUSkin.CopyBones.ISPC"), bGPUSkin_CopyBones_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when copying bones for GPU skinning"));
+#endif
+
+#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
+namespace ispc { typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
+#endif
+
 #if INTEL_ISPC
-static_assert(sizeof(ispc::FMatrix) == sizeof(FMatrix), "sizeof(ispc::FMatrix) != sizeof(FMatrix)");
+static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
 static_assert(sizeof(ispc::FMatrix3x4) == sizeof(FMatrix3x4), "sizeof(ispc::FMatrix3x4) != sizeof(FMatrix3x4)");
 #endif
 
@@ -324,12 +333,12 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		//  sizeof(FMatrix) == 64
 		// PLATFORM_CACHE_LINE_SIZE (128) / 64 = 2
 
-		if (INTEL_ISPC)
+		if (bGPUSkin_CopyBones_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::UpdateBoneData_CopyBones(
 				(ispc::FMatrix3x4*)&ChunkMatrices[0],
-				(ispc::FMatrix*)&ReferenceToLocalMatrices[0],
+				(ispc::FMatrix44f*)&ReferenceToLocalMatrices[0],
 				BoneMap.GetData(),
 				NumBones);
 #endif

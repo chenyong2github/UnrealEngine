@@ -39,7 +39,7 @@ struct FPBDRigidArrays
 	FVector* PreW;
 	FVector* CenterOfMass;
 	FVector4* RotationOfMass;
-	float* InvM;
+	FReal* InvM;
 	FMatrix33* InvI;
 	FVector* F;
 	FVector* T;
@@ -47,8 +47,8 @@ struct FPBDRigidArrays
 	FVector* AngularImpulse;
 	int8* Disabled;
 	int8* GravityEnabled;
-	float* LinearEtherDrag;
-	float* AngularEtherDrag;
+	FReal* LinearEtherDrag;
+	FReal* AngularEtherDrag;
 	int8* HasBounds;
 	FAABB* LocalBounds;
 	FAABB* WorldBounds;
@@ -78,31 +78,31 @@ export uniform int32 SizeofFSimulationSpace()
 struct FSimulationSpaceSettings
 {
 	// Global multipler on the effects of simulation space movement
-	float MasterAlpha;
+	FReal MasterAlpha;
 
 	// How much of the simulation frame's linear acceleration to pass onto the particles
-	float LinearAccelerationAlpha;
+	FReal LinearAccelerationAlpha;
 
 	// How much of the coriolis force to apply to the particles
-	float CoriolisAlpha;
+	FReal CoriolisAlpha;
 
 	// How much of the centrifugal force to apply to the particles
-	float CentrifugalAlpha;
+	FReal CentrifugalAlpha;
 
 	// How much of the euler force to apply to the particles
-	float EulerAlpha;
+	FReal EulerAlpha;
 
 	// How much of the simulation frame's angular acceleration to pass onto the particles
-	float AngularAccelerationAlpha;
+	FReal AngularAccelerationAlpha;
 
 	// How much of the simulation frame's linear velocity to pass onto the particles (linear ether drag)
-	float LinearVelocityAlpha;
+	FReal LinearVelocityAlpha;
 
 	// How much of the simulation frame's angular velocity to pass onto the particles (angular ether drag)
-	float AngularVelocityAlpha;
+	FReal AngularVelocityAlpha;
 
 	// An additional linear drag (on top of the EtherDrag that can be set on the physics asset)
-	float ExternalLinearEtherDrag;
+	FVector ExternalLinearEtherDrag;
 };
 
 export uniform int32 SizeofFSimulationSpaceSettings()
@@ -123,10 +123,10 @@ static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 
 	return MultiplyAB(QM, MultiplyABt(I, QM));
 }
 
-static inline uniform FVector4 IntegrateRotationWithAngularVelocity(const uniform FVector4& Q0, const uniform FVector& W, const uniform float Dt)
+static inline uniform FVector4 IntegrateRotationWithAngularVelocity(const uniform FVector4& Q0, const uniform FVector& W, const uniform FReal Dt)
 {
-	uniform FVector4 R1 = Q0 + VectorQuaternionMultiply2(SetVector4(W.V[0], W.V[1], W.V[2], 0.f), Q0) * (Dt * 0.5f);
-	return VectorNormalizeSafe(R1, SetVector4(0, 0, 0, 0));
+	uniform FVector4 R1 = Q0 + VectorQuaternionMultiply2(SetVector4(W.V[0], W.V[1], W.V[2], ZERO), Q0) * (Dt * ONE_HALF);
+	return VectorNormalizeSafe(R1, VectorZero);
 }
 
 static inline uniform int8 EObjectStateType_Dynamic()
@@ -183,20 +183,20 @@ static inline uniform FVector InverseTransformVectorNoScale(const uniform FTrans
 }
 
 export void MinEvolutionIntegrate(
-	uniform float Dt, 
+	uniform FReal Dt, 
 	uniform FPBDRigidArrays& Rigids, 
 	uniform FSimulationSpace& SimulationSpace, 
 	uniform FSimulationSpaceSettings& SimulationSpaceSettings, 
 	const uniform FVector& Gravity, 
-	const uniform float BoundsExtension,
-	const uniform float CullDistance)
+	const uniform FReal BoundsExtension,
+	const uniform FReal CullDistance)
 {
 	// Simulation space velocity and acceleration
 	uniform FVector SpaceV = ZeroVector;	// Velocity
 	uniform FVector SpaceW = ZeroVector;	// Angular Velocity
 	uniform FVector SpaceA = ZeroVector;	// Acceleration
 	uniform FVector SpaceB = ZeroVector;	// Angular Acceleration
-	if (SimulationSpaceSettings.MasterAlpha > 0.0f)
+	if (SimulationSpaceSettings.MasterAlpha > ZERO)
 	{
 		SpaceV = InverseTransformVectorNoScale(SimulationSpace.Transform, SimulationSpace.LinearVelocity);
 		SpaceW = InverseTransformVectorNoScale(SimulationSpace.Transform, SimulationSpace.AngularVelocity);
@@ -233,9 +233,9 @@ export void MinEvolutionIntegrate(
 
 			// Moving and accelerating simulation frame
 			// https://en.wikipedia.org/wiki/Rotating_reference_frame
-			if (SimulationSpaceSettings.MasterAlpha > 0.0f)
+			if (SimulationSpaceSettings.MasterAlpha > ZERO)
 			{
-				const uniform FVector CoriolisAcc = SimulationSpaceSettings.CoriolisAlpha * 2.0f * VectorCross(SpaceW, Rigids.V[ParticleIndex]);
+				const uniform FVector CoriolisAcc = SimulationSpaceSettings.CoriolisAlpha * TWO * VectorCross(SpaceW, Rigids.V[ParticleIndex]);
 				const uniform FVector CentrifugalAcc = SimulationSpaceSettings.CentrifugalAlpha * VectorCross(SpaceW, VectorCross(SpaceW, XCoM));
 				const uniform FVector EulerAcc = SimulationSpaceSettings.EulerAlpha * VectorCross(SpaceB, XCoM);
 				const uniform FVector LinearAcc = SimulationSpaceSettings.LinearAccelerationAlpha * SpaceA;
@@ -248,8 +248,8 @@ export void MinEvolutionIntegrate(
 			}
 
 			// New velocity
-			const uniform float LinearDrag = min(1.0f, Rigids.LinearEtherDrag[ParticleIndex] * Dt);
-			const uniform float AngularDrag = min(1.0f, Rigids.AngularEtherDrag[ParticleIndex] * Dt);
+			const uniform FReal LinearDrag = min(ONE, Rigids.LinearEtherDrag[ParticleIndex] * Dt);
+			const uniform FReal AngularDrag = min(ONE, Rigids.AngularEtherDrag[ParticleIndex] * Dt);
 			const uniform FVector VCoM = VectorLerp(Rigids.V[ParticleIndex] + DV, TargetV, LinearDrag);
 			const uniform FVector WCoM = VectorLerp(Rigids.W[ParticleIndex] + DW, TargetW, AngularDrag);
 
@@ -273,8 +273,8 @@ export void MinEvolutionIntegrate(
 			{
 				uniform FTransform SpaceTransform;
 				SpaceTransform.Rotation = Rigids.Q[ParticleIndex];
-				SpaceTransform.Translation = SetVector4(Rigids.P[ParticleIndex], 1.0f);
-				SpaceTransform.Scale3D = SetVector4(OneVector, 1.0f);
+				SpaceTransform.Translation = SetVector4(Rigids.P[ParticleIndex], ONE);
+				SpaceTransform.Scale3D = SetVector4(OneVector, ONE);
 			
 				uniform FVector WorldSpaceBoundsMin;
 				uniform FVector WorldSpaceBoundsMax;

@@ -492,6 +492,16 @@ namespace UnrealBuildTool
 					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
 				}
 
+				// Preprocessor definitions.
+				foreach (string Definition in CompileEnvironment.Definitions)
+				{
+					// TODO: Causes ISPC compiler to generate a spurious warning about the universal character set
+					if(!Definition.Contains("\\\\U"))
+					{
+						Arguments.Add(String.Format("-D\"{0}\"", Definition));
+					}
+				}
+
 				// Generate the included header dependency list
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
@@ -689,7 +699,11 @@ namespace UnrealBuildTool
 				// Preprocessor definitions.
 				foreach (string Definition in CompileEnvironment.Definitions)
 				{
-					Arguments.Add(String.Format("-D\"{0}\"", Definition));
+					// TODO: Causes ISPC compiler to generate a spurious warning about the universal character set
+					if(!Definition.Contains("\\\\U"))
+					{
+						Arguments.Add(String.Format("-D\"{0}\"", Definition));
+					}
 				}
 
 				// Consume the included header dependency list

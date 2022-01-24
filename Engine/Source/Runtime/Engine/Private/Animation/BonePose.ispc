@@ -45,8 +45,8 @@ export void ResetToAdditiveIdentity(uniform FTransform Bones[],
 {
 	for(uniform int BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
 	{
-		Bones[BoneIdx].Rotation = Float0001;
-		Bones[BoneIdx].Translation = FloatZero;
-		Bones[BoneIdx].Scale3D = FloatZero;
+		Bones[BoneIdx].Rotation = Vector0001;
+		Bones[BoneIdx].Translation = VectorZero;
+		Bones[BoneIdx].Scale3D = VectorZero;
 	}
 }

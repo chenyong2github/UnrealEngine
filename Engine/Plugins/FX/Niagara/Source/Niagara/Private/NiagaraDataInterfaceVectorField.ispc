@@ -15,7 +15,7 @@ inline varying FVector ReadHalfVector(const uniform FHalfVector Data[], int Data
 	#pragma ignore warning(perf)
 	const FHalfVector Sample = Data[SampleIndex >= 0 && SampleIndex <= DataSize ? SampleIndex : 0];
 
-	return SetVector(half_to_float_fast(Sample.V[0]), half_to_float_fast(Sample.V[1]), half_to_float_fast(Sample.V[2]));
+	return SetVector((FReal)(half_to_float_fast(Sample.V[0])), (FReal)(half_to_float_fast(Sample.V[1])), (FReal)(half_to_float_fast(Sample.V[2])));
 }
 
 export void SampleVectorField(const uniform float XParam[], const uniform float YParam[], const uniform float ZParam[],
@@ -25,15 +25,15 @@ export void SampleVectorField(const uniform float XParam[], const uniform float 
 							const uniform FVector &Size, const uniform FVector &TilingAxes, const uniform int NumInstances)
 {
 	const uniform FVector SizeMinusOne = Size - OneVector;
-	const uniform FVector OneOverSize = 1.0f / Size;
+	const uniform FVector OneOverSize = ONE / Size;
 
 	foreach(InstanceIdx = 0 ... NumInstances)
 	{
 		// Position in Volume Space
 		FVector Pos = SetVector(
-			LoadFloat(XParam, InstanceIdx, bXParamConst),
-			LoadFloat(YParam, InstanceIdx, bYParamConst),
-			LoadFloat(ZParam, InstanceIdx, bZParamConst));
+			(FReal)(LoadFloat(XParam, InstanceIdx, bXParamConst)),
+			(FReal)(LoadFloat(YParam, InstanceIdx, bYParamConst)),
+			(FReal)(LoadFloat(ZParam, InstanceIdx, bZParamConst)));
 
 		// Normalize position
 		Pos = (Pos - MinBounds) * OneOverBoundSize;

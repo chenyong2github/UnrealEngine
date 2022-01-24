@@ -7,10 +7,10 @@
 export void ApplyAxialSpringConstraints(uniform FVector P[],
 										const uniform FIntVector AllConstraints[],
 										const uniform int32 ActiveConstraints[],
-										const uniform float InvM[],
-										const uniform float Barys[],
-										const uniform float Dists[],
-										const uniform float Stiffness,
+										const uniform FReal InvM[],
+										const uniform FReal Barys[],
+										const uniform FReal Dists[],
+										const uniform FReal Stiffness,
 										const uniform int32 NumConstraints)
 {
 	varying int32 ActiveConstraint;
@@ -34,9 +34,9 @@ export void ApplyAxialSpringConstraints(uniform FVector P[],
 #endif
 
 		#pragma ignore warning(perf)
-		const varying float Bary = Barys[ActiveConstraint];
+		const varying FReal Bary = Barys[ActiveConstraint];
 		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
+		const varying FReal Dist = Dists[ActiveConstraint];
 
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
@@ -59,21 +59,21 @@ export void ApplyAxialSpringConstraints(uniform FVector P[],
 		const FVector P0 = (P2 - P3) * Bary + P3;
 		const FVector Difference = P1 - P0;
 
-		const float Distance = VectorSize(Difference);
-		const float Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
+		const FReal Distance = VectorSize(Difference);
+		const FReal Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
 
 		#pragma ignore warning(perf)
-		const varying float M1 = InvM[i1];
+		const varying FReal M1 = InvM[i1];
 		#pragma ignore warning(perf)
-		const varying float M2 = InvM[i2];
+		const varying FReal M2 = InvM[i2];
 		#pragma ignore warning(perf)
-		const varying float M3 = InvM[i3];
+		const varying FReal M3 = InvM[i3];
 
 		const FVector Direction = Difference / Distance;
 		const FVector InnerDelta = (Distance - Dist) * Direction;
 
-		const float PInvMass = M3 * (1 - Bary) + M2 * Bary;
-		const float CombinedInvMass = PInvMass + M1;
+		const FReal PInvMass = M3 * (1 - Bary) + M2 * Bary;
+		const FReal CombinedInvMass = PInvMass + M1;
 		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
 		const FVector Delta = VectorSelect(((M1 == 0 && PInvMass == 0) || Distance <= SMALL_NUMBER), ZeroVector, ComputedDelta);
@@ -96,11 +96,11 @@ export void ApplyAxialSpringConstraints(uniform FVector P[],
 export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector P[],
 										const uniform FIntVector AllConstraints[],
 										const uniform int32 ActiveConstraints[],
-										const uniform float InvM[],
-										const uniform float Barys[],
-										const uniform float Dists[],
+										const uniform FReal InvM[],
+										const uniform FReal Barys[],
+										const uniform FReal Dists[],
 										const uniform uint8 StiffnessIndices[],
-										const uniform float StiffnessTable[],
+										const uniform FReal StiffnessTable[],
 										const uniform int32 NumConstraints)
 {
 	varying int32 ActiveConstraint;
@@ -124,9 +124,9 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector P[],
 #endif
 
 		#pragma ignore warning(perf)
-		const varying float Bary = Barys[ActiveConstraint];
+		const varying FReal Bary = Barys[ActiveConstraint];
 		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
+		const varying FReal Dist = Dists[ActiveConstraint];
 		#pragma ignore warning(perf)
 		const varying uint8 StiffnessIndex = StiffnessIndices[ActiveConstraint];
 
@@ -151,24 +151,24 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector P[],
 		const FVector P0 = (P2 - P3) * Bary + P3;
 		const FVector Difference = P1 - P0;
 
-		const float Distance = VectorSize(Difference);
-		const float Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
+		const FReal Distance = VectorSize(Difference);
+		const FReal Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
 
 		#pragma ignore warning(perf)
-		const varying float M1 = InvM[i1];
+		const varying FReal M1 = InvM[i1];
 		#pragma ignore warning(perf)
-		const varying float M2 = InvM[i2];
+		const varying FReal M2 = InvM[i2];
 		#pragma ignore warning(perf)
-		const varying float M3 = InvM[i3];
+		const varying FReal M3 = InvM[i3];
 
 		#pragma ignore warning(perf)
-		const varying float Stiffness = StiffnessTable[StiffnessIndex];
+		const varying FReal Stiffness = StiffnessTable[StiffnessIndex];
 
 		const FVector Direction = Difference / Distance;
 		const FVector InnerDelta = (Distance - Dist) * Direction;
 
-		const float PInvMass = M3 * (1 - Bary) + M2 * Bary;
-		const float CombinedInvMass = PInvMass + M1;
+		const FReal PInvMass = M3 * (1 - Bary) + M2 * Bary;
+		const FReal CombinedInvMass = PInvMass + M1;
 		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
 		const FVector Delta = VectorSelect(((M1 == 0 && PInvMass == 0) || Distance <= SMALL_NUMBER), ZeroVector, ComputedDelta);

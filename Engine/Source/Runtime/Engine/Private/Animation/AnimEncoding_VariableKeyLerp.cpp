@@ -14,6 +14,11 @@ static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTra
 static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
 #endif
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bAnim_VariableKeyLerp_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarAnimVariableKeyLerpISPCEnabled(TEXT("a.VariableKeyLerp.ISPC"), bAnim_VariableKeyLerp_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in variable key anim encoding"));
+#endif
+
 /**
  * Handles the ByteSwap of compressed rotation data on import
  *
@@ -228,7 +233,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseRotations(
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_VariableKeyLerp_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);
@@ -280,7 +285,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseTranslations(
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_VariableKeyLerp_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);
@@ -332,7 +337,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseScales(
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_VariableKeyLerp_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);

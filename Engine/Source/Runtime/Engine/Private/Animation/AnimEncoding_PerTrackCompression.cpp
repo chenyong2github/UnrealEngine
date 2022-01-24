@@ -16,6 +16,11 @@ static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTra
 static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
 #endif
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bAnim_PerTrackCompression_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarAnimPerTrackCompressionISPCEnabled(TEXT("a.PerTrackCompression.ISPC"), bAnim_PerTrackCompression_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per track anim encoding"));
+#endif
+
 // This define controls whether scalar or vector code is used to decompress keys.  Note that not all key decompression code
 // is vectorized yet, so some (seldom used) formats will actually get slower (due to extra LHS stalls) when enabled.
 // The code also relies on a flexible permute instruction being available (e.g., PPC vperm)
@@ -735,7 +740,7 @@ void AEFPerTrackCompressionCodec::GetPoseRotations(
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_PerTrackCompression_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);
@@ -783,7 +788,7 @@ void AEFPerTrackCompressionCodec::GetPoseTranslations(
 	{
 		return;
 	}
-	if (INTEL_ISPC)
+	if (bAnim_PerTrackCompression_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);
@@ -833,7 +838,7 @@ void AEFPerTrackCompressionCodec::GetPoseScales(
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_PerTrackCompression_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		const FUECompressedAnimData& AnimData = static_cast<const FUECompressedAnimData&>(DecompContext.CompressedAnimData);

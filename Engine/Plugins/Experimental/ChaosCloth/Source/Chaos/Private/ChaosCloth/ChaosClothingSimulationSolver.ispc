@@ -60,13 +60,13 @@ export void CalculateBounds(uniform FVector &MMin,
 	MMax = VectorReduceMax(Max);
 }
 
-export void CalculateSquaredRadius(uniform float &SquaredRadius,
+export void CalculateSquaredRadius(uniform FReal &SquaredRadius,
 									const uniform FVector &Center,
 									const uniform FVector ParticlesX[],
 									const uniform int32 Offset,
 									const uniform int32 Range)
 {
-	varying float vSquaredRadius = SquaredRadius;
+	varying FReal vSquaredRadius = SquaredRadius;
 
 	foreach(i = Offset ... Range)
 	{

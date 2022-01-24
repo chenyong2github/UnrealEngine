@@ -5,6 +5,14 @@
 #include "Chaos/Capsule.h"
 #if INTEL_ISPC
 #include "AABB.ispc.generated.h"
+
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+static_assert(sizeof(ispc::FVector) == sizeof(Chaos::TVector<Chaos::FReal, 3>), "sizeof(ispc::FVector) != sizeof(Chaos::TVector<Chaos::FReal, 3>)");
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_AABBTransform_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosAABBTransformISPCEnabled(TEXT("p.Chaos.AABBTransform.ISPC"), bChaos_AABBTransform_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when computing AABB transforms"));
 #endif
 
 namespace Chaos
@@ -286,26 +294,44 @@ inline TAABB<T, 3> TransformedAABBHelper(const TAABB<T, 3>& AABB, const FMatrix4
 	return TAABB<T, 3>(Min, Max);
 }
 
-template<typename T>
-inline TAABB<T, 3> TransformedAABBHelperISPC(const TAABB<T, 3>& AABB, const FTransform& SpaceTransform)
+inline TAABB<FReal, 3> TransformedAABBHelperISPC(const TAABB<FReal, 3>& AABB, const FTransform& SpaceTransform)
 {
 	check(bRealTypeCompatibleWithISPC);
 #if INTEL_ISPC
-	TVec3<FReal> NewMin, NewMax;
+	TVector<Chaos::FReal, 3> NewMin, NewMax;
 	ispc::TransformedAABB((const ispc::FTransform&)SpaceTransform, (const ispc::FVector&)AABB.Min(), (const ispc::FVector&)AABB.Max(), (ispc::FVector&)NewMin, (ispc::FVector&)NewMax);
 
 	TAABB<FReal, 3> NewAABB(NewMin, NewMax);
 	return NewAABB;
 #else
 	check(false);
-	return TAABB<T, 3>::EmptyAABB();
+	return TAABB<FReal, 3>::EmptyAABB();
 #endif
 }
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+inline TAABB<Chaos::FRealSingle, 3> TransformedAABBHelperISPC(const TAABB<Chaos::FRealSingle, 3>& AABB, const FTransform& SpaceTransform)
+{
+	check(bRealTypeCompatibleWithISPC);
+#if INTEL_ISPC
+	static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::TVector<Chaos::FRealSingle, 3>), "sizeof(ispc::FVector3f) != sizeof(Chaos::TVector<Chaos::FRealSingle, 3>)");
+
+	TVector<Chaos::FRealSingle, 3> NewMin, NewMax;
+	ispc::TransformedAABBMixed((const ispc::FTransform&)SpaceTransform, (const ispc::FVector3f&)AABB.Min(), (const ispc::FVector3f&)AABB.Max(), (ispc::FVector3f&)NewMin, (ispc::FVector3f&)NewMax);
+
+	TAABB<Chaos::FRealSingle, 3> NewAABB(NewMin, NewMax);
+	return NewAABB;
+#else
+	check(false);
+	return TAABB<Chaos::FRealSingle, 3>::EmptyAABB();
+#endif
+}
+#endif
 
 template<typename T, int d>
 TAABB<T, d> TAABB<T, d>::TransformedAABB(const Chaos::TRigidTransform<FReal, 3>& SpaceTransform) const
 {
-	if (bRealTypeCompatibleWithISPC && INTEL_ISPC)
+	if (bRealTypeCompatibleWithISPC && INTEL_ISPC && bChaos_AABBTransform_ISPC_Enabled)
 	{
 		return TransformedAABBHelperISPC(*this, SpaceTransform);
 	}
@@ -331,7 +357,7 @@ TAABB<T, d> TAABB<T, d>::TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>& Spac
 template<typename T, int d>
 TAABB<T, d> TAABB<T, d>::TransformedAABB(const FTransform& SpaceTransform) const
 {
-	if (bRealTypeCompatibleWithISPC && INTEL_ISPC)
+	if (bRealTypeCompatibleWithISPC && INTEL_ISPC && bChaos_AABBTransform_ISPC_Enabled)
 	{
 		return TransformedAABBHelperISPC(*this, SpaceTransform);
 	}

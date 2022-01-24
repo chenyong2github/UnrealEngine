@@ -30,6 +30,14 @@
 #if INTEL_ISPC
 static_assert(sizeof(ispc::FBox) == sizeof(FBox), "sizeof(ispc::FBox) != sizeof(FBox)");
 static_assert(sizeof(ispc::FRotator) == sizeof(FRotator), "sizeof(ispc::FRotator) != sizeof(FRotator)");
+static_assert(sizeof(ispc::FVector) == sizeof(FVector), "sizeof(ispc::FVector) != sizeof(FVector)");
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bPhysics_AggregateGeom_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarPhysicsAggregateGeomISPCEnabled(TEXT("p.AggregateGeom.ISPC"), bPhysics_AggregateGeom_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in physics aggregate geometry calculations"));
+#else
+const bool bPhysics_AggregateGeom_ISPC_Enabled = INTEL_ISPC;
 #endif
 
 ///////////////////////////////////////
@@ -316,7 +324,7 @@ EAggCollisionShape::Type FKBoxElem::StaticShapeType = EAggCollisionShape::Box;
 
 FBox FKBoxElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
-	if (INTEL_ISPC)
+	if (bPhysics_AggregateGeom_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		FBox LocalBox(ForceInit);
@@ -355,7 +363,7 @@ EAggCollisionShape::Type FKSphylElem::StaticShapeType = EAggCollisionShape::Sphy
 
 FBox FKSphylElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 {
-	if (INTEL_ISPC)
+	if (bPhysics_AggregateGeom_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		FBox Result(ForceInit);

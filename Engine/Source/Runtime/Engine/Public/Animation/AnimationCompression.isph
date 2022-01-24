@@ -414,7 +414,7 @@ inline float TimeToIndex(
 	return Alpha;
 }
 
-inline FVector4 Float96NoWToQuat(const float* Values)
+inline FVector4f Float96NoWToQuat(const float* Values)
 {
 	#pragma ignore warning(perf)
 	const float X = Values[0];
@@ -430,7 +430,7 @@ inline FVector4 Float96NoWToQuat(const float* Values)
 	return SetVector4(X, Y, Z, WSquared > 0.f ? sqrt(WSquared) : 0.f);
 }
 
-inline FVector4 Fixed32NoWToQuat(const unsigned int* PackedValue)
+inline FVector4f Fixed32NoWToQuat(const unsigned int* PackedValue)
 {
 	#pragma ignore warning(perf)
 	const unsigned int Packed = *PackedValue;
@@ -447,7 +447,7 @@ inline FVector4 Fixed32NoWToQuat(const unsigned int* PackedValue)
 	return SetVector4(X, Y, Z, WSquared > 0.f ? sqrt(WSquared) : 0.f);
 }
 
-inline FVector4 Fixed48NoWToQuat(const unsigned int16* Values)
+inline FVector4f Fixed48NoWToQuat(const unsigned int16* Values)
 {
 	#pragma ignore warning(perf)
 	const unsigned int16 X = Values[0];
@@ -466,9 +466,9 @@ inline FVector4 Fixed48NoWToQuat(const unsigned int16* Values)
 	return SetVector4(FX, FY, FZ, WSquared > 0.f ? sqrt( WSquared ) : 0.f);
 }
 
-inline FVector4 IntervalFixed32NoWToQuat(
-	const FVector& Mins, 
-	const FVector& Ranges, 
+inline FVector4f IntervalFixed32NoWToQuat(
+	const FVector3f& Mins, 
+	const FVector3f& Ranges, 
 	const unsigned int* PackedValue)
 {
 	#pragma ignore warning(perf)
@@ -515,7 +515,7 @@ inline float DecodeFloat(const uniform unsigned int NumExponentBits, const unifo
 	return floatbits((Sign << SignShift) | (Exponent << NumMantissaBits) | (Mantissa));
 }
 
-inline FVector4 Float32NoWToQuat(const unsigned int* PackedValue)
+inline FVector4f Float32NoWToQuat(const unsigned int* PackedValue)
 {
 	#pragma ignore warning(perf)
 	const unsigned int Packed = *PackedValue;
@@ -532,7 +532,7 @@ inline FVector4 Float32NoWToQuat(const unsigned int* PackedValue)
 	return SetVector4(X, Y, Z, WSquared > 0.f ? sqrt(WSquared) : 0.f);
 }
 
-inline FVector IntervalFixed32NoWToVector(const FVector& Mins, const FVector& Ranges, const unsigned int* PackedValue)
+inline FVector3f IntervalFixed32NoWToVector(const FVector3f& Mins, const FVector3f& Ranges, const unsigned int* PackedValue)
 {
 	#pragma ignore warning(perf)
 	const unsigned int Packed = *PackedValue;
@@ -548,7 +548,7 @@ inline FVector IntervalFixed32NoWToVector(const FVector& Mins, const FVector& Ra
 	return SetVector(X, Y, Z);
 }
 
-inline FVector Fixed48NoWToVector(const unsigned int16* Values)
+inline FVector3f Fixed48NoWToVector(const unsigned int16* Values)
 {
 	#pragma ignore warning(perf)
 	const unsigned int16 X = Values[0];
@@ -575,12 +575,13 @@ inline float DecompressFixed16(const unsigned int16 Value)
 	return ((int)Value - QuantOffset) * InvQuantFactor;
 }
 
-inline void DecompressRotation(FVector4& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
+inline void DecompressRotation(FVector4f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
 {
 	if ( FORMAT == ACF_None )
 	{
 		#pragma ignore warning(perf)
-		Out = *((const FVector4 *)KeyData);
+		const FVector4f Keys = *((const FVector4f *)KeyData);
+		Out = SetVector4(Keys.V[0], Keys.V[1], Keys.V[2], Keys.V[3]);
 	}
 	else if ( FORMAT == ACF_Float96NoW )
 	{
@@ -596,13 +597,13 @@ inline void DecompressRotation(FVector4& Out, const unsigned int8* TopOfStream, 
 	}
 	else if ( FORMAT == ACF_IntervalFixed32NoW )
 	{
-		const FVector* VTopOfStream = (const FVector*)TopOfStream;
+		const FVector3f* VTopOfStream = (const FVector3f*)TopOfStream;
 
 		#pragma ignore warning(perf)
-		const FVector Mins = *(VTopOfStream);
+		const FVector3f Mins = *(VTopOfStream);
 
 		#pragma ignore warning(perf)
-		const FVector Ranges = *(VTopOfStream+1);
+		const FVector3f Ranges = *(VTopOfStream+1);
 
 		Out = IntervalFixed32NoWToQuat(Mins, Ranges, (const unsigned int*)KeyData);
 	}
@@ -620,7 +621,7 @@ inline void DecompressRotation(FVector4& Out, const unsigned int8* TopOfStream, 
 	}
 }
 
-inline void DecompressRotation(const int Format, const int FormatFlags, FVector4& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
+inline void DecompressRotation(const int Format, const int FormatFlags, FVector4f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
 {
 	if (Format == ACF_Fixed48NoW)
 	{
@@ -658,8 +659,8 @@ inline void DecompressRotation(const int Format, const int FormatFlags, FVector4
 	{
 		const float* SourceBounds = (float*)TopOfStream;
 
-		FVector Mins = {{0.0f, 0.0f, 0.0f}};
-		FVector Ranges = {{0.0f, 0.0f, 0.0f}};
+		FVector3f Mins = FloatZeroVector;
+		FVector3f Ranges = FloatZeroVector;
 
 		if (FormatFlags & 1)
 		{
@@ -706,27 +707,28 @@ inline void DecompressRotation(const int Format, const int FormatFlags, FVector4
 	}
 }
 
-inline void DecompressTranslation(FVector& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
+inline void DecompressTranslation(FVector3f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
 {
 	if ( (FORMAT == ACF_None) || (FORMAT == ACF_Float96NoW) )
 	{
 		#pragma ignore warning(perf)
-		Out = *((const FVector *)KeyData);
+		const FVector3f Keys = *((const FVector3f *)KeyData);
+		Out = SetVector(Keys.V[0], Keys.V[1], Keys.V[2]);
 	}
 	else if ( FORMAT == ACF_IntervalFixed32NoW )
 	{
-		const FVector* VTopOfStream = (const FVector*)TopOfStream;
+		const FVector3f* VTopOfStream = (const FVector3f*)TopOfStream;
 
 		#pragma ignore warning(perf)
-		const FVector Mins = *(VTopOfStream);
+		const FVector3f Mins = *(VTopOfStream);
 
 		#pragma ignore warning(perf)
-		const FVector Ranges = *(VTopOfStream+1);
+		const FVector3f Ranges = *(VTopOfStream+1);
 		Out = IntervalFixed32NoWToVector(Mins, Ranges, (const unsigned int*)KeyData);
 	}
 	else if ( FORMAT == ACF_Identity )
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 	else if ( FORMAT == ACF_Fixed48NoW )
 	{
@@ -734,11 +736,11 @@ inline void DecompressTranslation(FVector& Out, const unsigned int8* TopOfStream
 	}
 	else
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 }
 
-inline void DecompressTranslation(const int Format, const int FormatFlags, FVector& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
+inline void DecompressTranslation(const int Format, const int FormatFlags, FVector3f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
 {
 	if( Format == ACF_Float96NoW )
 	{
@@ -746,7 +748,8 @@ inline void DecompressTranslation(const int Format, const int FormatFlags, FVect
 		if( (FormatFlags & 7) == 0 )
 		{
 			#pragma ignore warning(perf)
-			Out = *((const FVector *)KeyData);
+			const FVector3f Keys = *((const FVector3f *)KeyData);
+			Out = SetVector(Keys.V[0], Keys.V[1], Keys.V[2]);
 		}
 		// Stored per components
 		else
@@ -754,21 +757,23 @@ inline void DecompressTranslation(const int Format, const int FormatFlags, FVect
 			const float* TypedKeyData = (const float*)KeyData;
 			
 			#pragma ignore warning(perf)
-			Out.V[0] = (FormatFlags & 1) ? (*TypedKeyData++) : 0.0f;
+			const float X = (FormatFlags & 1) ? (*TypedKeyData++) : 0.0f;
 
 			#pragma ignore warning(perf)
-			Out.V[1] = (FormatFlags & 2) ? (*TypedKeyData++) : 0.0f;
+			const float Y = (FormatFlags & 2) ? (*TypedKeyData++) : 0.0f;
 
 			#pragma ignore warning(perf)
-			Out.V[2] = (FormatFlags & 4) ? (*TypedKeyData++) : 0.0f;
+			const float Z = (FormatFlags & 4) ? (*TypedKeyData++) : 0.0f;
+
+			Out = SetVector(X, Y, Z);
 		}
 	}
 	else if (Format == ACF_IntervalFixed32NoW)
 	{
 		const float* SourceBounds = (float*)TopOfStream;
 
-		FVector Mins = {{0.0f, 0.0f, 0.0f}};
-		FVector Ranges = {{0.0f, 0.0f, 0.0f}};
+		FVector3f Mins = FloatZeroVector;
+		FVector3f Ranges = FloatZeroVector;
 
 		if (FormatFlags & 1)
 		{
@@ -802,45 +807,48 @@ inline void DecompressTranslation(const int Format, const int FormatFlags, FVect
 		const unsigned int16* TypedKeyData = (const unsigned int16*)KeyData;
 
 		#pragma ignore warning(perf)
-		Out.V[0] = (FormatFlags & 1) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float X = (FormatFlags & 1) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
 
 		#pragma ignore warning(perf)
-		Out.V[1] = (FormatFlags & 2) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float Y = (FormatFlags & 2) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
 
 		#pragma ignore warning(perf)
-		Out.V[2] = (FormatFlags & 4) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float Z = (FormatFlags & 4) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+
+		Out = SetVector(X, Y, Z);
 	}
 	else if ( Format == ACF_Identity )
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 	else
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 }
 
-inline void DecompressScale(FVector& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
+inline void DecompressScale(FVector3f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData, const uniform int FORMAT)
 {
 	if ( (FORMAT == ACF_None) || (FORMAT == ACF_Float96NoW) )
 	{
 		#pragma ignore warning(perf)
-		Out = *((const FVector *)KeyData);
+		const FVector3f Keys = *((const FVector3f *)KeyData);
+		Out = SetVector(Keys.V[0], Keys.V[1], Keys.V[2]);
 	}
 	else if ( FORMAT == ACF_IntervalFixed32NoW )
 	{
-		const FVector* VTopOfStream = (const FVector*)TopOfStream;
+		const FVector3f* VTopOfStream = (const FVector3f*)TopOfStream;
 
 		#pragma ignore warning(perf)
-		const FVector Mins = *(VTopOfStream);
+		const FVector3f Mins = *(VTopOfStream);
 
 		#pragma ignore warning(perf)
-		const FVector Ranges = *(VTopOfStream+1);
+		const FVector3f Ranges = *(VTopOfStream+1);
 		Out = IntervalFixed32NoWToVector(Mins, Ranges, (const unsigned int*)KeyData);
 	}
 	else if ( FORMAT == ACF_Identity )
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 	else if ( FORMAT == ACF_Fixed48NoW )
 	{
@@ -848,11 +856,11 @@ inline void DecompressScale(FVector& Out, const unsigned int8* TopOfStream, cons
 	}
 	else
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 }
 
-inline void DecompressScale(const int Format, const int FormatFlags, FVector& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
+inline void DecompressScale(const int Format, const int FormatFlags, FVector3f& Out, const unsigned int8* TopOfStream, const unsigned int8* KeyData)
 {
 	if( Format == ACF_Float96NoW )
 	{
@@ -860,7 +868,8 @@ inline void DecompressScale(const int Format, const int FormatFlags, FVector& Ou
 		if( (FormatFlags & 7) == 0 )
 		{
 			#pragma ignore warning(perf)
-			Out = *((FVector*)KeyData);
+			const FVector3f Keys = *((const FVector3f *)KeyData);
+			Out = SetVector(Keys.V[0], Keys.V[1], Keys.V[2]);
 		}
 		// Stored per components
 		else
@@ -868,21 +877,23 @@ inline void DecompressScale(const int Format, const int FormatFlags, FVector& Ou
 			const float* TypedKeyData = (const float*)KeyData;
 
 			#pragma ignore warning(perf)
-			Out.V[0] = (FormatFlags & 1) ? (*TypedKeyData++) : 0.0f;
+			const float X = (FormatFlags & 1) ? (*TypedKeyData++) : 0.0f;
 
 			#pragma ignore warning(perf)
-			Out.V[1] = (FormatFlags & 2) ? (*TypedKeyData++) : 0.0f;
+			const float Y = (FormatFlags & 2) ? (*TypedKeyData++) : 0.0f;
 
 			#pragma ignore warning(perf)
-			Out.V[2] = (FormatFlags & 4) ? (*TypedKeyData++) : 0.0f;
+			const float Z = (FormatFlags & 4) ? (*TypedKeyData++) : 0.0f;
+
+			Out = SetVector(X, Y, Z);
 		}
 	}
 	else if (Format == ACF_IntervalFixed32NoW)
 	{
 		const float* SourceBounds = (float*)TopOfStream;
 
-		FVector Mins = {{0.0f, 0.0f, 0.0f}};
-		FVector Ranges = {{0.0f, 0.0f, 0.0f}};
+		FVector3f Mins = FloatZeroVector;
+		FVector3f Ranges = FloatZeroVector;
 
 		if (FormatFlags & 1)
 		{
@@ -916,21 +927,23 @@ inline void DecompressScale(const int Format, const int FormatFlags, FVector& Ou
 		const unsigned int16* TypedKeyData = (const unsigned int16*)KeyData;
 		
 		#pragma ignore warning(perf)
-		Out.V[0] = (FormatFlags & 1) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float X = (FormatFlags & 1) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
 
 		#pragma ignore warning(perf)
-		Out.V[1] = (FormatFlags & 2) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float Y = (FormatFlags & 2) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
 
 		#pragma ignore warning(perf)
-		Out.V[2] = (FormatFlags & 4) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+		const float Z = (FormatFlags & 4) ? DecompressFixed16(*TypedKeyData++) : 0.0f;
+
+		Out = SetVector(X, Y, Z);
 	}
 	else if ( Format == ACF_Identity )
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 	else
 	{
-		Out = ZeroVector;
+		Out = FloatZeroVector;
 	}
 }
 

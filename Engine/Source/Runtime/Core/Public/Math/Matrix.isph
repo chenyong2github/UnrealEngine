@@ -9,6 +9,7 @@
 #define EXPLICIT_MATRIX 0
 #endif
 
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
 struct FMatrix
 {
 #if EXPLICIT_MATRIX == 0
@@ -17,6 +18,30 @@ struct FMatrix
 	float<16> M;
 #endif
 };
+
+struct FMatrix44d
+{
+	double M[16];
+};
+
+typedef FMatrix FMatrix44f;
+#else
+struct FMatrix44f
+{
+#if EXPLICIT_MATRIX == 0
+	float M[16];
+#else
+	float<16> M;
+#endif
+};
+
+struct FMatrix
+{
+	double M[16];
+};
+
+typedef FMatrix FMatrix44d;
+#endif
 
 #ifndef EXPLICIT_MATRIX3x4
 #define EXPLICIT_MATRIX3x4 0
@@ -84,10 +109,10 @@ inline FMatrix operator*(const FMatrix &A, const FMatrix &B)
 
 	for (uniform unsigned int m = 0; m < 4; m++) 
 	{
-		varying float Sum;
+		varying FReal Sum;
 		for (uniform unsigned int k = 0; k < 4; k++) 
 		{
-			Sum = 0.0f;
+			Sum = 0;
 			for (uniform unsigned int n = 0; n < 4; n++) 
 			{
 				Sum += A.M[m * 4 + n] * B.M[n * 4 + k];
@@ -106,10 +131,10 @@ inline FMatrix operator*(const FMatrix &A, const uniform FMatrix &B)
 
 	for (uniform unsigned int m = 0; m < 4; m++) 
 	{
-		varying float Sum;
+		varying FReal Sum;
 		for (uniform unsigned int k = 0; k < 4; k++) 
 		{
-			Sum = 0.0f;
+			Sum = 0;
 			for (uniform unsigned int n = 0; n < 4; n++) 
 			{
 				Sum += A.M[m * 4 + n] * B.M[n * 4 + k];
@@ -126,12 +151,12 @@ inline FMatrix operator*(const FMatrix &A, const uniform FMatrix &B)
 inline void MatrixRemoveScaling(uniform FMatrix &M)
 {
 	// For each row, find magnitude, and if its non-zero re-scale so its unit length.
-	const uniform float SquareSum0 = (M.M[0] * M.M[0]) + (M.M[1] * M.M[1]) + (M.M[2] * M.M[2]);
-	const uniform float SquareSum1 = (M.M[4] * M.M[4]) + (M.M[5] * M.M[5]) + (M.M[6] * M.M[6]);
-	const uniform float SquareSum2 = (M.M[8] * M.M[8]) + (M.M[9] * M.M[9]) + (M.M[10] * M.M[10]);
-	const uniform float Scale0 = select( SquareSum0 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum0), 1.0f );
-	const uniform float Scale1 = select( SquareSum1 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum1), 1.0f );
-	const uniform float Scale2 = select( SquareSum2 - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum2), 1.0f );
+	const uniform FReal SquareSum0 = (M.M[0] * M.M[0]) + (M.M[1] * M.M[1]) + (M.M[2] * M.M[2]);
+	const uniform FReal SquareSum1 = (M.M[4] * M.M[4]) + (M.M[5] * M.M[5]) + (M.M[6] * M.M[6]);
+	const uniform FReal SquareSum2 = (M.M[8] * M.M[8]) + (M.M[9] * M.M[9]) + (M.M[10] * M.M[10]);
+	const uniform FReal Scale0 = select( SquareSum0 - SMALL_NUMBER >= ZERO, InvSqrt(SquareSum0), ONE );
+	const uniform FReal Scale1 = select( SquareSum1 - SMALL_NUMBER >= ZERO, InvSqrt(SquareSum1), ONE );
+	const uniform FReal Scale2 = select( SquareSum2 - SMALL_NUMBER >= ZERO, InvSqrt(SquareSum2), ONE );
 	M.M[0] *= Scale0;
 	M.M[1] *= Scale0;
 	M.M[2] *= Scale0;
@@ -155,15 +180,15 @@ inline void MatrixGetScaledAxes(const uniform FMatrix &M, uniform FVector &X, un
 	Z = SetVector(M.M[8], M.M[9], M.M[10]);
 }
 
-inline void MatrixScaleAxis(uniform FMatrix &M, const uniform int Axis, const uniform float ScalingFactor)
+inline void MatrixScaleAxis(uniform FMatrix &M, const uniform int Axis, const uniform FReal ScalingFactor)
 {
-	varying float S0;
+	varying FReal S0;
 	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&M.M[(4*Axis)]);
 
 #if EXPLICIT_VECTOR == 1
 	// Using explicit vector aligns to 16 bytes. Save the 4th component when pulling from Matrix type
-	const uniform float Saved = extract(S0, 3);
-	S0 = insert(S0, 3, 0.0f);
+	const uniform FReal Saved = extract(S0, 3);
+	S0 = insert(S0, 3, 0);
 #endif
 
 	S0 = S0 * ScalingFactor;
@@ -176,7 +201,7 @@ inline void MatrixScaleAxis(uniform FMatrix &M, const uniform int Axis, const un
 	*((uniform FVector *uniform)&M.M[(4*Axis)]) = *((uniform FVector *uniform)&S0);
 }
 
-inline uniform bool IsAnyMatrixScaledAxesNearlyZero(const uniform FMatrix &M, const uniform float Tolerance)
+inline uniform bool IsAnyMatrixScaledAxesNearlyZero(const uniform FMatrix &M, const uniform FReal Tolerance)
 {
 	uniform FVector X, Y, Z;
 	MatrixGetScaledAxes(M, X, Y, Z);
@@ -189,7 +214,7 @@ inline uniform bool IsAnyMatrixScaledAxesNearlyZero(const uniform FMatrix &M, co
 	return false;
 }
 
-inline uniform bool IsAllMatrixScaledAxesNearlyZero(const uniform FMatrix &M, const uniform float Tolerance)
+inline uniform bool IsAllMatrixScaledAxesNearlyZero(const uniform FMatrix &M, const uniform FReal Tolerance)
 {
 	uniform FVector X, Y, Z;
 	MatrixGetScaledAxes(M, X, Y, Z);
@@ -245,7 +270,7 @@ static inline uniform FVector4 Mat2MulAdj(const uniform FVector4& vec1, const un
 			VectorMultiply(VectorSwizzle(vec1, 1,0,3,2), VectorSwizzle(vec2, 2,1,2,1)));
 }
 
-inline uniform float MatrixDeterminant(const uniform FMatrix& M)
+inline uniform FReal MatrixDeterminant(const uniform FMatrix& M)
 {
 	const uniform FVector4 *uniform MVec = (const uniform FVector4 *uniform) &M;
 
@@ -267,7 +292,7 @@ inline uniform float MatrixDeterminant(const uniform FMatrix& M)
 	const uniform FVector4 A_B = Mat2AdjMul(A, B);
 
 	// |M| = |A|*|D| + |B|*|C|
-	uniform float detM = (detSub.V[0] * detSub.V[3]) + (detSub.V[1] * detSub.V[2]);
+	uniform FReal detM = (detSub.V[0] * detSub.V[3]) + (detSub.V[1] * detSub.V[2]);
 
 	// tr((A#B)(D#C))
 	uniform FVector4 tr = VectorMultiply(A_B, VectorSwizzle(D_C, 0,2,1,3));
@@ -334,9 +359,9 @@ inline uniform FMatrix VectorMatrixInverse(const uniform FMatrix& M)
 
 	uniform FMatrix R = MatrixIdentity;
 
-	if(detM.V[0] != 0.0f)
+	if(detM.V[0] != ZERO)
 	{
-		const uniform FVector4 adjSignMask = SetVector4(1.f, -1.f, -1.f, 1.f);
+		const uniform FVector4 adjSignMask = SetVector4(ONE, -ONE, -ONE, ONE);
 		// (1/|M|, -1/|M|, -1/|M|, 1/|M|)
 		const uniform FVector4 rDetM = VectorDivide(adjSignMask, detM);
 
@@ -375,18 +400,28 @@ inline uniform FMatrix MatrixInverse(const uniform FMatrix& M)
 	return Result;
 }
 
-inline uniform FVector4 VectorTransformVector(const uniform FVector4 &VecP, const uniform FMatrix &Matrix)
+inline uniform FVector4 VectorTransformVector(const uniform FVector4 &VecP, const uniform FMatrix &M)
 {
-	uniform FVector4 Result;
-    const uniform FVector4 *uniform M = (const uniform FVector4 *uniform) &Matrix;
+	uniform FVector4 VTempX, VTempY, VTempZ, VTempW;
+
+	// Splat x,y,z and w
+	VTempX = VectorReplicate(VecP, 0);
+	VTempY = VectorReplicate(VecP, 1);
+	VTempZ = VectorReplicate(VecP, 2);
+	VTempW = VectorReplicate(VecP, 3);
 
 	// Mul by the matrix
-	Result = VectorMultiply(M[0], VecP.V[0]);
-	Result = VectorMultiplyAdd(M[1], VecP.V[1], Result);
-	Result = VectorMultiplyAdd(M[2], VecP.V[2], Result);
-	Result = VectorMultiplyAdd(M[3], VecP.V[3], Result);
+	VTempX = VectorMultiply(VTempX, SetVector4(M.M[0], M.M[1], M.M[2], M.M[3]));
+	VTempY = VectorMultiply(VTempY, SetVector4(M.M[4], M.M[5], M.M[6], M.M[7]));
+	VTempZ = VectorMultiply(VTempZ, SetVector4(M.M[8], M.M[9], M.M[10], M.M[11]));
+	VTempW = VectorMultiply(VTempW, SetVector4(M.M[12], M.M[13], M.M[14], M.M[15]));
 
-	return Result;
+	// Add them all together
+	VTempX = VectorAdd(VTempX, VTempY);
+	VTempZ = VectorAdd(VTempZ, VTempW);
+	VTempX = VectorAdd(VTempX, VTempZ);
+
+	return VTempX;
 }
 
 inline FVector4 VectorTransformVector(const FVector4 &VecP, const FMatrix &M)
@@ -438,9 +473,9 @@ inline FVector MatrixTransformPosition(const FVector &P, const FMatrix &M)
 }
 
 // Calculate homogeneous transform. W component assumed to be 1.0
-inline FVector MatrixTransformPosition(const FVector &P, const uniform FMatrix &M)
+inline FVector3d MatrixTransformPosition(const FVector3d &P, const uniform FMatrix44d &M)
 {
-	FVector VTempX, VTempY, VTempZ;
+	FVector3d VTempX, VTempY, VTempZ;
 
 	// Splat x,y,z
 	VTempX = SetVector(P.V[0], P.V[0], P.V[0]);
@@ -451,7 +486,30 @@ inline FVector MatrixTransformPosition(const FVector &P, const uniform FMatrix &
 	VTempX = VTempX * SetVector(M.M[0], M.M[1], M.M[2]);
 	VTempY = VTempY * SetVector(M.M[4], M.M[5], M.M[6]);
 	VTempZ = VTempZ * SetVector(M.M[8], M.M[9], M.M[10]);
-	const uniform FVector VTempW = SetVector(M.M[12], M.M[13], M.M[14]);
+	const uniform FVector3d VTempW = SetVector(M.M[12], M.M[13], M.M[14]);
+
+	// Add them all together
+	VTempX = VTempX + VTempY;
+	VTempZ = VTempZ + VTempW;
+	VTempX = VTempX + VTempZ;
+
+	return VTempX;
+}
+
+inline FVector3f MatrixTransformPosition(const FVector3f &P, const uniform FMatrix44f &M)
+{
+	FVector3f VTempX, VTempY, VTempZ;
+
+	// Splat x,y,z
+	VTempX = SetVector(P.V[0], P.V[0], P.V[0]);
+	VTempY = SetVector(P.V[1], P.V[1], P.V[1]);
+	VTempZ = SetVector(P.V[2], P.V[2], P.V[2]);
+
+	// Mul by the matrix
+	VTempX = VTempX * SetVector(M.M[0], M.M[1], M.M[2]);
+	VTempY = VTempY * SetVector(M.M[4], M.M[5], M.M[6]);
+	VTempZ = VTempZ * SetVector(M.M[8], M.M[9], M.M[10]);
+	const uniform FVector3f VTempW = SetVector(M.M[12], M.M[13], M.M[14]);
 
 	// Add them all together
 	VTempX = VTempX + VTempY;
@@ -483,7 +541,7 @@ inline FVector MatrixTransformVector(const FVector &P, const FMatrix &M)
 inline uniform FVector MatrixInverseTransformVector(const uniform FMatrix &M, const uniform FVector &V)
 {
 	const uniform FMatrix InvSelf = VectorMatrixInverse(M); // FMatrix::InverseFast();
-	return SetVector(VectorTransformVector(SetVector4(V, 0.0f), InvSelf));
+	return SetVector(VectorTransformVector(SetVector4(V, ZERO), InvSelf));
 }
 
 inline uniform FMatrix MatrixReduceAdd(const varying FMatrix &M)

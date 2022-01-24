@@ -64,6 +64,10 @@ static TAutoConsoleVariable<float> CVarStallParallelAnimation(
 	0.0f,
 	TEXT("Sleep for the given time in each parallel animation task. Time is given in ms. This is a debug option used for critical path analysis and forcing a change in the critical path."));
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bAnim_SkeletalMesh_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarAnimSkeletalMeshISPCEnabled(TEXT("a.SkeletalMesh.ISPC"), bAnim_SkeletalMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation skeletal mesh components"));
+#endif
 
 static TAutoConsoleVariable<int32> CVarCacheLocalSpaceBounds(
 	TEXT("a.CacheLocalSpaceBounds"),
@@ -1571,7 +1575,7 @@ void USkeletalMeshComponent::FillComponentSpaceTransforms(const USkeletalMesh* I
 #endif
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_SkeletalMesh_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::FillComponentSpaceTransforms(

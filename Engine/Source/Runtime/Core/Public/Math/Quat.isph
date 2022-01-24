@@ -13,25 +13,25 @@ inline uniform FVector4 MatrixToQuat(const uniform FMatrix &M)
 	// for now, if you convert to matrix from 0 scale and convert back, you'll lose rotation. Don't do that.
 	if (IsAnyMatrixScaledAxesNearlyZero(M, KINDA_SMALL_NUMBER))
 	{
-		return Float0001;
+		return Vector0001;
 	}
 
 	//const MeReal *const t = (MeReal *) tm;
-	uniform float	s;
+	uniform FReal	s;
 
 	// Check diagonal (trace)
-	const uniform float tr = M.M[0] + M.M[5] + M.M[10];
+	const uniform FReal tr = M.M[0] + M.M[5] + M.M[10];
 
-	if (tr > 0.0f)
+	if (tr > ZERO)
 	{
 		uniform FVector4 qt;
-		const uniform float InvS = 1.0f / sqrt(tr + 1.f);
-		s = 0.5f * InvS;
+		const uniform FReal InvS = ONE / sqrt(tr + 1);
+		s = ONE_HALF * InvS;
 
 		qt.V[0] = (M.M[6] - M.M[9]) * s;
 		qt.V[1] = (M.M[8] - M.M[2]) * s;
 		qt.V[2] = (M.M[1] - M.M[4]) * s;
-		qt.V[3] = 0.5f * (1.f / InvS);
+		qt.V[3] = ONE_HALF * (ONE / InvS);
 
 		return qt;
 	}
@@ -54,14 +54,14 @@ inline uniform FVector4 MatrixToQuat(const uniform FMatrix &M)
 		const uniform int j = nxt[i];
 		const uniform int k = nxt[j];
 
-		s = M.M[4*i+i] - M.M[4*j+j] - M.M[4*k+k] + 1.0f;
+		s = M.M[4*i+i] - M.M[4*j+j] - M.M[4*k+k] + ONE;
 
-		const uniform float InvS = 1.0f / sqrt(s);
-		s = 0.5f * InvS;
+		const uniform FReal InvS = ONE / sqrt(s);
+		s = ONE_HALF * InvS;
 
 		uniform FVector4 qt;
 
-		qt.V[i] = 0.5f * (1.f / InvS);
+		qt.V[i] = ONE_HALF * (ONE / InvS);
 		qt.V[j] = (M.M[4*i+j] + M.M[4*j+i]) * s;
 		qt.V[k] = (M.M[4*i+k] + M.M[4*k+i]) * s;
 		qt.V[3] = (M.M[4*j+k] - M.M[4*k+j]) * s;
@@ -101,14 +101,19 @@ inline uniform FVector4 VectorQuaternionMultiply2( const uniform FVector4& Quat1
 }
 
 // Normalize quaternion ( result = (Q.Q >= 1e-8) ? (Q / |Q|) : (0,0,0,1) )
-inline FVector4 VectorNormalizeQuaternion(const FVector4& UnnormalizedQuat)
+inline FVector4d VectorNormalizeQuaternion(const FVector4d& UnnormalizedQuat)
+{
+	return VectorNormalizeSafe(UnnormalizedQuat, Double0001);
+}
+
+inline FVector4f VectorNormalizeQuaternion(const FVector4f& UnnormalizedQuat)
 {
 	return VectorNormalizeSafe(UnnormalizedQuat, Float0001);
 }
 
 inline uniform FVector4 VectorNormalizeQuaternion(const uniform FVector4& UnnormalizedQuat)
 {
-	return VectorNormalizeSafe2(UnnormalizedQuat, Float0001);
+	return VectorNormalizeSafe2(UnnormalizedQuat, Vector0001);
 }
 
 inline FVector4 QuatInverse(const FVector4 &Quat)
@@ -116,25 +121,38 @@ inline FVector4 QuatInverse(const FVector4 &Quat)
 	return Quat * QINV_SIGN_MASK;
 }
 
-inline uniform FVector4 QuatInverse(const uniform FVector4 &Quat)
+inline uniform FVector4d QuatInverse(const uniform FVector4d &Quat)
 {
-	return Quat * QINV_SIGN_MASK;
+	return Quat * DOUBLE_QINV_SIGN_MASK;
 }
 
-inline FVector4 QuatFastLerp(const FVector4& A, const FVector4& B, const float Alpha)
+inline uniform FVector4f QuatInverse(const uniform FVector4f &Quat)
+{
+	return Quat * FLOAT_QINV_SIGN_MASK;
+}
+
+inline FVector4d QuatFastLerp(const FVector4d& A, const FVector4d& B, const double Alpha)
+{
+	// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
+	const double DotResult = VectorDot(A, B);
+	const double Bias = select(DotResult >= 0.d, 1.d, -1.d);
+	return (B * Alpha) + (A * (Bias * (1.d - Alpha)));
+}
+
+inline FVector4f QuatFastLerp(const FVector4f& A, const FVector4f& B, const float Alpha)
 {
 	// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
 	const float DotResult = VectorDot(A, B);
-	const float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
+	const float Bias = select(DotResult >= 0.f, 1.f, -1.f);
 	return (B * Alpha) + (A * (Bias * (1.f - Alpha)));
 }
 
-inline uniform FVector4 QuatFastLerp(const uniform FVector4& A, const uniform FVector4& B, const uniform float Alpha)
+inline uniform FVector4 QuatFastLerp(const uniform FVector4& A, const uniform FVector4& B, const uniform FReal Alpha)
 {
 	// To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
-	const uniform float DotResult = VectorDot(A, B);
-	const uniform float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
-	return (B * Alpha) + (A * (Bias * (1.f - Alpha)));
+	const uniform FReal DotResult = VectorDot(A, B);
+	const uniform FReal Bias = select(DotResult >= ZERO, ONE, -ONE);
+	return (B * Alpha) + (A * (Bias * (ONE - Alpha)));
 }
 
 // A and B are quaternions.  The result is A + (|A.B| >= 0 ? 1 : -1) * B
@@ -145,8 +163,8 @@ inline uniform FVector4 VectorAccumulateQuaternionShortestPath(const uniform FVe
 	//     const float Bias = (|A.B| >= 0 ? 1 : -1)
 	//     return A + B * Bias;
 	const uniform FVector4 RotationDot = VectorDot4(A, B);
-	const uniform FVector4 QuatRotationDirMask = VectorCompareGE(RotationDot, FloatZero);
-	const uniform FVector4 NegativeB = FloatZero - B;
+	const uniform FVector4 QuatRotationDirMask = VectorCompareGE(RotationDot, VectorZero);
+	const uniform FVector4 NegativeB = VectorZero - B;
 	const uniform FVector4 BiasTimesB = VectorSelect(QuatRotationDirMask, B, NegativeB);
 	return A + BiasTimesB;
 }
@@ -240,7 +258,7 @@ inline uniform FVector VectorQuaternionRotateVector(const uniform FVector4& Quat
 	// V' = V + w*(T) + (Q x T)
 
 	const uniform FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
-	const uniform FVector T = VectorCross(Q, V) * 2.f;
+	const uniform FVector T = VectorCross(Q, V) * 2;
 	const uniform FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
 	return Result;
 }
@@ -255,12 +273,12 @@ inline FVector VectorQuaternionRotateVector(const FVector4& Quat, const FVector&
 	// V' = V + w*(T) + (Q x T)
 
 	const FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
-	const FVector T = VectorCross(Q, V) * 2.f;
+	const FVector T = VectorCross(Q, V) * 2;
 	const FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
 	return Result;
 }
 
-inline FVector VectorQuaternionRotateVector(const uniform FVector4& Quat, const FVector& V)
+inline FVector3d VectorQuaternionRotateVector(const uniform FVector4d& Quat, const FVector3d& V)
 {
 	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
 	// V' = V + 2w(Q x V) + (2Q x (Q x V))
@@ -269,9 +287,24 @@ inline FVector VectorQuaternionRotateVector(const uniform FVector4& Quat, const 
 	// T = 2(Q x V);
 	// V' = V + w*(T) + (Q x T)
 
-	const uniform FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
-	const FVector T = VectorCross(Q, V) * 2.f;
-	const FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
+	const uniform FVector3d Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
+	const FVector3d T = VectorCross(Q, V) * 2;
+	const FVector3d Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
+	return Result;
+}
+
+inline FVector3f VectorQuaternionRotateVector(const uniform FVector4f& Quat, const FVector3f& V)
+{
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const uniform FVector3f Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
+	const FVector3f T = VectorCross(Q, V) * 2;
+	const FVector3f Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
 	return Result;
 }
 
@@ -286,17 +319,17 @@ inline uniform FVector8 VectorQuaternionRotateVector(const uniform FVector8& Qua
 	return Rotated;
 }
 
-inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform FVector4& B, const uniform float Alpha)
+inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform FVector4& B, const uniform FReal Alpha)
 {
 	// Blend rotation
 	//     To ensure the 'shortest route', we make sure the dot product between the both rotations is positive.
 	//     const float Bias = (|A.B| >= 0 ? 1 : -1)
 	//     Rotation = (B * Alpha) + (A * (Bias * (1.f - Alpha)));
-	const uniform float OneMinusAlpha = 1.0f - Alpha;
+	const uniform FReal OneMinusAlpha = ONE - Alpha;
 
 	const uniform FVector4 RotationDot = VectorDot4(A, B);
-	const uniform FVector4 QuatRotationDirMask = VectorCompareGE(RotationDot, FloatZero);
-	const uniform FVector4 NegativeA = VectorSubtract(FloatZero, A);
+	const uniform FVector4 QuatRotationDirMask = VectorCompareGE(RotationDot, VectorZero);
+	const uniform FVector4 NegativeA = VectorSubtract(VectorZero, A);
 	const uniform FVector4 BiasTimesA = VectorSelect(QuatRotationDirMask, A, NegativeA);
 	const uniform FVector4 BTimesWeight = VectorMultiply(B, Alpha);
 	const uniform FVector4 UnnormalizedResult = VectorMultiplyAdd(BiasTimesA, OneMinusAlpha, BTimesWeight);
@@ -306,8 +339,8 @@ inline uniform FVector4 VectorLerpQuat(const uniform FVector4& A, const uniform 
 
 inline uniform FVector4 VectorQuaternionEnforceShortestArcWith(const uniform FVector4& A, const uniform FVector4& B)
 {
-	const uniform float DotResult = VectorDot(B, A);
-	const uniform float Bias = select(DotResult >= 0.f, 1.0f, -1.0f);
+	const uniform FReal DotResult = VectorDot(B, A);
+	const uniform FReal Bias = select(DotResult >= ZERO, ONE, -ONE);
 
 	return A * Bias;
 }

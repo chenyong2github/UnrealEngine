@@ -21,7 +21,7 @@ struct FTransform8
 	FVector8 Scale3D;
 };
 
-inline uniform FTransform operator*(const uniform FTransform &A, const uniform float F)
+inline uniform FTransform operator*(const uniform FTransform &A, const uniform FReal F)
 {
 	uniform FTransform Result;
 
@@ -66,7 +66,7 @@ inline uniform FMatrix ToMatrixWithScale(const uniform FTransform &T)
 	const uniform FVector4 yy2_xx2_xx2 = VectorSwizzle(RotationXX2YY2ZZ2, 1, 0, 0, 0);
 	const uniform FVector4 zz2_zz2_yy2 = VectorSwizzle(RotationXX2YY2ZZ2, 2, 2, 1, 0);
 	const uniform FVector4 DiagonalSum = VectorAdd(yy2_xx2_xx2, zz2_zz2_yy2);
-	const uniform FVector4 Diagonals = VectorSubtract(FloatOne, DiagonalSum);
+	const uniform FVector4 Diagonals = VectorSubtract(VectorOne, DiagonalSum);
 	const uniform FVector4 OutDiagonals = VectorMultiply(Diagonals, T.Scale3D);
 
 	// Grouping the non-diagonal elements in the rotation block by operations:
@@ -93,7 +93,7 @@ inline uniform FMatrix ToMatrixWithScale(const uniform FTransform &T)
 	const uniform FVector4 Subtracts = VectorSubtract(RotBase, RotOffset);
 	const uniform FVector4 OutSubtracts = VectorMultiply(Subtracts , Scale3DYZXW);
 
-	const uniform FVector4 DiagonalsXYZ_W0 = SetVector4(OutDiagonals.V[0], OutDiagonals.V[1], OutDiagonals.V[2], 0.0f);
+	const uniform FVector4 DiagonalsXYZ_W0 = SetVector4(OutDiagonals.V[0], OutDiagonals.V[1], OutDiagonals.V[2], ZERO);
 
 	// OutMatrix.M[0][0] = (1.0f - (yy2 + zz2)) * Scale.X;    // Diagonal.X
 	// OutMatrix.M[0][1] = (xy2 + wz2) * Scale.X;             // Adds.X
@@ -122,15 +122,15 @@ inline uniform FMatrix ToMatrixWithScale(const uniform FTransform &T)
 	// OutMatrix.M[3][1] = Translation.Y;
 	// OutMatrix.M[3][2] = Translation.Z;
 	// OutMatrix.M[3][3] = 1.0f;
-	const uniform FVector4 Row3 = SetVector4(T.Translation.V[0], T.Translation.V[1], T.Translation.V[2], 1.0f);
+	const uniform FVector4 Row3 = SetVector4(T.Translation.V[0], T.Translation.V[1], T.Translation.V[2], ONE);
 
 	return SetMatrix(Row0, Row1, Row2, Row3);
 }
 
 static inline uniform bool AnyHasNegativeScale(const uniform FVector4 &InScale3D, const uniform FVector4 &InOtherScale3D)
 {
-	varying float S0 = 0.0f;
-	varying float S1 = 0.0f;
+	varying FReal S0 = 0;
+	varying FReal S1 = 0;
 	*((uniform FVector4 *uniform)&S0) = *((uniform FVector4 *uniform)&InScale3D);
 	*((uniform FVector4 *uniform)&S1) = *((uniform FVector4 *uniform)&InOtherScale3D);
 
@@ -160,7 +160,7 @@ static inline void ConstructTransformFromMatrixWithDesiredScale(const uniform FM
 	// instead of using Scale in matrix multiplication
 	// it's a question of between RemoveScaling vs using FTransform to move translation
 	const uniform FVector Translation = MatrixGetOrigin(M);
-	OutTransform.Translation = SetVector4(Translation.V[0], Translation.V[1], Translation.V[2], 0.0f);
+	OutTransform.Translation = SetVector4(Translation.V[0], Translation.V[1], Translation.V[2], 0);
 
 	OutTransform.Scale3D = DesiredScale;
 }
@@ -210,15 +210,15 @@ inline void TransformMultiply(uniform FTransform &OutTransform, const uniform FT
 	}
 }
 
-inline void ScaleTranslation(uniform FTransform &Transform, const uniform float Scale)
+inline void ScaleTranslation(uniform FTransform &Transform, const uniform FReal Scale)
 {
-	const uniform FVector4 VectorScale = SetVector4(Scale, Scale, Scale, 0.0f);
+	const uniform FVector4 VectorScale = SetVector4(Scale, Scale, Scale, 0);
 	Transform.Translation = VectorMultiply(Transform.Translation, VectorScale);
 }
 
 inline uniform FVector4 TransformVector(const uniform FTransform &T, const uniform FVector4& V)
 {
-	const uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);
+	const uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
 	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
@@ -227,7 +227,7 @@ inline uniform FVector4 TransformVector(const uniform FTransform &T, const unifo
 
 inline uniform FVector TransformVector(const uniform FTransform &T, const uniform FVector& V)
 {
-	const uniform FVector4 InputVectorW0 = SetVector4(V, 0.0f);
+	const uniform FVector4 InputVectorW0 = SetVector4(V, 0);
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
 	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
@@ -253,7 +253,7 @@ inline FVector TransformVector(const uniform FTransform &T, const FVector& V)
 
 inline uniform FVector TransformVectorNoScale(const uniform FTransform &T, const uniform FVector& V)
 {
-	const uniform FVector4 InputVectorW0 = SetVector4(V, 0.0f);
+	const uniform FVector4 InputVectorW0 = SetVector4(V, 0);
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
 	const uniform FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, InputVectorW0);
@@ -262,7 +262,7 @@ inline uniform FVector TransformVectorNoScale(const uniform FTransform &T, const
 
 inline FVector TransformPosition(const FTransform &T, const FVector& V)
 {
-	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);
+	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
@@ -278,7 +278,7 @@ inline FVector TransformPosition(const FTransform &T, const FVector& V)
 
 inline FVector TransformPosition(const uniform FTransform &T, const FVector& V)
 {
-	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);
+	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
@@ -294,7 +294,7 @@ inline FVector TransformPosition(const uniform FTransform &T, const FVector& V)
 
 inline uniform FVector TransformPosition(const uniform FTransform &T, const uniform FVector& V)
 {
-	uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);
+	uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
@@ -336,6 +336,20 @@ inline static uniform FVector8 TransformPosition(const uniform FTransform8 &T, c
 	return TranslatedVec;
 }
 
+inline static FVector TransformPositionNoScale(const uniform FTransform &T, const FVector& V)
+{
+	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+
+	//Transform using QST is following
+	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = 1.0f, T = translation
+
+	//RotatedVec = Q.Rotate(V.X, V.Y, V.Z, 0.f)
+	const FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, InputVectorW0);
+	const FVector4 TranslatedVec = RotatedVec + T.Translation;
+
+	return SetVector(TranslatedVec.V[0], TranslatedVec.V[1], TranslatedVec.V[2]);
+}
+
 /** 
  * mathematically if you have 0 scale, it should be infinite, 
  * however, in practice if you have 0 scale, and relative transform doesn't make much sense 
@@ -343,17 +357,27 @@ inline static uniform FVector8 TransformPosition(const uniform FTransform8 &T, c
  * also returning BIG_NUMBER causes sequential NaN issues by multiplying 
  * so we hardcode as 0
  */
-inline uniform FVector TransformGetSafeScaleReciprocal(const uniform FVector& InScale, const uniform float Tolerance)
+inline uniform FVector3d TransformGetSafeScaleReciprocal(const uniform FVector3d& InScale, const uniform double Tolerance)
 {
-	varying float Scale = 0.0f;
-	*((uniform FVector *uniform)&Scale) = *((uniform FVector *uniform)&InScale);
+	varying double Scale = 0;
+	*((uniform FVector3d *uniform)&Scale) = *((uniform FVector3d *uniform)&InScale);
 
-	const varying float SafeReciprocalScale = abs(Scale) <= Tolerance ? 0.0f : rcp(Scale);
+	const varying double SafeReciprocalScale = abs(Scale) <= Tolerance ? 0 : rcp(Scale);
 
-	return *((uniform FVector *uniform)&SafeReciprocalScale);
+	return *((uniform FVector3d *uniform)&SafeReciprocalScale);
 }
 
-inline uniform FVector4 TransformGetSafeScaleReciprocal(const uniform FVector4& InScale, const uniform float Tolerance)
+inline uniform FVector3f TransformGetSafeScaleReciprocal(const uniform FVector3f& InScale, const uniform float Tolerance)
+{
+	varying float Scale = 0;
+	*((uniform FVector3f *uniform)&Scale) = *((uniform FVector3f *uniform)&InScale);
+
+	const varying float SafeReciprocalScale = abs(Scale) <= Tolerance ? 0 : rcp(Scale);
+
+	return *((uniform FVector3f *uniform)&SafeReciprocalScale);
+}
+
+inline uniform FVector4 TransformGetSafeScaleReciprocal(const uniform FVector4& InScale, const uniform FReal Tolerance)
 {
 	// SafeReciprocalScale.X = (InScale.X == 0) ? 0.f : 1/InScale.X; // same for YZW
 
@@ -366,7 +390,7 @@ inline uniform FVector4 TransformGetSafeScaleReciprocal(const uniform FVector4& 
 	//const VectorRegister ScaleZeroMask = VectorCompareEQ(InScale, VectorZero());
 
 	// VectorRegister( for each bit i: Mask[i] ? Vec1[i] : Vec2[i] )
-	const uniform FVector4 SafeReciprocalScale = VectorSelect(ScaleZeroMask, FloatZero, ReciprocalScale);
+	const uniform FVector4 SafeReciprocalScale = VectorSelect(ScaleZeroMask, VectorZero, ReciprocalScale);
 
 	return SafeReciprocalScale;
 }

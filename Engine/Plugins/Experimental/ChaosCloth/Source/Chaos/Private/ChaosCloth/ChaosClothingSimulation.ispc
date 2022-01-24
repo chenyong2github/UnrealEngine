@@ -6,32 +6,33 @@
 #include "Math/Quat.isph"
 #include "Math/Transform.isph"
 
-export void GetClothingSimulationData(uniform FVector Positions[],
-									uniform FVector Normals[],
-									const uniform FTransform &OwnerTransform,
-									const uniform FVector &LocalSpaceLocation,
+export void GetClothingSimulationData(uniform FVector3f Positions[],
+									uniform FVector3f Normals[],
+									const uniform FVector4f &Rotation,
+									const uniform FVector3f &Translation,
+									const uniform FVector3f &Scale3D,
+									const uniform FVector3f &LocalSpaceLocation,
 									const uniform int NumPositions)
 {
-	const uniform FVector4 RotationInverse = QuatInverse(OwnerTransform.Rotation);
-	const uniform FVector Translation = SetVector(OwnerTransform.Translation);
-	const uniform FVector SafeReciprocal = SetVector(TransformGetSafeScaleReciprocal(OwnerTransform.Scale3D, SMALL_NUMBER));
+	const uniform FVector4f RotationInverse = QuatInverse(Rotation);
+	const uniform FVector3f SafeReciprocal = TransformGetSafeScaleReciprocal(Scale3D, FLOAT_SMALL_NUMBER);
 
 	foreach(i = 0 ... NumPositions)
 	{
 		const uniform int Index = extract(i, 0);
-		const FVector Position = VectorLoad(&Positions[Index]);
-		const FVector Normal = VectorLoad(&Normals[Index]);
+		const FVector3f Position = VectorLoad(&Positions[Index]);
+		const FVector3f Normal = VectorLoad(&Normals[Index]);
 
-		const FVector InputPositionVector = Position + LocalSpaceLocation;
-		const FVector InputNormalVector = Normal * -1.0f;
+		const FVector3f InputPositionVector = Position + LocalSpaceLocation;
+		const FVector3f InputNormalVector = Normal * -FLOAT_ONE;
 
-		FVector TranslatedPosition = InputPositionVector - Translation;
+		FVector3f TranslatedPosition = InputPositionVector - Translation;
 
-		const FVector VRPosition = VectorQuaternionRotateVector(RotationInverse, TranslatedPosition);
-		const FVector VRNormal = VectorQuaternionRotateVector(RotationInverse, InputNormalVector);
+		const FVector3f VRPosition = VectorQuaternionRotateVector(RotationInverse, TranslatedPosition);
+		const FVector3f VRNormal = VectorQuaternionRotateVector(RotationInverse, InputNormalVector);
 
-		const FVector OutPosition = VRPosition * SafeReciprocal;
-		const FVector OutNormal = VRNormal * SafeReciprocal;
+		const FVector3f OutPosition = VRPosition * SafeReciprocal;
+		const FVector3f OutNormal = VRNormal * SafeReciprocal;
 
 		VectorStore(&Positions[Index], OutPosition);
 		VectorStore(&Normals[Index], OutNormal);

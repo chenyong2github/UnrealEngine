@@ -11,23 +11,28 @@ static inline uniform bool IsFinite(uniform float A)
 	return (intbits(A) & 0x7F800000U) != 0x7F800000U;
 }
 
+static inline uniform bool IsFinite(uniform double A)
+{
+	return (intbits(A) & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
+}
+
 export void UpdatePositionBasedState(uniform FVector& MXcm,
 									uniform FVector& MVcm,
 									uniform FVector& MOmega,
 									const uniform FVector X[],
 									const uniform FVector V[],
-									const uniform float M[],
-									const uniform float InvM[],
+									const uniform FReal M[],
+									const uniform FReal InvM[],
 									const uniform int Offset,
 									const uniform int32 Range)
 {
 	varying FVector Xcm = ZeroVector;
 	varying FVector Vcm = ZeroVector;
-	varying float Mcm = 0.0f;
+	varying FReal Mcm = 0.;
 
 	foreach(Index = Offset ... Range)
 	{
-		const varying float IM = InvM[Index];
+		const varying FReal IM = InvM[Index];
 
 		if(all(!IM))
 		{
@@ -41,7 +46,7 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 		const varying FVector MX = VectorLoad(&X[extract(Index, 0)]);
 		const varying FVector MV = VectorLoad(&V[extract(Index, 0)]);
-		const varying float MM = M[Index];
+		const varying FReal MM = M[Index];
 
 		Xcm = Xcm + (MX * MM);
 		Vcm = Vcm + (MV * MM);
@@ -50,9 +55,9 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 	MXcm = VectorReduceAdd(Xcm);
 	MVcm = VectorReduceAdd(Vcm);
-	uniform float MMcm = reduce_add(Mcm);
+	uniform FReal MMcm = reduce_add(Mcm);
 
-	if (MMcm != 0.0f)
+	if (MMcm != ZERO)
 	{
 		MXcm = MXcm / MMcm;
 		MVcm = MVcm / MMcm;
@@ -63,7 +68,7 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 	foreach(Index = Offset ... Range)
 	{
-		const varying float IM = InvM[Index];
+		const varying FReal IM = InvM[Index];
 
 		if(all(!IM))
 		{
@@ -77,7 +82,7 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 
 		const varying FVector MX = VectorLoad(&X[extract(Index, 0)]);
 		const varying FVector MV = VectorLoad(&V[extract(Index, 0)]);
-		const varying float MM = M[Index];
+		const varying FReal MM = M[Index];
 
 		const varying FVector VX = MX - MXcm;
 		VL = VL + VectorCross(VX, MM * MV);
@@ -89,7 +94,7 @@ export void UpdatePositionBasedState(uniform FVector& MXcm,
 	const uniform FVector L = VectorReduceAdd(VL);
 	const uniform FMatrix33 I = MatrixReduceAdd(VI);
 
-	const uniform float Det = MatrixDeterminant(I);
+	const uniform FReal Det = MatrixDeterminant(I);
 
 	MOmega = VectorSelect(Det < SMALL_NUMBER || !IsFinite(Det), ZeroVector, MatrixInverseTransformVector(I, L)); // Calls FMatrix::InverseFast(), which tests against SMALL_NUMBER
 }

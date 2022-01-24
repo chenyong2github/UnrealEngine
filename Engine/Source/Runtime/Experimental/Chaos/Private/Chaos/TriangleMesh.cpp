@@ -18,6 +18,9 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
+static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::TArrayInt) == sizeof(TArray<int32>), "sizeof(ispc::TArrayInt) != sizeof(TArray<int32>)");
+
 bool bChaos_TriangleMesh_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosTriangleMeshISPCEnabled(TEXT("p.Chaos.TriangleMesh.ISPC"), bChaos_TriangleMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in triangle mesh calculations"));
 #endif
@@ -256,7 +259,6 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 			Normals.SetNumUninitialized(MElements.Num());
 
 #if INTEL_ISPC
-			static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 			ispc::GetFaceNormals(
 				(ispc::FVector*)Normals.GetData(),
 				(ispc::FVector*)Points.GetData(),
@@ -303,7 +305,6 @@ void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConst
 	if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 	{
 #if INTEL_ISPC
-		static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 		ispc::GetPointNormals(
 			(ispc::FVector*)PointNormals.GetData(),
 			(const ispc::FVector*)FaceNormals.GetData(),

@@ -12,9 +12,19 @@
 #include "ChaosClothingSimulationMesh.ispc.generated.h"
 #endif
 
+#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
+namespace ispc { typedef FVector FVector3f; typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
+#endif
+
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bChaos_SkinPhysicsMesh_ISPC_Enabled = bChaos_SkinPhysicsMesh_ISPC_Enable;
+bool bChaos_SkinPhysicsMesh_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSkinPhysicsMeshISPCEnabled(TEXT("p.Chaos.SkinPhysicsMesh.ISPC"), bChaos_SkinPhysicsMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations on skinned physics meshes"));
+
+static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
+static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+static_assert(sizeof(ispc::FClothVertBoneData) == sizeof(FClothVertBoneData), "sizeof(ispc::FClothVertBoneData) != sizeof(Chaos::FClothVertBoneData)");
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhysicsMesh, STATGROUP_ChaosCloth);
@@ -258,12 +268,12 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 		ispc::SkinPhysicsMesh(
 			(ispc::FVector*)OutPositions,
 			(ispc::FVector*)OutNormals,
-			(ispc::FVector*)PhysicalMeshData.Vertices.GetData(),
-			(ispc::FVector*)PhysicalMeshData.Normals.GetData(),
+			(ispc::FVector3f*)PhysicalMeshData.Vertices.GetData(),
+			(ispc::FVector3f*)PhysicalMeshData.Normals.GetData(),
 			(ispc::FClothVertBoneData*)PhysicalMeshData.BoneData.GetData(),
 			BoneMap,
-			(ispc::FMatrix*)BoneMatrices,
-			(ispc::FTransform&)ComponentToLocalSpace,
+			(ispc::FMatrix44f*)BoneMatrices,
+			(ispc::FTransform&)ComponentToLocalSpaceReal,
 			NumPoints);
 	}
 	else

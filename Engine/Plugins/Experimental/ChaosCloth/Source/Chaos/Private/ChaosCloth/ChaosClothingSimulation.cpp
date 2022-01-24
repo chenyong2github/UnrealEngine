@@ -65,7 +65,14 @@
 #include "Chaos/VelocityField.h"
 #endif
 
+#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
+namespace ispc { typedef FVector FVector3f; typedef FVector4 FVector4f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
+#endif
+
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
+static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
+static_assert(sizeof(ispc::FVector4f) == sizeof(FQuat4f), "sizeof(ispc::FVector4f) != sizeof(Chaos::FQuat4f))");
+
 bool bChaos_GetSimData_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosGetSimDataISPCEnabled(TEXT("p.Chaos.GetSimData.ISPC"), bChaos_GetSimData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when getting simulation data"));
 #endif
@@ -670,11 +677,22 @@ void FClothingSimulation::GetSimulationData(
 		if (bRealTypeCompatibleWithISPC && bChaos_GetSimData_ISPC_Enabled)
 		{
 #if INTEL_ISPC
+			const FVector3f Location = FVector3f(LocalSpaceLocation);
+			const FQuat4f Rotation = FQuat4f(ReferenceSpaceTransform.GetRotation());
+			const FVector3f Translation = FVector3f(ReferenceSpaceTransform.GetTranslation());
+			const FVector3f Scale3D = FVector3f(ReferenceSpaceTransform.GetScale3D());
+
+			// ISPC is assuming float input here
+			check(sizeof(FVector3f) == Data.Positions.GetTypeSize());
+			check(sizeof(FVector3f) == Data.Normals.GetTypeSize());
+
 			ispc::GetClothingSimulationData(
-				(ispc::FVector*)Data.Positions.GetData(),
-				(ispc::FVector*)Data.Normals.GetData(),
-				(ispc::FTransform&)ReferenceSpaceTransform,
-				(ispc::FVector&)LocalSpaceLocation,
+				(ispc::FVector3f*)Data.Positions.GetData(),
+				(ispc::FVector3f*)Data.Normals.GetData(),
+				(ispc::FVector4f&)Rotation,
+				(ispc::FVector3f&)Translation,
+				(ispc::FVector3f&)Scale3D,
+				(ispc::FVector3f&)Location,
 				Data.Positions.Num());
 #endif
 		}

@@ -3,24 +3,66 @@
 #ifndef __WIDEVECTOR_ISPH__
 #define __WIDEVECTOR_ISPH__
 
+#include "Math/Vector.isph"
+
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
 struct WideFVector4
 {
 	float V[programCount];
 };
 
-#if TARGET_WIDTH == 4
-static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
-#elif TARGET_WIDTH == 8
-static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
-#elif TARGET_WIDTH == 16
-static const uniform struct WideFVector4 WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+struct WideFVector4d
+{
+	double V[programCount];
+};
+#else
+struct WideFVector4f
+{
+	float V[programCount];
+};
+
+struct WideFVector4
+{
+	double V[programCount];
+};
 #endif
+
+// Define types
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+typedef WideFVector4 WideFVector4f;
+#else
+typedef WideFVector4 WideFVector4d;
+#endif
+
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#if TARGET_WIDTH == 4
+static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f} };
+static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#elif TARGET_WIDTH == 8
+static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
+static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#elif TARGET_WIDTH == 16
+static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
+static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#endif
+#else
+#if TARGET_WIDTH == 4
+static const uniform struct WideFVector4d WFloatZero = { {0.0d, 0.0d, 0.0d, 0.0d} };
+static const uniform struct WideFVector4d WFloat0001 = { {0.0d, 0.0d, 0.0d, 1.0d} };
+static const uniform struct WideFVector4d WSmallLengthThreshold = { {1.d-8, 1.d-8, 1.d-8, 1.d-8} };
+#elif TARGET_WIDTH == 8
+static const uniform struct WideFVector4d WFloatZero = { {0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d} };
+static const uniform struct WideFVector4d WFloat0001 = { {0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d} };
+static const uniform struct WideFVector4d WSmallLengthThreshold = { {1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8} };
+#elif TARGET_WIDTH == 16
+static const uniform struct WideFVector4d WFloatZero = { {0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d} };
+static const uniform struct WideFVector4d WFloat0001 = { {0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d} };
+static const uniform struct WideFVector4d WSmallLengthThreshold = { {1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8} };
+#endif
+#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
 
 unmasked inline uniform WideFVector4 operator+(const uniform WideFVector4 &A, const uniform WideFVector4 &B)
 {
@@ -49,7 +91,7 @@ unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, co
 	return Result;
 }
 
-unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, const uniform float F)
+unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, const uniform FReal F)
 {
 	uniform WideFVector4 Result;
 
@@ -68,8 +110,8 @@ unmasked inline uniform WideFVector4 VectorSwizzle(const uniform WideFVector4 &V
 	const varying int vPerm = { X, Y, Z, W, X+4, Y+4, Z+4, W+4, X+8, Y+8, Z+8, W+8, X+12, Y+12, Z+12, W+12 };
 #endif
 
-	const float V = Vec.V[programIndex];
-	const float R = shuffle(V, vPerm);
+	const FReal V = Vec.V[programIndex];
+	const FReal R = shuffle(V, vPerm);
 	uniform WideFVector4 Result;
 	Result.V[programIndex] = R;
 
@@ -86,8 +128,8 @@ unmasked inline uniform WideFVector4 VectorReplicate(const uniform WideFVector4 
 	const varying int vPerm = { R, R, R, R, R+4, R+4, R+4, R+4, R+8, R+8, R+8, R+8, R+12, R+12, R+12, R+12 };
 #endif
 
-	const float V = Vec.V[programIndex];
-	const float S = shuffle(V, vPerm);
+	const FReal V = Vec.V[programIndex];
+	const FReal S = shuffle(V, vPerm);
 	uniform WideFVector4 Result;
 	Result.V[programIndex] = S;
 
@@ -98,16 +140,25 @@ unmasked inline uniform WideFVector4 VectorCompareGE(const uniform WideFVector4 
 {
 	uniform WideFVector4 Result;
 
-	Result.V[programIndex] = select(A.V[programIndex] >= B.V[programIndex], floatbits(0xFFFFFFFF), floatbits(0));
+	Result.V[programIndex] = select(A.V[programIndex] >= B.V[programIndex], REAL_BITS(NAN), REAL_BITS(0));
 
 	return Result;
 }
 
-unmasked inline uniform WideFVector4 VectorReciprocalSqrtAccurate(const uniform WideFVector4& V)
+unmasked inline uniform WideFVector4f VectorReciprocalSqrtAccurate(const uniform WideFVector4f& V)
 {
-	uniform WideFVector4 Result;
+	uniform WideFVector4f Result;
 
 	Result.V[programIndex] = rsqrt(V.V[programIndex]);
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4d VectorReciprocalSqrtAccurate(const uniform WideFVector4d& V)
+{
+	uniform WideFVector4d Result;
+
+	Result.V[programIndex] = 1.0d / sqrt(V.V[programIndex]);
 
 	return Result;
 }
@@ -124,36 +175,33 @@ unmasked inline uniform WideFVector4 VectorDot4( const uniform WideFVector4& Vec
 
 unmasked inline uniform WideFVector4 VectorBitwiseAnd(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
 {
-	varying unsigned int S0, S1;
-	varying float Result;
+	varying FReal S0, S1, Result;
 	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
 	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
 
-	Result = floatbits(S0 & S1);
+	Result = REAL_BITS(intbits(S0) & intbits(S1));
 
 	return *((uniform WideFVector4 *uniform)&Result);
 }
 
 unmasked inline uniform WideFVector4 VectorBitwiseOr(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
 {
-	varying unsigned int S0, S1;
-	varying float Result;
+	varying FReal S0, S1, Result;
 	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
 	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
 
-	Result = floatbits(S0 | S1);
+	Result = REAL_BITS(intbits(S0) | intbits(S1));
 
 	return *((uniform WideFVector4 *uniform)&Result);
 }
 
 unmasked inline uniform WideFVector4 VectorBitwiseXor(const uniform WideFVector4 &Vec1, const uniform WideFVector4 &Vec2)
 {
-	varying unsigned int S0, S1;
-	varying float Result;
+	varying FReal S0, S1, Result;
 	*((uniform WideFVector4 *uniform)&S0) = *((uniform WideFVector4 *uniform)&Vec1);
 	*((uniform WideFVector4 *uniform)&S1) = *((uniform WideFVector4 *uniform)&Vec2);
 
-	Result = floatbits(S0 ^ S1);
+	Result = REAL_BITS(intbits(S0) ^ intbits(S1));
 
 	return *((uniform WideFVector4 *uniform)&Result);
 }

@@ -61,6 +61,13 @@ MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
 MSVC_PRAGMA(warning(pop))
 #endif    // USING_CODE_ANALYSIS
 
+static_assert(sizeof(ispc::FMatrix) == sizeof(FMatrix), "sizeof(ispc::FMatrix) != sizeof(FMatrix)");
+static_assert(sizeof(ispc::FBox) == sizeof(FBox), "sizeof(ispc::FBox) != sizeof(FBox)");
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_BoxCalcBounds_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosBoxCalcBoundsISPCEnabled(TEXT("p.Chaos.BoxCalcBounds.ISPC"), bChaos_BoxCalcBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in calculating box bounds in geometry collections"));
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
@@ -477,26 +484,31 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		}
 		else
 		{
-#if INTEL_ISPC
-			ispc::BoxCalcBounds(
-				(int32 *)&TransformToGeometryIndex[0],
-				(int32 *)&TransformIndices[0],
-				(ispc::FMatrix *)&GlobalMatrices[0],
-				(ispc::FBox *)&BoundingBoxes[0],
-				(ispc::FMatrix &)LocalToWorldWithScale,
-				(ispc::FBox &)BoundingBox,
-				NumBoxes);
-#else
-			for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
+			if (bChaos_BoxCalcBounds_ISPC_Enabled)
 			{
-				const int32 TransformIndex = TransformIndices[BoxIdx];
-
-				if(RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
+#if INTEL_ISPC
+				ispc::BoxCalcBounds(
+					(int32*)&TransformToGeometryIndex[0],
+					(int32*)&TransformIndices[0],
+					(ispc::FMatrix*)&GlobalMatrices[0],
+					(ispc::FBox*)&BoundingBoxes[0],
+					(ispc::FMatrix&)LocalToWorldWithScale,
+					(ispc::FBox&)BoundingBox,
+					NumBoxes);
+#endif
+			}
+			else
+			{
+				for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
 				{
-					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+					const int32 TransformIndex = TransformIndices[BoxIdx];
+
+					if (RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
+					{
+						BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+					}
 				}
 			}
-#endif
 		}
 
 		return FBoxSphereBounds(BoundingBox);

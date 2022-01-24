@@ -32,8 +32,13 @@ DECLARE_CYCLE_STAT(TEXT("BlendPosesPerBoneFilter"), STAT_BlendPosesPerBoneFilter
 #if INTEL_ISPC
 static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
 static_assert(sizeof(ispc::FVector) == sizeof(FVector), "sizeof(ispc::FVector) != sizeof(FVector)");
-static_assert(sizeof(ispc::FVector4) == sizeof(FVector4), "sizeof(ispc::FVector4) != sizeof(FVector4)");
+static_assert(sizeof(ispc::FVector4) == sizeof(FQuat), "sizeof(ispc::FVector4) != sizeof(FQuat)");
 static_assert(sizeof(ispc::FPerBoneBlendWeight) == sizeof(FPerBoneBlendWeight), "sizeof(ispc::FPerBoneBlendWeight) != sizeof(FPerBoneBlendWeight)");
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bAnim_Runtime_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarAnimRuntimeISPCEnabled(TEXT("a.Runtime.ISPC"), bAnim_Runtime_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation runtime"));
 #endif
 
 void FAnimationRuntime::NormalizeRotations(const FBoneContainer& RequiredBones, /*inout*/ FTransformArrayA2& Atoms)
@@ -88,7 +93,7 @@ FORCEINLINE void BlendPose(const FCompactPose& SourcePose, FCompactPose& ResultP
 template <>
 FORCEINLINE void BlendPose<ETransformBlendMode::Overwrite>(const FCompactPose& SourcePose, FCompactPose& ResultPose, const float BlendWeight)
 {
-	if (INTEL_ISPC)
+	if (bAnim_Runtime_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::BlendTransformOverwrite(
@@ -110,7 +115,7 @@ FORCEINLINE void BlendPose<ETransformBlendMode::Overwrite>(const FCompactPose& S
 template <>
 FORCEINLINE void BlendPose<ETransformBlendMode::Accumulate>(const FCompactPose& SourcePose, FCompactPose& ResultPose, const float BlendWeight)
 {
-	if (INTEL_ISPC)
+	if (bAnim_Runtime_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::BlendTransformAccumulate(
@@ -159,7 +164,7 @@ FORCEINLINE void BlendCurves(const TArrayView<const FBlendedCurve> SourceCurves,
 {
 	if (SourceCurves.Num() > 0)
 	{
-		if (INTEL_ISPC)
+		if (bAnim_Runtime_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			OutCurve.InitFrom(SourceCurves[0]);
@@ -842,7 +847,7 @@ void FAnimationRuntime::LerpBoneTransforms(TArray<FTransform>& A, const TArray<F
 		return;
 	}
 
-	if (INTEL_ISPC)
+	if (bAnim_Runtime_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::LerpBoneTransforms(
@@ -954,7 +959,7 @@ void FAnimationRuntime::ConvertPoseToMeshRotation(FCompactPose& LocalPose)
 
 	// Convert all rotations to mesh space
 	// only the root bone doesn't have a parent. So skip it to save a branch in the iteration.
-	if (INTEL_ISPC)
+	if (bAnim_Runtime_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::ConvertPoseToMeshRotation(
@@ -981,7 +986,7 @@ void FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(FCompactPose& Pose)
 
 	// Convert all rotations to mesh space
 	// only the root bone doesn't have a parent. So skip it to save a branch in the iteration.
-	if (INTEL_ISPC)
+	if (bAnim_Runtime_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::ConvertMeshRotationPoseToLocalSpace(
@@ -1067,7 +1072,7 @@ void FAnimationRuntime::AccumulateLocalSpaceAdditivePoseInternal(FCompactPose& B
 		const ScalarRegister VBlendWeight(Weight);
 		if (FAnimWeight::IsFullWeight(Weight))
 		{
-			if (INTEL_ISPC)
+			if (bAnim_Runtime_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::AccumulateWithAdditiveScale(
@@ -1754,7 +1759,7 @@ FAnimationPoseData& OutAnimationPoseData, TArray<FPerBoneBlendWeight>& BoneBlend
 	// blend poses with both mesh space rotation and scaling (we assume uniform scale)
 	if (bMeshSpaceRotationBlend && bMeshSpaceScaleBlend)
 	{
-		if (INTEL_ISPC)
+		if (bAnim_Runtime_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::BlendPosesPerBoneFilterScaleRotation(

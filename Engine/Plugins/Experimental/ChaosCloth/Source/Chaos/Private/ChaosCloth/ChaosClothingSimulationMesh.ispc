@@ -5,7 +5,6 @@
 #include "Math/Vector.isph"
 #include "Math/Matrix.isph"
 #include "Math/Transform.isph"
-#include "Chaos/Matrix33.isph"
 
 #define MaxTotalInfluences 12
 
@@ -16,50 +15,55 @@ struct FClothVertBoneData
 	float BoneWeights[MaxTotalInfluences];
 };
 
-static inline void AddInfluence(uniform FVector& OutPosition, uniform FVector& OutNormal, const uniform FVector& RefParticle, const uniform FVector& RefNormal, const uniform FMatrix *uniform BoneMatrix, const uniform float Weight)
+static inline void AddInfluence(uniform FVector4f& OutPosition, uniform FVector4f& OutNormal, const uniform FVector3f& RefParticle, const uniform FVector3f& RefNormal, const uniform FMatrix44f *uniform BoneMatrix, const uniform float Weight)
 {
-	const uniform FVector4 M0M1M2 = *((uniform FVector4 *uniform)&BoneMatrix->M[0]);
+	const uniform FVector4f M0M1M2 = *((uniform FVector4f *uniform)&BoneMatrix->M[0]);
 
-	const uniform FVector4 VTempXP = RefParticle.V[0] * M0M1M2;
-	const uniform FVector4 VTempXN = RefNormal.V[0] * M0M1M2;
+	const uniform FVector4f VTempXP = RefParticle.V[0] * M0M1M2;
+	const uniform FVector4f VTempXN = RefNormal.V[0] * M0M1M2;
 
-	const uniform FVector4 M4M5M6 = *((uniform FVector4 *uniform)&BoneMatrix->M[4]);
+	const uniform FVector4f M4M5M6 = *((uniform FVector4f *uniform)&BoneMatrix->M[4]);
 
-	const uniform FVector4 VTempYP = RefParticle.V[1] * M4M5M6 + VTempXP;
-	const uniform FVector4 VTempYN = RefNormal.V[1] * M4M5M6 + VTempXN;
+	const uniform FVector4f VTempYP = RefParticle.V[1] * M4M5M6 + VTempXP;
+	const uniform FVector4f VTempYN = RefNormal.V[1] * M4M5M6 + VTempXN;
 
-	const uniform FVector4 M8M9M10 = *((uniform FVector4 *uniform)&BoneMatrix->M[8]);
+	const uniform FVector4f M8M9M10 = *((uniform FVector4f *uniform)&BoneMatrix->M[8]);
 
-	const uniform FVector4 VTempZP = RefParticle.V[2] * M8M9M10 + VTempYP;
-	const uniform FVector4 Norm = RefNormal.V[2] * M8M9M10 + VTempYN;
+	const uniform FVector4f VTempZP = RefParticle.V[2] * M8M9M10 + VTempYP;
+	const uniform FVector4f Norm = RefNormal.V[2] * M8M9M10 + VTempYN;
 
-	const uniform FVector4 VTempWP = *((uniform FVector4 *uniform)&BoneMatrix->M[12]);
-	const uniform FVector4 Pos = VTempZP + VTempWP;
+	const uniform FVector4f VTempWP = *((uniform FVector4f *uniform)&BoneMatrix->M[12]);
+	const uniform FVector4f Pos = VTempZP + VTempWP;
 
-	OutPosition = OutPosition + SetVector(Pos.V[0], Pos.V[1], Pos.V[2]) * Weight;
-	OutNormal = OutNormal + SetVector(Norm.V[0], Norm.V[1], Norm.V[2]) * Weight;
+	OutPosition = OutPosition + Pos * Weight;
+	OutNormal = OutNormal + Norm * Weight;
+}
+
+static inline uniform FVector GetSafeNormal(const uniform FVector &V)
+{
+	//We want N / ||N|| and to avoid inf
+	//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
+	const uniform FReal SizeSqr = VectorSizeSquared(V);
+	return VectorSelect(SizeSqr <= REAL_MIN, ForwardVector, V / sqrt(SizeSqr));
 }
 
 export void SkinPhysicsMesh(uniform FVector OutPositions[],
 							uniform FVector OutNormals[],
-							const uniform FVector Vertices[],
-							const uniform FVector Normals[],
+							const uniform FVector3f Vertices[],
+							const uniform FVector3f Normals[],
 							const uniform FClothVertBoneData BoneData[],
 							const uniform int32 BoneMap[],
-							const uniform FMatrix BoneMatrices[],
+							const uniform FMatrix44f BoneMatrices[],
 							const uniform FTransform &ComponentToLocalSpace,
 							const uniform int32 NumPoints)
 {
 	for(uniform int i = 0; i < NumPoints; ++i)
 	{
-		const uniform FVector RefParticle = Vertices[i];
-		const uniform FVector RefNormal = Normals[i];
+		const uniform FVector3f RefParticle = Vertices[i];
+		const uniform FVector3f RefNormal = Normals[i];
 
-		uniform FVector OutPosition = OutPositions[i];
-		uniform FVector OutNormal = OutNormals[i];
-
-		OutPosition = SetVector(0.0f, 0.0f, 0.0f);
-		OutNormal = SetVector(0.0f, 0.0f, 0.0f);
+		uniform FVector4f OutPosition = FloatZero;
+		uniform FVector4f OutNormal = FloatZero;
 
 		const uniform int NumInfluences = BoneData[i].NumInfluences;
 
@@ -68,11 +72,17 @@ export void SkinPhysicsMesh(uniform FVector OutPositions[],
 			const uniform int BoneMatrixIndex = BoneMap[BoneData[i].BoneIndices[j]];
 			const uniform float Weight = BoneData[i].BoneWeights[j];
 
-			const uniform FMatrix *uniform BoneMatrix = &BoneMatrices[BoneMatrixIndex];
+			const uniform FMatrix44f *uniform BoneMatrix = &BoneMatrices[BoneMatrixIndex];
 			AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrix, Weight);
 		}
 
-		OutPositions[i] = TransformPosition(ComponentToLocalSpace, OutPosition);
-		OutNormals[i] = VectorNormalize(TransformVector(ComponentToLocalSpace, OutNormal));
+		const uniform FVector4 ConvertedPosition = ConvertVector4fTo4Native(OutPosition);
+		const uniform FVector4 ConvertedNormal = ConvertVector4fTo4Native(OutNormal);
+
+		const uniform FVector Position = SetVector(ConvertedPosition);
+		const uniform FVector Normal = SetVector(ConvertedNormal);
+
+		OutPositions[i] = TransformPosition(ComponentToLocalSpace, Position);
+		OutNormals[i] = GetSafeNormal(TransformVector(ComponentToLocalSpace, Normal));
 	}
 }

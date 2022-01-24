@@ -36,6 +36,13 @@
 #if USING_CODE_ANALYSIS
     MSVC_PRAGMA( warning( pop ) )
 #endif    // USING_CODE_ANALYSIS
+
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+	namespace ispc { typedef FVector FVector3f; typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
+#endif
+
+static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
 #endif
 
 #include "ComponentReregisterContext.h"
@@ -80,6 +87,11 @@ FAutoConsoleVariableRef CVarRayTracingGeometryCollectionProxyMeshes(
 	TEXT("Include geometry collection proxy meshes in ray tracing effects (default = 0 (Geometry collection meshes disabled in ray tracing))"),
 	ECVF_RenderThreadSafe
 );
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bGeometryCollection_SetDynamicData_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarGeometryCollectionSetDynamicDataISPCEnabled(TEXT("r.GeometryCollectionSetDynamicData.ISPC"), bGeometryCollection_SetDynamicData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations to set dynamic data in geometry collections"));
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionSceneProxyLogging, Log, All);
 
@@ -729,22 +741,28 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				if (ThisBatchSize > 0)
 				{
 					const FMatrix44f* RESTRICT BoneTransformsPtr = DynamicData->IsDynamic ? DynamicData->Transforms.GetData() : ConstantData->RestTransforms.GetData();
-	#if INTEL_ISPC
-					uint8* VertexBufferOffset = (uint8*)VertexBufferData + (IndexOffset * VertexBuffer.GetStride());
-					ispc::SetDynamicData_RenderThread(
-						(ispc::FVector*)VertexBufferOffset, 
-						ThisBatchSize, 
-						VertexBuffer.GetStride(), 
-						&ConstantData->BoneMap[IndexOffset], 
-						(ispc::FMatrix*)BoneTransformsPtr,
-						(ispc::FVector*)&ConstantData->Vertices[IndexOffset]);
-	#else
-					for (int32 i = IndexOffset; i < IndexOffset + ThisBatchSize; i++)
+
+					if (bGeometryCollection_SetDynamicData_ISPC_Enabled)
 					{
-						FVector3f Transformed = BoneTransformsPtr[ConstantData->BoneMap[i]].TransformPosition(ConstantData->Vertices[i]);
-						FMemory::Memcpy((uint8*)VertexBufferData + (i * VertexBuffer.GetStride()), &Transformed, sizeof(FVector3f));
+#if INTEL_ISPC
+						uint8* VertexBufferOffset = (uint8*)VertexBufferData + (IndexOffset * VertexBuffer.GetStride());
+						ispc::SetDynamicData_RenderThread(
+							(ispc::FVector3f*)VertexBufferOffset,
+							ThisBatchSize,
+							VertexBuffer.GetStride(),
+							&ConstantData->BoneMap[IndexOffset],
+							(ispc::FMatrix44f*)BoneTransformsPtr,
+							(ispc::FVector3f*)&ConstantData->Vertices[IndexOffset]);
+#endif
 					}
-	#endif
+					else
+					{
+						for (int32 i = IndexOffset; i < IndexOffset + ThisBatchSize; i++)
+						{
+							FVector3f Transformed = BoneTransformsPtr[ConstantData->BoneMap[i]].TransformPosition(ConstantData->Vertices[i]);
+							FMemory::Memcpy((uint8*)VertexBufferData + (i * VertexBuffer.GetStride()), &Transformed, sizeof(FVector3f));
+						}
+					}
 				}
 			});
 

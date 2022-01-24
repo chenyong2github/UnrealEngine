@@ -2,105 +2,38 @@
 
 #define EXPLICIT_VECTOR4 1
 
-#include "Chaos/Matrix33.isph"
-#include "Math/Quat.isph"
 #include "Math/Vector.isph"
-
-#define SMALL_NUMBER		(1.e-8f)
-#define KINDA_SMALL_NUMBER	(1.e-4f)
-
-struct FTransform
-{
-	FVector4 Rotation;
-	FVector4 Translation;
-	FVector4 Scale3D;
-};
+#include "Math/Quat.isph"
+#include "Math/Transform.isph"
+#include "Chaos/Matrix33.isph"
 
 struct TArrayND
 {
 	uniform FIntVector MCounts;
-	uniform float * uniform MArray;
+	uniform FReal * uniform MArray;
 };
 
-inline static FVector TransformPositionNoScale(const uniform FTransform &T, const FVector& V)
-{
-	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);
-
-	//Transform using QST is following
-	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = 1.0f, T = translation
-
-	//RotatedVec = Q.Rotate(V.X, V.Y, V.Z, 0.f)
-	const FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, InputVectorW0);
-	const FVector4 TranslatedVec = RotatedVec + T.Translation;
-
-	return SetVector(TranslatedVec.V[0], TranslatedVec.V[1], TranslatedVec.V[2]);
-}
-
-inline static float SquaredSum(const FVector &Vec)
-{
-	float SquareSum = 0.0f;
-	for(uniform int i = 0; i < 3; i++)
-	{
-		SquareSum += (Vec.V[i] * Vec.V[i]);
-	}
-	return SquareSum;
-}
-
-inline static float VectorSize2(const FVector &Normal)
-{
-	return rcp(rsqrt(SquaredSum(Normal)));
-}
-
-inline static float BoxPhi(const uniform FVector &BoxMin, const uniform FVector &BoxMax, const FVector& LocalPoint)
+inline static FReal BoxPhi(const uniform FVector &BoxMin, const uniform FVector &BoxMax, const FVector& LocalPoint)
 {
 	const FVector MaxDists = LocalPoint - BoxMax;
 	const FVector MinDists = BoxMin - LocalPoint;
-	float Phi;
+	FReal Phi;
 	if (IsVectorLessEqual(LocalPoint, BoxMax) && IsVectorGreaterEqual(LocalPoint, BoxMin))
 	{
 		const FVector LocalMax = VectorMax(MinDists, MaxDists);
-		if (LocalMax.V[0] > LocalMax.V[1])
-		{
-			if (LocalMax.V[0] > LocalMax.V[2])
-			{
-				Phi = LocalMax.V[0];
-			}
-			else
-			{
-				Phi = LocalMax.V[2];
-			}
-		}
-		else
-		{
-			if (LocalMax.V[1] > LocalMax.V[2])
-			{
-				Phi = LocalMax.V[1];
-			}
-			else
-			{
-				Phi = LocalMax.V[2];
-			}
-		}
+		Phi = select(LocalMax.V[0] > LocalMax.V[1], 
+				select(LocalMax.V[0] > LocalMax.V[2], LocalMax.V[0], LocalMax.V[2]), 
+				select(LocalMax.V[1] > LocalMax.V[2], LocalMax.V[1], LocalMax.V[2]));
 	}
 	else
 	{
 		FVector Normal;
-		for(uniform int i = 0; i < 3; i++)
-		{
-			if (MaxDists.V[i] > 0)
-			{
-				Normal.V[i] = MaxDists.V[i];
-			}
-			else if (MinDists.V[i] > 0)
-			{
-				Normal.V[i] = -MinDists.V[i];
-			}
-			else
-			{
-				Normal.V[i] = 0;
-			}
-		}
-		Phi = VectorSize2(Normal);
+
+		Normal.V[0] = select(MaxDists.V[0] > ZERO, MaxDists.V[0], select(MinDists.V[0] > ZERO, -MinDists.V[0], ZERO));
+		Normal.V[1] = select(MaxDists.V[1] > ZERO, MaxDists.V[1], select(MinDists.V[1] > ZERO, -MinDists.V[1], ZERO));
+		Normal.V[2] = select(MaxDists.V[2] > ZERO, MaxDists.V[2], select(MinDists.V[2] > ZERO, -MinDists.V[2], ZERO));
+
+		Phi = VectorSize(Normal);
 	}
 
 	return Phi;
@@ -111,22 +44,22 @@ export void SampleBoxNormalAverage(const uniform FVector &BoxMin,
 									const uniform FTransform &SampleToObjectTransform, 
 									const uniform FVector SampleParticles[],
 									const uniform int PotentialParticles[],
-									const uniform float Thickness, 
-									uniform float &TotalThickness, 
+									const uniform FReal Thickness, 
+									uniform FReal &TotalThickness, 
 									uniform FVector &ConstraintLocation,
 									const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
 	foreach(i = 0 ... NumParticles)
 	{
 		FVector Particle = VectorGather(&SampleParticles[PotentialParticles[i]]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+		FReal LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -134,7 +67,7 @@ export void SampleBoxNormalAverage(const uniform FVector &BoxMin,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
@@ -144,7 +77,7 @@ export uniform bool SampleBoxNoNormal(const uniform FVector &BoxMin,
 									const uniform FVector SampleParticles[],
 									const uniform int PotentialParticles[],
 									uniform int &DeepestParticle,
-									uniform float &Phi,
+									uniform FReal &Phi,
 									const uniform unsigned int NumParticles)
 {
 	uniform bool bPhiFound = false;
@@ -156,7 +89,7 @@ export uniform bool SampleBoxNoNormal(const uniform FVector &BoxMin,
 		FVector Particle = VectorGather(&SampleParticles[ParticleNum]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+		FReal LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
 
 		if(LocalPhi < Phi)
 		{
@@ -180,22 +113,22 @@ export void SampleBoxNormalAverageAll(const uniform FVector &BoxMin,
 									const uniform FVector &BoxMax, 
 									const uniform FTransform &SampleToObjectTransform, 
 									const uniform FVector SampleParticles[],
-									const uniform float Thickness, 
-									uniform float &TotalThickness, 
+									const uniform FReal Thickness, 
+									uniform FReal &TotalThickness, 
 									uniform FVector &ConstraintLocation,
 									const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
 	foreach(i = 0 ... NumParticles)
 	{
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+		FReal LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -203,7 +136,7 @@ export void SampleBoxNormalAverageAll(const uniform FVector &BoxMin,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
@@ -212,7 +145,7 @@ export uniform bool SampleBoxNoNormalAll(const uniform FVector &BoxMin,
 										const uniform FTransform &SampleToObjectTransform,
 										const uniform FVector SampleParticles[],
 										uniform int &DeepestParticle,
-										uniform float &Phi,
+										uniform FReal &Phi,
 										const uniform unsigned int NumParticles)
 {
 	uniform bool bPhiFound = false;
@@ -222,7 +155,7 @@ export uniform bool SampleBoxNoNormalAll(const uniform FVector &BoxMin,
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
+		FReal LocalPhi = BoxPhi(BoxMin, BoxMax, LocalPoint);
 
 		if(LocalPhi < Phi)
 		{
@@ -244,25 +177,15 @@ export uniform bool SampleBoxNoNormalAll(const uniform FVector &BoxMin,
 inline static FVector ClampMinusHalf(const uniform FVector &Min, const uniform FVector &Max, const FVector& LocalPoint)
 {
 	FVector Result;
-	for (uniform int i = 0; i < 3; ++i)
-	{
-		if (LocalPoint.V[i] > Max.V[i])
-		{
-			Result.V[i] = Max.V[i];
-		}
-		else if (LocalPoint.V[i] < Min.V[i])
-		{
-			Result.V[i] = Min.V[i];
-		}
-		else
-		{
-			Result.V[i] = LocalPoint.V[i];
-		}
-	}
+
+	Result.V[0] = select(LocalPoint.V[0] > Max.V[0], Max.V[0], select(LocalPoint.V[0] < Min.V[0], Min.V[0], LocalPoint.V[0]));
+	Result.V[1] = select(LocalPoint.V[1] > Max.V[1], Max.V[1], select(LocalPoint.V[1] < Min.V[1], Min.V[1], LocalPoint.V[1]));
+	Result.V[2] = select(LocalPoint.V[2] > Max.V[2], Max.V[2], select(LocalPoint.V[2] < Min.V[2], Min.V[2], LocalPoint.V[2]));
+
 	return Result;
 }
 
-inline static float GetCell(const uniform TArrayND* uniform LevelSetPhiArray, const FIntVector &Vec)
+inline static FReal GetCell(const uniform TArrayND* uniform LevelSetPhiArray, const FIntVector &Vec)
 {
 	const int Offset = (Vec.V[0] * LevelSetPhiArray->MCounts.V[1] + Vec.V[1]) * LevelSetPhiArray->MCounts.V[2] + Vec.V[2];
 
@@ -270,7 +193,7 @@ inline static float GetCell(const uniform TArrayND* uniform LevelSetPhiArray, co
 	return LevelSetPhiArray->MArray[Offset];
 }
 
-inline static float LinearlyInterpolate1D(const float& Prev, const float& Next, const float Alpha)
+inline static FReal LinearlyInterpolate1D(const FReal& Prev, const FReal& Next, const FReal Alpha)
 {
 	return Prev + (Next - Prev) * Alpha;
 }
@@ -280,7 +203,7 @@ inline static FVector Location(const uniform FVector &MinCorner, const uniform F
 	return Dx * X + MinCorner + (Dx / 2);
 }
 
-inline static float LinearlyInterpolate(const uniform FVector &MinCorner,
+inline static FReal LinearlyInterpolate(const uniform FVector &MinCorner,
 							const uniform FVector &MaxCorner,
 							const uniform FVector &Dx,
 							const uniform FIntVector &Cells,
@@ -312,12 +235,12 @@ inline static float LinearlyInterpolate(const uniform FVector &MinCorner,
 		}
 	}
 
-	const float interpx1 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 0, 0)), Alpha.V[0]);
-	const float interpx2 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 1, 0)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 1, 0)), Alpha.V[0]);
-	const float interpx3 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 0, 1)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 0, 1)), Alpha.V[0]);
-	const float interpx4 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 1, 1)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 1, 1)), Alpha.V[0]);
-	const float interpy1 = LinearlyInterpolate1D(interpx1, interpx2, Alpha.V[1]);
-	const float interpy2 = LinearlyInterpolate1D(interpx3, interpx4, Alpha.V[1]);
+	const FReal interpx1 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 0, 0)), Alpha.V[0]);
+	const FReal interpx2 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 1, 0)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 1, 0)), Alpha.V[0]);
+	const FReal interpx3 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 0, 1)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 0, 1)), Alpha.V[0]);
+	const FReal interpx4 = LinearlyInterpolate1D(GetCell(LevelSetPhiArray, CellPrev + SetIntVector(0, 1, 1)), GetCell(LevelSetPhiArray, CellPrev + SetIntVector(1, 1, 1)), Alpha.V[0]);
+	const FReal interpy1 = LinearlyInterpolate1D(interpx1, interpx2, Alpha.V[1]);
+	const FReal interpy2 = LinearlyInterpolate1D(interpx3, interpx4, Alpha.V[1]);
 	return LinearlyInterpolate1D(interpy1, interpy2, Alpha.V[2]);
 }
 
@@ -329,16 +252,16 @@ export void SampleLevelSetNormalAverage(const uniform FVector &GridMinCorner,
 										const uniform FTransform &SampleToObjectTransform, 
 										const uniform FVector SampleParticles[],
 										const uniform int PotentialParticles[],
-										const uniform float Thickness, 
-										uniform float &TotalThickness, 
+										const uniform FReal Thickness, 
+										uniform FReal &TotalThickness, 
 										uniform FVector &ConstraintLocation,
 										const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
-	uniform FVector GridClampMax = GridMaxCorner - GridDx * 0.5f;
-	uniform FVector GridClampMin = GridMinCorner + GridDx * 0.5f;
+	uniform FVector GridClampMax = GridMaxCorner - GridDx * ONE_HALF;
+	uniform FVector GridClampMin = GridMinCorner + GridDx * ONE_HALF;
 
 	foreach(i = 0 ... NumParticles)
 	{
@@ -346,15 +269,15 @@ export void SampleLevelSetNormalAverage(const uniform FVector &GridMinCorner,
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-		float SizeSquared = SquaredSum(Location - LocalPoint);
-		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+		FReal SizeSquared = VectorSizeSquared(Location - LocalPoint);
+		FReal LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
 
 		if(SizeSquared)
 		{
 			LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
 		}
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -362,7 +285,7 @@ export void SampleLevelSetNormalAverage(const uniform FVector &GridMinCorner,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
@@ -375,11 +298,11 @@ export uniform bool SampleLevelSetNoNormal(const uniform FVector &GridMinCorner,
 										const uniform FVector SampleParticles[],
 										const uniform int PotentialParticles[],
 										uniform int &DeepestParticle,
-										uniform float &Phi,
+										uniform FReal &Phi,
 										const uniform unsigned int NumParticles)
 {
-	uniform FVector GridClampMax = GridMaxCorner - GridDx * 0.5f;
-	uniform FVector GridClampMin = GridMinCorner + GridDx * 0.5f;
+	uniform FVector GridClampMax = GridMaxCorner - GridDx * ONE_HALF;
+	uniform FVector GridClampMin = GridMinCorner + GridDx * ONE_HALF;
 
 	uniform bool bPhiFound = false;
 
@@ -391,8 +314,8 @@ export uniform bool SampleLevelSetNoNormal(const uniform FVector &GridMinCorner,
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-		float SizeSquared = SquaredSum(Location - LocalPoint);
-		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+		FReal SizeSquared = VectorSizeSquared(Location - LocalPoint);
+		FReal LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
 
 		if(SizeSquared)
 		{
@@ -423,16 +346,16 @@ export void SampleLevelSetNormalAverageAll(const uniform FVector &GridMinCorner,
 										const uniform TArrayND* uniform LevelSetPhiArray,
 										const uniform FTransform &SampleToObjectTransform, 
 										const uniform FVector SampleParticles[],
-										const uniform float Thickness, 
-										uniform float &TotalThickness, 
+										const uniform FReal Thickness, 
+										uniform FReal &TotalThickness, 
 										uniform FVector &ConstraintLocation,
 										const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
-	uniform FVector GridClampMax = GridMaxCorner - GridDx * 0.5f;
-	uniform FVector GridClampMin = GridMinCorner + GridDx * 0.5f;
+	uniform FVector GridClampMax = GridMaxCorner - GridDx * ONE_HALF;
+	uniform FVector GridClampMin = GridMinCorner + GridDx * ONE_HALF;
 
 	foreach(i = 0 ... NumParticles)
 	{
@@ -440,15 +363,15 @@ export void SampleLevelSetNormalAverageAll(const uniform FVector &GridMinCorner,
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-		float SizeSquared = SquaredSum(Location - LocalPoint);
-		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+		FReal SizeSquared = VectorSizeSquared(Location - LocalPoint);
+		FReal LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
 
 		if(SizeSquared)
 		{
 			LocalPhi = rcp(rsqrt(SizeSquared)) + LocalPhi;
 		}
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -456,7 +379,7 @@ export void SampleLevelSetNormalAverageAll(const uniform FVector &GridMinCorner,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
@@ -468,11 +391,11 @@ export uniform bool SampleLevelSetNoNormalAll(const uniform FVector &GridMinCorn
 											const uniform FTransform &SampleToObjectTransform, 
 											const uniform FVector SampleParticles[],
 											uniform int &DeepestParticle,
-											uniform float &Phi,
+											uniform FReal &Phi,
 											const uniform unsigned int NumParticles)
 {
-	uniform FVector GridClampMax = GridMaxCorner - GridDx * 0.5f;
-	uniform FVector GridClampMin = GridMinCorner + GridDx * 0.5f;
+	uniform FVector GridClampMax = GridMaxCorner - GridDx * ONE_HALF;
+	uniform FVector GridClampMin = GridMinCorner + GridDx * ONE_HALF;
 
 	uniform bool bPhiFound = false;
 
@@ -482,8 +405,8 @@ export uniform bool SampleLevelSetNoNormalAll(const uniform FVector &GridMinCorn
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
 		FVector Location = ClampMinusHalf(GridClampMin, GridClampMax, LocalPoint);
-		float SizeSquared = SquaredSum(Location - LocalPoint);
-		float LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
+		FReal SizeSquared = VectorSizeSquared(Location - LocalPoint);
+		FReal LocalPhi = LinearlyInterpolate(GridMinCorner, GridMaxCorner, GridDx, GridCounts, LevelSetPhiArray, Location);
 
 		if(SizeSquared)
 		{
@@ -507,31 +430,26 @@ export uniform bool SampleLevelSetNoNormalAll(const uniform FVector &GridMinCorn
 	return bPhiFound;
 }
 
-inline static float DotProduct(const FVector &V1, const uniform FVector &V2)
-{
-	return V1.V[0] * V2.V[0] + V1.V[1] * V2.V[1] + V1.V[2] * V2.V[2];
-}
-
 export void SamplePlaneNormalAverageAll(const uniform FVector &ObjectNormal,
 									const uniform FVector &ObjectMX,
 									const uniform FTransform &SampleToObjectTransform, 
 									const uniform FVector SampleParticles[],
-									const uniform float Thickness, 
-									uniform float &TotalThickness, 
+									const uniform FReal Thickness, 
+									uniform FReal &TotalThickness, 
 									uniform FVector &ConstraintLocation,
 									const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
 	foreach(i = 0 ... NumParticles)
 	{
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
+		FReal LocalPhi = VectorDot(LocalPoint - ObjectMX, ObjectNormal);
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -539,7 +457,7 @@ export void SamplePlaneNormalAverageAll(const uniform FVector &ObjectNormal,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
@@ -548,7 +466,7 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 										const uniform FTransform &SampleToObjectTransform, 
 										const uniform FVector SampleParticles[],
 										uniform int &DeepestParticle,
-										uniform float &Phi,
+										uniform FReal &Phi,
 										const uniform unsigned int NumParticles)
 {
 	uniform bool bPhiFound = false;
@@ -558,7 +476,7 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = DotProduct(LocalPoint - ObjectMX, ObjectNormal);
+		FReal LocalPhi = VectorDot(LocalPoint - ObjectMX, ObjectNormal);
 
 		if(LocalPhi < Phi)
 		{
@@ -577,26 +495,26 @@ export uniform bool SamplePlaneNoNormalAll(const uniform FVector &ObjectNormal,
 	return bPhiFound;
 }
 
-export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
+export void SampleSphereNormalAverageAll(const uniform FReal &ObjectRadius,
 									const uniform FVector &ObjectMX,
 									const uniform FTransform &SampleToObjectTransform, 
 									const uniform FVector SampleParticles[],
-									const uniform float Thickness, 
-									uniform float &TotalThickness, 
+									const uniform FReal Thickness, 
+									uniform FReal &TotalThickness, 
 									uniform FVector &ConstraintLocation,
 									const uniform unsigned int NumParticles)
 {
-	FVector ConstraintLocationSum = SetVector(0.0f, 0.0f, 0.0f);
-	float ThicknessSum = 0.0f;
+	FVector ConstraintLocationSum = ZeroVector;
+	FReal ThicknessSum = 0;
 
 	foreach(i = 0 ... NumParticles)
 	{
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
+		FReal LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
 
-		float LocalThickness = LocalPhi - Thickness;
+		FReal LocalThickness = LocalPhi - Thickness;
 		if(LocalThickness < -KINDA_SMALL_NUMBER)
 		{
 			ConstraintLocationSum = ConstraintLocationSum + (LocalPoint * LocalThickness);
@@ -604,16 +522,16 @@ export void SampleSphereNormalAverageAll(const uniform float &ObjectRadius,
 		}
 	}
 
-	ConstraintLocation = ConstraintLocation + SetVector(reduce_add(ConstraintLocationSum.V[0]), reduce_add(ConstraintLocationSum.V[1]), reduce_add(ConstraintLocationSum.V[2]));
+	ConstraintLocation = ConstraintLocation + VectorReduceAdd(ConstraintLocationSum);
 	TotalThickness = TotalThickness + reduce_add(ThicknessSum);
 }
 
-export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
+export uniform bool SampleSphereNoNormalAll(const uniform FReal &ObjectRadius,
 										const uniform FVector &ObjectMX,
 										const uniform FTransform &SampleToObjectTransform, 
 										const uniform FVector SampleParticles[],
 										uniform int &DeepestParticle,
-										uniform float &Phi,
+										uniform FReal &Phi,
 										const uniform unsigned int NumParticles)
 {
 	uniform bool bPhiFound = false;
@@ -623,7 +541,7 @@ export uniform bool SampleSphereNoNormalAll(const uniform float &ObjectRadius,
 		FVector Particle = VectorLoad(&SampleParticles[extract(i, 0)]);
 
 		FVector LocalPoint = TransformPositionNoScale(SampleToObjectTransform, Particle);
-		float LocalPhi = ObjectRadius - VectorSize2(LocalPoint - ObjectMX);
+		FReal LocalPhi = ObjectRadius - VectorSize(LocalPoint - ObjectMX);
 
 		if(LocalPhi < Phi)
 		{
@@ -689,7 +607,7 @@ static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 
 }
 
 // @todo(ccaulfield): dedupe
-static inline uniform FMatrix33 ComputeJointFactorMatrix(const uniform FVector& V, const uniform FMatrix33& M, const uniform float Im)
+static inline uniform FMatrix33 ComputeJointFactorMatrix(const uniform FVector& V, const uniform FMatrix33& M, const uniform FReal Im)
 {
 	// Rigid objects rotational contribution to the impulse.
 	// Vx*M*VxT+Im

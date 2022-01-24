@@ -36,7 +36,7 @@ export void GetVariableKeyLerpPoseRotations(
 		int NumRotKeys = TrackData[3];
 		const unsigned int8* RotStream = CompressedByteStream + RotKeysOffset;
 
-		FVector4 R0;
+		FVector4f R0;
 
 		if (NumRotKeys == 1)
 		{
@@ -60,17 +60,17 @@ export void GetVariableKeyLerpPoseRotations(
 			{
 				// unpack and lerp between the two nearest keys
 				const unsigned int8* KeyData1= RotStream + RotationStreamOffset +(Index1*CompressedRotationStrideNum);
-				FVector4 R1;
+				FVector4f R1;
 
 				DecompressRotation(R1, RotStream, KeyData1, FORMAT);
 
 				// Fast linear quaternion interpolation.
-				const FVector4 BlendedQuat = QuatFastLerp(R0, R1, Alpha);
+				const FVector4f BlendedQuat = QuatFastLerp(R0, R1, Alpha);
 				R0 = VectorNormalizeQuaternion(BlendedQuat);
 			}
 		}
 
-		uniform FVector4 AOSScratch[programCount];
+		uniform FVector4f AOSScratch[programCount];
 		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], R0.V[3], (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
@@ -78,7 +78,7 @@ export void GetVariableKeyLerpPoseRotations(
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomRotation = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Rotation;
-				*BoneAtomRotation = AOSScratch[i];
+				*BoneAtomRotation = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}
@@ -122,27 +122,27 @@ export void GetVariableKeyLerpPoseTranslations(
 		const int32 TransStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumTransKeys > 1) ? (sizeof(uniform float)*6) : 0; // offset past Min and Range data
 
 		const unsigned int8* KeyData0 = TransStream + TransStreamOffset + Index0*CompressedTranslationStrideNum;
-		FVector P0;
+		FVector3f P0;
 		DecompressTranslation(P0, TransStream, KeyData0, FORMAT);
 
 		if (Index0 != Index1)
 		{
 			const unsigned int8* KeyData1 = TransStream + TransStreamOffset + Index1*CompressedTranslationStrideNum;
-			FVector P1;
+			FVector3f P1;
 
 			DecompressTranslation(P1, TransStream, KeyData1, FORMAT);
 			P0 = VectorLerp( P0, P1, Alpha );
 		}
 
-		uniform FVector4 AOSScratch[programCount];
-		soa_to_aos4(P0.V[0], P0.V[1], P0.V[2], Zero, (uniform float* uniform)&AOSScratch);
+		uniform FVector4f AOSScratch[programCount];
+		soa_to_aos4(P0.V[0], P0.V[1], P0.V[2], 0.0f, (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
 			unmasked
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomTranslation = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Translation;
-				*BoneAtomTranslation = AOSScratch[i];
+				*BoneAtomTranslation = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}
@@ -187,27 +187,27 @@ export void GetVariableKeyLerpPoseScales(
 		const int32 ScaleStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumScaleKeys > 1) ? (sizeof(uniform float)*6) : 0; // offset past Min and Range data
 
 		const unsigned int8* KeyData0 = ScaleStream + ScaleStreamOffset + Index0*CompressedScaleStrideNum;
-		FVector P0;
+		FVector3f P0;
 		DecompressScale(P0, ScaleStream, KeyData0, FORMAT);
 
 		if (Index0 != Index1)
 		{
 			const unsigned int8* KeyData1 = ScaleStream + ScaleStreamOffset + Index1*CompressedScaleStrideNum;
-			FVector P1;
+			FVector3f P1;
 
 			DecompressScale(P1, ScaleStream, KeyData1, FORMAT);
 			P0 = VectorLerp( P0, P1, Alpha );
 		}
 
-		uniform FVector4 AOSScratch[programCount];
-		soa_to_aos4(P0.V[0], P0.V[1], P0.V[2], Zero, (uniform float* uniform)&AOSScratch);
+		uniform FVector4f AOSScratch[programCount];
+		soa_to_aos4(P0.V[0], P0.V[1], P0.V[2], 0.0f, (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
 			unmasked
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomScale = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Scale3D;
-				*BoneAtomScale = AOSScratch[i];
+				*BoneAtomScale = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}

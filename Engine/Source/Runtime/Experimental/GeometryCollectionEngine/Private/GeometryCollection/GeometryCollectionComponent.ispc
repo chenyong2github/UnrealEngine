@@ -15,7 +15,7 @@ struct FBox
 inline static FBox BoxDefaultInit()
 {
 	FBox Box;
-	Box.Min = Box.Max = SetVector(0.0f, 0.0f, 0.0f);
+	Box.Min = Box.Max = ZeroVector;
 	Box.IsValid = 0;
 	return Box;
 }
@@ -69,9 +69,8 @@ inline static FBox BoxTransformByMatrix(const FBox &Box, const FMatrix &M)
 	const FVector4 m2 = SetVector4(M.M[8], M.M[9], M.M[10], M.M[11]);
 	const FVector4 m3 = SetVector4(M.M[12], M.M[13], M.M[14], M.M[15]);
 
-	const uniform FVector Half = SetVector(0.5f, 0.5f, 0.5f);
-	const FVector Origin = (Box.Max + Box.Min) * Half;
-	const FVector Extent = (Box.Max - Box.Min) * Half;
+	const FVector Origin = (Box.Max + Box.Min) * HalfVector;
+	const FVector Extent = (Box.Max - Box.Min) * HalfVector;
 
 	FVector4 NewOrigin = SetVector4(Origin.V[0], Origin.V[0], Origin.V[0], Origin.V[0]) * m0;
 	NewOrigin = VectorMultiplyAdd(SetVector4(Origin.V[1], Origin.V[1], Origin.V[1], Origin.V[1]), m1, NewOrigin);

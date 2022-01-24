@@ -4,6 +4,10 @@
 #include "HAL/IConsoleManager.h"
 #if INTEL_ISPC
 #include "VelocityField.ispc.generated.h"
+
+static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::FIntVector) == sizeof(Chaos::TVec3<int32>), "sizeof(ispc::FIntVector) != sizeof(Chaos::TVec3<int32>)");
+static_assert(sizeof(ispc::FVector2) == sizeof(Chaos::FVec2), "sizeof(ispc::FVector2) != sizeof(Chaos::FVec2)");
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING

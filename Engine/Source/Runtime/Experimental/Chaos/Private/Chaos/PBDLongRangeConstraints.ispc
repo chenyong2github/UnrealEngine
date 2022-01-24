@@ -23,8 +23,8 @@ static inline varying FTether LoadTetherHelper(const uniform FTether *uniform Sr
 
 export void ApplyLongRangeConstraints(uniform FVector P[],
 										const uniform FTether Tethers[],
-										const uniform float Stiffness,
-										const uniform float Scale,
+										const uniform FReal Stiffness,
+										const uniform FReal Scale,
 										const uniform int32 NumConstraints,
 										const uniform int32 ParticleOffset)
 {
@@ -60,13 +60,13 @@ export void ApplyLongRangeConstraints(uniform FVector P[],
 #endif
 
 		FVector Direction = P1 - P2;
-		const float Length = VectorSize(Direction);
+		const FReal Length = VectorSize(Direction);
 		Direction = VectorSelect(Length < KINDA_SMALL_NUMBER, ForwardVector, Direction / Length);
 
-		const float Offset = Length - RefLength * Scale;
+		const FReal Offset = Length - RefLength * Scale;
 		const FVector ComputedDelta = Stiffness * Offset * Direction;
 
-		const FVector Delta = VectorSelect(Offset < 0.f, ZeroVector, ComputedDelta);
+		const FVector Delta = VectorSelect(Offset < ZERO, ZeroVector, ComputedDelta);
 
 		VectorScatter(&P[i2], P2 + Delta);
 	}
@@ -75,8 +75,8 @@ export void ApplyLongRangeConstraints(uniform FVector P[],
 export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector P[],
 														const uniform FTether Tethers[],
 														const uniform uint8 StiffnessIndices[],
-														const uniform float StiffnessTable[],
-														const uniform float Scale,
+														const uniform FReal StiffnessTable[],
+														const uniform FReal Scale,
 														const uniform int32 NumConstraints,
 														const uniform int32 ParticleOffset)
 {
@@ -115,16 +115,16 @@ export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector P[],
 #endif
 
 		#pragma ignore warning(perf)
-		const varying float Stiffness = StiffnessTable[StiffnessIndex];
+		const varying FReal Stiffness = StiffnessTable[StiffnessIndex];
 
 		FVector Direction = P1 - P2;
-		const float Length = VectorSize(Direction);
+		const FReal Length = VectorSize(Direction);
 		Direction = VectorSelect(Length < KINDA_SMALL_NUMBER, ForwardVector, Direction / Length);
 
-		const float Offset = Length - RefLength * Scale;
+		const FReal Offset = Length - RefLength * Scale;
 		const FVector ComputedDelta = Stiffness * Offset * Direction;
 
-		const FVector Delta = VectorSelect(Offset < 0.f, ZeroVector, ComputedDelta);
+		const FVector Delta = VectorSelect(Offset < ZERO, ZeroVector, ComputedDelta);
 
 		VectorScatter(&P[i2], P2 + Delta);
 	}
@@ -132,9 +132,9 @@ export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector P[],
 
 export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector P[],
 													const uniform FTether Tethers[],
-													const uniform float Stiffness,
+													const uniform FReal Stiffness,
 													const uniform uint8 ScaleIndices[],
-													const uniform float ScaleTable[],
+													const uniform FReal ScaleTable[],
 													const uniform int32 NumConstraints,
 													const uniform int32 ParticleOffset)
 {
@@ -173,16 +173,16 @@ export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector P[],
 #endif
 
 		#pragma ignore warning(perf)
-		const varying float Scale = ScaleTable[ScaleIndex];
+		const varying FReal Scale = ScaleTable[ScaleIndex];
 
 		FVector Direction = P1 - P2;
-		const float Length = VectorSize(Direction);
+		const FReal Length = VectorSize(Direction);
 		Direction = VectorSelect(Length < KINDA_SMALL_NUMBER, ForwardVector, Direction / Length);
 
-		const float Offset = Length - RefLength * Scale;
+		const FReal Offset = Length - RefLength * Scale;
 		const FVector ComputedDelta = Stiffness * Offset * Direction;
 
-		const FVector Delta = VectorSelect(Offset < 0.f, ZeroVector, ComputedDelta);
+		const FVector Delta = VectorSelect(Offset < ZERO, ZeroVector, ComputedDelta);
 
 		VectorScatter(&P[i2], P2 + Delta);
 	}
@@ -192,9 +192,9 @@ export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector P[],
 export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector P[],
 																const uniform FTether Tethers[],
 																const uniform uint8 StiffnessIndices[],
-																const uniform float StiffnessTable[],
+																const uniform FReal StiffnessTable[],
 																const uniform uint8 ScaleIndices[],
-																const uniform float ScaleTable[],
+																const uniform FReal ScaleTable[],
 																const uniform int32 NumConstraints,
 																const uniform int32 ParticleOffset)
 {
@@ -235,18 +235,18 @@ export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector P[
 #endif
 
 		#pragma ignore warning(perf)
-		const varying float Stiffness = StiffnessTable[StiffnessIndex];
+		const varying FReal Stiffness = StiffnessTable[StiffnessIndex];
 		#pragma ignore warning(perf)
-		const varying float Scale = ScaleTable[ScaleIndex];
+		const varying FReal Scale = ScaleTable[ScaleIndex];
 
 		FVector Direction = P1 - P2;
-		const float Length = VectorSize(Direction);
+		const FReal Length = VectorSize(Direction);
 		Direction = VectorSelect(Length < KINDA_SMALL_NUMBER, ForwardVector, Direction / Length);
 
-		const float Offset = Length - RefLength * Scale;
+		const FReal Offset = Length - RefLength * Scale;
 		const FVector ComputedDelta = Stiffness * Offset * Direction;
 
-		const FVector Delta = VectorSelect(Offset < 0.f, ZeroVector, ComputedDelta);
+		const FVector Delta = VectorSelect(Offset < ZERO, ZeroVector, ComputedDelta);
 
 		VectorScatter(&P[i2], P2 + Delta);
 	}

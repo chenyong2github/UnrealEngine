@@ -10,10 +10,15 @@
 static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
 #endif
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bAnim_BonePose_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarAnimBonePoseISPCEnabled(TEXT("a.BonePose.ISPC"), bAnim_BonePose_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in bone pose calculations"));
+#endif
+
 // Normalizes all rotations in this pose
 void FCompactPose::NormalizeRotations()
 {
-	if (INTEL_ISPC)
+	if (bAnim_BonePose_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::NormalizeRotations((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
@@ -31,7 +36,7 @@ void FCompactPose::NormalizeRotations()
 // Sets every bone transform to Identity
 void FCompactPose::ResetToAdditiveIdentity()
 {
-	if (INTEL_ISPC)
+	if (bAnim_BonePose_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::ResetToAdditiveIdentity((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
@@ -49,7 +54,7 @@ void FCompactPose::ResetToAdditiveIdentity()
 // Normalizes all rotations in this pose
 void FCompactHeapPose::NormalizeRotations()
 {
-	if (INTEL_ISPC)
+	if (bAnim_BonePose_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::NormalizeRotations((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
@@ -67,7 +72,7 @@ void FCompactHeapPose::NormalizeRotations()
 // Sets every bone transform to Identity
 void FCompactHeapPose::ResetToAdditiveIdentity()
 {
-	if (INTEL_ISPC)
+	if (bAnim_BonePose_ISPC_Enabled)
 	{
 #if INTEL_ISPC
 		ispc::ResetToAdditiveIdentity((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());

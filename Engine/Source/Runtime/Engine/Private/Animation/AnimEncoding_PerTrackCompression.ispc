@@ -113,7 +113,7 @@ export void GetPerTrackCompressionPoseRotations(
 		#pragma ignore warning(perf)
 		const int RotKeysOffset = TrackOffsetData[1];
 
-		FVector4 R0;
+		FVector4f R0;
 
 		if (RotKeysOffset != INDEX_NONE)
 		{
@@ -159,7 +159,7 @@ export void GetPerTrackCompressionPoseRotations(
 			{
 				const unsigned int8* KeyData1 = TrackData + FixedBytes + (Index1 * BytesPerKey);
 
-				FVector4 R1;
+				FVector4f R1;
 				DecompressRotation(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 				// Fast linear quaternion interpolation.
@@ -174,7 +174,7 @@ export void GetPerTrackCompressionPoseRotations(
 			R0 = Float0001;
 		}
 
-		uniform FVector4 AOSScratch[programCount];
+		uniform FVector4f AOSScratch[programCount];
 		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], R0.V[3], (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
@@ -182,7 +182,7 @@ export void GetPerTrackCompressionPoseRotations(
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomRotation = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Rotation;
-				*BoneAtomRotation = AOSScratch[i];
+				*BoneAtomRotation = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}
@@ -211,7 +211,7 @@ export void GetPerTrackCompressionPoseTranslations(
 		#pragma ignore warning(perf)
 		const int PosKeysOffset = TrackOffsetData[0];
 
-		FVector R0;
+		FVector3f R0;
 
 		if (PosKeysOffset != INDEX_NONE)
 		{
@@ -257,7 +257,7 @@ export void GetPerTrackCompressionPoseTranslations(
 			{
 				const unsigned int8* KeyData1 = TrackData + FixedBytes + (Index1 * BytesPerKey);
 
-				FVector R1;
+				FVector3f R1;
 				DecompressTranslation(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 				R0 = VectorLerp(R0, R1, Alpha);
@@ -266,18 +266,18 @@ export void GetPerTrackCompressionPoseTranslations(
 		else
 		{
 			// Identity track
-			R0 = ZeroVector;
+			R0 = FloatZeroVector;
 		}
 
-		uniform FVector4 AOSScratch[programCount];
-		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], Zero, (uniform float* uniform)&AOSScratch);
+		uniform FVector4f AOSScratch[programCount];
+		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], 0.0f, (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
 			unmasked
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomTranslation = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Translation;
-				*BoneAtomTranslation = AOSScratch[i];
+				*BoneAtomTranslation = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}
@@ -307,7 +307,7 @@ export void GetPerTrackCompressionPoseScales(
 		#pragma ignore warning(perf)
 		const int32 ScaleKeysOffset = ScaleData[0];
 
-		FVector R0;
+		FVector3f R0;
 
 		if (ScaleKeysOffset != INDEX_NONE)
 		{
@@ -353,7 +353,7 @@ export void GetPerTrackCompressionPoseScales(
 			{
 				const unsigned int8* KeyData1 = TrackData + FixedBytes + (Index1 * BytesPerKey);
 
-				FVector R1;
+				FVector3f R1;
 				DecompressScale(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 				R0 = VectorLerp(R0, R1, Alpha);
@@ -362,18 +362,18 @@ export void GetPerTrackCompressionPoseScales(
 		else
 		{
 			// Identity track
-			R0 = ZeroVector;
+			R0 = FloatZeroVector;
 		}
 
-		uniform FVector4 AOSScratch[programCount];
-		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], Zero, (uniform float* uniform)&AOSScratch);
+		uniform FVector4f AOSScratch[programCount];
+		soa_to_aos4(R0.V[0], R0.V[1], R0.V[2], 0.0f, (uniform float* uniform)&AOSScratch);
 		foreach_active(i)
 		{
 			unmasked
 			{
 				uniform int uAtomIndex = extract(AtomIndex, i);
 				uniform FVector4 *uniform BoneAtomScale = (uniform FVector4 *uniform)&Atoms[uAtomIndex].Scale3D;
-				*BoneAtomScale = AOSScratch[i];
+				*BoneAtomScale = ConvertVector4fTo4Native(AOSScratch[i]);
 			}
 		}
 	}

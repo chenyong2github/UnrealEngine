@@ -52,6 +52,13 @@ static const varying int vAOS32 = {0, 1, 2, 3, 8, 9, 10, 11};
 static const varying int vAOS33 = {4, 5, 6, 7, 12, 13, 14, 15};
 static const varying int vAOS34 = {2, 5, 8, 11, 14, -1, -1, -1};
 static const varying int vAOS35 = {0, 1, 2, 3, 4, 9, 12, 15};
+
+static const varying int vAOS301 = {0, 1, 6, 7, 2, 3, 8, 9};
+static const varying int vAOS311 = {4, 5, 10, 11, 6, 7, 12, 13};
+static const varying int vAOS321 = {0, 1, 2, 3, 8, 9, 10, 11};
+static const varying int vAOS331 = {4, 5, 6, 7, 12, 13, 14, 15};
+static const varying int vAOS341 = {4, 5, 10, 11, -1, -1, -1, -1};
+static const varying int vAOS351 = {0, 1, 2, 3, 8, 9, 14, 15};
 #elif TARGET_WIDTH == 16
 static const varying int vAOS30 = {0, 3, 6, 9, 12, 15, 18, 21, 1, 4, 7, 10, 13, 16, 19, 22};
 static const varying int vAOS31 = {8, 11, 14, 17, 20, 23, 26, 29, 9, 12, 15, 18, 21, 24, 27, 30};
@@ -63,6 +70,48 @@ static const varying int vAOS35 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25,
 #error "No implementation for this target"
 #endif
 
+#if TARGET_WIDTH == 8
+#define AOS_TO_SOA3_ISPC_64BIT(T)                                                                                      \
+    unmasked inline void aos_to_soa3_ispc(uniform T src[], varying T *uniform v0, varying T *uniform v1,               \
+                                        varying T *uniform v2)                                                         \
+    {                                                                                                                  \
+        const uniform float *uniform srcflt = (const uniform float *uniform)src;                                       \
+        const varying float src0 = srcflt[programIndex];                                                               \
+        const varying float src1 = srcflt[programCount + programIndex];                                                \
+        const varying float src2 = srcflt[2 * programCount + programIndex];                                            \
+        const varying float src3 = srcflt[3 * programCount + programIndex];                                            \
+        const varying float src4 = srcflt[4 * programCount + programIndex];                                            \
+        const varying float src5 = srcflt[5 * programCount + programIndex];                                            \
+                                                                                                                       \
+        const varying float t0 = shuffle(src0, src1, vAOS301);                                                         \
+        const varying float t1 = shuffle(src1, src2, vAOS311);                                                         \
+        const varying float s0 = shuffle(src3, src4, vAOS301);                                                         \
+        const varying float s1 = shuffle(src4, src5, vAOS311);                                                         \
+        const varying float t2 = shuffle(src0, src1, vAOS341);                                                         \
+        const varying float u2 = shuffle(t2, src2, vAOS351);                                                           \
+        const varying float s2 = shuffle(src3, src4, vAOS341);                                                         \
+                                                                                                                       \
+        const varying float u0 = shuffle(t0, t1, vAOS321);                                                             \
+        const varying float w0 = shuffle(s0, s1, vAOS321);                                                             \
+        uniform T<TARGET_WIDTH> x0;                                                                                    \
+        *((varying float *uniform)&x0) = u0;                                                                           \
+        *((varying float *uniform)&x0[TARGET_WIDTH/2]) = w0;                                                           \
+        *v0 = *((varying T *uniform)&x0);                                                                              \
+                                                                                                                       \
+        const varying float u1 = shuffle(t0, t1, vAOS331);                                                             \
+        const varying float w1 = shuffle(s0, s1, vAOS331);                                                             \
+        uniform T<TARGET_WIDTH> x1;                                                                                    \
+        *((varying float *uniform)&x1) = u1;                                                                           \
+        *((varying float *uniform)&x1[TARGET_WIDTH/2]) = w1;                                                           \
+        *v1 = *((varying T *uniform)&x1);                                                                              \
+                                                                                                                       \
+        const varying float w2 = shuffle(s2, src5, vAOS351);                                                           \
+        uniform T<TARGET_WIDTH> x2;                                                                                    \
+        *((varying float *uniform)&x2) = u2;                                                                           \
+        *((varying float *uniform)&x2[TARGET_WIDTH/2]) = w2;                                                           \
+        *v2 = *((varying T *uniform)&x2);                                                                              \
+    }
+#endif
 #define AOS_TO_SOA3_ISPC(T)                                                                                            \
     unmasked inline void aos_to_soa3_ispc(uniform T src[], varying T *uniform v0, varying T *uniform v1,               \
                                         varying T *uniform v2)                                                         \
@@ -83,8 +132,13 @@ static const varying int vAOS35 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25,
 AOS_TO_SOA3_ISPC(int16)
 AOS_TO_SOA3_ISPC(int32)
 AOS_TO_SOA3_ISPC(float)
-AOS_TO_SOA3_ISPC(int64)
+#if TARGET_WIDTH == 8
+AOS_TO_SOA3_ISPC_64BIT(double)
+AOS_TO_SOA3_ISPC_64BIT(int64)
+#else
 AOS_TO_SOA3_ISPC(double)
+AOS_TO_SOA3_ISPC(int64)
+#endif
 
 
 #if TARGET_WIDTH == 4

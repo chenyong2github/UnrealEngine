@@ -9,6 +9,11 @@
 #include "ChaosStats.h"
 #if INTEL_ISPC
 #include "PBDJointSolverGaussSeidel.ispc.generated.h"
+
+static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::FTransform) == sizeof(Chaos::FRigidTransform3), "sizeof(ispc::FTransform) != sizeof(Chaos::FRigidTransform3)");
+static_assert(sizeof(ispc::FVector4) == sizeof(Chaos::FRotation3), "sizeof(ispc::FVector4) != sizeof(Chaos::FRotation3)");
+static_assert(sizeof(ispc::FMatrix) == sizeof(Chaos::FMatrix33), "sizeof(ispc::FMatrix) != sizeof(Chaos::FMatrix33)");
 #endif
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -28,7 +33,7 @@ namespace Chaos
 		if (bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			check(sizeof(FPBDJointSolver) == ispc::SizeofFPBDJointSolver());
+			check(sizeof(FPBDJointSolver) == ispc::SizeofFPBDJointSolver()); 
 #endif
 		}
 	}
@@ -1201,7 +1206,7 @@ namespace Chaos
 		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			float ReturnedLambda = Lambda;
+			FReal ReturnedLambda = Lambda;
 			ispc::ApplyPositionConstraintSoft((ispc::FPBDJointSolver*)this, Dt, JointStiffness, JointDamping, bAccelerationMode, (ispc::FVector&)Axis, Delta, TargetVel, ReturnedLambda);
 			Lambda = ReturnedLambda;
 #endif
@@ -1341,7 +1346,7 @@ namespace Chaos
 		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			float ReturnedLambda = Lambda;
+			FReal ReturnedLambda = Lambda;
 			ispc::ApplyRotationConstraintSoftKD((ispc::FPBDJointSolver*)this, KIndex, DIndex, Dt, JointStiffness, JointDamping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, ReturnedLambda);
 			Lambda = ReturnedLambda;
 #endif
@@ -1397,7 +1402,7 @@ namespace Chaos
 		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
-			float ReturnedLambda = Lambda;
+			FReal ReturnedLambda = Lambda;
 			ispc::ApplyRotationConstraintSoftDD((ispc::FPBDJointSolver*)this, Dt, JointStiffness, JointDamping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, ReturnedLambda);
 			Lambda = ReturnedLambda;
 #endif

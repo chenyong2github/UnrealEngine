@@ -190,8 +190,8 @@ export void BlendPosesPerBoneFilterScaleRotation(uniform FTransform OutPose[],
 		}
 		else
 		{
-			SourceRotation = VectorQuaternionMultiply2(Float0001, BaseAtom.Rotation);
-			TargetRotation = VectorQuaternionMultiply2(Float0001, TargetAtom.Rotation);
+			SourceRotation = VectorQuaternionMultiply2(Vector0001, BaseAtom.Rotation);
+			TargetRotation = VectorQuaternionMultiply2(Vector0001, TargetAtom.Rotation);
 			SourceScale = OneVector * SetVector(BaseAtom.Scale3D);
 			TargetScale = OneVector * SetVector(TargetAtom.Scale3D);
 		}
@@ -238,7 +238,7 @@ export void BlendPosesPerBoneFilterScaleRotation(uniform FTransform OutPose[],
 
 			const uniform FVector ParentScaleInv = TransformGetSafeScaleReciprocal(BlendScales[ParentIndex], SMALL_NUMBER);
 			const uniform FVector LocalBlendScale = ParentScaleInv * BlendScale;
-			BlendAtom.Scale3D = SetVector4(LocalBlendScale.V[0], LocalBlendScale.V[1], LocalBlendScale.V[2], 0.0f);
+			BlendAtom.Scale3D = SetVector4(LocalBlendScale.V[0], LocalBlendScale.V[1], LocalBlendScale.V[2], ZERO);
 		}
 
 		BlendRotations[BoneIndex] = BlendRotation;

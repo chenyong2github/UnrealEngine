@@ -3,12 +3,12 @@
 #include "Math/Matrix.isph"
 
 export void UpdateBoneData_CopyBones(uniform FMatrix3x4 ChunkMatrices[],
-										const uniform FMatrix ReferenceToLocalMatrices[],
+										const uniform FMatrix44f ReferenceToLocalMatrices[],
 										const uniform unsigned int16 BoneMap[],
 										const uniform int NumBones)
 {
 	uniform FMatrix3x4 *uniform ChunkPtr = (uniform FMatrix3x4 * uniform) ChunkMatrices;
-	uniform FMatrix *uniform RefToLocalPtr = (uniform FMatrix * uniform) ReferenceToLocalMatrices;
+	uniform FMatrix44f *uniform RefToLocalPtr = (uniform FMatrix44f * uniform) ReferenceToLocalMatrices;
 
 	for(uniform int BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
 	{
@@ -52,7 +52,6 @@ export void UpdateBoneData_CopyBones(uniform FMatrix3x4 ChunkMatrices[],
 		}
 
 #elif TARGET_WIDTH == 16
-		// perf seems whacky - need to verify
 		static const varying int vPerm = {0, 4, 8, 12, 1, 5, 9, 13,
 										2, 6, 10, 14, 3, 7, 11, 15};
 
@@ -64,7 +63,7 @@ export void UpdateBoneData_CopyBones(uniform FMatrix3x4 ChunkMatrices[],
 		}
 
 #else
-	    #error "Unknown ISPC_TARGET_* value"
+		#error "Unknown ISPC_TARGET_* value"
 #endif
 	}
 }
