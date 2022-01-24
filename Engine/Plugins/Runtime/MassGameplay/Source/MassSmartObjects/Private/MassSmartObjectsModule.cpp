@@ -21,6 +21,8 @@ void FMassSmartObjectsModule::StartupModule()
 
 	TArray<FCoreRedirect> Redirects;
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("SmartObjectMassBehaviorConfig"), TEXT("SmartObjectMassBehaviorDefinition"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("MassProcessor_SmartObjectTimedBehavior"), TEXT("MassSmartObjectTimedBehaviorProcessor"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("MassProcessor_SmartObjectCandidatesFinder"), TEXT("MassSmartObjectCandidatesFinderProcessor"));
 
 	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassSmartObject"));
 }

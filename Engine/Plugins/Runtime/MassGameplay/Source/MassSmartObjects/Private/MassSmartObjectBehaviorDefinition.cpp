@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSmartObjectBehaviorDefinition.h"
-#include "MassSmartObjectProcessor.h"
+
+#include "MassCommandBuffer.h"
+#include "MassSmartObjectFragments.h"
 
 void USmartObjectMassBehaviorDefinition::Activate(UMassEntitySubsystem& EntitySubsystem,
-                                              FMassExecutionContext& Context,
-                                              const FMassBehaviorEntityContext& EntityContext) const
+												  FMassExecutionContext& Context,
+												  const FMassBehaviorEntityContext& EntityContext) const
 {
-	EntityContext.SOUser.SetUseTime(UseTime);
+	FMassSmartObjectTimedBehaviorFragment TimedBehaviorFragment;
+	TimedBehaviorFragment.UseTime = UseTime;
+	Context.Defer().PushCommand(FCommandAddFragmentInstance(EntityContext.Entity, FConstStructView::Make(TimedBehaviorFragment)));
 }

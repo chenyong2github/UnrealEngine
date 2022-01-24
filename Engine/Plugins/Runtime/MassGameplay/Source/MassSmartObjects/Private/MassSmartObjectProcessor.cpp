@@ -5,7 +5,10 @@
 #include "MassCommonTypes.h"
 #include "MassSignalSubsystem.h"
 #include "MassSmartObjectBehaviorDefinition.h"
+#include "MassSmartObjectFragments.h"
+#include "MassSmartObjectRequest.h"
 #include "MassSmartObjectSettings.h"
+#include "MassSmartObjectTypes.h"
 #include "SmartObjectZoneAnnotations.h"
 #include "Misc/ScopeExit.h"
 #include "SmartObjectOctree.h"
@@ -15,28 +18,17 @@
 #include "ZoneGraphSubsystem.h"
 
 //----------------------------------------------------------------------//
-// UMassProcessor_SmartObjectBase
+// UMassSmartObjectCandidatesFinderProcessor
 //----------------------------------------------------------------------//
-void UMassProcessor_SmartObjectBase::Initialize(UObject& Owner)
+void UMassSmartObjectCandidatesFinderProcessor::Initialize(UObject& Owner)
 {
-	Super::Initialize(Owner);
-
 	SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(GetWorld());
 	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
-}
-
-//----------------------------------------------------------------------//
-// UMassProcessor_SmartObjectCandidatesFinder
-//----------------------------------------------------------------------//
-void UMassProcessor_SmartObjectCandidatesFinder::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
 	AnnotationSubsystem = UWorld::GetSubsystem<UZoneGraphAnnotationSubsystem>(GetWorld());
 	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
 }
 
-void UMassProcessor_SmartObjectCandidatesFinder::ConfigureQueries()
+void UMassSmartObjectCandidatesFinderProcessor::ConfigureQueries()
 {
 	WorldRequestQuery.AddRequirement<FMassSmartObjectWorldLocationRequestFragment>(EMassFragmentAccess::ReadOnly);
 	WorldRequestQuery.AddRequirement<FMassSmartObjectRequestResultFragment>(EMassFragmentAccess::ReadWrite);
@@ -47,7 +39,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::ConfigureQueries()
 	LaneRequestQuery.AddTagRequirement<FMassSmartObjectCompletedRequestTag>(EMassFragmentPresence::None);
 }
 
-UMassProcessor_SmartObjectCandidatesFinder::UMassProcessor_SmartObjectCandidatesFinder()
+UMassSmartObjectCandidatesFinderProcessor::UMassSmartObjectCandidatesFinderProcessor()
 {
 	// 1. Frame T Behavior create a request(deferred entity creation)
 	// 2. Frame T+1: Processor execute the request might mark it as done(deferred add tag flushed at the end of the frame)
@@ -56,7 +48,7 @@ UMassProcessor_SmartObjectCandidatesFinder::UMassProcessor_SmartObjectCandidates
 	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);
 }
 
-void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	checkf(SmartObjectSubsystem != nullptr, TEXT("SmartObjectSubsystem should exist when executing processors."));
 	checkf(SignalSubsystem != nullptr, TEXT("MassSignalSubsystem should exist when executing processors."));
@@ -280,26 +272,32 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 }
 
 //----------------------------------------------------------------------//
-// UMassProcessor_SmartObjectTimedBehavior
+// UMassSmartObjectTimedBehaviorProcessor
 //----------------------------------------------------------------------//
-void UMassProcessor_SmartObjectTimedBehavior::ConfigureQueries()
+void UMassSmartObjectTimedBehaviorProcessor::Initialize(UObject& Owner)
 {
-	EntityQuery.AddRequirement<FMassSmartObjectUserFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddTagRequirement<FMassSmartObjectTimedBehaviorTag>(EMassFragmentPresence::All);
+	SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(GetWorld());
+	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 }
 
-UMassProcessor_SmartObjectTimedBehavior::UMassProcessor_SmartObjectTimedBehavior()
+void UMassSmartObjectTimedBehaviorProcessor::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FMassSmartObjectUserFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassSmartObjectTimedBehaviorFragment>(EMassFragmentAccess::ReadWrite);
+}
+
+UMassSmartObjectTimedBehaviorProcessor::UMassSmartObjectTimedBehaviorProcessor()
 {
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Tasks;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Behavior);
 }
 
-void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	checkf(SmartObjectSubsystem != nullptr, TEXT("SmartObjectSubsystem should exist when executing processors."));
 	checkf(SignalSubsystem != nullptr, TEXT("MassSignalSubsystem should exist when executing processors."));
 
-	TArray<TTuple<FMassEntityHandle, FMassSmartObjectUserFragment*>> ToRelease;
+	TArray<FMassEntityHandle> ToRelease;
 
 	QUICK_SCOPE_CYCLE_COUNTER(UMassProcessor_SmartObjectTestBehavior_Run);
 
@@ -307,19 +305,18 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 		const TArrayView<FMassSmartObjectUserFragment> UserList = Context.GetMutableFragmentView<FMassSmartObjectUserFragment>();
+		const TArrayView<FMassSmartObjectTimedBehaviorFragment> TimedBehaviorFragments = Context.GetMutableFragmentView<FMassSmartObjectTimedBehaviorFragment>();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
 			FMassSmartObjectUserFragment& SOUser = UserList[i];
-			if (SOUser.InteractionStatus != EMassSmartObjectInteractionStatus::InProgress)
-			{
-				// Only expecting in progress interaction status
-				continue;
-			}
+			FMassSmartObjectTimedBehaviorFragment& TimedBehaviorFragment = TimedBehaviorFragments[i];
+			ensureMsgf(SOUser.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress, TEXT("Fragment should only be present for in-progress interactions"));
 
 			const float DT = Context.GetDeltaTimeSeconds();
-			SOUser.SetUseTime(FMath::Max(SOUser.GetUseTime() - DT, 0.0f));
-			const bool bMustRelease = SOUser.GetUseTime() <= 0.f;
+			float& UseTime = TimedBehaviorFragment.UseTime;
+			UseTime = FMath::Max(UseTime - DT, 0.0f);
+			const bool bMustRelease = UseTime <= 0.f;
 
 #if WITH_MASSGAMEPLAY_DEBUG
 			const FMassEntityHandle Entity = Context.GetEntity(i);
@@ -327,8 +324,8 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 			const bool bIsDebuggingEntity = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 			if (bIsDebuggingEntity)
 			{
-				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.GetClaimHandle()));
-				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s] for %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.GetClaimHandle()), SOUser.GetUseTime());
+				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle));
+				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s] for %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle), UseTime);
 
 				const TOptional<FTransform> Transform = SmartObjectSubsystem->GetSlotTransform(SOUser.ClaimHandle);
 				if (Transform.IsSet())
@@ -345,20 +342,15 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 
 			if (bMustRelease)
 			{
-				ToRelease.Add(MakeTuple(Context.GetEntity(i), &SOUser));
+				SOUser.InteractionStatus = EMassSmartObjectInteractionStatus::Completed;
+				ToRelease.Add(Context.GetEntity(i));
 			}
 		}
 	});
 
-	for (const TTuple<FMassEntityHandle, FMassSmartObjectUserFragment*> EntryToRelease : ToRelease)
+	for (const FMassEntityHandle EntityToRelease : ToRelease)
 	{
-		const FMassEntityHandle Entity = EntryToRelease.Get<0>();
-		SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, Entity);
-
-		FMassSmartObjectUserFragment* User = EntryToRelease.Get<1>();
-		SmartObjectSubsystem->Release(User->ClaimHandle);
-		User->InteractionStatus = EMassSmartObjectInteractionStatus::Completed;
-		Context.Defer().RemoveTag<FMassSmartObjectTimedBehaviorTag>(Entity);
-		User->ClaimHandle.Invalidate();
+		SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, EntityToRelease);
+		Context.Defer().RemoveFragment<FMassSmartObjectTimedBehaviorFragment>(EntityToRelease);
 	}
 }

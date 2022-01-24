@@ -4,7 +4,7 @@
 #include "MassCommonFragments.h"
 #include "MassAIBehaviorTypes.h"
 #include "MassSmartObjectHandler.h"
-#include "MassSmartObjectProcessor.h"
+#include "MassSmartObjectFragments.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassAIMovementFragments.h"
 #include "SmartObjectSubsystem.h"
@@ -211,7 +211,7 @@ EStateTreeRunStatus FMassUseSmartObjectTask::Tick(FStateTreeExecutionContext& Co
 
 	case EMassSmartObjectInteractionStatus::Completed:
 		MASSBEHAVIOR_LOG(Log, TEXT("Interaction completed"));
-		SOUser.SetCooldown(Context.GetWorld()->GetTimeSeconds() + Cooldown);
+		SOUser.CooldownEndTime = Context.GetWorld()->GetTimeSeconds() + Cooldown;
 		Status = EStateTreeRunStatus::Succeeded;
 		break;
 

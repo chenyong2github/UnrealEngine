@@ -4,12 +4,10 @@
 
 #include "MassAIBehaviorTypes.h"
 #include "MassCommonFragments.h"
-#include "MassAIMovementFragments.h"
 #include "MassSignalSubsystem.h"
-#include "MassStateTreeExecutionContext.h"
+#include "MassSmartObjectFragments.h"
 #include "MassSmartObjectHandler.h"
-#include "MassSmartObjectProcessor.h"
-#include "MassStateTreeProcessors.h"
+#include "MassStateTreeExecutionContext.h"
 #include "MassZoneGraphMovementFragments.h"
 #include "SmartObjectSubsystem.h"
 #include "Engine/World.h"
@@ -73,17 +71,19 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
 
 	bCandidatesFound = false;
-	bClaimed = SOUser.GetClaimHandle().IsValid();
+	bClaimed = SOUser.ClaimHandle.IsValid();
 
 	// Already claimed, nothing to do
 	if (bClaimed)
 	{
+		MASSBEHAVIOR_LOG(Verbose, TEXT("Skipped: currently claimed"));
 		return;
 	}
 
 	const UWorld* World = Context.GetWorld();
-	if (SOUser.GetCooldown() > World->GetTimeSeconds())
+	if (SOUser.CooldownEndTime > World->GetTimeSeconds())
 	{
+		MASSBEHAVIOR_LOG(Verbose, TEXT("Skipped: cooldown active (%s)"), *LexToString(SOUser.CooldownEndTime - World->GetTimeSeconds()));
 		return;
 	}
 
@@ -91,6 +91,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	float& NextUpdate = Context.GetInstanceData(NextUpdateHandle);
 	if (NextUpdate > World->GetTimeSeconds())
 	{
+		MASSBEHAVIOR_LOG(Verbose, TEXT("Skipped: waiting next update time (%s)"), *LexToString(NextUpdate-World->GetTimeSeconds()));
 		return;
 	}
 	NextUpdate = 0.f;
@@ -112,6 +113,10 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 			MASSBEHAVIOR_CLOG(!LaneLocation->LaneHandle.IsValid(), Error, TEXT("Always expecting a valid lane from the ZoneGraph movement"));
 			if (LaneLocation->LaneHandle.IsValid())
 			{
+				MASSBEHAVIOR_LOG(Log, TEXT("Requesting search candidates from lane %s (%s/%s)"),
+					*LaneLocation->LaneHandle.ToString(),
+					*LexToString(LaneLocation->DistanceAlongLane),
+					*LexToString(LaneLocation->LaneLength));
 				SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, { LaneLocation->LaneHandle, LaneLocation->DistanceAlongLane });
 			}
 		}
@@ -137,8 +142,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 			// Update bindable flag to indicate to tasks and conditions if some candidates were found
 			bCandidatesFound = SearchRequestResult.NumCandidates > 0;
 
-			const FMassEntityHandle RequestingEntity = MassContext.GetEntity();
-			MASSBEHAVIOR_CLOG(bCandidatesFound, Log, TEXT("Found %d smart object candidates for %s"), SearchRequestResult.NumCandidates, *RequestingEntity.DebugGetDescription());
+			MASSBEHAVIOR_CLOG(bCandidatesFound, Log, TEXT("Found %d smart object candidates"), SearchRequestResult.NumCandidates);
 
 			// When using ZoneGraph annotations we don't need to schedule a new update since we only need the CurrentLaneChanged signal.
 			// Otherwise we reschedule with default interval on success or retry interval on failed attempt
@@ -147,7 +151,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 				const float DelayInSeconds = bCandidatesFound ? TickInterval : RetryCooldown;
 				NextUpdate = World->GetTimeSeconds() + DelayInSeconds;
 				UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
-				MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::SmartObjectRequestCandidates, RequestingEntity, DelayInSeconds);
+				MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::SmartObjectRequestCandidates, MassContext.GetEntity(), DelayInSeconds);
 			}
 		}
 		// else wait for the Evaluation that will be triggered by the "candidates ready" signal

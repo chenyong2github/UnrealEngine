@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSmartObjectHandler.h"
-#include "MassSmartObjectProcessor.h"
 #include "MassSmartObjectBehaviorDefinition.h"
+#include "MassCommonTypes.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassCommandBuffer.h"
+#include "MassSmartObjectFragments.h"
 
 namespace UE::Mass::SmartObject
 {
@@ -202,7 +203,6 @@ bool FMassSmartObjectHandler::UseSmartObject(
 	BehaviorDefinition->Activate(EntitySubsystem, ExecutionContext, FMassBehaviorEntityContext(Entity, Transform, User, SmartObjectSubsystem));
 
 	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
-	ExecutionContext.Defer().AddTag<FMassSmartObjectTimedBehaviorTag>(Entity);
 
 	return true;
 }
@@ -238,7 +238,9 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 
 	case EMassSmartObjectInteractionStatus::Completed:
 	case EMassSmartObjectInteractionStatus::Aborted:
-		ensureMsgf(false, TEXT("Not expecting status changes for'Completed' or 'Aborted' interaction. Received %s"), *UEnum::GetValueAsString(NewStatus));
+		ensureMsgf(CurrentStatus == NewStatus, TEXT("Not expecting status changes for'Completed' or 'Aborted' interaction. Current %s - Received %s"),
+			*UEnum::GetValueAsString(CurrentStatus),
+			*UEnum::GetValueAsString(NewStatus));
 		break;
 
 	default:

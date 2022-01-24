@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "MassSmartObjectProcessor.h"
+#include "MassSignalSubsystem.h"
+#include "MassSmartObjectRequest.h"
 #include "MassStateTreeTypes.h"
-#include "MassSmartObjectTypes.h"
+#include "SmartObjectSubsystem.h"
 #include "MassStateTreeSmartObjectEvaluator.generated.h"
 
 struct FStateTreeExecutionContext;
 struct FDataFragment_Transform;
 struct FMassZoneGraphLaneLocationFragment;
+struct FMassSmartObjectUserFragment;
 
 /**
  * Evaluator that will keep track if there is one or more smart object(s) that can be used.

@@ -2,7 +2,7 @@
 
 #include "MassSmartObjectUserTrait.h"
 
-#include "MassSmartObjectProcessor.h"
+#include "MassSmartObjectFragments.h"
 #include "MassEntityTemplateRegistry.h"
 
 void UMassSmartObjectUserTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const

@@ -27,6 +27,28 @@ struct MASSSMARTOBJECTS_API FSmartObjectCandidate
 };
 
 /**
+ * Identifier associated to a request for smart object candidates. We use a 1:1 match
+ * with an FMassEntityHandle since all requests are batched together using the EntitySubsystem.
+ */
+USTRUCT()
+struct MASSSMARTOBJECTS_API FMassSmartObjectRequestID
+{
+	GENERATED_BODY()
+
+	FMassSmartObjectRequestID() = default;
+	FMassSmartObjectRequestID(const FMassEntityHandle InEntity) : Entity(InEntity) {}
+
+	bool IsSet() const { return Entity.IsSet(); }
+	void Reset() { Entity.Reset(); }
+
+	explicit operator FMassEntityHandle() const { return Entity; }
+
+private:
+	UPROPERTY(Transient)
+	FMassEntityHandle Entity;
+};
+
+/**
  * Struct that holds status and results of a candidate finder request
  */
 USTRUCT()

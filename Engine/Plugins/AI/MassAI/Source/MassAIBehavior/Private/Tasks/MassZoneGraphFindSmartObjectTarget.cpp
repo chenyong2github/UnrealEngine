@@ -3,7 +3,7 @@
 #include "Tasks/MassZoneGraphFindSmartObjectTarget.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "MassAIBehaviorTypes.h"
-#include "MassSmartObjectProcessor.h"
+#include "MassSmartObjectFragments.h"
 #include "MassSmartObjectSettings.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassZoneGraphMovementFragments.h"
