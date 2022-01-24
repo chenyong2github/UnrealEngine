@@ -50,7 +50,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		private JobCompleteEventRecord()
+		public JobCompleteEventRecord()
 		{
 			StreamId = String.Empty;
 			TemplateId = String.Empty;
@@ -107,7 +107,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		private LabelCompleteEventRecord()
+		public LabelCompleteEventRecord()
 		{
 			this.StreamId = String.Empty;
 			this.TemplateId = String.Empty;
@@ -164,7 +164,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		private StepCompleteEventRecord()
+		public StepCompleteEventRecord()
 		{
 			StreamId = String.Empty;
 			TemplateId = String.Empty;
