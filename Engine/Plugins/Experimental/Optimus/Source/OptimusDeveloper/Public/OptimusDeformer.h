@@ -2,29 +2,25 @@
 
 #pragma once
 
+#include "Animation/MeshDeformer.h"
+#include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "IOptimusNodeFunctionLibraryOwner.h"
 #include "IOptimusNodeGraphCollectionOwner.h"
 #include "IOptimusPathResolver.h"
+#include "Logging/TokenizedMessage.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
-#include "Animation/MeshDeformer.h"
-#include "Animation/MeshDeformerInstance.h"
-
-#include "ComputeFramework/ComputeGraph.h"
-#include "ComputeFramework/ComputeGraphInstance.h"
-#include "Interfaces/Interface_PreviewMeshProvider.h"
-#include "Logging/TokenizedMessage.h"
-#include "Types/OptimusType_ShaderText.h"
+#include "OptimusNodeGraph.h"
 #include "Misc/TVariant.h"
+#include "Types/OptimusType_ShaderText.h"
 #include "OptimusDeformer.generated.h"
 
-class UComputeDataProvider;
+class UComputeGraph;
 class USkeletalMesh;
 class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
-class UOptimusNode_CustomComputeKernel;
 enum class EOptimusDiagnosticLevel : uint8;
 
 
@@ -39,7 +35,7 @@ struct FOptimusComputeGraphInfo
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EOptimusNodeGraphType GraphType;
+	EOptimusNodeGraphType GraphType = EOptimusNodeGraphType::Update;
 
 	UPROPERTY()
 	FName GraphName;
