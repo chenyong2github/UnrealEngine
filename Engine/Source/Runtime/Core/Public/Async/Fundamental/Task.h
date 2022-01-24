@@ -429,7 +429,6 @@ namespace LowLevelTasks
 	inline void FTask::ExecuteTask()
 	{
 		checkSlow(Runnable.IsSet());
-		alignas(PLATFORM_CACHE_LINE_SIZE) 
 		FTaskDelegate LocalRunnable;
 		bool Canceled = Runnable.CallAndMove(LocalRunnable);
 		checkSlow(!Runnable.IsSet());
