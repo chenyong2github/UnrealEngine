@@ -1,0 +1,126 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassRepresentationActorManagement.h"
+#include "MassCommandBuffer.h"
+#include "MassEntityView.h"
+#include "MassActorSubsystem.h"
+#include "MassRepresentationSubsystem.h"
+
+AActor* UMassRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const
+{
+	return RepresentationSubsystem.GetOrSpawnActorFromTemplate(MassAgent, Transform, TemplateActorIndex, SpawnRequestHandle, Priority,
+		FMassActorPreSpawnDelegate::CreateUObject(this, &UMassRepresentationActorManagement::OnPreActorSpawn, &EntitySubsystem),
+		FMassActorPostSpawnDelegate::CreateUObject(this, &UMassRepresentationActorManagement::OnPostActorSpawn, &EntitySubsystem));
+}
+
+
+void UMassRepresentationActorManagement::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
+{
+	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
+	if (Actor.IsActorTickEnabled() != bEnabled)
+	{
+		Actor.SetActorTickEnabled(bEnabled);
+	}
+	if (Actor.GetActorEnableCollision() != bEnabled)
+	{
+		// Deferring this as there is a callback internally that could end up doing things outside of the game thread and will fire checks(Chaos mostly)
+		CommandBuffer.EmplaceCommand<FDeferredCommand>([&Actor, bEnabled](UMassEntitySubsystem&)
+		{
+			Actor.SetActorEnableCollision(bEnabled);
+		});
+	}
+}
+
+void UMassRepresentationActorManagement::TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer) const
+{
+	if (!Actor.GetTransform().Equals(Transform))
+	{
+		CommandBuffer.EmplaceCommand<FDeferredCommand>([&Actor, Transform](UMassEntitySubsystem&)
+		{
+			Actor.SetActorTransform(Transform, /*bSweep*/false, /*OutSweepHitResult*/nullptr, ETeleportType::TeleportPhysics);
+		});
+	}
+}
+
+void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
+{
+	check(EntitySubsystem);
+
+	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
+	const FMassEntityView EntityView(*EntitySubsystem, MassActorSpawnRequest.MassAgent);
+	FDataFragment_Actor& ActorInfo = EntityView.GetFragmentData<FDataFragment_Actor>();
+	FMassRepresentationFragment& Representation = EntityView.GetFragmentData<FMassRepresentationFragment>();
+	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+	check(RepresentationSubsystem);
+
+	// Release any existing actor
+	if (AActor* Actor = ActorInfo.GetMutable())
+	{
+		checkf(ActorInfo.IsOwnedByMass(), TEXT("If we reach here, we expect the actor to be owned by mass, otherwise we should not be spawning a new one one top of this one."));
+
+		// WARNING!
+		// Need to reset before ReleaseTemplateActor as this action might move the entity to a new archetype and
+		// so the Fragment passed in parameters would not be valid anymore.
+		ActorInfo.ResetAndUpdateHandleMap();
+
+		if (!RepresentationSubsystem->ReleaseTemplateActor(MassActorSpawnRequest.MassAgent, Representation.HighResTemplateActorIndex, Actor, /*bImmediate*/ true))
+		{
+			if (!RepresentationSubsystem->ReleaseTemplateActor(MassActorSpawnRequest.MassAgent, Representation.LowResTemplateActorIndex, Actor, /*bImmediate*/ true))
+			{
+				checkf(false, TEXT("Expecting to be able to release spawned actor either the high res or low res one"));
+			}
+		}
+	}
+}
+
+EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
+{
+	check(EntitySubsystem);
+
+	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
+	checkf(MassActorSpawnRequest.SpawnedActor, TEXT("Expecting valid spawned actor"));
+
+	// Might be already done if the actor has a MassAgentComponent via the callback OnMassAgentComponentEntityAssociated on the MassRepresentationSubsystem
+	FDataFragment_Actor& ActorInfo = EntitySubsystem->GetFragmentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent);
+	if (ActorInfo.IsValid())
+	{
+		// If already set, make sure it is pointing to the same actor.
+		checkf(ActorInfo.Get() == MassActorSpawnRequest.SpawnedActor, TEXT("Expecting the pointer to the spawned actor in the actor fragment"));
+	}
+	else
+	{
+		ActorInfo.SetAndUpdateHandleMap(MassActorSpawnRequest.MassAgent, MassActorSpawnRequest.SpawnedActor, true/*bIsOwnedByMass*/);
+	}
+
+	return EMassActorSpawnRequestAction::Keep;
+}
+
+void UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent)
+{
+	FMassEntityView EntityView(EntitySubsystem, MassAgent);
+	FDataFragment_Actor& ActorInfo = EntityView.GetFragmentData<FDataFragment_Actor>();
+	FMassRepresentationFragment& Representation = EntityView.GetFragmentData<FMassRepresentationFragment>();
+	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+	check(RepresentationSubsystem);
+	ReleaseAnyActorOrCancelAnySpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation);
+}
+
+void UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation)
+{
+	// This method can only release owned by mass actors
+	AActor* Actor = ActorInfo.GetOwnedByMassMutable();
+	if (Actor)
+	{
+		// WARNING!
+		// Need to reset before ReleaseTemplateActorOrCancelSpawning as this action might move the entity to a new archetype and
+		// so the Fragment passed in parameters would not be valid anymore.
+		ActorInfo.ResetAndUpdateHandleMap();
+	}
+	// Try releasing both as we can have a low res actor and a high res spawning request
+	RepresentationSubsystem.ReleaseTemplateActorOrCancelSpawning(MassAgent, Representation.HighResTemplateActorIndex, Actor, Representation.ActorSpawnRequestHandle);
+	if (Representation.LowResTemplateActorIndex != Representation.HighResTemplateActorIndex)
+	{
+		RepresentationSubsystem.ReleaseTemplateActorOrCancelSpawning(MassAgent, Representation.LowResTemplateActorIndex, Actor, Representation.ActorSpawnRequestHandle);
+	}
+	check(!Representation.ActorSpawnRequestHandle.IsValid());
+}

@@ -5,12 +5,13 @@
 #include "MassRepresentationSubsystem.h"
 #include "MassCommonFragments.h"
 #include "MassRepresentationFragments.h"
-#include "MassRepresentationProcessor.h"
+#include "MassRepresentationActorManagement.h"
 #include "Engine/World.h"
 
 UMassVisualizationTrait::UMassVisualizationTrait()
 {
 	RepresentationSubsystemClass = UMassRepresentationSubsystem::StaticClass();
+	RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -31,13 +32,29 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	check(EntitySubsystem);
 
 	UMassRepresentationSubsystem* RepresentationSubsystem = Cast<UMassRepresentationSubsystem>(World.GetSubsystemBase(RepresentationSubsystemClass));
-	check(RepresentationSubsystem);
+	if (RepresentationSubsystem == nullptr)
+	{
+		UE_LOG(LogMassRepresentation, Error, TEXT("Expecting a valid class for the representation subsystem"));
+		RepresentationSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(&World);
+		check(RepresentationSubsystem);
+	}
 
 	FMassRepresentationSubsystemFragment Subsystem;
 	Subsystem.RepresentationSubsystem = RepresentationSubsystem;
 	uint32 SubsystemHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Subsystem));
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
+
+	FMassRepresentationConfig Config;
+	Config.RepresentationActorManagement = RepresentationActorManagementClass.GetDefaultObject();
+	if (Config.RepresentationActorManagement == nullptr)
+	{
+		UE_LOG(LogMassRepresentation, Error, TEXT("Expecting a valid class for the representation actor management"));
+		Config.RepresentationActorManagement = UMassRepresentationActorManagement::StaticClass()->GetDefaultObject<UMassRepresentationActorManagement>();
+	}
+	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
+	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationConfig>(ConfigHash, Config);
+	BuildContext.AddConstSharedFragment(ConfigFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
 	RepresentationFragment.StaticMeshDescIndex = RepresentationSubsystem->FindOrAddStaticMeshDesc(StaticMeshInstanceDesc);

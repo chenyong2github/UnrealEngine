@@ -11,6 +11,7 @@
 #include "MassRepresentationFragments.generated.h"
 
 class UMassRepresentationSubsystem;
+class UMassRepresentationActorManagement;
 
 USTRUCT()
 struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragment
@@ -58,5 +59,14 @@ struct FMassRepresentationSubsystemFragment : public FMassSharedFragment
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	UMassRepresentationSubsystem* RepresentationSubsystem = nullptr;
+	UMassRepresentationSubsystem* RepresentationSubsystem;
+};
+
+USTRUCT()
+struct FMassRepresentationConfig : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	UMassRepresentationActorManagement* RepresentationActorManagement;
 };

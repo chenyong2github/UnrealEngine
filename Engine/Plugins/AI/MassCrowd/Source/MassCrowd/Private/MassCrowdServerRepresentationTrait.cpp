@@ -6,6 +6,7 @@
 #include "MassCommonFragments.h"
 #include "MassRepresentationFragments.h"
 #include "Engine/World.h"
+#include "MassCrowdRepresentationActorManagement.h"
 
 void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
@@ -31,6 +32,12 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 	uint32 SubsystemHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Subsystem));
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
+
+	FMassRepresentationConfig Config;
+	Config.RepresentationActorManagement = UMassCrowdRepresentationActorManagement::StaticClass()->GetDefaultObject<UMassCrowdRepresentationActorManagement>();
+	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
+	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationConfig>(ConfigHash, Config);
+	BuildContext.AddConstSharedFragment(ConfigFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
 	RepresentationFragment.StaticMeshDescIndex = INDEX_NONE;

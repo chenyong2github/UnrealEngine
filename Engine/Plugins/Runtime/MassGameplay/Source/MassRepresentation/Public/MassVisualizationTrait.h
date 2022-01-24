@@ -8,6 +8,7 @@
 #include "MassVisualizationTrait.generated.h"
 
 class UMassRepresentationSubsystem;
+class UMassRepresentationActorManagement;
 class UMassProcessor;
 
 UCLASS(meta=(DisplayName="Visualization"))
@@ -34,8 +35,12 @@ protected:
 	TSubclassOf<AActor> LowResTemplateActor;
 
 	/** Allow subclasses to override the representation subsystem to use */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
+
+	/** Allow subclasses to override the representation actor management behavior */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	TSubclassOf<UMassRepresentationActorManagement> RepresentationActorManagementClass;
 
 	// @todo the following property will be cut once new de/initializers are in
 	/** Allow subclasses to override the representation fragment deinitializer */

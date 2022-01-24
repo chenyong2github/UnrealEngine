@@ -27,6 +27,13 @@ enum class ERepresentationType : uint8
 	None,
 };
 
+enum class EActorEnabledType : uint8
+{
+	Disabled,
+	LowRes,
+	HighRes,
+};
+
 USTRUCT()
 struct FStaticMeshInstanceVisualizationMeshDesc
 {

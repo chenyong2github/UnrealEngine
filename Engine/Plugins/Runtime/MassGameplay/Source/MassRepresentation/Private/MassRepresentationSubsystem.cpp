@@ -13,7 +13,7 @@
 #include "MassAgentSubsystem.h"
 #include "MassEntitySubsystem.h"
 #include "MassRepresentationFragments.h"
-#include "MassRepresentationProcessor.h"
+#include "MassRepresentationActorManagement.h"
 #include "MassEntityView.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
@@ -379,7 +379,7 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityAssociated(const UM
 		// Check if this mass agent already handled by this sub system, if yes than release any local spawned actor or cancel any spawn requests
 		if (HandledMassAgents.Find(MassAgent))
 		{
-			UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(*EntitySubsystem, MassAgent);
+			UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(*EntitySubsystem, MassAgent);
 		}
 	}
 }

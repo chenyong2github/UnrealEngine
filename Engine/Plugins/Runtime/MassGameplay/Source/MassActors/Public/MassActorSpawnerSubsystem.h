@@ -31,7 +31,7 @@ typedef FIndexedHandleManager<FMassActorSpawnRequestHandle, true/*bOptimizeHandl
 
 
 DECLARE_DELEGATE_TwoParams(FMassActorPreSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
-enum EMassActorSpawnRequestAction
+enum class EMassActorSpawnRequestAction : uint8
 {
 	Keep, // Will leave spawning request in the queue and it will be users job to call RemoveActorSpawnRequest
 	Remove, // Will remove the spawning request from the queue once the callback ends

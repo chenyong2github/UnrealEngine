@@ -28,41 +28,4 @@ protected:
 
 	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
-
-	/**
-	 * Enable/disable a spawned actor
-	 * @param EnabledType is the type of enabling to do on this actor
-	 * @param Actor is the actual actor to perform enabling type on
-	 * @param EntityIdx is the entity index currently processing
-	 * @param Context is the current Mass execution context
-	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) override;
-
-	/** 
-	 * Returns an actor of the template type and setup fragments values from it
-	 * @param RepresentationSubsystem to use to get or spawn the actor
-	 * @param MassAgent is the handle to the associated mass agent
-	 * @param ActorInfo is the fragment where we are going to store the actor pointer
-	 * @param Transform is the spatial information about where to spawn the actor 
-	 * @param TemplateActorIndex is the index of the type fetched with UMassRepresentationSubsystem::FindOrAddTemplateActor()
-	 * @param SpawnRequestHandle (in/out) In: previously requested spawn Out: newly requested spawn
-	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
-	 * @param Context of the execution from the entity sub system
-	 * @return the actor spawned
-	 */
-	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority);
-
-	/**
-	 * Teleports the actor at the specified transform by preserving its velocity and without collision.
-	 * The destination will be adjusted to fit an existing capsule.
-	 * @param Transform is the new actor's transform 
-	 * @param Actor is the actual actor to teleport
-	 * @param Context is the current Mass execution context
-	 */
-	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer) override;
-
-	/** 
-	 * A dedicated query for processing entities owning a FDataFragment_CharacterMovementComponentWrapper
-	 */
-	FMassEntityQuery CharacterMovementEntitiesQuery_Conditional;
 };
