@@ -130,11 +130,10 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 			if (RestorationInfo.ShouldSerializeFoliageType(FoliageInfoData))
 			{
 				FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
-				if (FoliageInfo)
+				if (FoliageInfo
+					&& ensureAlwaysMsgf(FoliageInfoData.GetComponentName(), TEXT("ComponentName is supposed to have been saved. Investigate. Maybe you used an unsupported foliage type (only EFoliageImplType::StaticMesh is supported)?")))
 				{
-					checkf(FoliageInfoData.GetComponentName(), TEXT("Did you enable support for non static mesh foliage?"));
 					HandleExistingFoliageUsingRequiredComponent(FoliageActor, *FoliageInfoData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
-
 					FoliageInfoData.ApplyTo(*FoliageInfo, VersionInfo);
 				}
 			}
@@ -165,9 +164,9 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 			if (RestorationInfo.ShouldSerializeFoliageType(InstanceData))
 			{
 				FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
-				if (FoliageInfo)
+				if (FoliageInfo
+					&& ensureAlwaysMsgf(InstanceData.GetComponentName(), TEXT("ComponentName is supposed to have been saved. Investigate. Maybe you used an unsupported foliage type (only EFoliageImplType::StaticMesh is supported)?")))
 				{
-					checkf(InstanceData.GetComponentName(), TEXT("Did you enable support for non static mesh foliage?"));
 					HandleExistingFoliageUsingRequiredComponent(FoliageActor, *InstanceData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
 
 					InstanceData.ApplyTo(FoliageType, VersionInfo);
