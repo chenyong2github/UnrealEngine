@@ -253,6 +253,9 @@ namespace UnrealBuildTool
 			}
 
 			HoloLensExports.InitWindowsSdkToolPath(Target.HoloLensPlatform.Win10SDKVersion.ToString());
+
+			// ISPC currently doesn't support Windows-AArch64
+			Target.bCompileISPC = false;
 		}
 
 		/// <summary>
