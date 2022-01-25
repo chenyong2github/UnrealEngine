@@ -2,6 +2,7 @@
 
 #include "GeometryCacheAbcFileSceneProxy.h"
 #include "GeometryCacheAbcFileComponent.h"
+#include "GeometryCacheHelpers.h"
 #include "GeometryCacheTrackAbcFile.h"
 
 FGeometryCacheAbcFileSceneProxy::FGeometryCacheAbcFileSceneProxy(UGeometryCacheAbcFileComponent* Component)
@@ -35,7 +36,10 @@ bool FGeomCacheTrackAbcFileProxy::GetMeshData(int32 SampleIndex, FGeometryCacheM
 
 bool FGeomCacheTrackAbcFileProxy::IsTopologyCompatible(int32 SampleIndexA, int32 SampleIndexB)
 {
-	// No support for interpolation for now (assume the topology is variable)
+	if (UGeometryCacheTrackAbcFile* AbcTrack = Cast<UGeometryCacheTrackAbcFile>(Track))
+	{
+		return AbcTrack->IsTopologyCompatible(SampleIndexA, SampleIndexB);
+	}
 	return false;
 }
 
@@ -53,7 +57,16 @@ void FGeomCacheTrackAbcFileProxy::FindSampleIndexesFromTime(float Time, bool bLo
 		int32 LastFrameIndex = AbcTrack->GetEndFrameIndex();
 		OutFrameIndex = ThisFrameIndex;
 		OutNextFrameIndex = OutFrameIndex + 1;
-		InInterpolationFactor = 0.f;
+
+		float AdjustedTime = Time;
+		if (bLooping)
+		{
+			AdjustedTime = GeometyCacheHelpers::WrapAnimationTime(Time, AbcTrack->GetDuration());
+		}
+
+		// Time at ThisFrameIndex with index normalized to 0
+		const float FrameIndexTime = (ThisFrameIndex - AbcTrack->GetAbcFile().GetStartFrameIndex()) * AbcTrack->GetAbcFile().GetSecondsPerFrame();
+		InInterpolationFactor = (AdjustedTime - FrameIndexTime) / AbcTrack->GetAbcFile().GetSecondsPerFrame();
 
 		// If playing backwards the logical order of previous and next is reversed
 		if (bIsPlayingBackwards)

@@ -62,7 +62,8 @@ namespace UE::GeometryCacheTrackAbcFile::Private
 }
 
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
-: EndFrameIndex(0)
+: StartFrameIndex(0)
+, EndFrameIndex(0)
 {
 }
 
@@ -171,6 +172,12 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			return false;
 		}
 
+		// Automatically set the FrameEnd the same way as it's computed in FAbcImporter::GetEndFrameIndex when importing as GeometryCache to have same duration
+		if (AbcSettings->SamplingSettings.FrameEnd == 0)
+		{
+			AbcSettings->SamplingSettings.FrameEnd = FMath::Max(AbcFile->GetMaxFrameIndex() - 1, 1);
+		}
+
 		Result = AbcFile->Import(AbcSettings);
 
 		// The hash is composed of the Alembic file hash and the settings hash used to import it
@@ -187,7 +194,8 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 		FString SettingsHash = UE::GeometryCacheTrackAbcFile::Private::ComputeSettingsHash(AbcSettings);
 		Hash = AbcHash + TEXT("_") + SettingsHash;
 
-		// Set the end frame after import since it might have been modified due to validation at import
+		// Set the start/end frame after import since it might have been modified due to validation at import
+		StartFrameIndex = AbcSettings->SamplingSettings.FrameStart;
 		EndFrameIndex = AbcSettings->SamplingSettings.FrameEnd;
 
 		if (Result != EAbcImportError::AbcImportError_NoError)
@@ -257,24 +265,59 @@ const int32 UGeometryCacheTrackAbcFile::FindSampleIndexFromTime(const float Time
 
 const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(float Time, bool bLooping)
 {
-	float SampleTime = Time;
-	if (bLooping)
+	if (SampleInfos.Num() == 0)
 	{
-		SampleTime = GeometyCacheHelpers::WrapAnimationTime(Time, Duration);
+		if (EndFrameIndex > StartFrameIndex)
+		{
+			// +1 because the SampleInfo for EndFrameIndex is also needed
+			SampleInfos.SetNum(EndFrameIndex - StartFrameIndex + 1);
+		}
+		else
+		{
+			return FGeometryCacheTrackSampleInfo::EmptySampleInfo;
+		}
 	}
 
-	// Update the mesh data as required
-	int32 ThisSampleIndex = FindSampleIndexFromTime(SampleTime, bLooping);
-	GetMeshData(ThisSampleIndex, MeshData);
+	// The sample info index must start from 0, while the sample index is between the range of the animation
+	const int32 SampleIndex = FindSampleIndexFromTime(Time, bLooping);
+	const int32 SampleInfoIndex = SampleIndex - StartFrameIndex;
 
-	SampleInfo = FGeometryCacheTrackSampleInfo(
-		SampleTime,
-		(FBox)MeshData.BoundingBox,
-		MeshData.Positions.Num(),
-		MeshData.Indices.Num()
-	);
+	FGeometryCacheTrackSampleInfo& CurrentSampleInfo = SampleInfos[SampleInfoIndex];
 
-	return SampleInfo;
+	if (CurrentSampleInfo.SampleTime == 0.0f && CurrentSampleInfo.NumVertices == 0 && CurrentSampleInfo.NumIndices == 0)
+	{
+		if (GetMeshData(SampleIndex, MeshData))
+		{
+			CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
+				Time,
+				(FBox) MeshData.BoundingBox,
+				MeshData.Positions.Num(),
+				MeshData.Indices.Num()
+			);
+		}
+	}
+
+	return CurrentSampleInfo;
+}
+
+const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(int32 FrameIndex)
+{
+	if (AbcFile)
+	{
+		// FrameIndex is normalized to 0
+		return GetSampleInfo((FrameIndex - StartFrameIndex) * AbcFile->GetSecondsPerFrame(), false);
+	}
+	return FGeometryCacheTrackSampleInfo::EmptySampleInfo;
+}
+
+bool UGeometryCacheTrackAbcFile::IsTopologyCompatible(int32 FrameA, int32 FrameB)
+{
+	// FrameA/B could be -1, meaning invalid frame
+	if (SampleInfos.Num() > 0 && FrameA >= 0 && FrameB >= 0)
+	{
+		return GetSampleInfo(FrameA).NumVertices == GetSampleInfo(FrameB).NumVertices;
+	}
+	return false;
 }
 
 bool UGeometryCacheTrackAbcFile::GetMeshDataAtTime(float Time, FGeometryCacheMeshData& OutMeshData)

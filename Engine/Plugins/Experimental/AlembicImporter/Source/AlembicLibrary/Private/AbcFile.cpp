@@ -641,7 +641,7 @@ int32 FAbcFile::GetFrameIndex(float Time)
 {
 	if (SecondsPerFrame > 0.f)
 	{
-		int32 FrameIndex = StartFrameIndex + FMath::RoundToInt(Time / SecondsPerFrame);
+		int32 FrameIndex = StartFrameIndex + FMath::FloorToInt(Time / SecondsPerFrame);
 		return FMath::Clamp(FrameIndex, StartFrameIndex, EndFrameIndex);
 	}
 	return 0;

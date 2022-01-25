@@ -45,17 +45,22 @@ public:
 
 	const FString& GetAbcTrackHash() const { return Hash; }
 
+	bool IsTopologyCompatible(int32 FrameA, int32 FrameB);
+
 private:
+	const FGeometryCacheTrackSampleInfo& GetSampleInfo(int32 FrameIndex);
+
 	void Reset();
 	void ShowNotification(const FText& Text);
 
 private:
 	FGeometryCacheMeshData MeshData;
-	FGeometryCacheTrackSampleInfo SampleInfo;
+	TArray<FGeometryCacheTrackSampleInfo> SampleInfos;
 	TUniquePtr<FAbcFile> AbcFile;
 	FString SourceFile;
 	FString Hash;
 
+	int32 StartFrameIndex;
 	int32 EndFrameIndex;
 
 	TUniquePtr<FGeometryCacheAbcStream> AbcStream;

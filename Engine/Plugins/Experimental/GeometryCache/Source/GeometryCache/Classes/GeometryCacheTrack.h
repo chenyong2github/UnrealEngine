@@ -168,7 +168,7 @@ struct GEOMETRYCACHE_API FGeometryCacheTrackSampleInfo
 	int32 NumVertices;
 	int32 NumIndices;
 
-	FGeometryCacheTrackSampleInfo() : SampleTime(0.0f), NumVertices(0), NumIndices(0) {}
+	FGeometryCacheTrackSampleInfo() : SampleTime(0.0f), BoundingBox(EForceInit::ForceInit), NumVertices(0), NumIndices(0) {}
 
 	FGeometryCacheTrackSampleInfo(float SetSampleTime, FBox SetBoundingBox, int32 SetNumVertices, int32 SetNumIndices) :
 		SampleTime(SetSampleTime), BoundingBox(SetBoundingBox), NumVertices(SetNumVertices), NumIndices(SetNumIndices) {}
