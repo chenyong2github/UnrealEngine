@@ -764,21 +764,43 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			UE_LOG(TraceInsights, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
 
 			TSet<FName> Categories;
-			LogProvider.EnumerateCategories([&Categories](const TraceServices::FLogCategoryInfo& Category)
+			TMap<FName, int32> DuplicatedCategories;
+			LogProvider.EnumerateCategories([&Categories, &DuplicatedCategories](const TraceServices::FLogCategoryInfo& Category)
 			{
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))
 				{
 					CategoryStr.RightChopInline(3, false);
 				}
-				if (Categories.Contains(FName(*CategoryStr)))
+				FName CategoryName(CategoryStr);
+				if (Categories.Contains(CategoryName))
 				{
-					UE_LOG(TraceInsights, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
+					int32* CountPtr = DuplicatedCategories.Find(CategoryName);
+					if (CountPtr)
+					{
+						++(*CountPtr);
+					}
+					else
+					{
+						DuplicatedCategories.Add(CategoryName, 1);
+					}
 				}
-				Categories.Add(FName(*CategoryStr));
+				else
+				{
+					Categories.Add(CategoryName);
+				}
 			});
 			Filter.SyncAvailableCategories(Categories);
-			UE_LOG(TraceInsights, Log, TEXT("[LogView] Unique Log Categories: %d"), Filter.GetAvailableLogCategories().Num());
+			const int32 NumAvailableLogCategories = Filter.GetAvailableLogCategories().Num();
+			if (DuplicatedCategories.Num() > 0)
+			{
+				UE_LOG(TraceInsights, Warning, TEXT("[LogView] Duplicated Log Categories: %d (+%dx)"), DuplicatedCategories.Num(), TotalNumCategories - NumAvailableLogCategories);
+				for (const auto& KV : DuplicatedCategories)
+				{
+					UE_LOG(TraceInsights, Log, TEXT("[LogView]    \"%s\" (+%dx)"), *KV.Key.GetPlainNameString(), KV.Value);
+				}
+			}
+			UE_LOG(TraceInsights, Log, TEXT("[LogView] Unique Log Categories: %d"), NumAvailableLogCategories);
 
 			//Cache.Reset();
 			Messages.Reset();

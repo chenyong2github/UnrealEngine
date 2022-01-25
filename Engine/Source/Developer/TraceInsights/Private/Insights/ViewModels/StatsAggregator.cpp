@@ -92,14 +92,29 @@ void FStatsAggregator::Start()
 			OperationCount = 0;
 		}
 
-		UE_LOG(TimingProfiler, Log, TEXT("[%s] Request async aggregation (op %d)..."), *LogName, OperationCount + 1);
+		UE_LOG(TimingProfiler, Log, TEXT("[%s] Request async aggregation (op %d) [%fs to %fs] (%fs)..."),
+			*LogName, OperationCount + 1, IntervalStartTime, IntervalEndTime, IntervalEndTime - IntervalStartTime);
 		bIsStartRequested = true;
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FStatsAggregator::Tick(TSharedPtr<const TraceServices::IAnalysisSession> InSession, const double InCurrentTime, const float InDeltaTime, TFunctionRef<void()> OnFinishedCallback)
+void FStatsAggregator::Cancel()
+{
+	if (AsyncTask)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("[%s] Cancel requested for async aggregation (op %d)..."), *LogName, OperationCount);
+		bIsCancelRequested = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FStatsAggregator::Tick(TSharedPtr<const TraceServices::IAnalysisSession> InSession,
+							const double InCurrentTime,
+							const float InDeltaTime,
+							TFunctionRef<void()> OnFinishedCallback)
 {
 	if (AsyncTask && AsyncTask->IsDone())
 	{
@@ -141,8 +156,12 @@ void FStatsAggregator::Tick(TSharedPtr<const TraceServices::IAnalysisSession> In
 	{
 		if (AsyncTask)
 		{
-			// Cancel and wait for the previous async task to finish.
-			bIsCancelRequested = true;
+			if (!bIsCancelRequested)
+			{
+				// Cancel and wait for the previous async task to finish.
+				UE_LOG(TimingProfiler, Log, TEXT("[%s] Cancel previous async aggregation (op %d)..."), *LogName, OperationCount);
+				bIsCancelRequested = true;
+			}
 		}
 		else
 		{

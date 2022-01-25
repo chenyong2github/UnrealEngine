@@ -1738,11 +1738,13 @@ void STimingView::AddTrack(TSharedPtr<FBaseTimingTrack> Track, ETimingTrackLocat
 		return;
 	}
 
+#if 0
 	UE_LOG(TimingProfiler, Log, TEXT("New %s Track (%d) : %s (\"%s\")"),
 		LocationName,
 		TrackList.Num() + 1,
 		*Track->GetTypeName().ToString(),
 		*Track->GetName());
+#endif
 
 	ensure(Track->GetLocation() == ETimingTrackLocation::None);
 	Track->SetLocation(Location);
@@ -1785,11 +1787,13 @@ bool STimingView::RemoveTrack(TSharedPtr<FBaseTimingTrack> Track)
 			InvalidateScrollableTracksOrder();
 		}
 
+#if 0
 		UE_LOG(TimingProfiler, Log, TEXT("Removed %s Track (%d) : %s (\"%s\")"),
 			LocationName,
 			TrackList.Num(),
 			*Track->GetTypeName().ToString(),
 			*Track->GetName());
+#endif
 
 		return true;
 	}

@@ -66,7 +66,7 @@ public:
 	// IStatsAggregator
 
 	virtual void Start() override;
-	virtual void Cancel() override { bIsCancelRequested = true; }
+	virtual void Cancel() override;
 
 	virtual bool IsCancelRequested() const override { return bIsCancelRequested; }
 	virtual bool IsRunning() const override { return AsyncTask != nullptr; }
