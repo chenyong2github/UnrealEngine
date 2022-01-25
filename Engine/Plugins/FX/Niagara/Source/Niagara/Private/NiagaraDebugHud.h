@@ -268,7 +268,7 @@ private:
 #endif
 
 #if WITH_NIAGARA_GPU_PROFILER
-	FDelegateHandle				GpuProfilerDelegateHandle;
+	FNiagaraGpuProfilerListener	GpuProfilerListener;
 	FNiagaraGpuFrameResultsPtr	GpuResults;
 	uint64						GpuResultsGameFrameCounter = 0;
 

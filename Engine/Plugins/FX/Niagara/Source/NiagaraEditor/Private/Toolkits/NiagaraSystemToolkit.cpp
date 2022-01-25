@@ -89,7 +89,6 @@ const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_Scr
 const FName FNiagaraSystemToolkit::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
 const FName FNiagaraSystemToolkit::BakerTabID(TEXT("NiagaraSystemEditor_Baker"));
 IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
-IConsoleVariable* FNiagaraSystemToolkit::GpuStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
 static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
@@ -474,8 +473,11 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	bChangesDiscarded = false;
 	bScratchPadChangesDiscarded = false;
 
-
 	GEditor->RegisterForUndo(this);
+
+#if WITH_NIAGARA_GPU_PROFILER
+	GpuProfilerListener.Reset(new FNiagaraGpuProfilerListener);
+#endif
 }
 
 FName FNiagaraSystemToolkit::GetToolkitFName() const
@@ -1579,15 +1581,23 @@ bool FNiagaraSystemToolkit::IsStatPerformanceChecked()
 
 void FNiagaraSystemToolkit::ToggleStatPerformanceGPU()
 {
-	if (GpuStatEnabledVar)
+#if WITH_NIAGARA_GPU_PROFILER
+	if (GpuProfilerListener)
 	{
-		GpuStatEnabledVar->Set(!IsStatPerformanceGPUChecked());
+		GpuProfilerListener->SetEnabled(!GpuProfilerListener->IsEnabled());
 	}
+#endif
 }
 
 bool FNiagaraSystemToolkit::IsStatPerformanceGPUChecked()
 {
-	return GpuStatEnabledVar ? GpuStatEnabledVar->GetBool() : false;
+#if WITH_NIAGARA_GPU_PROFILER
+	if (GpuProfilerListener)
+	{
+		return GpuProfilerListener->IsEnabled();
+	}
+#endif
+	return false;
 }
 
 void FNiagaraSystemToolkit::UpdateOriginalEmitter()

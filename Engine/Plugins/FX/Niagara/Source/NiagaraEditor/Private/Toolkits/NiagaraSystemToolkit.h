@@ -233,7 +233,10 @@ private:
 	bool bScratchPadChangesDiscarded;
 
 	static IConsoleVariable* VmStatEnabledVar;
-	static IConsoleVariable* GpuStatEnabledVar;
+
+#if WITH_NIAGARA_GPU_PROFILER
+	TUniquePtr<struct FNiagaraGpuProfilerListener> GpuProfilerListener;
+#endif
 
 public:
 	static const FName ViewportTabID;

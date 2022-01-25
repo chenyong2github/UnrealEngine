@@ -12,6 +12,42 @@
 #if WITH_NIAGARA_GPU_PROFILER
 
 //////////////////////////////////////////////////////////////////////////
+
+FNiagaraGpuProfilerListener::FNiagaraGpuProfilerListener()
+{
+}
+
+FNiagaraGpuProfilerListener::~FNiagaraGpuProfilerListener()
+{
+	check(IsInGameThread());
+	SetEnabled(false);
+	SetHandler(nullptr);
+}
+
+void FNiagaraGpuProfilerListener::SetEnabled(bool bInEnabled)
+{
+	check(IsInGameThread());
+	if ( bEnabled != bInEnabled)
+	{
+		bEnabled = bInEnabled;
+		FNiagaraGPUProfilerInterface::NumReaders.fetch_add(bEnabled ? 1 : -1);
+	}
+}
+
+void FNiagaraGpuProfilerListener::SetHandler(TFunction<void(const FNiagaraGpuFrameResultsPtr&)> Function)
+{
+	check(IsInGameThread());
+	if (GameThreadHandler.IsValid())
+	{
+		FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().Remove(GameThreadHandler);
+	}
+	if ( Function )
+	{
+		GameThreadHandler = FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().AddLambda(Function);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FName StageName)
 	: RHICmdList(InRHICmdList)
 	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(ComputeDispatchInterface->GetGPUProfiler()))
@@ -138,6 +174,7 @@ void SetResultsForEditorStats(const FNiagaraGpuFrameResultsPtr& FrameResults)
 
 //////////////////////////////////////////////////////////////////////////
 
+std::atomic<int> FNiagaraGPUProfilerInterface::NumReaders(0);
 FNiagaraGPUProfilerInterface::FOnFrameResults FNiagaraGPUProfilerInterface::OnFrameResults_GameThread;
 FNiagaraGPUProfilerInterface::FOnFrameResults FNiagaraGPUProfilerInterface::OnFrameResults_RenderThread;
 

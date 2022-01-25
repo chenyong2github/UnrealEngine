@@ -6,11 +6,11 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/StringBuilder.h"
 
-int32 GNiagaraGpuProfilingEnabled = 0;
+bool GNiagaraGpuProfilingEnabled = true;
 static FAutoConsoleVariableRef CVarNiagaraGpuProfilingEnabled(
-	TEXT("fx.NiagaraGpuProfilingEnabled"),
+	TEXT("fx.Niagara.GpuProfiling.Enabled"),
 	GNiagaraGpuProfilingEnabled,
-	TEXT("Used by the profiling tool in the system overview to enable or disable gathering of gpu stats.\n"),
+	TEXT("Master control to allow Niagara to use GPU profiling or not.\n"),
 	ECVF_Default
 );
 
@@ -57,7 +57,9 @@ void FNiagaraGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// If we are not enabled nothing to profile
-	if (!GNiagaraGpuProfilingEnabled)
+	static const auto CSVStatsEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.DetailedCSVStats"));
+	const bool bCsvCollecting = CSVStatsEnabledCVar && CSVStatsEnabledCVar->GetBool();
+	if ( !GNiagaraGpuProfilingEnabled || ((NumReaders == 0) && !bCsvCollecting) )
 	{
 		return;
 	}

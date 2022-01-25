@@ -59,9 +59,26 @@ struct FNiagaraGpuFrameResults : public TSharedFromThis<FNiagaraGpuFrameResults,
 using FNiagaraGpuFrameResultsPtr = TSharedPtr<FNiagaraGpuFrameResults, ESPMode::ThreadSafe>;
 
 //////////////////////////////////////////////////////////////////////////
+// Allows various systems to listen to profiler results
+struct NIAGARA_API FNiagaraGpuProfilerListener
+{
+	FNiagaraGpuProfilerListener();
+	~FNiagaraGpuProfilerListener();
+
+	void SetEnabled(bool bEnabled);
+	void SetHandler(TFunction<void(const FNiagaraGpuFrameResultsPtr&)> Function);
+	bool IsEnabled() const { return bEnabled; }
+
+private:
+	bool			bEnabled = false;
+	FDelegateHandle	GameThreadHandler;
+};
+
+//////////////////////////////////////////////////////////////////////////
 /** Public API to Niagara GPU Profiling. */
 class FNiagaraGPUProfilerInterface
 {
+	friend FNiagaraGpuProfilerListener;
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameResults, const FNiagaraGpuFrameResultsPtr&);
 
 public:
@@ -72,6 +89,7 @@ protected:
 	void PostResults(const FNiagaraGpuFrameResultsPtr& FrameResults);
 
 protected:
+	static std::atomic<int>	NumReaders;
 	static FOnFrameResults	OnFrameResults_GameThread;
 	static FOnFrameResults	OnFrameResults_RenderThread;
 };

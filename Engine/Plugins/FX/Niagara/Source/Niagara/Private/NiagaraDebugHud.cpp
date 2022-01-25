@@ -538,7 +538,7 @@ FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
 	}
 	++GDebugDrawHandleUsers;
 #if WITH_NIAGARA_GPU_PROFILER
-	GpuProfilerDelegateHandle = FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().AddLambda(
+	GpuProfilerListener.SetHandler(
 		[&](const FNiagaraGpuFrameResultsPtr& InGpuResults)
 		{
 			FNiagaraGpuComputeDispatchInterface* DispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(WeakWorld.Get());
@@ -640,9 +640,6 @@ FNiagaraDebugHud::~FNiagaraDebugHud()
 		UDebugDrawService::Unregister(GDebugDrawHandle);
 		GDebugDrawHandle.Reset();
 	}
-#if WITH_NIAGARA_GPU_PROFILER
-	FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().Remove(GpuProfilerDelegateHandle);
-#endif
 }
 
 void FNiagaraDebugHud::UpdateSettings(const FNiagaraDebugHUDSettingsData& NewSettings)
@@ -689,6 +686,11 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	{
 		return;
 	}
+
+#if WITH_NIAGARA_GPU_PROFILER
+	// Update Gpu capture state
+	GpuProfilerListener.SetEnabled(Settings.bOverviewEnabled && (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::GpuComputePerformance));
+#endif
 
 	// When not enabled do nothing
 	if (!Settings.IsEnabled())
@@ -1699,12 +1701,16 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 
 	if (GpuResults == nullptr)
 	{
-		static const FString EnableCVarWarning(TEXT("No GPU data ensure 'fx.NiagaraGpuProfilingEnabled' is enabled"));
+		static const auto ProfilingEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.Niagara.GpuProfiling.Enabled"));
+
+		static const FString EnableCVarWarning(TEXT("GPU Profiling is disabled, enable 'fx.Niagara.GpuProfiling.Enabled'"));
+		static const FString NoDataWarning(TEXT("No GPU data is ready"));
 
 		const FVector2D StringSize = GetStringSize(Font, *EnableCVarWarning);
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, StringSize.X + 1.0f, 2.0f + StringSize.Y, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *EnableCVarWarning, Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *(ProfilingEnabledCVar && ProfilingEnabledCVar->GetBool() ? NoDataWarning : EnableCVarWarning), Font, HeadingColor);
 		TextLocation.Y += StringSize.Y;
+		
 		return;
 	}
 
