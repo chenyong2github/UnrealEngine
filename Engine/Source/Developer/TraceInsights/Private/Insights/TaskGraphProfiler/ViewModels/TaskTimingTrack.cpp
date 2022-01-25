@@ -611,10 +611,8 @@ void FTaskTimingSharedState::OnTaskSettingsChanged()
 		return;
 	}
 
-	if (TaskTrack->GetTaskId() == TaskTrace::InvalidId)
-	{
-		FTaskGraphProfilerManager::Get()->ClearTaskRelations();
-	}
+	FTaskGraphProfilerManager::Get()->ClearTaskRelations();
+	TaskTrack->SetTaskId(TaskTrace::InvalidId);
 
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
 
