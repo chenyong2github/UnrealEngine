@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_ENABLE_VECTORINTRINSICS
+#if !WITH_DIRECTXMATH && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON && !(defined(__cplusplus_cli) && !PLATFORM_HOLOLENS) && PLATFORM_ENABLE_VECTORINTRINSICS
 
 struct VectorRegisterConstInit {};
 
