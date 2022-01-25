@@ -100,8 +100,8 @@ public:
 	 * A pixel streaming stat has changed
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FPixelStreamerStatChanged, FPixelStreamingPlayerId, FName, float)
-	FPixelStreamerStatChanged OnPixelStreamerStatChangedNative;
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FStatChanged, FPixelStreamingPlayerId, FName, float)
+	FStatChanged OnStatChangedNative;
 
 	/**
 	 * Create the singleton.

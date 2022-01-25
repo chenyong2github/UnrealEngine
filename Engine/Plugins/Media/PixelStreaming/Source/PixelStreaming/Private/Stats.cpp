@@ -111,7 +111,7 @@ void UE::PixelStreaming::FStats::FireStatChanged_GameThread(FPixelStreamingPlaye
 
 	if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 	{
-		Delegates->OnPixelStreamerStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
+		Delegates->OnStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
 	}
 }
 

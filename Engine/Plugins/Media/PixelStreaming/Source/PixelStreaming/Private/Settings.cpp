@@ -407,7 +407,7 @@ namespace UE::PixelStreaming::Settings
 		UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates();
 		if (bLogStats && Delegates)
 		{
-			Delegates->OnPixelStreamerStatChangedNative.AddStatic(&UE::PixelStreaming::Settings::ConsumeStat);
+			Delegates->OnStatChangedNative.AddStatic(&UE::PixelStreaming::Settings::ConsumeStat);
 		}
 	}
 
