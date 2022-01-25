@@ -471,7 +471,7 @@ private:
 		const TSharedPtr<FNewLevelTemplateItem> Template = Items[0];
 		if (Template->Type == FNewLevelTemplateItem::NewLevelType::Template)
 		{
-			OutTemplateMapPackageName = Template->TemplateMapInfo.Map.ToString();
+			OutTemplateMapPackageName = Template->TemplateMapInfo.Map.GetLongPackageName();
 		}
 		else if (Template->Type == FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition)
 		{
