@@ -604,7 +604,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	check(PerInstanceRenderData.IsValid());
 
 #if WITH_EDITOR
-	const bool bSupportInstancePicking = SMInstanceElementDataUtil::SMInstanceElementsEnabled();
+	const bool bSupportInstancePicking = Component->bHasPerInstanceHitProxies && SMInstanceElementDataUtil::SMInstanceElementsEnabled();
 	HitProxyMode = bSupportInstancePicking ? EHitProxyMode::PerInstance : EHitProxyMode::MaterialSection;
 
 	if (HitProxyMode == EHitProxyMode::PerInstance)
