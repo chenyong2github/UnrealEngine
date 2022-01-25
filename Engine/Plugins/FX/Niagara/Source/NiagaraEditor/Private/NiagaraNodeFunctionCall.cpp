@@ -616,7 +616,7 @@ void UNiagaraNodeFunctionCall::UpdateInputNameBinding(const FGuid& BoundVariable
 
 FText UNiagaraNodeFunctionCall::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	FString DetectedName = FunctionScript ? FunctionScript->GetName() : Signature.GetName();
+	FString DetectedName = FunctionScript ? FunctionScript->GetName() : Signature.GetNameString();
 	if (DetectedName.IsEmpty())
 	{
 		return FText::FromString(TEXT("Missing ( Was\"") + FunctionDisplayName + TEXT("\")"));
@@ -1579,7 +1579,7 @@ void UNiagaraNodeFunctionCall::AutowireNewNode(UEdGraphPin* FromPin)
 
 void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName, bool bForceSuggestion)
 {
-	FString FunctionName = FunctionScript ? FunctionScript->GetName() : Signature.GetName();
+	FString FunctionName = FunctionScript ? FunctionScript->GetName() : Signature.GetNameString();
 	FName ProposedName;
 	if (SuggestedName.IsEmpty() == false)
 	{ 

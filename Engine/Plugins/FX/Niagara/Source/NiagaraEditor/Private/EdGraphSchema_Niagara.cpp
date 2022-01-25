@@ -697,7 +697,7 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 					continue;
 
 				UNiagaraNodeFunctionCall* FuncNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
-				AddNewNodeMenuAction(NewActions, FuncNode, FText::FromString(Sig.GetName()), ENiagaraMenuSections::General, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
+				AddNewNodeMenuAction(NewActions, FuncNode, FText::FromString(FName::NameToDisplayString(Sig.GetNameString(), false)), ENiagaraMenuSections::General, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
 				FuncNode->Signature = Sig;
 			}
 		}
@@ -2003,7 +2003,7 @@ void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, c
 		if ( Prototype.Len() > 0 )
 		{
 			Prototype.Append(TEXT("\r\n"));
-			FunctionPrototypes.Emplace(FunctionSignature.GetName(), Prototype);
+			FunctionPrototypes.Emplace(FunctionSignature.GetNameString(), Prototype);
 		}
 	}
 

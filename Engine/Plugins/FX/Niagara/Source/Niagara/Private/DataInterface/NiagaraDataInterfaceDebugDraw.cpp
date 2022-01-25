@@ -2803,7 +2803,7 @@ bool UNiagaraDataInterfaceDebugDraw::UpgradeFunctionCall(FNiagaraFunctionSignatu
 		GetFunctions(Sigs);
 		for (const FNiagaraFunctionSignature& Sig : Sigs)
 		{
-			if (Sig.GetName() == FunctionSignature.GetName())
+			if (Sig.Name == FunctionSignature.Name)
 			{
 				FunctionSignature.Inputs = Sig.Inputs;
 				bWasChanged = true;

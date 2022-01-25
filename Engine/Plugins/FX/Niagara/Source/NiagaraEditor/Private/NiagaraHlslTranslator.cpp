@@ -7307,7 +7307,7 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 			SanitizedFunctionNames.Reserve(Funcs.Num());
 			for (const FNiagaraFunctionSignature& FunctionSignature : Funcs)
 			{
-				SanitizedFunctionNames.Emplace(GetSanitizedDIFunctionName(FunctionSignature.GetName()));
+				SanitizedFunctionNames.Emplace(GetSanitizedDIFunctionName(FunctionSignature.GetNameString()));
 			}
 
 			bool bPermuteSignatureByDataInterface = false;
@@ -7980,7 +7980,7 @@ void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsag
 	if (ScriptUsage == ENiagaraScriptUsage::Module)
 	{
 		bEnteredStatScope = true;
-		EnterStatsScope(FNiagaraStatScope(*GetFunctionSignatureSymbol(FunctionSignature), *(FunctionSignature.GetName())));
+		EnterStatsScope(FNiagaraStatScope(*GetFunctionSignatureSymbol(FunctionSignature), *(FunctionSignature.GetNameString())));
 	}
 
 	TArray<FString> MissingParameters;
@@ -8138,7 +8138,7 @@ void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Sig)
 {
-	FString SigStr = Sig.GetName();
+	FString SigStr = Sig.GetNameString();
 	if (!Sig.OwnerName.IsNone() && Sig.OwnerName.IsValid())
 	{
 		SigStr += TEXT("_") + Sig.OwnerName.ToString().Replace(TEXT("."), TEXT("_"));;

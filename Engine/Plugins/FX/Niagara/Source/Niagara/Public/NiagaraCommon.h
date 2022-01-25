@@ -500,7 +500,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		return bMatches;
 	}
 
-	FString GetName()const { return Name.ToString(); }
+	FString GetNameString() const { return Name.ToString(); }
 
 	void AddInput(FNiagaraVariable InputVar, FText Tooltip = FText())
 	{
