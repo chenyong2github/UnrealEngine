@@ -69,6 +69,8 @@ protected:
 	virtual UAnimGraphNode_Base* GetActiveWidgetAnimNode() const; // Return the editor node associated with the selected widget. All widget operations are performed on this node.
 	virtual FAnimNode_Base*	GetActiveWidgetRuntimeAnimNode() const; // Return the runtime node associated with the selected widget. All widget operations are performed on this node.
 
+	const bool IsManipulatingWidget() const { return bManipulating; }
+
 protected:
 
 	struct EditorRuntimeNodePair

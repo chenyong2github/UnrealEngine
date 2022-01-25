@@ -21,17 +21,21 @@ namespace AnimDynamicsNodeConstants
 {
 	const FLinearColor ShapeDrawColor = FLinearColor::White;
 	const FLinearColor ActiveBodyDrawColor = FLinearColor::Yellow;
-	const float ShapeLineWidth = 0.07f;
-	const float BodyLineWidth = 0.07f;
+	const FLinearColor LimitLineDrawColor = FLinearColor::Yellow;
+	const float LimitPlaneDrawSize = 50.0f;
+	const float ShapeLineWidth = 0.2f;
+	const float SelectedShapeLineWidth = 0.4f;
+	const float BodyLineWidth = 0.2f;
 	const float TransformLineWidth = 0.05f;
 	const float TransformBasisScale = 10.0f;
 }
 
-UCLASS()
+UCLASS(MinimalAPI)
 class UAnimGraphNode_AnimDynamics : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_AnimDynamics Node;
 
@@ -62,8 +66,6 @@ class UAnimGraphNode_AnimDynamics : public UAnimGraphNode_SkeletalControlBase
 	UPROPERTY(Transient)
 	mutable TObjectPtr<USkeletalMeshComponent> LastPreviewComponent;
 
-public:
-
 	virtual void PostLoad() override;
 
 	static FReply ResetButtonClicked(IDetailLayoutBuilder* DetailLayoutBuilder);
@@ -78,18 +80,16 @@ public:
 
 	// UAnimGraphNode_Base
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
+	virtual FEditorModeID GetEditorMode() const override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
-
+	
 	// UAnimGraphNode_SkeletalControlBase
-	virtual void Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const override;
 	virtual void GetOnScreenDebugInfo(TArray<FText>& DebugInfo, FAnimNode_Base* RuntimeAnimNode, USkeletalMeshComponent* PreviewSkelMeshComp) const override;
 
 	FAnimNode_AnimDynamics* GetPreviewDynamicsNode() const;
+	bool IsPreviewLiveActive() const { return bPreviewLive;  }
 
 protected:
-
-	// Keep a version of the current shape for rendering
-	FAnimPhysShape EditPreviewShape;
 
 	virtual FText GetControllerDescription() const override;
 

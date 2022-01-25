@@ -11,6 +11,7 @@
 #include "PropertyEditorModule.h"
 #include "AnimGraphNode_PoseDriver.h"
 #include "PoseDriverDetails.h"
+#include "EditModes/AnimDynamicsEditMode.h"
 #include "EditModes/TwoBoneIKEditMode.h"
 #include "EditModes/ObserveBoneEditMode.h"
 #include "EditModes/ModifyBoneEditMode.h"
@@ -59,6 +60,7 @@ void FAnimGraphModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature("PropertyAccessBlueprintBinding", &PropertyAccessAnimBlueprintBinding);
 
 	// Register the editor modes
+	FEditorModeRegistry::Get().RegisterMode<FAnimDynamicsEditMode>(AnimNodeEditModes::AnimDynamics, LOCTEXT("AnimDynamicsEditMode", "Anim Dynamics"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FAnimNodeEditMode>(AnimNodeEditModes::AnimNode, LOCTEXT("AnimNodeEditMode", "Anim Node"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FTwoBoneIKEditMode>(AnimNodeEditModes::TwoBoneIK, LOCTEXT("TwoBoneIKEditMode", "2-Bone IK"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FObserveBoneEditMode>(AnimNodeEditModes::ObserveBone, LOCTEXT("ObserveBoneEditMode", "Observe Bone"), FSlateIcon(), false);

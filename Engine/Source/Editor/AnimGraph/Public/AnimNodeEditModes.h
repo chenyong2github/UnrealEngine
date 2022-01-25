@@ -7,6 +7,7 @@
 
 struct ANIMGRAPH_API AnimNodeEditModes
 {
+	const static FEditorModeID AnimDynamics;
 	const static FEditorModeID AnimNode;
 	const static FEditorModeID TwoBoneIK;
 	const static FEditorModeID ObserveBone;

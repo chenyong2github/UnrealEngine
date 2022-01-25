@@ -190,6 +190,8 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// true for nodes predating this change.
 		GravityOverrideDefinedInWorldSpace,
 
+		// Anim Dynamics Node Physics parameters for each body in a chain are now stored in an array and can be edited.
+		AnimDynamicsEditableChainParameters,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

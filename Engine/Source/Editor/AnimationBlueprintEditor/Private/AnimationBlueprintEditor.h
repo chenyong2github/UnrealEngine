@@ -270,6 +270,9 @@ private:
 	/** Called post compile to copy node data */
 	void OnPostCompile();
 
+	/** Call OnNodeSelected for each selected node **/
+	void NotifyAllNodesOnSelection(const bool bInIsSelected);
+
 	/** Helper function used to keep skeletal controls in preview & instance in sync */
 	struct FAnimNode_Base* FindAnimNode(class UAnimGraphNode_Base* AnimGraphNode) const;
 

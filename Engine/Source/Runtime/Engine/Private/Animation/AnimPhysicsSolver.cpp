@@ -59,22 +59,22 @@ FAnimPhysShape::FAnimPhysShape(TArray<FVector>& InVertices, TArray<FIntVector>& 
 	CenterOfMass = FAnimPhys::CalculateCenterOfMass(Vertices, Triangles);
 }
 
-FAnimPhysShape FAnimPhysShape::MakeBox(FVector& Extents)
+FAnimPhysShape FAnimPhysShape::MakeBox(const FVector& Extents)
 {
+	FVector HalfExtents = Extents / 2.0f;
+
 	// A box of zero size will introduce NaNs into the simulation so we stomp it here and log
 	// if we encounter it.
-	if(Extents.SizeSquared() <= SMALL_NUMBER)
+	if (Extents.SizeSquared() <= SMALL_NUMBER)
 	{
 // 		UE_LOG(LogAnimation, Warning, TEXT("AnimDynamics: Attempted to create a simulation box with 0 volume, this introduces NaNs into the simulation. Adjusting box extents to (1.0f,1.0f,1.0f)"));
-		Extents = FVector(1.0f);
+		HalfExtents = FVector(0.5f);
 	}
 
 	TArray<FVector> Verts;
 	TArray<FIntVector> Tris;
 	Verts.Reserve(8);
-	Tris.Reserve(12);
-
-	FVector HalfExtents = Extents / 2.0f;
+	Tris.Reserve(12);	
 
 	// Front Verts
 	Verts.Add(FVector(-HalfExtents.X, -HalfExtents.Y, HalfExtents.Z));

@@ -83,7 +83,7 @@ struct ENGINE_API FAnimPhysShape
 	/** Makes a box with the given extents
 	 *  @param Extents Extents of the resulting box
 	 */
-	static FAnimPhysShape MakeBox(FVector& Extents);
+	static FAnimPhysShape MakeBox(const FVector& Extents);
 
 	FAnimPhysShape();
 	FAnimPhysShape(TArray<FVector>& InVertices, TArray<FIntVector>& InTriangles);

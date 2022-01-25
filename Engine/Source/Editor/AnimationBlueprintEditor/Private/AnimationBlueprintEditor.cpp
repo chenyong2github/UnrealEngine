@@ -137,6 +137,22 @@ template <typename TContainerType, typename TPredicate> void SortedContainerDiff
 	}
 }
 
+void FAnimationBlueprintEditor::NotifyAllNodesOnSelection(const bool bInIsSelected)
+{
+	FEditorModeTools& ModeTools = GetEditorModeManager();
+
+	for (TWeakObjectPtr< class UAnimGraphNode_Base > CurrentAnimGraphNode : SelectedAnimGraphNodes)
+	{
+		UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = CurrentAnimGraphNode.Get();
+		FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr);
+		
+		// Note: Potentially passing a null PreviewNode ptr when bInIsSelected is false is required to de-select nodes that no longer exist.
+		if (CurrentAnimGraphNodePtr && (!bInIsSelected || PreviewNode))
+		{
+			CurrentAnimGraphNodePtr->OnNodeSelected(bInIsSelected, ModeTools, PreviewNode);
+		}
+	}
+}
 
 /////////////////////////////////////////////////////
 // SAnimBlueprintPreviewPropertyEditor
@@ -1478,6 +1494,8 @@ void FAnimationBlueprintEditor::ClearSelectedActor()
 
 void FAnimationBlueprintEditor::ClearSelectedAnimGraphNodes()
 {
+	NotifyAllNodesOnSelection(false);
+
 	SelectedAnimGraphNodes.Empty();
 }
 
@@ -1770,15 +1788,9 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 
 			SortedContainerDifference(OldSelectionSorted, NewSelectionSorted, AddSelection, RemSelection, SortPredicate);
 		}
+		
+		NotifyAllNodesOnSelection(false); // Register de-selection with all the previously selected nodes.
 
-		// Register de-selection with all the previously selected nodes.
-		for (FSelectedNodePtr CurrentAnimGraphNode : SelectedAnimGraphNodes)
-		{
-			UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = CurrentAnimGraphNode.Get();
-			FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr);
-			// intentionally not null checking PreviewNode here, in order to deselect nodes that are no longer included in the runtime graph after recompile
-			CurrentAnimGraphNodePtr->OnNodeSelected(false, *PersonaEditorModeManager, PreviewNode);
-		}
 
 		// Remove all the nodes that are no longer selected.
 		for (FSelectedNodePtr CurrentAnimGraphNode : RemSelection)
@@ -1792,15 +1804,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 			SelectedAnimGraphNodes.Add(CurrentAnimGraphNode);
 		}
 
-		// Register re-selection with all the currently selected nodes.
-		for (FSelectedNodePtr CurrentAnimGraphNode : SelectedAnimGraphNodes)
-		{
-			UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = CurrentAnimGraphNode.Get();
-			if (FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr))
-			{
-				CurrentAnimGraphNodePtr->OnNodeSelected(true, *PersonaEditorModeManager, PreviewNode);
-			}
-		}
+		NotifyAllNodesOnSelection(true); // Register re-selection with all the currently selected nodes.
 	}
 
 	bSelectRegularNode = false;

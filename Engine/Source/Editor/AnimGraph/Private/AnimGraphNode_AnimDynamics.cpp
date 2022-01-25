@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_AnimDynamics.h"
+#include "AnimNodeEditModes.h"
 #include "EngineGlobals.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "Widgets/Input/SButton.h"
 
 // Details includes
@@ -21,226 +23,25 @@ FText UAnimGraphNode_AnimDynamics::GetTooltipText() const
 	return LOCTEXT("NodeTooltip", "Anim Dynamics");
 }
 
-void UAnimGraphNode_AnimDynamics::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent * PreviewSkelMeshComp) const
-{
-	check(PreviewSkelMeshComp);
-
-	if(LastPreviewComponent != PreviewSkelMeshComp)
-	{
-		LastPreviewComponent = PreviewSkelMeshComp;
-	}
-
-	// If we want to preview the live node, process it here
-	if(bPreviewLive)
-	{
-		FAnimNode_AnimDynamics* ActivePreviewNode = GetPreviewDynamicsNode();
-
-		if(ActivePreviewNode)
-		{
-			for(int32 BodyIndex = 0 ; BodyIndex < ActivePreviewNode->GetNumBodies() ; ++BodyIndex)
-			{
-				const FAnimPhysRigidBody& Body = ActivePreviewNode->GetPhysBody(BodyIndex);
-				FTransform BodyTransform(Body.Pose.Orientation, Body.Pose.Position);
-
-				// Physics bodies are in Simulation Space. Transform into component space before rendering in the viewport.
-				if (ActivePreviewNode->SimulationSpace == AnimPhysSimSpaceType::RootRelative)
-				{
-					const FTransform RelativeBoneTransform = PreviewSkelMeshComp->GetBoneTransform(0);
-					BodyTransform = BodyTransform * RelativeBoneTransform;
-				}
-				else if (ActivePreviewNode->SimulationSpace == AnimPhysSimSpaceType::BoneRelative)
-				{
-					const FTransform RelativeBoneTransform = PreviewSkelMeshComp->GetBoneTransform(PreviewSkelMeshComp->GetBoneIndex(ActivePreviewNode->RelativeSpaceBone.BoneName));
-					BodyTransform = BodyTransform * RelativeBoneTransform;
-				}
-
-				for(const FAnimPhysShape& Shape : Body.Shapes)
-				{
-					for(const FIntVector& Triangle : Shape.Triangles)
-					{
-						for(int32 Idx = 0 ; Idx < 3 ; ++Idx)
-						{
-							int32 Next = (Idx + 1) % 3;
-
-							FVector FirstVertPosition = BodyTransform.TransformPosition(Shape.Vertices[Triangle[Idx]]);
-							FVector SecondVertPosition = BodyTransform.TransformPosition(Shape.Vertices[Triangle[Next]]);
-
-							PDI->DrawLine(FirstVertPosition, SecondVertPosition, AnimDynamicsNodeConstants::ActiveBodyDrawColor, SDPG_Foreground, AnimDynamicsNodeConstants::ShapeLineWidth);
-						}
-					}
-				}
-				
-				const int32 BoneIndex = PreviewSkelMeshComp->GetBoneIndex(ActivePreviewNode->BoundBone.BoneName);
-				if(BoneIndex != INDEX_NONE)
-				{
-					FTransform BodyJointTransform = PreviewSkelMeshComp->GetBoneTransform(BoneIndex);
-					FTransform ShapeOriginalTransform = BodyJointTransform;
-
-					// Draw pin location
-					FVector LocalPinOffset = BodyTransform.Rotator().RotateVector(Node.GetBodyLocalJointOffset(BodyIndex));
-					PDI->DrawLine(Body.Pose.Position, Body.Pose.Position + LocalPinOffset, FLinearColor::Green, SDPG_Foreground, AnimDynamicsNodeConstants::ShapeLineWidth);
-
-					// Draw basis at body location
-					FVector Origin = BodyTransform.GetTranslation();
-					FVector XAxis(1.0f, 0.0f, 0.0f);
-					FVector YAxis(0.0f, 1.0f, 0.0f);
-					FVector ZAxis(0.0f, 0.0f, 1.0f);
-
-					XAxis = BodyTransform.TransformVector(XAxis);
-					YAxis = BodyTransform.TransformVector(YAxis);
-					ZAxis = BodyTransform.TransformVector(ZAxis);
-
-					PDI->DrawLine(Origin, Origin + XAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Red, SDPG_Foreground, AnimDynamicsNodeConstants::TransformLineWidth);
-					PDI->DrawLine(Origin, Origin + YAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Green, SDPG_Foreground, AnimDynamicsNodeConstants::TransformLineWidth);
-					PDI->DrawLine(Origin, Origin + ZAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Blue, SDPG_Foreground, AnimDynamicsNodeConstants::TransformLineWidth);
-
-					if(bShowLinearLimits)
-					{
-						DrawLinearLimits(PDI, BodyJointTransform, *ActivePreviewNode);
-					}
-
-					if(bShowAngularLimits)
-					{
-						FTransform AngularLimitsTM(BodyJointTransform.GetRotation(), BodyTransform.GetTranslation() + LocalPinOffset);
-						DrawAngularLimits(PDI, AngularLimitsTM, *ActivePreviewNode);
-					}
-
-					if(bShowCollisionSpheres && Body.CollisionType != AnimPhysCollisionType::CoM)
-					{
-						// Draw collision sphere
-						DrawWireSphere(PDI, BodyTransform, FLinearColor(FColor::Cyan), Body.SphereCollisionRadius, 24, SDPG_Foreground, 0.2f);
-					}
-				}
-			}
-
-			// Only draw the planar limit once
-			if(bShowPlanarLimit && ActivePreviewNode->PlanarLimits.Num() > 0)
-			{
-				for(FAnimPhysPlanarLimit& PlanarLimit : ActivePreviewNode->PlanarLimits)
-				{
-					FTransform LimitPlaneTransform = PlanarLimit.PlaneTransform;
-					const int32 LimitDrivingBoneIdx = PreviewSkelMeshComp->GetBoneIndex(PlanarLimit.DrivingBone.BoneName);
-
-					if(LimitDrivingBoneIdx != INDEX_NONE)
-					{
-						LimitPlaneTransform *= PreviewSkelMeshComp->GetComponentSpaceTransforms()[LimitDrivingBoneIdx];
-					}
-
-					DrawPlane10x10(PDI, LimitPlaneTransform.ToMatrixNoScale(), 200.0f, FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f), GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
-					DrawDirectionalArrow(PDI, FRotationMatrix(FRotator(90.0f, 0.0f, 0.0f)) * LimitPlaneTransform.ToMatrixNoScale(), FLinearColor::Blue, 50.0f, 20.0f, SDPG_Foreground, 0.5f);
-				}
-			}
-
-			if(bShowSphericalLimit && ActivePreviewNode->SphericalLimits.Num() > 0)
-			{
-				for(FAnimPhysSphericalLimit& SphericalLimit : ActivePreviewNode->SphericalLimits)
-				{
-					FTransform SphereTransform = FTransform::Identity;
-					SphereTransform.SetTranslation(SphericalLimit.SphereLocalOffset);
-					
-					const int32 DrivingBoneIdx = PreviewSkelMeshComp->GetBoneIndex(SphericalLimit.DrivingBone.BoneName);
-
-					if(DrivingBoneIdx != INDEX_NONE)
-					{
-						SphereTransform *= PreviewSkelMeshComp->GetComponentSpaceTransforms()[DrivingBoneIdx];
-					}
-
-					DrawSphere(PDI, SphereTransform.GetLocation(), FRotator::ZeroRotator, FVector(SphericalLimit.LimitRadius), 24, 6, GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_World);
-					DrawWireSphere(PDI, SphereTransform, FLinearColor::Black, SphericalLimit.LimitRadius, 24, SDPG_World);
-				}
-			}
-		}
-	}
-	else
-	{
-		const int32 BoneIndex = PreviewSkelMeshComp->GetBoneIndex(Node.BoundBone.BoneName);
-
-		if(BoneIndex != INDEX_NONE)
-		{
-			// World space transform
-			const FTransform BoneTransform = PreviewSkelMeshComp->GetBoneTransform(BoneIndex);
-			FTransform ShapeTransform = BoneTransform;
-			ShapeTransform.SetTranslation(ShapeTransform.GetTranslation() - BoneTransform.GetRotation().RotateVector(Node.LocalJointOffset));
-			
-			for(const FIntVector& Triangle : EditPreviewShape.Triangles)
-			{
-				for(int32 Idx = 0 ; Idx < 3 ; ++Idx)
-				{
-					int32 Next = (Idx + 1) % 3;
-
-					FVector FirstVertPosition = ShapeTransform.TransformPosition(EditPreviewShape.Vertices[Triangle[Idx]]);
-					FVector SecondVertPosition = ShapeTransform.TransformPosition(EditPreviewShape.Vertices[Triangle[Next]]);
-
-					PDI->DrawLine(FirstVertPosition, SecondVertPosition, AnimDynamicsNodeConstants::ShapeDrawColor, SDPG_Foreground, AnimDynamicsNodeConstants::ShapeLineWidth);
-				}
-			}
-
-			// COM
-			FVector Origin = ShapeTransform.GetTranslation();
-			FVector XAxis(1.0f, 0.0f, 0.0f);
-			FVector YAxis(0.0f, 1.0f, 0.0f);
-			FVector ZAxis(0.0f, 0.0f, 1.0f);
-
-			XAxis = ShapeTransform.TransformVector(XAxis);
-			YAxis = ShapeTransform.TransformVector(YAxis);
-			ZAxis = ShapeTransform.TransformVector(ZAxis);
-
-			PDI->DrawLine(Origin, Origin + XAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Red, SDPG_Foreground, 0.5f);
-			PDI->DrawLine(Origin, Origin + YAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Green, SDPG_Foreground, 0.5f);
-			PDI->DrawLine(Origin, Origin + ZAxis * AnimDynamicsNodeConstants::TransformBasisScale, FLinearColor::Blue, SDPG_Foreground, 0.5f);
-
-			// Local joint offset
-			FVector JointOffset = ShapeTransform.Rotator().RotateVector(Node.LocalJointOffset);
-			PDI->DrawLine(ShapeTransform.GetTranslation(), ShapeTransform.GetTranslation() + JointOffset, FLinearColor::Green, SDPG_Foreground, AnimDynamicsNodeConstants::ShapeLineWidth);
-
-			if (bShowLinearLimits)
-			{
-				DrawLinearLimits(PDI, ShapeTransform, Node);
-			}
-
-			if (bShowAngularLimits)
-			{
-				DrawAngularLimits(PDI, ShapeTransform, Node);
-			}
-		}
-	}
-}
-
 void UAnimGraphNode_AnimDynamics::GetOnScreenDebugInfo(TArray<FText>& DebugInfo, FAnimNode_Base* RuntimeAnimNode, USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
 	if(RuntimeAnimNode)
 	{
-		FAnimNode_AnimDynamics* PreviewNode = static_cast<FAnimNode_AnimDynamics*>(RuntimeAnimNode);
-		int32 NumBones = PreviewNode->GetNumBoundBones();
-		for(int32 ChainBoneIndex = 0; ChainBoneIndex < NumBones; ++ChainBoneIndex)
+		const FAnimNode_AnimDynamics* PreviewNode = static_cast<FAnimNode_AnimDynamics*>(RuntimeAnimNode);
+
+		for(const FAnimPhysBodyDefinition& PhysicsBodyDef : PreviewNode->PhysicsBodyDefinitions)
 		{
-			if(const FBoneReference* BoneRef = PreviewNode->GetBoundBoneReference(ChainBoneIndex))
+			const FName BoneName = PhysicsBodyDef.BoundBone.BoneName;
+			const int32 SkelBoneIndex = PreviewSkelMeshComp->GetBoneIndex(BoneName);
+			if(SkelBoneIndex != INDEX_NONE)
 			{
-				const int32 SkelBoneIndex = PreviewSkelMeshComp->GetBoneIndex(BoneRef->BoneName);
-				if(SkelBoneIndex != INDEX_NONE)
-				{
-					FTransform BoneTransform = PreviewSkelMeshComp->GetBoneTransform(SkelBoneIndex);
-					DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenName", "Anim Dynamics (Bone:{0})"), FText::FromName(BoneRef->BoneName)));
-					DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenTranslation", "    Translation: {0}"), FText::FromString(BoneTransform.GetTranslation().ToString())));
-					DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenRotation", "    Rotation: {0}"), FText::FromString(BoneTransform.Rotator().ToString())));
-				}
+				FTransform BoneTransform = PreviewSkelMeshComp->GetBoneTransform(SkelBoneIndex);
+				DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenName", "Anim Dynamics (Bone:{0})"), FText::FromName(BoneName)));
+				DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenTranslation", "    Translation: {0}"), FText::FromString(BoneTransform.GetTranslation().ToString())));
+				DebugInfo.Add(FText::Format(LOCTEXT("DebugOnScreenRotation", "    Rotation: {0}"), FText::FromString(BoneTransform.Rotator().ToString())));
 			}
 		}
 	}
-}
-
-void UAnimGraphNode_AnimDynamics::DrawLinearLimits(FPrimitiveDrawInterface* PDI, FTransform ShapeTransform, const FAnimNode_AnimDynamics& NodeToVisualise) const
-{
-	// Draw linear limits
-	FVector LinearLimitHalfExtents(NodeToVisualise.ConstraintSetup.LinearAxesMax - NodeToVisualise.ConstraintSetup.LinearAxesMin);
-	// Add a tiny bit so we can see collapsed axes
-	LinearLimitHalfExtents += FVector(0.1f);
-	LinearLimitHalfExtents /= 2.0f;
-	FVector LinearLimitsCenter = NodeToVisualise.ConstraintSetup.LinearAxesMin + LinearLimitHalfExtents;
-	FTransform LinearLimitsTransform = ShapeTransform;
-	LinearLimitsTransform.SetTranslation(LinearLimitsTransform.GetTranslation() + LinearLimitsTransform.TransformVector(LinearLimitsCenter));
-
-	DrawBox(PDI, LinearLimitsTransform.ToMatrixWithScale(), LinearLimitHalfExtents, GEngine->ConstraintLimitMaterialPrismatic->GetRenderProxy(), SDPG_Foreground);
 }
 
 FText UAnimGraphNode_AnimDynamics::GetControllerDescription() const
@@ -260,17 +61,60 @@ void UAnimGraphNode_AnimDynamics::CustomizeDetails(IDetailLayoutBuilder& DetailB
 	FDetailWidgetRow& WidgetRow = PreviewCategory.AddCustomRow(LOCTEXT("ResetButtonRow", "Reset"));
 
 	WidgetRow
-	[
-		SNew(SButton)
+		[
+			SNew(SButton)
 			.Text(LOCTEXT("ResetButtonText", "Reset Simulation"))
 			.ToolTipText(LOCTEXT("ResetButtonToolTip", "Resets the simulation for this node"))
 			.OnClicked(FOnClicked::CreateStatic(&UAnimGraphNode_AnimDynamics::ResetButtonClicked, &DetailBuilder))
-	];
+		];
+
+	// Add warning message about physics body array not being updated untill after the first BP compile.
+	if (LastPreviewComponent == nullptr)
+	{
+		IDetailCategoryBuilder& SetupCategory = DetailBuilder.EditCategory(TEXT("Setup"));
+		const FText WarningText(LOCTEXT("AnimDynamicsWarningText", "WARNING - Physics Bodies Will Not Be Valid Untill This Node Has Been Connected And Compiled"));
+		FDetailWidgetRow& WarningMessageTextWidgetRow = SetupCategory.AddCustomRow(WarningText);
+
+		WarningMessageTextWidgetRow
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(WarningText)
+					.Justification(ETextJustify::Center)
+					.ColorAndOpacity(FLinearColor::Red)
+				]
+			];
+	}
+
+	// Force order of details panel catagories - Must set order for all of them as any that are edited automatically move to the top.
+	{
+		uint32 SortOrder = 0;
+		DetailBuilder.EditCategory("Preview").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Setup").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Settings").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("SphericalLimit").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("PlanarLimit").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Forces").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Wind").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Retargetting").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Performance").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Functions").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("Alpha").SetSortOrder(SortOrder++);
+	}
 }
+
 
 void UAnimGraphNode_AnimDynamics::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+}
+
+FEditorModeID UAnimGraphNode_AnimDynamics::GetEditorMode() const
+{
+	return AnimNodeEditModes::AnimDynamics;
 }
 
 FText UAnimGraphNode_AnimDynamics::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -316,50 +160,33 @@ FText UAnimGraphNode_AnimDynamics::GetNodeTitle(ENodeTitleType::Type TitleType) 
 
 void UAnimGraphNode_AnimDynamics::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimNode_AnimDynamics, ChainEnd))
+	{
+		// bChain has been modified.
+		if (Node.bChain)
+		{
+			Node.ChainEnd = Node.PhysicsBodyDefinitions[0].BoundBone;
+		}
+		else
+		{
+			Node.ChainEnd.BoneName = NAME_None;
+		}
+
+		Node.UpdateChainPhysicsBodyDefinitions(LastPreviewComponent);
+	}
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName))
+	{
+		// Either BoundBone or ChainEnd have been modified.
+		Node.UpdateChainPhysicsBodyDefinitions(LastPreviewComponent);
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	// Regenerate render shape(s)
-	EditPreviewShape = FAnimPhysShape::MakeBox(Node.BoxExtents);
-}
-
-void UAnimGraphNode_AnimDynamics::DrawAngularLimits(FPrimitiveDrawInterface* PDI, FTransform JointTransform, const FAnimNode_AnimDynamics& NodeToVisualize) const
-{
-	FVector XAxis = JointTransform.GetUnitAxis(EAxis::X);
-	FVector YAxis = JointTransform.GetUnitAxis(EAxis::Y);
-	FVector ZAxis = JointTransform.GetUnitAxis(EAxis::Z);
-
-	const FVector& MinAngles = NodeToVisualize.ConstraintSetup.AngularLimitsMin;
-	const FVector& MaxAngles = NodeToVisualize.ConstraintSetup.AngularLimitsMax;
-	FVector AngleRange = MaxAngles - MinAngles;
-	FVector Middle = MinAngles + AngleRange * 0.5f;
-
-	if (AngleRange.X > 0.0f && AngleRange.X < 180.0f)
-	{
-		FTransform XAxisConeTM(YAxis, XAxis ^ YAxis, XAxis, JointTransform.GetTranslation());
-		XAxisConeTM.SetRotation(FQuat(XAxis, FMath::DegreesToRadians(-Middle.X)) * XAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * XAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.X / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialX->GetRenderProxy(), SDPG_World);
-	}
-
-	if (AngleRange.Y > 0.0f && AngleRange.Y < 180.0f)
-	{
-		FTransform YAxisConeTM(ZAxis, YAxis ^ ZAxis, YAxis, JointTransform.GetTranslation());
-		YAxisConeTM.SetRotation(FQuat(YAxis, FMath::DegreesToRadians(Middle.Y)) * YAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * YAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.Y / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
-	}
-
-	if (AngleRange.Z > 0.0f && AngleRange.Z < 180.0f)
-	{
-		FTransform ZAxisConeTM(XAxis, ZAxis ^ XAxis, ZAxis, JointTransform.GetTranslation());
-		ZAxisConeTM.SetRotation(FQuat(ZAxis, FMath::DegreesToRadians(Middle.Z)) * ZAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * ZAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.Z / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), SDPG_World);
-	}
 }
 
 void UAnimGraphNode_AnimDynamics::PostLoad()
 {
 	Super::PostLoad();
-
-	EditPreviewShape = FAnimPhysShape::MakeBox(Node.BoxExtents);
 }
 
 void UAnimGraphNode_AnimDynamics::ResetSim()
@@ -411,7 +238,7 @@ void UAnimGraphNode_AnimDynamics::Serialize(FArchive& Ar)
 	
 	if(CustomAnimVersion < FAnimationCustomVersion::AnimDynamicsAddAngularOffsets)
 	{
-		FAnimPhysConstraintSetup& ConSetup = Node.ConstraintSetup;
+		FAnimPhysConstraintSetup& ConSetup = Node.ConstraintSetup_DEPRECATED;
 		ConSetup.AngularLimitsMin = FVector(-ConSetup.AngularXAngle_DEPRECATED, -ConSetup.AngularYAngle_DEPRECATED, -ConSetup.AngularZAngle_DEPRECATED);
 		ConSetup.AngularLimitsMax = FVector(ConSetup.AngularXAngle_DEPRECATED, ConSetup.AngularYAngle_DEPRECATED, ConSetup.AngularZAngle_DEPRECATED);
 	}
@@ -421,6 +248,20 @@ void UAnimGraphNode_AnimDynamics::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::GravityOverrideDefinedInWorldSpace)
 	{
 		Node.bGravityOverrideInSimSpace = true;
+	}
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::AnimDynamicsEditableChainParameters)
+	{
+		// Initialise first physics body using deprecated parameters then re-initialize chain.
+		Node.PhysicsBodyDefinitions.Reset();		
+		FAnimPhysBodyDefinition PhysBodyDef;
+		PhysBodyDef.BoundBone = Node.BoundBone;
+		PhysBodyDef.BoxExtents = Node.BoxExtents_DEPRECATED;
+		PhysBodyDef.LocalJointOffset = -Node.LocalJointOffset_DEPRECATED; // Note: definition of joint offset has changed from 'Joint position relative to physics body' to 'physics body position relative to Joint'.
+		PhysBodyDef.ConstraintSetup = Node.ConstraintSetup_DEPRECATED;
+		PhysBodyDef.CollisionType = Node.CollisionType_DEPRECATED;
+		PhysBodyDef.SphereCollisionRadius = Node.SphereCollisionRadius_DEPRECATED;
+		Node.PhysicsBodyDefinitions.Add(PhysBodyDef);
 	}
 }
 

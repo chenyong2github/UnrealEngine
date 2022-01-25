@@ -2,6 +2,7 @@
 
 #include "AnimNodeEditModes.h"
 
+const FEditorModeID AnimNodeEditModes::AnimDynamics("AnimGraph.AnimDynamics");
 const FEditorModeID AnimNodeEditModes::AnimNode("AnimGraph.AnimNode");
 const FEditorModeID AnimNodeEditModes::TwoBoneIK("AnimGraph.SkeletalControl.TwoBoneIK");
 const FEditorModeID AnimNodeEditModes::ObserveBone("AnimGraph.SkeletalControl.ObserveBone");
