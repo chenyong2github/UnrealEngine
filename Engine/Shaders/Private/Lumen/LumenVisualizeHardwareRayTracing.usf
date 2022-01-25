@@ -464,6 +464,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		uint2 TraceCoord = RayData.TraceCoord;
 		uint2 OutputScreenCoord = TraceCoord + OutputViewOffset;
 		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
+		float2 BufferUV = ViewportUV * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw;
 
 		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
 #if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
@@ -473,7 +474,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
 		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
 
-		RayDesc Ray = CreatePrimaryRay(ViewportUV);
+		RayDesc Ray = CreatePrimaryRay(BufferUV);
 		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
