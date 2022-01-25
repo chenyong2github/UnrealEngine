@@ -133,6 +133,7 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 				NextIndex = Index + 1;
 				if (Range.Key == KeyValues[NextIndex])
 				{
+					Index++;
 					ToDelete.Add(NextIndex);
 				}
 				else
@@ -158,6 +159,7 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 		}
 
 		GetData().DeleteKeys(DeleteKeyHandles);
+
 	}
 	return Ranges;
 }
