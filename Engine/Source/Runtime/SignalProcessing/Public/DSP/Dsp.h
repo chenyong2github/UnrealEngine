@@ -868,7 +868,7 @@ namespace Audio
 		}
 
 		/** Push an array of values into circular buffer. */
-		int32 Push(TArrayView<SampleType> InBuffer)
+		int32 Push(TArrayView<const SampleType> InBuffer)
 		{
 			return Push(InBuffer.GetData(), InBuffer.Num());
 		}
@@ -996,6 +996,19 @@ namespace Audio
 		{
 			int32 NumSamplesRead = Peek(OutBuffer, NumSamples);
 			check(NumSamples < ((uint32)TNumericLimits<int32>::Max()));
+
+			ReadCounter.Set((ReadCounter.GetValue() + NumSamplesRead) % Capacity);
+
+			return NumSamplesRead;
+		}
+
+		// Pops some amount of samples into this circular buffer.
+		// Returns the amount of samples read.
+		int32 Pop(uint32 NumSamples)
+		{
+			check(NumSamples < ((uint32)TNumericLimits<int32>::Max()));
+
+			int32 NumSamplesRead = FMath::Min<int32>(NumSamples, Num());
 
 			ReadCounter.Set((ReadCounter.GetValue() + NumSamplesRead) % Capacity);
 
