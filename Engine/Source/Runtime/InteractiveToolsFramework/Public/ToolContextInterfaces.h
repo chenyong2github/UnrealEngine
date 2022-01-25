@@ -99,7 +99,9 @@ enum class EStandardToolContextMaterials
 UENUM()
 enum class EToolContextCoordinateSystem
 {
+	/** World space coordinate system */
 	World = 0,
+	/** Local coordinate system */
 	Local = 1
 };
 
