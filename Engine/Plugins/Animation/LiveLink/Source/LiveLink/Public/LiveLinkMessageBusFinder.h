@@ -27,6 +27,7 @@ public:
 	
 	FProviderPollResult() = default;
 	
+	UE_DEPRECATED(5.0, "This version of the FProviderPollResult constructor is deprecated. Please use the new constructor instead.")
 	FProviderPollResult(const FMessageAddress& InAddress, const FString& InName, const FString& InMachineName, double InMachineOffset)
 		: Address(InAddress)
 		, Name(InName)
@@ -34,19 +35,31 @@ public:
 		, MachineTimeOffset(InMachineOffset)
 	{}
 
+	FProviderPollResult(const FMessageAddress& InAddress, const FString& InName, const FString& InMachineName, double InMachineOffset, bool bInIsValidProvider)
+		: Address(InAddress)
+		, Name(InName)
+		, MachineName(InMachineName)
+		, MachineTimeOffset(InMachineOffset)
+		, bIsValidProvider(bInIsValidProvider)
+	{}
+
 	FMessageAddress Address;
 
 	// The name of the provider
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="LiveLink", meta=(DisplayName = "Provider Name"))
-	FString			Name;
+	FString Name;
 
 	// The name of the machine the provider is running on
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="LiveLink")
-	FString			MachineName;
+	FString MachineName;
 
 	// Offset between sender's engine time and receiver's engine time
 	UPROPERTY()
-	double			MachineTimeOffset = 0.0;
+	double MachineTimeOffset = 0.0;
+
+	// Whether the provider is valid (compatible with the current version of LiveLink)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "LiveLink")
+	bool bIsValidProvider = true;
 };
 
 typedef TSharedPtr<FProviderPollResult, ESPMode::ThreadSafe> FProviderPollResultPtr;

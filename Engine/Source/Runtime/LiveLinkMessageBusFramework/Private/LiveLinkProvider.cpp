@@ -469,7 +469,7 @@ void FLiveLinkProvider::HandlePingMessage(const FLiveLinkPingMessage& Message, c
 		return;
 	}
 
-	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FLiveLinkPongMessage>(ProviderName, MachineName, Message.PollRequest), Context->GetSender());
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FLiveLinkPongMessage>(ProviderName, MachineName, Message.PollRequest, LIVELINK_SupportedVersion), Context->GetSender());
 }
 
 void FLiveLinkProvider::HandleConnectMessage(const FLiveLinkConnectMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
