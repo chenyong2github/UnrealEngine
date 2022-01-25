@@ -600,7 +600,7 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 		if (InAssetFilter.bRecursiveClasses)
 		{
 			ClassFilter.ClassNamesToExclude = InAssetFilter.RecursiveClassesExclusionSet.Array();
-			ClassFilter.bRecursiveClassNamesToExclude = InAssetFilter.bRecursiveClasses;
+			ClassFilter.bRecursiveClassNamesToExclude = false;
 		}
 		ClassFilter.ClassPermissionList = InAssetClassPermissionList;
 	}
