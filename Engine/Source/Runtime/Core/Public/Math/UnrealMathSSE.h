@@ -2,6 +2,12 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+
+struct VectorRegisterConstInit {};
+
 // Define to pull in UnrealMathSSE.cpp, since conditions for this file are complex in VectorRegister.h
 #define UE_USING_UNREALMATH_SSE 1
 
@@ -3376,3 +3382,9 @@ FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
 * @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_set1_epi32(*(Ptr))
+
+#else
+
+#define UE_USING_UNREALMATH_SSE 0
+
+#endif

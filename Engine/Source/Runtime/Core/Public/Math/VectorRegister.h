@@ -8,18 +8,20 @@
 // If defined, allow double->float conversion in some VectorStore functions.
 #define SUPPORT_DOUBLE_TO_FLOAT_VECTOR_CONVERSION 1
 
-struct VectorRegisterConstInit {};
-
 // Platform specific vector intrinsics include.
 #if WITH_DIRECTXMATH
+struct VectorRegisterConstInit {};
 #include "Math/UnrealMathDirectX.h"
 #elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+struct VectorRegisterConstInit {};
 #include "Math/UnrealMathNeon.h"
 #elif defined(__cplusplus_cli) && !PLATFORM_HOLOLENS
+struct VectorRegisterConstInit {};
 #include "Math/UnrealMathFPU.h" // there are compile issues with UnrealMathSSE in managed mode, so use the FPU version
 #elif PLATFORM_ENABLE_VECTORINTRINSICS
 #include "Math/UnrealMathSSE.h"
 #else
+struct VectorRegisterConstInit {};
 #include "Math/UnrealMathFPU.h"
 #endif
 
