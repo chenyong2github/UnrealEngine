@@ -38,6 +38,12 @@ public class libcurl : ModuleRules
 				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcurl.a");
 			}
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string LibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/";
+			PublicIncludePaths.Add(LibCurlPath + "include/Mac");
+			PublicAdditionalLibraries.Add(LibCurlPath + "lib/Mac/libcurl.a");
+		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicIncludePaths.Add(WinLibCurlPath + "include/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
