@@ -264,6 +264,10 @@ public:
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 public:
+	// UObject interface
+	static void AddReferencedObjects(class UObject* InThis, class FReferenceCollector& Collector);
+	// End of UObject interface
+
 	bool IsInnerFrustumEnabled(const FString& InnerFrustumID) const;
 
 	// Return inner frustum priority by InnerFrustum name (from InnerFrustumPriority property)
@@ -391,8 +395,5 @@ private:
 	FOnPreviewUpdated OnPreviewGenerated;
 	FOnPreviewUpdated OnPreviewDestroyed;
 
-private:
-	// ViewStatesReferences needs to be referenced to ReferenceCollector
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif
 };

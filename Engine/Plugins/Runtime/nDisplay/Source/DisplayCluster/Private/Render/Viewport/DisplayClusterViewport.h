@@ -86,7 +86,6 @@ public:
 		return ProjectionPolicy;
 	}
 
-
 	virtual const TArray<FDisplayClusterViewport_Context>& GetContexts() const override
 	{
 		check(IsInGameThread());
@@ -114,10 +113,6 @@ public:
 	FSceneView* ImplCalcScenePreview(class FSceneViewFamilyContext& InOutViewFamily, uint32 ContextNum);
 	bool    ImplPreview_CalculateStereoViewOffset(const uint32 InContextNum, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation);
 	FMatrix ImplPreview_GetStereoProjectionMatrix(const uint32 InContextNum);
-
-	// preview rendering view states
-	TIndirectArray<FSceneViewStateReference> ViewStates;
-	FSceneViewStateInterface* GetViewState(int32 ViewIndex);
 #endif //WITH_EDITOR
 
 	// Get from logic request for additional targetable resource
@@ -149,6 +144,8 @@ public:
 	bool HandleStartScene();
 	void HandleEndScene();
 
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
 	void ResetRuntimeParameters()
 	{
 		// Reset runtim flags from prev frame:
@@ -161,14 +158,23 @@ public:
 		CustomFrustumRendering.ResetConfiguration();
 	}
 
-
 	// Active view extension for this viewport
 	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(FViewport* InViewport) const;
 
-	bool UpdateFrameContexts(const uint32 InViewPassNum, const FDisplayClusterRenderFrameSettings& InFrameSettings);
+	bool UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings);
 
 public:
 	FIntRect GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName);
+
+#if WITH_EDITOR
+	// Support view states for preview
+private:
+	FSceneViewStateInterface* GetViewState(uint32 ViewIndex);
+	void CleanupViewState();
+
+private:
+	TArray<FSceneViewStateReference> ViewStates;
+#endif
 
 public:
 	// Support OCIO:

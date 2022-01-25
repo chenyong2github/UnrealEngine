@@ -77,29 +77,6 @@ public:
 	};
 
 public:
-	void UpdateDesiredNumberOfViews()
-	{
-		DesiredNumberOfViews = 0;
-
-		for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : RenderTargets)
-		{
-			for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilyIt : RenderTargetIt.ViewFamilies)
-			{
-				ViewFamilyIt.NumViewsForRender = 0;
-
-				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilyIt.Views)
-				{
-					if (ViewIt.bDisableRender == false)
-					{
-						ViewFamilyIt.NumViewsForRender++;
-						DesiredNumberOfViews++;
-					}
-				}
-			}
-		}
-	}
-
-public:
 	// Render frame to this targets
 	TArray<FFrameRenderTarget> RenderTargets;
 	

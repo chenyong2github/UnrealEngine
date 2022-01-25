@@ -22,16 +22,44 @@
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
-
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_Postprocess.h"
 
-
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewport
 ///////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterViewport::CleanupViewState()
+{
+	for (FSceneViewStateReference& ViewState : ViewStates)
+	{
+		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		if (Ref != nullptr)
+		{
+			Ref->ClearMIDPool();
+		}
+	}
+}
+
+FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex)
+{
+	int32 RequiredAmmount = (int32)ViewIndex - ViewStates.Num() + 1;
+	if(RequiredAmmount > 0)
+	{
+		ViewStates.AddDefaulted(RequiredAmmount);
+	}
+
+	if (ViewStates[ViewIndex].GetReference() == NULL)
+	{
+		const UWorld* CurrentWorld = Owner.GetCurrentWorld();
+		const ERHIFeatureLevel::Type FeatureLevel = CurrentWorld ? CurrentWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+
+		ViewStates[ViewIndex].Allocate(FeatureLevel);
+	}
+
+	return ViewStates[ViewIndex].GetReference();
+}
 
 FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContext& InOutViewFamily, uint32 InContextNum)
 {
@@ -61,12 +89,12 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		float StereoIPD = 0.f;
 		FIntRect ViewRect = Contexts[InContextNum].RenderTargetRect;
 
-		FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
-
 		FSceneViewInitOptions ViewInitOptions;
 
 		ViewInitOptions.SetViewRectangle(ViewRect);
 		ViewInitOptions.ViewFamily = &InOutViewFamily;
+
+		ViewInitOptions.SceneViewStateInterface = GetViewState(InContextNum);
 		ViewInitOptions.ViewActor = ViewOwner;
 
 		ViewInitOptions.ViewOrigin = ViewLocation;
@@ -87,11 +115,7 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		ViewInitOptions.StereoIPD = StereoIPD * (ViewInitOptions.WorldToMetersScale / 100.0f);
 
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
-		//ViewInitOptions.OverlayColor = FLinearColor::Black;
 
-		// initialize view states
-		ViewInitOptions.SceneViewStateInterface = GetViewState(InContextNum);
-		
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
 		View->bIsSceneCapture = true;
@@ -147,29 +171,6 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 	}
 
 	return nullptr;
-}
-
-FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(int32 ViewIndex)
-{
-	while (ViewIndex >= ViewStates.Num())
-	{
-		ViewStates.Add(new FSceneViewStateReference());
-	}
-
-	FSceneViewStateInterface* ViewStateInterface = ViewStates[ViewIndex].GetReference();
-	if (ViewStateInterface == NULL)
-	{
-		ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-		if (Owner.GetCurrentWorld() != nullptr)
-		{
-			FeatureLevel = Owner.GetCurrentWorld()->Scene->GetFeatureLevel();
-		}
-
-		ViewStates[ViewIndex].Allocate(FeatureLevel);
-		ViewStateInterface = ViewStates[ViewIndex].GetReference();
-	}
-
-	return ViewStateInterface;
 }
 
 enum EDisplayClusterEyeType

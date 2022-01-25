@@ -79,6 +79,8 @@ public:
 
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
 
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
 	// internal use only
 	bool CreateViewport(const FString& ViewportId, const class UDisplayClusterConfigurationViewport* ConfigurationViewport);
 	IDisplayClusterViewport* CreateViewport(const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
@@ -116,6 +118,7 @@ public:
 	void SetViewportBufferRatio(FDisplayClusterViewport& DstViewport, float InBufferRatio);
 
 private:
+	void UpdateDesiredNumberOfViews(FDisplayClusterRenderFrame& InOutRenderFrame);
 	void ResetSceneRenderTargetSize();
 	void UpdateSceneRenderTargetSize();
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);

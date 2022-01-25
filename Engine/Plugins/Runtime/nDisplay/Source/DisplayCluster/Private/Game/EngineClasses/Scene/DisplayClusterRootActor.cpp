@@ -1010,3 +1010,15 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 
 	return true;
 }
+
+void ADisplayClusterRootActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	ADisplayClusterRootActor* This = CastChecked<ADisplayClusterRootActor>(InThis);
+
+	if (This && This->ViewportManager.IsValid())
+	{
+		This->ViewportManager->AddReferencedObjects(Collector);
+	}
+
+	Super::AddReferencedObjects(InThis, Collector);
+}

@@ -133,6 +133,24 @@ void FDisplayClusterViewport::HandleEndScene()
 		UninitializedProjectionPolicy = ProjectionPolicy;
 		ProjectionPolicy.Reset();
 	}
+
+#if WITH_EDITOR
+	CleanupViewState();
+#endif
+}
+
+void FDisplayClusterViewport::AddReferencedObjects(FReferenceCollector& Collector)
+{
+#if WITH_EDITOR
+	for (FSceneViewStateReference& ViewState : ViewStates)
+	{
+		FSceneViewStateInterface* Ref = ViewState.GetReference();
+		if (Ref)
+		{
+			Ref->AddReferencedObjects(Collector);
+		}
+	}
+#endif
 }
 
 bool FDisplayClusterViewport::ShouldUseAdditionalTargetableResource() const
@@ -244,7 +262,7 @@ FIntRect FDisplayClusterViewport::GetValidRect(const FIntRect& InRect, const TCH
 	return OutRect;
 }
 
-bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, const FDisplayClusterRenderFrameSettings& InFrameSettings)
+bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings)
 {
 	check(IsInGameThread());
 
@@ -373,7 +391,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	for (uint32 ContextIt = 0; ContextIt < ViewportContextAmmount; ++ContextIt)
 	{
 		const EStereoscopicPass StereoscopicPass = (InFrameSettings.bIsRenderingInEditor) ? EStereoscopicPass::eSSP_FULL : FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(ContextIt, ViewportContextAmmount);
-		const int32 StereoViewIndex = (int32)(InViewPassNum + ContextIt);
+		const int32 StereoViewIndex = (int32)(InStereoViewIndex + ContextIt);
 
 		FDisplayClusterViewport_Context Context(ContextIt, StereoscopicPass, StereoViewIndex);
 

@@ -325,7 +325,8 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	}
 
 	// generate unique stereo view index for each frame
-	uint32 ViewPassNum = 0;
+	// Begin from 1, because INDEX_NONE use ViewState[0] in LocalPlayer.cpp:786
+	uint32 StereoViewIndex = 1;
 
 	// Initialize viewports from new render settings, and create new contexts, reset prev frame resources
 	for (FDisplayClusterViewport* Viewport : Viewports)
@@ -333,9 +334,9 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 		// Save orig viewport contexts
 		TArray<FDisplayClusterViewport_Context> PrevContexts;
 		PrevContexts.Append(Viewport->GetContexts());
-		if (Viewport->UpdateFrameContexts(ViewPassNum, GetRenderFrameSettings()))
+		if (Viewport->UpdateFrameContexts(StereoViewIndex, GetRenderFrameSettings()))
 		{
-			ViewPassNum += Viewport->Contexts.Num();
+			StereoViewIndex += Viewport->Contexts.Num();
 		}
 
 		HandleViewportRTTChanges(PrevContexts, Viewport->GetContexts());
@@ -371,7 +372,7 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	}
 
 	// Update desired views number
-	OutRenderFrame.UpdateDesiredNumberOfViews();
+	UpdateDesiredNumberOfViews(OutRenderFrame);
 
 #if WITH_EDITOR
 	// Get preview resources from root actor
@@ -379,6 +380,34 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 #endif /*WITH_EDITOR*/
 
 	return true;
+}
+
+void FDisplayClusterViewportManager::UpdateDesiredNumberOfViews(FDisplayClusterRenderFrame& InOutRenderFrame)
+{
+	InOutRenderFrame.DesiredNumberOfViews = 0;
+
+	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
+	{
+		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilyIt : RenderTargetIt.ViewFamilies)
+		{
+			ViewFamilyIt.NumViewsForRender = 0;
+
+			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilyIt.Views)
+			{
+				if (ViewIt.bDisableRender == false)
+				{
+					ViewFamilyIt.NumViewsForRender++;
+
+					if (ViewIt.Viewport)
+					{
+						// Get StereoViewIndex for this viewport
+						const int32 StereoViewIndex = ViewIt.Viewport->GetContexts()[ViewIt.ContextNum].StereoViewIndex;
+						InOutRenderFrame.DesiredNumberOfViews = FMath::Max(StereoViewIndex + 1, InOutRenderFrame.DesiredNumberOfViews);
+					}
+				}
+			}
+		}
+	}
 }
 
 void FDisplayClusterViewportManager::FinalizeNewFrame()
@@ -680,5 +709,16 @@ void FDisplayClusterViewportManager::MarkComponentGeometryDirty(const FName InCo
 	if (PostProcessManager.IsValid())
 	{
 		PostProcessManager->GetOutputRemap()->MarkProceduralMeshComponentGeometryDirty(InComponentName);
+	}
+}
+
+void FDisplayClusterViewportManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (FDisplayClusterViewport* ViewportIt : Viewports)
+	{
+		if (ViewportIt != nullptr)
+		{
+			ViewportIt->AddReferencedObjects(Collector);
+		}
 	}
 }

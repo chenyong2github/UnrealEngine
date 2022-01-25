@@ -13,6 +13,7 @@ class FSceneViewFamilyContext;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
 class IDisplayClusterViewportManagerProxy;
+class FReferenceCollector;
 
 struct FDisplayClusterConfigurationViewportPreview;
 
@@ -79,6 +80,8 @@ public:
 
 	// Send to render thread
 	virtual void RenderFrame(FViewport* InViewport) = 0;
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) = 0;
 
 #if WITH_EDITOR
 	virtual bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, ADisplayClusterRootActor* InRootActorPtr) = 0;
