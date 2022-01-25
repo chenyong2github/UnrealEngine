@@ -277,24 +277,6 @@ protected:
 	USkeleton::AnimCurveUID GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const;
 };
 
-USTRUCT(BlueprintType)
-struct ENGINE_API FDistanceCurve : public FCachedFloatCurve
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-	FDistanceCurve()
-		: Super()
-	{}
-
-	FDistanceCurve(const Super& Other)
-		: Super(Other)
-	{}
-
-	float GetDistanceRange(const UAnimSequenceBase* InAnimSequence) const;
-	float GetAnimPositionFromDistance(const UAnimSequenceBase* InAnimSequence, const float& InDistance) const;
-};
-
 /**
 * This is array of curves that run when collecting curves natively 
 */

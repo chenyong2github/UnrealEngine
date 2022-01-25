@@ -27,12 +27,12 @@ public:
 	 * @param UpdateContext - The update context provided in the anim node function.
 	 * @param SequenceEvaluator - The sequence evaluator node to operate on.
 	 * @param DistanceTraveled - The distance traveled by the character since the last animation update.
-	 * @param CachedDistanceCurve - Optimized access to curve data. This will typically be a FDistanceCurve variable on the animation blueprint. 
+	 * @param DistanceCurveName - Name of the curve we want to match 
 	 * @param PlayRateClamp - A clamp on the effective play rate of the animation after distance matching. Set to (0,0) for no clamping.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Distance Matching", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference AdvanceTimeByDistanceMatching(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator,
-		float DistanceTraveled, const FDistanceCurve& CachedDistanceCurve, FVector2D PlayRateClamp = FVector2D(0.75f, 1.25f));
+		float DistanceTraveled, FName DistanceCurveName, FVector2D PlayRateClamp = FVector2D(0.75f, 1.25f));
 
 	/**
 	 * Set the time of the sequence evaluator to the point in the animation where the distance curve matches the DistanceToTarget input.
@@ -40,11 +40,11 @@ public:
 	 * Note that because this technique sets the time of the animation by distance remaining, it doesn't respect phase of any previous animation (e.g. from a jog cycle).
 	 * @param SequenceEvaluator - The sequence evaluator node to operate on.
 	 * @param DistanceToTarget - The distance remaining to a target (e.g. a stop or pivot point).
-	 * @param CachedDistanceCurve - Optimized access to curve data. This will typically be a FDistanceCurve variable on the animation blueprint. 
+	 * @param DistanceCurveName - Name of the curve we want to match 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Distance Matching", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference DistanceMatchToTarget(const FSequenceEvaluatorReference& SequenceEvaluator,
-		float DistanceToTarget, const FDistanceCurve& CachedDistanceCurve);
+		float DistanceToTarget, FName DistanceCurveName);
 
 	/**
 	 * Set the play rate of the sequence player so that the speed of the animation matches in-game movement speed.
