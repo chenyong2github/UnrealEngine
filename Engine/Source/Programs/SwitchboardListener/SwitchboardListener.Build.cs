@@ -15,6 +15,7 @@ public class SwitchboardListener : ModuleRules
 				"Networking",
 				"Projects", // for LaunchEngineLoop.cpp dependency
 				"JsonUtilities",
+				"TraceLog",
 			}
 		);
 
