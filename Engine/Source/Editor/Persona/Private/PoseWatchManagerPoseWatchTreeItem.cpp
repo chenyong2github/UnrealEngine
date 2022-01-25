@@ -157,7 +157,8 @@ private:
 
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
 	{
-		check(WeakPoseWatchPtr->SetLabel(InLabel));
+		bool bRenameSuccessful = WeakPoseWatchPtr->SetLabel(InLabel);
+		check(bRenameSuccessful);
 		WeakPoseWatchManager.Pin()->FullRefresh();
 		WeakPoseWatchManager.Pin()->SetKeyboardFocus();
 	}
