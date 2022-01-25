@@ -15,6 +15,10 @@ public:
 	/** Metadata specifier to provide the path to a property to display. */
 	static const FName PropertyPathMetadataKey;
 
+	/** Metadata specifier to provide a path to a property to use as an edit condition. */
+	static const FName EditConditionPathMetadataKey;
+
+
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 	//~ IPropertyTypeCustomization interface begin

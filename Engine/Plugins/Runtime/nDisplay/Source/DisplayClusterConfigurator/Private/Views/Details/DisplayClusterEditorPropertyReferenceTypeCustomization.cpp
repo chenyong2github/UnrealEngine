@@ -10,6 +10,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 const FName FDisplayClusterEditorPropertyReferenceTypeCustomization::PropertyPathMetadataKey = TEXT("PropertyPath");
+const FName FDisplayClusterEditorPropertyReferenceTypeCustomization::EditConditionPathMetadataKey = TEXT("EditConditionPath");
 
 TSharedRef<IPropertyTypeCustomization> FDisplayClusterEditorPropertyReferenceTypeCustomization::MakeInstance()
 {
@@ -19,10 +20,10 @@ TSharedRef<IPropertyTypeCustomization> FDisplayClusterEditorPropertyReferenceTyp
 void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	check(InPropertyHandle->IsValidHandle());
-	if (InPropertyHandle->HasMetaData(TEXT("EditCondition")))
+	if (InPropertyHandle->HasMetaData(EditConditionPathMetadataKey))
 	{
 		// Check to see if the edit condition is using a property path as well.
-		FString EditCondition = InPropertyHandle->GetMetaData(TEXT("EditCondition"));
+		FString EditCondition = InPropertyHandle->GetMetaData(EditConditionPathMetadataKey);
 		EditCondition.RemoveSpacesInline();
 		if (EditCondition.Contains(TEXT(".")) || EditCondition.Contains(TEXT("->")))
 		{
