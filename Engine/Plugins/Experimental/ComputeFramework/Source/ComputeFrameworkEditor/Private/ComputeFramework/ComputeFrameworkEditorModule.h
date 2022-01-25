@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ComputeFramework/IComputeFrameworkEditorModule.h"
+#include "ComputeFramework/ComputeFrameworkCompilationTick.h"
 
 class FComputeFrameworkEditorModule : public IComputeFrameworkEditorModule
 {

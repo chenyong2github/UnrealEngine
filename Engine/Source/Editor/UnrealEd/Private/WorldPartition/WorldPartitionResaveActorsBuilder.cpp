@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Commandlets/Commandlet.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "UObject/MetaData.h"
 #include "UObject/SavePackage.h"
 #include "Kismet2/BlueprintEditorUtils.h"
