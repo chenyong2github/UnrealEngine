@@ -126,8 +126,8 @@ namespace Audio
 		float MaxPitchShiftRatio{ 2.0f };
 
 		uint32 NumChannels{ 0 };
-		uint32 DecodeBlockSizeInFrames{ 64 };
-		uint32 DecodeBlockSizeInSamples{ 64 };
+		uint32 DecodeBlockSizeInFrames;
+		uint32 DecodeBlockSizeInSamples;
 		uint32 OutputBlockSizeInFrames { 512 };
 		
 		bool bDecoderIsDone{ true };

@@ -78,7 +78,7 @@ namespace Audio
 	: OutputSampleRate(InInitParams.OutputSampleRate)
 	, MaxPitchShiftCents(InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.0f)
 	, MaxPitchShiftRatio(FMath::Pow(2.0f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves))
-	, DecodeBlockSizeInFrames(64)
+	, DecodeBlockSizeInFrames(128) // 128 chosen due to some limitations on some platform decoders (must be an integer multiple of 128)
 	, OutputBlockSizeInFrames(InInitParams.OutputBlockSizeInFrames)
 	{
 		check(OutputBlockSizeInFrames > 0);
