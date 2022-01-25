@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "SocketSubsystem.h"
+#include "IEOSSDKManager.h"
+#include "SocketSubsystemEOSUtils.h"
 
 #if WITH_EOS_SDK
 	#if defined(EOS_PLATFORM_BASE_FILE_NAME)
@@ -20,15 +22,14 @@ class FResolveInfo;
 class FInternetAddr;
 class FInternetAddrEOS;
 class FSocketEOS;
-class FOnlineSubsystemEOS;
 
 typedef TSet<uint8> FChannelSet;
 
-class FSocketSubsystemEOS
+class SOCKETSUBSYSTEMEOS_API FSocketSubsystemEOS
 	: public ISocketSubsystem
 {
 public:
-	FSocketSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS);
+	FSocketSubsystemEOS(IEOSPlatformHandlePtr InPlatformHandle, ISocketSubsystemEOSUtilsPtr InUtils);
 	virtual ~FSocketSubsystemEOS();
 
 //~ Begin ISocketSubsystem Interface
@@ -78,7 +79,10 @@ public:
 	bool UnbindChannel(const FInternetAddrEOS& Address);
 
 private:
-	FOnlineSubsystemEOS* SubsystemEOS;
+#if WITH_EOS_SDK
+	EOS_HP2P P2PHandle;
+#endif
+	ISocketSubsystemEOSUtilsPtr Utils;
 
 	/** All sockets allocated by this subsystem */
 	TArray<TUniquePtr<FSocketEOS>> TrackedSockets;

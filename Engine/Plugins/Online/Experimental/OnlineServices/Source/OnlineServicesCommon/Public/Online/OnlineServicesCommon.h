@@ -42,6 +42,7 @@ public:
 	virtual ILobbiesPtr GetLobbiesInterface() override;
 	virtual IConnectivityPtr GetConnectivityInterface() override;
 	virtual IPrivilegesPtr GetPrivilegesInterface() override;
+	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
 
 	// FOnlineServicesCommon
 

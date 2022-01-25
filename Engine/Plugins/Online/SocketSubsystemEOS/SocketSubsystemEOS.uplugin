@@ -1,10 +1,10 @@
 {
 	"FileVersion": 3,
 
-	"FriendlyName": "Online Services EOS",
+	"FriendlyName": "Socket Subsystem EOS",
 	"Version": 1,
 	"VersionName": "1.0",
-	"Description": "Online Services implementation for EOS",
+	"Description": "Responsible for management of EOS P2P Socket connections.",
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -12,8 +12,8 @@
 
 	"Modules": [
 		{
-			"Name": "OnlineServicesEOS",
-			"Type": "Runtime",
+			"Name": "SocketSubsystemEOS",
+			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformDenyList": [
 				"LinuxArm64",
@@ -22,23 +22,14 @@
 			]
 		}
 	],
-	"LocalizationTargets": [
-		{
-			"Name": "OnlineSubsystemEOS",
-			"LoadingPolicy": "Always"
-		}
-	],
+
 	"Plugins": [
 		{
-			"Name": "OnlineServices",
+			"Name": "OnlineSubsystemUtils",
 			"Enabled": true
 		},
 		{
 			"Name": "EOSShared",
-			"Enabled": true
-		},
-		{
-			"Name": "SocketSubsystemEOS",
 			"Enabled": true
 		}
 	]

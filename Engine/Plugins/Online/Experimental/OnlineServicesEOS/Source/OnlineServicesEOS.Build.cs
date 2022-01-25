@@ -18,8 +18,12 @@ public class OnlineServicesEOS : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"CoreOnline",
+				"CoreUObject",
 				"EOSSDK",
 				"EOSShared",
+				"Sockets",
+				"SocketSubsystemEOS",
+				"Engine"
 			}
 		);
 	}

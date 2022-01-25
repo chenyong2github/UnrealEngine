@@ -2,7 +2,7 @@
 
 #include "InternetAddrEOS.h"
 #include "Online/CoreOnline.h"
-#include "OnlineSubsystemEOSTypes.h"
+#include "EOSSharedTypes.h"
 #include "Containers/StringView.h"
 
 DEFINE_LOG_CATEGORY(LogSocketSubsystemEOS);

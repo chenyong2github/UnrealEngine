@@ -3,11 +3,10 @@
 #include "NetDriverEOS.h"
 #include "NetConnectionEOS.h"
 #include "SocketEOS.h"
-#include "OnlineSubsystem.h"
-#include "OnlineSubsystemNames.h"
-#include "OnlineSubsystemUtils.h"
 #include "SocketSubsystemEOS.h"
 #include "Misc/EngineVersionComparison.h"
+#include "EOSSharedTypes.h"
+#include "Engine/Engine.h"
 
 bool UNetDriverEOS::IsAvailable() const
 {
@@ -17,12 +16,9 @@ bool UNetDriverEOS::IsAvailable() const
 		return false;
 	}
 
-	if (IOnlineSubsystem* Subsystem = Online::GetSubsystem(FindWorld(), EOS_SUBSYSTEM))
+	if (ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(EOS_SOCKETSUBSYSTEM))
 	{
-		if (ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(EOS_SUBSYSTEM))
-		{
-			return true;
-		}
+		return true;
 	}
 
 	return false;
@@ -32,20 +28,20 @@ bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const
 {
 	if (bIsPassthrough)
 	{
-		UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Running as pass-through"));
+		UE_LOG(LogTemp, Verbose, TEXT("Running as pass-through"));
 		return Super::InitBase(bInitAsClient, InNotify, URL, bReuseAddressAndPort, Error);
 	}
 
 	if (!UNetDriver::InitBase(bInitAsClient, InNotify, URL, bReuseAddressAndPort, Error))
 	{
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Failed to init driver base"));
+		UE_LOG(LogTemp, Warning, TEXT("Failed to init driver base"));
 		return false;
 	}
 
 	FSocketSubsystemEOS* const SocketSubsystem = static_cast<FSocketSubsystemEOS*>(GetSocketSubsystem());
 	if (!SocketSubsystem)
 	{
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Could not get socket subsystem"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not get socket subsystem"));
 		return false;
 	}
 
@@ -58,7 +54,7 @@ bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const
 	{
 		// Not logged in?
 		Error = TEXT("Could not bind local address");
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Could not bind local address"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not bind local address"));
 		return false;
 	}
 
@@ -66,7 +62,7 @@ bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const
 	SetSocketAndLocalAddress(SocketSubsystem->CreateSocket(NAME_DGram, TEXT("UE4"), NAME_None));
 	if (GetSocket() == nullptr)
 	{
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Could not create socket"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not create socket"));
 		return false;
 	}
 
@@ -88,7 +84,7 @@ bool UNetDriverEOS::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL
 {
 	if (!bIsUsingP2PSockets || !IsAvailable() || !ConnectURL.Host.StartsWith(EOS_CONNECTION_URL_PREFIX, ESearchCase::IgnoreCase))
 	{
-		UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Connecting using IPNetDriver passthrough. ConnectUrl = (%s)"), *ConnectURL.ToString());
+		UE_LOG(LogTemp, Verbose, TEXT("Connecting using IPNetDriver passthrough. ConnectUrl = (%s)"), *ConnectURL.ToString());
 
 		bIsPassthrough = true;
 		return Super::InitConnect(InNotify, ConnectURL, Error);
@@ -100,11 +96,11 @@ bool UNetDriverEOS::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL
 	if (!bIsValid || ConnectURL.Port < 0)
 	{
 		Error = TEXT("Invalid remote address");
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Invalid Remote Address. ConnectUrl = (%s)"), *ConnectURL.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Invalid Remote Address. ConnectUrl = (%s)"), *ConnectURL.ToString());
 		return false;
 	}
 
-	UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Connecting using EOSNetDriver. ConnectUrl = (%s)"), *ConnectURL.ToString());
+	UE_LOG(LogTemp, Verbose, TEXT("Connecting using EOSNetDriver. ConnectUrl = (%s)"), *ConnectURL.ToString());
 
 	if (!InitBase(true, InNotify, ConnectURL, false, Error))
 	{
@@ -124,7 +120,7 @@ bool UNetDriverEOS::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL
 	{
 		// Failure
 		Error = TEXT("Could not bind local port");
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Could not bind local port in %d attempts"), MaxPortCountToTry);
+		UE_LOG(LogTemp, Warning, TEXT("Could not bind local port in %d attempts"), MaxPortCountToTry);
 		return false;
 	}
 
@@ -145,13 +141,13 @@ bool UNetDriverEOS::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 {
 	if (!bIsUsingP2PSockets || !IsAvailable() || LocalURL.HasOption(TEXT("bIsLanMatch")) || LocalURL.HasOption(TEXT("bUseIPSockets")))
 	{
-		UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Init as IPNetDriver listen server. LocalURL = (%s)"), *LocalURL.ToString());
+		UE_LOG(LogTemp, Verbose, TEXT("Init as IPNetDriver listen server. LocalURL = (%s)"), *LocalURL.ToString());
 
 		bIsPassthrough = true;
 		return Super::InitListen(InNotify, LocalURL, bReuseAddressAndPort, Error);
 	}
 
-	UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Init as EOSNetDriver listen server. LocalURL = (%s)"), *LocalURL.ToString());
+	UE_LOG(LogTemp, Verbose, TEXT("Init as EOSNetDriver listen server. LocalURL = (%s)"), *LocalURL.ToString());
 
 	if (!InitBase(false, InNotify, LocalURL, bReuseAddressAndPort, Error))
 	{
@@ -163,24 +159,24 @@ bool UNetDriverEOS::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 	if (!CurSocket->Listen(0))
 	{
 		Error = TEXT("Could not listen");
-		UE_LOG(LogSocketSubsystemEOS, Warning, TEXT("Could not listen on socket"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not listen on socket"));
 		return false;
 	}
 
 	InitConnectionlessHandler();
 
-	UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Initialized as an EOSP2P listen server"));
+	UE_LOG(LogTemp, Verbose, TEXT("Initialized as an EOSP2P listen server"));
 	return true;
 }
 
 ISocketSubsystem* UNetDriverEOS::GetSocketSubsystem()
 {
-	return ISocketSubsystem::Get(bIsPassthrough ? PLATFORM_SOCKETSUBSYSTEM : EOS_SUBSYSTEM);
+	return ISocketSubsystem::Get(bIsPassthrough ? PLATFORM_SOCKETSUBSYSTEM : EOS_SOCKETSUBSYSTEM);
 }
 
 void UNetDriverEOS::Shutdown()
 {
-	UE_LOG(LogSocketSubsystemEOS, Verbose, TEXT("Shutting down NetDriver"));
+	UE_LOG(LogTemp, Verbose, TEXT("Shutting down NetDriver"));
 
 	Super::Shutdown();
 

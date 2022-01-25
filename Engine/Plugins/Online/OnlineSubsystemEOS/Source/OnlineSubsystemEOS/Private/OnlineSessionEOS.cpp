@@ -366,7 +366,7 @@ FOnlineSessionInfoEOS::FOnlineSessionInfoEOS(const FString& InHostIp, FUniqueNet
 {
 	if (InHostIp.StartsWith(EOS_CONNECTION_URL_PREFIX, ESearchCase::IgnoreCase))
 	{
-		HostAddr = ISocketSubsystem::Get(EOS_SUBSYSTEM)->GetAddressFromString(InHostIp);
+		HostAddr = ISocketSubsystem::Get(EOS_SOCKETSUBSYSTEM)->GetAddressFromString(InHostIp);
 		EOSAddress = InHostIp;
 	}
 	else
@@ -493,7 +493,7 @@ void FOnlineSessionEOS::Init(const FString& InBucketId)
 
 	bIsDedicatedServer = IsRunningDedicatedServer();
 	bIsUsingP2PSockets = false;
-	GConfig->GetBool(TEXT("/Script/OnlineSubsystemEOS.NetDriverEOS"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/SocketSubsystemEOS.NetDriverEOS"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni);
 }
 
 /**

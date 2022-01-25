@@ -49,6 +49,19 @@ typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCl
 
 typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpersPtr;
 
+class FSocketSubsystemEOSUtils_OnlineSubsystemEOS : public ISocketSubsystemEOSUtils
+{
+public:
+	FSocketSubsystemEOSUtils_OnlineSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS);
+	virtual ~FSocketSubsystemEOSUtils_OnlineSubsystemEOS() override;
+
+	virtual EOS_ProductUserId GetLocalUserId() override;
+	virtual FString GetSessionId() override;
+
+private:
+	FOnlineSubsystemEOS* SubsystemEOS;
+};
+
 /**
  *	OnlineSubsystemEOS - Implementation of the online subsystem for EOS services
  */
@@ -128,7 +141,6 @@ PACKAGE_SCOPE:
 	EOS_HLeaderboards LeaderboardsHandle;
 	EOS_HMetrics MetricsHandle;
 	EOS_HAchievements AchievementsHandle;
-	EOS_HP2P P2PHandle;
 	EOS_HEcom EcomHandle;
 	EOS_HTitleStorage TitleStorageHandle;
 	EOS_HPlayerDataStorage PlayerDataStorageHandle;

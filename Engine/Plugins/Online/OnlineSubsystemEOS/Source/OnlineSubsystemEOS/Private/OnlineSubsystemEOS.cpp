@@ -150,7 +150,47 @@ struct FEOSPlatformOptions :
 
 FPlatformEOSHelpersPtr FOnlineSubsystemEOS::EOSHelpersPtr;
 
-bool FCallbackBase::bShouldCancelAllCallbacks = false;
+FSocketSubsystemEOSUtils_OnlineSubsystemEOS::FSocketSubsystemEOSUtils_OnlineSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS)
+	: SubsystemEOS(InSubsystemEOS)
+{
+	check(SubsystemEOS != nullptr);
+}
+
+FSocketSubsystemEOSUtils_OnlineSubsystemEOS::~FSocketSubsystemEOSUtils_OnlineSubsystemEOS()
+{
+	SubsystemEOS = nullptr;
+}
+
+EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetLocalUserId()
+{
+	EOS_ProductUserId Result = nullptr;
+
+	if (SubsystemEOS)
+	{
+		Result = SubsystemEOS->UserManager->GetLocalProductUserId();
+	}
+
+	return Result;
+}
+
+FString FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetSessionId()
+{
+	FString Result;
+
+	if (SubsystemEOS)
+	{
+		const IOnlineSessionPtr DefaultSessionInt = SubsystemEOS->GetSessionInterface();
+		if (DefaultSessionInt.IsValid())
+		{
+			if (const FNamedOnlineSession* const NamedSession = DefaultSessionInt->GetNamedSession(NAME_GameSession))
+			{
+				Result = NamedSession->GetSessionIdStr();
+			}
+		}
+	}
+
+	return Result;
+}
 
 void FOnlineSubsystemEOS::ModuleInit()
 {
@@ -350,12 +390,6 @@ bool FOnlineSubsystemEOS::Init()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get achievements handle"));
 		return false;
 	}
-	P2PHandle = EOS_Platform_GetP2PInterface(*EOSPlatformHandle);
-	if (P2PHandle == nullptr)
-	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get p2p handle"));
-		return false;
-	}
 	// Disable ecom if not part of EGS
 	if (bWasLaunchedByEGS)
 	{
@@ -380,7 +414,7 @@ bool FOnlineSubsystemEOS::Init()
 		return false;
 	}
 
-	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(this));
+	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineSubsystemEOS(this))));
 	FString ErrorMessage;
 	SocketSubsystem->Init(ErrorMessage);
 
@@ -557,7 +591,6 @@ FOnlineSubsystemEOS::FOnlineSubsystemEOS(FName InInstanceName) :
 	, LeaderboardsHandle(nullptr)
 	, MetricsHandle(nullptr)
 	, AchievementsHandle(nullptr)
-	, P2PHandle(nullptr)
 	, EcomHandle(nullptr)
 	, TitleStorageHandle(nullptr)
 	, PlayerDataStorageHandle(nullptr)

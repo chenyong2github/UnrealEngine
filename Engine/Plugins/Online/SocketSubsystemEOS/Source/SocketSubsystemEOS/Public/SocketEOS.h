@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "Sockets.h"
 #include "InternetAddrEOS.h"
-#include "Engine/World.h"
-#include "OnlineSubsystemEOSTypes.h"
+#include "EOSSharedTypes.h"
 
 class FOnlineSubsystemEOS;
 class FSocketSubsystemEOS;
@@ -28,7 +27,7 @@ class FSocketSubsystemEOS;
 	typedef TEOSGlobalCallback<EOS_P2P_OnRemoteConnectionClosedCallback, EOS_P2P_OnRemoteConnectionClosedInfo> FClosedNotifyCallback;
 #endif
 
-class FSocketEOS
+class SOCKETSUBSYSTEMEOS_API FSocketEOS
 	: public FSocket
 {
 public:

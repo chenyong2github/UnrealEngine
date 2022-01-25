@@ -74,6 +74,11 @@ IPrivilegesPtr FOnlineServicesCommon::GetPrivilegesInterface()
 	return IPrivilegesPtr(AsShared(), Get<IPrivileges>());
 }
 
+TOnlineResult<FGetResolvedConnectString> FOnlineServicesCommon::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
+{
+	return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
+}
+
 void FOnlineServicesCommon::RegisterComponents()
 {
 }

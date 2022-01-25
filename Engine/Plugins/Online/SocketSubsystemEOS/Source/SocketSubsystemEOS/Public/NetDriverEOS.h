@@ -9,7 +9,7 @@
 class ISocketSubsystem;
 
 UCLASS(Transient, Config=Engine)
-class ONLINESUBSYSTEMEOS_API UNetDriverEOS
+class SOCKETSUBSYSTEMEOS_API UNetDriverEOS
 	: public UIpNetDriver
 {
 	GENERATED_BODY()

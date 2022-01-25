@@ -16,7 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSocketSubsystemEOS, Log, All);
 
 #define EOS_SOCKET_NAME_SIZE 33
 
-class FInternetAddrEOS
+class SOCKETSUBSYSTEMEOS_API FInternetAddrEOS
 	: public FInternetAddr
 {
 public:

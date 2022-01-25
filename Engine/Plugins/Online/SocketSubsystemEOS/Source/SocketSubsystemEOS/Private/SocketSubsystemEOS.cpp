@@ -5,28 +5,38 @@
 #include "SocketEOS.h"
 #include "SocketTypes.h"
 #include "Containers/Ticker.h"
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineSessionInterface.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "OnlineSessionSettings.h"
 #include "Misc/ConfigCacheIni.h"
-#include "OnlineSubsystemUtils.h"
-#include "OnlineSubsystemEOS.h"
-#include "UserManagerEOS.h"
 #include "SocketSubsystemModule.h"
+#include "Modules/ModuleManager.h"
+#include "Misc/OutputDeviceRedirector.h"
 
-FSocketSubsystemEOS::FSocketSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS)
-	: SubsystemEOS(InSubsystemEOS)
+#if WITH_EOS_SDK
+	#include "eos_sdk.h"
+#endif
+
+FSocketSubsystemEOS::FSocketSubsystemEOS(IEOSPlatformHandlePtr InPlatformHandle, ISocketSubsystemEOSUtilsPtr InUtils)
+	: P2PHandle(nullptr)
+	, Utils(InUtils)
 	, LastSocketError(ESocketErrors::SE_NO_ERROR)
 {
+#if WITH_EOS_SDK
+	P2PHandle = EOS_Platform_GetP2PInterface(*InPlatformHandle);
+	if (P2PHandle == nullptr)
+	{
+		UE_LOG(LogSocketSubsystemEOS, Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get p2p handle"));
+	}
+#endif
 }
 
-FSocketSubsystemEOS::~FSocketSubsystemEOS() = default;
+FSocketSubsystemEOS::~FSocketSubsystemEOS()
+{
+	Utils = nullptr;
+}
 
 bool FSocketSubsystemEOS::Init(FString& Error)
 {
 	FSocketSubsystemModule& SocketSubsystem = FModuleManager::LoadModuleChecked<FSocketSubsystemModule>("Sockets");
-	SocketSubsystem.RegisterSocketSubsystem(EOS_SUBSYSTEM, this, false);
+	SocketSubsystem.RegisterSocketSubsystem(EOS_SOCKETSUBSYSTEM, this, false);
 
 	return true;
 }
@@ -38,7 +48,7 @@ void FSocketSubsystemEOS::Shutdown()
 
 	if (FSocketSubsystemModule* SocketSubsystem = FModuleManager::GetModulePtr<FSocketSubsystemModule>("Sockets"))
 	{
-		SocketSubsystem->UnregisterSocketSubsystem(EOS_SUBSYSTEM);
+		SocketSubsystem->UnregisterSocketSubsystem(EOS_SOCKETSUBSYSTEM);
 	}
 }
 
@@ -139,17 +149,13 @@ TSharedRef<FInternetAddr> FSocketSubsystemEOS::GetLocalBindAddr(FOutputDevice& O
 #if WITH_EOS_SDK
 EOS_HP2P FSocketSubsystemEOS::GetP2PHandle()
 {
-	check(SubsystemEOS != nullptr);
-	return SubsystemEOS->P2PHandle;
+	check(P2PHandle != nullptr);
+	return P2PHandle;
 }
 
 EOS_ProductUserId FSocketSubsystemEOS::GetLocalUserId()
 {
-	if (SubsystemEOS != nullptr)
-	{
-		return SubsystemEOS->UserManager->GetLocalProductUserId();
-	}
-	return nullptr;
+	return Utils->GetLocalUserId();
 }
 #endif
 
@@ -169,19 +175,7 @@ TSharedRef<FInternetAddr> FSocketSubsystemEOS::GetLocalBindAddr(const UWorld* co
 	return BoundAddr;
 #endif
 
-	FString SessionId;
-	// Find our current session id from the Default online subsystem
-	if (const IOnlineSubsystem* const DefaultSubsystem = Online::GetSubsystem(OwningWorld))
-	{
-		const IOnlineSessionPtr DefaultSessionInt = DefaultSubsystem->GetSessionInterface();
-		if (DefaultSessionInt.IsValid())
-		{
-			if (const FNamedOnlineSession* const NamedSession = DefaultSessionInt->GetNamedSession(NAME_GameSession))
-			{
-				SessionId = NamedSession->GetSessionIdStr();
-			}
-		}
-	}
+	FString SessionId = Utils->GetSessionId();
 
 	if (SessionId.IsEmpty())
 	{

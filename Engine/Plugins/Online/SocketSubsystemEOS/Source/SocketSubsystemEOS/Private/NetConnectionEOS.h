@@ -7,7 +7,7 @@
 #include "NetConnectionEOS.generated.h"
 
 UCLASS(Transient, Config=Engine)
-class UNetConnectionEOS
+class SOCKETSUBSYSTEMEOS_API UNetConnectionEOS
 	: public UIpConnection
 {
 	GENERATED_BODY()

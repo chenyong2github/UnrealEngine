@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EOSShared.h"
+#include "EOSSharedTypes.h"
 
 #include "eos_friends_types.h"
 
 DEFINE_LOG_CATEGORY(LogEOSSDK);
+
+bool FCallbackBase::bShouldCancelAllCallbacks = false;
 
 FString LexToString(const EOS_ProductUserId UserId)
 {

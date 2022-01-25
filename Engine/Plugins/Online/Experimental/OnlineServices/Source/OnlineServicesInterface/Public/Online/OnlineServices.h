@@ -4,6 +4,8 @@
 
 #include "Online/CoreOnline.h"
 #include "Templates/SharedPointer.h"
+#include "Online/OnlineAsyncOpHandle.h"
+#include "Online/OnlineMeta.h"
 
 class FString;
 
@@ -18,6 +20,23 @@ using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 using ILobbiesPtr = TSharedPtr<class ILobbies>;
 using IConnectivityPtr = TSharedPtr<class IConnectivity>;
 using IPrivilegesPtr = TSharedPtr<class IPrivileges>;
+
+struct FGetResolvedConnectString
+{
+	static constexpr TCHAR Name[] = TEXT("GetResolvedConnectString");
+
+	struct Params
+	{
+		FOnlineAccountIdHandle LocalUserId;
+		FOnlineLobbyIdHandle LobbyId;
+		FName PortType;
+	};
+
+	struct Result
+	{
+		FString ResolvedConnectString;
+	};
+};
 
 class ONLINESERVICESINTERFACE_API IOnlineServices
 {
@@ -67,6 +86,11 @@ public:
 	 *
 	 */
 	virtual IPrivilegesPtr GetPrivilegesInterface() = 0;
+
+	/** 
+	 * Get the connectivity string used for client travel
+	 */
+	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) = 0;
 };
 
 /**
@@ -106,5 +130,20 @@ TSharedPtr<ServicesClass> GetServices(FName InstanceName = NAME_None)
  * @param InstanceName Name of the services instance to destroy
  */
 ONLINESERVICESINTERFACE_API void DestroyServices(EOnlineServices OnlineServices = EOnlineServices::Default, FName InstanceName = NAME_None);
+
+namespace Meta {
+// TODO: Move to OnlineServices_Meta.inl file?
+
+BEGIN_ONLINE_STRUCT_META(FGetResolvedConnectString::Params)
+	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, PortType)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetResolvedConnectString::Result)
+	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Result, ResolvedConnectString)
+END_ONLINE_STRUCT_META()
+
+/* Meta*/}
 
 /* UE::Online */ }
