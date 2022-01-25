@@ -910,7 +910,9 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		{
 			ensure(ProjectionStencilingPasses[View->PrimaryViewIndex]->GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
 
-			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1.0f);
+			const FViewInfo* PrimaryView = View->GetPrimaryView();
+			const FViewInfo* InstancedView = View->GetInstancedView();
+			RHICmdList.SetViewport(PrimaryView->ViewRect.Min.X, PrimaryView->ViewRect.Min.Y, 0.0f, InstancedView->ViewRect.Max.X, InstancedView->ViewRect.Max.Y, 1.0f);
 			RHICmdList.SetScissorRect(true, View->ViewRect.Min.X, View->ViewRect.Min.Y, View->ViewRect.Max.X, View->ViewRect.Max.Y);
 			// Submit the first (and only pass - we share that at least) as the pass is set up for stereo.
 			ProjectionStencilingPasses[View->PrimaryViewIndex]->SubmitDraw(RHICmdList, InstanceCullingDrawParams);

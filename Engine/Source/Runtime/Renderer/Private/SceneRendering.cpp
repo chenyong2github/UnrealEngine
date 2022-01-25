@@ -2030,7 +2030,8 @@ const FViewInfo* FViewInfo::GetPrimaryView() const
 
 const FViewInfo* FViewInfo::GetInstancedView() const
 {
-	if ((IsInstancedStereoPass() || bIsMobileMultiViewEnabled))
+	// Extra checks are needed because some code relies on this function to return NULL if ISR is disabled.
+	if (bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled)
 	{
 		return static_cast<const FViewInfo*>(GetInstancedSceneView());
 	}
