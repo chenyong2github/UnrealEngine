@@ -123,6 +123,7 @@ void AActor::InitializeDefaults()
 #if WITH_EDITORONLY_DATA
 	bEditable = true;
 	bListedInSceneOutliner = true;
+	bDefaultOutlinerExpansionState = true;
 	bIsEditorPreviewActor = false;
 	bHiddenEdLayer = false;
 	bHiddenEdTemporary = false;

@@ -968,6 +968,9 @@ public:
 	/** If true during PostEditMove the construction script will be run every time. If false it will only run when the drag finishes. */
 	uint8 bRunConstructionScriptOnDrag:1;
 
+	/** Default expansion state for this actor. Some actors have attached children that we may not want to automatically expand by default */
+	uint8 bDefaultOutlinerExpansionState : 1;
+
 protected:
 	/** If true, prevents the actor from being moved in the editor viewport. */
 	UPROPERTY()

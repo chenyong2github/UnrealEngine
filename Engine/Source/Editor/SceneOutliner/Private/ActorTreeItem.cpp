@@ -341,6 +341,8 @@ FActorTreeItem::FActorTreeItem(AActor* InActor)
 {
 	check(InActor);
 	ActorLabel = InActor->GetActorLabel();
+
+	Flags.bIsExpanded = InActor->bDefaultOutlinerExpansionState;
 	
 	bExistsInCurrentWorldAndPIE = GEditor->ObjectsThatExistInEditorWorld.Get(InActor);
 }
