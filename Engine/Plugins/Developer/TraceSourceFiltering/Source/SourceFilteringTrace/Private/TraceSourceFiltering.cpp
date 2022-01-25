@@ -7,11 +7,13 @@
 #include "SourceFilterTrace.h"
 #include "TraceWorldFiltering.h"
 #include "Misc/CommandLine.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #include "TraceSourceFilteringProjectSettings.h"
 
 FTraceSourceFiltering::FTraceSourceFiltering()
 {
+	LLM_SCOPE_BYNAME("Debug/Profiling");
 	FilterCollection = NewObject<USourceFilterCollection>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
 	Settings = DuplicateObject(GetDefault<UTraceSourceFilteringSettings>(), nullptr);
 
@@ -112,12 +114,14 @@ void FTraceSourceFiltering::ProcessRemoteCommand(const FString& Command, const T
 
 void FTraceSourceFiltering::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	LLM_SCOPE_BYNAME("Debug/Profiling");
 	Collector.AddReferencedObject(FilterCollection);
 	Collector.AddReferencedObject(Settings);
 }
 
 void FTraceSourceFiltering::PopulateRemoteTraceCommands()
 {
+	LLM_SCOPE_BYNAME("Debug/Profiling");
 #if SOURCE_FILTER_TRACE_ENABLED
 CommandMap.Add(TEXT("AddFilterById"), { [this](const TArray<FString>& Arguments) -> void { FilterCollection->AddFilterOfClass(ConvertArgumentToClass(Arguments[0])); }, 1 });
 

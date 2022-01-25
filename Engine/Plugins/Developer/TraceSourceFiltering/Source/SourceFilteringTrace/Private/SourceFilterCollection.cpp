@@ -27,14 +27,14 @@ void USourceFilterCollection::OnObjectsReplaced(const TMap<UObject*, UObject*>& 
 		}
 	}
 
-	TArray<UDataSourceFilter*> KeyFilters;
+	TArray<TObjectPtr<UDataSourceFilter>> KeyFilters;
 	ChildToParent.GenerateKeyArray(KeyFilters);
 
 	for (UDataSourceFilter* Filter : KeyFilters)
 	{
 		if (UObject* const * NewObjectPtr = OldToNewInstanceMap.Find(Filter))
 		{
-			UDataSourceFilterSet* ParentFilterSet = nullptr;			
+			TObjectPtr<UDataSourceFilterSet> ParentFilterSet = nullptr;			
 			ChildToParent.RemoveAndCopyValue(Filter, ParentFilterSet);
 
 			ChildToParent.Add(Cast<UDataSourceFilter>(*NewObjectPtr), ParentFilterSet);
@@ -268,7 +268,7 @@ void USourceFilterCollection::AddFiltersFromPreset(const TArray<FString>& ClassN
 
 void USourceFilterCollection::RemoveFilter(UDataSourceFilter* ToRemoveFilter)
 {
-	UDataSourceFilterSet* OuterFilterSet = nullptr;
+	TObjectPtr<UDataSourceFilterSet> OuterFilterSet = nullptr;
 	ChildToParent.RemoveAndCopyValue(ToRemoveFilter, OuterFilterSet);
 	
 	// In case of a set, also remove children 
@@ -346,7 +346,7 @@ void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDat
 {
 	TRACE_FILTER_OPERATION(Source, ESourceActorFilterOperation::ReplaceFilter, TRACE_FILTER_IDENTIFIER(Destination));
 
-	UDataSourceFilterSet* OuterFilterSet = nullptr;
+	TObjectPtr<UDataSourceFilterSet> OuterFilterSet = nullptr;
 	ChildToParent.RemoveAndCopyValue(Destination, OuterFilterSet);
 
 	if (OuterFilterSet)
@@ -371,7 +371,7 @@ void USourceFilterCollection::MoveFilter(UDataSourceFilter* Filter, UDataSourceF
 {
 	TRACE_FILTER_OPERATION(Filter, ESourceActorFilterOperation::MoveFilter, Destination ? TRACE_FILTER_IDENTIFIER(Destination) : 0);
 
-	UDataSourceFilterSet*& FilterParent = ChildToParent.FindChecked(Filter);
+	TObjectPtr<UDataSourceFilterSet>& FilterParent = ChildToParent.FindChecked(Filter);
 
 	if (FilterParent)
 	{
@@ -423,7 +423,7 @@ void USourceFilterCollection::Reset()
 	SourceFiltersUpdatedDelegate.Broadcast();
 }
 
-void USourceFilterCollection::GetFlatFilters(TArray<UDataSourceFilter*>& OutFilters)
+void USourceFilterCollection::GetFlatFilters(TArray<TObjectPtr<UDataSourceFilter>>& OutFilters)
 {
 	ChildToParent.GenerateKeyArray(OutFilters);
 }

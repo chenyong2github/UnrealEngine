@@ -101,7 +101,7 @@ void FSourceFilteringEditorModule::OnAssetsPendingDelete(TArray<UObject*> const&
 
 	if (FilterCollection)
 	{
-		TArray<UDataSourceFilter*> Filters;
+		TArray<TObjectPtr<UDataSourceFilter>> Filters;
 		FilterCollection->GetFlatFilters(Filters);
 		for (UDataSourceFilter* Filter : Filters) 
 		{

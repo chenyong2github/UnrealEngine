@@ -66,7 +66,7 @@ public:
 	const TArray<UDataSourceFilter*>& GetFilters() const { return Filters; }
 
 	/** Returns flattened Filter instances */
-	void GetFlatFilters(TArray<UDataSourceFilter*>& OutFilters);
+	void GetFlatFilters(TArray<TObjectPtr<UDataSourceFilter>>& OutFilters);
 
 	/** Copies Filter data from other provided Filter Collection*/
 	void CopyData(USourceFilterCollection* OtherCollection);
@@ -101,7 +101,7 @@ protected:
 protected:
 	/** Root-level filter instances */
 	UPROPERTY(VisibleAnywhere, Category=Filtering)
-	TArray<UDataSourceFilter*> Filters;
+	TArray<TObjectPtr<UDataSourceFilter>> Filters;
 
 	/** Class filters, used for high-level filtering of AActor instances inside of a UWorld */
 	UPROPERTY(VisibleAnywhere, Category = Filtering)
@@ -116,7 +116,7 @@ protected:
 
 	/** Child / Parent mapping for Filter (sets) */
 	UPROPERTY()
-	TMap<UDataSourceFilter*, UDataSourceFilterSet*> ChildToParent;
+	TMap<TObjectPtr<UDataSourceFilter>, TObjectPtr<UDataSourceFilterSet>> ChildToParent;
 	
 	FSimpleMulticastDelegate SourceFiltersUpdatedDelegate;
 };

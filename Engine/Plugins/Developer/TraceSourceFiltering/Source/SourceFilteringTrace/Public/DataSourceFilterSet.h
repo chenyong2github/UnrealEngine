@@ -17,7 +17,7 @@ class SOURCEFILTERINGTRACE_API UDataSourceFilterSet : public UDataSourceFilter, 
 
 	GENERATED_BODY()
 public:	
-	const TArray<UDataSourceFilter*>& GetFilters() const { return Filters; }
+	const TArray<TObjectPtr<UDataSourceFilter>>& GetFilters() const { return Filters; }
 	void SetFilterMode(EFilterSetMode InMode);
 
 	/** Begin IDataSourceFilterSetInterface overrides */
@@ -34,7 +34,7 @@ protected:
 protected:
 	/** Contained Filter instance */
 	UPROPERTY()
-	TArray<UDataSourceFilter*> Filters;
+	TArray<TObjectPtr<UDataSourceFilter>> Filters;
 
 	/** Current Filter set operation */
 	UPROPERTY()
