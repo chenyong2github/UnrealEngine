@@ -16,6 +16,59 @@ UWorld* UPCGBlueprintElement::GetWorld() const
 }
 
 #if WITH_EDITOR
+void UPCGBlueprintElement::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	OnBlueprintChangedDelegate.Broadcast(this);
+}
+#endif // WITH_EDITOR
+
+void UPCGBlueprintSettings::SetupBlueprintEvent()
+{
+#if WITH_EDITOR
+	if (BlueprintElementType)
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintElementType->ClassGeneratedBy))
+		{
+			Blueprint->OnChanged().AddUObject(this, &UPCGBlueprintSettings::OnBlueprintChanged);
+		}
+	}
+#endif
+}
+
+void UPCGBlueprintSettings::TeardownBlueprintEvent()
+{
+#if WITH_EDITOR
+	if (BlueprintElementType)
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintElementType->ClassGeneratedBy))
+		{
+			Blueprint->OnChanged().RemoveAll(this);
+		}
+	}
+#endif
+}
+
+void UPCGBlueprintSettings::SetupBlueprintElementEvent()
+{
+#if WITH_EDITOR
+	if (BlueprintElementInstance)
+	{
+		BlueprintElementInstance->OnBlueprintChangedDelegate.AddUObject(this, &UPCGBlueprintSettings::OnBlueprintElementChanged);
+	}
+#endif
+}
+
+void UPCGBlueprintSettings::TeardownBlueprintElementEvent()
+{
+#if WITH_EDITOR
+	if (BlueprintElementInstance)
+	{
+		BlueprintElementInstance->OnBlueprintChangedDelegate.RemoveAll(this);
+	}
+#endif
+}
+
 void UPCGBlueprintSettings::PostLoad()
 {
 	Super::PostLoad();
@@ -26,12 +79,25 @@ void UPCGBlueprintSettings::PostLoad()
 		BlueprintElement_DEPRECATED = nullptr;
 	}
 
+	SetupBlueprintEvent();
+
 	if (!BlueprintElementInstance)
 	{
 		RefreshBlueprintElement();
 	}
+	else
+	{
+		SetupBlueprintElementEvent();
+	}
 }
 
+void UPCGBlueprintSettings::BeginDestroy()
+{
+	TeardownBlueprintElementEvent();
+	TeardownBlueprintEvent();
+}
+
+#if WITH_EDITOR
 void UPCGBlueprintSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (!BlueprintElementInstance || BlueprintElementInstance->GetClass() != BlueprintElementType)
@@ -41,22 +107,45 @@ void UPCGBlueprintSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UPCGBlueprintSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
+{
+	// When the blueprint changes, the element gets recreated, so we must rewire it here.
+	TeardownBlueprintElementEvent();
+	SetupBlueprintElementEvent();
+
+	OnSettingsChangedDelegate.Broadcast(this);
+}
+
+void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InElement)
+{
+	OnSettingsChangedDelegate.Broadcast(this);
+}
 #endif
 
 void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType)
 {
 	if (!BlueprintElementInstance || InElementType != BlueprintElementType)
 	{
-		BlueprintElementType = InElementType;
+		if (InElementType != BlueprintElementType)
+		{
+			TeardownBlueprintEvent();
+			BlueprintElementType = InElementType;
+			SetupBlueprintEvent();
+		}
+		
 		RefreshBlueprintElement();
 	}
 }
 
 void UPCGBlueprintSettings::RefreshBlueprintElement()
 {
+	TeardownBlueprintElementEvent();
+
 	if (BlueprintElementType)
 	{
 		BlueprintElementInstance = NewObject<UPCGBlueprintElement>(this, BlueprintElementType);
+		SetupBlueprintElementEvent();
 	}
 	else
 	{

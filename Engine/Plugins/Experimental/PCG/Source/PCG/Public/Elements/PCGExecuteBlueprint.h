@@ -11,6 +11,10 @@
 
 class UWorld;
 
+#if WITH_EDITOR
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGBlueprintChanged, UPCGBlueprintElement*);
+#endif
+
 UCLASS(Abstract, BlueprintType, Blueprintable, hidecategories = (Object))
 class UPCGBlueprintElement : public UObject
 {
@@ -20,8 +24,18 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = Execution)
 	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
 
+#if WITH_EDITOR
+	// ~Begin UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// ~End UObject interface
+#endif
+
 	/** Needed to be able to call certain blueprint functions */
 	virtual UWorld* GetWorld() const override;
+
+#if WITH_EDITOR
+	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
+#endif
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -42,9 +56,10 @@ protected:
 	// ~End UPCGSettings interface
 
 public:
-#if WITH_EDITOR
 	// ~Begin UObject interface
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// ~End UObject interface
 #endif
@@ -63,7 +78,16 @@ protected:
 	TObjectPtr<UPCGBlueprintElement> BlueprintElementInstance;
 
 protected:
+#if WITH_EDITOR
+	void OnBlueprintChanged(UBlueprint* InBlueprint);
+	void OnBlueprintElementChanged(UPCGBlueprintElement* InElement);
+#endif
+
 	void RefreshBlueprintElement();
+	void SetupBlueprintEvent();
+	void TeardownBlueprintEvent();
+	void SetupBlueprintElementEvent();
+	void TeardownBlueprintElementEvent();
 };
 
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
