@@ -82,6 +82,14 @@ private:
 	bool ContextMenu_ShowCriticalPath_CanExecute();
 	bool ContextMenu_ShowCriticalPath_IsChecked();
 
+	void ContextMenu_ShowTaskTrack_Execute();
+	bool ContextMenu_ShowTaskTrack_CanExecute();
+	bool ContextMenu_ShowTaskTrack_IsChecked();
+
+	void ContextMenu_ShowDetailedTaskTrackInfo_Execute();
+	bool ContextMenu_ShowDetailedTaskTrackInfo_CanExecute();
+	bool ContextMenu_ShowDetailedTaskTrackInfo_IsChecked();
+
 	void OnTaskSettingsChanged();
 
 private:
@@ -128,6 +136,9 @@ public:
 	void OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSelectedEvent);
 	void GetEventRelations(const FThreadTrackEvent& InSelectedEvent);
 
+	void SetShowDetailedInfoOnTaskTrack(bool InValue) { bShowDetailInfoOnTaskTrack = InValue; }
+	bool GetShowDetailedInfoOnTaskTrack() { return bShowDetailInfoOnTaskTrack; }
+
 private:
 	uint32 TimelineIndex;
 
@@ -136,6 +147,8 @@ private:
 	TaskTrace::FId TaskId = TaskTrace::InvalidId;
 
 	FVector2D MousePositionOnButtonDown;
+
+	bool bShowDetailInfoOnTaskTrack = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

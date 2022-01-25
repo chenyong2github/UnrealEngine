@@ -338,14 +338,8 @@ void FTaskGraphProfilerManager::GetSingleTaskConnections(const TraceServices::FT
 	{
 		const TraceServices::FTaskInfo* Prerequisite = TasksProvider->TryGetTask(Task->Prerequisites[i].RelativeId);
 		check(Prerequisite != nullptr);
-		double StartTime = Prerequisite->CompletedTimestamp;
-		uint32 ThreadId = Prerequisite->CompletedThreadId;
-		if (StartTime <= 0.0)
-		{
-			StartTime = Prerequisite->FinishedTimestamp;
-			ThreadId = Prerequisite->StartedThreadId;
-		}
-		AddRelation(InSelectedEvent, StartTime, ThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Prerequisite);
+
+		AddRelation(InSelectedEvent, Prerequisite->FinishedTimestamp, Prerequisite->StartedThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::Prerequisite);
 	}
 
 	int32 NumNestedToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
@@ -365,14 +359,8 @@ void FTaskGraphProfilerManager::GetSingleTaskConnections(const TraceServices::FT
 	{
 		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
 		check(Subsequent != nullptr);
-		double StartTime = Task->CompletedTimestamp;
-		uint32 ThreadId = Task->CompletedThreadId;
-		if (StartTime <= 0.0)
-		{
-			StartTime = Task->FinishedTimestamp;
-			ThreadId = Task->StartedThreadId;
-		}
-		AddRelation(InSelectedEvent, StartTime, ThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, ETaskEventType::Subsequent);
+
+		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, ETaskEventType::Subsequent);
 	}
 }
 
