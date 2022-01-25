@@ -1751,6 +1751,12 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 			SceneInfo->RemoveCachedRayTracingPrimitives();
 		}
 	#endif
+
+		if (SceneInfo->Proxy && SceneInfo->Proxy->IsNaniteMesh())
+		{
+			// Make sure material table indirections are kept in sync with GPU Scene and cached Nanite MDCs
+			SceneInfo->RequestGPUSceneUpdate(EPrimitiveDirtyState::ChangedOther);
+		}
 	}
 
 	if (bReAddToDrawLists)
