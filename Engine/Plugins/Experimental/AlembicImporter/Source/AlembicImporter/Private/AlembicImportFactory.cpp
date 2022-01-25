@@ -84,8 +84,14 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 	ImportSettings->bReimport = false;
 	AdditionalImportedObjects.Empty();
 
+	// Set up message log page name to separate different assets
+	FText ImportingText = FText::Format(LOCTEXT("AbcFactoryImporting", "Importing {0}.abc"), FText::FromName(InName));
+	const FString& PageName = ImportingText.ToString();
+
 	if (ErrorCode != AbcImportError_NoError)
 	{
+		FAbcImportLogger::OutputMessages(PageName);
+
 		// Failed to read the file info, fail the import
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 		return nullptr;
@@ -116,8 +122,6 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 		bOutOperationCanceled = !Options->ShouldImport();
 	}
 
-	// Set up message log page name to separate different assets
-	const FString PageName = "Importing " + InName.ToString() + ".abc";
 
 	TArray<UObject*> ResultAssets;
 	if (!bOutOperationCanceled)
@@ -390,7 +394,9 @@ void UAlembicImportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>
 EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 {
 	ImportSettings->bReimport = true;
-	const FString PageName = "Reimporting " + Obj->GetName() + ".abc";
+
+	FText ReimportingText = FText::Format(LOCTEXT("AbcFactoryReimporting", "Reimporting {0}.abc"), FText::FromString(Obj->GetName()));
+	const FString& PageName = ReimportingText.ToString();
 	if (Obj->GetClass() == UStaticMesh::StaticClass())
 	{
 		UStaticMesh* Mesh = Cast<UStaticMesh>(Obj);

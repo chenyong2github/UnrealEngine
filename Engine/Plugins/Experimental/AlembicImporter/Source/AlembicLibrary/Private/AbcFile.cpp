@@ -81,6 +81,16 @@ EAbcImportError FAbcFile::Open()
 	Archive = Factory.getArchive(TCHAR_TO_ANSI(*FPaths::ConvertRelativePathToFull(FilePath)), CompressionType);
 	if (!Archive.valid())
 	{
+		TSharedPtr<FTokenizedMessage> Message;
+		if (CompressionType == Alembic::AbcCoreFactory::IFactory::CoreType::kHDF5)
+		{
+			Message = FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("AbcHDF5NotSupported", "HDF5 Alembic files are not supported. Please convert the file to Ogawa format before importing."));
+		}
+		else
+		{
+			Message = FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("AbcUnknownFormat", "Unknown file format: not a valid Alembic."));
+		}
+		FAbcImportLogger::AddImportMessage(Message.ToSharedRef());
 		return EAbcImportError::AbcImportError_InvalidArchive;
 	}
 
@@ -88,6 +98,8 @@ EAbcImportError FAbcFile::Open()
 	TopObject = Alembic::Abc::IObject(Archive, Alembic::Abc::kTop);
 	if (!TopObject.valid())
 	{
+		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("AbcInvalidRoot", "Invalid root node: cannot proceed with import."));
+		FAbcImportLogger::AddImportMessage(Message);
 		return EAbcImportError::AbcImportError_NoValidTopObject;
 	}
 
