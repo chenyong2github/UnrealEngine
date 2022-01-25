@@ -368,9 +368,11 @@ float3 CalculateSurfaceCacheLighting(
 	// FarField proxies are less accurate
 	float SurfaceCacheDepthTestBias = (Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD) ? 1000.0f : 20.0f;
 
+	const uint MeshCardsIndex = GetMeshCardsIndex(SceneInstanceIndex);
+
 	FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 		Context.TraceCoord,
-		SceneInstanceIndex,
+		MeshCardsIndex,
 		RayHitWorldPosition,
 		RayHitWorldNormal,
 		InterpolateRadius,

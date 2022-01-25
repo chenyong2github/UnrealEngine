@@ -638,16 +638,32 @@ void VisBufferShadingCS(
 				float RayLength = length(RayEnd - RayStart);
 				float ConeStartRadius = length(RayDirection * VoxelExtent);
 
+				uint MeshCardsIndex = LUMEN_INVALID_MESH_CARDS_INDEX;
+				float SurfaceCacheDepthTestBias = 0.0f;
+
 				FVoxelVisBuffer VisBuffer = DecodeVoxelVisBuffer(VisBufferPayload);
+				float HitDistance = RayLength * VisBuffer.NormalizedHitDistance;
+
 				if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_MESH_SDF)
 				{
 					FTraceMeshSDFResult TraceMeshSDFResult;
-					TraceMeshSDFResult.HitDistance = RayLength * VisBuffer.NormalizedHitDistance;
+					TraceMeshSDFResult.HitDistance = HitDistance;
 					TraceMeshSDFResult.HitObject = VisBuffer.HitObjectId;
 
 					FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(RayStart, RayDirection, RayLength, false, TraceMeshSDFResult);
+					MeshCardsIndex = TraceSDFData.MeshCardsIndex;
+					SurfaceCacheDepthTestBias = TraceSDFData.SurfaceCacheDepthTestBias;
+				}
+				// TODO: Bucket by hit-object type in compaction step..
+				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD)
+				{
+					MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(VisBuffer.HitObjectId);
+					SurfaceCacheDepthTestBias = 20.0f;
+				}
 
-					float3 InterpolatePosition = RayStart + RayDirection * TraceMeshSDFResult.HitDistance;
+				if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+				{
+					float3 InterpolatePosition = RayStart + RayDirection * HitDistance;
 
 					//@todo - compute based on SDF voxel size, or card texel size
 					float CardInterpolateDepthVisibilityRadius = 10.0f;
@@ -658,30 +674,17 @@ void VisBufferShadingCS(
 
 					FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 						ScreenCoord,
-						TraceSDFData.SceneInstanceIndex,
+						MeshCardsIndex,
 						InterpolatePosition,
 						-RayDirection,
 						InterpolateRadius,
-						TraceSDFData.SurfaceCacheDepthTestBias,
+						SurfaceCacheDepthTestBias,
 						CardInterpolateDepthVisibilityRadius,
 						bHiResSurface,
 						AtlasId);
 
 					Lighting = SurfaceCacheSample.Lighting;
 					Opacity = SurfaceCacheSample.Opacity;
-				}
-
-				// TODO: Bucket by hit-object type in compaction step..
-				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD)
-				{
-					FHeightfieldRay HeightfieldRay = CreateHeightfieldRay(RayStart, RayDirection, RayLength);
-					uint HeightfieldObjectIndex = VisBuffer.HitObjectId;
-					float HitDistance = RayLength * VisBuffer.NormalizedHitDistance;
-					float SampleRadius = VoxelExtent.x;
-					FTraceMeshHeightfieldShadedResult ShadedResult = ShadeHeightfieldTrace(HeightfieldRay, HeightfieldObjectIndex, HitDistance, SampleRadius);
-
-					Lighting = ShadedResult.Lighting;
-					Opacity = ShadedResult.Opacity;
 				}
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);

@@ -169,6 +169,7 @@ struct FCardVSToPS
 // Stride of mesh cards data, must match C++
 #define LUMEN_MESH_CARDS_DATA_STRIDE 8
 #define LUMEN_INVALID_CARD_INDEX 0xFFFFFFFF
+#define LUMEN_INVALID_MESH_CARDS_INDEX 0xFFFFFFFF
 
 struct FLumenMeshCardsData
 {

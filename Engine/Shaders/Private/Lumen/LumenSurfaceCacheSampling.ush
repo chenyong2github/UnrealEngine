@@ -408,14 +408,24 @@ void SampleLumenCard(
 	}
 }
 
-FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+uint GetMeshCardsIndex(uint SceneInstanceIndex)
+{
+	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+	return MeshCardsIndex;
+}
+
+uint GetMeshCardsIndexFromHeightfieldObjectIndex(uint HeightfieldObjectIndex)
+{
+	const uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * HeightfieldObjectIndex);
+	return MeshCardsIndex;
+}
+
+FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
 	SurfaceCacheSample.Opacity = 1.0f;
 	SurfaceCacheSample.bValid = false;
-
-	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
 
 #if ENABLE_VISUALIZE_MODE == 1
 	if (VisualizeMode == VISUALIZE_MODE_SURFACE_CACHE)
