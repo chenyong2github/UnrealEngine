@@ -84,7 +84,7 @@ public:
 
 	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const;
 
-	FReply HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
+	FReply OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
 	
 	void SetSuggestions(TArray<FString>& Elements, FText Highlight);
 

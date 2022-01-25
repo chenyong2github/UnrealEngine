@@ -37,7 +37,16 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 			.HintText(LOCTEXT("ConsoleCommandExecutorHintText", "Enter Console Command"))
 			.OnTextChanged(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged)
 			.OnKeyCharHandler(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler)
-			.OnKeyDownHandler(this, &SConsoleVariablesEditorCustomConsoleInputBox::HandleConsoleInputTextCommitted)
+			.OnKeyDownHandler(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnKeyDownHandler)
+			.OnTextCommitted_Lambda([this] (const FText& InText, const ETextCommit::Type CommitType)
+			{
+				// Hide widget when focus is lost
+				if (CommitType == ETextCommit::OnUserMovedFocus)
+				{
+					SuggestionBox->SetIsOpen(false);
+					SetVisibility(EVisibility::Collapsed);
+				}
+			})
 			.ClearKeyboardFocusOnCommit(false)
 		
 		]
@@ -287,7 +296,7 @@ FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler(const FGeo
 	return FReply::Unhandled();
 }
 
-FReply SConsoleVariablesEditorCustomConsoleInputBox::HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed)
+FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyDownHandler(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed)
 {
 	if (KeyPressed.GetKey().GetFName() == TEXT("Enter"))
 	{
