@@ -2542,7 +2542,7 @@ static void FShaderLibraryPakFileMountedCallback(const IPakFile& PakFile)
 	using namespace UE::ShaderLibrary::Private;
 
 	int32 NewChunk = PakFile.PakGetPakchunkIndex();
-	UE_LOG(LogShaderLibrary, Display, TEXT("ShaderCodeLibraryPakFileMountedCallback: PakFile '%s' (chunk index %d, root '%s') mounted"), *PakFile.PakGetPakFilename(), PakFile.PakGetPakchunkIndex(), *PakFile.PakGetMountPoint());
+	UE_LOG(LogShaderLibrary, Verbose, TEXT("ShaderCodeLibraryPakFileMountedCallback: PakFile '%s' (chunk index %d, root '%s') mounted"), *PakFile.PakGetPakFilename(), PakFile.PakGetPakchunkIndex(), *PakFile.PakGetMountPoint());
 
 	FMountedPakFileInfo PakFileInfo(PakFile);
 	{
@@ -2557,7 +2557,7 @@ static void FShaderLibraryPakFileMountedCallback(const IPakFile& PakFile)
 	}
 	else
 	{
-		UE_LOG(LogShaderLibrary, Display, TEXT("ShaderCodeLibraryPakFileMountedCallback: pending pak file info (%s)"), *PakFileInfo.ToString());
+		UE_LOG(LogShaderLibrary, Verbose, TEXT("ShaderCodeLibraryPakFileMountedCallback: pending pak file info (%s)"), *PakFileInfo.ToString());
 	}
 }
 
