@@ -2449,10 +2449,11 @@ public:
 	 * Returns true if an element is affected to another element
 	 * @param InDependent The dependent element to check for a dependency
 	 * @param InDependency The dependency element to check for
+	 * @param InElementsVisited An array to keep track of whether an element is visited to avoid infinite recursion
 	 * @param InDependencyMap An additional map of dependencies to respect
 	 * @return True if the child is parented to the parent
 	 */
-	bool IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
+	bool IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, TArray<bool>& InElementsVisited, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
 
 	/**
 	 * Returns a reference to the suspend notifications flag
