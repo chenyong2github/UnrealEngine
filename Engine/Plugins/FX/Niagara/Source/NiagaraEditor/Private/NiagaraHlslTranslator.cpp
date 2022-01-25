@@ -6629,8 +6629,6 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 	if (OpInfo && OpInfo->InputTypeValidationFunction.IsBound() && OpInfo->InputTypeValidationFunction.Execute(InputTypes, ValidationError) == false)
 	{
 		Warning(ValidationError, Operation, OutputPins[0], TEXT("Invalid op types"), true);
-		Outputs.Add(INDEX_NONE);
-		return;
 	}
 
 	if (OpInfo && OpInfo->StaticVariableResolveFunction.IsBound() && bAllPinsStatic)
