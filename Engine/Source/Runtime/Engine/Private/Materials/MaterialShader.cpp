@@ -1429,7 +1429,7 @@ void FMaterialShaderMap::SaveToDerivedDataCache()
 	if (SaveData.Num() >= kMaxSaveDataForDDC)
 	{
 		UE_LOG(LogMaterial, Warning, TEXT("Not saving %s shaders to DDC as its size (%lld MB) is larger than %lld MB, which may cause problems for the legacy DDC API."), 
-			GetMaterialPath(), SaveData.Num() / (1024 * 1024), kMaxSaveDataForDDC);
+			GetMaterialPath(), SaveData.Num() / (1024 * 1024), kMaxSaveDataForDDC / (1024 * 1024));
 		return;
 	}
 
