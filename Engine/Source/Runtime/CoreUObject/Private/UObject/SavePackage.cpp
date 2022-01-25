@@ -2141,7 +2141,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						{
 							ExportsArchive = PackageWriter->CreateLinkerArchive(InOuter->GetFName(), InOuter->FindAssetInPackage());
 						}
-						else
 						{
 							// The LargeMemoryWriter does not need to be persistent; the LinkerSave wraps it and reports Persistent=true
 							bool bIsPersistent = false;

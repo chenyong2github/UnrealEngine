@@ -90,7 +90,6 @@ bool ECompressionLevelFromValue(int8 InValue, ECompressionLevel& OutLevel)
 }
 
 
-
 static OodleLZ_Compressor CompressorToOodleLZ_Compressor(ECompressor Compressor)
 {
 	switch(Compressor)
