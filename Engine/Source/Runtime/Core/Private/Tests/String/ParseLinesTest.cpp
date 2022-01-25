@@ -19,7 +19,7 @@ bool StringParseLinesTest::RunTest(const FString& Parameters)
 	{
 		TArray<FStringView, TInlineAllocator<8>> ResultLines;
 		UE::String::ParseLines(View, ResultLines, Options);
-		if (!Algo::CompareByPredicate(ResultLines, ExpectedLines, TEqualTo<>()))
+		if (!Algo::Compare(ResultLines, ExpectedLines))
 		{
 			TStringBuilder<512> Error;
 			Error << TEXTVIEW("UE::String::ParseLines failed to parse \"") << FString(View).ReplaceCharWithEscapedChar() << TEXTVIEW("\" result {");

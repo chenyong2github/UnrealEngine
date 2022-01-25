@@ -29,7 +29,7 @@ bool StringParseTokensByStringTest::RunTest(const FString& Parameters)
 		{
 			UE::String::ParseTokensMultiple(View, Delimiters, ResultTokens, Options);
 		}
-		if (!Algo::CompareByPredicate(ResultTokens, ExpectedTokens, TEqualTo<>()))
+		if (!Algo::Compare(ResultTokens, ExpectedTokens))
 		{
 			TStringBuilder<512> Error;
 			Error << TEXTVIEW("UE::String::ParseTokens[Multiple] failed to parse \"") << View << TEXTVIEW("\" with delimiters {");
@@ -110,7 +110,7 @@ bool StringParseTokensByCharTest::RunTest(const FString& Parameters)
 		{
 			UE::String::ParseTokensMultiple(View, Delimiters, ResultTokens, Options);
 		}
-		if (!Algo::CompareByPredicate(ResultTokens, ExpectedTokens, TEqualTo<>()))
+		if (!Algo::Compare(ResultTokens, ExpectedTokens))
 		{
 			TStringBuilder<512> Error;
 			Error << TEXTVIEW("UE::String::ParseTokens[Multiple] failed to parse \"") << View << TEXTVIEW("\" with delimiters {");
