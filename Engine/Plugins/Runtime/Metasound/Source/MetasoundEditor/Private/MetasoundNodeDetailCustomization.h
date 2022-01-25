@@ -230,19 +230,15 @@ namespace Metasound
 			{
 				if (UMetasoundEditorGraphMember* Member = InMemberDefaultLiteral.GetParentMember())
 				{
-					if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
+					if (Member->CanRename())
 					{
-						TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*OwningGraph);
-						if (MetasoundEditor->CanRenameNodes())
+						if (!RenameRequestedHandle.IsValid())
 						{
-							if (!RenameRequestedHandle.IsValid())
+							Member->OnRenameRequested.Clear();
+							RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
 							{
-								Member->OnRenameRequested.Clear();
-								RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
-								{
-									FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
-								});
-							}
+								FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+							});
 						}
 					}
 				}

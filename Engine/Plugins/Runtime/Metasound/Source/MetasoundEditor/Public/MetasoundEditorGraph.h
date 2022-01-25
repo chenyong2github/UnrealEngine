@@ -147,6 +147,9 @@ public:
 	/** Marks all member's nodes as requiring a display refresh. */
 	void MarkNodesForRefresh();
 
+	/* Whether this member can be renamed. */
+	virtual bool CanRename() const PURE_VIRTUAL(UMetasoundEditorGraphMember::CanRename, return false;);
+
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
@@ -222,6 +225,8 @@ public:
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 
 	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetLiteral, return nullptr; );
+
+	virtual bool CanRename() const override;
 
 protected:
 	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) PURE_VIRTUAL (UMetasoundEditorGraphMember::SetLiteral, );
@@ -319,6 +324,8 @@ public:
 	Metasound::Frontend::FConstVariableHandle GetConstVariableHandle() const;
 
 	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
+
+	virtual bool CanRename() const override;
 
 protected:
 	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) { Literal = InLiteral; }

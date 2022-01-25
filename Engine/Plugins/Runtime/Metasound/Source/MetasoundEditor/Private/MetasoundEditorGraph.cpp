@@ -407,6 +407,11 @@ bool UMetasoundEditorGraphVertex::IsInterfaceMember() const
 	return GetConstNodeHandle()->IsInterfaceMember();
 }
 
+bool UMetasoundEditorGraphVertex::CanRename() const
+{
+	return !IsInterfaceMember();
+}
+
 bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutError) const
 {
 	using namespace Metasound::Frontend;
@@ -799,6 +804,11 @@ void UMetasoundEditorGraphVariable::SetDescription(const FText& InDescription, b
 
 		GetVariableHandle()->SetDescription(InDescription);
 	}
+}
+
+bool UMetasoundEditorGraphVariable::CanRename() const
+{
+	return true;
 }
 
 bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewText, FText& OutError) const

@@ -58,6 +58,9 @@ namespace Metasound
 			// Converts a MetaSound from a restricted, preset edit state to a fully accessible MetaSound.
 			TSharedPtr<FUICommandInfo> ConvertFromPreset;
 
+			// Delete selected items. 
+			TSharedPtr<FUICommandInfo> Delete;
+
 			/** Initialize commands */
 			virtual void RegisterCommands() override;
 		};
