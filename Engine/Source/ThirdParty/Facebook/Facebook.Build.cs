@@ -13,7 +13,6 @@ public class Facebook : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			PublicDefinitions.Add("UE4_FACEBOOK_VER=5.8");
 
             // These are iOS system libraries that Facebook depends on
             //PublicFrameworks.AddRange(

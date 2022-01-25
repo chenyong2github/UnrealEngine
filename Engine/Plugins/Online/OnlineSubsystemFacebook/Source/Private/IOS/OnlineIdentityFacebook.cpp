@@ -13,7 +13,6 @@ THIRD_PARTY_INCLUDES_END
 
 #import "FacebookHelper.h"
 
-// Other UE4 includes
 #include "IOS/IOSAppDelegate.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IOS/IOSAsyncTask.h"

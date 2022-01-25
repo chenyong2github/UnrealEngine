@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 
-// Other UE4 includes
 #include "IOS/IOSAppDelegate.h"
 #include "IOS/IOSAsyncTask.h"
 
