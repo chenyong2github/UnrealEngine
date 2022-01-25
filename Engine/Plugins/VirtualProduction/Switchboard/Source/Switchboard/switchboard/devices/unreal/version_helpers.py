@@ -3,7 +3,7 @@
 import typing
 
 
-LISTENER_COMPATIBLE_VERSION = (1,7)
+LISTENER_COMPATIBLE_VERSION = (2,0)
 
 # Version where redeploy support was initially introduced.
 LISTENER_MIN_REDEPLOY_VERSION = (1,4,0)
@@ -21,7 +21,9 @@ def listener_supports_redeploy(listener_ver: ListenerVersion):
 def listener_is_compatible(listener_ver: ListenerVersion):
     return listener_ver[:2] == LISTENER_COMPATIBLE_VERSION
 
-def listener_ver_from_state_message(state_msg: dict) -> typing.Optional[ListenerVersion]:
+def listener_ver_from_state_message(
+    state_msg: dict
+) -> typing.Optional[ListenerVersion]:
     try:
         version = int(state_msg['version'])
     except (KeyError, ValueError):
