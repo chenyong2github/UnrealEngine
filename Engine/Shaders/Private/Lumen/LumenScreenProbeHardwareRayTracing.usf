@@ -240,7 +240,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		}
 
 		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance * View.PreExposure;
-		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(Result.TraceHitDistance, Result.bIsHit, bMoving);
+		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(min(Result.TraceHitDistance, MaxTraceDistance), Result.bIsHit, bMoving);
 #endif // DIM_WRITE_FINAL_LIGHTING
 	}
 }

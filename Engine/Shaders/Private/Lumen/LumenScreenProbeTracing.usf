@@ -495,7 +495,7 @@ void TraceMeshSDFs(
 		}
 
 		//@todo - set bMoving based on hit object velocity
-		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, bMoving);
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(min(TraceHitDistance, MaxTraceDistance), bHit, bMoving);
 	}
 }
 
