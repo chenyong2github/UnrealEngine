@@ -80,6 +80,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	void RemoveInvalidBindings(const FSequencerBindingProxy& ObjectBinding);
 
+	/** Rebind the component binding to the requested component */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void RebindComponent(const TArray<FSequencerBindingProxy>& ComponentBindings, const FName& ComponentName);
+
 private:
 
 	TSharedPtr<ISequencer> GetActiveSequencer();
@@ -92,6 +96,10 @@ private:
 	void RemoveActorsFromBindingInternal();
 	void RemoveAllBindingsInternal();
 	void RemoveInvalidBindingsInternal();
+	void RebindComponentInternal(const FName& ComponentName);
+
+	void GetRebindComponentNames(TArray<FName>& OutComponentNames);
+	void RebindComponentMenu(FMenuBuilder& MenuBuilder);
 
 	FDelegateHandle OnSequencerCreatedHandle;
 
@@ -104,4 +112,5 @@ private:
 	TSharedPtr<FExtender> FixActorReferencesMenuExtender;
 
 	TSharedPtr<FExtender> AssignActorMenuExtender;
+	TSharedPtr<FExtender> RebindComponentMenuExtender;
 };
