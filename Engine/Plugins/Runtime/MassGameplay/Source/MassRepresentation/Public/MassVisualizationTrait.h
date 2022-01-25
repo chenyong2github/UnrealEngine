@@ -18,8 +18,6 @@ class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBa
 public:
 	UMassVisualizationTrait();
 
-protected:
-
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
 
 	/** Instanced static mesh information for this agent */
