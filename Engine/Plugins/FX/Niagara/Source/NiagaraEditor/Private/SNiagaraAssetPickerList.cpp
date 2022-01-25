@@ -25,7 +25,7 @@ FText SNiagaraAssetPickerList::UncategorizedCategory = LOCTEXT("Uncategorized", 
 
 void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetClass)
 {
-	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(24));
+	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(48));
 
 	OnTemplateAssetActivated = InArgs._OnTemplateAssetActivated;
 	ViewOptions = InArgs._ViewOptions;
@@ -43,7 +43,8 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 	.bLibraryOnly(this, &SNiagaraAssetPickerList::GetLibraryCheckBoxState)
 	.OnLibraryOnlyChanged(this, &SNiagaraAssetPickerList::LibraryCheckBoxStateChanged)
 	.OnSourceFiltersChanged(this, &SNiagaraAssetPickerList::TriggerRefresh)
-	.OnTabActivated(this, &SNiagaraAssetPickerList::TriggerRefreshFromTabs);
+	.OnTabActivated(this, &SNiagaraAssetPickerList::TriggerRefreshFromTabs)
+	.Class(AssetClass);
 	
 	if(!ViewOptions.GetAddLibraryOnlyCheckbox())
 	{
@@ -84,6 +85,7 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 
 void SNiagaraAssetPickerList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	AssetThumbnailPool->Tick(InDeltaTime);
 }
 
 TArray<FAssetData> SNiagaraAssetPickerList::GetSelectedAssets() const
@@ -330,7 +332,8 @@ const int32 ThumbnailSize = 72;
 
 TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForItem(const FAssetData& Item)
 {
-	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(Item, ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool());
+	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(Item, ThumbnailSize, ThumbnailSize, AssetThumbnailPool);
+	
 	FAssetThumbnailConfig ThumbnailConfig;
 	ThumbnailConfig.bAllowFadeIn = false;
 	

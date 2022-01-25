@@ -20,7 +20,7 @@ TMap<EScriptSource, bool> SNiagaraSourceFilterBox::SourceState
 	{EScriptSource::Developer, false},
 };
 
-ENiagaraScriptTemplateSpecification SNiagaraTemplateTabBox::CachedActiveTab = ENiagaraScriptTemplateSpecification::Template;
+TOptional<ENiagaraScriptTemplateSpecification> SNiagaraTemplateTabBox::CachedActiveTab;
 
 void SNiagaraSourceFilterCheckBox::Construct(const FArguments& Args, EScriptSource InSource)
 {
@@ -265,135 +265,63 @@ void SNiagaraTemplateTabBox::Construct(const FArguments& InArgs, FNiagaraTemplat
 	TabOptions = InTabOptions;
 
 	OnTabActivatedDelegate = InArgs._OnTabActivated;
+	Class = InArgs._Class;
 	
-	SAssignNew(TabContainer, SHorizontalBox);
-
-	bool bActiveTabInitialized = false;
+	TabContainer = SNew(SSegmentedControl<ENiagaraScriptTemplateSpecification>)
+	.Value(TAttribute<ENiagaraScriptTemplateSpecification>::CreateSP(this, &SNiagaraTemplateTabBox::GetActiveTab))
+	.OnValueChanged(this, &SNiagaraTemplateTabBox::OnTabActivated);
 
 	checkf(TabOptions.GetNumAvailableTabs() >= 1, TEXT("At least one tab option needs to be set to true."));
 	
 	// we restore the cached active tab, if it is available in the current context
-	if(TabOptions.IsTabAvailable(CachedActiveTab))
+	if(CachedActiveTab.IsSet() && TabOptions.IsTabAvailable(CachedActiveTab.GetValue()))
 	{
 		ActiveTab = CachedActiveTab;
-		bUseActiveTab = true;
-		bActiveTabInitialized = true;
 	}	
 	
 	if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::Template))
 	{
 		// we set the currently active tab using the first available tab in a set order
-		if(bActiveTabInitialized == false)
+		if(!ActiveTab.IsSet())
 		{
 			ActiveTab = ENiagaraScriptTemplateSpecification::Template;
-			bUseActiveTab = true;
-			bActiveTabInitialized = true;
 		}
-
-		TabContainer->AddSlot()
-		.Padding(5.f)
-		[
-			SNew(SBorder)
-			.ToolTipText(LOCTEXT("TemplateTabTooltip", "Templates are intended as starting points for building functional emitters of different types,\n"
-				"and are copied into a system as a unique emitter with no inheritance"))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				SNew(SCheckBox)
-				.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-				.BorderBackgroundColor(this, &SNiagaraTemplateTabBox::GetBackgroundColor, ENiagaraScriptTemplateSpecification::Template)
-				.ForegroundColor(this, &SNiagaraTemplateTabBox::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::Template)
-				.IsChecked_Lambda([&]()
-				{
-					return ActiveTab == ENiagaraScriptTemplateSpecification::Template ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-				.OnCheckStateChanged(this, &SNiagaraTemplateTabBox::OnTabActivated, ENiagaraScriptTemplateSpecification::Template)
-			   [
-			       SNew(STextBlock)
-			       .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-			       .Justification(ETextJustify::Center)
-			       .Text(LOCTEXT("TemplateTabLabel", "Templates"))
-			   ]
-			]
-		];
+		
+		TabContainer->AddSlot(ENiagaraScriptTemplateSpecification::Template, false)
+		.Text(DetermineControlLabel(ENiagaraScriptTemplateSpecification::Template))
+		.ToolTip(DetermineControlTooltip(ENiagaraScriptTemplateSpecification::Template));		
 	}
 
 	if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::None))
 	{
-		if(bActiveTabInitialized == false)
+		if(!ActiveTab.IsSet())
 		{
 			ActiveTab = ENiagaraScriptTemplateSpecification::None;
-			bUseActiveTab = true;
-			bActiveTabInitialized = true;
-		}
+		}		
 		
-		TabContainer->AddSlot()
-		.Padding(5.f)
-        [
-            SNew(SBorder)
-            .ToolTipText(LOCTEXT("ParentTabTooltip", "Parent Emitters assets are inherited as children and will receive changes from the parent emitter,\n"
-	            "and are meant to serve as art directed initial behaviors which can be propagated throughout a project quickly and easily.\n"
-	            "Over time, a library of parent emitters can be used to speed up the construction of complex effects specific to your project."))
-            .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-	            SNew(SCheckBox)
-				.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-				.BorderBackgroundColor(this, &SNiagaraTemplateTabBox::GetBackgroundColor, ENiagaraScriptTemplateSpecification::None)
-				.ForegroundColor(this, &SNiagaraTemplateTabBox::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::None)
-				.IsChecked_Lambda([&]()
-				{
-					return ActiveTab == ENiagaraScriptTemplateSpecification::None ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-				.OnCheckStateChanged(this, &SNiagaraTemplateTabBox::OnTabActivated, ENiagaraScriptTemplateSpecification::None)
-			     [
-			         SNew(STextBlock)
-			         .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-			         .Justification(ETextJustify::Center)
-			         .Text(LOCTEXT("ParentTabLabel", "Parents"))
-			     ]
-			]
-        ];
+		TabContainer->AddSlot(ENiagaraScriptTemplateSpecification::None, false)
+		.Text(DetermineControlLabel(ENiagaraScriptTemplateSpecification::None))
+		.ToolTip(DetermineControlTooltip(ENiagaraScriptTemplateSpecification::None));
 	}
 
 	if(TabOptions.IsTabAvailable(ENiagaraScriptTemplateSpecification::Behavior))
 	{
-		if(bActiveTabInitialized == false)
+		if(!ActiveTab.IsSet())
 		{
 			ActiveTab = ENiagaraScriptTemplateSpecification::Behavior;
-			bUseActiveTab = true;
-			bActiveTabInitialized = true;
 		}
-		
-		TabContainer->AddSlot()
-		.Padding(5.f)
-        [
-            SNew(SBorder)
-            .ToolTipText(LOCTEXT("BehaviorTabTooltip", "Behavior Examples are intended to serve as a guide to how Niagara works at a feature level.\n"
-	            "Each example shows a simplified setup used to achieve specific outcomes and are intended as starting points, building blocks, or simply as reference.\n"
-	            "These are copied into a system as a unique emitter with no inheritance"))
-            .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				SNew(SCheckBox)
-				.Style(FNiagaraEditorStyle::Get(), "GraphActionMenu.FilterCheckBox")
-				.BorderBackgroundColor(this, &SNiagaraTemplateTabBox::GetBackgroundColor, ENiagaraScriptTemplateSpecification::Behavior)
-				.ForegroundColor(this, &SNiagaraTemplateTabBox::GetTabForegroundColor, ENiagaraScriptTemplateSpecification::Behavior)
-				.IsChecked_Lambda([&]()
-				{
-					return ActiveTab == ENiagaraScriptTemplateSpecification::Behavior ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-			    .OnCheckStateChanged(this, &SNiagaraTemplateTabBox::OnTabActivated, ENiagaraScriptTemplateSpecification::Behavior)
-			    [
-			        SNew(STextBlock)
-			        .TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("GraphActionMenu.TemplateTabTextBlock"))
-			        .Justification(ETextJustify::Center)
-			        .Text(LOCTEXT("BehaviorTabLabel", "Behavior Examples"))
-			    ]
-			]
-        ];
+
+		TabContainer->AddSlot(ENiagaraScriptTemplateSpecification::Behavior, false)
+		.Text(DetermineControlLabel(ENiagaraScriptTemplateSpecification::Behavior))
+		.ToolTip(DetermineControlTooltip(ENiagaraScriptTemplateSpecification::Behavior));
 	}
 
-	// we cache the active tab if we have more than 1 tab available so we can activate it for other instances
-	CachedActiveTab = ActiveTab;
-	
+	TabContainer->RebuildChildren();
+	// we cache the active tab if we have more than 1 tab available so we can activate it for other instances as it was intentionally navigated to
+	if(TabOptions.GetNumAvailableTabs() > 1 && ActiveTab.IsSet())
+	{
+		CachedActiveTab = ActiveTab.GetValue();	
+	}
 
 	ChildSlot
 	[
@@ -401,15 +329,35 @@ void SNiagaraTemplateTabBox::Construct(const FArguments& InArgs, FNiagaraTemplat
 	];
 }
 
+ENiagaraScriptTemplateSpecification SNiagaraTemplateTabBox::GetActiveTab() const
+{
+	if(ActiveTab.IsSet())
+	{
+		return ActiveTab.GetValue();
+	}
+	
+	return ENiagaraScriptTemplateSpecification::None;	
+}
+
 bool SNiagaraTemplateTabBox::GetActiveTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const
 {
-	if(bUseActiveTab)
+	if(ActiveTab.IsSet())
 	{
-		OutTemplateSpecification = ActiveTab;
+		OutTemplateSpecification = ActiveTab.GetValue();
 		return true;
 	}	
 
 	return false;
+}
+
+void SNiagaraTemplateTabBox::OnTabActivated(ENiagaraScriptTemplateSpecification AssetTab)
+{
+	if(ActiveTab != AssetTab)
+	{
+		ActiveTab = AssetTab;
+		CachedActiveTab = ActiveTab;
+		OnTabActivatedDelegate.ExecuteIfBound(AssetTab);
+	}
 }
 
 void SNiagaraTemplateTabBox::OnTabActivated(ECheckBoxState NewState, ENiagaraScriptTemplateSpecification AssetTab)
@@ -440,6 +388,87 @@ FSlateColor SNiagaraTemplateTabBox::GetTabForegroundColor(ENiagaraScriptTemplate
 	}
 
 	return FLinearColor::White;
+}
+
+FText SNiagaraTemplateTabBox::DetermineControlLabel(ENiagaraScriptTemplateSpecification TemplateSpecification) const
+{
+	if(Class.IsValid())
+	{
+		if(Class == UNiagaraEmitter::StaticClass())
+		{
+			switch(TemplateSpecification)
+			{
+			case ENiagaraScriptTemplateSpecification::None:
+				return LOCTEXT("EmitterNoneTabLabel", "Parent Emitters");
+			case ENiagaraScriptTemplateSpecification::Template:
+				return LOCTEXT("EmitterTemplateTabLabel", "Templates");
+			case ENiagaraScriptTemplateSpecification::Behavior:
+				return LOCTEXT("EmitterBehaviorExampleTabLabel", "Behavior Examples");
+			default:
+				return FText::GetEmpty();
+			}
+		}
+		else if(Class == UNiagaraSystem::StaticClass())
+		{
+			switch(TemplateSpecification)
+			{
+			case ENiagaraScriptTemplateSpecification::None:
+				return LOCTEXT("SystemNoneTabLabel", "Standard");
+			case ENiagaraScriptTemplateSpecification::Template:
+				return LOCTEXT("SystemTemplateTabLabel", "Templates");
+			case ENiagaraScriptTemplateSpecification::Behavior:
+				return LOCTEXT("SystemBehaviorExampleTabLabel", "Behavior Examples");
+			default:
+				return FText::GetEmpty();
+			}
+		}				
+	}
+
+	check(false);
+	return FText::GetEmpty();
+}
+
+FText SNiagaraTemplateTabBox::DetermineControlTooltip(ENiagaraScriptTemplateSpecification TemplateSpecification) const
+{
+	if(Class.IsValid())
+	{
+		if(Class == UNiagaraEmitter::StaticClass())
+		{
+			switch(TemplateSpecification)
+			{
+			case ENiagaraScriptTemplateSpecification::None:
+				return LOCTEXT("EmitterNoneTabTooltip", "Parent Emitters are inherited as children and will receive changes from the parent emitter,\n"
+					"and are meant to serve as art directed initial behaviors which can be propagated throughout a project quickly and easily.\n"
+					"Over time, a library of parent emitters can be used to speed up the construction of complex effects specific to your project.");
+			case ENiagaraScriptTemplateSpecification::Template:
+				return LOCTEXT("EmitterTemplateTabTooltip", "Templates are intended as starting points for building functional emitters of different types,\n"
+			"Emitter templates are copied into a system as a unique emitter with no inheritance");
+			case ENiagaraScriptTemplateSpecification::Behavior:
+				return LOCTEXT("EmitterBehaviorExampleTabTooltip", "Behavior Examples are intended to serve as a guide to how Niagara works at a feature level.\n"
+			"Each example shows a simplified setup used to achieve specific outcomes and are intended as starting points, building blocks, or simply as reference.\n"
+			"Behavior Example emitters are copied into a system as a unique emitter with no inheritance");
+			default:
+				return FText::GetEmpty();
+			}
+		}
+		else if(Class == UNiagaraSystem::StaticClass())
+		{
+			switch(TemplateSpecification)
+			{
+			case ENiagaraScriptTemplateSpecification::None:
+				return LOCTEXT("SystemNoneTabTooltip", "By default, any system will be categorized as a standard system.");
+			case ENiagaraScriptTemplateSpecification::Template:
+				return LOCTEXT("SystemTemplateTabTooltip", "Template systems ");
+			case ENiagaraScriptTemplateSpecification::Behavior:
+				return LOCTEXT("SystemBehaviorExampleTabTooltip", "Behavior Example systems serve to demonstrate different Niagara features that rely on multiple emitters interacting in some way.");
+			default:
+				return FText::GetEmpty();				
+			}
+		}	
+	}
+
+	check(false);
+	return FText::GetEmpty();
 }
 
 bool SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions::IsTabAvailable(ENiagaraScriptTemplateSpecification AssetTab) const
@@ -573,11 +602,8 @@ void SNiagaraFilterBox::Construct(const FArguments& InArgs, FFilterOptions InFil
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(3, 1)
-			[
-				SNew(SBorder)
-				[
-					SourceFilterBox.ToSharedRef()
-				]
+			[				
+				SourceFilterBox.ToSharedRef()
 			]
 		];
 	}
@@ -601,12 +627,10 @@ void SNiagaraFilterBox::Construct(const FArguments& InArgs, FFilterOptions InFil
 				.Text(LOCTEXT("LibraryVisiblityLabel", "Library Filtering"))
 			]
 			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
 			.Padding(5, 1)
 			[
-				SNew(SBorder)
-				[					
-					LibraryOnlyToggleHeader.ToSharedRef()					
-				]
+				LibraryOnlyToggleHeader.ToSharedRef()
 			]     
 		];
 	}
@@ -618,8 +642,11 @@ void SNiagaraFilterBox::Construct(const FArguments& InArgs, FFilterOptions InFil
 
 	if(InFilterOptions.GetAddTemplateFilter())
 	{
+		ensureMsgf(InArgs._Class != nullptr, TEXT("If the template filter is added, the class must be valid as depending on class the control labels and tooltips are generated."));
+		
 		TemplateTabBox = SNew(SNiagaraTemplateTabBox, InFilterOptions.GetTabOptions())
-		.OnTabActivated(InArgs._OnTabActivated);
+		.OnTabActivated(InArgs._OnTabActivated)
+		.Class(InArgs._Class);
 		
 		// the template filter is a whole-row filter
 		MainContainer->AddSlot()
@@ -638,10 +665,7 @@ void SNiagaraFilterBox::Construct(const FArguments& InArgs, FFilterOptions InFil
 			+ SVerticalBox::Slot()
 			.Padding(3, 1)
 			[
-				SNew(SBorder)
-				[
-					TemplateTabBox.ToSharedRef()	
-				]
+				TemplateTabBox.ToSharedRef()	
 			]     
 		];
 	}

@@ -8,6 +8,7 @@
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Views/SMultipleOptionTable.h"
 
 /**
@@ -104,29 +105,35 @@ public:
 	};
 	
 	SLATE_BEGIN_ARGS(SNiagaraTemplateTabBox)
+		: _Class(nullptr)
 	{}
 		SLATE_EVENT(FOnTabActivated, OnTabActivated)
+		SLATE_ARGUMENT(UClass*, Class)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, FNiagaraTemplateTabOptions TabOptions);
 
+	ENiagaraScriptTemplateSpecification GetActiveTab() const;
 	/** If true, will set the parameter to the currently active tab. If false, the template filter wasn't initialized with any tabs. */
 	bool GetActiveTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
 private:
 	FOnTabActivated OnTabActivatedDelegate;
+	void OnTabActivated(ENiagaraScriptTemplateSpecification AssetTab);
 	void OnTabActivated(ECheckBoxState NewState, ENiagaraScriptTemplateSpecification AssetTab);
 	FSlateColor GetBackgroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
 	FSlateColor GetTabForegroundColor(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
-
+	FText DetermineControlLabel(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
+	FText DetermineControlTooltip(ENiagaraScriptTemplateSpecification TemplateSpecification) const;
 private:
-	TSharedPtr<SHorizontalBox> TabContainer;
-	
 	FNiagaraTemplateTabOptions TabOptions;
+	TSharedPtr<SSegmentedControl<ENiagaraScriptTemplateSpecification>> TabContainer;
 	
 	/** bUseActiveTab is required due to tab options not specifically needing to have any tab state set to true. */
 	bool bUseActiveTab = false;
-	ENiagaraScriptTemplateSpecification ActiveTab;
-	static ENiagaraScriptTemplateSpecification CachedActiveTab;
+	TOptional<ENiagaraScriptTemplateSpecification> ActiveTab;
+	static TOptional<ENiagaraScriptTemplateSpecification> CachedActiveTab;
+	
+	TWeakObjectPtr<UClass> Class = nullptr;
 };
 
 /**
@@ -166,16 +173,17 @@ public:
 	
 	SLATE_BEGIN_ARGS(SNiagaraFilterBox)
 		: _bLibraryOnly(true)
+		, _Class(nullptr)
 	{}
 		SLATE_ATTRIBUTE(bool, bLibraryOnly)
 		SLATE_EVENT(SNiagaraSourceFilterBox::FOnFiltersChanged, OnSourceFiltersChanged)
 		SLATE_EVENT(SNiagaraLibraryOnlyToggleHeader::FOnLibraryOnlyChanged, OnLibraryOnlyChanged)
 		SLATE_EVENT(SNiagaraTemplateTabBox::FOnTabActivated, OnTabActivated)
+		SLATE_ARGUMENT(UClass*, Class)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, FFilterOptions FilterOptions);
-
-	//void SetOnSourceFiltersChanged(SNiagaraSourceFilterBox::FOnFiltersChanged OnSourceFiltersChanged) { }
+	
 	bool IsSourceFilterActive(EScriptSource Source) const;
 	bool GetActiveTemplateTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
 	
