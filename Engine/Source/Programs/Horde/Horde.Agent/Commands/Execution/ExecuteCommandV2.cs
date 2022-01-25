@@ -358,7 +358,7 @@ namespace HordeAgent.Commands
 				using IComputeClient ComputeClient = CreateComputeClient(Host.Services);
 				
 				byte[] Json = await FileReference.ReadAllBytesAsync(Input);
-				JsonComputeTask JsonComputeTask = JsonSerializer.Deserialize<JsonComputeTask>(Json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+				JsonComputeTask JsonComputeTask = JsonSerializer.Deserialize<JsonComputeTask>(Json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
 				ByteString SaltBytes = ByteString.Empty;
 				if (Salt != null)
