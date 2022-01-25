@@ -108,7 +108,7 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 	int32 LastSlash = INDEX_NONE;
 	if (InAssetPath.FindLastChar('/', LastSlash))
 	{
-		AssetPath = InAssetPath.LeftChop(LastSlash);
+		AssetPath = InAssetPath.Left(LastSlash);
 	}
 
 	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
