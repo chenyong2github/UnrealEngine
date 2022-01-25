@@ -754,7 +754,7 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 			TEXT("Bloom.FFT.FFTMulitplyParameters"));
 
 		FBloomFinalizeApplyConstantsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomFinalizeApplyConstantsCS::FParameters>();
-		PassParameters->ScatterDispersionIntensity = View.FinalPostProcessSettings.BloomConvolutionScatterDispersion;
+		PassParameters->ScatterDispersionIntensity = View.FinalPostProcessSettings.BloomConvolutionScatterDispersion * View.FinalPostProcessSettings.BloomIntensity;
 		PassParameters->KernelConstantsBuffer = GraphBuilder.CreateSRV(KernelConstantsBuffer);
 		PassParameters->SceneColorApplyOutput = GraphBuilder.CreateUAV(BloomOutput.SceneColorApplyParameters);
 		PassParameters->FFTMulitplyOutput = GraphBuilder.CreateUAV(FFTMulitplyParameters);
