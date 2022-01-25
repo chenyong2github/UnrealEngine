@@ -3239,7 +3239,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"
 					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
 					"	}\n"
-					"	const int MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
+					"	const uint MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
 					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
 					"	const bool bRunSpawnLogic = bRunSpawnUpdateLogic && GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
 				);

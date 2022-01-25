@@ -49,6 +49,7 @@ void ReserveRayTraceIndex_{ParameterName}_UEImpureCall(int In_TraceCount, out in
 		return;
 	}
 #endif
+	Out_StartQueryID = -1;
 	Out_IndicesValid = false;
 }
 
@@ -61,6 +62,7 @@ void CreateAsyncRayTraceGpu_{ParameterName}_UEImpureCall(float3 In_TraceStart, f
 		return;
 	}
 #endif
+	Out_QueryID = -1;
 	Out_IsQueryValid = false;
 }
 
@@ -73,5 +75,8 @@ void ReadAsyncRayTraceGpu_{ParameterName}(int In_PreviousFrameQueryID, out bool 
 		return;
 	}
 #endif
+	Out_CollisionDistance = 0.0f;
+	Out_CollisionPosWorld = float3(0.0f, 0.0f, 0.0f);
+	Out_CollisionNormal = float3(0.0f, 0.0f, 0.0f);
 	Out_CollisionValid = false;
 }
