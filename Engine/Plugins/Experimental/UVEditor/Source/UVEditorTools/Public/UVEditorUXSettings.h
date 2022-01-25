@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+#include "CoreGlobals.h"
+
 class UVEDITORTOOLS_API FUVEditorUXSettings
 {
 public:
