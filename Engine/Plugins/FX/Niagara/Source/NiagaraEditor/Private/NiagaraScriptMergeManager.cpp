@@ -884,6 +884,7 @@ void FNiagaraEmitterMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, U
 	}
 
 	EditorData = Cast<const UNiagaraEmitterEditorData>(Emitter->GetEditorData());
+
 }
 
 UNiagaraEmitter* FNiagaraEmitterMergeAdapter::GetEditableEmitter() const
@@ -924,11 +925,6 @@ const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> FNiagaraEmitterMer
 const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> FNiagaraEmitterMergeAdapter::GetRenderers() const
 {
 	return Renderers;
-}
-
-const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> FNiagaraEmitterMergeAdapter::GetInputSummaryEntries() const
-{
-	return InputSummaryEntries;
 }
 
 const UNiagaraEmitterEditorData* FNiagaraEmitterMergeAdapter::GetEditorData() const
@@ -1990,7 +1986,7 @@ FNiagaraEmitterDiffResults FNiagaraScriptMergeManager::DiffEmitters(UNiagaraEmit
 	DiffEventHandlers(BaseEmitterAdapter->GetEventHandlers(), OtherEmitterAdapter->GetEventHandlers(), EmitterDiffResults);
 	DiffSimulationStages(BaseEmitterAdapter->GetSimulationStages(), OtherEmitterAdapter->GetSimulationStages(), EmitterDiffResults);
 	DiffRenderers(BaseEmitterAdapter->GetRenderers(), OtherEmitterAdapter->GetRenderers(), EmitterDiffResults);
-	DiffInputSummaryEntries(BaseEmitterAdapter->GetInputSummaryEntries(), OtherEmitterAdapter->GetInputSummaryEntries(), EmitterDiffResults);
+	DiffInputSummaryEntries(BaseEmitterAdapter->GetEditorData(), OtherEmitterAdapter->GetEditorData(), EmitterDiffResults);
 	DiffEditableProperties(&BaseEmitter, &OtherEmitter, *UNiagaraEmitter::StaticClass(), EmitterDiffResults.DifferentEmitterProperties);
 	DiffStackEntryDisplayNames(BaseEmitterAdapter->GetEditorData(), OtherEmitterAdapter->GetEditorData(), EmitterDiffResults.ModifiedStackEntryDisplayNames);
 
@@ -2211,15 +2207,34 @@ void FNiagaraScriptMergeManager::DiffRenderers(const TArray<TSharedRef<FNiagaraR
 	}
 }
 
-void FNiagaraScriptMergeManager::DiffInputSummaryEntries(const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& BaseInputEntries, const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& OtherInputEntries, FNiagaraEmitterDiffResults& DiffResults) const
+void FNiagaraScriptMergeManager::DiffInputSummaryEntries(const UNiagaraEmitterEditorData* BaseEditorData, const UNiagaraEmitterEditorData* OtherEditorData, FNiagaraEmitterDiffResults& DiffResults) const
 {
+	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> BaseSummaryViewEntries;
+	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> OtherSummaryViewEntries;
+
+	if (BaseEditorData)
+	{
+		for (const auto& Entry : BaseEditorData->GetSummaryViewMetaDataMap())
+		{
+			BaseSummaryViewEntries.Add(MakeShared<FNiagaraInputSummaryMergeAdapter>(Entry.Key, Entry.Value));
+		}
+	}
+
+	if (OtherEditorData)
+	{
+		for (const auto& Entry : OtherEditorData->GetSummaryViewMetaDataMap())
+		{
+			OtherSummaryViewEntries.Add(MakeShared<FNiagaraInputSummaryMergeAdapter>(Entry.Key, Entry.Value));
+		}		
+	}
+	
 	FListDiffResults<TSharedRef<FNiagaraInputSummaryMergeAdapter>> InputListDiffResults = DiffLists<TSharedRef<FNiagaraInputSummaryMergeAdapter>, FFunctionInputSummaryViewKey>(
-		BaseInputEntries,
-		OtherInputEntries,
+		BaseSummaryViewEntries,
+		OtherSummaryViewEntries,
 		[](TSharedRef<FNiagaraInputSummaryMergeAdapter> Entry) { return Entry->GetKey(); });
 
 	DiffResults.RemovedInputSummaryEntries.Append(InputListDiffResults.RemovedBaseValues);
-	DiffResults.AddedInputSummaryEntries.Append(InputListDiffResults.AddedOtherValues);
+	DiffResults.AddedInputSummaryEntries.Append(InputListDiffResults.AddedOtherValues);	
 
 	for (const FCommonValuePair<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& CommonValuePair : InputListDiffResults.CommonValuePairs)
 	{
@@ -3328,12 +3343,23 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyR
 	return Results;
 }
 
-FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyInputSummaryDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const
+FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyInputSummaryDiff(UNiagaraEmitter& Emitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const
 {
-	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(BaseEmitter.GetEditorData());
+	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter.GetEditorData());
 
+	if (EditorData == nullptr)
+	{
+		EditorData = NewObject<UNiagaraEmitterEditorData>(&Emitter, NAME_None, RF_Transactional);
+		Emitter.Modify();
+		Emitter.SetEditorData(EditorData);
+	}
+
+	check(EditorData != GetDefault<UNiagaraEmitterEditorData>());
+	check(EditorData->GetOuter() == &Emitter);
+	
 	if (EditorData)
 	{
+		EditorData->Modify();
 		for (TSharedRef<FNiagaraInputSummaryMergeAdapter> RemovedInput : DiffResults.RemovedInputSummaryEntries)
 		{
 			EditorData->SetSummaryViewMetaData(RemovedInput->GetKey(), FFunctionInputSummaryViewMetadata());
@@ -3364,6 +3390,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		if (EditorData == nullptr)
 		{
 			EditorData = NewObject<UNiagaraEmitterEditorData>(&Emitter, NAME_None, RF_Transactional);
+			EditorData->Modify();
 			Emitter.SetEditorData(EditorData);
 		}
 

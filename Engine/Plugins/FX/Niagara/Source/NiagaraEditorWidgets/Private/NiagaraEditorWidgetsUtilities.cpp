@@ -559,8 +559,7 @@ TOptional<FFunctionInputSummaryViewKey> FNiagaraStackEditorWidgetsUtilities::Get
 
 UNiagaraStackFunctionInput* FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(UNiagaraStackFunctionInput* FunctionInput)
 {
-	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 	
 	if (EditorData)
 	{		

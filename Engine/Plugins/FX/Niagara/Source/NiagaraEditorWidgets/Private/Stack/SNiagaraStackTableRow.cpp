@@ -620,9 +620,7 @@ void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 bool SNiagaraStackTableRow::IsValidForSummaryView() const
 {
 	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-
-	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 
 	if (EditorData)
 	{
@@ -635,8 +633,7 @@ bool SNiagaraStackTableRow::IsValidForSummaryView() const
 void SNiagaraStackTableRow::ToggleShowInSummaryView()
 {
 	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
 	
 	if (EditorData)
 	{
@@ -659,8 +656,7 @@ void SNiagaraStackTableRow::ToggleShowInSummaryView()
 bool SNiagaraStackTableRow::ShouldShowInSummaryView() const
 {
 	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 	
 	if (EditorData)
 	{

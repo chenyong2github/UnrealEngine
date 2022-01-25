@@ -112,7 +112,7 @@ public:
 	FOnScriptParameterStoreChanged& OnScriptParameterStoreChanged();
 
 	/** Gets editor specific data which can be stored per emitter.  If this data hasn't been created the default version will be returned. */
-	const UNiagaraEmitterEditorData& GetEditorData() const;
+	NIAGARAEDITOR_API const UNiagaraEmitterEditorData& GetEditorData() const;
 
 	/** Gets editor specific data which is stored per emitter.  If this data hasn't been created then it will be created. */
 	NIAGARAEDITOR_API UNiagaraEmitterEditorData& GetOrCreateEditorData();

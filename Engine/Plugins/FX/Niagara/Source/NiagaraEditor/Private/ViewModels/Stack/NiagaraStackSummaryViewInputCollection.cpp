@@ -69,21 +69,25 @@ void UNiagaraStackSummaryViewObject::RefreshChildrenInternal(const TArray<UNiaga
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ViewModel->GetSharedScriptViewModel();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not refresh children when the script view model has been deleted."));
 
-	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::EmitterSpawnScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
-	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::EmitterUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
+	FFunctionCallNodesState State;
 	
-	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleSpawnScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
-	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
+	AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::EmitterSpawnScript, FGuid(), NewIssues);
+	AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::EmitterUpdateScript, FGuid(), NewIssues);
+	
+	AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::ParticleSpawnScript, FGuid(), NewIssues);
+	AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::ParticleUpdateScript, FGuid(), NewIssues);
 
 	for (const FNiagaraEventScriptProperties& EventScriptProperties : ViewModel->GetEmitter()->GetEventHandlers())
 	{
-		AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleEventScript, EventScriptProperties.Script->GetUsageId(), NewChildren, CurrentChildren, NewIssues);
+		AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::ParticleEventScript, EventScriptProperties.Script->GetUsageId(), NewIssues);
 	}
 	
 	for (UNiagaraSimulationStageBase* SimulationStage : GetEmitterViewModel()->GetEmitter()->GetSimulationStages())
 	{
-		AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleSimulationStageScript, SimulationStage->Script->GetUsageId(), NewChildren, CurrentChildren, NewIssues);
-	}
+		AppendEmitterCategory(State, ScriptViewModelPinned, ENiagaraScriptUsage::ParticleSimulationStageScript, SimulationStage->Script->GetUsageId(), NewIssues);
+	}	
+	
+	ApplyAllFunctionInputsToChildren(State, CurrentChildren, NewChildren, NewIssues, true);
 	
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 
@@ -102,7 +106,7 @@ void UNiagaraStackSummaryViewObject::RefreshChildrenInternal(const TArray<UNiaga
 	}
 }
 
-void UNiagaraStackSummaryViewObject::AppendEmitterCategory(TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, TArray<UNiagaraStackEntry*>& NewChildren, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<FStackIssue>& NewIssues)
+void UNiagaraStackSummaryViewObject::AppendEmitterCategory(FFunctionCallNodesState& State, TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, TArray<FStackIssue>& NewIssues)
 {
 	UNiagaraGraph* Graph = ScriptViewModelPinned->GetGraphViewModel()->GetGraph();
 	FText ErrorMessage;
@@ -118,7 +122,7 @@ void UNiagaraStackSummaryViewObject::AppendEmitterCategory(TSharedPtr<FNiagaraSc
 		{
 			if (ModuleNode && ModuleNode->ScriptIsValid())
 			{
-				RefreshChildrenForFunctionCall(ModuleNode, ModuleNode, CurrentChildren, NewChildren, NewIssues, true, FText::FromString(ModuleNode->GetFunctionName()));
+				AppendInputsForFunctionCall(State, ModuleNode, ModuleNode, NewIssues, true);
 			}
 		}
 	}

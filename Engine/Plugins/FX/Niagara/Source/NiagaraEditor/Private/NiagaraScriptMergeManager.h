@@ -255,7 +255,6 @@ public:
 	const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> GetEventHandlers() const;
 	const TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> GetSimulationStages() const;
 	const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> GetRenderers() const;
-	const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> GetInputSummaryEntries() const;
 	const UNiagaraEmitterEditorData* GetEditorData() const;
 
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetScriptStack(ENiagaraScriptUsage Usage, FGuid UsageId);
@@ -281,7 +280,6 @@ private:
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> EventHandlers;
 	TArray<TSharedRef<FNiagaraSimulationStageMergeAdapter>> SimulationStages;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> Renderers;
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> InputSummaryEntries;
 	TWeakObjectPtr<const UNiagaraEmitterEditorData> EditorData;
 };
 
@@ -460,7 +458,7 @@ public:
 
 	void DiffRenderers(const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& BaseRenderers, const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& OtherRenderers, FNiagaraEmitterDiffResults& DiffResults) const;
 	
-	void DiffInputSummaryEntries(const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& BaseInputEntries, const TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& OtherInputEntries, FNiagaraEmitterDiffResults& DiffResults) const;
+	void DiffInputSummaryEntries(const UNiagaraEmitterEditorData* BaseEditorData, const UNiagaraEmitterEditorData* OtherEditorData, FNiagaraEmitterDiffResults& DiffResults) const;
 
 	void DiffScriptStacks(TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter, TSharedRef<FNiagaraScriptStackMergeAdapter> OtherScriptStackAdapter, FNiagaraScriptStackDiffResults& DiffResults) const;
 
@@ -509,7 +507,7 @@ private:
 
 	FApplyDiffResults ApplyRendererDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 
-	FApplyDiffResults ApplyInputSummaryDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
+	FApplyDiffResults ApplyInputSummaryDiff(UNiagaraEmitter& Emitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 	
 	FApplyDiffResults ApplyStackEntryDisplayNameDiffs(UNiagaraEmitter& Emitter, const FNiagaraEmitterDiffResults& DiffResults) const;
 

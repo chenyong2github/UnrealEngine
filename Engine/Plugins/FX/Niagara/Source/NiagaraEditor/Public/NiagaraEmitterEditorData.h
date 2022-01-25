@@ -48,7 +48,7 @@ private:
 	uint32 bShowSummaryView : 1;
 
 	/** Stores metadata for filtering function inputs when in Filtered/Simple view. */
-	UPROPERTY(meta=(NiagaraNoMerge))
+	UPROPERTY()
 	TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> SummaryViewFunctionInputMetadata;
 
 	FSimpleMulticastDelegate OnSummaryViewStateChangedDelegate;

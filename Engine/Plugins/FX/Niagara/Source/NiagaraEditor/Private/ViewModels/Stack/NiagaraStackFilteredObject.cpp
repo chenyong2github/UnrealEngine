@@ -102,11 +102,6 @@ void UNiagaraStackFilteredObject::RefreshChildrenInternal(const TArray<UNiagaraS
 	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleSpawnScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
 	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::ParticleUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
 
-// 	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::EmitterUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
-// 	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::EmitterUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
-// 	AppendEmitterCategory(ScriptViewModelPinned, ENiagaraScriptUsage::EmitterUpdateScript, FGuid(), NewChildren, CurrentChildren, NewIssues);
-
-
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
@@ -126,7 +121,7 @@ void UNiagaraStackFilteredObject::AppendEmitterCategory(TSharedPtr<FNiagaraScrip
 		{
 			if (ModuleNode && ModuleNode->ScriptIsValid())
 			{
-				RefreshChildrenForFunctionCall(ModuleNode, ModuleNode, CurrentChildren, NewChildren, NewIssues, true, FText::FromString(ModuleNode->GetFunctionName()));
+				RefreshChildrenForFunctionCall(ModuleNode, ModuleNode, CurrentChildren, NewChildren, NewIssues, true);
 			}
 		}
 	}

@@ -610,7 +610,7 @@ EVisibility SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility() const
 
 const FSlateBrush* SNiagaraOverviewStackNode::GetSummaryViewButtonBrush() const
 {
-	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	const UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetEditorData() : nullptr;
 	if (BottomSummaryExpander->IsHovered())
 	{
 		return EditorData && EditorData->ShouldShowSummaryView()
@@ -627,7 +627,7 @@ const FSlateBrush* SNiagaraOverviewStackNode::GetSummaryViewButtonBrush() const
 
 FText SNiagaraOverviewStackNode::GetSummaryViewCollapseTooltipText() const
 {
-	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	const UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetEditorData() : nullptr;
 	return EditorData && EditorData->ShouldShowSummaryView()? LOCTEXT("HideAdvancedToolTip", "Show Full Emitter") : LOCTEXT("ShowAdvancedToolTip", "Show Emitter Summary");
 }
 

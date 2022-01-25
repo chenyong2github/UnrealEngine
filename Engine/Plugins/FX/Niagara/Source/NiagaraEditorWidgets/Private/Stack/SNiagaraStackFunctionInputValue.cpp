@@ -1362,8 +1362,7 @@ const FSlateBrush* SNiagaraStackFunctionInputValue::GetFilteredViewIcon() const
 
 EVisibility SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibility() const
 {
-	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
-	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
 	
 	if (!EditorData || EditorData->ShouldShowSummaryView() || FunctionInput->GetTypedOuter<UNiagaraStackSummaryViewObject>() == nullptr)
 	{
@@ -1439,15 +1438,11 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesCo
 		SNew(SBox)
 		.WidthOverride(100)
 		.Padding(FMargin(5, 0, 0, 0))
-		[
-			SNew(SNumericEntryBox<int32>)
-			//.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterSpinBox")
-			//.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
-			.MinValue(0)
-			.MaxValue(TOptional<int32>())
-			.Value(this, &SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex)
-			.OnValueChanged(this, &SNiagaraStackFunctionInputValue::FilteredViewSortIndexChanged)
-			.OnValueCommitted(this, &SNiagaraStackFunctionInputValue::FilteredViewSortIndexCommitted)
+		[			
+			SNew(SEditableTextBox)
+			.Text(this, &SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex)
+			.OnVerifyTextChanged(this, &SNiagaraStackFunctionInputValue::VerifyFilteredSortIndex)
+			.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::FilteredSortIndexTextCommitted)
 		];
 	MenuBuilder.AddWidget(SortIndexWidget, LOCTEXT("FilteredViewSortIndex", "Sort Index"));
 
@@ -1458,7 +1453,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesCo
 
 FText SNiagaraStackFunctionInputValue::GetFilteredViewDisplayName() const
 {
-	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;	
+	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
 
@@ -1510,7 +1505,7 @@ FText GetFunctionInputCategory(UNiagaraStackFunctionInput* Input)
 
 FText SNiagaraStackFunctionInputValue::GetFilteredViewCategory() const
 {
-	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;	
+	const UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
 
@@ -1554,7 +1549,7 @@ void SNiagaraStackFunctionInputValue::FilteredViewCategoryTextCommitted(const FT
 }
 
 
-TOptional<int32> SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex() const
+FText SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex() const
 {
 	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
@@ -1563,37 +1558,41 @@ TOptional<int32> SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex() con
 	if (EditorData && Key.IsSet())
 	{
 		int32 SortIndex = EditorData->GetSummaryViewMetaData(Key.GetValue()).SortIndex;
-		return SortIndex == INDEX_NONE? TOptional<int32>() : SortIndex;
+		return SortIndex != INDEX_NONE? FText::FromString(FString::FromInt(SortIndex)) : FText::GetEmpty();
 	}
 	
-	return TOptional<int32>();
+	return FText::GetEmpty();
 }
 
-void SNiagaraStackFunctionInputValue::FilteredViewSortIndexChanged(int32 Value)
+bool SNiagaraStackFunctionInputValue::VerifyFilteredSortIndex(const FText& InText, FText& OutErrorMessage) const
+{
+	if (!InText.IsEmptyOrWhitespace() && !InText.IsNumeric())
+	{
+		OutErrorMessage = LOCTEXT("FilteredSortIndexNotValid", "Sort Index must be empty or a valid whole number");
+		return false;		
+	}
+	return true;
+}
+
+void SNiagaraStackFunctionInputValue::FilteredSortIndexTextCommitted(const FText& Text, ETextCommit::Type CommitType)
 {
 	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+
+	int32 NewValue = !Text.IsEmptyOrWhitespace() && Text.IsNumeric()? FCString::Atoi(*Text.ToString()) : INDEX_NONE;
 	
 	if (EditorData && Key.IsSet())
-	{
+	{		
 		FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());		
-		if (Value != SummaryViewMetaData.SortIndex)
+		if (NewValue != SummaryViewMetaData.SortIndex)
 		{
 			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputSortIndex", "Changed summary view sorty index for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 			
-			SummaryViewMetaData.SortIndex = Value;
+			SummaryViewMetaData.SortIndex = NewValue;
 			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}		
-	}
-}
-
-void SNiagaraStackFunctionInputValue::FilteredViewSortIndexCommitted(int32 Value, ETextCommit::Type CommitInfo)
-{
-	if (CommitInfo == ETextCommit::OnEnter || CommitInfo == ETextCommit::OnUserMovedFocus)
-	{
-		FilteredViewSortIndexChanged(Value);
 	}
 }
 

@@ -172,9 +172,9 @@ private:
 	bool VerifyFilteredViewCategory(const FText& InText, FText& OutErrorMessage) const;
 	void FilteredViewCategoryTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
-	TOptional<int32> GetFilteredViewSortIndex() const;
-	void FilteredViewSortIndexChanged(int32 Value);
-	void FilteredViewSortIndexCommitted(int32 Value, ETextCommit::Type CommitInfo);
+	FText GetFilteredViewSortIndex() const;
+	bool VerifyFilteredSortIndex(const FText& InText, FText& OutErrorMessage) const;
+	void FilteredSortIndexTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
 private:
 	UNiagaraStackFunctionInput* FunctionInput;

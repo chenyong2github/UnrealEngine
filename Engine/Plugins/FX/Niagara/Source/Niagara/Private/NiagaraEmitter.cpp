@@ -1525,11 +1525,11 @@ void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
 	{
 		return;
 	}
+ 
 	if (EditorData != nullptr)
 	{
 		EditorData->OnPersistentDataChanged().RemoveAll(this);
 	}
-
 	EditorData = InEditorData;
 	
 	if (EditorData != nullptr)
@@ -1992,7 +1992,9 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		ScratchPadScripts.Add(MergedScratchPadScript);
 	}
 
-	SetEditorData(MergedEmitter->GetEditorData());
+	UNiagaraEditorDataBase* NewEditorData = MergedEmitter->GetEditorData();
+	ReouterMergedObject(this, NewEditorData);
+	SetEditorData(NewEditorData);
 
 	// Update the change id since we don't know what's changed.
 	UpdateChangeId(TEXT("Updated from merged copy"));
