@@ -342,10 +342,12 @@ namespace Horde.Storage.FunctionalTests.Ref
             ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(buffer);
             CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
             List<CompactBinaryField> fields = o.GetFields().ToList();
-            Assert.AreEqual(4, fields.Count);
+            Assert.AreEqual(5, fields.Count);
             Assert.AreEqual($"{TestNamespace}.bucket.testObjectWithMetadata", o["name"]!.AsString());
             // we do not support serializing random dictionaries to compact binary
             Assert.IsNull(o["metadata"]);
+
+            Assert.IsNotNull(o["contentHash"]);
 
             Assert.IsNotNull(o["lastAccessTime"]);
 

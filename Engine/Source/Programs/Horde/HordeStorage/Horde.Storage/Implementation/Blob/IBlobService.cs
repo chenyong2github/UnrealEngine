@@ -21,7 +21,7 @@ namespace Horde.Storage.Implementation;
 
 public interface IBlobService
 {
-    Task<BlobIdentifier> VerifyContentMatchesHash(Stream content, BlobIdentifier identifier);
+    Task<ContentHash> VerifyContentMatchesHash(Stream content, ContentHash identifier);
     Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier);
     Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier);
     Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier);
@@ -85,9 +85,9 @@ public class BlobService : IBlobService
         return store;
     }
 
-    public async Task<BlobIdentifier> VerifyContentMatchesHash(Stream content, BlobIdentifier identifier)
+    public async Task<ContentHash> VerifyContentMatchesHash(Stream content, ContentHash identifier)
     {
-        BlobIdentifier blobHash;
+        ContentHash blobHash;
         {
             using IScope _ = Tracer.Instance.StartActive("web.hash");
             blobHash = await BlobIdentifier.FromStream(content);
@@ -106,7 +106,7 @@ public class BlobService : IBlobService
         using IScope _ = Tracer.Instance.StartActive("put_blob");
 
         await using Stream hashStream = payload.GetStream();
-        BlobIdentifier id = await VerifyContentMatchesHash(hashStream, identifier);
+        BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
         Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, payload, id);
         Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, id);
@@ -122,7 +122,7 @@ public class BlobService : IBlobService
         using IScope _ = Tracer.Instance.StartActive("put_blob");
 
         await using Stream hashStream = new MemoryStream(payload);
-        BlobIdentifier id = await VerifyContentMatchesHash(hashStream, identifier);
+        BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
 
         Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, payload, id);
         Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, id);

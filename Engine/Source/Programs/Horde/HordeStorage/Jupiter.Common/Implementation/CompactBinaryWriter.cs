@@ -149,6 +149,19 @@ namespace Jupiter.Implementation
             _fields.Add(field);
         }
 
+        public void AddHash(ContentHash hash, string? fieldName = null)
+        {
+            Field field = BeginField();
+            SetName(ref field, fieldName);
+
+            if (hash.HashData.Length != 20)
+                throw new Exception("Hash data is assumed to be 20 bytes");
+            field.Payload = hash.HashData;
+
+            EndField(ref field, CompactBinaryFieldType.Hash);
+        }
+
+
         public void AddBinaryAttachment(BlobIdentifier hash, string? fieldName = null)
         {
             Field field = BeginField();
@@ -281,9 +294,11 @@ namespace Jupiter.Implementation
                 case CompactBinaryFieldType.CompactBinaryAttachment:
                 case CompactBinaryFieldType.BinaryAttachment:
                 case CompactBinaryFieldType.Hash:
-                    if (member is BlobIdentifier blob)
+                   
+                    if (member != null && member.GetType().IsAssignableTo(typeof(ContentHash)))
                     {
-                        return blob.HashData;
+                        if (member is ContentHash hash)
+                            return hash.HashData;
                     }
 
                     break;

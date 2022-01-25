@@ -17,8 +17,8 @@ namespace Horde.Storage.Implementation
     public interface IObjectService
     {
         Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[] fields);
-        Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
-        Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
+        Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
+        Task<(ContentId[], BlobIdentifier[])> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
 
@@ -90,7 +90,7 @@ namespace Horde.Storage.Implementation
             return (o, blobContents);
         }
 
-        public async Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload)
+        public async Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload)
         {
             bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
 
@@ -101,7 +101,9 @@ namespace Horde.Storage.Implementation
 
             Task<BlobIdentifier> blobStorePut = _blobService.PutObject(ns, payload.Data, blobHash);
             Task addRefToBodyTask = _blobIndex.AddRefToBlobs(ns, bucket, key, new [] {blobHash});
-            BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
+            ContentId[] missingReferences = Array.Empty<ContentId>();
+            BlobIdentifier[] missingBlobs = Array.Empty<BlobIdentifier>();
+
             if (hasReferences)
             {
                 using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
@@ -113,26 +115,30 @@ namespace Horde.Storage.Implementation
                     Task addRefsTask = _blobIndex.AddRefToBlobs(ns, bucket, key, referencesArray);
                     Task<BlobIdentifier[]> checkReferencesTask = _blobService.FilterOutKnownBlobs(ns, referencesArray);
                     await Task.WhenAll(addRefsTask, checkReferencesTask);
-                    missingReferences = await checkReferencesTask;
+                    missingBlobs = await checkReferencesTask;
                 }
                 catch (PartialReferenceResolveException e)
                 {
                     missingReferences = e.UnresolvedReferences.ToArray();
                 }
+                catch (ReferenceIsMissingBlobsException e)
+                {
+                    missingBlobs = e.MissingBlobs.ToArray();
+                }
             }
 
             await Task.WhenAll(objectStorePut, blobStorePut, addRefToBodyTask);
-
-            if (missingReferences.Length == 0)
+            
+            if (missingReferences.Length == 0 && missingBlobs.Length == 0)
             {
                 await _referencesStore.Finalize(ns, bucket, key);
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 
-            return new PutObjectResult(missingReferences);
+            return (missingReferences, missingBlobs);
         }
 
-        public async Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
+        public async Task<(ContentId[], BlobIdentifier[])> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
         {
             (ObjectRecord o, BlobContents? blob) = await Get(ns, bucket, key);
             if (blob == null)
@@ -145,28 +151,33 @@ namespace Horde.Storage.Implementation
 
             bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
 
-            BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
+            ContentId[] missingReferences = Array.Empty<ContentId>();
+            BlobIdentifier[] missingBlobs = Array.Empty<BlobIdentifier>();
             if (hasReferences)
             {
                 using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
-                    missingReferences = await _blobService.FilterOutKnownBlobs(ns, references);
+                    missingBlobs = await _blobService.FilterOutKnownBlobs(ns, references);
                 }
                 catch (PartialReferenceResolveException e)
                 {
                     missingReferences = e.UnresolvedReferences.ToArray();
                 }
+                catch (ReferenceIsMissingBlobsException e)
+                {
+                    missingBlobs = e.MissingBlobs.ToArray();
+                }
             }
 
-            if (missingReferences.Length == 0)
+            if (missingReferences.Length == 0 && missingBlobs.Length == 0)
             {
                 await _referencesStore.Finalize(ns, bucket, key);
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 
-            return missingReferences;
+            return (missingReferences, missingBlobs);
         }
 
         public IAsyncEnumerable<NamespaceId> GetNamespaces()
@@ -188,15 +199,5 @@ namespace Horde.Storage.Implementation
         {
             return _referencesStore.DeleteBucket(ns, bucket);
         }
-    }
-
-    public class PutObjectResult
-    {
-        public PutObjectResult(BlobIdentifier[] missingReferences)
-        {
-            MissingReferences = missingReferences;
-        }
-
-        public BlobIdentifier[] MissingReferences { get; set; }
     }
 }

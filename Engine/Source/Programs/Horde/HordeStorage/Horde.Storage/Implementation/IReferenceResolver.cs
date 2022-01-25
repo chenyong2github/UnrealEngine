@@ -32,9 +32,10 @@ namespace Horde.Storage.Implementation
             // TODO: This is cacheable and we should store the result somewhere
             Queue<CompactBinaryObject> objectsToVisit = new Queue<CompactBinaryObject>();
             objectsToVisit.Enqueue(cb);
-            List<BlobIdentifier> unresolvedReferences = new List<BlobIdentifier>();
+            List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
+            List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
-            List<Task<(BlobIdentifier, BlobIdentifier[]?)>> pendingContentIdResolves = new();
+            List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
             List<Task<CompactBinaryObject>> pendingCompactBinaryAttachments = new();
 
             while(pendingCompactBinaryAttachments.Count != 0 || pendingContentIdResolves.Count != 0 || objectsToVisit.Count != 0)
@@ -53,7 +54,7 @@ namespace Horde.Storage.Implementation
 
                         if (field.IsBinaryAttachment())
                         {
-                            pendingContentIdResolves.Add(ResolveContentId(ns, blobIdentifier));
+                            pendingContentIdResolves.Add(ResolveContentId(ns, ContentId.FromBlobIdentifier(blobIdentifier)));
                         }
                         else
                         {
@@ -69,14 +70,14 @@ namespace Horde.Storage.Implementation
                     }
                 }
 
-                List<Task<(BlobIdentifier, BlobIdentifier[]?)>> contentIdResolvesToRemove = new();
+                List<Task<(ContentId, BlobIdentifier[]?)>> contentIdResolvesToRemove = new();
 
-                foreach (Task<(BlobIdentifier, BlobIdentifier[]?)> pendingContentIdResolveTask in pendingContentIdResolves)
+                foreach (Task<(ContentId, BlobIdentifier[]?)> pendingContentIdResolveTask in pendingContentIdResolves)
                 {
                     // check for any content id resolve that has finished and return those blobs it found
                     if (pendingContentIdResolveTask.IsCompleted)
                     {
-                        (BlobIdentifier id, BlobIdentifier[]? resolvedBlobs) = await pendingContentIdResolveTask;
+                        (ContentId contentId, BlobIdentifier[]? resolvedBlobs) = await pendingContentIdResolveTask;
                         if (resolvedBlobs != null)
                         {
                             foreach (BlobIdentifier b in resolvedBlobs)
@@ -86,14 +87,14 @@ namespace Horde.Storage.Implementation
                         }
                         else
                         {
-                            unresolvedReferences.Add(id);
+                            unresolvedContentIdReferences.Add(contentId);
                         }
                         contentIdResolvesToRemove.Add(pendingContentIdResolveTask);
                     }
                 }
 
                 // cleanup finished tasks
-                foreach (Task<(BlobIdentifier, BlobIdentifier[]?)> finishedTask in contentIdResolvesToRemove)
+                foreach (Task<(ContentId, BlobIdentifier[]?)> finishedTask in contentIdResolvesToRemove)
                 {
                     pendingContentIdResolves.Remove(finishedTask);
                 }
@@ -111,7 +112,7 @@ namespace Horde.Storage.Implementation
                         }
                         catch (BlobNotFoundException e)
                         {
-                            unresolvedReferences.Add(e.Blob);
+                            unresolvedBlobReferences.Add(e.Blob);
                         }
                         finishedCompactBinaryResolves.Add(pendingCompactBinaryAttachment);
                     }
@@ -124,9 +125,14 @@ namespace Horde.Storage.Implementation
                 }
             }
 
-            if (unresolvedReferences.Count != 0)
+            if (unresolvedContentIdReferences.Count != 0)
             {
-                throw new PartialReferenceResolveException(unresolvedReferences);
+                throw new PartialReferenceResolveException(unresolvedContentIdReferences);
+            }
+
+            if (unresolvedBlobReferences.Count != 0)
+            {
+                throw new ReferenceIsMissingBlobsException(unresolvedBlobReferences);
             }
         }
 
@@ -139,22 +145,32 @@ namespace Horde.Storage.Implementation
             return childBinaryObject;
         }
 
-        private async Task<(BlobIdentifier, BlobIdentifier[]?)> ResolveContentId(NamespaceId ns, BlobIdentifier blobIdentifier)
+        private async Task<(ContentId, BlobIdentifier[]?)> ResolveContentId(NamespaceId ns, ContentId contentId)
         {
             using IScope scope = Tracer.Instance.StartActive("ReferenceResolver.ResolveContentId");
-            scope.Span.ResourceName = blobIdentifier.ToString();
-            BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, blobIdentifier);
-            return (blobIdentifier, resolvedBlobs);
+            scope.Span.ResourceName = contentId.ToString();
+            BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, contentId);
+            return (contentId, resolvedBlobs);
         }
     }
 
     public class PartialReferenceResolveException : Exception
     {
-        public List<BlobIdentifier> UnresolvedReferences { get; }
+        public List<ContentId> UnresolvedReferences { get; }
 
-        public PartialReferenceResolveException(List<BlobIdentifier> unresolvedReferences) : base($"References missing: {string.Join(',', unresolvedReferences)}")
+        public PartialReferenceResolveException(List<ContentId> unresolvedReferences) : base($"References missing: {string.Join(',', unresolvedReferences)}")
         {
             UnresolvedReferences = unresolvedReferences;
+        }
+    }
+
+    public class ReferenceIsMissingBlobsException : Exception
+    {
+        public List<BlobIdentifier> MissingBlobs { get; }
+
+        public ReferenceIsMissingBlobsException(List<BlobIdentifier> missingBlobs) : base($"References is missing these blobs: {string.Join(',', missingBlobs)}")
+        {
+            MissingBlobs = missingBlobs;
         }
     }
 }

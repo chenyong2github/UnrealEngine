@@ -52,7 +52,7 @@ namespace Horde.Storage.Controllers
 
         public async Task<IActionResult> Get(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id)
+            [Required] ContentId id)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -82,7 +82,7 @@ namespace Horde.Storage.Controllers
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Head(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id)
+            [Required] ContentId id)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -119,7 +119,7 @@ namespace Horde.Storage.Controllers
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsMultiple(
             [Required] NamespaceId ns,
-            [Required] [FromQuery] List<BlobIdentifier> id)
+            [Required] [FromQuery] List<ContentId> id)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -128,8 +128,8 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
-            ConcurrentBag<BlobIdentifier> invalidContentIds = new ConcurrentBag<BlobIdentifier>();
+            ConcurrentBag<ContentId> partialContentIds = new ConcurrentBag<ContentId>();
+            ConcurrentBag<ContentId> invalidContentIds = new ConcurrentBag<ContentId>();
 
             IEnumerable<Task> tasks = id.Select(async blob =>
             {
@@ -145,7 +145,8 @@ namespace Horde.Storage.Controllers
                 {
                     if (!await _storage.Exists(ns, chunk))
                     {
-                        missingBlobs.Add(blob);
+                        partialContentIds.Add(blob);
+                        break;
                     }
                 }
             });
@@ -154,10 +155,10 @@ namespace Horde.Storage.Controllers
             if (invalidContentIds.Count != 0)
                 return NotFound(new ValidationProblemDetails { Title = $"Missing content ids {string.Join(" ,", invalidContentIds)}"});
 
-            return Ok(new HeadMultipleResponse { Needs = missingBlobs.ToArray()});
+            return Ok(new ExistCheckMultipleContentIdResponse { Needs = partialContentIds.ToArray()});
         }
 
-        private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier contentId)
+        private async Task<BlobContents> GetImpl(NamespaceId ns, ContentId contentId)
         {
             BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId);
             if (chunks == null || chunks.Length == 0)
@@ -198,7 +199,7 @@ namespace Horde.Storage.Controllers
         [RequiredContentType(CustomMediaTypeNames.UnrealCompressedBuffer)]
         public async Task<IActionResult> Put(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id)
+            [Required] ContentId id)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -213,7 +214,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                BlobIdentifier identifier = await PutImpl(ns, id, payload);
+                ContentId identifier = await PutImpl(ns, id, payload);
 
                 return Ok(new
                 {
@@ -229,7 +230,7 @@ namespace Horde.Storage.Controllers
             }
         }
 
-        private async Task<BlobIdentifier> PutImpl(NamespaceId ns, BlobIdentifier id, IBufferedPayload payload)
+        private async Task<ContentId> PutImpl(NamespaceId ns, ContentId id, IBufferedPayload payload)
         {
             // decompress the content and generate a identifier from it to verify the identifier we got
             await using Stream decompressStream = payload.GetStream();
@@ -237,7 +238,7 @@ namespace Horde.Storage.Controllers
             byte[] decompressedContent = _compressedBufferUtils.DecompressContent(await decompressStream.ToByteArray());
 
             MemoryStream decompressedStream = new MemoryStream(decompressedContent);
-            BlobIdentifier identifierDecompressedPayload = await _storage.VerifyContentMatchesHash(decompressedStream, id);
+            ContentId identifierDecompressedPayload = ContentId.FromContentHash(await _storage.VerifyContentMatchesHash(decompressedStream, id));
 
             BlobIdentifier identifierCompressedPayload;
             {
@@ -302,5 +303,11 @@ namespace Horde.Storage.Controllers
         {
             await _storage.DeleteObject(ns, id);
         }*/
+    }
+
+    
+    public class ExistCheckMultipleContentIdResponse
+    {
+        public ContentId[] Needs { get; set; } = null!;
     }
 }

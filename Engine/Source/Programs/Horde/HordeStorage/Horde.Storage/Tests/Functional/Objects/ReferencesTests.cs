@@ -838,6 +838,81 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
 
+        
+        [TestMethod]
+        public async Task PutContentIdMissingBlob()
+        {
+            IContentIdStore? contentIdStore = _server!.Services.GetService<IContentIdStore>();
+            Assert.IsNotNull(contentIdStore);
+
+            // submit a object which contains a content id, which exists but points to a blob that does not exist
+            string blobContents = "This is a string that is referenced as a blob";
+            byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
+            BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
+            ContentId contentId = new ContentId("0000000000000000000000000000000000000000");
+
+            await contentIdStore.Put(TestNamespace, contentId, blobHash, blobData.Length);
+
+            CompactBinaryWriter writer = new CompactBinaryWriter();
+            writer.BeginObject();
+            writer.AddBinaryAttachment(contentId.AsBlobIdentifier(), "blob");
+            writer.EndObject();
+
+            byte[] objectData = writer.Save();
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
+            
+            IoHashKey key = IoHashKey.FromName("putContentIdMissingBlob");
+
+            {
+                HttpContent requestContent = new ByteArrayContent(objectData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                {
+                    Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, CustomMediaTypeNames.UnrealCompactBinary);
+                    await using MemoryStream ms = new MemoryStream();
+                    await result.Content.CopyToAsync(ms);
+                    byte[] roundTrippedBuffer = ms.ToArray();
+                    ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
+                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
+                    CompactBinaryField? needsField = cb["needs"];
+                    Assert.IsNotNull(needsField);
+                    List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                    Assert.AreEqual(1, missingBlobs.Count);
+
+                    Assert.AreNotEqual(blobHash, missingBlobs[0], "Refs should not be returning the mapped blob identifiers as this is unknown to the client attempting to put a new ref");
+                    Assert.AreEqual(contentId.AsBlobIdentifier(), missingBlobs[0]);
+                }
+            }
+
+            {
+                HttpContent requestContent = new ByteArrayContent(objectData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/{key}.json", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                {
+                    Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
+                    await using MemoryStream ms = new MemoryStream();
+                    await result.Content.CopyToAsync(ms);
+                    byte[] roundTrippedBuffer = ms.ToArray();
+                    string s = Encoding.ASCII.GetString(roundTrippedBuffer);
+                    JObject jObject = JObject.Parse(s);
+                    Assert.AreEqual(1, jObject.Children().Count());
+
+                    JToken? needs = jObject["needs"];
+                    BlobIdentifier[] missingBlobs = needs!.ToArray().Select(token => new BlobIdentifier(token.Value<string>()!)).ToArray();
+                    Assert.AreEqual(1, missingBlobs.Length);
+                    Assert.AreEqual(contentId.AsBlobIdentifier(), missingBlobs[0]);
+                }
+            }
+        }
+
         [TestMethod]
         public async Task PutAndFinalize()
         {

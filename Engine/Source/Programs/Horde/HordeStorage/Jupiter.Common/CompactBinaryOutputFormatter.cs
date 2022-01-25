@@ -64,6 +64,11 @@ namespace Jupiter
                     BlobIdentifier blob = (BlobIdentifier) value!;
                     writer.AddBinaryAttachment(blob, name);
                 }
+                else if (propertyType == typeof(ContentHash)  || propertyType.IsAssignableTo(typeof(ContentHash)))
+                {
+                    ContentHash blob = (ContentHash) value!;
+                    writer.AddHash(blob, name);
+                }
                 else if (propertyType == typeof(string))
                 {
                     string s = (string) value!;
@@ -87,6 +92,11 @@ namespace Jupiter
                     {
                         BlobIdentifier[] blobs = (BlobIdentifier[])value;
                         writer.AddUniformArray(blobs, CompactBinaryFieldType.BinaryAttachment, name);
+                    }
+                    else if (elementType == typeof(ContentHash) || elementType.IsAssignableTo(typeof(ContentHash)))
+                    {
+                        ContentHash[] blobs = (ContentHash[])value;
+                        writer.AddUniformArray(blobs, CompactBinaryFieldType.Hash, name);
                     }
                     else if (elementType == typeof(string))
                     {

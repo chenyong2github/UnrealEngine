@@ -14,16 +14,16 @@ namespace Horde.Storage.Implementation
     public class MemoryContentIdStore : IContentIdStore
     {
         private readonly IBlobService _blobStore;
-        private readonly ConcurrentDictionary<NamespaceId, ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>>> _contentIds = new ConcurrentDictionary<NamespaceId, ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>>>();
+        private readonly ConcurrentDictionary<NamespaceId, ConcurrentDictionary<ContentId, SortedList<int, BlobIdentifier[]>>> _contentIds = new ConcurrentDictionary<NamespaceId, ConcurrentDictionary<ContentId, SortedList<int, BlobIdentifier[]>>>();
         
         public MemoryContentIdStore(IBlobService blobStore)
         {
             _blobStore = blobStore;
         }
 
-        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, BlobIdentifier contentId)
+        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId)
         {
-            if (_contentIds.TryGetValue(ns, out ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>>? contentIdsForNamespace))
+            if (_contentIds.TryGetValue(ns, out ConcurrentDictionary<ContentId, SortedList<int, BlobIdentifier[]>>? contentIdsForNamespace))
             {
                 if (contentIdsForNamespace.TryGetValue(contentId, out SortedList<int, BlobIdentifier[]>? contentIdMappings))
                 {
@@ -37,18 +37,19 @@ namespace Horde.Storage.Implementation
                 }
             }
 
+            BlobIdentifier uncompressedBlobIdentifier = contentId.AsBlobIdentifier();
             // if no content id is found, but we have a blob that matches the content id (so a unchunked and uncompressed version of the data) we use that instead
-            if (await _blobStore.Exists(ns, contentId))
-                return new[] { contentId };
+            if (await _blobStore.Exists(ns, uncompressedBlobIdentifier))
+                return new[] { uncompressedBlobIdentifier };
 
             return null;
         }
 
-        public Task Put(NamespaceId ns, BlobIdentifier contentId, BlobIdentifier blobIdentifier, int contentWeight)
+        public Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
             _contentIds.AddOrUpdate(ns, (_) =>
             {
-                ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>> dict = new()
+                ConcurrentDictionary<ContentId, SortedList<int, BlobIdentifier[]>> dict = new()
                 {
                     [contentId] = new SortedList<int, BlobIdentifier[]>
                     {

@@ -126,7 +126,7 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
         {
             byte[] texturePayload = await File.ReadAllBytesAsync("ContentId/Payloads/UncompressedTexture_CAS_dea81b6c3b565bb5089695377c98ce0f1c13b0c3.udd");
             BlobIdentifier compressedPayloadIdentifier = BlobIdentifier.FromBlob(texturePayload);
-            BlobIdentifier uncompressedPayloadIdentifier = new BlobIdentifier("DEA81B6C3B565BB5089695377C98CE0F1C13B0C3");
+            ContentId uncompressedPayloadIdentifier = new ContentId("DEA81B6C3B565BB5089695377C98CE0F1C13B0C3");
 
             {
                 ByteArrayContent content = new ByteArrayContent(texturePayload);
@@ -135,8 +135,9 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
                 result.EnsureSuccessStatusCode();
 
                 InsertResponse response = await result.Content.ReadAsAsync<InsertResponse>();
+                Assert.IsNotNull(response.Identifier);
                 Assert.AreNotEqual(compressedPayloadIdentifier, response.Identifier);
-                Assert.AreEqual(uncompressedPayloadIdentifier, response.Identifier);
+                Assert.AreEqual(uncompressedPayloadIdentifier, ContentId.FromBlobIdentifier(response.Identifier));
             }
 
 

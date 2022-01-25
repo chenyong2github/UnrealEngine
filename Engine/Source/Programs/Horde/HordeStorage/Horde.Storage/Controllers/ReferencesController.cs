@@ -388,8 +388,11 @@ namespace Horde.Storage.Controllers
             }
 
 
-            PutObjectResult result = await _objectService.Put(ns, bucket, key, blobHeader, payloadObject);
-            return Ok(new PutObjectResponse(result.MissingReferences));
+            (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Put(ns, bucket, key, blobHeader, payloadObject);
+
+            List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
+            missingHashes.AddRange(missingBlobs);
+            return Ok(new PutObjectResponse(missingHashes.ToArray()));
         }
 
         [HttpPost("{ns}/{bucket}/{key}/finalize/{hash}.{format?}")]
@@ -413,8 +416,11 @@ namespace Horde.Storage.Controllers
                 }
             }
 
-            BlobIdentifier[] missingReferences = await _objectService.Finalize(ns, bucket, key, hash);
-            return Ok(new PutObjectResponse(missingReferences));
+            (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Finalize(ns, bucket, key, hash);
+            List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
+            missingHashes.AddRange(missingBlobs);
+
+            return Ok(new PutObjectResponse(missingHashes.ToArray()));
         }
 
 
@@ -530,11 +536,11 @@ namespace Horde.Storage.Controllers
 
     public class PutObjectResponse
     {
-        public PutObjectResponse(BlobIdentifier[] missingReferences)
+        public PutObjectResponse(ContentHash[] missingReferences)
         {
             Needs = missingReferences;
         }
 
-        public BlobIdentifier[] Needs { get; set; }
+        public ContentHash[] Needs { get; set; }
     }
 }
