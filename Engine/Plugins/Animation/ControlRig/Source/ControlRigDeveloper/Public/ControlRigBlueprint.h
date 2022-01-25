@@ -685,6 +685,9 @@ public:
 	/** Recomputes the instruction breakpoints given the node breakpoints in the blueprint */
 	void RefreshControlRigBreakpoints();
 
+	/** Shape libraries to load during package load completed */ 
+	TArray<FString> ShapeLibrariesToLoadOnPackageLoaded;
+
 #endif
 
 private:
