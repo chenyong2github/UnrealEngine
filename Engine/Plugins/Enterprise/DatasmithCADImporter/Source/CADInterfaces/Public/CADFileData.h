@@ -127,6 +127,8 @@ public:
 
 	int32 AddComponent(FCadId ComponentId)
 	{
+		ensure(SceneGraphArchive.Components.Num() < SceneGraphArchive.Components.Max());
+
 		int32 Index = SceneGraphArchive.Components.Emplace(ComponentId);
 		SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
 		return Index;
@@ -145,6 +147,8 @@ public:
 
 	int32 AddInstance(FCadId InstanceId)
 	{
+		ensure(SceneGraphArchive.Instances.Num() < SceneGraphArchive.Instances.Max());
+
 		int32 Index = SceneGraphArchive.Instances.Emplace(InstanceId);
 		SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceId, Index);
 		return Index;
@@ -155,6 +159,13 @@ public:
 		return SceneGraphArchive.Instances[Index];
 	}
 
+	int32 GetInstanceIndexFromId(FCadId InstanceId)
+	{
+		int32* IndexPtr = SceneGraphArchive.CADIdToInstanceIndex.Find(InstanceId);
+
+		return IndexPtr ? *IndexPtr : INDEX_NONE;
+	}
+
 
 	bool HasBodyOfId(FCadId BodyId) const
 	{
@@ -163,6 +174,8 @@ public:
 
 	int32 AddBody(FCadId BodyId)
 	{
+		ensure(SceneGraphArchive.Bodies.Num() < SceneGraphArchive.Bodies.Max());
+
 		int32 Index = SceneGraphArchive.Bodies.Emplace(BodyId);
 		SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
 		return Index;
@@ -186,6 +199,8 @@ public:
 
 	int32 AddUnloadedComponent(FCadId ComponentId)
 	{
+		ensure(SceneGraphArchive.UnloadedComponents.Num() < SceneGraphArchive.UnloadedComponents.Max());
+
 		int32 Index = SceneGraphArchive.UnloadedComponents.Emplace(ComponentId);
 		SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
 		return Index;

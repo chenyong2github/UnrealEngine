@@ -5,10 +5,12 @@
 #ifdef USE_TECHSOFT_SDK
 
 #include "TechSoftInterface.h"
-#include "TUniqueTechSoftObj.h"
+
+#include "Templates/UnrealTemplate.h"
 
 namespace CADLibrary
 {
+
 namespace TechSoftFileParserImpl
 {
 // Functions to clean metadata
@@ -42,7 +44,7 @@ FString CleanCatiaInstanceSdkName(const FString& Name)
 	int32 Index;
 	if (Name.FindChar(TEXT('('), Index))
 	{
-		FString NewName = Name.Right(Index + 1);
+		FString NewName = Name.RightChop(Index + 1);
 		if (Name.FindLastChar(TEXT(')'), Index))
 		{
 			NewName = NewName.Left(Index);
@@ -68,7 +70,7 @@ FString CleanSwInstanceSdkName(const FString& Name)
 	int32 Position;
 	if (Name.FindLastChar(TEXT('-'), Position))
 	{
-		FString NewName = Name.Left(Position) + TEXT("<") + Name.Right(Position + 1) + TEXT(">");
+		FString NewName = Name.Left(Position) + TEXT("<") + Name.RightChop(Position + 1) + TEXT(">");
 		return NewName;
 	}
 	return Name;
@@ -90,7 +92,7 @@ FString CleanCatiaReferenceName(const FString& Name)
 	int32 Position;
 	if (Name.FindLastChar(TEXT('.'), Position))
 	{
-		FString Indice = Name.Right(Position + 1);
+		FString Indice = Name.RightChop(Position + 1);
 		if (Indice.IsNumeric())
 		{
 			FString NewName = Name.Left(Position);
@@ -105,7 +107,7 @@ FString CleanNameByRemoving_prt(const FString& Name)
 	int32 Position;
 	if (Name.FindLastChar(TEXT('.'), Position))
 	{
-		FString Extension = Name.Right(Position);
+		FString Extension = Name.RightChop(Position);
 		if (Extension.Equals(TEXT("prt"), ESearchCase::IgnoreCase))
 		{
 			FString NewName = Name.Left(Position);
@@ -242,14 +244,14 @@ void SetIOOption(A3DImport& Importer)
 	Importer.m_sLoadData.m_sGeneral.m_bReadActiveFilter = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_eReadingMode2D3D = kA3DRead_3D;
 
-	Importer.m_sLoadData.m_sGeneral.m_eReadGeomTessMode = kA3DReadGeomOnly;
+	Importer.m_sLoadData.m_sGeneral.m_eReadGeomTessMode = kA3DReadGeomAndTess/*kA3DReadGeomOnly*/;
 	Importer.m_sLoadData.m_sGeneral.m_eDefaultUnit;
 	Importer.m_sLoadData.m_sGeneral.m_bReadFeature = A3D_FALSE;
 
 	Importer.m_sLoadData.m_sGeneral.m_bReadConstraints = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_iNbMultiProcess = 1;
 
-	Importer.m_sLoadData.m_sIncremental.m_bLoadNoDependencies = true;
+	Importer.m_sLoadData.m_sIncremental.m_bLoadNoDependencies = CADLibrary::FImportParameters::bGEnableCADCache;
 	Importer.m_sLoadData.m_sIncremental.m_bLoadStructureOnly = false;
 }
 
@@ -278,19 +280,17 @@ void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImp
 		break;
 	};
 }
-}
+
+} // ns TechSoftFileParserImpl
 
 FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
 	: CADFileData(InCADData)
-	, TechSoftInterface(GetTechSoftInterface())
+	, TechSoftInterface(TechSoftUtils::GetTechSoftInterface())
 {
 }
 
 ECADParsingResult FTechSoftFileParser::Process()
 {
-	// Process the file
-	ECADParsingResult Result = ECADParsingResult::ProcessOk;
-
 	const FFileDescriptor& File = CADFileData.GetCADFileDescription();
 
 	if (File.GetPathOfFileToLoad().IsEmpty())
@@ -332,29 +332,48 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	ReadMaterialsAndColors();
 
-	return TraverseModel(TechSoftInterface.GetModelFile());
+	ECADParsingResult Result = TraverseModel(TechSoftInterface.GetModelFile());
+
+	TechSoftInterface.UnloadModel();
+
+	return Result;
 }
 
 void FTechSoftFileParser::ReserveCADFileData()
 {
+	// TODO: Could be more accurate
 	CountUnderModel(TechSoftInterface.GetModelFile());
 
 	CADFileData.ReserveBodyMeshes(ComponentCount[EComponentType::Body]);
 
 	FArchiveSceneGraph& SceneGraphArchive = CADFileData.GetSceneGraphArchive();
-	SceneGraphArchive.Bodies.Reserve(ComponentCount[EComponentType::Body]);
-	SceneGraphArchive.Components.Reserve(ComponentCount[EComponentType::Reference]);
-	SceneGraphArchive.UnloadedComponents.Reserve(ComponentCount[EComponentType::Reference]);
-	SceneGraphArchive.ExternalReferences.Reserve(ComponentCount[EComponentType::Reference]);
-	SceneGraphArchive.Instances.Reserve(ComponentCount[EComponentType::Occurrence]);
-
-	SceneGraphArchive.CADIdToBodyIndex.Reserve(ComponentCount[EComponentType::Body]);
-	SceneGraphArchive.CADIdToComponentIndex.Reserve(ComponentCount[EComponentType::Reference]);
-	SceneGraphArchive.CADIdToUnloadedComponentIndex.Reserve(ComponentCount[EComponentType::Reference]);
-	SceneGraphArchive.CADIdToInstanceIndex.Reserve(ComponentCount[EComponentType::Occurrence]);
+	SceneGraphArchive.Reserve(ComponentCount[EComponentType::Occurrence], ComponentCount[EComponentType::Reference], ComponentCount[EComponentType::Body]);
 
 	uint32 MaterialNum = CountMaterial() + CountColor();
 	SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
+}
+
+void FTechSoftFileParser::CountUnderModel(const A3DAsmModelFile* AsmModel)
+{
+	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(AsmModel);
+	if (!ModelFileData.IsValid())
+	{
+		return;
+	}
+
+	ComponentCount[EComponentType::Occurrence] ++;
+
+	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
+	{
+		if (IsConfigurationSet(ModelFileData->m_ppPOccurrences[Index]))
+		{
+			CountUnderConfigurationSet(ModelFileData->m_ppPOccurrences[Index]);
+		}
+		else
+		{
+			CountUnderOccurrence(ModelFileData->m_ppPOccurrences[Index]);
+		}
+	}
 }
 
 ECADParsingResult FTechSoftFileParser::TraverseModel(const A3DAsmModelFile* ModelFile)
@@ -369,14 +388,14 @@ ECADParsingResult FTechSoftFileParser::TraverseModel(const A3DAsmModelFile* Mode
 	FileUnit = ModelFileData->m_dUnit;
 
 	FEntityMetaData MetaData;
-	TraverseMetaData(ModelFile, MetaData);
-	TraverseSpecificMetaData(ModelFile, MetaData);
+	ExtractMetaData(ModelFile, MetaData);
+	ExtractSpecificMetaData(ModelFile, MetaData);
 
 	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
 	{
 		if (IsConfigurationSet(ModelFileData->m_ppPOccurrences[Index]))
 		{
-			//TraverseConfigurationSet(ModelFileData->m_ppPOccurrences[Index], MetaData);
+			TraverseConfigurationSet(ModelFileData->m_ppPOccurrences[Index]);
 		}
 		else
 		{
@@ -387,17 +406,85 @@ ECADParsingResult FTechSoftFileParser::TraverseModel(const A3DAsmModelFile* Mode
 	return ECADParsingResult::ProcessOk;
 }
 
+void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSetPtr)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationSetData(ConfigurationSetPtr);
+	if (!ConfigurationSetData.IsValid())
+	{
+		return;
+	}
+
+	FEntityMetaData MetaData;
+	ExtractMetaData(ConfigurationSetPtr, MetaData);
+	ExtractSpecificMetaData(ConfigurationSetPtr, MetaData);
+
+	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationData;
+	for (unsigned int Index = 0; Index < ConfigurationSetData->m_uiPOccurrencesSize; ++Index)
+	{
+		ConfigurationData.FillFrom(ConfigurationSetData->m_ppPOccurrences[Index]);
+		if (!ConfigurationData.IsValid())
+		{
+			return;
+		}
+
+		// Traverse default configuration
+		if (ConfigurationData->m_uiProductFlags & (A3D_PRODUCT_FLAG_DEFAULT| A3D_PRODUCT_FLAG_CONFIG))
+		{
+			TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index]);
+			return;
+		}
+	}
+
+	// no default configuration, traverse the first
+	if (ConfigurationSetData->m_uiPOccurrencesSize)
+	{
+// #ueent_techsoft: Should we take the first occurence or the first configuration???
+		TraverseReference(ConfigurationSetData->m_ppPOccurrences[0]);
+	}
+}
+
+void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSetPtr)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationSetData(ConfigurationSetPtr);
+	if (!ConfigurationSetData.IsValid())
+	{
+		return;
+	}
+
+	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationData;
+	for (unsigned int Index = 0; Index < ConfigurationSetData->m_uiPOccurrencesSize; ++Index)
+	{
+		ConfigurationData.FillFrom(ConfigurationSetData->m_ppPOccurrences[Index]);
+		if (!ConfigurationData.IsValid())
+		{
+			return;
+		}
+
+		if (ConfigurationData->m_uiProductFlags & (A3D_PRODUCT_FLAG_DEFAULT | A3D_PRODUCT_FLAG_CONFIG))
+		{
+			CountUnderOccurrence(ConfigurationSetData->m_ppPOccurrences[Index]);
+			return;
+		}
+	}
+
+	// no default configuration, traverse the first
+	if (ConfigurationSetData->m_uiPOccurrencesSize)
+	{
+		CountUnderOccurrence(ConfigurationSetData->m_ppPOccurrences[0]);
+	}
+}
+
 void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* ReferencePtr)
 {
 	FEntityMetaData MetaData;
-	TraverseMetaData(ReferencePtr, MetaData);
+	ExtractMetaData(ReferencePtr, MetaData);
 
 	if (MetaData.bRemoved || !MetaData.bShow)
 	{
 		return;
 	}
 
-	TraverseSpecificMetaData(ReferencePtr, MetaData);
+	ExtractSpecificMetaData(ReferencePtr, MetaData);
 	BuildReferenceName(MetaData.MetaData);
 
 	TraverseMaterialProperties(ReferencePtr);
@@ -423,8 +510,15 @@ void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* Refer
 	{
 		TraversePartDefinition(ReferenceData->m_pPart, Component);
 	}
-}
 
+#ifndef NEW_CODE
+	// Is this really necessary ????
+	if (ReferenceData->m_pPrototype && !ReferenceData->m_uiPOccurrencesSize && !ReferenceData->m_pPart)
+	{
+		TraversePrototype(ReferenceData->m_pPrototype, Component);
+	}
+#endif
+}
 
 FArchiveInstance& FTechSoftFileParser::AddInstance(FEntityMetaData& InstanceMetaData)
 {
@@ -499,17 +593,19 @@ FArchiveBody& FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData)
 	return Body;
 }
 
+#pragma optimize ("", off)
+#ifndef NEW_CODE
 FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* OccurrencePtr)
 {
 	FEntityMetaData InstanceMetaData;
-	TraverseMetaData(OccurrencePtr, InstanceMetaData);
+	ExtractMetaData(OccurrencePtr, InstanceMetaData);
 
 	if (InstanceMetaData.bRemoved || !InstanceMetaData.bShow)
 	{
 		return 0;
 	}
 
-	TraverseSpecificMetaData(OccurrencePtr, InstanceMetaData);
+	ExtractSpecificMetaData(OccurrencePtr, InstanceMetaData);
 	BuildInstanceName(InstanceMetaData.MetaData);
 
 	TraverseMaterialProperties(OccurrencePtr);
@@ -530,8 +626,11 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 	if (OccurrenceData->m_pPrototype)
 	{
 		FMatrix PrototypeMatrix;
-		TraversePrototype(OccurrenceData->m_pPrototype, PrototypeMetaData, PrototypeMatrix);
-		Instance.TransformMatrix *= PrototypeMatrix;
+		ProcessPrototype(OccurrenceData->m_pPrototype, PrototypeMetaData, PrototypeMatrix);
+		if (!OccurrenceData->m_pLocation)
+		{
+			Instance.TransformMatrix = PrototypeMatrix;
+		}
 	}
 
 	if (PrototypeMetaData.bUnloaded)
@@ -552,9 +651,166 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 		{
 			TraversePartDefinition(OccurrenceData->m_pPart, Component);
 		}
+
+		if (OccurrenceData->m_pPrototype && !OccurrenceData->m_uiPOccurrencesSize && !OccurrenceData->m_pPart)
+		{
+			TraversePrototype(OccurrenceData->m_pPrototype, Component);
+		}
 	}
 
 	return Instance.ObjectId;
+}
+#else
+FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* OccurrencePtr)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(OccurrencePtr);
+	if (!OccurrenceData.IsValid())
+	{
+		return 0;
+	}
+
+	bool bContinueTraverse = OccurrenceData->m_pPrototype
+		|| OccurrenceData->m_pExternalData
+		|| OccurrenceData->m_pPart
+		|| OccurrenceData->m_uiPOccurrencesSize > 0;
+	if (!bContinueTraverse)
+	{
+		return 0;
+	}
+
+	FEntityMetaData InstanceMetaData;
+	ExtractMetaData(OccurrencePtr, InstanceMetaData);
+
+	if (InstanceMetaData.bRemoved || !InstanceMetaData.bShow)
+	{
+		return 0;
+	}
+
+	ExtractSpecificMetaData(OccurrencePtr, InstanceMetaData);
+	BuildInstanceName(InstanceMetaData.MetaData);
+
+	TraverseMaterialProperties(OccurrencePtr);
+	TraverseLayer(OccurrencePtr);
+
+	FArchiveInstance& Instance = AddInstance(InstanceMetaData);
+
+	if (OccurrenceData->m_eProductLoadStatus == kA3DProductLoadStatusNotLoaded)
+	{
+		FArchiveUnloadedComponent& UnloadedComponent = AddUnloadedComponent(InstanceMetaData, Instance);
+		return Instance.ObjectId;
+	}
+	
+	A3DAsmProductOccurrence* PrototypePtr = OccurrenceData->m_pPrototype;
+	A3DMiscTransformation* LocationPtr = OccurrenceData->m_pLocation;
+
+	while (!LocationPtr && PrototypePtr)
+	{
+		TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeOccurrenceData(PrototypePtr);
+		LocationPtr = PrototypeOccurrenceData->m_pLocation;
+		PrototypePtr = PrototypeOccurrenceData->m_pPrototype;
+	}
+
+	Instance.TransformMatrix = TraverseTransformation(LocationPtr);
+
+	A3DAsmPartDefinition* PartDefinition = OccurrenceData->m_pPart;
+	PrototypePtr = OccurrenceData->m_pPrototype;
+
+	while (!PartDefinition && PrototypePtr)
+	{
+		TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeOccurrenceData(PrototypePtr);
+		PartDefinition = PrototypeOccurrenceData->m_pPart;
+		PrototypePtr = PrototypeOccurrenceData->m_pPrototype;
+	}
+
+	FArchiveComponent& Component = AddComponent(InstanceMetaData, Instance);
+
+	TraversePartDefinition(PartDefinition, Component);
+
+	uint32 ChildrenCount = OccurrenceData->m_uiPOccurrencesSize;
+	A3DAsmProductOccurrence** Children = OccurrenceData->m_ppPOccurrences;
+	PrototypePtr = OccurrenceData->m_pPrototype;
+
+	while (ChildrenCount == 0 && PrototypePtr)
+	{
+		TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeOccurrenceData(PrototypePtr);
+		ChildrenCount = PrototypeOccurrenceData->m_uiPOccurrencesSize;
+		Children = PrototypeOccurrenceData->m_ppPOccurrences;
+		PrototypePtr = PrototypeOccurrenceData->m_pPrototype;
+	}
+
+	for (uint32 Index = 0; Index < ChildrenCount; ++Index)
+	{
+		int32 ChildrenId = TraverseOccurrence(Children[Index]);
+		Component.Children.Add(ChildrenId);
+	}
+
+	return Instance.ObjectId;
+}
+#endif
+#pragma optimize ("", on)
+
+void FTechSoftFileParser::ProcessOccurrence(TUniqueTSObj<A3DAsmProductOccurrenceData>& OccurrenceData, FArchiveComponent& Component)
+{
+	if (!OccurrenceData.IsValid())
+	{
+		return;
+	}
+
+	if (OccurrenceData->m_pPart)
+	{
+		TraversePartDefinition(OccurrenceData->m_pPart, Component);
+	}
+
+	if (OccurrenceData->m_pExternalData)
+	{
+		int32 ChildrenId = TraverseOccurrence(OccurrenceData->m_pExternalData);
+		Component.Children.Add(ChildrenId);
+	}
+
+	for (uint32 Index = 0; Index < OccurrenceData->m_uiPOccurrencesSize; ++Index)
+	{
+		int32 ChildrenId = TraverseOccurrence(OccurrenceData->m_ppPOccurrences[Index]);
+		Component.Children.Add(ChildrenId);
+	}
+};
+
+void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
+	if (Occurrence && OccurrenceData.IsValid())
+	{
+		ComponentCount[EComponentType::Occurrence]++;
+		ComponentCount[EComponentType::Reference]++;
+
+		A3DAsmProductOccurrence* PrototypePtr = OccurrenceData->m_pPrototype;
+		A3DAsmPartDefinition* PartDefinition = OccurrenceData->m_pPart;
+
+		while (!PartDefinition && PrototypePtr)
+		{
+			TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeOccurrenceData(PrototypePtr);
+			PartDefinition = PrototypeOccurrenceData->m_pPart;
+			PrototypePtr = PrototypeOccurrenceData->m_pPrototype;
+		}
+
+		CountUnderPartDefinition(PartDefinition);
+
+		uint32 ChildrenCount = OccurrenceData->m_uiPOccurrencesSize;
+		A3DAsmProductOccurrence** Children = OccurrenceData->m_ppPOccurrences;
+		PrototypePtr = OccurrenceData->m_pPrototype;
+
+		while (ChildrenCount == 0 && PrototypePtr)
+		{
+			TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeOccurrenceData(PrototypePtr);
+			ChildrenCount = PrototypeOccurrenceData->m_uiPOccurrencesSize;
+			Children = PrototypeOccurrenceData->m_ppPOccurrences;
+			PrototypePtr = PrototypeOccurrenceData->m_pPrototype;
+		}
+
+		for (uint32 Index = 0; Index < ChildrenCount; ++Index)
+		{
+			CountUnderOccurrence(Children[Index]);
+		}
+	}
 }
 
 FFileDescriptor FTechSoftFileParser::GetOccurrenceFileName(const A3DAsmProductOccurrence* OccurrencePtr)
@@ -599,7 +855,56 @@ FFileDescriptor FTechSoftFileParser::GetOccurrenceFileName(const A3DAsmProductOc
 	return FFileDescriptor();
 }
 
-void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* InPrototypePtr, FEntityMetaData& OutPrototypeMetaData, FMatrix& OutPrototypeMatrix)
+void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* InPrototypePtr, FArchiveComponent& Component)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> SubPrototypeData(InPrototypePtr);
+	if (!SubPrototypeData.IsValid())
+	{
+		return;
+	}
+
+	for (uint32 Index = 0; Index < SubPrototypeData->m_uiPOccurrencesSize; ++Index)
+	{
+		int32 ChildrenId = TraverseOccurrence(SubPrototypeData->m_ppPOccurrences[Index]);
+		Component.Children.Add(ChildrenId);
+	}
+
+	if (SubPrototypeData->m_pPart)
+	{
+		TraversePartDefinition(SubPrototypeData->m_pPart, Component);
+	}
+
+	if (SubPrototypeData->m_pPrototype && !SubPrototypeData->m_uiPOccurrencesSize && !SubPrototypeData->m_pPart)
+	{
+		TraversePrototype(SubPrototypeData->m_pPrototype, Component);
+	}
+}
+
+void FTechSoftFileParser::CountUnderSubPrototype(const A3DAsmProductOccurrence* InPrototypePtr)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> SubPrototypeData(InPrototypePtr);
+	if (!SubPrototypeData.IsValid())
+	{
+		return;
+	}
+
+	for (uint32 Index = 0; Index < SubPrototypeData->m_uiPOccurrencesSize; ++Index)
+	{
+		CountUnderOccurrence(SubPrototypeData->m_ppPOccurrences[Index]);
+	}
+
+	if (SubPrototypeData->m_pPart)
+	{
+		CountUnderPartDefinition(SubPrototypeData->m_pPart);
+	}
+
+	if (SubPrototypeData->m_pPrototype && !SubPrototypeData->m_uiPOccurrencesSize && !SubPrototypeData->m_pPart)
+	{
+		CountUnderSubPrototype(SubPrototypeData->m_pPrototype);
+	}
+}
+
+void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InPrototypePtr, FEntityMetaData& OutPrototypeMetaData, FMatrix& OutPrototypeMatrix)
 {
 	TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeData(InPrototypePtr);
 	if (!PrototypeData.IsValid())
@@ -607,8 +912,8 @@ void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* InPro
 		return;
 	}
 
-	TraverseMetaData(InPrototypePtr, OutPrototypeMetaData);
-	TraverseSpecificMetaData(InPrototypePtr, OutPrototypeMetaData);
+	ExtractMetaData(InPrototypePtr, OutPrototypeMetaData);
+	ExtractSpecificMetaData(InPrototypePtr, OutPrototypeMetaData);
 
 	TraverseMaterialProperties(InPrototypePtr);
 
@@ -624,17 +929,28 @@ void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* InPro
 	BuildReferenceName(OutPrototypeMetaData.MetaData);
 }
 
+void FTechSoftFileParser::CountUnderPrototype(const A3DAsmProductOccurrence* Prototype)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeData(Prototype);
+	if (!PrototypeData.IsValid())
+	{
+		return;
+	}
+
+	ComponentCount[EComponentType::Reference] ++;
+}
+
 void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* PartDefinitionPtr, FArchiveComponent& Part)
 {
 	FEntityMetaData PartMetaData;
-	TraverseMetaData(PartDefinitionPtr, PartMetaData);
+	ExtractMetaData(PartDefinitionPtr, PartMetaData);
 
 	if (PartMetaData.bRemoved || !PartMetaData.bShow)
 	{
 		return;
 	}
 
-	TraverseSpecificMetaData(PartDefinitionPtr, PartMetaData);
+	ExtractSpecificMetaData(PartDefinitionPtr, PartMetaData);
 	BuildPartName(PartMetaData.MetaData);
 
 	TraverseMaterialProperties(PartDefinitionPtr);
@@ -647,6 +963,21 @@ void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* Par
 		{
 			int32 ChildId = TraverseRepresentationItem(PartData->m_ppRepItems[Index], PartMetaData);
 			Part.Children.Add(ChildId);
+		}
+	}
+}
+
+void FTechSoftFileParser::CountUnderPartDefinition(const A3DAsmPartDefinition* PartDefinition)
+{
+	TUniqueTSObj<A3DAsmPartDefinitionData> PartData(PartDefinition);
+	if (PartDefinition && PartData.IsValid())
+	{
+		ComponentCount[EComponentType::Reference] ++;
+		ComponentCount[EComponentType::Occurrence] ++;
+
+		for (unsigned int Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
+		{
+			CountUnderRepresentationItem(PartData->m_ppRepItems[Index]);
 		}
 	}
 }
@@ -670,6 +1001,26 @@ FCadId FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* 
 	return 0;
 }
 
+void FTechSoftFileParser::CountUnderRepresentationItem(const A3DRiRepresentationItem* RepresentationItem)
+{
+	A3DEEntityType Type;
+	A3DEntityGetType(RepresentationItem, &Type);
+
+	switch (Type)
+	{
+	case kA3DTypeRiSet:
+		CountUnderRepresentationSet(RepresentationItem);
+		break;
+	case kA3DTypeRiBrepModel:
+	case kA3DTypeRiPolyBrepModel:
+		ComponentCount[EComponentType::Body] ++;
+		break;
+
+	default:
+		break;
+	}
+}
+
 FCadId FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* RepresentationSetPtr, FEntityMetaData& PartMetaData)
 {
 	TUniqueTSObj<A3DRiSetData> RepresentationSetData(RepresentationSetPtr);
@@ -679,7 +1030,7 @@ FCadId FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representa
 	}
 
 	FEntityMetaData RepresentationSetMetaData;
-	TraverseMetaData(RepresentationSetPtr, RepresentationSetMetaData);
+	ExtractMetaData(RepresentationSetPtr, RepresentationSetMetaData);
 
 	if (RepresentationSetMetaData.bRemoved || !RepresentationSetMetaData.bShow)
 	{
@@ -691,16 +1042,41 @@ FCadId FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representa
 	FCadId RepresentationSetId = 0;
 	FArchiveComponent& RepresentationSet = AddOccurence(RepresentationSetMetaData, RepresentationSetId);
 
-	for (A3DUns32 ui = 0; ui < RepresentationSetData->m_uiRepItemsSize; ++ui)
+	for (A3DUns32 Index = 0; Index < RepresentationSetData->m_uiRepItemsSize; ++Index)
 	{
-		int32 ChildId = TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[ui], RepresentationSetMetaData);
+		int32 ChildId = TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[Index], RepresentationSetMetaData);
 		RepresentationSet.Children.Add(ChildId);
 	}
 	return RepresentationSetId;
 }
 
+void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* RepresentationSet)
+{
+	TUniqueTSObj<A3DRiSetData> RepresentationSetData(RepresentationSet);
+	if (RepresentationSet && RepresentationSetData.IsValid())
+	{
+		ComponentCount[EComponentType::Occurrence] ++;
+		ComponentCount[EComponentType::Reference] ++;
+
+		for (A3DUns32 Index = 0; Index < RepresentationSetData->m_uiRepItemsSize; ++Index)
+		{
+			CountUnderRepresentationItem(RepresentationSetData->m_ppRepItems[Index]);
+		}
+	}
+}
+
 FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FEntityMetaData& PartMetaData)
 {
+	if (!BRepModelPtr)
+	{
+		return 0;
+	}
+
+	if (FCadId* CadIdPtr = RepresentationItemsCache.Find(BRepModelPtr))
+	{
+		return *CadIdPtr;
+	}
+
 	TUniqueTSObj<A3DRiBrepModelData> BodyData(BRepModelPtr);
 	if (!BodyData.IsValid())
 	{
@@ -708,13 +1084,13 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FEnt
 	}
 
 	FEntityMetaData BRepMetaData;
-	TraverseMetaData(BRepModelPtr, BRepMetaData);
+	ExtractMetaData(BRepModelPtr, BRepMetaData);
 	if (!BRepMetaData.bShow || BRepMetaData.bRemoved)
 	{
 		return 0;
 	}
 
-	TraverseSpecificMetaData(BRepModelPtr, BRepMetaData);
+	ExtractSpecificMetaData(BRepModelPtr, BRepMetaData);
 	TraverseMaterialProperties(BRepModelPtr);
 
 	FArchiveBody& Body = AddBody(BRepMetaData);
@@ -728,6 +1104,9 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FEnt
 	{
 		// Mesh with CADKernel
 	}
+
+	RepresentationItemsCache.Add(BRepModelPtr, Body.ObjectId);
+
 	return Body.ObjectId;
 }
 
@@ -752,6 +1131,16 @@ void FTechSoftFileParser::TraverseRepresentationContent(const A3DRiRepresentatio
 
 FCadId FTechSoftFileParser::TraversePolyBRepModel(const A3DRiPolyBrepModel* PolygonalPtr, FEntityMetaData& PartMetaData)
 {
+	if (!PolygonalPtr)
+	{
+		return 0;
+	}
+
+	if (FCadId* CadIdPtr = RepresentationItemsCache.Find(PolygonalPtr))
+	{
+		return *CadIdPtr;
+	}
+
 	TUniqueTSObj<A3DRiPolyBrepModelData> BodyData(PolygonalPtr);
 	if (!BodyData.IsValid())
 	{
@@ -759,22 +1148,24 @@ FCadId FTechSoftFileParser::TraversePolyBRepModel(const A3DRiPolyBrepModel* Poly
 	}
 
 	FEntityMetaData BRepMetaData;
-	TraverseMetaData(PolygonalPtr, BRepMetaData);
+	ExtractMetaData(PolygonalPtr, BRepMetaData);
 	if (!BRepMetaData.bShow || BRepMetaData.bRemoved)
 	{
 		return 0;
 	}
 
-	TraverseSpecificMetaData(PolygonalPtr, BRepMetaData);
+	ExtractSpecificMetaData(PolygonalPtr, BRepMetaData);
 	TraverseMaterialProperties(PolygonalPtr);
 
 	FArchiveBody& Body = AddBody(BRepMetaData);
 	TraverseRepresentationContent(PolygonalPtr, Body);
 
+	RepresentationItemsCache.Add(PolygonalPtr, Body.ObjectId);
+
 	return Body.ObjectId;
 }
 
-void FTechSoftFileParser::TraverseMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData)
+void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData)
 {
 	TUniqueTSObj<A3DRootBaseData> MetaData(Entity);
 	if (MetaData.IsValid())
@@ -979,7 +1370,7 @@ void FTechSoftFileParser::BuildBodyName(TMap<FString, FString>& MetaData)
 	MetaData.Add(TEXT("Name"), TEXT("NoName"));
 }
 
-void FTechSoftFileParser::TraverseSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData)
+void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData)
 {
 	//----------- Export Specific information per CAD format -----------
 	switch (ModellerType)
@@ -1228,36 +1619,38 @@ void FTechSoftFileParser::TraverseMaterialProperties(const A3DEntity* Entity)
 	}
 }
 
-FMatrix FTechSoftFileParser::TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation)
+FMatrix FTechSoftFileParser::TraverseTransformation3D(const A3DMiscTransformation* CartesianTransformation)
 {
-	if (CartesianTransformation)
+	TUniqueTSObj<A3DMiscCartesianTransformationData> CartesianTransformationData(CartesianTransformation);
+
+	if (CartesianTransformationData.IsValid())
 	{
-		TUniqueTSObj<A3DMiscCartesianTransformationData> CartesianTransformationData(CartesianTransformation);
+		FVector Origin(CartesianTransformationData->m_sOrigin.m_dX, CartesianTransformationData->m_sOrigin.m_dY, CartesianTransformationData->m_sOrigin.m_dZ);
+		FVector XVector(CartesianTransformationData->m_sXVector.m_dX, CartesianTransformationData->m_sXVector.m_dY, CartesianTransformationData->m_sXVector.m_dZ);;
+		FVector YVector(CartesianTransformationData->m_sYVector.m_dX, CartesianTransformationData->m_sYVector.m_dY, CartesianTransformationData->m_sYVector.m_dZ);;
 
-		if (CartesianTransformationData.IsValid())
+		FVector ZVector = XVector ^ YVector;
+
+		const A3DVector3dData& Scale = CartesianTransformationData->m_sScale;
+
+		FMatrix Matrix(XVector * Scale.m_dX, YVector * Scale.m_dY, ZVector * Scale.m_dZ, FVector::Zero());
+
+		if (CartesianTransformationData->m_ucBehaviour & kA3DTransformationMirror)
 		{
-			FVector Origin(CartesianTransformationData->m_sOrigin.m_dX, CartesianTransformationData->m_sOrigin.m_dY, CartesianTransformationData->m_sOrigin.m_dZ);
-			FVector XVector(CartesianTransformationData->m_sXVector.m_dX, CartesianTransformationData->m_sXVector.m_dY, CartesianTransformationData->m_sXVector.m_dZ);;
-			FVector YVector(CartesianTransformationData->m_sYVector.m_dX, CartesianTransformationData->m_sYVector.m_dY, CartesianTransformationData->m_sYVector.m_dZ);;
-
-			FVector ZVector = XVector ^ YVector;
-			FMatrix Matrix(XVector, YVector, ZVector, FVector::Zero());
-
-			FMatrix Scale = FMatrix::Identity;
-			Scale.M[0][0] = CartesianTransformationData->m_sScale.m_dX;
-			Scale.M[1][1] = CartesianTransformationData->m_sScale.m_dY;
-			Scale.M[2][2] = CartesianTransformationData->m_sScale.m_dZ;
-			Matrix = Matrix * Scale;
-
-			Matrix = Matrix.ConcatTranslation(Origin);
-
-			return Matrix;
+			Matrix.M[2][0] *= -1;
+			Matrix.M[2][1] *= -1;
+			Matrix.M[2][2] *= -1;
 		}
+
+		Matrix.SetOrigin(Origin * FileUnit);
+
+		return Matrix;
 	}
+
 	return FMatrix::Identity;
 }
 
-FMatrix FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation)
+FMatrix FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscTransformation* GeneralTransformation)
 {
 	TUniqueTSObj<A3DMiscGeneralTransformationData> GeneralTransformationData(GeneralTransformation);
 	if (GeneralTransformationData.IsValid())
@@ -1271,12 +1664,18 @@ FMatrix FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscGeneralT
 				Matrix.M[Andex][Bndex] = GeneralTransformationData->m_adCoeff[Index];
 			}
 		}
+
+		for (Index = 0; Index < 3; ++Index, ++Index)
+		{
+			Matrix.M[3][Index] *= FileUnit;
+		}
+
 		return Matrix;
 	}
 	return FMatrix::Identity;
 }
 
-FMatrix FTechSoftFileParser::TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3D)
+FMatrix FTechSoftFileParser::TraverseTransformation(const A3DMiscTransformation* Transformation3D)
 {
 	if (Transformation3D == NULL)
 	{
@@ -1352,122 +1751,6 @@ bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occu
 		}
 	}
 	return bIsConfiguration;
-}
-
-void FTechSoftFileParser::CountUnderModel(const A3DAsmModelFile* AsmModel)
-{
-	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(AsmModel);
-	if (!ModelFileData.IsValid())
-	{
-		return;
-	}
-
-	ComponentCount[EComponentType::Occurrence] ++;
-
-	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
-	{
-		//if (IsConfigurationSet(ModelFileData.m_ppPOccurrences[Index]))
-		//{
-		//	TraverseConfigurationSet(ModelFileData.m_ppPOccurrences[Index], MetaData);
-		//}
-		//else
-		{
-			CountUnderOccurrence(ModelFileData->m_ppPOccurrences[Index]);
-		}
-	}
-}
-
-void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence)
-{
-	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
-	if (!OccurrenceData.IsValid())
-	{
-		return;
-	}
-
-	ComponentCount[EComponentType::Occurrence] ++;
-
-	if (OccurrenceData->m_pPrototype)
-	{
-		CountUnderPrototype(OccurrenceData->m_pPrototype);
-	}
-
-	for (uint32 Index = 0; Index < OccurrenceData->m_uiPOccurrencesSize; ++Index)
-	{
-		CountUnderOccurrence(OccurrenceData->m_ppPOccurrences[Index]);
-	}
-
-	if (OccurrenceData->m_pPart)
-	{
-		CountUnderPartDefinition(OccurrenceData->m_pPart);
-	}
-}
-
-void FTechSoftFileParser::CountUnderPrototype(const A3DAsmProductOccurrence* Prototype)
-{
-	if (PrototypeCounted.Contains(Prototype))
-	{
-		return;
-	}
-	PrototypeCounted.Add(Prototype);
-
-	TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeData(Prototype);
-	if (!PrototypeData.IsValid())
-	{
-		return;
-	}
-
-	ComponentCount[EComponentType::Reference] ++;
-
-	if (PrototypeData->m_pPrototype)
-	{
-		CountUnderPrototype(PrototypeData->m_pPrototype);
-	}
-}
-
-void FTechSoftFileParser::CountUnderPartDefinition(const A3DAsmPartDefinition* PartDefinition)
-{
-	TUniqueTSObj<A3DAsmPartDefinitionData> PartData(PartDefinition);
-	if (!PartData.IsValid())
-	{
-		return;
-	}
-
-	for (unsigned int Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
-	{
-		CountUnderRepresentation(PartData->m_ppRepItems[Index]);
-	}
-
-}
-
-void FTechSoftFileParser::CountUnderRepresentation(const A3DRiRepresentationItem* RepresentationItem)
-{
-	A3DEEntityType Type;
-	A3DEntityGetType(RepresentationItem, &Type);
-
-	switch (Type)
-	{
-	case kA3DTypeRiSet:
-		CountUnderRepresentationSet(RepresentationItem);
-		break;
-	case kA3DTypeRiBrepModel:
-	case kA3DTypeRiPolyBrepModel:
-		ComponentCount[EComponentType::Body] ++;
-		break;
-
-	default:
-		break;
-	}
-}
-
-void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* RepresentationSet)
-{
-	TUniqueTSObj<A3DRiSetData> RepresentationSetData(RepresentationSet);
-	if (!RepresentationSetData.IsValid())
-	{
-		return;
-	}
-	ComponentCount[EComponentType::Body] += RepresentationSetData->m_uiRepItemsSize;
 }
 
 int32 FTechSoftFileParser::CountMaterial()
@@ -1546,67 +1829,101 @@ void FTechSoftFileParser::TraverseTessellationBase(const A3DTessBase* Tessellati
 	}
 }
 
-void AddFaceTriangleWithUniqueNormal(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, long& InOutStartIndex, unsigned long InTrinangleCount)
+namespace TechSoftFileParserImpl
 {
-	TechSoftFileParserImpl::Reserve(Tessellation, InTrinangleCount, /*bWithTexture*/ false);
 
-	unsigned long Index = InOutStartIndex;
+uint32 CountTriangles(const A3DTessFaceData& FaceTessData)
+{
+	const int32 TessellationFaceDataWithTriangle = 0x2222;
+	const int32 TessellationFaceDataWithFan = 0x4444;
+	const int32 TessellationFaceDataWithStrip = 0x8888;
+	const int32 TessellationFaceDataWithOneNormal = 0xE0E0;
 
+	uint32 UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
+
+	uint32 TriangleCount = 0;
+	uint32 FaceSetIndex = 0;
+	if (UsedEntitiesFlags & TessellationFaceDataWithTriangle)
+	{
+		TriangleCount += FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
+		FaceSetIndex++;
+	}
+
+	if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
+	{
+		if (UsedEntitiesFlags & TessellationFaceDataWithFan)
+		{
+			uint32 LastFanIndex = 1 + FaceSetIndex + FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
+			FaceSetIndex++;
+			for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
+			{
+				uint32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
+				TriangleCount += (FanSize - 2);
+			}
+		}
+	}
+
+	if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
+	{
+		FaceSetIndex++;
+		for (; FaceSetIndex < FaceTessData.m_uiSizesTriangulatedSize; FaceSetIndex++)
+		{
+			uint32 StripSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
+			TriangleCount += (StripSize - 2);
+		}
+	}
+	return TriangleCount;
+}
+
+void AddFaceTriangleWithUniqueNormal(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
 	int32 FaceIndex[3] = { 0, 0, 0 };
 	int32 NormalIndex[3] = { 0, 0, 0 };
-	int32 VertexIndex = 0;
-
-	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-	NormalIndex[1] = NormalIndex[0];
-	NormalIndex[2] = NormalIndex[0];
 
 	// Get Triangles
-	for (unsigned long TriangleIndex = 0; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
 
-		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, VertexIndex))
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 		{
 			continue;
 		}
 
 		TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
 	}
-
-	InOutStartIndex = Index;
 }
 
-void AddFaceTriangleWithUniqueNormalAndTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, long& InOutStartIndex, unsigned long InTrinangleCount, long TextureCount)
+void AddFaceTriangleWithUniqueNormalAndTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
 {
-	TechSoftFileParserImpl::Reserve(Tessellation, InTrinangleCount, /*bWithTexture*/ true);
-
-	unsigned long Index = InOutStartIndex;
-
 	int32 FaceIndex[3] = { 0, 0, 0 };
 	int32 NormalIndex[3] = { 0, 0, 0 };
 	int32 TextureIndex[3] = { 0, 0, 0 };
-	int32 VertexIndex = 0;
-
-	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-	NormalIndex[1] = NormalIndex[0];
-	NormalIndex[2] = NormalIndex[0];
 
 	// Get Triangles
-	for (unsigned long TriangleIndex = 0; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		NormalIndex[1] = NormalIndex[0];
+		NormalIndex[2] = NormalIndex[0];
 
-		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, VertexIndex))
+		TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += TextureCount;
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += TextureCount;
+		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += TextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+
+		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 		{
 			continue;
 		}
@@ -1614,156 +1931,371 @@ void AddFaceTriangleWithUniqueNormalAndTexture(FTessellationData& Tessellation, 
 		TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
 		TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
 	}
-
-	InOutStartIndex = Index;
 }
 
-void AddFaceTriangle(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, long& InOutStartIndex, unsigned long InTrinangleCount)
+void AddFaceTriangle(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutStartIndex, int32& InOutLastVertexIndex)
 {
-	TechSoftFileParserImpl::Reserve(Tessellation, InTrinangleCount, /*bWithTexture*/ false);
-
-	unsigned long Index = InOutStartIndex;
-
 	int32 FaceIndex[3] = { 0, 0, 0 };
 	int32 NormalIndex[3] = { 0, 0, 0 };
-	int32 VertexIndex = 0;
 
 	// Get Triangles
-	for (unsigned long TriangleIndex = 0; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	for (uint32 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
 
-		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, VertexIndex))
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 		{
-			continue;
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
 		}
-
-		TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
 	}
-
-	InOutStartIndex = Index;
 }
 
-void AddFaceTriangleWithTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, long& InOutStartIndex, unsigned long InTrinangleCount, long TextureCount)
+void AddFaceTriangleWithTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 InTextureCount, uint32& InOutStartIndex, int32& inOutLastVertexIndex)
 {
-	TechSoftFileParserImpl::Reserve(Tessellation, InTrinangleCount, /*bWithTexture*/ true);
-
-	unsigned long Index = InOutStartIndex;
-
 	int32 FaceIndex[3] = { 0, 0, 0 };
 	int32 NormalIndex[3] = { 0, 0, 0 };
 	int32 TextureIndex[3] = { 0, 0, 0 };
-	int32 VertexIndex = 0;
 
 	// Get Triangles
-	for (unsigned long TriangleIndex = 0; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	for (uint64 TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
-		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index];
-		Index += TextureCount;
-		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[Index++];
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += InTextureCount;
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += InTextureCount;
+		FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++];
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex];
+		InOutStartIndex += InTextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutStartIndex++] / 3;
 
-		if (!TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, VertexIndex))
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, inOutLastVertexIndex))
 		{
-			continue;
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+			TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
 		}
-
-		TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
-		TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
 	}
-
-	InOutStartIndex = Index;
 }
 
-// TODO import fan and strip meshes
-#ifdef UNUSED
-double ComputeFaceAreaTriangleFan(double* InCoordinates, unsigned long* InTriangulatedIndexes, long& InOutStartIndex, unsigned long InTrinangleCount, bool bInOneNormal, long TextureCount, int& TriangleCount)
+void AddFaceTriangleFanWithUniqueNormal(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& LastVertexIndex)
 {
-	double Area = 0;
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
 
-	unsigned long OffSet = TextureCount + (bInOneNormal ? 0 : 1) + 1;
-	unsigned long Index = InOutStartIndex + 2 + TextureCount;
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	NormalIndex[1] = NormalIndex[0];
+	NormalIndex[2] = NormalIndex[0];
 
-	int Index0 = InTriangulatedIndexes[Index];
-	double* Point0 = InCoordinates + (InTriangulatedIndexes[Index]);
-	Index += OffSet;
-	int Index1 = InTriangulatedIndexes[Index];
-	double* Point1 = InCoordinates + (InTriangulatedIndexes[Index]);
-	Index += OffSet;
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-	for (unsigned long TriangleIndex = 2; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	// Get Triangles
+	for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		double* Point2 = InCoordinates + (InTriangulatedIndexes[Index]);
-		int Index2 = InTriangulatedIndexes[Index];
-		if (Index0 == Index1 || Index0 == Index2 || Index1 == Index2)
-		{
-			TriangleCount--;
-		}
-		else
-		{
-			Area += FaceArea(Point0, Point1, Point2);
-		}
-		Index += OffSet;
-		Point1 = Point2;
-		Index1 = Index2;
-	}
-	InOutStartIndex = Index - OffSet;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-	return Area;
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, LastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		FaceIndex[1] = FaceIndex[2];
+	}
 }
 
-double ComputeFaceAreaTriangleStrip(double* InCoordinates, unsigned long* InTriangulatedIndexes, long& InOutStartIndex, unsigned long InTrinangleCount, bool bInOneNormal, long TextureCount, int& TriangleCount)
+void AddFaceTriangleFanWithUniqueNormalAndTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
 {
-	double Area = 0;
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+	int32 TextureIndex[3] = { 0, 0, 0 };
 
-	unsigned long OffSet = TextureCount + (bInOneNormal ? 0 : 1) + 1;
-	unsigned long Index = InOutStartIndex + 2 + TextureCount;
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	NormalIndex[1] = NormalIndex[0];
+	NormalIndex[2] = NormalIndex[0];
 
-	int Index0 = InTriangulatedIndexes[Index];
-	double* Point0 = InCoordinates + (InTriangulatedIndexes[Index]);
-	Index += OffSet;
-	int Index1 = InTriangulatedIndexes[Index];
-	double* Point1 = InCoordinates + (InTriangulatedIndexes[Index]);
-	Index += OffSet;
+	TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
 
-	for (unsigned long TriangleIndex = 2; TriangleIndex < InTrinangleCount; TriangleIndex++)
+	TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
 	{
-		double* Point2 = InCoordinates + (InTriangulatedIndexes[Index]);
-		int Index2 = InTriangulatedIndexes[Index];
-		if (Index0 == Index1 || Index0 == Index2 || Index1 == Index2)
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
 		{
-			TriangleCount--;
-		}
-		else
-		{
-			Area += FaceArea(Point0, Point1, Point2);
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+			TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
 		}
 
-		Index += OffSet;
-		Point0 = Point1;
-		Point1 = Point2;
-		Index0 = Index1;
-		Index1 = Index2;
+		FaceIndex[1] = FaceIndex[2];
+		TextureIndex[1] = TextureIndex[2];
 	}
-	InOutStartIndex = Index - OffSet;
-
-	return Area;
 }
-#endif
 
+void AddFaceTriangleFan(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+	NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		NormalIndex[1] = NormalIndex[2];
+		FaceIndex[1] = FaceIndex[2];
+	}
+}
+
+void AddFaceTriangleFanWithTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+	int32 TextureIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	for (uint32 TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+			TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
+		}
+
+		NormalIndex[1] = NormalIndex[2];
+		TextureIndex[1] = TextureIndex[2];
+		FaceIndex[1] = FaceIndex[2];
+	}
+}
+
+void AddFaceTriangleStripWithUniqueNormal(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	NormalIndex[1] = NormalIndex[0];
+	NormalIndex[2] = NormalIndex[0];
+
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	for (unsigned long TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		TriangleIndex++;
+		if (TriangleIndex == InTriangleCount)
+		{
+			break;
+		}
+
+		Swap(FaceIndex[1], FaceIndex[2]);
+
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		Swap(FaceIndex[0], FaceIndex[1]);
+	}
+}
+
+void AddFaceTriangleStripWithUniqueNormalAndTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+	int32 TextureIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	NormalIndex[1] = NormalIndex[0];
+	NormalIndex[2] = NormalIndex[0];
+
+	TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+
+	TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+
+	for (unsigned long TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+			TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
+		}
+
+		TriangleIndex++;
+		if (TriangleIndex == InTriangleCount)
+		{
+			break;
+		}
+
+		Swap(FaceIndex[1], FaceIndex[2]);
+		Swap(TextureIndex[1], TextureIndex[2]);
+
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		Swap(FaceIndex[0], FaceIndex[1]);
+		Swap(TextureIndex[0], TextureIndex[1]);
+	}
+}
+
+void AddFaceTriangleStrip(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, uint32& InOutLastTriangleIndex, int32& LastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+	NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+	for (unsigned long TriangleIndex = 2; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, LastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		TriangleIndex++;
+		if (TriangleIndex == InTriangleCount)
+		{
+			break;
+		}
+
+		Swap(FaceIndex[1], FaceIndex[2]);
+		Swap(NormalIndex[1], NormalIndex[2]);
+
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, LastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		Swap(FaceIndex[0], FaceIndex[1]);
+		Swap(NormalIndex[0], NormalIndex[1]);
+	}
+}
+
+void AddFaceTriangleStripWithTexture(FTessellationData& Tessellation, const A3DTess3DData& Tessellation3DData, const uint32 InTriangleCount, const uint32 TextureCount, uint32& InOutLastTriangleIndex, int32& InOutLastVertexIndex)
+{
+	int32 FaceIndex[3] = { 0, 0, 0 };
+	int32 NormalIndex[3] = { 0, 0, 0 };
+	int32 TextureIndex[3] = { 0, 0, 0 };
+
+	NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	TextureIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	NormalIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+	TextureIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+	InOutLastTriangleIndex += TextureCount;
+	FaceIndex[1] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+
+	for (unsigned long TriangleIndex = 0; TriangleIndex < InTriangleCount; TriangleIndex++)
+	{
+		NormalIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		TextureIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex];
+		InOutLastTriangleIndex += TextureCount;
+		FaceIndex[2] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+			TechSoftFileParserImpl::AddTextureCoordinates(Tessellation3DData.m_pdTextureCoords, TextureIndex, Tessellation.TexCoordArray);
+		}
+
+		TriangleIndex++;
+		if (TriangleIndex == InTriangleCount)
+		{
+			break;
+		}
+
+		Swap(FaceIndex[1], FaceIndex[2]);
+		Swap(NormalIndex[1], NormalIndex[2]);
+		Swap(TextureIndex[1], TextureIndex[2]);
+
+		NormalIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++];
+		FaceIndex[0] = Tessellation3DData.m_puiTriangulatedIndexes[InOutLastTriangleIndex++] / 3;
+
+		if (TechSoftFileParserImpl::AddFace(FaceIndex, Tessellation, InOutLastVertexIndex))
+		{
+			TechSoftFileParserImpl::AddNormals(Tessellation3DData.m_pdNormals, NormalIndex, Tessellation.NormalArray);
+		}
+
+		Swap(FaceIndex[0], FaceIndex[1]);
+		Swap(NormalIndex[0], NormalIndex[1]);
+		Swap(TextureIndex[0], TextureIndex[1]);
+	}
+}
+
+} //ns FTechSoftFileParserImpl
+
+
+#pragma optimize ("",off)
 void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPtr, FArchiveBody& Body)
 {
 	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(Body.ObjectId, Body);
@@ -1826,11 +2358,15 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 				}
 			}
 
-			unsigned int UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
-			long StartTriangulated = FaceTessData.m_uiStartTriangulated;
+			uint32 TriangleCount = TechSoftFileParserImpl::CountTriangles(FaceTessData);
+			TechSoftFileParserImpl::Reserve(Tessellation, TriangleCount, /*bWithTexture*/ FaceTessData.m_uiTextureCoordIndexesSize > 0);
 
-			unsigned int FaceSetIndex = 0;
-			// Triangles
+			uint32 UsedEntitiesFlags = FaceTessData.m_usUsedEntitiesFlags;
+			uint32 LastTrianguleIndex = FaceTessData.m_uiStartTriangulated;
+
+			uint32 FaceSetIndex = 0;
+			int32 LastVertexIndex = 0;
+
 			if (UsedEntitiesFlags & TessellationFaceDataWithTriangle)
 			{
 				bool bTessellationWithOneNormal = (UsedEntitiesFlags & TessellationFaceDataWithOneNormal);
@@ -1838,45 +2374,107 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 				{
 					if (FaceTessData.m_uiTextureCoordIndexesSize)
 					{
-						AddFaceTriangleWithUniqueNormalAndTexture(Tessellation, *Tessellation3DData, StartTriangulated, FaceTessData.m_puiSizesTriangulated[0], FaceTessData.m_uiTextureCoordIndexesSize);
+						TechSoftFileParserImpl::AddFaceTriangleWithUniqueNormalAndTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[0], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 					}
 					else
 					{
-						AddFaceTriangleWithUniqueNormal(Tessellation, *Tessellation3DData, StartTriangulated, FaceTessData.m_puiSizesTriangulated[0]);
+						TechSoftFileParserImpl::AddFaceTriangleWithUniqueNormal(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[0], LastTrianguleIndex, LastVertexIndex);
 					}
 				}
 				else
 				{
 					if (FaceTessData.m_uiTextureCoordIndexesSize)
 					{
-						AddFaceTriangleWithTexture(Tessellation, *Tessellation3DData, StartTriangulated, FaceTessData.m_puiSizesTriangulated[0], FaceTessData.m_uiTextureCoordIndexesSize);
+						TechSoftFileParserImpl::AddFaceTriangleWithTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[0], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 					}
 					else
 					{
-						AddFaceTriangle(Tessellation, *Tessellation3DData, StartTriangulated, FaceTessData.m_puiSizesTriangulated[0]);
+						TechSoftFileParserImpl::AddFaceTriangle(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[0], LastTrianguleIndex, LastVertexIndex);
 					}
 				}
 				FaceSetIndex++;
 			}
 
-			// Fans TODO
 			if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
 			{
-				if (UsedEntitiesFlags & TessellationFaceDataWithFan)
+				//if (UsedEntitiesFlags & TessellationFaceDataWithFan)
+				//{
+				//	unsigned int LastFanIndex = 1 + FaceSetIndex + FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
+				//	FaceSetIndex++;
+				//	for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
+				//	{
+				//		bool bTessellationWithOneNormal = (UsedEntitiesFlags & TessellationFaceDataWithOneNormal) && (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle);
+				//		A3DUns32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
+				//		if (bTessellationWithOneNormal)
+				//		{
+				//			if (FaceTessData.m_uiTextureCoordIndexesSize)
+				//			{
+				//				TechSoftFileParserImpl::AddFaceTriangleFanWithUniqueNormalAndTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+				//			}
+				//			else
+				//			{
+				//				TechSoftFileParserImpl::AddFaceTriangleFanWithUniqueNormal(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], LastTrianguleIndex, LastVertexIndex);
+				//			}
+				//		}
+				//		else
+				//		{
+				//			if (FaceTessData.m_uiTextureCoordIndexesSize)
+				//			{
+				//				TechSoftFileParserImpl::AddFaceTriangleFanWithTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+				//			}
+				//			else
+				//			{
+				//				TechSoftFileParserImpl::AddFaceTriangleFan(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], LastTrianguleIndex, LastVertexIndex);
+				//			}
+				//		}
+				//	}
+				//}
+
+				if (UsedEntitiesFlags & kA3DTessFaceDataTriangleFan)
 				{
-					unsigned int LastFanIndex = 1 + FaceSetIndex + FaceTessData.m_puiSizesTriangulated[FaceSetIndex];
-					FaceSetIndex++;
-					for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
+					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
 					{
-						bool bTessellationWithOneNormal = (UsedEntitiesFlags & TessellationFaceDataWithOneNormal) && (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle);
-						A3DUns32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
-						//TriangleCount += (FanSize - 2);
-						//BodyMeshMetaData.MeshArea += ComputeFaceAreaTriangleFan(TessellationBaseData.m_pdCoords, Tessellation3DData->m_puiTriangulatedIndexes, StartTriangulated, FanSize, bTessellationWithOneNormal, FaceTessData.m_uiTextureCoordIndexesSize, TriangleCount);
+						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+						TechSoftFileParserImpl::AddFaceTriangleFan(Tessellation, *Tessellation3DData, VertexCount, LastTrianguleIndex, LastVertexIndex);
+					}
+				}
+
+				if (UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormal)
+				{
+					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
+					{
+						ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
+
+						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+						TechSoftFileParserImpl::AddFaceTriangleFanWithUniqueNormal(Tessellation, *Tessellation3DData, VertexCount, LastTrianguleIndex, LastVertexIndex);
+					}
+				}
+
+				if (UsedEntitiesFlags & kA3DTessFaceDataTriangleFanTextured)
+				{
+					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
+					{
+						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++];
+						TechSoftFileParserImpl::AddFaceTriangleFanWithTexture(Tessellation, *Tessellation3DData, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+					}
+				}
+
+				if (UsedEntitiesFlags & kA3DTessFaceDataTriangleFanOneNormalTextured)
+				{
+					uint32 FanCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+					for (uint32 FanIndex = 0; FanIndex < FanCount; ++FanIndex)
+					{
+						ensure((FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle) != 0);
+
+						uint32 VertexCount = FaceTessData.m_puiSizesTriangulated[FaceSetIndex++] & kA3DTessFaceDataNormalMask;
+						TechSoftFileParserImpl::AddFaceTriangleFanWithUniqueNormalAndTexture(Tessellation, *Tessellation3DData, VertexCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 					}
 				}
 			}
 
-			// Strip TODO
 			if (FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex)
 			{
 				FaceSetIndex++;
@@ -1884,8 +2482,28 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 				{
 					bool bTessellationWithOneNormal = (UsedEntitiesFlags & TessellationFaceDataWithOneNormal) && (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalSingle);
 					A3DUns32 StripSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);
-					//TriangleCount += (StripSize - 2);
-					//BodyMeshMetaData.MeshArea += ComputeFaceAreaTriangleStrip(TessellationBaseData.m_pdCoords, Tessellation3DData->m_puiTriangulatedIndexes, StartTriangulated, StripSize, bTessellationWithOneNormal, FaceTessData.m_uiTextureCoordIndexesSize, TriangleCount);
+					if (bTessellationWithOneNormal)
+					{
+						if (FaceTessData.m_uiTextureCoordIndexesSize)
+						{
+							TechSoftFileParserImpl::AddFaceTriangleStripWithUniqueNormalAndTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+						}
+						else
+						{
+							TechSoftFileParserImpl::AddFaceTriangleStripWithUniqueNormal(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], LastTrianguleIndex, LastVertexIndex);
+						}
+					}
+					else
+					{
+						if (FaceTessData.m_uiTextureCoordIndexesSize)
+						{
+							TechSoftFileParserImpl::AddFaceTriangleStripWithTexture(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
+						}
+						else
+						{
+							TechSoftFileParserImpl::AddFaceTriangleStrip(Tessellation, *Tessellation3DData, FaceTessData.m_puiSizesTriangulated[FaceSetIndex], LastTrianguleIndex, LastVertexIndex);
+						}
+					}
 				}
 			}
 
@@ -1895,7 +2513,8 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 	Body.ColorFaceSet = BodyMesh.ColorSet;
 	Body.MaterialFaceSet = BodyMesh.MaterialSet;
 }
+#pragma optimize ("",on)
 
-} // ns
+} // ns CADLibrary
 
-#endif
+#endif  

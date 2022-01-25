@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Core/Types.h"
+#else
 #include "CoreMinimal.h"
+#endif
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -19,7 +23,6 @@ THIRD_PARTY_INCLUDES_END
 
 namespace CADLibrary
 {
-CADINTERFACES_API bool TECHSOFT_InitializeKernel(const TCHAR* = TEXT(""));
 
 CADINTERFACES_API class FTechSoftInterface
 {
@@ -44,6 +47,7 @@ public:
 #ifdef USE_TECHSOFT_SDK
 	A3DStatus Import(const A3DImport& Import);
 	A3DAsmModelFile* GetModelFile();
+	A3DStatus UnloadModel();
 #endif
 
 private:
@@ -56,7 +60,22 @@ private:
 #endif
 };
 
+namespace TechSoftUtils
+{
+
+CADINTERFACES_API bool TECHSOFT_InitializeKernel(const TCHAR* = TEXT(""));
 CADINTERFACES_API FTechSoftInterface& GetTechSoftInterface();
+
+#ifdef USE_TECHSOFT_SDK
+CADINTERFACES_API A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
+CADINTERFACES_API A3DStatus GetCurveAsNurbs(const A3DCrvBase* A3DCurve, A3DCrvNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
+
+CADINTERFACES_API A3DStatus GetEntityType(const A3DEntity* pEntity, A3DEEntityType* peEntityType);
+CADINTERFACES_API bool IsEntityBaseWithGraphicsType(const A3DEntity* pEntity);
+CADINTERFACES_API bool IsEntityBaseType(const A3DEntity* EntityPtr);
+#endif
+
+} // NS TechSoftUtils
 
 }
 

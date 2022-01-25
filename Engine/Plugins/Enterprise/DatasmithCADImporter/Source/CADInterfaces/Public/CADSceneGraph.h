@@ -143,6 +143,20 @@ public:
 	TMap<FCadId, int32> CADIdToComponentIndex;
 	TMap<FCadId, int32> CADIdToUnloadedComponentIndex;
 	TMap<FCadId, int32> CADIdToInstanceIndex;
+
+	void Reserve(int32 InstanceNum, int32 ComponentNum, int32 BodyNum)
+	{
+		Instances.Reserve(InstanceNum);
+		Components.Reserve(ComponentNum);
+		UnloadedComponents.Reserve(ComponentNum);
+		ExternalReferences.Reserve(ComponentNum);
+		Bodies.Reserve(BodyNum);
+
+		CADIdToInstanceIndex.Reserve(InstanceNum);
+		CADIdToComponentIndex.Reserve(ComponentNum);
+		CADIdToUnloadedComponentIndex.Reserve(ComponentNum);
+		CADIdToBodyIndex.Reserve(BodyNum);
+	}
 };
 
 

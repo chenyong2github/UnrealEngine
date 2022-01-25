@@ -3,8 +3,6 @@
 
 #ifdef USE_TECHSOFT_SDK
 
-#include "CADData.h"
-
 #include "TechSoftInterface.h"
 
 namespace CADLibrary
@@ -82,6 +80,28 @@ public:
 		}
 
 		Status = GetData(DataPtr);
+		return Status;
+	}
+
+	template<typename... InArgTypes>
+	A3DStatus FillWith(A3DStatus (*Getter)(const A3DEntity*, ObjectType*, InArgTypes&&... ), const A3DEntity* DataPtr, InArgTypes&&... Args)
+	{
+		if (IsValid())
+		{
+			Status = ResetData();
+		}
+		else
+		{
+			Status = A3DStatus::A3D_SUCCESS;
+		}
+
+		if (!IsValid() || (DataPtr == DefaultValue))
+		{
+			Status = A3DStatus::A3D_ERROR;
+			return Status;
+		}
+
+		Status = Getter(DataPtr, &Data, Forward<InArgTypes>(Args)...);
 		return Status;
 	}
 

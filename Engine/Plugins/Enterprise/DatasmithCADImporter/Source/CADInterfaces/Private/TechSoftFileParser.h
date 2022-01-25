@@ -9,6 +9,10 @@
 #include "CADOptions.h"
 #include "CADSceneGraph.h"
 
+#include "TUniqueTechSoftObj.h"
+
+#define NEW_CODE
+
 typedef void A3DAsmModelFile;
 typedef void A3DAsmPartDefinition;
 typedef void A3DAsmProductOccurrence;
@@ -142,7 +146,7 @@ public:
 	virtual ECADParsingResult Process() override
 	{
 		return ECADParsingResult::ProcessFailed;
-}
+	}
 #else
 	virtual ECADParsingResult Process() override;
 
@@ -152,10 +156,12 @@ private:
 	// Needed to reserve CADFileData
 	// Start with CountUnderModel
 	void CountUnderModel(const A3DAsmModelFile* AsmModel);
+	void CountUnderConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence);
 	void CountUnderPrototype(const A3DAsmProductOccurrence* Prototype);
+	void CountUnderSubPrototype(const A3DAsmProductOccurrence* Prototype);
 	void CountUnderPartDefinition(const A3DAsmPartDefinition* PartDefinition);
-	void CountUnderRepresentation(const A3DRiRepresentationItem* RepresentationItem);
+	void CountUnderRepresentationItem(const A3DRiRepresentationItem* RepresentationItem);
 	void CountUnderRepresentationSet(const A3DRiSet* RepresentationSet);
 
 	void ReserveCADFileData();
@@ -169,11 +175,11 @@ private:
 	ECADParsingResult TraverseModel(const A3DAsmModelFile* AsmModel);
 	void TraverseReference(const A3DAsmProductOccurrence* Reference);
 	bool IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
-	// TODO for SW //void TraverseReferenceFromConfiguration(const A3DAsmProductOccurrence* Reference, FEntityData& ParentMetaData);
-	// TODO for SW //void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet, FEntityData& ParentMetaData);
-	// TODO for SW //void TraverseConfiguration(const A3DAsmProductOccurrence* OccurrConfigurationence, FEntityData& ParentMetaData);
+	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet);
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
-	void TraversePrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, FMatrix& OutPrototypeMatrix);
+	void TraversePrototype(const A3DAsmProductOccurrence* Prototype, FArchiveComponent& Component);
+	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, FMatrix& OutPrototypeMatrix);
+	void ProcessOccurrence(TUniqueTSObj<A3DAsmProductOccurrenceData>& Occurrence, FArchiveComponent& Component);
 	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component);
 	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, FEntityMetaData& PartMetaData);
 	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, FEntityMetaData& PartMetaData);
@@ -187,8 +193,8 @@ private:
 	void TraverseTessellation3D(const A3DTess3D* Tessellation, FArchiveBody& Body);
 
 	// MetaData
-	void TraverseMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
-	void TraverseSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData);
+	void ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
+	void ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData);
 
 	void BuildInstanceName(TMap<FString, FString>& MetaData);
 	void BuildReferenceName(TMap<FString, FString>& MetaData);
@@ -205,9 +211,9 @@ private:
 
 	// Transform
 	FMatrix TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
-	FMatrix TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3d);
-	FMatrix TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation);
-	FMatrix TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation);
+	FMatrix TraverseTransformation(const A3DMiscTransformation* Transformation3d);
+	FMatrix TraverseGeneralTransformation(const A3DMiscTransformation* GeneralTransformation);
+	FMatrix TraverseTransformation3D(const A3DMiscTransformation* CartesianTransformation);
 
 	FFileDescriptor GetOccurrenceFileName(const A3DAsmProductOccurrence* OccurrencePtr);
 
@@ -233,6 +239,9 @@ private:
 	EModellerType ModellerType;
 	double FileUnit = 1;
 	FCadId LastEntityId = 1;
+
+	// 
+	TMap<const A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
 };
 
 namespace TechSoftFileParserImpl
@@ -240,7 +249,7 @@ namespace TechSoftFileParserImpl
 // Methodes used by TraverseTessellation3D
 
 typedef double A3DDouble;
-inline bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& VertexIndex)
+inline bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& InOutVertexIndex)
 {
 	if (FaceIndex[0] == FaceIndex[1] || FaceIndex[0] == FaceIndex[2] || FaceIndex[1] == FaceIndex[2])
 	{
@@ -249,8 +258,7 @@ inline bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellat
 
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
-		FaceIndex[Index] /= 3;
-		Tessellation.VertexIndices.Add(VertexIndex++);
+		Tessellation.VertexIndices.Add(InOutVertexIndex++);
 	}
 	Tessellation.PositionIndices.Append(FaceIndex, 3);
 	return true;

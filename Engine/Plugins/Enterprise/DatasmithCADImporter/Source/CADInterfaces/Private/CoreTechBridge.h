@@ -105,8 +105,23 @@ private:
 	{
 		AddMetadata(NodeId, (TSharedRef<FMetadataDictionary>) Entity);
 	}
-};
 
+//#ifdef CADKERNEL_DEV
+//	TMap<const uint32, FMatrixH> SurfaceToMatrix;
+//
+//	const FMatrixH& GetParamSpaceTransform(TSharedPtr<FSurface>& Surface)
+//	{
+//		FMatrixH* Matrix = SurfaceToMatrix.Find(Surface->GetId());
+//		return Matrix == nullptr ? FMatrixH::Identity : *Matrix;
+//	}
+//
+//	void SetParamSpaceTransorm(TSharedPtr<FSurface>& Surface, const FMatrixH Matrix)
+//	{
+//		SurfaceToMatrix.Add(Surface->GetId(), Matrix);
+//	}
+//#endif
+
+};
 }
 
 #endif // USE_KERNEL_IO_SDK
