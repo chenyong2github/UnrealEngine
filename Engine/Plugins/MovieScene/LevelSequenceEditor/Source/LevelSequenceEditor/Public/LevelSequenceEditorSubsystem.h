@@ -15,6 +15,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequenceEditor, Log, All);
 
 class FExtender;
+class FMenuBuilder;
 class UMovieSceneCompiledDataManager;
 class UMovieSceneSection;
 
