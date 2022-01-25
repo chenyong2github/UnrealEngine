@@ -227,6 +227,9 @@ namespace Metasound
 
 			SynchronizeNodeLocation(InLocation, InNodeHandle, *NewGraphNode);
 
+			// Adding external node may introduce referenced asset so rebuild referenced keys.
+			MetaSoundAsset->RebuildReferencedAssetClassKeys();
+
 			return NewGraphNode;
 		}
 
@@ -336,7 +339,7 @@ namespace Metasound
 
 			bool bMarkDirty = false;
 
-			Graph.ValidateInternal(Results, MetaSoundAsset->GetSynchronizationClearUpdateNotes());
+			Graph.ValidateInternal(Results);
 			for (const FGraphNodeValidationResult& Result : Results.GetResults())
 			{
 				bMarkDirty |= Result.bIsDirty;

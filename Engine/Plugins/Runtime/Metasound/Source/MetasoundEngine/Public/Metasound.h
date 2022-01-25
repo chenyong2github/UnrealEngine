@@ -30,7 +30,7 @@ public:
 	virtual bool IsEditorOnly() const override { return true; }
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
-	virtual void SetSynchronizationRequired(bool bInClearUpdateNotes = false) PURE_VIRTUAL(UMetasoundEditorGraphBase::Synchronize, )
+	virtual void SetSynchronizationRequired() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetSynchronizationRequired, )
 	virtual void RegisterGraphWithFrontend() PURE_VIRTUAL(UMetasoundEditorGraphBase::RegisterGraphWithFrontend(), )
 };
 
@@ -79,12 +79,12 @@ namespace Metasound
 				{
 					InMetaSound.RegisterGraphWithFrontend(NonEditorRegistrationOptions);
 				}
-				MetaSoundGraph->SetSynchronizationRequired(false /* bInClearUpdateNotes */);
+				MetaSoundGraph->SetSynchronizationRequired();
 			}
 			else
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
-				MetaSoundGraph->SetSynchronizationRequired(true /* bInClearUpdateNotes */);
+				MetaSoundGraph->SetSynchronizationRequired();
 			}
 		}
 #else

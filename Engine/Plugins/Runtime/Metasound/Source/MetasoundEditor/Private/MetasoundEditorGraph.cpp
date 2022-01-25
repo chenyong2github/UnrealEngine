@@ -1200,6 +1200,23 @@ Metasound::Frontend::FConstGraphHandle UMetasoundEditorGraph::GetGraphHandle() c
 	return MetasoundAsset->GetRootGraphHandle();
 }
 
+void UMetasoundEditorGraph::PreSave(FObjectPreSaveContext InSaveContext)
+{
+	using namespace Metasound::Frontend;
+
+	TArray<UMetasoundEditorGraphNode*> MetaSoundNodes;
+	GetNodesOfClass<UMetasoundEditorGraphNode>(MetaSoundNodes);
+	for (UMetasoundEditorGraphNode* Node : MetaSoundNodes)
+	{
+		FNodeHandle NodeHandle = Node->GetNodeHandle();
+		FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
+		Style.bMessageNodeUpdated = false;
+		NodeHandle->SetNodeStyle(Style);
+	}
+
+	Super::PreSave(InSaveContext);
+}
+
 UObject* UMetasoundEditorGraph::GetMetasound()
 {
 	return GetOuter();
@@ -1234,7 +1251,7 @@ void UMetasoundEditorGraph::RegisterGraphWithFrontend()
 	}
 }
 
-void UMetasoundEditorGraph::SetSynchronizationRequired(bool bInClearUpdateNotes)
+void UMetasoundEditorGraph::SetSynchronizationRequired()
 {
 	using namespace Metasound;
 
@@ -1242,15 +1259,7 @@ void UMetasoundEditorGraph::SetSynchronizationRequired(bool bInClearUpdateNotes)
 	{
 		FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ParentMetasound);
 		check(MetasoundAsset);
-
-		if (bInClearUpdateNotes)
-		{
-			MetasoundAsset->SetClearNodeNotesOnSynchronization();
-		}
-		else
-		{
-			MetasoundAsset->SetSynchronizationRequired();
-		}
+		MetasoundAsset->SetSynchronizationRequired();
 	}
 }
 
@@ -1542,7 +1551,7 @@ void UMetasoundEditorGraph::IterateOutputs(TUniqueFunction<void(UMetasoundEditor
 	}
 }
 
-bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults, bool bClearUpgradeMessaging)
+bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -1560,7 +1569,7 @@ bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 
 		if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Node))
 		{
-			bIsValid &= ExternalNode->Validate(NodeResult, bClearUpgradeMessaging);
+			bIsValid &= ExternalNode->Validate(NodeResult);
 			bMarkDirty |= NodeResult.bIsDirty;
 		}
 

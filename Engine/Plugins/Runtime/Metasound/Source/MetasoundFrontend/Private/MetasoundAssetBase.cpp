@@ -430,11 +430,6 @@ bool FMetasoundAssetBase::GetSynchronizationRequired() const
 	return bSynchronizationRequired;
 }
 
-bool FMetasoundAssetBase::GetSynchronizationClearUpdateNotes() const
-{
-	return bSynchronizationClearUpdateNotes;
-}
-
 bool FMetasoundAssetBase::GetSynchronizationUpdateDetails() const
 {
 	return bSynchronizationUpdateDetails;
@@ -442,12 +437,6 @@ bool FMetasoundAssetBase::GetSynchronizationUpdateDetails() const
 
 void FMetasoundAssetBase::SetSynchronizationRequired()
 {
-	bSynchronizationRequired = true;
-}
-
-void FMetasoundAssetBase::SetClearNodeNotesOnSynchronization()
-{
-	bSynchronizationClearUpdateNotes = true;
 	bSynchronizationRequired = true;
 }
 
@@ -459,7 +448,6 @@ void FMetasoundAssetBase::SetUpdateDetailsOnSynchronization()
 
 void FMetasoundAssetBase::ResetSynchronizationState()
 {
-	bSynchronizationClearUpdateNotes = false;
 	bSynchronizationUpdateDetails = false;
 	bSynchronizationRequired = false;
 }

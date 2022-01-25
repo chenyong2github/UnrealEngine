@@ -137,10 +137,8 @@ public:
 	// Split synchronization requirement flag into synchronization required &
 	// object type refresh or checking frontend class guids when synchronizing.
 	bool GetSynchronizationRequired() const;
-	bool GetSynchronizationClearUpdateNotes() const;
 	bool GetSynchronizationUpdateDetails() const;
 	void ResetSynchronizationState();
-	void SetClearNodeNotesOnSynchronization();
 	void SetUpdateDetailsOnSynchronization();
 	void SetSynchronizationRequired();
 #endif // WITH_EDITORONLY_DATA
@@ -183,7 +181,6 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	bool bSynchronizationRequired = true;
-	bool bSynchronizationClearUpdateNotes = false;
 	bool bSynchronizationUpdateDetails = false;
 #endif // WITH_EDITORONLY_DATA
 

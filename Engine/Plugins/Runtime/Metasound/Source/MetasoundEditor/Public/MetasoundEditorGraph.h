@@ -342,7 +342,6 @@ private:
 	FVariableEditorNodes GetVariableNodes() const;
 	FVariableNodeLocations GetVariableNodeLocations() const;
 	void AddVariableNodes(UObject& InMetasound, Metasound::Frontend::FGraphHandle& InFrontendGraph, const FVariableNodeLocations& InNodeLocs);
-	void UpdateEditorLiteralType();
 };
 
 UCLASS()
@@ -357,6 +356,8 @@ public:
 	Metasound::Frontend::FConstDocumentHandle GetDocumentHandle() const;
 	Metasound::Frontend::FGraphHandle GetGraphHandle();
 	Metasound::Frontend::FConstGraphHandle GetGraphHandle() const;
+
+	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 
 	UObject* GetMetasound();
 	const UObject* GetMetasound() const;
@@ -375,14 +376,13 @@ public:
 
 	// UMetasoundEditorGraphBase Implementation
 	virtual void RegisterGraphWithFrontend() override;
-	virtual void SetSynchronizationRequired(bool bInClearUpdateNotes = false) override;
+	virtual void SetSynchronizationRequired() override;
 
 private:
-
 	bool RemoveFrontendInput(UMetasoundEditorGraphInput& Input);
 	bool RemoveFrontendOutput(UMetasoundEditorGraphOutput& Output);
 	bool RemoveFrontendVariable(UMetasoundEditorGraphVariable& Variable);
-	bool ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults, bool bClearUpgradeMessaging = true);
+	bool ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults);
 
 	// Preview ID is the Unique ID provided by the UObject that implements
 	// a sound's ParameterInterface when a sound begins playing.

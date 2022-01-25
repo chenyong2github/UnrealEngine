@@ -691,7 +691,7 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 	return ReplacementEdNode;
 }
 
-bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult, bool bClearUpgradeMessage)
+bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -712,15 +712,6 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		OutResult.bIsDirty = true;
 	}
 
-	if (bClearUpgradeMessage)
-	{
-		if (!NodeUpgradeMessage.IsEmpty())
-		{
-			NodeUpgradeMessage = FText::GetEmpty();
-			OutResult.bIsDirty = true;
-		}
-	}
-
 	// 2. Check if node is invalid, version is missing and cache if interface changes exist between the document's records and the registry
 	FNodeHandle NodeHandle = GetNodeHandle();
 	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
@@ -728,7 +719,6 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 	FClassInterfaceUpdates InterfaceUpdates;
 	if (!NodeHandle->DiffAgainstRegistryInterface(InterfaceUpdates, false /* bUseHighestMinorVersion */))
 	{
-		
 		if (NodeHandle->IsValid())
 		{
 			const FText* PromptIfMissing = nullptr;
@@ -780,10 +770,7 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 	{
 		if (bNewIsClassNative)
 		{
-			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Info, FString::Format(TEXT("Class '{0}' has been nativized."),
-			{
-				*Metadata.GetDisplayName().ToString()
-			}));
+			NodeUpgradeMessage = FText::Format(LOCTEXT("MetaSoundNode_NativizedMessage", "Class '{0}' has been nativized."), Metadata.GetDisplayName());
 		}
 
 		OutResult.bIsDirty = true;
@@ -794,20 +781,10 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
 	if (Style.bMessageNodeUpdated)
 	{
-		if (bClearUpgradeMessage)
-		{
-			Style.bMessageNodeUpdated = false;
-			NodeHandle->SetNodeStyle(Style);
-		}
-		else
-		{
-			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Info, FString::Format(TEXT("Node class '{0}' updated to version {1}"),
-			{
-				*Metadata.GetDisplayName().ToString(),
-				*Metadata.GetVersion().ToString()
-			}));
-		}
-
+		NodeUpgradeMessage = FText::Format(LOCTEXT("MetaSoundNode_UpgradedMessage", "Node class '{0}' updated to version {1}"),
+			Metadata.GetDisplayName(),
+			FText::FromString(Metadata.GetVersion().ToString())
+		);
 		OutResult.bIsDirty = true;
 	}
 

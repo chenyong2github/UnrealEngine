@@ -192,7 +192,7 @@ public:
 	UMetasoundEditorGraphExternalNode* UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages);
 
 	// Validates node and returns whether or not the node is valid.
-	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult, bool bClearUpgradeMessage = true);
+	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
 
 
 protected:
