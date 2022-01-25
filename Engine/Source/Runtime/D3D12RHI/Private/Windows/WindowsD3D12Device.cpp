@@ -1128,7 +1128,7 @@ void FD3D12DynamicRHI::Init()
 		}
 
 	}
-#endif INTEL_EXTENSIONS
+#endif // INTEL_EXTENSIONS
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
 
