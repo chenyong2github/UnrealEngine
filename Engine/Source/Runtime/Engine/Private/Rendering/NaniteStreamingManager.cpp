@@ -2038,13 +2038,13 @@ void FStreamingManager::AsyncUpdate()
 						PendingPage.bReady = true;
 					}
 #else
+					PendingPage.MemoryPtr = PendingPageStagingMemory.GetData() + NextPendingPageIndex * MAX_PAGE_DISK_SIZE;
 					if (!bLegacyRequest)
 					{
 						// Use IODispatcher when available
 						LastPendingPage = &PendingPage;
 						FIoChunkId ChunkID = BulkData.CreateChunkId();
 						FIoReadOptions ReadOptions;
-						PendingPage.MemoryPtr = PendingPageStagingMemory.GetData() + NextPendingPageIndex * MAX_PAGE_DISK_SIZE;
 						ReadOptions.SetRange(BulkData.GetBulkDataOffsetInFile() + PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
 						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
 						PendingPage.Request = Batch.Read(ChunkID, ReadOptions, IoDispatcherPriority_Low);
