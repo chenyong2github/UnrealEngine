@@ -102,7 +102,7 @@ FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageT
 
 			case EPayloadAccessMode::Virtualized:
 			{
-				Builder.VirtualizedEntries.Add(Entry.Identifier, VirtualizedEntry(Entry.CompressedSize, Entry.RawSize));
+				Builder.VirtualizedEntries.Add(Entry.Identifier, VirtualizedEntry(Entry.RawSize));
 			}
 			break;
 
@@ -143,7 +143,7 @@ TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceTo
 			
 			case EPayloadAccessMode::Virtualized:
 			{
-				Builder->VirtualizedEntries.Add(Entry.Identifier, VirtualizedEntry(Entry.CompressedSize, Entry.RawSize));
+				Builder->VirtualizedEntries.Add(Entry.Identifier, VirtualizedEntry(Entry.RawSize));
 			}
 			break;
 
@@ -169,7 +169,15 @@ void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identi
 
 	if (Identifier.IsValid())
 	{
-		LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload)));
+		LocalEntries.FindOrAdd(Identifier, LocalEntry(MoveTemp(Payload)));
+	}
+}
+
+void FPackageTrailerBuilder::AddVirtualizedPayload(const Virtualization::FPayloadId& Identifier, int64 RawSize)
+{
+	if (Identifier.IsValid())
+	{
+		VirtualizedEntries.FindOrAdd(Identifier, VirtualizedEntry(RawSize));
 	}
 }
 
@@ -226,7 +234,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
 		Entry.OffsetInFile = INDEX_NONE;
-		Entry.CompressedSize = It.Value.CompressedSize;
+		Entry.CompressedSize = INDEX_NONE;
 		Entry.RawSize = It.Value.RawSize;
 		Entry.AccessMode = EPayloadAccessMode::Virtualized;
 	}
@@ -443,6 +451,8 @@ bool FPackageTrailer::UpdatePayloadAsVirtualized(const Virtualization::FPayloadI
 	{
 		Entry->AccessMode = EPayloadAccessMode::Virtualized;
 		Entry->OffsetInFile = INDEX_NONE;
+		Entry->CompressedSize = INDEX_NONE; // Once the payload is virtualized we cannot be sure on the compression
+											// being used and so cannot know the compressed size
 		return true;
 	}
 	else

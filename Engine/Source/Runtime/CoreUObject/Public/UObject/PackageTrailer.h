@@ -175,7 +175,7 @@ public:
 
 	// Methods that can be called while building the trailer
 
-	/*
+	/**
 	 * Adds a payload to the builder to be written to the trailer. Duplicate payloads will be discarded and only a 
 	 * single instance stored in the trailer.
 	 * 
@@ -184,8 +184,19 @@ public:
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
 	void AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback);
+
+	/**
+	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
+	 * the payload will have EPayloadAccessMode::Virtualized set as it's access mode. It is assumed that the payload
+	 * is already stored in the virtualization backends and it is up to the calling code to confirm this.
+	 * Duplicate payloads will be discarded and only a single instance stored in the trailer.
+	 * 
+	 * @param Identifier	The identifier of the payload
+	 * @param RawSize		The size of the payload (in bytes) when uncompressed
+	 */
+	void AddVirtualizedPayload(const Virtualization::FPayloadId& Identifier, int64 RawSize);
 	
-	/*
+	/**
 	 * @param ExportsArchive	The linker associated with the package being written to disk.
 	 * @param DataArchive		The archive where the package data has been written to. This is where the FPackageTrailer will be written to
 	 * @return True if the builder was created and appended successfully and false if any error was encountered
@@ -248,15 +259,13 @@ private:
 	struct VirtualizedEntry
 	{
 		VirtualizedEntry() = default;
-		VirtualizedEntry(int64 InCompressedSize, int64 InRawSize)
-			: CompressedSize(InCompressedSize)
-			, RawSize(InRawSize)
+		VirtualizedEntry(int64 InRawSize)
+			: RawSize(InRawSize)
 		{
 
 		}
 		~VirtualizedEntry() = default;
 
-		int64 CompressedSize = INDEX_NONE;
 		int64 RawSize = INDEX_NONE;
 	};
 

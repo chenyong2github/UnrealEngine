@@ -67,11 +67,10 @@ static TAutoConsoleVariable<bool> CVarShouldAllowSidecarSyncing(
   */
 static constexpr bool bAllowVirtualizationOnSave = false;
 
-/** When enabled virtualized payloads will be pulled and stored locally when the bulkdata object is saved
-  * to disk as part of a package. This is currently required but will likely be changed to be a config 
-  * option when we can support it.
-  */
-static constexpr bool bForceRehydrationOnSave = true;
+static TAutoConsoleVariable<bool> CVarShouldRehydrateOnSave(
+	TEXT("Serialization.RehydrateOnSave"),
+	false,
+	TEXT("When true FVirtualizedUntypedBulkData virtualized payloads will by hydrated and stored locally when saved to a package"));
 
 /** Wrapper around the config file option [Core.System.Experimental]EnablePackageSidecarSaving */
 bool ShouldSaveToPackageSidecar()
@@ -711,9 +710,8 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				}
 			}
 
-			// Some paranoid checks to make sure everything is working as expected
-			// TODO: Probably remove this when FPackageTrailer::IsEnabled is removed
-			if(IsStoredInPackageTrailer(UpdatedFlags) && PayloadContentId.IsValid())
+			// Make sure that the trailer builder is correct (if it is being used)
+			if (IsStoredInPackageTrailer(UpdatedFlags) && PayloadContentId.IsValid())
 			{
 				check(LinkerSave != nullptr);
 				check(LinkerSave->PackageTrailerBuilder.IsValid());
@@ -725,6 +723,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				}
 				else if (IsDataVirtualized(UpdatedFlags))
 				{
+					LinkerSave->PackageTrailerBuilder->AddVirtualizedPayload(PayloadContentId, PayloadSize);
 					check(LinkerSave->PackageTrailerBuilder->IsVirtualizedPayloadEntry(PayloadContentId));
 				}
 				else
@@ -1708,7 +1707,7 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 				// Remove the virtualization flag if we are rehydrating packages on save unless
 				// referencing the payload data is allowed, in which case we can continue to save
 				// as virtualized.
-				if (LinkerSave != nullptr && !bKeepFileDataByReference && bForceRehydrationOnSave)
+				if (LinkerSave != nullptr && !bKeepFileDataByReference && CVarShouldRehydrateOnSave.GetValueOnAnyThread())
 				{
 					EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 				}
