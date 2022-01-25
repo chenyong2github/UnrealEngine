@@ -79,12 +79,14 @@ void FOpenCVHelperModule::StartupModule()
 
 #if WITH_OPENCV
 
+#if defined(OPENCV_DLL_NAME)
 	const FString OpenCvBinPath = PluginDir / TEXT(PREPROCESSOR_TO_STRING(OPENCV_PLATFORM_PATH));
 	const FString DLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_DLL_NAME));
 
 	FPlatformProcess::PushDllDirectory(*OpenCvBinPath);
 	OpenCvDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
 	FPlatformProcess::PopDllDirectory(*OpenCvBinPath);
+#endif
 
 	// We need to tell OpenCV to use Unreal's memory allocator to avoid crashes.
 	// These may happen when Unreal passes a container to OpenCV, then OpenCV allocates memory for that container

@@ -11,14 +11,13 @@ public class OpenCV : ModuleRules
 
 		string PlatformDir = Target.Platform.ToString();
 		string IncPath = Path.Combine(ModuleDirectory, "include");
-		string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
         string BinaryPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../../Binaries/ThirdParty", PlatformDir));
-		
 		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicSystemIncludePaths.Add(IncPath);
 
+			string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
 			string LibName = "opencv_world455";
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug &&
@@ -34,6 +33,17 @@ public class OpenCV : ModuleRules
 			PublicDefinitions.Add("WITH_OPENCV=1");
 			PublicDefinitions.Add("OPENCV_PLATFORM_PATH=Binaries/ThirdParty/" + PlatformDir);
 			PublicDefinitions.Add("OPENCV_DLL_NAME=" + DLLName);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			PublicSystemIncludePaths.Add(IncPath);
+			
+			string LibName = "libopencv_world.so";
+			PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, LibName));
+			RuntimeDependencies.Add(Path.Combine(BinaryPath, LibName));
+			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.405"));
+			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.4.5.5"));
+			PublicDefinitions.Add("WITH_OPENCV=1");
 		}
 		else // unsupported platform
 		{

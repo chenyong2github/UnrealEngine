@@ -5,22 +5,20 @@
 #include <vector>
 
 /*
-Like many third party headers, OpenCV headers require some care when importing.
+ * Like many third party headers, OpenCV headers require some care when importing.
+ *
+ * When including opencv headers, the includes should be wrapped like this:
 
-When including opencv headers, the includes should be wrapped like this:
-
-	OPENCV_INCLUDES_START
-	#undef check 
+	#include PreOpenCVHeaders.h
 
 	// your opencv include directives go here...
 
-	OPENCV_INCLUDES_END
+	#include PostOpenCVHeaders.h
 
-Note that the #undef directive is required. The START/END macros will ensure that 
-the previous value is saved and restored, but due to limits of the preprocessor 
-cannot undefine the value.
+ * note: On Linux platform there is a typedef conflict with (u)int64
+ * to use OpenCV api with these types, use the helper type OpenCVUtils::int64
 
-*/
+ */
 
 #include "OpenCVHelper.generated.h"
 
