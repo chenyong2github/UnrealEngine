@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SlotBase.h"
+#include "SlateGlobals.h"
 
 class SWidget;
 class FSlotBase;
