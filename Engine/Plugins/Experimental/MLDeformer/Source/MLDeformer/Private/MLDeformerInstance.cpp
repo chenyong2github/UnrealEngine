@@ -112,10 +112,11 @@ int64 FMLDeformerInstance::SetBoneTransforms(float* OutputBuffer, int64 OutputBu
 		if (SkelMeshBoneIndex != INDEX_NONE)
 		{
 			const FQuat& Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
-			OutputBuffer[Index++] = Rotation.X;
-			OutputBuffer[Index++] = Rotation.Y;
-			OutputBuffer[Index++] = Rotation.Z;
-			OutputBuffer[Index++] = Rotation.W;
+			const float QuatSign = Rotation.W < 0.f ? -1.f : 1.f;
+			OutputBuffer[Index++] = Rotation.X * QuatSign;
+			OutputBuffer[Index++] = Rotation.Y * QuatSign;
+			OutputBuffer[Index++] = Rotation.Z * QuatSign;
+			OutputBuffer[Index++] = Rotation.W * QuatSign;
 		}
 		else
 		{

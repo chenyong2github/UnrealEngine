@@ -248,10 +248,11 @@ void FMLDeformerInputInfo::ExtractBoneRotations(USkeletalMeshComponent* SkelMesh
 		{
 			const int32 Offset = Index * 4;
 			const FQuat Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
-			OutRotations[Offset] = Rotation.X;
-			OutRotations[Offset+1] = Rotation.Y;
-			OutRotations[Offset+2] = Rotation.Z;
-			OutRotations[Offset+3] = Rotation.W;
+			const float QuatSign = Rotation.W < 0.f ? -1.f : 1.f;
+			OutRotations[Offset] = Rotation.X * QuatSign;
+			OutRotations[Offset+1] = Rotation.Y * QuatSign;
+			OutRotations[Offset+2] = Rotation.Z * QuatSign;
+			OutRotations[Offset+3] = Rotation.W * QuatSign;
 		}
 		else
 		{
