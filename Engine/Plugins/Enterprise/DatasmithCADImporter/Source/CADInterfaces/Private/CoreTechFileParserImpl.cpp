@@ -34,7 +34,7 @@
 
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Body.h"
-#include "CADKernel/Topo/Joiner.h"
+#include "CADKernel/Topo/Topomaker.h"
 
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"

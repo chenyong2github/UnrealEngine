@@ -12,7 +12,7 @@
 
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Topo/Model.h"
-#include "CADKernel/Topo/Joiner.h"
+#include "CADKernel/Topo/Topomaker.h"
 
 struct FDatasmithMeshElementPayload;
 struct FDatasmithTessellationOptions;

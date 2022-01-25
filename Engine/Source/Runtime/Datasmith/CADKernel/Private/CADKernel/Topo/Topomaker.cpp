@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CADKernel/Topo/Joiner.h"
+#include "CADKernel/Topo/Topomaker.h"
 
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/Session.h"

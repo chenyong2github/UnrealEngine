@@ -3,7 +3,7 @@
 
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Topo/Body.h"
-#include "CADKernel/Topo/Joiner.h"
+#include "CADKernel/Topo/Topomaker.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
