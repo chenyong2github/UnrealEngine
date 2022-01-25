@@ -79,7 +79,7 @@ class ALEMBICIMPORTER_API UAlembicImportFactory : public UFactory, public FReimp
 	* @param Flags - Creation Flags for the GeometryCache asset
 	* @return UObject*
 	*/
-	UObject* ImportSkeletalMesh(FAbcImporter& Importer, UObject* InParent, EObjectFlags Flags);
+	TArray<UObject*> ImportSkeletalMesh(FAbcImporter& Importer, UObject* InParent, EObjectFlags Flags);
 
 	/**
 	* ReimportStaticMesh
