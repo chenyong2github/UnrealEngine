@@ -95,6 +95,8 @@ void UPCGBlueprintSettings::BeginDestroy()
 {
 	TeardownBlueprintElementEvent();
 	TeardownBlueprintEvent();
+
+	Super::BeginDestroy();
 }
 
 #if WITH_EDITOR
