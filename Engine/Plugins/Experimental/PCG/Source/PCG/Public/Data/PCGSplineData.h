@@ -36,6 +36,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TSoftObjectPtr<USplineComponent> Spline;
+
+protected:
+	UPROPERTY()
+	FBox CachedBounds = FBox(EForceInit::ForceInit);
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
