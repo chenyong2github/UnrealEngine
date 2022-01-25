@@ -16,6 +16,14 @@
 #define PERMUTATION_SUPPORT_VOLUMETRIC_FOG (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 #endif
 
+#ifndef PERMUTATION_SUPPORT_FOG_START_DISTANCE
+#define PERMUTATION_SUPPORT_FOG_START_DISTANCE 1
+#endif
+
+#ifndef PERMUTATION_SUPPORT_FOG_SECOND_TERM
+#define PERMUTATION_SUPPORT_FOG_SECOND_TERM 1
+#endif
+
 #if INSTANCED_STEREO
 	#if MATERIALBLENDING_ANY_TRANSLUCENT
 		#define FogStructISR TranslucentBasePass.Shared.FogISR
@@ -89,9 +97,6 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 	float RayLength = CameraToReceiverLength;
 	float RayDirectionZ = CameraToReceiver.z;
 
-	// Factor in StartDistance
-	ExcludeDistance = max(ExcludeDistance, FogStruct.ExponentialFogParameters.w);
-	
 #if USE_GLOBAL_CLIP_PLANE
 
 	BRANCH
@@ -110,6 +115,9 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 
 #endif
 
+	// Factor in StartDistance
+#if PERMUTATION_SUPPORT_FOG_START_DISTANCE
+	ExcludeDistance = max(ExcludeDistance, FogStruct.ExponentialFogParameters.w);
 	if (ExcludeDistance > 0)
 	{
 		float ExcludeIntersectionTime = ExcludeDistance * CameraToReceiverLengthInv;
@@ -127,9 +135,13 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 		float ExponentSecond = max(-127.0f, FogStruct.ExponentialFogParameters2.y * (ExclusionIntersectionZ - FogStruct.ExponentialFogParameters2.w)); 	 
 		RayOriginTermsSecond = FogStruct.ExponentialFogParameters2.z * exp2(-ExponentSecond);
 	}
+#endif
 
 	// Calculate the "shared" line integral (this term is also used for the directional light inscattering) by adding the two line integrals together (from two different height falloffs and densities)
-	float ExponentialHeightLineIntegralShared = CalculateLineIntegralShared(FogStruct.ExponentialFogParameters.y, RayDirectionZ, RayOriginTerms) + CalculateLineIntegralShared(FogStruct.ExponentialFogParameters2.y, RayDirectionZ, RayOriginTermsSecond);
+	float ExponentialHeightLineIntegralShared = CalculateLineIntegralShared(FogStruct.ExponentialFogParameters.y, RayDirectionZ, RayOriginTerms);
+#if PERMUTATION_SUPPORT_FOG_SECOND_TERM
+	ExponentialHeightLineIntegralShared+= CalculateLineIntegralShared(FogStruct.ExponentialFogParameters2.y, RayDirectionZ, RayOriginTermsSecond);
+#endif
 
 	float ExponentialHeightLineIntegral = ExponentialHeightLineIntegralShared * RayLength;
 

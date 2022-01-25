@@ -125,6 +125,15 @@ bool FSkyPassMeshProcessor::Process(
 			return false;
 		}
 
+		// Mask sky pixels so we can skip them when rendering per-pixel fog
+		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+			false, CF_DepthNearOrEqual,
+			true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			0x00, STENCIL_MOBILE_SKY_MASK>::GetRHI());
+		
+		PassDrawRenderState.SetStencilRef(1); 
+		
 		TMobileBasePassShaderElementData<LightMapPolicyType> ShaderElementData(nullptr, false);
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 

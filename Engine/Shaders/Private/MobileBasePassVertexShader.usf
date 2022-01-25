@@ -16,8 +16,8 @@
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
 #define MobileSceneTextures MobileBasePass.SceneTextures
 
-#include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/Material.ush"
+#include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 #include "HeightFogCommon.ush"
 

@@ -2336,6 +2336,9 @@ protected:
 	/** Renders decals. */
 	void RenderDecals(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
+	/** Renders the atmospheric and height fog */
+	void RenderFog(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	/** Renders the base pass for translucency. */
 	void RenderTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 

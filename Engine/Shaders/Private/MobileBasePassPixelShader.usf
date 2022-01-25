@@ -106,8 +106,8 @@ int NumDynamicPointLights;
 #define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
 
 #include "SHCommon.ush"
-#include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/Material.ush"
+#include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 #include "ReflectionEnvironmentShared.ush"
 #include "LightmapCommon.ush"  
@@ -244,7 +244,7 @@ half3 GetLookupVectorForSphereCaptureMobile(half3 ReflectionVector, half3 WorldP
 half3 GetMobileSkyLightReflection(half3 ReflectionVector, half Roughness, half CubemapMaxMip)
 {
 	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, CubemapMaxMip);
-	half3 Reflection = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip);
+	half3 Reflection = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip).rgb;
 	return Reflection * ResolvedView.SkyLightColor.rgb;
 }
 

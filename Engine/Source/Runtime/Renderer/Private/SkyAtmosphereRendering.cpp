@@ -601,6 +601,11 @@ class FRenderSkyAtmosphereVS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		if (IsMobilePlatform(Parameters.Platform))
+		{
+			// Mobile must use a skydome mesh with a sky material to achieve good GPU performance
+			return false;
+		}
 		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
 	}
 
@@ -674,6 +679,12 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		if (IsMobilePlatform(Parameters.Platform))
+		{
+			// Mobile must use a skydome mesh with a sky material to achieve good GPU performance
+			return false;
+		}
+
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		// If not rendering the sky, ignore the FFastSky permutation
