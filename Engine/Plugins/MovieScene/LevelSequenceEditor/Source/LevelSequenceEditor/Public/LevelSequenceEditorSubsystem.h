@@ -99,6 +99,8 @@ private:
 	void RemoveInvalidBindingsInternal();
 	void RebindComponentInternal(const FName& ComponentName);
 
+	void AddAssignActorMenu(FMenuBuilder& MenuBuilder);
+
 	void GetRebindComponentNames(TArray<FName>& OutComponentNames);
 	void RebindComponentMenu(FMenuBuilder& MenuBuilder);
 

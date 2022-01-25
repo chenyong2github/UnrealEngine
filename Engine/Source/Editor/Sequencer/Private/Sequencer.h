@@ -518,9 +518,6 @@ public:
 	FText GetNavigateForwardTooltip() const;
 	FText GetNavigateBackwardTooltip() const;
 
-	/** Called when a user executes the assign actor to track menu item */
-	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
-
 	/** Called when a user executes the assign selected to track menu item */
 	void AddActorsToBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
 	void ReplaceBindingWithActors(FGuid ObjectBinding, const TArray<AActor*>& InActors);

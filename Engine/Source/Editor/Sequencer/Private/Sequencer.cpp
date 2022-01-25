@@ -7443,60 +7443,6 @@ void FSequencer::DeleteSelectedItems()
 }
 
 
-void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
-{
-	TSet<const AActor*> BoundObjects;
-	{
-		for (TWeakObjectPtr<> Ptr : FindObjectsInCurrentSequence(InObjectBinding))
-		{
-			if (const AActor* Actor = Cast<AActor>(Ptr.Get()))
-			{
-				BoundObjects.Add(Actor);
-			}
-		}
-	}
-
-	auto IsActorValidForAssignment = [BoundObjects](const AActor* InActor){
-		return !BoundObjects.Contains(InActor);
-	};
-
-	// Set up a menu entry to assign an actor to the object binding node
-	FSceneOutlinerInitializationOptions InitOptions;
-	{
-		// We hide the header row to keep the UI compact.
-		InitOptions.bShowHeaderRow = false;
-		InitOptions.bShowSearchBox = true;
-		InitOptions.bShowCreateNewFolder = false;
-		InitOptions.bFocusSearchBoxWhenOpened = true;
-		// Only want the actor label column
-		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
-		
-		// Only display actors that are not possessed already
-		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValidForAssignment ) );
-	}
-
-	// actor selector to allow the user to choose an actor
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-	TSharedRef< SWidget > MiniSceneOutliner =
-		SNew( SBox )
-		.MaxDesiredHeight(400.0f)
-		.WidthOverride(300.0f)
-		[
-			SceneOutlinerModule.CreateActorPicker(
-				InitOptions,
-				FOnActorPicked::CreateLambda([=](AActor* Actor){
-					// Create a new binding for this actor
-					FSlateApplication::Get().DismissAllMenus();
-					FSequencerUtilities::DoAssignActor(this, Actor, InObjectBinding);
-				})
-			)
-		];
-
-	MenuBuilder.AddMenuSeparator();
-	MenuBuilder.AddWidget(MiniSceneOutliner, FText::GetEmpty(), true);
-}
-
-
 void FSequencer::AddActorsToBinding(FGuid InObjectBinding, const TArray<AActor*>& InActors)
 {
 	if (!InActors.Num())
