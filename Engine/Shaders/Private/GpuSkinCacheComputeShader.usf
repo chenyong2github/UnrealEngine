@@ -73,8 +73,8 @@ Buffer<float4> ClothBuffer;
 Buffer<float2> ClothPositionsAndNormalsBuffer;
 uint ClothBufferOffset;
 float ClothBlendWeight;
-float4x4 ClothLocalToWorld;
-float4x4 ClothWorldToLocal;
+/** Transform from cloth space (relative to cloth root bone) to local/component space */
+float4x4 ClothToLocal;
 
 void GetClothBuffer(uint VertexIndex, uint ClothIndexOffset, out FVertexTriangleInfluence Influences[NUM_INFLUENCES_PER_VERTEX])
 {
@@ -413,9 +413,9 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
         ClothTangentX = normalize(TangentPosition - Intermediates.SimulatedPosition);
         ClothTangentZ = normalize(NormalPosition - Intermediates.SimulatedPosition);
 
-	    // cloth data are all in world space so need to change into local space
-	    ClothTangentX = mul(ClothTangentX, (half3x3)ClothWorldToLocal);
-	    ClothTangentZ = mul(ClothTangentZ, (half3x3)ClothWorldToLocal);
+	    // Simulated cloth data are in cloth space so need to change into local space
+	    ClothTangentX = mul(ClothTangentX, (half3x3)ClothToLocal);
+	    ClothTangentZ = mul(ClothTangentZ, (half3x3)ClothToLocal);
     }
 	else
 	{
@@ -429,9 +429,9 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
 	float3 SPos = SkinPosition(Intermediates) * SkinCacheDebug;
 
 #if GPUSKIN_APEX_CLOTH
-    float4 TransformedSkinPos = mul(float4(SPos, 1), ClothLocalToWorld);
-    float3 BlendedPos = lerp(TransformedSkinPos.xyz, Intermediates.SimulatedPosition, ClothWeight);
-    SPos = mul(float4(BlendedPos, 1), ClothWorldToLocal).xyz;
+	// Transform simulated position from cloth space into local space and blend with skinned position
+    float4 TransformedSimulatedPos = mul(float4(Intermediates.SimulatedPosition.xyz, 1), ClothToLocal);
+    SPos = lerp(SPos.xyz, TransformedSimulatedPos, ClothWeight);
 #endif
 
 	float3 TangentX = normalize(mul((float3x3)Intermediates.BlendMatrix, LocalTangentX));

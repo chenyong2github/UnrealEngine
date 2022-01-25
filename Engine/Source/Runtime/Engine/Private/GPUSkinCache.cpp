@@ -270,9 +270,7 @@ public:
 		uint32 ClothBufferOffset = 0;
         float ClothBlendWeight = 0.0f;
 
-		// LWC_TODO: Cloth LocalToWorld/WorldToLocal matrices forced to float.
-        FMatrix44f ClothLocalToWorld = FMatrix44f::Identity;
-        FMatrix44f ClothWorldToLocal = FMatrix44f::Identity;
+        FMatrix44f ClothToLocal = FMatrix44f::Identity;
 
 		// triangle index buffer (input for the RecomputeSkinTangents, might need special index buffer unique to position and normal, not considering UV/vertex color)
 		uint32 IndexBufferOffsetValue = 0;
@@ -556,8 +554,7 @@ public:
 		ClothPositionsAndNormalsBuffer.Bind(Initializer.ParameterMap, TEXT("ClothPositionsAndNormalsBuffer"));
 		ClothBufferOffset.Bind(Initializer.ParameterMap, TEXT("ClothBufferOffset"));
 		ClothBlendWeight.Bind(Initializer.ParameterMap, TEXT("ClothBlendWeight"));
-		ClothLocalToWorld.Bind(Initializer.ParameterMap, TEXT("ClothLocalToWorld"));
-		ClothWorldToLocal.Bind(Initializer.ParameterMap, TEXT("ClothWorldToLocal"));
+		ClothToLocal.Bind(Initializer.ParameterMap, TEXT("ClothToLocal"));
 	}
 
 	void SetParameters(
@@ -605,8 +602,7 @@ public:
 			SetSRVParameter(RHICmdList, ShaderRHI, ClothPositionsAndNormalsBuffer, DispatchData.ClothPositionsAndNormalsBuffer);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBufferOffset, DispatchData.ClothBufferOffset);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBlendWeight, DispatchData.ClothBlendWeight);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothLocalToWorld, DispatchData.ClothLocalToWorld);
-			SetShaderValue(RHICmdList, ShaderRHI, ClothWorldToLocal, DispatchData.ClothWorldToLocal);
+			SetShaderValue(RHICmdList, ShaderRHI, ClothToLocal, DispatchData.ClothToLocal);
 		}
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
@@ -652,8 +648,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, ClothPositionsAndNormalsBuffer)
 	LAYOUT_FIELD(FShaderParameter, ClothBufferOffset)
 	LAYOUT_FIELD(FShaderParameter, ClothBlendWeight)
-	LAYOUT_FIELD(FShaderParameter, ClothLocalToWorld)
-	LAYOUT_FIELD(FShaderParameter, ClothWorldToLocal)
+	LAYOUT_FIELD(FShaderParameter, ClothToLocal)
 
 };
 
@@ -1359,7 +1354,7 @@ bool FGPUSkinCache::ProcessEntry(
 	const FMorphVertexBuffer* MorphVertexBuffer,
 	const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, 
 	const FClothSimulData* SimData,
-	const FMatrix44f& ClothLocalToWorld, 
+	const FMatrix44f& ClothToLocal,
 	float ClothBlendWeight, 
 	uint32 RevisionNumber, 
 	int32 Section,
@@ -1545,8 +1540,7 @@ bool FGPUSkinCache::ProcessEntry(
 		}
 
         InOutEntry->DispatchData[Section].ClothBlendWeight = ClothBlendWeight;
-        InOutEntry->DispatchData[Section].ClothLocalToWorld = ClothLocalToWorld;
-        InOutEntry->DispatchData[Section].ClothWorldToLocal = ClothLocalToWorld.Inverse();
+        InOutEntry->DispatchData[Section].ClothToLocal = ClothToLocal;
     }
     InOutEntry->DispatchData[Section].SkinType = ClothVertexBuffer && InOutEntry->DispatchData[Section].ClothPositionsAndNormalsBuffer ? 2 : (bMorph ? 1 : 0);
 
