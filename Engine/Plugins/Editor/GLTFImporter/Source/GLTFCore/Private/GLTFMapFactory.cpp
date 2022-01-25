@@ -21,6 +21,71 @@ namespace GLTF
 			}
 		}
 
+		void CreateTextureTransform(const FTextureTransform& InTextureTransform, FMaterialExpressionTexture& TexExpression, FMaterialElement& MaterialElement)
+		{
+			FMaterialExpression* CoordExpression = TexExpression.GetInputCoordinate().GetExpression();
+
+			if (CoordExpression == nullptr)
+			{
+				CoordExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionTextureCoordinate>();
+			}
+
+			FMaterialExpression* LastExprInChain = nullptr;
+
+			FMaterialExpressionGeneric* UVMultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			UVMultiplyExpr->SetExpressionName(TEXT("Multiply"));
+
+			FMaterialExpressionGeneric* UVScale = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			UVScale->SetExpressionName(TEXT("Constant2Vector"));
+			UVScale->SetFloatProperty(TEXT("R"), InTextureTransform.Scale[0]);
+			UVScale->SetFloatProperty(TEXT("G"), InTextureTransform.Scale[1]);
+
+			CoordExpression->ConnectExpression(*UVMultiplyExpr->GetInput(0), 0);
+			UVScale->ConnectExpression(*UVMultiplyExpr->GetInput(1), 0);
+
+			LastExprInChain = UVMultiplyExpr;
+
+			if (!FMath::IsNearlyZero(InTextureTransform.Rotation))
+			{
+				FMaterialExpressionFunctionCall* UVRotate = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
+				UVRotate->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/Texturing/CustomRotator.CustomRotator"));
+
+				float AngleRadians = InTextureTransform.Rotation;
+
+				if (AngleRadians < 0.0f)
+				{
+					AngleRadians = TWO_PI - AngleRadians;
+				}
+
+				FMaterialExpressionScalar* RotationAngle = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+				RotationAngle->GetScalar() = AngleRadians / TWO_PI; // Normalize angle value
+
+				LastExprInChain->ConnectExpression(*UVRotate->GetInput(0), 0);
+				RotationAngle->ConnectExpression(*UVRotate->GetInput(2), 0);
+
+				LastExprInChain = UVRotate;
+			}
+
+			if (!FMath::IsNearlyZero(InTextureTransform.Offset[0]) || 
+				!FMath::IsNearlyZero(InTextureTransform.Offset[1]))
+			{
+				FMaterialExpressionGeneric* UVOffset = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				UVOffset->SetExpressionName(TEXT("Constant2Vector"));
+				UVOffset->SetFloatProperty(TEXT("R"), InTextureTransform.Offset[0]);
+				UVOffset->SetFloatProperty(TEXT("G"), InTextureTransform.Offset[1]);
+
+				FMaterialExpressionGeneric* AddExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				AddExpr->SetExpressionName(TEXT("Add"));
+
+				LastExprInChain->ConnectExpression(*AddExpr->GetInput(0), 0);
+				UVOffset->ConnectExpression(*AddExpr->GetInput(1), 0);
+
+				LastExprInChain = AddExpr;
+			}
+
+			LastExprInChain->ConnectExpression(TexExpression.GetInputCoordinate(), 0);
+		}
+
 		FMaterialExpressionInput& GetFirstInput(FMaterialExpression* Expression)
 		{
 			FMaterialExpressionInput* Input = Expression->GetInput(0);
@@ -54,11 +119,11 @@ namespace GLTF
 	{
 	}
 
-	void FPBRMapFactory::CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale)
+	void FPBRMapFactory::CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale, const GLTF::FTextureTransform* TextureTransform)
 	{
 		check(CurrentMaterialElement);
 
-		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, TEXT("Normal Map"), ETextureMode::Normal);
+		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, TEXT("Normal Map"), ETextureMode::Normal, TextureTransform);
 		if (!TexExpression)
 		{
 			return;
@@ -104,19 +169,21 @@ namespace GLTF
 	}
 
 	FMaterialExpression* FPBRMapFactory::CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector3f& Color, const TCHAR* MapName,
-	                                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput)
+	                                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput,
+														const GLTF::FTextureTransform* TextureTransform)
 	{
-		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput);
+		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput, TextureTransform);
 	}
 
 	FMaterialExpression* FPBRMapFactory::CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4f& Color, const TCHAR* MapName,
-	                                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput)
+	                                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput, 
+														const GLTF::FTextureTransform* TextureTransform)
 	{
-		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput);
+		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput, TextureTransform);
 	}
 
 	void FPBRMapFactory::CreateMultiMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, const FMapChannel* MapChannels,
-	                                    uint32 MapChannelsCount, ETextureMode TextureMode)
+	                                    uint32 MapChannelsCount, ETextureMode TextureMode, const GLTF::FTextureTransform* TextureTransform)
 	{
 		FExpressionList ValueExpressions;
 		for (uint32 Index = 0; Index < MapChannelsCount; ++Index)
@@ -149,7 +216,7 @@ namespace GLTF
 			ValueExpressions.Add(ValueExpression);
 		}
 
-		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, MapName, TextureMode);
+		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, MapName, TextureMode, TextureTransform);
 		if (TexExpression)
 		{
 			for (uint32 Index = 0; Index < MapChannelsCount; ++Index)
@@ -217,7 +284,7 @@ namespace GLTF
 	}
 
 	FMaterialExpressionTexture* FPBRMapFactory::CreateTextureMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName,
-	                                                             ETextureMode TextureMode)
+	                                                             ETextureMode TextureMode, const GLTF::FTextureTransform* TextureTransform)
 	{
 		ITextureElement* Texture = TextureFactory.CreateTexture(Map, ParentPackage, Flags, TextureMode);
 
@@ -230,13 +297,19 @@ namespace GLTF
 			TexExpression->SetGroupName(*GroupName);
 
 			CreateTextureCoordinate(CoordinateIndex, *TexExpression, *CurrentMaterialElement);
+
+			if (nullptr != TextureTransform)
+			{
+				CreateTextureTransform(*TextureTransform, *TexExpression, *CurrentMaterialElement);
+			}
 		}
 		return TexExpression;
 	}
 
 	template <class ValueExpressionClass, class ValueClass>
 	FMaterialExpression* FPBRMapFactory::CreateMap(const GLTF::FTexture& Map, int CoordinateIndex, const ValueClass& Value, const TCHAR* MapName,
-	                                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput)
+	                                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput, 
+												   const GLTF::FTextureTransform* TextureTransform)
 	{
 		check(MapName);
 		check(CurrentMaterialElement);
@@ -249,7 +322,7 @@ namespace GLTF
 		ValueExpression->SetGroupName(*GroupName);
 		SetExpresisonValue(Value, ValueExpression);
 
-		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, MapName, TextureMode);
+		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, MapName, TextureMode, TextureTransform);
 		if (TexExpression)
 		{
 			FMaterialExpressionGeneric* MultiplyExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();

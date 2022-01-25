@@ -15,8 +15,8 @@ namespace GLTF
 	{
 		const GLTF::FTexture& GetTexture(const GLTF::FTextureMap& Map, const TArray<GLTF::FTexture>& Textures)
 		{
-			static const GLTF::FImage   Immage;
-			static const GLTF::FTexture None(FString(), Immage, GLTF::FSampler::DefaultSampler);
+			static const GLTF::FImage   Image;
+			static const GLTF::FTexture None(FString(), Image, GLTF::FSampler::DefaultSampler);
 			return Map.TextureIndex != INDEX_NONE ? Textures[Map.TextureIndex] : None;
 		}
 	}
@@ -219,7 +219,8 @@ namespace GLTF
 									  TEXT("BaseColor"),
 									  nullptr,
 									  ETextureMode::Color,
-									  MaterialElement.GetBaseColor());
+									  MaterialElement.GetBaseColor(),
+									  GLTFMaterial.BaseColor.bHasTextureTransform ? &GLTFMaterial.BaseColor.TextureTransform : nullptr);
 
 			// Metallic
 			Maps.Emplace(GLTFMaterial.MetallicRoughness.MetallicFactor,
@@ -240,7 +241,8 @@ namespace GLTF
 				                      TEXT("MetallicRoughness"),
 									  Maps.GetData(),
 									  Maps.Num(),
-									  ETextureMode::Grayscale);
+									  ETextureMode::Grayscale,
+									  GLTFMaterial.MetallicRoughness.Map.bHasTextureTransform ? &GLTFMaterial.MetallicRoughness.Map.TextureTransform : nullptr);
 		}
 		else if (GLTFMaterial.ShadingModel == FMaterial::EShadingModel::SpecularGlossiness)
 		{
@@ -262,7 +264,8 @@ namespace GLTF
 																	 TEXT("Diffuse"),
 																	 TEXT("Color"),
 																	 ETextureMode::Color,
-																	 *SpecGlossToMetalRough->GetInput(1));
+																	 *SpecGlossToMetalRough->GetInput(1),
+																	 GLTFMaterial.BaseColor.bHasTextureTransform ? &GLTFMaterial.BaseColor.TextureTransform : nullptr);
 
 			// Specular (goes into SpecGlossToMetalRough conversion)
 			Maps.Emplace(GLTFMaterial.SpecularGlossiness.SpecularFactor,
@@ -284,7 +287,8 @@ namespace GLTF
 				                      TEXT("SpecularGlossiness"),
 									  Maps.GetData(),
 									  Maps.Num(),
-				                      ETextureMode::Color);
+				                      ETextureMode::Color,
+									  GLTFMaterial.SpecularGlossiness.Map.bHasTextureTransform ? &GLTFMaterial.SpecularGlossiness.Map.TextureTransform : nullptr);
 		}
 	}
 
@@ -293,7 +297,8 @@ namespace GLTF
 		MapFactory.GroupName = TEXT("Occlusion");
 
 		FMaterialExpressionTexture* TexExpression = MapFactory.CreateTextureMap(
-			GetTexture(GLTFMaterial.Occlusion, Textures), GLTFMaterial.Occlusion.TexCoord, TEXT("Occlusion"), ETextureMode::Grayscale);
+			GetTexture(GLTFMaterial.Occlusion, Textures), GLTFMaterial.Occlusion.TexCoord, TEXT("Occlusion"), ETextureMode::Grayscale, 
+			GLTFMaterial.Occlusion.bHasTextureTransform ? &GLTFMaterial.Occlusion.TextureTransform : nullptr);
 
 		if (!TexExpression)
 			return;
@@ -330,7 +335,8 @@ namespace GLTF
 								  TEXT("Emissive"),
 								  TEXT("Color"),
 								  ETextureMode::Color, // emissive map is in sRGB space
-								  MaterialElement.GetEmissiveColor());
+								  MaterialElement.GetEmissiveColor(),
+								  GLTFMaterial.Emissive.bHasTextureTransform ? &GLTFMaterial.Emissive.TextureTransform : nullptr);
 	}
 
 	void FMaterialFactoryImpl::HandleNormal(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
@@ -338,7 +344,8 @@ namespace GLTF
 		MapFactory.GroupName = TEXT("Normal");
 		MapFactory.CreateNormalMap(GetTexture(GLTFMaterial.Normal, Textures),
 								   GLTFMaterial.Normal.TexCoord,
-								   GLTFMaterial.NormalScale);
+								   GLTFMaterial.NormalScale,
+								   GLTFMaterial.Normal.bHasTextureTransform ? &GLTFMaterial.Normal.TextureTransform : nullptr);
 	}
 
 	void FMaterialFactoryImpl::HandleClearCoat(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
@@ -362,13 +369,15 @@ namespace GLTF
 			GetTexture(GLTFMaterial.ClearCoat.ClearCoatMap, Textures),
 			GLTFMaterial.ClearCoat.ClearCoatMap.TexCoord,
 			TEXT("ClearCoat"),
-			ETextureMode::Color);
+			ETextureMode::Color,
+			GLTFMaterial.ClearCoat.ClearCoatMap.bHasTextureTransform ? &GLTFMaterial.ClearCoat.ClearCoatMap.TextureTransform : nullptr);
 
 		FMaterialExpressionTexture* ClearCoatRoughnessTexture = MapFactory.CreateTextureMap(
 			GetTexture(GLTFMaterial.ClearCoat.RoughnessMap, Textures),
 			GLTFMaterial.ClearCoat.RoughnessMap.TexCoord,
 			TEXT("ClearCoatRoughness"),
-			ETextureMode::Color);
+			ETextureMode::Color,
+			GLTFMaterial.ClearCoat.RoughnessMap.bHasTextureTransform ? &GLTFMaterial.ClearCoat.RoughnessMap.TextureTransform : nullptr);
 
 		FMaterialExpression* ClearCoatExpr = ClearCoatFactor;
 		if (ClearCoatTexture)
@@ -399,7 +408,8 @@ namespace GLTF
 			GetTexture(GLTFMaterial.ClearCoat.NormalMap, Textures),
 			GLTFMaterial.ClearCoat.NormalMap.TexCoord,
 			TEXT("ClearCoatNormal"),
-			ETextureMode::Normal);
+			ETextureMode::Normal,
+			GLTFMaterial.ClearCoat.NormalMap.bHasTextureTransform ? &GLTFMaterial.ClearCoat.NormalMap.TextureTransform : nullptr);
 
 		if (ClearCoatNormalTexture)
 		{
@@ -446,7 +456,8 @@ namespace GLTF
 			GetTexture(GLTFMaterial.Transmission.TransmissionMap, Textures),
 			GLTFMaterial.Transmission.TransmissionMap.TexCoord,
 			TEXT("Transmission"),
-			ETextureMode::Color);
+			ETextureMode::Color,
+			GLTFMaterial.Transmission.TransmissionMap.bHasTextureTransform ? &GLTFMaterial.Transmission.TransmissionMap.TextureTransform : nullptr);
 
 		FMaterialExpression* MetallicFactor = MaterialElement.GetMetallic().GetExpression();
 		FMaterialExpression* RoughnessFactor = MaterialElement.GetRoughness().GetExpression();
@@ -719,7 +730,8 @@ namespace GLTF
 		SpecularFactorExpr->GetScalar() = GLTFMaterial.Specular.SpecularFactor;
 
 		FMaterialExpressionTexture* SpecularTextureExpr = MapFactory.CreateTextureMap(
-			GetTexture(GLTFMaterial.Specular.SpecularMap, Textures), GLTFMaterial.Specular.SpecularMap.TexCoord, TEXT("SpecularMap"), ETextureMode::Color);
+			GetTexture(GLTFMaterial.Specular.SpecularMap, Textures), GLTFMaterial.Specular.SpecularMap.TexCoord, TEXT("SpecularMap"), ETextureMode::Color,
+			GLTFMaterial.Specular.SpecularMap.bHasTextureTransform ? &GLTFMaterial.Specular.SpecularMap.TextureTransform : nullptr);
 
 		FMaterialExpression* SpecularExpr = SpecularFactorExpr;
 

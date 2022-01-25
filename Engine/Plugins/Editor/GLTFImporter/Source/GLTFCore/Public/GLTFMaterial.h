@@ -7,14 +7,32 @@
 
 namespace GLTF
 {
+	struct GLTFCORE_API FTextureTransform
+	{
+		float Offset[2];
+		float Rotation;
+		float Scale[2];
+
+		FTextureTransform()
+		{
+			Offset[0] = Offset[1] = 0.0f;
+			Scale[0] = Scale[1] = 1.0f;
+			Rotation = 0.0f;
+		}
+	};
+
 	struct GLTFCORE_API FTextureMap
 	{
 		int32 TextureIndex;
 		uint8 TexCoord;
 
+		bool bHasTextureTransform;
+		FTextureTransform TextureTransform;
+
 		FTextureMap()
 		    : TextureIndex(INDEX_NONE)
 		    , TexCoord(0)
+			, bHasTextureTransform(false)
 		{
 		}
 

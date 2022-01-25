@@ -10,6 +10,7 @@
 namespace GLTF
 {
 	struct FTexture;
+	struct FTextureTransform;
 	class FTextureFactory;
 
 	struct FPBRMapFactory
@@ -74,25 +75,29 @@ namespace GLTF
 
 		void SetParentPackage(UObject* ParentPackage, EObjectFlags Flags);
 
-		void CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale);
+		void CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale, const GLTF::FTextureTransform* TextureTransform);
 
 		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector3f& Color, const TCHAR* MapName,
-		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
+		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput,
+											const GLTF::FTextureTransform* TextureTransform);
 
 		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4f& Color, const TCHAR* MapName,
-		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
+		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput,
+											const GLTF::FTextureTransform* TextureTransform);
 
-		FMaterialExpressionTexture* CreateTextureMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, ETextureMode TextureMode);
+		FMaterialExpressionTexture* CreateTextureMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, ETextureMode TextureMode, 
+													 const GLTF::FTextureTransform* TextureTransform);
 
 		void CreateMultiMap(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, const FMapChannel* MapChannels,
-		                    uint32 MapChannelsCount, ETextureMode TextureMode);
+		                    uint32 MapChannelsCount, ETextureMode TextureMode, const GLTF::FTextureTransform* TextureTransform);
 
 	private:
 		using FExpressionList = TArray<FMaterialExpression*, TFixedAllocator<4> >;
 
 		template <class ValueExpressionClass, class ValueClass>
 		FMaterialExpression* CreateMap(const GLTF::FTexture& Map, int CoordinateIndex, const ValueClass& Value, const TCHAR* MapName,
-		                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
+		                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput, 
+									   const GLTF::FTextureTransform* TextureTransform);
 
 	private:
 		ITextureFactory& TextureFactory;

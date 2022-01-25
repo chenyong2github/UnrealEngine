@@ -47,6 +47,11 @@ namespace GLTF
 		void SetupTextureExtensions(const FJsonObject& Object, FTexture& Texture) const;
 		void SetupMaterialExtensions(const FJsonObject& Object, FMaterial& Material) const;
 
+		TArray<FLogMessage>& GetMessages()
+		{
+			return Messages;
+		}
+
 	private:
 		void CheckExtensions(const FJsonObject& Object, const TArray<FString>& ExtensionsSupported) const;
 
