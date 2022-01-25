@@ -128,7 +128,7 @@ FString UOnlineServicesEngineInterfaceImpl::GetPlayerNickname(UWorld* World, con
 	{
 		if (UE::Online::IAuthPtr AuthPtr = OnlineServices->GetAuthInterface())
 		{
-			UE::Online::FAuthGetAccountByAccountId::Params GetAccountParams = { /* UniqueId.GetV2() */ };
+			UE::Online::FAuthGetAccountByAccountId::Params GetAccountParams = { UniqueId.GetV2() };
 			UE::Online::TOnlineResult<UE::Online::FAuthGetAccountByAccountId> GetAccountResult = AuthPtr->GetAccountByAccountId(MoveTemp(GetAccountParams));
 			if (GetAccountResult.IsOk())
 			{

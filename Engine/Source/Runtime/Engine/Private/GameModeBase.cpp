@@ -974,7 +974,7 @@ void AGameModeBase::PostLogin(APlayerController* NewPlayer)
 	{
 		// If NewPlayer is not only a spectator and has a valid ID, add him as a user to the replay.
 		const FUniqueNetIdRepl& NewPlayerStateUniqueId = NewPlayer->PlayerState->GetUniqueId();
-		if (NewPlayerStateUniqueId.IsValid())
+		if (NewPlayerStateUniqueId.IsValid() && NewPlayerStateUniqueId.IsV1())
 		{
 			GetGameInstance()->AddUserToReplay(NewPlayerStateUniqueId.ToString());
 		}
