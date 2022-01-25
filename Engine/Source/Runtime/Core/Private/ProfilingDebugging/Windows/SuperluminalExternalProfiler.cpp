@@ -57,6 +57,12 @@ public:
 		PerformanceAPI_BeginEvent_Wide(Text, nullptr, UPerformanceAPI_Pack(Color.R, Color.G, Color.B));
 	}
 
+	/** Starts a scoped event specific to the profiler. */
+	virtual void StartScopedEvent(const struct FColor& Color, const ANSICHAR* Text) override
+	{
+		PerformanceAPI_BeginEvent(Text, nullptr, UPerformanceAPI_Pack(Color.R, Color.G, Color.B));
+	}
+
 	/** Ends a scoped event specific to the profiler. */
 	virtual void EndScopedEvent() override
 	{

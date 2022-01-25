@@ -83,6 +83,15 @@ public:
 		}
 	}
 
+	/** Starts a scoped event specific to the profiler. */
+	void StartScopedEvent(const struct FColor& Color, const ANSICHAR* Text) final
+	{
+		if (IsEnabled())
+		{
+			PIXBeginEvent(Color.DWColor(), Text);
+		}
+	}
+
 	/** Ends a scoped event specific to the profiler. */
 	void EndScopedEvent() final
 	{
