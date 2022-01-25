@@ -692,14 +692,36 @@ RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef
 /** Clears parts of UAV specified by an array of screen rects. If no rects are specific, then it falls back to a standard UAV clear. */
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectMinMaxBufferSRV, uint32 NumRects);
 
-/** Adds a render graph pass to clear a render target to its clear value. */
+/** Adds a render graph pass to clear a render target to its clear value (single mip, single slice) */
 RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
 
-/** Adds a render graph pass to clear a render target. Uses render pass clear actions if the clear color matches the fast clear color. */
+/** Adds a render graph pass to clear a render target (single mip, single slice). Uses render pass clear actions if the clear color matches the fast clear color. */
 RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor);
 
-/** Adds a render graph pass to clear a render target. Draws a quad to the requested viewport. */
+/** Adds a render graph pass to clear a part of a render target (single mip, single slice). Draws a quad to the requested viewport. */
 RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor, FIntRect Viewport);
+
+struct FRDGTextureClearInfo
+{
+	FRDGTextureClearInfo() = default;
+
+	// Optional : specifies the area of the texture to clear (draws a quad to the requested viewport). If zero (and clear color is not passed or matches the fast clear color), the clear will be done with render pass clear actions :
+	FIntRect Viewport;
+
+	// Optional : specifies the clear color. If not specified or if the clear color matches the fast clear color (and Viewport is zero), the clear will be done with render pass clear actions :
+	TOptional<FLinearColor> ClearColor;
+
+	// For texture arrays, specifies which slice(s) to clear
+	uint32 FirstSliceIndex = 0;
+	uint32 NumSlices = 1;
+
+	// Specifies which mip(s) to clear
+	uint32 FirstMipIndex = 0;
+	uint32 NumMips = 1;
+};
+
+/** Adds a render graph pass to clear a render target to its clear value. */
+RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FRDGTextureClearInfo& TextureClearInfo);
 
 /** Adds a render graph pass to clear a depth stencil target. Prefer to use clear actions if possible. */
 RENDERCORE_API void AddClearDepthStencilPass(
