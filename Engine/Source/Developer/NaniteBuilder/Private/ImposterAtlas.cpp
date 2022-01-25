@@ -49,6 +49,8 @@ FMatrix44f FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
 		BoundsExtent | ImposterX.GetAbs(),
 		BoundsExtent | ImposterY.GetAbs(),
 		BoundsExtent | ImposterZ.GetAbs() );
+
+	ImposterExtent = FVector3f::Max(ImposterExtent, FVector3f(0.001f));	// Prevent division by zero
 	
 	FMatrix44f LocalToImposter = FMatrix44f(
 		ImposterX,
