@@ -476,6 +476,9 @@ public:
 	UE_DEPRECATED(5.0, "Use SetCachedUniqueNetId with FUniqueNetIdRepl")
 	void SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId);
 	/** Sets the players current cached unique net id */
+	UE_DEPRECATED(5.0, "Use SetCachedUniqueNetId with FUniqueNetIdRepl")
+	void SetCachedUniqueNetId(TYPE_OF_NULLPTR);
+	/** Sets the players current cached unique net id */
 	void SetCachedUniqueNetId(const FUniqueNetIdRepl& NewUniqueNetId);
 
 	/** 
