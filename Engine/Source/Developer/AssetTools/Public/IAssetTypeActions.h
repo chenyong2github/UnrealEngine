@@ -7,6 +7,7 @@
 #include "Developer/Merge/Public/Merge.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "AssetRegistry/AssetData.h"
+#include "IAssetTypeActions.generated.h"
 
 class IToolkitHost;
 
@@ -23,11 +24,19 @@ namespace EAssetTypeActivationMethod
 class IToolkitHost;
 
 /* Revision information for a single revision of a file in source control */
+USTRUCT(BlueprintType)
 struct FRevisionInfo
 {
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
 	FString		Revision;
-	int32		Changelist;
-	FDateTime	Date;	
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
+	int32		Changelist = -1;
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
+	FDateTime	Date;
 
 	static inline FRevisionInfo InvalidRevision()
 	{

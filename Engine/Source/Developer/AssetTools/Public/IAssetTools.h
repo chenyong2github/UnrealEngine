@@ -364,9 +364,11 @@ public:
 	 * @param InPackagePath - The fullpath to the package
 	 * @param InPackageName - The name of the package
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void DiffAgainstDepot(UObject* InObject, const FString& InPackagePath, const FString& InPackageName) const = 0;
 
 	/** Try and diff two assets using class-specific tool. Will do nothing if either asset is NULL, or they are not the same class. */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void DiffAssets(UObject* OldAsset, UObject* NewAsset, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const = 0;
 
 	/** Util for dumping an asset to a temporary text file. Returns absolute filename to temp file */
