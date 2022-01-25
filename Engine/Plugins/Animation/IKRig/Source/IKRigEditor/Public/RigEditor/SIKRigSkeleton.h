@@ -195,6 +195,7 @@ public:
 		IKRigTreeElementType ItemType,
 		const bool bReplace);
 	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
+	bool HasSelectedItems() const;
 	/** END selection state queries */
 
 private:

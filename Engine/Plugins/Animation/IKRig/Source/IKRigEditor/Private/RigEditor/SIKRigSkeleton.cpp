@@ -392,6 +392,11 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChain
 	return Skeleton.GetChainsInList(SelectedBones, OutChains);
 }
 
+bool SIKRigSkeleton::HasSelectedItems() const
+{
+	return TreeView->GetNumItemsSelected() > 0;
+}
+
 void SIKRigSkeleton::BindCommands()
 {
 	const FIKRigSkeletonCommands& Commands = FIKRigSkeletonCommands::Get();

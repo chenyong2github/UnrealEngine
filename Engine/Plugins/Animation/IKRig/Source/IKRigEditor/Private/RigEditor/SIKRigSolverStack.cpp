@@ -449,7 +449,7 @@ void SIKRigSolverStack::OnItemClicked(TSharedPtr<FSolverStackElement> InItem)
 	EditorController.Pin()->SetLastSelectedType(EIKRigSelectionType::SolverStack);
 }
 
-void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem)
+void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -457,16 +457,24 @@ void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InIte
 		return; 
 	}
 
+	// update bones greyed out when not affected
+	Controller->SkeletonView->RefreshTreeView();
+
+	// the solver selection must be done after we rebuilt the skeleton tree has it keeps the selection
 	if (!InItem.IsValid())
 	{
-		Controller->ShowEmptyDetails();	
-	}else
+		// clear the details panel only if there's nothing selected in the skeleton view
+		if (Controller->SkeletonView->HasSelectedItems())
+		{
+			return;
+		}
+		
+		Controller->ShowEmptyDetails();
+	}
+	else
 	{
 		Controller->ShowDetailsForSolver(InItem.Get()->IndexInStack);
 	}
-
-	// update bones greyed out when not affected
-	Controller->SkeletonView->RefreshTreeView(); 
 }
 
 TOptional<EItemDropZone> SIKRigSolverStack::OnCanAcceptDrop(
