@@ -34,7 +34,7 @@ class SBlueprintNamespaceEntry;
 
 /**
  * Variable network replication options.
- * @see https://docs.unrealengine.com/latest/INT/Gameplay/Networking/Replication/
+ * @see https://docs.unrealengine.com/InteractiveExperiences/Networking/Blueprints
  */
 namespace EVariableReplication
 {

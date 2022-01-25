@@ -144,7 +144,7 @@ void FMediaPlayerEditorToolkit::Initialize(UMediaPlayer* InMediaPlayer, const ET
 
 FString FMediaPlayerEditorToolkit::GetDocumentationLink() const
 {
-	return FString(TEXT("Engine/Content/Types/MediaAssets/Properties/Interface"));
+	return FString(TEXT("WorkingWithMedia/IntegratingMedia/MediaFramework"));
 }
 
 

@@ -90,7 +90,7 @@ enum class EPhysicsAssetSolverType: uint8
  * A SkeletalMesh has a single PhysicsAsset, which allows for easily turning ragdoll physics on or off for many SkeletalMeshComponents
  * The asset can be configured inside the Physics Asset Editor.
  *
- * @see https://docs.unrealengine.com/latest/INT/Engine/Physics/PhAT/Reference/index.html
+ * @see https://docs.unrealengine.com/InteractiveExperiences/Physics/PhysicsAssetEditor
  * @see USkeletalMesh
  */
 

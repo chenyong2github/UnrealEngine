@@ -79,7 +79,7 @@ public:
 	/** @return the documentation location for this editor */
 	virtual FString GetDocumentationLink() const override
 	{
-		return FString(TEXT("Engine/Animation/SkeletonEditor"));
+		return FString(TEXT("AnimatingObjects/SkeletalMeshAnimation/Persona/Modes/Skeleton"));
 	}
 
 	/** Get the skeleton tree widget */

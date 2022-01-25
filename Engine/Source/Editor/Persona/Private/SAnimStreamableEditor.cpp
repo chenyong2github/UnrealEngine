@@ -11,7 +11,7 @@
 
 TSharedRef<SWidget> SAnimStreamableEditor::CreateDocumentAnchor()
 {
-	return IDocumentation::Get()->CreateAnchor(TEXT("Engine/Animation/AnimationStreamable"));
+	return IDocumentation::Get()->CreateAnchor(TEXT("AnimatingObjects"));
 }
 
 void SAnimStreamableEditor::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList)

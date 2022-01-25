@@ -648,7 +648,7 @@ public:
 	 * If true, Landscape will generate overlap events when other components are overlapping it (eg Begin Overlap).
 	 * Both the Landscape and the other component must have this flag enabled for overlap events to occur.
 	 *
-	 * @see [Overlap Events](https://docs.unrealengine.com/latest/INT/Engine/Physics/Collision/index.html#overlapandgenerateoverlapevents)
+	 * @see [Overlap Events](https://docs.unrealengine.com/InteractiveExperiences/Physics/Collision/Overview#overlapandgenerateoverlapevents)
 	 * @see UpdateOverlaps(), BeginComponentOverlap(), EndComponentOverlap()
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Collision)

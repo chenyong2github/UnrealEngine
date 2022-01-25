@@ -399,7 +399,7 @@ FString FTileMapEditor::GetWorldCentricTabPrefix() const
 
 FString FTileMapEditor::GetDocumentationLink() const
 {
-	return TEXT("Engine/Paper2D/TileMapEditor");
+	return TEXT("AnimatingObjects/Paper2D/TileMaps");
 }
 
 void FTileMapEditor::OnToolkitHostingStarted(const TSharedRef< class IToolkit >& Toolkit)

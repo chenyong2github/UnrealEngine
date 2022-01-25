@@ -229,7 +229,7 @@ void SOculusToolWidget::RebuildLayout()
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidPackaging")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidQuestArch")));
 
-	box = NewCategory(scroller, LOCTEXT("PostProcessHeader", "<RichTextBlock.Bold>Post-Processing Settings:</>\nThe below settings all refer to your project's post-processing settings. Post-processing can be very expensive in VR, so we recommend disabling many expensive post-processing effects. You can fine-tune your post-processing settings with a Post Process Volume. <a href=\"https://docs.unrealengine.com/en-us/Platforms/VR/VRPerformance\" id=\"HyperlinkDecorator\">Read more.</>."));
+	box = NewCategory(scroller, LOCTEXT("PostProcessHeader", "<RichTextBlock.Bold>Post-Processing Settings:</>\nThe below settings all refer to your project's post-processing settings. Post-processing can be very expensive in VR, so we recommend disabling many expensive post-processing effects. You can fine-tune your post-processing settings with a Post Process Volume. <a href=\"https://docs.unrealengine.com/SharingAndReleasing/XRDevelopment/VR/VRPerformanceAndProfiling\" id=\"HyperlinkDecorator\">Read more.</>."));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("LensFlare")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AntiAliasing")));
 

@@ -440,8 +440,7 @@ FLinearColor FTileSetEditor::GetWorldCentricTabColorScale() const
 
 FString FTileSetEditor::GetDocumentationLink() const
 {
-	//@TODO: Need to make a page for this
-	return TEXT("Engine/Paper2D/TileSetEditor");
+	return TEXT("AnimatingObjects/Paper2D/TileMaps");
 }
 
 void FTileSetEditor::OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit)

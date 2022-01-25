@@ -422,7 +422,7 @@ FString FFlipbookEditor::GetWorldCentricTabPrefix() const
 
 FString FFlipbookEditor::GetDocumentationLink() const
 {
-	return TEXT("Engine/Paper2D/FlipbookEditor");
+	return TEXT("AnimatingObjects/Paper2D/Flipbooks");
 }
 
 FLinearColor FFlipbookEditor::GetWorldCentricTabColorScale() const

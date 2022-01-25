@@ -156,7 +156,7 @@ class ENGINE_API UInitialActiveSoundParams : public UObject
 /**
  * AudioComponent is used to play a Sound
  *
- * @see https://docs.unrealengine.com/latest/INT/Audio/Overview/index.html
+ * @see https://docs.unrealengine.com/WorkingWithAudio/Overview
  * @see USoundBase
  */
 UCLASS(ClassGroup=(Audio, Common), HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))

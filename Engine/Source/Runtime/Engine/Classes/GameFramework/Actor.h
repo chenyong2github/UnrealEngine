@@ -157,8 +157,8 @@ public:
  * - AActor::BeginPlay: Called when the level starts ticking, only during actual gameplay.
  *                      This normally happens right after PostInitializeComponents but can be delayed for networked or child actors.
  *
- * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/Actors/
- * @see https://docs.unrealengine.com/en-us/Programming/UnrealArchitecture/Actors/ActorLifecycle
+ * @see https://docs.unrealengine.com/Programming/UnrealArchitecture/Actors
+ * @see https://docs.unrealengine.com/Programming/UnrealArchitecture/Actors/ActorLifecycle
  * @see UActorComponent
  */
 UCLASS(BlueprintType, Blueprintable, config=Engine, meta=(ShortTooltip="An Actor is an object that can be placed or spawned in the world."))
@@ -184,7 +184,7 @@ public:
 	/**
 	 * Primary Actor tick function, which calls TickActor().
 	 * Tick functions can be configured to control whether ticking is enabled, at what time during a frame the update occurs, and to set up tick dependencies.
-	 * @see https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/Engine/FTickFunction/
+	 * @see https://docs.unrealengine.com/API/Runtime/Engine/Engine/FTickFunction
 	 * @see AddTickPrerequisiteActor(), AddTickPrerequisiteComponent()
 	 */
 	UPROPERTY(EditDefaultsOnly, Category=Tick)
@@ -214,7 +214,7 @@ private:
 	 * If true, replicate movement/location related properties.
 	 * Actor must also be set to replicate.
 	 * @see SetReplicates()
-	 * @see https://docs.unrealengine.com/latest/INT/Gameplay/Networking/Replication/
+	 * @see https://docs.unrealengine.com/InteractiveExperiences/Networking/Actors
 	 */
 	UPROPERTY(ReplicatedUsing=OnRep_ReplicateMovement, Category=Replication, EditDefaultsOnly)
 	uint8 bReplicateMovement:1;    
@@ -528,7 +528,7 @@ public:
 	 * Properties flagged for replication will update on clients if they change on the server.
 	 * Internally changes the RemoteRole property and handles the cases where the actor needs to be added to the network actor list.
 	 * @param bInReplicates Whether this Actor replicates to network clients.
-	 * @see https://docs.unrealengine.com/latest/INT/Gameplay/Networking/Replication/
+	 * @see https://docs.unrealengine.com/InteractiveExperiences/Networking/Actors
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Networking)
 	void SetReplicates(bool bInReplicates);

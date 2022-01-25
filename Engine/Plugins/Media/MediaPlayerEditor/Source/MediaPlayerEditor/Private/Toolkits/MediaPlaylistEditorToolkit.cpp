@@ -97,7 +97,7 @@ void FMediaPlaylistEditorToolkit::Initialize(UMediaPlaylist* InMediaPlaylist, co
 
 FString FMediaPlaylistEditorToolkit::GetDocumentationLink() const
 {
-	return FString(TEXT("Engine/Content/Types/MediaAssets/Properties/Interface"));
+	return FString(TEXT("WorkingWithMedia/IntegratingMedia/MediaFramework"));
 }
 
 

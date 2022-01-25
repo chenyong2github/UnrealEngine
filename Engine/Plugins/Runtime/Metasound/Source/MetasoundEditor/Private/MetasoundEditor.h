@@ -95,7 +95,7 @@ namespace Metasound
 
 			virtual FString GetDocumentationLink() const override
 			{
-				return FString(TEXT("Engine/Audio/Metasounds/Editor"));
+				return FString(TEXT("working-with-audio/sound-sources/meta-sounds"));
 			}
 
 			/** FGCObject interface */

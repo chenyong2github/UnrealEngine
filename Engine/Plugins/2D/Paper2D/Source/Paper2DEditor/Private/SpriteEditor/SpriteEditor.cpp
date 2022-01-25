@@ -477,7 +477,7 @@ FString FSpriteEditor::GetWorldCentricTabPrefix() const
 
 FString FSpriteEditor::GetDocumentationLink() const
 {
-	return TEXT("Engine/Paper2D/SpriteEditor");
+	return TEXT("AnimatingObjects/Paper2D/Sprites");
 }
 
 void FSpriteEditor::OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit)
