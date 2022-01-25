@@ -74,9 +74,6 @@ struct FTonemapInputs
 	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
 	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
-	// Weather should allow dirk mask.
-	bool bAllowDirtMask = true;
-
 	// [Raster Only, Mobile] Flips the image vertically on output.
 	bool bFlipYAxis = false;
 

@@ -1223,6 +1223,16 @@ void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 				}
 			}
 		}
+
+		// Before, the convolution bloom would ignore the bloom intensity, but activate when BloomIntensity > 0.0. UE 5.0 changed so that the 
+		// BloomIntensity also controls the scatter dispersion of the convolution bloom.
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ConvolutionBloomIntensity)
+		{
+			if (BloomMethod == BM_FFT && BloomIntensity > 0.0)
+			{
+				BloomIntensity = 1.0f;
+			}
+		}
 	}
 }
 #endif

@@ -87,6 +87,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Pose asset GUID generated from source AnimationSequence
 		PoseAssetRawDataGUID,
 
+		// Convolution bloom now take into account FPostProcessSettings::BloomIntensity for scatter dispersion.
+		ConvolutionBloomIntensity,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
