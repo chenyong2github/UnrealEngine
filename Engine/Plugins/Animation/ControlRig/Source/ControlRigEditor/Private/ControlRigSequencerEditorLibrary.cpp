@@ -2229,6 +2229,122 @@ bool UControlRigSequencerEditorLibrary::BakeControlRigSpace(ULevelSequence* InSe
 	return bValid;
 }
 
+bool UControlRigSequencerEditorLibrary::DeleteControlRigSpace(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
+	bool bValid = false;
+
+	if (WeakSequencer.IsValid() && ControlRig && ControlName != NAME_None)
+	{
+		if (FRigControlElement* Element = ControlRig->FindControl(ControlName))
+		{
+			TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+			FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlName, Sequencer.Get(), false /*bCreateIfNeeded*/);
+			if (SpaceChannelAndSection.SpaceChannel)
+			{
+
+				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+				{
+					InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), LevelSequence->GetMovieScene()->GetDisplayRate(), LevelSequence->GetMovieScene()->GetTickResolution()).RoundToFrame();
+				}
+				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(SpaceChannelAndSection.SectionToKey);
+
+
+				TArray<FFrameNumber> OurKeyTimes;
+				TArray<FKeyHandle> OurKeyHandles;
+				TRange<FFrameNumber> CurrentFrameRange;
+				CurrentFrameRange.SetLowerBound(TRangeBound<FFrameNumber>(InTime));
+				CurrentFrameRange.SetUpperBound(TRangeBound<FFrameNumber>(InTime));
+				TMovieSceneChannelData<FMovieSceneControlRigSpaceBaseKey> ChannelInterface = SpaceChannelAndSection.SpaceChannel->GetData();
+				ChannelInterface.GetKeys(CurrentFrameRange, &OurKeyTimes, &OurKeyHandles);
+				if (OurKeyHandles.Num() > 0)
+				{
+					FScopedTransaction DeleteKeysTransaction(LOCTEXT("DeleteSpaceChannelKeys_Transaction", "Delete Space Channel Keys"));
+					ParamSection->TryModify();
+					SpaceChannelAndSection.SpaceChannel->DeleteKeys(OurKeyHandles);
+					WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+					bValid = true;
+				}
+				else
+				{
+					UE_LOG(LogControlRig, Error, TEXT("No Keys To Delete At that Time"));
+					return false;
+				}
+			}
+			else
+			{
+				UE_LOG(LogControlRig, Error, TEXT("Can not find Space Channel"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Can not find Control with that Name"));
+			return false;
+		}
+	}
+	return bValid;
+}
+
+bool UControlRigSequencerEditorLibrary::MoveControlRigSpace(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
+	bool bValid = false;
+
+	if (WeakSequencer.IsValid() && ControlRig && ControlName != NAME_None)
+	{
+		if (FRigControlElement* Element = ControlRig->FindControl(ControlName))
+		{
+			TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+			FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlName, Sequencer.Get(), false /*bCreateIfNeeded*/);
+			if (SpaceChannelAndSection.SpaceChannel)
+			{
+
+				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+				{
+					InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), LevelSequence->GetMovieScene()->GetDisplayRate(), LevelSequence->GetMovieScene()->GetTickResolution()).RoundToFrame();
+				}
+				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(SpaceChannelAndSection.SectionToKey);
+
+
+				TArray<FFrameNumber> OurKeyTimes;
+				TArray<FKeyHandle> OurKeyHandles;
+				TRange<FFrameNumber> CurrentFrameRange;
+				CurrentFrameRange.SetLowerBound(TRangeBound<FFrameNumber>(InTime));
+				CurrentFrameRange.SetUpperBound(TRangeBound<FFrameNumber>(InTime));
+				TMovieSceneChannelData<FMovieSceneControlRigSpaceBaseKey> ChannelInterface = SpaceChannelAndSection.SpaceChannel->GetData();
+				ChannelInterface.GetKeys(CurrentFrameRange, &OurKeyTimes, &OurKeyHandles);
+				if (OurKeyHandles.Num() > 0)
+				{
+					FScopedTransaction MoveKeys(LOCTEXT("MoveSpaceChannelKeys_Transaction", "Move Space Channel Keys"));
+					ParamSection->TryModify();
+					TArray<FFrameNumber> NewKeyTimes;
+					NewKeyTimes.Add(InNewTime);
+					SpaceChannelAndSection.SpaceChannel->SetKeyTimes(OurKeyHandles, NewKeyTimes);
+					WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+					bValid = true;
+				}
+				else
+				{
+					UE_LOG(LogControlRig, Error, TEXT("No Key To Move At that Time"));
+					return false;
+				}
+			}
+			else
+			{
+				UE_LOG(LogControlRig, Error, TEXT("Can not find Space Channel"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Can not find Control with that Name"));
+			return false;
+		}
+	}
+	return bValid;
+}
+
 bool UControlRigSequencerEditorLibrary::RenameControlRigControlChannels(ULevelSequence* LevelSequence, UControlRig* ControlRig, const TArray<FName>& InOldControlNames, const TArray<FName>& InNewControlNames)
 {
 	if (LevelSequence == nullptr || ControlRig == nullptr)

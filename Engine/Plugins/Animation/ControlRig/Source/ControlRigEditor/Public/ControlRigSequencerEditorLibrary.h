@@ -850,7 +850,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool BakeControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, const TArray<FName>& InControlNames, FRigSpacePickerBakeSettings InSettings, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 	
-	
+	/** Delete the Control Rig Space Key for the Control at the specified time. This will delete any attached Control Rig keys at this time and will perform any needed compensation to the new space.
+	*
+	* @param InSequence Sequence to set the space
+	* @param InControlRig ControlRig with the Control
+	* @param InControlName The name of the Control
+	* @param InTime Time to delete the space.
+	* @param TimeUnit Unit for the InTime, either in display rate or tick resolution
+	* @return Will return false if function fails,  for example if there is no key at this time it will fail.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool DeleteControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName, FFrameNumber InTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+	/** Move the Control Rig Space Key for the Control at the specified time to the new time. This will also move any Control Rig keys at this space switch boundary.
+	*
+	* @param InSequence Sequence to set the space
+	* @param InControlRig ControlRig with the Control
+	* @param InControlName The name of the Control
+	* @param InTime Original time of the space key
+	* @param InNewTime New time for the space key
+	* @param TimeUnit Unit for the time params, either in display rate or tick resolution
+	* @return Will return false if function fails, for example if there is no key at this time it will fail, or if the new time is invalid it could fail also
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool MoveControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+
+
 	/** Rename the Control Rig Channels in Sequencer to the specified new control names, which should be present on the Control Rig
 	* @param InSequence Sequence to rename controls
 	* @param InControlRig ControlRig to rename controls
