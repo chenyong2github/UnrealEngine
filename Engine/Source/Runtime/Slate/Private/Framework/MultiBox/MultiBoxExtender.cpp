@@ -226,9 +226,9 @@ void FExtender::Apply( FName ExtensionHook, EExtensionHook::Position HookPositio
 }
 
 
-TSharedPtr<FExtender> FExtender::Combine(const TArray< TSharedPtr<FExtender> >& Extenders)
+TSharedRef<FExtender> FExtender::Combine(const TArray< TSharedPtr<FExtender> >& Extenders)
 {
-	TSharedPtr<FExtender> OutExtender = MakeShareable(new FExtender);
+	TSharedRef<FExtender> OutExtender = MakeShared<FExtender>();
 	for (int32 i = 0; i < Extenders.Num(); ++i)
 	{
 		OutExtender->Extensions.Append(Extenders[i]->Extensions);

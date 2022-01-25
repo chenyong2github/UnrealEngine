@@ -124,7 +124,7 @@ public:
 	 * @param Extenders The array of FExtenders to consolidate
 	 * @return A new FExtender pointer that has all of the extensions of the input
 	 */
-	static SLATE_API TSharedPtr<FExtender> Combine(const TArray< TSharedPtr<FExtender> >& Extenders);
+	static SLATE_API TSharedRef<FExtender> Combine(const TArray< TSharedPtr<FExtender> >& Extenders);
 
 	/** Returns the number of extensions in the extender */
 	SLATE_API int32 NumExtensions() const { return Extensions.Num(); }
