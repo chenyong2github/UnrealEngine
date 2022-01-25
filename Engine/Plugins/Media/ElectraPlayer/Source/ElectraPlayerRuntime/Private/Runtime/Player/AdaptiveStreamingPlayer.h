@@ -114,13 +114,33 @@ public:
 			StartingBitrate.Reset();
 			bOptimizeForScrubbing.Reset();
 		}
+		// Time to seek to.
 		FTimeValue	Time;
+		// Maximum stream bitrate to use when seeking.
 		TOptional<int32> StartingBitrate;
+		// Optimize for frame scrubbing (faster display of frame at target time)?
 		TOptional<bool> bOptimizeForScrubbing;
+		// Allowed distance to last performed seek to save a redundant new seek.
+		TOptional<double> DistanceThreshold;
 	};
-	//! Seek to a new position and play from there. This includes first playstart.
-	//! Playback is initially paused on first player use and must be resumed to begin.
-	//! Query the seekable range (GetSeekableRange()) to get the valid time range.
+	
+	/**
+	 * Seek to a new position and play from there. This includes first playstart.
+	 * Playback is initially paused on first player use and must be resumed to begin.
+	 * Query the seekable range (GetSeekableRange()) to get the valid time range.
+	 * 
+	 * Seeks can be issued while a seek is already executing. The seek parameters
+	 * control behaviour. If seeking is performed for scrubbing any new seek will
+	 * be performed only when the previous seek has completed, otherwise the current
+	 * seek will be canceled in favor of the new.
+	 * If the new position being seeked to is within the specified distance to the
+	 * last completed seek a new seek will not be performed.
+	 * If new seeks are performed in rapid succession (as in scrubbing) not every
+	 * new position will be seeked to. Seek commands are aggregated and the position
+	 * set with the most recent call will be used as soon as any previous seek completes.
+	 * As a result you will NOT receive a ReportSeekCompleted() notification for
+	 * every seek requested, only for those that were executed and allowed to complete.
+	 */
 	virtual void SeekTo(const FSeekParam& NewPosition) = 0;
 
 	//! Pauses playback.

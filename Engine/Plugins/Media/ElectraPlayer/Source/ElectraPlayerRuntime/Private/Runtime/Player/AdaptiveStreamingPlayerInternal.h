@@ -1163,7 +1163,6 @@ private:
 				LoadManifest,
 				Pause,
 				Resume,
-				Seek,
 				Loop,
 				Close,
 				ChangeBitrate,
@@ -1206,10 +1205,6 @@ private:
 					}
 					FMediaEvent*									Event;
 				};
-				struct FStartPlay
-				{
-					FSeekParam										Position;
-				};
 				struct FLoop
 				{
 					FLoop()
@@ -1248,7 +1243,6 @@ private:
 				FLoadManifest				ManifestToLoad;
 				FStreamReader				StreamReader;
 				FEvent						MediaEvent;
-				FStartPlay					StartPlay;
 				FLoop						Looping;
 				FBitrate					Bitrate;
 				FSession					Session;
@@ -1298,13 +1292,6 @@ private:
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Resume;
-			TriggerSharedWorkerThread(MoveTemp(Msg));
-		}
-		void SendSeekMessage(const FSeekParam& NewPosition)
-		{
-			FMessage Msg;
-			Msg.Type = FMessage::EType::Seek;
-			Msg.Data.StartPlay.Position = NewPosition;
 			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendLoopMessage(const FLoopParam& InLoopParams)
@@ -1383,6 +1370,15 @@ private:
 				SharedWorkerThread->TriggerWork();
 			}
 		}
+
+		void TriggerSharedWorkerThread()
+		{
+			if (SharedWorkerThread.IsValid())
+			{
+				SharedWorkerThread->TriggerWork();
+			}
+		}
+
 		TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread>	SharedWorkerThread;
 		TQueue<FMessage, EQueueMode::Spsc>					WorkMessages;
 	};
@@ -1545,18 +1541,43 @@ private:
 
 	struct FSeekVars
 	{
-		FSeekVars()
-		{
-			Clear();
-		}
-		void Clear()
+		void ClearWorkVars()
 		{
 			bForScrubbing = false;
 			bScrubPrerollDone = false;
 		}
 
-		bool	bForScrubbing;
-		bool	bScrubPrerollDone;
+		void Reset()
+		{
+			FScopeLock lock(&Lock);
+			PendingRequest.Reset();
+			ActiveRequest.Reset();
+			LastFinishedRequest.Reset();
+			bForScrubbing = false;
+			bScrubPrerollDone = false;
+		}
+
+		void SetFinished()
+		{
+			LastFinishedRequest = ActiveRequest;
+			ActiveRequest.Reset();
+		}
+
+		void InvalidateLastFinished()
+		{
+			LastFinishedRequest.Reset();
+		}
+
+		bool	bForScrubbing = false;
+		bool	bScrubPrerollDone = false;
+		bool	bIsPlayStart = true;
+
+		TOptional<FSeekParam> ActiveRequest;
+		TOptional<FSeekParam> LastFinishedRequest;
+
+		FCriticalSection Lock;
+		// The pending request must be accessed under lock since it is written to by the main thread and read from the worker thread!
+		TOptional<FSeekParam> PendingRequest;
 	};
 
 	struct FStreamBitrateInfo
@@ -1709,6 +1730,7 @@ private:
 	void HandleNewOutputData();
 	void HandleSessionMessage(TSharedPtrTS<IPlayerMessage> SessionMessage);
 	void HandlePlayStateChanges();
+	void HandleSeeking();
 	void HandlePendingMediaSegmentRequests();
 	void CancelPendingMediaSegmentRequests(EStreamType StreamType);
 	void HandleDeselectedBuffers();
@@ -1868,7 +1890,6 @@ private:
 	double																PlaybackRate;
 	FTimeValue															RebufferDetectedAtPlayPos;
 	bool																bRebufferPending;
-	bool																bIsPlayStart;
 	bool																bIsClosing;
 
 	TSharedPtrTS<IAdaptiveStreamSelector>								StreamSelector;

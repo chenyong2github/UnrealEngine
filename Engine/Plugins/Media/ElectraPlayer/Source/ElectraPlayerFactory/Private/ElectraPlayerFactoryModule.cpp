@@ -100,9 +100,9 @@ public:
 		return ((Feature == EMediaFeature::AudioSamples) ||
 				(Feature == EMediaFeature::AudioTracks) ||
 				//(Feature == EMediaFeature::CaptionTracks) ||
-				//(Feature == EMediaFeature::MetadataTracks) ||
+				(Feature == EMediaFeature::MetadataTracks) ||
 				//(Feature == EMediaFeature::OverlaySamples) ||
-				//(Feature == EMediaFeature::SubtitleTracks) ||
+				(Feature == EMediaFeature::SubtitleTracks) ||
 				(Feature == EMediaFeature::VideoSamples) ||
 				(Feature == EMediaFeature::VideoTracks));
 	}

@@ -102,11 +102,11 @@ public:
 	void SetLastAudioRenderedSampleTime(FTimespan SampleTime) override;
 	bool FlushOnSeekStarted() const override
 	{
-		return true;
+		return false;
 	}
 	bool FlushOnSeekCompleted() const override
 	{
-		return true;
+		return false;
 	}
 
 	bool GetPlayerFeatureFlag(EFeatureFlag flag) const override;

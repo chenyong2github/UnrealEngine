@@ -90,7 +90,6 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	bRebufferPending   	    = false;
 	Manifest  				= nullptr;
 	LastBufferingState 		= EPlayerState::eState_Buffering;
-	bIsPlayStart   			= true;
 	bIsClosing 				= false;
 
 	bHaveVideoReader.Reset();
@@ -132,8 +131,7 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	bShouldBePaused  = false;
 	bShouldBePlaying = false;
 
-	SeekVars.Clear();
-
+	SeekVars.Reset();
 	CurrentLoopState = {};
 	NextLoopStates.Empty();
 	bFirstSegmentRequestIsForLooping = false;
@@ -656,15 +654,9 @@ void FAdaptiveStreamingPlayer::Resume()
  */
 void FAdaptiveStreamingPlayer::SeekTo(const FSeekParam& NewPosition)
 {
-	TSharedPtrTS<IManifest> CurrentManifest = Manifest;
-	if (CurrentManifest.IsValid())
-	{
-		WorkerThread.SendSeekMessage(NewPosition);
-	}
-	else
-	{
-		PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Error, FString::Printf(TEXT("API error: Cannot perform seek. No playlist loaded yet. Seeking is possible only when a valid playlist is available!")));
-	}
+	FScopeLock lock(&SeekVars.Lock);
+	SeekVars.PendingRequest = NewPosition;
+	WorkerThread.TriggerSharedWorkerThread();
 }
 
 
@@ -1297,6 +1289,8 @@ void FAdaptiveStreamingPlayer::InternalHandleOnce()
 
 		// Update diag buffers
 		UpdateDiagnostics();
+		// Handle seek requests.
+		HandleSeeking();
 		// Check for end of stream.
 		CheckForStreamEnd();
 		// Check the error queue for new arrivals.
@@ -1370,39 +1364,6 @@ bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
 			{
 				bShouldBePaused = false;
 				bShouldBePlaying = true;
-				break;
-			}
-			case FWorkerThreadMessages::FMessage::EType::Seek:
-			{
-				FSeekParam StartAtTime = msg.Data.StartPlay.Position;
-
-				SeekVars.Clear();
-
-				if (bIsPlayStart)
-				{
-					CurrentState = EPlayerState::eState_Buffering;
-					InternalStartAt(StartAtTime);
-				}
-				else
-				{
-					// Stop everything.
-					InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
-					if (Manifest.IsValid())
-					{
-						Manifest->UpdateDynamicRefetchCounter();
-					}
-					CurrentState = EPlayerState::eState_Seeking;
-
-					if (StartAtTime.bOptimizeForScrubbing.IsSet())
-					{
-						SeekVars.bForScrubbing = StartAtTime.bOptimizeForScrubbing.GetValue();
-					}
-					else
-					{
-						SeekVars.bForScrubbing = PlayerOptions.GetValue(OptionKeyFrameOptimizeSeekForScrubbing).SafeGetBool(false);
-					}
-					InternalStartAt(StartAtTime);
-				}
 				break;
 			}
 			case FWorkerThreadMessages::FMessage::EType::Loop:
@@ -1656,6 +1617,80 @@ void FAdaptiveStreamingPlayer::HandlePlayStateChanges()
 		}
 	}
 }
+
+
+void FAdaptiveStreamingPlayer::HandleSeeking()
+{
+	// Are we in a state where a seek is possible?
+	if (CurrentState == EPlayerState::eState_Idle || CurrentState == EPlayerState::eState_ParsingManifest || CurrentState == EPlayerState::eState_PreparingStreams || CurrentState == EPlayerState::eState_Error ||
+		!Manifest.IsValid())
+	{
+		// No, return.
+		return;
+	}
+
+	// When playing the last successfully seeked position is irrelevant and cannot be used as a reference any more.
+	if (PlaybackState.GetIsPlaying())
+	{
+		SeekVars.InvalidateLastFinished();
+	}
+
+	FScopeLock lock(&SeekVars.Lock);
+	// Is there a pending request?
+	if (SeekVars.PendingRequest.IsSet())
+	{
+		// If there is an active request and the new request is for scrubbing we let the active request finish first.
+		if (SeekVars.ActiveRequest.IsSet() && SeekVars.PendingRequest.GetValue().bOptimizeForScrubbing.Get(false))
+		{
+			return;
+		}
+
+		// Check the distance to the last seek performed, if there is one.
+		if (SeekVars.LastFinishedRequest.IsSet())
+		{
+			double Distance = Utils::AbsoluteValue(SeekVars.LastFinishedRequest.GetValue().Time.GetAsSeconds() - SeekVars.PendingRequest.GetValue().Time.GetAsSeconds());
+			if (Distance <= SeekVars.PendingRequest.GetValue().DistanceThreshold.Get(0.0))
+			{
+				// Already there
+				SeekVars.PendingRequest.Reset();
+				DispatchEvent(FMetricEvent::ReportSeekCompleted());
+				return;
+			}
+		}
+
+		// Trigger the seek.
+		FSeekParam SeekParam = SeekVars.PendingRequest.GetValue();
+		SeekVars.PendingRequest.Reset();
+		SeekVars.ClearWorkVars();
+
+		if (SeekVars.bIsPlayStart)
+		{
+			CurrentState = EPlayerState::eState_Buffering;
+		}
+		else
+		{
+			// Stop everything.
+			InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
+			if (Manifest.IsValid())
+			{
+				Manifest->UpdateDynamicRefetchCounter();
+			}
+			CurrentState = EPlayerState::eState_Seeking;
+
+			if (SeekParam.bOptimizeForScrubbing.IsSet())
+			{
+				SeekVars.bForScrubbing = SeekParam.bOptimizeForScrubbing.GetValue();
+			}
+			else
+			{
+				SeekVars.bForScrubbing = PlayerOptions.GetValue(OptionKeyFrameOptimizeSeekForScrubbing).SafeGetBool(false);
+			}
+		}
+		SeekVars.ActiveRequest = SeekParam;
+		InternalStartAt(SeekVars.ActiveRequest.GetValue());
+	}
+}
+
 
 
 //-----------------------------------------------------------------------------
@@ -2325,6 +2360,8 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 					CurrentState = EPlayerState::eState_Paused;
 					PlaybackRate = 0.0;
 					PrerollVars.Clear();
+					SeekVars.ClearWorkVars();
+					SeekVars.SetFinished();
 					if (LastBufferingState == EPlayerState::eState_Seeking)
 					{
 						DispatchEvent(FMetricEvent::ReportSeekCompleted());
@@ -2346,6 +2383,7 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 				if (!SeekVars.bScrubPrerollDone)
 				{
 					SeekVars.bScrubPrerollDone = true;
+					SeekVars.SetFinished();
 					DispatchEvent(FMetricEvent::ReportSeekCompleted());
 					// Pause feeding the decoder to stop draining buffers we want to fill.
 					DecoderState = EDecoderState::eDecoder_Paused;
@@ -2356,7 +2394,7 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 					PlaybackState.SetIsBuffering(false);
 					PlaybackState.SetIsSeeking(false);
 
-					SeekVars.Clear();
+					SeekVars.ClearWorkVars();
 					PipelineState = EPipelineState::ePipeline_Stopped;
 					CurrentState = EPlayerState::eState_Paused;
 					DecoderState = EDecoderState::eDecoder_Running;
@@ -4037,7 +4075,7 @@ void FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	PendingStartRequest->SearchType = IManifest::ESearchType::Closest;
 	PendingStartRequest->StartAt.Time = NewPosition.Time;
 	PendingStartRequest->StartingBitrate = NewPosition.StartingBitrate;
-	PendingStartRequest->StartType = bIsPlayStart ? FPendingStartRequest::EStartType::PlayStart : FPendingStartRequest::EStartType::Seeking;
+	PendingStartRequest->StartType = SeekVars.bIsPlayStart ? FPendingStartRequest::EStartType::PlayStart : FPendingStartRequest::EStartType::Seeking;
 
 
 	// The fragment should be the closest to the time stamp unless we are rebuffering in which case it should be the one we failed on.
@@ -4057,7 +4095,7 @@ void FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	AEMSEventHandler->PlaybackStartingUp();
 
 	// From this point on any further start will not be the very first one any more.
-	bIsPlayStart = false;
+	SeekVars.bIsPlayStart = false;
 }
 
 
@@ -4198,7 +4236,7 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	UpcomingPeriods.Empty();
 	MetadataHandlingState.Reset();
 	NextLoopStates.Empty();
-	SeekVars.Clear();
+	SeekVars.Reset();
 
 	PlaybackRate = 0.0;
 	CurrentState = EPlayerState::eState_Paused;

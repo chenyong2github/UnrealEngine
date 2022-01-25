@@ -661,6 +661,8 @@ bool FElectraPlayerPlugin::GetPlayerFeatureFlag(EFeatureFlag flag) const
 			return Player->IsKillAfterCloseAllowed();
 		case EFeatureFlag::UsePlaybackTimingV2:
 			return true;
+		case EFeatureFlag::PlayerUsesInternalFlushOnSeek:
+			return true;
 		default:
 			break;
 	}
