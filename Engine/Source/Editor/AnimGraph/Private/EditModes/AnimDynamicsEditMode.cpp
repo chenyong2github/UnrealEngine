@@ -5,6 +5,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "EditorViewportClient.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 // AnimDynamicsEditMode hit proxy
 //
