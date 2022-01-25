@@ -465,6 +465,11 @@ namespace Horde.Storage.Implementation
 
                     if (problemDetails.Type == ProblemTypes.UseSnapshot)
                     {
+                        if (!problemDetails.Extensions.ContainsKey("SnapshotId"))
+                        {
+                            throw new Exception("Unknown response, looks like a problem details but is lacking snapshot id " + body);
+                        }
+
                         BlobIdentifier snapshotBlob = new BlobIdentifier(problemDetails.Extensions["SnapshotId"]!.ToString()!);
                         throw new UseSnapshotException(snapshotBlob);
                     }
