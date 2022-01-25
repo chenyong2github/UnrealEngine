@@ -9,9 +9,9 @@
 #include "Math/UnrealMathUtility.h"
 #include "Templates/AlignmentTemplates.h"
 
-#if PLATFORM_UNIX || PLATFORM_SWITCH
+#if PLATFORM_USE_ANSI_POSIX_MALLOC
 	#include <malloc.h>
-#endif // PLATFORM_UNIX || PLATFORM_SWITCH
+#endif
 
 #if PLATFORM_IOS
 	#include "mach/mach.h"
