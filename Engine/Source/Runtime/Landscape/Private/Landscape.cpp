@@ -1131,6 +1131,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	LandscapeEdMode = nullptr;
 	bGrassUpdateEnabled = true;
 	bIsSpatiallyLoaded = false;
+	bDefaultOutlinerExpansionState = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
