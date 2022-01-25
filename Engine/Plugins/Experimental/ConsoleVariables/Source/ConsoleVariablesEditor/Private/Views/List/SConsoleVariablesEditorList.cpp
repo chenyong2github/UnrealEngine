@@ -58,6 +58,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			SNew(SHorizontalBox)
 
 			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
 			.Padding(0.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew(ListSearchBoxPtr, SSearchBox)
@@ -65,13 +66,15 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
 			]
 
-			// Global Search
+			// Global Search Button
 			+SHorizontalBox::Slot()
-			.Padding(8.f, 1.f, 0.f, 1.f)
 			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
 			.AutoWidth()
+			.Padding(FMargin(8.f, 0.f, 0.f, 0.f))
 			[
 				SNew(SButton)
+				.ContentPadding(4.f)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([this]()
 				{
@@ -81,9 +84,24 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				})
 				.ToolTipText(LOCTEXT("OpenInGlobalSearchButtonTooltip", "Search All Console Variables"))
 				[
-					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "FindResults.FindInBlueprints")
-					.Text(FText::FromString(FString(TEXT("\xf1e5"))) /*fa-binoculars*/)
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.Padding(0, 1, 4, 0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.TextStyle(FAppStyle::Get(), "FindResults.FindInBlueprints")
+						.Text(FText::FromString(FString(TEXT("\xf1e5"))) /*fa-binoculars*/)
+					]
+
+					+SHorizontalBox::Slot()
+					.Padding(4.f, 0.f, 0.f, 0.f)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("GlobalSearchButtonText","Search All"))
+					]
 				]
 			]
 
@@ -95,6 +113,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.Padding(8.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew( ViewOptionsComboButton, SComboButton )
+				.ContentPadding(0)
 				.ToolTipText(LOCTEXT("ShowOptions_Tooltip", "Show options to affect the visibility of items in the Console Variables Editor list"))
 				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SConsoleVariablesEditorList::BuildShowOptionsMenu)

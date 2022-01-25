@@ -203,6 +203,13 @@ FReply SConsoleVariablesEditorCustomConsoleInputBox::OnPreviewKeyDown(const FGeo
 	return FReply::Unhandled();
 }
 
+bool SConsoleVariablesEditorCustomConsoleInputBox::TakeKeyboardFocus() const
+{
+	check(InputText.IsValid());
+	
+	return FSlateApplication::Get().SetKeyboardFocus(InputText.ToSharedRef());
+}
+
 void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& InText)
 {
 	if(bIgnoreUIUpdate)

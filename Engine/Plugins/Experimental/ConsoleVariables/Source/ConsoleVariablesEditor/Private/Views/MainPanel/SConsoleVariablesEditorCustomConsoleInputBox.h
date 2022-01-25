@@ -78,6 +78,8 @@ public:
 	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent) override;
 	//~ End SWidget Interface
 
+	bool TakeKeyboardFocus() const;
+
 	void OnTextChanged(const FText& InText);
 
 	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const;

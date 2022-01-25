@@ -15,6 +15,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
+#include "SPositiveActionButton.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
@@ -44,6 +45,15 @@ void SConsoleVariablesEditorMainPanel::Construct(
 		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
 			GeneratePanelToolbar()
+		]
+
+		+SVerticalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.AutoHeight()
+		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
+		[
+			SAssignNew(AddConsoleObjectInputBoxPtr, SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
+			.Visibility(EVisibility::Collapsed)
 		]
 
 		+SVerticalBox::Slot()
@@ -165,19 +175,20 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 {
 	return SAssignNew(ToolbarHBox, SHorizontalBox)
 				
-			// Add Console Variable input
+			// Add Console Variable button
 			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Left)
 			[
-				SNew(SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
+				SNew(SPositiveActionButton)
+				.Text(LOCTEXT("ConsoleVariable", "Console Variable"))
+				.OnClicked(this, &SConsoleVariablesEditorMainPanel::HandleAddConsoleVariableButtonClicked)
 			]
 
 			// Presets Management Button
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Fill)
-			.AutoWidth()
 			.Padding(FMargin(8.f, 0.f, 0.f, 0.f))
 			[
 				SNew(SComboButton)
@@ -201,6 +212,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 
 					+ SHorizontalBox::Slot()
 					.Padding(0, 1, 0, 0)
+					.AutoWidth()
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("PresetsToolbarButton", "Presets"))
@@ -209,34 +221,42 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 			];
 }
 
+FReply SConsoleVariablesEditorMainPanel::HandleAddConsoleVariableButtonClicked()
+{
+	if (AddConsoleObjectInputBoxPtr.IsValid())
+	{
+		AddConsoleObjectInputBoxPtr->SetVisibility(EVisibility::Visible);
+
+		AddConsoleObjectInputBoxPtr->TakeKeyboardFocus();
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
 void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
 {
 	if (MainPanel.Pin()->GetMultiUserManager().IsInitialized())
-	{
-		constexpr int32 ButtonBoxSize = 28;
-		
+	{		
 		// Toggle Multi-User Details
 		ToolbarHBox->AddSlot()
-		.VAlign(VAlign_Fill)
-		.AutoWidth()
-		.Padding(FMargin(8.f, 1.f, 0.f, 1.f))
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(11.f, 1.f, 0.f, 1.f)
 		[
-			SNew(SBox)
-			.WidthOverride(ButtonBoxSize)
-			.HeightOverride(ButtonBoxSize)
+			SAssignNew(ConcertButtonPtr, SCheckBox)
+			.Padding(0)
+			.ToolTipText(LOCTEXT("ShowConcertSettings_Tip", "Show the multi-user controls for Console Variables"))
+			.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsChecked(false)
+			.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails)
 			[
-				SAssignNew(ConcertButtonPtr, SCheckBox)
-				.Padding(4.f)
-				.ToolTipText(LOCTEXT("ShowConcertSettings_Tip", "Show the multi-user controls for Console Variables"))
-				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.IsChecked(false)
-				.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails)
-				[
-					SNew(SImage)
-					.Image(FConsoleVariablesEditorStyle::Get().GetBrush("Concert.MultiUser"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+				SNew(SImage)
+				.Image(FConsoleVariablesEditorStyle::Get().GetBrush("Concert.MultiUser"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
 	}

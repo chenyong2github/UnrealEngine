@@ -7,6 +7,7 @@
 
 class FConsoleVariablesEditorMainPanel;
 class SBox;
+class SConsoleVariablesEditorCustomConsoleInputBox;
 class SHorizontalBox;
 class SVerticalBox;
 class UConsoleVariablesAsset;
@@ -36,6 +37,8 @@ private:
 	/** A reference to the struct that controls this widget */
 	TWeakPtr<FConsoleVariablesEditorMainPanel> MainPanel;
 
+	TSharedPtr<SConsoleVariablesEditorCustomConsoleInputBox> AddConsoleObjectInputBoxPtr;
+
 	TSharedPtr<SHorizontalBox> ToolbarHBox;
 
 	/** A reference to the button which opens the plugin settings */
@@ -43,6 +46,8 @@ private:
 
 	/** Creates the toolbar at the top of the MainPanel widget */
 	TSharedRef<SWidget> GeneratePanelToolbar();
+
+	FReply HandleAddConsoleVariableButtonClicked();
 	
 	void CreateConcertButtonIfNeeded();
 

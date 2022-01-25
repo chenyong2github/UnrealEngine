@@ -38,7 +38,8 @@ public class ConsoleVariablesEditor : ModuleRules
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",
-				"ToolMenus",
+				"ToolMenus", 
+				"ToolWidgets",
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}
