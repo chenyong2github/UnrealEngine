@@ -3,10 +3,7 @@
 #include "OptimusDataTypeRegistry.h"
 
 #include "OptimusDeveloperModule.h"
-#include "Types/OptimusType_MeshAttribute.h"
-#include "Types/OptimusType_MeshSkinWeights.h"
 
-#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "UObject/UnrealType.h"
 
