@@ -99,6 +99,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> BlackDummy;
 	// float4(0,0,0,1)
 	TRefCountPtr<IPooledRenderTarget> BlackAlphaOneDummy;
+	// Dummy texture array with 1 black slice 
+	TRefCountPtr<IPooledRenderTarget> BlackArrayDummy;
 	// used by the material expression Noise
 	TRefCountPtr<IPooledRenderTarget> PerlinNoiseGradient;
 	// used by the material expression Noise (faster version, should replace old version), todo: move out of SceneRenderTargets
@@ -152,6 +154,7 @@ public:
 	// Create simple default texture
 	FRDGTextureRef RENDERER_API GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetBlackArrayDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetZeroUShort4Dummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;

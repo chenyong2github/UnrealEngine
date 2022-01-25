@@ -87,6 +87,15 @@ void SetDummyTextureData(FRHITexture2D* Texture2D, const DataType& DummyData)
 	RHIUnlockTexture2D(Texture2D, 0, false);
 }
 
+template <typename DataType>
+void SetDummyTextureArrayData(FRHITexture2DArray* Texture2DArray, const DataType& DummyData)
+{
+	uint32 DestStride;
+	DataType* DestBuffer = (DataType*)RHILockTexture2DArray(Texture2DArray, 0, 0, RLM_WriteOnly, DestStride, false);
+	*DestBuffer = DummyData;
+	RHIUnlockTexture2DArray(Texture2DArray, 0, 0, false);
+}
+
 void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdList)
 {
 	// First initialize textures that are common to all feature levels. This is always done the first time we come into this function, as doesn't care about the
@@ -106,6 +115,14 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		BlackDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
 	}
 	
+	// Create a texture array that has a single black dummy slice 
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("BlackArrayDummy"));
+		FTexture2DArrayRHIRef Texture2DArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureArrayData<FColor>(Texture2DArray, FColor(0, 0, 0, 0));
+		BlackArrayDummy = CreateRenderTarget(Texture2DArray, CreateInfo.DebugName);
+	}
+
 	// Create a texture that is a single UInt32 value set to 0
 	{	
 		FRHIResourceCreateInfo CreateInfo(TEXT("ZeroUIntDummy"));
@@ -329,7 +346,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)AsciiTexture->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 	}
 
-	// The PreintegratedGF maybe used on forward shading inluding mobile platorm, intialize it anyway.
+	// The PreintegratedGF maybe used on forward shading including mobile platform, initialize it anyway.
 	{
 		// for testing, with 128x128 R8G8 we are very close to the reference (if lower res is needed we might have to add an offset to counter the 0.5f texel shift)
 		const bool bReference = false;
@@ -799,6 +816,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	WhiteDummySRV.SafeRelease();
 	WhiteDummy.SafeRelease();
 	BlackDummy.SafeRelease();
+	BlackArrayDummy.SafeRelease();
 	BlackAlphaOneDummy.SafeRelease();
 	PerlinNoiseGradient.SafeRelease();
 	PerlinNoise3D.SafeRelease();
@@ -845,6 +863,11 @@ FRDGTextureRef FSystemTextures::GetBlackDummy(FRDGBuilder& GraphBuilder) const
 FRDGTextureRef FSystemTextures::GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(BlackAlphaOneDummy, TEXT("BlackAlphaOneDummy"));
+}
+
+FRDGTextureRef FSystemTextures::GetBlackArrayDummy(FRDGBuilder& GraphBuilder) const
+{
+	return GraphBuilder.RegisterExternalTexture(BlackArrayDummy, TEXT("BlackArrayDummy"));
 }
 
 FRDGTextureRef FSystemTextures::GetWhiteDummy(FRDGBuilder& GraphBuilder) const
