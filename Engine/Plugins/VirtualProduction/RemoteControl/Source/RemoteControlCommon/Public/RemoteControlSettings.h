@@ -56,6 +56,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Force WebApp build at startup")
 	bool bForceWebAppBuildAtStartup = false;
 
+	/** Should WebApp log timing. */
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Log WebApp requests handle duration")
+	bool bWebAppLogRequestDuration = false;
+
 	/** Whether web server is started automatically. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server")
 	bool bAutoStartWebServer = true;

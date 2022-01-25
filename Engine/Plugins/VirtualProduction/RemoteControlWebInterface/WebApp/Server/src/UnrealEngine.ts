@@ -2,7 +2,7 @@ import { IPayload, IPayloads, IPreset, IPresets, IPanel, IView, ICustomStackWidg
           IAsset, WidgetTypes, PropertyType, IColorPickerList, ICustomStackItem } from '../../Client/src/shared';
 import _ from 'lodash';
 import WebSocket from 'ws';
-import { Notify, Program } from './';
+import { Notify, Program, LogServer } from './';
 import crypto from 'crypto';
 
 
@@ -180,6 +180,9 @@ export namespace UnrealEngine {
         if (!promise)
           return;
 
+        if (Program.logger)
+          LogServer.log({ RequestId: message.RequestId, Stage: 'Done' });
+
         delete pendings[message.RequestId];
         promise?.(message.ResponseBody);
         return;
@@ -300,7 +303,11 @@ export namespace UnrealEngine {
 
   function http<T>(Verb: string, URL: string, Body?: object, wantAnswer?: boolean): Promise<T> {
     const RequestId = httpRequest++;
-    send('http', { RequestId, Verb, URL, Body });
+    const payload = { RequestId, Verb, URL, Body };
+    if (Program.logger)
+      LogServer.log(payload);
+
+    send('http', payload);
     if (!wantAnswer)
       return Promise.resolve(null);
 

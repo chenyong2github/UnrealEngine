@@ -34,6 +34,9 @@ public:
 	/** Get the webapp's status. */
 	EStatus GetStatus() const;
 
+	/** Enable / disable external logger */
+	void SetExternalLoggerEnabled(bool bEnableExternalLog);
+
 protected:
 	virtual uint32 Run() override;
 

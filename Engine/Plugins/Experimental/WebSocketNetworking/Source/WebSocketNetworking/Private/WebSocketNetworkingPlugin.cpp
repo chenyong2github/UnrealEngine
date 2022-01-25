@@ -3,6 +3,8 @@
 #include "IWebSocketNetworkingModule.h"
 #include "WebSocketNetworkingPrivate.h"
 #include "WebSocketServer.h"
+#include "WebSocket.h"
+
 
 
 class FWebSocketNetworkingPlugin : public IWebSocketNetworkingModule
@@ -21,6 +23,11 @@ public:
 	TUniquePtr<IWebSocketServer> CreateServer() override
 	{
 		return MakeUnique<FWebSocketServer>();
+	}
+
+	TSharedPtr<INetworkingWebSocket> CreateConnection(const FInternetAddr& ServerAddress) override
+	{
+		return MakeShared<FWebSocket>(ServerAddress);
 	}
 
 };

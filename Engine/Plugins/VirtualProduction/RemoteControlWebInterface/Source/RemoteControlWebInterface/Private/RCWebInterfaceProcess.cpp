@@ -8,6 +8,11 @@
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/CommandLine.h"
+#include "Modules/ModuleManager.h"
+#include "IWebRemoteControlModule.h"
+#include "IWebSocketNetworkingModule.h"
+#include "INetworkingWebSocket.h"
+#include "SocketSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "RemoteControlWebInterface"
@@ -55,6 +60,8 @@ void FRemoteControlWebInterfaceProcess::Shutdown()
 {
 	Status = EStatus::Stopped;
 
+	SetExternalLoggerEnabled(false);
+
 	if (Process.IsValid())
 	{
 		FPlatformProcess::TerminateProc(Process, true);
@@ -72,6 +79,25 @@ void FRemoteControlWebInterfaceProcess::Shutdown()
 FRemoteControlWebInterfaceProcess::EStatus FRemoteControlWebInterfaceProcess::GetStatus() const
 {
 	return Status.load();
+}
+
+void FRemoteControlWebInterfaceProcess::SetExternalLoggerEnabled(bool bEnableExternalLog)
+{
+	TSharedPtr<INetworkingWebSocket> WebSocketLoggerConnection;
+	if (bEnableExternalLog)
+	{
+		const URemoteControlSettings* RCSettings = GetDefault<URemoteControlSettings>();
+
+		TSharedRef<FInternetAddr> Address = ISocketSubsystem::Get()->CreateInternetAddr();
+
+		bool bIsValidIp = false;
+		Address->SetIp(TEXT("127.0.0.1"), bIsValidIp);
+		Address->SetPort(RCSettings->RemoteControlWebInterfacePort + 2);
+		WebSocketLoggerConnection = FModuleManager::LoadModuleChecked<IWebSocketNetworkingModule>(TEXT("WebSocketNetworking")).CreateConnection(*Address);
+	}
+
+	IWebRemoteControlModule& WebRemoteControlModule = FModuleManager::LoadModuleChecked<IWebRemoteControlModule>("WebRemoteControl");
+	WebRemoteControlModule.SetExternalRemoteWebSocketLoggerConnection(WebSocketLoggerConnection);
 }
 
 uint32 FRemoteControlWebInterfaceProcess::Run()
@@ -109,6 +135,11 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 	if (RCSettings->bForceWebAppBuildAtStartup)
 	{
 		Args.Append(TEXT("--build "));
+	}
+
+	if (RCSettings->bWebAppLogRequestDuration)
+	{
+		Args.Append(TEXT("--log "));
 	}
 
 	void* ReadPipe = nullptr;
@@ -188,6 +219,12 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 							FText::FromString(CompleteMessage),
 							true);
 						Status = EStatus::Running;
+
+
+						if (RCSettings->bWebAppLogRequestDuration)
+						{
+							SetExternalLoggerEnabled(true);
+						}
 					}
 					else
 					{

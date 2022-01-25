@@ -18,9 +18,11 @@ public class RemoteControlWebInterface : ModuleRules
 				"SlateCore",
 				"Projects",
 				"RemoteControl",
-				"WebRemoteControl"
+				"Sockets",
+				"WebRemoteControl",
+				"WebSocketNetworking"
 			}
-			);
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 

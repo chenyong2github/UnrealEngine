@@ -11,6 +11,7 @@
 #include "RemoteControlSettings.h"
 #include "RemoteControlPreset.h"
 #include "WebRemoteControlUtils.h"
+#include "WebRemoteControlExternalLogger.h"
 #include "WebSocketMessageHandler.h"
 
 #if WITH_EDITOR
@@ -453,6 +454,16 @@ void FWebRemoteControlModule::StopWebSocketServer()
 {
 	WebSocketServer.Stop();
 	OnWebSocketServerStoppedDelegate.Broadcast();
+}
+
+void FWebRemoteControlModule::SetExternalRemoteWebSocketLoggerConnection(TSharedPtr<INetworkingWebSocket> WebSocketLoggerConnection)
+{
+	ExternalLogger.Reset();
+	
+	if (WebSocketLoggerConnection.IsValid())
+	{
+		ExternalLogger = MakeUnique<FWebRemoteControlExternalLogger>(WebSocketLoggerConnection);
+	}
 }
 
 void FWebRemoteControlModule::StartRoute(const FRemoteControlRoute& Route)
@@ -1697,10 +1708,15 @@ void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWeb
 		return;
 	}
 
+	LogRequestExternally(Wrapper.RequestId, TEXT("UE Received"));
+	
 	FMemoryWriter Writer(UTF8Response);
 	InvokeWrappedRequest(Wrapper, Writer);
 
+	LogRequestExternally(Wrapper.RequestId, TEXT("UE Processed"));
+
 	WebSocketServer.Send(WebSocketMessage.ClientId, MoveTemp(UTF8Response));
+	LogRequestExternally(Wrapper.RequestId, TEXT("UE Sent"));
 }
 
 void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest)
@@ -1759,6 +1775,14 @@ void FWebRemoteControlModule::OnSettingsModified(UObject* Settings, FPropertyCha
 }
 
 #endif
+
+void FWebRemoteControlModule::LogRequestExternally(int32 RequestId, const TCHAR* Stage)
+{
+	if (ExternalLogger.IsValid())
+	{
+		ExternalLogger->Log(RequestId, Stage);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE /* WebRemoteControl */
 

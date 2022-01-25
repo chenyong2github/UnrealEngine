@@ -46,6 +46,7 @@ public:
 	virtual FSimpleMulticastDelegate& OnHttpServerStopped() override { return OnHttpServerStoppedDelegate; }
 	virtual FOnWebServerStarted& OnWebSocketServerStarted() override { return OnWebSocketServerStartedDelegate; }
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() override { return OnWebSocketServerStoppedDelegate; }
+	virtual void SetExternalRemoteWebSocketLoggerConnection(TSharedPtr<class INetworkingWebSocket> WebSocketLoggerConnection);
 	//~ End IWebRemoteControlModule Interface
 
 	/**
@@ -140,6 +141,8 @@ private:
 	void OnSettingsModified(UObject* Settings, FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
+	void LogRequestExternally(int32 RequestId, const TCHAR* Stage);
+
 private:
 	/** Console commands handles. */
 	TArray<TUniquePtr<FAutoConsoleCommand>> ConsoleCommands;
@@ -184,6 +187,9 @@ private:
 	 * Mappings of preprocessors delegate handles generated from the WebRC module to the ones generated from the Http Module.
 	 */
 	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
+
+	/** An external web socket logger*/
+	TUniquePtr<class FWebRemoteControlExternalLogger> ExternalLogger;
 
 	//~ Server started stopped delegates.
 	FOnWebServerStarted OnHttpServerStartedDelegate;

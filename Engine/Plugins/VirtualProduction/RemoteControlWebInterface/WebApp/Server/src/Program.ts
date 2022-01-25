@@ -9,6 +9,7 @@ class Program {
   readonly ueHttpPort: number;
   readonly ueWebSocketPort: number;
   readonly rootFolder: string;
+  readonly logger: boolean;
 
   constructor() {
     this.dev = false;
@@ -16,12 +17,14 @@ class Program {
     this.port = 7000;
     this.ueHttpPort = 30010;
     this.ueWebSocketPort = 30020;
+    this.logger = false;
 
     for (let i = 2; i < process.argv.length; i++) {
       switch (process.argv[i]) {
         case '--dev':
           this.dev = true;
           this.port = 7001;
+          this.logger = true;
           break;
 
         case '--monitor':
@@ -41,6 +44,10 @@ class Program {
         case '--uews':
           this.ueWebSocketPort = parseInt(process.argv[i + 1]) || 30020;
           i++;
+          break;
+
+        case '--log':
+          this.logger = true;
           break;
       }
     }

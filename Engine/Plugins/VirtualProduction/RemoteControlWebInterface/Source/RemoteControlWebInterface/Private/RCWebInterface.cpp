@@ -96,6 +96,12 @@ void FRemoteControlWebInterfaceModule::OnSettingsModified(UObject* Settings, FPr
 		WebApp->Shutdown();
 		WebApp->Start();
 	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, bWebAppLogRequestDuration))
+	{
+		const URemoteControlSettings* RCSettings = CastChecked<URemoteControlSettings>(Settings);
+		WebApp->SetExternalLoggerEnabled(RCSettings->bWebAppLogRequestDuration);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

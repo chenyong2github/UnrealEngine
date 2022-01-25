@@ -49,4 +49,9 @@ public:
 	 * Event triggered when the websocket server stops.
 	 */
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() = 0;
+
+	/**
+	 * Set Remote Web Socket Logger
+	 */
+	virtual void SetExternalRemoteWebSocketLoggerConnection(TSharedPtr<class INetworkingWebSocket> WebSocketLoggerConnection) = 0;
 };
