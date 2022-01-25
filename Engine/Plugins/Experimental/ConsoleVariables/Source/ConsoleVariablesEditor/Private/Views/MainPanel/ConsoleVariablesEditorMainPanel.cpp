@@ -58,6 +58,8 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
 {
 	if (const TObjectPtr<UConsoleVariablesAsset> Asset = GetEditingAsset())
 	{
+		UpdatePresetValuesForSave(Asset);
+		
 		Asset->AddOrSetConsoleObjectSavedData(
 			{
 				InConsoleCommand,

@@ -62,7 +62,8 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.Padding(0.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew(ListSearchBoxPtr, SSearchBox)
-				.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
+				.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search..."))
+				.ToolTipText(LOCTEXT("ConsoleVariablesEditorList_TooltipText", "Search tracked variables, values, sources or help text"))
 				.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
 			]
 
@@ -129,6 +130,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
 			SAssignNew(GlobalSearchesHBox, SHorizontalBox)
 			.Visibility_Lambda([this]()
@@ -147,18 +149,21 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			]
 
 			+SHorizontalBox::Slot()
-			.Padding(4.f, 0.f, 2.f, 0.f)
-			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
+			.Padding(8.f, 1.f, 2.f, 1.f)
 			[
 				// Remove Button
-				SAssignNew(RemoveGlobalSearchesButtonPtr, SButton)
+				SAssignNew(RemoveGlobalSearchesButtonPtr, SCheckBox)
+				.Padding(0)
 				.ToolTipText(
 					LOCTEXT("RemoveGlobalSearchesButtonTooltip",
 					"Remove all global searches from the console variables editor."))
-				.ButtonColorAndOpacity(FStyleColors::Transparent)
-				.OnClicked_Lambda([this]()
+				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsChecked(false)
+				.OnCheckStateChanged_Lambda([this] (ECheckBoxState NewCheckState)
 				{
 					ListModelPtr.Pin()->SetListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset);
 
@@ -166,13 +171,13 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 					CurrentGlobalSearches.Empty();
 
 					RebuildList();
-					
-					return FReply::Handled();
+
+					RemoveGlobalSearchesButtonPtr->SetIsChecked(false);
 				})
 				[
 					SNew(SImage)
 					.Visibility(EVisibility::SelfHitTestInvisible)
-					.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+					.Image(FAppStyle::Get().GetBrush("Icons.X"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -444,8 +449,12 @@ void SConsoleVariablesEditorList::SetTreeViewItems(const TArray<FConsoleVariable
 void SConsoleVariablesEditorList::UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const
 {
 	TArray<FConsoleVariablesEditorAssetSaveData> NewSavedCommands;
+
+	const TArray<FConsoleVariablesEditorListRowPtr>& Items =
+		ListModelPtr.IsValid() && ListModelPtr.Pin()->GetListMode() ==
+			FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ? TreeViewRootObjects : LastPresetObjects;
 	
-	for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
+	for (const FConsoleVariablesEditorListRowPtr& Item : Items)
 	{
 		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = Item->GetCommandInfo(); CommandInfo.IsValid())
 		{

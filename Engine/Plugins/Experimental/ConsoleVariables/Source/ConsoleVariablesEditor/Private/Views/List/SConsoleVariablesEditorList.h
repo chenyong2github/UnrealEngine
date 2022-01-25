@@ -140,7 +140,7 @@ private:
 	TSharedPtr<SWrapBox> GlobalSearchesContainer;
 	TArray<TSharedRef<SConsoleVariablesEditorGlobalSearchToggle>> CurrentGlobalSearches;
 	
-	TSharedPtr<SButton> RemoveGlobalSearchesButtonPtr;
+	TSharedPtr<SCheckBox> RemoveGlobalSearchesButtonPtr;
 	TSharedPtr<SBox> ListBoxContainerPtr;
 
 	//  Tree View Implementation

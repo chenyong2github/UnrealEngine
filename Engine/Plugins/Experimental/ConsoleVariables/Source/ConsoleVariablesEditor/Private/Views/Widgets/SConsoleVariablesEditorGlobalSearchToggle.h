@@ -57,8 +57,8 @@ private:
 	 * The responsibility is on external classes to remove the button from the UI the external class controls. */
 	bool bIsMarkedForDelete = false;
 
-	FColor CheckedColor;
-	FColor UncheckedColor = FColor::Black;
+	FLinearColor CheckedColor;
+	FLinearColor UncheckedColor;
 
 	FText GlobalSearchText;
 };

@@ -193,7 +193,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 			[
 				SNew(SComboButton)
 				.ToolTipText(LOCTEXT("PresetManagementButton_Tooltip", "Export the current CVar list to a preset, or import a copy of an existing preset."))
-				.ContentPadding(4.f)
+				.ContentPadding(4)
 				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 				.OnGetMenuContent(this, &SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu)
 				.ForegroundColor(FStyleColors::Foreground)
@@ -241,10 +241,10 @@ void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
 	{		
 		// Toggle Multi-User Details
 		ToolbarHBox->AddSlot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(11.f, 1.f, 0.f, 1.f)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(11.f, 1.f, 1.f, 1.f)
 		[
 			SAssignNew(ConcertButtonPtr, SCheckBox)
 			.Padding(0)

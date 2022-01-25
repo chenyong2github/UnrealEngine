@@ -4,6 +4,7 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -19,8 +20,9 @@ void SConsoleVariablesEditorGlobalSearchToggle::Construct(const FArguments& Args
 	OnToggleRightButtonClicked = Args._OnToggleRightButtonClicked;
 	OnToggleClickedOnce = Args._OnToggleClickedOnce;
 
-	CheckedColor = FColor::MakeRandomColor();
 	GlobalSearchText = InButtonText;
+	CheckedColor = USlateThemeManager::Get().GetColor(EStyleColor::Primary);
+	UncheckedColor = USlateThemeManager::Get().GetColor(EStyleColor::Black);
 	
 	ChildSlot
     [
