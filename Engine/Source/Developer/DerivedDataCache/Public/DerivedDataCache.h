@@ -18,6 +18,8 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbObjectView;
+class FCbWriter;
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheGetChunkRequest; }
@@ -120,6 +122,14 @@ enum class ECachePolicy : uint32
 };
 
 ENUM_CLASS_FLAGS(ECachePolicy);
+/** Serialize Policy to text and append to Builder. Appended text will not be empty. */
+UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, ECachePolicy Policy);
+UE_API FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, ECachePolicy Policy);
+UE_API FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, ECachePolicy Policy);
+/** Parse text written by operator<< back into an ECachePolicy. Text must not be empty. */
+UE_API ECachePolicy ParseCachePolicy(FUtf8StringView Text);
+UE_API ECachePolicy ParseCachePolicy(FAnsiStringView Text);
+UE_API ECachePolicy ParseCachePolicy(FWideStringView Text);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -184,6 +194,15 @@ public:
 
 	/** Returns a copy of this policy transformed by an operation. */
 	UE_API FCacheRecordPolicy Transform(TFunctionRef<ECachePolicy (ECachePolicy)> Op) const;
+
+	/** Save the values from *this into the given writer. */
+	UE_API void Save(FCbWriter& Writer) const;
+
+	/**
+	 * Returns a policy loaded from values on Object.
+	 * Invalid data will result in a uniform CacheRecordPolicy with defaultValuePolicy == DefaultPolicy.
+	 */
+	static UE_API FCacheRecordPolicy Load(FCbObjectView Object, ECachePolicy DefaultPolicy = ECachePolicy::Default);
 
 private:
 	friend class FCacheRecordPolicyBuilder;
