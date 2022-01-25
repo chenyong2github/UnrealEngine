@@ -6,6 +6,8 @@
 #include "ShowFlags.h"
 #include "Engine/World.h"
 #include "SceneView.h"
+#include "SceneViewExtension.h"
+#include "SceneViewExtensionContext.h"
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
 #include "Engine/LevelBounds.h"
 #include "ContentStreaming.h"
@@ -42,6 +44,8 @@ void UWorldThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Wid
 		FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, World->Scene, FEngineShowFlags(ESFIM_All0) )
 			.SetTime(UThumbnailRenderer::GetTime())
 			.SetAdditionalViewFamily(bAdditionalViewFamily));
+
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(World->Scene));
 
 		ViewFamily.EngineShowFlags.SetDiffuse(true);
 		ViewFamily.EngineShowFlags.SetSkeletalMeshes(true);

@@ -2136,7 +2136,7 @@ void FLandscapeComponentSceneProxy::ApplyWorldOffset(FVector InOffset)
 }
 
 template<class ArrayType>
-bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bForToolMesh, bool bForcedLOD, FMeshBatch& MeshBatch, ArrayType& OutStaticBatchParamArray) const
+bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bForToolMesh, FMeshBatch& MeshBatch, ArrayType& OutStaticBatchParamArray) const
 {
 	UMaterialInterface* MaterialInterface = nullptr;
 
@@ -2225,7 +2225,7 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 	{
 		FMeshBatch MeshBatch;
 
-		if (GetStaticMeshElement(LODIndex, false, false, MeshBatch, StaticBatchParamArray))
+		if (GetStaticMeshElement(LODIndex, false, MeshBatch, StaticBatchParamArray))
 		{
 			PDI->DrawMesh(MeshBatch, LODIndex == FirstLOD ? FLT_MAX : (FMath::Sqrt(LODScreenRatioSquared[LODIndex]) * 2.0f));
 		}
@@ -2277,6 +2277,8 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	int32 NumDrawCalls = 0;
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 
+	const FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (VisibilityMap & (1 << ViewIndex))
@@ -2286,32 +2288,15 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			const FSceneView* View = Views[ViewIndex];
 
-			int32 ForcedLODLevel = ForcedLOD;
+			int32 LODToRender = RenderSystem.GetSectionLODValue(*View, ComponentBase);
 
-			const int32 ViewLodOverride = GetViewLodOverride(*View);
-			ForcedLODLevel = ViewLodOverride >= 0 ? ViewLodOverride : ForcedLODLevel;
-
-#if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			const int32 DrawCollisionLodOverride = GetDrawCollisionLodOverride(*View, CollisionResponse, CollisionMipLevel, SimpleCollisionMipLevel);
-			ForcedLODLevel = DrawCollisionLodOverride >= 0 ? DrawCollisionLodOverride : ForcedLODLevel;
-#endif
-
-			ForcedLODLevel = FMath::Min(ForcedLODLevel, (int32)LODSettings.LastLODIndex);
-
-			const float LODScale = View->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
-			const float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, *View);
-			int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
-
-#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
-			LODToRender = FMath::Max<int32>(LODToRender, GetCurrentFirstLODIdx_RenderThread());
-#endif
 			FMeshBatch& Mesh = Collector.AllocateMesh();
-			GetStaticMeshElement(LODToRender, false, ForcedLODLevel >= 0, Mesh, ParameterArray.ElementParams);
+			GetStaticMeshElement(LODToRender, false, Mesh, ParameterArray.ElementParams);
 
 #if WITH_EDITOR
 			FMeshBatch& MeshTools = Collector.AllocateMesh();
 			// No Tessellation on tool material
-			GetStaticMeshElement(LODToRender, true, ForcedLODLevel >= 0, MeshTools, ParameterArray.ElementParams);
+			GetStaticMeshElement(LODToRender, true, MeshTools, ParameterArray.ElementParams);
 #endif
 
 			// Render the landscape component
@@ -2649,14 +2634,9 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	}
 
 	const FSceneView& SceneView = *Context.ReferenceView;
-	int32 ForcedLODLevel = ForcedLOD;
-
-	int32 ViewLodOveride = GetViewLodOverride(SceneView);
-	ForcedLODLevel = ViewLodOveride >= 0 ? ViewLodOveride : ForcedLODLevel;
-
-	float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, SceneView);
-	float LODScale = Context.ReferenceView->LODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
-	int32 LODToRender = ForcedLODLevel >= 0 ? ForcedLODLevel : GetLODFromScreenSize(MeshScreenSizeSquared, LODScale * LODScale);
+	const FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
+	
+	int32 LODToRender = RenderSystem.GetSectionLODValue(SceneView, ComponentBase);
 	
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
@@ -2686,8 +2666,6 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	BaseMeshBatch.SegmentIndex = 0;
 
 	BaseMeshBatch.Elements.Empty();
-
-	const FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
 
 	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 	{
