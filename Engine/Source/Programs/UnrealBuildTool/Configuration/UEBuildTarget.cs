@@ -3963,6 +3963,7 @@ namespace UnrealBuildTool
 			// Whether C++20 coroutines are enabled
 			if (Rules.bEnableCppCoroutinesForEvaluation)
 			{
+				Log.TraceInformationOnce($"NOTE: C++ coroutine support is considered experimental and should be used for evaluation purposes only ({nameof(TargetRules.bEnableCppCoroutinesForEvaluation)})");
 				GlobalCompileEnvironment.Definitions.Add("WITH_CPP_COROUTINES=1");
 				GlobalCompileEnvironment.bEnableCoroutines = true;
 			}
