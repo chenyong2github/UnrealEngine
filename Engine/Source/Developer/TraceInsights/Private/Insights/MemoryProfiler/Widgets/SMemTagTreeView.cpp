@@ -60,6 +60,8 @@ SMemTagTreeView::~SMemTagTreeView()
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
+
+	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +156,6 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 	];
 
 	InitializeAndShowHeaderColumns();
-	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FMemTagNodeTextFilter>(FMemTagNodeTextFilter::FItemToStringArray::CreateSP(this, &SMemTagTreeView::HandleItemToStringArray));
@@ -188,8 +189,7 @@ TSharedRef<SWidget> SMemTagTreeView::MakeTrackersMenu()
 
 void SMemTagTreeView::CreateTrackersMenuSection(FMenuBuilder& MenuBuilder)
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -435,7 +435,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 		SNew(SSegmentedControl<uint32>)
 		.OnValueChanged_Lambda([this](uint32 InValue)
 			{
-				TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+				TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 				if (ProfilerWindow.IsValid())
 				{
 					FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -444,7 +444,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 			})
 		.Value_Lambda([this]
 			{
-				TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+				TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 				if (ProfilerWindow.IsValid())
 				{
 					FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -942,7 +942,6 @@ TSharedRef<SWidget> SMemTagTreeView::TreeViewHeaderRow_GenerateColumnMenu(const 
 void SMemTagTreeView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-
 	if (NewSession != Session)
 	{
 		Session = NewSession;
@@ -987,8 +986,6 @@ void SMemTagTreeView::UpdateTree()
 void SMemTagTreeView::ApplyFiltering()
 {
 	FilteredGroupNodes.Reset();
-
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 
 	// Apply filter to all groups and its children.
 	const int32 NumGroups = GroupNodes.Num();
@@ -1133,8 +1130,7 @@ void SMemTagTreeView::TreeView_OnMouseButtonDoubleClick(FMemTagNodePtr MemTagNod
 	}
 	else
 	{
-		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 		if (ProfilerWindow.IsValid())
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -1868,9 +1864,11 @@ void SMemTagTreeView::Tick(const FGeometry& AllottedGeometry, const double InCur
 
 void SMemTagTreeView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	bool bListHasChanged = false;
 
@@ -1884,9 +1882,7 @@ void SMemTagTreeView::RebuildTree(bool bResync)
 
 	const uint32 PreviousNodeCount = MemTagNodes.Num();
 
-	SyncStopwatch.Start();
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -1925,6 +1921,7 @@ void SMemTagTreeView::RebuildTree(bool bResync)
 			}
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bListHasChanged)
@@ -1960,7 +1957,7 @@ void SMemTagTreeView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(MemoryProfiler, Log, TEXT("[LLM Tags] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d LLM tags (%d added)"),
+		UE_LOG(MemoryProfiler, Log, TEXT("[LLM Tags] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d LLM tags (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, MemTagNodes.Num(), MemTagNodes.Num() - PreviousNodeCount);
 	}
 }
@@ -2075,8 +2072,7 @@ void SMemTagTreeView::SelectMemTagNode(Insights::FMemoryTagId MemTagId)
 
 FReply SMemTagTreeView::LoadReportXML_OnClicked()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		TArray<FString> OutFiles;
@@ -2137,8 +2133,7 @@ FReply SMemTagTreeView::HideAllTracks_OnClicked()
 
 bool SMemTagTreeView::CanCreateGraphTracksForSelectedMemTags() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid() && TreeView->GetNumItemsSelected() > 0;
 }
 
@@ -2146,8 +2141,7 @@ bool SMemTagTreeView::CanCreateGraphTracksForSelectedMemTags() const
 
 void SMemTagTreeView::CreateGraphTracksForSelectedMemTags()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -2181,8 +2175,7 @@ void SMemTagTreeView::CreateGraphTracksForSelectedMemTags()
 
 bool SMemTagTreeView::CanCreateGraphTracksForFilteredMemTags() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (!ProfilerWindow.IsValid())
 	{
 		return false;
@@ -2199,8 +2192,7 @@ bool SMemTagTreeView::CanCreateGraphTracksForFilteredMemTags() const
 
 void SMemTagTreeView::CreateGraphTracksForFilteredMemTags()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -2224,8 +2216,7 @@ void SMemTagTreeView::CreateGraphTracksForFilteredMemTags()
 
 bool SMemTagTreeView::CanCreateAllGraphTracks() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid();
 }
 
@@ -2233,8 +2224,7 @@ bool SMemTagTreeView::CanCreateAllGraphTracks() const
 
 void SMemTagTreeView::CreateAllGraphTracks()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -2253,8 +2243,7 @@ void SMemTagTreeView::CreateAllGraphTracks()
 
 bool SMemTagTreeView::CanRemoveGraphTracksForSelectedMemTags() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid() && TreeView->GetNumItemsSelected() > 0;
 }
 
@@ -2262,8 +2251,7 @@ bool SMemTagTreeView::CanRemoveGraphTracksForSelectedMemTags() const
 
 void SMemTagTreeView::RemoveGraphTracksForSelectedMemTags()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -2297,8 +2285,7 @@ void SMemTagTreeView::RemoveGraphTracksForSelectedMemTags()
 
 bool SMemTagTreeView::CanRemoveAllGraphTracks() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid();
 }
 
@@ -2306,8 +2293,7 @@ bool SMemTagTreeView::CanRemoveAllGraphTracks() const
 
 void SMemTagTreeView::RemoveAllGraphTracks()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -2321,8 +2307,7 @@ void SMemTagTreeView::RemoveAllGraphTracks()
 
 bool SMemTagTreeView::CanGenerateColorForSelectedMemTags() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid() && TreeView->GetNumItemsSelected() > 0;
 }
 
@@ -2330,8 +2315,7 @@ bool SMemTagTreeView::CanGenerateColorForSelectedMemTags() const
 
 void SMemTagTreeView::GenerateColorForSelectedMemTags()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		const TArray<FMemTagNodePtr> SelectedNodes = TreeView->GetSelectedItems();
@@ -2378,11 +2362,14 @@ void SMemTagTreeView::SetColorToNode(const FMemTagNodePtr& MemTagNode, FLinearCo
 
 	const Insights::FMemoryTagId MemTagId = MemTagNode->GetMemTagId();
 
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	TSharedPtr<FMemoryGraphTrack> MainGraphTrack;
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		MainGraphTrack = SharedState.GetMainGraphTrack();
+	}
 
-	FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
-
-	TSharedPtr<FMemoryGraphTrack> MainGraphTrack = SharedState.GetMainGraphTrack();
 	for (const TSharedPtr<FMemoryGraphTrack>& GraphTrack : MemTag->GetGraphTracks())
 	{
 		for (TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
@@ -2410,8 +2397,7 @@ void SMemTagTreeView::SetColorToNode(const FMemTagNodePtr& MemTagNode, FLinearCo
 
 bool SMemTagTreeView::CanEditColorForSelectedMemTags() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	return ProfilerWindow.IsValid() && TreeView->GetNumItemsSelected() > 0;
 }
 
@@ -2419,8 +2405,7 @@ bool SMemTagTreeView::CanEditColorForSelectedMemTags() const
 
 void SMemTagTreeView::EditColorForSelectedMemTags()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		EditableColorValue = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);

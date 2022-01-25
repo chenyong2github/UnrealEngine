@@ -63,10 +63,6 @@ public:
 	SLATE_END_ARGS()
 
 	void Reset();
-	void UpdateTableTreeViews();
-	void UpdateMemInvestigationView();
-	void UpdateMemTagTreeView();
-	void UpdateMemAllocTableTreeView(TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView);
 
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);

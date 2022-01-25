@@ -106,6 +106,8 @@ SStatsView::~SStatsView()
 	}
 
 	FStatsViewCommands::Unregister();
+
+	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,7 +310,6 @@ void SStatsView::Construct(const FArguments& InArgs)
 	];
 
 	InitializeAndShowHeaderColumns();
-	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FStatsNodeTextFilter>(FStatsNodeTextFilter::FItemToStringArray::CreateSP(this, &SStatsView::HandleItemToStringArray));
@@ -712,7 +713,6 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 void SStatsView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-
 	if (NewSession != Session)
 	{
 		Session = NewSession;
@@ -1825,9 +1825,11 @@ void SStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentT
 
 void SStatsView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	if (bResync)
 	{
@@ -1837,7 +1839,6 @@ void SStatsView::RebuildTree(bool bResync)
 
 	const uint32 PreviousNodeCount = StatsNodes.Num();
 
-	SyncStopwatch.Start();
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
@@ -1876,6 +1877,7 @@ void SStatsView::RebuildTree(bool bResync)
 			ensure(StatsNodes.Num() == CounterCount);
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bResync || StatsNodes.Num() != PreviousNodeCount)
@@ -1920,7 +1922,7 @@ void SStatsView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(TimingProfiler, Log, TEXT("[Counters] Tree view rebuilt in %.4fs (%.4fs + %.4fs) --> %d counters (%d added)"),
+		UE_LOG(TimingProfiler, Log, TEXT("[Counters] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d counters (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, StatsNodes.Num(), StatsNodes.Num() - PreviousNodeCount);
 	}
 }

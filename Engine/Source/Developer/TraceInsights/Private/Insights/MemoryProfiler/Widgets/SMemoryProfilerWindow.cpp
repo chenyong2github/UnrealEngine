@@ -64,6 +64,12 @@ SMemoryProfilerWindow::SMemoryProfilerWindow()
 
 SMemoryProfilerWindow::~SMemoryProfilerWindow()
 {
+	if (ModulesView)
+	{
+		HideTab(FMemoryProfilerTabs::ModulesViewID);
+		check(ModulesView == nullptr);
+	}
+
 	if (MemTagTreeView)
 	{
 		HideTab(FMemoryProfilerTabs::MemTagTreeViewID);
@@ -110,66 +116,9 @@ void SMemoryProfilerWindow::Reset()
 		MemTagTreeView->Reset();
 	}
 
-	UpdateMemInvestigationView();
-	UpdateTableTreeViews();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::UpdateMemInvestigationView()
-{
-	if (MemInvestigationView)
+	if (ModulesView)
 	{
-		//MemInvestigationView->Update();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::UpdateTableTreeViews()
-{
-	UpdateMemTagTreeView();
-
-	for (TSharedPtr<Insights::SMemAllocTableTreeView>& MemAllocTableTreeView : MemAllocTableTreeViews)
-	{
-		UpdateMemAllocTableTreeView(MemAllocTableTreeView);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::UpdateMemTagTreeView()
-{
-	if (MemTagTreeView)
-	{
-		/*
-		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && TraceServices::ReadMemoryProfilerProvider(*Session.Get()))
-		{
-			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::IMemoryProfilerProvider& MemoryProfilerProvider = *TraceServices::ReadMemoryProfilerProvider(*Session.Get());
-
-			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
-			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
-
-			TraceServices::ITable<TraceServices::FMemoryProfilerAggregatedStats>* EventAggregationTable = MemoryProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
-			MemTagTreeView->UpdateSourceTable(MakeShareable(EventAggregationTable));
-		}
-		else
-		{
-			MemTagTreeView->UpdateSourceTable(nullptr);
-		}
-		*/
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::UpdateMemAllocTableTreeView(TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView)
-{
-	if (MemAllocTableTreeView)
-	{
-		//TODO
+		ModulesView->Reset();
 	}
 }
 
@@ -234,8 +183,6 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemInvestigationView(const 
 			SAssignNew(MemInvestigationView, SMemInvestigationView, SharedThis(this))
 		];
 
-	UpdateMemInvestigationView();
-
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemInvestigationViewTabClosed));
 
 	return DockTab;
@@ -263,8 +210,6 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemTagTreeView(const FSpawn
 		[
 			SAssignNew(MemTagTreeView, SMemTagTreeView, SharedThis(this))
 		];
-
-	UpdateMemTagTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemTagTreeViewTabClosed));
 
@@ -303,7 +248,6 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const
 	MemAllocTableTreeView->SetLogListingName(FMemoryProfilerManager::Get()->GetLogListingName());
 	MemAllocTableTreeView->SetTabIndex(TabIndex);
 	MemAllocTableTreeViews.Add(MemAllocTableTreeView);
-	UpdateMemAllocTableTreeView(MemAllocTableTreeView);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed));
 
@@ -742,8 +686,6 @@ void SMemoryProfilerWindow::OnTimeSelectionChanged(Insights::ETimeChangedFlags I
 					Time = TimeMarkerTime;
 				}
 			}
-
-			UpdateMemInvestigationView();
 		}
 	}
 }

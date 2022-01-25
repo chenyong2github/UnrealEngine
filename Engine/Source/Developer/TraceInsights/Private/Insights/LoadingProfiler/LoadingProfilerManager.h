@@ -54,7 +54,7 @@ public:
 
 	//////////////////////////////////////////////////
 
-	/** @returns UI command list for the Loading Profiler manager. */
+	/** @return UI command list for the Loading Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
 	/** @return an instance of the Loading Profiler commands. */
@@ -63,23 +63,13 @@ public:
 	/** @return an instance of the Loading Profiler action manager. */
 	static FLoadingProfilerActionManager& GetActionManager();
 
-	void AssignProfilerWindow(const TSharedRef<SLoadingProfilerWindow>& InProfilerWindow)
-	{
-		ProfilerWindow = InProfilerWindow;
-	}
-
-	void RemoveProfilerWindow()
-	{
-		ProfilerWindow.Reset();
-	}
-
 	/**
 	 * Converts profiler window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
 	 */
-	TSharedPtr<class SLoadingProfilerWindow> GetProfilerWindow() const
+	TSharedPtr<SLoadingProfilerWindow> GetProfilerWindow() const
 	{
-		return ProfilerWindow.Pin();
+		return ProfilerWindowWeakPtr.Pin();
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,6 +126,16 @@ private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
+	void AssignProfilerWindow(const TSharedRef<SLoadingProfilerWindow>& InProfilerWindow)
+	{
+		ProfilerWindowWeakPtr = InProfilerWindow;
+	}
+
+	void RemoveProfilerWindow()
+	{
+		ProfilerWindowWeakPtr.Reset();
+	}
+
 private:
 	bool bIsInitialized;
 	bool bIsAvailable;
@@ -153,8 +153,8 @@ private:
 	/** An instance of the Loading Profiler action manager. */
 	FLoadingProfilerActionManager ActionManager;
 
-	/** A weak pointer to the Loading Profiler window. */
-	TWeakPtr<class SLoadingProfilerWindow> ProfilerWindow;
+	/** A weak pointer to the Asset Loading Insights window. */
+	TWeakPtr<SLoadingProfilerWindow> ProfilerWindowWeakPtr;
 
 	/** If the Timing view is visible or hidden. */
 	bool bIsTimingViewVisible;

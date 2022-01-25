@@ -56,7 +56,7 @@ FMemoryProfilerManager::FMemoryProfilerManager(TSharedRef<FUICommandList> InComm
 	, bIsAvailable(false)
 	, CommandList(InCommandList)
 	, ActionManager(this)
-	, ProfilerWindow(nullptr)
+	, ProfilerWindowWeakPtr()
 	, bIsTimingViewVisible(false)
 	, bIsMemInvestigationViewVisible(false)
 	, bIsMemTagTreeViewVisible(false)
@@ -198,10 +198,10 @@ bool FMemoryProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
 void FMemoryProfilerManager::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	{
-		TSharedPtr<SMemoryProfilerWindow> ProfilerWindowSharedPtr = ProfilerWindow.Pin();
-		if (ProfilerWindowSharedPtr.IsValid())
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
+		if (ProfilerWindow.IsValid())
 		{
-			ProfilerWindowSharedPtr->CloseMemAllocTableTreeTabs();
+			ProfilerWindow->CloseMemAllocTableTreeTabs();
 		}
 	}
 

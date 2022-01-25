@@ -115,7 +115,7 @@ public:
 	/** @return the filename of the trace being analyzed. */
 	const FString& GetTraceFilename() const { return CurrentTraceFilename; }
 
-	/** @returns UI command list for the main manager. */
+	/** @return UI command list for the main manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
 	/** @return an instance of the main commands. */

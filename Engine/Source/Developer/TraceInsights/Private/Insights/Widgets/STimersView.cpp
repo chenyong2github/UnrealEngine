@@ -122,6 +122,8 @@ STimersView::~STimersView()
 	}
 
 	FTimersViewCommands::Unregister();
+
+	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,7 +341,6 @@ void STimersView::Construct(const FArguments& InArgs)
 	];
 
 	InitializeAndShowHeaderColumns();
-	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FTimerNodeTextFilter>(FTimerNodeTextFilter::FItemToStringArray::CreateSP(this, &STimersView::HandleItemToStringArray));
@@ -880,7 +881,6 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 void STimersView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-
 	if (NewSession != Session)
 	{
 		Session = NewSession;
@@ -1914,9 +1914,11 @@ void STimersView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 void STimersView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	if (bResync)
 	{
@@ -1925,7 +1927,6 @@ void STimersView::RebuildTree(bool bResync)
 
 	const uint32 PreviousNodeCount = TimerNodes.Num();
 
-	SyncStopwatch.Start();
 	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
@@ -1953,6 +1954,7 @@ void STimersView::RebuildTree(bool bResync)
 			ensure(TimerNodes.Num() == TimerCount);
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bResync || TimerNodes.Num() != PreviousNodeCount)
@@ -1997,7 +1999,7 @@ void STimersView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view rebuilt in %.4fs (%.4fs + %.4fs) --> %d timers (%d added)"),
+		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d timers (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, TimerNodes.Num(), TimerNodes.Num() - PreviousNodeCount);
 	}
 }

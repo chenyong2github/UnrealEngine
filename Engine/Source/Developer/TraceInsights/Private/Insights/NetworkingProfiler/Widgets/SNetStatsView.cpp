@@ -32,7 +32,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SNetStatsView::SNetStatsView()
-	: ProfilerWindow()
+	: ProfilerWindowWeakPtr()
 	, Table(MakeShared<Insights::FTable>())
 	, bExpansionSaved(false)
 	, bFilterOutZeroCountEvents(false)
@@ -63,6 +63,8 @@ SNetStatsView::~SNetStatsView()
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
+
+	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +72,7 @@ SNetStatsView::~SNetStatsView()
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
 {
-	ProfilerWindow = InProfilerWindow;
+	ProfilerWindowWeakPtr = InProfilerWindow;
 
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
@@ -206,7 +208,6 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 	];
 
 	InitializeAndShowHeaderColumns();
-	//BindCommands();
 
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FNetEventNodeTextFilter>(FNetEventNodeTextFilter::FItemToStringArray::CreateSP(this, &SNetStatsView::HandleItemToStringArray));
@@ -549,7 +550,6 @@ TSharedRef<SWidget> SNetStatsView::TreeViewHeaderRow_GenerateColumnMenu(const In
 void SNetStatsView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-
 	if (NewSession != Session)
 	{
 		Session = NewSession;
@@ -784,6 +784,7 @@ void SNetStatsView::TreeView_OnMouseButtonDoubleClick(FNetEventNodePtr NetEventN
 	}
 	else
 	{
+		TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = GetProfilerWindow();
 		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow.IsValid() ? ProfilerWindow->GetPacketContentView() : nullptr;
 		if (PacketContentView.IsValid())
 		{
@@ -1480,9 +1481,11 @@ void SNetStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 
 void SNetStatsView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	if (bResync)
 	{
@@ -1491,7 +1494,6 @@ void SNetStatsView::RebuildTree(bool bResync)
 
 	const uint32 PreviousNodeCount = NetEventNodes.Num();
 
-	SyncStopwatch.Start();
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
@@ -1523,6 +1525,7 @@ void SNetStatsView::RebuildTree(bool bResync)
 			});
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bResync || NetEventNodes.Num() != PreviousNodeCount)
@@ -1558,7 +1561,7 @@ void SNetStatsView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(NetworkingProfiler, Log, TEXT("[NetStats] Tree view rebuilt in %.4fs (%.4fs + %.4fs) --> %d net events (%d added)"),
+		UE_LOG(NetworkingProfiler, Log, TEXT("[NetStats] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d net events (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, NetEventNodes.Num(), NetEventNodes.Num() - PreviousNodeCount);
 	}
 }

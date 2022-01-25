@@ -42,6 +42,15 @@ public:
 	SLATE_END_ARGS()
 
 	/**
+	 * Converts profiler window weak pointer to a shared pointer and returns it.
+	 * Make sure the returned pointer is valid before trying to dereference it.
+	 */
+	TSharedPtr<SMemoryProfilerWindow> GetProfilerWindow() const
+	{
+		return ProfilerWindowWeakPtr.Pin();
+	}
+
+	/**
 	 * Construct this widget
 	 * @param InArgs - The declaration data for this widget
 	 */
@@ -81,10 +90,11 @@ private:
 	FReply OnTimeMarkerLabelDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, uint32 TimeMarkerIndex);
 
 private:
+	/** A weak pointer to the Memory Insights window. */
 	TWeakPtr<SMemoryProfilerWindow> ProfilerWindowWeakPtr;
 
-	/** A weak pointer to the profiler session used to populate this widget. */
-	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
+	/** The analysis session used to populate this widget. */
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 
 	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
 

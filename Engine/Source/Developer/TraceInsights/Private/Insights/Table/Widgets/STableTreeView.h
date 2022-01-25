@@ -133,8 +133,9 @@ public:
 	const FName& GetLogListingName() { return LogListingName; }
 
 protected:
-	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void InitCommandList();
+
+	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	virtual TSharedRef<SWidget> ConstructSearchBox();
 	virtual TSharedRef<SWidget> ConstructAdvancedFiltersButton();
 	virtual TSharedRef<SWidget> ConstructHierarchyBreadcrumbTrail();
@@ -407,8 +408,8 @@ protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
 
-	/** A weak pointer to the profiler session used to populate this widget. */
-	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
+	/** The analysis session used to populate this widget. */
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns

@@ -60,9 +60,11 @@ void SUntypedTableTreeView::UpdateSourceTable(TSharedPtr<TraceServices::IUntyped
 
 void SUntypedTableTreeView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	if (bResync)
 	{
@@ -77,7 +79,6 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	TSharedPtr<TraceServices::IUntypedTable> SourceTable = UntypedTable->GetSourceTable();
 	TSharedPtr<TraceServices::IUntypedTableReader> TableReader = UntypedTable->GetTableReader();
 
-	SyncStopwatch.Start();
 	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
 	{
 		const int32 TotalRowCount = SourceTable->GetRowCount();
@@ -96,6 +97,7 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 			ensure(TableTreeNodes.Num() == TotalRowCount);
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
@@ -130,7 +132,7 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(TraceInsights, Log, TEXT("[Table] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d rows (%d added)"),
+		UE_LOG(TraceInsights, Log, TEXT("[Table] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d rows (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
 	}
 }

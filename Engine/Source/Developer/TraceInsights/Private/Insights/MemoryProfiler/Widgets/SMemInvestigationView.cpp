@@ -38,6 +38,8 @@ SMemInvestigationView::~SMemInvestigationView()
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
+
+	Session.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,8 +59,6 @@ void SMemInvestigationView::Construct(const FArguments& InArgs, TSharedPtr<SMemo
 			ConstructInvestigationWidgetArea()
 		]
 	];
-
-	//BindCommands();
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SMemInvestigationView::InsightsManager_OnSessionChanged);
@@ -184,17 +184,17 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 	
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(20.0f, 0.0f)
+		.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
 		.HAlign(HAlign_Left)
 		[
 			SAssignNew(SymbolPathsTextBlock, STextBlock)
 			.Text(GetSymbolPathsText())
+			.ColorAndOpacity(FLinearColor(0.3f, 0.3f, 0.3f, 1.0f))
 			.AutoWrapText(true)
 		]
 	;
 
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -243,8 +243,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 TimeMarkerIndex)
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (!ProfilerWindow.IsValid())
 	{
 		return SNew(SBox);
@@ -292,11 +291,15 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 				{
 					return FText::FromString(FString::Printf(TEXT("%.9f"), TimeMarker->GetTime()));
 				})
-			.OnTextCommitted_Lambda([TimeMarker, ProfilerWindow](const FText& InText, ETextCommit::Type InCommitType)
+			.OnTextCommitted_Lambda([this, TimeMarker](const FText& InText, ETextCommit::Type InCommitType)
 				{
 					const double Time = FCString::Atod(*InText.ToString());
 					TimeMarker->SetTime(Time);
-					ProfilerWindow->OnTimeMarkerChanged(Insights::ETimeChangedFlags::None, TimeMarker);
+					TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
+					if (ProfilerWindow.IsValid())
+					{
+						ProfilerWindow->OnTimeMarkerChanged(Insights::ETimeChangedFlags::None, TimeMarker);
+					}
 				})
 		]
 
@@ -330,7 +333,6 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SMemInvestigationView::InsightsManager_OnSessionChanged()
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
-
 	if (NewSession != Session)
 	{
 		Session = NewSession;
@@ -357,8 +359,7 @@ void SMemInvestigationView::Tick(const FGeometry& AllottedGeometry, const double
 
 const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* SMemInvestigationView::GetAvailableQueryRules()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -373,8 +374,7 @@ void SMemInvestigationView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FM
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 		if (ProfilerWindow.IsValid() && InRule)
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -388,8 +388,7 @@ void SMemInvestigationView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FM
 
 FText SMemInvestigationView::QueryRule_GetSelectedText() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -406,8 +405,7 @@ FText SMemInvestigationView::QueryRule_GetSelectedText() const
 
 FText SMemInvestigationView::QueryRule_GetTooltipText() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -424,8 +422,7 @@ FText SMemInvestigationView::QueryRule_GetTooltipText() const
 
 const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>* SMemInvestigationView::GetAvailableQueryTargets()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -440,8 +437,7 @@ void SMemInvestigationView::QueryTarget_OnSelectionChanged(TSharedPtr<Insights::
 {
 	if (SelectInfo != ESelectInfo::Type::Direct)
 	{
-		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 		if (ProfilerWindow.IsValid() && InTarget)
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -480,8 +476,7 @@ TSharedRef<SWidget> SMemInvestigationView::QueryTarget_OnGenerateWidget(TSharedP
 
 FText SMemInvestigationView::QueryTarget_GetSelectedText() const
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -498,8 +493,7 @@ FText SMemInvestigationView::QueryTarget_GetSelectedText() const
 
 FReply SMemInvestigationView::RunQuery()
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (!ProfilerWindow.IsValid())
 	{
 		UE_LOG(MemoryProfiler, Error, TEXT("[MemQuery] Invalid Profiler Window!"));
@@ -561,7 +555,7 @@ FReply SMemInvestigationView::RunQuery()
 
 FReply SMemInvestigationView::OnTimeMarkerLabelDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, uint32 TimeMarkerIndex)
 {
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = GetProfilerWindow();
 	if (ProfilerWindow.IsValid())
 	{
 		const uint32 NumTimeMarkers = ProfilerWindow->GetNumCustomTimeMarkers();

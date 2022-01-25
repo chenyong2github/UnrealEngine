@@ -69,7 +69,7 @@ public:
 
 	//////////////////////////////////////////////////
 
-	/** @returns UI command list for the Timing Profiler manager. */
+	/** @return UI command list for the Timing Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
 	/** @return an instance of the Timing Profiler commands. */
@@ -78,23 +78,13 @@ public:
 	/** @return an instance of the Timing Profiler action manager. */
 	static FTimingProfilerActionManager& GetActionManager();
 
-	void AssignProfilerWindow(const TSharedRef<STimingProfilerWindow>& InProfilerWindow)
-	{
-		ProfilerWindow = InProfilerWindow;
-	}
-
-	void RemoveProfilerWindow()
-	{
-		ProfilerWindow.Reset();
-	}
-
 	/**
 	 * Converts profiler window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
 	 */
-	TSharedPtr<class STimingProfilerWindow> GetProfilerWindow() const
+	TSharedPtr<STimingProfilerWindow> GetProfilerWindow() const
 	{
-		return ProfilerWindow.Pin();
+		return ProfilerWindowWeakPtr.Pin();
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,6 +171,16 @@ private:
 
 	void FinishTimerButterflyAggregation();
 
+	void AssignProfilerWindow(const TSharedRef<STimingProfilerWindow>& InProfilerWindow)
+	{
+		ProfilerWindowWeakPtr = InProfilerWindow;
+	}
+
+	void RemoveProfilerWindow()
+	{
+		ProfilerWindowWeakPtr.Reset();
+	}
+
 private:
 	bool bIsInitialized;
 	bool bIsAvailable;
@@ -198,8 +198,8 @@ private:
 	/** An instance of the Timing Profiler action manager. */
 	FTimingProfilerActionManager ActionManager;
 
-	/** A weak pointer to the Timing Profiler window. */
-	TWeakPtr<class STimingProfilerWindow> ProfilerWindow;
+	/** A weak pointer to the Timing Insights window. */
+	TWeakPtr<STimingProfilerWindow> ProfilerWindowWeakPtr;
 
 	/** If the Frames Track is visible or hidden. */
 	bool bIsFramesTrackVisible;

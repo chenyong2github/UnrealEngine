@@ -54,7 +54,7 @@ FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCo
 	, bIsAvailable(false)
 	, CommandList(InCommandList)
 	, ActionManager(this)
-	, ProfilerWindow(nullptr)
+	, ProfilerWindowWeakPtr()
 	, bIsTimingViewVisible(false)
 	, bIsEventAggregationTreeViewVisible(false)
 	, bIsObjectTypeAggregationTreeViewVisible(false)

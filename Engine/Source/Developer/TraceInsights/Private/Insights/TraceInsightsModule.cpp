@@ -73,6 +73,7 @@ void FTraceInsightsModule::StartupModule()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+PRAGMA_DISABLE_OPTIMIZATION
 void FTraceInsightsModule::ShutdownModule()
 {
 #if !WITH_EDITOR
@@ -92,6 +93,15 @@ void FTraceInsightsModule::ShutdownModule()
 
 	UnregisterTabSpawners();
 
+#define INSIGHTS_CHECK_SHARED_REFERENCES 1
+#if INSIGHTS_CHECK_SHARED_REFERENCES
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	auto TimingInsightsWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	auto AssetLoadingInsightsWindow = FLoadingProfilerManager::Get()->GetProfilerWindow();
+	auto NetworkingInsightsWindow0 = FNetworkingProfilerManager::Get()->GetProfilerWindow(0);
+	auto MemoryInsightsWindow = FMemoryProfilerManager::Get()->GetProfilerWindow();
+#endif
+
 	// Unregister components. Shutdown in the reverse order they were registered.
 	for (int32 ComponentIndex = Components.Num() - 1; ComponentIndex >= 0; --ComponentIndex)
 	{
@@ -99,8 +109,36 @@ void FTraceInsightsModule::ShutdownModule()
 	}
 	Components.Reset();
 
+#if INSIGHTS_CHECK_SHARED_REFERENCES
+	ensure(MemoryInsightsWindow.GetSharedReferenceCount() <= 1);
+	MemoryInsightsWindow.Reset();
+
+	ensure(NetworkingInsightsWindow0.GetSharedReferenceCount() <= 1);
+	NetworkingInsightsWindow0.Reset();
+
+	ensure(AssetLoadingInsightsWindow.GetSharedReferenceCount() <= 1);
+	AssetLoadingInsightsWindow.Reset();
+
+	ensure(TimingInsightsWindow.GetSharedReferenceCount() <= 1);
+	TimingInsightsWindow.Reset();
+
+	if (ensure(Session.GetSharedReferenceCount() <= 1))
+	{
+		Session.Reset();
+	}
+	else // Some component(s) failed to release the references to Session shared ptr!
+	{
+		UE_LOG(TraceInsights, Warning, TEXT("The analysis Session is still referenced! Force delete!"));
+		const TraceServices::IAnalysisSession* SessionPtr = Session.Get();
+		Session.Reset();
+		delete SessionPtr;
+	}
+#endif
+#undef INSIGHTS_CHECK_SHARED_REFERENCES
+
 	FInsightsStyle::Shutdown();
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -37,8 +37,6 @@
 
 #define LOCTEXT_NAMESPACE "SMemAllocTableTreeView"
 
-using namespace TraceServices;
-
 namespace Insights
 {
 
@@ -74,21 +72,6 @@ void SMemAllocTableTreeView::Reset()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void SMemAllocTableTreeView::UpdateSourceTable(TSharedPtr<TraceServices::IMemAllocTable> SourceTable)
-{
-	//check(Table->Is<Insights::FMemAllocTable>());
-	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = StaticCastSharedPtr<Insights::FMemAllocTable>(Table);
-
-	if (MemAllocTable->UpdateSourceTable(SourceTable))
-	{
-		RebuildColumns();
-	}
-
-	RebuildTree(true);
-}
-*/
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemAllocTableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
@@ -110,9 +93,11 @@ void SMemAllocTableTreeView::Tick(const FGeometry& AllottedGeometry, const doubl
 
 void SMemAllocTableTreeView::RebuildTree(bool bResync)
 {
-	FStopwatch SyncStopwatch;
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
 
 	if (bResync)
 	{
@@ -123,7 +108,6 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 
-	SyncStopwatch.Start();
 	if (Session.IsValid() && MemAllocTable.IsValid())
 	{
 		TraceServices::IAllocationsProvider::EQueryStatus QueryStatus;
@@ -169,6 +153,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 			}
 		}
 	}
+
 	SyncStopwatch.Stop();
 
 	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
@@ -203,7 +188,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d nodes (%d added)"),
+		UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d nodes (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
 	}
 }
@@ -256,6 +241,12 @@ void SMemAllocTableTreeView::StartQuery()
 		return;
 	}
 
+	if (!Session.IsValid())
+	{
+		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid analysis session!"));
+		return;
+	}
+
 	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 	if (!AllocationsProvider)
 	{
@@ -293,6 +284,12 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 		return;
 	}
 
+	if (!Session.IsValid())
+	{
+		UE_LOG(MemoryProfiler, Warning, TEXT("[MemAlloc] Invalid analysis session!"));
+		return;
+	}
+
 	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 	if (!AllocationsProvider)
 	{
@@ -318,12 +315,12 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 			return;
 		}
 
-		if (Status.Status == IAllocationsProvider::EQueryStatus::Working)
+		if (Status.Status == TraceServices::IAllocationsProvider::EQueryStatus::Working)
 		{
 			break;
 		}
 
-		check(Status.Status == IAllocationsProvider::EQueryStatus::Available);
+		check(Status.Status == TraceServices::IAllocationsProvider::EQueryStatus::Available);
 
 		TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 		if (MemAllocTable)
@@ -412,11 +409,14 @@ void SMemAllocTableTreeView::CancelQuery()
 {
 	if (Query != 0)
 	{
-		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
-		if (AllocationsProvider)
+		if (Session.IsValid())
 		{
-			AllocationsProvider->CancelQuery(Query);
-			UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query canceled."));
+			const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+			if (AllocationsProvider)
+			{
+				AllocationsProvider->CancelQuery(Query);
+				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Query canceled."));
+			}
 		}
 
 		Query = 0;
@@ -999,37 +999,40 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 {
-	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
+	if (Session.IsValid())
+	{
+		const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get());
+		if (ModuleProvider)
+		{
+			TraceServices::IModuleProvider::FStats Stats;
+			ModuleProvider->GetStats(&Stats);
+			//check(Stats.SymbolsDiscovered >= Stats.SymbolsResolved + Stats.SymbolsFailed);
+			const int32 SymbolsPending = Stats.SymbolsDiscovered - Stats.SymbolsResolved - Stats.SymbolsFailed;
+			if (SymbolsPending > 0)
+			{
+				return FText::Format(LOCTEXT("SymbolsResolved1", "Resolving {0} / {1} symbols ({2} resolved, {3} failed)"), SymbolsPending, Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("SymbolsResolved2", "{0} symbols ({1} resolved, {2} failed)"), Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
+			}
+		}
+	}
 
-	IModuleProvider::FStats Stats;
-	if (ModuleProvider)
-	{
-		ModuleProvider->GetStats(&Stats);
-		//check(Stats.SymbolsDiscovered >= Stats.SymbolsResolved + Stats.SymbolsFailed);
-		const int32 SymbolsPending = Stats.SymbolsDiscovered - Stats.SymbolsResolved - Stats.SymbolsFailed;
-		if (SymbolsPending > 0)
-		{
-			return FText::Format(LOCTEXT("SymbolsResolved1", "Resolving {0} / {1} symbols ({2} resolved, {3} failed)"), SymbolsPending, Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
-		}
-		else
-		{
-			return FText::Format(LOCTEXT("SymbolsResolved2", "{0} symbols ({1} resolved, {2} failed)"), Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
-		}
-	}
-	else
-	{
-		return LOCTEXT("SymbolsResolutionNotPossible", "Symbol resolution was not possible.");
-	}
+	return LOCTEXT("SymbolsResolutionNotPossible", "Symbol resolution was not possible.");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FText SMemAllocTableTreeView::GetSymbolResolutionTooltip() const
 {
-	const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get());
-	if (ModuleProvider)
+	if (Session.IsValid())
 	{
-		return FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider);
+		const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get());
+		if (ModuleProvider)
+		{
+			return FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider);
+		}
 	}
 	return FText();
 }
@@ -1076,8 +1079,14 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false, bIsCallstackGroupingByFunction), Index++);
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true, bIsCallstackGroupingByFunction), Index++);
 
-	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
-	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
+	if (Session.IsValid())
+	{
+		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+		if (AllocationsProvider)
+		{
+			AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
