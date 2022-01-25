@@ -1318,7 +1318,7 @@ void ULevelSequenceEditorSubsystem::GetRebindComponentNames(TArray<FName>& OutCo
 		
 	for (UActorComponent* Component : Actor->GetComponents())
 	{
-		if (Component && Component->GetName() != ComponentPossessable->GetName())
+		if (Component && ComponentPossessable && Component->GetName() != ComponentPossessable->GetName())
 		{
 			OutComponentNames.Add(Component->GetFName());
 		}
