@@ -71,6 +71,7 @@ UText3DComponent::UText3DComponent() :
 
 	Text = LOCTEXT("DefaultText", "Text");
 	bOutline = false;
+	OutlineExpand = 0.5f;
 	Extrude = 5.0f;
 	Bevel = 0.0f;
 	BevelType = EText3DBevelType::Convex;
@@ -169,7 +170,17 @@ void UText3DComponent::SetOutline(const bool bValue)
 {
 	if (bOutline != bValue)
 	{
-		bOutline = bValue;
+		bOutline = bValue;		
+		Rebuild();
+	}
+}
+
+void UText3DComponent::SetOutlineExpand(const float Value)
+{
+	const float NewValue = Value;
+	if (!FMath::IsNearlyEqual(OutlineExpand, NewValue))
+	{
+		OutlineExpand = NewValue;
 		Rebuild();
 	}
 }
@@ -418,6 +429,21 @@ void UText3DComponent::SetFreeze(const bool bFreeze)
 	}
 }
 
+void UText3DComponent::SetCastShadow(bool NewCastShadow)
+{
+	if(NewCastShadow != bCastShadow)
+	{
+		bCastShadow = NewCastShadow;
+
+		for (UStaticMeshComponent* MeshComponent : CharacterMeshes)
+		{
+			MeshComponent->SetCastShadow(bCastShadow);
+		}
+		
+		MarkRenderStateDirty();
+	}
+}
+
 int32 UText3DComponent::GetGlyphCount()
 {
 	return TextRoot->GetNumChildrenComponents();
@@ -619,7 +645,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 	{
 		return;
 	}
-
+	
 	UText3DEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UText3DEngineSubsystem>();
 	FCachedFontData& CachedFontData = Subsystem->GetCachedFontData(Font);
 	const FT_Face Face = CachedFontData.GetFreeTypeFace();
@@ -630,7 +656,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 	}
 
 	CachedCounterReferences.Add(CachedFontData.GetCacheCounter());
-	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(bOutline, Extrude, Bevel, BevelType, BevelSegments));
+	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(FGlyphMeshParameters{Extrude, Bevel, BevelType, BevelSegments, bOutline, OutlineExpand}));
 
 	ShapedText->Reset();
 	ShapedText->LineHeight = Face->size->metrics.height * FontInverseScale;
@@ -658,7 +684,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 				continue;
 			}
 
-			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, bOutline, Extrude, Bevel, BevelType, BevelSegments);
+			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, FGlyphMeshParameters{Extrude, Bevel, BevelType, BevelSegments, bOutline, OutlineExpand});
 			if (!CachedMesh)
 			{
 				continue;
@@ -685,6 +711,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 			StaticMeshComponent->RegisterComponent();
 			StaticMeshComponent->SetVisibility(GetVisibleFlag());
 			StaticMeshComponent->SetHiddenInGame(bHiddenInGame);
+			StaticMeshComponent->SetCastShadow(bCastShadow);
 			CharacterMeshes.Add(StaticMeshComponent);
 
 			GetOwner()->AddInstanceComponent(StaticMeshComponent);

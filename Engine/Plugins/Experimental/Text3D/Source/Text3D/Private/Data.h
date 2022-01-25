@@ -69,8 +69,9 @@ public:
 	 * Make triangulation of edge along paths of it's vertices (from end of previous triangulation to result of points' expansion). Removes covered points' indices from paths.
 	 * @param Edge - Edge that has to be filled.
 	 * @param bSkipLastTriangle - Do not create last triangle (furthest from end of previous triangulation).
+	 * @param bFlipNormals - Reverse the geometry facing direction.
 	 */
-	void FillEdge(const FPartPtr& Edge, const bool bSkipLastTriangle);
+	void FillEdge(const FPartPtr& Edge, const bool bSkipLastTriangle, bool bFlipNormals = false);
 
 private:
 	TSharedPtr<FText3DGlyph> Glyph;

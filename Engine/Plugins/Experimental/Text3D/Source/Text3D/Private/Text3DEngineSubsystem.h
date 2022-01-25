@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Text3DPrivate.h"
@@ -10,6 +11,42 @@
 
 #include "Text3DEngineSubsystem.generated.h"
 
+USTRUCT()
+struct FGlyphMeshParameters
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	float Extrude = 5.0f;
+
+	UPROPERTY()
+	float Bevel = 0.0f;
+
+	UPROPERTY()
+	EText3DBevelType BevelType = EText3DBevelType::Convex;
+
+	UPROPERTY()
+	int32 BevelSegments = 8;
+
+	UPROPERTY()
+	bool bOutline = false;
+
+	UPROPERTY()
+	float OutlineExpand = 0.5f;
+};
+
+inline uint32 GetTypeHash(const FGlyphMeshParameters A)
+{
+	uint32 HashParameters = 0;
+	HashParameters = HashCombine(HashParameters, GetTypeHash(A.Extrude));
+	HashParameters = HashCombine(HashParameters, GetTypeHash(A.Bevel));
+    HashParameters = HashCombine(HashParameters, GetTypeHash(A.BevelType));
+	HashParameters = HashCombine(HashParameters, GetTypeHash(A.BevelSegments));
+	HashParameters = HashCombine(HashParameters, GetTypeHash(A.bOutline));
+	HashParameters = HashCombine(HashParameters, GetTypeHash(A.OutlineExpand));
+	return HashParameters;
+}
 
 USTRUCT()
 struct FCachedFontMeshes
@@ -48,9 +85,9 @@ public:
 
 	uint32 GetTypefaceFontDataHash();
 	TSharedPtr<int32> GetCacheCounter();
-	TSharedPtr<int32> GetMeshesCacheCounter(bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	TSharedPtr<int32> GetMeshesCacheCounter(const FGlyphMeshParameters& Parameters);
 
-	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters);
 	TSharedContourNode GetGlyphContours(uint32 GlyphIndex);
 
 	UPROPERTY()

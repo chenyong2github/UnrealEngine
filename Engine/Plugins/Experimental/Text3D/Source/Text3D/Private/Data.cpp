@@ -166,17 +166,17 @@ FVector2D FData::Expanded(const FPartConstPtr& Point) const
 	return Point->Expanded(ExpandTarget - Point->DoneExpand);
 }
 
-void FData::FillEdge(const FPartPtr& Edge, const bool bSkipLastTriangle)
+void FData::FillEdge(const FPartPtr& Edge, const bool bSkipLastTriangle, bool bFlipNormals)
 {
 	const FPartPtr EdgeA = Edge;
 	const FPartPtr EdgeB = Edge->Next;
 
-	MakeTriangleFanAlongNormal(EdgeB, EdgeA, false, true);
-	MakeTriangleFanAlongNormal(EdgeA, EdgeB, true, false);
+	MakeTriangleFanAlongNormal(EdgeB, EdgeA, bFlipNormals, true);
+	MakeTriangleFanAlongNormal(EdgeA, EdgeB, !bFlipNormals, false);
 
 	if (!bSkipLastTriangle)
 	{
-		MakeTriangleFanAlongNormal(EdgeB, EdgeA, false, false);
+		MakeTriangleFanAlongNormal(EdgeB, EdgeA, bFlipNormals, false);
 	}
 	else
 	{
@@ -208,9 +208,8 @@ void FData::MakeTriangleFanAlongNormal(const FPartConstPtr& Cap, const FPartPtr&
 	for (int32 Index = 0; Index < Count; Index++)
 	{
 		AddTriangle((bNormalIsCapNext ? Cap->PathNext : Cap->PathPrev)[0],
-				Path[bNormalIsCapNext ? Index + 1 : Index],
-				Path[bNormalIsCapNext ? Index : Index + 1]
-			);
+						Path[bNormalIsCapNext ? Index + 1 : Index],
+						Path[bNormalIsCapNext ? Index : Index + 1]);
 	}
 
 	// Remove covered vertices from path

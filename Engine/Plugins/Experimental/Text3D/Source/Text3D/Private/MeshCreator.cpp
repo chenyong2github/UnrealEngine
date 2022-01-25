@@ -11,25 +11,24 @@
 
 using namespace UE::Geometry;
 
-constexpr float FMeshCreator::OutlineExpand;
-
 FMeshCreator::FMeshCreator() :
 	Glyph(MakeShared<FText3DGlyph>()),
 	Data(MakeShared<FData>(Glyph))
 {
 }
 
-void FMeshCreator::CreateMeshes(const TSharedContourNode& Root, const bool bOutline, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments)
+void FMeshCreator::CreateMeshes(const TSharedContourNode& Root, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments, const bool bOutline, const float OutlineExpand)
 {
-	CreateFrontMesh(Root, bOutline);
+	CreateFrontMesh(Root, bOutline, OutlineExpand);
 	if (Contours->Num() == 0)
 	{
 		return;
 	}
 
+	const bool bFlipNormals = FMath::Sign(Data->GetPlannedExpand()) < 0;
 	const float BevelLocal = bOutline ? 0.f : Bevel;
 	CreateBevelMesh(BevelLocal, Type, BevelSegments);
-	CreateExtrudeMesh(Extrude, BevelLocal, Type);
+	CreateExtrudeMesh(Extrude, BevelLocal, Type, bFlipNormals);
 }
 
 void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
@@ -94,7 +93,7 @@ void FMeshCreator::BuildMesh(UStaticMesh* StaticMesh, class UMaterial* DefaultMa
 	Glyph->Build(StaticMesh, DefaultMaterial);
 }
 
-void FMeshCreator::CreateFrontMesh(const TSharedContourNode& Root, const bool bOutline)
+void FMeshCreator::CreateFrontMesh(const TSharedContourNode& Root, const bool bOutline, const float& OutlineExpand)
 {
 	int32 VertexCount = 0;
 	AddToVertexCount(Root, VertexCount);
@@ -110,7 +109,7 @@ void FMeshCreator::CreateFrontMesh(const TSharedContourNode& Root, const bool bO
 
 	if (bOutline)
 	{
-		MakeOutline();
+		MakeOutline(OutlineExpand);
 	}
 }
 
@@ -176,7 +175,7 @@ void FMeshCreator::CreateBevelMesh(const float Bevel, const EText3DBevelType Typ
 	}
 }
 
-void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type)
+void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type, bool bFlipNormals)
 {
 	if (Type != EText3DBevelType::HalfCircle)
 	{
@@ -185,9 +184,8 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBe
 
 	if (Type != EText3DBevelType::HalfCircle && Type != EText3DBevelType::Engraved)
 	{
-	Extrude -= Bevel * 2.0f;
+		Extrude -= Bevel * 2.0f;
 	}
-
 
 	Data->SetCurrentGroup(EText3DGroupType::Extrude, 0.f);
 
@@ -291,7 +289,7 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBe
 
 		for (const FPartPtr& Edge : Contour)
 		{
-			Data->FillEdge(Edge, false);
+			Data->FillEdge(Edge, false, bFlipNormals);
 		}
 	}
 }
@@ -426,7 +424,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 	}
 }
 
-void FMeshCreator::MakeOutline()
+void FMeshCreator::MakeOutline(float OutlineExpand)
 {
 	FContourList InitialContours = *Contours;
 
@@ -588,6 +586,7 @@ void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 	Data->SetTarget(Data->GetPlannedExtrude(), Data->GetPlannedExpand());
 	const float MaxExpand = Data->GetPlannedExpand();
 
+	const bool bFlipNormals = FMath::Sign(Data->GetPlannedExpand()) < 0;
 	for (FContour& Contour : *Contours)
 	{
 		for (const FPartPtr& Point : Contour)
@@ -605,7 +604,7 @@ void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 
 		for (const FPartPtr& Edge : Contour)
 		{
-			Data->FillEdge(Edge, false);
+			Data->FillEdge(Edge, false, bFlipNormals);
 		}
 	}
 }

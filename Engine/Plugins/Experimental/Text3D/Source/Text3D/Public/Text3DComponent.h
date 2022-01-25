@@ -67,6 +67,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetOutline, Category = "Text3D")
 	bool bOutline;
 
+	/** Outline expand/offset amount */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetOutlineExpand, Category = "Text3D", Meta = (EditCondition = "bOutline"))
+	float OutlineExpand;
+
 	/** Material for the front part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFrontMaterial, Category = "Text3D")
 	class UMaterialInterface* FrontMaterial;
@@ -127,6 +131,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetScaleProportionally, Category = "Text3D")
 	bool bScaleProportionally;
 
+	// Lighting flags
+	
+	/** Controls whether the text glyphs should cast a shadow or not. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter="SetCastShadow", Category=Lighting)
+	bool bCastShadow = true;
+
 	/**
 	 * Delegate called after text is rebuilt
 	 */
@@ -149,6 +159,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetOutline(const bool bValue);
+	
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	void SetOutlineExpand(const float Value);
 
 	/** Set the text extrusion size and signal the primitives to be rebuilt */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
@@ -226,6 +239,10 @@ public:
 	/** Freeze mesh rebuild, to avoid unnecessary mesh rebuilds when setting a few properties together */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetFreeze(const bool bFreeze);
+
+	/** Changes the value of CastShadow. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetCastShadow(bool NewCastShadow);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void GetBounds(FVector& Origin, FVector& BoxExtent);
