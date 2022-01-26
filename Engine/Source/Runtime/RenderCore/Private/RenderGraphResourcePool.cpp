@@ -107,6 +107,7 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
 void FRDGBufferPool::ReleaseDynamicRHI()
 {
 	AllocatedBuffers.Empty();
+	AllocatedBufferHashes.Empty();
 }
 
 void FRDGBufferPool::TickPoolElements()
