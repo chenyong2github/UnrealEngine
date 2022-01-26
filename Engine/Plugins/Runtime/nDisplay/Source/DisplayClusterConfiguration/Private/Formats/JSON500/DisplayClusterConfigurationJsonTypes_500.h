@@ -214,6 +214,7 @@ public:
 	FDisplayClusterConfigurationJsonMisc_500()
 		: bFollowLocalPlayerCamera(false)
 		, bExitOnEsc(true)
+		, bOverrideViewportsFromExternalConfig(false)
 	{ }
 
 public:
@@ -222,6 +223,9 @@ public:
 
 	UPROPERTY()
 	bool bExitOnEsc;
+
+	UPROPERTY()
+	bool bOverrideViewportsFromExternalConfig;
 };
 
 

@@ -221,45 +221,46 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 			CurrentNode->Postprocess = NewNode->Postprocess;
 			CurrentNode->OutputRemap = NewNode->OutputRemap;
 
-			// Remove viewports in current node that are not in the new node
-
-			for (auto CurrentViewportIt = CurrentNode->Viewports.CreateIterator(); CurrentViewportIt; ++CurrentViewportIt)
+			if (ConfigData->bOverrideViewportsFromExternalConfig)
 			{
-				if (!NewNode->Viewports.Find(CurrentViewportIt->Key))
+				// Remove viewports in current node that are not in the new node
+				for (auto CurrentViewportIt = CurrentNode->Viewports.CreateIterator(); CurrentViewportIt; ++CurrentViewportIt)
 				{
-					CurrentViewportIt.RemoveCurrent();
-				}
-			}
-
-			// Go over viewport and override the current ones (or add new ones that didn't exist)
-
-			for (auto NewViewportIt = NewNode->Viewports.CreateConstIterator(); NewViewportIt; ++NewViewportIt)
-			{
-				UDisplayClusterConfigurationViewport** CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
-
-				// Add the viewport if it doesn't exist
-				if (!CurrentViewportPtr)
-				{
-					CurrentNode->Viewports.Add(
-						NewViewportIt->Key,
-						DuplicateObject(NewViewportIt->Value, CurrentNode, NewViewportIt->Value->GetFName())
-					);
-					continue;
+					if (!NewNode->Viewports.Find(CurrentViewportIt->Key))
+					{
+						CurrentViewportIt.RemoveCurrent();
+					}
 				}
 
-				UDisplayClusterConfigurationViewport* CurrentViewport = *CurrentViewportPtr;
-				check(CurrentViewport);
+				// Go over viewport and override the current ones (or add new ones that didn't exist)
+				for (auto NewViewportIt = NewNode->Viewports.CreateConstIterator(); NewViewportIt; ++NewViewportIt)
+				{
+					UDisplayClusterConfigurationViewport** CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
 
-				const UDisplayClusterConfigurationViewport* NewViewport = NewViewportIt->Value;
-				check(NewViewport);
+					// Add the viewport if it doesn't exist
+					if (!CurrentViewportPtr)
+					{
+						CurrentNode->Viewports.Add(
+							NewViewportIt->Key,
+							DuplicateObject(NewViewportIt->Value, CurrentNode, NewViewportIt->Value->GetFName())
+						);
+						continue;
+					}
 
-				// Override viewport settings
+					UDisplayClusterConfigurationViewport* CurrentViewport = *CurrentViewportPtr;
+					check(CurrentViewport);
 
-				CurrentViewport->Camera = NewViewport->Camera;
-				CurrentViewport->RenderSettings.BufferRatio = NewViewport->RenderSettings.BufferRatio;
-				CurrentViewport->GPUIndex = NewViewport->GPUIndex;
-				CurrentViewport->Region = NewViewport->Region;
-				CurrentViewport->ProjectionPolicy = NewViewport->ProjectionPolicy;
+					const UDisplayClusterConfigurationViewport* NewViewport = NewViewportIt->Value;
+					check(NewViewport);
+
+					// Override viewport settings
+
+					CurrentViewport->Camera = NewViewport->Camera;
+					CurrentViewport->RenderSettings.BufferRatio = NewViewport->RenderSettings.BufferRatio;
+					CurrentViewport->GPUIndex = NewViewport->GPUIndex;
+					CurrentViewport->Region = NewViewport->Region;
+					CurrentViewport->ProjectionPolicy = NewViewport->ProjectionPolicy;
+				}
 			}
 		}
 	}
