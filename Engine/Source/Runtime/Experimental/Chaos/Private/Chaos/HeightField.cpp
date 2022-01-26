@@ -1295,12 +1295,12 @@ namespace Chaos
 		OutIntersections.Reset();
 
 		const FBounds2D FlatBounds = GetFlatBounds();
-		const FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
 
-		InFlatBounds.Min = FlatBounds.Clamp(InFlatBounds.Min);
-		InFlatBounds.Max = FlatBounds.Clamp(InFlatBounds.Max);
-		TVec2<int32> MinCell = FlatGrid.Cell(InFlatBounds.Min / Scale2D);
-		TVec2<int32> MaxCell = FlatGrid.Cell(InFlatBounds.Max / Scale2D);
+		InFlatBounds = FBounds2D::FromPoints(FlatBounds.Clamp(InFlatBounds.Min) / Scale2D, FlatBounds.Clamp(InFlatBounds.Max) / Scale2D);
+
+		TVec2<int32> MinCell = FlatGrid.Cell(InFlatBounds.Min);
+		TVec2<int32> MaxCell = FlatGrid.Cell(InFlatBounds.Max);
 
 		// We want to capture the first cell (delta == 0) as well
 		const int32 NumX = MaxCell[0] - MinCell[0] + 1;

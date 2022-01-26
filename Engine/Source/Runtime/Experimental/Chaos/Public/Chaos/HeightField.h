@@ -134,7 +134,9 @@ namespace Chaos
 
 		virtual const FAABB3 BoundingBox() const
 		{
-			CachedBounds = FAABB3(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
+			// Generate a correct bound including scales (may be negative)
+			CachedBounds = FAABB3::FromPoints(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
+
 			return CachedBounds;
 		}
 
@@ -305,7 +307,8 @@ namespace Chaos
 				OutPts[2] *= Scale;
 				OutPts[3] *= Scale;
 
-				OutBounds.Scale(FVec3(Scale));
+				const FVec3 Scale3(Scale);
+				OutBounds = FAABB3::FromPoints(OutBounds.Min() * Scale3, OutBounds.Max() * Scale3);
 			}
 
 			FORCEINLINE FReal GetMinHeight() const
@@ -415,6 +418,27 @@ namespace Chaos
 				, Max(0)
 			{}
 
+			FBounds2D(const FVec2& InMin, const FVec2& InMax)
+				: Min(InMin)
+				, Max(InMax)
+			{}
+
+			/**
+			 * Given a set of points, wrap a 2D bounds around them
+			 * @param P0 The first of the points to wrap
+			 * @param InPoints Parameter pack of all subsequent points
+			 */
+			template<typename... Points>
+			static FBounds2D FromPoints(const FVec2& P0, const Points&... InPoints)
+			{
+				static_assert(sizeof...(InPoints) > 0);
+				static_assert(std::is_same_v<std::common_type_t<Points...>, FVec2>);
+
+				FBounds2D Result(P0, P0);
+				(Result.GrowToInclude(InPoints), ...);
+				return Result;
+			}
+
 			explicit FBounds2D(const FAABB3& In3DBounds)
 			{
 				Set(In3DBounds);
@@ -434,6 +458,12 @@ namespace Chaos
 			bool IsInside(const FVec2& InPoint) const
 			{
 				return InPoint[0] >= Min[0] && InPoint[0] <= Max[0] && InPoint[1] >= Min[1] && InPoint[1] <= Max[1];
+			}
+
+			void GrowToInclude(const FVec2& InPoint)
+			{
+				Min = { FMath::Min(Min.X, InPoint.X), FMath::Min(Min.Y, InPoint.Y) };
+				Max = { FMath::Max(Max.X, InPoint.X), FMath::Max(Max.Y, InPoint.Y) };
 			}
 
 			FVec2 Clamp(const FVec2& InToClamp, FReal InNudge = SMALL_NUMBER) const

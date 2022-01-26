@@ -545,6 +545,22 @@ namespace Chaos
 
 		FORCEINLINE constexpr bool IsConvex() const { return true; }
 
+		/**
+		 * Given a set of points, wrap an AABB around them
+		 * @param P0 The first of the points to wrap
+		 * @param InPoints Parameter pack of all subsequent points
+		 */
+		template<typename... Points>
+		static TAABB<T, d> FromPoints(const TVector<T, d>& P0, const Points&... InPoints)
+		{
+			static_assert(sizeof...(InPoints) > 0);
+			static_assert(std::is_same_v<std::common_type_t<Points...>, TVector<T, d>>);
+
+			TAABB<T, d> Result(P0, P0);
+			(Result.GrowToInclude(InPoints), ...);
+			return Result;
+		}
+
 	private:
 		TVector<T, d> MMin, MMax;
 	};
