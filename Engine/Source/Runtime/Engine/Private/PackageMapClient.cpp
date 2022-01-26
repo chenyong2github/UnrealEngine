@@ -54,7 +54,14 @@ CSV_DEFINE_CATEGORY(PackageMap, true);
 static const int INTERNAL_LOAD_OBJECT_RECURSION_LIMIT = 16;
 
 extern FAutoConsoleVariableRef CVarEnableMultiplayerWorldOriginRebasing;
-extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
+
+namespace UE
+{
+	namespace Net
+	{
+		extern int32 FilterGuidRemapping;
+	};
+};
 
 static TAutoConsoleVariable<int32> CVarAllowAsyncLoading(
 	TEXT("net.AllowAsyncLoading"),
@@ -409,8 +416,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 		return false;
 	}
 
-	bool bFilterGuidRemapping = (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0);
-	if (!bFilterGuidRemapping)
+	if (UE::Net::FilterGuidRemapping == 0)
 	{
 		if ( GuidCache.IsValid() )
 		{
@@ -447,7 +453,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 		return false;		// This doesn't mean an error. This just simply means we didn't spawn an actor.
 	}
 
-	if (bFilterGuidRemapping)
+	if (UE::Net::FilterGuidRemapping != 0)
 	{
 		// Do not mark guid as imported until we know we aren't deleting it
 		if ( GuidCache.IsValid() )
@@ -679,7 +685,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 			UE_LOG( LogNetPackageMap, Log, TEXT( "SerializeNewActor: Failed to find static actor: FullNetGuidPath: %s, Channel: %d" ), *GuidCache->FullNetGUIDPath( NetGUID ), Channel->ChIndex );
 		}
 
-		if (bFilterGuidRemapping)
+		if (UE::Net::FilterGuidRemapping != 0)
 		{
 			// Do not attempt to resolve this missing actor
 			if ( GuidCache.IsValid() )
@@ -3233,7 +3239,7 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 			return NULL;
 		}
 
-		// If outer is broken, we will never load, set outselves to broken as well and bail
+		// If outer is broken, we will never load, set ourselves to broken as well and bail
 		if ( OuterCacheObject->bIsBroken )
 		{
 			UE_LOG( LogNetPackageMap, Error, TEXT( "GetObjectFromNetGUID: Outer is broken. FullNetGUIDPath: %s" ), *FullNetGUIDPath( NetGUID ) );
@@ -3564,6 +3570,22 @@ FString FNetGUIDCache::FullNetGUIDPath( const FNetworkGUID& NetGUID ) const
 	GenerateFullNetGUIDPath_r( NetGUID, FullPath );
 
 	return FullPath;
+}
+
+FString	FNetGUIDCache::Describe(const FNetworkGUID& NetGUID) const
+{
+	FString Desc = FString::Printf(TEXT("NetworkGUID [%s]"), *NetGUID.ToString());
+
+	if (FNetGuidCacheObject const* const CacheObjectPtr = GetCacheObject(NetGUID))
+	{
+		Desc += FString::Printf(TEXT(" NoLoad [%d] Pending [%d] Broken [%d] Outer [%s] FullPath [%s] Object [%s]"), !!CacheObjectPtr->bNoLoad, !!CacheObjectPtr->bIsPending, !!CacheObjectPtr->bIsBroken, *CacheObjectPtr->OuterGUID.ToString(), *FullNetGUIDPath(NetGUID), *GetFullNameSafe(CacheObjectPtr->Object.Get()));
+	}
+	else
+	{
+		Desc += TEXT(" Unregistered");
+	}
+
+	return Desc;
 }
 
 void FNetGUIDCache::GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FString& FullPath ) const

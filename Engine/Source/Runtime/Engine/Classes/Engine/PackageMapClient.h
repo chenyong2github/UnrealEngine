@@ -255,6 +255,7 @@ public:
 	void			SetAsyncLoadMode( const EAsyncLoadMode NewMode );
 	bool			ShouldAsyncLoad() const;
 	bool			CanClientLoadObject( const UObject* Object, const FNetworkGUID& NetGUID ) const;
+	FString			Describe(const FNetworkGUID& NetGUID) const;
 
 	void			AsyncPackageCallback(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result);
 

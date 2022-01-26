@@ -79,9 +79,7 @@ FAutoConsoleVariableRef CVarNetSkipReplicatorForDestructionInfos(
 	GSkipReplicatorForDestructionInfos,
 	TEXT("If enabled, skip creation of object replicator in SetChannelActor when we know there is no content payload and we're going to immediately destroy the actor."));
 
-extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
 extern NETCORE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
-
 
 // Fairly large number, and probably a bad idea to even have a bunch this size, but want to be safe for now and not throw out legitimate data
 static int32 NetMaxConstructedPartialBunchSizeBytes = 1024 * 64;
@@ -103,6 +101,20 @@ static TAutoConsoleVariable<bool> CVarEnableNetInitialSubObjects(
 	true,
 	TEXT("Enables new SubObjects to set bNetInitial to true to make sure all replicated properties are replicated.")
 );
+
+namespace UE
+{
+	namespace Net
+	{
+		extern int32 FilterGuidRemapping;
+
+		static float QueuedBunchTimeoutSeconds = 30.0f;
+		static FAutoConsoleVariableRef CVarQueuedBunchTimeoutSeconds(
+			TEXT("net.QueuedBunchTimeoutSeconds"),
+			QueuedBunchTimeoutSeconds,
+			TEXT("Time in seconds to wait for queued bunches on a channel to flush before logging a warning."));
+	};
+};
 
 template<typename T>
 static const bool IsBunchTooLarge(UNetConnection* Connection, T* Bunch)
@@ -1986,7 +1998,7 @@ void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
 					TheActor->PreDestroyFromReplication();
 					TheActor->Destroy(true);
 
-					if (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0)
+					if (UE::Net::FilterGuidRemapping != 0)
 					{
 						// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 						if (NetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2161,7 +2173,7 @@ void UActorChannel::DestroyActorAndComponents()
 		Actor->Destroy(true);
 	}
 
-	if (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0)
+	if (UE::Net::FilterGuidRemapping != 0)
 	{
 		// Remove this actor's NetGUID from the list of unmapped values, it will be added back if it replicates again
 		if (ActorNetGUID.IsValid() && Connection != nullptr && Connection->Driver != nullptr && Connection->Driver->GuidCache.IsValid())
@@ -2595,8 +2607,7 @@ bool UActorChannel::ProcessQueuedBunches()
 		}
 		else
 		{
-			const double QUEUED_BUNCH_TIMEOUT_IN_SECONDS = 30;
-			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > QUEUED_BUNCH_TIMEOUT_IN_SECONDS)
+			if ((FPlatformTime::Seconds() - QueuedBunchStartTime) > UE::Net::QueuedBunchTimeoutSeconds)
 			{
 				if (!bSuppressQueuedBunchWarningsDueToHitches && FPlatformProperties::RequiresCookedData())
 				{
@@ -2606,9 +2617,10 @@ bool UActorChannel::ProcessQueuedBunches()
 					{
 						for (const FNetworkGUID& Guid : PendingGuidResolves)
 						{
-							const bool bIsPending = Connection->Driver->GuidCache->IsGUIDPending(Guid);
-							const FString GuidPath = Connection->Driver->GuidCache->FullNetGUIDPath(Guid);
-							UE_LOG(LogNet, Log, TEXT("  PendingGuidResolve %s. Pending in cache: %d, path: %s"), *Guid.ToString(), !!bIsPending, *GuidPath);
+							UE_LOG(LogNet, Log, TEXT("  PendingGuidResolve [%s] %s"), *Guid.ToString(), *Connection->Driver->GuidCache->Describe(Guid));
+
+							const FNetworkGUID OuterGuid = Connection->Driver->GuidCache->GetOuterNetGUID(Guid);
+							UE_LOG(LogNet, Log, TEXT("      OuterGuid [%s] %s"), *OuterGuid.ToString(), *Connection->Driver->GuidCache->Describe(OuterGuid));
 						}
 					}
 				}
