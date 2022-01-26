@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DerivedDataCache.h"
+#include "Logging/LogMacros.h"
 
 namespace UE::DerivedData { class FLegacyCacheKey; }
 namespace UE::DerivedData { struct FLegacyCacheDeleteRequest; }
@@ -11,6 +12,8 @@ namespace UE::DerivedData { struct FLegacyCacheGetRequest; }
 namespace UE::DerivedData { struct FLegacyCacheGetResponse; }
 namespace UE::DerivedData { struct FLegacyCachePutRequest; }
 namespace UE::DerivedData { struct FLegacyCachePutResponse; }
+
+DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
 
 namespace UE::DerivedData
 {

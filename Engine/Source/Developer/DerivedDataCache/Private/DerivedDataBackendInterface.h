@@ -14,8 +14,6 @@ class FDerivedDataCacheStatsNode;
 
 namespace UE::DerivedData { struct FCacheKey; }
 
-DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
-
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Gets"),STAT_DDC_NumGets,STATGROUP_DDC, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Puts"),STAT_DDC_NumPuts,STATGROUP_DDC, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Build"),STAT_DDC_NumBuilds,STATGROUP_DDC, );
@@ -30,12 +28,56 @@ namespace UE::DerivedData
 {
 
 /**
+	* Speed classes. Higher values are faster so > / < comparisons make sense.
+	*/
+enum class EBackendSpeedClass
+{
+	Unknown,		/* Don't know yet*/
+	Slow,			/* Slow, likely a remote drive. Some benefit but handle with care */
+	Ok,				/* Ok but not great.  */
+	Fast,			/* Fast but seek times still have an impact */
+	Local			/* Little to no impact from seek times and extremely fast reads */
+};
+
+/** Debug options that can be applied to backends to simulate different behavior */
+struct FBackendDebugOptions
+{
+	/** Percentage of requests that should result in random misses */
+	int					RandomMissRate;
+
+	/** Apply behavior of this speed class */
+	EBackendSpeedClass	SpeedClass;
+
+	/** Types of DDC entries that should always be a miss */
+	TArray<FString>		SimulateMissTypes;
+
+	FBackendDebugOptions()
+		: RandomMissRate(0)
+		, SpeedClass(EBackendSpeedClass::Unknown)
+	{
+	}
+
+	/** Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
+	static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
+
+	/**
+		* Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
+		* Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
+		* each backend.
+		*/
+	bool ShouldSimulateMiss(const TCHAR* InCacheKey);
+	bool ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey);
+};
+
+/**
  * Interface for cache server backends.
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
  */
 class FDerivedDataBackendInterface : public ILegacyCacheStore
 {
 public:
+	using ESpeedClass = UE::DerivedData::EBackendSpeedClass;
+	using FBackendDebugOptions = UE::DerivedData::FBackendDebugOptions;
 
 	/** Status of a put operation. */
 	enum class EPutStatus
@@ -48,48 +90,6 @@ public:
 		Cached,
 		/** The put was skipped and should not be retried. */
 		Skipped,
-	};
-
-	/**
-	 * Speed classes. Higher values are faster so > / < comparisons make sense.
-	 */
-	enum class ESpeedClass
-	{
-		Unknown,		/* Don't know yet*/
-		Slow,			/* Slow, likely a remote drive. Some benefit but handle with care */
-		Ok,				/* Ok but not great.  */
-		Fast,			/* Fast but seek times still have an impact */
-		Local			/* Little to no impact from seek times and extremely fast reads */
-	};
-
-	/** Debug options that can be applied to backends to simulate different behavior */
-	struct FBackendDebugOptions
-	{
-		/** Percentage of requests that should result in random misses */
-		int					RandomMissRate;
-
-		/** Apply behavior of this speed class */
-		ESpeedClass			SpeedClass;
-
-		/** Types of DDC entries that should always be a miss */
-		TArray<FString>		SimulateMissTypes;
-
-		FBackendDebugOptions()
-			: RandomMissRate(0)
-			, SpeedClass(ESpeedClass::Unknown)
-		{
-		}
-
-		/** Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
-		static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
-
-		/**
-		 * Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
-		 * Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
-		 * each backend.
-		 */
-		bool ShouldSimulateMiss(const TCHAR* InCacheKey);
-		bool ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey);
 	};
 
 	virtual ~FDerivedDataBackendInterface()
