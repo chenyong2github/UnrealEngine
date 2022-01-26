@@ -4,10 +4,13 @@
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "WaterSubsystem.h"
+#include "Misc/UObjectToken.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "Water"
 
 // ----------------------------------------------------------------------------------
 
@@ -112,3 +115,25 @@ void UWaterBodyCustomComponent::BeginUpdateWaterBody()
 	}
 }
 
+#if WITH_EDITOR
+TArray<TSharedRef<FTokenizedMessage>> UWaterBodyCustomComponent::CheckWaterBodyStatus() const
+{
+	TArray<TSharedRef<FTokenizedMessage>> StatusMessages = Super::CheckWaterBodyStatus();
+
+	if (!IsTemplate())
+	{
+		if (WaterMeshOverride == nullptr)
+		{
+			StatusMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(
+					LOCTEXT("MapCheck_Message_MissingCustomWaterMesh", "Custom water body {0} requires a static mesh to be rendered. Please set WaterMeshOverride to a valid static mesh. "),
+					FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
+		}
+	}
+
+	return StatusMessages;
+}
+#endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

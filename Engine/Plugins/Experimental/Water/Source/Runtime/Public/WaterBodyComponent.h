@@ -129,7 +129,7 @@ public:
 	/** Returns the additional water height added to the body (For internal use. Please use AWaterBodyOcean instead.) */
 	virtual float GetHeightOffset() const { return 0.f; }
 
-	/** Sets the water mesh (when bOverrideWaterMesh is true of the for custom water body actors) */
+	/** Sets a static mesh to use as a replacement for the water mesh (for water bodies that are being rendered by the water mesh) */
 	void SetWaterMeshOverride(UStaticMesh* InMesh) { WaterMeshOverride = InMesh; }
 
 	/** Returns River to lake transition material instance (For internal use. Please use AWaterBodyRiver instead.) */
@@ -158,7 +158,7 @@ public:
 	FName GetCollisionProfileName() const { return CollisionProfileName; }
 
 	/** Returns water mesh override */
-	UStaticMesh* GetWaterMeshOverride() const { return (bOverrideWaterMesh || GetWaterBodyType() == EWaterBodyType::Transition) ? WaterMeshOverride : nullptr; }
+	UStaticMesh* GetWaterMeshOverride() const { return WaterMeshOverride; }
 
 	/** Returns water material */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
@@ -370,7 +370,6 @@ protected:
 	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
@@ -458,11 +457,7 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	int32 WaterBodyIndex = INDEX_NONE;
 
-	// TODO [jonathan.bard] : make sure override water mesh works for all types 
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
-	bool bOverrideWaterMesh;
-
-	UPROPERTY(Category = Rendering, EditAnywhere, AdvancedDisplay, BlueprintReadOnly)
 	UStaticMesh* WaterMeshOverride;
 
 	/** Higher number is higher priority. If two water bodies overlap and they don't have a transition material specified, this will be used to determine which water body to use the material from. Valid range is -8192 to 8191 */
@@ -500,4 +495,9 @@ protected:
 	// The navigation area class that will be generated on nav mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanAffectNavigation && bGenerateCollisions"))
 	TSubclassOf<UNavAreaBase> WaterNavAreaClass;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bOverrideWaterMesh_DEPRECATED;
+#endif
 };

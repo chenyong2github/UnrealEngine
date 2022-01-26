@@ -812,18 +812,6 @@ void UWaterBodyComponent::PostEditImport()
 	RequestGPUWaveDataUpdate();
 }
 
-bool UWaterBodyComponent::CanEditChange(const FProperty* InProperty) const
-{
-	if (InProperty)
-	{
-		if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterMeshOverride))
-		{
-			return bOverrideWaterMesh || GetWaterBodyType() == EWaterBodyType::Transition;
-		}
-	}
-	return Super::CanEditChange(InProperty);
-}
-
 void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)
 {
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
@@ -859,28 +847,25 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus(
 	TArray<TSharedRef<FTokenizedMessage>> Result;
 	if (!IsTemplate())
 	{
-		if (const UWorld* World = GetWorld())
+		if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 		{
-			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+			if (AffectsWaterMesh() && (WaterSubsystem->GetWaterZoneActor() == nullptr))
 			{
-				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterZoneActor() == nullptr))
-				{
-					Result.Add(FTokenizedMessage::Create(
-						EMessageSeverity::Error,
-						FText::Format(
-							LOCTEXT("MapCheck_Message_MissingWaterZone", "Water body {0} requires a WaterZone actorr to be rendered. Please add one to the map. "),
-							FText::FromString(GetWaterBodyActor()->GetActorLabel()))));
-				}
+				Result.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(FText::Format(
+						LOCTEXT("MapCheck_Message_MissingWaterZone", "Water body {0} requires a WaterZone actor to be rendered. Please add one to the map. "),
+						FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
 			}
+		}
 
-			if (AffectsLandscape() && FindLandscape() == nullptr)
-			{
-				Result.Add(FTokenizedMessage::Create(
-					EMessageSeverity::Error,
-					FText::Format(
-						LOCTEXT("MapCheck_Message_MissingLandscape", "Water body {0} requires a Landscape to be rendered. Please add one to the map. "),
-						FText::FromString(GetWaterBodyActor()->GetActorLabel()))));
-			}
+		if (AffectsLandscape() && (FindLandscape() == nullptr))
+		{
+			Result.Add(FTokenizedMessage::Create(EMessageSeverity::Error)
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(
+					LOCTEXT("MapCheck_Message_MissingLandscape", "Water body {0} requires a Landscape to be rendered. Please add one to the map. "),
+					FText::FromString(GetWaterBodyActor()->GetActorLabel())))));
 		}
 	}
 	return Result;
@@ -1174,6 +1159,14 @@ void UWaterBodyComponent::Serialize(FArchive& Ar)
 void UWaterBodyComponent::PostLoad()
 {
 	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	// WaterMeshOverride is now enough to override the water mesh (bOverrideWaterMesh_DEPRECATED was superfluous), so make sure to discard WaterMeshOverride (except on custom water bodies) when the boolean wasn't set :
+	if (!bOverrideWaterMesh_DEPRECATED && (WaterMeshOverride != nullptr) && (GetWaterBodyType() != EWaterBodyType::Transition))
+	{
+		WaterMeshOverride = nullptr;
+	}
+#endif
 
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);

@@ -512,7 +512,6 @@ void AWaterBody::DeprecateData()
 		WaterBodyComponent->LayerWeightmapSettings = LayerWeightmapSettings_DEPRECATED;
 		WaterBodyComponent->bAffectsLandscape = bAffectsLandscape_DEPRECATED;
 		WaterBodyComponent->bGenerateCollisions = bGenerateCollisions_DEPRECATED;
-		WaterBodyComponent->bOverrideWaterMesh = bOverrideWaterMesh_DEPRECATED;
 		WaterBodyComponent->WaterMeshOverride = WaterMeshOverride_DEPRECATED;
 		WaterBodyComponent->OverlapMaterialPriority = OverlapMaterialPriority_DEPRECATED;
 		WaterBodyComponent->CollisionProfileName = CollisionProfileName_DEPRECATED;

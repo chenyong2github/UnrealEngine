@@ -27,6 +27,11 @@ protected:
 	virtual void BeginUpdateWaterBody() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
 
+#if WITH_EDITOR
+	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() const override;
+#endif // WITH_EDITOR
+
+protected:
 	UPROPERTY(NonPIEDuplicateTransient)
 	UStaticMeshComponent* MeshComp;
 };
