@@ -500,6 +500,10 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 				}
 			);
 			GraphBuilder.Execute();
+
+			// Properly clear the reference to ViewUniformBuffer before memstack wipes the memory
+			DummyView->~FViewInfo();
+
 			break;
 		}
 
