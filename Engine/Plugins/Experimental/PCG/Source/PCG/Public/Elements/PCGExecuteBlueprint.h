@@ -13,7 +13,14 @@ class UWorld;
 
 #if WITH_EDITOR
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGBlueprintChanged, UPCGBlueprintElement*);
-#endif
+
+namespace PCGBlueprintHelper
+{
+	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies);
+	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies);
+	TSet<TObjectPtr<UObject>> GetDataDependencies(UPCGBlueprintElement* InElement);
+}
+#endif // WITH_EDITOR
 
 UCLASS(Abstract, BlueprintType, Blueprintable, hidecategories = (Object))
 class UPCGBlueprintElement : public UObject
@@ -80,6 +87,7 @@ protected:
 protected:
 #if WITH_EDITOR
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
+	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnBlueprintElementChanged(UPCGBlueprintElement* InElement);
 #endif
 
@@ -88,6 +96,10 @@ protected:
 	void TeardownBlueprintEvent();
 	void SetupBlueprintElementEvent();
 	void TeardownBlueprintElementEvent();
+
+#if WITH_EDITORONLY_DATA
+	TSet<TObjectPtr<UObject>> DataDependencies;
+#endif
 };
 
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
