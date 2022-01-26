@@ -259,13 +259,13 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 
 	checkSlow(MobileNumDynamicPointLights > 0 && SceneRenderer);
 
-	FVector4 LightPositionAndInvRadius;
-	FVector4 LightColorAndFalloffExponent;
-	FVector4 SpotLightDirectionAndSpecularScale;
-	FVector4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
-	FVector4 SpotLightShadowSharpenAndShadowFadeFraction;
+	FVector4f LightPositionAndInvRadius;
+	FVector4f LightColorAndFalloffExponent;
+	FVector4f SpotLightDirectionAndSpecularScale;
+	FVector4f SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
+	FVector4f SpotLightShadowSharpenAndShadowFadeFraction;
 	FVector4f SpotLightShadowmapMinMax;
-	FVector4 LightTilePosition;
+	FVector4f LightTilePosition;
 	FMatrix44f SpotLightWorldToShadowMatrix;
 
 	bool bShouldBeRender = false;
@@ -292,7 +292,7 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 
 		checkSlow(bIsValidLightType && Proxy->IsMovable());
 
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		Proxy->GetLightShaderParameters(LightParameters);
 
 		float LightFadeFactor = 0.0f;
@@ -339,19 +339,19 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 				ShadowFadeFraction = FMath::Max(ShadowFadeFraction, ProjectedShadowInfo->FadeAlphas[ViewIndex]);
 			}
 
-			SpotLightShadowSharpenAndShadowFadeFraction = FVector4(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
+			SpotLightShadowSharpenAndShadowFadeFraction = FVector4f(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
 
 			const FMatrix WorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(SpotLightShadowmapMinMax);
-			const FLargeWorldRenderPosition AbsoluteWorldPosition(LightParameters.TilePosition, LightParameters.Position);
-
-			SpotLightWorldToShadowMatrix = FTranslationMatrix(AbsoluteWorldPosition.GetAbsolute()) * WorldToShadowMatrix;
+			SpotLightWorldToShadowMatrix = FTranslationMatrix(LightParameters.WorldPosition) * WorldToShadowMatrix;
 		}
 
-		LightPositionAndInvRadius = FVector4(LightParameters.Position, LightParameters.InvRadius);
-		LightTilePosition = FVector4(LightParameters.TilePosition, 0);
-		LightColorAndFalloffExponent = FVector4(LightParameters.Color, LightParameters.FalloffExponent);
-		SpotLightDirectionAndSpecularScale = FVector4(LightParameters.Direction.X, LightParameters.Direction.Y, LightParameters.Direction.Z, Proxy->GetSpecularScale());
-		SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, SoftTransitionScale, LightShadowType);
+		const FLargeWorldRenderPosition AbsoluteWorldPosition(LightParameters.WorldPosition);
+
+		LightPositionAndInvRadius = FVector4f(AbsoluteWorldPosition.GetOffset(), LightParameters.InvRadius);
+		LightTilePosition = FVector4f(AbsoluteWorldPosition.GetTile(), 0);
+		LightColorAndFalloffExponent = FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
+		SpotLightDirectionAndSpecularScale = FVector4f(LightParameters.Direction.X, LightParameters.Direction.Y, LightParameters.Direction.Z, Proxy->GetSpecularScale());
+		SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4f(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, SoftTransitionScale, LightShadowType);
 	}
 
 	if (bShouldBeRender != Proxy->bMobileMovablePointLightShouldBeRender ||

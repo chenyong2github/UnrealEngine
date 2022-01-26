@@ -1045,10 +1045,10 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				continue;
 			}
 
-			FLightShaderParameters LightParameters;
+			FLightRenderParameters LightParameters;
 			Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 
-			if (LightParameters.Color.IsZero())
+			if (FVector3f(LightParameters.Color).IsZero())
 			{
 				continue;
 			}
@@ -1064,8 +1064,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.RectLightTextureIndex = -1;
 
 			// these mean roughly the same thing across all light types
-			DestLight.Color = LightParameters.Color;
-			DestLight.Position = LightParameters.Position;
+			DestLight.Color = FVector3f(LightParameters.Color);
+			DestLight.Position = LightParameters.WorldPosition; // LWC_TODO
 			DestLight.Normal = -LightParameters.Direction;
 			DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 			DestLight.dPdv = LightParameters.Tangent;
@@ -1099,10 +1099,10 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			continue;
 		}
 
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 
-		if (LightParameters.Color.IsZero())
+		if (FVector3f(LightParameters.Color).IsZero())
 		{
 			continue;
 		}
@@ -1129,8 +1129,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		}
 
 		// these mean roughly the same thing across all light types
-		DestLight.Color = LightParameters.Color;
-		DestLight.Position = LightParameters.Position;
+		DestLight.Color = FVector3f(LightParameters.Color);
+		DestLight.Position = LightParameters.WorldPosition; // LWC_TODO
 		DestLight.Normal = -LightParameters.Direction;
 		DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 		DestLight.dPdv = LightParameters.Tangent;
@@ -1149,7 +1149,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				if (Light.LightSceneInfo->Proxy->HasSourceTexture())
 				{
 					// there is an actual texture associated with this light, go look for it
-					FLightShaderParameters ShaderParameters;
+					FLightRenderParameters ShaderParameters;
 					Light.LightSceneInfo->Proxy->GetLightShaderParameters(ShaderParameters);
 					FRHITexture* TextureRHI = ShaderParameters.SourceTexture;
 					if (TextureRHI != nullptr)

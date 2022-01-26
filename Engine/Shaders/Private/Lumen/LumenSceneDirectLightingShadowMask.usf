@@ -147,16 +147,17 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if DENSE_SHADOW_MAP
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
-						float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
+						float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
 
 						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 						{
 							#if DYNAMICALLY_SHADOWED
 							{
-								float SceneDepth = dot(WorldPositionForShadowing - LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewForward);
+								float SceneDepth = dot(TranslatedWorldPositionForShadowing - PrimaryView.TranslatedWorldCameraOrigin, View.ViewForward);
 
 								bool bShadowingFromValidUVArea = false;
-								float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+								float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
 
 								if (bShadowingFromValidUVArea)
 								{
@@ -169,7 +170,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 						#else
 						{
 							bool bShadowingFromValidUVArea = false;
-							float NewShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
+							float NewShadowFactor = ComputeVolumeShadowing(TranslatedWorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
 
 							if (bShadowingFromValidUVArea) 
 							{
@@ -309,7 +310,8 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		if (LightData.bRadialLight)
 		{
-			ToLight = LightData.Position - WorldPosition;
+			float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+			ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 			L = normalize(ToLight);
 		}
 #endif

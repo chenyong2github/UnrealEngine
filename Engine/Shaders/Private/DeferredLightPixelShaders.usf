@@ -86,8 +86,7 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	// We are heavily relying on the shader compiler to optimize out constant subexpressions in GetDynamicLighting()
 
 	FDeferredLightData LightData;
-	LightData.bUsingTranslatedWorldSpace = true;
-	LightData.Position = GetDeferredLightTranslatedWorldPosition();
+	LightData.TranslatedWorldPosition = GetDeferredLightTranslatedWorldPosition();
 	LightData.InvRadius = DeferredLightUniforms.InvRadius;
 	LightData.Color = DeferredLightUniforms.Color;
 	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
@@ -378,7 +377,7 @@ void DeferredLightPixelMain(
 	{
 		float3 L = float3(0, 0, 1);
 		if (LightData.bRadialLight)
-			L = normalize(LightData.Position - TranslatedWorldPosition);
+			L = normalize(LightData.TranslatedWorldPosition - TranslatedWorldPosition);
 		else
 			L = LightData.Direction;
 

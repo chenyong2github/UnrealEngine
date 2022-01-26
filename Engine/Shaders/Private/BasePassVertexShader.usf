@@ -192,7 +192,7 @@ void Main(
 		}
 	#endif
 
-	Output.BasePassInterpolants.VertexDiffuseLighting = GetForwardDirectLightingForVertexLighting(GridIndex, WorldPositionForVertexLighting, Output.Position.w, VertexParameters.TangentToWorld[2], EyeIndex, DirectionalLightCloudShadow);
+	Output.BasePassInterpolants.VertexDiffuseLighting = GetForwardDirectLightingForVertexLighting(GridIndex, WorldPositionForVertexLightingTranslated, Output.Position.w, VertexParameters.TangentToWorld[2], EyeIndex, DirectionalLightCloudShadow);
 
 #elif NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 

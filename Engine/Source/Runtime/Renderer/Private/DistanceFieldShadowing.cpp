@@ -768,11 +768,11 @@ void RayTraceShadows(
 		PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
 
 		const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		LightProxy.GetLightShaderParameters(LightParameters);
 
 		PassParameters->LightDirection = LightParameters.Direction;
-		PassParameters->LightPositionAndInvRadius = FVector4f(LightParameters.Position, LightParameters.InvRadius);
+		PassParameters->LightPositionAndInvRadius = FVector4f(LightParameters.WorldPosition, LightParameters.InvRadius); // LWC_TODO
 		// Default light source radius of 0 gives poor results
 		PassParameters->LightSourceRadius = LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius));
 		PassParameters->RayStartOffsetDepthScale = LightProxy.GetRayStartOffsetDepthScale();

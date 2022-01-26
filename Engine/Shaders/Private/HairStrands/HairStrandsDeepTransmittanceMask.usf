@@ -482,7 +482,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		// The Virtual Shadow Remap stores directional lights first
 		const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + LightIndex, EyeIndex);
-		const float3 LightPosition		= LightData.LightPositionAndInvRadius.xyz;
+		const float3 LightPosition		= LightData.LightPositionAndInvRadius.xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		const float3 LightDirection		= LightData.LightDirectionAndShadowMask.xyz; // Direction light only
 		const bool bIsLocalLight		= true;
 

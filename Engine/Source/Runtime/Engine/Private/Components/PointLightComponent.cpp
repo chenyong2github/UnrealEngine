@@ -30,13 +30,11 @@ void FLocalLightSceneProxy::UpdateRadius_GameThread(float ComponentRadius)
 }
 
 /** Accesses parameters needed for rendering the light. */
-void FPointLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& LightParameters) const
+void FPointLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters) const
 {
-	const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
-	LightParameters.Position = AbsoluteWorldPosition.GetOffset();
-	LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
+	LightParameters.WorldPosition = GetOrigin();
 	LightParameters.InvRadius = InvRadius;
-	LightParameters.Color = FVector(GetColor());
+	LightParameters.Color = GetColor();
 	LightParameters.FalloffExponent = FalloffExponent;
 
 	// TODO LWC - GetDirection() seems like it needs to be normalized, somehow accumulating error with large-scale position values

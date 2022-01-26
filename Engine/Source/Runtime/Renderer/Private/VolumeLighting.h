@@ -14,7 +14,7 @@
 #include "Engine/MapBuildDataRegistry.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
-	SHADER_PARAMETER(FMatrix44f, WorldToShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadowMatrix)
 	SHADER_PARAMETER(FVector4f, ShadowmapMinMax)
 	SHADER_PARAMETER(FVector4f, DepthBiasParameters)
 	SHADER_PARAMETER(FVector4f, ShadowInjectParams)
@@ -25,7 +25,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
 	SHADER_PARAMETER(uint32, bStaticallyShadowed)
 	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowDepthTextureSampler)
-	SHADER_PARAMETER(FMatrix44f, WorldToStaticShadowMatrix)
+	SHADER_PARAMETER(FMatrix44f, TranslatedWorldToStaticShadowMatrix)
 	SHADER_PARAMETER(FVector4f, StaticShadowBufferSize)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -46,13 +46,13 @@ void GetVolumeShadowingShaderParameters(
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal0, )
-	SHADER_PARAMETER(FVector3f, Position)
+	SHADER_PARAMETER(FVector3f, TranslatedWorldPosition)
 	SHADER_PARAMETER(float, InvRadius)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal1, )
-	SHADER_PARAMETER(FVector3f, Position)
+	SHADER_PARAMETER(FVector3f, TranslatedWorldPosition)
 	SHADER_PARAMETER(float, InvRadius)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

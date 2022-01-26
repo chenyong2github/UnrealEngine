@@ -299,9 +299,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 	{
 		// Pass per light
 		bDirectionalLight = LightProxy->GetLightType() == LightType_Directional;
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		LightProxy->GetLightShaderParameters(LightParameters);
-		PassParameters->Light = LightParameters;
+		LightParameters.MakeShaderParameters(View.ViewMatrices, PassParameters->Light);
 		PassParameters->LightUniformVirtualShadowMapId = VirtualShadowMapId;
 		PassParameters->RWShadowFactor = GraphBuilder.CreateUAV( OutputTexture );
 	}

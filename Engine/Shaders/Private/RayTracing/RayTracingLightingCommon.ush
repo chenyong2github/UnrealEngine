@@ -119,7 +119,7 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 
 	const uint LightType = RayTracingLightData.Type;
 
-	LightData.Position = RayTracingLightData.LightPosition;
+	LightData.TranslatedWorldPosition = RayTracingLightData.LightPosition;
 	LightData.InvRadius = RayTracingLightData.InvRadius;
 	LightData.Color = RayTracingLightData.LightColor;
 	LightData.FalloffExponent = RayTracingLightData.FalloffExponent;
@@ -255,7 +255,7 @@ float3 SampleAreaLightDirection(
 	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 	FLightShaderParameters LightParameters;
-	LightParameters.Position = LightData.Position;
+	LightParameters.Position = LightData.TranslatedWorldPosition; // LWC_TODO
 	LightParameters.SpotAngles = LightData.SpotAngles;
 	LightParameters.SourceRadius = LightData.SourceRadius;
 	LightParameters.SourceLength = LightData.SourceLength;
@@ -424,7 +424,7 @@ float3 ComputeDirectLighting(
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 
-		float3 ToLight = LightData.Position - WorldPosition;
+		float3 ToLight = LightData.TranslatedWorldPosition - WorldPosition; // LWC_TODO
 		float LightMask = 1.0;
 
 		if (LightType == LIGHT_TYPE_DIRECTIONAL)

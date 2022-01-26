@@ -1100,7 +1100,7 @@ void TraceDistanceFieldShadows(
 // Must match FLumenPackedLight in LumenSceneDirectLighting.ush
 struct FLumenPackedLight
 {
-	FVector3f Position;
+	FVector3f TranslatedWorldPosition;
 	float InvRadius;
 
 	FVector3f Color;
@@ -1143,7 +1143,7 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const FViewI
 		const FLightSceneInfo* LightSceneInfo = GatheredLights[LightIndex].LightSceneInfo;
 		const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 
-		FLightShaderParameters ShaderParameters;
+		FLightRenderParameters ShaderParameters;
 		LightSceneInfo->Proxy->GetLightShaderParameters(ShaderParameters);
 
 		if (LightSceneInfo->Proxy->IsInverseSquared())
@@ -1153,10 +1153,10 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const FViewI
 		ShaderParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
 
 		FLumenPackedLight& LightData = PackedLightData[LightIndex];
-		LightData.Position = ShaderParameters.Position;
+		LightData.TranslatedWorldPosition = FVector3f(View.ViewMatrices.GetPreViewTranslation() + ShaderParameters.WorldPosition);
 		LightData.InvRadius = ShaderParameters.InvRadius;
 
-		LightData.Color = ShaderParameters.Color;
+		LightData.Color = FVector3f(ShaderParameters.Color);
 		LightData.FalloffExponent = ShaderParameters.FalloffExponent;
 
 		LightData.Direction = ShaderParameters.Direction;

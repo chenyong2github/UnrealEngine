@@ -102,6 +102,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
+				float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 				float3 L = LumenLight.DeferredLightData.Direction;
 				float3 ToLight = L;
@@ -110,7 +111,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 				if (LumenLight.Type != LIGHT_TYPE_DIRECTIONAL)
 				{
-					ToLight = LumenLight.DeferredLightData.Position - WorldPosition;
+					ToLight = LumenLight.DeferredLightData.TranslatedWorldPosition - TranslatedWorldPosition;
 					float LengthToLight = length(ToLight);
 					NearFieldTMax = min(NearFieldTMax, LengthToLight);
 					FarFieldTMax = min(FarFieldTMax, LengthToLight);

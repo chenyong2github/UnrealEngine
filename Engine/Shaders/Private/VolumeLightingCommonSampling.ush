@@ -11,7 +11,7 @@
 
 // Sample from Light0Shadow
 #define VSSPREFIX(X) Light0Shadow.X
-#define VSSLIGHTPOSITION  Light0Shadow.Position
+#define VSSLIGHTPOSITION  Light0Shadow.TranslatedWorldPosition
 #define VSSLIGHTINVRADIUS Light0Shadow.InvRadius
 
 float ComputeLight0VolumeShadowing(
@@ -20,7 +20,7 @@ float ComputeLight0VolumeShadowing(
 
 // Sample from VolumeLightingCommon constants
 #define VSSPREFIX(X) Light1Shadow.X
-#define VSSLIGHTPOSITION  Light1Shadow.Position
+#define VSSLIGHTPOSITION  Light1Shadow.TranslatedWorldPosition
 #define VSSLIGHTINVRADIUS Light1Shadow.InvRadius
 
 float ComputeLight1VolumeShadowing(
@@ -33,13 +33,13 @@ float ComputeLight1VolumeShadowing(
 
 // Sample from data in 
 #define VSSPREFIX(X)  X
-#define VSSLIGHTPOSITION  DeferredLightUniforms.Position
+#define VSSLIGHTPOSITION  DeferredLightUniforms.TranslatedWorldPosition
 #define VSSLIGHTINVRADIUS DeferredLightUniforms.InvRadius
 
 float ComputeVolumeShadowing(
 
 #endif
-	float3 WorldPositionForLighting, bool bPointLight, bool bSpotLight, inout bool bShadowFactorValid)
+	float3 TranslatedWorldPositionForLighting, bool bPointLight, bool bSpotLight, inout bool bShadowFactorValid)
 {
 	float ShadowFactor = 1;
 	bShadowFactorValid = false;
@@ -52,7 +52,7 @@ float ComputeVolumeShadowing(
 		BRANCH
 		if (bUsePointLightShadowing)
 		{
-			float3 LightVector = WorldPositionForLighting - VSSLIGHTPOSITION;
+			float3 LightVector = TranslatedWorldPositionForLighting - VSSLIGHTPOSITION;
 			float DistanceToLight = length(LightVector);
 			float3 NormalizedLightVector = LightVector / DistanceToLight;
 
@@ -71,7 +71,7 @@ float ComputeVolumeShadowing(
 		{
 			// This path is used for directional lights and spot lights, which only require a single projection
 			// Transform the world position into shadowmap space
-			float4 HomogeneousShadowPosition = mul(float4(WorldPositionForLighting, 1), VSSPREFIX(WorldToStaticShadowMatrix));
+			float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPositionForLighting, 1), VSSPREFIX(TranslatedWorldToStaticShadowMatrix));
 			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 
 			// Treat as unshadowed if the voxel is outside of the shadow map
@@ -114,13 +114,13 @@ float ComputeVolumeShadowing(
 
 		DynamicShadowFactor = CubemapHardwarePCF(
 			VSSPREFIX(ShadowDepthCubeTexture), VSSPREFIX(ShadowDepthCubeTextureSampler), VSSPREFIX(ShadowViewProjectionMatrices), VSSPREFIX(InvShadowmapResolution),
-			WorldPositionForLighting, VSSLIGHTPOSITION, VSSLIGHTINVRADIUS, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
+			TranslatedWorldPositionForLighting, VSSLIGHTPOSITION, VSSLIGHTINVRADIUS, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
 	}
 	else
 	{
 		// Transform the world position into shadowmap space
 		// NOTE: Shadow space is reverse Z, but shadowmap is stored in "linear Z"
-		float4 HomogeneousShadowPosition = mul(float4(WorldPositionForLighting, 1), VSSPREFIX(WorldToShadowMatrix));
+		float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPositionForLighting, 1), VSSPREFIX(TranslatedWorldToShadowMatrix));
 		float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 		float SceneDepth = 1.0f - HomogeneousShadowPosition.z;
 
@@ -141,7 +141,7 @@ float ComputeVolumeShadowing(
 	// fade shadows in the distance
 	if (!bPointLight && !bSpotLight)
 	{
-		float Depth = dot(WorldPositionForLighting - LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewForward);
+		float Depth = dot(TranslatedWorldPositionForLighting - PrimaryView.TranslatedWorldCameraOrigin, View.ViewForward);
 		float DistanceFade = saturate(Depth * VSSPREFIX(ShadowInjectParams).z + VSSPREFIX(ShadowInjectParams).w);
 		DynamicShadowFactor = lerp(DynamicShadowFactor, 1.0f, DistanceFade * DistanceFade);
 	}

@@ -50,8 +50,10 @@ Buffer<uint>		HairTransmittanceBuffer;
  * Adds local lighting using the light grid, does not apply directional lights, as they are done elsewhere.
  * Does not support dynamic shadows, as these require the per-light shadow mask.
  */
-float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, float3 WorldPosition, float3 CameraVector, FScreenSpaceData ScreenSpaceData, float2 ScreenUV, uint EyeIndex, float Dither, uint FirstNonSimpleLightIndex, uint SampleIndex=0, uint TotalSampleCount=0, uint2 PixelCoord=0)
+float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, float3 TranslatedWorldPosition, float3 CameraVector, FScreenSpaceData ScreenSpaceData, float2 ScreenUV, uint EyeIndex, float Dither, uint FirstNonSimpleLightIndex, uint SampleIndex=0, uint TotalSampleCount=0, uint2 PixelCoord=0)
 {
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+
 	float4 DirectLighting = 0;
 
 	// TODO: Not part of LightGrid ligth data, does it need to be added?
@@ -78,13 +80,13 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		}
 
 		FDeferredLightData LightData = (FDeferredLightData)0;
-		LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 
 		// extra-early out since we know light grid is sloppy and all lights in list are radial (have a range)
 		// appears useless
 		float invLightRadiusSq = LightData.InvRadius*LightData.InvRadius;
-		if (length2(WorldPosition - LightData.Position) * invLightRadiusSq > 1.0f)
+		if (length2(TranslatedWorldPosition - LightData.TranslatedWorldPosition) * invLightRadiusSq > 1.0f)
 		{
 			continue;
 		}
@@ -160,7 +162,7 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		{
 			float3 L = float3(0, 0, 1);
 			if (LightData.bRadialLight)
-				L = normalize(LightData.Position - WorldPosition);
+				L = normalize(LightData.TranslatedWorldPosition - TranslatedWorldPosition);
 			else
 				L = LightData.Direction;
 
@@ -198,16 +200,16 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		// NOTE: uses AO data like tiled deferred (as opposed to forward path)
 		// TODO: Passing in 0,0 as SVPos, what is meaning of this? Only used if 'REFERENCE_QUALITY' is on.
 		float SurfaceShadow = 1.0f;
-		DirectLighting += GetDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData,LightAttenuation, Dither, uint2(0, 0), RectTexture, SurfaceShadow);
+		DirectLighting += GetDynamicLighting(TranslatedWorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData,LightAttenuation, Dither, uint2(0, 0), RectTexture, SurfaceShadow);
 
 #else // 1
 		FSimpleDeferredLightData SimpleLightData = (FSimpleDeferredLightData)0;
-		SimpleLightData.Position = LightData.Position;
+		SimpleLightData.TranslatedWorldPosition = LightData.TranslatedWorldPosition;
 		SimpleLightData.InvRadius = LightData.InvRadius;
 		SimpleLightData.Color = LightData.Color;
 		SimpleLightData.FalloffExponent = LightData.FalloffExponent;
 		SimpleLightData.bInverseSquared = LightData.bInverseSquared;
-		DirectLighting += GetSimpleDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
+		DirectLighting += GetSimpleDynamicLighting(TranslatedWorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
 #endif //
 
 	}
@@ -230,10 +232,10 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		float2 ScreenPosition = UVAndScreenPos.zw;	\
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);	\
 		float SceneDepth = CalcSceneDepth(ScreenUV);	\
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;	\
-		float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));	\
+		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;	\
+		float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);	\
 		ScreenSpaceData.GBuffer.ShadingModelID = ShadingModelId;	\
-		CompositedLighting += GetLightGridLocalLighting(LightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex); \
+		CompositedLighting += GetLightGridLocalLighting(LightGridData, TranslatedWorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex); \
 	}	\
 }
 
@@ -299,8 +301,8 @@ void ClusteredShadingPixelShader(
 	{
 		float2 ScreenPosition = UVAndScreenPos.zw;
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-		float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+		float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
 		// Limit max to ForwardLightData.NumLocalLights.
 		// This prevents GPU hangs when the PS tries to read from uninitialized NumCulledLightsGrid buffer
@@ -318,13 +320,13 @@ void ClusteredShadingPixelShader(
 			}
 
 			FSimpleDeferredLightData SimpleLightData = (FSimpleDeferredLightData)0;
-			SimpleLightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+			SimpleLightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 			SimpleLightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 			SimpleLightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 			SimpleLightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
 			SimpleLightData.bInverseSquared = SimpleLightData.FalloffExponent == 0;
 
-			CompositedLighting += GetSimpleDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
+			CompositedLighting += GetSimpleDynamicLighting(TranslatedWorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
 		}
 		FirstNonSimpleLightIndex = LocalLightListIndex;
 	}
@@ -349,12 +351,12 @@ void ClusteredShadingPixelShader(
 
 	float2 ScreenPosition = UVAndScreenPos.zw;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
 	uint NumCulledEntryIndex = (ForwardLightData.NumGridCells + GridIndex) * NUM_CULLED_LIGHTS_GRID_STRIDE;
 
-	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex);
+	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, TranslatedWorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex);
 #endif // USE_PASS_PER_SHADING_MODEL
 	
 #if !VISUALIZE_LIGHT_CULLING
@@ -406,12 +408,12 @@ void ClusteredShadingPixelShader(
 		return;
 	}
 
-	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
 	float4 CompositedLighting = 0;
 	uint FirstNonSimpleLightIndex = 0;
-	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex, SampleIndex, TotalSampleCount, PixelCoord);
+	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, TranslatedWorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex, SampleIndex, TotalSampleCount, PixelCoord);
 #if !VISUALIZE_LIGHT_CULLING
 	CompositedLighting *= View.PreExposure;
 #endif

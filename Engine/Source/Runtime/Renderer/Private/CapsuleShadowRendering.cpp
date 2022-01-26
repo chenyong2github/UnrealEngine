@@ -427,12 +427,13 @@ void SetupCapsuleShadowingParameters(
 
 		const FLightSceneProxy& LightProxy = *LightSceneInfo->Proxy;
 
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		LightProxy.GetLightShaderParameters(LightParameters);
 
 		Parameters.LightDirection = LightParameters.Direction;
 
-		FVector4f LightPositionAndInvRadius(LightParameters.Position, LightParameters.InvRadius);
+		// LWC_TODO
+		FVector4f LightPositionAndInvRadius(LightParameters.WorldPosition, LightParameters.InvRadius);
 		Parameters.LightPositionAndInvRadius = LightPositionAndInvRadius;
 
 		// Default light source radius of 0 gives poor results

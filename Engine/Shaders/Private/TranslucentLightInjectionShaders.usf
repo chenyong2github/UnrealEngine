@@ -137,6 +137,7 @@ void InjectMainPS(
 
 		WorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
 	}
+	float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 	// compute UVW of the position we shade in the volume
 	float3 VolumeUVs = float3(Input.Vertex.UV, (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].w);
@@ -148,7 +149,7 @@ void InjectMainPS(
 	#if RADIAL_ATTENUATION 
 	{
 		// cull voxels outside the light radius (value is < 0)
-		float3 LightVector = DeferredLightUniforms.Position - WorldPosition;
+		float3 LightVector = DeferredLightUniforms.TranslatedWorldPosition - TranslatedWorldPosition;
 		clip(1.0f / (DeferredLightUniforms.InvRadius * DeferredLightUniforms.InvRadius) - dot(LightVector, LightVector));
 	}
 	#else
@@ -167,20 +168,23 @@ void InjectMainPS(
 	}
 	#endif
 
-	float3 NormalizedLightVector = GetNormalizedLightVector(WorldPosition);
+	float3 NormalizedLightVector = GetNormalizedLightVector(TranslatedWorldPosition);
 
+	float3 TranslatedWorldPositionForLighting;
 	float3 WorldPositionForLighting;
 	{
 		float VoxelSize = View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
+		float3 LightingOffset = 1 * GetBoxPushout(NormalizedLightVector, .5f * VoxelSize);
 
-		WorldPositionForLighting = WorldPosition + 1 * GetBoxPushout(NormalizedLightVector, .5f * VoxelSize);
+		WorldPositionForLighting = WorldPosition + LightingOffset;
+		TranslatedWorldPositionForLighting = TranslatedWorldPosition + LightingOffset;
 	}
 
 	{
 		float3 WorldLightVector;
 		// Calculate radial attenuation using the same biased position used for shadowing
 		// Anything else would cause the extents of the shadowmap to not match up with the cone falloff on a spotlight
-		float Attenuation = CalcLightAttenuation(WorldPositionForLighting, WorldLightVector);
+		float Attenuation = CalcLightAttenuation(TranslatedWorldPositionForLighting, WorldLightVector);
 
 		bool bPointLight = false;
 		bool bSpotLight = false;
@@ -191,7 +195,7 @@ void InjectMainPS(
 		#endif
 
 		bool bUnused = false;
-		float ShadowFactor = ComputeVolumeShadowing(WorldPositionForLighting, bPointLight, bSpotLight, bUnused);
+		float ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPositionForLighting, bPointLight, bSpotLight, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
 		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPositionForLighting);

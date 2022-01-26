@@ -6,7 +6,7 @@
 
 #include "ShadowFilteringCommon.ush"
 
-float ComputeDirectionalLightStaticShadowing(float3 WorldPosition)
+float ComputeDirectionalLightStaticShadowing(float3 TranslatedWorldPosition)
 {
 	float ShadowFactor = 1;
 #if ALLOW_STATIC_LIGHTING
@@ -14,7 +14,7 @@ float ComputeDirectionalLightStaticShadowing(float3 WorldPosition)
 	if (ForwardLightData.DirectionalLightUseStaticShadowing > 0)
 	{
 		// Transform the world position into shadowmap space
-		float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), ForwardLightData.DirectionalLightWorldToStaticShadow);
+		float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), ForwardLightData.DirectionalLightTranslatedWorldToStaticShadow);
 		float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 
 		// Treat as unshadowed if the voxel is outside of the shadow map
@@ -56,7 +56,7 @@ uint GetForwardLightingCascadeIndex(float4 CascadeEndDepths, float SceneDepth)
 	return uint(Count.x + Count.y + Count.z + Count.w);
 }
 
-float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneDepth, inout bool bShadowingFromValidUVArea)
+float ComputeDirectionalLightDynamicShadowing(float3 TranslatedWorldPosition, float SceneDepth, inout bool bShadowingFromValidUVArea)
 {
 	float ShadowFactor = 1;
 	bShadowingFromValidUVArea = false;
@@ -68,7 +68,7 @@ float ComputeDirectionalLightDynamicShadowing(float3 WorldPosition, float SceneD
 		if (CascadeIndex < NumCascades)
 		{
 			// Transform the world position into shadowmap space
-			float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), ForwardLightData.DirectionalLightWorldToShadowMatrix[CascadeIndex]);
+			float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), ForwardLightData.DirectionalLightTranslatedWorldToShadowMatrix[CascadeIndex]);
 			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 			float4 ShadowmapMinMax = ForwardLightData.DirectionalLightShadowmapMinMax[CascadeIndex];
 

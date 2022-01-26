@@ -6,15 +6,9 @@
 
 #include "LargeWorldCoordinates.ush"
 
-/**
- * Various functions here have the suffix TWS.  This means they expect an input position given in (T)ranslated(W)orld(S)pace.  Otherwise position is in absolute world space.
- * For LWC to work, the non-TWS versions will need to be deprecated, and shaders will need to be updated to work in TWS exclusively
- */
-
 float3 GetDeferredLightTranslatedWorldPosition()
 {
-	FLWCVector3 LightWorldPosition = MakeLWCVector3(DeferredLightUniforms.TilePosition, DeferredLightUniforms.Position);
-	return LWCToFloat(LWCAdd(LightWorldPosition, PrimaryView.PreViewTranslation));
+	return DeferredLightUniforms.TranslatedWorldPosition;
 }
 
 /** 
@@ -70,7 +64,7 @@ float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
 }
 
 /** Calculates radial and spot attenuation. */
-float CalcLightAttenuationTWS(float3 TranslatedWorldPosition, out float3 WorldLightVector)
+float CalcLightAttenuation(float3 TranslatedWorldPosition, out float3 WorldLightVector)
 {
 	WorldLightVector = DeferredLightUniforms.Direction;
 	float DistanceAttenuation = 1;
@@ -100,12 +94,7 @@ float CalcLightAttenuationTWS(float3 TranslatedWorldPosition, out float3 WorldLi
 	return SpotFalloff * DistanceAttenuation;
 }
 
-float CalcLightAttenuation(float3 WorldPosition, out float3 WorldLightVector)
-{
-	return CalcLightAttenuationTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), WorldLightVector);
-}
-
-float3 GetNormalizedLightVectorTWS(float3 TranslatedWorldPosition)
+float3 GetNormalizedLightVector(float3 TranslatedWorldPosition)
 {
 	// assumed to be normalized
 	float3 Ret = DeferredLightUniforms.Direction;
@@ -117,12 +106,7 @@ float3 GetNormalizedLightVectorTWS(float3 TranslatedWorldPosition)
 	return Ret;
 }
 
-float3 GetNormalizedLightVector(float3 WorldPosition)
-{
-	return GetNormalizedLightVectorTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
-}
-
-float GetLightInfluenceMaskTWS(float3 TranslatedWorldPosition)
+float GetLightInfluenceMask(float3 TranslatedWorldPosition)
 {
 	float LightMask = 1;
 
@@ -150,9 +134,3 @@ float GetLightInfluenceMaskTWS(float3 TranslatedWorldPosition)
 
 	return LightMask > 0.0f ? 1.0f : 0.0f;
 }
-
-float GetLightInfluenceMask(float3 WorldPosition)
-{
-	return GetLightInfluenceMaskTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
-}
-

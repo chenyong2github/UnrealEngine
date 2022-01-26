@@ -180,8 +180,7 @@ void MainPS(
 
 				FDeferredLightData LightData;
 				{
-					LightData.bUsingTranslatedWorldSpace = true;
-					LightData.Position					= float3(0,0,0);  // Directional light
+					LightData.TranslatedWorldPosition	= float3(0,0,0);  // Directional light
 					LightData.InvRadius					= 0.f;			  // Directional light
 					LightData.Color						= InRadiance;
 					LightData.FalloffExponent			= 0.f;			  // Directional light

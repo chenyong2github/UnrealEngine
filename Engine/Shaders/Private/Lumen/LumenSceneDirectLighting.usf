@@ -81,6 +81,7 @@ void LumenCardDirectLightingPS(
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 		float3 WorldPosition = GetCardWorldPosition(Card, CardInterpolants.CardUV, Depth);
+		float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 		float3 LightColor = DeferredLightUniforms.Color;
 		float3 L = LightData.Direction;
@@ -92,7 +93,7 @@ void LumenCardDirectLightingPS(
 		float LightMask = 1;
 		if (LightData.bRadialLight)
 		{
-			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, L);
+			LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
 		}
 
 		float Attenuation;
@@ -132,7 +133,7 @@ void LumenCardDirectLightingPS(
 
 				if (UseIESProfile > 0)
 				{
-					ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+					ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 				}
 
 				float NoL = saturate(dot(WorldNormal, L));

@@ -1617,11 +1617,13 @@ static void DenoiseSignalAtConstantPixelDensity(
 		{
 			FLightSceneProxy* LightSceneProxy = Settings.LightSceneInfo[BatchedSignalId]->Proxy;
 
-			FLightShaderParameters Parameters;
+			FLightRenderParameters Parameters;
 			LightSceneProxy->GetLightShaderParameters(Parameters);
 
+			const FVector3f TranslatedWorldPosition = FVector3f(View.ViewMatrices.GetPreViewTranslation() + Parameters.WorldPosition);
+
 			ConvolutionMetaData.LightPositionAndRadius[BatchedSignalId] = FVector4f(
-				Parameters.Position, Parameters.SourceRadius);
+				TranslatedWorldPosition, Parameters.SourceRadius);
 			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4f(
 				Parameters.Direction, Parameters.SourceLength);
 			GET_SCALAR_ARRAY_ELEMENT(ConvolutionMetaData.HitDistanceToWorldBluringRadius, BatchedSignalId) = 

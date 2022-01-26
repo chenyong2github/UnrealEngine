@@ -118,8 +118,10 @@ float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCaster
 	return IndirectOcclusion;
 }
 
-FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
+FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
 {
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+
 	float4 DynamicShadowFactors = 1;
 
 	#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
@@ -180,12 +182,12 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 			LightData.ShadowedBits = 1;
 			LightData.ShadowMapChannelMask.x = 1;
 			#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
-				GBufferData.PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(WorldPosition).x;
+				GBufferData.PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x;
 			#else
 				GBufferData.PrecomputedShadowFactors.x = 1;
 			#endif
 			bool bUnused = false;
-			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPosition, GBufferData.Depth, bUnused);
+			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, GBufferData.Depth, bUnused);
 			
 #if VIRTUAL_SHADOW_MAP
 			BRANCH
@@ -199,7 +201,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
 
-		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, OutDirectionalLightShadow);
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, OutDirectionalLightShadow);
 
 		FLATTEN
 		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
@@ -230,7 +232,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 		 
 		FDeferredLightData LightData = (FDeferredLightData)0;
-		LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 		LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 		LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
@@ -266,7 +268,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 		float SurfaceShadow = 1.0f;
-		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, SurfaceShadow);
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, SurfaceShadow);
 
 		FLATTEN
 		if ((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask)
@@ -288,14 +290,14 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 	return DirectLighting;
 }
 
-float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
+float3 GetForwardDirectLighting(uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
 {
-	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, WorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, InDirectionalLightCloudShadow, OutDirectionalLightShadow);
+	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, TranslatedWorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, InDirectionalLightCloudShadow, OutDirectionalLightShadow);
 
 	return Ret.DiffuseLighting.rgb + Ret.SpecularLighting.rgb;
 }
 
-float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex, float InDirectionalLightCloudShadow)
+float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 TranslatedWorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex, float InDirectionalLightCloudShadow)
 {
 	float3 DirectLighting = 0;
 	// Using white for diffuse color, real diffuse color will be incorporated per-pixel
@@ -316,9 +318,9 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 			NoL = 1.0f;
 		#endif
 
-		float ShadowFactor = ComputeDirectionalLightStaticShadowing(WorldPosition);
+		float ShadowFactor = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition);
 		bool bUnused = false;
-		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth, bUnused);
+		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bUnused);
 
 	#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
 		ShadowFactor *= InDirectionalLightCloudShadow;
@@ -341,7 +343,7 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 		 
 		FSimpleDeferredLightData LightData = (FSimpleDeferredLightData)0;
-		LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 		LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 		LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
@@ -351,7 +353,7 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 		float3 CameraVector = 0;
 		float3 SpecularColor = 0;
 		float Roughness = 1.0f;
-		DirectLighting += GetSimpleDynamicLighting(WorldPosition, CameraVector, WorldNormal, 1, DiffuseColor, SpecularColor, Roughness, LightData);
+		DirectLighting += GetSimpleDynamicLighting(TranslatedWorldPosition, CameraVector, WorldNormal, 1, DiffuseColor, SpecularColor, Roughness, LightData);
 	}
 
 	// Zero out direct lighting if show flag is disabled
@@ -433,9 +435,9 @@ half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameter
 #endif
 
 		const bool bCompositeSkylight = true;
-		SpecularIBL = CompositeReflectionCapturesAndSkylight(
+		SpecularIBL = CompositeReflectionCapturesAndSkylightTWS(
 			1.0f, 
-			LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), 
+			MaterialParameters.WorldPosition_CamRelative, 
 			RayDirection, 
 			Roughness, 
 			IndirectIrradiance, 

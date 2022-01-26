@@ -108,17 +108,18 @@ float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float2 ScreenU
 FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
 {
 	FLightShaderParameters Light = (FLightShaderParameters)0;
-	Light.Position			= LightData.LightPositionAndInvRadius.xyz;
-	Light.InvRadius			= LightData.LightPositionAndInvRadius.w;
-	Light.Color				= LightData.LightColorAndFalloffExponent.xyz;
-	Light.FalloffExponent	= LightData.LightColorAndFalloffExponent.w;
-	Light.Direction			= LightData.LightDirectionAndShadowMask.xyz;
-	Light.Tangent			= LightData.LightTangentAndSoftSourceRadius.xyz;
-	Light.SpotAngles		= LightData.SpotAnglesAndSourceRadiusPacked.xy;
-	Light.SpecularScale		= 1;
-	Light.SourceRadius		= LightData.SpotAnglesAndSourceRadiusPacked.z;
-	Light.SoftSourceRadius	= LightData.LightTangentAndSoftSourceRadius.w;
-	Light.SourceLength		= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
+	Light.Position					= LightData.LightPositionAndInvRadius.xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	Light.TranslatedWorldPosition	= LightData.LightPositionAndInvRadius.xyz;
+	Light.InvRadius					= LightData.LightPositionAndInvRadius.w;
+	Light.Color						= LightData.LightColorAndFalloffExponent.xyz;
+	Light.FalloffExponent			= LightData.LightColorAndFalloffExponent.w;
+	Light.Direction					= LightData.LightDirectionAndShadowMask.xyz;
+	Light.Tangent					= LightData.LightTangentAndSoftSourceRadius.xyz;
+	Light.SpotAngles				= LightData.SpotAnglesAndSourceRadiusPacked.xy;
+	Light.SpecularScale				= 1;
+	Light.SourceRadius				= LightData.SpotAnglesAndSourceRadiusPacked.z;
+	Light.SoftSourceRadius			= LightData.LightTangentAndSoftSourceRadius.w;
+	Light.SourceLength				= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
 	return Light;
 }
 
@@ -174,7 +175,6 @@ FVirtualShadowMapSampleResult ProjectLight(
 	const uint ShadingModelID = GetGBufferDataUint(PixelPos).ShadingModelID;
 	const bool bIsHairInput = InputType == INPUT_TYPE_HAIRSTRANDS;
 
-	const float3 BaseWorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	// NOTE: If PrimaryView.PreViewTranslation is guaranteed to be the camera position we can simplify
 	const float DistanceToCamera = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 	const float NormalBiasLength = max(0.01f, NormalBias * DistanceToCamera / View.ViewToClip._11);
@@ -183,7 +183,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 	float3 L = Light.Direction;
 	bool bInLightRegion = true;
 #else	
-	float3 ToLight = Light.Position - BaseWorldPosition;
+	float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 	float d2 = dot( ToLight, ToLight );
 	float InvDist = rsqrt( d2 );
 	half3 L = ToLight * InvDist;
@@ -515,7 +515,7 @@ void VirtualShadowMapProjection(
 #else // !ONE_PASS_PROJECTION
 	{
 		int VirtualShadowMapId = LightUniformVirtualShadowMapId;
-		FLightShaderParameters Light = GetRootLightShaderParameters();
+		FLightShaderParameters Light = GetRootLightShaderParameters(PrimaryView.PreViewTranslation);
 
 		FVirtualShadowMapSampleResult Result = ProjectLight(
 			VirtualShadowMapId,

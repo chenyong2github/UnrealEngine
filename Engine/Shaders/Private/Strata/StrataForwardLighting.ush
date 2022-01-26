@@ -57,7 +57,7 @@ float3 StrataForwardLightingCommon(
 
 		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
 	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
-		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(AbsoluteWorldPosition).x;
+		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x;
 	#else
 		PrecomputedShadowFactors.x = 1;
 	#endif
@@ -233,7 +233,7 @@ float3 StrataForwardLighting(
 	DirLightData.ShadowedBits = 1;
 	DirLightData.ShadowMapChannelMask.x = 1;
 	bool bUnused = false;
-	float DirLightDynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(AbsoluteWorldPosition, SceneDepth, bUnused);
+	float DirLightDynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bUnused);
 			
 #if VIRTUAL_SHADOW_MAP
 	BRANCH
@@ -549,7 +549,7 @@ float3 StrataForwardLighting(
 				const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 
 				FDeferredLightData LightData = (FDeferredLightData)0;
-				LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+				LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 				LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 				LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 				LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;

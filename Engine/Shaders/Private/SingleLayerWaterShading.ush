@@ -177,7 +177,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		for (float s = 0.0f; s < RayMarchMaxDistance; s += RayMarchStepSize)
 		{
 			// Only jitter shadow map sampling to not lose energy on first sample
-			float Shadow = ComputeDirectionalLightDynamicShadowing(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition) - (s + ShadowDither)*MaterialParameters.CameraVector, GBuffer.Depth);
+			float Shadow = ComputeDirectionalLightDynamicShadowing(MaterialParameters.WorldPosition_CamRelative - (s + ShadowDither)*MaterialParameters.CameraVector, GBuffer.Depth);
 
 			// TODO: Sample virtual shadow map when present; something like the following:
 			//if (ForwardLightData.DirectionalLightVSM != INDEX_NONE)

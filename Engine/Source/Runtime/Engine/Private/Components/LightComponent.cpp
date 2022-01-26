@@ -309,6 +309,23 @@ FBoxSphereBounds ULightComponentBase::GetPlacementExtent() const
 	return NewBounds;
 }
 
+void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatrices, FLightShaderParameters& OutShaderParameters) const
+{
+	OutShaderParameters.TranslatedWorldPosition = FVector3f(ViewMatrices.GetPreViewTranslation() + WorldPosition);
+	OutShaderParameters.InvRadius = InvRadius;
+	OutShaderParameters.Color = FVector3f(Color);
+	OutShaderParameters.FalloffExponent = FalloffExponent;
+	OutShaderParameters.Direction = Direction;
+	OutShaderParameters.SpecularScale = SpecularScale;
+	OutShaderParameters.Tangent = Tangent;
+	OutShaderParameters.SourceRadius = SourceRadius;
+	OutShaderParameters.SpotAngles = SpotAngles;
+	OutShaderParameters.SoftSourceRadius = SoftSourceRadius;
+	OutShaderParameters.SourceLength = SourceLength;
+	OutShaderParameters.RectLightBarnCosAngle = RectLightBarnCosAngle;
+	OutShaderParameters.RectLightBarnLength = RectLightBarnLength;
+	OutShaderParameters.SourceTexture = SourceTexture;
+}
 
 FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	: LightComponent(InLightComponent)

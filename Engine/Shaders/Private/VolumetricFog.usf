@@ -219,7 +219,8 @@ float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
 	if (IsPointLight)
 	{
 		// Get vector from light to cell world pos.
-		float3 LightVec = normalize(WorldPosition - DeferredLightUniforms.Position);
+		float TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 LightVec = normalize(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition);
 		// Transform and swizzle
 		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
 		// Map to spherical coordinate
@@ -268,7 +269,7 @@ void InjectShadowedLocalLightPS(
 	if (all(int3(GridCoordinate) < VolumetricFog.GridSizeInt))
 	{
 		FDeferredLightData LightData;
-		LightData.Position = DeferredLightUniforms.Position;
+		LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
 		LightData.InvRadius = DeferredLightUniforms.InvRadius;
 		LightData.Color = DeferredLightUniforms.Color;
 		LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
@@ -572,6 +573,7 @@ void LightScatteringCS(
 
 		float SceneDepth;
 		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
+		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float CameraVectorLength = length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 		float3 CameraVector = (WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) / CameraVectorLength;
 
@@ -582,9 +584,9 @@ void LightScatteringCS(
 			
 			if (UseDirectionalLightShadowing > 0)
 			{
-				ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPosition);
+				ShadowFactor *= ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition);
 				bool bUnused = false;
-				ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth, bUnused);
+				ShadowFactor *= ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, WorldPosition );
@@ -695,7 +697,7 @@ void LightScatteringCS(
 			if (VolumetricScatteringIntensity > 0)
 			{
 				FDeferredLightData LightData = (FDeferredLightData)0;
-				LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+				LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 				LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 				LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 				LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;

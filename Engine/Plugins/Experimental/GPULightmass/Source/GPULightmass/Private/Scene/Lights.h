@@ -15,7 +15,7 @@ class FSkyLightImportanceSamplingData;
 
 struct FLightShaderConstants
 {
-	FVector3f	Position;
+	FVector3f	WorldPosition;
 	float		InvRadius;
 	FVector3f	Color;
 	float		FalloffExponent;
@@ -31,11 +31,11 @@ struct FLightShaderConstants
 
 	FLightShaderConstants() = default;
 
-	FLightShaderConstants(const FLightShaderParameters& LightShaderParameters)
+	FLightShaderConstants(const FLightRenderParameters& LightShaderParameters)
 	{
-		Position = LightShaderParameters.Position;
+		WorldPosition = FVector3f(LightShaderParameters.WorldPosition); // LWC_TODO
 		InvRadius = LightShaderParameters.InvRadius;
-		Color = LightShaderParameters.Color;
+		Color = FVector3f(LightShaderParameters.Color);
 		FalloffExponent = LightShaderParameters.FalloffExponent;
 		Direction = LightShaderParameters.Direction;
 		SpecularScale = LightShaderParameters.SpecularScale;
@@ -81,7 +81,7 @@ struct FLocalLightRenderState
 	bool bStationary = false;
 	int ShadowMapChannel = INDEX_NONE;
 
-	virtual FLightShaderParameters GetLightShaderParameters() const = 0;
+	virtual FLightRenderParameters GetLightShaderParameters() const = 0;
 };
 
 class FLightArrayBase;
@@ -205,7 +205,7 @@ struct FDirectionalLightRenderState : public FLocalLightRenderState
 	float LightSourceAngle;
 	float LightSourceSoftAngle;
 
-	virtual FLightShaderParameters GetLightShaderParameters() const override;
+	virtual FLightRenderParameters GetLightShaderParameters() const override;
 };
 
 using FDirectionalLightRenderStateRef = TEntityArray<FDirectionalLightRenderState>::EntityRefType;
@@ -226,7 +226,7 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	bool IsInverseSquared;
 	FTexture* IESTexture;
 
-	virtual FLightShaderParameters GetLightShaderParameters() const override;
+	virtual FLightRenderParameters GetLightShaderParameters() const override;
 };
 
 using FPointLightRenderStateRef = TEntityArray<FPointLightRenderState>::EntityRefType;
@@ -249,7 +249,7 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	FTexture* IESTexture;
 
 
-	virtual FLightShaderParameters GetLightShaderParameters() const override;
+	virtual FLightRenderParameters GetLightShaderParameters() const override;
 };
 
 using FSpotLightRenderStateRef = TEntityArray<FSpotLightRenderState>::EntityRefType;
@@ -269,7 +269,7 @@ struct FRectLightRenderState : public FLocalLightRenderState
 	float BarnDoorLength;
 	FTexture* IESTexture;
 
-	virtual FLightShaderParameters GetLightShaderParameters() const override;
+	virtual FLightRenderParameters GetLightShaderParameters() const override;
 };
 
 using FRectLightRenderStateRef = TEntityArray<FRectLightRenderState>::EntityRefType;

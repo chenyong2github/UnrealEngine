@@ -927,7 +927,7 @@ uint MortonEncode3(uint3 Pixel)
 // Must match C++
 struct FLightShaderConstants
 {
-	float3 Position;
+	float3 WorldPosition;
 	float  InvRadius;
 	float3 Color;
 	float  FalloffExponent;
@@ -943,7 +943,9 @@ struct FLightShaderConstants
 	
 	void FillLightShaderParameters(inout FLightShaderParameters LightShaderParameters)
 	{
-		LightShaderParameters.Position = Position;
+		LightShaderParameters.Position = WorldPosition;
+		LightShaderParameters.TranslatedWorldPosition = LWCHackToFloat(PrimaryView.PreViewTranslation) + WorldPosition;
+
 		LightShaderParameters.InvRadius = InvRadius;
 		LightShaderParameters.Color = Color;
 		LightShaderParameters.FalloffExponent = FalloffExponent;

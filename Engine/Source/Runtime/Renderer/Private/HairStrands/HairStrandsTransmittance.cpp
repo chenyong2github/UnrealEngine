@@ -819,7 +819,7 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 
 	if (!bHasFoundLight && VoxelResources.IsValid())
 	{
-		FLightShaderParameters LightParameters;
+		FLightRenderParameters LightParameters;
 		LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 
 		FHairStrandsTransmittanceLightParams Params;

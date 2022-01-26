@@ -272,8 +272,13 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		PassParameters->SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
 		PassParameters->NormalBias = GetRaytracingMaxNormalBias();
 		PassParameters->LightingChannelMask = LightSceneProxy->GetLightingChannelMask();
-		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
-		PassParameters->Light.SourceRadius *= LightSceneProxy->GetShadowSourceAngleFactor();
+		
+		{
+			FLightRenderParameters LightParameters;
+			LightSceneProxy->GetLightShaderParameters(LightParameters);
+			LightParameters.MakeShaderParameters(View.ViewMatrices, PassParameters->Light);
+			PassParameters->Light.SourceRadius *= LightSceneProxy->GetShadowSourceAngleFactor();
+		}
 
 		PassParameters->TraceDistance = LightSceneProxy->GetTraceDistance();
 		PassParameters->LODTransitionStart = CVarRayTracingShadowsLODTransitionStart.GetValueOnRenderThread();

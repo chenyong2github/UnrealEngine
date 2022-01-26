@@ -102,7 +102,7 @@ FDeferredLightData LoadLightData(uint LightType)
 {
 	FDeferredLightData LightData = (FDeferredLightData)0;
 
-	LightData.Position = DeferredLightUniforms.Position;
+	LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
 	LightData.InvRadius = DeferredLightUniforms.InvRadius;
 	LightData.Color = DeferredLightUniforms.Color;
 	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
@@ -131,7 +131,7 @@ FDeferredLightData LoadLightData(uint LightType)
 
 struct FLumenPackedLight
 {
-	float3 Position;
+	float3 TranslatedWorldPosition;
 	float InvRadius;
 
 	float3 Color;
@@ -186,7 +186,7 @@ FLumenLight LoadLumenLight(uint LightIndex)
 	FLumenPackedLight PackedLight = LumenPackedLights[LightIndex];
 
 	FDeferredLightData DeferredLightData = (FDeferredLightData)0;
-	DeferredLightData.Position = PackedLight.Position;
+	DeferredLightData.TranslatedWorldPosition = PackedLight.TranslatedWorldPosition;
 	DeferredLightData.InvRadius = PackedLight.InvRadius;
 	DeferredLightData.Color = PackedLight.Color;
 	DeferredLightData.FalloffExponent = PackedLight.FalloffExponent;

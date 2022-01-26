@@ -4726,7 +4726,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 
 				if( DistanceSqr < Radius * Radius )
 				{
-					FLightShaderParameters LightParameters;
+					FLightRenderParameters LightParameters;
 
 					Proxy->GetLightShaderParameters(LightParameters);
 
@@ -4747,7 +4747,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					}
 					Origin = ToLight + View.ViewMatrices.GetViewOrigin();
 				
-					FLinearColor Color( LightParameters.Color.X, LightParameters.Color.Y, LightParameters.Color.Z, LightParameters.FalloffExponent );
+					FLinearColor Color( LightParameters.Color.R, LightParameters.Color.G, LightParameters.Color.B, LightParameters.FalloffExponent );
 					const bool bIsRectLight = Proxy->IsRectLight();
 					if( !bIsRectLight )
 					{

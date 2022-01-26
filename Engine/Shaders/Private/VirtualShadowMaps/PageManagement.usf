@@ -267,10 +267,11 @@ void GeneratePageFlagsFromPixels(
 		{
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
 			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
+			const float3 LightWorldPosition = LightData.LightPositionAndInvRadius.xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 			// TODO: Can optimize these tests by fusing them together
 			// Also do precise cone test, since froxels are pretty coarse at times.
-			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - WorldPosition);
+			float3 ToLight = normalize(LightWorldPosition - WorldPosition);
 			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
 			{
 				continue;
@@ -280,7 +281,7 @@ void GeneratePageFlagsFromPixels(
 
 #if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
-			if (bBackfaceCull && IsBackfaceToLocalLight(WorldPosition, WorldNormal, LightData.LightPositionAndInvRadius.xyz, LightData.SpotAnglesAndSourceRadiusPacked.z))
+			if (bBackfaceCull && IsBackfaceToLocalLight(WorldPosition, WorldNormal, LightWorldPosition, LightData.SpotAnglesAndSourceRadiusPacked.z))
 			{
 				continue;
 			}

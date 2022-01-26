@@ -71,9 +71,9 @@ public:
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 
-		FVector4 StencilingSpherePosAndScale;
+		FVector4f StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, BoundingSphere, View.ViewMatrices.GetPreViewTranslation());
-		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(StencilingSpherePosAndScale)); // LWC_TODO: Precision loss
+		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{

@@ -61,7 +61,7 @@ public:
 			LightBounds.Center = View.ViewMatrices.GetViewOrigin();
 		}
 
-		FVector4 StencilingSpherePosAndScale;
+		FVector4f StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
 		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
 	}
@@ -110,32 +110,29 @@ public:
 		{
 			const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 			// Switch x and z so that z of the user specified scale affects the distance along the light direction
-			const FVector InverseScale = FVector( 1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X );
-			const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
-
-			FVector2D InvViewSize = FVector2D(1.0f / View.ViewRect.Width(), 1.0f / View.ViewRect.Height());
+			const FVector InverseScale = FVector( 1.0 / Scale.Z, 1.0 / Scale.Y, 1.0 / Scale.X );
+			const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(InverseScale);	
+			const FVector2D InvViewSize = FVector2D(1.0 / View.ViewRect.Width(), 1.0 / View.ViewRect.Height());
 
 			// setup a matrix to transform float4(SvPosition.xyz,1) directly to Light (quality, performance as we don't need to convert or use interpolator)
-
 			//	new_xy = (xy - ViewRectMin.xy) * ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1, 1);
-
 			//  transformed into one MAD:  new_xy = xy * ViewSizeAndInvSize.zw * float2(2,-2)      +       (-ViewRectMin.xy) * ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1, 1);
 
-			float Mx = 2.0f * InvViewSize.X;
-			float My = -2.0f * InvViewSize.Y;
-			float Ax = -1.0f - 2.0f * View.ViewRect.Min.X * InvViewSize.X;
-			float Ay = 1.0f + 2.0f * View.ViewRect.Min.Y * InvViewSize.Y;
+			const double Mx = 2.0 * InvViewSize.X;
+			const double My = -2.0 * InvViewSize.Y;
+			const double Ax = -1.0 - 2.0 * View.ViewRect.Min.X * InvViewSize.X;
+			const double Ay = 1.0 + 2.0 * View.ViewRect.Min.Y * InvViewSize.Y;
 
 			// todo: we could use InvTranslatedViewProjectionMatrix and TranslatedWorldToLight for better quality
-			const FMatrix44f SvPositionToLightValue = 
-				FMatrix44f(
-					FPlane4f(Mx,  0,   0,  0),
-					FPlane4f( 0, My,   0,  0),
-					FPlane4f( 0,  0,   1,  0),
-					FPlane4f(Ax, Ay,   0,  1)
+			const FMatrix SvPositionToLightValue = 
+				FMatrix(
+					FPlane(Mx,  0,   0,  0),
+					FPlane( 0, My,   0,  0),
+					FPlane( 0,  0,   1,  0),
+					FPlane(Ax, Ay,   0,  1)
 				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToLight;
 
-			SetShaderValue(RHICmdList, ShaderRHI, SvPositionToLight, SvPositionToLightValue );
+			SetShaderValue(RHICmdList, ShaderRHI, SvPositionToLight, FMatrix44f(SvPositionToLightValue) );
 		}
 
 		LightFunctionParameters.Set(RHICmdList, ShaderRHI, LightSceneInfo, ShadowFadeFraction);

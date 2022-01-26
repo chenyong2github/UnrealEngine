@@ -194,7 +194,10 @@ static void RenderLight(
 FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo)
 {
 	FDeferredLightUniformStruct Out;
-	LightSceneInfo.Proxy->GetLightShaderParameters(Out.LightParameters);
+
+	FLightRenderParameters LightParameters;
+	LightSceneInfo.Proxy->GetLightShaderParameters(LightParameters);
+	LightParameters.MakeShaderParameters(View.ViewMatrices, Out.LightParameters);
 
 	const bool bIsRayTracedLight = ShouldRenderRayTracingShadowsForLight(*LightSceneInfo.Proxy);
 
@@ -265,8 +268,9 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 }
 
 FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
+	const FSceneView& View,
 	const FSimpleLightEntry& SimpleLight,
-	const FVector& LWPosition)
+	const FVector& LightWorldPosition)
 {
 	FDeferredLightUniformStruct Out;
 	Out.ShadowMapChannelMask = FVector4f(0, 0, 0, 0);
@@ -277,31 +281,28 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	Out.ShadowedBits = 0;
 	Out.LightingChannelMask = 0;
 
-	const FLargeWorldRenderPosition AbsoluteWorldPosition(LWPosition);
-	Out.LightParameters.Position = AbsoluteWorldPosition.GetOffset();
-	Out.LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
+	Out.LightParameters.TranslatedWorldPosition = FVector3f(LightWorldPosition + View.ViewMatrices.GetPreViewTranslation());
 	Out.LightParameters.InvRadius = 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER);
-	Out.LightParameters.Padding = 0;
 	Out.LightParameters.Color = SimpleLight.Color;
 	Out.LightParameters.FalloffExponent = SimpleLight.Exponent;
-	Out.LightParameters.Direction = FVector(1, 0, 0);
-	Out.LightParameters.Tangent = FVector(1, 0, 0);
-	Out.LightParameters.SpotAngles = FVector2D(-2, 1);
+	Out.LightParameters.Direction = FVector3f(1, 0, 0);
+	Out.LightParameters.Tangent = FVector3f(1, 0, 0);
+	Out.LightParameters.SpotAngles = FVector2f(-2, 1);
 	Out.LightParameters.SpecularScale = 1.0f;
 	Out.LightParameters.SourceRadius = 0.0f;
 	Out.LightParameters.SoftSourceRadius = 0.0f;
 	Out.LightParameters.SourceLength = 0.0f;
-	Out.LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
 	Out.LightParameters.RectLightBarnCosAngle = 0;
 	Out.LightParameters.RectLightBarnLength = -2.0f;
 	Out.LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
 	return Out;
 }
 FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
+	const FSceneView& View,
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 {
-	return GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData.Position);
+	return GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPerViewData.Position);
 }
 
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
@@ -1763,10 +1764,10 @@ static TRDGUniformBufferRef<FDeferredLightUniformStruct> CreateDeferredLightUnif
 	return GraphBuilder.CreateUniformBuffer(DeferredLightStruct);
 }
 
-static TRDGUniformBufferRef<FDeferredLightUniformStruct> CreateDeferredLightUniformBuffer(FRDGBuilder& GraphBuilder, const FSimpleLightEntry& SimpleLight, const FVector& SimpleLightPosition)
+static TRDGUniformBufferRef<FDeferredLightUniformStruct> CreateDeferredLightUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSimpleLightEntry& SimpleLight, const FVector& SimpleLightPosition)
 {
 	auto* DeferredLightStruct = GraphBuilder.AllocParameters<FDeferredLightUniformStruct>();
-	*DeferredLightStruct = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPosition);
+	*DeferredLightStruct = GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPosition);
 	return GraphBuilder.CreateUniformBuffer(DeferredLightStruct);
 }
 
@@ -2366,7 +2367,7 @@ static FSimpleLightsStandardDeferredParameters GetRenderLightSimpleParameters(
 	Out.PS.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.PS.IESTexture = GSystemTextures.WhiteDummy->GetShaderResourceRHI();
 	Out.PS.View = View.ViewUniformBuffer;
-	Out.PS.DeferredLight = CreateDeferredLightUniformBuffer(GraphBuilder, SimpleLight, SimpleLightPosition);
+	Out.PS.DeferredLight = CreateDeferredLightUniformBuffer(GraphBuilder, View, SimpleLight, SimpleLightPosition);
 	// PS - Hair (default)
 	Out.PS.ScreenShadowMaskSubPixelTexture = WhiteDummy;
 	Out.PS.HairTransmittanceBuffer = BufferDummySRV;
@@ -2472,7 +2473,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 
 
 				// Update the light parameters with a custom uniform buffer
-				FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData);
+				FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPerViewData);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 				SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), PixelShader->GetUniformBufferParameter<FDeferredLightUniformStruct>(), DeferredLightUniformsValue);
 

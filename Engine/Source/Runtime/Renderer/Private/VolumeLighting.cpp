@@ -36,13 +36,13 @@ static void SetVolumeShadowingDefaultShaderParametersGlobal(FRDGBuilder& GraphBu
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef BlackDepthCubeTexture = SystemTextures.BlackDepthCube;
 
-	ShaderParams.WorldToShadowMatrix = FMatrix::Identity;
+	ShaderParams.TranslatedWorldToShadowMatrix = FMatrix44f::Identity;
 	ShaderParams.ShadowmapMinMax = FVector4f(1.0f);
 	ShaderParams.DepthBiasParameters = FVector4f(1.0f);
 	ShaderParams.ShadowInjectParams = FVector4f(1.0f);
 	memset(ShaderParams.ClippingPlanes.GetData(), 0, sizeof(ShaderParams.ClippingPlanes));
 	ShaderParams.bStaticallyShadowed = 0;
-	ShaderParams.WorldToStaticShadowMatrix = FMatrix::Identity;
+	ShaderParams.TranslatedWorldToStaticShadowMatrix = FMatrix44f::Identity;
 	ShaderParams.StaticShadowBufferSize = FVector4f(1.0f);
 	ShaderParams.ShadowDepthTexture = SystemTextures.White;
 	ShaderParams.StaticShadowDepthTexture = GWhiteTexture->TextureRHI;
@@ -63,14 +63,17 @@ void GetVolumeShadowingShaderParameters(
 	const FProjectedShadowInfo* ShadowInfo,
 	FVolumeShadowingShaderParameters& OutParameters)
 {
+	const FMatrix TranslatedWorldToWorld = FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
+
 	const bool bDynamicallyShadowed = ShadowInfo != nullptr;
 	if (bDynamicallyShadowed)
 	{
-		OutParameters.WorldToShadowMatrix = ShadowInfo->GetWorldToShadowMatrix(OutParameters.ShadowmapMinMax);
+		const FMatrix WorldToShadowMatrix = ShadowInfo->GetWorldToShadowMatrix(OutParameters.ShadowmapMinMax);
+		OutParameters.TranslatedWorldToShadowMatrix = FMatrix44f(TranslatedWorldToWorld * WorldToShadowMatrix);
 	}
 	else
 	{
-		OutParameters.WorldToShadowMatrix = FMatrix::Identity;
+		OutParameters.TranslatedWorldToShadowMatrix = FMatrix44f::Identity;
 		OutParameters.ShadowmapMinMax = FVector4f(1.0f);
 	}
 
@@ -146,7 +149,7 @@ void GetVolumeShadowingShaderParameters(
 	OutParameters.StaticShadowDepthTexture = StaticShadowDepthMapTexture;
 	OutParameters.StaticShadowDepthTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	OutParameters.WorldToStaticShadowMatrix = WorldToStaticShadow;
+	OutParameters.TranslatedWorldToStaticShadowMatrix = FMatrix44f(TranslatedWorldToWorld * WorldToStaticShadow);
 	OutParameters.StaticShadowBufferSize = StaticShadowBufferSizeValue;
 
 	GetOnePassPointShadowProjectionParameters(
@@ -162,9 +165,9 @@ void SetVolumeShadowingShaderParameters(
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo)
 {
-	FLightShaderParameters LightParameters;
+	FLightRenderParameters LightParameters;
 	LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
-	ShaderParams.Position = LightParameters.Position;
+	ShaderParams.TranslatedWorldPosition = FVector3f(View.ViewMatrices.GetPreViewTranslation() + LightParameters.WorldPosition);
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
 	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, ShaderParams.VolumeShadowingShaderParameters);
@@ -177,9 +180,9 @@ void SetVolumeShadowingShaderParameters(
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo)
 {
-	FLightShaderParameters LightParameters;
+	FLightRenderParameters LightParameters;
 	LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
-	ShaderParams.Position = LightParameters.Position;
+	ShaderParams.TranslatedWorldPosition = FVector3f(View.ViewMatrices.GetPreViewTranslation() + LightParameters.WorldPosition);
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
 	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, ShaderParams.VolumeShadowingShaderParameters);
@@ -187,14 +190,14 @@ void SetVolumeShadowingShaderParameters(
 
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal0& ShaderParams)
 {
-	ShaderParams.Position = FVector(1.0f);
+	ShaderParams.TranslatedWorldPosition = FVector3f(1.0f);
 	ShaderParams.InvRadius = 1.0f;
 	SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, ShaderParams.VolumeShadowingShaderParameters);
 }
 
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal1& ShaderParams)
 {
-	ShaderParams.Position = FVector(1.0f);
+	ShaderParams.TranslatedWorldPosition = FVector3f(1.0f);
 	ShaderParams.InvRadius = 1.0f;
 	SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, ShaderParams.VolumeShadowingShaderParameters);
 }

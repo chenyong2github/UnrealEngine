@@ -53,7 +53,7 @@ void Main(
 	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslatedWorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMask(TranslatedWorldPosition);
 	GreyScale = lerp(1, GreyScale, LightInfluenceMask);
 	OutColor = EncodeLightAttenuation(GreyScale);
 #else

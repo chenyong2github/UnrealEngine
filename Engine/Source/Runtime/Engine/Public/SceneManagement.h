@@ -1228,17 +1228,11 @@ private:
 
 /** Shader paraneter structure for rendering lights. */
 BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
-	// Position of the light in the world space.
-	SHADER_PARAMETER(FVector3f, Position)
+	// Position of the light in the translated world space.
+	SHADER_PARAMETER(FVector3f, TranslatedWorldPosition)
 
 	// 1 / light's falloff radius from Position.
 	SHADER_PARAMETER(float, InvRadius)
-
-	// Tile position of the light
-	// Could potentially change this to store light position in TranslatedWorldSpace, which would avoid need for tile coordinate
-	// (probably better, assuming light uniforms are regenerated every frame)
-	SHADER_PARAMETER(FVector3f, TilePosition)
-	SHADER_PARAMETER(uint32, Padding)
 
 	// Color of the light.
 	SHADER_PARAMETER(FVector3f, Color)
@@ -1293,13 +1287,13 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Initializes the movable point light uniform shader parameters. */
 FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLightUniformShaderParameters(
-	const FVector4& LightPositionAndInvRadius,
-	const FVector4& LightTilePosition,
-	const FVector4& LightColorAndFalloffExponent,
-	const FVector4& SpotLightDirectionAndSpecularScale,
-	const FVector4& SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
-	const FVector4& SpotLightShadowSharpenAndShadowFadeFraction,
-	const FVector4& SpotLightShadowmapMinMax,
+	const FVector4f& LightPositionAndInvRadius,
+	const FVector4f& LightTilePosition,
+	const FVector4f& LightColorAndFalloffExponent,
+	const FVector4f& SpotLightDirectionAndSpecularScale,
+	const FVector4f& SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
+	const FVector4f& SpotLightShadowSharpenAndShadowFadeFraction,
+	const FVector4f& SpotLightShadowmapMinMax,
 	const FMatrix44f& SpotLightShadowWorldToShadowMatrix
 )
 {
@@ -1319,13 +1313,13 @@ FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLight
 FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetDummyMovablePointLightUniformShaderParameters()
 {
 	return GetMovablePointLightUniformShaderParameters(
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
-		FVector4(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
+		FVector4f(ForceInitToZero),
 		FMatrix44f(ForceInitToZero)
 	);
 }
@@ -1346,6 +1340,59 @@ public:
 
 /** Global primitive uniform buffer resource containing identity transformations. */
 extern ENGINE_API TGlobalResource<FDummyMovablePointLightUniformBuffer> GDummyMovablePointLightUniformBuffer;
+
+/**
+ * Generic parameters used to render a light
+ * Has a 1:1 mapping with FLightShaderParameters, but can also be used in other contexts
+ * Primary difference is position is stored as FVector3d in absolute world space, which is not appropriate for sending directly to GPU
+ */
+struct FLightRenderParameters
+{
+	ENGINE_API void MakeShaderParameters(const FViewMatrices& ViewMatrices, FLightShaderParameters& OutShaderParameters) const;
+
+	// Texture of the rect light.
+	FRHITexture* SourceTexture = nullptr;
+
+	// Position of the light in world space.
+	FVector WorldPosition;
+
+	// 1 / light's falloff radius from Position.
+	float InvRadius;
+
+	// Color of the light.
+	FLinearColor Color;
+
+	// The exponent for the falloff of the light intensity from the distance.
+	float FalloffExponent;
+
+	// Direction of the light if applies.
+	FVector3f Direction;
+
+	// Factor to applies on the specular.
+	float SpecularScale;
+
+	// One tangent of the light if applies.
+	// Note: BiTangent is on purpose not stored for memory optimisation purposes.
+	FVector3f Tangent;
+
+	// Radius of the point light.
+	float SourceRadius;
+
+	// Dimensions of the light, for spot light, but also
+	FVector2f SpotAngles;
+
+	// Radius of the soft source.
+	float SoftSourceRadius;
+
+	// Other dimensions of the light source for rect light specifically.
+	float SourceLength;
+
+	// Barn door angle for rect light
+	float RectLightBarnCosAngle;
+
+	// Barn door length for rect light
+	float RectLightBarnLength;
+};
 
 /** 
  * Encapsulates the data which is used to render a light by the rendering thread. 
@@ -1392,7 +1439,7 @@ public:
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const { return 0.0f; }
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightShaderParameters& PathTracingLightParameters) const {}
+	virtual void GetLightShaderParameters(FLightRenderParameters& OutLightParameters) const {}
 
 	virtual FVector2D GetDirectionalLightDistanceFadeParameters(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const
 	{

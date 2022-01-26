@@ -54,13 +54,13 @@ void OverlapPixelMain(
 	BRANCH if( GBuffer.ShadingModelID > 0 )
 #endif
 {
-		float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(SvPosition));
+		float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
 
-		float3 ToLight = DeferredLightUniforms.Position - WorldPosition;
+		float3 ToLight = DeferredLightUniforms.TranslatedWorldPosition - TranslatedWorldPosition;
 
 		float SpotFalloff = SpotAttenuation(normalize(ToLight), -DeferredLightUniforms.Direction, DeferredLightUniforms.SpotAngles);
 
-		float RadialAttenuationRatio = length(WorldPosition - DeferredLightUniforms.Position) * DeferredLightUniforms.InvRadius;
+		float RadialAttenuationRatio = length(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition) * DeferredLightUniforms.InvRadius;
 
 		if (RadialAttenuationRatio < 1 && SpotFalloff > .0001f)
 		{

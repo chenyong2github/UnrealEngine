@@ -52,13 +52,11 @@ public:
 	}
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightShaderParameters& LightParameters) const override
+	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters) const override
 	{
-		const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
-		LightParameters.Position = AbsoluteWorldPosition.GetOffset();
-		LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
+		LightParameters.WorldPosition = GetOrigin();
 		LightParameters.InvRadius = InvRadius;
-		LightParameters.Color = FVector(GetColor());
+		LightParameters.Color = GetColor();
 		LightParameters.FalloffExponent = FalloffExponent;
 		LightParameters.Direction = -GetDirection();
 		LightParameters.Tangent = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);

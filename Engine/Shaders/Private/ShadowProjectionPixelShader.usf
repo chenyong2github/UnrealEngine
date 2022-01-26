@@ -345,7 +345,7 @@ void Main(
 	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslateWorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMask(TranslateWorldPosition);
 	// Constrain shadowing from this light to pixels inside the light's influence, since other non-overlapping lights are packed into the same channel
 	FadedShadow = lerp(1, FadedShadow, LightInfluenceMask);
 	// Write into all channels, the write mask will constrain to the correct one
@@ -443,7 +443,7 @@ void MainOnePassPointLightPS(
 	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslateWorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMask(TranslateWorldPosition);
 	FadedShadow = lerp(1, FadedShadow, LightInfluenceMask);
 	OutColor = EncodeLightAttenuation(FadedShadow);
 #else

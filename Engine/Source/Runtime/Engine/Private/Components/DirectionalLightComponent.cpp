@@ -368,14 +368,13 @@ public:
 	}
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightShaderParameters& LightParameters) const override
+	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters) const override
 	{
-		LightParameters.Position = FVector3f::ZeroVector;
-		LightParameters.TilePosition = FVector3f::ZeroVector;
+		LightParameters.WorldPosition = FVector::ZeroVector;
 		LightParameters.InvRadius = 0.0f;
 		LightParameters.FalloffExponent = 0.0f;
 
-		LightParameters.Color = FVector(GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance());
+		LightParameters.Color = GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance();
 
 		LightParameters.Direction = -GetDirection();
 		LightParameters.Tangent = -GetDirection();

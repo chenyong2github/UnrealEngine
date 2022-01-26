@@ -537,7 +537,7 @@ static bool AllocateProjectedShadowOcclusionQuery(
 		FLightSceneProxy& LightProxy = *(ProjectedShadowInfo.GetLightSceneInfo().Proxy);
 
 		// Make sure to perform the overlap test using the same geometry as will be used to render the sphere
-		FVector4 StencilingSpherePosAndScale(ForceInit);
+		FVector4f StencilingSpherePosAndScale(ForceInit);
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightProxy.GetBoundingSphere(), View.ViewMatrices.GetPreViewTranslation());
 
 		const bool bCameraInsideLightGeometry = 

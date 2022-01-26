@@ -802,7 +802,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				// B- sample shadow from opaque if enabled. Only light0 supported.
 				//
 				bool bUnused;
-				float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition, false, false, bUnused);
+				float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), false, false, bUnused);
 
 #if VIRTUAL_SHADOW_MAP 
 				if (RenderVolumetricCloudParameters.VirtualShadowMapId0 != INDEX_NONE)
@@ -1018,7 +1018,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					if (VolumetricScatteringIntensity > 0)
 					{
 						FDeferredLightData LightData = (FDeferredLightData)0;
-						LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+						LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 						LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 						LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 						LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;

@@ -33,14 +33,14 @@ float ComputeLightSampleWorldBluringRadius(float3 TranslatedWorldPosition, uint 
 	}
 	else if (LightType == LIGHT_TYPE_POINT || LightType == LIGHT_TYPE_SPOT)
 	{
-		float3 PixelToLightWorldVector = (Light.Position + LWCHackToFloat(PrimaryView.PreViewTranslation)) - TranslatedWorldPosition;
+		float3 PixelToLightWorldVector = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 		float DistanceFromLight = length(PixelToLightWorldVector);
 
 		return Light.SourceRadius * HitT / max(DistanceFromLight - HitT, ClosestLightDistance);
 	}
 	else // if (LightType == LIGHT_TYPE_RECT)
 	{
-		float3 PixelToLightWorldVector = (Light.Position + LWCHackToFloat(PrimaryView.PreViewTranslation)) - TranslatedWorldPosition;
+		float3 PixelToLightWorldVector = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 		float DistanceFromLight = length(PixelToLightWorldVector);
 
 		#if CONFIG_VALU_OPTIMIZATIONS

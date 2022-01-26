@@ -570,7 +570,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		uint LinearIndex = CalcLinearIndex(PixelCoord);
 		RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
-		FLightShaderParameters LightParameters = GetRootLightShaderParameters();
+		FLightShaderParameters LightParameters = GetRootLightShaderParameters(PrimaryView.PreViewTranslation);
 
 		// Get G-Buffer surface data
 		float2 InvBufferSize = View.BufferSizeAndInvSize.zw;

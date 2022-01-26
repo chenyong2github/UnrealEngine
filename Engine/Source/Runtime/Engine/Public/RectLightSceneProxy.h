@@ -39,7 +39,7 @@ public:
 	virtual bool HasSourceTexture() const override;
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightShaderParameters& LightParameters) const override;
+	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters) const override;
 
 	/**
 	* Sets up a projected shadow initializer for shadows from the entire scene.

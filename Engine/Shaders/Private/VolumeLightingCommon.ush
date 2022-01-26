@@ -11,7 +11,7 @@
 #include "ShadowFilteringCommon.ush"
 
 /** Parameters needed to access the shadow map of the light. */
-float4x4 WorldToShadowMatrix;
+float4x4 TranslatedWorldToShadowMatrix;
 float4 ShadowmapMinMax;
 // .x:1/SplitNearFadeRegion, .y:1/SplitFarFadeRegion .zw:DistanceFadeMAD
 float4 ShadowInjectParams;
@@ -26,7 +26,7 @@ Texture2D StaticShadowDepthTexture;
 SamplerState StaticShadowDepthTextureSampler;
 
 /** Transform used for static shadowing by spot and directional lights. */
-float4x4 WorldToStaticShadowMatrix;
+float4x4 TranslatedWorldToStaticShadowMatrix;
 float4 StaticShadowBufferSize;
 
 // Declare shadow sampling function

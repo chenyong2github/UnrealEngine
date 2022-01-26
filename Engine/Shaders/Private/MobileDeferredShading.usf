@@ -41,7 +41,7 @@
 
 struct FMobileLightData
 {
-	float3 Position;
+	float3 TranslatedWorldPosition;
 	float  InvRadius;
 	float3 Color;
 	float  FalloffExponent;
@@ -112,20 +112,19 @@ FGBufferData DecodeGBufferMobile(
 	return GBuffer;
 }
 
-float4x4 WorldToLight;
+float4x4 TranslatedWorldToLight;
 float3 LightFunctionParameters2;
 
-half ComputeLightFunctionMultiplier(float3 WorldPosition)
+half ComputeLightFunctionMultiplier(float3 TranslatedWorldPosition)
 {
 #if USE_LIGHT_FUNCTION	
-	float4 LightVector = mul(float4(WorldPosition, 1.0), WorldToLight);
+	float4 LightVector = mul(float4(TranslatedWorldPosition, 1.0), TranslatedWorldToLight);
 	LightVector.xyz /= LightVector.w;
-	//float3 LightVector = LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition;
 
-	half3 LightFunction = GetLightFunctionColor(LightVector.xyz, WorldPosition);
+	half3 LightFunction = GetLightFunctionColorTWS(LightVector.xyz, TranslatedWorldPosition);
 	half GreyScale = dot(LightFunction, .3333f);
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
+	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 	half DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance
 	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
@@ -141,11 +140,11 @@ void GetDirectLighting(
 	FMobileLightData LightData, 
 	FMobileShadingModelContext ShadingModelContext, 
 	FGBufferData GBuffer, 
-	float3 WorldPosition, 
+	float3 TranslatedWorldPosition, 
 	half3 CameraVector,
 	inout FMobileLightAccumulator MobileLightAccumulator)
 {
-	float3 ToLight = LightData.Position - WorldPosition;
+	float3 ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 	float DistanceSqr = dot(ToLight, ToLight);
 	float3 L = ToLight * rsqrt(DistanceSqr);
 		
@@ -185,7 +184,7 @@ void GetLightGridLocalLighting(
 	const FCulledLightsGridData InLightGridData, 
 	FMobileShadingModelContext ShadingModelContext, 
 	FGBufferData GBuffer, 
-	float3 WorldPosition, 
+	float3 TranslatedWorldPosition, 
 	half3 CameraVector, 
 	uint EyeIndex, 
 	uint FirstNonSimpleLightIndex,
@@ -207,12 +206,12 @@ void GetLightGridLocalLighting(
 		}
 		
 		FMobileLightData LightData = (FMobileLightData)0;
-		LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 		// extra-early out since we know light grid is sloppy and all lights in list are radial (have a range)
 		// appears useless
 		float invLightRadiusSq = LightData.InvRadius*LightData.InvRadius;
-		if (length2(WorldPosition - LightData.Position) * invLightRadiusSq > 1.0f)
+		if (length2(TranslatedWorldPosition - LightData.TranslatedWorldPosition) * invLightRadiusSq > 1.0f)
 		{
 			continue;
 		}
@@ -229,7 +228,7 @@ void GetLightGridLocalLighting(
 		// TODO: not sure if this check is even needed, standard deferred always seems to set it to true?
 		LightData.bSpotLight = (LightType == LIGHT_TYPE_SPOT);
 		
-		GetDirectLighting(LightData, ShadingModelContext, GBuffer, WorldPosition, CameraVector, MobileLightAccumulator);
+		GetDirectLighting(LightData, ShadingModelContext, GBuffer, TranslatedWorldPosition, CameraVector, MobileLightAccumulator);
 	}
 }
 
@@ -253,8 +252,7 @@ void MobileDirectLightPS(
 	
 	float2 ScreenPos = UVAndScreenPos.zw;
 	float3 TranslatedWorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
-	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-	
+
 	half3 CameraVector = normalize(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 	half NoV = max(0, dot(GBuffer.WorldNormal, CameraVector));
 	half3 ReflectionVector = GBuffer.WorldNormal * (NoV * 2.0) - CameraVector;
@@ -293,7 +291,7 @@ void MobileDirectLightPS(
 	{
 		const uint EyeIndex = 0;
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridIndex, EyeIndex);
-		GetLightGridLocalLighting(CulledLightGridData, ShadingModelContext, GBuffer, WorldPosition, CameraVector, EyeIndex, 0, MobileLightAccumulator);
+		GetLightGridLocalLighting(CulledLightGridData, ShadingModelContext, GBuffer, TranslatedWorldPosition, CameraVector, EyeIndex, 0, MobileLightAccumulator);
 	}
 #endif
 
@@ -349,7 +347,7 @@ void MobileDirectLightPS(
 	
 	half3 Color = MobileLightAccumulator_GetResult(MobileLightAccumulator);
 
-	half LightAttenuation = ComputeLightFunctionMultiplier(WorldPosition);
+	half LightAttenuation = ComputeLightFunctionMultiplier(TranslatedWorldPosition);
 
 	// MobileHDR applies PreExposure in tonemapper
 	LightAttenuation *= View.PreExposure;
@@ -379,13 +377,13 @@ void MobileRadialLightPS(
 	// With a perspective projection, the clip space position is NDC * Clip.w
 	// With an orthographic projection, clip space is the same as NDC
 	float2 ClipPosition = InScreenPosition.xy / InScreenPosition.w * (View.ViewToClip[3][3] < 1.0f ? SceneDepth : 1.0f);
-	float3 WorldPosition = mul(float4(ClipPosition, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	half3 CameraVector = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
+	float3 TranslatedWorldPosition = mul(float4(ClipPosition, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	half3 CameraVector = normalize(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 	half NoV = max(0, dot(GBuffer.WorldNormal, CameraVector));
 		
 	FMobileLightData LightData = (FMobileLightData)0;
 	{
-		LightData.Position = DeferredLightUniforms.Position;
+		LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
 		LightData.InvRadius = DeferredLightUniforms.InvRadius;
 		LightData.Color = DeferredLightUniforms.Color;
 		LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
@@ -400,11 +398,11 @@ void MobileRadialLightPS(
 	InitShadingModelContext(ShadingModelContext, GBuffer, CameraVector);
 			
 	FMobileLightAccumulator MobileLightAccumulator = (FMobileLightAccumulator)0;
-	GetDirectLighting(LightData, ShadingModelContext, GBuffer, WorldPosition, CameraVector, MobileLightAccumulator);
+	GetDirectLighting(LightData, ShadingModelContext, GBuffer, TranslatedWorldPosition, CameraVector, MobileLightAccumulator);
 	half3 Color = MobileLightAccumulator_GetResult(MobileLightAccumulator);
 	
-	half LightAttenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
-	LightAttenuation*= ComputeLightFunctionMultiplier(WorldPosition);
+	half LightAttenuation = ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+	LightAttenuation*= ComputeLightFunctionMultiplier(TranslatedWorldPosition);
 
 	// MobileHDR applies PreExposure in tonemapper
 	LightAttenuation*= View.PreExposure;

@@ -51,7 +51,7 @@ public:
 		return bInverseSquared;
 	}
 
-	virtual void GetLightShaderParameters(FLightShaderParameters& PathTracingLightParameters) const override;
+	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters) const override;
 
 	virtual FVector GetPerObjectProjectedShadowProjectionPoint(const FBoxSphereBounds& SubjectBounds) const override
 	{

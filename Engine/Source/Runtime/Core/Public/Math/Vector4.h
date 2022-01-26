@@ -110,6 +110,14 @@ public:
 	TVector4(const FLinearColor& InColor);
 
 	/**
+	 * Creates and initializes a new vector from a color RGB and W
+	 *
+	 * @param InColour Color used to set XYZ.
+	 * @param InW
+	 */
+	TVector4(const FLinearColor& InColor, T InW);
+
+	/**
 	 * Creates and initializes a new vector from the specified components.
 	 *
 	 * @param InX X Coordinate.
@@ -572,6 +580,15 @@ FORCEINLINE TVector4<T>::TVector4(const FLinearColor& InColor)
 	DiagnosticCheckNaN();
 }
 
+template<typename T>
+FORCEINLINE TVector4<T>::TVector4(const FLinearColor& InColor, T InW)
+	: X(InColor.R)
+	, Y(InColor.G)
+	, Z(InColor.B)
+	, W(InW)
+{
+	DiagnosticCheckNaN();
+}
 
 template<typename T>
 FORCEINLINE TVector4<T>::TVector4(T InX, T InY, T InZ, T InW)

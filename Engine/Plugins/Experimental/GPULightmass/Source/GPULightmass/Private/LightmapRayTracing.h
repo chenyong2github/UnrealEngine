@@ -154,7 +154,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		// Subsurface data
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLightShaderParameters>, LightShaderParametersArray)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLightShaderConstants>, LightShaderParametersArray)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -179,7 +179,7 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<int>, LightTypeArray)
 		SHADER_PARAMETER_SRV(Buffer<int>, ChannelIndexArray)
 		SHADER_PARAMETER_SRV(Buffer<int>, LightSampleIndexArray)
-		SHADER_PARAMETER_SRV(StructuredBuffer<FLightShaderParameters>, LightShaderParametersArray)
+		SHADER_PARAMETER_SRV(StructuredBuffer<FLightShaderConstants>, LightShaderParametersArray)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldPosition)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldNormal)

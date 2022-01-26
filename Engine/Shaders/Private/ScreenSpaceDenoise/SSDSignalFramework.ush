@@ -96,7 +96,7 @@ FSSDSignalDomainKnowledge GetSignalDomainKnowledge(uint BatchedSignalId)
 	SignalDomain.Light.SourceTexture = UnusedLightSourceTexture;
 	#endif
 	
-	SignalDomain.Light.Position = LightPositionAndRadius[BatchedSignalId].xyz;
+	SignalDomain.Light.TranslatedWorldPosition = LightPositionAndRadius[BatchedSignalId].xyz;
 	SignalDomain.Light.Direction = LightDirectionAndLength[BatchedSignalId].xyz;
 	SignalDomain.Light.SourceRadius = LightPositionAndRadius[BatchedSignalId].w;
 	SignalDomain.Light.SourceLength = LightDirectionAndLength[BatchedSignalId].w;
@@ -414,7 +414,7 @@ float3 ComputeMajorLightRayDirection(FSSDSampleSceneInfos SceneMetadata, FSSDSig
 	}
 	else
 	{
-		float3 PixelToLightWorldVector = (DomainKnowledge.Light.Position + LWCHackToFloat(PrimaryView.PreViewTranslation)) - GetTranslatedWorldPosition(SceneMetadata);
+		float3 PixelToLightWorldVector = DomainKnowledge.Light.TranslatedWorldPosition - GetTranslatedWorldPosition(SceneMetadata);
 		return normalize(PixelToLightWorldVector);
 	}
 }

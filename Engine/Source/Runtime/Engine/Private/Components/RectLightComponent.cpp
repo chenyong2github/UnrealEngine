@@ -219,15 +219,13 @@ bool FRectLightSceneProxy::HasSourceTexture() const
 }
 
 /** Accesses parameters needed for rendering the light. */
-void FRectLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& LightParameters) const
+void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters) const
 {
-	const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
 	FLinearColor LightColor = GetColor();
 	LightColor /= 0.5f * SourceWidth * SourceHeight;
-	LightParameters.Position = AbsoluteWorldPosition.GetOffset();
-	LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
+	LightParameters.WorldPosition = GetOrigin();
 	LightParameters.InvRadius = InvRadius;
-	LightParameters.Color = FVector(LightColor.R, LightColor.G, LightColor.B);
+	LightParameters.Color = LightColor;
 	LightParameters.FalloffExponent = 0.0f;
 
 	LightParameters.Direction = -GetDirection();

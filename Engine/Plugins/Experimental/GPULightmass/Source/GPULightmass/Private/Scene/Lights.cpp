@@ -215,15 +215,15 @@ FRectLightRenderState::FRectLightRenderState(URectLightComponent* RectLightCompo
 	IESTexture = RectLightComponent->IESTexture ? RectLightComponent->IESTexture->GetResource() : nullptr;
 }
 
-FLightShaderParameters FDirectionalLightRenderState::GetLightShaderParameters() const
+FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() const
 {
-	FLightShaderParameters LightParameters;
+	FLightRenderParameters LightParameters;
 
-	LightParameters.Position = FVector::ZeroVector;
+	LightParameters.WorldPosition = FVector::ZeroVector;
 	LightParameters.InvRadius = 0.0f;
 	// TODO: support SkyAtmosphere
 	// LightParameters.Color = FVector(GetColor() * SkyAtmosphereTransmittanceToLight);
-	LightParameters.Color = FVector(Color);
+	LightParameters.Color = Color;
 	LightParameters.FalloffExponent = 0.0f;
 
 	LightParameters.Direction = -Direction;
@@ -239,47 +239,47 @@ FLightShaderParameters FDirectionalLightRenderState::GetLightShaderParameters() 
 	return LightParameters;
 }
 
-FLightShaderParameters FPointLightRenderState::GetLightShaderParameters() const
+FLightRenderParameters FPointLightRenderState::GetLightShaderParameters() const
 {
-	FLightShaderParameters LightParameters;
-
-	LightParameters.Position = Position;
+	FLightRenderParameters LightParameters;
+	
+	LightParameters.WorldPosition = Position;
 	LightParameters.Direction = -Direction;
 	LightParameters.Tangent = Tangent;
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
-	LightParameters.Color = FVector(Color);
+	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;
 
 	return LightParameters;
 }
 
-FLightShaderParameters FSpotLightRenderState::GetLightShaderParameters() const
+FLightRenderParameters FSpotLightRenderState::GetLightShaderParameters() const
 {
-	FLightShaderParameters LightParameters;
+	FLightRenderParameters LightParameters;
 
-	LightParameters.Position = Position;
+	LightParameters.WorldPosition = Position;
 	LightParameters.Direction = -Direction;
 	LightParameters.Tangent = Tangent;
 	LightParameters.SpotAngles = SpotAngles;
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
-	LightParameters.Color = FVector(Color);
+	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;
 
 	return LightParameters;
 }
 
-FLightShaderParameters FRectLightRenderState::GetLightShaderParameters() const
+FLightRenderParameters FRectLightRenderState::GetLightShaderParameters() const
 {
-	FLightShaderParameters LightParameters;
+	FLightRenderParameters LightParameters;
 
-	LightParameters.Position = Position;
+	LightParameters.WorldPosition = Position;
 	LightParameters.Direction = -Direction;
 	LightParameters.Tangent = Tangent;
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 
 	FLinearColor LightColor = Color;
 	LightColor /= 0.5f * SourceWidth * SourceHeight;
-	LightParameters.Color = FVector(LightColor);
+	LightParameters.Color = LightColor;
 
 	LightParameters.SourceRadius = SourceWidth * 0.5f;
 	LightParameters.SourceLength = SourceHeight * 0.5f;

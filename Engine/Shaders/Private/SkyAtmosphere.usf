@@ -695,7 +695,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #if SAMPLE_OPAQUE_SHADOW
 		{
 			float3 ShadowSampleWorldPosition0 = ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
-			PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowSampleWorldPosition0, false, false, bUnused);
+			PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowSampleWorldPosition0 - LWCHackToFloat(PrimaryView.PreViewTranslation), false, false, bUnused);
 
 		#if VIRTUAL_SHADOW_MAP
 			if (VirtualShadowMapId0 != INDEX_NONE)
@@ -730,7 +730,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	#endif
 		{
 			float3 ShadowSampleWorldPosition1 = ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
-			PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowSampleWorldPosition1, false, false, bUnused);
+			PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowSampleWorldPosition1 - LWCHackToFloat(PrimaryView.PreViewTranslation), false, false, bUnused);
 		#if VIRTUAL_SHADOW_MAP
 			if (VirtualShadowMapId1 != INDEX_NONE)
 			{

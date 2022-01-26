@@ -48,6 +48,7 @@ void SetDeferredLightParameters(
 }
 
 extern FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
+	const FSceneView& View,
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry &SimpleLightPerViewData);
 
@@ -60,7 +61,7 @@ void SetSimpleDeferredLightParameters(
 	const FSimpleLightPerViewEntry &SimpleLightPerViewData,
 	const FSceneView& View)
 {
-	FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData);
+	FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPerViewData);
 	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, DeferredLightUniformsValue);
 }
 
@@ -86,10 +87,6 @@ public:
 	template<typename ShaderRHIParamRef>
 	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction) const
 	{
-		const bool bIsSpotLight = LightSceneInfo->Proxy->GetLightType() == LightType_Spot;
-		const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
-		const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo->Proxy->GetOuterConeAngle()) : 1.0f;
-
 		SetShaderValue( 
 			RHICmdList, 
 			ShaderRHI, 
@@ -194,7 +191,7 @@ namespace StencilingGeometry
 	* @param bConservativelyBoundSphere - when true, the sphere that is drawn will contain all positions in the analytical sphere,
 	*		 Otherwise the sphere vertices will lie on the analytical sphere and the positions on the faces will lie inside the sphere.
 	*/
-	void CalcTransform(FVector4& OutPosAndScale, const FSphere& Sphere, const FVector& PreViewTranslation, bool bConservativelyBoundSphere = true)
+	void CalcTransform(FVector4f& OutPosAndScale, const FSphere& Sphere, const FVector& PreViewTranslation, bool bConservativelyBoundSphere = true)
 	{
 		float Radius = Sphere.W;
 		if (bConservativelyBoundSphere)
@@ -206,8 +203,8 @@ namespace StencilingGeometry
 			Radius /= FMath::Cos(RadiansPerRingSegment);
 		}
 
-		const FVector Translate(Sphere.Center + PreViewTranslation);
-		OutPosAndScale = FVector4(Translate, Radius);
+		const FVector3f Translate(Sphere.Center + PreViewTranslation);
+		OutPosAndScale = FVector4f(Translate, Radius);
 	}
 
 	private:
@@ -386,7 +383,6 @@ public:
 		SHADER_PARAMETER(FVector4f, StencilingGeometryPosAndScale)
 		SHADER_PARAMETER(FVector4f, StencilingConeParameters)
 		SHADER_PARAMETER(FMatrix44f, StencilingConeTransform)
-		SHADER_PARAMETER(FVector3f, StencilingPreViewTranslation)
 	END_SHADER_PARAMETER_STRUCT()
 
 	void Bind(const FShaderParameterMap& ParameterMap)
@@ -394,7 +390,6 @@ public:
 		StencilGeometryPosAndScale.Bind(ParameterMap, TEXT("StencilingGeometryPosAndScale"));
 		StencilConeParameters.Bind(ParameterMap, TEXT("StencilingConeParameters"));
 		StencilConeTransform.Bind(ParameterMap, TEXT("StencilingConeTransform"));
-		StencilPreViewTranslation.Bind(ParameterMap, TEXT("StencilingPreViewTranslation"));
 	}
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FVector4f& InStencilingGeometryPosAndScale) const
@@ -421,7 +416,6 @@ public:
 				RHICmdList.GetBoundVertexShader(),
 				StencilConeParameters,
 				P.StencilingConeParameters);
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilPreViewTranslation, P.StencilingPreViewTranslation);
 		}
 	}
 
@@ -431,7 +425,6 @@ public:
 		Out.StencilingGeometryPosAndScale = InStencilingGeometryPosAndScale;
 		Out.StencilingConeParameters = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		Out.StencilingConeTransform = FMatrix44f::Identity;
-		Out.StencilingPreViewTranslation = FVector3f(0, 0, 0);
 		return Out;
 	}
 
@@ -441,24 +434,21 @@ public:
 		if (LightSceneInfo->Proxy->GetLightType() == LightType_Point ||
 			LightSceneInfo->Proxy->GetLightType() == LightType_Rect)
 		{
-			FVector4 GeometryPosAndScale;
-			StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(GeometryPosAndScale, LightSceneInfo->Proxy->GetBoundingSphere(), View.ViewMatrices.GetPreViewTranslation());
-			Out.StencilingGeometryPosAndScale = FVector4f(GeometryPosAndScale);
+			StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(Out.StencilingGeometryPosAndScale, LightSceneInfo->Proxy->GetBoundingSphere(), View.ViewMatrices.GetPreViewTranslation());
 			Out.StencilingConeParameters = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 			Out.StencilingConeTransform = FMatrix44f::Identity;
-			Out.StencilingPreViewTranslation = FVector3f(0, 0, 0);
 		}
 		else if (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 		{
+			const FMatrix WorldToTranslatedWorld = FTranslationMatrix(View.ViewMatrices.GetPreViewTranslation());
 			Out.StencilingGeometryPosAndScale = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
-			Out.StencilingConeTransform = (FMatrix44f)LightSceneInfo->Proxy->GetLightToWorld();
+			Out.StencilingConeTransform = FMatrix44f(LightSceneInfo->Proxy->GetLightToWorld() * WorldToTranslatedWorld);
 			Out.StencilingConeParameters =
 				FVector4f(
 					StencilingGeometry::FStencilConeIndexBuffer::NumSides,
 					StencilingGeometry::FStencilConeIndexBuffer::NumSlices,
 					LightSceneInfo->Proxy->GetOuterConeAngle(),
 					LightSceneInfo->Proxy->GetRadius());
-			Out.StencilingPreViewTranslation = (FVector3f)View.ViewMatrices.GetPreViewTranslation();
 		}
 		return Out;
 	}
@@ -469,7 +459,6 @@ public:
 		Ar << P.StencilGeometryPosAndScale;
 		Ar << P.StencilConeParameters;
 		Ar << P.StencilConeTransform;
-		Ar << P.StencilPreViewTranslation;
 		return Ar;
 	}
 
@@ -478,7 +467,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, StencilGeometryPosAndScale)
 	LAYOUT_FIELD(FShaderParameter, StencilConeParameters)
 	LAYOUT_FIELD(FShaderParameter, StencilConeTransform)
-	LAYOUT_FIELD(FShaderParameter, StencilPreViewTranslation)
 };
 
 
@@ -577,7 +565,7 @@ public:
 
 	static FParameters GetParameters(const FViewInfo& View, const FSphere& LightBounds, bool bBindViewUniform = true)
 	{
-		FVector4 StencilingSpherePosAndScale;
+		FVector4f StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
 
 		FParameters Out;
