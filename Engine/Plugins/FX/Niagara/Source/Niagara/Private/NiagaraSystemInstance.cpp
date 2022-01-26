@@ -133,6 +133,9 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bLODDistanceIsValid(false)
 	, bLODDistanceIsOverridden(false)
 	, bPooled(bInPooled)
+#if WITH_EDITOR
+	, bNeedsUIResync(false)
+#endif
 	, CachedDeltaSeconds(0.0f)
 	, TimeSinceLastForceUpdateTransform(0.0f)
 	, FixedBounds_GT(EForceInit::ForceInit)
