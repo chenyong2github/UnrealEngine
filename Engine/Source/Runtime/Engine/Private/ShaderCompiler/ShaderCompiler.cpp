@@ -524,6 +524,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 			// Just precompute the InputHash for each job in multiple-thread.
 			if (ShaderCompiler::IsJobCacheEnabled())
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(GetInputHash);
 				ParallelFor(InJobs.Num(), [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); });
 			}
 
@@ -3760,7 +3761,7 @@ void FShaderCompilingManager::SubmitJobs(TArray<FShaderCommonCompileJobPtr>& New
 	{
 		return;
 	}
-
+	
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::SubmitJobs);
 	check(!FPlatformProperties::RequiresCookedData());
 

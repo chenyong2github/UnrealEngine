@@ -347,6 +347,8 @@ void FShaderType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> 
 
 void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderType::AddReferencedUniformBufferIncludes);
+
 	// Cache uniform buffer struct declarations referenced by this shader type's files
 	if (CachedUniformBufferPlatform != Platform)
 	{
