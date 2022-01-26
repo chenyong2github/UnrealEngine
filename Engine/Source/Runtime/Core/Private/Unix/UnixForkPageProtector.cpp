@@ -396,17 +396,6 @@ void FMallocLinked::Free(void* Ptr)
 			}
 		}
 
-		if (CurrentBlock->FreeList && CurrentBlock->FreeList->FreeSize == CurrentBlock->BlockSize)
-		{
-			if (Blocks == CurrentBlock)
-			{
-				Blocks = nullptr;
-			}
-
-			PreviousBlock->Next = CurrentBlock->Next;
-			munmap(CurrentBlock, CurrentBlock->BlockSize + sizeof(FBlock));
-		}
-
 		if (bPtrFreed)
 		{
 			return;
