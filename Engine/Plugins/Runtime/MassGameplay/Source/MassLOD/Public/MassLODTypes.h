@@ -201,7 +201,8 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FMassChunkFragment
 	 */
 	static bool ShouldUpdateVisualizationForChunk(const FMassExecutionContext& Context)
 	{
-		return Context.GetChunkFragment<FMassVisualizationChunkFragment>().ShouldUpdateVisualization();
+		const FMassVisualizationChunkFragment* ChunkFragment = Context.GetChunkFragmentPtr<FMassVisualizationChunkFragment>();
+		return ChunkFragment == nullptr || ChunkFragment->ShouldUpdateVisualization();
 	}
 
 	/**
