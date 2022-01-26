@@ -1615,7 +1615,7 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 
 	// Get stdout.
 	FUTF8ToTCHAR StdoutConv(reinterpret_cast<const ANSICHAR*>(FlipModeMonitor->Output.GetData()), FlipModeMonitor->Output.Num());
-	const FString StdOut(StdoutConv.Get());
+	const FString StdOut(StdoutConv.Length(), StdoutConv.Get());
 
 	// Clear out the StdOut array.
 	FlipModeMonitor->Output.Empty();
@@ -2149,7 +2149,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 				if (ReturnCode != 0 && Process->Output.Num() > 0)
 				{
 					FUTF8ToTCHAR StdoutConv(reinterpret_cast<const ANSICHAR*>(Process->Output.GetData()), Process->Output.Num());
-					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), StdoutConv.Get());
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%.*s"), StdoutConv.Length(), StdoutConv.Get());
 				}
 
 				// Notify remote client, which implies that this is a program managed by it.
