@@ -39,6 +39,7 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual AActor* GetSceneOutlinerParent() const override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
+	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 #endif
 	//~ End UObject Interface
 

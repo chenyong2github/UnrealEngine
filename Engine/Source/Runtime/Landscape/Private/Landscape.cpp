@@ -2877,11 +2877,7 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 
 UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
 {
-	if (LandscapeHoleMaterial)
-	{
-		return LandscapeHoleMaterial;
-	}
-	return nullptr;
+	return LandscapeHoleMaterial;
 }
 
 UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const

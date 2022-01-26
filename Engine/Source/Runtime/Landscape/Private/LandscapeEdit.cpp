@@ -699,6 +699,31 @@ TUniquePtr<FWorldPartitionActorDesc> ALandscapeProxy::CreateClassActorDesc() con
 	return TUniquePtr<FWorldPartitionActorDesc>(new FLandscapeActorDesc());
 }
 
+bool ALandscapeProxy::GetReferencedContentObjects(TArray<UObject*>& Objects) const
+{
+	Super::GetReferencedContentObjects(Objects);
+
+	if (LandscapeMaterial != nullptr)
+	{
+		Objects.AddUnique(LandscapeMaterial);
+	}
+
+	for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
+	{
+		if (OverrideMaterial.Material != nullptr)
+		{
+			Objects.AddUnique(OverrideMaterial.Material);
+		}
+	}
+
+	if (LandscapeHoleMaterial != nullptr)
+	{
+		Objects.AddUnique(LandscapeHoleMaterial);
+	}
+
+	return true;
+}
+
 void ALandscapeProxy::FixupWeightmaps()
 {
 	WeightmapUsageMap.Empty();
@@ -5150,6 +5175,20 @@ AActor* ALandscapeStreamingProxy::GetSceneOutlinerParent() const
 
 bool ALandscapeStreamingProxy::CanDeleteSelectedActor(FText& OutReason) const
 {
+	return true;
+}
+
+
+bool ALandscapeStreamingProxy::GetReferencedContentObjects(TArray<UObject*>& Objects) const
+{
+	Super::GetReferencedContentObjects(Objects);
+
+	// Also return the objects referenced by our parent landscape : 
+	if (LandscapeActor != nullptr)
+	{
+		LandscapeActor->GetReferencedContentObjects(Objects);
+	}
+
 	return true;
 }
 
