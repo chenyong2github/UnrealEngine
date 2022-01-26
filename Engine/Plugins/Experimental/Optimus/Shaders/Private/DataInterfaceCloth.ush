@@ -9,8 +9,8 @@ uint DI_LOCAL(NumVertices);
 uint DI_LOCAL(InputStreamStart);
 uint DI_LOCAL(NumInfluencesPerVertex);
 float DI_LOCAL(ClothBlendWeight);
-float4x4 DI_LOCAL(ClothLocalToWorld);
-float4x4 DI_LOCAL(ClothWorldToLocal);
+/** Transform from cloth space (relative to cloth root bone) to local(component) space */
+float4x4 DI_LOCAL(ClothToLocal);
 Buffer<float4> DI_LOCAL(ClothBuffer);
 Buffer<float2> DI_LOCAL(ClothPositionsAndNormalsBuffer);
 
@@ -19,19 +19,10 @@ DI_IMPL_READ(ReadNumVertices, uint, void)
 	return DI_LOCAL(NumVertices);
 }
 
-DI_IMPL_READ(ReadLocalToWorld, float4x4, void)
+DI_IMPL_READ(ReadClothToLocal, float4x4, void)
 {
 #if ENABLE_DEFORMER_CLOTH
-	return DI_LOCAL(ClothLocalToWorld);
-#else
-	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-#endif
-}
-
-DI_IMPL_READ(ReadWorldToLocal, float4x4, void)
-{
-#if ENABLE_DEFORMER_CLOTH
-	return DI_LOCAL(ClothWorldToLocal);
+	return DI_LOCAL(ClothToLocal);
 #else
 	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 #endif
@@ -159,8 +150,8 @@ FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
 		Result.TangentZ = normalize(NormalPosition - SimulatedPosition);
 
 		// Cloth data are all in world space so need to change into local space
-		Result.TangentX = mul(Result.TangentX, (half3x3)DI_LOCAL(ClothWorldToLocal));
-		Result.TangentZ = mul(Result.TangentZ, (half3x3)DI_LOCAL(ClothWorldToLocal));
+		Result.TangentX = mul(Result.TangentX, (half3x3)DI_LOCAL(ClothToLocal));
+		Result.TangentZ = mul(Result.TangentZ, (half3x3)DI_LOCAL(ClothToLocal));
 	}
 
 	return Result;

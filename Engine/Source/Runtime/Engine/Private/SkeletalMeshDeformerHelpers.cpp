@@ -74,8 +74,7 @@ FSkeletalMeshDeformerHelpers::FClothBuffers FSkeletalMeshDeformerHelpers::GetClo
 	Ret.ClothInfluenceBuffer = ClothVertexFactory->GetClothBuffer();
 	Ret.ClothInfluenceBufferOffset = ClothVertexFactory->GetClothIndexOffset(RenderSection.BaseVertexIndex);
 	Ret.ClothSimulatedPositionAndNormalBuffer = ClothVertexFactory->GetClothShaderData().GetClothBufferForReading(bPreviousFrame, FrameNumber).VertexBufferSRV;
-	Ret.ClothLocalToWorld = MeshObjectGPU->DynamicData->ClothObjectLocalToWorld * ClothVertexFactory->GetClothShaderData().GetClothLocalToWorldForReading(bPreviousFrame, FrameNumber).Inverse();
-	Ret.ClothWorldToLocal = Ret.ClothLocalToWorld.Inverse();
+	Ret.ClothToLocal = ClothVertexFactory->GetClothShaderData().GetClothToLocalForReading(bPreviousFrame, FrameNumber);
 	return Ret;
 }
 

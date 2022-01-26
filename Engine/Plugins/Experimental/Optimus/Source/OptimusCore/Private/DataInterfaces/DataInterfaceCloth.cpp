@@ -24,8 +24,7 @@ TArray<FOptimusCDIPinDefinition> UClothDataInterface::GetPinDefinitions() const
 	using namespace Optimus::DomainName;
 
 	Defs.Add({ "NumVertices", "ReadNumVertices" });
-	Defs.Add({ "LocalToWorld", "ReadLocalToWorld" });
-	Defs.Add({ "WorldToLocal", "ReadWorldToLocal" });
+	Defs.Add({ "ClothToLocal", "ReadClothToLocal" });
 	Defs.Add({ "ClothWeight", "ReadClothWeight", Vertex, "ReadNumVertices" });
 	Defs.Add({ "ClothPosition", "ReadClothPosition", Vertex, "ReadNumVertices" });
 	Defs.Add({ "ClothTangentX", "ReadClothTangentX", Vertex, "ReadNumVertices" });
@@ -49,16 +48,7 @@ void UClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadLocalToWorld");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadWorldToLocal");
+		Fn.Name = TEXT("ReadClothToLocal");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4);
@@ -120,8 +110,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClothDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, InputStreamStart)
 	SHADER_PARAMETER(uint32, NumInfluencesPerVertex)
 	SHADER_PARAMETER(float, ClothBlendWeight)
-	SHADER_PARAMETER(FMatrix44f, ClothLocalToWorld)
-	SHADER_PARAMETER(FMatrix44f, ClothWorldToLocal)
+	SHADER_PARAMETER(FMatrix44f, ClothToLocal)
 	SHADER_PARAMETER_SRV(Buffer<float4>, ClothBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float2>, ClothPositionsAndNormalsBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -225,8 +214,7 @@ void FClothDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UI
 	Parameters.InputStreamStart = ClothBuffers.ClothInfluenceBufferOffset;
  	Parameters.ClothBlendWeight = bValidCloth ? ClothBlendWeight : 0.f;
 	Parameters.NumInfluencesPerVertex = bValidCloth ? NumClothInfluencesPerVertex : 0;
-	Parameters.ClothLocalToWorld = ClothBuffers.ClothLocalToWorld;
- 	Parameters.ClothWorldToLocal = ClothBuffers.ClothWorldToLocal;
+	Parameters.ClothToLocal = ClothBuffers.ClothToLocal;
  	Parameters.ClothBuffer = bValidCloth ? ClothBuffers.ClothInfluenceBuffer : NullSRVBinding;
  	Parameters.ClothPositionsAndNormalsBuffer = bValidCloth ? ClothBuffers.ClothSimulatedPositionAndNormalBuffer : NullSRVBinding;
 

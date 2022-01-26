@@ -37,8 +37,7 @@ public:
 		int32 ClothInfluenceBufferOffset = 0;
 		FRHIShaderResourceView* ClothInfluenceBuffer = nullptr;
 		FRHIShaderResourceView* ClothSimulatedPositionAndNormalBuffer = nullptr;
-		FMatrix44f ClothLocalToWorld = FMatrix44f::Identity;
-		FMatrix44f ClothWorldToLocal = FMatrix44f::Identity;
+		FMatrix44f ClothToLocal = FMatrix44f::Identity;
 	};
 
 	/** Get direct access to cloth buffer SRVs. */
