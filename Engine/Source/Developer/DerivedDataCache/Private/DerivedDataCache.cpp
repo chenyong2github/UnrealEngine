@@ -467,6 +467,31 @@ void ICacheStore::GetValue(
 	}
 }
 
+FCachePutResponse FCachePutRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Record.GetKey(), UserData, Status};
+}
+
+FCacheGetResponse FCacheGetRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, FCacheRecordBuilder(Key).Build(), UserData, Status};
+}
+
+FCachePutValueResponse FCachePutValueRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, UserData, Status};
+}
+
+FCacheGetValueResponse FCacheGetValueRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, {}, UserData, Status};
+}
+
+FCacheGetChunkResponse FCacheGetChunkRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, Id, RawOffset, 0, {}, {}, UserData, Status};
+}
+
 } // UE::DerivedData
 
 namespace UE::DerivedData::Private

@@ -83,4 +83,19 @@ void FLegacyCacheKey::WriteValueTrailer(FCompositeBuffer& Value) const
 	}
 }
 
+FLegacyCachePutResponse FLegacyCachePutRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, UserData, Status};
+}
+
+FLegacyCacheGetResponse FLegacyCacheGetRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, {}, UserData, Status};
+}
+
+FLegacyCacheDeleteResponse FLegacyCacheDeleteRequest::MakeResponse(const EStatus Status) const
+{
+	return {Name, Key, UserData, Status};
+}
+
 } // UE::DerivedData

@@ -43,8 +43,6 @@ using FOnCachePutValueComplete = TUniqueFunction<void (FCachePutValueResponse&& 
 using FOnCacheGetValueComplete = TUniqueFunction<void (FCacheGetValueResponse&& Response)>;
 using FOnCacheGetChunkComplete = TUniqueFunction<void (FCacheGetChunkResponse&& Response)>;
 
-using FOnCacheChunkComplete UE_DEPRECATED(5.0, "Use FOnCacheGetChunkComplete.") = FOnCacheGetChunkComplete;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -366,6 +364,9 @@ struct FCachePutRequest
 
 	/** A value that will be returned in the completion callback. */
 	uint64 UserData = 0;
+
+	/** Make a default response for this request, with the provided status. */
+	UE_API FCachePutResponse MakeResponse(EStatus Status) const;
 };
 
 /** Parameters for the completion callback for cache put requests. */
@@ -398,6 +399,9 @@ struct FCacheGetRequest
 
 	/** A value that will be returned in the completion callback. */
 	uint64 UserData = 0;
+
+	/** Make a default response for this request, with the provided status. */
+	UE_API FCacheGetResponse MakeResponse(EStatus Status) const;
 };
 
 /** Parameters for the completion callback for cache get requests. */
@@ -440,6 +444,9 @@ struct FCachePutValueRequest
 
 	/** A value that will be returned in the completion callback. */
 	uint64 UserData = 0;
+
+	/** Make a default response for this request, with the provided status. */
+	UE_API FCachePutValueResponse MakeResponse(EStatus Status) const;
 };
 
 /** Parameters for the completion callback for cache value put requests. */
@@ -472,6 +479,9 @@ struct FCacheGetValueRequest
 
 	/** A value that will be returned in the completion callback. */
 	uint64 UserData = 0;
+
+	/** Make a default response for this request, with the provided status. */
+	UE_API FCacheGetValueResponse MakeResponse(EStatus Status) const;
 };
 
 /** Parameters for the completion callback for cache value get requests. */
@@ -524,9 +534,10 @@ struct FCacheGetChunkRequest
 
 	/** A value that will be returned in the completion callback. */
 	uint64 UserData = 0;
-};
 
-using FCacheChunkRequest UE_DEPRECATED(5.0, "Use FCacheGetChunkRequest.") = FCacheGetChunkRequest;
+	/** Make a default response for this request, with the provided status. */
+	UE_API FCacheGetChunkResponse MakeResponse(EStatus Status) const;
+};
 
 /** Parameters for the completion callback for cache chunk requests. */
 struct FCacheGetChunkResponse
@@ -558,8 +569,6 @@ struct FCacheGetChunkResponse
 	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
-
-using FCacheChunkResponse UE_DEPRECATED(5.0, "Use FCacheGetChunkResponse.") = FCacheGetChunkResponse;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

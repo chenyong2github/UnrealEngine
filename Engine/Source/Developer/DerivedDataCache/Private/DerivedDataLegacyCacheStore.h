@@ -68,6 +68,8 @@ struct FLegacyCachePutRequest
 	FCompositeBuffer Value;
 	ECachePolicy Policy = ECachePolicy::Default;
 	uint64 UserData = 0;
+
+	FLegacyCachePutResponse MakeResponse(EStatus Status) const;
 };
 
 struct FLegacyCachePutResponse
@@ -84,6 +86,8 @@ struct FLegacyCacheGetRequest
 	FLegacyCacheKey Key;
 	ECachePolicy Policy = ECachePolicy::Default;
 	uint64 UserData = 0;
+
+	FLegacyCacheGetResponse MakeResponse(EStatus Status) const;
 };
 
 struct FLegacyCacheGetResponse
@@ -102,6 +106,8 @@ struct FLegacyCacheDeleteRequest
 	ECachePolicy Policy = ECachePolicy::Default;
 	bool bTransient = false;
 	uint64 UserData = 0;
+
+	FLegacyCacheDeleteResponse MakeResponse(EStatus Status) const;
 };
 
 struct FLegacyCacheDeleteResponse
