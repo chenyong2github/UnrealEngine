@@ -54,6 +54,11 @@ bool FTargetPlatformBase::UsesRayTracing() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
+EOfflineBVHMode FTargetPlatformBase::GetStaticMeshOfflineBVHMode() const
+{
+	return EOfflineBVHMode::Disabled;
+}
+
 bool FTargetPlatformBase::ForcesSimpleSkyDiffuse() const
 {
 	return false;

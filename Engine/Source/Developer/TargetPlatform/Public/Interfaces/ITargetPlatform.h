@@ -116,6 +116,13 @@ enum class EPlatformAuthentication
 	Always,
 };
 
+enum class EOfflineBVHMode
+{
+	Disabled,
+	MaximizePerformance,
+	MinimizeMemory,
+};
+
 /**
  * Flags specifying what is needed to be able to complete and deploy a build.
  */
@@ -465,6 +472,11 @@ public:
 	* Gets whether the platform will use ray tracing.
 	*/
 	virtual bool UsesRayTracing() const = 0;
+
+	/**
+	* Gets static mesh offline BVH mode
+	*/
+	virtual EOfflineBVHMode GetStaticMeshOfflineBVHMode() const = 0;
 
 	/**
 	* Gets whether the platform will use SH2 instead of SH3 for sky irradiance.
