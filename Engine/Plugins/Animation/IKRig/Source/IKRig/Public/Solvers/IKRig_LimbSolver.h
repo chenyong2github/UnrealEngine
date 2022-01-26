@@ -33,7 +33,7 @@ public:
 
 	UIKRig_LimbSolver();
 	
-	UPROPERTY(VisibleAnywhere, Category = "Limb IK Settings")
+	UPROPERTY(VisibleAnywhere, DisplayName = "Root Bone", Category = "Limb IK Settings")
 	FName RootName = NAME_None;
 
 	/** Precision (distance to the target) */

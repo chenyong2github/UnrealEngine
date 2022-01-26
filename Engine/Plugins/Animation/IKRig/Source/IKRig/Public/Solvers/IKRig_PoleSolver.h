@@ -36,10 +36,10 @@ public:
 
 	UIKRig_PoleSolver();
 	
-	UPROPERTY(VisibleAnywhere, Category = "Pole Solver Settings")
+	UPROPERTY(VisibleAnywhere, DisplayName = "Root Bone", Category = "Pole Solver Settings")
 	FName RootName = NAME_None;
 
-	UPROPERTY(VisibleAnywhere, Category = "Pole Solver Settings")
+	UPROPERTY(VisibleAnywhere, DisplayName = "End Bone", Category = "Pole Solver Settings")
 	FName EndName = NAME_None;
 	
 	/** UIKRigSolver interface */
