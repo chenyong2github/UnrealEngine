@@ -916,7 +916,9 @@ static void PropagateDataFromDefaultConfig(UDisplayClusterConfigurationData* InD
 
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
-	IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ADisplayClusterRootActor::RerunConstructionScripts"), STAT_RerunConstructionScripts, STATGROUP_NDisplay);
+	
+	const IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
 	if (!Config.IsTransactingSnapshot())
 	{
 		Super::RerunConstructionScripts();
