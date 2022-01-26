@@ -185,7 +185,7 @@ struct FDecodeResult
 /** 
  * Default implementation of a streamed compressed audio format.
  * Can be subclassed to support streaming of a specific asset format. Handles all 
- * the platform independent aspects of file format streaming for you (dealing with UE4 streamed assets)
+ * the platform independent aspects of file format streaming for you (dealing with UE streamed assets)
  */
 class IStreamedCompressedInfo : public ICompressedAudioInfo
 {

@@ -16,8 +16,8 @@ THIRD_PARTY_INCLUDES_START
 #include "speex_resampler.h"
 THIRD_PARTY_INCLUDES_END
 
-/** Use UE4 memory allocation or Opus */
-#define USE_UE4_MEM_ALLOC 1
+/** Use UE memory allocation or Opus */
+#define USE_UE_MEM_ALLOC 1
 #define SAMPLE_SIZE			( ( uint32 )sizeof( short ) )
 
 static FName NAME_OPUS(TEXT("OPUS"));
@@ -82,7 +82,7 @@ public:
 		// Initialise the Opus encoder
 		OpusEncoder* Encoder = NULL;
 		int32 EncError = 0;
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 		int32 EncSize = opus_encoder_get_size(QualityInfo.NumChannels);
 		Encoder = (OpusEncoder*)FMemory::Malloc(EncSize);
 		EncError = opus_encoder_init(Encoder, kOpusSampleRate, QualityInfo.NumChannels, OPUS_APPLICATION_AUDIO);
@@ -219,7 +219,7 @@ public:
 		int32 mapping_family = 1;
 		TArray<uint8> mapping;
 		mapping.AddUninitialized(QualityInfo.NumChannels);
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 		int32 EncSize = opus_multistream_surround_encoder_get_size(QualityInfo.NumChannels, mapping_family);
 		Encoder = (OpusMSEncoder*)FMemory::Malloc(EncSize);
 		EncError = opus_multistream_surround_encoder_init(Encoder, kOpusSampleRate, QualityInfo.NumChannels, mapping_family, &streams, &coupled_streams, mapping.GetData(), OPUS_APPLICATION_AUDIO);
@@ -350,7 +350,7 @@ public:
 
 	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
 	{
-		// Since UE4 uses it's own version of the header, we hardcode the size of that here. See SplitDataForStreaming below to see our initial info.
+		// Since UE uses it's own version of the header, we hardcode the size of that here. See SplitDataForStreaming below to see our initial info.
 		return FCStringAnsi::Strlen(OPUS_ID_STRING) + 1 // Format identifier
 			+ sizeof(uint16) // Sample Rate
 			+ sizeof(uint32) // True Sample Count
@@ -513,7 +513,7 @@ public:
 
 	void Destroy(OpusEncoder* Encoder) const
 	{
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 		FMemory::Free(Encoder);
 #else
 		opus_encoder_destroy(Encoder);
@@ -522,7 +522,7 @@ public:
 
 	void Destroy(OpusMSEncoder* Encoder) const
 	{
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 		FMemory::Free(Encoder);
 #else
 		opus_multistream_encoder_destroy(Encoder);

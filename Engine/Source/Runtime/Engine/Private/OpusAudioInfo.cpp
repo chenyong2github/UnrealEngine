@@ -15,7 +15,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #endif
 
-#define USE_UE4_MEM_ALLOC 1
+#define USE_UE_MEM_ALLOC 1
 #define OPUS_MAX_FRAME_SIZE_MS 120
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,7 @@ struct FOpusDecoderWrapper
 #if WITH_OPUS
 		check(NumChannels <= 8);
 		const UnrealChannelLayout& Layout = UnrealMappings[NumChannels-1];
-	#if USE_UE4_MEM_ALLOC
+	#if USE_UE_MEM_ALLOC
 		int32 DecSize = opus_multistream_decoder_get_size(Layout.NumStreams, Layout.NumCoupledStreams);
 		Decoder = (OpusMSDecoder*)FMemory::Malloc(DecSize);
 		DecError = opus_multistream_decoder_init(Decoder, SampleRate, NumChannels, Layout.NumStreams, Layout.NumCoupledStreams, Layout.Mapping);
@@ -63,7 +63,7 @@ struct FOpusDecoderWrapper
 	~FOpusDecoderWrapper()
 	{
 #if WITH_OPUS
-	#if USE_UE4_MEM_ALLOC
+	#if USE_UE_MEM_ALLOC
 		FMemory::Free(Decoder);
 	#else
 		opus_multistream_encoder_destroy(Decoder);

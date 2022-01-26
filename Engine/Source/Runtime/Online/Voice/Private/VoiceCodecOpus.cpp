@@ -12,8 +12,8 @@ THIRD_PARTY_INCLUDES_END
 #define DEBUG_OPUS 0
 /** Turn on entropy data in packets */
 #define ADD_ENTROPY_TO_PACKET 0
-/** Use UE4 memory allocation or Opus */
-#define USE_UE4_MEM_ALLOC 1
+/** Use UE memory allocation or Opus */
+#define USE_UE_MEM_ALLOC 1
 /** Maximum number of frames in a single Opus packet */
 #define MAX_OPUS_FRAMES_PER_PACKET 48
 /** Number of max frames for buffer calculation purposes */
@@ -235,7 +235,7 @@ bool FVoiceEncoderOpus::Init(int32 InSampleRate, int32 InNumChannels, EAudioEnco
 
 	const int32 Application = (EncodeHint == EAudioEncodeHint::VoiceEncode_Audio) ? OPUS_APPLICATION_AUDIO : OPUS_APPLICATION_VOIP;
 
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 	const int32 EncSize = opus_encoder_get_size(NumChannels);
 	Encoder = (OpusEncoder*)FMemory::Malloc(EncSize);
 	EncError = opus_encoder_init(Encoder, SampleRate, NumChannels, Application);
@@ -459,7 +459,7 @@ void FVoiceEncoderOpus::Reset()
 
 void FVoiceEncoderOpus::Destroy()
 {
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 	FMemory::Free(Encoder);
 #else
 	opus_encoder_destroy(Encoder);
@@ -523,7 +523,7 @@ bool FVoiceDecoderOpus::Init(int32 InSampleRate, int32 InNumChannels)
 
 	int32 DecError = 0;
 
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 	const int32 DecSize = opus_decoder_get_size(NumChannels);
 	Decoder = (OpusDecoder*)FMemory::Malloc(DecSize);
 	DecError = opus_decoder_init(Decoder, SampleRate, NumChannels);
@@ -564,7 +564,7 @@ void FVoiceDecoderOpus::Reset()
 
 void FVoiceDecoderOpus::Destroy()
 {
-#if USE_UE4_MEM_ALLOC
+#if USE_UE_MEM_ALLOC
 	FMemory::Free(Decoder);
 #else
 	opus_decoder_destroy(Decoder);
