@@ -782,13 +782,18 @@ EConvertFromTypeResult FArrayProperty::ConvertFromType(const FPropertyTag& Tag, 
 		FScriptArrayHelper ScriptArrayHelper(this, ArrayPropertyData);
 		ScriptArrayHelper.EmptyAndAddValues(ElementCount);
 
+		FPropertyTag InnerPropertyTag;
+		InnerPropertyTag.Type = Tag.InnerType;
+		InnerPropertyTag.ArrayIndex = 0;
+
+		if (Slot.GetArchiveState().UEVer() >= VER_UE4_INNER_ARRAY_TAG_INFO && Tag.InnerType == NAME_StructProperty)
+		{
+			Slot.GetUnderlyingArchive() << InnerPropertyTag;
+		}
+
 		// Convert properties from old type to new type automatically if types are compatible (array case)
 		if (ElementCount > 0)
 		{
-			FPropertyTag InnerPropertyTag;
-			InnerPropertyTag.Type = Tag.InnerType;
-			InnerPropertyTag.ArrayIndex = 0;
-
 			FStructuredArchive::FStream ValueStream = Slot.EnterStream();
 
 			if (Inner->ConvertFromType(InnerPropertyTag, ValueStream.EnterElement(), ScriptArrayHelper.GetRawPtr(0), DefaultsStruct) == EConvertFromTypeResult::Converted)
