@@ -4,10 +4,13 @@
 #include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectCollection.h"
-#include "MassEntitySubsystem.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
 #include "VisualLogger/VisualLogger.h"
+
+#if WITH_SMARTOBJECT_DEBUG
+#include "MassExecutor.h"
+#endif
 
 #if WITH_EDITOR
 #include "Engine/LevelBounds.h"
@@ -156,13 +159,17 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle ID)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(ID));
 
-	FSmartObjectRuntime SmartObjectRuntime;
-	if (RuntimeSmartObjects.RemoveAndCopyValue(ID, SmartObjectRuntime))
+	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ID);
+	if (SmartObjectRuntime == nullptr)
 	{
-		AbortAll(SmartObjectRuntime);
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Failed to remove SmartObject '%s' from runtime simulation. No entry found."), *LexToString(ID));
+		return;
 	}
 
-	FSmartObjectOctreeID& SharedOctreeID = SmartObjectRuntime.GetSharedOctreeID().Get();
+	// Abort everything before removing since abort flow may require access to runtime data
+	AbortAll(*SmartObjectRuntime);
+
+	FSmartObjectOctreeID& SharedOctreeID = SmartObjectRuntime->GetSharedOctreeID().Get();
 	if (SharedOctreeID.ID.IsValidId())
 	{
 		SmartObjectOctree.RemoveNode(SharedOctreeID.ID);
@@ -170,7 +177,7 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle ID)
 	}
 
 	TArray<FMassEntityHandle> EntitiesToDestroy;
-	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
+	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime->SlotHandles)
 	{
 		RuntimeSlotStates.Remove(SlotHandle);
 		EntitiesToDestroy.Add(SlotHandle);
@@ -181,6 +188,8 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle ID)
 	{
 		EntitySubsystem->Defer().BatchDestroyEntities(EntitiesToDestroy);
 	}
+
+	RuntimeSmartObjects.Remove(ID);
 }
 
 void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry)
@@ -386,6 +395,31 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle ID
 	return FSmartObjectClaimHandle::InvalidHandle;
 }
 
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
+{
+	if (!ClaimHandle.IsValid())
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must proviced with a valid claim handle"));
+		return nullptr;
+	}
+
+	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ClaimHandle.SmartObjectHandle);
+	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("A SmartObjectRuntime must be created for %s"), *LexToString(ClaimHandle.SmartObjectHandle)))
+	{
+		return nullptr;
+	}
+
+	return GetBehaviorDefinition(*SmartObjectRuntime, ClaimHandle, DefinitionClass);
+}
+
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
+{
+	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
+
+	const FSmartObjectSlotIndex SlotIndex(SmartObjectRuntime.SlotHandles.IndexOfByKey(ClaimHandle.SlotHandle));
+	return Definition.GetBehaviorDefinition(SlotIndex, DefinitionClass);
+}
+
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
 	if (!ClaimHandle.IsValid())
@@ -410,14 +444,12 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObj
 		return nullptr;
 	}
 
-	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
-
-	const FSmartObjectSlotIndex SlotIndex(SmartObjectRuntime.SlotHandles.IndexOfByKey(ClaimHandle.SlotHandle));
-	const USmartObjectBehaviorDefinition* BehaviorDefinition = Definition.GetBehaviorDefinition(SlotIndex, DefinitionClass);
+	const USmartObjectBehaviorDefinition* BehaviorDefinition = GetBehaviorDefinition(SmartObjectRuntime, ClaimHandle, DefinitionClass);
 	if (BehaviorDefinition == nullptr)
 	{
 		const UClass* ClassPtr = DefinitionClass.Get();
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Unable to find a behavior definition of type %s in %s"), ClassPtr != nullptr ? *ClassPtr->GetName(): TEXT("Null"), *LexToString(Definition));
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Unable to find a behavior definition of type %s in %s"),
+			ClassPtr != nullptr ? *ClassPtr->GetName(): TEXT("Null"), *LexToString(SmartObjectRuntime.GetDefinition()));
 		return nullptr;
 	}
 
@@ -750,7 +782,8 @@ FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectHand
 	}
 
 	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ID);
-	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("RuntimeData should exist at this point")))
+	// Runtime data may no longer be available (removed from simulation)
+	if (SmartObjectRuntime == nullptr)
 	{
 		return InvalidResult;
 	}
@@ -958,6 +991,14 @@ void USmartObjectSubsystem::DebugUnregisterAllSmartObjects()
 			RemoveFromSimulation(*Cmp);
 		}
 	}
+
+	// SmartObject framework relies on MassEntity at different levels so we need to make sure to flush all
+	// commands that might get pushed during unregistration before starting the new engine frame.
+	if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+	{
+		FMassProcessingContext ProcessingContext(*EntitySubsystem, /* DeltaSeconds */ 0.f);
+		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
+	}
 }
 
 void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
@@ -968,6 +1009,14 @@ void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
 		{
 			AddToSimulation(*Cmp);
 		}
+	}
+
+	// SmartObject framework relies on MassEntity at different levels so we need to make sure to flush all
+	// commands that might get pushed during registration before starting the new engine frame.
+	if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+	{
+		FMassProcessingContext ProcessingContext(*EntitySubsystem, /* DeltaSeconds */ 0.f);
+		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
 	}
 }
 #endif // WITH_SMARTOBJECT_DEBUG

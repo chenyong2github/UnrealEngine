@@ -222,6 +222,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool Release(const FSmartObjectClaimHandle& ClaimHandle);
 
+	/**
+	 *	Return the behavior definition of a given type from a claimed object.
+	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
+	 *	@param DefinitionClass The type of behavior definition.
+	 *	@return The base class pointer of the requested behavior definition class associated to the slotClaim handle
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+
+	/**
+	 *	Return the behavior definition of a given type from a claimed object.
+	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
+	 *	@return The requested behavior definition class pointer associated to the Claim handle
+	 */
+	template <typename DefinitionType>
+	const DefinitionType* GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle)
+	{
+		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
+		return Cast<const DefinitionType>(GetBehaviorDefinition(ClaimHandle, DefinitionType::StaticClass()));
+	}
+
 	ESmartObjectSlotState GetSlotState(FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
@@ -267,15 +288,6 @@ public:
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectRequestResult& Result) const;
 
-	// /**
-	//  * Returns the position (in world space) of the slot represented by the provided object id and slot index.
-	//  * @param SmartObjectHandle Identifier of the smart object.
-	//  * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectHandle.
-	//  * @return Position (in world space) of the slot represented by SmartObjectHandle and SlotIndex.
-	//  * @note Method will ensure on invalid FSmartObjectHandle or an invalid index.
-	//  */
-	// TOptional<FVector> GetSlotLocation(const FSmartObjectHandle SmartObjectHandle, const FSmartObjectSlotIndex SlotIndex) const;
-
 	/**
 	 * Returns the position (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
@@ -309,15 +321,6 @@ public:
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectRequestResult& Result) const;
-
-	// /**
-	//  * Returns the transform (in world space) of the slot represented by the provided object id and slot index.
-	//  * @param SmartObjectHandle Identifier of the smart object.
-	//  * @param SlotIndex Index within the list of available slots in the smart object represented by SmartObjectHandle.
-	//  * @return Transform (in world space) of the slot represented by SmartObjectHandle and SlotIndex.
-	//  * @note Method will ensure on invalid FSmartObjectHandle or an invalid index.
-	//  */
-	// TOptional<FTransform> GetSlotTransform(const FSmartObjectHandle SmartObjectHandle, const FSmartObjectSlotIndex SlotIndex) const;
 
 	/**
 	 * Returns the transform (in world space) of the slot represented by the provided slot handle.
@@ -369,6 +372,8 @@ protected:
 	FSmartObjectSlotHandle FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
 
 	FSmartObjectClaimHandle Claim(FSmartObjectHandle ID, FSmartObjectSlotHandle SlotHandle);
+
+	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
