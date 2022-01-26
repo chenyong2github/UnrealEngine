@@ -453,6 +453,10 @@ private:
 
 	/** Set if an Actor tries to be destroyed while it is beginning play so that once BeginPlay ends we can issue the destroy call. */
 	uint8 bActorWantsDestroyDuringBeginPlay : 1;
+	
+	/** Whether to use use the fixed physics tick with this actor. Requires async fixed tick to be enabled (see project settings) */
+	UPROPERTY(EditAnywhere, Category=Physics)
+	uint8 bFixedTickEnabled : 1;
 
 	/** Enum defining if BeginPlay has started or finished */
 	enum class EActorBeginPlayState : uint8
@@ -1760,6 +1764,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Tick"))
 	void ReceiveTick(float DeltaSeconds);
 
+	/** Event called every physics tick if EnabledFixedTick is true and async fixed tick is enabled (see physics project settings)*/
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Fixed Tick"))
+	void ReceiveFixedTick(float DeltaSeconds, float SimSeconds);
+
 	/** 
 	 *	Event when this actor overlaps another actor, for example a player walking into a trigger.
 	 *	For events when objects have a blocking collision, for example a player hitting a wall, see 'Hit' events.
@@ -2485,6 +2493,16 @@ public:
 	 * @param	ThisTickFunction	The tick function that is firing, useful for getting the completion handle
 	 */
 	virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction );
+
+	/**
+	 * Function called for every physics step on this Actor. Override this function to implement custom logic to be executed every physics step.
+	 * bFixedTick must be set to true.
+	 * Requires async fixed tick to be enabled (see physics project settings)
+	 *	
+	 * @param DeltaTime - The fixed tick delta time
+	 * @param SimTime - This is the total sim time since the sim began, it is an integer multiple of DeltaTime
+	 */
+	virtual void FixedTickActor(float DeltaTime, float SimTime) { ReceiveFixedTick(DeltaTime, SimTime); }
 
 	/**
 	 * Called when an actor is done spawning into the world (from UWorld::SpawnActor), both in the editor and during gameplay

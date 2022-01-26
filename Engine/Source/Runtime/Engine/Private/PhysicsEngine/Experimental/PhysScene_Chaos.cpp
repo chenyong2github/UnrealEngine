@@ -71,6 +71,35 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 #include "Editor.h"
 #endif
 
+class FFixedTickCallback : public Chaos::TSimCallbackObject<>
+{
+public:
+	FFixedTickCallback()
+		: TSimCallbackObject<>(/*InRunOnFrozenGameThread=*/ true)
+	{
+
+	}
+
+	TSet<UActorComponent*> FixedTickComponents;
+	TSet<AActor*> FixedTickActors;
+	virtual void OnPreSimulate_Internal() override
+	{
+		using namespace Chaos;
+		const FReal DeltaTime = GetDeltaTime_Internal();
+		const FReal SimTime = GetSimTime_Internal();
+		//TODO: handle case where callbacks modify FixedTickComponents or FixedTickActors
+		for (UActorComponent* Component : FixedTickComponents)
+		{
+			Component->FixedTickComponent(DeltaTime, SimTime);
+		}
+
+		for(AActor* Actor : FixedTickActors)
+		{
+			Actor->FixedTickActor(DeltaTime, SimTime);
+		}
+	}
+};
+
 DEFINE_LOG_CATEGORY_STATIC(LogFPhysScene_ChaosSolver, Log, All);
 
 void DumpHierarchyStats(const TArray<FString>& Args)
@@ -418,6 +447,11 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 FPhysScene_Chaos::~FPhysScene_Chaos()
 {
 #if WITH_CHAOS
+
+	if (FixedTickCallback)
+	{
+		SceneSolver->UnregisterAndFreeSimCallbackObject_External(FixedTickCallback);
+	}
 
 	// Must ensure deferred components do not hold onto scene pointer.
 	ProcessDeferredCreatePhysicsState();
@@ -1813,6 +1847,41 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 #endif
 }
 
+void FPhysScene_Chaos::EnableFixedTickCallback()
+{
+	if (FixedTickCallback == nullptr)
+	{
+		FixedTickCallback = SceneSolver->CreateAndRegisterSimCallbackObject_External<FFixedTickCallback>();
+	}
+}
+
+void FPhysScene_Chaos::RegisterFixedTickComponent(UActorComponent* Component)
+{
+	EnableFixedTickCallback();
+	FixedTickCallback->FixedTickComponents.Add(Component);
+}
+
+void FPhysScene_Chaos::UnregisterFixedTickComponent(UActorComponent* Component)
+{
+	if (FixedTickCallback)
+	{
+		FixedTickCallback->FixedTickComponents.Remove(Component);
+	}
+}
+
+void FPhysScene_Chaos::RegisterFixedTickActor(AActor* Actor)
+{
+	EnableFixedTickCallback();
+	FixedTickCallback->FixedTickActors.Add(Actor);
+}
+
+void FPhysScene_Chaos::UnregisterFixedTickActor(AActor* Actor)
+{
+	if (FixedTickCallback)
+	{
+		FixedTickCallback->FixedTickActors.Remove(Actor);
+	}
+}
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;
 

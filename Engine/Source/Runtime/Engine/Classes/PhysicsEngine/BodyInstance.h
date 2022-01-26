@@ -248,6 +248,23 @@ enum class BodyInstanceSceneState : uint8
 	Removed
 };
 
+namespace Chaos
+{
+	class FRigidBodyHandle_Internal;
+}
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FBodyInstanceFixedTickHandle
+{
+	GENERATED_BODY()
+	FPhysicsActorHandle Proxy = nullptr;
+
+	Chaos::FRigidBodyHandle_Internal* operator->();
+
+	bool IsValid() const;
+	operator bool() const { return IsValid(); }
+};
+
 /** Container for a physics representation of an object */
 USTRUCT(BlueprintType)
 struct ENGINE_API FBodyInstance : public FBodyInstanceCore
@@ -544,6 +561,8 @@ public:
 
 	// Internal physics representation of our body instance
 	FPhysicsActorHandle ActorHandle;
+
+	FBodyInstanceFixedTickHandle GetBodyInstancePhysicsThreadHandle() const { return FBodyInstanceFixedTickHandle{ ActorHandle }; }
 
 #if USE_BODYINSTANCE_DEBUG_NAMES
 	TSharedPtr<TArray<ANSICHAR>> CharDebugName;

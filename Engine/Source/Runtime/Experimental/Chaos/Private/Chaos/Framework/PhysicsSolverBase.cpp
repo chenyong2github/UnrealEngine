@@ -107,7 +107,7 @@ namespace Chaos
 		//We are on GT, but we know PhysicsThread is waiting so we're actually going to operate on PT data
 #if PHYSICS_THREAD_CONTEXT
 		FPhysicsThreadContextScope Scope(/*IsPhysicsThreadContext=*/true);
-		//TODO: add something to make sure we don't access GT solver data by mistake
+		FFrozenGameThreadContextScope FrozenScope;	//Make sure we fire ensures if any physics GT data is used
 #endif
 
 		Solver.SetOnFrozenGameThread(true);
@@ -423,7 +423,7 @@ namespace Chaos
 				PendingTasks = TGraphTask<FPhysicsSolverProcessPushDataTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, PushData);
 				Prereqs.Add(PendingTasks);
 
-				if(bSolverHasFrozenGameThreadCallbacks)
+				if(bSolverHasFrozenGameThreadCallbacks && IsUsingFixedDt())
 				{
 					PendingTasks = TGraphTask<FPhysicsSolverFrozenGTPreSimCallbacks>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this);
 					Prereqs.Add(PendingTasks);
@@ -446,5 +446,16 @@ namespace Chaos
 		}
 
 		return BlockingTasks;
+	}
+
+
+	void FAllSolverTasks::AdvanceSolver()
+	{
+		ProcessPushData.ProcessPushData();
+		if (Solver.IsUsingFixedDt())
+		{
+			GTPreSimCallbacks.GTPreSimCallbacks();
+		}
+		AdvanceTask.AdvanceSolver();
 	}
 }

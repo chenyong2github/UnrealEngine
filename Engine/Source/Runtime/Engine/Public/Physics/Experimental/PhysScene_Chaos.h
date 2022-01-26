@@ -121,6 +121,12 @@ public:
 
 	void UnRegisterForCollisionEvents(UPrimitiveComponent* Component);
 
+	void RegisterFixedTickComponent(UActorComponent* Component);
+	void UnregisterFixedTickComponent(UActorComponent* Component);
+
+	void RegisterFixedTickActor(AActor* Actor);
+	void UnregisterFixedTickActor(AActor* Actor);
+
 	/**
 	 * Called during creation of the physics state for gamethread objects to pass off an object to the physics thread
 	 */
@@ -282,6 +288,8 @@ private:
 	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver) override;
 #endif
 
+	void EnableFixedTickCallback();
+
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)
 	{
@@ -349,6 +357,7 @@ private:
 #if WITH_CHAOS
 	Chaos::FReal LastEventDispatchTime;
 #endif 
+	class FFixedTickCallback* FixedTickCallback = nullptr;
 
 #if WITH_EDITOR
 	// Counter used to check a match with the single step status.

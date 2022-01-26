@@ -148,7 +148,7 @@ public:
 
 	bool IsInGameThreadContext() const
 	{
-		return IsInGameThread() || GameThreadContext > 0;
+		return (IsInGameThread() || GameThreadContext > 0) && !bFrozenGameThread;
 	}
 
 	void IncPhysicsSimContext()
@@ -173,9 +173,22 @@ public:
 		--GameThreadContext;
 	}
 
+	void FreezeGameThreadContext()
+	{
+		ensure(!bFrozenGameThread);
+		bFrozenGameThread = true;
+	}
+
+	void UnFreezeGameThreadContext()
+	{
+		ensure(bFrozenGameThread);
+		bFrozenGameThread = false;
+	}
+
 private:
 	int32 PhysicsSimContext = 0;
 	int32 GameThreadContext = 0;
+	bool bFrozenGameThread = false;
 };
 
 struct FPhysicsThreadContextScope
@@ -220,6 +233,19 @@ struct FGameThreadContextScope
 	}
 
 	bool bParentIsGameThreadContext;
+};
+
+struct FFrozenGameThreadContextScope
+{
+	FFrozenGameThreadContextScope()
+	{
+		FPhysicsThreadContext::Get().FreezeGameThreadContext();
+	}
+
+	~FFrozenGameThreadContextScope()
+	{
+		FPhysicsThreadContext::Get().UnFreezeGameThreadContext();
+	}
 };
 
 

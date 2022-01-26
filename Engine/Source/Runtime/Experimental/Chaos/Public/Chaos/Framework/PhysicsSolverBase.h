@@ -136,12 +136,13 @@ namespace Chaos
 		FPushPhysicsData* PushData;
 	};
 
-	struct FAllSolverTasks
+	struct CHAOS_API FAllSolverTasks
 	{
-		FAllSolverTasks(FPhysicsSolverBase& Solver, FPushPhysicsData* PushData)
-			: ProcessPushData(Solver, PushData)
-			, GTPreSimCallbacks(Solver)
-			, AdvanceTask(Solver, PushData)
+		FAllSolverTasks(FPhysicsSolverBase& InSolver, FPushPhysicsData* PushData)
+			: ProcessPushData(InSolver, PushData)
+			, GTPreSimCallbacks(InSolver)
+			, AdvanceTask(InSolver, PushData)
+			, Solver(InSolver)
 		{
 		}
 
@@ -149,12 +150,9 @@ namespace Chaos
 		FPhysicsSolverFrozenGTPreSimCallbacks GTPreSimCallbacks;
 		FPhysicsSolverAdvanceTask AdvanceTask;
 
-		void AdvanceSolver()
-		{
-			ProcessPushData.ProcessPushData();
-			GTPreSimCallbacks.GTPreSimCallbacks();
-			AdvanceTask.AdvanceSolver();
-		}
+		void AdvanceSolver();
+
+		FPhysicsSolverBase& Solver;
 	};
 
 	class FPersistentPhysicsTask;

@@ -1951,6 +1951,18 @@ public:
 	*/
 	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const;
 
+	/**
+	 * Returns BodyInstanceFixedTickHandle of the component. For use in the FixedTick event
+	*
+	* @param BoneName				Used to get body associated with specific bone. NAME_None automatically gets the root most body
+	* @param bGetWelded				If the component has been welded to another component and bGetWelded is true we return the single welded BodyInstance that is used in the simulation
+	* @param Index					Index used in Components with multiple body instances
+	*
+	* @return		Returns the BodyInstanceFixedTickHandle based on various states (does component have multiple bodies? Is the body welded to another body?)
+	*/
+	UFUNCTION(BlueprintPure, Category = "Physics")
+	FBodyInstanceFixedTickHandle GetBodyInstanceFixedTickHandle(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = -1) const;
+
 	/** 
 	 * Returns The square of the distance to closest Body Instance surface. 
 	 *

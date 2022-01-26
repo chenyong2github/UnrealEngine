@@ -817,6 +817,19 @@ FBodyInstance* UPrimitiveComponent::GetBodyInstance(FName BoneName, bool bGetWel
 	return const_cast<FBodyInstance*>((bGetWelded && BodyInstance.WeldParent) ? BodyInstance.WeldParent : &BodyInstance);
 }
 
+FBodyInstanceFixedTickHandle UPrimitiveComponent::GetBodyInstanceFixedTickHandle(FName BoneName, bool bGetWelded, int32 Index) const
+{
+	if(FBodyInstance* BI = GetBodyInstance(BoneName, bGetWelded, Index))
+	{
+		return BI->GetBodyInstancePhysicsThreadHandle();
+	}
+	else
+	{
+		return FBodyInstanceFixedTickHandle();
+	}
+	
+}
+
 bool UPrimitiveComponent::GetSquaredDistanceToCollision(const FVector& Point, float& OutSquaredDistance, FVector& OutClosestPointOnCollision) const
 {
 	OutClosestPointOnCollision = Point;
