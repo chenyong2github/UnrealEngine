@@ -174,6 +174,16 @@ public:
 	/** Returns result of the last validation if `Validate` was called; unset otherwise. */
 	TOptional<bool> IsValid() const { return bValid; }
 
+#if WITH_EDITORONLY_DATA
+	/** Actor class used for previewing the definition in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	TSoftClassPtr<AActor> PreviewClass;
+
+	/** Path of the static mesh used for previewing the definition in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	FSoftObjectPath PreviewMeshPath;
+#endif
+
 private:
 	/** Finds first behavior definition of a given class in the provided list of definitions. */
 	static const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByType(const TArray<USmartObjectBehaviorDefinition*>& BehaviorDefinitions, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);

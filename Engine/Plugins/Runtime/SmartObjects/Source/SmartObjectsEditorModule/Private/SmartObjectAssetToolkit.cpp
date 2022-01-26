@@ -6,6 +6,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 #include "SmartObjectAssetEditorViewportClient.h"
 #include "SmartObjectComponent.h"
 #include "Tools/UAssetEditor.h"
@@ -156,7 +157,7 @@ TSharedPtr<FEditorViewportClient> FSmartObjectAssetToolkit::CreateEditorViewport
 void FSmartObjectAssetToolkit::PostInitAssetEditor()
 {
 	USmartObjectComponent* PreviewComponent = NewObject<USmartObjectComponent>(GetTransientPackage(), NAME_None, RF_Transient );
-	USmartObjectDefinition* Definition =Cast<USmartObjectDefinition>(GetEditingObject());
+	USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(GetEditingObject());
 	PreviewComponent->SetDefinition(Definition);
 
 	// Add component to the preview scene
@@ -169,6 +170,30 @@ void FSmartObjectAssetToolkit::PostInitAssetEditor()
 	// Allow the viewport client to interact with the preview component
 	checkf(SmartObjectViewportClient.IsValid(), TEXT("ViewportClient is created in CreateEditorViewportClient before calling PostInitAssetEditor"));
 	SmartObjectViewportClient->SetPreviewComponent(PreviewComponent);
+
+	// Use preview information from asset
+	if (const UClass* ActorClass = Definition->PreviewClass.Get())
+	{
+		PreviewActorClass = ActorClass;
+		SmartObjectViewportClient->SetPreviewActorClass(ActorClass);
+	}
+
+	PreviewMeshObjectPath = Definition->PreviewMeshPath.GetAssetPathString();
+	if (!PreviewMeshObjectPath.IsEmpty())
+	{
+		UStaticMesh* PreviewMesh = FindObject<UStaticMesh>(nullptr, *PreviewMeshObjectPath);
+		if (PreviewMesh == nullptr)
+		{
+			PreviewMesh = LoadObject<UStaticMesh>(nullptr, *PreviewMeshObjectPath);
+			if (PreviewMesh == nullptr)
+			{
+				// Path is no longer valid so clear references to it (without dirtying on load)
+				PreviewMeshObjectPath.Reset();
+				Definition->PreviewMeshPath.Reset();
+			}
+		}
+		SmartObjectViewportClient->SetPreviewMesh(PreviewMesh);
+	}
 
 	// Instantiate the tool to author slot definitions through the preview component
 	Tool = NewObject<USmartObjectAssetEditorTool>(GetTransientPackage(), NAME_None, RF_Transient );
@@ -252,8 +277,13 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FS
 					PreviewMeshObjectPath.Reset();
 					if (PreviewMesh != nullptr)
 					{
-						PreviewMeshObjectPath = AssetData.ObjectPath.ToString(); //.GetFullName(PreviewMeshObjectPath);
+						PreviewMeshObjectPath = AssetData.ObjectPath.ToString();
 					}
+
+					FScopedTransaction Transaction(LOCTEXT("SetPreviewMesh", "Set Preview Mesh"));
+					USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
+					Definition->Modify();
+					Definition->PreviewMeshPath = PreviewMeshObjectPath;
 
 					SmartObjectViewportClient->SetPreviewMesh(PreviewMesh);
 				})
@@ -281,6 +311,11 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FS
 				{
 					PreviewActorClass = MakeWeakObjectPtr(SelectedClass);
 					SmartObjectViewportClient->SetPreviewActorClass(SelectedClass);
+
+					FScopedTransaction Transaction(LOCTEXT("SetPreviewClass", "Set Preview Class"));
+					USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
+					Definition->Modify();
+					Definition->PreviewClass = SelectedClass;
 				})
 			]
 		];
