@@ -4,12 +4,12 @@
 
 struct FDeepShadowViewInfo
 {
-	float4x4 WorldToClip;
+	float4x4 TranslatedWorldToClip;
 	float3   ViewForward;
 	float    MinRadiusAtDepth1;
 };
 
 struct FDeepShadowTransform
 {
-	float4x4 WorldToClip; // Store the transform into a struct to avoid the matrix to be loaded as transposed
+	float4x4 TranslatedWorldToClip; // Store the transform into a struct to avoid the matrix to be loaded as transposed
 };

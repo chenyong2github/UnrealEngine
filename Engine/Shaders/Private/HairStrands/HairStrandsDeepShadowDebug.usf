@@ -136,7 +136,7 @@ uint AllocatedSlotCount;
 uint MacroGroupCount;
 
 Buffer<int>	MacroGroupAABBBuffer;
-StructuredBuffer<FDeepShadowTransform> ShadowWorldToLightTransformBuffer;
+StructuredBuffer<FDeepShadowTransform> ShadowTranslatedWorldToLightTransformBuffer;
 
 [numthreads(1, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -148,15 +148,17 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	for (uint MacroGroupIt = 0; MacroGroupIt < MacroGroupCount; ++MacroGroupIt)
 	{
-		const FHairAABB Bound = ReadHairAABB(MacroGroupIt, MacroGroupAABBBuffer);
+		const FHairAABB Bound = ReadHairAABB(MacroGroupIt, MacroGroupAABBBuffer); // HAIR_LWC
 		AddAABB(Bound.Min, Bound.Max, float4(1, 0.5f, 0, 1));
 	}
+
+	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
 
 	const float4 FrustumColor = float4(0.5f, 1, 0, 1);
 	for (uint SlotIt = 0; SlotIt < AllocatedSlotCount; ++SlotIt)
 	{
-		const float4x4 WorldToClip = ShadowWorldToLightTransformBuffer[SlotIt].WorldToClip;
-		const float4x4 ClipToWorld = Inverse(WorldToClip);
+		const float4x4 TranslatedWorldToClip = ShadowTranslatedWorldToLightTransformBuffer[SlotIt].TranslatedWorldToClip;
+		const float4x4 ClipToTranslatedWorld = Inverse(TranslatedWorldToClip);
 
 		float4 P01 = float4(-1, -1, 0, 1);
 		float4 P11 = float4(-1,  1, 0, 1);
@@ -168,15 +170,15 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float4 P20 = float4( 1,  1, 1, 1);
 		float4 P30 = float4( 1, -1, 1, 1);
 
-		P00 = mul(P00, ClipToWorld); P00 /= P00.w; 
-		P10 = mul(P10, ClipToWorld); P10 /= P10.w; 
-		P20 = mul(P20, ClipToWorld); P20 /= P20.w; 
-		P30 = mul(P30, ClipToWorld); P30 /= P30.w; 
+		P00 = mul(P00, ClipToTranslatedWorld); P00 /= P00.w; P00.xyz += TranslatedWorldOffset;
+		P10 = mul(P10, ClipToTranslatedWorld); P10 /= P10.w; P10.xyz += TranslatedWorldOffset;
+		P20 = mul(P20, ClipToTranslatedWorld); P20 /= P20.w; P20.xyz += TranslatedWorldOffset;
+		P30 = mul(P30, ClipToTranslatedWorld); P30 /= P30.w; P30.xyz += TranslatedWorldOffset;
 
-		P01 = mul(P01, ClipToWorld); P01 /= P01.w;
-		P11 = mul(P11, ClipToWorld); P11 /= P11.w;
-		P21 = mul(P21, ClipToWorld); P21 /= P21.w;
-		P31 = mul(P31, ClipToWorld); P31 /= P31.w;
+		P01 = mul(P01, ClipToTranslatedWorld); P01 /= P01.w; P01.xyz += TranslatedWorldOffset;
+		P11 = mul(P11, ClipToTranslatedWorld); P11 /= P11.w; P11.xyz += TranslatedWorldOffset;
+		P21 = mul(P21, ClipToTranslatedWorld); P21 /= P21.w; P21.xyz += TranslatedWorldOffset;
+		P31 = mul(P31, ClipToTranslatedWorld); P31 /= P31.w; P31.xyz += TranslatedWorldOffset;
 
 		AddLine(P00, P10, FrustumColor, FrustumColor);
 		AddLine(P10, P20, FrustumColor, FrustumColor);

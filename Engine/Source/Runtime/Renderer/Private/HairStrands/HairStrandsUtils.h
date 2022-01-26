@@ -22,9 +22,10 @@ FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 
 FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View);
 
-void ComputeWorldToLightClip(
-	FMatrix& WorldToClipTransform,
-	FMinHairRadiusAtDepth1& MinStrandRadiusAtDepth1,
+void ComputeTranslatedWorldToLightClip(
+	const FVector& TranslatedWorldOffset,
+	FMatrix& OutTranslatedWorldToClipTransform,
+	FMinHairRadiusAtDepth1& OutMinStrandRadiusAtDepth1,
 	const FBoxSphereBounds& PrimitivesBounds,
 	const class FLightSceneProxy& LightProxy,
 	const ELightComponentType LightType,

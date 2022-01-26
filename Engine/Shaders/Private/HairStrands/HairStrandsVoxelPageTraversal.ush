@@ -160,8 +160,8 @@ FHairTraversalSettings InitHairTraversalSettings()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sparse voxel traversal routines
 FHairTraversalResult ComputeHairCountVirtualVoxel(
-	float3 WorldPosition0,
-	float3 WorldPosition1,
+	float3 TranslatedWorldPosition0,
+	float3 TranslatedWorldPosition1,
 	FVirtualVoxelCommonDesc InCommonDesc,
 	FVirtualVoxelNodeDesc InNodeDesc,
 	Buffer<uint> InPageIndexBuffer,
@@ -188,14 +188,14 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 	bool bIsPageValid = false;
 	uint3 PageCoord = 0;
 
-	const float2 HitT = LineBoxIntersect(WorldPosition0, WorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
 	if (HitT.x < HitT.y)
 	{
 		// Count the number of fibers which are within a cylinder defined by the voxel size, 
 		// and the distance between the origin and the extent of the volume
 		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-		const float3 O = lerp(WorldPosition0, WorldPosition1, HitT.xxx);
-		const float3 E = lerp(WorldPosition0, WorldPosition1, HitT.yyy);
+		const float3 O = lerp(TranslatedWorldPosition0, TranslatedWorldPosition1, HitT.xxx);
+		const float3 E = lerp(TranslatedWorldPosition0, TranslatedWorldPosition1, HitT.yyy);
 		const float OELength = min(length(E - O), InSettings.DistanceThreshold);
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (InSettings.bDebugEnabled)
@@ -296,13 +296,13 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 					#if VOXEL_TRAVERSAL_DEBUG_PAGEOCCUPANCY
 					Out.HairCount = 100;
-					Out.HitT = length(HitP - WorldPosition0);
+					Out.HitT = length(HitP - TranslatedWorldPosition0);
 					return Out;
 					#else
 					if (ShouldStopTraversal(Out, InSettings.CountThreshold, InSettings.bUseOpaqueVisibility))
 					{
 						//Out.HitT = length(HitP - O);
-						Out.HitT = length(HitP - WorldPosition0);
+						Out.HitT = length(HitP - TranslatedWorldPosition0);
 						return Out;
 					}
 					#endif	
@@ -337,22 +337,22 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 	#if VOXEL_TRAVERSAL_DEBUG
 	AddMacroGroupAABB(InSettings.bDebugEnabled, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
-	AddLine(InSettings.bDebugEnabled, WorldPosition0, WorldPosition1);
+	AddLine(InSettings.bDebugEnabled, TranslatedWorldPosition0, TranslatedWorldPosition1);
 	#endif
 
-	const float2 HitT = LineBoxIntersect(WorldPosition0, WorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
 	if (HitT.x < HitT.y)
 	{
 		// Count the number of fibers which are within a cylinder defined by the voxel size, 
 		// and the distance between the origin and the extent of the volume
 		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-		const float3 O = WorldPosition0; // lerp(WorldPosition, IntersectEndPoint, HitT.xxx);
-		const float3 E = WorldPosition1; // lerp(WorldPosition, IntersectEndPoint, HitT.yyy);
+		const float3 O = TranslatedWorldPosition0; // lerp(TranslatedWorldPosition, IntersectEndPoint, HitT.xxx);
+		const float3 E = TranslatedWorldPosition1; // lerp(TranslatedWorldPosition, IntersectEndPoint, HitT.yyy);
 		const float OELength = min(length(E - O), InSettings.DistanceThreshold);
 
 	
 		// Init to 1 or -1 depending of the orientation of stepping
-		const float3 UNormD = WorldPosition1 - WorldPosition0;
+		const float3 UNormD = TranslatedWorldPosition1 - TranslatedWorldPosition0;
 		const int3 Step = sign(UNormD);
 
 		// Step according to voxel size

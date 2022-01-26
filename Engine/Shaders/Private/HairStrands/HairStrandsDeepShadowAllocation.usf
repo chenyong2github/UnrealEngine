@@ -13,15 +13,15 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-float4x4 ComputeWorldToLight(
-	const FHairAABB Aabb,
+float4x4 ComputeTranslatedWorldToLight(
+	const FHairAABB TranslatedAABB,
 	const float3 LightDirection,
-	const float3 LightPosition,
+	const float3 TranslatedLightPosition,
 	const bool bIsDirectional)
 {
-	const float3 Extents = GetExtents(Aabb);
-	const float3 Center = GetCenter(Aabb);
-	const float  Radius = length(Extents);
+	const float3 Extents = GetExtents(TranslatedAABB);
+	const float3 Center  = GetCenter(TranslatedAABB);
+	const float  Radius  = length(Extents);
 
 	if (bIsDirectional) // (LightType == LightType_Directional)
 	{
@@ -29,20 +29,16 @@ float4x4 ComputeWorldToLight(
 	}
 	else // if (LightType == LightType_Spot || LightType == LightType_Point || LightType == LightType_Rect)
 	{
-		return LookAtMatrix(LightPosition, Center, float3(0, 0, 1));
+		return LookAtMatrix(TranslatedLightPosition, Center, float3(0, 0, 1));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 float4				LightDirections[MAX_SLOT_COUNT];
-float4				LightPositions[MAX_SLOT_COUNT];
+float4				TranslatedLightPositions[MAX_SLOT_COUNT];
 uint4				MacroGroupIndices[MAX_SLOT_COUNT];
 
-// For testing parity with CPU version
-float3				CPU_MinAABB;
-uint				CPU_bUseCPUData;
-float3				CPU_MaxAABB;
 float				RasterizationScale;
 float				AABBScale;
 float				MaxHafFovInRad;
@@ -53,7 +49,7 @@ uint				MacroGroupCount;
 
 Buffer<int>								MacroGroupAABBBuffer;
 RWStructuredBuffer<FDeepShadowViewInfo>	OutShadowViewInfoBuffer;
-RWStructuredBuffer<FDeepShadowTransform>OutShadowWorldToLightTransformBuffer;
+RWStructuredBuffer<FDeepShadowTransform>OutShadowTranslatedWorldToLightTransformBuffer;
 
 
 float DegreesToRadians(float InDeg)
@@ -70,23 +66,23 @@ float ComputeMinStrandRadiusAtDepth1(const int2 Resolution, const float InFOVInR
 }
 
 // This function is similar to the CPU version in HairStrandsDeepShadow.cpp
-void ComputeWorldToLightClip(
-	inout float4x4	OutWorldToClipTransform,
+void ComputeTranslatedWorldToLightClip(
+	inout float4x4	OutTranslatedWorldToClipTransform,
 	inout float		OutMinStrandRadiusAtDepth1,
 	inout float3	OutLightDirection,
-	const FHairAABB World_AABB,
+	const FHairAABB TranslatedWorld_AABB,
 	const uint		SlotIndex)
 {
-	const float3 LightDirection = LightDirections[SlotIndex].xyz;
-	const float3 LightPosition  = LightPositions[SlotIndex].xyz;
-	const bool bIsDirectional	= LightPositions[SlotIndex].w == 0;
+	const float3 LightDirection			  = LightDirections[SlotIndex].xyz;
+	const float3 TranslatedLightPosition  = TranslatedLightPositions[SlotIndex].xyz;
+	const bool bIsDirectional			  = TranslatedLightPositions[SlotIndex].w == 0;
 
-	float3 Center = GetCenter(World_AABB);
-	OutLightDirection = bIsDirectional ? LightDirection : -normalize(LightPosition - Center);
+	float3 Center = GetCenter(TranslatedWorld_AABB);
+	OutLightDirection = bIsDirectional ? LightDirection : -normalize(TranslatedLightPosition - Center);
 
-	const float4x4 Coarse_WorldToLight = ComputeWorldToLight(World_AABB, LightDirection, LightPosition, bIsDirectional);
+	const float4x4 Coarse_TranslatedWorldToLight = ComputeTranslatedWorldToLight(TranslatedWorld_AABB, LightDirection, TranslatedLightPosition, bIsDirectional);
 
-	const FHairAABB Light_AABB = Transform(World_AABB, Coarse_WorldToLight);
+	const FHairAABB Light_AABB = Transform(TranslatedWorld_AABB, Coarse_TranslatedWorldToLight);
 	const float3 Light_Extents = GetExtents(Light_AABB);
 
 	const float Radius = length(Light_Extents.xy) * AABBScale;
@@ -98,30 +94,30 @@ void ComputeWorldToLightClip(
 
 	const float StrandHairStableRasterizationScale = max(RasterizationScale, 1.0f);
 	OutMinStrandRadiusAtDepth1 = 1;
-	OutWorldToClipTransform = 0;
+	OutTranslatedWorldToClipTransform = 0;
 
 	if (bIsDirectional) // (LightType == LightType_Directional)
 	{
-		const float4x4 WorldToLight	= LookAtMatrix(Center - LightDirection * abs(MinZ), Center, float3(0, 0, 1));
-		const float4x4 ProjMatrix	= ReversedZOrthoMatrix(Radius, Radius, 1.f / (MaxZ-MinZ), 0);
-		OutWorldToClipTransform		= mul(WorldToLight, ProjMatrix);
+		const float4x4 TranslatedWorldToLight	= LookAtMatrix(Center - LightDirection * abs(MinZ), Center, float3(0, 0, 1));
+		const float4x4 ProjMatrix				= ReversedZOrthoMatrix(Radius, Radius, 1.f / (MaxZ-MinZ), 0);
+		OutTranslatedWorldToClipTransform		= mul(TranslatedWorldToLight, ProjMatrix);
 
-		const float RadiusAtDepth1	= Radius / min(SlotResolution.x, SlotResolution.y);
-		OutMinStrandRadiusAtDepth1	= RadiusAtDepth1 * RasterizationScale;
+		const float RadiusAtDepth1				= Radius / min(SlotResolution.x, SlotResolution.y);
+		OutMinStrandRadiusAtDepth1				= RadiusAtDepth1 * RasterizationScale;
 	}
 	else // if (LightType == LightType_Spot || LightType == LightType_Point || LightType == LightType_Rect)
 	{
-		const float LightDistanceToCenter = length(LightPosition - Center);
+		const float LightDistanceToCenter = length(TranslatedLightPosition - Center);
 		MaxZ = max(0.2f, LightDistanceToCenter) + MaxZ;
 		MinZ = max(0.1f, LightDistanceToCenter) + MinZ;
 		MinZ = max(1.0f, MinZ);
 
-		const float SphereDistance	= length(LightPosition - Center);
-		const float HalfFov			= min(MaxHafFovInRad, asin(Radius / SphereDistance));
+		const float SphereDistance			= length(TranslatedLightPosition - Center);
+		const float HalfFov					= min(MaxHafFovInRad, asin(Radius / SphereDistance));
 
-		const float4x4 WorldToLight = LookAtMatrix(LightPosition, Center, float3(0, 0, 1));
-		const float4x4 ProjMatrix	= ReversedZPerspectiveMatrix(HalfFov, 1, 1, MinZ, MaxZ);
-		OutWorldToClipTransform		= mul(WorldToLight, ProjMatrix);
+		const float4x4 TranslatedWorldToLight	= LookAtMatrix(TranslatedLightPosition, Center, float3(0, 0, 1));
+		const float4x4 ProjMatrix				= ReversedZPerspectiveMatrix(HalfFov, 1, 1, MinZ, MaxZ);
+		OutTranslatedWorldToClipTransform		= mul(TranslatedWorldToLight, ProjMatrix);
 
 		OutMinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(SlotResolution, 2 * HalfFov, RasterizationScale);
 	}
@@ -138,19 +134,23 @@ void CreateViewInfo(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint MacroGroupId = MacroGroupIndices[SlotIndex].x;
 
-	FHairAABB Bound = InitHairAABB();
+	FHairAABB TranslatedBound = InitHairAABB();
 	if (MacroGroupId < MacroGroupCount)
 	{
-		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation);
+
+		TranslatedBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		TranslatedBound.Min += TranslatedWorldOffset; // HAIR_LWC
+		TranslatedBound.Max += TranslatedWorldOffset; // HAIR_LWC
 	}
 
 	FDeepShadowViewInfo ViewInfo;
-	ComputeWorldToLightClip(ViewInfo.WorldToClip, ViewInfo.MinRadiusAtDepth1, ViewInfo.ViewForward, Bound, SlotIndex);
+	ComputeTranslatedWorldToLightClip(ViewInfo.TranslatedWorldToClip, ViewInfo.MinRadiusAtDepth1, ViewInfo.ViewForward, TranslatedBound, SlotIndex);
 
 	FDeepShadowTransform Transform;
-	Transform.WorldToClip = ViewInfo.WorldToClip;
+	Transform.TranslatedWorldToClip = ViewInfo.TranslatedWorldToClip;
 
 	OutShadowViewInfoBuffer[SlotIndex] = ViewInfo;
-	OutShadowWorldToLightTransformBuffer[SlotIndex] = Transform;
+	OutShadowTranslatedWorldToLightTransformBuffer[SlotIndex] = Transform;
 }
 #endif

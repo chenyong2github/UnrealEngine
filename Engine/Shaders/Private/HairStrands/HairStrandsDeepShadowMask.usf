@@ -26,21 +26,19 @@ float4 WriteShadowMaskOutput(const float InFadedShadow)
 #define KERNEL_TYPE_Gaussian16 3
 #define KERNEL_TYPE_GaussianTransmission8 4
 
-float3 TotWorldPosition(float2 UV, float Depth)
+float3 GetTranslatedWorldPosition(float2 UV, float SceneDepth)
 {
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
+	const float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	return mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 }
+
 
 #if SHADER_SHADOWMASK_DEEPSHADOW
 
-StructuredBuffer<FDeepShadowTransform> DeepShadow_WorldToLightTransformBuffer;
+StructuredBuffer<FDeepShadowTransform> DeepShadow_TranslatedWorldToLightTransformBuffer;
 uint				DeepShadow_bIsGPUDriven;
 
-float4x4			DeepShadow_CPUWorldToLightTransform;
+float4x4			DeepShadow_CPUTranslatedWorldToLightTransform;
 int2				DeepShadow_SlotResolution;
 int2				DeepShadow_SlotOffset;
 uint				DeepShadow_SlotIndex;
@@ -59,19 +57,19 @@ SamplerState 		ShadowSampler;
 // XY: UV of the shadow space
 //  Z: Normalized depth value in light clip space
 //  W: Positive if the position is valid, negative otherwise
-float4 ToLightPosition(float3 WorldPosition)
+float4 ToLightPosition(float3 InTranslatedWorldPosition)
 {
-	float4x4 WorldToLightTransform = 0;
+	float4x4 TranslatedWorldToLightTransform = 0;
 	if (DeepShadow_bIsGPUDriven > 0)
 	{
-		WorldToLightTransform = DeepShadow_WorldToLightTransformBuffer[DeepShadow_SlotIndex].WorldToClip;
+		TranslatedWorldToLightTransform = DeepShadow_TranslatedWorldToLightTransformBuffer[DeepShadow_SlotIndex].TranslatedWorldToClip;
 	}
 	else
 	{
-		WorldToLightTransform = DeepShadow_CPUWorldToLightTransform;
+		TranslatedWorldToLightTransform = DeepShadow_CPUTranslatedWorldToLightTransform;
 	}
 
-	float4 LightPos = mul(float4(WorldPosition,1), WorldToLightTransform);
+	float4 LightPos = mul(float4(InTranslatedWorldPosition,1), TranslatedWorldToLightTransform);
 	LightPos.xyz/= LightPos.w;
 	const float2 LightUV = (LightPos.xy + float(1).xx) * 0.5f;
 	return float4(LightUV.x, 1-LightUV.y, LightPos.z, sign(LightPos.w));
@@ -339,8 +337,8 @@ void MainPS(
 	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)).x);
 	const bool bIsHairPixel = HairStrands.HairCoverageTexture.Load(uint3(PixelCoord, 0)) >= 1;
 
-	const float3 WorldPosition		= TotWorldPosition(UV, SceneDepth);
-	const float4 LightSpacePosition = ToLightPosition(WorldPosition);
+	const float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
+	const float4 LightSpacePosition		 = ToLightPosition(TranslatedWorldPosition);
 
 	// PCF or simple point sampler
 	float Visibility = 1;
@@ -395,8 +393,7 @@ void MainPS(
 #include "HairStrandsVoxelPageTraversal.ush"
 #endif
 
-float4				Voxel_LightPosition;
-float3				Voxel_LightDirection;
+float4				Voxel_TranslatedLightPosition_LightDirection;
 uint				Voxel_MacroGroupId;
 uint				Voxel_RandomType;
 Texture2D<float4>	RayMarchMaskTexture;
@@ -444,16 +441,18 @@ void MainPS(
 	const float HairPixelCoverage = HairStrands.HairCoverageTexture.Load(uint3(PixelCoord, 0));
 	const bool bIsHairPixel = HairPixelCoverage >= 1;
 
-	float3 WorldPosition = TotWorldPosition(UV, SceneDepth);
+	float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
 
 	// PCF or simple point sampler
 	float Visibility = 1;
 	if (!bIsHairPixel)
 	{
-		const float VoxelShadowMaxDistance = 100000.0; // 1 km shadow distance
-		const bool bIsDirectionalLight = Voxel_LightPosition.w == 0;
-		const float3 LightPosition  = bIsDirectionalLight ? -Voxel_LightDirection*VoxelShadowMaxDistance + WorldPosition : Voxel_LightPosition.xyz;
-		const float3 LightDirection = bIsDirectionalLight ? -Voxel_LightDirection : normalize(Voxel_LightPosition.xyz - WorldPosition);
+		const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
+
+		const float VoxelShadowMaxDistance  = 100000.0; // 1 km shadow distance
+		const bool bIsDirectional			= IsLightDirectional(Voxel_TranslatedLightPosition_LightDirection);
+		const float3 TranslatedLightPosition= GetTranslatedLightPosition(Voxel_TranslatedLightPosition_LightDirection, TranslatedWorldPosition);
+		const float3 LightDirection			= GetTranslatedLightDirection(Voxel_TranslatedLightPosition_LightDirection, TranslatedWorldPosition);
 
 		// Depth bias
 		// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
@@ -461,7 +460,7 @@ void MainPS(
 		{
 			const float PositionBiasScale = 0.5f;
 			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * LightDirection + PositionBiasScale * (Random * 2 - 1));
-			WorldPosition += DepthBias;
+			TranslatedWorldPosition += DepthBias;
 		}
 
 		FHairTraversalResult Result = InitHairTraversalResult();
@@ -476,7 +475,7 @@ void MainPS(
 		CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 
 		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId];
-		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution, TranslatedWorldOffset); // HAIR_LWC
 		const bool bIsValid = all(NodeDesc.PageIndexResolution != 0);
 
 		#if VOXEL_TRAVERSAL_DEBUG
@@ -498,8 +497,8 @@ void MainPS(
 		if (bIsValid && RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f && HairPixelCoverage < CoverageThreshold)
 		{
 			Result = ComputeHairCountVirtualVoxel(
-				WorldPosition,
-				LightPosition,
+				TranslatedWorldPosition,
+				TranslatedLightPosition,
 				CommonDesc,
 				NodeDesc,
 				VirtualVoxel.PageIndexBuffer,

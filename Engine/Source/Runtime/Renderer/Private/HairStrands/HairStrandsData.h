@@ -219,7 +219,7 @@ struct FHairStrandsDeepShadowData
 {
 	static const uint32 MaxMacroGroupCount = 16u;
 
-	FMatrix CPU_WorldToLightTransform;
+	FMatrix CPU_TranslatedWorldToLightTransform;
 	FMinHairRadiusAtDepth1 CPU_MinStrandRadiusAtDepth1;
 	FIntRect AtlasRect;
 	uint32 MacroGroupId = ~0;
@@ -229,7 +229,7 @@ struct FHairStrandsDeepShadowData
 	uint32 LightId = ~0;
 	bool bIsLightDirectional = false;
 	FVector3f LightDirection;
-	FVector4f LightPosition;
+	FVector3f TranslatedLightPosition;
 	FLinearColor LightLuminance;
 	float LayerDistribution;
 
@@ -250,7 +250,7 @@ struct FHairStrandsDeepShadowResources
 
 	FRDGTextureRef DepthAtlasTexture = nullptr;
 	FRDGTextureRef LayersAtlasTexture = nullptr;
-	FRDGBufferRef DeepShadowWorldToLightTransforms = nullptr;
+	FRDGBufferRef DeepShadowTranslatedWorldToLightTransforms = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////

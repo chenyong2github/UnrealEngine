@@ -22,7 +22,7 @@ enum class EHairStrandsRasterPassType : uint8
 // Deep shadow raster pass
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterUniformParameters, RENDERER_API)
-	SHADER_PARAMETER(FMatrix44f, CPU_WorldToClipMatrix)
+	SHADER_PARAMETER(FMatrix44f, CPU_TranslatedWorldToClipMatrix)
 	SHADER_PARAMETER(FVector4f, SliceValue)
 	SHADER_PARAMETER(FIntRect, AtlasRect)
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)

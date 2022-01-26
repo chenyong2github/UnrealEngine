@@ -76,19 +76,19 @@ struct FVirtualVoxelCommonDesc
 
 struct FVirtualVoxelNodeDesc
 {
-	float3	MinAABB;
-	float3	MaxAABB;
+	float3	MinAABB; // In translated world space
+	float3	MaxAABB; // In translated world space
 	uint3	PageIndexResolution;
 	uint3   VirtualResolution;
 	uint    PageIndexOffset;
 	bool    bIsValid;
 };
 
-FVirtualVoxelNodeDesc UnpackVoxelNode(FPackedVirtualVoxelNodeDesc In, uint InPageResolution)
+FVirtualVoxelNodeDesc UnpackVoxelNode(FPackedVirtualVoxelNodeDesc In, uint InPageResolution, float3 InTranslatedWorldOffset = float3(0,0,0)/*HAIR_LWC*/)
 {
 	FVirtualVoxelNodeDesc Out;
-	Out.MaxAABB = In.MaxAABB;
-	Out.MinAABB = In.MinAABB;
+	Out.MaxAABB = In.MaxAABB + InTranslatedWorldOffset;
+	Out.MinAABB = In.MinAABB + InTranslatedWorldOffset;
 	Out.PageIndexResolution = uint3(In.PackedPageIndexResolution & 0xFF, (In.PackedPageIndexResolution >> 8) & 0xFF, (In.PackedPageIndexResolution >> 16) & 0xFF);
 	Out.VirtualResolution = Out.PageIndexResolution * InPageResolution;
 	Out.PageIndexOffset = In.PageIndexOffset;

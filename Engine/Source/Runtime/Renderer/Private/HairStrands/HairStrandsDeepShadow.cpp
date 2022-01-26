@@ -22,7 +22,7 @@ static FAutoConsoleVariableRef CVarDeepShadowInjectVoxelDepth(TEXT("r.HairStrand
 // Inject voxel structure into shadow map to amortize the tracing, and rely on look up kernel to 
 // filter limited resolution
 BEGIN_SHADER_PARAMETER_STRUCT(FHairStransShadowDepthInjectionParameters, )
-	SHADER_PARAMETER(FMatrix44f, CPU_WorldToClip)
+	SHADER_PARAMETER(FMatrix44f, CPU_TranslatedWorldToClip)
 
 	SHADER_PARAMETER(FVector2f, OutputResolution)
 	SHADER_PARAMETER(uint32, AtlasSlotIndex)
@@ -31,7 +31,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStransShadowDepthInjectionParameters, )
 	SHADER_PARAMETER(FVector3f, LightDirection)
 	SHADER_PARAMETER(uint32, MacroGroupId)
 
-	SHADER_PARAMETER(FVector3f, LightPosition)
+	SHADER_PARAMETER(FVector3f, TranslatedLightPosition)
 	SHADER_PARAMETER(uint32, bIsDirectional)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -84,7 +84,7 @@ void AddInjectHairVoxelShadowCaster(
 	const FViewInfo& View,
 	const bool bClear,
 	const FHairStrandsDeepShadowData& DomData,
-	FMatrix CPU_WorldToClipMatrix,
+	FMatrix CPU_TranslatedWorldToClipMatrix,
 	FIntRect AtlasRect,
 	uint32 AtlasSlotIndex,
 	FIntPoint AtlasSlotResolution,
@@ -94,12 +94,12 @@ void AddInjectHairVoxelShadowCaster(
 {
 	FHairStransShadowDepthInjectionParameters* Parameters = GraphBuilder.AllocParameters<FHairStransShadowDepthInjectionParameters>();
 	Parameters->OutputResolution = AtlasSlotResolution;
-	Parameters->CPU_WorldToClip = CPU_WorldToClipMatrix;
+	Parameters->CPU_TranslatedWorldToClip = CPU_TranslatedWorldToClipMatrix;
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
 	Parameters->LightDirection = DomData.LightDirection;
-	Parameters->LightPosition = DomData.LightPosition;
+	Parameters->TranslatedLightPosition = DomData.TranslatedLightPosition;
 	Parameters->bIsDirectional = DomData.bIsLightDirectional ? 1 : 0;
 	Parameters->MacroGroupId = DomData.MacroGroupId;
 	Parameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
@@ -179,13 +179,10 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
-		SHADER_PARAMETER_ARRAY(FVector4f,	LightDirections,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER_ARRAY(FVector4f,	LightPositions,		[FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER_ARRAY(FIntVector4,	MacroGroupIndices,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FVector4f,	LightDirections,			[FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FVector4f,	TranslatedLightPositions,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FIntVector4,	MacroGroupIndices,			[FHairStrandsDeepShadowData::MaxMacroGroupCount])
 
-		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
-		SHADER_PARAMETER(uint32, CPU_bUseCPUData)
-		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
 		SHADER_PARAMETER(float, RasterizationScale)
 
 		SHADER_PARAMETER(FIntPoint, SlotResolution)
@@ -197,7 +194,9 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeepShadowViewInfo>, OutShadowViewInfoBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4x4>, OutShadowWorldToLightTransformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4x4>, OutShadowTranslatedWorldToLightTransformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -287,6 +286,8 @@ void RenderHairStrandsDeepShadows(
 		FRDGTextureRef FrontDepthAtlasTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(AtlasResolution, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("Hair.ShadowDepth"));
 		FRDGTextureRef DeepShadowLayersAtlasTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(AtlasResolution, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource), TEXT("Hair.DeepShadowLayers"));
 
+		const FVector& TranslatedWorldOffset = View.ViewMatrices.GetPreViewTranslation();
+
 		// TODO add support for multiple view: need to deduplicate light which are visible accross several views
 		// Allocate atlas CPU slot
 		uint32 TotalAtlasSlotIndex = 0;
@@ -317,9 +318,9 @@ void RenderHairStrandsDeepShadows(
 
 				// Note: LightPosition.W is used in the transmittance mask shader to differentiate between directional and local lights.
 				FHairStrandsDeepShadowData& DomData = MacroGroup.DeepShadowDatas.AddZeroed_GetRef();
-				ComputeWorldToLightClip(DomData.CPU_WorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
+				ComputeTranslatedWorldToLightClip(TranslatedWorldOffset, DomData.CPU_TranslatedWorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
 				DomData.LightDirection = LightProxy->GetDirection();
-				DomData.LightPosition = FVector4f(FVector(LightProxy->GetPosition()), bIsDirectional ? 0 : 1);
+				DomData.TranslatedLightPosition = FVector4f(FVector(LightProxy->GetPosition() + TranslatedWorldOffset), bIsDirectional ? 0 : 1);
 				DomData.LightLuminance = LightProxy->GetColor();
 				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.bIsLightDirectional = bIsDirectional;
@@ -341,7 +342,7 @@ void RenderHairStrandsDeepShadows(
 		DeepShadowResources.AtlasSlotResolution = AtlasSlotResolution;
 
 		FRDGBufferRef DeepShadowViewInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(20 * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowViewInfo"));
-		FRDGBufferRef DeepShadowWorldToLightBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(16 * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowWorldToLightTransform"));
+		FRDGBufferRef DeepShadowTranslatedWorldToLightBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(16 * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowTranslatedWorldToLightTransform"));
 		FRDGBufferSRVRef DeepShadowViewInfoBufferSRV = GraphBuilder.CreateSRV(DeepShadowViewInfoBuffer);
 
 		DeepShadowResources.bIsGPUDriven = GDeepShadowGPUDriven > 0;
@@ -357,9 +358,9 @@ void RenderHairStrandsDeepShadows(
 			{
 				for (FHairStrandsDeepShadowData& DomData : MacroGroup.DeepShadowDatas)
 				{				
-					Parameters->LightDirections[DomData.AtlasSlotIndex]		= FVector4f(DomData.LightDirection.X, DomData.LightDirection.Y, DomData.LightDirection.Z, 0);
-					Parameters->LightPositions[DomData.AtlasSlotIndex]		= FVector4f(DomData.LightPosition.X, DomData.LightPosition.Y, DomData.LightPosition.Z, DomData.bIsLightDirectional ? 0 : 1);
-					Parameters->MacroGroupIndices[DomData.AtlasSlotIndex]	= FIntVector4(DomData.MacroGroupId, 0,0,0);
+					Parameters->LightDirections[DomData.AtlasSlotIndex]				= FVector4f(DomData.LightDirection.X, DomData.LightDirection.Y, DomData.LightDirection.Z, 0);
+					Parameters->TranslatedLightPositions[DomData.AtlasSlotIndex]	= FVector4f(DomData.TranslatedLightPosition.X, DomData.TranslatedLightPosition.Y, DomData.TranslatedLightPosition.Z, DomData.bIsLightDirectional ? 0 : 1);
+					Parameters->MacroGroupIndices[DomData.AtlasSlotIndex]			= FIntVector4(DomData.MacroGroupId, 0,0,0);
 				}
 			}
 
@@ -368,14 +369,12 @@ void RenderHairStrandsDeepShadows(
 			Parameters->MacroGroupCount = MacroGroupDatas.Num();
 			Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 			Parameters->OutShadowViewInfoBuffer = GraphBuilder.CreateUAV(DeepShadowViewInfoBuffer);
-			Parameters->OutShadowWorldToLightTransformBuffer = GraphBuilder.CreateUAV(DeepShadowWorldToLightBuffer);
+			Parameters->OutShadowTranslatedWorldToLightTransformBuffer = GraphBuilder.CreateUAV(DeepShadowTranslatedWorldToLightBuffer);
 
 			Parameters->MaxHafFovInRad = 0.5f * FMath::DegreesToRadians(GetDeepShadowMaxFovAngle());
 			Parameters->AABBScale = GetDeepShadowAABBScale();
 			Parameters->RasterizationScale = GetDeepShadowRasterizationScale();
-			Parameters->CPU_bUseCPUData	= 0;
-			Parameters->CPU_MinAABB		= FVector::ZeroVector;
-			Parameters->CPU_MaxAABB		= FVector::ZeroVector;
+			Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			// Currently support only 32 instance group at max
 			TShaderMapRef<FDeepShadowCreateViewInfoCS> ComputeShader(View.ShaderMap);
@@ -409,7 +408,7 @@ void RenderHairStrandsDeepShadows(
 						View,
 						bClear,
 						DomData,
-						DomData.CPU_WorldToLightTransform,
+						DomData.CPU_TranslatedWorldToLightTransform,
 						DomData.AtlasRect,
 						DomData.AtlasSlotIndex,
 						AtlasSlotResolution,
@@ -438,7 +437,7 @@ void RenderHairStrandsDeepShadows(
 					{
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
-						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
+						UniformParameters->CPU_TranslatedWorldToClipMatrix = DomData.CPU_TranslatedWorldToLightTransform;
 						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
@@ -478,7 +477,7 @@ void RenderHairStrandsDeepShadows(
 					{
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
-						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
+						UniformParameters->CPU_TranslatedWorldToClipMatrix = DomData.CPU_TranslatedWorldToLightTransform;;
 						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
@@ -510,6 +509,6 @@ void RenderHairStrandsDeepShadows(
 		}
 		DeepShadowResources.DepthAtlasTexture = FrontDepthAtlasTexture;
 		DeepShadowResources.LayersAtlasTexture = DeepShadowLayersAtlasTexture;
-		DeepShadowResources.DeepShadowWorldToLightTransforms = DeepShadowWorldToLightBuffer;
+		DeepShadowResources.DeepShadowTranslatedWorldToLightTransforms = DeepShadowTranslatedWorldToLightBuffer;
 	}
 }

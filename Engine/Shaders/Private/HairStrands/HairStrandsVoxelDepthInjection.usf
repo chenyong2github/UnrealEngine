@@ -12,7 +12,7 @@
 #include "HairStrandsVoxelPageCommon.ush"
 
 #if SHADER_DEPTH_INJECTION
-float4x4 CPU_WorldToClip;
+float4x4 CPU_TranslatedWorldToClip;
 
 float2 OutputResolution;
 uint MacroGroupId;
@@ -20,7 +20,7 @@ uint AtlasSlotIndex;
 
 float3 LightDirection;
 uint bIsDirectional;
-float3 LightPosition;
+float3 TranslatedLightPosition;
 uint bIsGPUDriven;
 
 StructuredBuffer<FDeepShadowViewInfo> DeepShadowViewInfoBuffer;
@@ -28,14 +28,16 @@ StructuredBuffer<FDeepShadowViewInfo> DeepShadowViewInfoBuffer;
 void MainVS(
 	uint VertexId : SV_VertexID,
 	out float4 OutPosition : SV_POSITION,
-	out float3 OutWorldPosition : WORLD_POSITION)
+	out float3 OutTranslatedWorldPosition : WORLD_POSITION)
 {
 	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	// Move this to an actual vertex/index buffer
-	const float3 Min = NodeDesc.MinAABB;
-	const float3 Max = NodeDesc.MaxAABB;
+	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
+
+	const float3 Min = NodeDesc.MinAABB + TranslatedWorldOffset;
+	const float3 Max = NodeDesc.MaxAABB + TranslatedWorldOffset;
 
 	const float3 Center = (Min + Max) * 0.5f;
 	const float3 Extent = (Max - Min) * 0.5f;
@@ -49,61 +51,61 @@ void MainVS(
 	const float3 Position6 = Center + float3(+Extent.x, +Extent.y, +Extent.z);
 	const float3 Position7 = Center + float3(-Extent.x, +Extent.y, +Extent.z);
 
-	float3 Position = 0;
+	float3 TranslatedWorldPosition = 0;
 	switch (VertexId)
 	{
-	case 0: Position = Position0; break;
-	case 1: Position = Position1; break;
-	case 2: Position = Position2; break;
-	case 3: Position = Position0; break;
-	case 4: Position = Position2; break;
-	case 5: Position = Position3; break;
+	case  0: TranslatedWorldPosition = Position0; break;
+	case  1: TranslatedWorldPosition = Position1; break;
+	case  2: TranslatedWorldPosition = Position2; break;
+	case  3: TranslatedWorldPosition = Position0; break;
+	case  4: TranslatedWorldPosition = Position2; break;
+	case  5: TranslatedWorldPosition = Position3; break;
 
-	case 6: Position = Position4; break;
-	case 7: Position = Position5; break;
-	case 8: Position = Position6; break;
-	case 9: Position = Position4; break;
-	case 10: Position = Position6; break;
-	case 11: Position = Position7; break;
+	case  6: TranslatedWorldPosition = Position4; break;
+	case  7: TranslatedWorldPosition = Position5; break;
+	case  8: TranslatedWorldPosition = Position6; break;
+	case  9: TranslatedWorldPosition = Position4; break;
+	case 10: TranslatedWorldPosition = Position6; break;
+	case 11: TranslatedWorldPosition = Position7; break;
 
-	case 12: Position = Position0; break;
-	case 13: Position = Position1; break;
-	case 14: Position = Position5; break;
-	case 15: Position = Position0; break;
-	case 16: Position = Position5; break;
-	case 17: Position = Position4; break;
+	case 12: TranslatedWorldPosition = Position0; break;
+	case 13: TranslatedWorldPosition = Position1; break;
+	case 14: TranslatedWorldPosition = Position5; break;
+	case 15: TranslatedWorldPosition = Position0; break;
+	case 16: TranslatedWorldPosition = Position5; break;
+	case 17: TranslatedWorldPosition = Position4; break;
 
-	case 18: Position = Position2; break;
-	case 19: Position = Position3; break;
-	case 20: Position = Position7; break;
-	case 21: Position = Position2; break;
-	case 22: Position = Position7; break;
-	case 23: Position = Position6; break;
+	case 18: TranslatedWorldPosition = Position2; break;
+	case 19: TranslatedWorldPosition = Position3; break;
+	case 20: TranslatedWorldPosition = Position7; break;
+	case 21: TranslatedWorldPosition = Position2; break;
+	case 22: TranslatedWorldPosition = Position7; break;
+	case 23: TranslatedWorldPosition = Position6; break;
 
-	case 24: Position = Position1; break;
-	case 25: Position = Position2; break;
-	case 26: Position = Position6; break;
-	case 27: Position = Position1; break;
-	case 28: Position = Position6; break;
-	case 29: Position = Position5; break;
+	case 24: TranslatedWorldPosition = Position1; break;
+	case 25: TranslatedWorldPosition = Position2; break;
+	case 26: TranslatedWorldPosition = Position6; break;
+	case 27: TranslatedWorldPosition = Position1; break;
+	case 28: TranslatedWorldPosition = Position6; break;
+	case 29: TranslatedWorldPosition = Position5; break;
 
-	case 30: Position = Position3; break;
-	case 31: Position = Position0; break;
-	case 32: Position = Position4; break;
-	case 33: Position = Position3; break;
-	case 34: Position = Position4; break;
-	case 35: Position = Position7; break;
+	case 30: TranslatedWorldPosition = Position3; break;
+	case 31: TranslatedWorldPosition = Position0; break;
+	case 32: TranslatedWorldPosition = Position4; break;
+	case 33: TranslatedWorldPosition = Position3; break;
+	case 34: TranslatedWorldPosition = Position4; break;
+	case 35: TranslatedWorldPosition = Position7; break;
 	}
 
-	float4x4 WorldToClipMatrix = CPU_WorldToClip;
+	float4x4 TranslatedWorldToClipMatrix = CPU_TranslatedWorldToClip;
 	if (bIsGPUDriven)
 	{
 		FDeepShadowViewInfo DeepShadowViewInfo = DeepShadowViewInfoBuffer[AtlasSlotIndex];
-		WorldToClipMatrix = DeepShadowViewInfo.WorldToClip;
+		TranslatedWorldToClipMatrix = DeepShadowViewInfo.TranslatedWorldToClip;
 	}
 
-	OutWorldPosition = Position;
-	OutPosition = mul(float4(Position, 1), WorldToClipMatrix);
+	OutTranslatedWorldPosition = TranslatedWorldPosition;
+	OutPosition = mul(float4(TranslatedWorldPosition, 1), TranslatedWorldToClipMatrix);
 }
 
 #define VOXEL_TRAVERSAL_DEBUG_PAGEOCCUPANCY 0
@@ -113,7 +115,7 @@ void MainVS(
 
 void MainPS(
 	in float4 InPosition : SV_POSITION,
-	in float3 InWorldPosition : WORLD_POSITION,
+	in float3 InTranslatedWorldPosition : WORLD_POSITION,
 	out float OutDepth : SV_DEPTH)
 {
 	const float2 PixelCoord = InPosition.xy;
@@ -126,9 +128,9 @@ void MainPS(
 	const bool bDebugEnabled = false;
 	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
-	const float3 TracingDirection = bIsDirectional ? LightDirection : normalize(InWorldPosition - LightPosition);
-	const float3 WP0 = InWorldPosition;
-	const float3 WP1 = InWorldPosition + TracingDirection * DistanceThreshold;
+	const float3 TracingDirection = bIsDirectional ? LightDirection : normalize(InTranslatedWorldPosition - TranslatedLightPosition);
+	const float3 TranslatedWP0 = InTranslatedWorldPosition;
+	const float3 TranslatedWP1 = InTranslatedWorldPosition + TracingDirection * DistanceThreshold;
 
 	FVirtualVoxelCommonDesc CommonDesc;
 	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
@@ -136,8 +138,9 @@ void MainPS(
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 
+	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
 	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution, TranslatedWorldOffset); // HAIR_LWC
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 	TraversalSettings.DensityScale = VirtualVoxel.DensityScale;
@@ -153,8 +156,8 @@ void MainPS(
 	TraversalSettings.ForcedMip = -1;
 
 	const FHairTraversalResult TraversalResult = ComputeHairCountVirtualVoxel(
-		WP0,
-		WP1,
+		TranslatedWP0,
+		TranslatedWP1,
 		CommonDesc,
 		NodeDesc,
 		VirtualVoxel.PageIndexBuffer,
@@ -165,14 +168,14 @@ void MainPS(
 
 	if (bIsValid)
 	{
-		float4x4 WorldToClipMatrix = CPU_WorldToClip;
+		float4x4 TranslatedWorldToClipMatrix = CPU_TranslatedWorldToClip;
 		if (bIsGPUDriven)
 		{
 			FDeepShadowViewInfo DeepShadowViewInfo = DeepShadowViewInfoBuffer[AtlasSlotIndex];
-			WorldToClipMatrix = DeepShadowViewInfo.WorldToClip;
+			TranslatedWorldToClipMatrix = DeepShadowViewInfo.TranslatedWorldToClip;
 		}
-		const float3 HitP = WP0 + normalize(WP1 - WP0) *  TraversalResult.HitT;
-		float4 ClipP = mul(float4(HitP, 1), WorldToClipMatrix);
+		const float3 HitP = TranslatedWP0 + normalize(TranslatedWP1 - TranslatedWP0) * TraversalResult.HitT;
+		float4 ClipP = mul(float4(HitP, 1), TranslatedWorldToClipMatrix);
 		OutDepth = ClipP.z /= ClipP.w;
 	}
 	else

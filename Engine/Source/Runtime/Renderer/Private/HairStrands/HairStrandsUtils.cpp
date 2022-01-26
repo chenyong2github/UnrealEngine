@@ -147,59 +147,62 @@ FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
 	return Out;
 }
 
-void ComputeWorldToLightClip(
-	FMatrix& WorldToClipTransform,
-	FMinHairRadiusAtDepth1& MinStrandRadiusAtDepth1,
+void ComputeTranslatedWorldToLightClip(
+	const FVector& TranslatedWorldOffset,
+	FMatrix& OutTranslatedWorldToClipTransform,
+	FMinHairRadiusAtDepth1& OutMinStrandRadiusAtDepth1,
 	const FBoxSphereBounds& PrimitivesBounds,
 	const FLightSceneProxy& LightProxy,
 	const ELightComponentType LightType,
 	const FIntPoint& ShadowResolution)
 {
-	const FSphere SphereBound = PrimitivesBounds.GetSphere();
-	const float SphereRadius = SphereBound.W * GetDeepShadowAABBScale();
-	const FVector LightPosition = LightProxy.GetPosition();
+	// Translated SphereBound & translated light position
+	const FSphere TranslatedSphereBound = FSphere(PrimitivesBounds.GetSphere().Center + TranslatedWorldOffset, PrimitivesBounds.GetSphere().W);
+	const float SphereRadius = TranslatedSphereBound.W * GetDeepShadowAABBScale();
+	const FVector3f TranslatedLightPosition = FVector3f(LightProxy.GetPosition() + TranslatedWorldOffset);
+
 	const float MinNear = 1.0f; // 1cm, lower value than this cause precision issue. Similar value than in HairStrandsDeepShadowAllocation.usf
-	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance(LightPosition, SphereBound.Center)) - SphereBound.W);
-	const float MaxZ = FMath::Max(0.2f, FVector::Distance(LightPosition, SphereBound.Center)) + SphereBound.W;
+	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance(TranslatedLightPosition, TranslatedSphereBound.Center)) - TranslatedSphereBound.W);
+	const float MaxZ = FMath::Max(0.2f, FVector::Distance(TranslatedLightPosition, TranslatedSphereBound.Center)) + TranslatedSphereBound.W;
 	const float MaxDeepShadowFrustumHalfAngleInRad = 0.5f * FMath::DegreesToRadians(GetDeepShadowMaxFovAngle());
 
 	const float StrandHairRasterizationScale = GetDeepShadowRasterizationScale();
 	const float StrandHairStableRasterizationScale = FMath::Max(GStrandHairStableRasterizationScale, 1.0f);
-	MinStrandRadiusAtDepth1 = FMinHairRadiusAtDepth1();
-	WorldToClipTransform = FMatrix::Identity;
+	OutMinStrandRadiusAtDepth1 = FMinHairRadiusAtDepth1();
+	OutTranslatedWorldToClipTransform = FMatrix::Identity;
 	if (LightType == LightType_Directional)
 	{
 		const FVector3f LightDirection = LightProxy.GetDirection();
 		FReversedZOrthoMatrix OrthoMatrix(SphereRadius, SphereRadius, 1.f / (2 * SphereRadius), 0);
-		FLookAtMatrix LookAt(SphereBound.Center - LightDirection * SphereRadius, SphereBound.Center, FVector(0, 0, 1));
-		WorldToClipTransform = LookAt * OrthoMatrix;
+		FLookAtMatrix LookAt(TranslatedSphereBound.Center - LightDirection * SphereRadius, TranslatedSphereBound.Center, FVector(0, 0, 1));
+		OutTranslatedWorldToClipTransform = LookAt * OrthoMatrix;
 
 		const float RadiusAtDepth1 = SphereRadius / FMath::Min(ShadowResolution.X, ShadowResolution.Y);
-		MinStrandRadiusAtDepth1.Stable = RadiusAtDepth1 * StrandHairStableRasterizationScale;
-		MinStrandRadiusAtDepth1.Primary = RadiusAtDepth1 * StrandHairRasterizationScale;
-		MinStrandRadiusAtDepth1.Velocity = MinStrandRadiusAtDepth1.Primary;
+		OutMinStrandRadiusAtDepth1.Stable = RadiusAtDepth1 * StrandHairStableRasterizationScale;
+		OutMinStrandRadiusAtDepth1.Primary = RadiusAtDepth1 * StrandHairRasterizationScale;
+		OutMinStrandRadiusAtDepth1.Velocity = OutMinStrandRadiusAtDepth1.Primary;
 	}
 	else if (LightType == LightType_Spot || LightType == LightType_Point)
 	{
-		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
+		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, TranslatedSphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
-		FLookAtMatrix WorldToLight(LightPosition, SphereBound.Center, FVector(0, 0, 1));
-		WorldToClipTransform = WorldToLight * ProjMatrix;
-		MinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
+		FLookAtMatrix TranslatedWorldToLight(TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
+		OutTranslatedWorldToClipTransform = TranslatedWorldToLight * ProjMatrix;
+		OutMinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
 	}
 	else if (LightType == LightType_Rect)
 	{
-		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
+		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, TranslatedSphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
-		FLookAtMatrix WorldToLight(LightPosition, SphereBound.Center, FVector(0, 0, 1));
-		WorldToClipTransform = WorldToLight * ProjMatrix;
-		MinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
+		FLookAtMatrix TranslatedWorldToLight(TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
+		OutTranslatedWorldToClipTransform = TranslatedWorldToLight * ProjMatrix;
+		OutMinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
 	}
 }
 

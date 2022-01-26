@@ -44,21 +44,23 @@ FHairTransmittanceMask UnpackTransmittanceMask(uint In)
 	return Out;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FTransmittanceSettings
+bool IsLightDirectional(float4 InTranslatedLightPosition_LightDirection)
 {
-	int2	 DeepShadowResolution;
-	int2	 DeepShadowOffset;
-	float4x4 WorldToLightTransform;
-	float3   LightDirection;
-	float4   LightPosition;
+	return InTranslatedLightPosition_LightDirection.w == 0;
+}
 
-	float    DeepShadowDepthBiasScale;
-	float    DeepShadowDensityScale;
-	float	 TransmittanceKernelApertureInDegree;
-	float3   Random;
-	uint	 DebugMode;
+// Return the direction from the world position to the light
+float3 GetTranslatedLightDirection(float4 InTranslatedLightPosition_LightDirection, float3 InTranslatedWorldPosition)
+{
+	const bool bIsDirectional = InTranslatedLightPosition_LightDirection.w == 0;
+	return bIsDirectional ? -InTranslatedLightPosition_LightDirection.xyz : normalize(InTranslatedLightPosition_LightDirection.xyz - InTranslatedWorldPosition);
+}
 
-	uint TransmittanceKernelType;
-};
+float3 GetTranslatedLightPosition(float4 InTranslatedLightPosition_LightDirection, float3 InTranslatedWorldPosition)
+{
+	const float VoxelShadowMaxDistance = 100000.0; // 1 km shadow distance	
+	const float3 TranslatedLightDirection = GetTranslatedLightDirection(InTranslatedLightPosition_LightDirection, InTranslatedWorldPosition);
+
+	const bool bIsDirectional = InTranslatedLightPosition_LightDirection.w == 0;
+	return bIsDirectional ? InTranslatedWorldPosition + TranslatedLightDirection * VoxelShadowMaxDistance : InTranslatedLightPosition_LightDirection.xyz;
+}

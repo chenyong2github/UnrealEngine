@@ -36,7 +36,7 @@ void Main(
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 
 #if MESH_RENDER_MODE == MESH_RENDER_DEPTH || MESH_RENDER_MODE == MESH_RENDER_DOM
-	float4x4 WorldToClipMatrix = DeepRasterPass.CPU_WorldToClipMatrix;
+	float4x4 TranslatedWorldToClipMatrix = DeepRasterPass.CPU_TranslatedWorldToClipMatrix;
 #endif
 
 #ifdef HAIR_STRAND_MESH_FACTORY	
@@ -53,19 +53,18 @@ void Main(
 	{
 		const uint AtlasSlotIndex = DeepRasterPass.AtlasSlotIndex;
 		FDeepShadowViewInfo DeepShadowViewInfo = DeepRasterPass.DeepShadowViewInfoBuffer[AtlasSlotIndex];
-		WorldToClipMatrix			= DeepShadowViewInfo.WorldToClip;
+		TranslatedWorldToClipMatrix = DeepShadowViewInfo.TranslatedWorldToClip;
 		HairViewInfo.ViewForward	= DeepShadowViewInfo.ViewForward;
 		HairViewInfo.RadiusAtDepth1 = DeepShadowViewInfo.MinRadiusAtDepth1;
 	}
 	#endif
 
-	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, HairViewInfo);
+	float4 TranslatedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates, HairViewInfo);
 #else
-	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float4 TranslatedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 #endif
-	WorldPosition.xyz -= LWCHackToFloat(ResolvedView.PreViewTranslation); // Remove the camera relative position (todo move this into matrix transform)
 
-	Output.Position = mul(WorldPosition, WorldToClipMatrix);
+	Output.Position = mul(TranslatedWorldPosition, TranslatedWorldToClipMatrix);
 
 	float HairCoverage = 1;
   #ifdef HAIR_STRAND_MESH_FACTORY	
