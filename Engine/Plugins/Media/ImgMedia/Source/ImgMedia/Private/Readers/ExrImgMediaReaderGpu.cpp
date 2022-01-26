@@ -374,7 +374,7 @@ SIZE_T FExrImgMediaReaderGpu::GetBufferSize(const FIntPoint& Dim, int32 NumChann
 FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromPool(uint32 AllocSize, bool bWait)
 {
 	// This function is attached to the shared pointer and is used to return any allocated memory to staging pool.
-	auto BufferDeleter = [AllocSize, this](FStructuredBufferPoolItem* ObjectToDelete) {
+	auto BufferDeleter = [AllocSize](FStructuredBufferPoolItem* ObjectToDelete) {
 		ReturnGpuBufferToStagingPool(AllocSize, ObjectToDelete);
 	};
 
@@ -397,6 +397,7 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 		volatile bool bInitDone = false;
 		{
 			AllocatedBuffer = MakeShareable(new FStructuredBufferPoolItem(), MoveTemp(BufferDeleter));
+			AllocatedBuffer->Reader = AsShared();
 
 			// Allocate and unlock the structured buffer on render thread.
 			ENQUEUE_RENDER_COMMAND(CreatePooledBuffer)([AllocatedBuffer, AllocSize, &bInitDone, this, bWait](FRHICommandListImmediate& RHICmdList)
@@ -428,10 +429,12 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 
 void FExrImgMediaReaderGpu::ReturnGpuBufferToStagingPool(uint32 AllocSize, FStructuredBufferPoolItem* Buffer)
 {
+	TSharedPtr< FExrImgMediaReaderGpu, ESPMode::ThreadSafe> Reader = Buffer->Reader.Pin();
+
 	// If reader is being deleted, we don't need to return the memory into staging buffer and instead should delete it.
-	if (bIsShuttingDown)
+	if ((Reader.IsValid() == false) || (Reader->bIsShuttingDown))
 	{
-		ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([this, Buffer](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([Buffer](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_ReleaseBuffer);
 
@@ -443,10 +446,10 @@ void FExrImgMediaReaderGpu::ReturnGpuBufferToStagingPool(uint32 AllocSize, FStru
 	}
 	else
 	{
-		FScopeLock ScopeLock(&AllocatorCriticalSecion);
+		FScopeLock ScopeLock(&Reader->AllocatorCriticalSecion);
 
 		// We don't need to process this pooled buffer if the Reader is being destroyed.
-		StagingMemoryPool.Add(AllocSize, Buffer);
+		Reader->StagingMemoryPool.Add(AllocSize, Buffer);
 	}
 
 }

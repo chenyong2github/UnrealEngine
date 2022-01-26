@@ -9,6 +9,7 @@
 #include "IImgMediaReader.h"
 #include "IMediaTextureSampleConverter.h"
 
+class FExrImgMediaReaderGpu;
 struct FImgMediaTileSelection;
 
 struct FStructuredBufferPoolItem
@@ -33,6 +34,11 @@ struct FStructuredBufferPoolItem
 	* is currently using it.
 	*/
 	bool bWillBeSignaled = false;
+
+	/**
+	* Keep track of our reader in case it gets destroyed.
+	*/
+	TWeakPtr<FExrImgMediaReaderGpu, ESPMode::ThreadSafe> Reader;
 };
 
 /**
@@ -43,7 +49,9 @@ typedef TSharedPtr<FStructuredBufferPoolItem, ESPMode::ThreadSafe> FStructuredBu
 /**
  * Implements a reader for EXR image sequences.
  */
-class FExrImgMediaReaderGpu : public FExrImgMediaReader
+class FExrImgMediaReaderGpu
+	: public FExrImgMediaReader
+	, public TSharedFromThis<FExrImgMediaReaderGpu, ESPMode::ThreadSafe>
 {
 public:
 
@@ -85,7 +93,7 @@ public:
 	FStructuredBufferPoolItemSharedPtr AllocateGpuBufferFromPool(uint32 AllocSize, bool bWait = true);
 
 	/** Either return or Add new chunk of memory to the pool based on its size. */
-	void ReturnGpuBufferToStagingPool(uint32 AllocSize, FStructuredBufferPoolItem* Buffer);
+	static void ReturnGpuBufferToStagingPool(uint32 AllocSize, FStructuredBufferPoolItem* Buffer);
 
 	/** Transfer from Staging buffer to Memory pool. */
 	void TransferFromStagingBuffer();

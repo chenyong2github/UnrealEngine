@@ -179,7 +179,7 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(c
 		&& CVarEnableUncompressedExrGpuReader.GetValueOnAnyThread()
 		)
 	{
-		return MakeShareable(new FExrImgMediaReaderGpu(InLoader));
+		return MakeShared<FExrImgMediaReaderGpu, ESPMode::ThreadSafe>(InLoader);
 	}
 #endif
 	return MakeShareable(new FExrImgMediaReader(InLoader));
