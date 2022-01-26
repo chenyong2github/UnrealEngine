@@ -10,7 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "MathUtil.h"
-
+ 
 #include "HAL/PlatformFileManager.h"
 #include "IPlatformFilePak.h"
 
@@ -23,11 +23,11 @@ THIRD_PARTY_INCLUDES_END
 
 #define ECEF_EPSG_FSTRING FString(TEXT("EPSG:4978"))
 
-// TODOLWC - To be replaced once FVector::Normalize will use a smaller number than 1e-8
+// LWC_TODO - To be replaced once FVector::Normalize will use a smaller number than 1e-8
 #define GEOREF_DOUBLE_SMALL_NUMBER			(1.e-50)
 
 
-DEFINE_LOG_CATEGORY(LogGeoReferencing);
+
 
 AGeoReferencingSystem* AGeoReferencingSystem::GetGeoReferencingSystem(UObject* WorldContextObject)
 {
@@ -71,7 +71,8 @@ public:
 	void DeInitPROJLibrary();
 	PJ* GetPROJProjection(FString SourceCRS, FString DestinationCRS);
 	bool GetEllipsoid(FString CRSString, FEllipsoid& Ellipsoid);
-	FMatrix GetWorldFrameToECEFFrame(const FEllipsoid& Ellipsoid, const FCartesianCoordinates& ECEFLocation);
+	
+	FMatrix GetWorldFrameToECEFFrame(const FEllipsoid& Ellipsoid, const FVector& ECEFLocation);
 
 	PJ_CONTEXT* ProjContext;
 	PJ* ProjProjectedToGeographic;
@@ -114,7 +115,7 @@ void AGeoReferencingSystem::Initialize()
 
 	Impl->InitPROJLibrary();
 
-	// TODOABLWC - Can we consider other conventions ? Or North Offset like in SunPosition?
+	// Should we consider other conventions ? Or North Offset like in SunPosition?
 	Impl->WorldFrameToUEFrame = FMatrix( 
 		FVector(1.0, 0.0, 0.0),		// Easting (X) is UE World X
 		FVector(0.0, -1.0, 0.0),	// Northing (Y) is UE World -Y because of left-handed convention
@@ -137,14 +138,106 @@ void AGeoReferencingSystem::BeginDestroy()
 	}
 }
 
+#pragma region Old deprecated Prototypes
+
 void AGeoReferencingSystem::EngineToProjected(const FVector& EngineCoordinates, FCartesianCoordinates& ProjectedCoordinates)
+{
+	FVector Result;
+	EngineToProjected(EngineCoordinates, Result);
+	ProjectedCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::ProjectedToEngine(const FCartesianCoordinates& ProjectedCoordinates, FVector& EngineCoordinates)
+{
+	ProjectedToEngine(ProjectedCoordinates.ToVector(), EngineCoordinates);
+}
+
+void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FCartesianCoordinates& ECEFCoordinates)
+{
+	FVector Result;
+	EngineToECEF(EngineCoordinates, Result);
+	ECEFCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordinates, FVector& EngineCoordinates)
+{
+	ECEFToEngine(ECEFCoordinates.ToVector(), EngineCoordinates);
+}
+
+
+void AGeoReferencingSystem::ProjectedToGeographic(const FCartesianCoordinates& ProjectedCoordinates, FGeographicCoordinates& GeographicCoordinates)
+{
+	ProjectedToGeographic(ProjectedCoordinates.ToVector(), GeographicCoordinates);
+}
+
+void AGeoReferencingSystem::GeographicToProjected(const FGeographicCoordinates& GeographicCoordinates, FCartesianCoordinates& ProjectedCoordinates)
+{
+	FVector Result;
+	GeographicToProjected(GeographicCoordinates, Result);
+	ProjectedCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::ProjectedToECEF(const FCartesianCoordinates& ProjectedCoordinates, FCartesianCoordinates& ECEFCoordinates)
+{
+	FVector Result;
+	ProjectedToECEF(ProjectedCoordinates.ToVector(), Result);
+	ECEFCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::ECEFToProjected(const FCartesianCoordinates& ECEFCoordinates, FCartesianCoordinates& ProjectedCoordinates)
+{
+	FVector Result;
+	ECEFToProjected(ECEFCoordinates.ToVector(), Result);
+	ProjectedCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::GeographicToECEF(const FGeographicCoordinates& GeographicCoordinates, FCartesianCoordinates& ECEFCoordinates)
+{
+	FVector Result;
+	GeographicToECEF(GeographicCoordinates, Result);
+	ECEFCoordinates = FCartesianCoordinates(Result);
+}
+
+void AGeoReferencingSystem::ECEFToGeographic(const FCartesianCoordinates& ECEFCoordinates, FGeographicCoordinates& GeographicCoordinates)
+{
+	ECEFToGeographic(ECEFCoordinates.ToVector(), GeographicCoordinates);
+}
+
+void AGeoReferencingSystem::GetENUVectorsAtProjectedLocation(const FCartesianCoordinates& ProjectedCoordinates, FVector& East, FVector& North, FVector& Up)
+{
+	GetENUVectorsAtProjectedLocation(ProjectedCoordinates.ToVector(), East, North, Up);
+}
+
+void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& East, FVector& North, FVector& Up)
+{
+	GetENUVectorsAtECEFLocation(ECEFCoordinates.ToVector(), East, North, Up);
+}
+
+void AGeoReferencingSystem::GetECEFENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& ECEFEast, FVector& ECEFNorth, FVector& ECEFUp)
+{
+	GetECEFENUVectorsAtECEFLocation(ECEFCoordinates.ToVector(), ECEFEast, ECEFNorth, ECEFUp);
+}
+
+FTransform AGeoReferencingSystem::GetTangentTransformAtProjectedLocation(const FCartesianCoordinates& ProjectedCoordinates)
+{
+	return GetTangentTransformAtProjectedLocation(ProjectedCoordinates.ToVector());
+}
+
+FTransform AGeoReferencingSystem::GetTangentTransformAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates)
+{
+	return GetTangentTransformAtECEFLocation(ECEFCoordinates.ToVector());
+}
+#pragma endregion
+
+
+void AGeoReferencingSystem::EngineToProjected(const FVector& EngineCoordinates, FVector& ProjectedCoordinates)
 {
 	switch (PlanetShape)
 	{
 	case EPlanetShape::RoundPlanet:
 	{
 		// In RoundPlanet, we have to go through the ECEF transform as an intermediate step. 
-		FCartesianCoordinates ECEFCoordinates;
+		FVector ECEFCoordinates;
 		EngineToECEF(EngineCoordinates, ECEFCoordinates);
 		ECEFToProjected(ECEFCoordinates, ProjectedCoordinates);
 	}
@@ -165,21 +258,20 @@ void AGeoReferencingSystem::EngineToProjected(const FVector& EngineCoordinates, 
 		FVector UEWorldCoordinates = UERebasedCoordinates * FVector(0.01, -0.01, 0.01);
 
 		// Add the defined origin offset
-		FVector Projected = UEWorldCoordinates + Impl->WorldOriginLocationProjected;
-		ProjectedCoordinates = FCartesianCoordinates(Projected);
+		ProjectedCoordinates = UEWorldCoordinates + Impl->WorldOriginLocationProjected;
 	}
 	break;
 	}
 }
 
-void AGeoReferencingSystem::ProjectedToEngine(const FCartesianCoordinates& ProjectedCoordinates, FVector& EngineCoordinates)
+void AGeoReferencingSystem::ProjectedToEngine(const FVector& ProjectedCoordinates, FVector& EngineCoordinates)
 {
 	switch (PlanetShape)
 	{
 	case EPlanetShape::RoundPlanet:
 	{
 		// In RoundPlanet, we have to go through the ECEF transform as an intermediate step. 
-		FCartesianCoordinates ECEFCoordinates;
+		FVector ECEFCoordinates;
 		ProjectedToECEF(ProjectedCoordinates, ECEFCoordinates);
 		ECEFToEngine(ECEFCoordinates, EngineCoordinates);
 	}
@@ -190,23 +282,20 @@ void AGeoReferencingSystem::ProjectedToEngine(const FCartesianCoordinates& Proje
 	{
 		// in FlatPlanet, the transform is simply a translation
 		// Remove the Origin location, and convert to UE Units, while inverting the Z Axis
-		FVector Projected(ProjectedCoordinates.X, ProjectedCoordinates.Y, ProjectedCoordinates.Z);
-		FVector UEWorldCoordinates = (Projected - Impl->WorldOriginLocationProjected);
+		FVector UEWorldCoordinates = (ProjectedCoordinates - Impl->WorldOriginLocationProjected);
 
 		// Convert UE units to meters, invert the Y coordinate because of left-handed UE Frame
 		FVector UERebasedCoordinates = UEWorldCoordinates * FVector(100.0, -100.0, 100.0);
 
 		// Consider the UE internal rebasing
 		FIntVector UERebasingOffset = GetWorld()->OriginLocation;
-		FVector EngineCoordinates3d = UERebasedCoordinates - FVector(UERebasingOffset.X, UERebasingOffset.Y, UERebasingOffset.Z);
-
-		EngineCoordinates = FVector(EngineCoordinates3d.X, EngineCoordinates3d.Y, EngineCoordinates3d.Z);
+		EngineCoordinates = UERebasedCoordinates - FVector(UERebasingOffset.X, UERebasingOffset.Y, UERebasingOffset.Z);
 	}
 	break;
 	}
 }
 
-void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FCartesianCoordinates& ECEFCoordinates)
+void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FVector& ECEFCoordinates)
 {
 	switch (PlanetShape)
 	{
@@ -229,8 +318,7 @@ void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FCart
 		}
 		else
 		{
-			FVector ECEFCoordinates4d = Impl->WorldFrameToECEFFrame.TransformPosition( FVector(UEWorldCoordinates.X, UEWorldCoordinates.Y, UEWorldCoordinates.Z));
-			ECEFCoordinates = FCartesianCoordinates(ECEFCoordinates4d);
+			ECEFCoordinates = Impl->WorldFrameToECEFFrame.TransformPosition(UEWorldCoordinates);
 		}
 	}
 	break;
@@ -239,7 +327,7 @@ void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FCart
 	default:
 	{
 		// In FlatPlanet, we have to go through the Projected transform as an intermediate step. 
-		FCartesianCoordinates ProjectedCoordinates;
+		FVector ProjectedCoordinates;
 		EngineToProjected(EngineCoordinates, ProjectedCoordinates);
 		ProjectedToECEF(ProjectedCoordinates, ECEFCoordinates);
 	}
@@ -247,7 +335,7 @@ void AGeoReferencingSystem::EngineToECEF(const FVector& EngineCoordinates, FCart
 	}
 }
 
-void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordinates, FVector& EngineCoordinates)
+void AGeoReferencingSystem::ECEFToEngine(const FVector& ECEFCoordinates, FVector& EngineCoordinates)
 {
 	switch (PlanetShape)
 	{
@@ -257,11 +345,11 @@ void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordi
 		if (bOriginAtPlanetCenter)
 		{
 			// Easy case, UE is ECEF... And we did the rebasing, so return the Global coordinates
-			UEWorldCoordinates = FVector(ECEFCoordinates.X, ECEFCoordinates.Y, ECEFCoordinates.Z);
+			UEWorldCoordinates = ECEFCoordinates;
 		}
 		else
 		{
-			UEWorldCoordinates = Impl->ECEFFrameToWorldFrame.TransformPosition(FVector(ECEFCoordinates.X, ECEFCoordinates.Y, ECEFCoordinates.Z));
+			UEWorldCoordinates = Impl->ECEFFrameToWorldFrame.TransformPosition(ECEFCoordinates);
 		}
 
 		// Convert UE units to meters, invert the Y coordinate because of left-handed UE Frame
@@ -269,9 +357,7 @@ void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordi
 
 		// Consider the UE internal rebasing
 		FIntVector UERebasingOffset = GetWorld()->OriginLocation;
-		FVector EngineCoordinates3d = UERebasedCoordinates - FVector(UERebasingOffset.X, UERebasingOffset.Y, UERebasingOffset.Z);
-
-		EngineCoordinates = FVector(EngineCoordinates3d.X, EngineCoordinates3d.Y, EngineCoordinates3d.Z);
+		EngineCoordinates = UERebasedCoordinates - FVector(UERebasingOffset.X, UERebasingOffset.Y, UERebasingOffset.Z);
 	}
 	break;
 
@@ -279,7 +365,7 @@ void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordi
 	default:
 	{
 		// In FlatPlanet, we have to go through the Projected transform as an intermediate step. 
-		FCartesianCoordinates ProjectedCoordinates;
+		FVector ProjectedCoordinates;
 		ECEFToProjected(ECEFCoordinates, ProjectedCoordinates);
 		ProjectedToEngine(ProjectedCoordinates, EngineCoordinates);
 	}
@@ -287,7 +373,56 @@ void AGeoReferencingSystem::ECEFToEngine(const FCartesianCoordinates& ECEFCoordi
 	}
 }
 
-void AGeoReferencingSystem::ProjectedToGeographic(const FCartesianCoordinates& ProjectedCoordinates, FGeographicCoordinates& GeographicCoordinates)
+
+void AGeoReferencingSystem::EngineToGeographic(const FVector& EngineCoordinates, FGeographicCoordinates& GeographicCoordinates)
+{
+	switch (PlanetShape)
+	{
+		case EPlanetShape::RoundPlanet:
+		{
+			FVector ECEFCoordinates;
+			EngineToECEF(EngineCoordinates, ECEFCoordinates);
+			ECEFToGeographic(ECEFCoordinates, GeographicCoordinates);
+		}
+	break;
+
+		case EPlanetShape::FlatPlanet:
+		default:
+		{
+			FVector ProjectedCoordinates;
+			EngineToProjected(EngineCoordinates, ProjectedCoordinates);
+			ProjectedToGeographic(ProjectedCoordinates, GeographicCoordinates);
+
+		}
+	break;
+	}
+}
+
+void AGeoReferencingSystem::GeographicToEngine(const FGeographicCoordinates& GeographicCoordinates, FVector& EngineCoordinates)
+{
+	switch (PlanetShape)
+	{
+		case EPlanetShape::RoundPlanet:
+		{
+			FVector ECEFCoordinates;
+			GeographicToECEF(GeographicCoordinates, ECEFCoordinates);
+			ECEFToEngine(ECEFCoordinates, EngineCoordinates);
+		}
+	break;
+
+		case EPlanetShape::FlatPlanet:
+		default:
+		{
+			FVector ProjectedCoordinates;
+			GeographicToProjected(GeographicCoordinates,ProjectedCoordinates);
+			ProjectedToEngine(ProjectedCoordinates, EngineCoordinates);
+		}
+	break;
+	}
+}
+
+
+void AGeoReferencingSystem::ProjectedToGeographic(const FVector& ProjectedCoordinates, FGeographicCoordinates& GeographicCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(ProjectedCoordinates.X, ProjectedCoordinates.Y, ProjectedCoordinates.Z, 0);
@@ -298,7 +433,7 @@ void AGeoReferencingSystem::ProjectedToGeographic(const FCartesianCoordinates& P
 	GeographicCoordinates.Altitude = output.lpz.z;
 }
 
-void AGeoReferencingSystem::GeographicToProjected(const FGeographicCoordinates& GeographicCoordinates, FCartesianCoordinates& ProjectedCoordinates)
+void AGeoReferencingSystem::GeographicToProjected(const FGeographicCoordinates& GeographicCoordinates, FVector& ProjectedCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(GeographicCoordinates.Longitude, GeographicCoordinates.Latitude, GeographicCoordinates.Altitude, 0);
@@ -309,7 +444,7 @@ void AGeoReferencingSystem::GeographicToProjected(const FGeographicCoordinates& 
 	ProjectedCoordinates.Z = output.xyz.z;
 }
 
-void AGeoReferencingSystem::ProjectedToECEF(const FCartesianCoordinates& ProjectedCoordinates, FCartesianCoordinates& ECEFCoordinates)
+void AGeoReferencingSystem::ProjectedToECEF(const FVector& ProjectedCoordinates, FVector& ECEFCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(ProjectedCoordinates.X, ProjectedCoordinates.Y, ProjectedCoordinates.Z, 0);
@@ -320,7 +455,7 @@ void AGeoReferencingSystem::ProjectedToECEF(const FCartesianCoordinates& Project
 	ECEFCoordinates.Z = output.xyz.z;
 }
 
-void AGeoReferencingSystem::ECEFToProjected(const FCartesianCoordinates& ECEFCoordinates, FCartesianCoordinates& ProjectedCoordinates)
+void AGeoReferencingSystem::ECEFToProjected(const FVector& ECEFCoordinates, FVector& ProjectedCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(ECEFCoordinates.X, ECEFCoordinates.Y, ECEFCoordinates.Z, 0);
@@ -331,7 +466,7 @@ void AGeoReferencingSystem::ECEFToProjected(const FCartesianCoordinates& ECEFCoo
 	ProjectedCoordinates.Z = output.xyz.z;
 }
 
-void AGeoReferencingSystem::GeographicToECEF(const FGeographicCoordinates& GeographicCoordinates, FCartesianCoordinates& ECEFCoordinates)
+void AGeoReferencingSystem::GeographicToECEF(const FGeographicCoordinates& GeographicCoordinates, FVector& ECEFCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(GeographicCoordinates.Longitude, GeographicCoordinates.Latitude, GeographicCoordinates.Altitude, 0);
@@ -342,7 +477,7 @@ void AGeoReferencingSystem::GeographicToECEF(const FGeographicCoordinates& Geogr
 	ECEFCoordinates.Z = output.xyz.z;
 }
 
-void AGeoReferencingSystem::ECEFToGeographic(const FCartesianCoordinates& ECEFCoordinates, FGeographicCoordinates& GeographicCoordinates)
+void AGeoReferencingSystem::ECEFToGeographic(const FVector& ECEFCoordinates, FGeographicCoordinates& GeographicCoordinates)
 {
 	PJ_COORD input, output;
 	input = proj_coord(ECEFCoordinates.X, ECEFCoordinates.Y, ECEFCoordinates.Z, 0);
@@ -357,26 +492,26 @@ void AGeoReferencingSystem::ECEFToGeographic(const FCartesianCoordinates& ECEFCo
 
 void AGeoReferencingSystem::GetENUVectorsAtEngineLocation(const FVector& EngineCoordinates, FVector& East, FVector& North, FVector& Up)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	EngineToECEF(EngineCoordinates, ECEFLocation);
 	GetENUVectorsAtECEFLocation(ECEFLocation, East, North, Up);
 }
 
-void AGeoReferencingSystem::GetENUVectorsAtProjectedLocation(const FCartesianCoordinates& ProjectedCoordinates, FVector& East, FVector& North, FVector& Up)
+void AGeoReferencingSystem::GetENUVectorsAtProjectedLocation(const FVector& ProjectedCoordinates, FVector& East, FVector& North, FVector& Up)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	ProjectedToECEF(ProjectedCoordinates, ECEFLocation);
 	GetENUVectorsAtECEFLocation(ECEFLocation, East, North, Up);
 }
 
 void AGeoReferencingSystem::GetENUVectorsAtGeographicLocation(const FGeographicCoordinates& GeographicCoordinates, FVector& East, FVector& North, FVector& Up)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	GeographicToECEF(GeographicCoordinates, ECEFLocation);
 	GetENUVectorsAtECEFLocation(ECEFLocation, East, North, Up);
 }
 
-void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& East, FVector& North, FVector& Up)
+void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FVector& ECEFCoordinates, FVector& East, FVector& North, FVector& Up)
 {
 	// Compute Tangent matrix at ECEF location
 	FEllipsoid& Ellipsoid = Impl->GeographicEllipsoid;
@@ -400,10 +535,10 @@ void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FCartesianCoordina
 	case EPlanetShape::FlatPlanet:
 	default:
 		// PROJ don't provide anything to project direction vectors. Let's do it by hand...
-		FVector EasternPoint = ECEFCoordinates.ToVector() + WorldFrameToECEFFrameAtLocation.TransformVector(FVector(1.0, 0.0, 0.0)); // 1m from origin to the East
-		FVector NorthernPoint = ECEFCoordinates.ToVector() + WorldFrameToECEFFrameAtLocation.TransformVector(FVector(0.0, 1.0, 0.0)); // 1m from origin to the North
+		FVector EasternPoint = ECEFCoordinates + WorldFrameToECEFFrameAtLocation.TransformVector(FVector(1.0, 0.0, 0.0)); // 1m from origin to the East
+		FVector NorthernPoint = ECEFCoordinates + WorldFrameToECEFFrameAtLocation.TransformVector(FVector(0.0, 1.0, 0.0)); // 1m from origin to the North
 		
-		FCartesianCoordinates ProjectedOrigin, ProjectedEastern, ProjectedNorthern;
+		FVector ProjectedOrigin, ProjectedEastern, ProjectedNorthern;
 		ECEFToProjected(ECEFCoordinates, ProjectedOrigin);
 		ECEFToProjected(EasternPoint, ProjectedEastern);
 		ECEFToProjected(NorthernPoint, ProjectedNorthern);
@@ -421,7 +556,7 @@ void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FCartesianCoordina
 	}
 }
 
-void AGeoReferencingSystem::GetECEFENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& ECEFEast, FVector& ECEFNorth, FVector& ECEFUp)
+void AGeoReferencingSystem::GetECEFENUVectorsAtECEFLocation(const FVector& ECEFCoordinates, FVector& ECEFEast, FVector& ECEFNorth, FVector& ECEFUp)
 {
 	// Compute Tangent matrix at ECEF location
 	FEllipsoid& Ellipsoid = Impl->GeographicEllipsoid;
@@ -438,26 +573,26 @@ void AGeoReferencingSystem::GetECEFENUVectorsAtECEFLocation(const FCartesianCoor
 
 FTransform AGeoReferencingSystem::GetTangentTransformAtEngineLocation(const FVector& EngineCoordinates)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	EngineToECEF(EngineCoordinates, ECEFLocation);
 	return GetTangentTransformAtECEFLocation(ECEFLocation);
 }
 
-FTransform AGeoReferencingSystem::GetTangentTransformAtProjectedLocation(const FCartesianCoordinates& ProjectedCoordinates)
+FTransform AGeoReferencingSystem::GetTangentTransformAtProjectedLocation(const FVector& ProjectedCoordinates)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	ProjectedToECEF(ProjectedCoordinates, ECEFLocation);
 	return GetTangentTransformAtECEFLocation(ECEFLocation);
 }
 
 FTransform AGeoReferencingSystem::GetTangentTransformAtGeographicLocation(const FGeographicCoordinates& GeographicCoordinates)
 {
-	FCartesianCoordinates ECEFLocation;
+	FVector ECEFLocation;
 	GeographicToECEF(GeographicCoordinates, ECEFLocation);
 	return GetTangentTransformAtECEFLocation(ECEFLocation);
 }
 
-FTransform AGeoReferencingSystem::GetTangentTransformAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates)
+FTransform AGeoReferencingSystem::GetTangentTransformAtECEFLocation(const FVector& ECEFCoordinates)
 {
 	if (PlanetShape == EPlanetShape::RoundPlanet)
 	{
@@ -470,7 +605,7 @@ FTransform AGeoReferencingSystem::GetTangentTransformAtECEFLocation(const FCarte
 		FMatrix WorldFrameToECEFFrameAtLocation = Impl->GetWorldFrameToECEFFrame(Ellipsoid, ECEFCoordinates);
 		
 
-		FMatrix UEtoECEF = Impl->UEFrameToWorldFrame * WorldFrameToECEFFrameAtLocation * Impl->ECEFFrameToWorldFrame * Impl->WorldFrameToUEFrame; //TOOD?
+		FMatrix UEtoECEF = Impl->UEFrameToWorldFrame * WorldFrameToECEFFrameAtLocation * Impl->ECEFFrameToWorldFrame * Impl->WorldFrameToUEFrame; 
 		FVector UEOrigin;
 		ECEFToEngine(ECEFCoordinates, UEOrigin);
 		UEtoECEF.SetOrigin(UEOrigin);
@@ -544,6 +679,28 @@ bool AGeoReferencingSystem::IsCRSStringValid(FString CRSString, FString& Error)
 
 	proj_destroy(CRS);
 	return true;
+}
+
+// Ellipsoid
+
+double AGeoReferencingSystem::GetGeographicEllipsoidMaxRadius()
+{
+	return Impl->GeographicEllipsoid.GetMaximumRadius();
+}
+
+double AGeoReferencingSystem::GetGeographicEllipsoidMinRadius()
+{
+	return Impl->GeographicEllipsoid.GetMinimumRadius();
+}
+
+double AGeoReferencingSystem::GetProjectedEllipsoidMaxRadius()
+{
+	return Impl->ProjectedEllipsoid.GetMaximumRadius();
+}
+
+double AGeoReferencingSystem::GetProjectedEllipsoidMinRadius()
+{
+	return Impl->ProjectedEllipsoid.GetMinimumRadius();
 }
 
 bool AGeoReferencingSystem::FGeoReferencingSystemInternals::GetEllipsoid(FString CRSString, FEllipsoid& Ellipsoid)
@@ -658,11 +815,11 @@ void AGeoReferencingSystem::ApplySettings()
 		{
 			// We need to compute the ENU Vectors at the origin point. For that, the origin has to be expressed first in ECEF. 
 			// Express origin in ECEF, and get the ENU vectors
-			FCartesianCoordinates ECEFOrigin;
+			FVector ECEFOrigin;
 			Impl->WorldFrameToECEFFrame.SetIdentity();
 			if (bOriginLocationInProjectedCRS)
 			{
-				FCartesianCoordinates ProjectedOrigin(
+				FVector ProjectedOrigin(
 					OriginProjectedCoordinatesEasting,
 					OriginProjectedCoordinatesNorthing,
 					OriginProjectedCoordinatesUp);
@@ -692,7 +849,7 @@ void AGeoReferencingSystem::ApplySettings()
 		else
 		{
 			// World origin is expressed using Geographic coordinates. Convert them to the projected CRS to have the offset
-			FCartesianCoordinates OriginProjected;
+			FVector OriginProjected;
 			GeographicToProjected(FGeographicCoordinates(OriginLongitude, OriginLatitude, OriginAltitude), OriginProjected);
 			Impl->WorldOriginLocationProjected = FVector(OriginProjected.X, OriginProjected.Y, OriginProjected.Z);
 		}
@@ -818,14 +975,14 @@ PJ* AGeoReferencingSystem::FGeoReferencingSystemInternals::GetPROJProjection(FSt
 	return P_for_GIS;
 }
 
-FMatrix AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameToECEFFrame(const FEllipsoid& Ellipsoid, const FCartesianCoordinates& ECEFLocation)
+FMatrix AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameToECEFFrame(const FEllipsoid& Ellipsoid, const FVector& ECEFLocation)
 {
 	// See ECEF standard : https://commons.wikimedia.org/wiki/File:ECEF_ENU_Longitude_Latitude_right-hand-rule.svg
 	if (FMathd::Abs(ECEFLocation.X) < FMathd::Epsilon &&
 		FMathd::Abs(ECEFLocation.Y) < FMathd::Epsilon)
 	{
 		// Special Case - On earth axis... 
-		int Sign = 1;
+		double Sign = 1.0;
 		if (FMathd::Abs(ECEFLocation.Z) < FMathd::Epsilon)
 		{
 			// At origin - Should not happen, but consider it's the same as north pole
@@ -841,15 +998,15 @@ FMatrix AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameToEC
 			FVector::YAxisVector, 			// East = Y
 			-FVector::XAxisVector * Sign,	// North = Sign * X
 			FVector::ZAxisVector * Sign,	// Up = Sign*Z
-			ECEFLocation.ToVector());
+			ECEFLocation);
 	}
 	else
 	{
-		FVector Up = Ellipsoid.GeodeticSurfaceNormal(ECEFLocation); //TODOABLWC - Mauvaises valeurs ici... 
+		FVector Up = Ellipsoid.GeodeticSurfaceNormal(ECEFLocation);
 		FVector East(-ECEFLocation.Y, ECEFLocation.X, 0.0); 
 		East.Normalize(GEOREF_DOUBLE_SMALL_NUMBER);
 		FVector North = Up.Cross(East);
-		return FMatrix(	East, North, Up, ECEFLocation.ToVector());
+		return FMatrix(	East, North, Up, ECEFLocation);
 	}
 }
 

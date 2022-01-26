@@ -24,6 +24,7 @@ public class GeoReferencing : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"InputCore",
 				"Engine",
 				"PROJ",
 				"Projects",

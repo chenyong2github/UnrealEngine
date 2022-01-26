@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GeoReferencingModule.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "GeographicCoordinates.generated.h"
@@ -16,6 +17,7 @@ public:
 
 	FGeographicCoordinates();
 	FGeographicCoordinates(double InLongitude, double InLatitude, double InAltitude);
+	FGeographicCoordinates(const FVector& LatLongAltVector); // FVector where X = Latitude, Y = Longitude, Z = Altitude
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "GeoReferencing")
 	double Longitude;
@@ -68,7 +70,8 @@ class GEOREFERENCING_API UGeographicCoordinatesFunctionLibrary : public UBluepri
 	 * Get the Coordinates as a float approximation.
 	 * USE WISELY as we can't guarantee there will no be rounding due to IEEE754 float encoding !
 	 **/
-	UFUNCTION(BlueprintPure, Category = "GeoReferencing")
+	UE_DEPRECATED(5.0, "BP now support doubles, Function useless and can lead to precision issues")
+	UFUNCTION(BlueprintPure, Category = "GeoReferencing", meta = (DeprecatedFunction, DeprecationMessage = "BP now support doubles, Function useless and can lead to precision issues"))
 	static void ToFloatApproximation(UPARAM(ref) FGeographicCoordinates& GeographicCoordinates, float& OutLatitude, float& OutLongitude, float& OutAltitude)
 	{
 		OutLatitude  = static_cast<float>(GeographicCoordinates.Latitude);
@@ -80,9 +83,31 @@ class GEOREFERENCING_API UGeographicCoordinatesFunctionLibrary : public UBluepri
 	 * Set the Coordinates from float approximation.
 	 * USE WISELY as we can't guarantee there will no be rounding due to IEEE754 float encoding !
 	 **/
-	UFUNCTION(BlueprintPure, Category = "GeoReferencing|Coordinates")
+	UE_DEPRECATED(5.0, "BP now support doubles, Function useless and can lead to precision issues")
+	UFUNCTION(BlueprintPure, Category = "GeoReferencing|Coordinates", meta = (DeprecatedFunction, DeprecationMessage = "BP now support doubles, Function useless and can lead to precision issues"))
 	static FGeographicCoordinates MakeGeographicCoordinatesApproximation(const float& InLatitude, const float& InLongitude, const float& InAltitude)
 	{
 		return FGeographicCoordinates(static_cast<double>(InLongitude), static_cast<double>(InLatitude), static_cast<double>(InAltitude));
 	}
+
+
+	/**
+	 * Make Geographic Coordinates from a FVector where X=Latitude, Y=Longitude, Z=Altitude
+	 **/
+	UFUNCTION(BlueprintPure, Category = "GeoReferencing|Coordinates")
+	static FGeographicCoordinates MakeGeographicCoordinates(const FVector& LatLongAltVector)
+	{
+		return FGeographicCoordinates(LatLongAltVector);
+	}
+
+	/**
+	 * Express the Geographic coordinates as a FVector where  where X=Latitude, Y=Longitude, Z=Altitude
+	 **/
+	UFUNCTION(BlueprintPure, Category = "GeoReferencing", meta = (DeprecatedFunction, DeprecationMessage = "BP now support doubles, Function useless and can lead to precision issues"))
+	static void ToLatLongAltVector(UPARAM(ref) FGeographicCoordinates& GeographicCoordinates, FVector& OutLatLongAltVector)
+	{
+		OutLatLongAltVector = FVector(GeographicCoordinates.Latitude, GeographicCoordinates.Longitude, GeographicCoordinates.Altitude);
+	}
+
+
 };

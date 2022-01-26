@@ -24,6 +24,9 @@ public:
 	FVector OneOverRadii;
 	FVector OneOverRadiiSquared;
 
-	FVector GeodeticSurfaceNormal(const FCartesianCoordinates& ECEFLocation) const;
-	FVector GeodeticSurfaceNormal(const FGeographicCoordinates& GeographicCoordinates) const;    
+	double GetMaximumRadius();
+	double GetMinimumRadius();
+
+	FVector GeodeticSurfaceNormal(const FVector& ECEFLocation) const;
+	FVector GeodeticSurfaceNormal(const FGeographicCoordinates& GeographicCoordinates) const;
 };

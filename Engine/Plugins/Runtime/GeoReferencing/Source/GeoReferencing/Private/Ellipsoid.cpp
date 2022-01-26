@@ -4,7 +4,7 @@
 #include "MathUtil.h"
 
 
-// TODOLWC - To be replaced once FVector::Normalize will use a smaller number than 1e-8
+// LWC_TODO - To be replaced once FVector::Normalize will use a smaller number than 1e-8
 #define GEOREF_DOUBLE_SMALL_NUMBER (1.e-50)
 
 
@@ -30,7 +30,17 @@ FEllipsoid::FEllipsoid(const FVector& InRadii)
 	OneOverRadiiSquared = FVector(1.0 / (InRadii.X * InRadii.X), 1.0 / (InRadii.Y * InRadii.Y), 1.0 / (InRadii.Z * InRadii.Z));
 }
 
-FVector FEllipsoid::GeodeticSurfaceNormal(const FCartesianCoordinates& ECEFLocation) const
+double FEllipsoid::GetMaximumRadius()
+{
+	return FMathd::Max3(Radii.X,Radii.Y, Radii.Z);
+}
+
+double FEllipsoid::GetMinimumRadius()
+{
+	return FMathd::Min3(Radii.X, Radii.Y, Radii.Z);
+}
+
+FVector FEllipsoid::GeodeticSurfaceNormal(const FVector& ECEFLocation) const
 {
 	FVector Normal( ECEFLocation.X * OneOverRadiiSquared.X, ECEFLocation.Y * OneOverRadiiSquared.Y, ECEFLocation.Z * OneOverRadiiSquared.Z);
 	Normal.Normalize(GEOREF_DOUBLE_SMALL_NUMBER); 

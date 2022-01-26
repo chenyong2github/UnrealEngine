@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeographicCoordinates.h"
+#include "MathUtil.h"
 
 FGeographicCoordinates::FGeographicCoordinates()
 	: Longitude(0)
@@ -9,9 +10,16 @@ FGeographicCoordinates::FGeographicCoordinates()
 {}
 
 FGeographicCoordinates::FGeographicCoordinates(double InLongitude, double InLatitude, double InAltitude)
-	: Longitude(InLongitude)
-	, Latitude(InLatitude)
+	: Longitude(FMathd::Clamp(InLongitude, -180.0, 180.0))
+	, Latitude(FMathd::Clamp(InLatitude, -90.0, 90.0))
 	, Altitude(InAltitude)
+{
+}
+
+FGeographicCoordinates::FGeographicCoordinates(const FVector& LatLongAltVector)
+	: Longitude(FMathd::Clamp(LatLongAltVector.Y, -180.0, 180.0))
+	, Latitude(FMathd::Clamp(LatLongAltVector.X, -90.0, 90.0))
+	, Altitude(LatLongAltVector.Z)
 {}
 
 FText FGeographicCoordinates::ToFullText(int32 IntegralDigitsLatLon /*= 8*/, int32 IntegralDigitsAlti /*= 2*/, bool bAsDMS /*= false*/)
