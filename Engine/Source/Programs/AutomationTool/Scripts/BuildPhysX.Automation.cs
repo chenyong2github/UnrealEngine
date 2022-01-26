@@ -994,9 +994,9 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 
 		string CxxFlags = "\"-I " + ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/include -I " + ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/include/c++/v1\"";
 		string CxxLinkerFlags = "\"-stdlib=libc++ -nodefaultlibs -Wl,--build-id -L " 
-			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/ " 
-			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++.a " 
-			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Unix/x86_64-unknown-linux-gnu/ " 
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Unix/x86_64-unknown-linux-gnu/libc++.a " 
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Unix/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
 
 		return "-DCMAKE_CXX_FLAGS=" + CxxFlags + " -DCMAKE_EXE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCAMKE_MODULE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCMAKE_SHARED_LINKER_FLAGS=" + CxxLinkerFlags + " ";
 	}

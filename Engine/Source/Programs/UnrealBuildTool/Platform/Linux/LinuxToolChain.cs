@@ -1781,9 +1781,9 @@ namespace UnrealBuildTool
 			{
 				// libc++ and its abi lib
 				LinkCommandString += " -nodefaultlibs";
-				LinkCommandString += " -L" + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/";
-				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++.a";
-				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++abi.a";
+				LinkCommandString += " -L" + "ThirdParty/Unix/LibCxx/lib/Unix/" + LinkEnvironment.Architecture + "/";
+				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Unix/" + LinkEnvironment.Architecture + "/libc++.a";
+				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Unix/" + LinkEnvironment.Architecture + "/libc++abi.a";
 				LinkCommandString += " -lm";
 				LinkCommandString += " -lc";
 				LinkCommandString += " -lpthread"; // pthread_mutex_trylock is missing from libc stubs
