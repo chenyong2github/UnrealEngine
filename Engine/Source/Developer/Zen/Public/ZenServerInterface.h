@@ -128,7 +128,7 @@ public:
 	UE_API bool IsServiceReady();
 	UE_API bool IsServiceRunningLocally() const { return bIsRunningLocally; }
 
-	static uint16 GetAutoLaunchedPort() { return AutoLaunchedPort; }
+	static UE_API uint16 GetAutoLaunchedPort() { return AutoLaunchedPort; }
 
 private:
 
@@ -141,7 +141,7 @@ private:
 	FString URL;
 	FString HostName;
 	uint16 Port;
-	static inline uint16 AutoLaunchedPort = 0;
+	static uint16 AutoLaunchedPort;
 	bool bHasLaunchedLocal = false;
 	bool bIsRunningLocally = true;
 };
