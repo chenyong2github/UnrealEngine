@@ -407,7 +407,7 @@ public:
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
 	FRWBufferStructured MeshCardsBuffer;
 
-	// Array of indices into MeshCards, containing heightfields for Landscape rendering
+	// Sparse array of indices into MeshCards, containing heightfields for Landscape rendering
 	bool bHeightfieldMeshCardsIndicesBufferDirty = false;
 	TSparseSpanArray<uint32> HeightfieldMeshCardsIndices;
 	TRefCountPtr<FRDGPooledBuffer> HeightfieldMeshCardsIndicesBuffer;

@@ -58,22 +58,27 @@ void CullHeightfieldObjectsForViewCS(
 	GSNumCulledObjects = 0;
 	GroupMemoryBarrierWithGroupSync();
 
+	bool bShouldKeep = false;
+
 	uint ObjectIndex = DispatchThreadId.x;
-	
-	bool bShouldKeep = ObjectIndex < MaxNumObjects;
-	if (bShouldKeep)
+	if (ObjectIndex < MaxNumObjects)
 	{
-		if (bShouldCull)
+		uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
+		if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 		{
-			uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * ObjectIndex);
-			FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+			bShouldKeep = true;
 
-			// Fetch card
-			int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
-			FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
+			if (bShouldCull)
+			{
+				FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
-			float MaxCullingDistance = length(LumenCardData.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) + length(LumenCardData.LocalExtent);
-			bShouldKeep = MaxCullingDistance < CardTraceEndDistanceFromCamera;
+				// Fetch card
+				int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
+				FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
+
+				float MaxCullingDistance = length(LumenCardData.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) + length(LumenCardData.LocalExtent);
+				bShouldKeep = MaxCullingDistance < CardTraceEndDistanceFromCamera;
+			}
 		}
 	}
 

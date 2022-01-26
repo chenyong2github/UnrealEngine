@@ -239,40 +239,46 @@ void CullToVoxelClipmapCS(
 {
 	uint ObjectIndex = DispatchThreadId.x;
 
-#if MESH_TYPE == SDF_MESH_TYPE
-	uint NumMeshObjects = NumSceneObjects;
-#else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
-	uint NumMeshObjects = LumenCardScene.NumHeightfields;
-#endif // MESH_TYPE
+	float3 WorldObjectCenter = float3(0, 0, 0);
+	float3 WorldObjectExtent = float3(0, 0, 0);
 
-	if (ObjectIndex < NumMeshObjects)
+	#if MESH_TYPE == SDF_MESH_TYPE
 	{
-#if MESH_TYPE == SDF_MESH_TYPE
-		float3 WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-		float3 WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
-#else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
-		uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * ObjectIndex);
-		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
-
-		// Fetch card
-		FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
-
-		float3 WorldObjectCenter;
-		float3 WorldObjectExtent;
-		GetCardAABB(LumenCardData, WorldObjectCenter, WorldObjectExtent);
-#endif // MESH_TYPE
-		float BoundsRadius = length(WorldObjectExtent);
-
-		BRANCH
-		if (BoundsRadius > MeshRadiusThreshold)
+		if (ObjectIndex < NumSceneObjects)
 		{
-			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(VoxelClipmapWorldCenter, VoxelClipmapWorldExtent, WorldObjectCenter, WorldObjectExtent);
-			if (DistanceSq <= 0.0f)
+			WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
+			WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
+		}
+	}
+	#else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
+	{
+		if (ObjectIndex < LumenCardScene.NumHeightfields)
+		{
+			uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
+			if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 			{
-				uint DestIndex;
-				InterlockedAdd(RWTraceSetupIndirectArgBuffer[0], 1, DestIndex);
-				RWObjectIndexBuffer[DestIndex] = ObjectIndex;
+				FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+
+				// Fetch card
+				FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
+
+				GetCardAABB(LumenCardData, WorldObjectCenter, WorldObjectExtent);
 			}
+		}
+	}
+	#endif
+
+	float BoundsRadius = length(WorldObjectExtent);
+
+	BRANCH
+	if (BoundsRadius > 0.0f && BoundsRadius > MeshRadiusThreshold)
+	{
+		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(VoxelClipmapWorldCenter, VoxelClipmapWorldExtent, WorldObjectCenter, WorldObjectExtent);
+		if (DistanceSq <= 0.0f)
+		{
+			uint DestIndex;
+			InterlockedAdd(RWTraceSetupIndirectArgBuffer[0], 1, DestIndex);
+			RWObjectIndexBuffer[DestIndex] = ObjectIndex;
 		}
 	}
 }
@@ -315,7 +321,7 @@ void SetupVoxelTracesCS(
 	float3 ObjectExtent = DFObjectBounds.BoxExtent;
 
 #else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
-	uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * ObjectIndex);
+	uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
 	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 	// Fetch card

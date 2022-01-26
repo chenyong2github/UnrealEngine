@@ -288,3 +288,15 @@ float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
 {
 	return EncodedAlbedo * EncodedAlbedo;
 }
+
+uint GetMeshCardsIndexFromSceneInstanceIndex(uint SceneInstanceIndex)
+{
+	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+	return MeshCardsIndex;
+}
+
+uint GetMeshCardsIndexFromHeightfieldObjectIndex(uint HeightfieldObjectIndex)
+{
+	const uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * HeightfieldObjectIndex);
+	return MeshCardsIndex;
+}

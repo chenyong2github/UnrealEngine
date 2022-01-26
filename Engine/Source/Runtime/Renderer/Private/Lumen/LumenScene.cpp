@@ -611,6 +611,7 @@ void FLumenSceneData::ResetAndConsolidate()
 	MeshCards.Consolidate();
 	Cards.Consolidate();
 	PageTable.Consolidate();
+	HeightfieldMeshCardsIndices.Consolidate();
 }
 
 void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)

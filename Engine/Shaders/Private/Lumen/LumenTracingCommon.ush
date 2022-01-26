@@ -760,7 +760,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	}
 
 	TraceSDFData.SceneInstanceIndex = DFObjectData.GPUSceneInstanceIndex;
-	TraceSDFData.MeshCardsIndex = GetMeshCardsIndex(TraceSDFData.SceneInstanceIndex);
+	TraceSDFData.MeshCardsIndex = GetMeshCardsIndexFromSceneInstanceIndex(TraceSDFData.SceneInstanceIndex);
 
 	return TraceSDFData;
 }
@@ -800,7 +800,7 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	Result.bRayStartInsideGeometry = false;
 	Result.HitDistance = TraceInput.MaxTraceDistance;
 
-	uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * HeightfieldIndex);
+	uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(HeightfieldIndex);
 	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 	// Fetch card
@@ -962,15 +962,18 @@ FGlobalSDFTraceResult ShadowTraceHeightfield(
 	TraceMeshHeightfieldResult.HitDistance = ConeTraceInput.MaxTraceDistance;
 
 	//@todo - use culling where appropriate
-	for (uint Index = 0; Index < LumenCardScene.NumHeightfields; Index++)
+	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
 	{
-		uint HeightfieldObjectIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * Index);
-		FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
-
-		if (SimpleResult.bIsHit && (SimpleResult.HitDistance < TraceMeshHeightfieldResult.HitDistance))
+		uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(HeightfieldObjectIndex);
+		if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 		{
-			TraceMeshHeightfieldResult.HitDistance = SimpleResult.HitDistance;
-			TraceMeshHeightfieldResult.HeightfieldObjectIndex = HeightfieldObjectIndex;
+			FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
+
+			if (SimpleResult.bIsHit && (SimpleResult.HitDistance < TraceMeshHeightfieldResult.HitDistance))
+			{
+				TraceMeshHeightfieldResult.HitDistance = SimpleResult.HitDistance;
+				TraceMeshHeightfieldResult.HeightfieldObjectIndex = HeightfieldObjectIndex;
+			}
 		}
 	}
 
