@@ -6650,8 +6650,6 @@ void FAudioDevice::UnregisterPluginListener(const TAudioPluginListenerPtr Plugin
 
 bool FAudioDevice::IsAudioDeviceMuted() const
 {
-	check(IsInAudioThread());
-
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if(DeviceManager)
 	{
