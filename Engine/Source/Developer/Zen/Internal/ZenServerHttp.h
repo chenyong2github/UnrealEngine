@@ -167,12 +167,15 @@ public:
 		*/
 	ZEN_API Result PerformBlockingDelete(FStringView Uri);
 
-	ZEN_API Result PerformBlockingPost(FStringView Uri, FCbObjectView Obj);
-	ZEN_API Result PerformBlockingPostPackage(FStringView Uri, FCbPackage Package);
-	ZEN_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload);
-	ZEN_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload, EContentType ContentType);
+	ZEN_API Result PerformBlockingPostPackage(FStringView Uri, const FCbPackage& Package,
+		EContentType AcceptType = EContentType::UnknownContentType);
+	ZEN_API Result PerformBlockingPost(FStringView Uri, FCbObjectView Obj,
+		EContentType AcceptType = EContentType::UnknownContentType);
+	ZEN_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload,
+		EContentType ContentType = EContentType::Binary, EContentType AcceptType = EContentType::UnknownContentType);
 
 	ZEN_API Result PerformRpc(FStringView Uri, FCbObjectView Request, FCbPackage &OutResponse);
+	ZEN_API Result PerformRpc(FStringView Uri, const FCbPackage& Request, FCbPackage& OutResponse);
 
 	/** Returns the response buffer as a string. Note that is the request is performed
 		with an external buffer as target buffer this string will be empty.
@@ -242,6 +245,8 @@ private:
 		* If unset the response body will be stored in the request.
 		*/
 	Result PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength);
+
+	FZenHttpRequest::Result ParseRpcResponse(FZenHttpRequest::Result ResultFromPost, FCbPackage& OutResponse);
 
 	static FString GetAnsiBufferAsString(const TArray64<uint8>& Buffer);
 
