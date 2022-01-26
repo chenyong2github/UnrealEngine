@@ -45,8 +45,6 @@ export type PropertyValue = boolean | number | string | VectorProperty | Rotator
 
 export type JoystickValue = { [key: string]: number };
 
-export type AxisInfo = [string, number];
-
 export type IHsvColor = {
   h: number;
   s: number;
@@ -143,6 +141,7 @@ export type IPayloads = { [preset: string]: IPayload };
 
 export enum WidgetTypes {
   Dial =            'Dial',
+  Dials =           'Dials',
   Slider =          'Slider',
   Sliders =         'Sliders',
   ScaleSlider =     'Scale Slider',

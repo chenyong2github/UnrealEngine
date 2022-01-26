@@ -144,7 +144,7 @@ export class WidgetUtilities {
 
       case PropertyType.Vector:
       case PropertyType.Vector2D:
-        return [WidgetTypes.Vector, WidgetTypes.Joystick, WidgetTypes.Sliders];
+        return [WidgetTypes.Vector, WidgetTypes.Joystick, WidgetTypes.Sliders, WidgetTypes.Dials];
 
       case PropertyType.Vector4:
       case PropertyType.LinearColor:
@@ -152,7 +152,7 @@ export class WidgetUtilities {
         return [WidgetTypes.ColorPicker, WidgetTypes.MiniColorPicker];
 
       case PropertyType.Rotator:
-        return [WidgetTypes.Vector, WidgetTypes.Sliders];
+        return [WidgetTypes.Vector, WidgetTypes.Sliders, WidgetTypes.Dials];
     }
 
     if (propertyType && (propertyType.startsWith('TEnum') || propertyType.startsWith('E')))
