@@ -110,7 +110,6 @@ namespace Metasound
 			static Frontend::FNodeHandle AddInputNodeHandle(
 				UObject& InMetaSound,
 				const FName InTypeName,
-				const FText& InToolTip,
 				const FMetasoundFrontendLiteral* InDefaultValue = nullptr,
 				const FName* InNameBase = nullptr);
 
@@ -131,7 +130,7 @@ namespace Metasound
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
 			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
-			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FText& InToolTip, const FName* InNameBase = nullptr);
+			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FName* InNameBase = nullptr);
 
 			// Create a unique name for the variable.
 			static FName GenerateUniqueVariableName(const Frontend::FConstGraphHandle& InFrontendGraph, const FString& InBaseName);

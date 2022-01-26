@@ -539,14 +539,26 @@ struct FMetasoundFrontendVertexMetadata
 {
 	GENERATED_BODY()
 
+private:
 	// Display name for a vertex
 	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
 	FText DisplayName;
+
+	// Display name for a vertex if vertex is natively defined
+	// (must be transient to avoid localization desync on load)
+	UPROPERTY(Transient)
+	FText DisplayNameTransient;
 
 	// Description of the vertex.
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FText Description;
 
+	// Description of the vertex if vertex is natively defined
+	// (must be transient to avoid localization desync on load)
+	UPROPERTY(Transient)
+	FText DescriptionTransient;
+
+public:
 	// Keywords associated with the vertex
 	UPROPERTY()
 	TArray<FString> Keywords;
@@ -558,22 +570,80 @@ struct FMetasoundFrontendVertexMetadata
 	// If true, vertex is shown for advanced display.
 	UPROPERTY()
 	bool bIsAdvancedDisplay = false;
-};
 
-USTRUCT()
-struct FMetasoundFrontendClassEnvironmentVariableMetadata
-{
-	GENERATED_BODY()
-
-	// Display name for a environment variable
+private:
+	// Whether or not the given metadata text should be serialized
+	// or is procedurally maintained via auto-update & the referenced
+	// registry class (to avoid localization text desync).  Should be
+	// false for classes serialized as externally-defined dependencies
+	// or interfaces.
 	UPROPERTY()
-	FText DisplayName;
+	bool bSerializeText = true;
 
-	// Description of the environment variable
-	UPROPERTY()
-	FText Description;
+	FText& GetDescription()
+	{
+		return bSerializeText ? Description : DescriptionTransient;
+	}
+
+	FText& GetDisplayName()
+	{
+		return bSerializeText ? DisplayName : DisplayNameTransient;
+	}
+
+public:
+	const FText& GetDescription() const
+	{
+		return bSerializeText ? Description : DescriptionTransient;
+	}
+
+	const FText& GetDisplayName() const
+	{
+		return bSerializeText ? DisplayName : DisplayNameTransient;
+	}
+
+	bool GetSerializeText() const
+	{
+		return bSerializeText;
+	}
+
+	void SetDescription(const FText& InText)
+	{
+		GetDescription() = InText;
+	}
+
+	void SetDisplayName(const FText& InText)
+	{
+		GetDisplayName() = InText;
+	}
+
+	void SetSerializeText(bool bInSerializeText)
+	{
+		if (bSerializeText)
+		{
+			if (!bInSerializeText)
+			{
+				DisplayNameTransient = DisplayName;
+				DescriptionTransient = Description;
+
+				DisplayName = { };
+				Description  = { };
+			}
+		}
+		else
+		{
+			if (bInSerializeText)
+			{
+				DisplayName = DisplayNameTransient;
+				Description = DescriptionTransient;
+
+				DisplayNameTransient = { };
+				DescriptionTransient = { };
+			}
+		}
+		
+		bSerializeText = bInSerializeText;
+	}
 };
-
 
 
 USTRUCT() 
@@ -689,10 +759,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable
 	// Type of environment variable.
 	UPROPERTY()
 	FName TypeName;
-
-	// Metadata of environment variable.
-	UPROPERTY()
-	FMetasoundFrontendClassEnvironmentVariableMetadata Metadata;
 
 	// True if the environment variable is needed in order to instantiate a node instance of the class.
 	// TODO: Should be deprecated?
@@ -907,20 +973,39 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Metasound)
 	FText DisplayName;
 
+	UPROPERTY(Transient)
+	FText DisplayNameTransient;
+
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText Description;
 
-	UPROPERTY(VisibleAnywhere, Category = Metasound)
-	FText PromptIfMissing;
+	UPROPERTY(Transient)
+	FText DescriptionTransient;
+
+	// TODO: Move to using a non-localized hint path.  Due to localization,
+	// loading & the fact that class registration happens on demand (post serialization),
+	// copying an FText to the referencing document can result in localization ids
+	// mismatched to different text when attempting to gather text.
+	UPROPERTY(Transient)
+	FText PromptIfMissingTransient;
 
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText Author;
 
+	UPROPERTY(Transient)
+	FText AuthorTransient;
+
 	UPROPERTY(VisibleAnywhere, Category = Metasound)
 	TArray<FText> Keywords;
 
+	UPROPERTY(Transient)
+	TArray<FText> KeywordsTransient;
+
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	TArray<FText> CategoryHierarchy;
+
+	UPROPERTY(Transient)
+	TArray<FText> CategoryHierarchyTransient;
 
 	// If true, this node is deprecated and should not be used in new MetaSounds.
 	UPROPERTY(VisibleAnywhere, Category = Metasound)
@@ -931,6 +1016,14 @@ private:
 	// nodes when the interface of the given node is auto-updated.
 	UPROPERTY()
 	bool bAutoUpdateManagesInterface = false;
+
+	// Whether or not the given metadata text should be serialized
+	// or is procedurally maintained via auto-update & the referenced
+	// registry class (to avoid localization text desync).  Should be
+	// false for classes serialized as externally-defined dependencies
+	// or interfaces.
+	UPROPERTY()
+	bool bSerializeText = true;
 
 	// ID used to identify if any of the above have been modified,
 	// to determine if the parent class should be auto-updated.
@@ -948,14 +1041,14 @@ public:
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, CategoryHierarchy);
 	}
 
-	static FName GetClassNamePropertyName()
-	{
-		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, ClassName);
-	}
-
 	static FName GetDescriptionPropertyName()
 	{
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description);
+	}
+
+	static FName GetClassNamePropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, ClassName);
 	}
 
 	static FName GetVersionPropertyName()
@@ -987,32 +1080,32 @@ public:
 
 	const FText& GetDisplayName() const
 	{
-		return DisplayName;
+		return bSerializeText ? DisplayName : DisplayNameTransient;
 	}
 
 	const FText& GetDescription() const
 	{
-		return Description;
+		return bSerializeText ? Description : DescriptionTransient;
 	}
 
 	const FText& GetPromptIfMissing() const
 	{
-		return PromptIfMissing;
+		return PromptIfMissingTransient;
 	}
 
 	const FText& GetAuthor() const
 	{
-		return Author;
+		return bSerializeText ? Author : AuthorTransient;
 	}
 
 	const TArray<FText>& GetKeywords() const
 	{
-		return Keywords;
+		return bSerializeText ? Keywords : KeywordsTransient;
 	}
 
 	const TArray<FText>& GetCategoryHierarchy() const
 	{
-		return CategoryHierarchy;
+		return bSerializeText ? CategoryHierarchy : CategoryHierarchyTransient;
 	}
 
 	const FGuid& GetChangeID() const
@@ -1035,6 +1128,8 @@ public:
 	void SetPromptIfMissing(const FText& InPromptIfMissing);
 	void SetVersion(const FMetasoundFrontendVersionNumber& InVersion);
 
+	void SetSerializeText(bool bInSerializeText);
+
 	void SetType(const EMetasoundFrontendClassType InType)
 	{
 		Type = InType;
@@ -1043,9 +1138,6 @@ public:
 		// External/Internal should probably be a separate field.
 		// ChangeID = FGuid::NewGuid();
 	}
-
-	// Required to allow caching registry data without modifying the ChangeID
-	friend struct FMetasoundFrontendClass;
 };
 
 USTRUCT()
@@ -1076,21 +1168,15 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	UPROPERTY()
 	FMetasoundFrontendClassStyle Style;
 
+#if WITH_EDITORONLY_DATA
 	/*
-	 * Caches metadata found in the registry on the class
-	 * that is not necessary for serialization or core graph
-	 * generation.
+	 * Caches transient metadata (class & vertex) found in the registry
+	 * that is not necessary for serialization or core graph generation.
 	 *
 	 * @return - Whether class was found in the registry & data was cached successfully.
 	 */
-	bool CacheRegistryData();
-
-	/*
-	 * Clears cached metadata found in the registry on the class
-	 * that is not necessary for serialization or core graph
-	 * generation.
-	 */
-	void ClearRegistryData();
+	bool CacheRegistryMetadata();
+#endif // WITH_EDITORONLY_DATA
 };
 
 USTRUCT()

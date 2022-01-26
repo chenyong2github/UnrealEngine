@@ -337,6 +337,11 @@ namespace Metasound
 					if (FMetasoundFrontendVertex::IsFunctionalEquivalent(*ClassOutput, OriginalVertex))
 					{
 						NewVertex.NodeID = ClassOutput->NodeID;
+
+						// Interface members do not serialize text to avoid localization
+						// mismatches between assets and interfaces defined in code.
+						NewVertex.Metadata.SetSerializeText(false);
+
 						FNodeHandle OriginalOutputNode = GraphHandle->GetOutputNodeWithName(OriginalVertex.Name);
 						Locations = OriginalOutputNode->GetNodeStyle().Display.Locations;
 						FInputHandle Input = OriginalOutputNode->GetInputWithVertexName(OriginalVertex.Name);
@@ -672,8 +677,10 @@ namespace Metasound
 
 					ClassInput.Name = NodeName;
 					ClassInput.TypeName = Input->GetDataType();
-					ClassInput.Metadata.Description = InputNode->GetDescription();
-					ClassInput.Metadata.DisplayName = Input->GetMetadata().DisplayName;
+
+					ClassInput.Metadata.SetDescription(InputNode->GetDescription());
+					ClassInput.Metadata.SetDisplayName(Input->GetMetadata().GetDisplayName());
+
 					ClassInput.VertexID = FGuid::NewGuid();
 
 					if (const FMetasoundFrontendClassInput* ExistingClassInput = InParentGraph->FindClassInputWithName(NodeName).Get())
@@ -721,8 +728,10 @@ namespace Metasound
 
 					ClassOutput.Name = NodeName;
 					ClassOutput.TypeName = Output->GetDataType();
-					ClassOutput.Metadata.Description = OutputNode->GetDescription();
-					ClassOutput.Metadata.DisplayName = Output->GetMetadata().DisplayName;
+
+					ClassOutput.Metadata.SetDescription(OutputNode->GetDescription());
+					ClassOutput.Metadata.SetDisplayName(Output->GetMetadata().GetDisplayName());
+
 					ClassOutput.VertexID = FGuid::NewGuid();
 
 					if (const FMetasoundFrontendClassOutput* ExistingClassOutput = InParentGraph->FindClassOutputWithName(NodeName).Get())
@@ -1033,6 +1042,81 @@ namespace Metasound
 			}
 		};
 
+		/** Versions document from 1.7 to 1.8. */
+		class FVersionDocument_1_8 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_8() = default;
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return { 1, 8 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				// Do not serialize MetaData text for dependencies as
+				// CacheRegistryData dynamically provides this.
+				InDocument->IterateDependencies([](FMetasoundFrontendClass& Dependency)
+				{
+					constexpr bool bSerializeText = false;
+					Dependency.Metadata.SetSerializeText(bSerializeText);
+
+					for (FMetasoundFrontendClassInput& Input : Dependency.Interface.Inputs)
+					{
+						Input.Metadata.SetSerializeText(false);
+					}
+
+					for (FMetasoundFrontendClassOutput& Output : Dependency.Interface.Outputs)
+					{
+						Output.Metadata.SetSerializeText(false);
+					}
+				});
+
+				const TSet<FMetasoundFrontendVersion>& InterfaceVersions = InDocument->GetInterfaceVersions();
+
+				using FNameDataTypePair = TPair<FName, FName>;
+				TSet<FNameDataTypePair> InterfaceInputs;
+				TSet<FNameDataTypePair> InterfaceOutputs;
+
+				for (const FMetasoundFrontendVersion& Version : InterfaceVersions)
+				{
+					FInterfaceRegistryKey RegistryKey = GetInterfaceRegistryKey(Version);
+					const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
+					if (ensure(Entry))
+					{
+						const FMetasoundFrontendInterface& Interface = Entry->GetInterface();
+						Algo::Transform(Interface.Inputs, InterfaceInputs, [](const FMetasoundFrontendClassInput& Input)
+						{
+							return FNameDataTypePair(Input.Name, Input.TypeName);
+						});
+
+						Algo::Transform(Interface.Outputs, InterfaceOutputs, [](const FMetasoundFrontendClassOutput& Output)
+						{
+							return FNameDataTypePair(Output.Name, Output.TypeName);
+						});
+					}
+				}
+
+				// Only serialize MetaData text for inputs owned by the graph (not by interfaces)
+				FMetasoundFrontendGraphClass RootGraphClass = InDocument->GetRootGraphClass();
+				for (FMetasoundFrontendClassInput& Input : RootGraphClass.Interface.Inputs)
+				{
+					const bool bSerializeText = !InterfaceInputs.Contains(FNameDataTypePair(Input.Name, Input.TypeName));
+					Input.Metadata.SetSerializeText(bSerializeText);
+				}
+
+				// Only serialize MetaData text for outputs owned by the graph (not by interfaces)
+				for (FMetasoundFrontendClassOutput& Output : RootGraphClass.Interface.Outputs)
+				{
+					const bool bSerializeText = !InterfaceOutputs.Contains(FNameDataTypePair(Output.Name, Output.TypeName));
+					Output.Metadata.SetSerializeText(bSerializeText);
+				}
+
+				InDocument->SetRootGraphClass(MoveTemp(RootGraphClass));
+			}
+		};
+
 		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
 			: Name(InName)
 			, Path(InPath)
@@ -1058,6 +1142,7 @@ namespace Metasound
 			bWasUpdated |= FVersionDocument_1_5(Name).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_6().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_7().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_8().Transform(InDocument);
 
 			if (bWasUpdated)
 			{

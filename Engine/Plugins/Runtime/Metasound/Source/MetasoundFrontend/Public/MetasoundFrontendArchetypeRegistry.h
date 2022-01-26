@@ -77,9 +77,16 @@ namespace Metasound
 
 			virtual ~IInterfaceRegistry() = default;
 
+			// Register an interface
 			virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) = 0;
+
+			// Find an interface entry with the given key. Returns null if entry not found with given key.
 			virtual const IInterfaceRegistryEntry* FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const = 0;
+
+			// Find an interface with the given key. Returns true if interface is found, false if not.
 			virtual bool FindInterface(const FInterfaceRegistryKey& InKey, FMetasoundFrontendInterface& OutInterface) const = 0;
+
+			// Executes a function against all transactions since a provided ID and provides the current transaction ID.
 			virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FInterfaceRegistryTransaction&)> InFunc) const = 0;
 		};
 	}

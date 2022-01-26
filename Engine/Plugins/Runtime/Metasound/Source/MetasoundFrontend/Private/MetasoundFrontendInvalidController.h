@@ -321,11 +321,11 @@ namespace Metasound
 			virtual FConstClassOutputAccessPtr FindClassOutputWithName(const FVertexName& InName) const override { return FConstClassOutputAccessPtr(); }
 
 			virtual FNodeHandle AddInputVertex(const FMetasoundFrontendClassInput& InDescription) override { return INodeController::GetInvalidHandle(); }
-			virtual TSharedRef<INodeController> AddInputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue) override { return INodeController::GetInvalidHandle(); }
+			virtual TSharedRef<INodeController> AddInputVertex(const FVertexName& InName, const FName InTypeName, const FMetasoundFrontendLiteral* InDefaultValue) override { return INodeController::GetInvalidHandle(); }
 			virtual bool RemoveInputVertex(const FVertexName& InputName) override { return false; }
 
 			virtual FNodeHandle AddOutputVertex(const FMetasoundFrontendClassOutput& InDescription) override { return INodeController::GetInvalidHandle(); }
-			virtual TSharedRef<INodeController> AddOutputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip) override { return INodeController::GetInvalidHandle(); }
+			virtual TSharedRef<INodeController> AddOutputVertex(const FVertexName& InName, const FName InTypeName) override { return INodeController::GetInvalidHandle(); }
 			virtual bool RemoveOutputVertex(const FVertexName& OutputName) override { return false; }
 
 			// This can be used to determine what kind of property editor we should use for the data type of a given input.
@@ -399,8 +399,11 @@ namespace Metasound
 				virtual bool IsValid() const override { return false; }
 
 				virtual const TArray<FMetasoundFrontendClass>& GetDependencies() const override { return Invalid::GetInvalidClassArray(); }
+				virtual void IterateDependencies(TFunctionRef<void(FMetasoundFrontendClass&)> InFunction) override { }
+				virtual void IterateDependencies(TFunctionRef<void(const FMetasoundFrontendClass&)> InFunction) const override { }
 				virtual const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const override { return Invalid::GetInvalidGraphClassArray(); }
 				virtual const FMetasoundFrontendGraphClass& GetRootGraphClass() const override { return Invalid::GetInvalidGraphClass(); }
+				virtual void SetRootGraphClass(FMetasoundFrontendGraphClass&& InClass) override { }
 
 				virtual FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override { return FConstClassAccessPtr(); }
 				virtual FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override { return FConstGraphClassAccessPtr(); }

@@ -124,15 +124,18 @@ public:
 
 	void AddDefaultInterfaces();
 
-	// Caches commonly used class MetaData that isn't required for finding & building dependencies into runtime graph.
-	void CacheDependencyRegistryData();
-
-	// Clears commonly used class MetaData that isn't required for finding & building dependencies into runtime graph.
-	void ClearDependencyRegistryData();
 
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA
+	/*
+	 * Caches transient metadata (class & vertex) found in the registry
+	 * that is not necessary for serialization or core graph generation.
+	 *
+	 * @return - Whether class was found in the registry & data was cached successfully.
+	 */
+	void CacheRegistryMetadata();
+
 	// TODO: These flags & associated functions are highly UE editor-specific.
 	// Split synchronization requirement flag into synchronization required &
 	// object type refresh or checking frontend class guids when synchronizing.

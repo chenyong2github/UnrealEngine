@@ -38,6 +38,22 @@ namespace Metasound
 			return Invalid::GetInvalidClassArray();
 		}
 
+		void FDocumentController::IterateDependencies(TFunctionRef<void(FMetasoundFrontendClass&)> InFunction)
+		{
+			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
+			{
+				Algo::ForEach(Document->Dependencies, InFunction);
+			}
+		}
+
+		void FDocumentController::IterateDependencies(TFunctionRef<void(const FMetasoundFrontendClass&)> InFunction) const
+		{
+			if (const FMetasoundFrontendDocument* Document = DocumentPtr.Get())
+			{
+				Algo::ForEach(Document->Dependencies, InFunction);
+			}
+		}
+
 		const TArray<FMetasoundFrontendGraphClass>& FDocumentController::GetSubgraphs() const
 		{
 			if (const FMetasoundFrontendDocument* Document = DocumentPtr.Get())
@@ -54,6 +70,14 @@ namespace Metasound
 				return Doc->RootGraph;
 			}
 			return Invalid::GetInvalidGraphClass();
+		}
+
+		void FDocumentController::SetRootGraphClass(FMetasoundFrontendGraphClass&& InClass)
+		{
+			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				Doc->RootGraph = MoveTemp(InClass);
+			}
 		}
 
 		bool FDocumentController::AddDuplicateSubgraph(const FMetasoundFrontendGraphClass& InGraphToCopy, const FMetasoundFrontendDocument& InOtherDocument)

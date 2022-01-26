@@ -61,7 +61,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 			{
-				return ClassInput->Metadata.DisplayName;
+				return ClassInput->Metadata.GetDisplayName();
 			}
 			
 			return Invalid::GetInvalidText();
@@ -108,7 +108,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 			{
-				return ClassInput->Metadata.Description;
+				return ClassInput->Metadata.GetDescription();
 			}
 			
 			return Invalid::GetInvalidText();
@@ -407,12 +407,12 @@ namespace Metasound
 				{
 					// If there the ClassInput exists, combine the variable name and class input name.
 					// of the variable should be added to the names of the vertices.
-					CachedDisplayName = FText::Format(LOCTEXT("OutputNodeInputControllerFormat", "{1} {0}"), OwningOutput->Metadata.DisplayName, ClassInput->Metadata.DisplayName);
+					CachedDisplayName = FText::Format(LOCTEXT("OutputNodeInputControllerFormat", "{1} {0}"), OwningOutput->Metadata.GetDisplayName(), ClassInput->Metadata.GetDisplayName());
 				}
 				else
 				{
 					// If there is not ClassInput, then use the variable name.
-					CachedDisplayName = OwningOutput->Metadata.DisplayName;
+					CachedDisplayName = OwningOutput->Metadata.GetDisplayName();
 				}
 			}
 
@@ -423,7 +423,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.Description;
+				return OwningOutput->Metadata.GetDescription();
 			}
 			
 			return Invalid::GetInvalidText();
@@ -484,7 +484,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.DisplayName;
+				return OwningInput->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -494,7 +494,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.Description;
+				return OwningInput->Metadata.GetDescription();
 			}
 			
 			return Invalid::GetInvalidText();

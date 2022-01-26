@@ -893,7 +893,7 @@ namespace Metasound
 			return INodeController::GetInvalidHandle();
 		}
 
-		FNodeHandle FGraphController::AddInputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue)
+		FNodeHandle FGraphController::AddInputVertex(const FVertexName& InName, const FName InTypeName, const FMetasoundFrontendLiteral* InDefaultValue)
 		{
 			const FGuid VertexID = FGuid::NewGuid();
 
@@ -901,7 +901,6 @@ namespace Metasound
 
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
-			Description.Metadata.Description = InToolTip;
 			Description.VertexID = VertexID;
 
 			if (InDefaultValue)
@@ -936,7 +935,7 @@ namespace Metasound
 			return false;
 		}
 
-		FNodeHandle FGraphController::AddOutputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip)
+		FNodeHandle FGraphController::AddOutputVertex(const FVertexName& InName, const FName InTypeName)
 		{
 			const FGuid VertexID = FGuid::NewGuid();
 
@@ -944,7 +943,6 @@ namespace Metasound
 
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
-			Description.Metadata.Description = InToolTip;
 			Description.VertexID = VertexID;
 
 			return AddOutputVertex(Description);
@@ -1106,7 +1104,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
-				return Desc->Metadata.Description;
+				return Desc->Metadata.GetDescription();
 			}
 
 			return FText::GetEmpty();
@@ -1116,7 +1114,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
-				return Desc->Metadata.Description;
+				return Desc->Metadata.GetDescription();
 			}
 
 			return FText::GetEmpty();
@@ -1126,7 +1124,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
-				Desc->Metadata.DisplayName = InDisplayName;
+				Desc->Metadata.SetDisplayName(InDisplayName);
 			}
 		}
 
@@ -1134,7 +1132,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
-				Desc->Metadata.DisplayName = InDisplayName;
+				Desc->Metadata.SetDisplayName(InDisplayName);
 			}
 		}
 
@@ -1142,7 +1140,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
-				Desc->Metadata.Description = InDescription;
+				Desc->Metadata.SetDescription(InDescription);
 			}
 		}
 
@@ -1150,7 +1148,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
-				Desc->Metadata.Description = InDescription;
+				Desc->Metadata.SetDescription(InDescription);
 			}
 		}
 

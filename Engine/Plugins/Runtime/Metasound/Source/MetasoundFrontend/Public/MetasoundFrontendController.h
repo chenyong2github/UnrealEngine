@@ -765,7 +765,7 @@ namespace Metasound
 			 * @return On success, a valid input node handle. On failure, an invalid node handle.
 			 */
 			virtual FNodeHandle AddInputVertex(const FMetasoundFrontendClassInput& InDescription) = 0;
-			virtual FNodeHandle AddInputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue) = 0;
+			virtual FNodeHandle AddInputVertex(const FVertexName& InName, const FName InTypeName, const FMetasoundFrontendLiteral* InDefaultValue) = 0;
 
 			/** Remove the input with the given name. Returns true if successfully removed, false otherwise. */
 			virtual bool RemoveInputVertex(const FVertexName& InputName) = 0;
@@ -776,7 +776,7 @@ namespace Metasound
 			 * @return On success, a valid output node handle. On failure, an invalid node handle.
 			 */
 			virtual FNodeHandle AddOutputVertex(const FMetasoundFrontendClassOutput& InDescription) = 0;
-			virtual FNodeHandle AddOutputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip) = 0;
+			virtual FNodeHandle AddOutputVertex(const FVertexName& InName, const FName InTypeName) = 0;
 
 			/** Remove the output with the given name. Returns true if successfully removed, false otherwise. */
 			virtual bool RemoveOutputVertex(const FVertexName& OutputName) = 0;
@@ -929,14 +929,19 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
+			// Iterates all dependent class definitions that exist on the document (do not necessarily correspond
+			// to registered dependencies)
+			virtual void IterateDependencies(TFunctionRef<void(FMetasoundFrontendClass&)> InFunction) = 0;
+			virtual void IterateDependencies(TFunctionRef<void(const FMetasoundFrontendClass&)> InFunction) const = 0;
+
 			// TODO: add info on environment variables.
 			// TODO: consider find/add subgraph
 			// TODO: perhaps functions returning access pointers could be removed from main interface and only exist in FDocumentController.
-			
 			/** Returns an array of all class dependencies for this document. */
 			virtual const TArray<FMetasoundFrontendClass>& GetDependencies() const = 0;
 			virtual const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const = 0;
 			virtual const FMetasoundFrontendGraphClass& GetRootGraphClass() const = 0;
+			virtual void SetRootGraphClass(FMetasoundFrontendGraphClass&& InClass) = 0;
 
 			virtual FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const = 0;
 			virtual FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const = 0;

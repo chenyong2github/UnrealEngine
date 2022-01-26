@@ -121,12 +121,11 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 #endif // WITH_EDITORONLY_DATA
 	}
 
+#if WITH_EDITORONLY_DATA
 	// Must be completed after auto-update to ensure all non-transient referenced dependency data is up-to-date (ex.
 	// class version), which is required for most accurately caching current registry metadata.
-	if (InRegistrationOptions.bCacheDependencyMetaDataFromRegistry)
-	{
-		CacheDependencyRegistryData();
-	}
+	CacheRegistryMetadata();
+#endif // WITH_EDITORONLY_DATA
 
 	// Registers node by copying document. Updates to document require re-registration.
 	class FNodeRegistryEntry : public INodeRegistryEntry
@@ -337,37 +336,6 @@ void FMetasoundAssetBase::AddDefaultInterfaces()
 	FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(DocumentHandle);
 }
 
-void FMetasoundAssetBase::CacheDependencyRegistryData()
-{
-	if (FMetasoundFrontendDocument* Document = GetDocument().Get())
-	{
-		for (FMetasoundFrontendClass& Class : Document->Dependencies)
-		{
-			if (!Class.CacheRegistryData())
-			{
-				UE_LOG(LogMetaSound, Warning,
-					TEXT("'%s' failed to cache dependency registry data: Registry missing class with key '%s'"),
-					*GetOwningAssetName(),
-					*Class.Metadata.GetClassName().ToString());
-				UE_LOG(LogMetaSound, Warning,
-					TEXT("Asset '%s' may fail to build runtime graph unless re-registered after dependency with given key is loaded."),
-					*GetOwningAssetName());
-			}
-		}
-	}
-}
-
-void FMetasoundAssetBase::ClearDependencyRegistryData()
-{
-	if (FMetasoundFrontendDocument* Document = GetDocument().Get())
-	{
-		for (FMetasoundFrontendClass& Class : Document->Dependencies)
-		{
-			Class.ClearRegistryData();
-		}
-	}
-}
-
 bool FMetasoundAssetBase::VersionAsset()
 {
 	using namespace Metasound;
@@ -425,6 +393,94 @@ bool FMetasoundAssetBase::VersionAsset()
 }
 
 #if WITH_EDITORONLY_DATA
+void FMetasoundAssetBase::CacheRegistryMetadata()
+{
+	using namespace Metasound::Frontend;
+
+	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	if (!ensure(Document))
+	{
+		return;
+	}
+
+	using FNameDataTypePair = TPair<FName, FName>;
+	const TSet<FMetasoundFrontendVersion>& InterfaceVersions = Document->Interfaces;
+	FMetasoundFrontendClassInterface& RootGraphClassInterface = Document->RootGraph.Interface;
+
+	// 1. Gather inputs/outputs managed by interfaces
+	TMap<FNameDataTypePair, FMetasoundFrontendClassInput*> Inputs;
+	for (FMetasoundFrontendClassInput& Input : RootGraphClassInterface.Inputs)
+	{
+		FNameDataTypePair NameDataTypePair = FNameDataTypePair(Input.Name, Input.TypeName);
+		Inputs.Add(MoveTemp(NameDataTypePair), &Input);
+	}
+
+	TMap<FNameDataTypePair, FMetasoundFrontendClassOutput*> Outputs;
+	for (FMetasoundFrontendClassOutput& Output : RootGraphClassInterface.Outputs)
+	{
+		FNameDataTypePair NameDataTypePair = FNameDataTypePair(Output.Name, Output.TypeName);
+		Outputs.Add(MoveTemp(NameDataTypePair), &Output);
+	}
+
+	// 2. Copy metadata for inputs/outputs managed by interfaces, removing them from maps generated
+	for (const FMetasoundFrontendVersion& Version : InterfaceVersions)
+	{
+		const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
+		const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey);
+		if (ensure(Entry))
+		{
+			for (const FMetasoundFrontendClassInput& InterfaceInput : Entry->GetInterface().Inputs)
+			{
+				const FNameDataTypePair NameDataTypePair = FNameDataTypePair(InterfaceInput.Name, InterfaceInput.TypeName);
+				if (FMetasoundFrontendClassInput* Input = Inputs.FindRef(NameDataTypePair))
+				{
+					// Interface members are set to not serialize text and thus is handled by copy, so explicit call omitted.
+					Input->Metadata = InterfaceInput.Metadata;
+					Inputs.Remove(NameDataTypePair);
+				}
+			}
+
+			for (const FMetasoundFrontendClassOutput& InterfaceOutput : Entry->GetInterface().Outputs)
+			{
+				const FNameDataTypePair NameDataTypePair = FNameDataTypePair(InterfaceOutput.Name, InterfaceOutput.TypeName);
+				if (FMetasoundFrontendClassOutput* Output = Outputs.FindRef(NameDataTypePair))
+				{
+					// Interface members are set to not serialize text and thus is handled by copy, so explicit call omitted.
+					Output->Metadata = InterfaceOutput.Metadata;
+					Outputs.Remove(NameDataTypePair);
+				}
+			}
+		}
+	}
+
+	// 3. Iterate remaining inputs/outputs not managed by interfaces and set to serialize text
+	// (in case they were orphaned by an interface no longer being implemented).
+	for (TPair<FNameDataTypePair, FMetasoundFrontendClassInput*>& Pair : Inputs)
+	{
+		Pair.Value->Metadata.SetSerializeText(true);
+	}
+
+	for (TPair<FNameDataTypePair, FMetasoundFrontendClassOutput*>& Pair : Outputs)
+	{
+		Pair.Value->Metadata.SetSerializeText(true);
+	}
+
+	// 4. Cache registry data on document dependencies
+	for (FMetasoundFrontendClass& Class : Document->Dependencies)
+	{
+		if (!Class.CacheRegistryMetadata())
+		{
+			UE_LOG(LogMetaSound, Warning,
+				TEXT("'%s' failed to cache dependency registry data: Registry missing class with key '%s'"),
+				*GetOwningAssetName(),
+				*Class.Metadata.GetClassName().ToString());
+			UE_LOG(LogMetaSound, Warning,
+				TEXT("Asset '%s' may fail to build runtime graph unless re-registered after dependency with given key is loaded."),
+				*GetOwningAssetName());
+		}
+	}
+}
+
 bool FMetasoundAssetBase::GetSynchronizationRequired() const
 {
 	return bSynchronizationRequired;
@@ -601,7 +657,7 @@ Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(
 
 	Description.Name = InSendInfo.Address.GetChannelName();
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
-	Description.Metadata.Description = FText::GetEmpty();
+	Description.Metadata.SetDescription(FText::GetEmpty());
 	Description.VertexID = VertexID;
 	Description.DefaultLiteral.Set(InSendInfo.Address.GetChannelName().ToString());
 

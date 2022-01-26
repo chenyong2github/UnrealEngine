@@ -56,8 +56,11 @@ namespace Metasound
 				ClassInput.TypeName = InputVertex.GetDataTypeName();
 				ClassInput.VertexID = FGuid::NewGuid();
 
+
 				const FDataVertexMetadata& VertexMetadata = InputVertex.GetMetadata();
-				ClassInput.Metadata.Description = VertexMetadata.Description;
+
+				ClassInput.Metadata.SetDescription(VertexMetadata.Description);
+
 				ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 				FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
@@ -89,7 +92,7 @@ namespace Metasound
 				ClassOutput.VertexID = FGuid::NewGuid();
 
 				const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
-				ClassOutput.Metadata.Description = VertexMetadata.Description;
+				ClassOutput.Metadata.SetDescription(VertexMetadata.Description);
 				ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 				// Advanced display items are pushed to bottom below non-advanced
@@ -109,7 +112,6 @@ namespace Metasound
 				FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
 				EnvVar.Name = EnvTuple.Value.GetVertexName();
-				EnvVar.Metadata.Description = EnvTuple.Value.GetDescription();
 				EnvVar.bIsRequired = true;
 
 				ClassInterface.Environment.Add(EnvVar);

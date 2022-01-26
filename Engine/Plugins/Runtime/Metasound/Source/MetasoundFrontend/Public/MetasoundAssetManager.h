@@ -45,9 +45,6 @@ namespace Metasound
 
 			// Attempt to rebuild referenced class keys (only run if class not registered or set to force re-register)
 			bool bRebuildReferencedAssetClassKeys = true;
-
-			// If true, caches registry metadata not required by graph builder on the document's dependency class
-			bool bCacheDependencyMetaDataFromRegistry = true;
 		};
 
 		class METASOUNDFRONTEND_API IMetaSoundAssetManager

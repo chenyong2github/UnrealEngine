@@ -138,8 +138,13 @@ namespace Metasound
 				ClassInput.Name = Input.InitValue.ParamName;
 				ClassInput.DefaultLiteral = FMetasoundFrontendLiteral(Input.InitValue);
 				ClassInput.TypeName = ResolveMemberDataType(Input.DataType, Input.InitValue.ParamType);
-				ClassInput.Metadata.DisplayName = Input.DisplayName;
-				ClassInput.Metadata.Description = Input.Description;
+				ClassInput.Metadata.SetDisplayName(Input.DisplayName);
+				ClassInput.Metadata.SetDescription(Input.Description);
+
+				// Interfaces should never serialize text to avoid desync between
+				// copied versions serialized in assets and those defined in code.
+				ClassInput.Metadata.SetSerializeText(false);
+
 				ClassInput.VertexID = FGuid::NewGuid();
 
 				return ClassInput;
@@ -150,9 +155,13 @@ namespace Metasound
 				FMetasoundFrontendClassOutput ClassOutput;
 				ClassOutput.Name = Output.ParamName;
 				ClassOutput.TypeName = ResolveMemberDataType(Output.DataType, Output.ParamType);
-				ClassOutput.Metadata.DisplayName = Output.DisplayName;
-				ClassOutput.Metadata.Description = Output.Description;
+				ClassOutput.Metadata.SetDisplayName(Output.DisplayName);
+				ClassOutput.Metadata.SetDescription(Output.Description);
 				ClassOutput.VertexID = FGuid::NewGuid();
+
+				// Interfaces should never serialize text to avoid desync between
+				// copied versions serialized in assets and those defined in code.
+				ClassOutput.Metadata.SetSerializeText(false);
 
 				return ClassOutput;
 			});
@@ -165,9 +174,6 @@ namespace Metasound
 				// Disabled as it isn't used to infer type when getting/setting at a lower level.
 				// TODO: Either remove type info for environment variables all together or enforce type.
 				// EnvironmentVariable.TypeName = ResolveMemberDataType(Environment.DataType, Environment.ParamType);
-
-				EnvironmentVariable.Metadata.DisplayName = Environment.DisplayName;
-				EnvironmentVariable.Metadata.Description = Environment.Description;
 
 				return EnvironmentVariable;
 			});

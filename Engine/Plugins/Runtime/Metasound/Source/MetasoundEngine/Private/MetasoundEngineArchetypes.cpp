@@ -101,8 +101,8 @@ namespace Metasound
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
 
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
-				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
+				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
+				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 				Interface.Inputs.Add(OnPlayTrigger);
@@ -112,8 +112,8 @@ namespace Metasound
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
 
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
-				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
+				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
+				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
 				OnFinished.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(OnFinished);
@@ -121,8 +121,8 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FMonoAudioFormat>();
-				GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Audio");
-				GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
+				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedMono", "Audio"));
+				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
 				GeneratedAudio.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(GeneratedAudio);
@@ -130,7 +130,6 @@ namespace Metasound
 				// Environment 
 				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = ArchetypesPrivate::GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Interface.Environment.Add(AudioDeviceID);
 
@@ -162,8 +161,8 @@ namespace Metasound
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
 
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
-				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
+				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
+				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 				Interface.Inputs.Add(OnPlayTrigger);
@@ -173,8 +172,8 @@ namespace Metasound
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
 
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
-				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
+				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
+				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
 				OnFinished.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(OnFinished);
@@ -182,8 +181,8 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FStereoAudioFormat>();
-				GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Audio");
-				GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
+				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereo", "Audio"));
+				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
 				GeneratedAudio.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(GeneratedAudio);
@@ -191,7 +190,6 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = ArchetypesPrivate::GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Interface.Environment.Add(AudioDeviceID);
 
@@ -218,8 +216,8 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
-				GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Audio");
-				GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
+				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedMono", "Audio"));
+				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
 				GeneratedAudio.VertexID = FGuid::NewGuid();
 
 				return GeneratedAudio;
@@ -235,8 +233,8 @@ namespace Metasound
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
 
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
-				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
+				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
+				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 				Interface.Inputs.Add(OnPlayTrigger);
@@ -246,8 +244,8 @@ namespace Metasound
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
 
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
-				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
+				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
+				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
 				OnFinished.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(OnFinished);
@@ -258,7 +256,6 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = ArchetypesPrivate::GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Interface.Environment.Add(AudioDeviceID);
 
@@ -355,8 +352,8 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedLeftAudio;
 				GeneratedLeftAudio.Name = GetLeftAudioOutputName();
 				GeneratedLeftAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
-				GeneratedLeftAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereoLeft", "Left Audio");
-				GeneratedLeftAudio.Metadata.Description = LOCTEXT("GeneratedLeftAudioToolTip", "The resulting output audio from this source.");
+				GeneratedLeftAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereoLeft", "Left Audio"));
+				GeneratedLeftAudio.Metadata.SetDescription(LOCTEXT("GeneratedLeftAudioToolTip", "The resulting output audio from this source."));
 				GeneratedLeftAudio.VertexID = FGuid::NewGuid();
 
 				return GeneratedLeftAudio;
@@ -367,8 +364,8 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedRightAudio;
 				GeneratedRightAudio.Name = GetRightAudioOutputName();
 				GeneratedRightAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
-				GeneratedRightAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereoRight", "Right Audio");
-				GeneratedRightAudio.Metadata.Description = LOCTEXT("GeneratedRightAudioToolTip", "The resulting output audio from this source.");
+				GeneratedRightAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereoRight", "Right Audio"));
+				GeneratedRightAudio.Metadata.SetDescription(LOCTEXT("GeneratedRightAudioToolTip", "The resulting output audio from this source."));
 				GeneratedRightAudio.VertexID = FGuid::NewGuid();
 
 				return GeneratedRightAudio;
@@ -384,8 +381,8 @@ namespace Metasound
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
 
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
-				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
+				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
+				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 				Interface.Inputs.Add(OnPlayTrigger);
@@ -395,8 +392,8 @@ namespace Metasound
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
 
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
-				OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
-				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
+				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
+				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
 				OnFinished.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(OnFinished);
@@ -410,7 +407,6 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = ArchetypesPrivate::GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 				Interface.Environment.Add(AudioDeviceID);
 
 				return Interface;

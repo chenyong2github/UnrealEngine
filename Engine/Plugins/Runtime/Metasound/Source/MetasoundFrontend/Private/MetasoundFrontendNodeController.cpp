@@ -1152,7 +1152,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.Description;
+				return OwningOutput->Metadata.GetDescription();
 			}
 
 			return Invalid::GetInvalidText();
@@ -1162,7 +1162,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.DisplayName;
+				return OwningOutput->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -1173,7 +1173,7 @@ namespace Metasound
 			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
 			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
 			{
-				ClassOutput->Metadata.Description = InDescription;
+				ClassOutput->Metadata.SetDescription(InDescription);
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
@@ -1208,7 +1208,7 @@ namespace Metasound
 			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
 			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
 			{
-				ClassOutput->Metadata.DisplayName = InDisplayName;
+				ClassOutput->Metadata.SetDisplayName(InDisplayName);
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
@@ -1253,39 +1253,29 @@ namespace Metasound
 
 			// Test if this node exists on the document's root graph.
 			const bool bIsNodeOnRootGraph = OwningGraph->IsValid() && (RootGraph->GetClassID() == OwningGraph->GetClassID());
-
 			if (bIsNodeOnRootGraph)
 			{
-				// If the node is on the root graph, test if it is in the interfaces' required inputs or outputs.
-				FMetasoundFrontendInterface Interface;
-
-				for (const FMetasoundFrontendVersion& InterfaceVersion : OwningDocument->GetInterfaceVersions())
+				if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 				{
-					FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
-					bool bFoundInterface = IInterfaceRegistry::Get().FindInterface(InterfaceKey, Interface);
-					if (bFoundInterface)
+					if (ensure(Node->Interface.Outputs.Num() == 1))
 					{
-						if (const FMetasoundFrontendNode* Node = NodePtr.Get())
+						const FMetasoundFrontendVertex& Output = Node->Interface.Outputs.Last();
+						for (const FMetasoundFrontendVersion& InterfaceVersion : OwningDocument->GetInterfaceVersions())
 						{
-							if (ensure(Node->Interface.Outputs.Num() == 1))
+							FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
+							if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey))
 							{
-								const FVertexName& Name = Node->Name;
-								const FName& DataType = Node->Interface.Outputs[0].TypeName;
-								auto IsOutputWithSameNameAndType = [&Name, &DataType](const FMetasoundFrontendClassOutput& InOutput)
+								auto IsOutput = [&Output](const FMetasoundFrontendClassOutput& InterfaceOutput)
 								{
-									return InOutput.Name == Name && InOutput.TypeName == DataType;
+									return FMetasoundFrontendVertex::IsFunctionalEquivalent(Output, InterfaceOutput);
 								};
 
-								if (Interface.Outputs.ContainsByPredicate(IsOutputWithSameNameAndType))
+								if (Entry->GetInterface().Outputs.ContainsByPredicate(IsOutput))
 								{
 									return InterfaceVersion;
 								}
 							}
 						}
-					}
-					else
-					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered interface [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
 					}
 				}
 			}
@@ -1413,7 +1403,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.Description;
+				return OwningInput->Metadata.GetDescription();
 			}
 
 			return Invalid::GetInvalidText();
@@ -1423,7 +1413,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.DisplayName;
+				return OwningInput->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -1444,35 +1434,30 @@ namespace Metasound
 			const bool bIsNodeOnRootGraph = OwningGraph->IsValid() && (RootGraph->GetClassID() == OwningGraph->GetClassID());
 			if (bIsNodeOnRootGraph)
 			{
-				for (const FMetasoundFrontendVersion& InterfaceVersion : OwningDocument->GetInterfaceVersions())
+				if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 				{
-					// If the node is on the root graph, test if it is in the interfaces required inputs.
-					FMetasoundFrontendInterface Interface;
-					FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
-					bool bFoundInterface = IInterfaceRegistry::Get().FindInterface(InterfaceKey, Interface);
-					if (bFoundInterface)
+					if (ensure(Node->Interface.Inputs.Num() == 1))
 					{
-						if (const FMetasoundFrontendNode* Node = NodePtr.Get())
+						const TSet<FMetasoundFrontendVersion>& InterfaceVersions = OwningDocument->GetInterfaceVersions();
+						const FMetasoundFrontendVertex& Input = Node->Interface.Inputs.Last();
+						for (const FMetasoundFrontendVersion& InterfaceVersion : InterfaceVersions)
 						{
-							const FVertexName& Name = Node->Name;
-							if (ensure(Node->Interface.Inputs.Num() == 1))
+							// If the node is on the root graph, test if it is in the interfaces required inputs.
+							FMetasoundFrontendInterface Interface;
+							FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
+							if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey))
 							{
-								const FName& DataType = Node->Interface.Inputs[0].TypeName;
-								auto IsInputWithSameNameAndType = [&Name, &DataType](const FMetasoundFrontendClassInput& InInput)
+								auto IsInput = [&Input](const FMetasoundFrontendClassInput& InterfaceInput)
 								{
-									return InInput.Name == Name && InInput.TypeName == DataType;
+									return FMetasoundFrontendVertex::IsFunctionalEquivalent(Input, InterfaceInput);
 								};
 
-								if (Interface.Inputs.ContainsByPredicate(IsInputWithSameNameAndType))
+								if (Entry->GetInterface().Inputs.ContainsByPredicate(IsInput))
 								{
 									return InterfaceVersion;
 								}
 							}
 						}
-					}
-					else
-					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered interface [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
 					}
 				}
 			}
@@ -1485,7 +1470,7 @@ namespace Metasound
 			// TODO: can we remove these const casts by constructing FINputNodeController with non-const access to the class input?
 			if (FMetasoundFrontendClassInput* ClassInput = ConstCastAccessPtr<FClassInputAccessPtr>(OwningGraphClassInputPtr).Get())
 			{
-				ClassInput->Metadata.Description = InDescription;
+				ClassInput->Metadata.SetDescription(InDescription);
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
@@ -1518,7 +1503,7 @@ namespace Metasound
 			// TODO: can we remove these const casts by constructing FINputNodeController with non-const access to the class input?
 			if (FMetasoundFrontendClassInput* ClassInput = ConstCastAccessPtr<FClassInputAccessPtr>(OwningGraphClassInputPtr).Get())
 			{
-				ClassInput->Metadata.DisplayName = InDisplayName;
+				ClassInput->Metadata.SetDisplayName(InDisplayName);
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}

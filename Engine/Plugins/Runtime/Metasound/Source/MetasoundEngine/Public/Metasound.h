@@ -61,9 +61,6 @@ namespace Metasound
 		NonEditorRegistrationOptions.bForceReregister = false;
 		NonEditorRegistrationOptions.bRegisterDependencies = true;
 
-		NonEditorRegistrationOptions.bCacheDependencyMetaDataFromRegistry = false;
-		InMetaSound.ClearDependencyRegistryData();
-
 #if WITH_EDITORONLY_DATA
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
@@ -98,12 +95,6 @@ namespace Metasound
 		if (InArchive.IsLoading())
 		{
 			InMetaSound.VersionAsset();
-
-			// Clear dependency registry data when loading to clear out any fields
-			// (ex. text) that should not have been serialized on the asset. Once
-			// a save is run on all pre-5.0 generated assets, this can be safely
-			// only run during pre-saving asset.
-			InMetaSound.ClearDependencyRegistryData();
 		}
 	}
 

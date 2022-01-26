@@ -36,8 +36,11 @@ namespace Metasound
 			bool IsValid() const override;
 
 			const TArray<FMetasoundFrontendClass>& GetDependencies() const override;
+			void IterateDependencies(TFunctionRef<void(FMetasoundFrontendClass&)> InFunction) override;
+			void IterateDependencies(TFunctionRef<void(const FMetasoundFrontendClass&)> InFunction) const override;
 			const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const override;
 			const FMetasoundFrontendGraphClass& GetRootGraphClass() const override;
+			void SetRootGraphClass(FMetasoundFrontendGraphClass&& InClass) override;
 
 			FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override;
 			FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override;

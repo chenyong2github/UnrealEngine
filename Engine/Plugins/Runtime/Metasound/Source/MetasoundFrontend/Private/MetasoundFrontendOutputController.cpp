@@ -171,7 +171,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* Output = ClassOutputPtr.Get())
 			{
-				return Output->Metadata.DisplayName;
+				return Output->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -181,7 +181,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* Output = ClassOutputPtr.Get())
 			{
-				return Output->Metadata.Description;
+				return Output->Metadata.GetDescription();
 			}
 
 			return Invalid::GetInvalidText();
@@ -241,12 +241,12 @@ namespace Metasound
 				if (const FMetasoundFrontendClassOutput* ClassOutput = ClassOutputPtr.Get())
 				{
 					// If there is a valid ClassOutput, combine the names.
-					CachedDisplayName = FText::Format(LOCTEXT("InputNodeOutputControllerFormat", "{1} {0}"), OwningInput->Metadata.DisplayName, ClassOutput->Metadata.DisplayName);
+					CachedDisplayName = FText::Format(LOCTEXT("InputNodeOutputControllerFormat", "{1} {0}"), OwningInput->Metadata.GetDisplayName(), ClassOutput->Metadata.GetDisplayName());
 				}
 				else
 				{
 					// If there is no valid ClassOutput, use the owning value display name.
-					CachedDisplayName = OwningInput->Metadata.DisplayName;
+					CachedDisplayName = OwningInput->Metadata.GetDisplayName();
 				}
 			}
 
@@ -257,7 +257,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* Input = OwningGraphClassInputPtr.Get())
 			{
-				return Input->Metadata.Description;
+				return Input->Metadata.GetDescription();
 			}
 
 			return Invalid::GetInvalidText();
@@ -317,7 +317,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.DisplayName;
+				return OwningOutput->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -327,7 +327,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.Description;
+				return OwningOutput->Metadata.GetDescription();
 			}
 
 			return Invalid::GetInvalidText();

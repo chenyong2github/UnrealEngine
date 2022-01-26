@@ -184,7 +184,9 @@ bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 void FMetasoundFrontendClassMetadata::SetAuthor(const FText& InAuthor)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InAuthor, Author, ChangeID);
+
+	FText& TextToSet = bSerializeText ? Author : AuthorTransient;
+	SetWithChangeID(InAuthor, TextToSet, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface)
@@ -196,7 +198,9 @@ void FMetasoundFrontendClassMetadata::SetAutoUpdateManagesInterface(bool bInAuto
 void FMetasoundFrontendClassMetadata::SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InCategoryHierarchy, CategoryHierarchy, ChangeID);
+
+	TArray<FText>& TextToSet = bSerializeText ? CategoryHierarchy : CategoryHierarchyTransient;
+	SetWithChangeID(InCategoryHierarchy, TextToSet, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetKeywords(const TArray<FText>& InKeywords)
@@ -214,13 +218,17 @@ void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClass
 void FMetasoundFrontendClassMetadata::SetDescription(const FText& InDescription)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InDescription, Description, ChangeID);
+
+	FText& TextToSet = bSerializeText ? Description : DescriptionTransient;
+	SetWithChangeID(InDescription, TextToSet, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetDisplayName(const FText& InDisplayName)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InDisplayName, DisplayName, ChangeID);
+
+	FText& TextToSet = bSerializeText ? DisplayName : DisplayNameTransient;
+	SetWithChangeID(InDisplayName, TextToSet, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetIsDeprecated(bool bInIsDeprecated)
@@ -232,7 +240,45 @@ void FMetasoundFrontendClassMetadata::SetIsDeprecated(bool bInIsDeprecated)
 void FMetasoundFrontendClassMetadata::SetPromptIfMissing(const FText& InPromptIfMissing)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InPromptIfMissing, PromptIfMissing, ChangeID);
+	SetWithChangeID(InPromptIfMissing, PromptIfMissingTransient, ChangeID);
+}
+
+void FMetasoundFrontendClassMetadata::SetSerializeText(bool bInSerializeText)
+{
+	if (bSerializeText)
+	{
+		if (!bInSerializeText)
+		{
+			AuthorTransient = Author;
+			DescriptionTransient = Description;
+			DisplayNameTransient = DisplayName;
+
+			Author = { };
+			Description = { };
+			DisplayName = { };
+
+			KeywordsTransient = MoveTemp(Keywords);
+			CategoryHierarchyTransient = MoveTemp(CategoryHierarchy);
+		}
+	}
+	else
+	{
+		if (bInSerializeText)
+		{
+			Author = AuthorTransient;
+			Description = DescriptionTransient;
+			DisplayName = DisplayNameTransient;
+
+			AuthorTransient = { };
+			DescriptionTransient = { };
+			DisplayNameTransient = { };
+
+			Keywords = MoveTemp(KeywordsTransient);
+			CategoryHierarchy = MoveTemp(CategoryHierarchyTransient);
+		}
+	}
+
+	bSerializeText = bInSerializeText;
 }
 
 void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersionNumber& InVersion)
@@ -241,7 +287,8 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
 
-bool FMetasoundFrontendClass::CacheRegistryData()
+#if WITH_EDITORONLY_DATA
+bool FMetasoundFrontendClass::CacheRegistryMetadata()
 {
 	using namespace Metasound::Frontend;
 
@@ -291,27 +338,14 @@ bool FMetasoundFrontendClass::CacheRegistryData()
 
 	return false;
 }
-
-void FMetasoundFrontendClass::ClearRegistryData()
-{
-	Metadata.DisplayName = { };
-	Metadata.Description = { };
-	Metadata.PromptIfMissing = { };
-	Metadata.Author = { };
-	Metadata.Keywords.Reset();
-	Metadata.CategoryHierarchy.Reset();
-
-	Algo::ForEach(Interface.Inputs, [](FMetasoundFrontendClassInput& Input) { Input.Metadata = { }; });
-	Algo::ForEach(Interface.Outputs, [](FMetasoundFrontendClassOutput& Output) { Output.Metadata = { }; });
-
-	Interface.InputStyle = { };
-	Interface.OutputStyle = { };
-	Style = { };
-}
+#endif // WITH_EDITORONLY_DATA
 
 FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
 {
 	FMetasoundFrontendClassMetadata NewMetadata;
+
+	NewMetadata.SetSerializeText(false);
+
 	NewMetadata.Type = InType;
 
 	// TODO: This flag is only used by the graph class' metadata.
@@ -322,12 +356,14 @@ FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDe
 
 	NewMetadata.ClassName = InNodeClassMetadata.ClassName;
 	NewMetadata.Version = { InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion };
-	NewMetadata.DisplayName = InNodeClassMetadata.DisplayName;
-	NewMetadata.Description = InNodeClassMetadata.Description;
-	NewMetadata.PromptIfMissing = InNodeClassMetadata.PromptIfMissing;
-	NewMetadata.Author = InNodeClassMetadata.Author;
-	NewMetadata.Keywords = InNodeClassMetadata.Keywords;
-	NewMetadata.CategoryHierarchy = InNodeClassMetadata.CategoryHierarchy;
+
+	NewMetadata.SetDisplayName(InNodeClassMetadata.DisplayName);
+	NewMetadata.SetDescription(InNodeClassMetadata.Description);
+	NewMetadata.SetPromptIfMissing(InNodeClassMetadata.PromptIfMissing);
+	NewMetadata.SetAuthor(InNodeClassMetadata.Author);
+	NewMetadata.SetKeywords(InNodeClassMetadata.Keywords);
+	NewMetadata.SetCategoryHierarchy(InNodeClassMetadata.CategoryHierarchy);
+
 	NewMetadata.bIsDeprecated = InNodeClassMetadata.bDeprecated;
 
 	return NewMetadata;
