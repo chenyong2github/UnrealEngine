@@ -121,13 +121,9 @@ FLWCType LWCNegate(FLWCType V) { return LWCConstructor(-LWCGetTile(V), -V.Offset
 
 FFloatType LWCFrac(FLWCType V)
 {
-	// Inner frac() avoids overflow if tile is large
-	// Outer frac() avoids helps avoid precision loss in the 'FracTile + V.Offset' addition
-	FFloatType FracTile = frac(frac(LWCGetTile(V)) * UE_LWC_RENDER_TILE_SIZE);
-
+	FFloatType FracTile = frac(LWCGetTile(V) * UE_LWC_RENDER_TILE_SIZE);
 	return frac(FracTile + V.Offset);
 }
-//FFloatType LWCFrac(FLWCType V) { FLWCType VN = LWCMakeIntTile(V); return frac(VN.Offset); }
 
 FLWCType LWCFloor(FLWCType V) { FLWCType VN = LWCMakeIntTile(V); return LWCConstructor(LWCGetTile(VN), floor(VN.Offset)); }
 FLWCType LWCCeil(FLWCType V) { FLWCType VN = LWCMakeIntTile(V); return LWCConstructor(LWCGetTile(VN), ceil(VN.Offset)); }

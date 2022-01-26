@@ -1848,7 +1848,7 @@ float LWCApplyAddressModeWrap(FLWCScalar V)
 {
 	// Compute the fractional part of the tile, then add to the offset
 	// Let the texture unit apply the final coordinate wrapping, which will allow derivatives to work correctly unless we cross a tile boundary
-	const float FracTile = frac(frac(LWCGetTile(V)) * UE_LWC_RENDER_TILE_SIZE);
+	const float FracTile = frac(LWCGetTile(V) * UE_LWC_RENDER_TILE_SIZE);
 	return FracTile + V.Offset;
 }
 
