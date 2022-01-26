@@ -181,6 +181,10 @@ public:
 	/** We expect nodes to be exported into this string using FEdGraphUtilities::ExportNodesToText */
 	UPROPERTY()
 	FString ExportedNodes;
+
+	/** Markup MetaData to specify that if scripts are pasted from the clipboard to automatically fixup their order in the stack to satisfy dependencies. */
+	UPROPERTY()
+	mutable bool bFixupPasteIndexForScriptDependenciesInStack = false;
 };
 
 class NIAGARAEDITOR_API FNiagaraClipboard

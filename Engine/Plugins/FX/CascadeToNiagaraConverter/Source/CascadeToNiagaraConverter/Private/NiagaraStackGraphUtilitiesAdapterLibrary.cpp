@@ -1897,6 +1897,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 		}
 
 		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+		ClipboardContent->bFixupPasteIndexForScriptDependenciesInStack = true;
 		UNiagaraScript* NiagaraScript = ScriptConversionContext->GetScript();
 
 		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript);

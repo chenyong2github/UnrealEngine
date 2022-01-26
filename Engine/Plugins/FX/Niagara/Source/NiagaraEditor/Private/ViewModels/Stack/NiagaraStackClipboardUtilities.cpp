@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
+#include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -198,6 +199,12 @@ void FNiagaraStackClipboardUtilities::PasteSelection(const TArray<UNiagaraStackE
 		FScopedTransaction PasteTransaction(TransactionMessage);
 		if (ClipboardContent != nullptr)
 		{
+			// If the incoming paste is not targeting a specific location in the stack but the stack group header, auto fixup the paste indices.
+			if (SelectedEntries[0]->IsA<UNiagaraStackScriptItemGroup>())
+			{
+				ClipboardContent->bFixupPasteIndexForScriptDependenciesInStack = true;
+			}
+
 			SelectedEntries[0]->Paste(ClipboardContent, OutPasteWarning);
 		}
 	}

@@ -1314,9 +1314,10 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
 						NewFunctionScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
 					}
+
 					FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(NewFunctionScript, *OutputNode);
 					AddScriptModuleToStackArgs.TargetIndex = CurrentPasteIndex;
-					AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+					AddScriptModuleToStackArgs.bFixupTargetIndex = ClipboardContent->bFixupPasteIndexForScriptDependenciesInStack;
 					AddScriptModuleToStackArgs.SuggestedName = ClipboardFunction->FunctionName;
 					AddScriptModuleToStackArgs.VersionGuid = ClipboardFunction->ScriptVersion;
 					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
