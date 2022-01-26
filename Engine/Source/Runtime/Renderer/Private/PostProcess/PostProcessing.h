@@ -36,7 +36,6 @@ struct FPostProcessingInputs
 	{
 		check(SceneTextures);
 		check(ViewFamilyTexture);
-		check(CustomDepthTexture);
 		check(SeparateTranslucencyTextures);
 	}
 };
