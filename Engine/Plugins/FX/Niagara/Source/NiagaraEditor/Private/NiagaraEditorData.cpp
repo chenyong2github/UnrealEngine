@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorData.h"
+
+#include "NiagaraConstants.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraParameterDefinitions.h"
@@ -17,6 +19,18 @@ void UNiagaraEditorParametersAdapter::PostLoad()
 		if (EditorOnlyScriptVars[Idx] == nullptr)
 		{
 			EditorOnlyScriptVars.RemoveAtSwap(Idx);
+		}
+	}
+
+	TArray<FNiagaraVariable> OldTypes = FNiagaraConstants::GetOldPositionTypeVariables();
+	for (FNiagaraVariable OldVarType : OldTypes)
+	{
+		for (TObjectPtr<UNiagaraScriptVariable> ScriptVariable : EditorOnlyScriptVars)
+		{
+			if (!ScriptVariable.IsNull() && ScriptVariable->Variable == OldVarType)
+			{
+				ScriptVariable->Variable.SetType(FNiagaraTypeDefinition::GetPositionDef());
+			}
 		}
 	}
 }
