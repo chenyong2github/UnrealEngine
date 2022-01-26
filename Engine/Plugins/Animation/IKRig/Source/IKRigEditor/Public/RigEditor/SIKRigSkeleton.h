@@ -76,6 +76,7 @@ private:
 
 	TWeakPtr<FIKRigTreeElement> WeakRigTreeElement;
 	TWeakPtr<FIKRigEditorController> EditorController;
+	TWeakPtr<SIKRigSkeleton> SkeletonView;
 };
 
 class FIKRigSkeletonDragDropOp : public FDecoratedDragDropOp

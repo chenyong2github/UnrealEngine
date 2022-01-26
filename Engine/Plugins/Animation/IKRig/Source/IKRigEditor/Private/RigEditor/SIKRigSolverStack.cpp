@@ -76,7 +76,10 @@ void SIKRigSolverStackItem::Construct(
 						bool bEnabled = true;
 						if (InSolverStack.IsValid() && InSolverStack->EditorController.IsValid())
 						{
-							bEnabled = InSolverStack->EditorController.Pin()->AssetController->GetSolver(InStackElement->IndexInStack)->IsEnabled();
+							if (const UIKRigSolver* Solver = InSolverStack->EditorController.Pin()->AssetController->GetSolver(InStackElement->IndexInStack))
+							{
+								bEnabled = Solver->IsEnabled();
+							}
 						}
 						return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 					})
@@ -214,7 +217,7 @@ SIKRigSolverStack::~SIKRigSolverStack()
 void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->SolverStackView = SharedThis(this);
+	EditorController.Pin()->SetSolverStackView(SharedThis(this));
 	
 	CommandList = MakeShared<FUICommandList>();
 
@@ -338,7 +341,7 @@ void SIKRigSolverStack::AddNewSolver(UClass* Class)
 	const int32 NewSolverIndex = AssetController->AddSolver(Class);
 	// update stack view
 	RefreshStackView();
-	Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+	Controller->RefreshTreeView(); // updates solver indices in tree items
 	// select it
 	ListView->SetSelection(ListViewItems[NewSolverIndex]);
 	// show details for it
@@ -358,10 +361,10 @@ void SIKRigSolverStack::DeleteSolver(TSharedPtr<FSolverStackElement> SolverToDel
 		return;
 	}
 
-	UIKRigController* AssetController = Controller->AssetController;
+	const UIKRigController* AssetController = Controller->AssetController;
 	AssetController->RemoveSolver(SolverToDelete->IndexInStack);
 	RefreshStackView();
-	Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+	Controller->RefreshTreeView();
 }
 
 void SIKRigSolverStack::RefreshStackView()
@@ -449,7 +452,7 @@ void SIKRigSolverStack::OnItemClicked(TSharedPtr<FSolverStackElement> InItem)
 	EditorController.Pin()->SetLastSelectedType(EIKRigSelectionType::SolverStack);
 }
 
-void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem) const
+void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -458,13 +461,13 @@ void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InIte
 	}
 
 	// update bones greyed out when not affected
-	Controller->SkeletonView->RefreshTreeView();
+	Controller->RefreshTreeView();
 
 	// the solver selection must be done after we rebuilt the skeleton tree has it keeps the selection
 	if (!InItem.IsValid())
 	{
 		// clear the details panel only if there's nothing selected in the skeleton view
-		if (Controller->SkeletonView->HasSelectedItems())
+		if (Controller->DoesSkeletonHaveSelectedItems())
 		{
 			return;
 		}
@@ -516,7 +519,7 @@ FReply SIKRigSolverStack::OnAcceptDrop(
 	if (bWasReparented)
 	{
 		RefreshStackView();
-		Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+		Controller->RefreshTreeView(); // update solver indices in effector items
 	}
 	
 	return FReply::Handled();

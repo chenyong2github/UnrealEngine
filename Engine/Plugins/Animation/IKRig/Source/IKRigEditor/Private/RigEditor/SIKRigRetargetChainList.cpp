@@ -277,7 +277,7 @@ const FReferenceSkeleton& SIKRigRetargetChainRow::GetReferenceSkeleton() const
 void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->RetargetingView = SharedThis(this);
+	EditorController.Pin()->SetRetargetingView(SharedThis(this));
 	
 	CommandList = MakeShared<FUICommandList>();
 

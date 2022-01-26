@@ -94,11 +94,28 @@ public:
 	void Reset() const;
 	/** refresh all views */
 	void RefreshAllViews() const;
+	/** refresh just the skeleton tree view */
+	void RefreshTreeView() const;
 
 	/** return list of those solvers in the stack that are selected by user */
 	void GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement> >& OutSelectedSolvers);
 	/** get index of the first selected solver, return INDEX_None if nothing selected */
 	int32 GetSelectedSolverIndex();
+	/** get names of all goals that are selected */
+	void GetSelectedGoalNames(TArray<FName>& OutGoalNames) const;
+	/** return the number of selected goals */
+	int32 GetNumSelectedGoals() const;
+	/** get names of all bones that are selected */
+	void GetSelectedBoneNames(TArray<FName>& OutBoneNames) const;
+	/** get all bones that are selected */
+	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
+	/** returns true if Goal is currently selected */
+	bool IsGoalSelected(const FName& GoalName) const;
+	/** get name of the selected retargeting chain */
+	FName GetSelectedChain() const;
+	/** is anything selected in the skeleton view? */
+	bool DoesSkeletonHaveSelectedItems() const;
+	
 	/** right after importing a skeleton, we ask user what solver they want to use */
 	bool PromptToAddSolver() const;
 	/** determine if the element is connected to the selected solver */
@@ -122,6 +139,15 @@ public:
 	void ShowEmptyDetails();
 	/** show selected items in details view */
 	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems);
+	
+	/** set details tab view */
+	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView){ DetailsView = InDetailsView; };
+	/** set skeleton tab view */
+	void SetSkeletonsView(const TSharedPtr<SIKRigSkeleton>& InSkeletonView){ SkeletonView = InSkeletonView; };
+	/** set solver stack tab view */
+	void SetSolverStackView(const TSharedPtr<SIKRigSolverStack>& InSolverStackView){ SolverStackView = InSolverStackView; };
+	/** set retargeting tab view */
+	void SetRetargetingView(const TSharedPtr<SIKRigRetargetChainList>& InRetargetingView){ RetargetingView = InRetargetingView; };
 
 	/** create a new retarget chain */
 	void AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone);
@@ -138,18 +164,6 @@ public:
 	/** viewport anim instance */
 	UPROPERTY(transient, NonTransactional)
 	TWeakObjectPtr<class UIKRigAnimInstance> AnimInstance;
-
-	/** asset properties tab */
-	TSharedPtr<class IDetailsView> DetailsView;
-
-	/** the skeleton tree view */
-	TSharedPtr<SIKRigSkeleton> SkeletonView;
-	
-	/** the solver stack view */
-	TSharedPtr<SIKRigSolverStack> SolverStackView;
-
-	/** the solver stack view */
-	TSharedPtr<SIKRigRetargetChainList> RetargetingView;
 
 	/** the persona toolkit */
 	TWeakPtr<FIKRigEditorToolkit> EditorToolkit;
@@ -174,6 +188,18 @@ public:
 	/** END FGCObject interface */
 
 private:
+
+	/** asset properties tab */
+	TSharedPtr<class IDetailsView> DetailsView;
+
+	/** the skeleton tree view */
+	TSharedPtr<SIKRigSkeleton> SkeletonView;
+	
+	/** the solver stack view */
+	TSharedPtr<SIKRigSolverStack> SolverStackView;
+
+	/** the solver stack view */
+	TSharedPtr<SIKRigRetargetChainList> RetargetingView;
 
 	/** Initializes editor's solvers instances */
 	void InitializeSolvers() const;

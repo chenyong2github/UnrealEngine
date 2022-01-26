@@ -217,10 +217,33 @@ void FIKRigEditorController::Reset() const
 
 void FIKRigEditorController::RefreshAllViews() const
 {
-	SolverStackView->RefreshStackView();
-	SkeletonView->RefreshTreeView();
-	DetailsView->ForceRefresh();
-	RetargetingView->RefreshView();
+	if (SolverStackView.IsValid())
+	{
+		SolverStackView->RefreshStackView();
+	}
+
+	if (SkeletonView.IsValid())
+	{
+		SkeletonView->RefreshTreeView();
+	}
+
+	if (DetailsView.IsValid())
+	{
+		DetailsView->ForceRefresh();
+	}
+
+	if (RetargetingView.IsValid())
+	{
+		RetargetingView->RefreshView();
+	}
+}
+
+void FIKRigEditorController::RefreshTreeView() const
+{
+	if (SkeletonView.IsValid())
+	{
+		SkeletonView->RefreshTreeView();
+	}
 }
 
 void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const TArray<FName>& BoneNames)
@@ -275,30 +298,50 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 
 void FIKRigEditorController::ClearSelection()
 {
-	SkeletonView->TreeView->ClearSelection();
+	if (SkeletonView.IsValid())
+	{
+		SkeletonView->TreeView->ClearSelection();	
+	}
+	
 	ShowEmptyDetails();
 }
 
 void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace)
-{	
-	SkeletonView->AddSelectedItemFromViewport(GoalName, IKRigTreeElementType::GOAL, bReplace);
+{
+	if (SkeletonView.IsValid())
+	{
+		SkeletonView->AddSelectedItemFromViewport(GoalName, IKRigTreeElementType::GOAL, bReplace);
+	}
+	
 	ShowDetailsForGoal(GoalName);
 }
 
 void FIKRigEditorController::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace)
 {
-	SkeletonView->AddSelectedItemFromViewport(BoneName, IKRigTreeElementType::BONE, bReplace);
+	if (SkeletonView.IsValid())
+	{
+		SkeletonView->AddSelectedItemFromViewport(BoneName, IKRigTreeElementType::BONE, bReplace);
+	}
+	
 	ShowDetailsForBone(BoneName);
 }
 
 void FIKRigEditorController::GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement>>& OutSelectedSolvers)
 {
-	OutSelectedSolvers.Reset();
-	OutSelectedSolvers.Append(SolverStackView->ListView->GetSelectedItems());
+	if (SolverStackView.IsValid())
+	{
+		OutSelectedSolvers.Reset();
+		OutSelectedSolvers.Append(SolverStackView->ListView->GetSelectedItems());
+	}
 }
 
 int32 FIKRigEditorController::GetSelectedSolverIndex()
 {
+	if (!SolverStackView.IsValid())
+	{
+		return INDEX_NONE;
+	}
+	
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers = SolverStackView->ListView->GetSelectedItems();
 	if (SelectedSolvers.IsEmpty())
 	{
@@ -306,6 +349,75 @@ int32 FIKRigEditorController::GetSelectedSolverIndex()
 	}
 
 	return SelectedSolvers[0]->IndexInStack;
+}
+
+void FIKRigEditorController::GetSelectedGoalNames(TArray<FName>& OutGoalNames) const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return;
+	}
+
+	SkeletonView->GetSelectedGoalNames(OutGoalNames);
+}
+
+int32 FIKRigEditorController::GetNumSelectedGoals() const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return 0;
+	}
+
+	return SkeletonView->GetNumSelectedGoals();
+}
+
+void FIKRigEditorController::GetSelectedBoneNames(TArray<FName>& OutBoneNames) const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return;
+	}
+
+	SkeletonView->GetSelectedBoneNames(OutBoneNames);
+}
+
+void FIKRigEditorController::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return;
+	}
+
+	SkeletonView->GetSelectedBones(OutBoneItems);
+}
+
+bool FIKRigEditorController::IsGoalSelected(const FName& GoalName) const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return false;
+	}
+
+	return SkeletonView->IsGoalSelected(GoalName);
+}
+
+FName FIKRigEditorController::GetSelectedChain() const
+{
+	if (!RetargetingView.IsValid())
+	{
+		return NAME_None;
+	}
+
+	return RetargetingView->GetSelectedChain();
+}
+
+bool FIKRigEditorController::DoesSkeletonHaveSelectedItems() const
+{
+	if (!SkeletonView.IsValid())
+	{
+		return false;
+	}
+	return SkeletonView->HasSelectedItems();
 }
 
 bool FIKRigEditorController::PromptToAddSolver() const
@@ -334,7 +446,7 @@ bool FIKRigEditorController::PromptToAddSolver() const
 		return false; // cancel button pressed, or window closed
 	}
 
-	if (Settings.SolverType != nullptr)
+	if (Settings.SolverType != nullptr && SolverStackView.IsValid())
 	{
 		SolverStackView->AddNewSolver(Settings.SolverType);
 	}

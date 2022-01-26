@@ -96,8 +96,7 @@ private:
 	/** preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
-	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
-	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
+	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const;
 	void SetupAnimInstance();
 	/** END preview scene setup */
 	

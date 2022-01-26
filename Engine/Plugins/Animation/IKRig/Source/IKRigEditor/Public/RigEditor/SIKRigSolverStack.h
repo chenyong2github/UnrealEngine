@@ -112,7 +112,7 @@ private:
 	void OnSelectionChanged(TSharedPtr<FSolverStackElement> InItem, ESelectInfo::Type SelectInfo);
 	/** when a solver is clicked on in the stack view */
 	void OnItemClicked(TSharedPtr<FSolverStackElement> InItem);
-	void ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem) const; 
+	void ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem); 
 
 	/** list view generate row callback */
 	TSharedRef<ITableRow> MakeListRowWidget(TSharedPtr<FSolverStackElement> InElement, const TSharedRef<STableViewBase>& OwnerTable);

@@ -51,6 +51,7 @@ void SIKRigSkeletonItem::Construct(
 {
 	WeakRigTreeElement = InRigTreeElement;
 	EditorController = InEditorController;
+	SkeletonView = InSkeleton;
 
 	// is this element affected by the selected solver?
 	bool bIsConnectedToSelectedSolver;
@@ -198,7 +199,7 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 	}
 	
 	Controller->RefreshAllViews();
-	Controller->SkeletonView->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
+	SkeletonView.Pin()->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
 }
 
 FText SIKRigSkeletonItem::GetName() const
@@ -228,7 +229,7 @@ TSharedPtr<SWidget> FIKRigSkeletonDragDropOp::GetDefaultDecorator() const
 void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->SkeletonView = SharedThis(this);
+	EditorController.Pin()->SetSkeletonsView(SharedThis(this));
 	CommandList = MakeShared<FUICommandList>();
 	BindCommands();
 	

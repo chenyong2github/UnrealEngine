@@ -250,16 +250,10 @@ void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalM
 	EditorController->RefreshAllViews();
 }
 
-void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView)
+void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const
 {
-	EditorController->DetailsView = InDetailsView;
-	EditorController->DetailsView->OnFinishedChangingProperties().AddSP(this, &FIKRigEditorToolkit::OnFinishedChangingDetails);
+	EditorController->SetDetailsView(InDetailsView);
 	EditorController->ShowEmptyDetails();
-}
-
-void FIKRigEditorToolkit::OnFinishedChangingDetails(
-    const FPropertyChangedEvent& PropertyChangedEvent)
-{
 }
 
 void FIKRigEditorToolkit::HandleReset()
