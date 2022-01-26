@@ -496,7 +496,7 @@ namespace UnrealBuildTool
 				foreach (string Definition in CompileEnvironment.Definitions)
 				{
 					// TODO: Causes ISPC compiler to generate a spurious warning about the universal character set
-					if(!Definition.Contains("\\\\U"))
+					if (!Definition.Contains("\\\\U") && !Definition.Contains("\\\\u"))
 					{
 						Arguments.Add(String.Format("-D\"{0}\"", Definition));
 					}
@@ -700,7 +700,7 @@ namespace UnrealBuildTool
 				foreach (string Definition in CompileEnvironment.Definitions)
 				{
 					// TODO: Causes ISPC compiler to generate a spurious warning about the universal character set
-					if(!Definition.Contains("\\\\U"))
+					if (!Definition.Contains("\\\\U") && !Definition.Contains("\\\\u"))
 					{
 						Arguments.Add(String.Format("-D\"{0}\"", Definition));
 					}
