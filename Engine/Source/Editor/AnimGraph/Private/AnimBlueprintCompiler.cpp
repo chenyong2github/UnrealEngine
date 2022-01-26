@@ -1267,11 +1267,7 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		check(ParentAnimClass->GetSparseClassDataStruct());
 		
 		// Derive sparse class data from parent class
-		NewAnimBlueprintConstants = FindObject<UScriptStruct>(NewAnimBlueprintClass, *UAnimBlueprintGeneratedClass::GetConstantsStructName().ToString());
-		if (!NewAnimBlueprintConstants)
-		{
-			NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetConstantsStructName(), RF_Public);
-		}
+		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetConstantsStructName(), RF_Public);
 		NewAnimBlueprintConstants->SetSuperStruct(ParentAnimClass->GetSparseClassDataStruct());
 
 		// Just link & assign sparse class data struct here, no additional members are added
@@ -1386,7 +1382,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 
 	// Cleanup sparse class data & stash a reference to patch the linker later in RecreateSparseClassData
 	OldSparseClassDataStruct = AnimBlueprintClassToClean->GetSparseClassDataStruct();
-	AnimBlueprintClassToClean->ClearSparseClassDataStruct();
+	AnimBlueprintClassToClean->ClearSparseClassDataStruct(Blueprint->bIsRegeneratingOnLoad);
 	
 	FAnimBlueprintGeneratedClassCompiledData CompiledData(AnimBlueprintClassToClean);
 	FAnimBlueprintCompilationBracketContext CompilerContext(this);
