@@ -31,6 +31,17 @@ UDeviceProfile::UDeviceProfile(const FObjectInitializer& ObjectInitializer)
 //	LoadConfig(GetClass(), *DeviceProfileFileName, UE::LCPF_ReadParentSections);
 }
 
+const FSelectedFragmentProperties* UDeviceProfile::GetFragmentByTag(FName& FragmentTag) const
+{
+	for (const FSelectedFragmentProperties& SelectedFragment : SelectedFragments)
+	{
+		if (SelectedFragment.Tag == FragmentTag)
+		{
+			return &SelectedFragment;
+		}
+	}
+	return nullptr;
+}
 
 void UDeviceProfile::GatherParentCVarInformationRecursively(OUT TMap<FString, FString>& CVarInformation) const
 {

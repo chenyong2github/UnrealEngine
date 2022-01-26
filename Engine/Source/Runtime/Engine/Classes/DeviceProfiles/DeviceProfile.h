@@ -82,6 +82,12 @@ public:
 		return CVarsUpdatedDelegate;
 	}
 
+	/** 
+	 * Accessor to a fragment by tag.
+	 * @param FragmentTag the name of the tag to find
+	 * @return FSelectedFragmentProperties ptr or null if FragmentTag not found.
+	 */	
+	const FSelectedFragmentProperties* GetFragmentByTag(FName& FragmentTag) const;
 public:
 	/** 
 	 * Access to the device profiles Texture LOD Settings
