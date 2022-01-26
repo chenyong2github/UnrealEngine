@@ -53,13 +53,9 @@ namespace UE
 				case EAttributeTypes::Vector4: { AttributeTypeString = TEXT("Vector4"); } break;
 				case EAttributeTypes::IntPoint: { AttributeTypeString = TEXT("IntPoint"); } break;
 				case EAttributeTypes::IntVector: { AttributeTypeString = TEXT("IntVector"); } break;
-				case EAttributeTypes::NetworkGUID: { AttributeTypeString = TEXT("NetworkGUID"); } break;
 				case EAttributeTypes::Vector2DHalf: { AttributeTypeString = TEXT("Vector2DHalf"); } break;
 				case EAttributeTypes::Float16: { AttributeTypeString = TEXT("Float16"); } break;
-				case EAttributeTypes::CapsuleShape: { AttributeTypeString = TEXT("CapsuleShape"); } break;
-				case EAttributeTypes::DualQuat: { AttributeTypeString = TEXT("DualQuat"); } break;
 				case EAttributeTypes::OrientedBox: { AttributeTypeString = TEXT("OrientedBox"); } break;
-				case EAttributeTypes::Ray: { AttributeTypeString = TEXT("Ray"); } break;
 				case EAttributeTypes::Sphere: { AttributeTypeString = TEXT("Sphere"); } break;
 				case EAttributeTypes::FrameNumber: { AttributeTypeString = TEXT("FrameNumber"); } break;
 				case EAttributeTypes::FrameRate: { AttributeTypeString = TEXT("FrameRate"); } break;
