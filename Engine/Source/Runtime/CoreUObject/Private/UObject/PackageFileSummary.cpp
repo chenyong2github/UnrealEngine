@@ -193,6 +193,12 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		}
 		Record << SA_VALUE(TEXT("TotalHeaderSize"), Sum.TotalHeaderSize);
 		Record << SA_VALUE(TEXT("FolderName"), Sum.FolderName);
+
+		if (BaseArchive.IsCooking())
+		{
+			Sum.PackageFlags |= PKG_Cooked;
+		}
+
 		Record << SA_VALUE(TEXT("PackageFlags"), Sum.PackageFlags);
 
 		if (BaseArchive.IsLoading())
