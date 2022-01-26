@@ -172,7 +172,7 @@ namespace UE::DerivedData
 namespace Private::CachePolicy
 {
 	// TODO: Implement these as Ansi String instead to maximize the most-optimal path, see ParseCachePolicyImpl
-	constexpr TCHAR			  DelimiterChar = TEXT(',');
+	constexpr ANSICHAR	  DelimiterChar = ',';
 	constexpr FStringView Delimiter = TEXTVIEW(",");
 	constexpr FStringView None = TEXTVIEW("None");
 	constexpr FStringView QueryLocal = TEXTVIEW("QueryLocal");
