@@ -187,14 +187,14 @@ public:
 	 * @param CmdListHandle - a handle to the command list where BeginQuery will be called
 	 * @return index of the allocated query
 	 */
-	int32 BeginQuery(FD3D12CommandListHandle& CmdListHandle);
+	int32 BeginQuery(FD3D12CommandListHandle CmdListHandle);
 
 	/**
 	* Allocate a slot on query heap and queue an EndQuery command to the given list
 	* @param CmdListHandle - a handle to the command list where EndQuery will be called
 	* @return index of the allocated query
 	*/
-	int32 EndQuery(FD3D12CommandListHandle& CmdListHandle);
+	int32 EndQuery(FD3D12CommandListHandle CmdListHandle);
 
 	/**
 	* Resolve new queries and get results for a query batch

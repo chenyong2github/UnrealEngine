@@ -265,7 +265,7 @@ FD3D12SyncPoint FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayInter
 	FD3D12Device* Device = SrcResourceLoc.GetParentDevice();
 	FD3D12CommandAllocatorManager& CommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
 	FD3D12CommandAllocator* CurrentCommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
-	FD3D12CommandListHandle hCopyCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator, ED3D12ResourceBarrierTransitionMode::External);
+	FD3D12CommandListHandle hCopyCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator);
 
 	// Required for stat tracking ?!?
 	hCopyCommandList.SetCurrentOwningContext(&Device->GetDefaultCommandContext());

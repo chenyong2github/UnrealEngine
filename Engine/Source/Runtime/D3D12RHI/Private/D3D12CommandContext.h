@@ -138,9 +138,6 @@ public:
 	// Sync point with copy queue which needs to be checked before kicking this command lists
 	FD3D12SyncPoint CopyQueueSyncPoint;
 
-	// RHITransition access mode - use to set the ED3D12ResourceBarrierTransitionMode on the command list
-	ERHITransitionAccessMode TransitionAccessMode;
-
 	// Current GPU event stack
 	TArray<uint32> GPUEventStack;
 
@@ -264,8 +261,6 @@ public:
 	virtual void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner);
 
 	virtual void SetAsyncComputeBudgetInternal(EAsyncComputeBudget Budget) {}
-
-	virtual void RHISetTransitionAccessMode(ERHITransitionAccessMode Mode) final override;
 
 	void RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions);
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
@@ -528,10 +523,6 @@ public:
 	}
 
 	// Special implementation that only signal the fence once.
-	FORCEINLINE virtual void RHISetTransitionAccessMode(ERHITransitionAccessMode Mode) final override
-	{
-		ContextRedirect(RHISetTransitionAccessMode(Mode));
-	}
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 

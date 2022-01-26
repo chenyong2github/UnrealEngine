@@ -95,7 +95,6 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, PendingResourceBarriers()
 	, ResidencySet(nullptr)
 	, CommandListID(GenerateCommandListID())
-	, ResourceBarrierTransitionMode(ED3D12ResourceBarrierTransitionMode::Internal)
 {
 	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList(GetGPUMask().GetNative(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
@@ -211,13 +210,12 @@ void FD3D12CommandListHandle::FD3D12CommandListData::FlushResourceBarriers()
 	ResourceBarrierBatcher.Flush(GetParentDevice(), CommandList, FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit());
 }
 
-void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocator& CommandAllocator, ED3D12ResourceBarrierTransitionMode bInTransitionMode, bool bTrackExecTime)
+void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime)
 {
 	LLM_SCOPE_BYNAME(TEXT("D3D12Commandlist"));
 	VERIFYD3D12RESULT(CommandList->Reset(CommandAllocator, nullptr));
 
 	CurrentCommandAllocator = &CommandAllocator;
-	ResourceBarrierTransitionMode = bInTransitionMode;
 	IsClosed = false;
 
 	// Indicate this command allocator is being used.
@@ -257,8 +255,7 @@ int32 FD3D12CommandListHandle::FD3D12CommandListData::CreateAndInsertTimestampQu
 {	
 	FD3D12LinearQueryHeap* QueryHeap = GetParentDevice()->GetCmdListExecTimeQueryHeap();
 	check(QueryHeap);
-	FD3D12CommandListHandle TempHandle(this);
-	return QueryHeap->EndQuery(TempHandle);
+	return QueryHeap->EndQuery(this);
 }
 
 void FD3D12CommandListHandle::FD3D12CommandListData::StartTrackingCommandListTime()

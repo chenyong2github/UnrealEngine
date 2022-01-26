@@ -56,12 +56,6 @@ public:
 		RHIContext->RHISetAsyncComputeBudget(Budget);
 	}
 
-	virtual void RHISetTransitionAccessMode(ERHITransitionAccessMode Mode) override final
-	{
-		Tracker->SetTransitionAccessMode(Mode);
-		RHIContext->RHISetTransitionAccessMode(Mode);
-	}
-
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) override final
 	{
 		for (const FRHITransition* Transition : Transitions)
@@ -393,12 +387,6 @@ public:
 	{
 		Tracker->Assert(DepthTexture->GetWholeResourceIdentity(), ERHIAccess::DSVWrite);
 		RHIContext->RHIResummarizeHTile(DepthTexture);
-	}
-
-	virtual void RHISetTransitionAccessMode(ERHITransitionAccessMode Mode) override final
-	{
-		Tracker->SetTransitionAccessMode(Mode);
-		RHIContext->RHISetTransitionAccessMode(Mode);
 	}
 
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) override final

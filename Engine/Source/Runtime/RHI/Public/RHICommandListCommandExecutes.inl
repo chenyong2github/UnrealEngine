@@ -399,12 +399,6 @@ void FRHICommandResummarizeHTile::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIResummarizeHTile)(DepthTexture);
 }
 
-void FRHICommandSetTransitionAccessMode::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetTransitionAccessMode);
-	INTERNAL_DECORATOR_COMPUTE(RHISetTransitionAccessMode)(TransitionAccessMode);
-}
-
 void FRHICommandBeginTransitions::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginTransitions);

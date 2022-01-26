@@ -888,25 +888,6 @@ namespace RHIValidation
 			*GetRHIAccessName(CurrentStateFromRHI.Access));
 	}
 
-	static inline FString GetReasonString_UnallowedUnknownPreviousState(
-		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
-		const FState& CurrentState,
-		const FState& CurrentStateFromRHI,
-		void* CreateTrace, void* BeginTrace)
-	{
-		FString DebugName = GetResourceDebugName(Resource, SubresourceIndex);
-		return FString::Printf(
-			BARRIER_TRACKER_LOG_PREFIX_RESNAME
-			TEXT("The transition for resource %s contains ERHIAcces::Unknown state while the command list does not allow unknown states at this point.\n See ERHITransitionAccessMode for more information.\n")
-			TEXT("    --- The tracked current previous state is: \"%s\"\n")
-			TEXT("%s")
-			BARRIER_TRACKER_LOG_SUFFIX,
-			*DebugName,
-			*DebugName,
-			*GetRHIAccessName(CurrentState.Access),
-			*GetReasonString_BeginBacktrace(CreateTrace, BeginTrace));
-	}
-
 	static inline FString GetReasonString_IncorrectPreviousState(
 		FResource* Resource, FSubresourceIndex const& SubresourceIndex,
 		const FState& CurrentState,
@@ -1120,7 +1101,7 @@ namespace RHIValidation
 		}
 	}
 
-	void FSubresourceState::BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline ExecutingPipeline, ERHITransitionAccessMode TransitionAccessMode, void* CreateTrace)
+	void FSubresourceState::BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline ExecutingPipeline, void* CreateTrace)
 	{
 		FPipelineState& State = States[ExecutingPipeline];
 
@@ -1151,9 +1132,6 @@ namespace RHIValidation
 		{
 			// Check for the correct pipeline
 			RHI_VALIDATION_CHECK(EnumHasAllFlags(CurrentStateFromRHI.Pipelines, ExecutingPipeline), *GetReasonString_WrongPipeline(Resource, SubresourceIndex, State.Current, TargetState));
-
-			// Check we don't have an unknown previous state when transition access mode does't allow it
-			RHI_VALIDATION_CHECK(TransitionAccessMode == ERHITransitionAccessMode::AllowUnknown || CurrentStateFromRHI.Access != ERHIAccess::Unknown, *GetReasonString_UnallowedUnknownPreviousState(Resource, SubresourceIndex, State.Previous, CurrentStateFromRHI, State.CreateTransitionBacktrace, BeginTrace));
 
 			// Check the current RHI state passed in matches the tracked state for the resource, or is "unknown".
 			RHI_VALIDATION_CHECK(CurrentStateFromRHI.Access == ERHIAccess::Unknown || (CurrentStateFromRHI.Access == State.Previous.Access && CurrentStateFromRHI.Pipelines == State.Previous.Pipelines),
@@ -1322,7 +1300,7 @@ namespace RHIValidation
 		}
 	}
 
-	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, ERHITransitionAccessMode& TransitionAccessMode) const
+	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const
 	{
 		switch (Type)
 		{
@@ -1333,7 +1311,7 @@ namespace RHIValidation
 			break;
 
 		case EOpType::BeginTransition:
-			Data_BeginTransition.Identity.Resource->EnumerateSubresources(Data_BeginTransition.Identity.SubresourceRange, [this, Pipeline, TransitionAccessMode](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_BeginTransition.Identity.Resource->EnumerateSubresources(Data_BeginTransition.Identity.SubresourceRange, [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.BeginTransition(
 					Data_BeginTransition.Identity.Resource,
@@ -1342,7 +1320,6 @@ namespace RHIValidation
 					Data_BeginTransition.NextState,
 					Data_BeginTransition.Flags,
 					Pipeline,
-					TransitionAccessMode,
 					Data_BeginTransition.CreateBacktrace);
 
 			}, true);
@@ -1350,7 +1327,7 @@ namespace RHIValidation
 			break;
 
 		case EOpType::EndTransition:
-			Data_EndTransition.Identity.Resource->EnumerateSubresources(Data_EndTransition.Identity.SubresourceRange, [this, Pipeline, TransitionAccessMode](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
+			Data_EndTransition.Identity.Resource->EnumerateSubresources(Data_EndTransition.Identity.SubresourceRange, [this, Pipeline](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
 				State.EndTransition(
 					Data_EndTransition.Identity.Resource,
@@ -1434,10 +1411,6 @@ namespace RHIValidation
 			});
 			Data_SpecificUAVOverlap.Identity.Resource->ReleaseOpRef();
 			break;
-
-		case EOpType::SetTransitionAccessMode:
-			TransitionAccessMode = Data_SetTransitionAccessMode.TransitionAccessMode;
-			break;
 		}
 
 		return EReplayStatus::Normal;
@@ -1460,13 +1433,13 @@ namespace RHIValidation
 				FOpQueueState& CurrentQueue = OpQueues[CurrentIndex];
 				if (CurrentQueue.bWaiting)
 				{
-					Status = CurrentQueue.Ops.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap, CurrentQueue.TransitionAccessMode);
+					Status = CurrentQueue.Ops.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
 					if (!EnumHasAllFlags(Status, EReplayStatus::Waiting))
 					{
 						CurrentQueue.Ops.Reset();
 						if (CurrentIndex == DstOpQueueIndex && InOpsList.Incomplete())
 						{
-							Status |= InOpsList.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap, CurrentQueue.TransitionAccessMode);
+							Status |= InOpsList.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
 							CurrentQueue.bWaiting = InOpsList.Incomplete();
 						}
 						else

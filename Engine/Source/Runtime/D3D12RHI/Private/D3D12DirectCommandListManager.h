@@ -252,7 +252,7 @@ public:
 	// This use to also take an optional PSO parameter so that we could pass this directly to Create/Reset command lists,
 	// however this was removed as we generally can't actually predict what PSO we'll need until draw due to frequent
 	// state changes. We leave PSOs to always be resolved in ApplyState().
-	FD3D12CommandListHandle ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, ED3D12ResourceBarrierTransitionMode bInTransitionMode, bool bHasBackbufferWriteTransition = false);
+	FD3D12CommandListHandle ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, bool bHasBackbufferWriteTransition = false);
 	void ReleaseCommandList(FD3D12CommandListHandle& hList);
 
 	FD3D12SyncPoint ExecuteCommandListNoCopyQueueSync(FD3D12CommandListHandle& hList, bool WaitForCompletion);

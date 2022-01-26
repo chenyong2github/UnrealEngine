@@ -167,10 +167,9 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 
 	StateCache.ApplyState<D3D12PT_Compute>();
 
-	// Indirect args buffer can be a previously pending UAV with internal transitions, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	D3D12_RESOURCE_STATES IndirectState = (CommandListHandle.GetTransitionMode() == ED3D12ResourceBarrierTransitionMode::Internal) ? D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, IndirectState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
@@ -479,8 +478,8 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 			bUAVBarrier |= bUAVAccessAfter;
 		}
 
-		// Use the internal resource tracking
-		if (Context.CommandListHandle.GetTransitionMode() == ED3D12ResourceBarrierTransitionMode::Internal)
+		// Use the engine defined transitions?
+		if (GUseInternalTransitions)
 		{
 			// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
 			const bool bUAVAccessOrUnknownBefore = EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) || Info.AccessBefore == ERHIAccess::Unknown;
@@ -502,9 +501,6 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 					{
 						return;
 					}
-
-					// All transition should be valid now
-					check(Info.AccessBefore != ERHIAccess::Unknown);
 
 					const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
 					const bool bKnownBeforeState = (Info.AccessBefore != ERHIAccess::Unknown && Info.AccessBefore != ERHIAccess::Discard);
@@ -580,25 +576,11 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	}
 }
 
-void FD3D12CommandContext::RHISetTransitionAccessMode(ERHITransitionAccessMode Mode)
-{
-	// Nothing changed then don't do anything
-	if (TransitionAccessMode == Mode)
-	{
-		return;
-	}
-
-	TransitionAccessMode = Mode;
-
-	// Flush the current command list and open a new one
-	FlushCommands();
-}
-
 void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
-	// Can't correctly handle RHITransitions from multiple threads at the same time right now - only internal transitions work correctly then
+	// Can't correctly handle RHITransitions from multiple threads at the samae time right now - only internal transitions work correctly then
 	// (will be fixed if unknown before state is not allowed anymore)
-	check(bIsDefaultContext || CommandListHandle.GetTransitionMode() == ED3D12ResourceBarrierTransitionMode::Internal);
+	check(bIsDefaultContext || GUseInternalTransitions);
 
 	RHIBeginTransitionsWithoutFencing(Transitions);
 	SignalTransitionFences(Transitions);
@@ -2038,6 +2020,8 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
+	// arg transition and flush here.
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
@@ -2126,6 +2110,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
+	// arg transition and flush here.
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
@@ -2190,6 +2176,8 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
+	// arg transition and flush here.
 	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
 	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
@@ -2497,7 +2485,7 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	FD3D12CommandAllocatorManager& CopyCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
 	FD3D12CommandAllocator* CopyCommandAllocator = CopyCommandAllocatorManager.ObtainCommandAllocator();
 	FD3D12CommandListManager& CopyCommandListManager = Device->GetCopyCommandListManager();
-	FD3D12CommandListHandle hCopyCommandList = CopyCommandListManager.ObtainCommandList(*CopyCommandAllocator, ED3D12ResourceBarrierTransitionMode::Internal);
+	FD3D12CommandListHandle hCopyCommandList = CopyCommandListManager.ObtainCommandList(*CopyCommandAllocator);
 	hCopyCommandList.SetCurrentOwningContext(this);
 
 	for (TD3D12Resource* SrcResource : InResources)

@@ -185,8 +185,6 @@ public:
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
-	virtual void RHISetTransitionAccessMode(ERHITransitionAccessMode Mode) {}
-
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) = 0;
 
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) = 0;

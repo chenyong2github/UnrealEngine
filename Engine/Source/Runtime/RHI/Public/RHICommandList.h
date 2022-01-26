@@ -1504,17 +1504,6 @@ FRHICOMMAND_MACRO(FRHICommandClearUAVUint)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandSetTransitionAccessMode)
-{
-	ERHITransitionAccessMode TransitionAccessMode;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandSetTransitionAccessMode(ERHITransitionAccessMode InTransitionAccessMode)
-		: TransitionAccessMode(InTransitionAccessMode)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase & CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandCopyToResolveTarget)
 {
 	FResolveParams ResolveParams;
@@ -2630,16 +2619,6 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandClearUAVUint)(UnorderedAccessViewRHI, Values);
-	}
-
-	FORCEINLINE_DEBUGGABLE void SetTransitionAccessMode(ERHITransitionAccessMode Mode)
-	{
-		if (Bypass())
-		{
-			GetComputeContext().RHISetTransitionAccessMode(Mode); 
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetTransitionAccessMode)(Mode);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginTransitions(TArrayView<const FRHITransition*> Transitions)
