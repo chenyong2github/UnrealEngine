@@ -56,7 +56,14 @@ public:
 		const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
 
+	int32 CreateInferenceContext();
+	void DestroyInferenceContext(int32 ContextHandle);
+
+	void Run(FRDGBuilder& GraphBuilder, int32 ContextHandle);
 	void Run(const ENeuralSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType);
+
+	FNeuralTensor& GetInputTensorForContext(int32 InContextHandle, int32 InTensorIndex);
+	FNeuralTensor& GetOutputTensorForContext(int32 InContextHandle, int32 InTensorIndex);
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
 private:
@@ -86,7 +93,35 @@ private:
 	TArray<Ort::Value> OutputOrtTensors;
 	/** Tensor names */
 	TArray<const char*> OutputTensorNames;
-	
+
+	/**
+	 * Storage for input and output tensors for ONNX backend.
+	 * GPU memory is allocated by RDG/RHI and bound to Ort handles.
+	 * Because RHI can defrag the RDG pool at any time we need to call UpdateGPUAllocations() for each frame we use.
+	 */
+	struct FInferenceContext
+	{
+		TArray<const char*> InputTensorNames;
+		TArray<FNeuralTensor> InputTensors;
+		TArray<Ort::Value> InputOrtTensors;
+
+		TArray<const char*> OutputTensorNames;
+		TArray<FNeuralTensor> OutputTensors;
+		TArray<Ort::Value> OutputOrtTensors;
+		TArray<void*> OutputDmlAllocation;
+
+		bool Init(Ort::Session* Session, Ort::AllocatorWithDefaultOptions* Allocator, Ort::MemoryInfo* AllocatorInfo);
+		void UpdateGPUAllocations(FRDGBuilder& GraphBuilder);
+		void Release();
+#ifdef PLATFORM_WIN64
+		void BindDMLAllocations(OrtDmlApi const* InDmlApi, Ort::MemoryInfo* InMemoryInfo);
+		void ReleaseDMLAllocations(OrtDmlApi const* InDmlApi);
+#endif
+
+	};
+	/** Array of allocated inference contexts. */
+	TSparseArray<FInferenceContext> Contexts;
+
 	// Helper class to run session as an async task
 	class FNeuralNetworkAsyncTask : public FNonAbandonableTask
 	{
@@ -125,11 +160,9 @@ private:
 		TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorType>& InTensorTypes, const bool bIsInput,
 		const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
-	static void LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors, Ort::MemoryInfo& InOutAllocatorInfo,
-		const int32 InTensorIndex);
-
+	static void LinkTensorToONNXRuntime(FNeuralTensor& InTensor, Ort::Value& OutOrtTensor, Ort::MemoryInfo& InOutAllocatorInfo);
 #ifdef PLATFORM_WIN64
-	bool LinkTensorResourceToONNXRuntime(FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* InOutD3DResource);
+	static void* LinkTensorResourceToONNXRuntime(OrtDmlApi const* InDmlApi, Ort::MemoryInfo* InMemoryInfo, FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* InD3DResource);
 #endif
 
 	void RunSessionAsync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType);

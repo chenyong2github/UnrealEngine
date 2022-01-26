@@ -311,10 +311,18 @@ public:
 
 	/**
 	 * It allocates the GPU data, in particular the pooled buffer.
+	 * Should be called on the render thread. Internally this blocks for reading back work on the render thread.
 	 * @param InOutNativeResource Pointer to the ID3D12Resource obtained from PooledBuffer. This resource can be shared with the DirectML execution
 	 * provider.
 	 */
 	bool InitPooledBufferForUEAndORTBackEnd(void** InOutNativeResource = nullptr);
+
+	/**
+	 * It allocates the GPU data, in particular the pooled buffer.
+	 * Should be called on the render thread.
+	 * @param GraphBuilder. RDG graph builder to use for allocation.
+	 */
+	void InitPooledBufferForUEAndORTBackEnd_RenderThread(FRDGBuilder& GraphBuilder);
 
 	/**
 	 * It returns a constant reference of PooledBuffer. @see PooledBuffer for more details.

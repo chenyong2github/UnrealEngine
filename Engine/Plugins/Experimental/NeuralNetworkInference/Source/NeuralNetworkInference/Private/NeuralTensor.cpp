@@ -637,18 +637,7 @@ bool FNeuralTensor::InitPooledBufferForUEAndORTBackEnd(void** InOutNativeResourc
 		[this, &InOutNativeResource, &bIsGraphBuilderDone] (FRHICommandListImmediate& RHICmdList)
 		{
 			FRDGBuilder Builder(RHICmdList);
-
-			FRDGBufferDesc BufferDesc;
-			BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
-			BufferDesc.NumElements = Num();
-			BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
-			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
-
-			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, *GetName());
-
-			// Recreate PooledBuffer for future runs
-			*PooledBuffer = Builder.ConvertToExternalBuffer(BufferRef);
-
+			InitPooledBufferForUEAndORTBackEnd_RenderThread(Builder);
 			Builder.Execute();
 
 #ifdef PLATFORM_WIN64
@@ -670,6 +659,23 @@ bool FNeuralTensor::InitPooledBufferForUEAndORTBackEnd(void** InOutNativeResourc
 	}
 
 	return true;
+}
+
+void FNeuralTensor::InitPooledBufferForUEAndORTBackEnd_RenderThread(FRDGBuilder& GraphBuilder)
+{
+	FRDGBufferDesc BufferDesc;
+	BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
+	BufferDesc.NumElements = Num();
+	BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
+	BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
+	FRDGBufferRef BufferRef = GraphBuilder.CreateBuffer(BufferDesc, *GetName());
+
+	// Extract buffer immediately. Need this so that we can potentially bind to DirectML.
+	if (!PooledBuffer.IsValid())
+	{
+		PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
+	}
+	*PooledBuffer = GraphBuilder.ConvertToExternalBuffer(BufferRef);
 }
 
 const TRefCountPtr<FRDGPooledBuffer>& FNeuralTensor::GetPooledBuffer() const

@@ -200,6 +200,9 @@ public:
 	const FNeuralTensor& GetInputTensor(const int32 InTensorIndex = 0) const;
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
 
+	const FNeuralTensor& GetInputTensorForContext(const int32 InContextHandle, const int32 InTensorIndex = 0) const;
+	const FNeuralTensor& GetOutputTensorForContext(const int32 InContextHandle, const int32 InTensorIndex = 0) const;
+
 	/**
 	 * SetInputFromArrayCopy(), SetInputFromVoidPointerCopy(), and GetInputDataPointerMutable() are the only functions that allow modifying the
 	 * network input tensor(s) values:
@@ -212,6 +215,8 @@ public:
 	void SetInputFromVoidPointerCopy(const void* const InVoidPtr, const int32 InTensorIndex = 0);
 	void* GetInputDataPointerMutable(const int32 InTensorIndex = 0);
 
+	void* GetInputDataPointerMutableForContext(const int32 InContextHandle, const int32 InTensorIndex = 0);
+
 	/**
 	 * Non-computationally-efficient functions meant to be used only for debugging purposes, but should never be used on highly performant systems:
 	 * - InputTensorsToCPU copies the CPU memory of the desired input tensor(s) to GPU (to debug InputDeviceType == ENeuralDeviceType::GPU).
@@ -220,6 +225,24 @@ public:
 	 */
 	void InputTensorsToGPU(const TArray<int32>& InTensorIndexes = TArray<int32>());
 	void OutputTensorsToCPU(const TArray<int32>& InTensorIndexes = TArray<int32>());
+
+	/**
+	 * Create an inference context. An inference context contains resources to run inference with the version of Run() that takes a context handle.
+	 * Each independent instance of the NeuralNetwork requires it's own inference context.
+	 * Returns a handle to the context. -1 is an invalid handle.
+	 */ 
+	int32 CreateInferenceContext();
+
+	/**
+	 * Destroy an inference context that was created with CreateInferenceContext()
+	 */
+	void DestroyInferenceContext(int32 ContextHandle);
+
+	/**
+	 * Run() executes the forward pass of the current UNeuralNetwork given an inference context created with CreateInferenceContext().
+	 * This should be called on the render thread.
+	 */
+	void Run(class FRDGBuilder& GraphBuilder, int32 ContextHandle);
 
 	/**
 	 * Load() + SetInputFromArrayCopy() + Run() is the simplest way to load an ONNX file, set the input tensor(s), and run inference on it. All other

@@ -705,3 +705,57 @@ void UNeuralNetwork::Serialize(FArchive& Archive)
 #endif // WITH_EDITORONLY_DATA
 	Super::Serialize(Archive);
 }
+
+
+int32 UNeuralNetwork::CreateInferenceContext()
+{
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Call UNeuralNetwork::Load() to load a model first."));
+		return -1;
+	}
+	if (BackEndForCurrentPlatform != ENeuralBackEnd::UEAndORT || SynchronousMode != ENeuralSynchronousMode::Synchronous)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Execution contexts currently only support synchronous Onyx models."));
+		return -1;
+	}
+	if (DeviceType != ENeuralDeviceType::GPU || InputDeviceType != ENeuralDeviceType::CPU || OutputDeviceType != ENeuralDeviceType::GPU)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Execution contexts currently only support GPU device with CPU input -> GPU ouput."));
+		return -1;
+	}
+
+	return ImplBackEndUEAndORT->CreateInferenceContext();
+}
+
+void UNeuralNetwork::DestroyInferenceContext(int32 ContextHandle)
+{
+	return ImplBackEndUEAndORT->DestroyInferenceContext(ContextHandle);
+}
+
+void UNeuralNetwork::Run(FRDGBuilder& GraphBuilder, int32 ContextHandle)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
+
+	FNeuralTimer RunTimer;
+	RunTimer.Tic();
+
+	ImplBackEndUEAndORT->Run(GraphBuilder, ContextHandle);
+
+	RunStatisticsEstimator.StoreSample(RunTimer.Toc());
+}
+
+const FNeuralTensor& UNeuralNetwork::GetInputTensorForContext(const int32 InContextHandle, const int32 InTensorIndex) const
+{
+	return ImplBackEndUEAndORT->GetInputTensorForContext(InContextHandle, InTensorIndex);
+}
+
+const FNeuralTensor& UNeuralNetwork::GetOutputTensorForContext(const int32 InContextHandle, const int32 InTensorIndex) const
+{
+	return ImplBackEndUEAndORT->GetOutputTensorForContext(InContextHandle, InTensorIndex);
+}
+
+void* UNeuralNetwork::GetInputDataPointerMutableForContext(const int32 InContextHandle, const int32 InTensorIndex)
+{
+	return ImplBackEndUEAndORT->GetInputTensorForContext(InContextHandle, InTensorIndex).GetData();
+}

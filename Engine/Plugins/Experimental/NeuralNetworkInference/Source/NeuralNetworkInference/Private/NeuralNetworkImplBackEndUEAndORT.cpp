@@ -44,6 +44,7 @@ NNI_THIRD_PARTY_INCLUDES_END
 
 #include "ShaderParameterUtils.h"
 #include "ShaderParameterStruct.h"
+#include "RenderGraphUtils.h"
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
 
@@ -806,12 +807,14 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			}
 
 			// Link tensor with ORT blob
-			if (!LinkTensorResourceToONNXRuntime(OutTensors[TensorIndex], OrtTensors[TensorIndex], D3DResource))
+			void* DmlGPUAllocation = LinkTensorResourceToONNXRuntime(DmlApi, DmlGPUMemoryInfo.Get(), OutTensors[TensorIndex], OrtTensors[TensorIndex], D3DResource);
+			if  (DmlGPUAllocation == nullptr)
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning,
 					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to link the GPU resource to ONNX Runtime."));
 				return false;
 			}
+			DmlGPUResources.Emplace(DmlGPUAllocation);
 		}
 		else
 #endif
@@ -819,24 +822,22 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			// Pre-allocate TArray (if size is different)
 			OutTensors[TensorIndex].SetNumUninitialized(InTensorDataTypes[TensorIndex], InSizes[TensorIndex]);
 			// Link tensor with ORT blob
-			LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
+			LinkTensorToONNXRuntime(OutTensors[TensorIndex], OrtTensors[TensorIndex], *AllocatorInfo);
 		}
 	}
 
 	return true;
 }
 
-void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors,
-	Ort::MemoryInfo& InOutAllocatorInfo, const int32 InTensorIndex)
+void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(FNeuralTensor& InTensor, Ort::Value& OutOrtTensor, Ort::MemoryInfo& InOutAllocatorInfo)
 {
-	const TArray<int64>& Sizes = InOutTensors[InTensorIndex].GetSizes();
-	if (Sizes.Num() > 0 && InOutTensors[InTensorIndex].Num() > 0)
+	const TArray<int64>& Sizes = InTensor.GetSizes();
+	if (Sizes.Num() > 0 && InTensor.Num() > 0)
 	{
-		FNeuralTensor& Tensor = InOutTensors[InTensorIndex];
-		const int64 Volume = Tensor.Num();
+		const int64 Volume = InTensor.Num();
 		const int32 ArrayDimensions = Sizes.Num();
 
-		const ENeuralDataType NeuralDataType = Tensor.GetDataType();
+		const ENeuralDataType NeuralDataType = InTensor.GetDataType();
 		if (NeuralDataType == ENeuralDataType::Float)
 		{
 #ifdef _WIN32
@@ -847,39 +848,37 @@ void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(TArray<FNeura
 			SizesInt64t.SetNumUninitialized(ArrayDimensions);
 			FMemory::Memcpy(SizesInt64t.GetData(), (int64_t*)Sizes.GetData(), sizeof(int64_t) * ArrayDimensions);
 #endif //_WIN32
-			InOutOrtTensors[InTensorIndex] = Ort::Value::CreateTensor<float>(InOutAllocatorInfo, Tensor.GetDataCasted<float>(), Volume, SizesInt64t.GetData(), ArrayDimensions);
+			OutOrtTensor = Ort::Value::CreateTensor<float>(InOutAllocatorInfo, InTensor.GetDataCasted<float>(), Volume, SizesInt64t.GetData(), ArrayDimensions);
 		}
 		//else if (NeuralDataType == ENeuralDataType::Double)
 		//{
-		//	InOutOrtTensors[InTensorIndex] = Ort::Value::CreateTensor<double>(InOutAllocatorInfo, Tensor.GetDataCasted<double>(), Volume, Sizes.GetData(), ArrayDimensions);
+		//	OutOrtTensor = Ort::Value::CreateTensor<double>(InOutAllocatorInfo, InTensor.GetDataCasted<double>(), Volume, Sizes.GetData(), ArrayDimensions);
 		//}
 		else
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::LinkTensorToONNXRuntime(): Not implemented (yet) for ENeuralDataType = %d."), (int32)NeuralDataType);
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("LinkTensorToONNXRuntime(): Not implemented (yet) for ENeuralDataType = %d."), (int32)NeuralDataType);
 		}
 	}
 }
 
 #ifdef PLATFORM_WIN64
-bool UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* InOutD3DResource)
+void* UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(OrtDmlApi const* InDmlApi, Ort::MemoryInfo* InMemoryInfo, FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* InD3DResource)
 {
-	if (!DmlApi)
+	if (!InDmlApi)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(): DmlGPUAllocator is not valid."));
-		return false;
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("LinkTensorResourceToONNXRuntime(): DmlGPUAllocator is not valid."));
+		return nullptr;
 	}
 
 	void* DmlGPUAllocation = nullptr;
 	
-	DmlApi->CreateGPUAllocationFromD3DResource(reinterpret_cast<ID3D12Resource*>(InOutD3DResource), &DmlGPUAllocation);
+	InDmlApi->CreateGPUAllocationFromD3DResource(reinterpret_cast<ID3D12Resource*>(InD3DResource), &DmlGPUAllocation);
 
 	if (!DmlGPUAllocation)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(): DmlGPUAllocation is nullptr."));
-		return false;
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("LinkTensorResourceToONNXRuntime(): DmlGPUAllocation is nullptr."));
+		return nullptr;
 	}
-
-	DmlGPUResources.Emplace(DmlGPUAllocation);
 
 	const TArray<int64>& Sizes = InOutTensor.GetSizes();
 	if (Sizes.Num() > 0 && InOutTensor.Num() > 0)
@@ -897,7 +896,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(FNeur
 			SizesInt64t.SetNumUninitialized(ArrayDimensions);
 			FMemory::Memcpy(SizesInt64t.GetData(), (int64_t*)Sizes.GetData(), sizeof(int64_t) * ArrayDimensions);
 #endif //_WIN32
-			InOutOrtTensor = Ort::Value::CreateTensor(*DmlGPUMemoryInfo.Get(), DmlGPUAllocation, InOutTensor.NumInBytes(), SizesInt64t.GetData(),
+			InOutOrtTensor = Ort::Value::CreateTensor(*InMemoryInfo, DmlGPUAllocation, InOutTensor.NumInBytes(), SizesInt64t.GetData(),
 				ArrayDimensions, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT);
 		}
 		//else if (NeuralDataType == ENeuralDataType::Double)
@@ -909,11 +908,12 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(FNeur
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
 				TEXT("FImplBackEndUEAndORT::LinkTensorToONNXRuntime(): Not implemented (yet) for ENeuralDataType = %d."), (int32)NeuralDataType);
-			return false;
+			InDmlApi->FreeGPUAllocation(DmlGPUAllocation);
+			return nullptr;
 		}
 	}
 
-	return true;
+	return DmlGPUAllocation;
 }
 #endif
 
@@ -1055,4 +1055,198 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 #endif //PLATFORM_WIN64
 }
 
+bool UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::Init(Ort::Session* InSession, Ort::AllocatorWithDefaultOptions* InAllocator, Ort::MemoryInfo* InAllocatorInfo)
+{
+	// Current assumptions here (all these things can be fixed with more work): 
+	// Input tensors are CPU
+	// Output tensors are GPU 
+	// Float data types only
+	// No variable dimensions
+
+	ENeuralTensorType TensorTypes[] = { ENeuralTensorType::Input, ENeuralTensorType::Output };
+
+	for (ENeuralTensorType TensorType : TensorTypes)
+	{
+		const bool bInputTensors = TensorType == ENeuralTensorType::Input;
+		const uint32 NumTensors = bInputTensors ? InSession->GetInputCount() : InSession->GetOutputCount();
+
+		for (uint32 TensorIndex = 0; TensorIndex < NumTensors; ++TensorIndex)
+		{
+			const char* TensorName = bInputTensors ? InSession->GetInputName(TensorIndex, *InAllocator) : InSession->GetOutputName(TensorIndex, *InAllocator);
+			Ort::TypeInfo TypeInfo = bInputTensors ? InSession->GetInputTypeInfo(TensorIndex) : InSession->GetOutputTypeInfo(TensorIndex);
+			const Ort::TensorTypeAndShapeInfo TensorInfo = TypeInfo.GetTensorTypeAndShapeInfo();
+
+			ENeuralDataType TensorDataType = ENeuralDataType::None;
+			{
+				const ONNXTensorElementDataType ONNXDataType = TensorInfo.GetElementType();
+				if (ONNXDataType == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
+				{
+					TensorDataType = ENeuralDataType::Float;
+				}
+				else
+				{
+					UE_LOG(LogNeuralNetworkInference, Warning,
+						TEXT("FInferenceContext::Init(): ONNXDataType = %d not implemented yet."), (int32)ONNXDataType);
+				}
+			}
+
+			TArray<int64> TensorSizes;
+			for (int64 TensorSize : TensorInfo.GetShape())
+			{
+				if (TensorSize < 0)
+				{
+					TensorSize = 1;
+					UE_LOG(LogNeuralNetworkInference, Warning,
+						TEXT("FInferenceContext::Init(): Negative (i.e., variable) dimensions not allowed yet, hard-coded to 1."
+							" Let us know if you really need variable dimensions."
+							" Keep in mind that fixed sizes might allow additional optimizations and speedup of the network during Run()."));
+				}
+
+				TensorSizes.Add(TensorSize);
+			}
+
+			if (bInputTensors)
+			{
+				InputTensorNames.Emplace(TensorName);
+
+				InputTensors.Emplace(FNeuralTensor(TensorDataType, TensorSizes, ANSI_TO_TCHAR(TensorName), TensorType));
+
+				InputOrtTensors.Emplace(Ort::Value(nullptr));
+				LinkTensorToONNXRuntime(InputTensors[TensorIndex], InputOrtTensors[TensorIndex], *InAllocatorInfo);
+			}
+			else
+			{
+				OutputTensorNames.Emplace(TensorName);
+
+				FNeuralTensor& Tensor = OutputTensors.Emplace_GetRef(FNeuralTensor(TensorDataType, TensorSizes, ANSI_TO_TCHAR(TensorName), TensorType));
+				Tensor.SetEnableGPU(true);
+
+				OutputOrtTensors.Emplace(Ort::Value(nullptr));
+			}
+
+			TypeInfo.release();
+		}
+	}
+
+	return true;
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::UpdateGPUAllocations(FRDGBuilder& GraphBuilder)
+{
+	for (int32 TensorIndex = 0; TensorIndex < OutputOrtTensors.Num(); ++TensorIndex)
+	{
+		OutputTensors[TensorIndex].InitPooledBufferForUEAndORTBackEnd_RenderThread(GraphBuilder);
+	}
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::Release()
+{
+	InputTensorNames.Reset();
+	InputTensors.Reset();
+	InputOrtTensors.Reset();
+	OutputTensorNames.Reset();
+	OutputTensors.Reset();
+	OutputOrtTensors.Reset();
+}
+
+#ifdef PLATFORM_WIN64
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::BindDMLAllocations(OrtDmlApi const* InDmlApi, Ort::MemoryInfo* InMemoryInfo)
+{
+	ReleaseDMLAllocations(InDmlApi);
+	
+	OutputDmlAllocation.SetNum(OutputOrtTensors.Num());
+	for (int32 TensorIndex = 0; TensorIndex < OutputOrtTensors.Num(); ++TensorIndex)
+	{
+		void* D3DResource = FNeuralNetworkInferenceUtilsGPU::GetD3D12Resource(OutputTensors[TensorIndex].GetPooledBuffer()->GetRHI());
+		OutputDmlAllocation[TensorIndex] = LinkTensorResourceToONNXRuntime(InDmlApi, InMemoryInfo, OutputTensors[TensorIndex], OutputOrtTensors[TensorIndex], D3DResource);
+	}
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::ReleaseDMLAllocations(OrtDmlApi const* InDmlApi)
+{
+	for (int32 TensorIndex = 0; TensorIndex < OutputDmlAllocation.Num(); ++TensorIndex)
+	{
+		InDmlApi->FreeGPUAllocation(OutputDmlAllocation[TensorIndex]);
+	}
+	OutputDmlAllocation.Reset();
+}
+
+#endif // PLATFORM_WIN64
+
 #endif //WITH_UE_AND_ORT_SUPPORT
+
+int32 UNeuralNetwork::FImplBackEndUEAndORT::CreateInferenceContext()
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	const int32 Handle = Contexts.Emplace();
+	Contexts[Handle].Init(Session.Get(), Allocator.Get(), AllocatorInfo.Get());
+	return Handle;
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::CreateInferenceContext(): Platform or Operating System not suported yet for UEAndORT"
+		" BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
+	return -1;
+#endif
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::DestroyInferenceContext(int32 InContextHandle)
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	check(Contexts.IsValidIndex(InContextHandle));
+#ifdef PLATFORM_WIN64
+	Contexts[InContextHandle].ReleaseDMLAllocations(DmlApi);
+#endif
+	Contexts[InContextHandle].Release();
+	Contexts.RemoveAt(InContextHandle);
+#endif
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(FRDGBuilder& GraphBuilder, int32 InContextHandle)
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+#if WITH_EDITOR
+	try
+#endif //WITH_EDITOR
+	{
+		Contexts[InContextHandle].UpdateGPUAllocations(GraphBuilder);
+
+#ifdef PLATFORM_WIN64
+		Contexts[InContextHandle].BindDMLAllocations(DmlApi, DmlGPUMemoryInfo.Get());
+#endif
+
+		AddPass(GraphBuilder, RDG_EVENT_NAME("OrtRun"), [InSession = Session.Get(), &Context = Contexts[InContextHandle]](FRHICommandListImmediate&)
+		{
+			InSession->Run(
+				Ort::RunOptions{ nullptr },
+				Context.InputTensorNames.GetData(), & Context.InputOrtTensors[0], Context.InputTensorNames.Num(),
+				Context.OutputTensorNames.GetData(), & Context.OutputOrtTensors[0], Context.OutputTensorNames.Num());
+		});
+	}
+#if WITH_EDITOR
+	catch (const std::exception& Exception)
+	{
+		UE_LOG(LogNeuralNetworkInference, Error, TEXT("%s"), UTF8_TO_TCHAR(Exception.what()));
+	}
+#endif //WITH_EDITOR
+#endif //WITH_UE_AND_ORT_SUPPORT
+}
+
+FNeuralTensor& UNeuralNetwork::FImplBackEndUEAndORT::GetInputTensorForContext(int32 InContextHandle, int32 InTensorIndex)
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	check(Contexts.IsValidIndex(InContextHandle));
+	return Contexts[InContextHandle].InputTensors[InTensorIndex];
+#else
+	return InputTensors[InTensorIndex];
+#endif
+}
+
+FNeuralTensor& UNeuralNetwork::FImplBackEndUEAndORT::GetOutputTensorForContext(int32 InContextHandle, int32 InTensorIndex)
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	check(Contexts.IsValidIndex(InContextHandle));
+	return Contexts[InContextHandle].OutputTensors[InTensorIndex];
+#else
+	return OutputTensors[InTensorIndex];
+#endif
+}
