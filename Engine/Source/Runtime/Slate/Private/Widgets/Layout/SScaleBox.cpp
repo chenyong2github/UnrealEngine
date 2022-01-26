@@ -83,6 +83,7 @@ bool SScaleBox::CustomPrepass(float LayoutScaleMultiplier)
 	// size, do that now.
 	if (bNeedsNormalizingPrepassOrLocalGeometry || !LastAllocatedArea.IsSet())
 	{
+		ChildSlotWidget.MarkPrepassAsDirty();
 		ChildSlotWidget.SlatePrepass(LayoutScaleMultiplier);
 
 		NormalizedContentDesiredSize = ChildSlotWidget.GetDesiredSize();
