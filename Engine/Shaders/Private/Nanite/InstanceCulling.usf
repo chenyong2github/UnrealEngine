@@ -102,7 +102,7 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 		return false;
 	}
 
-	if (bVisibleInRaster && !(RenderFlags & RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER))
+	if (bVisibleInRaster && bIgnoreVisibleInRaster)
 	{
 		return false;
 	}
