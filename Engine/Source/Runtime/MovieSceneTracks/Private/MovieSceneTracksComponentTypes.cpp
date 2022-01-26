@@ -405,13 +405,16 @@ struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTrait
 				{
 					OutMetaData.NumChannels = 2;
 				}
-				else if (BoundProperty->Struct->GetFName() == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-						|| BoundProperty->Struct->GetFName() == NAME_Vector
-#endif
-						)
+				else if (BoundProperty->Struct->GetFName() == NAME_Vector3f || BoundProperty->Struct->GetFName() == NAME_Vector)
 				{
 					OutMetaData.NumChannels = 3;
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+					if (BoundProperty->Struct->GetFName() == NAME_Vector)
+					{
+						OutMetaData.bIsDouble = true;
+					}
+#endif
 				}
 				else
 				{

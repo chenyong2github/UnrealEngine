@@ -191,6 +191,14 @@ struct FFloatVectorPropertyTraits
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, FFloatIntermediateVector& OutValue)
 	{
+		if (MetaData.bIsDouble)
+		{
+			FDoubleIntermediateVector TempDoubleValue;
+			TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, TempDoubleValue); 
+			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
+			return;
+		}
+
 		switch (MetaData.NumChannels)
 		{
 			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
@@ -200,6 +208,14 @@ struct FFloatVectorPropertyTraits
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, FFloatIntermediateVector& OutValue)
 	{
+		if (MetaData.bIsDouble)
+		{
+			FDoubleIntermediateVector TempDoubleValue;
+			TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, TempDoubleValue); 
+			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
+			return;
+		}
+
 		switch (MetaData.NumChannels)
 		{
 			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
@@ -209,6 +225,14 @@ struct FFloatVectorPropertyTraits
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FName& PropertyPath, StorageType& OutValue)
 	{
+		if (MetaData.bIsDouble)
+		{
+			FDoubleIntermediateVector TempDoubleValue;
+			TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, TempDoubleValue); 
+			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
+			return;
+		}
+
 		switch (MetaData.NumChannels)
 		{
 			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
@@ -224,6 +248,13 @@ struct FFloatVectorPropertyTraits
 	}
 	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, const FFloatIntermediateVector& InValue)
 	{
+		if (MetaData.bIsDouble)
+		{
+			FDoubleIntermediateVector TempDoubleValue(InValue.X, InValue.Y, InValue.Z, InValue.W);
+			TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, TempDoubleValue);
+			return;
+		}
+
 		switch (MetaData.NumChannels)
 		{
 			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
@@ -235,6 +266,13 @@ struct FFloatVectorPropertyTraits
 	}
 	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, const FFloatIntermediateVector& InValue)
 	{
+		if (MetaData.bIsDouble)
+		{
+			FDoubleIntermediateVector TempDoubleValue(InValue.X, InValue.Y, InValue.Z, InValue.W);
+			TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, TempDoubleValue);
+			return;
+		}
+
 		switch (MetaData.NumChannels)
 		{
 			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;

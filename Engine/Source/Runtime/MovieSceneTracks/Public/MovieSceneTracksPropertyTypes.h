@@ -23,6 +23,7 @@ namespace MovieScene
 struct FVectorPropertyMetaData
 {
 	uint8 NumChannels = 0;
+	bool bIsDouble = false;
 };
 
 /** Intermediate type for the vector property system that lets us store how many dimensions the vector should have */
