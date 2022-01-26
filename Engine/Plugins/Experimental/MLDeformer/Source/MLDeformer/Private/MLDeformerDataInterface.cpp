@@ -98,7 +98,8 @@ bool UMLDeformerDataProvider::IsValid() const
 		DeformerComponent->GetDeformerAsset() != nullptr &&
 		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
 		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork() != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork()->IsLoaded();
+		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork()->IsLoaded() &&
+		DeformerComponent->GetDeformerInstance().GetNeuralNetworkInferenceHandle() != -1;
 }
 
 FComputeDataProviderRenderProxy* UMLDeformerDataProvider::GetRenderProxy()
@@ -112,8 +113,9 @@ FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(USkeletalMeshComponen
 
 	const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
 	NeuralNetwork = DeformerAsset->GetInferenceNeuralNetwork();
-	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensor().Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
-	
+	NeuralNetworkInferenceHandle = DeformerComponent->GetDeformerInstance().GetNeuralNetworkInferenceHandle();
+	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
+
 	VertexMapBufferSRV = DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI;
 	VertexDeltaScale = DeformerAsset->GetVertexDeltaScale();
 	VertexDeltaMean = DeformerAsset->GetVertexDeltaMean();
@@ -126,7 +128,7 @@ void FMLDeformerDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 	if (bCanRunNeuralNet)
 	{
 		check(NeuralNetwork != nullptr);
-		Buffer = GraphBuilder.RegisterExternalBuffer(NeuralNetwork->GetOutputTensor().GetPooledBuffer());
+		Buffer = GraphBuilder.RegisterExternalBuffer(NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle).GetPooledBuffer());
 	}
 	else
 	{

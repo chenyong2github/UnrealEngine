@@ -25,6 +25,11 @@ public:
 	 */
 	void Init(UMLDeformerAsset* Asset, USkeletalMeshComponent* SkelMeshComponent);
 
+	/**
+	 * Release the resources for this instance.
+	 */
+	void Release();
+
 	/** 
 	 * Update the deformer instance. 
 	 * This updates the neural net input values and runs the actual neural network inference to calculate the output deltas.
@@ -48,6 +53,12 @@ public:
 	 * @return Returns the string containing more information about the reasons for compatibility issues.
 	 */
 	const FString& GetCompatibilityErrorText() const { return ErrorText; }
+
+	/**
+	 * Get the neural network inference handle.
+	 * @return Returns the handle. This is -1 for an invalid handle.
+	 */
+	int32 GetNeuralNetworkInferenceHandle() const { return NeuralNetworkInferenceHandle; }
 
 	/**
 	 * Get the skeletal mesh component we're working with.
@@ -98,6 +109,9 @@ private:
 private:
 	/** The ML Deformer asset we're an instance of. */
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
+
+	/** Inference handle for neural network inference */
+	int32 NeuralNetworkInferenceHandle = -1;
 
 	/** The skeletal mesh component. */
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;

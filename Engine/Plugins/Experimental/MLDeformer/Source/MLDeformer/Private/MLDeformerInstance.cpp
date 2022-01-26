@@ -42,6 +42,16 @@ void FMLDeformerInstance::Init(UMLDeformerAsset* Asset, USkeletalMeshComponent* 
 	UpdateCompatibilityStatus();
 }
 
+void FMLDeformerInstance::Release()
+{
+	UNeuralNetwork* NeuralNetwork = DeformerAsset != nullptr ? DeformerAsset->GetInferenceNeuralNetwork() : nullptr;
+	if (NeuralNetwork != nullptr && NeuralNetworkInferenceHandle != -1)
+	{
+		NeuralNetwork->DestroyInferenceContext(NeuralNetworkInferenceHandle);
+		NeuralNetworkInferenceHandle = -1;
+	}
+}
+
 void FMLDeformerInstance::UpdateCompatibilityStatus()
 {
 	bIsCompatible = SkeletalMeshComponent->SkeletalMesh && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
@@ -196,8 +206,18 @@ void FMLDeformerInstance::Update()
 	check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU);
 	check(NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
 
+	// Allocate an inference context if none has already been allocated.
+	if (NeuralNetworkInferenceHandle == -1)
+	{
+		NeuralNetworkInferenceHandle = NeuralNetwork->CreateInferenceContext();
+		if (NeuralNetworkInferenceHandle == -1)
+		{
+			return;
+		}
+	}
+
 	// If the neural network expects a different number of inputs, do nothing.
-	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
+	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num();
 	const int64 NumDeformerAssetInputs = static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs());
 	if (NumNeuralNetInputs != NumDeformerAssetInputs)
 	{
@@ -205,13 +225,15 @@ void FMLDeformerInstance::Update()
 	}
 
 	// Update and write the input values directly into the input tensor.
-	float* InputDataPointer = (float*)NeuralNetwork->GetInputDataPointerMutable();
+	float* InputDataPointer = (float*)NeuralNetwork->GetInputDataPointerMutableForContext(NeuralNetworkInferenceHandle);
 	SetNeuralNetworkInputValues(InputDataPointer, NumNeuralNetInputs);
 
-	// Output deltas will be available on GPU for the DeformerGraph via UMLDeformerDataProvider.
-	// So this does not actually modify our mesh directly. It just outputs the deltas, which are then used inside a deformer graph later on, accessible
-	// through the data provider class mentioned above.
-	// We pass ENeuralDeviceType::CPU as parameter because the inputs come from the CPU.
-	// We could later switch to Asynchronous processing if we want to run this in a background thread.
-	NeuralNetwork->Run();
+	ENQUEUE_RENDER_COMMAND(RunNeuralNetwork)(
+		[NeuralNetwork, Handle = NeuralNetworkInferenceHandle](FRHICommandListImmediate& RHICmdList)
+	{
+			// Output deltas will be available on GPU for DeformerGraph via UMLDeformerDataProvider.
+			FRDGBuilder GraphBuilder(RHICmdList);
+			NeuralNetwork->Run(GraphBuilder, Handle);
+			GraphBuilder.Execute();
+	});
 }

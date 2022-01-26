@@ -30,6 +30,7 @@ public:
 
 	//~UActorComponent interface
 	void Activate(bool bReset=false) override;
+	void Deactivate() override;
 	//End of ~UActorComponent interface
 
 	/**

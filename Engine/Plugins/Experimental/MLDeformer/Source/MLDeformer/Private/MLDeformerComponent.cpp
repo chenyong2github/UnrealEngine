@@ -36,6 +36,11 @@ void UMLDeformerComponent::Activate(bool bReset)
 	SetupComponent(DeformerAsset, SkelMeshComponent);
 }
 
+void UMLDeformerComponent::Deactivate()
+{
+	DeformerInstance.Release();
+}
+
 void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	if (TickType != ELevelTick::LEVELTICK_PauseTick)

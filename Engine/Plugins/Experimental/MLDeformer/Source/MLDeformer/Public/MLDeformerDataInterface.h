@@ -72,6 +72,7 @@ private:
 	FSkeletalMeshObject* SkeletalMeshObject;
 	UNeuralNetwork* NeuralNetwork = nullptr;
 	bool bCanRunNeuralNet = false;
+	int32 NeuralNetworkInferenceHandle = -1;
 	FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
 	FRDGBuffer* Buffer = nullptr;
 	FRDGBufferSRV* BufferSRV = nullptr;
