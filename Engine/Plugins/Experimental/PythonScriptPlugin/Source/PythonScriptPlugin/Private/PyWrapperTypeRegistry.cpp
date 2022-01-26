@@ -18,6 +18,7 @@
 #include "PyFileWriter.h"
 #include "PythonScriptPluginSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "SourceCodeNavigation.h"
@@ -449,6 +450,8 @@ const IPyWrapperInlineStructFactory* FPyWrapperTypeRegistry::GetInlineStructFact
 
 void FPyWrapperTypeRegistry::GenerateWrappedTypes()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPyWrapperTypeRegistry::GenerateWrappedTypes)
+
 	FGeneratedWrappedTypeReferences GeneratedWrappedTypeReferences;
 	TSet<FName> DirtyModules;
 
@@ -476,6 +479,8 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypes()
 
 void FPyWrapperTypeRegistry::GenerateWrappedTypesForModule(const FName ModuleName)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPyWrapperTypeRegistry::GenerateWrappedTypesForModule)
+
 	UPackage* const ModulePackage = FindPackage(nullptr, *(FString("/Script/") + ModuleName.ToString()));
 	if (!ModulePackage)
 	{
@@ -509,6 +514,8 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypesForModule(const FName ModuleNam
 
 void FPyWrapperTypeRegistry::OrphanWrappedTypesForModule(const FName ModuleName)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPyWrapperTypeRegistry::OrphanWrappedTypesForModule)
+
 	TArray<FName> ModuleTypeNames;
 	GeneratedWrappedTypesForModule.MultiFind(ModuleName, ModuleTypeNames, true);
 	GeneratedWrappedTypesForModule.Remove(ModuleName);
@@ -531,6 +538,8 @@ void FPyWrapperTypeRegistry::OrphanWrappedTypesForModule(const FName ModuleName)
 
 void FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences(const FGeneratedWrappedTypeReferences& InGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences)
+
 	static const EPyTypeGenerationFlags ReferenceGenerationFlags = EPyTypeGenerationFlags::ForceShouldExport | EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes;
 
 	if (!InGeneratedWrappedTypeReferences.HasReferences())
@@ -566,6 +575,8 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences(const FGeneratedW
 
 void FPyWrapperTypeRegistry::NotifyModulesDirtied(const TSet<FName>& InDirtyModules) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPyWrapperTypeRegistry::NotifyModulesDirtied)
+
 	for (const FName& DirtyModule : InDirtyModules)
 	{
 		const FString PythonModuleName = PyGenUtil::GetModulePythonName(DirtyModule, false);

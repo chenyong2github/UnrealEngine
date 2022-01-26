@@ -22,6 +22,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/DefaultValueHelper.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "HAL/FileManager.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
@@ -944,6 +945,8 @@ FOnDiskModules& GetOnDiskUnrealModulesCache()
 
 bool IsModuleAvailableForImport(const TCHAR* InModuleName, const FOnDiskModules* InOnDiskModules, FString* OutResolvedFile)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(PyUtil::IsModuleAvailableForImport)
+
 	// Check the sys.modules table first since it avoids hitting the filesystem
 	if (PyObject* PyModulesDict = PySys_GetObject(PyCStrCast("modules")))
 	{
@@ -1055,6 +1058,11 @@ FString GetInterpreterExecutablePath(bool* OutIsEnginePython)
 
 void AddSitePackagesPath(const FString& InPath)
 {
+	if (!IFileManager::Get().DirectoryExists(*InPath))
+	{
+		return;
+	}
+
 	if (FPyObjectPtr PySiteModule = FPyObjectPtr::StealReference(PyImport_ImportModule("site")))
 	{
 		PyObject* PySiteDict = PyModule_GetDict(PySiteModule);
