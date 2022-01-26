@@ -420,6 +420,19 @@ void UDeviceProfile::ClearAllExpandedCVars()
 	AllPreviewCVars.Empty();
 }
 
+void UDeviceProfile::SetPreviewMemorySizeBucket(EPlatformMemorySizeBucket PreviewMemorySizeBucketIn)
+{ 
+	if (PreviewMemorySizeBucket != PreviewMemorySizeBucketIn)
+	{
+		PreviewMemorySizeBucket = PreviewMemorySizeBucketIn;
+		// If this changes then any cached cvars are likely to be invalid too.
+		ClearAllExpandedCVars();
+	}
+}
 
+EPlatformMemorySizeBucket UDeviceProfile::GetPreviewMemorySizeBucket() const
+{ 
+	return PreviewMemorySizeBucket;
+}
 
 #endif

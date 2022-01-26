@@ -145,6 +145,8 @@ static void ExpandScalabilityCVar(FConfigCacheIni* ConfigSystem, const FString& 
 void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& DeviceProfileName, EDeviceProfileMode Mode)
 {
 	FConfigCacheIni* ConfigSystem = GConfig;
+	EPlatformMemorySizeBucket PreviewMemorySizeBucket = EPlatformMemorySizeBucket::Default;
+
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
 #if ALLOW_OTHER_PLATFORM_CONFIG
@@ -153,6 +155,7 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 		check(Profile);
 		// use the DP's platform's configs, NOT the running platform
 		ConfigSystem = FConfigCacheIni::ForPlatform(*Profile->DeviceType);
+		PreviewMemorySizeBucket = Profile->GetPreviewMemorySizeBucket();
 #else
 		checkNoEntry();
 #endif
@@ -321,10 +324,10 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 				FString ArrayName = TEXT("CVars");
 				if (Pass == 0)
 				{
-					// assume default when caching for another platform, since we don' thave a current device to emulate (maybe we want to be able to pass in override memory bucket?)
+					// PreviewMemorySizeBucket is used when previewing, since we don't have a current device to emulate.
 					if (Mode == EDeviceProfileMode::DPM_CacheValues)
 					{
-						ArrayName += TEXT("_Default");
+						ArrayName += BucketNames[(int32)PreviewMemorySizeBucket];
 					}
 					else
 					{
@@ -468,6 +471,8 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 
 		// now remember all previewable cvars
 		Profile->AddPreviewCVars(PreviewableCVars);
+
+		Profile->SelectedFragments = FragmentsSelected;
 	}
 #endif
 }
@@ -1111,15 +1116,13 @@ bool UDeviceProfileManager::AreTextureGroupsTheSame(UDeviceProfile* Profile1, UD
 IDeviceProfileSelectorModule* UDeviceProfileManager::GetPreviewDeviceProfileSelectorModule(FConfigCacheIni* PreviewConfigSystemIn)
 {
 #if ALLOW_OTHER_PLATFORM_CONFIG && WITH_EDITOR
-	// If we're getting the selector for previewing the PIEPreviewDeviceProfileSelector device selector can be given a PreviewDeviceDesciption to return selector info for specific devices.
-	FString PreviewDeviceDesciption; 
-	if (PreviewConfigSystemIn->GetString(TEXT("DeviceProfileManager"), TEXT("PreviewDeviceDesciption"), PreviewDeviceDesciption, GEngineIni))
+	// If we're getting the selector for previewing the PreviewDeviceProfileSelectionModule, this can be separately configured to preview a target device.
+	FString PreviewDeviceProfileSelectionModuleName;
+	if (PreviewConfigSystemIn->GetString(TEXT("DeviceProfileManager"), TEXT("PreviewDeviceProfileSelectionModule"), PreviewDeviceProfileSelectionModuleName, GEngineIni))
 	{
 		// this should only be specified when previewing.
-		if (IPIEPreviewDeviceModule* DPSelectorModule = FModuleManager::LoadModulePtr<IPIEPreviewDeviceModule>(TEXT("PIEPreviewDeviceProfileSelector")))
+		if (IPIEPreviewDeviceModule* DPSelectorModule = FModuleManager::LoadModulePtr<IPIEPreviewDeviceModule>(*PreviewDeviceProfileSelectionModuleName))
 		{
-			// TODO: check success.
-			DPSelectorModule->SetPreviewDevice(PreviewDeviceDesciption);
 			return DPSelectorModule;
 		}
 	}

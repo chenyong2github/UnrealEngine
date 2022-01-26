@@ -167,11 +167,18 @@ public:
 	void AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge);
 	void AddPreviewCVars(const TMap<FString, FString>& CVarsToMerge);
 	void ClearAllExpandedCVars();
+	/** Set the memory size bucket to be used when previewing this DP, changing this will reset the expanded cvars. */
+	void SetPreviewMemorySizeBucket(EPlatformMemorySizeBucket PreviewMemorySizeBucketIn);
+	EPlatformMemorySizeBucket GetPreviewMemorySizeBucket() const;
+
 private:
 	/** Resolved CVars, including expanded scalability cvars used to properly emulate one platform on another */
 	TMap<FString, FString> AllExpandedCVars;
 
 	/** The set of cvars that can be previewed (a subset of AllExpandedCVars) */
 	TMap<FString, FString> AllPreviewCVars;
+
+	/** The EPlatformMemorySizeBucket to use when processing the device profile for previewing. */
+	EPlatformMemorySizeBucket PreviewMemorySizeBucket = EPlatformMemorySizeBucket::Default;
 #endif
 };
