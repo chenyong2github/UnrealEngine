@@ -428,6 +428,120 @@ bool CastScreenSpaceRay(
 	return bFoundAnyHit;
 } // CastScreenSpaceRay()
 
+/** Cast a screen space ray. */
+bool CastScreenSpaceRayMobile(
+	Texture2D Texture, SamplerState Sampler,
+	FSSRTRay Ray,
+	float Roughness,
+	uint NumSteps, float StepOffset,
+	out float3 OutHitUVz)
+{
+	const float3 RayStartScreen = Ray.RayStartScreen;
+	float3 RayStepScreen = Ray.RayStepScreen;
+
+	float3 RayStartUVz = float3( (RayStartScreen.xy * float2( 0.5, -0.5 ) + 0.5), RayStartScreen.z );
+	float3 RayStepUVz  = float3(  RayStepScreen.xy  * float2( 0.5, -0.5 )		, RayStepScreen.z );
+
+	const float Step = 1.0 / NumSteps;
+	float CompareTolerance = Ray.CompareTolerance * Step;
+
+	float LastDiff = 0;
+
+	RayStepUVz *= Step;
+	float3 RayUVz = RayStartUVz + RayStepUVz * StepOffset;
+
+	float4 MultipleSampleDepthDiff;
+	bool4 bMultipleSampleHit; // TODO: Might consumes VGPRS if bug in compiler.
+	bool bFoundAnyHit = false;
+
+	uint i;
+
+	LOOP
+	for (i = 0; i < NumSteps; i += SSRT_SAMPLE_BATCH_SIZE)
+	{
+		float2 SamplesUV[SSRT_SAMPLE_BATCH_SIZE];
+		float4 SamplesZ;
+		float4 SamplesMip;
+
+		UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+		for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
+		{
+			SamplesUV[j] = RayUVz.xy + (float(i) + float(j + 1)) * RayStepUVz.xy;
+			SamplesZ[j] = RayUVz.z + (float(i) + float(j + 1)) * RayStepUVz.z;
+		}
+
+		// Sample the scene depth.
+		float4 SampleDepth;
+		{
+			UNROLL_N(SSRT_SAMPLE_BATCH_SIZE)
+			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
+			{
+				SampleDepth[j] = Texture.SampleLevel(Sampler, SamplesUV[j], 0).a;
+			}
+		}
+
+		// Evaluates the intersections.
+		MultipleSampleDepthDiff = SamplesZ - SampleDepth;
+		bMultipleSampleHit = abs(MultipleSampleDepthDiff + CompareTolerance) < CompareTolerance;
+		bFoundAnyHit = any(bMultipleSampleHit);
+
+		BRANCH
+		if (bFoundAnyHit)
+		{
+			break;
+		}
+
+		LastDiff = MultipleSampleDepthDiff.w;
+	}
+
+	// Compute the output coordinates.
+	BRANCH
+	if (bFoundAnyHit)
+	{
+		float DepthDiff0 = MultipleSampleDepthDiff[2];
+		float DepthDiff1 = MultipleSampleDepthDiff[3];
+		float Time0 = 3;
+
+		FLATTEN
+		if (bMultipleSampleHit[2])
+		{
+			DepthDiff0 = MultipleSampleDepthDiff[1];
+			DepthDiff1 = MultipleSampleDepthDiff[2];
+			Time0 = 2;
+		}
+		FLATTEN
+		if (bMultipleSampleHit[1])
+		{
+			DepthDiff0 = MultipleSampleDepthDiff[0];
+			DepthDiff1 = MultipleSampleDepthDiff[1];
+			Time0 = 1;
+		}
+		FLATTEN
+		if (bMultipleSampleHit[0])
+		{
+			DepthDiff0 = LastDiff;
+			DepthDiff1 = MultipleSampleDepthDiff[0];
+			Time0 = 0;
+		}
+
+		Time0 += float(i);
+
+		// Find more accurate hit using line segment intersection
+		float TimeLerp = saturate(DepthDiff0 / (DepthDiff0 - DepthDiff1));
+		float IntersectTime = Time0 + TimeLerp;
+
+		OutHitUVz = RayUVz + RayStepUVz * IntersectTime;
+
+		OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
+		OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+	}
+	else
+	{
+		OutHitUVz = float3(0, 0, 0);
+	}
+
+	return bFoundAnyHit;
+} // CastScreenSpaceRayMobile()
 
 bool RayCast(
 	Texture2D Texture, SamplerState Sampler,
@@ -449,6 +563,22 @@ bool RayCast(
 		/* out */ OutHitUVz,
 		/* out */ Level);
 } // RayCast()
+
+bool RayCastMobile(
+	Texture2D Texture, SamplerState Sampler,
+	float3 RayOriginTranslatedWorld, float3 RayDirection,
+	float Roughness, float SceneDepth,
+	uint NumSteps, float StepOffset,
+	out float3 OutHitUVz)
+{
+	FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(RayOriginTranslatedWorld, RayDirection, SceneDepth);
+
+	return CastScreenSpaceRayMobile(
+		Texture, Sampler,
+		Ray,
+		Roughness, NumSteps, StepOffset,
+		/* out */ OutHitUVz);
+} // RayCastMobile()
 
 float ComputeHitVignetteFromScreenPos(float2 ScreenPos)
 {

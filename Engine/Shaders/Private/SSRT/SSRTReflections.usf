@@ -393,18 +393,7 @@ void MobileScreenSpaceReflectionPS(
 	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
-	bool bDebugPrint = all(PixelPos == uint2(View.ViewSizeAndInvSize.xy) / 2);
-
-	float4 SceneColorMobile = SceneColor.SampleLevel(SceneColorSampler, UV, 0);
 	float4 WorldNormalRoughness = WorldNormalRoughnessTexture.SampleLevel(WorldNormalRoughnessSampler, UV, 0);
-
-	float3 N = OctahedronToUnitVector( WorldNormalRoughness.xy * 2.0f - 1.0f );
-
-	float DeviceZ = SceneColorMobile.a; // Mobile scene color's alpha channel store depth.
-	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-
-	float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
-	float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
 	float Roughness = WorldNormalRoughness.b;
 	float RoughnessFade = GetRoughnessFade(Roughness);
@@ -414,22 +403,31 @@ void MobileScreenSpaceReflectionPS(
 		return;
 	}
 
-	float a = Roughness * Roughness;
-	float a2 = a * a;
+	float4 SceneColorMobile = SceneColor.SampleLevel(SceneColorSampler, UV, 0);
 
+	float DeviceZ = SceneColorMobile.a; // Mobile scene color's alpha channel store depth.
+	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+
+	float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
+	float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
+
+	float3 N = OctahedronToUnitVector( WorldNormalRoughness.xy * 2.0f - 1.0f );
 	float NoV = saturate( dot( N, V ) );
-	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
 
 	float ClosestHitDistanceSqr = INFINITE_FLOAT;
 
 #if SSR_QUALITY == 1
 	uint NumSteps = 8;
+	float Factor = 0.1;
 #elif SSR_QUALITY == 2
 	uint NumSteps = 16;
+	float Factor = 0.15;
 #elif SSR_QUALITY == 3
 	uint NumSteps = 24;
+	float Factor = 0.2;
 #else // SSR_QUALITY == 4
 	uint NumSteps = 32;
+	float Factor = 0.25;
 #endif
 
 	float NoiseSeed = SSRParams.b;
@@ -438,15 +436,11 @@ void MobileScreenSpaceReflectionPS(
 	float3 L = reflect( -V, N );
 
 	float3 HitUVz;
-	float Level = 0;
-	bool bHit = RayCast(
-		HZB, HZBSampler,
+	bool bHit = RayCastMobile(
+		SceneColor, SceneColorSampler,
 		PositionTranslatedWorld, L, Roughness, SceneDepth,
 		NumSteps, StepOffset,
-		HZBUvFactorAndInvFactor,
-		bDebugPrint,
-		HitUVz,
-		Level
+		HitUVz
 	);
 
 	float4 SSR = 0;
@@ -471,7 +465,7 @@ void MobileScreenSpaceReflectionPS(
 	// Following composite mode is One One, so subtract scene color here.
 	OutColor.rgb -= SceneColorMobile.rgb * OutColor.a;
 
-	OutColor.rgb *= EnvBRDF( 0.04, Roughness, NoV );
+	OutColor.rgb *= max(EnvBRDF( 0.04, Roughness, NoV ), Factor);
 
 	//OutColor = SSR;
 }

@@ -37,9 +37,6 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, WorldNormalRoughnessSampler)
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZB)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
-		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
 		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
 		SHADER_PARAMETER(FLinearColor, SSRParams)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -86,7 +83,7 @@ void FMobileSceneRenderer::InitScreenSpaceReflectionOutputs(FRHICommandListImmed
 
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			BufferSize,
-			PF_FloatRGBA,
+			PF_B8G8R8A8,
 			FClearValueBinding::None,
 			TexCreate_None,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable,
@@ -105,7 +102,7 @@ void FMobileSceneRenderer::ReleaseScreenSpaceReflectionOutputs()
 
 void FMobileSceneRenderer::RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneRenderTargets& SceneContext)
 {
-	if (!bRequriesScreenSpaceReflectionPass || !View.HZB)
+	if (!bRequriesScreenSpaceReflectionPass)
 	{
 		return;
 	}
@@ -125,38 +122,16 @@ void FMobileSceneRenderer::RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder
 		FMobileScreenSpaceReflectionPassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileScreenSpaceReflectionPassPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneColor = SceneColorTexture;
-		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->WorldNormalRoughnessTexture = WorldNormalRoughnessTexture;
 		PassParameters->WorldNormalRoughnessSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 		PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
-		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
-
-		{
-			const FVector2D HZBUvFactor(
-				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-			PassParameters->HZBUvFactorAndInvFactor = FVector4(
-				HZBUvFactor.X,
-				HZBUvFactor.Y,
-				1.0f / HZBUvFactor.X,
-				1.0f / HZBUvFactor.Y);
-		}
 
 		{
 			FIntPoint ViewportOffset = View.ViewRect.Min;
 			FIntPoint ViewportExtent = View.ViewRect.Size();
 			FIntPoint BufferSize = SceneColorTexture->Desc.Extent;
-			if (View.PrevViewInfo.TemporalAAHistory.IsValid())
-			{
-				ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
-				ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-				BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
-				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
-				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
-			}
-
 			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
 
 			PassParameters->PrevScreenPositionScaleBias = FVector4(

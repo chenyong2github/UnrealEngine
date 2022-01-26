@@ -344,6 +344,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	bRequriesScreenSpaceReflectionPass = AllowScreenSpaceReflection(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
+		&& ViewFamily.EngineShowFlags.ScreenSpaceReflections
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
