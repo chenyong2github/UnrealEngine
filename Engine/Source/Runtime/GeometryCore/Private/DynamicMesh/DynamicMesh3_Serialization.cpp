@@ -251,7 +251,7 @@ void FDynamicMesh3::Serialize(FArchive& Ar)
 	constexpr bool bCheckValidityForDebugging = false;
 
 	// Check validity for debugging before saving data.
-	checkSlow(bCheckValidityForDebugging && (Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure)));
+	checkSlow(!bCheckValidityForDebugging || (Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure)));
 
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
@@ -276,7 +276,7 @@ void FDynamicMesh3::Serialize(FArchive& Ar)
 	}
 
 	// Check validity for debugging after loading data.
-	checkSlow(bCheckValidityForDebugging && (!Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure)));
+	checkSlow(!bCheckValidityForDebugging || (!Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure)));
 
 	UE_LOG(LogGeometry, Verbose, TEXT("NEW %s of dynamic mesh took %2.3f ms"), ANSI_TO_TCHAR(Ar.IsLoading() ? "deserialization" : "serialization"),
 	       1000.0f * static_cast<float>(FPlatformTime::Seconds() - TimeStart));
