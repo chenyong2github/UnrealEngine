@@ -207,6 +207,7 @@ TSharedPtr<SScrollBar> SScrollBox::ConstructScrollBar()
 	return TSharedPtr<SScrollBar>(SNew(SScrollBar)
 		.Style(ScrollBarStyle)
 		.Orientation(Orientation)
+		.Padding(0.0f)
 		.OnUserScrolled(this, &SScrollBox::ScrollBar_OnUserScrolled));
 }
 

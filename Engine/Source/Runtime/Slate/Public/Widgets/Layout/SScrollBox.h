@@ -118,6 +118,7 @@ public:
 
 		SLATE_ARGUMENT( FVector2D, ScrollBarThickness )
 
+		/** This accounts for total internal scroll bar padding; default 2.0f padding from the scroll bar itself is removed */
 		SLATE_ARGUMENT( FMargin, ScrollBarPadding )
 
 		SLATE_ARGUMENT(EAllowOverscroll, AllowOverscroll);
