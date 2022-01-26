@@ -12,122 +12,125 @@
 
 #define LOCTEXT_NAMESPACE "PoseWatchManagerColumnVisibility"
 
-class SVisibilityWidget : public SImage
+namespace PoseWatchManager
 {
-public:
-	SLATE_BEGIN_ARGS(SVisibilityWidget) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, TWeakPtr<FPoseWatchManagerColumnVisibility> InWeakColumn, TWeakPtr<IPoseWatchManager> InWeakPoseWatchManager, TWeakPtr<IPoseWatchManagerTreeItem> InWeakTreeItem, const STableRow<FPoseWatchManagerTreeItemPtr>* InRow)
+	class SVisibilityWidget : public SImage
 	{
-		WeakTreeItem = InWeakTreeItem;
-		WeakPoseWatchManager = InWeakPoseWatchManager;
-		WeakColumn = InWeakColumn;
+	public:
+		SLATE_BEGIN_ARGS(SVisibilityWidget) {}
+		SLATE_END_ARGS()
 
-		Row = InRow;
-
-		SImage::Construct(
-			SImage::FArguments()
-			.ColorAndOpacity(this, &SVisibilityWidget::GetForegroundColor)
-			.Image(this, &SVisibilityWidget::GetBrush)
-		);
-
-		static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
-		static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
-		static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
-		static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
-
-		VisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush);
-		VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
-
-		NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush);
-		NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
-	}
-
-private:
-	FReply HandleClick()
-	{
-		TSharedPtr<IPoseWatchManagerTreeItem> TreeItem = WeakTreeItem.Pin();
-		TreeItem->SetIsVisible(!TreeItem->GetVisibility());
-		return FReply::Handled();
-	}
-
-	/** Called when the mouse button is pressed down on this widget */
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
-	{
-		if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+			void Construct(const FArguments& InArgs, TWeakPtr<FPoseWatchManagerColumnVisibility> InWeakColumn, TWeakPtr<IPoseWatchManager> InWeakPoseWatchManager, TWeakPtr<IPoseWatchManagerTreeItem> InWeakTreeItem, const STableRow<FPoseWatchManagerTreeItemPtr>* InRow)
 		{
-			return FReply::Unhandled();
+			WeakTreeItem = InWeakTreeItem;
+			WeakPoseWatchManager = InWeakPoseWatchManager;
+			WeakColumn = InWeakColumn;
+
+			Row = InRow;
+
+			SImage::Construct(
+				SImage::FArguments()
+				.ColorAndOpacity(this, &SVisibilityWidget::GetForegroundColor)
+				.Image(this, &SVisibilityWidget::GetBrush)
+			);
+
+			static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
+			static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
+			static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
+			static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
+
+			VisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush);
+			VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
+
+			NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush);
+			NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
 		}
 
-		return HandleClick();
-	}
-
-	/** Get the brush for this widget */
-	const FSlateBrush* GetBrush() const
-	{
-		if (IsVisible())
+	private:
+		FReply HandleClick()
 		{
-			return IsHovered() ? VisibleHoveredBrush : VisibleNotHoveredBrush;
-		}
-		else
-		{
-			return IsHovered() ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
-		}
-	}
-
-	virtual FSlateColor GetForegroundColor() const
-	{
-		auto TreeItem = WeakTreeItem.Pin();
-		const bool bIsSelected = WeakPoseWatchManager.Pin()->GetTree().IsItemSelected(TreeItem.ToSharedRef());
-
-		if (!TreeItem->IsEnabled())
-		{
-			return FPoseWatchManagerCommonLabelData::DisabledColor;
+			TSharedPtr<IPoseWatchManagerTreeItem> TreeItem = WeakTreeItem.Pin();
+			TreeItem->SetIsVisible(!TreeItem->GetVisibility());
+			return FReply::Handled();
 		}
 
-		if (IsHovered() && !bIsSelected)
+		/** Called when the mouse button is pressed down on this widget */
+		virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 		{
-			return FAppStyle::Get().GetSlateColor("Colors.ForegroundHover");
+			if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+			{
+				return FReply::Unhandled();
+			}
+
+			return HandleClick();
 		}
 
-		return FSlateColor::UseForeground();
-	}
+		/** Get the brush for this widget */
+		const FSlateBrush* GetBrush() const
+		{
+			if (IsVisible())
+			{
+				return IsHovered() ? VisibleHoveredBrush : VisibleNotHoveredBrush;
+			}
+			else
+			{
+				return IsHovered() ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
+			}
+		}
 
-	static bool IsVisible(const FPoseWatchManagerTreeItemPtr& Item, const TSharedPtr<FPoseWatchManagerColumnVisibility>& Column)
-	{
-		return (Column.IsValid() && Item && Item.IsValid()) ? Item->GetVisibility() : false;
-	}
+		virtual FSlateColor GetForegroundColor() const
+		{
+			auto TreeItem = WeakTreeItem.Pin();
+			const bool bIsSelected = WeakPoseWatchManager.Pin()->GetTree().IsItemSelected(TreeItem.ToSharedRef());
 
-	bool IsVisible() const
-	{
-		return IsVisible(WeakTreeItem.Pin(), WeakColumn.Pin());
-	}
+			if (!TreeItem->IsEnabled())
+			{
+				return FPoseWatchManagerCommonLabelData::DisabledColor;
+			}
 
-	void SetIsVisible(const bool bVisible)
-	{
-		TSharedPtr<IPoseWatchManagerTreeItem> TreeItem = WeakTreeItem.Pin();
-		TreeItem.Get()->SetIsVisible(bVisible);
-		WeakPoseWatchManager.Pin()->Refresh();	
-	}
+			if (IsHovered() && !bIsSelected)
+			{
+				return FAppStyle::Get().GetSlateColor("Colors.ForegroundHover");
+			}
 
-	/** The tree item we relate to */
-	TWeakPtr<IPoseWatchManagerTreeItem> WeakTreeItem;
+			return FSlateColor::UseForeground();
+		}
 
-	TWeakPtr<IPoseWatchManager> WeakPoseWatchManager;
+		static bool IsVisible(const FPoseWatchManagerTreeItemPtr& Item, const TSharedPtr<FPoseWatchManagerColumnVisibility>& Column)
+		{
+			return (Column.IsValid() && Item && Item.IsValid()) ? Item->GetVisibility() : false;
+		}
 
-	/** Weak pointer back to the column */
-	TWeakPtr<FPoseWatchManagerColumnVisibility> WeakColumn;
+		bool IsVisible() const
+		{
+			return IsVisible(WeakTreeItem.Pin(), WeakColumn.Pin());
+		}
 
-	/** Weak pointer back to the row */
-	const STableRow<FPoseWatchManagerTreeItemPtr>* Row;
+		void SetIsVisible(const bool bVisible)
+		{
+			TSharedPtr<IPoseWatchManagerTreeItem> TreeItem = WeakTreeItem.Pin();
+			TreeItem.Get()->SetIsVisible(bVisible);
+			WeakPoseWatchManager.Pin()->Refresh();
+		}
 
-	/** Visibility brushes for the various states */
-	const FSlateBrush* VisibleHoveredBrush;
-	const FSlateBrush* VisibleNotHoveredBrush;
-	const FSlateBrush* NotVisibleHoveredBrush;
-	const FSlateBrush* NotVisibleNotHoveredBrush;
-};
+		/** The tree item we relate to */
+		TWeakPtr<IPoseWatchManagerTreeItem> WeakTreeItem;
+
+		TWeakPtr<IPoseWatchManager> WeakPoseWatchManager;
+
+		/** Weak pointer back to the column */
+		TWeakPtr<FPoseWatchManagerColumnVisibility> WeakColumn;
+
+		/** Weak pointer back to the row */
+		const STableRow<FPoseWatchManagerTreeItemPtr>* Row;
+
+		/** Visibility brushes for the various states */
+		const FSlateBrush* VisibleHoveredBrush;
+		const FSlateBrush* VisibleNotHoveredBrush;
+		const FSlateBrush* NotVisibleHoveredBrush;
+		const FSlateBrush* NotVisibleNotHoveredBrush;
+	};
+}
 
 SHeaderRow::FColumn::FArguments FPoseWatchManagerColumnVisibility::ConstructHeaderRowColumn()
 {
@@ -153,7 +156,7 @@ const TSharedRef<SWidget> FPoseWatchManagerColumnVisibility::ConstructRowWidget(
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew(SVisibilityWidget, SharedThis(this), WeakPoseWatchManager, TreeItem, &Row)
+			SNew(PoseWatchManager::SVisibilityWidget, SharedThis(this), WeakPoseWatchManager, TreeItem, &Row)
 		];
 }
 
