@@ -3993,7 +3993,7 @@ FSearchResult Search(FSearchContext& SearchContext)
 		return Result;
 	}
 
-	float BestPoseDissimilarity = MAX_flt;
+	FPoseCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
 
 	for (int32 PoseIdx = 0; PoseIdx != SearchIndex->NumPoses; ++PoseIdx)
@@ -4005,18 +4005,18 @@ FSearchResult Search(FSearchContext& SearchContext)
 			continue;
 		}
 
-		float PoseDissimilarity = ComparePoses(PoseIdx, SearchContext);
+		FPoseCost PoseCost = ComparePoses(PoseIdx, SearchContext);
 
-		if (PoseDissimilarity < BestPoseDissimilarity)
+		if (PoseCost < BestPoseCost)
 		{
-			BestPoseDissimilarity = PoseDissimilarity;
+			BestPoseCost = PoseCost;
 			BestPoseIdx = PoseIdx;
 		}
 	}
 
 	ensure(BestPoseIdx != INDEX_NONE);
 
-	Result.Dissimilarity = BestPoseDissimilarity;
+	Result.PoseCost = BestPoseCost;
 	Result.PoseIdx = BestPoseIdx;
 	Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
 	Result.TimeOffsetSeconds = SearchIndex->GetTimeOffset(BestPoseIdx, Result.SearchIndexAsset);
@@ -4053,19 +4053,20 @@ void ComputePoseCostAddends(
 	OutNotifyAddend = PoseMetadata.CostAddend;
 }
 
-float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
+FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
 {
+	FPoseCost Result;
+
 	TArrayView<const float> PoseValues = SearchContext.GetSearchIndex()->GetPoseValues(PoseIdx);
 	if (!ensure(PoseValues.Num() == SearchContext.QueryValues.Num()))
 	{
-		return MAX_flt;
+		return Result;
 	}
 
-	float Dissimilarity;
 	if (SearchContext.WeightsContext)
 	{
 		const FPoseSearchWeights* WeightsSet = SearchContext.WeightsContext->GetGroupWeights(0);
-		Dissimilarity = CompareFeatureVectors(
+		Result.Dissimilarity = CompareFeatureVectors(
 			PoseValues.Num(), 
 			PoseValues.GetData(), 
 			SearchContext.QueryValues.GetData(),
@@ -4073,38 +4074,39 @@ float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
 	}
 	else
 	{
-		Dissimilarity = 
-			CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), SearchContext.QueryValues.GetData());
+		Result.Dissimilarity = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), SearchContext.QueryValues.GetData());
 	}
 
 	float NotifyAddend = 0.0f;
 	float MirrorMismatchAddend = 0.0f;
 	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
-	Dissimilarity += (NotifyAddend + MirrorMismatchAddend);
+	Result.CostAddend = NotifyAddend + MirrorMismatchAddend;
+	Result.TotalCost = Result.Dissimilarity + Result.CostAddend;
 	
-	return Dissimilarity;
+	return Result;
 }
 
-float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostInfo& OutPoseCostInfo)
+FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostDetails& OutPoseCostDetails)
 {
 	using namespace Eigen;
+
+	FPoseCost Result;
 
 	TArrayView<const float> PoseValues = SearchContext.GetSearchIndex()->GetPoseValues(PoseIdx);
 	const int32 Dims = PoseValues.Num();
 	if (!ensure(Dims == SearchContext.QueryValues.Num()))
 	{
-		return MAX_flt;
+		return Result;
 	}
 
-	OutPoseCostInfo.CostVector.SetNum(Dims);
+	OutPoseCostDetails.CostVector.SetNum(Dims);
 
 	// Setup Eigen views onto our vectors
-	auto OutCostVector = Map<ArrayXf>(OutPoseCostInfo.CostVector.GetData(), Dims);
+	auto OutCostVector = Map<ArrayXf>(OutPoseCostDetails.CostVector.GetData(), Dims);
 	auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
 	auto QueryVector = Map<const ArrayXf>(SearchContext.QueryValues.GetData(), Dims);
 	
 	// Compute weighted squared difference vector
-	float Dissimilarity;
 	if (SearchContext.WeightsContext)
 	{
 		const FPoseSearchWeights* WeightsSet = SearchContext.WeightsContext->GetGroupWeights(0);
@@ -4113,41 +4115,39 @@ float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostInfo& 
 		auto WeightsVector = Map<const ArrayXf>(WeightsSet->Weights.GetData(), Dims);
 
 		OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
-		Dissimilarity = OutCostVector.sum();
+		Result.Dissimilarity = OutCostVector.sum();
 	}
 	else
 	{
 		OutCostVector = (PoseVector - QueryVector).square();
-		Dissimilarity = OutCostVector.sum();
+		Result.Dissimilarity = OutCostVector.sum();
 	}
 
-	ComputePoseCostAddends(
-		PoseIdx, 
-		SearchContext, 
-		OutPoseCostInfo.NotifyCostAddend, 
-		OutPoseCostInfo.MirrorMismatchCostAddend);
+	float NotifyAddend = 0.0f;
+	float MirrorMismatchAddend = 0.0f;
+	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
+	Result.CostAddend = NotifyAddend + MirrorMismatchAddend;
+	Result.TotalCost = Result.Dissimilarity + Result.CostAddend;
 
-	const float TotalDissimilarity = 
-		Dissimilarity + 
-		OutPoseCostInfo.NotifyCostAddend + 
-		OutPoseCostInfo.MirrorMismatchCostAddend;
+	OutPoseCostDetails.NotifyCostAddend = NotifyAddend;
+	OutPoseCostDetails.MirrorMismatchCostAddend = MirrorMismatchAddend;
 
 	// Verify this math agrees with the runtime pose comparator
 	checkSlow(FMath::IsNearlyEqual(
-		TotalDissimilarity,
-		ComparePoses(PoseIdx, SearchContext), 
+		Result.TotalCost,
+		ComparePoses(PoseIdx, SearchContext).TotalCost, 
 		KINDA_SMALL_NUMBER));
 
 	
 	// Output cost details
-	OutPoseCostInfo.TotalCost = TotalDissimilarity;
-	CalcChannelCosts(SearchContext.GetSearchIndex()->Schema, OutPoseCostInfo.CostVector, OutPoseCostInfo.ChannelCosts);
+	OutPoseCostDetails.PoseCost = Result;
+	CalcChannelCosts(SearchContext.GetSearchIndex()->Schema, OutPoseCostDetails.CostVector, OutPoseCostDetails.ChannelCosts);
 
 	// Verify channel cost decomposition agrees with pose comparator
-	auto OutChannelCosts = Map<const ArrayXf>(OutPoseCostInfo.ChannelCosts.GetData(), OutPoseCostInfo.ChannelCosts.Num());
-	checkSlow(FMath::IsNearlyEqual(Dissimilarity, OutChannelCosts.sum(), KINDA_SMALL_NUMBER));
+	auto OutChannelCosts = Map<const ArrayXf>(OutPoseCostDetails.ChannelCosts.GetData(), OutPoseCostDetails.ChannelCosts.Num());
+	checkSlow(FMath::IsNearlyEqual(Result.Dissimilarity, OutChannelCosts.sum(), KINDA_SMALL_NUMBER));
 
-	return TotalDissimilarity;
+	return Result;
 }
 
 
@@ -4211,7 +4211,7 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 	SearchContext.QueryValues = QueryBuilder.GetNormalizedValues();
 	::UE::PoseSearch::FSearchResult Result = ::UE::PoseSearch::Search(SearchContext);
 
-	ProviderResult.Dissimilarity = Result.Dissimilarity;
+	ProviderResult.Dissimilarity = Result.PoseCost.TotalCost;
 	ProviderResult.PoseIdx = Result.PoseIdx;
 	ProviderResult.TimeOffsetSeconds = Result.TimeOffsetSeconds;
 	return ProviderResult;

@@ -208,9 +208,9 @@ class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData
 public:
 	FDebuggerDatabaseRowData() = default;
 	
-	float GetPoseCost() const { return PoseCostInfo.ChannelCosts.Num() ? PoseCostInfo.ChannelCosts[0] : 0.0f; }
-	float GetTrajectoryCost() const { return PoseCostInfo.ChannelCosts.Num() >= 3 ? PoseCostInfo.ChannelCosts[1] + PoseCostInfo.ChannelCosts[2] : 0.0f; }
-	float GetAddendsCost() const { return PoseCostInfo.NotifyCostAddend + PoseCostInfo.MirrorMismatchCostAddend; }
+	float GetPoseCost() const { return PoseCostDetails.ChannelCosts.Num() ? PoseCostDetails.ChannelCosts[0] : 0.0f; }
+	float GetTrajectoryCost() const { return PoseCostDetails.ChannelCosts.Num() >= 3 ? PoseCostDetails.ChannelCosts[1] + PoseCostDetails.ChannelCosts[2] : 0.0f; }
+	float GetAddendsCost() const { return PoseCostDetails.NotifyCostAddend + PoseCostDetails.MirrorMismatchCostAddend; }
 
 	int32 PoseIdx = 0;
 	FString AnimSequenceName = "";
@@ -218,7 +218,7 @@ public:
 	int32 AnimFrame = 0;
 	float Time = 0.0f;
 	bool bMirrored = false;
-	FPoseCostInfo PoseCostInfo;
+	FPoseCostDetails PoseCostDetails;
 };
 
 namespace DebuggerDatabaseColumns
@@ -246,10 +246,7 @@ namespace DebuggerDatabaseColumns
 		using FRowDataRef = TSharedRef<FDebuggerDatabaseRowData>;
 		using FSortPredicate = TFunctionRef<bool(const FRowDataRef&, const FRowDataRef&)>;
 		
-		/** Sort predicate to sort list in ascending order by this column */
-		virtual const FSortPredicate& GetSortPredicateAscending() const = 0;
-		/** Sort predicate to sort list in descending order by this column */
-		virtual const FSortPredicate& GetSortPredicateDescending() const = 0;
+		virtual FSortPredicate GetSortPredicate() const = 0;
 		
 		TSharedRef<STextBlock> GenerateTextWidget(const FRowDataRef& RowData) const
 		{
@@ -271,16 +268,9 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseIdx < Row1->PoseIdx; };
-			return Predicate;
-		}
-		
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseIdx >= Row1->PoseIdx; };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseIdx < Row1->PoseIdx; };
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -296,15 +286,9 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
 			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimSequenceName < Row1->AnimSequenceName; };
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimSequenceName >= Row1->AnimSequenceName; };
 			return Predicate;
 		}
 
@@ -321,15 +305,9 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
 			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Time < Row1->Time; };
-			return Predicate;
-		}
-		
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Time >= Row1->Time; };
 			return Predicate;
 		}
 
@@ -354,50 +332,36 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.TotalCost < Row1->PoseCostInfo.TotalCost; };
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.TotalCost >= Row1->PoseCostInfo.TotalCost; };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostDetails.PoseCost < Row1->PoseCostDetails.PoseCost; };
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
         {
-        	return FText::AsNumber(Row->PoseCostInfo.TotalCost);
+        	return FText::AsNumber(Row->PoseCostDetails.PoseCost.TotalCost);
         }
 	};
 	const FName FCost::Name = "Cost";
 
 
-	struct FPoseCost : IColumn
+	struct FPoseCostColumn : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() < Row1->GetPoseCost(); };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() < Row1->GetPoseCost(); };
 		}
 
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() >= Row1->GetPoseCost(); };
-			return Predicate;
-		}
-		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
 			return FText::AsNumber(Row->GetPoseCost());
 		}
 	};
-	const FName FPoseCost::Name = "Pose Cost";
+	const FName FPoseCostColumn::Name = "Pose Cost";
 
 
 	struct FTrajectoryCost : IColumn
@@ -406,16 +370,9 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() < Row1->GetTrajectoryCost(); };
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() >= Row1->GetTrajectoryCost(); };
-			return Predicate;
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() < Row1->GetTrajectoryCost(); };
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -431,22 +388,12 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
 			{ 
 				return Row0->GetAddendsCost() < Row1->GetAddendsCost();
 			};
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
-			{ 
-				return Row0->GetAddendsCost() >= Row1->GetAddendsCost();
-			};
-			return Predicate;
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -462,22 +409,12 @@ namespace DebuggerDatabaseColumns
 		static const FName Name;
 		virtual FName GetName() const override { return Name; }
 
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		virtual FSortPredicate GetSortPredicate() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
 			{ 
 				return Row0->bMirrored < Row1->bMirrored; 
 			};
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
-			{ 
-				return Row0->bMirrored >= Row1->bMirrored; 
-			};
-			return Predicate;
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
@@ -698,11 +635,16 @@ void SDebuggerDatabaseView::SortDatabaseRows()
 {
 	if (SortMode == EColumnSortMode::Ascending)
 	{
-		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicateAscending());
+		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicate());
 	}
 	else if (SortMode == EColumnSortMode::Descending)
 	{
-		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicateDescending());
+		auto DescendingPredicate = [this](const auto& Lhs, const auto& Rhs) -> bool
+		{
+			return !Columns[SortColumn]->GetSortPredicate()(Lhs, Rhs);
+		};
+
+		UnfilteredDatabaseRows.Sort(DescendingPredicate);
 	}
 }
 
@@ -794,7 +736,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	{
 		const int32 PoseIdx = Row->PoseIdx;
 
-		ComparePoses(PoseIdx, SearchContext, Row->PoseCostInfo);
+		ComparePoses(PoseIdx, SearchContext, Row->PoseCostDetails);
 
 		// If we are on the active pose for the frame
 		if (PoseIdx == State.DbPoseIdx)
@@ -834,7 +776,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	// Construct all column types
 	AddColumn(MakeShared<FAnimSequenceName>(0));
 	AddColumn(MakeShared<FCost>(1));
-	AddColumn(MakeShared<FPoseCost>(2));
+	AddColumn(MakeShared<FPoseCostColumn>(2));
 	AddColumn(MakeShared<FTrajectoryCost>(3));
 	AddColumn(MakeShared<FCostModifier>(4));
 	AddColumn(MakeShared<FFrame>(5));
@@ -1121,7 +1063,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 			Reader.SetValues(Pose);
 			Reflection->SelectedPoseVector.ExtractFeatures(Reader);
 
-			Pose = Selected->PoseCostInfo.CostVector;
+			Pose = Selected->PoseCostDetails.CostVector;
 			//Database.SearchIndex.InverseNormalize(Pose);
 			Reader.SetValues(Pose);
 			Reflection->CostVector.ExtractFeatures(Reader);
@@ -1132,7 +1074,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 			TArray<float> ActiveCostDifference(Pose);
 			for (int i = 0; i < ActiveCostDifference.Num(); ++i)
 			{
-				ActiveCostDifference[i] -= ActiveRow->PoseCostInfo.CostVector[i];
+				ActiveCostDifference[i] -= ActiveRow->PoseCostDetails.CostVector[i];
 			}
 
 			Reader.SetValues(ActiveCostDifference);

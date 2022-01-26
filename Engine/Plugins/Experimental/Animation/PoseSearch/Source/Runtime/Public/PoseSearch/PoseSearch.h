@@ -904,12 +904,21 @@ struct POSESEARCH_API FDebugDrawParams
 	const UPoseSearchSchema* GetSchema() const;
 };
 
+struct FPoseCost
+{
+	float Dissimilarity = MAX_flt;
+	float CostAddend = 0.0f;
+	float TotalCost = MAX_flt;
+	bool operator<(const FPoseCost& Other) const { return TotalCost < Other.TotalCost; }
+
+};
+
 struct FSearchResult
 {
+	FPoseCost PoseCost;
 	int32 PoseIdx = INDEX_NONE;
 	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
 	float TimeOffsetSeconds = 0.0f;
-	float Dissimilarity = MAX_flt;
 
 	bool IsValid() const { return PoseIdx >= 0; }
 };
@@ -932,6 +941,7 @@ private:
 	const FPoseSearchIndex* SearchIndex = nullptr;
 	float MirrorMismatchCost = 0.0f;
 };
+
 
 /**
 * Visualize pose search debug information
@@ -980,20 +990,21 @@ POSESEARCH_API FSearchResult Search(FSearchContext& SearchContext);
 * 
 * @return Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext);
+
+POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext);
 
 
 /**
  * Cost details for pose analysis in the rewind debugger
  */
-struct FPoseCostInfo
+struct FPoseCostDetails
 {
-	// The dissimilarity of this pose compared to the query
-	float TotalCost = 0.0f;
+	FPoseCost PoseCost;
 
 	// Contribution from ModifyCost anim notify
 	float NotifyCostAddend = 0.0f;
 
+	// Contribution from mirroring cost
 	float MirrorMismatchCostAddend = 0.0f;
 
 	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
@@ -1010,9 +1021,10 @@ struct FPoseCostInfo
 * @param SearchIndex		The search index containing the pose to compare to the query
 * @param PoseIdx			The index of the pose in the search index to compare to the query
 * @param SearchContext		Structure containing search parameters
-* &param OutPoseCostInfo	Cost details for analysis in the debugger
+* &param OutPoseCostDetails	Cost details for analysis in the debugger
 *
 * @return Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostInfo& OutPoseCostInfo);
+POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostDetails& OutPoseCostDetails);
+
 }} // namespace UE::PoseSearch

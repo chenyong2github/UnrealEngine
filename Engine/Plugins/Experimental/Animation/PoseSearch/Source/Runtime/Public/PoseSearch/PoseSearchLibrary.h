@@ -15,12 +15,12 @@
 
 namespace UE::PoseSearch
 {
-	struct FMotionMatchingContinuityParams
+	struct FMotionMatchingPoseStepper
 	{
 		FSearchResult Result;
 		bool bJumpRequired = false;
 
-		bool IsValid()
+		bool CanContinue() const
 		{
 			return Result.IsValid();
 		}
@@ -30,6 +30,8 @@ namespace UE::PoseSearch
 			Result = UE::PoseSearch::FSearchResult();
 			bJumpRequired = false;
 		}
+
+		void Update(const FAnimationUpdateContext& UpdateContext, const struct FMotionMatchingState& State);
 	};
 }
 
@@ -37,7 +39,8 @@ UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValues
 enum class EMotionMatchingFlags : uint8
 {
 	None = 0 UMETA(Hidden),
-	JumpedToPose = 1 << 0 // Signals that motion matching has made a significant deviation in the selected sequence/pose index
+	JumpedToPose = 1 << 0,		// Signals that motion matching has made a significant deviation in the selected sequence/pose index
+	JumpedToFollowUp = 1 << 1,	// Motion matching chose the follow up animation of the prior sequence
 };
 ENUM_CLASS_FLAGS(EMotionMatchingFlags);
 
@@ -84,10 +87,7 @@ struct POSESEARCH_API FMotionMatchingState
 	void ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory);
 
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
-	void JumpToPose(const UE::PoseSearch::FSearchResult& Result);
-
-	// Updates DbPoseIdx to track DeltaTime and jumps to a follow-up sequence when available
-	UE::PoseSearch::FMotionMatchingContinuityParams ComputeContinuityParameters(const FAnimationUpdateContext& Context) const;
+	void JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result);
 
 	const FPoseSearchIndexAsset* GetCurrentSearchIndexAsset() const;
 
@@ -134,7 +134,6 @@ struct POSESEARCH_API FMotionMatchingState
 * @param Trajectory					Input motion trajectory samples for pose search queries
 * @param Settings					Input motion matching algorithm configuration settings
 * @param InOutMotionMatchingState	Input/Output encapsulated motion matching algorithm and state
-* @param bOutJumpedToPose			Output motion matching decision to 'jump' to a new pose/sequence index in the database
 */
 POSESEARCH_API void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 	, const UPoseSearchDatabase* Database
