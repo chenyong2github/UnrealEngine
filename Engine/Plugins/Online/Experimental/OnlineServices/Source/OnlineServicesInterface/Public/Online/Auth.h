@@ -54,6 +54,9 @@ struct FAuthLogin
 	struct Result
 	{
 		TSharedRef<FAccountInfo> AccountInfo;
+
+	public:
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 

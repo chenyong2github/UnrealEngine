@@ -443,7 +443,7 @@ void TestToLogStringSyntax()
 
 	ToLogString(FString());
 	ToLogString(UE::Online::FAuthLogin::Params());
-	ToLogString(UE::Online::FAuthLogin::Result());
+	//ToLogString(UE::Online::FAuthLogin::Result()); default constructing a TSharedPtr will crash
 	ToLogString(UE::Online::FAuthLogout::Params());
 	ToLogString(UE::Online::FAuthLogout::Result());
 	ToLogString(UE::Online::FAuthGenerateAuth::Params());
