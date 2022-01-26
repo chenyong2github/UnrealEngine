@@ -130,7 +130,7 @@ void FFeedbackManager::Update(FRDGBuilder& GraphBuilder, const FSharedContext& S
 	FNaniteFeedbackStatusCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteFeedbackStatusCS::FParameters>();
 	PassParameters->QueueState = GraphBuilder.CreateUAV(CullingContext.QueueState);
 	PassParameters->InMainRasterizerArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
-	PassParameters->InPostRasterizerArgsSWHW = GraphBuilder.CreateSRV(CullingContext.bTwoPassOcclusion ? CullingContext.PostRasterizeArgsSWHW : CullingContext.MainRasterizeArgsSWHW);	// Avoid permutation by doing Post=Main for single pass
+	PassParameters->InPostRasterizerArgsSWHW = GraphBuilder.CreateSRV(CullingContext.Configuration.bTwoPassOcclusion ? CullingContext.PostRasterizeArgsSWHW : CullingContext.MainRasterizeArgsSWHW);	// Avoid permutation by doing Post=Main for single pass
 	PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
 	PassParameters->StatusMessageId = StatusFeedbackSocket.GetMessageId().GetIndex();
 	PassParameters->RenderFlags = CullingContext.RenderFlags;

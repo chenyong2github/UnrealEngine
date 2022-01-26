@@ -29,6 +29,7 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 #define CULLING_PASS_OCCLUSION_POST		2
 #define CULLING_PASS_EXPLICIT_LIST		3
 
+// Must match NaniteDataDecode.ush
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
 #define RENDER_FLAG_FORCE_HW_RASTER					0x2
 #define RENDER_FLAG_PRIMITIVE_SHADER				0x4
@@ -36,6 +37,11 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 #define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
 #define RENDER_FLAG_REVERSE_CULLING					0x20
 #define RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER		0x40
+#define RENDER_FLAG_IS_SCENE_CAPTURE				0x80
+#define RENDER_FLAG_IS_REFLECTION_CAPTURE			0x100
+#define RENDER_FLAG_IS_GAME_VIEW					0x200
+#define RENDER_FLAG_GAME_SHOW_FLAG_ENABLED			0x400
+#define RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED		0x800
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -1185,14 +1191,8 @@ FCullingContext InitCullingContext(
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
 	const FIntRect &HZBBuildViewRect,
-	bool bTwoPassOcclusion,
-	bool bUpdateStreaming,
-	bool bSupportsMultiplePasses,
-	bool bForceHWRaster,
-	bool bPrimaryContext,
-	bool bDrawOnlyVSMInvalidatingGeometry,
-	bool bIgnoreVisibleInRaster
-	)
+	const FCullingContext::FConfiguration& Configuration
+)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1202,19 +1202,29 @@ FCullingContext InitCullingContext(
 	INC_DWORD_STAT(STAT_NaniteCullingContexts);
 
 	FCullingContext CullingContext = {};
-
 	CullingContext.PrevHZB					= PrevHZB;
 	CullingContext.HZBBuildViewRect			= HZBBuildViewRect;
-	CullingContext.bTwoPassOcclusion		= CullingContext.PrevHZB != nullptr && bTwoPassOcclusion;
-	CullingContext.bSupportsMultiplePasses	= bSupportsMultiplePasses;
+	CullingContext.Configuration			= Configuration;
 	CullingContext.DrawPassIndex			= 0;
 	CullingContext.RenderFlags				= 0;
 	CullingContext.DebugFlags				= 0;
 
-	if (bForceHWRaster)
+	// Disable two pass occlusion if previous HZB is invalid
+	if (CullingContext.PrevHZB != nullptr)
 	{
-		CullingContext.RenderFlags |= RENDER_FLAG_FORCE_HW_RASTER;
+		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
+
+	CullingContext.RenderFlags |= CullingContext.Configuration.bForceHWRaster			? RENDER_FLAG_FORCE_HW_RASTER : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIgnoreVisibleInRaster	? RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bUpdateStreaming			? RENDER_FLAG_OUTPUT_STREAMING_REQUESTS : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsSceneCapture			? RENDER_FLAG_IS_SCENE_CAPTURE : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsReflectionCapture		? RENDER_FLAG_IS_REFLECTION_CAPTURE : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsGameView				? RENDER_FLAG_IS_GAME_VIEW : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bGameShowFlag			? RENDER_FLAG_GAME_SHOW_FLAG_ENABLED : 0u;
+#if WITH_EDITOR
+	CullingContext.RenderFlags |= CullingContext.Configuration.bEditorShowFlag			? RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED : 0u;
+#endif
 
 	if (UseMeshShader(SharedContext.Pipeline))
 	{
@@ -1223,11 +1233,6 @@ FCullingContext InitCullingContext(
 	else if (UsePrimitiveShader())
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_PRIMITIVE_SHADER;
-	}
-
-	if (bIgnoreVisibleInRaster)
-	{
-		CullingContext.RenderFlags |= RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER;
 	}
 
 	// TODO: Exclude from shipping builds
@@ -1257,7 +1262,7 @@ FCullingContext InitCullingContext(
 			CullingContext.DebugFlags |= DEBUG_FLAG_WRITE_STATS;
 		}
 
-		if (bDrawOnlyVSMInvalidatingGeometry)
+		if (Configuration.bDrawOnlyVSMInvalidatingGeometry && Configuration.bPrimaryContext)
 		{
 			CullingContext.DebugFlags |= DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING;
 		}
@@ -1280,7 +1285,7 @@ FCullingContext InitCullingContext(
 	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.MainRasterizeArgsSWHW"));
 	CullingContext.SafeMainRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.SafeMainRasterizeArgsSWHW"));
 	
-	if (CullingContext.bTwoPassOcclusion)
+	if (CullingContext.Configuration.bTwoPassOcclusion)
 	{
 		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstancesPo2), TEXT("Nanite.OccludedInstances"));
 		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.OccludedInstancesArgs"));
@@ -1289,12 +1294,8 @@ FCullingContext InitCullingContext(
 	}
 
 	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
-	if (bUpdateStreaming)
-	{
-		CullingContext.RenderFlags |= RENDER_FLAG_OUTPUT_STREAMING_REQUESTS;
-	}
-
-	if (bSupportsMultiplePasses)
+	
+	if (CullingContext.Configuration.bSupportsMultiplePasses)
 	{
 		CullingContext.TotalPrevDrawClustersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(8, 1), TEXT("Nanite.TotalPrevDrawClustersBuffer"));
 	}
@@ -2153,7 +2154,7 @@ void CullRasterize(
 	});
 
 	// Calling CullRasterize more than once on a CullingContext is illegal unless bSupportsMultiplePasses is enabled.
-	check(CullingContext.DrawPassIndex == 0 || CullingContext.bSupportsMultiplePasses);
+	check(CullingContext.DrawPassIndex == 0 || CullingContext.Configuration.bSupportsMultiplePasses);
 
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
 	ensure(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
@@ -2303,7 +2304,7 @@ void CullRasterize(
 
 		uint32 ClampedDrawPassIndex = FMath::Min(CullingContext.DrawPassIndex, 2u);
 
-		if (CullingContext.bTwoPassOcclusion)
+		if (CullingContext.Configuration.bTwoPassOcclusion)
 		{
 			PassParameters->OutOccludedInstancesArgs = GraphBuilder.CreateUAV( CullingContext.OccludedInstancesArgs );
 			PassParameters->InOutPostPassRasterizeArgsSWHW = GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
@@ -2321,7 +2322,7 @@ void CullRasterize(
 		}
 
 		FInitArgs_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInitArgs_CS::FOcclusionCullingDim>( CullingContext.bTwoPassOcclusion );
+		PermutationVector.Set<FInitArgs_CS::FOcclusionCullingDim>(CullingContext.Configuration.bTwoPassOcclusion);
 		PermutationVector.Set<FInitArgs_CS::FDrawPassIndexDim>( ClampedDrawPassIndex );
 		
 		auto ComputeShader = SharedContext.ShaderMap->GetShader< FInitArgs_CS >( PermutationVector );
@@ -2362,7 +2363,7 @@ void CullRasterize(
 		GPUSceneParameters,
 		MainAndPostNodesAndClusterBatchesBuffer,
 		MainAndPostCandididateClustersBuffer,
-		CullingContext.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
+		CullingContext.Configuration.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
 		VirtualShadowMapArray,
 		VirtualTargetParameters
 	);
@@ -2389,7 +2390,7 @@ void CullRasterize(
 	);
 	
 	// Occlusion post pass. Retest instances and clusters that were not visible last frame. If they are visible now, render them.
-	if (CullingContext.bTwoPassOcclusion)
+	if (CullingContext.Configuration.bTwoPassOcclusion)
 	{
 		// Build a closest HZB with previous frame occluders to test remainder occluders against.
 		{
@@ -2516,6 +2517,16 @@ void CullRasterize(
 		nullptr,
 		bExtractStats
 	);
+}
+
+void FCullingContext::FConfiguration::SetViewFlags(const FViewInfo& View)
+{
+	bIsGameView							= View.bIsGameView;
+	bIsSceneCapture						= View.bIsSceneCapture;
+	bIsReflectionCapture				= View.bIsReflectionCapture;
+	bGameShowFlag						= !!View.Family->EngineShowFlags.Game;
+	bEditorShowFlag						= !!View.Family->EngineShowFlags.Editor;
+	bDrawOnlyVSMInvalidatingGeometry	= !!View.Family->EngineShowFlags.DrawOnlyVSMInvalidatingGeo;
 }
 
 } // namespace Nanite

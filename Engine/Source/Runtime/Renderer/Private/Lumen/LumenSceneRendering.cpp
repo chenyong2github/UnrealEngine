@@ -2618,12 +2618,13 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					CardCaptureRectBufferSRV,
 					CardPagesToRender.Num());
 
-				const bool bUpdateStreaming = false;
-				const bool bSupportsMultiplePasses = true;
-				const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
-				const bool bPrimaryContext = false;
-				const bool bDrawOnlyVSMInvalidatingGeometry = false;
-				const bool bIgnoreVisibleInRaster = true; // Far field can be marked as invisible in raster, but we want to capture it into surface cache
+				Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+				CullingConfig.bSupportsMultiplePasses	= true;
+				CullingConfig.bForceHWRaster			= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+				CullingConfig.SetViewFlags(*SharedView);
+
+				// Far field can be marked as invisible in raster, but we want to capture it into surface cache
+				CullingConfig.bIgnoreVisibleInRaster	= true;
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
@@ -2631,13 +2632,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					*Scene,
 					nullptr,
 					FIntRect(),
-					false,
-					bUpdateStreaming,
-					bSupportsMultiplePasses,
-					bForceHWRaster,
-					bPrimaryContext,
-					bDrawOnlyVSMInvalidatingGeometry,
-					bIgnoreVisibleInRaster);
+					CullingConfig
+				);
 
 				if (GLumenSceneNaniteMultiViewRaster != 0)
 				{

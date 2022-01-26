@@ -432,14 +432,14 @@ void ExtractStats(
 			PassParameters->QueueState = GraphBuilder.CreateSRV(CullingContext.QueueState);
 			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
 
-			if( CullingContext.bTwoPassOcclusion )
+			if (CullingContext.Configuration.bTwoPassOcclusion)
 			{
 				check(CullingContext.PostRasterizeArgsSWHW);
 				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.PostRasterizeArgsSWHW);
 			}
 			
 			FCalculateStatsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FCalculateStatsCS::FTwoPassCullingDim>( CullingContext.bTwoPassOcclusion );
+			PermutationVector.Set<FCalculateStatsCS::FTwoPassCullingDim>(CullingContext.Configuration.bTwoPassOcclusion);
 			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateStatsCS>( PermutationVector );
 
 			FComputeShaderUtils::AddPass(
@@ -463,7 +463,7 @@ void ExtractStats(
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 
 			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
-			if( CullingContext.bTwoPassOcclusion )
+			if (CullingContext.Configuration.bTwoPassOcclusion)
 			{
 				check(CullingContext.PostRasterizeArgsSWHW != nullptr);
 				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV( CullingContext.PostRasterizeArgsSWHW );
@@ -471,7 +471,7 @@ void ExtractStats(
 			PassParameters->StatsArgs = ClusterStatsArgs;
 
 			FCalculateClusterStatsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FCalculateClusterStatsCS::FTwoPassCullingDim>( CullingContext.bTwoPassOcclusion );
+			PermutationVector.Set<FCalculateClusterStatsCS::FTwoPassCullingDim>(CullingContext.Configuration.bTwoPassOcclusion);
 			PermutationVector.Set<FCalculateClusterStatsCS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateClusterStatsCS>( PermutationVector );
 
@@ -494,7 +494,7 @@ void ExtractStats(
 		// Extract post pass buffers
 		auto& PostPassBuffers = Nanite::GGlobalResources.GetPostPassBuffers();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer = nullptr;
-		if( CullingContext.bTwoPassOcclusion )
+		if (CullingContext.Configuration.bTwoPassOcclusion)
 		{
 			check( CullingContext.PostRasterizeArgsSWHW != nullptr );
 			PostPassBuffers.StatsRasterizeArgsSWHWBuffer = GraphBuilder.ConvertToExternalBuffer(CullingContext.PostRasterizeArgsSWHW);

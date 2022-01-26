@@ -58,22 +58,31 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // Must match SceneData.ush
-#define PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS						0x1
-#define PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL		0x2
-#define PRIMITIVE_SCENE_DATA_FLAG_USE_VOLUMETRIC_LM_SHADOW_SL		0x4
-#define PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER					0x8
-#define PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY					0x10
-#define PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY					0x20
-#define PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN					0x40
-#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION		0x80
-#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW			0x100
-#define PRIMITIVE_SCENE_DATA_FLAG_HAS_PRIMITIVE_CUSTOM_DATA			0x200
-#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0				0x400
-#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
-#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
-#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
-#define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
-#define PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS			0x8000
+#define PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS							0x1
+#define PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL			0x2
+#define PRIMITIVE_SCENE_DATA_FLAG_USE_VOLUMETRIC_LM_SHADOW_SL			0x4
+#define PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER						0x8
+#define PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY						0x10
+#define PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY						0x20
+#define PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN						0x40
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION			0x80
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW				0x100
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_PRIMITIVE_CUSTOM_DATA				0x200
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0					0x400
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1					0x800
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2					0x1000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS				0x2000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER					0x4000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER						0x8000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME						0x10000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR						0x20000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES		0x40000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES		0x80000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING				0x100000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY			0x200000
+#define PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE				0x400000
+#define PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN							0x800000
+#define PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW					0x1000000
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -86,6 +95,11 @@ public:
 		bCastShadow									= true;
 		bCastContactShadow							= true;
 		bVisibleInRaster							= true;
+		bVisibleInGame								= true;
+		bVisibleInEditor							= true;
+		bVisibleInReflectionCaptures				= true;
+		bVisibleInRealTimeSkyCaptures				= true;
+		bVisibleInRayTracing						= true;
 
 		// Flags defaulted off
 		bReceivesDecals								= false;
@@ -97,6 +111,10 @@ public:
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
 		bHasInstanceLocalBounds						= false;
+		bCastHiddenShadow							= false;
+		bVisibleInSceneCaptureOnly					= false;
+		bHiddenInSceneCapture						= false;
+		bForceHidden								= false;
 
 		// Default colors
 		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
@@ -134,12 +152,21 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasCapsuleRepresentation);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasInstanceLocalBounds);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastContactShadow);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastHiddenShadow);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastShadow);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseSingleSampleShadowFromStationaryLights);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseVolumetricLightmap);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			DrawsVelocity);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			OutputVelocity);
-	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastShadow);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInGame);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInEditor);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRaster);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInReflectionCaptures);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRealTimeSkyCaptures);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRayTracing);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInSceneCaptureOnly);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HiddenInSceneCapture);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ForceHidden);
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
@@ -317,20 +344,31 @@ public:
 		Parameters.Flags = 0;
 		Parameters.Flags |= bReceivesDecals ? PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER : 0u;
 		Parameters.Flags |= bHasCapsuleRepresentation ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION : 0u;
-		Parameters.Flags |= bCastContactShadow ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW : 0u;
 		Parameters.Flags |= bUseSingleSampleShadowFromStationaryLights ? PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL : 0u;
 		Parameters.Flags |= (bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights) ? PRIMITIVE_SCENE_DATA_FLAG_USE_VOLUMETRIC_LM_SHADOW_SL : 0u;
 		Parameters.Flags |= bDrawsVelocity ? PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY : 0u;
 		Parameters.Flags |= bOutputVelocity ? PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY : 0u;
 		Parameters.Flags |= (Parameters.LocalToRelativeWorld.RotDeterminant() < 0.0f) ? PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
-		Parameters.Flags |= bCastShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 		Parameters.Flags |= bHasCustomData ? PRIMITIVE_SCENE_DATA_FLAG_HAS_PRIMITIVE_CUSTOM_DATA : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x1) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x2) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
-		Parameters.Flags |= bVisibleInRaster ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER : 0u;
 		Parameters.Flags |= (Parameters.NaniteImposterIndex != INDEX_NONE) ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
 		Parameters.Flags |= bHasInstanceLocalBounds ? PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS : 0u;
+		Parameters.Flags |= bCastShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+		Parameters.Flags |= bCastContactShadow ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW : 0u;
+		Parameters.Flags |= bCastHiddenShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW : 0u;
+		Parameters.Flags |= bVisibleInGame ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME : 0u;
+	#if WITH_EDITOR
+		Parameters.Flags |= bVisibleInEditor ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR : 0u;
+	#endif
+		Parameters.Flags |= bVisibleInRaster ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER : 0u;
+		Parameters.Flags |= bVisibleInReflectionCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES : 0u;
+		Parameters.Flags |= bVisibleInRealTimeSkyCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES : 0u;
+		Parameters.Flags |= bVisibleInRayTracing ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING : 0u;
+		Parameters.Flags |= bVisibleInSceneCaptureOnly ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY : 0u;
+		Parameters.Flags |= bHiddenInSceneCapture ? PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE : 0u;
+		Parameters.Flags |= bForceHidden ? PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN : 0u;
 		return Parameters;
 	}
 
@@ -352,12 +390,21 @@ private:
 	uint32 bOutputVelocity : 1;
 	uint32 bCastShadow : 1;
 	uint32 bCastContactShadow : 1;
+	uint32 bCastHiddenShadow : 1;
 	uint32 bHasCapsuleRepresentation : 1;
 	uint32 bHasPreSkinnedLocalBounds : 1;
+	uint32 bHasInstanceLocalBounds : 1;
 	uint32 bHasCustomData : 1;
 	uint32 bHasPreviousLocalToWorld : 1;
+	uint32 bVisibleInGame : 1;
+	uint32 bVisibleInEditor : 1;
 	uint32 bVisibleInRaster : 1;
-	uint32 bHasInstanceLocalBounds : 1;
+	uint32 bVisibleInReflectionCaptures : 1;
+	uint32 bVisibleInRealTimeSkyCaptures : 1;
+	uint32 bVisibleInRayTracing : 1;
+	uint32 bVisibleInSceneCaptureOnly : 1;
+	uint32 bHiddenInSceneCapture : 1;
+	uint32 bForceHidden : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(

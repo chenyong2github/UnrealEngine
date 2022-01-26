@@ -2397,16 +2397,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			Nanite::FRasterState RasterState;
 			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
 
-			const bool bTwoPassOcclusion = true;
-			const bool bUpdateStreaming = true;
-			const bool bSupportsMultiplePasses = false;
-			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
-			const bool bPrimaryContext = true;
-			const bool bDiscardNonMoving = ViewFamily.EngineShowFlags.DrawOnlyVSMInvalidatingGeo != 0;
+			Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+			CullingConfig.bTwoPassOcclusion					= true;
+			CullingConfig.bUpdateStreaming					= true;
+			CullingConfig.bPrimaryContext					= true;
+			CullingConfig.bForceHWRaster					= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				const FViewInfo& View = Views[ViewIndex];
+				CullingConfig.SetViewFlags(View);
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
@@ -2414,12 +2414,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					*Scene,
 					!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
 					View.ViewRect,
-					bTwoPassOcclusion,
-					bUpdateStreaming,
-					bSupportsMultiplePasses,
-					bForceHWRaster,
-					bPrimaryContext,
-					bDiscardNonMoving
+					CullingConfig
 				);
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
@@ -2482,7 +2477,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					);
 				}
 
-				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)
+				if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
 				{
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
 					RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");

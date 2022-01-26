@@ -94,6 +94,25 @@ struct FSharedContext
 
 struct FCullingContext
 {
+	struct FConfiguration
+	{
+		uint32 bTwoPassOcclusion : 1;
+		uint32 bUpdateStreaming : 1;
+		uint32 bSupportsMultiplePasses : 1;
+		uint32 bForceHWRaster : 1;
+		uint32 bPrimaryContext : 1;
+		uint32 bDrawOnlyVSMInvalidatingGeometry : 1;
+		uint32 bIgnoreVisibleInRaster : 1;
+		uint32 bIsSceneCapture : 1;
+		uint32 bIsReflectionCapture : 1;
+		uint32 bIsGameView : 1;
+		uint32 bEditorShowFlag : 1;
+		uint32 bGameShowFlag : 1;
+
+		void SetViewFlags(const FViewInfo& View);
+	}
+	Configuration = { 0 };
+
 	TRefCountPtr<IPooledRenderTarget> PrevHZB; // If non-null, HZB culling is enabled
 
 	uint32			DrawPassIndex;
@@ -101,8 +120,6 @@ struct FCullingContext
 	uint32			RenderFlags;
 	uint32			DebugFlags;
 	FIntRect		HZBBuildViewRect;
-	bool			bTwoPassOcclusion;
-	bool			bSupportsMultiplePasses;
 
 	FIntVector4		PageConstants;
 
@@ -168,13 +185,8 @@ FCullingContext	InitCullingContext(
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
 	const FIntRect& HZBBuildViewRect,
-	bool bTwoPassOcclusion,
-	bool bUpdateStreaming,
-	bool bSupportsMultiplePasses,
-	bool bForceHWRaster,
-	bool bPrimaryContext,
-	bool bDrawOnlyVSMInvalidatingGeometry = false,
-	bool bIgnoreVisibleInRaster = false);
+	const FCullingContext::FConfiguration& Configuration
+);
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,

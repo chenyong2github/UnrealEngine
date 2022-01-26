@@ -968,6 +968,9 @@ public:
 	/** Tell us if this proxy is drawn in game.*/
 	ENGINE_API virtual bool IsDrawnInGame() const { return DrawInGame; }
 
+	/** Tell us if this proxy is drawn in editor.*/
+	FORCEINLINE bool IsDrawnInEditor() const { return DrawInEditor; }
+
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const { return 0; }
 
 	/** 
