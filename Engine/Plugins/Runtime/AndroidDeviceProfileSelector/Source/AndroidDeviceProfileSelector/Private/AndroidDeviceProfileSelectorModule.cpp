@@ -53,6 +53,15 @@ bool FAndroidDeviceProfileSelectorModule::GetSelectorPropertyValue(const FName& 
 		PropertyValueOUT = *Found;
 		return true;
 	}
+	// Special case for non-existent config rule variables
+	// they should return true and a value of '[null]'
+	// this prevents configrule issues from throwing errors.
+	if (PropertyType.ToString().StartsWith(TEXT("SRC_ConfigRuleVar[")))
+	{
+		PropertyValueOUT = TEXT("[null]");
+		return true;
+	}
+
 	return false;
 }
 

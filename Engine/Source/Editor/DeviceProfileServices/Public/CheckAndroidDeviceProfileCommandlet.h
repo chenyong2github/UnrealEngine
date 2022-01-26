@@ -16,7 +16,13 @@
  * ProjectName -run=DeviceProfileServices.CheckAndroidDeviceProfile DeviceMake DeviceModel
  * ProjectName -run=DeviceProfileServices.CheckAndroidDeviceProfile [-DeviceMake=...] [-DeviceModel=...] [-GPUFamily=...] [-GLVersion=...]
 	  [-VulkanAvailable=True|False] [-VulkanVersion=...] [-AndroidVersion=...] [-DeviceBuildNumber=...] [-UsingHoudini=True|False] [-Hardware=...] [-Chipset=...]
- */
+ * Running against 
+ * ProjectName -run=DeviceProfileServices.CheckAndroidDeviceProfile
+		-DeviceSpecsFolder=<directory containing device.json files> 
+		-DeviceSpecsFile=<path to a single device.json file>
+		-OutDir=<output directory>
+		[-OverrideDP=<optional DP name to override device profile selection>]
+*/
 UCLASS()
 class UCheckAndroidDeviceProfileCommandlet
 	: public UCommandlet

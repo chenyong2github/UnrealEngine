@@ -13,6 +13,8 @@ public class DeviceProfileServices : ModuleRules
 			new string[] {
 				"Core",
 				"Engine",
+				"Json",
+				"JsonUtilities",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -22,6 +24,7 @@ public class DeviceProfileServices : ModuleRules
 				"DesktopPlatform",
 				"EditorFramework",
 				"UnrealEd",
+				"PIEPreviewDeviceSpecification",
 			});
 
 		PrivateIncludePathModuleNames.AddRange(
