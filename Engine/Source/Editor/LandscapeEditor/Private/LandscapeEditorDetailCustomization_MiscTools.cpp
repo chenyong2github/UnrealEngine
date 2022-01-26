@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeEditorDetailCustomization_MiscTools.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SBox.h"
