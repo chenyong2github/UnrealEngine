@@ -8,12 +8,13 @@
 
 SPropertyEditorInteractiveActorPicker::~SPropertyEditorInteractiveActorPicker()
 {
-	FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
-
-	// make sure we are unregistered when this widget goes away
-	if (ActorPickerMode.IsInActorPickingMode())
+	if (FActorPickerModeModule* ActorPickerMode = FModuleManager::Get().GetModulePtr<FActorPickerModeModule>("ActorPickerMode"))
 	{
-		ActorPickerMode.EndActorPickingMode();
+		// make sure we are unregistered when this widget goes away
+		if (ActorPickerMode->IsInActorPickingMode())
+		{
+			ActorPickerMode->EndActorPickingMode();
+		}
 	}
 }
 

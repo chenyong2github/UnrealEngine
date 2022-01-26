@@ -96,8 +96,12 @@ void FRemoteControlWebInterfaceProcess::SetExternalLoggerEnabled(bool bEnableExt
 		WebSocketLoggerConnection = FModuleManager::LoadModuleChecked<IWebSocketNetworkingModule>(TEXT("WebSocketNetworking")).CreateConnection(*Address);
 	}
 
-	IWebRemoteControlModule& WebRemoteControlModule = FModuleManager::LoadModuleChecked<IWebRemoteControlModule>("WebRemoteControl");
-	WebRemoteControlModule.SetExternalRemoteWebSocketLoggerConnection(WebSocketLoggerConnection);
+
+	IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl");
+	if (WebRemoteControlModule)
+	{
+		WebRemoteControlModule->SetExternalRemoteWebSocketLoggerConnection(WebSocketLoggerConnection);
+	}
 }
 
 uint32 FRemoteControlWebInterfaceProcess::Run()
