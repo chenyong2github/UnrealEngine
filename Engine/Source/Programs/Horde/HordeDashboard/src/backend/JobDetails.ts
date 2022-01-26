@@ -216,7 +216,7 @@ export class JobDetails {
 
     get aborted(): boolean {
 
-        return this.jobdata?.abortedByUser ? true : false;
+        return this.jobdata?.abortedByUserInfo?.id ? true : false;
     }
 
     stepByName(name: string): StepData | undefined {
@@ -1159,7 +1159,7 @@ export const getStepSummaryMarkdown = (jobDetails: JobDetails, stepId: string): 
     const text: string[] = [];
 
     if (jobDetails.jobdata) {
-        text.push(`Job created by ${jobDetails.jobdata.startedByUser ? jobDetails.jobdata.startedByUser : "scheduler"}`);
+        text.push(`Job created by ${jobDetails.jobdata.startedByUserInfo ? jobDetails.jobdata.startedByUserInfo.name : "scheduler"}`);
     }
 
     const batchText = () => {
@@ -1175,12 +1175,12 @@ export const getStepSummaryMarkdown = (jobDetails: JobDetails, stepId: string): 
 
     };
 
-    if (step.retryByUser) {
+    if (step.retriedByUserInfo) {
         const retryId = jobDetails.getRetryStepId(step.id);
         if (retryId) {
-            text.push(`[Step was retried by ${step.retryByUser}](/job/${jobDetails.id!}?step=${retryId})`);
+            text.push(`[Step was retried by ${step.retriedByUserInfo.name}](/job/${jobDetails.id!}?step=${retryId})`);
         } else {
-            text.push(`Step was retried by ${step.retryByUser}`);
+            text.push(`Step was retried by ${step.retriedByUserInfo.name}`);
         }
 
     }
@@ -1191,12 +1191,12 @@ export const getStepSummaryMarkdown = (jobDetails: JobDetails, stepId: string): 
     } else if (step.state === JobStepState.Aborted) {
         eta.display = eta.server = "";
         let aborted = "";
-        if (step.abortByUser) {
+        if (step.abortedByUserInfo) {
             aborted = "This step was aborted";
-            aborted += ` by ${step.abortByUser}.`;
-        } else if (jobDetails.jobdata?.abortedByUser) {
+            aborted += ` by ${step.abortedByUserInfo.name}.`;
+        } else if (jobDetails.jobdata?.abortedByUserInfo) {
             aborted = "The job was aborted";
-            aborted += ` by ${jobDetails.jobdata?.abortedByUser}.`;
+            aborted += ` by ${jobDetails.jobdata?.abortedByUserInfo.name}.`;
         } else {
             aborted = "The step was aborted";
         }

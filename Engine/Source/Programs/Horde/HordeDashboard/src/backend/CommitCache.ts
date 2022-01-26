@@ -23,7 +23,7 @@ export class CommitCache {
         
         const commit = map.get(change);
 
-        if (!commit || !commit.author) {
+        if (!commit || !commit.authorInfo?.id) {
             return undefined;
         }
 
@@ -76,7 +76,7 @@ export class CommitCache {
             }
 
             map!.set(c, {
-                number: 0, author: "", description: "", authorInfo : { id : "0", email:"unknown", name: "unknown"}
+                number: 0, description: "", authorInfo : { id : "", email:"", name: ""}
             })
 
         })

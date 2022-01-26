@@ -20,8 +20,8 @@ const getJobKeywords = (job: GetJobResponse): string[] => {
         keywords.push(job.preflightChange.toString());
     }
 
-    if (job.startedByUser) {
-        keywords.push(job.startedByUser);
+    if (job.startedByUserInfo) {
+        keywords.push(job.startedByUserInfo.name);
     } else {
         keywords.push("Scheduler");
     }

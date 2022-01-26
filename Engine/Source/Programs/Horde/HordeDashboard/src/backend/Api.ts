@@ -942,14 +942,8 @@ export type GetJobResponse = {
 	/** Hash of the graph for this job */
 	graphHash?: string;
 
-	/** @deprecated The user that started this job */
-	startedByUser?: string;
-
 	/** The user that started this job */
 	startedByUserInfo?: GetThinUserInfoResponse;
-
-	/** @deprecated The user that aborted this job */
-	abortedByUser?: string;
 
 	/** The user that started this job */
 	abortedByUserInfo?: GetThinUserInfoResponse;
@@ -1044,14 +1038,8 @@ export type GetStepResponse = {
 	/** If the step has been requested to abort	*/
 	abortRequested?: boolean;
 
-	/** @deprecated Name of the user that requested the abort of this step */
-	abortByUser?: string;
-
 	/* The user that requested the abort of this step */
 	abortedByUserInfo?: GetThinUserInfoResponse;
-
-	/** @deprecated Name of the user that requested this step be run again */
-	retryByUser?: string;
 
 	/* The user that retried this step */
 	retriedByUserInfo?: GetThinUserInfoResponse;
@@ -2042,9 +2030,6 @@ export type GetChangeSummaryResponse = {
 	/**  The source changelist number */
 	number: number;
 
-	/**  @deprecated Name of the user that authored this change */
-	author: string;
-
 	/**  The description text */
 	description: string;
 
@@ -2682,17 +2667,9 @@ export type GetIssueResponse = {
 	/**Whether the issue is promoted */
 	promoted: boolean;
 
-	/** @deprecated Owner of the issue */
-	owner?: string;
-
-	/** @deprecated Owner id of the issue */
-	ownerId?: string;
 
 	/** Owner of the issue */
 	ownerInfo: GetThinUserInfoResponse;
-
-	/** @deprecated User that nominated the current owner */
-	nominatedBy?: string;
 
 	/** Use that nominated the current owner */
 	nominatedByInfo: GetThinUserInfoResponse;
@@ -2705,12 +2682,6 @@ export type GetIssueResponse = {
 
 	/**Time at which the issue was resolved */
 	resolvedAt?: Date | string;
-
-	/** @deprecated Name of the user that resolved the issue */
-	resolvedBy?: string;
-
-	/** @deprecated User id of the person that resolved the issue */
-	resolvedById?: string;
 
 	/** Use info for the person that resolved the issue */
 	resolvedByInfo: GetThinUserInfoResponse;
@@ -2726,12 +2697,8 @@ export type GetIssueResponse = {
 
 	affectedStreams: GetIssueAffectedStreamResponse[];
 
-	/** @deprecated User id's of the Most likely suspects for causing this issue */
-	primarySuspectIds: string[];
-
 	/** Use info for the person that resolved the issue */
 	primarySuspectsInfo: GetThinUserInfoResponse[];
-
 
 	/** Whether to show alerts for this issue */
 	showDesktopAlerts: boolean;

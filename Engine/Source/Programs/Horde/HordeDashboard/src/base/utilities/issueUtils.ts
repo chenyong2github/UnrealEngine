@@ -56,7 +56,7 @@ export function getIssueStatus(issue: GetIssueResponse, showResolveTime?: boolea
 			resolvedText += ` in CL ${issue.fixChange}`;
 		}
 
-		resolvedText += ` by ${issue.resolvedBy ?? "Horde"}`;
+		resolvedText += ` by ${issue.resolvedByInfo?.name ?? "Horde"}`;
 
 		if (!showResolveTime) {
 			return resolvedText;
@@ -71,19 +71,19 @@ export function getIssueStatus(issue: GetIssueResponse, showResolveTime?: boolea
 		return resolvedText;
 	}
 
-	if (!issue.ownerId) {
+	if (!issue.ownerInfo) {
 		text = "Currently unassigned.";
 	} else {
-		if (issue.ownerId === dashboard.userId) {
-			if (issue.nominatedBy) {
-				text = `You have been nominated to fix this issue by ${issue.nominatedBy}.`;
+		if (issue.ownerInfo.id === dashboard.userId) {
+			if (issue.nominatedByInfo) {
+				text = `You have been nominated to fix this issue by ${issue.nominatedByInfo.name}.`;
 			} else {
-				text = `Assigned to ${issue.owner}.`;
+				text = `Assigned to ${issue.ownerInfo.name}.`;
 			}
 		} else {
-			text = `Assigned to ${issue.owner}`;
-			if (issue.nominatedBy) {
-				text += ` by ${issue.nominatedBy}`;
+			text = `Assigned to ${issue.ownerInfo.name}`;
+			if (issue.nominatedByInfo) {
+				text += ` by ${issue.nominatedByInfo.name}`;
 			}
 			if (!issue.acknowledgedAt) {
 				text += ` (Unacknowledged)`;
