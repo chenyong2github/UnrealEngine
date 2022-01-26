@@ -100,6 +100,9 @@ private:
 	FOnCVarsUpdated CVarsUpdatedDelegate;
 
 public:
+	// The selected result after running the MatchingRules process.
+	TArray<FSelectedFragmentProperties> SelectedFragments;
+
 	/* ValidateProfile()
 	* Validate the Profile after changes by loading it's config (.ini)
 	*/
