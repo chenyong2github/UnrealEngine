@@ -16,9 +16,21 @@ enum class ERCFindNodeMethod
 	Path  // Find a node by providing a property path.
 };
 
+/** Local special case handlers to generate widgets to be displayed */
+using FRCTreeNodeFinderIsException = TFunction< bool(UObject* /*InObject*/, const FString& /*InField*/, ERCFindNodeMethod /*InFindMethod*/) >;
+using FRCTreeNodeFinderFunction = TFunction< TSharedPtr<IDetailTreeNode>(UObject* /*InObject*/, const FString& /*InField*/, ERCFindNodeMethod /*InFindMethod*/) >;
+struct FRCTreeNodeFinderHandler
+{
+	FRCTreeNodeFinderIsException IsExceptionFunc;
+	FRCTreeNodeFinderFunction FinderFunction;
+};
+
 class FRCPanelWidgetRegistry
 {
 public:
+	
+	FRCPanelWidgetRegistry();
+
 	/**
 	 * Get a detail tree node for a given object and property.
 	 * @param InObject the object used to generate the detail row.
@@ -51,10 +63,18 @@ public:
 	void Clear();
 
 private:
+
+	/** Special handlers for ndisplay root actor and its details customizations */
+	bool IsNDisplayObject(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
+	TSharedPtr<IDetailTreeNode> FindNDisplayTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
+
+private:
 	/** Map of objects to row generator, used to have one row generator per object. */
 	TMap<TWeakObjectPtr<UObject>, TSharedPtr<IPropertyRowGenerator>> ObjectToRowGenerator;
 	/** Map of struct on scope to row generator, used to have one row generator per struct ptr. */
 	TMap<TSharedPtr<FStructOnScope>, TSharedPtr<IPropertyRowGenerator>> StructToRowGenerator;
 	/** Cache of Object&Field to tree nodes. */
 	TMap<TPair<TWeakObjectPtr<UObject>, FString>, TWeakPtr<IDetailTreeNode>> TreeNodeCache;
+	/** List of tree node finder handlers for certain type */
+	TArray<FRCTreeNodeFinderHandler> SpecialTreeNodeHandlers;
 };
