@@ -104,7 +104,7 @@ struct FMassRepresentationConfig : public FMassSharedFragment
 	mutable ERepresentationType CachedDefaultRepresentationType = ERepresentationType::None;
 
 	UPROPERTY(Transient)
-	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement;
+	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement = nullptr;
 };
 
 inline void FMassRepresentationConfig::ComputeCachedValues() const
