@@ -232,7 +232,7 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::GetFunctionHLSL(const FNiagara
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_AttributeIndex, out float Out_Val)
 			{
-				Out_Val = {Grid}.Load(int3(In_IndexX, In_IndexY, In_AttributeIndex));
+				Out_Val = {Grid}.Load(int4(In_IndexX, In_IndexY, In_AttributeIndex, 0));
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
