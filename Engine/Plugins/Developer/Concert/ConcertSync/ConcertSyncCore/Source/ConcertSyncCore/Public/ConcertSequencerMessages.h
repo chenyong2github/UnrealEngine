@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "Math/Range.h"
 #include "ConcertSequencerMessages.generated.h"
 
 
@@ -41,6 +42,9 @@ struct FConcertSequencerState
 	/** The current status of the sequencer player */
 	UPROPERTY()
 	EConcertMovieScenePlayerStatus PlayerStatus;
+
+	UPROPERTY()
+	FFrameNumberRange PlaybackRange;
 
 	/** The current playback speed */
 	UPROPERTY()

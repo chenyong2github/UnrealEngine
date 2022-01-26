@@ -23,7 +23,6 @@ struct FSequencerInitParams;
 struct FSequencePlayer
 {
 	TWeakObjectPtr<ALevelSequenceActor> Actor;
-	FDelegateHandle	SignatureChangedHandle;
 };
 
 /**
@@ -300,9 +299,6 @@ private:
 
 	/** Indicates if this sequence player can be closed. */
 	bool CanClose(const FConcertSequencerCloseEvent& InEvent) const;
-
-	/** Called by the MovieScene object when the property changes of the object. */
-	void OnPlayerSignatureChanged();
 
 	/** Pointer to the sync client that owns us. */
 	IConcertSyncClient* OwnerSyncClient;
