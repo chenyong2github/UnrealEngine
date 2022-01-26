@@ -73,6 +73,9 @@ namespace Chaos
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConcreteContainer;
+	private:
+		bool bLinearPlasticityInitialized;
+		bool bAngularPlasticityInitialized;
 	};
 
 	class CHAOS_API FPBDJointState
@@ -229,6 +232,8 @@ namespace Chaos
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
 
 		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
+		void SetLinearDrivePositionTarget(int32 ConstraintIndex, FVec3 InLinearDrivePositionTarget);
+		void SetAngularDrivePositionTarget(int32 ConstraintIndex, FRotation3 InAngularDrivePositionTarget);
 
 		int32 GetConstraintIsland(int32 ConstraintIndex) const;
 		int32 GetConstraintLevel(int32 ConstraintIndex) const;
