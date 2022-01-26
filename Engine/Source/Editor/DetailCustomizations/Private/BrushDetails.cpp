@@ -294,13 +294,13 @@ void FBrushDetails::OnClassPicked(UClass* InChosenClass)
 			NewObjectPaths.Add(NewUObject->GetPathName());
 		}
 
-		BrushBuilderHandle->SetPerObjectValues(NewObjectPaths);
-
 		// make sure the brushes are rebuilt
 		for (FNewBrushBuilder& NewObject : NewBuilders)
 		{
 			NewObject.Builder->Build(NewObject.Brush->GetWorld(), NewObject.Brush);
 		}
+
+		BrushBuilderHandle->SetPerObjectValues(NewObjectPaths);
 
 		GEditor->RebuildAlteredBSP();
 
