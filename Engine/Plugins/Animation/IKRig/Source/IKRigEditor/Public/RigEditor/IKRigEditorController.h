@@ -116,8 +116,6 @@ public:
 	/** is anything selected in the skeleton view? */
 	bool DoesSkeletonHaveSelectedItems() const;
 	
-	/** right after importing a skeleton, we ask user what solver they want to use */
-	bool PromptToAddSolver() const;
 	/** determine if the element is connected to the selected solver */
 	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
 	/** determine if the element is connected to ANY solver */
@@ -188,6 +186,11 @@ public:
 	/** END FGCObject interface */
 
 private:
+	/** right after importing a skeleton, we ask user what solver they want to use */
+	bool PromptToAddSolver() const;
+
+	/** Initializes editor's solvers instances */
+	void InitializeSolvers() const;
 
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;
@@ -201,25 +204,14 @@ private:
 	/** the solver stack view */
 	TSharedPtr<SIKRigRetargetChainList> RetargetingView;
 
-	/** Initializes editor's solvers instances */
-	void InitializeSolvers() const;
-
 	EIKRigSelectionType LastSelectedType;
 
 	UPROPERTY()
 	TObjectPtr<UIKRigBoneDetails> BoneDetails;
 };
 
-/** only used for pop-up window to selected a first solver to add*/
-USTRUCT()
-struct FIKRigAddFirstSolverSettings
+struct FIKRigSolverTypeAndName
 {
-	GENERATED_BODY()
-
-	FIKRigAddFirstSolverSettings()
-        : SolverType(nullptr)
-	{}
-
-	UPROPERTY(EditAnywhere, Category = "Add Solver")
+	FText NiceName;
 	TSubclassOf<UIKRigSolver> SolverType;
 };
