@@ -2176,7 +2176,6 @@ void FMeshDescriptionBulkData::UpdateMeshDescriptionFormat()
 		else
 		{
 			// Maintain the original guid; this is a format change only. GetIdString will change because it adds the CustomVersions to the key.
-			FPlatformMisc::CreateGuid(Guid);
 		}
 	}
 
