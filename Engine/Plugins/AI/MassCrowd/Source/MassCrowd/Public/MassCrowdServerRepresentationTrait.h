@@ -4,7 +4,9 @@
 
 #include "MassEntityTraitBase.h"
 #include "MassRepresentationTypes.h"
+#include "MassRepresentationFragments.h"
 #include "GameFramework/Actor.h"
+
 #include "MassCrowdServerRepresentationTrait.generated.h"
 
 
@@ -13,6 +15,8 @@ class MASSCROWD_API UMassCrowdServerRepresentationTrait : public UMassEntityTrai
 {
 	GENERATED_BODY()
 
+	UMassCrowdServerRepresentationTrait();
+
 protected:
 
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
@@ -20,4 +24,8 @@ protected:
 	/** Actor class of this agent when spawned on server */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	TSubclassOf<AActor> TemplateActor;
+
+	/** Configuration parameters for the representation processor */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	FMassRepresentationConfig Config;
 };

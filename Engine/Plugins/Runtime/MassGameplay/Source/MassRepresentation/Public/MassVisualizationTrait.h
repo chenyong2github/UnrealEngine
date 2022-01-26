@@ -4,7 +4,9 @@
 
 #include "MassEntityTraitBase.h"
 #include "MassRepresentationTypes.h"
+#include "MassRepresentationFragments.h"
 #include "GameFramework/Actor.h"
+
 #include "MassVisualizationTrait.generated.h"
 
 class UMassRepresentationSubsystem;
@@ -36,11 +38,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
 
-	/** Allow subclasses to override the representation actor management behavior */
+	/** Configuration parameters for the representaion processor */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	TSubclassOf<UMassRepresentationActorManagement> RepresentationActorManagementClass;
-
-	// @todo the following property will be cut once new de/initializers are in
-	/** Allow subclasses to override the representation fragment deinitializer */
-	TSubclassOf<UMassProcessor> RepresentationFragmentDeinitializerClass;
+	FMassRepresentationConfig Config;
 };

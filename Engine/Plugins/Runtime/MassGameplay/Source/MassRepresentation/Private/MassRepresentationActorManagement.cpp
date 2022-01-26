@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassRepresentationActorManagement.h"
+#include "MassRepresentationSubsystem.h"
+#include "MassRepresentationFragments.h"
 #include "MassCommandBuffer.h"
 #include "MassEntityView.h"
 #include "MassActorSubsystem.h"
-#include "MassRepresentationSubsystem.h"
+
+float UMassRepresentationActorManagement::GetSpawnPriority(const FMassRepresentationLODFragment& Representation) const
+{
+	// Bump up the spawning priority on the visible entities
+	return Representation.LODSignificance - (Representation.Visibility == EMassVisibility::CanBeSeen ? 1.0f : 0.0f);
+}
 
 AActor* UMassRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const
 {

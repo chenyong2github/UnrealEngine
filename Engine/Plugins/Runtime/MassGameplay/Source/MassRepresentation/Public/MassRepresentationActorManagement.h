@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MassRepresentationFragments.h"
 #include "MassRepresentationActorManagement.generated.h"
 
 struct FMassActorSpawnRequestHandle;
@@ -14,6 +13,9 @@ struct FMassActorSpawnRequestHandle;
 struct FStructView;
 struct FMassEntityHandle;
 struct FDataFragment_Actor;
+struct FMassRepresentationLODFragment;
+struct FMassRepresentationFragment;
+class UMassRepresentationSubsystem;
 
 UCLASS()
 class MASSREPRESENTATION_API UMassRepresentationActorManagement : public UObject
@@ -26,11 +28,7 @@ public:
 	 * Returns the spawn priority from the LOD
 	 * @param Representation is the type of enabling to do on this actor
 	 */
-	virtual float GetSpawnPriority(const FMassRepresentationLODFragment& Representation) const
-	{
-		// Bump up the spawning priority on the visible entities
-		return Representation.LODSignificance - (Representation.Visibility == EMassVisibility::CanBeSeen ? 1.0f : 0.0f);
-	}
+	virtual float GetSpawnPriority(const FMassRepresentationLODFragment& Representation) const;
 
 	/**
 	 * Returns an actor of the template type and setup fragments values from it

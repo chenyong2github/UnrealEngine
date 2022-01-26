@@ -81,26 +81,6 @@ protected:
 	 */
 	void UpdateVisualization(FMassExecutionContext& Context);
 
-	/** What should be the representation of this entity for each specificLOD */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	ERepresentationType LODRepresentation[EMassLOD::Max];
-
-	/** If true, LowRes actors will be kept around, disabled, whilst StaticMeshInstance representation is active */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	bool bKeepLowResActors = true;
-
-	/** When switching to ISM keep the actor an extra frame, helps cover rendering glitches (i.e. occlusion query being one frame late) */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	bool bKeepActorExtraFrame = false;
-
-	/** If true, will spread the first visualization update over the period specified in NotVisibleUpdateRate member */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	bool bSpreadFirstVisualizationUpdate = false;
-
-	/** World Partition grid name to test collision against, default None will be the main grid */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	FName WorldPartitionGridNameContainingCollision;
-
 	/** Caching ptr to our associated world */
 	UPROPERTY(Transient)
 	UWorld* World;
@@ -108,14 +88,9 @@ protected:
 	UPROPERTY(Transient)
 	UMassEntitySubsystem* CachedEntitySubsystem;
 
-	/** Default representation when unable to spawn an actor */
-	ERepresentationType DefaultRepresentationType = ERepresentationType::None;
 
 	FMassEntityQuery EntityQuery;
 
-	/** At what rate should the not visible entity be updated in seconds */
-	UPROPERTY(EditAnywhere, Category = "Mass|Visualization", config)
-	float NotVisibleUpdateRate = 0.5f;
 };
 
 UCLASS()

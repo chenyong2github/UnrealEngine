@@ -8,6 +8,20 @@
 #include "Engine/World.h"
 #include "MassCrowdRepresentationActorManagement.h"
 
+UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
+{
+	Config.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::None;
+	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::None;
+	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
+	Config.bKeepLowResActors = false;
+	Config.bKeepActorExtraFrame = false;
+	Config.bSpreadFirstVisualizationUpdate = false;
+	Config.WorldPartitionGridNameContainingCollision = NAME_None;
+	Config.NotVisibleUpdateRate = 0.5f;
+}
+
 void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	// This should only be ran on NM_DedicatedServer network mode
@@ -33,10 +47,9 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
 
-	FMassRepresentationConfig Config;
-	Config.RepresentationActorManagement = UMassCrowdRepresentationActorManagement::StaticClass()->GetDefaultObject<UMassCrowdRepresentationActorManagement>();
 	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
 	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationConfig>(ConfigHash, Config);
+	ConfigFragment.Get<FMassRepresentationConfig>().ComputeCachedValues();
 	BuildContext.AddConstSharedFragment(ConfigFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();

@@ -9,5 +9,14 @@ UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 {
 	// Override the subsystem to support parallelization of the crowd
 	RepresentationSubsystemClass = UMassCrowdRepresentationSubsystem::StaticClass();
-	RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Config.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::LowResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::StaticMeshInstance;
+	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
+	Config.bKeepLowResActors = true;
+	Config.bKeepActorExtraFrame = true;
+	Config.bSpreadFirstVisualizationUpdate = false;
+	Config.WorldPartitionGridNameContainingCollision = NAME_None;
+	Config.NotVisibleUpdateRate = 0.5f;
 }

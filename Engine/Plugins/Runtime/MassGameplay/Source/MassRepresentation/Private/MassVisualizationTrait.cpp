@@ -11,7 +11,12 @@
 UMassVisualizationTrait::UMassVisualizationTrait()
 {
 	RepresentationSubsystemClass = UMassRepresentationSubsystem::StaticClass();
-	RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
+
+	Config.RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
+	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::LowResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::StaticMeshInstance;
+	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -45,15 +50,13 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
 
-	FMassRepresentationConfig Config;
-	Config.RepresentationActorManagement = RepresentationActorManagementClass.GetDefaultObject();
-	if (Config.RepresentationActorManagement == nullptr)
+	if (!Config.RepresentationActorManagementClass)
 	{
 		UE_LOG(LogMassRepresentation, Error, TEXT("Expecting a valid class for the representation actor management"));
-		Config.RepresentationActorManagement = UMassRepresentationActorManagement::StaticClass()->GetDefaultObject<UMassRepresentationActorManagement>();
 	}
 	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
 	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationConfig>(ConfigHash, Config);
+	ConfigFragment.Get<FMassRepresentationConfig>().ComputeCachedValues();
 	BuildContext.AddConstSharedFragment(ConfigFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
