@@ -5,19 +5,7 @@
 #include "CoreMinimal.h"
 #include "Network/DisplayClusterNetworkTypes.h"
 #include "Network/IDisplayClusterServer.h"
-#include "DisplayClusterEnums.h"
-
-
-enum class EDisplayClusterFailoverPolicy : uint8
-{
-	// No failover operations performed. The whole cluster gets terminated in case of any error
-	Disabled,
-
-	// First implementation of failover feature. This policy allows to drop any secondary node
-	// out of cluster in case it's failed, and let the others continue working. However, if
-	// primary node fails, the whole cluster will be terminated.
-	Failover_v1_DropSecondaryNodesOnly
-};
+#include "DisplayClusterConfigurationTypes_Enums.h"
 
 
 /**
@@ -30,7 +18,7 @@ public:
 
 public:
 	// Returns current failover policy
-	virtual EDisplayClusterFailoverPolicy GetFailoverPolicy() const = 0;
+	virtual EDisplayClusterConfigurationFailoverPolicy GetFailoverPolicy() const = 0;
 
 public:
 	// Handles in-cluster communication results

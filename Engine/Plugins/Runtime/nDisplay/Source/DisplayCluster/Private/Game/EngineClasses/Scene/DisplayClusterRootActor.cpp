@@ -175,8 +175,9 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 	if (CurrentConfigData->Cluster)
 	{
 		CurrentConfigData->Cluster->PrimaryNode = ConfigData->Cluster->PrimaryNode;
-		CurrentConfigData->Cluster->Sync = ConfigData->Cluster->Sync;
-		CurrentConfigData->Cluster->Network = ConfigData->Cluster->Network;
+		CurrentConfigData->Cluster->Sync        = ConfigData->Cluster->Sync;
+		CurrentConfigData->Cluster->Network     = ConfigData->Cluster->Network;
+		CurrentConfigData->Cluster->Failover    = ConfigData->Cluster->Failover;
 
 		// Remove nodes in current config that are not in the new config
 

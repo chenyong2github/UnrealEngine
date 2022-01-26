@@ -13,9 +13,9 @@ class FDisplayClusterFailoverNodeCtrlNull
 {
 public:
 	// Returns current failover policy
-	virtual EDisplayClusterFailoverPolicy GetFailoverPolicy() const
+	virtual EDisplayClusterConfigurationFailoverPolicy GetFailoverPolicy() const
 	{
-		return EDisplayClusterFailoverPolicy::Disabled;
+		return EDisplayClusterConfigurationFailoverPolicy::Disabled;
 	}
 
 public:

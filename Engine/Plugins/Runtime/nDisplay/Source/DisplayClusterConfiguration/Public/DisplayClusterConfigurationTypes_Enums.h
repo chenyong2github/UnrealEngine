@@ -18,23 +18,14 @@ enum class EDisplayClusterConfigurationDataSource : uint8
 };
 
 UENUM()
-enum class EDisplayClusterConfigurationKeyboardReflectionType : uint8
+enum class EDisplayClusterConfigurationFailoverPolicy : uint8
 {
-	None     UMETA(DisplayName = "No reflection"),
-	nDisplay UMETA(DisplayName = "nDisplay buttons only"),
-	Core     UMETA(DisplayName = "UE core keyboard events only"),
-	All      UMETA(DisplayName = "Both nDisplay and UE core events")
-};
+	// No failover operations performed. The whole cluster gets terminated in case of any error
+	Disabled                          UMETA(DisplayName = "Disabled"),
 
-UENUM()
-enum class EDisplayClusterConfigurationTrackerMapping
-{
-	X    UMETA(DisplayName = "Positive X"),
-	NX   UMETA(DisplayName = "Negative X"),
-	Y    UMETA(DisplayName = "Positive Y"),
-	NY   UMETA(DisplayName = "Negative Y"),
-	Z    UMETA(DisplayName = "Positive Z"),
-	NZ   UMETA(DisplayName = "Negative Z")
+	// This policy allows to drop any secondary node out of cluster in case it's failed,
+	// and let the others continue working. However, the whole cluster will be terminated if primary node fails.
+	DropSecondaryNodesOnly            UMETA(DisplayName = "Drop S-node on fail"),
 };
 
 UENUM()

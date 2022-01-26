@@ -15,7 +15,7 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// EDisplayClusterFailoverPolicy::Disabled
+// EDisplayClusterConfigurationFailoverPolicy::Disabled
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterFailoverNodeCtrlPrimary::HandleCommResult_Disabled(EDisplayClusterCommResult CommResult)
 {
@@ -47,9 +47,9 @@ void FDisplayClusterFailoverNodeCtrlPrimary::HandleNodeFailed_Disabled(const FSt
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly
+// EDisplayClusterConfigurationFailoverPolicy::DropSecondaryNodesOnly
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterFailoverNodeCtrlPrimary::HandleCommResult_Failover_v1(EDisplayClusterCommResult CommResult)
+void FDisplayClusterFailoverNodeCtrlPrimary::HandleCommResult_DropSecondaryNodesOnly(EDisplayClusterCommResult CommResult)
 {
 	// Any comm error on the primary node results in node termination
 	if (CommResult != EDisplayClusterCommResult::Ok)
@@ -58,7 +58,7 @@ void FDisplayClusterFailoverNodeCtrlPrimary::HandleCommResult_Failover_v1(EDispl
 	}
 }
 
-void FDisplayClusterFailoverNodeCtrlPrimary::HandleNodeFailed_Failover_v1(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType)
+void FDisplayClusterFailoverNodeCtrlPrimary::HandleNodeFailed_DropSecondaryNodesOnly(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType)
 {
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Failover: node [%s] failed, fail_type=%u, disconnecting the node and continue working..."), *NodeId, static_cast<uint32>(NodeFailType));
 

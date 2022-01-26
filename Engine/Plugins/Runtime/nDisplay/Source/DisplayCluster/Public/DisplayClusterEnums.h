@@ -52,4 +52,3 @@ enum class EDisplayClusterRunningMode : uint8
 	Synced,
 	WaitingForSync,
 };
-

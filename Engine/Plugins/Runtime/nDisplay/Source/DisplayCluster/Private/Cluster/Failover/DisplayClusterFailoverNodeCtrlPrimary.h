@@ -17,11 +17,11 @@ public:
 	{ }
 
 protected:
-	// EDisplayClusterFailoverPolicy::Disabled
+	// EDisplayClusterConfigurationFailoverPolicy::Disabled
 	virtual void HandleCommResult_Disabled(EDisplayClusterCommResult CommResult) override;
 	virtual void HandleNodeFailed_Disabled(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) override;
 
-	// EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly
-	virtual void HandleCommResult_Failover_v1(EDisplayClusterCommResult CommResult) override;
-	virtual void HandleNodeFailed_Failover_v1(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) override;
+	// EDisplayClusterConfigurationFailoverPolicy::DropSecondaryNodesOnly
+	virtual void HandleCommResult_DropSecondaryNodesOnly(EDisplayClusterCommResult CommResult) override;
+	virtual void HandleNodeFailed_DropSecondaryNodesOnly(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) override;
 };

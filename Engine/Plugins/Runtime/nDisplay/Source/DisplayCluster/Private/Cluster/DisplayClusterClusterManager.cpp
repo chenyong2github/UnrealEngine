@@ -832,16 +832,20 @@ TUniquePtr<IDisplayClusterClusterNodeController> FDisplayClusterClusterManager::
 
 TUniquePtr<IDisplayClusterFailoverNodeController> FDisplayClusterClusterManager::CreateFailoverNodeController() const
 {
-	const EDisplayClusterNodeRole ClusterRole = GetClusterRole();
-	switch (ClusterRole)
+	// Instantiate appropriate controller depending on operation mode and cluster role
+	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster)
 	{
-	case EDisplayClusterNodeRole::Primary:
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover primary controller..."));
-		return MakeUnique<FDisplayClusterFailoverNodeCtrlPrimary>();
+		const EDisplayClusterNodeRole ClusterRole = GetClusterRole();
+		switch (ClusterRole)
+		{
+		case EDisplayClusterNodeRole::Primary:
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover primary controller..."));
+			return MakeUnique<FDisplayClusterFailoverNodeCtrlPrimary>();
 
-	case EDisplayClusterNodeRole::Secondary:
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover secondary controller..."));
-		return MakeUnique<FDisplayClusterFailoverNodeCtrlSecondary>();
+		case EDisplayClusterNodeRole::Secondary:
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover secondary controller..."));
+			return MakeUnique<FDisplayClusterFailoverNodeCtrlSecondary>();
+		}
 	}
 
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover null controller..."));

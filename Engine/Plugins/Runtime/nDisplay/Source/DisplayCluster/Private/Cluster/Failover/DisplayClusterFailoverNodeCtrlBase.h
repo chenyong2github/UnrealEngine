@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Cluster/Failover/IDisplayClusterFailoverNodeController.h"
+#include "DisplayClusterConfigurationTypes_Enums.h"
 
 struct FDisplayClusterSessionInfo;
 
@@ -17,7 +18,7 @@ public:
 	FDisplayClusterFailoverNodeCtrlBase();
 
 public:
-	virtual EDisplayClusterFailoverPolicy GetFailoverPolicy() const override final
+	virtual EDisplayClusterConfigurationFailoverPolicy GetFailoverPolicy() const override final
 	{
 		return FailoverPolicy;
 	}
@@ -30,23 +31,21 @@ public:
 	virtual void HandleNodeFailed(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) override final;
 
 protected:
-	// EDisplayClusterFailoverPolicy::Disabled
+	// EDisplayClusterConfigurationFailoverPolicy::Disabled
 	virtual void HandleCommResult_Disabled(EDisplayClusterCommResult CommResult) = 0;
 	virtual void HandleNodeFailed_Disabled(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) = 0;
 
-	// EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly
-	virtual void HandleCommResult_Failover_v1(EDisplayClusterCommResult CommResult) = 0;
-	virtual void HandleNodeFailed_Failover_v1(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) = 0;
+	// EDisplayClusterConfigurationFailoverPolicy::DropSecondaryNodesOnly
+	virtual void HandleCommResult_DropSecondaryNodesOnly(EDisplayClusterCommResult CommResult) = 0;
+	virtual void HandleNodeFailed_DropSecondaryNodesOnly(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType) = 0;
 
 private:
 	// Converts failover policy from CVar integer into enum
-	static EDisplayClusterFailoverPolicy GetFailoverPolicyFromCvarValue(int32 FailoverCvarNumber);
-	// Returns failover policy name as readable string
-	static FString FailoverPolicyAsString(const EDisplayClusterFailoverPolicy Policy);
+	static EDisplayClusterConfigurationFailoverPolicy GetFailoverPolicyFromConfig();
 
 private:
 	// Current failover policy
-	const EDisplayClusterFailoverPolicy FailoverPolicy;
+	const EDisplayClusterConfigurationFailoverPolicy FailoverPolicy;
 
 	mutable FCriticalSection InternalsCS;
 };

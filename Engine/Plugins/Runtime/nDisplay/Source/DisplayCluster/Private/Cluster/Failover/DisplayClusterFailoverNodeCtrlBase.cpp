@@ -2,6 +2,10 @@
 
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlBase.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+#include "Config/IPDisplayClusterConfigManager.h"
+
+#include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/ScopeLock.h"
 
@@ -10,20 +14,10 @@
 #include "HAL/IConsoleManager.h"
 
 
-// Failover settings
-static TAutoConsoleVariable<int32> CVarFailover(
-	TEXT("nDisplay.network.failover"),
-	0,
-	TEXT("Failover settings:\n")
-	TEXT("\t0 : Disabled\n")
-	TEXT("\t1 : Failover v1 - drop secondary nodes on fail\n")
-);
-
-
 FDisplayClusterFailoverNodeCtrlBase::FDisplayClusterFailoverNodeCtrlBase()
-	: FailoverPolicy( FDisplayClusterFailoverNodeCtrlBase::GetFailoverPolicyFromCvarValue(CVarFailover.GetValueOnAnyThread()) )
+	: FailoverPolicy( FDisplayClusterFailoverNodeCtrlBase::GetFailoverPolicyFromConfig() )
 {
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Failover: policy is %s"), *FDisplayClusterFailoverNodeCtrlBase::FailoverPolicyAsString(FailoverPolicy));
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Failover: policy %u"), static_cast<uint8>(FailoverPolicy));
 }
 
 
@@ -35,11 +29,11 @@ void FDisplayClusterFailoverNodeCtrlBase::HandleCommResult(EDisplayClusterCommRe
 
 	switch (GetFailoverPolicy())
 	{
-	case EDisplayClusterFailoverPolicy::Disabled:
+	case EDisplayClusterConfigurationFailoverPolicy::Disabled:
 		return HandleCommResult_Disabled(CommResult);
 
-	case EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly:
-		return HandleCommResult_Failover_v1(CommResult);
+	case EDisplayClusterConfigurationFailoverPolicy::DropSecondaryNodesOnly:
+		return HandleCommResult_DropSecondaryNodesOnly(CommResult);
 	}
 }
 
@@ -51,38 +45,23 @@ void FDisplayClusterFailoverNodeCtrlBase::HandleNodeFailed(const FString& NodeId
 
 	switch (GetFailoverPolicy())
 	{
-	case EDisplayClusterFailoverPolicy::Disabled:
+	case EDisplayClusterConfigurationFailoverPolicy::Disabled:
 		return HandleNodeFailed_Disabled(NodeId, NodeFailType);
 
-	case EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly:
-		return HandleNodeFailed_Failover_v1(NodeId, NodeFailType);
+	case EDisplayClusterConfigurationFailoverPolicy::DropSecondaryNodesOnly:
+		return HandleNodeFailed_DropSecondaryNodesOnly(NodeId, NodeFailType);
 	}
 }
 
-EDisplayClusterFailoverPolicy FDisplayClusterFailoverNodeCtrlBase::GetFailoverPolicyFromCvarValue(int32 FailoverCvarNumber)
+EDisplayClusterConfigurationFailoverPolicy FDisplayClusterFailoverNodeCtrlBase::GetFailoverPolicyFromConfig()
 {
-	switch (FailoverCvarNumber)
+	if (const IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr())
 	{
-	case 1:
-		return EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly;
-
-	case 0:
-	default:
-		return EDisplayClusterFailoverPolicy::Disabled;
+		if (const UDisplayClusterConfigurationData* const ConfigData = ConfigMgr->GetConfig())
+		{
+			return ConfigData->Cluster->Failover.FailoverPolicy;
+		}
 	}
-}
 
-FString FDisplayClusterFailoverNodeCtrlBase::FailoverPolicyAsString(const EDisplayClusterFailoverPolicy Policy)
-{
-	switch (Policy)
-	{
-	case EDisplayClusterFailoverPolicy::Disabled:
-		return FString("Disabled");
-
-	case EDisplayClusterFailoverPolicy::Failover_v1_DropSecondaryNodesOnly:
-		return FString("Failover_v1");
-
-	default:
-		return FString("Unknown");
-	}
+	return EDisplayClusterConfigurationFailoverPolicy::Disabled;
 }

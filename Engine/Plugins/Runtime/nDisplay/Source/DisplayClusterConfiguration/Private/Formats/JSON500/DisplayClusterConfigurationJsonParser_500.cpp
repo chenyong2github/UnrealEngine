@@ -205,6 +205,11 @@ namespace JSON500
 					CfgJson.Cluster.Network, FString(DisplayClusterConfigurationStrings::config::cluster::network::NetRenderSyncBarrierTimeout), (uint32)5000);
 			}
 
+			// Failover
+			{
+				Config->Cluster->Failover.FailoverPolicy = CfgJson.Cluster.Failover.FailoverPolicy;
+			}
+
 			// Cluster nodes
 			for (const TPair<FString, FDisplayClusterConfigurationJsonClusterNode_500>& CfgNode : CfgJson.Cluster.Nodes)
 			{
@@ -389,6 +394,11 @@ namespace JSON500
 
 				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetRenderSyncBarrierTimeout,
 					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.RenderSyncBarrierTimeout));
+			}
+
+			// Failover
+			{
+				Json.Cluster.Failover.FailoverPolicy = Config->Cluster->Failover.FailoverPolicy;
 			}
 
 			// Cluster nodes

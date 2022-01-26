@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationJsonTypes_500.generated.h"
 
 
@@ -342,12 +343,14 @@ public:
 	TMap<FString, uint16> Ports;
 };
 
+
 USTRUCT()
 struct FDisplayClusterConfigurationJsonClusterSyncPolicy_500
 	: public FDisplayClusterConfigurationJsonPolymorphicEntity_500
 {
 	GENERATED_BODY()
 };
+
 
 USTRUCT()
 struct FDisplayClusterConfigurationJsonClusterSync_500
@@ -362,6 +365,23 @@ public:
 	FDisplayClusterConfigurationJsonClusterSyncPolicy_500 InputSyncPolicy;
 };
 
+
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationFailoverSettings_500
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationFailoverSettings_500()
+		: FailoverPolicy(EDisplayClusterConfigurationFailoverPolicy::Disabled)
+	{ }
+
+public:
+	UPROPERTY()
+	EDisplayClusterConfigurationFailoverPolicy FailoverPolicy;
+};
+
+
 USTRUCT()
 struct FDisplayClusterConfigurationJsonPostprocess_500
 	: public FDisplayClusterConfigurationJsonPolymorphicEntity_500
@@ -369,12 +389,14 @@ struct FDisplayClusterConfigurationJsonPostprocess_500
 	GENERATED_BODY()
 };
 
+
 USTRUCT()
 struct FDisplayClusterConfigurationJsonProjectionPolicy_500
 	: public FDisplayClusterConfigurationJsonPolymorphicEntity_500
 {
 	GENERATED_BODY()
 };
+
 
 USTRUCT()
 struct FDisplayClusterConfigurationJsonOverscan_500
@@ -403,6 +425,7 @@ public:
 	UPROPERTY()
 	bool Oversize = 0;
 };
+
 
 USTRUCT()
 struct FDisplayClusterConfigurationJsonViewport_500
@@ -435,6 +458,7 @@ public:
 	FDisplayClusterConfigurationJsonProjectionPolicy_500 ProjectionPolicy;
 };
 
+
 USTRUCT()
 struct FDisplayClusterConfigurationFramePostProcess_OutputRemap_500
 {
@@ -453,6 +477,7 @@ public:
 	UPROPERTY()
 	FString ExternalFile;
 };
+
 
 USTRUCT()
 struct FDisplayClusterConfigurationJsonClusterNode_500
@@ -482,6 +507,7 @@ public:
 	FDisplayClusterConfigurationFramePostProcess_OutputRemap_500 OutputRemap;
 };
 
+
 USTRUCT()
 struct FDisplayClusterConfigurationJsonCluster_500
 {
@@ -498,8 +524,12 @@ public:
 	TMap<FString, FString> Network;
 
 	UPROPERTY()
+	FDisplayClusterConfigurationFailoverSettings_500 Failover;
+
+	UPROPERTY()
 	TMap<FString, FDisplayClusterConfigurationJsonClusterNode_500> Nodes;
 };
+
 
 USTRUCT()
 struct FDisplayClusterConfigurationJsonDiagnostics_500
@@ -549,6 +579,7 @@ public:
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonDiagnostics_500 Diagnostics;
 };
+
 
 // The main nDisplay configuration structure. It's supposed to extract nDisplay related data from a collecting JSON file.
 USTRUCT()
