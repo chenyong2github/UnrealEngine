@@ -168,7 +168,7 @@ namespace UE::RemoteExecution
 
 		TSharedPtr<TPromise<EStatusCode>> ReturnPromise = MakeShared<TPromise<EStatusCode>>();
 		Request->OnProcessRequestComplete().BindLambda([ReturnPromise](FHttpRequestPtr Req, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-			ReturnPromise->EmplaceValue((EHttpResponseCodes::Type)HttpResponse->GetResponseCode());
+			ReturnPromise->EmplaceValue((EStatusCode)HttpResponse->GetResponseCode());
 			});
 		Request->ProcessRequest();
 		return ReturnPromise->GetFuture();

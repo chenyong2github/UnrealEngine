@@ -144,6 +144,14 @@ public:
 		: FFutureState()
 	{ }
 
+	~TFutureState()
+	{
+		if (IsComplete())
+		{
+			DestructItem(Result.GetTypedPtr());
+		}
+	}
+
 	/**
 	 * Create and initialize a new instance with a callback.
 	 *
@@ -168,7 +176,7 @@ public:
 			WaitFor(FTimespan::MaxValue());
 		}
 
-		return Result;
+		return *Result.GetTypedPtr();
 	}
 
 	/**
@@ -181,15 +189,14 @@ public:
 	void EmplaceResult(ArgTypes&&... Args)
 	{
 		check(!IsComplete());
-
-		Result = InternalResultType(Forward<ArgTypes>(Args)...);
+		new(Result.GetTypedPtr()) InternalResultType(Forward<ArgTypes>(Args)...);
 		MarkComplete();
 	}
 
 private:
 
 	/** Holds the asynchronous result. */
-	InternalResultType Result;
+	TTypeCompatibleBytes<InternalResultType> Result;
 };
 
 /* TFuture
