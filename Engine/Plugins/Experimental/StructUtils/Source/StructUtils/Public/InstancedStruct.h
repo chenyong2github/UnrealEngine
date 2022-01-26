@@ -25,14 +25,9 @@ struct STRUCTUTILS_API FInstancedStruct
 
 public:
 
-	FInstancedStruct()
-	{
-	}
+	FInstancedStruct();
 
-	explicit FInstancedStruct(const UScriptStruct* InScriptStruct)
-	{
-		InitializeAs(InScriptStruct, nullptr);
-	}
+	explicit FInstancedStruct(const UScriptStruct* InScriptStruct);
 
 	FInstancedStruct(const FConstStructView InOther);
 
@@ -133,6 +128,8 @@ public:
 	void AddStructReferencedObjects(class FReferenceCollector& Collector);
 	bool ExportTextItem(FString& ValueStr, FInstancedStruct const& DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) const;
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr);
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	void GetPreloadDependencies(TArray<UObject*>& OutDeps);
 
 	/** Returns struct type. */
 	const UScriptStruct* GetScriptStruct() const
@@ -212,6 +209,17 @@ public:
 		return GetMemory() != nullptr && GetScriptStruct() != nullptr;
 	}
 
+	/** Comparison operators. Deep compares the struct instance when identical. */
+	bool operator==(const FInstancedStruct& Other) const
+	{
+		return Identical(&Other, PPF_None);
+	}
+
+	bool operator!=(const FInstancedStruct& Other) const
+	{
+		return !Identical(&Other, PPF_None);
+	}
+
 	/** Comparison operators. Note: it does not compare the internal structure itself*/
 	template <typename OtherType>
 	bool operator==(const OtherType& Other) const
@@ -273,5 +281,7 @@ struct TStructOpsTypeTraits<FInstancedStruct> : public TStructOpsTypeTraitsBase2
 		WithExportTextItem = true,
 		WithImportTextItem = true,
 		WithAddStructReferencedObjects = true,
+		WithStructuredSerializeFromMismatchedTag = true,
+		WithGetPreloadDependencies = true,
 	};
 };
