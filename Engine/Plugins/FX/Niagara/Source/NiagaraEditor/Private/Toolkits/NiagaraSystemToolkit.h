@@ -11,9 +11,14 @@
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
 
+#include "NiagaraCommon.h"
 #include "NiagaraScript.h"
 #include "Widgets/SItemSelector.h"
 #include "ViewModels/NiagaraSystemGraphSelectionViewModel.h"
+
+#if WITH_NIAGARA_GPU_PROFILER
+	#include "NiagaraGPUProfilerInterface.h"
+#endif
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
@@ -235,7 +240,7 @@ private:
 	static IConsoleVariable* VmStatEnabledVar;
 
 #if WITH_NIAGARA_GPU_PROFILER
-	TUniquePtr<struct FNiagaraGpuProfilerListener> GpuProfilerListener;
+	TUniquePtr<FNiagaraGpuProfilerListener> GpuProfilerListener;
 #endif
 
 public:
