@@ -305,48 +305,6 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Gets user-readable payload information
-		/// </summary>
-		/// <param name="Payload">The payload data</param>
-		/// <returns>Dictionary of key/value pairs for the payload</returns>
-		public static Dictionary<string, string>? GetPayloadDetails(ReadOnlyMemory<byte>? Payload)
-		{
-			Dictionary<string, string>? Details = null;
-			if (Payload != null)
-			{
-				Any BasePayload = Any.Parser.ParseFrom(Payload.Value.ToArray());
-
-				Details = new Dictionary<string, string>();
-
-				ConformTask ConformTask;
-				if(BasePayload.TryUnpack(out ConformTask))
-				{
-					Details["Type"] = "Conform";
-					Details["LogId"] = ConformTask.LogId;
-					Details["Full"] = ConformTask.RemoveUntrackedFiles.ToString();
-				}
-
-				ExecuteJobTask JobTask;
-				if (BasePayload.TryUnpack(out JobTask))
-				{
-					Details["Type"] = "Job";
-					Details["JobId"] = JobTask.JobId;
-					Details["BatchId"] = JobTask.BatchId;
-					Details["LogId"] = JobTask.LogId;
-				}
-
-				UpgradeTask UpgradeTask;
-				if (BasePayload.TryUnpack(out UpgradeTask))
-				{
-					Details["Type"] = "Upgrade";
-					Details["SoftwareId"] = UpgradeTask.SoftwareId;
-					Details["LogId"] = UpgradeTask.LogId;
-				}
-			}
-			return Details;
-		}
-
-		/// <summary>
 		/// Converts this lease to an RPC message
 		/// </summary>
 		/// <returns>RPC message</returns>

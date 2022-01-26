@@ -133,6 +133,30 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Gets user-readable payload information
+		/// </summary>
+		/// <param name="Payload">The payload data</param>
+		/// <returns>Dictionary of key/value pairs for the payload</returns>
+		public Dictionary<string, string>? GetPayloadDetails(ReadOnlyMemory<byte>? Payload)
+		{
+			Dictionary<string, string>? Details = null;
+			if (Payload != null)
+			{
+				Any BasePayload = Any.Parser.ParseFrom(Payload.Value.ToArray());
+				foreach (ITaskSource TaskSource in TaskSources)
+				{
+					if (BasePayload.Is(TaskSource.Descriptor))
+					{
+						Details = new Dictionary<string, string>();
+						TaskSource.GetLeaseDetails(BasePayload, Details);
+						break;
+					}
+				}
+			}
+			return Details;
+		}
+
+		/// <summary>
 		/// Issues a bearer token for the given session id
 		/// </summary>
 		/// <param name="AgentId">The agent id</param>

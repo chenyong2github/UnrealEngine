@@ -98,13 +98,7 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IAgent Agent in Agents)
 			{
-				double? Rate = null;
-				if (await AgentService.AuthorizeAsync(Agent, AclAction.ViewCosts, User, PermissionsCache))
-				{
-					Rate = await AgentService.GetRateAsync(Agent.Id);
-				}
-				bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, PermissionsCache);
-				Responses.Add(new GetAgentResponse(Agent, Rate, bIncludeAcl).ApplyFilter(Filter));
+				Responses.Add(await GetAgentResponseAsync(Agent, PermissionsCache, Filter));
 			}
 
 			return Responses;
@@ -127,16 +121,29 @@ namespace HordeServer.Controllers
 				return NotFound(AgentId);
 			}
 
-			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
+			return await GetAgentResponseAsync(Agent, new GlobalPermissionsCache(), Filter);
+		}
 
+		/// <summary>
+		/// Gets an individual agent response
+		/// </summary>
+		async ValueTask<object> GetAgentResponseAsync(IAgent Agent, GlobalPermissionsCache PermissionsCache, PropertyFilter? Filter = null)
+		{
 			double? Rate = null;
-			if (await AgentService.AuthorizeAsync(Agent, AclAction.ViewCosts, User, Cache))
+			if (await AgentService.AuthorizeAsync(Agent, AclAction.ViewCosts, User, PermissionsCache))
 			{
 				Rate = await AgentService.GetRateAsync(Agent.Id);
 			}
 
-			bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, Cache);
-			return new GetAgentResponse(Agent, Rate, bIncludeAcl).ApplyFilter(Filter);
+			List<GetAgentLeaseResponse> Leases = new List<GetAgentLeaseResponse>();
+			foreach (AgentLease Lease in Agent.Leases)
+			{
+				Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+				Leases.Add(new GetAgentLeaseResponse(Lease, Details));
+			}
+
+			bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, PermissionsCache);
+			return new GetAgentResponse(Agent, Leases, Rate, bIncludeAcl).ApplyFilter(Filter);
 		}
 
 		/// <summary>
@@ -318,10 +325,12 @@ namespace HordeServer.Controllers
 		/// <param name="FinishTime">End of the time window to consider</param>
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
+		/// <param name="Filter">Filter to apply to the properties</param>
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/leases")]
-		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync(AgentId AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
+		[ProducesResponseType(200, Type = typeof(List<GetAgentLeaseResponse>))]
+		public async Task<ActionResult<List<object>>> FindLeasesAsync(AgentId AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000, [FromQuery] PropertyFilter? Filter = null)
 		{
 			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
@@ -334,7 +343,21 @@ namespace HordeServer.Controllers
 			}
 
 			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
-			return Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
+
+			double? AgentRate = null;
+			if (await AclService.AuthorizeAsync(AclAction.ViewCosts, User))
+			{
+				AgentRate = await AgentService.GetRateAsync(AgentId);
+			}
+
+			List<object> Responses = new List<object>();
+			foreach(ILease Lease in Leases)
+			{
+				Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+				Responses.Add(PropertyFilter.Apply(new GetAgentLeaseResponse(Lease, Details, AgentRate), Filter));
+			}
+
+			return Responses;
 		}
 
 		/// <summary>
@@ -363,7 +386,14 @@ namespace HordeServer.Controllers
 				return NotFound(AgentId, LeaseId);
 			}
 
-			return new GetAgentLeaseResponse(Lease);
+			double? AgentRate = null;
+			if (await AclService.AuthorizeAsync(AclAction.ViewCosts, User))
+			{
+				AgentRate = await AgentService.GetRateAsync(AgentId);
+			}
+
+			Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+			return new GetAgentLeaseResponse(Lease, Details, AgentRate);
 		}
 	}
 }

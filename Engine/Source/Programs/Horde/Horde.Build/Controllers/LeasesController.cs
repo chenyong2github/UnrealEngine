@@ -74,14 +74,17 @@ namespace HordeServer.Controllers
 		/// <param name="FinishTime">End of the time window to consider</param>
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
+		/// <param name="Filter">Filter to apply to the results</param>
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/leases")]
-		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync([FromQuery] AgentId? AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
+		[ProducesResponseType(200, Type = typeof(List<GetAgentLeaseResponse>))]
+		public async Task<ActionResult<List<object>>> FindLeasesAsync([FromQuery] AgentId? AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000, [FromQuery] PropertyFilter? Filter = null)
 		{
+			GlobalPermissionsCache PermissionsCache = new GlobalPermissionsCache();
 			if (AgentId == null)
 			{
-				if (!await AclService.AuthorizeAsync(AclAction.ViewLeases, User))
+				if (!await AclService.AuthorizeAsync(AclAction.ViewLeases, User, PermissionsCache))
 				{
 					return Forbid(AclAction.ViewLeases);
 				}
@@ -93,14 +96,33 @@ namespace HordeServer.Controllers
 				{
 					return NotFound(AgentId.Value);
 				}
-				if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, null))
+				if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, PermissionsCache))
 				{
 					return Forbid(AclAction.ViewLeases, AgentId.Value);
 				}
 			}
 
+			bool IncludeCosts = await AclService.AuthorizeAsync(AclAction.ViewCosts, User, PermissionsCache);
+
 			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
-			return Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
+
+			List<object> Responses = new List<object>();
+
+			Dictionary<AgentId, double?> CachedAgentRates = new Dictionary<AgentId, double?>();
+			foreach (ILease Lease in Leases)
+			{
+				double? AgentRate = null;
+				if (IncludeCosts && !CachedAgentRates.TryGetValue(Lease.AgentId, out AgentRate))
+				{
+					AgentRate = await AgentService.GetRateAsync(Lease.AgentId);
+					CachedAgentRates.Add(Lease.AgentId, AgentRate);
+				}
+
+				Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+				Responses.Add(PropertyFilter.Apply(new GetAgentLeaseResponse(Lease, Details, AgentRate), Filter));
+			}
+
+			return Responses;
 		}
 
 		/// <summary>
@@ -123,12 +145,21 @@ namespace HordeServer.Controllers
 			{
 				return NotFound(Lease.AgentId);
 			}
-			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, null))
+
+			GlobalPermissionsCache PermissionsCache = new GlobalPermissionsCache();
+			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, PermissionsCache))
 			{
 				return Forbid(AclAction.ViewLeases);
 			}
 
-			return new GetAgentLeaseResponse(Lease);
+			double? AgentRate = null;
+			if (await AclService.AuthorizeAsync(AclAction.ViewCosts, User, PermissionsCache))
+			{
+				AgentRate = await AgentService.GetRateAsync(Agent.Id);
+			}
+
+			Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+			return new GetAgentLeaseResponse(Lease, Details, AgentRate);
 		}
 
 		/// <summary>

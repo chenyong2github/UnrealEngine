@@ -74,6 +74,13 @@ namespace HordeServer.Tasks
 		/// <param name="Output">Output from the task</param>
 		/// <param name="Logger">Logger for the agent</param>
 		Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger);
+
+		/// <summary>
+		/// Gets information to include for a lease in a lease info response
+		/// </summary>
+		/// <param name="Payload">The lease payload</param>
+		/// <param name="Details">Properties for the lease</param>
+		void GetLeaseDetails(Any Payload, Dictionary<string, string> Details);
 	}
 	
 	/// <summary>
@@ -89,6 +96,7 @@ namespace HordeServer.Tasks
 		{
 			internal StringBuilder FormatString = new StringBuilder();
 			internal List<Func<TMessage, object>> Accessors = new List<Func<TMessage, object>>();
+			internal List<(string, Func<TMessage, object>)> JsonAccessors = new List<(string, Func<TMessage, object>)>();
 
 			/// <summary>
 			/// Adds a new property to the list
@@ -105,10 +113,12 @@ namespace HordeServer.Tasks
 			/// </summary>
 			/// <param name="Name">Name of the property</param>
 			/// <param name="Accessor">Accessor for the property</param>
+			[System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
 			public PropertyList Add(string Name, Func<TMessage, object> Accessor)
 			{
 				FormatString.Append(CultureInfo.InvariantCulture, $", {Name}={{{Name}}}");
 				Accessors.Add(Accessor);
+				JsonAccessors.Add((Name[0..1].ToLower(CultureInfo.InvariantCulture) + Name[1..], Accessor));
 				return this;
 			}
 		}
@@ -160,6 +170,21 @@ namespace HordeServer.Tasks
 		{
 			Logger.LogInformation("Lease {LeaseId} complete", LeaseId);
 			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public virtual void GetLeaseDetails(Any Payload, Dictionary<string, string> Details)
+		{
+			Details["type"] = Type;
+
+			if (OnLeaseStartedProperties.Accessors.Count > 0)
+			{
+				TMessage Message = Payload.Unpack<TMessage>();
+				foreach ((string Name, Func<TMessage, object> GetMethod) in OnLeaseStartedProperties.JsonAccessors)
+				{
+					Details[Name] = GetMethod(Message)?.ToString() ?? String.Empty;
+				}
+			}
 		}
 	}
 }

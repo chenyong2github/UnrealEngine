@@ -138,6 +138,11 @@ namespace HordeServer.Api
 		public string? AgentId { get; set; }
 
 		/// <summary>
+		/// Cost of this agent, per hour
+		/// </summary>
+		public double? AgentRate { get; set; }
+
+		/// <summary>
 		/// Name of the lease
 		/// </summary>
 		public string Name { get; set; }
@@ -181,7 +186,8 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Lease">The lease to initialize from</param>
-		public GetAgentLeaseResponse(AgentLease Lease)
+		/// <param name="Details">The payload details</param>
+		public GetAgentLeaseResponse(AgentLease Lease, Dictionary<string, string>? Details)
 		{
 			this.Id = Lease.Id.ToString();
 			this.Name = Lease.Name;
@@ -190,23 +196,26 @@ namespace HordeServer.Api
 			this.StartTime = Lease.StartTime;
 			this.Executing = Lease.Active;
 			this.FinishTime = Lease.ExpiryTime;
-			this.Details = AgentLease.GetPayloadDetails(Lease.Payload);			
+			this.Details = Details;
 		}
 
 		/// <summary>
 		/// Converts this lease to a response object
 		/// </summary>
 		/// <param name="Lease">The lease to initialize from</param>
-		public GetAgentLeaseResponse(ILease Lease)
+		/// <param name="Details">The payload details</param>
+		/// <param name="AgentRate">Rate for running this agent</param>
+		public GetAgentLeaseResponse(ILease Lease, Dictionary<string, string>? Details, double? AgentRate)
 		{
 			this.Id = Lease.Id.ToString();
 			this.AgentId = Lease.AgentId.ToString();
+			this.AgentRate = AgentRate;
 			this.Name = Lease.Name;
 			this.LogId = Lease.LogId?.ToString();
 			this.StartTime = Lease.StartTime;
 			this.Executing = (Lease.FinishTime == null);
 			this.FinishTime = Lease.FinishTime;
-			this.Details = AgentLease.GetPayloadDetails(Lease.Payload);
+			this.Details = Details;
 			this.Outcome = Lease.Outcome;
 		}
 	}
@@ -446,9 +455,10 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Agent">The agent to construct from</param>
+		/// <param name="Leases">Active leases</param>
 		/// <param name="Rate">Rate for this agent</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetAgentResponse(IAgent Agent, double? Rate, bool bIncludeAcl)
+		public GetAgentResponse(IAgent Agent, List<GetAgentLeaseResponse> Leases, double? Rate, bool bIncludeAcl)
 		{
 			this.Id = Agent.Id.ToString();
 			this.Name = Agent.Id.ToString();
@@ -477,7 +487,7 @@ namespace HordeServer.Api
 			this.Pools = Agent.GetPools().Select(x => x.ToString()).ToList();
 			this.Workspaces = Agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
 			this.Capabilities = new { Devices = new[] { new { Properties = Agent.Properties, Resources = Agent.Resources } } };
-			this.Leases = Agent.Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
+			this.Leases = Leases;
 			this.Acl = (bIncludeAcl && Agent.Acl != null) ? new GetAclResponse(Agent.Acl) : null;
 			this.Comment = Agent.Comment;
 		}
