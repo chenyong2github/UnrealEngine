@@ -6,49 +6,93 @@
 #include "ZoneGraphQuery.h"
 #include "MassSpawnerTypes.h"
 #include "VisualLogger/VisualLogger.h"
-#include "Engine/World.h"
+#include "MassGameplaySettings.h"
+#include "MassSpawnLocationProcessor.h"
 
-void UMassEntityZoneGraphSpawnPointsGenerator::GenerateSpawnPoints(UObject& QueryOwner, int32 Count, FFinishedGeneratingSpawnPointsSignature& FinishedGeneratingSpawnPointsDelegate) const
+void UMassEntityZoneGraphSpawnPointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
-	TArray<FVector> Locations;
-	if (const UWorld* World = QueryOwner.GetWorld())
+	const UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(QueryOwner.GetWorld());
+	if (ZoneGraph == nullptr)
 	{
-		if (const UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(World))
+		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No zone graph found in world"));
+		return;
+	}
+
+	TArray<FVector> Locations;
+	
+	const FRandomStream RandomStream(GFrameNumber);
+	const TConstArrayView<FRegisteredZoneGraphData> RegisteredZoneGraphs = ZoneGraph->GetRegisteredZoneGraphData();
+	for (const FRegisteredZoneGraphData& Registered : RegisteredZoneGraphs)
+	{
+		if (Registered.bInUse && Registered.ZoneGraphData)
 		{
-			const FRandomStream RandomStream(GFrameNumber);
-			const TConstArrayView<FRegisteredZoneGraphData> RegisteredZoneGraphs = ZoneGraph->GetRegisteredZoneGraphData();
-			for (const FRegisteredZoneGraphData& Registered : RegisteredZoneGraphs)
+			GeneratePointsForZoneGraphData(*Registered.ZoneGraphData, Locations, RandomStream);
+		}
+	}
+
+	// Randomize them
+	for (int32 I = 0; I < Locations.Num(); ++I)
+	{
+		const int32 J = RandomStream.RandHelper(Locations.Num());
+		Locations.Swap(I, J);
+	}
+
+	// If we generated too many, shrink it.
+	if (Locations.Num() > Count)
+	{
+		Locations.SetNum(Count);
+	}
+
+	// Build array of entity types to spawn.
+	TArray<FMassEntitySpawnDataGeneratorResult> Results;
+	BuildResultsFromEntityTypes(Count, EntityTypes, Results);
+
+	const int32 LocationCount = Locations.Num();
+	int32 LocationIndex = 0;
+
+	// Distribute points amongst the entities to spawn.
+	for (FMassEntitySpawnDataGeneratorResult& Result : Results)
+	{
+		// @todo: Make separate processors and pass the ZoneGraph locations directly.
+		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
+		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
+		FMassTransformsSpawnData& Transforms = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
+
+		Transforms.Transforms.Reserve(Result.NumEntities);
+		for (int i = 0; i < Result.NumEntities; i++)
+		{
+			FTransform& Transform = Transforms.Transforms.AddDefaulted_GetRef();
+			Transform.SetLocation(Locations[LocationIndex % LocationCount]);
+			LocationIndex++;
+		}
+	}
+
+#if ENABLE_VISUAL_LOG
+	UE_VLOG(this, LogMassSpawner, Log, TEXT("Spawning at %d locations"), LocationIndex);
+	if (GetDefault<UMassGameplaySettings>()->bLogSpawnLocations)
+	{
+		if (FVisualLogEntry* LogEntry = FVisualLogger::Get().GetLastEntryForObject(this))
+		{
+			FVisualLogShapeElement Element(TEXT(""), FColor::Orange, /*Thickness*/20, LogMassSpawner.GetCategoryName());
+
+			Element.Points.Reserve(LocationIndex);
+			for (const FMassEntitySpawnDataGeneratorResult& Result : Results)
 			{
-				if (Registered.bInUse && Registered.ZoneGraphData)
+				const FMassTransformsSpawnData& Transforms = Result.SpawnData.Get<FMassTransformsSpawnData>();
+				for (int i = 0; i < Result.NumEntities; i++)
 				{
-					GeneratePointsForZoneGraphData(*Registered.ZoneGraphData, Locations, RandomStream);
+					Element.Points.Add(Transforms.Transforms[i].GetLocation());
 				}
 			}
-
-			// Randomize them
-			for (int32 I = 0; I < Locations.Num(); ++I)
-			{
-				const int32 J = RandomStream.RandHelper(Locations.Num());
-				Locations.Swap(I, J);
-			}
-
-			// If we generated too many, shrink it.
-			if (Locations.Num() > Count)
-			{
-				Locations.SetNum(Count);
-			}
-		}
-		else
-		{
-			UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No zone graph found in world"));
+			
+			Element.Type = EVisualLoggerShapeElement::SinglePoint;
+			Element.Verbosity = ELogVerbosity::Display;
+			LogEntry->AddElement(Element);
 		}
 	}
-	else
-	{
-		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("Unable to retrieve world from QueryOwner"));
-	}
+#endif // ENABLE_VISUAL_LOG
 
-	FinishedGeneratingSpawnPointsDelegate.Execute(Locations);
+	FinishedGeneratingSpawnPointsDelegate.Execute(Results);
 }
 
 void UMassEntityZoneGraphSpawnPointsGenerator::GeneratePointsForZoneGraphData(const ::AZoneGraphData& ZoneGraphData, TArray<FVector>& Locations, const FRandomStream& RandomStream) const

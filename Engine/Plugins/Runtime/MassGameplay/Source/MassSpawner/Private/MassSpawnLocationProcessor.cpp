@@ -22,7 +22,7 @@ void UMassSpawnLocationProcessor::ConfigureQueries()
 
 void UMassSpawnLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	if (!ensure(Context.ValidateAuxDataType<FMassSpawnAuxData>()))
+	if (!ensure(Context.ValidateAuxDataType<FMassTransformsSpawnData>()))
 	{
 		UE_VLOG_UELOG(this, LogMass, Log, TEXT("Execution context has invalid AuxData or it's not FMassSpawnAuxData. Entity transforms won't be initialized."));
 		return;
@@ -36,7 +36,7 @@ void UMassSpawnLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 
 	if (NetMode != NM_Client)
 	{
-		FMassSpawnAuxData& AuxData = Context.GetMutableAuxData().GetMutable<FMassSpawnAuxData>();
+		FMassTransformsSpawnData& AuxData = Context.GetMutableAuxData().GetMutable<FMassTransformsSpawnData>();
 		TArray<FTransform>& Transforms = AuxData.Transforms;
 
 		const int32 NumSpawnTransforms = Transforms.Num();

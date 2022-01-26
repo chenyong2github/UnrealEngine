@@ -125,14 +125,14 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 	}
 }
 
-UMassProcessor* UMassSpawnerSubsystem::GetSpawnLocationInitializer(TSubclassOf<UMassProcessor> InitializerClass)
+UMassProcessor* UMassSpawnerSubsystem::GetSpawnDataInitializer(TSubclassOf<UMassProcessor> InitializerClass)
 {	
 	if (!InitializerClass)
 	{
 		return nullptr;
 	}
 
-	UMassProcessor** const Initializer = SpawnLocationInitializers.FindByPredicate([InitializerClass](const UMassProcessor* Processor)
+	TObjectPtr<UMassProcessor>* const Initializer = SpawnDataInitializers.FindByPredicate([InitializerClass](const UMassProcessor* Processor)
 		{
 			return Processor && Processor->GetClass() == InitializerClass;
 		}
@@ -142,7 +142,7 @@ UMassProcessor* UMassSpawnerSubsystem::GetSpawnLocationInitializer(TSubclassOf<U
 	{
 		UMassProcessor* NewInitializer = NewObject<UMassProcessor>(this, InitializerClass);
 		NewInitializer->Initialize(*this);
-		SpawnLocationInitializers.Add(NewInitializer);
+		SpawnDataInitializers.Add(NewInitializer);
 		return NewInitializer;
 	}
 
@@ -166,7 +166,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	// 1. Create required number of entities with EntityTemplate.Archetype
 	// 2. Copy data from FMassEntityTemplate.Fragments.
 	//		a. @todo, could be done as part of creation?
-	// 3. Run SpawlLocationInitializer if set
+	// 3. Run SpawlDataInitializer if set
 	// 4. "OnEntitiesCreated" notifies will be sent out once the CreationContext gets destroyed (via its destructor).
 
 	TArray<FMassEntityHandle> SpawnedEntities;
@@ -175,13 +175,13 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	TConstArrayView<FInstancedStruct> FragmentInstances = EntityTemplate.GetInitialFragmentValues();
 	EntitySystem->BatchSetEntityFragmentsValues(CreationContext->GetChunkCollection(), FragmentInstances);
 	
-	UMassProcessor* SpawnLocationInitializer = SpawnData.IsValid() ? GetSpawnLocationInitializer(InitializerClass) : nullptr;
+	UMassProcessor* SpawnDataInitializer = SpawnData.IsValid() ? GetSpawnDataInitializer(InitializerClass) : nullptr;
 
-	if (SpawnLocationInitializer)
+	if (SpawnDataInitializer)
 	{
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		ProcessingContext.AuxData = SpawnData;
-		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnLocationInitializer, 1), ProcessingContext, &CreationContext->GetChunkCollection());
+		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnDataInitializer, 1), ProcessingContext, &CreationContext->GetChunkCollection());
 	}
 
 	OutEntities.Append(MoveTemp(SpawnedEntities));

@@ -3,7 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-#include "MassEntitySpawnPointsGeneratorBase.h"
+#include "MassEntitySpawnDataGeneratorBase.h"
 #include "ZoneGraphTypes.h"
 
 #include "MassEntityZoneGraphSpawnPointsGenerator.generated.h"
@@ -14,12 +14,12 @@ class AZoneGraphData;
  * Describes the SpawnPoints Generator when we want to spawn directly on Zone Graph
  */
 UCLASS(BlueprintType, meta=(DisplayName="ZoneGraph SpawnPoints Generator"))
-class MASSSPAWNER_API UMassEntityZoneGraphSpawnPointsGenerator : public UMassEntitySpawnPointsGeneratorBase
+class MASSSPAWNER_API UMassEntityZoneGraphSpawnPointsGenerator : public UMassEntitySpawnDataGeneratorBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual void GenerateSpawnPoints(UObject& QueryOwner, int32 Count, FFinishedGeneratingSpawnPointsSignature& FinishedGeneratingSpawnPointsDelegate) const override;
+	virtual void Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const override;
 
 protected:
 	void GeneratePointsForZoneGraphData(const ::AZoneGraphData& ZoneGraphData, TArray<FVector>& Locations, const FRandomStream& RandomStream) const;

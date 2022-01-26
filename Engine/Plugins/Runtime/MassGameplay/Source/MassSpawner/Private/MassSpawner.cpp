@@ -11,11 +11,12 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityConfigAsset.h"
+#include "MassEntitySubsystem.h"
 #include "EngineUtils.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
-#include "MassGameplaySettings.h"
 #include "MassSpawnLocationProcessor.h"
+#include "MassExecutor.h"
 
 
 namespace UE::MassSpawner
@@ -111,25 +112,15 @@ AMassSpawner::AMassSpawner()
 	bOverrideSchematics = false;
 }
 
-void AMassSpawner::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-		TickSchematicsAdjustHandle = UMassSimulationSubsystem::GetOnAdjustTickSchematics().AddUObject(this, &AMassSpawner::OnAdjustTickSchematics);
-	}
-}
-
 void AMassSpawner::PostLoad()
 {
 	Super::PostLoad();
 
-	for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+	for (FMassSpawnDataGenerator& SpawnPointsGenerator : SpawnDataGenerators)
 	{
 		if (SpawnPointsGenerator.GeneratorClass)
 		{
-			SpawnPointsGenerator.GeneratorInstance = NewObject<UMassEntitySpawnPointsGeneratorBase>(this, SpawnPointsGenerator.GeneratorClass);
+			SpawnPointsGenerator.GeneratorInstance = NewObject<UMassEntitySpawnDataGeneratorBase>(this, SpawnPointsGenerator.GeneratorClass);
 			SpawnPointsGenerator.GeneratorClass = nullptr;
 			MarkPackageDirty();
 		}
@@ -180,7 +171,6 @@ void AMassSpawner::OnPostWorldInit(UWorld* World, const UWorld::InitializationVa
 void AMassSpawner::BeginDestroy()
 {
 	FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitDelegateHandle);
-	UMassSimulationSubsystem::GetOnAdjustTickSchematics().Remove(TickSchematicsAdjustHandle);
 
 	DoDespawning();
 	
@@ -273,117 +263,119 @@ void AMassSpawner::RegisterEntityTemplates()
 
 void AMassSpawner::DoSpawning()
 {
-	const int32 SpawnCount = GetSpawnCount();
-	if (SpawnCount > 0)
+	const int32 TotalSpawnCount = GetSpawnCount();
+	if (TotalSpawnCount <= 0)
 	{
-		// no spawn point generators configured. Let user know and fall back to the spawner's location
-		if (SpawnPointsGenerators.Num() == 0)
-		{
-			UE_VLOG_UELOG(this, LogMassSpawner, Warning, TEXT("No Spawn Points Generators configured. Falling back to the MassSpawner\'s location."));
-			const FVector SpawnerLocation = GetActorLocation();
-			SpawnAtLocations(MakeArrayView(&SpawnerLocation, 1));
-			return;
-		}
+		return;
+	}
+	
+	// no spawn point generators configured. Let user know and fall back to the spawner's location
+	if (SpawnDataGenerators.Num() == 0)
+	{
+		UE_VLOG_UELOG(this, LogMassSpawner, Warning, TEXT("No Spawn Data Generators configured."));
+		return;
+	}
 
-		float TotalProportion = 0.0f;
-		for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+	AllGeneratedResults.Reset();
+	
+	float TotalProportion = 0.0f;
+	for (FMassSpawnDataGenerator& Generator : SpawnDataGenerators)
+	{
+		if (Generator.GeneratorInstance)
 		{
-			if (SpawnPointsGenerator.GeneratorInstance)
+			Generator.bDataGenerated = false;
+			TotalProportion += Generator.Proportion;
+		}
+	}
+
+	if (TotalProportion <= 0.0f)
+	{
+		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the generator needs to be greater than 0.0f."));
+		return;
+	}
+	
+	// Check if it needs loading
+	if (StreamingHandle.IsValid() && StreamingHandle->IsActive())
+	{
+		// @todo, instead of blindly canceling, we should remember what was asked to load with that handle and compare if more is needed?
+		StreamingHandle->CancelHandle();
+	}
+	TArray<FSoftObjectPath> AssetsToLoad;
+	for (const FMassSpawnedEntityType& EntityType : EntityTypes)
+	{
+		const int32 EntityCount = int32(TotalSpawnCount * EntityType.Proportion / TotalProportion);
+		if (EntityCount > 0)
+		{
+			if (!EntityType.IsLoaded())
 			{
-				SpawnPointsGenerator.bPointsGenerated = false;
-				TotalProportion += SpawnPointsGenerator.Proportion;
+				AssetsToLoad.Add(EntityType.EntityConfig.ToSoftObjectPath());
 			}
 		}
+	}
 
-		if (TotalProportion <= 0.0f)
+	auto GenerateSpawningPoints = [this, TotalSpawnCount, TotalProportion]()
+	{
+		int32 SpawnCountRemaining = TotalSpawnCount;
+		float ProportionRemaining = TotalProportion;
+		for (FMassSpawnDataGenerator& Generator : SpawnDataGenerators)
 		{
-			UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the generator needs to be greater than 0.0f."));
-			return;
-		}
-		// Check if it needs loading
-		if (StreamingHandle.IsValid() && StreamingHandle->IsActive())
-		{
-			// @todo, instead of blindly canceling, we should remember what was asked to load with that handle and compare if more is needed?
-			StreamingHandle->CancelHandle();
-		}
-		TArray<FSoftObjectPath> AssetsToLoad;
-		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
-		{
-			const int32 EntityCount = int32(SpawnCount * EntityType.Proportion / TotalProportion);
-			if (EntityCount > 0)
-
+			if (Generator.Proportion == 0.0f || ProportionRemaining <= 0.0f || SpawnCountRemaining <= 0)
 			{
-				if (!EntityType.IsLoaded())
+				// If there's nothing to spawn, mark the generator done as OnSpawnDataGenerationFinished() will wait for all generators to complete before the actual spawning.
+				Generator.bDataGenerated = true;
+				continue;
+			}
+
+			if (Generator.GeneratorInstance)
+			{
+				const float ProportionRatio = FMath::Min(Generator.Proportion / ProportionRemaining, 1.0f);
+				const int32 SpawnCount = FMath::CeilToInt(SpawnCountRemaining * ProportionRatio);
+				if (SpawnCount > 0)
 				{
-					AssetsToLoad.Add(EntityType.EntityConfig.ToSoftObjectPath());
+					FFinishedGeneratingSpawnDataSignature Delegate = FFinishedGeneratingSpawnDataSignature::CreateUObject(this, &AMassSpawner::OnSpawnDataGenerationFinished, &Generator);
+					Generator.GeneratorInstance->Generate(*this, EntityTypes, SpawnCount, Delegate);
+					SpawnCountRemaining -= SpawnCount;
+					ProportionRemaining -= Generator.Proportion;
 				}
 			}
 		}
-
-		auto GenerateSpawningPoints = [this, SpawnCount, TotalProportion]()
-		{
-			int32 SpawnPointCountRemaining = SpawnCount;
-			float ProportionRemaining = TotalProportion;
-			for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
-			{
-				// Still needs to call the OnSpawnPointGenerationFinished for Generator we don't want to output Spawn Points for as the system will wait
-				// for the bPointsGenerated == true on every Generators before proceeding to the next steps.
-				if (SpawnPointsGenerator.Proportion == 0.0f || ProportionRemaining <= 0.0f || SpawnPointCountRemaining <= 0)
-				{
-					const TArray<FVector> EmptyLoc;
-					OnSpawnPointGenerationFinished(EmptyLoc, &SpawnPointsGenerator);
-					continue;
-				}
-
-				if (SpawnPointsGenerator.GeneratorInstance)
-				{
-					const float ProportionRatio = FMath::Min(SpawnPointsGenerator.Proportion / ProportionRemaining, 1.0f);
-					const int32 SpawnPointCount = FMath::CeilToInt(SpawnPointCountRemaining * ProportionRatio);
-					if (SpawnPointCount > 0)
-					{
-						FFinishedGeneratingSpawnPointsSignature Delegate = FFinishedGeneratingSpawnPointsSignature::CreateUObject(this, &AMassSpawner::OnSpawnPointGenerationFinished, &SpawnPointsGenerator);
-						SpawnPointsGenerator.GeneratorInstance->GenerateSpawnPoints(*this, SpawnPointCount, Delegate);
-						SpawnPointCountRemaining -= SpawnPointCount;
-						ProportionRemaining -= SpawnPointsGenerator.Proportion;
-					}
-				}
-			}
-		};
-		
-		if (AssetsToLoad.Num())
-		{
-			FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-			StreamingHandle = StreamableManager.RequestAsyncLoad(AssetsToLoad, GenerateSpawningPoints);
-		}
-		else
-		{
-			GenerateSpawningPoints();
-		}
+	};
+	
+	if (AssetsToLoad.Num())
+	{
+		FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+		StreamingHandle = StreamableManager.RequestAsyncLoad(AssetsToLoad, GenerateSpawningPoints);
+	}
+	else
+	{
+		GenerateSpawningPoints();
 	}
 }
 
-void AMassSpawner::OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator)
+void AMassSpawner::OnSpawnDataGenerationFinished(TConstArrayView<FMassEntitySpawnDataGeneratorResult> Results, FMassSpawnDataGenerator* FinishedGenerator)
 {
-	AllGeneratedLocations.Append(Locations);
+	// @todo: this can be potentially expensive copy for the instanced structs, could there be a way to use move gere instead?
+	AllGeneratedResults.Append(Results.GetData(), Results.Num());
 
 	bool bAllSpawnPointsGenerated = true;
 	bool bFoundFinishedGenerator = false;
-	for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+	for (FMassSpawnDataGenerator& Generator : SpawnDataGenerators)
 	{
-		if (&SpawnPointsGenerator == FinishedGenerator)
+		if (&Generator == FinishedGenerator)
 		{
-			SpawnPointsGenerator.bPointsGenerated = true;
+			Generator.bDataGenerated = true;
 			bFoundFinishedGenerator = true;
 		}
 
-		bAllSpawnPointsGenerated &= SpawnPointsGenerator.bPointsGenerated;
+		bAllSpawnPointsGenerated &= Generator.bDataGenerated;
 	}
 
 	checkf(bFoundFinishedGenerator, TEXT("Something went wrong, we are receiving a callback on an unknow spawn point generator"));
 	
 	if (bAllSpawnPointsGenerated)
 	{
-		SpawnAtLocations(AllGeneratedLocations);
+		SpawnGeneratedEntities(AllGeneratedResults);
+		AllGeneratedResults.Reset();
 	}
 }
 
@@ -393,7 +385,31 @@ int32 AMassSpawner::GetSpawnCount() const
 	return int32(FinalSpawningCountScale * Count);
 }
 
-void AMassSpawner::SpawnAtLocations(TConstArrayView<FVector> Locations)
+UMassProcessor* AMassSpawner::GetPostSpawnProcessor(TSubclassOf<UMassProcessor> ProcessorClass)
+{
+	if (!ProcessorClass)
+	{
+		return nullptr;
+	}
+
+	TObjectPtr<UMassProcessor>* const Initializer = PostSpawnProcessors.FindByPredicate([ProcessorClass](const UMassProcessor* Processor)
+		{
+			return Processor && Processor->GetClass() == ProcessorClass;
+		}
+	);
+
+	if (Initializer == nullptr)
+	{
+		UMassProcessor* NewInitializer = NewObject<UMassProcessor>(this, ProcessorClass);
+		NewInitializer->Initialize(*this);
+		PostSpawnProcessors.Add(NewInitializer);
+		return NewInitializer;
+	}
+
+	return *Initializer;
+}
+
+void AMassSpawner::SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGeneratorResult> Results)
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(GetWorld());
 	if (SpawnerSystem == nullptr)
@@ -402,65 +418,58 @@ void AMassSpawner::SpawnAtLocations(TConstArrayView<FVector> Locations)
 		return;
 	}
 
-	FMassSpawnAuxData MassSpawnAuxData;
-	MassSpawnAuxData.Transforms.Reserve(Locations.Num());
-	for (const FVector& Location : Locations)
+	for (const FMassEntitySpawnDataGeneratorResult& Result : Results)
 	{
-		FTransform& Transform = MassSpawnAuxData.Transforms.AddDefaulted_GetRef();
-
-		Transform.SetLocation(Location);
-	}
-
-#if ENABLE_VISUAL_LOG
-	UE_VLOG(this, LogMassSpawner, Log, TEXT("Spawning at %d locations"), Locations.Num());
-	if (GetDefault<UMassGameplaySettings>()->bLogSpawnLocations)
-	{
-		if (FVisualLogEntry* LogEntry = FVisualLogger::Get().GetLastEntryForObject(this))
+		if (Result.NumEntities <= 0)
 		{
-			FVisualLogShapeElement Element(TEXT(""), FColor::Orange, /*Thickness*/20, LogMassSpawner.GetCategoryName());
-			Element.Points.Append(Locations.GetData(), Locations.Num());
-			Element.Type = EVisualLoggerShapeElement::SinglePoint;
-			Element.Verbosity = ELogVerbosity::Display;
-			LogEntry->AddElement(Element);
+			continue;
 		}
-	}
-#endif // ENABLE_VISUAL_LOG
+		
+		check(EntityTypes.IsValidIndex(Result.EntityConfigIndex));
+		check(Result.SpawnDataProcessor != nullptr);
+		
+		const FMassSpawnedEntityType& EntityType = EntityTypes[Result.EntityConfigIndex];
 
-	const int32 SpawnCount = GetSpawnCount();
-	if (SpawnCount > 0)
-	{
-		float TotalProportion = 0.0f;
-		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
+		if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 		{
-			TotalProportion += EntityType.Proportion;
-		}
-
-		if (TotalProportion <= 0)
-		{
-			UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the entity types needs to be greater than 0.0f."));
-			return;
-		}
-
-		AllSpawnedEntities.Reserve(AllSpawnedEntities.Num() + EntityTypes.Num());
-
-		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
-		{
-			const int32 EntityCount = int32(SpawnCount * EntityType.Proportion / TotalProportion);
-			if (EntityCount > 0)
+			const FMassEntityTemplate* EntityTemplate = EntityConfig->GetConfig().GetOrCreateEntityTemplate(*this, *EntityConfig);
+			if (EntityTemplate && EntityTemplate->IsValid())
 			{
-				if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
-				{
-					const FMassEntityTemplate* EntityTemplate = EntityConfig->GetConfig().GetOrCreateEntityTemplate(*this, *EntityConfig);
-					if (EntityTemplate && EntityTemplate->IsValid())
-					{
-						FSpawnedEntities& SpawnedEntities = AllSpawnedEntities.AddDefaulted_GetRef();
-						SpawnedEntities.TemplateID = EntityTemplate->GetTemplateID();
-						SpawnerSystem->SpawnEntities(EntityTemplate->GetTemplateID(), EntityCount, FStructView::Make(MassSpawnAuxData)
-							, UMassSpawnLocationProcessor::StaticClass(), SpawnedEntities.Entities);
-					}
-				}
+				FSpawnedEntities& SpawnedEntities = AllSpawnedEntities.AddDefaulted_GetRef();
+				SpawnedEntities.TemplateID = EntityTemplate->GetTemplateID();
+				SpawnerSystem->SpawnEntities(EntityTemplate->GetTemplateID(), Result.NumEntities, Result.SpawnData, Result.SpawnDataProcessor, SpawnedEntities.Entities);
 			}
 		}
+	}
+
+	// Run post spawn processors on all Mass entities that matches the queries.
+	// @todo: we might need a way to specify that these are ran only on the freshly spawned entities.
+	
+	TArray<UMassProcessor*> Processors;
+	TSet<TSubclassOf<UMassProcessor>> AddedProcessors;
+
+	for (const FMassEntitySpawnDataGeneratorResult& Result : Results)
+	{
+		for (const TSubclassOf<UMassProcessor> ProcessorClass : Result.PostSpawnProcessors)
+		{
+			if (AddedProcessors.Contains(ProcessorClass) == false)
+			{
+				if (UMassProcessor* Processor = GetPostSpawnProcessor(ProcessorClass))
+				{
+					Processors.Add(Processor);
+				}
+				AddedProcessors.Add(ProcessorClass);
+			}
+		}
+	}
+
+	if (Processors.Num() > 0)
+	{
+		UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
+		check(EntitySystem);
+
+		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
+		UE::Mass::Executor::RunProcessorsView(Processors, ProcessingContext);
 	}
 }
 
@@ -533,24 +542,3 @@ void AMassSpawner::UnloadConfig()
 		StreamingHandle->CancelHandle();
 	}
 }
-
-void AMassSpawner::OnAdjustTickSchematics(UWorld* World,TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics)
-{
-	// this function gets called from a static multicast delegate, so we need to differentiate based on the World it's being called for.
-	if (World != GetWorld())
-	{
-		return;
-	}
-
-	if (bOverrideSchematics)
-	{
-		UE_VLOG_UELOG(World, LogMassSpawner, Log, TEXT("Overriding TickSchematics with %s"), *GetName());
-		InOutTickSchematics = TickSchematics;
-	}
-	else
-	{
-		UE_VLOG_UELOG(World, LogMassSpawner, Log, TEXT("Appending to TickSchematics with %s"), *GetName());
-		InOutTickSchematics.Append(TickSchematics);
-	}
-}
-

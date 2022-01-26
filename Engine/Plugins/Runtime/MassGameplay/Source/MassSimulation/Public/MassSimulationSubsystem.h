@@ -20,7 +20,6 @@ class MASSSIMULATION_API UMassSimulationSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAdjustTickSchematics, UWorld* /*World*/, TArray<TSoftObjectPtr<UMassSchematic>>& /*InOutTickSchematics*/);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSimulationStarted, UWorld* /*World*/);
 	
 	UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -30,7 +29,6 @@ public:
 
 	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase) const;
 	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseFinished(const EMassProcessingPhase Phase) const;
-	static FOnAdjustTickSchematics& GetOnAdjustTickSchematics() { return OnAdjustTickSchematics; }
 	static FOnSimulationStarted& GetOnSimulationStarted() { return OnSimulationStarted; }
 
 	bool IsSimulationStarted() const { return bSimulationStarted; }
@@ -63,7 +61,6 @@ protected:
 	UPROPERTY()
 	UMassProcessingPhaseManager* PhaseManager;
 
-	inline static FOnAdjustTickSchematics OnAdjustTickSchematics={};
 	inline static FOnSimulationStarted OnSimulationStarted={};
 
 	UPROPERTY()

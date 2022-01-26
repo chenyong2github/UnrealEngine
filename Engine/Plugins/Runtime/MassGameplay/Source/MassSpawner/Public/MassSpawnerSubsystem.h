@@ -47,10 +47,10 @@ protected:
 
 	void DoSpawning(const FMassEntityTemplate& EntityTemplate, const int32 NumToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass, TArray<FMassEntityHandle>& OutEntities);
 
-	UMassProcessor* GetSpawnLocationInitializer(TSubclassOf<UMassProcessor> InitializerClass);
+	UMassProcessor* GetSpawnDataInitializer(TSubclassOf<UMassProcessor> InitializerClass);
 
 	UPROPERTY()
-	TArray<UMassProcessor*> SpawnLocationInitializers;
+	TArray<TObjectPtr<UMassProcessor>> SpawnDataInitializers;
 
 	UPROPERTY()
 	UMassEntitySubsystem* EntitySystem;

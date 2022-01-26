@@ -3,13 +3,11 @@
 #pragma once 
 
 #include "GameFramework/Actor.h"
-#include "EnvironmentQuery/EnvQueryTypes.h"
-#include "InstancedStruct.h"
 #include "Engine/World.h"
 #include "MassSpawnerTypes.h"
+#include "MassEntitySpawnDataGeneratorBase.h"
 #include "MassSpawner.generated.h"
 
-class UMassEntitySpawnPointsGeneratorConfigAsset;
 class UMassSchematic;
 struct FStreamableHandle;
 
@@ -24,7 +22,6 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
 	virtual void BeginDestroy() override;
@@ -80,12 +77,12 @@ public:
 	void ScaleSpawningCount(float Scale) { SpawningCountScale = Scale; }
 
 protected:
-	void OnAdjustTickSchematics(UWorld* World, TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics);
 	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
-	void SpawnAtLocations(TConstArrayView<FVector> Locations);
-	void OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator);
+	void SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGeneratorResult> Results);
+	void OnSpawnDataGenerationFinished(TConstArrayView<FMassEntitySpawnDataGeneratorResult> Results, FMassSpawnDataGenerator* FinishedGenerator);
 
 	int32 GetSpawnCount() const;
+	UMassProcessor* GetPostSpawnProcessor(TSubclassOf<UMassProcessor> ProcessorClass);
 
 protected:
 
@@ -98,12 +95,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
 	int32 Count;
 
+	/** Array of entity types to spawn. These define which entities to spawn. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Mass|Spawn")
 	TArray<FMassSpawnedEntityType> EntityTypes;
 
-	/** Asset that describes the way we want to generate SpawnPoints of the entity */
+	/** Array of entity spawn generators. These define where to spawn entities. */
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
-	TArray<FMassSpawnPointGenerator> SpawnPointsGenerators;
+	TArray<FMassSpawnDataGenerator> SpawnDataGenerators;
 
 	UPROPERTY(Category = "Mass|Spawn", EditAnywhere)
 	uint32 bAutoSpawnOnBeginPlay : 1;
@@ -113,22 +111,20 @@ protected:
 	UPROPERTY(Category = "Mass|Simulation", EditAnywhere)
 	uint32 bOverrideSchematics : 1;
 
-	UPROPERTY(Category = "Mass|Simulation", EditAnywhere)
-	TArray<TSoftObjectPtr<UMassSchematic>> TickSchematics;
+	UPROPERTY()
+	TArray<TObjectPtr<UMassProcessor>> PostSpawnProcessors;
 
 	/** Scale of the spawning count */
 	float SpawningCountScale = 1.0f;
-
-	FDelegateHandle TickSchematicsAdjustHandle;
 
 	FDelegateHandle SimulationStartedHandle;
 
 	FDelegateHandle OnPostWorldInitDelegateHandle;
 
 	TArray<FSpawnedEntities> AllSpawnedEntities;
-
-	TArray<FVector> AllGeneratedLocations;
-
+	
+	TArray<FMassEntitySpawnDataGeneratorResult> AllGeneratedResults;
+	
 	TSharedPtr<FStreamableHandle> StreamingHandle;
 
 #if WITH_EDITORONLY_DATA
