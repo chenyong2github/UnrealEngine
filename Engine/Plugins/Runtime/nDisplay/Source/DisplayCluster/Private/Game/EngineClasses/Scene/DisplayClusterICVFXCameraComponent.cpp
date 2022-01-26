@@ -107,7 +107,7 @@ void UDisplayClusterICVFXCameraComponent::UpdateOverscanEstimatedFrameSize()
 		EstimatedOverscanResolutionHeight += AdjustmentSize.Y;
 	}
 
-	if (CameraSettings.CustomFrustum.bAdaptResolution)
+	if (CameraSettings.CustomFrustum.bEnable && CameraSettings.CustomFrustum.bAdaptResolution)
 	{
 		InnerFrustumResolutionWidth = EstimatedOverscanResolutionWidth;
 		InnerFrustumResolutionHeight = EstimatedOverscanResolutionHeight;
