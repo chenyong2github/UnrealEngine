@@ -11,6 +11,7 @@
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraSettings.h"
@@ -677,16 +678,28 @@ EVisibility SNiagaraSystemViewport::OnGetViewportContentVisibility() const
 	return IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-EVisibility SNiagaraSystemViewport::OnGetViewportCompileTextVisibility() const
+FText SNiagaraSystemViewport::GetViewportCompileStatusText() const
 {
-	if (PreviewComponent && PreviewComponent->GetAsset() && PreviewComponent->GetAsset()->HasOutstandingCompilationRequests())
+	if (PreviewComponent && PreviewComponent->GetAsset())
 	{
-		return EVisibility::Visible;
+		if (PreviewComponent->GetAsset()->HasOutstandingCompilationRequests())
+		{
+			return LOCTEXT("Compiling", "Compiling...");
+		}
+		bool bCompilationFailed = false;
+		PreviewComponent->GetAsset()->ForEachScript([&bCompilationFailed](UNiagaraScript* Script)
+		{
+			if (Script && Script->GetLastCompileStatus() == ENiagaraScriptCompileStatus::NCS_Error)
+			{
+				bCompilationFailed = true;
+			}
+		});
+		if (bCompilationFailed)
+		{
+			return LOCTEXT("CompilingFailed", "Compilation Failed!");
+		}
 	}
-	else
-	{
-		return EVisibility::Collapsed;
-	}
+	return FText();
 }
 
 void SNiagaraSystemViewport::PopulateViewportOverlays(TSharedRef<class SOverlay> Overlay)
@@ -701,11 +714,12 @@ void SNiagaraSystemViewport::PopulateViewportOverlays(TSharedRef<class SOverlay>
 	.HAlign(HAlign_Center)
 	[
 		SAssignNew(CompileText, STextBlock)
-		.Visibility_Raw(this, &SNiagaraSystemViewport::OnGetViewportCompileTextVisibility)
+		.Text_Raw(this, &SNiagaraSystemViewport::GetViewportCompileStatusText)
+		.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Viewport.CompileOverlay")
+		.ColorAndOpacity(FLinearColor::White)
+		.ShadowOffset(FVector2D(1.5, 1.5))
+		.ShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f))
 	];
-
-	CompileText->SetText(LOCTEXT("Compiling","Compiling"));
-
 }
 
 

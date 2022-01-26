@@ -34,6 +34,7 @@ private:
 	void InitTabIcons();
 	void InitIcons();
 	void InitOverview();
+	void InitViewportStyle();
 	void InitEmitterDetails();
 	void InitAssetColors();
 	void InitThumbnails();

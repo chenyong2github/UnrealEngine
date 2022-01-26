@@ -102,7 +102,7 @@ protected:
 	virtual void BindCommands() override;
 	virtual void OnFocusViewportToSelection() override;
 	virtual void PopulateViewportOverlays(TSharedRef<class SOverlay> Overlay) override;
-	EVisibility OnGetViewportCompileTextVisibility() const;
+	FText GetViewportCompileStatusText() const;
 
 private:
 	bool IsVisible() const override;

@@ -375,6 +375,14 @@ void FNiagaraEditorStyle::InitOverview()
 	Set("NiagaraEditor.Overview.DebugInactive", new IMAGE_BRUSH("Icons/OverviewDebugInactive", Icon16x16));
 }
 
+void FNiagaraEditorStyle::InitViewportStyle()
+{
+	FTextBlockStyle NormalTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+	FTextBlockStyle CompileOverlayText = FTextBlockStyle(NormalTextStyle)
+		.SetFontSize(18);
+	Set("NiagaraEditor.Viewport.CompileOverlay", CompileOverlayText);
+}
+
 void FNiagaraEditorStyle::InitEmitterDetails()
 {
 	// Emitter details customization
@@ -681,6 +689,7 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitOutlinerStyle();
 	InitScalabilityColors();
 	InitScalabilityIcons();
+	InitViewportStyle();
 }
 
 void FNiagaraEditorStyle::ReloadTextures()
