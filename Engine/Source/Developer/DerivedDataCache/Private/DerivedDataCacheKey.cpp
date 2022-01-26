@@ -8,6 +8,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 namespace UE::DerivedData::Private
 {
@@ -120,5 +121,15 @@ FCacheBucket::FCacheBucket(FWideStringView InName)
 	: FCacheBucket(Private::GetCacheBuckets().FindOrAdd(InName))
 {
 }
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheKey& Key)
+{
+	Writer.BeginObject();
+	Writer.AddString("Bucket"_ASV, Key.Bucket.ToString());
+	Writer.AddHash("Hash"_ASV, Key.Hash);
+	Writer.EndObject();
+	return Writer;
+}
+
 
 } // UE::DerivedData

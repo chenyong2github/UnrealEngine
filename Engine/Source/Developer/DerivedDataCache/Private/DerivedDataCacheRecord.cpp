@@ -160,14 +160,15 @@ FCbPackage FCacheRecord::Save() const
 {
 	FCbPackage Package;
 	FCbWriter Writer;
+	Save(Package, Writer);
+	Package.SetObject(Writer.Save().AsObject());
+	return Package;
+}
+
+void FCacheRecord::Save(FCbPackage& Attachments, FCbWriter& Writer) const
+{
 	Writer.BeginObject();
-	{
-		const FCacheKey& Key = GetKey();
-		Writer.BeginObject("Key"_ASV);
-		Writer.AddString("Bucket"_ASV, Key.Bucket.ToString());
-		Writer.AddHash("Hash"_ASV, Key.Hash);
-		Writer.EndObject();
-	}
+	Writer << "Key"_ASV << GetKey();
 
 	if (const FCbObject& Meta = GetMeta())
 	{
@@ -181,7 +182,7 @@ FCbPackage FCacheRecord::Save() const
 		{
 			if (Value.HasData())
 			{
-				Package.AddAttachment(FCbAttachment(Value.GetData()));
+				Attachments.AddAttachment(FCbAttachment(Value.GetData()));
 			}
 			Writer.BeginObject();
 			Writer.AddObjectId("Id"_ASV, Value.GetId());
@@ -192,9 +193,6 @@ FCbPackage FCacheRecord::Save() const
 		Writer.EndArray();
 	}
 	Writer.EndObject();
-
-	Package.SetObject(Writer.Save().AsObject());
-	return Package;
 }
 
 FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCbObject& Object)

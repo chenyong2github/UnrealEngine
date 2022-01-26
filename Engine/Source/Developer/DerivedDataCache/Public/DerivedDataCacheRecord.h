@@ -82,6 +82,8 @@ public:
 
 	/** Save the cache record to a compact binary package. */
 	UE_API FCbPackage Save() const;
+	/** Append the cache record to an existing package and writer for e.g. a batch of records. */
+	UE_API void Save(FCbPackage& Attachments, FCbWriter& Writer) const;
 
 	/** Load a cache record from a compact binary package. Null on error. */
 	UE_API static FOptionalCacheRecord Load(const FCbPackage& Package);
