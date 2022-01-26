@@ -65,6 +65,21 @@ export class Dashboard {
         this.setUpdated();
     }
 
+    clearPinnedJobs() {
+
+        if (!this.data.pinnedJobIds?.length) {
+            return;
+        }
+
+        const jobs = this.data.pinnedJobIds;
+
+        this.data.pinnedJobIds = [];
+
+        backend.updateUser({ removePinnedJobIds:jobs });
+
+        this.setUpdated();
+    }
+
     get username(): string {
         return this.data.name;
     }
