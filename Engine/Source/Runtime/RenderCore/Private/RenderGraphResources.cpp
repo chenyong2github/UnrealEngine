@@ -287,7 +287,15 @@ void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
 		{
 			if (PooledTexture)
 			{
-				PooledTexture->Finalize();
+				// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
+				if (bExternal || bExtracted)
+				{
+					PooledTexture->Reset();
+				}
+				else
+				{
+					PooledTexture->Finalize();
+				}
 			}
 
 			if (PooledRenderTarget)
@@ -352,7 +360,15 @@ void FRDGBuffer::Finalize(FRDGPooledBufferArray& PooledBufferArray)
 		}
 		else
 		{
-			PooledBuffer->Finalize();
+			if (bExternal || bExtracted)
+			{
+				PooledBuffer->Reset();
+			}
+			else
+			{
+				PooledBuffer->Finalize();
+			}
+
 			PooledBufferArray.Emplace(PooledBuffer);
 		}
 	}

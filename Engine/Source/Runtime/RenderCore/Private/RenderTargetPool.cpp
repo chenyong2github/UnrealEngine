@@ -435,7 +435,27 @@ bool FRenderTargetPool::FindFreeElement(
 		}
 	}
 
-	Out = FindFreeElementInternal(RHICmdList, Desc, InDebugName);
+	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName);
+
+	// Reset RDG state back to an unknown default. The resource is being handed off to a user outside of RDG, so the state is no longer valid.
+	{
+		FRDGPooledTexture* TargetableTexture = Result->TargetableTexture;
+		FRDGPooledTexture* ShaderResourceTexture = Result->ShaderResourceTexture;
+
+		if (TargetableTexture)
+		{
+			checkf(!TargetableTexture->GetOwner(), TEXT("Allocated a pooled render target that is currently owned by RDG texture %s."), TargetableTexture->GetOwner()->Name);
+			TargetableTexture->Reset();
+		}
+
+		if (ShaderResourceTexture && ShaderResourceTexture != TargetableTexture)
+		{
+			checkf(!ShaderResourceTexture->GetOwner(), TEXT("Allocated a pooled render target that is currently owned by RDG texture %s."), ShaderResourceTexture->GetOwner()->Name);
+			ShaderResourceTexture->Reset();
+		}
+	}
+
+	Out = Result;
 	return false;
 }
 

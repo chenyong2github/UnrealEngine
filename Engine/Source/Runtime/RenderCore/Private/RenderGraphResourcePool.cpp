@@ -17,7 +17,9 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
 {
-	return FindFreeBufferInternal(RHICmdList, Desc, InDebugName);
+	TRefCountPtr<FRDGPooledBuffer> Result = FindFreeBufferInternal(RHICmdList, Desc, InDebugName);
+	Result->Reset();
+	return Result;
 }
 
 TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
