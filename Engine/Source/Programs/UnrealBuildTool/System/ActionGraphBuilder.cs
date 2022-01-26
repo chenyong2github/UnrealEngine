@@ -284,8 +284,8 @@ namespace UnrealBuildTool
 			}
 
 			Action NewAction = Graph.CreateAction(Type);
-			NewAction.CommandPath = UnrealBuildTool.GetUBTPath();
-			NewAction.CommandArguments = String.Format("-Mode={0} {1}", Attribute.Name, Arguments);
+			NewAction.CommandPath = Unreal.DotnetPath;
+			NewAction.CommandArguments = $"{Unreal.UnrealBuildToolDllPath} -Mode={Attribute.Name} {Arguments}";
 			return NewAction;
 		}
 

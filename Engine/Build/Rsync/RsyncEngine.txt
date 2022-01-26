@@ -45,7 +45,8 @@
 + /Binaries/DotNET/Ionic.Zip.Reduced.dll
 + /Binaries/DotNET/IOS/
 + /Binaries/DotNET/IOS/**
-protect /Binaries/DotNET/UnrealBuildTool/**
++ /Binaries/DotNET/UnrealBuildTool/
++ /Binaries/DotNET/UnrealBuildTool/**
 
 # Binaries/Mac: Include DsymExporter, ignore everything else
 + /Binaries/Mac/
@@ -74,7 +75,6 @@ protect /Binaries/TVOS/
 
 # Build
 + /Build/
-- /Build/InstalledBuild.txt
 + /Build/*
 + /Build/BatchFiles/
 + /Build/BatchFiles/**

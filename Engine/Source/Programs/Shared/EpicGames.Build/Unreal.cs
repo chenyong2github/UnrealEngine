@@ -117,6 +117,11 @@ namespace UnrealBuildBase
 		public static readonly FileReference UnrealBuildToolPath = FindUnrealBuildTool();
 
 		/// <summary>
+		/// The path to UBT
+		/// </summary>
+		public static readonly FileReference UnrealBuildToolDllPath = FindUnrealBuildTool().ChangeExtension(".dll");
+
+		/// <summary>
 		/// The directory containing the bundled .NET installation
 		/// </summary>
 		static public readonly DirectoryReference DotnetDirectory = FindDotnetDirectory();
