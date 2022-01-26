@@ -105,5 +105,11 @@ namespace ICUUtilities
 
 	/** Sanitize the given currency code so that it is safe to use with ICU */
 	FString SanitizeCurrencyCode(const FString& InCurrencyCode);
+
+	/** Is the given character valid as part of currency code to be used with ICU? */
+	static bool IsValidCurencyCodeCharacter(const TCHAR InChar)
+	{
+		return (InChar >= TEXT('A') && InChar <= TEXT('Z')) || (InChar >= TEXT('a') && InChar <= TEXT('z'));
+	};
 }
 #endif

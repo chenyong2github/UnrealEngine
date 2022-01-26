@@ -1145,7 +1145,33 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 		CurrencyFormatterForCulture->setCurrency(ICUCurrencyCode.getBuffer());
 	}
 
-	const FDecimalNumberFormattingRules NewUECurrencyFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *CurrencyFormatterForCulture);
+	auto FixPrefixFormat = [](FString& InOutCurrencyPrefix)
+	{
+		const int32 PrefixLen = InOutCurrencyPrefix.Len();
+		if (PrefixLen >= 3 && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencyPrefix[PrefixLen - 1]) && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencyPrefix[PrefixLen - 2]) && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencyPrefix[PrefixLen - 3]))
+		{
+			InOutCurrencyPrefix.AppendChar(TEXT('\u00A0')); // No-break space
+		}
+	};
+
+	auto FixSuffixFormat = [](FString& InOutCurrencySuffix)
+	{
+		const int32 SuffixLen = InOutCurrencySuffix.Len();
+		if (SuffixLen >= 3 && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencySuffix[0]) && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencySuffix[1]) && ICUUtilities::IsValidCurencyCodeCharacter(InOutCurrencySuffix[2]))
+		{
+			InOutCurrencySuffix.InsertAt(0, TEXT('\u00A0')); // No-break space
+		}
+	};
+
+	FDecimalNumberFormattingRules NewUECurrencyFormattingRules = ExtractNumberFormattingRulesFromICUDecimalFormatter(ICULocale, *CurrencyFormatterForCulture);
+	
+	// When a currency is from a different locale, it is common for ICU to disambiguate by prefixing or postfixing the numeric value
+	// with ISO currency code. To ensure the readability in all cases we will add a no-break space between the currency code prefix/suffix 
+	// and the numeric value, if the prefix/suffix would directly touch the numeric value (eg, to avoid a result like "JPY1 500").
+	FixPrefixFormat(NewUECurrencyFormattingRules.PositivePrefixString);
+	FixPrefixFormat(NewUECurrencyFormattingRules.NegativePrefixString);
+	FixSuffixFormat(NewUECurrencyFormattingRules.PositiveSuffixString);
+	FixSuffixFormat(NewUECurrencyFormattingRules.NegativeSuffixString);
 
 	if (bUseDefaultFormattingRules)
 	{
@@ -1155,7 +1181,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 
 			if (!UECurrencyFormattingRules.IsValid())
 			{
-				UECurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules, ESPMode::ThreadSafe>(NewUECurrencyFormattingRules);
+				UECurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules, ESPMode::ThreadSafe>(MoveTemp(NewUECurrencyFormattingRules));
 			}
 		}
 
@@ -1172,7 +1198,7 @@ const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyForma
 			return *FoundUEAlternateCurrencyFormattingRules;
 		}
 
-		FoundUEAlternateCurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules>(NewUECurrencyFormattingRules);
+		FoundUEAlternateCurrencyFormattingRules = MakeShared<FDecimalNumberFormattingRules>(MoveTemp(NewUECurrencyFormattingRules));
 		UEAlternateCurrencyFormattingRules.Add(SanitizedCurrencyCode, FoundUEAlternateCurrencyFormattingRules);
 		return *FoundUEAlternateCurrencyFormattingRules;
 	}

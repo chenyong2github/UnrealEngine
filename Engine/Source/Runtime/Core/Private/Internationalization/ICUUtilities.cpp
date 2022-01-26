@@ -398,7 +398,7 @@ namespace ICUUtilities
 			{
 				if (InChar != 0)
 				{
-					const bool bIsValid = (InChar >= TEXT('A') && InChar <= TEXT('Z')) || (InChar >= TEXT('a') && InChar <= TEXT('z'));
+					const bool bIsValid = IsValidCurencyCodeCharacter(InChar);
 					return !bIsValid || ++NumValidChars > 3;
 				}
 				return false;
