@@ -63,6 +63,31 @@ private:
 	void SetTileHeight(int32 InHeight);
 
 	/**
+	 * Gets where the imported files should go.
+	 */
+	FString GetDestinationPath();
+
+	/**
+	 * Sets where the imported files should go.
+	 */
+	void SetDestinationPath(const FString& InPath);
+
+	/**
+	 * Query if the destination path has been overriden.
+	 */
+	bool IsDestinationPathOverriden();
+
+	/**
+	 * Set if the destination path has been overriden.
+	 */
+	void SetIsDestinationPathOverriden(bool bInIsOverriden);
+
+	/**
+	 *Called when DestinationPath changes.
+	 */
+	void OnDestinationPathChanged(const FString& Directory);
+
+	/**
 	 * Called when the import sequence button is clicked.
 	 * 
 	 * @return Whether this handled the event or not.
@@ -78,6 +103,7 @@ private:
 	 * @param InTileHeight			Desired height of tiles.
 	 */
 	static void ImportFiles(const FString& SequencePath,
+		const FString& DestinationPath,
 		TSharedPtr<SNotificationItem> ConfirmNotification,
 		int32 InTileWidth, int32 InTileHeight);
 
@@ -97,6 +123,10 @@ private:
 
 	/** Stores our property. */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+	/** Storess the property to the destination path.*/
+	TSharedPtr<IPropertyHandle> DestinationPathPropertyHandle;
+	/** Stores the property that says if the destination path is overriden. */
+	TSharedPtr<IPropertyHandle> IsDestinationPathOverridenPropertyHandle;
 
 	/** Tile width for each image in pixels. */
 	int32 TileWidth = 0;

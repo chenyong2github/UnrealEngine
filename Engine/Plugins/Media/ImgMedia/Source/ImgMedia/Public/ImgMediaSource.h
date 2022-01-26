@@ -27,6 +27,14 @@ USTRUCT(BlueprintType)
 struct IMGMEDIA_API FImgMediaSourceImportInfo
 {
 	GENERATED_BODY()
+
+	/** Where to place the imported images. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
+	FDirectoryPath DestinationPath;
+
+	/** True if we are overriding destination path and not using the default. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
+	bool bIsDestinationPathOverriden = false;
 };
 
 /**
