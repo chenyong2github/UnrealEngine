@@ -13,6 +13,8 @@ class APCGWorldActor : public AActor
 	GENERATED_BODY()
 
 public:
+	APCGWorldActor(const FObjectInitializer& ObjectInitializer);
+
 	//~Begin AActor Interface
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;

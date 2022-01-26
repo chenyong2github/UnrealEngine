@@ -6,6 +6,16 @@
 
 #include "Engine/World.h"
 
+APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	bIsEditorOnlyActor = true;
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+	bDefaultOutlinerExpansionState = false;
+#endif
+}
+
 void APCGWorldActor::PostLoad()
 {
 	Super::PostLoad();
@@ -23,11 +33,6 @@ APCGWorldActor* APCGWorldActor::CreatePCGWorldActor(UWorld* InWorld)
 {
 	check(InWorld);
 	APCGWorldActor* PCGActor = InWorld->SpawnActor<APCGWorldActor>();
-
-	// This actor should be editor only and not spatially loaded
-	PCGActor->bIsEditorOnlyActor = true;
-	PCGActor->bIsSpatiallyLoaded = false;
-
 	PCGActor->RegisterToSubsystem();
 
 	return PCGActor;
