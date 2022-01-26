@@ -5,7 +5,10 @@
 #include "DerivedDataCache.h"
 #include "Logging/LogMacros.h"
 
+class FDerivedDataCacheStatsNode;
+
 namespace UE::DerivedData { class FLegacyCacheKey; }
+namespace UE::DerivedData { struct FBackendDebugOptions; }
 namespace UE::DerivedData { struct FLegacyCacheDeleteRequest; }
 namespace UE::DerivedData { struct FLegacyCacheDeleteResponse; }
 namespace UE::DerivedData { struct FLegacyCacheGetRequest; }
@@ -28,7 +31,7 @@ public:
 	virtual void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) = 0;
+		FOnLegacyCachePutComplete&& OnComplete = {}) = 0;
 
 	virtual void LegacyGet(
 		TConstArrayView<FLegacyCacheGetRequest> Requests,
@@ -39,6 +42,10 @@ public:
 		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
 		IRequestOwner& Owner,
 		FOnLegacyCacheDeleteComplete&& OnComplete) = 0;
+
+	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) = 0;
+
+	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) = 0;
 };
 
 class FLegacyCacheKey

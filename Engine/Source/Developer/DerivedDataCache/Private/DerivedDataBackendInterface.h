@@ -206,6 +206,10 @@ public:
 		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
 		IRequestOwner& Owner,
 		FOnLegacyCacheDeleteComplete&& OnComplete) override;
+
+	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) override;
+
+	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) override;
 };
 
 class FDerivedDataBackend

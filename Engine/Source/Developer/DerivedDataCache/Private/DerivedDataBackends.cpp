@@ -1233,12 +1233,12 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
+		TSharedRef<FDerivedDataCacheStatsNode> Stats = MakeShared<FDerivedDataCacheStatsNode>();
 		if (RootCache)
 		{
-			return RootCache->GatherUsageStats();
+			RootCache->LegacyStats(Stats.Get());
 		}
-
-		return MakeShared<FDerivedDataCacheStatsNode>(TEXT(""), TEXT(""), /*bIsLocal*/ true);
+		return Stats;
 	}
 
 private:
@@ -1405,6 +1405,16 @@ void FDerivedDataBackendInterface::LegacyDelete(
 		RemoveCachedData(*Request.Key.GetShortKey(), Request.bTransient);
 		OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Ok});
 	}
+}
+
+void FDerivedDataBackendInterface::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
+{
+	OutNode = MoveTemp(GatherUsageStats().Get());
+}
+
+bool FDerivedDataBackendInterface::LegacyDebugOptions(FBackendDebugOptions& Options)
+{
+	return ApplyDebugOptions(Options);
 }
 
 FDerivedDataBackend& FDerivedDataBackend::Get()

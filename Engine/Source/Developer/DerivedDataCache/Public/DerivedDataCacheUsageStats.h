@@ -109,6 +109,8 @@ public:
 class FDerivedDataCacheStatsNode : public TSharedFromThis<FDerivedDataCacheStatsNode>
 {
 public:
+	FDerivedDataCacheStatsNode() = default;
+
 	FDerivedDataCacheStatsNode(const FString& InCacheType, const FString& InCacheName, bool bInIsLocal)
 		: CacheType(InCacheType)
 		, CacheName(InCacheName)
