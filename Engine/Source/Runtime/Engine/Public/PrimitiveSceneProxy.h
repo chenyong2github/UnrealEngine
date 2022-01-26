@@ -605,6 +605,7 @@ public:
 	inline bool NeedsUnbuiltPreviewLighting() const { return bNeedsUnbuiltPreviewLighting; }
 	inline bool CastsStaticShadow() const { return bCastStaticShadow; }
 	inline bool CastsDynamicShadow() const { return bCastDynamicShadow; }
+	inline bool IsEmissiveLightSource() const { return bEmissiveLightSource; }
 	inline bool WritesVirtualTexture() const{ return RuntimeVirtualTextures.Num() > 0; }
 	inline bool WritesVirtualTexture(URuntimeVirtualTexture* VirtualTexture) const { return RuntimeVirtualTextures.Find(VirtualTexture) != INDEX_NONE; }
 	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
@@ -1111,6 +1112,9 @@ protected:
 
 	/** True if the primitive casts dynamic shadows. */
 	uint8 bCastDynamicShadow : 1;
+
+	/** Whether the primitive will be used as an emissive light source. */
+	uint8 bEmissiveLightSource : 1;
 
 	/** True if the primitive influences dynamic indirect lighting. */
 	uint8 bAffectDynamicIndirectLighting : 1;

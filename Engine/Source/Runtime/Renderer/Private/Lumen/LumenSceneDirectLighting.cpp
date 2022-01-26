@@ -56,14 +56,6 @@ FAutoConsoleVariableRef CVarLumenDirectLightinggMaxLightsPerTile(
 	ECVF_RenderThreadSafe
 );
 
-float GOffscreenShadowingMaxTraceDistance = 15000;
-FAutoConsoleVariableRef CVarOffscreenShadowingMaxTraceDistance(
-	TEXT("r.LumenScene.DirectLighting.OffscreenShadowingMaxTraceDistance"),
-	GOffscreenShadowingMaxTraceDistance,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-	);
-
 float GOffscreenShadowingTraceStepFactor = 5;
 FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	TEXT("r.LumenScene.DirectLighting.OffscreenShadowingTraceStepFactor"),
@@ -125,9 +117,11 @@ bool Lumen::UseVirtualShadowMaps()
 	return GLumenDirectLightingVirtualShadowMap != 0;
 }
 
-float Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance()
+extern float GLumenTraceDistanceScale;
+
+float Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(float LumenMaxTraceDistance)
 {
-	return FMath::Max(GOffscreenShadowingMaxTraceDistance, 0.0f);
+	return FMath::Clamp(LumenMaxTraceDistance * GLumenTraceDistanceScale, .01f, (float)HALF_WORLD_MAX);
 }
 
 class FLumenGatheredLight
@@ -765,8 +759,8 @@ void CullMeshSDFsForLightCards(
 	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters)
 {
-	const FVector LumenSceneViewOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps() - 1);
-	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera());
+	const FVector LumenSceneViewOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance) - 1);
+	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera(View.FinalPostProcessSettings.LumenSceneViewDistance));
 	const FBox LumenSceneBounds(LumenSceneViewOrigin - LumenSceneExtent, LumenSceneViewOrigin + LumenSceneExtent);
 
 	FSphere MeshSDFShadowBounds;
@@ -993,7 +987,7 @@ void SampleShadowMap(
 		}
 
 		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
-		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(View.FinalPostProcessSettings.LumenMaxTraceDistance);
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
@@ -1072,7 +1066,7 @@ void TraceDistanceFieldShadows(
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 
 		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
-		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(View.FinalPostProcessSettings.LumenMaxTraceDistance);
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);

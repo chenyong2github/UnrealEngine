@@ -32,17 +32,6 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingIndirec
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightingMode(
-	TEXT("r.Lumen.Reflections.HardwareRayTracing.LightingMode"),
-	0,
-	TEXT("Determines the lighting mode (Default = 0)\n")
-	TEXT("0: interpolate final lighting from the surface cache\n")
-	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
-	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache\n")
-	TEXT("3: evaluate material, direct lighting, and unshadowed skylighting at the hit point"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.MaxTranslucentSkipCount"),
 	2,
@@ -113,74 +102,6 @@ namespace Lumen
 		return false;
 #endif
 	}
-
-	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View)
-	{
-#if RHI_RAYTRACING
-		// Piecewise mapping for relative bias, interpolates through the following (LumenReflectionQuality, BiasValue):
-		// (0.25, -2)
-		// (0.5 , -1)
-		// (1.0 ,  0)
-		// (2.0 ,  1)
-		// (4.0 ,  2)
-		auto LinearMapping = [](float x) {
-			return x / 2.0f;
-		};
-		auto SublinearMapping = [](float x) {
-			return ((-8.0f / 3.0f) * x * x) + (6.0f * x) - (10.0f / 3.0f);
-		};
-
-		// LumenReflectionQuality acts as a biasing value to the LightingMode
-		const float LumenReflectionQuality = View.FinalPostProcessSettings.LumenReflectionQuality;
-		const int32 ReflectionQualityLightingModeBias = (LumenReflectionQuality > 1.0f) ?
-			FMath::Clamp<int32>(FMath::FloorToInt(LinearMapping(LumenReflectionQuality)), 0, 2) :
-			FMath::Clamp<int32>(FMath::FloorToInt(SublinearMapping(LumenReflectionQuality)), -2, 0);
-
-		const int32 LightingModeCVar = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
-		int32 LightingModeInt = FMath::Clamp<int32>(LightingModeCVar + ReflectionQualityLightingModeBias, 0, 2);
-
-		if (LightingModeCVar == 3)
-		{
-			// Only an explicit selection can enable Lighting Mode 3, which has unshadowed skylight and is not suitable for general use
-			LightingModeInt = 3;
-		}
-
-		Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(LightingModeInt);
-		return LightingMode;
-#else
-		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
-#endif
-	}
-
-	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode)
-	{
-		switch (LightingMode)
-		{
-		case EHardwareRayTracingLightingMode::LightingFromSurfaceCache:
-			return TEXT("LightingFromSurfaceCache");
-		case EHardwareRayTracingLightingMode::EvaluateMaterial:
-			return TEXT("EvaluateMaterial");
-		case EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting:
-			return TEXT("EvaluateMaterialAndDirectLighting");
-		case EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLightingAndSkyLighting:
-			return TEXT("EvaluateMaterialAndDirectLightingAndSkyLighting");
-		default:
-			checkf(0, TEXT("Unhandled EHardwareRayTracingLightingMode"));
-		}
-		return nullptr;
-	}
-
-#if RHI_RAYTRACING
-	EHardwareRayTracingLightingMode GetNearFieldLightingMode(const FViewInfo& View)
-	{
-		EHardwareRayTracingLightingMode LightingMode = GetReflectionsHardwareRayTracingLightingMode(View);
-		if (LightingMode == EHardwareRayTracingLightingMode::LightingFromSurfaceCache)
-		{
-			LightingMode = EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting;
-		}
-		return LightingMode;
-	}
-#endif // RHI_RAY_TRACING
 } // namespace Lumen
 
 #if RHI_RAYTRACING
@@ -376,14 +297,14 @@ bool LumenReflections::UseFarFieldForReflections(const FSceneViewFamily& ViewFam
 	return Lumen::UseFarField(ViewFamily) && CVarLumenReflectionsHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
 }
 
-bool LumenReflections::IsHitLightingForceEnabled()
+bool LumenReflections::IsHitLightingForceEnabled(const FViewInfo& View)
 {
-	return CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread() != 0;
+	return Lumen::GetHardwareRayTracingLightingMode(View) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 }
 
-bool LumenReflections::UseHitLightingForReflections()
+bool LumenReflections::UseHitLightingForReflections(const FViewInfo& View)
 {
-	return IsHitLightingForceEnabled() || (CVarLumenReflectionsHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0);
+	return IsHitLightingForceEnabled(View) || (CVarLumenReflectionsHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0);
 }
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
@@ -414,7 +335,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 	if (Lumen::UseHardwareRayTracedReflections())
 	{
 		const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
-		const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled();
+		const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View);
 
 		// Default
 		for (int RadianceCacheDim = 0; RadianceCacheDim < FLumenReflectionHardwareRayTracingRGS::FRadianceCache::PermutationCount; ++RadianceCacheDim)
@@ -441,7 +362,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FPackTraceDataDim>(LumenReflections::UseHitLightingForReflections());
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FPackTraceDataDim>(LumenReflections::UseHitLightingForReflections(View));
 			TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 		}
@@ -484,7 +405,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	// Constants
 	Parameters->ThreadCount = DefaultThreadCount;
 	Parameters->GroupCount = DefaultGroupCount;
-	Parameters->NearFieldLightingMode = static_cast<int>(Lumen::GetNearFieldLightingMode(View));
+	Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
 	Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 	Parameters->FarFieldDitheredStartDistanceFactor = LumenReflections::UseFarFieldForReflections(*View.Family) ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0;
@@ -763,7 +684,7 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferRef RayAllocatorBufferCached = CompactedTraceParameters.CompactedTraceTexelAllocator->Desc.Buffer;
 	FRDGBufferRef TraceTexelDataPackedBufferCached = CompactedTraceParameters.CompactedTraceTexelData->Desc.Buffer;
 
-	const bool bIsForceHitLighting = LumenReflections::IsHitLightingForceEnabled();
+	const bool bIsForceHitLighting = LumenReflections::IsHitLightingForceEnabled(View);
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
 	const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
 
@@ -816,7 +737,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FPackTraceDataDim>(LumenReflections::UseHitLightingForReflections());
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FPackTraceDataDim>(LumenReflections::UseHitLightingForReflections(View));
 
 		// Trace continuation rays
 		if (bInlineRayTracing)
@@ -834,7 +755,7 @@ void RenderLumenHardwareRayTracingReflections(
 	}
 
 	// Re-trace for hit-lighting
-	if (LumenReflections::UseHitLightingForReflections())
+	if (LumenReflections::UseHitLightingForReflections(View))
 	{
 		FRDGBufferRef RayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflection.CompactedRayAllocator"));
 		//FRDGBufferRef TraceTexelDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));

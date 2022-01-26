@@ -144,6 +144,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bWillEverBeLit(true)
 	// Disable dynamic shadow casting if the primitive only casts indirect shadows, since dynamic shadows are always shadowing direct lighting
 ,	bCastDynamicShadow(InComponent->bCastDynamicShadow && InComponent->CastShadow && !InComponent->GetShadowIndirectOnly())
+,	bEmissiveLightSource(InComponent->bEmissiveLightSource)
 ,   bAffectDynamicIndirectLighting(InComponent->bAffectDynamicIndirectLighting)
 ,   bAffectDistanceFieldLighting(InComponent->bAffectDistanceFieldLighting)
 ,	bCastStaticShadow(InComponent->CastShadow && InComponent->bCastStaticShadow)

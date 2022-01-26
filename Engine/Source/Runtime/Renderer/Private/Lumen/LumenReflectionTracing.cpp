@@ -438,7 +438,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 	return CompactedTraceParameters;
 }
 
-void SetupIndirectTracingParametersForReflections(FLumenIndirectTracingParameters& OutParameters)
+void SetupIndirectTracingParametersForReflections(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)
 {
 	//@todo - cleanup
 	OutParameters.StepFactor = 1.0f;
@@ -447,7 +447,7 @@ void SetupIndirectTracingParametersForReflections(FLumenIndirectTracingParameter
 	OutParameters.CardTraceEndDistanceFromCamera = GDiffuseCardTraceEndDistanceFromCamera;
 	OutParameters.MinSampleRadius = 0.0f;
 	OutParameters.MinTraceDistance = 0.0f;
-	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
+	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 	extern FLumenGatherCvarState GLumenGatherCvars;
 	OutParameters.MaxMeshSDFTraceDistance = FMath::Clamp(GLumenGatherCvars.MeshSDFTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
 	OutParameters.SurfaceBias = FMath::Clamp(GLumenGatherCvars.SurfaceBias, .01f, 100.0f);
@@ -585,7 +585,7 @@ void TraceReflections(
 	}
 
 	FLumenIndirectTracingParameters IndirectTracingParameters;
-	SetupIndirectTracingParametersForReflections(IndirectTracingParameters);
+	SetupIndirectTracingParametersForReflections(View, IndirectTracingParameters);
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 

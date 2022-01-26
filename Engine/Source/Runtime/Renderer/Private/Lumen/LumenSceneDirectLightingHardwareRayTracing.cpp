@@ -208,7 +208,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->MaxTranslucentSkipCount = 1; // TODO: CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 	Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 	Parameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
-	Parameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+	Parameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(Lumen::UseFarField(*View.Family) ? (float)WORLD_MAX : View.FinalPostProcessSettings.LumenMaxTraceDistance);
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 	Parameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 	

@@ -107,11 +107,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
+LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs(const FViewInfo& View)
 {
 	if (GLumenVisualizeTranslucencyVolumeRadianceCache)
 	{
-		return LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs();
+		return LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs(View);
 	}
 	else
 	{
@@ -121,7 +121,7 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
 		}
 		else
 		{
-			return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+			return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs(View);
 		}
 	}
 }
@@ -148,7 +148,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
 
-		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputs();
+		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputs(View);
 
 		const int32 VisualizationClipmapIndex = FMath::Clamp(GLumenRadianceCacheVisualizeClipmapIndex, -1, RadianceCacheState.Clipmaps.Num() - 1);
 		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)

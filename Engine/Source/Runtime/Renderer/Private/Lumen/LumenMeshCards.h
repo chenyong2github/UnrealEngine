@@ -32,7 +32,8 @@ public:
 		uint32 InFirstCardIndex,
 		uint32 InNumCards,
 		bool InFarField,
-		bool InLandscape)
+		bool InLandscape,
+		bool InEmissiveLightSource)
 	{
 		PrimitiveGroupIndex = InPrimitiveGroupIndex;
 
@@ -42,6 +43,7 @@ public:
 		NumCards = InNumCards;
 		bFarField = InFarField;
 		bLandscape = InLandscape;
+		bEmissiveLightSource = InEmissiveLightSource;
 	}
 
 	void UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards);
@@ -57,6 +59,7 @@ public:
 	int32 PrimitiveGroupIndex = -1;
 	bool bFarField = false;
 	bool bLandscape = false;
+	bool bEmissiveLightSource = false;
 
 	uint32 FirstCardIndex = 0;
 	uint32 NumCards = 0;

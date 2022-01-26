@@ -37,16 +37,6 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingI
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingLightingMode(
-	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.LightingMode"),
-	0,
-	TEXT("Determines the lighting mode (Default = 0)\n")
-	TEXT("0: interpolate final lighting from the surface cache\n")
-	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
-	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount(
 	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.MaxTranslucentSkipCount"),
 	2,
@@ -101,17 +91,6 @@ namespace Lumen
 			&& (CVarLumenScreenProbeGatherHardwareRayTracing.GetValueOnAnyThread() != 0);
 #else
 		return false;
-#endif
-	}
-
-	EHardwareRayTracingLightingMode GetScreenProbeGatherHardwareRayTracingLightingMode()
-	{
-#if RHI_RAYTRACING
-		// Disable hit-lighting for now.
-		//return EHardwareRayTracingLightingMode(FMath::Clamp(CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread(), 0, 2));
-		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
-#else
-		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
 	}
 }
@@ -305,7 +284,7 @@ bool UseFarFieldForScreenProbeGather(const FSceneViewFamily& ViewFamily)
 
 bool IsHitLightingForceEnabledForScreenProbeGather()
 {
-	return CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread() != 0;
+	return false;
 }
 
 bool IsHardwareRayTracingScreenProbeGatherIndirectDispatch()

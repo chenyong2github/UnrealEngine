@@ -83,5 +83,5 @@ extern void HardwareRayTraceTranslucencyVolume(
 
 namespace LumenTranslucencyVolumeRadianceCache
 {
-	extern LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
+	extern LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs(const FViewInfo& View);
 };

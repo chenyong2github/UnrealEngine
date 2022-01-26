@@ -491,7 +491,7 @@ void TraceScreenProbes(
 	}
 
 	FLumenIndirectTracingParameters IndirectTracingParameters;
-	SetupLumenDiffuseTracingParameters(IndirectTracingParameters);
+	SetupLumenDiffuseTracingParameters(View, IndirectTracingParameters);
 
 	extern int32 GLumenVisualizeIndirectDiffuse;
 	const bool bTraceScreen = View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid()
@@ -630,7 +630,7 @@ void TraceScreenProbes(
 		ScreenProbeParameters,
 		Lumen::MaxTracingEndDistanceFromCamera,
 		// Make sure the shader runs on all misses to apply radiance cache + skylight
-		IndirectTracingParameters.MaxTraceDistance + 1);
+		IndirectTracingParameters.MaxTraceDistance * 2);
 
 	{
 		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);

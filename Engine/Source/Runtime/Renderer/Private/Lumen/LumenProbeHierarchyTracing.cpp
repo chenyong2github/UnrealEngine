@@ -273,7 +273,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 
 		FLumenMeshSDFGridParameters MeshSDFGridParameters;
 		FLumenDiffuseTracingParameters DiffuseTracingParametersForCulling;
-		SetupLumenDiffuseTracingParameters(/* out */ DiffuseTracingParametersForCulling.IndirectTracingParameters);
+		SetupLumenDiffuseTracingParameters(View, /* out */ DiffuseTracingParametersForCulling.IndirectTracingParameters);
 
 		CullMeshSDFObjectsToProbes(
 			GraphBuilder,
@@ -295,7 +295,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 			PassParameters->HierarchyParameters = HierarchyParameters;
 			PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(HierarchyParameters, HierarchyLevelId);
-			SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
+			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
 			PassParameters->DispatchParameters = DispatchParameters;
 
 			PassParameters->ProbeAtlasColorOutput = ProbeAtlasColorOutput;
@@ -333,7 +333,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 			PassParameters->HierarchyParameters = HierarchyParameters;
 			PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(HierarchyParameters, HierarchyLevelId);
-			SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
+			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
 			PassParameters->DispatchParameters = DispatchParameters;
 
 			PassParameters->ProbeAtlasColorOutput = ProbeAtlasColorOutput;
@@ -426,7 +426,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 		}
 
 		FLumenDiffuseTracingParameters DiffuseTracingParameters;
-		SetupLumenDiffuseTracingParameters(/* out */ DiffuseTracingParameters.IndirectTracingParameters);
+		SetupLumenDiffuseTracingParameters(View, /* out */ DiffuseTracingParameters.IndirectTracingParameters);
 		DiffuseTracingParameters.CommonDiffuseParameters = CommonParameters;
 		DiffuseTracingParameters.SampleWeight = (2.0f * PI) / float(CommonParameters.RayCountPerPixel);
 		DiffuseTracingParameters.DownsampledNormal = nullptr;
@@ -458,7 +458,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			FLumenTraceProbeOcclusionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenTraceProbeOcclusionCS::FParameters>();
 			*PassParameters = ReferencePassParameters;
 
-			SetupLumenDiffuseTracingParameters(/* out */ PassParameters->IndirectTracingParameters);
+			SetupLumenDiffuseTracingParameters(View, /* out */ PassParameters->IndirectTracingParameters);
 
 			FLumenTraceProbeOcclusionCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FLumenTracingPermutationDim>(Lumen::ETracingPermutation::Cards);
@@ -496,7 +496,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			FLumenTraceProbeOcclusionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenTraceProbeOcclusionCS::FParameters>();
 			*PassParameters = ReferencePassParameters;
 
-			SetupLumenDiffuseTracingParameters(/* out */ PassParameters->IndirectTracingParameters);
+			SetupLumenDiffuseTracingParameters(View, /* out */ PassParameters->IndirectTracingParameters);
 
 			FLumenTraceProbeOcclusionCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenTraceProbeOcclusionCS::FLumenTracingPermutationDim>(bTraceMeshSDFs ? Lumen::ETracingPermutation::VoxelsAfterCards : Lumen::ETracingPermutation::Voxels);

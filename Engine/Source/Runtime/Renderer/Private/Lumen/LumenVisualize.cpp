@@ -548,7 +548,7 @@ void RenderVisualizeTraces(
 	}
 }
 
-LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVisualize()
+LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVisualize(const FViewInfo& View)
 {
 	if (GLumenIrradianceFieldGather)
 	{
@@ -556,7 +556,7 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVis
 	}
 	else
 	{
-		return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+		return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs(View);
 	}
 }
 
@@ -612,7 +612,7 @@ void SetupVisualizeParameters(const FViewInfo& View, const FLumenCardTracingInpu
 		{
 			extern FLumenGatherCvarState GLumenGatherCvars;
 			MaxMeshSDFTraceDistance = GLumenGatherCvars.MeshSDFTraceDistance;
-			MaxTraceDistance = Lumen::GetMaxTraceDistance();
+			MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		}
 
 		bool bTraceMeshSDF = GVisualizeLumenSceneTraceMeshSDFs != 0 && View.Family->EngineShowFlags.LumenDetailTraces;
@@ -659,7 +659,7 @@ void VisualizeLumenScene(
 	SetupVisualizeParameters(View, TracingInputs, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
 	const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
-	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize();
+	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
 
 	if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
 	{
@@ -1214,7 +1214,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 	if (bVisualizeLumenSceneViewOrigin)
 	{
-		const int32 NumClipmaps = GetNumLumenVoxelClipmaps();
+		const int32 NumClipmaps = GetNumLumenVoxelClipmaps(Views[0].FinalPostProcessSettings.LumenSceneViewDistance);
 
 		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 		{

@@ -215,8 +215,8 @@ extern void CullForCardTracing(
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 
-extern void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters);
-extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
+extern void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters);
+extern void SetupLumenDiffuseTracingParametersForProbe(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
 
 extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	FRDGBuilder& GraphBuilder, 
@@ -224,9 +224,9 @@ extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	const FSceneTextures& SceneTextures);
 
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
-extern int32 GetNumLumenVoxelClipmaps();
+extern int32 GetNumLumenVoxelClipmaps(float LumenSceneViewDistance);
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-extern float ComputeMaxCardUpdateDistanceFromCamera();
+extern float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance);
 
 extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 	FRDGBuilder& GraphBuilder,

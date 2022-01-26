@@ -303,6 +303,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bUseAsOccluder = false;
 	bReceivesDecals = true;
 	CastShadow = false;
+	bEmissiveLightSource = false;
 	bCastDynamicShadow = true;
 	bAffectDynamicIndirectLighting = true;
 	bAffectDistanceFieldLighting = true;
@@ -1590,6 +1591,15 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	if(NewCastShadow != CastShadow)
 	{
 		CastShadow = NewCastShadow;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetEmissiveLightSource(bool NewEmissiveLightSource)
+{
+	if(NewEmissiveLightSource != bEmissiveLightSource)
+	{
+		bEmissiveLightSource = NewEmissiveLightSource;
 		MarkRenderStateDirty();
 	}
 }

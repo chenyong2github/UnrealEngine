@@ -444,7 +444,7 @@ void CullMeshSDFObjectsForView(
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();
 		PassParameters->CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
 		PassParameters->MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
-		PassParameters->MeshSDFRadiusThreshold = GMeshSDFRadiusThreshold;
+		PassParameters->MeshSDFRadiusThreshold = GMeshSDFRadiusThreshold / FMath::Clamp(View.FinalPostProcessSettings.LumenSceneDetail, .01f, 100.0f);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FCullMeshSDFObjectsForViewCS>();
 

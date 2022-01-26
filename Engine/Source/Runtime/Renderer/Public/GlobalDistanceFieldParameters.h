@@ -14,7 +14,7 @@
 class FShaderParameterMap;
 
 /** Must match global distance field shaders. */
-const int32 GMaxGlobalDistanceFieldClipmaps = 5;
+const int32 GMaxGlobalDistanceFieldClipmaps = 6;
 
 class FGlobalDistanceFieldParameterData
 {

@@ -156,6 +156,7 @@ struct FDFObjectBounds
 	uint OftenMoving;
 	uint bCastShadow;
 	bool bIsNaniteMesh;
+	uint bEmissiveLightSource;
 };
 
 uint NumSceneObjects;
@@ -175,8 +176,9 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 
 	uint Flags = asuint(Vector1.w);
 	Bounds.OftenMoving = Flags & 1U;
-	Bounds.bCastShadow = Flags & 2U;
+	Bounds.bCastShadow = (Flags & 2U) != 0U;
 	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
+	Bounds.bEmissiveLightSource = (Flags & 8U) != 0U;
 
 	return Bounds;
 }

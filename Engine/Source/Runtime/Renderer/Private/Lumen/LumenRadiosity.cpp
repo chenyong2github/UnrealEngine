@@ -197,19 +197,22 @@ namespace LumenRadiosity
 		const FLumenCardTracingInputs& TracingInputs,
 		const FLumenCardUpdateContext& CardUpdateContext);
 
-	uint32 GetRadiosityProbeSpacing()
+	uint32 GetRadiosityProbeSpacing(const FViewInfo& View)
 	{
-		return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenRadiosityProbeSpacing, 1, Lumen::CardTileSize));
+		int32 RadiosityProbeSpacing = GLumenRadiosityProbeSpacing;
+
+		if (View.FinalPostProcessSettings.LumenSceneLightingQuality >= 6)
+		{
+			RadiosityProbeSpacing /= 2;
+		}
+
+		return FMath::RoundUpToPowerOfTwo(FMath::Clamp(RadiosityProbeSpacing, 1, Lumen::CardTileSize));
 	}
 
-	int32 GetHemisphereProbeResolution()
+	int32 GetHemisphereProbeResolution(const FViewInfo& View)
 	{
-		return FMath::Clamp<int32>(GLumenRadiosityHemisphereProbeResolution, 1, 64);
-	}
-
-	int32 GetNumTracesPerProbe()
-	{
-		return GetHemisphereProbeResolution() * GetHemisphereProbeResolution();
+		const float LumenSceneLightingQuality = FMath::Clamp<float>(View.FinalPostProcessSettings.LumenSceneLightingQuality, .5f, 4.0f);
+		return FMath::Clamp<int32>(GLumenRadiosityHemisphereProbeResolution * FMath::Sqrt(LumenSceneLightingQuality), 1, 16);
 	}
 
 	bool UseTemporalAccumulation()
@@ -612,13 +615,15 @@ void LumenRadiosity::AddRadiosityPass(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenCardUpdateContext& CardUpdateContext)
 {
-	const uint32 RadiosityTileSize = Lumen::CardTileSize / LumenRadiosity::GetRadiosityProbeSpacing();
+	const int32 ProbeSpacing = LumenRadiosity::GetRadiosityProbeSpacing(View);
+	const int32 HemisphereProbeResolution = LumenRadiosity::GetHemisphereProbeResolution(View);
+	const uint32 RadiosityTileSize = Lumen::CardTileSize / ProbeSpacing;
 
 	FIntPoint RadiosityProbeAtlasSize;
-	RadiosityProbeAtlasSize.X = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().X, LumenRadiosity::GetRadiosityProbeSpacing());
-	RadiosityProbeAtlasSize.Y = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().Y, LumenRadiosity::GetRadiosityProbeSpacing());
+	RadiosityProbeAtlasSize.X = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().X, ProbeSpacing);
+	RadiosityProbeAtlasSize.Y = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().Y, ProbeSpacing);
 
-	FIntPoint RadiosityProbeTracingAtlasSize = RadiosityProbeAtlasSize * FIntPoint(LumenRadiosity::GetHemisphereProbeResolution(), LumenRadiosity::GetHemisphereProbeResolution());
+	FIntPoint RadiosityProbeTracingAtlasSize = RadiosityProbeAtlasSize * FIntPoint(HemisphereProbeResolution, HemisphereProbeResolution);
 
 	FRDGTextureRef TraceRadianceAtlas = RegisterOrCreateRadiosityAtlas(
 		GraphBuilder, 
@@ -650,11 +655,11 @@ void LumenRadiosity::AddRadiosityPass(
 		RadiosityTexelTraceParameters.TraceRadianceAtlas = TraceRadianceAtlas;
 		RadiosityTexelTraceParameters.TraceHitDistanceAtlas = TraceHitDistanceAtlas;
 		RadiosityTexelTraceParameters.RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
-		RadiosityTexelTraceParameters.ProbeSpacingInRadiosityTexels = LumenRadiosity::GetRadiosityProbeSpacing();
-		RadiosityTexelTraceParameters.ProbeSpacingInRadiosityTexelsDivideShift = FMath::FloorLog2(LumenRadiosity::GetRadiosityProbeSpacing());
+		RadiosityTexelTraceParameters.ProbeSpacingInRadiosityTexels = ProbeSpacing;
+		RadiosityTexelTraceParameters.ProbeSpacingInRadiosityTexelsDivideShift = FMath::FloorLog2(ProbeSpacing);
 		RadiosityTexelTraceParameters.RadiosityTileSize = RadiosityTileSize;
-		RadiosityTexelTraceParameters.HemisphereProbeResolution = LumenRadiosity::GetHemisphereProbeResolution();
-		RadiosityTexelTraceParameters.NumTracesPerProbe = LumenRadiosity::GetNumTracesPerProbe();
+		RadiosityTexelTraceParameters.HemisphereProbeResolution = HemisphereProbeResolution;
+		RadiosityTexelTraceParameters.NumTracesPerProbe = HemisphereProbeResolution * HemisphereProbeResolution;
 		RadiosityTexelTraceParameters.FixedJitterIndex = GLumenRadiosityFixedJitterIndex;
 		RadiosityTexelTraceParameters.MaxFramesAccumulated = LumenRadiosity::UseTemporalAccumulation() ? GLumenRadiosityTemporalMaxFramesAccumulated : 1;
 	}
@@ -723,7 +728,7 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->AvoidSelfIntersectionTraceDistance = FMath::Clamp(GLumenRadiosityAvoidSelfIntersectionTraceDistance, 0.0f, 1000000.0f);
 		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 		PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
-		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
+		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
 		PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 
@@ -741,7 +746,7 @@ void LumenRadiosity::AddRadiosityPass(
 			Resolution = FString::Printf(TEXT("<indirect>"));
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HardwareRayTracing %s", *Resolution),
+			RDG_EVENT_NAME("HardwareRayTracing %s %ux%u probes at %u spacing", *Resolution, HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
@@ -776,10 +781,10 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->RWTraceHitDistanceAtlas = GraphBuilder.CreateUAV(TraceHitDistanceAtlas);
 
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-		SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, 0.0f);
+		SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, 0.0f);
 		PassParameters->IndirectTracingParameters.SurfaceBias = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceSlopeBias, 0.0f, 1000.0f);
 		PassParameters->IndirectTracingParameters.MinTraceDistance = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceBias, 0.0f, 1000.0f);
-		PassParameters->IndirectTracingParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
+		PassParameters->IndirectTracingParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		PassParameters->IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, 0.1f, 10.0f);
 		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 
@@ -789,7 +794,7 @@ void LumenRadiosity::AddRadiosityPass(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("DistanceFieldTracing %ux%u", GLumenRadiosityHemisphereProbeResolution, GLumenRadiosityHemisphereProbeResolution),
+			RDG_EVENT_NAME("DistanceFieldTracing %ux%u probes at %u spacing", HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,

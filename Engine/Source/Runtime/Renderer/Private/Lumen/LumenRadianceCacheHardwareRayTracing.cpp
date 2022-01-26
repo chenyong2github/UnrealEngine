@@ -28,16 +28,6 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingLightingMode(
-	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.LightingMode"),
-	0,
-	TEXT("Determines the lighting mode (Default = 0)\n")
-	TEXT("0: interpolate final lighting from the surface cache\n")
-	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
-	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingPersistentTracingGroupCount(
 	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.PersistentTracingGroupCount"),
 	4096,
@@ -92,7 +82,6 @@ namespace Lumen
 	{
 #if RHI_RAYTRACING
 		// Disable hit-lighting for the radiance cache
-		//return EHardwareRayTracingLightingMode(CVarLumenRadianceCacheHardwareRayTracingLightingMode.GetValueOnRenderThread());
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #else
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
@@ -325,8 +314,6 @@ bool IsHardwareRayTracingRadianceCacheIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCache(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	int LightingMode = CVarLumenRadianceCacheHardwareRayTracingLightingMode.GetValueOnRenderThread();
-
 	if (Lumen::GetRadianceCacheHardwareRayTracingLightingMode() != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache)
 	{
 		FLumenRadianceCacheHardwareRayTracingRGS::FPermutationDomain PermutationVector;
@@ -431,7 +418,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 		TracingInputs,
 		&PassParameters->SharedParameters);
 
-	SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, DiffuseConeHalfAngle);
+	SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, DiffuseConeHalfAngle);
 
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));
@@ -811,7 +798,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	{
 		FSplatRadianceCacheIntoAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSplatRadianceCacheIntoAtlasCS::FParameters>();
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-		SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, -1.0f);
+		SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 		PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 		PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
 		PassParameters->TraceTileResultPackedBuffer = GraphBuilder.CreateSRV(TraceTileResultPackedBuffer);

@@ -20,7 +20,7 @@
 
 // Must match C++
 // Most functions in this file still using 4 to match legacy
-#define MAX_GLOBAL_DF_CLIPMAPS 5
+#define MAX_GLOBAL_DF_CLIPMAPS 6
 
 #if DISTANCE_FIELD_IN_VIEW_UB
     // for materials, these are in the view UB

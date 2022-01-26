@@ -29,11 +29,11 @@ namespace GlobalDistanceField
 	int32 GetMipFactor();
 	int32 GetClipmapMipResolution(bool bLumenEnabled);
 	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled);
-	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled);
-	FIntVector GetPageAtlasSize(bool bLumenEnabled);
+	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled, float LumenSceneViewDistance);
+	FIntVector GetPageAtlasSize(bool bLumenEnabled, float LumenSceneViewDistance);
 	uint32 GetPageTableClipmapResolution(bool bLumenEnabled);
-	FIntVector GetPageTableTextureResolution(bool bLumenEnabled);
-	int32 GetMaxPageNum(bool bLumenEnabled);
+	FIntVector GetPageTableTextureResolution(bool bLumenEnabled, float LumenSceneViewDistance);
+	int32 GetMaxPageNum(bool bLumenEnabled, float LumenSceneViewDistance);
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 };
 

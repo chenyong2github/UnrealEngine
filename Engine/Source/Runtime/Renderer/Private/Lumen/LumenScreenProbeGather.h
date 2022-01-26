@@ -179,7 +179,7 @@ extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 
 namespace LumenScreenProbeGatherRadianceCache
 {
-	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs(const FViewInfo& View);
 }
 
 extern bool CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(

@@ -57,8 +57,8 @@ END_SHADER_PARAMETER_STRUCT()
 namespace LumenReflections
 {
 	bool UseFarFieldForReflections(const FSceneViewFamily& ViewFamily);
-	bool IsHitLightingForceEnabled();
-	bool UseHitLightingForReflections();
+	bool IsHitLightingForceEnabled(const FViewInfo& View);
+	bool UseHitLightingForReflections(const FViewInfo& View);
 };
 
 extern void TraceReflections(

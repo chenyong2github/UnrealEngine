@@ -241,13 +241,16 @@ void CullToVoxelClipmapCS(
 
 	float3 WorldObjectCenter = float3(0, 0, 0);
 	float3 WorldObjectExtent = float3(0, 0, 0);
+	bool bEmissiveLightSource = false;
 
 	#if MESH_TYPE == SDF_MESH_TYPE
 	{
 		if (ObjectIndex < NumSceneObjects)
 		{
-			WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-			WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+			WorldObjectCenter = DFObjectBounds.Center;
+			WorldObjectExtent = DFObjectBounds.BoxExtent;
+			bEmissiveLightSource = DFObjectBounds.bEmissiveLightSource;
 		}
 	}
 	#else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
@@ -271,7 +274,7 @@ void CullToVoxelClipmapCS(
 	float BoundsRadius = length(WorldObjectExtent);
 
 	BRANCH
-	if (BoundsRadius > 0.0f && BoundsRadius > MeshRadiusThreshold)
+	if (BoundsRadius > 0.0f && (BoundsRadius > MeshRadiusThreshold || bEmissiveLightSource))
 	{
 		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(VoxelClipmapWorldCenter, VoxelClipmapWorldExtent, WorldObjectCenter, WorldObjectExtent);
 		if (DistanceSq <= 0.0f)

@@ -530,9 +530,10 @@ void Lumen::BuildCardUpdateContext(
 	const uint32 UpdateFrameIndex = LumenSceneData.GetSurfaceCacheUpdateFrameIndex();
 	const uint32 FreezeUpdateFrame = Lumen::IsSurfaceCacheUpdateFrameFrozen() ? 1 : 0;
 	const float FirstClipmapWorldExtentRcp = 1.0f / Lumen::GetFirstClipmapWorldExtent();
+	const float LumenSceneLightingUpdateSpeed = FMath::Clamp<float>(View.FinalPostProcessSettings.LumenSceneLightingUpdateSpeed, .5f, 16.0f);
 
-	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), GLumenDirectLightingUpdateFactor, DirectLightingCardUpdateContext);
-	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), GLumenRadiosityUpdateFactor, IndirectLightingCardUpdateContext);
+	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), FMath::RoundToInt(GLumenDirectLightingUpdateFactor / LumenSceneLightingUpdateSpeed), DirectLightingCardUpdateContext);
+	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), FMath::RoundToInt(GLumenRadiosityUpdateFactor / LumenSceneLightingUpdateSpeed), IndirectLightingCardUpdateContext);
 
 	DirectLightingCardUpdateContext.CardPageIndexAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.DirectLightingCardPageIndexAllocator"));
 	DirectLightingCardUpdateContext.CardPageIndexData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::RoundUpToPowerOfTwo(NumCardPages)), TEXT("Lumen.DirectLightingCardPageIndexData"));

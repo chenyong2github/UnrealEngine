@@ -242,6 +242,17 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheStats(
 	ECVF_RenderThreadSafe
 );
 
+namespace LumenTranslucencyVolume
+{
+	float GetEndDistanceFromCamera(const FViewInfo& View)
+	{
+		// Ideally we'd use LumenSceneViewDistance directly, but direct shadowing via translucency lighting volume only covers 5000.0f units by default (r.TranslucencyLightingVolumeOuterDistance), 
+		//		so there isn't much point covering beyond that.  
+		const float ViewDistanceScale = FMath::Clamp(View.FinalPostProcessSettings.LumenSceneViewDistance / 20000.0f, .1f, 100.0f);
+		return FMath::Clamp<float>(GTranslucencyGridEndDistanceFromCamera * ViewDistanceScale, 1.0f, 100000.0f);
+	}
+}
+
 namespace LumenTranslucencyVolumeRadianceCache
 {
 	int32 GetNumClipmaps(float DistanceToCover)
@@ -282,7 +293,7 @@ namespace LumenTranslucencyVolumeRadianceCache
 		return GetProbeResolution() + 2 * (1 << (GetNumMipmaps() - 1));
 	}
 
-	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs(const FViewInfo& View)
 	{
 		LumenRadianceCache::FRadianceCacheInputs Parameters = LumenRadianceCache::GetDefaultRadianceCacheInputs();
 		Parameters.ReprojectionRadiusScale = GTranslucencyVolumeRadianceCacheReprojectionRadiusScale;
@@ -290,7 +301,7 @@ namespace LumenTranslucencyVolumeRadianceCache
 		Parameters.ClipmapDistributionBase = GLumenTranslucencyVolumeRadianceCacheClipmapDistributionBase;
 		Parameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
 		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GTranslucencyVolumeRadianceCacheProbeAtlasResolutionInProbes, GTranslucencyVolumeRadianceCacheProbeAtlasResolutionInProbes);
-		Parameters.NumRadianceProbeClipmaps = GetNumClipmaps(GTranslucencyGridEndDistanceFromCamera);
+		Parameters.NumRadianceProbeClipmaps = GetNumClipmaps(LumenTranslucencyVolume::GetEndDistanceFromCamera(View));
 		Parameters.RadianceProbeResolution = GetProbeResolution();
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GetNumMipmaps() - 1;
@@ -532,13 +543,13 @@ IMPLEMENT_GLOBAL_SHADER(FTranslucencyVolumeIntegrateCS, "/Engine/Private/Lumen/L
 FLumenTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParameters(const FViewInfo& View)
 {
 	const FIntPoint GridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GTranslucencyFroxelGridPixelSize);
-	const float FarPlane = GTranslucencyGridEndDistanceFromCamera;
+	const float FarPlane = LumenTranslucencyVolume::GetEndDistanceFromCamera(View);
 
 	FVector ZParams;
 	int32 GridSizeZ;
 	GetTranslucencyGridZParams(View.NearClippingDistance, FarPlane, ZParams, GridSizeZ);
 
-	const FIntVector TranslucencyGridSize(GridSizeXY.X, GridSizeXY.Y, GridSizeZ);
+	const FIntVector TranslucencyGridSize(GridSizeXY.X, GridSizeXY.Y, FMath::Max(GridSizeZ, 1));
 
 	FLumenTranslucencyLightingVolumeParameters Parameters;
 	Parameters.TranslucencyGIGridZParams = ZParams;
@@ -636,7 +647,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 		const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
 		const FIntVector TranslucencyGridSize = VolumeParameters.TranslucencyGIGridSize;
-		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs();
+		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs(View);
 
 		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 
@@ -676,7 +687,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 		FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters;
 		{
 			TraceSetupParameters.StepFactor = FMath::Clamp(GTranslucencyVolumeTraceStepFactor, .1f, 10.0f);
-			TraceSetupParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
+			TraceSetupParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 			TraceSetupParameters.VoxelStepFactor = FMath::Clamp(GTranslucencyVolumeVoxelStepFactor, .1f, 10.0f);
 			TraceSetupParameters.VoxelTraceStartDistanceScale = GTranslucencyVolumeVoxelTraceStartDistanceScale;
 			TraceSetupParameters.MaxRayIntensity = GTranslucencyVolumeMaxRayIntensity;

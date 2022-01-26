@@ -161,9 +161,25 @@ FIntVector GetUpdateGridResolution()
 	return FIntVector::DivideAndRoundUp(ClipmapResolution, GVisBufferTileSize);
 }
 
-int32 GetNumLumenVoxelClipmaps()
+FVector GetLumenVoxelClipmapExtent(int32 ClipmapIndex)
+{
+	const FVector FirstClipmapWorldExtent(Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent() / GLumenSceneClipmapZResolutionDivisor);
+	const float ClipmapWorldScale = (float)(1 << ClipmapIndex);
+	return FirstClipmapWorldExtent * ClipmapWorldScale;
+}
+
+int32 GetNumLumenVoxelClipmaps(float LumenSceneViewDistance)
 {
 	int32 WantedClipmaps = GLumenSceneNumClipmapLevels;
+
+	if (GetLumenVoxelClipmapExtent(WantedClipmaps + 1).X <= LumenSceneViewDistance)
+	{
+		WantedClipmaps += 2;
+	}
+	else if (GetLumenVoxelClipmapExtent(WantedClipmaps).X <= LumenSceneViewDistance)
+	{
+		WantedClipmaps += 1;
+	}
 
 	if (GLumenFastCameraMode != 0 && GLumenDistantScene == 0)
 	{
@@ -171,13 +187,6 @@ int32 GetNumLumenVoxelClipmaps()
 	}
 
 	return FMath::Clamp(WantedClipmaps, 1, MaxVoxelClipmapLevels);
-}
-
-FVector GetLumenVoxelClipmapExtent(int32 ClipmapIndex)
-{
-	const FVector FirstClipmapWorldExtent(Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent() / GLumenSceneClipmapZResolutionDivisor);
-	const float ClipmapWorldScale = (float)(1 << ClipmapIndex);
-	return FirstClipmapWorldExtent * ClipmapWorldScale;
 }
 
 FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
@@ -747,7 +756,7 @@ void VoxelizeVisBuffer(
 			bool bDistantScene = false;
 			if (GLumenSceneVoxelLightingDistantScene != 0
 				&& LumenSceneData.DistantCardIndices.Num() > 0
-				&& ClipmapIndex + 1 == GetNumLumenVoxelClipmaps())
+				&& ClipmapIndex + 1 == GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance))
 			{
 				bDistantScene = true;
 			}
@@ -796,9 +805,13 @@ bool ShouldUpdateVoxelClipmap(int32 ClipmapIndex, int32 NumClipmaps, uint32 Fram
 		{
 			return FrameNumber % 16 == 7;
 		}
+		else if (ClipmapIndex == 4)
+		{
+			return FrameNumber % 32 == 15;
+		}
 		else
 		{
-			return FrameNumber % 16 == 15;
+			return FrameNumber % 32 == 31;
 		}
 	}
 	else
@@ -854,7 +867,7 @@ void UpdateVoxelVisBuffer(
 		return;
 	}
 
-	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps();
+	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance);
 	const FIntVector ClipmapResolution = GetClipmapResolution();
 
 	// Copy scene modified primitives into clipmap state
@@ -895,7 +908,8 @@ void UpdateVoxelVisBuffer(
 		Clipmap.VoxelSize = 2.0f * Clipmap.Extent / FVector(ClipmapResolution);
 		Clipmap.VoxelRadius = Clipmap.VoxelSize.Size();
 
-		const float NewMeshSDFRadiusThreshold = Clipmap.VoxelRadius * GLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor;
+		const float RadiusThresholdScale = 1.0f / FMath::Clamp(View.FinalPostProcessSettings.LumenSceneDetail, .01f, 100.0f);
+		const float NewMeshSDFRadiusThreshold = Clipmap.VoxelRadius * GLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor * RadiusThresholdScale;
 		if (fabs(Clipmap.MeshSDFRadiusThreshold - NewMeshSDFRadiusThreshold) > 1.0f)
 		{
 			Clipmap.MeshSDFRadiusThreshold = NewMeshSDFRadiusThreshold;
@@ -1282,7 +1296,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		return;
 	}
 
-	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps();
+	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance);
 	const FIntVector ClipmapResolution = GetClipmapResolution();
 	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0;
 

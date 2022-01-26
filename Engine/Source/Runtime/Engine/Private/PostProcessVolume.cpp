@@ -194,7 +194,12 @@ bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 			{
 				return (Settings.BloomMethod == EBloomMethod::BM_FFT);
 			}
-
+			
+			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, LumenRayLightingMode))
+			{
+				static IConsoleVariable* RayTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+				return RayTracingCVar->GetInt() != 0;
+			}
 		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

@@ -97,11 +97,11 @@ FAutoConsoleVariableRef CVarDiffuseCardTraceEndDistanceFromCamera(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenMaxTraceDistance = 20000.0f;
-FAutoConsoleVariableRef CVarLumenMaxTraceDistance(
-	TEXT("r.Lumen.MaxTraceDistance"),
-	GLumenMaxTraceDistance,
-	TEXT("Max tracing distance for all tracing methods and Lumen features."),
+float GLumenTraceDistanceScale = 1.0f;
+FAutoConsoleVariableRef CVarTraceDistanceScale(
+	TEXT("r.Lumen.TraceDistanceScale"),
+	GLumenTraceDistanceScale,
+	TEXT("Scales the tracing distance for all tracing methods and Lumen features, used by scalability."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -167,9 +167,9 @@ bool Lumen::UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily)
 	return ViewFamily.EngineShowFlags.LumenGlobalTraces;
 }
 
-float Lumen::GetMaxTraceDistance()
+float Lumen::GetMaxTraceDistance(const FViewInfo& View)
 {
-	return FMath::Clamp(GLumenMaxTraceDistance, .01f, Lumen::MaxTraceDistance);
+	return FMath::Clamp(View.FinalPostProcessSettings.LumenMaxTraceDistance * GLumenTraceDistanceScale, .01f, Lumen::MaxTraceDistance);
 }
 
 void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere, bool bInCosineDistribution)
@@ -234,14 +234,14 @@ bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, boo
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather() || Lumen::IsSoftwareRayTracingSupported());
 }
 
-void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters)
+void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)
 {
 	OutParameters.StepFactor = FMath::Clamp(GDiffuseTraceStepFactor, .1f, 10.0f);
 	OutParameters.VoxelStepFactor = FMath::Clamp(GLumenDiffuseVoxelStepFactor, .1f, 10.0f);
 	OutParameters.CardTraceEndDistanceFromCamera = GDiffuseCardTraceEndDistanceFromCamera;
 	OutParameters.MinSampleRadius = FMath::Clamp(GLumenDiffuseMinSampleRadius, .01f, 100.0f);
 	OutParameters.MinTraceDistance = FMath::Clamp(GLumenDiffuseMinTraceDistance, .01f, 1000.0f);
-	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
+	OutParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 	OutParameters.MaxMeshSDFTraceDistance = FMath::Clamp(GLumenGatherCvars.MeshSDFTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
 	OutParameters.SurfaceBias = FMath::Clamp(GLumenGatherCvars.SurfaceBias, .01f, 100.0f);
 	OutParameters.CardInterpolateInfluenceRadius = FMath::Clamp(GLumenDiffuseCardInterpolateInfluenceRadius, .01f, 1000.0f);
@@ -252,9 +252,9 @@ void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutPara
 	OutParameters.SpecularFromDiffuseRoughnessEnd = 0.0f;
 }
 
-void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeHalfAngle)
+void SetupLumenDiffuseTracingParametersForProbe(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters, float DiffuseConeHalfAngle)
 {
-	SetupLumenDiffuseTracingParameters(OutParameters);
+	SetupLumenDiffuseTracingParameters(View, OutParameters);
 
 	// Probe tracing doesn't have surface bias, but should bias MinTraceDistance due to the mesh SDF world space error
 	OutParameters.SurfaceBias = 0.0f;

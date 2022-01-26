@@ -523,7 +523,13 @@ FPostProcessSettings::FPostProcessSettings()
 	DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
+	LumenSceneLightingQuality = 1;
+	LumenSceneDetail = 1.0f;
+	LumenSceneViewDistance = 20000.0f;
+	LumenSceneLightingUpdateSpeed = 1;
 	LumenFinalGatherQuality = 1;
+	LumenFinalGatherLightingUpdateSpeed = 1;
+	LumenMaxTraceDistance = 20000.0f;
 
 	ColorGradingIntensity = 1.0f;
 	RayTracingGIType = ERayTracingGlobalIlluminationType::Disabled;
@@ -564,6 +570,7 @@ FPostProcessSettings::FPostProcessSettings()
 	ReflectionsType_DEPRECATED = EReflectionsType::RayTracing;
 	ReflectionMethod = EReflectionMethod::Lumen;
 	LumenReflectionQuality = 1;
+	LumenRayLightingMode = ELumenRayLightingModeOverride::Default;
 	ScreenSpaceReflectionIntensity = 100.0f;
 	ScreenSpaceReflectionQuality = 50.0f;
 	ScreenSpaceReflectionMaxRoughness = 0.6f;
@@ -766,7 +773,14 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_RayTracingTranslucencyShadows(Settings.bOverride_RayTracingTranslucencyShadows)
 	, bOverride_RayTracingTranslucencyRefraction(Settings.bOverride_RayTracingTranslucencyRefraction)
 	, bOverride_DynamicGlobalIlluminationMethod(Settings.bOverride_DynamicGlobalIlluminationMethod)
+    , bOverride_LumenSceneLightingQuality(Settings.bOverride_LumenSceneLightingQuality)
+    , bOverride_LumenSceneDetail(Settings.bOverride_LumenSceneDetail)
+	, bOverride_LumenSceneViewDistance(Settings.bOverride_LumenSceneViewDistance)
+	, bOverride_LumenSceneLightingUpdateSpeed(Settings.bOverride_LumenSceneLightingUpdateSpeed)
     , bOverride_LumenFinalGatherQuality(Settings.bOverride_LumenFinalGatherQuality)
+    , bOverride_LumenFinalGatherLightingUpdateSpeed(Settings.bOverride_LumenFinalGatherLightingUpdateSpeed)
+    , bOverride_LumenMaxTraceDistance(Settings.bOverride_LumenMaxTraceDistance)
+	, bOverride_LumenRayLightingMode(Settings.bOverride_LumenRayLightingMode)
 	, bOverride_RayTracingGI(Settings.bOverride_RayTracingGI)
 	, bOverride_RayTracingGIMaxBounces(Settings.bOverride_RayTracingGIMaxBounces)
 	, bOverride_RayTracingGISamplesPerPixel(Settings.bOverride_RayTracingGISamplesPerPixel)
@@ -847,12 +861,19 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, DynamicGlobalIlluminationMethod(Settings.DynamicGlobalIlluminationMethod)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
+	, LumenSceneLightingQuality(Settings.LumenSceneLightingQuality)
+	, LumenSceneDetail(Settings.LumenSceneDetail)
+	, LumenSceneViewDistance(Settings.LumenSceneViewDistance)
+	, LumenSceneLightingUpdateSpeed(Settings.LumenSceneLightingUpdateSpeed)
 	, LumenFinalGatherQuality(Settings.LumenFinalGatherQuality)
+	, LumenFinalGatherLightingUpdateSpeed(Settings.LumenFinalGatherLightingUpdateSpeed)
+	, LumenMaxTraceDistance(Settings.LumenMaxTraceDistance)
 	, RayTracingGIType(Settings.RayTracingGIType)
 	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
 	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
 	, ReflectionMethod(Settings.ReflectionMethod)
 	, LumenReflectionQuality(Settings.LumenReflectionQuality)
+	, LumenRayLightingMode(Settings.LumenRayLightingMode)
 	, ScreenSpaceReflectionIntensity(Settings.ScreenSpaceReflectionIntensity)
 	, ScreenSpaceReflectionQuality(Settings.ScreenSpaceReflectionQuality)
 	, ScreenSpaceReflectionMaxRoughness(Settings.ScreenSpaceReflectionMaxRoughness)

@@ -216,6 +216,15 @@ namespace ELumenSoftwareTracingMode
 }
 
 UENUM()
+enum class ELumenRayLightingMode : uint8
+{
+	/* Use the Lumen Surface Cache to light reflection rays.  This method gives the best reflection performance. */
+	SurfaceCache=0	UMETA(DisplayName = "Surface Cache"),
+	/* Calculate lighting at the ray hit point.  This method gives the highest reflection quality, but greatly increases GPU cost, as the material needs to be evaluated and shadow rays traced.  The Surface Cache will still be used for Diffuse Indirect lighting (GI seen in Reflections). */
+	HitLighting=2		UMETA(DisplayName = "Hit Lighting for Reflections"),
+};
+
+UENUM()
 namespace EWorkingColorSpace
 {
 	enum Type
@@ -435,8 +444,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Lumen, meta = (
 		EditCondition = "bEnableRayTracing",
 		ConsoleVariable = "r.Lumen.HardwareRayTracing", DisplayName = "Use Hardware Ray Tracing when available",
-		ToolTip = "Uses Hardware Ray Tracing for Lumen features, when supported by the video card + RHI + Operating System. Lumen will fall back to Software Ray Tracing otherwise. Note: Hardware ray tracing has significant scene update costs for scenes with more than 10k instances."))
+		ToolTip = "Uses Hardware Ray Tracing for Lumen features, when supported by the video card + RHI + Operating System. Lumen will fall back to Software Ray Tracing otherwise. Note: Hardware ray tracing has significant scene update costs for scenes with more than 100k instances."))
 	uint32 bUseHardwareRayTracingForLumen : 1;
+
+	UPROPERTY(config, EditAnywhere, Category=Lumen, meta=(
+		EditCondition = "bEnableRayTracing && bUseHardwareRayTracingForLumen",
+		ConsoleVariable="r.Lumen.HardwareRayTracing.LightingMode", DisplayName = "Ray Lighting Mode",
+		ToolTip="Controls how Lumen Reflection rays are lit when Lumen is using Hardware Ray Tracing.  By default, Lumen uses the Surface Cache for best performance, but can be set to 'Hit Lighting' for higher quality."))
+	ELumenRayLightingMode LumenRayLightingMode;
 
 	UPROPERTY(config, EditAnywhere, Category=Lumen, meta=(
 		EditCondition = "bGenerateMeshDistanceFields",
@@ -465,7 +480,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.Skylight", DisplayName = "Ray Traced Skylight",
-		ToolTip = "Controls whether Ray Traced Skylight is used by default. Skylights can still override and force Ray Traced Skylight on or off. Requires Hardware Ray Tracing to be enabled."))
+		ToolTip = "Controls whether Ray Traced Skylight is used by default. Skylights can still override and force Ray Traced Skylight on or off. Requires Hardware Ray Tracing to be enabled.  Has no effect when Dynamic Global Illumination Method is set to Lumen."))
 		uint32 bEnableRayTracingSkylight : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (

@@ -1608,9 +1608,44 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.DynamicGlobalIlluminationMethod = Src.DynamicGlobalIlluminationMethod;
 		}
 
+		if (Src.bOverride_LumenSceneLightingQuality)
+		{
+			Dest.LumenSceneLightingQuality = Src.LumenSceneLightingQuality;
+		}
+
+		if (Src.bOverride_LumenSceneDetail)
+		{
+			Dest.LumenSceneDetail = Src.LumenSceneDetail;
+		}
+		
+		if (Src.bOverride_LumenSceneViewDistance)
+		{
+			Dest.LumenSceneViewDistance = Src.LumenSceneViewDistance;
+		}
+
+		if (Src.bOverride_LumenSceneLightingUpdateSpeed)
+		{
+			Dest.LumenSceneLightingUpdateSpeed = Src.LumenSceneLightingUpdateSpeed;
+		}
+
 		if (Src.bOverride_LumenFinalGatherQuality)
 		{
 			Dest.LumenFinalGatherQuality = Src.LumenFinalGatherQuality;
+		}
+
+		if (Src.bOverride_LumenFinalGatherLightingUpdateSpeed)
+		{
+			Dest.LumenFinalGatherLightingUpdateSpeed = Src.LumenFinalGatherLightingUpdateSpeed;
+		}
+
+		if (Src.bOverride_LumenMaxTraceDistance)
+		{
+			Dest.LumenMaxTraceDistance = Src.LumenMaxTraceDistance;
+		}
+
+		if (Src.bOverride_LumenRayLightingMode)
+		{
+			Dest.LumenRayLightingMode = Src.LumenRayLightingMode;
 		}
 
 		if (Src.bOverride_ReflectionMethod)

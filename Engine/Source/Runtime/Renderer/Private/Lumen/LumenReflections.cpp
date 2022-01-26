@@ -859,7 +859,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PassParameters->RWRayTraceDistance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.RayTraceDistance));
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
+		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		PassParameters->RadianceCacheAngleThresholdScale = FMath::Clamp<float>(GLumenReflectionRadianceCacheAngleThresholdScale, .05f, 4.0f);
 		PassParameters->GGXSamplingBias = GLumenReflectionGGXSamplingBias;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

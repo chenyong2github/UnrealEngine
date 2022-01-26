@@ -39,7 +39,7 @@ namespace Lumen
 	float GetDistanceSceneNaniteLODScaleFactor();
 	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
 	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
-	float GetMaxTraceDistance();
+	float GetMaxTraceDistance(const FViewInfo& View);
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool IsSoftwareRayTracingSupported();
@@ -59,7 +59,7 @@ namespace Lumen
 	uint32 GetRadiosityAtlasDownsampleFactor();
 
 	// Surface cache
-	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance(float LumenMaxTraceDistance);
 	bool IsSurfaceCacheFrozen();
 	bool IsSurfaceCacheUpdateFrameFrozen();
 
@@ -85,10 +85,8 @@ namespace Lumen
 		EvaluateMaterialAndDirectLightingAndSkyLighting,
 		MAX
 	};
-	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View);
-	EHardwareRayTracingLightingMode GetScreenProbeGatherHardwareRayTracingLightingMode();
+	EHardwareRayTracingLightingMode GetHardwareRayTracingLightingMode(const FViewInfo& View);
 	EHardwareRayTracingLightingMode GetRadianceCacheHardwareRayTracingLightingMode();
-	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode();
 
 	enum class ESurfaceCacheSampling
 	{

@@ -446,6 +446,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting)
 	uint8 CastShadow:1;
 
+	/** Whether the primitive will be used as an emissive light source. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting, AdvancedDisplay)
+	uint8 bEmissiveLightSource:1;
+
 	/** Controls whether the primitive should inject light into the Light Propagation Volume.  This flag is only used if CastShadow is true. **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting, AdvancedDisplay, meta=(EditCondition="CastShadow"))
 	uint8 bAffectDynamicIndirectLighting:1;
@@ -1617,6 +1621,10 @@ public:
 	/** Changes the value of CastShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
+
+	/** Changes the value of EmissiveLightSource. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetEmissiveLightSource(bool NewEmissiveLightSource);
 
 	/** Changes the value of CastHiddenShadow. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")

@@ -13,8 +13,20 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("Uses Hardware Ray Tracing for Lumen features, when available.\n")
 	TEXT("Lumen will fall back to Software Ray Tracing otherwise.\n")
 	TEXT("Note: Hardware ray tracing has significant scene update costs for\n")
-	TEXT("scenes with more than 10k instances."),
+	TEXT("scenes with more than 100k instances."),
 	ECVF_RenderThreadSafe
+);
+
+// Note: Driven by URendererSettings and must match the enum exposed there
+static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingLightingMode(
+	TEXT("r.Lumen.HardwareRayTracing.LightingMode"),
+	0,
+	TEXT("Determines the lighting mode (Default = 0)\n")
+	TEXT("0: interpolate final lighting from the surface cache\n")
+	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
+	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache\n")
+	TEXT("3: evaluate material, direct lighting, and unshadowed skylighting at the hit point"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
 static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingInline(
@@ -56,6 +68,46 @@ bool Lumen::UseHardwareRayTracing()
 #else
 	return false;
 #endif
+}
+
+Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(const FViewInfo& View)
+{
+#if RHI_RAYTRACING
+		
+	int32 LightingModeInt = CVarLumenHardwareRayTracingLightingMode.GetValueOnRenderThread();
+
+	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache)
+	{
+		LightingModeInt = static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
+	}
+	else if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::HitLighting)
+	{
+		LightingModeInt = static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
+	}
+
+	LightingModeInt = FMath::Clamp<int32>(LightingModeInt, 0, (int32)Lumen::EHardwareRayTracingLightingMode::MAX - 1);
+	return static_cast<Lumen::EHardwareRayTracingLightingMode>(LightingModeInt);
+#else
+	return Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+#endif
+}
+
+const TCHAR* Lumen::GetRayTracedLightingModeName(Lumen::EHardwareRayTracingLightingMode LightingMode)
+{
+	switch (LightingMode)
+	{
+	case Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache:
+		return TEXT("LightingFromSurfaceCache");
+	case Lumen::EHardwareRayTracingLightingMode::EvaluateMaterial:
+		return TEXT("EvaluateMaterial");
+	case Lumen::EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting:
+		return TEXT("EvaluateMaterialAndDirectLighting");
+	case Lumen::EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLightingAndSkyLighting:
+		return TEXT("EvaluateMaterialAndDirectLightingAndSkyLighting");
+	default:
+		checkf(0, TEXT("Unhandled EHardwareRayTracingLightingMode"));
+	}
+	return nullptr;
 }
 
 bool Lumen::UseHardwareInlineRayTracing()

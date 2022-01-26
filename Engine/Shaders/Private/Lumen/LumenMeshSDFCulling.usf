@@ -135,8 +135,8 @@ void CullMeshSDFObjectsForViewCS(
 		float DistanceToViewSq = LengthSq(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - DFObjectBounds.Center);
 
 		if (DistanceToViewSq < Square(CardTraceEndDistanceFromCamera + DFObjectBounds.SphereRadius)
-			&& DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold
-			&& ViewFrustumIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius))
+			&& (DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold || DFObjectBounds.bEmissiveLightSource)
+			&& ViewFrustumIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius)) 
 		{
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 

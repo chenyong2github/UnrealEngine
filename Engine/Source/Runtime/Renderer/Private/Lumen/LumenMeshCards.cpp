@@ -368,7 +368,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		if (NumMeshCardsUploads > 0)
 		{
 			FLumenMeshCards NullMeshCards;
-			NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false);
+			NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false, false);
 
 			LumenSceneData.UploadBuffer.Init(NumMeshCardsUploads, FLumenMeshCardsGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
 
@@ -786,7 +786,7 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 	const FVector3f ScaledBoundSize = MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
 	const FVector3f FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
-	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize;
+	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize * (PrimitiveGroup.bEmissiveLightSource ? .1f : 1.0f);
 	const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
 
 	if (LargestFaceArea > MinFaceSurfaceArea
@@ -819,7 +819,8 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				FirstCardIndex,
 				NumCards,
 				PrimitiveGroup.bFarField,
-				PrimitiveGroup.bLandscape);
+				PrimitiveGroup.bLandscape,
+				PrimitiveGroup.bEmissiveLightSource);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 

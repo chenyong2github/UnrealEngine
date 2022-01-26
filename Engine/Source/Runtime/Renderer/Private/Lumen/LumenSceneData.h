@@ -196,6 +196,7 @@ public:
 	bool bValidMeshCards = false;
 	bool bFarField = false;
 	bool bLandscape = false;
+	bool bEmissiveLightSource = false;
 
 	bool HasMergedInstances() const;
 

@@ -536,7 +536,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 	return bTrack && bCanBeTraced;
 }
 
-bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox& LocalBoundingBox)
+bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox& LocalBoundingBox, bool bEmissiveLightSource)
 {
 	const FVector LocalToWorldScale = LocalToWorld.GetScaleVector();
 	const FVector ScaledBoundSize = LocalBoundingBox.GetSize() * LocalToWorldScale;
@@ -544,7 +544,7 @@ bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
 
 	extern float GLumenMeshCardsMinSize;
-	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize;
+	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize * (bEmissiveLightSource ? .1f : 1.0f);
 
 	return LargestFaceArea > MinFaceSurfaceArea;
 }
@@ -698,25 +698,26 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData.PendingAddOperations)
 		{
-			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
+			FPrimitiveSceneProxy* SceneProxy = ScenePrimitiveInfo->Proxy;
+			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneProxy->GetInstanceSceneData();
 			const int32 NumInstances = FMath::Max(InstanceSceneData.Num(), 1);
 			bool bAnyInstanceValid = false;
 			{
-				const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
+				const FMatrix& PrimitiveToWorld = SceneProxy->GetLocalToWorld();
 
 				for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 				{
-					FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
+					FBox LocalBoundingBox = SceneProxy->GetLocalBounds().GetBox();
 					FMatrix LocalToWorld = PrimitiveToWorld;
 
 					if (InstanceIndex < InstanceSceneData.Num())
 					{
 						const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 						LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
-						LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex).ToBox();
+						LocalBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex).ToBox();
 					}
 
-					if (TrackPrimitiveInstanceForLumenScene(LocalToWorld, LocalBoundingBox))
+					if (TrackPrimitiveInstanceForLumenScene(LocalToWorld, LocalBoundingBox, SceneProxy->IsEmissiveLightSource()))
 					{
 						bAnyInstanceValid = true;
 						break;
@@ -731,9 +732,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				// First try to merge components
 				extern int32 GLumenMeshCardsMergeComponents;
 				if (GLumenMeshCardsMergeComponents != 0 
-					&& ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId)
+					&& SceneProxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId
+					&& !SceneProxy->IsEmissiveLightSource())
 				{
-					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(ScenePrimitiveInfo->Proxy->GetRayTracingGroupId(), -1);
+					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(SceneProxy->GetRayTracingGroupId(), -1);
 					int32& PrimitiveGroupIndex = LumenSceneData.RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;
 
 					if (PrimitiveGroupIndex >= 0)
@@ -765,10 +767,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.RayTracingGroupMapElementId = RayTracingGroupMapElementId;
 						PrimitiveGroup.PrimitiveInstanceIndex = -1;
 						PrimitiveGroup.CardResolutionScale = 1.0f;
-						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
+						PrimitiveGroup.WorldSpaceBoundingBox = SceneProxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
-						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 						PrimitiveGroup.bLandscape = false;
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
@@ -776,7 +778,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				}
 				else
 				{
-					const FMatrix& LocalToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
+					const FMatrix& LocalToWorld = SceneProxy->GetLocalToWorld();
 
 					bool bMergedInstances = false;
 
@@ -786,7 +788,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						extern int32 GLumenMeshCardsMergeInstances;
 						extern float GLumenMeshCardsMergedMaxWorldSize;
 
-						const FBox PrimitiveBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
+						const FBox PrimitiveBox = SceneProxy->GetBounds().GetBox();
 						const FRenderBounds PrimitiveBounds = FRenderBounds(PrimitiveBox);
 
 						if (GLumenMeshCardsMergeInstances
@@ -799,7 +801,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
 								const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-								const FRenderBounds& RenderBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex);
+								const FRenderBounds& RenderBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex);
 								const FRenderBounds InstanceBounds = RenderBoundingBox.TransformBy(Instance.LocalToPrimitive);
 								LocalBounds += InstanceBounds;
 								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceBounds.GetExtent());
@@ -824,8 +826,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 								PrimitiveGroup.bValidMeshCards = true;
-								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
+								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 
@@ -854,7 +857,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
 
 								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-								const FRenderBounds& RenderBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex);
+								const FRenderBounds& RenderBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex);
 
 								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
 								PrimitiveGroup.PrimitiveInstanceIndex = InstanceIndex;
@@ -863,8 +866,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 								PrimitiveGroup.bValidMeshCards = true;
-								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
+								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 							}
@@ -878,12 +882,13 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
 						PrimitiveGroup.PrimitiveInstanceIndex = 0;
 						PrimitiveGroup.CardResolutionScale = 1.0f;
-						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
+						PrimitiveGroup.WorldSpaceBoundingBox = SceneProxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
 						PrimitiveGroup.bValidMeshCards = true;
-						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
-						PrimitiveGroup.bLandscape = ScenePrimitiveInfo->Proxy->SupportsHeightfieldRepresentation();
+						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
+						PrimitiveGroup.bLandscape = SceneProxy->SupportsHeightfieldRepresentation();
+						PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}

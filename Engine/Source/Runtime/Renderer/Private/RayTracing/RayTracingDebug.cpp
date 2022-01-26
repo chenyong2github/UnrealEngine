@@ -288,7 +288,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	
 	if (Lumen::UseFarField(ViewFamily))
 	{
-		RayGenParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
+		RayGenParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		RayGenParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 		RayGenParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 	}

@@ -1710,7 +1710,7 @@ void RenderRadianceCache(
 		{
 			FRadianceCacheTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheTraceFromProbesCS::FParameters>();
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-			SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, -1.0f);
+			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 			PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 			PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
 			PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));

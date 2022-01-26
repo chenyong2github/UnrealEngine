@@ -481,7 +481,7 @@ namespace LumenScreenProbeGatherRadianceCache
 		return GRadianceCacheProbeAtlasResolutionInProbes * GRadianceCacheProbeAtlasResolutionInProbes;
 	}
 
-	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs(const FViewInfo& View)
 	{
 		LumenRadianceCache::FRadianceCacheInputs Parameters = LumenRadianceCache::GetDefaultRadianceCacheInputs();
 		Parameters.ReprojectionRadiusScale = GRadianceCacheReprojectionRadiusScale;
@@ -493,7 +493,8 @@ namespace LumenScreenProbeGatherRadianceCache
 		Parameters.RadianceProbeResolution = GetProbeResolution();
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
-		Parameters.NumProbesToTraceBudget = GRadianceCacheNumProbesToTraceBudget;
+		const float LightingUpdateSpeed = FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 4.0f);
+		Parameters.NumProbesToTraceBudget = FMath::RoundToInt(GRadianceCacheNumProbesToTraceBudget * LightingUpdateSpeed);
 		Parameters.RadianceCacheStats = GRadianceCacheStats;
 		return Parameters;
 	}
@@ -1230,7 +1231,9 @@ void UpdateHistoryScreenProbeGather(
 					PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 					PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
 					PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
-					PassParameters->MaxFramesAccumulated = GLumenScreenProbeTemporalMaxFramesAccumulated;
+
+					const float MaxFramesAccumulatedScale = 1.0f / FMath::Sqrt(FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 8.0f));
+					PassParameters->MaxFramesAccumulated = FMath::RoundToInt(GLumenScreenProbeTemporalMaxFramesAccumulated * MaxFramesAccumulatedScale);
 					PassParameters->HistoryNormalCosThreshold = FMath::Cos(GLumenScreenProbeTemporalHistoryNormalThreshold * (float)PI / 180.0f);
 					PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
 
@@ -1619,7 +1622,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
 	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
 
-	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs(View);
 
 	if (LumenScreenProbeGather::UseRadianceCache(View))
 	{

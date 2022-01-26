@@ -683,7 +683,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> MipTexture;
 
-	void UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled);
+	void UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled, float LumenSceneViewDistance);
 };
 
 const int32 GMaxForwardShadowCascades = 4;
