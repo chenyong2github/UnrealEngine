@@ -6,6 +6,7 @@
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
+#include "AssetRegistryModule.h"
 
 #include "IDocumentationPage.h"
 #include "IDocumentation.h"
@@ -161,6 +162,64 @@ UClass* FEditorClassUtils::GetClassFromString(const FString& ClassName)
 		Class = LoadObject<UClass>(nullptr, *ClassName);
 	}
 	return Class;
+}
+
+bool FEditorClassUtils::IsBlueprintAsset(const FAssetData& InAssetData, bool* bOutIsBPGC /*= nullptr*/)
+{
+	bool bIsBP = (InAssetData.AssetClass == UBlueprint::StaticClass()->GetFName());
+	bool bIsBPGC = (InAssetData.AssetClass == UBlueprintGeneratedClass::StaticClass()->GetFName());
+
+	if (!bIsBP && !bIsBPGC)
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
+		TArray<FName> AncestorClassNames;
+		AssetRegistry.GetAncestorClassNames(InAssetData.AssetClass, AncestorClassNames);
+
+		if (AncestorClassNames.Contains(UBlueprint::StaticClass()->GetFName()))
+		{
+			bIsBP = true;
+		}
+		else if (AncestorClassNames.Contains(UBlueprintGeneratedClass::StaticClass()->GetFName()))
+		{
+			bIsBPGC = true;
+		}
+	}
+
+	if (bOutIsBPGC)
+	{
+		*bOutIsBPGC = bIsBPGC;
+	}
+
+	return bIsBP || bIsBPGC;
+}
+
+FName FEditorClassUtils::GetClassPathFromAssetTag(const FAssetData& InAssetData)
+{
+	const FString GeneratedClassPath = InAssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+	return FName(FPackageName::ExportTextPathToObjectPath(FStringView(GeneratedClassPath)));
+}
+
+FName FEditorClassUtils::GetClassPathFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing /*= false*/)
+{
+	bool bIsBPGC = false;
+	const bool bIsBP = IsBlueprintAsset(InAssetData, &bIsBPGC);
+
+	if (bIsBPGC)
+	{
+		return InAssetData.ObjectPath;
+	}
+	else if (bIsBP)
+	{
+		FName ClassPath = GetClassPathFromAssetTag(InAssetData);
+		if (bGenerateClassPathIfMissing && ClassPath.IsNone())
+		{
+			FNameBuilder ClassPathBuilder(InAssetData.ObjectPath);
+			ClassPathBuilder << "_C";
+			ClassPath = FName(ClassPathBuilder.ToString());
+		}
+		return ClassPath;
+	}
+	return NAME_None;
 }
 
 void FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(const struct FAssetData& InAssetData, TArray<FString>& OutClassPaths)

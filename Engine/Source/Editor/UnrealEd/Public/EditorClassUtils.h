@@ -7,6 +7,7 @@
 #include "Widgets/SToolTip.h"
 
 template< typename ObjectType > class TAttribute;
+struct FAssetData;
 
 namespace FEditorClassUtils
 {
@@ -101,10 +102,37 @@ namespace FEditorClassUtils
 	UNREALED_API UClass* GetClassFromString(const FString& ClassName);
 
 	/**
+	 * Returns whether the specified asset is a UBlueprint or UBlueprintGeneratedClass (or any of their derived classes)
+	 * 
+	 * @param	InAssetData		Reference to an asset data entry
+	 * @param	bOutIsBPGC		Outputs whether the asset is a BlueprintGeneratedClass (or any of its derived classes)
+	 * @return					Whether the specified asset is a UBlueprint or UBlueprintGeneratedClass (or any of their derived classes)
+	 */
+	UNREALED_API bool IsBlueprintAsset(const FAssetData& InAssetData, bool* bOutIsBPGC = nullptr);
+
+	/**
+	 * Gets the class path from the asset tag (i.e. GeneratedClassPath tag on blueprints)
+	 * 
+	 * @param	InAssetData		Reference to an asset data entry.
+	 * @return					Class path or None if the asset cannot or doesn't have a class associated with it
+	 */
+	UNREALED_API FName GetClassPathFromAssetTag(const FAssetData& InAssetData);
+
+	/**
+	 * Gets the object path of the class associated with the specified asset 
+	 * (i.e. the BlueprintGeneratedClass of a Blueprint asset or the BlueprintGeneratedClass asset itself)
+	 * 
+	 * @param	InAssetData					Reference to an asset data entry
+	 * @param	bGenerateClassPathIfMissing	Whether to generate a class path if the class is missing (and the asset can have a class associated with it)
+	 * @return								Class path or None if the asset cannot or doesn't have a class associated with it
+	 */
+	UNREALED_API FName GetClassPathFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing = false);
+
+	/**
 	 * Fetches the set of interface class object paths from an asset data entry containing the appropriate asset tag(s).
 	 * 
 	 * @param	InAssetData		Reference to an asset data entry.
 	 * @param	OutClassPaths	One or more interface class object paths, or empty if the corresponding asset tag(s) were not found.
 	 */
-	UNREALED_API void GetImplementedInterfaceClassPathsFromAsset(const struct FAssetData& InAssetData, TArray<FString>& OutClassPaths);
+	UNREALED_API void GetImplementedInterfaceClassPathsFromAsset(const FAssetData& InAssetData, TArray<FString>& OutClassPaths);
 };
