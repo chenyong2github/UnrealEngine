@@ -105,6 +105,21 @@ public:
 		return (Name.Equals(Other.Name, ESearchCase::IgnoreCase) && (Configuration == Other.Configuration));
 	}
 
+	bool IsEmpty()
+	{
+		return Name.IsEmpty();
+	}
+
+	void Empty()
+	{
+		SourceFilePath.Empty(); 
+		CacheFilePath.Empty();
+		Name.Empty();
+		Configuration.Empty();
+		RootFolder.Empty();
+		DescriptorHash = 0;
+	}
+
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescriptor& File);
 
 	friend CADTOOLS_API uint32 GetTypeHash(const FFileDescriptor& FileDescription);

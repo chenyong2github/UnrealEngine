@@ -413,6 +413,11 @@ void TUniqueTSObj<A3DTopoWireEdgeData>::InitializeData()
 	A3D_INITIALIZE_DATA(A3DTopoWireEdgeData, Data);
 }
 
+void TUniqueTSObj<A3DUTF8Char*>::InitializeData()
+{
+	Data = nullptr;
+}
+
 A3DStatus TUniqueTSObj<A3DAsmModelFileData>::GetData(const A3DAsmModelFile* InAsmModelFilePtr)
 {
 	return A3DAsmModelFileGet(InAsmModelFilePtr, &Data);
@@ -739,6 +744,10 @@ A3DStatus TUniqueTSObj<A3DTopoWireEdgeData>::GetData(const A3DTopoWireEdge* InTo
 	return A3DTopoWireEdgeGet(InTopoWireEdgePtr, &Data);
 }
 
+A3DStatus TUniqueTSObj<A3DUTF8Char*>::GetData(const A3DAsmProductOccurrence* InOccurrencePtr)
+{
+	return A3DAsmProductOccurrenceGetFilePathName(InOccurrencePtr, &Data);
+}
 
 uint32 TUniqueTSObjFromIndex<A3DGraphMaterialData>::DefaultValue = A3D_DEFAULT_MATERIAL_INDEX;
 uint32 TUniqueTSObjFromIndex<A3DGraphPictureData>::DefaultValue = A3D_DEFAULT_MATERIAL_INDEX;
@@ -772,6 +781,16 @@ A3DStatus GetCurveAsNurbs(const A3DCrvBase* CurvePtr, A3DCrvNurbsData* DataPtr, 
 	return A3DCrvBaseGetAsNurbs(CurvePtr, Tolerance, bUseSameParameterization, DataPtr);
 }
 
+A3DStatus GetOriginalFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
+{
+	return A3DAsmProductOccurrenceGetOriginalFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
+}
+
+A3DStatus GetFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
+{
+	return A3DAsmProductOccurrenceGetFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
+}
+
 A3DStatus GetEntityType(const A3DEntity* EntityPtr, A3DEEntityType* EntityTypePtr)
 {
 	return A3DEntityGetType(EntityPtr, EntityTypePtr);
@@ -786,6 +805,7 @@ bool IsEntityBaseType(const A3DEntity* EntityPtr)
 {
 	return (bool)A3DEntityIsBaseType(EntityPtr);
 }
+
 #endif
 
 }

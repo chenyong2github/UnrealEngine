@@ -178,7 +178,7 @@ private:
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet);
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
 	void TraversePrototype(const A3DAsmProductOccurrence* Prototype, FArchiveComponent& Component);
-	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, FMatrix& OutPrototypeMatrix);
+	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, A3DMiscTransformation** OutLocation);
 	void ProcessOccurrence(TUniqueTSObj<A3DAsmProductOccurrenceData>& Occurrence, FArchiveComponent& Component);
 	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component);
 	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, FEntityMetaData& PartMetaData);
@@ -202,10 +202,10 @@ private:
 	void BuildBodyName(TMap<FString, FString>& MetaData);
 
 	// Graphic properties
-	void TraverseGraphics(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);
-	void TraverseGraphStyleData(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
-	void TraverseMaterialProperties(const A3DEntity* Entity);
-	void TraverseLayer(const A3DAsmProductOccurrence* Occurrence);
+	void ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);
+	void ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
+	void ExtractMaterialProperties(const A3DEntity* Entity);
+	void ExtractLayer(const A3DAsmProductOccurrence* Occurrence);
 	FArchiveColor& FindOrAddColor(uint32 ColorIndex, uint8 Alpha);
 	FArchiveMaterial& FindOrAddMaterial(uint32 MaterialIndex);
 
@@ -214,8 +214,6 @@ private:
 	FMatrix TraverseTransformation(const A3DMiscTransformation* Transformation3d);
 	FMatrix TraverseGeneralTransformation(const A3DMiscTransformation* GeneralTransformation);
 	FMatrix TraverseTransformation3D(const A3DMiscTransformation* CartesianTransformation);
-
-	FFileDescriptor GetOccurrenceFileName(const A3DAsmProductOccurrence* OccurrencePtr);
 
 	// Archive methodes
 	FArchiveInstance& AddInstance(FEntityMetaData& InstanceMetaData);
