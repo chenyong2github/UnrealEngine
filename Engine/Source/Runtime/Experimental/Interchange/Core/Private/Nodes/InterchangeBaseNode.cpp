@@ -199,7 +199,7 @@ UE::Interchange::EAttributeTypes UInterchangeBaseNode::GetAttributeType(const UE
 	return Attributes->GetAttributeType(NodeAttributeKey);
 }
 
-void UInterchangeBaseNode::GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys)
+void UInterchangeBaseNode::GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys) const
 {
 	Attributes->GetAttributeKeys(AttributeKeys);
 }
@@ -215,7 +215,7 @@ bool UInterchangeBaseNode::AddBooleanAttribute(const FString& NodeAttributeKey, 
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(bool);
 }
 
-bool UInterchangeBaseNode::GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue)
+bool UInterchangeBaseNode::GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(bool);
 }
@@ -225,7 +225,7 @@ bool UInterchangeBaseNode::AddInt32Attribute(const FString& NodeAttributeKey, co
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(int32);
 }
 
-bool UInterchangeBaseNode::GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue)
+bool UInterchangeBaseNode::GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(int32);
 }
@@ -235,7 +235,7 @@ bool UInterchangeBaseNode::AddFloatAttribute(const FString& NodeAttributeKey, co
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(float);
 }
 
-bool UInterchangeBaseNode::GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue)
+bool UInterchangeBaseNode::GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(float);
 }
@@ -245,9 +245,19 @@ bool UInterchangeBaseNode::AddStringAttribute(const FString& NodeAttributeKey, c
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FString);
 }
 
-bool UInterchangeBaseNode::GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue)
+bool UInterchangeBaseNode::GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FString);
+}
+
+bool UInterchangeBaseNode::AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value)
+{
+	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FLinearColor);
+}
+
+bool UInterchangeBaseNode::GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const
+{
+	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FLinearColor);
 }
 
 FString UInterchangeBaseNode::GetUniqueID() const
@@ -518,26 +528,37 @@ FProperty* InterchangePrivateNodeBase::FindPropertyByPathChecked(TVariant<UObjec
 		}
 
 		PropertyName = FStringView(RestOfPropertyPath.GetData(), SeparatorIndex);
-		RestOfPropertyPath = FStringView(RestOfPropertyPath.GetData() + SeparatorIndex + 1);
+
+		if (SeparatorIndex < RestOfPropertyPath.Len())
+		{
+			RestOfPropertyPath = FStringView(RestOfPropertyPath.GetData() + SeparatorIndex + 1, RestOfPropertyPath.Len() - SeparatorIndex - 1);
+		}
+		else
+		{
+			RestOfPropertyPath = FStringView();
+		}
 
 		Property = FindFieldChecked<FProperty>(Outer, FName(PropertyName.Len(), PropertyName.GetData()));
 
-		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		if (RestOfPropertyPath.Len() > 0)
 		{
-			Outer = StructProperty->Struct;
+			if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				Outer = StructProperty->Struct;
 
-			if (Container.IsType<UObject*>())
-			{
-				Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<UObject*>()));
-			}
-			else
-			{
-				Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<uint8*>()));
+				if (Container.IsType<UObject*>())
+				{
+					Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<UObject*>()));
+				}
+				else
+				{
+					Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<uint8*>()));
+				}
 			}
 		}
-		
 	} while (RestOfPropertyPath.Len() > 0);
 
 	check(Property);
 	return Property;
 }
+

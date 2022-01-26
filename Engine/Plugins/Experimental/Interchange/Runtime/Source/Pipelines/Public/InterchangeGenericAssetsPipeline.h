@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -11,8 +12,6 @@
 
 #include "InterchangeGenericAssetsPipeline.generated.h"
 
-class UInterchangeMaterialFactoryNode;
-class UInterchangeMaterialNode;
 class UInterchangeMeshNode;
 class UInterchangePipelineMeshesUtilities;
 class UInterchangeResult;
@@ -36,7 +35,6 @@ template<class T> class TSubclassOf;
 #define COMMON_SKELETAL_ANIMATIONS_CATEGORY "Common Skeletal Mesh and Animations"
 #define SKELETAL_MESHES_CATEGORY "Skeletal Meshes"
 #define ANIMATIONS_CATEGORY "Animations"
-#define MATERIALS_CATEGORY "Materials"
 #define TEXTURES_CATEGORY "Textures"
 
 /** Force mesh type, if user want to import all meshes as one type*/
@@ -77,6 +75,8 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericAssetsPipeline : public UInter
 	GENERATED_BODY()
 
 public:
+	UInterchangeGenericAssetsPipeline();
+
 	//////////////////////////////////////////////////////////////////////////
 	// BEGIN Pre import pipeline properties, please keep by per category order for properties declaration
 
@@ -94,7 +94,7 @@ public:
 
 	/** Allow to convert mesh to a particular type */
  	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
- 	TEnumAsByte<enum EInterchangeForceMeshType> ForceAllMeshHasType = EInterchangeForceMeshType::IFMT_None;
+ 	TEnumAsByte<enum EInterchangeForceMeshType> ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_None;
 
 	/** If enable, meshes LODs will be imported. Note that it required the advanced bBakeMesh property to be enabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY, meta = (editcondition = "bBakeMeshes"))
@@ -178,15 +178,14 @@ public:
 	//////	MATERIALS_CATEGORY Properties //////
 
 
-	/** If enable, import the material asset find in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MATERIALS_CATEGORY)
-	bool bImportMaterials = true;
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Materials")
+	UInterchangeGenericMaterialPipeline* MaterialPipeline;
 
 
 	//////	TEXTURES_CATEGORY Properties //////
 
 
-	/** If enable, import the material asset find in the sources. */
+	/** If enabled, imports the texture assets found in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TEXTURES_CATEGORY)
 	bool bImportTextures = true;
 
@@ -236,16 +235,6 @@ private:
 
 	/** Texture factory assets nodes */
 	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
-	
-	/** Material translated assets nodes */
-	TArray<UInterchangeMaterialNode*> MaterialNodes;
-	
-	/** Material factory assets nodes */
-	TArray<UInterchangeMaterialFactoryNode*> MaterialFactoryNodes;
-
-	
-	UInterchangeMaterialFactoryNode* CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode);
-
 	
 	/************************************************************************/
 	/* Skeletal mesh API BEGIN                                              */

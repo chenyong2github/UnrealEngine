@@ -161,6 +161,9 @@ UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTexture
 		TextureFactoryNode->SetCustomTranslatedTextureNodeUid(TextureNode->GetUniqueID());
 		BaseNodeContainer->AddNode(TextureFactoryNode);
 		TextureFactoryNodes.Add(TextureFactoryNode);
+
+		TextureFactoryNode->AddTargetNodeUid(TextureNode->GetUniqueID());
+		TextureNode->AddTargetNodeUid(TextureFactoryNode->GetUniqueID());
 	}
 	return TextureFactoryNode;
 }

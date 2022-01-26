@@ -136,8 +136,8 @@ protected:
 	}
 
 	/**
-	 * This function can read the node data and apply some change to the imported asset. This is call after the factory create the asset and configure the asset properties.
-	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
+	 * This function can read the node data and apply some change to the imported asset. This is called after the factory creates the asset and configures the asset properties.
+	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derived object.
 	 * By default the scripted implementation is calling this virtual pipeline.
 	 */
 	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)

@@ -5,7 +5,6 @@
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
 #include "InterchangeMaterialFactoryNode.h"
-#include "InterchangeMaterialNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangePipelineMeshesUtilities.h"
@@ -24,6 +23,11 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
+{
+	MaterialPipeline = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialPipeline");
+}
 
 void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineStackName)
 {
@@ -60,10 +64,6 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 				{
 					TextureNodes.Add(TextureNode);
 				}
-				else if (UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(Node))
-				{
-					MaterialNodes.Add(MaterialNode);
-				}
 			}
 			break;
 		}
@@ -78,25 +78,17 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 		}
 	}
 
-	if (bImportMaterials)
+	if (MaterialPipeline)
 	{
-		//import materials
-		for (const UInterchangeMaterialNode* MaterialNode : MaterialNodes)
-		{
-			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = CreateMaterialFactoryNode(MaterialNode))
-			{
-				//By default we do not create the materials, every node with mesh attribute can enable them. So we wont create unused materials.
-				MaterialFactoryNode->SetEnabled(false);
-			}
-		}
+		MaterialPipeline->ExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
 	}
 
 	//Create skeletalmesh factory nodes
 	ExecutePreImportPipelineSkeletalMesh();
 
-	if (bImportStaticMeshes && (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_None || ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_StaticMesh))
+	if (bImportStaticMeshes && (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_None || ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh))
 	{
-		const bool bConvertSkeletalMeshToStaticMesh = (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_StaticMesh);
+		const bool bConvertSkeletalMeshToStaticMesh = (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh);
 		if (bCombineStaticMeshes)
 		{
 			// Combine all the static meshes
@@ -247,52 +239,6 @@ void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 	PostImportTextureAssetImport(CreatedAsset, bIsAReimport);
 }
 
-UInterchangeMaterialFactoryNode* UInterchangeGenericAssetsPipeline::CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode)
-{
-	FString DisplayLabel = MaterialNode->GetDisplayLabel();
-	FString NodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialNode->GetUniqueID());
-	UInterchangeMaterialFactoryNode* MaterialFactoryNode = nullptr;
-	if (BaseNodeContainer->IsNodeUidValid(NodeUid))
-	{
-		//The node already exist, just return it
-		MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(BaseNodeContainer->GetNode(NodeUid));
-		if (!ensure(MaterialFactoryNode))
-		{
-			//Log an error
-		}
-	}
-	else
-	{
-		MaterialFactoryNode = NewObject<UInterchangeMaterialFactoryNode>(BaseNodeContainer, NAME_None);
-		if (!ensure(MaterialFactoryNode))
-		{
-			return nullptr;
-		}
-		//Creating a Material
-		MaterialFactoryNode->InitializeMaterialNode(NodeUid, DisplayLabel, UMaterial::StaticClass()->GetName());
-		MaterialFactoryNode->SetCustomTranslatedMaterialNodeUid(MaterialNode->GetUniqueID());
-		TArray<FString> TranslatedDependencies;
-		MaterialNode->GetTextureDependencies(TranslatedDependencies);
-		for (const FString& DepUid : TranslatedDependencies)
-		{
-			FString FactoryDepUid = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(DepUid);
-			if (UInterchangeTextureFactoryNode* TextureDep = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(FactoryDepUid)))
-			{
-				//We found a factory dependency, because we need to be able to retrieve the UObject create by the factory
-				MaterialFactoryNode->SetTextureDependencyUid(FactoryDepUid);
-				//We also add it to the base dependencies so the texture factory will be called before this material factory
-				MaterialFactoryNode->AddFactoryDependencyUid(FactoryDepUid);
-			}
-		}
-		BaseNodeContainer->AddNode(MaterialFactoryNode);
-		MaterialFactoryNodes.Add(MaterialFactoryNode);
-		MaterialFactoryNode->AddTargetNodeUid(MaterialNode->GetUniqueID());
-		MaterialNode->AddTargetNodeUid(MaterialFactoryNode->GetUniqueID());
-	}
-	return MaterialFactoryNode;
-}
-
-
 void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 {
 	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
@@ -323,6 +269,7 @@ void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 	}
 
 }
+
 bool UInterchangeGenericAssetsPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex, int32 LodIndex, FString& NewNodeUid, FString& DisplayLabel)
 {
 	int32 SceneNodeCount = 0;

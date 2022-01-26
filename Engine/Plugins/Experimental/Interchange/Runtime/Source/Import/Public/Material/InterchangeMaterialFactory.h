@@ -9,12 +9,17 @@
 
 #include "InterchangeMaterialFactory.generated.h"
 
+class UInterchangeBaseMaterialFactoryNode;
+class UInterchangeMaterialExpressionFactoryNode;
+class UMaterial;
+class UMaterialExpression;
+
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEIMPORT_API UInterchangeMaterialFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
-public:
 
+public:
 	//////////////////////////////////////////////////////////////////////////
 	// Interchange factory base interface begin
 
@@ -25,6 +30,15 @@ public:
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
+private:
+#if WITH_EDITOR
+	void SetupMaterial(UMaterial* Material, const FCreateAssetParams& Arguments, const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode);
+
+	UMaterialExpression* CreateExpressionsForNode(UMaterial* Material, const UInterchangeFactoryBase::FCreateAssetParams& Arguments,
+	const UInterchangeMaterialExpressionFactoryNode* Expression, TMap<FString, UMaterialExpression*>& Expressions);
+
+	UMaterialExpression* CreateExpression(UMaterial* Material, const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode);
+#endif // #if WITH_EDITOR
 };
 
 

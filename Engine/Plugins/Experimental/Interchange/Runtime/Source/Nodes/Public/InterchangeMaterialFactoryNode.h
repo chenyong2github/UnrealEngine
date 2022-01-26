@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNode.h"
-#include "UObject/UObjectGlobals.h"
+#include "InterchangeMaterialDefinitions.h"
+#include "InterchangeShaderGraphNode.h"
 
 #if WITH_ENGINE
 #include "Materials/MaterialInterface.h"
@@ -12,133 +13,108 @@
 
 #include "InterchangeMaterialFactoryNode.generated.h"
 
-UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeMaterialFactoryNode : public UInterchangeBaseNode
+UCLASS(Abstract, Experimental)
+class INTERCHANGENODES_API UInterchangeBaseMaterialFactoryNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
 public:
-	UInterchangeMaterialFactoryNode();
+	static FString GetMaterialFactoryNodeUidFromMaterialNodeUid(const FString& TranslatedNodeUid);
+};
 
-	/**
-	 * Initialize node data
-	 * @param: UniqueID - The uniqueId for this node
-	 * @param DisplayLabel - The name of the node
-	 * @param InAssetClass - The class the material factory will create for this node.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	void InitializeMaterialNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass);
+UCLASS(BlueprintType, Experimental)
+class INTERCHANGENODES_API UInterchangeMaterialFactoryNode : public UInterchangeBaseMaterialFactoryNode
+{
+	GENERATED_BODY()
 
-	/**
-	 * Return the node type name of the class, we use this when reporting error
-	 */
+public:
+
 	virtual FString GetTypeName() const override;
 
-	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
 	virtual class UClass* GetObjectClass() const override;
 
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
-
-	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
-
-	static FString GetMaterialFactoryNodeUidFromMaterialNodeUid(const FString& TranslatedNodeUid);
-
-	/**
-	 * This function allow to retrieve the number of Texture dependencies for this object.
-	 *
-	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	int32 GetTextureDependeciesCount() const;
-
-	/**
-	 * This function allow to retrieve the Texture dependency for this object.
-	 *
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	void GetTextureDependencies(TArray<FString>& OutDependencies) const;
-
-	/**
-	 * This function allow to retrieve one Texture dependency for this object.
-	 *
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	void GetTextureDependency(const int32 Index, FString& OutDependency) const;
-
-	/**
-	 * Add one Texture dependency to this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool SetTextureDependencyUid(const FString& DependencyUid);
-
-	/**
-	 * Remove one Texture dependency from this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool RemoveTextureDependencyUid(const FString& DependencyUid);
-
-	/**
-	 * Get the translated texture node unique ID.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool GetCustomTranslatedMaterialNodeUid(FString& AttributeValue) const;
-
-	/**
-	 * Set the translated texture node unique ID. This is the reference to the node that was create by the translator and this node is needed to get the texture payload.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool SetCustomTranslatedMaterialNodeUid(const FString& AttributeValue);
-
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool GetCustomMaterialUsage(uint8& AttributeValue) const;
+	bool GetBaseColorConnection(FString& ExpressionNodeUid, FString& OutputName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool SetCustomMaterialUsage(const uint8& AttributeValue, bool bAddApplyDelegate = true);
-
-	/** Return false if the Attribute was not set previously.*/
+	bool ConnectToBaseColor(const FString& AttributeValue);
+	
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool GetCustomBlendMode(uint8& AttributeValue) const;
+	bool ConnectOutputToBaseColor(const FString& ExpressionNodeUid, const FString& OutputName);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	bool SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate = true);
+	bool GetMetallicConnection(FString& ExpressionNodeUid, FString& OutputName) const;
 
-	virtual void Serialize(FArchive& Ar) override;
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToMetallic(const FString& AttributeValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToMetallic(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetSpecularConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToSpecular(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToSpecular(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetRoughnessConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToRoughness(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToRoughness(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetEmissiveColorConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToEmissiveColor(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToEmissiveColor(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetNormalConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToNormal(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToNormal(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetOpacityConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToOpacity(const FString& AttributeValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToOpacity(const FString& ExpressionNodeUid, const FString& OutputName);
+};
+
+UCLASS(BlueprintType, Experimental)
+class INTERCHANGENODES_API UInterchangeMaterialExpressionFactoryNode : public UInterchangeBaseNode
+{
+	GENERATED_BODY()
+
+public:
+	virtual FString GetTypeName() const override;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool GetCustomExpressionClassName(FString& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetCustomExpressionClassName(const FString& AttributeValue);
 
 private:
+	const UE::Interchange::FAttributeKey Macro_CustomExpressionClassNameKey = UE::Interchange::FAttributeKey(TEXT("ExpressionClassName"));
 
-	void FillAssetClassFromAttribute();
-
-	bool SetMaterialNodeClassFromClassAttribute();
-
-	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
-	
-	//Translated texture node unique id
-	const UE::Interchange::FAttributeKey Macro_CustomTranslatedMaterialNodeUidKey = UE::Interchange::FAttributeKey(TEXT("TranslatedMaterialNodeUid"));
-
-	//Material Attribute
-	const UE::Interchange::FAttributeKey Macro_CustomMaterialUsageKey = UE::Interchange::FAttributeKey(TEXT("MaterialUsage"));
-	const UE::Interchange::FAttributeKey Macro_CustomBlendModeKey = UE::Interchange::FAttributeKey(TEXT("BlendMode"));
-
-	const UE::Interchange::FAttributeKey TextureDependenciesKey = UE::Interchange::FAttributeKey(TEXT("__TextureDependenciesKey__"));
-
-
-#if WITH_ENGINE
-
-	//Material Ussage is not handle properly, you can have several usage check
-	//Currently I can set only one and retrieve the first, TODO make this work (maybe one key per usage...)
-	bool ApplyCustomMaterialUsageToAsset(UObject* Asset) const;
-
-	bool FillCustomMaterialUsageFromAsset(UObject* Asset);
-#endif
-
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(BlendMode, uint8, UMaterial);
-
-protected:
-#if WITH_ENGINE
-	TSubclassOf<UMaterialInterface> AssetClass = nullptr;
-#endif
-	bool bIsMaterialNodeClassInitialized = false;
-
-	UE::Interchange::TArrayAttributeHelper<FString> TextureDependencies;
 };
+

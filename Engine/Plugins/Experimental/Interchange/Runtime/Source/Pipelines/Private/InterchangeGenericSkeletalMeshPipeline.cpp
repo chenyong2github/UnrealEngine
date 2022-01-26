@@ -248,12 +248,12 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 		return;
 	}
 
-	if (ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_None && ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
+	if (ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_None && ForceAllMeshAsType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
 	{
 		//Nothing to import
 		return;
 	}
-	const bool bConvertStaticMeshToSkeletalMesh = (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
+	const bool bConvertStaticMeshToSkeletalMesh = (ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
 
 	auto SetSkeletalMeshDependencies = [&SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid](const FString& JointNodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode)

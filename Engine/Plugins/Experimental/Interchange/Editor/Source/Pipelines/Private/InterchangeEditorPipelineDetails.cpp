@@ -543,7 +543,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildLinearColorValueContent(IDet
 	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
 	if (AttributeType == UE::Interchange::EAttributeTypes::LinearColor)
 	{
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FColor> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FColor>(AttributeKey);
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FLinearColor> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FLinearColor>(AttributeKey);
 		if (!AttributeHandle.IsValid())
 		{
 			CreateInvalidHandleRow(AttributeCategory, AttributeKey);

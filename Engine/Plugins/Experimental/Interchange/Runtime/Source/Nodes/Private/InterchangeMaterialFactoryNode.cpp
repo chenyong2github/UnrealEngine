@@ -10,22 +10,10 @@
 
 #endif
 
-
-UInterchangeMaterialFactoryNode::UInterchangeMaterialFactoryNode()
+FString UInterchangeBaseMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(const FString& TranslatedNodeUid)
 {
-#if WITH_ENGINE
-	AssetClass = nullptr;
-#endif
-	TextureDependencies.Initialize(Attributes, TextureDependenciesKey.Key);
-}
-
-void UInterchangeMaterialFactoryNode::InitializeMaterialNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
-{
-	bIsMaterialNodeClassInitialized = false;
-	InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
-	FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-	InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
-	FillAssetClassFromAttribute();
+	FString NewUid = TEXT("Factory_") + TranslatedNodeUid;
+	return NewUid;
 }
 
 FString UInterchangeMaterialFactoryNode::GetTypeName() const
@@ -36,202 +24,130 @@ FString UInterchangeMaterialFactoryNode::GetTypeName() const
 
 UClass* UInterchangeMaterialFactoryNode::GetObjectClass() const
 {
-	ensure(bIsMaterialNodeClassInitialized);
 #if WITH_ENGINE
-	return AssetClass.Get() != nullptr ? AssetClass.Get() : UMaterial::StaticClass();
+	return UMaterial::StaticClass();
 #else
 	return nullptr;
 #endif
 }
 
-FString UInterchangeMaterialFactoryNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+bool UInterchangeMaterialFactoryNode::GetBaseColorConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	FString KeyDisplayName = NodeAttributeKey.ToString();
-	if (NodeAttributeKey == TextureDependenciesKey)
-	{
-		return KeyDisplayName = TEXT("Texture Dependencies count");
-	}
-	else if (NodeAttributeKey.Key.StartsWith(TextureDependenciesKey.Key))
-	{
-		KeyDisplayName = TEXT("Texture Dependencies Index ");
-		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
-		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-		}
-		return KeyDisplayName;
-	}
-	return Super::GetKeyDisplayName(NodeAttributeKey);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
-FString UInterchangeMaterialFactoryNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+bool UInterchangeMaterialFactoryNode::ConnectToBaseColor(const FString& AttributeValue)
 {
-	if (NodeAttributeKey == Macro_CustomTranslatedMaterialNodeUidKey
-		|| NodeAttributeKey == Macro_CustomMaterialUsageKey
-		|| NodeAttributeKey == Macro_CustomBlendModeKey)
-	{
-		return FString(TEXT("MaterialFactory"));
-	}
-	else if (NodeAttributeKey.Key.StartsWith(TextureDependenciesKey.Key))
-	{
-		return FString(TEXT("TextureDependencies"));
-	}
-	return Super::GetAttributeCategory(NodeAttributeKey);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), AttributeValue);
+}
+	
+bool UInterchangeMaterialFactoryNode::ConnectOutputToBaseColor(const FString& ExpressionNodeUid, const FString& OutputName)
+{
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
-FString UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(const FString& TranslatedNodeUid)
+bool UInterchangeMaterialFactoryNode::GetMetallicConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	FString NewUid = TEXT("Factory_") + TranslatedNodeUid;
-	return NewUid;
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
 }
 
-int32 UInterchangeMaterialFactoryNode::GetTextureDependeciesCount() const
+bool UInterchangeMaterialFactoryNode::ConnectToMetallic(const FString& AttributeValue)
 {
-	return TextureDependencies.GetCount();
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), AttributeValue);
 }
 
-void UInterchangeMaterialFactoryNode::GetTextureDependencies(TArray<FString>& OutDependencies) const
+bool UInterchangeMaterialFactoryNode::ConnectOutputToMetallic(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	TextureDependencies.GetItems(OutDependencies);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
 }
 
-void UInterchangeMaterialFactoryNode::GetTextureDependency(const int32 Index, FString& OutDependency) const
+bool UInterchangeMaterialFactoryNode::GetSpecularConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	TextureDependencies.GetItem(Index, OutDependency);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::SetTextureDependencyUid(const FString& DependencyUid)
+bool UInterchangeMaterialFactoryNode::ConnectToSpecular(const FString& ExpressionNodeUid)
 {
-	return TextureDependencies.AddItem(DependencyUid);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid);
 }
 
-bool UInterchangeMaterialFactoryNode::RemoveTextureDependencyUid(const FString& DependencyUid)
+bool UInterchangeMaterialFactoryNode::ConnectOutputToSpecular(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return TextureDependencies.RemoveItem(DependencyUid);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomTranslatedMaterialNodeUid(FString& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::GetRoughnessConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TranslatedMaterialNodeUid, FString);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomTranslatedMaterialNodeUid(const FString& AttributeValue)
+bool UInterchangeMaterialFactoryNode::ConnectToRoughness(const FString& ExpressionNodeUid)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TranslatedMaterialNodeUid, FString);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomMaterialUsage(uint8& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::ConnectOutputToRoughness(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(MaterialUsage, uint8);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomMaterialUsage(const uint8& AttributeValue, bool bAddApplyDelegate /*= true*/)
+bool UInterchangeMaterialFactoryNode::GetEmissiveColorConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, MaterialUsage, uint8, UMaterialInterface);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::Common::Parameters::EmissiveColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomBlendMode(uint8& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::ConnectToEmissiveColor(const FString& ExpressionNodeUid)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BlendMode, uint8);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::Common::Parameters::EmissiveColor.ToString(), ExpressionNodeUid);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate /*= true*/)
+bool UInterchangeMaterialFactoryNode::ConnectOutputToEmissiveColor(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, BlendMode, uint8, UMaterialInterface);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::EmissiveColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
-void UInterchangeMaterialFactoryNode::Serialize(FArchive& Ar)
+bool UInterchangeMaterialFactoryNode::GetNormalConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	Super::Serialize(Ar);
-#if WITH_ENGINE
-	if (Ar.IsLoading())
-	{
-		//Make sure the class is properly set when we compile with engine, this will set the
-		//bIsMaterialNodeClassInitialized to true.
-		SetMaterialNodeClassFromClassAttribute();
-	}
-#endif //#if WITH_ENGINE
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::Common::Parameters::Normal.ToString(), ExpressionNodeUid, OutputName);
 }
 
-void UInterchangeMaterialFactoryNode::FillAssetClassFromAttribute()
+bool UInterchangeMaterialFactoryNode::ConnectToNormal(const FString& ExpressionNodeUid)
 {
-#if WITH_ENGINE
-	FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
-	FString ClassName;
-	InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
-	if (ClassName.Equals(UMaterial::StaticClass()->GetName()))
-	{
-		AssetClass = UMaterial::StaticClass();
-		bIsMaterialNodeClassInitialized = true;
-	}
-	else if (ClassName.Equals(UMaterialInstance::StaticClass()->GetName()))
-	{
-		AssetClass = UMaterialInstance::StaticClass();
-		bIsMaterialNodeClassInitialized = true;
-	}
-#endif
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::Common::Parameters::Normal.ToString(), ExpressionNodeUid);
 }
 
-bool UInterchangeMaterialFactoryNode::SetMaterialNodeClassFromClassAttribute()
+bool UInterchangeMaterialFactoryNode::ConnectOutputToNormal(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	if (!bIsMaterialNodeClassInitialized)
-	{
-		FillAssetClassFromAttribute();
-	}
-	return bIsMaterialNodeClassInitialized;
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Normal.ToString(), ExpressionNodeUid, OutputName);
 }
 
-#if WITH_ENGINE
-
-bool UInterchangeMaterialFactoryNode::ApplyCustomMaterialUsageToAsset(UObject* Asset) const
+bool UInterchangeMaterialFactoryNode::GetOpacityConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	if (!Asset)
-	{
-		return false;
-	}
-	UMaterialInterface* TypedObject = Cast<UMaterialInterface>(Asset);
-	if (!TypedObject)
-	{
-		return false;
-	}
-	uint8 ValueData;
-	if (GetCustomMaterialUsage(ValueData))
-	{
-		TypedObject->CheckMaterialUsage_Concurrent(EMaterialUsage(ValueData));
-		return true;
-	}
-	return false;
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::Common::Parameters::Opacity.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::FillCustomMaterialUsageFromAsset(UObject* Asset)
+bool UInterchangeMaterialFactoryNode::ConnectToOpacity(const FString& AttributeValue)
 {
-	if (!Asset)
-	{
-		return false;
-	}
-	UMaterialInterface* TypedObject = Cast<UMaterialInterface>(Asset);
-	if (!TypedObject)
-	{
-		return false;
-	}
-	const UMaterial* Material = TypedObject->GetMaterial_Concurrent();
-	if (!Material)
-	{
-		return false;
-	}
-	for (int32 Usage = 0; Usage < MATUSAGE_MAX; Usage++)
-	{
-		const EMaterialUsage UsageEnum = (EMaterialUsage)Usage;
-		if (Material->GetUsageByFlag(UsageEnum))
-		{
-			if (SetCustomMaterialUsage((int8)UsageEnum, false))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::Common::Parameters::Opacity.ToString(), AttributeValue);
 }
 
-#endif //WITH_ENGINE
+bool UInterchangeMaterialFactoryNode::ConnectOutputToOpacity(const FString& ExpressionNodeUid, const FString& OutputName)
+{
+	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Opacity.ToString(), ExpressionNodeUid, OutputName);
+}
+
+FString UInterchangeMaterialExpressionFactoryNode::GetTypeName() const
+{
+	const FString TypeName = TEXT("MaterialExpressionFactoryNode");
+	return TypeName;
+}
+
+bool UInterchangeMaterialExpressionFactoryNode::GetCustomExpressionClassName(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ExpressionClassName, FString);
+}
+
+bool UInterchangeMaterialExpressionFactoryNode::SetCustomExpressionClassName(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ExpressionClassName, FString);
+}

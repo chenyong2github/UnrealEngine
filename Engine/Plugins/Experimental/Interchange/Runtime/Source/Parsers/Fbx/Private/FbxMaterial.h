@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "FbxInclude.h"
+#include "Misc/TVariant.h"
 
 /** Forward declarations */
 class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
-class UInterchangeMaterialNode;
+class UInterchangeShaderGraphNode;
+class UInterchangeShaderNode;
 class UInterchangeTexture2DNode;
 class UInterchangeSceneNode;
 
@@ -30,14 +32,14 @@ namespace UE
 				/**
 				 * Create a UInterchangeFextureNode and add it to the NodeContainer for all texture of type FbxFileTexture the fbx file contain.
 				 *
-				 * @note - Any node that already exist in the NodeContainer will not be created or modify.
+				 * @note - Any node that already exist in the NodeContainer will not be created or modified.
 				 */
 				void AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer);
 				
 				/**
 				 * Create a UInterchangeMaterialNode and add it to the NodeContainer for all material of type FbxSurfaceMaterial the fbx file contain.
 				 * 
-				 * @note - Any node that already exist in the NodeContainer will not be created or modify.
+				 * @note - Any node that already exist in the NodeContainer will not be created or modified.
 				 */
 				void AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer);
 
@@ -50,11 +52,14 @@ namespace UE
 				void AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer);
 
 			protected:
-				UInterchangeMaterialNode* CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName);
+				UInterchangeShaderGraphNode* CreateShaderGraphNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName);
+				UInterchangeShaderNode* CreateShaderNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName);
 				UInterchangeTexture2DNode* CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& TextureFilePath);
+				void ConvertPropertyToShaderNode(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode,
+					FbxProperty& Property, float Factor, FName PropertyName, TVariant<FLinearColor, float> DefaultValue);
 
 			private:
-				UInterchangeMaterialNode* AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer);
+				UInterchangeShaderGraphNode* AddShaderGraphNode(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer);
 
 				FFbxParser& Parser;
 			};

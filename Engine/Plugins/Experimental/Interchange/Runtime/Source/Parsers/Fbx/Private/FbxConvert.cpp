@@ -169,6 +169,17 @@ namespace UE
 				return FVector(Vector[0], -Vector[1], Vector[2]);
 			}
 
+			FLinearColor FFbxConvert::ConvertColor(const FbxDouble3& Color)
+			{
+				FLinearColor LinearColor;
+				LinearColor.R =(float)Color[0];
+				LinearColor.G =(float)Color[1];
+				LinearColor.B =(float)Color[2];
+				LinearColor.A = 1.f;
+
+				return LinearColor;
+			}
+
 			FString FFbxConvert::MakeName(const ANSICHAR* Name)
 			{
 				const TCHAR SpecialChars[] = { TEXT('.'), TEXT(','), TEXT('/'), TEXT('`'), TEXT('%') };
