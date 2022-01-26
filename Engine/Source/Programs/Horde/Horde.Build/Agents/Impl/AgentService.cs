@@ -352,6 +352,23 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Determines whether a task source can currently issue tasks
+		/// </summary>
+		bool CanUseTaskSource(IAgent Agent, ITaskSource TaskSource)
+		{
+			TaskSourceFlags Flags = TaskSource.Flags;
+			if ((Flags & TaskSourceFlags.AllowWhenDisabled) == 0 && !Agent.Enabled)
+			{
+				return false;
+			}
+			if ((Flags & TaskSourceFlags.AllowDuringDowntime) == 0 && DowntimeService.IsDowntimeActive)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		/// <summary>
 		/// Waits for a lease to be assigned to an agent
 		/// </summary>
 		/// <param name="Agent">The agent to assign a lease to</param>
@@ -388,18 +405,21 @@ namespace HordeServer.Services
 						WaitingAgents[Agent.Id] = CancellationSource;
 					}
 
-					// If we're in a maintenance window, just wait for the time to expire
-					if (DowntimeService.IsDowntimeActive)
-					{
-						await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
-						break;
-					}
-
 					// Create all the tasks to wait for
 					List<Task<(ITaskSource, AgentLease)?>> Tasks = new List<Task<(ITaskSource, AgentLease)?>>();
 					foreach (ITaskSource TaskSource in TaskSources)
 					{
-						Tasks.Add(GuardedWaitForLeaseAsync(TaskSource, Agent, CancellationSource.Token));
+						if (CanUseTaskSource(Agent, TaskSource))
+						{
+							Tasks.Add(GuardedWaitForLeaseAsync(TaskSource, Agent, CancellationSource.Token));
+						}
+					}
+
+					// If no task source is valid, just add a delay
+					if (Tasks.Count == 0)
+					{
+						await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
+						break;
 					}
 
 					// Wait for a lease to be available

@@ -26,6 +26,8 @@ namespace HordeServer.Tasks.Impl
 	{
 		public override string Type => "Restart";
 
+		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
+
 		ILogFileService LogService;
 
 		public RestartTaskSource(ILogFileService LogService)

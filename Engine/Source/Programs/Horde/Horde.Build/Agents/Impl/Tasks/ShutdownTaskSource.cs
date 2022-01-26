@@ -27,6 +27,8 @@ namespace HordeServer.Tasks.Impl
 	{
 		public override string Type => "Shutdown";
 
+		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
+
 		ILogFileService LogService;
 
 		public ShutdownTaskSource(ILogFileService LogService)

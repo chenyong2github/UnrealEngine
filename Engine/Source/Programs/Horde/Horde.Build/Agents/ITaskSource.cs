@@ -24,6 +24,28 @@ namespace HordeServer.Tasks
 	using LeaseId = ObjectId<ILease>;
 
 	/// <summary>
+	/// Flags indicating when a task source is valid
+	/// </summary>
+	[Flags]
+	public enum TaskSourceFlags
+	{
+		/// <summary>
+		/// Normal behavior
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// Indicates that tasks from this source can run during downtime
+		/// </summary>
+		AllowDuringDowntime = 1,
+
+		/// <summary>
+		/// Allows this source to schedule tasks when the agent is disabled
+		/// </summary>
+		AllowWhenDisabled = 2,
+	}
+
+	/// <summary>
 	/// Handler for a certain lease type
 	/// </summary>
 	public interface ITaskSource
@@ -37,6 +59,11 @@ namespace HordeServer.Tasks
 		/// Descriptor for this lease type
 		/// </summary>
 		MessageDescriptor Descriptor { get; }
+
+		/// <summary>
+		/// Flags controlling behavior of this source
+		/// </summary>
+		TaskSourceFlags Flags { get; }
 
 		/// <summary>
 		/// Assigns a lease or waits for one to be available
@@ -127,6 +154,9 @@ namespace HordeServer.Tasks
 
 		/// <inheritdoc/>
 		public abstract string Type { get; }
+
+		/// <inheritdoc/>
+		public abstract TaskSourceFlags Flags { get; }
 
 		/// <inheritdoc/>
 		protected virtual PropertyList OnLeaseStartedProperties { get; } = new PropertyList();

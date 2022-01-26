@@ -27,6 +27,8 @@ namespace HordeServer.Tasks.Impl
 	{
 		public override string Type => "Upgrade";
 
+		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
+
 		AgentSoftwareService AgentSoftwareService;
 		ILogFileService LogService;
 		IClock Clock;

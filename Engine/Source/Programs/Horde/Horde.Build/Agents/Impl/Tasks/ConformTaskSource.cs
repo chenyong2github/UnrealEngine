@@ -33,6 +33,9 @@ namespace HordeServer.Tasks.Impl
 		/// <inheritdoc/>
 		public override string Type => "Conform";
 
+		/// <inheritdoc/>
+		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled;
+
 		DatabaseService DatabaseService;
 		IAgentCollection AgentCollection;
 		PoolService PoolService;

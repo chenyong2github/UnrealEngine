@@ -47,6 +47,9 @@ namespace HordeServer.Tasks.Impl
 		/// <inheritdoc/>
 		public override string Type => "Job";
 
+		/// <inheritdoc/>
+		public override TaskSourceFlags Flags => TaskSourceFlags.None;
+
 		/// <summary>
 		/// An item in the queue to be executed
 		/// </summary>

@@ -131,7 +131,11 @@ namespace HordeServer.Compute.Impl
 	/// </summary>
 	class ComputeService : TaskSourceBase<ComputeTaskMessage>, IComputeService, IHostedService, IDisposable
 	{
+		/// <inheritdoc/>
 		public override string Type => "Compute";
+
+		/// <inheritdoc/>
+		public override TaskSourceFlags Flags => TaskSourceFlags.None;
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
