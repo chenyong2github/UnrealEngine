@@ -51,6 +51,9 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	SmartObjectLocation.bMoveReverse = false;
 	SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
 	SmartObjectLocation.EndOfPathPosition = SOUser.TargetLocation;
+	// Can't set direction at the moment since it seems problematic if it's opposite to the steering direction
+	//SmartObjectLocation.EndOfPathDirection = SOUser.TargetDirection;
+
 	// Let's start moving toward the interaction a bit before the entry point.
 	SmartObjectLocation.AnticipationDistance.Set(100.f);
 

@@ -270,11 +270,12 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						MoveTarget.DistanceToGoal = ShortPath.Points[LastPointIndex].Distance.Get();
 						MoveTarget.bOffBoundaries = ShortPath.Points[0].bOffLane;
 
-						UE_CVLOG(bDisplayDebug,this, LogMassNavigation, Verbose, TEXT("Entity [%s] before start of lane %s at distance %.1f. Distance to goal: %.1f."),
+						UE_CVLOG(bDisplayDebug,this, LogMassNavigation, Verbose, TEXT("Entity [%s] before start of lane %s at distance %.1f. Distance to goal: %.1f. Off Boundaries: %s"),
 							*Entity.DebugGetDescription(),
 							*LaneLocation.LaneHandle.ToString(),
 							LaneLocation.DistanceAlongLane,
-							MoveTarget.DistanceToGoal);
+							MoveTarget.DistanceToGoal,
+							*LexToString((bool)MoveTarget.bOffBoundaries));
 					}
 					else if (ShortPath.ProgressDistance <= ShortPath.Points[LastPointIndex].Distance.Get())
 					{
@@ -301,11 +302,12 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						MoveTarget.DistanceToGoal = ShortPath.Points[LastPointIndex].Distance.Get() - FMath::Lerp(CurrPoint.Distance.Get(), NextPoint.Distance.Get(), T);
 						MoveTarget.bOffBoundaries = CurrPoint.bOffLane || NextPoint.bOffLane;
 
-						UE_CVLOG(bDisplayDebug, this, LogMassNavigation, Verbose, TEXT("Entity [%s] along lane %s at distance %.1f. Distance to goal: %.1f."),
+						UE_CVLOG(bDisplayDebug, this, LogMassNavigation, Verbose, TEXT("Entity [%s] along lane %s at distance %.1f. Distance to goal: %.1f. Off Boundaries: %s"),
 							*Entity.DebugGetDescription(),
 							*LaneLocation.LaneHandle.ToString(),
 							LaneLocation.DistanceAlongLane,
-							MoveTarget.DistanceToGoal);
+							MoveTarget.DistanceToGoal,
+							*LexToString((bool)MoveTarget.bOffBoundaries));
 					}
 					else
 					{
@@ -317,8 +319,8 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						MoveTarget.DistanceToGoal = 0.0f;
 						MoveTarget.bOffBoundaries = ShortPath.Points[LastPointIndex].bOffLane;
 
-						UE_CVLOG(bDisplayDebug, this, LogMassNavigation, Log, TEXT("Entity [%s] Finished path follow on lane %s at distance %f."),
-							*Entity.DebugGetDescription(), *LaneLocation.LaneHandle.ToString(), LaneLocation.DistanceAlongLane);
+						UE_CVLOG(bDisplayDebug, this, LogMassNavigation, Log, TEXT("Entity [%s] Finished path follow on lane %s at distance %f. Off Boundaries: %s"),
+							*Entity.DebugGetDescription(), *LaneLocation.LaneHandle.ToString(), LaneLocation.DistanceAlongLane, *LexToString((bool)MoveTarget.bOffBoundaries));
 
 						if (bDisplayDebug)
 						{

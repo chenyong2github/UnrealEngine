@@ -122,7 +122,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	}
 
 	checkf(!User.ClaimHandle.IsValid(), TEXT("User should not already have a valid handle."));
-	TConstArrayView<FSmartObjectCandidate> View = MakeArrayView(SearchRequestResult.Candidates.GetData(), SearchRequestResult.NumCandidates);
+	const TConstArrayView<FSmartObjectCandidate> View = MakeArrayView(SearchRequestResult.Candidates.GetData(), SearchRequestResult.NumCandidates);
 
 	for (const FSmartObjectCandidate& Candidate : View)
 	{
@@ -155,7 +155,9 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 	{
 		User.ClaimHandle = ClaimHandle;
 		User.InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
-		User.TargetLocation = SmartObjectSubsystem.GetSlotLocation(User.ClaimHandle).Get(FVector::ZeroVector);
+		const FTransform Transform =SmartObjectSubsystem.GetSlotTransform(User.ClaimHandle).Get(FTransform::Identity);
+		User.TargetLocation = Transform.GetLocation();
+		User.TargetDirection = Transform.GetRotation().Vector();
 
 		// @todo SO: need to unregister callback if entity or fragment gets removed. Or at least support getting called with a no longer valid FMassEntityHandle.
 		UE::Mass::SmartObject::FPayload Payload;

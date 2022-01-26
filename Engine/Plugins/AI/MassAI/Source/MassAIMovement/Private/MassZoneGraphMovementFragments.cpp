@@ -373,13 +373,19 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 		}
 	}
 
+	checkf(NumPoints >= 1, TEXT("Path should have at least 1 point at this stage but has none."));
+
 	// Add end of path point if set.
 	if (bHasEndOfPathPoint)
 	{
 		if (NumPoints < MaxPoints)
 		{
 			const FVector EndPosition = Request.EndOfPathPosition;
-			const FVector EndDirection = Request.bIsEndOfPathDirectionSet ? Request.EndOfPathDirection.Get() : (EndLaneTangent * TangentSign);
+
+			// Use provided direction if set, otherwise use direction from last point on lane to end of path point
+			const FVector EndDirection = (Request.bIsEndOfPathDirectionSet) ?
+				Request.EndOfPathDirection.Get() :
+				(EndPosition - Points[NumPoints-1].Position).GetSafeNormal();
 			
 			FMassZoneGraphPathPoint& Point = Points[NumPoints++];
 			Point.DistanceAlongLane = FMassInt16Real10(TargetDistanceAlongLane);

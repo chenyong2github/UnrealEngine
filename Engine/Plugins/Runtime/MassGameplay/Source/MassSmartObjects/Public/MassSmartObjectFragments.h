@@ -20,6 +20,9 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectUserFragment : public FMassFragment
 	FVector TargetLocation = FVector::ZeroVector;
 
 	UPROPERTY(Transient)
+	FVector TargetDirection = FVector::ForwardVector;
+
+	UPROPERTY(Transient)
 	EMassSmartObjectInteractionStatus InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
 
 	/**
