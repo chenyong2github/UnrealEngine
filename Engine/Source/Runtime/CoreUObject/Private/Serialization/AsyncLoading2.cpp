@@ -3591,12 +3591,12 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 		}
 		FExportArchive Ar(Package->AllExportDataPtr, Package->CurrentExportDataPtr, AllExportDataSize);
 		{
-			Ar.SetUEVer(Package->LinkerRoot->LinkerPackageVersion);
-			Ar.SetLicenseeUEVer(Package->LinkerRoot->LinkerLicenseeVersion);
+			Ar.SetUEVer(Package->LinkerRoot->GetLinkerPackageVersion());
+			Ar.SetLicenseeUEVer(Package->LinkerRoot->GetLinkerLicenseeVersion());
 			// Ar.SetEngineVer(Summary.SavedByEngineVersion); // very old versioning scheme
-			if (!Package->LinkerRoot->LinkerCustomVersion.GetAllVersions().IsEmpty())
+			if (!Package->LinkerRoot->GetLinkerCustomVersions().GetAllVersions().IsEmpty())
 			{
-				Ar.SetCustomVersions(Package->LinkerRoot->LinkerCustomVersion);
+				Ar.SetCustomVersions(Package->LinkerRoot->GetLinkerCustomVersions());
 			}
 			Ar.SetUseUnversionedPropertySerialization((Package->LinkerRoot->GetPackageFlags() & PKG_UnversionedProperties) != 0);
 			Ar.SetIsLoading(true);
@@ -5750,14 +5750,14 @@ void FAsyncPackage2::CreateUPackage(const FZenPackageSummary* PackageSummary, co
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags | PKG_Cooked);
 		if (VersioningInfo)
 		{
-			LinkerRoot->LinkerPackageVersion = VersioningInfo->PackageVersion;
-			LinkerRoot->LinkerLicenseeVersion = VersioningInfo->LicenseeVersion;
-			LinkerRoot->LinkerCustomVersion = VersioningInfo->CustomVersions;
+			LinkerRoot->SetLinkerPackageVersion(VersioningInfo->PackageVersion);
+			LinkerRoot->SetLinkerLicenseeVersion(VersioningInfo->LicenseeVersion);
+			LinkerRoot->SetLinkerCustomVersions(VersioningInfo->CustomVersions);
 		}
 		else
 		{
-			LinkerRoot->LinkerPackageVersion = GPackageFileUEVersion;
-			LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUEVersion;
+			LinkerRoot->SetLinkerPackageVersion(GPackageFileUEVersion);
+			LinkerRoot->SetLinkerLicenseeVersion(GPackageFileLicenseeUEVersion);
 		}
 #if WITH_IOSTORE_IN_EDITOR
 		LinkerRoot->bIsCookedForEditor = !!(PackageSummary->PackageFlags & PKG_FilterEditorOnly);
@@ -5772,8 +5772,8 @@ void FAsyncPackage2::CreateUPackage(const FZenPackageSummary* PackageSummary, co
 		check(LinkerRoot->CanBeImported() == Desc.bCanBeImported);
 		check(LinkerRoot->GetPackageId() == Desc.UPackageId);
 		check(LinkerRoot->GetPackageFlags() == (PackageSummary->PackageFlags | PKG_Cooked));
-		check(LinkerRoot->LinkerPackageVersion == GPackageFileUEVersion);
-		check(LinkerRoot->LinkerLicenseeVersion == GPackageFileLicenseeUEVersion);
+		check(LinkerRoot->GetLinkerPackageVersion() == GPackageFileUEVersion);
+		check(LinkerRoot->GetLinkerLicenseeVersion() == GPackageFileLicenseeUEVersion);
 		check(LinkerRoot->HasAnyFlags(RF_WasLoaded));
 	}
 

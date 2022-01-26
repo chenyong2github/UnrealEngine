@@ -352,9 +352,9 @@ UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= 
 				{
 					ClassObject = (UClass*)Redirector->DestinationObject;
 				}
-				if (ClassObject->HasAnyFlags(RF_NeedLoad) && ClassPackage->LinkerLoad)
+				if (ClassObject->HasAnyFlags(RF_NeedLoad) && ClassPackage->GetLinker())
 				{
-					ClassPackage->LinkerLoad->Preload(ClassObject);
+					ClassPackage->GetLinker()->Preload(ClassObject);
 				}
 				ClassObject->GetDefaultObject(); // build the CDO if it isn't already built
 			}
@@ -378,7 +378,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		Package->LinkerLoad->LoadAllObjects(true);
+		Package->GetLinker()->LoadAllObjects(true);
 	}
 
 private:
@@ -418,11 +418,11 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 			CurrentObject = Redirector->DestinationObject;
 		}
 
-		if (!CurrentObject && !TargetPackage->IsFullyLoaded() && TargetPackage->LinkerLoad && TargetPackage->LinkerLoad->IsLoading())
+		if (!CurrentObject && !TargetPackage->IsFullyLoaded() && TargetPackage->GetLinker() && TargetPackage->GetLinker()->IsLoading())
 		{
 			if (IsInAsyncLoadingThread() || IsInGameThread())
 			{
-				TargetPackage->LinkerLoad->LoadAllObjects(true);
+				TargetPackage->GetLinker()->LoadAllObjects(true);
 			}
 			else
 			{
@@ -445,11 +445,11 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 		}
 	}
 
-	if (CurrentObject->HasAnyFlags(RF_NeedLoad) && TargetPackage->LinkerLoad)
+	if (CurrentObject->HasAnyFlags(RF_NeedLoad) && TargetPackage->GetLinker())
 	{
 		if (IsInAsyncLoadingThread() || IsInGameThread())
 		{
-			TargetPackage->LinkerLoad->LoadAllObjects(true);
+			TargetPackage->GetLinker()->LoadAllObjects(true);
 		}
 		else
 		{

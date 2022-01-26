@@ -1223,9 +1223,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			ALevelInstance* LevelInstanceActor = MainWorld->SpawnActor<ALevelInstance>(SpawnParams);
 			
 			FTransform LevelTransform;
-			if (SubLevelPackage->WorldTileInfo)
+			if (SubLevelPackage->GetWorldTileInfo())
 			{
-				LevelTransform = FTransform(FVector(SubLevelPackage->WorldTileInfo->Position));
+				LevelTransform = FTransform(FVector(SubLevelPackage->GetWorldTileInfo()->Position));
 			}
 			else
 			{

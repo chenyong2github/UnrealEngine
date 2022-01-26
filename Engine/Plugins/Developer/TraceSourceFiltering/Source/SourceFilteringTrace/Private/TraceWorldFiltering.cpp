@@ -151,7 +151,7 @@ void FTraceWorldFiltering::GetWorldDisplayString(const UWorld* InWorld, FString&
 		switch (InWorld->GetNetMode())
 		{
 		case NM_Client:
-			PostFix = FString::Printf(TEXT("Client %i"), InWorld->GetOutermost()->PIEInstanceID - 1);
+			PostFix = FString::Printf(TEXT("Client %i"), InWorld->GetOutermost()->GetPIEInstanceID() - 1);
 			break;
 		case NM_DedicatedServer:
 		case NM_ListenServer:

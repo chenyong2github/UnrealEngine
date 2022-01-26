@@ -1865,7 +1865,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 	// if content browser isn't enabled, clear the thumbnail map so we're not using additional memory for nothing
 	if ( !GIsEditor || IsRunningCommandlet() )
 	{
-		InOuter->ThumbnailMap.Reset();
+		InOuter->SetThumbnailMap(nullptr);
 	}
 #endif
 }
@@ -2386,10 +2386,10 @@ void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchi
 {
 	Linker->Summary.WorldTileInfoDataOffset = 0;
 	
-	if(InOuter->WorldTileInfo.IsValid())
+	if(FWorldTileInfo* WorldTileInfo = InOuter->GetWorldTileInfo())
 	{
 		Linker->Summary.WorldTileInfoDataOffset = Linker->Tell();
-		Record << SA_VALUE(TEXT("WorldLevelInfo"), *(InOuter->WorldTileInfo));
+		Record << SA_VALUE(TEXT("WorldLevelInfo"), *WorldTileInfo);
 	}
 }
 

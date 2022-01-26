@@ -42,7 +42,7 @@ FPackageFileVersion UObjectBaseUtility::GetLinkerUEVersion() const
 	else if (GetOutermost())
 	{
 		// Get the linker version associated with the package this object lives in
-		return GetOutermost()->LinkerPackageVersion;
+		return GetOutermost()->GetLinkerPackageVersion();
 	}
 	else
 	{
@@ -56,7 +56,7 @@ int32 UObjectBaseUtility::GetLinkerCustomVersion(FGuid CustomVersionKey) const
 	FLinkerLoad* Loader = GetLinker();
 
 	// No linker.
-	if( Loader == NULL )
+	if( Loader == nullptr )
 	{
 		// the _Linker reference is never set for the top-most UPackage of a package (the linker root), so if this object
 		// is the linker root, find our loader in the global list.
@@ -66,16 +66,16 @@ int32 UObjectBaseUtility::GetLinkerCustomVersion(FGuid CustomVersionKey) const
 		}
 	}
 
-	if ( Loader != NULL )
+	if ( Loader != nullptr)
 	{
 		// We have a linker so we can return its version.
 		const FCustomVersion* CustomVersion = Loader->Summary.GetCustomVersionContainer().GetVersion(CustomVersionKey);
 		return CustomVersion ? CustomVersion->Version : -1;
 	}
-	else if (GetOutermost() && GetOutermost()->LinkerCustomVersion.GetAllVersions().Num())
+	else if (GetOutermost() && GetOutermost()->GetLinkerCustomVersions().GetAllVersions().Num())
 	{
 		// Get the linker version associated with the package this object lives in
-		const FCustomVersion* CustomVersion = GetOutermost()->LinkerCustomVersion.GetVersion(CustomVersionKey);
+		const FCustomVersion* CustomVersion = GetOutermost()->GetLinkerCustomVersions().GetVersion(CustomVersionKey);
 		return CustomVersion ? CustomVersion->Version : -1;
 	}
 	// We don't have a linker associated as we e.g. might have been saved or had loaders reset, ...
@@ -97,7 +97,7 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 	FLinkerLoad* Loader = GetLinker();
 
 	// No linker.
-	if( Loader == NULL )
+	if( Loader == nullptr)
 	{
 		// the _Linker reference is never set for the top-most UPackage of a package (the linker root), so if this object
 		// is the linker root, find our loader in the global list.
@@ -107,7 +107,7 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 		}
 	}
 
-	if ( Loader != NULL )
+	if ( Loader != nullptr)
 	{
 		// We have a linker so we can return its version.
 		return Loader->LicenseeUEVer();
@@ -115,7 +115,7 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 	else if (GetOutermost())
 	{
 		// Get the linker version associated with the package this object lives in
-		return GetOutermost()->LinkerLicenseeVersion;
+		return GetOutermost()->GetLinkerLicenseeVersion();
 	}
 	else
 	{

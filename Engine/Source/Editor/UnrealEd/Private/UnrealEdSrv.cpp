@@ -299,9 +299,9 @@ UPackage* UUnrealEdEngine::GeneratePackageThumbnailsIfRequired( const TCHAR* Str
 			Packages.Add( Pkg );
 
 			// Allocate a new thumbnail map if we need one
-			if( !Pkg->ThumbnailMap )
+			if( !Pkg->HasThumbnailMap() )
 			{
-				Pkg->ThumbnailMap = MakeUnique<FThumbnailMap>();
+				Pkg->SetThumbnailMap(MakeUnique<FThumbnailMap>());
 			}
 
 			// OK, now query all of the browsable objects in the package we're about to save

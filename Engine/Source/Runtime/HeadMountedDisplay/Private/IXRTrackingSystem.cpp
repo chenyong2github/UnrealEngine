@@ -28,7 +28,7 @@ bool IXRTrackingSystem::IsHeadTrackingAllowedForWorld(UWorld& World) const
 {
 #if WITH_EDITOR
 	// For VR PIE only the first instance uses the headset
-	return IsHeadTrackingAllowed() && ((World.WorldType != EWorldType::PIE) || (World.GetOutermost()->PIEInstanceID == 0));
+	return IsHeadTrackingAllowed() && ((World.WorldType != EWorldType::PIE) || (World.GetOutermost()->GetPIEInstanceID() == 0));
 #else
 	return IsHeadTrackingAllowed();
 #endif

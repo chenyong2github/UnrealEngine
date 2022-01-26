@@ -686,7 +686,7 @@ void UBlueprint::PostLoad()
 				// PostLoad), and checking RF_WasLoaded makes sure we only 
 				// forcefully set bIsRegeneratingOnLoad for blueprints that need 
 				// it (ones still actively loading)
-				Blueprint.bIsRegeneratingOnLoad = bPreviousValue || ((Package->LinkerLoad != nullptr) && !Package->HasAnyFlags(RF_WasLoaded));
+				Blueprint.bIsRegeneratingOnLoad = bPreviousValue || ((Package->GetLinker() != nullptr) && !Package->HasAnyFlags(RF_WasLoaded));
 			}
 		}
 		~FScopedRegeneratingOnLoad()

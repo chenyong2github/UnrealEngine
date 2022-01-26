@@ -142,7 +142,7 @@ void UDiffFilesCommandlet::LoadAndDiff()
 
 	Package = LoadPackage(Package, *FString::Printf(TEXT("%s;%s"), *PackageInfos[0].FullPath, *PackageInfos[1].FullPath), LOAD_ForDiff | LOAD_ForFileDiff);
 
-	if (Package->LinkerLoad->IsTextFormat())
+	if (Package->GetLinker()->IsTextFormat())
 	{
 		UE_LOG(LogDiffFilesCommandlet, Warning, TEXT("FileDiffs are not currently supported for text based assets"));
 	}
@@ -151,6 +151,6 @@ void UDiffFilesCommandlet::LoadAndDiff()
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 		IAssetRegistry::FLoadPackageRegistryData AssetData;
-		AssetRegistry.LoadPackageRegistryData(*Package->LinkerLoad->GetLoader_Unsafe(), AssetData);
+		AssetRegistry.LoadPackageRegistryData(*Package->GetLinker()->GetLoader_Unsafe(), AssetData);
 	}
 }

@@ -182,7 +182,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	{
 		check(!InPackage);
 		CellPackage->SetPackageFlags(PKG_PlayInEditor);
-		CellPackage->PIEInstanceID = InWorld->GetPackage()->PIEInstanceID;
+		CellPackage->SetPIEInstanceID(InWorld->GetPackage()->GetPIEInstanceID());
 	}
 
 	// Create World & Persistent Level
@@ -305,7 +305,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 			FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(*ActorPackageName);
 			check(DestPackage);
 			const EPackageFlags PackageFlags = DestPackage->HasAnyPackageFlags(PKG_PlayInEditor) ? PKG_PlayInEditor : PKG_None;
-			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, PackageFlags, DestPackage->PIEInstanceID, 0, InOutInstancingContext);
+			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, PackageFlags, DestPackage->GetPIEInstanceID(), 0, InOutInstancingContext);
 		}
 		else
 		{

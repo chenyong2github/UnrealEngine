@@ -373,9 +373,9 @@ bool AutomationOpenMap(const FString& MapName, bool bForceReload)
 		FString ShortMapName = FPackageName::GetShortName(MapName);
 		FString ShortWorldMapName = FPackageName::GetShortName(TestWorld->GetMapName());
 
-		if (TestWorld->GetOutermost()->PIEInstanceID != INDEX_NONE)
+		if (TestWorld->GetOutermost()->GetPIEInstanceID() != INDEX_NONE)
 		{
-			FString PIEPrefix = FString::Printf(PLAYWORLD_PACKAGE_PREFIX TEXT("_%d_"), TestWorld->GetOutermost()->PIEInstanceID);
+			FString PIEPrefix = FString::Printf(PLAYWORLD_PACKAGE_PREFIX TEXT("_%d_"), TestWorld->GetOutermost()->GetPIEInstanceID());
 			ShortWorldMapName.ReplaceInline(*PIEPrefix, TEXT(""));
 		}
 		if (ShortMapName != ShortWorldMapName || bForceReload)

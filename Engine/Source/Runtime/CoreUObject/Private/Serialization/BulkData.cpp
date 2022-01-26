@@ -419,7 +419,7 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 	}
 	else if (UPackage* PackagePtr = Package.Get())
 	{
-		bCanLoadFromDisk = (PackagePtr->LinkerLoad != nullptr);
+		bCanLoadFromDisk = (PackagePtr->GetLinker() != nullptr);
 	}
 	return bCanLoadFromDisk;
 #endif // WITH_EDITOR
@@ -2222,9 +2222,9 @@ bool FUntypedBulkData::TryLoadDataIntoMemory(void* Dest)
 	{
 		if (UPackage* PackagePtr = Package.Get())
 		{
-			if (PackagePtr->LinkerLoad && PackagePtr->LinkerLoad->GetOwnerThreadId() == FPlatformTLS::GetCurrentThreadId())
+			if (PackagePtr->GetLinker() && PackagePtr->GetLinker()->GetOwnerThreadId() == FPlatformTLS::GetCurrentThreadId())
 			{
-				FLinkerLoad* LinkerLoad = PackagePtr->LinkerLoad;
+				FLinkerLoad* LinkerLoad = PackagePtr->GetLinker();
 				if (LinkerLoad && LinkerLoad->HasLoader())
 				{
 					FArchive* Ar = LinkerLoad;

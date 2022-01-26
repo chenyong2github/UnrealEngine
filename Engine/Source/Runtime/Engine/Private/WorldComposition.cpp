@@ -74,7 +74,7 @@ void UWorldComposition::PostDuplicate(bool bDuplicateForPIE)
 
 	if (bDuplicateForPIE)
 	{
-		FixupForPIE(GetOutermost()->PIEInstanceID);	
+		FixupForPIE(GetOutermost()->GetPIEInstanceID());	
 	}
 }
 
@@ -330,7 +330,7 @@ void UWorldComposition::Rescan()
 void UWorldComposition::ReinitializeForPIE()
 {
 	Rescan();
-	FixupForPIE(GetOutermost()->PIEInstanceID);
+	FixupForPIE(GetOutermost()->GetPIEInstanceID());
 	GetWorld()->SetStreamingLevels(TilesStreaming);
 }
 
@@ -482,14 +482,14 @@ void UWorldComposition::OnTileInfoUpdated(const FName& InPackageName, const FWor
 	UPackage* LevelPackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, Tile->PackageName));
 	if (LevelPackage)
 	{
-		if (LevelPackage->WorldTileInfo == nullptr)
+		if (LevelPackage->GetWorldTileInfo())
 		{
-			LevelPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(Tile->Info);
+			LevelPackage->SetWorldTileInfo(MakeUnique<FWorldTileInfo>(Tile->Info));
 			PackageDirty = true;
 		}
 		else
 		{
-			*(LevelPackage->WorldTileInfo) = Tile->Info;
+			*(LevelPackage->GetWorldTileInfo()) = Tile->Info;
 		}
 
 		if (PackageDirty)
@@ -960,7 +960,7 @@ void UWorldComposition::OnLevelPostLoad(ULevel* InLevel)
 		const bool bIsDefault = (Info == FWorldTileInfo());
 		if (!bIsDefault)
 		{
-			LevelPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(Info);
+			LevelPackage->SetWorldTileInfo(MakeUnique<FWorldTileInfo>(Info));
 		}
 	}
 }
@@ -987,9 +987,9 @@ FIntVector UWorldComposition::GetLevelOffset(ULevel* InLevel) const
 	UPackage* LevelPackage = InLevel->GetOutermost();
 	
 	FIntVector LevelPosition = FIntVector::ZeroValue;
-	if (LevelPackage->WorldTileInfo)
+	if (LevelPackage->GetWorldTileInfo())
 	{
-		LevelPosition = LevelPackage->WorldTileInfo->AbsolutePosition;
+		LevelPosition = LevelPackage->GetWorldTileInfo()->AbsolutePosition;
 	}
 	
 	return LevelPosition - OwningWorld->OriginLocation;
@@ -1001,9 +1001,9 @@ FBox UWorldComposition::GetLevelBounds(ULevel* InLevel) const
 	UPackage* LevelPackage = InLevel->GetOutermost();
 	
 	FBox LevelBBox(ForceInit);
-	if (LevelPackage->WorldTileInfo)
+	if (LevelPackage->GetWorldTileInfo())
 	{
-		LevelBBox = LevelPackage->WorldTileInfo->Bounds.ShiftBy(FVector(GetLevelOffset(InLevel)));
+		LevelBBox = LevelPackage->GetWorldTileInfo()->Bounds.ShiftBy(FVector(GetLevelOffset(InLevel)));
 	}
 	
 	return LevelBBox;

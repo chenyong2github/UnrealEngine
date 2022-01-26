@@ -235,6 +235,16 @@ enum EInPlace {InPlace};
 	#define UE_DEPRECATED_FORGAME(...)
 #endif
 
+/*
+ * Macro that can be defined in the target file to strip deprecated properties in objects across the engine that check against this define.
+ * Can be used by project that have migrated away from using deprecated functions and data members to potentially gain back some memory and perf.
+ * @note This is a define that engine developer may use when deprecating properties to allow additional memory savings when a project is compliant with deprecation notice.
+ * It doesn't indicate that all deprecated properties will be stripped.
+ */
+#ifndef UE_STRIP_DEPRECATED_PROPERTIES
+	#define UE_STRIP_DEPRECATED_PROPERTIES 0
+#endif
+
 template <bool bIsDeprecated>
 struct TStaticDeprecateExpression
 {

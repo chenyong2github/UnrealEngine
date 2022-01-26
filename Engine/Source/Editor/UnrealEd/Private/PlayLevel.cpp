@@ -2272,7 +2272,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 
 	UPackage* PlayWorldPackage = CreatePackage(*PlayWorldMapName);
 	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
-	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
+	PlayWorldPackage->SetPIEInstanceID(WorldContext.PIEInstance);
 	PlayWorldPackage->SetLoadedPath(InPackage->GetLoadedPath());
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PlayWorldPackage->SetGuid( InPackage->GetGuid() );
@@ -2365,7 +2365,7 @@ UWorld* UEditorEngine::CreatePIEWorldFromEntry(FWorldContext &WorldContext, UWor
 	check(LoadedWorld);
 	if (LoadedWorld->GetOutermost() != GetTransientPackage())
 	{
-		LoadedWorld->GetOutermost()->PIEInstanceID = WorldContext.PIEInstance;
+		LoadedWorld->GetOutermost()->SetPIEInstanceID(WorldContext.PIEInstance);
 	}
 	// Force default GameMode class so project specific code doesn't fire off. 
 	// We want this world to truly remain empty while we wait for connect!

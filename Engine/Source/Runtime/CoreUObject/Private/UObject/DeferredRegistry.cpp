@@ -67,7 +67,7 @@ void ReloadProcessObject(UClass* Class, const TCHAR* RenamePrefix)
 void ReloadProcessObject(UPackage* Package, const TCHAR* RenamePrefix)
 {
 #if WITH_LIVE_CODING
-	for (UFunction* Function : Package->Delegates)
+	for (UFunction* Function : Package->GetReloadDelegates())
 	{
 		if (Function->SingletonPtr != nullptr)
 		{

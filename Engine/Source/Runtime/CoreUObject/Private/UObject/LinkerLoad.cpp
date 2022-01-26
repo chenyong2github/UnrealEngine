@@ -504,7 +504,7 @@ FLinkerLoad* FLinkerLoad::FindExistingLinkerForPackage(const UPackage* Package)
 	FLinkerLoad* Linker = nullptr;
 	if (Package)
 	{
-		Linker = Package->LinkerLoad;
+		Linker = Package->GetLinker();
 	}
 	return Linker;
 }
@@ -644,7 +644,7 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 	}
 
 	// Create a new linker if there isn't an existing one.
-	if( Linker == NULL )
+	if( Linker == nullptr )
 	{
 		if (GEventDrivenLoaderEnabled && FApp::IsGame() && !GIsEditor)
 		{
@@ -652,14 +652,14 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 		}
 		Linker = new FLinkerLoad(Parent, PackagePath, LoadFlags, InstancingContext ? *InstancingContext : FLinkerInstancingContext());
 		Linker->SetSerializeContext(LoadContext);
-		Parent->LinkerLoad = Linker;
+		Parent->SetLinker(Linker);
 		if (GEventDrivenLoaderEnabled && Linker)
 		{
 			Linker->CreateLoader(Forward<TFunction<void()>>(InSummaryReadyCallback));
 		}
 	}
 	
-	check(Parent->LinkerLoad == Linker);
+	check(Parent->GetLinker() == Linker);
 
 	return Linker;
 }
@@ -828,7 +828,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 
 	if (Status == LINKER_Failed)
 	{
-		LinkerRoot->LinkerLoad = nullptr;
+		LinkerRoot->SetLinker(nullptr);
 #if WITH_EDITOR
 
 		if (LoadProgressScope)
@@ -1474,7 +1474,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		LinkerRootPackage->SetChunkIDs(Summary.ChunkIDs);
 
 		// Propagate package file size
-		LinkerRootPackage->FileSize = Loader ? Loader->TotalSize() : 0;
+		LinkerRootPackage->SetFileSize(Loader ? Loader->TotalSize() : 0);
 
 		// Propagate package Guids
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1486,14 +1486,14 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 #endif
 
 		// Remember the linker versions
-		LinkerRootPackage->LinkerPackageVersion = Summary.GetFileVersionUE();
-		LinkerRootPackage->LinkerLicenseeVersion = Summary.GetFileVersionLicenseeUE();
+		LinkerRootPackage->SetLinkerPackageVersion(Summary.GetFileVersionUE());
+		LinkerRootPackage->SetLinkerLicenseeVersion(Summary.GetFileVersionLicenseeUE());
 
 		// Only set the custom version if it is not already latest.
 		// If it is latest, we will compare against latest in GetLinkerCustomVersion
 		if (!bCustomVersionIsLatest)
 		{
-			LinkerRootPackage->LinkerCustomVersion = SummaryVersions;
+			LinkerRootPackage->SetLinkerCustomVersions(SummaryVersions);
 		}
 
 #if WITH_EDITORONLY_DATA
@@ -2359,12 +2359,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeThumbnails( bool bForceEnableIn
 			FStructuredArchive::FArray IndexArray = IndexSlot->EnterArray(ThumbnailCount);
 
 			// Allocate a new thumbnail map if we need one
-			if (!LinkerRoot->ThumbnailMap)
+			if (!LinkerRoot->HasThumbnailMap())
 			{
-				LinkerRoot->ThumbnailMap = MakeUnique<FThumbnailMap>();
+				LinkerRoot->SetThumbnailMap(MakeUnique<FThumbnailMap>());
 			}
 
 			// Load thumbnail names and file offsets
+			FThumbnailMap& ThumbnailMap = LinkerRoot->AccessThumbnailMap();
 			TArray< FObjectFullNameAndThumbnail > ThumbnailInfoArray;
 			for (int32 CurObjectIndex = 0; CurObjectIndex < ThumbnailCount; ++CurObjectIndex)
 			{
@@ -2391,7 +2392,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeThumbnails( bool bForceEnableIn
 				// Only bother loading thumbnails that don't already exist in memory yet.  This is because when we
 				// go to load thumbnails that aren't in memory yet when saving packages we don't want to clobber
 				// thumbnails that were freshly-generated during that editor session
-				if (!LinkerRoot->ThumbnailMap->Contains(ThumbnailInfo.ObjectFullName))
+				if (!ThumbnailMap.Contains(ThumbnailInfo.ObjectFullName))
 				{
 					// Add to list of thumbnails to load
 					ThumbnailInfoArray.Add(ThumbnailInfo);
@@ -2417,7 +2418,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeThumbnails( bool bForceEnableIn
 				LoadedThumbnail.Serialize(DataStream.EnterElement());
 
 				// Store the data!
-				LinkerRoot->ThumbnailMap->Add(CurThumbnailInfo.ObjectFullName, LoadedThumbnail);
+				ThumbnailMap.Add(CurThumbnailInfo.ObjectFullName, LoadedThumbnail);
 			}
 		}
 	}
@@ -3792,9 +3793,11 @@ int32 FLinkerLoad::LoadMetaDataFromExportMap(bool bForcePreload)
 		// If we didn't find a MetaData, keep the existing MetaData we may have constructed after previously noticing LoadMetaDataFromExportMap didn't find one
 		if (MetaData)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UE_CLOG(LinkerRoot->MetaData && LinkerRoot->MetaData != MetaData, LogLinker, Warning,
 				TEXT("LoadMetaDataFromExportMap was called after the MetaData was already loaded, and it found a different MetaData. Discarding the previously loaded MetaData."));
 			LinkerRoot->MetaData = MetaData;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
@@ -5512,7 +5515,7 @@ void FLinkerLoad::Detach()
 	// Make sure we're never associated with LinkerRoot again.
 	if (LinkerRoot)
 	{
-		LinkerRoot->LinkerLoad = nullptr;
+		LinkerRoot->SetLinker(nullptr);
 		// When detaching the linker from its package, also empty its stored list of custom versions. 
 		// This is so that object post loaded in the editor in a package that has no associated linker consider that all package custom versions as latest
 		// (i.e. when duplicating an object in the package)

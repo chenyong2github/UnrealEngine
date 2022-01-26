@@ -1760,7 +1760,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 		if (Import->XObject)
 		{
 			ExistingPackage = CastChecked<UPackage>(Import->XObject->GetPackage());
-			PendingPackage = ExistingPackage->LinkerLoad ? static_cast<FAsyncPackage*>(ExistingPackage->LinkerLoad->AsyncRoot) : nullptr;
+			PendingPackage = ExistingPackage->GetLinker() ? static_cast<FAsyncPackage*>(ExistingPackage->GetLinker()->AsyncRoot) : nullptr;
 		}
 		const bool bCompiledInNotDynamic = IsNativeCodePackage(ExistingPackage);
 		// Our import package name is the import name
@@ -1983,7 +1983,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 				{
 					ImportedPackages.Add(ImportPackage);
 
-					FLinkerLoad* ImportLinker = ImportPackage->LinkerLoad;
+					FLinkerLoad* ImportLinker = ImportPackage->GetLinker();
 					if (ImportLinker && ImportLinker->AsyncRoot)
 					{
 						check(ImportLinker->AsyncRoot != this);
@@ -2034,7 +2034,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 			bool bWaitingForImport = false;
 			if (ImportPackage)
 			{
-				FLinkerLoad* ImportLinker = ImportPackage->LinkerLoad;
+				FLinkerLoad* ImportLinker = ImportPackage->GetLinker();
 
 #if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
 				if (GIsInitialLoad && !ImportLinker && ImportPackage->HasAnyPackageFlags(PKG_CompiledIn))
@@ -2572,20 +2572,20 @@ void FAsyncPackage::DumpDependencies(const TCHAR* Label, UObject* Obj)
 	}
 	UE_LOG(LogStreaming, Error, TEXT("    Obj is %s"), *Obj->GetFullName());
 	UPackage* Package = Obj->GetOutermost();
-	if (!Package->LinkerLoad)
+	if (!Package->GetLinker())
 	{
 		UE_LOG(LogStreaming, Error, TEXT("    %s has no linker"), *Package->GetFullName());
 	}
 	else
 	{
-		for (int32 LocalExportIndex = 0; LocalExportIndex < Package->LinkerLoad->ExportMap.Num(); LocalExportIndex++)
+		for (int32 LocalExportIndex = 0; LocalExportIndex < Package->GetLinker()->ExportMap.Num(); LocalExportIndex++)
 		{
-			FObjectExport& Export = Package->LinkerLoad->ExportMap[LocalExportIndex];
+			FObjectExport& Export = Package->GetLinker()->ExportMap[LocalExportIndex];
 			if (Export.Object == Obj || Export.Object == nullptr)
 			{
 				if (Export.ObjectName == Obj->GetFName())
 				{
-					DumpDependencies(TEXT(""), Package->LinkerLoad, FPackageIndex::FromExport(LocalExportIndex));
+					DumpDependencies(TEXT(""), Package->GetLinker(), FPackageIndex::FromExport(LocalExportIndex));
 				}
 			}
 		}
@@ -5450,7 +5450,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 				// We can only continue to PostLoad if all imported packages finished serializing their exports
 				for (UPackage* ImportedPackage : ImportedPackages)
 				{
-					if (ImportedPackage && ImportedPackage->LinkerLoad && ImportedPackage->LinkerLoad->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->LinkerLoad->AsyncRoot)->bAllExportsSerialized)
+					if (ImportedPackage && ImportedPackage->GetLinker() && ImportedPackage->GetLinker()->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->GetLinker()->AsyncRoot)->bAllExportsSerialized)
 					{
 						LoadingState = EAsyncPackageState::PendingImports;
 						break;
@@ -5566,7 +5566,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 
 			// Set package specific data 
 			Package->SetPackageFlags(Desc.PackageFlags);
-			Package->PIEInstanceID = Desc.PIEInstanceID;
+			Package->SetPIEInstanceID(Desc.PIEInstanceID);
 
 			// Always store package filename we loading from
 			Package->SetLoadedPath(Desc.PackagePath);
@@ -6053,7 +6053,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateImports()
 		// Keep track of all imported packages that are also being loaded so that we can wait until they also finished serializing their exports
 		if (UPackage* ImportedPackage = Cast<UPackage>(Object))
 		{
-			if (ImportedPackage->LinkerLoad && ImportedPackage->LinkerLoad->AsyncRoot)
+			if (ImportedPackage->GetLinker() && ImportedPackage->GetLinker()->AsyncRoot)
 			{
 				ImportedPackages.Add(ImportedPackage);
 			}

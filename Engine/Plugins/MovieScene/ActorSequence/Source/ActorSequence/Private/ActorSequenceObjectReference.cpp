@@ -76,7 +76,7 @@ UObject* FActorSequenceObjectReference::Resolve(AActor* SourceActor) const
 		if (ActorId.IsValid())
 		{
 			// Fixup for PIE
-			int32 PIEInstanceID = SourceActor->GetOutermost()->PIEInstanceID;
+			int32 PIEInstanceID = SourceActor->GetOutermost()->GetPIEInstanceID();
 			FUniqueObjectGuid FixedUpId(ActorId);
 			if (PIEInstanceID != -1)
 			{

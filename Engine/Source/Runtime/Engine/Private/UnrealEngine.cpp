@@ -1102,7 +1102,7 @@ namespace
 
 		check(NewWorld);
 
-		OutPackage->PIEInstanceID = WorldContext.PIEInstance;
+		OutPackage->SetPIEInstanceID(WorldContext.PIEInstance);
 		OutPackage->SetPackageFlags(PKG_PlayInEditor);
 
 		// Rename streaming levels to PIE

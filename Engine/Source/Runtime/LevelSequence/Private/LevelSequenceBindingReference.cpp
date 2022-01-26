@@ -29,9 +29,9 @@ FLevelSequenceBindingReference::FLevelSequenceBindingReference(UObject* InObject
 		if (ensure(ObjectPackage))
 		{
 			// If this is being set from PIE we need to remove the pie prefix and point to the editor object
-			if (ObjectPackage->PIEInstanceID != INDEX_NONE)
+			if (ObjectPackage->GetPIEInstanceID() != INDEX_NONE)
 			{
-				FString PIEPrefix = FString::Printf(PLAYWORLD_PACKAGE_PREFIX TEXT("_%d_"), ObjectPackage->PIEInstanceID);
+				FString PIEPrefix = FString::Printf(PLAYWORLD_PACKAGE_PREFIX TEXT("_%d_"), ObjectPackage->GetPIEInstanceID());
 				FullPath.ReplaceInline(*PIEPrefix, TEXT(""));
 			}
 		}
@@ -65,7 +65,7 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, FName Strea
 		TempPath.PreSavePath();
 
 	#if WITH_EDITORONLY_DATA
-		int32 ContextPlayInEditorID = InContext ? InContext->GetOutermost()->PIEInstanceID : INDEX_NONE;
+		int32 ContextPlayInEditorID = InContext ? InContext->GetOutermost()->GetPIEInstanceID() : INDEX_NONE;
 
 		if (ContextPlayInEditorID != INDEX_NONE)
 		{
@@ -148,7 +148,7 @@ UObject* FLevelSequenceLegacyObjectReference::Resolve(UObject* InContext) const
 {
 	if (ObjectId.IsValid() && InContext != nullptr)
 	{
-		int32 PIEInstanceID = InContext->GetOutermost()->PIEInstanceID;
+		int32 PIEInstanceID = InContext->GetOutermost()->GetPIEInstanceID();
 		FUniqueObjectGuid FixedUpId = PIEInstanceID == -1 ? ObjectId : ObjectId.FixupForPIE(PIEInstanceID);
 
 		if (PIEInstanceID != -1 && FixedUpId == ObjectId)

@@ -816,9 +816,9 @@ namespace ObjectTools
 			}
 
 			// When duplicating a World Composition map, make sure to properly initialize WorldTileInfo
-			if (Object->GetOutermost()->WorldTileInfo.IsValid())
+			if (Object->GetOutermost()->GetWorldTileInfo())
 			{
-				DupObject->GetOutermost()->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
+				DupObject->GetOutermost()->SetWorldTileInfo(MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->GetWorldTileInfo()));
 			}
 
 			// Notify the asset registry
@@ -3698,9 +3698,9 @@ namespace ObjectTools
 						}
 
 						// When renaming a World Composition map, make sure to properly initialize WorldTileInfo
-						if (Object->GetOutermost()->WorldTileInfo.IsValid())
+						if (Object->GetOutermost()->GetWorldTileInfo())
 						{
-							NewPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
+							NewPackage->SetWorldTileInfo(MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->GetWorldTileInfo()));
 						}
 
 						Redirector = Cast<UObjectRedirector>(StaticFindObject(UObjectRedirector::StaticClass(), NewPackage, *NewObjectName));
@@ -3826,14 +3826,14 @@ namespace ObjectTools
 			FString OldObjectPathName = Object->GetPathName();
 			GEditor->RenameObject( Object, NewPackage, *ObjName, bLeaveRedirector ? REN_None : REN_DontCreateRedirectors );
 
-			if (OldPackage && OldPackage->MetaData)
+			if (OldPackage && OldPackage->HasMetaData())
 			{
 				// Migrate the localization ID to the new package
 				TextNamespaceUtil::ForcePackageNamespace(NewPackage, TextNamespaceUtil::GetPackageNamespace(OldPackage));
 				TextNamespaceUtil::ClearPackageNamespace(OldPackage);
 
 				// Remove any metadata from old package pointing to moved objects
-				OldPackage->MetaData->RemoveMetaDataOutsidePackage();
+				OldPackage->GetMetaData()->RemoveMetaDataOutsidePackage();
 			}
 
 			// Migrate any thumbnail from the old package to the new one
@@ -4696,30 +4696,30 @@ namespace ThumbnailTools
 	 */
 	FObjectThumbnail* CacheThumbnail( const FString& ObjectFullName, FObjectThumbnail* Thumbnail, UPackage* DestPackage )
 	{
-		FObjectThumbnail* Result = NULL;
+		FObjectThumbnail* Result = nullptr;
 
-		if ( ObjectFullName.Len() > 0 && DestPackage != NULL )
+		if ( ObjectFullName.Len() > 0 && DestPackage != nullptr)
 		{
 			// Create a new thumbnail map if we don't have one already
-			if( !DestPackage->ThumbnailMap )
+			if( !DestPackage->HasThumbnailMap() )
 			{
-				DestPackage->ThumbnailMap = MakeUnique<FThumbnailMap>();
+				DestPackage->SetThumbnailMap(MakeUnique<FThumbnailMap>());
 			}
 
 			// @todo thumbnails: Backwards compat
 			FName ObjectFullNameFName( *ObjectFullName );
-			FObjectThumbnail* CachedThumbnail = DestPackage->ThumbnailMap->Find( ObjectFullNameFName );
-			if ( Thumbnail != NULL )
+			const FObjectThumbnail* CachedThumbnail = DestPackage->GetThumbnailMap().Find( ObjectFullNameFName );
+			if ( Thumbnail != nullptr )
 			{
 				// Cache the thumbnail (possibly replacing an existing thumb!)
-				Result = &DestPackage->ThumbnailMap->Add( ObjectFullNameFName, *Thumbnail );
+				Result = &DestPackage->AccessThumbnailMap().Add( ObjectFullNameFName, *Thumbnail );
 			}
 			//only let thumbnails loaded from disk to be removed.
 			//When capturing thumbnails from the content browser, it will only exist in memory until it is saved out to a package.
 			//Don't let the recycling purge them
-			else if ((CachedThumbnail != NULL) && (CachedThumbnail->IsLoadedFromDisk()))
+			else if ((CachedThumbnail != nullptr) && (CachedThumbnail->IsLoadedFromDisk()))
 			{
-				DestPackage->ThumbnailMap->Remove( ObjectFullNameFName );
+				DestPackage->AccessThumbnailMap().Remove( ObjectFullNameFName );
 			}
 
 		}

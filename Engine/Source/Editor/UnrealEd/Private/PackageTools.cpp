@@ -491,7 +491,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			TArray<TWeakObjectPtr<UMetaData>> PackageMetaDataWithClearedStandaloneFlag;
 			for (UPackage* PackageToUnload : PackagesToUnload)
 			{
-				UMetaData* PackageMetaData = PackageToUnload ? PackageToUnload->MetaData : nullptr;
+				UMetaData* PackageMetaData = PackageToUnload ? PackageToUnload->GetMetaData() : nullptr;
 				if ( PackageMetaData && PackageMetaData->HasAnyFlags(RF_Standalone) )
 				{
 					PackageMetaData->ClearFlags(RF_Standalone);

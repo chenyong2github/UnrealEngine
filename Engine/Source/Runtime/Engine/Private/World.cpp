@@ -3310,7 +3310,7 @@ void UWorld::RenameToPIEWorld(int32 PIEInstanceID)
 #if WITH_EDITOR
 	UPackage* WorldPackage = GetOutermost();
 
-	WorldPackage->PIEInstanceID = PIEInstanceID;
+	WorldPackage->SetPIEInstanceID(PIEInstanceID);
 	WorldPackage->SetPackageFlags(PKG_PlayInEditor);
 
 	const FString PIEPackageName = *UWorld::ConvertToPIEPackageName(WorldPackage->GetName(), PIEInstanceID);
@@ -3485,7 +3485,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	}
 	else if (OwningWorld)
 	{
-		PIEInstanceID = OwningWorld->GetOutermost()->PIEInstanceID;
+		PIEInstanceID = OwningWorld->GetOutermost()->GetPIEInstanceID();
 	}
 	else
 	{
@@ -3501,7 +3501,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
 	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
-	PIELevelPackage->PIEInstanceID = PIEInstanceID;
+	PIELevelPackage->SetPIEInstanceID(PIEInstanceID);
 	PIELevelPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(PackageFName));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PIELevelPackage->SetGuid( EditorLevelPackage->GetGuid() );
@@ -6475,9 +6475,9 @@ void FSeamlessTravelHandler::SeamlessTravelLoadCallback(const FName& PackageName
 		{
 			if (World->WorldType == EWorldType::PIE)
 			{
-				if (LevelPackage->PIEInstanceID != -1)
+				if (LevelPackage->GetPIEInstanceID() != -1)
 				{
-					World->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(LevelPackage->PIEInstanceID);
+					World->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(LevelPackage->GetPIEInstanceID());
 				}
 				else
 				{
@@ -8113,7 +8113,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	// Create a package for duplicated level
 	UPackage* NewPackage = CreatePackage( *PrefixedPackageName );
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
-	NewPackage->PIEInstanceID = InstanceID;
+	NewPackage->SetPIEInstanceID(InstanceID);
 	NewPackage->SetLoadedPath(OriginalPackage->GetLoadedPath());
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NewPackage->SetGuid( OriginalPackage->GetGuid() );

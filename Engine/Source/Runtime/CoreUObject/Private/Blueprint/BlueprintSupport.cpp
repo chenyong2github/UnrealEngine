@@ -241,7 +241,7 @@ void FBlueprintSupport::RepairDeferredDependenciesInObject(UObject* Object)
 			{
 				if (const UPackage* PlaceholderPackage = PropertyValueAsObj->GetPackage())
 				{
-					if (FLinkerLoad* PlaceholderLinker = PlaceholderPackage->LinkerLoad)
+					if (FLinkerLoad* PlaceholderLinker = PlaceholderPackage->GetLinker())
 					{
 						int32 const ImportIndex = Placeholder->PackageIndex.ToImport();
 						FObjectImport& Import = PlaceholderLinker->ImportMap[ImportIndex];

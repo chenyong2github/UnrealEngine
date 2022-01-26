@@ -1089,7 +1089,7 @@ public:
 	FUnsafeLinkerLoad(UPackage *Package, const FPackagePath& PackagePath, const FPackagePath& DiffPackagePath, uint32 LoadFlags)
 		: FLinkerLoad(Package, PackagePath, LoadFlags)
 	{
-		Package->LinkerLoad = this;
+		Package->SetLinker(this);
 		while ( Tick(0.0, false, false, nullptr) == FLinkerLoad::LINKER_TimedOut ) 
 		{ 
 		}
@@ -1396,12 +1396,6 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			}
 		}
 
-		// Only set time it took to load package if the above EndLoad is the "outermost" EndLoad.
-		if( Result && !LoadContext->HasLoadedObjects() && !(LoadFlags & LOAD_Verify) )
-		{
-			Result->SetLoadTime( FPlatformTime::Seconds() - StartTime );
-		}
-
 		Linker->Flush();
 
 		if (!FPlatformProperties::RequiresCookedData())
@@ -1422,13 +1416,13 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 				if (GGameThreadLoadCounter == 0)
 				{
 					// Sanity check to make sure that Linker is the linker that loaded our Result package or the linker has already been detached
-					check(!Result || Result->LinkerLoad == Linker || Result->LinkerLoad == nullptr);
+					check(!Result || Result->GetLinker() == Linker || Result->GetLinker() == nullptr);
 					if (Result && Linker->HasLoader())
 					{
 						ResetLoaders(Result);
 					}
 					// Reset loaders could have already deleted Linker so guard against deleting stale pointers
-					if (Result && Result->LinkerLoad)
+					if (Result && Result->GetLinker())
 					{
 						Linker->DestroyLoader();
 					}
@@ -4832,7 +4826,7 @@ namespace UECodeGen_Private
 #endif
 		}
 #if WITH_RELOAD
-		NewPackage->Delegates = MoveTemp(Delegates);
+		NewPackage->SetReloadDelegates(MoveTemp(Delegates));
 #endif
 	}
 

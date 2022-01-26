@@ -129,10 +129,10 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		NewLevelStreaming->bClientOnlyVisible = GetClientOnlyVisible();
 		NewLevelStreaming->Initialize(*this);
 
-		if (OwningWorld->IsPlayInEditor() && OwningWorld->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor) && OwningWorld->GetPackage()->PIEInstanceID != INDEX_NONE)
+		if (OwningWorld->IsPlayInEditor() && OwningWorld->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor) && OwningWorld->GetPackage()->GetPIEInstanceID() != INDEX_NONE)
 		{
 			// When renaming for PIE, make sure to keep World's name so that linker can properly remap with Package's instancing context
-			NewLevelStreaming->RenameForPIE(OwningWorld->GetPackage()->PIEInstanceID, /*bKeepWorldAssetName*/true);
+			NewLevelStreaming->RenameForPIE(OwningWorld->GetPackage()->GetPIEInstanceID(), /*bKeepWorldAssetName*/true);
 		}
 
 		return NewLevelStreaming;

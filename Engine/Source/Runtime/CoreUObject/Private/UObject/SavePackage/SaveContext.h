@@ -822,6 +822,20 @@ public:
 		return GetHarvestedRealm().GetLinker();
 	}
 
+	void UpdatePackageLinkerVersions()
+	{
+		FLinkerSave* Linker = GetLinker();
+		check(Linker);
+		Package->SetLinkerPackageVersion(Linker->UEVer());
+		Package->SetLinkerLicenseeVersion(Linker->LicenseeUEVer());
+		Package->SetLinkerCustomVersions(Linker->GetCustomVersions());
+	}
+
+	void UpdatePackageFileSize(int64 InFileSize)
+	{
+		Package->SetFileSize(InFileSize);
+	}
+
 	void SetLinker(TPimplPtr<FLinkerSave> InLinker)
 	{
 		GetHarvestedRealm().SetLinker(MoveTemp(InLinker));

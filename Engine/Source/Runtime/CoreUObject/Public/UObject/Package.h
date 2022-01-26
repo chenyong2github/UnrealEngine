@@ -23,11 +23,14 @@ class Error;
 // This is a dummy type which is not implemented anywhere. It's only 
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
+class FLinkerLoad;
 class FLinkerSave;
 class ITargetPlatform;
 struct FPackageSaveInfo;
 class FSavePackageContext;
 struct FSavePackageArgs;
+
+class UMetaData;
 
 /**
 * Represents the result of saving a package
@@ -202,41 +205,29 @@ public:
 	uint8 bCanBeImported:1;
 
 private:
-	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded.					*/
-	float LoadTime;		// TODO: strip from runtime?
+	// @note this should probably be entirely deprecated and removed but certain stat dump function are still using it, just compile it out in shipping for now
+#if !UE_BUILD_SHIPPING
+	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded. */
+	float LoadTime;
+#endif
 
 #if WITH_EDITORONLY_DATA
 	/** Indicates which folder to display this package under in the Generic Browser's list of packages. If not specified, package is added to the root level.	*/
-	FName	FolderName;
+	FName FolderName;
+
+	/** Persistent GUID of package if it was loaded from disk. Persistent across saves. */
+	FGuid PersistentGuid;
+
+	/** Chunk IDs for the streaming install chunks this package will be placed in.  Empty for no chunk. Used during cooking. */
+	TArray<int32> ChunkIDs;
 #endif
 
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 	/** GUID of package if it was loaded from disk. Changes at every save. */
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and it will be removed.")
 	FGuid Guid;
-
-#if WITH_EDITORONLY_DATA
-	/** Persistent GUID of package if it was loaded from disk. Persistent across saves. */
-	FGuid PersistentGuid;
-#endif
-	/** Chunk IDs for the streaming install chunks this package will be placed in.  Empty for no chunk */
-	TArray<int32> ChunkIDs;
-
-public:
-
-	virtual bool IsNameStableForNetworking() const override { return true; }		// For now, assume all packages have stable net names
-	virtual bool NeedsLoadForClient() const override { return true; }				// To avoid calling the expensive generic version, which only makes sure that the UPackage static class isn't excluded
-	virtual bool NeedsLoadForServer() const override { return true; }
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual bool IsDestructionThreadSafe() const override { return true; }
-
-#if WITH_EDITORONLY_DATA
-																					/** Sets the bLoadedByEditorPropertiesOnly flag */
-	void SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursive = false);
-	/** returns true when the package is only referenced by editor-only flag */
-	bool IsLoadedByEditorPropertiesOnly() const { return bLoadedByEditorPropertiesOnly; }
 #endif
 
-private:
 	/** Package Flags */
 	uint32	PackageFlagsPrivate;
 	
@@ -247,43 +238,70 @@ private:
 	FPackagePath LoadedPath;
 public:
 
-	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
-	int32 PIEInstanceID;		// TODO: strip from runtime?
-
-	/** The name of the file that this package was loaded from */
-	UE_DEPRECATED(5.0, "Use GetLoadedPath instead")
-	FName	FileName;
-
-	/** Linker load associated with this package */
-	class FLinkerLoad* LinkerLoad;
-
 	/** Linker package version this package has been serialized with. This is mostly used by PostLoad **/
+	UE_DEPRECATED(5.0, "Use Get/SetLinkerPackageVersion instead")
 	FPackageFileVersion LinkerPackageVersion;
 
 	/** Linker licensee version this package has been serialized with. This is mostly used by PostLoad **/
+	UE_DEPRECATED(5.0, "Use Get/SetLinkerLicenseeVersion instead")
 	int32 LinkerLicenseeVersion;
 
 	/** Linker custom version container this package has been serialized with. This is mostly used by PostLoad **/
+	UE_DEPRECATED(5.0, "Use Get/SetLinkerCustomVersions instead")
 	FCustomVersionContainer LinkerCustomVersion;
 
-	/** size of the file for this package; if the package was not loaded from a file or was a forced export in another package, this will be zero */
-	uint64 FileSize;			// TODO: strip from runtime?
+	/** Linker load associated with this package */
+	UE_DEPRECATED(5.0, "Use Get/SetLinker instead")
+	FLinkerLoad* LinkerLoad;
 
-#if WITH_RELOAD
-	/** Link list of delegates registered to the package.  The next pointer chain can't be used for this. */
-	TArray<UFunction*> Delegates;
-#endif
+	/** size of the file for this package; if the package was not loaded from a file or was a forced export in another package, this will be zero */
+	UE_DEPRECATED(5.0, "Use Get/SetFileSize instead")
+	uint64 FileSize;
 
 #if WITH_EDITORONLY_DATA
 	/** Editor only: Thumbnails stored in this package */
+	UE_DEPRECATED(5.0, "Use Get/SetThumbnailMap instead")
 	TUniquePtr< FThumbnailMap > ThumbnailMap;
 
 	// MetaData for the editor, or NULL in the game
-	class UMetaData*	MetaData;
+	UE_DEPRECATED(5.0, "Use Get/HasMetaData instead")
+	class UMetaData* MetaData;
+
+	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
+	UE_DEPRECATED(5.0, "Use Get/SetPIEInstanceID instead")
+	int32 PIEInstanceID;
+#endif
+
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+	/** The name of the file that this package was loaded from */
+	UE_DEPRECATED(5.0, "Use GetLoadedPath instead")
+	FName FileName;
 #endif
 
 	// World browser information
+	UE_DEPRECATED(5.0, "Use Get/SetWorldTileInfo instead")
 	TUniquePtr< FWorldTileInfo > WorldTileInfo;
+
+#if WITH_RELOAD
+	/** Link list of delegates registered to the package.  The next pointer chain can't be used for this. */
+	UE_DEPRECATED(5.0, "Use Get/SetReloadDelegates instead")
+	TArray<UFunction*> Delegates;
+#endif
+
+public:
+
+	virtual bool IsNameStableForNetworking() const override { return true; }		// For now, assume all packages have stable net names
+	virtual bool NeedsLoadForClient() const override { return true; }				// To avoid calling the expensive generic version, which only makes sure that the UPackage static class isn't excluded
+	virtual bool NeedsLoadForServer() const override { return true; }
+	virtual bool IsPostLoadThreadSafe() const override;
+	virtual bool IsDestructionThreadSafe() const override { return true; }
+
+#if WITH_EDITORONLY_DATA
+	/** Sets the bLoadedByEditorPropertiesOnly flag */
+	void SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursive = false);
+	/** returns true when the package is only referenced by editor-only flag */
+	bool IsLoadedByEditorPropertiesOnly() const { return bLoadedByEditorPropertiesOnly; }
+#endif
 
 	/**
 	* Called after the C++ constructor and after the properties have been initialized, but before the config has been loaded, etc.
@@ -301,12 +319,98 @@ public:
 
 	// UPackage interface.
 
-	/**
-	* Sets the time it took to load this package.
-	*/
-	void SetLoadTime( float InLoadTime )
+private:
+	friend class FLinkerLoad;
+	friend class FUnsafeLinkerLoad;
+	friend class FSaveContext;
+	friend struct FAsyncPackage2;
+
+	void SetLinker(FLinkerLoad* InLinker)
 	{
+		LinkerLoad = InLinker;
+	}
+
+	void SetLinkerPackageVersion(FPackageFileVersion InVersion)
+	{
+		LinkerPackageVersion = MoveTemp(InVersion);
+	}
+
+	void SetLinkerLicenseeVersion(int32 InVersion)
+	{
+		LinkerLicenseeVersion = InVersion;
+	}
+
+	void SetLinkerCustomVersions(FCustomVersionContainer InVersions)
+	{
+		LinkerCustomVersion = MoveTemp(InVersions);
+	}
+
+	void SetFileSize(int64 InFileSize)
+	{
+		FileSize = InFileSize;
+	}
+
+	void SetMetaData(UMetaData* InMetaData)
+	{
+#if WITH_EDITORONLY_DATA
+		MetaData = InMetaData;
+#endif
+	}
+
+public:
+
+	/**
+	 * Returns the PIE instance id used by the package if any, or INDEX_NONE otherwise 
+	 */
+	int32 GetPIEInstanceID() const
+	{
+#if WITH_EDITORONLY_DATA
+		return PIEInstanceID;
+#else
+		return INDEX_NONE;
+#endif
+	}
+
+	/**
+	 * Set the PIE instance id for this package
+	 * @param InPIEInstanceID The PIE instance id to use or INDEX_NONE to remove any id set
+	 */
+	void SetPIEInstanceID(int32 InPIEInstanceID)
+	{
+#if WITH_EDITORONLY_DATA
+		PIEInstanceID = InPIEInstanceID;
+#endif
+	}
+
+	FLinkerLoad* GetLinker() const
+	{
+		return LinkerLoad;
+	}
+
+	const FPackageFileVersion& GetLinkerPackageVersion() const
+	{
+		return LinkerPackageVersion;
+	}
+
+	int32 GetLinkerLicenseeVersion() const
+	{
+		return LinkerLicenseeVersion;
+	}
+
+	const FCustomVersionContainer& GetLinkerCustomVersions() const
+	{
+		return LinkerCustomVersion;
+	}
+
+
+	/**
+	 * Sets the time it took to load this package.
+	 */
+	void SetLoadTime( float InLoadTime ) 
+	{
+#if !UE_BUILD_SHIPPING
 		LoadTime = InLoadTime;
+#endif
 	}
 
 	/**
@@ -314,9 +418,13 @@ public:
 	*
 	* @return Time it took to load.
 	*/
-	float GetLoadTime()
+	float GetLoadTime() const
 	{
+#if !UE_BUILD_SHIPPING
 		return LoadTime;
+#else
+		return 0.0f;
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -546,29 +654,13 @@ public:
 		check( HasThumbnailMap() );
 		return *ThumbnailMap;
 	}
-#endif
 
-	/** returns our Guid */
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and GetGuid will be removed.")
-	FORCEINLINE FGuid GetGuid() const
+	/** Set the internal thumbnail map for this package. */
+	void SetThumbnailMap(TUniquePtr<FThumbnailMap> InThumbnailMap)
 	{
-		return Guid;
-	}
-	/** makes our a new fresh Guid */
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and MakeNewGuid will be removed.")
-	FORCEINLINE FGuid MakeNewGuid()
-	{
-		Guid = FGuid::NewGuid();
-		return Guid;
-	}
-	/** sets a specific Guid */
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and SetGuid will be removed.")
-	FORCEINLINE void SetGuid(FGuid NewGuid)
-	{
-		Guid = NewGuid;
+		ThumbnailMap = MoveTemp(InThumbnailMap);
 	}
 
-#if WITH_EDITORONLY_DATA
 	/** returns our persistent Guid */
 	FORCEINLINE FGuid GetPersistentGuid() const
 	{
@@ -581,21 +673,84 @@ public:
 	}
 #endif
 
+#if WITH_RELOAD
+	const TArray<UFunction*>& GetReloadDelegates() const
+	{
+		return Delegates;
+	}
+
+	void SetReloadDelegates(TArray<UFunction*> InDelegates) 
+	{
+		Delegates = MoveTemp(InDelegates);
+	}
+#endif
+
+
+	/** Get the world tile info if any*/
+	FWorldTileInfo* GetWorldTileInfo() const
+	{
+		return WorldTileInfo.Get();
+	}
+
+	/** Set the world tile info */
+	void SetWorldTileInfo(TUniquePtr<FWorldTileInfo> InWorldTileInfo)
+	{
+		WorldTileInfo = MoveTemp(InWorldTileInfo);
+	}
+
+	/** returns our Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and GetGuid will be removed.")
+	FORCEINLINE FGuid GetGuid() const
+	{
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+		return Guid;
+#else
+		return FGuid();
+#endif
+	}
+	/** makes our a new fresh Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and MakeNewGuid will be removed.")
+	FORCEINLINE FGuid MakeNewGuid()
+	{
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+		Guid = FGuid::NewGuid();
+		return Guid;
+#else
+		return FGuid();
+#endif
+	}
+	/** sets a specific Guid */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and SetGuid will be removed.")
+	FORCEINLINE void SetGuid(FGuid NewGuid)
+	{
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+		Guid = NewGuid;
+#endif
+	}
+
 	/** returns our FileSize */
-	FORCEINLINE int64 GetFileSize()
+	FORCEINLINE int64 GetFileSize() const
 	{
 		return FileSize;
 	}
 
 	/** returns our ChunkIDs */
-	FORCEINLINE const TArray<int32>& GetChunkIDs() const
+	const TArray<int32>& GetChunkIDs() const
 	{
+#if WITH_EDITORONLY_DATA
 		return ChunkIDs;
+#else
+		static TArray<int32> Dummy;
+		return Dummy;
+#endif
 	}
+
 	/** sets our ChunkIDs */
 	FORCEINLINE void SetChunkIDs(const TArray<int32>& InChunkIDs)
 	{
+#if WITH_EDITORONLY_DATA
 		ChunkIDs = InChunkIDs;
+#endif
 	}
 
 	/** returns the unique package id */
@@ -630,6 +785,19 @@ public:
 
 	////////////////////////////////////////////////////////
 	// MetaData 
+
+	/** 
+	 * Return if the package currently has an assigned metadata object
+	 * @returns true if there's an assigned metadata
+	 */
+	bool HasMetaData() const
+	{
+#if WITH_EDITORONLY_DATA
+		return MetaData != nullptr;
+#else
+		return false;
+#endif
+	}
 
 	/**
 	* Gets (after possibly creating) a metadata object for this package
@@ -701,4 +869,3 @@ public:
 private:
 	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, const FSavePackageArgs& SaveArgs);
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -141,7 +141,7 @@ FText SLevelSnapshotsEditorContextPicker::GetWorldDescription(const UWorld* Worl
 		switch(World->GetNetMode())
 		{
 		case NM_Client:
-			PostFix = FText::Format(LOCTEXT("ClientPostfixFormat", " (Client {0})"), FText::AsNumber(World->GetOutermost()->PIEInstanceID - 1));
+			PostFix = FText::Format(LOCTEXT("ClientPostfixFormat", " (Client {0})"), FText::AsNumber(World->GetOutermost()->GetPIEInstanceID() - 1));
 			break;
 		case NM_DedicatedServer:
 		case NM_ListenServer:

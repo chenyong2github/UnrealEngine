@@ -358,9 +358,9 @@ void ULevelStreaming::Serialize( FArchive& Ar )
 	
 	if (Ar.IsLoading())
 	{
-		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && GetOutermost()->PIEInstanceID != INDEX_NONE)
+		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && GetOutermost()->GetPIEInstanceID() != INDEX_NONE)
 		{
-			RenameForPIE(GetOutermost()->PIEInstanceID);
+			RenameForPIE(GetOutermost()->GetPIEInstanceID());
 		}
 	}
 }
@@ -1107,7 +1107,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 		{
 			PackageFlags |= PKG_PlayInEditor;
 		}
-		PIEInstanceID = PersistentWorld->GetOutermost()->PIEInstanceID;
+		PIEInstanceID = PersistentWorld->GetOutermost()->GetPIEInstanceID();
 
 		const FString NonPrefixedLevelName = UWorld::StripPIEPrefixFromPackageName(DesiredPackageName.ToString(), PersistentWorld->StreamingLevelsPrefix);
 		UPackage* EditorLevelPackage = FindObjectFast<UPackage>(nullptr, FName(*NonPrefixedLevelName));
@@ -1280,7 +1280,7 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 		{
 			if (ULevel* Level = World->PersistentLevel)
 			{
-				PrepareLoadedLevel(Level, LevelPackage, GetOutermost()->PIEInstanceID);
+				PrepareLoadedLevel(Level, LevelPackage, GetOutermost()->GetPIEInstanceID());
 			}
 			else
 			{

@@ -396,9 +396,9 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	}
 
 	// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
-	if (SaveContext.GetPackage()->WorldTileInfo.IsValid())
+	if (FWorldTileInfo* WorldTileInfo = SaveContext.GetPackage()->GetWorldTileInfo())
 	{
-		Harvester << *(SaveContext.GetPackage()->WorldTileInfo);
+		Harvester << *WorldTileInfo;
 	}
 
 	// The Editor version is used as part of the check to see if a package is too old to use the gather cache, so we always have to add it if we have gathered loc for this asset
@@ -917,9 +917,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		}
 #endif
 		// Make sure the package has the same version as the linker
-		SaveContext.GetPackage()->LinkerPackageVersion = SaveContext.GetLinker()->UEVer();
-		SaveContext.GetPackage()->LinkerLicenseeVersion = SaveContext.GetLinker()->LicenseeUEVer();
-		SaveContext.GetPackage()->LinkerCustomVersion = SaveContext.GetLinker()->GetCustomVersions();
+		SaveContext.UpdatePackageLinkerVersions();
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2358,7 +2356,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		// Update package FileSize value
 		if (SaveContext.IsUpdatingLoadedPath())
 		{
-			SaveContext.GetPackage()->FileSize = SaveContext.PackageHeaderAndExportSize;
+			SaveContext.UpdatePackageFileSize(SaveContext.PackageHeaderAndExportSize);
 		}
 	}
 	return SaveContext.Result;

@@ -2877,11 +2877,11 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		if (CurrentCookMode == ECookMode::CookByTheBook)
 		{
 			UPackage* Package = PackageData.GetPackage();
-			if (Package && Package->LinkerLoad)
+			if (Package && Package->GetLinker())
 			{
 				// Loaders and their handles can have large buffers held in process memory and in the system file cache from the
 				// data that was loaded.  Keeping this for the lifetime of the cook is costly, so we try and unload it here.
-				Package->LinkerLoad->FlushCache();
+				Package->GetLinker()->FlushCache();
 			}
 		}
 	}
@@ -4106,7 +4106,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			SaveArgs.TopLevelFlags = Context.FlagsToCook;
 			SaveArgs.bForceByteSwapping = Context.bEndianSwap;
 			SaveArgs.bWarnOfLongFilename = false;
-			SaveArgs.SaveFlags = Context.SaveFlags;
+			SaveArgs.SaveFlags = Context.SaveFlags | SAVE_Optional;
 			SaveArgs.TargetPlatform = TargetPlatform;
 			SaveArgs.bSlowTask = false;
 			SaveArgs.SavePackageContext = Context.SavePackageContext;
@@ -8850,7 +8850,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						SaveArgs.TopLevelFlags = FlagsToCook;
 						SaveArgs.bForceByteSwapping = bSwap;
 						SaveArgs.bWarnOfLongFilename = false;
-						SaveArgs.SaveFlags = SaveFlags;
+						SaveArgs.SaveFlags = SaveFlags | SAVE_Optional;
 						SaveArgs.TargetPlatform = Target;
 						SaveArgs.bSlowTask = false;
 						SaveArgs.SavePackageContext = &SavePackageContext;

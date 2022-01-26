@@ -2050,10 +2050,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 			}
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-			if (InOuter->WorldTileInfo.IsValid())
+			if (FWorldTileInfo* WorldTileInfo = InOuter->GetWorldTileInfo())
 			{
 				// collect custom version from wc tile info
-				ExportTaggerArchive << *(InOuter->WorldTileInfo);
+				ExportTaggerArchive << *WorldTileInfo;
 			}
 
 			{
@@ -2228,9 +2228,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				Linker->SetUseUnversionedPropertySerialization(bSaveUnversionedProperties);
 
 				// Make sure the package has the same version as the linker
-				InOuter->LinkerPackageVersion = Linker->UEVer();
-				InOuter->LinkerLicenseeVersion = Linker->LicenseeUEVer();
-				InOuter->LinkerCustomVersion = Linker->GetCustomVersions();
+				InOuter->SetLinkerPackageVersion(Linker->UEVer());
+				InOuter->SetLinkerLicenseeVersion(Linker->LicenseeUEVer());
+				InOuter->SetLinkerCustomVersions(Linker->GetCustomVersions());
 
 				if (EndSavingIfCancelled())
 				{ 
@@ -2719,10 +2719,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				// Write fixed-length file summary to overwrite later.
 				if (SaveFlags & SAVE_KeepGUID)
 				{
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 					// First generation file, keep existing GUID
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					Linker->Summary.Guid = InOuter->Guid;
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 #if WITH_EDITORONLY_DATA
 					Linker->Summary.PersistentGuid = InOuter->PersistentGuid;
 #endif
@@ -2739,10 +2741,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 #endif
 					Linker->Summary.Generations = TArray<FGenerationInfo>();
 
+#if !UE_STRIP_DEPRECATED_PROPERTIES
 					// make sure the UPackage's copy of the GUID is up to date
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					InOuter->Guid = Linker->Summary.Guid;
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 				}
 				new(Linker->Summary.Generations)FGenerationInfo(0, 0);
 
@@ -4222,7 +4226,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						}
 						
 						// Update package FileSize value
-						InOuter->FileSize = PackageSize;
+						InOuter->SetFileSize(PackageSize);
 
 						// Warn about long package names, which may be bad for consoles with limited filename lengths.
 						if( bWarnOfLongFilename == true )

@@ -521,7 +521,7 @@ void FObjectTrace::OutputWorld(const UWorld* InWorld)
 
 	UE_TRACE_LOG(Object, World, ObjectChannel)
 		<< World.Id(GetObjectId(InWorld))
-		<< World.PIEInstanceId(InWorld->GetOutermost()->PIEInstanceID)
+		<< World.PIEInstanceId(InWorld->GetOutermost()->GetPIEInstanceID())
 		<< World.Type((uint8)InWorld->WorldType)
 		<< World.NetMode((uint8)InWorld->GetNetMode())
 		<< World.IsSimulating(bIsSimulating);

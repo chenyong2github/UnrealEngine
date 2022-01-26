@@ -12,9 +12,9 @@ FMovieSceneTimeController_Custom::FMovieSceneTimeController_Custom(const FSoftOb
 	UObject* PlaybackContext = WeakPlaybackContext.Get();
 
 	UPackage* Package = PlaybackContext ? PlaybackContext->GetOutermost() : nullptr;
-	if (Package && Package->PIEInstanceID != INDEX_NONE)
+	if (Package && Package->GetPIEInstanceID() != INDEX_NONE)
 	{
-		if (!ObjectPath.FixupForPIE(Package->PIEInstanceID))
+		if (!ObjectPath.FixupForPIE(Package->GetPIEInstanceID()))
 		{
 			// log error?
 		}

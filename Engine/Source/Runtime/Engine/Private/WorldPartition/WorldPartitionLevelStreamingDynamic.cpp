@@ -349,7 +349,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 
 		if (OuterWorld->IsPlayInEditor())
 		{
-			int32 PIEInstanceID = GetPackage()->PIEInstanceID;
+			int32 PIEInstanceID = GetPackage()->GetPIEInstanceID();
 			check(PIEInstanceID != INDEX_NONE);
 
 			RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)

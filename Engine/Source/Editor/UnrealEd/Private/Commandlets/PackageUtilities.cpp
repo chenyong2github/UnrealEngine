@@ -1629,7 +1629,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 				if (LoadedPackage)
 				{
 					check(LoadedPackage == Package);
-					Linker = Package->LinkerLoad;
+					Linker = Package->GetLinker();
 					check(Linker);
 				}
 				else
