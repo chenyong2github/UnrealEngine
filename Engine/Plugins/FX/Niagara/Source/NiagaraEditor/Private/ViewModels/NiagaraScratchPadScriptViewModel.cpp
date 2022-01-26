@@ -177,14 +177,10 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 		OriginalScript->GetClass());
 	bHasPendingChanges = false;
 
-	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodesToRefresh;
-	FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, FunctionCallNodesToRefresh);
-
-	for (UNiagaraNodeFunctionCall* FunctionCallNodeToRefresh : FunctionCallNodesToRefresh)
-	{
-		FunctionCallNodeToRefresh->RefreshFromExternalChanges();
-		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
-	}
+	FRefreshAllScriptsFromExternalChangesArgs Args;
+	Args.OriginatingScript = OriginalScript;
+	Args.OriginatingGraph = CastChecked<UNiagaraScriptSource>(OriginalScript->GetSource(EditScript.Version))->NodeGraph;
+	FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
 
 	OnHasUnappliedChangesChangedDelegate.Broadcast();
 	OnChangesAppliedDelegate.Broadcast();

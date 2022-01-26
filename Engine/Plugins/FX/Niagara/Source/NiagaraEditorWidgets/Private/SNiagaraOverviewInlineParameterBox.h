@@ -31,8 +31,6 @@ public:
 
 	virtual ~SNiagaraOverviewInlineParameterBox() override;
 
-	int32 GetNumChildWidgets();
-
 private:
 	/** Selects the module item in the stack and searches for the function input */
 	FReply NavigateToStack(TWeakObjectPtr<const UNiagaraStackFunctionInput> FunctionInput);
