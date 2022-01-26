@@ -196,15 +196,7 @@ namespace LevelInstanceMenuUtils
 		ALevelInstance* LevelInstanceEdit = nullptr;
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
-			if (ContextActor)
-			{
-				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
-			}
-
-			if (!LevelInstanceEdit)
-			{
-				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
-			}
+			LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
 
 			if (LevelInstanceEdit)
 			{
@@ -707,9 +699,9 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 				LevelInstanceMenuUtils::CreateCommitDiscardMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateBreakMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreatePackedBlueprintMenu(ToolMenu, ContextActor);
+				LevelInstanceMenuUtils::CreateSetCurrentMenu(ToolMenu, ContextActor);
 			}
 
-			LevelInstanceMenuUtils::CreateSetCurrentMenu(ToolMenu, ContextActor);
 			LevelInstanceMenuUtils::CreateMoveSelectionToMenu(ToolMenu);
 		}
 
