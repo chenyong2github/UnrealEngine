@@ -128,7 +128,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 - (BOOL)canBecomeMainWindow
 {
 	SCOPED_AUTORELEASE_POOL;
-	return bAcceptsInput && ![self ignoresMouseEvents];
+	return bAcceptsInput && ![self ignoresMouseEvents] && self.AllowMainWindow;
 }
 
 - (BOOL)canBecomeKeyWindow

@@ -85,6 +85,7 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 	MainThreadCall(^{
 		SCOPED_AUTORELEASE_POOL;
 		WindowHandle = [[FCocoaWindow alloc] initWithContentRect: ViewRect styleMask: WindowStyle backing: NSBackingStoreBuffered defer: NO];
+		WindowHandle.AllowMainWindow = ( Definition->Type != EWindowType::Menu);
 		
 		if( WindowHandle != nullptr )
 		{

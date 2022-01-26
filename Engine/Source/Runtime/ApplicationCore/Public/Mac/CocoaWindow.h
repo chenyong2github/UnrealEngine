@@ -26,6 +26,7 @@
 }
 
 @property (assign) EWindowMode::Type TargetWindowMode;
+@property (assign) BOOL AllowMainWindow;
 
 #if WITH_ACCESSIBILITY
 /** Adds the accessible element representing this window to the content view and exposes the window to accessibility interactions */

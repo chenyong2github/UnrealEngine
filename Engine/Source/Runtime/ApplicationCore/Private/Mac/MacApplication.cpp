@@ -1254,6 +1254,8 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 	FCocoaWindow* WindowHandle = DestroyedWindow->GetWindowHandle();
 	const bool bDestroyingMainWindow = DestroyedWindow == ActiveWindow;
 
+	const bool bAllowMainWindow = WindowHandle.AllowMainWindow;
+	
 	if (bDestroyingMainWindow)
 	{
 		OnWindowActivationChanged(DestroyedWindow, EWindowActivation::Deactivate);
@@ -1296,10 +1298,10 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		}
 	}
 
-	if (WindowToActivate.IsValid())
+	if (WindowToActivate.IsValid() && bAllowMainWindow)
 	{
 		WindowToActivate->SetWindowFocus();
-			}
+	}
 
 	MessageHandler->OnCursorSet();
 
