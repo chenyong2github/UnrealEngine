@@ -18,6 +18,7 @@
 			"PlatformDenyList": [
 				"LinuxArm64",
 				"Hololens",
+				"Stadia",
 				"TVOS"
 			]
 		}
