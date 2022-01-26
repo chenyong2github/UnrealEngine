@@ -869,3 +869,4 @@ public:
 private:
 	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, const FSavePackageArgs& SaveArgs);
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
