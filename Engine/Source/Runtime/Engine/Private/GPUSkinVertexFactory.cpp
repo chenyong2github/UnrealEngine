@@ -654,6 +654,12 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ReleaseDynamicRHI()
 {
 	Super::ReleaseDynamicRHI();
 	ClothShaderData.ReleaseClothSimulData();
+
+	// Release the RHIResource reference held in FGPUSkinAPEXClothDataType
+	if (ClothDataPtr)
+	{
+		ClothDataPtr->ClothBuffer.SafeRelease();
+	}
 }
 
 /*-----------------------------------------------------------------------------
