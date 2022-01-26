@@ -30,6 +30,7 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
             // Use the S3 storage backend so we can handle large blobs
             return new[]
             {
+                new KeyValuePair<string, string>("Horde_Storage:ContentIdStoreImplementation", HordeStorageSettings.ContentIdStoreImplementations.Scylla.ToString()),
                 new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
                 new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespace}")
             };
@@ -45,6 +46,32 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
             await Task.CompletedTask;
         }
     }
+
+    [TestClass]
+    public class MongoCompressedBlobTests : CompressedBlobTests
+    {
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            // Use the S3 storage backend so we can handle large blobs
+            return new[]
+            {
+                new KeyValuePair<string, string>("Horde_Storage:ContentIdStoreImplementation", HordeStorageSettings.ContentIdStoreImplementations.Mongo.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
+                new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespace}")
+            };
+        }
+
+        protected override async Task Seed(IServiceProvider provider)
+        {
+            await Task.CompletedTask;
+        }
+
+        protected override async Task Teardown()
+        {
+            await Task.CompletedTask;
+        }
+    }
+
 
 
     public abstract class CompressedBlobTests

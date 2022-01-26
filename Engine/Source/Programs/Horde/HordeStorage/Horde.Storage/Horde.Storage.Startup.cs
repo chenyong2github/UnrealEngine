@@ -287,6 +287,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<MemoryBlobIndex>(provider);
                 case HordeStorageSettings.BlobIndexImplementations.Scylla:
                     return ActivatorUtilities.CreateInstance<ScyllaBlobIndex>(provider);
+                case HordeStorageSettings.BlobIndexImplementations.Mongo:
+                    return ActivatorUtilities.CreateInstance<MongoBlobIndex>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -323,6 +325,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<MemoryContentIdStore>(provider);
                 case HordeStorageSettings.ContentIdStoreImplementations.Scylla:
                     return ActivatorUtilities.CreateInstance<ScyllaContentIdStore>(provider);
+                case HordeStorageSettings.ContentIdStoreImplementations.Mongo:
+                    return ActivatorUtilities.CreateInstance<MongoContentIdStore>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -388,6 +392,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<MemoryReferencesStore>(provider);
                 case HordeStorageSettings.ReferencesDbImplementations.Scylla:
                     return ActivatorUtilities.CreateInstance<ScyllaReferencesStore>(provider);
+                case HordeStorageSettings.ReferencesDbImplementations.Mongo:
+                    return ActivatorUtilities.CreateInstance<MongoReferencesStore>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }

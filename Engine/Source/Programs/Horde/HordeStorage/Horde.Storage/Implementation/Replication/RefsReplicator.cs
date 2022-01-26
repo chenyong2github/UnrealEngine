@@ -53,7 +53,7 @@ namespace Horde.Storage.Implementation
             _httpClient.BaseAddress = new Uri(replicatorSettings.ConnectionString);
 
             string stateFileName = $"{_name}.json";
-            DirectoryInfo stateRoot = new DirectoryInfo(replicationSettings.CurrentValue.StateRoot);
+            DirectoryInfo stateRoot = new DirectoryInfo(PathUtil.ResolvePath(replicationSettings.CurrentValue.StateRoot));
             _stateFile = new FileInfo(Path.Combine(stateRoot.FullName, stateFileName));
 
             if (_stateFile.Exists)

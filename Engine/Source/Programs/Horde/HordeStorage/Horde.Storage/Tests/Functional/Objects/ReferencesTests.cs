@@ -82,6 +82,42 @@ namespace Horde.Storage.FunctionalTests.References
         }
     }
 
+    [TestClass]
+    public class MongoReferencesTests : ReferencesTests
+    {
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new[]
+            {
+                new KeyValuePair<string, string>("Horde_Storage:ReferencesDbImplementation", HordeStorageSettings.ReferencesDbImplementations.Mongo.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:ContentIdStoreImplementation", HordeStorageSettings.ContentIdStoreImplementations.Mongo.ToString()),
+                // we do not have a mongo version of the replication log, as the mongo deployment is only intended for single servers
+                new KeyValuePair<string, string>("Horde_Storage:ReplicationLogWriterImplementation", HordeStorageSettings.ReplicationLogWriterImplementations.Memory.ToString()),
+            };
+        }
+
+        protected override async Task SeedDb(IServiceProvider provider)
+        {
+            IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            //verify we are using the expected store
+            Assert.IsTrue(referencesStore.GetType() == typeof(MongoReferencesStore));
+
+            IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
+            //verify we are using the expected store
+            Assert.IsTrue(contentIdStore.GetType() == typeof(MongoContentIdStore));
+
+            IReplicationLog replicationLog = provider.GetService<IReplicationLog>()!;
+            //verify we are using the replication log writer
+            Assert.IsTrue(replicationLog.GetType() == typeof(MemoryReplicationLog));
+
+            await SeedTestData(referencesStore);
+        }
+
+        protected override async Task TeardownDb(IServiceProvider provider)
+        {
+            await Task.CompletedTask;
+            }
+    }
 
     [TestClass]
     public class MemoryReferencesTests : ReferencesTests

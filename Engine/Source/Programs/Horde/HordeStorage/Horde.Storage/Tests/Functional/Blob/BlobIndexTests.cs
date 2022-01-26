@@ -191,4 +191,23 @@ namespace Horde.Storage.FunctionalTests.Storage
             await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index"));
         }
     }
+
+    [TestClass]
+    public class MongoBlobIndexTests : BlobIndexTests
+    {
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new[] { new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Mongo.ToString()) };
+        }
+
+        protected override Task Seed(IServiceProvider serverServices)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override async Task Teardown(IServiceProvider provider)
+        {
+            await Task.CompletedTask;
+        }
+    }
 }

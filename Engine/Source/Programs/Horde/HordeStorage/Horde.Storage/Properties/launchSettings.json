@@ -1,43 +1,11 @@
 {
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:57001",
-      "sslPort": 44351
-    }
-  },
-  "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "api/v1/c/ddc/test.ddc/default/foo.json",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "DD_TRACE_ENABLED": "false"
-      }
-    },
-    "Local Deployment": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "api/v1/c/ddc/ue4.ddc/terrain/foo.json",
-      "environmentVariables": {
-        "CORECLR_ENABLE_PROFILING": "0",
-        "Callisto__ConnectionString": "http://localhost:57002",
-        "Horde_Storage__StorageImplementation": "Memory",
-        "Horde_Storage__TransactionLogWriterImplementation": "Callisto",
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "Kestrel": {
+    "Project": {
       "commandName": "Project",
-      "launchUrl": "/",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "DD_TRACE_ENABLED": "false"
-      },
-      "applicationUrl": ""
+        "ASPNETCORE_PORTS": "\"\""
+      }
     }
   }
 }

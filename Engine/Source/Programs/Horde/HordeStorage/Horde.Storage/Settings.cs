@@ -29,7 +29,8 @@ namespace Horde.Storage
         public enum ReplicationLogWriterImplementations
         {
             Memory,
-            Scylla
+            Scylla,
+            Mongo
         }
 
         public enum TreeStoreImplementations
@@ -55,19 +56,22 @@ namespace Horde.Storage
         public enum ReferencesDbImplementations
         {
             Memory,
-            Scylla
+            Scylla,
+            Mongo
         }
 
         public enum ContentIdStoreImplementations
         {
             Memory,
-            Scylla
+            Scylla,
+            Mongo
         }
 
         public enum BlobIndexImplementations
         {
             Memory,
-            Scylla
+            Scylla,
+            Mongo
         }
 
         public enum LeaderElectionImplementations
@@ -137,6 +141,7 @@ namespace Horde.Storage
         [Required] public string ConnectionString { get; set; } = "";
 
         public bool RequireTls12 { get; set; } = true;
+        public bool CreateDatabaseIfMissing { get; set; } = true;
     }
 
 

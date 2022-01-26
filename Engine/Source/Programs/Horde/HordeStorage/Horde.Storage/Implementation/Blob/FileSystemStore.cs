@@ -16,13 +16,18 @@ namespace Horde.Storage.Implementation
     public class FileSystemStore : IBlobStore, IBlobCleanup 
     {
         private readonly ILogger _logger = Log.ForContext<FileSystemStore>();
-        private IOptionsMonitor<FilesystemSettings> _settings;
+        private readonly IOptionsMonitor<FilesystemSettings> _settings;
 
         internal const int DefaultBufferSize = 4096;
 
         public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
         {
             _settings = settings;
+        }
+
+        private string GetRootDir()
+        {
+            return PathUtil.ResolvePath(_settings.CurrentValue.RootDir);
         }
 
         public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)
@@ -38,12 +43,12 @@ namespace Horde.Storage.Implementation
 
         public FileInfo GetFilesystemPath(NamespaceId ns, BlobIdentifier objectName)
         {
-            return GetFilesystemPath(_settings.CurrentValue.RootDir, ns, objectName);
+            return GetFilesystemPath(GetRootDir(), ns, objectName);
         }
 
         public DirectoryInfo GetFilesystemPath(NamespaceId ns)
         {
-            return new DirectoryInfo(Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()));
+            return new DirectoryInfo(Path.Combine(GetRootDir(), ns.ToString()));
         }
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)
@@ -261,7 +266,7 @@ namespace Horde.Storage.Implementation
         /// <returns>Enumerable of least recently accessed objects as FileInfos</returns>
         public IEnumerable<FileInfo> GetLeastRecentlyAccessedObjects(NamespaceId? ns = null, int maxResults = 10000)
         {
-            string path = ns != null ? Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()!) : _settings.CurrentValue.RootDir;
+            string path = ns != null ? Path.Combine(GetRootDir(), ns.ToString()!) : GetRootDir();
             DirectoryInfo di = new DirectoryInfo(path);
             if (!di.Exists)
             {
@@ -278,7 +283,7 @@ namespace Horde.Storage.Implementation
         /// <returns>Total size of blobs in bytes</returns>
         public async Task<long> CalculateDiskSpaceUsed(NamespaceId? ns = null)
         {
-            string path = ns != null ? Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()!) : _settings.CurrentValue.RootDir;
+            string path = ns != null ? Path.Combine(GetRootDir(), ns.ToString()!) : GetRootDir();
             DirectoryInfo di = new DirectoryInfo(path);
             if (!di.Exists)
             {
@@ -301,7 +306,7 @@ namespace Horde.Storage.Implementation
         
         public  IAsyncEnumerable<NamespaceId> ListNamespaces()
         {
-            DirectoryInfo di = new DirectoryInfo(_settings.CurrentValue.RootDir);
+            DirectoryInfo di = new DirectoryInfo(GetRootDir());
             return di.GetDirectories().Select(x => new NamespaceId(x.Name)).ToAsyncEnumerable();
         }
     }
