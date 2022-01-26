@@ -16,6 +16,8 @@ class UNREALED_API UDataTableFactory : public UFactory
 
 	UPROPERTY(BlueprintReadWrite, Category = "Data Table Factory")
 	TObjectPtr<const class UScriptStruct> Struct;
+	UPROPERTY(BlueprintReadWrite, Category = "Data Table Factory")
+	TObjectPtr<const UClass> TableClass;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;
