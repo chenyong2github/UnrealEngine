@@ -2594,7 +2594,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 		}
 	}
 
-	IMeshBuilderModule::GetForPlatform(TargetPlatform).AppendToDDCKey(KeySuffix);
+	IMeshBuilderModule::GetForPlatform(TargetPlatform).AppendToDDCKey(KeySuffix, false);
 
 	if (TargetPlatform->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
 		&& CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0

@@ -27,7 +27,7 @@ public:
 		return GetForPlatform(TargetPlatform);
 	}
 
-	virtual void AppendToDDCKey(FString& DDCKey) { }
+	virtual void AppendToDDCKey(FString& DDCKey, bool bSkeletal) { }
 
 	virtual bool BuildMesh(class FStaticMeshRenderData& OutRenderData, class UObject* Mesh, const class FStaticMeshLODGroup& LODGroup, bool bGenerateCoarseMeshStreamingLODs) = 0;
 
