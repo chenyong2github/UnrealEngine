@@ -215,7 +215,7 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		FMassExecutionContext ExecContext;
 		FMassEntityQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite)
-			.ForEachEntityChunk(FArchetypeChunkCollection(FloatsArchetype, EntitiesToProcess, FArchetypeChunkCollection::NoDuplicates)
+			.ForEachEntityChunk(FMassArchetypeSubChunks(FloatsArchetype, EntitiesToProcess, FMassArchetypeSubChunks::NoDuplicates)
 								, *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();
@@ -254,7 +254,7 @@ struct FQueryTest_TagPresent : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		TArray<const UScriptStruct*> Fragments = {FTestFragment_Float::StaticStruct(), FTestFragment_Tag::StaticStruct()};
-		const FArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
+		const FMassArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
 
 		FMassEntityQuery Query;
 		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
@@ -277,7 +277,7 @@ struct FQueryTest_TagAbsent : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		TArray<const UScriptStruct*> Fragments = { FTestFragment_Float::StaticStruct(), FTestFragment_Tag::StaticStruct() };
-		const FArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
+		const FMassArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
 
 		FMassEntityQuery Query;
 		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
@@ -476,11 +476,11 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		// From FEntityTestBase:
-		// FArchetypeHandle FloatsArchetype;
-		// FArchetypeHandle IntsArchetype;
-		// FArchetypeHandle FloatsIntsArchetype;
-		const FArchetypeHandle BoolArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct() });
-		const FArchetypeHandle BoolFloatArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct(), FTestFragment_Float::StaticStruct() });
+		// FMassArchetypeHandle FloatsArchetype;
+		// FMassArchetypeHandle IntsArchetype;
+		// FMassArchetypeHandle FloatsIntsArchetype;
+		const FMassArchetypeHandle BoolArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct() });
+		const FMassArchetypeHandle BoolFloatArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct(), FTestFragment_Float::StaticStruct() });
 
 		FMassEntityQuery Query;
 		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Any);
@@ -518,11 +518,11 @@ struct FQueryTest_AnyTag : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		const FArchetypeHandle ABArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_B::StaticStruct() });
-		const FArchetypeHandle ACArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_C::StaticStruct() });
-		const FArchetypeHandle BCArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_B::StaticStruct(), FTestTag_C::StaticStruct() });
-		const FArchetypeHandle BDArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_B::StaticStruct(), FTestTag_D::StaticStruct() });
-		const FArchetypeHandle FloatACArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Float::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_C::StaticStruct() });
+		const FMassArchetypeHandle ABArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_B::StaticStruct() });
+		const FMassArchetypeHandle ACArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_C::StaticStruct() });
+		const FMassArchetypeHandle BCArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_B::StaticStruct(), FTestTag_C::StaticStruct() });
+		const FMassArchetypeHandle BDArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_B::StaticStruct(), FTestTag_D::StaticStruct() });
+		const FMassArchetypeHandle FloatACArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Float::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_C::StaticStruct() });
 
 		FMassEntityQuery Query;
 		// at least one fragment requirement needs to be present for the query to be valid

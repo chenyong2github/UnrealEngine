@@ -67,8 +67,8 @@ struct FChunkCollection_CreateBasic : FChunkCollectionTestBase
 		EntitiesSubSet.Add(Entities[11]);
 		EntitiesSubSet.Add(Entities[12]);
 
-		FArchetypeChunkCollection ChunkCollection(FloatsArchetype, EntitiesSubSet, FArchetypeChunkCollection::NoDuplicates);
-		TArrayView<const FArchetypeChunkCollection::FChunkInfo> Chunks = ChunkCollection.GetChunks();
+		FMassArchetypeSubChunks ChunkCollection(FloatsArchetype, EntitiesSubSet, FMassArchetypeSubChunks::NoDuplicates);
+		FMassArchetypeSubChunks::FConstSubChunkArrayView Chunks = ChunkCollection.GetChunks();
 		AITEST_EQUAL("The predicted sub-chunk count should match", Chunks.Num(), 4);
 		AITEST_EQUAL("The [10-13] chunk should be first and start at 10", Chunks[0].SubchunkStart, 10);
 		AITEST_EQUAL("The [10-13] chunk should be first and have a length of 4", Chunks[0].Length, 4);
@@ -91,17 +91,17 @@ struct FChunkCollection_CreateOrderInvariant : FChunkCollectionTestBase
 		TArray<FMassEntityHandle> EntitiesSubSet(&Entities[10], 30);
 		EntitiesSubSet.RemoveAt(10, 1, false);
 
-		FArchetypeChunkCollection CollectionFromOrdered(FloatsArchetype, EntitiesSubSet, FArchetypeChunkCollection::NoDuplicates);
+		FMassArchetypeSubChunks CollectionFromOrdered(FloatsArchetype, EntitiesSubSet, FMassArchetypeSubChunks::NoDuplicates);
 
 		FRandomStream Rand(0);
 		Shuffle(Rand, EntitiesSubSet);
 
-		FArchetypeChunkCollection CollectionFromRandom(FloatsArchetype, EntitiesSubSet, FArchetypeChunkCollection::NoDuplicates);
+		FMassArchetypeSubChunks CollectionFromRandom(FloatsArchetype, EntitiesSubSet, FMassArchetypeSubChunks::NoDuplicates);
 
 		AITEST_TRUE("The resulting chunk collection should be the same regardless of the order of input entities", CollectionFromOrdered.IsSame(CollectionFromRandom));
 		
 		// just to roughly make sure the result is what we expect
-		TArrayView<const FArchetypeChunkCollection::FChunkInfo> Chunks = CollectionFromOrdered.GetChunks();
+		FMassArchetypeSubChunks::FConstSubChunkArrayView Chunks = CollectionFromOrdered.GetChunks();
 		AITEST_EQUAL("The result should contain two chunks", Chunks.Num(), 2);
 
 		return true;
@@ -128,8 +128,8 @@ struct FChunkCollection_CreateCrossChunk : FEntityTestBase
 			EntitiesSubCollection.Add(Entities[EntitiesPerChunk - i]);
 		}
 		
-		FArchetypeChunkCollection ChunkCollection(FloatsArchetype, EntitiesSubCollection, FArchetypeChunkCollection::NoDuplicates);
-		TArrayView<const FArchetypeChunkCollection::FChunkInfo> Chunks = ChunkCollection.GetChunks();
+		FMassArchetypeSubChunks ChunkCollection(FloatsArchetype, EntitiesSubCollection, FMassArchetypeSubChunks::NoDuplicates);
+		FMassArchetypeSubChunks::FConstSubChunkArrayView Chunks = ChunkCollection.GetChunks();
 		AITEST_EQUAL("The given continuous range should get split in two", Chunks.Num(), 2);
 		AITEST_EQUAL("The part in first archetype\'s chunk should contain 9 elements", Chunks[0].Length, 9);
 		AITEST_EQUAL("The part in second archetype\'s chunk should contain 10 elements", Chunks[1].Length, 10);
@@ -151,8 +151,8 @@ struct FChunkCollection_CreateWithDuplicates : FChunkCollectionTestBase
 		EntitiesWithDuplicates.Add(Entities[2]);
 		EntitiesWithDuplicates.Add(Entities[2]);
 
-		FArchetypeChunkCollection ChunkCollection(FloatsArchetype, EntitiesWithDuplicates, FArchetypeChunkCollection::FoldDuplicates);
-		TArrayView<const FArchetypeChunkCollection::FChunkInfo> Chunks = ChunkCollection.GetChunks();
+		FMassArchetypeSubChunks ChunkCollection(FloatsArchetype, EntitiesWithDuplicates, FMassArchetypeSubChunks::FoldDuplicates);
+		FMassArchetypeSubChunks::FConstSubChunkArrayView Chunks = ChunkCollection.GetChunks();
 		AITEST_EQUAL("The result should have a single subchunk", Chunks.Num(), 1);
 		AITEST_EQUAL("The resulting subchunk should be of length 3", Chunks[0].Length, 3);
 

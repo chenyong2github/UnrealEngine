@@ -14,7 +14,7 @@ class UMassEntitySubsystem;
 struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
-struct FArchetypeHandle;
+struct FMassArchetypeHandle;
 
 enum class EMassFragmentAccess : uint8
 {
@@ -106,7 +106,7 @@ public:
 	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 	
 	/** Will first verify that the archetype given with Chunks matches the query's requirements, and if so will run the other, more generic ForEachEntityChunk implementation */
-	void ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
+	void ForEachEntityChunk(const FMassArchetypeSubChunks& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 
 	/**
 	 * Attempts to process every chunk of every affected archetype in parallel.
@@ -319,7 +319,7 @@ public:
 		ArchetypeDataVersion = 0;
 	}
 	
-	bool DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const;
+	bool DoesArchetypeMatchRequirements(const FMassArchetypeHandle& ArchetypeHandle) const;
 
 	/** The function validates requirements we make for queries. See the FMassEntityQuery struct description for details.
 	 *  Note that this function is non-trivial and end users are not expected to need to use it. 
@@ -327,7 +327,7 @@ public:
 	bool CheckValidity() const;
 
 	FString DebugGetDescription() const;
-	FString DebugGetArchetypeCompatibilityDescription(const FArchetypeHandle& ArchetypeHandle) const;
+	FString DebugGetArchetypeCompatibilityDescription(const FMassArchetypeHandle& ArchetypeHandle) const;
 
 	TConstArrayView<FMassFragmentRequirement> GetRequirements() const { return Requirements; }
 	const FMassFragmentBitSet& GetRequiredAllFragments() const { return RequiredAllFragments; }
@@ -344,7 +344,7 @@ public:
 	const FMassSharedFragmentBitSet& GetRequiredOptionalSharedFragments() const { return RequiredOptionalSharedFragments; }
 	const FMassSharedFragmentBitSet& GetRequiredNoneSharedFragments() const { return RequiredNoneSharedFragments; }
 
-	const TArray<FArchetypeHandle>& GetArchetypes() const
+	const TArray<FMassArchetypeHandle>& GetArchetypes() const
 	{ 
 		return ValidArchetypes; 
 	}
@@ -365,7 +365,7 @@ public:
 
 	/** 
 	 * Sets a chunk filter condition that will applied to each chunk of all valid archetypes. Note 
-	 * that this condition won't be applied when a specific collection of chunks is used (via FArchetypeChunkCollection)
+	 * that this condition won't be applied when a specific collection of chunks is used (via FMassArchetypeSubChunks )
 	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
 	 */
 	void SetChunkFilter(const FMassChunkConditionFunction& InFunction) { ChunkCondition = InFunction; }
@@ -425,7 +425,7 @@ private:
 	uint32 EntitySubsystemHash = 0;
 	uint32 ArchetypeDataVersion = 0;
 
-	TArray<FArchetypeHandle> ValidArchetypes;
+	TArray<FMassArchetypeHandle> ValidArchetypes;
 	TArray<FMassQueryRequirementIndicesMapping> ArchetypeFragmentMapping;
 
 	bool bAllowParallelExecution = false;

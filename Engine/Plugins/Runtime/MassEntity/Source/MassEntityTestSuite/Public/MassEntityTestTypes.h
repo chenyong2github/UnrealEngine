@@ -166,10 +166,10 @@ const int TestIntValue = 123456;
 
 struct FEntityTestBase : FExecutionTestBase
 {
-	FArchetypeHandle EmptyArchetype;
-	FArchetypeHandle FloatsArchetype;
-	FArchetypeHandle IntsArchetype;
-	FArchetypeHandle FloatsIntsArchetype;
+	FMassArchetypeHandle EmptyArchetype;
+	FMassArchetypeHandle FloatsArchetype;
+	FMassArchetypeHandle IntsArchetype;
+	FMassArchetypeHandle FloatsIntsArchetype;
 
 	FInstancedStruct InstanceInt;
 

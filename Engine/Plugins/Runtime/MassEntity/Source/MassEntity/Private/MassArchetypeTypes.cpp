@@ -7,21 +7,17 @@
 
 
 //////////////////////////////////////////////////////////////////////
-// FArchetypeHandle
-bool FArchetypeHandle::operator==(const FMassArchetypeData* Other) const
-{
-	return DataPtr.Get() == Other;
-}
+// FMassArchetypeHandle
 
-uint32 GetTypeHash(const FArchetypeHandle& Instance)
+uint32 GetTypeHash(const FMassArchetypeHandle& Instance)
 {
 	return GetTypeHash(Instance.DataPtr.Get());
 }
 
 //////////////////////////////////////////////////////////////////////
-// FArchetypeChunkCollection
+// FMassArchetypeSubChunks 
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling)
+FMassArchetypeSubChunks::FMassArchetypeSubChunks(const FMassArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling)
 	: Archetype(InArchetype)
 {
 	check(InArchetype.IsValid());
@@ -86,8 +82,8 @@ FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InA
 	// the following block of code is splitting up sorted AbsoluteIndices into 
 	// continuous chunks
 	int32 ChunkEnd = INDEX_NONE;
-	FChunkInfo DummyChunk;
-	FChunkInfo* SubChunkPtr = &DummyChunk;
+	FSubChunkInfo DummyChunk;
+	FSubChunkInfo* SubChunkPtr = &DummyChunk;
 	int32 SubchunkLen = 0;
 	int32 PrevAbsoluteIndex = INDEX_NONE;
 	for (const int32 Index : TrueIndices)
@@ -102,7 +98,7 @@ FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InA
 			SubchunkLen = 0;
 			// new subchunk
 			const int32 SubchunkStart = Index % NumEntitiesPerChunk;
-			SubChunkPtr = &Chunks.Add_GetRef(FChunkInfo(ChunkIndex, SubchunkStart));
+			SubChunkPtr = &SubChunks.Add_GetRef(FSubChunkInfo(ChunkIndex, SubchunkStart));
 		}
 		++SubchunkLen;
 		PrevAbsoluteIndex = Index;
@@ -111,40 +107,40 @@ FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InA
 	SubChunkPtr->Length = SubchunkLen;
 }
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(FArchetypeHandle& InArchetypeHandle)
+FMassArchetypeSubChunks::FMassArchetypeSubChunks(FMassArchetypeHandle& InArchetypeHandle)
 {
 	check(InArchetypeHandle.DataPtr.IsValid());
 	GatherChunksFromArchetype(InArchetypeHandle.DataPtr);
 }
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(TSharedPtr<FMassArchetypeData>& InArchetype)
+FMassArchetypeSubChunks::FMassArchetypeSubChunks(TSharedPtr<FMassArchetypeData>& InArchetype)
 {
 	GatherChunksFromArchetype(InArchetype);
 }
 
-void FArchetypeChunkCollection::GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype)
+void FMassArchetypeSubChunks::GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype)
 {
 	check(InArchetype.IsValid());
 	Archetype.DataPtr = InArchetype;
 
 	const int32 ChunkCount = InArchetype->GetChunkCount();
-	Chunks.Reset(ChunkCount);
+	SubChunks.Reset(ChunkCount);
 	for (int32 i = 0; i < ChunkCount; ++i)
 	{
-		Chunks.Add(FChunkInfo(i));
+		SubChunks.Add(FSubChunkInfo(i));
 	}
 }
 
-bool FArchetypeChunkCollection::IsSame(const FArchetypeChunkCollection& Other) const
+bool FMassArchetypeSubChunks::IsSame(const FMassArchetypeSubChunks& Other) const
 {
-	if (Archetype != Other.Archetype || Chunks.Num() != Other.Chunks.Num())
+	if (Archetype != Other.Archetype || SubChunks.Num() != Other.SubChunks.Num())
 	{
 		return false;
 	}
 
-	for (int i = 0; i < Chunks.Num(); ++i)
+	for (int i = 0; i < SubChunks.Num(); ++i)
 	{
-		if (Chunks[i] != Other.Chunks[i])
+		if (SubChunks[i] != Other.SubChunks[i])
 		{
 			return false;
 		}

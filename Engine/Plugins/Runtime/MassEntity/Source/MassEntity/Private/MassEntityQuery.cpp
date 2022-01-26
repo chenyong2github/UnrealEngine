@@ -104,7 +104,7 @@ bool FMassEntityQuery::CheckValidity() const
 	return RequiredAllFragments.IsEmpty() == false || RequiredAnyFragments.IsEmpty() == false || RequiredOptionalFragments.IsEmpty() == false;
 }
 
-bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const
+bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FMassArchetypeHandle& ArchetypeHandle) const
 {
 	check(ArchetypeHandle.IsValid());
 	const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
@@ -122,7 +122,7 @@ bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& Ar
 		&& ArchetypeComposition.ChunkFragments.HasNone(RequiredNoneChunkFragments);
 }
 
-void FMassEntityQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeSubChunks& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 	// mz@todo I don't like that we're copying data here.
 	ExecutionContext.SetChunkCollection(Chunks);
@@ -148,7 +148,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 			return;
 		}
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
-		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection());
+		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection().GetChunks());
 #if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
@@ -161,7 +161,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 
 		for (int i = 0; i < ValidArchetypes.Num(); ++i)
 		{
-			FArchetypeHandle& Archetype = ValidArchetypes[i];
+			FMassArchetypeHandle& Archetype = ValidArchetypes[i];
 			check(Archetype.IsValid());
 			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ArchetypeCondition, ChunkCondition);
 			ExecutionContext.ClearFragmentViews();
@@ -193,7 +193,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	{
 		FMassArchetypeData& Archetype;
 		const int32 ArchetypeIndex;
-		const FArchetypeChunkCollection::FChunkInfo ChunkInfo;
+		const FMassArchetypeSubChunks::FSubChunkInfo ChunkInfo;
 	};
 	TArray<FChunkJob> Jobs;
 
@@ -201,7 +201,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	if (ExecutionContext.GetChunkCollection().IsSet())
 	{
 		// verify the archetype matches requirements
-		FArchetypeHandle ArchetypeHandle = ExecutionContext.GetChunkCollection().GetArchetype();
+		FMassArchetypeHandle ArchetypeHandle = ExecutionContext.GetChunkCollection().GetArchetype();
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			// mz@todo add a unit test for this message
@@ -213,8 +213,8 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		check(ArchetypeHandle.IsValid());
 		FMassArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
-		const FArchetypeChunkCollection AsChunkCollection(ArchetypeHandle.DataPtr);
-		for (const FArchetypeChunkCollection::FChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
+		const FMassArchetypeSubChunks AsChunkCollection(ArchetypeHandle.DataPtr);
+		for (const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
 		{
 			Jobs.Add({ ArchetypeRef, INDEX_NONE, ChunkInfo });
 		}
@@ -225,11 +225,11 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		for (int ArchetypeIndex = 0; ArchetypeIndex < ValidArchetypes.Num(); ++ArchetypeIndex)
 		{
-			FArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
+			FMassArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
 			check(Archetype.IsValid());
 			FMassArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
-			const FArchetypeChunkCollection AsChunkCollection(Archetype.DataPtr);
-			for (const FArchetypeChunkCollection::FChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
+			const FMassArchetypeSubChunks AsChunkCollection(Archetype.DataPtr);
+			for (const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
 			{
 				Jobs.Add({ArchetypeRef, ArchetypeIndex, ChunkInfo});
 			}
@@ -252,7 +252,7 @@ int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySub
 {
 	CacheArchetypes(InEntitySubsystem);
 	int32 TotalEntities = 0;
-	for (FArchetypeHandle& ArchetypeHandle : ValidArchetypes)
+	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
 		if (const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get())
 		{
@@ -266,7 +266,7 @@ bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsyst
 {
 	CacheArchetypes(InEntitySubsystem);
 
-	for (FArchetypeHandle& ArchetypeHandle : ValidArchetypes)
+	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
 		const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
 		if (Archetype && Archetype->GetNumEntities() > 0)
@@ -301,7 +301,7 @@ FString FMassEntityQuery::DebugGetDescription() const
 #endif
 }
 
-FString FMassEntityQuery::DebugGetArchetypeCompatibilityDescription(const FArchetypeHandle& ArchetypeHandle) const
+FString FMassEntityQuery::DebugGetArchetypeCompatibilityDescription(const FMassArchetypeHandle& ArchetypeHandle) const
 {
 	if (ArchetypeHandle.IsValid() == false)
 	{

@@ -10,7 +10,7 @@
 struct FMassRuntimePipeline;
 struct FMassProcessingContext;
 struct FMassEntityHandle;
-struct FArchetypeChunkCollection;
+struct FMassArchetypeSubChunks;
 class UMassProcessor;
 
 
@@ -25,18 +25,18 @@ namespace UE::Mass::Executor
 	/** Similar to the Run function, but instead of using all the entities hosted by ProcessingContext.EntitySubsystem 
 	 *  it is processing only the entities given by EntityID via the Entities input parameter. 
 	 *  Note that all the entities need to be of Archetype archetype. 
-	 *  Under the hood the function converts Archetype-Entities pair to FArchetypeChunkCollection and calls the other flavor of RunSparse
+	 *  Under the hood the function converts Archetype-Entities pair to FMassArchetypeSubChunks and calls the other flavor of RunSparse
 	 */
-	MASSENTITY_API void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, FArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities);
+	MASSENTITY_API void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, FMassArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities);
 
 	/** Similar to the Run function, but instead of using all the entities hosted by ProcessingContext.EntitySubsystem 
 	 *  it is processing only the entities given by SparseEntities input parameter.
 	 *  @todo rename
 	 */
-	MASSENTITY_API void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection);
+	MASSENTITY_API void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
 
 	/** Executes given Processors array view. This function gets called under the hood by the rest of Run* functions */
-	MASSENTITY_API void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection* ChunkCollection = nullptr);
+	MASSENTITY_API void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks* ChunkCollection = nullptr);
 
 	/** 
 	 *  Triggers tasks executing Processor (and potentially it's children) and returns the task graph event representing 

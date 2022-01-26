@@ -16,7 +16,7 @@ FString FMassEntityTemplateID::ToString() const
 //----------------------------------------------------------------------//
 //  FMassEntityTemplate
 //----------------------------------------------------------------------//
-void FMassEntityTemplate::SetArchetype(const FArchetypeHandle& InArchetype)
+void FMassEntityTemplate::SetArchetype(const FMassArchetypeHandle& InArchetype)
 {
 	check(InArchetype.IsValid());
 	Archetype = InArchetype;

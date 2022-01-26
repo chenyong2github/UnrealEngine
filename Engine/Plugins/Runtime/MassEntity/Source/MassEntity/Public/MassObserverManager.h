@@ -7,7 +7,7 @@
 
 
 class UMassEntitySubsystem;
-struct FArchetypeChunkCollection;
+struct FMassArchetypeSubChunks;
 
 /** 
  * A type that encapsulates logic related to notifying interested parties of entity composition changes. Upon creation it
@@ -32,21 +32,21 @@ public:
 	bool HasOnAddedObserversForFragments(const FMassFragmentBitSet& InQueriedBitSet) const { return ObservedAddFragments.HasAny(InQueriedBitSet); }
 	bool HasOnRemovedObserversForFragments(const FMassFragmentBitSet& InQueriedBitSet) const { return ObservedRemoveFragments.HasAny(InQueriedBitSet); }
 
-	bool OnPostEntitiesCreated(const FArchetypeChunkCollection& ChunkCollection);
-	bool OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection);
+	bool OnPostEntitiesCreated(const FMassArchetypeSubChunks& ChunkCollection);
+	bool OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
 
-	bool OnPreEntitiesDestroyed(const FArchetypeChunkCollection& ChunkCollection);
-	bool OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection);
+	bool OnPreEntitiesDestroyed(const FMassArchetypeSubChunks& ChunkCollection);
+	bool OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
 
 	bool OnPostCompositionAdded(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& Composition);
 	bool OnPreCompositionRemoved(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& Composition);
 
-	void OnPostFragmentAdded(const UScriptStruct& FragmentType, const FArchetypeChunkCollection& ChunkCollection)
+	void OnPostFragmentAdded(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection)
 	{
 		HandleSingleFragmentImpl(FragmentType, ChunkCollection, ObservedAddFragments, OnFragmentAddedObservers);
 	}
 
-	void OnPreFragmentRemoved(const UScriptStruct& FragmentType, const FArchetypeChunkCollection& ChunkCollection)
+	void OnPreFragmentRemoved(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection)
 	{
 		HandleSingleFragmentImpl(FragmentType, ChunkCollection, ObservedRemoveFragments, OnFragmentRemovedObservers);
 	}
@@ -56,9 +56,9 @@ protected:
 	explicit FMassObserverManager(UMassEntitySubsystem& Owner);
 
 	void Initialize();
-	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection
+	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection
 		, const FMassFragmentBitSet& FragmentsBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer);
-	void HandleSingleFragmentImpl(const UScriptStruct& FragmentType, const FArchetypeChunkCollection& ChunkCollection
+	void HandleSingleFragmentImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection
 		, const FMassFragmentBitSet& FragmentFilterBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer);
 
 	FOnObservedFragmentTypesChanged OnObservedFragmentTypesChangedDelegate;

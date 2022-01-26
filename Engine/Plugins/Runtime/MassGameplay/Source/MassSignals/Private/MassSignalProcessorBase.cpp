@@ -51,7 +51,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 	if (EntityQuery.GetArchetypes().Num() > 0)
 	{
 		// EntitySet stores unique array of entities per specified archetype.
-		// FArchetypeChunkCollection expects an array of entities, a set is used to detect unique ones.
+		// FMassArchetypeSubChunks expects an array of entities, a set is used to detect unique ones.
 		struct FEntitySet
 		{
 			void Reset()
@@ -59,12 +59,12 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 				Entities.Reset();
 			}
 
-			FArchetypeHandle Archetype;
+			FMassArchetypeHandle Archetype;
 			TArray<FMassEntityHandle> Entities;
 		};
 		TArray<FEntitySet> EntitySets;
 
-		for (const FArchetypeHandle& Archetype : EntityQuery.GetArchetypes())
+		for (const FMassArchetypeHandle& Archetype : EntityQuery.GetArchetypes())
 		{
 			FEntitySet& Set = EntitySets.AddDefaulted_GetRef();
 			Set.Archetype = Archetype;
@@ -97,11 +97,11 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 				for (const FMassEntityHandle Entity : Entities)
 				{
 					// Add to set of supported archetypes. Dont process if we don't care about the type.
-					FArchetypeHandle Archetype = EntitySubsystem.GetArchetypeForEntity(Entity);
+					FMassArchetypeHandle Archetype = EntitySubsystem.GetArchetypeForEntity(Entity);
 					FEntitySet* Set = PrevSet->Archetype == Archetype ? PrevSet : EntitySets.FindByPredicate([&Archetype](const FEntitySet& Set) { return Archetype == Set.Archetype; });
 					if (Set != nullptr)
 					{
-						// We don't care about duplicates here, the FArchetypeChunkCollection creation below will handle it
+						// We don't care about duplicates here, the FMassArchetypeSubChunks creation below will handle it
 						Set->Entities.Add(Entity);
 						SignalNameLookup.AddSignalToEntity(Entity, SignalFlag);
 						PrevSet = Set;
@@ -117,7 +117,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 			{
 				if (Set.Entities.Num() > 0)
 				{
-					Context.SetChunkCollection(FArchetypeChunkCollection(Set.Archetype, Set.Entities, FArchetypeChunkCollection::FoldDuplicates));
+					Context.SetChunkCollection(FMassArchetypeSubChunks(Set.Archetype, Set.Entities, FMassArchetypeSubChunks::FoldDuplicates));
 					SignalEntities(EntitySubsystem, Context, SignalNameLookup);
 					Context.ClearChunkCollection();
 				}

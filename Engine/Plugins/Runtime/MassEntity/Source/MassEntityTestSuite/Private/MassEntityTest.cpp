@@ -51,8 +51,8 @@ struct FEntityTest_ArchetypeEquivalence : FEntityTestBase
 	{
 		TArray<const UScriptStruct*> FragmentsA = { FTestFragment_Float::StaticStruct(), FTestFragment_Int::StaticStruct() };
 		TArray<const UScriptStruct*> FragmentsB = { FTestFragment_Int::StaticStruct(), FTestFragment_Float::StaticStruct() };
-		const FArchetypeHandle ArchetypeA = EntitySubsystem->CreateArchetype(FragmentsA);
-		const FArchetypeHandle ArchetypeB = EntitySubsystem->CreateArchetype(FragmentsB);
+		const FMassArchetypeHandle ArchetypeA = EntitySubsystem->CreateArchetype(FragmentsA);
+		const FMassArchetypeHandle ArchetypeB = EntitySubsystem->CreateArchetype(FragmentsB);
 
 		AITEST_EQUAL("Archetype creation is expected to be independent of fragments ordering", ArchetypeA, ArchetypeB);
 
@@ -69,9 +69,9 @@ struct FEntityTest_MultipleEntitiesCreation : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 		int32 Counts[] = { 10, 100, 1000 };
 		int32 TotalCreatedCount = 0;
-		FArchetypeHandle Archetypes[] = { FloatsArchetype, IntsArchetype, FloatsIntsArchetype };
+		FMassArchetypeHandle Archetypes[] = { FloatsArchetype, IntsArchetype, FloatsIntsArchetype };
 
-		for (int ArchetypeIndex = 0; ArchetypeIndex < (sizeof(Archetypes) / sizeof(FArchetypeHandle)); ++ArchetypeIndex)
+		for (int ArchetypeIndex = 0; ArchetypeIndex < (sizeof(Archetypes) / sizeof(FMassArchetypeHandle)); ++ArchetypeIndex)
 		{
 			for (int i = 0; i < Counts[ArchetypeIndex]; ++i)
 			{
@@ -318,7 +318,7 @@ struct FEntityTest_ReleaseEntity : FEntityTestBase
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		AITEST_EQUAL("There should only be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
-		AITEST_EQUAL("The entity should not get associated to any archetype", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), FArchetypeHandle());
+		AITEST_EQUAL("The entity should not get associated to any archetype", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), FMassArchetypeHandle());
 		EntitySubsystem->ReleaseReservedEntity(ReservedEntity);
 		AITEST_EQUAL("There should not be any entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 0);
 		return true;
@@ -343,7 +343,7 @@ struct FEntityTest_ReserveAPreviouslyBuiltEntity : FEntityTestBase
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		AITEST_EQUAL("There should only be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
-		AITEST_EQUAL("The entity should not get associated to any archetype", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), FArchetypeHandle());
+		AITEST_EQUAL("The entity should not get associated to any archetype", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), FMassArchetypeHandle());
 		EntitySubsystem->BuildEntity(ReservedEntity, FloatsArchetype);
 		AITEST_TRUE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		AITEST_EQUAL("The entity should get associated to the right archetype", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), FloatsArchetype);

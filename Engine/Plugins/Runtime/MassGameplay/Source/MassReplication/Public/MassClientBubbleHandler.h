@@ -538,7 +538,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 
 		const FMassEntityTemplate* MassEntityTemplate = SpawnerSubsystem->GetMassEntityTemplate(TemplateID);
 		check(MassEntityTemplate);
-		const FArchetypeHandle& ArchetypeHandle = MassEntityTemplate->GetArchetype();
+		const FMassArchetypeHandle& ArchetypeHandle = MassEntityTemplate->GetArchetype();
 
 
 		FMassExecutionContext ExecContext;
@@ -550,7 +550,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 
 		int32 AgentsSpawnIdx = 0;
 
-		Query.ForEachEntityChunk(FArchetypeChunkCollection(ArchetypeHandle, Entities, FArchetypeChunkCollection::NoDuplicates)
+		Query.ForEachEntityChunk(FMassArchetypeSubChunks(ArchetypeHandle, Entities, FMassArchetypeSubChunks::NoDuplicates)
 								, *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
 			{
 				CacheFragmentViewsForSpawnQuery(ExecContext);

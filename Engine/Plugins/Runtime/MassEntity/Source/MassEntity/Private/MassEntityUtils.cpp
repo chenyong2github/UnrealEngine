@@ -35,15 +35,15 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 }
 
 void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
-	, const FArchetypeChunkCollection::EDuplicatesHandling DuplicatesHandling, TArray<FArchetypeChunkCollection>& OutChunkCollections)
+	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks >& OutChunkCollections)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass_CreateSparseChunks");
 
-	TMap<const FArchetypeHandle, TArray<FMassEntityHandle>> ArchetypeToEntities;
+	TMap<const FMassArchetypeHandle, TArray<FMassEntityHandle>> ArchetypeToEntities;
 
 	for (const FMassEntityHandle& Entity : Entities)
 	{
-		FArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
+		FMassArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
 		TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
 		PerArchetypeEntities.Add(Entity);
 	}
@@ -54,7 +54,7 @@ void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstAr
 		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
 		if (Pair.Key.IsValid())
 		{
-			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value, DuplicatesHandling));
+			OutChunkCollections.Add(FMassArchetypeSubChunks(Pair.Key, Pair.Value, DuplicatesHandling));
 		}
 	}
 }

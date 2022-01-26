@@ -16,10 +16,10 @@ namespace UE::Mass::Utils
 MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World);
 
 /** 
- * Fills OutChunkCollections with per-archetype FArchetypeChunkCollection instances. 
+ * Fills OutChunkCollections with per-archetype FMassArchetypeSubChunks instances. 
  * @param DuplicatesHandling used to inform the function whether to expect duplicates.
  */
 MASSENTITY_API extern void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
-	, const FArchetypeChunkCollection::EDuplicatesHandling DuplicatesHandling, TArray<FArchetypeChunkCollection>& OutChunkCollections);
+	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks >& OutChunkCollections);
 
 } // namespace UE::Mass::Utils

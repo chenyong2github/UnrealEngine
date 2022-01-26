@@ -337,7 +337,7 @@ private:
 	TArray<int32> FreeHarvestIconIndicies;
 
 private:
-	void AddItemToGrid(UMassEntitySubsystem* EntitySystem, uint16 X, uint16 Y, FArchetypeHandle Archetype, uint16 VisualIndex);
+	void AddItemToGrid(UMassEntitySubsystem* EntitySystem, uint16 X, uint16 Y, FMassArchetypeHandle Archetype, uint16 VisualIndex);
 
 public:
 	ALWFragmentTestFarmPlot();

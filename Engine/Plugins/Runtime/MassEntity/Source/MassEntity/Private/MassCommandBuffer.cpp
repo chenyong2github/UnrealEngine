@@ -102,9 +102,9 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 			check(It.Key);
 			if (ObservedRemoveFragments.Contains(*It.Key))
 			{
-				TArray<FArchetypeChunkCollection> ChunkCollections;
-				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FArchetypeChunkCollection::FoldDuplicates, ChunkCollections);
-				for (FArchetypeChunkCollection& Collection : ChunkCollections)
+				TArray<FMassArchetypeSubChunks > ChunkCollections;
+				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+				for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 				{
 					check(It.Key);
 					ObserverManager.OnPreFragmentRemoved(*It.Key, Collection);
@@ -112,11 +112,11 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 			}
 		}
 	
-		TArray<FArchetypeChunkCollection> EntityChunksToDestroy;
+		TArray<FMassArchetypeSubChunks > EntityChunksToDestroy;
 		if (EntitiesToDestroy.Num())
 		{
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FArchetypeChunkCollection::FoldDuplicates, EntityChunksToDestroy);
-			for (FArchetypeChunkCollection& Collection : EntityChunksToDestroy)
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
+			for (FMassArchetypeSubChunks& Collection : EntityChunksToDestroy)
 			{
 				EntitySystem->BatchDestroyEntityChunks(Collection);
 			}
@@ -160,9 +160,9 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		check(It.Key);
 		if (ObservedAddFragments.Contains(*It.Key))
 		{
-			TArray<FArchetypeChunkCollection> ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FArchetypeChunkCollection::FoldDuplicates, ChunkCollections);
-			for (FArchetypeChunkCollection& Collection : ChunkCollections)
+			TArray<FMassArchetypeSubChunks > ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
 				ObserverManager.OnPostFragmentAdded(*It.Key, Collection);

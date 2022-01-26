@@ -290,7 +290,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 				}
 				else
 				{
-					const FArchetypeHandle Archetype = EntitySystem->GetArchetypeForEntity(CachedEntity);
+					const FMassArchetypeHandle Archetype = EntitySystem->GetArchetypeForEntity(CachedEntity);
 					TArray<FName> ComponentNames;
 					TArray<FName> TagNames;
 					EntitySystem->DebugGetArchetypeStrings(Archetype, ComponentNames, TagNames);

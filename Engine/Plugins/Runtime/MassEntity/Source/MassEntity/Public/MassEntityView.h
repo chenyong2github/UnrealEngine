@@ -9,8 +9,7 @@
 
 class UMassEntitySubsystem;
 struct FMassArchetypeData;
-struct FArchetypeHandle;
-struct FMassArchetypeFragmentConfig;
+struct FMassArchetypeHandle;
 
 /** 
  * The type representing a single entity in a single archetype. It's of a very transient nature so we guarantee it's 
@@ -29,7 +28,7 @@ struct MASSENTITY_API FMassEntityView
 	 *  UMassEntitySubsystem-flavored constructor is recommended since it will first find the appropriate archetype for
 	 *  Entity. 
 	 */
-	FMassEntityView(const FArchetypeHandle& ArchetypeHandle, FMassEntityHandle Entity);
+	FMassEntityView(const FMassArchetypeHandle& ArchetypeHandle, FMassEntityHandle Entity);
 
 	/** 
 	 *  Finds the archetype Entity belongs to and then resolves against it. The caller is responsible for ensuring
@@ -136,6 +135,6 @@ protected:
 
 private:
 	FMassEntityHandle Entity;
-	FInternalEntityHandle EntityHandle;
+	FMassRawEntityInChunkData EntityHandle;
 	FMassArchetypeData* Archetype = nullptr;
 };

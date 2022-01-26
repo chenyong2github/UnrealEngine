@@ -7,7 +7,7 @@
 
 //////////////////////////////////////////////////////////////////////
 // FMassEntityView
-FMassEntityView::FMassEntityView(const FArchetypeHandle& ArchetypeHandle, FMassEntityHandle InEntity)
+FMassEntityView::FMassEntityView(const FMassArchetypeHandle& ArchetypeHandle, FMassEntityHandle InEntity)
 {
 	Entity = InEntity;
 	check(ArchetypeHandle.IsValid());
@@ -18,7 +18,7 @@ FMassEntityView::FMassEntityView(const FArchetypeHandle& ArchetypeHandle, FMassE
 FMassEntityView::FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FMassEntityHandle InEntity)
 {
 	Entity = InEntity;
-	const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
+	const FMassArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
 	check(ArchetypeHandle.IsValid());
 	Archetype = ArchetypeHandle.DataPtr.Get();
 	EntityHandle = Archetype->MakeEntityHandle(Entity);

@@ -66,7 +66,7 @@ void FMassObserverManager::Initialize()
 	}
 }
 
-bool FMassObserverManager::OnPostEntitiesCreated(const FArchetypeChunkCollection& ChunkCollection)
+bool FMassObserverManager::OnPostEntitiesCreated(const FMassArchetypeSubChunks& ChunkCollection)
 {
 	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 	// requesting not to flush commands since handling creation of new entities can result in multiple collections of
@@ -83,7 +83,7 @@ bool FMassObserverManager::OnPostEntitiesCreated(const FArchetypeChunkCollection
 	return false;
 }
 
-bool FMassObserverManager::OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection)
+bool FMassObserverManager::OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("OnPostEntitiesCreated")
 
@@ -100,7 +100,7 @@ bool FMassObserverManager::OnPostEntitiesCreated(FMassProcessingContext& Process
 	return false;
 }
 
-bool FMassObserverManager::OnPreEntitiesDestroyed(const FArchetypeChunkCollection& ChunkCollection)
+bool FMassObserverManager::OnPreEntitiesDestroyed(const FMassArchetypeSubChunks& ChunkCollection)
 {
 	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 	ProcessingContext.bFlushCommandBuffer = false;
@@ -114,7 +114,7 @@ bool FMassObserverManager::OnPreEntitiesDestroyed(const FArchetypeChunkCollectio
 	return false;
 }
 
-bool FMassObserverManager::OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection)
+bool FMassObserverManager::OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("OnPreEntitiesDestroyed")
 
@@ -137,9 +137,9 @@ bool FMassObserverManager::OnPostCompositionAdded(const FMassEntityHandle Entity
 	if (Overlap.IsEmpty() == false)
 	{
 		FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
-		const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
-		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)
-			, FArchetypeChunkCollection::NoDuplicates), Overlap, OnFragmentAddedObservers);
+		const FMassArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
+		HandleFragmentsImpl(ProcessingContext, FMassArchetypeSubChunks(ArchetypeHandle, MakeArrayView(&Entity, 1)
+			, FMassArchetypeSubChunks::NoDuplicates), Overlap, OnFragmentAddedObservers);
 		return true;
 	}
 
@@ -152,16 +152,16 @@ bool FMassObserverManager::OnPreCompositionRemoved(const FMassEntityHandle Entit
 	if (Overlap.IsEmpty() == false)
 	{
 		FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
-		const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
-		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)
-			, FArchetypeChunkCollection::NoDuplicates), Overlap, OnFragmentRemovedObservers);
+		const FMassArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
+		HandleFragmentsImpl(ProcessingContext, FMassArchetypeSubChunks(ArchetypeHandle, MakeArrayView(&Entity, 1)
+			, FMassArchetypeSubChunks::NoDuplicates), Overlap, OnFragmentRemovedObservers);
 		return true;
 	}
 
 	return false;
 }
 
-void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection, const FMassFragmentBitSet& FragmentsBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer)
+void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection, const FMassFragmentBitSet& FragmentsBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer)
 {
 	TArray<const UScriptStruct*> Fragments;
 	FragmentsBitSet.ExportTypes(Fragments);
@@ -175,7 +175,7 @@ void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& Processin
 	}
 }
 
-void FMassObserverManager::HandleSingleFragmentImpl(const UScriptStruct& FragmentType, const FArchetypeChunkCollection& ChunkCollection, const FMassFragmentBitSet& FragmentFilterBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer)
+void FMassObserverManager::HandleSingleFragmentImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, const FMassFragmentBitSet& FragmentFilterBitSet, TMap<const UScriptStruct*, FMassRuntimePipeline>& HandlersContainer)
 {
 	if (FragmentFilterBitSet.Contains(FragmentType))
 	{

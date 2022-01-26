@@ -137,7 +137,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 	}
 
 	const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
-	const FArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
+	const FMassArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
 	if (CurrentArchetypeHandle == EntityTemplate->GetArchetype())
 	{
 		UE_VLOG(this, LogMassActor, Log, TEXT("%s called for %s but no archetype changes have been found")
@@ -359,7 +359,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 			
 			if (EntityTemplate->GetObjectFragmentInitializers().Num())
 			{
-				const FArchetypeHandle ArchetypeHandle = EntitySystem->GetArchetypeForEntity(PuppetEntity);
+				const FMassArchetypeHandle ArchetypeHandle = EntitySystem->GetArchetypeForEntity(PuppetEntity);
 				FMassEntityView EntityView(ArchetypeHandle, PuppetEntity);
 				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComp, EntityView, EMassTranslationDirection::MassToActor, EntityTemplate->GetObjectFragmentInitializers());
 			}

@@ -73,8 +73,8 @@ struct MASSSPAWNER_API FMassEntityTemplate
 
 	FMassEntityTemplate() = default;
 	/** InArchetype is expected to be valid. The function will crash-check it. */
-	void SetArchetype(const FArchetypeHandle& InArchetype);
-	const FArchetypeHandle& GetArchetype() const { return Archetype; }
+	void SetArchetype(const FMassArchetypeHandle& InArchetype);
+	const FMassArchetypeHandle& GetArchetype() const { return Archetype; }
 
 	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
@@ -235,7 +235,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	}
 
 private:
-	FArchetypeHandle Archetype;
+	FMassArchetypeHandle Archetype;
 
 	FMassArchetypeCompositionDescriptor Composition;
 	FMassArchetypeSharedFragmentValues SharedFragmentValues;
