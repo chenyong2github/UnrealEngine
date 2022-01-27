@@ -249,7 +249,13 @@ void UPCGBlueprintSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
 
 void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InElement)
 {
-	OnSettingsChangedDelegate.Broadcast(this);
+	if (InElement == BlueprintElementInstance)
+	{
+		OnSettingsChangedDelegate.Broadcast(this);
+
+		// Since we don't know what property has changed in the element, we need to rebuild our list of dependencies
+		DataDependencies = PCGBlueprintHelper::GetDataDependencies(BlueprintElementInstance);
+	}
 }
 #endif
 
