@@ -59,6 +59,9 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	Properties->WatchProperty(Properties->bSelectEdges, [this](bool bSelectVertices) { 
 		UpdateMarqueeEnabled(); 
 	});
+	Properties->WatchProperty(Properties->bSelectFaces, [this](bool bSelectFaces) {
+		UpdateMarqueeEnabled();
+	});
 	Properties->WatchProperty(Properties->bEnableMarquee, [this](bool bEnableMarquee) { 
 		UpdateMarqueeEnabled(); 
 	});
@@ -473,30 +476,26 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		{
 			TopoSelector->ExpandSelectionByEdgeLoops(Selection);
 		}
+	}
 
-		if (ShouldAddToSelectionFunc())
+	if (ShouldAddToSelectionFunc())
+	{
+		if (ShouldRemoveFromSelectionFunc())
 		{
-			if (ShouldRemoveFromSelectionFunc())
-			{
-				PersistentSelection.Toggle(Selection);
-			}
-			else
-			{
-				PersistentSelection.Append(Selection);
-			}
-		}
-		else if (ShouldRemoveFromSelectionFunc())
-		{
-			PersistentSelection.Remove(Selection);
+			PersistentSelection.Toggle(Selection);
 		}
 		else
 		{
-			PersistentSelection = Selection;
+			PersistentSelection.Append(Selection);
 		}
+	}
+	else if (ShouldRemoveFromSelectionFunc())
+	{
+		PersistentSelection.Remove(Selection);
 	}
 	else
 	{
-		PersistentSelection.Clear();
+		PersistentSelection = Selection;
 	}
 
 	if (PersistentSelection != PreviousSelection)
@@ -605,6 +604,7 @@ void UPolygonSelectionMechanic::OnDragRectangleStarted()
 	BeginChange();
 
 	PreDragPersistentSelection = PersistentSelection;
+	LastUpdateRectangleSelection = PersistentSelection;
 	PreDragTopoSelectorSettings = GetTopoSelectorSettings(false);
 	PreDragTopoSelectorSettings.bIgnoreOcclusion = Properties->bMarqueeIgnoreOcclusion; // uses a separate setting for marquee
 }
@@ -614,7 +614,7 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 	FGroupTopologySelection RectangleSelection;
 
 	TopoSelector->FindSelectedElement(PreDragTopoSelectorSettings, CurrentRectangle, TargetTransform,
-		RectangleSelection);
+		RectangleSelection, &TriIsOccludedCache);
 
 	if (ShouldAddToSelectionFunc())
 	{
@@ -638,10 +638,23 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 		// Neither key pressed.
 		PersistentSelection = RectangleSelection;
 	}
+
+	// If we modified the currently selected edges/vertices, they will be properly displayed in our
+	// Render() call. However, the mechanic is not responsible for face highlighting, so if we modified
+	// that, we need to notify the user so that they can update the highlighting (since OnSelectionChanged
+	// only gets broadcast at rectangle end).
+	if ((!PersistentSelection.SelectedGroupIDs.IsEmpty() || !LastUpdateRectangleSelection.SelectedGroupIDs.IsEmpty()) // if groups are involved
+		&& PersistentSelection != LastUpdateRectangleSelection)
+	{
+		LastUpdateRectangleSelection = PersistentSelection;
+		OnFaceSelectionPreviewChanged.Broadcast();
+	}
 }
 
 void UPolygonSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
+	TriIsOccludedCache.Reset();
+
 	if (PersistentSelection != PreDragPersistentSelection)
 	{
 		SelectionTimestamp++;
@@ -656,8 +669,8 @@ void UPolygonSelectionMechanic::UpdateMarqueeEnabled()
 {
 	MarqueeMechanic->SetIsEnabled(
 		bIsEnabled 
-		&& Properties->bEnableMarquee 
-		&& (Properties->bSelectVertices || Properties->bSelectEdges));
+		&& Properties->bEnableMarquee
+		&& (Properties->bSelectVertices || Properties->bSelectEdges || Properties->bSelectFaces));
 }
 
 

@@ -325,6 +325,13 @@ public:
 	 */
 	FSimpleMulticastDelegate OnSelectionChanged;
 
+	/**
+	 * This is broadcast during marquee rectangle dragging if selected faces change, to allow user to
+	 * dynamically update face highlighting if desired (needed because OnSelectionChanged is only 
+	 * fired once the rectangle is completed, not while it is being updated).
+	 */
+	FSimpleMulticastDelegate OnFaceSelectionPreviewChanged;
+
 	// TODO: Is it worth issuing separate callbacks in normal selection changes and in FChange ones, to
 	// allow the user to bundle in some FChanges into the normal callback?
 
@@ -381,7 +388,9 @@ protected:
 
 	// Used for box selection
 	FGroupTopologySelection PreDragPersistentSelection;
+	FGroupTopologySelection LastUpdateRectangleSelection;
 	FGroupTopologySelector::FSelectionSettings PreDragTopoSelectorSettings;
+	TMap<int32, bool> TriIsOccludedCache;
 
 	FVector3d LastClickedHitPosition;
 	FVector3d LastClickedHitNormal;

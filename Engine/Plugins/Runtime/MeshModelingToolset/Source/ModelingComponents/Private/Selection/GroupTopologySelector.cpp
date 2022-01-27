@@ -2,7 +2,9 @@
 
 
 #include "Selection/GroupTopologySelector.h"
-#include "Mechanics/RectangleMarqueeMechanic.h"
+
+#include "Engine/Polys.h"
+#include "Mechanics/RectangleMarqueeMechanic.h" // FCameraRectangle
 #include "MeshQueries.h"
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
@@ -605,7 +607,8 @@ bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin,
 }
 
 bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Settings, 
-	const FCameraRectangle& CameraRectangle, FTransform3d TargetTransform, FGroupTopologySelection& ResultOut)
+	const FCameraRectangle& CameraRectangle, FTransform3d TargetTransform, FGroupTopologySelection& ResultOut,
+	TMap<int32, bool>* TriIsOccludedCache)
 {
 	// One minor easy thing we can do to speed up the below is to detect cases where transform does not have a non-uniform
 	// scale, and in those cases we transform the rectangle once rather than transforming all the query points/curves. 
@@ -666,6 +669,125 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 			ResultOut.SelectedEdgeIDs);
 	}
 	
+	if (Settings.bEnableFaceHits && ResultOut.IsEmpty())
+	{
+		// Get a frustum volume in local space, then use it to figure out if it contains or intersects
+		// the aabb tree boxes in the traversal. 
+		// TODO: Frustum transformation is done the same way in FractureEditorMode.cpp- should this be placed
+		// somewhere common? Not sure where to put it though.
+		FConvexVolume WorldSpaceFrustum = CameraRectangle.FrustumAsConvexVolume();
+		FMatrix InverseTargetTransform(FTransform(TargetTransform).ToInverseMatrixWithScale());
+
+		FConvexVolume LocalFrustum;
+		LocalFrustum.Planes.Empty(6);
+		for (const FPlane& Plane : WorldSpaceFrustum.Planes)
+		{
+			LocalFrustum.Planes.Add(Plane.TransformBy(InverseTargetTransform));
+		}
+		LocalFrustum.Init();
+
+		FDynamicMeshAABBTree3::FTreeTraversal Traversal;
+		// Used as additional state for the traversal, relying on the fact that our traversal is depth-first
+		// and serial. When we descend to a box that is fully contained, we use CurrentSelectAllDepth to mark
+		// all deeper boxes as contained, and reset it once we return back out of that subtree (done similarly
+		// in UVEditorMeshSelectionMechanic).
+		int CurrentDepth = -1;
+		int CurrentSelectAllDepth = TNumericLimits<int>::Max();
+
+		Traversal.NextBoxF = [&LocalFrustum, &CurrentDepth, &CurrentSelectAllDepth](const FAxisAlignedBox3d& Box, int Depth)
+		{
+			CurrentDepth = Depth;
+			if (Depth > CurrentSelectAllDepth)
+			{
+				// We're currently inside a fully-selected box
+				return true;
+			}
+			// Reset CurrentSelectAllDepth because we must have left the cotained subtree (if it was set to begin with)
+			CurrentSelectAllDepth = TNumericLimits<int>::Max();
+
+			bool bFullyContained = false;
+			bool bIntersects = LocalFrustum.IntersectBox(Box.Center(), Box.Extents(), bFullyContained);
+			
+			if (bFullyContained)
+			{
+				CurrentSelectAllDepth = Depth;
+			}
+			return bIntersects;
+		};
+
+		Traversal.NextTriangleF = 
+			[this, &ResultOut, &CurrentDepth, &CurrentSelectAllDepth, &LocalFrustum, 
+			&LocalCameraOrigin, &Spatial, &Settings, TriIsOccludedCache](int Tid)
+		{
+			// If this group already got selected, no need to do anything else. Helps avoid some occlusion tests.
+			if (ResultOut.SelectedGroupIDs.Contains(Mesh->GetTriangleGroup(Tid)))
+			{
+				return;
+			}
+
+			// Apply frustum check. Skip if box was fully in frustum
+			if (!(CurrentDepth >= CurrentSelectAllDepth))
+			{
+				// TODO: This isn't an ideal way to check whether the triangle is inside the frustum because FPoly is
+				// an old class that we probably want to avoid using. It's fine enough here, but it should be replaced.
+				// Related note: It may be tempting to just check for containment of the centroid, but we probably don't
+				// want to do that because it makes selection behavior dependent on the tesselation of the underlying
+				// group. I.e. a remeshed cube face ends up being much more reliable to select than one made of two triangles 
+				// where a marquee select of even the group center could fail if it's between the tri centroids.
+				FIndex3i TriVids = Mesh->GetTriangle(Tid);
+				FPoly TrianglePolygon;
+				TrianglePolygon.Init();
+				for (int i = 0; i < 3; ++i)
+				{
+					TrianglePolygon.Vertices.Add(Mesh->GetVertex(TriVids[i]));
+				}
+
+				if (!LocalFrustum.ClipPolygon(TrianglePolygon))
+				{
+					// Triangle was fully outside the frustum
+					return;
+				}
+			}
+
+			// Apply occlusion filter. Note that the back face filter is applied via TriangleFilterF in the traversal.
+			if (!Settings.bIgnoreOcclusion)
+			{
+				bool bTriangleIsOccluded = false;
+
+				// See if we've already calculated occlusion for this tri.
+				bool* CachedOcclusion = TriIsOccludedCache->Find(Tid);
+				if (CachedOcclusion)
+				{
+					bTriangleIsOccluded = *CachedOcclusion;
+				}
+				else
+				{
+					bTriangleIsOccluded = IsOccluded(Mesh->GetTriCentroid(Tid), LocalCameraOrigin, Spatial, Settings.bHitBackFaces);
+					TriIsOccludedCache->Add(Tid, bTriangleIsOccluded);
+				}
+
+				if (bTriangleIsOccluded)
+				{
+					return;
+				}
+			}
+
+			ResultOut.SelectedGroupIDs.Add(Mesh->GetTriangleGroup(Tid));
+		};
+
+		// Add the back face filter, if applicable
+		IMeshSpatial::FQueryOptions Options;
+		if (!Settings.bHitBackFaces)
+		{
+			Options.TriangleFilterF = [this, &LocalCameraOrigin](int32 Tid)
+			{
+				return Mesh->GetTriNormal(Tid).Dot(Mesh->GetVertex(Mesh->GetTriangle(Tid)[0]) - LocalCameraOrigin) < 0;
+			};
+		}
+		
+		Spatial->DoTraversal(Traversal, Options);
+	}
+
 	return ResultOut.IsEmpty();
 }
 

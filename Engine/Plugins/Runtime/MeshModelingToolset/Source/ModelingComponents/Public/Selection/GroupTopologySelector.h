@@ -123,21 +123,26 @@ public:
 		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut = nullptr);
 
 	/**
-	 * Given a camera rectangle (from a marquee selection) gives the group corners or edges that are contained in
-	 * the rectangle. Currently does not select faces.
+	 * Given a camera rectangle (from a marquee selection) gives the corners/edges/groups that are contained in
+	 * the rectangle. Only selects one of the types, and prefers corners to edges to groups.
 	 * 
-	 * Uses the bEnableEdgeHits, bEnableCornerHits, and bIgnoreOcclusion members of the FSelectionSettings argument.
 	 * For group edges, occlusion is checked at endpoints, and if either is occluded, the edge is considered occluded.
+	 * For faces, occlusion is checked at triangle centroids.
 	 *
 	 * @param Settings Settings that determine what is selected and whether occlusion is tested.
 	 * @param CameraRectangle The camera rectangle.
 	 * @param TargetTransform Transform from points to world space, since the rectangle is in world space.
 	 * @param ResultOut Output selection (cleared before use).
+	 * @param TriIsOccludedCache Cached values of whether a given Tid has an occluded centroid, since occlusion 
+	 *  values will stay the same if the rectangle is resized as long as the camera is not moved. This should
+	 *  be used when doing occlusion-based marquee face selection on meshes with many triangles, because the 
+	 *  occlusion checks are expensive.
 	 *
 	 * @return true if something was selected.
 	 */
 	bool FindSelectedElement(const FSelectionSettings& Settings, const FCameraRectangle& CameraRectangle, 
-		FTransform3d TargetTransform, FGroupTopologySelection& ResultOut);
+		FTransform3d TargetTransform, FGroupTopologySelection& ResultOut, 
+		TMap<int32, bool>* TriIsOccludedCache = nullptr);
 
 	/**
 	 * Using the edges in the given selection as starting points, add any "edge loops" containing the edges. An 

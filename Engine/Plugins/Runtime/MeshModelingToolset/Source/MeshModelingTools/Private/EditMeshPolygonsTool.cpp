@@ -300,6 +300,9 @@ void UEditMeshPolygonsTool::Setup()
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->Properties->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
+	SelectionMechanic->OnFaceSelectionPreviewChanged.AddWeakLambda(this, [this]() {
+		Preview->PreviewMesh->FastNotifySecondaryTrianglesChanged();
+	});
 	if (bTriangleMode)
 	{
 		SelectionMechanic->PolyEdgesRenderer.LineThickness = 1.0;
