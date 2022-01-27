@@ -207,8 +207,8 @@ void MainCS(
 				NeighborPixelVelocity0 = WaveBroadcast(BroadcastSettings[0], PixelVelocityNeighborhood[FetchIndex[0]]);
 				NeighborPixelVelocity1 = WaveBroadcast(BroadcastSettings[1], PixelVelocityNeighborhood[FetchIndex[1]]);
 			
-				NeighborPixelVelocityLength0 = WaveBroadcast(BroadcastSettings[0], PixelVelocityLengthNeighborhood[FetchIndex[0]]);
-				NeighborPixelVelocityLength1 = WaveBroadcast(BroadcastSettings[1], PixelVelocityLengthNeighborhood[FetchIndex[1]]);
+				NeighborPixelVelocityLength0 = taa_half(WaveBroadcast(BroadcastSettings[0], PixelVelocityLengthNeighborhood[FetchIndex[0]]));
+				NeighborPixelVelocityLength1 = taa_half(WaveBroadcast(BroadcastSettings[1], PixelVelocityLengthNeighborhood[FetchIndex[1]]));
 				
 				bNeighborIsParallaxRejected0 = WaveBroadcast(BroadcastSettings[0], ParallaxRejectionMaskNeighborhood[FetchIndex[0]]) < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
 				bNeighborIsParallaxRejected1 = WaveBroadcast(BroadcastSettings[1], ParallaxRejectionMaskNeighborhood[FetchIndex[1]]) < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
