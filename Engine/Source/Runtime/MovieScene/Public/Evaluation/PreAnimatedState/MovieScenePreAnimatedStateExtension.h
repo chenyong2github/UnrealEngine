@@ -41,49 +41,6 @@ struct IPreAnimatedStateGroupManager
 	virtual void OnGroupDestroyed(FPreAnimatedStorageGroupHandle Group) = 0;
 };
 
-template<typename KeyType>
-struct TPreAnimatedStateGroupManager : IPreAnimatedStateGroupManager, TSharedFromThis<TPreAnimatedStateGroupManager<KeyType>>
-{
-	void InitializeGroupManager(FPreAnimatedStateExtension* InExtension) override
-	{
-		Extension = InExtension;
-	}
-
-	void OnGroupDestroyed(FPreAnimatedStorageGroupHandle Group) override
-	{
-		KeyType Temp = StorageGroupsToKey.FindChecked(Group);
-
-		StorageGroupsByKey.Remove(Temp);
-		StorageGroupsToKey.Remove(Group);
-	}
-
-	FPreAnimatedStorageGroupHandle FindGroupForKey(const KeyType& InKey) const
-	{
-		return StorageGroupsByKey.FindRef(InKey);
-	}
-
-	FPreAnimatedStorageGroupHandle MakeGroupForKey(const KeyType& InKey)
-	{
-		FPreAnimatedStorageGroupHandle GroupHandle = StorageGroupsByKey.FindRef(InKey);
-		if (GroupHandle)
-		{
-			return GroupHandle;
-		}
-
-		GroupHandle = Extension->AllocateGroup(this->AsShared());
-		StorageGroupsByKey.Add(InKey, GroupHandle);
-		StorageGroupsToKey.Add(GroupHandle, InKey);
-		return GroupHandle;
-	}
-
-protected:
-
-	TMap<KeyType, FPreAnimatedStorageGroupHandle> StorageGroupsByKey;
-	TMap<FPreAnimatedStorageGroupHandle, KeyType> StorageGroupsToKey;
-
-	FPreAnimatedStateExtension* Extension;
-};
-
 
 /**
  * Pre-animated state extension that houses all cached values for objects animated by a specific UMovieSceneEntitySystemLinker
@@ -401,6 +358,49 @@ private:
 	static FPreAnimatedStorageID RegisterStorageInternal();
 };
 
+
+template<typename KeyType>
+struct TPreAnimatedStateGroupManager : IPreAnimatedStateGroupManager, TSharedFromThis<TPreAnimatedStateGroupManager<KeyType>>
+{
+	void InitializeGroupManager(FPreAnimatedStateExtension* InExtension) override
+	{
+		Extension = InExtension;
+	}
+
+	void OnGroupDestroyed(FPreAnimatedStorageGroupHandle Group) override
+	{
+		KeyType Temp = StorageGroupsToKey.FindChecked(Group);
+
+		StorageGroupsByKey.Remove(Temp);
+		StorageGroupsToKey.Remove(Group);
+	}
+
+	FPreAnimatedStorageGroupHandle FindGroupForKey(const KeyType& InKey) const
+	{
+		return StorageGroupsByKey.FindRef(InKey);
+	}
+
+	FPreAnimatedStorageGroupHandle MakeGroupForKey(const KeyType& InKey)
+	{
+		FPreAnimatedStorageGroupHandle GroupHandle = StorageGroupsByKey.FindRef(InKey);
+		if (GroupHandle)
+		{
+			return GroupHandle;
+		}
+
+		GroupHandle = Extension->AllocateGroup(this->AsShared());
+		StorageGroupsByKey.Add(InKey, GroupHandle);
+		StorageGroupsToKey.Add(GroupHandle, InKey);
+		return GroupHandle;
+	}
+
+protected:
+
+	TMap<KeyType, FPreAnimatedStorageGroupHandle> StorageGroupsByKey;
+	TMap<FPreAnimatedStorageGroupHandle, KeyType> StorageGroupsToKey;
+
+	FPreAnimatedStateExtension* Extension;
+};
 
 } // namespace MovieScene
 } // namespace UE
