@@ -27,7 +27,7 @@ class FLumenMeshCards
 public:
 	void Initialize(
 		const FMatrix& InLocalToWorld, 
-		const FBox& InBounds,
+		const FBox& InLocalBounds,
 		int32 InPrimitiveGroupIndex,
 		uint32 InFirstCardIndex,
 		uint32 InNumCards,
@@ -37,7 +37,7 @@ public:
 	{
 		PrimitiveGroupIndex = InPrimitiveGroupIndex;
 
-		Bounds = InBounds;
+		LocalBounds = InLocalBounds;
 		SetTransform(InLocalToWorld);
 		FirstCardIndex = InFirstCardIndex;
 		NumCards = InNumCards;
@@ -54,7 +54,7 @@ public:
 	}
 
 	FMatrix LocalToWorld;
-	FBox Bounds;
+	FBox LocalBounds;
 
 	int32 PrimitiveGroupIndex = -1;
 	bool bFarField = false;

@@ -812,7 +812,8 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 
 			const int32 MeshCardsIndex = MeshCards.AddSpan(1);
 			PrimitiveGroup.MeshCardsIndex = MeshCardsIndex;
-			MeshCards[MeshCardsIndex].Initialize(
+			FLumenMeshCards& MeshCardsInstance = MeshCards[MeshCardsIndex];
+			MeshCardsInstance.Initialize(
 				LocalToWorld,
 				MeshCardsBuildData.Bounds,
 				PrimitiveGroupIndex,
@@ -831,6 +832,10 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				HeightfieldMeshCardsIndices[IndexInHeighfieldMeshCardsIndices] = MeshCardsIndex;
 
 				bHeightfieldMeshCardsIndicesBufferDirty = true;
+
+				// Invalidate bounds for voxel lighting
+				const FBox WorldSpaceBounds = MeshCardsInstance.LocalBounds.TransformBy(MeshCardsInstance.LocalToWorld);
+				PrimitiveModifiedBounds.Add(WorldSpaceBounds);
 			}
 
 			// Add cards
@@ -850,7 +855,7 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				}
 			}
 
-			MeshCards[MeshCardsIndex].UpdateLookup(Cards);
+			MeshCardsInstance.UpdateLookup(Cards);
 		}
 	}
 }
@@ -866,14 +871,18 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 			RemoveCardFromAtlas(CardIndex);
 		}
 
-		Cards.RemoveSpan(MeshCardsInstance.FirstCardIndex, MeshCardsInstance.NumCards);
-		MeshCards.RemoveSpan(PrimitiveGroup.MeshCardsIndex, 1);
-
 		if (PrimitiveGroup.IndexInHeighfieldMeshCardsIndices >= 0)
 		{
+			// Invalidate bounds for voxel lighting
+			const FBox WorldSpaceBounds = MeshCardsInstance.LocalBounds.TransformBy(MeshCardsInstance.LocalToWorld);
+			PrimitiveModifiedBounds.Add(WorldSpaceBounds);
+
 			HeightfieldMeshCardsIndices.RemoveSpan(PrimitiveGroup.IndexInHeighfieldMeshCardsIndices, 1);
 			bHeightfieldMeshCardsIndicesBufferDirty = true;
 		}
+
+		Cards.RemoveSpan(MeshCardsInstance.FirstCardIndex, MeshCardsInstance.NumCards);
+		MeshCards.RemoveSpan(PrimitiveGroup.MeshCardsIndex, 1);
 
 		MeshCardsIndicesToUpdateInBuffer.Add(PrimitiveGroup.MeshCardsIndex);
 
