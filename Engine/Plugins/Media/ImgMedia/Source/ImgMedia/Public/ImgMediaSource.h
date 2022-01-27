@@ -35,6 +35,10 @@ struct IMGMEDIA_API FImgMediaSourceImportInfo
 	/** True if we are overriding destination path and not using the default. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
 	bool bIsDestinationPathOverriden = false;
+
+	/** True if the imported imagess are to be used. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
+	bool bIsUsable = false;
 };
 
 /**

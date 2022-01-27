@@ -83,7 +83,27 @@ private:
 	void SetIsDestinationPathOverriden(bool bInIsOverriden);
 
 	/**
-	 *Called when DestinationPath changes.
+	 * Query if we should use the imported images.
+	 */
+	bool IsUsableProperty();
+
+	/**
+	 * Set if we should use the imported images.
+	 */
+	void SetIsUsableProperty(bool bInIsUsable);
+
+	/**
+	 * Generic query function for boolean properties.
+	 */
+	bool GetGenericBoolProperty(const TSharedPtr<IPropertyHandle>& InProperty);
+
+	/**
+	 * Generic setter for boolean properties.
+	 */
+	void SetGenericBoolProperty(const TSharedPtr<IPropertyHandle>& InProperty, bool bInIsTrue);
+
+	/**
+	 * Called when DestinationPath changes.
 	 */
 	void OnDestinationPathChanged(const FString& Directory);
 
@@ -127,6 +147,8 @@ private:
 	TSharedPtr<IPropertyHandle> DestinationPathPropertyHandle;
 	/** Stores the property that says if the destination path is overriden. */
 	TSharedPtr<IPropertyHandle> IsDestinationPathOverridenPropertyHandle;
+	/** Stores the property that says if the imported files are usable. */
+	TSharedPtr<IPropertyHandle> IsUsablePropertyHandle;
 
 	/** Tile width for each image in pixels. */
 	int32 TileWidth = 0;

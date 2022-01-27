@@ -77,10 +77,18 @@ void FImgMediaSourceCustomizationImportInfo::CustomizeHeader(TSharedRef<IPropert
 
 	// Get destination path property.
 	IsDestinationPathOverridenPropertyHandle = PropertyHandle->GetChildHandle("bIsDestinationPathOverriden");
+	// Get the usable property.
+	IsUsablePropertyHandle = PropertyHandle->GetChildHandle("bIsUsable");
 }
 
 void FImgMediaSourceCustomizationImportInfo::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	// Add IsUsable button.
+	if (IsUsablePropertyHandle.IsValid())
+	{
+		StructBuilder.AddProperty(IsUsablePropertyHandle.ToSharedRef());
+	}
+
 	// Add destination path.
 	// Get the destination path if we are overriding.
 	FString DestinationPath;
@@ -198,38 +206,58 @@ void FImgMediaSourceCustomizationImportInfo::SetDestinationPath(const FString& I
 
 bool FImgMediaSourceCustomizationImportInfo::IsDestinationPathOverriden()
 {
-	bool bIsDestinationPathOverriden = false;
-	if (IsDestinationPathOverridenPropertyHandle.IsValid())
-	{
-		if (IsDestinationPathOverridenPropertyHandle->GetValue(bIsDestinationPathOverriden) != FPropertyAccess::Success)
-		{
-			UE_LOG(LogImgMediaEditor, Error, TEXT("Could not get value for %s"),
-				*IsDestinationPathOverridenPropertyHandle->GetPropertyDisplayName().ToString());
-		}
-	}
-	else
-	{
-		UE_LOG(LogImgMediaEditor, Error, TEXT("Could not get property for %s"),
-			*IsDestinationPathOverridenPropertyHandle->GetPropertyDisplayName().ToString());
-	}
-
-	return bIsDestinationPathOverriden;
+	return GetGenericBoolProperty(IsDestinationPathOverridenPropertyHandle);
 }
 
 void FImgMediaSourceCustomizationImportInfo::SetIsDestinationPathOverriden(bool bInIsOverriden)
 {
-	if (IsDestinationPathOverridenPropertyHandle.IsValid())
+	SetGenericBoolProperty(IsDestinationPathOverridenPropertyHandle, bInIsOverriden);
+}
+
+bool FImgMediaSourceCustomizationImportInfo::IsUsableProperty()
+{
+	return GetGenericBoolProperty(IsUsablePropertyHandle);
+}
+
+void FImgMediaSourceCustomizationImportInfo::SetIsUsableProperty(bool bInIsUsable)
+{
+	SetGenericBoolProperty(IsUsablePropertyHandle, bInIsUsable);
+}
+
+bool FImgMediaSourceCustomizationImportInfo::GetGenericBoolProperty(const TSharedPtr<IPropertyHandle>& InProperty)
+{
+	bool bIsTrue = false;
+	if (InProperty.IsValid())
 	{
-		if (IsDestinationPathOverridenPropertyHandle->SetValue(bInIsOverriden) != FPropertyAccess::Success)
+		if (InProperty->GetValue(bIsTrue) != FPropertyAccess::Success)
 		{
-			UE_LOG(LogImgMediaEditor, Error, TEXT("Could not set value for %s"),
-				*IsDestinationPathOverridenPropertyHandle->GetPropertyDisplayName().ToString());
+			UE_LOG(LogImgMediaEditor, Error, TEXT("Could not get value for %s"),
+				*InProperty->GetPropertyDisplayName().ToString());
 		}
 	}
 	else
 	{
 		UE_LOG(LogImgMediaEditor, Error, TEXT("Could not get property for %s"),
-			*IsDestinationPathOverridenPropertyHandle->GetPropertyDisplayName().ToString());
+			*InProperty->GetPropertyDisplayName().ToString());
+	}
+
+	return bIsTrue;
+}
+
+void FImgMediaSourceCustomizationImportInfo::SetGenericBoolProperty(const TSharedPtr<IPropertyHandle>& InProperty, bool bInIsTrue)
+{
+	if (InProperty.IsValid())
+	{
+		if (InProperty->SetValue(bInIsTrue) != FPropertyAccess::Success)
+		{
+			UE_LOG(LogImgMediaEditor, Error, TEXT("Could not set value for %s"),
+				*InProperty->GetPropertyDisplayName().ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogImgMediaEditor, Error, TEXT("Could not get property for %s"),
+			*InProperty->GetPropertyDisplayName().ToString());
 	}
 }
 
@@ -242,7 +270,14 @@ void FImgMediaSourceCustomizationImportInfo::OnDestinationPathChanged(const FStr
 	// as we would just lose any default path that has been set.
 	if ((bIsPathOverriden) || (IsDestinationPathOverriden()))
 	{
-		SetDestinationPath(Directory);
+		// Did the path change?
+		FString CurrentDestinationNormalized = GetDestinationPath() / TEXT("");
+		FString DirectoryNormalized = Directory / TEXT("");
+		if (FPaths::IsSamePath(CurrentDestinationNormalized, DirectoryNormalized) == false)
+		{
+			SetDestinationPath(Directory);
+			SetIsUsableProperty(false);
+		}
 	}
 
 	SetIsDestinationPathOverriden(bIsPathOverriden);
@@ -262,6 +297,9 @@ FReply FImgMediaSourceCustomizationImportInfo::OnImportClicked()
 		DestinationPath = FPaths::Combine(SequencePath, TEXT("Imported"));
 		SetDestinationPath(DestinationPath);
 	}
+
+	// Mark that we can use this now.
+	SetIsUsableProperty(true);
 
 	// Create notification.
 	FNotificationInfo Info(FText::GetEmpty());
