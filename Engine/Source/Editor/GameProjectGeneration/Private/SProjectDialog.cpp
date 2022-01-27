@@ -299,7 +299,7 @@ private:
 		{
 			return ItemPtr->Thumbnail.Get();
 		}
-		return FEditorStyle::GetBrush("UnrealCircle.Thin");
+		return FEditorStyle::GetBrush("UnrealDefaultThumbnail");
 	}
 	
 };

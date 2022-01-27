@@ -183,12 +183,12 @@ public:
 						[
 							SNew(SBorder)
 							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.ThumbnailAreaBackground"))
-							.HAlign(ProjectItem->ProjectThumbnail ? HAlign_Center : HAlign_Fill)
-							.VAlign(ProjectItem->ProjectThumbnail ? VAlign_Center : VAlign_Fill)
-							.Padding(ProjectItem->ProjectThumbnail ? FMargin(0) : FMargin(12.0f) )
+							.HAlign(HAlign_Fill)
+							.VAlign(VAlign_Fill)
+							.Padding(FMargin(0))
 							[
 								SNew(SImage)
-								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("UnrealCircle.Thin"))
+								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("UnrealDefaultThumbnail"))
 								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
 							]
 						]
