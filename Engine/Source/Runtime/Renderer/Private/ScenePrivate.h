@@ -692,13 +692,11 @@ struct FHLODSceneNodeVisibilityState
 struct FShaderDrawDebugStateData
 {
 	TRefCountPtr<FRDGPooledBuffer> Buffer;
-	TRefCountPtr<FRDGPooledBuffer> IndirectBuffer;
 	bool bIsLocked = false;
 
 	void Release()
 	{
 		Buffer = nullptr;
-		IndirectBuffer = nullptr;
 		bIsLocked = false;
 	}
 };

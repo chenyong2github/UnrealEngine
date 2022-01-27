@@ -14,9 +14,8 @@ struct FShaderDrawDebugData
 	FIntPoint CursorPosition = FIntPoint(-1,-1);
 	FVector ShaderDrawTranslatedWorldOffset;
 	FRDGBufferRef Buffer = nullptr;
-	FRDGBufferRef IndirectBuffer = nullptr;
 	bool IsEnabled() const { return MaxElementCount > 0; }
-	bool IsValid() const { return Buffer != nullptr && IndirectBuffer != nullptr; }
+	bool IsValid() const { return Buffer != nullptr; }
 };
 
 namespace ShaderDrawDebug 
@@ -53,7 +52,6 @@ namespace ShaderDrawDebug
 		SHADER_PARAMETER(int32, ShaderDrawMaxElementCount)
 		SHADER_PARAMETER(FVector3f, ShaderDrawTranslatedWorldOffset)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutShaderDrawPrimitive)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutputShaderDrawIndirect)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Call this to fill the FShaderDrawParameters

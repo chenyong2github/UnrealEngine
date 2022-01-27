@@ -71,16 +71,6 @@ namespace ShaderDrawDebug
 		return IsEnabled() && IsSupported(View.GetShaderPlatform());
 	}
 
-	// Note: Unaligned structures used for structured buffers is an unsupported and/or sparsely
-	//         supported feature in VK (VK_EXT_scalar_block_layout) and Metal. Consequently, we
-	//         do manual packing in order to accommodate.
-	struct FPackedShaderDrawElement
-	{
-		// This is not packed as fp16 to be able to debug large scale data while preserving accuracy at short range.
-		float Pos0_ColorX[4];		// float3 pos0 + packed color0
-		float Pos1_ColorY[4];		// float3 pos1 + packed color1
-	};
-
 	//////////////////////////////////////////////////////////////////////////
 
 	class FShaderDrawDebugClearCS : public FGlobalShader
@@ -89,8 +79,7 @@ namespace ShaderDrawDebug
 		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugClearCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, ElementBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, IndirectBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, RWElementBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -107,6 +96,33 @@ namespace ShaderDrawDebug
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugClearCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugClearCS", SF_Compute);
+	
+	//////////////////////////////////////////////////////////////////////////
+
+	class FShaderDrawDebugCopyCS : public FGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FShaderDrawDebugCopyCS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugCopyCS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ElementBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, RWIndirectArgs)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsSupported(Parameters.Platform);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
+			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_COPY_CS"), 1);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugCopyCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugCopyCS", SF_Compute);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -177,15 +193,52 @@ namespace ShaderDrawDebug
 	END_SHADER_PARAMETER_STRUCT()
 
 	//////////////////////////////////////////////////////////////////////////
+		
+	static void AddShaderDrawDebugClearPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef& DataBuffer)
+	{
+		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
+		Parameters->RWElementBuffer = GraphBuilder.CreateUAV(DataBuffer);
+
+		TShaderMapRef<FShaderDrawDebugClearCS> ComputeShader(View.ShaderMap);
+		ClearUnusedGraphResources(ComputeShader, Parameters);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("ShaderDebug::Clear"),
+			Parameters,
+			ERDGPassFlags::Compute,
+		[Parameters, ComputeShader](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1, 1, 1));
+		});
+	}
+
+	static void AddShaderDrawDebugCopyPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef& DataBuffer, FRDGBufferRef& IndirectBuffer)
+	{
+		FShaderDrawDebugCopyCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugCopyCS::FParameters>();
+		Parameters->ElementBuffer = GraphBuilder.CreateSRV(DataBuffer);
+		Parameters->RWIndirectArgs = GraphBuilder.CreateUAV(IndirectBuffer, PF_R32_UINT);
+
+		TShaderMapRef<FShaderDrawDebugCopyCS> ComputeShader(View.ShaderMap);
+		ClearUnusedGraphResources(ComputeShader, Parameters);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("ShaderDebug::CopyArgs"),
+			Parameters,
+			ERDGPassFlags::Compute,
+		[Parameters, ComputeShader](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1, 1, 1));
+		});
+	}
 
 	static void InternalDrawView(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FRDGBufferRef DataBuffer,
-		FRDGBufferRef IndirectBuffer,
 		FRDGTextureRef OutputTexture,
 		FRDGTextureRef DepthTexture)
 	{
+		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer"), ERDGBufferFlags::None);
+		AddShaderDrawDebugCopyPass(GraphBuilder, View, DataBuffer, IndirectBuffer);
+
 		TShaderMapRef<FShaderDrawDebugVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FShaderDrawDebugPS> PixelShader(View.ShaderMap);
 
@@ -235,33 +288,13 @@ namespace ShaderDrawDebug
 			});
 	}
 
-	static void AddShaderDrawDebugClearPass(FRDGBuilder& GraphBuilder, FViewInfo& View, FRDGBufferRef& DataBuffer, FRDGBufferRef& IndirectBuffer)
-	{
-		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
-		Parameters->ElementBuffer	= GraphBuilder.CreateUAV(DataBuffer);
-		Parameters->IndirectBuffer	= GraphBuilder.CreateUAV(IndirectBuffer);
-
-		TShaderMapRef<FShaderDrawDebugClearCS> ComputeShader(View.ShaderMap);
-
-		// Note: we do not call ClearUnusedGraphResources here as we want to for the allocation of DataBuffer
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ShaderDebug::Clear"),
-			Parameters,
-			ERDGPassFlags::Compute,
-			[Parameters, ComputeShader](FRHICommandList& RHICmdList)
-		{
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
-		});
-	}
-
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
 		View.ShaderDrawData = FShaderDrawDebugData();
 		if (!IsEnabled(View))
 		{
 			// Default resources
-			View.ShaderDrawData.Buffer			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), 1), TEXT("ShaderDraw.DataBuffer(Dummy)"), ERDGBufferFlags::None);
-			View.ShaderDrawData.IndirectBuffer	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer(Dummy)"), ERDGBufferFlags::None);
+			View.ShaderDrawData.Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, 8), TEXT("ShaderDraw.DataBuffer(Dummy)"), ERDGBufferFlags::None);
 			return;
 		}
 
@@ -274,26 +307,22 @@ namespace ShaderDrawDebug
 		const bool bLockBufferThisFrame = IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked;
 		ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
 
-		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), View.ShaderDrawData.MaxElementCount), TEXT("ShaderDraw.DataBuffer"), Flags);
-		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer"), Flags);
-		AddShaderDrawDebugClearPass(GraphBuilder, View, DataBuffer, IndirectBuffer);
+		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, 8*View.ShaderDrawData.MaxElementCount), TEXT("ShaderDraw.DataBuffer"), Flags);
+		AddShaderDrawDebugClearPass(GraphBuilder, View, DataBuffer);
 
 		View.ShaderDrawData.Buffer = DataBuffer;
-		View.ShaderDrawData.IndirectBuffer = IndirectBuffer;
 		View.ShaderDrawData.CursorPosition = View.CursorPos;
 		View.ShaderDrawData.ShaderDrawTranslatedWorldOffset = View.ViewMatrices.GetPreViewTranslation();
 
 		if (IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
 			ViewState->ShaderDrawDebugStateData.Buffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.Buffer);
-			ViewState->ShaderDrawDebugStateData.IndirectBuffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderDrawData.IndirectBuffer);
 			ViewState->ShaderDrawDebugStateData.bIsLocked = true;
 		}
 
 		if (!IsShaderDrawLocked() && ViewState && ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
 			ViewState->ShaderDrawDebugStateData.Buffer = nullptr;
-			ViewState->ShaderDrawDebugStateData.IndirectBuffer = nullptr;
 			ViewState->ShaderDrawDebugStateData.bIsLocked = false;
 		}
 
@@ -314,15 +343,13 @@ namespace ShaderDrawDebug
 
 		{
 			FRDGBufferRef DataBuffer = View.ShaderDrawData.Buffer;
-			FRDGBufferRef IndirectBuffer = View.ShaderDrawData.IndirectBuffer;
-			InternalDrawView(GraphBuilder, View, DataBuffer, IndirectBuffer, OutputTexture, DepthTexture);
+			InternalDrawView(GraphBuilder, View, DataBuffer, OutputTexture, DepthTexture);
 		}
 
 		if (View.ViewState && View.ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
 			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderDrawDebugStateData.Buffer);
-			FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderDrawDebugStateData.IndirectBuffer);
-			InternalDrawView(GraphBuilder, View, DataBuffer, IndirectBuffer, OutputTexture, DepthTexture);
+			InternalDrawView(GraphBuilder, View, DataBuffer, OutputTexture, DepthTexture);
 		}
 	}
 
@@ -346,7 +373,6 @@ namespace ShaderDrawDebug
 		OutParameters.ShaderDrawMaxElementCount			= Data.MaxElementCount;
 		OutParameters.ShaderDrawTranslatedWorldOffset	= Data.ShaderDrawTranslatedWorldOffset;
 		OutParameters.OutShaderDrawPrimitive			= GraphBuilder.CreateUAV(Data.Buffer);
-		OutParameters.OutputShaderDrawIndirect			= GraphBuilder.CreateUAV(Data.IndirectBuffer);
 	}
 
 	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
