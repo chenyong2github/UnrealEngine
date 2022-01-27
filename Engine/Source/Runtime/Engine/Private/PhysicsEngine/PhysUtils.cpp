@@ -84,7 +84,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	// BACK
 	if (node.iBack != INDEX_NONE) // If there is a child, recurse into it.
 	{
-		planes.Add(node.Plane);
+		planes.Add(FPlane(node.Plane));
 		if (!ModelToHullsWorker(outGeom, inModel, node.iBack, node.ChildOutside(0, bOutside), planes))
 		{
 			return false;
@@ -93,7 +93,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	}
 	else if (!node.ChildOutside(0, bOutside)) // If its a leaf, and solid (inside)
 	{
-		planes.Add(node.Plane);
+		planes.Add(FPlane(node.Plane));
 		if (!AddConvexPrim(outGeom, planes, inModel))
 		{
 			return false;
@@ -104,7 +104,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	// FRONT
 	if (node.iFront != INDEX_NONE)
 	{
-		planes.Add(node.Plane.Flip());
+		planes.Add(FPlane(node.Plane.Flip()));
 		if (!ModelToHullsWorker(outGeom, inModel, node.iFront, node.ChildOutside(1, bOutside), planes))
 		{
 			return false;
@@ -113,7 +113,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	}
 	else if (!node.ChildOutside(1, bOutside))
 	{
-		planes.Add(node.Plane.Flip());
+		planes.Add(FPlane(node.Plane.Flip()));
 		if (!AddConvexPrim(outGeom, planes, inModel))
 		{
 			return false;

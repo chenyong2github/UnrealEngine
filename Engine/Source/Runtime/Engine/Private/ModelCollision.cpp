@@ -30,7 +30,7 @@ void UModel::GetSurfacePlanes(
 
 		for (int32 SurfaceIndex = 0; SurfaceIndex < Surfs.Num(); SurfaceIndex++)
 		{
-			OutPlanes.Add(Surfs[SurfaceIndex].Plane.TransformByUsingAdjointT(FMatrix44f(Matrix), float(DetM), FMatrix44f(MatrixTA)));	// LWC_TODO: Precision loss
+			OutPlanes.Add(FPlane(Surfs[SurfaceIndex].Plane).TransformByUsingAdjointT(Matrix, DetM, MatrixTA));
 		}
 	}
 }
