@@ -1220,6 +1220,10 @@ float CalculateVoxelTraceStartDistance(float MinTraceDistance, float MaxTraceDis
 #define SCENE_TRACE_CARDS 1
 #define SCENE_TRACE_VOXELS 1
 
+#ifndef SCENE_TRACE_HEIGHTFIELDS
+#define SCENE_TRACE_HEIGHTFIELDS 0
+#endif // SCENE_TRACE_HEIGHTFIELDS
+
 void ConeTraceLumenSceneCards(
 	FConeTraceInput TraceInput,
 	inout FConeTraceResult OutResult)
@@ -1234,15 +1238,28 @@ void ConeTraceLumenSceneCards(
 		CardTraceInput.MaxTraceDistance = TraceInput.VoxelTraceStartDistance;
 
 		ConeTraceMeshSDFsAndInterpolateFromCards(CardTraceInput, OutResult);
-		#if SCENE_TRACE_HEIGHTFIELDS
-			FConeTraceResult HeightfieldResult = OutResult;
-			ConeTraceHeightfield(CardTraceInput, HeightfieldResult);
-			if (HeightfieldResult.OpaqueHitDistance < OutResult.OpaqueHitDistance)
-			{
-				OutResult = HeightfieldResult;
-			}
-			OutResult.NumSteps += HeightfieldResult.NumSteps;
-		#endif
+	}
+#endif
+}
+
+void ConeTraceLumenSceneHeightfields(
+	FConeTraceInput TraceInput,
+	inout FConeTraceResult OutResult)
+{
+#if SCENE_TRACE_HEIGHTFIELDS
+	if (TraceInput.VoxelTraceStartDistance > TraceInput.MinTraceDistance)
+	{
+		FConeTraceInput CardTraceInput = TraceInput;
+		CardTraceInput.MaxTraceDistance = TraceInput.VoxelTraceStartDistance;
+
+		FConeTraceResult HeightfieldResult = OutResult;
+		ConeTraceHeightfield(CardTraceInput, HeightfieldResult);
+
+		if (HeightfieldResult.OpaqueHitDistance < OutResult.OpaqueHitDistance)
+		{
+			OutResult = HeightfieldResult;
+		}
+		OutResult.NumSteps += HeightfieldResult.NumSteps;
 	}
 #endif
 }
@@ -1274,6 +1291,7 @@ void ConeTraceLumenScene(
 	inout FConeTraceResult OutResult)
 {
 	ConeTraceLumenSceneCards(TraceInput, OutResult);
+	ConeTraceLumenSceneHeightfields(TraceInput, OutResult);
 	ConeTraceLumenSceneVoxels(TraceInput, OutResult);
 }
 

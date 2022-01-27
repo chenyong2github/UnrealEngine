@@ -61,7 +61,8 @@ class FLumenCardTraceProbeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ProbeAtlasSampleMaskOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<LumenProbeHierarchy::FProbeTracingPermutationDim>;
+	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
+	using FPermutationDomain = TShaderPermutationDomain<LumenProbeHierarchy::FProbeTracingPermutationDim, FTraceHeightfields>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -304,6 +305,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FLumenCardTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));
+			PermutationVector.Set<FLumenCardTraceProbeCS::FTraceHeightfields>(Lumen::UseHeightfields(*Scene->LumenSceneData));
 			PermutationVector = FLumenCardTraceProbeCS::RemapPermutation(PermutationVector);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FLumenCardTraceProbeCS>(PermutationVector);

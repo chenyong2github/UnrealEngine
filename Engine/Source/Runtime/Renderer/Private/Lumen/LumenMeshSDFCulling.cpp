@@ -669,31 +669,31 @@ void CullMeshSDFObjectsToViewGrid(
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
+	const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GridPixelsPerCellXY);
+	const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, GridSizeZ);
+	const uint32 NumCullGridCells = CullGridSize.X * CullGridSize.Y * CullGridSize.Z;
+
+	uint32 MaxCullGridCells;
+
+	{
+		// Allocate buffers using scene render targets size so we won't reallocate every frame with dynamic resolution
+		const FIntPoint BufferSize = GetSceneTextureExtent();
+		const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
+		MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
+		ensure(MaxCullGridCells >= NumCullGridCells);
+	}
+
+	RDG_EVENT_SCOPE(GraphBuilder, "MeshSDFCulling %ux%ux%u cells", CullGridSize.X, CullGridSize.Y, CullGridSize.Z);
+
+	FMeshSDFCullingContext Context;
+
+	InitMeshSDFCullingContext(
+		GraphBuilder,
+		MaxCullGridCells,
+		Context);
+
 	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
-		const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GridPixelsPerCellXY);
-		const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, GridSizeZ);
-		const uint32 NumCullGridCells = CullGridSize.X * CullGridSize.Y * CullGridSize.Z;
-
-		uint32 MaxCullGridCells;
-
-		{
-			// Allocate buffers using scene render targets size so we won't reallocate every frame with dynamic resolution
-			const FIntPoint BufferSize = GetSceneTextureExtent();
-			const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
-			MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
-			ensure(MaxCullGridCells >= NumCullGridCells);
-		}
-
-		RDG_EVENT_SCOPE(GraphBuilder, "MeshSDFCulling %ux%ux%u cells", CullGridSize.X, CullGridSize.Y, CullGridSize.Z);
-
-		FMeshSDFCullingContext Context;
-
-		InitMeshSDFCullingContext(
-			GraphBuilder,
-			MaxCullGridCells,
-			Context);
-
 		CullMeshSDFObjectsForView(
 			GraphBuilder,
 			Scene,
@@ -701,20 +701,6 @@ void CullMeshSDFObjectsToViewGrid(
 			MaxMeshSDFInfluenceRadius,
 			CardTraceEndDistanceFromCamera,
 			Context);
-
-		FRDGBufferRef NumCulledHeightfieldObjects;
-		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
-		CullHeightfieldObjectsForView(
-			GraphBuilder,
-			Scene,
-			View,
-			MaxMeshSDFInfluenceRadius,
-			CardTraceEndDistanceFromCamera,
-			NumCulledHeightfieldObjects,
-			CulledHeightfieldObjectIndexBuffer
-		);
-		OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
-		OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
 
 		// Scatter mesh SDF objects into a temporary array of {ObjectIndex, GridCellIndex}
 		{
@@ -824,5 +810,22 @@ void CullMeshSDFObjectsToViewGrid(
 			Scene,
 			nullptr,
 			OutGridParameters);
+	}
+
+	if (Lumen::UseHeightfields(*Scene->LumenSceneData))
+	{
+		FRDGBufferRef NumCulledHeightfieldObjects;
+		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
+		CullHeightfieldObjectsForView(
+			GraphBuilder,
+			Scene,
+			View,
+			MaxMeshSDFInfluenceRadius,
+			CardTraceEndDistanceFromCamera,
+			NumCulledHeightfieldObjects,
+			CulledHeightfieldObjectIndexBuffer
+		);
+		OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
+		OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
 	}
 }

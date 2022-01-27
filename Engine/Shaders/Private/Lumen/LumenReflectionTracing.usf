@@ -411,6 +411,7 @@ void TraceMeshSDFs(
 
 	FConeTraceResult TraceResult;
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
+	ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 
 	// Trace against hair voxel structure, if enabled and not already done by other tracing method
 	#if USE_HAIRSTRANDS_VOXEL

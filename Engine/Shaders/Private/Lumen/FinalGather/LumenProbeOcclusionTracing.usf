@@ -158,6 +158,7 @@ void TraceRay(
 	#if DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_CARDS
 	{
 		ConeTraceLumenSceneCards(TraceInput, TraceResult);
+		ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 
 		float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 		float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);

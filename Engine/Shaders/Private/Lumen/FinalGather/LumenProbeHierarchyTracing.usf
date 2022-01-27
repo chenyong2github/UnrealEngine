@@ -129,6 +129,7 @@ void CardTraceProbeCS(
 		TraceResult.Transparency = 1.0;
 
 		ConeTraceLumenSceneCards(TraceInput, TraceResult);
+		ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 		
 		{
 			float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - SamplePosition);

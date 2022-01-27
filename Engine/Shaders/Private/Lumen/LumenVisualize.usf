@@ -89,7 +89,7 @@ void VisualizeQuadsCS(
 	float3 Debug = -1;
 
 	bool bContinueCardTracing = false;
-#if TRACE_MESH_SDF
+#if TRACE_MESH_SDF || SCENE_TRACE_HEIGHTFIELDS
 	bContinueCardTracing = true;
 #endif
 
@@ -115,9 +115,14 @@ void VisualizeQuadsCS(
 
 	FConeTraceResult TraceResult = (FConeTraceResult)0;
 	TraceResult.Transparency = 1;
+	TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
 #if TRACE_MESH_SDF
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
+#endif
+
+#if SCENE_TRACE_HEIGHTFIELDS
+	ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 #endif
 
 #if TRACE_GLOBAL_SDF
