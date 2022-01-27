@@ -8,7 +8,7 @@
 
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS && 0
 
 namespace UE::Virtualization
 {
