@@ -32,6 +32,13 @@ UPCGNode* UPCGSubgraphSettings::CreateNode() const
 	return NewObject<UPCGSubgraphNode>();
 }
 
+#if WITH_EDITOR
+TArray<FName> UPCGSubgraphSettings::GetTrackedActorTags() const
+{
+	return Subgraph ? Subgraph->GetTrackedActorTags() : TArray<FName>();
+}
+#endif
+
 FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
 {
 	return MakeShared<FPCGTrivialElement>();

@@ -580,11 +580,38 @@ bool UPCGComponent::ActorHasExcludedTag(AActor* InActor) const
 	return bHasExcludedTag;
 }
 
+bool UPCGComponent::ActorIsTracked(AActor* InActor) const
+{
+	if (!InActor || !Graph)
+	{
+		return false;
+	}
+
+	TArray<FName> TrackedTags = Graph->GetTrackedActorTags();
+
+	bool bIsTracked = false;
+	for (const FName& Tag : InActor->Tags)
+	{
+		if (TrackedTags.Contains(Tag))
+		{
+			bIsTracked = true;
+			break;
+		}
+	}
+
+	return bIsTracked;
+}
+
 void UPCGComponent::OnActorAdded(AActor* InActor)
 {
 	if (ActorHasExcludedTag(InActor))
 	{
 		UpdateExcludedActor(InActor, EExcludedActorChange::Added);
+	}
+	else if (ActorIsTracked(InActor))
+	{
+		DirtyGenerated();
+		Refresh();
 	}
 }
 
@@ -593,6 +620,11 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 	if (ActorHasExcludedTag(InActor))
 	{
 		UpdateExcludedActor(InActor, EExcludedActorChange::Deleted);
+	}
+	else if (ActorIsTracked(InActor))
+	{
+		DirtyGenerated();
+		Refresh();
 	}
 }
 
@@ -608,9 +640,17 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 			Refresh();
 		}
 	}
-	else if (ActorHasExcludedTag(InActor))
+	else
 	{
-		UpdateExcludedActor(InActor, EExcludedActorChange::Changed);
+		if (ActorHasExcludedTag(InActor))
+		{
+			UpdateExcludedActor(InActor, EExcludedActorChange::Changed);
+		}
+		else if (ActorIsTracked(InActor))
+		{
+			DirtyGenerated();
+			Refresh();
+		}
 	}
 }
 
@@ -648,10 +688,18 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 
 		Refresh();
 	}
-	else if (ActorHasExcludedTag(Actor) || (bActorTagChange && Actor == InObject))
+	else
 	{
-		// TODO: be more subtle about this, could be an addition, a change or deletion
-		UpdateExcludedActor(Actor, EExcludedActorChange::Changed);
+		if (ActorHasExcludedTag(Actor) || (bActorTagChange && Actor == InObject))
+		{
+			// TODO: be more subtle about this, could be an addition, a change or deletion
+			UpdateExcludedActor(Actor, EExcludedActorChange::Changed);
+		}
+		else if (ActorIsTracked(Actor))
+		{
+			DirtyGenerated();
+			Refresh();
+		}
 	}
 }
 

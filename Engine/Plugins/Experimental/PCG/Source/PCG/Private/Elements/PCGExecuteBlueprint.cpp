@@ -289,6 +289,17 @@ void UPCGBlueprintSettings::RefreshBlueprintElement()
 	}	
 }
 
+#if WITH_EDITOR
+TArray<FName> UPCGBlueprintSettings::GetTrackedActorTags() const
+{
+#if WITH_EDITORONLY_DATA
+	return TrackedActorTags;
+#else
+	return Super::GetTrackedActorTags();
+#endif
+}
+#endif
+
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 {
 	return MakeShared<FPCGExecuteBlueprintElement>();

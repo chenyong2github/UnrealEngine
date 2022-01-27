@@ -28,6 +28,8 @@ public:
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
+	/** Derived classes must implement this to communicate dependencies on external actors */
+	virtual TArray<FName> GetTrackedActorTags() const { return TArray<FName>(); }
 #endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)

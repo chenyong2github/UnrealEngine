@@ -195,6 +195,21 @@ bool UPCGGraph::Contains(UPCGNode* Node) const
 }
 
 #if WITH_EDITOR
+TArray<FName> UPCGGraph::GetTrackedActorTags() const
+{
+	TArray<FName> TrackedActorTags;
+
+	for (UPCGNode* Node : Nodes)
+	{
+		if (Node && Node->DefaultSettings)
+		{
+			TrackedActorTags.Append(Node->DefaultSettings->GetTrackedActorTags());
+		}
+	}
+
+	return TrackedActorTags;
+}
+
 void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 {
 	if (!bEnableGraphChangeNotifications)

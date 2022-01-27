@@ -19,6 +19,7 @@ public:
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
+	virtual TArray<FName> GetTrackedActorTags() const override;
 #endif
 
 protected:

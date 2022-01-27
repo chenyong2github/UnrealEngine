@@ -144,6 +144,7 @@ private:
 	void OnActorMoved(AActor* InActor);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	bool ActorHasExcludedTag(AActor* InActor) const;
+	bool ActorIsTracked(AActor* InActor) const;
 
 	enum class EExcludedActorChange
 	{

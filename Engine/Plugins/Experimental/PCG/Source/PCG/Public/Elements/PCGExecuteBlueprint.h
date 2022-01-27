@@ -56,6 +56,7 @@ public:
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("BlueprintNode")); }
+	virtual TArray<FName> GetTrackedActorTags() const override;
 #endif
 
 protected:
@@ -83,6 +84,11 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings, meta = (ShowOnlyInnerProperties))
 	TObjectPtr<UPCGBlueprintElement> BlueprintElementInstance;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	TArray<FName> TrackedActorTags;
+#endif
 
 protected:
 #if WITH_EDITOR

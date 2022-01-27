@@ -57,6 +57,9 @@ public:
 
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
+#if WITH_EDITOR
+	TArray<FName> GetTrackedActorTags() const;
+#endif
 
 #if WITH_EDITOR
 	FOnPCGGraphChanged OnGraphChangedDelegate;
