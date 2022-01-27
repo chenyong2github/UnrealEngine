@@ -52,6 +52,11 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	 */
 	TArray<UObject*> GetBoundObjects() const;
 
+	/** 
+	 * Resolve the first binding for this entity. 
+	 */
+	UObject* GetBoundObject() const;
+
 	/**
 	 * Get the unresolved bindings of this exposed entity.
 	 */

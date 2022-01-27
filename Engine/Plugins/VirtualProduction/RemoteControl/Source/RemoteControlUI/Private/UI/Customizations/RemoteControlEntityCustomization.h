@@ -29,6 +29,9 @@ private:
 	/** Create a widget that handles modifying the min and max properties. */
 	void CreateRangeWidget(URemoteControlPreset* Preset, const FGuid& DisplayedEntityId, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder);
 
+	/** Create a widget that displays what's the entity currently bound to. */
+	void CreateBindingWidget(const FRemoteControlEntity* RCEntity, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder) const;
+
 	/** Handler called upon modifying the metadata of an exposed entity. */
 	void OnMetadataKeyCommitted(const FText& Text, ETextCommit::Type Type, FName MetadataKey);
 

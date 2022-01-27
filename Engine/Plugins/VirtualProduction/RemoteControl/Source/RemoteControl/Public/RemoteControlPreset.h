@@ -739,7 +739,7 @@ public:
 	/**
 	 * Given a RC Entity, rebind all entities with the same owner to a new actor.
 	 */
-	void RebindAllEntitiesUnderSameActor(const FGuid& EntityId, AActor* NewActor);
+	void RebindAllEntitiesUnderSameActor(const FGuid& EntityId, AActor* NewActor, bool bUseRebindingContext = true);
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntityEvent, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
 	FOnPresetEntityEvent& OnEntityExposed() { return OnEntityExposedDelegate; }
@@ -881,6 +881,9 @@ public:
 	URemoteControlBinding* FindOrAddBinding(const TSoftObjectPtr<UObject>& Object);
 private:
 
+	/** Find a binding that has the same boundobjectmap but that currently points to the object passed as argument. */
+	URemoteControlBinding* FindMatchingBinding(const URemoteControlBinding* InBinding, UObject* InObject);
+
 	/** Handler called upon an entity being modified. */
 	void OnEntityModified(const FGuid& EntityId);
 
@@ -904,6 +907,9 @@ private:
 
 	/** Create property watchers for exposed properties that need them. */
 	void CreatePropertyWatchers();
+
+	/** Remove bindings that do not have properties pointing to them. */
+	void RemoveUnusedBindings();
 
 	/** Call post load function for exposed properties. */
 	void PostLoadProperties();
@@ -1017,4 +1023,5 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	friend FRemoteControlPresetLayout;
 	friend FRemoteControlEntity;
+	friend class FRemoteControlPresetRebindingManager;
 };

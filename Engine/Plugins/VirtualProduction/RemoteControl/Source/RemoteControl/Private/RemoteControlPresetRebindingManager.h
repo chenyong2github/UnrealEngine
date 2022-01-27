@@ -58,15 +58,20 @@ public:
 	/**
 	 * Attempt rebinding a Preset's entities by first trying to find objects with the same name
 	 * in the current map, then by searching for objects that support the underlying entity.
+	 * @Note: Set RemoteControl.UseLegacyRebinding to 1 in order to use the legacy algorthm.
 	 */
 	void Rebind(URemoteControlPreset* Preset);
 
 	/**
 	 * Given a RC Entity, rebind all entities with the same owner to a new actor
+	 * @return the unique identifiers of the rc entities that were rebound.
 	 */
-	void RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor);
+	TArray<FGuid> RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor, bool bUseRebindingContext);
 
 private:
+	void Rebind_Legacy(URemoteControlPreset* Preset);
+	void Rebind_NewAlgo(URemoteControlPreset* Preset);
+
 	/** Group RC Entities by the entity's supported owner class. */
 	TMap<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>> GroupByEntitySupportedOwnerClass(TConstArrayView<TSharedPtr<FRemoteControlEntity>> Entities) const;
 
@@ -77,7 +82,12 @@ private:
 	void ReinitializeBindings(URemoteControlPreset* Preset) const;
 
 	/**  Attempt to rebind all unbound entities. */
-	void RebindEntitiesForClass(UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities);
+	void RebindEntitiesForClass_Legacy(UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities);
+
+	void RebindEntitiesForActorClass_Legacy(URemoteControlPreset* Preset, UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities);
+
+	TArray<FGuid> RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, URemoteControlBinding* InitialBinding, AActor* NewActor);
+	TArray<FGuid> RebindAllEntitiesUnderSameActor_Legacy(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor);
 private:
 	struct FRebindingContext
 	{

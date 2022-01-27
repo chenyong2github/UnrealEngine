@@ -83,4 +83,7 @@ public:
 	/** The split widget control ratio between entity tree and details/protocol binding list. */
 	UPROPERTY(config)
 	float TreeBindingSplitRatio = 0.7;
+
+	UPROPERTY(config)
+	bool bUseRebindingContext = true;
 };

@@ -695,6 +695,8 @@ void URemoteControlPreset::PostLoad()
 	CreatePropertyWatchers();
 
 	PostLoadProperties();
+
+	RemoveUnusedBindings();
 }
 
 void URemoteControlPreset::PostDuplicate(bool bDuplicateForPIE)
@@ -930,6 +932,61 @@ URemoteControlBinding* URemoteControlPreset::FindOrAddBinding(const TSoftObjectP
 	return NewBinding;
 }
 
+URemoteControlBinding* URemoteControlPreset::FindMatchingBinding(const URemoteControlBinding* InBinding, UObject* InObject)
+{
+	for (URemoteControlBinding* Binding : Bindings)
+	{
+		URemoteControlLevelDependantBinding* LevelDependantBindingIt = Cast<URemoteControlLevelDependantBinding>(Binding);
+		const URemoteControlLevelDependantBinding* InLevelDependingBinding = Cast<URemoteControlLevelDependantBinding>(InBinding);
+
+		if (InBinding == Binding
+			|| Binding->Resolve() != InObject)
+		{
+			continue;
+		}
+
+		if (LevelDependantBindingIt->BindingContext != InLevelDependingBinding->BindingContext)
+		{
+			continue;
+		}
+
+		if (LevelDependantBindingIt && InLevelDependingBinding)
+		{
+			TSoftObjectPtr<ULevel> CurrentWorldLevel = LevelDependantBindingIt->SubLevelSelectionMap.FindRef(InObject->GetWorld());
+
+			bool bSameBoundObjectMap = true;
+			// Check if the binding it has the same bound object map except for the current level.
+			for (const TPair<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>>& Pair : InLevelDependingBinding->BoundObjectMap)
+			{
+				if (Pair.Key != CurrentWorldLevel)
+				{
+					TSoftObjectPtr<UObject>* BoundObject = LevelDependantBindingIt->BoundObjectMap.Find(Pair.Key);
+					if (BoundObject)
+					{
+						if (*BoundObject != Pair.Value)
+						{
+							bSameBoundObjectMap = false;
+							break;
+						}
+					}
+					else
+					{
+						bSameBoundObjectMap = false;
+						break;
+					}
+				}
+			}
+
+			if (bSameBoundObjectMap)
+			{
+				return Binding;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void URemoteControlPreset::OnEntityModified(const FGuid& EntityId)
 {
 	PerFrameUpdatedEntities.Add(EntityId);
@@ -1050,6 +1107,26 @@ void URemoteControlPreset::CreatePropertyWatchers()
 		if (PropertyShouldBeWatched(ExposedProperty))
 		{
 			CreatePropertyWatcher(ExposedProperty);
+		}
+	}
+}
+
+void URemoteControlPreset::RemoveUnusedBindings()
+{
+	TSet<TWeakObjectPtr<URemoteControlBinding>> ReferencedBindings;
+	for (TSharedPtr<FRemoteControlEntity> Entity : Registry->GetExposedEntities())
+	{
+		for (TWeakObjectPtr<URemoteControlBinding> Binding : Entity->GetBindings())
+		{
+			ReferencedBindings.Add(Binding);
+		}
+	}
+
+	for (auto It = Bindings.CreateIterator(); It; It++)
+	{
+		if (!ReferencedBindings.Contains(*It))
+		{
+			It.RemoveCurrent();
 		}
 	}
 }
@@ -1264,15 +1341,16 @@ TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 
 void URemoteControlPreset::RebindUnboundEntities()
 {
+	Modify();
 	RebindingManager->Rebind(this);
 	Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
 }
 
-void URemoteControlPreset::RebindAllEntitiesUnderSameActor(const FGuid& EntityId, AActor* NewActor)
+void URemoteControlPreset::RebindAllEntitiesUnderSameActor(const FGuid& EntityId, AActor* NewActor, bool bUseRebindingContext)
 {
 	if (TSharedPtr<FRemoteControlEntity> Entity = Registry->GetExposedEntity(EntityId))
 	{
-		RebindingManager->RebindAllEntitiesUnderSameActor(this, Entity, NewActor);
+		RebindingManager->RebindAllEntitiesUnderSameActor(this, Entity, NewActor, bUseRebindingContext);
 	}
 }
 
@@ -2138,12 +2216,6 @@ void URemoteControlPreset::CleanUpBindings()
 				if (PerFrameBindingsToClean.Contains(It->Get()))
 				{
 					PerFrameUpdatedEntities.Add(Entity->GetId());
-				}
-
-				if (BindingsToDelete.Contains(It->Get()))
-				{
-					It.RemoveCurrent();
-					break;
 				}
 			}
 		}

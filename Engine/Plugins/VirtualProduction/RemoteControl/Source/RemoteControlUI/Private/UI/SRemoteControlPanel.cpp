@@ -184,6 +184,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						.Text(LOCTEXT("RebindButtonText", "Rebind All"))
 					]
 				]
+
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
 				[

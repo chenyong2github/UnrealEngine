@@ -17,6 +17,18 @@ TArray<UObject*> FRemoteControlEntity::GetBoundObjects() const
 	return ResolvedObjects.FilterByPredicate([](const UObject* Object){ return !!Object; });
 }
 
+UObject* FRemoteControlEntity::GetBoundObject() const
+{
+	TArray<UObject*> ResolvedObjects;
+	ResolvedObjects.Reserve(Bindings.Num());
+	Algo::TransformIf(Bindings, ResolvedObjects,
+		[](TWeakObjectPtr<URemoteControlBinding> WeakBinding) { return WeakBinding.IsValid(); },
+		[](TWeakObjectPtr<URemoteControlBinding> WeakBinding) { return WeakBinding->Resolve(); });
+
+	UObject** Obj = ResolvedObjects.FindByPredicate([](const UObject* Object) { return !!Object; });
+	return Obj ? *Obj : nullptr;
+}
+
 const TArray<TWeakObjectPtr<URemoteControlBinding>>& FRemoteControlEntity::GetBindings() const
 {
 	return Bindings;
@@ -46,15 +58,26 @@ void FRemoteControlEntity::BindObject(UObject* InObjectToBind)
 		return;
 	}
 
-	URemoteControlBinding* Binding = Owner->FindOrAddBinding(InObjectToBind);
-
 	if (Bindings.Num() == 0)
 	{
-		Bindings.Emplace(Binding);
+		Bindings.Emplace(Owner->FindOrAddBinding(InObjectToBind));
 	}
 	else
 	{
-		Bindings[0] = Binding;
+		// Don't modify the binding itself since that would modify all other properties pointing to this binding.
+		// Try to first find a binding that has the same bound object map to preserve that information.
+		if (URemoteControlBinding* MatchingBinding = Owner->FindMatchingBinding(Bindings[0].Get(), InObjectToBind))
+		{
+			Bindings[0] = MatchingBinding;
+			
+		}
+		else
+		{
+			Bindings[0] = DuplicateObject<URemoteControlBinding>(Bindings[0].Get(), Owner.Get());
+			Owner->Bindings.Add(Bindings[0].Get());
+			Bindings[0]->SetBoundObject(InObjectToBind);
+		}
+
 	}
 
 	OnEntityModifiedDelegate.ExecuteIfBound(Id);

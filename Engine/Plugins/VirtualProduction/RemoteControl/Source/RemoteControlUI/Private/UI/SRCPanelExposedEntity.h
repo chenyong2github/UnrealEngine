@@ -66,6 +66,7 @@ private:
 
 	/** Handle selecting an actor for a rebind for all properties under an actor. */
 	void OnActorSelectedForRebindAllProperties(AActor* InActor) const;
+
 	/** Verifies that the entity's label doesn't already exist. */
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 	/** Handles committing a entity label. */
@@ -76,6 +77,14 @@ private:
 	bool bNeedsRename = false;
 	/** Handle clicking on the unexpose button. */
 	void HandleUnexposeEntity();
+
+	void SelectActor(AActor* InActor) const;
+
+	//~ Use context widget functions.
+	TSharedRef<SWidget> CreateUseContextCheckbox();
+	void OnUseContextChanged(ECheckBoxState State);
+	ECheckBoxState IsUseContextEnabled() const;
+	bool ShouldUseRebindingContext() const;
 
 	/** The textbox for the row's name. */
 	TSharedPtr<SInlineEditableTextBlock> NameTextBox;

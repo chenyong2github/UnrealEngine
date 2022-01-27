@@ -123,6 +123,55 @@ void FRemoteControlEntityCustomization::CreateRangeWidget(URemoteControlPreset* 
     ];
 }
 
+void FRemoteControlEntityCustomization::CreateBindingWidget(const FRemoteControlEntity* RCEntity, IDetailLayoutBuilder& LayoutBuilder, IDetailCategoryBuilder& CategoryBuilder) const
+{
+	const FSlateFontInfo FontInfo = LayoutBuilder.GetDetailFont();
+	FText ToolTipText = LOCTEXT("RCBindingToolTip", "The object this is currently bound to.");
+
+	FString PathName;
+
+	if (ensure(RCEntity))
+	{
+		if (UObject* Obj = RCEntity->GetBoundObject())
+		{
+			PathName = Obj->GetPathName();
+		}
+	}
+
+	FText PathNameText;
+
+	if (PathName.IsEmpty())
+	{
+		PathNameText = LOCTEXT("BindingPath", "This entity is not bound.");
+	}
+	else
+	{
+		PathNameText = FText::FromString(MoveTemp(PathName));
+	}
+
+	CategoryBuilder.AddCustomRow(LOCTEXT("BindingLabel", "Binding"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("BindingLabel", "Binding"))
+			.ToolTipText(ToolTipText)
+			.Font(FontInfo)
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText(ToolTipText)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1)
+			[
+				SNew(SEditableTextBox)
+				.IsReadOnly(true)
+				.Text(PathNameText)
+				.Font(FontInfo)
+			]
+		];
+}
+
 void FRemoteControlEntityCustomization::OnMetadataKeyCommitted(const FText& Text, ETextCommit::Type Type, FName MetadataKey)
 {
 	if (FRemoteControlEntity* Entity = GetEntityPtr())
@@ -189,6 +238,8 @@ void FRemoteControlEntityCustomization::GeneratePropertyRows(IDetailLayoutBuilde
 				FName FieldName = static_cast<FRemoteControlField*>(Entity)->FieldName;
 				AddPropertyRow(TEXT("FieldName"), FieldName.ToString(), /*bReadOnly=*/true);
 			}
+
+			CreateBindingWidget(Entity, DetailBuilder, CategoryBuilder);
 
 			if (URemoteControlPreset* Preset = Entity->GetOwner())
 			{

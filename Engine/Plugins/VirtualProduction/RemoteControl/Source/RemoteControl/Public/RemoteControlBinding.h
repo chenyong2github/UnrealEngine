@@ -3,6 +3,9 @@
 #pragma once
 
 #include "UObject/Object.h"
+
+#include "GameFramework/Actor.h"
+#include "Engine/Classes/Components/ActorComponent.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -79,6 +82,57 @@ private:
 	TSoftObjectPtr<UObject> BoundObject;
 };
 
+USTRUCT()
+struct FRemoteControlInitialBindingContext
+{
+	GENERATED_BODY()
+
+	/*
+	 * The class that's supported by this binding.
+	 */
+	UPROPERTY()
+	TSoftClassPtr<UObject> SupportedClass;
+
+	/**
+	 *  Name of the component if any.
+	 */
+	UPROPERTY()
+	FName ComponentName;
+
+	/**
+	 * The class of the actor that's targeted by this binding or the class of the actor that owns the component that is targeted.
+	 */
+	UPROPERTY()
+	TSoftClassPtr<AActor> OwnerActorClass;
+
+	/**
+	 * Name of the initial actor that was targetted by this binding.
+	 */
+	UPROPERTY()
+	FName OwnerActorName;
+
+	bool IsEmpty() const
+	{
+		return SupportedClass.GetUniqueID().ToString().IsEmpty()
+			&& ComponentName.IsNone() 
+			&& OwnerActorClass.GetUniqueID().ToString().IsEmpty()
+			&& OwnerActorName.IsNone();
+	}
+
+	friend bool operator==(const FRemoteControlInitialBindingContext& LHS, const FRemoteControlInitialBindingContext& RHS)
+	{
+		return LHS.SupportedClass == RHS.SupportedClass
+			&& LHS.ComponentName == RHS.ComponentName
+			&& LHS.OwnerActorClass == RHS.OwnerActorClass
+			&& LHS.OwnerActorName == RHS.OwnerActorName;
+	}
+
+	friend bool operator!=(const FRemoteControlInitialBindingContext& LHS, const FRemoteControlInitialBindingContext& RHS)
+	{
+		return !(LHS == RHS);
+	}
+};
+
 UCLASS(BlueprintType)
 class REMOTECONTROL_API URemoteControlLevelDependantBinding : public URemoteControlBinding
 {
@@ -101,15 +155,27 @@ public:
 	void SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject);
 
 	/**
+	 * Set the bound object and reinitialize the context used for rebinding purposes.
+	 */
+	void SetBoundObject_OverrideContext(const TSoftObjectPtr<UObject>& InObject);
+
+	/**
 	 * Initialize this binding to be used with the new current level.
 	 * Copies the binding from the last successful resolve in case the level was duplicated.
 	 */
 	void InitializeForNewLevel();
 
+	/**
+	 * Get the suppported class of the bound object or of the owner of the bound object in the case of a bound component.
+	 */
+	UClass* GetSupportedOwnerClass() const;
+
 	/** Get the current world. */
 	static UWorld* GetCurrentWorld();
 private:
 	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
+
+	void InitializeBindingContext(UObject* InObject) const;
 
 private:
 	/**
@@ -133,5 +199,9 @@ private:
 	UPROPERTY()
 	mutable TSoftObjectPtr<ULevel> LevelWithLastSuccessfulResolve;
 
+	UPROPERTY()
+	mutable FRemoteControlInitialBindingContext BindingContext;
+
 	friend class FRemoteControlPresetRebindingManager;
+	friend class URemoteControlPreset;
 };

@@ -2,9 +2,11 @@
 
 #include "RemoteControlPresetRebindingManager.h"
 
+#include "Algo/AllOf.h"
 #include "Algo/Transform.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Brush.h"
+#include "Engine/Classes/Components/ActorComponent.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Misc/Char.h"
@@ -17,6 +19,8 @@
 #include "Editor.h"
 #include "ActorEditorUtils.h"
 #endif
+
+static TAutoConsoleVariable<int32> CVarRemoteControlRebindingUseLegacyAlgo(TEXT("RemoteControl.UseLegacyRebinding"), 0, TEXT("Whether to revert to the old algorithm when doing a Rebind All."));
 
 namespace RCPresetRebindingManager
 {
@@ -130,6 +134,29 @@ namespace RCPresetRebindingManager
 		return ObjectMap;
 	}
 
+	bool GetActorsOfClass(UClass* InTargetClass, TArray<AActor*>& OutActors)
+	{
+		auto IsObjectOfClass = [InTargetClass](UObject* Object)
+		{
+			return Object
+				&& IsValidActorForRebinding(CastChecked<AActor>(Object))
+				&& Object->IsA(InTargetClass);
+		};
+
+		if (UWorld* World = GetCurrentWorld())
+		{
+			for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+			{
+				if (IsObjectOfClass(*It))
+				{
+					OutActors.Add(*It);
+				}
+			}
+		}
+
+		return OutActors.Num() != 0;
+	}
+
 	TMap<UClass*, TMap<uint32, TSet<UObject*>>> CreateInitialBoundObjectMap(TConstArrayView<TSharedPtr<FRemoteControlEntity>> BoundEntities)
 	{
 		TMap<UClass*, TMap<uint32, TSet<UObject*>>> BoundObjectMap;
@@ -197,6 +224,17 @@ UObject* FNameBasedRebindingPolicy::FindMatch(const FFindBindingForEntityArgs& A
 
 void FRemoteControlPresetRebindingManager::Rebind(URemoteControlPreset* Preset)
 {
+	if (CVarRemoteControlRebindingUseLegacyAlgo.GetValueOnAnyThread() == 1)
+	{
+		Rebind_Legacy(Preset);
+	}
+	else
+	{
+		Rebind_NewAlgo(Preset);
+	}
+}
+void FRemoteControlPresetRebindingManager::Rebind_Legacy(URemoteControlPreset* Preset)
+{
 	check(Preset);
 
 	Context.Reset();
@@ -228,13 +266,316 @@ void FRemoteControlPresetRebindingManager::Rebind(URemoteControlPreset* Preset)
 
 	for (TPair<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>>& Entry : EntitiesGroupedBySupportedOwnerClass)
 	{
-		RebindEntitiesForClass(Entry.Key, Entry.Value);
+		if (Entry.Key->IsChildOf<AActor>())
+		{
+			RebindEntitiesForActorClass_Legacy(Preset, Entry.Key, Entry.Value);
+		}
+	}
+
+	for (TPair<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>>& Entry : EntitiesGroupedBySupportedOwnerClass)
+	{
+		// Do an additional pass in case the bindings did not have the necessary info to use the previous rebinding process. 
+		RebindEntitiesForClass_Legacy(Entry.Key, Entry.Value);
 	}
 }
 
-void FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor)
+
+void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* Preset)
+{
+	check(Preset);
+
+	// Separate bindings based on if they are bound or not.
+	TArray<URemoteControlLevelDependantBinding*> ValidBindings;
+	TArray<URemoteControlLevelDependantBinding*> InvalidBindings;
+	
+	auto ClassifyBindings = [&ValidBindings, &InvalidBindings, Preset] ()
+	{
+		ValidBindings.Reset();
+		InvalidBindings.Reset();
+
+		for (URemoteControlBinding* Binding : Preset->Bindings)
+		{
+			if (URemoteControlLevelDependantBinding* LevelDependantBinding = Cast<URemoteControlLevelDependantBinding>(Binding))
+			{
+				if (LevelDependantBinding->Resolve())
+				{
+					ValidBindings.Add(LevelDependantBinding);
+				}
+				else
+				{
+					InvalidBindings.Add(LevelDependantBinding);
+				}
+			}
+		}
+	};
+
+	ClassifyBindings();
+	const bool bAllContextsEmpty = Algo::AllOf(InvalidBindings, [](URemoteControlLevelDependantBinding* Binding) { return Binding->BindingContext.IsEmpty(); });
+	if (bAllContextsEmpty)
+	{
+		Rebind_Legacy(Preset);
+		return;
+	}
+
+	// First, try to 'rebind for all properties' bindings that are already bound.
+	// to make sure that we don't accidently rebind a property to a different actor
+	for (URemoteControlLevelDependantBinding* ValidBinding : ValidBindings)
+	{
+		UObject* ResolvedObject = ValidBinding->Resolve();
+		if (AActor* ResolvedActor = Cast<AActor>(ResolvedObject))
+		{
+			RebindAllEntitiesUnderSameActor(Preset, ValidBinding, ResolvedActor);
+		}
+		else
+		{
+			RebindAllEntitiesUnderSameActor(Preset, ValidBinding, ResolvedObject->GetTypedOuter<AActor>());
+		}
+	}
+
+	// Reclassify bindings after we rebound them.
+	ClassifyBindings();
+
+	// Create a list of what objects and components are already bound.
+	TSet<TPair<AActor*, UObject*>> BoundObjects;
+	for (URemoteControlLevelDependantBinding* ValidBinding : ValidBindings)
+	{
+		const bool bTargetingActor = !ValidBinding->BindingContext.OwnerActorName.IsNone() && ValidBinding->BindingContext.ComponentName.IsNone();
+		const bool bTargetingComponent = !ValidBinding->BindingContext.OwnerActorName.IsNone() && !ValidBinding->BindingContext.ComponentName.IsNone();
+
+		if (bTargetingActor)
+		{
+			BoundObjects.Add(TPair<AActor*, UObject*>{ Cast<AActor>(ValidBinding->Resolve()), nullptr });
+		}
+		else if (bTargetingComponent)
+		{
+			UObject* Object = ValidBinding->Resolve();
+			AActor* Actor = Object->GetTypedOuter<AActor>();
+			BoundObjects.Add(TPair<AActor*, UObject*>{ Actor, Object });
+		}
+	}
+
+	auto FindByName = [](const TArray<AActor*>& PotentialMatches, FName TargetName) -> UObject*
+	{
+		for (UObject* Object : PotentialMatches)
+		{
+			// Attempt finding by name.
+			if (Object->GetFName() == TargetName)
+			{
+				return Object;
+			}
+		}
+		return nullptr;
+	};
+
+	auto TryRebindPair = [&BoundObjects](URemoteControlBinding* InBindingToRebind, AActor* InActor, UObject* InActorComponent)
+	{
+		TPair<AActor*, UObject*> Pair = TPair<AActor*, UObject*> { InActor, InActorComponent };
+		if (!BoundObjects.Contains(Pair))
+		{
+			BoundObjects.Add(Pair);
+			InBindingToRebind->Modify();
+			if (InActorComponent)
+			{
+				InBindingToRebind->SetBoundObject(InActorComponent);
+			}
+			else
+			{
+				InBindingToRebind->SetBoundObject(InActor);
+			}
+			return true;
+		}
+		return false;
+	};
+
+	auto GetComponentBasedOnName = [](URemoteControlLevelDependantBinding* InBinding, UObject* InObject) -> UObject*
+	{
+		FName InitialComponentName = InBinding->BindingContext.ComponentName;
+		UObject* TargetComponent = FindObject<UObject>(InObject, *InitialComponentName.ToString());
+		if (TargetComponent && TargetComponent->GetClass()->IsChildOf(InBinding->BindingContext.SupportedClass.LoadSynchronous()))
+		{
+			return TargetComponent;
+		}
+		return nullptr;
+	};
+
+	auto RebindComponentBasedOnClass = [TryRebindPair](URemoteControlLevelDependantBinding* InBinding, AActor* InActorMatch)
+	{
+		if (UClass* SupportedClass = InBinding->BindingContext.SupportedClass.LoadSynchronous())
+		{
+			if (SupportedClass->IsChildOf(UActorComponent::StaticClass()))
+			{
+				TArray<UActorComponent*> Components;
+				Cast<AActor>(InActorMatch)->GetComponents(InBinding->BindingContext.SupportedClass.LoadSynchronous(), Components);
+				
+				for (UActorComponent* Component : Components)
+				{
+					if (TryRebindPair(InBinding, Component->GetOwner(), Component))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	};
+
+	auto RebindUsingActorName = [FindByName, &BoundObjects, TryRebindPair](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
+	{
+		if (UObject* Match = FindByName(ObjectsWithSupportedClass, BindingToRebind->BindingContext.OwnerActorName))
+		{
+			return TryRebindPair(BindingToRebind, Cast<AActor>(Match), nullptr);
+		}
+		return false;
+	};
+
+	auto RebindUsingClass = [FindByName, &BoundObjects, TryRebindPair](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
+	{
+		for (UObject* PotentialMatch : ObjectsWithSupportedClass)
+		{
+			if (TryRebindPair(BindingToRebind, Cast<AActor>(PotentialMatch), nullptr))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	auto TryRebindComponent = [GetComponentBasedOnName, TryRebindPair, RebindComponentBasedOnClass](URemoteControlLevelDependantBinding* BindingToRebind, UObject* PotentialMatch)
+	{
+		if (UObject* TargetComponent = GetComponentBasedOnName(BindingToRebind, PotentialMatch))
+		{
+			return TryRebindPair(BindingToRebind, TargetComponent->GetTypedOuter<AActor>(), TargetComponent);
+		}
+		else
+		{
+			return RebindComponentBasedOnClass(BindingToRebind, Cast<AActor>(PotentialMatch));
+		}
+	};
+
+	// Core of the rebinding algo
+	for (URemoteControlLevelDependantBinding* InvalidBinding : InvalidBindings)
+	{
+		if (UClass* OwnerClass = InvalidBinding->BindingContext.OwnerActorClass.LoadSynchronous())
+		{
+			const bool bRebindingComponent = !InvalidBinding->BindingContext.ComponentName.IsNone();
+			TArray<AActor*> ObjectsWithSupportedClass;
+			if (!RCPresetRebindingManager::GetActorsOfClass(OwnerClass, ObjectsWithSupportedClass))
+			{
+				continue;
+			}
+
+			if (bRebindingComponent)
+			{
+				if (UObject* Match = FindByName(ObjectsWithSupportedClass, InvalidBinding->BindingContext.OwnerActorName))
+				{
+					// Found an owner object with matching name. Try to find a component under it with a matching name.
+					TryRebindComponent(InvalidBinding, Match);
+				}
+				else
+				{
+					// Could not find an actor with the same name as the initial binding, rely only on class instead.
+					for (UObject* Object : ObjectsWithSupportedClass)
+					{
+						if (TryRebindComponent(InvalidBinding, Object))
+						{
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				if (!RebindUsingActorName(InvalidBinding, ObjectsWithSupportedClass))
+				{
+					RebindUsingClass(InvalidBinding, ObjectsWithSupportedClass);
+				}
+			}
+		}
+	}
+
+	Preset->RemoveUnusedBindings();
+}
+
+
+TArray<FGuid> FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, URemoteControlBinding* InitialBinding, AActor* NewActor)
+{
+	check(Preset && InitialBinding && NewActor);
+
+	TArray<FGuid> ReboundEntityIds;
+
+	URemoteControlLevelDependantBinding* InitialLevelDependantBinding = Cast<URemoteControlLevelDependantBinding>(InitialBinding);
+	if (!InitialLevelDependantBinding)
+	{
+		return ReboundEntityIds;
+	}
+
+	TArray<URemoteControlLevelDependantBinding*> BindingsToRebind;
+
+	// Find bindings with the same actor as the original binding
+	for (URemoteControlBinding* Binding : Preset->Bindings)
+	{
+		if (URemoteControlLevelDependantBinding* LevelDependantBinding = Cast<URemoteControlLevelDependantBinding>(Binding))
+		{
+			// Todo: Make this more robust by comparing full actor paths instead of names.
+			if (LevelDependantBinding->BindingContext.OwnerActorClass == InitialLevelDependantBinding->BindingContext.OwnerActorClass
+				&& LevelDependantBinding->BindingContext.OwnerActorName == InitialLevelDependantBinding->BindingContext.OwnerActorName)
+			{
+				BindingsToRebind.Add(LevelDependantBinding);
+			}
+		}
+	}
+
+	// Gather entities to rebind
+	TArray<TSharedPtr<FRemoteControlEntity>> EntitiesToRebind;
+	for (const TWeakPtr<FRemoteControlEntity>& WeakEntity : Preset->GetExposedEntities<FRemoteControlEntity>())
+	{
+		TSharedPtr<FRemoteControlEntity> RCEntity = WeakEntity.Pin();
+		if (RCEntity && RCEntity->GetBindings().Num())
+		{
+			if (BindingsToRebind.Contains(RCEntity->GetBindings()[0].Get()))
+			{
+				EntitiesToRebind.Add(RCEntity);
+			}
+		}
+	}
+
+	ReboundEntityIds.Reserve(EntitiesToRebind.Num());
+	Algo::Transform(EntitiesToRebind, ReboundEntityIds, [](const TSharedPtr<FRemoteControlEntity>& RCEntityPtr) { return RCEntityPtr->GetId();  });
+
+	// Find the new binding target, then rebind.
+	for (const TSharedPtr<FRemoteControlEntity>& EntityToRebind : EntitiesToRebind)
+	{
+		URemoteControlLevelDependantBinding* EntityBinding = Cast<URemoteControlLevelDependantBinding>(EntityToRebind->GetBindings()[0].Get());
+
+		UObject* RebindTarget = NewActor;
+
+		// If the binding is targeting a component rather than an actor
+		if (!EntityBinding->BindingContext.ComponentName.IsNone())
+		{
+			if (UObject* ResolvedComponent = StaticFindObject(UObject::StaticClass(), NewActor, *EntityBinding->Name, false))
+			{
+				RebindTarget = ResolvedComponent;
+			}
+		}
+
+		EntityToRebind->BindObject(RebindTarget);
+
+		if (Preset->GetExposedEntityType(EntityToRebind->GetId()) == FRemoteControlProperty::StaticStruct())
+		{
+			StaticCastSharedPtr<FRemoteControlProperty>(EntityToRebind)->EnableEditCondition();
+		}
+	}
+
+	Preset->RemoveUnusedBindings();
+
+	return ReboundEntityIds;
+}
+
+TArray<FGuid> FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor_Legacy(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor)
 {
 	check(Preset && Entity && NewActor);
+
+	TArray<FGuid> ReboundEntities;
 
 	TMap<FName, TSet<URemoteControlBinding*>> ActorsToBindings;
 	ActorsToBindings.Reserve(Preset->Bindings.Num());
@@ -332,12 +673,37 @@ void FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemo
 		}
 
 		EntityToRebind->BindObject(RebindTarget);
+		ReboundEntities.Add(EntityToRebind->GetId());
 
 		if (Preset->GetExposedEntityType(EntityToRebind->GetId()) == FRemoteControlProperty::StaticStruct())
 		{
 			StaticCastSharedPtr<FRemoteControlProperty>(EntityToRebind)->EnableEditCondition();
 		}
 	}
+
+	Preset->RemoveUnusedBindings();
+
+	return ReboundEntities;
+}
+
+TArray<FGuid> FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor, bool bUseRebindingContext)
+{
+	check(Preset && Entity && NewActor);
+	TArray<FGuid> ReboundEntityIds;
+
+	if (Entity->GetBindings().Num())
+	{
+		if (bUseRebindingContext)
+		{
+			ReboundEntityIds = RebindAllEntitiesUnderSameActor(Preset, Entity->GetBindings()[0].Get(), NewActor);
+		}
+		else
+		{
+			ReboundEntityIds = RebindAllEntitiesUnderSameActor_Legacy(Preset, Entity, NewActor);
+		}
+	}
+
+	return ReboundEntityIds;
 }
 
 TMap<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>> FRemoteControlPresetRebindingManager::GroupByEntitySupportedOwnerClass(TConstArrayView<TSharedPtr<FRemoteControlEntity>> Entities) const
@@ -364,7 +730,7 @@ void FRemoteControlPresetRebindingManager::ReinitializeBindings(URemoteControlPr
 	}
 }
 
-void FRemoteControlPresetRebindingManager::RebindEntitiesForClass(UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities)
+void FRemoteControlPresetRebindingManager::RebindEntitiesForClass_Legacy(UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities)
 {
 	// Keep track of matched properties by keeping a record of FieldPaths hash -> Objects.
 	// This is to make sure we don't bind the same property to the same object twice.
@@ -375,11 +741,44 @@ void FRemoteControlPresetRebindingManager::RebindEntitiesForClass(UClass* Class,
 	{
 		for (const TSharedPtr<FRemoteControlEntity>& RCEntity : UnboundEntities)
 		{
-			if (UObject* Match = FDefaultRebindingPolicy::FindMatch({RCEntity, *ObjectsToConsider, MatchedProperties}))
+			if (!RCEntity->IsBound())
 			{
-				MatchedProperties.FindOrAdd(RCEntity->GetUnderlyingEntityIdentifier()).Add(Match);
-				RCEntity->BindObject(Match);
+				if (UObject* Match = FDefaultRebindingPolicy::FindMatch({RCEntity, *ObjectsToConsider, MatchedProperties}))
+				{
+					MatchedProperties.FindOrAdd(RCEntity->GetUnderlyingEntityIdentifier()).Add(Match);
+					RCEntity->BindObject(Match);
+				}
 			}
 		}
 	}
 }
+
+void FRemoteControlPresetRebindingManager::RebindEntitiesForActorClass_Legacy(URemoteControlPreset* Preset, UClass* Class, const TArray<TSharedPtr<FRemoteControlEntity>>& UnboundEntities)
+{
+	TSet<FGuid> BoundProperties;
+	TSet<AActor*> BoundActors;
+
+	if (const TArray<UObject*>* ObjectsToConsider = Context.ObjectsGroupedByRelevantClass.Find(Class))
+	{
+		for (const TSharedPtr<FRemoteControlEntity>& RCEntity : UnboundEntities)
+		{
+			if (!BoundProperties.Contains(RCEntity->GetId()))
+			{
+				for (UObject* ObjToConsider : *ObjectsToConsider)
+				{
+					if (AActor* ActorToConsider = Cast<AActor>(ObjToConsider))
+					{
+						if (!BoundActors.Contains(ActorToConsider))
+						{
+							constexpr bool bUseRebindingContext = false;
+							BoundProperties.Append(RebindAllEntitiesUnderSameActor(Preset, RCEntity, ActorToConsider, bUseRebindingContext));
+							BoundActors.Add(ActorToConsider);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+

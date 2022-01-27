@@ -3,25 +3,30 @@
 #include "SRCPanelExposedEntity.h"
 
 #include "ActorTreeItem.h"
-#include "Components/ActorComponent.h"
+#include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "Engine/Selection.h"
+#include "Engine/Classes/Components/ActorComponent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
-#include "Modules/ModuleManager.h"
+#include "RemoteControlBinding.h"
 #include "RemoteControlEntity.h"
-#include "RemoteControlField.h"
-#include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlField.h"
+#include "RemoteControlSettings.h"
+#include "RemoteControlPanelStyle.h"
+#include "SRCPanelDragHandle.h"
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
-#include "SRCPanelDragHandle.h"
 #include "Styling/SlateIconFinder.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
@@ -51,6 +56,10 @@ TSharedPtr<FRemoteControlEntity> SRCPanelExposedEntity::GetEntity() const
 TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 {
 	FMenuBuilder MenuBuilder(true, TSharedPtr<const FUICommandList>());
+
+	constexpr bool bNoIndent = true;
+	MenuBuilder.AddWidget(CreateUseContextCheckbox(), LOCTEXT("UseContextLabel", "Use Context"), bNoIndent);
+
 	MenuBuilder.AddSubMenu(
 		LOCTEXT("EntityRebindSubmenuLabel", "Rebind"),
 		LOCTEXT("EntityRebindSubmenuToolTip", "Pick an object to rebind this exposed entity."),
@@ -187,6 +196,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	FSceneOutlinerInitializationOptions Options;
 	Options.Filters = MakeShared<FSceneOutlinerFilters>();
+
 	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
 
 	return SNew(SBox)
@@ -241,7 +251,30 @@ bool SRCPanelExposedEntity::IsActorSelectable(const AActor* Actor) const
 {
 	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
 	{
-		return Entity->CanBindObject(Actor);
+		if (Entity->GetBindings().Num())
+		{
+			// Don't show what it's already bound to.
+			if (UObject* Component = Entity->GetBindings()[0]->Resolve())
+			{
+				if (Component == Actor || Component->GetTypedOuter<AActor>() == Actor)
+				{
+					return false;
+				}
+			}
+
+			if (ShouldUseRebindingContext())
+			{
+				if (URemoteControlLevelDependantBinding* Binding = Cast<URemoteControlLevelDependantBinding>(Entity->GetBindings()[0].Get()))
+				{
+					if (UClass* SupportedClass = Binding->GetSupportedOwnerClass())
+					{
+						return Actor->GetClass()->IsChildOf(SupportedClass);
+					}
+				}
+			}
+
+			return Entity->CanBindObject(Actor);
+		}
 	}
 	return false;
 }
@@ -320,12 +353,14 @@ void SRCPanelExposedEntity::OnActorSelectedForRebindAllProperties(AActor* InActo
 {
 	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
 	{
-		Preset->RebindAllEntitiesUnderSameActor(Entity->GetId(), InActor);
+		const bool bShouldUseRebindingContext = ShouldUseRebindingContext();
+
+		Preset->RebindAllEntitiesUnderSameActor(Entity->GetId(), InActor, bShouldUseRebindingContext);
+		SelectActor(InActor);
 	}
 
 	FSlateApplication::Get().DismissAllMenus();
 }
-
 
 void SRCPanelExposedEntity::HandleUnexposeEntity()
 {
@@ -337,5 +372,72 @@ void SRCPanelExposedEntity::HandleUnexposeEntity()
 	}
 }
 
+void SRCPanelExposedEntity::SelectActor(AActor* InActor) const
+{
+	if (GEditor)
+	{
+		// Don't change selection if the target's component is already selected
+		USelection* Selection = GEditor->GetSelectedComponents();
+
+		const bool bComponentSelected = Selection->Num() == 1
+			&& Selection->GetSelectedObject(0) != nullptr
+			&& Selection->GetSelectedObject(0)->GetTypedOuter<AActor>() == InActor;
+
+		if (!bComponentSelected)
+		{
+			constexpr bool bNoteSelectionChange = false;
+			constexpr bool bDeselectBSPSurfs = true;
+			constexpr bool WarnAboutManyActors = false;
+			GEditor->SelectNone(bNoteSelectionChange, bDeselectBSPSurfs, WarnAboutManyActors);
+
+			constexpr bool bInSelected = true;
+			constexpr bool bNotify = true;
+			constexpr bool bSelectEvenIfHidden = true;
+			GEditor->SelectActor(InActor, bInSelected, bNotify, bSelectEvenIfHidden);
+		}
+	}
+}
+
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateUseContextCheckbox()
+{
+	return SNew(SCheckBox)
+		.ToolTipText(LOCTEXT("UseRebindingContextTooltip", "Unchecking this will allow you to rebind this property to any object regardless of the underlying supported class."))
+
+		// Bind the button's "on checked" event to our object's method for this
+		.OnCheckStateChanged_Raw(this, &SRCPanelExposedEntity::OnUseContextChanged)
+
+		// Bind the check box's "checked" state to our user interface action
+		.IsChecked_Raw(this, &SRCPanelExposedEntity::IsUseContextEnabled);
+}
+
+void SRCPanelExposedEntity::OnUseContextChanged(ECheckBoxState State)
+{
+	if (URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>())
+	{
+		if (State == ECheckBoxState::Unchecked)
+		{
+			Settings->bUseRebindingContext = false;
+		}
+		else if (State == ECheckBoxState::Checked)
+		{
+			Settings->bUseRebindingContext = true;
+		}
+	}
+}
+
+ECheckBoxState SRCPanelExposedEntity::IsUseContextEnabled() const
+{
+	return ShouldUseRebindingContext() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool SRCPanelExposedEntity::ShouldUseRebindingContext() const
+{
+	if (const URemoteControlSettings* Settings = GetDefault<URemoteControlSettings>())
+	{
+		return Settings->bUseRebindingContext;
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE
