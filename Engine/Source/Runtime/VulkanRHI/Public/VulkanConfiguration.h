@@ -331,6 +331,13 @@
 	#define VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS		0
 #endif
 
+#ifdef VK_EXT_shader_viewport_index_layer
+	#define VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER	1
+#else
+	#define VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER	0
+#endif
+
+
 #ifndef VULKAN_OBJECT_TRACKING 
 #define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console
 #endif

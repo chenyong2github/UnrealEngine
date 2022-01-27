@@ -127,6 +127,10 @@ static const ANSICHAR* GDeviceExtensions[] =
 
 	VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
 
+#if VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER
+	VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME,
+#endif 
+
 	nullptr
 };
 
@@ -908,6 +912,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasDeferredHostOperations	= HasExtension(DeviceExtensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
 	HasSPIRV_14					= HasExtension(DeviceExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
 	HasShaderFloatControls		= HasExtension(DeviceExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER
+	HasEXTShaderViewportIndexLayer = HasExtension(DeviceExtensions, VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
 #endif
 }
 
