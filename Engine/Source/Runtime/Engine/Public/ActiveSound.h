@@ -567,6 +567,9 @@ public:
 	uint8 bEnableMainSubmixOutputOverride : 1;
 	uint8 bEnableSubmixSendRoutingOverride : 1;
 
+	uint8 bIsFirstAttenuationUpdate : 1;
+	uint8 bStartedWithinNonBinauralRadius : 1;
+
 	uint8 UserIndex;
 
 	/** Type of fade out currently being applied */
