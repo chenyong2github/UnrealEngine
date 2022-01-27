@@ -162,7 +162,7 @@ FTransform ARCorePoseToUnrealTransform(ArPose* ArPoseHandle, const ArSession* Se
 {
 	FMatrix44f ARCorePoseMatrix;
 	ArPose_getMatrix(SessionHandle, ArPoseHandle, ARCorePoseMatrix.M[0]);
-	FTransform Result = FTransform(ARCoreToUnrealTransform * ARCorePoseMatrix * ARCoreToUnrealTransformInverse);
+	FTransform Result = FTransform(ARCoreToUnrealTransform * FMatrix(ARCorePoseMatrix) * ARCoreToUnrealTransformInverse);
 	Result.SetLocation(Result.GetLocation() * WorldToMeterScale);
 
 	return Result;
@@ -1255,7 +1255,7 @@ FMatrix FGoogleARCoreFrame::GetProjectionMatrix() const
 #if PLATFORM_ANDROID
 	if (SessionHandle == nullptr)
 	{
-		return ProjectionMatrix;
+		return FMatrix();
 	}
 
 	ArCamera_getProjectionMatrix(SessionHandle, CameraHandle, GNearClippingPlane, 100.0f, ProjectionMatrix.M[0]);
