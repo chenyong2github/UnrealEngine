@@ -165,7 +165,8 @@ namespace Audio
 
 
 		// If the number of input frames changes between callbacks, the output may contain discontinuities.
-		void ProcessAudio(int32 InNumInputChannels, FAlignedFloatBuffer& InputAudio, int32 InNumOutputChannels, FAlignedFloatBuffer& OutputAudio);
+		void ProcessAudio(int32 InNumInputChannels, const FAlignedFloatBuffer& InputAudio, int32 InNumOutputChannels, FAlignedFloatBuffer& OutputAudio);
+		void ProcessAudio(int32 InNumInputChannels, const float* InputAudio, int32 InNumOutputChannels, float* OutputAudio, const int32 InNumFrames);
 
 		int32 GetNumInputChannels() const;
 		int32 GetNumOutputChannels() const;

@@ -455,35 +455,38 @@ namespace Audio
 		return Settings;
 	}
 
+	void FConvolutionReverb::ProcessAudio(int32 InNumInputChannels, const FAlignedFloatBuffer& InputAudio, int32 InNumOutputChannels, FAlignedFloatBuffer& OutputAudio)
+	{
+		check(InNumInputChannels != 0);
+		check(InputAudio.Num() % InNumInputChannels == 0);
 
-	void FConvolutionReverb::ProcessAudio(int32 NumInputChannels, FAlignedFloatBuffer& InputAudio, int32 NumOutputChannels, FAlignedFloatBuffer& OutputAudio)
+		ProcessAudio(InNumInputChannels, InputAudio.GetData(), InNumOutputChannels, OutputAudio.GetData(), InputAudio.Num() / InNumInputChannels);
+	}
+
+	void FConvolutionReverb::ProcessAudio(int32 InNumInputChannels, const float* InputAudio, int32 InNumOutputChannels, float* OutputAudio, const int32 InNumFrames)
 	{
 		check(InputBlockBuffer.IsValid());
 		check(OutputBlockBuffer.IsValid());
 
-		OutputAudio.Reset();
-
-		const int32 NumInputSamples = InputAudio.Num();
-		const int32 NumFrames = NumInputSamples / NumInputChannels;
-		check((NumInputSamples % NumFrames) == 0);
-		const int32 NumOutputSamples = NumFrames * NumOutputChannels;
-
-		if (NumFrames != ExpectedNumFramesPerCallback)
+		if (InNumFrames < 1)
 		{
-			ExpectedNumFramesPerCallback = NumFrames;
+			return;
+		}
+
+		const int32 NumInputSamples = InNumFrames * InNumInputChannels;
+		const int32 NumOutputSamples = InNumFrames * InNumOutputChannels;
+
+		if (InNumFrames != ExpectedNumFramesPerCallback)
+		{
+			ExpectedNumFramesPerCallback = InNumFrames;
 			// If the number of frames processed per a call changes, then
 			// block buffers need to be updated. 
 			ResizeBlockBuffers();
 		}
 
-		if (NumFrames < 1)
-		{
-			return;
-		}
-
 		if (NumOutputSamples > 0)
 		{
-			OutputAudio.AddZeroed(NumOutputSamples);
+			FMemory::Memzero(OutputAudio, NumOutputSamples * sizeof(float));
 		}
 
 		// If we don't have a valid algorithm. We cannot do any processing. 
@@ -494,19 +497,19 @@ namespace Audio
 		}
 
 		// Our convolution algorithm should have equal number of input and output channels.
-		if (NumInputChannels != GetNumInputChannels())
+		if (InNumInputChannels != GetNumInputChannels())
 		{
-			UE_LOG(LogSynthesis, Error, TEXT("Convolution num input channel mismatch. Expected %d, got %d"), GetNumInputChannels(), NumInputChannels);
+			UE_LOG(LogSynthesis, Error, TEXT("Convolution num input channel mismatch. Expected %d, got %d"), GetNumInputChannels(), InNumInputChannels);
 			return;
 		}
-		else if (NumOutputChannels != GetNumOutputChannels())
+		else if (InNumOutputChannels != GetNumOutputChannels())
 		{
-			UE_LOG(LogSynthesis, Error, TEXT("Convolution num output channel mismatch. Expected %d, got %d"), GetNumOutputChannels(), NumOutputChannels);
+			UE_LOG(LogSynthesis, Error, TEXT("Convolution num output channel mismatch. Expected %d, got %d"), GetNumOutputChannels(), InNumOutputChannels);
 			return;
 		}
 
 		// Process all available audio that completes a block.
-		InputBlockBuffer->AddSamples(InputAudio.GetData(), NumInputSamples);
+		InputBlockBuffer->AddSamples(InputAudio, NumInputSamples);
 
 		while (InputBlockBuffer->GetNumAvailable() >= NumInputSamplesPerBlock)
 		{
@@ -514,7 +517,7 @@ namespace Audio
 
 			if (nullptr != InputBlock)
 			{
-				ProcessAudioBlock(InputBlock, NumInputChannels, InterleavedOutputBlock, NumOutputChannels);
+				ProcessAudioBlock(InputBlock, InNumInputChannels, InterleavedOutputBlock, InNumOutputChannels);
 				OutputBlockBuffer->AddSamples(InterleavedOutputBlock.GetData(), InterleavedOutputBlock.Num());
 			}
 
@@ -530,7 +533,7 @@ namespace Audio
 			const float* OutputPtr = OutputBlockBuffer->InspectSamples(NumToPop);
 			if (nullptr != OutputPtr)
 			{
-				FMemory::Memcpy(&OutputAudio.GetData()[OutputCopyOffset], OutputPtr, NumToPop * sizeof(float));
+				FMemory::Memcpy(&OutputAudio[OutputCopyOffset], OutputPtr, NumToPop * sizeof(float));
 			}
 			OutputBlockBuffer->RemoveSamples(NumToPop);
 		}

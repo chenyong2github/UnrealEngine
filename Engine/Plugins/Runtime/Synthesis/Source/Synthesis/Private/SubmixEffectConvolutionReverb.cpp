@@ -4,116 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "Async/Async.h"
-#include "ConvolutionReverb.h"
-#include "DSP/ConvolutionAlgorithm.h"
 #include "SynthesisModule.h"
 
-namespace AudioConvReverbIntrinsics
-{
-	using namespace Audio;
-
-	// names of various smart pointers
-	using FSubmixEffectConvSharedPtr = TSharedPtr<FSubmixEffectConvolutionReverb, ESPMode::ThreadSafe>;
-	using FSubmixEffectConvWeakPtr = TWeakPtr<FSubmixEffectConvolutionReverb, ESPMode::ThreadSafe>;
-
-	using FVersionData = FSubmixEffectConvolutionReverb::FVersionData;
-
-	// Task for creating convolution algorithm object.
-	class FCreateConvolutionReverbTask : public FNonAbandonableTask
-	{
-		// This task can delete itself
-		friend class FAutoDeleteAsyncTask<FCreateConvolutionReverbTask>;
-
-		public:
-			FCreateConvolutionReverbTask(
-					FSubmixEffectConvWeakPtr InEffectObject,
-					FConvolutionReverbInitData&& InInitData,
-					FConvolutionReverbSettings& InSettings,
-					const FVersionData& InVersionData)
-			:	EffectWeakPtr(InEffectObject)
-			,	InitData(MoveTemp(InInitData))
-			,	Settings(InSettings)
-			,	VersionData(InVersionData)
-			{}
-
-			void DoWork()
-			{
-				// Build the convolution reverb object. 
-				TUniquePtr<FConvolutionReverb> ConvReverb = FConvolutionReverb::CreateConvolutionReverb(InitData, Settings);
-
-				FSubmixEffectConvSharedPtr EffectSharedPtr = EffectWeakPtr.Pin();
-
-				// Check that the submix effect still exists.
-				if (EffectSharedPtr.IsValid())
-				{
-					// If the effect ptr is still valid, add to it's command queue to set the convolution
-					// algorithm object in the audio render thread.
-					TUniqueFunction<void()> Command = [Algo = MoveTemp(ConvReverb), EffectSharedPtr, VersionData = VersionData] () mutable
-					{
-						EffectSharedPtr->SetConvolutionReverbIfCurrent(MoveTemp(Algo), VersionData);
-					};
-					EffectSharedPtr->EffectCommand(MoveTemp(Command));
-				}
-			}
-
-			FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(CreateConvolutionReverbTask,     STATGROUP_ThreadPoolAsyncTasks); }
-
-		private:
-			FSubmixEffectConvWeakPtr EffectWeakPtr;
-
-			FConvolutionReverbInitData InitData;
-			FConvolutionReverbSettings Settings;
-			FVersionData VersionData;
-	};
-}
-
-UAudioImpulseResponse::UAudioImpulseResponse()
-:	NumChannels(0)
-,	SampleRate(0)
-,	NormalizationVolumeDb(-24.f)
-{
-}
-
-#if WITH_EDITORONLY_DATA
-void UAudioImpulseResponse::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	OnObjectPropertyChanged.Broadcast(PropertyChangedEvent);
-}
-#endif
-
 FSubmixEffectConvolutionReverbSettings::FSubmixEffectConvolutionReverbSettings()
-:	NormalizationVolumeDb(-24.f)
-,	bBypass(false)
-,	bMixInputChannelFormatToImpulseResponseFormat(true)
-,	bMixReverbOutputToOutputChannelFormat(true)
-,	SurroundRearChannelBleedDb(-60.f)
-,	bInvertRearChannelBleedPhase(false)
-,	bSurroundRearChannelFlip(false)
-,	SurroundRearChannelBleedAmount_DEPRECATED(0.0f)
-,	ImpulseResponse_DEPRECATED(nullptr)
-,	AllowHardwareAcceleration_DEPRECATED(true)
+	: NormalizationVolumeDb(-24.f)
+	, WetVolumeDb(0.f)
+	, DryVolumeDb(-96.f)
+	, bBypass(false)
+	, bMixInputChannelFormatToImpulseResponseFormat(true)
+	, bMixReverbOutputToOutputChannelFormat(true)
+	, SurroundRearChannelBleedDb(-60.f)
+	, bInvertRearChannelBleedPhase(false)
+	, bSurroundRearChannelFlip(false)
+	, SurroundRearChannelBleedAmount_DEPRECATED(0.0f)
+	, ImpulseResponse_DEPRECATED(nullptr)
+	, AllowHardwareAcceleration_DEPRECATED(true)
 {
-}
-
-FSubmixEffectConvolutionReverb::FVersionData::FVersionData()
-: 	ConvolutionID(0)
-{
-}
-
-bool FSubmixEffectConvolutionReverb::FVersionData::operator==(const FVersionData& Other) const
-{
-	// Check if versions are equal
-	return ConvolutionID == Other.ConvolutionID;
 }
 
 FSubmixEffectConvolutionReverb::FSubmixEffectConvolutionReverb(const USubmixEffectConvolutionReverbPreset* InPreset)
-: 	ConvolutionReverb(TUniquePtr<Audio::FConvolutionReverb>(nullptr))
-,	SampleRate(0.0f)
-,	NumInputChannels(2)
-,	NumOutputChannels(2)
-,	bBypass(false)
+	: Reverb(MakeShared<Audio::FEffectConvolutionReverb, ESPMode::ThreadSafe>())
 {
 	UpdateConvolutionReverb(InPreset);
 
@@ -131,23 +41,11 @@ void FSubmixEffectConvolutionReverb::Init(const FSoundEffectSubmixInitData& Init
 {
 	using namespace Audio;
 
-	SampleRate = InitData.SampleRate;
+	Reverb->SetSampleRate(InitData.SampleRate);
 
-	FVersionData UpdatedVersionData = UpdateVersion();
-
-	// Create the convolution algorithm init data
-	FConvolutionReverbInitData ConvolutionInitData = CreateConvolutionReverbInitData();
-
-	FConvolutionReverbSettings Settings;
-	Params.CopyParams(Settings);
-
-	// Create the convolution reverb
-	TUniquePtr<FConvolutionReverb> ConvReverb = FConvolutionReverb::CreateConvolutionReverb(ConvolutionInitData, Settings);
-
-	// Set the convolution algorithm, ensuring that it's the most up-to-date
-	SetConvolutionReverbIfCurrent(MoveTemp(ConvReverb), UpdatedVersionData);
+	Reverb->UpdateVersion();
+	Reverb->Init();
 }
-
 
 void FSubmixEffectConvolutionReverb::OnPresetChanged()
 {
@@ -157,7 +55,7 @@ void FSubmixEffectConvolutionReverb::OnPresetChanged()
 	// Copy settings from FSubmixEffectConvolutionReverbSettings needed for FConvolutionReverbSettings 
 	// FConvolutionReverbSettings represents runtime settings which do not need the 
 	// FConvlutionReverb object to be rebuilt. Some settings in FSubmixEffectConvolutionReverbSettings
-	// force a rebuild of FConvolutionReverb. Those are handled in USubmixEffectConvolutinReverbPreset::PostEditChangeProperty
+	// force a rebuild of FConvolutionReverb-> Those are handled in USubmixEffectConvolutinReverbPreset::PostEditChangeProperty
 	SetConvolutionReverbParameters(Settings);
 }
 
@@ -165,7 +63,6 @@ void FSubmixEffectConvolutionReverb::SetConvolutionReverbParameters(const FSubmi
 {
 	Audio::FConvolutionReverbSettings ReverbSettings;
 
-	float NewVolume = Audio::ConvertToLinear(InSettings.NormalizationVolumeDb);
 	float NewRearChannelBleed = Audio::ConvertToLinear(InSettings.SurroundRearChannelBleedDb);
 
 	if (InSettings.bInvertRearChannelBleedPhase)
@@ -173,128 +70,16 @@ void FSubmixEffectConvolutionReverb::SetConvolutionReverbParameters(const FSubmi
 		NewRearChannelBleed *= -1.f;
 	}
 
-	ReverbSettings.NormalizationVolume = NewVolume;
 	ReverbSettings.RearChannelBleed = NewRearChannelBleed;
+
+	ReverbSettings.NormalizationVolume = Audio::ConvertToLinear(InSettings.NormalizationVolumeDb);
 	ReverbSettings.bRearChannelFlip = InSettings.bSurroundRearChannelFlip;
 
-	Params.SetParams(ReverbSettings);
+	WetVolume = Audio::ConvertToLinear(InSettings.WetVolumeDb);
+	DryVolume = Audio::ConvertToLinear(InSettings.DryVolumeDb);
 
-	bBypass = InSettings.bBypass;
-}
-
-
-Audio::FConvolutionReverbInitData FSubmixEffectConvolutionReverb::CreateConvolutionReverbInitData() 
-{
-	FScopeLock ConvReverbInitDataLock(&ConvReverbInitDataCriticalSection);
-
-	int32 NumInputChannelsLocal = NumInputChannels.Load();
-	int32 NumOutputChannelsLocal = NumOutputChannels.Load();
-
-	ConvReverbInitData.InputAudioFormat.NumChannels = NumInputChannelsLocal;
-	ConvReverbInitData.OutputAudioFormat.NumChannels = NumOutputChannelsLocal;
-	ConvReverbInitData.TargetSampleRate = SampleRate;
-
-	// Mono to true stereo is a special case where we have the true stereo flag
-	// checked but only have 2 IRs
-	bool bIsMonoToTrueStereo = ConvReverbInitData.bIsImpulseTrueStereo && (ConvReverbInitData.AlgorithmSettings.NumImpulseResponses == 2);
-
-	// Determine correct input channel counts 
-	if (ConvReverbInitData.bMixInputChannelFormatToImpulseResponseFormat)
-	{
-		if (bIsMonoToTrueStereo)
-		{
-			// Force mono input.
-			ConvReverbInitData.AlgorithmSettings.NumInputChannels = 1;
-		}
-		else if (ConvReverbInitData.bIsImpulseTrueStereo)
-		{
-			// If performing true stereo, force input to be stereo
-			ConvReverbInitData.AlgorithmSettings.NumInputChannels = 2;
-		}
-		else
-		{
-			ConvReverbInitData.AlgorithmSettings.NumInputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
-		}
-	}
-	else
-	{
-		ConvReverbInitData.AlgorithmSettings.NumInputChannels = NumInputChannelsLocal;
-	}
-
-
-	// Determine correct output channel count
-	if (bIsMonoToTrueStereo)
-	{
-		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = 2;
-	}
-	else if (ConvReverbInitData.bIsImpulseTrueStereo)
-	{
-		// If IRs are true stereo, divide output channel count in half.
-		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses / 2;
-	}
-	else
-	{
-		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
-	}
-
-	// Determine longest IR
-	ConvReverbInitData.AlgorithmSettings.MaxNumImpulseResponseSamples = 0;
-
-	if (ConvReverbInitData.AlgorithmSettings.NumImpulseResponses > 0)
-	{
-		// Determine sample rate ratio in order to calculate the final IR num samples. 
-		float SampleRateRatio = 1.f;
-		if (ConvReverbInitData.ImpulseSampleRate > 0.f)
-		{
-			SampleRateRatio = ConvReverbInitData.TargetSampleRate / ConvReverbInitData.ImpulseSampleRate;
-		}
-
-		ConvReverbInitData.AlgorithmSettings.MaxNumImpulseResponseSamples = FMath::CeilToInt(SampleRateRatio * ConvReverbInitData.Samples.Num() / ConvReverbInitData.AlgorithmSettings.NumImpulseResponses) + 256;
-	}
-
-	// Setup gain matrix.
-	ConvReverbInitData.GainMatrix.Reset();
-
-	if (bIsMonoToTrueStereo)
-	{
-		ConvReverbInitData.GainMatrix.Emplace(0, 0, 0, 1.f);
-		ConvReverbInitData.GainMatrix.Emplace(0, 1, 1, 1.f);
-	}
-	else if (ConvReverbInitData.bIsImpulseTrueStereo)
-	{
-		// True stereo treats first group of IRs 
-		int32 NumPairs = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses / 2;
-
-		for (int32 PairIndex = 0; PairIndex < NumPairs; PairIndex++)
-		{
-			int32 LeftImpulseIndex = PairIndex;
-			int32 RightImpulseIndex = NumPairs + PairIndex;
-
-			ConvReverbInitData.GainMatrix.Emplace(0, LeftImpulseIndex,  PairIndex, 1.f);
-			ConvReverbInitData.GainMatrix.Emplace(1, RightImpulseIndex, PairIndex, 1.f);
-		}
-	}
-	else
-	{
-		// Set up a 1-to-1 mapping. 
-		int32 MinChannelCount = FMath::Min3(ConvReverbInitData.AlgorithmSettings.NumInputChannels, ConvReverbInitData.AlgorithmSettings.NumOutputChannels, ConvReverbInitData.AlgorithmSettings.NumImpulseResponses);
-
-		for (int32 i = 0; i < MinChannelCount; i++)
-		{
-			ConvReverbInitData.GainMatrix.Emplace(i, i, i, 1.f);
-		}
-	}
-
-	return ConvReverbInitData;
-}
-
-Audio::FConvolutionReverbSettings FSubmixEffectConvolutionReverb::GetParameters() const
-{
-	Audio::FConvolutionReverbSettings Settings;
-
-	Params.CopyParams(Settings);
-
-	return Settings;
+	Reverb->SetSettings(ReverbSettings);
+	Reverb->SetBypass(InSettings.bBypass);
 }
 
 void FSubmixEffectConvolutionReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -303,199 +88,72 @@ void FSubmixEffectConvolutionReverb::OnProcessAudio(const FSoundEffectSubmixInpu
 
 	check(nullptr != InData.AudioBuffer);
 	check(nullptr != OutData.AudioBuffer);
+	check(InData.NumChannels != 0);
 
-	UpdateParameters();
+	Reverb->UpdateChannelCount(InData.NumChannels, OutData.NumChannels);
 
-	int32 ExpectedNumInputChannels = 0;
-	int32 ExpectedNumOutputChannels = 0;
+	Reverb->ProcessAudio(InData.NumChannels, InData.AudioBuffer->GetData(), OutData.NumChannels, OutData.AudioBuffer->GetData(), InData.NumFrames);
 
-	if (ConvolutionReverb.IsValid())
+	// Process Wet/Dry mix
+	if (FMath::IsNearlyEqual(WetVolume, 1.f) == false)
 	{
-		ExpectedNumInputChannels = ConvolutionReverb->GetNumInputChannels();
-		ExpectedNumOutputChannels = ConvolutionReverb->GetNumOutputChannels();
+		Audio::MultiplyBufferByConstantInPlace(*OutData.AudioBuffer, WetVolume);
 	}
-
-	// Check if there is a channel mismatch between the convolution reverb and the input/output data
-	bool bNumChannelsMismatch = false;
-	bNumChannelsMismatch |= (ExpectedNumInputChannels != InData.NumChannels);
-	bNumChannelsMismatch |= (ExpectedNumOutputChannels != OutData.NumChannels);
-
-	if (bNumChannelsMismatch)
+	if (DryVolume > KINDA_SMALL_NUMBER)
 	{
-		int32 NumInputChannelsTemp = NumInputChannels.Load();
-		int32 NumOutputChannelsTemp = NumOutputChannels.Load();
-
-		// We should create a new algorithm if the input and output channels are non-zero.
-		// But we check the NumInputChannelsTemp/NumOutputChannelsTemp to check if we've
-		// already tried and failed to create an algorithm for this channel configuration.
-		bool bShouldCreateNewAlgo = (NumInputChannelsTemp != InData.NumChannels) || (NumOutputChannelsTemp != OutData.NumChannels);
-		bShouldCreateNewAlgo &= (InData.NumChannels > 0);
-		bShouldCreateNewAlgo &= (OutData.NumChannels > 0);
-
-		if (bShouldCreateNewAlgo)
-		{
-			UE_LOG(LogSynthesis, Log, TEXT("Creating new convolution algorithm due to channel count update. Num Inputs %d -> %d. Num Outputs %d -> %d"), ExpectedNumInputChannels, InData.NumChannels, ExpectedNumOutputChannels, OutData.NumChannels);
-
-			// We don't update version data when changing the channel configuration
-			FVersionData CurrentVersionData;
-			{
-				FScopeLock VersionLock(&VersionDataCriticalSection);
-				CurrentVersionData = VersionData;
-			}
-
-			// These should only be updated here and in the constructor since we use them
-			// to see if we've tried this channel configuration already.
-			NumInputChannels.Store(InData.NumChannels);
-			NumOutputChannels.Store(OutData.NumChannels);
-
-			// Preferably, this should be done in a task. To do so, we would need 
-			// access to a weak ptr to "this". Currently that is not possible since this object
-			// is owned by the Preset, and the TWeakObjectPtr cannot safely be copied across thread
-			// boundaries. 
-			{
-				// Create the convolution algorithm init data
-				FConvolutionReverbInitData ConvolutionInitData = CreateConvolutionReverbInitData();
-
-				FConvolutionReverbSettings Settings;
-				Params.CopyParams(Settings);
-
-				// Create the convolution reverb
-				TUniquePtr<FConvolutionReverb> ConvReverb = FConvolutionReverb::CreateConvolutionReverb(ConvolutionInitData, Settings);
-
-				// Set the convolution algorithm, ensuring that it's the most up-to-date
-				SetConvolutionReverbIfCurrent(MoveTemp(ConvReverb), CurrentVersionData);
-			}
-
-			if (ConvolutionReverb.IsValid())
-			{
-				ExpectedNumInputChannels = ConvolutionReverb->GetNumInputChannels();
-				ExpectedNumOutputChannels = ConvolutionReverb->GetNumOutputChannels();
-			}
-		}
-	}
-
-	const bool bShouldProcessConvReverb = !bBypass &&
-		ConvolutionReverb.IsValid() && 
-		(ExpectedNumInputChannels == InData.NumChannels) && 
-		(ExpectedNumOutputChannels == OutData.NumChannels);
-
-	if (bShouldProcessConvReverb)
-	{
-		ConvolutionReverb->ProcessAudio(InData.NumChannels, *InData.AudioBuffer, OutData.NumChannels, *OutData.AudioBuffer);
-	}
-	else if (bBypass)
-	{
-		*OutData.AudioBuffer = *InData.AudioBuffer;
-	}
-	else
-	{
-		// Zero output data. Do *not* trigger rebuild here in case one is already in flight or simply because one cannot be built.
-		OutData.AudioBuffer->Reset();
-
-		int32 OutputNumFrames = InData.NumFrames * OutData.NumChannels;
-		if (OutputNumFrames > 0)
-		{
-			OutData.AudioBuffer->AddZeroed(OutputNumFrames);
-		}
+		Audio::MixInBufferFast(*InData.AudioBuffer, *OutData.AudioBuffer, DryVolume);
 	}
 }
 
-FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::UpdateVersion()
-{
-	FVersionData VersionDataCopy;
-	FScopeLock VersionDataLock(&VersionDataCriticalSection);
-
-	VersionData.ConvolutionID++;
-	VersionDataCopy = VersionData;
-
-	return VersionDataCopy;
-}
-
-void FSubmixEffectConvolutionReverb::UpdateParameters()
-{
-	// Call on the audio render thread to update parameters.
-	if (ConvolutionReverb.IsValid())
-	{
-		Audio::FConvolutionReverbSettings NewSettings;
-		if (Params.GetParams(&NewSettings))
-		{
-			ConvolutionReverb->SetSettings(NewSettings);
-		}
-    }
-}
-
-FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::UpdateConvolutionReverb(const USubmixEffectConvolutionReverbPreset* InPreset)
+AudioConvReverbIntrinsics::FVersionData FSubmixEffectConvolutionReverb::UpdateConvolutionReverb(const USubmixEffectConvolutionReverbPreset* InPreset)
 {
 	using namespace Audio;
 
 	// Copy data from preset into internal FConvolutionReverbInitData
-	
-	// TODO: Need to update AudioMixerSubmix initialization. Some initializations
-	// happen on the audio render thread.
-	// check(IsInGameThread() || IsInAudioThread());
+	// Reset data
+	FConvolutionReverbInitData InitData = FConvolutionReverbInitData();
+
+	if (nullptr != InPreset)
 	{
-		FScopeLock ConvReverbInitDataLock(&ConvReverbInitDataCriticalSection);
-
-		// Reset data
-		ConvReverbInitData = FConvolutionReverbInitData();
-
-		if (nullptr != InPreset)
+		if (InPreset->ImpulseResponse)
 		{
-			if (InPreset->ImpulseResponse)
-			{
-				UAudioImpulseResponse* IR = InPreset->ImpulseResponse;
+			UAudioImpulseResponse* IR = InPreset->ImpulseResponse;
 
-				ConvReverbInitData.Samples = IR->ImpulseResponse;
-				ConvReverbInitData.AlgorithmSettings.NumImpulseResponses = IR->NumChannels;
-				ConvReverbInitData.ImpulseSampleRate = IR->SampleRate;
-				ConvReverbInitData.bIsImpulseTrueStereo = IR->bTrueStereo && (IR->NumChannels % 2 == 0);
-				ConvReverbInitData.NormalizationVolume = Audio::ConvertToLinear(IR->NormalizationVolumeDb);
-			}
-
-			switch (InPreset->BlockSize)
-			{
-				case ESubmixEffectConvolutionReverbBlockSize::BlockSize256:
-					ConvReverbInitData.AlgorithmSettings.BlockNumSamples = 256;
-					break;
-
-				case ESubmixEffectConvolutionReverbBlockSize::BlockSize512:
-					ConvReverbInitData.AlgorithmSettings.BlockNumSamples = 512;
-					break;
-
-				case ESubmixEffectConvolutionReverbBlockSize::BlockSize1024:
-				default:
-					ConvReverbInitData.AlgorithmSettings.BlockNumSamples = 1024;
-					break;
-			}
-
-			ConvReverbInitData.AlgorithmSettings.bEnableHardwareAcceleration = InPreset->bEnableHardwareAcceleration;
-			ConvReverbInitData.bMixInputChannelFormatToImpulseResponseFormat = InPreset->Settings.bMixInputChannelFormatToImpulseResponseFormat;
-			ConvReverbInitData.bMixReverbOutputToOutputChannelFormat = InPreset->Settings.bMixReverbOutputToOutputChannelFormat;
+			InitData.Samples = IR->ImpulseResponse;
+			InitData.AlgorithmSettings.NumImpulseResponses = IR->NumChannels;
+			InitData.ImpulseSampleRate = IR->SampleRate;
+			InitData.bIsImpulseTrueStereo = IR->bTrueStereo && (IR->NumChannels % 2 == 0);
+			InitData.NormalizationVolume = ConvertToLinear(IR->NormalizationVolumeDb);
 		}
+
+		switch (InPreset->BlockSize)
+		{
+		case ESubmixEffectConvolutionReverbBlockSize::BlockSize256:
+			InitData.AlgorithmSettings.BlockNumSamples = 256;
+			break;
+
+		case ESubmixEffectConvolutionReverbBlockSize::BlockSize512:
+			InitData.AlgorithmSettings.BlockNumSamples = 512;
+			break;
+
+		case ESubmixEffectConvolutionReverbBlockSize::BlockSize1024:
+		default:
+			InitData.AlgorithmSettings.BlockNumSamples = 1024;
+			break;
+		}
+
+		InitData.AlgorithmSettings.bEnableHardwareAcceleration = InPreset->bEnableHardwareAcceleration;
+		InitData.bMixInputChannelFormatToImpulseResponseFormat = InPreset->Settings.bMixInputChannelFormatToImpulseResponseFormat;
+		InitData.bMixReverbOutputToOutputChannelFormat = InPreset->Settings.bMixReverbOutputToOutputChannelFormat;
 	}
 
-	return UpdateVersion();
+	Reverb->SetInitData(InitData);
+	return Reverb->UpdateVersion();
 }
 
-void FSubmixEffectConvolutionReverb::SetConvolutionReverbIfCurrent(TUniquePtr<Audio::FConvolutionReverb> InReverb, const FVersionData& InVersionData)
+void FSubmixEffectConvolutionReverb::RebuildConvolutionReverb()
 {
-	bool bIsCurrent = true;
-
-	{
-		FScopeLock VersionDataLock(&VersionDataCriticalSection);
-
-		bIsCurrent &= (InVersionData == VersionData);
-	}
-
-	if (bIsCurrent)
-	{
-		ConvolutionReverb = MoveTemp(InReverb);
-
-		if (ConvolutionReverb.IsValid())
-		{
-			ConvolutionReverb->SetSettings(GetParameters());
-		}
-	}
+	Reverb->BuildReverb();
 }
 
 /********************************************************************/
@@ -592,8 +250,9 @@ void USubmixEffectConvolutionReverbPreset::RebuildConvolutionReverb()
 	using namespace AudioConvReverbIntrinsics;
 	using FEffectWeakPtr = TWeakPtr<FSoundEffectBase, ESPMode::ThreadSafe>;
 	using FEffectSharedPtr = TSharedPtr<FSoundEffectBase, ESPMode::ThreadSafe>;
+	using FSubmixEffectConvSharedPtr = TSharedPtr<FSubmixEffectConvolutionReverb, ESPMode::ThreadSafe>;
 
-	// Iterator over effects and update the convolution reverb.
+	// Iterator over effects and update the convolution Reverb->
 	for (FEffectWeakPtr& InstanceWeakPtr : Instances)
 	{
 		FEffectSharedPtr InstanceSharedPtr = InstanceWeakPtr.Pin();
@@ -602,13 +261,7 @@ void USubmixEffectConvolutionReverbPreset::RebuildConvolutionReverb()
 			FSubmixEffectConvSharedPtr ConvEffectSharedPtr = StaticCastSharedPtr<FSubmixEffectConvolutionReverb>(InstanceSharedPtr);
 
 			FVersionData VersionData = ConvEffectSharedPtr->UpdateConvolutionReverb(this);
-
-			FConvolutionReverbInitData ConvolutionInitData = ConvEffectSharedPtr->CreateConvolutionReverbInitData();
-
-			Audio::FConvolutionReverbSettings ReverbParams = ConvEffectSharedPtr->GetParameters();
-
-			(new FAutoDeleteAsyncTask<FCreateConvolutionReverbTask>(ConvEffectSharedPtr, MoveTemp(ConvolutionInitData), ReverbParams, VersionData))->StartBackgroundTask();
-
+			ConvEffectSharedPtr->RebuildConvolutionReverb();
 		}
 	}
 }
