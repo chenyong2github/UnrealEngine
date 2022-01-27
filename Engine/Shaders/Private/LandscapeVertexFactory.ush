@@ -38,7 +38,7 @@ float GetViewLODData(uint ComponentIndex)
 	return 0;
 #else
 	const int AbsoluteSectionLODIndex = View.LandscapeIndirection[LandscapeContinuousLODParameters.LandscapeIndex] + ComponentIndex;
-	return View.LandscapePerComponentData[AbsoluteSectionLODIndex];
+	return View.OverrideLandscapeLOD >= 0.0f ? View.OverrideLandscapeLOD : View.LandscapePerComponentData[AbsoluteSectionLODIndex];
 #endif
 }
 

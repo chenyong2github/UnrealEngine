@@ -105,8 +105,8 @@ uint2 GetSizeInPages(FLumenCardData Card, uint ResLevel)
 
 FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, float2 LocalSamplePosition, float SampleRadius, bool bHiResSurface)
 {
-	// CardUV in [0;1]
-	float2 CardUV = SamplePositonToCardUV(Card, LocalSamplePosition);
+	// CardUV in [0;1)
+	float2 CardUV = min(SamplePositonToCardUV(Card, LocalSamplePosition), 0.999999f);
 
 	uint2 SizeInPages = Card.SizeInPages;
 	uint PageTableOffset = Card.PageTableOffset;

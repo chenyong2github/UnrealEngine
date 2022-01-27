@@ -817,19 +817,17 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	HitT *= length(LocalConeEndPoint - LocalConeOrigin);
 
 	// Clip marching space to intersection window
-	HitT.x = max(HitT.x, TraceInput.MinTraceDistance);
-	HitT.y = min(HitT.y, TraceInput.MaxTraceDistance);
+	float tMinValue = max(HitT.x, TraceInput.MinTraceDistance);
+	float tMaxValue = min(HitT.y, TraceInput.MaxTraceDistance);
 
 	// Ray-march at some nominal step size, evaluating heightfield data along the way
-	if (HitT.x < HitT.y
+	if (tMinValue < tMaxValue
 		&& LumenCardData.bVisible)
 	{
-		float Epsilon = 0.1;
-		float tMinValue = HitT.x + Epsilon;
-		float tMaxValue = HitT.y - Epsilon;
+		const uint MaxSteps = 64;
+		float MinStepSize = (tMaxValue - tMinValue) / MaxSteps;
 
 		float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tMinValue, TraceInput.MinSampleRadius);
-		float MinStepSize = TraceInput.MaxTraceDistance / float(LumenCardScene.MaxConeSteps);
 		float StepSize = max(SampleRadius * TraceInput.StepFactor, MinStepSize);
 
 		// Calculate initial entry depth
@@ -840,11 +838,15 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 		float PrevT = tMinValue;
 		float3 PrevPosition = EntryLocalSamplePosition;
 		float PrevHeightfieldDepth = EntryLocalHeightfieldDepth;
-		for (float tValue = tMinValue + StepSize; tValue < tMaxValue; tValue += StepSize)
+
+		float tValue = tMinValue;
+		LOOP
+		for (uint StepIndex = 0; StepIndex < MaxSteps; ++StepIndex)
 		{
+			tValue += StepSize;
+
 			float3 LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
 			float LocalHeightfieldDepth = EvaluateLocalHeightfieldDepth(LumenCardData, LocalCardIndex, LocalSamplePosition, SampleRadius);
-			float3 NewPosition = float3(LocalSamplePosition.xy, LocalHeightfieldDepth);
 
 			// Encountered zero-crossing
 			bool bIsZeroCrossing = Result.bRayStartInsideGeometry ? LocalSamplePosition.z > LocalHeightfieldDepth : LocalSamplePosition.z < LocalHeightfieldDepth;
@@ -855,6 +857,12 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 				float DeltaT = (PrevPosition.z - PrevHeightfieldDepth) / (PrevPosition.z - LocalSamplePosition.z - PrevHeightfieldDepth + LocalHeightfieldDepth);
 				Result.HitDistance = PrevT + DeltaT * StepSize;
 				Result.bIsHit = true;
+				break;
+			}
+
+			// Make sure we do one extra step in order to guarantee a hit
+			if (tValue > tMaxValue)
+			{
 				break;
 			}
 
@@ -1105,137 +1113,6 @@ uint VoxelFaceFromStep(uint3 StepInc, int3 VoxelStep)
 	return dot(StepInc, uint3(0, 2, 4) + DirectionOffset);
 }
 
-#if LEGACY_VOXEL_CONE_TRACING
-
-void ConeTraceVoxels(
-	FConeTraceInput TraceInput,
-	inout FConeTraceResult OutResult)
-{
-	float VoxelTraceStartDistance = TraceInput.VoxelTraceStartDistance;
-
-	// Bias
-	{
-		bool bOutOfRange = true;
-		uint LowerClipmapIndex = 0;
-		for (uint ClipmapIndex = 0; ClipmapIndex < NumClipmapLevels; ++ClipmapIndex)
-		{
-			bOutOfRange = any(abs(TraceInput.ConeOrigin - ClipmapWorldCenter[ClipmapIndex].xyz) > ClipmapWorldSamplingExtent[ClipmapIndex].xyz);
-			LowerClipmapIndex = bOutOfRange ? ClipmapIndex + 1 : LowerClipmapIndex;
-		}
-
-		if (bOutOfRange)
-		{
-			VoxelTraceStartDistance = TraceInput.MaxTraceDistance;
-		}
-		else
-		{
-			float LowerClipmapVoxelRadius = ClipmapVoxelSizeAndRadius[LowerClipmapIndex].w;
-			VoxelTraceStartDistance = max(VoxelTraceStartDistance, LowerClipmapVoxelRadius * 2.0f);
-		}
-	}
-
-	uint StartClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.ConeOrigin);
-	float4 LightingAndAlpha = float4(0, 0, 0, 1);
-	uint TotalNumSteps = 0;
-	float MinRayTime = VoxelTraceStartDistance / TraceInput.MaxTraceDistance;
-	float SampleRayTime = 0;
-
-	LOOP
-	for (uint ClipmapIndex = StartClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && LightingAndAlpha.a > MIN_VOXEL_TRACE_TRANSPARENCY; ClipmapIndex++)
-	{
-		float MinStepSize = TraceInput.VoxelStepFactor * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize; 
-		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
-		float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
-		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
-		float3 VolumeRayStart = TraceInput.ConeOrigin - GlobalVolumeCenter;
-		
-		float3 WorldRayEnd = TraceInput.ConeOrigin + TraceInput.ConeDirection * TraceInput.MaxTraceDistance;
-		float2 IntersectionTimes = LineBoxIntersect(TraceInput.ConeOrigin, WorldRayEnd, GlobalVolumeCenter - GlobalVolumeExtent.xxx, GlobalVolumeCenter + GlobalVolumeExtent.xxx);
-		IntersectionTimes.x = max(IntersectionTimes.x, MinRayTime);
-
-		// Update the trace start for the next clipmap
-		MinRayTime = IntersectionTimes.y;
-
-		if (IntersectionTimes.x < IntersectionTimes.y)
-		{
-			SampleRayTime = IntersectionTimes.x * TraceInput.MaxTraceDistance;
-
-			uint StepIndex = 0;
-			uint MaxSteps = 256;
-
-			uint VoxelClipmapIndex = 0;
-			float SampleClipmapVoxelRadius = ClipmapVoxelSizeAndRadius[0].w;
-
-			LOOP
-			for (; StepIndex < MaxSteps; StepIndex++)
-			{
-				float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SampleRayTime;
-				float3 MipUV = ComputeGlobalMipUV(SampleWorldPosition, ClipmapIndex);
-				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearWrappedSampler, MipUV, 0).x;
-				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);
-				float StepSphereRadius = SampleRayTime * TraceInput.TanConeAngle;
-
-				float3 VoxelClipmapCenter = ClipmapWorldCenter[VoxelClipmapIndex].xyz;
-				float3 VoxelClipmapExtent = ClipmapWorldSamplingExtent[VoxelClipmapIndex].xyz;
-
-				//@todo - align voxel clipmaps to global SDF clipmaps and we can get rid of these bounds checks
-				bool bOutsideValidRegion = any(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent || SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent);
-
-				// Find the voxel clipmap that matches the cone width at the current step
-				while ((StepSphereRadius > 2 * SampleClipmapVoxelRadius || bOutsideValidRegion)
-					&& VoxelClipmapIndex + 1 < NumClipmapLevels)
-				{
-					VoxelClipmapIndex++;
-					SampleClipmapVoxelRadius *= 2.0f;
-					VoxelClipmapCenter = ClipmapWorldCenter[VoxelClipmapIndex].xyz;
-					VoxelClipmapExtent = ClipmapWorldSamplingExtent[VoxelClipmapIndex].xyz;
-					bOutsideValidRegion = any(SampleWorldPosition > VoxelClipmapCenter + VoxelClipmapExtent || SampleWorldPosition < VoxelClipmapCenter - VoxelClipmapExtent);
-				}
-
-				// Approximate SDF visibility using smaller (0.75) cone to stop leaking from voxels
-				float ConeVisibility = saturate(DistanceField / min(0.75 * StepSphereRadius, MaxGlobalDFAOConeDistance));
-
-				if (DistanceField < SampleClipmapVoxelRadius && !bOutsideValidRegion)
-				{
-					float4 StepLighting = SampleVoxelLighting(SampleWorldPosition, TraceInput.ConeDirection, VoxelClipmapIndex);
-					LightingAndAlpha.rgb += StepLighting.rgb * LightingAndAlpha.a;
-					//@todo - compensate for step size not matching voxel size 
-					LightingAndAlpha.a *= 1 - StepLighting.a;
-
-					// Apply approximate SDF visibility and restore missing energy
-					float PrevAlpha = LightingAndAlpha.a;
-					LightingAndAlpha.a = min(LightingAndAlpha.a, ConeVisibility);
-					LightingAndAlpha.rgb *= (1.0f + max(PrevAlpha - LightingAndAlpha.a, 0.0f));
-				}
-
-				float StepDistance = max(DistanceField * TraceInput.SDFStepFactor, MinStepSize);
-				SampleRayTime += StepDistance;
-
-				// Terminate the trace if we went past the end of the ray or achieved enough occlusion
-				if (SampleRayTime > IntersectionTimes.y * TraceInput.MaxTraceDistance 
-					|| LightingAndAlpha.a < MIN_VOXEL_TRACE_TRANSPARENCY)
-				{
-					break;
-				}
-			}
-
-			TotalNumSteps += StepIndex;
-		}
-	}
-
-	LightingAndAlpha = FadeOutVoxelConeTraceMinTransparency(LightingAndAlpha);
-
-	OutResult = (FConeTraceResult)0;
-	#if !VISIBILITY_ONLY_TRACE
-		OutResult.Lighting = LightingAndAlpha.rgb;
-	#endif
-	OutResult.Transparency = LightingAndAlpha.a;
-	OutResult.NumSteps = TotalNumSteps;
-	OutResult.OpaqueHitDistance = SampleRayTime;
-}
-
-#else
-
 void ConeTraceVoxels(
 	FConeTraceInput TraceInput,
 	inout FConeTraceResult OutResult)
@@ -1289,7 +1166,6 @@ void ConeTraceVoxels(
 
 			float DistanceFieldGradientLength = length(DistanceFieldGradient);
 			float3 SampleNormal = DistanceFieldGradientLength > 0.001 ? DistanceFieldGradient / DistanceFieldGradientLength : -TraceInput.ConeDirection;
-
 			float4 StepLighting = SampleVoxelLighting(SampleWorldPosition, -SampleNormal, VoxelClipmapIndex);
 
 			StepLighting.xyz = StepLighting.xyz * (1.0f / max(StepLighting.w, 0.1));
@@ -1316,8 +1192,6 @@ void ConeTraceVoxels(
 	OutResult.OpaqueHitDistance = GlobalSDFTraceResultIsHit(SDFTraceResult) ? SDFTraceResult.HitTime : TraceInput.MaxTraceDistance;
 	OutResult.ExpandSurfaceAmount = SDFTraceResult.ExpandSurfaceAmount;
 }
-
-#endif
 
 float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 CenterB, float3 ExtentB)
 {

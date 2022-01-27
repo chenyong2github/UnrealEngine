@@ -496,7 +496,7 @@ void HeightfieldVoxelTraceCS(
 		float MinSampleRadius = length(AxisDirection * VoxelExtent);
 		float MinTraceDistance = 0.0f;
 		float MaxTraceDistance = length(RayEnd - RayStart);
-		float StepFactor = 0.0625f; // 1/16 of a voxel
+		float StepFactor = 0.25f; // 0.25 of a voxel
 		TraceInput.Setup(RayStart, AxisDirection, ConeAngle, MinSampleRadius, MinTraceDistance, MaxTraceDistance, StepFactor);
 
 		// Trace Heightfield object
