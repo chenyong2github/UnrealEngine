@@ -764,8 +764,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMExternalFu
 
 	checkfSlow(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 
-	const FMatrix& Transform = InstData->Transform;
-	const FMatrix& PrevTransform = InstData->PrevTransform;
+	const FMatrix44f Transform(InstData->Transform);			// LWC_TODO: Precision loss
+	const FMatrix44f PrevTransform(InstData->PrevTransform);
 
 	FGetVertexSkinnedDataOutputHandler Output(Context);
 

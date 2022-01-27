@@ -1759,7 +1759,7 @@ void FLightmassExporter::WriteMeshInstances( int32 Channel )
 		SMInstanceMeshData.EncodedHLODRange = SMLightingMesh->HLODChildStartIndex & 0xFFFF;
 		SMInstanceMeshData.EncodedHLODRange |= (SMLightingMesh->HLODChildEndIndex & 0xFFFF) << 16;
 
-		SMInstanceMeshData.LocalToWorld = SMLightingMesh->LocalToWorld;
+		SMInstanceMeshData.LocalToWorld = FMatrix44f(SMLightingMesh->LocalToWorld);	// LWC_TODO: Precision loss relevant here?
 		SMInstanceMeshData.bReverseWinding = SMLightingMesh->bReverseWinding;
 		SMInstanceMeshData.bShouldSelfShadow = true;
 		SMInstanceMeshData.StaticMeshGuid = SMLightingMesh->StaticMesh->GetLightingGuid();
@@ -1838,7 +1838,7 @@ void FLightmassExporter::WriteLandscapeInstances( int32 Channel )
 		Lightmass::FLandscapeStaticLightingMeshData LandscapeInstanceMeshData;
 		FMemory::Memzero(&LandscapeInstanceMeshData,sizeof(LandscapeInstanceMeshData));
 
-		LandscapeInstanceMeshData.LocalToWorld = LandscapeLightingMesh->LocalToWorld.ToMatrixWithScale();
+		LandscapeInstanceMeshData.LocalToWorld = FMatrix44f(LandscapeLightingMesh->LocalToWorld.ToMatrixWithScale());	// LWC_TODO: Precision loss relevant here?
 		LandscapeInstanceMeshData.ComponentSizeQuads = LandscapeLightingMesh->ComponentSizeQuads;
 		LandscapeInstanceMeshData.LightMapRatio = LandscapeLightingMesh->LightMapRatio;
 		LandscapeInstanceMeshData.ExpandQuadsX = LandscapeLightingMesh->ExpandQuadsX;
@@ -1944,8 +1944,8 @@ void FLightmassExporter::WriteMappings( int32 Channel )
 		BSPSurfaceMappingData.TangentX = BSPMapping->NodeGroup->TangentX;
 		BSPSurfaceMappingData.TangentY = BSPMapping->NodeGroup->TangentY;
 		BSPSurfaceMappingData.TangentZ = BSPMapping->NodeGroup->TangentZ;
-		BSPSurfaceMappingData.MapToWorld = BSPMapping->NodeGroup->MapToWorld;
-		BSPSurfaceMappingData.WorldToMap = BSPMapping->NodeGroup->WorldToMap;
+		BSPSurfaceMappingData.MapToWorld = FMatrix44f(BSPMapping->NodeGroup->MapToWorld);	// LWC_TODO: Precision loss?
+		BSPSurfaceMappingData.WorldToMap = FMatrix44f(BSPMapping->NodeGroup->WorldToMap);	// LWC_TODO: Precision loss?
 		
 		Swarm.WriteChannel( Channel, &BSPSurfaceMappingData, sizeof(BSPSurfaceMappingData) );
 	
@@ -4197,7 +4197,7 @@ void FLightmassProcessor::ImportStaticShadowDepthMap(ULightComponent* Light)
 		BeginReleaseResource(&Light->StaticShadowDepthMap);
 		CurrentLightData.DepthMap.Empty();
 
-		CurrentLightData.DepthMap.WorldToLight = ShadowMapData.WorldToLight;
+		CurrentLightData.DepthMap.WorldToLight = FMatrix(ShadowMapData.WorldToLight);
 		CurrentLightData.DepthMap.ShadowMapSizeX = ShadowMapData.ShadowMapSizeX;
 		CurrentLightData.DepthMap.ShadowMapSizeY = ShadowMapData.ShadowMapSizeY;
 

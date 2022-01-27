@@ -223,7 +223,7 @@ static void AddDebugProjectionMeshPass(
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
 	FHairProjectionMeshDebugParameters* Parameters = GraphBuilder.AllocParameters<FHairProjectionMeshDebugParameters>();
-	Parameters->LocalToWorld = MeshSectionData.LocalToWorld.ToMatrixWithScale();
+	Parameters->LocalToWorld = FMatrix44f(MeshSectionData.LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->OutputResolution = Resolution;
 	Parameters->MeshType = uint32(MeshType);
 	Parameters->bOutputInUVsSpace = GHairDebugMeshProjection_SkinCacheMeshInUVsSpace ? 1 : 0;
@@ -397,7 +397,7 @@ static void AddDebugProjectionHairPass(
 	FHairProjectionHairDebugParameters* Parameters = GraphBuilder.AllocParameters<FHairProjectionHairDebugParameters>();
 	Parameters->OutputResolution = Resolution;
 	Parameters->MaxRootCount = RootCount;
-	Parameters->RootLocalToWorld = LocalToWorld.ToMatrixWithScale();
+	Parameters->RootLocalToWorld = FMatrix44f(LocalToWorld.ToMatrixWithScale());	// LWC_TODO: Precision loss
 	Parameters->DeformedFrameEnable = PoseType == HairStrandsTriangleType::DeformedPose;
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
@@ -678,7 +678,7 @@ static void AddDrawDebugStrandsCVsPass(
 	FDrawDebugStrandsCVsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugStrandsCVsCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->HairStrandsVF = Instance->Strands.UniformBuffer;
-	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
+	Parameters->LocalToWorld = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->MaxVertexCount = Instance->Strands.Data->PointCount;
 	Parameters->ColorTexture = GraphBuilder.CreateUAV(ColorTexture);
 	Parameters->DepthTexture = DepthTexture;
@@ -824,7 +824,7 @@ static void AddDrawDebugCardsGuidesPass(
 		}
 	}
 
-	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
+	Parameters->LocalToWorld = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
 
 	const TCHAR* DebugName = TEXT("Unknown");
 	if (!bDeformed &&  bRen) { Parameters->DebugMode = 1; DebugName = TEXT("Ren, Rest"); } 

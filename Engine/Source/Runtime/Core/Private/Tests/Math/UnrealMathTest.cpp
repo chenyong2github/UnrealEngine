@@ -2695,7 +2695,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
 		LookAt = FVector3f(0.0f,		  0.0f,     0.0f);
 		Up     = FVector3f(0.0f,       1.0f,    0.0f);
-		M0	= FLookAtMatrix(Eye, LookAt, Up);		
+		M0	= FLookAtMatrix44f(Eye, LookAt, Up);		
 
 		// Create GL ortho projection matrix
 		const float Width = 1920.0f;

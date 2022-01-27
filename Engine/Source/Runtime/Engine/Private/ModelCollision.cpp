@@ -26,11 +26,11 @@ void UModel::GetSurfacePlanes(
 			// BSP is in world space
 			FMatrix::Identity;
 		const FMatrix MatrixTA = Matrix.TransposeAdjoint();
-		const float DetM = Matrix.Determinant();
+		const FMatrix::FReal DetM = Matrix.Determinant();
 
 		for (int32 SurfaceIndex = 0; SurfaceIndex < Surfs.Num(); SurfaceIndex++)
 		{
-			OutPlanes.Add(Surfs[SurfaceIndex].Plane.TransformByUsingAdjointT(Matrix, DetM, MatrixTA));
+			OutPlanes.Add(Surfs[SurfaceIndex].Plane.TransformByUsingAdjointT(FMatrix44f(Matrix), float(DetM), FMatrix44f(MatrixTA)));	// LWC_TODO: Precision loss
 		}
 	}
 }

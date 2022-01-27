@@ -791,8 +791,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 	//TODO: Replace this by storing off FTransforms and doing a proper lerp to get a final transform.
 	//Also need to pull in a per particle interpolation factor.
-	const FMatrix InstanceTransform = InstData->Transform;
-	const FMatrix PrevInstanceTransform = InstData->PrevTransform;
+	const FMatrix44f InstanceTransform(InstData->Transform);		// LWC_TODO: Precision loss
+	const FMatrix44f PrevInstanceTransform(InstData->PrevTransform);
 	const FQuat4f InstanceRotation = Output.bNeedsRotation ? FQuat4f(InstanceTransform.GetMatrixWithoutScale().ToQuat()) : FQuat4f::Identity;
 	const FQuat4f PrevInstanceRotation = Output.bNeedsRotation ? FQuat4f(PrevInstanceTransform.GetMatrixWithoutScale().ToQuat()) : FQuat4f::Identity;
 

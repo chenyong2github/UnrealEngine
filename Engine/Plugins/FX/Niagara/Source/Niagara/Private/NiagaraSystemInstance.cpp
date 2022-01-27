@@ -1955,12 +1955,12 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		const FVector LastLocation = FMath::IsNearlyZero(CurrentSystemParameters.EngineSystemAge) ? Location : FVector(FVector4(OwnerParameters[GetParameterIndex(true)].EnginePosition));
 		const FQuat LastRotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
 
-		CurrentOwnerParameters.EngineLocalToWorld = LocalToWorld;
-		CurrentOwnerParameters.EngineWorldToLocal = LocalToWorld.Inverse();
-		CurrentOwnerParameters.EngineLocalToWorldTransposed = LocalToWorld.GetTransposed();
+		CurrentOwnerParameters.EngineLocalToWorld = FMatrix44f(LocalToWorld);						// LWC_TODO: Precision loss
+		CurrentOwnerParameters.EngineWorldToLocal = FMatrix44f(LocalToWorld.Inverse());
+		CurrentOwnerParameters.EngineLocalToWorldTransposed = FMatrix44f(LocalToWorld.GetTransposed());
 		CurrentOwnerParameters.EngineWorldToLocalTransposed = CurrentOwnerParameters.EngineWorldToLocal.GetTransposed();
-		CurrentOwnerParameters.EngineLocalToWorldNoScale = LocalToWorldNoScale;
-		CurrentOwnerParameters.EngineWorldToLocalNoScale = LocalToWorldNoScale.Inverse();
+		CurrentOwnerParameters.EngineLocalToWorldNoScale = FMatrix44f(LocalToWorldNoScale);
+		CurrentOwnerParameters.EngineWorldToLocalNoScale = FMatrix44f(LocalToWorldNoScale.Inverse());
 		CurrentOwnerParameters.EngineRotation = FQuat4f((float)LastRotation.X, (float)LastRotation.Y, (float)LastRotation.Z, (float)LastRotation.W);
 		CurrentOwnerParameters.EnginePosition = (FVector4f)Location; // LWC_TODO: precision loss
 		CurrentOwnerParameters.EngineVelocity = (FVector4f)((Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds);

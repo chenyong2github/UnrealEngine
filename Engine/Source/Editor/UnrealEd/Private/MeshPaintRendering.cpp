@@ -322,7 +322,7 @@ namespace MeshPaintRendering
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Set vertex shader parameters
-		VertexShader->SetParameters(RHICmdList, InTransform );
+		VertexShader->SetParameters(RHICmdList, FMatrix44f(InTransform) );	// LWC_TODO: Precision loss
 		
 		// Set pixel shader parameters
 		PixelShader->SetParameters(RHICmdList, InGamma, InShaderParams );
@@ -347,7 +347,7 @@ namespace MeshPaintRendering
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Set vertex shader parameters
-		VertexShader->SetParameters(RHICmdList, InTransform );
+		VertexShader->SetParameters(RHICmdList, FMatrix44f(InTransform) );	// LWC_TODO: Precision loss
 
 		// Set pixel shader parameters
 		PixelShader->SetParameters(RHICmdList, InGamma, InShaderParams );

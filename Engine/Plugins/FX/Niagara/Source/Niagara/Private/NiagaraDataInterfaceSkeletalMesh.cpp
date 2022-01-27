@@ -1657,9 +1657,9 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->DynamicBuffer = SourceData->MeshGpuSpawnDynamicBuffers;
 	Data->MeshWeightStrideByte = SourceData->MeshWeightStrideByte;
 	Data->MeshSkinWeightIndexSizeByte = SourceData->MeshSkinWeightIndexSizeByte;
-	Data->PrevTransform = SourceData->PrevTransform;
+	Data->PrevTransform = FMatrix44f(SourceData->PrevTransform);	// LWC_TODO: Precision loss
 	Data->StaticBuffers = SourceData->MeshGpuSpawnStaticBuffers;
-	Data->Transform = SourceData->Transform;
+	Data->Transform = FMatrix44f(SourceData->Transform);			// LWC_TODO: Precision loss
 
 	Data->MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
 	Data->MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
@@ -2158,7 +2158,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			{
 				for (int32 i = 0; i < FilteredSocketInfo.Num(); ++i)
 				{
-					FilteredSocketInfo[i].Transform = FTransform3f(Mesh->GetComposedRefPoseMatrix(FilteredSockets[i]));
+					FilteredSocketInfo[i].Transform = FTransform3f(FMatrix44f(Mesh->GetComposedRefPoseMatrix(FilteredSockets[i])));
 					FilteredSocketInfo[i].BoneIdx = INDEX_NONE;
 				}
 			}

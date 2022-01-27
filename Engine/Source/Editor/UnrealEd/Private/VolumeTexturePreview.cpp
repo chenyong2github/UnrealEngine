@@ -184,7 +184,7 @@ void FBatchedElementVolumeTexturePreviewParameters::BindShaders(
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 	}
 
-	FMatrix ColorWeights = InColorWeights;
+	FMatrix44f ColorWeights = FMatrix44f(InColorWeights);
 	if (!bViewModeAsDepthSlices && ColorWeights.M[3][3] == 0)
 	{
 		const float XWeight = ColorWeights.M[0][0] + ColorWeights.M[1][0] + ColorWeights.M[2][0];

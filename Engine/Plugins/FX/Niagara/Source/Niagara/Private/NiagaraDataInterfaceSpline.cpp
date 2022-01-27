@@ -649,11 +649,11 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 
 				FNDISpline_InstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(InstanceId);
 					
-				TargetData->SplineTransform = Transform;
-				TargetData->SplineTransformRotationMat = Transform.RemoveTranslation();
+				TargetData->SplineTransform = FMatrix44f(Transform);			// LWC_TODO: Precision loss
+				TargetData->SplineTransformRotationMat =  FMatrix44f(Transform.RemoveTranslation());
 				TargetData->SplineTransformRotationMat.RemoveScaling();
-				TargetData->SplineTransformInverseTranspose = TransformInverseTranspose;
-				TargetData->SplineTransformRotation = (FQuat4f)TransformRot;	 // LWC_TODO: Precision loss
+				TargetData->SplineTransformInverseTranspose = FMatrix44f(TransformInverseTranspose);
+				TargetData->SplineTransformRotation = FQuat4f(TransformRot);
 					
 				TargetData->DefaultUpVector = DefaultUp;
 					

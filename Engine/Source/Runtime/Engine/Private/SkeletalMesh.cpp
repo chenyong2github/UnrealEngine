@@ -2277,7 +2277,7 @@ void USkeletalMesh::CalculateInvRefMatrices()
 			}
 
 			// Precompute inverse so we can use from-refpose-skin vertices.
-			GetRefBasesInvMatrix()[b] = ComposedRefPoseMatrices[b].Inverse();
+			GetRefBasesInvMatrix()[b] = FMatrix44f(ComposedRefPoseMatrices[b].Inverse());
 		}
 
 #if WITH_EDITORONLY_DATA
@@ -6712,7 +6712,7 @@ void FSkeletalMeshSceneProxy::GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleSh
 		FMatrix ReferenceToWorld = ProxyLocalToWorld;
 		if (ReferenceToLocalMatrices.IsValidIndex(CapsuleData.Key))
 		{
-			ReferenceToWorld = ReferenceToLocalMatrices[CapsuleData.Key] * ProxyLocalToWorld;
+			ReferenceToWorld = FMatrix(ReferenceToLocalMatrices[CapsuleData.Key]) * ProxyLocalToWorld;
 		}
 		const float MaxScale = ReferenceToWorld.GetScaleVector().GetMax();
 

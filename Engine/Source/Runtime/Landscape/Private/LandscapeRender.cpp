@@ -1988,7 +1988,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	LandscapeParams.LastLOD = LastLOD;
 	LandscapeParams.HeightmapUVScaleBias = HeightmapScaleBias;
 	LandscapeParams.WeightmapUVScaleBias = WeightmapScaleBias;
-	LandscapeParams.LocalToWorldNoScaling = LocalToWorldNoScaling;
+	LandscapeParams.LocalToWorldNoScaling = FMatrix44f(LocalToWorldNoScaling);			// LWC_TODO: Precision loss
 
 	LandscapeParams.LandscapeLightmapScaleBias = FVector4f(
 		LightmapScaleX,

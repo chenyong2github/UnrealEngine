@@ -465,8 +465,8 @@ void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
 				const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
 				UniformParams.PhysicalTextureSize = FVector2D(PhysicalTextureSize, 1.f / PhysicalTextureSize);
 
-				UniformParams.VirtualHeightfieldToLocal = UVToLocal;
-				UniformParams.VirtualHeightfieldToWorld = UVToWorld;
+				UniformParams.VirtualHeightfieldToLocal = FMatrix44f(UVToLocal);
+				UniformParams.VirtualHeightfieldToWorld = FMatrix44f(UVToWorld);		// LWC_TODO: Precision loss
 
 				UniformParams.MaxLod = AllocatedVirtualTexture->GetMaxLevel();
 				UniformParams.LodBiasScale = LodBiasScale;
@@ -1098,7 +1098,7 @@ namespace VirtualHeightfieldMesh
 		PassParameters->MaxLevel = InDesc.MaxLevel;
 		PassParameters->PageTableSize = FVector4f(InDesc.PageTableSize); // LWC_TODO: precision loss
 		PassParameters->PageTableFeedbackId = InDesc.PageTableFeedbackId;
-		PassParameters->UVToWorld = InDesc.UVToWorld;
+		PassParameters->UVToWorld = FMatrix44f(InDesc.UVToWorld);		// LWC_TODO: Precision loss
 		PassParameters->UVToWorldScale = InDesc.UVToWorldScale;
 		PassParameters->ViewOrigin = InViewDesc.ViewOrigin;
 		PassParameters->LodDistances = FVector4f(InViewDesc.LodDistances); // LWC_TODO: precision loss

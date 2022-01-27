@@ -538,7 +538,7 @@ void FBatchedElements::PrepareShaders(
 	{
 		// Use the vertex/pixel shader that we were given
 		ensure(ViewMatrices.TilePosition.IsZero());
-		BatchedElementParameters->BindShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, ViewMatrices.RelativeWorldToClip, GammaToUse, ColorWeights, Texture);
+		BatchedElementParameters->BindShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, FMatrix(ViewMatrices.RelativeWorldToClip), GammaToUse, ColorWeights, Texture);
 	}
 	else
 	{

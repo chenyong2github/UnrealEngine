@@ -242,9 +242,9 @@ void GetVectorFieldMesh(
 
 		// Set up parameters.
 		FVectorFieldVisualizationParameters UniformParameters;
-		UniformParameters.VolumeToWorld = VectorFieldInstance->VolumeToWorld;
-		UniformParameters.VolumeToWorldNoScale = VectorFieldInstance->VolumeToWorldNoScale;
-		UniformParameters.VoxelSize = FVector( 1.0f / Resource->SizeX, 1.0f / Resource->SizeY, 1.0f / Resource->SizeZ );
+		UniformParameters.VolumeToWorld = FMatrix44f(VectorFieldInstance->VolumeToWorld);	// LWC_TODO: Precision loss
+		UniformParameters.VolumeToWorldNoScale = FMatrix44f(VectorFieldInstance->VolumeToWorldNoScale);
+		UniformParameters.VoxelSize = FVector3f( 1.0f / Resource->SizeX, 1.0f / Resource->SizeY, 1.0f / Resource->SizeZ );
 		UniformParameters.Scale = VectorFieldInstance->Intensity * Resource->Intensity;
 
 		FVectorFieldVisualizationUserData* UserData = &Collector.AllocateOneFrameResource<FVectorFieldVisualizationUserData>();

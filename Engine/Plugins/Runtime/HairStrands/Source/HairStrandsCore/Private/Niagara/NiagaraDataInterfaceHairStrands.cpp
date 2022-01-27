@@ -536,8 +536,7 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 					const FMatrix44d PreviousBoneTransformDouble = PreviousBoneTransform.ToMatrixWithScale();
 					const FMatrix44d DeltaTransformDouble =  BoneTransformDouble * PreviousBoneTransformDouble.Inverse();
 					
-					const FMatrix44f DeltaTransformFloat = DeltaTransformDouble;
-					const FTransform DeltaTransform = FTransform(DeltaTransformFloat);
+					const FTransform DeltaTransform = FTransform(FMatrix(DeltaTransformDouble));
 					const FQuat DeltaRotation = DeltaTransform.GetRotation();
 					
 					// Apply linear velocity scale
@@ -768,19 +767,19 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			// Offsets / Transforms
 			FVector3f RestPositionOffsetValue = ProxyData->HairStrandsBuffer->SourceRestResources->GetPositionOffset();
 
-			FMatrix44f RigidTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->Debug.RigidCurrentLocalToWorld.ToMatrixWithScale():
-																			ProxyData->WorldTransform.ToMatrixWithScale();
-			FMatrix44f WorldTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() :
-																			ProxyData->WorldTransform.ToMatrixWithScale();
-			FMatrix44f BoneTransformFloat = ProxyData->BoneTransform.ToMatrixWithScale() * RigidTransformFloat;
+			FMatrix44f RigidTransformFloat = FMatrix44f(ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->Debug.RigidCurrentLocalToWorld.ToMatrixWithScale():
+																			ProxyData->WorldTransform.ToMatrixWithScale());
+			FMatrix44f WorldTransformFloat = FMatrix44f(ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() :
+																			ProxyData->WorldTransform.ToMatrixWithScale());
+			FMatrix44f BoneTransformFloat = FMatrix44f(ProxyData->BoneTransform.ToMatrixWithScale()) * RigidTransformFloat;
 			
 			if (ProxyData->LocalSimulation)
 			{
-				const FMatrix44d WorldTransformDouble = WorldTransformFloat;
-				const FMatrix44d BoneTransformDouble = BoneTransformFloat;
+				const FMatrix44d WorldTransformDouble(WorldTransformFloat);
+				const FMatrix44d BoneTransformDouble(BoneTransformFloat);
 
-				// Due to large world coordinate we store the relative world transform in double precision
-				WorldTransformFloat = WorldTransformDouble * BoneTransformDouble.Inverse();
+				// Due to large world coordinate we store the relative world transform in double precision 
+				WorldTransformFloat = FMatrix44f(WorldTransformDouble * BoneTransformDouble.Inverse());
 			}
 			
 			if (!bIsRootValid && bHasSkinningBinding)

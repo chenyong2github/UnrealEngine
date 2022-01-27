@@ -1270,7 +1270,7 @@ FMatrix FGoogleARCoreFrame::GetProjectionMatrix() const
 	ProjectionMatrix.M[2][3] = 1.0f;
 	ProjectionMatrix.M[3][2] = GNearClippingPlane;
 #endif
-	return ProjectionMatrix;
+	return FMatrix(ProjectionMatrix);
 }
 
 void FGoogleARCoreFrame::TransformDisplayUvCoords(const TArray<float>& UvCoords, TArray<float>& OutUvCoords) const

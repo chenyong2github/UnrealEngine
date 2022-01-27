@@ -384,7 +384,7 @@ void UNiagaraDataInterfaceActorComponent::VMGetMatrix(FVectorVMExternalFunctionC
 	FNDIOutputParam<bool>		OutValid(Context);
 	FNDIOutputParam<FMatrix44f>	OutMatrix(Context);
 
-	const FMatrix44f InstanceMatrix = InstanceData->CachedTransform.ToMatrixWithScale();
+	const FMatrix44f InstanceMatrix = FMatrix44f(InstanceData->CachedTransform.ToMatrixWithScale());		// LWC_TODO: Precision loss
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutValid.SetAndAdvance(InstanceData->bCachedValid);

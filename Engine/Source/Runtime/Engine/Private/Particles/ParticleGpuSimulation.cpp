@@ -4613,8 +4613,8 @@ static void SetParametersForVectorField(FVectorFieldUniformParameters& OutParame
 			Tightness = FMath::Clamp<float>(VectorFieldInstance->Tightness, 0.0f, 1.0f);
 		}
 
-		OutParameters.WorldToVolume[Index] = VectorFieldInstance->WorldToVolume;
-		OutParameters.VolumeToWorld[Index] = VectorFieldInstance->VolumeToWorldNoScale;
+		OutParameters.WorldToVolume[Index] = FMatrix44f(VectorFieldInstance->WorldToVolume);		// LWC_TODO: Precision loss
+		OutParameters.VolumeToWorld[Index] = FMatrix44f(VectorFieldInstance->VolumeToWorldNoScale);
 		OutParameters.VolumeSize[Index] = FVector4f(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
 		OutParameters.IntensityAndTightness[Index] = FVector4f(Intensity, Tightness, 0, 0 );
 		OutParameters.TilingAxes[Index].X = VectorFieldInstance->bTileX ? 1.0f : 0.0f;
@@ -4792,8 +4792,8 @@ void FFXSystem::SimulateGPUParticles(
 			FRHITexture3D* BlackVolumeTextureRHI = (FRHITexture3D*)(FRHITexture*)GBlackVolumeTexture->TextureRHI;
 			for (int32 Index = 0; Index < MAX_VECTOR_FIELDS; ++Index)
 			{
-				VectorFieldParameters.WorldToVolume[Index] = FMatrix::Identity;
-				VectorFieldParameters.VolumeToWorld[Index] = FMatrix::Identity;
+				VectorFieldParameters.WorldToVolume[Index] = FMatrix44f::Identity;
+				VectorFieldParameters.VolumeToWorld[Index] = FMatrix44f::Identity;
 				VectorFieldParameters.VolumeSize[Index] = FVector4f(1.0f);
 				VectorFieldParameters.IntensityAndTightness[Index] = FVector4f(0.0f);
 			}
@@ -4895,8 +4895,8 @@ void FFXSystem::SimulateGPUParticles(
 					while (PadCount < MAX_VECTOR_FIELDS)
 					{
 						const int32 Index = PadCount++;
-						VectorFieldParameters.WorldToVolume[Index] = FMatrix::Identity;
-						VectorFieldParameters.VolumeToWorld[Index] = FMatrix::Identity;
+						VectorFieldParameters.WorldToVolume[Index] = FMatrix44f::Identity;
+						VectorFieldParameters.VolumeToWorld[Index] = FMatrix44f::Identity;
 						VectorFieldParameters.VolumeSize[Index] = FVector4f(1.0f);
 						VectorFieldParameters.IntensityAndTightness[Index] = FVector4f(0.0f);
 					}

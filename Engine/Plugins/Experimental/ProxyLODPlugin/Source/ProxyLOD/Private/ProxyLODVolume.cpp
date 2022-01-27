@@ -337,7 +337,7 @@ public:
 				// Get the transform relative to the average
 				FTransform MeshTransform = PlacedMesh.Transform;
 				MeshTransform.AddToTranslation(-AverageTranslation);
-				FMatrix44f TransformMatrix = MeshTransform.ToMatrixWithScale().Inverse();
+				FMatrix44f TransformMatrix = FMatrix44f(MeshTransform.ToMatrixWithScale().Inverse());		// LWC_TODO: Precision loss
 				
 
  				TransformMatrix = LocalToVoxel * TransformMatrix;
@@ -468,13 +468,11 @@ private:
 		{
 			FTransform MeshXForm = PlacedMesh.Transform;
 			MeshXForm.AddToTranslation(-AverageTranslation);
-			FMatrix44f TransformMatrix = MeshXForm.ToMatrixWithScale().Inverse();
+			FMatrix TransformMatrix = MeshXForm.ToMatrixWithScale().Inverse();
 
 			TransformMatrix = LocalToVoxel * TransformMatrix;
-			float* data = &TransformMatrix.M[0][0];
-			openvdb::math::Mat4<float> VDBMatFloat(data);
-
-			openvdb::Mat4R VDBMatDouble(VDBMatFloat);
+			double* data = &TransformMatrix.M[0][0];
+			openvdb::Mat4R VDBMatDouble(data);
 			// NB: rounding errors in the inverse may have resulted in error in this col.
 			// openvdb explicitly checks this matrix row to insure the transform is affine and will throw 
 			VDBMatDouble.setCol(3, openvdb::Vec4R(0, 0, 0, 1));

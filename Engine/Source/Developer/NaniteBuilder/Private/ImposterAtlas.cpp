@@ -58,7 +58,7 @@ FMatrix44f FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
 		ImposterZ,
 		FVector3f::ZeroVector ).GetTransposed();
 
-	return FTranslationMatrix( -BoundsCenter ) * LocalToImposter * FScaleMatrix( FVector3f::OneVector / ImposterExtent );
+	return FTranslationMatrix44f( -BoundsCenter ) * LocalToImposter * FScaleMatrix44f( FVector3f::OneVector / ImposterExtent );
 }
 
 void FImposterAtlas::Rasterize( const FIntPoint& TilePos, const FCluster& Cluster, uint32 ClusterIndex )

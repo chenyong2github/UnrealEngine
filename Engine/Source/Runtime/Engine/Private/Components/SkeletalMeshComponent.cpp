@@ -4141,7 +4141,7 @@ void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& Ou
 			OutRefToLocals.AddUninitialized(RefSkeleton.GetNum());
 			for (int32 Index = 0; Index < OutRefToLocals.Num(); ++Index)
 			{
-				OutRefToLocals[Index] = FMatrix::Identity;
+				OutRefToLocals[Index] = FMatrix44f::Identity;
 			}
 		}
 	}

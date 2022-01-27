@@ -551,7 +551,7 @@ namespace GLTF
 			for (uint32 Index = 0; Index < Count; ++Index)
 			{
 				const void* Pointer = DataAt(Index);
-				Buffer[Index]       = GetMatrix(Pointer);
+				Buffer[Index]       = FMatrix44f(GetMatrix(Pointer));
 			}
 			return;
 		}

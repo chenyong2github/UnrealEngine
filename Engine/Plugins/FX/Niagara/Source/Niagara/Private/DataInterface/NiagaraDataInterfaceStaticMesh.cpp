@@ -896,13 +896,13 @@ namespace NDIStaticMeshLocal
 
 		FORCEINLINE FVector3f TransformPosition(FVector3f Position) const
 		{
-			TransformHandler.TransformPosition(Position, InstanceData->Transform);
+			TransformHandler.TransformPosition(Position, FMatrix44f(InstanceData->Transform));					// LWC_TODO: Precision loss
 			return Position;
 		}
 
 		FORCEINLINE FVector3f TransformVector(FVector3f Vector) const
 		{
-			TransformHandler.TransformVector(Vector, InstanceData->TransformInverseTransposed);
+			TransformHandler.TransformVector(Vector, FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss
 			return Vector;
 		}
 
@@ -914,13 +914,13 @@ namespace NDIStaticMeshLocal
 
 		FORCEINLINE FVector3f PreviousTransformPosition(FVector3f Position) const
 		{
-			TransformHandler.TransformPosition(Position, InstanceData->PrevTransform);
+			TransformHandler.TransformPosition(Position, FMatrix44f(InstanceData->PrevTransform));				// LWC_TODO: Precision loss
 			return Position;
 		}
 
 		FORCEINLINE FVector3f PreviousTransformVector(FVector3f Vector) const
 		{
-			TransformHandler.TransformVector(Vector, InstanceData->PrevTransformInverseTransposed);
+			TransformHandler.TransformVector(Vector, FMatrix44f(InstanceData->PrevTransformInverseTransposed));	// LWC_TODO: Precision loss
 			return Vector;
 		}
 
@@ -972,7 +972,7 @@ namespace NDIStaticMeshLocal
 		FORCEINLINE FVector3f GetTrianglePosition(const FVector3f& BaryCoord, int32 Index0, int32 Index1, int32 Index2) const
 		{
 			FVector3f Position = GetLocalTrianglePosition(BaryCoord, Index0, Index1, Index2);
-			TransformHandler.TransformPosition(Position, InstanceData->Transform);
+			TransformHandler.TransformPosition(Position, FMatrix44f(InstanceData->Transform));					// LWC_TODO: Precision loss?
 			return Position;
 		}
 
@@ -982,7 +982,7 @@ namespace NDIStaticMeshLocal
 			Tangent  = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index0) * BaryCoord.X;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index1) * BaryCoord.Y;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index2) * BaryCoord.Z;
-			TransformHandler.TransformVector(Tangent, InstanceData->Transform);
+			TransformHandler.TransformVector(Tangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
 			return Tangent;
 		}
 
@@ -992,7 +992,7 @@ namespace NDIStaticMeshLocal
 			Tangent  = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index0) * BaryCoord.X;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index1) * BaryCoord.Y;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index2) * BaryCoord.Z;
-			TransformHandler.TransformVector(Tangent, InstanceData->Transform);
+			TransformHandler.TransformVector(Tangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
 			return Tangent;
 		}
 
@@ -1002,7 +1002,7 @@ namespace NDIStaticMeshLocal
 			Tangent  = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index0) * BaryCoord.X;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index1) * BaryCoord.Y;
 			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index2) * BaryCoord.Z;
-			TransformHandler.TransformVector(Tangent, InstanceData->Transform);
+			TransformHandler.TransformVector(Tangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
 			return Tangent;
 		}
 
@@ -1027,7 +1027,7 @@ namespace NDIStaticMeshLocal
 		FORCEINLINE FVector3f GetPosition(int32 Vertex) const
 		{
 			FVector3f Position = LODResource->VertexBuffers.PositionVertexBuffer.VertexPosition(Vertex);
-			TransformHandler.TransformPosition(Position, InstanceData->Transform);
+			TransformHandler.TransformPosition(Position, FMatrix44f(InstanceData->Transform));					// LWC_TODO: Precision loss?
 			return Position;
 		}
 
@@ -1039,21 +1039,21 @@ namespace NDIStaticMeshLocal
 		FORCEINLINE FVector3f GetTangentX(int32 Vertex) const
 		{
 			FVector3f TangentX = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Vertex);
-			TransformHandler.TransformVector(TangentX, InstanceData->TransformInverseTransposed);
+			TransformHandler.TransformVector(TangentX, FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss?
 			return TangentX;
 		}
 
 		FORCEINLINE FVector3f GetTangentY(int32 Vertex) const
 		{
 			FVector3f TangentY = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Vertex);
-			TransformHandler.TransformVector(TangentY, InstanceData->TransformInverseTransposed);
+			TransformHandler.TransformVector(TangentY, FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss?
 			return TangentY;
 		}
 
 		FORCEINLINE FVector3f GetTangentZ(int32 Vertex) const
 		{
 			FVector3f TangentZ = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Vertex);
-			TransformHandler.TransformVector(TangentZ, InstanceData->TransformInverseTransposed);
+			TransformHandler.TransformVector(TangentZ, FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss?
 			return TangentZ;
 		}
 
@@ -1530,8 +1530,8 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	NDIStaticMeshLocal::FInstanceData_GameThread* InstanceData = static_cast<NDIStaticMeshLocal::FInstanceData_GameThread*>(InInstanceData);
 	NDIStaticMeshLocal::FInstanceData_FromGameThread* DataFromGT = static_cast<NDIStaticMeshLocal::FInstanceData_FromGameThread*>(InDataFromGT);
 
-	DataFromGT->Transform		= InstanceData->Transform;
-	DataFromGT->PrevTransform	= InstanceData->PrevTransform;
+	DataFromGT->Transform		= FMatrix44f(InstanceData->Transform);			// LWC_TODO: Precision loss
+	DataFromGT->PrevTransform	= FMatrix44f(InstanceData->PrevTransform);
 	DataFromGT->Rotation		= InstanceData->Rotation;
 	DataFromGT->PrevRotation	= InstanceData->PrevRotation;
 	DataFromGT->DeltaSeconds	= InstanceData->DeltaSeconds;
@@ -3615,7 +3615,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetLocalToWorld(FVectorVMExternalFunctio
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutMatrix.SetAndAdvance(InstanceData->Transform);
+		OutMatrix.SetAndAdvance(FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss
 	}
 }
 
@@ -3626,7 +3626,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetLocalToWorldInverseTransposed(FVector
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutMatrix.SetAndAdvance(InstanceData->TransformInverseTransposed);
+		OutMatrix.SetAndAdvance(FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss
 	}
 }
 

@@ -357,7 +357,7 @@ public:
 		{
 			const FLidarPointCloudClippingVolumeParams& ClippingVolume = RenderData.ClippingVolumes[i];
 
-			UserDataElement.ClippingVolume[i] = ClippingVolume.PackedShaderData;
+			UserDataElement.ClippingVolume[i] = FMatrix44f(ClippingVolume.PackedShaderData);
 			UserDataElement.bStartClipped |= ClippingVolume.Mode == ELidarClippingVolumeMode::ClipOutside;
 		}
 

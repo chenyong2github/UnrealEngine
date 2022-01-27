@@ -1571,9 +1571,8 @@ void OpenModelUtils::SetActorTransform(TSharedPtr<IDatasmithActorElement>& OutAc
 		AlMatrix4x4 AlMatrix;
 		InDagNode.localTransformationMatrix(AlMatrix);
 
-		// LWC_TODO: Perf improvements with LWC enabled
-		FMatrix44f Matrix;
-		float* MatrixFloats = (float*)Matrix.M;
+		FMatrix Matrix;
+		double* MatrixFloats = (double*)Matrix.M;
 		for (int32 IndexI = 0; IndexI < 4; ++IndexI)
 		{
 			for (int32 IndexJ = 0; IndexJ < 4; ++IndexJ)

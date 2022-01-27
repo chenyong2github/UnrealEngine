@@ -1259,7 +1259,7 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 	RelativePosition = AbsolutePosition.GetOffset();
 	TilePosition = AbsolutePosition.GetTile();
 
-	const FMatrix44f LocalToRelativeWorld = InTransform.RemoveTranslation();
+	const FMatrix44f LocalToRelativeWorld = FMatrix44f(InTransform.RemoveTranslation());
 	BoxTransform = LocalToRelativeWorld.Inverse();
 
 	FVector3f ForwardVector(1.0f,0.0f,0.0f);

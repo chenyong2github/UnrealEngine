@@ -1618,7 +1618,7 @@ public:
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
-			VertexShader->SetParameters(InRHICmdList, ProjectionMatrix);
+			VertexShader->SetParameters(InRHICmdList, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
 			PixelShader->SetParameters(InRHICmdList, ShaderParams);
 		}
 		else
@@ -1636,7 +1636,7 @@ public:
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
-			VertexShader->SetParameters(InRHICmdList, ProjectionMatrix);
+			VertexShader->SetParameters(InRHICmdList, FMatrix44f(ProjectionMatrix));		// LWC_TODo: Precision loss?
 			PixelShader->SetParameters(InRHICmdList, ShaderParams);
 		}
 

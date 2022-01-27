@@ -1661,8 +1661,8 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 					PassParameters->MeshIndexOffset				= MeshIndexOffset;
 					PassParameters->RenderVisibilityValue		= RendererVisibility;
 					PassParameters->MeshIndexValue				= MeshData.SourceMeshIndex;
-					PassParameters->LocalTransform				= LocalTransform;
-					PassParameters->DefaultPosition				= FVector::ZeroVector;
+					PassParameters->LocalTransform				= FMatrix44f(LocalTransform);		// LWC_TODO: Precision loss
+					PassParameters->DefaultPosition				= FVector3f::ZeroVector;
 					PassParameters->DefaultRotation				= FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
 					PassParameters->DefaultScale				= FVector3f(1.0f, 1.0f, 1.0f);
 					PassParameters->MeshScale					= MeshData.Scale;

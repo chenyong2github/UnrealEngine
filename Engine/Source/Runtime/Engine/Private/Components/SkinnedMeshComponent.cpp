@@ -2782,7 +2782,7 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 		BoneTransform.NormalizeRotation();
 
 		// Render the default pose.
-		CachedComposedRefPoseMatrices[BoneIndex] = BoneTransform.ToMatrixWithScale();
+		CachedComposedRefPoseMatrices[BoneIndex] = FMatrix44f(BoneTransform.ToMatrixWithScale());
 
 		// Construct mesh-space skeletal hierarchy.
 		if (BoneIndex > 0)
@@ -2827,7 +2827,7 @@ void USkinnedMeshComponent::CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefTo
 
 		for (int32 MatrixIdx = 0; MatrixIdx < OutRefToLocal.Num(); ++MatrixIdx)
 		{
-			OutRefToLocal[MatrixIdx] = SkeletalMesh->GetRefBasesInvMatrix()[MatrixIdx] * CompSpaceTransforms[MatrixIdx].ToMatrixWithScale();
+			OutRefToLocal[MatrixIdx] = SkeletalMesh->GetRefBasesInvMatrix()[MatrixIdx] * FMatrix44f(CompSpaceTransforms[MatrixIdx].ToMatrixWithScale());
 		}
 	}
 	else

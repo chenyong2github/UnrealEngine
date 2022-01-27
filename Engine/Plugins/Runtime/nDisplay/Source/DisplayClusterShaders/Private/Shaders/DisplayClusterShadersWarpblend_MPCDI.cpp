@@ -250,7 +250,7 @@ public:
 
 	bool GetWarpMapParameters(FMpcdiRenderPassData& RenderPassData)
 	{
-		RenderPassData.PSParameters.ViewportTextureProjectionMatrix = LocalUVMatrix * GetStereoMatrix();;
+		RenderPassData.PSParameters.ViewportTextureProjectionMatrix = FMatrix44f(LocalUVMatrix * GetStereoMatrix());
 
 		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
@@ -263,7 +263,7 @@ public:
 					RenderPassData.PSPermutationVector.Set<MpcdiShaderPermutation::FMpcdiShaderMeshWarp>(true);
 					RenderPassData.VSPermutationVector.Set<MpcdiShaderPermutation::FMpcdiShaderMeshWarp>(true);
 
-					RenderPassData.VSParameters.MeshToStageProjectionMatrix = WarpBlendParameters.Context.MeshToStageMatrix;
+					RenderPassData.VSParameters.MeshToStageProjectionMatrix = FMatrix44f(WarpBlendParameters.Context.MeshToStageMatrix);
 					break;
 				}
 

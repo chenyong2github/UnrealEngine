@@ -1355,7 +1355,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			LandscapeParams.LastLOD = FMath::CeilLogTwo(Initializer.SubsectionSizeQuads + 1) - 1;
 			LandscapeParams.HeightmapUVScaleBias = Initializer.HeightmapScaleBias;
 			LandscapeParams.WeightmapUVScaleBias = Initializer.WeightmapScaleBias;
-			LandscapeParams.LocalToWorldNoScaling = InstanceRenderState.LocalToWorldNoScaling;
+			LandscapeParams.LocalToWorldNoScaling = FMatrix44f(InstanceRenderState.LocalToWorldNoScaling);				// LWC_TODO: Precision loss
 
 			LandscapeParams.LandscapeLightmapScaleBias = FVector4f(
 				LightmapScaleX,

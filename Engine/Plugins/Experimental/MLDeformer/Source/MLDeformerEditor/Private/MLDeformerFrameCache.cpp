@@ -239,7 +239,7 @@ FMatrix44f FMLDeformerSamplerData::CalcInverseSkinningTransform(int32 VertexInde
 	LODData.GetSectionFromVertexIndex(VertexIndex, SectionIndex, SectionVertexIndex);
 
 	// Init the matrix at full zeros.
-	FMatrix44f InvSkinningTransform = FMatrix(FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector);
+	FMatrix44f InvSkinningTransform = FMatrix44f(FVector3f::ZeroVector, FVector3f::ZeroVector, FVector3f::ZeroVector, FVector3f::ZeroVector);
 	InvSkinningTransform.M[3][3] = 0.0f;
 
 	// For each influence, sum up the weighted skinning matrices.

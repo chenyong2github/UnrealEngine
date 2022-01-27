@@ -105,8 +105,8 @@ void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCo
 	const uint32 ElementOffset = 3 * ElementCount;
 
 	// LWC_TODO: precision loss
-	const FMatrix44f ElementMatrix = ElementTransform.ToMatrixWithScale();
-	const FMatrix44f ElementInverse = ElementMatrix.Inverse();
+	const FMatrix44f ElementMatrix = FMatrix44f(ElementTransform.ToMatrixWithScale());
+	const FMatrix44f ElementInverse = FMatrix44f(ElementMatrix.Inverse());
 
 	ElementMatrix.To3x4MatrixTranspose(&OutCurrentTransform[ElementOffset].X);
 	ElementInverse.To3x4MatrixTranspose(&OutCurrentInverse[ElementOffset].X);

@@ -1036,7 +1036,7 @@ void FNiagaraEmitterInstance::PostTick()
 			}
 			else
 			{
-				CachedBounds = DynamicBounds.TransformBy(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal);
+				CachedBounds = DynamicBounds.TransformBy(FMatrix(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal));
 			}
 		}
 		else

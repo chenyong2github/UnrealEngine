@@ -1308,8 +1308,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedData(FVectorVMExternal
 
 	//TODO: Replace this by storing off FTransforms and doing a proper lerp to get a final transform.
 	//Also need to pull in a per particle interpolation factor.
-	const FMatrix& Transform = InstData->Transform;
-	const FMatrix& PrevTransform = InstData->PrevTransform;
+	const FMatrix44f Transform(InstData->Transform);				// LWC_TODO: Precision loss
+	const FMatrix44f PrevTransform(InstData->PrevTransform);
 
 	FGetTriCoordSkinnedDataOutputHandler Output(Context);
 
@@ -1504,12 +1504,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordSkinnedDataFallback(FVectorVM
 		FVector3f Pos(0.0f);
 		if (bNeedsPrev)
 		{
-			TransformHandler.TransformPosition(Prev, PrevTransform);
+			TransformHandler.TransformPosition(Prev, FMatrix44f(PrevTransform));		// LWC_TODO: Precision loss
 		}
 
 		if (Output.bNeedsPosition || Output.bNeedsVelocity)
 		{
-			TransformHandler.TransformPosition(Pos, Transform);
+			TransformHandler.TransformPosition(Pos, FMatrix44f(Transform));		// LWC_TODO: Precision loss
 
 			if (bInterpolated::Value)
 			{

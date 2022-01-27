@@ -129,7 +129,7 @@ void FClothingSimulationContextCommon::FillRefToLocals(const USkeletalMeshCompon
 			RefToLocals.AddUninitialized(NumBones);
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
-				RefToLocals[BoneIndex] = FMatrix::Identity;
+				RefToLocals[BoneIndex] = FMatrix44f::Identity;
 			}
 		}
 		return;

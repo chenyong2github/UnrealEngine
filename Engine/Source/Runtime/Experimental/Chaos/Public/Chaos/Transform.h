@@ -124,7 +124,7 @@ namespace Chaos
 		TRigidTransform(const FMatrix44d& Matrix)
 			: BaseTransform(Matrix) {}
 		TRigidTransform(const FMatrix44f& Matrix)
-			: BaseTransform(Matrix) {}
+			: BaseTransform(FMatrix(Matrix)) {}
 		TRigidTransform(const BaseTransform& Transform)
 			: BaseTransform(Transform) {}
 		TRigidTransform<FReal, 2> Inverse() const
@@ -152,7 +152,7 @@ namespace Chaos
 		TRigidTransform(const FMatrix44d& Matrix)
 			: BaseTransform(Matrix) {}
 		TRigidTransform(const FMatrix44f& Matrix)
-			: BaseTransform(Matrix) {}
+			: BaseTransform(FMatrix(Matrix)) {}
 		TRigidTransform(const BaseTransform& Transform)
 			: BaseTransform(Transform) {}
 		TRigidTransform<FReal, 3> Inverse() const

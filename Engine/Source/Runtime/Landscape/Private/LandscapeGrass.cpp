@@ -1892,8 +1892,8 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 	{
 		if (UseLandscapeLightmap)
 		{
-			float InstanceX = InXForm.M[3][0];
-			float InstanceY = InXForm.M[3][1];
+			FMatrix::FReal InstanceX = InXForm.M[3][0];
+			FMatrix::FReal InstanceY = InXForm.M[3][1];
 
 			FVector2D NormalizedGrassCoordinate;
 			NormalizedGrassCoordinate.X = (InstanceX - ComponentOrigin.X) * LightMapComponentScale.X + LightMapComponentBias.X;
@@ -1902,11 +1902,11 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 			FVector2D LightMapCoordinate = NormalizedGrassCoordinate * LightmapBaseScale + LightmapBaseBias;
 			FVector2D ShadowMapCoordinate = NormalizedGrassCoordinate * ShadowmapBaseScale + ShadowmapBaseBias;
 
-			InstanceBuffer.SetInstance(InstanceIndex, InXForm, RandomStream.GetFraction(), LightMapCoordinate, ShadowMapCoordinate);
+			InstanceBuffer.SetInstance(InstanceIndex, FMatrix44f(InXForm), RandomStream.GetFraction(), LightMapCoordinate, ShadowMapCoordinate);
 		}
 		else
 		{
-			InstanceBuffer.SetInstance(InstanceIndex, InXForm, RandomStream.GetFraction());
+			InstanceBuffer.SetInstance(InstanceIndex, FMatrix44f(InXForm), RandomStream.GetFraction());
 		}
 	}
 

@@ -345,7 +345,7 @@ protected:
 				float RandomID = RandomStream.GetFraction();
 				if (RenderIndex >= 0)
 				{
-					BuiltInstanceData->SetInstance(RenderIndex, Transforms[i], RandomID, LightmapUVBias, ShadowmapUVBias);
+					BuiltInstanceData->SetInstance(RenderIndex, FMatrix44f(Transforms[i]), RandomID, LightmapUVBias, ShadowmapUVBias);		// LWC_TODO: Precision loss
 					for (int32 DataIndex = 0; DataIndex < NumCustomDataFloats; ++DataIndex)
 					{
 						BuiltInstanceData->SetInstanceCustomData(RenderIndex, DataIndex, CustomDataFloats[NumCustomDataFloats * i + DataIndex]);

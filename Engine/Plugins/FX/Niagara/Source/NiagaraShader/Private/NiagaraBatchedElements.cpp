@@ -65,7 +65,7 @@ void FBatchedElementNiagara2DArrayAttribute::BindShaders(FRHICommandList& RHICmd
 
 	FNiagaraSimpleElement2DArrayAttribute::FParameters PassParameters;
 	PassParameters.InAttributeSlices = AttributeSlices;
-	PassParameters.InColorWeights = ColorWeights;
+	PassParameters.InColorWeights = FMatrix44f(ColorWeights);
 	PassParameters.InGamma = InGamma;
 	PassParameters.InTexture = RHITexture ? RHITexture : GWhiteTexture->TextureRHI.GetReference();
 	PassParameters.InTextureSampler = RHISamplerState ? RHISamplerState : TStaticSamplerState<SF_Bilinear>::GetRHI();

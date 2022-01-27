@@ -478,13 +478,13 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 		switch (Cmd.Type)
 		{
 		case FInstanceUpdateCmdBuffer::Add:
-			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, FMatrix44f(Cmd.XForm), 0);		// LWC_TODO: precision loss?
 			break;
 		case FInstanceUpdateCmdBuffer::Hide:
 			InstanceData->NullifyInstance(InstanceIndex);
 			break;
 		case FInstanceUpdateCmdBuffer::Update:
-			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, FMatrix44f(Cmd.XForm), 0);		// LWC_TODO: precision loss?
 			break;
 		case FInstanceUpdateCmdBuffer::EditorData:
 			InstanceData->SetInstanceEditorData(InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
@@ -2375,7 +2375,7 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 			ShadowmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias;
 		}
 	
-		OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
+		OutData.SetInstance(RenderIndex, FMatrix44f(InstanceData.Transform), RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);		// LWC_TODO: Precision loss
 
 		for (int32 CustomDataIndex = 0; CustomDataIndex < NumCustomDataFloats; ++CustomDataIndex)
 		{
@@ -2989,7 +2989,7 @@ void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 		DeprecatedData.BulkSerialize(Ar);
 		PerInstanceSMData.Reset(DeprecatedData.Num());
 		Algo::Transform(DeprecatedData, PerInstanceSMData, [](const FInstancedStaticMeshInstanceData_DEPRECATED& OldData){ 
-			return FInstancedStaticMeshInstanceData(OldData.Transform);
+			return FInstancedStaticMeshInstanceData(FMatrix(OldData.Transform));
 		});
 	}
 	else

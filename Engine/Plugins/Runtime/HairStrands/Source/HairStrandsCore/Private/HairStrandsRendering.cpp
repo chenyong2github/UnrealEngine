@@ -717,7 +717,7 @@ static void AddHairStrandsInterpolationPass(
 
 	Parameters->VertexToClusterIdBuffer = VertexToClusterIdBuffer;
 	
-	Parameters->LocalToWorldMatrix = Instance->LocalToWorld.ToMatrixWithScale();
+	Parameters->LocalToWorldMatrix = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->HairLengthScale = HairLengthScale;
 
 	// Debug rendering
@@ -947,7 +947,7 @@ static void AddHairClusterAABBPass(
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
 	Parameters->CPUBoundMin = TransformedBounds.GetBox().Min;
 	Parameters->CPUBoundMax = TransformedBounds.GetBox().Max;
-	Parameters->LocalToTranslatedWorldMatrix = InRenLocalToTranslatedWorld.ToMatrixWithScale();
+	Parameters->LocalToTranslatedWorldMatrix = FMatrix44f(InRenLocalToTranslatedWorld.ToMatrixWithScale());
 	Parameters->RenderDeformedPositionBuffer = RenderPositionBufferSRV;
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
@@ -1089,7 +1089,7 @@ static void AddHairCardsDeformationPass(
 	FRDGImportedBuffer CardsDeformedNormalBuffer = Register(GraphBuilder, LOD.DeformedResource->DeformedNormalBuffer, ERDGImportedBufferFlags::CreateViews);
 
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
-	Parameters->LocalToWorld				= Instance->GetCurrentLocalToWorld().ToMatrixWithScale();
+	Parameters->LocalToWorld				= FMatrix44f(Instance->GetCurrentLocalToWorld().ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->GuideVertexCount			= LOD.Guides.RestResource->GetVertexCount();
 	Parameters->GuideRestPositionOffset		= LOD.Guides.RestResource->GetPositionOffset();
 	Parameters->GuideRestPositionBuffer		= RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);

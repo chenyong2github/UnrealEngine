@@ -422,7 +422,7 @@ public:
 
 	bool GetWarpMapParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		RenderPassData.PSParameters.ViewportTextureProjectionMatrix = LocalUVMatrix * GetStereoMatrix();
+		RenderPassData.PSParameters.ViewportTextureProjectionMatrix = FMatrix44f(LocalUVMatrix * GetStereoMatrix());
 
 		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
@@ -435,7 +435,7 @@ public:
 					RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>(true);
 					RenderPassData.VSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>(true);
 
-					RenderPassData.VSParameters.MeshToStageProjectionMatrix = WarpBlendParameters.Context.MeshToStageMatrix;
+					RenderPassData.VSParameters.MeshToStageProjectionMatrix = FMatrix44f(WarpBlendParameters.Context.MeshToStageMatrix);
 
 					break;
 				}
@@ -492,7 +492,7 @@ public:
 
 	bool GetOverlayParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		RenderPassData.PSParameters.OverlayProjectionMatrix = LocalUVMatrix;
+		RenderPassData.PSParameters.OverlayProjectionMatrix = FMatrix44f(LocalUVMatrix);
 
 		if (IsOverlayUnderUsed() || IsOverlayOverUsed())
 		{
@@ -553,7 +553,7 @@ public:
 		RenderPassData.PSParameters.InnerCameraTexture = Camera.Resource.Texture;
 		RenderPassData.PSParameters.InnerCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-		RenderPassData.PSParameters.InnerCameraProjectionMatrix = InnerCameraProjectionMatrix;
+		RenderPassData.PSParameters.InnerCameraProjectionMatrix = FMatrix44f(InnerCameraProjectionMatrix);
 		RenderPassData.PSParameters.InnerCameraSoftEdge = FVector4f(Camera.SoftEdge);
 
 		RenderPassData.PSParameters.InnerCameraBorderColor = Camera.InnerCameraBorderColor;

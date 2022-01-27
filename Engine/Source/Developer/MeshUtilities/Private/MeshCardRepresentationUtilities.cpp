@@ -1162,7 +1162,7 @@ void SerializeLOD(
 		TBitArray<> DebugSurfelInAnyCluster(false, Surfels.Num());
 #endif
 
-		const FBox LocalMeshCardsBounds = MeshCardsBounds.ShiftBy(-ClusterBasis.LocalToWorldOffset).TransformBy(ClusterBasis.LocalToWorldRotation.GetTransposed());
+		const FBox3f LocalMeshCardsBounds = FBox3f(MeshCardsBounds.ShiftBy(-ClusterBasis.LocalToWorldOffset).TransformBy(FMatrix(ClusterBasis.LocalToWorldRotation.GetTransposed())));
 
 		for (const FSurfelCluster& Cluster : Clusters)
 		{

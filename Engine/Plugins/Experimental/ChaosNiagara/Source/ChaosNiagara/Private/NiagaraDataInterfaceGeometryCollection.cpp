@@ -239,7 +239,7 @@ void FNDIGeometryCollectionData::Update(UNiagaraDataInterfaceGeometryCollection*
 								
 				int32 CurrTransformIndex = TransformIndexArray[i];
 
-				FMatrix44f CurrTransform = LocalOffset.ToMatrixWithScale() * GlobalMatrices[CurrTransformIndex] * ActorTransform.ToMatrixWithScale();
+				FMatrix44f CurrTransform = FMatrix44f(LocalOffset.ToMatrixWithScale() * GlobalMatrices[CurrTransformIndex] * ActorTransform.ToMatrixWithScale());
 				CurrTransform.To3x4MatrixTranspose(&AssetArrays->WorldTransformBuffer[TransformIndex].X);
 
 				FMatrix44f CurrInverse = CurrTransform.Inverse();
