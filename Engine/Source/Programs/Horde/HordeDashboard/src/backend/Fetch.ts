@@ -49,6 +49,7 @@ export class Fetch {
 
                 if (response.status === 404) {
                     if (config?.suppress404) {
+                        reject(`Received suppressed 404 on ${url}`);
                         return;
                     }
                 }
