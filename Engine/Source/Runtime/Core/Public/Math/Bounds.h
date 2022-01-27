@@ -21,8 +21,8 @@ struct FBounds
 
 	FORCEINLINE FBounds& operator+=( const FVector3f& Other )
 	{
-		VectorStoreAligned( VectorMin( VectorLoadAligned( &Min ), VectorLoad( &Other ) ), &Min );
-		VectorStoreAligned( VectorMax( VectorLoadAligned( &Max ), VectorLoad( &Other ) ), &Max );
+		VectorStoreAligned( VectorMin( VectorLoadAligned( &Min ), VectorLoadFloat3( &Other ) ), &Min );
+		VectorStoreAligned( VectorMax( VectorLoadAligned( &Max ), VectorLoadFloat3( &Other ) ), &Max );
 		return *this;
 	}
 

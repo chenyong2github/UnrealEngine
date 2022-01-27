@@ -1033,8 +1033,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 						int32 Index = 0;
 						for (; Index + 1 < NumVerts; Index += 2)
 						{
-							VectorRegister4Float InterpolatedUVx2 = VectorMultiplyAdd(	VectorLoad(&UVAPtr[Index]), WeightA,
-																VectorMultiply(		VectorLoad(&UVBPtr[Index]), WeightB));
+							VectorRegister4Float InterpolatedUVx2 = VectorMultiplyAdd(	VectorLoad(&UVAPtr[Index].X),
+																						WeightA,
+																						VectorMultiply(VectorLoad(&UVBPtr[Index].X), WeightB));
 							VectorStore(InterpolatedUVx2, &(InterpolatedUVsPtr[Index].X));
 						}
 

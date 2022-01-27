@@ -41,18 +41,6 @@ FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector4<T>* Ptr)
 	return VectorLoad((const T*)(Ptr));
 }
 
-template<typename T>
-FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector<T>* Ptr)
-{
-	return VectorLoad((const T*)(Ptr));
-}
-
-template<typename T>
-FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector2<T>* Ptr)
-{
-	return VectorLoad((const T*)(Ptr));
-}
-
 FORCEINLINE VectorRegister4Float VectorLoad(const VectorRegister4Float* Ptr)
 {
 	return VectorLoad((const float*)(Ptr));
@@ -271,18 +259,6 @@ FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, float* Dst)
 	VectorStore(FloatVec, Dst);
 }
 #endif
-
-template<typename T>
-FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, UE::Math::TVector<T>* Dst)
-{
-	VectorStore(Vec, (T*)Dst);
-}
-
-template<typename T>
-FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, UE::Math::TVector<T>* Dst)
-{
-	VectorStore(Vec, (T*)Dst);
-}
 
 template<typename T>
 FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, UE::Math::TVector4<T>* Dst)

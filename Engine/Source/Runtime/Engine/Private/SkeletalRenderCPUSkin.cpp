@@ -946,8 +946,8 @@ static void SkinVertexSection(
 			// carry over the W component (sign of basis determinant) 
 			DstNormals[2] = VectorMultiplyAdd( VECTOR_0001, SrcNormals[2], DstNormals[2] );
 
-			// Write to 16-byte aligned memory:
-			VectorStore( DstNormals[0], &DestVertex->Position );
+			// Write to memory:
+			VectorStoreFloat3( DstNormals[0], &DestVertex->Position );
 			Pack3( DstNormals[1], &DestVertex->TangentX.Vector.Packed );
 			Pack4( DstNormals[2], &DestVertex->TangentZ.Vector.Packed );
 			VectorResetFloatRegisters(); // Need to call this to be able to use regular floating point registers again after Pack().
