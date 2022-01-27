@@ -206,14 +206,23 @@ void FMLDeformerInstance::Update()
 	check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU);
 	check(NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
 
+	// Check for NeuralNetwork having been replaced below the hood. Maybe because it was retrained.
+	if (CurrentNeuralNetwork != NeuralNetwork)
+	{
+		CurrentNeuralNetwork = NeuralNetwork;
+		// Handle is no longer valid. 
+		// This potentially leaves a dangling inference context with the old NeuralNetwork but in most/all cases the old NeuralNetwork is being destroyed anyway.
+		NeuralNetworkInferenceHandle = -1;
+	}
+
 	// Allocate an inference context if none has already been allocated.
 	if (NeuralNetworkInferenceHandle == -1)
 	{
 		NeuralNetworkInferenceHandle = NeuralNetwork->CreateInferenceContext();
-		if (NeuralNetworkInferenceHandle == -1)
-		{
-			return;
-		}
+	}
+	if (NeuralNetworkInferenceHandle == -1)
+	{
+		return;
 	}
 
 	// If the neural network expects a different number of inputs, do nothing.
