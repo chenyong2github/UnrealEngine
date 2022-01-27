@@ -1550,7 +1550,7 @@ void FStreamableManager::AsyncLoadCallback(FSoftObjectPath TargetName)
 		{
 			// Async load failed to find the object
 			Existing->bLoadFailed = true;
-			UE_LOG(LogStreamableManager, Verbose, TEXT("    Failed async load."), *TargetName.ToString());
+			UE_LOG(LogStreamableManager, Verbose, TEXT("    Failed async load for %s"), *TargetName.ToString());
 		}
 	}
 	else
