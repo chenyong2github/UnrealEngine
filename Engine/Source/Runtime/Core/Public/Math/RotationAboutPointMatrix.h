@@ -27,6 +27,10 @@ public:
 	 */
 	TRotationAboutPointMatrix(const TRotator<T>& Rot, const TVector<T>& Origin);
 
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TRotationAboutPointMatrix(const TRotationAboutPointMatrix<FArg>& From) : TRotationTranslationMatrix<T>(From) {}	
+	
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
 	static TMatrix<T> Make(const TRotator<T>& Rot, const TVector<T>& Origin)
 	{

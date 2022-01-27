@@ -25,6 +25,10 @@ public:
 	 * @param ZOffset offset in the Z axis
 	 */
 	TOrthoMatrix(T Width,T Height,T ZScale,T ZOffset);
+	
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TOrthoMatrix(const TOrthoMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
 
@@ -34,6 +38,10 @@ struct TReversedZOrthoMatrix : public TMatrix<T>
 public:
 	TReversedZOrthoMatrix(T Width,T Height,T ZScale,T ZOffset);
 	TReversedZOrthoMatrix(T Left, T Right, T Bottom, T Top, T ZScale, T ZOffset);
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TReversedZOrthoMatrix(const TReversedZOrthoMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
 template<typename T>

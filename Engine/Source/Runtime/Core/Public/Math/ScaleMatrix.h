@@ -28,6 +28,10 @@ public:
 	 */
 	TScaleMatrix( const TVector<T>& Scale );
 
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TScaleMatrix(const TScaleMatrix<FArg>& From) : TMatrix<T>(From) {}
+	
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
 	static TMatrix<T> Make(T Scale)
 	{

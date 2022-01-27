@@ -24,6 +24,10 @@ public:
 	 * @param Plane source plane for mirroring (assumed normalized)
 	 */
 	TMirrorMatrix( const TPlane<T>& Plane );
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TMirrorMatrix(const TMirrorMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
 template<typename T>

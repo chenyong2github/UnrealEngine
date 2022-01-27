@@ -425,9 +425,9 @@ public:
 		Dest[11] = Src[14]; // [3][2]
 	}
 
-	// Conversion to other type. TODO: explicit!
+	// Conversion to other type.
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-	TMatrix(const TMatrix<FArg>& From)
+	explicit TMatrix(const TMatrix<FArg>& From)
 	{
 		// TODO: SIMD this?
 		M[0][0] = (T)From.M[0][0]; M[0][1] = (T)From.M[0][1]; M[0][2] = (T)From.M[0][2]; M[0][3] = (T)From.M[0][3];
@@ -510,17 +510,21 @@ inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
 }
 
 template<typename T>
-struct TBasisVectorMatrix : TMatrix<T>
+struct TBasisVectorMatrix : public TMatrix<T>
 {
 	using TMatrix<T>::M;
-	
+
 	// Create Basis matrix from 3 axis vectors and the origin
 	TBasisVectorMatrix(const TVector<T>& XAxis,const TVector<T>& YAxis,const TVector<T>& ZAxis,const TVector<T>& Origin);
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TBasisVectorMatrix(const TBasisVectorMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
 
 template<typename T>
-struct TLookFromMatrix : TMatrix<T>
+struct TLookFromMatrix : public TMatrix<T>
 {
 	using TMatrix<T>::M;
 
@@ -531,11 +535,15 @@ struct TLookFromMatrix : TMatrix<T>
 	* Always use this instead of e.g., FLookAtMatrix(Pos, Pos + Dir,...);
 	*/
 	TLookFromMatrix(const TVector<T>& EyePosition, const TVector<T>& LookDirection, const TVector<T>& UpVector);
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TLookFromMatrix(const TLookFromMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
 
 template<typename T>
-struct TLookAtMatrix : TLookFromMatrix<T>
+struct TLookAtMatrix : public TLookFromMatrix<T>
 {
 	using TLookFromMatrix<T>::M;
 
@@ -546,6 +554,10 @@ struct TLookAtMatrix : TLookFromMatrix<T>
 	* This does the same thing as D3DXMatrixLookAtLH.
 	*/
 	TLookAtMatrix(const TVector<T>& EyePosition, const TVector<T>& LookAtPosition, const TVector<T>& UpVector);
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TLookAtMatrix(const TLookAtMatrix<FArg>& From) : TLookFromMatrix<T>(From) {}
 };
 
 
