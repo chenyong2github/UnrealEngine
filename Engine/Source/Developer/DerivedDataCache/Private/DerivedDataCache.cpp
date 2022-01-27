@@ -1120,7 +1120,7 @@ private:
 	FOnDDCNotification DDCNotificationEvent;
 
 public:
-	// ICacheStore Interface
+	// ICache Interface
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -1160,12 +1160,6 @@ public:
 		FOnCacheGetChunkComplete&& OnComplete) final
 	{
 		return FDerivedDataBackend::Get().GetRoot().GetChunks(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
-	}
-
-	// ICache Interface
-
-	void CancelAll() final
-	{
 	}
 
 	ICacheStoreMaintainer& GetMaintainer() final
