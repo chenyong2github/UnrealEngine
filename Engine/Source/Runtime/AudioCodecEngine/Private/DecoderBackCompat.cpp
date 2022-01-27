@@ -94,16 +94,18 @@ namespace Audio
 			{
 				bFinished = Info->ReadCompressedData(Buff, bLoop, BuffSizeInBytes);
 			}
+			int32 NumSamplesStreamed = NumBytesStreamed / sizeof(int16);
+			int32 NumFramesStreamed = NumSamplesStreamed / Desc.NumChannels;
 			PushedDetails.SampleFramesStartOffset = FrameOffset;
-			ResidualBuffer.SetNum(NumBytesStreamed / sizeof(int16));
+			//ResidualBuffer.SetNum(NumBytesStreamed / sizeof(int16));
 
 			Dst->PushAudio(
 				PushedDetails,
-				MakeArrayView(ResidualBuffer)
+				MakeArrayView(ResidualBuffer.GetData(), NumSamplesStreamed)
 			);
 
-			FrameOffset += BuffSizeInFrames;
-			NumFramesRemaining -= BuffSizeInFrames;
+			FrameOffset += NumFramesStreamed;
+			NumFramesRemaining -= NumFramesStreamed;
 		}
 
 		if (!bFinished)

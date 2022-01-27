@@ -1,20 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AudioResampler.h"
-#include "CoreMinimal.h"
+#include "DecoderInputFactory.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/ConvertDeinterleave.h"
+#include "DSP/MultichannelBuffer.h"
+#include "DSP/MultichannelLinearResampler.h"
+#include "IAudioCodec.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundEngineNodesNames.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundWave.h"
+#include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
-#include "MetasoundEngineNodesNames.h"
 #include "MetasoundVertex.h"
+#include "MetasoundWave.h"
+#include "MetasoundWaveProxyReader.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundWaveNode"
-
 
 namespace Metasound
 {
@@ -28,7 +32,6 @@ namespace Metasound
 		static const TCHAR* InputLoopName = TEXT("Loop");
 		static const TCHAR* InputLoopStartName = TEXT("Loop Start");
 		static const TCHAR* InputLoopDurationName = TEXT("Loop Duration");
-		//static const TCHAR* InputStartTimeAsPercentName = TEXT("Start/Loop Times As Percent");
 
 		static const TCHAR* OutputTriggerOnPlayName = TEXT("On Play");
 		static const TCHAR* OutputTriggerOnDoneName = TEXT("On Finished");
@@ -48,9 +51,8 @@ namespace Metasound
 		static FText InputStartTimeTT = LOCTEXT("StartTimeTT", "Time into the wave asset to start (seek) the wave asset. For real-time decoding, the wave asset must be set to seekable!)");
 		static FText InputPitchShiftTT = LOCTEXT("PitchShiftTT", "The pitch shift to use for the wave asset in semitones.");
 		static FText InputLoopTT = LOCTEXT("LoopTT", "Whether or not to loop between the start and specified end times.");
-		static FText InputLoopStartTT = LOCTEXT("LoopStartTT", "When to start the loop. Will be a percentage if \"Start Time As Percent\" is true.");
-		static FText InputLoopDurationTT = LOCTEXT("LoopDurationTT", "The duration of the loop when wave player is enabled for looping. A value of -1.0 will loop the whole wave asset.");
-		//static FText InputStartTimeAsPercentTT = LOCTEXT("StartTimeAsPercentTT", "Whether to treat the start time and loop start times as a percentage of total wave duration vs seconds (default).");
+		static FText InputLoopStartTT = LOCTEXT("LoopStartTT", "When to start the loop.");
+		static FText InputLoopDurationTT = LOCTEXT("LoopDurationTT", "The duration of the loop when wave player is enabled for looping. A negative value will loop the whole wave asset.");
 
 		static FText OutputTriggerOnPlayTT = LOCTEXT("OnPlayTT", "Triggers when Play is triggered.");
 		static FText OutputTriggerOnDoneTT = LOCTEXT("OnDoneTT", "Triggers when the wave played has finished playing.");
@@ -63,7 +65,6 @@ namespace Metasound
 		static FText OutputPlaybackLocationTT = LOCTEXT("PlaybackLocationTT", "Returns the absolute position of the wave playback as a precentage of wave duration.");
 		static FText OutputAudioLeftNameTT = LOCTEXT("AudioLeftTT", "The left channel audio output. Mono wave assets will be upmixed to dual stereo.");
 		static FText OutputAudioRightNameTT = LOCTEXT("AudioRightTT", "The right channel audio output. Mono wave assets will be upmixed to dual stereo.");
-
 	}
 
 	class FWavePlayerNode : public FNode
@@ -91,6 +92,243 @@ namespace Metasound
 		FVertexInterface Interface;
 	};
 
+	namespace WavePlayerNodePrivate
+	{
+		int32 GetCuePointFrame(const FSoundWaveCuePoint& InPoint)
+		{
+			return InPoint.FramePosition;
+		}
+
+
+		/** FSourceBufferState tracks the current frame and loop indices held in 
+		 * a circular buffer. It describes how the content of a circular buffer
+		 * relates to the frame indices of an FWaveProxyReader 
+		 *
+		 * FSourceBufferState is tied to the implementation of the FWaveProxyReader
+		 * and TCircularAudioBuffer<>, and thus does not serve much purpose outside
+		 * of this wave player node.
+		 *
+		 * However, it does provide a convenient place to perform frame counting
+		 * arithmetic that would otherwise make code more difficult to read.
+		 */
+		struct FSourceBufferState
+		{
+			FSourceBufferState() = default;
+
+			/** Construct a FSourceBufferState
+			 *
+			 * @param InStartFrameIndex - The frame index in the wave corresponding to the first frame in the circular buffer.
+			 * @param InNumFrames - The number of frames in the circular buffer.
+			 * @param bIsLooping - True if the wave player is looping, false if not.
+			 * @param InLoopStartFrameIndexInWave - Frame index in the wave corresponding to a loop start.
+			 * @param InLoopEndFrameIndexInWave - Frame index in the wave corresponding to a loop end.
+			 * @param InEOFFrameIndexInWave - Frame index in the wave corresponding to the end of the file.
+			 */
+			FSourceBufferState(int32 InStartFrameIndex, int32 InNumFrames, bool bIsLooping, int32 InLoopStartFrameIndexInWave, int32 InLoopEndFrameIndexInWave, int32 InEOFFrameIndexInWave)
+			{
+				check(InStartFrameIndex >= 0);
+				check(InNumFrames >= 0);
+				check(InLoopStartFrameIndexInWave >= 0);
+				check(InLoopEndFrameIndexInWave >= 0);
+				check(InEOFFrameIndexInWave >= 0);
+
+				StartFrameIndex = InStartFrameIndex;
+				EndFrameIndex = InStartFrameIndex; // Initialize to starting frame index. Will be adjusted during call to Append()
+				EOFFrameIndexInBuffer = InEOFFrameIndexInWave - InStartFrameIndex;
+				LoopEndFrameIndexInBuffer = InLoopEndFrameIndexInWave - InStartFrameIndex;
+				LoopStartFrameIndexInWave = InLoopStartFrameIndexInWave;
+				LoopEndFrameIndexInWave = InLoopEndFrameIndexInWave;
+				EOFFrameIndexInWave = InEOFFrameIndexInWave;
+
+				Append(InNumFrames, bIsLooping);
+			}
+
+			/** Construct an FSourceBufferState
+			 *
+			 * @param ProxyReader - The wave proxy reader producing the audio.
+			 * @parma InSourceBuffer - The audio buffer holding a range of samples popped from the reader.
+			 */
+			FSourceBufferState(const FWaveProxyReader& ProxyReader, const Audio::FMultichannelCircularBuffer& InSourceBuffer)
+			: FSourceBufferState(ProxyReader.GetFrameIndex(), Audio::GetMultichannelBufferNumFrames(InSourceBuffer), ProxyReader.IsLooping(), ProxyReader.GetLoopStartFrameIndex(), ProxyReader.GetLoopEndFrameIndex(), ProxyReader.GetNumFramesInWave())
+			{
+			}
+
+			/** Track frames removed from the circular buffer. This generally coincides
+			 * with a Pop(...) call to the circular buffer. */
+			void Advance(int32 InNumFrames, bool bIsLooping)
+			{
+				check(InNumFrames >= 0);
+
+				StartFrameIndex += InNumFrames;
+				if (bIsLooping)
+				{
+					StartFrameIndex = WrapLoop(StartFrameIndex);
+				}
+
+				EOFFrameIndexInBuffer = EOFFrameIndexInWave - StartFrameIndex;
+				LoopEndFrameIndexInBuffer = LoopEndFrameIndexInWave - StartFrameIndex;
+			}
+
+
+			/** Track frames appended to the source buffer. This generally coincides
+			 * with a Push(...) call to the circular buffer. */
+			void Append(int32 InNumFrames, bool bIsLooping)
+			{
+				check(InNumFrames >= 0);
+				EndFrameIndex += InNumFrames;
+
+				if (bIsLooping)
+				{
+					EndFrameIndex = WrapLoop(EndFrameIndex);
+				}
+			}
+
+			/** Update loop frame indices. */
+			void SetLoopFrameIndices(int32 InLoopStartFrameIndexInWave, int32 InLoopEndFrameIndexInWave)
+			{
+				LoopStartFrameIndexInWave = InLoopStartFrameIndexInWave;
+				LoopEndFrameIndexInWave = InLoopEndFrameIndexInWave;
+				LoopEndFrameIndexInBuffer = LoopEndFrameIndexInWave - StartFrameIndex;
+			}
+
+			/** Update loop frame indices. */
+			void SetLoopFrameIndices(const FWaveProxyReader& InProxyReader)
+			{
+				SetLoopFrameIndices(InProxyReader.GetLoopStartFrameIndex(), InProxyReader.GetLoopEndFrameIndex());
+			}
+
+			/** Returns the corresponding frame index in the wave which corresponds
+			 * to the first frame in the circular buffer. 
+			 */
+			FORCEINLINE int32 GetStartFrameIndex() const
+			{
+				return StartFrameIndex;
+			}
+
+			/** Returns the corresponding frame index in the wave which corresponds
+			 * to the end frame in the circular buffer (non-inclusive).
+			 */
+			FORCEINLINE int32 GetEndFrameIndex() const
+			{
+				return EndFrameIndex;
+			}
+
+			/** Returns the frame index in the wave where the loop starts */
+			FORCEINLINE int32 GetLoopStartFrameIndexInWave() const
+			{
+				return LoopStartFrameIndexInWave;
+			}
+
+			/** Returns the frame index in the wave where the loop end*/
+			FORCEINLINE int32 GetLoopEndFrameIndexInWave() const
+			{
+				return LoopEndFrameIndexInWave;
+			}
+
+			/** Returns the end-of-file frame index in the wave. */
+			FORCEINLINE int32 GetEOFFrameIndexInWave() const
+			{
+				return EOFFrameIndexInWave;
+			}
+
+			/** Returns the frame index in the circular buffer which represents
+			 * the end of file in the wave. */
+			FORCEINLINE int32 GetEOFFrameIndexInBuffer() const
+			{
+				return EOFFrameIndexInBuffer;
+			}
+
+			/** Returns the frame index in the circular buffer which represents
+			 * the ending loop frame index in the wave. */
+			FORCEINLINE int32 GetLoopEndFrameIndexInBuffer() const
+			{
+				return LoopEndFrameIndexInBuffer;
+			}
+
+			/** Returns the ratio of the current frame index divided by the total
+			 * number of frames in the wave. */
+			FORCEINLINE float GetPlaybackFraction() const
+			{
+				const float PlaybackFraction = static_cast<float>(StartFrameIndex) / FMath::Max(static_cast<float>(EOFFrameIndexInWave), 1.f);
+				return FMath::Max(0.f, PlaybackFraction);
+			}
+
+			/** Returns the ratio of the relative position of the current frame 
+			 * index to the start loop frame index, divided by the number of frames
+			 * in the loop.
+			 * This value can be negative if the current frame index is less
+			 * than the first loop frame index. 
+			 */
+			FORCEINLINE float GetLoopFraction() const
+			{
+				const float LoopNumFrames = static_cast<float>(FMath::Max(1, LoopEndFrameIndexInWave - LoopStartFrameIndexInWave));
+				const float LoopRelativeLocation = static_cast<float>(StartFrameIndex - LoopStartFrameIndexInWave);
+
+				return LoopRelativeLocation / LoopNumFrames;
+			}
+
+			/** Map a index representing a frame in a wave file to an index representing
+			 * a frame in the associated circular buffer. */
+			FORCEINLINE int32 MapFrameInWaveToFrameInBuffer(int32 InFrameIndexInWave, bool bIsLooping) const
+			{
+				if (!bIsLooping || (InFrameIndexInWave >= StartFrameIndex))
+				{
+					return InFrameIndexInWave - StartFrameIndex;
+				}
+				else
+				{
+					const int32 NumFramesFromStartToLoopEnd = LoopEndFrameIndexInWave - StartFrameIndex;
+					const int32 NumFramesFromLoopStartToFrameIndex = InFrameIndexInWave - LoopStartFrameIndexInWave;
+					return NumFramesFromStartToLoopEnd + NumFramesFromLoopStartToFrameIndex;
+				}
+			}
+
+		private:
+
+			int32 WrapLoop(int32 InSourceFrameIndex)
+			{
+				int32 Overshot = InSourceFrameIndex - LoopEndFrameIndexInWave;
+				if (Overshot > 0)
+				{
+					InSourceFrameIndex = LoopStartFrameIndexInWave + Overshot;
+				}
+				return InSourceFrameIndex;
+			}
+
+			int32 StartFrameIndex = INDEX_NONE;
+			int32 EndFrameIndex = INDEX_NONE;
+			int32 EOFFrameIndexInBuffer = INDEX_NONE;
+			int32 LoopEndFrameIndexInBuffer = INDEX_NONE;
+			int32 EOFFrameIndexInWave = INDEX_NONE;
+			int32 LoopStartFrameIndexInWave = INDEX_NONE;
+			int32 LoopEndFrameIndexInWave = INDEX_NONE;
+		};
+
+		/** FSourceEvents contains the frame indices of wave events. 
+		 * Indices are INDEX_NONE if they are unset. 
+		 */
+		struct FSourceEvents
+		{
+			/** Frame index of a loop end. */
+			int32 OnLoopFrameIndex = INDEX_NONE;
+			/** Frame index of an end of file. */
+			int32 OnEOFFrameIndex = INDEX_NONE;
+			/** Frame index of a cue points. */
+			int32 OnCuePointFrameIndex = INDEX_NONE;
+			/** Cue point associated with OnCuePointFrameIndex. */
+			const FSoundWaveCuePoint* CuePoint = nullptr;
+
+			/** Clear all frame indices and associated data. */
+			void Reset()
+			{
+				OnLoopFrameIndex = INDEX_NONE;
+				OnEOFFrameIndex = INDEX_NONE;
+				OnCuePointFrameIndex = INDEX_NONE;
+				CuePoint = nullptr;
+			}
+		};
+	}
+
 	struct FWavePlayerOpArgs
 	{
 		FOperatorSettings Settings;
@@ -101,14 +339,22 @@ namespace Metasound
 		FFloatReadRef PitchShift;
 		FBoolReadRef bLoop;
 		FTimeReadRef LoopStartTime;
-		FTimeReadRef LoopDurationSeconds;
-		//FBoolReadRef bStartTimeAsPercentage;
+		FTimeReadRef LoopDuration;
 	};
 
+	/** MetaSound operator for the wave player node. */
 	class FWavePlayerOperator : public TExecutableOperator<FWavePlayerOperator>
 	{	
 	public:
-		static constexpr float MaxPitchShiftOctaves = 6.0f;
+
+		// Maximum absolute pitch shift in octaves. 
+		static constexpr float MaxAbsPitchShiftInOctaves = 6.0f;
+		// Maximum decode size in frames. 
+		static constexpr int32 MaxDecodeSizeInFrames = 8192;
+		// Number of output audio channels. 
+		static constexpr int32 NumOutputChannels = 2;
+		// Block size for deinterleaving audio. 
+		static constexpr int32 DeinterleaveBlockSizeInFrames = 512;
 
 		FWavePlayerOperator(const FWavePlayerOpArgs& InArgs)
 			: OperatorSettings(InArgs.Settings)
@@ -116,12 +362,10 @@ namespace Metasound
 			, StopTrigger(InArgs.StopTrigger)
 			, WaveAsset(InArgs.WaveAsset)
 			, StartTime(InArgs.StartTime)
-			//, bStartTimeAsPercentage(InArgs.bStartTimeAsPercentage)
 			, PitchShift(InArgs.PitchShift)
 			, bLoop(InArgs.bLoop)
 			, LoopStartTime(InArgs.LoopStartTime)
-			, LoopDurationSeconds(InArgs.LoopDurationSeconds)
-			, TriggerOnPlay(FTriggerWriteRef::CreateNew(InArgs.Settings))
+			, LoopDuration(InArgs.LoopDuration)
 			, TriggerOnDone(FTriggerWriteRef::CreateNew(InArgs.Settings))
 			, TriggerOnNearlyDone(FTriggerWriteRef::CreateNew(InArgs.Settings))
 			, TriggerOnLooped(FTriggerWriteRef::CreateNew(InArgs.Settings))
@@ -132,12 +376,13 @@ namespace Metasound
 			, PlaybackLocation(FFloatWriteRef::CreateNew(0.0f))
 			, AudioBufferL(FAudioBufferWriteRef::CreateNew(InArgs.Settings))
 			, AudioBufferR(FAudioBufferWriteRef::CreateNew(InArgs.Settings))
-			, Decoder(Audio::FSimpleDecoderWrapper::InitParams{static_cast<uint32>(InArgs.Settings.GetNumFramesPerBlock()), InArgs.Settings.GetSampleRate(), 6.f /*MaxPitchShiftMagnitudeAllowedInOctages */})
-			, OutputSampleRate(InArgs.Settings.GetSampleRate())
-			, OutputBlockSizeInFrames(InArgs.Settings.GetNumFramesPerBlock())
 		{
-			check(OutputSampleRate);
-			check(AudioBufferL->Num() == OutputBlockSizeInFrames && AudioBufferR->Num() == OutputBlockSizeInFrames);
+			// Hold on to a view of the output audio. Audio buffers are only writable
+			// by this object and will not be reallocated. 
+			OutputAudioView.Emplace(AudioBufferL->GetData(), AudioBufferL->Num());
+			OutputAudioView.Emplace(AudioBufferR->GetData(), AudioBufferR->Num());
+
+			check(OutputAudioView.Num() == NumOutputChannels);
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override
@@ -152,8 +397,7 @@ namespace Metasound
 			InputDataReferences.AddDataReadReference(InputPitchShiftName, PitchShift);
 			InputDataReferences.AddDataReadReference(InputLoopName, bLoop);
 			InputDataReferences.AddDataReadReference(InputLoopStartName, LoopStartTime);
-			InputDataReferences.AddDataReadReference(InputLoopDurationName, LoopDurationSeconds);
-			//InputDataReferences.AddDataReadReference(InputStartTimeAsPercentName, bStartTimeAsPercentage);
+			InputDataReferences.AddDataReadReference(InputLoopDurationName, LoopDuration);
 			return InputDataReferences;
 		}
 
@@ -162,7 +406,7 @@ namespace Metasound
 			using namespace WavePlayerVertexNames;
 
 			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(OutputTriggerOnPlayName, TriggerOnPlay);
+			OutputDataReferences.AddDataReadReference(OutputTriggerOnPlayName, PlayTrigger);
 			OutputDataReferences.AddDataReadReference(OutputTriggerOnDoneName, TriggerOnDone);
 			OutputDataReferences.AddDataReadReference(OutputTriggerOnNearlyDoneName, TriggerOnNearlyDone);
 			OutputDataReferences.AddDataReadReference(OutputTriggerOnLoopedName, TriggerOnLooped);
@@ -176,43 +420,47 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
-		float UpdateAndGetLoopStartTime()
-		{
-			float LoopSeekTime = 0.0f;
-// 			if (*bStartTimeAsPercentage)
-// 			{
-// 				float LoopStartTimeClamped = FMath::Clamp((float)LoopStartTime->GetSeconds(), 0.0f, 1.0f);
-// 				LoopSeekTime = LoopStartTimeClamped * SoundAssetDurationSeconds;
-// 			}
-// 			else
-			{
-				LoopSeekTime = FMath::Clamp((float)LoopStartTime->GetSeconds(), 0.0f, SoundAssetDurationSeconds);
-			}
-
-			LoopStartFrame = SoundAssetSampleRate * LoopSeekTime;
-			FramesToConsumePlayBeforeLooping = LoopStartFrame;
-
-			if (!bLooped && PlaybackStartFrame > LoopStartFrame)
-			{
-				FramesToConsumePlayBeforeLooping += (SoundAssetNumFrames - PlaybackStartFrame);
-			}
-
-			return LoopSeekTime;
-		}
 
 		void Execute()
 		{
-			TriggerOnPlay->AdvanceBlock();
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FWavePlayerNode::Execute);
+
+			// Advance all triggers owned by this operator. 
 			TriggerOnDone->AdvanceBlock();
 			TriggerOnNearlyDone->AdvanceBlock();
 			TriggerOnCuePoint->AdvanceBlock();
 			TriggerOnLooped->AdvanceBlock();
 
+			// Update wave proxy reader with any new looping bounds. 
+			if (WaveProxyReader.IsValid())
+			{
+				WaveProxyReader->SetIsLooping(*bLoop);
+				WaveProxyReader->SetLoopStartTime(LoopStartTime->GetSeconds());
+				WaveProxyReader->SetLoopDuration(LoopDuration->GetSeconds());
+				SourceState.SetLoopFrameIndices(*WaveProxyReader);
+			}
+
+			// Update resampler with new frame ratio. 
+			if (Resampler.IsValid())
+			{
+				Resampler->SetFrameRatio(GetFrameRatio(), OperatorSettings.GetNumFramesPerBlock());
+			}
 
 			// zero output buffers
-			FMemory::Memzero(AudioBufferL->GetData(), OutputBlockSizeInFrames * sizeof(float));
-			FMemory::Memzero(AudioBufferR->GetData(), OutputBlockSizeInFrames * sizeof(float));
+			FMemory::Memzero(AudioBufferL->GetData(), OperatorSettings.GetNumFramesPerBlock() * sizeof(float));
+			FMemory::Memzero(AudioBufferR->GetData(), OperatorSettings.GetNumFramesPerBlock() * sizeof(float));
 
+			// Performs execution per sub block based on triggers.
+			ExecuteSubblocks();
+
+			// Updates output playhead information
+			UpdatePlaybackLocation();
+		}
+
+	private:
+
+		void ExecuteSubblocks()
+		{
 			// Parse triggers and render audio
 			int32 PlayTrigIndex = 0;
 			int32 NextPlayFrame = 0;
@@ -224,11 +472,11 @@ namespace Metasound
 
 			int32 CurrAudioFrame = 0;
 			int32 NextAudioFrame = 0;
+			const int32 LastAudioFrame = OperatorSettings.GetNumFramesPerBlock() - 1;
+			const int32 NoTrigger = OperatorSettings.GetNumFramesPerBlock() << 1;
 
-			while (NextAudioFrame < (OutputBlockSizeInFrames -1))
+			while (NextAudioFrame < LastAudioFrame)
 			{
-				const int32 NoTrigger = (OutputBlockSizeInFrames << 1);
-
 				// get the next Play and Stop indices
 				// (play)
 				if (PlayTrigIndex < NumPlayTrigs)
@@ -256,7 +504,7 @@ namespace Metasound
 				// no more triggers, rendering to the end of the block
 				if (NextAudioFrame == NoTrigger)
 				{
-					NextAudioFrame = OutputBlockSizeInFrames;
+					NextAudioFrame = OperatorSettings.GetNumFramesPerBlock();
 				}
 
 				// render audio (while loop handles looping audio)
@@ -264,23 +512,14 @@ namespace Metasound
 				{
 					if (bIsPlaying)
 					{
-						CurrAudioFrame += ExecuteInternal(CurrAudioFrame, NextAudioFrame);
+						RenderFrameRange(CurrAudioFrame, NextAudioFrame);
 					}
-					else
-					{
-						CurrAudioFrame = NextAudioFrame;
-					}
+					CurrAudioFrame = NextAudioFrame;
 				}
 
 				// execute the next trigger
 				if (CurrAudioFrame == NextPlayFrame)
 				{
-					if (*StartTime > 0.0f)
-					{
-						ExecuteSeekRequest();
-					}
-					TriggerOnPlay->TriggerFrame(CurrAudioFrame);
-
 					StartPlaying();
 					++PlayTrigIndex;
 				}
@@ -294,346 +533,423 @@ namespace Metasound
 			}
 		}
 
+		void RenderFrameRange(int32 StartFrame, int32 EndFrame)
+		{
+			using namespace Audio;
+
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FWavePlayerNode::RenderFrameRange);
+
+			// Assume this is set to true and checked by outside callers
+			check(bIsPlaying);
+
+			const int32 NumFramesToGenerate = EndFrame - StartFrame;
+			if (NumFramesToGenerate > 0)
+			{
+				// Trigger any events that occur within this frame range
+				TriggerUpcomingEvents(StartFrame, NumFramesToGenerate, SourceState);
+
+				// Generate audio
+				FMultichannelBufferView BufferToGenerate = SliceMultichannelBufferView(OutputAudioView, StartFrame, NumFramesToGenerate);
+				GeneratePitchedAudio(BufferToGenerate);
+
+				// Check if the source is empty.
+				if (!(*bLoop))
+				{
+					bIsPlaying = (SourceState.GetStartFrameIndex() <= SourceState.GetEOFFrameIndexInWave());
+				}
+			}
+		}
+
+		void UpdatePlaybackLocation()
+		{
+			*PlaybackLocation = SourceState.GetPlaybackFraction();
+
+			if (*bLoop)
+			{
+				*LoopPercent = SourceState.GetLoopFraction();
+			}
+			else
+			{
+				*LoopPercent = 0.f;
+			}
+		}
+
+		float GetPitchShiftClamped() const
+		{
+			return FMath::Clamp(*PitchShift, -12.0f * MaxAbsPitchShiftInOctaves, 12.0f * MaxAbsPitchShiftInOctaves);
+		}
+
+		float GetPitchShiftFrameRatio() const
+		{
+			return FMath::Pow(2.0f, GetPitchShiftClamped() / 12.0f);
+		}
+
+		// Updates the sample rate frame ratio. Used when a new wave proxy reader
+		// is created. 
+		void UpdateSampleRateFrameRatio() 
+		{
+			SampleRateFrameRatio = 1.f;
+
+			if (WaveProxyReader.IsValid())
+			{
+				float SourceSampleRate = WaveProxyReader->GetSampleRate();
+				if (SourceSampleRate > 0.f)
+				{
+					float TargetSampleRate = OperatorSettings.GetSampleRate();
+					if (TargetSampleRate > 0.f)
+					{
+						SampleRateFrameRatio = SourceSampleRate / OperatorSettings.GetSampleRate();
+					}
+				}
+			}
+		}
+
+		float GetSampleRateFrameRatio() const
+		{
+			return SampleRateFrameRatio;
+		}
+
+		float GetFrameRatio() const
+		{
+			return GetSampleRateFrameRatio() * GetPitchShiftFrameRatio();
+		}
+
+		float GetMaxPitchShiftFrameRatio() const
+		{
+			return FMath::Pow(2.0f, MaxAbsPitchShiftInOctaves);
+		}
+
+		float GetMaxFrameRatio() const
+		{
+			return GetSampleRateFrameRatio() * GetMaxPitchShiftFrameRatio();
+		}
+
+		// Start playing the current wave by creating a wave proxy reader and
+		// recreating the DSP stack.
 		void StartPlaying()
 		{
+			using namespace WavePlayerNodePrivate;
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FWavePlayerNode::StartPlaying);
+
+			// MetasoundWavePlayerNode DSP Stack
+			//
+			// Legend:
+			// 	[ObjectName] - An Object which generates or process audio.
+			// 	(BufferName) - A buffer which holds audio.
+			//
+			// [WaveProxyReader]->(InterleavedBuffer)->[ConvertDeinterleave]->(DeinterleavedBuffer)->(SourceCircularBuffer)->[Resampler]->(AudioOutputView)
+			//
+
 			// Copy the wave asset off on init in case the user changes it while we're playing it.
 			// We'll only check for new wave assets when the current one finishes for sample accurate concantenation
 			CurrentWaveAsset = *WaveAsset;
+			FSoundWaveProxyPtr WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
 
-			if (IsWaveValid())
+			bOnNearlyDoneTriggeredForWave = false;
+			bIsPlaying = false;
+
+			// Reset dsp stack.
+			ResetSourceBufferAndState();
+			WaveProxyReader.Reset();
+			ConvertDeinterleave.Reset();
+			Resampler.Reset();
+			SortedCuePoints.Reset();
+
+			if (WaveProxy.IsValid())
 			{
 				UE_LOG(LogMetaSound, Verbose, TEXT("Starting Sound: '%s'"), *CurrentWaveAsset->GetFName().ToString());
-				SoundAssetSampleRate = CurrentWaveAsset->GetSampleRate();
-				SoundAssetDurationSeconds = CurrentWaveAsset->GetDuration();
-				SoundAssetNumFrames = CurrentWaveAsset->GetNumFrames();
-				CurrentSoundWaveName = CurrentWaveAsset->GetFName();
 
-				PlaybackStartFrame = FMath::Clamp((float)StartTime->GetSeconds(), 0.0f, SoundAssetDurationSeconds) / SoundAssetSampleRate;
-
-				float StartTimeSeconds = 0.0f;
-				const FSoundWaveProxyPtr& WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
-// 				if (*bStartTimeAsPercentage)
-// 				{
-// 
-// 					float Percentage = FMath::Clamp((float)StartTime->GetSeconds(), 0.0f, 1.0f);
-// 					StartTimeSeconds = Percentage * WaveProxy->GetDuration();
-// 				}
-// 				else
-				{
-					StartTimeSeconds = FMath::Clamp((float)StartTime->GetSeconds(), 0.0f, WaveProxy->GetDuration());
-				}
-
-				PlaybackStartFrame = (uint32)(StartTimeSeconds * SoundAssetSampleRate);
-				UpdateAndGetLoopStartTime();
-
-
-
-				// Update our current loop frame
-				CurrentConsumedFrameCount = LoopStartFrame;
-
-				// Reset our decoded frame counting for sub loop
-				NumTotalDecodedFramesInLoop = 0;
-
-				*LoopPercent = 0.0f;
-
-				StartDecoder(StartTimeSeconds, true /* bLogFailures */);
-
-				if (!bIsPlaying)
-				{
-					bIsPlaying = Decoder.CanGenerateAudio();
-				}
-			}
-
-		}
-
-		void ExecuteSeekRequest()
-		{
-			// TODO: Don't do full decoder reset (as performed below) and instead seek decoder.
-			// ex: Decoder.SeekToTime(FMath::Max(0.f, *SeekTimeSeconds));
-			if (!bIsPlaying)
-			{
-				StartPlaying();
-			}
-		}
-
-		bool IsWaveValidInternal(const FWaveAsset& InWaveAsset, bool bReportToLog = false) const
-		{
-			if (!InWaveAsset.IsSoundWaveValid())
-			{
-				if (bReportToLog)
-				{
-					UE_LOG(LogMetaSound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode references invalid or missing Wave."));
-				}
-				return false;
-			}
-
-			const FSoundWaveProxyPtr& WaveProxy = InWaveAsset.GetSoundWaveProxy();
-
-			// WavePlayerNode currently only supports mono or stereo inputs
-			const int32 NumChannels = WaveProxy->GetNumChannels();
-			if (NumChannels > 2)
-			{
-				if (bReportToLog)
-				{
-					UE_LOG(LogMetaSound, Error, TEXT("Failed to initialize SoundWave decoder. WavePlayerNode only supports 2 channels max [Package %s Sound %s: %d Channels])"), *WaveProxy->GetPackageName().ToString(), *WaveProxy->GetFName().ToString(), NumChannels);
-				}
-				return false;
-			}
-
-			return true;
-		}
-
-		bool IsCurrentWaveValid(bool bReportToLog = false) const
-		{
-			return IsWaveValidInternal(CurrentWaveAsset, bReportToLog);
-		}
-
-		bool IsWaveValid(bool bReportToLog = false) const
-		{
-			return IsWaveValidInternal(*WaveAsset, bReportToLog);
-		}
-
-		float GetPlaybackRateFromPitchShift(float InPitchShift)
-		{
-			return FMath::Pow(2.0f, InPitchShift / 12.0f);
-		}
-
-		bool StartDecoder(float SeekTimeSeconds, bool bLogFailures = false)
-		{
-			if (IsCurrentWaveValid(bLogFailures))
-			{
-				const FSoundWaveProxyPtr& WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
+				// Create local sorted copy of cue points.
+				SortedCuePoints = WaveProxy->GetCuePoints();
+				Algo::SortBy(SortedCuePoints, WavePlayerNodePrivate::GetCuePointFrame);
 				
-				CuePoints = WaveProxy->GetCuePoints();
+				// Create the wave proxy reader.
+				FWaveProxyReader::FSettings WaveReaderSettings;
+				WaveReaderSettings.MaxDecodeSizeInFrames = MaxDecodeSizeInFrames;
+				WaveReaderSettings.StartTimeInSeconds = StartTime->GetSeconds();
+				WaveReaderSettings.LoopStartTimeInSeconds = LoopStartTime->GetSeconds();
+				WaveReaderSettings.LoopDurationInSeconds = LoopDuration->GetSeconds(); 
+				WaveReaderSettings.bIsLooping = *bLoop;
 
-				float PitchShiftClamped = FMath::Clamp(*PitchShift, -12.0f * MaxPitchShiftOctaves, 12.0f * MaxPitchShiftOctaves);
+				WaveProxyReader = FWaveProxyReader::Create(WaveProxy.ToSharedRef(), WaveReaderSettings);
 
-				return Decoder.SetWave(WaveProxy, SeekTimeSeconds, PitchShiftClamped);
+				if (WaveProxyReader.IsValid())
+				{
+					UpdateSampleRateFrameRatio();
+					int32 WaveProxyNumChannels = WaveProxyReader->GetNumChannels();
+
+					if (WaveProxyNumChannels > 0)
+					{
+						// Create buffer for interleaved audio
+						int32 InterleavedBufferNumSamples = WaveProxyNumChannels * DeinterleaveBlockSizeInFrames;
+						InterleavedBuffer.Reset(InterleavedBufferNumSamples);
+						InterleavedBuffer.AddUninitialized(InterleavedBufferNumSamples);
+
+						NumDeinterleaveChannels = NumOutputChannels;
+
+						// Create algorithm for channel conversion and deinterleave 
+						ConvertDeinterleave = Audio::IConvertDeinterleave::Create(WaveProxyReader->GetNumChannels(), NumDeinterleaveChannels);
+						Audio::SetMultichannelBufferSize(NumDeinterleaveChannels, DeinterleaveBlockSizeInFrames, DeinterleavedBuffer);
+
+						// Initialize source buffer
+						int32 FrameCapacity = DeinterleaveBlockSizeInFrames + FMath::CeilToInt(GetMaxFrameRatio() * OperatorSettings.GetNumFramesPerBlock());
+						Audio::SetMultichannelCircularBufferCapacity(NumOutputChannels, FrameCapacity, SourceCircularBuffer);
+						SourceState = FSourceBufferState(*WaveProxyReader, SourceCircularBuffer);
+
+						// Create a resampler.
+						Resampler = MakeUnique<Audio::FMultichannelLinearResampler>(NumDeinterleaveChannels);
+						Resampler->SetFrameRatio(GetFrameRatio(), 0 /* NumFramesToInperolate */);
+
+						// Need to add upmixing if this is not true
+						check(NumDeinterleaveChannels == NumOutputChannels);
+					}
+				}
 			}
 
-			return false;
+			// If everything was created successfully, start playing.
+			bIsPlaying = WaveProxyReader.IsValid() && ConvertDeinterleave.IsValid() && Resampler.IsValid();
 		}
 
-		bool SeekDecoder(float SeekTimeSeconds, bool bLogFailures = false)
+		/** Removes all samples from the source buffer and resets SourceState. */
+		void ResetSourceBufferAndState()
 		{
-			return Decoder.SeekToTime(SeekTimeSeconds);
-		}
+			using namespace WavePlayerNodePrivate;
+			using namespace Audio;
 
-
-		int32 ExecuteInternal(int32 StartFrame, int32 EndFrame)
-		{
-			// note: output is hard-coded to stereo (dual-mono)
-			float* FinalOutputLeft = AudioBufferL->GetData() + StartFrame;
-			float* FinalOutputRight = AudioBufferR->GetData() + StartFrame;
-			int32 NumOutputFramesToGenerate = (EndFrame - StartFrame);
-			int32 NumFramesGenerated = 0;
-
-			const bool bCanDecoderGenerateAudio = Decoder.CanGenerateAudio();
-			if (bCanDecoderGenerateAudio)
+			SourceState = FSourceBufferState();
+			for (TCircularAudioBuffer<float>& ChannelCircularBuffer : SourceCircularBuffer)
 			{
-				ensure(Decoder.CanGenerateAudio());
+				ChannelCircularBuffer.SetNum(0);
+			}
+		}
 
-				const int32 NumInputChannels = Decoder.GetNumChannels();
-				const bool bNeedsUpmix = (NumInputChannels == 1);
-				const bool bNeedsDeinterleave = !bNeedsUpmix;
+		/** Generates audio from the wave proxy reader.
+		 *
+		 * @param OutBuffer - Buffer to place generated audio.
+		 * @param OutSourceState - Source state for tracking state of OutBuffer.
+		 */
+		void GenerateSourceAudio(Audio::FMultichannelCircularBuffer& OutBuffer, WavePlayerNodePrivate::FSourceBufferState& OutSourceState)
+		{
+			using namespace WavePlayerNodePrivate;
 
-				const int32 NumSamplesToGenerate = NumOutputFramesToGenerate * NumInputChannels;
-				
-				float PitchShiftClamped = FMath::Clamp(*PitchShift, -12.0f * MaxPitchShiftOctaves, 12.0f * MaxPitchShiftOctaves);
+			if (bIsPlaying)
+			{
+				const int32 NumExistingFrames = Audio::GetMultichannelBufferNumFrames(OutBuffer);
+				const int32 NumSamplesToGenerate = DeinterleaveBlockSizeInFrames * WaveProxyReader->GetNumChannels();
+ 				check(NumSamplesToGenerate == InterleavedBuffer.Num())
 
-				PostSrcBuffer.Reset(NumSamplesToGenerate);
-				PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
-				float* PostSrcBufferPtr = PostSrcBuffer.GetData();
+				WaveProxyReader->PopAudio(InterleavedBuffer);
+				ConvertDeinterleave->ProcessAudio(InterleavedBuffer, DeinterleavedBuffer);
 
-				// Update looping state which may have changed
-				bool bIsLooping = *bLoop;
-
-				// If we're looping we got some extra logic we need to do before we generate audio
-				if (*bLoop)
+				for (int32 ChannelIndex = 0; ChannelIndex < NumDeinterleaveChannels; ChannelIndex++)
 				{
-					float LoopDuration = SoundAssetDurationSeconds;
-					if (LoopDurationSeconds->GetSeconds() > 0.0f)
+					OutBuffer[ChannelIndex].Push(DeinterleavedBuffer[ChannelIndex]);
+				}
+				OutSourceState.Append(DeinterleaveBlockSizeInFrames, *bLoop);
+			}
+			else
+			{
+				OutSourceState = FSourceBufferState();
+			}
+		}
+
+
+		/** Updates frame indices of events if the event occurs in the source within
+		 * the frame range. The frame range begins with the start frame in InSourceState
+		 * and continues for InNumSourceFrames in the source buffer. 
+		 *
+		 * @param InSourceState - Description of the current state of the source buffer.
+		 * @param InNumSourceFrames - Number of frames to inspect.
+		 * @param OutEvents - Event structure to fill out. 
+		 */
+		void MapSourceEventsIfInRange(const WavePlayerNodePrivate::FSourceBufferState& InSourceState, int32 InNumSourceFrames, WavePlayerNodePrivate::FSourceEvents& OutEvents)
+		{
+			OutEvents.Reset();
+
+			// Loop end
+			if (*bLoop && FMath::IsWithin(SourceState.GetLoopEndFrameIndexInBuffer(), 0, InNumSourceFrames))
+			{
+				OutEvents.OnLoopFrameIndex = FMath::RoundToInt(Resampler->MapInputFrameToOutputFrame(SourceState.GetLoopEndFrameIndexInBuffer()));
+			}
+
+			// End of file
+			if (FMath::IsWithin(SourceState.GetEOFFrameIndexInBuffer(), 0, InNumSourceFrames))
+			{
+				OutEvents.OnEOFFrameIndex = FMath::RoundToInt(Resampler->MapInputFrameToOutputFrame(SourceState.GetEOFFrameIndexInBuffer()));
+			}
+
+			// Map Cue point. Since only one can be mapped, map the first one found.
+			// The first cue point found has the best chance of being rendered.
+			int32 SearchStartFrameIndexInWave = InSourceState.GetStartFrameIndex();
+			int32 SearchEndFrameIndexInWave = SearchStartFrameIndexInWave + InNumSourceFrames;
+
+			const bool bFramesCrossLoopBoundary = *bLoop && (OutEvents.OnLoopFrameIndex != INDEX_NONE);
+			if (bFramesCrossLoopBoundary)
+			{
+				SearchEndFrameIndexInWave = SearchStartFrameIndexInWave + SourceState.GetLoopEndFrameIndexInBuffer();
+			}
+
+			OutEvents.CuePoint = FindCuePoint(SearchStartFrameIndexInWave, SearchEndFrameIndexInWave);
+
+			if (bFramesCrossLoopBoundary)
+			{
+				SearchStartFrameIndexInWave = SourceState.GetLoopStartFrameIndexInWave();
+				int32 RemainingFrames = InNumSourceFrames - SourceState.GetLoopEndFrameIndexInBuffer();
+				SearchEndFrameIndexInWave = RemainingFrames;
+
+				// Only override OutEvents.CuePoint if one exists in this subsection
+				// of the buffer.
+				if (const FSoundWaveCuePoint* CuePoint = FindCuePoint(SearchStartFrameIndexInWave, SearchEndFrameIndexInWave))
+				{
+					if (nullptr == OutEvents.CuePoint)
 					{
-						LoopDuration = FMath::Clamp((float)LoopDurationSeconds->GetSeconds(), 0.0f, SoundAssetDurationSeconds);
+						OutEvents.CuePoint = CuePoint;
 					}
-					
-					// Give the loop frame a minimum width
-					LoopNumFrames = (uint32)FMath::Max(LoopDuration * SoundAssetSampleRate, 10.0f);
-
-					// We need to look for the case where we are about to loop and we don't want to "overshoot" the loop
-					// So we need to check the number output frames to generate against how much is left in our loop
-					if (NumTotalDecodedFramesInLoop < LoopNumFrames)
+					else 
 					{
-						// The number of frames left in the loop we need to consume from the source file
-						int32 NumFramesLeftToConsumeInLoop = (int32)LoopNumFrames - NumTotalDecodedFramesInLoop;
-
-						// Translate that to a generated frames count taking into account the pitch scale and the playback rate.
-						// Note this is going to be slightly inaccurate due to pitch interpolation... but it should be super close
-						// and w/ loop cross fading implemented, won't matter too much.
-						float PlaybackRate = GetPlaybackRateFromPitchShift(PitchShiftClamped);
-
-						float SampleRateRatioWithPitchScale = PlaybackRate * SoundAssetSampleRate / OutputSampleRate;
-						int32 NumFramesLeftToGenerateForLoop = SampleRateRatioWithPitchScale * NumFramesLeftToConsumeInLoop;
-
-						// Generate the min of the requested frames to generate and the amount we need to finish the loop
-						NumOutputFramesToGenerate = FMath::Min(NumOutputFramesToGenerate, NumFramesLeftToGenerateForLoop);
-					}
-					else
-					{
-						NumOutputFramesToGenerate = 1;
+						UE_LOG(LogMetaSound, Verbose, TEXT("Skipping cue point \"%s\" at frame %d due to multiple cue points in same render block"), *CuePoint->Label, CuePoint->FramePosition);
 					}
 				}
-				else
+			}
+
+			if (nullptr != OutEvents.CuePoint)
+			{
+				int32 CuePointFrameInBuffer = SourceState.MapFrameInWaveToFrameInBuffer(OutEvents.CuePoint->FramePosition, *bLoop);
+				OutEvents.OnCuePointFrameIndex = FMath::RoundToInt(Resampler->MapInputFrameToOutputFrame(CuePointFrameInBuffer));
+			}
+		}
+
+		// Search for cue points in frame range. Return the first cue point in the frame range.
+		const FSoundWaveCuePoint* FindCuePoint(int32 InStartFrameInWave, int32 InEndFrameInWave)
+		{
+			int32 LowerBoundIndex = Algo::LowerBoundBy(SortedCuePoints, InStartFrameInWave, WavePlayerNodePrivate::GetCuePointFrame);
+			int32 UpperBoundIndex = Algo::LowerBoundBy(SortedCuePoints, InEndFrameInWave, WavePlayerNodePrivate::GetCuePointFrame);
+
+			if (LowerBoundIndex < UpperBoundIndex)
+			{
+				// Inform about skipped cue points. 
+				for (int32 i = LowerBoundIndex + 1; i < UpperBoundIndex; i++)
 				{
-					LoopNumFrames = 0;
-					NumTotalDecodedFramesInLoop = 0;
-				}
+					const FSoundWaveCuePoint& CuePoint = SortedCuePoints[i];
 
-				int32 NumFramesConsumed = 0;
-				if (NumOutputFramesToGenerate > 0)
+					UE_LOG(LogMetaSound, Verbose, TEXT("Skipping cue point \"%s\" at frame %d due to multiple cue points in same render block"), *CuePoint.Label, CuePoint.FramePosition);
+				}
+				return &SortedCuePoints[LowerBoundIndex];
+			}
+
+			return nullptr;
+		}
+
+		// Check the expected output positions for various sample accurate events
+		// before resampling. 
+		//
+		// Note: The resampler can only accurately map samples *before* processing 
+		// audio because processing audio modifies the internal state of the resampler.
+		void TriggerUpcomingEvents(int32 InOperatorStartFrame, int32 InNumFrames, const WavePlayerNodePrivate::FSourceBufferState& InState)
+		{
+			WavePlayerNodePrivate::FSourceEvents Events;
+
+			// Check extra frames to hit the 
+			const int32 NumOutputFramesToCheck = (2 * OperatorSettings.GetNumFramesPerBlock() + 1) - InOperatorStartFrame;
+			const int32 NumSourceFramesToCheck = FMath::CeilToInt(Resampler->MapOutputFrameToInputFrame(NumOutputFramesToCheck));
+
+			// Selectively map events in the source buffer to frame indices in the
+			// resampled output buffer. 
+			MapSourceEventsIfInRange(SourceState, NumSourceFramesToCheck, Events);
+
+			// Check whether to trigger loops based on actual number of output frames 
+			if (*bLoop)
+			{
+				if (FMath::IsWithin(Events.OnLoopFrameIndex, 0, InNumFrames))
 				{
-					NumFramesGenerated = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFramesToGenerate, NumFramesConsumed, 100.0f * PitchShiftClamped, bIsLooping) / NumInputChannels;
-
-					// Update loop and playback state logic based on the number of frames consumed
-					FramesConsumedSinceStart += NumFramesConsumed;
-
-					int32 PrevConsumedFrameCount = CurrentConsumedFrameCount;
-					CurrentConsumedFrameCount = (CurrentConsumedFrameCount + NumFramesConsumed) % SoundAssetNumFrames;
-
-					*PlaybackLocation = SoundAssetDurationSeconds * ((float)CurrentConsumedFrameCount / SoundAssetNumFrames);
-
-					// Check for any cue trigger events 
-					FSoundWaveCuePoint OutCuePoint;
-					int32 OutFrameOffset = INDEX_NONE;
-					if (GetCuePointForBlock(PrevConsumedFrameCount, CurrentConsumedFrameCount, OutCuePoint, OutFrameOffset))
-					{
-						// Write the outputs
-						*CuePointID = OutCuePoint.CuePointID;
-						*CuePointLabel = OutCuePoint.Label;
-
-						// Do the trigger
-						TriggerOnCuePoint->TriggerFrame(StartFrame + OutFrameOffset);
-					}
-
-					// Check for nearly done trigger logic. If we're not looping and the next render block will likely finish the file.
-					if (!bIsLooping && (CurrentConsumedFrameCount + OutputBlockSizeInFrames) >= SoundAssetNumFrames)
-					{
-						TriggerOnNearlyDone->TriggerFrame(StartFrame + NumFramesGenerated);
-					}
-
-				}
-
-				// If we're looping and we've made it past the loop start point and we've not yet looped, check the looping condition
-				// Note: we need to handle the case where the "start time" of the player is past the loop start point. In that case
-				// we allow the audio file to wrap around and loop from the beginning before checking the loop logic
-				if (bIsLooping && (bLooped || FramesConsumedSinceStart >= FramesToConsumePlayBeforeLooping))
-				{					
-					NumTotalDecodedFramesInLoop += NumFramesConsumed;
-
-					if (NumTotalDecodedFramesInLoop >= LoopNumFrames || !NumOutputFramesToGenerate)
-					{
-						// We've looped now so we will continue to loop between the loop start and end points
-						bLooped = true;
-
-						// Trigger that we looped
-						TriggerOnLooped->TriggerFrame(StartFrame + NumFramesGenerated);
-					
-						// Update the loop start frame based on any recent inputs
-						float LoopSeekTime = UpdateAndGetLoopStartTime();
-
-						// Update our current loop frame
-						CurrentConsumedFrameCount = LoopStartFrame;
-
-						// Reset our decoded frame counting for sub loop
-						NumTotalDecodedFramesInLoop = 0;
-
-						*LoopPercent = 0.0f;
-
-						// Now seek to the loop start frame if we are looping a custom amount. Otherwise, we let the decoder do the looping.
-						if (LoopDurationSeconds->GetSeconds() > 0.0f)
-						{
-							SeekDecoder(LoopSeekTime);
-						}
-					}
-					else
-					{
-						*LoopPercent = (float)NumTotalDecodedFramesInLoop / LoopNumFrames;
-					}
-				}
-				else
-				{
-					*LoopPercent = 0.0f;
-				}
-				
-				// handle decoder having completed during it's decode
-				const bool bCannotGenerateAudio = !Decoder.CanGenerateAudio();
-				const bool bDidNotGenerateEnough = NumFramesGenerated < NumOutputFramesToGenerate;
-				const bool bReachedEOF = !Decoder.CanGenerateAudio() || (NumFramesGenerated < NumOutputFramesToGenerate);
-				if (bReachedEOF && !bIsLooping)
-				{
-					// Check the wave file input to see if it has changed... if it has, we want to restart everything up!
-					bool bConcatenatedPlayback = false;
-					if (WaveAsset->IsSoundWaveValid())
-					{
-						const FName SoundWaveName = (*WaveAsset)->GetFName();
-						if (SoundWaveName != CurrentSoundWaveName)
-						{
-							StartPlaying();
-							bConcatenatedPlayback = true;
-						}
-					}
-
-					if (!bConcatenatedPlayback)
-					{
-						bIsPlaying = false;
-						TriggerOnDone->TriggerFrame(StartFrame + NumFramesGenerated);
-					}
-				}
-
-				if (bNeedsUpmix)
-				{
-					// Dual mono output
-					FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float)* NumFramesGenerated);
-					FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumFramesGenerated);
-				}
-				else if (bNeedsDeinterleave)
-				{
-					for (int32 i = 0; i < NumFramesGenerated; ++i)
-					{
-						// deinterleave each stereo frame into output buffers
-						FinalOutputLeft[i] = PostSrcBufferPtr[(i << 1)];
-						FinalOutputRight[i] = PostSrcBufferPtr[(i << 1) + 1];
-					}
+					TriggerOnLooped->TriggerFrame(InOperatorStartFrame + Events.OnLoopFrameIndex);
 				}
 			}
 			else
 			{
-				FMemory::Memzero(FinalOutputLeft, sizeof(float) * NumOutputFramesToGenerate);
-				FMemory::Memzero(FinalOutputRight, sizeof(float) * NumOutputFramesToGenerate);
+				const int32 IsNearlyDoneStartFrameIndex = OperatorSettings.GetNumFramesPerBlock() - InOperatorStartFrame;
+				const int32 IsNearlyDoneEndFrameIndex = IsNearlyDoneStartFrameIndex + OperatorSettings.GetNumFramesPerBlock();
 
-				NumFramesGenerated = NumOutputFramesToGenerate;
-			}
-
-			return NumFramesGenerated;
-		}
-
-	private:
-
-		// Called to get the cue point in the given block. Will return the first cue point if multiple cues are in the same block.
-		// Note: we can't currently support sub-block cue triggers due to cue ID and cue label being block-rate params. 
-		bool GetCuePointForBlock(int32 InStartFrame, int32 InEndFrame, FSoundWaveCuePoint& OutCuePoint, int32& OutFrameOffset)
-		{
-			for (FSoundWaveCuePoint& CuePoint : CuePoints)
-			{
-				if (CuePoint.FramePosition >= InStartFrame && CuePoint.FramePosition < InEndFrame)
+				if (FMath::IsWithin(Events.OnEOFFrameIndex, 0, InNumFrames))
 				{
-					OutCuePoint = CuePoint;
-					OutFrameOffset = CuePoint.FramePosition - InStartFrame;
-					return true;
+					TriggerOnDone->TriggerFrame(InOperatorStartFrame + Events.OnEOFFrameIndex);
+				}
+				else if (FMath::IsWithin(Events.OnEOFFrameIndex, IsNearlyDoneStartFrameIndex, IsNearlyDoneEndFrameIndex))
+				{
+					// Protect against triggering OnNearlyDone multiple times
+					// in the scenario where significant pitch shift changes drastically
+					// alter the predicted OnDone frame between render blocks.
+					if (!bOnNearlyDoneTriggeredForWave)
+					{
+						TriggerOnNearlyDone->TriggerFrame(InOperatorStartFrame + Events.OnEOFFrameIndex);
+						bOnNearlyDoneTriggeredForWave = true;
+					}
 				}
 			}
-			// No cue points in this block
-			return false;
+
+			if (nullptr != Events.CuePoint)
+			{
+				if (FMath::IsWithin(Events.OnCuePointFrameIndex, 0, InNumFrames))
+				{
+					if (!TriggerOnCuePoint->IsTriggeredInBlock())
+					{
+						*CuePointID = Events.CuePoint->CuePointID;
+						*CuePointLabel = Events.CuePoint->Label;
+						TriggerOnCuePoint->TriggerFrame(InOperatorStartFrame + Events.OnCuePointFrameIndex);
+					}
+					else
+					{
+						UE_LOG(LogMetaSound, Verbose, TEXT("Skipping cue point \"%s\" at frame %d due to multiple cue points in same render block"), *Events.CuePoint->Label, Events.CuePoint->FramePosition);
+					}
+				}
+			}
+		}
+
+
+		void GeneratePitchedAudio(Audio::FMultichannelBufferView& OutBuffer)
+		{
+			using namespace Audio;
+
+			// Outside callers should ensure that bIsPlaying is true if calling this function.
+			check(bIsPlaying);
+
+			int32 NumFramesRequested = GetMultichannelBufferNumFrames(OutBuffer);
+			int32 NumSourceFramesAvailable = GetMultichannelBufferNumFrames(SourceCircularBuffer);
+
+			while (NumFramesRequested > 0)
+			{
+				// Determine how many frames are needed to produce the output.
+				int32 NumSourceFramesNeeded = Resampler->GetNumInputFramesNeededToProduceOutputFrames(NumFramesRequested + 1);
+				if (NumSourceFramesNeeded > NumSourceFramesAvailable)
+				{
+					// Generate more source audio, but still may not be enough to produce all requested frames.
+					GenerateSourceAudio(SourceCircularBuffer, SourceState);
+				}
+				NumSourceFramesAvailable = GetMultichannelBufferNumFrames(SourceCircularBuffer);
+
+				// Resample frames. 
+				int32 NumFramesProduced = Resampler->ProcessAndConsumeAudio(SourceCircularBuffer, OutBuffer);
+				if (NumFramesProduced < 1)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Aborting currently playing metasound wave %s. Failed to produce any resampled audio frames with %d input frames and a frame ratio of %f."), *CurrentWaveAsset->GetFName().ToString(), NumSourceFramesAvailable, GetFrameRatio());
+					bIsPlaying = false;
+					break;
+				}
+
+				// Update sample counters
+				int32 NewNumSourceFramesAvailable = GetMultichannelBufferNumFrames(SourceCircularBuffer);
+				int32 NumSourceFramesConsumed = NumSourceFramesAvailable - NewNumSourceFramesAvailable;
+				NumSourceFramesAvailable = NewNumSourceFramesAvailable;
+				NumFramesRequested -= NumFramesProduced;
+
+				SourceState.Advance(NumSourceFramesConsumed, *bLoop);
+
+				// Shift buffer if there are more samples to create
+				if (NumFramesRequested > 0)
+				{
+					ShiftMultichannelBufferView(NumFramesProduced, OutBuffer);
+				}
+			}
 		}
 
 		const FOperatorSettings OperatorSettings;
@@ -643,13 +959,11 @@ namespace Metasound
 		FTriggerReadRef StopTrigger;
 		FWaveAssetReadRef WaveAsset;
 		FTimeReadRef StartTime;
-		//FBoolReadRef bStartTimeAsPercentage;
 		FFloatReadRef PitchShift;
 		FBoolReadRef bLoop;
 		FTimeReadRef LoopStartTime;
-		FTimeReadRef LoopDurationSeconds;
+		FTimeReadRef LoopDuration;
 
-		FTriggerWriteRef TriggerOnPlay;
 		FTriggerWriteRef TriggerOnDone;
 		FTriggerWriteRef TriggerOnNearlyDone;
 		FTriggerWriteRef TriggerOnLooped;
@@ -661,34 +975,23 @@ namespace Metasound
 		FAudioBufferWriteRef AudioBufferL;
 		FAudioBufferWriteRef AudioBufferR;
 
-		// source decode
-		Audio::FAlignedFloatBuffer PostSrcBuffer;
-		Audio::FSimpleDecoderWrapper Decoder;
-
-		FName CurrentSoundWaveName;
-			
-		float SoundAssetSampleRate = 0.0f;
-		float SoundAssetDurationSeconds = 0.0f;
-		uint32 SoundAssetNumFrames = 0;
-
-		const float OutputSampleRate = 0.f;
-		const int32 OutputBlockSizeInFrames = 0;
-		
-		TArray<FSoundWaveCuePoint> CuePoints;
-		TArray<FSoundWaveCuePoint> CuePointsInCurrentBock;
-
-		// Data to track decoder
-		uint32 PlaybackStartFrame = 0;
-		uint32 CurrentConsumedFrameCount = 0;
-		uint32 FramesConsumedSinceStart = 0;
-		uint32 NumTotalDecodedFramesInLoop = 0;
-		uint32 LoopStartFrame = 0;
-		uint32 FramesToConsumePlayBeforeLooping = 0;
-		uint32 LoopNumFrames = 0;
-		bool bLooped = false;
-		bool bIsPlaying = false;
+		TUniquePtr<FWaveProxyReader> WaveProxyReader;
+		TUniquePtr<Audio::IConvertDeinterleave> ConvertDeinterleave;
+		TUniquePtr<Audio::FMultichannelLinearResampler> Resampler;
 
 		FWaveAsset CurrentWaveAsset;
+		TArray<FSoundWaveCuePoint> SortedCuePoints;
+		Audio::FAlignedFloatBuffer InterleavedBuffer;
+		Audio::FMultichannelBuffer DeinterleavedBuffer;
+		Audio::FMultichannelCircularBuffer SourceCircularBuffer;
+		Audio::FMultichannelBufferView OutputAudioView;
+
+		WavePlayerNodePrivate::FSourceBufferState SourceState;
+		float SampleRateFrameRatio = 1.f;
+		int32 NumDeinterleaveChannels;
+		bool bOnNearlyDoneTriggeredForWave = false;
+		bool bIsPlaying = false;
+		
 	};
 
 	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
@@ -713,7 +1016,6 @@ namespace Metasound
 			Inputs.GetDataReadReferenceOrConstruct<bool>(InputLoopName),
 			Inputs.GetDataReadReferenceOrConstruct<FTime>(InputLoopStartName),
 			Inputs.GetDataReadReferenceOrConstruct<FTime>(InputLoopDurationName)
-			//Inputs.GetDataReadReferenceOrConstruct<bool>(InputStartTimeAsPercentName)
 		};
 
 		return MakeUnique<FWavePlayerOperator>(Args);
@@ -733,7 +1035,6 @@ namespace Metasound
 				TInputDataVertexModel<bool>(InputLoopName, InputLoopTT, false),
 				TInputDataVertexModel<FTime>(InputLoopStartName, InputLoopStartTT, 0.0f),
 				TInputDataVertexModel<FTime>(InputLoopDurationName, InputLoopDurationTT, -1.0f)
-				//TInputDataVertexModel<bool>(InputStartTimeAsPercentName, InputStartTimeAsPercentTT, false)
 				),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FTrigger>(OutputTriggerOnPlayName, OutputTriggerOnPlayTT),
@@ -806,6 +1107,8 @@ namespace Metasound
 	}
 
 	METASOUND_REGISTER_NODE(FWavePlayerNode)
-
 } // namespace Metasound
+
 #undef LOCTEXT_NAMESPACE // MetasoundWaveNode
+
+
