@@ -6,13 +6,13 @@
 
 /** Tan of spotlight cone outer angle in x, ShadowFadeFraction in y, IsSpotLight in z, IsPointLight in w. */
 float4 LightFunctionParameters;
-float4x4 LightFunctionWorldToLight;
+float4x4 LightFunctionTranslatedWorldToLight;
 
 /** 
  * Calculates the light function color with the given light vector. 
  * LightVector is the vector from the light to the position being shaded, in the light's coordinate space.
  */
-float3 GetLightFunctionColorTWS(float3 LightVector, float3 TranslatedWorldSpace)
+float3 GetLightFunctionColor(float3 LightVector, float3 TranslatedWorldSpace)
 {
 	// Swizzle so that LightVector.xy are perpendicular to the light direction and LightVector.z is distance along the light direction
 	LightVector.xyz = LightVector.zyx;
@@ -55,9 +55,4 @@ float3 GetLightFunctionColorTWS(float3 LightVector, float3 TranslatedWorldSpace)
 #else
 	return GetMaterialEmissive(PixelMaterialInputs);
 #endif
-}
-
-float3 GetLightFunctionColor(float3 LightVector, float3 AbsoluteWorldPosition)
-{
-	return GetLightFunctionColorTWS(LightVector, AbsoluteWorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
 }

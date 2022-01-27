@@ -57,7 +57,7 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 	using FPermutationDomain = TShaderPermutationDomain< FLightType >;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
+		SHADER_PARAMETER(FMatrix44f, LightFunctionTranslatedWorldToLight)
 		SHADER_PARAMETER(FMatrix44f, ShadowToWorld)
 		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
@@ -108,9 +108,10 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 			const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 			// Switch x and z so that z of the user specified scale affects the distance along the light direction
 			const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-			const FMatrix44f WorldToLight = FMatrix44f(LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale)));		// LWC_TODO: Precision loss
+			const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+			const FMatrix TranslatedWorldToWorld = FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
 
-			PS.LightFunctionWorldToLight = WorldToLight;
+			PS.LightFunctionTranslatedWorldToLight = FMatrix44f(TranslatedWorldToWorld * WorldToLight);
 		}
 
 		PS.LightFunctionTexelSize = FVector2f(LightFunctionTexelSizeValue);

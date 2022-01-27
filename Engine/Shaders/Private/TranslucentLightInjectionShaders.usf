@@ -31,9 +31,9 @@ uint AtmospherePerPixelTransmittanceEnabled;
 #include "VirtualShadowMaps/ProjectionCommon.ush"
 #endif
 
-float CalcSimpleLightAttenuation(float3 WorldPosition)
+float CalcSimpleLightAttenuation(float3 TranslatedWorldPosition)
 {
-	float3 WorldLightVector = SimpleLightPositionAndRadius.xyz - WorldPosition;
+	float3 WorldLightVector = SimpleLightPositionAndRadius.xyz - TranslatedWorldPosition;
 
 	float Attenuation = 1;
 
@@ -66,20 +66,20 @@ void SimpleLightInjectMainPS(
 	OutColor1 = 0;
 
 	// compute XYZ of the position we shader
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	{
 		float ZPosition = View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].z + (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
 
-		WorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
+		TranslatedWorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
 	}
 
 	// compute UVW of the position we shade in the volume
 	float3 VolumeUVs = float3(Input.Vertex.UV, (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].w);
-	float3 NormalizedLightVector = normalize(SimpleLightPositionAndRadius.xyz - WorldPosition);
+	float3 NormalizedLightVector = normalize(SimpleLightPositionAndRadius.xyz - TranslatedWorldPosition);
 	float VoxelSize = View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
-	float3 WorldPositionForLighting = WorldPosition + 1 * GetBoxPushout(NormalizedLightVector, .5f * VoxelSize);
+	float3 TranslatedWorldPositionForLighting = TranslatedWorldPosition + 1 * GetBoxPushout(NormalizedLightVector, .5f * VoxelSize);
 
-	float Attenuation = CalcSimpleLightAttenuation(WorldPositionForLighting);
+	float Attenuation = CalcSimpleLightAttenuation(TranslatedWorldPositionForLighting);
 	float3 Lighting = SimpleLightColorAndExponent.rgb / PI * Attenuation;
 
 	FTwoBandSHVectorRGB SHLighting = MulSH(SHBasisFunction(NormalizedLightVector), Lighting);
@@ -101,15 +101,15 @@ float4 ClippingPlanes[2];
 /** 1 if the light is a spotlight, 0 otherwise. */
 float SpotlightMask;
 
-float GetLightFunctionShadowFactor(float3 AbsoluteWorldPositionForLighting)
+float GetLightFunctionShadowFactor(float3 TranslatedWorldPositionForLighting)
 {
 	float ShadowFactor = 1;
 
 	// Apply light function after edge fading, so that a black light function at the edges can cause distant translucency to also be black
 	#if APPLY_LIGHT_FUNCTION
-		float4 LightVector = mul(float4(AbsoluteWorldPositionForLighting, 1),LightFunctionWorldToLight);
+		float4 LightVector = mul(float4(TranslatedWorldPositionForLighting, 1),LightFunctionTranslatedWorldToLight);
 	LightVector.xyz /= LightVector.w;
-	float3 LightFunction = GetLightFunctionColor(LightVector.xyz, AbsoluteWorldPositionForLighting);
+	float3 LightFunction = GetLightFunctionColor(LightVector.xyz, TranslatedWorldPositionForLighting);
 
 	// We only suport monochrome light functions
 	ShadowFactor = dot(LightFunction, .3333f).x;
@@ -131,13 +131,13 @@ void InjectMainPS(
 	OutColor1 = 0;
 
 	// compute XYZ of the position we want to shade
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	{
 		float ZPosition = View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].z + (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
 
-		WorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
+		TranslatedWorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
 	}
-	float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 	// compute UVW of the position we shade in the volume
 	float3 VolumeUVs = float3(Input.Vertex.UV, (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].w);
@@ -155,8 +155,8 @@ void InjectMainPS(
 	#else
 	{
 		// directional light
-		float DistToNear = -dot(ClippingPlanes[0], float4(WorldPosition, 1));
-		float DistToFar = -dot(ClippingPlanes[1], float4(WorldPosition, 1));
+		float DistToNear = -dot(ClippingPlanes[0], float4(TranslatedWorldPosition, 1));
+		float DistToFar = -dot(ClippingPlanes[1], float4(TranslatedWorldPosition, 1));
 		
 		// cull volumes outside the cascade (value is < 0)
 		clip(DistToNear);

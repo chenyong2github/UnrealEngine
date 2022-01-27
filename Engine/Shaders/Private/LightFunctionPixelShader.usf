@@ -41,7 +41,7 @@ void Main(
 
 	float GreyScale;
 	{
-		float3 Color = GetLightFunctionColorTWS(LightVector, TranslatedWorldPosition);
+		float3 Color = GetLightFunctionColor(LightVector, TranslatedWorldPosition);
 		GreyScale = dot(Color, .3333f);
 	}
 

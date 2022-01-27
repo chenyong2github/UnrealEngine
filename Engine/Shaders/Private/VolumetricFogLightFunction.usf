@@ -20,6 +20,7 @@ void Main(
 	)
 {
 	float4 AbsoluteWorldPosition = float4(0,0,0,1);
+	float3 TranslatedWorldPosition = float3(0,0,0);
 	float3 LightVector = float3(0,0,0);
 
 #if LIGHT_TYPE == 0 
@@ -31,6 +32,7 @@ void Main(
 	float Z = cos(Phi);
 	LightVector = float3(Z, Y, X);
 	AbsoluteWorldPosition = float4(LightWorldPosition + LightVector.zyx, 1);
+	TranslatedWorldPosition = AbsoluteWorldPosition.xyz + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 #else
 
@@ -50,16 +52,17 @@ void Main(
 	// make SvPosition appear to be rasterized with the depth from the depth buffer
 	AbsoluteWorldPosition = mul(float4(ScreenPosition, Depth, 1), ShadowToWorld);
 	AbsoluteWorldPosition.xyz /= AbsoluteWorldPosition.w;
+	TranslatedWorldPosition = AbsoluteWorldPosition.xyz + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
-	float4 Hom = mul(float4(AbsoluteWorldPosition.xyz, 1), LightFunctionWorldToLight);
+	float4 Hom = mul(float4(TranslatedWorldPosition, 1), LightFunctionTranslatedWorldToLight);
 	LightVector = Hom.xyz / Hom.w;
 #endif
 	
-	float3 LightFunction = GetLightFunctionColor(LightVector, AbsoluteWorldPosition.xyz);
+	float3 LightFunction = GetLightFunctionColor(LightVector, TranslatedWorldPosition);
 	float GreyScale = dot(LightFunction, .3333f).x;
 
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - AbsoluteWorldPosition.xyz);
+	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 
 	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance

@@ -401,7 +401,7 @@ float3 StrataForwardLighting(
 			float3 InnerVolumeUVs;
 			float3 OuterVolumeUVs;
 			float FinalLerpFactor;
-			ComputeVolumeUVs(AbsoluteWorldPosition, LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
+			ComputeVolumeUVs(TranslatedWorldPosition, LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
 			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
 			LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;

@@ -90,7 +90,9 @@ void GetVolumeShadowingShaderParameters(
 		// near cascade plane
 		{
 			ShadowInjectParamValue.X = ShadowCascadeSettings.SplitNearFadeRegion == 0 ? 1.0f : 1.0f / ShadowCascadeSettings.SplitNearFadeRegion;
-			Planes[0] = FVector4f((FVector)(ShadowCascadeSettings.NearFrustumPlane), -ShadowCascadeSettings.NearFrustumPlane.W);
+			const FPlane TranslatedPlane = ShadowCascadeSettings.NearFrustumPlane.TranslateBy(View.ViewMatrices.GetPreViewTranslation());
+
+			Planes[0] = FVector4f(FVector3f(TranslatedPlane), -TranslatedPlane.W);
 		}
 
 		uint32 CascadeCount = LightSceneInfo->Proxy->GetNumViewDependentWholeSceneShadows(View, LightSceneInfo->IsPrecomputedLightingValid());
@@ -99,7 +101,9 @@ void GetVolumeShadowingShaderParameters(
 		if (InnerSplitIndex != CascadeCount - 1)
 		{
 			ShadowInjectParamValue.Y = 1.0f / (ShadowCascadeSettings.SplitFarFadeRegion == 0.0f ? 0.0001f : ShadowCascadeSettings.SplitFarFadeRegion);
-			Planes[1] = FVector4f((FVector)(ShadowCascadeSettings.FarFrustumPlane), -ShadowCascadeSettings.FarFrustumPlane.W);
+			const FPlane TranslatedPlane = ShadowCascadeSettings.FarFrustumPlane.TranslateBy(View.ViewMatrices.GetPreViewTranslation());
+
+			Planes[1] = FVector4f(FVector3f(TranslatedPlane), -TranslatedPlane.W);
 		}
 
 		const FVector2D FadeParams = LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);

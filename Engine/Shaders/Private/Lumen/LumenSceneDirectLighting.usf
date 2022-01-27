@@ -27,15 +27,15 @@
 /** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
 float3 LightFunctionParameters2;
 
-float GetLightFunction(float3 WorldPosition) 
+float GetLightFunction(float3 TranslatedWorldPosition) 
 {
-	float4 LightVector = mul(float4(WorldPosition, 1), LightFunctionWorldToLight);
-	float3 LightFunction = GetLightFunctionColor(LightVector.xyz / LightVector.w, WorldPosition);
+	float4 LightVector = mul(float4(TranslatedWorldPosition, 1), LightFunctionTranslatedWorldToLight);
+	float3 LightFunction = GetLightFunctionColor(LightVector.xyz / LightVector.w, TranslatedWorldPosition);
 
 	float GreyScale = dot(LightFunction, .3333f).x;
 
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
+	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 
 	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance
@@ -121,7 +121,7 @@ void LumenCardDirectLightingPS(
 			if (dot(WorldNormal, L) > 0)
 			{
 				#if LIGHT_FUNCTION
-					ShadowMaskRay.ShadowFactor *= GetLightFunction(WorldPosition);
+					ShadowMaskRay.ShadowFactor *= GetLightFunction(TranslatedWorldPosition);
 				#endif
 
 				#if USE_CLOUD_TRANSMITTANCE

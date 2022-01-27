@@ -216,7 +216,7 @@ float3 GetTranslucencyVolumeLighting(
 	float3 InnerVolumeUVs;
 	float3 OuterVolumeUVs;
 	float FinalLerpFactor;
-	ComputeVolumeUVs(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
+	ComputeVolumeUVs(MaterialParameters.WorldPosition_CamRelative, MaterialParameters.LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
 	#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL
 

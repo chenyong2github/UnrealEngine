@@ -662,7 +662,7 @@ class FTranslucentLightingInjectPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightCloudTransmittanceParameters, LightCloudTransmittanceParameters)
-		SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
+		SHADER_PARAMETER(FMatrix44f, LightFunctionTranslatedWorldToLight)
 		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(float, SpotlightMask)
 		SHADER_PARAMETER(uint32, VolumeCascadeIndex)
@@ -1119,8 +1119,10 @@ static void InjectTranslucentLightArray(
 					const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 					// Switch x and z so that z of the user specified scale affects the distance along the light direction
 					const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-					const FMatrix44f WorldToLight = FMatrix44f(LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(InverseScale));	// LWC_TODO: Precision loss?
-					PassParameters->PS.LightFunctionWorldToLight = WorldToLight;
+					const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(InverseScale);
+					const FMatrix TranslatedWorldToWorld = FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
+
+					PassParameters->PS.LightFunctionTranslatedWorldToLight = FMatrix44f(TranslatedWorldToWorld * WorldToLight);
 				}
 
 				const bool bCloudShadowEnabled = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, LightSceneInfo, PassParameters->PS.LightCloudTransmittanceParameters);
@@ -1330,10 +1332,12 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 
 					if (VolumeBounds.IsValid())
 					{
+						const FVector3f TranslatedLightPosition = FVector3f(SimpleLightPerViewData.Position + View.ViewMatrices.GetPreViewTranslation());
+
 						auto* PassParameters = GraphBuilder.AllocParameters<FSimpleLightTranslucentLightingInjectPS::FParameters>();
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->VolumeCascadeIndex = VolumeCascadeIndex;
-						PassParameters->SimpleLightPositionAndRadius = FVector4f(SimpleLightPerViewData.Position, SimpleLight.Radius);
+						PassParameters->SimpleLightPositionAndRadius = FVector4f(TranslatedLightPosition, SimpleLight.Radius);
 						PassParameters->SimpleLightColorAndExponent = FVector4f(SimpleLight.Color, SimpleLight.Exponent);
 						PassParameters->RenderTargets[0] = FRenderTargetBinding(VolumeAmbientTexture, ERenderTargetLoadAction::ELoad);
 						PassParameters->RenderTargets[1] = FRenderTargetBinding(VolumeDirectionalTexture, ERenderTargetLoadAction::ELoad);

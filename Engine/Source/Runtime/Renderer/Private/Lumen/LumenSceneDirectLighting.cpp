@@ -454,7 +454,7 @@ void Lumen::SetDirectLightingDeferredLightUniformBuffer(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightFunctionParameters, )
 	SHADER_PARAMETER(FVector4f, LightFunctionParameters)
-	SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
+	SHADER_PARAMETER(FMatrix44f, LightFunctionTranslatedWorldToLight)
 	SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -664,7 +664,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardDirectLighting, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void SetupLightFunctionParameters(const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction, FLightFunctionParameters& OutParameters)
+void SetupLightFunctionParameters(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction, FLightFunctionParameters& OutParameters)
 {
 	const bool bIsSpotLight = LightSceneInfo->Proxy->GetLightType() == LightType_Spot;
 	const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
@@ -677,7 +677,7 @@ void SetupLightFunctionParameters(const FLightSceneInfo* LightSceneInfo, float S
 	const FVector InverseScale = FVector( 1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X );
 	const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
 
-	OutParameters.LightFunctionWorldToLight = FMatrix44f(WorldToLight);		// LWC_TODO: Precision loss
+	OutParameters.LightFunctionTranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
 
 	const float PreviewShadowsMask = 0.0f;
 	OutParameters.LightFunctionParameters2 = FVector(
@@ -853,7 +853,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->PS.DeferredLightUniforms);
 
-		SetupLightFunctionParameters(Light.LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
+		SetupLightFunctionParameters(View, Light.LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
 
 		PassParameters->PS.ShadowMaskTiles = ShadowMaskTilesSRV;
 

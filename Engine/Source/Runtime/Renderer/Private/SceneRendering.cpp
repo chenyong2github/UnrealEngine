@@ -1588,16 +1588,18 @@ void FViewInfo::SetupUniformBufferParameters(
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
 		const FViewInfo* PrimaryView = GetPrimaryView();
 		PrimaryView->CalcTranslucencyLightingVolumeBounds(OutTranslucentCascadeBoundsArray, NumTranslucentCascades);
-	}
 
-	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
+		const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
+		for (int32 CascadeIndex = 0; CascadeIndex < NumTranslucentCascades; CascadeIndex++)
+		{
+			const float VolumeVoxelSize = (OutTranslucentCascadeBoundsArray[CascadeIndex].Max.X - OutTranslucentCascadeBoundsArray[CascadeIndex].Min.X) / TranslucencyLightingVolumeDim;
+			const FVector VolumeWorldMin = OutTranslucentCascadeBoundsArray[CascadeIndex].Min;
+			const FVector3f VolumeSize = FVector3f(OutTranslucentCascadeBoundsArray[CascadeIndex].Max - VolumeWorldMin);
+			const FVector3f VolumeTranslatedWorldMin = FVector3f(VolumeWorldMin + PrimaryView->ViewMatrices.GetPreViewTranslation());
 
-	for (int32 CascadeIndex = 0; CascadeIndex < NumTranslucentCascades; CascadeIndex++)
-	{
-		const float VolumeVoxelSize = (OutTranslucentCascadeBoundsArray[CascadeIndex].Max.X - OutTranslucentCascadeBoundsArray[CascadeIndex].Min.X) / TranslucencyLightingVolumeDim;
-		const FVector VolumeSize = OutTranslucentCascadeBoundsArray[CascadeIndex].Max - OutTranslucentCascadeBoundsArray[CascadeIndex].Min;
-		ViewUniformShaderParameters.TranslucencyLightingVolumeMin[CascadeIndex] = FVector4f(OutTranslucentCascadeBoundsArray[CascadeIndex].Min, 1.0f / TranslucencyLightingVolumeDim);
-		ViewUniformShaderParameters.TranslucencyLightingVolumeInvSize[CascadeIndex] = FVector4f(FVector(1.0f) / VolumeSize, VolumeVoxelSize);
+			ViewUniformShaderParameters.TranslucencyLightingVolumeMin[CascadeIndex] = FVector4f(VolumeTranslatedWorldMin, 1.0f / TranslucencyLightingVolumeDim);
+			ViewUniformShaderParameters.TranslucencyLightingVolumeInvSize[CascadeIndex] = FVector4f(FVector3f(1.0f) / VolumeSize, VolumeVoxelSize);
+		}
 	}
 	
 	ViewUniformShaderParameters.PreExposure = PreExposure;

@@ -121,7 +121,7 @@ half ComputeLightFunctionMultiplier(float3 TranslatedWorldPosition)
 	float4 LightVector = mul(float4(TranslatedWorldPosition, 1.0), TranslatedWorldToLight);
 	LightVector.xyz /= LightVector.w;
 
-	half3 LightFunction = GetLightFunctionColorTWS(LightVector.xyz, TranslatedWorldPosition);
+	half3 LightFunction = GetLightFunctionColor(LightVector.xyz, TranslatedWorldPosition);
 	half GreyScale = dot(LightFunction, .3333f);
 	// Calculate radial view distance for stable fading
 	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
