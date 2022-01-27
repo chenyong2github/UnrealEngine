@@ -2,7 +2,6 @@
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "SharedStruct.h"
-#include "UObject/StructVariant.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
 namespace UE::StructUtils::Private
@@ -260,11 +259,62 @@ bool FInstancedStruct::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStru
 	static const FName NAME_StructVariant = "StructVariant";
 	if (Tag.Type == NAME_StructProperty && Tag.StructName == NAME_StructVariant)
 	{
-		// TODO: When deleting FStructVariant, migrate its Serialize loading code here
-		FStructVariant StructVariant;
-		StructVariant.Serialize(Slot);
+		auto SerializeStructVariant = [this, &Tag, &Slot]()
+		{
+			FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
+			FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
-		InitializeAs(StructVariant.GetStructType(), static_cast<uint8*>(StructVariant.GetStructInstance()));
+			// Serialize the struct type
+			UScriptStruct* StructTypePtr = nullptr;
+			Record << SA_VALUE(TEXT("StructType"), StructTypePtr);
+			if (StructTypePtr)
+			{
+				UnderlyingArchive.Preload(StructTypePtr);
+			}
+			InitializeAs(StructTypePtr);
+
+			auto SerializeStructInstance = [this, StructTypePtr, &Record]()
+			{
+				if (StructTypePtr)
+				{
+					StructTypePtr->SerializeItem(Record.EnterField(SA_FIELD_NAME(TEXT("StructInstance"))), GetMutableMemory(), nullptr);
+				}
+			};
+
+			// Serialize the struct instance, potentially tagging it with its serialized size 
+			// in-case the struct is deleted later and we need to step over the instance data
+			const bool bTagStructInstance = !UnderlyingArchive.IsTextFormat();
+			if (bTagStructInstance)
+			{
+				// Read the serialized size
+				int64 StructInstanceSerializedSize = 0;
+				UnderlyingArchive << StructInstanceSerializedSize;
+
+				// Serialize the struct instance
+				const int64 StructInstanceStartOffset = UnderlyingArchive.Tell();
+				SerializeStructInstance();
+				const int64 StructInstanceEndOffset = UnderlyingArchive.Tell();
+
+				// Ensure we're at the correct location after serializing the instance data
+				const int64 ExpectedStructInstanceEndOffset = StructInstanceStartOffset + StructInstanceSerializedSize;
+				if (StructInstanceEndOffset != ExpectedStructInstanceEndOffset)
+				{
+					if (StructTypePtr)
+					{
+						// We only expect a mismatch here if the underlying struct is no longer available!
+						UnderlyingArchive.SetCriticalError();
+						UE_LOG(LogCore, Error, TEXT("FStructVariant expected to read %lld bytes for struct %s but read %lld bytes!"), StructInstanceSerializedSize, *StructTypePtr->GetName(), StructInstanceEndOffset - StructInstanceStartOffset);
+					}
+					UnderlyingArchive.Seek(ExpectedStructInstanceEndOffset);
+				}
+			}
+			else
+			{
+				SerializeStructInstance();
+			}
+		};
+
+		SerializeStructVariant();
 		return true;
 	}
 

@@ -137,7 +137,6 @@
 #include "SplineComponentDetails.h"
 #include "StaticMeshActorDetails.h"
 #include "StaticMeshComponentDetails.h"
-#include "StructVariantCustomization.h"
 #include "SubmixDetailsCustomization.h"
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 #include "Templates/SharedPointer.h"
@@ -262,7 +261,6 @@ void FDetailCustomizationsModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout("TextProperty", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTextCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("DirectoryPath", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDirectoryPathStructCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("FilePath", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFilePathStructCustomization::MakeInstance));
-	RegisterCustomPropertyTypeLayout("StructVariant", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStructVariantCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("IOSBuildResourceDirectory", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDirectoryPathStructCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("IOSBuildResourceFilePath", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFilePathStructCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("InputAxisConfigEntry", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FInputAxisConfigCustomization::MakeInstance));
