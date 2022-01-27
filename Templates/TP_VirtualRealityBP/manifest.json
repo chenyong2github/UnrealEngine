@@ -68,8 +68,13 @@
 		},
 		{
 			"MountName": "FPWeapon",
-			"DetailLevels": 
-			[
+			"DetailLevels": [
+				"Standard"
+			]
+		},
+		{
+			"MountName": "VRSpectator",
+			"DetailLevels": [
 				"Standard"
 			]
 		}
