@@ -2,6 +2,7 @@
 
 
 #include "ObjectTools.h"
+#include "Engine/World.h"
 #include "Engine/Level.h"
 #include "UObject/UnrealType.h"
 #include "Components/ActorComponent.h"
@@ -2290,6 +2291,7 @@ namespace ObjectTools
 		for ( int i = 0; i < AssetsToDelete.Num(); i++ )
 		{
 			const FAssetData& AssetData = AssetsToDelete[i];
+			FScopedLoadAllExternalObjects Scope(AssetData.PackageName);
 			UObject *ObjectToDelete = AssetData.GetAsset();
 			// Assets can be loaded even when their underlying type/class no longer exists...
 			if ( ObjectToDelete!=nullptr )

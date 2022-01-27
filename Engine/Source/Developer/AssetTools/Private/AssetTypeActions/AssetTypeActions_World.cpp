@@ -7,6 +7,29 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
+namespace AssetTypeActions_World
+{
+	bool CanRenameOrDuplicate(const FAssetData& InAsset, FText* OutErrorMsg)
+	{
+		if (ULevel::GetIsLevelPartitionedFromAsset(InAsset))
+		{
+			for (const FWorldContext& WorldContext : GEditor->GetWorldContexts())
+			{
+				if (const UWorld* World = WorldContext.World(); WorldContext.World() && InAsset.PackageName == World->GetPackage()->GetFName())
+				{
+					if (OutErrorMsg)
+					{
+						*OutErrorMsg = LOCTEXT("Error_CannotDuplicatRenameWorldPartitionWhileInUse", "Cannot duplicate / rename a partition world while it is used.");
+					}
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+}
+
 void FAssetTypeActions_World::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor )
 {
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
@@ -57,6 +80,16 @@ TArray<FAssetData> FAssetTypeActions_World::GetValidAssetsForPreviewOrEdit(TArra
 	}
 
 	return MoveTemp(AssetsToOpen);
+}
+
+bool FAssetTypeActions_World::CanRename(const FAssetData& InAsset, FText* OutErrorMsg) const
+{
+	return AssetTypeActions_World::CanRenameOrDuplicate(InAsset, OutErrorMsg);
+}
+
+bool FAssetTypeActions_World::CanDuplicate(const FAssetData& InAsset, FText* OutErrorMsg) const
+{
+	return AssetTypeActions_World::CanRenameOrDuplicate(InAsset, OutErrorMsg);
 }
 
 #undef LOCTEXT_NAMESPACE

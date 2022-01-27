@@ -20,4 +20,6 @@ public:
 	virtual bool CanLocalize() const override { return false; }
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) override;
+	virtual bool CanRename(const FAssetData& InAsset, FText* OutErrorMsg) const override;
+	virtual bool CanDuplicate(const FAssetData& InAsset, FText* OutErrorMsg) const override;
 };

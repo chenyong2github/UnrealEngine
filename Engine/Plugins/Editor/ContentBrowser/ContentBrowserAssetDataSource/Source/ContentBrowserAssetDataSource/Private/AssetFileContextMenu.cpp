@@ -389,7 +389,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 		bool bHasExportableAssets = false;
 		for (const FAssetData& AssetData : SelectedAssets)
 		{
-			const UObject* Object = AssetData.GetAsset();
+			const UObject* Object = AssetData.FastGetAsset();
 			if (Object)
 			{
 				const UPackage* Package = Object->GetOutermost();
@@ -787,7 +787,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 			// Show the localization ID if we have a single asset selected
 			if (SelectedAssets.Num() == 1)
 			{
-				const FString LocalizationId = TextNamespaceUtil::GetPackageNamespace(SelectedAssets[0].GetAsset());
+				const FString LocalizationId = TextNamespaceUtil::GetPackageNamespace(SelectedAssets[0].FastGetAsset());
 				Section.AddMenuEntry(
 					"CopyLocalizationId",
 					FText::Format(LOCTEXT("CopyLocalizationIdFmt", "ID: {0}"), LocalizationId.IsEmpty() ? LOCTEXT("EmptyLocalizationId", "None") : FText::FromString(LocalizationId)),
@@ -1526,7 +1526,7 @@ void FAssetFileContextMenu::GetSelectedAssets(TArray<UObject*>& Assets, bool Ski
 			continue;
 		}
 
-		UObject* Object = SelectedAssets[AssetIdx].GetAsset();
+		UObject* Object = SelectedAssets[AssetIdx].FastGetAsset();
 
 		if (Object)
 		{
@@ -2209,10 +2209,12 @@ bool FAssetFileContextMenu::CanExecuteCreateBlueprintUsing() const
 	// Only work if you have a single asset selected
 	if(SelectedAssets.Num() == 1)
 	{
-		UObject* Asset = SelectedAssets[0].GetAsset();
-		// See if we know how to make a component from this asset
-		TArray< TSubclassOf<UActorComponent> > ComponentClassList = FComponentAssetBrokerage::GetComponentsForAsset(Asset);
-		return (ComponentClassList.Num() > 0);
+		if (UObject* Asset = SelectedAssets[0].FastGetAsset())
+		{
+			// See if we know how to make a component from this asset
+			TArray< TSubclassOf<UActorComponent> > ComponentClassList = FComponentAssetBrokerage::GetComponentsForAsset(Asset);
+			return (ComponentClassList.Num() > 0);
+		}
 	}
 
 	return false;

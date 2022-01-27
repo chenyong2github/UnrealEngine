@@ -1522,23 +1522,16 @@ FReply SAssetView::OnKeyChar( const FGeometry& MyGeometry,const FCharacterEvent&
 	return FReply::Unhandled();
 }
 
-static bool IsValidObjectPath(const FString& Path)
+static bool IsValidObjectPath(const FString& Path, FString& OutObjectClassName, FString& OutObjectPath, FString& OutPackageName)
 {
-	int32 NameStartIndex = INDEX_NONE;
-	Path.FindChar(TCHAR('\''), NameStartIndex);
-	if (NameStartIndex != INDEX_NONE)
+	if (FPackageName::ParseExportTextPath(Path, &OutObjectClassName, &OutObjectPath))
 	{
-		int32 NameEndIndex = INDEX_NONE;
-		Path.FindLastChar(TCHAR('\''), NameEndIndex);
-		if (NameEndIndex > NameStartIndex)
+		if (UClass* ObjectClass = FindObject<UClass>(ANY_PACKAGE, *OutObjectClassName, true))
 		{
-			const FString ClassName = Path.Left(NameStartIndex);
-			const FString PathName = Path.Mid(NameStartIndex + 1, NameEndIndex - NameStartIndex - 1);
-
-			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName, true);
-			if (Class)
+			OutPackageName = FPackageName::ObjectPathToPackageName(OutObjectPath);
+			if (FPackageName::IsValidLongPackageName(OutPackageName))
 			{
-				return FPackageName::IsValidLongPackageName(FPackageName::ObjectPathToPackageName(PathName));
+				return true;
 			}
 		}
 	}
@@ -1575,9 +1568,13 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 			for (const FString& AssetPath : AssetPathsSplit)
 			{
 				// Validate string
-				if (IsValidObjectPath(AssetPath))
+				FString ObjectClassName;
+				FString ObjectPath;
+				FString PackageName;
+				if (IsValidObjectPath(AssetPath, ObjectClassName, ObjectPath, PackageName))
 				{
-					UObject* ObjectToCopy = LoadObject<UObject>(nullptr, *AssetPath);
+					FScopedLoadAllExternalObjects Scope(*PackageName);
+					UObject* ObjectToCopy = LoadObject<UObject>(nullptr, *ObjectPath);
 					if (ObjectToCopy && !ObjectToCopy->IsA(UClass::StaticClass()))
 					{
 						AssetsToCopy.Add(ObjectToCopy);

@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "UnrealClient.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "SourceControlOperations.h"
@@ -57,6 +58,12 @@ namespace AssetViewUtils
 
 	/** Internal function to delete a folder from disk, but only if it is empty. InPathToDelete is in FPackageName format. */
 	bool DeleteEmptyFolderFromDisk(const FString& InPathToDelete);
+
+	/** Get all the objects in a list of asset data with optional load of all external packages */
+	void GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects, bool bLoadAllExternalObjects);
+
+	/** Makes sure the specified assets are loaded into memory. */
+	bool LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArray<UObject*>& LoadedObjects, bool bAllowedToPromptToLoadAssets, bool bLoadRedirects, bool bLoadWorldPartitionWorlds, bool bLoadAllExternalObjects);
 }
 
 bool AssetViewUtils::OpenEditorForAsset(const FString& ObjectPath)
@@ -65,7 +72,13 @@ bool AssetViewUtils::OpenEditorForAsset(const FString& ObjectPath)
 	TArray<UObject*> LoadedObjects;
 	TArray<FString> ObjectPaths;
 	ObjectPaths.Add(ObjectPath);
-	LoadAssetsIfNeeded(ObjectPaths, LoadedObjects);
+
+	// Here we want to load the asset as it will be passed to OpenEditorForAsset
+	const bool bAllowedToPromptToLoadAssets = true;
+	const bool bLoadRedirects = false;
+	const bool bLoadWorldPartitionWorlds = true;
+	const bool bLoadAllExternalObjects = false;
+	LoadAssetsIfNeeded(ObjectPaths, LoadedObjects, bAllowedToPromptToLoadAssets, bLoadRedirects, bLoadWorldPartitionWorlds, bLoadAllExternalObjects);
 
 	// Open the editor for the specified asset
 	UObject* FoundObject = FindObject<UObject>(NULL, *ObjectPath);
@@ -100,6 +113,13 @@ bool AssetViewUtils::OpenEditorForAsset(const TArray<UObject*>& Assets)
 
 bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArray<UObject*>& LoadedObjects, bool bAllowedToPromptToLoadAssets, bool bLoadRedirects)
 {
+	const bool bLoadWorldPartitionWorlds = false;
+	const bool bLoadAllExternalObjects = false;
+	return LoadAssetsIfNeeded(ObjectPaths, LoadedObjects, bAllowedToPromptToLoadAssets, bLoadRedirects, bLoadWorldPartitionWorlds, bLoadAllExternalObjects);
+}
+
+bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArray<UObject*>& LoadedObjects, bool bAllowedToPromptToLoadAssets, bool bLoadRedirects, bool bLoadWorldPartitionWorlds, bool bLoadAllExternalObjects)
+{
 	bool bAnyObjectsWereLoadedOrUpdated = false;
 
 	// Build a list of unloaded assets
@@ -116,12 +136,19 @@ bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArr
 		}
 		else
 		{
-			// Unloaded asset, we will load it later
-			UnloadedObjectPaths.Add(ObjectPath);
 			if ( FEditorFileUtils::IsMapPackageAsset(ObjectPath) )
 			{
+				FName PackageName = FName(*FEditorFileUtils::ExtractPackageName(ObjectPath));
+				if (!bLoadWorldPartitionWorlds && ULevel::GetIsLevelPartitionedFromPackage(PackageName))
+				{
+					continue;
+				}
+				
 				bAtLeastOneUnloadedMap = true;
 			}
+
+			// Unloaded asset, we will load it later
+			UnloadedObjectPaths.Add(ObjectPath);
 		}
 	}
 
@@ -150,6 +177,7 @@ bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArr
 			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LoadingObjectf", "Loading {0}..."), FText::FromString(ObjectPath)));
 
 			// Load up the object
+			TUniquePtr<FScopedLoadAllExternalObjects> Scope(bLoadAllExternalObjects? new FScopedLoadAllExternalObjects(*FEditorFileUtils::ExtractPackageName(ObjectPath)) : nullptr);
 			UObject* LoadedObject = LoadObject<UObject>(NULL, *ObjectPath, NULL, LoadFlags, NULL);
 			if ( LoadedObject )
 			{
@@ -339,7 +367,11 @@ bool AssetViewUtils::DeleteFolders(const TArray<FString>& PathsToDelete)
 
 		// Load all the assets in the selected paths
 		TArray<UObject*> LoadedAssets;
-		if ( LoadAssetsIfNeeded(ObjectPaths, LoadedAssets) )
+		const bool bAllowedToPromptToLoadAssets = true;
+		const bool bLoadRedirects = false;
+		const bool bLoadWorldPartitionWorlds = true;
+		const bool bLoadAllExternalObjects = true;
+		if ( LoadAssetsIfNeeded(ObjectPaths, LoadedAssets, bAllowedToPromptToLoadAssets, bLoadRedirects, bLoadWorldPartitionWorlds, bLoadAllExternalObjects))
 		{
 			// Make sure we loaded all of them
 			if ( LoadedAssets.Num() == NumAssetsInPaths )
@@ -515,7 +547,8 @@ bool AssetViewUtils::RenameFolder(const FString& DestPath, const FString& Source
 	TArray<FAssetData> AssetsInFolder;
 	AssetRegistryModule.Get().GetAssetsByPath(*SourcePath, AssetsInFolder, true);
 	TArray<UObject*> ObjectsInFolder;
-	GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder);
+	const bool bLoadAllExternalObjects = true;
+	GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder, bLoadAllExternalObjects);
 	MoveAssets(ObjectsInFolder, DestPath, SourcePath);
 
 	// Now check to see if the original folder is empty, if so we can delete it
@@ -700,7 +733,11 @@ bool AssetViewUtils::PrepareFoldersForDragDrop(const TArray<FString>& SourcePath
 
 		// Load all assets in this path if needed
 		TArray<UObject*> AllLoadedAssets;
-		LoadAssetsIfNeeded(ObjectPaths, AllLoadedAssets, false);
+		const bool bAllowedToPromptToLoadAssets = false;
+		const bool bLoadRedirects = false;
+		const bool bLoadWorldPartitionWorlds = true;
+		const bool bLoadAllExternalObjects = true;
+		LoadAssetsIfNeeded(ObjectPaths, AllLoadedAssets, bAllowedToPromptToLoadAssets, bLoadRedirects, bLoadWorldPartitionWorlds, bLoadAllExternalObjects);
 
 		// Add a slash to the end of the path so StartsWith doesn't get a false positive on similarly named folders
 		const FString SourcePathWithSlash = *PathIt + TEXT("/");
@@ -949,18 +986,24 @@ bool AssetViewUtils::IsPluginFolder(const FStringView InPath, EPluginLoadedFrom*
 	return false;
 }
 
-void AssetViewUtils::GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects)
-{	
+void AssetViewUtils::GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects, bool bLoadAllExternalObjects)
+{
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
 		const FAssetData& AssetData = AssetList[AssetIdx];
-
+		TUniquePtr<FScopedLoadAllExternalObjects> LoadAllExternalObjects(bLoadAllExternalObjects ? new FScopedLoadAllExternalObjects(AssetData.PackageName) : nullptr);
 		UObject* Obj = AssetData.GetAsset();
 		if (Obj)
 		{
 			OutDroppedObjects.Add(Obj);
 		}
 	}
+}
+
+void AssetViewUtils::GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects)
+{	
+	const bool bLoadAllExternalObjects = false;
+	GetObjectsInAssetData(AssetList, OutDroppedObjects, bLoadAllExternalObjects);
 }
 
 bool AssetViewUtils::IsValidFolderName(const FString& FolderName, FText& Reason)

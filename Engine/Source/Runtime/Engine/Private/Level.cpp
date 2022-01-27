@@ -888,7 +888,7 @@ void ULevel::PostLoad()
 	// if we use external actors, load dynamic actors here
 	if (IsUsingExternalActors())
 	{
-		if (!bWasDuplicated && !bIsPartitioned)
+		if (!bWasDuplicated && (!bIsPartitioned || UWorld::ShouldLoadAllExternalObjects(GetPackage()->GetFName())))
 		{
 			UPackage* LevelPackage = GetPackage();
 			bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);
@@ -2069,75 +2069,95 @@ namespace LevelAssetRegistryHelper
 	}
 }
 
+bool ULevel::GetIsLevelPartitionedFromAsset(const FAssetData& Asset)
+{
+	FString LevelIsPartitionedStr;
+	static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
+	if (Asset.GetTagValue(NAME_LevelIsPartitioned, LevelIsPartitionedStr))
+	{
+		check(LevelIsPartitionedStr == TEXT("1"));
+		return true;
+	}
+	return false;
+}
+
 bool ULevel::GetIsLevelPartitionedFromPackage(FName LevelPackage)
 {
 	return LevelPackage.IsNone() ? false : LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
 	{
-		FString LevelIsPartitionedStr;
-		static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
-		if (Asset.GetTagValue(NAME_LevelIsPartitioned, LevelIsPartitionedStr))
-		{
-			check(LevelIsPartitionedStr == TEXT("1"));
-			return true;
-		}
-		return false;
+		return GetIsLevelPartitionedFromAsset(Asset);
 	});
+}
+
+bool ULevel::GetIsLevelUsingExternalActorsFromAsset(const FAssetData& Asset)
+{
+	FString LevelIsUsingExternalActorsStr;
+	static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));
+	if (Asset.GetTagValue(NAME_LevelIsUsingExternalActors, LevelIsUsingExternalActorsStr))
+	{
+		check(LevelIsUsingExternalActorsStr == TEXT("1"));
+		return true;
+	}
+	return false;
 }
 
 bool ULevel::GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage)
 {
 	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
 	{
-		FString LevelIsUsingExternalActorsStr;
-		static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));
-		if (Asset.GetTagValue(NAME_LevelIsUsingExternalActors, LevelIsUsingExternalActorsStr))
-		{
-			check(LevelIsUsingExternalActorsStr == TEXT("1"));
-			return true;
-		}
-		return false;
+		return GetIsLevelUsingExternalActorsFromAsset(Asset);
 	});
+}
+
+bool ULevel::GetIsUsingActorFoldersFromAsset(const FAssetData& Asset)
+{
+	FString LevelIsUsingActorFoldersStr;
+	static const FName NAME_LevelIsUsingActorFolders(TEXT("LevelIsUsingActorFolders"));
+	if (Asset.GetTagValue(NAME_LevelIsUsingActorFolders, LevelIsUsingActorFoldersStr))
+	{
+		check(LevelIsUsingActorFoldersStr == TEXT("1"));
+		return true;
+	}
+	return false;
 }
 
 bool ULevel::GetIsUsingActorFoldersFromPackage(FName LevelPackage)
 {
 	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
 	{
-		FString LevelIsUsingActorFoldersStr;
-		static const FName NAME_LevelIsUsingActorFolders(TEXT("LevelIsUsingActorFolders"));
-		if (Asset.GetTagValue(NAME_LevelIsUsingActorFolders, LevelIsUsingActorFoldersStr))
+		return GetIsUsingActorFoldersFromAsset(Asset);
+	});
+}
+
+bool ULevel::GetLevelBoundsFromAsset(const FAssetData& Asset, FBox& OutLevelBounds)
+{
+	FString LevelBoundsLocationStr;
+	static const FName NAME_LevelBoundsLocation(TEXT("LevelBoundsLocation"));
+
+	FString LevelBoundsExtentStr;
+	static const FName NAME_LevelBoundsExtent(TEXT("LevelBoundsExtent"));
+
+	if (Asset.GetTagValue(NAME_LevelBoundsLocation, LevelBoundsLocationStr) &&
+		Asset.GetTagValue(NAME_LevelBoundsExtent, LevelBoundsExtentStr))
+	{
+		FVector LevelBoundsLocation;
+		FVector LevelBoundsExtent;
+		if (LevelBoundsLocation.InitFromCompactString(LevelBoundsLocationStr) &&
+			LevelBoundsExtent.InitFromCompactString(LevelBoundsExtentStr))
 		{
-			check(LevelIsUsingActorFoldersStr == TEXT("1"));
+			OutLevelBounds = FBox(LevelBoundsLocation - LevelBoundsExtent, LevelBoundsLocation + LevelBoundsExtent);
 			return true;
 		}
-		return false;
-	});
+	}
+	// Invalid bounds
+	return false;
 }
 
 bool ULevel::GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds)
 {
 	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [&OutLevelBounds](const FAssetData& Asset)
 	{
-		FString LevelBoundsLocationStr;
-		static const FName NAME_LevelBoundsLocation(TEXT("LevelBoundsLocation"));
-
-		FString LevelBoundsExtentStr;
-		static const FName NAME_LevelBoundsExtent(TEXT("LevelBoundsExtent"));
-
-		if (Asset.GetTagValue(NAME_LevelBoundsLocation, LevelBoundsLocationStr) &&
-			Asset.GetTagValue(NAME_LevelBoundsExtent, LevelBoundsExtentStr))
-		{
-			FVector LevelBoundsLocation;
-			FVector LevelBoundsExtent;
-			if (LevelBoundsLocation.InitFromCompactString(LevelBoundsLocationStr) &&
-				LevelBoundsExtent.InitFromCompactString(LevelBoundsExtentStr))
-			{
-				OutLevelBounds = FBox(LevelBoundsLocation - LevelBoundsExtent, LevelBoundsLocation + LevelBoundsExtent);
-				return true;
-			}
-		}
-		// Invalid bounds
-		return false;
+		return GetLevelBoundsFromAsset(Asset, OutLevelBounds);
 	});
 }
 

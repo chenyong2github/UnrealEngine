@@ -4232,6 +4232,18 @@ bool UEditorEngine::InitializePhysicsSceneForSaveIfNecessary(UWorld* World, bool
 
 void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, bool bForceInitialized)
 {
+	// Capture Dirty packages so we can reset unwanted dirtyness 
+	TSet<UPackage*> DirtyPackages;
+	const bool bWorldPackageDirty = World->GetPackage()->IsDirty();
+
+	for (UPackage* ExternalPackage : World->GetPackage()->GetExternalPackages())
+	{
+		if (ExternalPackage->IsDirty())
+		{
+			DirtyPackages.Add(ExternalPackage);
+		}
+	}
+
 	// Make sure we clean up the physics scene here. If we leave too many scenes in memory, undefined behavior occurs when locking a scene for read/write.
 	World->ClearWorldComponents();
 
@@ -4252,6 +4264,19 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 
 	// Update components again in case it was a world without a physics scene but did have rendered components.
 	World->UpdateWorldComponents(true, true);
+
+	for (UPackage* ExternalPackage : World->GetPackage()->GetExternalPackages())
+	{
+		if (!DirtyPackages.Contains(ExternalPackage) && ExternalPackage->IsDirty())
+		{
+			ExternalPackage->SetDirtyFlag(false);
+		}
+	}
+
+	if (!bWorldPackageDirty && World->GetPackage()->IsDirty())
+	{
+		World->GetPackage()->SetDirtyFlag(false);
+	}
 }
 
 FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags,

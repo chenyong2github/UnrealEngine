@@ -744,6 +744,9 @@ static bool SaveWorld(UWorld* World,
 		// Save Loaded cells
 		TArray<FName> LoadedEditorCells;
 
+		// Initialize Physics Scene for save if needed here so that external packages don't get dirtied during the Saving of the map package
+		bool bForceInitializedWorld = false;
+		
 		if ( bRenamePackageToFile )
 		{
 			if (bPackageNeedsRename)
@@ -827,6 +830,11 @@ static bool SaveWorld(UWorld* World,
 		SlowTask.EnterProgressFrame(25);
 				
 		UWorld* SaveWorld = DuplicatedWorld ? DuplicatedWorld : World;
+		const bool bNewlyCreated = SaveWorld->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated);
+
+		// Initialize Physics Scene for save if needed here before saving external packages as this can modify those external package objects
+		// This makes UEditorEngine::Save's own call to InitializePhysicsSceneForSaveIfNecessary redundant but wasn't removed to avoid breaking other code paths
+		const bool bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(SaveWorld, bForceInitializedWorld);
 				
 		if(!bAutosaving)
 		{
@@ -849,7 +857,7 @@ static bool SaveWorld(UWorld* World,
 			bSuccess = GEditor->Exec(NULL, *FString::Printf(TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=true AUTOSAVING=%s KEEPDIRTY=%s"), *Package->GetName(), *FinalFilename, *AutoSavingString, *KeepDirtyString), SaveErrors);
 			SaveErrors.Flush();
 		}
-				
+		
 		if (bSuccess)
 		{
 			// Force update before initializing World Partition
@@ -859,7 +867,7 @@ static bool SaveWorld(UWorld* World,
 			// Make sure when we exit SaveWorld AssetRegistry is up to date with saved map
 			AssetRegistry.ScanModifiedAssetFiles({ FinalFilename });
 			
-			if (bPackageNeedsRename)
+			if (bPackageNeedsRename || bNewlyCreated)
 			{
 				// Force rescan to make sure assets are found on map open or world partition initialize
 				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(NewPackageName) , true);
@@ -887,6 +895,13 @@ static bool SaveWorld(UWorld* World,
 		if (GEditor)
 		{
 			GEditor->RunDeferredMarkForAddFiles();
+		}
+
+
+		// If Physics scene was initialized for save, cleanup
+		if (bInitializedPhysicsSceneForSave)
+		{
+			GEditor->CleanupPhysicsSceneThatWasInitializedForSave(SaveWorld, bForceInitializedWorld);
 		}
 
 		// If the package save was not successful. Trash the duplicated world or rename back if the duplicate failed.
