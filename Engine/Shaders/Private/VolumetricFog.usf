@@ -219,7 +219,7 @@ float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
 	if (IsPointLight)
 	{
 		// Get vector from light to cell world pos.
-		float TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float3 LightVec = normalize(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition);
 		// Transform and swizzle
 		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
