@@ -147,7 +147,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if DENSE_SHADOW_MAP
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
-						float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+						float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
 
 						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
@@ -310,7 +310,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		if (LightData.bRadialLight)
 		{
-			float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+			float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 			ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 			L = normalize(ToLight);
 		}

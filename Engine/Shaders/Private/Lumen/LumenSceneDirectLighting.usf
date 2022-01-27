@@ -81,7 +81,7 @@ void LumenCardDirectLightingPS(
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 		float3 WorldPosition = GetCardWorldPosition(Card, CardInterpolants.CardUV, Depth);
-		float3 TranslatedWorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 		float3 LightColor = DeferredLightUniforms.Color;
 		float3 L = LightData.Direction;
