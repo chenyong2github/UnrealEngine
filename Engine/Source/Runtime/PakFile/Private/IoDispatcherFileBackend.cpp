@@ -687,6 +687,7 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InTocFilePath, int32 InOrd
 		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Expected .utoc extension on container path '") << InTocFilePath << TEXT("'");
 	}
 	FStringView BasePathView = ContainerPathView.LeftChop(5);
+	ContainerFile.FilePath = BasePathView;
 
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
