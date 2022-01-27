@@ -1157,7 +1157,8 @@ void UpdateVoxelVisBuffer(
 			}
 
 			// Height-field voxelization
-			if (Lumen::UseHeightfields())
+			const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+			if (Lumen::UseHeightfields(LumenSceneData))
 			{
 				// Clear indirect args
 				FRDGBufferRef DummyClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.UpdateIndirectArgBuffer"));
@@ -1176,7 +1177,6 @@ void UpdateVoxelVisBuffer(
 						PassParameters,
 						FIntVector(1, 1, 1));
 				}
-				const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 				uint32 NumHeightfieldObjects = LumenSceneData.HeightfieldMeshCardsIndices.Num();
 				uint32 MaxNumHeightfieldObjects = FMath::RoundUpToPowerOfTwo(LumenSceneData.HeightfieldMeshCardsIndices.Num());
 

@@ -7,6 +7,8 @@
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 
+class FLumenSceneData;
+
 inline double BoxSurfaceArea(FVector Extent)
 {
 	return 2.0 * (Extent.X * Extent.Y + Extent.Y * Extent.Z + Extent.Z * Extent.X);
@@ -104,7 +106,7 @@ namespace Lumen
 	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();
 
-	bool UseHeightfields();
+	bool UseHeightfields(const FLumenSceneData& LumenSceneData);
 };
 
 namespace LumenHardwareRayTracing

@@ -609,7 +609,7 @@ void TraceScreenProbes(
 				FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
-				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfields());
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfields(*Scene->LumenSceneData));
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(

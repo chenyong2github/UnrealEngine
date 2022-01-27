@@ -166,10 +166,11 @@ namespace Lumen
 		return FVector(0.0f, 0.0f, CVarLumenFarFieldReferencePosZ.GetValueOnRenderThread());
 	}
 
-	bool UseHeightfields()
+	bool UseHeightfields(const FLumenSceneData& LumenSceneData)
 	{
-		// TODO: Validate that there are heightfields..
-		return CVarLumenSceneHeightfield.GetValueOnRenderThread() != 0;
+		bool bHeightfieldEnabled = CVarLumenSceneHeightfield.GetValueOnRenderThread() != 0;
+		bool bHasHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num() > 0;
+		return bHeightfieldEnabled && bHasHeightfields;
 	}
 }
 

@@ -1021,7 +1021,7 @@ void TraceDistanceFieldShadows(
 	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	check(Light.bHasShadows);
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
@@ -1077,7 +1077,7 @@ void TraceDistanceFieldShadows(
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
-	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceHeightfields>(Lumen::UseHeightfields());
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceHeightfields>(Lumen::UseHeightfields(LumenSceneData));
 	PermutationVector = FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
 
 	TShaderRef<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS> ComputeShader = View.ShaderMap->GetShader<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS>(PermutationVector);
