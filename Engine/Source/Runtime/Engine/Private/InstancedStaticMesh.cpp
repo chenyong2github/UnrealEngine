@@ -4563,7 +4563,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 	ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 	
-	if (!UseGPUScene(Scene->GetShaderPlatform()))
+	if (!UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
 	{
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVertexFactoryUniformShaderParameters>(), InstancedVertexFactory->GetUniformBuffer());
 		if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
