@@ -1050,6 +1050,12 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 		}
 
 		DmlGPUResources.Reset(0);
+		
+		for (FInferenceContext& Context : Contexts)
+		{
+			Context.ReleaseDMLAllocations(DmlApi);
+		}
+		
 		DmlApi = nullptr;
 	}
 #endif //PLATFORM_WIN64
