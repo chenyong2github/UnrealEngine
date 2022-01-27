@@ -479,8 +479,6 @@ FUsdPrimViewModelPtr SUsdStageTreeView::GetItemFromPrimPath( const FString& Prim
 
 void SUsdStageTreeView::SelectPrims( const TArray<FString>& PrimPaths )
 {
-	ClearSelection();
-
 	TArray< FUsdPrimViewModelRef > ItemsToSelect;
 	ItemsToSelect.Reserve( PrimPaths.Num() );
 
@@ -494,9 +492,18 @@ void SUsdStageTreeView::SelectPrims( const TArray<FString>& PrimPaths )
 
 	if ( ItemsToSelect.Num() > 0 )
 	{
+		// Clear selection without emitting events, as we'll emit new events with SetItemSelection
+		// anyway. This prevents a UI blink as OnPrimSelectionChanged would otherwise fire for
+		// ClearSelection() and then again right away for SetItemSelection()
+		Private_ClearSelection();
+
 		const bool bSelected = true;
 		SetItemSelection( ItemsToSelect, bSelected );
 		ScrollItemIntoView( ItemsToSelect.Last() );
+	}
+	else
+	{
+		ClearSelection();
 	}
 }
 

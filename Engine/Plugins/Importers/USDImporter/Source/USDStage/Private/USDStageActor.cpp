@@ -150,6 +150,12 @@ struct FUsdStageActorImpl
 				if ( USceneComponent* ReferencedComponent = PrimTwin.SceneComponent.Get() )
 				{
 					ComponentsToDeselect.Add( ReferencedComponent );
+
+					AActor* Owner = ReferencedComponent->GetOwner();
+					if ( Owner && Owner->GetRootComponent() == ReferencedComponent )
+					{
+						ActorsToDeselect.Add( Owner );
+					}
 				}
 			}, bRecursive );
 

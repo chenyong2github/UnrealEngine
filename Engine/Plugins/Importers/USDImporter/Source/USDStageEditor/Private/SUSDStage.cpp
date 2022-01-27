@@ -65,9 +65,9 @@ namespace SUSDStageImpl
 		}
 
 		TSet<AActor*> ActorsToSelect;
-		for ( TSet<USceneComponent*>::TIterator It(ComponentsToSelect); It; ++It )
+		for ( TSet<USceneComponent*>::TIterator It( ComponentsToSelect ); It; ++It )
 		{
-			if ( AActor* Owner = (*It)->GetOwner() )
+			if ( AActor* Owner = ( *It )->GetOwner() )
 			{
 				// We always need the parent actor selected to select a component
 				ActorsToSelect.Add( Owner );
@@ -89,11 +89,19 @@ namespace SUSDStageImpl
 			return;
 		}
 
+		// Don't use GEditor->SelectNone() as that will affect *every type of selection in the editor*,
+		// including even some UI menus, brushes, etc.
+		if ( USelection* SelectedActors = GEditor->GetSelectedActors() )
+		{
+			SelectedActors->DeselectAll( AActor::StaticClass() );
+		}
+		if ( USelection* SelectedComponents = GEditor->GetSelectedComponents() )
+		{
+			SelectedComponents->DeselectAll( UActorComponent::StaticClass() );
+		}
+
 		const bool bSelected = true;
 		const bool bNotifySelectionChanged = true;
-		const bool bDeselectBSPSurfs = true;
-		GEditor->SelectNone( bNotifySelectionChanged, bDeselectBSPSurfs );
-
 		for ( AActor* Actor : ActorsToSelect )
 		{
 			GEditor->SelectActor( Actor, bSelected, bNotifySelectionChanged );
@@ -236,6 +244,13 @@ void SUsdStage::SetupStageActorDelegates()
 						 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 					{
 						this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
+					}
+
+					// If we resynced our selected prim or our ancestor and have selection sync enabled, try to refresh it so that we're
+					// still selecting the same actor/component that corresponds to the prim we have currently selected
+					if ( bResync && SelectedPrimPath.StartsWith( PrimPath ) )
+					{
+						OnPrimSelectionChanged( { SelectedPrimPath } );
 					}
 				});
 			}
@@ -741,6 +756,9 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 							FText::FromString(StageActor->GetActorLabel())
 						));
 
+						// c.f. comment in SUsdStage::FillCollapsingSubMenu
+						TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+
 						StageActor->Modify();
 						StageActor->PurposesToLoad = (int32)((EUsdPurpose)StageActor->PurposesToLoad ^ Purpose);
 
@@ -797,6 +815,9 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 							FText::FromString(StageActor->GetActorLabel())
 						));
 
+						// c.f. comment in SUsdStage::FillCollapsingSubMenu
+						TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+
 						StageActor->Modify();
 						StageActor->RenderContext = RenderContext;
 
@@ -850,6 +871,14 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 							Text,
 							FText::FromString( StageActor->GetActorLabel() )
 						) );
+
+						// When we change our kinds to collapse, we'll end up loading the stage again and refreshing our selection.
+						// We'll take care to try to re-select the same prims within SUsdStage::Refresh after the refresh is complete,
+						// but if selection sync is on we'll also later on try updating our prim selection to match our component selection.
+						// Not only is this "selection spam" is very visible on the USD Stage Editor, if our originally selected component
+						// was just collapsed away, we'd end up updating our prim selection to point to the parent prim instead
+						// (the collapsing root), which is not ideal.
+						TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
 
 						int32 NewKindsToCollapse = ( int32 ) ( ( EUsdDefaultKind ) StageActor->KindsToCollapse ^ Kind );
 						StageActor->SetKindsToCollapse( NewKindsToCollapse );
@@ -957,6 +986,9 @@ void SUsdStage::FillInterpolationTypeSubMenu(FMenuBuilder& MenuBuilder)
 						FText::FromString(StageActor->GetActorLabel())
 					));
 
+					// c.f. comment in SUsdStage::FillCollapsingSubMenu
+					TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+
 					StageActor->SetInterpolationType( EUsdInterpolationType::Linear );
 				}
 			}),
@@ -990,6 +1022,9 @@ void SUsdStage::FillInterpolationTypeSubMenu(FMenuBuilder& MenuBuilder)
 						LOCTEXT("SetHeldInterpolationType", "Set USD stage actor '{0}' to held interpolation"),
 						FText::FromString(StageActor->GetActorLabel())
 					));
+
+					// c.f. comment in SUsdStage::FillCollapsingSubMenu
+					TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
 
 					StageActor->SetInterpolationType( EUsdInterpolationType::Held );
 				}
@@ -1245,6 +1280,11 @@ void SUsdStage::Refresh()
 	if (UsdStageTreeView)
 	{
 		UsdStageTreeView->Refresh( StageActor );
+
+		// Refresh will generate brand new RootItems, so let's immediately select the new item
+		// that corresponds to the prim we're supposed to be selecting
+		UsdStageTreeView->SelectPrims( { SelectedPrimPath } );
+
 		UsdStageTreeView->RequestTreeRefresh();
 	}
 }
@@ -1342,6 +1382,9 @@ void SUsdStage::OnNaniteTriangleThresholdValueCommitted( int32 InValue, ETextCom
 		LOCTEXT( "NaniteTriangleThresholdCommittedTransaction", "Change Nanite triangle threshold for USD stage actor '{0}'" ),
 		FText::FromString( StageActor->GetActorLabel() )
 	) );
+
+	// c.f. comment in SUsdStage::FillCollapsingSubMenu
+	TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
 
 	StageActor->SetNaniteTriangleThreshold( InValue );
 	CurrentNaniteThreshold = InValue;
