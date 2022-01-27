@@ -21,7 +21,7 @@
 #include "Templates/UniquePtr.h"
 
 static int32 GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable = 0;
-FAutoConsoleVariableRef CVarClearMetaSoundFrontendSearchEngineCache(
+FAutoConsoleVariableRef CVarMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable(
 	TEXT("au.MetaSounds.WavePlayer.SimulateSeek"),
 	GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable ,
 	TEXT("If true, SoundWaves which are not of a seekable format will simulate seek calls by reading and discarding samples.\n")
