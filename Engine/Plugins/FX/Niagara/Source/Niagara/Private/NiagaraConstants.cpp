@@ -138,6 +138,7 @@ void FNiagaraConstants::Init()
 		SwitchParameters.Add(SYS_PARAM_EMITTER_DETERMINISM);
 		SwitchParameters.Add(SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE);
 		SwitchParameters.Add(SYS_PARAM_EMITTER_SIMULATION_TARGET);
+		SwitchParameters.Add(SYS_PARAM_EMITTER_INTERP_SPAWN);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_CONTEXT);
 		SwitchParameters.Add(SYS_PARAM_FUNCTION_DEBUG_STATE);
@@ -185,6 +186,7 @@ void FNiagaraConstants::Init()
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Random Seed")), SYS_PARAM_EMITTER_RANDOM_SEED);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Instance Seed")), SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Determinism")), SYS_PARAM_EMITTER_DETERMINISM);
+		UpdatedSystemParameters.Add(FName(TEXT("Emitter Interpolated Spawn")), SYS_PARAM_EMITTER_INTERP_SPAWN);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Override Global Spawn Count Scale")), SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE);
 		UpdatedSystemParameters.Add(FName(TEXT("Effect Position")), SYS_PARAM_ENGINE_POSITION);
 		UpdatedSystemParameters.Add(FName(TEXT("Effect Velocity")), SYS_PARAM_ENGINE_VELOCITY);

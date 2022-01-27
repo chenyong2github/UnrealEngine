@@ -938,6 +938,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
 		}
+		if (Emitter->bInterpolatedSpawning)
+		{
+			Id.AdditionalDefines.Add(TEXT("Emitter.InterpolatedSpawn"));
+		}
 		if (IsParticleScript(Usage))
 		{
 			SimTargetToBuild = Emitter->SimTarget;
@@ -1017,6 +1021,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				if (Emitter->bDeterminism)
 				{
 					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".Determinism"));
+				}
+				if (Emitter->bInterpolatedSpawning)
+				{
+					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".InterpolatedSpawn"));
 				}
 
 				ComputeVMCompilationId_EmitterShared(Id, Emitter, System, ENiagaraRendererSourceDataMode::Emitter);

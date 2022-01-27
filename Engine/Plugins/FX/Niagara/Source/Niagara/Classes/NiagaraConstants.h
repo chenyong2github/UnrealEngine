@@ -82,6 +82,7 @@
 #define SYS_PARAM_EMITTER_AGE                            INiagaraModule::GetVar_Emitter_Age()
 #define SYS_PARAM_EMITTER_LOCALSPACE                     INiagaraModule::GetVar_Emitter_LocalSpace()
 #define SYS_PARAM_EMITTER_DETERMINISM                    INiagaraModule::GetVar_Emitter_Determinism()
+#define SYS_PARAM_EMITTER_INTERP_SPAWN                   INiagaraModule::GetVar_Emitter_InterpolatedSpawn()
 #define SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE       INiagaraModule::GetVar_Emitter_OverrideGlobalSpawnCountScale()
 #define SYS_PARAM_EMITTER_RANDOM_SEED                    INiagaraModule::GetVar_Emitter_RandomSeed()
 #define SYS_PARAM_EMITTER_SPAWNRATE                      INiagaraModule::GetVar_Emitter_SpawnRate()
