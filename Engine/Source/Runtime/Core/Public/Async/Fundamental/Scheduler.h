@@ -130,7 +130,7 @@ namespace LowLevelTasks
 		static CORE_API FScheduler Singleton;
 
 		// using 16 bytes here because it fits the vtable and one additional pointer
-		using FConditional = TTaskDelegate<16, bool>;
+		using FConditional = TTaskDelegate<bool(), 16>;
 
 	private: 
 		//the FLocalQueueInstaller installs a LocalQueue into the current thread

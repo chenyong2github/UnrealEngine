@@ -15,7 +15,7 @@ namespace LowLevelTasks
 		~FReserveScheduler();
 
 	public:
-		using FConditional = TTaskDelegate<16, bool>;
+		using FConditional = TTaskDelegate<bool(), 16>;
 
 	private:
 		struct alignas(8) FYieldedWork

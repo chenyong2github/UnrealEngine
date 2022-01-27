@@ -491,7 +491,7 @@ namespace ParallelForImpl
 		class FParallelExecutor 
 		{
 			FDataHandle Data;
-			int32 WorkerIndex;
+			mutable int32 WorkerIndex;
 			LowLevelTasks::ETaskPriority Priority;
 
 		public:
@@ -523,7 +523,7 @@ namespace ParallelForImpl
 				return Data;
 			}
 
-			inline bool operator()(const bool bIsMaster = false) noexcept
+			inline bool operator()(const bool bIsMaster = false) const noexcept
 			{
 				FMemMark Mark(FMemStack::Get());
 				TRACE_CPUPROFILER_EVENT_SCOPE(ParallelFor);
