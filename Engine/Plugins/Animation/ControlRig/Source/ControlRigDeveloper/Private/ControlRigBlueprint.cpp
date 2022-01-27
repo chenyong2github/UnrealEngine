@@ -315,6 +315,15 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 		{
 			Ar << ReferencedBlueprints;
 		}
+
+		for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
+		{
+			if(ShapeLibraryPtr.IsValid())
+			{
+				UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
+				Ar << ShapeLibrary;
+			}
+		}
 	}
 }
 
