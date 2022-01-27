@@ -1459,7 +1459,14 @@ namespace Audio
 				}
 				else if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Manual)
 				{
-					SendLevel = FMath::Clamp(SendInfo.SendLevel, 0.0f, 1.0f);
+					if (SendInfo.DisableManualSendClamp)
+					{
+						SendLevel = SendInfo.SendLevel;
+					}
+					else
+					{
+						SendLevel = FMath::Clamp(SendInfo.SendLevel, 0.0f, 1.0f);
+					}
 				}
 				else
 				{
