@@ -7,33 +7,6 @@
 
 #include "MovieScenePreAnimatedStateSystem.generated.h"
 
-namespace UE
-{
-namespace MovieScene
-{
-
-/** Structure that manages the lifetime of the pre-animated state extension while entities exist with the restore state tag */
-struct FPreAnimatedStateExtensionReference
-{
-	FPreAnimatedStateExtensionReference() = default;
-	FPreAnimatedStateExtensionReference(UMovieSceneEntitySystemLinker* Linker)
-	{
-		Update(Linker);
-	}
-
-	TSharedPtr<FPreAnimatedStateExtension> Get() const;
-
-	TSharedPtr<FPreAnimatedStateExtension> Update(UMovieSceneEntitySystemLinker* Linker);
-
-private:
-	/** Weak ref to the extension - this is always used for access, and will remain valid as long as there are any global state captures, or RestoreState entities */
-	TWeakPtr<FPreAnimatedStateExtension>   WeakPreAnimatedStateExtension;
-	/** Strong ref to the extension that keeps the extension alive if there are RestoreState entities in the entity manager */
-	TSharedPtr<FPreAnimatedStateExtension> PreAnimatedStateExtensionRef;
-};
-
-} // namespace MovieScene
-} // namespace UE
 
 UINTERFACE()
 class UMovieScenePreAnimatedStateSystemInterface : public UInterface
@@ -97,8 +70,6 @@ private:
 	virtual void OnLink() override;
 	virtual void OnUnlink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
-
-	UE::MovieScene::FPreAnimatedStateExtensionReference PreAnimatedStateRef;
 };
 
 

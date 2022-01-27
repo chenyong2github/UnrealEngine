@@ -37,62 +37,6 @@ struct FPreAnimatedEvaluationHookCaptureSources;
 }
 }
 
-/** Enumeration that defines at what level to capture animating state for */
-enum class ECapturePreAnimatedState : uint8
-{
-	/** Don't capture anything */
-	None,
-	/** Capture anything that animates, but only store such state globally across the sequence */
-	Global,
-	/** Capture anything for the current entity (track or section), such that it will be restored when that entity stops evaluating */
-	Entity,
-};
-
-
-/**
- * Scoped structure that can be used to wrap a call to SavePreAnimatedState to associate the capture with a specific capture source.
- */
-struct FScopedPreAnimatedCaptureSource
-{
-	/**
-	 * Construct this capture source from a template (FMovieSceneEvalTemplate) evaluation key, and whether this should restore state when the template is finished
-	 */
-	MOVIESCENE_API explicit FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const FMovieSceneEvaluationKey& InEvalKey, bool bInWantsRestoreState);
-
-	/**
-	 * Construct this capture source from an evaluation hook (UMovieSceneEvaluationHookSection), its SequenceID, and whether this should restore state when the template is finished
-	 */
-	MOVIESCENE_API explicit FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const UObject* InEvalHook, FMovieSceneSequenceID SequenceID, bool bInWantsRestoreState);
-
-	/**
-	 * Construct this capture source from a track instance (UMovieSceneTrackInstance) and whether this should restore state when the template is finished
-	 */
-	MOVIESCENE_API explicit FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, UMovieSceneTrackInstance* InTrackInstance, bool bInWantsRestoreState);
-
-	FScopedPreAnimatedCaptureSource(const FScopedPreAnimatedCaptureSource&) = delete;
-	void operator=(const FScopedPreAnimatedCaptureSource&) = delete;
-
-	FScopedPreAnimatedCaptureSource(FScopedPreAnimatedCaptureSource&&) = delete;
-	void operator=(FScopedPreAnimatedCaptureSource&&) = delete;
-
-	MOVIESCENE_API ~FScopedPreAnimatedCaptureSource();
-
-private:
-	friend class FMovieScenePreAnimatedState;
-	struct FEvalHookType
-	{
-		const UObject* EvalHook;
-		FMovieSceneSequenceID SequenceID;
-	};
-	using CaptureSourceType = TVariant<FMovieSceneEvaluationKey, FEvalHookType, UMovieSceneTrackInstance*>;
-
-	CaptureSourceType Variant;
-	FMovieScenePreAnimatedState* PreAnimatedState;
-	FScopedPreAnimatedCaptureSource* PrevCaptureSource;
-	bool bWantsRestoreState;
-};
-
-
 /**
  * Class that caches pre-animated state for objects that were manipulated by sequencer
  */
@@ -110,14 +54,19 @@ public:
 	MOVIESCENE_API void Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FInstanceHandle InstanceHandle);
 
 	/**
-	 * Called when global capture has been enabled for this player
+	 * Check whether this sequence instance is capturing any and all changes of state so they can be restored later
 	 */
-	void OnEnableGlobalCapture(TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> InExtension);
+	MOVIESCENE_API bool IsCapturingGlobalPreAnimatedState() const;
 
 	/**
-	 * Called when global capture has been disabled for this player
+	 * Check whether this sequence instance is capturing any and all changes of state so they can be restored later
 	 */
-	void OnDisableGlobalCapture();
+	MOVIESCENE_API void EnableGlobalPreAnimatedStateCapture();
+
+	/**
+	 * Retrieve the linker this container is bound to
+	 */
+	MOVIESCENE_API UMovieSceneEntitySystemLinker* GetLinker() const;
 
 public:
 
@@ -184,19 +133,10 @@ private:
 
 private:
 
-	friend FScopedPreAnimatedCaptureSource;
+	friend struct FScopedPreAnimatedCaptureSource;
 
 	/** Weak pointer to the linker that we're associated with */
 	TWeakObjectPtr<UMovieSceneEntitySystemLinker> WeakLinker;
-
-	/**
-	 * Weak pointer to a pre-animated state extension in the linker.
-	 * This is kept alive either by FSequenceInstance::GlobalPreAnimatedState if global state capture is active,
-	 * or by EntityExtensionRef if there are entries that have captured state that need restoring when done
-	 */
-	TWeakPtr<UE::MovieScene::FPreAnimatedStateExtension> WeakExtension;
-	/** Strong pointer to the extension that keeps it alive while state needs restoring on completion */
-	TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> EntityExtensionRef;
 
 	/** Pointers to the storage for state bound to objects, organized by FMovieSceneAnimTypeID */
 	TWeakPtr<UE::MovieScene::FAnimTypePreAnimatedStateObjectStorage> WeakObjectStorage;
@@ -211,6 +151,5 @@ private:
 	/** The instance handle for the root sequence instance */
 	UE::MovieScene::FInstanceHandle InstanceHandle;
 
-	/** Current capture source, if any */
-	FScopedPreAnimatedCaptureSource* CaptureSource = nullptr;
+	bool bCapturingGlobalPreAnimatedState;
 };

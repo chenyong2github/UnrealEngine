@@ -50,7 +50,9 @@ void FPreAnimatedTrackInstanceCaptureSources::StopTrackingCaptureSource(UMovieSc
 	TPreAnimatedCaptureSources<FObjectKey>::StopTrackingCaptureSource(Key);
 }
 
-
+FPreAnimatedTrackInstanceInputCaptureSources::FPreAnimatedTrackInstanceInputCaptureSources(FPreAnimatedStateExtension* InOwner)
+	: TPreAnimatedCaptureSources<FMovieSceneTrackInstanceInput>(InOwner)
+{}
 
 FPreAnimatedTemplateCaptureSources::FPreAnimatedTemplateCaptureSources(FPreAnimatedStateExtension* InOwner)
 	: TPreAnimatedCaptureSources<FMovieSceneEvaluationKey>(InOwner)

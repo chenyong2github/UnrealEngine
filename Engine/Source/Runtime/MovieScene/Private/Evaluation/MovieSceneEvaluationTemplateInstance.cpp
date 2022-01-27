@@ -160,9 +160,12 @@ void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player
 
 void FMovieSceneRootEvaluationTemplateInstance::EnableGlobalPreAnimatedStateCapture()
 {
+	using namespace UE::MovieScene;
+
 	if (ensure(EntitySystemLinker))
 	{
-		EntitySystemLinker->GetInstanceRegistry()->MutateInstance(RootInstanceHandle).EnableGlobalPreAnimatedStateCapture(EntitySystemLinker);
+		const FSequenceInstance& Instance = EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle);
+		Instance.GetPlayer()->PreAnimatedState.EnableGlobalPreAnimatedStateCapture();
 	}
 }
 
@@ -344,9 +347,7 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 {
 	using namespace UE::MovieScene;
 
-	const bool bGlobalCapture = EntitySystemLinker
-		&& RootInstanceHandle.IsValid()
-		&& EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle).IsCapturingGlobalPreAnimatedState();
+	const bool bGlobalCapture = Player.PreAnimatedState.IsCapturingGlobalPreAnimatedState();
 
 	if (EntitySystemLinker && IsValidChecked(EntitySystemLinker) && !EntitySystemLinker->IsUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
@@ -373,7 +374,7 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 	Player.PreAnimatedState.Initialize(EntitySystemLinker, RootInstanceHandle);
 	if (bGlobalCapture)
 	{
-		EnableGlobalPreAnimatedStateCapture();
+		Player.PreAnimatedState.EnableGlobalPreAnimatedStateCapture();
 	}
 }
 

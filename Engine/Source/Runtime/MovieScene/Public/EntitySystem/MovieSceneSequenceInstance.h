@@ -93,18 +93,6 @@ public:
 	 */
 	void RunLegacyTrackTemplates();
 
-	/**
-	 * Indicate that this sequence instance should capture any and all changes of state so they can be restored later
-	 *
-	 * @param Linker     The linker that owns this sequence instance
-	 */
-	void EnableGlobalPreAnimatedStateCapture(UMovieSceneEntitySystemLinker* Linker);
-
-	/**
-	 * Check whether this sequence instance is capturing any and all changes of state so they can be restored later
-	 */
-	bool IsCapturingGlobalPreAnimatedState() const;
-
 public:
 
 	/**
@@ -287,8 +275,6 @@ private:
 	TUniquePtr<ISequenceUpdater> SequenceUpdater;
 	/** For top-level sequences only - a utility class that is used to ensure that volatile sequences are up to date. Only valid in editor, or for sequences that have the volatile flag. */
 	TUniquePtr<FCompiledDataVolatilityManager> VolatilityManager;
-	/** For top-level sequences only - a marker that keeps this instance's linker saving global preanimated state. */
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState;
 
 
 	/** Delegate Binding for when an object binding is invalidated in this instance . */

@@ -55,6 +55,27 @@ public:
 		return StorageID;
 	}
 
+	template<typename OnCacheValue /* StorageType(const KeyType&) */>
+	void SavePreAnimatedState(FPreAnimatedStorageGroupHandle GroupHandle, const KeyType& InKey, OnCacheValue&& CacheCallback)
+	{
+		// Find the storage index for the specific key we're animating
+		FPreAnimatedStorageIndex StorageIndex = GetOrCreateStorageIndex(InKey);
+
+		FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
+
+		// Begin tracking the entry from its capture source
+		ParentExtension->AddSourceMetaData(Entry);
+
+		EPreAnimatedStorageRequirement Requirement = ParentExtension->HasActiveCaptureSource()
+			? EPreAnimatedStorageRequirement::Transient
+			: EPreAnimatedStorageRequirement::Persistent;
+
+		if (!IsStorageRequirementSatisfied(Entry.ValueHandle.StorageIndex, Requirement))
+		{
+			AssignPreAnimatedValue(StorageIndex, Requirement, CacheCallback(InKey));
+		}
+	}
+
 	EPreAnimatedStorageRequirement RestorePreAnimatedStateStorage(FPreAnimatedStorageIndex StorageIndex, EPreAnimatedStorageRequirement SourceRequirement, EPreAnimatedStorageRequirement TargetRequirement, const FRestoreStateParams& Params) override
 	{
 		if (RestoreMask)

@@ -32,45 +32,32 @@ IMovieScenePlayer* FRestoreStateParams::GetTerminalPlayer() const
 } // namespace UE
 
 
-FScopedPreAnimatedCaptureSource::FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const FMovieSceneEvaluationKey& InEvalKey, bool bInWantsRestoreState)
-	: Variant(TInPlaceType<FMovieSceneEvaluationKey>(), InEvalKey)
-	, PreAnimatedState(InPreAnimatedState)
-	, PrevCaptureSource(PreAnimatedState->CaptureSource)
-	, bWantsRestoreState(bInWantsRestoreState)
-{
-	InPreAnimatedState->CaptureSource = this;
-}
-FScopedPreAnimatedCaptureSource::FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const UObject* InEvalHook, FMovieSceneSequenceID InSequenceID, bool bInWantsRestoreState)
-	: Variant(TInPlaceType<FEvalHookType>(), FEvalHookType{InEvalHook, InSequenceID} )
-	, PreAnimatedState(InPreAnimatedState)
-	, PrevCaptureSource(PreAnimatedState->CaptureSource)
-	, bWantsRestoreState(bInWantsRestoreState)
-{
-	InPreAnimatedState->CaptureSource = this;
-}
-FScopedPreAnimatedCaptureSource::FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, UMovieSceneTrackInstance* InTrackInstance, bool bInWantsRestoreState)
-	: Variant(TInPlaceType<UMovieSceneTrackInstance*>(), InTrackInstance)
-	, PreAnimatedState(InPreAnimatedState)
-	, PrevCaptureSource(PreAnimatedState->CaptureSource)
-	, bWantsRestoreState(bInWantsRestoreState)
-{
-	InPreAnimatedState->CaptureSource = this;
-}
-FScopedPreAnimatedCaptureSource::~FScopedPreAnimatedCaptureSource()
-{
-	PreAnimatedState->CaptureSource = PrevCaptureSource;
-}
 
 FMovieScenePreAnimatedState::~FMovieScenePreAnimatedState()
 {
+	// Ensure that the global state capture request is removed
+	UMovieSceneEntitySystemLinker* CurrentLinker = WeakLinker.Get();
+	if (CurrentLinker && bCapturingGlobalPreAnimatedState)
+	{
+		checkf(CurrentLinker->PreAnimatedState.NumRequestsForGlobalState > 0, TEXT("Increment/Decrement mismatch on FPreAnimatedState::NumRequestsForGlobalState"));
+		--CurrentLinker->PreAnimatedState.NumRequestsForGlobalState;
+	}
 }
 
 void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FInstanceHandle InInstanceHandle)
 {
-	using namespace UE::MovieScene;
+	// If we're re-using a pre-animated state class and it was previously
+	// capturing global state make sure to decrement that request
+	UMovieSceneEntitySystemLinker* PreviousLinker = WeakLinker.Get();
+	if (PreviousLinker && bCapturingGlobalPreAnimatedState)
+	{
+		checkf(PreviousLinker->PreAnimatedState.NumRequestsForGlobalState > 0, TEXT("Increment/Decrement mismatch on FPreAnimatedState::NumRequestsForGlobalState"));
+		--PreviousLinker->PreAnimatedState.NumRequestsForGlobalState;
 
-	WeakExtension = nullptr;
-	EntityExtensionRef = nullptr;
+	}
+
+	bCapturingGlobalPreAnimatedState = false;
+
 	WeakObjectStorage = nullptr;
 	WeakMasterStorage = nullptr;
 	TemplateMetaData = nullptr;
@@ -80,102 +67,29 @@ void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Link
 	InstanceHandle = InInstanceHandle;
 }
 
-void FMovieScenePreAnimatedState::OnEnableGlobalCapture(TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> InExtension)
+UMovieSceneEntitySystemLinker* FMovieScenePreAnimatedState::GetLinker() const
 {
-	InitializeStorage(InExtension);
+	return WeakLinker.Get();
 }
 
-void FMovieScenePreAnimatedState::OnDisableGlobalCapture()
+bool FMovieScenePreAnimatedState::IsCapturingGlobalPreAnimatedState() const
 {
-	if (!EntityExtensionRef)
-	{
-		WeakObjectStorage = nullptr;
-		WeakMasterStorage = nullptr;
-
-		WeakExtension = nullptr;
-	}
+	return bCapturingGlobalPreAnimatedState;
 }
 
-void FMovieScenePreAnimatedState::ConditionalInitializeEntityStorage(bool bOverrideWantsRestoreState)
+void FMovieScenePreAnimatedState::EnableGlobalPreAnimatedStateCapture()
 {
-	using namespace UE::MovieScene;
-
-	if (bOverrideWantsRestoreState && EntityExtensionRef == nullptr)
-	{
-		if (UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get())
-		{
-			FPreAnimatedStateExtension* Extension = Linker->FindExtension<FPreAnimatedStateExtension>();
-			if (Extension)
-			{
-				EntityExtensionRef = Extension->AsShared();
-			}
-			else
-			{
-				EntityExtensionRef = MakeShared<FPreAnimatedStateExtension>(Linker);
-			}
-		}
-
-		if (EntityExtensionRef)
-		{
-			InitializeStorage(EntityExtensionRef);
-		}
-	}
-}
-
-void FMovieScenePreAnimatedState::InitializeStorage(TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> Extension)
-{
-	using namespace UE::MovieScene;
-
-	WeakExtension = Extension;
-	WeakObjectStorage = Extension->GetOrCreateStorage<FAnimTypePreAnimatedStateObjectStorage>();
-	WeakMasterStorage = Extension->GetOrCreateStorage<FAnimTypePreAnimatedStateMasterStorage>();
-}
-
-void FMovieScenePreAnimatedState::AddSourceMetaData(const UE::MovieScene::FPreAnimatedStateEntry& Entry)
-{
-	using namespace UE::MovieScene;
-
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	if (!Extension)
+	if (bCapturingGlobalPreAnimatedState)
 	{
 		return;
 	}
 
-	if (!CaptureSource)
-	{
-		Extension->EnsureMetaData(Entry);
-		return;
-	}
+	bCapturingGlobalPreAnimatedState = true;
 
-	FPreAnimatedStateMetaData MetaData;
-	MetaData.Entry = Entry;
-	MetaData.RootInstanceHandle = InstanceHandle;
-	MetaData.bWantsRestoreState = CaptureSource->bWantsRestoreState;
-
-	if (FMovieSceneEvaluationKey* EvalKey = CaptureSource->Variant.TryGet<FMovieSceneEvaluationKey>())
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (ensure(Linker))
 	{
-		// Make the association to this track template key
-		if (!TemplateMetaData)
-		{
-			TemplateMetaData = MakeShared<FPreAnimatedTemplateCaptureSources>(Extension.Get());
-			Extension->AddWeakCaptureSource(TemplateMetaData);
-		}
-		TemplateMetaData->BeginTrackingCaptureSource(*EvalKey, MetaData);
-	}
-	else if (FScopedPreAnimatedCaptureSource::FEvalHookType* EvalHook = CaptureSource->Variant.TryGet<FScopedPreAnimatedCaptureSource::FEvalHookType>())
-	{
-		if (!EvaluationHookMetaData)
-		{
-			EvaluationHookMetaData = MakeShared<FPreAnimatedEvaluationHookCaptureSources>(Extension.Get());
-			Extension->AddWeakCaptureSource(EvaluationHookMetaData);
-		}
-		EvaluationHookMetaData->BeginTrackingCaptureSource(EvalHook->EvalHook, EvalHook->SequenceID, MetaData);
-	}
-	else if (UMovieSceneTrackInstance* const * TrackInstance = CaptureSource->Variant.TryGet<UMovieSceneTrackInstance*>())
-	{
-		// Track instance meta-data is shared between all players
-		FPreAnimatedTrackInstanceCaptureSources* TrackInstanceMetaData = Extension->GetOrCreateTrackInstanceMetaData();
-		TrackInstanceMetaData->BeginTrackingCaptureSource(*TrackInstance, MetaData);
+		++Linker->PreAnimatedState.NumRequestsForGlobalState;
 	}
 }
 
@@ -183,46 +97,15 @@ void FMovieScenePreAnimatedState::SavePreAnimatedState(UObject& InObject, FMovie
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FAnimTypePreAnimatedStateObjectStorage> ObjectStorage = WeakObjectStorage.Pin();
-
-	const bool bWantsRestoreState = CaptureSource && CaptureSource->bWantsRestoreState;
-	if (!bWantsRestoreState && !ObjectStorage)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	ConditionalInitializeEntityStorage(bWantsRestoreState);
-	if (!ObjectStorage)
+	if (bCapturingGlobalPreAnimatedState || Linker->PreAnimatedState.HasActiveCaptureSource())
 	{
-		// Re-resolve the ptr as it may have changed inside ConditionalInitializeEntityStorage
-		ObjectStorage = WeakObjectStorage.Pin();
-	}
-
-	if (ObjectStorage)
-	{
-		FPreAnimatedStateEntry   Entry        = ObjectStorage->MakeEntry(&InObject, InTokenType);
-		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
-
-		AddSourceMetaData(Entry);
-
-		EPreAnimatedStorageRequirement Requirement = bWantsRestoreState
-			? EPreAnimatedStorageRequirement::Transient
-			: EPreAnimatedStorageRequirement::Persistent;
-
-		if (!ObjectStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
-		{
-			IMovieScenePreAnimatedTokenPtr Token = Producer.CacheExistingState(InObject);
-			if (Token.IsValid())
-			{
-				const bool bHasEverAninmated = ObjectStorage->HasEverAnimated(StorageIndex);
-				if (!bHasEverAninmated)
-				{
-					Producer.InitializeObjectForAnimation(InObject);
-				}
-
-				ObjectStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
-			}
-		}
+		Linker->PreAnimatedState.SavePreAnimatedStateDirectly(InObject, InTokenType, Producer);
 	}
 }
 
@@ -230,46 +113,15 @@ void FMovieScenePreAnimatedState::SavePreAnimatedState(FMovieSceneAnimTypeID InT
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FAnimTypePreAnimatedStateMasterStorage> MasterStorage = WeakMasterStorage.Pin();
-
-	const bool bWantsRestoreState = CaptureSource && CaptureSource->bWantsRestoreState;
-	if (!bWantsRestoreState && !MasterStorage)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	ConditionalInitializeEntityStorage(bWantsRestoreState);
-	if (!MasterStorage)
+	if (bCapturingGlobalPreAnimatedState || Linker->PreAnimatedState.HasActiveCaptureSource())
 	{
-		// Re-resolve the ptr as it may have changed inside ConditionalInitializeEntityStorage
-		MasterStorage = WeakMasterStorage.Pin();
-	}
-
-	if (MasterStorage)
-	{
-		FPreAnimatedStateEntry   Entry        = MasterStorage->MakeEntry(InTokenType);
-		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
-
-		AddSourceMetaData(Entry);
-
-		EPreAnimatedStorageRequirement Requirement = bWantsRestoreState
-			? EPreAnimatedStorageRequirement::Transient
-			: EPreAnimatedStorageRequirement::Persistent;
-
-		if (!MasterStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
-		{
-			IMovieScenePreAnimatedGlobalTokenPtr Token = Producer.CacheExistingState();
-			if (Token.IsValid())
-			{
-				const bool bHasEverAninmated = MasterStorage->HasEverAnimated(StorageIndex);
-				if (!bHasEverAninmated)
-				{
-					Producer.InitializeForAnimation();
-				}
-
-				MasterStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
-			}
-		}
+		Linker->PreAnimatedState.SavePreAnimatedStateDirectly(InTokenType, Producer);
 	}
 }
 
@@ -280,11 +132,7 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState()
 	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
 	if (Linker)
 	{
-		TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-		if (Extension)
-		{
-			Extension->RestoreGlobalState(FRestoreStateParams{Linker, InstanceHandle});
-		}
+		Linker->PreAnimatedState.RestoreGlobalState(FRestoreStateParams{Linker, InstanceHandle});
 	}
 }
 
@@ -308,40 +156,38 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState(UObject& Object)
 {
 	using namespace UE::MovieScene;
 
-	UMovieSceneEntitySystemLinker*         Linker    = WeakLinker.Get();
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	if (!Linker || !Extension)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Extension->FindGroupManager<FPreAnimatedObjectGroupManager>();
+	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Linker->PreAnimatedState.FindGroupManager<FPreAnimatedObjectGroupManager>();
 	if (!ObjectGroupManager)
 	{
 		return;
 	}
 
-	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->FindGroupForObject(&Object);
+	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->FindGroupForKey(&Object);
 	if (!Group)
 	{
 		return;
 	}
 
-	Extension->RestoreStateForGroup(Group, FRestoreStateParams{Linker, InstanceHandle});
+	Linker->PreAnimatedState.RestoreStateForGroup(Group, FRestoreStateParams{Linker, InstanceHandle});
 }
 
 void FMovieScenePreAnimatedState::RestorePreAnimatedState(UClass* GeneratedClass)
 {
 	using namespace UE::MovieScene;
 
-	UMovieSceneEntitySystemLinker*         Linker    = WeakLinker.Get();
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	if (!Linker || !Extension)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Extension->FindGroupManager<FPreAnimatedObjectGroupManager>();
+	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Linker->PreAnimatedState.FindGroupManager<FPreAnimatedObjectGroupManager>();
 	if (ObjectGroupManager)
 	{
 		TArray<FPreAnimatedStorageGroupHandle> Handles;
@@ -350,7 +196,7 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState(UClass* GeneratedClass
 		FRestoreStateParams Params{Linker, InstanceHandle};
 		for (FPreAnimatedStorageGroupHandle GroupHandle : Handles)
 		{
-			Extension->RestoreStateForGroup(GroupHandle, Params);
+			Linker->PreAnimatedState.RestoreStateForGroup(GroupHandle, Params);
 		}
 	}
 }
@@ -388,10 +234,10 @@ void FMovieScenePreAnimatedState::DiscardEntityTokens()
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	if (Extension)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (Linker)
 	{
-		Extension->DiscardTransientState();
+		Linker->PreAnimatedState.DiscardTransientState();
 	}
 }
 
@@ -399,40 +245,38 @@ void FMovieScenePreAnimatedState::DiscardAndRemoveEntityTokensForObject(UObject&
 {
 	using namespace UE::MovieScene;
 
-	UMovieSceneEntitySystemLinker*         Linker    = WeakLinker.Get();
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-
-	if (!Linker || !Extension)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Extension->FindGroupManager<FPreAnimatedObjectGroupManager>();
+	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Linker->PreAnimatedState.FindGroupManager<FPreAnimatedObjectGroupManager>();
 	if (!ObjectGroupManager)
 	{
 		return;
 	}
 
-	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->FindGroupForObject(&Object);
+	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->FindGroupForKey(&Object);
 	if (!Group)
 	{
 		return;
 	}
 
-	Extension->DiscardStateForGroup(Group);
+	Linker->PreAnimatedState.DiscardStateForGroup(Group);
 }
 
 void FMovieScenePreAnimatedState::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	if (!Extension)
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	if (!Linker)
 	{
 		return;
 	}
 
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Extension->FindGroupManager<FPreAnimatedObjectGroupManager>();
+	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager = Linker->PreAnimatedState.FindGroupManager<FPreAnimatedObjectGroupManager>();
 	if (ObjectGroupManager)
 	{
 		ObjectGroupManager->OnObjectsReplaced(ReplacementMap);
@@ -443,6 +287,6 @@ bool FMovieScenePreAnimatedState::ContainsAnyStateForSequence() const
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
-	return Extension && InstanceHandle.IsValid() && Extension->ContainsAnyStateForInstanceHandle(InstanceHandle);
+	UMovieSceneEntitySystemLinker* Linker = WeakLinker.Get();
+	return Linker && InstanceHandle.IsValid() && Linker->PreAnimatedState.ContainsAnyStateForInstanceHandle(InstanceHandle);
 }

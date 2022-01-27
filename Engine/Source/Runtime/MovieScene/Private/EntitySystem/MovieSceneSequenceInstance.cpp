@@ -158,32 +158,6 @@ void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, co
 	SequenceUpdater->DissectContext(Linker, Player, InContext, OutDissections);
 }
 
-void FSequenceInstance::EnableGlobalPreAnimatedStateCapture(UMovieSceneEntitySystemLinker* Linker)
-{
-	if (ensure(Linker) && !GlobalPreAnimatedState)
-	{
-		FPreAnimatedStateExtension* Existing = Linker->FindExtension<FPreAnimatedStateExtension>();
-		if (Existing)
-		{
-			GlobalPreAnimatedState = Existing->AsShared();
-		}
-		else
-		{
-			// FPreAnimatedStateExtension automatically adds itself to the linker
-			GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-		}
-
-		++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
-		GetPlayer()->PreAnimatedState.OnEnableGlobalCapture(GlobalPreAnimatedState);
-	}
-}
-
-bool FSequenceInstance::IsCapturingGlobalPreAnimatedState() const
-{
-	return GlobalPreAnimatedState != nullptr;
-}
-
 void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
 {
 	check(SequenceID == MovieSceneSequenceID::Root);
@@ -250,9 +224,9 @@ void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 		SpawnRegister.ForgetExternallyOwnedSpawnedObjects(Player->State, *Player);
 		SpawnRegister.CleanUp(*Player);
 
-		if (GlobalPreAnimatedState)
+		if (Player->PreAnimatedState.IsCapturingGlobalPreAnimatedState())
 		{
-			GlobalPreAnimatedState->RestoreGlobalState(FRestoreStateParams{ Linker, RootInstanceHandle });
+			Linker->PreAnimatedState.RestoreGlobalState(FRestoreStateParams{ Linker, RootInstanceHandle });
 		}
 	}
 }
@@ -315,14 +289,6 @@ void FSequenceInstance::DestroyImmediately(UMovieSceneEntitySystemLinker* Linker
 	if (SequenceUpdater)
 	{
 		SequenceUpdater->Destroy(Linker);
-	}
-
-	if (GlobalPreAnimatedState)
-	{
-		--GlobalPreAnimatedState->NumRequestsForGlobalState;
-		GlobalPreAnimatedState = nullptr;
-
-		GetPlayer()->PreAnimatedState.OnDisableGlobalCapture();
 	}
 }
 

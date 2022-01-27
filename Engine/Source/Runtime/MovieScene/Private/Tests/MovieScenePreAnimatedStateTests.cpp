@@ -149,12 +149,9 @@ bool FMovieScenePreAnimatedStateGlobalTest::RunTest(const FString& Parameters)
 
 	ResetValues();
 
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-	++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
 	FMovieScenePreAnimatedState State;
 	State.Initialize(Linker, FInstanceHandle());
-	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
+	State.EnableGlobalPreAnimatedStateCapture();
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -186,12 +183,9 @@ bool FMovieScenePreAnimatedStateEntityTest::RunTest(const FString& Parameters)
 
 	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
 
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-	++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
 	FMovieScenePreAnimatedState State;
 	State.Initialize(Linker, FInstanceHandle());
-	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
+	State.EnableGlobalPreAnimatedStateCapture();
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -226,12 +220,9 @@ bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& 
 
 	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
 
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-	++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
 	FMovieScenePreAnimatedState State;
 	State.Initialize(Linker, FInstanceHandle());
-	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
+	State.EnableGlobalPreAnimatedStateCapture();
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -301,12 +292,9 @@ bool FMovieScenePreAnimatedStateKeepThenRestoreEntityTest::RunTest(const FString
 
 	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
 
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-	++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
 	FMovieScenePreAnimatedState State;
 	State.Initialize(Linker, FInstanceHandle());
-	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
+	State.EnableGlobalPreAnimatedStateCapture();
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 
@@ -528,12 +516,9 @@ bool FMovieScenePreAnimatedStatePerformanceTest::RunTest(const FString& Paramete
 
 	UMovieSceneEntitySystemLinker* Linker = GetTestLinker();
 
-	TSharedPtr<FPreAnimatedStateExtension> GlobalPreAnimatedState = MakeShared<FPreAnimatedStateExtension>(Linker);
-	++GlobalPreAnimatedState->NumRequestsForGlobalState;
-
 	FMovieScenePreAnimatedState State;
 	State.Initialize(Linker, FInstanceHandle());
-	State.OnEnableGlobalCapture(GlobalPreAnimatedState);
+	State.EnableGlobalPreAnimatedStateCapture();
 
 	FPreAnimatedTokenProducer Producer(&TestValue1);
 

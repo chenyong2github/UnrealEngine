@@ -29,7 +29,7 @@ struct FPreAnimatedMasterTokenTraits
 	}
 };
 
-struct MOVIESCENE_API FAnimTypePreAnimatedStateMasterStorage : TPreAnimatedStateStorage<FPreAnimatedMasterTokenTraits>, IPreAnimatedStateGroupManager
+struct MOVIESCENE_API FAnimTypePreAnimatedStateMasterStorage : TPreAnimatedStateStorage<FPreAnimatedMasterTokenTraits>
 {
 	static TAutoRegisterPreAnimatedStorageID<FAnimTypePreAnimatedStateMasterStorage> StorageID;
 
@@ -39,15 +39,6 @@ public:
 
 	FPreAnimatedStorageID GetStorageType() const override { return StorageID; }
 	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* ParentExtension) override;
-
-	void InitializeGroupManager(FPreAnimatedStateExtension* Extension) override;
-	void OnGroupDestroyed(FPreAnimatedStorageGroupHandle Group) override;
-
-private:
-
-
-	TMap<FMovieSceneAnimTypeID, FPreAnimatedStorageGroupHandle> GroupsByAnimTypeID;
-	FPreAnimatedStorageGroupHandle GroupHandle;
 };
 
 

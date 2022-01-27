@@ -10,6 +10,18 @@
 class UMovieSceneSection;
 class UMovieSceneEntitySystemLinker;
 
+struct FMovieSceneTrackInstanceComponent;
+
+namespace UE
+{
+namespace MovieScene
+{
+
+struct FPreAnimatedTrackInstanceInputCaptureSources;
+
+}
+}
+
 USTRUCT()
 struct FMovieSceneTrackInstanceInput
 {
@@ -117,7 +129,7 @@ public:
 	 */
 	UMovieSceneEntitySystemLinker* GetLinker() const
 	{
-		return Linker;
+		return PrivateLinker;
 	}
 
 
@@ -163,7 +175,7 @@ private:
 	bool bIsMasterTrackInstance;
 
 	UPROPERTY()
-	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> PrivateLinker;
 
 	UPROPERTY()
 	TArray<FMovieSceneTrackInstanceInput> Inputs;

@@ -16,18 +16,16 @@ namespace UE
 namespace MovieScene
 {
 
-TEntitySystemLinkerExtensionID<FPreAnimatedStateExtension> FPreAnimatedStateExtension::GetExtensionID()
-{
-	static TEntitySystemLinkerExtensionID<FPreAnimatedStateExtension> ID = UMovieSceneEntitySystemLinker::RegisterExtension<FPreAnimatedStateExtension>();
-	return ID;
-}
-
-
-FPreAnimatedStateExtension::FPreAnimatedStateExtension(UMovieSceneEntitySystemLinker* InLinker)
-	: TSharedEntitySystemLinkerExtension<FPreAnimatedStateExtension>(InLinker)
-	, NumRequestsForGlobalState(0)
+FPreAnimatedStateExtension::FPreAnimatedStateExtension()
+	: NumRequestsForGlobalState(0)
+	, Linker(nullptr)
 	, bEntriesInvalidated(false)
 {}
+
+void FPreAnimatedStateExtension::Initialize(UMovieSceneEntitySystemLinker* InLinker)
+{
+	Linker = InLinker;
+}
 
 FPreAnimatedStateExtension::~FPreAnimatedStateExtension()
 {}
@@ -73,10 +71,57 @@ void FPreAnimatedStateExtension::ReplaceObjectForGroup(FPreAnimatedStorageGroupH
 	}
 }
 
+FPreAnimatedStateExtension::FAggregatePreAnimatedStateMetaData* FPreAnimatedStateExtension::FindMetaData(const FPreAnimatedStateEntry& Entry)
+{
+	if (Entry.GroupHandle.IsValid())
+	{
+		FPreAnimatedGroupMetaData&          Group     = GroupMetaData[Entry.GroupHandle.Value];
+		FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
+
+		return Aggregate;
+	}
+	else
+	{
+		return UngroupedMetaData.Find(Entry.ValueHandle);
+	}
+}
+
+const FPreAnimatedStateExtension::FAggregatePreAnimatedStateMetaData* FPreAnimatedStateExtension::FindMetaData(const FPreAnimatedStateEntry& Entry) const
+{
+	if (Entry.GroupHandle.IsValid())
+	{
+		const FPreAnimatedGroupMetaData&          Group     = GroupMetaData[Entry.GroupHandle.Value];
+		const FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
+
+		return Aggregate;
+	}
+	else
+	{
+		return UngroupedMetaData.Find(Entry.ValueHandle);
+	}
+}
+
+FPreAnimatedStateExtension::FAggregatePreAnimatedStateMetaData* FPreAnimatedStateExtension::GetOrAddMetaDataInternal(const FPreAnimatedStateEntry& Entry)
+{
+	FAggregatePreAnimatedStateMetaData* Aggregate = FindMetaData(Entry);
+	if (!Aggregate)
+	{
+		if (Entry.GroupHandle.IsValid())
+		{
+			Aggregate = &GroupMetaData[Entry.GroupHandle.Value].AggregateMetaData.Emplace_GetRef(Entry.ValueHandle);
+		}
+		else
+		{
+			Aggregate = &UngroupedMetaData.Add(Entry.ValueHandle, FAggregatePreAnimatedStateMetaData{Entry.ValueHandle});
+		}
+	}
+
+	return Aggregate;
+}
+
 EPreAnimatedStorageRequirement FPreAnimatedStateExtension::GetStorageRequirement(const FPreAnimatedStateEntry& Entry) const
 {
-	const FPreAnimatedGroupMetaData&          Group     = GroupMetaData[Entry.GroupHandle.Value];
-	const FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
+	const FAggregatePreAnimatedStateMetaData* Aggregate = FindMetaData(Entry);
 
 	if (ensure(Aggregate))
 	{
@@ -91,22 +136,17 @@ EPreAnimatedStorageRequirement FPreAnimatedStateExtension::GetStorageRequirement
 
 void FPreAnimatedStateExtension::EnsureMetaData(const FPreAnimatedStateEntry& Entry)
 {
-	FPreAnimatedGroupMetaData&          Group     = GroupMetaData[Entry.GroupHandle.Value];
-	FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
-	if (!Aggregate)
-	{
-		Aggregate = &Group.AggregateMetaData.Emplace_GetRef(Entry.ValueHandle);
-	}
+	GetOrAddMetaDataInternal(Entry);
+}
+
+bool FPreAnimatedStateExtension::MetaDataExists(const FPreAnimatedStateEntry& Entry) const
+{
+	return FindMetaData(Entry) != nullptr;
 }
 
 void FPreAnimatedStateExtension::AddMetaData(const FPreAnimatedStateMetaData& MetaData)
 {
-	FPreAnimatedGroupMetaData&          Group     = GroupMetaData[MetaData.Entry.GroupHandle.Value];
-	FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, MetaData.Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
-	if (!Aggregate)
-	{
-		Aggregate = &Group.AggregateMetaData.Emplace_GetRef(MetaData.Entry.ValueHandle);
-	}
+	FAggregatePreAnimatedStateMetaData* Aggregate = GetOrAddMetaDataInternal(MetaData.Entry);
 
 	++Aggregate->NumContributors;
 	if (MetaData.bWantsRestoreState)
@@ -118,20 +158,17 @@ void FPreAnimatedStateExtension::AddMetaData(const FPreAnimatedStateMetaData& Me
 
 void FPreAnimatedStateExtension::RemoveMetaData(const FPreAnimatedStateMetaData& MetaData)
 {
-	FPreAnimatedGroupMetaData& Group          = GroupMetaData[MetaData.Entry.GroupHandle.Value];
-	const int32                AggregateIndex = Algo::IndexOfBy(Group.AggregateMetaData, MetaData.Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
+	FAggregatePreAnimatedStateMetaData* Aggregate = FindMetaData(MetaData.Entry);
 
-	if (!ensure(AggregateIndex != INDEX_NONE))
+	if (!Aggregate)
 	{
 		return;
 	}
 
-	FAggregatePreAnimatedStateMetaData& Aggregate = Group.AggregateMetaData[AggregateIndex];
-
-	const int32 TotalNum = --Aggregate.NumContributors;
+	const int32 TotalNum = --Aggregate->NumContributors;
 	if (MetaData.bWantsRestoreState)
 	{
-		if (--Aggregate.NumRestoreContributors == 0)
+		if (--Aggregate->NumRestoreContributors == 0)
 		{
 			EPreAnimatedStorageRequirement NewRequirement = TotalNum != 0
 				? EPreAnimatedStorageRequirement::Persistent
@@ -139,20 +176,29 @@ void FPreAnimatedStateExtension::RemoveMetaData(const FPreAnimatedStateMetaData&
 
 			TSharedPtr<IPreAnimatedStorage> Storage = GetStorageChecked(MetaData.Entry.ValueHandle.TypeID);
 
-			FRestoreStateParams Params = {WeakLinker.Get(), MetaData.RootInstanceHandle};
+			FRestoreStateParams Params = {Linker, MetaData.RootInstanceHandle};
 			NewRequirement = Storage->RestorePreAnimatedStateStorage(MetaData.Entry.ValueHandle.StorageIndex, EPreAnimatedStorageRequirement::Transient, NewRequirement, Params);
 
 			if (NewRequirement == EPreAnimatedStorageRequirement::None)
 			{
-				if (Group.AggregateMetaData.Num() == 1)
+				if (MetaData.Entry.GroupHandle.IsValid())
 				{
-					// If the group is going to be empty - just remove it all
-					FreeGroupInternal(MetaData.Entry.GroupHandle.Value);
+					FPreAnimatedGroupMetaData& Group = GroupMetaData[MetaData.Entry.GroupHandle.Value];
+					if (Group.AggregateMetaData.Num() == 1)
+					{
+						// If the group is going to be empty - just remove it all
+						FreeGroupInternal(MetaData.Entry.GroupHandle.Value);
+					}
+					else
+					{
+						const int32 AggregateIndex = Aggregate - Group.AggregateMetaData.GetData();
+						// Otherwise remove just this aggregate
+						Group.AggregateMetaData.RemoveAt(AggregateIndex, 1, false);
+					}
 				}
 				else
 				{
-					// Otherwise remove just this aggregate
-					Group.AggregateMetaData.RemoveAt(AggregateIndex, 1, false);
+					UngroupedMetaData.Remove(MetaData.Entry.ValueHandle);
 				}
 
 				return;
@@ -162,16 +208,14 @@ void FPreAnimatedStateExtension::RemoveMetaData(const FPreAnimatedStateMetaData&
 
 	if (TotalNum == 0)
 	{
-		Aggregate.bWantedRestore = false;
-		Aggregate.TerminalInstanceHandle = MetaData.RootInstanceHandle;
+		Aggregate->bWantedRestore = false;
+		Aggregate->TerminalInstanceHandle = MetaData.RootInstanceHandle;
 	}
 }
 
 void FPreAnimatedStateExtension::UpdateMetaData(const FPreAnimatedStateMetaData& MetaData)
 {
-	FPreAnimatedGroupMetaData&          Group     = GroupMetaData[MetaData.Entry.GroupHandle.Value];
-	FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, MetaData.Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
-
+	FAggregatePreAnimatedStateMetaData* Aggregate = FindMetaData(MetaData.Entry);
 	if (ensure(Aggregate))
 	{
 		if (MetaData.bWantsRestoreState)
@@ -212,6 +256,20 @@ FPreAnimatedTrackInstanceCaptureSources* FPreAnimatedStateExtension::GetOrCreate
 		TrackInstanceCaptureSource = MakeUnique<FPreAnimatedTrackInstanceCaptureSources>(this);
 	}
 	return TrackInstanceCaptureSource.Get();
+}
+
+FPreAnimatedTrackInstanceInputCaptureSources* FPreAnimatedStateExtension::GetTrackInstanceInputMetaData() const
+{
+	return TrackInstanceInputCaptureSource.Get();
+}
+
+FPreAnimatedTrackInstanceInputCaptureSources* FPreAnimatedStateExtension::GetOrCreateTrackInstanceInputMetaData()
+{
+	if (!TrackInstanceInputCaptureSource)
+	{
+		TrackInstanceInputCaptureSource = MakeUnique<FPreAnimatedTrackInstanceInputCaptureSources>(this);
+	}
+	return TrackInstanceInputCaptureSource.Get();
 }
 
 void FPreAnimatedStateExtension::AddWeakCaptureSource(TWeakPtr<IPreAnimatedCaptureSource> InWeakCaptureSource)
@@ -264,8 +322,7 @@ void FPreAnimatedStateExtension::RestoreGlobalState(const FRestoreStateParams& P
 	// Remove all contributions
 	for (const FPreAnimatedStateMetaData& MetaData : ExpiredMetaData)
 	{
-		FPreAnimatedGroupMetaData&          Group     = GroupMetaData[MetaData.Entry.GroupHandle.Value];
-		FAggregatePreAnimatedStateMetaData* Aggregate = Algo::FindBy(Group.AggregateMetaData, MetaData.Entry.ValueHandle, &FAggregatePreAnimatedStateMetaData::ValueHandle);
+		FAggregatePreAnimatedStateMetaData* Aggregate = FindMetaData(MetaData.Entry);
 		if (ensure(Aggregate))
 		{
 			const int32 TotalNum = --Aggregate->NumContributors;
@@ -312,6 +369,18 @@ void FPreAnimatedStateExtension::RestoreGlobalState(const FRestoreStateParams& P
 		}
 	}
 
+	for (auto UngroupedIt = UngroupedMetaData.CreateIterator(); UngroupedIt; ++UngroupedIt)
+	{
+		FAggregatePreAnimatedStateMetaData& Aggregate = UngroupedIt.Value();
+		if (Aggregate.NumContributors == 0 && (!Aggregate.TerminalInstanceHandle.IsValid() || Aggregate.TerminalInstanceHandle == Params.TerminalInstanceHandle))
+		{
+			TSharedPtr<IPreAnimatedStorage> Storage = GetStorageChecked(Aggregate.ValueHandle.TypeID);
+			Storage->RestorePreAnimatedStateStorage(Aggregate.ValueHandle.StorageIndex, EPreAnimatedStorageRequirement::Persistent, EPreAnimatedStorageRequirement::None, Params);
+
+			UngroupedIt.RemoveCurrent();
+		}
+	}
+
 	GroupMetaData.Shrink();
 
 	bEntriesInvalidated = true;
@@ -343,7 +412,15 @@ void FPreAnimatedStateExtension::DiscardTransientState()
 			Storage->DiscardPreAnimatedStateStorage(Aggregate.ValueHandle.StorageIndex, EPreAnimatedStorageRequirement::Transient);
 		}
 	}
+	for (TPair<FPreAnimatedStateCachedValueHandle, FAggregatePreAnimatedStateMetaData> Pair : UngroupedMetaData)
+	{
+		FAggregatePreAnimatedStateMetaData& Aggregate = Pair.Value;
 
+		Aggregate = FAggregatePreAnimatedStateMetaData(Pair.Key);
+
+		TSharedPtr<IPreAnimatedStorage> Storage = GetStorageChecked(Pair.Key.TypeID);
+		Storage->DiscardPreAnimatedStateStorage(Pair.Key.StorageIndex, EPreAnimatedStorageRequirement::Transient);
+	}
 	bEntriesInvalidated = true;
 }
 
@@ -400,6 +477,125 @@ bool FPreAnimatedStateExtension::ContainsAnyStateForInstanceHandle(FInstanceHand
 
 	return false;
 }
+
+bool FPreAnimatedStateExtension::HasActiveCaptureSource() const
+{
+	FScopedPreAnimatedCaptureSource* CaptureSource = FScopedPreAnimatedCaptureSource::GetCaptureSourcePtr();
+	return (CaptureSource && CaptureSource->bWantsRestoreState);
+}
+
+bool FPreAnimatedStateExtension::ShouldCaptureAnyState() const
+{
+	FScopedPreAnimatedCaptureSource* CaptureSource = FScopedPreAnimatedCaptureSource::GetCaptureSourcePtr();
+	return (CaptureSource && CaptureSource->bWantsRestoreState) || IsCapturingGlobalState();
+}
+
+void FPreAnimatedStateExtension::AddSourceMetaData(const UE::MovieScene::FPreAnimatedStateEntry& Entry)
+{
+	using namespace UE::MovieScene;
+
+	FScopedPreAnimatedCaptureSource* CaptureSource = FScopedPreAnimatedCaptureSource::GetCaptureSourcePtr();
+	if (!CaptureSource)
+	{
+		EnsureMetaData(Entry);
+	}
+	else
+	{
+		FPreAnimatedStateMetaData MetaData;
+		MetaData.Entry = Entry;
+		MetaData.RootInstanceHandle = CaptureSource->GetRootInstanceHandle(Linker);
+		MetaData.bWantsRestoreState = CaptureSource->bWantsRestoreState;
+
+		CaptureSource->BeginTracking(MetaData, Linker);
+	}
+}
+
+void FPreAnimatedStateExtension::SavePreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& Producer)
+{
+	if (HasActiveCaptureSource() || IsCapturingGlobalState())
+	{
+		SavePreAnimatedStateDirectly(InObject, InTokenType, Producer);
+	}
+}
+
+void FPreAnimatedStateExtension::SavePreAnimatedStateDirectly(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& Producer)
+{
+	TSharedPtr<FAnimTypePreAnimatedStateObjectStorage> ObjectStorage = WeakGenericObjectStorage.Pin();
+	if (!ObjectStorage)
+	{
+		ObjectStorage = GetOrCreateStorage<FAnimTypePreAnimatedStateObjectStorage>();
+		WeakGenericObjectStorage = ObjectStorage;
+	}
+
+	FPreAnimatedStateEntry   Entry        = ObjectStorage->MakeEntry(&InObject, InTokenType);
+	FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
+
+	AddSourceMetaData(Entry);
+
+	EPreAnimatedStorageRequirement Requirement = HasActiveCaptureSource()
+		? EPreAnimatedStorageRequirement::Transient
+		: EPreAnimatedStorageRequirement::Persistent;
+
+	if (!ObjectStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
+	{
+		IMovieScenePreAnimatedTokenPtr Token = Producer.CacheExistingState(InObject);
+		if (Token.IsValid())
+		{
+			const bool bHasEverAninmated = ObjectStorage->HasEverAnimated(StorageIndex);
+			if (!bHasEverAninmated)
+			{
+				Producer.InitializeObjectForAnimation(InObject);
+			}
+
+			ObjectStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
+		}
+	}
+}
+
+void FPreAnimatedStateExtension::SavePreAnimatedState(FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedGlobalTokenProducer& Producer)
+{
+	if (HasActiveCaptureSource() || IsCapturingGlobalState())
+	{
+		SavePreAnimatedStateDirectly(InTokenType, Producer);
+	}
+}
+
+void FPreAnimatedStateExtension::SavePreAnimatedStateDirectly(FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedGlobalTokenProducer& Producer)
+{
+	using namespace UE::MovieScene;
+
+	TSharedPtr<FAnimTypePreAnimatedStateMasterStorage> MasterStorage = WeakGenericMasterStorage.Pin();
+	if (!MasterStorage)
+	{
+		MasterStorage = GetOrCreateStorage<FAnimTypePreAnimatedStateMasterStorage>();
+		WeakGenericMasterStorage = MasterStorage;
+	}
+
+	FPreAnimatedStateEntry   Entry        = MasterStorage->MakeEntry(InTokenType);
+	FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
+
+	AddSourceMetaData(Entry);
+
+	EPreAnimatedStorageRequirement Requirement = HasActiveCaptureSource()
+		? EPreAnimatedStorageRequirement::Transient
+		: EPreAnimatedStorageRequirement::Persistent;
+
+	if (!MasterStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
+	{
+		IMovieScenePreAnimatedGlobalTokenPtr Token = Producer.CacheExistingState();
+		if (Token.IsValid())
+		{
+			const bool bHasEverAninmated = MasterStorage->HasEverAnimated(StorageIndex);
+			if (!bHasEverAninmated)
+			{
+				Producer.InitializeForAnimation();
+			}
+
+			MasterStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
+		}
+	}
+}
+
 
 } // namespace MovieScene
 } // namespace UE

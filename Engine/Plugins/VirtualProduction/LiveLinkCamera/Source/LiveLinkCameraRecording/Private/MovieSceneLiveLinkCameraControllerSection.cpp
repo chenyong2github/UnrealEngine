@@ -9,6 +9,7 @@
 #include "LiveLinkControllerBase.h"
 #include "MovieSceneExecutionToken.h"
 #include "Roles/LiveLinkCameraRole.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 
 struct FPreAnimatedLensFileTokenProducer : IMovieScenePreAnimatedTokenProducer
 {

@@ -103,7 +103,7 @@ struct FPreAnimatedEvaluationHookCaptureSources : TPreAnimatedCaptureSources<FPr
 
 
 /**
- * Structure responsible for tracking contributions to pre-eanimated state entries that originate from track templates (ie, from an IMovieSceneExecutionToken::Execute)
+ * Structure responsible for tracking contributions to pre-eanimated state entries that originate from specific track template inputs
  */
 struct FPreAnimatedTrackInstanceCaptureSources : TPreAnimatedCaptureSources<FObjectKey>
 {
@@ -120,6 +120,16 @@ struct FPreAnimatedTrackInstanceCaptureSources : TPreAnimatedCaptureSources<FObj
 	 */
 	MOVIESCENE_API void StopTrackingCaptureSource(UMovieSceneTrackInstance* TrackInstance);
 };
+
+
+/**
+ * Structure responsible for tracking contributions to pre-eanimated state entries that originate from track templates (ie, from an IMovieSceneExecutionToken::Execute)
+ */
+struct FPreAnimatedTrackInstanceInputCaptureSources : TPreAnimatedCaptureSources<FMovieSceneTrackInstanceInput>
+{
+	MOVIESCENE_API FPreAnimatedTrackInstanceInputCaptureSources(FPreAnimatedStateExtension* InOwner);
+};
+
 
 
 } // namespace MovieScene

@@ -8,6 +8,7 @@
 
 #include "MovieSceneMediaPlayerPropertySection.h"
 #include "MovieSceneMediaPlayerPropertyTrack.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 
 
 struct FMediaPlayerPreAnimatedState : IMovieScenePreAnimatedToken

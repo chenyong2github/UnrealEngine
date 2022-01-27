@@ -2,6 +2,8 @@
 
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
 #include "Algo/Sort.h"
 
 void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker)
@@ -11,7 +13,7 @@ void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieScene
 	AnimatedObject = InAnimatedObject;
 	bIsMasterTrackInstance = (InAnimatedObject == nullptr);
 
-	Linker = InLinker;
+	PrivateLinker = InLinker;
 
 	OnInitialize();
 }
@@ -23,21 +25,45 @@ void UMovieSceneTrackInstance::Animate()
 
 void UMovieSceneTrackInstance::Destroy()
 {
+	using namespace UE::MovieScene;
+
 	if (bIsMasterTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(AnimatedObject))
 	{
 		OnDestroyed();
+	}
+
+	FPreAnimatedTrackInstanceInputCaptureSources* InputMetaData = PrivateLinker->PreAnimatedState.GetTrackInstanceInputMetaData();
+	if (InputMetaData)
+	{
+		for (const FMovieSceneTrackInstanceInput& Input : Inputs)
+		{
+			InputMetaData->StopTrackingCaptureSource(Input);
+		}
+	}
+
+	FPreAnimatedTrackInstanceCaptureSources* TrackInstanceMetaData = PrivateLinker->PreAnimatedState.GetTrackInstanceMetaData();
+	if (TrackInstanceMetaData)
+	{
+		TrackInstanceMetaData->StopTrackingCaptureSource(this);
 	}
 }
 
 void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput>&& InNewInputs)
 {
+	using namespace UE::MovieScene;
+
 	Algo::Sort(InNewInputs);
 
 	// Fast path if they are the same
 	if (Inputs == InNewInputs)
 	{
+		// We still call OnBegin/EndUpdateInputs since some of them must have been invalidated for us to get this far
+		OnBeginUpdateInputs();
+		OnEndUpdateInputs();
 		return;
 	}
+
+	FPreAnimatedTrackInstanceInputCaptureSources* InputMetaData = PrivateLinker->PreAnimatedState.GetTrackInstanceInputMetaData();
 
 	// We know they are different in some way - now 
 	OnBeginUpdateInputs();
@@ -66,11 +92,17 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 			{
 				// Out with the old
 				OnInputRemoved(Inputs[OldIndex]);
+				if (InputMetaData)
+				{
+					InputMetaData->StopTrackingCaptureSource(Inputs[OldIndex]);
+				}
 				++OldIndex;
 			}
 			else
 			{
 				// and in with the new
+				FScopedPreAnimatedCaptureSource CaptureSource(PrivateLinker, InNewInputs[NewIndex]);
+
 				OnInputAdded(InNewInputs[NewIndex]);
 				++NewIndex;
 			}
@@ -79,6 +111,10 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 		{
 			// Out with the old
 			OnInputRemoved(Inputs[OldIndex]);
+			if (InputMetaData)
+			{
+				InputMetaData->StopTrackingCaptureSource(Inputs[OldIndex]);
+			}
 			++OldIndex;
 		}
 		else if (ensure(NewIndex < NewNum))

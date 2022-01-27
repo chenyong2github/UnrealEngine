@@ -621,19 +621,18 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 
 	UWorld*                     World              = GetWorld();
 	UDataLayerSubsystem*        DataLayerSubsystem = World ? World->GetSubsystem<UDataLayerSubsystem>() : nullptr;
-	FPreAnimatedStateExtension* PreAnimatedState   = Linker->FindExtension<FPreAnimatedStateExtension>();
 
-	if (!DataLayerSubsystem || !PreAnimatedState)
+	if (!DataLayerSubsystem)
 	{
 		return;
 	}
 
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
-	FPreAnimatedEntityCaptureSource* EntityMetaData    = PreAnimatedState->GetOrCreateEntityMetaData();
+	FPreAnimatedEntityCaptureSource* EntityMetaData    = Linker->PreAnimatedState.GetOrCreateEntityMetaData();
 
 	// Cache the preanimated storage
-	TSharedPtr<FPreAnimatedDataLayerStorage> PreAnimatedStorage = PreAnimatedState->GetOrCreateStorage<FPreAnimatedDataLayerStorage>();
+	TSharedPtr<FPreAnimatedDataLayerStorage> PreAnimatedStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedDataLayerStorage>();
 	WeakPreAnimatedStorage = PreAnimatedStorage;
 
 	// ---------------------------------------------------------------------------------
@@ -667,12 +666,19 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 		}
 	};
 
+	FComponentMask Filter{ BuiltInComponents->Tags.NeedsLink };
+	if (!Linker->PreAnimatedState.IsCapturingGlobalState())
+	{
+		// If we're not capturing global state, only visit entities with the RestoreState tag
+		Filter.Set(BuiltInComponents->Tags.RestoreState);
+	}
+
 	// Iterate any data layer components that need link
 	FEntityTaskBuilder()
 	.ReadEntityIDs()
 	.Read(BuiltInComponents->RootInstanceHandle)
 	.Read(TracksComponents->DataLayer)
-	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+	.FilterAll(Filter)
 	.Iterate_PerAllocation(&Linker->EntityManager, GatherDataLayers);
 }
 

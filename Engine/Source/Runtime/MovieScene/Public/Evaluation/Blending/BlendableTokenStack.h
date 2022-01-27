@@ -10,6 +10,7 @@
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 #include "Evaluation/Blending/BlendableToken.h"
 #include "IMovieScenePlayer.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 
 struct FMovieSceneInterrogationData;
 struct FMovieSceneContext;

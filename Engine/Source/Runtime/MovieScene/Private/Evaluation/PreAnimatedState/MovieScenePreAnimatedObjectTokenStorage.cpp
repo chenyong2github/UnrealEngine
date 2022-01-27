@@ -31,7 +31,7 @@ FPreAnimatedStateEntry FAnimTypePreAnimatedStateObjectStorage::MakeEntry(UObject
 	FPreAnimatedObjectTokenTraits::FAnimatedKey Key{ Object, AnimTypeID };
 
 	// Begin by finding or creating a pre-animated state group for this bound object
-	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->MakeGroupForObject(Object);
+	FPreAnimatedStorageGroupHandle Group = ObjectGroupManager->MakeGroupForKey(Object);
 
 	// Find the storage index for the specific anim-type and object we're animating
 	FPreAnimatedStorageIndex StorageIndex = GetOrCreateStorageIndex(Key);

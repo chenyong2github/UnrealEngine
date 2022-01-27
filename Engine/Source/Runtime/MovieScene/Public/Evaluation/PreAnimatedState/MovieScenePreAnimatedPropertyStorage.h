@@ -85,11 +85,15 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 
 	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings) override
 	{
-		FPreAnimatedEntityCaptureSource* EntityMetaData = ParentExtension->GetOrCreateEntityMetaData();
-
 		const int32 Num = Params.Num;
 		const bool  bWantsRestore = Params.bWantsRestoreState;
 
+		if (!this->ParentExtension->IsCapturingGlobalState() && !bWantsRestore)
+		{
+			return;
+		}
+
+		FPreAnimatedEntityCaptureSource* EntityMetaData = ParentExtension->GetOrCreateEntityMetaData();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			UObject* BoundObject  = BoundObjects[Index];
@@ -97,7 +101,7 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 
 			FAnimatedPropertyKey Key{ BoundObject, PropertyPath };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForObject(BoundObject);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(BoundObject);
 			FPreAnimatedStorageIndex       StorageIndex = this->Storage.GetOrCreateStorageIndex(Key);
 
 			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
@@ -125,12 +129,19 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 
 			FAnimatedPropertyKey Key{ BoundObject, PropertyPath };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForObject(Key.BoundObject);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key.BoundObject);
 			FPreAnimatedStorageIndex       StorageIndex = this->Storage.GetOrCreateStorageIndex(Key);
 
 			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
 
-			this->ParentExtension->EnsureMetaData(Entry);
+			if (this->ParentExtension->IsCapturingGlobalState())
+			{
+				this->ParentExtension->EnsureMetaData(Entry);
+			}
+			else if (!this->ParentExtension->MetaDataExists(Entry))
+			{
+				continue;
+			}
 
 			EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
 			if (!Storage.IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))

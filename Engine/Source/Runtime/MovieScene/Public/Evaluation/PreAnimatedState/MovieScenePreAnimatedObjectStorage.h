@@ -60,17 +60,21 @@ public:
 
 	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) override
 	{
-		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
-
 		const int32 Num = Params.Num;
 		const bool  bWantsRestore = Params.bWantsRestoreState;
 
+		if (!this->ParentExtension->IsCapturingGlobalState() && !bWantsRestore)
+		{
+			return;
+		}
+
+		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			UObject* BoundObject = BoundObjects[Index];
 			FObjectKey Key{ BoundObject };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForObject(Key);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key);
 			FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
 
 			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
@@ -91,10 +95,18 @@ public:
 		FObjectKey Key{ BoundObject };
 
 		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
-		FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForObject(Key);
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key);
 		FPreAnimatedStateEntry         Entry        = FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
 
-		this->ParentExtension->EnsureMetaData(Entry);
+		if (this->ParentExtension->IsCapturingGlobalState())
+		{
+			this->ParentExtension->EnsureMetaData(Entry);
+		}
+		else if (!this->ParentExtension->MetaDataExists(Entry))
+		{
+			return;
+		}
+
 		CachePreAnimatedValue(Params, Entry, BoundObject);
 	}
 

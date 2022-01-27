@@ -84,7 +84,7 @@ void FPreAnimatedComponentTransformStorage::CachePreAnimatedTransforms(const FCa
 
 		FAnimatedPropertyKey Key{ BoundObject, PropertyBinding.PropertyPath };
 
-		FPreAnimatedStorageGroupHandle GroupHandle  = ObjectGroupManager->MakeGroupForObject(BoundObject);
+		FPreAnimatedStorageGroupHandle GroupHandle  = ObjectGroupManager->MakeGroupForKey(BoundObject);
 		FPreAnimatedStorageIndex       StorageIndex = Storage.GetOrCreateStorageIndex(Key);
 
 		FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };

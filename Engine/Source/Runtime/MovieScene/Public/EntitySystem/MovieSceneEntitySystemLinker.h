@@ -14,6 +14,7 @@
 #include "EntitySystem/MovieSceneEntitySystemGraphs.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "EntitySystem/MovieSceneEntitySystemLinkerExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 
 #include "MovieSceneEntitySystemLinker.generated.h"
 
@@ -63,6 +64,8 @@ public:
 public:
 
 	GENERATED_BODY()
+
+	UE::MovieScene::FPreAnimatedStateExtension PreAnimatedState;
 
 	UMovieSceneEntitySystemLinker(const FObjectInitializer& ObjInit);
 

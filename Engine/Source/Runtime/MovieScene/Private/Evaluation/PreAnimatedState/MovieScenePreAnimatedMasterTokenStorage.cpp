@@ -15,25 +15,11 @@ void FAnimTypePreAnimatedStateMasterStorage::Initialize(FPreAnimatedStorageID In
 	TPreAnimatedStateStorage<FPreAnimatedMasterTokenTraits>::Initialize(InStorageID, InParentExtension);
 }
 
-void FAnimTypePreAnimatedStateMasterStorage::InitializeGroupManager(FPreAnimatedStateExtension* Extension)
-{}
-
-void FAnimTypePreAnimatedStateMasterStorage::OnGroupDestroyed(FPreAnimatedStorageGroupHandle InGroup)
-{
-	check(InGroup == GroupHandle)
-	GroupHandle = FPreAnimatedStorageGroupHandle();
-}
-
 FPreAnimatedStateEntry FAnimTypePreAnimatedStateMasterStorage::MakeEntry(FMovieSceneAnimTypeID AnimTypeID)
 {
-	if (!GroupHandle)
-	{
-		GroupHandle = ParentExtension->AllocateGroup(SharedThis(this));
-	}
-
 	// Find the storage index for the specific anim-type and object we're animating
 	FPreAnimatedStorageIndex StorageIndex = GetOrCreateStorageIndex(AnimTypeID);
-	return FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
+	return FPreAnimatedStateEntry{ FPreAnimatedStorageGroupHandle(), FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
 }
 
 
