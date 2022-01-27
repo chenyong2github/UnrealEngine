@@ -98,8 +98,7 @@ void SNaniteTools::Construct(const FArguments& InArgs, const TSharedRef<SDockTab
 		]
 	];
 
-	const uint32 TriangleThreshold = OptimizeView ? OptimizeView->GetTriangleThreshold() : 0;
-	Audit(TriangleThreshold);
+	Audit();
 }
 
 SNaniteTools::~SNaniteTools()
@@ -108,13 +107,12 @@ SNaniteTools::~SNaniteTools()
 
 FReply SNaniteTools::OnPerformAudit()
 {
-	const uint32 TriangleThreshold = OptimizeView ? OptimizeView->GetTriangleThreshold() : 0;
-	Audit(TriangleThreshold);
+	Audit();
 	HighlightImportantTab();
 	return FReply::Handled();
 }
 
-void SNaniteTools::Audit(uint32 TriangleThreshold)
+void SNaniteTools::Audit()
 {
 	if (ErrorsView)
 	{
@@ -127,7 +125,7 @@ void SNaniteTools::Audit(uint32 TriangleThreshold)
 	}
 
 	AuditRegistry = MakeShared<FNaniteAuditRegistry>();
-	AuditRegistry->PerformAudit(TriangleThreshold);
+	AuditRegistry->PerformAudit();
 
 	if (ErrorsView)
 	{
@@ -204,15 +202,15 @@ void SNaniteTools::OnOptimizeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 
 void SNaniteTools::HighlightImportantTab()
 {
-	if (ErrorsTab && AuditRegistry->GetErrorRecords().Num() > 0)
+	if (ErrorsTab && ErrorsView && ErrorsView->GetRowCount() > 0)
 	{
 		// Always highlight error tab if any are present
 		TabManager->DrawAttention(ErrorsTab.ToSharedRef());
 	}
-	else if (OptimizeTab && AuditRegistry->GetOptimizeRecords().Num() > 0)
+	else if (OptimizeTab && OptimizeView && OptimizeView->GetRowCount() > 0)
 	{
 		// No errors, and some optimize records exist, highlight the tab
-		TabManager->DrawAttention(ErrorsTab.ToSharedRef());
+		TabManager->DrawAttention(OptimizeTab.ToSharedRef());
 	}
 }
 

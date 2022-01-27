@@ -76,9 +76,8 @@ public:
 		}
 		else if (ColumnName == NaniteAuditView::ColumnID_Errors)
 		{
-			const uint32 ErrorCount = Item->Record->MaterialErrors.Num();
 			return SNew(STextBlock)
-				.Text(FText::AsNumber(ErrorCount));
+				.Text(FText::AsNumber(Item->Record->ErrorCount));
 		}
 
 		return SNullWidget::NullWidget;
@@ -497,7 +496,7 @@ void SNaniteAudit::OnEnableNanite()
 		if (MeshesToProcess.Num() > 0)
 		{
 			ModifyNaniteEnable(MeshesToProcess, true /* Enable */);
-			Parent->Audit(GetTriangleThreshold());
+			Parent->Audit();
 		}
 	}
 }
@@ -520,7 +519,7 @@ void SNaniteAudit::OnDisableNanite()
 		if (MeshesToProcess.Num() > 0)
 		{
 			ModifyNaniteEnable(MeshesToProcess, false /* Disable */);
-			Parent->Audit(GetTriangleThreshold());
+			Parent->Audit();
 		}
 	}
 }
@@ -540,7 +539,7 @@ FReply SNaniteAudit::OnBatchEnableNanite()
 		}
 
 		ModifyNaniteEnable(MeshesToProcess, true /* Enable */);
-		Parent->Audit(GetTriangleThreshold());
+		Parent->Audit();
 		return FReply::Handled();
 	}
 	else
@@ -564,23 +563,13 @@ FReply SNaniteAudit::OnBatchDisableNanite()
 		}
 
 		ModifyNaniteEnable(MeshesToProcess, false /* Disable */);
-		Parent->Audit(GetTriangleThreshold());
+		Parent->Audit();
 		return FReply::Handled();
 	}
 	else
 	{
 		return FReply::Unhandled();
 	}
-}
-
-uint32 SNaniteAudit::GetTriangleThreshold() const
-{
-	if (Mode == SNaniteAudit::AuditMode::Optimize && AuditOptimizeArguments.IsValid())
-	{
-		return AuditOptimizeArguments->TriangleThreshold;
-	}
-
-	return 0;
 }
 
 void SNaniteAudit::PreAudit()
@@ -595,12 +584,105 @@ void SNaniteAudit::PostAudit(TSharedPtr<FNaniteAuditRegistry> AuditRegistry)
 {
 	if (AuditRegistry)
 	{
-		const auto& Records = (Mode == SNaniteAudit::AuditMode::Optimize) 
+		auto& Records = (Mode == SNaniteAudit::AuditMode::Optimize)
 			? AuditRegistry->GetOptimizeRecords() : AuditRegistry->GetErrorRecords();
 
-		for (const auto& Record : Records)
+		for (auto& Record : Records)
 		{
-			NaniteAuditRows.Add(MakeShareable(new FNaniteAuditRow(Record)));
+			bool bIgnoreRecord = false;
+
+			if (Mode == SNaniteAudit::AuditMode::Optimize)
+			{
+				// Ignore records if the static mesh triangle count is below the specified threshold
+				if (Record->TriangleCount < AuditOptimizeArguments->TriangleThreshold)
+				{
+					bIgnoreRecord = true;
+				}
+
+				// Here we want to remove any records that have material features that are 
+				// disallowed by Nanite, as we don't want to enable Nanite in these cases.
+				for (const FStaticMeshComponentRecord& SMCRecord : Record->StaticMeshComponents)
+				{
+					if (bIgnoreRecord)
+					{
+						break;
+					}
+
+					for (const Nanite::FMaterialAuditEntry& MaterialEntry : SMCRecord.MaterialAudit.Entries)
+					{
+						bIgnoreRecord |= (AuditOptimizeArguments->DisallowUnsupportedBlendMode && MaterialEntry.bHasUnsupportedBlendMode);
+						bIgnoreRecord |= (AuditOptimizeArguments->DisallowVertexInterpolator   && MaterialEntry.bHasVertexInterpolator);
+						bIgnoreRecord |= (AuditOptimizeArguments->DisallowPixelDepthOffset     && MaterialEntry.bHasPixelDepthOffset);
+						bIgnoreRecord |= (AuditOptimizeArguments->DisallowWorldPositionOffset  && MaterialEntry.bHasWorldPositionOffset);
+
+						if (bIgnoreRecord)
+						{
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				Record->ErrorCount = 0;
+
+				// Here we want to remove any records that do not have any errors, and
+				// also build up a list of detailed error messages for each record.
+				for (const FStaticMeshComponentRecord& SMCRecord : Record->StaticMeshComponents)
+				{
+					for (const Nanite::FMaterialAuditEntry& MaterialEntry : SMCRecord.MaterialAudit.Entries)
+					{
+						const bool bUnsupportedBlendModeError	= (AuditErrorArguments->ProhibitUnsupportedBlendMode	&& MaterialEntry.bHasUnsupportedBlendMode);
+						const bool bVertexInterpolatorError		= (AuditErrorArguments->ProhibitVertexInterpolator		&& MaterialEntry.bHasVertexInterpolator);
+						const bool bPixelDepthOffsetError		= (AuditErrorArguments->ProhibitPixelDepthOffset		&& MaterialEntry.bHasPixelDepthOffset);
+						const bool bWorldPositionOffsetError	= (AuditErrorArguments->ProhibitWorldPositionOffset		&& MaterialEntry.bHasWorldPositionOffset);
+
+						if (bUnsupportedBlendModeError || bVertexInterpolatorError || bPixelDepthOffsetError || bWorldPositionOffsetError)
+						{
+							const UMaterial* Material = MaterialEntry.Material->GetMaterial_Concurrent();
+
+							FNaniteMaterialError* ExistingErrors = Record->MaterialErrors.FindByPredicate([=](const FNaniteMaterialError& Entry) { return Entry.Material.Get() == Material; });
+							if (ExistingErrors)
+							{
+								ExistingErrors->bUnsupportedBlendModeError	|= bUnsupportedBlendModeError;
+								ExistingErrors->bVertexInterpolatorError	|= bVertexInterpolatorError;
+								ExistingErrors->bPixelDepthOffsetError		|= bPixelDepthOffsetError;
+								ExistingErrors->bWorldPositionOffsetError	|= bWorldPositionOffsetError;
+								ExistingErrors->ReferencingSMCs.Add(SMCRecord.Component);
+							}
+							else
+							{
+								FNaniteMaterialError& NewErrors = Record->MaterialErrors.AddDefaulted_GetRef();
+								NewErrors.bUnsupportedBlendModeError	= bUnsupportedBlendModeError;
+								NewErrors.bVertexInterpolatorError		= bVertexInterpolatorError;
+								NewErrors.bPixelDepthOffsetError		= bPixelDepthOffsetError;
+								NewErrors.bWorldPositionOffsetError		= bWorldPositionOffsetError;
+								NewErrors.Material = Material;
+								NewErrors.ReferencingSMCs.Add(SMCRecord.Component);
+							}
+						}
+					}
+				}
+
+				// Tally up unique per-material errors associated with this static mesh that has Nanite erroneously enabled.
+				for (const FNaniteMaterialError& MaterialError : Record->MaterialErrors)
+				{
+					Record->ErrorCount += MaterialError.bUnsupportedBlendModeError	? 1u : 0u;
+					Record->ErrorCount += MaterialError.bVertexInterpolatorError	? 1u : 0u;
+					Record->ErrorCount += MaterialError.bPixelDepthOffsetError		? 1u : 0u;
+					Record->ErrorCount += MaterialError.bWorldPositionOffsetError	? 1u : 0u;
+				}
+
+				if (Record->ErrorCount == 0)
+				{
+					bIgnoreRecord = true;
+				}
+			}
+
+			if (!bIgnoreRecord)
+			{
+				NaniteAuditRows.Add(MakeShareable(new FNaniteAuditRow(Record)));
+			}
 		}
 	}
 
@@ -609,10 +691,7 @@ void SNaniteAudit::PostAudit(TSharedPtr<FNaniteAuditRegistry> AuditRegistry)
 
 void SNaniteAudit::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
-	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetName() == TEXT("TriangleThreshold"))
-	{
-		Parent->Audit(GetTriangleThreshold());
-	}
+	Parent->Audit();
 }
 
 #undef LOCTEXT_NAMESPACE

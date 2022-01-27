@@ -80,6 +80,14 @@ FAutoConsoleVariableRef CVarNaniteErrorOnVertexInterpolator(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteErrorOnMaskedBlendMode = 1;
+FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
+	TEXT("r.Nanite.ErrorOnMaskedBlendMode"),
+	GNaniteErrorOnMaskedBlendMode,
+	TEXT("Whether to error and use default material if masked blend mode is specified for a Nanite material."),
+	ECVF_RenderThreadSafe
+);
+
 namespace Nanite
 {
 
@@ -387,7 +395,7 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 	{
 		const FMaterialSection& Section = MaterialSections[SectionIndex];
-		const UMaterialInterface* Material = Section.Material;
+		const UMaterialInterface* Material = Section.ShadingMaterial;
 		if (!Material)
 		{
 			continue;
@@ -433,6 +441,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// This should always be valid.
 	check(Resources);
 
+	FMaterialAudit MaterialAudit;
+	AuditMaterials(Component, MaterialAudit);
+	FixupMaterials(MaterialAudit);
+
 	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
 
 	// Nanite supports the GPUScene instance data buffer.
@@ -471,107 +483,19 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
 	{
-		FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		const FStaticMeshSection& MeshSection = MeshSections[SectionIndex];
-		const bool bValidMeshSection = MeshSection.MaterialIndex != INDEX_NONE;
-
+		FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		MaterialSection.MaterialIndex = MeshSection.MaterialIndex;
 
 		// Keep track of highest observed material index.
 		MaterialMaxIndex = FMath::Max(MaterialSection.MaterialIndex, MaterialMaxIndex);
+		
+		MaterialSection.RasterMaterial = nullptr;
+		MaterialSection.ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
-		MaterialSection.Material = bValidMeshSection ? Component->GetMaterial(MaterialSection.MaterialIndex) : nullptr;
-
-		if (MaterialSection.Material == nullptr)
+		if (bHasSurfaceStaticLighting && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
 		{
-			MaterialSection.bHasNullMaterial = true;
-			MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-		else if (!MaterialSection.Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite))
-		{
-			MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-		else if (!Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance))
-		{
-			MaterialSection.bHasInvalidRelevance = true;
-		}
-		else if (MaterialSection.Material->GetBlendMode() != BLEND_Opaque)
-		{
-			MaterialSection.bHasNonOpaqueBlendMode = true;
-		}
-		else if (bHasSurfaceStaticLighting && !MaterialSection.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
-		{
-			MaterialSection.bHasInvalidStaticLighting = true;
-		}
-
-		const UMaterial* Material = MaterialSection.Material->GetMaterial_Concurrent();
-		check(Material != nullptr); // Should always be valid here
-
-		const FMaterialCachedExpressionData& CachedMaterialData = MaterialSection.Material->GetCachedExpressionData();
-		MaterialSection.bHasVertexInterpolator		= CachedMaterialData.bHasVertexInterpolator;
-		MaterialSection.bHasPerInstanceRandomID		= CachedMaterialData.bHasPerInstanceRandom;
-		MaterialSection.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
-
-		MaterialSection.bHasAnyError =
-			MaterialSection.bHasNullMaterial ||
-			MaterialSection.bHasInvalidRelevance ||
-			MaterialSection.bHasNonOpaqueBlendMode ||
-			//MaterialSection.bHasVertexInterpolator || 
-			MaterialSection.bHasInvalidStaticLighting;
-
-		if (GNaniteErrorOnVertexInterpolator != 0)
-		{
-			MaterialSection.bHasAnyError |= MaterialSection.bHasVertexInterpolator;
-		}
-
-		if (MaterialSection.bHasAnyError)
-		{
-			bHasMaterialErrors = true;
-
-			const FString StaticMeshName = StaticMesh->GetName();
-			const FString MaterialName = MaterialSection.Material->GetName();
-
-			if (MaterialSection.bHasNullMaterial)
-			{
-				UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material [null] used on Nanite static mesh [%s] - forcing default material instead."), *StaticMeshName);
-			}
-			else
-			{
-				// Replace invalid materials with default material
-				MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-
-				if (MaterialSection.bHasInvalidRelevance)
-				{
-					UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material relevance for Nanite static mesh [%s] - forcing default material instead."), *StaticMeshName);
-				}
-				else if (MaterialSection.bHasNonOpaqueBlendMode)
-				{
-					const FString BlendModeName = GetBlendModeString(MaterialSection.Material->GetBlendMode());
-					UE_LOG
-					(
-						LogStaticMesh, Warning,
-						TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
-						*MaterialName,
-						*StaticMeshName,
-						*BlendModeName
-					);
-				}
-				else if (MaterialSection.bHasVertexInterpolator)
-				{
-					UE_LOG
-					(
-						LogStaticMesh, Warning,
-						TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Vertex interpolator nodes are not supported by Nanite."),
-						*MaterialName,
-						*StaticMeshName
-					);
-				}
-				else
-				{
-					// Unimplemented error condition
-					checkNoEntry();
-				}
-			}
+			MaterialSection.ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 	}
 
@@ -1216,7 +1140,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		FMeshBatch& MeshBatch = Materials[SectionIndex];
 		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-		MeshBatch.MaterialRenderProxy = MaterialSection.Material->GetRenderProxy();
+		MeshBatch.MaterialRenderProxy = MaterialSection.ShadingMaterial->GetRenderProxy();
 		MeshBatch.bWireframe = false;
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.LODIndex = 0;
@@ -1392,6 +1316,123 @@ bool FSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool&
 uint32 FSceneProxy::GetMemoryFootprint() const
 {
 	return sizeof( *this ) + GetAllocatedSize();
+}
+
+void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit)
+{
+	Audit.bHasAnyError = false;
+	Audit.Entries.Reset();
+
+	if (Component != nullptr)
+	{
+		const int32 NumMaterials = Component->GetNumMaterials();
+		const TArray<FName> MaterialSlotNames = Component->GetMaterialSlotNames();
+		for (const FName& SlotName : MaterialSlotNames)
+		{
+			FMaterialAuditEntry& Entry = Audit.Entries.AddDefaulted_GetRef();
+			Entry.MaterialSlotName = SlotName;
+			Entry.MaterialIndex = Component->GetMaterialIndex(SlotName);
+			Entry.Material = Component->GetMaterial(Entry.MaterialIndex);
+			Entry.bHasNullMaterial = Entry.Material == nullptr;
+
+			if (Entry.Material != nullptr)
+			{
+				const UMaterial* Material = Entry.Material->GetMaterial_Concurrent();
+				check(Material != nullptr); // Should always be valid here
+
+				const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
+				Entry.bHasVertexInterpolator	= CachedMaterialData.bHasVertexInterpolator;
+				Entry.bHasPerInstanceRandomID	= CachedMaterialData.bHasPerInstanceRandom;
+				Entry.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
+				Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
+				Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
+				Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(Material->GetBlendMode());
+				Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
+			}
+
+			Entry.bHasAnyError =
+				Entry.bHasNullMaterial |
+				Entry.bHasWorldPositionOffset |
+				Entry.bHasUnsupportedBlendMode |
+				Entry.bHasPixelDepthOffset |
+				Entry.bHasInvalidUsage;
+
+			if (GNaniteErrorOnVertexInterpolator != 0)
+			{
+				Entry.bHasAnyError |= Entry.bHasVertexInterpolator;
+			}
+
+			Audit.bHasAnyError |= Entry.bHasAnyError;
+		}
+	}
+
+	if (Audit.bHasAnyError)
+	{
+		// Only populate on error for performance/memory reasons
+		Audit.AssetName = Component->GetStaticMesh()->GetName();
+	}
+}
+
+void FixupMaterials(FMaterialAudit& Audit)
+{
+	if (!Audit.bHasAnyError)
+	{
+		return;
+	}
+
+	for (FMaterialAuditEntry& Entry : Audit.Entries)
+	{
+		if (!Entry.bHasAnyError)
+		{
+			continue;
+		}
+
+		if (Entry.bHasNullMaterial)
+		{
+			UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material [null] used on Nanite static mesh [%s] - forcing default material instead."), *Audit.AssetName);
+		}
+		else if (Entry.bHasInvalidUsage)
+		{
+			UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material usage for Nanite static mesh [%s] - forcing default material instead."), *Audit.AssetName);
+		}
+		else if (Entry.bHasUnsupportedBlendMode)
+		{
+			const FString BlendModeName = GetBlendModeString(Entry.Material->GetBlendMode());
+			UE_LOG
+			(
+				LogStaticMesh, Warning,
+				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
+				*Entry.Material->GetName(),
+				*Audit.AssetName,
+				*BlendModeName
+			);
+		}
+		else if (Entry.bHasVertexInterpolator)
+		{
+			UE_LOG
+			(
+				LogStaticMesh, Warning,
+				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Vertex interpolator nodes are not supported by Nanite."),
+				*Entry.Material->GetName(),
+				*Audit.AssetName
+			);
+		}
+
+		// Route all invalid materials to default material
+		Entry.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+	}
+}
+
+bool IsSupportedBlendMode(EBlendMode Mode)
+{
+	if (GNaniteErrorOnMaskedBlendMode != 0)
+	{
+		return Mode == EBlendMode::BLEND_Opaque;
+	}
+	else
+	{
+		return Mode == EBlendMode::BLEND_Opaque || EBlendMode::BLEND_Masked;
+	}
 }
 
 void FVertexFactoryResource::InitRHI()

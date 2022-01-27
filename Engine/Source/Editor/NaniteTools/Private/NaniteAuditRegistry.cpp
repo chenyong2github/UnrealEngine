@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteAuditRegistry.h"
+#include "NaniteSceneProxy.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/InstancedStaticMesh.h"
 //#include "Streaming/StreamingManagerTexture.h"
@@ -9,7 +10,7 @@ FNaniteAuditRegistry::FNaniteAuditRegistry()
 {
 }
 
-void FNaniteAuditRegistry::PerformAudit(uint32 TriangleThreshold)
+void FNaniteAuditRegistry::PerformAudit()
 {
 	//FRenderAssetStreamingManager* Streamer = nullptr;
 	/*
@@ -99,27 +100,22 @@ void FNaniteAuditRegistry::PerformAudit(uint32 TriangleThreshold)
 		{
 			for (UStaticMeshComponent* SMComponent : *MeshUsageList)
 			{
-				AuditRecord->StaticMeshComponents.Add(SMComponent);
+				FStaticMeshComponentRecord& SMRecord = AuditRecord->StaticMeshComponents.AddDefaulted_GetRef();
+				SMRecord.Component = SMComponent;
+				Nanite::AuditMaterials(SMComponent, SMRecord.MaterialAudit);
 			}
 		}
 
 		if (Mesh->NaniteSettings.bEnabled)
 		{
 			AuditRecord->TriangleCount = Mesh->GetNumNaniteTriangles();
-
-			// TODO: Check for errors preventing Nanite from functioning correctly
 			ErrorRecords.Emplace(AuditRecord);
 		}
 		else
 		{
 			// Grab the non-Nanite triangle count from LOD0
 			AuditRecord->TriangleCount = Mesh->GetNumTriangles(0);
-
-			// TODO: Check for possibility of enabling Nanite for this mesh
-			if (AuditRecord->TriangleCount >= TriangleThreshold)
-			{
-				OptimizeRecords.Emplace(AuditRecord);
-			}
+			OptimizeRecords.Emplace(AuditRecord);
 		}
 	}
 

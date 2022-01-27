@@ -1477,7 +1477,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		// Should always be opaque blend mode here.
 		check(MaterialInterface->GetBlendMode() == BLEND_Opaque);
 
-		MaterialSections[SectionIndex].Material = MaterialInterface;
+		MaterialSections[SectionIndex].ShadingMaterial = MaterialInterface;
 		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialID;
 	}
 

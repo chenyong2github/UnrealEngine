@@ -13,6 +13,48 @@ struct FPerInstanceRenderData;
 namespace Nanite
 {
 
+struct FMaterialAuditEntry
+{
+	UMaterialInterface* Material = nullptr;
+
+	FName MaterialSlotName;
+	int32 MaterialIndex = INDEX_NONE;
+
+	uint8 bHasAnyError				: 1;
+	uint8 bHasNullMaterial			: 1;
+	uint8 bHasWorldPositionOffset	: 1;
+	uint8 bHasUnsupportedBlendMode	: 1;
+	uint8 bHasPixelDepthOffset		: 1;
+	uint8 bHasVertexInterpolator	: 1;
+	uint8 bHasPerInstanceRandomID	: 1;
+	uint8 bHasPerInstanceCustomData	: 1;
+	uint8 bHasInvalidUsage			: 1;
+};
+
+struct FMaterialAudit
+{
+	FString AssetName;
+	TArray<FMaterialAuditEntry, TInlineAllocator<4>> Entries;
+	uint8 bHasAnyError : 1;
+
+	FORCEINLINE UMaterialInterface* GetMaterial(int32 MaterialIndex) const
+	{
+		for (const FMaterialAuditEntry& Entry : Entries)
+		{
+			if (Entry.MaterialIndex == MaterialIndex)
+			{
+				return Entry.Material;
+			}
+		}
+
+		return nullptr;
+	}
+};
+
+ENGINE_API void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit);
+ENGINE_API void FixupMaterials(FMaterialAudit& Audit);
+ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
+
 class FSceneProxyBase : public FPrimitiveSceneProxy
 {
 public:
@@ -26,17 +68,14 @@ public:
 
 	struct FMaterialSection
 	{
-		UMaterialInterface* Material = nullptr;
+		UMaterialInterface* RasterMaterial = nullptr;
+		UMaterialInterface* ShadingMaterial = nullptr;
+
 	#if WITH_EDITOR
 		HHitProxy* HitProxy = nullptr;
 	#endif
 		int32 MaterialIndex = INDEX_NONE;
-		uint8 bHasAnyError : 1;
-		uint8 bHasNullMaterial : 1;
-		uint8 bHasInvalidRelevance : 1;
-		uint8 bHasInvalidStaticLighting : 1;
-		uint8 bHasNonOpaqueBlendMode : 1;
-		uint8 bHasVertexInterpolator : 1;
+
 		uint8 bHasPerInstanceRandomID : 1;
 		uint8 bHasPerInstanceCustomData : 1;
 	};
@@ -51,16 +90,6 @@ public:
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
-
-	static bool IsNaniteRenderable(FMaterialRelevance MaterialRelevance)
-	{
-		return MaterialRelevance.bOpaque &&
-			!MaterialRelevance.bDecal &&
-			!MaterialRelevance.bMasked &&
-			!MaterialRelevance.bNormalTranslucency &&
-			!MaterialRelevance.bSeparateTranslucency &&
-			!MaterialRelevance.bPostMotionBlurTranslucency;
-	}
 
 	virtual bool CanBeOccluded() const override
 	{

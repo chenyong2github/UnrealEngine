@@ -32,7 +32,7 @@ public:
 
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
-	void Audit(uint32 TriangleThreshold);
+	void Audit();
 
 private:
 	FReply OnPerformAudit();

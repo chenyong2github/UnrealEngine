@@ -52,7 +52,10 @@ public:
 	void PreAudit();
 	void PostAudit(TSharedPtr<FNaniteAuditRegistry> AuditRegistry);
 
-	uint32 GetTriangleThreshold() const;
+	inline uint32 GetRowCount() const
+	{
+		return NaniteAuditRows.Num();
+	}
 
 private:
 	// FNotifyHook Interface
