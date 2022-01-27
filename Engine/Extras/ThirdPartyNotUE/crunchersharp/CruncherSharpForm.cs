@@ -26,13 +26,15 @@ namespace CruncherSharp
 
         private readonly List<string> _FunctionsToIgnore;
         private readonly Stack<SymbolInfo> _NavigationStack;
-        private readonly SymbolAnalyzer _SymbolAnalyzer;
+		private readonly Stack<SymbolInfo> _RedoNavigationStack;
+		private readonly SymbolAnalyzer _SymbolAnalyzer;
         private readonly DataTable _Table;
-        public bool _CloseRequested;
+        public bool _CloseRequested = false;
         private string _FileName;
-        public bool _HasInstancesCount;
-        public bool _HasSecondPDB;
-        private ulong _PrefetchStartOffset;
+        public bool _HasInstancesCount = false;
+        public bool _HasSecondPDB = false;
+		public bool _IgnoreSelectionChange = false;
+		private ulong _PrefetchStartOffset = 0;
         private SearchType _SearchCategory = SearchType.None;
 
         private SymbolInfo _SelectedSymbol;
@@ -45,10 +47,9 @@ namespace CruncherSharp
             _Table = CreateDataTable();
             _Table.CaseSensitive = checkBoxMatchCase.Checked;
             _NavigationStack = new Stack<SymbolInfo>();
-            _FunctionsToIgnore = new List<string>();
+			_RedoNavigationStack = new Stack<SymbolInfo>();
+			_FunctionsToIgnore = new List<string>();
             _SelectedSymbol = null;
-            _PrefetchStartOffset = 0;
-
             bindingSourceSymbols.DataSource = _Table;
             dataGridSymbols.DataSource = bindingSourceSymbols;
 
@@ -76,7 +77,16 @@ namespace CruncherSharp
             _SelectedSymbol = null;
             labelCurrentSymbol.Text = "";
             _SymbolAnalyzer.Reset();
-        }
+			UpdateBtnLoadText();
+		}
+
+		private void UpdateBtnLoadText()
+		{
+			if (textBoxFilter.Text.Length > 0)
+				btnLoad.Text = "Load filtered symbols";
+			else
+				btnLoad.Text = "Load all symbols";
+		}
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -295,6 +305,9 @@ namespace CruncherSharp
 
         private void dataGridSymbols_SelectionChanged(object sender, EventArgs e)
         {
+			if (_IgnoreSelectionChange)
+				return;
+
             _PrefetchStartOffset = 0;
             if (dataGridSymbols.SelectedRows.Count > 1)
                 ShowSelectionSummary();
@@ -308,8 +321,10 @@ namespace CruncherSharp
             if (TrySelectSymbol(sender.ToString()) == false)
             {
                 var symbolInfo = _SymbolAnalyzer.FindSymbolInfo(sender.ToString());
-                if (symbolInfo != null)
-                    ShowSymbolInfo(symbolInfo, true);
+				if (symbolInfo != null)
+				{
+					ShowSymbolInfo(symbolInfo);
+				}
             }
         }
 
@@ -355,56 +370,104 @@ namespace CruncherSharp
         {
             dataGridViewSymbolInfo.Rows.Clear();
             var info = FindSelectedSymbolInfo();
-            if (info != null) ShowSymbolInfo(info, false);
+            if (info != null)
+			{
+				ShowSymbolInfo(info);
+			}
         }
 
-        private bool TrySelectSymbol(string name)
+        private bool TrySelectSymbol(string name, bool ShowSelection = true)
         {
             foreach (DataGridViewRow dr in dataGridSymbols.Rows)
             {
                 var dc = dr.Cells[0]; // name
                 if (dc.Value.ToString() != name)
                     continue;
-                dataGridSymbols.CurrentCell = dc;
-                return true;
+				_IgnoreSelectionChange = !ShowSelection;
+				dataGridSymbols.CurrentCell = dc;
+				_IgnoreSelectionChange = false;
+				return true;
             }
 
             return false;
         }
 
-        private void ShowSymbolInfo(SymbolInfo info, bool addToStack)
+		private void ShowSymbolInfo(SymbolInfo info)
         {
-            labelCurrentSymbol.Text = info.Name;
+			if (_SelectedSymbol != info)
+			{
+				labelCurrentSymbol.Text = info.Name;
 
-            if (_SelectedSymbol != null && addToStack)
-                _NavigationStack.Push(_SelectedSymbol);
-            else if (!addToStack) _NavigationStack.Clear();
-            _SelectedSymbol = info;
+				if (_SelectedSymbol != null)
+				{
+					_NavigationStack.Push(_SelectedSymbol);
+				}
+				_RedoNavigationStack.Clear();
+
+				_SelectedSymbol = info;
+			}
 
             UpdateSymbolGrid();
         }
 
-        private void UpdateSymbolGrid()
+		private void ShowPreviousSymbolInfo()
+		{
+			if (_NavigationStack.Count == 0)
+				return;
+			if (_SelectedSymbol != null)
+			{
+				_RedoNavigationStack.Push(_SelectedSymbol);
+			}
+			_SelectedSymbol = _NavigationStack.Pop();
+			labelCurrentSymbol.Text = _SelectedSymbol.Name;
+			UpdateSymbolGrid();
+
+			TrySelectSymbol(labelCurrentSymbol.Text, false);
+		}
+
+		private void ShowNextSymbolInfo()
+		{
+			if (_RedoNavigationStack.Count == 0)
+				return;
+			if (_SelectedSymbol != null)
+			{
+				_NavigationStack.Push(_SelectedSymbol);
+			}
+			_SelectedSymbol = _RedoNavigationStack.Pop();
+			labelCurrentSymbol.Text = _SelectedSymbol.Name;
+			UpdateSymbolGrid();
+
+			TrySelectSymbol(labelCurrentSymbol.Text, false);
+		}
+
+		private void UpdateSymbolGrid()
         {
             dataGridViewSymbolInfo.Rows.Clear();
             dataGridViewFunctionsInfo.Rows.Clear();
 
             var prevCacheBoundaryOffset = _PrefetchStartOffset;
 
-            if (prevCacheBoundaryOffset > _SelectedSymbol.Size) prevCacheBoundaryOffset = _SelectedSymbol.Size;
+			if (_SelectedSymbol != null)
+			{
+				if (prevCacheBoundaryOffset > _SelectedSymbol.Size) 
+					prevCacheBoundaryOffset = _SelectedSymbol.Size;
 
-            ulong numCacheLines = 0;
-            var increment = 0;
+				ulong numCacheLines = 0;
+				var increment = 0;
 
-            AddSymbolToGrid(_SelectedSymbol, ref prevCacheBoundaryOffset, ref numCacheLines, 0, increment);
+				AddSymbolToGrid(_SelectedSymbol, ref prevCacheBoundaryOffset, ref numCacheLines, 0, increment);
+			}
         }
 
         private void RefreshSymbolGrid(int rowIndex)
         {
             var firstRow = dataGridViewSymbolInfo.FirstDisplayedScrollingRowIndex;
             UpdateSymbolGrid();
-            dataGridViewSymbolInfo.Rows[rowIndex].Selected = true;
-            dataGridViewSymbolInfo.FirstDisplayedScrollingRowIndex = firstRow;
+			if (rowIndex < dataGridViewSymbolInfo.Rows.Count)
+			{
+				dataGridViewSymbolInfo.Rows[rowIndex].Selected = true;
+				dataGridViewSymbolInfo.FirstDisplayedScrollingRowIndex = firstRow;
+			}
         }
 
         private void AddSymbolToGrid(SymbolInfo symbol, ref ulong prevCacheBoundaryOffset, ref ulong numCacheLines,
@@ -582,28 +645,41 @@ namespace CruncherSharp
                     e.CellStyle.BackColor = Color.LemonChiffon;
                 else if (info.IsBase)
                     e.CellStyle.BackColor = Color.LightGreen;
-
-                else if (info.BitField)
+				else if (info.BitField)
                 {
                     if (e.ColumnIndex == 3 ) // Offset column
                     {
                         e.CellStyle.BackColor = Color.FromArgb((int)((info.Offset * 37) % 256), 192, 192); // random color not too dark
                         row.Cells[e.ColumnIndex].ToolTipText = "Bitfield";
+
                     }
                 }
                 else if (info.AlignWithPrevious)
-                    if (e.ColumnIndex == 3) // Offset column
-                    {
-                        e.CellStyle.BackColor = Color.Salmon;
-                        row.Cells[e.ColumnIndex].ToolTipText = "Aligned with previous";
-                    }
+				{
+					if (e.ColumnIndex == 3) // Offset column
+					{
+						e.CellStyle.BackColor = Color.Salmon;
+						row.Cells[e.ColumnIndex].ToolTipText = "Aligned with previous";
+					}
+				}
+				else if (checkBoxCacheLines.Checked && checkBoxShowOverlap.Checked)
+				{
+					var cacheLineSize = GetCacheLineSize();
+					var cacheOffset = (info.Offset - _PrefetchStartOffset) % cacheLineSize;
+					if (cacheOffset + info.Size > cacheLineSize)
+					{
+						e.CellStyle.BackColor = Color.LightYellow;
+					}
+				}
 
-                if (info.Volatile)
-                    if (e.ColumnIndex == 0) // Name (Field) column
-                    {
-                        e.CellStyle.BackColor = Color.LightBlue;
-                        row.Cells[e.ColumnIndex].ToolTipText = "Volatile";
-                    }
+				if (info.Volatile)
+				{
+					if (e.ColumnIndex == 0) // Name (Field) column
+					{
+						e.CellStyle.BackColor = Color.LightBlue;
+						row.Cells[e.ColumnIndex].ToolTipText = "Volatile";
+					}
+				}
             }
             else if (nameCell.Value.ToString() == "Padding")
             {
@@ -632,7 +708,8 @@ namespace CruncherSharp
                 bindingSourceSymbols.Filter = GetFilterString();
                 textBoxFilter.BackColor = Color.Empty;
                 textBoxFilter.ForeColor = Color.Empty;
-            }
+				UpdateBtnLoadText();
+			}
             catch (EvaluateException)
             {
                 textBoxFilter.BackColor = Color.Red;
@@ -657,7 +734,8 @@ namespace CruncherSharp
 
         private void textBoxCache_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (e.KeyChar == (char) Keys.Enter || e.KeyChar == (char) Keys.Escape) ShowSelectedSymbolInfo();
+            if (e.KeyChar == (char) Keys.Enter || e.KeyChar == (char) Keys.Escape) 
+				ShowSelectedSymbolInfo();
             OnKeyPress(e);
         }
 
@@ -702,7 +780,15 @@ namespace CruncherSharp
                     contextMenuStripMembers.Show(dataGridViewSymbolInfo, new Point(e.X, e.Y));
                 }
             }
-        }
+			else if (e.Button == MouseButtons.XButton1)
+			{
+				ShowPreviousSymbolInfo();
+			}
+			else if (e.Button == MouseButtons.XButton2)
+			{
+				ShowNextSymbolInfo();
+			}
+		}
 
         private void dataGridViewSymbolInfo_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
@@ -721,6 +807,7 @@ namespace CruncherSharp
 
                 var jumpToSymbolInfo = _SymbolAnalyzer.FindSymbolInfo(typeName, true);
                 if (jumpToSymbolInfo != null)
+				{
                     if (e.ColumnIndex == 0)
                     {
                         if (currentSymbolInfo.IsExapandable)
@@ -731,8 +818,10 @@ namespace CruncherSharp
                     }
                     else
                     {
-                        ShowSymbolInfo(jumpToSymbolInfo, true);
-                    }
+                        ShowSymbolInfo(jumpToSymbolInfo);
+						TrySelectSymbol(typeName, false);
+					}				
+				}
             }
         }
 
@@ -757,13 +846,15 @@ namespace CruncherSharp
         private void dataGridViewSymbolInfo_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Back)
-                if (_NavigationStack.Count > 0)
-                {
-                    _SelectedSymbol = null;
-                    ShowSymbolInfo(_NavigationStack.Pop(), true);
-                }
+			{
+				ShowPreviousSymbolInfo();
+			}
+			if (e.KeyCode == Keys.Next)
+			{
+				ShowNextSymbolInfo();
+			}
 
-            OnKeyDown(e);
+			OnKeyDown(e);
         }
 
         private void backgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -774,9 +865,9 @@ namespace CruncherSharp
 
         private void backgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            btnLoad.Text = "Load";
+			UpdateBtnLoadText();
 
-            if (e.Cancelled)
+			if (e.Cancelled)
             {
                 if (_CloseRequested)
                 {
@@ -1090,7 +1181,15 @@ namespace CruncherSharp
                     contextMenuStripFunctions.Show(dataGridViewFunctionsInfo, new Point(e.X, e.Y));
                 }
             }
-        }
+			else if (e.Button == MouseButtons.XButton1)
+			{
+				ShowPreviousSymbolInfo();
+			}
+			else if (e.Button == MouseButtons.XButton2)
+			{
+				ShowNextSymbolInfo();
+			}
+		}
 
         private void dataGridSymbols_MouseClick(object sender, MouseEventArgs e)
         {
@@ -1119,13 +1218,21 @@ namespace CruncherSharp
                             toolStripMenuItemParentClasses.Enabled = false;
                         }
 
-                        ShowSymbolInfo(info, false);
+                        ShowSymbolInfo(info);
                     }
 
                     contextMenuStripClassInfo.Show(dataGridSymbols, new Point(e.X, e.Y));
                 }
             }
-        }
+			else if (e.Button == MouseButtons.XButton1)
+			{
+				ShowPreviousSymbolInfo();
+			}
+			else if (e.Button == MouseButtons.XButton2)
+			{
+				ShowNextSymbolInfo();
+			}
+		}
 
         private void findRemovedInlineToolStripMenuItem_Click(object sender, EventArgs e)
         {

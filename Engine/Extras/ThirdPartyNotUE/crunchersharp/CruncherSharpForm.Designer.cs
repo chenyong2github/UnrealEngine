@@ -71,6 +71,7 @@
             this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxCacheLines = new System.Windows.Forms.CheckBox();
+            this.checkBoxEnableProgressBar = new System.Windows.Forms.CheckBox();
             this.checkBoxRegularExpressions = new System.Windows.Forms.CheckBox();
             this.checkBoxMatchWholeExpression = new System.Windows.Forms.CheckBox();
             this.checkBoxMatchCase = new System.Windows.Forms.CheckBox();
@@ -106,7 +107,7 @@
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
-            this.checkBoxEnableProgressBar = new System.Windows.Forms.CheckBox();
+            this.checkBoxShowOverlap = new System.Windows.Forms.CheckBox();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -284,14 +285,14 @@
             this.checkedListBoxNamespaces.Location = new System.Drawing.Point(3, 16);
             this.checkedListBoxNamespaces.MultiColumn = true;
             this.checkedListBoxNamespaces.Name = "checkedListBoxNamespaces";
-            this.checkedListBoxNamespaces.Size = new System.Drawing.Size(1271, 85);
+            this.checkedListBoxNamespaces.Size = new System.Drawing.Size(1175, 85);
             this.checkedListBoxNamespaces.TabIndex = 10;
             this.checkedListBoxNamespaces.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.checkedListBoxNamespaces_ItemCheck);
             // 
             // chkShowTemplates
             // 
             this.chkShowTemplates.AutoSize = true;
-            this.chkShowTemplates.Location = new System.Drawing.Point(403, 35);
+            this.chkShowTemplates.Location = new System.Drawing.Point(476, 35);
             this.chkShowTemplates.Name = "chkShowTemplates";
             this.chkShowTemplates.Size = new System.Drawing.Size(101, 17);
             this.chkShowTemplates.TabIndex = 6;
@@ -301,7 +302,7 @@
             // 
             // textBoxCache
             // 
-            this.textBoxCache.Location = new System.Drawing.Point(216, 58);
+            this.textBoxCache.Location = new System.Drawing.Point(186, 58);
             this.textBoxCache.Mask = "0000";
             this.textBoxCache.Name = "textBoxCache";
             this.textBoxCache.PromptChar = ' ';
@@ -314,7 +315,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(153, 62);
+            this.label2.Location = new System.Drawing.Point(127, 62);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(57, 13);
             this.label2.TabIndex = 3;
@@ -356,7 +357,6 @@
             // 
             // toolStripProgressBar
             // 
-            this.toolStripProgressBar.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.toolStripProgressBar.Name = "toolStripProgressBar";
             this.toolStripProgressBar.Size = new System.Drawing.Size(800, 16);
             // 
@@ -415,9 +415,11 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.panel1.AutoSize = true;
+            this.panel1.Controls.Add(this.checkBoxShowOverlap);
             this.panel1.Controls.Add(this.checkBoxBitPadding);
             this.panel1.Controls.Add(this.checkBoxPadding);
             this.panel1.Controls.Add(this.checkBoxCacheLines);
+            this.panel1.Controls.Add(this.checkBoxEnableProgressBar);
             this.panel1.Controls.Add(this.checkBoxRegularExpressions);
             this.panel1.Controls.Add(this.checkBoxMatchWholeExpression);
             this.panel1.Controls.Add(this.checkBoxMatchCase);
@@ -438,7 +440,7 @@
             // checkBoxBitPadding
             // 
             this.checkBoxBitPadding.AutoSize = true;
-            this.checkBoxBitPadding.Location = new System.Drawing.Point(140, 83);
+            this.checkBoxBitPadding.Location = new System.Drawing.Point(153, 83);
             this.checkBoxBitPadding.Name = "checkBoxBitPadding";
             this.checkBoxBitPadding.Size = new System.Drawing.Size(127, 17);
             this.checkBoxBitPadding.TabIndex = 14;
@@ -470,10 +472,23 @@
             this.checkBoxCacheLines.UseVisualStyleBackColor = true;
             this.checkBoxCacheLines.CheckedChanged += new System.EventHandler(this.checkBoxCacheLines_CheckedChanged);
             // 
+            // checkBoxEnableProgressBar
+            // 
+            this.checkBoxEnableProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxEnableProgressBar.AutoSize = true;
+            this.checkBoxEnableProgressBar.Checked = true;
+            this.checkBoxEnableProgressBar.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxEnableProgressBar.Location = new System.Drawing.Point(367, 83);
+            this.checkBoxEnableProgressBar.Name = "checkBoxEnableProgressBar";
+            this.checkBoxEnableProgressBar.Size = new System.Drawing.Size(120, 17);
+            this.checkBoxEnableProgressBar.TabIndex = 15;
+            this.checkBoxEnableProgressBar.Text = "Enable progress bar";
+            this.checkBoxEnableProgressBar.UseVisualStyleBackColor = true;
+            // 
             // checkBoxRegularExpressions
             // 
             this.checkBoxRegularExpressions.AutoSize = true;
-            this.checkBoxRegularExpressions.Location = new System.Drawing.Point(259, 35);
+            this.checkBoxRegularExpressions.Location = new System.Drawing.Point(303, 35);
             this.checkBoxRegularExpressions.Name = "checkBoxRegularExpressions";
             this.checkBoxRegularExpressions.Size = new System.Drawing.Size(138, 17);
             this.checkBoxRegularExpressions.TabIndex = 5;
@@ -486,7 +501,7 @@
             this.checkBoxMatchWholeExpression.AutoSize = true;
             this.checkBoxMatchWholeExpression.Checked = true;
             this.checkBoxMatchWholeExpression.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxMatchWholeExpression.Location = new System.Drawing.Point(106, 35);
+            this.checkBoxMatchWholeExpression.Location = new System.Drawing.Point(128, 35);
             this.checkBoxMatchWholeExpression.Name = "checkBoxMatchWholeExpression";
             this.checkBoxMatchWholeExpression.Size = new System.Drawing.Size(140, 17);
             this.checkBoxMatchWholeExpression.TabIndex = 4;
@@ -513,9 +528,9 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox1.Controls.Add(this.checkedListBoxNamespaces);
-            this.groupBox1.Location = new System.Drawing.Point(510, 0);
+            this.groupBox1.Location = new System.Drawing.Point(606, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(1277, 104);
+            this.groupBox1.Size = new System.Drawing.Size(1181, 104);
             this.groupBox1.TabIndex = 12;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Namespaces";
@@ -525,16 +540,16 @@
             this.btnLoad.Enabled = false;
             this.btnLoad.Location = new System.Drawing.Point(376, 5);
             this.btnLoad.Name = "btnLoad";
-            this.btnLoad.Size = new System.Drawing.Size(57, 21);
+            this.btnLoad.Size = new System.Drawing.Size(144, 21);
             this.btnLoad.TabIndex = 1;
-            this.btnLoad.Text = "Load";
+            this.btnLoad.Text = "No PDB selected";
             this.btnLoad.UseVisualStyleBackColor = true;
             this.btnLoad.Click += new System.EventHandler(this.btnLoad_Click);
             // 
             // btnReset
             // 
             this.btnReset.Enabled = false;
-            this.btnReset.Location = new System.Drawing.Point(439, 5);
+            this.btnReset.Location = new System.Drawing.Point(526, 5);
             this.btnReset.Name = "btnReset";
             this.btnReset.Size = new System.Drawing.Size(57, 21);
             this.btnReset.TabIndex = 2;
@@ -547,11 +562,11 @@
             this.chkSmartCacheLines.AutoSize = true;
             this.chkSmartCacheLines.Checked = true;
             this.chkSmartCacheLines.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkSmartCacheLines.Location = new System.Drawing.Point(293, 61);
+            this.chkSmartCacheLines.Location = new System.Drawing.Point(245, 61);
             this.chkSmartCacheLines.Name = "chkSmartCacheLines";
-            this.chkSmartCacheLines.Size = new System.Drawing.Size(211, 17);
+            this.chkSmartCacheLines.Size = new System.Drawing.Size(174, 17);
             this.chkSmartCacheLines.TabIndex = 9;
-            this.chkSmartCacheLines.Text = "Smart view for consecutive cache lines";
+            this.chkSmartCacheLines.Text = "Merge consecutive cache lines";
             this.chkSmartCacheLines.UseVisualStyleBackColor = true;
             this.chkSmartCacheLines.CheckedChanged += new System.EventHandler(this.chkSmartCacheLines_CheckedChanged);
             // 
@@ -864,25 +879,23 @@
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
             // 
-            // checkBoxEnableProgressBar
+            // checkBoxShowOverlap
             // 
-            this.checkBoxEnableProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.checkBoxEnableProgressBar.AutoSize = true;
-            this.checkBoxEnableProgressBar.Checked = true;
-            this.checkBoxEnableProgressBar.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxEnableProgressBar.Location = new System.Drawing.Point(880, 738);
-            this.checkBoxEnableProgressBar.Name = "checkBoxEnableProgressBar";
-            this.checkBoxEnableProgressBar.Size = new System.Drawing.Size(120, 17);
-            this.checkBoxEnableProgressBar.TabIndex = 15;
-            this.checkBoxEnableProgressBar.Text = "Enable progress bar";
-            this.checkBoxEnableProgressBar.UseVisualStyleBackColor = true;
+            this.checkBoxShowOverlap.AutoSize = true;
+            this.checkBoxShowOverlap.Checked = true;
+            this.checkBoxShowOverlap.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxShowOverlap.Location = new System.Drawing.Point(435, 62);
+            this.checkBoxShowOverlap.Name = "checkBoxShowOverlap";
+            this.checkBoxShowOverlap.Size = new System.Drawing.Size(148, 17);
+            this.checkBoxShowOverlap.TabIndex = 16;
+            this.checkBoxShowOverlap.Text = "Show cache lines overlap";
+            this.checkBoxShowOverlap.UseVisualStyleBackColor = true;
             // 
             // CruncherSharpForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1794, 757);
-            this.Controls.Add(this.checkBoxEnableProgressBar);
             this.Controls.Add(this.tableLayoutPanel1);
             this.Controls.Add(this.statusStripBar);
             this.Controls.Add(this.mainMenu);
@@ -999,6 +1012,7 @@
         private System.Windows.Forms.CheckBox checkBoxPadding;
         private System.Windows.Forms.CheckBox checkBoxBitPadding;
 		private System.Windows.Forms.CheckBox checkBoxEnableProgressBar;
+		private System.Windows.Forms.CheckBox checkBoxShowOverlap;
 	}
 }
 
