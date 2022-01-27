@@ -353,6 +353,8 @@ private:
 	/** All database poses */
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
 
+	TWeakObjectPtr<const UPoseSearchDatabase> RowsSourceDatabase = nullptr;
+
 	/** Database listing for filtered poses */
 	FTable FilteredDatabaseView;
 
@@ -522,6 +524,9 @@ public:
 	int32 GetNodesNum() const;
 	const FTransform* GetRootTransform() const;
 
+	/** Checks if Update must be called */
+	bool NeedsUpdate() const;
+
 	/** Update motion matching states for frame */
 	void OnUpdate();
 	
@@ -576,6 +581,8 @@ private:
 	
 	/** Currently active motion matching state based on node selection in the view */
 	const FTraceMotionMatchingStateMessage* ActiveMotionMatchingState = nullptr;
+
+	TWeakObjectPtr<const UPoseSearchDatabase> CurrentDatabase = nullptr;
 
 	/** Current Skeletal Mesh Component Id for the AnimInstance */
 	uint64 SkeletalMeshComponentId = 0;

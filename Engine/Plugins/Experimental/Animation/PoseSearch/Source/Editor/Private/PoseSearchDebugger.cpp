@@ -687,7 +687,9 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 {
 	const int32 NumPoses = Database.SearchIndex.NumPoses;
-	UnfilteredDatabaseRows.Reserve(NumPoses);
+	UnfilteredDatabaseRows.Reset(NumPoses);
+
+	RowsSourceDatabase = &Database;
 
 	// Build database rows
 	for(const FPoseSearchIndexAsset& SearchIndexAsset : Database.SearchIndex.Assets)
@@ -707,14 +709,16 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 		}
 	}
 
+	ActiveView.Rows.Reset();
 	ActiveView.Rows.Add(MakeShared<FDebuggerDatabaseRowData>());
 }
 
 void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database)
 {
-	if (UnfilteredDatabaseRows.IsEmpty())
+	const bool bNewDatabase = RowsSourceDatabase != &Database;
+
+	if (bNewDatabase || UnfilteredDatabaseRows.IsEmpty())
 	{
-		check(ActiveView.Rows.IsEmpty());
 		CreateRows(Database);
 	}
 	check(ActiveView.Rows.Num() == 1);
@@ -747,6 +751,11 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 
 	SortDatabaseRows();
 	FilterDatabaseRows();
+
+	if (bNewDatabase)
+	{
+		FilteredDatabaseView.ListView->ClearSelection();
+	}
 }
 
 TSharedRef<ITableRow> SDebuggerDatabaseView::HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const
@@ -1176,7 +1185,7 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 
 	TSharedPtr<FDebuggerViewModel> Model = ViewModel.Get();
 
-	bool bNeedUpdate = false;
+	bool bNeedUpdate = Model->NeedsUpdate();
 
 	// We haven't reached the update point yet
 	if (CurrentConsecutiveFrames < ConsecutiveFramesUpdateThreshold)
@@ -1782,6 +1791,13 @@ const FTransform* FDebuggerViewModel::GetRootTransform() const
 	return RootTransform;
 }
 
+bool FDebuggerViewModel::NeedsUpdate() const
+{
+	const UPoseSearchDatabase* NewDatabase = GetPoseSearchDatabase();
+	const bool bDatabaseChanged = NewDatabase != CurrentDatabase;
+	return bDatabaseChanged;
+}
+
 void FDebuggerViewModel::OnUpdate()
 {
 	if (!bSkeletonsInitialized)
@@ -1827,6 +1843,13 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 	if (ActiveMotionMatchingState)
 	{
 		Skeletons[ActivePose].SequenceIdx = ActiveMotionMatchingState->DbPoseIdx;
+	}
+
+	const UPoseSearchDatabase* NewDatabase = GetPoseSearchDatabase();
+	if (NewDatabase != CurrentDatabase)
+	{
+		ClearSelectedSkeleton();
+		CurrentDatabase = NewDatabase;
 	}
 }
 
