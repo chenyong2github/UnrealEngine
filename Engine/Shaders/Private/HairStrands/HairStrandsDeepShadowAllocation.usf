@@ -137,11 +137,7 @@ void CreateViewInfo(uint2 DispatchThreadId : SV_DispatchThreadID)
 	FHairAABB TranslatedBound = InitHairAABB();
 	if (MacroGroupId < MacroGroupCount)
 	{
-		const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation);
-
 		TranslatedBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
-		TranslatedBound.Min += TranslatedWorldOffset; // HAIR_LWC
-		TranslatedBound.Max += TranslatedWorldOffset; // HAIR_LWC
 	}
 
 	FDeepShadowViewInfo ViewInfo;
