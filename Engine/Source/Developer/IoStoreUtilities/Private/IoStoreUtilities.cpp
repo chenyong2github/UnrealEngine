@@ -5150,10 +5150,7 @@ static bool ParseOrderFileArguments(FIoStoreArguments& Arguments)
 		}
 		if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), LegacyParam, false))
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("-GameOrder= and -CookerOrder= are deprecated in favor of -Order"));
-			TArray<FString> LegacyPaths;
-			LegacyParam.ParseIntoArray(LegacyPaths, TEXT(","), true);
-			OrderFilePaths.Append(LegacyPaths);
+			UE_LOG(LogIoStore, Warning, TEXT("-CookerOrder is ignored by IoStore. -GameOrder= and -CookerOrder= are deprecated in favor of -Order."));
 		}
 
 		FString OrderPriorityString;
