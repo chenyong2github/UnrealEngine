@@ -16,6 +16,12 @@ float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 	return WorldPosition;
 }
 
+float3 GetTranslatedWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
+{
+	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	return mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+}
+
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
 #endif

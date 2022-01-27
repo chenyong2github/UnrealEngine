@@ -34,10 +34,8 @@ void MainVS(
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	// Move this to an actual vertex/index buffer
-	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
-
-	const float3 Min = NodeDesc.MinAABB + TranslatedWorldOffset;
-	const float3 Max = NodeDesc.MaxAABB + TranslatedWorldOffset;
+	const float3 Min = NodeDesc.TranslatedWorldMinAABB;
+	const float3 Max = NodeDesc.TranslatedWorldMaxAABB;
 
 	const float3 Center = (Min + Max) * 0.5f;
 	const float3 Extent = (Max - Min) * 0.5f;
@@ -121,9 +119,6 @@ void MainPS(
 	const float2 PixelCoord = InPosition.xy;
 	const float2 UV = PixelCoord / float2(OutputResolution); // todo view rect offset
 
-	float  WorldDepth = 0;
-	float  ClipDepth = 0;
-
 	const float DistanceThreshold = 1000;
 	const bool bDebugEnabled = false;
 	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
@@ -138,9 +133,8 @@ void MainPS(
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 
-	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
 	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution, TranslatedWorldOffset); // HAIR_LWC
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 	TraversalSettings.DensityScale = VirtualVoxel.DensityScale;

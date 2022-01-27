@@ -45,9 +45,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		{
 			const uint3 VoxelCoordBase = PageIndexCoord.xyz * VirtualVoxelParams_PageResolution;
 			const uint3 VoxelCoord = VoxelCoordBase + VoxelCoordOffset;
-			const float3 WorldPosition = VoxelCoord / float3(NodeDesc.VirtualResolution) * (NodeDesc.MaxAABB - NodeDesc.MinAABB) + NodeDesc.MinAABB;
+			const float3 TranslatedWorldPosition = VoxelCoord / float3(NodeDesc.VirtualResolution) * (NodeDesc.TranslatedWorldMaxAABB - NodeDesc.TranslatedWorldMinAABB) + NodeDesc.TranslatedWorldMinAABB;
 
-			float4 ClipPos = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+			float4 ClipPos = mul(float4(TranslatedWorldPosition, 1), PrimaryView.TranslatedWorldToClip);
 			ClipPos /= ClipPos.w;
 			const float DepthBias = VoxelBiasCount * VirtualVoxelParams_VoxelWorldSize;
 			const float VoxelDepth = ConvertFromDeviceZ(ClipPos.z) - DepthBias;
@@ -60,12 +60,12 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				return;
 
 			const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord, 0)).x);
-			const float3 SceneWorldPos = ReconstructWorldPositionFromDepth(SceneUV, ClosestDepth);
-
+			const float3 SceneTranslatedWorldPos = ReconstructTranslatedWorldPositionFromDepth(SceneUV, ClosestDepth);
+			
 			const bool bIsInVolume =
-				SceneWorldPos.x >= NodeDesc.MinAABB.x && SceneWorldPos.x < NodeDesc.MaxAABB.x &&
-				SceneWorldPos.y >= NodeDesc.MinAABB.y && SceneWorldPos.y < NodeDesc.MaxAABB.y &&
-				SceneWorldPos.z >= NodeDesc.MinAABB.z && SceneWorldPos.z < NodeDesc.MaxAABB.z;
+				SceneTranslatedWorldPos.x >= NodeDesc.TranslatedWorldMinAABB.x && SceneTranslatedWorldPos.x < NodeDesc.TranslatedWorldMaxAABB.x&&
+				SceneTranslatedWorldPos.y >= NodeDesc.TranslatedWorldMinAABB.y && SceneTranslatedWorldPos.y < NodeDesc.TranslatedWorldMaxAABB.y&&
+				SceneTranslatedWorldPos.z >= NodeDesc.TranslatedWorldMinAABB.z && SceneTranslatedWorldPos.z < NodeDesc.TranslatedWorldMaxAABB.z;
 
 			if (!bIsInVolume)
 				return;

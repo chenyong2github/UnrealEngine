@@ -20,7 +20,7 @@ float			HairStrandsVF_TipScale;
 float			HairStrandsVF_Density;
 float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_VertexCount;
-float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
+float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 
@@ -127,10 +127,10 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 		HairStrandsVF_TipScale);
 
 	const float DiameterToRadius = 0.5f;
-	const float3 WP0 = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	const float3 TranslatedWP0 = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform).xyz;
 	const float HairCoverage0 = CP0.WorldRadius / max(CP0.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
 
-	const float3 WP1 = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	const float3 TranslatedWP1 = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform).xyz;
 	const float HairCoverage1 = CP1.WorldRadius / max(CP1.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
 
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
@@ -147,7 +147,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	// Count the number of fibers which are within a cylinder defined by the voxel size, 
 	// and the distance between the origin and the extent of the volume
 	// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-	const float3 LineSegment = WP1 - WP0;
+	const float3 LineSegment = TranslatedWP1 - TranslatedWP0;
 	const float LineLength = length(LineSegment);
 	const float3 StepD = normalize(LineSegment) * CommonDesc.VoxelWorldSize;
 
@@ -174,8 +174,8 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 		const float U = (StepIt + 0.5f) / float(MaxStep);
 		const float Radius = lerp(CP0.WorldRadius, CP1.WorldRadius, U);
 
-		const float3 HitP = WP0 + StepIt * StepD + Jitter * Radius;
-		const int3 VolumeCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
+		const float3 HitP = TranslatedWP0 + StepIt * StepD + Jitter * Radius;
+		const int3 VolumeCoord = PositionToCoord(HitP, NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, NodeDesc.VirtualResolution);
 		const int3 PageIndexCoord = VolumeCoord / CommonDesc.PageResolution;
 
 		// Update page index only when needed

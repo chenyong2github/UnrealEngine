@@ -28,6 +28,14 @@ float3 ReconstructTranslatedWorldPositionFromDeviceZ(uint2 PixelCoord, float Dev
 	return TranslatedWorldPosition.xyz;
 }
  
+float3 ReconstructTranslatedWorldPositionFromDepth(float2 UV, float SceneDepth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld);
+	float3 TranslatedWorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+	return TranslatedWorldPosition;
+}
+
 float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
 {
 	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;

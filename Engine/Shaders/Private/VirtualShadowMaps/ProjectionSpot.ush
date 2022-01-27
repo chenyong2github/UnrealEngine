@@ -428,8 +428,6 @@ bool GenerateRayLocalLight(
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
-	const float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-
 	half3 ConeAxis;
 	half ConeSin;
 	half DistToLight;	
@@ -460,8 +458,8 @@ bool GenerateRayLocalLight(
 		// Clip ray to max angle to limit penumbra sizes
 		float ClampedLength = DistToLight * 0.75 * saturate(1.5 / (CosTheta + CotMaxRayAngleFromLight * SinTheta));
 
-		OutRayStart = WorldPosition;
-		OutRayEnd = WorldPosition + Dir * ClampedLength;
+		OutRayStart = TranslatedWorldPosition;
+		OutRayEnd = TranslatedWorldPosition + Dir * ClampedLength;
 	}
 	return !bBackface;
 }

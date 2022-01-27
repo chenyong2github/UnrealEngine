@@ -303,7 +303,6 @@ bool GenerateRayDirectional(
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
-	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 
@@ -319,7 +318,7 @@ bool GenerateRayDirectional(
 	float2 E = RandomSequence_GenerateSample2D(RandSequence);
 
 	float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
-	OutRayStart = WorldPosition;
+	OutRayStart = TranslatedWorldPosition;
 	OutRayEnd = OutRayStart + RayDir * RayLength;
 	return true;
 }

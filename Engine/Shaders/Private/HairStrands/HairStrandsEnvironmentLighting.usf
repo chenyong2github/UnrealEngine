@@ -63,13 +63,14 @@ float GetPreExposure()
 	return View.PreExposure;
 }
 
-float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition, float PixelSceneDepth, float3 AbsoluteWorldPosition)
+float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition, float PixelSceneDepth, float3 TranslatedWorldPosition)
 {
 #if PERMUTATION_LUMEN
 	// Lumen probe
 	float3 Random = 0;
 	float ConeHalfAngle = 0;
-	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(AbsoluteWorldPosition, RayDirection, .5f);
+	const float3 AbsoluteWorldPosition = TranslatedWorldPosition + LWCHackToFloat(PrimaryView.WorldCameraOrigin); // HAIR_LWC
+	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(AbsoluteWorldPosition, RayDirection, .5f); // HAIR_LWC
 
 	if (Coverage.bValid)
 	{
@@ -89,9 +90,9 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 	const uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
 
 	const bool bCompositeSkylight = true;
-	return CompositeReflectionCapturesAndSkylight(
+	return CompositeReflectionCapturesAndSkylightTWS(
 		1.0f,
-		AbsoluteWorldPosition,
+		TranslatedWorldPosition,
 		RayDirection,
 		Roughness,
 		IndirectIrradiance,
@@ -165,8 +166,8 @@ float Voxel_TanConeAngle;
 
 FHairTraversalResult InternalComputeHairCountVoxel(
 	uint MacroGroupId,
-	float3 WorldPosition, 
-	float3 LightPosition, 
+	float3 TranslatedWorldPosition, 
+	float3 TranslatedLightPosition, 
 	float ExtraDensityScale, 
 	float CountThreshold, 
 	float DistanceThreshold,
@@ -193,8 +194,8 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 	TraversalSettings.bUseOccupancy = false;
 
 	return ComputeHairCountVirtualVoxel(
-		WorldPosition,
-		LightPosition,
+		TranslatedWorldPosition,
+		TranslatedLightPosition,
 		CommonDesc,
 		NodeDesc,
 		VirtualVoxel.PageIndexBuffer,
@@ -221,11 +222,11 @@ float MaxComponent3(float3 In)
 float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId, uint MacroGroupId)
 {
 	const float PreExposure = GetPreExposure();
-	const float3 WorldPosition	= mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraToPixel	= normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
-	const uint2  PixelPosition	= SvPosition - ResolvedView.ViewRectMin.xy;
-	const float  PixelSceneDepth= GBuffer.Depth;
-	const float  PixelRadius	= VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
+	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 CameraToPixel = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
+	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
+	const float  PixelSceneDepth = GBuffer.Depth;
+	const float  PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
 
 	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
 	const float3 VoxelOffset =  GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8, VirtualVoxel.JitterMode);
@@ -278,12 +279,12 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 
 			const float3 SampleL = UniformSampleSphere(frac(Random4.xy)).xyz;
 			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
-			const float3 SampleWorldPosition = WorldPosition + SampleBias;
-			const float3 SampleLightPosition = SampleWorldPosition + SampleL* MaxSearchDistance;
+			const float3 SampleTranslateWorldPosition = TranslatedWorldPosition + SampleBias;
+			const float3 SampleTranslateLightPosition = SampleTranslateWorldPosition + SampleL* MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslateWorldPosition, SampleTranslateLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 
 			const uint ScatteringComponent = (View.HairComponents & HAIR_COMPONENT_R) | (View.HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
 			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, InitHairTransmittanceMask(Result.HairCount, Result.Visibility), View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, ScatteringComponent);
@@ -307,7 +308,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (bDebugEnabled)
 		{
-			AddLine(WorldPosition, WorldPosition + UnoccludedN * 50, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
+			AddLine(TranslatedWorldPosition, TranslatedWorldPosition + UnoccludedN * 50, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
 		}
 		#endif
 
@@ -347,7 +348,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Select the TT term for representing the MS roughness lookup as TT lobe carries the most energy + fudge scale as the MS lobe should be wider than a TT lobe
 		const float FudgeScale = 2;
 		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness) * FudgeScale;
-		ColorMS.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, WorldPosition);
+		ColorMS.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, TranslatedWorldPosition);
 		//ColorMS.rgb += PreExposure * GetSkySHDiffuse(R) * View.SkyLightColor.rgb;
 		ColorMS.rgb *= AvgDualScattering;
 
@@ -393,7 +394,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Select the TRT for remapping the hair roughness onto the GGX based lobe, as it is the 
 		// widest lobe between the R & TRT components
 		const float GGXRoughness = HairToGGXRoughness_TRT(GBuffer.Roughness);
-		ColorR.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, WorldPosition);
+		ColorR.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, TranslatedWorldPosition);
 		//ColorR.rgb += PreExposure * GetSkySHDiffuse(R) * View.SkyLightColor.rgb * PI;
 
 		const float3 L = R;
@@ -405,11 +406,11 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		float Visibility = 1;
 		{
 			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
-			const float3 SampleWorldPosition = WorldPosition + SampleBias;
-			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
+			const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
+			const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 			Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(Result.HairCount, Result.Visibility), GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
 		}
@@ -453,7 +454,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		const float SinViewAngle = dot(V, T);
 
 		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness);
-		ColorTT.rgb += PreExposure * GatherRadiance(L, GGXRoughness, PixelPosition, PixelSceneDepth, WorldPosition);
+		ColorTT.rgb += PreExposure * GatherRadiance(L, GGXRoughness, PixelPosition, PixelSceneDepth, TranslatedWorldPosition);
 		//ColorTT.rgb += PreExposure * GetSkySHDiffuse(L) * View.SkyLightColor.rgb;
 
 		// Compute the transmittance
@@ -461,8 +462,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		float Visibility = 1;
 		{
 			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
-			const float3 SampleWorldPosition = WorldPosition + SampleBias;
-			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
+			const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
+			const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			// For TT, we don't want to abort the hair counting, as this is important to get the proper transmission
@@ -475,7 +476,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			}
 			else
 			{
-				Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
+				Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
 			}
 			Transmittance = GetHairTransmittanceOnly(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
@@ -537,8 +538,8 @@ float3 ReflectionEnvironmentUniformSampling(
 	bool bDebugEnabled)
 {
 	const float PreExposure = GetPreExposure();
-	const float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraToPixel = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 CameraToPixel = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth = GBuffer.Depth;
 	const float  PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
@@ -569,8 +570,8 @@ float3 ReflectionEnvironmentUniformSampling(
 		const float3 SampleL    = UniformSampleSphere(frac(Random4.xy)).xyz;
 		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 
-		const float3 SampleWorldPosition = WorldPosition + SampleBias;
-		const float3 SampleLightPosition = SampleWorldPosition + SampleL * MaxSearchDistance;
+		const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
+		const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + SampleL * MaxSearchDistance;
 
 		#if PERMUTATION_DEBUG
 		if (bDebugEnabled)
@@ -582,8 +583,8 @@ float3 ReflectionEnvironmentUniformSampling(
 		const float SinLightAngle = dot(SampleL, T);
 		const FHairTraversalResult Result = InternalComputeHairCountVoxel(
 			MacroGroupId,
-			SampleWorldPosition, 
-			SampleLightPosition, 
+			SampleTranslatedWorldPosition, 
+			SampleTranslatedLightPosition, 
 			1,
 			0, 
 			MaxSearchDistance, 
@@ -607,12 +608,12 @@ float3 ReflectionEnvironmentUniformSampling(
 			HairShading(GBuffer, SampleL, V, T, 1, TransmittanceData, Backlit, Area, uint2(0, 0)) * 
 			Result.Visibility * 
 			PreExposure * 
-			GatherRadiance(SampleL, RoughnessBias, PixelPosition, PixelSceneDepth, WorldPosition);
+			GatherRadiance(SampleL, RoughnessBias, PixelPosition, PixelSceneDepth, TranslatedWorldPosition);
 
 		#if PERMUTATION_DEBUG
 		if (bDebugEnabled)
 		{
-			AddLine(SampleWorldPosition, SampleLightPosition, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
+			AddLine(SampleTranslatedWorldPosition, SampleTranslatedLightPosition, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
 		}
 		#endif
 	}
@@ -658,8 +659,8 @@ Texture2D<float4> SceneColorTexture;
 
 float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
 {
-	const float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraToPixel = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 CameraToPixel = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
 
 	const float3 V = -CameraToPixel;

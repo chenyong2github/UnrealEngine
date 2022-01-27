@@ -447,8 +447,6 @@ void MainPS(
 	float Visibility = 1;
 	if (!bIsHairPixel)
 	{
-		const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
-
 		const float VoxelShadowMaxDistance  = 100000.0; // 1 km shadow distance
 		const bool bIsDirectional			= IsLightDirectional(Voxel_TranslatedLightPosition_LightDirection);
 		const float3 TranslatedLightPosition= GetTranslatedLightPosition(Voxel_TranslatedLightPosition_LightDirection, TranslatedWorldPosition);
@@ -475,7 +473,7 @@ void MainPS(
 		CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 
 		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId];
-		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution, TranslatedWorldOffset); // HAIR_LWC
+		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 		const bool bIsValid = all(NodeDesc.PageIndexResolution != 0);
 
 		#if VOXEL_TRAVERSAL_DEBUG

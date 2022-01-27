@@ -4,6 +4,7 @@
 #include "../MonteCarlo.ush"
 #include "../DeferredShadingCommon.ush"  
 #include "../SceneTextureParameters.ush"
+#include "../PositionReconstructionCommon.ush"
 #include "HairStrandsCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
@@ -27,7 +28,7 @@ float AO_DistanceThreshold;
 uint Output_bHalfRes;
 float2 Output_InvResolution;
 
-float TraceAO(float3 WorldPosition, float3 WorldNormal, float2 SvPosition, float PixelRadius)
+float TraceAO(float3 TranslatedWorldPosition, float3 WorldNormal, float2 SvPosition, float PixelRadius)
 {
 	const float3 VoxelOffset = VirtualVoxel.VoxelWorldSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
@@ -89,14 +90,14 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float2 SvPosition, float
 		const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 
 		// Depth bias
-		const float3 SampleWorldPosition = WorldPosition + SampleBias;
-		const float3 SampleLightPosition = SampleWorldPosition + SampleL * VoxelAOMaxDistance;
+		const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
+		const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + SampleL * VoxelAOMaxDistance;
 
 		// Compute the number of hair count between light & shading point
 
 		const FHairTraversalResult Result = ComputeHairCountVirtualVoxel(
-			SampleWorldPosition,
-			SampleLightPosition,
+			SampleTranslatedWorldPosition,
+			SampleTranslatedLightPosition,
 			CommonDesc,
 			NodeDesc,
 			VirtualVoxel.PageIndexBuffer,
@@ -116,15 +117,6 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float2 SvPosition, float
 	return saturate(AO);
 }
 
-float3 TotWorldPosition(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
 void MainPS(
 	in float4 SvPosition : SV_Position,
 	out float4 OutAO : SV_Target0
@@ -137,11 +129,9 @@ void MainPS(
 		BufferUV = SvPosition.xy * Output_InvResolution;
 	}
 
-	OutAO = 1;
-
 	const FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-	const float3 WorldPosition = TotWorldPosition(BufferUV, GBuffer.Depth);
-	const float3 WorldNormal = GBuffer.WorldNormal;
+
+	OutAO = 1;
 
 	// Trace AO for all pixel which are partially covered or not covered at all.
 	const uint2 PixelCoord = floor(SvPosition.xy);
@@ -161,8 +151,9 @@ void MainPS(
 
 	if (bIsValid)
 	{
+		const float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDepth(BufferUV, GBuffer.Depth);
 		const float PixelRadius = GBuffer.Depth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
-		OutAO = TraceAO(WorldPosition, WorldNormal, SvPosition.xy, PixelRadius);
+		OutAO = TraceAO(TranslatedWorldPosition, GBuffer.WorldNormal, SvPosition.xy, PixelRadius);
 	}
 	else
 	{

@@ -124,10 +124,10 @@ struct FHairStrandsVisibilityData
 
 struct FHairStrandsVoxelNodeDesc
 {
-	FVector3f WorldMinAABB = FVector3f::ZeroVector;
-	FVector3f WorldMaxAABB = FVector3f::ZeroVector;
+	FVector3f TranslatedWorldMinAABB = FVector3f::ZeroVector;
+	FVector3f TranslatedWorldMaxAABB = FVector3f::ZeroVector;
 	FIntVector PageIndexResolution = FIntVector::ZeroValue;
-	FMatrix WorldToClip;
+	FMatrix TranslatedWorldToClip;
 };
 
 struct FPackedVirtualVoxelNodeDesc
@@ -176,6 +176,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, )
 	SHADER_PARAMETER(float, HairCoveragePixelRadiusAtDepth1)
 	SHADER_PARAMETER(float, Raytracing_ShadowOcclusionThreshold)
 	SHADER_PARAMETER(float, Raytracing_SkyOcclusionThreshold)
+
+	SHADER_PARAMETER(FVector3f, TranslatedWorldOffset) // For debug purpose
+
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, PageIndexOccupancyBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexCoordBuffer)

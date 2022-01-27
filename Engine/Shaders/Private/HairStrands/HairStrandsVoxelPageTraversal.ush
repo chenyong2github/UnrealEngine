@@ -188,7 +188,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 	bool bIsPageValid = false;
 	uint3 PageCoord = 0;
 
-	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB);
 	if (HitT.x < HitT.y)
 	{
 		// Count the number of fibers which are within a cylinder defined by the voxel size, 
@@ -201,7 +201,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		if (InSettings.bDebugEnabled)
 		{
 			AddLine(true, O, E);
-			AddAABBVolume(true, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+			AddAABBVolume(true, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB);
 		}
 		#endif
 
@@ -224,7 +224,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 			AddStepAABB(InSettings.bDebugEnabled, PreviousP, HitP, float3(0, 1, 0));
 			#endif
 
-			const int3 VolumeCoord = PositionToCoord(HitP, InNodeDesc.MinAABB, InNodeDesc.MaxAABB, InNodeDesc.VirtualResolution);
+			const int3 VolumeCoord = PositionToCoord(HitP, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB, InNodeDesc.VirtualResolution);
 			const int3 PageIndexCoord = VolumeCoord / InCommonDesc.PageResolution;
 
 			// Update page index only when needed
@@ -288,8 +288,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 						const uint3 MinCoord = VoxelPageOffset >> uint(MipLevel);
 						const uint3 MaxCoord = MinCoord+1;
-						const float3 FetchMinAABB = InNodeDesc.MinAABB + WorldOffset + MinCoord * MipVoxelWorldSize;
-						const float3 FetchMaxAABB = InNodeDesc.MinAABB + WorldOffset + MaxCoord * MipVoxelWorldSize;
+						const float3 FetchMinAABB = InNodeDesc.TranslatedWorldMinAABB + WorldOffset + MinCoord * MipVoxelWorldSize;
+						const float3 FetchMaxAABB = InNodeDesc.TranslatedWorldMinAABB + WorldOffset + MaxCoord * MipVoxelWorldSize;
 						AddStepAABB(true, FetchMinAABB, FetchMaxAABB, StepResult.Visibility > 0.5f ? float3(0, 0.5f, 1) : float3(1, 0.5f, 0));
 					}
 					#endif
@@ -336,11 +336,11 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 	uint3 PageCoord = 0;
 
 	#if VOXEL_TRAVERSAL_DEBUG
-	AddMacroGroupAABB(InSettings.bDebugEnabled, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+	AddMacroGroupAABB(InSettings.bDebugEnabled, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB);
 	AddLine(InSettings.bDebugEnabled, TranslatedWorldPosition0, TranslatedWorldPosition1);
 	#endif
 
-	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.MinAABB, InNodeDesc.MaxAABB);
+	const float2 HitT = LineBoxIntersect(TranslatedWorldPosition0, TranslatedWorldPosition1, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB);
 	if (HitT.x < HitT.y)
 	{
 		// Count the number of fibers which are within a cylinder defined by the voxel size, 
@@ -372,7 +372,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 			const float Epsilon = 0.000001f;
 			const float3 Coords = clamp(
-				saturate((HitP - InNodeDesc.MinAABB) / (InNodeDesc.MaxAABB - InNodeDesc.MinAABB)) * InNodeDesc.PageIndexResolution,
+				saturate((HitP - InNodeDesc.TranslatedWorldMinAABB) / (InNodeDesc.TranslatedWorldMaxAABB - InNodeDesc.TranslatedWorldMinAABB)) * InNodeDesc.PageIndexResolution,
 				0,
 				InNodeDesc.PageIndexResolution - Epsilon);
 
@@ -406,8 +406,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 			const bool bIsPageValid = PageIndex != INVALID_VOXEL_PAGE_INDEX;
 			#if VOXEL_TRAVERSAL_DEBUG
 			{
-				const float3 PageMinAABB = PageIndexCoord * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.MinAABB;
-				const float3 PageMaxAABB = (PageIndexCoord+float3(1,1,1)) * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.MinAABB;
+				const float3 PageMinAABB = PageIndexCoord * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
+				const float3 PageMaxAABB = (PageIndexCoord+float3(1,1,1)) * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
 				AddPageAABB(InSettings.bDebugEnabled, PageMinAABB, PageMaxAABB, bIsPageValid);
 			}
 			#endif
@@ -435,7 +435,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 				for (uint InnerStepIt = 0; InnerStepIt < MaxInnerStep; InnerStepIt += IntPageStepping)
 				{
 					const float3 InnerHitP = InnerO + D * InnerStepIt;
-					const int3 VolumeCoord = PositionToCoordUnclampled(InnerHitP, InNodeDesc.MinAABB, InNodeDesc.MaxAABB, InNodeDesc.VirtualResolution);
+					const int3 VolumeCoord = PositionToCoordUnclampled(InnerHitP, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB, InNodeDesc.VirtualResolution);
 					const int3 VoxelPageOffset = VolumeCoord - PageIndexCoord * InCommonDesc.PageResolution;
 
 					#if VOXEL_TRAVERSAL_DEBUG
@@ -465,7 +465,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 					#if VOXEL_TRAVERSAL_DEBUG
 					{
 						const float VoxelExtent = InCommonDesc.VoxelWorldSize * (1 << MipLevel) * 0.5f;
-						const float3 P = (PageIndexCoord*InCommonDesc.PageResolution + VoxelPageOffset) * InCommonDesc.VoxelWorldSize + InNodeDesc.MinAABB;
+						const float3 P = (PageIndexCoord*InCommonDesc.PageResolution + VoxelPageOffset) * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
 						AddStepAABB(InSettings.bDebugEnabled, P - VoxelExtent, P + VoxelExtent, float3(0, 0.5f, 1));
 					}
 					#endif

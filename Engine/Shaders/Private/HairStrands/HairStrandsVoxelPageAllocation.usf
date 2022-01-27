@@ -16,8 +16,8 @@ uint				IndirectDispatchGroupSize;
 uint				bDoesMacroGroupSupportVoxelization;
 
 // For testing parity with CPU version
-float3				CPU_MinAABB;
-float3				CPU_MaxAABB;
+float3				CPU_TranslatedWorldMinAABB;
+float3				CPU_TranslatedWorldMaxAABB;
 int3				CPU_PageIndexResolution;
 uint				CPU_bUseCPUData;
 
@@ -104,7 +104,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 			OutPageIndexAllocationIndirectBufferArgs[ArgsOffset+2] = 1;
 
 			FVoxelizationViewInfo ViewInfo;
-			ViewInfo.WorldToClip = 0;
+			ViewInfo.TranslatedWorldToClip = 0;
 			ViewInfo.ViewForward = 0;
 			ViewInfo.RasterResolution = 0;
 			ViewInfo.Pad0 = 0;
@@ -122,8 +122,8 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// This code path is only for debug purpose and work only when there is a single instance group
 	if (CPU_bUseCPUData > 0)
 	{
-		Bound.Min = CPU_MinAABB;
-		Bound.Max = CPU_MaxAABB;
+		Bound.Min = CPU_TranslatedWorldMinAABB;
+		Bound.Max = CPU_TranslatedWorldMaxAABB;
 		PageIndexResolution = CPU_PageIndexResolution;
 		WriteHairAABB(MacroGroupId, Bound, MacroGroupAABBBuffer);
 	}
@@ -188,11 +188,11 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const float3 RasterAABBSize = Bound.Max - Bound.Min;
 		const float3 RasterAABBCenter = (Bound.Max + Bound.Min) * 0.5f;
 
-		const float4x4 ProjMatrix  = ReversedZOrthoMatrix(0.5f * RasterProjectionSize.x, 0.5f * RasterProjectionSize.y, 1.0f / RasterProjectionSize.z, 0);
-		const float4x4 ViewMatrix  = LookAtMatrix(RasterAABBCenter - RasterDirection * RasterProjectionSize.z * 0.5f, RasterAABBCenter, RasterUp);
+		const float4x4 ProjMatrix = ReversedZOrthoMatrix(0.5f * RasterProjectionSize.x, 0.5f * RasterProjectionSize.y, 1.0f / RasterProjectionSize.z, 0);
+		const float4x4 TranslatedViewMatrix = LookAtMatrix(RasterAABBCenter - RasterDirection * RasterProjectionSize.z * 0.5f, RasterAABBCenter, RasterUp);
 
 		FVoxelizationViewInfo ViewInfo;
-		ViewInfo.WorldToClip = mul(ViewMatrix, ProjMatrix);
+		ViewInfo.TranslatedWorldToClip = mul(TranslatedViewMatrix, ProjMatrix);
 		ViewInfo.ViewForward = RasterDirection;
 		ViewInfo.RasterResolution = RasterResolution;
 		ViewInfo.Pad0 = 0;
@@ -465,9 +465,9 @@ void MarkValid_ScatterCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_MARKVALID
 uint			MaxClusterCount;
 int3			CPU_PageIndexResolution;
-float3			CPU_MinAABB;
+float3			CPU_TranslatedWorldMinAABB;
 uint			CPU_PageIndexOffset;
-float3			CPU_MaxAABB;
+float3			CPU_TranslatedWorldMaxAABB;
 uint			MacroGroupId;
 
 Buffer<int>		ClusterAABBsBuffer;
@@ -505,12 +505,12 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_GPU_DRIVEN == 1
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
 
-	MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	MacroGroupBound			= ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
 	PageIndexResolution		= PageIndexResolutionAndOffset.xyz;
 	PageIndexOffset			= PageIndexResolutionAndOffset.w;
 #else
-	MacroGroupBound.Min		= CPU_MinAABB;
-	MacroGroupBound.Max		= CPU_MaxAABB;
+	MacroGroupBound.Min		= CPU_TranslatedWorldMinAABB;
+	MacroGroupBound.Max		= CPU_TranslatedWorldMaxAABB;
 	PageIndexResolution		= CPU_PageIndexResolution;
 	PageIndexOffset			= CPU_PageIndexOffset;
 #endif
@@ -625,9 +625,9 @@ void AllocateCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dis
 
 #if SHADER_ADDDESC
 
-float3 CPU_MinAABB;
+float3 CPU_TranslatedWorldMinAABB;
 uint MacroGroupId;
-float3 CPU_MaxAABB;
+float3 CPU_TranslatedWorldMaxAABB;
 uint CPU_PageIndexOffset;
 int3 CPU_PageIndexResolution;
 
@@ -642,15 +642,15 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 
 #if PERMUTATION_GPU_DRIVEN == 1
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	const FHairAABB Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	const FHairAABB TranslatedWorldBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
 
-	Node.MinAABB = Bound.Min;
-	Node.MaxAABB = Bound.Max;
+	Node.TranslatedWorldMinAABB = TranslatedWorldBound.Min;
+	Node.TranslatedWorldMaxAABB = TranslatedWorldBound.Max;
 	Node.PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	Node.PageIndexOffset = PageIndexResolutionAndOffset.w;
 #else
-	Node.MinAABB = CPU_MinAABB;
-	Node.MaxAABB = CPU_MaxAABB;
+	Node.TranslatedWorldMinAABB = CPU_TranslatedWorldMinAABB;
+	Node.TranslatedWorldMaxAABB = CPU_TranslatedWorldMaxAABB;
 	Node.PageIndexResolution = CPU_PageIndexResolution;
 	Node.PageIndexOffset = CPU_PageIndexOffset;
 #endif

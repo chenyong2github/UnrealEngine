@@ -65,7 +65,7 @@ void TraceHairScreen(
 void TraceHairVoxels(
 	const uint2 PixelCoord,
 	const float SceneDepth,
-	const float3 SamplePosition,
+	const float3 SampleTranslatedWorldPosition,
 	const float3 SampleDirection,
 	const float  TraceDistance,
 	const bool bIsReflectionTracing,
@@ -73,8 +73,8 @@ void TraceHairVoxels(
 {
 	const float MaxTraceDistance = min(TraceDistance, OutTraceResult.OpaqueHitDistance);
 	// Hair strands voxel to apply hair shadow on top of opaque geometry
-	float3 RayStart = SamplePosition;
-	float3 RayEnd = SamplePosition + SampleDirection * MaxTraceDistance;
+	float3 RayStart = SampleTranslatedWorldPosition;
+	float3 RayEnd = SampleTranslatedWorldPosition + SampleDirection * MaxTraceDistance;
 	float4 Random = GetHairVoxelJitter2(PixelCoord.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 	// Jitter start position to mask/compensate coarse voxel resolution

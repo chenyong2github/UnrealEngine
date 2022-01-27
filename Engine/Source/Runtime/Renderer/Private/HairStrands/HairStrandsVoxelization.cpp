@@ -225,8 +225,8 @@ class FVoxelAllocatePageIndexCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
 		SHADER_PARAMETER(uint32, bDoesMacroGroupSupportVoxelization)
 
-		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
-		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMaxAABB)
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
 		SHADER_PARAMETER(uint32, CPU_bUseCPUData)
 
@@ -328,9 +328,9 @@ class FVoxelMarkValidPageIndexCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
-		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMinAABB)
 		SHADER_PARAMETER(uint32, MaxClusterCount)
-		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMaxAABB)
 		SHADER_PARAMETER(uint32, CPU_PageIndexOffset)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBsBuffer)
@@ -388,9 +388,9 @@ class FVoxelAddNodeDescCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FGPUDriven>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMinAABB)
 		SHADER_PARAMETER(uint32, CPU_PageIndexOffset)
-		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
+		SHADER_PARAMETER(FVector3f, CPU_TranslatedWorldMaxAABB)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
@@ -518,8 +518,8 @@ static void AddAllocateVoxelPagesPass(
 
 	struct FCPUMacroGroupAllocation
 	{
-		FVector		MinAABB;
-		FVector		MaxAABB;
+		FVector		TranslatedMinAABB;
+		FVector		TranslatedMaxAABB;
 		FIntVector	PageIndexResolution;
 		uint32		PageIndexCount;
 		uint32		PageIndexOffset;
@@ -535,27 +535,27 @@ static void AddAllocateVoxelPagesPass(
 		// Scale the bounding box in place of proper GPU driven AABB for now
 		const float Scale = FMath::Clamp(GHairVoxelizationAABBScale, 0.01f, 10.0f);
 		const FVector BoxCenter = MacroGroup.Bounds.GetBox().GetCenter();
-		FVector MinAABB = (MacroGroup.Bounds.GetBox().Min - BoxCenter) * Scale + BoxCenter;
-		FVector MaxAABB = (MacroGroup.Bounds.GetBox().Max - BoxCenter) * Scale + BoxCenter;
+		FVector TranslatedMinAABB = (MacroGroup.Bounds.GetBox().Min - BoxCenter) * Scale + BoxCenter;
+		FVector TranslatedMaxAABB = (MacroGroup.Bounds.GetBox().Max - BoxCenter) * Scale + BoxCenter;
 
 		// Allocate enough pages to cover the AABB, where page (0,0,0) origin sit on MinAABB.
-		FVector MacroGroupSize = MaxAABB - MinAABB;
+		FVector MacroGroupSize = TranslatedMaxAABB - TranslatedMinAABB;
 		const FIntVector PageIndexResolution = CeilToInt(MacroGroupSize / PageWorldSize);
 		MacroGroupSize = FVector(PageIndexResolution) * PageWorldSize;
-		MaxAABB = MacroGroupSize + MinAABB;
+		TranslatedMaxAABB = MacroGroupSize + TranslatedMinAABB;
 
 		FCPUMacroGroupAllocation& Out = CPUAllocationDescs.AddDefaulted_GetRef();
 		Out.MacroGroupId = MacroGroup.MacroGroupId;
-		Out.MinAABB = MinAABB; // >> these should actually be computed on the GPU ... 
-		Out.MaxAABB = MaxAABB; // >> these should actually be computed on the GPU ... 
+		Out.TranslatedMinAABB = TranslatedMinAABB; // >> these should actually be computed on the GPU ... 
+		Out.TranslatedMaxAABB = TranslatedMaxAABB; // >> these should actually be computed on the GPU ... 
 		Out.PageIndexResolution = PageIndexResolution;
 		Out.PageIndexCount = Out.PageIndexResolution.X * Out.PageIndexResolution.Y * Out.PageIndexResolution.Z;
 		Out.PageIndexOffset = OutTotalPageIndexCount;
 
 		OutTotalPageIndexCount += Out.PageIndexCount;
 
-		MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB = Out.MinAABB;
-		MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB = Out.MaxAABB;
+		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB = Out.TranslatedMinAABB;
+		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB = Out.TranslatedMaxAABB;
 		MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution = Out.PageIndexResolution;
 	}
 
@@ -628,8 +628,8 @@ static void AddAllocateVoxelPagesPass(
 		Parameters->CPU_bUseCPUData = GHairVirtualVoxelGPUDriven == 2 ? 1 : 0;
 		if (Parameters->CPU_bUseCPUData)
 		{
-			Parameters->CPU_MinAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].MinAABB : FVector::ZeroVector;
-			Parameters->CPU_MaxAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].MaxAABB : FVector::ZeroVector;
+			Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].TranslatedMinAABB : FVector::ZeroVector;
+			Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].TranslatedMaxAABB : FVector::ZeroVector;
 			Parameters->CPU_PageIndexResolution = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].PageIndexResolution : FIntVector(0, 0, 0);
 		}
 
@@ -780,8 +780,8 @@ static void AddAllocateVoxelPagesPass(
 				Parameters->MaxClusterCount = HairGroupData->GetClusterCount();
 				Parameters->CPU_PageIndexResolution = CPUAllocationDesc.PageIndexResolution;
 				Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
-				Parameters->CPU_MinAABB = CPUAllocationDesc.MinAABB;
-				Parameters->CPU_MaxAABB = CPUAllocationDesc.MaxAABB;
+				Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDesc.TranslatedMinAABB;
+				Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDesc.TranslatedMaxAABB;
 				Parameters->ClusterAABBsBuffer = RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
 				Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
 
@@ -814,8 +814,8 @@ static void AddAllocateVoxelPagesPass(
 
 			FVoxelAddNodeDescCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelAddNodeDescCS::FParameters>();
 			Parameters->MacroGroupId = MacroGroup.MacroGroupId;
-			Parameters->CPU_MinAABB = CPUAllocationDesc.MinAABB;
-			Parameters->CPU_MaxAABB = CPUAllocationDesc.MaxAABB;
+			Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDesc.TranslatedMinAABB;
+			Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDesc.TranslatedMaxAABB;
 			Parameters->CPU_PageIndexResolution = CPUAllocationDesc.PageIndexResolution;
 			Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
 			Parameters->OutNodeDescBuffer = GraphBuilder.CreateUAV(NodeDescBuffer);
@@ -1031,8 +1031,8 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.IndirectDispatchGroupSize = 64;	
 	Out.Parameters.Common.Raytracing_ShadowOcclusionThreshold	= FMath::Max(0.f, GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold);
 	Out.Parameters.Common.Raytracing_SkyOcclusionThreshold		= FMath::Max(0.f, GHairVirtualVoxelRaytracing_SkyOcclusionThreshold);
-
 	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
+	Out.Parameters.Common.TranslatedWorldOffset		= FVector3f(View.ViewMatrices.GetPreViewTranslation());
 
 	FRDGBufferRef TotalRequestedPageAllocationBuffer;
 	AddAllocateVoxelPagesPass(
@@ -1128,6 +1128,7 @@ static FHairStrandsVoxelResources AllocateDummyVirtualVoxelResources(
 	Out.Parameters.Common.Raytracing_ShadowOcclusionThreshold	= 1;
 	Out.Parameters.Common.Raytracing_SkyOcclusionThreshold		= 1;
 
+	Out.Parameters.Common.TranslatedWorldOffset = FVector3f(View.ViewMatrices.GetPreViewTranslation());
 	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
 	Out.Parameters.Common.PageIndexCount = 0;
 	for (FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
@@ -1236,7 +1237,7 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(float,   HairStrandsVF_TipScale)
 		SHADER_PARAMETER(FVector3f, HairStrandsVF_PositionOffset)
 		SHADER_PARAMETER(uint32,  HairStrandsVF_VertexCount)
-		SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
+		SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
@@ -1279,6 +1280,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 
 		const uint32 FrameIdMode8 = ViewInfo && ViewInfo->ViewState ? (ViewInfo->ViewState->GetFrameIndex() % 8) : 0;
 		const uint32 GroupSize = GetVendorOptimalGroupSize1D();
+		const FVector& TranslatedWorldOffset = ViewInfo->ViewMatrices.GetPreViewTranslation();
 
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_Off;
 		FVoxelRasterComputeCS::FPermutationDomain PermutationVector_On;
@@ -1302,6 +1304,9 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
+				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
+				LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
+
 				FVoxelRasterComputeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelRasterComputeCS::FParameters>();
 				PassParameters->MaxRasterCount = FMath::Clamp(GHairStrandsVoxelComputeRasterMaxVoxelCount, 1, 256);
 				PassParameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
@@ -1319,7 +1324,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->HairStrandsVF_RootScale = VFInput.Strands.HairRootScale;
 				PassParameters->HairStrandsVF_TipScale = VFInput.Strands.HairTipScale;
 				PassParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
-				PassParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale();
+				PassParameters->HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = LocalToTranslatedWorldTransform.ToMatrixWithScale();
 				PassParameters->HairStrandsVF_bHasRaytracedGeometry = VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
 				const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
 				PassParameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
@@ -1396,13 +1401,13 @@ static void AddVirtualVoxelizationRasterPass(
 		}
 
 		FBox ProjRasterAABB;
-		ProjRasterAABB.Min.X = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB[ReorderIndex[0]];
-		ProjRasterAABB.Min.Y = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB[ReorderIndex[1]];
-		ProjRasterAABB.Min.Z = MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB[ReorderIndex[2]];
+		ProjRasterAABB.Min.X = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[0]];
+		ProjRasterAABB.Min.Y = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[1]];
+		ProjRasterAABB.Min.Z = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[2]];
 
-		ProjRasterAABB.Max.X = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB[ReorderIndex[0]];
-		ProjRasterAABB.Max.Y = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB[ReorderIndex[1]];
-		ProjRasterAABB.Max.Z = MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB[ReorderIndex[2]];
+		ProjRasterAABB.Max.X = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[0]];
+		ProjRasterAABB.Max.Y = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[1]];
+		ProjRasterAABB.Max.Z = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[2]];
 
 		RasterProjectionSize = ProjRasterAABB.GetSize();
 	}
@@ -1412,7 +1417,8 @@ static void AddVirtualVoxelizationRasterPass(
 		RasterResolution = GPUDrivenViewportResolution;
 	}
 
-	const FBox RasterAABB(MacroGroup.VirtualVoxelNodeDesc.WorldMinAABB, MacroGroup.VirtualVoxelNodeDesc.WorldMaxAABB);
+	// RasterAABB is in translated world space
+	const FBox RasterAABB(MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB, MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB);
 	const FVector RasterAABBSize = RasterAABB.GetSize();
 	const FVector RasterAABBCenter = RasterAABB.GetCenter();
 	const FIntRect ViewportRect = FIntRect(0, 0, RasterResolution.X, RasterResolution.Y);
@@ -1422,12 +1428,12 @@ static void AddVirtualVoxelizationRasterPass(
 	const FVector4f HairRenderInfo = PackHairRenderInfo(RadiusAtDepth1, RadiusAtDepth1, RadiusAtDepth1, 1);
 	const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, bIsGPUDriven);
 
-	FMatrix WorldToClip;
+	FMatrix TranslatedWorldToClip;
 	{
 		FReversedZOrthoMatrix OrthoMatrix(0.5f * RasterProjectionSize.X, 0.5f * RasterProjectionSize.Y, 1.0f / RasterProjectionSize.Z, 0);
 		FLookAtMatrix LookAt(RasterAABBCenter - RasterDirection * RasterProjectionSize.Z * 0.5f, RasterAABBCenter, RasterUp);
-		WorldToClip = LookAt * OrthoMatrix;
-		MacroGroup.VirtualVoxelNodeDesc.WorldToClip = WorldToClip;
+		TranslatedWorldToClip = LookAt * OrthoMatrix;
+		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldToClip = TranslatedWorldToClip;
 	}
 
 	AddVirtualVoxelizationComputeRasterPass(GraphBuilder, ViewInfo, VoxelResources, MacroGroup);

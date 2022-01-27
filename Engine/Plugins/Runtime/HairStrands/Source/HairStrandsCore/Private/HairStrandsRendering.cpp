@@ -886,7 +886,7 @@ class FHairClusterAABBCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, TotalClusterCount)
 		SHADER_PARAMETER(FVector3f, CPUBoundMin)
 		SHADER_PARAMETER(FVector3f, CPUBoundMax)
-		SHADER_PARAMETER(FMatrix44f, LocalToWorldMatrix)
+		SHADER_PARAMETER(FMatrix44f, LocalToTranslatedWorldMatrix)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenderDeformedPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenderDeformedOffsetBuffer)
@@ -922,6 +922,7 @@ enum class EHairAABBUpdateType
 static void AddHairClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	const FVector& TranslatedWorldOffset,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const EHairAABBUpdateType UpdateType,
 	FHairGroupInstance* Instance,
@@ -933,19 +934,20 @@ static void AddHairClusterAABBPass(
 {
 	// Clusters AABB are only update if the groom is deformed.
 	const FBoxSphereBounds& Bounds = Instance->Strands.Data->BoundingBox;
-	const FTransform& InRenLocalToWorld = Instance->LocalToWorld;
-	const FBoxSphereBounds TransformedBounds = Bounds.TransformBy(InRenLocalToWorld);
+	FTransform InRenLocalToTranslatedWorld = Instance->LocalToWorld;
+	InRenLocalToTranslatedWorld.AddToTranslation(TranslatedWorldOffset);
+	const FBoxSphereBounds TransformedBounds = Bounds.TransformBy(InRenLocalToTranslatedWorld);
 	Instance->HairGroupPublicData->bClusterAABBValid = UpdateType == EHairAABBUpdateType::UpdateClusterAABB;
 
 	// bNeedDeformation: 
-	// * If the instance has deformatin (simulation, global interpolation, skinning, then we update all clusters (for voxelization purpose) and the instance AABB
+	// * If the instance has deformation (simulation, global interpolation, skinning, then we update all clusters (for voxelization purpose) and the instance AABB
 	// * If the instance is static, we only update the instance AABB
 	const uint32 GroupSize = ComputeGroupSize();
 
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
 	Parameters->CPUBoundMin = TransformedBounds.GetBox().Min;
 	Parameters->CPUBoundMax = TransformedBounds.GetBox().Max;
-	Parameters->LocalToWorldMatrix = InRenLocalToWorld.ToMatrixWithScale();
+	Parameters->LocalToTranslatedWorldMatrix = InRenLocalToTranslatedWorld.ToMatrixWithScale();
 	Parameters->RenderDeformedPositionBuffer = RenderPositionBufferSRV;
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
@@ -1744,6 +1746,7 @@ void ComputeHairStrandsInterpolation(
 	FGlobalShaderMap* ShaderMap,
 	const uint32 ViewUniqueID,
 	const uint32 ViewRayTracingMask,
+	const FVector& TranslatedWorldOffset,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FHairGroupInstance* Instance,
@@ -1988,6 +1991,7 @@ void ComputeHairStrandsInterpolation(
 					AddHairClusterAABBPass(
 						GraphBuilder,
 						ShaderMap,
+						TranslatedWorldOffset,
 						ShaderDrawData,
 						UpdateType,
 						Instance,

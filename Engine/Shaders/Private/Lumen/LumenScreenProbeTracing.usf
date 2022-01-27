@@ -423,6 +423,7 @@ void TraceMeshSDFs(
 
 		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 SceneNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		bool bHit = false;
@@ -457,9 +458,9 @@ void TraceMeshSDFs(
 			// Trace against hair voxel structure, if enabled and not already done by other tracing method
 			#if USE_HAIRSTRANDS_VOXEL
 			{
-				// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
 				// the voxel structure does not cause any self shadowing issue
-				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, WorldPosition, WorldConeDirection, TraceInput.MaxTraceDistance, false, TraceResult);
+				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, TranslatedWorldPosition, WorldConeDirection, TraceInput.MaxTraceDistance, false, TraceResult);
 			}
 			#endif
 
@@ -537,6 +538,7 @@ void TraceVoxels(
 
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
 			float2 ProbeUV;
 			float ConeHalfAngle;
@@ -576,9 +578,9 @@ void TraceVoxels(
 			// Trace against hair voxel structure, if enabled and not already done by other tracing method
 			#if USE_HAIRSTRANDS_VOXEL
 			{
-				// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
 				// the voxel structure does not cause any self shadowing issue
-				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, WorldPosition, WorldConeDirection, TraceDistance, false, TraceResult);
+				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, TranslatedWorldPosition, WorldConeDirection, TraceDistance, false, TraceResult);
 			}
 			#endif
 

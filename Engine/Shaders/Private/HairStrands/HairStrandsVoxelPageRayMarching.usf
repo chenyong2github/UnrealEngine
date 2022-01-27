@@ -58,10 +58,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float2 PixelCoord = DispatchThreadId.xy + 0.5f;
 	const float2 UV = PixelCoord / float2(OutputResolution);
 
-
-	float  WorldDepth = 0;
-	float  ClipDepth = 0;
-
 	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 	const bool bIsNodeValid = all(NodeDesc.PageIndexResolution != 0);
@@ -80,7 +76,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			TotalAllocatedPageCount += LocalNodeDesc.PageIndexResolution.x * LocalNodeDesc.PageIndexResolution.y * LocalNodeDesc.PageIndexResolution.z;
 		}
 
-		AddAABB(NodeDesc.MinAABB, NodeDesc.MaxAABB, ColorOrange);
+		AddAABB(NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, ColorOrange);
 
 		// General information
 		// General
@@ -151,6 +147,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			const float PageOccupancy = TotalAllocatedValidPageCount / float(TotalPageCount);
 			Pos = ShaderPrintText(Pos, TEXT("Page Occupancy              "), FontOrange);
 			Pos = ShaderPrint(Pos, PageOccupancy * 100.f, GetOccupancyColor(PageOccupancy));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintText(Pos, TEXT("Translated world offset     "), FontOrange);
+			Pos = ShaderPrint(Pos, VirtualVoxel.TranslatedWorldOffset);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 		}
 
@@ -223,12 +223,12 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (bDrawPage > 0)
 	{
 		// Reverse-Z
-		const float3 O = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+		const float3 O = PrimaryView.TranslatedWorldCameraOrigin;
+		const float3 E = ReconstructTranslatedWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
 		const float3 D = (E - O);
 
 		float PixelRadius = -1;
-		const float2 HitT = LineBoxIntersect(O, E, NodeDesc.MinAABB, NodeDesc.MaxAABB);
+		const float2 HitT = LineBoxIntersect(O, E, NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB);
 		float AccDensity = 0;
 		if (HitT.x < HitT.y)
 		{
@@ -251,14 +251,14 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			for (uint StepIt=0; StepIt<MaxStep; ++StepIt)
 			{			
 				const float3 HitP = Offset + O + ((Dither+StepIt)*Delta + HitT.x) * D;
-				const int3 PageIndexCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.PageIndexResolution);
+				const int3 PageIndexCoord = PositionToCoord(HitP, NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, NodeDesc.PageIndexResolution);
 				const uint PageIndex = GetVoxelPageIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
 
 				bool bHasValidData = true;
 				if (bDrawPage == 2)
 				{
 					const uint2 PageIndexOccuancy = GetVoxelPageIndexOccupancy(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
-					const int3 VoxelCoord = PositionToCoord(HitP, NodeDesc.MinAABB, NodeDesc.MaxAABB, NodeDesc.VirtualResolution);
+					const int3 VoxelCoord = PositionToCoord(HitP, NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, NodeDesc.VirtualResolution);
 					const int3 VoxelBasePageCoord = PageIndexCoord * VirtualVoxel.PageResolution;
 					const int3 VoxelRelativeCoord = VoxelCoord - VoxelBasePageCoord;
 					bHasValidData = DoesVoxelContainData(PageIndexOccuancy, VoxelRelativeCoord);
@@ -284,9 +284,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const bool bDebugEnabled = false;
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
-		const float3 WP0 = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
-		const float3 WP1 = normalize(E - WP0) * DistanceThreshold + WP0;
+		const float3 TranslatedWP0 = PrimaryView.TranslatedWorldCameraOrigin;
+		const float3 E = ReconstructTranslatedWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+		const float3 TranslatedWP1 = normalize(E - TranslatedWP0) * DistanceThreshold + TranslatedWP0;
 
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
@@ -309,8 +309,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			TraversalSettings.ForcedMip			= ForcedMipLevel;
 
 			TraversalResult = ComputeHairCountVirtualVoxel(
-				WP0,
-				WP1,
+				TranslatedWP0,
+				TranslatedWP1,
 				CommonDesc,
 				NodeDesc,
 				VirtualVoxel.PageIndexBuffer,

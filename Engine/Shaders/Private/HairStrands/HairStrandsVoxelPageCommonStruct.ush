@@ -4,15 +4,15 @@
 
 struct FPackedVirtualVoxelNodeDesc  
 {
-	float3	MinAABB;
+	float3	TranslatedWorldMinAABB;
 	uint	PackedPageIndexResolution; // 8bits encoding   
-	float3	MaxAABB;
+	float3	TranslatedWorldMaxAABB;
 	uint	PageIndexOffset;
 }; 
 
 struct FVoxelizationViewInfo
 {
-	float4x4 WorldToClip;
+	float4x4 TranslatedWorldToClip;
 	float3   ViewForward;
 	float    Pad0;
 	uint2    RasterResolution;

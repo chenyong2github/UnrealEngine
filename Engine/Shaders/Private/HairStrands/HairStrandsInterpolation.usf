@@ -549,7 +549,7 @@ uint TotalClusterCount;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 
-float4x4 LocalToWorldMatrix;
+float4x4 LocalToTranslatedWorldMatrix;
 
 Buffer<uint4> RenderDeformedPositionBuffer;
 Buffer<uint> ClusterVertexIdBuffer;
@@ -615,7 +615,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 
 			if (all(IsFinite(CP.Position)))
 			{
-				const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToWorldMatrix).xyz);
+				const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToTranslatedWorldMatrix).xyz);
 				const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
 				const int3 WorldSpaceCentimetersMax = WorldSpaceCentimeters + 1;
 

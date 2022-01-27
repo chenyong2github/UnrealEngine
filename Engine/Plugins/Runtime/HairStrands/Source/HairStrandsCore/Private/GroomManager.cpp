@@ -364,6 +364,8 @@ static void RunInternalHairStrandsInterpolation(
 	// Hair interpolation
 	if (EHairStrandsInterpolationType::RenderStrands == Type)
 	{
+		check(View);
+		const FVector& TranslatedWorldOffset = View->ViewMatrices.GetPreViewTranslation();
 		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
 			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
@@ -376,6 +378,7 @@ static void RunInternalHairStrandsInterpolation(
 				ShaderMap,
 				ViewUniqueID,
 				ViewRayTracingMask,
+				TranslatedWorldOffset,
 				ShaderDrawData, 
 				ShaderPrintData,
 				Instance,

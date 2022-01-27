@@ -1186,7 +1186,7 @@ static void InternalRenderHairStrandsDebugInfo(
 		{
 			for (const FHairStrandsMacroGroupData& MacroGroupData : HairData.MacroGroupDatas)
 			{
-				const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.WorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.WorldMaxAABB);
+				const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.TranslatedWorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB);
 				DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
 			}
 		}
@@ -1308,9 +1308,9 @@ static void InternalRenderHairStrandsDebugInfo(
 			{
 				for (const FHairStrandsMacroGroupData& MacroGroupData : HairData.MacroGroupDatas)
 				{
-					const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.WorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.WorldMaxAABB);
+					const FBox Bound(MacroGroupData.VirtualVoxelNodeDesc.TranslatedWorldMinAABB, MacroGroupData.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB);
 					DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
-					DrawFrustumWireframe(&ShadowFrustumPDI, MacroGroupData.VirtualVoxelNodeDesc.WorldToClip.Inverse(), FColor::Purple, 0);
+					DrawFrustumWireframe(&ShadowFrustumPDI, MacroGroupData.VirtualVoxelNodeDesc.TranslatedWorldToClip.Inverse(), FColor::Purple, 0);
 				}
 			}
 		}
