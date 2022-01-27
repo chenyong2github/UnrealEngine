@@ -11,6 +11,7 @@
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"
+#include "PlayerMappableInputConfig.h"
 
 /* Shared input subsystem functionality.
  * See EnhancedInputSubsystemInterfaceDebug.cpp for debug specific functionality.
@@ -376,6 +377,31 @@ TArray<FKey> IEnhancedInputSubsystemInterface::QueryKeysMappedToAction(const UIn
 	return MappedKeys;
 }
 
+int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options)
+{
+	int32 NumMappingsApplied = 0;
+	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	{
+		PlayerMappedSettings.Add(MappingName, NewKey);
+		++NumMappingsApplied;
+	}
+
+	RequestRebuildControlMappings(Options);
+	
+	return NumMappingsApplied;
+}
+
+void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)
+{
+	if(Config)
+	{
+		for(TPair<UInputMappingContext*, int32> Pair : Config->GetMappingContexts())
+		{
+			AddMappingContext(Pair.Key, Pair.Value, Options);
+		}	
+	}
+}
+
 template<typename T>
 void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
 {
@@ -499,10 +525,15 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		TArray<FKey> ContextAppliedKeys;
 
 		const UInputMappingContext* MappingContext = ContextPair.Key;
-		TArray<FEnhancedActionKeyMapping>  OrderedMappings = ReorderMappings(MappingContext->GetMappings());
+		TArray<FEnhancedActionKeyMapping> OrderedMappings = ReorderMappings(MappingContext->GetMappings());
 
-		for (const FEnhancedActionKeyMapping& Mapping : OrderedMappings)
+		for (FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
+			if (FKey* PlayerKey = PlayerMappedSettings.Find(Mapping.PlayerMappableOptions.Name))
+			{
+				Mapping.Key = *PlayerKey;
+			}
+			
 			if (Mapping.Action && !AppliedKeys.Contains(Mapping.Key))
 			{
 				// TODO: Wasteful query as we've already established chord state within ReorderMappings. Store TOptional bConsumeInput per mapping, allowing override? Query override via delegate?

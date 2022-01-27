@@ -6,6 +6,7 @@
 #include "InputActionValue.h"
 #include "InputMappingQuery.h"
 #include "UObject/Interface.h"
+#include "EnhancedActionKeyMapping.h"
 
 #include "EnhancedInputSubsystemInterface.generated.h"
 
@@ -15,6 +16,7 @@ class UInputAction;
 class UEnhancedPlayerInput;
 class UInputModifier;
 class UInputTrigger;
+class UPlayerMappableInputConfig;
 
 // Subsystem interface
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
@@ -176,6 +178,19 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")
 	virtual TArray<FKey> QueryKeysMappedToAction(const UInputAction* Action) const;
 
+	/**
+	 * Replace any currently applied mappings to this key mapping with the given new one.
+	 * Requests a rebuild of the player mappings. 
+	 *
+	 * @return The number of mappings that have been replaced
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
+	virtual int32 AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/** Adds all the input mapping contexts inside of this mappable config. */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
+	virtual void AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options = FModifyContextOptions());
+
 private:
 
 	// Forced actions/keys for debug. These will be applied each tick once set even if zeroed, until removed. 
@@ -198,6 +213,9 @@ private:
 
 	TMap<TWeakObjectPtr<const UInputAction>, FInputActionValue> ForcedActions;
 	TMap<FKey, FInputActionValue> ForcedKeys;
+
+	/** A map of any player mapped keys to the key that they should redirect to instead */
+	TMap<FName, FKey> PlayerMappedSettings;
 
 	EInputMappingRebuildType MappingRebuildPending = EInputMappingRebuildType::None;
 

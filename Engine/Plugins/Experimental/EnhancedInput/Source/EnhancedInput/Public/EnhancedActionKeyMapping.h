@@ -10,6 +10,33 @@
 #include "EnhancedActionKeyMapping.generated.h"
 
 /**
+ * A struct that represents player facing mapping options for an action key mapping.
+ * Use this to set a unique FName for the mapping option to save it, as well as some FText options
+ * for use in UI.
+ */
+USTRUCT(BlueprintType)
+struct FPlayerMappableKeyOptions
+{
+	GENERATED_BODY()
+
+public:
+	
+	FPlayerMappableKeyOptions() = default;
+
+	/** A unique name for this player binding to be saved with. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	FName Name = NAME_None;
+	
+	/** The display name that can  */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	FText DisplayName = FText::GetEmpty();
+
+	/** The category that this player binding is in */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	FText DisplayCategory = FText::GetEmpty();
+};
+
+/**
  * Defines a mapping between a key activation and the resulting enhanced action
  * An key could be a button press, joystick axis movement, etc.
  * An enhanced action could be MoveForward, Jump, Fire, etc.
@@ -30,6 +57,14 @@ struct FEnhancedActionKeyMapping
 
 	//ControllerId ControllerId;	// TODO: Controller id/player id (hybrid?) allowing binding multiple pads to a series of actions.
 
+	/** If true than this ActionKeyMapping will be exposed as a player bindable key */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	uint8 bIsPlayerMappable : 1;
+
+	/** Options for making this a player mappable keymapping */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerBindable"))
+	FPlayerMappableKeyOptions PlayerMappableOptions {};
+	
 	/**
 	 * If true, then this Key Mapping should be ignored. This is set to true if the key is down
 	 * during a rebuild of it's owning PlayerInput ControlMappings.
@@ -65,6 +100,7 @@ struct FEnhancedActionKeyMapping
 	FEnhancedActionKeyMapping(const UInputAction* InAction = nullptr, const FKey InKey = EKeys::Invalid)
 		: Action(InAction)
 		, Key(InKey)
+		, bIsPlayerMappable(false)
 		, bShouldBeIgnored(false)
 	{}
 

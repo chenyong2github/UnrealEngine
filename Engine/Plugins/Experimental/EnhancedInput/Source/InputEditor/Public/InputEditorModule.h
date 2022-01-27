@@ -27,6 +27,14 @@ public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 };
 
+UCLASS()
+class INPUTEDITOR_API UPlayerMappableInputConfig_Factory : public UFactory
+{
+	GENERATED_UCLASS_BODY()
+public:
+	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+};
+
 // TODO: Add trigger/modifier factories and hook up RegisterAssetTypeActions type construction.
 //
 //UCLASS()
