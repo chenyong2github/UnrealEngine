@@ -420,3 +420,8 @@ struct FInternetAddrConstKeyMapFuncs : public BaseKeyFuncs<ValueType, TSharedRef
 		return Key->GetTypeHash();
 	}
 };
+
+inline uint32 GetTypeHash(const FInternetAddr& InAddr)
+{
+	return InAddr.GetTypeHash();
+}

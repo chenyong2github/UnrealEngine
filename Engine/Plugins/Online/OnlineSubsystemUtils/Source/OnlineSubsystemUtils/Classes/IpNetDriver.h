@@ -222,6 +222,33 @@ private:
 		return Error == SE_NO_ERROR || Error == SE_EWOULDBLOCK || Error == SE_ECONNABORTED || Error == SE_ENETDOWN;
 	};
 
+	/**
+	 * When a new pre-connection IP is encountered, do rate-limited logging/tracking for it.
+	 *
+	 * @param InAddr	The IP address to log/track
+	 */
+	void TrackAndLogNewIP(const FInternetAddr& InAddr);
+
+	/**
+	 * Removes an IP from new IP tracking, after successful connection.
+	 *
+	 * @param InAddr	The IP address to remove from tracking
+	 */
+	void RemoveFromNewIPTracking(const FInternetAddr& InAddr);
+
+	/**
+	 * Resets new pre-connection IP tracking and timers.
+	 */
+	void ResetNewIPTracking();
+
+	/**
+	 * When new pre-connection IP tracking is enabled, ticks the tracking
+	 *
+	 * @param DeltaTime		The time since the last global tick
+	 */
+	void TickNewIPTracking(float DeltaTime);
+
+
 public:
 	// Callback for platform handling when networking is taking a long time in a single frame (by default over 1 second).
 	// It may get called multiple times in a single frame if additional processing after a previous alert exceeds the threshold again
@@ -318,4 +345,30 @@ private:
 
 	/** Underlying socket communication */
 	TSharedPtr<FSocket> SocketPrivate;
+
+
+	/** New IP aggregated logging entry */
+	struct FAggregatedIP
+	{
+		/** Hash of the IP */
+		uint32 IPHash;
+
+		/** IP:Port converted to string */
+		FString IPStr;
+	};
+
+	/** Hashes for new pre-connection IP's that are being tracked */
+	TArray<uint32> NewIPHashes;
+
+	/** Number of times each 'NewIPHashes' IP was encountered, in the current tracking period */
+	TArray<uint32> NewIPHitCount;
+
+	/** List of IP's queued for aggregated logging */
+	TArray<FAggregatedIP> AggregatedIPsToLog;
+
+	/** Whether or not IP hash tracking or aggregated IP limits have been reached. Disables all further IP logging, for the current tracking period */
+	bool bExceededIPAggregationLimit = false;
+
+	/** Countdown timer for the current IP aggregation tracking period */
+	double NextAggregateIPLogCountdown = 0.0;
 };
