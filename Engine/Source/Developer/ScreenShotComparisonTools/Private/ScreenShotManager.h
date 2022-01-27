@@ -50,7 +50,8 @@ public:
 	virtual FScreenshotExportResult ExportScreenshotComparisonResult(FString ScreenshotName, FString ExportPath = TEXT("")) override;
 
 	virtual bool OpenComparisonReports(FString ImportPath, TArray<FComparisonReport>& OutReports) override;
-
+	
+	virtual FString GetIdealApprovedFolderForImage(const FAutomationScreenshotMetadata& MetaData) const override;
 	//~ End IScreenShotManager Interface
 
 private:
@@ -59,7 +60,6 @@ private:
 	FString	GetPathComponentForPlatformAndRHI(const FAutomationScreenshotMetadata& MetaData) const;
 	FString GetPathComponentForTestImages(const FAutomationScreenshotMetadata& MetaData) const;
 		
-	FString GetIdealApprovedFolderForImage(const FAutomationScreenshotMetadata& MetaData) const;
 
 	FString GetApprovedFolderForImageWithOptions(const FAutomationScreenshotMetadata& MetaData, EApprovedFolderOptions InOptions) const;
 

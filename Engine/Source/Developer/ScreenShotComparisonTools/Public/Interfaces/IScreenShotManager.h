@@ -74,5 +74,10 @@ public:
 	 * Imports screenshot comparison data from a given path.
 	 */
 	virtual bool OpenComparisonReports(FString ImportPath, TArray<FComparisonReport>& OutReports) = 0;
-
+	
+	/**
+	* Calculate the ideal path for already already approved (ground truth) images. This handles abstracting away where Ground Truth images should be saved
+	* based on the platform/rhi/etc.
+	*/
+	virtual FString GetIdealApprovedFolderForImage(const FAutomationScreenshotMetadata& MetaData) const = 0;
 };
