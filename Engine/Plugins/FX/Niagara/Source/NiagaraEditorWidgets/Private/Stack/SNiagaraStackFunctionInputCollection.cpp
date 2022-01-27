@@ -4,6 +4,7 @@
 
 #include "NiagaraEditorWidgetsStyle.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, UNiagaraStackFunctionInputCollectionBase* InInputCollection)
