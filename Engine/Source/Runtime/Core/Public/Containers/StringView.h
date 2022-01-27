@@ -497,6 +497,11 @@ template <typename OtherCharType,
 	std::enable_if_t<TIsCharType<OtherCharType>::Value>*>
 inline bool TStringView<CharType>::Equals(const OtherCharType* const Other, ESearchCase::Type SearchCase) const
 {
+	if (IsEmpty())
+	{
+		return !*Other;
+	}
+
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
 		return FPlatformString::Strncmp(GetData(), Other, Len()) == 0 && !Other[Len()];
@@ -515,6 +520,11 @@ inline int32 TStringView<CharType>::Compare(TStringView<OtherCharType> OtherView
 	const int32 SelfLen = Len();
 	const int32 OtherLen = OtherView.Len();
 	const int32 MinLen = FMath::Min(SelfLen, OtherLen);
+
+	if (!SelfLen || !OtherLen)
+	{
+		return SelfLen - OtherLen;
+	}
 
 	int Result;
 	if (SearchCase == ESearchCase::CaseSensitive)
@@ -538,6 +548,11 @@ template <typename CharType>
 template <typename OtherCharType>
 inline int32 TStringView<CharType>::Compare(const OtherCharType* const Other, ESearchCase::Type SearchCase) const
 {
+	if (IsEmpty())
+	{
+		return -!!*Other;
+	}
+
 	int Result;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
@@ -658,7 +673,7 @@ inline auto operator<(CharRangeType&& Lhs, TStringView<CharType> Rhs)
 template <typename CharType>
 inline bool operator==(TStringView<CharType> Lhs, const CharType* Rhs)
 {
-	return TCString<CharType>::Strnicmp(Lhs.GetData(), Rhs, Lhs.Len()) == 0 && !Rhs[Lhs.Len()];
+	return Lhs.Equals(Rhs, ESearchCase::IgnoreCase);
 }
 
 template <typename CharType>

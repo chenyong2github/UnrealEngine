@@ -316,6 +316,20 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Equality(92)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::CaseSensitive));
 	TestTrue(TEXT("Equality(93)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::IgnoreCase));
 
+	// Test equality of empty strings
+	{
+		const TCHAR* EmptyLiteral = TEXT("");
+		const TCHAR* NonEmptyLiteral = TEXT("ABC");
+		FStringView EmptyView;
+		FStringView NonEmptyView = TEXTVIEW("ABC");
+		TestTrue(TEXT("Equals(94)"), EmptyView.Equals(EmptyLiteral));
+		TestTrue(TEXT("Equals(95)"), !EmptyView.Equals(NonEmptyLiteral));
+		TestTrue(TEXT("Equals(96)"), !NonEmptyView.Equals(EmptyLiteral));
+		TestTrue(TEXT("Equals(97)"), EmptyView.Equals(EmptyView));
+		TestTrue(TEXT("Equals(98)"), !EmptyView.Equals(NonEmptyView));
+		TestTrue(TEXT("Equals(99)"), !NonEmptyView.Equals(EmptyView));
+	}
+
 	// Test types convertible to a string view
 	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(FString()))>::Value, "Error with Equals");
 	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(FString()))>::Value, "Error with Equals");
@@ -389,6 +403,20 @@ bool FStringViewTestComparisonCaseSensitive::RunTest(const FString& Parameters)
 		TestTrue(TEXT("ComparisonCaseSensitive(16)"), ViewShortLower.Compare(ViewLongUpper, ESearchCase::CaseSensitive) > 0);
 		TestTrue(TEXT("ComparisonCaseInsensitive(17)"), ViewShortLower.Compare(AnsiStringLiteralUpper, ESearchCase::CaseSensitive) > 0);
 		TestTrue(TEXT("ComparisonCaseInsensitive(18)"), ViewLongUpper.Compare(WideStringLiteralLowerShort, ESearchCase::CaseSensitive) < 0);
+	}
+
+	// Test comparisons of empty strings
+	{
+		const TCHAR* EmptyLiteral = TEXT("");
+		const TCHAR* NonEmptyLiteral = TEXT("ABC");
+		FStringView EmptyView;
+		FStringView NonEmptyView = TEXTVIEW("ABC");
+		TestTrue(TEXT("ComparisonEmpty(19)"), EmptyView.Compare(EmptyLiteral) == 0);
+		TestTrue(TEXT("ComparisonEmpty(20)"), EmptyView.Compare(NonEmptyLiteral) < 0);
+		TestTrue(TEXT("ComparisonEmpty(21)"), NonEmptyView.Compare(EmptyLiteral) > 0);
+		TestTrue(TEXT("ComparisonEmpty(22)"), EmptyView.Compare(EmptyView) == 0);
+		TestTrue(TEXT("ComparisonEmpty(23)"), EmptyView.Compare(NonEmptyView) < 0);
+		TestTrue(TEXT("ComparisonEmpty(24)"), NonEmptyView.Compare(EmptyView) > 0);
 	}
 
 	// Test types convertible to a string view
