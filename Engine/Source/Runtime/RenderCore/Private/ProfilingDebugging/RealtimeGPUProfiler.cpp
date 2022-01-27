@@ -293,6 +293,10 @@ public:
 			DescriptionStringBuffer.AddUninitialized(DescriptionLength);
 			FMemory::Memcpy(&DescriptionStringBuffer[DescriptionOffset], Description, DescriptionLength * sizeof(TCHAR));
 		}
+		else
+		{
+			ClearDescription();
+		}
 	}
 
 	void ClearDescription()
