@@ -315,6 +315,7 @@ public:
 					FRayTracingGeometrySegment Segment;
 					Segment.VertexBuffer = Section->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 					Segment.NumPrimitives = Section->RayTracingGeometry.Initializer.TotalPrimitiveCount;
+					Segment.MaxVertices = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices();
 					Section->RayTracingGeometry.Initializer.Segments.Add(Segment);
 
 					Section->RayTracingGeometry.UpdateRHI();
