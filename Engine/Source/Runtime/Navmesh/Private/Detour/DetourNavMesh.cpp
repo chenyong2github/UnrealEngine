@@ -1615,6 +1615,7 @@ int dtNavMesh::queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, c
 		dtReal maxz = dtClamp(qmax[2], tbmin[2], tbmax[2]) - tbmin[2];
 
 		// Quantize
+		UE_CLOG(m_bvQuantFactor == 0.f, LogDetour, Warning, TEXT("dtNavMesh::queryPolygonsInTile bounding volume quantization factor is zero! The query might not return the right result"));
 		bmin[0] = (unsigned short)(m_bvQuantFactor * minx) & 0xfffe;
 		bmin[1] = (unsigned short)(m_bvQuantFactor * miny) & 0xfffe;
 		bmin[2] = (unsigned short)(m_bvQuantFactor * minz) & 0xfffe;

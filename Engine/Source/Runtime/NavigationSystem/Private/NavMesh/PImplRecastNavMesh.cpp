@@ -605,6 +605,13 @@ void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 		{
 			UE_VLOG(NavMeshOwner, LogNavigation, Error, TEXT("Failed to allocate Recast navmesh"));
 		}
+		else if (NavMeshOwner)
+		{
+			DetourNavMesh->setWalkableClimb(NavMeshOwner->AgentMaxStepHeight);
+			DetourNavMesh->setWalkableHeight(NavMeshOwner->AgentHeight);
+			DetourNavMesh->setWalkableRadius(NavMeshOwner->AgentRadius);
+			DetourNavMesh->setBVQuantFactor(1.f / NavMeshOwner->CellSize);
+		}
 	}
 
 	int32 NumTiles = 0;
