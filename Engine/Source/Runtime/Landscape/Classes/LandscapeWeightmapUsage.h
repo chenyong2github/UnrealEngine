@@ -58,4 +58,17 @@ public:
 	{
 		return FreeChannelCount() == NumChannels;
 	}
+
+	TArray<ULandscapeComponent*, TInlineAllocator<4>> GetUniqueValidComponents() const
+	{
+		TArray<ULandscapeComponent*, TInlineAllocator<4>> UniqueComponents;
+		for (TObjectPtr<ULandscapeComponent> Component : ChannelUsage)
+		{
+			if (Component != nullptr)
+			{
+				UniqueComponents.AddUnique(Component);
+			}
+		}
+		return UniqueComponents;
+	}
 };

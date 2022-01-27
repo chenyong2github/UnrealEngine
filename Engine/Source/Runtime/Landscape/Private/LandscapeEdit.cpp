@@ -3958,14 +3958,7 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations(InLayerGuid);
-			for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
-			{
-				if (AllocInfo.LayerInfo != nullptr)
-				{
-					OutUsedLayerInfos.AddUnique(AllocInfo.LayerInfo);
-				}
-			}
+			Component->GetUsedPaintLayers(InLayerGuid, OutUsedLayerInfos);
 		}
 	});
 }

@@ -28,6 +28,7 @@
 #include "LandscapeSplineSegment.h"
 #include "LandscapeSplineRaster.h"
 #include "LandscapeSplineControlPoint.h"
+#include "LandscapePrivate.h"
 #include "ILandscapeSplineInterface.h"
 #include "ControlPointMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -77,31 +78,37 @@ struct FLandscapeFixSplines
 
 	void FixSplines()
 	{
-		if (!GWorld || GWorld->IsGameWorld())
-		{
-			return;
-		}
+		bool bFixed = false;
 
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
-		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		for (TObjectIterator<UWorld> It; It; ++It)
 		{
-			if (Pair.Value && Pair.Value->SupportsLandscapeEditing())
+			UWorld* CurrentWorld = *It;
+			if (!CurrentWorld->IsGameWorld())
 			{
-				Pair.Value->ForAllSplineActors([](TScriptInterface<ILandscapeSplineInterface> SplineOwner)
+				auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(CurrentWorld);
+				for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
 				{
-					if (SplineOwner && SplineOwner->GetSplinesComponent())
+					if (Pair.Value && Pair.Value->SupportsLandscapeEditing())
 					{
-						SplineOwner->GetSplinesComponent()->RebuildAllSplines();
-					}
-				});
+						Pair.Value->ForAllSplineActors([&bFixed](TScriptInterface<ILandscapeSplineInterface> SplineOwner)
+						{
+							if (SplineOwner && SplineOwner->GetSplinesComponent())
+							{
+								SplineOwner->GetSplinesComponent()->RebuildAllSplines();
+								bFixed = true;
+							}
+						});
 
-				if (Pair.Value->LandscapeActor && Pair.Value->LandscapeActor->HasLayersContent())
-				{
-					Pair.Value->LandscapeActor->RequestSplineLayerUpdate();
+						if (Pair.Value->LandscapeActor && Pair.Value->LandscapeActor->HasLayersContent())
+						{
+							Pair.Value->LandscapeActor->RequestSplineLayerUpdate();
+						}
+					}
 				}
 			}
 		}
 
+		UE_LOG(LogLandscape, Display, TEXT("Landscape.FixSplines: %s"), bFixed ? TEXT("Splines fixed") : TEXT("Nothing to fix"));
 	}
 };
 
