@@ -1809,7 +1809,8 @@ class FCullPerPageDrawCommandsCs : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+			DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
 	/**
@@ -1893,7 +1894,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+			DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
 	/**
@@ -1930,7 +1932,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+			DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
 	/**
