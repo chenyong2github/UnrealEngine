@@ -54,6 +54,18 @@ struct CORE_API FPhysicsObjectVersion
 		// Chaos FGeometryCollectionObject user defined collision shapes support
 		GeometryCollectionUserDefinedCollisionShapes,
 
+		// Chaos Remove scale from TKinematicTarget object
+		ChaosKinematicTargetRemoveScale,
+
+		// Chaos Added support for per-object collision constraint flag.
+		AddCollisionConstraintFlag,
+
+		// Expose particle Disabled flag to the game thread
+		AddDisabledFlag,
+
+		// Added max linear and angular speed to Chaos bodies
+		AddChaosMaxLinearAngularSpeed,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

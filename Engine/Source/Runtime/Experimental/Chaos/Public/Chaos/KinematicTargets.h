@@ -80,8 +80,12 @@ namespace Chaos
 		friend FChaosArchive& operator<<(FChaosArchive& Ar, TKinematicTarget<T, d>& KinematicTarget)
 		{
 			Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
+			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 
-			if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) >= FFortniteReleaseBranchCustomObjectVersion::ChaosKinematicTargetRemoveScale)
+			const bool bRemovedScaleFN = (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) >= FFortniteReleaseBranchCustomObjectVersion::ChaosKinematicTargetRemoveScale);
+			const bool bRemovedScaleUE4 = (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ChaosKinematicTargetRemoveScale);
+
+			if (bRemovedScaleFN || bRemovedScaleUE4)
 			{
 				Ar << KinematicTarget.Position << KinematicTarget.Rotation << KinematicTarget.Mode;
 			}
