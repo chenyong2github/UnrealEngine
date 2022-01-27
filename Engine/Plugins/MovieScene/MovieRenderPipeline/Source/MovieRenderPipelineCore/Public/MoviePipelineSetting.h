@@ -9,6 +9,7 @@ class UMoviePipeline;
 struct FSlateBrush;
 struct FMoviePipelineFormatArgs;
 class UMoviePipelineExecutorJob;
+class UMoviePipelineExecutorShot;
 
 enum class EMoviePipelineValidationState : uint8
 {
@@ -24,7 +25,7 @@ UCLASS(BlueprintType, Abstract)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineSetting : public UObject
 {
 	GENERATED_BODY()
-		
+
 public:
 	UMoviePipelineSetting();
 
@@ -40,6 +41,18 @@ public:
 	* see shot-related callbacks so that they work properly with shot-overrides.
 	*/
 	void OnMoviePipelineShutdown(UMoviePipeline* InPipeline) { TeardownForPipelineImpl(InPipeline); }
+
+	/**
+	* Called only on settings that have been added to the Master Configuration to let you know that
+	* a shot is about to be rendered. Useful if your setting needs to know something about the shot
+	* to do something correctly, without using a per-shot override.
+	*/
+	void OnSetupForShot(UMoviePipelineExecutorShot* InShot) { OnSetupForShotImpl(InShot); }
+	/**
+	* Called only on settings that have been added to the Master Configuration to let you know that
+	* a shot has finished rendering and is being torn down.
+	*/
+	void OnTeardownForShot(UMoviePipelineExecutorShot* InShot) { OnTeardownForShotImpl(InShot); }
 
 	/**
 	* When rendering in a new process some settings may need to provide command line arguments
@@ -78,6 +91,8 @@ protected:
 
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) {}
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) {}
+	virtual	void OnSetupForShotImpl(UMoviePipelineExecutorShot* InShot) {}
+	virtual	void OnTeardownForShotImpl(UMoviePipelineExecutorShot* InShot) {}
 	
 public:
 #if WITH_EDITOR

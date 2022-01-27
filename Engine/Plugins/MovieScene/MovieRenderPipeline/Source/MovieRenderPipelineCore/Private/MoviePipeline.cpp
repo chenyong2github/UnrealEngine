@@ -900,6 +900,12 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	// Set the new shot as the active shot. This enables the specified shot section and disables all other shot sections.
 	SetSoloShot(InShot);
 
+	// Loop through just our master settings and let them know which shot we're about to start.
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	{
+		Setting->OnSetupForShot(InShot);
+	}
+
 	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
@@ -942,6 +948,12 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		{
 			Setting->OnMoviePipelineShutdown(this);
 		}
+	}
+
+	// Loop through just our master settings and let them know which shot we're about to end.
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	{
+		Setting->OnTeardownForShot(InShot);
 	}
 
 	// Restore the sequence to the original state. We made changes to this when we solo'd it, so we want to unsolo now.
