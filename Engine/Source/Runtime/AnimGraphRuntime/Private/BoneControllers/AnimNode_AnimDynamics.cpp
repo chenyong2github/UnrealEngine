@@ -89,7 +89,7 @@ void FAnimNode_AnimDynamics::DrawBodies(FComponentSpacePoseContext& InContext, c
 
 	const int32 NumBodies = Bodies.Num();
 
-	check(PhysicsBodyDefinitions.Num() == NumBodies);
+	check(PhysicsBodyDefinitions.Num() >= NumBodies);
 
 	for(int32 BodyIndex = 0 ; BodyIndex < NumBodies ; ++BodyIndex)
 	{
@@ -398,8 +398,8 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 
 			const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
-			check(Bodies.Num() == PhysicsBodyDefinitions.Num());
-			check(PhysicsBodyJointOffsets.Num() == PhysicsBodyDefinitions.Num());
+			check(Bodies.Num() <= PhysicsBodyDefinitions.Num());
+			check(Bodies.Num() <= PhysicsBodyJointOffsets.Num());
 
 			for (int32 Idx = 0; Idx < Bodies.Num(); ++Idx)
 			{
