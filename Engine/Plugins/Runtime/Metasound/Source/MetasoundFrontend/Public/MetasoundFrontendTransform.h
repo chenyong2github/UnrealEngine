@@ -126,14 +126,14 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FAutoUpdateRootGraph : public IDocumentTransform
 		{
 		public:
-			FAutoUpdateRootGraph(FString&& InAssetPath)
-				: AssetPath(MoveTemp(InAssetPath))
+			FAutoUpdateRootGraph(FString&& InDebugAssetPath)
+				: DebugAssetPath(MoveTemp(InDebugAssetPath))
 			{
 			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
 
-			const FString AssetPath;
+			const FString DebugAssetPath;
 		};
 
 		/** Synchronizes the document's root graph's display name with that of the asset. */

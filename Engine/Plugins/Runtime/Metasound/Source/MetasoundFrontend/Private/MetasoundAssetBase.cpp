@@ -767,7 +767,7 @@ FString FMetasoundAssetBase::GetOwningAssetName() const
 {
 	if (const UObject* OwningAsset = GetOwningAsset())
 	{
-		return OwningAsset->GetName();
+		return OwningAsset->GetPathName();
 	}
 	return FString();
 }
