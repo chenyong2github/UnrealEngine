@@ -8,6 +8,7 @@
 #include "ScenePrivate.h"
 
 class FSceneTextureParameters;
+class FVirtualShadowMapArray;
 
 namespace Nanite
 {
@@ -40,7 +41,13 @@ struct FPostProcessingInputs
 	}
 };
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults, FInstanceCullingManager& InstanceCullingManager);
+void AddPostProcessingPasses(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FPostProcessingInputs& Inputs,
+	const Nanite::FRasterResults* NaniteRasterResults,
+	FInstanceCullingManager& InstanceCullingManager,
+	FVirtualShadowMapArray* VirtualShadowMapArray);
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 

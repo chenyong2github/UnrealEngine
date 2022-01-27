@@ -1032,6 +1032,9 @@ public:
 	/** Current Nanite visualization mode */
 	FName CurrentLumenVisualizationMode;
 
+	/** Current Nanite visualization mode */
+	FName CurrentVirtualShadowMapVisualizationMode;
+
 	/** Current visualize calibration color material name */
 	FName CurrentVisualizeCalibrationColorMaterialName;
 

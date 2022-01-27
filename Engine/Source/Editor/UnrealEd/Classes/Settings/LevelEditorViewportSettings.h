@@ -88,6 +88,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 		, BufferVisualizationMode()
 		, NaniteVisualizationMode()
 		, LumenVisualizationMode()
+		, VirtualShadowMapVisualizationMode()
 		, ExposureSettings()
 		, FOVAngle(EditorViewportDefs::DefaultPerspectiveFOVAngle)
 		, FarViewPlane(0)
@@ -135,6 +136,10 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 	/** The Lumen visualization mode for the viewport. */
 	UPROPERTY(config)
 	FName LumenVisualizationMode;
+
+	/** The virtual shadow map visualization mode for the viewport. */
+	UPROPERTY(config)
+	FName VirtualShadowMapVisualizationMode;
 
 	/** The buffer visualization mode for the viewport. */
 	UPROPERTY(config)

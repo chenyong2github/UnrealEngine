@@ -913,6 +913,9 @@ enum EViewModeIndex
 	/** Visualize Lumen debug views */
 	VMI_VisualizeLumen = 31 UMETA(DisplayName = "Lumen Visualization"),
 
+	/** Visualize virtual shadow map */
+	VMI_VisualizeVirtualShadowMap = 32 UMETA(DisplayName = "Virtual Shadow Map Visualization"),
+
 	VMI_Max UMETA(Hidden),
 
 	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault

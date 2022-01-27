@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "VirtualShadowMapProjection.h"
+#include "VirtualShadowMapVisualizationData.h"
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "RHI.h"
@@ -108,6 +109,13 @@ static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
+	TEXT( "r.Shadow.Virtual.ForcePerLightShadowMaskClear" ),
+	0,
+	TEXT( "" ),
+	ECVF_RenderThreadSafe
+);
+
 
 // Composite denoised shadow projection mask onto the light's shadow mask
 // Basically just a copy shader with a special blend mode
@@ -178,14 +186,14 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
-	class FDebugOutputDim			: SHADER_PERMUTATION_BOOL("DEBUG_OUTPUT");
+	class FVisualizeOutputDim		: SHADER_PERMUTATION_BOOL("VISUALIZE_OUTPUT");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
 		FHairStrandsDim,
-		FDebugOutputDim>;
+		FVisualizeOutputDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
@@ -205,16 +213,16 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 		// One pass projection parameters
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWShadowMaskBits)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutShadowMaskBits)
 		// Pass per light parameters
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER(int32, LightUniformVirtualShadowMapId)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWShadowFactor)
-		// Debug output
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutShadowFactor)
+		// Visualization output
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPhysicalPageMetaData >, PhysicalPageMetaData)
-		SHADER_PARAMETER(int32, DebugOutputType)
-		SHADER_PARAMETER(int32, DebugVirtualShadowMapId)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWDebug)
+		SHADER_PARAMETER(int32, VisualizeModeId)
+		SHADER_PARAMETER(int32, VisualizeVirtualShadowMapId)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutVisualize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -293,7 +301,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	{
 		// One pass projection
 		PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
-		PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( OutputTexture );	
+		PassParameters->OutShadowMaskBits = GraphBuilder.CreateUAV( OutputTexture );	
 	}
 	else
 	{
@@ -303,7 +311,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 		LightProxy->GetLightShaderParameters(LightParameters);
 		LightParameters.MakeShaderParameters(View.ViewMatrices, PassParameters->Light);
 		PassParameters->LightUniformVirtualShadowMapId = VirtualShadowMapId;
-		PassParameters->RWShadowFactor = GraphBuilder.CreateUAV( OutputTexture );
+		PassParameters->OutShadowFactor = GraphBuilder.CreateUAV( OutputTexture );
 	}
  
 	if (bDirectionalLight)
@@ -323,13 +331,15 @@ static void RenderVirtualShadowMapProjectionCommon(
 	
 	bool bDebugOutput = false;
 #if !UE_BUILD_SHIPPING
-	if ( VirtualShadowMapArray.DebugVisualizationProjectionOutput && InputType == EVirtualShadowMapProjectionInputType::GBuffer )
+	if ( VirtualShadowMapArray.DebugVisualizationOutput && InputType == EVirtualShadowMapProjectionInputType::GBuffer )
 	{
+		const FVirtualShadowMapVisualizationData& VisualizationData = GetVirtualShadowMapVisualizationData();
+
 		bDebugOutput = true;
-		PassParameters->DebugOutputType = VirtualShadowMapArray.DebugOutputType;
-		PassParameters->DebugVirtualShadowMapId = VirtualShadowMapArray.DebugVirtualShadowMapId;
+		PassParameters->VisualizeModeId = VisualizationData.GetActiveModeID();
+		PassParameters->VisualizeVirtualShadowMapId = VirtualShadowMapArray.VisualizeLight.GetVirtualShadowMapId();
 		PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV( VirtualShadowMapArray.PhysicalPageMetaDataRDG );
-		PassParameters->RWDebug = GraphBuilder.CreateUAV( VirtualShadowMapArray.DebugVisualizationProjectionOutput );
+		PassParameters->OutVisualize = GraphBuilder.CreateUAV( VirtualShadowMapArray.DebugVisualizationOutput );
 	}
 #endif
 
@@ -338,7 +348,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData ? 1 : 0 );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDebugOutputDim >( bDebugOutput );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FVisualizeOutputDim >( bDebugOutput );
 
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 	ClearUnusedGraphResources( ComputeShader, PassParameters );
@@ -386,7 +396,7 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	return ShadowMaskBits;
 }
 
-static FRDGTextureRef CreateShadowFactorTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
+static FRDGTextureRef CreateShadowMaskTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
 {
 	const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -396,8 +406,14 @@ static FRDGTextureRef CreateShadowFactorTexture(FRDGBuilder& GraphBuilder, FIntP
 		FClearValueBinding(ClearColor),
 		TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("Shadow.Virtual.ShadowFactor"));
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Texture), ClearColor);
+	FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("Shadow.Virtual.ShadowMask"));
+
+	// NOTE: Projection pass writes all relevant pixels, so should not need to clear here
+	if (CVarForcePerLightShadowMaskClear.GetValueOnRenderThread() != 0)
+	{
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Texture), ClearColor);
+	}
+
 	return Texture;
 }
 
@@ -411,7 +427,7 @@ void RenderVirtualShadowMapProjection(
 	FProjectedShadowInfo* ShadowInfo,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, SceneTextures.Config.Extent);
 
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
@@ -442,7 +458,7 @@ void RenderVirtualShadowMapProjection(
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, SceneTextures.Config.Extent);
 
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,

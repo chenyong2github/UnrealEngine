@@ -163,6 +163,11 @@ TArray<FText> FillViewModeDisplayNames()
 			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeLumen", "Lumen Visualization"));
 		}
 
+		else if (ViewModeIndex == VMI_VisualizeVirtualShadowMap)
+		{
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeVirtualShadowMap", "Virtual Shadow Map Visualization"));
+		}
+
 		// VMI_Max
 		else if (ViewModeIndex == VMI_Max)
 		{
@@ -269,6 +274,10 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		else if (ViewModeIndex == VMI_VisualizeLumen)
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeLumenMode"));
+		}
+		else if (ViewModeIndex == VMI_VisualizeVirtualShadowMap)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeVirtualShadowMapMode"));
 		}
 
 		//	VMI_VoxelLighting = 13,

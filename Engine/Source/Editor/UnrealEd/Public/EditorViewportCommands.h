@@ -136,6 +136,9 @@ public:
 	/** Changes the viewport to visualize Lumen debug views */
 	TSharedPtr< FUICommandInfo > VisualizeLumenMode;
 
+	/** Changes the viewport to visualize virtual shadow map content */
+	TSharedPtr< FUICommandInfo > VisualizeVirtualShadowMapMode;
+
 	/** Collision Draw Mode */
 	TSharedPtr< FUICommandInfo > CollisionPawn;
 	TSharedPtr< FUICommandInfo > CollisionVisibility;

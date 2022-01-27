@@ -1280,6 +1280,26 @@ public:
 	FText GetCurrentLumenVisualizationModeDisplayName() const;
 
 	/**
+	* Changes the virtual shadow map visualization mode for this viewport.
+	*
+	* @param InName	The ID of the required visualization mode
+	*/
+	void ChangeVirtualShadowMapVisualizationMode(FName InName);
+
+	/**
+	* Checks if a virtual shadow map visualization mode is selected.
+	*
+	* @param InName	The ID of the required visualization mode
+	* @return	true if the supplied virtual shadow map visualization mode is checked
+	*/
+	bool IsVirtualShadowMapVisualizationModeSelected(FName InName) const;
+
+	/**
+	* Returns the FText display name associated with CurrentVirtualShadowMapVisualizationMode.
+	*/
+	FText GetCurrentVirtualShadowMapVisualizationModeDisplayName() const;
+
+	/**
 	* Returns whether visualize debug material is enabled.
 	*/
 	bool IsVisualizeCalibrationMaterialEnabled() const;
@@ -1601,6 +1621,7 @@ public:
 	FName CurrentBufferVisualizationMode;
 	FName CurrentNaniteVisualizationMode;
 	FName CurrentLumenVisualizationMode;
+	FName CurrentVirtualShadowMapVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;
 

@@ -55,6 +55,7 @@ class FGPUScenePrimitiveCollector;
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogLumenVisualization, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogVirtualShadowMapVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogMultiView, Log, All);
 
 // -----------------------------------------------------------------------------

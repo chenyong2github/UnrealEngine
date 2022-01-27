@@ -1,0 +1,66 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Containers/Map.h"
+#include "UObject/NameTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/Commands.h"
+
+class FEditorViewportClient;
+
+class COMMONMENUEXTENSIONS_API FVirtualShadowMapVisualizationMenuCommands : public TCommands<FVirtualShadowMapVisualizationMenuCommands>
+{
+public:
+	// Re-sort into categories for the menu
+	enum class FVirtualShadowMapVisualizationType : uint8
+	{
+		ProjectionStandard,
+		ProjectionAdvanced,
+		DebugStandard,
+	};
+
+	struct FVirtualShadowMapVisualizationRecord
+	{
+		FName Name;
+		TSharedPtr<FUICommandInfo> Command;
+		FVirtualShadowMapVisualizationType Type;
+
+		FVirtualShadowMapVisualizationRecord()
+		: Name()
+		, Command()
+		, Type(FVirtualShadowMapVisualizationType::ProjectionStandard)
+		{
+		}
+	};
+
+	typedef TMultiMap<FName, FVirtualShadowMapVisualizationRecord> TVirtualShadowMapVisualizationModeCommandMap;
+	typedef TVirtualShadowMapVisualizationModeCommandMap::TConstIterator TCommandConstIterator;
+
+	FVirtualShadowMapVisualizationMenuCommands();
+
+	TCommandConstIterator CreateCommandConstIterator() const;
+
+	static void BuildVisualisationSubMenu(FMenuBuilder& Menu);
+
+	virtual void RegisterCommands() override;
+
+	void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
+	
+	inline bool IsPopulated() const
+	{
+		return CommandMap.Num() > 0;
+	}
+
+private:
+	void BuildCommandMap();
+	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FVirtualShadowMapVisualizationType Type) const;
+
+	static void ChangeVirtualShadowMapVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static bool IsVirtualShadowMapVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+
+private:
+	TVirtualShadowMapVisualizationModeCommandMap CommandMap;
+};

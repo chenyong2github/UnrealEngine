@@ -18,6 +18,7 @@
 #include "ProjectionDirectional.ush"
 #include "ProjectionSpot.ush"
 #include "TransmissionCommon.ush"
+#include "Visualize.ush"
 
 #if HAS_HAIR_STRANDS
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
@@ -30,8 +31,8 @@
 #define DIRECTIONAL_LIGHT 0
 #endif
 
-#ifndef DEBUG_OUTPUT
-#define DEBUG_OUTPUT 0
+#ifndef VISUALIZE_OUTPUT
+#define VISUALIZE_OUTPUT 0
 #endif
 
 #define CONTACT_SHADOW_SAMPLES 8
@@ -143,18 +144,18 @@ float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
 float SMRTTexelDitherScale;			// Currently only directional lights
 
 // One pass projection
-RWTexture2D< uint4 > RWShadowMaskBits;
+RWTexture2D< uint4 >OutShadowMaskBits;
 
 // Single light per pass
 // Light parameters loaded via GetRootLightShaderParameters();
 int LightUniformVirtualShadowMapId;
-RWTexture2D< float2 > RWShadowFactor;
+RWTexture2D< float2 > OutShadowFactor;
 
-// Debug output pass
+// Visualization output
 StructuredBuffer< FPhysicalPageMetaData > PhysicalPageMetaData;
-RWTexture2D< float4 > RWDebug;
-int DebugOutputType;
-int DebugVirtualShadowMapId;
+RWTexture2D< float4 > OutVisualize;
+int VisualizeModeId;
+int VisualizeVirtualShadowMapId;
 
 // Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
 #define INPUT_TYPE_GBUFFER 0
@@ -355,7 +356,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 	return Result;
 }
 
-void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result, uint LightCount )
+void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 {
 	float3 Output = float3( 1, 0, 1 );
 	bool bWriteOutput = false;
@@ -367,61 +368,65 @@ void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result, uint Lig
 		uint2 vPage = Result.VirtualTexelAddress.xy >> VSM_LOG2_PAGE_SIZE;
 		uint2 pPage = Result.PhysicalTexelAddress.xy >> VSM_LOG2_PAGE_SIZE;
 		bool bValidPageAddress = all( pPage < uint2(VirtualShadowMap.PhysicalPoolSizePages) );
+		
+		FPhysicalPageMetaData pPageMeta = (FPhysicalPageMetaData)0;
+		if (bValidPageAddress)
+		{
+			pPageMeta = PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)];
+		}
 
-		if ( DebugOutputType == 1 )			// ShadowFactor
+		if ( VisualizeModeId == VISUALIZE_SHADOW_FACTOR )
 		{
 			Output = Result.ShadowFactor.xxx;
 		}
-		if ( DebugOutputType == 2 )			// ClipmapIndexOrMip (mix in a bit of shadow for clarity)
+		else if ( VisualizeModeId == VISUALIZE_CLIPMAP_OR_MIP )
 		{
 			float3 Color = IntToColor( Result.ClipmapIndexOrMipLevel );
-			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
+			Output = 0.8f*Color + 0.2f*Result.ShadowFactor.xxx;
 		}
-		else if ( DebugOutputType == 3 && bValidPageAddress )	// Virtual page (mix in a bit of shadow for clarity)
+		else if ( VisualizeModeId == VISUALIZE_VIRTUAL_PAGE && bValidPageAddress )
 		{
-			float3 Color = IntToColor( vPage.x + ( vPage.y << 10U ) + (Result.ClipmapIndexOrMipLevel << 20U) );
-			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
-		}
-		else if ( DebugOutputType == 4 && bValidPageAddress )	// Physical page age (mix in a bit of shadow for clarity)
-		{
-			uint Age = PhysicalPageMetaData[ VSMPhysicalPageAddressToIndex(pPage) ].Age;
-			float3 Color = GreenToRedTurbo( 1.0f - 0.1f * float(Age) );
-			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
-		}
-		else if ( DebugOutputType == 5 )	// RayCount
+			float3 PageColor = IntToColor( vPage.x + ( vPage.y << 10U ) );
+			float3 MipColor = IntToColor( Result.ClipmapIndexOrMipLevel );
+			Output = 0.4f*PageColor + 0.4f*MipColor + 0.2f*Result.ShadowFactor.xxx;
+		}		
+		else if ( VisualizeModeId == VISUALIZE_SMRT_RAY_COUNT )
 		{
 			Output = GreenToRedTurbo( float( Result.RayCount ) / float( SMRTRayCount ) );
 		}
-		else if ( DebugOutputType == 6 )	// OccluderDistance
+		else if ( VisualizeModeId == VISUALIZE_CACHED_PAGE && bValidPageAddress )
+		{
+			bool bUncachedDynamic = (pPageMeta.Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
+			bool bUncachedStatic = (pPageMeta.Flags & VSM_STATIC_UNCACHED_FLAG) != 0;
+			// Red = both uncached, blue = only static cached, green otherwise
+			float3 CacheColor = float3(0, 1, 0);
+			if (bUncachedDynamic)
+			{
+				CacheColor = bUncachedStatic ? float3(1, 0, 0) : float3(0, 0, 1);
+			}
+			float3 PageColor = IntToColor(vPage.x + (vPage.y << 10U));
+			Output = 0.55f*CacheColor + 0.25f*PageColor + 0.2f*Result.ShadowFactor.xxx;
+		}
+		/*
+		else if ( VisualizeModeId == VISUALIZE_CACHED_PAGE_AGE && bValidPageAddress )
+		{
+			float3 Color = GreenToRedTurbo( 1.0f - 0.1f * float(pPageMeta.Age) );
+			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
+		}
+		else if ( VisualizeModeId == 6 )	// OccluderDistance
 		{
 			Output = ColorMapViridis( 0.001f * Result.OccluderDistance );
-			//Output = Result.OccluderDistance > 1000.0f ? float3(1, 1, 1) : ColorMapViridis( 0.001f * Result.OccluderDistance );
 		}
-		else if ( DebugOutputType == 7 )	// Cached or not?
-		{
-			bool bUncached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
-			float3 Color = GreenToRedTurbo(float(bUncached));
-			float3 Color2 = IntToColor(vPage.x + (vPage.y << 10U));
-
-			Output = lerp(Color, Color2, 0.35f);
-		}
+		*/
 		else
 		{
 			bWriteOutput = false;
 		}
 	}
 
-#if ONE_PASS_PROJECTION
-	if ( DebugOutputType == 8 )	// Light count (only useful for one pass projection)
-	{
-		Output = GreenToRedTurbo( float( LightCount ) / float( 50 ) );
-		bWriteOutput = true;
-	}
-#endif
-
 	if (bWriteOutput)
 	{
-		RWDebug[PixelPos] = float4(Output, 1.0f);
+		OutVisualize[PixelPos] = float4(Output, 1.0f);
 	}
 }
 
@@ -464,17 +469,14 @@ void VirtualShadowMapProjection(
 	const half3 GBufferNormal = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 	const half SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
 
-	FVirtualShadowMapSampleResult DebugResult = InitVirtualShadowMapSampleResult();
-
-	uint LightCountDebug = 1;
+	FVirtualShadowMapSampleResult VisualizeResult = InitVirtualShadowMapSampleResult();
 
 #if ONE_PASS_PROJECTION
 	uint EyeIndex = 0; // TODO: Instanced stereo
 	uint GridLinearIndex = ComputeLightGridCellIndex( LocalPixelPos, SceneDepth, EyeIndex );
 	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid( GridLinearIndex, EyeIndex );
 
-	// We can only handle 10 lights in our output encoding right now, so no purpose in computing more
-	LightCountDebug = CulledLightGridData.NumLocalLights;
+	// We can only handle so many lights in our output encoding right now, so no purpose in computing more
 	uint LightCount = min(GetPackedShadowMaskMaxLightCount(), CulledLightGridData.NumLocalLights);
 
 	uint4 ShadowMask = InitializePackedShadowMask();
@@ -503,14 +505,14 @@ void VirtualShadowMapProjection(
 
 			PackShadowMask(ShadowMask, Result.ShadowFactor, Index);
 
-			if (DebugVirtualShadowMapId == VirtualShadowMapId)
+			if (VisualizeVirtualShadowMapId == VirtualShadowMapId)
 			{
-				DebugResult = Result;
+				VisualizeResult = Result;
 			}
 		}
 	}
 
-	RWShadowMaskBits[ PixelPos ] = ~ShadowMask;
+	OutShadowMaskBits[ PixelPos ] = ~ShadowMask;
 
 #else // !ONE_PASS_PROJECTION
 	{
@@ -536,19 +538,19 @@ void VirtualShadowMapProjection(
 				SubsurfaceOpacity);
 		}
 
-		RWShadowFactor[ PixelPos ] = half2( Result.ShadowFactor, SSSTransmission );
+		OutShadowFactor[ PixelPos ] = half2( Result.ShadowFactor, SSSTransmission );
 
-		if (DebugVirtualShadowMapId == VirtualShadowMapId)
+		if (VisualizeVirtualShadowMapId == VirtualShadowMapId)
 		{
-			DebugResult = Result;
+			VisualizeResult = Result;
 		}
 	}
 #endif // ONE_PASS_PROJECTION
 
-#if DEBUG_OUTPUT
+#if VISUALIZE_OUTPUT
 	if (InputType == INPUT_TYPE_GBUFFER)
 	{
-		OutputDebug( PixelPos, DebugResult, LightCountDebug );
+		OutputVisualize( PixelPos, VisualizeResult );
 	}
-#endif // DEBUG_OUTPUT
+#endif // VISUALIZE_OUTPUT
 }

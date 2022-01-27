@@ -55,6 +55,7 @@
 #include "FXSystem.h"
 #include "SkyAtmosphereRendering.h"
 #include "Strata/Strata.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -339,7 +340,13 @@ void AddTemporalAA2Passes(
 
 bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View);
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults, FInstanceCullingManager& InstanceCullingManager)
+void AddPostProcessingPasses(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FPostProcessingInputs& Inputs,
+	const Nanite::FRasterResults* NaniteRasterResults,
+	FInstanceCullingManager& InstanceCullingManager,
+	FVirtualShadowMapArray* VirtualShadowMapArray)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -1435,6 +1442,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		if (EngineShowFlags.VisualizeNanite && NaniteRasterResults != nullptr)
 		{
 			AddVisualizeNanitePass(GraphBuilder, View, SceneColor, *NaniteRasterResults);
+		}
+
+		if (EngineShowFlags.VisualizeVirtualShadowMap && VirtualShadowMapArray != nullptr)
+		{
+			VirtualShadowMapArray->AddVisualizePass(GraphBuilder, View, SceneColor);
 		}
 
 		if (ShaderDrawDebug::IsEnabled(View))

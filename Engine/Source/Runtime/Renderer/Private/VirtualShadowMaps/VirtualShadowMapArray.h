@@ -17,6 +17,7 @@ class FVirtualShadowMapCacheEntry;
 class FVirtualShadowMapArrayCacheManager;
 struct FSortedLightSetSceneInfo;
 class FVirtualShadowMapClipmap;
+struct FScreenPassTexture;
 
 // TODO: does this exist?
 constexpr uint32 ILog2Const(uint32 n)
@@ -137,6 +138,50 @@ END_SHADER_PARAMETER_STRUCT()
 FMatrix CalcTranslatedWorldToShadowUVMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 
+struct FVirtualShadowMapVisualizeLightSearch
+{
+public:
+	FVirtualShadowMapVisualizeLightSearch()
+	{
+		Reset();
+	}
+	
+	void Reset()
+	{
+		FoundKey.Packed = 0;
+		FoundProxy = nullptr;
+		FoundVirtualShadowMapId = INDEX_NONE;
+	}
+
+	void CheckLight(const FLightSceneProxy* CheckProxy, int CheckVirtualShadowMapId);
+
+	bool IsValid() const { return FoundProxy != nullptr; }
+
+	int GetVirtualShadowMapId() const { return FoundVirtualShadowMapId; }
+	const FLightSceneProxy* GetProxy() const { return FoundProxy; }
+	const FString& GetLightName() const { return FoundProxy->GetOwnerNameOrLabel(); }
+
+private:
+	union SortKey
+	{
+		struct
+		{
+			// NOTE: Lowest to highest priority
+			uint32 bExists : 1;				// Catch-all
+			uint32 bDirectionalLight : 1;
+			uint32 bOwnerSelected : 1;		// In editor
+			uint32 bSelected : 1;			// In editor
+			uint32 bPartialNameMatch : 1;
+			uint32 bExactNameMatch : 1;
+		} Fields;
+		uint32 Packed;
+	};
+
+	SortKey FoundKey;
+	const FLightSceneProxy* FoundProxy = nullptr;
+	int FoundVirtualShadowMapId = INDEX_NONE;
+};
+
 class FVirtualShadowMapArray
 {
 public:	
@@ -180,6 +225,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const TArray<FViewInfo> &Views, 
+		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
 		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
@@ -224,6 +270,9 @@ public:
 	// Add render views, and mark shadow maps as rendered for a given clipmap or set of VSMs, returns the number of primary views added.
 	uint32 AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
 	uint32 AddRenderViews(const FProjectedShadowInfo* ProjectedShadowInfo, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
+
+	// Add visualization composite pass, if enabled
+	void AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output);
 
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
@@ -274,11 +323,9 @@ public:
 
 	FRDGBufferRef StatsBufferRDG = nullptr;
 
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
-	int DebugOutputType = 0;	// 0 = Disabled
-	// Base ID of the light that the user has selected for debug output (if present)
-	int DebugVirtualShadowMapId = INDEX_NONE;
-	FRDGTextureRef DebugVisualizationProjectionOutput = nullptr;
+	// Debug visualization
+	FRDGTextureRef DebugVisualizationOutput = nullptr;
+	FVirtualShadowMapVisualizeLightSearch VisualizeLight;
 
 private:
 	bool bInitialized = false;
