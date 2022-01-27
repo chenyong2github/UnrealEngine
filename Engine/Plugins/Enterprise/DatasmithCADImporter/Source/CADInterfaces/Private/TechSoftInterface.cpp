@@ -334,6 +334,12 @@ void TUniqueTSObj<A3DRootBaseWithGraphicsData>::InitializeData()
 }
 const A3DEntity* TUniqueTSObj<A3DRootBaseWithGraphicsData>::DefaultValue = nullptr;
 
+void TUniqueTSObj<A3DSewOptionsData>::InitializeData()
+{
+	A3D_INITIALIZE_DATA(A3DSewOptionsData, Data);
+}
+const A3DEntity* TUniqueTSObj<A3DSewOptionsData>::DefaultValue = nullptr;
+
 void TUniqueTSObj<A3DSurfBlend01Data>::InitializeData()
 {
 	A3D_INITIALIZE_DATA(A3DSurfBlend01Data, Data);
@@ -713,6 +719,11 @@ A3DStatus TUniqueTSObj<A3DRootBaseWithGraphicsData>::GetData(const A3DRootBaseWi
 	return A3DRootBaseWithGraphicsGet(InRootBaseWithGraphicsPtr, &Data);
 }
 
+A3DStatus TUniqueTSObj<A3DSewOptionsData>::GetData(const A3DEntity* InRootBaseWithGraphicsPtr)
+{
+	return A3DStatus::A3D_ERROR;
+}
+
 A3DStatus TUniqueTSObj<A3DSurfBlend01Data>::GetData(const A3DEntity* InSurfPtr)
 {
 	return A3DSurfBlend01Get(InSurfPtr, &Data);
@@ -934,6 +945,27 @@ A3DEntity* GetPointerFromIndex(const uint32 Index, const A3DEEntityType Type)
 		return nullptr;
 	}
 	return EntityPtr;
+}
+
+A3DStatus HealBRep(A3DRiBrepModel** BRepToHeal, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
+{
+	A3DUns32 NewBRepCount;
+	A3DStatus Status = A3DSewBrep(&BRepToHeal, 1, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
+	OutNewBRepCount = NewBRepCount;
+	return Status;
+}
+
+A3DStatus SewBReps(A3DRiBrepModel*** BRepsToSew, uint32 const BRepCount, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
+{
+	A3DUns32 NewBRepCount;
+	A3DStatus Status = A3DSewBrep(BRepsToSew, BRepCount, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
+	OutNewBRepCount = NewBRepCount;
+	return Status;
+}
+
+A3DStatus SewModel(A3DAsmModelFile** ModelPtr, double Tolerance, A3DSewOptionsData const* SewOptions)
+{
+	return A3DAsmModelFileSew(ModelPtr, Tolerance, SewOptions);
 }
 
 #endif

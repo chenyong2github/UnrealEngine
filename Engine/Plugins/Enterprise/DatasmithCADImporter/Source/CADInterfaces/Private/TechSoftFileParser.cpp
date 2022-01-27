@@ -301,17 +301,25 @@ ECADParsingResult FTechSoftFileParser::Process()
 		}
 	}
 
-	if (CADFileData.GetImportParameters().GetStitchingTechnique() != StitchingNone && !FImportParameters::bGDisableCADKernelTessellation)
+	A3DAsmModelFile* ModelFile = TechSoftInterface.GetModelFile();
+
+	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingSew && FImportParameters::bGDisableCADKernelTessellation)
 	{
-		// todo
-		//TechSoftInterface.Repair(CADFileData.GetStitchingTechnique());
+		TUniqueTSObj<A3DSewOptionsData> SewData;
+		SewData->m_bComputePreferredOpenShellOrientation = false;
+		double ToleranceMM = 0.01 / FileUnit;
+		A3DStatus Status = TechSoftUtils::SewModel(&ModelFile, ToleranceMM, &*SewData);
+		if(Status != A3DStatus::A3D_SUCCESS)
+		{
+			// To do but what ?
+		}
 	}
 
 	ReserveCADFileData();
 
 	ReadMaterialsAndColors();
 
-	ECADParsingResult Result = TraverseModel(TechSoftInterface.GetModelFile());
+	ECADParsingResult Result = TraverseModel(ModelFile);
 
 	TechSoftInterface.UnloadModel();
 
@@ -1064,7 +1072,24 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FEnt
 	TraverseRepresentationContent(BRepModelPtr, Body);
 	if (FImportParameters::bGDisableCADKernelTessellation)
 	{
-		MeshRepresentationWithTechSoft(BRepModelPtr, Body);
+		// todo
+		//if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)
+		//{
+		//	TUniqueTSObj<A3DSewOptionsData> SewData;
+		//	SewData->m_bComputePreferredOpenShellOrientation = false;
+		//	double ToleranceMM = 0.01 / FileUnit;
+		//	A3DRiBrepModel** NewBReps;
+		//	uint32 NewBRepCount = 0;
+		//	A3DStatus Status = TechSoftUtils::HealBRep(&BRepModelPtr, ToleranceMM, &*SewData, &NewBReps, NewBRepCount);
+		//	if (Status == A3DStatus::A3D_SUCCESS)
+		//	{
+		//		MeshRepresentationsWithTechSoft(NewBRepCount, NewBReps, Body);
+		//	}
+		//}
+		//else
+		{
+			MeshRepresentationWithTechSoft(BRepModelPtr, Body);
+		}
 	}
 	else
 	{
@@ -1690,7 +1715,6 @@ bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occu
 	}
 	return bIsConfiguration;
 }
-
 
 uint32 FTechSoftFileParser::CountColorAndMaterial()
 {
