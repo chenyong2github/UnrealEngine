@@ -4663,6 +4663,16 @@ void FAudioDevice::UpdateAudioEngineSubsystems()
 	}
 }
 
+void FAudioDevice::NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo) const
+{
+	OnAudioDevicePreRender.Broadcast(InInfo);
+}
+
+void FAudioDevice::NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo) const
+{
+	OnAudioDevicePostRender.Broadcast(InInfo);
+}
+
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);

@@ -732,6 +732,11 @@ namespace Audio
 		// Update the audio render thread time at the head of the render
 		AudioThreadTimingData.AudioRenderThreadTime = FPlatformTime::Seconds() - AudioThreadTimingData.StartTime;
 
+		// notify interested parties
+		FAudioDeviceRenderInfo RenderInfo;
+		RenderInfo.NumFrames = SourceManager->GetNumOutputFrames();
+		NotifyAudioDevicePreRender(RenderInfo);
+
 		// Pump the command queue to the audio render thread
 		PumpCommandQueue();
 
@@ -800,6 +805,9 @@ namespace Audio
 
 		// Update the audio clock
 		AudioClock += AudioClockDelta;
+
+		// notify interested parties
+		NotifyAudioDevicePostRender(RenderInfo);
 
 		return true;
 	}

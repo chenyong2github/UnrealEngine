@@ -412,6 +412,13 @@ public:
 	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) = 0;
 };
 
+struct FAudioDeviceRenderInfo
+{
+	int32 NumFrames = 0;
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDevicePreRender, FAudioDeviceRenderInfo);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDevicePostRender, FAudioDeviceRenderInfo);
 
 class ENGINE_API FAudioDevice : public FExec
 {
@@ -939,6 +946,9 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submix patching only works with the audio mixer. Please run with audio mixer enabled."));
 		return nullptr;
 	}
+
+	FOnAudioDevicePreRender OnAudioDevicePreRender;
+	FOnAudioDevicePostRender OnAudioDevicePostRender;
 
 	virtual void InitSoundEffectPresets() {}
 
@@ -1493,7 +1503,11 @@ protected:
 	 */
 	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
 
-	private:
+	void NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo) const;
+
+	void NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo) const;
+	
+private:
 
 	/**
 	 * Adds an active sound to the audio device. Can be a new active sound or one provided by the re-triggering
