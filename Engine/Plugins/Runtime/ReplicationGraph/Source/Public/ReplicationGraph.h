@@ -122,6 +122,18 @@ public:
 		return NewNode;
 	}
 
+	/** Allocates and initializes ChildNode of a specific type T with a given base name. This is what you will want to call in your FCreateChildNodeFuncs.  */
+	template< class T >
+	T* CreateChildNode(FName NodeBaseName)
+	{
+		FName UniqueNodeName = MakeUniqueObjectName(this, T::StaticClass(), NodeBaseName);
+		T* NewNode = NewObject<T>(this, UniqueNodeName);
+		NewNode->Initialize(GraphGlobals);
+		AllChildNodes.Add(NewNode);
+		return NewNode;
+	}
+
+
 	/** Node removal behavior */
 	enum class NodeOrdering
 	{
@@ -937,6 +949,16 @@ public:
 	T* CreateNewNode()
 	{
 		T* NewNode = NewObject<T>(this);
+		InitNode(NewNode);
+		return NewNode;
+	}
+
+	/** Creates a new node for the graph with a given base name. This and UReplicationNode::CreateChildNode should be the only things that create the graph node UObjects */
+	template< class T >
+	T* CreateNewNode(FName NodeBaseName)
+	{
+		FName UniqueNodeName = MakeUniqueObjectName(this, T::StaticClass(), NodeBaseName);
+		T* NewNode = NewObject<T>(this, UniqueNodeName);
 		InitNode(NewNode);
 		return NewNode;
 	}
