@@ -44,7 +44,7 @@ FSlateIcon UFractureToolSelection::GetToolIcon() const
 
 void UFractureToolSelection::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "CustomSelection", "Intrctve", "The interactive selection mode provides useful options to help select bones.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "SelectCustom", "Intrctve", "The interactive selection mode provides useful options to help select bones.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->SelectCustom = UICommandInfo;
 }
 
