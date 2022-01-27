@@ -20,12 +20,9 @@ class NIAGARAEDITOR_API UNiagaraStackFilteredObject : public UNiagaraStackFuncti
 	GENERATED_BODY()
 		
 public:
-	DECLARE_DELEGATE_TwoParams(FOnSelectRootNodes, TArray<TSharedRef<IDetailTreeNode>>, TArray<TSharedRef<IDetailTreeNode>>*);
-
-public:
 	UNiagaraStackFilteredObject();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraEmitter* InEmitter, FString InOwningStackItemEditorDataKey);
+	void Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey);
 	void FinalizeInternal() override;
 
 	virtual FText GetDisplayName() const override;

@@ -85,6 +85,20 @@ void UNiagaraStackEditorData::SetStackItemShowAdvanced(const FString& StackEntry
 	}
 }
 
+FText UNiagaraStackEditorData::GetStackEntryActiveSection(const FString& StackEntryKey, FText ActiveSectionDefault) const
+{
+	const FText* ActiveSectionPtr = StackEntryKeyToActiveSectionMap.Find(StackEntryKey);
+	return ActiveSectionPtr != nullptr ? *ActiveSectionPtr : ActiveSectionDefault;
+}
+
+void UNiagaraStackEditorData::SetStackEntryActiveSection(const FString& StackEntryKey, FText ActiveSection)
+{
+	if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the active section with an empty key")))
+	{
+		StackEntryKeyToActiveSectionMap.FindOrAdd(StackEntryKey) = ActiveSection;
+	}
+}
+
 const FText* UNiagaraStackEditorData::GetStackEntryDisplayName(const FString& StackEntryKey) const
 {
 	return StackEntryKeyToDisplayName.Find(StackEntryKey);

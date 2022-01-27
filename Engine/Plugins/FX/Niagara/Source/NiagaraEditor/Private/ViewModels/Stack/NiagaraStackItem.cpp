@@ -47,11 +47,6 @@ void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 	SetIsEnabledInternal(bInIsEnabled);
 }
 
-const FSlateBrush* UNiagaraStackItem::GetIconBrush() const
-{
-	return FEditorStyle::GetBrush("NoBrush");
-}
-
 void UNiagaraStackItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	if (ItemFooter == nullptr)

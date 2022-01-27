@@ -28,8 +28,8 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 
 	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
-	// Icon
-	if (Item->SupportsIcon())
+	// Icon Brush
+	if (Item->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Brush)
 	{
 		RowBox->AddSlot()
 		.Padding(2, 0, 3, 0)
@@ -38,6 +38,20 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		[
 			SNew(SImage)
 			.Image_UObject(Item, &UNiagaraStackItem::GetIconBrush)
+		];
+	}
+
+	// Icon Text
+	if (Item->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Text)
+	{
+		RowBox->AddSlot()
+		.Padding(2, 0, 3, 0)
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Text(Item->GetIconText())
 		];
 	}
 
@@ -53,6 +67,28 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 
 	// Allow derived classes to add additional widgets.
 	AddCustomRowWidgets(RowBox);
+
+	// Edit Mode Button
+	if (Item->SupportsEditMode())
+	{
+		RowBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 2, 0)
+		[
+			SNew(SButton)
+			.IsFocusable(false)
+			.ToolTipText(this, &SNiagaraStackItem::GetEditModeButtonToolTipText)
+			.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
+			.OnClicked(this, &SNiagaraStackItem::EditModeButtonClicked)
+			.ContentPadding(1)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
+				.ColorAndOpacity(this, &SNiagaraStackItem::GetEditModeButtonIconColor)
+			]
+		];
+	}
 
 	// Reset to base button
 	if (Item->SupportsResetToBase())
@@ -138,6 +174,29 @@ void SNiagaraStackItem::Tick(const FGeometry& AllottedGeometry, const double InC
 TSharedRef<SWidget> SNiagaraStackItem::AddContainerForRowWidgets(TSharedRef<SWidget> RowWidgets)
 {
 	return RowWidgets;
+}
+
+FText SNiagaraStackItem::GetEditModeButtonToolTipText() const
+{
+	return Item->GetEditModeIsActive() 
+		? LOCTEXT("DisableEditModeToolTip", "Disable Edit Mode")
+		: LOCTEXT("EnableEditModeToolTip", "Enable Edit Mode");
+}
+
+FReply SNiagaraStackItem::EditModeButtonClicked()
+{
+	if (Item->SupportsEditMode())
+	{
+		Item->SetEditModeIsActive(!Item->GetEditModeIsActive());
+	}
+	return FReply::Handled();
+}
+
+FSlateColor SNiagaraStackItem::GetEditModeButtonIconColor() const
+{
+	return Item->GetEditModeIsActive()
+		? FStyleColors::AccentYellow
+		: FSlateColor::UseSubduedForeground();
 }
 
 EVisibility SNiagaraStackItem::GetResetToBaseButtonVisibility() const

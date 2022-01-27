@@ -613,7 +613,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			{
 				DynamicInputEntry = NewObject<UNiagaraStackFunctionInputCollection>(this);
 				DynamicInputEntry->Initialize(CreateDefaultChildRequiredData(), *OwningModuleNode, *InputValues.DynamicNode.Get(), GetOwnerStackItemEditorDataKey());
-				DynamicInputEntry->SetShouldShowInStack(false);
+				DynamicInputEntry->SetShouldDisplayLabel(false);
 			}
 
 			if (ScriptData != nullptr)

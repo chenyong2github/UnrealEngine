@@ -38,6 +38,7 @@
 #include "Stack/NiagaraStackPropertyRowUtilities.h"
 #include "Stack/SNiagaraStackFunctionInputName.h"
 #include "Stack/SNiagaraStackFunctionInputValue.h"
+#include "Stack/SNiagaraStackFunctionInputCollection.h"
 #include "Stack/SNiagaraStackItem.h"
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "Stack/SNiagaraStackItemGroup.h"
@@ -969,8 +970,12 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 				.IsReadOnly(true)
 			);
 	}
-	else if (Item->IsA<UNiagaraStackFunctionInputCollection>() ||
-		Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
+	else if (Item->IsA<UNiagaraStackFunctionInputCollectionBase>())
+	{
+		UNiagaraStackFunctionInputCollectionBase* InputCollection = CastChecked<UNiagaraStackFunctionInputCollectionBase>(Item);
+		return FRowWidgets(SNew(SNiagaraStackFunctionInputCollection, InputCollection));
+	}
+	else if (Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
 		Item->IsA<UNiagaraStackModuleItemLinkedInputCollection>())
 	{
 		return FRowWidgets(

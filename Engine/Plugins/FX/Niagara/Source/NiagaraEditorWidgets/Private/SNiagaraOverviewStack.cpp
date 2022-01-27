@@ -177,7 +177,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			RowOverlay->AddSlot()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Fill)
-			.Padding(FMargin(1, 0, 0, 0))
+			.Padding(FMargin(0))
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
@@ -313,21 +313,22 @@ private:
 	{
 		if (IssueHighlightColor.IsSet() == false)
 		{
+			float DesaturateAmount = .1f;
 			if (StackEntry->GetTotalNumberOfErrorIssues() > 0)
 			{
-				IssueHighlightColor = FStyleColors::AccentRed.GetSpecifiedColor().Desaturate(.15f);
+				IssueHighlightColor = FStyleColors::AccentRed.GetSpecifiedColor().Desaturate(DesaturateAmount);
 			}
 			else if (StackEntry->GetTotalNumberOfWarningIssues() > 0)
 			{
-				IssueHighlightColor = FStyleColors::AccentYellow.GetSpecifiedColor().Desaturate(.15f);
+				IssueHighlightColor = FStyleColors::AccentYellow.GetSpecifiedColor().Desaturate(DesaturateAmount);
 			}
 			else if (StackEntry->GetTotalNumberOfInfoIssues() > 0)
 			{
-				IssueHighlightColor = FStyleColors::AccentBlue.GetSpecifiedColor().Desaturate(.15f);
+				IssueHighlightColor = FStyleColors::AccentBlue.GetSpecifiedColor().Desaturate(DesaturateAmount);
 			}
 			else if (StackEntry->GetTotalNumberOfCustomNotes() > 0)
 			{
-				IssueHighlightColor = FStyleColors::AccentGray.GetSpecifiedColor().Desaturate(.15f);
+				IssueHighlightColor = FStyleColors::AccentWhite.GetSpecifiedColor().Desaturate(DesaturateAmount);
 			}
 			else
 			{
@@ -755,9 +756,9 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
-		if (StackItem->SupportsIcon())
+		// Icon Brush
+		if (StackItem->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Brush)
 		{
-			// Icon
 			ContentBox->AddSlot()
 			.Padding(0, 1, 0, 1)
 			.AutoWidth()
@@ -773,6 +774,28 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					SNew(SImage)
 					.Image_UObject(StackItem, &UNiagaraStackItem::GetIconBrush)
 					.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
+				]
+			];
+		}
+		// Icon Text
+		if (StackItem->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Text)
+		{
+			ContentBox->AddSlot()
+			.Padding(0, 1, 0, 1)
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				.WidthOverride(IconSize.X)
+				.HeightOverride(IconSize.Y)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Text(StackItem->GetIconText())
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				]
 			];
 		}
@@ -819,6 +842,8 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						SNew(SImage)
 						.ToolTipText(LOCTEXT("ScratchPadOverviewTooltip", "This module is a scratch pad script."))
 						.Image(FNiagaraEditorStyle::Get().GetBrush("Tab.ScratchPad"))
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
 					];
 			}
 
@@ -833,12 +858,11 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						SNew(SButton)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
-						.ButtonColorAndOpacity(FLinearColor::Transparent)
 						.ForegroundColor(FLinearColor::Transparent)
 						.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
 						.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
-						.ContentPadding(FMargin(2.f))
-						.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+						.ContentPadding(FMargin(1.0f))
+						.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
 						[
 							SNew(SImage)
 							.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
@@ -926,14 +950,17 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItemGroup* StackItemGroup = CastChecked<UNiagaraStackItemGroup>(Item);
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
+
+		FLinearColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(
+			FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackItemGroup->GetExecutionCategoryName())).Desaturate(.25f);
 		
-		// Icon
-		if (StackItemGroup->SupportsIcon())
+		// Icon Brush
+		if (StackItemGroup->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Brush)
 		{
 			ContentBox->AddSlot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
-				.Padding(2, 1, 2, 1)
+				.Padding(0, 1, 1, 1)
 				[
 					SNew(SBox)
 					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
@@ -945,6 +972,30 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						SNew(SImage)
 						.Image_UObject(StackItemGroup, &UNiagaraStackItemGroup::GetIconBrush)
 						.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
+						.ColorAndOpacity(IconColor)
+					]
+				];
+		}
+
+		// Icon Text
+		if (StackItemGroup->GetSupportedIconMode() == UNiagaraStackEntry::EIconMode::Text)
+		{
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0, 1, 1, 1)
+				[
+					SNew(SBox)
+					.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+					.WidthOverride(IconSize.X)
+					.HeightOverride(IconSize.Y)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(StackItemGroup->GetIconText())
+						.ColorAndOpacity(IconColor)
 					]
 				];
 		}

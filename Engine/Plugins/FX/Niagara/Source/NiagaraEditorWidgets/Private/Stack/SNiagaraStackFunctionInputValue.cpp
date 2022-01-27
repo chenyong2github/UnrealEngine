@@ -188,25 +188,25 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 		]
 	];
 
-	if (GetFilteredViewContextButtonVisibility() == EVisibility::Visible)
+	if (FunctionInput->GetTypedOuter<UNiagaraStackSummaryViewObject>() != nullptr)
 	{
 		ChildrenBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(3, 0, 0, 0)
 		[
-
 			SNew(SComboButton)
-			.ContentPadding(0)
-			.ForegroundColor(FLinearColor::Transparent)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
 			.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesContent)
 			.Visibility(this, &SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibility)
+			.ToolTipText(LOCTEXT("InputSummaryOptionsToolTip", "Input Summary Options"))
 			.IsEnabled(true)
 			.ButtonContent()
 			[
-				SNew(SImage)
-				.Image(this, &SNiagaraStackFunctionInputValue::GetFilteredViewIcon)
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FText::FromString(FString(TEXT("\xf0ca")/* fa-list-ul */)))
+				.ColorAndOpacity(FStyleColors::AccentYellow)
 			]
 		];
 	}
@@ -806,7 +806,7 @@ FSlateColor SNiagaraStackFunctionInputValue::GetInputIconColor() const
 
 EVisibility SNiagaraStackFunctionInputValue::GetTypeModifierIconVisibility() const
 {
-	return FunctionInput->GetInputType().IsStatic() ? EVisibility::Visible : EVisibility::Hidden;
+	return FunctionInput->GetInputType().IsStatic() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SNiagaraStackFunctionInputValue::GetTypeModifierIconText() const
@@ -1364,7 +1364,7 @@ EVisibility SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibil
 {
 	UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
 	
-	if (!EditorData || EditorData->ShouldShowSummaryView() || FunctionInput->GetTypedOuter<UNiagaraStackSummaryViewObject>() == nullptr)
+	if (!EditorData || EditorData->ShouldShowSummaryView() || FunctionInput->GetTypedOuter<UNiagaraStackSummaryViewObject>() == nullptr || FunctionInput->GetEmitterViewModel()->GetSummaryIsInEditMode() == false)
 	{
 		return EVisibility::Hidden;
 	}

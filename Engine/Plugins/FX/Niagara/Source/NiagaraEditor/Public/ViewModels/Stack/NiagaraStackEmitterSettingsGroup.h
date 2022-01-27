@@ -10,6 +10,7 @@ class FNiagaraEmitterViewModel;
 class FNiagaraScriptViewModel;
 class UNiagaraStackObject;
 class UNiagaraStackSummaryViewObject;
+class IDetailTreeNode;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackEmitterPropertiesItem : public UNiagaraStackItem
@@ -27,7 +28,7 @@ public:
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
 	virtual void ResetToBase() override;
 
-	virtual bool SupportsIcon() const override { return true; }
+	virtual EIconMode GetSupportedIconMode() const { return EIconMode::Brush; }
 	virtual const FSlateBrush* GetIconBrush() const override;
 
 	virtual bool IsExpandedByDefault() const override;
@@ -66,19 +67,29 @@ public:
 
 	virtual bool SupportsResetToBase() const override { return false; }
 	virtual bool IsExpandedByDefault() const override { return false; }
-	virtual bool SupportsIcon() const override { return false; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Text; }
+	virtual FText GetIconText() const override;
 	virtual bool GetShouldShowInOverview() const override { return false; }
+
+	virtual bool SupportsEditMode() const override { return true; }
+	virtual bool GetEditModeIsActive() const override;
+	virtual void SetEditModeIsActive(bool bInEditModeIsActive) override;
 
 protected:
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
+	void SelectSummaryNodesFromEmitterEditorDataRootNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
+
+private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackSummaryViewObject> FilteredObject;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackObject> SummaryEditorData;
 };
 
 UCLASS()
@@ -89,8 +100,8 @@ class NIAGARAEDITOR_API UNiagaraStackEmitterSummaryGroup : public UNiagaraStackI
 public:
 	UNiagaraStackEmitterSummaryGroup();
 
-	virtual bool SupportsIcon() const override { return true; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Text; }
+	virtual  FText GetIconText() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 

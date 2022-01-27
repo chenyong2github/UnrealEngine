@@ -139,7 +139,7 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 	{
 		EmitterSummaryGroup = NewObject<UNiagaraStackEmitterSummaryGroup>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Summary,
+			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Settings,
 			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
 		FText DisplayName = LOCTEXT("EmitterSummaryGroupName", "Emitter Summary");
 		FText Tooltip = LOCTEXT("EmitterSummaryTooltip", "Summary of parameters for this Emitter.");
@@ -203,7 +203,7 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 	{
 		SummaryCollapseButton = NewObject<UNiagaraStackSummaryViewCollapseButton>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Summary,
+			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Settings,
 			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
 		SummaryCollapseButton->Initialize(RequiredEntryData);
 	}

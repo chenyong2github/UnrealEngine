@@ -14,6 +14,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraScriptHighlight.h"
+#include "NiagaraStackSection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformAtomics.h"
@@ -606,6 +607,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Script, DisplayName = "Script Metadata", meta = (ToolTip = "Script Metadata"))
 	TMap<FName, FString> ScriptMetaData;
+	
+	UPROPERTY(EditAnywhere, Category = Script)
+	TArray<FNiagaraStackSection> InputSections;
 	
 	/** Adjusted every time ComputeVMCompilationId is called.*/
 	UPROPERTY()

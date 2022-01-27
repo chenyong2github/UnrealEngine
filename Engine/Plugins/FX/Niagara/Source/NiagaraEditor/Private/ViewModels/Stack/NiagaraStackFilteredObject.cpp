@@ -30,13 +30,13 @@ UNiagaraStackFilteredObject::UNiagaraStackFilteredObject()
 {
 }
 
-void UNiagaraStackFilteredObject::Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraEmitter* InEmitter, FString InOwningStackItemEditorDataKey)
+void UNiagaraStackFilteredObject::Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey)
 {
 	checkf(Emitter == nullptr, TEXT("Can only initialize once."));
 	FString ObjectStackEditorDataKey = FString::Printf(TEXT("%s-FilteredView"), *InOwningStackItemEditorDataKey);
 	Super::Initialize(InRequiredEntryData, InOwningStackItemEditorDataKey, ObjectStackEditorDataKey);
 
-	Emitter = InEmitter;
+	Emitter = GetEmitterViewModel()->GetEmitter();
 	if (Emitter->GetEditorData())
 	{
 		Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData())->OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackFilteredObject::OnViewStateChanged);

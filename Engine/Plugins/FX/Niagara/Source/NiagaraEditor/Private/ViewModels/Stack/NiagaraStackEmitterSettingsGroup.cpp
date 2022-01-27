@@ -6,6 +6,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraEmitterEditorData.h"
 #include "NiagaraStackEditorData.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
@@ -14,6 +15,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraEditorStyle.h"
 #include "Styling/AppStyle.h"
+#include "IDetailTreeNode.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackEmitterItemGroup"
 
@@ -177,21 +179,29 @@ FText UNiagaraStackEmitterSummaryItem::GetTooltipText() const
 	return LOCTEXT("EmitterSummaryTooltip", "Subset of parameters from the stack, summarized here for easier access.");
 }
 
-const FSlateBrush* UNiagaraStackEmitterSummaryItem::GetIconBrush() const
+FText UNiagaraStackEmitterSummaryItem::GetIconText() const
 {
-	if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
-	{
-		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.CPUIcon");
-	}
-	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
-	}
-	return FEditorStyle::GetBrush("NoBrush");
+	return FText::FromString(FString(TEXT("\xf0ca")/* fa-list-ul */));
 }
 
 void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	if (GetEmitterViewModel()->GetSummaryIsInEditMode())
+	{
+		if (SummaryEditorData == nullptr)
+		{
+			SummaryEditorData = NewObject<UNiagaraStackObject>(this);
+			SummaryEditorData->Initialize(CreateDefaultChildRequiredData(), &GetEmitterViewModel()->GetOrCreateEditorData(), GetStackEditorDataKey());
+			SummaryEditorData->SetOnSelectRootNodes(UNiagaraStackObject::FOnSelectRootNodes::CreateUObject(this,
+				&UNiagaraStackEmitterSummaryItem::SelectSummaryNodesFromEmitterEditorDataRootNodes));
+		}
+		NewChildren.Add(SummaryEditorData);
+	}
+	else
+	{
+		SummaryEditorData = nullptr;
+	}
+
 	if (FilteredObject == nullptr)
 	{
 		FilteredObject = NewObject<UNiagaraStackSummaryViewObject>(this);
@@ -201,6 +211,57 @@ void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiag
 
 	NewChildren.Add(FilteredObject);
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+TSharedPtr<IDetailTreeNode> GetSummarySectionsPropertyNode(const TArray<TSharedRef<IDetailTreeNode>>& Nodes)
+{
+	TArray<TSharedRef<IDetailTreeNode>> ChildrenToCheck;
+	for (TSharedRef<IDetailTreeNode> Node : Nodes)
+	{
+		if (Node->GetNodeType() == EDetailNodeType::Item)
+		{
+			TSharedPtr<IPropertyHandle> NodePropertyHandle = Node->CreatePropertyHandle();
+			if (NodePropertyHandle.IsValid() && NodePropertyHandle->GetProperty()->GetFName() == UNiagaraEmitterEditorData::PrivateMemberNames::SummarySections)
+			{
+				return Node;
+			}
+		}
+
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		Node->GetChildren(Children);
+		ChildrenToCheck.Append(Children);
+	}
+	if (ChildrenToCheck.Num() == 0)
+	{
+		return nullptr;
+	}
+	return GetSummarySectionsPropertyNode(ChildrenToCheck);
+}
+
+void UNiagaraStackEmitterSummaryItem::SelectSummaryNodesFromEmitterEditorDataRootNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected)
+{
+	TSharedPtr<IDetailTreeNode> SummarySectionsNode = GetSummarySectionsPropertyNode(Source);
+	if (SummarySectionsNode.IsValid())
+	{
+		Selected->Add(SummarySectionsNode.ToSharedRef());
+	}
+}
+
+bool UNiagaraStackEmitterSummaryItem::GetEditModeIsActive() const
+{ 
+	return GetEmitterViewModel().IsValid() && GetEmitterViewModel()->GetSummaryIsInEditMode();
+}
+
+void UNiagaraStackEmitterSummaryItem::SetEditModeIsActive(bool bInEditModeIsActive)
+{
+	if (GetEmitterViewModel().IsValid())
+	{
+		if (GetEmitterViewModel()->GetSummaryIsInEditMode() != bInEditModeIsActive)
+		{
+			GetEmitterViewModel()->SetSummaryIsInEditMode(bInEditModeIsActive);
+			RefreshChildren();
+		}
+	}
 }
 
 UNiagaraStackEmitterSummaryGroup::UNiagaraStackEmitterSummaryGroup()
@@ -220,9 +281,9 @@ void UNiagaraStackEmitterSummaryGroup::RefreshChildrenInternal(const TArray<UNia
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-const FSlateBrush* UNiagaraStackEmitterSummaryGroup::GetIconBrush() const
+FText UNiagaraStackEmitterSummaryGroup::GetIconText() const
 {
-	return FAppStyle::Get().GetBrush("Icons.Edit");
+	return FText::FromString(FString(TEXT("\xf0ca")/* fa-list-ul */));
 }
 
 

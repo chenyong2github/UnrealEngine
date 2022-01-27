@@ -29,9 +29,6 @@ public:
 	virtual void SetIsEnabled(bool bEnabled) {}
 	virtual bool SupportsChangeEnabled() const { return false; }
 
-	virtual bool SupportsIcon() const { return false; }
-	virtual const FSlateBrush* GetIconBrush() const { return nullptr; };
-
 	virtual bool SupportsSecondaryIcon() const { return false; }
 	virtual const FSlateBrush* GetSecondaryIconBrush() const { return nullptr; };
 

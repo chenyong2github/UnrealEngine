@@ -120,6 +120,9 @@ public:
 	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
 	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);
 
+	bool GetSummaryIsInEditMode() const { return bSummaryIsInEditMode; }
+	void SetSummaryIsInEditMode(bool bInSummaryIsInEditMode) { bSummaryIsInEditMode = bInSummaryIsInEditMode; }
+
 	void Cleanup();
 
 private:
@@ -188,4 +191,6 @@ private:
 	TMap<FObjectKey, FDelegateHandle> ScriptToOnParameterStoreChangedHandleMap;
 
 	TSharedPtr<SWindow> NewParentWindow;
+
+	bool bSummaryIsInEditMode;
 };

@@ -4,6 +4,7 @@
 
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraStackSection.h"
 #include "NiagaraEmitterEditorData.generated.h"
 
 class UNiagaraStackEditorData;
@@ -14,6 +15,12 @@ UCLASS(MinimalAPI)
 class UNiagaraEmitterEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()
+
+public: 
+	struct PrivateMemberNames
+	{
+		static const FName SummarySections;
+	};
 
 public:
 	UNiagaraEmitterEditorData(const FObjectInitializer& ObjectInitializer);
@@ -34,6 +41,9 @@ public:
 	NIAGARAEDITOR_API TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> GetSummaryViewMetaDataMap() const;
 	NIAGARAEDITOR_API FFunctionInputSummaryViewMetadata GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const;
 	NIAGARAEDITOR_API void SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, const FFunctionInputSummaryViewMetadata& NewMetadata);
+
+	const TArray<FNiagaraStackSection> GetSummarySections() const { return SummarySections; }
+
 private:
 	UPROPERTY(Instanced)
 	TObjectPtr<UNiagaraStackEditorData> StackEditorData;
@@ -50,6 +60,9 @@ private:
 	/** Stores metadata for filtering function inputs when in Filtered/Simple view. */
 	UPROPERTY()
 	TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> SummaryViewFunctionInputMetadata;
+
+	UPROPERTY(EditAnywhere, Category=Summary, meta=(NiagaraNoMerge))
+	TArray<FNiagaraStackSection> SummarySections;
 
 	FSimpleMulticastDelegate OnSummaryViewStateChangedDelegate;
 	

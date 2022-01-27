@@ -25,6 +25,8 @@
 
 FText UNiagaraStackFunctionInputCollectionBase::UncategorizedName = LOCTEXT("Uncategorized", "Uncategorized");
 
+FText UNiagaraStackFunctionInputCollectionBase::AllSectionName = LOCTEXT("All", "All");
+
 static FText GetUserFriendlyFunctionName(UNiagaraNodeFunctionCall* Node)
 {
 	if (Node->IsA<UNiagaraNodeAssignment>())
@@ -69,7 +71,6 @@ static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFuncti
 UNiagaraStackFunctionInputCollection::UNiagaraStackFunctionInputCollection()
 	: ModuleNode(nullptr)
 	, InputFunctionCallNode(nullptr)
-	, bShouldShowInStack(true)
 {
 }
 
@@ -108,19 +109,9 @@ FText UNiagaraStackFunctionInputCollection::GetDisplayName() const
 	return LOCTEXT("InputCollectionDisplayName", "Inputs");
 }
 
-bool UNiagaraStackFunctionInputCollection::GetShouldShowInStack() const
-{
-	return bShouldShowInStack;
-}
-
 bool UNiagaraStackFunctionInputCollection::GetIsEnabled() const
 {
 	return InputFunctionCallNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
-}
-
-void UNiagaraStackFunctionInputCollection::SetShouldShowInStack(bool bInShouldShowInStack)
-{
-	bShouldShowInStack = bInShouldShowInStack;
 }
 
 void UNiagaraStackFunctionInputCollection::ToClipboardFunctionInputs(UObject* InOuter, TArray<const UNiagaraClipboardFunctionInput*>& OutClipboardFunctionInputs) const
@@ -197,13 +188,72 @@ TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInputCollection::GetInl
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	RefreshChildrenForFunctionCall(ModuleNode, InputFunctionCallNode, CurrentChildren, NewChildren, NewIssues, false);
+	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-
-UNiagaraStackFunctionInputCollectionBase::UNiagaraStackFunctionInputCollectionBase()
-{	
+void UNiagaraStackFunctionInputCollection::GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const
+{
+	if (InputFunctionCallNode->GetCalledUsage() == ENiagaraScriptUsage::Module)
+	{
+		OutStackSections.Append(InputFunctionCallNode->GetScriptData()->InputSections);
+	}
 }
 
+void UNiagaraStackFunctionInputCollectionBase::Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey)
+{
+	Super::Initialize(InRequiredEntryData, InOwningStackItemEditorDataKey, InStackEditorDataKey);
+	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackFunctionInputCollectionBase::FilterByActiveSection));
+	ActiveSectionCache = GetStackEditorData().GetStackEntryActiveSection(GetStackEditorDataKey(), AllSectionName);
+}
+
+void UNiagaraStackFunctionInputCollectionBase::SetShouldDisplayLabel(bool bInShouldDisplayLabel)
+{
+	bShouldDisplayLabel = bInShouldDisplayLabel;
+}
+
+const TArray<FText>& UNiagaraStackFunctionInputCollectionBase::GetSections() const
+{
+	if (SectionsCache.IsSet() == false)
+	{
+		UpdateCachedSectionData();
+	}
+	return SectionsCache.GetValue();
+}
+
+FText UNiagaraStackFunctionInputCollectionBase::GetActiveSection() const
+{
+	if (ActiveSectionCache.IsSet() == false)
+	{
+		UpdateCachedSectionData();
+	}
+	return ActiveSectionCache.GetValue();
+}
+
+void UNiagaraStackFunctionInputCollectionBase::SetActiveSection(FText InActiveSection)
+{
+	ActiveSectionCache = InActiveSection;
+	GetStackEditorData().SetStackEntryActiveSection(GetStackEditorDataKey(), InActiveSection);
+	RefreshFilteredChildren();
+}
+
+bool UNiagaraStackFunctionInputCollectionBase::GetCanExpand() const
+{
+	return bShouldDisplayLabel;
+}
+
+bool UNiagaraStackFunctionInputCollectionBase::GetShouldShowInStack() const
+{
+	return GetSections().Num() > 0 || bShouldDisplayLabel;
+}
+
+void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
+	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+	LastActiveSection = ActiveSectionCache.IsSet() ? ActiveSectionCache.GetValue() : AllSectionName;
+	SectionsCache.Reset();
+	SectionToCategoryMapCache.Reset();
+	ActiveSectionCache.Reset();
+}
 
 void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenForFunctionCall(UNiagaraNodeFunctionCall* ModuleNode, UNiagaraNodeFunctionCall* InputFunctionCallNode, 
 	const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter)
@@ -714,6 +764,85 @@ void UNiagaraStackFunctionInputCollectionBase::AddInputToCategory(const FInputDa
 
 	
 
+}
+
+bool UNiagaraStackFunctionInputCollectionBase::FilterByActiveSection(const UNiagaraStackEntry& Child) const
+{
+	const TArray<FText>& Sections = GetSections();
+	FText ActiveSection = GetActiveSection();
+	if (Sections.Num() == 0 || ActiveSection.IdenticalTo(AllSectionName) || SectionToCategoryMapCache.IsSet() == false)
+	{
+		return true;
+	}
+
+	TArray<FText>* ActiveCategoryNames = SectionToCategoryMapCache->Find(ActiveSection.ToString());
+	const UNiagaraStackInputCategory* ChildCategory = Cast<UNiagaraStackInputCategory>(&Child);
+	return ChildCategory == nullptr || ActiveCategoryNames == nullptr || ActiveCategoryNames->ContainsByPredicate(
+		[ChildCategory](const FText& ActiveCategoryName) { return ActiveCategoryName.EqualTo(ChildCategory->GetDisplayName()); });
+}
+
+void UNiagaraStackFunctionInputCollectionBase::UpdateCachedSectionData() const
+{
+	TArray<FText> Sections;
+	TMap<FString, TArray<FText>> SectionToCategoryMap;
+	TArray<FNiagaraStackSection> StackSections;
+	GetSectionsInternal(StackSections);
+
+	if (StackSections.Num() > 0)
+	{
+		// Get the current list of categories.
+		TArray<FText> CategoryNames;
+		TArray<UNiagaraStackInputCategory*> ChildCategories;
+		GetUnfilteredChildrenOfType(ChildCategories);
+		
+		for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
+		{
+			if (ChildCategory->GetShouldShowInStack())
+			{
+				CategoryNames.Add(ChildCategory->GetDisplayName());
+			}
+		}
+
+		// Match sections to valid categories.
+		for (const FNiagaraStackSection& StackSection : StackSections)
+		{
+			TArray<FText> ContainedCategories;
+			for (FText SectionCategory : StackSection.Categories)
+			{
+				if (CategoryNames.ContainsByPredicate([SectionCategory](FText CategoryName) { return CategoryName.EqualTo(SectionCategory); }))
+				{
+					ContainedCategories.Add(SectionCategory);
+				}
+			}
+			if (ContainedCategories.Num() > 0)
+			{
+				Sections.Add(StackSection.SectionDisplayName);
+				SectionToCategoryMap.Add(StackSection.SectionDisplayName.ToString(), ContainedCategories);
+			}
+		}
+
+		Sections.Add(AllSectionName);
+		SectionToCategoryMap.Add(AllSectionName.ToString(), CategoryNames);
+
+		if (Sections.Num() == 1)
+		{
+			// If there is only one section, it's the "All" section which is not useful.
+			Sections.Empty();
+			SectionToCategoryMap.Empty();
+		}
+	}
+
+	SectionsCache = Sections;
+	SectionToCategoryMapCache = SectionToCategoryMap;
+	FText LastActiveSectionLocal = LastActiveSection;
+	if (Sections.ContainsByPredicate([LastActiveSectionLocal](FText Section) { return Section.EqualTo(LastActiveSectionLocal); }))
+	{
+		ActiveSectionCache = LastActiveSection;
+	}
+	else
+	{
+		ActiveSectionCache = AllSectionName;
+	}
 }
 
 UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollectionBase::GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription)

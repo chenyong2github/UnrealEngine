@@ -28,10 +28,10 @@ void SNiagaraStackRowPerfWidget::Construct(const FArguments& InArgs, UNiagaraSta
 {
 	StackEntry = InStackEntry;
 	SetToolTipText(CreateTooltipText());
+	SetVisibility(TAttribute<EVisibility>::CreateSP(this, &SNiagaraStackRowPerfWidget::IsVisible));
 	
 	TSharedRef<SWidget> PerfWidget =
 		SNew(SBox)
-		.Visibility(this, &SNiagaraStackRowPerfWidget::IsVisible)
         .HeightOverride(16)
 		.WidthOverride(70)
         .HAlign(HAlign_Right)

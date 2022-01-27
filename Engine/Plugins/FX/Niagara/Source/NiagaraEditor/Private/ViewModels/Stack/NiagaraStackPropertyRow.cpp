@@ -58,6 +58,12 @@ bool UNiagaraStackPropertyRow::IsExpandedByDefault() const
 	return DetailTreeNode->GetInitiallyCollapsed() == false;
 }
 
+bool UNiagaraStackPropertyRow::CanDrag() const
+{
+	TSharedPtr<IPropertyHandle> PropertyHandle = DetailTreeNode->CreatePropertyHandle();
+	return PropertyHandle.IsValid() && PropertyHandle->GetParentHandle().IsValid() && PropertyHandle->GetParentHandle()->AsArray().IsValid();
+}
+
 void UNiagaraStackPropertyRow::FinalizeInternal()
 {
 	Super::FinalizeInternal();
@@ -87,6 +93,7 @@ void UNiagaraStackPropertyRow::RefreshChildrenInternal(const TArray<UNiagaraStac
 		NewChildren.Add(ChildRow);
 	}
 }
+
 void UNiagaraStackPropertyRow::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const
 {
 	SearchItems.Add({ FName("DisplayName"), GetDisplayName() });
@@ -109,4 +116,67 @@ void UNiagaraStackPropertyRow::GetSearchItems(TArray<FStackSearchItem>& SearchIt
 			SearchItems.Add({ "PropertyRowHandleText", PropertyRowHandleText });
 		}
 	}	
+}
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackPropertyRow::CanDropInternal(const FDropRequest& DropRequest)
+{
+	// Validate stack, drop zone, and drag type.
+	if (DropRequest.DropOptions == UNiagaraStackEntry::EDropOptions::Overview ||
+		DropRequest.DropZone == EItemDropZone::OntoItem ||
+		DropRequest.DragDropOperation->IsOfType<FNiagaraStackEntryDragDropOp>() == false)
+	{
+		return TOptional<FDropRequestResponse>();
+	}
+
+	// Validate stack entry count and type.
+	TSharedRef<const FNiagaraStackEntryDragDropOp> StackEntryDragDropOp = StaticCastSharedRef<const FNiagaraStackEntryDragDropOp>(DropRequest.DragDropOperation);
+	if (StackEntryDragDropOp->GetDraggedEntries().Num() != 1 || StackEntryDragDropOp->GetDraggedEntries()[0]->IsA<UNiagaraStackPropertyRow>() == false)
+	{
+		return TOptional<FDropRequestResponse>();
+	}
+
+	auto HaveSameParent = [](TSharedPtr<IPropertyHandle> HandleA, TSharedPtr<IPropertyHandle> HandleB)
+	{
+		TSharedPtr<IPropertyHandle> ParentA = HandleA->GetParentHandle();
+		TSharedPtr<IPropertyHandle> ParentB = HandleB->GetParentHandle();
+		if (ParentA.IsValid() && ParentB.IsValid() && ParentA->GetProperty() == ParentB->GetProperty())
+		{
+			TArray<UObject*> OuterObjectsA;
+			ParentA->GetOuterObjects(OuterObjectsA);
+			TArray<UObject*> OuterObjectsB;
+			ParentB->GetOuterObjects(OuterObjectsB);
+			return OuterObjectsA == OuterObjectsB;
+		}
+		return false;
+	};
+
+	// Validate property handle.
+	UNiagaraStackPropertyRow* DraggedPropertyRow = CastChecked<UNiagaraStackPropertyRow>(StackEntryDragDropOp->GetDraggedEntries()[0]);
+	TSharedPtr<IPropertyHandle> DraggedPropertyHandle = DraggedPropertyRow->GetDetailTreeNode()->CreatePropertyHandle();
+	TSharedPtr<IPropertyHandle> TargetPropertyHandle = DetailTreeNode->CreatePropertyHandle();
+	if (DraggedPropertyHandle.IsValid() == false ||
+		TargetPropertyHandle.IsValid() == false ||
+		DraggedPropertyHandle == TargetPropertyHandle ||
+		DraggedPropertyHandle->GetParentHandle().IsValid() == false ||
+		HaveSameParent(DraggedPropertyHandle, TargetPropertyHandle) == false ||
+		DraggedPropertyHandle->GetParentHandle()->AsArray().IsValid() == false)
+	{
+		return TOptional<FDropRequestResponse>();
+	}
+	return FDropRequestResponse(DropRequest.DropZone, NSLOCTEXT("NiagaraStackPropertyRow", "DropArrayItemMessage", "Move this array entry here."));
+}
+
+TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackPropertyRow::DropInternal(const FDropRequest& DropRequest)
+{
+	TOptional<FDropRequestResponse> CanDropResponse = CanDropInternal(DropRequest);
+	if (CanDropResponse.IsSet())
+	{
+		TSharedRef<const FNiagaraStackEntryDragDropOp> StackEntryDragDropOp = StaticCastSharedRef<const FNiagaraStackEntryDragDropOp>(DropRequest.DragDropOperation);
+		UNiagaraStackPropertyRow* DraggedPropertyRow = CastChecked<UNiagaraStackPropertyRow>(StackEntryDragDropOp->GetDraggedEntries()[0]);
+		TSharedPtr<IPropertyHandle> DraggedPropertyHandle = DraggedPropertyRow->GetDetailTreeNode()->CreatePropertyHandle();
+		TSharedPtr<IPropertyHandle> TargetPropertyHandle = DetailTreeNode->CreatePropertyHandle();
+		int32 IndexOffset = DropRequest.DropZone == EItemDropZone::AboveItem ? 0 : 1;
+		TargetPropertyHandle->GetParentHandle()->AsArray()->MoveElementTo(DraggedPropertyHandle->GetIndexInArray(), TargetPropertyHandle->GetIndexInArray() + IndexOffset);
+	}
+	return CanDropResponse;
 }

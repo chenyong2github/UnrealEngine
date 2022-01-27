@@ -22,7 +22,7 @@ public:
 
 	void Initialize(FRequiredEntryData InRequiredEntryData);
 
-	virtual bool SupportsIcon() const override { return true; }
+	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Brush; }
 	virtual const FSlateBrush* GetIconBrush() const override;
 	virtual bool SupportsSecondaryIcon() const override { return true; }
 	virtual const FSlateBrush* GetSecondaryIconBrush() const override;

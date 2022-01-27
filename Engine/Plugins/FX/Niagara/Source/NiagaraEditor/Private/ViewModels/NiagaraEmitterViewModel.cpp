@@ -71,7 +71,7 @@ bool FNiagaraEmitterViewModel::Initialize(UNiagaraEmitter* InEmitter, TWeakPtr<F
 {
 	SetEmitter(InEmitter);
 	SetSimulation(InSimulation);
-
+	bSummaryIsInEditMode = false;
 	return true;
 }
 

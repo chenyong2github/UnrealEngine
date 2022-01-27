@@ -63,6 +63,13 @@ public:
 		None
 	};
 
+	enum class EIconMode
+	{
+		Brush,
+		Text,
+		None
+	};
+
 	struct FDropRequest
 	{
 		FDropRequest(TSharedRef<const FDragDropOperation> InDragDropOperation, EItemDropZone InDropZone, EDragOptions InDragOptions, EDropOptions InDropOptions)
@@ -113,7 +120,6 @@ public:
 	struct NIAGARAEDITOR_API FExecutionSubcategoryNames
 	{
 		static const FName Settings;
-		static const FName Summary;
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
@@ -500,6 +506,12 @@ public:
 
 	/** Handler for when a rename is committed for this stack entry. */
 	virtual void OnRenamed(FText NewName);
+
+	virtual EIconMode GetSupportedIconMode() const { return EIconMode::None; }
+
+	virtual const FSlateBrush* GetIconBrush() const { return nullptr; }
+
+	virtual FText GetIconText() const { return FText(); }
 
 protected:
 	virtual void BeginDestroy() override;

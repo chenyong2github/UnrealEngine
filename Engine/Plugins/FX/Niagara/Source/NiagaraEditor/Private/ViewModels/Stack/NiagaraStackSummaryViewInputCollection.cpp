@@ -52,11 +52,6 @@ FText UNiagaraStackSummaryViewObject::GetDisplayName() const
 	return LOCTEXT("FilteredInputCollectionDisplayName", "Filtered Inputs");
 }
 
-bool UNiagaraStackSummaryViewObject::GetShouldShowInStack() const
-{
-	return true;
-}
-
 bool UNiagaraStackSummaryViewObject::GetIsEnabled() const
 {
 	return true;
@@ -131,6 +126,14 @@ void UNiagaraStackSummaryViewObject::AppendEmitterCategory(FFunctionCallNodesSta
 void UNiagaraStackSummaryViewObject::PostRefreshChildrenInternal()
 {
 	Super::PostRefreshChildrenInternal();
+}
+
+void UNiagaraStackSummaryViewObject::GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const
+{
+	if (GetEmitterViewModel().IsValid())
+	{
+		OutStackSections.Append(GetEmitterViewModel()->GetOrCreateEditorData().GetSummarySections());
+	}
 }
 
 void UNiagaraStackSummaryViewObject::OnViewStateChanged()

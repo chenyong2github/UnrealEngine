@@ -29,9 +29,8 @@ public:
 	virtual void FinalizeInternal() override;
 
 	virtual FText GetDisplayName() const override;
-	virtual bool GetShouldShowInStack() const override;
 	virtual bool GetIsEnabled() const;
-	bool GetCanExpand() const override { return false; }
+
 protected:
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -39,6 +38,8 @@ protected:
 	void AppendEmitterCategory(FFunctionCallNodesState& State, TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, TArray<FStackIssue>& NewIssues);
 
 	virtual void PostRefreshChildrenInternal() override;
+
+	virtual void GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const override;
 
 private:
 

@@ -138,9 +138,9 @@ void UNiagaraStackSystemUserParametersGroup::Initialize(
 	UserParameterStore = InParameterStore;
 }
 
-const FSlateBrush* UNiagaraStackSystemUserParametersGroup::GetIconBrush() const
+FText UNiagaraStackSystemUserParametersGroup::GetIconText() const
 {
-	return FAppStyle::Get().GetBrush("Icons.Edit");
+	return FText::FromString(FString(TEXT("\xf007")/* fa-user */));
 }
 
 void UNiagaraStackSystemUserParametersGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

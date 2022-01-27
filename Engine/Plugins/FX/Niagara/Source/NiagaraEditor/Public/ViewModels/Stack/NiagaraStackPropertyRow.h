@@ -24,12 +24,18 @@ public:
 
 	virtual bool IsExpandedByDefault() const override;
 
+	virtual bool CanDrag() const override;
+
 protected:
 	virtual void FinalizeInternal() override;
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
+
+	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;
+
+	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
 
 private:
 	TSharedPtr<IDetailTreeNode> DetailTreeNode;

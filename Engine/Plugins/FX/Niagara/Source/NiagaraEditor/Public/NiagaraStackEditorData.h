@@ -84,6 +84,20 @@ public:
 	void SetStackItemShowAdvanced(const FString& StackEntryKey, bool bShowAdanced);
 
 	/*
+	* Gets the active section for a stack entry.
+	* @param StackItemKey A unique key for the entry.
+	* @param ActiveSectionDefault The default value to return if an active section has not been set before.
+	*/
+	FText GetStackEntryActiveSection(const FString& StackEntryKey, FText ActiveSectionDefault) const;
+
+	/*
+	* Sets the active section for a stack entry.
+	* @param StackItemKey A unique key for the entry.
+	* @param SelectedSection The selected section for the entry.
+	*/
+	void SetStackEntryActiveSection(const FString& StackEntryKey, FText ActiveSection);
+
+	/*
 	* Gets a stack entry's display name. Returns null if none is found.
 	* @param StackEntryKey A unique key for the stack entry.
 	*/
@@ -154,6 +168,8 @@ private:
 
 	UPROPERTY()
 	TMap<FString, bool> StackEntryKeyToExpandedOverviewMap;
+
+	TMap<FString, FText> StackEntryKeyToActiveSectionMap;
 
 	/* Marking those FTexts explicitly as editoronly_data will make localization not pick these up.
 	 * This is a workaround. EditorDataBase in system & emitter is already flagged as editor only, but it doesn't propagate properly */

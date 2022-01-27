@@ -19,7 +19,7 @@ class NIAGARAEDITOR_API UNiagaraStackSystemPropertiesGroup : public UNiagaraStac
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData);
 
-	virtual bool SupportsIcon() const override { return true; }
+	virtual EIconMode GetSupportedIconMode() const override { return UNiagaraStackEntry::EIconMode::Brush; }
 	virtual const FSlateBrush* GetIconBrush() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
@@ -36,8 +36,8 @@ class NIAGARAEDITOR_API UNiagaraStackSystemUserParametersGroup : public UNiagara
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
 
-	virtual bool SupportsIcon() const override { return true; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual EIconMode GetSupportedIconMode() const override { return UNiagaraStackEntry::EIconMode::Text; }
+	virtual FText GetIconText() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 

@@ -33,13 +33,14 @@ public:
 
 	virtual bool SupportsChangeEnabled() const { return false; }
 	void SetIsEnabled(bool bInIsEnabled);
-	
-	virtual bool SupportsIcon() const { return false; }
-	virtual const FSlateBrush* GetIconBrush() const;
 
 	virtual bool SupportsResetToBase() const { return false; }
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const { return false; }
 	virtual void ResetToBase() { }
+
+	virtual bool SupportsEditMode() const { return false; }
+	virtual bool GetEditModeIsActive() const { return false; }
+	virtual void SetEditModeIsActive(bool bInEditModeIsActive) { }
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
