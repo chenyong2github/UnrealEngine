@@ -6,28 +6,63 @@
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassCommandBuffer.h"
+#include "MassCommonFragments.h"
+#include "MassSignalSubsystem.h"
 #include "MassSmartObjectFragments.h"
+#include "Engine/World.h"
 
 namespace UE::Mass::SmartObject
 {
-struct FPayload
-{
-	FMassEntityHandle Entity;
-	TWeakObjectPtr<UMassEntitySubsystem> EntitySubsystem;
-	TWeakObjectPtr<USmartObjectSubsystem> SmartObjectSubsystem;
-};
-
-void OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState State, FPayload Payload)
-{
-	FMassSmartObjectUserFragment& User = Payload.EntitySubsystem->GetFragmentDataChecked<FMassSmartObjectUserFragment>(Payload.Entity);
-	if (USmartObjectSubsystem* SmartObjectSubsystem = Payload.SmartObjectSubsystem.Get())
+	void Release(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& Context, const EMassSmartObjectInteractionStatus NewStatus)
 	{
-		SmartObjectSubsystem->Release(User.ClaimHandle);
+		FMassSmartObjectUserFragment& User = Context.EntityView.GetFragmentData<FMassSmartObjectUserFragment>();
+
+		if (User.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress ||
+			User.InteractionStatus == EMassSmartObjectInteractionStatus::BehaviorCompleted)
+		{
+			if (const USmartObjectMassBehaviorDefinition* BehaviorDefinition = Context.SmartObjectSubsystem.GetBehaviorDefinition<USmartObjectMassBehaviorDefinition>(User.ClaimHandle))
+			{
+				BehaviorDefinition->Deactivate(CommandBuffer, Context);
+			}
+		}
+		Context.SmartObjectSubsystem.Release(User.ClaimHandle);
+
+		User.InteractionStatus = NewStatus;
+		User.ClaimHandle.Invalidate();
 	}
 
-	User.InteractionStatus = EMassSmartObjectInteractionStatus::Aborted;
-	User.ClaimHandle.Invalidate();
-}
+	struct FPayload
+	{
+		FMassEntityHandle Entity;
+		TWeakObjectPtr<UMassEntitySubsystem> EntitySubsystem;
+		TWeakObjectPtr<USmartObjectSubsystem> SmartObjectSubsystem;
+		TWeakObjectPtr<UMassSignalSubsystem> SignalSubsystem;
+	};
+
+	void OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState State, FPayload Payload)
+	{
+		USmartObjectSubsystem* SmartObjectSubsystem = Payload.SmartObjectSubsystem.Get();
+		UMassEntitySubsystem* EntitySubsystem = Payload.EntitySubsystem.Get();
+		UMassSignalSubsystem* SignalSubsystem = Payload.SignalSubsystem.Get();
+		if (SmartObjectSubsystem != nullptr && EntitySubsystem != nullptr && SignalSubsystem != nullptr && EntitySubsystem->IsEntityActive(Payload.Entity))
+		{
+			const FMassEntityView EntityView(*EntitySubsystem, Payload.Entity);
+			const FMassBehaviorEntityContext Context(EntityView, *SmartObjectSubsystem);
+
+			if (EntitySubsystem->IsProcessing())
+			{
+				Release(EntitySubsystem->Defer(), Context, EMassSmartObjectInteractionStatus::Aborted);
+			}
+			else
+			{
+				FMassCommandBuffer CommandBuffer;
+				Release(CommandBuffer, Context, EMassSmartObjectInteractionStatus::Aborted);
+				CommandBuffer.ReplayBufferAgainstSystem(EntitySubsystem);
+			}
+
+			SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, Payload.Entity);
+		}
+	}
 } // UE::Mass::SmartObject;
 
 //----------------------------------------------------------------------//
@@ -159,11 +194,13 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		User.TargetLocation = Transform.GetLocation();
 		User.TargetDirection = Transform.GetRotation().Vector();
 
-		// @todo SO: need to unregister callback if entity or fragment gets removed. Or at least support getting called with a no longer valid FMassEntityHandle.
+		// Register callback to abort interaction if slot gets invalidated.
+		// Callback will be unregistered by UMassSmartObjectUserFragmentDeinitializer
 		UE::Mass::SmartObject::FPayload Payload;
 		Payload.Entity = Entity;
 		Payload.EntitySubsystem = &EntitySubsystem;
 		Payload.SmartObjectSubsystem = &SmartObjectSubsystem;
+		Payload.SignalSubsystem = &SignalSubsystem;
 		SmartObjectSubsystem.RegisterSlotInvalidationCallback(ClaimHandle, FOnSlotInvalidated::CreateStatic(&UE::Mass::SmartObject::OnSlotInvalidated, Payload));
 	}
 
@@ -202,7 +239,9 @@ bool FMassSmartObjectHandler::UseSmartObject(
 		return false;
 	}
 
-	BehaviorDefinition->Activate(EntitySubsystem, ExecutionContext, FMassBehaviorEntityContext(Entity, Transform, User, SmartObjectSubsystem));
+	const FMassEntityView EntityView(EntitySubsystem, Entity);
+	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
+	BehaviorDefinition->Activate(ExecutionContext.Defer(), Context);
 
 	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
 
@@ -233,14 +272,22 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 		break;
 
 	case EMassSmartObjectInteractionStatus::InProgress:
-		ensureMsgf(NewStatus == EMassSmartObjectInteractionStatus::Completed || NewStatus == EMassSmartObjectInteractionStatus::Aborted,
-			TEXT("Expecting status 'Completed' or 'Aborted' for in progress interaction. Received %s"),
+		ensureMsgf(NewStatus == EMassSmartObjectInteractionStatus::BehaviorCompleted
+			|| NewStatus == EMassSmartObjectInteractionStatus::TaskCompleted
+			|| NewStatus == EMassSmartObjectInteractionStatus::Aborted,
+			TEXT("Expecting status 'BehaviorCompleted', 'TaskCompleted' or 'Aborted' for in progress interaction. Received %s"),
 			*UEnum::GetValueAsString(NewStatus));
 		break;
 
-	case EMassSmartObjectInteractionStatus::Completed:
+	case EMassSmartObjectInteractionStatus::BehaviorCompleted:
+		ensureMsgf(NewStatus == EMassSmartObjectInteractionStatus::TaskCompleted || NewStatus == EMassSmartObjectInteractionStatus::Aborted,
+			TEXT("Expecting status 'TaskCompleted' or 'Aborted' for 'BehaviorCompleted' interaction. Received %s"),
+			*UEnum::GetValueAsString(NewStatus));
+		break;
+
+	case EMassSmartObjectInteractionStatus::TaskCompleted:
 	case EMassSmartObjectInteractionStatus::Aborted:
-		ensureMsgf(CurrentStatus == NewStatus, TEXT("Not expecting status changes for'Completed' or 'Aborted' interaction. Current %s - Received %s"),
+		ensureMsgf(false, TEXT("Not expecting status changes for'Completed' or 'Aborted' interaction. Current %s - Received %s"),
 			*UEnum::GetValueAsString(CurrentStatus),
 			*UEnum::GetValueAsString(NewStatus));
 		break;
@@ -250,7 +297,7 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 	}
 #endif
 
-	SmartObjectSubsystem.Release(User.ClaimHandle);
-	User.InteractionStatus = NewStatus;
-	User.ClaimHandle.Invalidate();
+	const FMassEntityView EntityView(EntitySubsystem, Entity);
+	const FMassBehaviorEntityContext Context(EntityView, SmartObjectSubsystem);
+	UE::Mass::SmartObject::Release(ExecutionContext.Defer(), Context, NewStatus);
 }

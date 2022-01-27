@@ -288,8 +288,7 @@ void UMassSmartObjectTimedBehaviorProcessor::ConfigureQueries()
 
 UMassSmartObjectTimedBehaviorProcessor::UMassSmartObjectTimedBehaviorProcessor()
 {
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Tasks;
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Behavior);
+	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
 }
 
 void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -311,7 +310,7 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 		{
 			FMassSmartObjectUserFragment& SOUser = UserList[i];
 			FMassSmartObjectTimedBehaviorFragment& TimedBehaviorFragment = TimedBehaviorFragments[i];
-			ensureMsgf(SOUser.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress, TEXT("Fragment should only be present for in-progress interactions"));
+			ensureMsgf(SOUser.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress, TEXT("TimedBehavior fragment should only be present for in-progress interactions: %s"), *Context.GetEntity(i).DebugGetDescription());
 
 			const float DT = Context.GetDeltaTimeSeconds();
 			float& UseTime = TimedBehaviorFragment.UseTime;
@@ -325,7 +324,7 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 			if (bIsDebuggingEntity)
 			{
 				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle));
-				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s] for %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle), UseTime);
+				UE_CVLOG(!bMustRelease, SmartObjectSubsystem, LogSmartObject, Verbose, TEXT("[%s] using [%s]. Time left: %.1f"), *Entity.DebugGetDescription(), *LexToString(SOUser.ClaimHandle), UseTime);
 
 				const TOptional<FTransform> Transform = SmartObjectSubsystem->GetSlotTransform(SOUser.ClaimHandle);
 				if (Transform.IsSet())
@@ -342,7 +341,7 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 
 			if (bMustRelease)
 			{
-				SOUser.InteractionStatus = EMassSmartObjectInteractionStatus::Completed;
+				SOUser.InteractionStatus = EMassSmartObjectInteractionStatus::BehaviorCompleted;
 				ToRelease.Add(Context.GetEntity(i));
 			}
 		}
@@ -351,6 +350,44 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 	for (const FMassEntityHandle EntityToRelease : ToRelease)
 	{
 		SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, EntityToRelease);
-		Context.Defer().RemoveFragment<FMassSmartObjectTimedBehaviorFragment>(EntityToRelease);
 	}
+}
+
+//----------------------------------------------------------------------//
+//  UMassSmartObjectUserFragmentDeinitializer
+//----------------------------------------------------------------------//
+UMassSmartObjectUserFragmentDeinitializer::UMassSmartObjectUserFragmentDeinitializer()
+{
+	FragmentType = FMassSmartObjectUserFragment::StaticStruct();
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
+}
+
+void UMassSmartObjectUserFragmentDeinitializer::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FMassSmartObjectUserFragment>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassSmartObjectUserFragmentDeinitializer::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+	SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(Owner.GetWorld());
+}
+
+void UMassSmartObjectUserFragmentDeinitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+{
+	if (SmartObjectSubsystem == nullptr)
+	{
+		return;
+	}
+
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			const int32 NumEntities = Context.GetNumEntities();
+			const TArrayView<FMassSmartObjectUserFragment> SmartObjectUserFragments = Context.GetMutableFragmentView<FMassSmartObjectUserFragment>();
+
+			for (int32 i = 0; i < NumEntities; ++i)
+			{
+				SmartObjectSubsystem->UnregisterSlotInvalidationCallback(SmartObjectUserFragments[i].ClaimHandle);
+			}
+		});
 }

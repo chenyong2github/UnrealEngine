@@ -991,14 +991,6 @@ void USmartObjectSubsystem::DebugUnregisterAllSmartObjects()
 			RemoveFromSimulation(*Cmp);
 		}
 	}
-
-	// SmartObject framework relies on MassEntity at different levels so we need to make sure to flush all
-	// commands that might get pushed during unregistration before starting the new engine frame.
-	if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
-	{
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, /* DeltaSeconds */ 0.f);
-		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
-	}
 }
 
 void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
@@ -1009,14 +1001,6 @@ void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
 		{
 			AddToSimulation(*Cmp);
 		}
-	}
-
-	// SmartObject framework relies on MassEntity at different levels so we need to make sure to flush all
-	// commands that might get pushed during registration before starting the new engine frame.
-	if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
-	{
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, /* DeltaSeconds */ 0.f);
-		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
 	}
 }
 #endif // WITH_SMARTOBJECT_DEBUG

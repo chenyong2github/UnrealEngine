@@ -53,7 +53,12 @@ void FMassStateTreeSmartObjectEvaluator::Reset(FStateTreeExecutionContext& Conte
 	{
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
-		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
+		UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
+		const FMassSmartObjectHandler MassSmartObjectHandler(
+			MassContext.GetEntitySubsystem(),
+			MassContext.GetEntitySubsystemExecutionContext(),
+			SmartObjectSubsystem,
+			SignalSubsystem);
 		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
 		SearchRequestID.Reset();
 	}
@@ -97,8 +102,13 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	NextUpdate = 0.f;
 
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
+	const FMassSmartObjectHandler MassSmartObjectHandler(
+		MassContext.GetEntitySubsystem(),
+		MassContext.GetEntitySubsystemExecutionContext(),
+		SmartObjectSubsystem,
+		SignalSubsystem);
 
 	// Nothing claimed -> search for candidates
 	bool& bUsingZoneGraphAnnotations = Context.GetInstanceData(UsingZoneGraphAnnotationsHandle);

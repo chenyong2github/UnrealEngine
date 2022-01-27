@@ -5,11 +5,14 @@
 #include "MassCommandBuffer.h"
 #include "MassSmartObjectFragments.h"
 
-void USmartObjectMassBehaviorDefinition::Activate(UMassEntitySubsystem& EntitySubsystem,
-												  FMassExecutionContext& Context,
-												  const FMassBehaviorEntityContext& EntityContext) const
+void USmartObjectMassBehaviorDefinition::Activate(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& EntityContext) const
 {
 	FMassSmartObjectTimedBehaviorFragment TimedBehaviorFragment;
 	TimedBehaviorFragment.UseTime = UseTime;
-	Context.Defer().PushCommand(FCommandAddFragmentInstance(EntityContext.Entity, FConstStructView::Make(TimedBehaviorFragment)));
+	CommandBuffer.PushCommand(FCommandAddFragmentInstance(EntityContext.EntityView.GetEntity(), FConstStructView::Make(TimedBehaviorFragment)));
+}
+
+void USmartObjectMassBehaviorDefinition::Deactivate(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& EntityContext) const
+{
+	CommandBuffer.RemoveFragment<FMassSmartObjectTimedBehaviorFragment>(EntityContext.EntityView.GetEntity());
 }

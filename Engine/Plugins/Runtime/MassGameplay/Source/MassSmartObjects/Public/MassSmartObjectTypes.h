@@ -26,7 +26,8 @@ UENUM()
 enum class EMassSmartObjectInteractionStatus: uint8
 {
 	Unset,
-    InProgress,
-    Completed,
-    Aborted
+    InProgress,			// Claimed and Behavior activated
+    BehaviorCompleted,	// Behavior is completed but task still running (not updated yet)
+	TaskCompleted,		// Task has been notified that behavior is completed and completes
+    Aborted				// Task and Behavior were aborted
 };

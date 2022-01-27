@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MassObserverProcessor.h"
 #include "MassProcessor.h"
 #include "MassSmartObjectProcessor.generated.h"
 
@@ -65,6 +66,25 @@ protected:
 
 	UPROPERTY(Transient)
 	UMassSignalSubsystem* SignalSubsystem;
+
+	FMassEntityQuery EntityQuery;
+};
+
+/** Deinitializer processor to unregister slot invalidation callback when SmartObjectUser fragment gets removed */
+UCLASS()
+class MASSSMARTOBJECTS_API UMassSmartObjectUserFragmentDeinitializer : public UMassFragmentDeinitializer
+{
+	GENERATED_BODY()
+
+	UMassSmartObjectUserFragmentDeinitializer();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Initialize(UObject& Owner) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
+	UPROPERTY(Transient)
+	USmartObjectSubsystem* SmartObjectSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };

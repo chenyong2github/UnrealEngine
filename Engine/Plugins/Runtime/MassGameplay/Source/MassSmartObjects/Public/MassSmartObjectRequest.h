@@ -9,7 +9,7 @@
 #include "MassSmartObjectRequest.generated.h"
 
 /**
- * Structure that represents a potential smart object for a LW Entity during the search
+ * Structure that represents a potential smart object for a MassEntity during the search
  */
 USTRUCT()
 struct MASSSMARTOBJECTS_API FSmartObjectCandidate

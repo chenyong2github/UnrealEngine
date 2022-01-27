@@ -11,6 +11,7 @@
 struct FStateTreeExecutionContext;
 struct FMassSmartObjectUserFragment;
 class USmartObjectSubsystem;
+class UMassSignalSubsystem;
 struct FDataFragment_Transform;
 struct FMassMoveTargetFragment;
 
@@ -44,6 +45,7 @@ protected:
 
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
 
 	TStateTreeInstanceDataPropertyHandle<FMassSmartObjectRequestResult> SearchRequestResultHandle;
 	TStateTreeInstanceDataPropertyHandle<EMassSmartObjectClaimResult> ClaimResultHandle;
@@ -72,6 +74,7 @@ protected:
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
 	TStateTreeExternalDataHandle<FDataFragment_Transform> EntityTransformHandle;
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;

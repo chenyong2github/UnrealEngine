@@ -6,6 +6,7 @@
 #include "MassSmartObjectTypes.h"
 
 class UMassEntitySubsystem;
+class UMassSignalSubsystem;
 class USmartObjectSubsystem;
 struct FMassExecutionContext;
 struct FMassEntityHandle;
@@ -27,11 +28,13 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param InEntitySubsystem is the entity subsystem that the smart object should belong to
 	 * @param InExecutionContext is the current execution context of the entity subsystem
 	 * @param InSmartObjectSubsystem is the smart object subsystem
+	 * @param InSignalSubsystem is the mass signal subsystem to use to send signal to affected entities
 	 */
-	FMassSmartObjectHandler(UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem)
+	FMassSmartObjectHandler(UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem, UMassSignalSubsystem& InSignalSubsystem)
 		: EntitySubsystem(InEntitySubsystem)
 		, ExecutionContext(InExecutionContext)
 		, SmartObjectSubsystem(InSmartObjectSubsystem)
+		, SignalSubsystem(InSignalSubsystem)
 	{
 	}
 
@@ -74,7 +77,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * can be called without calling IsRequestProcessed first but it will fail and return
 	 * Failed_UnprocessedRequest. It can then be called again on next frame until it succeeds or
 	 * returns a different error.
-	 * @param Entity LW Entity associated to the user fragment
+	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
 	 * @param RequestID A valid request identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
@@ -83,7 +86,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 
 	/**
 	 * Claims the first available smart object from the provided results.
-	 * @param Entity LW Entity associated to the user fragment
+	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
 	 * @param SearchRequestResult Results of completed search request
 	 * @return Whether the slot has been successfully claimed or not
@@ -93,7 +96,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	/**
 	 * Claims the first available slot holding any type of USmartObjectMassBehaviorDefinition in the smart object
 	 * associated to the provided identifier.
-	 * @param Entity LW Entity associated to the user fragment
+	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
 	 * @param ObjectHandle A valid smart object identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
@@ -102,7 +105,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 
 	/**
 	 * Activates the mass gameplay behavior associated to the previously claimed smart object.
-	 * @param Entity LW Entity associated to the user fragment
+	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
 	 * @param Transform Fragment holding the transform of the user claiming
 	 * @return Whether the slot has been successfully claimed or not
@@ -111,7 +114,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 
 	/**
 	 * Releases a claimed/in-use smart object and update user fragment.
-	 * @param Entity LW Entity associated to the user fragment
+	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
 	 * @param Status The new status for in-progress interaction
 	 */
@@ -121,4 +124,5 @@ private:
 	UMassEntitySubsystem& EntitySubsystem;
 	FMassExecutionContext& ExecutionContext;
 	USmartObjectSubsystem& SmartObjectSubsystem;
+	UMassSignalSubsystem& SignalSubsystem;
 };
