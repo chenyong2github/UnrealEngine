@@ -76,10 +76,10 @@ struct FMovieSceneVector3fKeyStruct
 template<> struct TStructOpsTypeTraits<FMovieSceneVector3fKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector3fKeyStruct> { enum { WithCopy = false }; };
 
 /**
-* Proxy structure for vector4 section key data.
+* Proxy structure for vector4f section key data.
 */
 USTRUCT()
-struct FMovieSceneVector4KeyStruct
+struct FMovieSceneVector4fKeyStruct
 	: public FMovieSceneFloatVectorKeyStructBase
 {
 	GENERATED_BODY()
@@ -91,7 +91,7 @@ struct FMovieSceneVector4KeyStruct
 	//~ FMovieSceneFloatVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
 };
-template<> struct TStructOpsTypeTraits<FMovieSceneVector4KeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector4KeyStruct> { enum { WithCopy = false }; };
+template<> struct TStructOpsTypeTraits<FMovieSceneVector4fKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector4fKeyStruct> { enum { WithCopy = false }; };
 
 
 /**
@@ -133,6 +133,25 @@ struct FMovieSceneVector3dKeyStruct
 	virtual double* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
 };
 template<> struct TStructOpsTypeTraits<FMovieSceneVector3dKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector3dKeyStruct> { enum { WithCopy = false }; };
+
+
+/**
+* Proxy structure for double vector section key data.
+*/
+USTRUCT()
+struct FMovieSceneVector4dKeyStruct
+	: public FMovieSceneDoubleVectorKeyStructBase
+{
+	GENERATED_BODY()
+
+	/** They key's vector value. */
+	UPROPERTY(EditAnywhere, Category = Key)
+	FVector4d Vector = FVector4d(FVector3d::ZeroVector);
+
+	//~ FMovieSceneDoubleVectorKeyStructBase interface
+	virtual double* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
+};
+template<> struct TStructOpsTypeTraits<FMovieSceneVector4dKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector4dKeyStruct> { enum { WithCopy = false }; };
 
 
 /**

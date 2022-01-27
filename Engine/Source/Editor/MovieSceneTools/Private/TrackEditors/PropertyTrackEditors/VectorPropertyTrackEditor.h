@@ -38,9 +38,10 @@ public:
 		return TArray<FAnimatedPropertyKey, TInlineAllocator<3>>({
 #if UE_LARGE_WORLD_COORDINATES_DISABLED
 			FAnimatedPropertyKey::FromStructType(NAME_Vector),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
 #endif
 			FAnimatedPropertyKey::FromStructType(NAME_Vector3f),
-			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4f),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector2D)
 		});
 	}
@@ -94,8 +95,10 @@ public:
 		return TArray<FAnimatedPropertyKey, TInlineAllocator<1>>({
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
 			FAnimatedPropertyKey::FromStructType(NAME_Vector),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
 #endif
-			FAnimatedPropertyKey::FromStructType(NAME_Vector3d)
+			FAnimatedPropertyKey::FromStructType(NAME_Vector3d),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4d)
 		});
 	}
 

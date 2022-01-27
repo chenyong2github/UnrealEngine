@@ -58,9 +58,17 @@ struct TVectorSectionEditorDataTraits<double>
 
 	static FCompositeValue GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
 	{
-		ensure(NumChannels == 3);
-		FVector3d Vector = Bindings.GetCurrentValue<FVector3d>(InObject);
-		return FCompositeValue(Vector.X, Vector.Y, Vector.Z, 0.f);
+		if (NumChannels == 3)
+		{
+			FVector3d Vector = Bindings.GetCurrentValue<FVector3d>(InObject);
+			return FCompositeValue(Vector.X, Vector.Y, Vector.Z, 0.f);
+		}
+		else
+		{
+			ensure(NumChannels == 4);
+			FVector4d Vector = Bindings.GetCurrentValue<FVector4d>(InObject);
+			return FCompositeValue(Vector.X, Vector.Y, Vector.Z, Vector.W);
+		}
 	}
 };
 
@@ -201,7 +209,7 @@ TSharedPtr<FStructOnScope> UMovieSceneFloatVectorSection::GetKeyStruct(TArrayVie
 	}
 	else if (ChannelsUsed == 4)
 	{
-		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector4KeyStruct::StaticStruct()));
+		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector4fKeyStruct::StaticStruct()));
 	}
 
 	if (KeyStruct.IsValid())
@@ -309,6 +317,10 @@ TSharedPtr<FStructOnScope> UMovieSceneDoubleVectorSection::GetKeyStruct(TArrayVi
 	if (ChannelsUsed == 3)
 	{
 		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector3dKeyStruct::StaticStruct()));
+	}
+	else if (ChannelsUsed == 4)
+	{
+		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector4dKeyStruct::StaticStruct()));
 	}
 
 	if (KeyStruct.IsValid())

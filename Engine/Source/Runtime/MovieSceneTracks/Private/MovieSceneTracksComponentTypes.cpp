@@ -129,9 +129,19 @@ void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVect
 	Out = FVector3d(InVector.X, InVector.Y, InVector.Z);
 }
 
+void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector4d& Out)
+{
+	Out = FVector4d(InVector.X, InVector.Y, InVector.Z, InVector.W);
+}
+
 void ConvertOperationalProperty(const FVector3d& In, FDoubleIntermediateVector& Out)
 {
 	Out = FDoubleIntermediateVector(In.X, In.Y, In.Z);
+}
+
+void ConvertOperationalProperty(const FVector4d& In, FDoubleIntermediateVector& Out)
+{
+	Out = FDoubleIntermediateVector(In.X, In.Y, In.Z, In.W);
 }
 
 
@@ -448,12 +458,15 @@ struct FDoubleVectorHandler : TPropertyComponentHandler<FDoubleVectorPropertyTra
 			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
 			if (ensure(BoundProperty && BoundProperty->Struct))
 			{
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-				ensure(BoundProperty->Struct->GetFName() == NAME_Vector3d);
-#else
-				ensure(BoundProperty->Struct->GetFName() == NAME_Vector3d || BoundProperty->Struct->GetFName() == NAME_Vector);
-#endif
-				OutMetaData.NumChannels = 3;
+				if (BoundProperty->Struct->GetFName() == NAME_Vector3d || BoundProperty->Struct->GetFName() == NAME_Vector)
+				{
+					OutMetaData.NumChannels = 3;
+				}
+				else
+				{
+					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || (BoundProperty->Struct->GetFName() == NAME_Vector4d) || (BoundProperty->Struct->GetFName() == NAME_Vector4));
+					OutMetaData.NumChannels = 4;
+				}
 			}
 			else
 			{

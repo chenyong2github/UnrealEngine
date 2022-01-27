@@ -16,7 +16,6 @@ FName FFloatVectorPropertyTrackEditor::YName( "Y" );
 FName FFloatVectorPropertyTrackEditor::ZName( "Z" );
 FName FFloatVectorPropertyTrackEditor::WName( "W" );
 
-
 TSharedRef<ISequencerTrackEditor> FFloatVectorPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
 {
 	return MakeShareable( new FFloatVectorPropertyTrackEditor( InSequencer ) );
@@ -40,7 +39,7 @@ void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPr
 
 	bool bIsVector4 = (StructName == NAME_Vector4f
 #if UE_LARGE_WORLD_COORDINATES_DISABLED
-		|| StructName == NAME_Vector
+		|| StructName == NAME_Vector4
 #endif
 		);
 
@@ -206,9 +205,31 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 			|| StructName == NAME_Vector
 #endif
 			);
-	ensure(bIsVector);
 
-	FVector3d VectorValues = PropertyChangedParams.GetPropertyValue<FVector3d>();
+	bool bIsVector4 = (StructName == NAME_Vector4d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+		|| StructName == NAME_Vector4
+#endif
+		);
+
+	ensure(bIsVector || bIsVector4);
+
+	FVector4d VectorValues;
+	int32 Channels;
+	
+	if (bIsVector)
+	{
+		FVector3d Vector3DValue = PropertyChangedParams.GetPropertyValue<FVector3d>();
+		VectorValues.X = Vector3DValue.X;
+		VectorValues.Y = Vector3DValue.Y;
+		VectorValues.Z = Vector3DValue.Z;
+		Channels = 3;
+	}
+	else // if (bIsVector4)
+	{
+		VectorValues = PropertyChangedParams.GetPropertyValue<FVector4d>();
+		Channels = 4;
+	}
 
 	FPropertyPath StructPath = PropertyChangedParams.StructPathToKey;
 	FName ChannelName = StructPath.GetNumProperties() != 0 ? StructPath.GetLeafMostProperty().Property->GetFName() : NAME_None;
@@ -220,6 +241,11 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(0, VectorValues.X, bKeyX));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(1, VectorValues.Y, bKeyY));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, VectorValues.Z, bKeyZ));
+
+	if ( Channels >= 4)
+	{
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(3, VectorValues.W, ChannelName == NAME_None || ChannelName == WName));
+	}
 }
 
 void FDoubleVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneDoubleVectorTrack* NewTrack, FPropertyChangedParams PropertyChangedParams )
@@ -235,6 +261,14 @@ void FDoubleVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneDoubleVect
 			)
 	{
 		NewTrack->SetNumChannelsUsed( 3 );
+	}	
+	if ( StructName == NAME_Vector4d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+		|| StructName == NAME_Vector4
+#endif
+	)
+	{
+		NewTrack->SetNumChannelsUsed( 4 );
 	}
 }
 
@@ -270,6 +304,16 @@ bool FDoubleVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UOb
 				GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Z, Weight);
 			}
 			break;
+		case 4:
+			{
+				FVector4d Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z, InterrogatedValues[0].W);
+				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
+				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
+				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
+				GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Z, Weight);
+				GeneratedTotalKeys[3]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.W, Weight);
+			}
+			break;
 		}
 
 		return true;
@@ -277,4 +321,3 @@ bool FDoubleVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UOb
 
 	return false;
 }
-
