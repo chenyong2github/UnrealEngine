@@ -23,8 +23,10 @@ namespace Chaos
 	// issues and/or memory bloat.
 #if CHAOS_CONSTRAINTSOLVER_LOWPRECISION
 	using FSolverReal = FRealSingle;
+	using SolverVectorRegister = VectorRegister4Float;
 #else
 	using FSolverReal = FReal;
+	using SolverVectorRegister = VectorRegister4;
 #endif
 	using FSolverVec3 = TVec3<FSolverReal>;
 	using FSolverMatrix33 = TMatrix33<FSolverReal>;

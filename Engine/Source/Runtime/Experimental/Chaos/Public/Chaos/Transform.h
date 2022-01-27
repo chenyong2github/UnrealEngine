@@ -170,6 +170,13 @@ namespace Chaos
 			return BaseTransform::ToMatrixNoScale();
 		}
 
+		// For low-level VectorRegister programming
+		const TPersistentVectorRegisterType<FReal>& GetTranslationRegister() const { return Translation; }
+		const TPersistentVectorRegisterType<FReal>& GetRotationRegister() const { return Rotation; }
+		void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
+		void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
+
+
 		CHAOS_API Chaos::PMatrix<Chaos::FReal, 4, 4> operator*(const Chaos::PMatrix<Chaos::FReal, 4, 4>& Matrix) const;
 		
 		inline TRigidTransform<FReal, 3> operator*(const TRigidTransform<FReal, 3>& Other) const
