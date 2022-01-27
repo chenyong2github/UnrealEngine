@@ -593,16 +593,16 @@ bool SComponentClassCombo::IsComponentClassAllowed(FComponentClassComboEntryPtr 
 
 void SComponentClassCombo::GetComponentClassFilterOptions(TArray<TSharedRef<FClassViewerFilterOption>>& OutFilterOptions) const
 {
-	if (ComponentClassFilterData.IsValid() && ComponentClassFilterData->InitOptions.IsValid())
+	if (ComponentClassFilterData.InitOptions.IsValid())
 	{
 		TArray<TSharedRef<FClassViewerFilterOption>> FilterOptions;
-		if(ComponentClassFilterData->ClassFilter.IsValid())
+		if(ComponentClassFilterData.ClassFilter.IsValid())
 		{
-			ComponentClassFilterData->ClassFilter->GetFilterOptions(FilterOptions);
+			ComponentClassFilterData.ClassFilter->GetFilterOptions(FilterOptions);
 			OutFilterOptions.Append(FilterOptions);
 		}
 
-		for (const TSharedRef<IClassViewerFilter>& ClassFilter : ComponentClassFilterData->InitOptions->ClassFilters)
+		for (const TSharedRef<IClassViewerFilter>& ClassFilter : ComponentClassFilterData.InitOptions->ClassFilters)
 		{
 			FilterOptions.Reset();
 			ClassFilter->GetFilterOptions(FilterOptions);
