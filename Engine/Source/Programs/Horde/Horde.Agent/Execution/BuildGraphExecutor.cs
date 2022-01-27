@@ -911,7 +911,7 @@ namespace HordeAgent.Execution
 					FileReference TraceFile = FileReference.Combine(TelemetryDir, "Trace.json");
 					using (FileStream Stream = FileReference.Open(TraceFile, FileMode.Create))
 					{
-						JsonSerializerOptions Options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+						JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true };
 						await JsonSerializer.SerializeAsync(Stream, RootSpan, Options);
 					}
 					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, "Trace.json", TraceFile, Logger, CancellationToken.None);

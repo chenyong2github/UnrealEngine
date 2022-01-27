@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -145,7 +144,7 @@ namespace EpicGames.Horde.Storage.Impl
 				throw new RefException(NamespaceId, BucketId, RefId, await GetMessageFromResponse(Response));
 			}
 
-			RefPutResponse? ResponseBody = await Response.Content.ReadFromJsonAsync<RefPutResponse>();
+			RefPutResponse? ResponseBody = await ReadJsonResponse<RefPutResponse>(Response.Content);
 			if (ResponseBody == null)
 			{
 				throw new RefException(NamespaceId, BucketId, RefId, "Unable to parse response body");
@@ -167,7 +166,7 @@ namespace EpicGames.Horde.Storage.Impl
 				throw new RefException(NamespaceId, BucketId, RefId, await GetMessageFromResponse(Response));
 			}
 
-			RefPutResponse? ResponseBody = await Response.Content.ReadFromJsonAsync<RefPutResponse>();
+			RefPutResponse? ResponseBody = await ReadJsonResponse<RefPutResponse>(Response.Content);
 			if (ResponseBody == null)
 			{
 				throw new RefException(NamespaceId, BucketId, RefId, "Unable to parse response body");
@@ -215,7 +214,7 @@ namespace EpicGames.Horde.Storage.Impl
 				throw new RefException(NamespaceId, BucketId, IoHash.Zero, await GetMessageFromResponse(Response));
 			}
 
-			RefExistsResponse? ResponseContent = await Response.Content.ReadFromJsonAsync<RefExistsResponse>();
+			RefExistsResponse? ResponseContent = await ReadJsonResponse<RefExistsResponse>(Response.Content);
 			if (ResponseContent == null)
 			{
 				throw new RefException(NamespaceId, BucketId, IoHash.Zero, "Unable to parse response body");
@@ -245,6 +244,12 @@ namespace EpicGames.Horde.Storage.Impl
 				Message.Append(" (Unable to parse response data)");
 			}
 			return Message.ToString();
+		}
+
+		static async Task<T> ReadJsonResponse<T>(HttpContent Content)
+		{
+			byte[] Data = await Content.ReadAsByteArrayAsync();
+			return JsonSerializer.Deserialize<T>(Data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 		}
 	}
 }
