@@ -1704,6 +1704,7 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not opened for edit"));
 			RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
 			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not opened on this client"));
+			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not on client."));
 		}
 	}
 
