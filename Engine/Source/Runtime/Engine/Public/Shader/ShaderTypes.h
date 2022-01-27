@@ -425,6 +425,7 @@ ENGINE_API FValue Add(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Sub(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Mul(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Div(const FValue& Lhs, const FValue& Rhs);
+ENGINE_API FValue Less(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Min(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Max(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Clamp(const FValue& Value, const FValue& Low, const FValue& High);

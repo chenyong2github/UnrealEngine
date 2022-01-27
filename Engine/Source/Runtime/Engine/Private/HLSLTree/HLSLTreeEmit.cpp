@@ -134,6 +134,11 @@ FEmitScope* FEmitScope::FindSharedParent(FEmitScope* Lhs, FEmitScope* Rhs)
 {
 	FEmitScope* Scope0 = Lhs;
 	FEmitScope* Scope1 = Rhs;
+	if (!Scope0)
+	{
+		return Scope1;
+	}
+
 	if (Scope1)
 	{
 		while (Scope0 != Scope1)
@@ -153,6 +158,42 @@ FEmitScope* FEmitScope::FindSharedParent(FEmitScope* Lhs, FEmitScope* Rhs)
 	return Scope0;
 }
 
+bool FEmitScope::HasParent(const FEmitScope* InParent) const
+{
+	if (InParent)
+	{
+		const FEmitScope* CheckParent = this;
+		while (CheckParent)
+		{
+			if (CheckParent == InParent)
+			{
+				return true;
+			}
+			CheckParent = CheckParent->ParentScope;
+		}
+	}
+	return false;
+}
+
+bool FEmitScope::IsLoop() const
+{
+	return OwnerStatement && OwnerStatement->IsLoop();
+}
+
+FEmitScope* FEmitScope::FindLoop()
+{
+	FEmitScope* CheckParent = this;
+	while (CheckParent)
+	{
+		if (CheckParent->IsLoop())
+		{
+			return CheckParent;
+		}
+		CheckParent = CheckParent->ParentScope;
+	}
+	return nullptr;
+}
+
 FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry)
 	: Allocator(&InAllocator)
 	, Errors(&InErrors)
@@ -164,123 +205,229 @@ FEmitContext::~FEmitContext()
 {
 }
 
-const FPreparedType& FEmitContext::PrepareExpression(FExpression* InExpression, const FRequestedType& RequestedType)
+FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
-	static FPreparedType VoidType;
-	if (!InExpression)
+	if (!InExpression || RequestedType.IsVoid())
 	{
-		return VoidType;
+		return FPreparedType();
 	}
 
 	FOwnerScope OwnerScope(*Errors, InExpression->GetOwner());
+	FPrepareValueResult& Result = InExpression->PrepareValueResult;
 	if (InExpression->bReentryFlag)
 	{
 		// Valid for this to be called reentrantly
 		// Code should ensure that the type is set before the reentrant call, otherwise type will not be valid here
 		// LocalPHI nodes rely on this to break loops
-		return InExpression->PrepareValueResult.GetPreparedType();
+		FEmitScope* LoopScope = Scope.FindLoop();
+		check(LoopScope);
+		Result.PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
+		return Result.GetPreparedType();
 	}
 
-	bool bNeedToUpdateType = false;
-	if (InExpression->CurrentRequestedType.RequestedComponents.Num() == 0)
+	bool bResult = false;
 	{
-		InExpression->CurrentRequestedType = RequestedType;
-		bNeedToUpdateType = !RequestedType.IsVoid();
+		FExpressionReentryScope ReentryScope(InExpression);
+		bResult = InExpression->PrepareValue(*this, Scope, RequestedType, Result);
 	}
-	else if (InExpression->CurrentRequestedType.GetStructType() != RequestedType.GetStructType())
+
+	if (!bResult)
 	{
-		Errors->AddError(TEXT("Type mismatch"));
-		return VoidType;
+		Result.SetTypeVoid();
 	}
 	else
 	{
-		const int32 NumComponents = RequestedType.GetNumComponents();
-		InExpression->CurrentRequestedType.RequestedComponents.PadToNum(NumComponents, false);
-		for (int32 Index = 0; Index < NumComponents; ++Index)
+		check(!Result.GetPreparedType().IsVoid());
+	}
+
+	return Result.GetPreparedType();
+}
+
+FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParentScope)
+{
+	if (!InScope)
+	{
+		return nullptr;
+	}
+
+	TArray<FEmitScope*, TInlineAllocator<16>> EmitScopeChain;
+	{
+		TArray<FScope*, TInlineAllocator<16>> ScopeChain;
+		ScopeChain.Add(InScope);
 		{
-			const bool bPrevRequest = InExpression->CurrentRequestedType.IsComponentRequested(Index);
-			const bool bRequest = RequestedType.IsComponentRequested(Index);
-			if (!bPrevRequest && bRequest)
+			FScope* CurrentParentScope = InParentScope;
+			while (CurrentParentScope)
 			{
-				InExpression->CurrentRequestedType.SetComponentRequest(Index);
-				bNeedToUpdateType = true;
+				ScopeChain.Add(CurrentParentScope);
+				CurrentParentScope = CurrentParentScope->ParentScope;
 			}
+		}
+
+		EmitScopeChain.Reserve(ScopeChain.Num());
+		FEmitScope* EmitParentScope = nullptr;
+		bool bFoundUninitializedScope = false;
+		for (int32 Index = ScopeChain.Num() - 1; Index >= 0; --Index)
+		{
+			FScope* CurrentScope = ScopeChain[Index];
+			FEmitScope* EmitScope = AcquireEmitScopeWithParent(CurrentScope, EmitParentScope);
+			if (EmitScope->State == EEmitScopeState::Initializing)
+			{
+				// If we hit an initializing scope, reset the chain
+				// We only want the chain to include scopes *below* the last initializing scope
+				EmitScopeChain.Reset();
+				// Don't expect any uninitialized scopes *above* the initializing scope (scopes are initialized top down)
+				check(!bFoundUninitializedScope);
+			}
+			else
+			{
+				if (EmitScope->State == EEmitScopeState::Uninitialized)
+				{
+					bFoundUninitializedScope = true;
+					EmitScope->State = EEmitScopeState::Initializing;
+				}
+				EmitScopeChain.Add(EmitScope);
+			}
+			EmitParentScope = EmitScope;
+		}
+
+		if (EmitScopeChain.Num() == 0)
+		{
+			// This can happen if the current scope is initializing
+			check(EmitParentScope);
+			check(EmitParentScope->State == EEmitScopeState::Initializing);
+			return EmitParentScope;
 		}
 	}
 
-	if (bNeedToUpdateType)
+	bool bMarkDead = false;
+	for (int32 Index = 0; Index < EmitScopeChain.Num(); ++Index)
 	{
-		check(!InExpression->CurrentRequestedType.IsVoid());
-
-		bool bResult = false;
+		FEmitScope* EmitScope = EmitScopeChain[Index];
+		if (bMarkDead)
 		{
-			FExpressionReentryScope ReentryScope(InExpression);
-			bResult = InExpression->PrepareValue(*this, InExpression->CurrentRequestedType, InExpression->PrepareValueResult);
+			EmitScope->Evaluation = EExpressionEvaluation::None;
+			EmitScope->State = EEmitScopeState::Dead;
+		}
+		else if (EmitScope->State == EEmitScopeState::Initializing)
+		{
+			if (EmitScope->OwnerStatement)
+			{
+				FEmitScope* EmitParentScope = EmitScope->ParentScope;
+				check(EmitParentScope);
+				if (EmitScope->OwnerStatement->Prepare(*this, *EmitParentScope))
+				{
+					if (EmitScope->State == EEmitScopeState::Initializing)
+					{
+						check(EmitScope->Evaluation != EExpressionEvaluation::None);
+						EmitScope->State = EEmitScopeState::Live;
+					}
+					else
+					{
+						check(EmitScope->State == EEmitScopeState::Dead);
+					}
+				}
+				else
+				{
+					EmitScope->State = EEmitScopeState::Uninitialized;
+					EmitScope->Evaluation = EExpressionEvaluation::Unknown;
+				}
+			}
+			else
+			{
+				EmitScope->State = EEmitScopeState::Live;
+			}
 		}
 
-		if (!bResult)
+		if (EmitScope->State == EEmitScopeState::Dead)
 		{
-			// If we failed to assign a valid type, reset the requested type as well
-			// This ensures we'll try to compute a type again the next time we're called
-			InExpression->CurrentRequestedType.Reset();
-			InExpression->PrepareValueResult.SetTypeVoid();
+			EmitScope->Evaluation = EExpressionEvaluation::None;
+			bMarkDead = true;
+		}
+	}
+
+	EExpressionEvaluation CurrentEvaluation = EExpressionEvaluation::Constant;
+	for (int32 Index = EmitScopeChain.Num() - 1; Index >= 0; --Index)
+	{
+		FEmitScope* EmitScope = EmitScopeChain[Index];
+		if (EmitScope->State == EEmitScopeState::Dead)
+		{
+			check(EmitScope->Evaluation == EExpressionEvaluation::None);
+			CurrentEvaluation = EExpressionEvaluation::Constant;
+		}
+		else if (EmitScope->State == EEmitScopeState::Uninitialized || CurrentEvaluation == EExpressionEvaluation::Unknown)
+		{
+			CurrentEvaluation = EExpressionEvaluation::Unknown;
+			EmitScope->Evaluation = EExpressionEvaluation::Unknown;
 		}
 		else
 		{
-			check(!InExpression->PrepareValueResult.GetPreparedType().IsVoid());
+			CurrentEvaluation = CombineEvaluations(CurrentEvaluation, EmitScope->Evaluation);
+			EmitScope->Evaluation = CurrentEvaluation;
 		}
 	}
 
-	return InExpression->PrepareValueResult.GetPreparedType();
+	return EmitScopeChain.Last();
 }
 
-FEmitScope* FEmitContext::InternalPrepareScope(FScope* Scope, FScope* ParentScope, bool bMarkDead)
+FEmitScope* FEmitContext::PrepareScope(FScope* Scope)
 {
-	FEmitScope* EmitScope = nullptr;
-	if (Scope)
+	FEmitScope* EmitScope = InternalPrepareScope(Scope, Scope ? Scope->ParentScope : nullptr);
+	return EmitScope && EmitScope->State != EEmitScopeState::Dead ? EmitScope : nullptr;
+}
+
+FEmitScope* FEmitContext::PrepareScopeWithParent(FScope* Scope, FScope* ParentScope)
+{
+	FEmitScope* EmitScope = InternalPrepareScope(Scope, ParentScope);
+	return EmitScope && EmitScope->State != EEmitScopeState::Dead ? EmitScope : nullptr;
+}
+
+void FEmitContext::MarkScopeEvaluation(FEmitScope& EmitParentScope, FScope* Scope, EExpressionEvaluation Evaluation)
+{
+	FEmitScope* EmitScope = AcquireEmitScopeWithParent(Scope, &EmitParentScope);
+	if (EmitScope && EmitScope->State != EEmitScopeState::Dead)
 	{
-		FEmitScope* EmitParentScope = InternalPrepareScope(ParentScope, ParentScope ? ParentScope->ParentScope : nullptr, false);
-		EmitScope = AcquireEmitScopeWithParent(Scope, EmitParentScope);
+		// Don't set loop evaluations on scopes
+		EmitScope->Evaluation = CombineEvaluations(EmitScope->Evaluation, MakeNonLoopEvaluation(Evaluation));
+	}
+}
 
-		if (bMarkDead || (EmitParentScope && EmitParentScope->State == EEmitScopeState::Dead))
+void FEmitContext::MarkScopeDead(FEmitScope& EmitParentScope, FScope* Scope)
+{
+	FEmitScope* EmitScope = AcquireEmitScopeWithParent(Scope, &EmitParentScope);
+	if (EmitScope)
+	{
+		EmitScope->State = EEmitScopeState::Dead;
+		EmitScope->Evaluation = EExpressionEvaluation::None;
+	}
+}
+
+void FEmitContext::EmitPreshaderScope(const FScope* Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader)
+{
+	FEmitScope* EmitScope = FindEmitScope(Scope);
+	if (EmitScope)
+	{
+		EmitPreshaderScope(*EmitScope, RequestedType, PreshaderScopes, OutPreshader);
+	}
+}
+
+void FEmitContext::EmitPreshaderScope(FEmitScope& EmitScope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader)
+{
+	for (const FEmitPreshaderScope& PreshaderScope : PreshaderScopes)
+	{
+		if (PreshaderScope.Scope == &EmitScope)
 		{
-			EmitScope->State = EEmitScopeState::Dead;
-		}
-		else if (EmitScope->State == EEmitScopeState::Uninitialized)
-		{
-			EmitScope->State = EEmitScopeState::Initializing;
-			bool bPrepareResult = true;
-			if (Scope->OwnerStatement)
-			{
-				bPrepareResult = Scope->OwnerStatement->Prepare(*this);
-			}
-			if (EmitScope->State == EEmitScopeState::Initializing)
-			{
-				// If Prepare() returns false, we're still uninitialized
-				EmitScope->State = bPrepareResult ? EEmitScopeState::Live : EEmitScopeState::Uninitialized;
-			}
+			PreshaderScope.Value->GetValuePreshader(*this, EmitScope, RequestedType, OutPreshader);
+			check(PreshaderStackPosition > 0);
+			PreshaderStackPosition--;
+			OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Assign); // assign the new value
+			break;
 		}
 	}
 
-	return EmitScope;
-}
-
-bool FEmitContext::PrepareScope(FScope* Scope)
-{
-	FEmitScope* EmitScope = InternalPrepareScope(Scope, Scope ? Scope->ParentScope : nullptr, false);
-	return EmitScope && EmitScope->State != EEmitScopeState::Dead;
-}
-
-bool FEmitContext::PrepareScopeWithParent(FScope* Scope, FScope* ParentScope)
-{
-	FEmitScope* EmitScope = InternalPrepareScope(Scope, ParentScope, false);
-	return EmitScope && EmitScope->State != EEmitScopeState::Dead;
-}
-
-bool FEmitContext::MarkScopeDead(FScope* Scope)
-{
-	InternalPrepareScope(Scope, Scope ? Scope->ParentScope : nullptr, true);
-	return false;
+	if (EmitScope.ContainedStatement)
+	{
+		EmitScope.ContainedStatement->EmitPreshader(*this, EmitScope, RequestedType, PreshaderScopes, OutPreshader);
+	}
 }
 
 FEmitScope* FEmitContext::AcquireEmitScopeWithParent(const FScope* Scope, FEmitScope* EmitParentScope)
@@ -293,8 +440,12 @@ FEmitScope* FEmitContext::AcquireEmitScopeWithParent(const FScope* Scope, FEmitS
 		if (!EmitScope)
 		{
 			EmitScope = new(*Allocator) FEmitScope();
+			EmitScope->OwnerStatement = Scope->OwnerStatement;
+			EmitScope->ContainedStatement = Scope->ContainedStatement;
 			EmitScope->ParentScope = EmitParentScope;
 			EmitScope->NestedLevel = EmitParentScope ? EmitParentScope->NestedLevel + 1 : 0;
+			EmitScope->Evaluation = EExpressionEvaluation::Unknown;
+			EmitScope->State = EEmitScopeState::Uninitialized;
 			EmitScopeMap.Add(Scope, EmitScope);
 		}
 		check(!EmitParentScope || EmitScope->ParentScope == EmitParentScope);
@@ -308,9 +459,15 @@ FEmitScope* FEmitContext::AcquireEmitScope(const FScope* Scope)
 	return AcquireEmitScopeWithParent(Scope, EmitParentScope);
 }
 
+FEmitScope* FEmitContext::FindEmitScope(const FScope* Scope)
+{
+	FEmitScope* const* PrevEmitScope = EmitScopeMap.Find(Scope);
+	return PrevEmitScope ? *PrevEmitScope : nullptr;
+}
+
 FEmitScope* FEmitContext::InternalEmitScope(const FScope* Scope)
 {
-	FEmitScope* EmitScope = AcquireEmitScope(Scope);
+	FEmitScope* EmitScope = FindEmitScope(Scope);
 	if (EmitScope && EmitScope->State != EEmitScopeState::Dead)
 	{
 		if (Scope->ContainedStatement)
@@ -505,7 +662,7 @@ void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint3
 FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* Expression)
 {
 	Shader::FPreshaderData LocalPreshader;
-	Expression->EmitValuePreshader(*this, RequestedType, LocalPreshader);
+	Expression->EmitValuePreshader(*this, Scope, RequestedType, LocalPreshader);
 
 	const Shader::FType Type = RequestedType.GetType();
 
@@ -544,7 +701,7 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		const Shader::EValueType FieldType = Type.GetFlatFieldType(FieldIndex);
 		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
 		const int32 NumFieldComponents = TypeDesc.NumComponents;
-		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(ComponentIndex, NumFieldComponents);
+		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(Scope, ComponentIndex, NumFieldComponents);
 
 		if (FieldEvaluation == EExpressionEvaluation::Preshader)
 		{
@@ -558,7 +715,7 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 				PreshaderHeader->FieldIndex = UniformExpressionSet.UniformPreshaderFields.Num();
 				PreshaderHeader->NumFields = 0u;
 				PreshaderHeader->OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
-				Expression->EmitValuePreshader(*this, RequestedType, UniformExpressionSet.UniformPreshaderData);
+				Expression->EmitValuePreshader(*this, Scope, RequestedType, UniformExpressionSet.UniformPreshaderData);
 				PreshaderHeader->OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader->OpcodeOffset;
 			}
 
@@ -630,7 +787,9 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		else
 		{
 			// We allow FieldEvaluation to be 'None', since in that case we still need to fill in a value for the HLSL initializer
-			check(FieldEvaluation == EExpressionEvaluation::Constant || FieldEvaluation == EExpressionEvaluation::None);
+			check(FieldEvaluation == EExpressionEvaluation::Constant ||
+				FieldEvaluation == EExpressionEvaluation::ConstantLoop ||
+				FieldEvaluation == EExpressionEvaluation::None);
 
 			// The type generated by the preshader might not match the expected type
 			// In the future, with new HLSLTree, preshader could potentially include explicit cast opcodes, and avoid implicit conversions

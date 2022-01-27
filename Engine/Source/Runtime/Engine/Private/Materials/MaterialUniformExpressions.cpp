@@ -751,6 +751,15 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 						*DestAddress++ = FloatValue[i];
 					}
 				}
+				else if (UniformTypeDesc.ComponentType == EValueComponentType::Int)
+				{
+					const FIntValue IntValue = FieldValue.AsInt();
+					int32* DestAddress = (int32*)PreshaderBuffer + PreshaderField.BufferOffset;
+					for (int32 i = 0; i < NumFieldComponents; ++i)
+					{
+						*DestAddress++ = IntValue[i];
+					}
+				}
 				else if (UniformTypeDesc.ComponentType == EValueComponentType::Bool)
 				{
 					const FBoolValue BoolValue = FieldValue.AsBool();

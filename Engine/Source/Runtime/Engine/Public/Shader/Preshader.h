@@ -64,6 +64,11 @@ enum class EPreshaderOpcode : uint8
 	GetField,
 	SetField,
 	Neg,
+	Jump,
+	JumpIfFalse,
+	PushValue,
+	Less,
+	Assign,
 };
 
 struct FPreshaderStructType
@@ -72,6 +77,13 @@ struct FPreshaderStructType
 	LAYOUT_FIELD(uint64, Hash);
 	LAYOUT_FIELD(int32, ComponentTypeIndex);
 	LAYOUT_FIELD(int32, NumComponents);
+};
+
+struct FPreshaderLabel
+{
+	explicit FPreshaderLabel(int32 InOffset = INDEX_NONE) : Offset(InOffset) {}
+
+	int32 Offset;
 };
 
 class FPreshaderData
@@ -99,6 +111,12 @@ public:
 	void WriteName(const FScriptName& Name);
 	void WriteType(const FType& Type);
 	void WriteValue(const FValue& Value);
+
+	FPreshaderLabel WriteJump(EPreshaderOpcode Op);
+	void WriteJump(EPreshaderOpcode Op, FPreshaderLabel Label);
+
+	FPreshaderLabel GetLabel();
+	void SetLabel(FPreshaderLabel InLabel);
 
 	template<typename T>
 	FPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }

@@ -56,7 +56,7 @@ public:
 
 	/** Returned values are invalidated when anything is pushed onto the stack */
 	FPreshaderValue PopValue();
-	FPreshaderValue PeekValue();
+	FPreshaderValue PeekValue(int32 Offset = 0);
 
 	void Reset()
 	{

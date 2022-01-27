@@ -16,6 +16,12 @@ struct FStaticParameterSet;
 
 namespace UE
 {
+
+namespace Shader
+{
+class FPreshaderData;
+} // namespace Shader
+
 namespace HLSLTree
 {
 
@@ -29,6 +35,8 @@ class FPreparedType;
 class FEmitScope;
 class FEmitShaderExpression;
 class FEmitShaderStatement;
+
+struct FEmitPreshaderScope;
 
 struct FEmitShaderScopeEntry
 {
@@ -170,13 +178,27 @@ class FEmitScope
 {
 public:
 	static FEmitScope* FindSharedParent(FEmitScope* Lhs, FEmitScope* Rhs);
+	bool HasParent(const FEmitScope* InParent) const;
+	bool IsLoop() const;
+	FEmitScope* FindLoop();
 
 	void EmitShaderCode(FEmitShaderScopeStack& Stack);
 
 	FEmitScope* ParentScope = nullptr;
-	FEmitShaderNode* FirstNode;
+	FStatement* OwnerStatement = nullptr;
+	FStatement* ContainedStatement = nullptr;
+	FEmitShaderNode* FirstNode = nullptr;
 	int32 NestedLevel = 0;
 	EEmitScopeState State = EEmitScopeState::Uninitialized;
+	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
+};
+
+struct FPreshaderLocalPHIScope
+{
+	FPreshaderLocalPHIScope(const FExpression* InExpression, int32 InValueStackPosition) : ExpressionLocalPHI(InExpression), ValueStackPosition(InValueStackPosition) {}
+
+	const FExpression* ExpressionLocalPHI;
+	int32 ValueStackPosition;
 };
 
 /** Tracks shared state while emitting HLSL code */
@@ -186,15 +208,20 @@ public:
 	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
 	~FEmitContext();
 
-	const FPreparedType& PrepareExpression(FExpression* InExpression, const FRequestedType& RequestedType);
+	FPreparedType PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
 
-	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope, bool bMarkDead);
-	bool PrepareScope(FScope* Scope);
-	bool PrepareScopeWithParent(FScope* Scope, FScope* ParentScope);
-	bool MarkScopeDead(FScope* Scope);
+	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope);
+	FEmitScope* PrepareScope(FScope* Scope);
+	FEmitScope* PrepareScopeWithParent(FScope* Scope, FScope* ParentScope);
+	void MarkScopeEvaluation(FEmitScope& EmitParentScope, FScope* Scope, EExpressionEvaluation Evaluation);
+	void MarkScopeDead(FEmitScope& EmitParentScope, FScope* Scope);
+
+	void EmitPreshaderScope(const FScope* Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
+	void EmitPreshaderScope(FEmitScope& EmitScope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
 
 	FEmitScope* AcquireEmitScopeWithParent(const FScope* Scope, FEmitScope* EmitParentScope);
 	FEmitScope* AcquireEmitScope(const FScope* Scope);
+	FEmitScope* FindEmitScope(const FScope* Scope);
 	FEmitScope* InternalEmitScope(const FScope* Scope);
 
 	template<typename T>
@@ -346,10 +373,14 @@ public:
 
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;
+	TMap<const FExpression*, FEmitScope*> PrepareLocalPHIMap;
 	TMap<const FExpression*, FEmitShaderExpression*> EmitLocalPHIMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitExpressionMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitPreshaderMap;
 	TMap<const FFunction*, FEmitShaderNode*> EmitFunctionMap;
+	TArray<struct FPreshaderLoopScope*> PreshaderLoopScopes;
+	TArray<const FPreshaderLocalPHIScope*> PreshaderLocalPHIScopes;
+	int32 PreshaderStackPosition = 0;
 
 	// TODO - remove preshader material dependency
 	const FMaterial* Material = nullptr;

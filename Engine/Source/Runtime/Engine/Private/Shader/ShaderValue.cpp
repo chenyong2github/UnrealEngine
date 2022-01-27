@@ -945,6 +945,7 @@ struct FOpMin : public FOpBase { template<typename T> T operator()(T Lhs, T Rhs)
 struct FOpMax : public FOpBase { template<typename T> T operator()(T Lhs, T Rhs) const { return FMath::Max(Lhs, Rhs); } };
 struct FOpFmod : public FOpBaseNoInt { template<typename T> T operator()(T Lhs, T Rhs) const { return FMath::Fmod(Lhs, Rhs); } };
 struct FOpAtan2 : public FOpBaseNoInt { template<typename T> T operator()(T Lhs, T Rhs) const { return FMath::Atan2(Lhs, Rhs); } };
+struct FOpLess : public FOpBase { template<typename T> bool operator()(T Lhs, T Rhs) const { return Lhs < Rhs; } };
 
 template<typename Operation>
 inline FValue UnaryOp(const Operation& Op, const FValue& Value)
@@ -1044,6 +1045,56 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 	}
 
 	Result.Type = MakeValueType(EValueComponentType::Float, NumComponents);
+	const FFloatValue LhsCast = Lhs.AsFloat();
+	const FFloatValue RhsCast = Rhs.AsFloat();
+	for (int32 i = 0; i < NumComponents; ++i)
+	{
+		Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
+	}
+	return Result;
+}
+
+template<typename Operation>
+inline FValue CompareOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs)
+{
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
+	{
+		return FValue();
+	}
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+	const int8 NumComponents = GetNumComponentsResult(LhsDesc.NumComponents, RhsDesc.NumComponents);
+
+	FValue Result;
+	Result.Type = MakeValueType(EValueComponentType::Bool, NumComponents);
+	if constexpr (Operation::SupportsDouble)
+	{
+		if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
+		{
+			const FDoubleValue LhsCast = Lhs.AsDouble();
+			const FDoubleValue RhsCast = Rhs.AsDouble();
+			for (int32 i = 0; i < NumComponents; ++i)
+			{
+				Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
+			}
+			return Result;
+		}
+	}
+
+	if constexpr (Operation::SupportsInt)
+	{
+		if (LhsDesc.ComponentType != EValueComponentType::Float && RhsDesc.ComponentType != EValueComponentType::Float)
+		{
+			const FIntValue LhsCast = Lhs.AsInt();
+			const FIntValue RhsCast = Rhs.AsInt();
+			for (int32 i = 0; i < NumComponents; ++i)
+			{
+				Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
+			}
+			return Result;
+		}
+	}
+
 	const FFloatValue LhsCast = Lhs.AsFloat();
 	const FFloatValue RhsCast = Rhs.AsFloat();
 	for (int32 i = 0; i < NumComponents; ++i)
@@ -1221,6 +1272,11 @@ FValue Mul(const FValue& Lhs, const FValue& Rhs)
 FValue Div(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpDiv(), Lhs, Rhs);
+}
+
+FValue Less(const FValue& Lhs, const FValue& Rhs)
+{
+	return Private::CompareOp(Private::FOpLess(), Lhs, Rhs);
 }
 
 FValue Min(const FValue& Lhs, const FValue& Rhs)

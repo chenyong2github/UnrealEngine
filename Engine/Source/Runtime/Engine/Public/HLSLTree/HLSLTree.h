@@ -34,6 +34,8 @@ namespace HLSLTree
 
 class FNode;
 class FScope;
+class FStatement;
+class FExpression;
 class FFunction;
 class FExpressionLocalPHI;
 class FRequestedType;
@@ -183,6 +185,15 @@ private:
 	friend class FTree;
 };
 
+struct FEmitPreshaderScope
+{
+	FEmitPreshaderScope() = default;
+	FEmitPreshaderScope(FEmitScope* InScope, FExpression* InValue) : Scope(InScope), Value(InValue) {}
+
+	FEmitScope* Scope = nullptr;
+	FExpression* Value = nullptr;
+};
+
 /**
  * Represents an HLSL statement.  This is a piece of code that doesn't evaluate to any value, but instead should be executed sequentially, and likely has side-effects.
  * Examples include assigning a value, or various control flow structures (if, for, while, etc)
@@ -193,15 +204,19 @@ class FStatement : public FNode
 public:
 	FScope& GetParentScope() const { return *ParentScope; }
 
+	virtual bool IsLoop() const { return false; }
+
 protected:
-	virtual bool Prepare(FEmitContext& Context) const = 0;
+	virtual bool Prepare(FEmitContext& Context, FEmitScope& Scope) const = 0;
 	virtual void EmitShader(FEmitContext& Context, FEmitScope& Scope) const = 0;
+	virtual void EmitPreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> Scopes, Shader::FPreshaderData& OutPreshader) const;
 
 private:
 	FScope* ParentScope = nullptr;
 
 	friend class FTree;
 	friend class FEmitContext;
+	friend class FExpressionLocalPHI;
 };
 
 /**
@@ -256,8 +271,46 @@ public:
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
 	TBitArray<> RequestedComponents;
 };
+inline bool operator==(const FRequestedType& Lhs, const FRequestedType& Rhs)
+{
+	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
+		Lhs.StructType == Rhs.StructType &&
+		Lhs.RequestedComponents == Rhs.RequestedComponents;
+}
+inline bool operator!=(const FRequestedType& Lhs, const FRequestedType& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
 
 FRequestedType MakeRequestedType(Shader::EValueComponentType ComponentType, const FRequestedType& RequestedComponents);
+
+struct FPreparedComponent
+{
+	FPreparedComponent() = default;
+	FPreparedComponent(EExpressionEvaluation InEvaluation, FEmitScope* InLoopScope = nullptr)
+		: LoopScope(InLoopScope), Evaluation(InEvaluation)
+	{
+		check(!IsLoopEvaluation(InEvaluation) || InLoopScope);
+	}
+
+	inline bool IsNone() const { return Evaluation == EExpressionEvaluation::None; }
+
+	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
+
+	FEmitScope* LoopScope = nullptr;
+	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
+};
+inline bool operator==(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
+{
+	return Lhs.Evaluation == Rhs.Evaluation &&
+		Lhs.LoopScope == Rhs.LoopScope;
+}
+inline bool operator!=(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs);
 
 /**
  * Like FRequestedType, but tracks an EExpressionEvaluation per component, rather than a simple requested flag
@@ -271,6 +324,8 @@ public:
 	FPreparedType(const Shader::FType& InType);
 
 	void SetEvaluation(EExpressionEvaluation Evaluation);
+	void MergeEvaluation(EExpressionEvaluation Evaluation);
+	void SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
@@ -283,21 +338,33 @@ public:
 	bool IsInitialized() const { return StructType != nullptr || ValueComponentType != Shader::EValueComponentType::Void; }
 	bool IsVoid() const;
 
-	EExpressionEvaluation GetEvaluation() const;
-	EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const;
-	EExpressionEvaluation GetFieldEvaluation(int32 ComponentIndex, int32 NumComponents) const;
-	EExpressionEvaluation GetComponentEvaluation(int32 Index) const;
+	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
+	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;
+	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, int32 ComponentIndex, int32 NumComponents) const;
+	FPreparedComponent GetComponent(int32 Index) const;
 
-	void SetComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation);
-	void MergeComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation);
+	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
+	void MergeComponent(int32 Index, const FPreparedComponent& InComponent);
 
 	/** Unlike FRequestedType, one of these should be set */
 	const Shader::FStructType* StructType = nullptr;
 	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
 
+	void EnsureNumComponents(int32 NumComponents);
+
 	/** Evaluation type for each component, may be 'None' for components that are unused */
-	TArray<EExpressionEvaluation, TInlineAllocator<16>> PreparedComponents;
+	TArray<FPreparedComponent, TInlineAllocator<16>> PreparedComponents;
 };
+inline bool operator==(const FPreparedType& Lhs, const FPreparedType& Rhs)
+{
+	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
+		Lhs.StructType == Rhs.StructType &&
+		Lhs.PreparedComponents == Rhs.PreparedComponents;
+}
+inline bool operator!=(const FPreparedType& Lhs, const FPreparedType& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
 
@@ -311,7 +378,7 @@ public:
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type);
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
 
-	bool SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InValue);
+	bool SetForwardValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* InValue);
 
 private:
 	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
@@ -320,6 +387,7 @@ private:
 	FPreparedType PreparedType;
 
 	friend class FExpression;
+	friend class FEmitContext;
 };
 
 struct FEmitValueShaderResult
@@ -355,26 +423,25 @@ public:
 	const FPreparedType& GetPreparedType() const { return PrepareValueResult.PreparedType; }
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
-	EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(RequestedType); }
+	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType); }
 
 	virtual void Reset() override;
 
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
-	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
-	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
+	void GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
 
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope);
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
-	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
-	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
 	FExpressionDerivatives Derivatives;
-	FRequestedType CurrentRequestedType;
 	FPrepareValueResult PrepareValueResult;
 	bool bReentryFlag = false;
 	bool bComputedDerivatives = false;
@@ -456,8 +523,8 @@ private:
 	friend class FExpression;
 	friend class FEmitContext;
 
-	FStatement* OwnerStatement = nullptr;
 	FScope* ParentScope = nullptr;
+	FStatement* OwnerStatement = nullptr;
 	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
 	TMap<FName, FExpression*> LocalMap;

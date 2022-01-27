@@ -33,17 +33,31 @@ enum class EExpressionEvaluation : uint8
 	/** Invalid/uninitialized */
 	None,
 
+	/** Valid, but not yet known */
+	Unknown,
+
 	/** The expression outputs HLSL code (via FExpressionEmitResult::Writer) */
 	Shader,
 
+	PreshaderLoop,
+
 	/** The expression outputs preshader code evaluated at runtime (via FExpressionEmitResult::Preshader) */
 	Preshader,
+
+	ConstantLoop,
 
 	/** The expression outputs constant preshader code evaluated at compile time (via FExpressionEmitResult::Preshader) */
 	Constant,
 };
 
 EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs);
+EExpressionEvaluation MakeLoopEvaluation(EExpressionEvaluation Evaluation);
+EExpressionEvaluation MakeNonLoopEvaluation(EExpressionEvaluation Evaluation);
+
+inline bool IsLoopEvaluation(EExpressionEvaluation Evaluation)
+{
+	return Evaluation == EExpressionEvaluation::PreshaderLoop || Evaluation == EExpressionEvaluation::ConstantLoop;
+}
 
 enum class EUnaryOp : uint8
 {

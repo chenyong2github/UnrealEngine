@@ -85,10 +85,10 @@ FPreshaderValue FPreshaderStack::PopValue()
 	return Value;
 }
 
-FPreshaderValue FPreshaderStack::PeekValue()
+FPreshaderValue FPreshaderStack::PeekValue(int32 Offset)
 {
 	FPreshaderValue Value;
-	Value.Type = Values.Last();
+	Value.Type = Values.Last(Offset);
 
 	const int32 NumComponents = Value.Type.GetNumComponents();
 	const int32 ComponentIndex = Components.Num() - NumComponents;
@@ -176,6 +176,39 @@ void FPreshaderData::WriteValue(const FValue& Value)
 		const FValueComponent Component = Value.TryGetComponent(Index);
 		WriteData(&Component.Packed, ComponentSize);
 	}
+}
+
+FPreshaderLabel FPreshaderData::WriteJump(EPreshaderOpcode Op)
+{
+	WriteOpcode(Op);
+	const int32 Offset = Data.Num();
+	Write((uint32)0xffffffff); // Write a placeholder for the jump offset
+	return FPreshaderLabel(Offset);
+}
+
+void FPreshaderData::WriteJump(EPreshaderOpcode Op, FPreshaderLabel Label)
+{
+	WriteOpcode(Op);
+	const int32 Offset = Data.Num();
+	const int32 JumpOffset = Label.Offset - Offset - 4; // Compute the offset to jump
+	Write(JumpOffset);
+}
+
+void FPreshaderData::SetLabel(FPreshaderLabel InLabel)
+{
+	const int32 TargetOffset = Data.Num();
+	const int32 BaseOffset = InLabel.Offset;
+	const int32 JumpOffset = TargetOffset - BaseOffset - 4; // Compute the offset to jump
+	check(JumpOffset >= 0);
+
+	uint8* Dst = &Data[BaseOffset];
+	check(Dst[0] == 0xff && Dst[1] == 0xff && Dst[2] == 0xff && Dst[3] == 0xff);
+	FMemory::Memcpy(Dst, &JumpOffset, 4); // Patch the offset into the jump opcode
+}
+
+FPreshaderLabel FPreshaderData::GetLabel()
+{
+	return FPreshaderLabel(Data.Num());
 }
 
 FPreshaderDataContext::FPreshaderDataContext(const FPreshaderData& InData)
@@ -310,6 +343,27 @@ static void EvaluateGetField(FPreshaderStack& Stack, FPreshaderDataContext& REST
 		FieldComponents.Add(StructValue.Component[ComponentIndex + Index]);
 	}
 	Stack.PushValue(FieldType, FieldComponents);
+}
+
+static void EvaluatePushValue(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const int32 StackOffset = ReadPreshaderValue<uint16>(Data);
+	const FPreshaderValue Value = Stack.PeekValue(StackOffset);
+	// Make a local copy of the component array, as it will be invalidated when pushing the copy
+	const TArray<FValueComponent, TInlineAllocator<64>> LocalComponent(Value.Component);
+	Stack.PushValue(Value.Type, LocalComponent);
+}
+
+static void EvaluateAssign(FPreshaderStack& Stack)
+{
+	const FPreshaderValue Value = Stack.PopValue();
+	// Make a local copy of the component array, as it will be invalidated when pushing the copy
+	const TArray<FValueComponent, TInlineAllocator<64>> LocalComponent(Value.Component);
+
+	// Remove the old value
+	Stack.PopValue();
+	// Replace with the new value
+	Stack.PushValue(Value.Type, LocalComponent);
 }
 
 static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSet* UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context)
@@ -503,6 +557,25 @@ static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& C
 	}
 }
 
+static void EvaluateJump(FPreshaderDataContext& RESTRICT Data)
+{
+	const int32 JumpOffset = ReadPreshaderValue<int32>(Data);
+	check(Data.Ptr + JumpOffset <= Data.EndPtr);
+	Data.Ptr += JumpOffset;
+}
+
+static void EvaluateJumpIfFalse(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const int32 JumpOffset = ReadPreshaderValue<int32>(Data);
+	check(Data.Ptr + JumpOffset <= Data.EndPtr);
+
+	const FValue ConditionValue = Stack.PopValue().AsShaderValue();
+	if (!ConditionValue.AsBoolScalar())
+	{
+		Data.Ptr += JumpOffset;
+	}
+}
+
 FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	uint8 const* const DataEnd = Data.EndPtr;
@@ -520,10 +593,13 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::Parameter:
 			EvaluateParameter(Stack, UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context);
 			break;
+		case EPreshaderOpcode::PushValue: EvaluatePushValue(Stack, Data); break;
+		case EPreshaderOpcode::Assign: EvaluateAssign(Stack); break;
 		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, Add); break;
 		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, Sub); break;
 		case EPreshaderOpcode::Mul: EvaluateBinaryOp(Stack, Mul); break;
 		case EPreshaderOpcode::Div: EvaluateBinaryOp(Stack, Div); break;
+		case EPreshaderOpcode::Less: EvaluateBinaryOp(Stack, Less); break;
 		case EPreshaderOpcode::Fmod: EvaluateBinaryOp(Stack, Fmod); break;
 		case EPreshaderOpcode::Min: EvaluateBinaryOp(Stack, Min); break;
 		case EPreshaderOpcode::Max: EvaluateBinaryOp(Stack, Max); break;
@@ -560,6 +636,8 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::ExternalTextureCoordinateScaleRotation: EvaluateExternalTextureCoordinateScaleRotation(Context, Stack, Data); break;
 		case EPreshaderOpcode::ExternalTextureCoordinateOffset: EvaluateExternalTextureCoordinateOffset(Context, Stack, Data); break;
 		case EPreshaderOpcode::RuntimeVirtualTextureUniform: EvaluateRuntimeVirtualTextureUniform(Context, Stack, Data); break;
+		case EPreshaderOpcode::Jump: EvaluateJump(Data); break;
+		case EPreshaderOpcode::JumpIfFalse: EvaluateJumpIfFalse(Stack, Data); break;
 		default:
 			UE_LOG(LogMaterial, Fatal, TEXT("Unknown preshader opcode %d"), (uint8)Opcode);
 			break;

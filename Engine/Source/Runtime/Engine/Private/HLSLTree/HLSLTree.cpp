@@ -7,6 +7,9 @@
 #include "Shader/ShaderTypes.h"
 #include "Shader/Preshader.h"
 
+// TODO - M_ForLoop doesn't work yet
+// FPreparedType::GetEvaluation takes scope, checks loop scope automatically
+
 namespace UE
 {
 namespace HLSLTree
@@ -32,8 +35,9 @@ public:
 	FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord);
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
-	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 
 	TArray<EDerivativeCoordinate, TInlineAllocator<8>> DerivativeChain;
 	FName LocalName;
@@ -51,8 +55,9 @@ class FExpressionFunctionCall final : public FExpression
 public:
 	FExpressionFunctionCall(FFunction* InFunction, int32 InOutputIndex) : Function(InFunction), OutputIndex(InOutputIndex) {}
 
-	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 
 	FFunction* Function;
 	int32 OutputIndex;
@@ -94,7 +99,7 @@ FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op)
 	case EBinaryOp::Sub: return FBinaryOpDescription(TEXT("Subtract"), TEXT("-"), Shader::EPreshaderOpcode::Sub); break;
 	case EBinaryOp::Mul: return FBinaryOpDescription(TEXT("Multiply"), TEXT("*"), Shader::EPreshaderOpcode::Mul); break;
 	case EBinaryOp::Div: return FBinaryOpDescription(TEXT("Divide"), TEXT("/"), Shader::EPreshaderOpcode::Div); break;
-	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<"), Shader::EPreshaderOpcode::Nop); break;
+	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<"), Shader::EPreshaderOpcode::Less); break;
 	default: checkNoEntry(); return FBinaryOpDescription();
 	}
 }
@@ -110,18 +115,64 @@ EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionE
 	{
 		return Lhs;
 	}
-	else if (Lhs == EExpressionEvaluation::Constant && Rhs == EExpressionEvaluation::Constant)
+	else if (Lhs == EExpressionEvaluation::Unknown)
 	{
-		// 2 constants make a constant
-		return EExpressionEvaluation::Constant;
+		return Rhs;
+	}
+	else if (Rhs == EExpressionEvaluation::Unknown)
+	{
+		return Lhs;
 	}
 	else if (Lhs == EExpressionEvaluation::Shader || Rhs == EExpressionEvaluation::Shader)
 	{
 		// If either requires shader, shader is required
 		return EExpressionEvaluation::Shader;
 	}
-	// Any combination of constants/preshader can make a preshader
-	return EExpressionEvaluation::Preshader;
+	else if (Lhs == EExpressionEvaluation::PreshaderLoop || Rhs == EExpressionEvaluation::PreshaderLoop)
+	{
+		// Otherwise if either requires preshader, preshader is required
+		return EExpressionEvaluation::PreshaderLoop;
+	}
+	else if (Lhs == EExpressionEvaluation::Preshader || Rhs == EExpressionEvaluation::Preshader)
+	{
+		// Otherwise if either requires preshader, preshader is required
+		return EExpressionEvaluation::Preshader;
+	}
+	else if (Lhs == EExpressionEvaluation::ConstantLoop || Rhs == EExpressionEvaluation::ConstantLoop)
+	{
+		return EExpressionEvaluation::ConstantLoop;
+	}
+
+	// Otherwise must be constant
+	check(Lhs == EExpressionEvaluation::Constant);
+	check(Rhs == EExpressionEvaluation::Constant);
+	return EExpressionEvaluation::Constant;
+}
+
+EExpressionEvaluation MakeLoopEvaluation(EExpressionEvaluation Evaluation)
+{
+	if (Evaluation == EExpressionEvaluation::Preshader)
+	{
+		return EExpressionEvaluation::PreshaderLoop;
+	}
+	else if (Evaluation == EExpressionEvaluation::Constant)
+	{
+		return EExpressionEvaluation::ConstantLoop;
+	}
+	return Evaluation;
+}
+
+EExpressionEvaluation MakeNonLoopEvaluation(EExpressionEvaluation Evaluation)
+{
+	if (Evaluation == EExpressionEvaluation::PreshaderLoop)
+	{
+		return EExpressionEvaluation::Preshader;
+	}
+	else if (Evaluation == EExpressionEvaluation::ConstantLoop)
+	{
+		return EExpressionEvaluation::Constant;
+	}
+	return Evaluation;
 }
 
 FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
@@ -167,7 +218,7 @@ void FExpressionLocalPHI::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddy);
 }
 
-bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	check(NumValues <= MaxNumPreviousScopes);
 	FExpression* ForwardExpression = Values[0];
@@ -189,15 +240,17 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	if (bForwardExpressionValid)
 	{
 		check(ForwardExpression);
-		return OutResult.SetForwardValue(Context, RequestedType, ForwardExpression);
+		return OutResult.SetForwardValue(Context, Scope, RequestedType, ForwardExpression);
 	}
 
 	// 2) PHI has different values in previous scopes, but possible some previous scopes may become dead due to constant folding
 	// In this case, we check to see if the value is the same in all live scopes, and forward if possible
+	FEmitScope* EmitScopes[MaxNumPreviousScopes] = { nullptr };
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		// Ignore values in dead scopes
-		if (Context.PrepareScope(Scopes[i]))
+		EmitScopes[i] = Context.PrepareScope(Scopes[i]);
+		if (EmitScopes[i])
 		{
 			FExpression* ScopeExpression = Values[i];
 			if (!ForwardExpression)
@@ -215,7 +268,7 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	if (bForwardExpressionValid)
 	{
 		check(ForwardExpression);
-		return OutResult.SetForwardValue(Context, RequestedType, ForwardExpression);
+		return OutResult.SetForwardValue(Context, Scope, RequestedType, ForwardExpression);
 	}
 
 	FPreparedType TypePerValue[MaxNumPreviousScopes];
@@ -226,9 +279,13 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	{
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			if (TypePerValue[i].IsVoid() && Context.PrepareScope(Scopes[i]))
+			if (!EmitScopes[i] || EmitScopes[i]->Evaluation == EExpressionEvaluation::Unknown)
 			{
-				const FPreparedType& ValueType = Context.PrepareExpression(Values[i], RequestedType);
+				EmitScopes[i] = Context.PrepareScope(Scopes[i]);
+			}
+			if (TypePerValue[i].IsVoid() && EmitScopes[i])
+			{
+				const FPreparedType& ValueType = Context.PrepareExpression(Values[i], *EmitScopes[i], RequestedType);
 				if (!ValueType.IsVoid())
 				{
 					TypePerValue[i] = ValueType;
@@ -240,6 +297,7 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 							ValueType.GetType().GetName());
 					}
 					CurrentType = MergedType;
+					CurrentType.MergeEvaluation(EmitScopes[i]->Evaluation);
 					check(NumValidTypes < NumValues);
 					NumValidTypes++;
 				}
@@ -256,8 +314,8 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	}
 
 	// Assuming we have at least one value with a valid type, we use that to initialize our type
-	CurrentType.SetEvaluation(EExpressionEvaluation::Shader); // TODO - No support for preshader flow control
-	if (!OutResult.SetType(Context, RequestedType, CurrentType))
+	const FPreparedType InitialType(CurrentType);
+	if (!OutResult.SetType(Context, RequestedType, InitialType))
 	{
 		return false;
 	}
@@ -272,6 +330,26 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 		if (NumValidTypes < NumValues)
 		{
 			return Context.Errors->AddError(TEXT("Failed to compute all types for LocalPHI"));
+		}
+
+		if (CurrentType != InitialType)
+		{
+			// Update type again based on computing remaining values
+			if (!OutResult.SetType(Context, RequestedType, CurrentType))
+			{
+				return false;
+			}
+
+			// Since we changed our type, need to update any dependant values again
+			for (int32 i = 0; i < NumValues; ++i)
+			{
+				const FPreparedType& ValueType = Context.PrepareExpression(Values[i], *EmitScopes[i], RequestedType);
+				// Don't expect types to change *again*
+				if (ValueType.IsVoid() || MergePreparedTypes(CurrentType, ValueType) != CurrentType)
+				{
+					return Context.Errors->AddError(TEXT("Mismatched types for local variable %s and %s"));
+				}
+			}
 		}
 	}
 
@@ -351,14 +429,63 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 	OutResult.Code = EmitExpression;
 }
 
-bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+void FExpressionLocalPHI::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	if (!Context.PrepareScopeWithParent(Function->RootScope, Function->CalledScope))
+	int32 ValueStackPosition = INDEX_NONE;
+	for (int32 Index = Context.PreshaderLocalPHIScopes.Num() - 1; Index >= 0; --Index)
+	{
+		const FPreshaderLocalPHIScope* LocalPHIScope = Context.PreshaderLocalPHIScopes[Index];
+		if (LocalPHIScope->ExpressionLocalPHI == this)
+		{
+			ValueStackPosition = LocalPHIScope->ValueStackPosition;
+			break;
+		}
+	}
+
+	if (ValueStackPosition == INDEX_NONE)
+	{
+		// Assign the initial value
+		const FRequestedType LocalType = GetRequestedType();
+		Context.PreshaderStackPosition++;
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(LocalType.GetType());
+
+		ValueStackPosition = Context.PreshaderStackPosition;
+		const FPreshaderLocalPHIScope LocalPHIScope(this, ValueStackPosition);
+		Context.PreshaderLocalPHIScopes.Add(&LocalPHIScope);
+
+		FEmitScope* EmitRootScope = nullptr;// &Scope;
+		FEmitPreshaderScope PreshaderScopes[MaxNumPreviousScopes];
+		for (int32 i = 0; i < NumValues; ++i)
+		{
+			FEmitPreshaderScope& PreshaderScope = PreshaderScopes[i];
+			PreshaderScope.Scope = Context.AcquireEmitScope(Scopes[i]);
+			PreshaderScope.Value = Values[i];
+			EmitRootScope = FEmitScope::FindSharedParent(PreshaderScopes[i].Scope, EmitRootScope);
+		}
+
+		Context.EmitPreshaderScope(*EmitRootScope, RequestedType, MakeArrayView(PreshaderScopes, NumValues), OutPreshader);
+		verify(Context.PreshaderLocalPHIScopes.Pop(false) == &LocalPHIScope);
+		check(Context.PreshaderStackPosition == ValueStackPosition);
+	}
+	else
+	{
+		const int32 PreshaderStackOffset = Context.PreshaderStackPosition - ValueStackPosition;
+		check(PreshaderStackOffset >= 0 && PreshaderStackOffset <= 0xffff);
+
+		Context.PreshaderStackPosition++;
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::PushValue).Write((uint16)PreshaderStackOffset);
+	}
+}
+
+bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FEmitScope* EmitFunctionScope = Context.PrepareScopeWithParent(Function->RootScope, Function->CalledScope);
+	if (!EmitFunctionScope)
 	{
 		return false;
 	}
 
-	FPreparedType OutputType = Context.PrepareExpression(Function->OutputExpressions[OutputIndex], RequestedType);
+	FPreparedType OutputType = Context.PrepareExpression(Function->OutputExpressions[OutputIndex], Scope, RequestedType);
 	return OutResult.SetType(Context, RequestedType, OutputType);
 }
 
@@ -378,9 +505,13 @@ void FExpressionFunctionCall::EmitValueShader(FEmitContext& Context, FEmitScope&
 	OutResult.Code = Context.EmitInlineExpressionWithDependency(Scope, Dependency, EmitFunctionOutput->Type, TEXT("%"), EmitFunctionOutput);
 }
 
+void FExpressionFunctionCall::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
+{
+	Function->OutputExpressions[OutputIndex]->GetValuePreshader(Context, Scope, RequestedType, OutPreshader);
+}
+
 void FExpression::Reset()
 {
-	CurrentRequestedType.Reset();
 	PrepareValueResult = FPrepareValueResult();
 }
 
@@ -481,6 +612,32 @@ FRequestedType FRequestedType::GetField(const Shader::FStructField* Field) const
 	return Result;
 }
 
+EExpressionEvaluation FPreparedComponent::GetEvaluation(const FEmitScope& Scope) const
+{
+	EExpressionEvaluation Result = Evaluation;
+	if (IsLoopEvaluation(Result))
+	{
+		// We only want to return a 'Loop' evaluation if we're within the loop's scope
+		if (!Scope.HasParent(LoopScope))
+		{
+			switch (Result)
+			{
+			case EExpressionEvaluation::ConstantLoop: Result = EExpressionEvaluation::Constant; break;
+			case EExpressionEvaluation::PreshaderLoop: Result = EExpressionEvaluation::Preshader; break;
+			default: checkNoEntry(); break;
+			}
+		}
+	}
+	return Result;
+}
+
+FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
+{
+	const EExpressionEvaluation Evaluation = CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation);
+	FEmitScope* LoopScope = IsLoopEvaluation(Evaluation) ? FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope) : nullptr;
+	return FPreparedComponent(Evaluation, LoopScope);
+}
+
 FPreparedType::FPreparedType(const Shader::FType& InType)
 {
 	if (InType.IsStruct())
@@ -501,7 +658,7 @@ int32 FPreparedType::GetNumComponents() const
 	}
 	else if (ValueComponentType != Shader::EValueComponentType::Void)
 	{
-		const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate([](EExpressionEvaluation InEvaluation) { return InEvaluation != EExpressionEvaluation::None; });
+		const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate([](const FPreparedComponent& InComponent) { return InComponent.Evaluation != EExpressionEvaluation::None; });
 		if (MaxComponentIndex != INDEX_NONE)
 		{
 			return MaxComponentIndex + 1;
@@ -549,8 +706,8 @@ FRequestedType FPreparedType::GetRequestedType() const
 		}
 		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
-			const EExpressionEvaluation ComponentEvaluation = GetComponentEvaluation(Index);
-			if (ComponentEvaluation != EExpressionEvaluation::None)
+			const FPreparedComponent Component = GetComponent(Index);
+			if (!Component.IsNone())
 			{
 				Result.SetComponentRequest(Index);
 			}
@@ -559,75 +716,115 @@ FRequestedType FPreparedType::GetRequestedType() const
 	return Result;
 }
 
-EExpressionEvaluation FPreparedType::GetEvaluation() const
+EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::None;
 	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
-		Result = CombineEvaluations(Result, PreparedComponents[Index]);
+		Result = CombineEvaluations(Result, PreparedComponents[Index].GetEvaluation(Scope));
 	}
 	return Result;
 }
 
-EExpressionEvaluation FPreparedType::GetEvaluation(const FRequestedType& RequestedType) const
+EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::None;
 	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
-			Result = CombineEvaluations(Result, PreparedComponents[Index]);
+			Result = CombineEvaluations(Result, PreparedComponents[Index].GetEvaluation(Scope));
 		}
 	}
 	return Result;
 }
 
-EExpressionEvaluation FPreparedType::GetFieldEvaluation(int32 ComponentIndex, int32 NumComponents) const
+EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope, int32 ComponentIndex, int32 NumComponents) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::None;
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
-		Result = CombineEvaluations(Result, GetComponentEvaluation(ComponentIndex + Index));
+		const FPreparedComponent Component = GetComponent(Index);
+		Result = CombineEvaluations(Result, Component.GetEvaluation(Scope));
 	}
 	return Result;
 }
 
-EExpressionEvaluation FPreparedType::GetComponentEvaluation(int32 Index) const
+FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 {
-	return PreparedComponents.IsValidIndex(Index) ? PreparedComponents[Index] : EExpressionEvaluation::None;
+	return PreparedComponents.IsValidIndex(Index) ? PreparedComponents[Index] : FPreparedComponent();
 }
 
-void FPreparedType::SetComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation)
+void FPreparedType::EnsureNumComponents(int32 NumComponents)
 {
-	if (Evaluation != EExpressionEvaluation::None && Index >= PreparedComponents.Num())
+	if (NumComponents > PreparedComponents.Num())
 	{
-		PreparedComponents.AddZeroed(Index + 1 - PreparedComponents.Num());
-	}
-	if (PreparedComponents.IsValidIndex(Index))
-	{
-		PreparedComponents[Index] = Evaluation;
+		static_assert((uint8)EExpressionEvaluation::None == 0u, "Assume zero initializes to None");
+		PreparedComponents.AddZeroed(NumComponents - PreparedComponents.Num());
 	}
 }
 
-void FPreparedType::MergeComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation)
+void FPreparedType::SetComponent(int32 Index, const FPreparedComponent& InComponent)
 {
-	if (Evaluation != EExpressionEvaluation::None && Index >= PreparedComponents.Num())
+	if (InComponent.Evaluation != EExpressionEvaluation::None)
 	{
-		PreparedComponents.AddZeroed(Index + 1 - PreparedComponents.Num());
+		EnsureNumComponents(Index + 1);
 	}
 	if (PreparedComponents.IsValidIndex(Index))
 	{
-		PreparedComponents[Index] = CombineEvaluations(PreparedComponents[Index], Evaluation);
+		PreparedComponents[Index] = InComponent;
+	}
+}
+
+void FPreparedType::MergeComponent(int32 Index, const FPreparedComponent& InComponent)
+{
+	if (InComponent.Evaluation != EExpressionEvaluation::None)
+	{
+		EnsureNumComponents(Index + 1);
+	}
+	if (PreparedComponents.IsValidIndex(Index))
+	{
+		PreparedComponents[Index] = CombineComponents(PreparedComponents[Index], InComponent);
 	}
 }
 
 void FPreparedType::SetEvaluation(EExpressionEvaluation Evaluation)
 {
+	check(!IsLoopEvaluation(Evaluation));
 	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
-		if (PreparedComponents[Index] != EExpressionEvaluation::None)
+		if (!PreparedComponents[Index].IsNone())
 		{
 			PreparedComponents[Index] = Evaluation;
+		}
+	}
+}
+
+void FPreparedType::MergeEvaluation(EExpressionEvaluation Evaluation)
+{
+	check(!IsLoopEvaluation(Evaluation));
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		if (!PreparedComponents[Index].IsNone())
+		{
+			FPreparedComponent& Component = PreparedComponents[Index];
+			Component = CombineComponents(Component, Evaluation);
+		}
+	}
+}
+
+void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType)
+{
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			FPreparedComponent& Component = PreparedComponents[Index];
+			Component.Evaluation = MakeLoopEvaluation(Component.Evaluation);
+			if (IsLoopEvaluation(Component.Evaluation))
+			{
+				Component.LoopScope = FEmitScope::FindSharedParent(&Scope, Component.LoopScope);
+			}
 		}
 	}
 }
@@ -636,7 +833,7 @@ void FPreparedType::SetField(const Shader::FStructField* Field, const FPreparedT
 {
 	for (int32 Index = 0; Index < Field->GetNumComponents(); ++Index)
 	{
-		SetComponentEvaluation(Field->ComponentIndex + Index, FieldType.GetComponentEvaluation(Index));
+		SetComponent(Field->ComponentIndex + Index, FieldType.GetComponent(Index));
 	}
 }
 
@@ -645,7 +842,7 @@ FPreparedType FPreparedType::GetFieldType(const Shader::FStructField* Field) con
 	FPreparedType Result(Field->Type);
 	for (int32 Index = 0; Index < Field->GetNumComponents(); ++Index)
 	{
-		Result.SetComponentEvaluation(Index, GetComponentEvaluation(Field->ComponentIndex + Index));
+		Result.SetComponent(Index, GetComponent(Field->ComponentIndex + Index));
 	}
 	return Result;
 }
@@ -682,9 +879,9 @@ FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& 
 
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
-		const EExpressionEvaluation LhsEvaluation = Lhs.GetComponentEvaluation(Index);
-		const EExpressionEvaluation RhsEvaluation = Rhs.GetComponentEvaluation(Index);
-		Result.SetComponentEvaluation(Index, CombineEvaluations(LhsEvaluation, RhsEvaluation));
+		const FPreparedComponent LhsComponent = Lhs.GetComponent(Index);
+		const FPreparedComponent RhsComponent = Rhs.GetComponent(Index);
+		Result.SetComponent(Index, CombineComponents(LhsComponent, RhsComponent));
 	}
 
 	return Result;
@@ -742,7 +939,7 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 			{
 				if (RequestedType.IsComponentRequested(Index))
 				{
-					PreparedType.MergeComponentEvaluation(Index, Evaluation);
+					PreparedType.MergeComponent(Index, Evaluation);
 				}
 			}
 		}
@@ -760,7 +957,7 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 		{
 			if (RequestedType.IsComponentRequested(Index))
 			{
-				PreparedType.MergeComponentEvaluation(Index, Type.GetComponentEvaluation(Index));
+				PreparedType.MergeComponent(Index, Type.GetComponent(Index));
 			}
 		}
 		return true;
@@ -768,14 +965,19 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 	return false;
 }
 
-bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InForwardValue)
+bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* InForwardValue)
 {
 	if (InForwardValue != ForwardValue)
 	{
-		PreparedType = Context.PrepareExpression(InForwardValue, RequestedType);
+		PreparedType = Context.PrepareExpression(InForwardValue, Scope, RequestedType);
 		ForwardValue = InForwardValue;
 	}
-	return (bool)InForwardValue;
+	return !PreparedType.IsVoid();
+}
+
+void FStatement::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> Scopes, Shader::FPreshaderData& OutPreshader) const
+{
+	check(false);
 }
 
 void FExpression::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -788,7 +990,7 @@ void FExpression::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, cons
 	check(false);
 }
 
-void FExpression::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
+void FExpression::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
 	check(false);
 }
@@ -801,7 +1003,7 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 		return PrepareValueResult.ForwardValue->GetValueShader(Context, Scope, RequestedType, ResultType);
 	}
 
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(RequestedType);
+	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
 	check(Evaluation != EExpressionEvaluation::None);
 
 	FEmitShaderExpression* Value = nullptr;
@@ -811,7 +1013,7 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 	}
 	else
 	{
-		check(Evaluation == EExpressionEvaluation::Shader);
+		check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 		FEmitValueShaderResult Result;
 		EmitValueShader(Context, Scope, RequestedType, Result);
 		Value = Result.Code;
@@ -831,50 +1033,52 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 	return GetValueShader(Context, Scope, GetRequestedType());
 }
 
-void FExpression::GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
+void FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValuePreshader(Context, RequestedType, OutPreshader);
+		return PrepareValueResult.ForwardValue->GetValuePreshader(Context, Scope, RequestedType, OutPreshader);
 	}
 
-	check(!bReentryFlag);
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(RequestedType);
-	if (Evaluation == EExpressionEvaluation::Preshader)
+	const int32 PrevStackPosition = Context.PreshaderStackPosition;
+	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+
+	if (Evaluation == EExpressionEvaluation::Constant)
 	{
-		bReentryFlag = true;
-		EmitValuePreshader(Context, RequestedType, OutPreshader);
-		bReentryFlag = false;
-	}
-	else if (Evaluation == EExpressionEvaluation::Constant)
-	{
-		const Shader::FValue ConstantValue = GetValueConstant(Context, RequestedType);
+		const Shader::FValue ConstantValue = GetValueConstant(Context, Scope, RequestedType);
+		Context.PreshaderStackPosition++;
 		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(ConstantValue);
 	}
 	else
 	{
-		// Value is not used, write a dummy value
-		check(Evaluation == EExpressionEvaluation::None);
-		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Shader::EValueType::Float1);
+		check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown && Evaluation != EExpressionEvaluation::Shader);
+		EmitValuePreshader(Context, Scope, RequestedType, OutPreshader);
 	}
+	check(Context.PreshaderStackPosition == PrevStackPosition + 1);
 }
 
-Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType)
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValueConstant(Context, RequestedType);
+		return PrepareValueResult.ForwardValue->GetValueConstant(Context, Scope, RequestedType);
 	}
 
 	check(!bReentryFlag);
-	check(PrepareValueResult.PreparedType.GetEvaluation(RequestedType) == EExpressionEvaluation::Constant);
+
+	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	check(Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantLoop);
 	
 	Shader::FPreshaderData ConstantPreshader;
-	bReentryFlag = true;
-	EmitValuePreshader(Context, RequestedType, ConstantPreshader);
-	bReentryFlag = false;
+	{
+		FExpressionReentryScope ReentryScope(this);
+		const int32 PrevPreshaderStackPosition = Context.PreshaderStackPosition;
+		EmitValuePreshader(Context, Scope, RequestedType, ConstantPreshader);
+		check(Context.PreshaderStackPosition == PrevPreshaderStackPosition + 1);
+		Context.PreshaderStackPosition--;
+	}
 
 	// Evaluate the constant preshader and store its value
 	Shader::FPreshaderStack Stack;

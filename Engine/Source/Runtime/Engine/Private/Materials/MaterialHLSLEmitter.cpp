@@ -732,10 +732,12 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
 	check(NormalField);
 
+	FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
+
 	// Prepare all fields *except* normal
 	FRequestedType RequestedMaterialAttributesType(Generator.GetMaterialAttributesType());
 	RequestedMaterialAttributesType.ClearFieldRequested(NormalField);
-	if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
+	if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialAttributesType).IsVoid())
 	{
 		return false;
 	}
@@ -748,7 +750,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	{
 		// No access to material normal, can execute everything in phase0
 		RequestedMaterialAttributesType.SetFieldRequested(NormalField);
-		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
+		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialAttributesType).IsVoid())
 		{
 			return false;
 		}
@@ -763,10 +765,12 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		// Reset state
 		HLSLTree->ResetNodes();
 
+		EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
+
 		// Prepare code for just the normal
 		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
 		RequestedMaterialNormal.SetFieldRequested(NormalField);
-		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialNormal).IsVoid())
+		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialNormal).IsVoid())
 		{
 			return false;
 		}

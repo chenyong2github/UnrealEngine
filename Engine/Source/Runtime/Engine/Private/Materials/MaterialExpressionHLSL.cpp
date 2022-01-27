@@ -446,7 +446,7 @@ bool UMaterialExpressionWhileLoop::GenerateHLSLStatements(FMaterialHLSLGenerator
 	LoopStatement->LoopScope->AddPreviousScope(*IfStatement->ThenScope);
 	LoopStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);
 
-	Generator.GetTree().NewStatement<FStatementBreak>(*IfStatement->ElseScope);
+	LoopStatement->BreakStatement = Generator.GetTree().NewStatement<FStatementBreak>(*IfStatement->ElseScope);
 
 	IfStatement->ConditionExpression = Condition.AcquireHLSLExpression(Generator, *LoopStatement->LoopScope);
 	LoopBody.GenerateHLSLStatements(Generator, *IfStatement->ThenScope);
@@ -519,7 +519,7 @@ bool UMaterialExpressionForLoop::GenerateHLSLStatements(FMaterialHLSLGenerator& 
 	LoopStatement->LoopScope->AddPreviousScope(*IfStatement->ThenScope);
 	LoopStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);
 
-	Generator.GetTree().NewStatement<FStatementBreak>(*IfStatement->ElseScope);
+	LoopStatement->BreakStatement = Generator.GetTree().NewStatement<FStatementBreak>(*IfStatement->ElseScope);
 
 	FExpression* LocalExpression = Generator.GetTree().AcquireLocal(*LoopStatement->LoopScope, ExpressionData->LocalName);
 
