@@ -409,6 +409,9 @@ public:
 
 	/** Return whether this node references the specified variable, give the supplied scope. Used when variable types are changed. */
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const { return false; }
+	
+	/** Return whether this node references the specified function, identified by a name and guid pair **/
+	virtual bool ReferencesFunction(const FName& InFunctionName, const UStruct* InScope) const { return false; };
 
 	/** 
 	 * Replace any member references of source with replacement 

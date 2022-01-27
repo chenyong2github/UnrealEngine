@@ -1318,8 +1318,11 @@ public:
 	/** Returns whether or not the specified member var is a component */
 	static bool IsVariableComponent(const FBPVariableDescription& Variable);
 
-	/** Indicates if the variable is used on any graphs in this Blueprint*/
-	static bool IsVariableUsed(const UBlueprint* VariableBlueprint, const FName& VariableName, UEdGraph* LocalGraphScope = nullptr);
+	/** Indicates if the variable is used on any graphs in this Blueprint */
+	static bool IsVariableUsed(const UBlueprint* VariableBlueprint, const FName& VariableName, const UEdGraph* LocalGraphScope = nullptr);
+
+	/** Indicates if the function is used on any graphs in this Blueprint */
+	static bool IsFunctionUsed(const UBlueprint* FunctionBlueprint, const FName& FunctionName, const UEdGraph* LocalGraphScope = nullptr);
 
 	/** 
 	 * Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property 

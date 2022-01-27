@@ -118,6 +118,7 @@ private:
 	virtual void HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName) override;
 	virtual void ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement) override;
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const override;
+	virtual bool ReferencesFunction(const FName& InFunctionName,const UStruct* InScope) const override;
 	
 	/** Helper function for pin allocation */
 	void AllocatePins(UEdGraphPin* InOldOutputPin = nullptr);

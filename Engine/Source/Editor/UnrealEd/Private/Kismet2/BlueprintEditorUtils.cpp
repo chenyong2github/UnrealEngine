@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
 #include "Algo/Transform.h"
 #include "BlueprintCompilationManager.h"
@@ -5843,46 +5844,206 @@ bool FBlueprintEditorUtils::IsVariableComponent(const FBPVariableDescription& Va
 	return false;
 }
 
-bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* VariableBlueprint, const FName& VariableName, UEdGraph* LocalGraphScope/* = nullptr*/)
+namespace UE::Blueprint::Private
 {
+	// Given a specified search criteria algorithm, walk the current blueprint with a specified scope.
+	// When no explicit scope is provided, the asset registry will also be walked with the algorithm on additional blueprints.
+	template<typename SearchFunc> static bool SearchBlueprintWithFunc(const SearchFunc& Func, const UBlueprint* Blueprint, const UEdGraph* LocalGraphScope)
+	{
+		// Search the initial blueprint
+		if (Func(Blueprint))
+		{
+			return true;
+		}
+
+		// Optionally walk the asset registry for other blueprints
+		if (!LocalGraphScope)
+		{
+			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		
+			// Discover additional packages which reference the initial blueprint package name
+			FARFilter Filter;
+			AssetRegistryModule.Get().GetReferencers(Blueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+
+			if (Filter.PackageNames.Num() > 0)
+			{
+				GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencing Assets ..."), true);
+				{
+					Filter.TagsAndValues.Add(FBlueprintTags::IsDataOnly, TOptional<FString>(TEXT("false")));
+					TArray<FAssetData> ReferencerAssetData;
+					AssetRegistryModule.Get().GetAssets(Filter, ReferencerAssetData);
+
+					// For each referencing asset
+					for (const FAssetData& ReferencerData : ReferencerAssetData)
+					{
+						const UObject* AssetReferencer = ReferencerData.GetAsset();
+
+						// Conditionally search the asset if it is a blueprint
+						if (const UBlueprint* BlueprintReferencer = Cast<const UBlueprint>(AssetReferencer))
+						{
+							if (BlueprintReferencer && Func(BlueprintReferencer))
+							{
+								GWarn->EndSlowTask();
+								return true;
+							}
+						}
+						// Otherwise check to see if a corresponding world level blueprint is in scope to search
+						else if (const UWorld* WorldReferencer = Cast<const UWorld>(AssetReferencer))
+						{
+							const auto& PersistentLevel = WorldReferencer->PersistentLevel;
+							if (!PersistentLevel.IsNull() && PersistentLevel->OwningWorld && Func(PersistentLevel->GetLevelScriptBlueprint()))
+							{
+								GWarn->EndSlowTask();
+								return true;
+							}
+						}
+					}
+				}
+				GWarn->EndSlowTask();
+			}
+		}
+
+		return false;
+	}
+}
+
+bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* Blueprint, const FName& VariableName, const UEdGraph* LocalGraphScope /* = nullptr */)
+{
+	if (VariableName.IsNone())
+	{
+		return false;
+	}
+
+	// Retrieve the corresponding variable guid from the blueprint
 	FGuid VariableGuid;
-	UBlueprint::GetGuidFromClassByFieldName<FProperty>(VariableBlueprint->GeneratedClass, VariableName, VariableGuid);
+	UBlueprint::GetGuidFromClassByFieldName<FProperty>(Blueprint->SkeletonGeneratedClass, VariableName, VariableGuid);
 	
-	auto CheckSingleBlueprint = [VariableGuid, VariableName, VariableBlueprint, LocalGraphScope](const UBlueprint* BlueprintToSearch) -> bool
+	if (!VariableGuid.IsValid())
+	{
+		return false;
+	}
+
+	// Blueprint variable search algorithm
+	const auto SearchBlueprint = [VariableGuid, VariableName, Blueprint, LocalGraphScope](const UBlueprint* CurrentBlueprint) -> bool
 	{
 		TArray<UEdGraph*> AllGraphs;
-		BlueprintToSearch->GetAllGraphs(AllGraphs);
+		CurrentBlueprint->GetAllGraphs(AllGraphs);
+
+		// For each blueprint subgraph
 		for (TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
 		{
 			const UEdGraph* CurrentGraph = *it;
-			check(CurrentGraph);
-			if (CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
-			{
-				TArray<UK2Node_Variable*> GraphNodes;
-				CurrentGraph->GetNodesOfClass(GraphNodes);
 
-				for (const UK2Node_Variable* CurrentNode : GraphNodes)
+			// If the current graph is the specified scope or unbounded
+			if (CurrentGraph && (CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr))
+			{
+				// Check all variable nodes, ignoring connectivity
+				TArray<UK2Node_Variable*> VariableNodes;
+				CurrentGraph->GetNodesOfClass(VariableNodes);
+
+				if (Algo::AnyOf(VariableNodes, [&VariableGuid, &VariableName](const UK2Node_Variable* VariableNode)
 				{
-					if (VariableGuid == CurrentNode->VariableReference.GetMemberGuid() &&
-						VariableName == CurrentNode->GetVarName())
-					{
-						return true;
-					}
+					return VariableGuid == VariableNode->VariableReference.GetMemberGuid() && VariableName == VariableNode->GetVarName();
+				}))
+				{
+					return true;
 				}
 
-				// Also consider "used" if there's a GetClassDefaults node that exposes the variable as an output pin that's connected to something.
+				// Check all GetClassDefaults nodes that exposes the variable as an output pin connected to something
 				TArray<UK2Node_GetClassDefaults*> ClassDefaultsNodes;
 				CurrentGraph->GetNodesOfClass(ClassDefaultsNodes);
-				for (const UK2Node_GetClassDefaults* ClassDefaultsNode : ClassDefaultsNodes)
+
+				if (Algo::AnyOf(ClassDefaultsNodes, [&VariableName, &Blueprint](const UK2Node_GetClassDefaults* GraphNode)
 				{
-					if (ClassDefaultsNode->GetInputClass() == VariableBlueprint->SkeletonGeneratedClass)
+					if (GraphNode->GetInputClass() == Blueprint->SkeletonGeneratedClass)
 					{
-						const UEdGraphPin* VarPin = ClassDefaultsNode->FindPin(VariableName);
+						const UEdGraphPin* VarPin = GraphNode->FindPin(VariableName);
 						if (VarPin && VarPin->Direction == EGPD_Output && VarPin->LinkedTo.Num() > 0)
 						{
 							return true;
 						}
 					}
+
+					return false;
+				}))
+				{
+					return true;
+				}
+
+				// Check all K2Node's which specify private/internal function referencing behavior
+				TArray<const UK2Node*> GraphNodes;
+				CurrentGraph->GetNodesOfClass(GraphNodes);
+
+				if (Algo::AnyOf(GraphNodes, [&VariableName, &VariableGuid, &Blueprint](const UK2Node* GraphNode)
+				{
+					return GraphNode->ReferencesVariable(VariableName, Blueprint->SkeletonGeneratedClass);
+				}))
+				{
+					return true;
+				}
+
+			}
+		}
+
+		return false;
+	};
+
+	// Given the specified variable search algorithm, walk the blueprint asset
+	return UE::Blueprint::Private::SearchBlueprintWithFunc(SearchBlueprint, Blueprint, LocalGraphScope);
+}
+
+bool FBlueprintEditorUtils::IsFunctionUsed(const UBlueprint* Blueprint, const FName& FunctionName, const UEdGraph* LocalGraphScope /* = nullptr */)
+{
+	if (FunctionName.IsNone())
+	{
+		return false;
+	}
+
+	// Retrieve the corresponding function guid from the blueprint
+	FGuid FunctionGuid;
+	UBlueprint::GetFunctionGuidFromClassByFieldName(Blueprint->SkeletonGeneratedClass, FunctionName, FunctionGuid);
+
+	if (!FunctionGuid.IsValid())
+	{
+		return false;
+	}
+
+	// Blueprint function search algorithm
+	const auto SearchBlueprint = [&LocalGraphScope, &FunctionGuid, &FunctionName, &Blueprint](const UBlueprint* CurrentBlueprint) -> bool
+	{
+		TArray<UEdGraph*> BlueprintGraphs;
+		CurrentBlueprint->GetAllGraphs(BlueprintGraphs);
+
+		// For each blueprint subgraph
+		for (TArray<UEdGraph*>::TConstIterator it(BlueprintGraphs); it; ++it)
+		{
+			const UEdGraph* CurrentGraph = *it;
+
+			// If the current graph is the specified scope or unbounded
+			if (CurrentGraph && (CurrentGraph == LocalGraphScope || !LocalGraphScope))
+			{
+				// Check all function graph nodes, ignoring connectivity
+				TArray<UK2Node_CallFunction*> CallFunctionNodes;
+				CurrentGraph->GetNodesOfClass(CallFunctionNodes);
+
+				if (Algo::AnyOf(CallFunctionNodes, [&FunctionGuid, &FunctionName](const UK2Node_CallFunction* GraphNode)
+				{
+					return FunctionGuid == GraphNode->FunctionReference.GetMemberGuid() && FunctionName == GraphNode->GetFunctionName();
+				}))
+				{
+					return true;
+				}
+
+				// Check all K2Nodes which specify internal function referencing behavior
+				TArray<const UK2Node*> GraphNodes;
+				CurrentGraph->GetNodesOfClass(GraphNodes);
+
+				if (Algo::AnyOf(GraphNodes, [&FunctionName, &Blueprint](const UK2Node* GraphNode)
+				{
+					return GraphNode->ReferencesFunction(FunctionName, Blueprint->SkeletonGeneratedClass);
+				}))
+				{
+					return true;
 				}
 			}
 		}
@@ -5890,52 +6051,8 @@ bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* VariableBlueprint, 
 		return false;
 	};
 
-	if (CheckSingleBlueprint(VariableBlueprint))
-	{
-		return true;
-	}
-
-	if (!LocalGraphScope)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FARFilter Filter;
-		AssetRegistryModule.Get().GetReferencers(VariableBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
-		if (Filter.PackageNames.Num() > 0)
-		{
-			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
-
-			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
-			TArray<FAssetData> ReferencersAssetData;
-			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
-			for (const FAssetData& ReferencerData : ReferencersAssetData)
-			{
-				UObject* ReferencerAsset = ReferencerData.GetAsset();
-				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
-				{
-					if (CheckSingleBlueprint(BlueprintReferencer))
-					{
-						GWarn->EndSlowTask();
-						return true;
-					}
-				}
-				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
-				{
-					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
-					{
-						if (CheckSingleBlueprint(WorldReferencer->PersistentLevel->GetLevelScriptBlueprint()))
-						{
-							GWarn->EndSlowTask();
-							return true;
-						}
-					}
-				}
-			}
-
-			GWarn->EndSlowTask();
-		}
-	}
-
-	return false;
+	// Given the specified function search algorithm, walk the blueprint asset
+	return UE::Blueprint::Private::SearchBlueprintWithFunc(SearchBlueprint, Blueprint, LocalGraphScope);
 }
 
 bool FBlueprintEditorUtils::ValidateAllMemberVariables(UBlueprint* InBlueprint, UBlueprint* InParentBlueprint, const FName InVariableName)

@@ -363,7 +363,7 @@ bool UK2Node_PropertyAccess::ReferencesVariable(const FName& InVarName, const US
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
 	const UClass* SkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InScope));
-	
+
 	// See if the path references the variable
 	bool bReferencesVariable = false;
 	
@@ -372,8 +372,9 @@ bool UK2Node_PropertyAccess::ReferencesVariable(const FName& InVarName, const US
 	{
 		if(SkeletonVariableClass)
 		{
-			UStruct* OwnerStruct = InProperty->GetOwnerStruct();
-			if(OwnerStruct && InProperty->GetFName() == InVarName && OwnerStruct->IsChildOf(SkeletonVariableClass))
+			const UClass* OwnerSkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InProperty->GetOwnerStruct()));
+
+			if(OwnerSkeletonVariableClass && InProperty->GetFName() == InVarName && OwnerSkeletonVariableClass->IsChildOf(SkeletonVariableClass))
 			{
 				bReferencesVariable = true;
 			}
@@ -387,6 +388,38 @@ bool UK2Node_PropertyAccess::ReferencesVariable(const FName& InVarName, const US
 	PropertyAccessEditor.ResolvePropertyAccess(GetBlueprint()->SkeletonGeneratedClass, Path, ResolveArgs);
 	
 	return bReferencesVariable;
+}
+
+bool UK2Node_PropertyAccess::ReferencesFunction(const FName& InFunctionName, const UStruct* InScope) const
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	const UClass* SkeletonFunctionClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InScope));
+
+	// See if the path references the function
+	bool bReferencesFunction = false;
+
+	IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+	ResolveArgs.FunctionFunction = [InFunctionName, SkeletonFunctionClass, &bReferencesFunction](int32 InSegmentIndex, UFunction* InFunction, FProperty* InProperty)
+	{
+		if (SkeletonFunctionClass)
+		{
+			const UClass* OwnerSkeletonFunctionClass = FBlueprintEditorUtils::GetSkeletonClass(InFunction->GetOuterUClass());
+
+			if (OwnerSkeletonFunctionClass && InFunction->GetFName() == InFunctionName && OwnerSkeletonFunctionClass->IsChildOf(SkeletonFunctionClass))
+			{
+				bReferencesFunction = true;
+			}
+		}
+		else if (InFunction->GetFName() == InFunctionName)
+		{
+			bReferencesFunction = true;
+		}
+	};
+
+	PropertyAccessEditor.ResolvePropertyAccess(GetBlueprint()->SkeletonGeneratedClass, Path, ResolveArgs);
+
+	return bReferencesFunction;
 }
 
 const FProperty* UK2Node_PropertyAccess::GetResolvedProperty() const

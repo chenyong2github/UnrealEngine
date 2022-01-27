@@ -2901,30 +2901,57 @@ void SMyBlueprint::OnDeleteDelegate(FEdGraphSchemaAction_K2Delegate* InDelegateA
 	}
 }
 
+namespace UE::Blueprint::Private
+{
+	// Given a type and value name, display a deletion confirmation warning.
+	// Returns true if the user 'cancelled' the action, interpreted as an early exit prior to deletion.
+	static bool DisplayInUseWarningAndEarlyExit(const FName& DisplayTypeName, const FName& DisplayValueName)
+	{
+		const FText DeleteConfirmationPrompt = FText::Format(LOCTEXT("DeleteConfirmationPrompt", "{0} {1} is in use! Do you really want to delete it?")
+			, { FText::FromName(DisplayTypeName), FText::FromName(DisplayValueName) }
+		);
+		const FText DeleteConfirmationTitle = FText::Format(LOCTEXT("DeleteConfirmationTitle", "Delete {0}")
+			, { FText::FromName(DisplayTypeName) }
+		);
+		const FString DeleteConfirmationIniSetting = FString::Format(TEXT("DeleteConfirmation{0}_Warning"), { DisplayTypeName.ToString() });
+
+		// Warn the user that this may result in data loss
+		FSuppressableWarningDialog::FSetupInfo Info(DeleteConfirmationPrompt, DeleteConfirmationTitle, DeleteConfirmationIniSetting);
+		Info.ConfirmText = LOCTEXT("DeleteConfirmation_Yes", "Yes");
+		Info.CancelText = LOCTEXT("DeleteConfirmation_No", "No");
+
+		FSuppressableWarningDialog DeleteFunctionInUse(Info);
+		return DeleteFunctionInUse.ShowModal() == FSuppressableWarningDialog::Cancel;
+	}
+}
+
 void SMyBlueprint::OnDeleteEntry()
 {
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
+		// Currently only function graphs are supported for in-use detection and deletion warnings
+		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function)
+		{
+			if (FBlueprintEditorUtils::IsFunctionUsed(GetBlueprintObj(), GraphAction->FuncName))
+			{
+				if (UE::Blueprint::Private::DisplayInUseWarningAndEarlyExit("Function", GraphAction->FuncName))
+				{
+					return;
+				}
+			}
+		}
+
 		OnDeleteGraph(GraphAction->EdGraph, GraphAction->GraphType);
 	}
 	else if (FEdGraphSchemaAction_K2Delegate* DelegateAction = SelectionAsDelegate())
 	{
 		OnDeleteDelegate(DelegateAction);
 	}
-	else if ( FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar() )
+	else if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
 	{
 		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), VarAction->GetVariableName()))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteVariableInUse", "Variable {0} is in use! Do you really want to delete it?"),
-				FText::FromName( VarAction->GetVariableName() ) );
-
-			// Warn the user that this may result in data loss
-			FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("DeleteVar", "Delete Variable"), "DeleteVariableInUse_Warning" );
-			Info.ConfirmText = LOCTEXT( "DeleteVariable_Yes", "Yes");
-			Info.CancelText = LOCTEXT( "DeleteVariable_No", "No");	
-
-			FSuppressableWarningDialog DeleteVariableInUse( Info );
-			if ( DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel )
+			if (UE::Blueprint::Private::DisplayInUseWarningAndEarlyExit("Variable", VarAction->GetVariableName()))
 			{
 				return;
 			}
@@ -2935,20 +2962,11 @@ void SMyBlueprint::OnDeleteEntry()
 		GetBlueprintObj()->Modify();
 		FBlueprintEditorUtils::RemoveMemberVariable(GetBlueprintObj(), VarAction->GetVariableName());
 	}
-	else if ( FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar() )
+	else if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
 	{
-		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()))))
+		if (FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()))))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Local Variable {0} is in use! Do you really want to delete it?"),
-				FText::FromName( LocalVarAction->GetVariableName() ) );
-
-			// Warn the user that this may result in data loss
-			FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("DeleteVar", "Delete Variable"), "DeleteVariableInUse_Warning" );
-			Info.ConfirmText = LOCTEXT( "DeleteVariable_Yes", "Yes");
-			Info.CancelText = LOCTEXT( "DeleteVariable_No", "No");	
-
-			FSuppressableWarningDialog DeleteVariableInUse( Info );
-			if ( DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel )
+			if (UE::Blueprint::Private::DisplayInUseWarningAndEarlyExit("Local Variable", LocalVarAction->GetVariableName()))
 			{
 				return;
 			}
@@ -2966,20 +2984,11 @@ void SMyBlueprint::OnDeleteEntry()
 
 		FBlueprintEditorUtils::RemoveLocalVariable(GetBlueprintObj(), CastChecked<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName());
 	}
-	else if ( FEdGraphSchemaAction_BlueprintVariableBase* BPVarAction = SelectionAsBlueprintVariable() )
+	else if (FEdGraphSchemaAction_BlueprintVariableBase* BPVarAction = SelectionAsBlueprintVariable())
 	{
-		if(BPVarAction->IsVariableUsed())
+		if (BPVarAction->IsVariableUsed())
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Variable {0} is in use! Do you really want to delete it?"),
-				FText::FromName( BPVarAction->GetVariableName() ) );
-
-			// Warn the user that this may result in data loss
-			FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("DeleteVar", "Delete Variable"), "DeleteVariableInUse_Warning" );
-			Info.ConfirmText = LOCTEXT( "DeleteVariable_Yes", "Yes");
-			Info.CancelText = LOCTEXT( "DeleteVariable_No", "No");	
-
-			FSuppressableWarningDialog DeleteVariableInUse( Info );
-			if ( DeleteVariableInUse.ShowModal() == FSuppressableWarningDialog::Cancel )
+			if (UE::Blueprint::Private::DisplayInUseWarningAndEarlyExit("Variable", BPVarAction->GetVariableName()))
 			{
 				return;
 			}
@@ -2997,7 +3006,7 @@ void SMyBlueprint::OnDeleteEntry()
 		GetBlueprintObj()->Modify();
 		FBlueprintEditorUtils::RemoveNode(GetBlueprintObj(), EventAction->NodeTemplate);
 	}
-	else if ( SelectionIsCategory() )
+	else if (SelectionIsCategory())
 	{
 		TArray<TSharedPtr<FEdGraphSchemaAction>> Actions;
 		GraphActionMenu->GetSelectedCategorySubActions(Actions);

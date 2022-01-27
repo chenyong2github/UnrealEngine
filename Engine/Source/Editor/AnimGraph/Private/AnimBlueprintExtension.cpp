@@ -83,13 +83,8 @@ void UAnimBlueprintExtension::RequestExtensionsForNode(UAnimGraphNode_Base* InAn
 		// and request extensions if it *looks* like we have a valid reference, rather than a verified concrete ref.
 		// Later validation code will do the actual validation for us anyways and fail compilation if the reference is
 		// actually invalid.
-		auto MemberReferencePotentiallyValid = [](const FMemberReference& InMemberReference)
-		{
-			return InMemberReference.GetMemberGuid().IsValid() || InMemberReference.GetMemberName() != NAME_None;
-		};
-
-		if( MemberReferencePotentiallyValid(InAnimGraphNode->InitialUpdateFunction) ||
-			MemberReferencePotentiallyValid(InAnimGraphNode->BecomeRelevantFunction))
+		if(UAnimGraphNode_Base::IsPotentiallyBoundFunction(InAnimGraphNode->InitialUpdateFunction) ||
+			UAnimGraphNode_Base::IsPotentiallyBoundFunction(InAnimGraphNode->BecomeRelevantFunction))
 		{
 			ExtensionClasses.Add(UAnimBlueprintExtension_NodeRelevancy::StaticClass());
 		}

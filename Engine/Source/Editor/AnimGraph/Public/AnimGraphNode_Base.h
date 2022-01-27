@@ -270,6 +270,7 @@ public:
 	virtual void HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName) override;
 	virtual void ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement) override;
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const override;
+	virtual bool ReferencesFunction(const FName& InFunctionName, const UStruct* InScope) const override;
 	// End of UK2Node interface
 
 	// UAnimGraphNode_Base interface
@@ -505,7 +506,10 @@ public:
 	// This is required to see changes as the component may be either an editor-only component that is not ticking,
 	// or in a paused PIE world
 	void PostEditRefreshDebuggedComponent();
-	
+
+	// Check if a specified function reference appears to be valid by inspecting only the validity of the name and guid
+	static bool IsPotentiallyBoundFunction(const FMemberReference& FunctionReference);
+
 protected:
 	friend class FAnimBlueprintCompilerContext;
 	friend class FAnimGraphNodeDetails;

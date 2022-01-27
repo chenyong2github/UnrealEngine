@@ -746,7 +746,21 @@ FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
 void UAnimGraphNode_Base::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
 {
 	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
-	
+
+	const auto ConditionallyTagNodeFuncRef = [&OutTaggedMetaData](const FMemberReference& FuncMember, const FText& LocText)
+	{
+		if (IsPotentiallyBoundFunction(FuncMember))
+		{
+			const FText FunctionName = FText::FromName(FuncMember.GetMemberName());
+			OutTaggedMetaData.Add(FSearchTagDataPair(LocText, FunctionName));
+		}
+	};
+
+	// Conditionally include anim node function references as part of the node's search metadata
+	ConditionallyTagNodeFuncRef(InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
+	ConditionallyTagNodeFuncRef(BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
+	ConditionallyTagNodeFuncRef(UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
+
 	if(Tag != NAME_None)
 	{
 		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Tag", "Tag"), FText::FromName(Tag)));
@@ -1712,8 +1726,9 @@ bool UAnimGraphNode_Base::ReferencesVariable(const FName& InVarName, const UStru
 		{
 			if(SkeletonVariableClass)
 			{
-				UStruct* OwnerStruct = InProperty->GetOwnerStruct();
-				if(OwnerStruct && InProperty->GetFName() == InVarName && OwnerStruct->IsChildOf(SkeletonVariableClass))
+				const UClass* OwnerSkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InProperty->GetOwnerStruct()));
+
+				if(OwnerSkeletonVariableClass && InProperty->GetFName() == InVarName && OwnerSkeletonVariableClass->IsChildOf(SkeletonVariableClass))
 				{
 					bReferencesVariable = true;
 				}
@@ -1733,6 +1748,47 @@ bool UAnimGraphNode_Base::ReferencesVariable(const FName& InVarName, const UStru
 	}
 
 	return false;
+}
+
+bool UAnimGraphNode_Base::ReferencesFunction(const FName& InFunctionName,const UStruct* InScope) const
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	const UClass* SkeletonFunctionClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InScope));
+
+	// See if any of bindings reference the function
+	for (const auto& BindingPair : PropertyBindings)
+	{
+		bool bReferencesFunction = false;
+
+		IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+		ResolveArgs.FunctionFunction = [InFunctionName, SkeletonFunctionClass, &bReferencesFunction](int32 InSegmentIndex, UFunction* InFunction, FProperty* InProperty)
+		{
+			if (SkeletonFunctionClass)
+			{
+				const UClass* OwnerSkeletonFunctionClass = FBlueprintEditorUtils::GetSkeletonClass(InFunction->GetOuterUClass());
+
+				if (OwnerSkeletonFunctionClass && InFunction->GetFName() == InFunctionName && OwnerSkeletonFunctionClass->IsChildOf(SkeletonFunctionClass))
+				{
+					bReferencesFunction = true;
+				}
+			}
+			else if (InFunction->GetFName() == InFunctionName)
+			{
+				bReferencesFunction = true;
+			}
+		};
+
+		PropertyAccessEditor.ResolvePropertyAccess(GetAnimBlueprint()->SkeletonGeneratedClass, BindingPair.Value.PropertyPath, ResolveArgs);
+
+		if (bReferencesFunction)
+		{
+			return true;
+		}
+	}
+
+	// Check private member anim node function binding 
+	return InitialUpdateFunction.GetMemberName() == InFunctionName || BecomeRelevantFunction.GetMemberName() == InFunctionName || UpdateFunction.GetMemberName() == InFunctionName;
 }
 
 FAnimNode_Base* UAnimGraphNode_Base::GetDebuggedAnimNode() const
@@ -1772,6 +1828,11 @@ void UAnimGraphNode_Base::PostEditRefreshDebuggedComponent()
 			}
 		}
 	}
+}
+
+bool UAnimGraphNode_Base::IsPotentiallyBoundFunction(const FMemberReference& FunctionReference)
+{
+	return FunctionReference.GetMemberGuid().IsValid() || FunctionReference.GetMemberName() != NAME_None;
 }
 
 #undef LOCTEXT_NAMESPACE
