@@ -4668,6 +4668,10 @@ namespace ThumbnailTools
 				FMaterialResource* CurrentResource = InMaterial->GetMaterialResource(GMaxRHIFeatureLevel);
 				if (CurrentResource)
 				{
+					if (!CurrentResource->IsGameThreadShaderMapComplete())
+					{
+						CurrentResource->SubmitCompileJobs(EShaderCompileJobPriority::High);
+					}
 					CurrentResource->FinishCompilation();
 				}
 			}
