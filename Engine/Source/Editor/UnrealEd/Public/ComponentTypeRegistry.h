@@ -43,6 +43,9 @@ struct UNREALED_API FComponentTypeRegistry
 	 */
 	void InvalidateClass(TSubclassOf<UActorComponent> ClassToUpdate);
 
+	/** Schedules a full update of the component type registry on the next frame */
+	void Invalidate();
+
 	/**
 	 * Attempts to locate the class entry corresponding to the given object path.
 	 */

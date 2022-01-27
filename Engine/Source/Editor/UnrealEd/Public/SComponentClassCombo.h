@@ -283,7 +283,7 @@ private:
 	TSharedPtr< SListView<FComponentClassComboEntryPtr> > ComponentClassListView;
 
 	/** Internal data that facilitates custom class filtering */
-	TUniquePtr<FComponentClassFilterData> ComponentClassFilterData;
+	FComponentClassFilterData ComponentClassFilterData;
 
 	/** Cached selection index used to skip over unselectable items */
 	int32 PrevSelectedIndex;
