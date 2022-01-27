@@ -29,7 +29,32 @@ namespace Horde.Build.Fleet.Autoscale
 		private readonly IGraphCollection Graphs;
 		private readonly StreamService StreamService;
 		private readonly IClock Clock;
-		private readonly TimeSpan LookbackPeriod = TimeSpan.FromHours(2.0);
+			
+		/// <summary>
+		/// How far back in time to look for job batches (that potentially are in the queue)
+		/// </summary>
+		private readonly TimeSpan SamplePeriod = TimeSpan.FromHours(2.0);
+		
+		/// <summary>
+		/// Minimum number of jobs in queue for scale-out logic to activate
+		///
+		/// Useful to avoid a very small queue size triggering any scaling. 
+		/// </summary>
+		private readonly int MinQueueSizeForScaleOut = 3;
+
+		/// <summary>
+		/// Factor translating queue size to additional agents to grow the pool with
+		///
+		/// Example: if there are 20 jobs in queue, a factor 0.25 will result in 5 new agents being added (20 * 0.25)
+		/// </summary>
+		private readonly double ScaleOutFactor = 0.25;
+		
+		/// <summary>
+		/// Factor by which to shrink the pool size with when queue is empty
+		///
+		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
+		/// </summary>
+		private readonly double ScaleInFactor = 0.9;
 
 		/// <summary>
 		/// Constructor
@@ -38,14 +63,14 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <param name="Graphs"></param>
 		/// <param name="StreamService"></param>
 		/// <param name="Clock"></param>
-		/// <param name="LookbackPeriod">Time period for each sample</param>
-		public JobQueueStrategy(IJobCollection Jobs, IGraphCollection Graphs, StreamService StreamService, IClock Clock, TimeSpan? LookbackPeriod = null)
+		/// <param name="SamplePeriod">Time period for each sample</param>
+		public JobQueueStrategy(IJobCollection Jobs, IGraphCollection Graphs, StreamService StreamService, IClock Clock, TimeSpan? SamplePeriod = null)
 		{
 			this.Jobs = Jobs;
 			this.Graphs = Graphs;
 			this.StreamService = StreamService;
 			this.Clock = Clock;
-			this.LookbackPeriod = LookbackPeriod ?? this.LookbackPeriod;
+			this.SamplePeriod = SamplePeriod ?? this.SamplePeriod;
 		}
 
 		/// <inheritdoc/>
@@ -102,33 +127,27 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <inheritdoc/>
 		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
 		{
-			DateTimeOffset MinCreateTime = Clock.UtcNow - LookbackPeriod;
+			DateTimeOffset MinCreateTime = Clock.UtcNow - SamplePeriod;
 			Dictionary<PoolId, int> PoolQueueSizes = await GetPoolQueueSizesAsync(MinCreateTime);
-			List<PoolSizeData> Result = new();
-			
-			foreach ((PoolId PoolId, int QueueSize) in PoolQueueSizes.OrderBy(x => x.Value))
+
+			return Pools.Select(Current =>
 			{
-				PoolSizeData? PoolSize = Pools.Find(x => x.Pool.Id == PoolId);
-				if (PoolSize != null)
+				PoolQueueSizes.TryGetValue(Current.Pool.Id, out var QueueSize);
+				if (QueueSize > 0)
 				{
-					// TODO: Tweak these values once in production
-					int AdditionalAgentCount = QueueSize switch
-					{
-						< 10 => 0,
-						<= 20 => 1,
-						<= 30 => 2,
-						<= 40 => 3,
-						<= 50 => 4,
-						<= 60 => 5,
-						_ => 4
-					};
+					int AdditionalAgentCount = (int)Math.Round(QueueSize * ScaleOutFactor);
+					if (QueueSize < MinQueueSizeForScaleOut)
+						AdditionalAgentCount = 0;
 
-					int DesiredAgentCount = PoolSize.Agents.Count + AdditionalAgentCount;
-					Result.Add(new(PoolSize.Pool, PoolSize.Agents, DesiredAgentCount, $"QueueSize={QueueSize}"));
+					int DesiredAgentCount = Current.Agents.Count + AdditionalAgentCount;
+					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, $"QueueSize={QueueSize}");
 				}
-			}
-
-			return Result;
+				else
+				{
+					int DesiredAgentCount = (int)(Current.Agents.Count * ScaleInFactor);
+					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, "Empty job queue");
+				}
+			}).ToList();
 		}
 	}
 }
