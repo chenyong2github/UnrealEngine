@@ -1,9 +1,18 @@
 #!/bin/sh
 
+# This script optionally takes a single argument, representing the path to the desired Python
+# virtual environment directory. If omitted, it defaults to the value of $_defaultVenvDir.
+
 _switchboardDir=$(dirname "$0")
 _engineDir=$(cd "$_switchboardDir/../../../../.."; pwd)
 _enginePythonDir="$_engineDir/Binaries/ThirdParty/Python3/Linux"
-_venvDir="$_engineDir/Extras/ThirdPartyNotUE/SwitchboardThirdParty/Python"
+_defaultVenvDir="$_engineDir/Extras/ThirdPartyNotUE/SwitchboardThirdParty/Python"
+
+if [ $# -lt 1 ]; then
+    _venvDir=$_defaultVenvDir
+else
+    _venvDir="$1"
+fi
 
 if [ ! -x "$_venvDir/bin/python3" ]; then
     "$_enginePythonDir/bin/python3" "$_switchboardDir/sb_setup.py" install --venv-dir="$_venvDir"

@@ -91,15 +91,11 @@ struct FSwitchboardMenuEntryImpl
 				LOCTEXT("ListenerLaunchLabel", "Launch SwitchboardListener"),
 				LOCTEXT("ListenerLaunchTooltip", "Launches the SwitchboardListener with the settings from Editor Settings."),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::LaunchListener))
+				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchListenerClicked))
 			);
 
-#if PLATFORM_WINDOWS
+#if SB_LISTENER_AUTOLAUNCH
 			MenuBuilder.AddMenuSeparator();
-
-			// The FGetActionCheckState delegate is called continually while the menu is open.
-			// Cache the state now as the combo is initially expanded.
-			CachedAutolaunchCheckState = GetAutolaunchCheckState();
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ListenerAutolaunchLabel", "Launch Switchboard Listener on Login"),
@@ -108,21 +104,24 @@ struct FSwitchboardMenuEntryImpl
 				FUIAction(
 					FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::ToggleAutolaunch),
 					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda([&](){ return CachedAutolaunchCheckState; })
+					FGetActionCheckState::CreateLambda([&]()
+					{
+						return FSwitchboardEditorModule::Get().IsListenerAutolaunchEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
 				),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
-#endif
+#endif // #if SB_LISTENER_AUTOLAUNCH
 		}
 		MenuBuilder.EndSection();
 
 		return MenuBuilder.MakeWidget();
 	}
 
-	void LaunchListener()
+	void OnLaunchListenerClicked()
 	{
-		const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->ListenerPath.FilePath;
+		const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
 		if (!FPaths::FileExists(ListenerPath))
 		{
 			const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it was compiled.");
@@ -130,8 +129,7 @@ struct FSwitchboardMenuEntryImpl
 			return;
 		}
 
-		const FString ListenerArgs = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
-		if (RunProcess(ListenerPath, ListenerArgs))
+		if (FSwitchboardEditorModule::Get().LaunchListener())
 		{
 			UE_LOG(LogSwitchboardPlugin, Display, TEXT("Successfully started SwitchboardListener"));
 		}
@@ -142,21 +140,16 @@ struct FSwitchboardMenuEntryImpl
 		}
 	}
 
-#if PLATFORM_WINDOWS
-	ECheckBoxState GetAutolaunchCheckState()
-	{
-		return FSwitchboardEditorModule::Get().IsListenerAutolaunchEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-
+#if SB_LISTENER_AUTOLAUNCH
 	void ToggleAutolaunch()
 	{
-		if (CachedAutolaunchCheckState == ECheckBoxState::Checked)
+		if (FSwitchboardEditorModule::Get().IsListenerAutolaunchEnabled())
 		{
 			FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(false);
 		}
 		else
 		{
-			if (!FPaths::FileExists(GetDefault<USwitchboardEditorSettings>()->ListenerPath.FilePath))
+			if (!FPaths::FileExists(GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath()))
 			{
 				const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it has been compiled.");
 				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error enabling SwitchboardListener auto-launch"));
@@ -165,37 +158,14 @@ struct FSwitchboardMenuEntryImpl
 
 			FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(true);
 		}
-
-		CachedAutolaunchCheckState = GetAutolaunchCheckState();
 	}
-#endif // #if PLATFORM_WINDOWS
+#endif // #if SB_LISTENER_AUTOLAUNCH
 
 	void OnLaunchSwitchboardClicked()
 	{
-		FString SwitchboardPath = GetDefault<USwitchboardEditorSettings>()->SwitchboardPath.Path;
-		if (SwitchboardPath.IsEmpty())
+		if (FSwitchboardEditorModule::Get().LaunchSwitchboard())
 		{
-			SwitchboardPath = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("VirtualProduction")));
-			SwitchboardPath /= FString(TEXT("Switchboard")) / FString(TEXT("Source")) / FString(TEXT("Switchboard"));
-		}
-
-#if PLATFORM_WINDOWS
-		FString Executable = SwitchboardPath / TEXT("switchboard.bat");
-#elif PLATFORM_LINUX
-		FString Executable = SwitchboardPath / TEXT("switchboard.sh");
-#endif
-		FString Args = GetDefault<USwitchboardEditorSettings>()->CommandlineArguments;
-
-		const FString PythonPath = GetDefault<USwitchboardEditorSettings>()->PythonInterpreterPath.FilePath;
-		if (!PythonPath.IsEmpty())
-		{
-			Executable = PythonPath;
-			Args.InsertAt(0, TEXT("-m switchboard "));
-		}
-
-		if (RunProcess(Executable, Args, SwitchboardPath))
-		{
-			UE_LOG(LogSwitchboardPlugin, Display, TEXT("Successfully started Switchboard from %s"), *SwitchboardPath);
+			UE_LOG(LogSwitchboardPlugin, Display, TEXT("Successfully started Switchboard"));
 		}
 		else
 		{
@@ -209,30 +179,10 @@ struct FSwitchboardMenuEntryImpl
 		return FSlateIcon(FSwitchboardEditorStyle::Get().GetStyleSetName(), FSwitchboardEditorStyle::NAME_SwitchboardBrush, FSwitchboardEditorStyle::NAME_SwitchboardBrush);
 	}
 
-	bool RunProcess(const FString& InExe, const FString& InArgs, const FString& InWorkingDirectory = TEXT(""))
-	{
-		const bool bLaunchDetached = false;
-		const bool bLaunchHidden = false;
-		const bool bLaunchReallyHidden = false;
-		const int32 PriorityModifier = 0;
-		const TCHAR* WorkingDirectory = InWorkingDirectory.IsEmpty() ? nullptr : *InWorkingDirectory;
-		uint32 PID = 0;
-		FProcHandle Handle = FPlatformProcess::CreateProc(*InExe, *InArgs, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &PID, PriorityModifier, WorkingDirectory, nullptr);
-		int32 RetCode;
-		if (FPlatformProcess::GetProcReturnCode(Handle, &RetCode))
-		{
-			return RetCode == 0;
-		}
-		return FPlatformProcess::IsProcRunning(Handle);
-	}
-
 	bool IsToolbarButtonEnabled()
 	{
 		return true;
 	}
-
-private:
-	ECheckBoxState CachedAutolaunchCheckState;
 
 public:
 	static TUniquePtr<FSwitchboardMenuEntryImpl> Implementation;

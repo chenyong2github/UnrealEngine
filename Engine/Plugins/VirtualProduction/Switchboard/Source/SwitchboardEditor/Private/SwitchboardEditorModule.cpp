@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardEditorModule.h"
-
+#include "SwitchboardEditorSettings.h"
+#include "SwitchboardMenuEntry.h"
+#include "SwitchboardProjectSettings.h"
+#include "SwitchboardSettingsCustomization.h"
 #include "Editor.h"
 #include "EditorUtilitySubsystem.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeExit.h"
-#include "SwitchboardEditorSettings.h"
-#include "SwitchboardMenuEntry.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -25,9 +26,30 @@ bool SetListenerAutolaunchEntry(const FString& NewCommandLine);
 bool RemoveListenerAutolaunchEntry();
 #endif
 
+
 #define LOCTEXT_NAMESPACE "SwitchboardEditorModule"
 
 DEFINE_LOG_CATEGORY(LogSwitchboardPlugin);
+
+
+// static
+const FString& FSwitchboardEditorModule::GetSbScriptsPath()
+{
+	using namespace UE::Switchboard::Private;
+	static FString SbScriptsPath = ConcatPaths(FPaths::EnginePluginsDir(),
+		"VirtualProduction", "Switchboard", "Source", "Switchboard");
+	return SbScriptsPath;
+}
+
+
+// static
+const FString& FSwitchboardEditorModule::GetSbThirdPartyPath()
+{
+	using namespace UE::Switchboard::Private;
+	static FString SbThirdPartyPath = ConcatPaths(FPaths::EngineDir(),
+		"Extras", "ThirdPartyNotUE", "SwitchboardThirdParty");
+	return SbThirdPartyPath;
+}
 
 
 void FSwitchboardEditorModule::StartupModule()
@@ -36,16 +58,30 @@ void FSwitchboardEditorModule::StartupModule()
 
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Switchboard",
-			LOCTEXT("SettingsName", "Switchboard"),
-			LOCTEXT("Description", "Configure the Switchboard launcher."),
+		ISettingsSectionPtr EditorSettingsSection = SettingsModule->RegisterSettings("Editor", "Plugins", "Switchboard",
+			LOCTEXT("EditorSettingsName", "Switchboard"),
+			LOCTEXT("EditorSettingsDescription", "Configure the Switchboard launcher."),
 			GetMutableDefault<USwitchboardEditorSettings>()
 		);
 
-		SettingsSection->OnModified().BindRaw(this, &FSwitchboardEditorModule::OnSettingsModified);
+		ISettingsSectionPtr ProjectSettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Switchboard",
+			LOCTEXT("ProjectSettingsName", "Switchboard"),
+			LOCTEXT("ProjectSettingsDescription", "Configure the Switchboard launcher."),
+			GetMutableDefault<USwitchboardProjectSettings>()
+		);
+
+		EditorSettingsSection->OnModified().BindRaw(this, &FSwitchboardEditorModule::OnEditorSettingsModified);
 	}
 
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomClassLayout(USwitchboardEditorSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardEditorSettingsCustomization::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(USwitchboardProjectSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchboardProjectSettingsCustomization::MakeInstance));
+
 	DeferredStartDelegateHandle = FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FSwitchboardEditorModule::OnEngineInitComplete);
+
+#if SB_LISTENER_AUTOLAUNCH
+	bCachedAutolaunchEnabled = GetListenerAutolaunchEnabled_Internal();
+#endif
 }
 
 
@@ -53,18 +89,98 @@ void FSwitchboardEditorModule::ShutdownModule()
 {
 	if (!IsRunningCommandlet() && UObjectInitialized() && !IsEngineExitRequested())
 	{
-		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-		if (SettingsModule != nullptr)
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.UnregisterCustomClassLayout(USwitchboardEditorSettings::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(USwitchboardProjectSettings::StaticClass()->GetFName());
+
+		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
+			SettingsModule->UnregisterSettings("Editor", "Plugins", "Switchboard");
 			SettingsModule->UnregisterSettings("Project", "Plugins", "Switchboard");
 		}
+
 		FSwitchboardMenuEntry::Unregister();
 	}
 }
 
 
+bool FSwitchboardEditorModule::LaunchSwitchboard()
+{
 #if PLATFORM_WINDOWS
-bool FSwitchboardEditorModule::IsListenerAutolaunchEnabled() const
+	const FString ScriptPath = GetSbScriptsPath() / TEXT("switchboard.bat");
+#elif PLATFORM_LINUX
+	const FString ScriptPath = GetSbScriptsPath() / TEXT("switchboard.sh");
+#endif
+
+	const FString ScriptArgs = FString::Printf(TEXT("\"%s\""),
+		*GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path);
+
+	return RunProcess(ScriptPath, ScriptArgs);
+}
+
+
+bool FSwitchboardEditorModule::LaunchListener()
+{
+	const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
+	const FString ListenerArgs = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
+	return RunProcess(ListenerPath, ListenerArgs);
+}
+
+
+bool FSwitchboardEditorModule::RunProcess(const FString& InExe, const FString& InArgs)
+{
+	const bool bLaunchDetached = false;
+	const bool bLaunchHidden = false;
+	const bool bLaunchReallyHidden = false;
+	uint32* OutProcessId = nullptr;
+	const int32 PriorityModifier = 0;
+	const TCHAR* WorkingDirectory = nullptr;
+	void* PipeWriteChild = nullptr;
+
+	const FProcHandle Handle = FPlatformProcess::CreateProc(*InExe, *InArgs, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, OutProcessId, PriorityModifier, WorkingDirectory, PipeWriteChild);
+	return Handle.IsValid();
+}
+
+
+TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResult()
+{
+	const FString CurrentVenv = GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path;
+
+	if (!VerifyResult.IsValid() || VerifyPath != CurrentVenv)
+	{
+		UE_LOG(LogSwitchboardPlugin, Log, TEXT("Issuing verify for venv: %s"), *CurrentVenv);
+
+		TFuture<FSwitchboardVerifyResult> Future = FSwitchboardVerifyResult::RunVerify(CurrentVenv);
+		Future = Future.Next([Venv = CurrentVenv](const FSwitchboardVerifyResult& Result)
+		{
+			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify complete for venv: %s"), *Venv);
+			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify summary: %d"), Result.Summary);
+			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify log: %s"), *Result.Log);
+
+			return Result;
+		});
+
+		VerifyPath = CurrentVenv;
+		VerifyResult = Future.Share();
+	}
+
+	return VerifyResult;
+}
+
+
+#if SB_LISTENER_AUTOLAUNCH
+bool FSwitchboardEditorModule::IsListenerAutolaunchEnabled(bool bForceRefreshCache /* = false */)
+{
+	if (bForceRefreshCache)
+	{
+		bCachedAutolaunchEnabled = GetListenerAutolaunchEnabled_Internal();
+	}
+
+	return bCachedAutolaunchEnabled;
+}
+
+
+bool FSwitchboardEditorModule::GetListenerAutolaunchEnabled_Internal() const
 {
 	const FString& ExistingCmd = GetListenerAutolaunchEntry().TrimEnd();
 	const FString& ConfigCmd = GetDefault<USwitchboardEditorSettings>()->GetListenerInvocation().TrimEnd();
@@ -74,17 +190,22 @@ bool FSwitchboardEditorModule::IsListenerAutolaunchEnabled() const
 
 bool FSwitchboardEditorModule::SetListenerAutolaunchEnabled(bool bEnabled)
 {
+	bool bSucceeded = false;
+
 	if (bEnabled)
 	{
 		const FString CommandLine = GetDefault<USwitchboardEditorSettings>()->GetListenerInvocation();
-		return SetListenerAutolaunchEntry(CommandLine);
+		bSucceeded = SetListenerAutolaunchEntry(CommandLine);
 	}
 	else
 	{
-		return RemoveListenerAutolaunchEntry();
+		bSucceeded = RemoveListenerAutolaunchEntry();
 	}
+
+	bCachedAutolaunchEnabled = GetListenerAutolaunchEnabled_Internal();
+	return bSucceeded;
 }
-#endif // #if PLATFORM_WINDOWS
+#endif // #if SB_LISTENER_AUTOLAUNCH
 
 
 void FSwitchboardEditorModule::OnEngineInitComplete()
@@ -96,9 +217,9 @@ void FSwitchboardEditorModule::OnEngineInitComplete()
 }
 
 
-bool FSwitchboardEditorModule::OnSettingsModified()
+bool FSwitchboardEditorModule::OnEditorSettingsModified()
 {
-#if PLATFORM_WINDOWS
+#if SB_LISTENER_AUTOLAUNCH
 	// If the existing entry's listener executable path matches our current engine / path,
 	// then we ensure the command line arguments also stay in sync with our settings.
 	const FString AutolaunchEntryExecutable = GetListenerAutolaunchEntryExecutable();
@@ -116,7 +237,7 @@ bool FSwitchboardEditorModule::OnSettingsModified()
 				*AutolaunchEntryExecutable, *ConfigExecutable);
 		}
 	}
-#endif // #if PLATFORM_WINDOWS
+#endif // #if SB_LISTENER_AUTOLAUNCH
 
 	return true;
 }
@@ -124,8 +245,8 @@ bool FSwitchboardEditorModule::OnSettingsModified()
 
 void FSwitchboardEditorModule::RunDefaultOSCListener()
 {
-	USwitchboardEditorSettings* SwitchboardEditorSettings = USwitchboardEditorSettings::GetSwitchboardEditorSettings();
-	FSoftObjectPath SwitchboardOSCListener = SwitchboardEditorSettings->SwitchboardOSCListener;
+	USwitchboardProjectSettings* SwitchboardProjectSettings = USwitchboardProjectSettings::GetSwitchboardProjectSettings();
+	FSoftObjectPath SwitchboardOSCListener = SwitchboardProjectSettings->SwitchboardOSCListener;
 	if (SwitchboardOSCListener.IsValid())
 	{
 		UObject* SwitchboardOSCListenerObject = SwitchboardOSCListener.TryLoad();

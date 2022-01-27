@@ -158,7 +158,11 @@ class SbSetup:
         if sys.platform.startswith('win'):
             self.ensure_rsync_copied()
 
-        venv_dir = options.venv_dir
+        venv_dir: pathlib.Path = options.venv_dir
+
+        # abspath is workaround for https://bugs.python.org/issue38671
+        venv_dir = pathlib.Path(os.path.abspath(venv_dir.resolve()))
+
         logging.info(f'VENV_DIR: {venv_dir}')
 
         dest_not_empty = False
@@ -265,10 +269,7 @@ class SbSetup:
                 # Output results to stdout in JSON format
                 print(json.dumps(verify_result, indent=4))
 
-            if verify_result['success']:
-                return 0
-            else:
-                return 1
+            return 0
         else:
             # Shouldn't happen: argparse early outs on unregistered actions.
             assert False
