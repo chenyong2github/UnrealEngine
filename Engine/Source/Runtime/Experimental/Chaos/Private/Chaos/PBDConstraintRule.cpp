@@ -264,6 +264,7 @@ namespace Chaos
 				for (auto& IslandSolver : IslandGroup->GetIslands() )
 				{
 					ConstraintSetBegin = ConstraintSetEnd;
+
 					if(!IslandSolver->IsSleeping() && !IslandSolver->IsUsingCache())
 					{
 						if(!bResizeDone)
@@ -280,7 +281,10 @@ namespace Chaos
 							const int32 MaxColor = IsSortingUsingColors() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxColors+1) : 1;
 							const int32 MaxLevel = IsSortingUsingLevels() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxLevels+1) : 1;
 							
-							IslandConstraintSets.Reserve(IslandConstraintSets.Num()+MaxLevel * MaxColor);	// Pessimistic array size - we could store the actual required size in coloring algorithm
+							if (IsSortingUsingColors())
+							{
+								IslandConstraintSets.Reserve(IslandConstraintSets.Num()+MaxLevel * MaxColor);	// Pessimistic array size - we could store the actual required size in coloring algorithm
+							}
 
 							for (int32 Level = 0; Level < MaxLevel; ++Level)
 							{
@@ -323,12 +327,13 @@ namespace Chaos
 							}
 						}
 					}
-					// If we aren't coloring, we have a single group of all constraints (they have been created in level order above)
-					if (!IsSortingUsingColors())
-					{
-						const TPair<int32, int32> ConstrainSet(ConstraintSetBegin, ConstraintSetEnd);
-						IslandConstraintSets.Add(ConstrainSet);
-					}
+				}
+
+				// If we aren't coloring, we have a single group of all constraints in the IslandGroup (they have been created in level order above)
+				if (!IsSortingUsingColors())
+				{
+					const TPair<int32, int32> ConstrainSet(0, ConstraintSetEnd);
+					IslandConstraintSets.Add(ConstrainSet);
 				}
 			}
 		}

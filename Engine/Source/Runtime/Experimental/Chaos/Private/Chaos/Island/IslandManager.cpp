@@ -10,13 +10,14 @@
 #include "ChaosLog.h"
 
 #include "Framework/Threading.h"
+#include "Misc/App.h"
 
 /** Cvar to enable/disable the island sleeping */
 bool ChaosSolverSleepEnabled = true;
 FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), ChaosSolverSleepEnabled, TEXT(""));
 
 /** Cvar to control the number of island groups used in the solver. The total number will be NumThreads * IslandGroupsMultiplier */
-int32 GChaosSolverIslandGroupsMultiplier = 1;
+Chaos::FRealSingle GChaosSolverIslandGroupsMultiplier = 1;
 FAutoConsoleVariableRef CVarSolverIslandGroupsMultiplier(TEXT("p.Chaos.Solver.IslandGroupsMultiplier"), GChaosSolverIslandGroupsMultiplier, TEXT("Total number of island groups in the solver will be NumThreads * IslandGroupsMultiplier.[def:1]"));
 
 /** Cvar to override the sleep counter threshold if necessary */
@@ -33,6 +34,7 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEX
 
 namespace Chaos
 {
+	extern int32 GSingleThreadedPhysics;
 	
 /** Check if a particle is dynamic or sleeping */
 FORCEINLINE bool IsDynamicParticle(const FGeometryParticleHandle* ParticleHandle)
@@ -297,8 +299,12 @@ void FPBDIslandManager::ResetIndices()
 
 void FPBDIslandManager::InitializeGroups()
 {
-	const int32 NumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
-	IslandGroups.SetNum(NumThreads * GChaosSolverIslandGroupsMultiplier, false);
+	// @todo(chaos): is the number of worker threads a good indicator of how many threads we get in the solver loop? (Currently uses ParallelFor)
+	// Check for use of the "-onethread" command line arg, and physics threading disabled (GetNumWorkerThreads() is not affected by these)
+	const int32 NumWorkerThreads = (FApp::ShouldUseThreadingForPerformance() && !GSingleThreadedPhysics) ? FTaskGraphInterface::Get().GetNumWorkerThreads() : 0;
+	const int32 MaxIslandGroups = FMath::Max(1, FMath::CeilToInt(FReal(NumWorkerThreads) * GChaosSolverIslandGroupsMultiplier));
+
+	IslandGroups.SetNum(MaxIslandGroups, false);
 	
 	for(int32 GroupIndex = 0, NumGroups = IslandGroups.Num(); GroupIndex < NumGroups; ++GroupIndex)
 	{
