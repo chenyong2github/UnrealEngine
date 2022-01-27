@@ -295,6 +295,16 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** Path where the engine will load gameplay cue notifies from */
 	virtual TArray<FString> GetGameplayCueNotifyPaths() { return GameplayCueNotifyPaths; }
 
+	/** Add a path to the GameplayCueNotifyPaths array. */
+	virtual void AddGameplayCueNotifyPath(const FString& InPath);
+
+	/**
+	 * Remove the given gameplay cue notify path from the GameplayCueNotifyPaths array.
+	 *
+	 * @return Number of paths removed.
+	 */
+	virtual int32 RemoveGameplayCueNotifyPath(const FString& InPath);
+
 	UPROPERTY()
 	FNetSerializeScriptStructCache	TargetDataStructCache;
 

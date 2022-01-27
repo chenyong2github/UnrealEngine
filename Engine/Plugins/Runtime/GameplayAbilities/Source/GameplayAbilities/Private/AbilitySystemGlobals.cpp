@@ -139,6 +139,16 @@ const FName& UAbilitySystemGlobals::GetGameplayModEvaluationChannelAlias(int32 I
 	return GameplayModEvaluationChannelAliases[Index];
 }
 
+void UAbilitySystemGlobals::AddGameplayCueNotifyPath(const FString& InPath)
+{
+	GameplayCueNotifyPaths.AddUnique(InPath);
+}
+
+int32 UAbilitySystemGlobals::RemoveGameplayCueNotifyPath(const FString& InPath)
+{
+	return GameplayCueNotifyPaths.Remove(InPath);
+}
+
 #if WITH_EDITOR
 
 void UAbilitySystemGlobals::OnTableReimported(UObject* InObject)

@@ -698,6 +698,32 @@ TArray<FString> UGameplayCueManager::GetAlwaysLoadedGameplayCuePaths()
 	return UAbilitySystemGlobals::Get().GetGameplayCueNotifyPaths();
 }
 
+void UGameplayCueManager::AddGameplayCueNotifyPath(const FString& InPath, const bool bShouldRescanCueAssets /* = true */)
+{
+	UAbilitySystemGlobals::Get().AddGameplayCueNotifyPath(InPath);
+	const int32 NumAdded = RuntimeGameplayCueObjectLibrary.Paths.AddUnique(InPath);
+	
+	if(bShouldRescanCueAssets && NumAdded != INDEX_NONE)
+	{
+		InitializeRuntimeObjectLibrary();		
+	}
+}
+
+int32 UGameplayCueManager::RemoveGameplayCueNotifyPath(const FString& InPath, const bool bShouldRescanCueAssets /* = true */)
+{
+	int32 NumRemovedGlobal = UAbilitySystemGlobals::Get().RemoveGameplayCueNotifyPath(InPath);
+	int32 NumRemovedRuntime = RuntimeGameplayCueObjectLibrary.Paths.Remove(InPath);
+
+	ensureMsgf(NumRemovedGlobal == NumRemovedRuntime, TEXT("Unexpected number of cue paths removed for '%s'"), *InPath);
+	
+	if(bShouldRescanCueAssets && NumRemovedGlobal > 0)
+	{
+		InitializeRuntimeObjectLibrary();		
+	}
+	
+	return NumRemovedRuntime;
+}
+
 void UGameplayCueManager::RefreshObjectLibraries()
 {
 	if (RuntimeGameplayCueObjectLibrary.bHasBeenInitialized)

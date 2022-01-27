@@ -279,6 +279,25 @@ public:
 
 	/** Called before loading any gameplay cue notifies from object libraries. Allows subclasses to skip notifies. */
 	virtual bool ShouldLoadGameplayCueAssetData(const FAssetData& Data) const { return true; }
+
+	/**
+	 * Add a path to the GameplayCueNotifyPaths array.
+	 * Re-initalizes RuntimeObjectLibrary based on the new paths
+	 *
+	 * @param InPath					The path to the directory that should be added to the scan
+	 * @param bShouldRescanCueAssets		If true then the runtime object library will be rebuilt.
+	 */
+	virtual void AddGameplayCueNotifyPath(const FString& InPath, const bool bShouldRescanCueAssets = true);
+
+	/**
+	 * Remove the given gameplay cue notify path from the GameplayCueNotifyPaths array.
+	 * Re-initalizes RuntimeObjectLibrary based on the new paths
+	 * 
+	 * @param InPath					The path to the directory that should be removed from the scan
+	 * @param bShouldRescanCueAssets		If true then the runtime object library will be rebuilt.
+	 * @return Number of paths removed.
+	 */
+	virtual int32 RemoveGameplayCueNotifyPath(const FString& InPath, const bool bShouldRescanCueAssets = true);
 	
 	int32 FinishLoadingGameplayCueNotifies();
 
