@@ -569,7 +569,7 @@ void ComposeObjectsIntoPagesCS(
 
 	uint3 TexelCoordInPage = PageGroupOffset * 4 + GroupThreadId;
 
-	uint3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - 1;
+	int3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - 1;
 	float3 ComposeTileCenterPageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + PageGroupOffset * 4 + 1.5f - 1.0f;
 	uint3 CullGridCoord = PageGridCoord;
 
