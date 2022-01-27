@@ -30,6 +30,7 @@
 #include "AssetRegistryModule.h"
 #include "DebugViewModeHelpers.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ShaderCompiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
 
@@ -1211,6 +1212,10 @@ FMaterialStatistics UMaterialEditingLibrary::GetStatistics(class UMaterialInterf
 	FMaterialResource* Resource = Material ? Material->GetMaterialResource(GMaxRHIFeatureLevel) : nullptr;
 	if (Resource)
 	{
+		if (!Resource->IsGameThreadShaderMapComplete())
+		{
+			Resource->SubmitCompileJobs(EShaderCompileJobPriority::High);
+		}
 		Resource->FinishCompilation();
 
 		TArray<FMaterialStatsUtils::FShaderInstructionsInfo> InstructionInfos;
