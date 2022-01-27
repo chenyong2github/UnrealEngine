@@ -13,10 +13,16 @@ class ISequencer;
 class FMenuBuilder;
 class ULevelSequence;
 class UMovieSceneCompiledDataManager;
+enum class EMovieSceneBlendType : uint8;
 
 struct SEQUENCER_API FSequencerUtilities
 {
+	/* Creates a button (used for +Section) that opens a ComboButton with a user-defined sub-menu content. */
 	static TSharedRef<SWidget> MakeAddButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer);
+	/* Creates a button (used for +Section) that fires a user-defined OnClick response with no sub-menu. */
+	static TSharedRef<SWidget> MakeAddButton(FText HoverText, FOnClicked OnClicked, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer);
+
+	static void CreateNewSection(UMovieSceneTrack* InTrack, TWeakPtr<ISequencer> InSequencer, int32 InRowIndex, EMovieSceneBlendType InBlendType);
 
 	static void PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilder, int32 RowIndex, UMovieSceneTrack* Track, TWeakPtr<ISequencer> InSequencer);
 

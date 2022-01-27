@@ -32,7 +32,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-
+PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "FSequencerUtilities"
 
@@ -40,6 +40,19 @@ static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<S
 {
 	TSharedPtr<SComboButton> ComboButton = WeakComboButton.Pin();
 	if (HoverState.Get() || ComboButton->IsOpen())
+	{
+		return EVisibility::SelfHitTestInvisible;
+	}
+	else
+	{
+		return EVisibility::Collapsed;
+	}
+}
+
+static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<SButton> WeakButton)
+{
+	TSharedPtr<SButton> Button = WeakButton.Pin();
+	if (HoverState.Get())
 	{
 		return EVisibility::SelfHitTestInvisible;
 	}
@@ -96,6 +109,101 @@ TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetCo
 	ComboButtonText->SetVisibility(Visibility);
 
 	return ComboButton;
+}
+
+TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClicked OnClicked, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer)
+{
+	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+
+	TSharedRef<STextBlock> ButtonText = SNew(STextBlock)
+		.Text(HoverText)
+		.Font(SmallLayoutFont)
+		.ColorAndOpacity(FSlateColor::UseForeground());
+
+	TSharedRef<SButton> Button =
+
+		SNew(SButton)
+		.IsFocusable(true)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsEnabled_Lambda([=]() { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; })
+		.OnClicked(OnClicked)
+		.ContentPadding(FMargin(5, 2))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Content()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0, 0, 2, 0))
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FEditorStyle::GetBrush("Plus"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				ButtonText
+			]
+		];
+
+	TAttribute<EVisibility> Visibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(GetRolloverVisibility, HoverState, TWeakPtr<SButton>(Button)));
+	ButtonText->SetVisibility(Visibility);
+
+	return Button;
+}
+
+void FSequencerUtilities::CreateNewSection(UMovieSceneTrack* InTrack, TWeakPtr<ISequencer> InSequencer, int32 InRowIndex, EMovieSceneBlendType InBlendType)
+{
+	TSharedPtr<ISequencer> Sequencer = InSequencer.Pin();
+	if (!Sequencer.IsValid())
+	{
+		return;
+	}
+
+	FQualifiedFrameTime CurrentTime = Sequencer->GetLocalTime();
+	FFrameNumber PlaybackEnd = UE::MovieScene::DiscreteExclusiveUpper(Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange());
+
+	FScopedTransaction Transaction(LOCTEXT("AddSectionTransactionText", "Add Section"));
+	if (UMovieSceneSection* NewSection = InTrack->CreateNewSection())
+	{
+		int32 OverlapPriority = 0;
+		for (UMovieSceneSection* Section : InTrack->GetAllSections())
+		{
+			OverlapPriority = FMath::Max(Section->GetOverlapPriority() + 1, OverlapPriority);
+
+			// Move existing sections on the same row or beyond so that they don't overlap with the new section
+			if (Section != NewSection && Section->GetRowIndex() >= InRowIndex)
+			{
+				Section->SetRowIndex(Section->GetRowIndex() + 1);
+			}
+		}
+
+		InTrack->Modify();
+
+		NewSection->SetRange(TRange<FFrameNumber>(CurrentTime.Time.FrameNumber, PlaybackEnd));
+		NewSection->SetOverlapPriority(OverlapPriority);
+		NewSection->SetRowIndex(InRowIndex);
+		NewSection->SetBlendType(InBlendType);
+
+		InTrack->AddSection(*NewSection);
+		InTrack->UpdateEasing();
+
+		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+		Sequencer->EmptySelection();
+		Sequencer->SelectSection(NewSection);
+		Sequencer->ThrobSectionSelection();
+	}
+	else
+	{
+		Transaction.Cancel();
+	}
 }
 
 void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilder, int32 RowIndex, UMovieSceneTrack* Track, TWeakPtr<ISequencer> InSequencer)
@@ -562,3 +670,4 @@ void FSequencerUtilities::ShowReadOnlyError()
 
 
 #undef LOCTEXT_NAMESPACE
+PRAGMA_ENABLE_OPTIMIZATION
