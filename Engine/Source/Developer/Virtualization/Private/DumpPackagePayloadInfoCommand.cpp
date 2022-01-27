@@ -53,7 +53,7 @@ void DumpPackagePayloadInfo(const TArray<FString>& Args)
 				UE_LOG(LogVirtualization, Display, TEXT("LocalPayloads:"));
 				for (int32 Index = 0; Index < LocalPayloadIds.Num(); ++Index)
 				{
-					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *LocalPayloadIds[Index].ToString());
+					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *LexToString(LocalPayloadIds[Index]));
 				}
 			}
 
@@ -62,7 +62,7 @@ void DumpPackagePayloadInfo(const TArray<FString>& Args)
 				UE_LOG(LogVirtualization, Display, TEXT("VirtualizedPayloads:"));
 				for (int32 Index = 0; Index < VirtualizedPayloadIds.Num(); ++Index)
 				{
-					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *VirtualizedPayloadIds[Index].ToString());
+					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *LexToString(VirtualizedPayloadIds[Index]));
 				}
 			}
 		}

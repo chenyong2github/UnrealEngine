@@ -46,9 +46,6 @@ public:
 	 */
 	FGuid ToGuid() const;
 
-	/** Returns a string representation of the id, useful for debug tools */
-	FString ToString() const;
-
 	const FIoHash& GetIdentifier() const
 	{
 		return Identifier;
@@ -107,5 +104,7 @@ TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, 
 
 	return Builder;
 }
+
+[[nodiscard]] CORE_API FString LexToString(const FPayloadId& Id);
 
 } // namespace UE::Virtualization

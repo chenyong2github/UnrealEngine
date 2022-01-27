@@ -8,9 +8,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/Archive.h"
 
-namespace UE
-{
-namespace Virtualization
+namespace UE::Virtualization
 {
 
 FPayloadId::FPayloadId(const FIoHash& BlakeHash)
@@ -72,21 +70,6 @@ FGuid FPayloadId::ToGuid() const
 	}
 }
 
-FString FPayloadId::ToString() const
-{
-	if (IsValid())
-	{	
-		TStringBuilder<65> HexStringBuilder;
-		HexStringBuilder << Identifier;
-
-		return HexStringBuilder.ToString();
-	}
-	else
-	{
-		return FString();
-	}
-}
-
 bool FPayloadId::operator == (const FPayloadId& InPayloadId) const
 {
 	// If ::bIsHashSet is different between the two payloads we know they are different.
@@ -117,5 +100,9 @@ FArchive& operator<<(FArchive& Ar, FPayloadId& PayloadId)
 	return Ar;
 }
 
-} // namespace Virtualization
-} // namespace UE
+FString LexToString(const FPayloadId& Id)
+{
+	return LexToString(Id.GetIdentifier());
+}
+
+} // namespace UE::Virtualization

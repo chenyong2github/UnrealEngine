@@ -237,7 +237,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 				else
 				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
-													FText::FromString(PackageInfo.LocalPayloads[Index].ToString()),
+													FText::FromString(LexToString(PackageInfo.LocalPayloads[Index])),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
 					Errors.Add(Message);
 					return;
@@ -293,7 +293,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			{
 				FText Message = FText::Format(	LOCTEXT("Virtualization_WrongPayload", "Package {0} loaded an incorrect payload from the trailer. Expected '{1}' Loaded  '{2}'"),
 												FText::FromString(PackageInfo.Path.GetDebugName()),
-												FText::FromString(PayloadId.ToString()),
+												FText::FromString(LexToString(PayloadId)),
 												FText::FromString(LexToString(Payload.GetRawHash())));
 				Errors.Add(Message);
 				return;
@@ -302,7 +302,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			if (!Payload)
 			{
 				FText Message = FText::Format(	LOCTEXT("Virtualization_MissingPayload", "Unable to find the payload '{0}' in the local storage of package '{1}'"),
-												FText::FromString(PayloadId.ToString()),
+												FText::FromString(LexToString(PayloadId)),
 												FText::FromString(PackageInfo.Path.GetDebugName()));
 				Errors.Add(Message);
 				return;
@@ -337,7 +337,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 				else
 					{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
-													FText::FromString(Request.Identifier.ToString()),
+													FText::FromString(LexToString(Request.Identifier)),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
 					Errors.Add(Message);
 					return;

@@ -324,7 +324,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		if ((int64)Request.Payload.GetCompressedSize() < MinPayloadLength)
 		{
 			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a virtualized payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
-					*Request.Identifier.ToString(), 
+					*LexToString(Request.Identifier),
 					Request.Payload.GetCompressedSize(),
 					MinPayloadLength);
 
@@ -384,7 +384,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 				checkf(	Request.Payload.GetRawHash() == ValidationPayload.GetRawHash(),
 						TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"),
 						*Backend->GetDebugName(),
-						*Request.Identifier.ToString());
+						*LexToString(Request.Identifier));
 			}
 		}
 	}
@@ -420,7 +420,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	if (PullEnabledBackends.IsEmpty())
 	{
 		// TODO: See below, should errors here be fatal?
-		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled as there are no backends mounted!'"), *Id.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled as there are no backends mounted!'"), *LexToString(Id));
 		return FCompressedBuffer();
 	}
 
@@ -455,7 +455,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	// code handles it properly.
 	// Could be worth extending ::PullData to return error codes instead so we can make a better distinction 
 	// between the payload not being found in any of the backends and one or more of the backends failing.
-	UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled from any backend'"), *Id.ToString());
+	UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled from any backend'"), *LexToString(Id));
 
 	return FCompressedBuffer();
 }
@@ -868,7 +868,7 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 		const bool bResult = TryCacheDataToBackend(*BackendToCache, Id, Payload);
 		UE_CLOG(	!bResult, LogVirtualization, Warning,
 					TEXT("Failed to cache payload '%s' to backend '%s'"),
-					*Id.ToString(),
+					*LexToString(Id),
 					*BackendToCache->GetDebugName());
 
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
@@ -879,7 +879,7 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 
 					TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
 					*BackendToCache->GetDebugName(), 
-					*Id.ToString());
+					*LexToString(Id));
 		}
 	}
 }

@@ -310,9 +310,9 @@ bool FPayloadIdTestStringBuilder::RunTest(const FString& Parameters)
 
 	// Test again both TWideStringBuilder and TAnsiStringBuilder
 #define TEST_PAYLOAD_ID(BufferToTest) {	TWideStringBuilder<128> WideBuilder; WideBuilder << BufferToTest; \
-										TestEqual(TEXT("TWideStringBuilder << and ToString to produce the same result"), *WideBuilder, BufferToTest.ToString());\
+										TestEqual(TEXT("TWideStringBuilder << and ToString to produce the same result"), *WideBuilder, LexToString(BufferToTest));\
 										TAnsiStringBuilder<128> AnsiBuilder; AnsiBuilder << BufferToTest; \
-										TestEqual(TEXT("TAnsiBuilder << and ToString to produce the same result"), *AnsiBuilder, BufferToTest.ToString()); }
+										TestEqual(TEXT("TAnsiBuilder << and ToString to produce the same result"), *AnsiBuilder, LexToString(BufferToTest)); }
 
 	TEST_PAYLOAD_ID(EmptyId);
 	TEST_PAYLOAD_ID(BufferId0);

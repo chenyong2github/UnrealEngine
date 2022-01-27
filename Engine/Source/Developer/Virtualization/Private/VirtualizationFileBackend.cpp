@@ -60,7 +60,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 
 	if (DoesPayloadExist(Id))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(Id));
 		return EPushResult::PayloadAlreadyExisted;
 	}
 
@@ -80,7 +80,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"), 
 			*GetDebugName(),
-			*Id.ToString(),
+			*LexToString(Id),
 			*TempFilePath,
 			SystemErrorMsg.ToString());
 
@@ -100,7 +100,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 			*GetDebugName(),
-			*Id.ToString(),
+			*LexToString(Id),
 			*TempFilePath,
 			SystemErrorMsg.ToString());
 
@@ -125,14 +125,14 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 		// don't need to give an error message.
 		if (DoesPayloadExist(Id))
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(Id));
 			return EPushResult::PayloadAlreadyExisted;
 		}
 		else
 		{
 			UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to move payload '%s' to it's final location '%s' due to system error: %s"),
 					*GetDebugName(),
-					*Id.ToString(),
+					*LexToString(Id),
 					*FilePath,
 					SystemErrorMsg.ToString());
 
@@ -153,7 +153,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	// TODO: Should we allow the error severity to be configured via ini or just not report this case at all?
 	if (!IFileManager::Get().FileExists(FilePath.ToString()))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *LexToString(Id));
 		return FCompressedBuffer();
 	}
 
@@ -166,7 +166,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"),
 			*GetDebugName(),
-			*Id.ToString(),
+			*LexToString(Id),
 			FilePath.ToString(),
 			SystemErrorMsg.ToString());
 

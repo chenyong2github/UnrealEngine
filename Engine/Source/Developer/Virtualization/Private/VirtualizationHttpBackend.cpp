@@ -1383,7 +1383,7 @@ EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer
 #if UE_CHECK_FOR_EXISTING_PAYLOADS
 	if (DoesPayloadExist(Id))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("HordeStorage already has a copy of the payload '%s'"), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("HordeStorage already has a copy of the payload '%s'"), *LexToString(Id));
 		return EPushResult::PayloadAlreadyExisted;
 	}
 #endif // UE_CHECK_FOR_EXISTING_PAYLOADS
@@ -1399,7 +1399,7 @@ EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer
 	const int64 NumChunks = FMath::DivideAndRoundUp(FlattenedPayload.GetSize(), ChunkSize);
 	if (NumChunks > MAX_int32)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Too many chunks (%d) are required for the payload '%s', try increasing the ChunkSize"), NumChunks, *Id.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Too many chunks (%d) are required for the payload '%s', try increasing the ChunkSize"), NumChunks, *LexToString(Id));
 		return EPushResult::Failed;
 	}
 
@@ -1449,15 +1449,15 @@ EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer
 
 	if (NumFailedChunks > 0)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to upload %d chunks for the payload '%s'."), NumFailedChunks.load(), *Id.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to upload %d chunks for the payload '%s'."), NumFailedChunks.load(), *LexToString(Id));
 		return EPushResult::Failed;
 	}
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded all chunks for the payload '%s'"), *Id.ToString());
+	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded all chunks for the payload '%s'"), *LexToString(Id));
 
 	// Note that the ddc end point is used by both ddc and mirage
 	TStringBuilder<256> Uri;
-	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *LexToString(Id));
 
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	uint32 Attempts = 0;
@@ -1476,19 +1476,19 @@ EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer
 
 			if (ResponseCode == 200)
 			{
-				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded the description for the payload '%s'"), *Id.ToString());
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded the description for the payload '%s'"), *LexToString(Id));
 				return EPushResult::Success;
 			}
 
 			if (!ShouldRetryOnError(ResponseCode))
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to upload header infomation about payload '%s'"), ResponseCode, *Id.ToString());
+				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to upload header infomation about payload '%s'"), ResponseCode, *LexToString(Id));
 				return EPushResult::Failed;
 			}
 		}
 	}
 
-	UE_LOG(LogVirtualization, Error, TEXT("Failed  '%d' attempts to upload header infomation about payload '%s'"), UE_MIRAGE_MAX_ATTEMPTS, *Id.ToString());
+	UE_LOG(LogVirtualization, Error, TEXT("Failed  '%d' attempts to upload header infomation about payload '%s'"), UE_MIRAGE_MAX_ATTEMPTS, *LexToString(Id));
 	return EPushResult::Failed;
 }
 
@@ -1506,7 +1506,7 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 	// the Io service, the ids will be in the correct order.
 	// fields=metadata - Ask for the payload metadata which contains info we can use later for optimizations.
 	TStringBuilder<256> Uri;
-	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s.json?fields=contentHash&fields=blobIdentifiers&fields=metadata"), *Namespace, *Bucket, *Id.ToString());
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s.json?fields=contentHash&fields=blobIdentifiers&fields=metadata"), *Namespace, *Bucket, *LexToString(Id));
 
 	FDDCCacheGETResponse Response;
 
@@ -1526,7 +1526,7 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 			{
 				if (!Response.FromJson(Request->GetResponseAsJsonObject()))
 				{
-					UE_LOG(LogVirtualization, Error, TEXT("Failed to parser the header infomation about payload '%s'"), *Id.ToString());
+					UE_LOG(LogVirtualization, Error, TEXT("Failed to parser the header infomation about payload '%s'"), *LexToString(Id));
 					return FCompressedBuffer();
 				}
 			}
@@ -1535,12 +1535,12 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 				// Response 400 indicates that the payload does not exist in HordeStorage. Note that it is faster to just make the request
 				// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
 				// we will only make a single request if the payload exists or not.
-				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
+				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *LexToString(Id));
 				return FCompressedBuffer();
 			}
 			else if (!ShouldRetryOnError(ResponseCode))
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to download header infomation about payload '%s'"), ResponseCode, *Id.ToString());
+				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to download header infomation about payload '%s'"), ResponseCode, *LexToString(Id));
 				return FCompressedBuffer();
 			}
 		}
@@ -1548,11 +1548,11 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 
 	if (ResponseCode != 200)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to download header infomation about payload (last error code '%d')  '%s'"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode, *Id.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to download header infomation about payload (last error code '%d')  '%s'"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode, *LexToString(Id));
 		return FCompressedBuffer();
 	}
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a description for the payload '%s'"), *Id.ToString());
+	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a description for the payload '%s'"), *LexToString(Id));
 
 	// Now that we have the payload description we can start pulling the chunks from the Io service
 	// and reconstruct the final payload.
@@ -1599,12 +1599,12 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 
 	if (NumFailedChunks == 0)
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded all chunks for the payload '%s'"), *Id.ToString());	
+		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded all chunks for the payload '%s'"), *LexToString(Id));
 		return FCompressedBuffer::FromCompressed(Payload.MoveToShared());
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to download %d chunks for the payload '%s'"), NumFailedChunks.load(), *Id.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to download %d chunks for the payload '%s'"), NumFailedChunks.load(), *LexToString(Id));
 		return FCompressedBuffer();
 	}
 }
@@ -1617,7 +1617,7 @@ bool FHttpBackend::DoesPayloadExist(const FPayloadId& Id)
 
 	// Note that the ddc end point is used by both ddc and mirage
 	TStringBuilder<256> Uri;
-	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *LexToString(Id));
 
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	uint32 Attempts = 0;
@@ -1910,7 +1910,7 @@ bool FHttpBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPa
 
 			if (ResponseCode == 200)
 			{
-				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded a chunk '%s'for payload '%s'"), *OutHashAsString, *PayloadId.ToString());
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded a chunk '%s'for payload '%s'"), *OutHashAsString, *LexToString(PayloadId));
 				return true;
 			}
 
@@ -1945,7 +1945,7 @@ bool FHttpBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, u
 
 			if (Result != FRequest::Success)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed due to an internal Curl error"), *Hash, *PayloadId.ToString());	
+				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed due to an internal Curl error"), *Hash, *LexToString(PayloadId));
 				return false;
 			}
 
@@ -1953,19 +1953,19 @@ bool FHttpBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, u
 
 			if (ResponseCode == 200)
 			{
-				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a payload chunk '%s' for payload '%s'"), *Hash, *PayloadId.ToString());	
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a payload chunk '%s' for payload '%s'"), *Hash, *LexToString(PayloadId));
 				return true;
 			}
 
 			if (!ShouldRetryOnError(ResponseCode))
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed with http response: %" INT64_FMT), *Hash, *PayloadId.ToString(), ResponseCode);	
+				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed with http response: %" INT64_FMT), *Hash, *LexToString(PayloadId), ResponseCode);
 				return false;
 			}
 		}
 	}
 
-	UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed all '%d' attempts"), *Hash, *PayloadId.ToString(), UE_MIRAGE_MAX_ATTEMPTS);	
+	UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed all '%d' attempts"), *Hash, *LexToString(PayloadId), UE_MIRAGE_MAX_ATTEMPTS);
 	return false;
 }
 

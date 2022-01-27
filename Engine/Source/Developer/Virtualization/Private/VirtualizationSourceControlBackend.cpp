@@ -262,7 +262,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 					*GetDebugName(),
-					*Request.Identifier.ToString(),
+					*LexToString(Request.Identifier),
 					*PayloadFilePath,
 					SystemErrorMsg.ToString());
 
@@ -278,7 +278,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 					*GetDebugName(),
-					*Request.Identifier.ToString(),
+					*LexToString(Request.Identifier),
 					*PayloadFilePath,
 					SystemErrorMsg.
 					ToString());

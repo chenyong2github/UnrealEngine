@@ -903,8 +903,8 @@ FCompressedBuffer FEditorBulkData::LoadFromDisk() const
 			UE::Virtualization::FPayloadId SidecarId(SidecarBuffer.Decompress());
 			UE::Virtualization::FPayloadId AssetId(AssetBuffer.Decompress());
 
-			UE_CLOG(SidecarId != PayloadContentId, LogSerialization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *SidecarId.ToString(), *PayloadContentId.ToString());
-			UE_CLOG(AssetId != PayloadContentId, LogSerialization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *AssetId.ToString(), *PayloadContentId.ToString())
+			UE_CLOG(SidecarId != PayloadContentId, LogSerialization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *LexToString(SidecarId), *LexToString(PayloadContentId));
+			UE_CLOG(AssetId != PayloadContentId, LogSerialization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *LexToString(AssetId), *LexToString(PayloadContentId))
 
 			return SidecarBuffer;
 		}
@@ -1057,12 +1057,12 @@ FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Ve
 			}
 			else if(Verbosity > ErrorVerbosity::None)
 			{
-				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), *LexToString(PayloadContentId), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			}
 		}
 		else if(Verbosity > ErrorVerbosity::None)
 		{
-			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), *PayloadContentId.ToString(), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), *LexToString(PayloadContentId), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 		}
 	}
 	else if(Verbosity > ErrorVerbosity::None)
@@ -1471,8 +1471,8 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 		
 		checkf(Payload.IsNull(), TEXT("Pulling data somehow assigned it to the bulk data object!")); //Make sure that we did not assign the buffer internally
 
-		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *PayloadContentId.ToString());
-		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *PayloadContentId.ToString());
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *LexToString(PayloadContentId));
+		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *LexToString(PayloadContentId));
 		
 		return CompressedPayload;
 	}
@@ -1482,9 +1482,9 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 		
 		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
 
-		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to load payload '%s"), *PayloadContentId.ToString());
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to load payload '%s"), *LexToString(PayloadContentId));
 		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Payload '%s' loaded from '%s' is corrupt! Check the file on disk."),
-			*PayloadContentId.ToString(), 
+			*LexToString(PayloadContentId),
 			*PackagePath.GetDebugName());
 
 		return CompressedPayload;
