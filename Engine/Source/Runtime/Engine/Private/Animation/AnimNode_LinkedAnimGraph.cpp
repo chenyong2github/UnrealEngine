@@ -250,10 +250,10 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 		{
 			DynamicUnlink(const_cast<UAnimInstance*>(InOwningAnimInstance));
 
-			MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
 			// Never delete the owning animation instance
 			if (InstanceToRun != InOwningAnimInstance)
 			{
+				MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
 				// Only call UninitializeAnimation if we are not the owning anim instance
 				InstanceToRun->UninitializeAnimation();
 				InstanceToRun->MarkAsGarbage();
