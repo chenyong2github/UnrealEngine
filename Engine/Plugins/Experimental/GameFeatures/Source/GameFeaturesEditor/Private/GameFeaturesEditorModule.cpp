@@ -184,6 +184,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		}
 
 		// Remove the plugin wizard override
+		if (UObjectInitialized())
 		{
 			if (UClass* GameFeatureClass = UGameFeaturesEditorSettings::StaticClass())
 			{
