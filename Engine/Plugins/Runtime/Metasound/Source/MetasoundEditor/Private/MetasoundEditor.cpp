@@ -502,6 +502,8 @@ namespace Metasound
 
 			ExtendToolbar();
 			RegenerateMenusAndToolbars();
+
+			NotifyDocumentVersioned();
 		}
 
 		UObject* FEditor::GetMetasoundObject() const
@@ -567,6 +569,32 @@ namespace Metasound
 			MetasoundAsset->SetSynchronizationRequired();
 
 			FSlateApplication::Get().DismissAllMenus();
+		}
+
+		void FEditor::NotifyDocumentVersioned()
+		{
+			if (MetasoundGraphEditor.IsValid())
+			{
+				UMetasoundEditorGraph& MetaSoundGraph = GetMetaSoundGraphChecked();
+				const bool bVersionedOnLoad = MetaSoundGraph.GetVersionedOnLoad();
+				if (bVersionedOnLoad)
+				{
+					MetaSoundGraph.ClearVersionedOnLoad();
+					const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+					check(MetaSoundAsset);
+
+					const FString VersionString = MetaSoundAsset->GetDocumentChecked().Metadata.Version.Number.ToString();
+					FText Msg = FText::Format(LOCTEXT("MetaSoundDocumentVersioned", "Document versioned to '{0}' on load."), FText::FromString(VersionString));
+					FNotificationInfo Info(Msg);
+					Info.bFireAndForget = true;
+					Info.bUseSuccessFailIcons = false;
+					Info.ExpireDuration = 5.0f;
+
+					MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
+
+					MetaSoundAsset->MarkMetasoundDocumentDirty();
+				}
+			}
 		}
 
 		void FEditor::NotifyNodePasteFailure_ReferenceLoop()

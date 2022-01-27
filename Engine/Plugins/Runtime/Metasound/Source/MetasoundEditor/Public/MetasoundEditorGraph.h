@@ -385,6 +385,10 @@ public:
 	virtual void RegisterGraphWithFrontend() override;
 	virtual void SetSynchronizationRequired() override;
 
+	virtual void ClearVersionedOnLoad() override;
+	virtual bool GetVersionedOnLoad() const override;
+	virtual void SetVersionedOnLoad() override;
+
 private:
 	bool RemoveFrontendInput(UMetasoundEditorGraphInput& Input);
 	bool RemoveFrontendOutput(UMetasoundEditorGraphOutput& Output);
@@ -394,6 +398,8 @@ private:
 	// Preview ID is the Unique ID provided by the UObject that implements
 	// a sound's ParameterInterface when a sound begins playing.
 	uint32 PreviewID = INDEX_NONE;
+
+	bool bVersionedOnLoad = false;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMetasoundEditorGraphInput>> Inputs;

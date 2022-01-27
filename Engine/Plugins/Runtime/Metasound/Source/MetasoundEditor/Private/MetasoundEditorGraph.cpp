@@ -1261,6 +1261,21 @@ void UMetasoundEditorGraph::RegisterGraphWithFrontend()
 	}
 }
 
+void UMetasoundEditorGraph::ClearVersionedOnLoad()
+{
+	bVersionedOnLoad = false;
+}
+
+bool UMetasoundEditorGraph::GetVersionedOnLoad() const
+{
+	return bVersionedOnLoad;
+}
+
+void UMetasoundEditorGraph::SetVersionedOnLoad()
+{
+	bVersionedOnLoad = true;
+}
+
 void UMetasoundEditorGraph::SetSynchronizationRequired()
 {
 	using namespace Metasound;

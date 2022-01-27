@@ -32,6 +32,12 @@ public:
 
 	virtual void SetSynchronizationRequired() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetSynchronizationRequired, )
 	virtual void RegisterGraphWithFrontend() PURE_VIRTUAL(UMetasoundEditorGraphBase::RegisterGraphWithFrontend(), )
+
+#if WITH_EDITORONLY_DATA
+	virtual void ClearVersionedOnLoad() PURE_VIRTUAL(UMetasoundEditorGraphBase::ClearVersionedOnLoad, )
+	virtual bool GetVersionedOnLoad() const PURE_VIRTUAL(UMetasoundEditorGraphBase::GetVersionedOnLoad, return false; )
+	virtual void SetVersionedOnLoad() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetVersionedOnLoad, )
+#endif // WITH_EDITORONLY_DATA
 };
 
 
@@ -94,7 +100,15 @@ namespace Metasound
 	{
 		if (InArchive.IsLoading())
 		{
-			InMetaSound.VersionAsset();
+			if (InMetaSound.VersionAsset())
+			{
+#if WITH_EDITORONLY_DATA
+				if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
+				{
+					MetaSoundGraph->SetVersionedOnLoad();
+				}
+#endif // WITH_EDITORONLY_DATA
+			}
 		}
 	}
 
