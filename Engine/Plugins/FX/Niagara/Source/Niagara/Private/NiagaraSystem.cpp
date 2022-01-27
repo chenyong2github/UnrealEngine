@@ -3809,9 +3809,6 @@ void UNiagaraSystem::FixupPositionUserParameters()
 	// Most likely this is because core modules were changed to use position data. To ease the transition of old assets, we auto-convert those inputs to position types as well.
 	for (const FNiagaraVariable& LinkedParameter : LinkedPositionInputs)
 	{
-		ExposedParameters.ConvertParameterType(LinkedParameter, FNiagaraTypeDefinition::GetPositionDef());
-		UE_LOG(LogNiagara, Log, TEXT("Converted parameter %s from vec3 to position type in asset %s"), *LinkedParameter.GetName().ToString(), *GetPathName());
-
 		// we need to go over the scripts again to fix existing usages. Just because it's linked to a position in one input doesn't mean that's the case for all of them and we don't want to end up with
 		// different types of the same user parameter linked throughout the system.
 		ForEachScript([&LinkedParameter](UNiagaraScript* Script)
@@ -3821,6 +3818,9 @@ void UNiagaraSystem::FixupPositionUserParameters()
 				Script->GetLatestSource()->ChangedLinkedInputTypes(LinkedParameter, FNiagaraTypeDefinition::GetPositionDef());
 			}
 		});
+
+		ExposedParameters.ConvertParameterType(LinkedParameter, FNiagaraTypeDefinition::GetPositionDef());
+		UE_LOG(LogNiagara, Log, TEXT("Converted parameter %s from vec3 to position type in asset %s"), *LinkedParameter.GetName().ToString(), *GetPathName());
 	}
 }
 
