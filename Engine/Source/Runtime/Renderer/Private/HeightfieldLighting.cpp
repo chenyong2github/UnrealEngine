@@ -54,8 +54,8 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 		HeightfieldDescriptionData.Add(FVector4f(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
 		HeightfieldDescriptionData.Add(FVector4f(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
 
-		const FMatrix44f LocalToWorldT = Description.LocalToWorld.GetTransposed();
-		const FMatrix44f WorldToLocalT = Description.LocalToWorld.Inverse().GetTransposed();
+		const FMatrix44f LocalToWorldT = FMatrix44f(Description.LocalToWorld.GetTransposed());
+		const FMatrix44f WorldToLocalT = FMatrix44f(Description.LocalToWorld.Inverse().GetTransposed());
 
 		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[0]);
 		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[1]);

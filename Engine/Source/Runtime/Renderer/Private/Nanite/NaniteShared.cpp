@@ -75,8 +75,8 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 
 	FPackedView PackedView;
 
-	PackedView.TranslatedWorldToView		= Params.ViewMatrices.GetOverriddenTranslatedViewMatrix();
-	PackedView.TranslatedWorldToClip		= Params.ViewMatrices.GetTranslatedViewProjectionMatrix();
+	PackedView.TranslatedWorldToView		= FMatrix44f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix());	// LWC_TODO: Precision loss? (and below)
+	PackedView.TranslatedWorldToClip		= FMatrix44f(Params.ViewMatrices.GetTranslatedViewProjectionMatrix());
 	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
 	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
 	PackedView.PreViewTranslation			= FVector4f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
@@ -87,9 +87,9 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.MatrixTilePosition			= RelativeMatrices.TilePosition;
 	PackedView.Padding1						= 0u;
 
-	PackedView.PrevTranslatedWorldToView	= Params.PrevViewMatrices.GetOverriddenTranslatedViewMatrix();
-	PackedView.PrevTranslatedWorldToClip	= Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix();
-	PackedView.PrevViewToClip				= Params.PrevViewMatrices.GetProjectionMatrix();
+	PackedView.PrevTranslatedWorldToView	= FMatrix44f(Params.PrevViewMatrices.GetOverriddenTranslatedViewMatrix()); // LWC_TODO: Precision loss? (and below)
+	PackedView.PrevTranslatedWorldToClip	= FMatrix44f(Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix());
+	PackedView.PrevViewToClip				= FMatrix44f(Params.PrevViewMatrices.GetProjectionMatrix());
 	PackedView.PrevClipToRelativeWorld		= RelativeMatrices.PrevClipToRelativeWorld;
 	PackedView.PrevPreViewTranslation		= FVector4f(Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
 
@@ -111,12 +111,12 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	const float Ax = -1.0f - 2.0f * ViewRect.Min.X * ViewSizeAndInvSize.Z;
 	const float Ay = 1.0f + 2.0f * ViewRect.Min.Y * ViewSizeAndInvSize.W;
 
-	PackedView.SVPositionToTranslatedWorld =
-		FMatrix44f(FPlane4f(Mx, 0, 0, 0),
-			FPlane4f(0, My, 0, 0),
-			FPlane4f(0, 0, 1, 0),
-			FPlane4f(Ax, Ay, 0, 1)) * Params.ViewMatrices.GetInvTranslatedViewProjectionMatrix();
-	PackedView.ViewToTranslatedWorld = Params.ViewMatrices.GetOverriddenInvTranslatedViewMatrix();
+	PackedView.SVPositionToTranslatedWorld = FMatrix44f(			// LWC_TODO: Precision loss? (and below)
+		FMatrix(FPlane(Mx, 0, 0, 0),
+			FPlane(0, My, 0, 0),
+			FPlane(0, 0, 1, 0),
+			FPlane(Ax, Ay, 0, 1)) * Params.ViewMatrices.GetInvTranslatedViewProjectionMatrix());
+	PackedView.ViewToTranslatedWorld = FMatrix44f(Params.ViewMatrices.GetOverriddenInvTranslatedViewMatrix());	
 
 	check(Params.StreamingPriorityCategory <= STREAMING_PRIORITY_CATEGORY_MASK);
 	PackedView.StreamingPriorityCategory_AndFlags = (Params.Flags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | Params.StreamingPriorityCategory;

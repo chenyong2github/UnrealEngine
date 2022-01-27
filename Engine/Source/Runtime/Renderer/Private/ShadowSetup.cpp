@@ -855,17 +855,17 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 				}
 			}
 		}
-		TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
-		TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
+		TranslatedWorldToClipInnerMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipInner);		// LWC_TODO: Precision loss?
+		TranslatedWorldToClipOuterMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipOuter);
 
 		InvMaxSubjectDepth = 1.0f / MaxSubjectDepth;
 
 		MinPreSubjectZ = Initializer.MinLightW;
 
-		GetViewFrustumBounds(CasterOuterFrustum, TranslatedWorldToClipOuterMatrix, true);
+		GetViewFrustumBounds(CasterOuterFrustum, FMatrix(TranslatedWorldToClipOuterMatrix), true);
 		GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
 		
-		InvReceiverInnerMatrix = ReceiverInnerMatrix.InverseFast();
+		InvReceiverInnerMatrix = FMatrix44f(ReceiverInnerMatrix.InverseFast());
 		
 		UpdateShaderDepthBias();
 
@@ -976,8 +976,8 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 
 	ViewToClipInner = InnerScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
 	ViewToClipOuter = OuterScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, Initializer.WAxis);
-	TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
-	TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
+	TranslatedWorldToClipInnerMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipInner);		// LWC_TODO: Precision loss
+	TranslatedWorldToClipOuterMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipOuter);
 	
 	// Nothing to do with subject depth. Just a scale factor to map z to 0-1.
 	float MaxSubjectDepth = bDirectionalLight ? 1.0f : MinSubjectZ;
@@ -987,10 +987,10 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	// Any meshes between the light and the subject can cast shadows, also any meshes inside the subject region
 	const FMatrix CasterOuterMatrix = WorldToViewScaledInner * BorderScaleMatrix * FShadowProjectionMatrix(Initializer.MinLightW, MaxSubjectZ, Initializer.WAxis);
 	const FMatrix ReceiverInnerMatrix = WorldToViewScaledInner * FShadowProjectionMatrix(MinSubjectZ, ClampedMaxLightW, Initializer.WAxis);
-	GetViewFrustumBounds(CasterOuterFrustum, TranslatedWorldToClipOuterMatrix, true);
+	GetViewFrustumBounds(CasterOuterFrustum, FMatrix(TranslatedWorldToClipOuterMatrix), true);
 	GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
 	
-	InvReceiverInnerMatrix = ReceiverInnerMatrix.InverseFast();
+	InvReceiverInnerMatrix = FMatrix44f(ReceiverInnerMatrix.InverseFast());
 
 	UpdateShaderDepthBias();
 
@@ -1064,7 +1064,7 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 
 	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
 	PreShadowTranslation = Data.ShadowPreViewTranslation;
-	const FMatrix CasterMatrix = Data.TranslatedWorldToShadowViewMatrix * Data.ShadowViewToClipMatrix;
+	const FMatrix CasterMatrix = FMatrix(Data.TranslatedWorldToShadowViewMatrix * Data.ShadowViewToClipMatrix);
 	GetViewFrustumBounds(CasterOuterFrustum, CasterMatrix, true);
 	ReceiverInnerFrustum = CasterOuterFrustum;
 
@@ -1084,11 +1084,11 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	// Um... it's checked in IsWholeSceneDirectionalShadow()
 	CascadeSettings.ShadowSplitIndex = 1000;
 
-	ViewToClipInner = Data.ShadowViewToClipMatrix;
-	ViewToClipOuter = Data.ShadowViewToClipMatrix;
-	TranslatedWorldToView = Data.TranslatedWorldToShadowViewMatrix;
-	TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
-	TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
+	ViewToClipInner = FMatrix(Data.ShadowViewToClipMatrix);
+	ViewToClipOuter = FMatrix(Data.ShadowViewToClipMatrix);
+	TranslatedWorldToView = FMatrix(Data.TranslatedWorldToShadowViewMatrix);
+	TranslatedWorldToClipInnerMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipInner);
+	TranslatedWorldToClipOuterMatrix = FMatrix44f(TranslatedWorldToView * ViewToClipOuter);
 }
 
 void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
@@ -3952,7 +3952,7 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 								//DrawWireSphere(&ShadowFrustumPDI, FTransform(ProjectedShadowInfo.ShadowBounds.Center), Color, ProjectedShadowInfo.ShadowBounds.W, 40, 0);
 
 								// Shadow Map Projection Bounds
-								DrawFrustumWireframe(&ShadowFrustumPDI, ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix.Inverse() * FTranslationMatrix(-ProjectedShadowInfo.PreShadowTranslation), Color, 0);
+								DrawFrustumWireframe(&ShadowFrustumPDI, FMatrix(ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix.Inverse()) * FTranslationMatrix(-ProjectedShadowInfo.PreShadowTranslation), Color, 0);
 							}
 							else
 							{

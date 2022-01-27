@@ -3995,7 +3995,7 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	// Reflection captures
 	for (auto It = ReflectionSceneData.RegisteredReflectionCaptures.CreateIterator(); It; ++It)
 	{
-		FMatrix NewTransform = (*It)->BoxTransform.Inverse().ConcatTranslation(InOffset);
+		FMatrix NewTransform = FMatrix((*It)->BoxTransform.Inverse().ConcatTranslation(InOffset));
 		(*It)->SetTransform(NewTransform);
 	}
 

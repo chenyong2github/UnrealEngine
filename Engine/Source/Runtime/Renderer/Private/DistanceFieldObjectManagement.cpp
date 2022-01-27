@@ -434,9 +434,9 @@ bool ProcessPrimitiveUpdate(
 			for (int32 TransformIndex = 0; TransformIndex < ObjectLocalToWorldTransforms.Num(); TransformIndex++)
 			{
 				const FRenderTransform& LocalToWorldTransform = ObjectLocalToWorldTransforms[TransformIndex];
-				const FMatrix44f LocalToWorld = LocalToWorldTransform.ToMatrix();
+				const FMatrix LocalToWorld = LocalToWorldTransform.ToMatrix();
 
-				const float MaxScale = LocalToWorld.GetMaximumAxisScale();
+				const FMatrix::FReal MaxScale = LocalToWorld.GetMaximumAxisScale();
 
 				// Skip degenerate primitives
 				if (MaxScale > 0)
@@ -700,7 +700,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FBox LocalSpaceMeshBounds = DistanceFieldData->LocalSpaceMeshBounds;
 			
-									const FMatrix44f LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix44f();
+									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix();
 									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
 									const FVector4f ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
@@ -721,16 +721,16 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									// Uniformly scale our Volume space to lie within [-1, 1] at the max extent
 									// This is mirrored in the SDF encoding
-									const float LocalToVolumeScale = 1.0f / LocalSpaceMeshBounds.GetExtent().GetMax();
+									const FBox::FReal LocalToVolumeScale = 1.0f / LocalSpaceMeshBounds.GetExtent().GetMax();
 
-									const FMatrix44f VolumeToWorld = 
+									const FMatrix44f VolumeToWorld = FMatrix44f(		// LWC_TODO: Precision loss
 										FScaleMatrix(1.0f / LocalToVolumeScale)
 										* FTranslationMatrix(LocalSpaceMeshBounds.GetCenter())
-										* LocalToWorld;
+										* LocalToWorld);
 
 									const FVector VolumePositionExtent = LocalSpaceMeshBounds.GetExtent() * LocalToVolumeScale;
 
-									const FMatrix44f WorldToVolumeT = VolumeToWorld.Inverse().GetTransposed();
+									const FMatrix44f WorldToVolumeT = FMatrix44f(VolumeToWorld.Inverse().GetTransposed());
 									// WorldToVolumeT
 									UploadObjectData[0] = (*(FVector4f*)&WorldToVolumeT.M[0]);
 									UploadObjectData[1] = (*(FVector4f*)&WorldToVolumeT.M[1]);

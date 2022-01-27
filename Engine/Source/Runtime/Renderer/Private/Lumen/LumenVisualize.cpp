@@ -1078,7 +1078,7 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 					FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
 					CardColor.A = 1.0f;
 
-					const FMatrix44f CardToWorld = Card.WorldOBB.GetCardToLocal();
+					const FMatrix CardToWorld(Card.WorldOBB.GetCardToLocal());
 					const FBox LocalBounds(-Card.WorldOBB.Extent, Card.WorldOBB.Extent);
 
 					DrawWireBox(&ViewPDI, CardToWorld, LocalBounds, CardColor, DepthPriority);

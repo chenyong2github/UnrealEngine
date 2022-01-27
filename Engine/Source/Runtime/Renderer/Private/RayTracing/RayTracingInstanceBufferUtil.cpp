@@ -206,7 +206,7 @@ void FillRayTracingInstanceUploadBuffer(
 				if (bCpuInstance)
 				{
 					const uint32 TransformDataOffset = InstanceDesc.GPUSceneInstanceOrTransformIndex * 3;
-					const FMatrix44f LocalToWorld = SceneInstance.Transforms[TransformIndex].GetTransposed();
+					const FMatrix44f LocalToWorld = FMatrix44f(SceneInstance.Transforms[TransformIndex].GetTransposed());		// LWC_TODO: Precision loss
 					OutTransformData[TransformDataOffset + 0] = *(FVector4f*)&LocalToWorld.M[0];
 					OutTransformData[TransformDataOffset + 1] = *(FVector4f*)&LocalToWorld.M[1];
 					OutTransformData[TransformDataOffset + 2] = *(FVector4f*)&LocalToWorld.M[2];

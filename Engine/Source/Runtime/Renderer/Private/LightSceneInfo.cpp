@@ -342,7 +342,7 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 			SpotLightShadowSharpenAndShadowFadeFraction = FVector4f(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
 
 			const FMatrix WorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(SpotLightShadowmapMinMax);
-			SpotLightWorldToShadowMatrix = FTranslationMatrix(LightParameters.WorldPosition) * WorldToShadowMatrix;
+			SpotLightWorldToShadowMatrix = FMatrix44f(FTranslationMatrix(LightParameters.WorldPosition) * WorldToShadowMatrix);
 		}
 
 		const FLargeWorldRenderPosition AbsoluteWorldPosition(LightParameters.WorldPosition);

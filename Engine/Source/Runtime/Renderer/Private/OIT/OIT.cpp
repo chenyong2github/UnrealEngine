@@ -436,8 +436,8 @@ static void AddOITSortTriangleIndexPass(
 		const float ViewBoundMaxZ = ViewBounds.GetBox().Max.Z;
 
 		FOITSortTriangleIndex_ScanCS::FParameters* Parameters = GraphBuilder.AllocParameters<FOITSortTriangleIndex_ScanCS::FParameters>();
-		Parameters->LocalToWorld			= MeshBatch.Proxy->GetLocalToWorld();
-		Parameters->WorldToView				= View.ViewMatrices.GetViewMatrix();
+		Parameters->LocalToWorld			= FMatrix44f(MeshBatch.Proxy->GetLocalToWorld());	// LWC_TODO: Precision loss?
+		Parameters->WorldToView				= FMatrix44f(View.ViewMatrices.GetViewMatrix());
 		Parameters->SourcePrimitiveType		= Allocation.SourcePrimitiveType == PT_TriangleStrip ? 1u : 0u;
 		Parameters->NumPrimitives			= Allocation.NumPrimitives;
 		Parameters->NumIndices				= Allocation.NumIndices;
@@ -455,7 +455,7 @@ static void AddOITSortTriangleIndexPass(
 		// Debug
 		if (bDebugEnable)
 		{
-			Parameters->ViewToWorld		= View.ViewMatrices.GetViewMatrix().Inverse();
+			Parameters->ViewToWorld		= FMatrix44f(View.ViewMatrices.GetViewMatrix().Inverse());	 // LWC_TODO: Precision loss?
 			Parameters->WorldBound_Min	= Bounds.GetBox().Min;
 			Parameters->WorldBound_Max	= Bounds.GetBox().Max;
 			Parameters->ViewBound_Min	= ViewBounds.GetBox().Min;

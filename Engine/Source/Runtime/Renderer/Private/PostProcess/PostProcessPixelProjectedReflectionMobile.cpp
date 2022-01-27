@@ -279,7 +279,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 
 		FVector PlanarReflectionPlaneExtent = PlanarReflectionSceneProxy->WorldBounds.GetExtent();
 
-		VSShaderParameters->LocalToWorld = FScaleMatrix::Make(FVector(PlanarReflectionPlaneExtent.X, PlanarReflectionPlaneExtent.Y, 1.0f)) * FRotationMatrix::MakeFromXY(PlanarReflectionSceneProxy->PlanarReflectionXAxis, PlanarReflectionSceneProxy->PlanarReflectionYAxis) * FTranslationMatrix::Make(PlanarReflectionSceneProxy->PlanarReflectionOrigin);
+		VSShaderParameters->LocalToWorld = FMatrix44f(FScaleMatrix::Make(FVector(PlanarReflectionPlaneExtent.X, PlanarReflectionPlaneExtent.Y, 1.0f)) * FRotationMatrix::MakeFromXY(PlanarReflectionSceneProxy->PlanarReflectionXAxis, PlanarReflectionSceneProxy->PlanarReflectionYAxis) * FTranslationMatrix::Make(PlanarReflectionSceneProxy->PlanarReflectionOrigin));	// LWC_TODO: Precision loss
 
 		auto ShaderPermutationVector = FPixelProjectedReflectionMobile_ReflectionPassPS::BuildPermutationVector(GetMobilePixelProjectedReflectionQuality() - 1);
 

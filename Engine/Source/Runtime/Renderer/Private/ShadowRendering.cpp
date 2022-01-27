@@ -281,7 +281,7 @@ void GetOnePassPointShadowProjectionParameters(FRDGBuilder& GraphBuilder, const 
 	{
 		for (int32 i = 0; i < ShadowInfo->OnePassShadowViewProjectionMatrices.Num(); i++)
 		{
-			OutParameters.ShadowViewProjectionMatrices[i] = ShadowInfo->OnePassShadowViewProjectionMatrices[i];
+			OutParameters.ShadowViewProjectionMatrices[i] = FMatrix44f(ShadowInfo->OnePassShadowViewProjectionMatrices[i]);	// LWC_TODO: Precision loss
 		}
 
 		OutParameters.InvShadowmapResolution = 1.0f / ShadowInfo->ResolutionX;
@@ -1632,7 +1632,7 @@ void FProjectedShadowInfo::RenderFrustumWireframe(FPrimitiveDrawInterface* PDI) 
 	// Render the wireframe for the frustum derived from ReceiverMatrix.
 	DrawFrustumWireframe(
 		PDI,
-		InvShadowTransform * FTranslationMatrix(-PreShadowTranslation),
+		FMatrix(InvShadowTransform) * FTranslationMatrix(-PreShadowTranslation),
 		Color,
 		SDPG_World
 		);
@@ -1683,7 +1683,7 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 		FTranslationMatrix(PreShadowTranslation) *
 		// Transform into the shadow's post projection space
 		// This has to be the same transform used to render the shadow depths
-		TranslatedWorldToClipInnerMatrix *
+		FMatrix(TranslatedWorldToClipInnerMatrix) *
 		// Scale and translate x and y to be texture coordinates into the ShadowInfo's rectangle in the shadow depth buffer
 		// Normalize z by MaxSubjectDepth, as was done when writing shadow depths
 		FMatrix(
@@ -1725,7 +1725,7 @@ FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4f& ShadowmapMinMax,
 		FTranslationMatrix(PreShadowTranslation) *
 		// Transform into the shadow's post projection space
 		// This has to be the same transform used to render the shadow depths
-		TranslatedWorldToClipInnerMatrix *
+		FMatrix(TranslatedWorldToClipInnerMatrix) *
 		// Scale and translate x and y to be texture coordinates into the ShadowInfo's rectangle in the shadow depth buffer
 		// Normalize z by MaxSubjectDepth, as was done when writing shadow depths
 		FMatrix(
@@ -2463,7 +2463,7 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		FVector4f ShadowmapMinMax;
 		FMatrix WorldToShadowMatrixValue = ShadowInfo->GetWorldToShadowMatrix(ShadowmapMinMax);
 
-		OutParameters.WorldToShadowMatrix = WorldToShadowMatrixValue;
+		OutParameters.WorldToShadowMatrix = FMatrix44f(WorldToShadowMatrixValue);		// LWC_TODO: Precision loss?
 		OutParameters.ShadowUVMinMax = ShadowmapMinMax;
 
 		const FLightSceneProxy* const LightProxy = ShadowInfo->GetLightSceneInfo().Proxy;

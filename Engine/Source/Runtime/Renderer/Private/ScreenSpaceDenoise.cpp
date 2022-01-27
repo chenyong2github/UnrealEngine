@@ -1595,12 +1595,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.BufferUVToOutputPixelPosition.X = BufferExtent.X;
 		CommonParameters.BufferUVToOutputPixelPosition.Y = BufferExtent.Y;
 
-		CommonParameters.ScreenToView = FMatrix(
+		CommonParameters.ScreenToView = FMatrix44f(FMatrix(		// LWC_TODO: Precision loss
 			FPlane(1, 0, 0, 0),
 			FPlane(0, 1, 0, 0),
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
-			* View.ViewMatrices.GetInvProjectionMatrix();
+			* View.ViewMatrices.GetInvProjectionMatrix());
 
 		CommonParameters.BufferUVBilinearCorrection.X = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.X) / float(FullResBufferExtent.X);
 		CommonParameters.BufferUVBilinearCorrection.Y = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.Y) / float(FullResBufferExtent.Y);

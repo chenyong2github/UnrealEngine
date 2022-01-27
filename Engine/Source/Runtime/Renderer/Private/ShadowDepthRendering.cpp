@@ -146,8 +146,8 @@ void SetupShadowDepthPassUniformBuffer(
 
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
-	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;	
-	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->TranslatedWorldToView;
+	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix44f(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;		// LWC_TDOO: Precision loss?
+	ShadowDepthPassParameters.ViewMatrix = FMatrix44f(ShadowInfo->TranslatedWorldToView);	// LWC_TODO: Precision loss
 
 	// Disable the SlopeDepthBias because we couldn't reconstruct the depth offset if it is not 0.0f when scrolling the cached shadow map.
 	ShadowDepthPassParameters.ShadowParams = FVector4f(ShadowInfo->GetShaderDepthBias(), bCSMCachingEnabled ? 0.0f : ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
@@ -162,8 +162,8 @@ void SetupShadowDepthPassUniformBuffer(
 
 		for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
 		{
-			ShadowDepthPassParameters.ShadowViewProjectionMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewProjectionMatrices[FaceIndex];
-			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewMatrices[FaceIndex];
+			ShadowDepthPassParameters.ShadowViewProjectionMatrices[FaceIndex] = FMatrix44f(Translation * ShadowInfo->OnePassShadowViewProjectionMatrices[FaceIndex]);		// LWC_TODO: Precision loss?
+			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = FMatrix44f(Translation * ShadowInfo->OnePassShadowViewMatrices[FaceIndex]);
 		}
 	}
 
@@ -185,8 +185,8 @@ void SetupShadowDepthPassUniformBuffer(
 {
 	SetupMobileSceneTextureUniformParameters(GraphBuilder, EMobileSceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
 
-	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;
-	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->TranslatedWorldToView;
+	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix44f(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;		// LWC_TODO: Precision loss
+	ShadowDepthPassParameters.ViewMatrix = FMatrix44f(ShadowInfo->TranslatedWorldToView);
 
 	ShadowDepthPassParameters.ShadowParams = FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->InvMaxSubjectDepth);
 	ShadowDepthPassParameters.bClampToNearPlane = ShadowInfo->ShouldClampToNearPlane() ? 1.0f : 0.0f;

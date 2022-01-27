@@ -241,10 +241,10 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	
 	// NOTE: Some shader logic (projection, etc) assumes some of these parameters are constant across all levels in a clipmap
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = WorldToLightViewRotationMatrix;
-	Data.ShadowViewToClipMatrix = Level.ViewToClip;
-	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip);
-	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip);
+	Data.TranslatedWorldToShadowViewMatrix = FMatrix44f(WorldToLightViewRotationMatrix);	// LWC_TODO: Precision loss?
+	Data.ShadowViewToClipMatrix = FMatrix44f(Level.ViewToClip);
+	Data.TranslatedWorldToShadowUVMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
+	Data.TranslatedWorldToShadowUVNormalMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVNormalMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
 	Data.ShadowPreViewTranslation = -Level.WorldCenter;
 	Data.LightType = ELightComponentType::LightType_Directional;
 	Data.ClipmapWorldOrigin = WorldOrigin;

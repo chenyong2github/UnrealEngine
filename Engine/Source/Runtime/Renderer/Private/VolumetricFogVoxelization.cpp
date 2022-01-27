@@ -49,7 +49,7 @@ TRDGUniformBufferRef<FVoxelizeVolumePassUniformParameters> CreateVoxelizeVolumeP
 	auto* Parameters = GraphBuilder.AllocParameters<FVoxelizeVolumePassUniformParameters>();
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters->SceneTextures);
 
-	Parameters->ViewToVolumeClip = View.ViewMatrices.ComputeProjectionNoAAMatrix();
+	Parameters->ViewToVolumeClip = FMatrix44f(View.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 	Parameters->ViewToVolumeClip.M[2][0] += Jitter.X;
 	Parameters->ViewToVolumeClip.M[2][1] += Jitter.Y;
 

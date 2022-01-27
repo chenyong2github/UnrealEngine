@@ -1087,10 +1087,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices( i, true );
 
 						FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ID ];
-						Data.TranslatedWorldToShadowViewMatrix		= ViewMatrices.GetTranslatedViewMatrix();
-						Data.ShadowViewToClipMatrix					= ViewMatrices.GetProjectionMatrix();
-						Data.TranslatedWorldToShadowUVMatrix		= CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
-						Data.TranslatedWorldToShadowUVNormalMatrix	= CalcTranslatedWorldToShadowUVNormalMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
+						Data.TranslatedWorldToShadowViewMatrix		= FMatrix44f(ViewMatrices.GetTranslatedViewMatrix());	// LWC_TODO: Precision loss?
+						Data.ShadowViewToClipMatrix					= FMatrix44f(ViewMatrices.GetProjectionMatrix());
+						Data.TranslatedWorldToShadowUVMatrix		= FMatrix44f(CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() ));
+						Data.TranslatedWorldToShadowUVNormalMatrix	= FMatrix44f(CalcTranslatedWorldToShadowUVNormalMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() ));
 						Data.ShadowPreViewTranslation				= FVector(ProjectedShadowInfo->PreShadowTranslation);
 						Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
 						Data.LightSourceRadius						= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetSourceRadius();
@@ -2336,8 +2336,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		FShadowDepthPassUniformParameters* ShadowDepthPassParameters = GraphBuilder.AllocParameters<FShadowDepthPassUniformParameters>();
 		check(PhysicalPagePoolRDG != nullptr);
 		// TODO: These are not used for this case anyway
-		ShadowDepthPassParameters->ProjectionMatrix = FMatrix::Identity;
-		ShadowDepthPassParameters->ViewMatrix = FMatrix::Identity;
+		ShadowDepthPassParameters->ProjectionMatrix = FMatrix44f::Identity;
+		ShadowDepthPassParameters->ViewMatrix = FMatrix44f::Identity;
 		ShadowDepthPassParameters->ShadowParams = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
 		ShadowDepthPassParameters->bRenderToVirtualShadowMap = true;
 

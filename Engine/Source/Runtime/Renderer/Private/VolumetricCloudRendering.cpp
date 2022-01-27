@@ -1566,7 +1566,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					const FVector3f LightPosition = LookAtPosition - AtmopshericLightDirection * SphereRadius;
 					FReversedZOrthoMatrix ShadowProjectionMatrix(SphereDiameter, SphereDiameter, ZScale, ZOffset);
 					FLookAtMatrix ShadowViewMatrix(LightPosition, LookAtPosition, UpVector);
-					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = ShadowViewMatrix * ShadowProjectionMatrix;
+					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = FMatrix44f(ShadowViewMatrix * ShadowProjectionMatrix);	// LWC_TODO: Precision loss
 					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrixInv[LightIndex] = CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex].Inverse();
 					CloudGlobalShaderParams.CloudShadowmapLightDir[LightIndex] = AtmopshericLightDirection;
 					CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex] = LightPosition;
@@ -1638,7 +1638,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				const FVector3f LightPosition = LookAtPosition - TraceDirection * VolumeDepthRange;
 				FReversedZOrthoMatrix ShadowProjectionMatrix(SphereDiameter, SphereDiameter, ZScale, ZOffset);
 				FLookAtMatrix ShadowViewMatrix(LightPosition, LookAtPosition, UpVector);
-				CloudGlobalShaderParams.CloudSkyAOWorldToLightClipMatrix = ShadowViewMatrix * ShadowProjectionMatrix;
+				CloudGlobalShaderParams.CloudSkyAOWorldToLightClipMatrix = FMatrix44f(ShadowViewMatrix * ShadowProjectionMatrix);	// LWC_TODO: Precision loss
 				CloudGlobalShaderParams.CloudSkyAOWorldToLightClipMatrixInv = CloudGlobalShaderParams.CloudSkyAOWorldToLightClipMatrix.Inverse();
 				CloudGlobalShaderParams.CloudSkyAOTraceDir = TraceDirection;
 				CloudGlobalShaderParams.CloudSkyAOFarDepthKm = FarPlane * CentimetersToKilometers;
@@ -1816,7 +1816,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 								{
 									Parameters->PrevCloudShadowTexture = CloudShadowTemporalRT.GetOrCreatePreviousRT(GraphBuilder);
 									Parameters->CurrFrameCloudShadowmapWorldToLightClipMatrixInv = CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrixInv[LightIndex];
-									Parameters->PrevFrameCloudShadowmapWorldToLightClipMatrix = ViewInfo.ViewState->VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[LightIndex];
+									Parameters->PrevFrameCloudShadowmapWorldToLightClipMatrix = FMatrix44f(ViewInfo.ViewState->VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[LightIndex]);
 								}
 								else
 								{
@@ -1896,7 +1896,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 						if (ViewInfo.ViewState)
 						{
 							// Update the view previous cloud shadow matrix for next frame
-							ViewInfo.ViewState->VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[LightIndex] = CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex];
+							ViewInfo.ViewState->VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[LightIndex] = FMatrix(CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex]);
 							ViewInfo.ViewState->VolumetricCloudShadowmapPreviousAtmosphericLightDir[LightIndex] = AtmosphericLight ? AtmosphericLight->GetDirection() : FVector::ZeroVector;
 							ViewInfo.ViewState->VolumetricCloudShadowmapPreviousAtmosphericLightPos[LightIndex] = FVector4(CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex]);
 							ViewInfo.ViewState->VolumetricCloudShadowmapPreviousAnchorPoint[LightIndex] = FVector4(CloudGlobalShaderParams.CloudShadowmapLightAnchorPos[LightIndex]);
@@ -2499,7 +2499,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 							Canvas.DrawShadowedString(0.05f, ViewPortHeight * 0.4f, *Text, GetStatsFont(), TextColor);
 						});
 
-						DrawFrustumWireframe(&ShadowFrustumPDI, VolumetricCloudParams.VolumetricCloud.CloudShadowmapWorldToLightClipMatrixInv[DebugLightIndex], FColor::Orange, 0);
+						DrawFrustumWireframe(&ShadowFrustumPDI, FMatrix(VolumetricCloudParams.VolumetricCloud.CloudShadowmapWorldToLightClipMatrixInv[DebugLightIndex]), FColor::Orange, 0);
 						FDrawDebugCloudShadowCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugCloudShadowCS::FParameters>();
 						Parameters->CloudTracedTexture = CloudRC.VolumetricCloudShadowTexture[DebugLightIndex];
 						Parameters->CloudTraceDirection = VolumetricCloudParams.VolumetricCloud.CloudShadowmapLightDir[DebugLightIndex];
@@ -2514,7 +2514,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 
 					if (DebugCloudSkyAO && ViewInfo.VolumetricCloudSkyAO != nullptr)
 					{
-						DrawFrustumWireframe(&ShadowFrustumPDI, VolumetricCloudParams.VolumetricCloud.CloudSkyAOWorldToLightClipMatrixInv, FColor::Blue, 0); 
+						DrawFrustumWireframe(&ShadowFrustumPDI, FMatrix(VolumetricCloudParams.VolumetricCloud.CloudSkyAOWorldToLightClipMatrixInv), FColor::Blue, 0); 
 						FDrawDebugCloudShadowCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugCloudShadowCS::FParameters>();
 						Parameters->CloudTracedTexture = ViewInfo.VolumetricCloudSkyAO;
 						Parameters->CloudTextureSizeInvSize = VolumetricCloudParams.VolumetricCloud.CloudSkyAOSizeInvSize;
@@ -2537,7 +2537,7 @@ bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FSc
 		OutParam.CloudShadowmapTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		OutParam.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		OutParam.CloudShadowmapFarDepthKm = 1.0f;
-		OutParam.CloudShadowmapWorldToLightClipMatrix = FMatrix::Identity;
+		OutParam.CloudShadowmapWorldToLightClipMatrix = FMatrix44f::Identity;
 		OutParam.CloudShadowmapStrength = 0.0f;
 	};
 

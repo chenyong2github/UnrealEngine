@@ -677,7 +677,7 @@ void SetupLightFunctionParameters(const FLightSceneInfo* LightSceneInfo, float S
 	const FVector InverseScale = FVector( 1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X );
 	const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
 
-	OutParameters.LightFunctionWorldToLight = WorldToLight;
+	OutParameters.LightFunctionWorldToLight = FMatrix44f(WorldToLight);		// LWC_TODO: Precision loss
 
 	const float PreviewShadowsMask = 0.0f;
 	OutParameters.LightFunctionParameters2 = FVector(
@@ -1061,7 +1061,7 @@ void TraceDistanceFieldShadows(
 		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
 
 		PassParameters->DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
-		PassParameters->WorldToShadow = WorldToMeshSDFShadowValue;
+		PassParameters->WorldToShadow = FMatrix44f(WorldToMeshSDFShadowValue);	// LWC_TODO: Precision loss
 		extern float GTwoSidedMeshDistanceBias;
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 

@@ -221,7 +221,7 @@ void SetupTranslucencyDepthPassUniformBuffer(
 	// Set the scene depth texture to something safe when rendering shadow depths
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, TranslucencyDepthPassParameters.SceneTextures);
 
-	TranslucencyDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipInnerMatrix;
+	TranslucencyDepthPassParameters.ProjectionMatrix = FTranslationMatrix44f(FVector3f(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation())) * ShadowInfo->TranslatedWorldToClipInnerMatrix;
 
 	// Only clamp vertices to the near plane when rendering whole scene directional light shadow depths or preshadows from directional lights
 	const bool bClampToNearPlaneValue = ShadowInfo->IsWholeSceneDirectionalShadow() || (ShadowInfo->bPreShadow && ShadowInfo->bDirectionalLight);
@@ -1119,7 +1119,7 @@ static void InjectTranslucentLightArray(
 					const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 					// Switch x and z so that z of the user specified scale affects the distance along the light direction
 					const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-					const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+					const FMatrix44f WorldToLight = FMatrix44f(LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(InverseScale));	// LWC_TODO: Precision loss?
 					PassParameters->PS.LightFunctionWorldToLight = WorldToLight;
 				}
 

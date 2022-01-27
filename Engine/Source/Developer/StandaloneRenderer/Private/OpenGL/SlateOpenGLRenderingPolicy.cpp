@@ -152,8 +152,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 	ElementProgram.BindProgram();
 
 	// Set the view projection matrix for the current viewport.
-	FMatrix44f ViewProjectionMatrix32(ViewProjectionMatrix);
-	ElementProgram.SetViewProjectionMatrix( ViewProjectionMatrix32 );
+	ElementProgram.SetViewProjectionMatrix( ViewProjectionMatrix );
 
 	// OpenGL state toggles
 	glDisable(GL_DEPTH_TEST);

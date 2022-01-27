@@ -3120,7 +3120,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			PassParameters->HairStrandsVF_Length			= VFInput.Strands.HairLength;
 			PassParameters->HairStrandsVF_bUseStableRasterization = VFInput.Strands.bUseStableRasterization ? 1 : 0;
 			PassParameters->HairStrandsVF_Density			= VFInput.Strands.HairDensity;
-			PassParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale();
+			PassParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss
 
 			const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
 			if (bCullingEnable)

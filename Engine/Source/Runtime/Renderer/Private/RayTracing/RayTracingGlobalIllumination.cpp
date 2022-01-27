@@ -1151,7 +1151,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	GatherPointData.Count = SamplesPerPixel;
 	for (int ViewHistoryIndex = 0; ViewHistoryIndex < MAXIMUM_GATHER_POINTS_PER_PIXEL; ViewHistoryIndex++)
 	{
-		GatherPointData.ViewMatrices[ViewHistoryIndex] = View.ViewState->GatherPointsViewHistory[ViewHistoryIndex];
+		GatherPointData.ViewMatrices[ViewHistoryIndex] = FMatrix44f(View.ViewState->GatherPointsViewHistory[ViewHistoryIndex]);			// LWC_TODO: Precision
 	}
 	PassParameters->GatherPointData = CreateUniformBufferImmediate(GatherPointData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 

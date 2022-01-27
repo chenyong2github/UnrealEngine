@@ -94,7 +94,7 @@ void AddInjectHairVoxelShadowCaster(
 {
 	FHairStransShadowDepthInjectionParameters* Parameters = GraphBuilder.AllocParameters<FHairStransShadowDepthInjectionParameters>();
 	Parameters->OutputResolution = AtlasSlotResolution;
-	Parameters->CPU_TranslatedWorldToClip = CPU_TranslatedWorldToClipMatrix;
+	Parameters->CPU_TranslatedWorldToClip = FMatrix44f(CPU_TranslatedWorldToClipMatrix);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
@@ -437,7 +437,7 @@ void RenderHairStrandsDeepShadows(
 					{
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
-						UniformParameters->CPU_TranslatedWorldToClipMatrix = DomData.CPU_TranslatedWorldToLightTransform;
+						UniformParameters->CPU_TranslatedWorldToClipMatrix = FMatrix44f(DomData.CPU_TranslatedWorldToLightTransform);	// LWC_TODO: Precision loss
 						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
@@ -477,7 +477,7 @@ void RenderHairStrandsDeepShadows(
 					{
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
-						UniformParameters->CPU_TranslatedWorldToClipMatrix = DomData.CPU_TranslatedWorldToLightTransform;;
+						UniformParameters->CPU_TranslatedWorldToClipMatrix = FMatrix44f(DomData.CPU_TranslatedWorldToLightTransform);	// LWC_TODO: Precision loss
 						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;

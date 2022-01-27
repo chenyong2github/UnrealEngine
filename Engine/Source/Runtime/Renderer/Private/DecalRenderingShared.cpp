@@ -76,7 +76,7 @@ public:
 		SvPositionToDecal.Bind(Initializer.ParameterMap,TEXT("SvPositionToDecal"));
 		DecalToWorld.Bind(Initializer.ParameterMap,TEXT("DecalToWorld"));
 		DecalToWorldInvScale.Bind(Initializer.ParameterMap, TEXT("DecalToWorldInvScale"));
-		DecalOrientation.Bind(Initializer.ParameterMap, TEXT("DecalOrientation"));
+		DecalOrientation.Bind(Initializer.ParameterMap,TEXT("DecalOrientation"));
 		DecalParams.Bind(Initializer.ParameterMap, TEXT("DecalParams"));
 	}
 
@@ -100,7 +100,7 @@ public:
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, DecalTilePosition, TilePosition);
 		}
-		if (SvPositionToDecal.IsBound())
+		if(SvPositionToDecal.IsBound())
 		{
 			FVector2D InvViewSize = FVector2D(1.0f / View.ViewRect.Width(), 1.0f / View.ViewRect.Height());
 
@@ -114,17 +114,17 @@ public:
 			float Ay = 1.0f + 2.0f * View.ViewRect.Min.Y * InvViewSize.Y;
 
 			// todo: we could use InvTranslatedViewProjectionMatrix and TranslatedWorldToComponent for better quality
-			const FMatrix44f SvPositionToDecalValue = 
+			const FMatrix44f SvPositionToDecalValue = FMatrix44f(										// LWC_TODO: Precision loss
 				FMatrix(
 					FPlane(Mx,  0,   0,  0),
 					FPlane( 0, My,   0,  0),
 					FPlane( 0,  0,   1,  0),
 					FPlane(Ax, Ay,   0,  1)
-				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToDecalMatrix;
+				) * View.ViewMatrices.GetInvViewProjectionMatrix() * WorldToDecalMatrix);
 
 			SetShaderValue(RHICmdList, ShaderRHI, SvPositionToDecal, SvPositionToDecalValue);
 		}
-		if (DecalToWorld.IsBound())
+		if(DecalToWorld.IsBound())
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, DecalToWorld, RelativeDecalToWorldMatrix);
 		}
@@ -385,7 +385,7 @@ namespace DecalRendering
 		// Set vertex shader parameters.
 		{
 			FDeferredDecalVS::FParameters ShaderParameters;
-			ShaderParameters.FrustumComponentToClip = FrustumComponentToClip;
+			ShaderParameters.FrustumComponentToClip = FMatrix44f(FrustumComponentToClip);			// LWC_TODO: Precision loss?
 			ShaderParameters.PrimitiveUniformBuffer = GIdentityPrimitiveUniformBuffer.GetUniformBufferRef();
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ShaderParameters);
@@ -424,7 +424,7 @@ namespace DecalRendering
 		// Set vertex shader parameters.
 		{
 			FDeferredDecalVS::FParameters ShaderParameters;
-			ShaderParameters.FrustumComponentToClip = FrustumComponentToClip;
+			ShaderParameters.FrustumComponentToClip = FMatrix44f(FrustumComponentToClip);	// LWC_TODO: Precision loss
 			ShaderParameters.PrimitiveUniformBuffer = GIdentityPrimitiveUniformBuffer.GetUniformBufferRef();
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ShaderParameters);

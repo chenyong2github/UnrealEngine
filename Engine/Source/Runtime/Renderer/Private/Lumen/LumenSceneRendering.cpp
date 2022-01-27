@@ -849,7 +849,7 @@ void FLumenCard::Initialize(float InResolutionScale, const FMatrix& LocalToWorld
 	ResolutionScale = InResolutionScale;
 	AxisAlignedDirectionIndex = CardBuildData.AxisAlignedDirectionIndex;
 
-	SetTransform(LocalToWorld, CardBuildData.OBB);
+	SetTransform(FMatrix44f(LocalToWorld), CardBuildData.OBB);		// LWC_TODO: Precision loss?
 }
 
 void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB)

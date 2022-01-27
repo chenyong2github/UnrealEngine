@@ -456,7 +456,7 @@ static bool UpdateScissorRect(
 
 					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, MaskingID + 1);
 
-					VertexShader->SetViewProjection(RHICmdList, ViewProjection);
+					VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
 					VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
 					// Draw the first stencil using SO_Replace, so that we stomp any pixel with a MaskingID + 1.
@@ -496,7 +496,7 @@ static bool UpdateScissorRect(
 
 						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, 0);
 
-						VertexShader->SetViewProjection(RHICmdList, ViewProjection);
+						VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
 						VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 					}
 				}
@@ -634,7 +634,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				.SetGammaCorrection(DisplayGamma)
 				.SetRealtimeUpdate(true)
 			);
-			SceneViews[i] = CreateSceneView(SceneViewFamilyContexts[i], BackBuffer, Params.ViewProjectionMatrix);
+			SceneViews[i] = CreateSceneView(SceneViewFamilyContexts[i], BackBuffer, FMatrix(Params.ViewProjectionMatrix));
 		}
 
 		SceneViewFamilyContexts[NumScenes - 1] = new FSceneViewFamilyContext
@@ -649,7 +649,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 			.SetGammaCorrection(DisplayGamma)
 			.SetRealtimeUpdate(true)
 		);
-		SceneViews[NumScenes - 1] = CreateSceneView(SceneViewFamilyContexts[NumScenes - 1], BackBuffer, Params.ViewProjectionMatrix);
+		SceneViews[NumScenes - 1] = CreateSceneView(SceneViewFamilyContexts[NumScenes - 1], BackBuffer, FMatrix(Params.ViewProjectionMatrix));
 	}
 
 	TShaderMapRef<FSlateElementVS> GlobalVertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
@@ -763,7 +763,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 		if (!RenderBatch.CustomDrawer)
 		{
 			FMatrix DynamicOffset = FTranslationMatrix::Make(FVector(RenderBatch.DynamicOffset.X, RenderBatch.DynamicOffset.Y, 0));
-			const FMatrix ViewProjection = DynamicOffset * Params.ViewProjectionMatrix;
+			const FMatrix ViewProjection = DynamicOffset * FMatrix(Params.ViewProjectionMatrix);
 
 			UpdateScissorRect(
 				RHICmdList,
@@ -1001,7 +1001,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(Slate_SetTextureShaderParams);
 
-					GlobalVertexShader->SetViewProjection(RHICmdList, ViewProjection);
+					GlobalVertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
 					GlobalVertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
 					if (bIsVirtualTexture && (TextureResource != nullptr))
@@ -1143,7 +1143,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 							{
 								QUICK_SCOPE_CYCLE_COUNTER(Slate_SetMaterialShaderParams);
-								VertexShader->SetViewProjection(RHICmdList, ViewProjection);
+								VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
 								VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial);
 
@@ -1222,7 +1222,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						bSwitchVerticalAxis,
 						InGraphicsPSOInit,
 						StencilVertexBuffer,
-						Params.ViewProjectionMatrix,
+						FMatrix(Params.ViewProjectionMatrix),
 						true);
 				};
 

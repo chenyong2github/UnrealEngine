@@ -959,7 +959,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FMatrix RotationalInvViewProj = ViewMatrices.ComputeInvProjectionNoAAMatrix() * (ViewMatrices.GetTranslatedViewMatrix().RemoveTranslation().GetTransposed());
 			FMatrix RotationalPrevViewProj = (PrevViewMatrices.GetTranslatedViewMatrix().RemoveTranslation()) * PrevViewMatrices.ComputeProjectionNoAAMatrix();
 
-			PassParameters->RotationalClipToPrevClip = RotationalInvViewProj * RotationalPrevViewProj;
+			PassParameters->RotationalClipToPrevClip = FMatrix44f(RotationalInvViewProj * RotationalPrevViewProj);		// LWC_TODO: Precision loss?
 		}
 		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(ColorFormat);
 		{

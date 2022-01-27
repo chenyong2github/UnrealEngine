@@ -165,10 +165,10 @@ void SetupVolumetricFogIntegrationParameters(
 {
 	Out.VolumetricFog = View.VolumetricFogResources.VolumetricFogGlobalData;
 
-	FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
+	FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = FMatrix44f(View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed());		// LWC_TODO: Precision loss?
 	Out.UnjitteredClipToTranslatedWorld = UnjitteredInvTranslatedViewProjectionMatrix;
 
-	FMatrix44f UnjitteredViewProjectionMatrix = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
+	FMatrix44f UnjitteredViewProjectionMatrix = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());
 	Out.UnjitteredPrevWorldToClip = UnjitteredViewProjectionMatrix;
 
 	int32 OffsetCount = IntegrationData.FrameJitterOffsetValues.Num();
@@ -508,7 +508,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 				// Light function parameters
 				PassParameters->LightFunctionAtlasTexture = View.VolumetricFogResources.TransientLightFunctionTextureAtlas ? View.VolumetricFogResources.TransientLightFunctionTextureAtlas->GetTransientLightFunctionAtlasTexture() : GSystemTextures.GetWhiteDummy(GraphBuilder);;
-				PassParameters->LocalLightFunctionMatrix = FMatrix::Identity;
+				PassParameters->LocalLightFunctionMatrix = FMatrix44f::Identity;
 				PassParameters->LightFunctionAtlasTileMinMaxUvBound = FVector4f(ForceInitToZero);
 				if (bUsesLightFunction)
 				{
@@ -520,7 +520,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						continue;
 					}
 
-					PassParameters->LocalLightFunctionMatrix = LightFunctionData->LightFunctionMatrix;
+					PassParameters->LocalLightFunctionMatrix = FMatrix44f(LightFunctionData->LightFunctionMatrix);
 					PassParameters->LightFunctionAtlasTexture = LightFunctionData->AtlasTile.Texture;
 					PassParameters->LightFunctionAtlasTileMinMaxUvBound = LightFunctionData->AtlasTile.MinMaxUvBound;
 				}
@@ -589,7 +589,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						FWriteToBoundingSphereVS::FParameters VSPassParameters;
 						VSPassParameters.MinZ = VolumeZBounds.X;
 						VSPassParameters.ViewSpaceBoundingSphere = FVector4f(FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightBounds.Center)), LightBounds.W); // LWC_TODO: precision loss
-						VSPassParameters.ViewToVolumeClip = View.ViewMatrices.ComputeProjectionNoAAMatrix();
+						VSPassParameters.ViewToVolumeClip = FMatrix44f(View.ViewMatrices.ComputeProjectionNoAAMatrix());	// LWC_TODO: Precision loss?
 						VSPassParameters.VolumetricFogParameters = PassParameters->VolumetricFogParameters;
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSPassParameters);
 
@@ -1119,7 +1119,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				PassParameters->PrevConservativeDepthTextureSize = FVector2D(1, 1);
 			}
 
-			PassParameters->DirectionalLightFunctionWorldToShadow = DirectionalLightFunctionWorldToShadow;
+			PassParameters->DirectionalLightFunctionWorldToShadow = FMatrix44f(DirectionalLightFunctionWorldToShadow);		// LWC_TODO: Precision loss?
 			PassParameters->LightFunctionTexture = DirectionalLightFunctionTexture;
 			PassParameters->LightFunctionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -1188,7 +1188,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				OverrideDirectionalLightInScatteringUsingHeightFog(View, FogInfo) ? 1.0f : 0.0f,
 				OverrideSkyLightInScatteringUsingHeightFog(View, FogInfo) ? 1.0f : 0.0f);
 
-			FMatrix CloudWorldToLightClipShadowMatrix = FMatrix::Identity;
+			FMatrix44f CloudWorldToLightClipShadowMatrix = FMatrix44f::Identity;
 			float CloudShadowmap_FarDepthKm = 0.0f;
 			float CloudShadowmap_Strength = 0.0f;
 			FRDGTexture* CloudShadowmap_RDGTexture = BlackDummyTexture;

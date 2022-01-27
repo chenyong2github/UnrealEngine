@@ -401,7 +401,7 @@ static FRDGBufferRef AddHairStrandsDeepShadowTransmittanceMaskPass(
 	Parameters->DeepShadow_KernelType = GetDeepShadowKernelType();
 	Parameters->DeepShadow_DebugMode = GetDeepShadowDebugMode();
 	Parameters->DeepShadow_LayerDepths = Params.DeepShadow_LayerDepths;
-	Parameters->DeepShadow_ShadowToWorld = Params.DeepShadow_ShadowToWorld;
+	Parameters->DeepShadow_ShadowToWorld = FMatrix44f(Params.DeepShadow_ShadowToWorld);		// LWC_TODO: Precision loss
 	Parameters->IndirectArgsBuffer = IndirectArgsBuffer;
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	Parameters->DeepShadow_bIsGPUDriven = Params.DeepShadow_bIsGPUDriven ? 1 : 0;;
@@ -413,7 +413,7 @@ static FRDGBufferRef AddHairStrandsDeepShadowTransmittanceMaskPass(
 	for (uint32 SlotIndex=0;SlotIndex< FHairStrandsDeepShadowData::MaxMacroGroupCount;++SlotIndex)
 	{
 		Parameters->DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[SlotIndex] = Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[SlotIndex];
-		Parameters->DeepShadow_CPUTranslatedWorldToLightTransforms[SlotIndex] = Params.DeepShadow_CPUTranslatedWorldToLightTransforms[SlotIndex];
+		Parameters->DeepShadow_CPUTranslatedWorldToLightTransforms[SlotIndex] = FMatrix44f(Params.DeepShadow_CPUTranslatedWorldToLightTransforms[SlotIndex]);
 	}
 	
 	check(NodeGroupSize == 64 || NodeGroupSize == 32);
@@ -654,7 +654,7 @@ static void AddHairStrandsDeepShadowMaskPass(
 	FHairStrandsDeepShadowMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsDeepShadowMaskPS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneDepthTexture = SceneDepthTexture;
-	Parameters->DeepShadow_CPUTranslatedWorldToLightTransform = Params.DeepShadow_CPUTranslatedWorldToLightTransform;
+	Parameters->DeepShadow_CPUTranslatedWorldToLightTransform = FMatrix44f(Params.DeepShadow_CPUTranslatedWorldToLightTransform);
 	Parameters->DeepShadow_FrontDepthTexture = Params.DeepShadow_FrontDepthTexture;
 	Parameters->DeepShadow_DomTexture = Params.DeepShadow_LayerTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -90,7 +90,7 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 		const FLightSceneInfo* LightSceneInfo, 
 		const FMaterialRenderProxy* MaterialProxy,
 		FVector2D LightFunctionTexelSizeValue,
-		const FMatrix44f& ShadowToWorldValue)
+		const FMatrix& ShadowToWorldValue)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -108,13 +108,13 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 			const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 			// Switch x and z so that z of the user specified scale affects the distance along the light direction
 			const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
-			const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));		// LWC_TODO: Precision loss
+			const FMatrix44f WorldToLight = FMatrix44f(LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale)));		// LWC_TODO: Precision loss
 
 			PS.LightFunctionWorldToLight = WorldToLight;
 		}
 
 		PS.LightFunctionTexelSize = FVector2f(LightFunctionTexelSizeValue);
-		PS.ShadowToWorld = ShadowToWorldValue;
+		PS.ShadowToWorld = FMatrix44f(ShadowToWorldValue);		// LWC_TODO: Precision loss
 		PS.LightWorldPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
 	}
 };
@@ -270,7 +270,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				0
 			);
 
-			OutDirectionalLightFunctionWorldToShadow = FTranslationMatrix(ProjectedShadowInfo.PreShadowTranslation) * ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix;
+			OutDirectionalLightFunctionWorldToShadow = FTranslationMatrix(ProjectedShadowInfo.PreShadowTranslation) * FMatrix(ProjectedShadowInfo.TranslatedWorldToClipInnerMatrix);
 		}
 
 		// Now render the texture

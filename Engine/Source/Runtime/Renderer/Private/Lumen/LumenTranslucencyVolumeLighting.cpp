@@ -558,7 +558,7 @@ FLumenTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParamete
 
 	Parameters.UseJitter = GTranslucencyVolumeJitter;
 	Parameters.FrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() : 0);
-	Parameters.UnjitteredClipToTranslatedWorld = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
+	Parameters.UnjitteredClipToTranslatedWorld = FMatrix44f(View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed());		// LWC_TODO: Precision loss?
 		
 	Parameters.TranslucencyVolumeTracingOctahedronResolution = GTranslucencyVolumeTracingOctahedronResolution;
 	
@@ -737,7 +737,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				PassParameters->VolumeParameters = VolumeParameters;
 				const int32 PreviousFrameIndexOffset = View.bStatePrevViewInfoIsReadOnly ? 0 : 1;
 				PassParameters->PreviousFrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
-				PassParameters->UnjitteredPrevWorldToClip = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
+				PassParameters->UnjitteredPrevWorldToClip = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 
 				FTranslucencyVolumeSpatialFilterCS::FPermutationDomain PermutationVector;
 				auto ComputeShader = View.ShaderMap->GetShader<FTranslucencyVolumeSpatialFilterCS>(PermutationVector);
@@ -801,7 +801,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			PassParameters->HistoryWeight = GTranslucencyVolumeHistoryWeight;
 			const int32 PreviousFrameIndexOffset = View.bStatePrevViewInfoIsReadOnly ? 0 : 1;
 			PassParameters->PreviousFrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
-			PassParameters->UnjitteredPrevWorldToClip = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
+			PassParameters->UnjitteredPrevWorldToClip = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 			PassParameters->TranslucencyGIHistory0 = TranslucencyGIVolumeHistory0;
 			PassParameters->TranslucencyGIHistory1 = TranslucencyGIVolumeHistory1;
 			PassParameters->TranslucencyGIHistorySampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

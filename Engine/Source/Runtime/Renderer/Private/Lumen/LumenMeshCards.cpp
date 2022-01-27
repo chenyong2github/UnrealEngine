@@ -224,8 +224,8 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
 
-	const FMatrix44f WorldToLocal = MeshCards.LocalToWorld.Inverse();
-	const FMatrix44f TransposedLocalToWorld = MeshCards.LocalToWorld.GetTransposed();
+	const FMatrix44f WorldToLocal = FMatrix44f(MeshCards.LocalToWorld.Inverse());		// LWC_TODO: Precision?
+	const FMatrix44f TransposedLocalToWorld = FMatrix44f(MeshCards.LocalToWorld.GetTransposed());
 	const FMatrix44f TransposedWorldToLocal = WorldToLocal.GetTransposed();
 
 	OutData[0] = *(FVector4f*)&TransposedLocalToWorld.M[0];
@@ -901,7 +901,7 @@ void FLumenSceneData::UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCar
 			const uint32 CardIndex = MeshCardsInstance.FirstCardIndex + LocalCardIndex;
 			FLumenCard& Card = Cards[CardIndex];
 
-			Card.SetTransform(LocalToWorld, Card.LocalOBB);
+			Card.SetTransform(FMatrix44f(LocalToWorld), Card.LocalOBB);		// LWC_TODO: Precision loss
 
 			CardIndicesToUpdateInBuffer.Add(CardIndex);
 		}

@@ -410,7 +410,7 @@ void ScatterObjectsToShadowTiles(
 
 		PassParameters->VS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->VS.CulledObjectBufferParameters = CulledObjectBufferParameters;
-		PassParameters->VS.WorldToShadow = WorldToShadowValue;
+		PassParameters->VS.WorldToShadow = FMatrix44f(WorldToShadowValue);
 		PassParameters->VS.MinExpandRadius = MinExpandRadiusValue;
 		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
@@ -556,7 +556,7 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->ObjectBoundingGeometryIndexCount = UE_ARRAY_COUNT(GCubeIndices);
-		PassParameters->WorldToShadow = WorldToShadowValue;
+		PassParameters->WorldToShadow = FMatrix44f(WorldToShadowValue);	// LWC_TODO: Precision loss
 		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
@@ -788,7 +788,7 @@ void RayTraceShadows(
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
 		PassParameters->DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
-		PassParameters->WorldToShadow = FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix;
+		PassParameters->WorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 
 		if (ProjectedShadowInfo->bDirectionalLight)
@@ -876,7 +876,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				ShadowBoundingSphereValue = FVector4(PreShadowTranslation, 0);
 			}
 
-			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * TranslatedWorldToClipInnerMatrix;
+			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
 			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
@@ -923,7 +923,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 		const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 		const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
 		const FVector4 ShadowBoundingSphereValue(0.f, 0.f, 0.f, 0.f);
-		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * TranslatedWorldToClipInnerMatrix;
+		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
 		FDistanceFieldObjectBufferParameters ObjectBufferParameters;
 		ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Bounds.SRV;

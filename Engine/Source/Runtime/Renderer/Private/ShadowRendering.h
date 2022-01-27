@@ -998,12 +998,12 @@ public:
 		if (bModulatedShadows)
 		{
 			// UE-29083 : work around precision issues with ScreenToShadowMatrix on low end devices.
-			const FMatrix44f ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View, 0, 0, ShadowBufferResolution.X, ShadowBufferResolution.Y);
+			const FMatrix44f ScreenToShadow = FMatrix44f(ShadowInfo->GetScreenToShadowMatrix(View, 0, 0, ShadowBufferResolution.X, ShadowBufferResolution.Y));	// LWC_TODO: Precision loss
 			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
 		}
 		else
 		{
-			const FMatrix44f ScreenToShadow = ShadowInfo->GetScreenToShadowMatrix(View);
+			const FMatrix44f ScreenToShadow = FMatrix44f(ShadowInfo->GetScreenToShadowMatrix(View));		// LWC_TODO: Precision loss
 			SetShaderValue(RHICmdList, ShaderRHI, ScreenToShadowMatrix, ScreenToShadow);
 		}
 
@@ -1388,7 +1388,7 @@ public:
 			TypeCastedMatrices.AddUninitialized(NumUsableMatrices);
 			for (int32 i = 0; i < NumUsableMatrices; i++)
 			{
-				TypeCastedMatrices[i] = ShadowInfo->OnePassShadowViewProjectionMatrices[i];
+				TypeCastedMatrices[i] = FMatrix44f(ShadowInfo->OnePassShadowViewProjectionMatrices[i]);		// LWC_TODO: Precision loss?
 			}
 			if (NumUsableMatrices < NumShaderMatrices)
 			{

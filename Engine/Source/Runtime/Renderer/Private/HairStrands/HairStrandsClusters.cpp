@@ -330,9 +330,9 @@ static void AddClusterCullingPass(
 		}
 
 		FHairClusterCullingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterCullingCS::FParameters>();
-		Parameters->ProjectionMatrix = CapturedProjMatrix;
-		Parameters->CameraWorldPos = CapturedCameraWorldPos;
-		Parameters->WorldToClipMatrix = CapturedWorldToClipMatrix;
+		Parameters->ProjectionMatrix = FMatrix44f(CapturedProjMatrix);			// LWC_TODO: Precision loss
+		Parameters->CameraWorldPos = FVector3f(CapturedCameraWorldPos);
+		Parameters->WorldToClipMatrix = FMatrix44f(CapturedWorldToClipMatrix);
 		Parameters->ClusterCount = ClusterData.ClusterCount;
 		Parameters->LODForcedIndex = ForceLOD;
 		Parameters->LODBias = ClusterData.LODBias;

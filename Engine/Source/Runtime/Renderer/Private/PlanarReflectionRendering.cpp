@@ -97,8 +97,8 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 			static_assert(UE_ARRAY_COUNT(ReflectionSceneProxy->ProjectionWithExtraFOV) == 2 
 				&& GPlanarReflectionUniformMaxReflectionViews == 2, "Code assumes max 2 planar reflection views.");
 
-			OutParameters.ProjectionWithExtraFOV[0] = ReflectionSceneProxy->ProjectionWithExtraFOV[0];
-			OutParameters.ProjectionWithExtraFOV[1] = ReflectionSceneProxy->ProjectionWithExtraFOV[1];
+			OutParameters.ProjectionWithExtraFOV[0] = FMatrix44f(ReflectionSceneProxy->ProjectionWithExtraFOV[0]);	// LWC_TODO: Precision loss
+			OutParameters.ProjectionWithExtraFOV[1] = FMatrix44f(ReflectionSceneProxy->ProjectionWithExtraFOV[1]);
 
 			OutParameters.PlanarReflectionScreenScaleBias[0] = ScreenScaleBiasValue[0];
 			OutParameters.PlanarReflectionScreenScaleBias[1] = ScreenScaleBiasValue[1];
@@ -118,8 +118,8 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 			// Clamp the index to not go out of bounds (can happen for example in split screen with > 2 players).
 			ViewIndex = FMath::Min(ViewIndex, GPlanarReflectionUniformMaxReflectionViews - 1);
 			// Make sure the current view's value is at index 0
-			OutParameters.ProjectionWithExtraFOV[0] = ReflectionSceneProxy->ProjectionWithExtraFOV[ViewIndex];
-			OutParameters.ProjectionWithExtraFOV[1] = FMatrix::Identity;
+			OutParameters.ProjectionWithExtraFOV[0] = FMatrix44f(ReflectionSceneProxy->ProjectionWithExtraFOV[ViewIndex]);		// LWC_TODO: Precision loss?
+			OutParameters.ProjectionWithExtraFOV[1] = FMatrix44f::Identity;
 			OutParameters.PlanarReflectionScreenScaleBias[0] = ScreenScaleBiasValue[ViewIndex];
 			OutParameters.PlanarReflectionScreenScaleBias[1] = FVector4f(0, 0, 0, 0);
 		}

@@ -3907,7 +3907,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				View.bForceCameraVisibilityReset ||
 				IsLargeCameraMovement(
 					View, 
-				    ViewState->PrevViewMatrixForOcclusionQuery, 
+				    FMatrix(ViewState->PrevViewMatrixForOcclusionQuery), 
 				    ViewState->PrevViewOriginForOcclusionQuery, 
 				    GEngine->CameraRotationThreshold, GEngine->CameraTranslationThreshold))
 			{
@@ -3924,7 +3924,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				View.bIgnoreExistingQueries = true;
 			}
 
-			ViewState->PrevViewMatrixForOcclusionQuery = View.ViewMatrices.GetViewMatrix();
+			ViewState->PrevViewMatrixForOcclusionQuery = FMatrix44f(View.ViewMatrices.GetViewMatrix());	// LWC_TODO: Precision loss
 			ViewState->PrevViewOriginForOcclusionQuery = View.ViewMatrices.GetViewOrigin();
 				
 			// store old view matrix and detect conditions where we should reset motion blur 

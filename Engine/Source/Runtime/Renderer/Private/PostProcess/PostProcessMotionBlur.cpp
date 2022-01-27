@@ -641,7 +641,7 @@ void AddMotionBlurVelocityPass(
 		PassParameters->VelocityFlattenParameters = GetVelocityFlattenParameters(View);
 		if (bOverrideCameraMotionBlur)
 		{
-			PassParameters->ClipToPrevClipOverride = View.ClipToPrevClipOverride.GetValue();
+			PassParameters->ClipToPrevClipOverride = FMatrix44f(View.ClipToPrevClipOverride.GetValue());		// LWC_TODO: Precision loss?
 		}
 
 		PassParameters->Velocity = Viewports.VelocityParameters;
@@ -1111,7 +1111,7 @@ FScreenPassTexture AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const F
 	const FMotionBlurViewports Viewports(FScreenPassTextureViewport(Inputs.SceneColor), FScreenPassTextureViewport(Inputs.SceneDepth));
 
 	FMotionBlurVisualizePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVisualizePS::FParameters>();
-	PassParameters->WorldToClipPrev = GetPreviousWorldToClipMatrix(View);
+	PassParameters->WorldToClipPrev = FMatrix44f(GetPreviousWorldToClipMatrix(View));		// LWC_TODO: Precision loss
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->ColorTexture = Inputs.SceneColor.Texture;
 	PassParameters->DepthTexture = Inputs.SceneDepth.Texture;

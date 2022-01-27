@@ -1324,7 +1324,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->HairStrandsVF_RootScale = VFInput.Strands.HairRootScale;
 				PassParameters->HairStrandsVF_TipScale = VFInput.Strands.HairTipScale;
 				PassParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
-				PassParameters->HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = LocalToTranslatedWorldTransform.ToMatrixWithScale();
+				PassParameters->HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
 				PassParameters->HairStrandsVF_bHasRaytracedGeometry = VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
 				const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
 				PassParameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
