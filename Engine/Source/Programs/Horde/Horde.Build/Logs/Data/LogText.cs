@@ -364,11 +364,11 @@ namespace HordeServer.Logs
 					{
 						(byte)'\"' => (byte)'\"',
 						(byte)'\\' => (byte)'\\',
-						(byte)'\b' => (byte)'\b',
-						(byte)'\f' => (byte)'\f',
-						(byte)'\n' => (byte)'\n',
-						(byte)'\r' => (byte)'\r',
-						(byte)'\t' => (byte)'\t',
+						(byte)'b' => (byte)'\b',
+						(byte)'f' => (byte)'\f',
+						(byte)'n' => (byte)'\n',
+						(byte)'r' => (byte)'\r',
+						(byte)'t' => (byte)'\t',
 						_ => Source[1]
 					};
 					Source = Source.Slice(2);

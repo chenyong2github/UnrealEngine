@@ -60,6 +60,21 @@ namespace HordeServerTests
         }
 
 		[TestMethod]
+		public void PlainTextDecoder()
+		{
+			string JsonText = "{\"time\":\"2022-01-26T14:18:29\",\"level\":\"Error\",\"message\":\"       \\tdepends on: /mnt/horde/U5\\u002BR5.0\\u002BInc\\u002BMin/Sync/Engine/Binaries/Linux/libUnrealEditor-Core.so\",\"id\":1,\"line\":5,\"lineCount\":1028}";
+			byte[] JsonData = Encoding.UTF8.GetBytes(JsonText);
+
+			byte[] OutputData = new byte[JsonData.Length];
+			int OutputLength = LogText.ConvertToPlainText(JsonData, OutputData, 0);
+			string OutputText = Encoding.UTF8.GetString(OutputData, 0, OutputLength);
+
+			string ExpectText = "       \tdepends on: /mnt/horde/U5+R5.0+Inc+Min/Sync/Engine/Binaries/Linux/libUnrealEditor-Core.so\n";
+			Assert.AreEqual(OutputText, ExpectText);
+			
+		}
+
+		[TestMethod]
         public async Task WriteLogLifecycleOldTest()
         {
 			JobId JobId = JobId.GenerateNewId();
