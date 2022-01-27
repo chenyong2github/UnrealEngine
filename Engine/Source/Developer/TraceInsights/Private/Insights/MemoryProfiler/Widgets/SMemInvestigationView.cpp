@@ -185,7 +185,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
-		.HAlign(HAlign_Left)
+		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(SymbolPathsTextBlock, STextBlock)
 			.Text(GetSymbolPathsText())

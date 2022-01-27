@@ -262,8 +262,6 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	}
 
 	InitializeAndShowHeaderColumns();
-	CreateGroupings();
-	CreateSortings();
 
 	InitCommandList();
 
@@ -272,6 +270,9 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
+
+	CreateGroupings();
+	CreateSortings();
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -1368,7 +1369,10 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 		return;
 	}
 
-	ensure(Groupings.Num() > 0);
+	if (Groupings.Num() == 0)
+	{
+		return;
+	}
 
 	FTreeNodeGrouping& Grouping = *Groupings[GroupingDepth];
 
