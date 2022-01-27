@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MassMovementTypes.h"
 #include "MassReplicationTypes.h"
 #include "MassEntityView.h"
 #include "MassClientBubbleHandler.h"

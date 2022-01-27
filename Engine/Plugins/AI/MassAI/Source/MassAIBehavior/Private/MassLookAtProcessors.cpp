@@ -5,12 +5,13 @@
 #include "MassAIBehaviorTypes.h"
 #include "MassCommonFragments.h"
 #include "MassLookAtFragments.h"
-#include "MassAIMovementFragments.h"
-#include "MassMovementSubsystem.h"
+#include "MassMovementFragments.h"
+#include "MassNavigationFragments.h"
+#include "MassNavigationSubsystem.h"
 #include "MassRepresentationFragments.h"
 #include "Math/UnrealMathUtility.h"
 #include "VisualLogger/VisualLogger.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphQuery.h"
 #include "BezierUtilities.h"
@@ -97,8 +98,8 @@ void UMassLookAtProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
-	MovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
-	checkf(MovementSubsystem != nullptr, TEXT("UMassMovementSubsystem is mandatory when using MassLookAtProcessor processor."));
+	NavigationSubsystem = UWorld::GetSubsystem<UMassNavigationSubsystem>(Owner.GetWorld());
+	checkf(NavigationSubsystem != nullptr, TEXT("UMassNavigationSubsystem is mandatory when using MassLookAtProcessor processor."));
 
 	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(Owner.GetWorld());
 	checkf(ZoneGraphSubsystem != nullptr, TEXT("UMassZoneGraphSubsystem is mandatory when using MassLookAtProcessor processor."));
@@ -244,23 +245,23 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 
 	// Search for potential targets in front
 	bool bTargetFound = false;
-	if (LookAt.bRandomGazeEntities && MovementSubsystem != nullptr)
+	if (LookAt.bRandomGazeEntities && NavigationSubsystem != nullptr)
 	{
 		const float CosAngleThreshold = FMath::Cos(FMath::DegreesToRadians(AngleThresholdInDegrees));
 		const FVector Extent(QueryExtent, QueryExtent, QueryExtent);
 		const FVector QueryOrigin = Transform.TransformPosition(FVector(0.5f*QueryExtent, 0.f, 0.f));
 		const FBox QueryBox = FBox(QueryOrigin - 0.5f*Extent, QueryOrigin + 0.5f*Extent);
 
-		TArray<FAvoidanceObstacleHashGrid2D::ItemIDType> NearbyEntities;
+		TArray<FNavigationObstacleHashGrid2D::ItemIDType> NearbyEntities;
 		NearbyEntities.Reserve(16);
-		MovementSubsystem->GetGrid().Query(QueryBox, NearbyEntities);
+		NavigationSubsystem->GetObstacleGrid().Query(QueryBox, NearbyEntities);
 
 		// We'll pick the first entity that passes, this ensure that it's random one.
 		Algo::RandomShuffle(NearbyEntities);
 
 		const FVector Location = Transform.GetLocation();
 		
-		for (const FAvoidanceObstacleHashGrid2D::ItemIDType NearbyEntity : NearbyEntities)
+		for (const FNavigationObstacleHashGrid2D::ItemIDType NearbyEntity : NearbyEntities)
 		{
 			// This can happen if we remove entities in the system.
 			if (!EntitySubsystem.IsEntityValid(NearbyEntity.Entity))

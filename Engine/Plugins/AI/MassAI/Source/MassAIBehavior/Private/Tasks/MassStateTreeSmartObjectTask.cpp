@@ -6,9 +6,10 @@
 #include "MassSmartObjectHandler.h"
 #include "MassSmartObjectFragments.h"
 #include "MassStateTreeExecutionContext.h"
-#include "MassAIMovementFragments.h"
+#include "MassNavigationFragments.h"
 #include "SmartObjectSubsystem.h"
-#include "MassZoneGraphMovementUtils.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassZoneGraphNavigationUtils.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -154,7 +155,7 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	checkf(World != nullptr, TEXT("A valid world is expected from the execution context"));
 
 	MoveTarget.CreateNewAction(EMassMovementAction::Animate, *World);
-	const bool bSuccess = UE::MassMovement::ActivateActionAnimate(*World, Context.GetOwner(), MassContext.GetEntity(), MoveTarget);
+	const bool bSuccess = UE::MassNavigation::ActivateActionAnimate(*World, Context.GetOwner(), MassContext.GetEntity(), MoveTarget);
 
 	return bSuccess ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
 }

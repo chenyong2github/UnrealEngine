@@ -5,8 +5,8 @@
 #include "MassReplicationTypes.h"
 #include "MassEntityView.h"
 #include "MassClientBubbleHandler.h"
-#include "MassAIMovementFragments.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassNavigationFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 
 #include "MassReplicationPathHandlers.generated.h"
 

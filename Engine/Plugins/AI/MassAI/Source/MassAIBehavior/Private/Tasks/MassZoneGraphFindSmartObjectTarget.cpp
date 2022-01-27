@@ -6,7 +6,7 @@
 #include "MassSmartObjectFragments.h"
 #include "MassSmartObjectSettings.h"
 #include "MassStateTreeExecutionContext.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "SmartObjectZoneAnnotations.h"
 
 bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)

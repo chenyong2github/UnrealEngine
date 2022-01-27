@@ -7,7 +7,7 @@
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphQuery.h"
 #include "ZoneGraphSettings.h"
-#include "MassAIMovementTypes.h"
+#include "MassNavigationTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST

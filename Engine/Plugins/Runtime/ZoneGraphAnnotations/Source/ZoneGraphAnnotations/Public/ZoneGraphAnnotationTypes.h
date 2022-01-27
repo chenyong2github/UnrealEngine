@@ -33,6 +33,8 @@ public:
 
 	uint64 GetValue() const { return Value; }
 
+	bool IsValid() const { return Value != MAX_uint64; }
+
 private:
 	static uint64 NextUniqueID;
 	

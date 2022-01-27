@@ -4,7 +4,7 @@
 #include "StateTree.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassEntityView.h"
-#include "MassAIMovementTypes.h"
+#include "MassNavigationTypes.h"
 #include "MassSimulationLOD.h"
 #include "MassComponentHitTypes.h"
 #include "MassSmartObjectTypes.h"

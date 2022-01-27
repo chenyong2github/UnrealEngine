@@ -63,6 +63,11 @@
 		{
 			"Name": "MassGameplayEditor",
 			"Type": "Editor"
+		},
+		{
+			"Name": "MassMovementEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [

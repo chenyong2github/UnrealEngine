@@ -13,11 +13,12 @@
 #include "GameFramework/PlayerController.h"
 #include "MassAgentComponent.h"
 #include "MassEntitySubsystem.h"
-#include "MassAIMovementFragments.h"
+#include "MassNavigationFragments.h"
+#include "Steering/MassSteeringFragments.h"
 #include "MassLookAtFragments.h"
 #include "MassStateTreeFragments.h"
 #include "MassStateTreeExecutionContext.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "Util/ColorConstants.h"
 #include "MassSimulationLOD.h"
 #include "CanvasItem.h"
@@ -349,8 +350,10 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassSteeringGhostFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassStandingSteeringFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassGhostLocationFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassForceFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassLookAtFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 		EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
@@ -372,8 +375,10 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
 				const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
 				const TConstArrayView<FMassSteeringFragment> SteeringList = Context.GetFragmentView<FMassSteeringFragment>();
-				const TConstArrayView<FMassSteeringGhostFragment> GhostList = Context.GetFragmentView<FMassSteeringGhostFragment>();
+				const TConstArrayView<FMassStandingSteeringFragment> StandingSteeringList = Context.GetFragmentView<FMassStandingSteeringFragment>();
+				const TConstArrayView<FMassGhostLocationFragment> GhostList = Context.GetFragmentView<FMassGhostLocationFragment>();
 				const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
+				const TConstArrayView<FMassForceFragment> ForceList = Context.GetFragmentView<FMassForceFragment>();
 				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 				const TConstArrayView<FMassLookAtFragment> LookAtList = Context.GetFragmentView<FMassLookAtFragment>();
 				const bool bHasLookAt = (LookAtList.Num() > 0);
@@ -407,8 +412,10 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 					const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
 					const FMassSteeringFragment& Steering = SteeringList[EntityIndex];
-					const FMassSteeringGhostFragment& Ghost = GhostList[EntityIndex];
+					const FMassStandingSteeringFragment& StandingSteering = StandingSteeringList[EntityIndex];
+					const FMassGhostLocationFragment& Ghost = GhostList[EntityIndex];
 					const FMassVelocityFragment& Velocity = VelocityList[EntityIndex];
+					const FMassForceFragment& Force = ForceList[EntityIndex];
 					const FMassMoveTargetFragment& MoveTarget = MoveTargetList[EntityIndex];
 					const FMassSimulationLODFragment& SimLOD = bHasLOD ? SimLODList[EntityIndex] : FMassSimulationLODFragment();
 					const FMassZoneGraphShortPathFragment& ShortPath = ShortPathList[EntityIndex];
@@ -502,7 +509,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							GhostBasePos += FVector(0,0,5);
 							AddShape(FGameplayDebuggerShape::MakeArrow(GhostBasePos, GhostBasePos + Ghost.Velocity, 10.0f, 2.0f, FColorList::LightGrey));
 
-							const FVector GhostTargetBasePos = Ghost.SteerTarget + FVector(0.0f ,0.0f ,25.0f );
+							const FVector GhostTargetBasePos = StandingSteering.TargetLocation + FVector(0.0f ,0.0f ,25.0f );
 							AddShape(FGameplayDebuggerShape::MakeCircle(GhostTargetBasePos, FVector::UpVector, Radius.Radius * 0.75f, FColorList::Orange));
 						}
 					}
@@ -550,8 +557,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						}
 
 						// Movement info
-						Status += FString::Printf(TEXT("{yellow}%s/%03d {white}%.1f cm/s\n"),
-							*UEnum::GetDisplayValueAsText(MoveTarget.GetCurrentAction()).ToString(), MoveTarget.GetCurrentActionID(), Velocity.Value.Length());
+						Status += FString::Printf(TEXT("{yellow}%s/%03d {lightgrey}Speed:{white}%.1f {lightgrey}Force:{white}%.1f\n"),
+							*UEnum::GetDisplayValueAsText(MoveTarget.GetCurrentAction()).ToString(), MoveTarget.GetCurrentActionID(), Velocity.Value.Length(), Force.Value.Length());
 						Status += FString::Printf(TEXT("{pink}-> %s {white}Dist: %.1f\n"),
 							*UEnum::GetDisplayValueAsText(MoveTarget.IntentAtGoal).ToString(), MoveTarget.DistanceToGoal);
 

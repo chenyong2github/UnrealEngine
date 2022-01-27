@@ -4,7 +4,7 @@
 
 #include "MassSignalProcessorBase.h"
 #include "MassObserverProcessor.h"
-#include "NavigationProcessor.h"
+#include "MassCrowdFragments.h"
 #include "MassCrowdNavigationProcessor.generated.h"
 
 class UZoneGraphSubsystem;
@@ -50,7 +50,7 @@ protected:
 };
 
 UCLASS()
-class MASSCROWD_API UMassCrowdDynamicObstacleProcessor : public UMassDynamicObstacleProcessor
+class MASSCROWD_API UMassCrowdDynamicObstacleProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -59,9 +59,21 @@ public:
 
 protected:
 	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 
-	virtual void OnStop(FMassDynamicObstacleFragment& OutObstacle, const float Radius) override;
-	virtual void OnMove(FMassDynamicObstacleFragment& OutObstacle) override;
+	void OnStop(FMassCrowdObstacleFragment& OutObstacle, const float Radius);
+	void OnMove(FMassCrowdObstacleFragment& OutObstacle);
+
+	/** Delay before sending the stop notification once the entity has stop moving. */
+	UPROPERTY(Category = Settings, EditAnywhere, meta = (ClampMin = "0"))
+	float DelayBeforeStopNotification = 0.3f;
+
+	/** Distance within which the obstacle is considered not moving. */
+	UPROPERTY(Category = Settings, EditAnywhere, meta = (ClampMin = "0"))
+	float DistanceBuffer = 10.f;
+
+	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
 	UZoneGraphSubsystem* ZoneGraphSubsystem;

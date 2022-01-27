@@ -6,7 +6,6 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
-#include "MassMovementTypes.h"
 #include "MassMovementFragments.h"
 #include "MassSpawnerTypes.h"
 
@@ -57,7 +56,7 @@ UMassCharacterMovementToActorTranslator::UMassCharacterMovementToActorTranslator
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Avoidance);
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 	RequiredTags.Add<FMassCharacterMovementCopyToActorTag>();
 }
 
@@ -133,7 +132,7 @@ UMassCharacterOrientationToActorTranslator::UMassCharacterOrientationToActorTran
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Avoidance);
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 	RequiredTags.Add<FMassCharacterOrientationCopyToActorTag>();
 }
 

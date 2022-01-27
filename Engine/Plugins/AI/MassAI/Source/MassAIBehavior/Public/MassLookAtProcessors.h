@@ -7,7 +7,7 @@
 #include "MassSignalProcessorBase.h"
 #include "MassLookAtProcessors.generated.h"
 
-class UMassMovementSubsystem;
+class UMassNavigationSubsystem;
 class UZoneGraphSubsystem;
 struct FMassLookAtFragment;
 struct FMassZoneGraphLaneLocationFragment;
@@ -71,7 +71,7 @@ protected:
 	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
-	UMassMovementSubsystem* MovementSubsystem;
+	UMassNavigationSubsystem* NavigationSubsystem;
 
 	UPROPERTY(Transient)
 	UZoneGraphSubsystem* ZoneGraphSubsystem;

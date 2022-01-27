@@ -17,11 +17,15 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "MassAIMovement",
+			"Name": "MassNavigation",
 			"Type": "Runtime"
 		},
 		{
-			"Name": "MassAIMovementEditor",
+			"Name": "MassZoneGraphNavigation",
+			"Type": "Runtime"
+		},
+		{
+			"Name": "MassNavigationEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		},

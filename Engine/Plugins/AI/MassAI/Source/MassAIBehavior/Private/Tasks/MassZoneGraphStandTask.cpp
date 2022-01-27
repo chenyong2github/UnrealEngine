@@ -3,14 +3,14 @@
 #include "Tasks/MassZoneGraphStandTask.h"
 #include "StateTreeExecutionContext.h"
 #include "ZoneGraphSubsystem.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassZoneGraphNavigationUtils.h"
 #include "MassAIBehaviorTypes.h"
-#include "MassAIMovementFragments.h"
-#include "MassMovementSettings.h"
+#include "MassNavigationFragments.h"
+#include "MassMovementFragments.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassSignalSubsystem.h"
 #include "MassSimulationLOD.h"
-#include "MassZoneGraphMovementUtils.h"
 
 bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
 {
@@ -18,9 +18,9 @@ bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(MoveTargetHandle);
 	Linker.LinkExternalData(ShortPathHandle);
 	Linker.LinkExternalData(CachedLaneHandle);
+	Linker.LinkExternalData(MovementParamsHandle);
 	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
 	Linker.LinkExternalData(MassSignalSubsystemHandle);
-	Linker.LinkExternalData(MovementConfigHandle);
 
 	Linker.LinkInstanceDataProperty(DurationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphStandTaskInstanceData, Duration));
 	Linker.LinkInstanceDataProperty(TimeHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphStandTaskInstanceData, Time));
@@ -40,18 +40,8 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
-	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalData(MovementConfigHandle);
+	const FMassMovementParameters& MovementParams = Context.GetExternalData(MovementParamsHandle);
 
-	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
-	check(Settings);
-
-	const FMassMovementConfig* Config = Settings->GetMovementConfigByHandle(MovementConfig.ConfigHandle);
-	if (!Config)
-	{
-		MASSBEHAVIOR_LOG(Error, TEXT("Failed to get move config."));
-		return EStateTreeRunStatus::Failed;
-	}
-	
 	if (!LaneLocation.LaneHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid lande handle"));
@@ -68,7 +58,7 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 	checkf(World != nullptr, TEXT("A valid world is expected from the execution context"));
 
 	MoveTarget.CreateNewAction(EMassMovementAction::Stand, *World);
-	const bool bSuccess = UE::MassMovement::ActivateActionStand(*World, Context.GetOwner(), MassContext.GetEntity(), ZoneGraphSubsystem, LaneLocation, Config->DefaultDesiredSpeed, MoveTarget, ShortPath, CachedLane);
+	const bool bSuccess = UE::MassNavigation::ActivateActionStand(*World, Context.GetOwner(), MassContext.GetEntity(), ZoneGraphSubsystem, LaneLocation, MovementParams.DefaultDesiredSpeed, MoveTarget, ShortPath, CachedLane);
 	if (!bSuccess)
 	{
 		return EStateTreeRunStatus::Failed;

@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
 					"MassActors",
 					"MassAIBehavior",
 					"MassCommon",
-					"MassAIMovement",
+					"MassNavigation",
 					"MassAIReplication",
 					"MassSmartObjects",
 					"MassSpawner",

@@ -4,7 +4,6 @@
 #include "MassCommonTypes.h"
 #include "MassEntitySubsystem.h"
 #include "Components/CapsuleComponent.h"
-#include "MassMovementTypes.h"
 
 
 //----------------------------------------------------------------------//
@@ -48,7 +47,7 @@ UMassTransformToActorCapsuleTranslator::UMassTransformToActorCapsuleTranslator()
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	RequiredTags.Add<FMassCapsuleTransformCopyToActorTag>();
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Avoidance);
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 }
 
 void UMassTransformToActorCapsuleTranslator::ConfigureQueries()

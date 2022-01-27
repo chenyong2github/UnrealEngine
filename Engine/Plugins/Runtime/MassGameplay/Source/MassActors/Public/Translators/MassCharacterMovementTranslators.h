@@ -8,10 +8,6 @@
 #include "MassCharacterMovementTranslators.generated.h"
 
 class UCharacterMovementComponent;
-struct FDataFragment_CharacterMovementComponentWrapper;
-struct FNavLocationComponent;
-struct FDataFragment_Transform;
-struct FMassVelocityFragment;
 
 USTRUCT()
 struct FDataFragment_CharacterMovementComponentWrapper : public FDataFragment_ObjectWrapper

@@ -8,7 +8,7 @@
 #include "MassSmartObjectFragments.h"
 #include "MassSmartObjectHandler.h"
 #include "MassStateTreeExecutionContext.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "SmartObjectSubsystem.h"
 #include "Engine/World.h"
 

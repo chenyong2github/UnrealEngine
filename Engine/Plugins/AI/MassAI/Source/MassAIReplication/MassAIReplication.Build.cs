@@ -34,7 +34,8 @@ namespace UnrealBuildTool.Rules
 					"MassLOD",
 					"NetCore",
 					"StructUtils",
-					"MassAIMovement",
+					"MassNavigation",
+					"MassZoneGraphNavigation",
 					"MassReplication",
 					"ZoneGraph"
 				}

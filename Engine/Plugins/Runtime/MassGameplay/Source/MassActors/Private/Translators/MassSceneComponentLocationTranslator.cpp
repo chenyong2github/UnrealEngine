@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Translators/MassSceneComponentLocationTranslator.h"
-#include "MassMovementTypes.h"
+#include "MassCommonTypes.h"
 #include "Components/SceneComponent.h"
 #include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
@@ -48,7 +48,7 @@ UMassSceneComponentLocationToActorTranslator::UMassSceneComponentLocationToActor
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Avoidance);
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Movement);
 	RequiredTags.Add<FMassSceneComponentLocationCopyToActorTag>();
 }
 

@@ -5,7 +5,7 @@
 #include "MassStateTreeSubsystem.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphAnnotationSubsystem.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
 #include "MassAIBehaviorTypes.h"
 #include "MassStateTreeExecutionContext.h"

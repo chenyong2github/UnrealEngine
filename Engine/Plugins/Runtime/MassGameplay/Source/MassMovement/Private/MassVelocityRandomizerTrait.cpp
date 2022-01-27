@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassVelocityRandomizerTrait.h"
+#include "Example/MassVelocityRandomizerTrait.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Engine/World.h"
 #include "MassMovementFragments.h"

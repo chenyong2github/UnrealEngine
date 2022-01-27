@@ -35,6 +35,8 @@ namespace UE::Mass::ProcessorGroupNames
 	const FName SyncWorldToMass = FName(TEXT("SyncWorldToMass"));
 	const FName Behavior = FName(TEXT("Behavior"));
 	const FName Tasks = FName(TEXT("Tasks"));
+	const FName Avoidance = FName(TEXT("Avoidance"));
+	const FName Movement = FName(TEXT("Movement"));
 }
 
 USTRUCT()

@@ -4,9 +4,7 @@
 
 #include "MassEntityTypes.h"
 #include "ZoneGraphTypes.h"
-#include "Containers/StaticArray.h"
-#include "MassLODManager.h"
-
+#include "ZoneGraphAnnotationTypes.h"
 #include "MassCrowdFragments.generated.h"
 
 /**
@@ -30,3 +28,20 @@ struct MASSCROWD_API FMassCrowdLaneTrackingFragment : public FMassFragment
 };
 
 
+USTRUCT()
+struct MASSCROWD_API FMassCrowdObstacleFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	/** Obstacle ID reported to the obstruction annotation. */
+	FMassLaneObstacleID LaneObstacleID;
+
+	/** Position of the dynamic obstacle when it last moved. */
+	FVector LastPosition = FVector::ZeroVector;
+
+	/** Time stamp when that obstacle stopped moving. */
+	float LastMovedTimeStamp = 0.0f;
+
+	/** Has this dynamic obstacle stopped moving. */
+	bool bHasStopped = true;
+};

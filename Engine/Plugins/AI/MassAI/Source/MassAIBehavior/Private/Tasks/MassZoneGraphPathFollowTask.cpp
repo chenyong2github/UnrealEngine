@@ -4,22 +4,22 @@
 
 #include "MassAIBehaviorTypes.h"
 #include "MassCommonFragments.h"
-#include "MassAIMovementFragments.h"
-#include "MassMovementSettings.h"
+#include "MassNavigationFragments.h"
+#include "MassMovementFragments.h"
 #include "MassStateTreeExecutionContext.h"
-#include "MassZoneGraphMovementFragments.h"
-#include "MassZoneGraphMovementUtils.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassZoneGraphNavigationUtils.h"
 #include "ZoneGraphSubsystem.h"
 
 bool FMassZoneGraphPathFollowTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(LocationHandle);
 	Linker.LinkExternalData(MoveTargetHandle);
-	Linker.LinkExternalData(MovementConfigHandle);
 	Linker.LinkExternalData(PathRequestHandle);
 	Linker.LinkExternalData(ShortPathHandle);
 	Linker.LinkExternalData(CachedLaneHandle);
 	Linker.LinkExternalData(AgentRadiusHandle);
+	Linker.LinkExternalData(MovementParamsHandle);
 	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
 
 	Linker.LinkInstanceDataProperty(TargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphPathFollowTaskInstanceData, TargetLocation));
@@ -33,22 +33,12 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 {
 	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
-	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalData(MovementConfigHandle);
 	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalData(AgentRadiusHandle);
 	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalData(ShortPathHandle);
 	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalData(CachedLaneHandle);
 	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
 	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalData(PathRequestHandle);
-
-	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
-	check(Settings);
-
-	const FMassMovementConfig* Config = Settings->GetMovementConfigByHandle(MovementConfig.ConfigHandle);
-	if (!Config)
-	{
-		MASSBEHAVIOR_LOG(Error, TEXT("Failed to get move config %s."), *LaneLocation.LaneHandle.ToString());
-		return false;
-	}
+	const FMassMovementParameters& MovementParams = Context.GetExternalData(MovementParamsHandle);
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
@@ -89,12 +79,12 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 	const FMassMovementStyleRef& MovementStyle = Context.GetInstanceData(MovementStyleHandle);
 	const float SpeedScale = Context.GetInstanceData(SpeedScaleHandle);
 
-	const float DesiredSpeed = FMath::Min(Config->GenerateDesiredSpeed(MovementStyle, Context.GetEntity().Index) * SpeedScale, Config->MaximumSpeed);
+	const float DesiredSpeed = FMath::Min(MovementParams.GenerateDesiredSpeed(MovementStyle, Context.GetEntity().Index) * SpeedScale, MovementParams.MaxSpeed);
 	const UWorld* World = Context.GetWorld();
 	checkf(World != nullptr, TEXT("A valid world is expected from the execution context"));
 
 	MoveTarget.CreateNewAction(EMassMovementAction::Move, *World);
-	return UE::MassMovement::ActivateActionMove(*World, Context.GetOwner(), Context.GetEntity(), ZoneGraphSubsystem, LaneLocation, PathRequest, AgentRadius.Radius, DesiredSpeed, MoveTarget, ShortPath, CachedLane);
+	return UE::MassNavigation::ActivateActionMove(*World, Context.GetOwner(), Context.GetEntity(), ZoneGraphSubsystem, LaneLocation, PathRequest, AgentRadius.Radius, DesiredSpeed, MoveTarget, ShortPath, CachedLane);
 }
 
 EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const

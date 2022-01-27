@@ -3,8 +3,8 @@
 #include "Tasks/MassCrowdClaimWaitSlotTask.h"
 #include "StateTreeExecutionContext.h"
 #include "MassCrowdSubsystem.h"
-#include "MassZoneGraphMovementFragments.h"
-#include "MassAIMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassNavigationFragments.h"
 #include "MassStateTreeExecutionContext.h"
 
 bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)

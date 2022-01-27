@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "MassAIMovementTypes.h"
+#include "MassNavigationTypes.h"
+#include "MassMovementTypes.h"
 #include "MassCommonTypes.h"
 #include "MassStateTreeTypes.h"
 #include "ZoneGraphTypes.h"
@@ -11,11 +12,11 @@
 struct FMassStateTreeExecutionContext;
 struct FMassZoneGraphLaneLocationFragment;
 struct FMassMoveTargetFragment;
-struct FMassMovementConfigFragment;
 struct FMassZoneGraphPathRequestFragment;
 struct FMassZoneGraphShortPathFragment;
 struct FMassZoneGraphCachedLaneFragment;
 struct FDataFragment_AgentRadius;
+struct FMassMovementParameters;
 class UZoneGraphSubsystem;
 
 USTRUCT()
@@ -96,11 +97,11 @@ protected:
 
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
-	TStateTreeExternalDataHandle<FMassMovementConfigFragment> MovementConfigHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphPathRequestFragment> PathRequestHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
 	TStateTreeExternalDataHandle<FDataFragment_AgentRadius> AgentRadiusHandle;
+	TStateTreeExternalDataHandle<FMassMovementParameters> MovementParamsHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 
 	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> TargetLocationHandle;

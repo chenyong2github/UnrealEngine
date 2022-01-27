@@ -1,36 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassMovementFragments.h"
-#include "GameFramework/GameStateBase.h"
-#include "Engine/World.h"
 
-//void FMassMoveTargetFragment::CreateNewAction(const EMassMovementAction InAction, const UWorld& InWorld)
-//{
-//	ensureMsgf(InWorld.GetNetMode() != NM_Client, TEXT("This version of SetDesiredAction should only be called on the authority."));
-//	CurrentAction = InAction;
-//	CurrentActionID++;
-//	CurrentActionWorldStartTime = InWorld.TimeSeconds;
-//
-//	const AGameStateBase* GameState = InWorld.GetGameState();
-//	CurrentActionServerStartTime = GameState != nullptr ? GameState->GetServerWorldTimeSeconds() : CurrentActionWorldStartTime;
-//
-//	MarkNetDirty();
-//}
-//
-//void FMassMoveTargetFragment::CreateReplicatedAction(const EMassMovementAction InAction, const uint16 InActionID, const float InWorldStartTime, const float InServerStartTime)
-//{
-//	CurrentAction = InAction;
-//	CurrentActionID = InActionID;
-//	CurrentActionWorldStartTime = InWorldStartTime;
-//	CurrentActionServerStartTime = InServerStartTime;
-//}
-//
-//FString FMassMoveTargetFragment::ToString() const
-//{
-//	return FString::Printf(TEXT("ActionID:%d Action:%s StartTime: World:%.1f Server:%.1f DesiredSpeed:%.1f "),
-//		CurrentActionID,
-//		*UEnum::GetValueAsString(CurrentAction),
-//		CurrentActionWorldStartTime,
-//		CurrentActionServerStartTime,
-//		DesiredSpeed.Get());
-//}
+void FMassMovementParameters::Update()
+{
+	for (FMassMovementStyleParameters& Style : MovementStyles)
+	{
+		if (Style.DesiredSpeeds.IsEmpty())
+		{
+			continue;
+		}
+
+		// Calculate probability threshold for the speeds, so that a speed can be looked up based in a float in range [0...1]. 
+		float Total = 0.0f;
+		for (const FMassMovementStyleSpeedParameters& Speed : Style.DesiredSpeeds)
+		{
+			Total += Speed.Probability;
+		}
+
+		if (Total > KINDA_SMALL_NUMBER)
+		{
+			const float Scale = 1.0f / Total;
+			float Sum = 0.0f;
+			for (FMassMovementStyleSpeedParameters& Speed : Style.DesiredSpeeds)
+			{
+				Sum += Speed.Probability;
+				Speed.ProbabilityThreshold = FMath::Min(Sum * Scale, 1.0f);
+			}
+		}
+		else
+		{
+			const float Scale = 1.0f / Style.DesiredSpeeds.Num();
+			float Sum = 0.0f;
+			for (FMassMovementStyleSpeedParameters& Speed : Style.DesiredSpeeds)
+			{
+				Sum += 1.0f;
+				Speed.ProbabilityThreshold = FMath::Min(Sum * Scale, 1.0f);
+			}
+		}
+	}
+}

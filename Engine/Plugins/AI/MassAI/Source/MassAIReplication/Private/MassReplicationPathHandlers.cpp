@@ -3,10 +3,8 @@
 #include "MassReplicationPathHandlers.h"
 #include "MassEntityQuery.h"
 #include "MassCommonFragments.h"
-#include "MassMovementTypes.h"
 #include "MassSimulationSubsystem.h"
-#include "MassZoneGraphMovementProcessors.h"
-#include "MassZoneGraphMovementUtils.h"
+#include "MassZoneGraphNavigationUtils.h"
 #include "ZoneGraphSubsystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "VisualLogger/VisualLogger.h"
@@ -140,13 +138,13 @@ void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FMassE
 	switch (Action)
 	{
 	case EMassMovementAction::Stand:
-		UE::MassMovement::ActivateActionStand(InWorld, SimulationSubsystem, Entity, *ZoneGraphSubsystem, LaneLocation, DesiredSpeed.Get(), MoveTarget, ShortPath, CachedLane);
+		UE::MassNavigation::ActivateActionStand(InWorld, SimulationSubsystem, Entity, *ZoneGraphSubsystem, LaneLocation, DesiredSpeed.Get(), MoveTarget, ShortPath, CachedLane);
 		break;
 	case EMassMovementAction::Move:
-		UE::MassMovement::ActivateActionMove(InWorld, SimulationSubsystem, Entity, *ZoneGraphSubsystem, LaneLocation, PathRequest, AgentRadius.Radius, DesiredSpeed.Get(), MoveTarget, ShortPath, CachedLane);
+		UE::MassNavigation::ActivateActionMove(InWorld, SimulationSubsystem, Entity, *ZoneGraphSubsystem, LaneLocation, PathRequest, AgentRadius.Radius, DesiredSpeed.Get(), MoveTarget, ShortPath, CachedLane);
 		break;
 	case EMassMovementAction::Animate:
-		UE::MassMovement::ActivateActionAnimate(InWorld, SimulationSubsystem, Entity, MoveTarget);
+		UE::MassNavigation::ActivateActionAnimate(InWorld, SimulationSubsystem, Entity, MoveTarget);
 		break;
 	default:
 		ensureMsgf(false, TEXT("Unhandled action type: %s"), *UEnum::GetValueAsString(Action));

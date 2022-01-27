@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassSimpleMovementTrait.h"
+#include "Example/MassSimpleMovementTrait.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Engine/World.h"
-#include "MassMovementTypes.h"
 #include "MassMovementFragments.h"
 #include "MassCommonFragments.h"
 #include "MassSimulationLOD.h"

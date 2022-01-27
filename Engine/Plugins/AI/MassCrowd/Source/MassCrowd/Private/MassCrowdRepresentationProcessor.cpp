@@ -2,7 +2,7 @@
 
 #include "MassCrowdRepresentationProcessor.h"
 #include "MassCrowdFragments.h"
-#include "MassAIMovementFragments.h"
+#include "MassMovementFragments.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"

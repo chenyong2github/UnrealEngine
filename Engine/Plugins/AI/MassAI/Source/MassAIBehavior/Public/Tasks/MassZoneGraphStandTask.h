@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MassStateTreeTypes.h"
-#include "MassMovementTypes.h"
 #include "MassZoneGraphStandTask.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -11,9 +10,9 @@ struct FMassZoneGraphLaneLocationFragment;
 struct FMassMoveTargetFragment;
 struct FMassZoneGraphShortPathFragment;
 struct FMassZoneGraphCachedLaneFragment;
+struct FMassMovementParameters;
 class UZoneGraphSubsystem;
 class UMassSignalSubsystem;
-struct FMassMovementConfigFragment;
 
 /**
  * Stop, and stand on current ZoneGraph location
@@ -47,9 +46,9 @@ protected:
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
+	TStateTreeExternalDataHandle<FMassMovementParameters> MovementParamsHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-	TStateTreeExternalDataHandle<FMassMovementConfigFragment> MovementConfigHandle;
 
 	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
 	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;

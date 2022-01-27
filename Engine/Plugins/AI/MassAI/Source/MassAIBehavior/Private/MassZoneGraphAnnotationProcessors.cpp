@@ -2,7 +2,7 @@
 
 #include "MassZoneGraphAnnotationProcessors.h"
 #include "MassAIBehaviorTypes.h"
-#include "MassZoneGraphMovementFragments.h"
+#include "MassZoneGraphNavigationFragments.h"
 #include "MassZoneGraphAnnotationFragments.h"
 #include "MassZoneGraphAnnotationTypes.h"
 #include "ZoneGraphTypes.h"
