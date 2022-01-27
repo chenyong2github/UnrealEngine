@@ -336,20 +336,9 @@ namespace HordeServer
 
 			Services.AddSingleton<AutoscaleService>();
 			Services.AddSingleton<AutoscaleServiceV2>();
-
-			if (Enum.TryParse(Settings.AgentPoolSizeStrategy, out PoolSizeStrategy PoolSizeStrategy))
-			{
-				switch (PoolSizeStrategy)
-				{
-					case PoolSizeStrategy.LeaseUtilization: Services.AddSingleton<IPoolSizeStrategy, LeaseUtilizationStrategy>(); break;
-					case PoolSizeStrategy.JobQueue: Services.AddSingleton<IPoolSizeStrategy, JobQueueStrategy>(); break;
-					default: Services.AddSingleton<IPoolSizeStrategy, NoOpPoolSizeStrategy>(); break;
-				}
-			}
-			else
-			{
-				Services.AddSingleton<IPoolSizeStrategy, NoOpPoolSizeStrategy>();
-			}
+			Services.AddSingleton<LeaseUtilizationStrategy>();
+			Services.AddSingleton<JobQueueStrategy>();
+			Services.AddSingleton<NoOpPoolSizeStrategy>();
 			
 			switch (Settings.FleetManager)
 			{
@@ -574,14 +563,14 @@ namespace HordeServer
 
 			if (Settings.EnableBackgroundServices)
 			{
-				// Allow both legacy and v2 impl to co-exist during rollout phase
-				if (Settings.AgentPoolSizeStrategy != null)
-				{
-					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleServiceV2>());
-				}
-				else
+				if (Settings.FeatureFlags.AutoscaleServiceV1Enabled)
 				{
 					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());	
+				}
+				
+				if (Settings.FeatureFlags.AutoscaleServiceV2Enabled)
+				{
+					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleServiceV2>());
 				}
 				
 				Services.AddHostedService(Provider => Provider.GetRequiredService<AgentService>());

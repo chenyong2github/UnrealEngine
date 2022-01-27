@@ -60,7 +60,7 @@ namespace HordeServer.Controllers
 				return Forbid(AclAction.CreatePool);
 			}
 
-			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.Properties);
+			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.SizeStrategy, Create.Properties);
 			return new CreatePoolResponse(NewPool.Id.ToString());
 		}
 

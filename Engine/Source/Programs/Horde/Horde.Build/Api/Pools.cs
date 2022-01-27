@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using Horde.Build.Fleet.Autoscale;
 
 namespace HordeServer.Api
 {
@@ -30,6 +31,11 @@ namespace HordeServer.Api
 		/// Whether to enable autoscaling for this pool
 		/// </summary>
 		public bool? EnableAutoscaling { get; set; }
+		
+		/// <summary>
+		/// Pool sizing strategy
+		/// </summary>
+		public PoolSizeStrategy? SizeStrategy { get; set; }
 
 		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool
@@ -86,6 +92,11 @@ namespace HordeServer.Api
 		/// Whether to enable autoscaling for this pool
 		/// </summary>
 		public bool? EnableAutoscaling { get; set; }
+		
+		/// <summary>
+		/// Pool sizing strategy
+		/// </summary>
+		public PoolSizeStrategy? SizeStrategy { get; set; }
 
 		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool

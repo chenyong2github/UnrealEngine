@@ -33,36 +33,27 @@ namespace Horde.Build.Tests.Fleet
 		public async Task JobQueueWith5Jobs()
 		{
 			(JobQueueStrategy Strategy, PoolSizeData PoolSizeData) = await SetUpJobsAsync(1, 5);
-			Dictionary<PoolId, PoolSizeData> PoolSizeDatas = new ();
-			PoolSizeDatas[PoolSizeData.Pool.Id] = PoolSizeData;
-			await Strategy.CalcDesiredPoolSizesAsync(PoolSizeDatas);
-			PoolSizeData = PoolSizeDatas[PoolSizeData.Pool.Id];
-			Assert.AreEqual(1, PoolSizeDatas.Count);
-			Assert.AreEqual(PoolSizeData.Agents.Count + 0, PoolSizeData.DesiredAgentCount);
+			List<PoolSizeData> Result = await Strategy.CalcDesiredPoolSizesAsync(new() { PoolSizeData });
+			Assert.AreEqual(1, Result.Count);
+			Assert.AreEqual(Result[0].Agents.Count + 0, Result[0].DesiredAgentCount);
 		}
 		
 		[TestMethod]
 		public async Task JobQueueWith15Jobs()
 		{
 			(JobQueueStrategy Strategy, PoolSizeData PoolSizeData) = await SetUpJobsAsync(1, 15);
-			Dictionary<PoolId, PoolSizeData> PoolSizeDatas = new ();
-			PoolSizeDatas[PoolSizeData.Pool.Id] = PoolSizeData;
-			await Strategy.CalcDesiredPoolSizesAsync(PoolSizeDatas);
-			PoolSizeData = PoolSizeDatas[PoolSizeData.Pool.Id];
-			Assert.AreEqual(1, PoolSizeDatas.Count);
-			Assert.AreEqual(PoolSizeData.Agents.Count + 1, PoolSizeData.DesiredAgentCount);
+			List<PoolSizeData> Result = await Strategy.CalcDesiredPoolSizesAsync(new() { PoolSizeData });
+			Assert.AreEqual(1, Result.Count);
+			Assert.AreEqual(Result[0].Agents.Count + 1, Result[0].DesiredAgentCount);
 		}
 		
 		[TestMethod]
 		public async Task JobQueueWith25Jobs()
 		{
 			(JobQueueStrategy Strategy, PoolSizeData PoolSizeData) = await SetUpJobsAsync(1, 25);
-			Dictionary<PoolId, PoolSizeData> PoolSizeDatas = new ();
-			PoolSizeDatas[PoolSizeData.Pool.Id] = PoolSizeData;
-			await Strategy.CalcDesiredPoolSizesAsync(PoolSizeDatas);
-			PoolSizeData = PoolSizeDatas[PoolSizeData.Pool.Id];
-			Assert.AreEqual(1, PoolSizeDatas.Count);
-			Assert.AreEqual(PoolSizeData.Agents.Count + 2, PoolSizeData.DesiredAgentCount);
+			List<PoolSizeData> Result = await Strategy.CalcDesiredPoolSizesAsync(new() { PoolSizeData });
+			Assert.AreEqual(1, Result.Count);
+			Assert.AreEqual(Result[0].Agents.Count + 2, Result[0].DesiredAgentCount);
 		}
 	
 		/// <summary>

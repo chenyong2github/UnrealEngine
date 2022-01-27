@@ -7,12 +7,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HordeCommon;
+using HordeServer;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 using StatsdClient;
@@ -28,27 +30,33 @@ namespace Horde.Build.Fleet.Autoscale
 	{
 		static readonly TimeSpan ShrinkPoolCoolDown = TimeSpan.FromMinutes(20.0);
 
-		IPoolSizeStrategy PoolSizeStrategy;
+		IPoolSizeStrategy LeaseUtilizationStrategy;
+		IPoolSizeStrategy JobQueueStrategy;
+		IPoolSizeStrategy NoOpStrategy;
 		IAgentCollection AgentCollection;
 		IPoolCollection PoolCollection;
 		IFleetManager FleetManager;
 		IDogStatsd DogStatsd;
 		IClock Clock;
 		ITicker Ticker;
+		ServerSettings Settings;
 		ILogger<AutoscaleServiceV2> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleServiceV2(IPoolSizeStrategy PoolSizeStrategy, IAgentCollection AgentCollection, IPoolCollection PoolCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, IClock Clock, ILogger<AutoscaleServiceV2> Logger)
+		public AutoscaleServiceV2(LeaseUtilizationStrategy LeaseUtilizationStrategy, JobQueueStrategy JobQueueStrategy, NoOpPoolSizeStrategy NoOpStrategy, IAgentCollection AgentCollection, IPoolCollection PoolCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, IClock Clock, IOptions<ServerSettings> Settings, ILogger<AutoscaleServiceV2> Logger)
 		{
-			this.PoolSizeStrategy = PoolSizeStrategy;
+			this.LeaseUtilizationStrategy = LeaseUtilizationStrategy;
+			this.JobQueueStrategy = JobQueueStrategy;
+			this.NoOpStrategy = NoOpStrategy;
 			this.AgentCollection = AgentCollection;
 			this.PoolCollection = PoolCollection;
 			this.FleetManager = FleetManager;
 			this.DogStatsd = DogStatsd;
 			this.Clock = Clock;
 			this.Ticker = Clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, Logger);
+			this.Settings = Settings.Value;
 			this.Logger = Logger;
 		}
 
@@ -61,27 +69,45 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <inheritdoc/>
 		public void Dispose() => Ticker.Dispose();
 
-		/// <inheritdoc/>
-		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
+		internal async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			DateTime UtcNow = Clock.UtcNow;
-
-			Logger.LogInformation("Autoscaling pools using strategy {PoolSizeStrategyName}...", PoolSizeStrategy.Name);
+			Logger.LogInformation("Autoscaling pools...");
 			Stopwatch Stopwatch = Stopwatch.StartNew();
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService").StartActive();
 			
-			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
-			List<IAgent> GetAgentsInPool(PoolId PoolId)
+			// Group pools by strategy type to ensure they can be called once (more optimal)
+			Dictionary<PoolSizeStrategy, List<PoolSizeData>> PoolSizeDataByStrategy = await GetPoolSizeDataByStrategyType();
+			foreach ((var StrategyType, var CurrentData) in PoolSizeDataByStrategy)
 			{
-				return Agents.FindAll(a => a.GetPools().Any(p => p == PoolId));
+				List<PoolSizeData> NewData = await GetPoolSizeStrategy(StrategyType).CalcDesiredPoolSizesAsync(CurrentData);
+				await ResizePools(NewData);
 			}
 			
+			Stopwatch.Stop();
+			Logger.LogInformation("Autoscaling pools took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
+		}
+
+		internal async Task<Dictionary<PoolSizeStrategy, List<PoolSizeData>>> GetPoolSizeDataByStrategyType()
+		{
+			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
+			List<IAgent> GetAgentsInPool(PoolId PoolId) => Agents.FindAll(a => a.GetPools().Any(p => p == PoolId));
 			List<IPool> Pools = await PoolCollection.GetAsync();
-			Dictionary<PoolId, PoolSizeData> PoolSizeDatas = Pools.ToDictionary(x => x.Id, x => new PoolSizeData(x, GetAgentsInPool(x.Id), null));
 
-			await PoolSizeStrategy.CalcDesiredPoolSizesAsync(PoolSizeDatas);
+			Dictionary<PoolSizeStrategy, List<PoolSizeData>> Result = new();
+			foreach (PoolSizeStrategy StrategyType in Enum.GetValues<PoolSizeStrategy>())
+			{
+				Result[StrategyType] = Pools
+					.Where(x => (x.SizeStrategy ?? Settings.DefaultAgentPoolSizeStrategy) == StrategyType)
+					.Select(x => new PoolSizeData(x, GetAgentsInPool(x.Id), null))
+					.ToList();
+			}
 
-			foreach (PoolSizeData PoolSizeData in PoolSizeDatas.Values.OrderByDescending(x => x.Agents.Count))
+			return Result;
+		}
+
+		internal async Task ResizePools(List<PoolSizeData> PoolSizeDatas)
+		{
+			foreach (PoolSizeData PoolSizeData in PoolSizeDatas.OrderByDescending(x => x.Agents.Count))
 			{
 				IPool Pool = PoolSizeData.Pool;
 
@@ -92,6 +118,11 @@ namespace Horde.Build.Fleet.Autoscale
 				int DeltaAgentCount = DesiredAgentCount - CurrentAgentCount;
 
 				Logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status}", Pool.Name, CurrentAgentCount, DesiredAgentCount, DeltaAgentCount, PoolSizeData.StatusMessage);
+
+				if (Settings.FeatureFlags.AutoscaleServiceV2ShadowMode)
+				{
+					continue;
+				}
 				
 				try
 				{
@@ -130,9 +161,31 @@ namespace Horde.Build.Fleet.Autoscale
 				DogStatsd.Gauge("agentpools.autoscale.target", DesiredAgentCount, tags: new []{"pool:" + Pool.Name});
 				DogStatsd.Gauge("agentpools.autoscale.current", CurrentAgentCount, tags: new []{"pool:" + Pool.Name});
 			}
-			
-			Stopwatch.Stop();
-			Logger.LogInformation("Autoscaling pools took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
+		}
+
+		/// <summary>
+		/// Backdoor for tests to override strategies with test doubles
+		/// These cannot supplied in the constructor since the DI requires concrete implementations.
+		/// </summary>
+		/// <param name="LeaseUtilizationStrategy"></param>
+		/// <param name="JobQueueStrategy"></param>
+		/// <param name="NoOpStrategy"></param>
+		internal void OverridePoolSizeStrategiesDuringTesting(IPoolSizeStrategy LeaseUtilizationStrategy, IPoolSizeStrategy JobQueueStrategy, IPoolSizeStrategy NoOpStrategy)
+		{
+			this.LeaseUtilizationStrategy = LeaseUtilizationStrategy;
+			this.JobQueueStrategy = JobQueueStrategy;
+			this.NoOpStrategy = NoOpStrategy;
+		}
+		
+		private IPoolSizeStrategy GetPoolSizeStrategy(PoolSizeStrategy Type)
+		{
+			return Type switch
+			{
+				PoolSizeStrategy.LeaseUtilization => LeaseUtilizationStrategy,
+				PoolSizeStrategy.JobQueue => JobQueueStrategy,
+				PoolSizeStrategy.NoOp => NoOpStrategy,
+				_ => NoOpStrategy,
+			};
 		}
 	}
 }

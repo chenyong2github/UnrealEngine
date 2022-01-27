@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using HordeServer.Models;
 using HordeServer.Utilities;
@@ -72,6 +73,20 @@ namespace Horde.Build.Fleet.Autoscale
 			this.DesiredAgentCount = DesiredAgentCount;
 			this.StatusMessage = StatusMessage;
 		}
+
+		/// <summary>
+		/// Copy the object, inheriting any unspecified values from current instance
+		/// Needed because the class is immutable 
+		/// </summary>
+		/// <param name="Pool"></param>
+		/// <param name="Agents"></param>
+		/// <param name="DesiredAgentCount"></param>
+		/// <param name="StatusMessage"></param>
+		/// <returns>A new copy</returns>
+		public PoolSizeData Copy(IPool? Pool = null, List<IAgent>? Agents = null, int? DesiredAgentCount = null, string? StatusMessage = null)
+		{
+			return new PoolSizeData(Pool ?? this.Pool, Agents ?? this.Agents, DesiredAgentCount ?? this.DesiredAgentCount, StatusMessage ?? this.StatusMessage);
+		}
 	}
 	
 	/// <summary>
@@ -84,7 +99,7 @@ namespace Horde.Build.Fleet.Autoscale
 		/// </summary>
 		/// <param name="Pools">Pools including attached agents</param>
 		/// <returns></returns>
-		Task CalcDesiredPoolSizesAsync(Dictionary<PoolId, PoolSizeData> Pools);
+		Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools);
 		
 		/// <summary>
 		/// Name of the strategy
@@ -99,14 +114,10 @@ namespace Horde.Build.Fleet.Autoscale
 	public class NoOpPoolSizeStrategy : IPoolSizeStrategy
 	{
 		/// <inheritdoc/>
-		public Task CalcDesiredPoolSizesAsync(Dictionary<PoolId, PoolSizeData> Pools)
+		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
 		{
-			foreach (PoolSizeData Data in Pools.Values)
-			{
-				Pools[Data.Pool.Id] = new(Data.Pool, Data.Agents, Data.Agents.Count, "(no-op)");
-			}
-
-			return Task.CompletedTask;
+			List<PoolSizeData> Result = Pools.Select(x => new PoolSizeData(x.Pool, x.Agents, x.Agents.Count, "(no-op)")).ToList();
+			return Task.FromResult(Result);
 		}
 
 		/// <inheritdoc/>

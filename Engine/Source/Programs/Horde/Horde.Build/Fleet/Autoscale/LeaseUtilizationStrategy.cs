@@ -186,15 +186,17 @@ namespace Horde.Build.Fleet.Autoscale
 		public string Name { get; } = "LeaseUtilization";
 
 		/// <inheritdoc/>
-		public async Task CalcDesiredPoolSizesAsync(Dictionary<PoolId, PoolSizeData> PoolSizes)
+		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
 		{
 			Dictionary<PoolId, PoolData> PoolToData = await GetPoolDataAsync();
+			List<PoolSizeData> Result = new();
 
 			foreach (PoolData PoolData in PoolToData.Values.OrderByDescending(x => x.Agents.Count))
 			{
 				IPool Pool = PoolData.Pool;
 
-				if (PoolSizes.TryGetValue(Pool.Id, out PoolSizeData? PoolSize))
+				PoolSizeData? PoolSize = Pools.Find(x => x.Pool.Id == Pool.Id);
+				if (PoolSize != null)
 				{
 					int MinAgents = Pool.MinAgents ?? 1;
 					int NumReserveAgents = Pool.NumReserveAgents ?? 5;
@@ -214,9 +216,11 @@ namespace Horde.Build.Fleet.Autoscale
 					Sb.AppendFormat("Avg=[{0,5:0.0}] ", Utilization);
 					Sb.AppendFormat("Pct=[{0,5:0.0}] ", PoolData.Samples.Sum(x => x.JobWork) / NumSamples);
 
-					PoolSizes[Pool.Id] = new(Pool, PoolSize.Agents, DesiredAgentCount, Sb.ToString());
+					Result.Add(new(Pool, PoolSize.Agents, DesiredAgentCount, Sb.ToString()));
 				}
 			}
+
+			return Result;
 		}
 		
 		/// <summary>

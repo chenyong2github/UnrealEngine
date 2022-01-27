@@ -14,6 +14,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Horde.Build.Fleet.Autoscale;
 using TimeZoneConverter;
 
 namespace HordeServer
@@ -137,6 +138,34 @@ namespace HordeServer
 		/// Max number of concurrent leases per agent
 		/// </summary>
 		public int MaxConcurrentLeasesPerAgent { get; set; } = 1;
+	}
+	
+	/// <summary>
+	/// Feature flags to aid rollout of new features
+	///
+	/// Once a feature is running in its intended state and is stable, the flag should be removed.
+	/// A name and date of when the flag was created is noted next to it to help encourage this behavior.
+	/// Try having them be just a flag, a boolean.
+	/// </summary>
+	public class FeatureFlagSettings
+	{
+		/// <summary>
+		/// Registers the old v1 autoscale service as a background service
+		/// Added by carl.bystrom on Jan 26, 2022
+		/// </summary>
+		public bool AutoscaleServiceV1Enabled { get; set; } = true;
+		
+		/// <summary>
+		/// Registers the new autoscale service v2 as a background service (can run in parallel with v1 if shadow mode is on)
+		/// Added by carl.bystrom on Jan 26, 2022
+		/// </summary>
+		public bool AutoscaleServiceV2Enabled { get; set; } = false;
+		
+		/// <summary>
+		/// Shadow mode enabled on new AutoscaleServiceV2 will only log pool size changes but not act on them.
+		/// Added by carl.bystrom on Jan 26, 2022
+		/// </summary>
+		public bool AutoscaleServiceV2ShadowMode { get; set; } = true;
 	}
 
 	/// <summary>
@@ -504,11 +533,11 @@ namespace HordeServer
 		/// The Uri for the Jira installation
 		/// </summary>
 		public Uri? JiraUrl { get; set; }
-		
+
 		/// <summary>
-		/// Type of auto-scaling strategy to be used for sizing agent pools (if left empty, legacy auto scaling impl is used)
+		/// Default agent pool sizing strategy for pools that doesn't have one explicitly configured
 		/// </summary>
-		public string? AgentPoolSizeStrategy { get; set; }
+		public PoolSizeStrategy DefaultAgentPoolSizeStrategy { get; set; } = PoolSizeStrategy.LeaseUtilization;
 
 		/// <summary>
 		/// Set the minimum size of the global thread pool
@@ -554,5 +583,8 @@ namespace HordeServer
 		/// Whether to open a browser on startup
 		/// </summary>
 		public bool OpenBrowser { get; set; } = false;
+
+		/// <inheritdoc cref="FeatureFlags" />
+		public FeatureFlagSettings FeatureFlags { get; set; } = new ();
 	}
 }

@@ -100,14 +100,16 @@ namespace Horde.Build.Fleet.Autoscale
 		}
 
 		/// <inheritdoc/>
-		public async Task CalcDesiredPoolSizesAsync(Dictionary<PoolId, PoolSizeData> PoolSizes)
+		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> Pools)
 		{
 			DateTimeOffset MinCreateTime = Clock.UtcNow - LookbackPeriod;
 			Dictionary<PoolId, int> PoolQueueSizes = await GetPoolQueueSizesAsync(MinCreateTime);
+			List<PoolSizeData> Result = new();
 			
 			foreach ((PoolId PoolId, int QueueSize) in PoolQueueSizes.OrderBy(x => x.Value))
 			{
-				if (PoolSizes.TryGetValue(PoolId, out PoolSizeData? PoolSize))
+				PoolSizeData? PoolSize = Pools.Find(x => x.Pool.Id == PoolId);
+				if (PoolSize != null)
 				{
 					// TODO: Tweak these values once in production
 					int AdditionalAgentCount = QueueSize switch
@@ -122,9 +124,11 @@ namespace Horde.Build.Fleet.Autoscale
 					};
 
 					int DesiredAgentCount = PoolSize.Agents.Count + AdditionalAgentCount;
-					PoolSizes[PoolId] = new(PoolSize.Pool, PoolSize.Agents, DesiredAgentCount, $"QueueSize={QueueSize}");
+					Result.Add(new(PoolSize.Pool, PoolSize.Agents, DesiredAgentCount, $"QueueSize={QueueSize}"));
 				}
 			}
+
+			return Result;
 		}
 	}
 }
