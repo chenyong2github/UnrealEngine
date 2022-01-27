@@ -2765,9 +2765,12 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 
 UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const USceneComponent& Component, const UMovieScenePropertyTrack& Track, UE::FUsdPrim& Prim, TSet<FName>& OutPropertyPathsToRefresh )
 {
-	const FName& PropertyPath = Track.GetPropertyPath();
-
 	UnrealToUsd::FPropertyTrackWriter Result;
+
+	if ( !Prim )
+	{
+		return Result;
+	}
 
 	FScopedUsdAllocs Allocs;
 
@@ -2778,6 +2781,8 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 	pxr::SdfChangeBlock ChangeBlock;
 
 	pxr::UsdAttribute Attr;
+
+	const FName& PropertyPath = Track.GetPropertyPath();
 
 	// SceneComponent
 	{
