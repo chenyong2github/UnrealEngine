@@ -56,8 +56,8 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 
 	// FDatasmithSceneBaseGraphBuilder::BuildBody is performing a special treatment for
 	// FBodyMesh without color. Replicate the treatment here too.
-	int32 Num = Body.ColorSet.Num();
-	if (!Body.ColorSet.Num())
+	int32 Num = Body.ColorSet.Num() + Body.MaterialSet.Num();
+	if (!Num)
 	{
 		ensure(OutMeshElement->GetMaterialSlotCount() == 1);
 		int32 MaterialSlotId = OutMeshElement->GetMaterialSlotAt(0)->GetId();

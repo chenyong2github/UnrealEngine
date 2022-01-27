@@ -102,30 +102,14 @@ enum EModellerType : uint32
 	ModellerLast
 };
 
-struct FEntityBehaviour
-{
-	bool bFatherHeritColor = false;
-	bool bFatherHeritLayer = false;
-	bool bFatherHeritLinePattern = false;
-	bool bFatherHeritLineWidth = false;
-	bool bFatherHeritShow = false;
-	bool bFatherHeritTransparency = false;
-	bool bRemoved = false;
-	bool bShow = true;
-	bool bSonHeritColor = false;
-	bool bSonHeritLayer = false;
-	bool bSonHeritLinePattern = false;
-	bool bSonHeritLineWidth = false;
-	bool bSonHeritShow = false;
-	bool bSonHeritTransparency = false;
-};
-
 struct FEntityMetaData
 {
 	TMap<FString, FString> MetaData;
 	bool bRemoved = false;
 	bool bShow = true;
 	bool bUnloaded = false;
+	FCADUUID ColorName = 0;
+	FCADUUID MaterialName = 0;
 	FFileDescriptor ExternalFile;
 };
 
@@ -167,8 +151,7 @@ private:
 	void ReserveCADFileData();
 
 	// Materials and colors
-	int32 CountMaterial();
-	int32 CountColor();
+	uint32 CountColorAndMaterial();
 	void ReadMaterialsAndColors();
 
 	// Traverse ASM tree by starting from the model
@@ -203,11 +186,25 @@ private:
 
 	// Graphic properties
 	void ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);
+
+	/**
+	 * ColorName and MaterialName have to be initialized before.
+	 * This method update the value ColorName or MaterialName accordingly of the GraphStyleData type (material or color)
+	 */
 	void ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
 	void ExtractMaterialProperties(const A3DEntity* Entity);
-	void ExtractLayer(const A3DAsmProductOccurrence* Occurrence);
 	FArchiveColor& FindOrAddColor(uint32 ColorIndex, uint8 Alpha);
-	FArchiveMaterial& FindOrAddMaterial(uint32 MaterialIndex);
+	FArchiveMaterial& FindOrAddMaterial(uint32 MaterialId);
+
+	/**
+	 * @param GraphMaterialIndex is the techsoft index of the graphic data
+	 * @param MaterialIndexToSave is the index of the material really saved (i.e. for texture, at the texture index, with saved the material used by the texture)
+	 */
+	FArchiveMaterial& AddMaterialAt(uint32 MaterialIndexToSave, uint32 GraphMaterialIndex);
+	FArchiveMaterial& AddMaterial(uint32 MaterialIndex)
+	{
+		return AddMaterialAt(MaterialIndex, MaterialIndex);
+	}
 
 	// Transform
 	FMatrix TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
@@ -290,6 +287,23 @@ inline void Reserve(CADLibrary::FTessellationData& Tessellation, int32 InTrinang
 		Tessellation.TexCoordArray.Reserve(3 * InTrinangleCount);
 	}
 };
+
+#ifdef USE_TECHSOFT_SDK
+inline FColor GetColorAt(uint32 ColorIndex)
+{
+	TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
+	if (ColorData.IsValid())
+	{
+		return FColor((uint8)(ColorData->m_dRed * 255)
+			, (uint8)(ColorData->m_dGreen * 255)
+			, (uint8)(ColorData->m_dBlue * 255));
+	}
+	else
+	{
+		return FColor(200, 200, 200);
+	}
+}
+#endif
 
 } // ns TechSoftFileParserImpl
 

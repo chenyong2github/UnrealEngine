@@ -328,7 +328,7 @@ void FTechSoftFileParser::ReserveCADFileData()
 	FArchiveSceneGraph& SceneGraphArchive = CADFileData.GetSceneGraphArchive();
 	SceneGraphArchive.Reserve(ComponentCount[EComponentType::Occurrence], ComponentCount[EComponentType::Reference], ComponentCount[EComponentType::Body]);
 
-	uint32 MaterialNum = CountMaterial() + CountColor();
+	uint32 MaterialNum = CountColorAndMaterial();
 	SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
 }
 
@@ -599,7 +599,14 @@ FArchiveBody& FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData)
 	int32 BodyIndex = CADFileData.AddBody(BodyId);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 	Body.MetaData = MoveTemp(BodyMetaData.MetaData);
-
+	if(BodyMetaData.ColorName != 0)
+	{
+		Body.ColorFaceSet.Add(BodyMetaData.ColorName);
+	}
+	if (BodyMetaData.MaterialName != 0)
+	{
+		Body.MaterialFaceSet.Add(BodyMetaData.MaterialName);
+	}
 	return Body;
 }
 
@@ -634,7 +641,6 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 	BuildInstanceName(InstanceMetaData.MetaData);
 
 	ExtractMaterialProperties(OccurrencePtr);
-	ExtractLayer(OccurrencePtr);
 
 	FArchiveInstance& Instance = AddInstance(InstanceMetaData);
 
@@ -915,7 +921,6 @@ void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* Par
 	BuildPartName(PartMetaData.MetaData);
 
 	ExtractMaterialProperties(PartDefinitionPtr);
-	ExtractLayer(PartDefinitionPtr);
 
 	TUniqueTSObj<A3DAsmPartDefinitionData> PartData(PartDefinitionPtr);
 	if (PartData.IsValid())
@@ -1410,23 +1415,34 @@ FArchiveColor& FTechSoftFileParser::FindOrAddColor(uint32 ColorIndex, uint8 Alph
 	}
 
 	FArchiveColor& NewColor = CADFileData.AddColor(ColorHId);
-	FColor& Color = NewColor.Color;
-	TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
-	if (ColorData.IsValid())
-	{
-		Color.R = (uint8)(ColorData->m_dRed * 255);
-		Color.G = (uint8)(ColorData->m_dGreen * 255);
-		Color.B = (uint8)(ColorData->m_dBlue * 255);
-		Color.A = Alpha;
-	}
-	else
-	{
-		Color = FColor(200, 200, 200);
-	}
-
+	NewColor.Color = TechSoftFileParserImpl::GetColorAt(ColorIndex);
+	NewColor.Color.A = Alpha;
+	
 	NewColor.UEMaterialName = BuildColorName(NewColor.Color);
 	return NewColor;
 }
+
+FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave, uint32 GraphMaterialIndex)
+{
+	FArchiveMaterial& NewMaterial = CADFileData.AddMaterial(GraphMaterialIndex);
+	FCADMaterial& Material = NewMaterial.Material;
+
+	TUniqueTSObjFromIndex<A3DGraphMaterialData> MaterialData(MaterialIndexToSave);
+	if(MaterialData.IsValid())
+	{
+		Material.Diffuse = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiDiffuse);
+		Material.Ambient = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiAmbient);
+		Material.Specular = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiSpecular);
+		Material.Shininess = MaterialData->m_dShininess;
+		Material.Transparency = 1. - MaterialData->m_dAmbientAlpha;
+		// todo: find how to convert Emissive color into ? reflexion coef...
+		// Material.Emissive = GetColor(MaterialData->m_uiEmissive);
+		// Material.Reflexion;
+	}
+	NewMaterial.UEMaterialName = BuildMaterialName(Material);
+	return NewMaterial;
+}
+
 
 FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex)
 {
@@ -1435,52 +1451,29 @@ FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex)
 		return *MaterialArchive;
 	}
 
-	TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData;
-	TFunction<const FColor(uint32)> GetColor = [&](uint32 ColorIndex) -> const FColor
-	{
-		ColorData.FillFrom(ColorIndex);
-		if (ColorData.IsValid())
-		{
-			return FColor((uint8)ColorData->m_dRed * 255,
-				(uint8)ColorData->m_dGreen * 255,
-				(uint8)ColorData->m_dBlue * 255);
-		}
-		else
-		{
-			return FColor(200, 200, 200);
-		}
-	};
-
-	FArchiveMaterial& NewMaterial = CADFileData.AddMaterial(MaterialIndex);
-	FCADMaterial& Material = NewMaterial.Material;
-
-	A3DBool bIsTexture = false;
-	A3DGlobalIsMaterialTexture(MaterialIndex, &bIsTexture);
+	bool bIsTexture = TechSoftUtils::IsMaterialTexture(MaterialIndex);
 	if (bIsTexture)
 	{
-#ifdef NOTYETDEFINE
-		// style is a texture
-		TUniqueTSObj<A3DGraphTextureDefinitionData> TextureDefinitionData(TextureIndex);
-		if (TextureDefinitionData.IsValid())
+		TUniqueTSObjFromIndex<A3DGraphTextureApplicationData> TextureData(MaterialIndex);
+		if (TextureData.IsValid())
 		{
-			TUniqueTSObj<A3DGraphPictureData> PictureData(TextureDefinitionData->m_uiPictureIndex);
-		}
+			TextureData->m_uiMaterialIndex;
+			return AddMaterialAt(TextureData->m_uiMaterialIndex, MaterialIndex);
+			
+#ifdef NOTYETDEFINE
+			TUniqueTSObj<A3DGraphTextureDefinitionData> TextureDefinitionData(TextureData->m_uiTextureDefinitionIndex);
+			if (TextureDefinitionData.IsValid())
+			{
+				TUniqueTSObj<A3DGraphPictureData> PictureData(TextureDefinitionData->m_uiPictureIndex);
+			}
 #endif
+		}
+		return AddMaterialAt(MaterialIndex, 0);
 	}
 	else
 	{
-		TUniqueTSObjFromIndex<A3DGraphMaterialData> MaterialData(MaterialIndex);
-		Material.Diffuse = GetColor(MaterialData->m_uiDiffuse);
-		Material.Ambient = GetColor(MaterialData->m_uiAmbient);
-		Material.Specular = GetColor(MaterialData->m_uiSpecular);
-		Material.Shininess = MaterialData->m_dShininess;
-		Material.Transparency = MaterialData->m_dAmbientAlpha;
-		// todo: find how to convert Emissive color into ? reflexion coef...
-		// Material.Emissive = GetColor(MaterialData->m_uiEmissive);
-		// Material.Reflexion;
+		return AddMaterial(MaterialIndex);
 	}
-
-	return NewMaterial;
 }
 
 void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData)
@@ -1490,30 +1483,37 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 	{
 		return;
 	}
-	FEntityBehaviour GraphicsBehaviour;
 
-	GraphicsBehaviour.bFatherHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritColor;
-	GraphicsBehaviour.bFatherHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritLayer;
-	GraphicsBehaviour.bFatherHeritLinePattern = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritLinePattern;
-	GraphicsBehaviour.bFatherHeritLineWidth = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritLineWidth;
-	GraphicsBehaviour.bFatherHeritShow = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritShow;
-	GraphicsBehaviour.bFatherHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritTransparency;
-	GraphicsBehaviour.bRemoved = GraphicsData->m_usBehaviour & kA3DGraphicsRemoved;
-	GraphicsBehaviour.bShow = GraphicsData->m_usBehaviour & kA3DGraphicsShow;
-	GraphicsBehaviour.bSonHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritColor;
-	GraphicsBehaviour.bSonHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritLayer;
-	GraphicsBehaviour.bSonHeritLinePattern = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritLinePattern;
-	GraphicsBehaviour.bSonHeritLineWidth = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritLineWidth;
-	GraphicsBehaviour.bSonHeritShow = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritShow;
-	GraphicsBehaviour.bSonHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritTransparency;
+	bool bFatherHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritColor;
+	bool bSonHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritColor;
 
-	OutMetaData.bRemoved = GraphicsBehaviour.bRemoved;
-	OutMetaData.bShow = GraphicsBehaviour.bShow;
+	//To do if needed
+	//bool bFatherHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritLayer;
+	//bool bSonHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritLayer;
+	//bool bFatherHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritTransparency;
+	//bool bSonHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritTransparency;
 
-	FCADUUID ColorName;
-	FCADUUID MaterialName;
+	OutMetaData.bRemoved = GraphicsData->m_usBehaviour & kA3DGraphicsRemoved;
+	OutMetaData.bShow = GraphicsData->m_usBehaviour & kA3DGraphicsShow;
+
+	if (GraphicsData->m_uiStyleIndex == A3D_DEFAULT_STYLE_INDEX)
+	{
+		return;
+	}
+
+	FCADUUID& ColorName = OutMetaData.ColorName;
+	FCADUUID& MaterialName = OutMetaData.MaterialName;
 
 	ExtractGraphStyleProperties(GraphicsData->m_uiStyleIndex, ColorName, MaterialName);
+
+	if(bSonHeritColor)
+	{
+		OutMetaData.MetaData.Add(TEXT("GraphicsBehaviour"), TEXT("SonHerit"));
+	}
+	else if (bFatherHeritColor)
+	{
+		OutMetaData.MetaData.Add(TEXT("GraphicsBehaviour"), TEXT("FatherHerit"));
+	}
 
 	if (ColorName)
 	{
@@ -1528,9 +1528,6 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 
 void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutMaterialName)
 {
-	OutColorName = 0;
-	OutMaterialName = 0;
-
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
 
 	if (GraphStyleData.IsValid())
@@ -1667,26 +1664,6 @@ FMatrix FTechSoftFileParser::TraverseCoordinateSystem(const A3DRiCoordinateSyste
 	return FMatrix::Identity;
 }
 
-void FTechSoftFileParser::ExtractLayer(const A3DAsmProductOccurrence* Occurrence)
-{
-	// TODO
-
-	A3DUns32 LayerCount = 0;
-	A3DAsmLayer* AsmLayer = 0;
-	if (A3DAsmProductOccurrenceGetLayerList(Occurrence, &LayerCount, &AsmLayer) == A3D_SUCCESS)
-	{
-		if (LayerCount)
-		{
-			for (A3DUns32 Index = 0; Index < LayerCount; ++Index)
-			{
-				//Layer->SetAttribute("Name", asLayers[Index].m_pcLayerName ? asLayers[Index].m_pcLayerName : "null");
-				//Layer->SetAttribute("Layer", asLayers[Index].m_usLayer);
-			}
-		}
-		A3DAsmProductOccurrenceGetLayerList(NULL, &LayerCount, &AsmLayer);
-	}
-}
-
 bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence)
 {
 	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
@@ -1714,23 +1691,123 @@ bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occu
 	return bIsConfiguration;
 }
 
-int32 FTechSoftFileParser::CountMaterial()
-{
-	// TODO
 
-	return 0;
+uint32 FTechSoftFileParser::CountColorAndMaterial()
+{
+	A3DGlobal* GlobalPtr = nullptr;
+	if (TechSoftUtils::GetGlobalPointer(&GlobalPtr) != A3D_SUCCESS)
+	{
+		return 0;
+	}
+
+	A3DInt32 iRet = A3D_SUCCESS;
+	TUniqueTSObj<A3DGlobalData> GlobalData(GlobalPtr);
+	if (!GlobalData.IsValid())
+	{
+		return 0;
+	}
+
+	uint32 ColorCount = GlobalData->m_uiColorsSize;
+	uint32 MaterialCount = GlobalData->m_uiMaterialsSize;
+	uint32 TextureDefinitionCount = GlobalData->m_uiTextureDefinitionsSize;
+
+	return ColorCount + MaterialCount + TextureDefinitionCount;
 }
 
-int32 FTechSoftFileParser::CountColor()
+void ExtractTextureDefinition(const A3DGraphTextureDefinitionData& TextureDefinitionData)
 {
-	// TODO
+	// To do
+	//TextureDefinitionData.m_uiPictureIndex;
+	//TextureDefinitionData.m_ucTextureDimension;
+	//TextureDefinitionData.m_eMappingType;
+	//TextureDefinitionData.m_eMappingOperator;
 
-	return 0;
+	//TextureDefinitionData.m_pOperatorTransfo;
+
+	//TextureDefinitionData.m_uiMappingAttributes;
+	//TextureDefinitionData.m_uiMappingAttributesIntensitySize,
+	//TextureDefinitionData.m_pdMappingAttributesIntensity;
+	//TextureDefinitionData.m_uiMappingAttributesComponentsSize,
+	//TextureDefinitionData.m_pucMappingAttributesComponents;
+	//TextureDefinitionData.m_eTextureFunction;
+	//TextureDefinitionData.m_dRed;
+	//TextureDefinitionData.m_dGreen;
+	//TextureDefinitionData.m_dBlue;
+	//TextureDefinitionData.m_dAlpha;
+	//TextureDefinitionData.m_eBlend_src_RGB;
+	//TextureDefinitionData.m_eBlend_dst_RGB;
+	//TextureDefinitionData.m_eBlend_src_Alpha;
+	//TextureDefinitionData.m_eBlend_dst_Alpha;
+	//TextureDefinitionData.m_ucTextureApplyingMode;
+	//TextureDefinitionData.m_eTextureAlphaTest;
+	//TextureDefinitionData.m_dAlphaTestReference;
+	//TextureDefinitionData.m_eTextureWrappingModeS;
+	//TextureDefinitionData.m_eTextureWrappingModeT;
+
+	//if (TextureDefinitionData.m_pTextureTransfo != nullptr)
+	//{
+	//	TUniqueTSObj<A3DGraphTextureTransformationData> TransfoData(TextureDefinitionData.m_pTextureTransfo);
+	//}
 }
 
 void FTechSoftFileParser::ReadMaterialsAndColors()
 {
-	// TODO
+	A3DGlobal* GlobalPtr = nullptr;
+	if(TechSoftUtils::GetGlobalPointer(&GlobalPtr) != A3D_SUCCESS)
+	{
+		return;
+	}
+
+	A3DInt32 iRet = A3D_SUCCESS;
+	TUniqueTSObj<A3DGlobalData> GlobalData(GlobalPtr);
+	if (!GlobalData.IsValid())
+	{
+		return;
+	}
+
+	{
+		uint32 MaterialCount = GlobalData->m_uiMaterialsSize;
+		if (MaterialCount)
+		{
+			for (uint32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+			{
+				FTechSoftFileParser::FindOrAddMaterial(MaterialIndex);
+			}
+		}
+	}
+
+	{
+		uint32 TextureDefinitionCount = GlobalData->m_uiTextureDefinitionsSize;
+		if (TextureDefinitionCount)
+		{
+			TUniqueTSObjFromIndex<A3DGraphTextureDefinitionData> TextureDefinitionData;
+			for (uint32 TextureIndex = 0; TextureIndex < TextureDefinitionCount; ++TextureIndex)
+			{
+				TextureDefinitionData.FillFrom(TextureIndex);
+				ExtractTextureDefinition(*TextureDefinitionData);
+			}
+		}
+	}
+	
+	{
+		uint32 PictureCount = GlobalData->m_uiPicturesSize;
+		if (PictureCount)
+		{
+			TUniqueTSObjFromIndex<A3DGraphPictureData> PictureData;
+			for (uint32 PictureIndex = 0; PictureIndex < PictureCount; ++PictureIndex)
+			{
+				A3DEntity* PicturePtr = TechSoftUtils::GetPointerFromIndex(PictureIndex, kA3DTypeGraphPicture);
+				if (PicturePtr)
+				{
+					FEntityMetaData PictureMetaData;
+					ExtractMetaData(PicturePtr, PictureMetaData);
+				}
+
+				PictureData.FillFrom(PictureIndex);
+				// To do
+			}
+		}
+	}
 }
 
 void FTechSoftFileParser::MeshRepresentationWithTechSoft(A3DRiRepresentationItem* RepresentationItemPtr, FArchiveBody& Body)
@@ -1749,13 +1826,12 @@ void FTechSoftFileParser::MeshRepresentationWithTechSoft(A3DRiRepresentationItem
 	{
 		// TODO
 		// Check unity conversion
-		ensure(false);
-
 		const FImportParameters& ImportParameters = CADFileData.GetImportParameters();
+
 		////A3DRWParamsTessellationData /*!< The tessellation reading parameters. */
 		TessellationParameters.m_eTessellationLevelOfDetail = kA3DTessLODUserDefined;		/*!< Enum to specify predefined values for some following members. */
 		TessellationParameters.m_bUseHeightInsteadOfRatio = A3D_TRUE;
-		TessellationParameters.m_dMaxChordHeight = ImportParameters.GetChordTolerance();
+		TessellationParameters.m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10. / FileUnit;
 		TessellationParameters.m_dAngleToleranceDeg = ImportParameters.GetMaxNormalAngle();
 		TessellationParameters.m_dMaximalTriangleEdgeLength = 0; //ImportParameters.MaxEdgeLength;
 
@@ -2255,8 +2331,6 @@ void AddFaceTriangleStripWithTexture(FTessellationData& Tessellation, const A3DT
 
 } //ns FTechSoftFileParserImpl
 
-
-#pragma optimize ("",off)
 void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPtr, FArchiveBody& Body)
 {
 	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(Body.ObjectId, Body);
@@ -2265,6 +2339,17 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 	const int TessellationFaceDataWithFan = 0x4444;
 	const int TessellationFaceDataWithStrip = 0x8888;
 	const int TessellationFaceDataWithOneNormal = 0xE0E0;
+
+	FCADUUID DefaultColorName = 0;
+	FCADUUID DefaultMaterialName = 0;
+	if (Body.ColorFaceSet.Num() > 0)
+	{
+		DefaultColorName = *Body.ColorFaceSet.begin();
+	}
+	if (Body.MaterialFaceSet.Num() > 0)
+	{
+		DefaultMaterialName = *Body.MaterialFaceSet.begin();
+	}
 
 	// Coordinates
 	TUniqueTSObj<A3DTessBaseData> TessellationBaseData(TessellationPtr);
@@ -2300,23 +2385,24 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 			const A3DTessFaceData& FaceTessData = Tessellation3DData->m_psFaceTessData[Index];
 			FTessellationData& Tessellation = BodyMesh.Faces.Emplace_GetRef();
 
+			FCADUUID ColorName = DefaultColorName;
+			FCADUUID MaterialName = DefaultMaterialName;
 			if (FaceTessData.m_uiStyleIndexesSize == 1)
 			{
 				A3DUns32 StyleIndex = FaceTessData.m_puiStyleIndexes[0];
-				FCADUUID ColorName;
-				FCADUUID MaterialName;
 				ExtractGraphStyleProperties(StyleIndex, ColorName, MaterialName);
-				if (ColorName)
-				{
-					Tessellation.ColorName = ColorName;
-					BodyMesh.ColorSet.Add(ColorName);
-				}
+			}
 
-				if (MaterialName)
-				{
-					Tessellation.MaterialName = MaterialName;
-					BodyMesh.MaterialSet.Add(MaterialName);
-				}
+			if (ColorName)
+			{
+				Tessellation.ColorName = ColorName;
+				BodyMesh.ColorSet.Add(ColorName);
+			}
+
+			if (MaterialName)
+			{
+				Tessellation.MaterialName = MaterialName;
+				BodyMesh.MaterialSet.Add(MaterialName);
 			}
 
 			uint32 TriangleCount = TechSoftFileParserImpl::CountTriangles(FaceTessData);
@@ -2474,7 +2560,6 @@ void FTechSoftFileParser::TraverseTessellation3D(const A3DTess3D* TessellationPt
 	Body.ColorFaceSet = BodyMesh.ColorSet;
 	Body.MaterialFaceSet = BodyMesh.MaterialSet;
 }
-#pragma optimize ("",on)
 
 } // ns CADLibrary
 

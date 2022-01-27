@@ -369,8 +369,8 @@ namespace CADLibrary
 		TMap<uint32, FPolygonGroupID> MaterialToPolygonGroupMapping;
 		for (const FTessellationData& FaceTessellation : BodyTessellation.Faces)
 		{
-			// we assume that face has only color
-			MaterialToPolygonGroupMapping.Add(FaceTessellation.ColorName, INDEX_NONE);
+			// material is preferred over color
+			MaterialToPolygonGroupMapping.Add(FaceTessellation.MaterialName ? FaceTessellation.MaterialName : FaceTessellation.ColorName, INDEX_NONE);
 		}
 
 		// Add to the mesh, a polygon groups per material
@@ -414,8 +414,9 @@ namespace CADLibrary
 					continue;
 				}
 
-				// Get the polygonGroup
-				const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(Tessellation.ColorName);
+				// Get the polygonGroup (material is preferred over color)
+				FCADUUID GraphicName = Tessellation.MaterialName ? Tessellation.MaterialName : Tessellation.ColorName;
+				const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(GraphicName);
 				if (PolygonGroupID == nullptr)
 				{
 					continue;
@@ -640,7 +641,7 @@ namespace CADLibrary
 		// Set a diffuse color if there's nothing in the BaseColor
 		if (MaterialElement->GetBaseColor().GetExpression() == nullptr)
 		{
-			FLinearColor LinearColor = FLinearColor::FromPow22Color(InMaterial.Diffuse);
+			FLinearColor LinearColor = FLinearColor::FromSRGBColor(InMaterial.Diffuse);
 
 			IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 			ColorExpression->SetName(TEXT("Base Color"));

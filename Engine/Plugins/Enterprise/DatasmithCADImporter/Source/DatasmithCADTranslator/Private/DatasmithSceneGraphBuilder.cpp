@@ -497,7 +497,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 	uint32 MaterialUuid = 0;
 	MaterialUuid = ParentData.MaterialUuid ? ParentData.MaterialUuid : ParentData.ColorUuid;
 
-	if (!Body.ColorFaceSet.Num())
+	if (!(Body.ColorFaceSet.Num() + Body.MaterialFaceSet.Num()))
 	{
 		Body.ColorFaceSet.Add(MaterialUuid);
 	}
@@ -560,16 +560,18 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMe
 	Hash.Set(MD5);
 	MeshElement->SetFileHash(Hash);
 
-	// Currently we assume that face has only colors
-	TSet<uint32>& MaterialSet = Body.ColorFaceSet;
-
-	for (uint32 MaterialSlotId : MaterialSet)
+	TFunction<void(TSet<uint32>&)> SetMaterialToDatasmithMeshElement = [&](TSet<uint32>& MaterialSet)
 	{
-		TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement;
-		PartMaterialIDElement = FindOrAddMaterial(MaterialSlotId);
+		for (uint32 MaterialSlotId : MaterialSet)
+		{
+			TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement;
+			PartMaterialIDElement = FindOrAddMaterial(MaterialSlotId);
+			MeshElement->SetMaterial(PartMaterialIDElement->GetName(), MaterialSlotId);
+		}
+	};
 
-		MeshElement->SetMaterial(PartMaterialIDElement->GetName(), MaterialSlotId);
-	}
+	SetMaterialToDatasmithMeshElement(Body.ColorFaceSet);
+	SetMaterialToDatasmithMeshElement(Body.MaterialFaceSet);
 
 	DatasmithScene->AddMesh(MeshElement);
 

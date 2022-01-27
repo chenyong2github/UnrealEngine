@@ -40,6 +40,7 @@ public:
 	explicit TUniqueTSObjBase()
 	{
 		InitializeData();
+		Status = A3DStatus::A3D_SUCCESS;
 	}
 
 	/**
@@ -51,7 +52,7 @@ public:
 		//TechSoftInterfaceImpl::InitializeData(Data);
 		InitializeData();
 
-		Status = GetData(DataPtr);
+		Status = FillFrom(DataPtr);
 	}
 
 	~TUniqueTSObjBase()
@@ -64,44 +65,41 @@ public:
 	 */
 	A3DStatus FillFrom(IndexerType DataPtr)
 	{
-		if (IsValid())
+		if (bHasData)
 		{
-			Status = ResetData();
+			ResetData();
+		}
+
+		if (DataPtr == DefaultValue)
+		{
+			Status = A3DStatus::A3D_ERROR;
 		}
 		else
 		{
-			Status = A3DStatus::A3D_SUCCESS;
+			Status = GetData(DataPtr);
+			bHasData = true;
 		}
-
-		if (!IsValid() || (DataPtr == DefaultValue))
-		{
-			Status = A3DStatus::A3D_ERROR;
-			return Status;
-		}
-
-		Status = GetData(DataPtr);
 		return Status;
 	}
 
 	template<typename... InArgTypes>
-	A3DStatus FillWith(A3DStatus (*Getter)(const A3DEntity*, ObjectType*, InArgTypes&&... ), const A3DEntity* DataPtr, InArgTypes&&... Args)
+	A3DStatus FillWith(A3DStatus(*Getter)(const A3DEntity*, ObjectType*, InArgTypes&&...), const A3DEntity* DataPtr, InArgTypes&&... Args)
 	{
-		if (IsValid())
+		if (bHasData)
 		{
-			Status = ResetData();
+			ResetData();
+		}
+
+		if (DataPtr == DefaultValue)
+		{
+			Status = A3DStatus::A3D_ERROR;
 		}
 		else
 		{
-			Status = A3DStatus::A3D_SUCCESS;
+			Status = Getter(DataPtr, &Data, Forward<InArgTypes>(Args)...);
+			bHasData = true;
 		}
 
-		if (!IsValid() || (DataPtr == DefaultValue))
-		{
-			Status = A3DStatus::A3D_ERROR;
-			return Status;
-		}
-
-		Status = Getter(DataPtr, &Data, Forward<InArgTypes>(Args)...);
 		return Status;
 	}
 
@@ -172,6 +170,7 @@ public:
 
 private:
 	ObjectType Data;
+	bool bHasData = false;
 	A3DStatus Status = A3DStatus::A3D_ERROR;
 
 	/**
@@ -199,9 +198,10 @@ private:
 	}
 #endif
 
-	A3DStatus ResetData()
+	void ResetData()
 	{
-		return GetData(DefaultValue);
+		GetData(DefaultValue);
+		bHasData = false;
 	}
 };
 
@@ -211,8 +211,6 @@ using TUniqueTSObj = TUniqueTSObjBase<ObjectType, const A3DEntity*>;
 template<class ObjectType>
 using TUniqueTSObjFromIndex = TUniqueTSObjBase<ObjectType, uint32>;
 
-template<class ObjectType, class IndexerType>
-IndexerType TUniqueTSObjBase<ObjectType, IndexerType>::DefaultValue = (IndexerType) nullptr;
 
 }
 

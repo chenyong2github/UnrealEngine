@@ -67,6 +67,9 @@ CADINTERFACES_API bool TECHSOFT_InitializeKernel(const TCHAR* = TEXT(""));
 CADINTERFACES_API FTechSoftInterface& GetTechSoftInterface();
 
 #ifdef USE_TECHSOFT_SDK
+
+CADINTERFACES_API A3DStatus GetGlobalPointer(A3DGlobal** GlobalPtr);
+
 CADINTERFACES_API A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
 CADINTERFACES_API A3DStatus GetCurveAsNurbs(const A3DCrvBase* A3DCurve, A3DCrvNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization);
 
@@ -76,6 +79,10 @@ CADINTERFACES_API A3DStatus GetFilePathName(const A3DAsmProductOccurrence* A3DOc
 CADINTERFACES_API A3DStatus GetEntityType(const A3DEntity* pEntity, A3DEEntityType* peEntityType);
 CADINTERFACES_API bool IsEntityBaseWithGraphicsType(const A3DEntity* pEntity);
 CADINTERFACES_API bool IsEntityBaseType(const A3DEntity* EntityPtr);
+CADINTERFACES_API bool IsMaterialTexture(const uint32 MaterialIndex);
+
+CADINTERFACES_API A3DEntity* GetPointerFromIndex(const uint32 Index, const A3DEEntityType Type);
+
 #endif
 
 } // NS TechSoftUtils
