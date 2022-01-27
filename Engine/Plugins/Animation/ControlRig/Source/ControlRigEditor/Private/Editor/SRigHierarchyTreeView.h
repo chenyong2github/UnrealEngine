@@ -178,12 +178,23 @@ public:
 
 	void RequestRename();
 
+	void RefreshDisplaySettings(const URigHierarchy* InHierarchy, const FRigTreeDisplaySettings& InSettings);
+
 	/** Delegate for when the context menu requests a rename */
 	DECLARE_DELEGATE(FOnRenameRequested);
 	FOnRenameRequested OnRenameRequested;
 
 	/** The current filter result */
 	ERigTreeFilterResult FilterResult;
+
+	/** The brush to use when rendering an icon */
+	const FSlateBrush* IconBrush;;
+
+	/** The color to use when rendering an icon */
+	FSlateColor IconColor;
+
+	/** The color to use when rendering the label text */
+	FSlateColor TextColor;
 };
 
 class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>

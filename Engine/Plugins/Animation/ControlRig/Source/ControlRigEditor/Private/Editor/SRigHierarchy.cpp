@@ -748,6 +748,26 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 			}
 			break;
 		}
+		case ERigHierarchyNotification::ControlSettingChanged:
+		{
+			// update color and other settings of the item
+			if(InElement && InElement->GetType() == ERigElementType::Control)
+			{
+				for (int32 RootIndex = 0; RootIndex < TreeView->RootElements.Num(); ++RootIndex)
+				{
+					TSharedPtr<FRigTreeElement> TreeElement = TreeView->FindElement(InElement->GetKey(), TreeView->RootElements[RootIndex]);
+					if (TreeElement.IsValid())
+					{
+						if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+						{
+							const FRigTreeDisplaySettings& Settings = TreeView->GetRigTreeDelegates().GetDisplaySettings();
+							TreeElement->RefreshDisplaySettings(Hierarchy, Settings);
+						}
+					}
+				}
+			}
+			break;
+		}
 		default:
 		{
 			break;

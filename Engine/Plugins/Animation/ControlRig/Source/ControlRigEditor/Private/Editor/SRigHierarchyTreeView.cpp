@@ -41,6 +41,9 @@ FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHiera
 			{
 				bIsTransient = ControlElement->Settings.bIsTransientControl;
 			}
+
+			const FRigTreeDisplaySettings& Settings = InTreeView.Pin()->GetRigTreeDelegates().GetDisplaySettings();
+			RefreshDisplaySettings(Hierarchy, Settings);
 		}
 	}
 }
@@ -57,6 +60,23 @@ void FRigTreeElement::RequestRename()
 	{
 		OnRenameRequested.ExecuteIfBound();
 	}
+}
+
+void FRigTreeElement::RefreshDisplaySettings(const URigHierarchy* InHierarchy, const FRigTreeDisplaySettings& InSettings)
+{
+	const TPair<const FSlateBrush*, FSlateColor> Result = SRigHierarchyItem::GetBrushForElementType(InHierarchy, Key);
+
+	IconBrush = Result.Key;
+	IconColor = Result.Value;
+	if(IconColor.IsColorSpecified() && InSettings.bShowIconColors)
+	{
+		IconColor = FilterResult == ERigTreeFilterResult::Shown ? Result.Value : FSlateColor(Result.Value.GetSpecifiedColor() * 0.5f);
+	}
+	else
+	{
+		IconColor = FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
+	}
+	TextColor = FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
 }
 
 //////////////////////////////////////////////////////////////
@@ -88,19 +108,6 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 
 	TSharedPtr< SInlineEditableTextBlock > InlineWidget;
 
-	TPair<const FSlateBrush*, FSlateColor> Result = GetBrushForElementType(Delegates.GetHierarchy(), InRigTreeElement->Key);
-	const FSlateBrush* Brush = Result.Key;
-	FSlateColor IconColor = Result.Value;
-	if(IconColor.IsColorSpecified() && InSettings.bShowIconColors)
-	{
-		IconColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? Result.Value : FSlateColor(Result.Value.GetSpecifiedColor() * 0.5f);
-	}
-	else
-	{
-		IconColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
-	}
-	const FSlateColor TextColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
-
 	STableRow<TSharedPtr<FRigTreeElement>>::Construct(
 		STableRow<TSharedPtr<FRigTreeElement>>::FArguments()
 		.OnDragDetected(Delegates.OnDragDetected)
@@ -118,8 +125,22 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.Padding(FMargin(0.f, 0.f, 3.f, 0.f))
 			[
 				SNew(SImage)
-				.Image(Brush)
-				.ColorAndOpacity(IconColor)
+				.Image_Lambda([this]() -> const FSlateBrush*
+				{
+					if(WeakRigTreeElement.IsValid())
+					{
+						return WeakRigTreeElement.Pin()->IconBrush;
+					}
+					return nullptr;
+				})
+				.ColorAndOpacity_Lambda([this]()
+				{
+					if(WeakRigTreeElement.IsValid())
+					{
+						return WeakRigTreeElement.Pin()->IconColor;
+					}
+					return FSlateColor::UseForeground();
+				})
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -130,7 +151,14 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.OnVerifyTextChanged(this, &SRigHierarchyItem::OnVerifyNameChanged)
 				.OnTextCommitted(this, &SRigHierarchyItem::OnNameCommitted)
 				.MultiLine(false)
-				.ColorAndOpacity(TextColor)
+				.ColorAndOpacity_Lambda([this]()
+				{
+					if(WeakRigTreeElement.IsValid())
+					{
+						return WeakRigTreeElement.Pin()->TextColor;
+					}
+					return FSlateColor::UseForeground();
+				})
 			]
 		], OwnerTable);
 
