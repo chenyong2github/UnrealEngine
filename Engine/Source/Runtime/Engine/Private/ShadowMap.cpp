@@ -578,7 +578,7 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 	else if (Ar.IsLoading())
 	{
 		const float LegacyValue = 1.0f / .05f;
-		InvUniformPenumbraSize = FVector4(LegacyValue, LegacyValue, LegacyValue, LegacyValue);
+		InvUniformPenumbraSize = FVector4f(LegacyValue, LegacyValue, LegacyValue, LegacyValue);
 	}
 }
 
@@ -894,7 +894,7 @@ int32 FShadowMap2D::EncodeSingleTexture(ULevel* LightingScenario, FShadowMapPend
 	{
 		FShadowMapAllocation& Allocation = *PendingTexture.Allocations[AllocationIndex];
 		bool bChannelUsed[4] = {0};
-		FVector4 InvUniformPenumbraSize(0, 0, 0, 0);
+		FVector4f InvUniformPenumbraSize(0, 0, 0, 0);
 
 		for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
 		{

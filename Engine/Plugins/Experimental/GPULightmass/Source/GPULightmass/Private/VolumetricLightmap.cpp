@@ -189,8 +189,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FVLMVoxelizationParams* VLMVoxelizationParams = GraphBuilder.AllocParameters<FVLMVoxelizationParams>();
-	VLMVoxelizationParams->VolumeCenter = CubeVolume.GetCenter();
-	VLMVoxelizationParams->VolumeExtent = CubeVolume.GetExtent();
+	VLMVoxelizationParams->VolumeCenter = (FVector4f)CubeVolume.GetCenter(); // LWC_TODO: precision loss
+	VLMVoxelizationParams->VolumeExtent = (FVector4f)CubeVolume.GetExtent(); // LWC_TODO: precision loss
 	VLMVoxelizationParams->VolumeMaxDim = CubeMaxDim;
 	VLMVoxelizationParams->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
 	VLMVoxelizationParams->IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
@@ -546,8 +546,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 					FVolumetricLightmapPathTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVolumetricLightmapPathTracingRGS::FParameters>();
 					PassParameters->FrameNumber = FrameNumber / NumFramesOneRound;
-					PassParameters->VolumeMin = VolumeMin;
-					PassParameters->VolumeSize = VolumeSize;
+					PassParameters->VolumeMin = (FVector4f)VolumeMin; // LWC_TODO: precision loss
+					PassParameters->VolumeSize = (FVector4f)VolumeSize; // LWC_TODO: precision loss
 					PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
 					PassParameters->TLAS = Scene->RayTracingSceneSRV;
 					PassParameters->BrickRequests = BrickRequests.SRV;

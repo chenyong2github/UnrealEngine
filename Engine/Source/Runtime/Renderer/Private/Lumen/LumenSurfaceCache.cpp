@@ -693,7 +693,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 		else
 		{
 			// Simple clear of an uncompressed surface cache
-			AddClearRenderTargetPass(GraphBuilder, Pass.SurfaceCacheAtlas, LayerConfig.ClearValue);
+			AddClearRenderTargetPass(GraphBuilder, Pass.SurfaceCacheAtlas, FLinearColor(LayerConfig.ClearValue));
 		}
 	}
 

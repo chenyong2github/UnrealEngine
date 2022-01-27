@@ -194,16 +194,16 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImme
 		TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
 		Vertices.SetNumUninitialized(4);
 
-		Vertices[0].Position = FVector4(0.f, 0.f, 0.f, 1.f);
+		Vertices[0].Position = FVector4f(0.f, 0.f, 0.f, 1.f);
 		Vertices[0].UV = FVector2D(0.f, 0.f);
 
-		Vertices[1].Position = FVector4(1.f, 0.f, 0.f, 1.f);
+		Vertices[1].Position = FVector4f(1.f, 0.f, 0.f, 1.f);
 		Vertices[1].UV = FVector2D(1.f, 0.f);
 
-		Vertices[2].Position = FVector4(0.f, 1.f, 0.f, 1.f);
+		Vertices[2].Position = FVector4f(0.f, 1.f, 0.f, 1.f);
 		Vertices[2].UV = FVector2D(0.f, 1.f);
 
-		Vertices[3].Position = FVector4(1.f, 1.f, 0.f, 1.f);
+		Vertices[3].Position = FVector4f(1.f, 1.f, 0.f, 1.f);
 		Vertices[3].UV = FVector2D(1.f, 1.f);
 
 		FRHIResourceCreateInfo CreateInfoVB(TEXT("FARCameraSceneViewExtension"), &Vertices);
@@ -300,9 +300,9 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRDGBuilder& Graph
 
 		const FIntPoint ViewSize = InView.UnconstrainedViewRect.Size();
 		FDrawRectangleParameters Parameters;
-		Parameters.PosScaleBias = FVector4(ViewSize.X, ViewSize.Y, 0, 0);
-		Parameters.UVScaleBias = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
-		Parameters.InvTargetSizeAndTextureSize = FVector4(
+		Parameters.PosScaleBias = FVector4f(ViewSize.X, ViewSize.Y, 0, 0);
+		Parameters.UVScaleBias = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
+		Parameters.InvTargetSizeAndTextureSize = FVector4f(
 			1.0f / ViewSize.X, 1.0f / ViewSize.Y,
 			1.0f, 1.0f);
 

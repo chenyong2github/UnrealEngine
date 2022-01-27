@@ -949,10 +949,10 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		checkSlow(bDirectionalLight);
 
 		// Draw 2 fullscreen planes, front facing one at the near subfrustum plane, and back facing one at the far.
-		FVector4f Near = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, CascadeSettings.SplitNear));
-		FVector4f Far = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, CascadeSettings.SplitFar));
-		float StencilNear = Near.Z / Near.W;
-		float StencilFar = Far.Z / Far.W;
+		const FVector4 Near = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, CascadeSettings.SplitNear));
+		const FVector4 Far = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, CascadeSettings.SplitFar));
+		const FVector4::FReal StencilNear = (Near.Z / Near.W);
+		const FVector4::FReal StencilFar = (Far.Z / Far.W);
 
 		TShaderMapRef<FWholeSceneDirectionalShadowStencilVS> VertexShader(View->ShaderMap);
 			
@@ -962,7 +962,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		FWholeSceneDirectionalShadowStencilVS::FParameters Parameters;
-		Parameters.ClipZValues = FVector4f(StencilFar, StencilNear, 0, 0);
+		Parameters.ClipZValues = FVector4f((float)StencilFar, (float)StencilNear, 0, 0); // LWC_TODO: precision loss
 
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), Parameters);
 
@@ -2467,7 +2467,7 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		OutParameters.ShadowUVMinMax = ShadowmapMinMax;
 
 		const FLightSceneProxy* const LightProxy = ShadowInfo->GetLightSceneInfo().Proxy;
-		OutParameters.DirectionalLightDirection = LightProxy->GetDirection();
+		OutParameters.DirectionalLightDirection = FVector4f(LightProxy->GetDirection());
 
 		//@todo - support fading from both views
 		const float FadeAlpha = ShadowInfo->FadeAlphas[0];

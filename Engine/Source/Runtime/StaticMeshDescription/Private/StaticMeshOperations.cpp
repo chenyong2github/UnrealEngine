@@ -901,7 +901,7 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 			FVertexID VertexID = RemapVertexPosition[SourceRawMesh.WedgeIndices[VerticeIndex]];
 			FVertexInstanceID VertexInstanceID = DestinationMeshDescription.CreateVertexInstance(VertexID);
 			TriangleVertexInstanceIDs[Corner] = VertexInstanceID;
-			VertexInstanceColors[VertexInstanceID] = bHasColors ? FLinearColor::FromSRGBColor(SourceRawMesh.WedgeColors[VerticeIndex]) : FLinearColor::White;
+			VertexInstanceColors[VertexInstanceID] = bHasColors ? FVector4f(FLinearColor::FromSRGBColor(SourceRawMesh.WedgeColors[VerticeIndex])) : FVector4f(FLinearColor::White);
 			VertexInstanceNormals[VertexInstanceID] = bHasNormals ? SourceRawMesh.WedgeTangentZ[VerticeIndex] : FVector3f(ForceInitToZero);
 
 			if (bHasTangents)

@@ -559,7 +559,7 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->WorldToShadow = WorldToShadowValue;
 		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
-		PassParameters->ShadowBoundingSphere = ShadowBoundingSphereValue;
+		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
 		PassParameters->bDrawNaniteMeshes = !LightSceneProxy->UseVirtualShadowMaps();
 
 		check(NumPlanes <= 12);

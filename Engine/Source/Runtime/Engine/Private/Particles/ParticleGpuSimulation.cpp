@@ -2298,8 +2298,8 @@ static FBox ComputeParticleBounds(
 		uint32 GroupIndex = 0;
 		do
 		{
-			BoundingBox.Min = FVector(GroupBounds[GroupIndex * 2 + 0]);
-			BoundingBox.Max = FVector(GroupBounds[GroupIndex * 2 + 1]);
+			BoundingBox.Min = FVector(FVector4(GroupBounds[GroupIndex * 2 + 0]));
+			BoundingBox.Max = FVector(FVector4(GroupBounds[GroupIndex * 2 + 1]));
 			GroupIndex++;
 		} while ( GroupIndex < GroupCount && !AreBoundsValid( BoundingBox.Min, BoundingBox.Max ) );
 
@@ -2314,8 +2314,8 @@ static FBox ComputeParticleBounds(
 			BoundingBox.IsValid = true;
 			while ( GroupIndex < GroupCount )
 			{
-				const FVector Mins( GroupBounds[GroupIndex * 2 + 0] );
-				const FVector Maxs( GroupBounds[GroupIndex * 2 + 1] );
+				FVector Mins( (FVector4)GroupBounds[GroupIndex * 2 + 0] );
+				FVector Maxs( (FVector4)GroupBounds[GroupIndex * 2 + 1] );
 				if ( AreBoundsValid( Mins, Maxs ) )
 				{
 					BoundingBox += Mins;
@@ -3298,16 +3298,16 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 			extern void ComputeLockedAxes(EParticleAxisLock, const FMatrix&, FVector&, FVector&);
 			ComputeLockedAxes( LockAxisFlag, AxisLocalToWorld, AxisLockUp, AxisLockRight );
 
-			DynamicData->EmitterDynamicParameters.AxisLockRight = AxisLockRight;
+			DynamicData->EmitterDynamicParameters.AxisLockRight = (FVector3f)AxisLockRight; // LWC_TODO: precision loss
 			DynamicData->EmitterDynamicParameters.AxisLockRight.W = 1.0f;
-			DynamicData->EmitterDynamicParameters.AxisLockUp = AxisLockUp;
+			DynamicData->EmitterDynamicParameters.AxisLockUp = (FVector3f)AxisLockUp; // LWC_TODO: precision loss
 			DynamicData->EmitterDynamicParameters.AxisLockUp.W = 1.0f;
 		}
 
 		
 		// Setup dynamic color parameter. Only set when using particle parameter distributions.
-		FVector4f ColorOverLife(1.0f, 1.0f, 1.0f, 1.0f);
-		FVector4f ColorScaleOverLife(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4 ColorOverLife(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4 ColorScaleOverLife(1.0f, 1.0f, 1.0f, 1.0f);
 		if( EmitterInfo.DynamicColorScale.IsCreated() )
 		{
 			ColorScaleOverLife = EmitterInfo.DynamicColorScale.GetValue(0.0f,Component);
@@ -3325,7 +3325,7 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		{
 			ColorOverLife.W = EmitterInfo.DynamicAlpha.GetValue(0.0f,Component);
 		}
-		DynamicData->EmitterDynamicParameters.DynamicColor = ColorOverLife * ColorScaleOverLife;
+		DynamicData->EmitterDynamicParameters.DynamicColor = FVector4f(ColorOverLife * ColorScaleOverLife); // LWC_TODO: precision loss
 
 		DynamicData->MacroUVOverride.bOverride = LODLevel->RequiredModule->bOverrideSystemMacroUV;
 		DynamicData->MacroUVOverride.Radius = LODLevel->RequiredModule->MacroUVRadius;
@@ -5235,15 +5235,15 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 
 	// Setup uniform parameters for the emitter.
 	Resources->UniformParameters.ColorCurve = GParticleCurveTexture.ComputeCurveScaleBias(Resources->ColorTexelAllocation);
-	Resources->UniformParameters.ColorScale = InResourceData.ColorScale;
-	Resources->UniformParameters.ColorBias = InResourceData.ColorBias;
+	Resources->UniformParameters.ColorScale = (FVector4f)InResourceData.ColorScale; // LWC_TODO: change property to FVector4f
+	Resources->UniformParameters.ColorBias = (FVector4f)InResourceData.ColorBias; // LWC_TODO: change property to FVector4f
 
 	Resources->UniformParameters.MiscCurve = GParticleCurveTexture.ComputeCurveScaleBias(Resources->MiscTexelAllocation);
-	Resources->UniformParameters.MiscScale = InResourceData.MiscScale;
-	Resources->UniformParameters.MiscBias = InResourceData.MiscBias;
+	Resources->UniformParameters.MiscScale = (FVector4f)InResourceData.MiscScale; // LWC_TODO: change property to FVector4f
+	Resources->UniformParameters.MiscBias = (FVector4f)InResourceData.MiscBias; // LWC_TODO: change property to FVector4f
 
-	Resources->UniformParameters.SizeBySpeed = InResourceData.SizeBySpeed;
-	Resources->UniformParameters.SubImageSize = InResourceData.SubImageSize;
+	Resources->UniformParameters.SizeBySpeed = (FVector4f)InResourceData.SizeBySpeed; // LWC_TODO: change property to FVector4f
+	Resources->UniformParameters.SubImageSize = (FVector4f)InResourceData.SubImageSize; // LWC_TODO: change property to FVector4f
 
 	// Setup tangent selector parameter.
 	const EParticleAxisLock LockAxisFlag = (EParticleAxisLock)InResourceData.LockAxisFlag;
@@ -5312,8 +5312,8 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 	Resources->UniformParameters.PivotOffset = InResourceData.PivotOffset;
 
 	Resources->SimulationParameters.AttributeCurve = GParticleCurveTexture.ComputeCurveScaleBias(Resources->SimulationAttrTexelAllocation);
-	Resources->SimulationParameters.AttributeCurveScale = InResourceData.SimulationAttrCurveScale;
-	Resources->SimulationParameters.AttributeCurveBias = InResourceData.SimulationAttrCurveBias;
+	Resources->SimulationParameters.AttributeCurveScale = (FVector4f)InResourceData.SimulationAttrCurveScale; // LWC_TODO: change property to FVector4f
+	Resources->SimulationParameters.AttributeCurveBias = (FVector4f)InResourceData.SimulationAttrCurveBias; // LWC_TODO: change property to FVector4f
 	Resources->SimulationParameters.AttributeScale = FVector4f(
 		InResourceData.DragCoefficientScale,
 		InResourceData.PerParticleVectorFieldScale,

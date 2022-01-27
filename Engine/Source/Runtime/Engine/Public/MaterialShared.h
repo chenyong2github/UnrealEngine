@@ -3028,14 +3028,14 @@ public:
 	ENGINE_API static FVector4f GetDefaultValue(EMaterialProperty Property)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(Property);
-		return Attribute->DefaultValue;
+		return (FVector4f)Attribute->DefaultValue;
 	}
 
 	/** Returns the default value of a material attribute */
 	ENGINE_API static FVector4f GetDefaultValue(const FGuid& AttributeID)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
-		return Attribute->DefaultValue;
+		return (FVector4f)Attribute->DefaultValue;
 	}
 	
 	/** Returns the shader frequency of a material attribute */

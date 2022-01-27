@@ -154,13 +154,13 @@ namespace StencilingGeometry
 			for (int32 i = 0; i < NumRings + 1; i++)
 			{
 				const float Angle = i * RadiansPerRingSegment;
-				ArcVerts.Add(FVector(0.0f, FMath::Sin(Angle), FMath::Cos(Angle)));
+				ArcVerts.Add(UE::Math::TVector<float>(0.0f, FMath::Sin(Angle), FMath::Cos(Angle)));
 			}
 
 			TResourceArray<VectorType, VERTEXBUFFER_ALIGNMENT> Verts;
 			Verts.Empty(NumVerts);
 			// Then rotate this arc NumSides + 1 times.
-			const FVector3f Center = FVector(0,0,0);
+			const FVector3f Center = FVector3f(0,0,0);
 			for (int32 s = 0; s < NumSides + 1; s++)
 			{
 				FRotator3f ArcRotator(0, 360.f * ((float)s / NumSides), 0);
@@ -193,7 +193,7 @@ namespace StencilingGeometry
 	*/
 	void CalcTransform(FVector4f& OutPosAndScale, const FSphere& Sphere, const FVector& PreViewTranslation, bool bConservativelyBoundSphere = true)
 	{
-		float Radius = Sphere.W;
+		float Radius = Sphere.W; // LWC_TODO: Precision loss
 		if (bConservativelyBoundSphere)
 		{
 			const int32 NumRings = NumSphereRings;
@@ -539,7 +539,7 @@ public:
 		{
 			Out.View = View.ViewUniformBuffer;
 		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4(0,0,0,0));
+		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4f(0,0,0,0));
 		Out.FullScreenRect = GetFullScreenRectParameters(X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
 		return Out;
 	}
@@ -551,7 +551,7 @@ public:
 		{
 			Out.View = View.ViewUniformBuffer;
 		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4(0, 0, 0, 0));
+		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4f(0, 0, 0, 0));
 		Out.FullScreenRect = GetFullScreenRectParameters(
 			0, 0,
 			View.ViewRect.Width(), View.ViewRect.Height(),
@@ -573,7 +573,7 @@ public:
 		{
 			Out.View = View.ViewUniformBuffer;
 		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(StencilingSpherePosAndScale);
+		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters((FVector4f)StencilingSpherePosAndScale); // LWC_TODO: Precision loss
 		Out.FullScreenRect = GetFullScreenRectParameters(0, 0, 0, 0, 0, 0, 0, 0, FIntPoint(1, 1), FIntPoint(1, 1));
 		return Out;
 	}

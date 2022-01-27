@@ -1202,7 +1202,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				RectParams.SourceRect = FSlateRect(0, 0, PostProcessTexture->GetSizeX(), PostProcessTexture->GetSizeY());
 				RectParams.DestRect = FSlateRect(QuadPositionData.X, QuadPositionData.Y, QuadPositionData.Z, QuadPositionData.W);
 				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
-				RectParams.CornerRadius = ShaderParams.PixelParams3;
+				RectParams.CornerRadius = (FVector4)ShaderParams.PixelParams3;
 
 				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit) {
 					return UpdateScissorRect(

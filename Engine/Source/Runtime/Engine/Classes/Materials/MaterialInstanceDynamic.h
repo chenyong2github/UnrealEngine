@@ -75,6 +75,10 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	UFUNCTION(BlueprintCallable, meta=(Keywords = "SetColorParameterValue"), Category="Rendering|Material")
 	void SetVectorParameterValue(FName ParameterName, FLinearColor Value);
 
+	// Conveniences to keep general FLinearColor constructors explicit without adding extra burden to existing users of this function (where the conversion is straightforward).
+	inline void SetVectorParameterValue(FName ParameterName, const FVector& Value) { SetVectorParameterValue(ParameterName, FLinearColor(Value)); }
+	inline void SetVectorParameterValue(FName ParameterName, const FVector4& Value) { SetVectorParameterValue(ParameterName, FLinearColor(Value)); }
+
 	/** Set an MID vector parameter value */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetVectorParameterValue"), Category = "Rendering|Material")
 	void SetDoubleVectorParameterValue(FName ParameterName, FVector Value);
@@ -82,6 +86,9 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	/** Set an MID vector parameter value, using MPI (to allow access to layer parameters) */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetColorParameterValue"), Category = "Rendering|Material")
 	void SetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value);
+
+	inline void SetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, const FVector& Value) { SetVectorParameterValueByInfo(ParameterInfo, FLinearColor(Value)); }
+	inline void SetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, const FVector4& Value) { SetVectorParameterValueByInfo(ParameterInfo, FLinearColor(Value)); }
 
 	/** Get the current MID vector parameter value */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Get Vector Parameter Value", ScriptName = "GetVectorParameterValue", Keywords = "GetColorParameterValue"), Category="Rendering|Material")

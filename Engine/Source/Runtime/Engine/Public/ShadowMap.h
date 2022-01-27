@@ -362,7 +362,7 @@ protected:
 	bool bChannelValid[4];
 
 	/** Stores the inverse of the penumbra size, normalized.  Stores 1 to interpret the shadowmap as a shadow factor directly, instead of as a distance field. */
-	FVector4 InvUniformPenumbraSize;
+	FVector4f InvUniformPenumbraSize;
 
 #if WITH_EDITOR
 	/** If true, update the status when encoding light maps */

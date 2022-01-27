@@ -1252,9 +1252,9 @@ public:
 		}
 
 		FMatrix44f WorldToUvTransform(
-			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[0]),
-			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[1]),
-			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[2]),
+			FVector3f( (FVector4f)ProxyData.BaseColorVirtualTextureWorldToUvParameters[0]),
+			FVector3f( (FVector4f)ProxyData.BaseColorVirtualTextureWorldToUvParameters[1]),
+			FVector3f( (FVector4f)ProxyData.BaseColorVirtualTextureWorldToUvParameters[2]),
 			FVector3f(0, 0, 0));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureParam, PhysicalTextureSrv);
@@ -1328,10 +1328,10 @@ public:
 		}
 
 		FMatrix44f WorldToUvTransform(
-			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[0]),
-			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[1]),
-			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[2]),
-			FVector3f(ProxyData.HeightVirtualTextureWorldToUvParameters[3]));
+			FVector3f( (FVector4f)ProxyData.HeightVirtualTextureWorldToUvParameters[0]),
+			FVector3f( (FVector4f)ProxyData.HeightVirtualTextureWorldToUvParameters[1]),
+			FVector3f( (FVector4f)ProxyData.HeightVirtualTextureWorldToUvParameters[2]),
+			FVector3f( (FVector4f)ProxyData.HeightVirtualTextureWorldToUvParameters[3]));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTextureParam, PhysicalTextureSrv);
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableParam, PageTableTexture);
@@ -1432,9 +1432,9 @@ public:
 		}
 
 		FMatrix44f WorldToUvTransform(
-			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
-			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
-			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
+			FPlane4f( (FVector4f)ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
+			FPlane4f( (FVector4f)ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
+			FPlane4f( (FVector4f)ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
 			FPlane4f(0.0f, 0.0f, 0.0f, 1.0f));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture0Param, PhysicalTextureSrv[0]);

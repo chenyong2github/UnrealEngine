@@ -258,7 +258,7 @@ void SMeshWidget::PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVec
 
 	{
 		FSlateInstanceBufferData PerInstanceData;
-		PerInstanceData.Add(Data.GetData());
+		PerInstanceData.Add((FVector4f)Data.GetData()); // LWC_TODO: precision loss
 		Widget.UpdatePerInstanceBuffer(VectorArtId, PerInstanceData);
 	}
 }

@@ -427,7 +427,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 	{
 		LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
 		FLandscapeFixedGridUniformShaderParameters Parameters;
-		Parameters.LodValues = FVector4(
+		Parameters.LodValues = FVector4f(
 			LodIndex,
 			0.f,
 			(float)((SubsectionSizeVerts >> LodIndex) - 1),

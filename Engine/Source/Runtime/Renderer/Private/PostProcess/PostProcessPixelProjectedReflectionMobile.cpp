@@ -240,7 +240,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 		PassParameters->SceneDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		FPlane ReflectionPlaneViewSpace = PlanarReflectionSceneProxy->ReflectionPlane.TransformBy(View.ViewMatrices.GetViewMatrix());
-		PassParameters->ReflectionPlane = ReflectionPlaneViewSpace;
+		PassParameters->ReflectionPlane = FVector3f(ReflectionPlaneViewSpace);
 		PassParameters->ReflectionPlane.W = ReflectionPlaneViewSpace.W;
 
 		PassParameters->ViewRectMin = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
@@ -309,7 +309,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 
 		PSShaderParameters->ViewSizeAndInvSize = FVector4f(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
 
-		PSShaderParameters->ReflectionPlane = PlanarReflectionSceneProxy->ReflectionPlane;
+		PSShaderParameters->ReflectionPlane = FVector3f(PlanarReflectionSceneProxy->ReflectionPlane); // LWC_TODO: precision loss
 
 		ClearUnusedGraphResources(PixelShader, PSShaderParameters);
 

@@ -952,7 +952,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 									const uint32 HeightNormalTextureHandle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
 									if (HeightNormalTextureHandle != INDEX_NONE)
 									{
-										const FVector4f& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
+										const FVector4f HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
 										check(HeightFieldScaleBias.Y >= 0.f && HeightFieldScaleBias.Z >= 0.f && HeightFieldScaleBias.W >= 0.f);
 
 										const FVector4f ScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(HeightNormalTextureHandle);

@@ -252,7 +252,7 @@ void CreateInternalArrays(TArray<AActor*> Actors,
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 								
 								const FTransform ElementTransform = FTransform(Center) * MeshTransform;
-								OutAssetArrays->ElementExtent[BoxCount] = FVector4(Extent.X, Extent.Y, Extent.Z, 0);
+								OutAssetArrays->ElementExtent[BoxCount] = FVector4f(Extent.X, Extent.Y, Extent.Z, 0);
 								FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 
 								FoundCollisionShapes = true;
@@ -266,7 +266,7 @@ void CreateInternalArrays(TArray<AActor*> Actors,
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 
 								const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * MeshTransform;
-								OutAssetArrays->ElementExtent[BoxCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
+								OutAssetArrays->ElementExtent[BoxCount] = FVector4f(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
 								FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 
 								FoundCollisionShapes = true;
@@ -281,7 +281,7 @@ void CreateInternalArrays(TArray<AActor*> Actors,
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 
 								const FTransform ElementTransform = FTransform(SphereElem.Center) * MeshTransform;
-								OutAssetArrays->ElementExtent[SphereCount] = FVector4(SphereElem.Radius, 0, 0, 0);
+								OutAssetArrays->ElementExtent[SphereCount] = FVector4f(SphereElem.Radius, 0, 0, 0);
 								FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 
 								FoundCollisionShapes = true;
@@ -296,7 +296,7 @@ void CreateInternalArrays(TArray<AActor*> Actors,
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 
 								const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * MeshTransform;
-								OutAssetArrays->ElementExtent[CapsuleCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
+								OutAssetArrays->ElementExtent[CapsuleCount] = FVector4f(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
 								FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 
 								FoundCollisionShapes = true;

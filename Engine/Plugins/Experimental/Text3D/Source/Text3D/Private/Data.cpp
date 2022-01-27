@@ -76,7 +76,7 @@ int32 FData::AddVertices(const int32 Count)
 	{
 		const FVertexID Vertex = MeshDescription.CreateVertex();
 		const FVertexInstanceID VertexInstance = MeshDescription.CreateVertexInstance(Vertex);
-		MeshAttributes.GetVertexInstanceColors()[VertexInstance] = FVector4(1.f, 1.f, 1.f, 1.f);
+		MeshAttributes.GetVertexInstanceColors()[VertexInstance] = FVector4f(1.f, 1.f, 1.f, 1.f);
 	}
 
 	AddVertexIndex = 0;

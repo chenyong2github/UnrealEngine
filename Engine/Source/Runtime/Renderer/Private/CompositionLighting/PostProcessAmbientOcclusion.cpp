@@ -878,7 +878,7 @@ void AddAmbientOcclusionPass(
 		{
 			const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 			const FMatrix& ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
-			const FVector4f Far = ProjectionMatrix.TransformFVector4(FVector4f(0, 0, Settings.AmbientOcclusionFadeDistance));
+			const FVector4f Far = (FVector4f)ProjectionMatrix.TransformFVector4(FVector4(0, 0, Settings.AmbientOcclusionFadeDistance));
 			DepthFar = FMath::Min(1.0f, Far.Z / Far.W);
 
 			static_assert(bool(ERHIZBuffer::IsInverted), "Inverted depth buffer is assumed when setting depth bounds test for AO.");

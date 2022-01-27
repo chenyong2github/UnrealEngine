@@ -3126,7 +3126,7 @@ void UParticleModuleLight::UpdateHQLight(UPointLightComponent* PointLightCompone
 		PointLightComponent->SetWorldLocation(Particle.Location);
 	}
 	
-	FLinearColor DesiredFinalColor = FVector(Particle.Color) * Particle.Color.A * Payload.ColorScale;
+	FLinearColor DesiredFinalColor = FLinearColor(FVector3f(Particle.Color) * Particle.Color.A * Payload.ColorScale);
 	if (bUseInverseSquaredFalloff)
 	{
 		// For compatibility reasons, the default units are ELightUnits::Unitless. If this change, this needs to be updated.
@@ -4693,7 +4693,7 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	}
 	else
 	{
-		ResourceData.SubImageSize = FVector4f( 1.0f, 1.0f, 1.0f, 1.0f );
+		ResourceData.SubImageSize = FVector4( 1.0f, 1.0f, 1.0f, 1.0f );
 	}
 
 	// Store the size-by-speed parameters.

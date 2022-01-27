@@ -272,10 +272,10 @@ void FLidarPointCloudComponentRenderParams::UpdateFromComponent(ULidarPointCloud
 	ColorSource = Component->ColorSource;
 	PointShape = Component->GetPointShape();
 
-	Offset = Component->Offset;
-	Contrast = Component->Contrast;
-	Saturation = Component->Saturation;
-	Gamma = Component->Gamma;
+	Offset = (FVector4f)Component->Offset;
+	Contrast = (FVector4f)Component->Contrast;
+	Saturation = (FVector4f)Component->Saturation;
+	Gamma = (FVector4f)Component->Gamma;
 	ColorTint = FVector(Component->ColorTint);
 	IntensityInfluence = Component->IntensityInfluence;
 

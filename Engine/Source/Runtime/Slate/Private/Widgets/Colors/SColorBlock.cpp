@@ -89,7 +89,7 @@ int32 SColorBlock::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		MoveTemp(GradientStops),
 		(AllottedGeometry.GetLocalSize().X > AllottedGeometry.GetLocalSize().Y) ? Orient_Vertical : Orient_Horizontal,
 		DrawEffects,
-		GradientCornerRadius.Get()
+		(FVector4f)GradientCornerRadius.Get()
 	);
 
 

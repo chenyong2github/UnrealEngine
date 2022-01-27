@@ -263,7 +263,7 @@ public:
 
 	FORCEINLINE FBox ToBox() const
 	{
-		return FBox(Min, Max);
+		return FBox(FVector(Min), FVector(Max));
 	}
 
 	FORCEINLINE FBoxSphereBounds ToBoxSphereBounds() const

@@ -903,7 +903,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 								uint8(255.f*VertexColor.mBlue),
 								uint8(255.f*VertexColor.mAlpha)
 							);
-							VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexInstanceColor));
+							VertexInstanceColors[AddedVertexInstanceId] = FVector4f(FLinearColor(VertexInstanceColor));
 						}
 					}
 					else if (VertexColorImportOption == EVertexColorImportOption::Ignore)
@@ -914,14 +914,14 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 						if (PaintedColor)
 						{
 							// A matching color for this vertex was found
-							VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(*PaintedColor));
+							VertexInstanceColors[AddedVertexInstanceId] = FVector4f(FLinearColor(*PaintedColor));
 						}
 					}
 					else
 					{
 						// set the triangle's vertex color to a constant override
 						check(VertexColorImportOption == EVertexColorImportOption::Override);
-						VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexOverrideColor));
+						VertexInstanceColors[AddedVertexInstanceId] = FVector4f(FLinearColor(VertexOverrideColor));
 					}
 
 					if (LayerElementNormal)
@@ -966,8 +966,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				//TODO check all polygon vertex, not just the first 3 vertex
 				if (!bHasNonDegeneratePolygons)
 				{
-					FVector::FReal PointComparisonThreshold = GetPointComparisonThreshold();
-					FVector VertexPosition[3];
+					const float PointComparisonThreshold = GetPointComparisonThreshold();
+					FVector3f VertexPosition[3];
 					VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
 					VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
 					VertexPosition[2] = VertexPositions[CornerVerticesIDs[2]];

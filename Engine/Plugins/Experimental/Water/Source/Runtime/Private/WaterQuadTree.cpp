@@ -564,10 +564,10 @@ void FWaterQuadTree::AddFarMesh(const UMaterialInterface* InFarMeshMaterial, dou
 		TileScale.Y = (TileOffets[i].Y == 0.0) ? WaterSize.Y : InFarDistanceMeshExtent;
 
 		// Build instance data
-		FarMeshData.InstanceData[i].Data[0] = FVector4(TilePos, FVector2D(InFarDistanceMeshHeight, 0.0));
-		FarMeshData.InstanceData[i].Data[1] = FVector4(FVector2D::ZeroVector, TileScale);
+		FarMeshData.InstanceData[i].Data[0] = FVector4f(FVector4(TilePos, FVector2D(InFarDistanceMeshHeight, 0.0))); // LWC_TODO: precision loss
+		FarMeshData.InstanceData[i].Data[1] = FVector4f(FVector4(FVector2D::ZeroVector, TileScale)); // LWC_TODO: precision loss
 #if WITH_WATER_SELECTION_SUPPORT
-		FarMeshData.InstanceData[i].Data[2] = FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear();
+		FarMeshData.InstanceData[i].Data[2] = FVector4f(FHitProxyId::InvisibleHitProxyId.GetColor().ReinterpretAsLinear());
 #endif // WITH_WATER_SELECTION_SUPPORT
 	}
 }

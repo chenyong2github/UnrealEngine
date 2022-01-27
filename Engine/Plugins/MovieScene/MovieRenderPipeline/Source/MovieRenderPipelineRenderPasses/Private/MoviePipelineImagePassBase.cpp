@@ -225,35 +225,35 @@ void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
 	if (View->Family->EngineShowFlags.Wireframe)
 	{
 		// Wireframe color is emissive-only, and mesh-modifying materials do not use material substitution, hence...
-		View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
-		View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+		View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
+		View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 	}
 	else if (View->Family->EngineShowFlags.OverrideDiffuseAndSpecular)
 	{
-		View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
-		View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
+		View->DiffuseOverrideParameter = FVector4f(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+		View->SpecularOverrideParameter = FVector4f(.1f, .1f, .1f, 0.0f);
 	}
 	else if (View->Family->EngineShowFlags.LightingOnlyOverride)
 	{
-		View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
-		View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+		View->DiffuseOverrideParameter = FVector4f(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+		View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 	}
 	else if (View->Family->EngineShowFlags.ReflectionOverride)
 	{
-		View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
-		View->SpecularOverrideParameter = FVector4(1, 1, 1, 0.0f);
-		View->NormalOverrideParameter = FVector4(0, 0, 1, 0.0f);
+		View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
+		View->SpecularOverrideParameter = FVector4f(1, 1, 1, 0.0f);
+		View->NormalOverrideParameter = FVector4f(0, 0, 1, 0.0f);
 		View->RoughnessOverrideParameter = FVector2D(0.0f, 0.0f);
 	}
 
 	if (!View->Family->EngineShowFlags.Diffuse)
 	{
-		View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+		View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 	}
 
 	if (!View->Family->EngineShowFlags.Specular)
 	{
-		View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+		View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 	}
 	FName BufferVisualizationMode = "WorldNormal";
 	View->CurrentBufferVisualizationMode = BufferVisualizationMode;
@@ -399,7 +399,7 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 	// cause the circle of confusion to be unchanged.
 	View->FinalPostProcessSettings.DepthOfFieldSensorWidth *= DofSensorScale;
 	// Modify the 'center' of the lens to be offset for high-res tiling, helps some effects (vignette) etc. still work.
-	View->LensPrincipalPointOffsetScale = CalculatePrinciplePointOffsetForTiling(InOutSampleState);
+	View->LensPrincipalPointOffsetScale = (FVector4f)CalculatePrinciplePointOffsetForTiling(InOutSampleState); // LWC_TODO: precision loss. CalculatePrinciplePointOffsetForTiling() could return float, it's normalized?
 	View->EndFinalPostprocessSettings(ViewInitOptions);
 
 	// This metadata is per-file and not per-view, but we need the blended result from the view to actually match what we rendered.

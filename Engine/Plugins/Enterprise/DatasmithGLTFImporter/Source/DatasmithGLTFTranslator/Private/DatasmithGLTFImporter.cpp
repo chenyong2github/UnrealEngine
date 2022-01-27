@@ -191,7 +191,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithGLTFImporter::CreateLightActor(int3
 	// https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md
 	// "Brightness of light in.The units that this is defined in depend on the type of light.point and spot lights use luminous intensity in candela(lm / sr) while directional lights use illuminance in lux(lm / m2)"
 	LightElement->SetIntensity(Light.Intensity);
-	LightElement->SetColor(Light.Color);
+	LightElement->SetColor(FLinearColor(Light.Color));
 
 	return LightElement;
 }

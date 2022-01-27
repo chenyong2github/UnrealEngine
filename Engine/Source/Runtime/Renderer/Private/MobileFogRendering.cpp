@@ -187,8 +187,8 @@ void FMobileSceneRenderer::RenderFog(FRHICommandListImmediate& RHICmdList, const
 		float HalfVerticalFOV = FMath::Atan(1.0f / ProjectionMatrix.M[1][1]);
 		float StartDepthViewCm = FMath::Cos(FMath::Max(HalfHorizontalFOV, HalfVerticalFOV)) * FogStartDistance;
 		StartDepthViewCm = FMath::Max(StartDepthViewCm, View.NearClippingDistance); // In any case, we need to limit the distance to frustum near plane to not be clipped away.
-		const FVector4f Projected = ProjectionMatrix.TransformFVector4(FVector4f(0.0f, 0.0f, StartDepthViewCm, 1.0f));
-		StartDepthZ = Projected.Z / Projected.W;
+		const FVector4 Projected = ProjectionMatrix.TransformFVector4(FVector4(0.0f, 0.0f, StartDepthViewCm, 1.0f));
+		StartDepthZ = (float)(Projected.Z / Projected.W); // LWC_TODO: precision loss
 	}
 
 	FMobileFogVS::FParameters VSParameters;

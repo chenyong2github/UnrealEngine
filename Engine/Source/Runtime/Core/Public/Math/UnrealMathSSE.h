@@ -2189,7 +2189,7 @@ FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Floa
 	VTempX = VectorMultiplyAdd(VTempZ, M[2], VTempX);
 	VTempX = VectorMultiplyAdd(VTempW, M[3], VTempX);
 
-	// TODO: this will be a lossy conversion.
+	// LWC_TODO: this will be a lossy conversion.
 	return MakeVectorRegisterFloatFromDouble(VTempX);
 }
 

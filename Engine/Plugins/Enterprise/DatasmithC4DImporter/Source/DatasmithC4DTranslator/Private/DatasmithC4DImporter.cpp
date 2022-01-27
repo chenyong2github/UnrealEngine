@@ -1002,7 +1002,7 @@ TSharedPtr<IDatasmithLightActorElement> FDatasmithC4DImporter::ImportLight(melan
 	}
 
 	// Color
-	FLinearColor Color = MelangeGetColor(InC4DLightPtr, melange::LIGHT_COLOR);
+	FLinearColor Color = FLinearColor(MelangeGetColor(InC4DLightPtr, melange::LIGHT_COLOR));
 
 	// Temperature
 	bool bUseTemperature = MelangeGetBool(InC4DLightPtr, melange::LIGHT_TEMPERATURE);
@@ -1274,7 +1274,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 	AddBoolToMaterial(MaterialPtr, TEXT("Use_Color"), bUseColor);
 	if (bUseColor)
 	{
-		FVector Color = MelangeGetLayerColor(InC4DMaterialPtr, melange::MATERIAL_COLOR_COLOR, melange::MATERIAL_COLOR_BRIGHTNESS);
+		FLinearColor Color = FLinearColor(MelangeGetLayerColor(InC4DMaterialPtr, melange::MATERIAL_COLOR_COLOR, melange::MATERIAL_COLOR_BRIGHTNESS));
 		AddColorToMaterial(MaterialPtr, TEXT("Color"), Color);
 
 		melange::BaseList2D* MaterialShader = MelangeGetLink(InC4DMaterialPtr, melange::MATERIAL_COLOR_SHADER);
@@ -1319,7 +1319,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 		float EmissiveGlowStrength = MelangeGetFloat(InC4DMaterialPtr, melange::MATERIAL_LUMINANCE_BRIGHTNESS);
 		AddFloatToMaterial(MaterialPtr, TEXT("Emissive_Glow_Strength"), EmissiveGlowStrength);
 
-		FLinearColor EmissiveColor = MelangeGetColor(InC4DMaterialPtr, melange::MATERIAL_LUMINANCE_COLOR);
+		FLinearColor EmissiveColor = FLinearColor(MelangeGetColor(InC4DMaterialPtr, melange::MATERIAL_LUMINANCE_COLOR));
 		AddColorToMaterial(MaterialPtr, TEXT("Emissive_Color"), EmissiveColor);
 
 		melange::BaseList2D* LuminanceShader = MelangeGetLink(InC4DMaterialPtr, melange::MATERIAL_LUMINANCE_SHADER);
@@ -1456,7 +1456,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 				// temp solution until we get proper material graphs
 				float ReflectionChannelColorWeight = (GlobalReflection * 0.75f + GlobalSpecular * 0.25f);
 				AddFloatToMaterial(MaterialPtr, TEXT("ReflectionColor_Strength"), ReflectionChannelColorWeight);
-				AddColorToMaterial(MaterialPtr, TEXT("ReflectionColor"), ReflectionColor);
+				AddColorToMaterial(MaterialPtr, TEXT("ReflectionColor"), FLinearColor(ReflectionColor));
 			}
 
 			// Only set those one for the last Layer of reflection
@@ -1602,7 +1602,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportSimpleC
 	Material->SetMaterialType(EDatasmithMasterMaterialType::Opaque);
 
 	// Color
-	AddColorToMaterial(Material, TEXT("Color"), DisplayColor);
+	AddColorToMaterial(Material, TEXT("Color"), FLinearColor(DisplayColor));
 	AddBoolToMaterial(Material, TEXT("Use_Color"), true);
 	AddBoolToMaterial(Material, TEXT("Use_ColorMap"), false);
 

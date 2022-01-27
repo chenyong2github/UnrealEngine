@@ -1835,7 +1835,7 @@ bool FSkeletalMeshImportData::GetMeshDescription(FMeshDescription& OutMeshDescri
 					if (bHasVertexColors)
 					{
 						// Don't perform sRGB conversion (which mirrors what CreateFromMeshDescription does).
-						VertexInstanceColors.Set(VertexInstanceID, Wedge.Color.ReinterpretAsLinear());
+						VertexInstanceColors.Set(VertexInstanceID, (FVector4f)Wedge.Color.ReinterpretAsLinear());
 					}
 					for (int32 UVIndex = 0; UVIndex < int32(NumTexCoords); UVIndex++)
 					{

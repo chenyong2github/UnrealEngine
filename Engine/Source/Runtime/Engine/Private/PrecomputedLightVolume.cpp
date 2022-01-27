@@ -460,7 +460,7 @@ void FPrecomputedLightVolume::InterpolateIncidentRadianceBlock(
 			const float WeightBase  = 1.0f / RadiusSquared;
 			const float WeightMultiplier = -1.0f / (RadiusSquared * RadiusSquared);
 				
-			const FVector BaseTranslationFromSample = BoundingBox.Center - BoundingBox.Extent - VolumeSample.Position;
+			const FVector BaseTranslationFromSample = BoundingBox.Center - BoundingBox.Extent - FVector4((FVector)VolumeSample.Position);
 			const FVector QuerySteps = BoundingBox.Extent / FVector(QueryCellDimensions) * 2;
 			FVector TranslationFromSample = BaseTranslationFromSample;
 

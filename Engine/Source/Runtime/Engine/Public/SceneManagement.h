@@ -1849,7 +1849,7 @@ protected:
 	bool bMobileMovablePointLightShouldCastShadow;
 
 	/** Cached the spotlight shadow map min and max value for mobile, since if the value is changed we have to update the movable point lights uniform buffer. */
-	FVector4 MobileMovablePointLightShadowmapMinMax;
+	FVector4f MobileMovablePointLightShadowmapMinMax;
 
 	/** The movable point light's uniform buffer for mobile. */
 	TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters> MobileMovablePointLightUniformBuffer;

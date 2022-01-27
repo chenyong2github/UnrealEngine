@@ -505,7 +505,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	/** UV offset to component's weightmap data from component local coordinates*/
 	UPROPERTY()
-	FVector4f WeightmapScaleBias;
+	FVector4 WeightmapScaleBias;
 
 	/** U or V offset into the weightmap for the first subsection, in texture UV space */
 	UPROPERTY()
@@ -513,7 +513,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	/** UV offset to Heightmap data from component local coordinates */
 	UPROPERTY()
-	FVector4f HeightmapScaleBias;
+	FVector4 HeightmapScaleBias;
 
 	/** Cached local-space bounding box, created at heightmap update time */
 	UPROPERTY()

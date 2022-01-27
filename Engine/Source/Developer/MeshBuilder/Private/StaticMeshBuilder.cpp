@@ -854,7 +854,7 @@ void BuildVertexBuffer(
 				
 			if (bHasColors)
 			{
-				const FVector4& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
+				const FVector4f& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
 				const FLinearColor LinearColor(VertexInstanceColor);
 				StaticMeshVertex.Color = LinearColor.ToFColor(true);
 			}

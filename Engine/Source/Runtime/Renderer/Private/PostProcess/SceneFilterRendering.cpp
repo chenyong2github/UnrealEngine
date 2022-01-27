@@ -209,10 +209,11 @@ void DrawTransformedRectangle(
 
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
-	Vertices[0].Position = PosTransform.TransformFVector4(FVector4f(X,			Y,			ClipSpaceQuadZ,	1));
-	Vertices[1].Position = PosTransform.TransformFVector4(FVector4f(X + SizeX,	Y,			ClipSpaceQuadZ,	1));
-	Vertices[2].Position = PosTransform.TransformFVector4(FVector4f(X,			Y + SizeY,	ClipSpaceQuadZ,	1));
-	Vertices[3].Position = PosTransform.TransformFVector4(FVector4f(X + SizeX,	Y + SizeY,	ClipSpaceQuadZ,	1));
+	// LWC_TODO: precision loss
+	Vertices[0].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X,			Y,			ClipSpaceQuadZ,	1));
+	Vertices[1].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X + SizeX,	Y,			ClipSpaceQuadZ,	1));
+	Vertices[2].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X,			Y + SizeY,	ClipSpaceQuadZ,	1));
+	Vertices[3].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X + SizeX,	Y + SizeY,	ClipSpaceQuadZ,	1));
 
 	Vertices[0].UV = FVector2D(TexTransform.TransformFVector4(FVector(U,			V,         0)));
 	Vertices[1].UV = FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V,         0)));

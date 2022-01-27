@@ -36,7 +36,7 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	VertexData.AddZeroed(PositionBuffer.GetNumVertices());
 	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
-		VertexData[VertexIdx].Position = PositionBuffer.VertexPosition(VertexIdx);
+		VertexData[VertexIdx].Position = FVector4(FVector(PositionBuffer.VertexPosition(VertexIdx)));
 		VertexData[VertexIdx].UV = VertexBuffer.GetVertexUV(VertexIdx, BaseUVIndex);
 		VertexData[VertexIdx].UV_Chromakey = VertexBuffer.GetVertexUV(VertexIdx, ChromakeyUVIndex);
 	}

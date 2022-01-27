@@ -790,9 +790,9 @@ void FIndirectLightingCache::UpdateTransitionsOverTime(const TArray<FIndirectLig
 			Allocation->SingleSamplePacked2 = FMath::Lerp(Allocation->SingleSamplePacked2, Allocation->TargetSamplePacked2, LerpFactor);
 			Allocation->CurrentDirectionalShadowing = FMath::Lerp(Allocation->CurrentDirectionalShadowing, Allocation->TargetDirectionalShadowing, LerpFactor);
 
-			const FVector CurrentSkyBentNormal = FMath::Lerp(
-				FVector(Allocation->CurrentSkyBentNormal) * Allocation->CurrentSkyBentNormal.W, 
-				FVector(Allocation->TargetSkyBentNormal) * Allocation->TargetSkyBentNormal.W, 
+			const FVector3f CurrentSkyBentNormal = FMath::Lerp(
+				FVector3f(Allocation->CurrentSkyBentNormal) * Allocation->CurrentSkyBentNormal.W, 
+				FVector3f(Allocation->TargetSkyBentNormal) * Allocation->TargetSkyBentNormal.W, 
 				LerpFactor);
 
 			const float BentNormalLength = CurrentSkyBentNormal.Size();

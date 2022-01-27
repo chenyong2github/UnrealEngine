@@ -198,7 +198,7 @@ int32 GenerateParticleSortKeys(
 			const uint32 AlignedParticleCount = ((ParticleCount + PARTICLE_KEY_GEN_THREAD_COUNT - 1) & (~(PARTICLE_KEY_GEN_THREAD_COUNT - 1)));
 			const uint32 ChunkCount = AlignedParticleCount / PARTICLE_KEY_GEN_THREAD_COUNT;
 			const uint32 GroupCount = FMath::Clamp<uint32>( ChunkCount, 1, MaxGroupCount );
-			KeyGenParameters.ViewOrigin = (FVector4f)SortInfo.ViewOrigin;
+			KeyGenParameters.ViewOrigin = FVector3f(SortInfo.ViewOrigin); // LWC_TODO: precision loss
 			KeyGenParameters.ChunksPerGroup = ChunkCount / GroupCount;
 			KeyGenParameters.ExtraChunkCount = ChunkCount % GroupCount;
 			KeyGenParameters.OutputOffset = SortInfo.AllocationInfo.BufferOffset;

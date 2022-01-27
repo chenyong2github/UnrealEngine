@@ -708,13 +708,13 @@ FMobileDirectionalLightShaderParameters::FMobileDirectionalLightShaderParameters
 
 	// light, default to black
 	DirectionalLightColor = FLinearColor::Black;
-	DirectionalLightDirectionAndShadowTransition = FVector4(EForceInit::ForceInitToZero);
+	DirectionalLightDirectionAndShadowTransition = FVector4f(EForceInit::ForceInitToZero);
 
 	// white texture should act like a shadowmap cleared to the farplane.
 	DirectionalLightShadowTexture = GWhiteTexture->TextureRHI;
 	DirectionalLightShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	DirectionalLightShadowSize = FVector4(EForceInit::ForceInitToZero);
-	DirectionalLightDistanceFadeMADAndSpecularScale = FVector4(EForceInit::ForceInitToZero);
+	DirectionalLightShadowSize = FVector4f(EForceInit::ForceInitToZero);
+	DirectionalLightDistanceFadeMADAndSpecularScale = FVector4f(EForceInit::ForceInitToZero);
 	for (int32 i = 0; i < MAX_MOBILE_SHADOWCASCADES; ++i)
 	{
 		DirectionalLightScreenToShadow[i].SetIdentity();
@@ -1335,7 +1335,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameter
 void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
 {
 	FMobileReflectionCaptureShaderParameters Parameters;
-	Parameters.Params = FVector4(1.f, 0.f, 0.f, 0.f);
+	Parameters.Params = FVector4f(1.f, 0.f, 0.f, 0.f);
 	Parameters.Texture = GBlackTextureCube->TextureRHI;
 	Parameters.TextureSampler = GBlackTextureCube->SamplerStateRHI;
 	SetContents(Parameters);

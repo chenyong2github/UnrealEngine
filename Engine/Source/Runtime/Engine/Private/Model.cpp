@@ -835,20 +835,20 @@ int32 UModel::BuildVertexBuffers()
 		{
 			FBspNode& Node = Nodes[NodeIndex];
 			FBspSurf& Surf = Surfs[Node.iSurf];
-			const FVector& TextureBase = Points[Surf.pBase];
-			const FVector& TextureX = Vectors[Surf.vTextureU];
-			const FVector& TextureY = Vectors[Surf.vTextureV];
+			const FVector3f& TextureBase = Points[Surf.pBase];
+			const FVector3f& TextureX = Vectors[Surf.vTextureU];
+			const FVector3f& TextureY = Vectors[Surf.vTextureV];
 
 			// Use the texture coordinates and normal to create an orthonormal tangent basis.
-			FVector TangentX = TextureX;
-			FVector TangentY = TextureY;
-			FVector TangentZ = Vectors[Surf.vNormal];
-			FVector::CreateOrthonormalBasis(TangentX,TangentY,TangentZ);
+			FVector3f TangentX = TextureX;
+			FVector3f TangentY = TextureY;
+			FVector3f TangentZ = Vectors[Surf.vNormal];
+			FVector3f::CreateOrthonormalBasis(TangentX,TangentY,TangentZ);
 
 			for(uint32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 			{
 				const FVert& Vert = Verts[Node.iVertPool + VertexIndex];
-				const FVector& Position = Points[Vert.pVertex];
+				const FVector3f& Position = Points[Vert.pVertex];
 				DestVertex->Position = Position;
 				DestVertex->TexCoord.X = ((Position - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
 				DestVertex->TexCoord.Y = ((Position - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
@@ -867,7 +867,7 @@ int32 UModel::BuildVertexBuffers()
 				for(int32 VertexIndex = Node.NumVertices - 1;VertexIndex >= 0;VertexIndex--)
 				{
 					const FVert& Vert = Verts[Node.iVertPool + VertexIndex];
-					const FVector& Position = Points[Vert.pVertex];
+					const FVector3f& Position = Points[Vert.pVertex];
 					DestVertex->Position = Position;
 					DestVertex->TexCoord.X = ((Position - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
 					DestVertex->TexCoord.Y = ((Position - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();

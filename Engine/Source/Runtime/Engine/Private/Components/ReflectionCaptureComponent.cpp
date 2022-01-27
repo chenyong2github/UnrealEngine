@@ -1264,7 +1264,7 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 
 	FVector3f ForwardVector(1.0f,0.0f,0.0f);
 	FVector3f RightVector(0.0f,-1.0f,0.0f);
-	const FVector4 PlaneNormal = LocalToRelativeWorld.TransformVector(ForwardVector);
+	const FVector4f PlaneNormal = LocalToRelativeWorld.TransformVector(ForwardVector);
 
 	// Normalize the plane
 	LocalReflectionPlane = FPlane4f(FVector3f::ZeroVector, FVector3f(PlaneNormal).GetSafeNormal());
@@ -1272,7 +1272,7 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 	const FVector3f ScaleVector = LocalToRelativeWorld.GetScaleVector();
 	BoxScales = ScaleVector;
 	// Include the owner's draw scale in the axes
-	ReflectionXAxisAndYScale = ReflectionXAxis.GetSafeNormal() * ScaleVector.Y;
+	ReflectionXAxisAndYScale = FVector4(FVector4f(ReflectionXAxis.GetSafeNormal() * ScaleVector.Y));
 	ReflectionXAxisAndYScale.W = ScaleVector.Y / ScaleVector.Z;
 }
 
@@ -1286,7 +1286,7 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 		
 	FMobileReflectionCaptureShaderParameters Parameters;
 	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
-	Parameters.Params = FVector4(EncodedHDRAverageBrightness, 0.f, MaxValueRGBM <= 0.0f ? 16.0f: MaxValueRGBM, Brightness);
+	Parameters.Params = FVector4f(EncodedHDRAverageBrightness, 0.f, MaxValueRGBM <= 0.0f ? 16.0f: MaxValueRGBM, Brightness);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 

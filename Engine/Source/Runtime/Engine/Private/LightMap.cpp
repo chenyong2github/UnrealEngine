@@ -1613,14 +1613,14 @@ void FLightMapPendingTexture::EncodeCoefficientTexture(int32 CoefficientIndex, U
 		auto& Allocation = Allocations[AllocationIndex];
 		for (int k = 0; k < 2; k++)
 		{
-			Allocation->LightMap->ScaleVectors[CoefficientIndex + k] = FVector4(
+			Allocation->LightMap->ScaleVectors[CoefficientIndex + k] = FVector4f(
 				Allocation->Scale[CoefficientIndex + k][0],
 				Allocation->Scale[CoefficientIndex + k][1],
 				Allocation->Scale[CoefficientIndex + k][2],
 				Allocation->Scale[CoefficientIndex + k][3]
 			);
 
-			Allocation->LightMap->AddVectors[CoefficientIndex + k] = FVector4(
+			Allocation->LightMap->AddVectors[CoefficientIndex + k] = FVector4f(
 				Allocation->Add[CoefficientIndex + k][0],
 				Allocation->Add[CoefficientIndex + k][1],
 				Allocation->Add[CoefficientIndex + k][2],
@@ -2620,7 +2620,7 @@ int32 FLightMap2D::EncodeShadowTexture(ULevel* LightingScenario, struct FLightMa
 	{
 		FLightMapAllocation& Allocation = *PendingTexture.Allocations[AllocationIndex];
 		bool bChannelUsed[4] = { 0 };
-		FVector4 InvUniformPenumbraSize(0, 0, 0, 0);
+		FVector4f InvUniformPenumbraSize(0, 0, 0, 0);
 
 		for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
 		{

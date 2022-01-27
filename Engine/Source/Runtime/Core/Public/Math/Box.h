@@ -61,6 +61,20 @@ public:
 		, IsValid(1)
 	{ }
 
+	// double box taking float params
+	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<T, double>, TIsSame<FArg, float>>::Value)>
+	TBox(const TVector<FArg>& InMin, const TVector<FArg>& InMax)
+		: Min(InMin)
+		, Max(InMax)
+		, IsValid(1)
+	{ }
+
+	TBox(const TVector4<T>& InMin, const TVector4<T>& InMax)
+		: Min(InMin)
+		, Max(InMax)
+		, IsValid(1)
+	{ }
+
 	/**
 	 * Creates and initializes a new box from the given set of points.
 	 *
@@ -367,12 +381,12 @@ public:
 	UE_NODISCARD TBox<T> Overlap( const TBox<T>& Other ) const;
 
 	/**
-	  * Gets a bounding volume transformed by an inverted FTransform object.
+	  * Gets a bounding volume transformed by an inverted TTransform<T> object.
 	  *
 	  * @param M The transformation object to perform the inversely transform this box with.
 	  * @return	The transformed box.
 	  */
-	UE_NODISCARD TBox<T> InverseTransformBy( const FTransform& M ) const;
+	UE_NODISCARD TBox<T> InverseTransformBy( const TTransform<T>& M ) const;
 
 	/** 
 	 * Checks whether the given location is inside this box.
@@ -454,13 +468,13 @@ public:
 	UE_NODISCARD TBox<T> TransformBy( const TMatrix<T>& M ) const;
 
 	/**
-	 * Gets a bounding volume transformed by a FTransform object.
+	 * Gets a bounding volume transformed by a TTransform<T> object.
 	 *
 	 * @param M The transformation object.
 	 * @return The transformed box.
 	 * @see TransformProjectBy
 	 */
-	UE_NODISCARD TBox<T> TransformBy( const FTransform& M ) const;
+	UE_NODISCARD TBox<T> TransformBy( const TTransform<T>& M ) const;
 
 	/** 
 	 * Returns the current world bounding box transformed and projected to screen space
@@ -712,13 +726,13 @@ TBox<T> TBox<T>::TransformBy(const TMatrix<T>& M) const
 }
 
 template<typename T>
-TBox<T> TBox<T>::TransformBy(const FTransform& M) const
+TBox<T> TBox<T>::TransformBy(const TTransform<T>& M) const
 {
 	return TransformBy(M.ToMatrixWithScale());
 }
 
 template<typename T>
-TBox<T> TBox<T>::InverseTransformBy(const FTransform& M) const
+TBox<T> TBox<T>::InverseTransformBy(const TTransform<T>& M) const
 {
 	TVector<T> Vertices[8] =
 	{
@@ -736,7 +750,7 @@ TBox<T> TBox<T>::InverseTransformBy(const FTransform& M) const
 
 	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
 	{
-		FVector4 ProjectedVertex = M.InverseTransformPosition(Vertices[VertexIndex]);
+		TVector<T> ProjectedVertex = M.InverseTransformPosition(Vertices[VertexIndex]);
 		NewBox += ProjectedVertex;
 	}
 
@@ -762,7 +776,7 @@ TBox<T> TBox<T>::TransformProjectBy(const TMatrix<T>& ProjM) const
 
 	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
 	{
-		FVector4 ProjectedVertex = ProjM.TransformPosition(Vertices[VertexIndex]);
+		TVector4<T> ProjectedVertex = ProjM.TransformPosition(Vertices[VertexIndex]);
 		NewBox += ((TVector<T>)ProjectedVertex) / ProjectedVertex.W;
 	}
 

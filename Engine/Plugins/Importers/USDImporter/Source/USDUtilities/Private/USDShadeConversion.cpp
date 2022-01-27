@@ -1049,7 +1049,7 @@ namespace UE
 
 				void operator()( const FVector& VectorValue ) const
 				{
-					SetVectorParameterValue( Material, ParameterName, VectorValue );
+					SetVectorParameterValue( Material, ParameterName, FLinearColor(VectorValue) );
 				}
 
 				void operator()( const FTextureParameterValue& TextureValue ) const
@@ -1059,7 +1059,7 @@ namespace UE
 
 				void operator()( const FPrimvarReaderParameterValue& PrimvarReaderValue ) const
 				{
-					SetVectorParameterValue( Material, ParameterName, PrimvarReaderValue.FallbackValue );
+					SetVectorParameterValue( Material, ParameterName, FLinearColor(PrimvarReaderValue.FallbackValue) );
 				}
 
 				void operator()( const bool BoolValue ) const

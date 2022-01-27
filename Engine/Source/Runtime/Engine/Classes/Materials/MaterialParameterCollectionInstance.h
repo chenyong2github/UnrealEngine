@@ -36,6 +36,8 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 	/** Sets parameter value overrides, returns false if the parameter was not found. */
 	bool SetScalarParameterValue(FName ParameterName, float ParameterValue);
 	bool SetVectorParameterValue(FName ParameterName, const FLinearColor& ParameterValue);
+	bool SetVectorParameterValue(FName ParameterName, const FVector& ParameterValue) { return SetVectorParameterValue(ParameterName, FLinearColor(ParameterValue)); }
+	bool SetVectorParameterValue(FName ParameterName, const FVector4& ParameterValue) { return SetVectorParameterValue(ParameterName, FLinearColor(ParameterValue)); }
 
 	/** Gets parameter values, returns false if the parameter was not found. */
 	bool GetScalarParameterValue(FName ParameterName, float& OutParameterValue) const;

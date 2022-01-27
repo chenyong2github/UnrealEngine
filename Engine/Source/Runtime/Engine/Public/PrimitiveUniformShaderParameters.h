@@ -294,7 +294,8 @@ public:
 		}
 
 		Parameters.ActorRelativeWorldPosition = AbsoluteActorWorldPosition - TilePositionOffset;
-		Parameters.ObjectRelativeWorldPositionAndRadius = FVector4(AbsoluteObjectWorldPosition - TilePositionOffset, ObjectRadius);
+		const FVector3f ObjectRelativeWorldPositionAsFloat = FVector3f(AbsoluteObjectWorldPosition - TilePositionOffset);
+		Parameters.ObjectRelativeWorldPositionAndRadius = FVector4f(ObjectRelativeWorldPositionAsFloat, ObjectRadius);
 
 		if (bHasPreviousLocalToWorld)
 		{
@@ -325,9 +326,9 @@ public:
 
 		{
 			// Extract per axis scales from LocalToWorld transform
-			FVector4f WorldX = FVector4(Parameters.LocalToRelativeWorld.M[0][0], Parameters.LocalToRelativeWorld.M[0][1], Parameters.LocalToRelativeWorld.M[0][2], 0);
-			FVector4f WorldY = FVector4(Parameters.LocalToRelativeWorld.M[1][0], Parameters.LocalToRelativeWorld.M[1][1], Parameters.LocalToRelativeWorld.M[1][2], 0);
-			FVector4f WorldZ = FVector4(Parameters.LocalToRelativeWorld.M[2][0], Parameters.LocalToRelativeWorld.M[2][1], Parameters.LocalToRelativeWorld.M[2][2], 0);
+			FVector4f WorldX = FVector4f(Parameters.LocalToRelativeWorld.M[0][0], Parameters.LocalToRelativeWorld.M[0][1], Parameters.LocalToRelativeWorld.M[0][2], 0);
+			FVector4f WorldY = FVector4f(Parameters.LocalToRelativeWorld.M[1][0], Parameters.LocalToRelativeWorld.M[1][1], Parameters.LocalToRelativeWorld.M[1][2], 0);
+			FVector4f WorldZ = FVector4f(Parameters.LocalToRelativeWorld.M[2][0], Parameters.LocalToRelativeWorld.M[2][1], Parameters.LocalToRelativeWorld.M[2][2], 0);
 			float ScaleX = FVector3f(WorldX).Size();
 			float ScaleY = FVector3f(WorldY).Size();
 			float ScaleZ = FVector3f(WorldZ).Size();

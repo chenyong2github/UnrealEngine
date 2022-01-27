@@ -322,10 +322,10 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 		SoftVertex.Color = FColor::White;
 		ovrpVector3f VertexPosition = OvrMesh->VertexPositions[VertexIndex];
 		ovrpVector3f Normal = OvrMesh->VertexNormals[VertexIndex];
-		SoftVertex.Position = FVector(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;
-		SoftVertex.TangentZ = FVector(Normal.x, Normal.z, Normal.y);
-		SoftVertex.TangentX = FVector(1.0f, 0.0f, 0.0f);
-		SoftVertex.TangentY = FVector(0.0f, 1.0f, 0.0f);// SoftVertex.TangentZ^ SoftVertex.TangentX* SoftVertex.TangentZ.W;
+		SoftVertex.Position = FVector3f(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;
+		SoftVertex.TangentZ = FVector3f(Normal.x, Normal.z, Normal.y);
+		SoftVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+		SoftVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);// SoftVertex.TangentZ^ SoftVertex.TangentX* SoftVertex.TangentZ.W;
 		SoftVertex.UVs[0] = FVector2D(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
 
 		// Update the Bounds
@@ -417,8 +417,8 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 		ovrpVector3f VertexPosition = OvrMesh->VertexPositions[VertexIndex];
 		ovrpVector3f Normal = OvrMesh->VertexNormals[VertexIndex];
 		ModelVertex.Position = FVector(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;
-		ModelVertex.TangentZ = FVector(Normal.x, Normal.z, Normal.y);
-		ModelVertex.TangentX = FVector(1.0f, 0.0f, 0.0f);
+		ModelVertex.TangentZ = FVector3f(Normal.x, Normal.z, Normal.y);
+		ModelVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
 		ModelVertex.TexCoord = FVector2D(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
 
 		// Add Model Vertex data to vertex buffer

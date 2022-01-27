@@ -46,5 +46,6 @@ public:
 	}
 
 protected:
+	// LWC_TODO: should this and GetData() use FVector4f?
 	FVector4 Data;
 };

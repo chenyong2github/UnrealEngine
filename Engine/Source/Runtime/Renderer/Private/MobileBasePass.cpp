@@ -503,7 +503,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 					{
 						CapturePositions[i] = ReflectionProxy->RelativePosition;
 						CapturePositions[i].W = ReflectionProxy->InfluenceRadius;
-						CaptureTilePositions[i] = FVector4(ReflectionProxy->TilePosition, 0);
+						CaptureTilePositions[i] = FVector4f(ReflectionProxy->TilePosition, 0);
 						if (ReflectionProxy->EncodedHDRCubemap)
 						{
 							ReflectionCubemapTextures[i] = ReflectionProxy->EncodedHDRCubemap->GetResource();

@@ -70,7 +70,7 @@ void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		OutParameters.ExponentialFogParameters3 = View.ExponentialFogParameters3;
 		OutParameters.SinCosInscatteringColorCubemapRotation = View.SinCosInscatteringColorCubemapRotation;
 		OutParameters.FogInscatteringTextureParameters = View.FogInscatteringTextureParameters;
-		OutParameters.InscatteringLightDirection = View.InscatteringLightDirection;
+		OutParameters.InscatteringLightDirection = (FVector3f)View.InscatteringLightDirection;
 		OutParameters.InscatteringLightDirection.W = View.bUseDirectionalInscattering ? FMath::Max(0.f, View.DirectionalInscatteringStartDistance) : -1.f;
 		OutParameters.DirectionalInscatteringColor = FVector4f(FVector(View.DirectionalInscatteringColor), FMath::Clamp(View.DirectionalInscatteringExponent, 0.000001f, 1000.0f));
 		OutParameters.FogInscatteringColorCubemap = Cubemap->TextureRHI;
@@ -344,7 +344,7 @@ static void RenderViewFog(
 		FVector ViewSpaceCorner = InvProjectionMatrix.TransformFVector4(FVector4(1, 1, 1, 1));
 		float Ratio = ViewSpaceCorner.Z / ViewSpaceCorner.Size();
 		FVector ViewSpaceStartFogPoint(0.0f, 0.0f, FogStartDistance * Ratio);
-		FVector4f ClipSpaceMaxDistance = View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint);
+		FVector4f ClipSpaceMaxDistance = (FVector4f)View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint); // LWC_TODO: precision loss
 		float FogClipSpaceZ = ClipSpaceMaxDistance.Z / ClipSpaceMaxDistance.W;
 
 		if (bool(ERHIZBuffer::IsInverted))

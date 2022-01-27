@@ -459,13 +459,13 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 #if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 						// Note: inverting radius twice seems stupid (but done in shader anyway otherwise)
-						const FVector3f LightViewPosition(View.ViewMatrices.GetViewMatrix().TransformPosition(LightParameters.WorldPosition));
+						const FVector3f LightViewPosition = FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightParameters.WorldPosition)); // LWC_TODO: precision loss
 						FVector4f ViewSpacePosAndRadius(LightViewPosition, 1.0f / LightParameters.InvRadius);
 						ViewSpacePosAndRadiusData.Add(ViewSpacePosAndRadius);
 
 						float PreProcAngle = SortedLightInfo.SortKey.Fields.LightType == LightType_Spot ? GetTanRadAngleOrZero(LightSceneInfo->Proxy->GetOuterConeAngle()) : 0.0f;
 
-						FVector4f ViewSpaceDirAndPreprocAngle(View.ViewMatrices.GetViewMatrix().TransformVector(LightParameters.Direction), PreProcAngle);
+						FVector4f ViewSpaceDirAndPreprocAngle(FVector4f(View.ViewMatrices.GetViewMatrix().TransformVector(LightParameters.Direction)), PreProcAngle); // LWC_TODO: precision loss
 						ViewSpaceDirAndPreprocAngleData.Add(ViewSpaceDirAndPreprocAngle);
 #endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 					}

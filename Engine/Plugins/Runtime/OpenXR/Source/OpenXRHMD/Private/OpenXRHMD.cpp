@@ -1284,7 +1284,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 		FFilterVertex& Vertex = Vertices[VertexIndex];
 		FVector Position(OutVertices[VertexIndex].x, OutVertices[VertexIndex].y, 1.0f);
 
-		Vertex.Position = Projection.TransformPosition(Position);
+		Vertex.Position = (FVector4f)Projection.TransformPosition(Position); // LWC_TODO: precision loss
 
 		if (Type == XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR)
 		{

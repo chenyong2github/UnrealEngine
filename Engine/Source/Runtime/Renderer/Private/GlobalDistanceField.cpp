@@ -423,8 +423,8 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 				const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2) + FVector(.5f);
 				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
 
-				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Bounds.GetExtent());
-				ParameterData.MipWorldToUVBias[ClipmapIndex] = (-Clipmap.Bounds.Min) / (2.0f * Clipmap.Bounds.GetExtent());
+				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector3f(FVector(1.0f) / (2.0f * Clipmap.Bounds.GetExtent())); // LWC_TODO: precision loss
+				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector3f((-Clipmap.Bounds.Min) / (2.0f * Clipmap.Bounds.GetExtent())); // LWC_TODO: precision loss
 
 				ParameterData.MipWorldToUVScale[ClipmapIndex].Z = ParameterData.MipWorldToUVScale[ClipmapIndex].Z / Clipmaps.Num();
 				ParameterData.MipWorldToUVBias[ClipmapIndex].Z = (ParameterData.MipWorldToUVBias[ClipmapIndex].Z + ClipmapIndex) / Clipmaps.Num();
@@ -433,8 +433,8 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			{
 				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f(0);
 				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(0);
-				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(0);
-				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector(0);
+				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector3f(0);
+				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector3f(0);
 			}
 		}
 

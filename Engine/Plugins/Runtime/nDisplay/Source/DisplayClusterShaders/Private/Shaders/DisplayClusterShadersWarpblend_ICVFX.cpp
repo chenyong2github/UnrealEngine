@@ -554,7 +554,7 @@ public:
 		RenderPassData.PSParameters.InnerCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		RenderPassData.PSParameters.InnerCameraProjectionMatrix = InnerCameraProjectionMatrix;
-		RenderPassData.PSParameters.InnerCameraSoftEdge = Camera.SoftEdge;
+		RenderPassData.PSParameters.InnerCameraSoftEdge = FVector4f(Camera.SoftEdge);
 
 		RenderPassData.PSParameters.InnerCameraBorderColor = Camera.InnerCameraBorderColor;
 		RenderPassData.PSParameters.InnerCameraBorderThickness = Camera.InnerCameraBorderThickness;

@@ -780,7 +780,7 @@ protected:
 	TArray<FLandscapeBatchElementParams> GrassBatchParams;
 #endif
 
-	FVector4 WeightmapScaleBias;
+	FVector4f WeightmapScaleBias;
 	TArray<UTexture2D*> WeightmapTextures;
 
 	UTexture2D* VisibilityWeightmapTexture;
@@ -791,7 +791,7 @@ protected:
 #endif
 	UTexture2D* NormalmapTexture; // PC : Heightmap, Mobile : Weightmap
 	UTexture2D* BaseColorForGITexture;
-	FVector4 HeightmapScaleBias;
+	FVector4f HeightmapScaleBias;
 	float HeightmapSubsectionOffsetU;
 	float HeightmapSubsectionOffsetV;
 

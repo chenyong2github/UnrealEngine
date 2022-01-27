@@ -1110,9 +1110,9 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 				const FTransform& BoneTransform = BoneTransforms[i];
 				const FQuat Rotation = BoneTransform.GetRotation();
 				const int32 ParentIndex = ReferenceSkeleton ? ReferenceSkeleton->GetParentIndex(i) : -1;
-				BoneSamplingData.Emplace(BoneTransform.GetLocation());
+				BoneSamplingData.Emplace((FVector3f)BoneTransform.GetLocation()); // LWC_TODO: precision loss
 				BoneSamplingData.Emplace(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W);
-				BoneSamplingData.Emplace_GetRef(BoneTransform.GetScale3D()).W = reinterpret_cast<const float&>(ParentIndex);
+				BoneSamplingData.Emplace_GetRef((FVector3f)BoneTransform.GetScale3D()).W = reinterpret_cast<const float&>(ParentIndex); // LWC_TODO: precision loss
 			}
 
 			// Append sockets

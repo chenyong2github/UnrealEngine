@@ -2061,7 +2061,7 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 		if (HLSLType)
 		{
-			const FVector4& DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
+			const FVector4f DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
 
 			MaterialAttributesDeclaration += FString::Printf(TEXT("\t%s %s;") LINE_TERMINATOR, HLSLType, *PropertyName);
 
@@ -3741,7 +3741,7 @@ bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property,
 	}
 	else
 	{
-		FVector4 DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(Property);
+		FVector4f DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(Property);
 		EMaterialValueType ValueType = FMaterialAttributeDefinitionMap::GetValueType(Property);
 		int32 ComponentCount = GetNumComponents(ValueType);
 
@@ -9261,7 +9261,7 @@ int32 FHLSLMaterialTranslator::SetMaterialAttribute(int32 MaterialAttributes, in
 		FMaterialRenderContext Context(nullptr, *Material, nullptr);
 		FLinearColor ConstantValue(ForceInitToZero);
 		UniformExpression->GetNumberValue(Context, ConstantValue);
-		const FVector4 DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
+		const FVector4f DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
 		bSetDefaultValue = (ConstantValue == FLinearColor(DefaultValue));
 	}
 

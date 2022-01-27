@@ -1667,7 +1667,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 				NewVertex.Position = Sample->Vertices[Index];
 				NewVertex.TangentX = SourceSection.TangentX[FaceOffset + VertexIndex];
 				NewVertex.TangentY = SourceSection.TangentY[FaceOffset + VertexIndex];
-				NewVertex.TangentZ = SourceSection.TangentZ[FaceOffset + VertexIndex];
+				NewVertex.TangentZ = (FVector3f)SourceSection.TangentZ[FaceOffset + VertexIndex]; // LWC_TODO: precision loss
 				for (uint32 UVIndex = 0; UVIndex < SourceSection.NumUVSets; ++UVIndex)
 				{
 					NewVertex.UVs[UVIndex] = SourceSection.UVs[UVIndex][FaceOffset + VertexIndex];

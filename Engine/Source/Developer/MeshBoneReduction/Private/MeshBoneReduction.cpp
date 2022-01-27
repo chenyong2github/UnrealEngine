@@ -472,11 +472,11 @@ public:
 								const int32 ArrayIndex = BoneIndices.IndexOfByKey(Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]]);
 								if (ArrayIndex != INDEX_NONE)
 								{
-									Position += ((RemovedBoneMatrices[ArrayIndex].TransformPosition(Vertex.Position) - Vertex.Position) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
+									Position += (FVector(RemovedBoneMatrices[ArrayIndex].TransformPosition(Vertex.Position)) - FVector(Vertex.Position)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
 
-									TangentX += ((RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentX) - Vertex.TangentX) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
-									TangentY += ((RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentY) - Vertex.TangentY) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
-									TangentZ += ((RemovedBoneMatrices[ArrayIndex].TransformVector((FVector4)Vertex.TangentZ) - Vertex.TangentZ) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
+									TangentX += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentX)) - FVector(Vertex.TangentX)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentY += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentY)) - FVector(Vertex.TangentY)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentZ += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector3f)Vertex.TangentZ)) - FVector(Vertex.TangentZ)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
 								}
 							}
 				        }
@@ -485,7 +485,7 @@ public:
 						Vertex.TangentX = TangentX.GetSafeNormal();
 						Vertex.TangentY = TangentY.GetSafeNormal();
 						const uint8 WComponent = Vertex.TangentZ.W;
-						Vertex.TangentZ = TangentZ.GetSafeNormal();
+						Vertex.TangentZ = (FVector4f)TangentZ.GetSafeNormal();
 						Vertex.TangentZ.W = WComponent;
 					}
 				}

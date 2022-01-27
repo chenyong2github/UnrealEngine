@@ -192,7 +192,7 @@ struct FDoubleVectorParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	explicit FDoubleVectorParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), const FVector4d& InValue = FVector3d(ForceInit))
+	explicit FDoubleVectorParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), const FVector4d& InValue = FVector4d(0.f, 0.f, 0.f, 1.f))
 		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
 	{
 	}

@@ -380,7 +380,7 @@ void SCompElementColorPickerDialog::OnPixelPicked(const FVector2D& UVCoord, EPic
 			if (PickingMode == EPickingState::Averaging && bAverageColorOnDrag)
 			{
 				// use a FVector4 to prevent FLinearColorfrom clamping values
-				FVector4 ColorVec = PickedColor;
+				FVector4f ColorVec = PickedColor;
 				ColorVec *= PickedSamples;
 				ColorVec += NewSample;
 				ColorVec *= 1.f / ++PickedSamples;

@@ -1220,7 +1220,8 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 		UWaterMeshComponent* WaterMeshComponent = WaterZone->GetWaterMeshComponent();
 		check(WaterMeshComponent);
 
-		FLinearColor WaterArea = WaterMeshComponent->RTWorldLocation;
+		// LWC_TODO: precision loss
+		FLinearColor WaterArea = FLinearColor(WaterMeshComponent->RTWorldLocation);
 		WaterArea.B = WaterMeshComponent->RTWorldSizeVector.X;
 		WaterArea.A = WaterMeshComponent->RTWorldSizeVector.Y;
 		InMID->SetVectorParameterValue(WaterAreaParamName, WaterArea);

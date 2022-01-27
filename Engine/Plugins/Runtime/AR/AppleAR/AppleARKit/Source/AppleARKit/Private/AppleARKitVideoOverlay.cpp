@@ -283,12 +283,12 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 	if (!OverlayVertexBufferRHI)
 	{
 		// Setup vertex buffer
-		const FVector4 Positions[] =
+		const FVector4f Positions[] =
 		{
-			FVector4(0.0f, 1.0f, 0.0f, 1.0f),
-			FVector4(0.0f, 0.0f, 0.0f, 1.0f),
-			FVector4(1.0f, 1.0f, 0.0f, 1.0f),
-			FVector4(1.0f, 0.0f, 0.0f, 1.0f)
+			FVector4f(0.0f, 1.0f, 0.0f, 1.0f),
+			FVector4f(0.0f, 0.0f, 0.0f, 1.0f),
+			FVector4f(1.0f, 1.0f, 0.0f, 1.0f),
+			FVector4f(1.0f, 0.0f, 0.0f, 1.0f)
 		};
 		
 		TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
@@ -391,9 +391,9 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 
 	const FIntPoint ViewSize = InView.UnconstrainedViewRect.Size();
 	FDrawRectangleParameters Parameters;
-	Parameters.PosScaleBias = FVector4(ViewSize.X, ViewSize.Y, 0, 0);
-	Parameters.UVScaleBias = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
-	Parameters.InvTargetSizeAndTextureSize = FVector4(
+	Parameters.PosScaleBias = FVector4f(ViewSize.X, ViewSize.Y, 0, 0);
+	Parameters.UVScaleBias = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
+	Parameters.InvTargetSizeAndTextureSize = FVector4f(
 													  1.0f / ViewSize.X, 1.0f / ViewSize.Y,
 													  1.0f, 1.0f);
 

@@ -904,12 +904,12 @@ namespace ClothingMeshUtils
 	}
 
 	// TODO: Vertex normals are not used at present, a future improved algorithm might however
-	FVector4 GetPointBaryAndDist(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& Point)
+	FVector4f GetPointBaryAndDist(const FVector3f& A, const FVector3f& B, const FVector3f& C, const FVector3f& Point)
 	{
 		FPlane4f TrianglePlane(A, B, C);
-		const FVector3f PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
-		const FVector3f BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C);
-		return FVector4(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
+		const FVector3f PointOnTriPlane = FVector3f::PointPlaneProject(Point, TrianglePlane);
+		const FVector3f BaryCoords = (FVector3f)FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C); // LWC_TODO: ComputeBaryCentric2D only supports FVector
+		return FVector4f(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
 	}
 
 
@@ -1110,7 +1110,7 @@ namespace ClothingMeshUtils
 		}
 	}
 
-	FVector4 GetPointBaryAndDistWithNormals(
+	FVector4f GetPointBaryAndDistWithNormals(
 		const FVector3f& A, const FVector3f& B, const FVector3f& C,
 		const FVector3f& InputNA, const FVector3f& InputNB, const FVector3f& InputNC,
 		const FVector3f& Point)
@@ -1136,7 +1136,7 @@ namespace ClothingMeshUtils
 		const FVector3f ClosestPoint = FMath::ClosestPointOnTriangleToPoint(Point, A, B, C);
 		const float DistanceToTriangle = FVector3f::Distance(Point, ClosestPoint);
 		
-		FVector4 BaryAndDist;
+		FVector4f BaryAndDist;
 		float MinDistanceSq = TNumericLimits<float>::Max();
 		bool bAnySolutionFound = false;
 
@@ -1157,7 +1157,7 @@ namespace ClothingMeshUtils
 		
 			FPlane4f TrianglePlane(AW, BW, CW);
 
-			const FVector3f PointOnTriPlane = FVector::PointPlaneProject(Point, TrianglePlane);
+			const FVector3f PointOnTriPlane = FVector3f::PointPlaneProject(Point, TrianglePlane);
 			const FVector3f BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, AW, BW, CW);
 
 			if (BaryCoords.X == BaryCoords.Y && BaryCoords.Y == BaryCoords.Z && BaryCoords.Z == 0.0f)
@@ -1172,7 +1172,7 @@ namespace ClothingMeshUtils
 				BaryCoords.Y >= 0.0f && BaryCoords.Y <= 1.0f &&
 				BaryCoords.Z >= 0.0f && BaryCoords.Z <= 1.0f)
 			{
-				BaryAndDist = FVector4(BaryCoords, W[CoplanarityParamIndex]);
+				BaryAndDist = FVector4f(BaryCoords, (float)W[CoplanarityParamIndex]); // LWC_TODO: precision loss, but CoplanarityParam() would have already lost precision for W
 				break;
 			}
 			
@@ -1182,7 +1182,7 @@ namespace ClothingMeshUtils
 			
 			if (DistSq < MinDistanceSq)
 			{
-				BaryAndDist = FVector4(BaryCoords, W[CoplanarityParamIndex]);
+				BaryAndDist = FVector4f(BaryCoords, (float)W[CoplanarityParamIndex]); // LWC_TODO: precision loss, but CoplanarityParam() would have already lost precision for W
 				MinDistanceSq = DistSq;
 			}
 		}
@@ -1197,7 +1197,7 @@ namespace ClothingMeshUtils
 				BaryAndDist.Y * (B + UseNB * BaryAndDist.W) +
 				BaryAndDist.Z * (C + UseNC * BaryAndDist.W);
 
-			const float Distance = FVector::Distance(Point, ReprojectedPoint);
+			const float Distance = FVector3f::Distance(Point, ReprojectedPoint);
 
 			// Check if the reprojected point is far from the original. If it is, fall back on
 			// the old method of computing the bary values.
@@ -1254,7 +1254,7 @@ namespace ClothingMeshUtils
 			const FVector3f& NB = SourceMesh.GetNormals()[IB];
 			const FVector3f& NC = SourceMesh.GetNormals()[IC];
 
-			OutEmbeddedPositions[PositionIndex] = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, Position);
+			OutEmbeddedPositions[PositionIndex] = (FVector4)GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, Position);
 			OutSourceIndices.Add(IA);
 			OutSourceIndices.Add(IB);
 			OutSourceIndices.Add(IC);
@@ -1351,7 +1351,7 @@ namespace ClothingMeshUtils
 			const FVector3f& NB = Mesh1Normals[IB];
 			const FVector3f& NC = Mesh1Normals[IC];
 
-			OutEmbeddedPositions[PositionIndex] = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, Position);
+			OutEmbeddedPositions[PositionIndex] = (FVector4)GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, Position);
 			OutSourceIndices.Add(IA);
 			OutSourceIndices.Add(IB);
 			OutSourceIndices.Add(IC);

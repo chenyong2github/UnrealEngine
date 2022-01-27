@@ -55,7 +55,7 @@ public:
 		V[3] = V3;
 	}
 
-	explicit TSHVector(const FVector4& Vector)
+	explicit TSHVector(const FVector4f& Vector)
 	{
 		FMemory::Memzero(V,sizeof(V));
 

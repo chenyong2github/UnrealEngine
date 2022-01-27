@@ -185,9 +185,9 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 
 					// Set vertex shader buffer
 					FDMXPixelMappingRendererVS::FParameters VSParameters;
-					VSParameters.DrawRectanglePosScaleBias = FVector4(PixelSize.X, PixelSize.Y, PixelParam.Position.X, PixelParam.Position.Y);
-					VSParameters.DrawRectangleUVScaleBias = FVector4(PixelParam.UVSize.X, PixelParam.UVSize.Y, PixelParam.UV.X, PixelParam.UV.Y);
-					VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4(
+					VSParameters.DrawRectanglePosScaleBias = FVector4f(PixelSize.X, PixelSize.Y, PixelParam.Position.X, PixelParam.Position.Y);
+					VSParameters.DrawRectangleUVScaleBias = FVector4f(PixelParam.UVSize.X, PixelParam.UVSize.Y, PixelParam.UV.X, PixelParam.UV.Y);
+					VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4f(
 						1.f / OutputTextureSize.X, 1.f / OutputTextureSize.Y,
 						1.f / TextureSize.X, 1.f / TextureSize.Y);
 					SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSParameters);
@@ -198,7 +198,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 					PSParameters.InputSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 					PSParameters.InputTextureSize = InputTextureSize;
 					PSParameters.OutputTextureSize = OutputTextureSize;
-					PSParameters.PixelFactor = PixelParam.PixelFactor;
+					PSParameters.PixelFactor = (FVector4f)PixelParam.PixelFactor;
 					PSParameters.InvertPixel = PixelParam.InvertPixel;
 					PSParameters.UVCellSize = PixelParam.UVCellSize;
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);

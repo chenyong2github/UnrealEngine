@@ -223,9 +223,9 @@ IPooledRenderTarget* FSubsurfaceProfileTexture::GetSSProfilesPreIntegratedTextur
 
 			FIntVector SourceSSProfilesTextureSize = PassParameters->SourceSSProfilesTexture->GetSizeXYZ();
 
-			PassParameters->SourceSSProfilesTextureSizeAndInvSize = FVector4(SourceSSProfilesTextureSize.X, SourceSSProfilesTextureSize.Y, 1.0f / SourceSSProfilesTextureSize.X, 1.0f / SourceSSProfilesTextureSize.Y);
+			PassParameters->SourceSSProfilesTextureSizeAndInvSize = FVector4f(SourceSSProfilesTextureSize.X, SourceSSProfilesTextureSize.Y, 1.0f / SourceSSProfilesTextureSize.X, 1.0f / SourceSSProfilesTextureSize.Y);
 
-			PassParameters->TargetSSProfilesPreIntegratedTextureSizeAndInvSize = FVector4(SSProfilesPreIntegratedTextureResolution, SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution);
+			PassParameters->TargetSSProfilesPreIntegratedTextureSizeAndInvSize = FVector4f(SSProfilesPreIntegratedTextureResolution, SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution);
 
 			PassParameters->SourceSubsurfaceProfileInt = i;
 
@@ -457,7 +457,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		// could be lower than 1 (but higher than 0) to range compress for better quality (for 8 bit)
 		const float TableMaxRGB = 1.0f;
 		const float TableMaxA = 3.0f;
-		const FLinearColor TableColorScale = FLinearColor(
+		const FVector4f TableColorScale = FVector4f(
 			1.0f / TableMaxRGB,
 			1.0f / TableMaxRGB,
 			1.0f / TableMaxRGB,
@@ -465,7 +465,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 
 		const float CustomParameterMaxRGB = 1.0f;
 		const float CustomParameterMaxA = 1.0f;
-		const FLinearColor CustomParameterColorScale = FLinearColor(
+		const FVector4f CustomParameterColorScale = FVector4f(
 			1.0f / CustomParameterMaxRGB,
 			1.0f / CustomParameterMaxRGB,
 			1.0f / CustomParameterMaxRGB,
@@ -474,7 +474,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		// each kernel is normalized to be 1 per channel (center + one_side_samples * 2)
 		for (int32 Pos = 0; Pos < Width; ++Pos)
 		{
-			FVector4 C = TextureRow[Pos];
+			FVector4f C = FVector4f(TextureRow[Pos]);
 
 			// Remap custom parameter and kernel values into 0..1
 			if (Pos >= SSSS_KERNEL0_OFFSET && Pos < SSSS_KERNEL0_OFFSET + SSSS_KERNEL_TOTAL_SIZE)

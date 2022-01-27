@@ -269,9 +269,9 @@ void MeshRepresentation::SetupEmbreeScene(
 			BuildTriangles.Add(FkDOPBuildCollisionTriangle<uint32>(
 				// Store bGenerateAsIfTwoSided in material index
 				bGenerateAsIfTwoSided || bTriangleIsTwoSided ? 1 : 0,
-				V0,
-				V1,
-				V2));
+				FVector(V0),
+				FVector(V1),
+				FVector(V2)));
 		}
 	}
 

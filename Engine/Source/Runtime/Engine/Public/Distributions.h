@@ -490,8 +490,8 @@ public:
 	{
 		FVector4f OutMinFloat, OutMaxFloat;
 		GetRange(&OutMinFloat, &OutMaxFloat);
-		*OutMin = OutMinFloat;
-		*OutMax = OutMaxFloat;
+		*OutMin = (FVector4d)OutMinFloat;
+		*OutMax = (FVector4d)OutMaxFloat;
 	}
 
 private:

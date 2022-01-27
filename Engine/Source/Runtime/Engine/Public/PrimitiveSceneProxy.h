@@ -108,8 +108,8 @@ public:
 class FHeightfieldComponentDescription
 {
 public:
-	FVector4 HeightfieldScaleBias = FVector4(ForceInit);
-	FVector4 MinMaxUV = FVector4(ForceInit);
+	FVector4f HeightfieldScaleBias = FVector4f(ForceInit);
+	FVector4f MinMaxUV = FVector4f(ForceInit);
 	FMatrix LocalToWorld = FMatrix::Identity;
 	FVector2D LightingAtlasLocation = FVector2D(ForceInit);
 	FIntRect HeightfieldRect; // Default initialized

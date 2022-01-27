@@ -1071,10 +1071,11 @@ public:
 			const bool bIsCascadedShadow = ShadowInfo->bDirectionalLight && !(ShadowInfo->bPerObjectOpaqueShadow || ShadowInfo->bPreShadow);
 			if (bIsCascadedShadow)
 			{
-				FVector4f Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, ShadowInfo->CascadeSettings.SplitNear));
-				FVector4f Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, ShadowInfo->CascadeSettings.SplitFar));
-				DeviceZNear = Near.Z / Near.W;
-				DeviceZFar = Far.Z / Far.W;
+				FVector4 Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitNear));
+				FVector4 Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitFar));
+				// LWC_TODO: precision loss?
+				DeviceZNear = (float)(Near.Z / Near.W);
+				DeviceZFar = (float)(Far.Z / Far.W);
 			}
 
 			FVector2f SliceNearAndFarDepth;
@@ -1495,7 +1496,7 @@ public:
 
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f(LightProxy.GetPosition() + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f(FVector(LightProxy.GetPosition()) + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex]);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f);
@@ -1550,7 +1551,7 @@ private:
 // Reversed Z
 struct FShadowProjectionMatrix : FMatrix
 {
-	FShadowProjectionMatrix(float MinZ, float MaxZ, const FVector4f& WAxis) :
+	FShadowProjectionMatrix(FVector::FReal MinZ, FVector::FReal MaxZ, const FVector4& WAxis) :
 		FMatrix(
 			FPlane(1,	0,	0,													WAxis.X),
 			FPlane(0,	1,	0,													WAxis.Y),
@@ -1560,7 +1561,7 @@ struct FShadowProjectionMatrix : FMatrix
 	{}
 
 	// Off center projection
-	FShadowProjectionMatrix( const FVector2D& Min, const FVector2D& Max, const FVector4f& WAxis )
+	FShadowProjectionMatrix( const FVector2D& Min, const FVector2D& Max, const FVector4& WAxis )
 		: FMatrix(
 			FPlane( 2.0f / (Max.X - Min.X),				0.0f,								0.0f, WAxis.X),
 			FPlane( 0.0f,								2.0f / (Max.Y - Min.Y),				0.0f, WAxis.Y),

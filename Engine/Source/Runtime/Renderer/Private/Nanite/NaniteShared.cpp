@@ -79,7 +79,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.TranslatedWorldToClip		= Params.ViewMatrices.GetTranslatedViewProjectionMatrix();
 	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
 	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
-	PackedView.PreViewTranslation			= Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	PackedView.PreViewTranslation			= FVector4f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
 	PackedView.WorldCameraOrigin			= FVector4f(Params.ViewMatrices.GetViewOrigin() - ViewTileOffset, 0.0f);
 	PackedView.ViewForwardAndNearPlane		= FVector4f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
 	PackedView.ViewTilePosition				= AbsoluteViewOrigin.GetTile();
@@ -91,7 +91,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.PrevTranslatedWorldToClip	= Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix();
 	PackedView.PrevViewToClip				= Params.PrevViewMatrices.GetProjectionMatrix();
 	PackedView.PrevClipToRelativeWorld		= RelativeMatrices.PrevClipToRelativeWorld;
-	PackedView.PrevPreViewTranslation		= Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	PackedView.PrevPreViewTranslation		= FVector4f(Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
 
 	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));

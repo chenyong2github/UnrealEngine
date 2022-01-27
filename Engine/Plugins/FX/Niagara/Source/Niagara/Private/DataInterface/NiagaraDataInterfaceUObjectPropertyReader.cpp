@@ -474,15 +474,15 @@ public:
 		if ( InstanceData_RT->CachedTransform.IsSet() )
 		{
 			const FQuat4f TransformRotation = FQuat4f(InstanceData_RT->CachedTransform->GetRotation());
-			TransformData[0] = FVector4(FVector3f(InstanceData_RT->CachedTransform->GetLocation()), 1.0f);
-			TransformData[1] = FVector4(TransformRotation.X, TransformRotation.Y, TransformRotation.Z, TransformRotation.W);
-			TransformData[2] = FVector4(FVector3f(InstanceData_RT->CachedTransform->GetScale3D()));
+			TransformData[0] = FVector4f(FVector3f(InstanceData_RT->CachedTransform->GetLocation()), 1.0f);
+			TransformData[1] = FVector4f(TransformRotation.X, TransformRotation.Y, TransformRotation.Z, TransformRotation.W);
+			TransformData[2] = FVector4f(FVector3f(InstanceData_RT->CachedTransform->GetScale3D()));
 		}
 		else
 		{
-			TransformData[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			TransformData[1] = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
-			TransformData[2] = FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+			TransformData[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+			TransformData[1] = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
+			TransformData[2] = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
 		}
 		SetShaderValueArray(RHICmdList, ComputeShaderRHI, TransformInfoParam, TransformData, UE_ARRAY_COUNT(TransformData));
 	}

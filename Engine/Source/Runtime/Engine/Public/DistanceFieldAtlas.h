@@ -74,7 +74,7 @@ public:
 
 	uint32 GetAllocationHandle(UTexture2D* Texture) const;
 
-	FVector4 GetAllocationScaleBias(uint32 Handle) const;
+	FVector4f GetAllocationScaleBias(uint32 Handle) const;
 
 	FRHITexture2D* GetAtlasTexture() const
 	{
@@ -108,7 +108,7 @@ private:
 
 		void Free(uint32 Handle);
 
-		FVector4 GetScaleBias(uint32 Handle) const;
+		FVector4f GetScaleBias(uint32 Handle) const;
 
 		FIntPoint GetStartOffset(uint32 Handle) const;
 
@@ -117,7 +117,7 @@ private:
 		{
 			uint32 Level;
 			uint32 QuadIdx;
-			FVector4 UVScaleBias;
+			FVector4f UVScaleBias;
 		};
 		
 		uint32 TileSize;

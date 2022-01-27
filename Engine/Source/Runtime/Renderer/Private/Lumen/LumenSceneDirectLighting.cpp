@@ -727,7 +727,7 @@ void SetupMeshSDFShadowInitializer(
 	OutInitializer.WorldToLight = FInverseRotationMatrix(LightSceneInfo->Proxy->GetDirection().GetSafeNormal().Rotation());
 	OutInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 	OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
-	OutInitializer.WAxis = FVector4f(0, 0, 0, 1);
+	OutInitializer.WAxis = FVector4(0, 0, 0, 1);
 	OutInitializer.MinLightW = FMath::Min<float>(-0.5f * UE_OLD_WORLD_MAX, -SubjectBounds.SphereRadius);
 	const float MaxLightW = SubjectBounds.SphereRadius;
 	OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
@@ -775,9 +775,9 @@ void CullMeshSDFsForLightCards(
 
 	const FMatrix TranslatedWorldToView = MeshSDFShadowInitializer.WorldToLight * FaceMatrix;
 
-	float MaxSubjectZ = TranslatedWorldToView.TransformPosition(MeshSDFShadowInitializer.SubjectBounds.Origin).Z + MeshSDFShadowInitializer.SubjectBounds.SphereRadius;
+	double MaxSubjectZ = TranslatedWorldToView.TransformPosition(MeshSDFShadowInitializer.SubjectBounds.Origin).Z + MeshSDFShadowInitializer.SubjectBounds.SphereRadius;
 	MaxSubjectZ = FMath::Min(MaxSubjectZ, MeshSDFShadowInitializer.MaxDistanceToCastInLightW);
-	const float MinSubjectZ = FMath::Max(MaxSubjectZ - MeshSDFShadowInitializer.SubjectBounds.SphereRadius * 2, MeshSDFShadowInitializer.MinLightW);
+	const double MinSubjectZ = FMath::Max(MaxSubjectZ - MeshSDFShadowInitializer.SubjectBounds.SphereRadius * 2, MeshSDFShadowInitializer.MinLightW);
 
 	const FMatrix ScaleMatrix = FScaleMatrix( FVector( MeshSDFShadowInitializer.Scales.X, MeshSDFShadowInitializer.Scales.Y, 1.0f ) );
 	const FMatrix ViewToClip = ScaleMatrix * FShadowProjectionMatrix(MinSubjectZ, MaxSubjectZ, MeshSDFShadowInitializer.WAxis);
@@ -785,7 +785,7 @@ void CullMeshSDFsForLightCards(
 
 	int32 NumPlanes = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 	const FPlane* PlaneData = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-	FVector4f LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
+	FVector4 LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
 
 	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
 
@@ -1170,7 +1170,7 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const FViewI
 
 		LightData.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
 
-		LightData.ProxyPosition = FVector3f(LightSceneInfo->Proxy->GetPosition());
+		LightData.ProxyPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
 		LightData.ProxyRadius = LightSceneInfo->Proxy->GetRadius();
 
 		LightData.ProxyDirection = LightSceneInfo->Proxy->GetDirection();

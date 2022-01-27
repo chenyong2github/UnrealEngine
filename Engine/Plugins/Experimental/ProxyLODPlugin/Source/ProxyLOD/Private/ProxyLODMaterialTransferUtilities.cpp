@@ -248,11 +248,11 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 
 					FkHitResult ForwardResult;
 
-					TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ForwardRay(ForwardRayStart, ForwardRayEnd, true, kDOPDataProvider, &ForwardResult);
+					TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ForwardRay((FVector)ForwardRayStart, (FVector)ForwardRayEnd, true, kDOPDataProvider, &ForwardResult);
 
 					FkHitResult ReverseResult;
 
-					TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ReverseRay(ReverseRayStart, ReverseRayEnd, true, kDOPDataProvider, &ReverseResult);
+					TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ReverseRay((FVector)ReverseRayStart, (FVector)ReverseRayEnd, true, kDOPDataProvider, &ReverseResult);
 
 
 					// Fire both rays
@@ -516,11 +516,11 @@ ProxyLOD::FSrcDataGrid::Ptr ProxyLOD::CreateCorrespondence(
 
 						FkHitResult ForwardResult;
 
-						TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ForwardRay(ForwardRayStart, ForwardRayEnd, true, kDOPDataProvider, &ForwardResult);
+						TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ForwardRay((FVector)ForwardRayStart, (FVector)ForwardRayEnd, true, kDOPDataProvider, &ForwardResult);
 
 						FkHitResult ReverseResult;
 
-						TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ReverseRay(ReverseRayStart, ReverseRayEnd, true, kDOPDataProvider, &ReverseResult);
+						TkDOPLineCollisionCheck<const FUnitTransformDataProvider, uint32>  ReverseRay((FVector)ReverseRayStart, (FVector)ReverseRayEnd, true, kDOPDataProvider, &ReverseResult);
 
 
 						// Fire both rays

@@ -3935,7 +3935,7 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 
 								const FMatrix ViewMatrix = View.ViewMatrices.GetViewMatrix();
 								const FMatrix ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
-								const FVector4f ViewOrigin = View.ViewMatrices.GetViewOrigin();
+								const FVector4 ViewOrigin = View.ViewMatrices.GetViewOrigin();
 
 								float AspectRatio = ProjectionMatrix.M[1][1] / ProjectionMatrix.M[0][0];
 								float ActualFOV = (ViewOrigin.W > 0.0f) ? FMath::Atan(1.0f / ProjectionMatrix.M[0][0]) : PI/4.0f;

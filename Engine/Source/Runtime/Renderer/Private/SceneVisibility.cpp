@@ -4070,7 +4070,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 			++ReflectionSceneData.NumBoxCaptures;
 			NewSortEntry.BoxTransform = FMatrix44f(
 				FPlane4f(CurrentCapture->LocalReflectionPlane),
-				FPlane4f(CurrentCapture->ReflectionXAxisAndYScale),
+				FPlane4f((FVector4f)CurrentCapture->ReflectionXAxisAndYScale), // LWC_TODO: precision loss
 				FPlane4f(0, 0, 0, 0),
 				FPlane4f(0, 0, 0, 0));
 
@@ -4957,8 +4957,8 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 
 	for (int32 CaptureIndex = 0; CaptureIndex < SortedCaptures.Num(); CaptureIndex++)
 	{
-		SamplePositionsBuffer.PositionAndRadius[CaptureIndex] = FVector4(SortedCaptures[CaptureIndex].RelativePosition, SortedCaptures[CaptureIndex].Radius);
-		SamplePositionsBuffer.TilePosition[CaptureIndex] = FVector4(SortedCaptures[CaptureIndex].TilePosition, 0);
+		SamplePositionsBuffer.PositionAndRadius[CaptureIndex] = FVector4f(SortedCaptures[CaptureIndex].RelativePosition, SortedCaptures[CaptureIndex].Radius);
+		SamplePositionsBuffer.TilePosition[CaptureIndex] = FVector4f(SortedCaptures[CaptureIndex].TilePosition, 0);
 
 		SamplePositionsBuffer.CaptureProperties[CaptureIndex] = SortedCaptures[CaptureIndex].CaptureProperties;
 		SamplePositionsBuffer.CaptureOffsetAndAverageBrightness[CaptureIndex] = SortedCaptures[CaptureIndex].CaptureOffsetAndAverageBrightness;

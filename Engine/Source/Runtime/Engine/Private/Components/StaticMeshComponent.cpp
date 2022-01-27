@@ -1385,7 +1385,7 @@ void UStaticMeshComponent::CachePaintedDataIfNecessary()
 					{
 						FPaintedVertex* Vertex = new( CurCompLODInfo.PaintedVertices ) FPaintedVertex;
 						Vertex->Position = CurRenderData->VertexBuffers.PositionVertexBuffer.VertexPosition( VertIndex );
-						Vertex->Normal = CurRenderData->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertIndex );
+						Vertex->Normal = (FVector4)CurRenderData->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertIndex );
 						Vertex->Color = CurCompLODInfo.OverrideVertexColors->VertexColor( VertIndex );
 					}
 				}
@@ -1535,7 +1535,7 @@ void UStaticMeshComponent::PrivateFixupOverrideColors()
 			{
 				FPaintedVertex* Vertex = new(LODInfo.PaintedVertices) FPaintedVertex;
 				Vertex->Position = CurRenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
-				Vertex->Normal = CurRenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
+				Vertex->Normal = (FVector4)CurRenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
 				Vertex->Color = LODInfo.OverrideVertexColors->VertexColor(VertIndex);
 			}
 

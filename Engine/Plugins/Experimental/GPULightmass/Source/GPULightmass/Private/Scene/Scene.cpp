@@ -1275,8 +1275,8 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	Initializer.HeightmapTexture           = InComponent->GetHeightmap();
 	Initializer.HeightmapSubsectionOffsetU = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)InComponent->GetHeightmap()->GetSizeX());
 	Initializer.HeightmapSubsectionOffsetV = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)InComponent->GetHeightmap()->GetSizeY());
-	Initializer.HeightmapScaleBias         = InComponent->HeightmapScaleBias;
-	Initializer.WeightmapScaleBias         = InComponent->WeightmapScaleBias;
+	Initializer.HeightmapScaleBias         = (FVector4f)InComponent->HeightmapScaleBias;
+	Initializer.WeightmapScaleBias         = (FVector4f)InComponent->WeightmapScaleBias;
 	Initializer.WeightmapSubsectionOffset  = InComponent->WeightmapSubsectionOffset;
 
 	TArray<int32> RelevantPointLightsToAddOnRenderThread = AddAllPossiblyRelevantLightsToGeometry(LightScene.PointLights, Instance);

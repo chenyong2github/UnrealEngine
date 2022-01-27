@@ -1138,7 +1138,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 					UVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(U, V));
 					//This is not exported when exporting the whole level via ExportModel so leaving out here for now. 
 					//UVs.Set(VertexInstanceIDs[Corner], 1, Vert.ShadowTexCoord);
-					Colors[VertexInstanceIDs[Corner]] = FLinearColor::White;
+					Colors[VertexInstanceIDs[Corner]] = FVector4f(FLinearColor::White);
 					Normals[VertexInstanceIDs[Corner]] = Normal;
 				}
 
@@ -4540,17 +4540,17 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 		
 		for (int32 NTBIndex = 0; NTBIndex < VertexCount; ++NTBIndex)
 		{
-			FVector Normal = (FVector)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(NTBIndex));
+			FVector3f Normal = (FVector3f)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(NTBIndex));
 			FbxVector4& FbxNormal = FbxNormals[NTBIndex];
 			FbxNormal = FbxVector4(Normal.X, -Normal.Y, Normal.Z);
 			FbxNormal.Normalize();
 
-			FVector Tangent = (FVector)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(NTBIndex));
+			FVector3f Tangent = (FVector3f)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(NTBIndex));
 			FbxVector4& FbxTangent = FbxTangents[NTBIndex];
 			FbxTangent = FbxVector4(Tangent.X, -Tangent.Y, Tangent.Z);
 			FbxTangent.Normalize();
 
-			FVector Binormal = -(FVector)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(NTBIndex));
+			FVector3f Binormal = -(FVector3f)(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(NTBIndex));
 			FbxVector4& FbxBinormal = FbxBinormals[NTBIndex];
 			FbxBinormal = FbxVector4(Binormal.X, -Binormal.Y, Binormal.Z);
 			FbxBinormal.Normalize();
@@ -4884,7 +4884,7 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 	{
 		FVector Position = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
 		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis));
-		FVector Normal = FVector(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
+		FVector Normal = FVector3f(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
 		Normal = SliceTransform.TransformVector(Normal);
 		FbxVector4& FbxNormal = FbxNormals[VertIndex];
 		FbxNormal = FbxVector4(Normal.X, -Normal.Y, Normal.Z);

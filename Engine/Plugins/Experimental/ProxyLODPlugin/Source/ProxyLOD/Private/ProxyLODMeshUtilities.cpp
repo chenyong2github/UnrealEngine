@@ -1360,7 +1360,7 @@ void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 
 				FkHitResult kDOPResult;
 
-				TkDOPLineCollisionCheck<const ProxyLOD::FUnitTransformDataProvider, uint32>  EdgeRay(Verts[sV], Verts[eV], true, kDOPDataProvider, &kDOPResult);
+				TkDOPLineCollisionCheck<const ProxyLOD::FUnitTransformDataProvider, uint32>  EdgeRay(FVector(Verts[sV]), FVector(Verts[eV]), true, kDOPDataProvider, &kDOPResult);
 
 				bool bHit = kDOPTree.LineCheck(EdgeRay);
 
@@ -1495,7 +1495,7 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 
 			FkHitResult kDOPResult;
 
-			TkDOPLineCollisionCheck<const ProxyLOD::FUnitTransformDataProvider, uint32>  EdgeRay(Verts[sV], Verts[eV], true, kDOPDataProvider, &kDOPResult);
+			TkDOPLineCollisionCheck<const ProxyLOD::FUnitTransformDataProvider, uint32>  EdgeRay(FVector(Verts[sV]), FVector(Verts[eV]), true, kDOPDataProvider, &kDOPResult);
 
 			bool bHit = kDOPTree.LineCheck(EdgeRay);
 

@@ -98,7 +98,7 @@ static FVector4f GetLightTranslatedWorldPositionAndDirection(const FViewInfo& Vi
 	}
 	else
 	{
-		return FVector4f(LightSceneInfo->Proxy->GetPosition() + TranslatedWorldOffset, 1.0f);
+		return FVector4f(FVector4f(LightSceneInfo->Proxy->GetPosition() + TranslatedWorldOffset), 1.0f); // LWC_TODO: precision loss
 	}
 }
 

@@ -1390,7 +1390,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		FLightSceneInfo* Light1 = Scene->AtmosphereLights[1];
 		if (Light0)
 		{
-			PassParameters->AtmosphereLightDirection0 = -Light0->Proxy->GetDirection();
+			PassParameters->AtmosphereLightDirection0 = FVector4f(-Light0->Proxy->GetDirection());
 			PassParameters->AtmosphereLightIlluminanceOuterSpace0 = Light0->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
@@ -1400,7 +1400,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		}
 		if (Light1)
 		{
-			PassParameters->AtmosphereLightDirection1 = -Light1->Proxy->GetDirection();
+			PassParameters->AtmosphereLightDirection1 = FVector4f(-Light1->Proxy->GetDirection());
 			PassParameters->AtmosphereLightIlluminanceOuterSpace1 = Light1->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
@@ -1811,8 +1811,8 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 			float HalfVerticalFOV = FMath::Atan(1.0f / ProjectionMatrix.M[1][1]);
 			float StartDepthViewCm = FMath::Cos(FMath::Max(HalfHorizontalFOV, HalfVerticalFOV)) * AerialPerspectiveStartDepthInCm;
 			StartDepthViewCm = FMath::Max(StartDepthViewCm, SkyRC.NearClippingDistance); // In any case, we need to limit the distance to frustum near plane to not be clipped away.
-			const FVector4f Projected = ProjectionMatrix.TransformFVector4(FVector4f(0.0f, 0.0f, StartDepthViewCm, 1.0f));
-			StartDepthZ = Projected.Z / Projected.W;
+			const FVector4 Projected = ProjectionMatrix.TransformFVector4(FVector4(0.0f, 0.0f, StartDepthViewCm, 1.0f));
+			StartDepthZ = float(Projected.Z / Projected.W); // LWC_TODO: precision loss
 		}
 
 		const bool bFastAerialPerspectiveDepthTest = SkyRC.bFastAerialPerspectiveDepthTest;

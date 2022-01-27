@@ -82,9 +82,9 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 				(ViewRect.Height() / 2.0f + ViewRect.Min.Y) * InvBufferSizeY);
 		}
 
-		OutParameters.PlanarReflectionOrigin = PreViewTranslation + ReflectionSceneProxy->PlanarReflectionOrigin;
-		OutParameters.PlanarReflectionXAxis = ReflectionSceneProxy->PlanarReflectionXAxis;
-		OutParameters.PlanarReflectionYAxis = ReflectionSceneProxy->PlanarReflectionYAxis;
+		OutParameters.PlanarReflectionOrigin = (FVector4f)(PreViewTranslation + ReflectionSceneProxy->PlanarReflectionOrigin); // LWC_TODO: precision loss
+		OutParameters.PlanarReflectionXAxis = (FVector4f)ReflectionSceneProxy->PlanarReflectionXAxis; // LWC_TODO: precision loss
+		OutParameters.PlanarReflectionYAxis = (FVector4f)ReflectionSceneProxy->PlanarReflectionYAxis; // LWC_TODO: precision loss
 		OutParameters.InverseTransposeMirrorMatrix = ReflectionSceneProxy->InverseTransposeMirrorMatrix;
 		OutParameters.PlanarReflectionParameters = ReflectionSceneProxy->PlanarReflectionParameters;
 		OutParameters.PlanarReflectionParameters2 = ReflectionSceneProxy->PlanarReflectionParameters2;

@@ -1071,9 +1071,9 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 			const FMatrix& AxisLocalToWorld = SourceData->bUseLocalSpace ? LocalToWorld : FMatrix::Identity;
 			ComputeLockedAxes( LockAxisFlag, AxisLocalToWorld, AxisLockUp, AxisLockRight );
 
-			UniformParameters.AxisLockRight = AxisLockRight;
+			UniformParameters.AxisLockRight = (FVector3f)AxisLockRight; // LWC_TODO: precision loss
 			UniformParameters.AxisLockRight.W = 1.0f;
-			UniformParameters.AxisLockUp = AxisLockUp;
+			UniformParameters.AxisLockUp = (FVector3f)AxisLockUp; // LWC_TODO: precision loss
 			UniformParameters.AxisLockUp.W = 1.0f;
 
 			if ( bRotationLock )
@@ -1122,15 +1122,15 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 
 		const EEmitterNormalsMode NormalsMode = (EEmitterNormalsMode)SourceData->EmitterNormalsMode;
 		UniformParameters.NormalsType = NormalsMode;
-		UniformParameters.NormalsSphereCenter = FVector::ZeroVector;
-		UniformParameters.NormalsCylinderUnitDirection = FVector(0.0f,0.0f,1.0f);
+		UniformParameters.NormalsSphereCenter = FVector3f::ZeroVector;
+		UniformParameters.NormalsCylinderUnitDirection = FVector3f(0.0f,0.0f,1.0f);
 
 		if (NormalsMode != ENM_CameraFacing)
 		{
-			UniformParameters.NormalsSphereCenter = LocalToWorld.TransformPosition(SourceData->NormalsSphereCenter);
+			UniformParameters.NormalsSphereCenter = (FVector4f)LocalToWorld.TransformPosition(SourceData->NormalsSphereCenter); // LWC_TODO: Precision loss
 			if (NormalsMode == ENM_Cylindrical)
 			{
-				UniformParameters.NormalsCylinderUnitDirection = LocalToWorld.TransformVector(SourceData->NormalsCylinderDirection);
+				UniformParameters.NormalsCylinderUnitDirection = (FVector4f)LocalToWorld.TransformVector(SourceData->NormalsCylinderDirection); // LWC_TODO: Precision loss
 			}
 		}
 
@@ -6732,7 +6732,7 @@ static FAutoConsoleVariableRef EnableMacroUVDebugSpam(
 /** Object position in post projection space. */
 void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View, FVector2D& ObjectNDCPosition, FVector2D& ObjectMacroUVScales) const
 {
-	const FVector4f ObjectPostProjectionPositionWithW = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(DynamicData->SystemPositionForMacroUVs);
+	const FVector4 ObjectPostProjectionPositionWithW = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(DynamicData->SystemPositionForMacroUVs);
 	ObjectNDCPosition = FVector2D(ObjectPostProjectionPositionWithW / FMath::Max(ObjectPostProjectionPositionWithW.W, 0.00001f));
 	
 	float MacroUVRadius = DynamicData->SystemRadiusForMacroUVs;
@@ -6758,15 +6758,15 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 	{
 		// Need to determine the scales required to transform positions into UV's for the ParticleMacroUVs material node
 		// Determine screenspace extents by transforming the object position + appropriate camera vector * radius
-		const FVector4f RightPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(0));
-		const FVector4f UpPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(1));
+		const FVector4 RightPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(0));
+		const FVector4 UpPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(1));
 		//checkSlow(RightPostProjectionPosition.X - ObjectPostProjectionPositionWithW.X >= 0.0f && UpPostProjectionPosition.Y - ObjectPostProjectionPositionWithW.Y >= 0.0f);
 
 		// Scales to transform the view space positions corresponding to SystemPositionForMacroUVs +- SystemRadiusForMacroUVs into [0, 1] in xy
 		// Scales to transform the screen space positions corresponding to SystemPositionForMacroUVs +- SystemRadiusForMacroUVs into [0, 1] in zw
 
-		const float RightNDCPosX = RightPostProjectionPosition.X / RightPostProjectionPosition.W;
-		const float UpNDCPosY = UpPostProjectionPosition.Y / UpPostProjectionPosition.W;
+		const float RightNDCPosX = (float)(RightPostProjectionPosition.X / RightPostProjectionPosition.W); // LWC_TODO: precision loss
+		const float UpNDCPosY = (float)(UpPostProjectionPosition.Y / UpPostProjectionPosition.W); // LWC_TODO: precision loss
 		float DX = FMath::Min<float>(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
 		float DY = FMath::Min<float>(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
 		if (DX != 0.0f && DY != 0.0f && !FMath::IsNaN(DX) && FMath::IsFinite(DX) && !FMath::IsNaN(DY) && FMath::IsFinite(DY))
@@ -6790,18 +6790,18 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 				UE_LOG(LogParticles, Error, TEXT("MacroUVRadius: %.6f"), MacroUVRadius);
 				UE_LOG(LogParticles, Error, TEXT("DX: %.6f"), DX);
 				UE_LOG(LogParticles, Error, TEXT("DY: %.6f"), DY);
-				FVector4f View0 = View.ViewMatrices.GetViewMatrix().GetColumn(0);
-				FVector4f View1 = View.ViewMatrices.GetViewMatrix().GetColumn(1);
-				FVector4f View2 = View.ViewMatrices.GetViewMatrix().GetColumn(2);
-				FVector4f View3 = View.ViewMatrices.GetViewMatrix().GetColumn(3);
+				FVector4 View0 = View.ViewMatrices.GetViewMatrix().GetColumn(0);
+				FVector4 View1 = View.ViewMatrices.GetViewMatrix().GetColumn(1);
+				FVector4 View2 = View.ViewMatrices.GetViewMatrix().GetColumn(2);
+				FVector4 View3 = View.ViewMatrices.GetViewMatrix().GetColumn(3);
 				UE_LOG(LogParticles, Error, TEXT("View0: {%.6f, %.6f, %.6f, %.6f}"), View0.X, View0.Y, View0.Z, View0.W);
 				UE_LOG(LogParticles, Error, TEXT("View1: {%.6f, %.6f, %.6f, %.6f}"), View1.X, View1.Y, View1.Z, View1.W);
 				UE_LOG(LogParticles, Error, TEXT("View2: {%.6f, %.6f, %.6f, %.6f}"), View2.X, View2.Y, View2.Z, View2.W);
 				UE_LOG(LogParticles, Error, TEXT("View3: {%.6f, %.6f, %.6f, %.6f}"), View3.X, View3.Y, View3.Z, View3.W);
-				FVector4f ViewProj0 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(0);
-				FVector4f ViewProj1 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(1);
-				FVector4f ViewProj2 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(2);
-				FVector4f ViewProj3 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(3);
+				FVector4 ViewProj0 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(0);
+				FVector4 ViewProj1 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(1);
+				FVector4 ViewProj2 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(2);
+				FVector4 ViewProj3 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(3);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj0: {%.6f, %.6f, %.6f, %.6f}"), ViewProj0.X, ViewProj0.Y, ViewProj0.Z, ViewProj0.W);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj1: {%.6f, %.6f, %.6f, %.6f}"), ViewProj1.X, ViewProj1.Y, ViewProj1.Z, ViewProj1.W);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj2: {%.6f, %.6f, %.6f, %.6f}"), ViewProj2.X, ViewProj2.Y, ViewProj2.Z, ViewProj2.W);

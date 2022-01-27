@@ -579,7 +579,7 @@ void UMaterialParameterCollection::GetDefaultParameterData(TArray<FVector4f>& Pa
 	for (int32 ParameterIndex = 0; ParameterIndex < VectorParameters.Num(); ParameterIndex++)
 	{
 		const FCollectionVectorParameter& Parameter = VectorParameters[ParameterIndex];
-		ParameterData.Add(Parameter.DefaultValue);
+		ParameterData.Add(FVector4f(Parameter.DefaultValue));
 	}
 }
 
@@ -785,7 +785,7 @@ void UMaterialParameterCollectionInstance::GetParameterData(TArray<FVector4f>& P
 		{
 			const FCollectionVectorParameter& Parameter = Collection->VectorParameters[ParameterIndex];
 			const FLinearColor* InstanceData = VectorParameterValues.Find(Parameter.ParameterName);
-			ParameterData.Add(InstanceData ? *InstanceData : Parameter.DefaultValue);
+			ParameterData.Add(InstanceData ? FVector4f(*InstanceData) : FVector4f(Parameter.DefaultValue));
 		}
 	}
 }

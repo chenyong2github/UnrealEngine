@@ -90,7 +90,7 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMesh()
 	const FPositionVertexBuffer& VertexPosition = StaticMeshLODResources->VertexBuffers.PositionVertexBuffer;
 	for (uint32 i = 0; i < VertexPosition.GetNumVertices(); i++)
 	{
-		if (GetProjectionClip(FVector4(VertexPosition.VertexPosition(i), 1)) == false)
+		if (GetProjectionClip(FVector4(FVector(VertexPosition.VertexPosition(i)), 1.f)) == false)
 		{
 			bAllPointsInFrustum = false;
 		}

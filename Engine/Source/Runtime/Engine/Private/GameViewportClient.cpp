@@ -1461,35 +1461,35 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					if (View->Family->EngineShowFlags.Wireframe)
 					{
 						// Wireframe color is emissive-only, and mesh-modifying materials do not use material substitution, hence...
-						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
-						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+						View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
+						View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 					}
 					else if (View->Family->EngineShowFlags.OverrideDiffuseAndSpecular)
 					{
-						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
-						View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
+						View->DiffuseOverrideParameter = FVector4f(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4f(.1f, .1f, .1f, 0.0f);
 					}
 					else if (View->Family->EngineShowFlags.LightingOnlyOverride)
 					{
-						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
-						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+						View->DiffuseOverrideParameter = FVector4f(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 					}
 					else if (View->Family->EngineShowFlags.ReflectionOverride)
 					{
-						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
-						View->SpecularOverrideParameter = FVector4(1, 1, 1, 0.0f);
-						View->NormalOverrideParameter = FVector4(0, 0, 1, 0.0f);
+						View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
+						View->SpecularOverrideParameter = FVector4f(1, 1, 1, 0.0f);
+						View->NormalOverrideParameter = FVector4f(0, 0, 1, 0.0f);
 						View->RoughnessOverrideParameter = FVector2D(0.0f, 0.0f);
 					}
 
 					if (!View->Family->EngineShowFlags.Diffuse)
 					{
-						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+						View->DiffuseOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 					}
 
 					if (!View->Family->EngineShowFlags.Specular)
 					{
-						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+						View->SpecularOverrideParameter = FVector4f(0.f, 0.f, 0.f, 0.f);
 					}
 
 					View->CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;

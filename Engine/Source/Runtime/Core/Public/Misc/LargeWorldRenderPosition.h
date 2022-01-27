@@ -104,19 +104,25 @@ public:
 	FVector3f GetOffset() const { return FVector3f(X.GetOffset(), Y.GetOffset(), Z.GetOffset()); }
 	FVector GetAbsolute() const { return FVector(X.GetAbsolute(), Y.GetAbsolute(), Z.GetAbsolute()); }
 
-	FLargeWorldRenderPosition(const FVector3f& InWorldPosition)
+	explicit FLargeWorldRenderPosition(const FVector3f& InWorldPosition)
 		: X(InWorldPosition.X)
 		, Y(InWorldPosition.Y)
 		, Z(InWorldPosition.Z)
 	{}
 	
-	FLargeWorldRenderPosition(const FVector3d& InWorldPosition)
+	explicit FLargeWorldRenderPosition(const FVector3d& InWorldPosition)
 		: X(InWorldPosition.X)
 		, Y(InWorldPosition.Y)
 		, Z(InWorldPosition.Z)
 	{}
 
-	FLargeWorldRenderPosition(const FVector3f& InTilePosition, const FVector3f& InRelativePosition)
+	explicit FLargeWorldRenderPosition(const FVector4d& InWorldPosition)
+		: X(InWorldPosition.X)
+		, Y(InWorldPosition.Y)
+		, Z(InWorldPosition.Z)
+	{}
+
+	explicit FLargeWorldRenderPosition(const FVector3f& InTilePosition, const FVector3f& InRelativePosition)
 		: X(InTilePosition.X, InRelativePosition.X)
 		, Y(InTilePosition.Y, InRelativePosition.Y)
 		, Z(InTilePosition.Z, InRelativePosition.Z)

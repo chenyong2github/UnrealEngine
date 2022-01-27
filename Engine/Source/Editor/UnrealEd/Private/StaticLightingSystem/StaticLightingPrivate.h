@@ -465,8 +465,8 @@ struct FDebugStaticLightingVertex
 	FDebugStaticLightingVertex() {}
 
 	FDebugStaticLightingVertex(const FStaticLightingVertex& InVertex) :
-		VertexNormal(InVertex.WorldTangentZ),
-		VertexPosition(InVertex.WorldPosition)
+		VertexNormal((FVector3f)InVertex.WorldTangentZ), // LWC_TODO: precision loss
+		VertexPosition((FVector3f)InVertex.WorldPosition) // LWC_TODO: precision loss
 	{}
 
 	FVector4f VertexNormal;

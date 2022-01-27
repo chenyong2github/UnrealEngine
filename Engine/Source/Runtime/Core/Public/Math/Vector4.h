@@ -46,30 +46,23 @@ public:
 public:
 
 	/**
+	 * Constructor from 3D TVector. W is set to 1.
+	 *
+	 * @param InVector 3D Vector to set first three components.
+	 */
+	TVector4(const UE::Math::TVector<T>& InVector);
+
+	/**
 	 * Constructor.
 	 *
 	 * @param InVector 3D Vector to set first three components.
 	 * @param InW W Coordinate.
 	 */
-	TVector4(const UE::Math::TVector<float>& InVector);
-	TVector4(const UE::Math::TVector<double>& InVector);
-
 	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
-	FORCEINLINE TVector4(const UE::Math::TVector<float>& InVector, FArg InW)
+	FORCEINLINE TVector4(const UE::Math::TVector<T>& InVector, FArg InW)
 		: X(InVector.X)
 		, Y(InVector.Y)
 		, Z(InVector.Z)
-		, W((T)InW)
-	{
-		DiagnosticCheckNaN();
-	}
-
-	// LWC_TODO: precision loss when this is 4f type
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
-	FORCEINLINE TVector4(const UE::Math::TVector<double>& InVector, FArg InW)
-		: X((T)InVector.X)
-		, Y((T)InVector.Y)
-		, Z((T)InVector.Z)
 		, W((T)InW)
 	{
 		DiagnosticCheckNaN();
@@ -82,21 +75,10 @@ public:
 	 */
 
 	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
-	FORCEINLINE TVector4(const UE::Math::TVector4<float>& InVector, FArg OverrideW)
+	FORCEINLINE TVector4(const UE::Math::TVector4<T>& InVector, FArg OverrideW)
 		: X(InVector.X)
 		, Y(InVector.Y)
 		, Z(InVector.Z)
-		, W((T)OverrideW)
-	{
-		DiagnosticCheckNaN();
-	}
-
-	// LWC_TODO: precision loss when this is 4f type
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
-	FORCEINLINE TVector4(const UE::Math::TVector4<double>& InVector, FArg OverrideW)
-		: X((T)InVector.X)
-		, Y((T)InVector.Y)
-		, Z((T)InVector.Z)
 		, W((T)OverrideW)
 	{
 		DiagnosticCheckNaN();
@@ -107,15 +89,29 @@ public:
 	 *
 	 * @param InColour Color used to set vector.
 	 */
-	TVector4(const FLinearColor& InColor);
+	FORCEINLINE TVector4(const FLinearColor& InColor)
+		: X(InColor.R)
+		, Y(InColor.G)
+		, Z(InColor.B)
+		, W(InColor.A)
+	{
+		DiagnosticCheckNaN();
+	}
 
 	/**
 	 * Creates and initializes a new vector from a color RGB and W
 	 *
 	 * @param InColour Color used to set XYZ.
-	 * @param InW
+	 * @param InOverrideW
 	 */
-	TVector4(const FLinearColor& InColor, T InW);
+	FORCEINLINE TVector4(const FLinearColor& InColor, T InOverrideW)
+		: X(InColor.R)
+		, Y(InColor.G)
+		, Z(InColor.B)
+		, W(InOverrideW)
+	{
+		DiagnosticCheckNaN();
+	}
 
 	/**
 	 * Creates and initializes a new vector from the specified components.
@@ -509,9 +505,13 @@ public:
 
 	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 	
-	// Conversion from other type. TODO: explicit!
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-	TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
+	// Conversion from other type: double->float
+	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<FArg, double>, TIsSame<T, float>>::Value)>
+	explicit TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
+
+	// Conversion from other type: float->double
+	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<FArg, float>, TIsSame<T, double>>::Value)>
+	explicit TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
 };
 
 /**
@@ -551,41 +551,11 @@ inline FArchive& operator<<(FArchive& Ar, TVector4<double>& V)
  *****************************************************************************/
 
 template<typename T>
-FORCEINLINE TVector4<T>::TVector4(const UE::Math::TVector<float>& InVector)
+FORCEINLINE TVector4<T>::TVector4(const UE::Math::TVector<T>& InVector)
 	: X(InVector.X)
 	, Y(InVector.Y)
 	, Z(InVector.Z)
 	, W(1.0f)
-{
-	DiagnosticCheckNaN();
-}
-
-template<typename T>
-FORCEINLINE TVector4<T>::TVector4(const UE::Math::TVector<double>& InVector)
-	: X((T)InVector.X)
-	, Y((T)InVector.Y)
-	, Z((T)InVector.Z)
-	, W((T)1.0f)
-{
-	DiagnosticCheckNaN();
-}
-
-template<typename T>
-FORCEINLINE TVector4<T>::TVector4(const FLinearColor& InColor)
-	: X(InColor.R)
-	, Y(InColor.G)
-	, Z(InColor.B)
-	, W(InColor.A)
-{
-	DiagnosticCheckNaN();
-}
-
-template<typename T>
-FORCEINLINE TVector4<T>::TVector4(const FLinearColor& InColor, T InW)
-	: X(InColor.R)
-	, Y(InColor.G)
-	, Z(InColor.B)
-	, W(InW)
 {
 	DiagnosticCheckNaN();
 }

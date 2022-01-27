@@ -132,7 +132,7 @@ void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<in
 	for (int32 i = 0; i < 32; ++i)
 	{
 		const FLinearColor* Color = InClassificationColors.Find(i);
-		ClassificationColors[i] = Color ? FVector4(*Color) : FVector4(1, 1, 1);
+		ClassificationColors[i] = Color ? FVector4f(*Color) : FVector4f(1, 1, 1);
 	}
 }
 

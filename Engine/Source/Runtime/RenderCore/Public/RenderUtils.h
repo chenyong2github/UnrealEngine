@@ -75,7 +75,7 @@ FORCEINLINE FVector GenerateYAxis(const VectorType& XAxis, const VectorType& ZAx
 	static_assert(	ARE_TYPES_EQUAL(VectorType, FPackedNormal) ||
 					ARE_TYPES_EQUAL(VectorType, FPackedRGBA16N), "ERROR: Must be FPackedNormal or FPackedRGBA16N");
 	FVector  x = XAxis.ToFVector();
-	FVector4f z = ZAxis.ToFVector4();
+	FVector4 z = ZAxis.ToFVector4();
 	return (FVector(z) ^ x) * z.W;
 }
 

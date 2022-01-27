@@ -532,7 +532,7 @@ FORCEINLINE static FVector SampleInternalData(TConstArrayView<FFloat16> Samples,
 
 	FVector4f Result;
 	FPlatformMath::VectorLoadHalf(reinterpret_cast<float*>(&Result), reinterpret_cast<const uint16*>(HalfData));
-	return FVector(Result);
+	return FVector(Result.X, Result.Y, Result.Z);
 }
 
 FORCEINLINE static FVector SampleInternalData(TConstArrayView<float> Samples, int32 SampleIndex)

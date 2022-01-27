@@ -406,11 +406,11 @@ namespace GLTF
 				if (ComponentType == EComponentType::F32)
 				{
 					// copy float vec4 directly from buffer
-					return *reinterpret_cast<const FVector4f*>(Pointer);
+					return FVector4(*reinterpret_cast<const FVector4f*>(Pointer));
 				}
 				else if (Normalized)
 				{
-					return GetNormalized<FVector4f, 4>(ComponentType, Pointer);
+					return FVector4(GetNormalized<FVector4f, 4>(ComponentType, Pointer));
 				}
 			}
 		}

@@ -718,7 +718,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 		for (int32 Index = 0; Index < Colors.Num(); ++Index)
 		{
 			PaintedVertex.Color = Colors[Index];
-			PaintedVertex.Normal = OldVertexBuffer.VertexTangentZ(Index);
+			PaintedVertex.Normal = (FVector4)OldVertexBuffer.VertexTangentZ(Index);
 			PaintedVertex.Position = OldPositions.VertexPosition(Index);
 			Bounds += PaintedVertex.Position;
 

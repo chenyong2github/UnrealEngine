@@ -342,7 +342,8 @@ static void AddClusterCullingPass(
 		check(Parameters->NumConvexHullPlanes <= 6);
 		for (uint32 i = 0; i < Parameters->NumConvexHullPlanes; ++i)
 		{
-			Parameters->ViewFrustumConvexHull[i] = View.ViewFrustum.Planes[i];
+			const FPlane& Plane = View.ViewFrustum.Planes[i];
+			Parameters->ViewFrustumConvexHull[i] = FVector4f(Plane.X, Plane.Y, Plane.Z, Plane.W); // LWC_TODO: precision loss
 		}
 
 		Parameters->ClusterAABBBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterAABBBuffer);

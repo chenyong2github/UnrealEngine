@@ -4322,7 +4322,7 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 		DrawArc(PDI, Base, Z, X, -90.0f, 90.0f, GizmoRadius, 32, FLinearColor(0.2f, 1.0f, 0.2f), SDPG_World);
 
 		// Draw the light incoming light direction. The arrow is offset outward to help depth perception when it intersects with other gizmo elements.
-		const FLinearColor ArrowColor = -UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector() * 0.5f + 0.5f;
+		const FLinearColor ArrowColor = FLinearColor(-UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector() * 0.5f + 0.5f);
 		const FVector ArrowOrigin = Base - UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector()*GizmoRadius*1.25;
 		const FQuatRotationTranslationMatrix ArrowToWorld(UserControlledAtmosphericLightMatrix.GetRotation(), ArrowOrigin);
 		DrawDirectionalArrow(PDI, ArrowToWorld, ArrowColor, GizmoRadius, 0.3f, SDPG_World, ThicknessBold);

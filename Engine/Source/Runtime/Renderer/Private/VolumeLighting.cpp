@@ -133,7 +133,7 @@ void GetVolumeShadowingShaderParameters(
 	}
 	else
 	{
-		OutParameters.DepthBiasParameters = FVector(1.0f);
+		OutParameters.DepthBiasParameters = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		OutParameters.ShadowDepthTexture = SystemTextures.Black;
 	}
 	check(OutParameters.ShadowDepthTexture);

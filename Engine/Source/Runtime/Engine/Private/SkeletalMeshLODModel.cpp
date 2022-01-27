@@ -1460,11 +1460,11 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 
 				VertexInstanceNormals.Set(VertexInstanceID, SourceVertex.TangentZ);
 				VertexInstanceTangents.Set(VertexInstanceID, SourceVertex.TangentX);
-				VertexInstanceBinormalSigns.Set(VertexInstanceID, FMatrix(
-					(FVector)SourceVertex.TangentX.GetSafeNormal(),
-					(FVector)SourceVertex.TangentY.GetSafeNormal(),
-					(FVector)SourceVertex.TangentZ.GetSafeNormal(),
-					FVector::ZeroVector).Determinant() < 0.0f ? -1.0f : +1.0f);
+				VertexInstanceBinormalSigns.Set(VertexInstanceID, FMatrix44f(
+					SourceVertex.TangentX.GetSafeNormal(),
+					SourceVertex.TangentY.GetSafeNormal(),
+					(FVector3f)(SourceVertex.TangentZ.GetSafeNormal()),
+					FVector3f::ZeroVector).Determinant() < 0.0f ? -1.0f : +1.0f);
 
 				for (int32 UVIndex = 0; UVIndex < int32(NumTexCoords); UVIndex++)
 				{
@@ -1473,7 +1473,7 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 
 				if (bHasVertexColors)
 				{
-					VertexInstanceColors.Set(VertexInstanceID, FLinearColor(SourceVertex.Color));
+					VertexInstanceColors.Set(VertexInstanceID, FVector4f(FLinearColor(SourceVertex.Color)));
 				}
 
 				TriangleVertexInstanceIDs[Corner] = VertexInstanceID;

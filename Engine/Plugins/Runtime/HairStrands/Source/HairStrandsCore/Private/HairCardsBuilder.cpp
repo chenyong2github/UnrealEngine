@@ -2794,7 +2794,7 @@ namespace HairCards
 				OutGuides.BoundingBox += P0;
 
 				OutGuides.StrandsPoints.PointsPosition[PointIndex] = P0;
-				OutGuides.StrandsPoints.PointsBaseColor[PointIndex] = FVector3f::ZeroVector;
+				OutGuides.StrandsPoints.PointsBaseColor[PointIndex] = FLinearColor(FVector3f::ZeroVector);
 				OutGuides.StrandsPoints.PointsRoughness[PointIndex] = 0;
 				OutGuides.StrandsPoints.PointsCoordU[PointIndex] = FMath::Clamp(CurrentLength / TotalLength, 0.f, 1.f);
 				OutGuides.StrandsPoints.PointsRadius[PointIndex] = 1;
@@ -2986,7 +2986,7 @@ namespace HairCards
 				OutGuides.BoundingBox += P0;
 
 				OutGuides.StrandsPoints.PointsPosition.Add(P0);
-				OutGuides.StrandsPoints.PointsBaseColor.Add(FVector3f::ZeroVector);
+				OutGuides.StrandsPoints.PointsBaseColor.Add(FLinearColor(FVector3f::ZeroVector));
 				OutGuides.StrandsPoints.PointsRoughness.Add(0);
 				OutGuides.StrandsPoints.PointsCoordU.Add(FMath::Clamp(CurrentLength / TotalLength, 0.f, 1.f));
 				OutGuides.StrandsPoints.PointsRadius.Add(1);

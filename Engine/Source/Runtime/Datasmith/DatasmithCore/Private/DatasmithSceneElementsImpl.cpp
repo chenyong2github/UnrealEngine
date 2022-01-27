@@ -205,7 +205,7 @@ void FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::RemoveInstance(i
 FDatasmithPostProcessElementImpl::FDatasmithPostProcessElementImpl()
 	: FDatasmithElementImpl( TEXT("unnamed"), EDatasmithElementType::PostProcess )
 	, Temperature(6500.0f)
-	, ColorFilter(FVector::ZeroVector)
+	, ColorFilter(FVector3f::ZeroVector)
 	, Vignette(0.0f)
 	, Dof(0.0f)
 	, MotionBlur(0.0f)

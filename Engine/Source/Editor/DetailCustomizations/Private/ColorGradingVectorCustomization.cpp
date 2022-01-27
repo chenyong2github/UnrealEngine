@@ -222,7 +222,7 @@ void FColorGradingVectorCustomizationBase::OnValueChanged(float NewValue, int32 
 		if (ColorIndex < 3) 
 		{
 			CurrentHSVColor.Component(ColorIndex) = NewValue;
-			NewValueVector = CurrentHSVColor.HSVToLinearRGB();
+			NewValueVector = (FVector4)CurrentHSVColor.HSVToLinearRGB();
 			NewValueVector.W = CurrentValueVector.W;
 		}
 		else // Luminance

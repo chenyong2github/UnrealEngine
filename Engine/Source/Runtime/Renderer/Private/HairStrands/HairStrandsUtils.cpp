@@ -159,7 +159,7 @@ void ComputeTranslatedWorldToLightClip(
 	// Translated SphereBound & translated light position
 	const FSphere TranslatedSphereBound = FSphere(PrimitivesBounds.GetSphere().Center + TranslatedWorldOffset, PrimitivesBounds.GetSphere().W);
 	const float SphereRadius = TranslatedSphereBound.W * GetDeepShadowAABBScale();
-	const FVector3f TranslatedLightPosition = FVector3f(LightProxy.GetPosition() + TranslatedWorldOffset);
+	const FVector3f TranslatedLightPosition = FVector3f(FVector(LightProxy.GetPosition()) + TranslatedWorldOffset); // LWC_TODO: precision loss
 
 	const float MinNear = 1.0f; // 1cm, lower value than this cause precision issue. Similar value than in HairStrandsDeepShadowAllocation.usf
 	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance(TranslatedLightPosition, TranslatedSphereBound.Center)) - TranslatedSphereBound.W);

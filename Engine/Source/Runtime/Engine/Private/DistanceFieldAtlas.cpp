@@ -1208,7 +1208,7 @@ uint32 FLandscapeTextureAtlas::GetAllocationHandle(UTexture2D* Texture) const
 	return Allocation ? Allocation->Handle : INDEX_NONE;
 }
 
-FVector4 FLandscapeTextureAtlas::GetAllocationScaleBias(uint32 Handle) const
+FVector4f FLandscapeTextureAtlas::GetAllocationScaleBias(uint32 Handle) const
 {
 	return AddrSpaceAllocator.GetScaleBias(Handle);
 }
@@ -1359,7 +1359,7 @@ void FLandscapeTextureAtlas::FSubAllocator::Free(uint32 Handle)
 	}
 }
 
-FVector4 FLandscapeTextureAtlas::FSubAllocator::GetScaleBias(uint32 Handle) const
+FVector4f FLandscapeTextureAtlas::FSubAllocator::GetScaleBias(uint32 Handle) const
 {
 	check(SubAllocInfos.IsValidIndex(Handle));
 	return SubAllocInfos[Handle].UVScaleBias;
@@ -1408,7 +1408,7 @@ FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetShaderParameters(void* Para
 	else
 	{
 		typename FUploadVisibilityToAtlasCS::FParameters* Params = (typename FUploadVisibilityToAtlasCS::FParameters*)ParamsPtr;
-		FVector4 ChannelMask(ForceInitToZero);
+		FVector4f ChannelMask(ForceInitToZero);
 		ChannelMask[VisibilityChannel] = 1.f;
 		Params->VisibilityChannelMask = ChannelMask;
 		Params->RWVisibilityAtlas = Atlas.AtlasUAVRHI;
@@ -1430,7 +1430,7 @@ FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetCommonShaderParameters(void
 
 	typename FUploadLandscapeTextureToAtlasCS::FSharedParameters* CommonParams = (typename FUploadLandscapeTextureToAtlasCS::FSharedParameters*)ParamsPtr;
 	CommonParams->UpdateRegionOffsetAndSize = FUintVector4(StartOffset.X, StartOffset.Y, UpdateRegionSizeX, UpdateRegionSizeY);
-	CommonParams->SourceScaleBias = FVector4(InvDownSampledSizeX, InvDownSampledSizeY, (.5f - BorderSize) * InvDownSampledSizeX, (.5f - BorderSize) * InvDownSampledSizeY);
+	CommonParams->SourceScaleBias = FVector4f(InvDownSampledSizeX, InvDownSampledSizeY, (.5f - BorderSize) * InvDownSampledSizeX, (.5f - BorderSize) * InvDownSampledSizeY);
 	CommonParams->SourceMipBias = SourceMipBias;
 	CommonParams->SourceTexture = SourceTexture;
 	CommonParams->SourceTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();

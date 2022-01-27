@@ -49,7 +49,7 @@ namespace PixelInspector
 			AmbientOcclusion = 0.0f;
 
 			//Custom Data
-			SubSurfaceColor = FVector(0.0f);
+			SubSurfaceColor = FVector3f(0.0f);
 			Opacity = 0.0f;
 			ClearCoat = 0.0f;
 			ClearCoatRoughness = 0.0f;

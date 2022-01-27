@@ -109,10 +109,10 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 		UVs[VertexInstanceIDs[3]] = FVector2f(0.0f, 1.0f);
 
 		TVertexInstanceAttributesRef<FVector4f> Colors = GetVertexInstanceColors();
-		Colors[VertexInstanceIDs[0]] = FLinearColor::Red;
-		Colors[VertexInstanceIDs[1]] = FLinearColor::Green;
-		Colors[VertexInstanceIDs[2]] = FLinearColor::Blue;
-		Colors[VertexInstanceIDs[3]] = FLinearColor::White;
+		Colors[VertexInstanceIDs[0]] = (FVector4f)FLinearColor::Red;
+		Colors[VertexInstanceIDs[1]] = (FVector4f)FLinearColor::Green;
+		Colors[VertexInstanceIDs[2]] = (FVector4f)FLinearColor::Blue;
+		Colors[VertexInstanceIDs[3]] = (FVector4f)FLinearColor::White;
 
 		TArray<FEdgeID> EdgeIDs;
 		EdgeIDs.Reserve(4);

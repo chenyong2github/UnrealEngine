@@ -177,29 +177,29 @@ void GetCombineLUTParameters(
 	Parameters.WhiteTint = Settings.WhiteTint;
 
 	// Color grade
-	Parameters.ColorSaturation = Settings.ColorSaturation;
-	Parameters.ColorContrast = Settings.ColorContrast;
-	Parameters.ColorGamma = Settings.ColorGamma;
-	Parameters.ColorGain = Settings.ColorGain;
-	Parameters.ColorOffset = Settings.ColorOffset;
+	Parameters.ColorSaturation = (FVector4f)Settings.ColorSaturation;
+	Parameters.ColorContrast = (FVector4f)Settings.ColorContrast;
+	Parameters.ColorGamma = (FVector4f)Settings.ColorGamma;
+	Parameters.ColorGain = (FVector4f)Settings.ColorGain;
+	Parameters.ColorOffset = (FVector4f)Settings.ColorOffset;
 
-	Parameters.ColorSaturationShadows = Settings.ColorSaturationShadows;
-	Parameters.ColorContrastShadows = Settings.ColorContrastShadows;
-	Parameters.ColorGammaShadows = Settings.ColorGammaShadows;
-	Parameters.ColorGainShadows = Settings.ColorGainShadows;
-	Parameters.ColorOffsetShadows = Settings.ColorOffsetShadows;
+	Parameters.ColorSaturationShadows = (FVector4f)Settings.ColorSaturationShadows;
+	Parameters.ColorContrastShadows = (FVector4f)Settings.ColorContrastShadows;
+	Parameters.ColorGammaShadows = (FVector4f)Settings.ColorGammaShadows;
+	Parameters.ColorGainShadows = (FVector4f)Settings.ColorGainShadows;
+	Parameters.ColorOffsetShadows = (FVector4f)Settings.ColorOffsetShadows;
 
-	Parameters.ColorSaturationMidtones = Settings.ColorSaturationMidtones;
-	Parameters.ColorContrastMidtones = Settings.ColorContrastMidtones;
-	Parameters.ColorGammaMidtones = Settings.ColorGammaMidtones;
-	Parameters.ColorGainMidtones = Settings.ColorGainMidtones;
-	Parameters.ColorOffsetMidtones = Settings.ColorOffsetMidtones;
+	Parameters.ColorSaturationMidtones = (FVector4f)Settings.ColorSaturationMidtones;
+	Parameters.ColorContrastMidtones = (FVector4f)Settings.ColorContrastMidtones;
+	Parameters.ColorGammaMidtones = (FVector4f)Settings.ColorGammaMidtones;
+	Parameters.ColorGainMidtones = (FVector4f)Settings.ColorGainMidtones;
+	Parameters.ColorOffsetMidtones = (FVector4f)Settings.ColorOffsetMidtones;
 
-	Parameters.ColorSaturationHighlights = Settings.ColorSaturationHighlights;
-	Parameters.ColorContrastHighlights = Settings.ColorContrastHighlights;
-	Parameters.ColorGammaHighlights = Settings.ColorGammaHighlights;
-	Parameters.ColorGainHighlights = Settings.ColorGainHighlights;
-	Parameters.ColorOffsetHighlights = Settings.ColorOffsetHighlights;
+	Parameters.ColorSaturationHighlights = (FVector4f)Settings.ColorSaturationHighlights;
+	Parameters.ColorContrastHighlights = (FVector4f)Settings.ColorContrastHighlights;
+	Parameters.ColorGammaHighlights = (FVector4f)Settings.ColorGammaHighlights;
+	Parameters.ColorGainHighlights = (FVector4f)Settings.ColorGainHighlights;
+	Parameters.ColorOffsetHighlights = (FVector4f)Settings.ColorOffsetHighlights;
 
 	Parameters.ColorCorrectionShadowsMax = Settings.ColorCorrectionShadowsMax;
 	Parameters.ColorCorrectionHighlightsMin = Settings.ColorCorrectionHighlightsMin;

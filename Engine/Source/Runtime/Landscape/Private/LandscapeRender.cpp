@@ -1576,7 +1576,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	{
 		LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
 		FLandscapeFixedGridUniformShaderParameters Parameters;
-		Parameters.LodValues = FVector4(
+		Parameters.LodValues = FVector4f(
 			LodIndex, 
 			0.f,
 			(float)((SubsectionSizeVerts >> LodIndex) - 1),
@@ -1990,30 +1990,30 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	LandscapeParams.WeightmapUVScaleBias = WeightmapScaleBias;
 	LandscapeParams.LocalToWorldNoScaling = LocalToWorldNoScaling;
 
-	LandscapeParams.LandscapeLightmapScaleBias = FVector4(
+	LandscapeParams.LandscapeLightmapScaleBias = FVector4f(
 		LightmapScaleX,
 		LightmapScaleY,
 		LightmapBiasY,
 		LightmapBiasX);
-	LandscapeParams.SubsectionSizeVertsLayerUVPan = FVector4(
+	LandscapeParams.SubsectionSizeVertsLayerUVPan = FVector4f(
 		SubsectionSizeVerts,
 		1.f / (float)SubsectionSizeQuads,
 		SectionBase.X,
 		SectionBase.Y
 	);
-	LandscapeParams.SubsectionOffsetParams = FVector4(
+	LandscapeParams.SubsectionOffsetParams = FVector4f(
 		HeightmapSubsectionOffsetU,
 		HeightmapSubsectionOffsetV,
 		WeightmapSubsectionOffset,
 		SubsectionSizeQuads
 	);
-	LandscapeParams.LightmapSubsectionOffsetParams = FVector4(
+	LandscapeParams.LightmapSubsectionOffsetParams = FVector4f(
 		LightmapExtendFactorX,
 		LightmapExtendFactorY,
 		0,
 		0
 	);
-	LandscapeParams.BlendableLayerMask = FVector4(
+	LandscapeParams.BlendableLayerMask = FVector4f(
 		BlendableLayerMask & (1 << 0) ? 1 : 0,
 		BlendableLayerMask & (1 << 1) ? 1 : 0,
 		BlendableLayerMask & (1 << 2) ? 1 : 0,
@@ -4082,7 +4082,7 @@ void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& Ou
 	
 	OutDescription.HeightfieldScaleBias = HeightmapScaleBias;
 
-	OutDescription.MinMaxUV = FVector4(
+	OutDescription.MinMaxUV = FVector4f(
 		HeightmapScaleBias.Z,
 		HeightmapScaleBias.W,
 		HeightmapScaleBias.Z + SubsectionSizeVerts * NumSubsections * HeightmapScaleBias.X - HeightmapScaleBias.X,

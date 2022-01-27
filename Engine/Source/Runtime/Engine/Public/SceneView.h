@@ -1050,9 +1050,9 @@ public:
 	* These can be used to override material parameters across the scene without recompiling shaders.
 	* The last component is how much to include of the material's value for that parameter, so 0 will completely remove the material's value.
 	*/
-	FVector4 DiffuseOverrideParameter;
-	FVector4 SpecularOverrideParameter;
-	FVector4 NormalOverrideParameter;
+	FVector4f DiffuseOverrideParameter;
+	FVector4f SpecularOverrideParameter;
+	FVector4f NormalOverrideParameter;
 	FVector2D RoughnessOverrideParameter;
 
 	/** Mip bias to apply in material's samplers. */
@@ -1086,7 +1086,7 @@ public:
 	bool bReverseCulling;
 
 	/* Vector used by shaders to convert depth buffer samples into z coordinates in world space */
-	FVector4 InvDeviceZToWorldZTransform;
+	FVector4f InvDeviceZToWorldZTransform;
 
 	/** World origin offset value. Non-zero only for a single frame when origin is rebased */
 	FVector OriginOffsetThisFrame;
@@ -1182,7 +1182,7 @@ public:
 	 *  LensUV = LensPrincipalPointOffsetScale.xy ScreenUV * LensPrincipalPointOffsetScale.zw;
 	 *  This value is FVector4(0,0,1,1) unless overridden.
 	 */
-	FVector4 LensPrincipalPointOffsetScale;
+	FVector4f LensPrincipalPointOffsetScale;
 
 	/** Whether to enable motion blur caused by camera movements */
 	TOptional<bool> bCameraMotionBlur;
@@ -1412,7 +1412,7 @@ public:
 		const FViewMatrices& InViewMatrices,
 		const FViewMatrices& InPrevViewMatrice) const;
 
-	FVector4 GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const;
+	FVector4f GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const;
 
 	/** 
 	 * Populates the uniform buffer prameters common to all scene view use cases

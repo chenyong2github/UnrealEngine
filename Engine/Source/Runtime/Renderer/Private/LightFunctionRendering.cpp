@@ -63,7 +63,7 @@ public:
 
 		FVector4f StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
-		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
+		StencilingGeometryParameters.Set(RHICmdList, this, (FVector4f)StencilingSpherePosAndScale); // LWC_TODO: precision loss
 	}
 
 private:

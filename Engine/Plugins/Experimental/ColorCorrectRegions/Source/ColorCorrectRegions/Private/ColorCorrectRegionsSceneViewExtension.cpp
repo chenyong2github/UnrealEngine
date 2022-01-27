@@ -512,11 +512,11 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 				RegionData.ExcludeStencil = Region->ExcludeStencil;
 				RegionData.Invert = Region->Invert;
 
-				CCBase.ColorSaturation = Region->ColorGradingSettings.Global.Saturation;
-				CCBase.ColorContrast = Region->ColorGradingSettings.Global.Contrast;
-				CCBase.ColorGamma = Region->ColorGradingSettings.Global.Gamma;
-				CCBase.ColorGain = Region->ColorGradingSettings.Global.Gain;
-				CCBase.ColorOffset = Region->ColorGradingSettings.Global.Offset;
+				CCBase.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Global.Saturation;
+				CCBase.ColorContrast = (FVector4f)Region->ColorGradingSettings.Global.Contrast;
+				CCBase.ColorGamma = (FVector4f)Region->ColorGradingSettings.Global.Gamma;
+				CCBase.ColorGain = (FVector4f)Region->ColorGradingSettings.Global.Gain;
+				CCBase.ColorOffset = (FVector4f)Region->ColorGradingSettings.Global.Offset;
 
 				// Set advanced 
 				if (bIsAdvanced)
@@ -524,24 +524,24 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 					const float GammaMin = 0.02;
 					const float GammaMax = 10.;
 					//clamp(ExternalExpressions.ColorGammaHighlights, 0.02, 10.)
-					CCShadows.ColorSaturation = Region->ColorGradingSettings.Shadows.Saturation;
-					CCShadows.ColorContrast = Region->ColorGradingSettings.Shadows.Contrast;
-					CCShadows.ColorGamma = Clamp(Region->ColorGradingSettings.Shadows.Gamma, GammaMin, GammaMax);
-					CCShadows.ColorGain = Region->ColorGradingSettings.Shadows.Gain;
-					CCShadows.ColorOffset = Region->ColorGradingSettings.Shadows.Offset;
+					CCShadows.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Shadows.Saturation;
+					CCShadows.ColorContrast = (FVector4f)Region->ColorGradingSettings.Shadows.Contrast;
+					CCShadows.ColorGamma = (FVector4f)Clamp(Region->ColorGradingSettings.Shadows.Gamma, GammaMin, GammaMax);
+					CCShadows.ColorGain = (FVector4f)Region->ColorGradingSettings.Shadows.Gain;
+					CCShadows.ColorOffset = (FVector4f)Region->ColorGradingSettings.Shadows.Offset;
 					CCShadows.ShadowMax = Region->ColorGradingSettings.ShadowsMax;
 
-					CCMidtones.ColorSaturation = Region->ColorGradingSettings.Midtones.Saturation;
-					CCMidtones.ColorContrast = Region->ColorGradingSettings.Midtones.Contrast;
-					CCMidtones.ColorGamma = Clamp(Region->ColorGradingSettings.Midtones.Gamma, GammaMin, GammaMax);
-					CCMidtones.ColorGain = Region->ColorGradingSettings.Midtones.Gain;
-					CCMidtones.ColorOffset = Region->ColorGradingSettings.Midtones.Offset;
+					CCMidtones.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Midtones.Saturation;
+					CCMidtones.ColorContrast = (FVector4f)Region->ColorGradingSettings.Midtones.Contrast;
+					CCMidtones.ColorGamma = (FVector4f)Clamp(Region->ColorGradingSettings.Midtones.Gamma, GammaMin, GammaMax);
+					CCMidtones.ColorGain = (FVector4f)Region->ColorGradingSettings.Midtones.Gain;
+					CCMidtones.ColorOffset = (FVector4f)Region->ColorGradingSettings.Midtones.Offset;
 
-					CCHighlights.ColorSaturation = Region->ColorGradingSettings.Highlights.Saturation;
-					CCHighlights.ColorContrast = Region->ColorGradingSettings.Highlights.Contrast;
-					CCHighlights.ColorGamma = Clamp(Region->ColorGradingSettings.Highlights.Gamma, GammaMin, GammaMax);
-					CCHighlights.ColorGain = Region->ColorGradingSettings.Highlights.Gain;
-					CCHighlights.ColorOffset = Region->ColorGradingSettings.Highlights.Offset;
+					CCHighlights.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Highlights.Saturation;
+					CCHighlights.ColorContrast = (FVector4f)Region->ColorGradingSettings.Highlights.Contrast;
+					CCHighlights.ColorGamma = (FVector4f)Clamp(Region->ColorGradingSettings.Highlights.Gamma, GammaMin, GammaMax);
+					CCHighlights.ColorGain = (FVector4f)Region->ColorGradingSettings.Highlights.Gain;
+					CCHighlights.ColorOffset = (FVector4f)Region->ColorGradingSettings.Highlights.Offset;
 					CCHighlights.HighlightsMin = Region->ColorGradingSettings.HighlightsMin;
 				}
 			}

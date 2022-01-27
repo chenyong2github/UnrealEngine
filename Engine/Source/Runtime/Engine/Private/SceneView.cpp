@@ -433,7 +433,7 @@ FString LexToString(EMaterialQualityLevel::Type QualityLevel)
  * @param InvertZ - projection calc is affected by inverted device Z
  * @return vector containing the ratios needed to convert from device Z to world Z
  */
-FVector4 CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
+FVector4f CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
 {
 	// The perspective depth projection comes from the the following projection matrix:
 	//
@@ -454,8 +454,8 @@ FVector4 CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
 	// Z = 1 / (Z' * C1 - C2)   --- Where C1 = 1/B, C2 = A/B
 	//
 
-	float DepthMul = ProjMatrix.M[2][2];
-	float DepthAdd = ProjMatrix.M[3][2];
+	float DepthMul = (float)ProjMatrix.M[2][2];
+	float DepthAdd = (float)ProjMatrix.M[3][2];
 
 	if (DepthAdd == 0.f)
 	{
@@ -494,7 +494,7 @@ FVector4 CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
 		// This fixes fog not being applied to the black background in the editor.
 		SubtractValue -= 0.00000001f;
 
-		return FVector4(
+		return FVector4f(
 			0.0f,
 			0.0f,
 			1.0f / DepthAdd,
@@ -503,9 +503,9 @@ FVector4 CreateInvDeviceZToWorldZTransform(const FMatrix& ProjMatrix)
 	}
 	else
 	{
-		return FVector4(
-			1.0f / ProjMatrix.M[2][2],
-			-ProjMatrix.M[3][2] / ProjMatrix.M[2][2] + 1.0f,
+		return FVector4f(
+			(float)(1.0f / ProjMatrix.M[2][2]),
+			(float)(-ProjMatrix.M[3][2] / ProjMatrix.M[2][2] + 1.0f),
 			0.0f,
 			1.0f
 			);
@@ -2357,13 +2357,13 @@ bool FSceneView::IsInstancedStereoPass() const
 	return bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*this) && IStereoRendering::IsAPrimaryView(*this);
 }
 
-FVector4 FSceneView::GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const
+FVector4f FSceneView::GetScreenPositionScaleBias(const FIntPoint& BufferSize, const FIntRect& ViewRect) const
 {
 	const float InvBufferSizeX = 1.0f / BufferSize.X;
 	const float InvBufferSizeY = 1.0f / BufferSize.Y;
 
 	// to bring NDC (-1..1, 1..-1) into 0..1 UV for BufferSize textures
-	return FVector4(
+	return FVector4f(
 		ViewRect.Width() * InvBufferSizeX / +2.0f,
 		ViewRect.Height() * InvBufferSizeY / (-2.0f * GProjectionSignY),
 		// Warning: note legacy flipped Y and X
@@ -2381,11 +2381,11 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 	checkfSlow(EffectiveViewRect.Area() > 0, TEXT("Invalid-size EffectiveViewRect passed to CreateUniformBufferParameters [%d * %d]."), EffectiveViewRect.Width(), EffectiveViewRect.Height());
 	ensureMsgf((BufferSize.X > 0 && BufferSize.Y > 0), TEXT("Invalid-size BufferSize passed to CreateUniformBufferParameters [%d * %d]."), BufferSize.X, BufferSize.Y);
 
-	ViewUniformShaderParameters.ViewRectMin = FVector4(EffectiveViewRect.Min.X, EffectiveViewRect.Min.Y, 0.0f, 0.0f);
-	ViewUniformShaderParameters.ViewSizeAndInvSize = FVector4(EffectiveViewRect.Width(), EffectiveViewRect.Height(), 1.0f / float(EffectiveViewRect.Width()), 1.0f / float(EffectiveViewRect.Height()));
+	ViewUniformShaderParameters.ViewRectMin = FVector4f(EffectiveViewRect.Min.X, EffectiveViewRect.Min.Y, 0.0f, 0.0f);
+	ViewUniformShaderParameters.ViewSizeAndInvSize = FVector4f(EffectiveViewRect.Width(), EffectiveViewRect.Height(), 1.0f / float(EffectiveViewRect.Width()), 1.0f / float(EffectiveViewRect.Height()));
 
 	// The light probe ratio is only different during separate forward translucency when r.SeparateTranslucencyScreenPercentage != 100
-	ViewUniformShaderParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	ViewUniformShaderParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Calculate the vector used by shaders to convert clip space coordinates to texture space.
 	const float InvBufferSizeX = 1.0f / BufferSize.X;
@@ -2393,8 +2393,8 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 
 	ViewUniformShaderParameters.ScreenPositionScaleBias = GetScreenPositionScaleBias(BufferSize, EffectiveViewRect);
 
-	ViewUniformShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
-	ViewUniformShaderParameters.BufferBilinearUVMinMax = FVector4(
+	ViewUniformShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
+	ViewUniformShaderParameters.BufferBilinearUVMinMax = FVector4f(
 		InvBufferSizeX * (EffectiveViewRect.Min.X + 0.5),
 		InvBufferSizeY * (EffectiveViewRect.Min.Y + 0.5),
 		InvBufferSizeX * (EffectiveViewRect.Max.X - 0.5),
@@ -2450,7 +2450,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	const FViewMatrices& InPrevViewMatrices) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SetupCommonViewUniformBufferParameters);
-	FVector4 LocalDiffuseOverrideParameter = DiffuseOverrideParameter;
+	FVector4f LocalDiffuseOverrideParameter = DiffuseOverrideParameter;
 	FVector2D LocalRoughnessOverrideParameter = RoughnessOverrideParameter;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2499,7 +2499,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.HMDViewNoRollUp = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(1);
 	ViewUniformShaderParameters.HMDViewNoRollRight = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(0);
 	ViewUniformShaderParameters.InvDeviceZToWorldZTransform = InvDeviceZToWorldZTransform;
-	ViewUniformShaderParameters.RelativeWorldViewOrigin = (FVector4f)InViewMatrices.GetOverriddenInvTranslatedViewMatrix().TransformPosition(FVector(0)) - InViewMatrices.GetPreViewTranslation() - ViewTileOffset;
+	ViewUniformShaderParameters.RelativeWorldViewOrigin = (FVector4f)(InViewMatrices.GetOverriddenInvTranslatedViewMatrix().TransformPosition(FVector(0)) - InViewMatrices.GetPreViewTranslation() - ViewTileOffset);
 	ViewUniformShaderParameters.ViewTilePosition = AbsoluteViewOrigin.GetTile();
 	ViewUniformShaderParameters.MatrixTilePosition = RelativeMatrices.TilePosition;
 	ViewUniformShaderParameters.RelativeWorldCameraOrigin = InViewMatrices.GetViewOrigin() - ViewTileOffset;
@@ -2527,7 +2527,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	// Convert global clipping plane to translated world space
 	const FPlane4f TranslatedGlobalClippingPlane(GlobalClippingPlane.TranslateBy(InViewMatrices.GetPreViewTranslation()));
 
-	ViewUniformShaderParameters.GlobalClippingPlane = FVector4(TranslatedGlobalClippingPlane.X, TranslatedGlobalClippingPlane.Y, TranslatedGlobalClippingPlane.Z, -TranslatedGlobalClippingPlane.W);
+	ViewUniformShaderParameters.GlobalClippingPlane = FVector4f(TranslatedGlobalClippingPlane.X, TranslatedGlobalClippingPlane.Y, TranslatedGlobalClippingPlane.Z, -TranslatedGlobalClippingPlane.W);
 
 	ViewUniformShaderParameters.FieldOfViewWideAngles = 2.f * InViewMatrices.ComputeHalfFieldOfViewPerAxis();
 	ViewUniformShaderParameters.PrevFieldOfViewWideAngles = 2.f * InPrevViewMatrices.ComputeHalfFieldOfViewPerAxis();
@@ -2587,9 +2587,10 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters.ClipToPrevClipWithAA = InvViewProj * PrevViewProj;
 	}
 
-	ViewUniformShaderParameters.TemporalAAJitter = FVector4(
-		InViewMatrices.GetTemporalAAJitter().X,		InViewMatrices.GetTemporalAAJitter().Y,
-		InPrevViewMatrices.GetTemporalAAJitter().X, InPrevViewMatrices.GetTemporalAAJitter().Y );
+	// LWC_TODO: precision loss? These values are probably quite small and easily within float range.
+	ViewUniformShaderParameters.TemporalAAJitter = FVector4f(
+		(float)InViewMatrices.GetTemporalAAJitter().X, (float)InViewMatrices.GetTemporalAAJitter().Y,
+		(float)InPrevViewMatrices.GetTemporalAAJitter().X, (float)InPrevViewMatrices.GetTemporalAAJitter().Y );
 
 	ViewUniformShaderParameters.DebugViewModeMask = Family->UseDebugViewPS() ? 1 : 0;
 	ViewUniformShaderParameters.UnlitViewmodeMask = !Family->EngineShowFlags.Lighting || Family->EngineShowFlags.PathTracing ? 1 : 0;

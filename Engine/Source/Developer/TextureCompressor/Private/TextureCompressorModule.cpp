@@ -314,9 +314,9 @@ private:
 };
 
 template <EMipGenAddressMode AddressMode>
-static FVector4 ComputeAlphaCoverage(const FVector4& Thresholds, const FVector4& Scales, const FImageView2D& SourceImageData)
+static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector4f& Scales, const FImageView2D& SourceImageData)
 {
-	FVector4 Coverage(0, 0, 0, 0);
+	FVector4f Coverage(0, 0, 0, 0);
 
 	int32 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	int32 NumRowsEachJob = SourceImageData.SizeY / NumJobs;
@@ -336,7 +336,7 @@ static FVector4 ComputeAlphaCoverage(const FVector4& Thresholds, const FVector4&
 			for (int32 x = 0; x < SourceImageData.SizeX; ++x)
 			{
 				// Sample channel values at pixel neighborhood
-				FVector4 PixelValue(LookupSourceMip<AddressMode>(SourceImageData, x, y));
+				FVector4f PixelValue(LookupSourceMip<AddressMode>(SourceImageData, x, y));
 
 				// Calculate coverage for each channel (if being used as an alpha mask)
 				for (int32 i = 0; i < 4; ++i)
@@ -370,16 +370,16 @@ static FVector4 ComputeAlphaCoverage(const FVector4& Thresholds, const FVector4&
 }
 
 template <EMipGenAddressMode AddressMode>
-static FVector4 ComputeAlphaScale(const FVector4& Coverages, const FVector4& AlphaThresholds, const FImageView2D& SourceImageData)
+static FVector4f ComputeAlphaScale(const FVector4f& Coverages, const FVector4f& AlphaThresholds, const FImageView2D& SourceImageData)
 {
-	FVector4 MinAlphaScales (0, 0, 0, 0);
-	FVector4 MaxAlphaScales (4, 4, 4, 4);
-	FVector4 AlphaScales (1, 1, 1, 1);
+	FVector4f MinAlphaScales (0, 0, 0, 0);
+	FVector4f MaxAlphaScales (4, 4, 4, 4);
+	FVector4f AlphaScales (1, 1, 1, 1);
 
 	//Binary Search to find Alpha Scale
 	for (int32 i = 0; i < 8; ++i)
 	{
-		FVector4 ComputedCoverages = ComputeAlphaCoverage<AddressMode>(AlphaThresholds, AlphaScales, SourceImageData);
+		FVector4f ComputedCoverages = ComputeAlphaCoverage<AddressMode>(AlphaThresholds, AlphaScales, SourceImageData);
 
 		for (int32 j = 0; j < 4; ++j)
 		{
@@ -424,8 +424,8 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	const FImageView2D& SourceImageData, 
 	FImageView2D& DestImageData, 
 	bool bDitherMipMapAlpha,
-	FVector4 AlphaCoverages,
-	FVector4 AlphaThresholds,
+	FVector4f AlphaCoverages,
+	FVector4f AlphaThresholds,
 	const FImageKernel2D& Kernel,
 	uint32 ScaleFactor,
 	bool bSharpenWithoutColorShift,
@@ -440,8 +440,8 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	// Set up a random number stream for dithering.
 	FRandomStream RandomStream(0);
 
-	FVector4 AlphaScale(1, 1, 1, 1);
-	if (AlphaThresholds != FVector4(0,0,0,0))
+	FVector4f AlphaScale(1, 1, 1, 1);
+	if (AlphaThresholds != FVector4f(0,0,0,0))
 	{
 		AlphaScale = ComputeAlphaScale<AddressMode>(AlphaCoverages, AlphaThresholds, SourceImageData);
 	}
@@ -544,8 +544,8 @@ static void GenerateSharpenedMipB8G8R8A8(
 	FImageView2D& DestImageData, 
 	EMipGenAddressMode AddressMode, 
 	bool bDitherMipMapAlpha,
-	FVector4 AlphaCoverages,
-	FVector4 AlphaThresholds,
+	FVector4f AlphaCoverages,
+	FVector4f AlphaThresholds,
 	const FImageKernel2D &Kernel,
 	uint32 ScaleFactor,
 	bool bSharpenWithoutColorShift,
@@ -689,8 +689,8 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 			DestView,
 			AddressMode,
 			Settings.bDitherMipMapAlpha,
-			FVector4(0, 0, 0, 0),
-			FVector4(0, 0, 0, 0),
+			FVector4f(0, 0, 0, 0),
+			FVector4f(0, 0, 0, 0),
 			KernelDownsample,
 			1,
 			Settings.bSharpenWithoutColorShift,
@@ -777,8 +777,8 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 			SrcImageData, 
 			DstImageData, 
 			Settings.bDitherMipMapAlpha, 
-			FVector4(0, 0, 0, 0),
-			FVector4(0, 0, 0, 0), 
+			FVector4f(0, 0, 0, 0),
+			FVector4f(0, 0, 0, 0), 
 			AvgKernel, 
 			2, 
 			false,
@@ -898,8 +898,8 @@ void ITextureCompressorModule::GenerateMipChain(
 	const int32 SrcHeight= BaseMip.SizeY;
 	const int32 SrcNumSlices = BaseMip.NumSlices;
 	const ERawImageFormat::Type ImageFormat = ERawImageFormat::RGBA32F;
-	FVector4 AlphaScales(1, 1, 1, 1);
-	FVector4 AlphaCoverages(0, 0, 0, 0);
+	FVector4f AlphaScales(1, 1, 1, 1);
+	FVector4f AlphaCoverages(0, 0, 0, 0);
 
 
 	const FImage* IntermediateSrcPtr;
@@ -944,7 +944,7 @@ void ITextureCompressorModule::GenerateMipChain(
 	}
 
 	// Calculate alpha coverage value to preserve along mip chain
-	if (Settings.AlphaCoverageThresholds != FVector4(0,0,0,0))
+	if (Settings.AlphaCoverageThresholds != FVector4f(0,0,0,0))
 	{
 		check(IntermediateSrcPtr);
 		const FImageView2D IntermediateSrcView = FImageView2D::ConstructConst(*IntermediateSrcPtr, 0);

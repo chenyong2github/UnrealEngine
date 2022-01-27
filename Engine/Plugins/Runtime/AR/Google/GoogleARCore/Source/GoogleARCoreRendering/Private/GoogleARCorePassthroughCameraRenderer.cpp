@@ -76,16 +76,16 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FSc
 		Vertices.SetNumUninitialized(4);
 
 		// Unreal uses reversed z. 0 is the farthest.
-		Vertices[0].Position = FVector4(0, 0, 0, 1);
+		Vertices[0].Position = FVector4f(0, 0, 0, 1);
 		Vertices[0].UV = { 0, 0 };
 
-		Vertices[1].Position = FVector4(0, 1, 0, 1);
+		Vertices[1].Position = FVector4f(0, 1, 0, 1);
 		Vertices[1].UV = { 0, 1 };
 
-		Vertices[2].Position = FVector4(1, 0, 0, 1);
+		Vertices[2].Position = FVector4f(1, 0, 0, 1);
 		Vertices[2].UV = { 1, 0 };
 
-		Vertices[3].Position = FVector4(1, 1, 0, 1);
+		Vertices[3].Position = FVector4f(1, 1, 0, 1);
 		Vertices[3].UV = { 1, 1 };
 
 		// Create vertex buffer. Fill buffer with initial data upon creation
@@ -229,10 +229,10 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlayWithMaterial(FRHI
 		FIntPoint ViewSize = InView.UnscaledViewRect.Size();
 
 		FDrawRectangleParameters Parameters;
-		Parameters.PosScaleBias = FVector4(ViewSize.X, ViewSize.Y, 0, 0);
-		Parameters.UVScaleBias = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
+		Parameters.PosScaleBias = FVector4f(ViewSize.X, ViewSize.Y, 0, 0);
+		Parameters.UVScaleBias = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
 
-		Parameters.InvTargetSizeAndTextureSize = FVector4(
+		Parameters.InvTargetSizeAndTextureSize = FVector4f(
 			1.0f / ViewSize.X, 1.0f / ViewSize.Y,
 			1.0f, 1.0f);
 

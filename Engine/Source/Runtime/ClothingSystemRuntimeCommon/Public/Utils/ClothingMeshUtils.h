@@ -221,7 +221,7 @@ namespace ClothingMeshUtils
 	* @param NC	- Normal at vertex C
 	* @param Point	- Point to calculate Bary+Dist for
 	*/
-	FVector4 GetPointBaryAndDist(
+	FVector4f GetPointBaryAndDist(
 		const FVector3f& A,
 		const FVector3f& B,
 		const FVector3f& C,
@@ -239,7 +239,7 @@ namespace ClothingMeshUtils
 	* @param NC	- Normal at vertex C
 	* @param Point	- Point to calculate Bary+Dist for
 	*/
-	FVector4 GetPointBaryAndDistWithNormals(
+	FVector4f GetPointBaryAndDistWithNormals(
 		const FVector3f& A,
 		const FVector3f& B,
 		const FVector3f& C,

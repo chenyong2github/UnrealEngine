@@ -1386,8 +1386,8 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.bLocalSpace = bUseLocalSpace;
 	PerViewUniformParameters.DeltaSeconds = ViewFamily.Time.GetDeltaWorldTimeSeconds();
 	PerViewUniformParameters.SystemLWCTile = SceneProxy->GetLWCRenderTile();
-	PerViewUniformParameters.CameraUp = View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
-	PerViewUniformParameters.CameraRight = View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
+	PerViewUniformParameters.CameraUp = (FVector4f)View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
+	PerViewUniformParameters.CameraRight = (FVector4f)View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.ScreenAlignment = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.TotalNumInstances = SourceParticleData->GetNumInstances();
 	PerViewUniformParameters.InterpCount = SegmentTessellation;

@@ -1841,7 +1841,7 @@ FVertexInstanceID ProcessTriangleCorner(
 	// ao
 	DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_AMBIENT_OCCLUSION, VertexIndex, Data );
 	uint8 AO = Data[ 0 ] * 255.0f;
-	VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(AO, AO, AO, 255)));
+	VertexInstanceColors[VertexInstanceID] = FLinearColor(FColor(AO, AO, AO, 255));
 
 	// keep texcoords padded to align indices
 	for( int32 PadIndex = 0; PadIndex < NumUVs; ++PadIndex )
@@ -2706,7 +2706,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 						if (DrawCall.m_eWindGeometryType != GameEngine8::Billboard)
 						{
 							uint8 AO = Vertex.m_fAmbientOcclusion * 255.0f;
-							VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(AO, AO, AO, Vertex.m_fBlendWeight * 255)));
+							VertexInstanceColors[VertexInstanceID] = FLinearColor(FColor(AO, AO, AO, Vertex.m_fBlendWeight * 255));
 						}
 
 						// All texcoords are packed into 4 float4 vertex attributes
@@ -3040,7 +3040,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 						VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 
 						// color and branch blend in vertex color
-						VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(Vertex.m_vColor.x * 255, Vertex.m_vColor.y * 255, Vertex.m_vColor.z * 255, Vertex.m_fBlendWeight * 255)));
+						VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(FColor(Vertex.m_vColor.x * 255, Vertex.m_vColor.y * 255, Vertex.m_vColor.z * 255, Vertex.m_fBlendWeight * 255)));
 
 						// Texcoord setup:
 						// 0		Diffuse UV

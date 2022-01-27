@@ -56,10 +56,10 @@ struct FLinearColor
 	CORE_API FLinearColor(const FColor& Color);
 
 	CORE_API FLinearColor(const FVector3f& Vector);
-	CORE_API FLinearColor(const FVector3d& Vector);
+	CORE_API explicit FLinearColor(const FVector3d& Vector); // Warning: keep this explicit, or FVector4f will be implicitly created from FVector3d via FLinearColor
 
-	CORE_API explicit FLinearColor(const FVector4f& Vector);
-	CORE_API explicit FLinearColor(const FVector4d& Vector);
+	CORE_API FLinearColor(const FVector4f& Vector);
+	CORE_API explicit FLinearColor(const FVector4d& Vector); // Warning: keep this explicit, or FVector4f will be implicitly created from FVector4d via FLinearColor
 	
 	// use Float16Color::GetFloats() directly
 	CORE_API explicit FLinearColor(const FFloat16Color& C);

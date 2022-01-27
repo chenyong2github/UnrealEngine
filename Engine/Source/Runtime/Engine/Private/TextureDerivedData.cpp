@@ -139,7 +139,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
 	TempByte = Settings.bDitherMipMapAlpha; Ar << TempByte;
 
-	if (Settings.AlphaCoverageThresholds != FVector4(0, 0, 0, 0))
+	if (Settings.AlphaCoverageThresholds != FVector4f(0, 0, 0, 0))
 	{
 		TempVector4f = Settings.AlphaCoverageThresholds; Ar << TempVector4f;
 	}
@@ -692,7 +692,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bUseLegacyGamma = Texture.bUseLegacyGamma;
 	OutBuildSettings.bPreserveBorder = Texture.bPreserveBorder;
 	OutBuildSettings.bDitherMipMapAlpha = Texture.bDitherMipMapAlpha;
-	OutBuildSettings.AlphaCoverageThresholds = Texture.AlphaCoverageThresholds;
+	OutBuildSettings.AlphaCoverageThresholds = (FVector4f)Texture.AlphaCoverageThresholds;
 	OutBuildSettings.bComputeBokehAlpha = (Texture.LODGroup == TEXTUREGROUP_Bokeh);
 	OutBuildSettings.bReplicateAlpha = false;
 	OutBuildSettings.bReplicateRed = false;

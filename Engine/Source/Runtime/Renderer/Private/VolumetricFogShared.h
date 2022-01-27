@@ -17,7 +17,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
 	SHADER_PARAMETER(float, RenderVolumetricCloudParametersTopRadiusKm)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-extern FVector VolumetricFogTemporalRandom(uint32 FrameNumber);
+extern FVector3f VolumetricFogTemporalRandom(uint32 FrameNumber);
 
 struct FVolumetricFogIntegrationParameterData
 {

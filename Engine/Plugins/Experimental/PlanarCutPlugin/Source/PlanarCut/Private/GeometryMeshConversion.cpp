@@ -2975,7 +2975,7 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& FromCollection, 
 		AugmentedDynamicMesh::GetTangent(Mesh, VID, TangentU, TangentV);
 		Output.TangentU[CopyToIdx] = FromCollection.InverseTransformVectorNoScale(FVector(TangentU));
 		Output.TangentV[CopyToIdx] = FromCollection.InverseTransformVectorNoScale(FVector(TangentV));
-		Output.Color[CopyToIdx] = FVector(Mesh.GetVertexColor(VID));
+		Output.Color[CopyToIdx] = FLinearColor(FVector(Mesh.GetVertexColor(VID)));
 
 		// Bone map is set based on the transform of the new geometry
 		Output.BoneMap[CopyToIdx] = TransformIdx;
@@ -3077,7 +3077,7 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& FromCollectio
 		AugmentedDynamicMesh::GetTangent(Mesh, VID, TangentU, TangentV);
 		Output.TangentU[CopyToIdx] = FromCollection.InverseTransformVectorNoScale(FVector(TangentU));
 		Output.TangentV[CopyToIdx] = FromCollection.InverseTransformVectorNoScale(FVector(TangentV));
-		Output.Color[CopyToIdx] = FVector(Mesh.GetVertexColor(VID));
+		Output.Color[CopyToIdx] = FLinearColor(FVector(Mesh.GetVertexColor(VID)));
 
 		// Bone map is set based on the transform of the new geometry
 		Output.BoneMap[CopyToIdx] = TransformIdx;

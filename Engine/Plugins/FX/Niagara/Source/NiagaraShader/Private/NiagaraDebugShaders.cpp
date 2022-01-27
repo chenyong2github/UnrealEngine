@@ -372,7 +372,7 @@ void NiagaraDebugShaders::VisualizeTexture(
 	const int32 AvailableWidth = RenderTargetSize.X - Location.X;
 	const int32 SlicesWidth = FMath::Clamp(FMath::DivideAndRoundUp(AvailableWidth, DisplaySize.X + 1), 1, TextureSize.Z);
 
-	const float DisplayScale = (PreviewDisplayRange.Y > PreviewDisplayRange.X) ? (1.0f / (PreviewDisplayRange.Y - PreviewDisplayRange.X)) : 1.0f;
+	const FVector2D::FReal DisplayScale = (PreviewDisplayRange.Y > PreviewDisplayRange.X) ? (1.0f / (PreviewDisplayRange.Y - PreviewDisplayRange.X)) : 1.0f;
 	const FVector4 PerChannelScale(DisplayScale, DisplayScale, DisplayScale, DisplayScale);
 	const FVector4 PerChannelBias(-PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X);
 
@@ -384,8 +384,8 @@ void NiagaraDebugShaders::VisualizeTexture(
 			PassParameters->NumAttributesToVisualize = NumAttributesToVisualizeValue;
 			PassParameters->AttributesToVisualize = AttributesToVisualize;
 			PassParameters->TextureDimensions = TextureSize;
-			PassParameters->PerChannelScale = PerChannelScale;
-			PassParameters->PerChannelBias = PerChannelBias;
+			PassParameters->PerChannelScale = (FVector4f)PerChannelScale; // LWC_TODO: precision loss
+			PassParameters->PerChannelBias = (FVector4f)PerChannelBias; // LWC_TODO: precision loss
 			PassParameters->DebugFlags = GNiagaraGpuComputeDebug_ShowNaNInf != 0 ? 1 : 0;
 			PassParameters->TickCounter = TickCounter;
 			PassParameters->TextureSlice = iSlice;

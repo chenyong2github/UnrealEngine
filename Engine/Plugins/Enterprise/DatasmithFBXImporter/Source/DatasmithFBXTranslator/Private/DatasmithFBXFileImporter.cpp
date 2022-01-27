@@ -1261,7 +1261,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 				int32 VectorColorIndex = (VertexColorReferenceMode == FbxLayerElement::eDirect) ? VertexColorMappingIndex : LayerElementVertexColor->GetIndexArray().GetAt(VertexColorMappingIndex);
 				FbxColor VertexColor = LayerElementVertexColor->GetDirectArray().GetAt(VectorColorIndex);
 				// (no reason to convert to linear color as source is not sRGB)
-				FVector4 RawColor(float(VertexColor.mRed), float(VertexColor.mGreen), float(VertexColor.mBlue), float(VertexColor.mAlpha));
+				FVector4f RawColor(float(VertexColor.mRed), float(VertexColor.mGreen), float(VertexColor.mBlue), float(VertexColor.mAlpha));
 				VertexInstanceColors[CornerVertexInstanceIDs[CornerIndex]] = RawColor;
 			}
 		}

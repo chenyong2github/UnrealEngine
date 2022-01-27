@@ -107,7 +107,7 @@ public:
 	operator FVector4d() const
 	{
 		FVector4f AsFloat = *this;
-		return AsFloat;
+		return FVector4d(AsFloat);
 	}
 
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FDeprecatedSerializedPackedNormal& N);
@@ -332,7 +332,7 @@ struct FPackedRGBA16N
 
 	FVector ToFVector() const;
 	FVector3f ToFVector3f() const;
-	FVector4f ToFVector4() const;
+	FVector4 ToFVector4() const;
 	FVector4f ToFVector4f() const;
 
 	VectorRegister4Float GetVectorRegister() const;
@@ -418,10 +418,10 @@ FORCEINLINE FVector3f FPackedRGBA16N::ToFVector3f() const
 	return UnpackedVector;
 }
 
-FORCEINLINE FVector4f FPackedRGBA16N::ToFVector4() const
+FORCEINLINE FVector4 FPackedRGBA16N::ToFVector4() const
 {
 	// LWC_TODO: Support FVector4d
-	return FVector4f(ToFVector4f());
+	return FVector4(ToFVector4f());
 }
 
 FORCEINLINE FVector4f FPackedRGBA16N::ToFVector4f() const

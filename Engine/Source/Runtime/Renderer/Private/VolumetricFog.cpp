@@ -145,14 +145,14 @@ DECLARE_GPU_STAT(VolumetricFog);
 FVolumetricFogGlobalData::FVolumetricFogGlobalData()
 {}
 
-FVector VolumetricFogTemporalRandom(uint32 FrameNumber)
+FVector3f VolumetricFogTemporalRandom(uint32 FrameNumber)
 {
 	// Center of the voxel
-	FVector RandomOffsetValue(.5f, .5f, .5f);
+	FVector3f RandomOffsetValue(.5f, .5f, .5f);
 
 	if (GVolumetricFogJitter && GVolumetricFogTemporalReprojection)
 	{
-		RandomOffsetValue = FVector(Halton(FrameNumber & 1023, 2), Halton(FrameNumber & 1023, 3), Halton(FrameNumber & 1023, 5));
+		RandomOffsetValue = FVector3f(Halton(FrameNumber & 1023, 2), Halton(FrameNumber & 1023, 3), Halton(FrameNumber & 1023, 5));
 	}
 
 	return RandomOffsetValue;
@@ -588,7 +588,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 						FWriteToBoundingSphereVS::FParameters VSPassParameters;
 						VSPassParameters.MinZ = VolumeZBounds.X;
-						VSPassParameters.ViewSpaceBoundingSphere = FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightBounds.Center), LightBounds.W);
+						VSPassParameters.ViewSpaceBoundingSphere = FVector4f(FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightBounds.Center)), LightBounds.W); // LWC_TODO: precision loss
 						VSPassParameters.ViewToVolumeClip = View.ViewMatrices.ComputeProjectionNoAAMatrix();
 						VSPassParameters.VolumetricFogParameters = PassParameters->VolumetricFogParameters;
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSPassParameters);
@@ -933,7 +933,6 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		int32 VolumetricFogGridPixelSize;
 		const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
 		const FVector GridZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
-		const FVector FrameJitterOffsetValue = VolumetricFogTemporalRandom(View.Family->FrameNumber);
 
 		FVolumetricFogIntegrationParameterData IntegrationData;
 		IntegrationData.FrameJitterOffsetValues.Empty(16);

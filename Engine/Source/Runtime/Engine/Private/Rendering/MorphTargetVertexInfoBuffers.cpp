@@ -415,8 +415,8 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 		const uint32 MorphNumBatches = NumTotalBatches - BatchStartOffset;
 		BatchStartOffsetPerMorph.Add(BatchStartOffset);
 		BatchesPerMorph.Add(MorphNumBatches);
-		MaximumValuePerMorph.Add(FVector4(MaximumValues[0], MaximumValues[1], MaximumValues[2], MaximumValues[3]));
-		MinimumValuePerMorph.Add(FVector4(MinimumValues[0], MinimumValues[1], MinimumValues[2], MinimumValues[3]));
+		MaximumValuePerMorph.Add(FVector4f(MaximumValues[0], MaximumValues[1], MaximumValues[2], MaximumValues[3]));
+		MinimumValuePerMorph.Add(FVector4f(MinimumValues[0], MinimumValues[1], MinimumValues[2], MinimumValues[3]));
 	}
 
 	// Write packed batch headers

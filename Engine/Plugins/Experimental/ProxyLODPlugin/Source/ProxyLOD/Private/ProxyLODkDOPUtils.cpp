@@ -27,7 +27,7 @@ void ProxyLOD::BuildkDOPTree(const FMeshDescriptionArrayAdapter& SrcGeometry, Pr
 		for (uint32 r = Range.begin(), R = Range.end(); r < R; ++r)
 		{
 			const auto& Poly = SrcGeometry.GetRawPoly(r);
-			BuildTriangles[r] = FkDOPBuildTriangle(r, Poly.VertexPositions[0], Poly.VertexPositions[1], Poly.VertexPositions[2]);
+			BuildTriangles[r] = FkDOPBuildTriangle(r, FVector(Poly.VertexPositions[0]), FVector(Poly.VertexPositions[1]), FVector(Poly.VertexPositions[2]));
 		}
 
 	});

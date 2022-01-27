@@ -732,7 +732,7 @@ namespace UE
 										uint8(255.f * VertexColor.mBlue),
 										uint8(255.f * VertexColor.mAlpha)
 									);
-									VertexInstanceColors[AddedVertexInstanceId] = FVector4(FLinearColor(VertexInstanceColor));
+									VertexInstanceColors[AddedVertexInstanceId] = FVector4f(FLinearColor(VertexInstanceColor));
 								}
 
 								if (LayerElementNormal)

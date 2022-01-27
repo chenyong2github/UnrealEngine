@@ -1952,7 +1952,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		const FMatrix LocalToWorldNoScale = GatheredInstanceParameters.ComponentTrans.ToMatrixNoScale();
 
 		const FVector Location = GatheredInstanceParameters.ComponentTrans.GetLocation();
-		const FVector LastLocation = FMath::IsNearlyZero(CurrentSystemParameters.EngineSystemAge) ? Location : FVector(OwnerParameters[GetParameterIndex(true)].EnginePosition);
+		const FVector LastLocation = FMath::IsNearlyZero(CurrentSystemParameters.EngineSystemAge) ? Location : FVector(FVector4(OwnerParameters[GetParameterIndex(true)].EnginePosition));
 		const FQuat LastRotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
 
 		CurrentOwnerParameters.EngineLocalToWorld = LocalToWorld;
@@ -1962,12 +1962,12 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineLocalToWorldNoScale = LocalToWorldNoScale;
 		CurrentOwnerParameters.EngineWorldToLocalNoScale = LocalToWorldNoScale.Inverse();
 		CurrentOwnerParameters.EngineRotation = FQuat4f((float)LastRotation.X, (float)LastRotation.Y, (float)LastRotation.Z, (float)LastRotation.W);
-		CurrentOwnerParameters.EnginePosition = Location;
-		CurrentOwnerParameters.EngineVelocity = (Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds;
+		CurrentOwnerParameters.EnginePosition = (FVector4f)Location; // LWC_TODO: precision loss
+		CurrentOwnerParameters.EngineVelocity = (FVector4f)((Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds);
 		CurrentOwnerParameters.EngineXAxis = CurrentOwnerParameters.EngineRotation.GetAxisX();
 		CurrentOwnerParameters.EngineYAxis = CurrentOwnerParameters.EngineRotation.GetAxisY();
 		CurrentOwnerParameters.EngineZAxis = CurrentOwnerParameters.EngineRotation.GetAxisZ();
-		CurrentOwnerParameters.EngineScale = GatheredInstanceParameters.ComponentTrans.GetScale3D();
+		CurrentOwnerParameters.EngineScale = (FVector4f)GatheredInstanceParameters.ComponentTrans.GetScale3D();
 		CurrentOwnerParameters.EngineLWCTile = LWCTile;
 		CurrentOwnerParameters.EngineLWCTile.W = FLargeWorldRenderScalar::GetTileSize();
 	}

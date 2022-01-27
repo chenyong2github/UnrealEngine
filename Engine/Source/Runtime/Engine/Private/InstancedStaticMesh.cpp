@@ -1164,7 +1164,7 @@ void FPerInstanceRenderData::UpdateBoundsTransforms()
 			PerInstanceTransforms.Add(InstTransform);
 
 			FBoxSphereBounds TransformedBounds = LocalBounds.TransformBy(InstTransform.ToMatrix());
-			PerInstanceBounds.Add(FVector4(TransformedBounds.Origin, TransformedBounds.SphereRadius));
+			PerInstanceBounds.Add(FVector4f(TransformedBounds.Origin, TransformedBounds.SphereRadius)); // LWC_TODO: Precision loss
 		}
 	}
 	else
@@ -1819,10 +1819,10 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
-				FVector4 InstanceSphere = PerInstanceBounds[InstanceIndex];
-				FVector InstanceLocation = InstanceSphere;
+				FVector4f InstanceSphere = PerInstanceBounds[InstanceIndex];
+				FVector InstanceLocation = FVector(InstanceSphere.X, InstanceSphere.Y, InstanceSphere.Z); // LWC_TODO: Precision loss, but bounds are already float by this point
 				FVector VToInstanceCenter = LocalViewPosition - InstanceLocation;
-				float DistanceToInstanceCenter = VToInstanceCenter.Size();
+				float DistanceToInstanceCenter = VToInstanceCenter.Size(); // LWC_TODO: Precision loss
 				float InstanceRadius = InstanceSphere.W;
 				float DistanceToInstanceStart = (DistanceToInstanceCenter - InstanceRadius) * Scale; //scale accounts for possibly scaling in LocalToWorld, since measurements are all in local
 
@@ -1860,10 +1860,10 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
-				FVector4 InstanceSphere = PerInstanceBounds[InstanceIndex];
-				FVector InstanceLocation = InstanceSphere;
+				FVector4f InstanceSphere = PerInstanceBounds[InstanceIndex];
+				FVector InstanceLocation = FVector(InstanceSphere.X, InstanceSphere.Y, InstanceSphere.Z); // LWC_TODO: Precision loss, but bounds are already float by this point
 				FVector VToInstanceCenter = LocalViewPosition - InstanceLocation;
-						float DistanceToInstanceCenter = VToInstanceCenter.Size();
+				float DistanceToInstanceCenter = VToInstanceCenter.Size();  // LWC_TODO: Precision loss
 
 				if (DistanceToInstanceCenter * Ratio <= InstanceSphere.W * Scale)
 				{
@@ -4667,11 +4667,11 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 				}
 			}
 
-			InstancingOffset = InstancingUserData->InstancingOffset;
+			InstancingOffset = (FVector3f)InstancingUserData->InstancingOffset; // LWC_TODO: precision loss
 
 			const FVector PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
-			InstancingTranslatedWorldViewOriginZero = View->GetTemporalLODOrigin(0) + PreViewTranslation;
-			InstancingTranslatedWorldViewOriginOne = View->GetTemporalLODOrigin(1) + PreViewTranslation;
+			InstancingTranslatedWorldViewOriginZero = (FVector3f)(View->GetTemporalLODOrigin(0) + PreViewTranslation); // LWC_TODO: precision loss
+			InstancingTranslatedWorldViewOriginOne = (FVector3f)(View->GetTemporalLODOrigin(1) + PreViewTranslation); // LWC_TODO: precision loss
 
 			float Alpha = View->GetTemporalLODTransition();
 			InstancingTranslatedWorldViewOriginZero.W = 1.0f - Alpha;

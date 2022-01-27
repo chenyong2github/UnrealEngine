@@ -694,11 +694,11 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 	}
 
 	Params.DefaultPrevPosition			= Params.DefaultPosition;
-	Params.DefaultVelocity 				= FVector(0.f, 0.0f, 0.0f);
+	Params.DefaultVelocity 				= FVector3f(0.f, 0.0f, 0.0f);
 	Params.DefaultPrevVelocity			= Params.DefaultVelocity;	
-	Params.DefaultScale					= FVector(1.0f, 1.0f, 1.0f);
+	Params.DefaultScale					= FVector3f(1.0f, 1.0f, 1.0f);
 	Params.DefaultPrevScale 			= Params.DefaultScale;
-	Params.DefaultRotation 				= FVector4(0.0f, 0.0f, 0.0f, 1.0f);
+	Params.DefaultRotation 				= FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
 	Params.DefaultPrevRotation 			= Params.DefaultRotation;
 	Params.DefaultCameraOffset 			= 0.0f;
 	Params.DefaultPrevCameraOffset 		= Params.DefaultCameraOffset;
@@ -986,7 +986,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		FEmitterSourceInstanceData& EmitterSourceData = GPUSceneRes.EmitterSourceData;
 		EmitterSourceData.CustomData = 0.0f;		
 
-		const FVector4 Rot = CommonParameters.DefaultRotation;
+		const FVector4 Rot = FVector4(CommonParameters.DefaultRotation);
 		FMatrix LocalToPrimitive = FTransform(FQuat(Rot.X, Rot.Y, Rot.Z, Rot.W), FVector(CommonParameters.DefaultPosition), FVector(CommonParameters.DefaultScale)).ToMatrixWithScale();
 
 		if (!bLocalSpace)
@@ -1003,7 +1003,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		
 		if (bNeedsPrevTransform)
 		{
-			const FVector4 PrevRot = CommonParameters.DefaultPrevRotation;
+			const FVector4 PrevRot = FVector4(CommonParameters.DefaultPrevRotation);
 			FMatrix PrevLocalToPrimitive = FTransform(FQuat(PrevRot.X, PrevRot.Y, PrevRot.Z, PrevRot.W), FVector(CommonParameters.DefaultPrevPosition), FVector(CommonParameters.DefaultPrevScale)).ToMatrixWithScale();
 
 			if (!bLocalSpace)

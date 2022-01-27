@@ -115,11 +115,11 @@ public:
 		WorldBounds = LocalBounds.TransformBy(NewTransform);
 
 		const FVector XAxis = NewTransform.TransformVector(FVector(1, 0, 0));
-		const float XAxisLength = XAxis.Size();
+		const FVector::FReal XAxisLength = XAxis.Size();
 		PlanarReflectionXAxis = FVector4(XAxis / FMath::Max(XAxisLength, DELTA), XAxisLength * MeshExtent);
 
 		const FVector YAxis = NewTransform.TransformVector(FVector(0, 1, 0));
-		const float YAxisLength = YAxis.Size();
+		const FVector::FReal YAxisLength = YAxis.Size();
 		PlanarReflectionYAxis = FVector4(YAxis / FMath::Max(YAxisLength, DELTA), YAxisLength * MeshExtent);
 
 		const FMirrorMatrix MirrorMatrix(ReflectionPlane);

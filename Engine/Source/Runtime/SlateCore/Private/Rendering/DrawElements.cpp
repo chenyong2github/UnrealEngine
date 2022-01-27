@@ -238,11 +238,11 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 	if ( ElementType == EElementType::ET_RoundedBox )
 	{
 		FSlateRoundedBoxPayload* RBoxPayload = &ElementList.CreatePayload<FSlateRoundedBoxPayload>(Element);
-		FVector4 CornerRadii = InBrush->OutlineSettings.CornerRadii;
+		FVector4f CornerRadii = FVector4f(InBrush->OutlineSettings.CornerRadii);
 		if (InBrush->OutlineSettings.RoundingType == ESlateBrushRoundingType::HalfHeightRadius)
 		{
 			const float UniformRadius = PaintGeometry.GetLocalSize().Y / 2.0f;
-			CornerRadii = FVector4(UniformRadius, UniformRadius, UniformRadius, UniformRadius);
+			CornerRadii = FVector4f(UniformRadius, UniformRadius, UniformRadius, UniformRadius);
 		}
 		RBoxPayload->SetRadius(CornerRadii);
 
@@ -453,7 +453,7 @@ void FSlateDrawElement::MakeShapedText(FSlateWindowElementList& ElementList, uin
 	Element.Init(ElementList, EElementType::ET_ShapedText, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects, FVector4 CornerRadius)
+void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FSlateGradientStop> InGradientStops, EOrientation InGradientType, ESlateDrawEffect InDrawEffects, FVector4f CornerRadius)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -658,7 +658,7 @@ void FSlateDrawElement::MakeCustomVerts(FSlateWindowElementList& ElementList, ui
 	Element.RenderTransform = FSlateRenderTransform();
 }
 
-void FSlateDrawElement::MakePostProcessPass(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector4& Params, int32 DownsampleAmount, FVector4 CornerRadius)
+void FSlateDrawElement::MakePostProcessPass(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector4f& Params, int32 DownsampleAmount, FVector4f CornerRadius)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 

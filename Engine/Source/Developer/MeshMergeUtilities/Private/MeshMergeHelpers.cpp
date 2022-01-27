@@ -392,7 +392,7 @@ void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshC
 					}
 
 					//Add this vertex instance color
-					VertexInstanceColors[VertexInstanceID] = bPropagateVertexColours ? FVector4(FLinearColor(SoftVertex.Color)) : FVector4(1.0f, 1.0f, 1.0f);
+					VertexInstanceColors[VertexInstanceID] = bPropagateVertexColours ? FVector4f(FLinearColor(SoftVertex.Color)) : FVector4f(1.0f, 1.0f, 1.0f);
 				}
 				//Create a polygon from this triangle
 				const FPolygonID NewPolygonID = OutMeshDescription.CreatePolygon(SectionPolygonGroupID, VertexInstanceIDs);

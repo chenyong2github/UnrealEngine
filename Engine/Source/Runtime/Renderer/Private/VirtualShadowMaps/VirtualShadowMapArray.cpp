@@ -2244,7 +2244,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	{
 		if (ProjectedShadowInfo->DependentView != nullptr)
 		{
-			return ProjectedShadowInfo->DependentView->ShadowViewMatrices.GetViewOrigin();
+			return FLargeWorldRenderPosition(ProjectedShadowInfo->DependentView->ShadowViewMatrices.GetViewOrigin());
 		}
 
 		// VSM supports only whole scene shadows, so those without a "DependentView" are local lights
@@ -2264,7 +2264,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			}
 
 		}
-		return MinOrigin;
+		return FLargeWorldRenderPosition(MinOrigin);
 	};
 
 	FInstanceCullingMergedContext InstanceCullingMergedContext(GMaxRHIFeatureLevel);

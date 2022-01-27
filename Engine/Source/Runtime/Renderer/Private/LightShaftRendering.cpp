@@ -72,7 +72,7 @@ int32 GetLightShaftDownsampleFactor()
 
 FVector4f GetLightScreenPosition(const FViewInfo& View, const FLightSceneProxy& LightSceneProxy)
 {
-	return View.WorldToScreen(LightSceneProxy.GetLightPositionForLightShafts(View.ViewMatrices.GetViewOrigin()));
+	return (FVector4f)View.WorldToScreen(LightSceneProxy.GetLightPositionForLightShafts(View.ViewMatrices.GetViewOrigin()));
 }
 
 FMobileLightShaftInfo GetMobileLightShaftInfo(const FViewInfo& View, const FLightSceneInfo& LightSceneInfo)

@@ -205,8 +205,8 @@ void Copy( const ULightComponent* In, Lightmass::FLightData& Out )
 	}
 
 	Out.Brightness = In->ComputeLightBrightness();
-	Out.Position = In->GetLightPosition();
-	Out.Direction = In->GetDirection();
+	Out.Position = (FVector4f)In->GetLightPosition();
+	Out.Direction = (FVector3f)In->GetDirection();
 
 	if( In->bUseTemperature )
 	{
@@ -1322,10 +1322,10 @@ void FLightmassExporter::WriteStaticMeshes()
 						for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 						{
 							Lightmass::FStaticMeshVertex& Vertex = LMVertices[VertexIndex];
-							Vertex.Position = FVector4(RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex), 1.0f);
-							Vertex.TangentX = FVector(RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex));
-							Vertex.TangentY = RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertexIndex);
-							Vertex.TangentZ = RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
+							Vertex.Position = FVector4f(RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex), 1.0f);
+							Vertex.TangentX = FVector4f(RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex));
+							Vertex.TangentY = FVector4f(RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertexIndex));
+							Vertex.TangentZ = FVector4f(RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex));
 							int32 UVCount = FMath::Clamp<int32>(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(), 0, MAX_TEXCOORDS);
 							int32 UVIndex;
 							for (UVIndex = 0; UVIndex < UVCount; UVIndex++)
@@ -1958,10 +1958,11 @@ void FLightmassExporter::WriteMappings( int32 Channel )
 				const FStaticLightingVertex& SrcVertex = BSPMapping->NodeGroup->Vertices[VertIdx];
 				Lightmass::FStaticLightingVertexData& DstVertex = VertexData[VertIdx];
 
-				DstVertex.WorldPosition = SrcVertex.WorldPosition;
-				DstVertex.WorldTangentX = SrcVertex.WorldTangentX;
-				DstVertex.WorldTangentY = SrcVertex.WorldTangentY;
-				DstVertex.WorldTangentZ = SrcVertex.WorldTangentZ;			
+				// LWC_TODO: precision loss
+				DstVertex.WorldPosition = (FVector3f)SrcVertex.WorldPosition;
+				DstVertex.WorldTangentX = (FVector3f)SrcVertex.WorldTangentX;
+				DstVertex.WorldTangentY = (FVector3f)SrcVertex.WorldTangentY;
+				DstVertex.WorldTangentZ = (FVector3f)SrcVertex.WorldTangentZ;
 				for( int32 CoordIdx=0; CoordIdx < Lightmass::MAX_TEXCOORDS; CoordIdx++ )
 				{	
 					DstVertex.TextureCoordinates[CoordIdx] = SrcVertex.TextureCoordinates[CoordIdx];
@@ -2516,7 +2517,7 @@ void FLightmassExporter::WriteDebugInput( Lightmass::FDebugLightingInputData& In
 	
 	InputData.MappingGuid = DebugMappingGuid;
 	InputData.NodeIndex = GCurrentSelectedLightmapSample.NodeIndex;
-	InputData.Position = FVector4(GCurrentSelectedLightmapSample.Position, 0);
+	InputData.Position = FVector4f(GCurrentSelectedLightmapSample.Position, 0);
 	InputData.LocalX = GCurrentSelectedLightmapSample.LocalX;
 	InputData.LocalY = GCurrentSelectedLightmapSample.LocalY;
 	InputData.MappingSizeX = GCurrentSelectedLightmapSample.MappingSizeX;
@@ -2529,7 +2530,7 @@ void FLightmassExporter::WriteDebugInput( Lightmass::FDebugLightingInputData& In
 			ViewPosition = LevelVC->GetViewLocation();
 		}
 	}
-	InputData.CameraPosition = ViewPosition;
+	InputData.CameraPosition = (FVector4f)ViewPosition;
 	int32 DebugVisibilityId = INDEX_NONE;
 	bool bVisualizePrecomputedVisibility = false;
 	VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.PrecomputedVisibility"), TEXT("bVisualizePrecomputedVisibility"), bVisualizePrecomputedVisibility, GLightmassIni));
@@ -3511,8 +3512,8 @@ void FLightmassProcessor::ImportVolumeSamples()
 					for (int32 SampleIndex = 0; SampleIndex < VolumeSamples.Num(); SampleIndex++)
 					{
 						const Lightmass::FVolumeLightingSampleData& CurrentSample = VolumeSamples[SampleIndex];
-						FVector4f SampleMin = CurrentSample.PositionAndRadius - FVector(CurrentSample.PositionAndRadius.W);
-						FVector4f SampleMax = CurrentSample.PositionAndRadius + FVector(CurrentSample.PositionAndRadius.W);
+						FVector4f SampleMin = CurrentSample.PositionAndRadius - FVector3f(CurrentSample.PositionAndRadius.W);
+						FVector4f SampleMax = CurrentSample.PositionAndRadius + FVector3f(CurrentSample.PositionAndRadius.W);
 						LevelVolumeBounds += FBox3f(SampleMin, SampleMax);
 					}
 
@@ -3945,9 +3946,9 @@ void FLightmassProcessor::ImportMeshAreaLightData()
 				{
 					// Find the level that the mesh area light was in
 					FVector4 Position;
-					Position = LMCurrentLightData.Position;
+					Position = (FVector4)LMCurrentLightData.Position;
 					FVector4 Direction;
-					Direction = LMCurrentLightData.Direction;
+					Direction = (FVector4)LMCurrentLightData.Direction;
 					// Spawn a AGeneratedMeshAreaLight to handle the light's influence on dynamic objects
 					FActorSpawnParameters SpawnInfo;
 					SpawnInfo.Owner = CurrentLevel->GetWorldSettings();

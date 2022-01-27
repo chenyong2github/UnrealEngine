@@ -575,11 +575,11 @@ public:
 			// We only apply transmittance in some cases. For instance if transmittance is evaluated per pixel, we do not apply it to the light illuminance.
 			if (bPerPixelTransmittanceEnabled)
 			{
-				return FVector(GetOuterSpaceIlluminance());
+				return FLinearColor(FVector(GetOuterSpaceIlluminance()));
 			}
 			else
 			{
-				return FVector(GetOuterSpaceIlluminance() * GetAtmosphereTransmittanceTowardSun());
+				return FLinearColor(FVector(GetOuterSpaceIlluminance() * GetAtmosphereTransmittanceTowardSun()));
 			}
 		}
 		return GetColor();

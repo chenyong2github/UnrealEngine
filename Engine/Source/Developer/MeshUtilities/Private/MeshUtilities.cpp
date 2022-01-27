@@ -446,9 +446,9 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 				int32 Index = IndexArrayView[StaticMeshSection.FirstIndex + IndexIndex];
 				RawMesh.WedgeIndices.Add(BaseVertexIndex + Index);
 
-				RawMesh.WedgeTangentX.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentX(Index)))));
-				RawMesh.WedgeTangentY.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentY(Index)))));
-				RawMesh.WedgeTangentZ.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentZ(Index)))));
+				RawMesh.WedgeTangentX.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentX(Index)))));
+				RawMesh.WedgeTangentY.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentY(Index)))));
+				RawMesh.WedgeTangentZ.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentZ(Index)))));
 
 				for (int32 TexCoordIndex = 0; TexCoordIndex < MAX_MESH_TEXTURE_COORDS; TexCoordIndex++)
 				{

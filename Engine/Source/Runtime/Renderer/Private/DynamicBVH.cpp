@@ -70,9 +70,9 @@ void FMortonArray::RegenerateCodes( const FRange& Range )
 }
 
 
-inline FVector RandomVector( float Min, float Max )
+inline FVector3f RandomVector( float Min, float Max )
 {
-	FVector V;
+	FVector3f V;
 	V.X = FMath::RandRange( Min, Max );
 	V.Y = FMath::RandRange( Min, Max );
 	V.Z = FMath::RandRange( Min, Max );
@@ -81,8 +81,8 @@ inline FVector RandomVector( float Min, float Max )
 
 static FBounds RandomBounds( float CenterMin, float CenterMax, float ExtentMin, float ExtentMax )
 {
-	FVector Center = RandomVector( CenterMin, CenterMax );
-	FVector Extent = RandomVector( ExtentMin, ExtentMax );
+	FVector3f Center = RandomVector( CenterMin, CenterMax );
+	FVector3f Extent = RandomVector( ExtentMin, ExtentMax );
 	return FBounds( { Center - Extent, Center + Extent } );
 }
 
@@ -208,7 +208,7 @@ void TestBVH_UpdateJitter()
 		uint32 Index = FMath::Rand() % Num;
 
 		FBounds Bounds = BVH.GetBounds( Index );
-		FVector Jitter = RandomVector( -0.01f, 0.01f );
+		FVector4f Jitter = FVector4f(RandomVector( -0.01f, 0.01f ), 0.f); // W is 0, since we add to Min/Max below and shouldn't add to W.
 		Bounds.Min += Jitter;
 		Bounds.Max += Jitter;
 
@@ -224,8 +224,8 @@ void TestBVH_UpdateJitter()
 void TestBVH_Ordered()
 {
 	FBounds UnitBounds;
-	UnitBounds.Min = FVector::ZeroVector;
-	UnitBounds.Max = FVector::OneVector;
+	UnitBounds.Min = FVector3f::ZeroVector;
+	UnitBounds.Max = FVector3f::OneVector;
 
 	FDynamicBVH<4> BVH;
 

@@ -378,7 +378,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bMobileMovablePointLightUniformBufferNeedsUpdate(false)
 	, bMobileMovablePointLightShouldBeRender(false)
 	, bMobileMovablePointLightShouldCastShadow(false)
-	, MobileMovablePointLightShadowmapMinMax()
+	, MobileMovablePointLightShadowmapMinMax(0.0f)
 #if ACTOR_HAS_LABELS
 	, OwnerNameOrLabel(InLightComponent->GetOwner() ? InLightComponent->GetOwner()->GetActorNameOrLabel() : InLightComponent->GetName())
 #endif

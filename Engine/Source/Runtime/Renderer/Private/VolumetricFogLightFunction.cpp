@@ -115,7 +115,7 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 
 		PS.LightFunctionTexelSize = FVector2f(LightFunctionTexelSizeValue);
 		PS.ShadowToWorld = ShadowToWorldValue;
-		PS.LightWorldPosition = FVector3f(LightSceneInfo->Proxy->GetPosition());
+		PS.LightWorldPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
 	}
 };
 
@@ -251,7 +251,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 			ShadowInitializer.WorldToLight = FInverseRotationMatrix(LightDirection.Rotation());
 			ShadowInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 			ShadowInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
-			ShadowInitializer.WAxis = FVector4f(0, 0, 0, 1);
+			ShadowInitializer.WAxis = FVector4(0, 0, 0, 1);
 			ShadowInitializer.MinLightW = -HALF_WORLD_MAX;
 			// Reduce casting distance on a directional light
 			// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
