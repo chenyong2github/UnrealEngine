@@ -8,12 +8,12 @@
 
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS && 0
+#if WITH_DEV_AUTOMATION_TESTS
 
 namespace UE::Virtualization
 {
 	
-constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
+constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
 /** This test ensures that ::IsValid returns the correct value dending on how the FPayloadId was created */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPayloadIdTestValidity, TEXT("System.Core.Virtualization.PayloadId.Validity"), TestFlags)
@@ -310,9 +310,9 @@ bool FPayloadIdTestStringBuilder::RunTest(const FString& Parameters)
 
 	// Test again both TWideStringBuilder and TAnsiStringBuilder
 #define TEST_PAYLOAD_ID(BufferToTest) {	TWideStringBuilder<128> WideBuilder; WideBuilder << BufferToTest; \
-										TestEqual(TEXT("TWideStringBuilder << and ToString to produce the same result"), *WideBuilder, LexToString(BufferToTest));\
+										TestEqual(TEXT("TWideStringBuilder << and LexToString to produce the same result"), *WideBuilder, LexToString(BufferToTest));\
 										TAnsiStringBuilder<128> AnsiBuilder; AnsiBuilder << BufferToTest; \
-										TestEqual(TEXT("TAnsiBuilder << and ToString to produce the same result"), *AnsiBuilder, LexToString(BufferToTest)); }
+										TestEqual(TEXT("TAnsiBuilder << and LexToString to produce the same result"), *AnsiBuilder, LexToString(BufferToTest)); }
 
 	TEST_PAYLOAD_ID(EmptyId);
 	TEST_PAYLOAD_ID(BufferId0);

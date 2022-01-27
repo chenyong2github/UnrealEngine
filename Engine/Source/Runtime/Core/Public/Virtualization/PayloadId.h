@@ -97,10 +97,7 @@ inline uint32 GetTypeHash(const FPayloadId& Hash)
 template <typename CharType>
 TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FPayloadId& Id)
 {
-	if (Id.IsValid())
-	{
-		Builder << Id.Identifier;
-	}
+	Builder << Id.Identifier;
 
 	return Builder;
 }
