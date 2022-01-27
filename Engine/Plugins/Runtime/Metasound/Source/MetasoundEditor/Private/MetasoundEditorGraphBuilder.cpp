@@ -1248,7 +1248,8 @@ namespace Metasound
 
 		void FGraphBuilder::RefreshPinMetadata(UEdGraphPin& InPin, const FMetasoundFrontendVertexMetadata& InMetadata)
 		{
-			InPin.PinToolTip = InMetadata.GetDescription().ToString();
+			// Pin ToolTips are no longer cached on pins, and are instead dynamically generated via UMetasoundEditorGraphNode::GetPinHoverText
+			InPin.PinToolTip = { };
 			InPin.bAdvancedView = InMetadata.bIsAdvancedDisplay;
 			if (InPin.bAdvancedView)
 			{

@@ -245,58 +245,49 @@ namespace Metasound
 				// Don't show default value field for container types
 				if (InPin->PinType.ContainerType != EPinContainerType::None)
 				{
-					PinWidget = SNew(SMetasoundGraphPin, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPin, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 				{
-					PinWidget = SNew(SMetasoundGraphPin, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPin, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
 				{
-					PinWidget = SNew(SMetasoundGraphPinBool, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPinBool, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
 				{
-					PinWidget = SNew(SMetasoundGraphPinFloat, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPinFloat, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
 				{
 					if (SMetasoundGraphEnumPin::FindEnumInterfaceFromPin(InPin))
 					{
-						PinWidget = SNew(SMetasoundGraphEnumPin, InPin)
-							.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+						PinWidget = SNew(SMetasoundGraphEnumPin, InPin);
 					}
 					else
 					{
-						PinWidget = SNew(SMetasoundGraphPinInteger, InPin)
-							.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+						PinWidget = SNew(SMetasoundGraphPinInteger, InPin);
 					}
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryObject)
 				{
-					PinWidget = SNew(SMetasoundGraphPinObject, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPinObject, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryString)
 				{
-					PinWidget = SNew(SMetasoundGraphPinString, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPinString, InPin);
 				}
 
 				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 				{
-					PinWidget = SNew(SMetasoundGraphPin, InPin)
-						.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+					PinWidget = SNew(SMetasoundGraphPin, InPin);
 
 					if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 					{
@@ -309,8 +300,7 @@ namespace Metasound
 
 			if (!PinWidget.IsValid())
 			{
-				PinWidget = SNew(SMetasoundGraphPin, InPin)
-					.ToolTipText(this, &SMetaSoundGraphNode::GetPinTooltip, InPin);
+				PinWidget = SNew(SMetasoundGraphPin, InPin);
 			}
 
 			return PinWidget;
@@ -341,22 +331,6 @@ namespace Metasound
 				}
 
 				AddPin(NewPin.ToSharedRef());
-			}
-		}
-
-		FText SMetaSoundGraphNode::GetPinTooltip(UEdGraphPin* InPin) const
-		{
-			using namespace Frontend;
-
-			if (InPin->Direction == EGPD_Input)
-			{
-				FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(InPin);
-				return InputHandle->GetTooltip();
-			}
-			else
-			{
-				FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(InPin);
-				return OutputHandle->GetTooltip();
 			}
 		}
 

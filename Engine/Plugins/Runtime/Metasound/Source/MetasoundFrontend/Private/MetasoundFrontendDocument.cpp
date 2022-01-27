@@ -9,6 +9,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
+#include "MetasoundVertex.h"
 
 namespace Metasound
 {
@@ -181,6 +182,105 @@ bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 	return !(InLHS == InRHS);
 }
 
+FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	FMetasoundFrontendClassInterface ClassInterface;
+
+	// Copy over inputs
+	{
+		const FInputVertexInterface& InputInterface = InNodeClassMetadata.DefaultInterface.GetInputInterface();
+		FMetasoundFrontendInterfaceStyle InputStyle;
+		for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
+		{
+			FMetasoundFrontendClassInput ClassInput;
+
+			const FInputDataVertex& InputVertex = InputTuple.Value;
+			ClassInput.Name = InputVertex.GetVertexName();
+			ClassInput.TypeName = InputVertex.GetDataTypeName();
+			ClassInput.VertexID = FGuid::NewGuid();
+
+			const FDataVertexMetadata& VertexMetadata = InputVertex.GetMetadata();
+
+			ClassInput.Metadata.SetSerializeText(false);
+			ClassInput.Metadata.SetDescription(VertexMetadata.Description);
+
+			ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
+
+			FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
+			if (DefaultLiteral.GetType() != ELiteralType::Invalid)
+			{
+				ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
+			}
+
+			// Advanced display items are pushed to bottom of sort order
+			int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+			if (ClassInput.Metadata.bIsAdvancedDisplay)
+			{
+				OrderIndex += InputInterface.Num();
+			}
+			InputStyle.DefaultSortOrder.Add(OrderIndex);
+
+			ClassInterface.Inputs.Add(MoveTemp(ClassInput));
+		}
+
+		// Must set via direct accessor to avoid updating the change GUID
+		// (All instances of this generation call should be done for code
+		// defined classes only, which do not currently create a persistent
+		// change hash between builds and leave the guid 0'ed).
+		ClassInterface.InputStyle = InputStyle;
+	}
+
+	// Copy over outputs
+	{
+		const FOutputVertexInterface& OutputInterface = InNodeClassMetadata.DefaultInterface.GetOutputInterface();
+		FMetasoundFrontendInterfaceStyle OutputStyle;
+		for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
+		{
+			FMetasoundFrontendClassOutput ClassOutput;
+
+			ClassOutput.Name = OutputTuple.Value.GetVertexName();
+			ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
+			ClassOutput.VertexID = FGuid::NewGuid();
+
+			const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
+			ClassOutput.Metadata.SetSerializeText(false);
+			ClassOutput.Metadata.SetDescription(VertexMetadata.Description);
+			ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
+
+			// Advanced display items are pushed to bottom below non-advanced
+			int32 OrderIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+			if (ClassOutput.Metadata.bIsAdvancedDisplay)
+			{
+				OrderIndex += OutputInterface.Num();
+			}
+			OutputStyle.DefaultSortOrder.Add(OrderIndex);
+
+			ClassInterface.Outputs.Add(MoveTemp(ClassOutput));
+		}
+
+		// Must set via direct accessor to avoid updating the change GUID
+		// (All instances of this generation call should be done for code
+		// defined classes only, which do not currently create a persistent
+		// change hash between builds and leave the guid 0'ed).
+		ClassInterface.OutputStyle = MoveTemp(OutputStyle);
+	}
+
+	for (auto& EnvTuple : InNodeClassMetadata.DefaultInterface.GetEnvironmentInterface())
+	{
+		FMetasoundFrontendClassEnvironmentVariable EnvVar;
+
+		EnvVar.Name = EnvTuple.Value.GetVertexName();
+		EnvVar.bIsRequired = true;
+
+		ClassInterface.Environment.Add(EnvVar);
+	}
+
+	return ClassInterface;
+}
+
 void FMetasoundFrontendClassMetadata::SetAuthor(const FText& InAuthor)
 {
 	using namespace Metasound::DocumentPrivate;
@@ -288,19 +388,19 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 }
 
 #if WITH_EDITORONLY_DATA
-bool FMetasoundFrontendClass::CacheRegistryMetadata()
+bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoundFrontendClass& InOutDependency)
 {
 	using namespace Metasound::Frontend;
 
-	const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(Metadata);
-	FMetasoundFrontendClass Class;
+	const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(InOutDependency.Metadata);
+	FMetasoundFrontendClass RegistryClass;
 
 	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 	if (ensure(Registry))
 	{
-		if (Registry->FindFrontendClassFromRegistered(Key, Class))
+		if (Registry->FindFrontendClassFromRegistered(Key, RegistryClass))
 		{
-			Metadata = Class.Metadata;
+			InOutDependency.Metadata = RegistryClass.Metadata;
 
 			using FNameTypeKey = TPair<FName, FName>;
 			TMap<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> InterfaceMembers;
@@ -317,20 +417,22 @@ bool FMetasoundFrontendClass::CacheRegistryMetadata()
 				if (const FMetasoundFrontendVertexMetadata* RegVertex = InterfaceMembers.FindRef(Key))
 				{
 					OutVertex.Metadata = *RegVertex;
+					OutVertex.Metadata.SetSerializeText(false);
 				}
 			};
 
-			Algo::Transform(Class.Interface.Inputs, InterfaceMembers, [&](const FMetasoundFrontendClassInput& Input) { return MakePairFromVertex(Input); });
-			Algo::ForEach(Interface.Inputs, [&](FMetasoundFrontendClassInput& Input) { CacheRegistryVertexMetadata(Input); });
+			Algo::Transform(RegistryClass.Interface.Inputs, InterfaceMembers, [&](const FMetasoundFrontendClassInput& Input) { return MakePairFromVertex(Input); });
+			Algo::ForEach(InOutDependency.Interface.Inputs, [&](FMetasoundFrontendClassInput& Input) { CacheRegistryVertexMetadata(Input); });
 
 			InterfaceMembers.Reset();
 
-			Algo::Transform(Class.Interface.Outputs, InterfaceMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
-			Algo::ForEach(Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output) { CacheRegistryVertexMetadata(Output); });
+			Algo::Transform(RegistryClass.Interface.Outputs, InterfaceMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
+			Algo::ForEach(InOutDependency.Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output) { CacheRegistryVertexMetadata(Output); });
 
-			Interface.InputStyle = Class.Interface.InputStyle;
-			Interface.OutputStyle = Class.Interface.OutputStyle;
-			Style = Class.Style;
+			InOutDependency.Interface.InputStyle = RegistryClass.Interface.InputStyle;
+			InOutDependency.Interface.OutputStyle = RegistryClass.Interface.OutputStyle;
+
+			InOutDependency.Style = RegistryClass.Style;
 
 			return true;
 		}

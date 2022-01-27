@@ -250,6 +250,23 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 	return NodeHandle->GetDisplayTitle();
 }
 
+void UMetasoundEditorGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& OutHoverText) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (Pin.Direction == EGPD_Input)
+	{
+		FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(&Pin);
+		OutHoverText = InputHandle->GetTooltip().ToString();
+	}
+	else // Pin.Direction == EGPD_Output
+	{
+		FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(&Pin);
+		OutHoverText = OutputHandle->GetTooltip().ToString();
+	}
+}
+
 void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 {
 	using namespace Metasound::Editor;

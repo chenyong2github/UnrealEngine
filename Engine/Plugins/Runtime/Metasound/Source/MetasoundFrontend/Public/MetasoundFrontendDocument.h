@@ -838,6 +838,10 @@ private:
 	FMetasoundFrontendInterfaceStyle OutputStyle;
 
 public:
+	// Generates class interface intended to be used as a registry descriptor from FNodeClassMetadata.
+	// Does not initialize a change ID as it is not considered to be transactional.
+	static FMetasoundFrontendClassInterface GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
+
 	// Description of class inputs.
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	TArray<FMetasoundFrontendClassInput> Inputs;
@@ -1170,12 +1174,13 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 
 #if WITH_EDITORONLY_DATA
 	/*
-	 * Caches transient metadata (class & vertex) found in the registry
-	 * that is not necessary for serialization or core graph generation.
+	 * Caches transient style, class & vertex Metadata found in the registry
+	 * on a passed (presumed) dependency.  Only modifies properties that are
+	 * not necessary for serialization or core graph generation.
 	 *
 	 * @return - Whether class was found in the registry & data was cached successfully.
 	 */
-	bool CacheRegistryMetadata();
+	static bool CacheGraphDependencyMetadataFromRegistry(FMetasoundFrontendClass& InOutDependency);
 #endif // WITH_EDITORONLY_DATA
 };
 

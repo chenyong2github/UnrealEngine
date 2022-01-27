@@ -71,8 +71,6 @@ namespace Metasound
 
 			TAttribute<EVisibility> GetSimulationVisibilityAttribute() const;
 
-			FText GetPinTooltip(UEdGraphPin* InPin) const;
-
 			// Slider widget for float input
 			TSharedPtr<SAudioInputWidget> InputWidget;
 			// Handle for on value changed delegate for input slider 
