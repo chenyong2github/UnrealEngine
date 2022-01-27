@@ -78,6 +78,7 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	virtual void RenameGraphAssignmentAndSetNodePins(const FName OldName, const FName NewName) override;
 
 	virtual void GetLinkedPositionTypeInputs(const TArray<FNiagaraVariable>& ParametersToCheck, TSet<FNiagaraVariable>& OutLinkedParameters) override;
+	virtual void ChangedLinkedInputTypes(const FNiagaraVariable& ParametersToChange, const FNiagaraTypeDefinition& NewType) override;
 private:
 	void OnGraphChanged(const FEdGraphEditAction &Action);
 	void OnGraphDataInterfaceChanged();

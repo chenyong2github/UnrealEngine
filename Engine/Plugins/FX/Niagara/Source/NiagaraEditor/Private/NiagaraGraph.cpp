@@ -404,6 +404,69 @@ void UNiagaraGraph::PostLoad()
 	InvalidateCachedParameterData();
 }
 
+void UNiagaraGraph::ChangeParameterType(const FNiagaraVariable& CurrentParameter, const FNiagaraTypeDefinition& NewType)
+{
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	TArray<UNiagaraNodeParameterMapBase*> NiagaraParameterNodes;
+	GetNodesOfClass<UNiagaraNodeParameterMapBase>(NiagaraParameterNodes);
+	for (UNiagaraNodeParameterMapBase* NiagaraNode : NiagaraParameterNodes)
+	{
+		for (UEdGraphPin* Pin : NiagaraNode->Pins)
+		{
+			if (NiagaraNode->IsAddPin(Pin))
+			{
+				continue;
+			}
+			FNiagaraVariable Variable = FNiagaraVariable(NiagaraSchema->PinToTypeDefinition(Pin), Pin->PinName);
+			if (Variable == CurrentParameter)
+			{
+				Pin->Modify();
+				Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(NewType);
+				NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+				break;
+			}
+
+			// fix default pin types if necessary
+			if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode))
+			{
+				UEdGraphPin* DefaultPin = GetNode->GetDefaultPin(Pin);
+				if (Pin->Direction == EGPD_Output && DefaultPin && DefaultPin->PinType != Pin->PinType)
+				{
+					DefaultPin->PinType = Pin->PinType;
+					NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+				}
+			}
+		}
+	}
+	
+	TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(CurrentParameter);
+	if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
+	{
+		UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
+		ScriptVar.Modify();
+		ScriptVar.Variable.SetType(NewType);
+		VariableToScriptVariable.Remove(CurrentParameter);
+
+		FNiagaraVariable NewVarType(NewType, CurrentParameter.GetName());
+		VariableToScriptVariable.Add(NewVarType, TObjectPtr<UNiagaraScriptVariable>(&ScriptVar));
+		ScriptVariableChanged(NewVarType);
+	}
+
+	// Also fix stale parameter reference map entries. This should usually happen in RefreshParameterReferences, but since we just changed VariableToScriptVariable we need to fix that as well. 
+	FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(CurrentParameter);
+	if (ReferenceCollection != nullptr)
+	{
+		if (ReferenceCollection->ParameterReferences.Num() > 0)
+		{
+			FNiagaraVariable NewVarType(NewType, CurrentParameter.GetName());
+			FNiagaraGraphParameterReferenceCollection NewReferenceCollection = *ReferenceCollection;
+			ParameterToReferencesMap.Add(NewVarType, NewReferenceCollection);
+		}
+		ParameterToReferencesMap.Remove(CurrentParameter);
+	}
+	InvalidateCachedParameterData();
+}
+
 TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName VariableName) const
 {
 	TArray<UEdGraphPin*> DefaultPins;

@@ -649,3 +649,12 @@ void UNiagaraScriptSource::GetLinkedPositionTypeInputs(const TArray<FNiagaraVari
 		}
 	}
 }
+
+void UNiagaraScriptSource::ChangedLinkedInputTypes(const FNiagaraVariable& ParametersToChange, const FNiagaraTypeDefinition& NewType)
+{
+	if (!NodeGraph)
+	{
+		return;
+	}
+	NodeGraph->ChangeParameterType(ParametersToChange, NewType);
+}

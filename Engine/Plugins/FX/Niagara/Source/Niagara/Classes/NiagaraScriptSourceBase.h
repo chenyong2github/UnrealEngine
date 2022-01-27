@@ -171,6 +171,7 @@ class UNiagaraScriptSourceBase : public UObject
 	/** Checks if any of the provided variables are linked to function inputs of position type data
 	 */
 	virtual void GetLinkedPositionTypeInputs(const TArray<FNiagaraVariable>& ParametersToCheck, TSet<FNiagaraVariable>& OutLinkedParameters) {};
+	virtual void ChangedLinkedInputTypes(const FNiagaraVariable& ParametersToCheck, const FNiagaraTypeDefinition& NewType) {};
 
 protected:
 	FOnChanged OnChangedDelegate;
