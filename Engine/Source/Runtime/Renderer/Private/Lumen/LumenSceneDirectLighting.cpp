@@ -1030,12 +1030,18 @@ void TraceDistanceFieldShadows(
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
 
-	const bool bTraceMeshSDFs = Light.bHasShadows
+	// Whether to trace individual mesh SDFs or heightfield objects for higher quality offscreen shadowing
+	const bool bTraceMeshObjects = Light.bHasShadows
 		&& Light.Type == ELumenLightType::Directional
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
-		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
+		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0;
+
+	const bool bTraceMeshSDFs = bTraceMeshObjects
 		&& Lumen::UseMeshSDFTracing(*View.Family)
 		&& ObjectBufferParameters.NumSceneObjects > 0;
+
+	const bool bTraceHeighfieldObjects = bTraceMeshObjects 
+		&& Lumen::UseHeightfields(LumenSceneData);
 
 	if (bTraceMeshSDFs)
 	{
@@ -1077,7 +1083,7 @@ void TraceDistanceFieldShadows(
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
-	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceHeightfields>(Lumen::UseHeightfields(LumenSceneData));
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceHeightfields>(bTraceHeighfieldObjects);
 	PermutationVector = FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
 
 	TShaderRef<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS> ComputeShader = View.ShaderMap->GetShader<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS>(PermutationVector);
