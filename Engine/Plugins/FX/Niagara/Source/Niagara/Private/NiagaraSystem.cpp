@@ -704,7 +704,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	bFullyLoaded = true;
 
 #if WITH_EDITORONLY_DATA
-	if (SystemSpawnScript)
+	if (SystemSpawnScript && !GetOutermost()->bIsCookedForEditor)
 	{
 		ensure(SystemSpawnScript->GetLatestSource() != nullptr);
 		ensure(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
@@ -3132,7 +3132,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		return false;
 	}
 
-	if (!AllowShaderCompiling())
+	if (!AllowShaderCompiling() || GetOutermost()->bIsCookedForEditor)
 	{
 		return false;
 	}
