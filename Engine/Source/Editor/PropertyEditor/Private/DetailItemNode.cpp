@@ -863,4 +863,24 @@ void FDetailItemNode::FilterNode(const FDetailFilter& InFilter)
 			}
 		}
 	}
+
+	// if this is a subcategory, it should only be visible if one or more of its children is visible
+	if (Customization.HasPropertyNode() &&
+		Customization.GetPropertyNode()->AsCategoryNode() && 
+		bShouldBeVisibleDueToFiltering)
+	{
+		bool bAnyChildVisible = false;
+		for (const TSharedRef<FDetailTreeNode>& Child : Children)
+		{
+			if (Child->GetVisibility() == ENodeVisibility::Visible)
+			{
+				bAnyChildVisible = true;
+				break;
+			}
+		}
+		if (!bAnyChildVisible)
+		{
+			bShouldBeVisibleDueToFiltering = false;
+		}
+	}
 }
