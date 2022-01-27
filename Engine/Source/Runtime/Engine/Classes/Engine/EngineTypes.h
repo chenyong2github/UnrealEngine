@@ -2463,7 +2463,7 @@ struct ENGINE_API FHitResult
 
 		FName TempBoneName = Result.BoneName;
 		Result.BoneName = Result.MyBoneName;
-		Result.MyBoneName = Result.BoneName;
+		Result.MyBoneName = TempBoneName;
 		return Result;
 	}
 
