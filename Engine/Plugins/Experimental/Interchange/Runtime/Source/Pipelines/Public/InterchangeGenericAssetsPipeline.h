@@ -179,7 +179,7 @@ public:
 
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Materials")
-	UInterchangeGenericMaterialPipeline* MaterialPipeline;
+	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialPipeline;
 
 
 	//////	TEXTURES_CATEGORY Properties //////
