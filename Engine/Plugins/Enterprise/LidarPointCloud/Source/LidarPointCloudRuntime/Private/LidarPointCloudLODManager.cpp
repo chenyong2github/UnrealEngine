@@ -720,10 +720,11 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 void FLidarPointCloudLODManager::ForceProcessLOD()
 {
-	check(IsInGameThread());
-	
-	PrepareProxies();
-	ProcessLOD(RegisteredProxies, Time, LastPointBudget, GetClippingVolumes());
+	if(IsInGameThread())
+	{
+		PrepareProxies();
+		ProcessLOD(RegisteredProxies, Time, LastPointBudget, GetClippingVolumes());
+	}
 }
 
 void FLidarPointCloudLODManager::PrepareProxies()

@@ -853,7 +853,9 @@ void FLidarPointCloudOctreeNode::SortVisiblePoints()
 FLidarPointCloudOctree::FLidarPointCloudOctree(ULidarPointCloud* Owner)
 	: Root(new FLidarPointCloudOctreeNode(nullptr, 0))
 	, Owner(Owner)
-	, BulkData(this)
+#if WITH_EDITOR
+	, SavingBulkData(this)
+#endif
 	, bStreamingBusy(false)
 	, bIsFullyLoaded(false)
 {
@@ -2445,7 +2447,7 @@ void FLidarPointCloudOctree::Serialize(FArchive& Ar)
 		if (Ar.IsSaving())
 		{
 			LoadAllNodes(true);
-			BulkData.CloseReadHandle();
+			CloseReadHandle();
 		}
 
 		int64 BulkDataOffset = 0;
@@ -2477,8 +2479,17 @@ void FLidarPointCloudOctree::Serialize(FArchive& Ar)
 				}
 			}
 		}, true);
-
-		BulkData.Serialize(Ar, Owner);
+		
+#if WITH_EDITOR
+		if(Ar.IsSaving())
+		{
+			SavingBulkData.Serialize(Ar);
+		}
+		else
+#endif
+		{
+			BulkData.Serialize(Ar, Owner);
+		}
 	}
 
 	// Legacy Points Extent
@@ -2513,68 +2524,24 @@ void FLidarPointCloudOctree::SerializeBulkData(FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
-		ITERATE_NODES({ Ar.Serialize(CurrentNode->Data.GetData(), CurrentNode->BulkDataSize); }, true);
-	}
-	else
-	{
 		ITERATE_NODES({
-			CurrentNode->Data.SetNumUninitialized(CurrentNode->NumPoints);
-			CurrentNode->bCanReleaseData = false;
 			Ar.Serialize(CurrentNode->Data.GetData(), CurrentNode->BulkDataSize);
-			CurrentNode->bHasData = true;
-			CurrentNode->bRenderDataDirty = true;
+			CurrentNode->ReleaseData(true);
 		}, true);
 	}
 }
 
-void FLidarPointCloudOctree::StreamNodeData(FLidarPointCloudOctreeNode* Node)
+IAsyncReadFileHandle* FLidarPointCloudOctree::GetReadHandle()
 {
-	Node->Data.SetNumUninitialized(Node->NumPoints);
-	Node->bHasData = BulkData.ReadRequest(Node->BulkDataOffset, Node->BulkDataSize, (uint8*)Node->Data.GetData());
-	
-	if (!Node->bHasData)
+	if(!ReadHandle)
 	{
-		Node->Data.Empty();
-	}
-}
-
-//////////////////////////////////////////////////////////// FLidarPointCloudOctree::FLidarPointCloudBulkData
-
-FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree)
-	: Octree(Octree)
-{
-	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_Size64Bit);
-
-	// Dummy
-	Lock(LOCK_READ_WRITE);
-	*(uint8*)Realloc(1) = 0;
-	Unlock();
-}
-
-FLidarPointCloudOctree::FLidarPointCloudBulkData::~FLidarPointCloudBulkData()
-{
-	CloseReadHandle();
-}
-
-bool FLidarPointCloudOctree::FLidarPointCloudBulkData::ReadRequest(int64 Offset, int64 BytesToRead, uint8* UserSuppliedMemory)
-{
-	if (!ReadHandle)
-	{
-		ReadHandle = OpenAsyncReadHandle();
+		ReadHandle = BulkData.OpenAsyncReadHandle();
 	}
 
-	if (ReadHandle)
-	{
-		IAsyncReadRequest* ReadRequest = ReadHandle->ReadRequest(GetBulkDataOffsetInFile() + Offset, BytesToRead, AIOP_Normal, nullptr, UserSuppliedMemory);
-		ReadRequest->WaitCompletion();
-		delete ReadRequest;
-		return true;
-	}
-
-	return false;
+	return ReadHandle;
 }
 
-void FLidarPointCloudOctree::FLidarPointCloudBulkData::CloseReadHandle()
+void FLidarPointCloudOctree::CloseReadHandle()
 {
 	if (ReadHandle)
 	{
@@ -2583,10 +2550,46 @@ void FLidarPointCloudOctree::FLidarPointCloudBulkData::CloseReadHandle()
 	}
 }
 
-void FLidarPointCloudOctree::FLidarPointCloudBulkData::SerializeElements(FArchive& Ar, void* Data)
+void FLidarPointCloudOctree::StreamNodeData(FLidarPointCloudOctreeNode* Node)
 {
-	Octree->SerializeBulkData(Ar);
+	if (GetReadHandle())
+	{
+		Node->Data.SetNumUninitialized(Node->NumPoints);		
+		IAsyncReadRequest* ReadRequest = ReadHandle->ReadRequest(
+			BulkData.GetBulkDataOffsetInFile() + Node->BulkDataOffset,
+			Node->BulkDataSize,
+			AIOP_Normal,
+			nullptr,
+			(uint8*)Node->Data.GetData());
+		ReadRequest->WaitCompletion();
+		delete ReadRequest;
+		Node->bHasData = true;
+	}
+	else
+	{
+		Node->bHasData = false;
+		Node->Data.Empty();
+	}
 }
+
+//////////////////////////////////////////////////////////// FLidarPointCloudBulkData
+
+#if WITH_EDITOR
+FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree): Octree(Octree)
+{
+	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+	Lock(LOCK_READ_WRITE);
+	Realloc(2);
+	Unlock();
+}
+
+void FLidarPointCloudOctree::FLidarPointCloudBulkData::Serialize(FArchive& Ar)
+{
+	ElementSize = Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() ? INT32_MAX : 1;
+	FByteBulkData::Serialize(Ar, Octree->GetOwner());
+	ElementSize = 1;
+}
+#endif
 
 //////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctreeNode
 

@@ -267,25 +267,24 @@ private:
 	/** Pointer to the owner of this Octree */
 	ULidarPointCloud* Owner;
 
-	struct FLidarPointCloudBulkData : public FUntypedBulkData
+	IAsyncReadFileHandle* ReadHandle;
+
+	FByteBulkData BulkData;
+
+#if WITH_EDITOR
+	struct FLidarPointCloudBulkData : public FByteBulkData
 	{
-	private:
 		FLidarPointCloudOctree* Octree;
-		IAsyncReadFileHandle* ReadHandle;
-
-	public:
+		int32 ElementSize = 1;
+		
 		FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree);
-		virtual ~FLidarPointCloudBulkData();
-		virtual int32 GetElementSize() const override { return 1; }
-		bool ReadRequest(int64 Offset, int64 BytesToRead, uint8* UserSuppliedMemory);
-		FORCEINLINE void CloseReadHandle();
-
-	protected:
-		virtual void SerializeElements(FArchive& Ar, void* Data) override;
-		virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override { };
+		virtual int32 GetElementSize() const override { return ElementSize; }
+		virtual void SerializeElements(FArchive& Ar, void* Data) override { Octree->SerializeBulkData(Ar); }
 		virtual bool RequiresSingleElementSerialization(FArchive& Ar) override { return true; }
-	} BulkData;
-
+		void Serialize(FArchive& Ar);
+	} SavingBulkData;
+#endif
+	
 	TQueue<FLidarPointCloudOctreeNode*> QueuedNodes;
 	TArray<FLidarPointCloudOctreeNode*> NodesInUse;
 
@@ -554,6 +553,9 @@ public:
 	void OptimizeForDynamicData();
 
 	void OptimizeForStaticData();
+
+	IAsyncReadFileHandle* GetReadHandle();
+	void CloseReadHandle();
 
 	//~ Begin Deprecated
 	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")

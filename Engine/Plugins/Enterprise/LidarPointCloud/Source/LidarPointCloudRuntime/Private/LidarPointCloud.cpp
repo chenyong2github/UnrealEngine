@@ -379,7 +379,7 @@ void ULidarPointCloud::ClearAllCachedCookedPlatformData()
 {
 	if (GetDefault<ULidarPointCloudSettings>()->bReleaseAssetAfterCooking)
 	{
-		UPackageTools::ReloadPackages({ GetOutermost() });
+		Octree.ReleaseAllNodes(true);
 	}
 }
 
