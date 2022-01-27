@@ -41,7 +41,7 @@ public:
 
 private:
 	UPROPERTY()
-	UInterchangeBaseNodeContainer* BaseNodeContainer;
+	TObjectPtr<UInterchangeBaseNodeContainer> BaseNodeContainer;
 
 	TArray<const UInterchangeSourceData*> SourceDatas;
 	

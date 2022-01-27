@@ -58,7 +58,7 @@ namespace UE
 						}
 					}
 
-					if (MaterialExpressionClass->IsChildOf<UMaterialExpression>())
+					if (MaterialExpressionClass && MaterialExpressionClass->IsChildOf<UMaterialExpression>())
 					{
 						return MaterialExpressionClass;
 					}
