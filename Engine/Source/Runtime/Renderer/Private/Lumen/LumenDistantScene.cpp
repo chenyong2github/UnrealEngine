@@ -136,10 +136,10 @@ static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
-	TEXT("r.LumenScene.Heightfield.Tracing"),
+static TAutoConsoleVariable<int32> CVarLumenSceneHeightfield(
+	TEXT("r.LumenScene.Heightfield"),
 	0,
-	TEXT("Enables heightfield tracing (default = 0)"),
+	TEXT("Enables heightfield (Landscape) software ray tracing (default = 0)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -166,10 +166,10 @@ namespace Lumen
 		return FVector(0.0f, 0.0f, CVarLumenFarFieldReferencePosZ.GetValueOnRenderThread());
 	}
 
-	bool UseHeightfieldTracing()
+	bool UseHeightfields()
 	{
 		// TODO: Validate that there are heightfields..
-		return CVarLumenSceneHeightfieldTracing.GetValueOnRenderThread() != 0;
+		return CVarLumenSceneHeightfield.GetValueOnRenderThread() != 0;
 	}
 }
 

@@ -707,7 +707,7 @@ void TraceReflections(
 
 					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
-					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfieldTracing());
+					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfields());
 					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(

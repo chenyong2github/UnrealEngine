@@ -103,14 +103,6 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneVoxelLightingUseHeightfieldTracing = 0;
-FAutoConsoleVariableRef CVarLumenSceneVoxelLightingUseHeightfieldTracing(
-	TEXT("r.LumenScene.VoxelLighting.Heightfield.Tracing"),
-	GLumenSceneVoxelLightingUseHeightfieldTracing,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 constexpr uint32 GNumVoxelDirections = 6;
 constexpr uint32 GVisBufferTileSize = 4;
 
@@ -1165,7 +1157,7 @@ void UpdateVoxelVisBuffer(
 			}
 
 			// Height-field voxelization
-			if (GLumenSceneVoxelLightingUseHeightfieldTracing != 0)
+			if (Lumen::UseHeightfields())
 			{
 				// Clear indirect args
 				FRDGBufferRef DummyClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.UpdateIndirectArgBuffer"));
