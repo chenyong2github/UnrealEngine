@@ -167,7 +167,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (P1.Type != HAIR_CONTROLPOINT_START)
 	{
-		AddLine(mul(float4(P0.Position, 1), LocalToWorld), mul(float4(P1.Position,1), LocalToWorld), Color, Color);
+		AddLineWS(mul(float4(P0.Position, 1), LocalToWorld), mul(float4(P1.Position,1), LocalToWorld), Color, Color);
 	}
 }
 

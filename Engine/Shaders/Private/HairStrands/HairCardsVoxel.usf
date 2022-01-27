@@ -106,7 +106,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (uint(PixelCoord.x) == 0 && uint(PixelCoord.y) == 0)
 	{
-		AddAABB(Voxel_MinBound, Voxel_MaxBound, float4(1, 0.5f, 0, 1));
+		AddAABBWS(Voxel_MinBound, Voxel_MaxBound, float4(1, 0.5f, 0, 1));
 	}
 
 	bool bIsValid = false;
@@ -196,10 +196,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					//HitColor = float(Density) / 10.f;
 					if (bDebugEnabled)
 					{
-						//AddLine(HitP, HitP + UnoccludedDirection * 3, float4(1, 0, 0, 1), float4(1, 1, 0, 1));
+						//AddLineWS(HitP, HitP + UnoccludedDirection * 3, float4(1, 0, 0, 1), float4(1, 1, 0, 1));
 
-						AddLine(HitP, HitP + Tangent * 3, float4(0, 0, 1, 1), float4(0, 0, 1, 1));
-						AddLine(HitP, HitP + Normal * 3, float4(1, 0, 0, 1), float4(1, 0, 0, 1));
+						AddLineWS(HitP, HitP + Tangent * 3, float4(0, 0, 1, 1), float4(0, 0, 1, 1));
+						AddLineWS(HitP, HitP + Normal * 3, float4(1, 0, 0, 1), float4(1, 0, 0, 1));
 					}
 
 					break;

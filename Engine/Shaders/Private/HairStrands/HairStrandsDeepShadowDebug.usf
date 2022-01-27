@@ -148,11 +148,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	for (uint MacroGroupIt = 0; MacroGroupIt < MacroGroupCount; ++MacroGroupIt)
 	{
-		const FHairAABB Bound = ReadHairAABB(MacroGroupIt, MacroGroupAABBBuffer); // HAIR_LWC
-		AddAABB(Bound.Min, Bound.Max, float4(1, 0.5f, 0, 1));
+		const FHairAABB Bound = ReadHairAABB(MacroGroupIt, MacroGroupAABBBuffer);
+		AddAABBTWS(Bound.Min, Bound.Max, float4(1, 0.5f, 0, 1));
 	}
-
-	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
 
 	const float4 FrustumColor = float4(0.5f, 1, 0, 1);
 	for (uint SlotIt = 0; SlotIt < AllocatedSlotCount; ++SlotIt)
@@ -170,30 +168,30 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float4 P20 = float4( 1,  1, 1, 1);
 		float4 P30 = float4( 1, -1, 1, 1);
 
-		P00 = mul(P00, ClipToTranslatedWorld); P00 /= P00.w; P00.xyz += TranslatedWorldOffset;
-		P10 = mul(P10, ClipToTranslatedWorld); P10 /= P10.w; P10.xyz += TranslatedWorldOffset;
-		P20 = mul(P20, ClipToTranslatedWorld); P20 /= P20.w; P20.xyz += TranslatedWorldOffset;
-		P30 = mul(P30, ClipToTranslatedWorld); P30 /= P30.w; P30.xyz += TranslatedWorldOffset;
+		P00 = mul(P00, ClipToTranslatedWorld); P00 /= P00.w;
+		P10 = mul(P10, ClipToTranslatedWorld); P10 /= P10.w;
+		P20 = mul(P20, ClipToTranslatedWorld); P20 /= P20.w;
+		P30 = mul(P30, ClipToTranslatedWorld); P30 /= P30.w;
 
-		P01 = mul(P01, ClipToTranslatedWorld); P01 /= P01.w; P01.xyz += TranslatedWorldOffset;
-		P11 = mul(P11, ClipToTranslatedWorld); P11 /= P11.w; P11.xyz += TranslatedWorldOffset;
-		P21 = mul(P21, ClipToTranslatedWorld); P21 /= P21.w; P21.xyz += TranslatedWorldOffset;
-		P31 = mul(P31, ClipToTranslatedWorld); P31 /= P31.w; P31.xyz += TranslatedWorldOffset;
+		P01 = mul(P01, ClipToTranslatedWorld); P01 /= P01.w;
+		P11 = mul(P11, ClipToTranslatedWorld); P11 /= P11.w;
+		P21 = mul(P21, ClipToTranslatedWorld); P21 /= P21.w;
+		P31 = mul(P31, ClipToTranslatedWorld); P31 /= P31.w;
 
-		AddLine(P00, P10, FrustumColor, FrustumColor);
-		AddLine(P10, P20, FrustumColor, FrustumColor);
-		AddLine(P20, P30, FrustumColor, FrustumColor);
-		AddLine(P30, P00, FrustumColor, FrustumColor);
+		AddLineTWS(P00, P10, FrustumColor, FrustumColor);
+		AddLineTWS(P10, P20, FrustumColor, FrustumColor);
+		AddLineTWS(P20, P30, FrustumColor, FrustumColor);
+		AddLineTWS(P30, P00, FrustumColor, FrustumColor);
 
-		AddLine(P00, P01, FrustumColor, FrustumColor);
-		AddLine(P10, P11, FrustumColor, FrustumColor);
-		AddLine(P20, P21, FrustumColor, FrustumColor);
-		AddLine(P30, P31, FrustumColor, FrustumColor);
+		AddLineTWS(P00, P01, FrustumColor, FrustumColor);
+		AddLineTWS(P10, P11, FrustumColor, FrustumColor);
+		AddLineTWS(P20, P21, FrustumColor, FrustumColor);
+		AddLineTWS(P30, P31, FrustumColor, FrustumColor);
 
-		AddLine(P01, P11, FrustumColor, FrustumColor);
-		AddLine(P11, P21, FrustumColor, FrustumColor);
-		AddLine(P21, P31, FrustumColor, FrustumColor);
-		AddLine(P31, P01, FrustumColor, FrustumColor);
+		AddLineTWS(P01, P11, FrustumColor, FrustumColor);
+		AddLineTWS(P11, P21, FrustumColor, FrustumColor);
+		AddLineTWS(P21, P31, FrustumColor, FrustumColor);
+		AddLineTWS(P31, P01, FrustumColor, FrustumColor);
 	}
 }
 #endif // SHADER_DOMINFO

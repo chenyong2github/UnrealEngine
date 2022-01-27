@@ -343,14 +343,14 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const float4 DeformedColor = float4(1, 0, 0, 1);
 				if (VertexIndex==0)
 				{	
-					AddCross(InRenderHairPositionOffset, 1.2, RestColor);
-					AddCross(OutRenHairPositionOffset, 1, DeformedColor);
+					AddCrossWS(InRenderHairPositionOffset, 1.2, RestColor);
+					AddCrossWS(OutRenHairPositionOffset, 1, DeformedColor);
 				}
 			
 				if (VertexIndex >= 0 && VertexIndex < 64)
 				{
-					AddReferential(RestControlPoint, float3(0, 0, 1));
-					AddReferential(WorldVertexPosition, float3(0, 0, 1));
+					AddReferentialWS(RestControlPoint, float3(0, 0, 1));
+					AddReferentialWS(WorldVertexPosition, float3(0, 0, 1));
 				}
 
 				{
@@ -358,8 +358,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					const bool bIsRoot = ControlPointType == 1;
 					if (bIsRoot)
 					{
-						AddLineTriangle(RestTriangle.P0, RestTriangle.P1, RestTriangle.P2, RestColor);
-						AddLineTriangle(DeformedTriangle.P0, DeformedTriangle.P1, DeformedTriangle.P2, DeformedColor);
+						AddLineTriangleWS(RestTriangle.P0, RestTriangle.P1, RestTriangle.P2, RestColor);
+						AddLineTriangleWS(DeformedTriangle.P0, DeformedTriangle.P1, DeformedTriangle.P2, DeformedColor);
 					}
 				}
 			}
@@ -697,8 +697,8 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	if (ThreadIndex == 0)
 	{
 		const float4 DebugColor = float4(ColorMapViridis(ClusterId / float(TotalClusterCount)),1);
-		AddAABB(SharedClusterAABBMin[0], SharedClusterAABBMax[0], DebugColor);
-		AddReferential(LocalToWorldMatrix, 10);
+		AddAABBTWS(SharedClusterAABBMin[0], SharedClusterAABBMax[0], DebugColor);
+		AddReferentialWS(LocalToWorldMatrix, 10);
 	}
 	#endif
 

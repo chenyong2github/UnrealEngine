@@ -302,7 +302,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 				if (Offset < 2)
 				{
 					const FHairAABB Bound = ReadHairAABB(0, GroupAABBBuffer);
-					AddAABB(Bound.Min, Bound.Max, ColorRed);
+					AddAABBTWS(Bound.Min, Bound.Max, ColorRed);
 				}
 			}
 			s_InvalidMask[LinearIndex] = bIsInvalid ? 1u : 0u;

@@ -1737,7 +1737,7 @@ void MainDrawDebugShadowCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		if (OpticalDepth > 0.0f)
 		{
-			AddQuad(NearClipPlaneWorldPos00, NearClipPlaneWorldPos01, NearClipPlaneWorldPos11, NearClipPlaneWorldPos10, DebugColor);
+			AddQuadWS(NearClipPlaneWorldPos00, NearClipPlaneWorldPos01, NearClipPlaneWorldPos11, NearClipPlaneWorldPos10, DebugColor);
 		}
 	}
 }

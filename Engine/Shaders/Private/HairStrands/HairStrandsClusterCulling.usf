@@ -234,7 +234,7 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		{
 			const float4 GroupColor = float4(1.0f, 0.5f, 0.0f, 1.0f);
 			const FHairAABB Bound = ReadHairAABB(0, GroupAABBBuffer);
-			AddAABB(Bound.Min, Bound.Max, GroupColor);
+			AddAABBTWS(Bound.Min, Bound.Max, GroupColor);
 		}
 
 		const uint ClusterId = DispatchThreadId;
@@ -278,7 +278,7 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		}
 		#endif
 
-		AddAABB(Min, Max, Color);
+		AddAABBTWS(Min, Max, Color);
 	}
 }
 

@@ -91,8 +91,8 @@ void MainPS(
 
 	const float4 PixelLightAttenuation = 1.0f;
 	const float3 InRadiance = 0.5f;
-	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 CameraVector = normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 	const float3 TranslatedWorldPosition = WorldPosition;
 	const float3 V = -CameraVector;
 
@@ -102,8 +102,8 @@ void MainPS(
 	const bool bDebugEnabled = all(CursorCoord == uint2(PixelPos));
 	if (bDebugEnabled)
 	{
-		AddReferential(WorldPosition, TangentBasis[0], TangentBasis[1], TangentBasis[2], 3.f);
-		AddLine(WorldPosition, WorldPosition + V * 3.0f, ColorPurple);
+		AddReferentialTWS(WorldPosition, TangentBasis[0], TangentBasis[1], TangentBasis[2], 3.f);
+		AddLineTWS(WorldPosition, WorldPosition + V * 3.0f, ColorPurple);
 	}
 #endif
 
@@ -174,7 +174,7 @@ void MainPS(
 				{
 					const float Scale = Set == 0 ? 1.f : 2.0f;
 					const float4 DebugColor = Set == 0 ? ColorOrange : ColorEmerald;
-					AddLine(WorldPosition, WorldPosition + L * Scale, DebugColor);
+					AddLineTWS(WorldPosition, WorldPosition + L * Scale, DebugColor);
 				}
 				#endif
 

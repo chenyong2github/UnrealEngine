@@ -161,12 +161,12 @@ void DebugDrawUVBox(float3 InUVMin, float3 InUVMax, float4x4 InTransform, float4
 	WorldPos[6] = mul(float4(InUVMin.x, InUVMax.y, InUVMax.z, 1), InTransform);
 	WorldPos[7] = mul(float4(InUVMax.x, InUVMax.y, InUVMax.z, 1), InTransform);
 
-	AddQuad(WorldPos[0], WorldPos[2], WorldPos[3], WorldPos[1], InColor);
-	AddQuad(WorldPos[4], WorldPos[6], WorldPos[7], WorldPos[5], InColor);
-	AddLine(WorldPos[0], WorldPos[4], InColor, InColor);
-	AddLine(WorldPos[1], WorldPos[5], InColor, InColor);
-	AddLine(WorldPos[2], WorldPos[6], InColor, InColor);
-	AddLine(WorldPos[3], WorldPos[7], InColor, InColor);
+	AddQuadWS(WorldPos[0], WorldPos[2], WorldPos[3], WorldPos[1], InColor);
+	AddQuadWS(WorldPos[4], WorldPos[6], WorldPos[7], WorldPos[5], InColor);
+	AddLineWS(WorldPos[0], WorldPos[4], InColor, InColor);
+	AddLineWS(WorldPos[1], WorldPos[5], InColor, InColor);
+	AddLineWS(WorldPos[2], WorldPos[6], InColor, InColor);
+	AddLineWS(WorldPos[3], WorldPos[7], InColor, InColor);
 #endif
 }
 

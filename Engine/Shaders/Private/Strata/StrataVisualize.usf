@@ -12,7 +12,7 @@
 #include "/Engine/Private/ShaderDrawDebug.ush"
 
 
-void DrawReferential(float3 P, float3 X, float3 Y, float3 N, float3 InColor)
+void DrawReferential(float3 P /*In Translated World Space*/, float3 X, float3 Y, float3 N, float3 InColor)
 {
 	const float Size = 10.f;
 	const float SizeWithTip = 12.0f;
@@ -22,13 +22,13 @@ void DrawReferential(float3 P, float3 X, float3 Y, float3 N, float3 InColor)
 	const float4 ColorZ = float4(0, 0, 1, 1);
 
 	// Core
-	AddLine(P, P + X * Size, Color, Color);
-	AddLine(P, P + Y * Size, Color, Color);
-	AddLine(P, P + N * Size, Color, Color);
+	AddLineTWS(P, P + X * Size, Color, Color);
+	AddLineTWS(P, P + Y * Size, Color, Color);
+	AddLineTWS(P, P + N * Size, Color, Color);
 	// Tips
-	AddLine(P + X * Size, P + X * SizeWithTip, ColorX, ColorX);
-	AddLine(P + Y * Size, P + Y * SizeWithTip, ColorY, ColorY);
-	AddLine(P + N * Size, P + N * SizeWithTip, ColorZ, ColorZ);
+	AddLineTWS(P + X * Size, P + X * SizeWithTip, ColorX, ColorX);
+	AddLineTWS(P + Y * Size, P + Y * SizeWithTip, ColorY, ColorY);
+	AddLineTWS(P + N * Size, P + N * SizeWithTip, ColorZ, ColorZ);
 }
 
 float3 DrawPlot(
@@ -88,8 +88,8 @@ void VisualizeMaterialPS(
 	const float2 ScreenMaterialPosition = SvPositionToScreenPosition(float4(MaterialPos, 0.5f, 1)).xy;
 	float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-	const float3 WorldPosition = mul(float4(ScreenMaterialPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
-	const float3 V = -normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	const float3 WorldPosition = mul(float4(ScreenMaterialPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 V = -normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
 #if 0
 	OutColor = 0;
@@ -154,7 +154,7 @@ void VisualizeMaterialPS(
 			if (all(PixelPos == MaterialPos))
 			{
 				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, StrataAddressing, V, float3(0,0,1));
-				DrawReferential(WorldPosition, BSDFContext.X, BSDFContext.Y, BSDFContext.N, float3(1,1,0));
+				DrawReferentialTWS(WorldPosition, BSDFContext.X, BSDFContext.Y, BSDFContext.N, float3(1,1,0));
 			}
 
 			// Plot

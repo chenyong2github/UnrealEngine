@@ -308,7 +308,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		#if VOXEL_TRAVERSAL_DEBUG
 		if (bDebugEnabled)
 		{
-			AddLine(TranslatedWorldPosition, TranslatedWorldPosition + UnoccludedN * 50, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
+			AddLineTWS(TranslatedWorldPosition, TranslatedWorldPosition + UnoccludedN * 50, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
 		}
 		#endif
 
@@ -613,7 +613,7 @@ float3 ReflectionEnvironmentUniformSampling(
 		#if PERMUTATION_DEBUG
 		if (bDebugEnabled)
 		{
-			AddLine(SampleTranslatedWorldPosition, SampleTranslatedLightPosition, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
+			AddLineTWS(SampleTranslatedWorldPosition, SampleTranslatedLightPosition, float4(1, 0, 1, 1), float4(1, 0, 1, 1));
 		}
 		#endif
 	}

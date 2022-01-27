@@ -38,14 +38,14 @@ void AddLine(bool bEnabled, float3 P0, float3 P1)
 	if (!bEnabled)
 		return;
 	const float4 DebugColor = float4(1, 1, 0, 1);
-	AddLine(P0, P1, DebugColor, DebugColor);
+	AddLineTWS(P0, P1, DebugColor, DebugColor);
 }
 
 void AddMacroGroupAABB(bool bEnabled, float3 P0, float3 P1)
 {
 	if (!bEnabled)
 		return;
-	AddAABB(P0, P1, float4(1, 0, 1, 1));
+	AddAABBTWS(P0, P1, float4(1, 0, 1, 1));
 }
 
 void AddPageAABB(bool bEnabled, float3 P0, float3 P1, bool bIsPageValid)
@@ -53,7 +53,7 @@ void AddPageAABB(bool bEnabled, float3 P0, float3 P1, bool bIsPageValid)
 	if (!bEnabled)
 		return;
 	const float4 DebugColor = bIsPageValid ? float4(0, 1, 1, 1) : float4(1, 0, 0, 1);
-	AddAABB(P0, P1, DebugColor);
+	AddAABBTWS(P0, P1, DebugColor);
 }
 
 void AddStepAABB(bool bEnabled, float3 P0, float3 P1, float3 Color)
@@ -61,7 +61,7 @@ void AddStepAABB(bool bEnabled, float3 P0, float3 P1, float3 Color)
 	if (!bEnabled)
 		return;
 	const float4 DebugColor = float4(Color, 1);
-	AddAABB(P0, P1, DebugColor);
+	AddAABBTWS(P0, P1, DebugColor);
 }
 
 void AddAABBVolume(bool bEnabled, float3 P0, float3 P1)
@@ -69,7 +69,7 @@ void AddAABBVolume(bool bEnabled, float3 P0, float3 P1)
 	if (!bEnabled)
 		return;
 	const float4 DebugColor = float4(1,1,0, 1);
-	AddAABB(P0, P1, DebugColor);
+	AddAABBTWS(P0, P1, DebugColor);
 }
 
 #endif

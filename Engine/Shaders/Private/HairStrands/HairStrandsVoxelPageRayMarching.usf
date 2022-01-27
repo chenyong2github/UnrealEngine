@@ -76,7 +76,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			TotalAllocatedPageCount += LocalNodeDesc.PageIndexResolution.x * LocalNodeDesc.PageIndexResolution.y * LocalNodeDesc.PageIndexResolution.z;
 		}
 
-		AddAABB(NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, ColorOrange);
+		AddAABBTWS(NodeDesc.TranslatedWorldMinAABB, NodeDesc.TranslatedWorldMaxAABB, ColorOrange);
 
 		// General information
 		// General

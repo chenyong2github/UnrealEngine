@@ -210,7 +210,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint GroupThreadId : S
 			const float3 WP0 = mul(float4(P0, 1), LocalToWorld).xyz;
 			const float3 WP1 = mul(float4(P1, 1), LocalToWorld).xyz;
 			const float3 WP2 = mul(float4(P2, 1), LocalToWorld).xyz;
-			AddLineTriangle(WP0, WP1, WP2, TriColor);
+			AddLineTriangleWS(WP0, WP1, WP2, TriColor);
 		}
 		#endif
 
@@ -220,8 +220,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint GroupThreadId : S
 	#if PERMUTATION_DEBUG
 	if (all(DispatchThreadId == 0))
 	{
-		AddAABB(WorldBound_Min, WorldBound_Max, ColorYellow);
-		AddOBB(ViewBound_Min, ViewBound_Max, ColorCyan, ViewToWorld);
+		AddAABBWS(WorldBound_Min, WorldBound_Max, ColorYellow);
+		AddOBBWS(ViewBound_Min, ViewBound_Max, ColorCyan, ViewToWorld);
 
 		FOITDebugData DebugData;
 		DebugData.PrimitiveCount= NumPrimitives;

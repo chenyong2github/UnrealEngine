@@ -151,7 +151,7 @@ bool Trace(
 	{
 		const float4 Color0 = float4(0, 1, 0, 1);
 		const float4 Color1 = float4(1, 0, 0, 1);
-		AddLine(WP0, WP1, Color0, Color1);
+		AddLineWS(WP0, WP1, Color0, Color1);
 	}
 	#endif	
 
@@ -163,7 +163,7 @@ bool Trace(
 		if (bDebugEnable)
 		{
 			//AddLine(true, O, E);
-			AddAABB(Voxel_MinBound, Voxel_MaxBound, float4(1, 1, 1, 1));
+			AddAABBWS(Voxel_MinBound, Voxel_MaxBound, float4(1, 1, 1, 1));
 		}
 		#endif	
 
@@ -241,7 +241,7 @@ bool Trace(
 			{
 				const float3 MinVoxelAABB = Voxel_MinBound + PageIndexCoord * Voxel_Size;
 				const float3 MaxVoxelAABB = Voxel_MinBound + (PageIndexCoord + 1) * Voxel_Size;
-				AddAABB(MinVoxelAABB, MaxVoxelAABB, float4(0, 1, 1, 1));
+				AddAABBWS(MinVoxelAABB, MaxVoxelAABB, float4(0, 1, 1, 1));
 			}
 			#endif	
 
@@ -311,9 +311,9 @@ bool Trace(
 							if (bDebugEnable)
 							{
 								const float4 Color = float4(1, 0, 0, 1);
-								AddLine(CP_Curr.Position, CP_Next.Position, Color, Color);
-								AddCross(CP_Curr.Position, 0.05f, Color);
-								AddCross(CP_Next.Position, 0.05f, Color);
+								AddLineWS(CP_Curr.Position, CP_Next.Position, Color, Color);
+								AddCrossWS(CP_Curr.Position, 0.05f, Color);
+								AddCrossWS(CP_Next.Position, 0.05f, Color);
 							}
 							#endif							
 						}

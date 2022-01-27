@@ -281,6 +281,7 @@ namespace ShaderDrawDebug
 		View.ShaderDrawData.Buffer = DataBuffer;
 		View.ShaderDrawData.IndirectBuffer = IndirectBuffer;
 		View.ShaderDrawData.CursorPosition = View.CursorPos;
+		View.ShaderDrawData.ShaderDrawTranslatedWorldOffset = View.ViewMatrices.GetPreViewTranslation();
 
 		if (IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked)
 		{
@@ -341,10 +342,11 @@ namespace ShaderDrawDebug
 		if (Data.Buffer == nullptr)
 			return;
 
-		OutParameters.ShaderDrawCursorPos		= Data.CursorPosition;
-		OutParameters.ShaderDrawMaxElementCount = Data.MaxElementCount;
-		OutParameters.OutShaderDrawPrimitive	= GraphBuilder.CreateUAV(Data.Buffer);
-		OutParameters.OutputShaderDrawIndirect	= GraphBuilder.CreateUAV(Data.IndirectBuffer);
+		OutParameters.ShaderDrawCursorPos				= Data.CursorPosition;
+		OutParameters.ShaderDrawMaxElementCount			= Data.MaxElementCount;
+		OutParameters.ShaderDrawTranslatedWorldOffset	= Data.ShaderDrawTranslatedWorldOffset;
+		OutParameters.OutShaderDrawPrimitive			= GraphBuilder.CreateUAV(Data.Buffer);
+		OutParameters.OutputShaderDrawIndirect			= GraphBuilder.CreateUAV(Data.IndirectBuffer);
 	}
 
 	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)

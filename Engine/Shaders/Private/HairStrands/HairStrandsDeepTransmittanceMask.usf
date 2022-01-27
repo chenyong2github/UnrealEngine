@@ -358,7 +358,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		return;
 	}
-	const float3 TranslatedWorldOffset = LWCHackToFloat(PrimaryView.PreViewTranslation); // HAIR_LWC
 	const FHairSample Sample	= UnpackHairSample(HairStrands.HairSampleData[SampleIndex]);
 	const uint MacroGroupIndex	= clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
 	const float SceneDepth		= ConvertFromDeviceZ(Sample.Depth);

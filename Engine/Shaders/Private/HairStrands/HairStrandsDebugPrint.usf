@@ -6,20 +6,12 @@
 #include "../DeferredShadingCommon.ush"
 #include "../ShaderPrintCommon.ush"
 #include "../ShaderDrawDebug.ush"
+#include "../PositionReconstructionCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
 
 void AddNewLine(float2 OriginalPos, inout float2 Pos)
 {
@@ -66,7 +58,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		{
 			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
 			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
-			AddAABB(Bound.Min, Bound.Max, InstanceBoundColor);
+			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
 		}
 
 		const uint DispatchX = HairVisibilityIndirectArgsBuffer[0];
@@ -306,8 +298,8 @@ FTangentDesc AddTangentPlot(uint2 PixelCoord, float2 UV)
 		if (NodeDesc.Count > 0)
 		{
 			const float SceneDepth = ConvertFromDeviceZ(Closest_Depth);
-			const float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, SceneDepth);
-			AddLine(WorldPosition, WorldPosition + Closest_Tangent, ColorRed, ColorYellow);
+			const float3 WorldPosition = ReconstructTranslatedWorldPositionFromDepth(UV, SceneDepth);
+			AddLineTWS(WorldPosition, WorldPosition + Closest_Tangent, ColorRed, ColorYellow);
 			Out.Type = 1;
 			Out.Tangent = Closest_Tangent;
 		}
@@ -318,11 +310,11 @@ FTangentDesc AddTangentPlot(uint2 PixelCoord, float2 UV)
 	{
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 		const float SceneDepth = CalcSceneDepth(UV);
-		const float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, SceneDepth);
+		const float3 WorldPosition = ReconstructTranslatedWorldPositionFromDepth(UV, SceneDepth);
 		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
 			const float3 Tangent = ScreenSpaceData.GBuffer.WorldNormal;
-			AddLine(WorldPosition, WorldPosition + Tangent, ColorPurple, ColorYellow);
+			AddLineTWS(WorldPosition, WorldPosition + Tangent, ColorPurple, ColorYellow);
 			Out.Type = 2;
 			Out.Tangent = Tangent;
 		}

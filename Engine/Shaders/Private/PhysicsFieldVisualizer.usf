@@ -255,14 +255,14 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 			{
 				FieldVector /= VectorLength;
 				const float4 FieldColor = float4((FieldVector + float3(1,1,1))/2.0, min(1.0, VectorLength));
-				AddLine(VoxelCenter, VoxelCenter + FieldVector * VoxelLength , FieldColor, FieldColor );
+				AddLineWS(VoxelCenter, VoxelCenter + FieldVector * VoxelLength , FieldColor, FieldColor );
 			}
 		}
 		if(DispatchThreadId.x == 0 && DispatchThreadId.y == 0 && DispatchThreadId.z == 0) 
 		{
 			for(int BoundsIndex = BoundsOffset, BoundsEnd = BoundsOffset + BoundsSize; BoundsIndex < BoundsEnd; ++BoundsIndex)
 			{
-				AddAABB(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
+				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
 			}
 			PrintVectorField();
 		}
@@ -643,7 +643,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 		{
 			for(int BoundsIndex = BoundsOffset, BoundsEnd = BoundsOffset + BoundsSize; BoundsIndex < BoundsEnd; ++BoundsIndex)
 			{
-				AddAABB(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
+				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
 			}
 #if PERMUTATION_FIELD == 2
 			PrintIntegerField();

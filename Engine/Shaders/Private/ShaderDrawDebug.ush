@@ -6,7 +6,9 @@
 #define SHADER_DRAW_DEBUG 1
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set of predefined colors
+
 #define ColorWhite		float4(1, 1, 1, 1)
 #define ColorBlack		float4(0, 0, 0, 1)
 #define ColorRed		float4(1, 0, 0, 1)
@@ -21,6 +23,9 @@
 #define ColorSilver		float4(189.f / 255.f, 195.f / 255.f, 199.f / 255.f, 1)
 #define ColorEmerald	float4( 46.f / 255.f, 204.f / 255.f, 113.f / 255.f, 1)
 #define ColorLightGreen	float4(0.5f, 0.75f, 0.5f, 1.0f)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Struct and core functions
 
 struct FShaderDrawElement 
 {
@@ -69,13 +74,20 @@ RWBuffer<uint>								OutputShaderDrawIndirect;
 
 int2 ShaderDrawCursorPos;
 uint ShaderDrawMaxElementCount;
+float3 ShaderDrawTranslatedWorldOffset;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Utils functions
 
 int2 GetCursorPos()
 {
 	return ShaderDrawCursorPos;
 }
 
-void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Line
+
+void AddLineTWS(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 {
 	if (ShaderDrawMaxElementCount == 0)
 	{
@@ -100,12 +112,16 @@ void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 	}
 }
 
-void AddLine(float3 Pos0, float3 Pos1, float4 Color)
-{
-	AddLine(Pos0, Pos1, Color, Color);
-}
+void AddLineTWS(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0, Pos1, Color, Color); }
+void AddLineWS(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Color); }
+void AddLineWS(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)	{ AddLineTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Color0, Color1); }
+void AddLine(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Color); }
+void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)	{ AddLineTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Color0, Color1); }
 
-void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Quad
+
+void AddQuadTWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 {
 	if (ShaderDrawMaxElementCount == 0)
 	{
@@ -137,7 +153,13 @@ void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 	}
 }
 
-void AddAABB(float3 Min, float3 Max, float4 Color)
+void AddQuadWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color) { AddQuadTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Pos2+ShaderDrawTranslatedWorldOffset, Pos3+ShaderDrawTranslatedWorldOffset, Color); }
+void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)	 { AddQuadTWS(Pos0+ShaderDrawTranslatedWorldOffset, Pos1+ShaderDrawTranslatedWorldOffset, Pos2+ShaderDrawTranslatedWorldOffset, Pos3+ShaderDrawTranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// AABB
+
+void AddAABBTWS(float3 Min, float3 Max, float4 Color)
 {
 	if (ShaderDrawMaxElementCount == 0)
 	{
@@ -181,21 +203,33 @@ void AddAABB(float3 Min, float3 Max, float4 Color)
 	}
 }
 
-void AddCross(float3 Pos, float Size, float4 Color)
+void AddAABBWS(float3 Min, float3 Max, float4 Color)	{ AddAABBTWS(Min + ShaderDrawTranslatedWorldOffset, Max + ShaderDrawTranslatedWorldOffset, Color); }
+void AddAABB(float3 Min, float3 Max, float4 Color)		{ AddAABBTWS(Min + ShaderDrawTranslatedWorldOffset, Max + ShaderDrawTranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Cross
+
+void AddCrossTWS(float3 Pos, float Size, float4 Color)
 {
-	AddLine(Pos - float3(Size,0,0), Pos + float3(Size,0,0), Color, Color);
-	AddLine(Pos - float3(0,Size,0), Pos + float3(0,Size,0), Color, Color);
-	AddLine(Pos - float3(0,0,Size), Pos + float3(0,0,Size), Color, Color);
+	AddLineTWS(Pos - float3(Size,0,0), Pos + float3(Size,0,0), Color, Color);
+	AddLineTWS(Pos - float3(0,Size,0), Pos + float3(0,Size,0), Color, Color);
+	AddLineTWS(Pos - float3(0,0,Size), Pos + float3(0,0,Size), Color, Color);
 }
 
-void AddReferential(float3 Pos, float3 T, float3 B, float3 N, float Scale=1)
+void AddCrossWS(float3 Pos, float Size, float4 Color)	{ AddAABBTWS(Pos + ShaderDrawTranslatedWorldOffset, Size, Color); }
+void AddCross(float3 Pos, float Size, float4 Color)		{ AddAABBTWS(Pos + ShaderDrawTranslatedWorldOffset, Size, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Referential
+
+void AddReferentialTWS(float3 Pos, float3 T, float3 B, float3 N, float Scale=1)
 {
-	AddLine(Pos, Pos + T*Scale, ColorRed);
-	AddLine(Pos, Pos + B*Scale, ColorGreen);
-	AddLine(Pos, Pos + N*Scale, ColorBlue);
+	AddLineTWS(Pos, Pos + T*Scale, ColorRed);
+	AddLineTWS(Pos, Pos + B*Scale, ColorGreen);
+	AddLineTWS(Pos, Pos + N*Scale, ColorBlue);
 }
 
-void AddReferential(float3 Pos, float3 TangentZ, float Scale=1)
+void AddReferentialTWS(float3 Pos, float3 TangentZ, float Scale=1)
 {
 	const float Sign = TangentZ.z >= 0 ? 1 : -1;
 	const float a = -rcp(Sign + TangentZ.z);
@@ -204,22 +238,38 @@ void AddReferential(float3 Pos, float3 TangentZ, float Scale=1)
 	const float3 TangentX = { 1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x };
 	const float3 TangentY = { b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y };
 
-	AddReferential(Pos, TangentX, TangentY, TangentZ, Scale);
+	AddReferentialTWS(Pos, TangentX, TangentY, TangentZ, Scale);
 }
 
-void AddReferential(float4x4 InM, float Scale = 1)
+void AddReferentialTWS(float4x4 InM, float Scale = 1)
 {
-	AddReferential(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale);
+	AddReferentialTWS(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale);
 }
 
-void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)
+void AddReferentialWS(float4x4 InM, float Scale = 1)							{ AddReferentialTWS(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz + ShaderDrawTranslatedWorldOffset, Scale); }
+void AddReferentialWS(float3 Pos, float3 TangentZ, float Scale = 1)				{ AddReferentialTWS(Pos + ShaderDrawTranslatedWorldOffset, TangentZ, Scale); }
+void AddReferentialWS(float3 Pos, float3 T, float3 B, float3 N, float Scale = 1){ AddReferentialTWS(Pos + ShaderDrawTranslatedWorldOffset, T, B, N, Scale); }
+void AddReferential(float4x4 InM, float Scale = 1)								{ AddReferentialTWS(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz + ShaderDrawTranslatedWorldOffset, Scale); }
+void AddReferential(float3 Pos, float3 TangentZ, float Scale = 1)				{ AddReferentialTWS(Pos + ShaderDrawTranslatedWorldOffset, TangentZ, Scale); }
+void AddReferential(float3 Pos, float3 T, float3 B, float3 N, float Scale = 1)	{ AddReferentialTWS(Pos + ShaderDrawTranslatedWorldOffset, T, B, N, Scale); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Triangle
+
+void AddLineTriangleTWS(float3 P0, float3 P1, float3 P2, float4 Color)
 {
-	AddLine(P0, P1, Color, Color);
-	AddLine(P1, P2, Color, Color);
-	AddLine(P2, P0, Color, Color);
+	AddLineTWS(P0, P1, Color, Color);
+	AddLineTWS(P1, P2, Color, Color);
+	AddLineTWS(P2, P0, Color, Color);
 }
 
-void AddOBB(float3 Min, float3 Max, float4 Color, float4x4 Transform)
+void AddLineTriangleWS(float3 P0, float3 P1, float3 P2, float4 Color)	{ AddLineTriangleTWS(P0 + ShaderDrawTranslatedWorldOffset, P1 + ShaderDrawTranslatedWorldOffset, P2 + ShaderDrawTranslatedWorldOffset, Color); }
+void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)		{ AddLineTriangleTWS(P0 + ShaderDrawTranslatedWorldOffset, P1 + ShaderDrawTranslatedWorldOffset, P2 + ShaderDrawTranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// OBB
+
+void AddOBBTWS(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 {
 	if (ShaderDrawMaxElementCount == 0)
 	{
@@ -262,5 +312,8 @@ void AddOBB(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 		InterlockedAdd(OutputShaderDrawIndirect[1], -12, PreviousPrimitiveCount);// Make sure we stay in the safe zone for indirect draw
 	}
 }
+
+void AddOBBWS(float3 Min, float3 Max, float4 Color, float4x4 Transform) { Transform[2].xyz += ShaderDrawTranslatedWorldOffset; AddOBBTWS(Min, Max, Color, Transform); }
+void AddOBB(float3 Min, float3 Max, float4 Color, float4x4 Transform)	{ Transform[2].xyz += ShaderDrawTranslatedWorldOffset; AddOBBTWS(Min, Max, Color, Transform); }
 
 #endif

@@ -204,7 +204,7 @@ void MainPS(
 	if (bDebugEnable)
 	{
 		const float4 Color = float4(1, 1, 0, 1);
-		AddAABB(Raster_MinBound, Raster_MaxBound, Color);
+		AddAABBWS(Raster_MinBound, Raster_MaxBound, Color);
 	}
 	#endif 
 
@@ -216,7 +216,7 @@ void MainPS(
 	if (bDebugEnable)
 	{
 		const float4 Color = float4(1, 0, 0, 1);
-		AddLine(RayO, RayO + RayD * MaxDistance, Color, Color);
+		AddLineWS(RayO, RayO + RayD * MaxDistance, Color, Color);
 	}
 	#endif
 
@@ -249,7 +249,7 @@ void MainPS(
 		if (bDebugEnable)
 		{
 			const float4 Color = float4(0, 1, 0, 1);
-			AddLine(CP0, CP1, Color, Color);
+			AddLineWS(CP0, CP1, Color, Color);
 		}
 		#endif
 
@@ -275,7 +275,7 @@ void MainPS(
 			if (bDebugEnable)
 			{
 				const float4 Color = float4(1, 0, 0, 1);
-				AddLine(RayP0, RayP1, Color, Color);
+				AddLineWS(RayP0, RayP1, Color, Color);
 			}
 			#endif
 			// Scale radius in order to avoid having 0 coverage when hair are too thin

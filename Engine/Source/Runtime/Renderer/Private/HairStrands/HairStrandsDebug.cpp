@@ -1265,6 +1265,8 @@ static void InternalRenderHairStrandsDebugInfo(
 
 		FViewElementPDI ShadowFrustumPDI(&View, nullptr, nullptr);
 
+		// Do not draw the CPU boud. Only GPU bound are drawn using ShaderDrawDebug shader functions.
+		#if 0
 		// All DOMs
 		if (HairDebugMode == EHairDebugMode::LightBounds)
 		{
@@ -1314,6 +1316,7 @@ static void InternalRenderHairStrandsDebugInfo(
 				}
 			}
 		}
+		#endif
 	}
 	
 	const bool bRunDebugPass =
