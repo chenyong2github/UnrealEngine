@@ -27,7 +27,9 @@ namespace Audio
 	FString ToFString(const PROPERTYKEY Key);
 #endif //PLATFORM_WINDOWS
 
-	const FString ToFString(const TArray<EAudioMixerChannel::Type>& InChannels);
+	FString ToFString(const TArray<EAudioMixerChannel::Type>& InChannels);
+	FString ToErrorFString(HRESULT InResult);
+
 	const TCHAR* ToString(EAudioDeviceRole InRole);
-	const TCHAR* ToString(EAudioDeviceState InState);	
+	const TCHAR* ToString(EAudioDeviceState InState);
 }
