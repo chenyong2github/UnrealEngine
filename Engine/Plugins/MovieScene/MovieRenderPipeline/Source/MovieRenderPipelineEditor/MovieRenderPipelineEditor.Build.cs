@@ -34,6 +34,7 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"PropertyEditor",
 				"EditorWidgets",
 				"EditorSubsystem",
+				"FunctionalTesting",
             }
         );
 
@@ -57,7 +58,11 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"DeveloperSettings",
 				"MessageLog",
 				"Sequencer",
-				"ToolMenus"
+				"ToolMenus",
+				"Json",
+				"JsonUtilities",
+				"ScreenShotComparisonTools",
+				"AutomationMessages"
 			}
         );
 

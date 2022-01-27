@@ -48,4 +48,8 @@ public:
 	/** Ensure the job has the settings specified by the project settings added. If they're already added we don't modify the object so that we don't make it confused about whether or not you've modified the preset. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static void EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* InJob);
+
+	/** Resolves as much of the output directory for this job into a usable directory path as possible. Cannot resolve anything that relies on shot name, frame numbers, etc. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static FString ResolveOutputDirectoryFromJob(UMoviePipelineExecutorJob* InJob);
 };
