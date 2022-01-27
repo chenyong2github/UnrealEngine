@@ -274,6 +274,9 @@ public:
 
 	// UAnimGraphNode_Base interface
 
+	// Whether or not you can add a pose watch on this node
+	virtual bool IsPoseWatchable() const { return true; }
+
 	// Gets the menu category this node belongs in
 	virtual FString GetNodeCategory() const;
 

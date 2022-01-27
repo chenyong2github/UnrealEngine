@@ -549,7 +549,9 @@ void FAnimationBlueprintEditor::CreateDefaultCommands()
 void FAnimationBlueprintEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList)
 {
 	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().TogglePoseWatch,
-		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnTogglePoseWatch));
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnTogglePoseWatch ),
+		FCanExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::CanTogglePoseWatch)
+		);
 
 	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().AddBlendListPin,
 		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnAddPosePin ),
@@ -711,6 +713,30 @@ void FAnimationBlueprintEditor::OnRemovePosePin()
 	}
 }
 
+bool FAnimationBlueprintEditor::CanTogglePoseWatch()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	UAnimBlueprint* AnimBP = GetAnimBlueprint();
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UAnimGraphNode_Base* SelectedNode = Cast<UAnimGraphNode_Base>(*NodeIt))
+		{
+			UPoseWatch* ExistingPoseWatch = AnimationEditorUtils::FindPoseWatchForNode(SelectedNode, AnimBP);
+			if (ExistingPoseWatch)
+			{
+				return true;
+			}
+			if (SelectedNode->IsPoseWatchable())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FAnimationBlueprintEditor::OnTogglePoseWatch()
 {
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -738,7 +764,7 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 				}
 				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, ExistingPoseWatch->Node.Get());
 			}
-			else
+			else if (SelectedNode->IsPoseWatchable())
 			{
 				UPoseWatch* NewPoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode);
 				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, NewPoseWatch->Node.Get());
@@ -1854,7 +1880,7 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 			{
 				if (SelectionNodes.Contains(Node))
 				{
-					if (!PoseWatch)
+					if (!PoseWatch && GraphNode->IsPoseWatchable())
 					{
 						PoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, GraphNode);
 						PoseWatch->SetShouldDeleteOnDeselect(true);

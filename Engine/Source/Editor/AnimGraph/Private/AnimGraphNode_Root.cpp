@@ -72,6 +72,11 @@ FText UAnimGraphNode_Root::GetTooltipText() const
 	return LOCTEXT("AnimGraphNodeRoot_Tooltip", "Wire the final animation pose for this graph into this node");
 }
 
+bool UAnimGraphNode_Root::IsPoseWatchable() const
+{
+	return false;
+}
+
 bool UAnimGraphNode_Root::IsSinkNode() const
 {
 	return true;

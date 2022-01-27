@@ -208,6 +208,7 @@ protected:
 	//~ End FNotifyHook Interface
 
 	// Toggle pose watch on selected nodes
+	bool CanTogglePoseWatch();
 	void OnTogglePoseWatch();
 
 	void BindCommands();
