@@ -529,6 +529,12 @@ namespace Chaos
 			return TPlaneConcrete<FReal, 3>(FVec3(0), FVec3(0));
 		}
 
+		void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		{
+			OutN = FVec3(0);
+			OutX = FVec3(0);
+		}
+
 		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
 		// Returns the number of planes found.
 		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const

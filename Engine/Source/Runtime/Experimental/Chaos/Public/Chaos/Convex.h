@@ -418,6 +418,12 @@ namespace Chaos
 			return TPlaneConcrete<FReal, 3>::MakeFrom(Planes[FaceIndex]);
 		}
 
+		void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		{
+			OutN = FVec3(Planes[FaceIndex].Normal());
+			OutX = FVec3(Planes[FaceIndex].X());
+		}
+
 		const FPlaneType& GetPlaneRaw(int32 FaceIndex) const
 		{
 			return Planes[FaceIndex];
@@ -456,15 +462,15 @@ namespace Chaos
 		}
 
 	private:
-		int32 GetSupportVertex(const FVec3& Direction) const
+		FORCEINLINE_DEBUGGABLE int32 GetSupportVertex(const FVec3Type& Direction) const
 		{
-			FReal MaxDot = TNumericLimits<FReal>::Lowest();
+			FRealType MaxDot = TNumericLimits<FRealType>::Lowest();
 			int32 MaxVIdx = INDEX_NONE;
 			const int32 NumVertices = Vertices.Num();
 
 			for (int32 Idx = 0; Idx < NumVertices; ++Idx)
 			{
-				const FReal Dot = FVec3::DotProduct(Vertices[Idx], Direction);
+				const FRealType Dot = FVec3Type::DotProduct(Vertices[Idx], Direction);
 				if (Dot > MaxDot)
 				{
 					MaxDot = Dot;
@@ -563,11 +569,6 @@ namespace Chaos
 
 		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
 		{
-			if (InMargin == 0.0f)
-			{
-				return GetVertex(VertexIndex) * Scale;
-			}
-
 			// Get any 3 planes that contribute to this vertex
 			int32 PlaneIndex0 = INDEX_NONE;
 			int32 PlaneIndex1 = INDEX_NONE;
@@ -626,7 +627,7 @@ namespace Chaos
 		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
 		FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
-			const int32 SupportVertexIndex = GetSupportVertex(Direction);
+			const int32 SupportVertexIndex = GetSupportVertex(FVec3Type(Direction));
 			VertexIndex = SupportVertexIndex;
 			if (SupportVertexIndex != INDEX_NONE)
 			{
@@ -640,15 +641,22 @@ namespace Chaos
 		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// Find the supporting vertex index
-			const FVec3 DirectionScaled = Scale * Direction;	// does not need to be normalized
+			const FVec3Type DirectionScaled = FVec3Type(Scale * Direction);	// does not need to be normalized
 			const int32 SupportVertexIndex = GetSupportVertex(DirectionScaled);
 			VertexIndex = SupportVertexIndex;
 			// Adjust the vertex position based on margin
 			if (SupportVertexIndex != INDEX_NONE)
 			{
-				// Note: Shapes wrapped in a non-uniform scale should not have their own margin and we assume that here
-				// @chaos(todo): apply an upper limit to the margin to prevent a non-convex or null shape (also see comments in GetMarginAdjustedVertex)
-				return GetMarginAdjustedVertexScaled(SupportVertexIndex, InMargin, Scale, OutSupportDelta);
+				if (InMargin == 0.0f)
+				{
+					return FVec3(GetVertex(VertexIndex)) * Scale;
+				}
+				else
+				{
+					// Note: Shapes wrapped in a non-uniform scale should not have their own margin and we assume that here
+					// @chaos(todo): apply an upper limit to the margin to prevent a non-convex or null shape (also see comments in GetMarginAdjustedVertex)
+					return FVec3(GetMarginAdjustedVertexScaled(SupportVertexIndex, InMargin, Scale, OutSupportDelta));
+				}
 			}
 			return FVec3(0);
 		}
@@ -657,7 +665,7 @@ namespace Chaos
 		// @todo(chaos): do we need to support thickness?
 		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 		{
-			const int32 MaxVIdx = GetSupportVertex(Direction);
+			const int32 MaxVIdx = GetSupportVertex(FVec3Type(Direction));
 			VertexIndex = MaxVIdx;
 			if (MaxVIdx != INDEX_NONE)
 			{

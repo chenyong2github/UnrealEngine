@@ -17,7 +17,7 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	void ValidFace(const FVec3* Verts, const TArray<TEPAEntry<FReal>>& TetFaces, int32 Idx)
+	void ValidFace(const FVec3* Verts, const TEPAWorkingArray<TEPAEntry<FReal>>& TetFaces, int32 Idx)
 	{
 		const TEPAEntry<FReal>& Entry = TetFaces[Idx];
 
@@ -95,7 +95,7 @@ namespace ChaosTest
 		{
 			TArray<FVec3> VertsA = { {-1,-1,1}, {-1,-1,-1}, {-1,1,-1}, {1,1,-1} };
 			TArray<FVec3> VertsB = { FVec3(0), FVec3(0), FVec3(0), FVec3(0) };
-			TArray<TEPAEntry<FReal>> TetFaces;
+			TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 			FVec3 TouchingNormal;
 			EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ErrorSupport,ErrorSupport,TetFaces,TouchingNormal));
 
@@ -109,7 +109,7 @@ namespace ChaosTest
 		{
 			TArray<FVec3> VertsA = { {-1,-1,-1}, {-1,-1,1}, {-1,1,-1}, {1,1,-1} };
 			TArray<FVec3> VertsB = { FVec3(0), FVec3(0), FVec3(0), FVec3(0) };
-			TArray<TEPAEntry<FReal>> TetFaces;
+			TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 			FVec3 TouchingNormal;
 
 			EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ErrorSupport,ErrorSupport,TetFaces,TouchingNormal));
@@ -179,7 +179,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[0], AllVerts[1], AllVerts[2] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ASupport,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_VECTOR_NEAR(VertsA[3], AllVerts[3], 1e-4);
@@ -207,7 +207,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[1], AllVerts[0], AllVerts[2] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ASupport,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_VECTOR_NEAR(VertsA[3], AllVerts[3], 1e-4);
@@ -235,7 +235,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[1], AllVerts[0], AllVerts[2] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_FALSE(InitializeEPA(VertsA,VertsB,ASupportNoX,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_EQ(TouchingNormal.Z,0);
@@ -278,7 +278,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[0], AllVerts[2] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ASupport,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_VECTOR_NEAR(VertsA[2], AllVerts[1], 1e-4);
@@ -299,7 +299,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[2], AllVerts[0] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_TRUE(InitializeEPA(VertsA,VertsB,ASupport,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_VECTOR_NEAR(VertsA[2], AllVerts[1], 1e-4);
@@ -337,7 +337,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[2], AllVerts[0] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_FALSE(InitializeEPA(VertsA,VertsB,ASupportNoX,EmptySupport, TetFaces, TouchingNormal));
 				EXPECT_EQ(TouchingNormal.X,0);
@@ -366,7 +366,7 @@ namespace ChaosTest
 				TArray<FVec3> VertsA = { AllVerts[2], AllVerts[0] };
 				TArray<FVec3> VertsB = { FVec3(0), FVec3(0) };
 
-				TArray<TEPAEntry<FReal>> TetFaces;
+				TEPAWorkingArray<TEPAEntry<FReal>> TetFaces;
 				FVec3 TouchingNormal;
 				EXPECT_FALSE(InitializeEPA(VertsA,VertsB,ASupportNoXOrZ,EmptySupport,TetFaces,TouchingNormal));
 				EXPECT_EQ(TouchingNormal.X,0);

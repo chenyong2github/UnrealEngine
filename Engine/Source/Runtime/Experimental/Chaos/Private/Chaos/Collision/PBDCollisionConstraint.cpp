@@ -193,8 +193,8 @@ namespace Chaos
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, ManifoldPoints()
 		, SavedManifoldPoints()
+		, ManifoldPoints()
 	{
 	}
 
@@ -228,8 +228,8 @@ namespace Chaos
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, ManifoldPoints()
 		, SavedManifoldPoints()
+		, ManifoldPoints()
 	{
 	}
 
@@ -263,34 +263,52 @@ namespace Chaos
 	void FPBDCollisionConstraint::InitMarginsAndTolerances(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1)
 	{
 		// Set up the margins and tolerances to be used during the narrow phase.
-		// One shape in a collision will always have a margin. Only triangles have zero margin and we don't 
-		// collide two triangles. If we have a triangle, it is always the second shape.
+		// When convex margins are enabled, at least one shape in a collision will always have a margin.
+		// If convex margins are disabled, only quadratic shapes have a margin (their radius).
 		// The collision tolerance is used for knowing whether a new contact matches an existing one.
-		// If we have two non-quadratic shapes, we use the smallest margin on both shapes (unless one shape has zero margin).
-		// If we have a quadratic shape versus a non-quadratic, we don't need a margin on the non-quadratic.
-		// For non-quadratics the collision tolerance is the smallest non-zero margin. 
+		//
+		// Margins: (Assuming convex margins are enabled...)
+		// If we have two polygonal shapes, we use the smallest of the two margins (unless one shape has zero margin, e.g. triangle).
+		// If we have a quadratic shape versus a polygonal shape, we use a zero margin on the polygoinal shape.
+		// Note: If we have a triangle, it is always the second shape (currently we do not support triangle-triangle collision)
+		//
+		// CollisionTolerance:
+		// For polygonal shapes the collision tolerance is proportional to the size of the smaller object. 
 		// For quadratic shapes we want a collision tolerance much smaller than the radius.
+		//
 		const bool bIsQuadratic0 = ((ImplicitType0 == ImplicitObjectType::Sphere) || (ImplicitType0 == ImplicitObjectType::Capsule));
 		const bool bIsQuadratic1 = ((ImplicitType1 == ImplicitObjectType::Sphere) || (ImplicitType1 == ImplicitObjectType::Capsule));
+		
+		// @todo(chaos): should probably be tunable. Used to use the same settings as the margin scale (for convex), but we want to support zero
+		// margins, but still have a non-zero CollisionTolerance (it is used for matching contact points for friction and manifold reuse)
+		const FReal ToleranceScale = 0.1f;
 		const FReal QuadraticToleranceScale = 0.05f;
+		
 		if (!bIsQuadratic0 && !bIsQuadratic1)
 		{
+			const FReal MaxSize0 = ((Implicit[0] != nullptr) && Implicit[0]->HasBoundingBox()) ? Implicit[0]->BoundingBox().Extents().GetAbsMax() : FReal(0);
+			const FReal MaxSize1 = ((Implicit[1] != nullptr) && Implicit[1]->HasBoundingBox()) ? Implicit[1]->BoundingBox().Extents().GetAbsMax() : FReal(0);
+			const FReal MaxSize = FMath::Min(MaxSize0, MaxSize1);
+			CollisionTolerance = ToleranceScale * MaxSize;
+
 			// If one shape has a zero margin, enforce a minimum margin to avoid the EPA degenerate case. E.g., Box-Triangle
 			// If both shapes have a margin, use the smaller margin on both shapes. E.g., Box-Box
 			// We should never see both shapes with zero margin, but if we did we'd end up with a zero margin
-			if ((Margin0 == FReal(0)) || (Margin1 == FReal(0)))
+			const FReal MinMargin = Chaos_Collision_ConvexZeroMargin;
+			if (Margin0 == FReal(0))
 			{
-				const FReal MinMargin = Chaos_Collision_ConvexZeroMargin;
-				const FReal NonZeroMargin = FMath::Max(Margin0, Margin1);
-				CollisionMargins[0] = FMath::Min(MinMargin, NonZeroMargin);
-				CollisionMargins[1] = CollisionMargins[0];
-				CollisionTolerance = NonZeroMargin;
+				CollisionMargins[0] = 0;
+				CollisionMargins[1] = FMath::Max(MinMargin, Margin1);
+			}
+			else if (Margin1 == FReal(0))
+			{
+				CollisionMargins[0] = FMath::Max(MinMargin, Margin0);
+				CollisionMargins[1] = 0;
 			}
 			else
 			{
 				CollisionMargins[0] = FMath::Min(Margin0, Margin1);
 				CollisionMargins[1] = CollisionMargins[0];
-				CollisionTolerance = CollisionMargins[0];
 			}
 		}
 		else if (bIsQuadratic0 && bIsQuadratic1)
@@ -544,7 +562,7 @@ namespace Chaos
 
 	void FPBDCollisionConstraint::ResetManifold()
 	{
-		SavedManifoldPoints.Reset();
+		ResetSavedManifoldPoints();
 		ResetActiveManifoldContacts();
 	}
 
@@ -930,6 +948,9 @@ namespace Chaos
 				{
 					BestScore = Score;
 					MatchIndex = SavedManifoldPointIndex;
+
+					// Just take the first match we find
+					break;
 				}
 			}
 

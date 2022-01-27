@@ -70,10 +70,10 @@ public:
 
 	// Scale the plane and assume that none of the scale components are zero
 	template <typename U>
-	static TPlaneConcrete<T> MakeScaledUnsafe(const TPlaneConcrete<U>& Plane, const TVec3<T>& Scale)
+	static FORCEINLINE TPlaneConcrete<T> MakeScaledUnsafe(const TPlaneConcrete<U>& Plane, const TVec3<T>& Scale, const TVec3<T>& InvScale)
 	{
 		const TVec3<T> ScaledX = TVec3<T>(Plane.X()) * Scale;
-		TVec3<T> ScaledN = TVec3<T>(Plane.Normal()) / Scale;
+		TVec3<T> ScaledN = TVec3<T>(Plane.Normal()) * InvScale;
 
 		// We don't handle zero scales, but we could still end up with a small normal
 		const T ScaleN2 = ScaledN.SizeSquared();
@@ -90,7 +90,29 @@ public:
 	}
 
 	template <typename U>
-	static TPlaneConcrete<T> MakeFrom(const TPlaneConcrete<U>& Plane)
+	static FORCEINLINE void MakeScaledUnsafe(const TVec3<U>& PlaneN, const TVec3<U>& PlaneX, const TVec3<T>& Scale, const TVec3<T>& InvScale, TVec3<T>& OutN, TVec3<T>& OutX)
+	{
+		const TVec3<T> ScaledX = TVec3<T>(PlaneX * Scale);
+		TVec3<T> ScaledN = TVec3<T>(PlaneN * InvScale);
+
+		// We don't handle zero scales, but we could still end up with a small normal
+		const T ScaleN2 = ScaledN.SizeSquared();
+		if (ScaleN2 > SMALL_NUMBER)
+		{
+			ScaledN = ScaledN * FMath::InvSqrt(ScaleN2);
+		}
+		else
+		{
+			ScaledN = TVec3<T>(PlaneN);
+		}
+
+		OutN = ScaledN;
+		OutX = ScaledX;
+	}
+
+
+	template <typename U>
+	static FORCEINLINE TPlaneConcrete<T> MakeFrom(const TPlaneConcrete<U>& Plane)
 	{
 		return TPlaneConcrete<T>(TVec3<T>(Plane.X()), TVec3<T>(Plane.Normal()));
 	}

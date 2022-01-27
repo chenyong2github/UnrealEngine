@@ -188,9 +188,7 @@ namespace ChaosTest
 					int32 NumContacts = PairModifier.GetNumContacts();
 					for (int32 PointIdx = 0; PointIdx < NumContacts; ++PointIdx)
 					{
-						// Tell solver contacts are SeparationPadding units closer than they are, so object will float SeparationPadding units over floor.
-						FReal Separation = PairModifier.GetSeparation(PointIdx);
-						PairModifier.ModifySeparation(Separation - SeparationPadding, PointIdx);
+						PairModifier.ModifyTargetSeparation(SeparationPadding, PointIdx);
 					}
 				}
 			}
@@ -390,21 +388,10 @@ namespace ChaosTest
 						int32 DynamicIdx = (UniqueIndices[0] == Idx0) ? 0 : 1;
 						const FVec3 CoM = FParticleUtilities::GetCoMWorldPosition(FConstGenericParticleHandle(Particles[DynamicIdx]));
 
-						if (DynamicIdx == 0)
-						{
-							// Move point0 under center of mass and move second point under CoM but keep the same distance between bodies
-							FVec3 PointUnderCoM0(CoM.X, CoM.Y, WorldPos0.Z);
-							FVec3 Delta = PointUnderCoM0 - WorldPos0;
-							FVec3 PointUnderCoM1(WorldPos1 + Delta);
-							PairModifier.ModifyWorldContactLocations(PointUnderCoM0, PointUnderCoM1, PointIdx);
-						}
-						else
-						{
-							FVec3 PointUnderCoM1(CoM.X, CoM.Y, WorldPos1.Z);
-							FVec3 Delta = PointUnderCoM1 - WorldPos1;
-							FVec3 PointUnderCoM0(WorldPos0 + Delta);
-							PairModifier.ModifyWorldContactLocations(PointUnderCoM0, PointUnderCoM1, PointIdx);
-						}
+						// Move point0 under center of mass and move second point under CoM but keep the same distance between bodies
+						FVec3 PointUnderCoM0(CoM.X, CoM.Y, WorldPos0.Z);
+						FVec3 PointUnderCoM1(CoM.X, CoM.Y, WorldPos1.Z);
+						PairModifier.ModifyWorldContactLocations(PointUnderCoM0, PointUnderCoM1, PointIdx);
 					}
 				}
 			}

@@ -48,6 +48,12 @@ namespace Chaos
 			return TPlaneConcrete < FReal, 3> (A, GetNormal());
 		}
 
+		FORCEINLINE void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		{
+			OutN = GetNormal();
+			OutX = A;
+		}
+
 		// Get the nearest point on an edge
 		// Used for manifold generation
 		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const

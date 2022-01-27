@@ -349,6 +349,12 @@ namespace Chaos
 			return TPlaneConcrete<FReal>(PlaneX, PlaneN);
 		}
 
+		void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		{
+			OutN = SNormals[FaceIndex];
+			OutX = AABB.Center() + 0.5f * (SNormals[FaceIndex] * AABB.Extents());
+		}
+
 		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
 		const FVec3 GetVertex(int32 VertexIndex) const
 		{

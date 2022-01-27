@@ -47,6 +47,7 @@ namespace Chaos
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
+			, TargetPhi(0)
 			, Flags()
 		{}
 
@@ -56,14 +57,16 @@ namespace Chaos
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
+			, TargetPhi(0)
 			, Flags()
 		{}
 
 		FContactPoint ContactPoint;			// Contact point results of low-level collision detection
-		FVec3 ShapeAnchorPoints[2];
+		FVec3 ShapeAnchorPoints[2];			// The contact points from a prior frame, if availble. Used by friction.
 		FVec3 InitialShapeContactPoints[2];	// ShapeContactPoints when the constraint was first initialized. Used to track reusablility
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
+		FReal TargetPhi;					// Usually 0, but can be used to add padding or penetration (e.g., via a collision modifer)
 
 		union FFlags
 		{
@@ -305,7 +308,6 @@ namespace Chaos
 
 		const FReal GetCollisionMargin0() const { return CollisionMargins[0]; }
 		const FReal GetCollisionMargin1() const { return CollisionMargins[1]; }
-		const FReal GetCollisionTolerance() const { return CollisionTolerance; }
 
 		const bool IsQuadratic0() const { return Flags.bIsQuadratic0; }
 		const bool IsQuadratic1() const { return Flags.bIsQuadratic1; }
@@ -386,6 +388,7 @@ namespace Chaos
 		const FManifoldPoint& GetManifoldPoint(const int32 PointIndex) const { return ManifoldPoints[PointIndex]; }
 		const FManifoldPoint* GetClosestManifoldPoint() const { return (ClosestManifoldPointIndex != INDEX_NONE) ? &ManifoldPoints[ClosestManifoldPointIndex] : nullptr; }
 		const FSavedManifoldPoint* FindSavedManifoldPoint(const FManifoldPoint& ManifoldPoint) const;
+		void ResetSavedManifoldPoints() { SavedManifoldPoints.Reset(); }
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint);
 
@@ -470,7 +473,7 @@ namespace Chaos
 		*/
 		void ResetSolverResults()
 		{
-			SavedManifoldPoints.Reset();
+			ResetSavedManifoldPoints();
 			AccumulatedImpulse = FVec3(0);
 		}
 
@@ -562,6 +565,7 @@ namespace Chaos
 			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 			ManifoldPoint.InitialShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
 			ManifoldPoint.InitialShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
+			ManifoldPoint.TargetPhi = FReal(0);
 			ManifoldPoint.Flags.Reset();
 			ManifoldPoint.NetPushOut = FVec3(0);
 			ManifoldPoint.NetImpulse = FVec3(0);
@@ -651,8 +655,8 @@ namespace Chaos
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;
 
-		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
 		TCArray<FSavedManifoldPoint, MaxManifoldPoints> SavedManifoldPoints;
+		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
 	};
 
 

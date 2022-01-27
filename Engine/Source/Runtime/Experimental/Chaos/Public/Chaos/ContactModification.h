@@ -61,10 +61,14 @@ namespace Chaos
 		FReal GetSeparation(int32 ContactPointIdx) const;
 
 		/**
-		* Modifying separation will adjust separation of contact locations in direction of contact normal.
-		* When modifying separation with normal or locations, order of these operations should be considered.
+		* @return desired separation of contact locations in direction of normal.
 		*/
-		void ModifySeparation(FReal Separation, int32 ContactPointIdx);
+		FReal GetTargetSeparation(int32 ContactPointIdx) const;
+
+		/**
+		* Set the desired separation at the contact point (negative for penetration).
+		*/
+		void ModifyTargetSeparation(FReal TargetSeparation, int32 ContactPointIdx);
 
 		/**
 		* @return Normal of contact in world space.

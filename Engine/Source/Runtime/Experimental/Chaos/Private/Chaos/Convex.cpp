@@ -59,7 +59,8 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const FPlaneType Plane = FPlaneType::MakeScaledUnsafe(Planes[Idx], Scale);
+			// @todo(chaos): pass in InvScale
+			const FPlaneType Plane = FPlaneType::MakeScaledUnsafe(Planes[Idx], Scale, FVec3(1) / Scale);
 			const FReal Distance = Plane.SignedDistance(Position);
 			if (FMath::Abs(Distance) < SearchDist)
 			{

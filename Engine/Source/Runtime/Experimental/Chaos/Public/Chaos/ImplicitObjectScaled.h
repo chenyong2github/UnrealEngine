@@ -300,6 +300,11 @@ public:
 		return MObject->GetPlane(FaceIndex);
 	}
 
+	void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+	{
+		MObject->GetPlaneNX(FaceIndex, OutN, OutX);
+	}
+
 	// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
 	const FVec3 GetVertex(int32 VertexIndex) const
 	{
@@ -750,7 +755,14 @@ public:
 	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 	{
 		const TPlaneConcrete<FReal, 3> InnerPlane = MObject->GetPlane(FaceIndex);
-		return TPlaneConcrete<FReal, 3>::MakeScaledUnsafe(InnerPlane, MScale);	// "Unsafe" means scale has no zeros
+		return TPlaneConcrete<FReal, 3>::MakeScaledUnsafe(InnerPlane, MScale, MInvScale);	// "Unsafe" means scale must have no zeros
+	}
+
+	void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+	{
+		FVec3 InnerN, InnerX;
+		MObject->GetPlaneNX(FaceIndex, InnerN, InnerX);
+		TPlaneConcrete<FReal>::MakeScaledUnsafe(InnerN, InnerX, MScale, MInvScale, OutN, OutX);	// "Unsafe" means scale must have no zeros
 	}
 
 	// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)

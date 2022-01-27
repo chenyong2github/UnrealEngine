@@ -73,21 +73,16 @@ namespace Chaos
 		return FVec3::DotProduct(Normal, (WorldPos0 - WorldPos1));
 	}
 
-	void FContactPairModifier::ModifySeparation(FReal Separation, int32 ContactPointIdx)
+	FReal FContactPairModifier::GetTargetSeparation(int32 ContactPointIdx) const
+	{
+		FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
+		return ManifoldPoint.TargetPhi;
+	}
+
+	void FContactPairModifier::ModifyTargetSeparation(FReal TargetSeparation, int32 ContactPointIdx)
 	{	
-		FVec3 WorldPos0, WorldPos1;
-		GetWorldContactLocations(ContactPointIdx, WorldPos0, WorldPos1);
-
-		const FVec3 Normal = GetWorldNormal(ContactPointIdx);
-		const FReal CurrentSeparation = FVec3::DotProduct(Normal, (WorldPos0 - WorldPos1));
-		const FReal DeltaSeparation = Separation - CurrentSeparation;
-		
-		// Adjust contact locations to match desired separation
-		WorldPos0 += 0.5f * DeltaSeparation * Normal;
-		WorldPos1 -= 0.5f * DeltaSeparation * Normal;
-		ModifyWorldContactLocations(WorldPos0, WorldPos1, ContactPointIdx);
-
-		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
+		FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
+		ManifoldPoint.TargetPhi = TargetSeparation;
 	}
 
 	FVec3 FContactPairModifier::GetWorldNormal(int32 ContactPointIdx) const
@@ -142,8 +137,10 @@ namespace Chaos
 
 		ManifoldPoint.ContactPoint.ShapeContactPoints[0] = Constraint->GetShapeWorldTransform0().InverseTransformPositionNoScale(Location0);
 		ManifoldPoint.ContactPoint.ShapeContactPoints[1] = Constraint->GetShapeWorldTransform1().InverseTransformPositionNoScale(Location1);
-		// @todo(chaos): We may also need to do something with the SavedManifoldPoints on the Constraint otherwise static friction
-		// may still try to push the points back to their original relative positions
+
+		// Clear the friction data since it will now have the wrong contact positions
+		// @todo(chaos): maybe try to do something better here
+		Constraint->ResetSavedManifoldPoints();
 
 		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
 	}
