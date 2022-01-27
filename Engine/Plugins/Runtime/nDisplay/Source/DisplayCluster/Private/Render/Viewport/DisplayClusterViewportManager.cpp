@@ -442,8 +442,56 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 	PostProcessManager->FinalizeNewFrame();
 }
 
+FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewFamilyConstructionValues(
+	const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget,
+	FSceneInterface* InScene,
+	FEngineShowFlags InEngineShowFlags,
+	const bool bInAdditionalViewFamily) const
+{
+
+	bool bResolveScene = true;
+
+	switch (InFrameTarget.CaptureMode)
+	{
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+		case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
+
+			if (InFrameTarget.CaptureMode != EDisplayClusterViewportCaptureMode::Lightcard_OCIO)
+			{
+				bResolveScene = false;
+				InEngineShowFlags.PostProcessing = 0;
+			}
+
+			InEngineShowFlags.SetAtmosphere(0);
+			InEngineShowFlags.SetFog(0);
+			InEngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
+			InEngineShowFlags.SetSeparateTranslucency(0);
+			InEngineShowFlags.SetHMDDistortion(0);
+			InEngineShowFlags.SetOnScreenDebug(0);
+
+			InEngineShowFlags.SetNaniteMeshes(0);
+
+			InEngineShowFlags.SetLumenReflections(0);
+			InEngineShowFlags.SetLumenGlobalIllumination(0);
+
+			break;
+
+		default:
+			break;
+	}
+
+	return FSceneViewFamily::ConstructionValues(InFrameTarget.RenderTargetPtr, InScene, InEngineShowFlags)
+		.SetResolveScene(bResolveScene)
+		.SetRealtimeUpdate(true)
+		.SetAdditionalViewFamily(bInAdditionalViewFamily);
+}
+
+
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)
 {
+	// Note: EngineShowFlags should have already been configured in CreateViewFamilyConstructionValues.
+
 	// Gather Scene View Extensions
 	// Scene View Extension activation with ViewportId granularity only works if you have one ViewFamily per ViewportId
 	{
@@ -454,48 +502,19 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 		}
 	}
 
-	ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
-
 	// Setup capture mode:
 	{
+		ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
+
 		switch (InFrameTarget.CaptureMode)
 		{
-		case EDisplayClusterViewportCaptureMode::Chromakey:
-		case EDisplayClusterViewportCaptureMode::Lightcard:
-			ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
-			ViewFamily.bResolveScene = false;
+			case EDisplayClusterViewportCaptureMode::Chromakey:
+			case EDisplayClusterViewportCaptureMode::Lightcard:
+				ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+				break;
 
-			ViewFamily.EngineShowFlags.PostProcessing = 0;
-
-			ViewFamily.EngineShowFlags.SetAtmosphere(0);
-			ViewFamily.EngineShowFlags.SetFog(0);
-			ViewFamily.EngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
-			ViewFamily.EngineShowFlags.SetSeparateTranslucency(0);
-			ViewFamily.EngineShowFlags.SetHMDDistortion(0);
-			ViewFamily.EngineShowFlags.SetOnScreenDebug(0);
-			break;
-
-		default:
-			break;
-		}
-	}
-	// Disable nanite and lumen for lightcards/chromakey
-	{
-		switch (InFrameTarget.CaptureMode)
-		{
-		case EDisplayClusterViewportCaptureMode::Chromakey:
-		case EDisplayClusterViewportCaptureMode::Lightcard:
-		case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
-
-			ViewFamily.EngineShowFlags.SetNaniteMeshes(0);
-			
-			ViewFamily.EngineShowFlags.SetLumenReflections(0);
-			ViewFamily.EngineShowFlags.SetLumenGlobalIllumination(0);
-
-			break;
-
-		default:
-			break;
+			default:
+				break;
 		}
 	}
 }

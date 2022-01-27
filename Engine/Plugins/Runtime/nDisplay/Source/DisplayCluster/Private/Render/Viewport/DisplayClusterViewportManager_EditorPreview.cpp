@@ -116,64 +116,64 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InRenderFrame.RenderTargets)
 	{
 		// Special flag, allow clear RTT surface only for first family
-		bool AdditionalViewFamily = false;
+		bool bAdditionalViewFamily = false;
 
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamiliesIt : RenderTargetIt.ViewFamilies)
 		{
+			FRenderTarget* DstResource = RenderTargetIt.RenderTargetPtr;
+
+			// Create the view family for rendering the world scene to the viewport's render target
+			FSceneViewFamilyContext ViewFamily(CreateViewFamilyConstructionValues(
+				RenderTargetIt,
+				PreviewScene,
+				EngineShowFlags,
+				bAdditionalViewFamily
+			));
+
+			ConfigureViewFamily(RenderTargetIt, ViewFamiliesIt, ViewFamily);
+
+			// Disable clean op for all next families on this render target
+			bAdditionalViewFamily = true;
+
+			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
 			{
-				FRenderTarget* DstResource = RenderTargetIt.RenderTargetPtr;
-				// Create the view family for rendering the world scene to the viewport's render target
-				FSceneViewFamilyContext ViewFamily(
-					FSceneViewFamily::ConstructionValues(DstResource, PreviewScene, EngineShowFlags)
-					.SetResolveScene(true)
-					.SetRealtimeUpdate(true)
-					.SetAdditionalViewFamily(AdditionalViewFamily));
+				FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
 
-				ConfigureViewFamily(RenderTargetIt, ViewFamiliesIt, ViewFamily);
+				check(ViewportPtr != nullptr);
+				check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
 
-				// Disable clean op for all next families on this render target
-				AdditionalViewFamily = true;
+				// Calculate the player's view information.
+				FVector  ViewLocation;
+				FRotator ViewRotation;
+				FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
-				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
+				if (View && ViewIt.bDisableRender)
 				{
-					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+					ViewFamily.Views.Remove(View);
 
-					check(ViewportPtr != nullptr);
-					check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
-
-					// Calculate the player's view information.
-					FVector  ViewLocation;
-					FRotator ViewRotation;
-					FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
-
-					if (View && ViewIt.bDisableRender)
-					{
-						ViewFamily.Views.Remove(View);
-
-						delete View;
-						View = nullptr;
-					}
-
-					if (View)
-					{
-						// Apply viewport context settings to view (crossGPU, visibility, etc)
-						ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
-					}
+					delete View;
+					View = nullptr;
 				}
 
-				if (ViewFamily.Views.Num() > 0)
+				if (View)
 				{
-					// Screen percentage is still not supported in scene capture.
-					ViewFamily.EngineShowFlags.ScreenPercentage = false;
-					ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
-
-					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
-
-					FCanvas Canvas(DstResource, nullptr, PreviewScene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
-					Canvas.Clear(FLinearColor::Black);
-
-					GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+					// Apply viewport context settings to view (crossGPU, visibility, etc)
+					ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
 				}
+			}
+
+			if (ViewFamily.Views.Num() > 0)
+			{
+				// Screen percentage is still not supported in scene capture.
+				ViewFamily.EngineShowFlags.ScreenPercentage = false;
+				ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
+
+				ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
+
+				FCanvas Canvas(DstResource, nullptr, PreviewScene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
+				Canvas.Clear(FLinearColor::Black);
+
+				GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 			}
 		}
 	}

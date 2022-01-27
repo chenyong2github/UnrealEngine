@@ -54,6 +54,13 @@ public:
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
 	virtual void FinalizeNewFrame() override;
 
+	virtual FSceneViewFamily::ConstructionValues CreateViewFamilyConstructionValues(
+		const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget,
+		FSceneInterface* InScene,
+		FEngineShowFlags InEngineShowFlags,
+		const bool bInAdditionalViewFamily
+	) const override;
+
 	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) override;
 	
 	virtual void RenderFrame(FViewport* InViewport) override;

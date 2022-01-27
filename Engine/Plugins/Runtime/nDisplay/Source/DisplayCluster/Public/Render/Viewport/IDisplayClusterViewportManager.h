@@ -69,6 +69,24 @@ public:
 	virtual void FinalizeNewFrame() = 0;
 
 	/**
+	* Create constructor values for viewfamily, using rules
+	* [Game thread func]
+	*
+	* @param InFrameTarget           - frame target
+	* @param InScene                 - scene
+	* @param InEngineShowFlags       - starting showflags
+	* @param bInAdditionalViewFamily - flag indicating this is an additional view family
+	* 
+	* @return - The ConstructionValues object that was created, meant to initialize a view family context.
+	*/
+	virtual FSceneViewFamily::ConstructionValues CreateViewFamilyConstructionValues(
+		const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget,
+		FSceneInterface* InScene,
+		FEngineShowFlags InEngineShowFlags,
+		const bool bInAdditionalViewFamily
+	) const = 0;
+
+	/**
 	* Initialize view family, using rules
 	* [Game thread func]
 	*

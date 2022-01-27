@@ -421,14 +421,17 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
 		{
 			// Create the view family for rendering the world scene to the viewport's render target
-			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(DCRenderTarget.RenderTargetPtr, MyWorld->Scene, EngineShowFlags)
-				.SetRealtimeUpdate(true)
-				.SetAdditionalViewFamily(bAdditionalViewFamily));
+			FSceneViewFamilyContext ViewFamily(RenderFrame.ViewportManager->CreateViewFamilyConstructionValues(
+				DCRenderTarget,
+				MyWorld->Scene,
+				EngineShowFlags,
+				bAdditionalViewFamily
+			));
 
 			// Disable clean op for all next families on this render target
 			bAdditionalViewFamily = true;
 
-			// Configure family flags
+			// Configure family
 			RenderFrame.ViewportManager->ConfigureViewFamily(DCRenderTarget, DCViewFamily, ViewFamily);
 
 #if WITH_EDITOR
