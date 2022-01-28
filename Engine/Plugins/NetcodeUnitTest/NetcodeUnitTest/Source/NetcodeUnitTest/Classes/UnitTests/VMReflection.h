@@ -34,7 +34,7 @@ class UVMTestClassA : public UObject
 
 public:
 	UPROPERTY()
-	UObject*	AObjectRef;
+	TObjectPtr<UObject> AObjectRef;
 
 	UPROPERTY()
 	uint8		ByteProp;
@@ -95,7 +95,7 @@ public:
 	uint8		BytePropArray[4];
 
 	UPROPERTY()
-	UObject*	ObjectPropArray[2];
+	TObjectPtr<UObject> ObjectPropArray[2];
 
 	UPROPERTY()
 	TArray<uint8>		DynBytePropArray;
@@ -104,7 +104,7 @@ public:
 	TArray<bool>		DynBoolPropArray;
 
 	UPROPERTY()
-	TArray<UObject*>	DynObjectPropArray;
+	TArray<TObjectPtr<UObject>> DynObjectPropArray;
 
 	UPROPERTY()
 	TArray<FName>		DynNamePropArray;
@@ -143,10 +143,10 @@ public:
 	TArray<FText>		DynTextPropArray;
 
 	UPROPERTY()
-	TArray<UClass*>		DynClassPropArray;
+	TArray<TObjectPtr<UClass>> DynClassPropArray;
 
 	UPROPERTY()
-	TArray<APawn*>		DynPawnPropArray;
+	TArray<TObjectPtr<APawn>> DynPawnPropArray;
 
 
 	UPROPERTY()
@@ -166,6 +166,6 @@ class UVMTestClassB : public UObject
 
 public:
 	UPROPERTY()
-	UObject*	BObjectRef;
+	TObjectPtr<UObject> BObjectRef;
 };
 

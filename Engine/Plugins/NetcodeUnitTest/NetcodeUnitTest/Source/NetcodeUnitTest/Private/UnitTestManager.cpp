@@ -752,7 +752,7 @@ void UUnitTestManager::NotifyLogWindowClosed(const TSharedRef<SWindow>& ClosedWi
 	else
 	{
 		// Match the log window to a unit test
-		UUnitTest** CurUnitTestRef = ActiveUnitTests.FindByPredicate(
+		TObjectPtr<UUnitTest>* CurUnitTestRef = ActiveUnitTests.FindByPredicate(
 			[&](const UUnitTest* Element)
 			{
 				return Element->LogWindow == ClosedWindow;
@@ -1591,7 +1591,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 	// If this command was triggered within a specific unit test (as identified by InWorld), abort it
 	else if (UnitTestName == TEXT("abort"))
 	{
-		UUnitTest** UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
+		TObjectPtr<UUnitTest>* UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
 									ActiveUnitTests.FindByPredicate(FindUnitTestByLog));
 
 		UUnitTest* AbortUnitTest = (UnitTestRef != nullptr ? *UnitTestRef : nullptr);
@@ -1610,7 +1610,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 	// If this command was triggered within a specific unit test, restart the unit test
 	else if (UnitTestName == TEXT("restart"))
 	{
-		UUnitTest** UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
+		TObjectPtr<UUnitTest>* UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
 									ActiveUnitTests.FindByPredicate(FindUnitTestByLog));
 
 		UUnitTest* RestartUnitTest = (UnitTestRef != nullptr ? *UnitTestRef : nullptr);
@@ -1663,7 +1663,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 	// Debug unit test commands
 	else if (UnitTestName == TEXT("debug"))
 	{
-		UUnitTest** TargetUnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(
+		TObjectPtr<UUnitTest>* TargetUnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(
 			[&InWorld](const UUnitTest* InElement)
 			{
 				auto CurUnitTest = Cast<UClientUnitTest>(InElement);

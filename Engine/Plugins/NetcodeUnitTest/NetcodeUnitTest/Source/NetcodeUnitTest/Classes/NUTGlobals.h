@@ -45,7 +45,7 @@ public:
 public:
 	/** For NUTActor - the UNetConnection that 'watch' events will be sent to */
 	UPROPERTY()
-	UNetConnection* EventWatcher;
+	TObjectPtr<UNetConnection> EventWatcher;
 
 	/** For ClientUnitTest - the (+10) incremented port number, for each server instance */
 	UPROPERTY()

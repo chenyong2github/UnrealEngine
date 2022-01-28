@@ -116,7 +116,7 @@ protected:
 
 	/** The object which handles implementation of the minimal client */
 	UPROPERTY()
-	UMinimalClient* MinClient;
+	TObjectPtr<UMinimalClient> MinClient;
 
 	/** Whether or not the initial connect of the minimal client was triggered */
 	bool bTriggerredInitialConnect;

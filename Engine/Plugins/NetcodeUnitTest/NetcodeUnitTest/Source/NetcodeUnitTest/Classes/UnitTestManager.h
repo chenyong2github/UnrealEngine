@@ -64,15 +64,15 @@ public:
 
 	/** Holds a list of unit tests pending execution */
 	UPROPERTY()
-	TArray<UClass*> PendingUnitTests;
+	TArray<TObjectPtr<UClass>> PendingUnitTests;
 
 	/** Holds a list of currently active unit tests */
 	UPROPERTY()
-	TArray<UUnitTest*> ActiveUnitTests;
+	TArray<TObjectPtr<UUnitTest>> ActiveUnitTests;
 
 	/** Unit tests which are finished, and are kept around until printing the final summary */
 	UPROPERTY()
-	TArray<UUnitTest*> FinishedUnitTests;
+	TArray<TObjectPtr<UUnitTest>> FinishedUnitTests;
 
 
 	/** If a unit test was aborted on its first run, strictly cap all first-run unit tests to one at a time */

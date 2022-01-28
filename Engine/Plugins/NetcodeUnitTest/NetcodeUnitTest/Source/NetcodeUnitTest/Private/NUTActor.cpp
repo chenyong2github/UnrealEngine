@@ -302,7 +302,7 @@ void ANUTActor::NotifyPostLoadMap(UWorld* LoadedWorld)
 bool ANUTActor::VerifyEventWatcher()
 {
 	bool bVerified = false;
-	UNetConnection*& EventWatcher = UNUTGlobals::Get().EventWatcher;
+	TObjectPtr<UNetConnection>& EventWatcher = UNUTGlobals::Get().EventWatcher;
 
 	if (EventWatcher != nullptr)
 	{

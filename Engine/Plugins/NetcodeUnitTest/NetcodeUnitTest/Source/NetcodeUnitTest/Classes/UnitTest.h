@@ -209,7 +209,7 @@ protected:
 
 	/** UnitTask's which must be run before different stages of the unit test can execute */
 	UPROPERTY()
-	TArray<UUnitTask*> UnitTasks;
+	TArray<TObjectPtr<UUnitTask>> UnitTasks;
 
 	/** Marks the state of met unit task requirement flags and active unit task blocking flags */
 	EUnitTaskFlags UnitTaskState;
