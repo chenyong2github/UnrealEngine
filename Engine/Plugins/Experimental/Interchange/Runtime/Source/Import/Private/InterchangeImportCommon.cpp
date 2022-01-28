@@ -47,6 +47,7 @@ namespace UE
 				AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
 				FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
 				AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
+				AssetImportData->Pipelines.Reset();
 				for (const UInterchangePipelineBase* Pipeline : Parameters.Pipelines)
 				{
 					UInterchangePipelineBase* DupPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(Pipeline, AssetImportData));
@@ -56,8 +57,6 @@ namespace UE
 					}
 				}
 			}
-
-
 		}
 
 		FFactoryCommon::FUpdateImportAssetDataParameters::FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
@@ -174,8 +173,7 @@ namespace UE
 #endif //#if WITH_EDITORONLY_DATA
 
 
-		void FFactoryCommon::ApplyReimportStrategyToAsset(const EReimportStrategyFlags ReimportStrategyFlags
-										  , UObject* Asset
+		void FFactoryCommon::ApplyReimportStrategyToAsset(UObject* Asset
 										  , UInterchangeBaseNode* PreviousAssetNode
 										  , UInterchangeBaseNode* CurrentAssetNode
 										  , UInterchangeBaseNode* PipelineAssetNode)
@@ -184,7 +182,7 @@ namespace UE
 			{
 				return;
 			}
-
+			EReimportStrategyFlags ReimportStrategyFlags = PipelineAssetNode->GetReimportStrategyFlags();
 			switch (ReimportStrategyFlags)
 			{
 				case EReimportStrategyFlags::ApplyNoProperties:

@@ -184,6 +184,7 @@ namespace UE
 			static const FAttributeKey& ClassTypeAttributeKey();
 			static const FAttributeKey& AssetNameKey();
 			static const FAttributeKey& NodeContainerTypeKey();
+			static const FAttributeKey& ReimportStrategyFlagsKey();
 		};
 
 	} //ns Interchange
@@ -196,6 +197,14 @@ enum class EInterchangeNodeContainerType : uint8
 	TranslatedScene,
 	TranslatedAsset,
 	FactoryData
+};
+
+UENUM()
+enum class EReimportStrategyFlags : uint8
+{
+	ApplyNoProperties, //Do not apply any property when re-importing, simply change the source data
+	ApplyPipelineProperties, //Always apply all pipeline specified properties
+	ApplyEditorChangedProperties //Always apply all pipeline properties, but leave the properties modified in editor since the last import
 };
 
 /**
@@ -432,6 +441,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool SetDisplayLabel(const FString& DisplayName);
+
+	/**
+	 * Return the reimport strategy flags.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	EReimportStrategyFlags GetReimportStrategyFlags() const;
+
+	/**
+	 * Change the reimport strategy flags.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags);
 
 	/**
 	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUid()

@@ -82,7 +82,9 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
+	
+	bool bIsReImport = Arguments.ReimportObject != nullptr;
+	
 	UObject* SkeletonObject = nullptr;
 	// create a new skeleton or overwrite existing asset, if possible
 	if (!ExistingAsset)
@@ -90,6 +92,8 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
 		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
 		check(IsInGameThread());
+		//We should not do a NewObject if we are doing a reimport
+		check(!bIsReImport);
 		SkeletonObject = NewObject<UObject>(Arguments.Parent, SkeletonClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(SkeletonClass))
@@ -106,26 +110,31 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 
 	if (SkeletonObject)
 	{
-		//Currently skeleton re-import will not touch the skeleton at all
-		//TODO design a re-import process for the skeleton (expressions and input connections)
-		if(!Arguments.ReimportObject)
+		USkeleton* Skeleton = Cast<USkeleton>(SkeletonObject);
+		if (!ensure(Skeleton))
 		{
-			USkeleton* Skeleton = Cast<USkeleton>(SkeletonObject);
-			if (!ensure(Skeleton))
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
-				return nullptr;
-			}
-			FString RootJointUid;
-			if (!SkeletonNode->GetCustomRootJointUid(RootJointUid))
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s, because there is no valid root joint node"), *Arguments.AssetName);
-				return nullptr;
-			}
-			
-			//The joint will be added by the skeletalmesh factory since we need a valid skeletalmesh to add joint to a skeleton
-			SkeletonNode->ReferenceObject = Skeleton;
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
+			return nullptr;
 		}
+		FString RootJointUid;
+		if (!SkeletonNode->GetCustomRootJointUid(RootJointUid))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s, because there is no valid root joint node"), *Arguments.AssetName);
+			return nullptr;
+		}
+		if (bIsReImport)
+		{
+			if (const UInterchangeBaseNode* RootJointNode = Arguments.NodeContainer->GetNode(RootJointUid))
+			{
+				FName RootJointName = FName(*RootJointNode->GetDisplayLabel());
+				if (RootJointName != Skeleton->GetReferenceSkeleton().GetBoneName(0))
+				{
+					return nullptr;
+				}
+			}
+		}
+		//The joint will be added by the skeletalmesh factory since we need a valid skeletalmesh to add joint to a skeleton
+		SkeletonNode->ReferenceObject = Skeleton;
 		
 		//Getting the file Hash will cache it into the source data
 		Arguments.SourceData->GetFileContentHash();

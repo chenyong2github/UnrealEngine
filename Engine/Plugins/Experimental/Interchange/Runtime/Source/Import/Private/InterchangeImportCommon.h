@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "EditorFramework/AssetImportData.h"
-#include "InterchangeFactoryBase.h"
 
 class UAssetImportData;
 class UInterchangeBaseNode;
@@ -73,8 +72,7 @@ namespace UE
 			/**
 			 * Apply the current strategy to the PipelineAssetNode
 			 */
-			static void ApplyReimportStrategyToAsset(const EReimportStrategyFlags ReimportStrategyFlags
-											  , UObject* Asset
+			static void ApplyReimportStrategyToAsset(UObject* Asset
 											  , UInterchangeBaseNode* PreviousAssetNode
 											  , UInterchangeBaseNode* CurrentAssetNode
 											  , UInterchangeBaseNode* PipelineAssetNode);

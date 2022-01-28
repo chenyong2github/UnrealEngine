@@ -6,6 +6,7 @@
 #include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
+#include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -87,6 +88,10 @@ public:
 	/** If enable and there is only one asset and one source data, we will name the asset like the source data name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_CATEGORY)
 	bool bUseSourceNameForAsset = true;
+
+	/* Allow user to choose the re-import strategy. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_CATEGORY)
+	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
 
 
 	//////	COMMON_MESHES_CATEGORY Properties //////

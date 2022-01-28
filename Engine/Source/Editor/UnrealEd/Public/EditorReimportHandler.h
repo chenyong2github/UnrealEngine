@@ -272,6 +272,11 @@ public:
 		return bAutomatedReimport;
 	}
 
+	virtual bool IsInterchangeFactory() const
+	{
+		return false;
+	}
+
 protected:
 	FString PreferredReimportPath;
 	bool bAutomatedReimport;

@@ -1020,7 +1020,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 			UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
 			CurrentNode->FillAllCustomAttributeFromObject(Texture);
 			//Apply reimport strategy
-			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture, PreviousNode, CurrentNode, TextureFactoryNode);
+			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Texture, PreviousNode, CurrentNode, TextureFactoryNode);
 		}
 	}
 #endif //WITH_EDITOR

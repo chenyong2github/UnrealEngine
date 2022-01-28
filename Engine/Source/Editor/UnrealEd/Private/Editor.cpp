@@ -390,7 +390,7 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 
 			if ( bValidSourceFilename )
 			{
-				if (bUseInterchangeFramework)
+				if (bUseInterchangeFramework && CanReimportHandler->IsInterchangeFactory())
 				{
 					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
 

@@ -322,10 +322,6 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		}
 		CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
 
-		CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyNoProperties;
-		//CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyPipelineProperties;
-		//CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyEditorChangedProperties;
-
 		NodeAsset = Factory->CreateAsset(CreateAssetParams);
 	}
 	if (NodeAsset)

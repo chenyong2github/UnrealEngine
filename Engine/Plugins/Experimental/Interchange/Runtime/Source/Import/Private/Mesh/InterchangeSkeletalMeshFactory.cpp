@@ -5,6 +5,7 @@
 #include "Components.h"
 #include "Engine/SkeletalMesh.h"
 #include "GPUSkinPublicDefs.h"
+#include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeMaterialFactoryNode.h"
@@ -922,7 +923,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
+	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
 	if (SkeletalMeshFactoryNode == nullptr)
 	{
 		return nullptr;
@@ -962,333 +963,382 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	if (SkeletalMeshObject)
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshObject);
+
+	const bool bIsReImport = (Arguments.ReimportObject != nullptr);
+
+	if (!ensure(SkeletalMesh))
 	{
-		//Currently material re-import will not touch the material at all
-		//TODO design a re-import process for the material (expressions and input connections)
-		if(!Arguments.ReimportObject)
+		if (!bIsReImport)
 		{
-			USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshObject);
-			if (!ensure(SkeletalMesh))
-			{
-				UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
-				return nullptr;
-			}
-			//Dirty the DDC Key for any imported Skeletal Mesh
-			SkeletalMesh->InvalidateDeriveDataCacheGUID();
-
-			FSkeletalMeshModel* ImportedResource = SkeletalMesh->GetImportedModel();
-			if (!ensure(ImportedResource->LODModels.Num() == 0))
-			{
-				ImportedResource->LODModels.Empty();
-			}
-			USkeleton* SkeletonReference = nullptr;
-			int32 LodCount = SkeletalMeshFactoryNode->GetLodDataCount();
-			TArray<FString> LodDataUniqueIds;
-			SkeletalMeshFactoryNode->GetLodDataUniqueIds(LodDataUniqueIds);
-			ensure(LodDataUniqueIds.Num() == LodCount);
-			int32 CurrentLodIndex = 0;
-			for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
-			{
-				FString LodUniqueId = LodDataUniqueIds[LodIndex];
-				const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(Arguments.NodeContainer->GetNode(LodUniqueId));
-				if (!LodDataNode)
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				FString SkeletonNodeUid;
-				if (!LodDataNode->GetCustomSkeletonUid(SkeletonNodeUid))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-				const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.NodeContainer->GetNode(SkeletonNodeUid));
-				if (!SkeletonNode)
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				FSoftObjectPath SpecifiedSkeleton;
-				SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
-				bool bSpecifiedSkeleton = SpecifiedSkeleton.IsValid();
-				if (SkeletonReference == nullptr)
-				{
-					UObject* SkeletonObject = nullptr;
-
-					if (SpecifiedSkeleton.IsValid())
-					{
-						SkeletonObject = SpecifiedSkeleton.TryLoad();
-					}
-					else if (SkeletonNode->ReferenceObject.IsValid())
-					{
-						SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
-					}
-
-					if (SkeletonObject)
-					{
-						SkeletonReference = Cast<USkeleton>(SkeletonObject);
-
-					}
-					if (!ensure(SkeletonReference))
-					{
-						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-						break;
-					}
-				}
-
-				FString RootJointNodeId;
-				if (!SkeletonNode->GetCustomRootJointUid(RootJointNodeId))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				int32 SkeletonDepth = 0;
-				TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
-				bool bUseTimeZeroAsBindPose = false;
-				SkeletonNode->GetCustomUseTimeZeroForBindPose(bUseTimeZeroAsBindPose);
-				bool bDiffPose = false;
-				UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary, bUseTimeZeroAsBindPose, bDiffPose);
-				if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName(), *Arguments.AssetName);
-				}
-				
-				TArray<UE::Interchange::Private::FMeshNodeContext> MeshReferences;
-				//Scope to query the mesh node
-				{
-					TArray<FString> MeshUids;
-					LodDataNode->GetMeshUids(MeshUids);
-					MeshReferences.Reserve(MeshUids.Num());
-					for (const FString& MeshUid : MeshUids)
-					{
-						UE::Interchange::Private::FMeshNodeContext MeshReference;
-						MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshUid));
-						if (!MeshReference.MeshNode)
-						{
-							//The reference is a scene node and we need to bake the geometry
-							MeshReference.SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(MeshUid));
-							if (!ensure(MeshReference.SceneNode != nullptr))
-							{
-								UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-								continue;
-							}
-							FString MeshDependencyUid;
-							MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
-							MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
-							//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
-							FTransform SceneNodeGlobalTransform;
-							if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(SceneNodeGlobalTransform))
-							{
-								ensure(MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform));
-							}
-							FTransform SceneNodeGeometricTransform;
-							if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
-							{
-								SceneNodeGlobalTransform *= SceneNodeGeometricTransform;
-							}
-							MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
-						}
-						if (!ensure(MeshReference.MeshNode != nullptr))
-						{
-							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-							continue;
-						}
-						TOptional<FString> MeshPayloadKey = MeshReference.MeshNode->GetPayLoadKey();
-						if (MeshPayloadKey.IsSet())
-						{
-							MeshReference.TranslatorPayloadKey = MeshPayloadKey.GetValue();
-						}
-						else
-						{
-							UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-							continue;
-						}
-						MeshReferences.Add(MeshReference);
-					}
-				}
-
-				//Add the lod mesh data to the skeletalmesh
-				FSkeletalMeshImportData SkeletalMeshImportData;
-				const bool bSkinControlPointToTimeZero = bUseTimeZeroAsBindPose && bDiffPose;
-				//Get all meshes and blend shapes payload and fill the SkeletalMeshImportData structure
-				UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshFactoryNode
-																						   , SkeletalMeshImportData
-																						   , MeshReferences
-																						   , RefBonesBinary
-																						   , Arguments
-																						   , SkeletalMeshTranslatorPayloadInterface
-																						   , bSkinControlPointToTimeZero
-																						   , Arguments.NodeContainer
-																						   , RootJointNodeId);
-				//////////////////////////////////////////////////////////////////////////
-				//Manage vertex color, we want to use the translated source data
-				//Replace -> do nothing
-				//Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
-				//Override -> replace the vertex color by the override color
-				{
-					bool bReplaceVertexColor = false;
-					SkeletalMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
-					if (!bReplaceVertexColor)
-					{
-						bool bIgnoreVertexColor = false;
-						SkeletalMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
-						if (bIgnoreVertexColor)
-						{
-							//Flush the vertex color, if we re-import we have to fill it with the old data
-							SkeletalMeshImportData.bHasVertexColors = false;
-							for (SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
-							{
-								Wedge.Color = FColor::White;
-							}
-						}
-						else
-						{
-							FColor OverrideVertexColor;
-							if (SkeletalMeshFactoryNode->GetCustomVertexColorOverride(OverrideVertexColor))
-							{
-								SkeletalMeshImportData.bHasVertexColors = true;
-								for(SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
-								{
-									Wedge.Color = OverrideVertexColor;
-								}
-							}
-						}
-					}
-					// Store whether or not this mesh has vertex colors
-					SkeletalMesh->SetHasVertexColors(SkeletalMeshImportData.bHasVertexColors);
-					SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
-				}
-
-				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
-				FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];
-
-				TMap<FString, UMaterialInterface*> AvailableMaterials;
-				TArray<FString> FactoryDependencies;
-				SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
-				for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
-				{
-					const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
-					if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
-					{
-						continue;
-					}
-					if (!MaterialFactoryNode->IsEnabled())
-					{
-						continue;
-					}
-					UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
-					if (!MaterialInterface)
-					{
-						continue;
-					}
-					AvailableMaterials.Add(MaterialFactoryNode->GetDisplayLabel(), MaterialInterface);
-				}
-
-				UE::Interchange::Private::ProcessImportMeshMaterials(SkeletalMesh->GetMaterials(), SkeletalMeshImportData, AvailableMaterials);
-				UE::Interchange::Private::ProcessImportMeshInfluences(SkeletalMeshImportData.Wedges.Num(), SkeletalMeshImportData.Influences);
-				//Store the original fbx import data the SkelMeshImportDataPtr should not be modified after this
-				SkeletalMesh->SaveLODImportedData(CurrentLodIndex, SkeletalMeshImportData);
-				//We reimport both
-				SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
-				FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
-				NewLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;
-				NewLODInfo.ReductionSettings.NumOfVertPercentage = 1.0f;
-				NewLODInfo.ReductionSettings.MaxDeviationPercentage = 0.0f;
-				NewLODInfo.LODHysteresis = 0.02f;
-				NewLODInfo.bImportWithBaseMesh = true;
-
-				//Make sure each LOD material index point on the correct skeletalMesh materials list index.
-				TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
-				const TArray<SkeletalMeshImportData::FMaterial>& ImportedMaterials = SkeletalMeshImportData.Materials;
-				if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(CurrentLodIndex))
-				{
-					LodInfo->LODMaterialMap.Empty();
-					// Now set up the material mapping array.
-					for (int32 ImportedMaterialIndex = 0; ImportedMaterialIndex < ImportedMaterials.Num(); ImportedMaterialIndex++)
-					{
-						FName ImportedMaterialName = *(ImportedMaterials[ImportedMaterialIndex].MaterialImportName);
-						//Match by name
-						int32 LODMatIndex = INDEX_NONE;
-						for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
-						{
-							const FSkeletalMaterial& SkeletalMaterial = Materials[MaterialIndex];
-							if (SkeletalMaterial.ImportedMaterialSlotName != NAME_None && SkeletalMaterial.ImportedMaterialSlotName == ImportedMaterialName)
-							{
-								LODMatIndex = MaterialIndex;
-								break;
-							}
-						}
-						// If we dont have a match, add a new entry to the material list.
-						if (LODMatIndex == INDEX_NONE)
-						{
-							LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
-						}
-						LodInfo->LODMaterialMap.Add(LODMatIndex);
-					}
-				}
-
-				//Add the bound to the skeletal mesh
-				if (SkeletalMesh->GetImportedBounds().BoxExtent.IsNearlyZero())
-				{
-					FBox3f BoundingBox(SkeletalMeshImportData.Points.GetData(), SkeletalMeshImportData.Points.Num());
-					const FVector3f BoundingBoxSize = BoundingBox.GetSize();
-
-					if (SkeletalMeshImportData.Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME)
-					{
-						//TODO log a user error
-						//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ErrorMeshTooSmall", "Cannot import this mesh, the bounding box of this mesh is smaller than the supported threshold[{0}]."), FText::FromString(FString::Printf(TEXT("%f"), THRESH_POINTS_ARE_SAME)))), FFbxErrors::SkeletalMesh_FillImportDataFailed);
-					}
-					SkeletalMesh->SetImportedBounds(FBoxSphereBounds((FBox)BoundingBox));
-				}
-
-				CurrentLodIndex++;
-			}
-
-			SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh);
-			if (SkeletalMesh->GetSkeleton() != SkeletonReference)
-			{
-				SkeletalMesh->SetSkeleton(SkeletonReference);
-			}
-
-			SkeletalMesh->CalculateInvRefMatrices();
-
-			/** Apply all SkeletalMeshFactoryNode custom attributes to the skeletal mesh asset */
-			SkeletalMeshFactoryNode->ApplyAllCustomAttributeToObject(SkeletalMesh);
-
-			bool bCreatePhysicsAsset = false;
-			SkeletalMeshFactoryNode->GetCustomCreatePhysicsAsset(bCreatePhysicsAsset);
-			
-			if (!bCreatePhysicsAsset)
-			{
-				FSoftObjectPath SpecifiedPhysicAsset;
-				SkeletalMeshFactoryNode->GetCustomPhysicAssetSoftObjectPath(SpecifiedPhysicAsset);
-				if (SpecifiedPhysicAsset.IsValid())
-				{
-					UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(SpecifiedPhysicAsset.TryLoad());
-					SkeletalMesh->SetPhysicsAsset(PhysicsAsset);
-				}
-			}
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create skeletalMesh asset %s"), *Arguments.AssetName);
 		}
-		else //Re-Import
+		else
 		{
-			//We want to swap the source data and set properly any skeleton change
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported skeletalMesh asset %s"), *Arguments.AssetName);
 		}
+		return nullptr;
+	}
+
+	//Dirty the DDC Key for any imported Skeletal Mesh
+	SkeletalMesh->InvalidateDeriveDataCacheGUID();
+	USkeleton* SkeletonReference = nullptr;
 		
-		//Getting the file Hash will cache it into the source data
-		Arguments.SourceData->GetFileContentHash();
-
-		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
+	FSkeletalMeshModel* ImportedResource = SkeletalMesh->GetImportedModel();
+	if (!bIsReImport)
+	{
+		if (!ensure(ImportedResource->LODModels.Num() == 0))
+		{
+			ImportedResource->LODModels.Empty();
+		}
 	}
 	else
 	{
-		//The material is not a UMaterialInterface
-		SkeletalMeshObject->RemoveFromRoot();
-		SkeletalMeshObject->MarkAsGarbage();
+		SkeletalMesh->GetImportedBounds().BoxExtent.Set(0.0, 0.0, 0.0);
+
+		//When we re-import, we force the current skeletalmesh skeleton, to be specified and to be the reference
+		FSoftObjectPath SpecifiedSkeleton = SkeletalMesh->GetSkeleton();
+		SkeletalMeshFactoryNode->SetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
 	}
+			
+	int32 LodCount = SkeletalMeshFactoryNode->GetLodDataCount();
+	TArray<FString> LodDataUniqueIds;
+	SkeletalMeshFactoryNode->GetLodDataUniqueIds(LodDataUniqueIds);
+	ensure(LodDataUniqueIds.Num() == LodCount);
+	int32 CurrentLodIndex = 0;
+
+	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
+	{
+		FString LodUniqueId = LodDataUniqueIds[LodIndex];
+		const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(Arguments.NodeContainer->GetNode(LodUniqueId));
+		if (!LodDataNode)
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+
+		FString SkeletonNodeUid;
+		if (!LodDataNode->GetCustomSkeletonUid(SkeletonNodeUid))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+		const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.NodeContainer->GetNode(SkeletonNodeUid));
+		if (!SkeletonNode)
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+
+		FSoftObjectPath SpecifiedSkeleton;
+		SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
+		bool bSpecifiedSkeleton = SpecifiedSkeleton.IsValid();
+		if (SkeletonReference == nullptr)
+		{
+			UObject* SkeletonObject = nullptr;
+
+			if (SpecifiedSkeleton.IsValid())
+			{
+				SkeletonObject = SpecifiedSkeleton.TryLoad();
+			}
+			else if (SkeletonNode->ReferenceObject.IsValid())
+			{
+				SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
+			}
+
+			if (SkeletonObject)
+			{
+				SkeletonReference = Cast<USkeleton>(SkeletonObject);
+
+			}
+				
+			if (!ensure(SkeletonReference))
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+				break;
+			}
+		}
+
+		FString RootJointNodeId;
+		if (!SkeletonNode->GetCustomRootJointUid(RootJointNodeId))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+			continue;
+		}
+
+		int32 SkeletonDepth = 0;
+		TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
+		bool bUseTimeZeroAsBindPose = false;
+		SkeletonNode->GetCustomUseTimeZeroForBindPose(bUseTimeZeroAsBindPose);
+		bool bDiffPose = false;
+		UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary, bUseTimeZeroAsBindPose, bDiffPose);
+		if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName(), *Arguments.AssetName);
+		}
+				
+		TArray<UE::Interchange::Private::FMeshNodeContext> MeshReferences;
+		//Scope to query the mesh node
+		{
+			TArray<FString> MeshUids;
+			LodDataNode->GetMeshUids(MeshUids);
+			MeshReferences.Reserve(MeshUids.Num());
+			for (const FString& MeshUid : MeshUids)
+			{
+				UE::Interchange::Private::FMeshNodeContext MeshReference;
+				MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshUid));
+				if (!MeshReference.MeshNode)
+				{
+					//The reference is a scene node and we need to bake the geometry
+					MeshReference.SceneNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(MeshUid));
+					if (!ensure(MeshReference.SceneNode != nullptr))
+					{
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+						continue;
+					}
+					FString MeshDependencyUid;
+					MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
+					MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
+					//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
+					FTransform SceneNodeGlobalTransform;
+					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(SceneNodeGlobalTransform))
+					{
+						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform));
+					}
+					FTransform SceneNodeGeometricTransform;
+					if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
+					{
+						SceneNodeGlobalTransform *= SceneNodeGeometricTransform;
+					}
+					MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
+				}
+				if (!ensure(MeshReference.MeshNode != nullptr))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD mesh reference when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					continue;
+				}
+				TOptional<FString> MeshPayloadKey = MeshReference.MeshNode->GetPayLoadKey();
+				if (MeshPayloadKey.IsSet())
+				{
+					MeshReference.TranslatorPayloadKey = MeshPayloadKey.GetValue();
+				}
+				else
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD mesh reference payload when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					continue;
+				}
+				MeshReferences.Add(MeshReference);
+			}
+		}
+
+		//Add the lod mesh data to the skeletalmesh
+		FSkeletalMeshImportData SkeletalMeshImportData;
+		const bool bSkinControlPointToTimeZero = bUseTimeZeroAsBindPose && bDiffPose;
+		//Get all meshes and blend shapes payload and fill the SkeletalMeshImportData structure
+		UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshFactoryNode
+																					, SkeletalMeshImportData
+																					, MeshReferences
+																					, RefBonesBinary
+																					, Arguments
+																					, SkeletalMeshTranslatorPayloadInterface
+																					, bSkinControlPointToTimeZero
+																					, Arguments.NodeContainer
+																					, RootJointNodeId);
+		//////////////////////////////////////////////////////////////////////////
+		//Manage vertex color, we want to use the translated source data
+		//Replace -> do nothing
+		//Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
+		//Override -> replace the vertex color by the override color
+		{
+			bool bReplaceVertexColor = false;
+			SkeletalMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
+			if (!bReplaceVertexColor)
+			{
+				bool bIgnoreVertexColor = false;
+				SkeletalMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
+				if (bIgnoreVertexColor)
+				{
+					//Flush the vertex color, if we re-import we have to fill it with the old data
+					SkeletalMeshImportData.bHasVertexColors = false;
+					for (SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+					{
+						Wedge.Color = FColor::White;
+					}
+				}
+				else
+				{
+					FColor OverrideVertexColor;
+					if (SkeletalMeshFactoryNode->GetCustomVertexColorOverride(OverrideVertexColor))
+					{
+						SkeletalMeshImportData.bHasVertexColors = true;
+						for(SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+						{
+							Wedge.Color = OverrideVertexColor;
+						}
+					}
+				}
+			}
+			// Store whether or not this mesh has vertex colors
+			SkeletalMesh->SetHasVertexColors(SkeletalMeshImportData.bHasVertexColors);
+			SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
+		}
+
+		if (bIsReImport)
+		{
+			while (ImportedResource->LODModels.Num() <= CurrentLodIndex)
+			{
+				ImportedResource->LODModels.Add(new FSkeletalMeshLODModel());
+			}
+		}
+		else
+		{
+			ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
+		}
+		FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];
+
+		TMap<FString, UMaterialInterface*> AvailableMaterials;
+		TArray<FString> FactoryDependencies;
+		SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
+		for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
+		{
+			const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
+			if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
+			{
+				continue;
+			}
+			if (!MaterialFactoryNode->IsEnabled())
+			{
+				continue;
+			}
+			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+			if (!MaterialInterface)
+			{
+				continue;
+			}
+			AvailableMaterials.Add(MaterialFactoryNode->GetDisplayLabel(), MaterialInterface);
+		}
+
+		UE::Interchange::Private::ProcessImportMeshMaterials(SkeletalMesh->GetMaterials(), SkeletalMeshImportData, AvailableMaterials);
+		UE::Interchange::Private::ProcessImportMeshInfluences(SkeletalMeshImportData.Wedges.Num(), SkeletalMeshImportData.Influences);
+		//Store the original fbx import data the SkelMeshImportDataPtr should not be modified after this
+		SkeletalMesh->SaveLODImportedData(CurrentLodIndex, SkeletalMeshImportData);
+		//We reimport both
+		SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+
+		auto AddLodInfo = [&SkeletalMesh]()
+		{
+			FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
+			NewLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;
+			NewLODInfo.ReductionSettings.NumOfVertPercentage = 1.0f;
+			NewLODInfo.ReductionSettings.MaxDeviationPercentage = 0.0f;
+			NewLODInfo.LODHysteresis = 0.02f;
+			NewLODInfo.bImportWithBaseMesh = true;
+		};
+
+		if (bIsReImport)
+		{
+			while (SkeletalMesh->GetLODNum() <= CurrentLodIndex)
+			{
+				AddLodInfo();
+			}
+		}
+		else
+		{
+			AddLodInfo();
+		}
+
+		TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
+		const TArray<SkeletalMeshImportData::FMaterial>& ImportedMaterials = SkeletalMeshImportData.Materials;
+		if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(CurrentLodIndex))
+		{
+			LodInfo->LODMaterialMap.Empty();
+			// Now set up the material mapping array.
+			for (int32 ImportedMaterialIndex = 0; ImportedMaterialIndex < ImportedMaterials.Num(); ImportedMaterialIndex++)
+			{
+				FName ImportedMaterialName = *(ImportedMaterials[ImportedMaterialIndex].MaterialImportName);
+				//Match by name
+				int32 LODMatIndex = INDEX_NONE;
+				for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
+				{
+					const FSkeletalMaterial& SkeletalMaterial = Materials[MaterialIndex];
+					if (SkeletalMaterial.ImportedMaterialSlotName != NAME_None && SkeletalMaterial.ImportedMaterialSlotName == ImportedMaterialName)
+					{
+						LODMatIndex = MaterialIndex;
+						break;
+					}
+				}
+				// If we dont have a match, add a new entry to the material list.
+				if (LODMatIndex == INDEX_NONE)
+				{
+					LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
+				}
+				LodInfo->LODMaterialMap.Add(LODMatIndex);
+			}
+		}
+
+		//Add the bound to the skeletal mesh
+		if (SkeletalMesh->GetImportedBounds().BoxExtent.IsNearlyZero())
+		{
+			FBox3f BoundingBox(SkeletalMeshImportData.Points.GetData(), SkeletalMeshImportData.Points.Num());
+			const FVector3f BoundingBoxSize = BoundingBox.GetSize();
+
+			if (SkeletalMeshImportData.Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME)
+			{
+				//TODO log a user error
+				//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ErrorMeshTooSmall", "Cannot import this mesh, the bounding box of this mesh is smaller than the supported threshold[{0}]."), FText::FromString(FString::Printf(TEXT("%f"), THRESH_POINTS_ARE_SAME)))), FFbxErrors::SkeletalMesh_FillImportDataFailed);
+			}
+			SkeletalMesh->SetImportedBounds(FBoxSphereBounds((FBox)BoundingBox));
+		}
+
+		CurrentLodIndex++;
+	}
+
+	SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh);
+	if (SkeletalMesh->GetSkeleton() != SkeletonReference)
+	{
+		SkeletalMesh->SetSkeleton(SkeletonReference);
+	}
+
+	SkeletalMesh->CalculateInvRefMatrices();
+
+	if (!bIsReImport)
+	{
+		/** Apply all SkeletalMeshFactoryNode custom attributes to the skeletal mesh asset */
+		SkeletalMeshFactoryNode->ApplyAllCustomAttributeToObject(SkeletalMesh);
+
+		bool bCreatePhysicsAsset = false;
+		SkeletalMeshFactoryNode->GetCustomCreatePhysicsAsset(bCreatePhysicsAsset);
+
+		if (!bCreatePhysicsAsset)
+		{
+			FSoftObjectPath SpecifiedPhysicAsset;
+			SkeletalMeshFactoryNode->GetCustomPhysicAssetSoftObjectPath(SpecifiedPhysicAsset);
+			if (SpecifiedPhysicAsset.IsValid())
+			{
+				UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(SpecifiedPhysicAsset.TryLoad());
+				SkeletalMesh->SetPhysicsAsset(PhysicsAsset);
+			}
+		}
+	}
+	else
+	{
+		//Apply the re import strategy 
+		UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
+		UInterchangeBaseNode* PreviousNode = nullptr;
+		if (InterchangeAssetImportData)
+		{
+			PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
+		}
+		UInterchangeBaseNode* CurrentNode = NewObject<UInterchangeBaseNode>(GetTransientPackage(), UInterchangeSkeletalMeshFactoryNode::StaticClass());
+		UInterchangeBaseNode::CopyStorage(SkeletalMeshFactoryNode, CurrentNode);
+		CurrentNode->FillAllCustomAttributeFromObject(SkeletalMesh);
+		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(SkeletalMesh, PreviousNode, CurrentNode, SkeletalMeshFactoryNode);
+	}
+		
+	//Getting the file Hash will cache it into the source data
+	Arguments.SourceData->GetFileContentHash();
+
+	//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
 	return SkeletalMeshObject;
 
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA

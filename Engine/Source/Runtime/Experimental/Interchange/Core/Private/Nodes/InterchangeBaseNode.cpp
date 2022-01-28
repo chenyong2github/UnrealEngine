@@ -66,6 +66,12 @@ namespace UE
 			return AttributeKey;
 		}
 
+		const FAttributeKey& FBaseNodeStaticData::ReimportStrategyFlagsKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__Reimport_Strategy_Flags_Key__"));
+			return AttributeKey;
+		}
+
 	} //ns Interchange
 } //ns UE
 
@@ -76,6 +82,7 @@ UInterchangeBaseNode::UInterchangeBaseNode()
 	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
 	RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::None));
+	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties));
 }
 
 void UInterchangeBaseNode::InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType)
@@ -170,6 +177,10 @@ FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey())
 	{
 		KeyDisplayName = TEXT("Node Container Type");
+	}
+	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey())
+	{
+		KeyDisplayName = TEXT("Re-Import Strategy");
 	}
 	return KeyDisplayName;
 }
@@ -283,6 +294,25 @@ bool UInterchangeBaseNode::SetDisplayLabel(const FString& DisplayLabel)
 	if (IsAttributeStorageResultSuccess(Result))
 	{
 		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey());
+		return Handle.IsValid();
+	}
+	return false;
+}
+
+EReimportStrategyFlags UInterchangeBaseNode::GetReimportStrategyFlags() const
+{
+	checkSlow(Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey()));
+	uint8 ReimportStrategyFlags = static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties);
+	Attributes->GetAttributeHandle<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey()).Get(ReimportStrategyFlags);
+	return static_cast<EReimportStrategyFlags>(ReimportStrategyFlags);
+}
+
+bool UInterchangeBaseNode::SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags)
+{
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(ReimportStrategyFlags));
+	if (IsAttributeStorageResultSuccess(Result))
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey());
 		return Handle.IsValid();
 	}
 	return false;

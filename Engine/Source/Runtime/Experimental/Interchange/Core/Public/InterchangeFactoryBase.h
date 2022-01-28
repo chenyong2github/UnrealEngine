@@ -17,15 +17,6 @@ class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UInterchangeTranslatorBase;
 
-
-UENUM()
-enum class EReimportStrategyFlags : uint8
-{
-	ApplyNoProperties, //Do not apply any property when re-importing, simply change the source data
-	ApplyPipelineProperties, //Always apply all pipeline specified properties
-	ApplyEditorChangedProperties //Always apply all pipeline properties, but leave the properties modified in editor since the last import
-};
-
 UCLASS(BlueprintType, Blueprintable, Abstract, Experimental)
 class INTERCHANGECORE_API UInterchangeFactoryBase : public UObject
 {
@@ -69,8 +60,6 @@ public:
 		 * the asset we want to re-import. The re-import should just change the source data and not any asset settings.
 		 */
 		UObject* ReimportObject = nullptr;
-
-		EReimportStrategyFlags ReimportStrategyFlags;
 	};
 
 	/**
@@ -155,9 +144,7 @@ public:
 		FString NodeUniqueID;
 		UInterchangeBaseNodeContainer* NodeContainer = nullptr;
 		TArray<UInterchangePipelineBase*> Pipelines;
-
-
-		EReimportStrategyFlags ReimportStrategyFlags;
+		
 		bool bIsReimport  = false;
 ;
 	};
