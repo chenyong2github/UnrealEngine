@@ -945,13 +945,13 @@ URemoteControlBinding* URemoteControlPreset::FindMatchingBinding(const URemoteCo
 			continue;
 		}
 
-		if (LevelDependantBindingIt->BindingContext != InLevelDependingBinding->BindingContext)
-		{
-			continue;
-		}
-
 		if (LevelDependantBindingIt && InLevelDependingBinding)
 		{
+			if (LevelDependantBindingIt->BindingContext != InLevelDependingBinding->BindingContext)
+			{
+				continue;
+			}
+
 			TSoftObjectPtr<ULevel> CurrentWorldLevel = LevelDependantBindingIt->SubLevelSelectionMap.FindRef(InObject->GetWorld());
 
 			bool bSameBoundObjectMap = true;
