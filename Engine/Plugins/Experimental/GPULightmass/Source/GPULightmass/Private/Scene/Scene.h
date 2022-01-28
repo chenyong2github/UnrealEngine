@@ -119,7 +119,7 @@ public:
 
 	int32 GetPrimitiveIdForGPUScene(const FGeometryInstanceRenderStateRef& GeometryInstanceRef) const;
 
-	void SetupRayTracingScene(int32 LODIndex = 0);
+	bool SetupRayTracingScene(int32 LODIndex = 0);
 	void DestroyRayTracingScene();
 
 	void CalculateDistributionPrefixSumForAllLightmaps();

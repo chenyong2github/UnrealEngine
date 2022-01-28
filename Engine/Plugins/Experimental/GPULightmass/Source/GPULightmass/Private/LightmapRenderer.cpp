@@ -724,7 +724,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 #endif // RHI_RAYTRACING
 }
 
-void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
+bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SetupRayTracingScene);
 
@@ -743,6 +743,11 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		CachedRayTracingScene->SetupFromSceneRenderState(*this);
 		
 		CalculateDistributionPrefixSumForAllLightmaps();
+	}
+
+	if (CachedRayTracingScene->RayTracingGeometryInstancesPerLOD[LODIndex].Num() == 0)
+	{
+		return false;
 	}
 
 #if 0 // Debug: verify cached ray tracing scene has up-to-date shader bindings
@@ -1217,6 +1222,8 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		}
 	}
 #endif
+
+	return true;
 }
 
 void FSceneRenderState::DestroyRayTracingScene()

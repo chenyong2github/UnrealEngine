@@ -235,7 +235,11 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	}
 
 	// Setup ray tracing scene with LOD 0
-	Scene->SetupRayTracingScene();
+	if (!Scene->SetupRayTracingScene())
+	{
+		GraphBuilder.Execute();
+		return;
+	}
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FVoxelizeMeshPassParameters>();
 	PassParameters->PassUniformBuffer = GraphBuilder.CreateUniformBuffer(VLMVoxelizationParams);
@@ -499,7 +503,10 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 	if (IsRayTracingEnabled())
 	{
-		Scene->SetupRayTracingScene();
+		if (!Scene->SetupRayTracingScene())
+		{
+			return;
+		}
 	}
 
 	FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
