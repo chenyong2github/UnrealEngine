@@ -2,6 +2,8 @@
 
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 
+#include "Engine/World.h"
+
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -46,6 +48,17 @@ void UMultiSelectionMeshEditingToolBuilder::InitializeNewTool(UMultiSelectionMes
 /**
  * Tool
  */
+
+void UMultiSelectionMeshEditingTool::SetWorld(UWorld* World)
+{
+	TargetWorld = World;
+}
+
+UWorld* UMultiSelectionMeshEditingTool::GetTargetWorld()
+{
+	return TargetWorld.Get();
+}
+
 
 bool UMultiSelectionMeshEditingTool::GetMapToSharedSourceData(TArray<int32>& MapToFirstOccurrences)
 {

@@ -2,6 +2,8 @@
 
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 
+#include "Engine/World.h"
+
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -51,5 +53,17 @@ void USingleSelectionMeshEditingToolBuilder::InitializeNewTool(USingleSelectionM
 		}
 	}
 }
+
+void USingleSelectionMeshEditingTool::SetWorld(UWorld* World)
+{
+	TargetWorld = World;
+}
+
+UWorld* USingleSelectionMeshEditingTool::GetTargetWorld()
+{
+	return TargetWorld.Get();
+}
+
+
 
 

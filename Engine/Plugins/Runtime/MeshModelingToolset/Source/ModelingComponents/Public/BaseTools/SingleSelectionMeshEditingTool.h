@@ -49,9 +49,8 @@ class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSel
 	GENERATED_BODY()
 
 public:
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-
-	virtual UWorld* GetTargetWorld() { return TargetWorld.Get(); }
+	virtual void SetWorld(UWorld* World);
+	virtual UWorld* GetTargetWorld();
 
 protected:
 	UPROPERTY()
