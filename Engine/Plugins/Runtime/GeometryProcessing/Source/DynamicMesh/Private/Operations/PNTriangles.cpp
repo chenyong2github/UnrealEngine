@@ -113,8 +113,16 @@ namespace FPNTrianglesLocals
 				if (Mesh.HasAttributes()) 
 				{
 					const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
-					NormalOverlay->GetElementAtVertex(EdgeTri.A, EdgeV.A, Normal1);
-					NormalOverlay->GetElementAtVertex(EdgeTri.A, EdgeV.B, Normal2);
+					if (NormalOverlay->IsSetTriangle(EdgeTri.A)) 
+					{
+						NormalOverlay->GetElementAtVertex(EdgeTri.A, EdgeV.A, Normal1);
+						NormalOverlay->GetElementAtVertex(EdgeTri.A, EdgeV.B, Normal2);
+					}
+					else
+					{
+						Normal1 = static_cast<FVector3f>(Mesh.GetTriNormal(EdgeTri.A));
+						Normal2 = Normal1;
+					}
 				}
 				else 
 				{
@@ -132,13 +140,22 @@ namespace FPNTrianglesLocals
 				FVector3d Point1ForTriA = ComputeControlPoint(Vertex1, Vertex2, Normal1);
 				FVector3d Point2ForTriA = ComputeControlPoint(Vertex2, Vertex1, Normal2);
 
-				if (Mesh.HasAttributes()) 
+				if (Mesh.HasAttributes() && Mesh.Attributes()->PrimaryNormals()) 
 				{
 					const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
 					if (EdgeTri.B != FDynamicMesh3::InvalidID && NormalOverlay->IsSeamEdge(EID)) 
 					{	
-						NormalOverlay->GetElementAtVertex(EdgeTri.B, EdgeV.A, Normal1);
-						NormalOverlay->GetElementAtVertex(EdgeTri.B, EdgeV.B, Normal2); 
+						if (NormalOverlay->IsSetTriangle(EdgeTri.B)) 
+						{
+							NormalOverlay->GetElementAtVertex(EdgeTri.B, EdgeV.A, Normal1);
+							NormalOverlay->GetElementAtVertex(EdgeTri.B, EdgeV.B, Normal2);
+						}
+						else 
+						{
+							Normal1 = static_cast<FVector3f>(Mesh.GetTriNormal(EdgeTri.B));
+							Normal2 = Normal1;
+						}
+
 						FVector3d Point1ForTriB = ComputeControlPoint(Vertex1, Vertex2, Normal1);
 						FVector3d Point2ForTriB = ComputeControlPoint(Vertex2, Vertex1, Normal2);
 
@@ -302,15 +319,15 @@ namespace FPNTrianglesLocals
 			FIndex3i TriVertex = OriginalMesh.GetTriangle(OriginalTriangleID);
 			FIndex3i TriEdges = OriginalMesh.GetTriEdges(OriginalTriangleID);
 
-			FVector3d Bary = VectorUtil::BarycentricCoords(Mesh.GetVertexRef(VertexID), Mesh.GetVertexRef(TriVertex.A), 
-														   Mesh.GetVertexRef(TriVertex.B), Mesh.GetVertexRef(TriVertex.C));
+			FVector3d Bary = VectorUtil::BarycentricCoords(Mesh.GetVertexRef(VertexID), OriginalMesh.GetVertexRef(TriVertex.A),
+														   OriginalMesh.GetVertexRef(TriVertex.B), OriginalMesh.GetVertexRef(TriVertex.C));
 														   
 			FVector3d BarySquared = Bary*Bary;
 
 			// Displaced vertex. First compute contribution of the original control points at the original vertices
-			FVector3d NewPos = Bary[0]*BarySquared[0]*Mesh.GetVertexRef(TriVertex.A) + 
-							   Bary[1]*BarySquared[1]*Mesh.GetVertexRef(TriVertex.B) + 
-							   Bary[2]*BarySquared[2]*Mesh.GetVertexRef(TriVertex.C);
+			FVector3d NewPos = Bary[0]*BarySquared[0]*OriginalMesh.GetVertexRef(TriVertex.A) + 
+							   Bary[1]*BarySquared[1]*OriginalMesh.GetVertexRef(TriVertex.B) + 
+							   Bary[2]*BarySquared[2]*OriginalMesh.GetVertexRef(TriVertex.C);
 			
 			// Compute contribution of the control points at the edges
 			for (int EIDX = 0; EIDX < 3; ++EIDX) 
@@ -341,9 +358,9 @@ namespace FPNTrianglesLocals
 				if (bHasVertexNormals) 
 				{
 					// Compute contribution of the normal control points at the original vertices
-					FVector3d NewNormal = BarySquared[0]*Mesh.GetVertexNormal(TriVertex.A) + 
-										  BarySquared[1]*Mesh.GetVertexNormal(TriVertex.B) +
-										  BarySquared[2]*Mesh.GetVertexNormal(TriVertex.C);
+					FVector3d NewNormal = BarySquared[0]*OriginalMesh.GetVertexNormal(TriVertex.A) + 
+										  BarySquared[1]*OriginalMesh.GetVertexNormal(TriVertex.B) +
+										  BarySquared[2]*OriginalMesh.GetVertexNormal(TriVertex.C);
 					
 					// Compute contribution of the normal control points at the edges
 					for (int EIDX = 0; EIDX < 3; ++EIDX) 
