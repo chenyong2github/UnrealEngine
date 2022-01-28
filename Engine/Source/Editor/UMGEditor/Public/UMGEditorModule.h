@@ -13,8 +13,6 @@ class FUMGEditor;
 class FWidgetBlueprintApplicationMode;
 class FWorkflowAllowedTabSet;
 
-DECLARE_DELEGATE_RetVal_ThreeParams(TSharedPtr<FExtender>, FOnExtendBindingsMenuForProperty, const class UWidgetBlueprint*, const class UWidget*, const class FProperty*);
-
 /** The public interface of the UMG editor module. */
 class IUMGEditorModule : 
 	public IModuleInterface, 
