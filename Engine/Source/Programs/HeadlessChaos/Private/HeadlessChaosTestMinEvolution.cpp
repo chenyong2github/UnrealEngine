@@ -40,7 +40,7 @@ namespace ChaosTest
 		TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
 		TArrayCollectionArray<FVec3> ParticlePrevXs;
 		TArrayCollectionArray<FRotation3> ParticlePrevRs;
-		FCollisionConstraints Collisions(ParticlesContainer, CollidedParticles, ParticleMaterials, PerParticleMaterials);
+		FCollisionConstraints Collisions(ParticlesContainer, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr);
 		FBasicBroadPhase BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr);
 		FNarrowPhase NarrowPhase(0, 0, Collisions.GetConstraintAllocator());
 		FCollisionDetector CollisionDetector(BroadPhase, NarrowPhase, Collisions);
