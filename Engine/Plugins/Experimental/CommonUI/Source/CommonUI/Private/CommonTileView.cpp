@@ -12,7 +12,7 @@ template <typename ItemType>
 class SCommonTileView : public STileView<ItemType>
 {
 public:
-	FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
 	{
 		if (bScrollToSelectedOnFocus && (InFocusEvent.GetCause() == EFocusCause::Navigation || InFocusEvent.GetCause() == EFocusCause::SetDirectly))
 		{
@@ -37,6 +37,12 @@ public:
 		}
 		bScrollToSelectedOnFocus = true;
 		return STileView<ItemType>::OnFocusReceived(MyGeometry, InFocusEvent);
+	}
+
+	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override
+	{
+		// if we've lost focus, even if we're already scrolling a tile into view, refrain from navigating to that tile and thus stealing focus from another widget
+		this->bNavigateOnScrollIntoView = false;
 	}
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
