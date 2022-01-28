@@ -35,7 +35,9 @@ public:
 	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 #endif
 
+#if WITH_EDITORONLY_DATA
 	UBlueprint* GetParentBlueprint() const;
+#endif
 
 	bool IsEditable() const;
 	

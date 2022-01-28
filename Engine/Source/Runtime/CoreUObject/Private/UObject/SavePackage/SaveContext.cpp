@@ -34,7 +34,9 @@ void FSaveContext::MarkUnsaveable(UObject* InObject)
 	// if this is the class default object, make sure it's not
 	// marked transient for any reason, as we need it to be saved
 	// to disk (unless it's associated with a transient generated class)
+#if WITH_EDITORONLY_DATA
 	ensureAlways(!InObject->HasAllFlags(RF_ClassDefaultObject | RF_Transient) || (InObject->GetClass()->ClassGeneratedBy != nullptr && InObject->GetClass()->HasAnyFlags(RF_Transient)));
+#endif
 }
 
 bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const

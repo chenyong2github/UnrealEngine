@@ -36,7 +36,9 @@ struct FOLIAGE_API FFoliageTypeObject
 	bool IsDirty() const;
 	void SetClean();
 
+#if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
+#endif
 
 private:
 	/** The foliage type that will be spawned by the procedural foliage simulation */
@@ -55,6 +57,7 @@ private:
 	TSubclassOf<UFoliageType_InstancedStaticMesh> Type_DEPRECATED;
 };
 
+#if WITH_EDITORONLY_DATA
 template<>
 struct TStructOpsTypeTraits<FFoliageTypeObject> : public TStructOpsTypeTraitsBase2<FFoliageTypeObject>
 {
@@ -63,3 +66,4 @@ struct TStructOpsTypeTraits<FFoliageTypeObject> : public TStructOpsTypeTraitsBas
 		WithPostSerialize = true,
 	};
 };
+#endif

@@ -112,11 +112,11 @@ class UFoliageType : public UObject
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 
-	virtual bool IsNotAssetOrBlueprint() const;
-
 	FOLIAGE_API FVector GetRandomScale() const;
 	
 #if WITH_EDITOR
+	virtual bool IsNotAssetOrBlueprint() const;
+
 	virtual void SetSource(UObject* InSource) PURE_VIRTUAL(UFoliageType::SetSource, );
 	virtual void UpdateBounds() {}
 	/* Lets subclasses decide if the InstancedFoliageActor should reallocate its instances if the specified property change event occurs */

@@ -3688,18 +3688,17 @@ void UClass::GetDefaultObjectSubobjects(TArray<UObject*>& OutDefaultSubobjects)
 void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UClass* This = CastChecked<UClass>(InThis);
-	for( auto& Inter : This->Interfaces )
+	for (FImplementedInterface& Inter : This->Interfaces)
 	{
 		Collector.AddReferencedObject( Inter.Class, This );
 	}
 
-	for( auto& Func : This->FuncMap )
-	{
-		Collector.AddReferencedObject( Func.Value, This );
-	}
-
+	Collector.AddReferencedObjects( This->FuncMap, This );
 	Collector.AddReferencedObject( This->ClassWithin, This );
+
+#if WITH_EDITORONLY_DATA
 	Collector.AddReferencedObject( This->ClassGeneratedBy, This );
+#endif
 
 	if ( !Collector.IsIgnoringArchetypeRef() )
 	{
@@ -3743,8 +3742,10 @@ class FRestoreClassInfo: public FRestoreForUObjectOverwrite
 	UClass*			Target;
 	/** Saved ClassWithin **/
 	UClass*			Within;
+#if WITH_EDITORONLY_DATA
 	/** Saved ClassGeneratedBy */
 	UObject*		GeneratedBy;
+#endif
 	/** Saved ClassDefaultObject **/
 	UObject*		DefaultObject;
 	/** Saved ClassFlags **/
@@ -3769,7 +3770,9 @@ public:
 	FRestoreClassInfo(UClass *Save) :
 		Target(Save),
 		Within(Save->ClassWithin),
+#if WITH_EDITORONLY_DATA
 		GeneratedBy(Save->ClassGeneratedBy),
+#endif
 		DefaultObject(Save->GetDefaultsCount() ? Save->GetDefaultObject() : NULL),
 		Flags(Save->ClassFlags & CLASS_Abstract),
 		CastFlags(Save->ClassCastFlags),
@@ -3784,7 +3787,9 @@ public:
 	virtual void Restore() const
 	{
 		Target->ClassWithin = Within;
+#if WITH_EDITORONLY_DATA
 		Target->ClassGeneratedBy = GeneratedBy;
+#endif
 		Target->ClassDefaultObject = DefaultObject;
 		Target->ClassFlags |= Flags;
 		Target->ClassCastFlags |= CastFlags;
@@ -4610,6 +4615,10 @@ void UClass::Serialize( FArchive& Ar )
 
 	if (!Ar.IsIgnoringClassGeneratedByRef())
 	{
+#if !WITH_EDITORONLY_DATA
+		// Dummy variable to keep archive consistency
+		UObject* ClassGeneratedBy = nullptr;
+#endif
 		Ar << ClassGeneratedBy;
 	}
 
@@ -5056,8 +5065,8 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 ,	ClassFlags(CLASS_None)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin( UObject::StaticClass() )
-,	ClassGeneratedBy(nullptr)
 #if WITH_EDITORONLY_DATA
+,	ClassGeneratedBy(nullptr)
 ,	PropertiesPendingDestruction(nullptr)
 #endif
 ,	ClassDefaultObject(nullptr)
@@ -5081,8 +5090,8 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
 ,	ClassFlags(CLASS_None)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin(UObject::StaticClass())
-,	ClassGeneratedBy(nullptr)
 #if WITH_EDITORONLY_DATA
+,	ClassGeneratedBy(nullptr)
 ,	PropertiesPendingDestruction(nullptr)
 #endif
 ,	ClassDefaultObject(nullptr)
@@ -5140,8 +5149,8 @@ UClass::UClass
 ,	ClassFlags				( InClassFlags | CLASS_Native )
 ,	ClassCastFlags			( InClassCastFlags )
 ,	ClassWithin				( nullptr )
-,	ClassGeneratedBy		( nullptr )
 #if WITH_EDITORONLY_DATA
+,	ClassGeneratedBy		( nullptr )
 ,	PropertiesPendingDestruction( nullptr )
 #endif
 ,	ClassConfigName			()
@@ -5715,6 +5724,7 @@ bool UClass::IsClassGroupName(const TCHAR* InGroupName) const
 #endif // WITH_EDITOR || HACK_HEADER_GENERATOR
 
 
+#if WITH_EDITORONLY_DATA
 IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{
 		Class->ClassAddReferencedObjects = &UClass::AddReferencedObjects;
@@ -5725,6 +5735,17 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 		Class->EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
 	}
 );
+#else
+IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
+	{
+		Class->ClassAddReferencedObjects = &UClass::AddReferencedObjects;
+
+		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
+		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
+		Class->EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
+	}
+);
+#endif
 
 void GetPrivateStaticClassBody(
 	const TCHAR* PackageName,

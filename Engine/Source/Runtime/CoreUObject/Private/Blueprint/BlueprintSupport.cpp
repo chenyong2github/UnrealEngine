@@ -268,36 +268,24 @@ void FBlueprintSupport::RepairDeferredDependenciesInObject(UObject* Object)
 
 bool FBlueprintSupport::IsInBlueprintPackage(UObject* LoadedObj)
 {
+	bool bHasBlueprintClass = false;
+
 	UPackage* Pkg = LoadedObj->GetOutermost();
 	if (Pkg && !Pkg->HasAnyPackageFlags(PKG_CompiledIn))
-	{
-		TArray<UObject*> PkgObjects;
-		GetObjectsWithOuter(Pkg, PkgObjects, /*bIncludeNestedObjects =*/false);
-		
-		UObject* PkgCDO   = nullptr;
-		UClass*  PkgClass = nullptr;
-
-		for (UObject* PkgObj : PkgObjects)
+	{	
+		ForEachObjectWithOuterBreakable(Pkg, [&bHasBlueprintClass](UObject* PkgObj)
 		{
-			if (PkgObj->HasAnyFlags(RF_ClassDefaultObject))
+			if (UClass* PkgClass = Cast<UClass>(PkgObj))
 			{
-				PkgCDO = PkgObj;
+				bHasBlueprintClass = PkgClass && PkgClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
+				return false; // break
 			}
-			else if (UClass* AsClass = Cast<UClass>(PkgObj))
-			{
-				PkgClass = AsClass;
-			}
-		}
-		const bool bHasBlueprintClass = PkgClass && PkgClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
 
-		return bHasBlueprintClass
-			//&& (PkgCDO && PkgCDO->GetClass() == PkgClass)
-#if WITH_EDITORONLY_DATA
-			//&& (PkgClass->ClassGeneratedBy != nullptr) && (PkgClass->ClassGeneratedBy->GetOuter() == Pkg)
-#endif
-			;
+			return true;
+		}, /*bIncludeNestedObjects =*/false);
+		
 	}
-	return false;
+	return bHasBlueprintClass;
 }
 
 static TArray<FBlueprintWarningDeclaration> BlueprintWarnings;
@@ -693,7 +681,11 @@ bool FLinkerLoad::RegenerateBlueprintClass(UClass* LoadClass, UObject* ExportObj
 {
 	auto GetClassSourceObjectLambda = [](UClass* ForClass) -> UObject*
 	{
+#if WITH_EDITORONLY_DATA
 		return ForClass->ClassGeneratedBy ? ForClass->ClassGeneratedBy : ForClass;
+#else
+		return ForClass;
+#endif
 	};
 
 	UObject* ClassSourceObject = GetClassSourceObjectLambda(LoadClass);
@@ -2387,6 +2379,9 @@ UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, 
  */
 bool UObject::IsInBlueprint() const
 {
+	// ClassGeneratedBy TODO: This is wrong in cooked builds
+#if WITH_EDITORONLY_DATA
+
 	// Exclude blueprint classes as they may be regenerated at any time
 	// Need to exclude classes, CDOs, and their subobjects
 	const UObject* TestObject = this;
@@ -2408,6 +2403,7 @@ bool UObject::IsInBlueprint() const
  		}
  		TestObject = TestObject->GetOuter();
  	}
+#endif
 
 	return false;
 }

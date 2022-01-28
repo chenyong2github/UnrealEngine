@@ -268,7 +268,12 @@ void FGameplayAttribute::GetAllAttributeProperties(TArray<FProperty*>& OutProper
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		UClass *Class = *ClassIt;
-		if (Class->IsChildOf(UAttributeSet::StaticClass()) && !Class->ClassGeneratedBy)
+		if (Class->IsChildOf(UAttributeSet::StaticClass()) 
+#if WITH_EDITORONLY_DATA
+			// ClassGeneratedBy TODO: This is wrong in cooked builds
+			&& !Class->ClassGeneratedBy
+#endif
+			)
 		{
 			if (UseEditorOnlyData)
 			{
@@ -311,9 +316,9 @@ void FGameplayAttribute::GetAllAttributeProperties(TArray<FProperty*>& OutProper
 			}
 		}
 
+#if WITH_EDITOR
 		if (UseEditorOnlyData)
 		{
-			#if WITH_EDITOR
 			// UAbilitySystemComponent can add 'system' attributes
 			if (Class->IsChildOf(UAbilitySystemComponent::StaticClass()) && !Class->ClassGeneratedBy)
 			{
@@ -330,8 +335,8 @@ void FGameplayAttribute::GetAllAttributeProperties(TArray<FProperty*>& OutProper
 					OutProperties.Add(Property);
 				}
 			}
-			#endif
 		}
+#endif
 	}
 }
 

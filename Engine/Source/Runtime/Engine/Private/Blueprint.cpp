@@ -411,7 +411,6 @@ void UBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, Flags, OverrideVersion);
 	}
 }
-#endif // WITH_EDITORONLY_DATA
 
 void UBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
@@ -424,6 +423,7 @@ void UBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 		}
 	}
 }
+#endif // WITH_EDITORONLY_DATA
 
 void UBlueprint::Serialize(FArchive& Ar)
 {
@@ -1380,6 +1380,7 @@ void UBlueprint::BeginDestroy()
 
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 UBlueprint* UBlueprint::GetBlueprintFromClass(const UClass* InClass)
 {
 	UBlueprint* BP = NULL;
@@ -1400,9 +1401,7 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 	{
 		OutBlueprintParents.Add(BP);
 
-#if WITH_EDITORONLY_DATA
 		bNoErrors &= (BP->Status != BS_Error);
-#endif // #if WITH_EDITORONLY_DATA
 
 		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
 		if (BP->ParentClass)
@@ -1418,6 +1417,7 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 
 	return bNoErrors;
 }
+#endif
 
 bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UBlueprintGeneratedClass*>& OutBlueprintParents)
 {
@@ -1429,14 +1429,14 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 	{
 		OutBlueprintParents.Add(CurrentClass);
 
+#if WITH_EDITORONLY_DATA
+		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentClass);
 
-#if WITH_EDITORONLY_DATA
 		if (BP)
 		{
 			bNoErrors &= (BP->Status != BS_Error);
 		}
-#endif // #if WITH_EDITORONLY_DATA
 
 		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
 		if (BP && BP->ParentClass)
@@ -1444,6 +1444,7 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 			CurrentClass = Cast<UBlueprintGeneratedClass>(BP->ParentClass);
 		}
 		else
+#endif // #if WITH_EDITORONLY_DATA
 		{
 			check(CurrentClass);
 			CurrentClass = Cast<UBlueprintGeneratedClass>(CurrentClass->GetSuperClass());

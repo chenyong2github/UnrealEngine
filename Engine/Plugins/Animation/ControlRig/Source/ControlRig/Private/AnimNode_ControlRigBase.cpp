@@ -39,6 +39,8 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 	UControlRig* ControlRig = GetControlRig();
 	if (Component && Component->SkeletalMesh && ControlRig)
 	{
+#if WITH_EDITORONLY_DATA
+		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(ControlRig->GetClass());
 		if (BlueprintClass)
 		{
@@ -46,6 +48,7 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 			// node mapping container will be saved on the initialization part
 			NodeMappingContainer = Component->SkeletalMesh->GetNodeMappingContainer(Blueprint);
 		}
+#endif
 
 		// register skeletalmesh component for now
 		ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, InAnimInstance->GetOwningComponent());

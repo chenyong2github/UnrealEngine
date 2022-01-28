@@ -269,10 +269,15 @@ FObjectRef MakeObjectRef(const UObject* Object)
 	{
 		return {NAME_None, NAME_None, NAME_None, FObjectPathId()};
 	}
-	
+
+#if WITH_EDITORONLY_DATA	
+	// ClassGeneratedBy TODO: This may be wrong in cooked builds
 	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
 	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
 	return FObjectRef {GetNameOrNone(Object->GetOutermost()), GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object)};
+#else
+	return FObjectRef{ GetNameOrNone(Object->GetOutermost()), NAME_None, NAME_None, FObjectPathId(Object) };
+#endif
 }
 
 FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
@@ -293,9 +298,14 @@ FPackedObjectRef MakePackedObjectRef(const UObject* Object)
 	}
 
 	FName PackageName = GetNameOrNone(Object->GetOutermost());
+#if WITH_EDITORONLY_DATA
+	// ClassGeneratedBy TODO: This may be wrong in cooked builds
 	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
 	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
 	return ObjectHandle_Private::MakePackedObjectRef(PackageName, GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object));
+#else
+	return ObjectHandle_Private::MakePackedObjectRef(PackageName, NAME_None, NAME_None, FObjectPathId(Object));
+#endif
 }
 
 FPackedObjectRef MakePackedObjectRef(const FObjectRef& ObjectRef)

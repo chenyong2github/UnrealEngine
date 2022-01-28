@@ -352,7 +352,11 @@ void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage* InSav
 	}
 
 	if ( InObj->HasAnyFlags(RF_ClassDefaultObject)
-		&& (InObj->GetClass()->ClassGeneratedBy == nullptr || !InObj->GetClass()->HasAnyFlags(RF_Transient)) )
+#if WITH_EDITORONLY_DATA
+		// ClassGeneratedBy TODO: This may be wrong in cooked builds
+		&& (InObj->GetClass()->ClassGeneratedBy == nullptr || !InObj->GetClass()->HasAnyFlags(RF_Transient)) 
+#endif
+		)
 	{
 		// if this is the class default object, make sure it's not
 		// marked transient for any reason, as we need it to be saved

@@ -4658,6 +4658,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			{
 				if( LoadClass->IsChildOf(UFunction::StaticClass()) )
 				{
+#if WITH_EDITORONLY_DATA
 					// In the case of a function object, the outer should be the function's class. For Blueprints, loading
 					// the outer class may also invalidate this entry in the export map. In that case, we won't actually be
 					// keeping the function object around, so there's no need to warn here about the missing parent object.
@@ -4671,11 +4672,13 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 							UE_LOG(LogLinker, Display, TEXT("CreateExport: Failed to load Parent for %s; removing parent information, but keeping function"), *GetExportFullName(Index));
 						}
 					}
+#endif
 
 					Export.SuperIndex = FPackageIndex();
 				}
 				else
 				{
+#if WITH_EDITORONLY_DATA
 					bool bFailedToLoadGeneratedStruct = false;
 					if( LoadClass->IsChildOf(UScriptStruct::StaticClass()) )
 					{
@@ -4698,7 +4701,8 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 					{
 						UE_LOG(LogLinker, Warning, TEXT("CreateExport: Failed to load Parent for %s"), *GetExportFullName(Index));
 					}
-					return NULL;
+#endif
+					return nullptr;
 				}
 			}
 			else

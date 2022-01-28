@@ -2749,10 +2749,10 @@ public:
 	/** The required type for the outer of instances of this class */
 	UClass* ClassWithin;
 
+#if WITH_EDITORONLY_DATA
 	/** This is the blueprint that caused the generation of this class, or null if it is a native compiled-in class */
 	UObject* ClassGeneratedBy;
 
-#if WITH_EDITORONLY_DATA
 	/** Linked list of properties to be destroyed when this class is destroyed that couldn't be destroyed in PurgeClass **/
 	FField* PropertiesPendingDestruction;
 

@@ -89,12 +89,15 @@ FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCrea
 {
 	if (InAsset != nullptr)
 	{
+#if WITH_EDITORONLY_DATA
+		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		const UClass* InClass = Cast<UClass>(InAsset);
 		if (InClass && InClass->ClassGeneratedBy && !EnumHasAnyFlags(InCreationFlags, FAssetData::ECreationFlags::AllowBlueprintClass))
 		{
 			// For Blueprints, the AssetData refers to the UBlueprint and not the UBlueprintGeneratedClass
 			InAsset = InClass->ClassGeneratedBy;
 		}
+#endif
 
 		const UPackage* Package = InAsset->GetPackage();
 

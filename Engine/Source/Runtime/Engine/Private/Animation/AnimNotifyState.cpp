@@ -79,21 +79,22 @@ void UAnimNotifyState::BranchingPointNotifyEnd(FBranchingPointNotifyPayload& Bra
 
 FString UAnimNotifyState::GetNotifyName_Implementation() const
 {
-	UObject* ClassGeneratedBy = GetClass()->ClassGeneratedBy;
 	FString NotifyName;
-
-	if(ClassGeneratedBy)
+	
+#if WITH_EDITORONLY_DATA
+	if (UObject* ClassGeneratedBy = GetClass()->ClassGeneratedBy)
 	{
 		// GeneratedBy will be valid for blueprint types and gives a clean name without a suffix
 		NotifyName = ClassGeneratedBy->GetName();
 	}
 	else
+#endif
 	{
 		// Native notify classes are clean without a suffix otherwise
 		NotifyName = GetClass()->GetName();
 	}
 
-	NotifyName = NotifyName.Replace(TEXT("AnimNotifyState_"), TEXT(""), ESearchCase::CaseSensitive);
+	NotifyName.ReplaceInline(TEXT("AnimNotifyState_"), TEXT(""), ESearchCase::CaseSensitive);
 	
 	return NotifyName;
 }

@@ -229,8 +229,10 @@ private:
 	friend class FBlueprintCompileReinstancer;
 	friend class FContextObjectManager;
 
+#if WITH_EDITOR
 	/** This is used by the reinstancer to re-class and re-archetype the current instances of a class before recompiling */
 	void SetClass(UClass* NewClass);
+#endif
 
 #if HACK_HEADER_GENERATOR
 	// Required by UHT makefiles for internal data serialization.

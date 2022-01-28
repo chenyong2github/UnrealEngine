@@ -2119,9 +2119,11 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		Params.Name = Parameters.DestName;
 		Params.SetFlags = Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask);
 		Params.InternalSetFlags = Parameters.ApplyInternalFlags | (Parameters.SourceObject->GetInternalFlags() & Parameters.InternalFlagMask);
-		Params.Template = Parameters.SourceObject->GetArchetype()->GetClass() == Parameters.DestClass ? Parameters.SourceObject->GetArchetype() : nullptr;
 		Params.bCopyTransientsFromClassDefaults = true;
 		Params.InstanceGraph = &InstanceGraph;
+
+		UObject* Archetype = Parameters.SourceObject->GetArchetype();
+		Params.Template = Archetype->GetClass() == Parameters.DestClass ? Archetype : nullptr;
 
 		DupRootObject = StaticConstructObject_Internal(Params);
 	}
@@ -3747,6 +3749,8 @@ protected:
 
 		auto GetBlueprintObjectNameLambda = [](const UObject* InSerializingObject) -> FString
 		{
+#if WITH_EDITORONLY_DATA
+			// ClassGeneratedBy TODO: This may be wrong in cooked builds
 			if (InSerializingObject)
 			{
 				const UClass* BPGC = InSerializingObject->GetTypedOuter<UClass>();
@@ -3755,6 +3759,7 @@ protected:
 					return BPGC->ClassGeneratedBy->GetFullName();
 				}
 			}
+#endif
 
 			return TEXT("NULL");
 		};

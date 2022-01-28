@@ -269,6 +269,7 @@ void UObjectBase::SetExternalPackage(UPackage* InPackage)
 	}
 }
 
+#if WITH_EDITOR
 void UObjectBase::SetClass(UClass* NewClass)
 {
 #if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
@@ -286,7 +287,7 @@ void UObjectBase::SetClass(UClass* NewClass)
 #endif
 	HashObject(this);
 }
-
+#endif
 
 /**
  * Checks to see if the object appears to be valid

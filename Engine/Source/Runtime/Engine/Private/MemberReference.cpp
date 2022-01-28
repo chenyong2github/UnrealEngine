@@ -70,6 +70,7 @@ void FMemberReference::SetDirect(const FName InMemberName, const FGuid InMemberG
 	MemberScope.Empty();
 }
 
+#if WITH_EDITOR
 void FMemberReference::SetGivenSelfScope(const FName InMemberName, const FGuid InMemberGuid, TSubclassOf<class UObject> InMemberParentClass, TSubclassOf<class UObject> SelfScope) const
 {
 	MemberName = InMemberName;
@@ -87,6 +88,7 @@ void FMemberReference::SetGivenSelfScope(const FName InMemberName, const FGuid I
 		MemberParent = nullptr;
 	}
 }
+#endif
 
 void FMemberReference::SetLocalMember(FName InMemberName, UStruct* InScope, const FGuid InMemberGuid)
 {

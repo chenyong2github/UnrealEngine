@@ -62,6 +62,7 @@ bool UActorSequence::IsEditable() const
 	return !Template || Template->GetTypedOuter<UActorSequenceComponent>() == GetDefault<UActorSequenceComponent>();
 }
 
+#if WITH_EDITORONLY_DATA
 UBlueprint* UActorSequence::GetParentBlueprint() const
 {
 	if (UBlueprintGeneratedClass* GeneratedClass = GetTypedOuter<UBlueprintGeneratedClass>())
@@ -70,6 +71,7 @@ UBlueprint* UActorSequence::GetParentBlueprint() const
 	}
 	return nullptr;
 }
+#endif
 
 void UActorSequence::PostInitProperties()
 {
