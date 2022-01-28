@@ -420,7 +420,7 @@ void UEditMeshPolygonsTool::Setup()
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("NoGroupsWarning",
-			        "This object has only a single Polygroup. Use the GenGrps, GrpPnt or TriSel (Create Polygroup) tools to modify Polygroups."),
+			        "This object has only a single Polygroup. Use the GrpGen, GrpPnt or TriSel (Create Polygroup) tools to modify PolyGroups."),
 			EToolMessageLevel::UserWarning);
 	}
 
