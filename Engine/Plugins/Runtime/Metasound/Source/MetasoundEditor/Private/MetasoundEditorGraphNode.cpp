@@ -341,7 +341,7 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 			continue;
 		}
 
-		if (EditorModule.IsExplicitProxyClass(*Class) && Class->IsChildOf(ProxyGenClass))
+		if (EditorModule.IsExplicitProxyClass(*ProxyGenClass) && Class->IsChildOf(ProxyGenClass))
 		{
 			DisallowedClasses.Add(ClassIt->GetName());
 		}
