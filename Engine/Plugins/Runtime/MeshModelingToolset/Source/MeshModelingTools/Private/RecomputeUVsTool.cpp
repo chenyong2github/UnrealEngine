@@ -81,7 +81,7 @@ void URecomputeUVsTool::Setup()
 	RecomputeUVsOpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, RecomputeUVsOpFactory);
+	Preview->Setup(GetTargetWorld(), RecomputeUVsOpFactory);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
@@ -98,7 +98,7 @@ void URecomputeUVsTool::Setup()
 	if (bCreateUVLayoutViewOnSetup)
 	{
 		UVLayoutView = NewObject<UUVLayoutPreview>(this);
-		UVLayoutView->CreateInWorld(TargetWorld);
+		UVLayoutView->CreateInWorld(GetTargetWorld());
 		UVLayoutView->SetSourceMaterials(MaterialSet);
 		UVLayoutView->SetSourceWorldPosition(TargetTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
 		UVLayoutView->Settings->bEnabled = false;

@@ -51,11 +51,11 @@ class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSel
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 
-	virtual UWorld* GetTargetWorld() { return TargetWorld; }
+	virtual UWorld* GetTargetWorld() { return TargetWorld.Get(); }
 
 protected:
 	UPROPERTY()
-	TObjectPtr<UWorld> TargetWorld = nullptr;
+	TWeakObjectPtr<UWorld> TargetWorld = nullptr;
 
 	//
 	// Mesh Selection support

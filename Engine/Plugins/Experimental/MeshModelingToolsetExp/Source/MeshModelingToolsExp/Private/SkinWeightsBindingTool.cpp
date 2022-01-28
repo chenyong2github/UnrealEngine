@@ -807,7 +807,7 @@ void USkinWeightsBindingTool::Setup()
 	
 	UE::ToolTarget::HideSourceObject(Targets[0]);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::VertexColors);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
 	{

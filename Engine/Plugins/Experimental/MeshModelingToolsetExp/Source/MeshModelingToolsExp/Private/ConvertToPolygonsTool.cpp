@@ -192,7 +192,7 @@ void UConvertToPolygonsTool::Setup()
 		ConvertToPolygonsOperatorFactory->ConvertToPolygonsTool = this; // set the back pointer
 
 		PreviewCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(ConvertToPolygonsOperatorFactory);
-		PreviewCompute->Setup(this->TargetWorld, ConvertToPolygonsOperatorFactory);
+		PreviewCompute->Setup(GetTargetWorld(), ConvertToPolygonsOperatorFactory);
 		ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewCompute->PreviewMesh, Target);
 		PreviewCompute->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
@@ -221,7 +221,7 @@ void UConvertToPolygonsTool::Setup()
 	}
 	
 	PreviewGeometry = NewObject<UPreviewGeometry>(this);
-	PreviewGeometry->CreateInWorld(TargetWorld, MeshTransform);
+	PreviewGeometry->CreateInWorld(GetTargetWorld(), MeshTransform);
 
 	// updates the triangle color visualization
 	UpdateVisualization();

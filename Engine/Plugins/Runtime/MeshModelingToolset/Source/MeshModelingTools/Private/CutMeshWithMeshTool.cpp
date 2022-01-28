@@ -50,7 +50,7 @@ void UCutMeshWithMeshTool::SetupProperties()
 
 	// create intersection preview mesh object
 	IntersectPreviewMesh = NewObject<UPreviewMesh>(this);
-	IntersectPreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	IntersectPreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(IntersectPreviewMesh, nullptr); 
 	IntersectPreviewMesh->SetVisible(true);
 	IntersectPreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultBrushVolumeMaterial(GetToolManager()));
@@ -372,7 +372,7 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			FString UseBaseName = FString::Printf(TEXT("%s_%s"), *CurName, TEXT("CutPart") );
 
 			FCreateMeshObjectParams NewMeshObjectParams;
-			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.TargetWorld = GetTargetWorld();
 			NewMeshObjectParams.Transform = (FTransform)NewTransform;
 			NewMeshObjectParams.BaseName = UseBaseName;
 			NewMeshObjectParams.Materials = GetOutputMaterials();

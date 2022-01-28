@@ -228,7 +228,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[TargetIdx]), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
-			Preview->Setup(this->TargetWorld, OpFactory);
+			Preview->Setup(GetTargetWorld(), OpFactory);
 			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
@@ -263,7 +263,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			// already did the conversion for a full UMeshOpPreviewWithBackgroundCompute -- just make a light version of that and hook it up to copy the other's work
 			int CopyIdx = PreviewCopies.Num();
 			UPreviewMesh* PreviewMesh = PreviewCopies.Add_GetRef(NewObject<UPreviewMesh>(this));
-			PreviewMesh->CreateInWorld(this->TargetWorld, (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]));
+			PreviewMesh->CreateInWorld(GetTargetWorld(), (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]));
 
 			PreviewToCopyIdx[PreviewIdx].Add(CopyIdx);
 

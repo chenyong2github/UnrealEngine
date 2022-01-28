@@ -199,7 +199,7 @@ void USubdividePolyTool::Setup()
 	{
 		return;
 	}
-	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 
 	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());

@@ -147,7 +147,7 @@ public:
 	bool ProcessCurrentMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc, bool bOnlyIfValid = false);
 
 	/** @return UWorld that the created PreviewMesh exist in */
-	virtual UWorld* GetWorld() const override { return PreviewWorld; }
+	virtual UWorld* GetWorld() const override { return PreviewWorld.Get(); }
 
 	//
 	// Optional configuration
@@ -224,7 +224,8 @@ public:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> SecondaryMaterial = nullptr;
 
-	UWorld* PreviewWorld;
+	UPROPERTY()
+	TWeakObjectPtr<UWorld> PreviewWorld = nullptr;
 
 	/**
 	 * When true, the preview mesh is allowed to be temporarily updated using results that we know

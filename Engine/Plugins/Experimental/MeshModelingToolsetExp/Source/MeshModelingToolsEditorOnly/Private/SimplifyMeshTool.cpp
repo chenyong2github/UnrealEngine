@@ -67,7 +67,7 @@ void USimplifyMeshTool::Setup()
 	UE::ToolTarget::HideSourceObject(Target);
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	Preview->ConfigureMaterials( MaterialSet.Materials,

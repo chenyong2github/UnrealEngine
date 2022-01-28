@@ -92,12 +92,12 @@ void ULODManagerTool::Setup()
 	LODPreviewProperties->WatchProperty(LODPreviewProperties->bShowSeams, [this](bool bNewValue) { bPreviewLODValid = false; });
 
 	LODPreview = NewObject<UPreviewMesh>(this);
-	LODPreview->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+	LODPreview->CreateInWorld(GetTargetWorld(), (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
 	LODPreview->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 	LODPreview->SetVisible(false);
 
 	LODPreviewLines = NewObject<UPreviewGeometry>(this);
-	LODPreviewLines->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+	LODPreviewLines->CreateInWorld(GetTargetWorld(), (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
 
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 	LODPreview->SetMaterials(MaterialSet.Materials);

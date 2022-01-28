@@ -154,7 +154,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 	OperatorFactory->Tool = this;
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
-	Preview->Setup(this->TargetWorld, OperatorFactory);
+	Preview->Setup(GetTargetWorld(), OperatorFactory);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target); 
 	Preview->OnMeshUpdated.AddUObject(this, &UUVProjectionTool::OnMeshUpdated);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
@@ -169,7 +169,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 	Preview->SetVisibility(true);
 
 	EdgeRenderer = NewObject<UPreviewGeometry>(this);
-	EdgeRenderer->CreateInWorld(this->TargetWorld, (FTransform)WorldTransform);
+	EdgeRenderer->CreateInWorld(GetTargetWorld(), (FTransform)WorldTransform);
 
 	// if we have an ROI, show its borders
 	if (TriangleROI->Num() > 0)

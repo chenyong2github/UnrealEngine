@@ -45,7 +45,7 @@ class MODELINGCOMPONENTS_API UMultiSelectionMeshEditingTool : public UMultiSelec
 	GENERATED_BODY()
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual UWorld* GetTargetWorld() { return TargetWorld; }
+	virtual UWorld* GetTargetWorld() { return TargetWorld.Get(); }
 
 	/**
 	 * Helper to find which targets share source data.
@@ -57,5 +57,5 @@ public:
 
 protected:
 	UPROPERTY()
-	TObjectPtr<UWorld> TargetWorld = nullptr;
+	TWeakObjectPtr<UWorld> TargetWorld = nullptr;
 };

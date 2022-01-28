@@ -102,7 +102,7 @@ void URevolveBoundaryTool::Setup()
 	// The plane mechanic is used for the revolution axis
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
-	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->AxisOrigin, 
+	PlaneMechanic->Initialize(GetTargetWorld(), FFrame3d(Settings->AxisOrigin, 
 		FRotator(Settings->AxisOrientation.X, Settings->AxisOrientation.Y, 0).Quaternion()));
 	PlaneMechanic->UpdateClickPriority(ClickBehavior->GetPriority().MakeLower());
 	PlaneMechanic->bShowGrid = false;
@@ -246,7 +246,7 @@ void URevolveBoundaryTool::StartPreview()
 	RevolveBoundaryOpCreator->RevolveBoundaryTool = this;
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(RevolveBoundaryOpCreator);
-	Preview->Setup(TargetWorld, RevolveBoundaryOpCreator);
+	Preview->Setup(GetTargetWorld(), RevolveBoundaryOpCreator);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
@@ -301,7 +301,7 @@ void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Boundary Revolve Tool"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
-	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.TargetWorld = GetTargetWorld();
 	NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
 	NewMeshObjectParams.BaseName = TEXT("Revolve");
 	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());

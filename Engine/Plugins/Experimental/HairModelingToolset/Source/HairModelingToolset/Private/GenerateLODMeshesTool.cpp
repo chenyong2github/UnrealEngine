@@ -194,7 +194,7 @@ void UGenerateLODMeshesTool::UpdateNumPreviews()
 		Factory->ParentTool = this;
 
 		UMeshOpPreviewWithBackgroundCompute* NewPreview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-		NewPreview->Setup(this->TargetWorld, Factory.Get());
+		NewPreview->Setup(GetTargetWorld(), Factory.Get());
 
 		FComponentMaterialSet MaterialSet;
 		Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
@@ -394,7 +394,7 @@ void UGenerateLODMeshesTool::GenerateAssets()
 		FString Name = FString::Printf( TEXT("%s_LOD%d"), *BaseName, (SimplifyProperties->NameIndexBase+k) );
 
 		FCreateMeshObjectParams NewMeshObjectParams;
-		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.TargetWorld = GetTargetWorld();
 		NewMeshObjectParams.Transform = Transform;
 		NewMeshObjectParams.BaseName = Name;
 		NewMeshObjectParams.Materials = MaterialSet.Materials;

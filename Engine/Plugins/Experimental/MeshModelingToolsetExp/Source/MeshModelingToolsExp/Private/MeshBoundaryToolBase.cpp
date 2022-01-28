@@ -46,7 +46,7 @@ void UMeshBoundaryToolBase::Setup()
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
 		Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(),
-		TargetWorld,
+		GetTargetWorld(),
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }
 	);

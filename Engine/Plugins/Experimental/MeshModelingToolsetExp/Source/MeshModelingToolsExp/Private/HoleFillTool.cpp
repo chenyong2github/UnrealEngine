@@ -172,7 +172,7 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
 		TargetComponent->GetWorldTransform(),
-		TargetWorld,
+		GetTargetWorld(),
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }
 	);
@@ -307,7 +307,7 @@ void UHoleFillTool::SetupPreview()
 	OpFactory->FillTool = this;
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview");
-	Preview->Setup(this->TargetWorld, OpFactory);
+	Preview->Setup(GetTargetWorld(), OpFactory);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 
 	FComponentMaterialSet MaterialSet;

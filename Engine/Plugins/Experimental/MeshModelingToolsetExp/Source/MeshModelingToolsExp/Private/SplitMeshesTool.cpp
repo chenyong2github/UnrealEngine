@@ -108,7 +108,7 @@ void USplitMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			FString AssetName = TargetActor->GetActorNameOrLabel();
 
 			FCreateMeshObjectParams BaseMeshObjectParams;
-			BaseMeshObjectParams.TargetWorld = TargetWorld;
+			BaseMeshObjectParams.TargetWorld = GetTargetWorld();
 
 			if (OutputTypeProperties->OutputType == UCreateMeshObjectTypeProperties::AutoIdentifier)
 			{

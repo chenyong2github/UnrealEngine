@@ -48,6 +48,8 @@ FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
+	PreviewWorld = nullptr;
+
 	return Result;
 }
 

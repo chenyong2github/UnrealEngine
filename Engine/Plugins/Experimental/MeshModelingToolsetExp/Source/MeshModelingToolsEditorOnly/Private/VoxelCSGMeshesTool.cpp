@@ -71,7 +71,7 @@ void UVoxelCSGMeshesTool::Setup()
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
@@ -196,7 +196,7 @@ void UVoxelCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 	if (ensure(OpResult.Mesh.Get() != nullptr))
 	{
 		FCreateMeshObjectParams NewMeshObjectParams;
-		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.TargetWorld = GetTargetWorld();
 		NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
 		NewMeshObjectParams.BaseName = TEXT("CSGMesh");
 		NewMeshObjectParams.Materials.Add(ToolSetupUtil::GetDefaultMaterial());

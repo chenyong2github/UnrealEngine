@@ -215,7 +215,7 @@ void ULatticeDeformerTool::Setup()
 	// Set up control points mechanic
 	ControlPointsMechanic = NewObject<ULatticeControlPointsMechanic>(this);
 	ControlPointsMechanic->Setup(this);
-	ControlPointsMechanic->SetWorld(TargetWorld);
+	ControlPointsMechanic->SetWorld(GetTargetWorld());
 	UE::Geometry::FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 
@@ -374,7 +374,7 @@ void ULatticeDeformerTool::StartPreview()
 	LatticeDeformOpCreator->LatticeDeformerTool = this;
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(LatticeDeformOpCreator);
-	Preview->Setup(TargetWorld, LatticeDeformOpCreator);
+	Preview->Setup(GetTargetWorld(), LatticeDeformOpCreator);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 
 	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);

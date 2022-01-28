@@ -57,7 +57,7 @@ void UExtractCollisionGeometryTool::Setup()
 	// create preview mesh
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = false;
-	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
 	PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	PreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()));
 	PreviewMesh->SetOverrideRenderMaterial(ToolSetupUtil::GetSelectionMaterial(GetToolManager()));
@@ -146,7 +146,7 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		auto EmitNewMesh = [&](FDynamicMesh3&& Mesh, FTransform3d UseTransform, FString UseName)
 		{
 			FCreateMeshObjectParams NewMeshObjectParams;
-			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.TargetWorld = GetTargetWorld();
 			NewMeshObjectParams.Transform = (FTransform)UseTransform;
 			NewMeshObjectParams.BaseName = UseName;
 			NewMeshObjectParams.Materials.Add(UseMaterial);

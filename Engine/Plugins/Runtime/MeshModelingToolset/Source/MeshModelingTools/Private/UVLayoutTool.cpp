@@ -80,7 +80,7 @@ void UUVLayoutTool::Setup()
 	if (Targets.Num() == 1)
 	{
 		UVLayoutView = NewObject<UUVLayoutPreview>(this);
-		UVLayoutView->CreateInWorld(TargetWorld);
+		UVLayoutView->CreateInWorld(GetTargetWorld());
 
 		const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		UVLayoutView->SetSourceMaterials(MaterialSet);
@@ -133,7 +133,7 @@ void UUVLayoutTool::UpdateNumPreviews()
 			Factories[PreviewIdx]->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(Factories[PreviewIdx], "Preview"));
-			Preview->Setup(this->TargetWorld, Factories[PreviewIdx]);
+			Preview->Setup(GetTargetWorld(), Factories[PreviewIdx]);
 			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Targets[PreviewIdx]); 
 
 			const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[PreviewIdx]);

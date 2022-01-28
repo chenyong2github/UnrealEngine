@@ -126,7 +126,7 @@ void UPlaneCutTool::Setup()
 	CutPlaneWorld.Origin = (FVector3d)CombinedBounds.GetCenter();
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
-	PlaneMechanic->Initialize(TargetWorld, CutPlaneWorld);
+	PlaneMechanic->Initialize(GetTargetWorld(), CutPlaneWorld);
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
 		CutPlaneWorld = PlaneMechanic->Plane;
 		InvalidatePreviews();
@@ -182,7 +182,7 @@ void UPlaneCutTool::SetupPreviews()
 		CutSide->CutTool = this;
 		CutSide->ComponentIndex = PreviewIdx;
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(CutSide, "Preview"));
-		Preview->Setup(this->TargetWorld, CutSide);
+		Preview->Setup(GetTargetWorld(), CutSide);
 		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
@@ -495,7 +495,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			for (int AddMeshIdx = 1; AddMeshIdx < SplitMeshes.Num(); AddMeshIdx++)
 			{
 				FCreateMeshObjectParams NewMeshObjectParams;
-				NewMeshObjectParams.TargetWorld = TargetWorld;
+				NewMeshObjectParams.TargetWorld = GetTargetWorld();
 				NewMeshObjectParams.Transform = (FTransform)Results[OrigMeshIdx].Transform;
 				NewMeshObjectParams.BaseName = TEXT("PlaneCutOtherPart");
 				NewMeshObjectParams.Materials = ComponentMaterialSet.Materials;

@@ -269,7 +269,7 @@ void UCombineMeshesTool::CreateNewAsset()
 		}
 
 		FCreateMeshObjectParams NewMeshObjectParams;
-		NewMeshObjectParams.TargetWorld = TargetWorld;
+		NewMeshObjectParams.TargetWorld = GetTargetWorld();
 		NewMeshObjectParams.Transform = AccumToWorld;
 		NewMeshObjectParams.BaseName = UseBaseName;
 		NewMeshObjectParams.Materials = AllMaterials;

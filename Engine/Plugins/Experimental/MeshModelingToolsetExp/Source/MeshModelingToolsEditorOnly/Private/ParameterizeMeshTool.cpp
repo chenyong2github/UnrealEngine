@@ -38,7 +38,7 @@ void UParameterizeMeshTool::Setup()
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
@@ -104,7 +104,7 @@ void UParameterizeMeshTool::Setup()
 	if (bCreateUVLayoutViewOnSetup)
 	{
 		UVLayoutView = NewObject<UUVLayoutPreview>(this);
-		UVLayoutView->CreateInWorld(TargetWorld);
+		UVLayoutView->CreateInWorld(GetTargetWorld());
 		UVLayoutView->SetSourceMaterials(MaterialSet);
 		UVLayoutView->SetSourceWorldPosition(InputTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
 		UVLayoutView->Settings->bEnabled = false;

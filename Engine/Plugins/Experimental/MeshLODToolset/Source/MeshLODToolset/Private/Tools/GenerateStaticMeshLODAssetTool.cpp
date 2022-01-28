@@ -373,7 +373,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, PreviewTransform);
 	PreviewWithBackgroundCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	PreviewWithBackgroundCompute->Setup(this->TargetWorld, this->OpFactory.Get());
+	PreviewWithBackgroundCompute->Setup(GetTargetWorld(), this->OpFactory.Get());
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewWithBackgroundCompute->PreviewMesh, nullptr);
 	PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 
@@ -433,7 +433,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	CollisionVizSettings->WatchProperty(CollisionVizSettings->bShowHidden, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
-	CollisionPreview->CreateInWorld(TargetWorld, (FTransform)PreviewTransform);
+	CollisionPreview->CreateInWorld(GetTargetWorld(), (FTransform)PreviewTransform);
 
 	// read Preset if we started Tool with one already selected
 	OnPresetSelectionChanged();		
@@ -495,6 +495,7 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 	if (PreviewWithBackgroundCompute)
 	{
 		PreviewWithBackgroundCompute->Shutdown();
+		PreviewWithBackgroundCompute = nullptr;
 	}
 
 	if (GenerateProcess)

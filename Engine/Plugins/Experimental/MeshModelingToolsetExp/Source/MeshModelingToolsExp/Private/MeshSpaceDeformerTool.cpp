@@ -150,7 +150,7 @@ void UMeshSpaceDeformerTool::Setup()
 	TargetComponent->SetOwnerVisibility(false);
 
 	OriginalMeshPreview = NewObject<UPreviewMesh>();
-	OriginalMeshPreview->CreateInWorld(TargetWorld, MeshTransform);
+	OriginalMeshPreview->CreateInWorld(GetTargetWorld(), MeshTransform);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(OriginalMeshPreview, Target);
 	OriginalMeshPreview->UpdatePreview(OriginalDynamicMesh.Get());
 	OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetCustomDepthOffsetMaterial(GetToolManager(), FLinearColor::White,
@@ -276,7 +276,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 
 		Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(DeformerOperatorFactory, "Preview");
-		Preview->Setup(this->TargetWorld, DeformerOperatorFactory);
+		Preview->Setup(GetTargetWorld(), DeformerOperatorFactory);
 		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 

@@ -112,7 +112,7 @@ void UWeldMeshEdgesTool::Setup()
 	OperatorFactory->WeldMeshEdgesTool = this;
 
 	PreviewCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
-	PreviewCompute->Setup(this->TargetWorld, OperatorFactory);
+	PreviewCompute->Setup(GetTargetWorld(), OperatorFactory);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewCompute->PreviewMesh, Target); 
 
 	// Give the preview something to display

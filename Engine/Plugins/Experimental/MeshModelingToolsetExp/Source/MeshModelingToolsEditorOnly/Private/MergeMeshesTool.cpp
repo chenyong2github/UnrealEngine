@@ -85,7 +85,7 @@ void UMergeMeshesTool::Setup()
 
 	// initialize the PreviewMesh+BackgroundCompute object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
 		UpdateAcceptWarnings(Compute->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
@@ -211,7 +211,7 @@ void UMergeMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 	check(OpResult.Mesh.Get() != nullptr);
 	
 	FCreateMeshObjectParams NewMeshObjectParams;
-	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.TargetWorld = GetTargetWorld();
 	NewMeshObjectParams.Transform = (FTransform)OpResult.Transform;
 	NewMeshObjectParams.BaseName = TEXT("MergedMesh");
 	NewMeshObjectParams.Materials.Add(ToolSetupUtil::GetDefaultMaterial());

@@ -74,7 +74,7 @@ void UBaseCreateFromSelectedTool::Setup()
 	AddToolPropertySource(HandleSourcesProperties);
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(GetTargetWorld(), this);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 
 	SetPreviewCallbacks();
@@ -211,7 +211,7 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	}
 
 	FCreateMeshObjectParams NewMeshObjectParams;
-	NewMeshObjectParams.TargetWorld = TargetWorld;
+	NewMeshObjectParams.TargetWorld = GetTargetWorld();
 	NewMeshObjectParams.Transform = (FTransform)NewTransform;
 	NewMeshObjectParams.BaseName = UseBaseName;
 	NewMeshObjectParams.Materials = GetOutputMaterials();

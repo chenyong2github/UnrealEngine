@@ -232,7 +232,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		if (bSetPreviewMesh)
 		{
 			UPreviewMesh* OriginalMeshPreview = OriginalMeshPreviews.Add_GetRef(NewObject<UPreviewMesh>());
-			OriginalMeshPreview->CreateInWorld(TargetWorld, (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]));
+			OriginalMeshPreview->CreateInWorld(GetTargetWorld(), (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]));
 			OriginalMeshPreview->UpdatePreview(OriginalDynamicMeshes[ComponentIdx].Get());
 
 			OriginalMeshPreview->SetMaterial(0, PreviewsGhostMaterial);

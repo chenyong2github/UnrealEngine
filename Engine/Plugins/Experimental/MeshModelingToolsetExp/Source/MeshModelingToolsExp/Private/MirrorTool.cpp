@@ -216,7 +216,7 @@ void UMirrorTool::Setup()
 	// Set up the mirror plane mechanic, which manages the gizmo
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
-	PlaneMechanic->Initialize(TargetWorld, FFrame3d(MirrorPlaneOrigin, MirrorPlaneNormal));
+	PlaneMechanic->Initialize(GetTargetWorld(), FFrame3d(MirrorPlaneOrigin, MirrorPlaneNormal));
 
 	// Have the plane mechanic update things properly
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
@@ -260,7 +260,7 @@ void UMirrorTool::SetupPreviews()
 
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(
 			NewObject<UMeshOpPreviewWithBackgroundCompute>(MirrorOpCreator, "Preview"));
-		Preview->Setup(TargetWorld, MirrorOpCreator);
+		Preview->Setup(GetTargetWorld(), MirrorOpCreator);
 		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
@@ -429,7 +429,7 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			}
 
 			FCreateMeshObjectParams NewMeshObjectParams;
-			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.TargetWorld = GetTargetWorld();
 			NewMeshObjectParams.Transform = (FTransform)Results[OrigMeshIdx].Transform;
 			NewMeshObjectParams.BaseName = TEXT("Mirror");
 			NewMeshObjectParams.Materials = Materials;

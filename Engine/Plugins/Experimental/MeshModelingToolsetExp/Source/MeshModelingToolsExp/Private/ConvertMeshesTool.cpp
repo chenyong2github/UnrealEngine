@@ -96,7 +96,7 @@ void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			const FComponentMaterialSet* TransferMaterials = (BasicProperties->bTransferMaterials) ? &Materials : nullptr;
 
 			FCreateMeshObjectParams NewMeshObjectParams;
-			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.TargetWorld = GetTargetWorld();
 			NewMeshObjectParams.Transform = (FTransform)SourceTransform;
 			NewMeshObjectParams.BaseName = AssetName;
 			if (TransferMaterials != nullptr)
