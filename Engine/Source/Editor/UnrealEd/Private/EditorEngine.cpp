@@ -1649,6 +1649,8 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 	}
 
+	bool bToggledBetweenPIEandSIE = bIsToggleBetweenPIEandSIEQueued;
+
 	// Kick off a Play Session request if one was queued up during the last frame.
 	if (PlaySessionRequest.IsSet())
 	{
@@ -1763,6 +1765,9 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 					// tick the level
 					PieContext.World()->Tick( LEVELTICK_All, TickDeltaSeconds );
+#if WITH_EDITOR
+					PieContext.World()->bToggledBetweenPIEandSIEThisFrame = bToggledBetweenPIEandSIE;
+#endif
 					bAWorldTicked = true;
 					TickType = LEVELTICK_All;
 

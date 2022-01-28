@@ -1315,6 +1315,12 @@ public:
 #if WITH_EDITOR
 	/** When set, will tell us to pause simulation after one tick.  If a breakpoint is encountered before tick is complete we will stop there instead. */
 	uint8 bDebugFrameStepExecution:1;
+
+	/** Indicates that a single frame advance happened this frame. */
+	uint8 bDebugFrameStepExecutedThisFrame : 1;
+
+	/** Indicates that toggling between Play-in-Editor and Simulate-in-Editor happened this frame. */
+	uint8 bToggledBetweenPIEandSIEThisFrame : 1;
 #endif
 
 	/** Keeps track whether actors moved via PostEditMove and therefore constraint syncup should be performed. */

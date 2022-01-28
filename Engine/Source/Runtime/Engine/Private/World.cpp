@@ -388,6 +388,10 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 , bAllowDeferredPhysicsStateCreation(false)
 , FeatureLevel(GMaxRHIFeatureLevel)
 , bIsBuilt(false)
+#if WITH_EDITOR
+, bDebugFrameStepExecutedThisFrame(false)
+, bToggledBetweenPIEandSIEThisFrame(false)
+#endif
 , bShouldTick(true)
 , bInitializedAndNeedsCleanup(false)
 , ActiveLevelCollectionIndex(INDEX_NONE)
