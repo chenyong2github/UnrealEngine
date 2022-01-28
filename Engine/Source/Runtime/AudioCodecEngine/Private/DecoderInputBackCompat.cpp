@@ -17,38 +17,43 @@ namespace Audio
 		{
 			FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
 
-			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
-			audio_ensure(OldInfoObject.IsValid());
-
-			FSoundQualityInfo Info;
-			if (Wave->IsStreaming())
+			if (ensure(Handle))
 			{
-				if (!OldInfoObject->StreamCompressedInfo(Wave, &Info))
-				{
-					return nullptr;
-				}
-			}
-			else
-			{
-				if (!OldInfoObject->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &Info))
-				{
-					return nullptr;
-				}
-			}
+				OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
+				audio_ensure(OldInfoObject.IsValid());
 
-			Desc.NumChannels		= Info.NumChannels;
-			Desc.NumFramesPerSec	= Info.SampleRate;
-			Desc.NumFrames			= (uint32)((float)Info.Duration * Info.SampleRate);
-			Desc.NumBytesPerPacket	= ~0;
+				FSoundQualityInfo Info;
+				if (Wave->IsStreaming())
+				{
+					if (!OldInfoObject->StreamCompressedInfo(Wave, &Info))
+					{
+						return nullptr;
+					}
+				}
+				else
+				{
+					if (!OldInfoObject->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &Info))
+					{
+						return nullptr;
+					}
+				}
 
-			Desc.CodecName			= FBackCompatCodec::GetDetailsStatic().Name;
-			Desc.CodecFamilyName	= FBackCompatCodec::GetDetailsStatic().FamilyName;
-			Desc.CodecVersion		= FBackCompatCodec::GetDetailsStatic().Version;		
+				Desc.NumChannels		= Info.NumChannels;
+				Desc.NumFramesPerSec	= Info.SampleRate;
+				Desc.NumFrames			= (uint32)((float)Info.Duration * Info.SampleRate);
+				Desc.NumBytesPerPacket	= ~0;
+
+				Desc.CodecName			= FBackCompatCodec::GetDetailsStatic().Name;
+				Desc.CodecFamilyName	= FBackCompatCodec::GetDetailsStatic().FamilyName;
+				Desc.CodecVersion		= FBackCompatCodec::GetDetailsStatic().Version;		
+			}
 		}
+
 		if( OutDescriptor )
 		{		
 			*OutDescriptor = Desc;
 		}		
+
 		return OldInfoObject.Get();
 	}
 

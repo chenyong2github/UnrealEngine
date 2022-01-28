@@ -883,7 +883,12 @@ FAudioDeviceHandle FAudioDeviceManager::GetActiveAudioDevice()
 {
 	if (ActiveAudioDeviceID != INDEX_NONE)
 	{
-		return GetAudioDevice(ActiveAudioDeviceID);
+		FAudioDeviceHandle ActiveAudioDeviceHandle = GetAudioDevice(ActiveAudioDeviceID);
+
+		if (ActiveAudioDeviceHandle)
+		{
+			return ActiveAudioDeviceHandle;
+		}
 	}
 
 	return MainAudioDeviceHandle;
