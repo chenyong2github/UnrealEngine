@@ -430,6 +430,7 @@ protected:
 	bool bMouseDragShouldPushPull = false;
 	FRay3d DragProjectionAxis;
 	double DragProjectedStartParam;
+	int32 DragStartExtrudeAmount = 0;
 
 	void ApplyFlipSelection();
 	void ApplySlide(int32 NumBlocks);
