@@ -9,6 +9,8 @@
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "RuntimeVirtualTexture.generated.h"
 
+namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
+
 /** Runtime virtual texture UObject */
 UCLASS(ClassGroup = Rendering, BlueprintType)
 class ENGINE_API URuntimeVirtualTexture : public UObject
@@ -159,6 +161,8 @@ public:
 
 	/** Getter for the shader uniform parameters. */
 	FVector4 GetUniformParameter(int32 Index) const;
+	/** Getter for the shader uniform parameter type. */
+	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */

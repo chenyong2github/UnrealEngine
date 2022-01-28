@@ -8,6 +8,7 @@
 #include "Engine/TextureLODSettings.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
+#include "Shader/ShaderTypes.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexture.h"
@@ -515,10 +516,24 @@ FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 	return FVector4(ForceInitToZero);
 }
 
+UE::Shader::EValueType URuntimeVirtualTexture::GetUniformParameterType(int32 Index)
+{
+	switch (Index)
+	{
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0: return UE::Shader::EValueType::Double3;
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1: return UE::Shader::EValueType::Float3;
+	case ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2: return UE::Shader::EValueType::Float3;
+	case ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack: return UE::Shader::EValueType::Float2;
+	default:
+		break;
+	}
+
+	check(0);
+	return UE::Shader::EValueType::Float4;
+}
+
 void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FTransform const& InVolumeToWorld, FBox const& InWorldBounds)
 {
-	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
-	// LWC_TODO: If we don't update this to use translated world space, will need to update this to store a FLWCVector3 for translation (and update VirtualTextureWorldToUV to match)
 	WorldToUVTransformParameters[0] = InVolumeToWorld.GetTranslation();
 	WorldToUVTransformParameters[1] = InVolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / InVolumeToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = InVolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / InVolumeToWorld.GetScale3D().Y;

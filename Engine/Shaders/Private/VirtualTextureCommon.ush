@@ -717,13 +717,11 @@ MaterialFloat4 TextureVirtualSampleLevel(
 }
 
 
-/**
-	Helper function to convert world space to virtual texture UV space
-	todo[vt]: For large worlds we will probably want to use position relative to Camera to avoid precision issues
-*/
-float2 VirtualTextureWorldToUV(in float3 WorldPos, in float3 Origin, in float3 U, in float3 V)
+/**	Helper function to convert world space to virtual texture UV space. */
+float2 VirtualTextureWorldToUV(in FLWCVector3 WorldPos, in FLWCVector3 O, in float3 U, in float3 V)
 {
-	float3 P = WorldPos - Origin;
+	// After the subtract we can assume that the offset is small enough for float maths.
+	float3 P = LWCToFloat(LWCSubtract(WorldPos, O));
 	return float2(dot(P, U), dot(P, V));
 }
 

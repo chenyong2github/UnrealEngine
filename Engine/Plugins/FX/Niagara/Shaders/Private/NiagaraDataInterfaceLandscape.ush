@@ -63,13 +63,14 @@ struct FNDILandscapeContext
 
 void NDILandscape_GetBaseColor(in FNDILandscapeContext DIContext, float3 InWorldPos, out float3 OutBaseColor, out bool OutIsValid)
 {
+	// todo[mg] convert world pos and transform origin to LWC pos
 	if (DIContext.BaseColorVirtualTextureEnabled)
 	{
 		float3 UnpackBaseColorOrigin = DIContext.BaseColorVirtualTextureWorldToUvTransform[0].xyz;
 		float3 UnpackBaseColorU = DIContext.BaseColorVirtualTextureWorldToUvTransform[1].xyz;
 		float3 UnpackBaseColorV = DIContext.BaseColorVirtualTextureWorldToUvTransform[2].xyz;
 
-		float2 SampleUv = VirtualTextureWorldToUV(InWorldPos, UnpackBaseColorOrigin, UnpackBaseColorU, UnpackBaseColorV);
+		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackBaseColorOrigin), UnpackBaseColorU, UnpackBaseColorV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			DIContext.BaseColorVirtualTexturePageTable,
@@ -98,7 +99,7 @@ void NDILandscape_GetBaseColor(in FNDILandscapeContext DIContext, float3 InWorld
 
 void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos, out float OutHeight, out bool OutIsValid)
 {
-	// todo[mg] convert world pos to LWC pos
+	// todo[mg] convert world pos and transform origin to LWC pos
 	if (DIContext.HeightVirtualTextureEnabled)
 	{
 		float3 UnpackHeightOrigin = DIContext.HeightVirtualTextureWorldToUvTransform[0].xyz;
@@ -106,7 +107,7 @@ void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos
 		float3 UnpackHeightV = DIContext.HeightVirtualTextureWorldToUvTransform[2].xyz;
 		float2 UnpackHeightScaleBias = DIContext.HeightVirtualTextureWorldToUvTransform[3].xy;
 
-		float2 SampleUv = VirtualTextureWorldToUV(InWorldPos, UnpackHeightOrigin, UnpackHeightU, UnpackHeightV);
+		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackHeightOrigin), UnpackHeightU, UnpackHeightV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			DIContext.HeightVirtualTexturePageTable,
@@ -142,14 +143,14 @@ void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos
 
 void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWorldPos, out float3 OutNormal, out bool OutIsValid)
 {
-	// todo[mg] convert world pos to LWC pos
+	// todo[mg] convert world pos and transform origin to LWC pos
 	if (DIContext.NormalVirtualTextureEnabled)
 	{
 		float3 UnpackNormalOrigin = DIContext.NormalVirtualTextureWorldToUvTransform[0].xyz;
 		float3 UnpackNormalU = DIContext.NormalVirtualTextureWorldToUvTransform[1].xyz;
 		float3 UnpackNormalV = DIContext.NormalVirtualTextureWorldToUvTransform[2].xyz;
 
-		float2 SampleUv = VirtualTextureWorldToUV(InWorldPos, UnpackNormalOrigin, UnpackNormalU, UnpackNormalV);
+		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackNormalOrigin), UnpackNormalU, UnpackNormalV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			DIContext.NormalVirtualTexturePageTable,

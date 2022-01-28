@@ -2562,13 +2562,14 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	int32 Uniforms[ERuntimeVirtualTextureShaderUniform_Count];
 	for (int32 UniformIndex = 0; UniformIndex < ERuntimeVirtualTextureShaderUniform_Count; ++UniformIndex)
 	{
+		const UE::Shader::EValueType Type = URuntimeVirtualTexture::GetUniformParameterType(UniformIndex);
 		if (bIsParameter)
 		{
-			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], UniformIndex);
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(GetParameterName(), TextureReferenceIndex[0], UniformIndex, Type);
 		}
 		else
 		{
-			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], UniformIndex);
+			Uniforms[UniformIndex] = Compiler->VirtualTextureUniform(TextureReferenceIndex[0], UniformIndex, Type);
 		}
 	}
 
