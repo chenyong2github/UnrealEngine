@@ -585,6 +585,7 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bIgnoreParticleReadsForAttributeTrim : 1;
 
+
 	/** When enable debug switches are disabled while editing the system. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches During Edit"))
 	uint32 bDisableDebugSwitches : 1;
