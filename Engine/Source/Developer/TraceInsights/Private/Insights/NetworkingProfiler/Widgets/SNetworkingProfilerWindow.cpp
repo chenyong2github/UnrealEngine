@@ -301,7 +301,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
-		.Padding(0.0f, -16.0f, 0.0f, 0.0f)
+		.Padding(0.0f, -16.0f, 4.0f, 0.0f)
 		[
 			SNew(STextBlock)
 			.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
