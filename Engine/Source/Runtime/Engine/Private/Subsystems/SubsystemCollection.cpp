@@ -201,7 +201,7 @@ void FSubsystemCollectionBase::Deinitialize()
 
 USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsystem> SubsystemClass)
 {
-	UE_LOG(LogSubsystemCollection, Log, TEXT("Attempting to initialize subsystem dependency (%s)"), *SubsystemClass->GetName());
+	UE_LOG(LogSubsystemCollection, VeryVerbose, TEXT("Attempting to initialize subsystem dependency (%s)"), *SubsystemClass->GetName());
 
 	USubsystem* Subsystem = nullptr;
 	if (ensureMsgf(SubsystemClass, TEXT("Attempting to add invalid subsystem as dependancy."))
@@ -253,12 +253,12 @@ USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* Subsyste
 				return Subsystem;
 			}
 
-			UE_LOG(LogSubsystemCollection, Log, TEXT("Subsystem DNE, but CDO choose to not create (%s)"), *SubsystemClass->GetName());
+			UE_LOG(LogSubsystemCollection, VeryVerbose, TEXT("Subsystem does not exist, but CDO choose to not create (%s)"), *SubsystemClass->GetName());
 		}
 		return nullptr;
 	}
 
-	UE_LOG(LogSubsystemCollection, Log, TEXT("Subsystem already exists (%s)"), *SubsystemClass->GetName());
+	UE_LOG(LogSubsystemCollection, VeryVerbose, TEXT("Subsystem already exists (%s)"), *SubsystemClass->GetName());
 	return SubsystemMap.FindRef(SubsystemClass);
 }
 
