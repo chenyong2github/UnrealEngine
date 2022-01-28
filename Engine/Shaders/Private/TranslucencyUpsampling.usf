@@ -5,26 +5,29 @@
 =============================================================================*/
 
 #include "Common.ush"
-#include "SeparateTranslucency.ush"
+#include "ScreenPass.ush"
 
-Texture2D LowResColorTexture;
-float2 LowResExtentInverse;
 
-void SimpleUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
+uint2 StencilPixelPosMin;
+uint2 StencilPixelPosMax;
+FScreenTransform SvPositionToStencilPixelCoord;
+uint StencilMask;
+Texture2D<uint2> StencilTexture;
+
+void UpsampleResponsiveAAPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-	OutColor = BilinearUpsampling(Input.UV, LowResColorTexture);
-}
+	float2 SvPosition = Input.Position.xy;
 
-void NearestDepthNeighborUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
-{
-	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(Input.Position.xy, Input.UV, LowResExtentInverse);
+	uint2 StencilPixelPos = uint2(ApplyScreenTransform(SvPosition, SvPositionToStencilPixelCoord));
+	StencilPixelPos = clamp(StencilPixelPos, StencilPixelPosMin, StencilPixelPosMax);
 
-	if (UpsampleResult.bUsePointSampler)
+	uint StencilValue = StencilTexture.Load(int3(StencilPixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
+
+	// If the responsive AA stencil was not set, discard the pixel to not write the responsive AA in the full res depth buffer.
+	if ((StencilValue & StencilMask) == 0)
 	{
-		OutColor = Texture2DSampleLevel(LowResColorTexture, GlobalPointClampedSampler, UpsampleResult.UV, 0);
+		discard;
 	}
-	else
-	{
-		OutColor = Texture2DSampleLevel(LowResColorTexture, GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
-	}
+
+	OutColor = float(0.0).xxxx;
 }

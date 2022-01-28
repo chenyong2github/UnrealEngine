@@ -225,16 +225,23 @@ void AddDownsampleDepthPass(
 
 	FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
 
-	auto GetDownsampleDepthPassName = [](EDownsampleDepthFilter DownsampleDepthFilter)
-	{
-		switch (DownsampleDepthFilter)
-		{
-		case EDownsampleDepthFilter::Point:						return RDG_EVENT_NAME("DownsampleDepth-Point");
-		case EDownsampleDepthFilter::Max:						return RDG_EVENT_NAME("DownsampleDepth-Max");
-		case EDownsampleDepthFilter::Checkerboard:				return RDG_EVENT_NAME("DownsampleDepth-CheckerMinMax");
-		default:												return RDG_EVENT_NAME("MissingName");
-		}
+	static const TCHAR* kFilterNames[] = {
+		TEXT("Point"),
+		TEXT("Max"),
+		TEXT("CheckerMinMax"),
 	};
 
-	AddDrawScreenPass(GraphBuilder, GetDownsampleDepthPassName(DownsampleDepthFilter), View, OutputViewport, InputViewport, VertexShader, PixelShader, DepthStencilState, PassParameters);
+	AddDrawScreenPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("DownsampleDepth(%s) %dx%dx -> %dx%d",
+			kFilterNames[int32(DownsampleDepthFilter)],
+			InputViewport.Rect.Width(),
+			InputViewport.Rect.Height(),
+			OutputViewport.Rect.Width(),
+			OutputViewport.Rect.Height()),
+		View,
+		OutputViewport, InputViewport,
+		VertexShader, PixelShader,
+		DepthStencilState,
+		PassParameters);
 }

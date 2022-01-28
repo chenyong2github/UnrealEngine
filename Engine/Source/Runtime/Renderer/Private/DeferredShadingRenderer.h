@@ -588,7 +588,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
-		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
+		FTranslucencyPassResourcesMap* OutTranslucencyResourceMap,
 		ETranslucencyView ViewsToRender,
 		FInstanceCullingManager& InstanceCullingManager);
 
@@ -597,7 +597,8 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
-		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
+		FTranslucencyPassResourcesMap* OutTranslucencyResourceMap,
+		FRDGTextureMSAA SharedDepthTexture,
 		ETranslucencyView ViewsToRender,
 		FRDGTextureRef SceneColorCopyTexture,
 		ETranslucencyPass::Type TranslucencyPass,
@@ -611,7 +612,7 @@ private:
 	void RenderLightShaftBloom(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		FSeparateTranslucencyTextures& OutSeparateTranslucencyTextures);
+		FTranslucencyPassResourcesMap& OutTranslucencyResourceMap);
 
 	bool ShouldRenderDistortion() const;
 	void RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);

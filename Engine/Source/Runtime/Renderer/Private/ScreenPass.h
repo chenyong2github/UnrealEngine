@@ -313,6 +313,13 @@ struct FScreenTransform
 		return ChangeTextureBasisFromTo(TextureViewport.Extent, TextureViewport.Rect, SrcBasis, DestBasis);
 	}
 
+	static inline FScreenTransform ChangeTextureBasisFromTo(
+		const FScreenPassTexture& Texture,
+		ETextureBasis SrcBasis, ETextureBasis DestBasis)
+	{
+		return ChangeTextureBasisFromTo(FScreenPassTextureViewport(Texture.Texture, Texture.ViewRect), SrcBasis, DestBasis);
+	}
+
 	/** Change TextureUV coordinate from one texture to another, taking into account change in texture extent too. */
 	static FScreenTransform ChangeTextureUVCoordinateFromTo(
 		const FScreenPassTextureViewport& SrcViewport,

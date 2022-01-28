@@ -6,9 +6,6 @@
 	SeparateTranslucency.usf: 
 =============================================================================*/
 
-Texture2D<float> LowResDepthTexture;
-Texture2D<float> FullResDepthTexture;
-
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
 {
     float DepthDelta = abs(Z - FullResZ);
@@ -21,17 +18,16 @@ void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist
     }
 }
 
-float4 BilinearUpsampling(float2 UV, Texture2D LowResTex)
-{
-	return Texture2DSample(LowResTex, GlobalBilinearClampedSampler, UV);
-}
-
 struct NearestDepthNeighborUpsamplingResult
 {
 	bool bUsePointSampler;
 	float2 UV;
 };
-NearestDepthNeighborUpsamplingResult NearestDepthNeighborUpsampling(float2 Position, float2 UV, float2 LowResTexelSize)
+NearestDepthNeighborUpsamplingResult NearestDepthNeighborUpsampling(
+	Texture2D<float> LowResDepthTexture,
+	Texture2D<float> FullResDepthTexture,
+	float2 Position,
+	float2 UV, float2 LowResTexelSize)
 {
 	NearestDepthNeighborUpsamplingResult UpsampleResult;
 

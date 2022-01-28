@@ -592,7 +592,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	bool bHalfResLowFrequency = CVarTSRHalfResShadingRejection.GetValueOnRenderThread() != 0;
 
-	bool bIsSeperateTranslucyTexturesValid = PassInputs.SeparateTranslucencyTextures != nullptr && PassInputs.SeparateTranslucencyTextures->IsColorValid();
+	bool bIsSeperateTranslucyTexturesValid = PassInputs.PostDOFTranslucencyResources.IsValid();
 
 	bool bRejectSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
 
@@ -687,10 +687,17 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	FRDGTextureRef BlackUintDummy = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 	FRDGTextureRef BlackDummy = GSystemTextures.GetBlackDummy(GraphBuilder);
+	FRDGTextureRef BlackAlphaOneDummy = GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder);
 	FRDGTextureRef WhiteDummy = GSystemTextures.GetWhiteDummy(GraphBuilder);
 
-	FRDGTextureRef SeparateTranslucencyTexture = (bRejectSeparateTranslucency || bAccumulateSeparateTranslucency) ?
-		PassInputs.SeparateTranslucencyTextures->GetColorForRead(GraphBuilder) : nullptr;
+	FIntRect SeparateTranslucencyRect;
+	FRDGTextureRef SeparateTranslucencyTexture = nullptr;
+	if (bRejectSeparateTranslucency || bAccumulateSeparateTranslucency)
+	{
+		check(PassInputs.PostDOFTranslucencyResources.IsValid());
+		SeparateTranslucencyTexture = PassInputs.PostDOFTranslucencyResources.ColorTexture.Resolve;
+		SeparateTranslucencyRect = PassInputs.PostDOFTranslucencyResources.ViewRect;
+	}
 
 	FTSRCommonParameters CommonParameters;
 	{
@@ -1037,12 +1044,12 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 
 			PrevTranslucencyTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.SeparateTranslucency);
-			PrevTranslucencyViewport = FScreenPassTextureViewport(PrevTranslucencyTexture->Desc.Extent, View.PrevViewInfo.ViewRect);
+			PrevTranslucencyViewport = FScreenPassTextureViewport(PrevTranslucencyTexture->Desc.Extent, View.PrevViewInfo.SeparateTranslucencyViewRect);
 
 		}
 		else
 		{
-			PrevTranslucencyTexture = BlackDummy;
+			PrevTranslucencyTexture = BlackAlphaOneDummy;
 			PrevTranslucencyViewport = FScreenPassTextureViewport(FIntPoint(1, 1), FIntRect(FIntPoint(0, 0), FIntPoint(1, 1)));
 		}
 
@@ -1060,7 +1067,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->CommonParameters = CommonParameters;
 
 		PassParameters->TranslucencyInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-			InputExtent, InputRect));
+			SeparateTranslucencyTexture->Desc.Extent, SeparateTranslucencyRect));
 		PassParameters->PrevTranslucencyInfo = GetScreenPassTextureViewportParameters(PrevTranslucencyViewport);
 		PassParameters->PrevTranslucencyPreExposureCorrection = PrevHistoryParameters.HistoryPreExposureCorrection;
 		PassParameters->TranslucencyHighlightLuminance = CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
@@ -1358,6 +1365,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	// Update temporal history.
 	{
+		ensure(SeparateTranslucencyRect.Size() == InputRect.Size() || SeparateTranslucencyTexture == nullptr);
+
 		static const TCHAR* const kUpdateQualityNames[] = {
 			TEXT("Low"),
 			TEXT("Medium"),
@@ -1516,6 +1525,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			GraphBuilder.QueueTextureExtraction(
 				SeparateTranslucencyTexture, &View.ViewState->PrevFrameViewInfo.SeparateTranslucency);
+			View.ViewState->PrevFrameViewInfo.SeparateTranslucencyViewRect = InputRect;
 		}
 
 		// Extract the output for next frame SSR so that separate translucency shows up in SSR.

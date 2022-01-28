@@ -7,6 +7,8 @@
 #pragma once
 
 #include "ScreenPass.h"
+#include "TranslucentRendering.h"
+
 
 // Returns whether motion blur is enabled for the requested view.
 bool IsMotionBlurEnabled(const FViewInfo& View);
@@ -86,7 +88,7 @@ struct FMotionBlurInputs
 	FScreenPassTexture SceneVelocity;
 
 	// [Optional] The separate translucency buffer to be composited after motion blur
-	FScreenPassTexture PostMotionBlurTranslucency;
+	FTranslucencyPassResources PostMotionBlurTranslucency;
 
 	// [Required] Quality to use when processing motion blur.
 	EMotionBlurQuality Quality = EMotionBlurQuality::VeryHigh;

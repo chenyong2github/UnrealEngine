@@ -1321,7 +1321,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FRDGTextureRef InputSceneColor,
-	const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
+	const FTranslucencyPassResources& TranslucencyPassResources)
 {
 	if (View.Family->EngineShowFlags.VisualizeDOF)
 	{
@@ -2592,9 +2592,17 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			NewSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("DOF.Recombine"));
 		}
 
-		const FSeparateTranslucencyDimensions SeparateTranslucencyDimensions = SeparateTranslucencyTextures.GetDimensions();
-		const FIntRect SeparateTranslucencyRect = SeparateTranslucencyDimensions.GetViewport(View.ViewRect).Rect;
-		const bool bScaleSeparateTranslucency = SeparateTranslucencyDimensions.Scale != 1.0f;
+		bool bScaleSeparateTranslucency = false;
+		FScreenPassTextureViewport SeparateTranslucencyViewport;
+		if (TranslucencyPassResources.IsValid())
+		{
+			SeparateTranslucencyViewport = TranslucencyPassResources.GetTextureViewport();
+			bScaleSeparateTranslucency = SeparateTranslucencyViewport.Rect.Size() != FullResViewSize;
+		}
+		else
+		{
+			SeparateTranslucencyViewport = FScreenPassTextureViewport(FIntPoint(0, 0), FIntRect(0, 0, 1, 1));
+		}
 
 		FIntRect PassViewRect = View.ViewRect;
 
@@ -2620,9 +2628,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PermutationVector.Set<FDDOFBokehSimulationDim>(BokehSimulation);
 		PermutationVector.Set<FDiaphragmDOFRecombineCS::FQualityDim>(RecombineQuality);
 
-		FRDGTextureRef SeparateTranslucency = SeparateTranslucencyTextures.GetColorForRead(GraphBuilder);
-		FRDGTextureRef SeparateTranslucencyDepth = SeparateTranslucencyTextures.GetDepthForRead(GraphBuilder);
-		FRDGTextureRef SeparateTranslucencyModulateColor = SeparateTranslucencyTextures.GetColorModulateForRead(GraphBuilder);
+		FRDGTextureRef SeparateTranslucency = TranslucencyPassResources.GetColorForRead(GraphBuilder);
+		FRDGTextureRef SeparateTranslucencyDepth = TranslucencyPassResources.GetDepthForRead(GraphBuilder);
+		FRDGTextureRef SeparateTranslucencyModulateColor = TranslucencyPassResources.GetColorModulateForRead(GraphBuilder);
 
 		FDiaphragmDOFRecombineCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFRecombineCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
@@ -2635,11 +2643,11 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
 
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
-		PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
-		PassParameters->SeparateTranslucencyUpscaling = SeparateTranslucencyRect.Size() != FullResViewSize ? 1 : 0;
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyViewport.Rect.Min.X + 0.5f) / float(SeparateTranslucencyViewport.Extent.X);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyViewport.Rect.Min.Y + 0.5f) / float(SeparateTranslucencyViewport.Extent.Y);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyViewport.Rect.Max.X - 0.5f) / float(SeparateTranslucencyViewport.Extent.X);
+		PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyViewport.Rect.Max.Y - 0.5f) / float(SeparateTranslucencyViewport.Extent.Y);
+		PassParameters->SeparateTranslucencyUpscaling = bScaleSeparateTranslucency ? 1 : 0;
 
 		PassParameters->SceneColorInput = FullResGatherInputTextures.SceneColor;
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;

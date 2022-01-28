@@ -6,7 +6,7 @@
 #include "PostProcessMotionBlur.h"
 
 struct FTemporalAAHistory;
-class FSeparateTranslucencyTextures;
+struct FTranslucencyPassResources;
 
 
 /** Configuration of the main temporal AA pass. */
@@ -185,7 +185,7 @@ public:
 		FRDGTextureRef SceneColorTexture = nullptr;
 		FRDGTextureRef SceneDepthTexture = nullptr;
 		FRDGTextureRef SceneVelocityTexture = nullptr;
-		const FSeparateTranslucencyTextures* SeparateTranslucencyTextures = nullptr;
+		FTranslucencyPassResources PostDOFTranslucencyResources;
 	};
 
 	struct FOutputs

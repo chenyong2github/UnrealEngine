@@ -31,13 +31,13 @@ struct FPostProcessingInputs
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = nullptr;
 	FRDGTextureRef ViewFamilyTexture = nullptr;
 	FRDGTextureRef CustomDepthTexture = nullptr;
-	const FSeparateTranslucencyTextures* SeparateTranslucencyTextures = nullptr;
+	FTranslucencyViewResourcesMap TranslucencyViewResourcesMap;
 
 	void Validate() const
 	{
 		check(SceneTextures);
 		check(ViewFamilyTexture);
-		check(SeparateTranslucencyTextures);
+		check(TranslucencyViewResourcesMap.IsValid());
 	}
 };
 

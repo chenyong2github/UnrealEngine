@@ -3058,13 +3058,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderHairComposition(GraphBuilder, Views, SceneTextures.Color.Target, SceneTextures.Depth.Target);
 	}
 
-	FSeparateTranslucencyTextures SeparateTranslucencyTextures(SeparateTranslucencyDimensions);
+	FTranslucencyPassResourcesMap TranslucencyResourceMap(Views.Num());
 
 	// Draw translucency.
 	if (!bHasRayTracedOverlay && TranslucencyViewsToRender != ETranslucencyView::None)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
+
+		RDG_EVENT_SCOPE(GraphBuilder, "Translucency");
 
 		// Raytracing doesn't need the distortion effect.
 		const bool bShouldRenderDistortion = TranslucencyViewsToRender != ETranslucencyView::RayTracing;
@@ -3087,7 +3089,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		// Render all remaining translucency views.
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
-		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender, InstanceCullingManager);
+		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &TranslucencyResourceMap, TranslucencyViewsToRender, InstanceCullingManager);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
 		// Compose hair before velocity/distortion pass since these pass write depth value, 
@@ -3157,7 +3159,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftBloom);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_LightShaftBloom));
-		RenderLightShaftBloom(GraphBuilder, SceneTextures, SeparateTranslucencyTextures);
+		RenderLightShaftBloom(GraphBuilder, SceneTextures, /* inout */ TranslucencyResourceMap);
 	}
 
 	if (bUseVirtualTexturing)
@@ -3271,7 +3273,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		FPostProcessingInputs PostProcessingInputs;
 		PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
 		PostProcessingInputs.CustomDepthTexture = SceneTextures.CustomDepth.Depth;
-		PostProcessingInputs.SeparateTranslucencyTextures = &SeparateTranslucencyTextures;
 		PostProcessingInputs.SceneTextures = SceneTextures.UniformBuffer;
 
 		if (ViewFamily.UseDebugViewPS())
@@ -3282,6 +3283,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
    				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+				PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
 				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
@@ -3293,6 +3295,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				{
 					FViewInfo& View = Views[ViewIndex];
 					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+					PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
 					ViewFamily.ViewExtensions[ViewExt]->PrePostProcessPass_RenderThread(GraphBuilder, View, PostProcessingInputs);
 				}
 			}
@@ -3302,6 +3305,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+				PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
 
 #if !(UE_BUILD_SHIPPING)
 				if (IsPostProcessVisualizeCalibrationMaterialEnabled(View))

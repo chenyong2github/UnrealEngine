@@ -16,6 +16,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Strata/Strata.h"
 #include "HairStrands/HairStrandsUtils.h"
+#include "PixelShaderUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -76,23 +77,19 @@ static TAutoConsoleVariable<int32> CVarParallelTranslucency(
 	TEXT("Toggles parallel translucency rendering. Parallel rendering must be enabled for this to have an effect."),
 	ECVF_RenderThreadSafe);
 
+static const TCHAR* kTranslucencyPassName[] = {
+	TEXT("BeforeDistortion"),
+	TEXT("AfterDOF"),
+	TEXT("AfterDOFModulate"),
+	TEXT("AfterMotionBlur"),
+	TEXT("All"),
+};
+static_assert(UE_ARRAY_COUNT(kTranslucencyPassName) == int32(ETranslucencyPass::TPT_MAX), "Fix me");
+
+
 static const TCHAR* TranslucencyPassToString(ETranslucencyPass::Type TranslucencyPass)
 {
-	switch (TranslucencyPass)
-	{
-	case ETranslucencyPass::TPT_StandardTranslucency:
-		return TEXT("Standard");
-	case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-		return TEXT("AfterDOF");
-	case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:
-		return TEXT("AfterDOFModulate");
-	case ETranslucencyPass::TPT_TranslucencyAfterMotionBlur:
-		return TEXT("AfterMotionBlur");
-	case ETranslucencyPass::TPT_AllTranslucency:
-		return TEXT("All");
-	}
-	checkNoEntry();
-	return TEXT("");
+	return kTranslucencyPassName[TranslucencyPass];
 }
 
 EMeshPass::Type TranslucencyPassToMeshPass(ETranslucencyPass::Type TranslucencyPass)
@@ -379,96 +376,18 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 	return Dimensions;
 }
 
-FRDGTextureMSAA FSeparateTranslucencyTextures::GetColorForWrite(FRDGBuilder& GraphBuilder)
+FTranslucencyPassResourcesMap::FTranslucencyPassResourcesMap(int32 NumViews)
 {
-	if (!ColorTexture.IsValid())
+	Array.SetNum(NumViews);
+
+	for (int32 ViewIndex = 0; ViewIndex < NumViews; ViewIndex++)
 	{
-		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Dimensions.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1, Dimensions.NumSamples);
-		ColorTexture = CreateTextureMSAA(GraphBuilder, Desc, TEXT("SeparateTranslucencyColor"), GFastVRamConfig.SeparateTranslucency);
+		for (int32 i = 0; i < int32(ETranslucencyPass::TPT_MAX); i++)
+		{
+			Array[ViewIndex][i].Pass = ETranslucencyPass::Type(i);
+		}
 	}
-	return ColorTexture;
 }
-
-FRDGTextureRef FSeparateTranslucencyTextures::GetColorForRead(FRDGBuilder& GraphBuilder) const
-{
-	if (ColorTexture.IsValid())
-	{
-		return ColorTexture.Resolve;
-	}
-	return GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
-}
-
-FRDGTextureMSAA FSeparateTranslucencyTextures::GetColorModulateForWrite(FRDGBuilder& GraphBuilder)
-{
-	if (!ColorModulateTexture.IsValid())
-	{
-		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Dimensions.Extent, PF_FloatR11G11B10, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1, Dimensions.NumSamples);
-		ColorModulateTexture = CreateTextureMSAA(GraphBuilder, Desc, TEXT("SeparateTranslucencyModulateColor"), GFastVRamConfig.SeparateTranslucencyModulate);
-	}
-	return ColorModulateTexture;
-}
-
-FRDGTextureRef FSeparateTranslucencyTextures::GetColorModulateForRead(FRDGBuilder& GraphBuilder) const
-{
-	if (ColorModulateTexture.IsValid())
-	{
-		return ColorModulateTexture.Resolve;
-	}
-	return GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
-}
-
-FRDGTextureMSAA FSeparateTranslucencyTextures::GetPostMotionBlurColorForWrite(FRDGBuilder& GraphBuilder)
-{
-	if (!PostMotionBlurColorTexture.IsValid())
-	{
-		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Dimensions.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1, Dimensions.NumSamples);
-		PostMotionBlurColorTexture = CreateTextureMSAA(GraphBuilder, Desc, TEXT("PostMotionBlurTranslucencyColor"), GFastVRamConfig.SeparateTranslucency);
-	}
-	return PostMotionBlurColorTexture;
-}
-
-FRDGTextureRef FSeparateTranslucencyTextures::GetPostMotionBlurColorForRead(FRDGBuilder& GraphBuilder) const
-{
-	if (PostMotionBlurColorTexture.IsValid())
-	{
-		return PostMotionBlurColorTexture.Resolve;
-	}
-	return GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
-}
-
-FRDGTextureMSAA FSeparateTranslucencyTextures::GetDepthForWrite(FRDGBuilder& GraphBuilder)
-{
-	if (!DepthTexture.IsValid())
-	{
-		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Dimensions.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1, Dimensions.NumSamples);
-		DepthTexture = CreateTextureMSAA(GraphBuilder, Desc, TEXT("SeparateTranslucencyDepth"), GFastVRamConfig.SeparateTranslucencyModulate);
-	}
-	return DepthTexture;
-}
-
-FRDGTextureRef FSeparateTranslucencyTextures::GetDepthForRead(FRDGBuilder& GraphBuilder) const
-{
-	if (DepthTexture.IsValid())
-	{
-		return DepthTexture.Resolve;
-	}
-	return GraphBuilder.RegisterExternalTexture(GSystemTextures.MaxFP16Depth);
-}
-
-FRDGTextureMSAA FSeparateTranslucencyTextures::GetForWrite(FRDGBuilder& GraphBuilder, ETranslucencyPass::Type TranslucencyPass)
-{
-	switch (TranslucencyPass)
-	{
-	default:
-	case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-		return GetColorForWrite(GraphBuilder);
-	case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:
-		return GetColorModulateForWrite(GraphBuilder);
-	case ETranslucencyPass::TPT_TranslucencyAfterMotionBlur:
-		return GetPostMotionBlurColorForWrite(GraphBuilder);		
-	}	
-}
-
 /** Pixel shader used to copy scene color into another texture so that materials can read from scene color with a node. */
 class FCopySceneColorPS : public FGlobalShader
 {
@@ -552,16 +471,41 @@ static FRDGTextureRef AddCopySceneColorPass(FRDGBuilder& GraphBuilder, TArrayVie
 	return SceneColorCopyTexture;
 }
 
-/** Pixel shader to upsample separate translucency. */
-class FTranslucencyUpsamplePS : public FGlobalShader
+class FComposeSeparateTranslucencyPS : public FGlobalShader
 {
-public:
+	DECLARE_GLOBAL_SHADER(FComposeSeparateTranslucencyPS);
+	SHADER_USE_PARAMETER_STRUCT(FComposeSeparateTranslucencyPS, FGlobalShader);
+
+	class FNearestDepthNeighborUpsampling : SHADER_PERMUTATION_BOOL("PERMUTATION_NEARESTDEPTHNEIGHBOR");
+	using FPermutationDomain = TShaderPermutationDomain<FNearestDepthNeighborUpsampling>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LowResColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, LowResDepthTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, FullResDepthTexture)
-		SHADER_PARAMETER(FVector2f, LowResExtentInverse)
+		SHADER_PARAMETER(FScreenTransform, ScreenPosToSceneColorUV)
+		SHADER_PARAMETER(FScreenTransform, ScreenPosToSeparateTranslucencyUV)
+		SHADER_PARAMETER(FVector2f, SeparateTranslucencyUVMin)
+		SHADER_PARAMETER(FVector2f, SeparateTranslucencyUVMax)
+		SHADER_PARAMETER(FVector2f, SeparateTranslucencyExtentInverse)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,  SceneColorSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucencyPointTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,  SeparateTranslucencyPointSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateModulationPointTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,  SeparateModulationPointSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucencyBilinearTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,  SeparateTranslucencyBilinearSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateModulationBilinearTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,  SeparateModulationBilinearSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LowResDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LowResDepthSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FullResDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FullResDepthSampler)
+
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -569,83 +513,252 @@ public:
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
-
-	FTranslucencyUpsamplePS() = default;
-	FTranslucencyUpsamplePS(const FGlobalShaderType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
 };
 
-class FTranslucencySimpleUpsamplePS : public FTranslucencyUpsamplePS
+class FTranslucencyUpsampleResponsiveAAPS : public FGlobalShader
 {
-protected:
-	DECLARE_GLOBAL_SHADER(FTranslucencySimpleUpsamplePS);
-	SHADER_USE_PARAMETER_STRUCT(FTranslucencySimpleUpsamplePS, FTranslucencyUpsamplePS);
+	DECLARE_GLOBAL_SHADER(FTranslucencyUpsampleResponsiveAAPS);
+	SHADER_USE_PARAMETER_STRUCT(FTranslucencyUpsampleResponsiveAAPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, StencilPixelPosMin)
+		SHADER_PARAMETER(FIntPoint, StencilPixelPosMax)
+		SHADER_PARAMETER(FScreenTransform, SvPositionToStencilPixelCoord)
+		SHADER_PARAMETER(int32, StencilMask)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FTranslucencySimpleUpsamplePS, "/Engine/Private/TranslucencyUpsampling.usf", "SimpleUpsamplingPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FComposeSeparateTranslucencyPS, "/Engine/Private/ComposeSeparateTranslucency.usf", "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FTranslucencyUpsampleResponsiveAAPS, "/Engine/Private/TranslucencyUpsampling.usf", "UpsampleResponsiveAAPS", SF_Pixel);
 
-class FTranslucencyNearestDepthNeighborUpsamplePS : public FTranslucencyUpsamplePS
-{
-public:
-	DECLARE_GLOBAL_SHADER(FTranslucencyNearestDepthNeighborUpsamplePS);
-	SHADER_USE_PARAMETER_STRUCT(FTranslucencyNearestDepthNeighborUpsamplePS, FTranslucencyUpsamplePS);
-};
 
-IMPLEMENT_GLOBAL_SHADER(FTranslucencyNearestDepthNeighborUpsamplePS, "/Engine/Private/TranslucencyUpsampling.usf", "NearestDepthNeighborUpsamplingPS", SF_Pixel);
-
-bool GetUseTranslucencyNearestDepthNeighborUpsample(float DownsampleScale)
-{
-	const bool bHalfResDownsample = FMath::IsNearlyEqual(DownsampleScale, 0.5f);
-	const bool bUseNearestDepthNeighborUpsample = GSeparateTranslucencyUpsampleMode > 0 && bHalfResDownsample;
-	return bUseNearestDepthNeighborUpsample;
-}
-
-static void AddTranslucencyUpsamplePass(
+FScreenPassTexture FTranslucencyComposition::AddPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FScreenPassRenderTarget Output,
-	FScreenPassTexture DownsampledTranslucencyColor,
-	FRDGTextureRef DownsampledTranslucencyDepthTexture,
-	FRDGTextureRef SceneDepthTexture,
-	ETranslucencyPass::Type TranslucencyPass,
-	float DownsampleScale)
+	const FTranslucencyPassResources& TranslucencyTextures) const
 {
+	// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
+	ensure(TranslucencyTextures.IsValid());
+	if (!TranslucencyTextures.IsValid())
+	{
+		return SceneColor;
+	}
+
+	FRDGTextureRef SeparateModulationTexture = TranslucencyTextures.GetColorModulateForRead(GraphBuilder);
+	FRDGTextureRef SeparateTranslucencyTexture = TranslucencyTextures.GetColorForRead(GraphBuilder);
+
+	FScreenPassTextureViewport SceneColorViewport(FIntPoint(1, 1), FIntRect(0, 0, 1, 1));
+	if (SceneColor.IsValid())
+	{
+		SceneColorViewport = FScreenPassTextureViewport(SceneColor);
+	}
+
+	FScreenPassTextureViewport TranslucencyViewport(FIntPoint(1, 1), FIntRect(0, 0, 1, 1));
+	if (TranslucencyTextures.ColorTexture.IsValid())
+	{
+		TranslucencyViewport = FScreenPassTextureViewport(TranslucencyTextures.ColorTexture.Resolve, TranslucencyTextures.ViewRect);
+	}
+	else if (TranslucencyTextures.ColorModulateTexture.IsValid())
+	{
+		TranslucencyViewport = FScreenPassTextureViewport(TranslucencyTextures.ColorModulateTexture.Resolve, TranslucencyTextures.ViewRect);
+	}
+
+	bool bPostMotionBlur = TranslucencyTextures.Pass == ETranslucencyPass::TPT_TranslucencyAfterMotionBlur;
+	if (bPostMotionBlur)
+	{
+		check(!bApplyModulateOnly);
+	}
+	else if (bApplyModulateOnly)
+	{
+		if (!TranslucencyTextures.ColorModulateTexture.IsValid())
+		{
+			return SceneColor;
+		}
+
+		SeparateTranslucencyTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
+	}
+
+	const TCHAR* OpName = nullptr;
+	FRHIBlendState* BlendState = nullptr;
+	FRDGTextureRef NewSceneColor = nullptr;
+	if (Operation == EOperation::UpscaleOnly)
+	{
+		check(!SceneColor.IsValid());
+		ensure(!TranslucencyTextures.ColorModulateTexture.IsValid());
+
+		OpName = TEXT("UpscaleTranslucency");
+
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
+			OutputViewport.Extent,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource);
+
+		NewSceneColor = GraphBuilder.CreateTexture(
+			OutputDesc,
+			bPostMotionBlur ? TEXT("PostMotionBlurTranslucency.SceneColor") : TEXT("PostDOFTranslucency.SceneColor"));
+	}
+	else if (Operation == EOperation::ComposeToExistingSceneColor)
+	{
+		check(SceneColor.IsValid());
+		ensure(!TranslucencyTextures.ColorModulateTexture.IsValid());
+
+		OpName = TEXT("ComposeTranslucencyToExistingColor");
+		BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
+
+		ensure(SceneColor.Texture->Desc.Flags & TexCreate_RenderTargetable);
+		NewSceneColor = SceneColor.Texture;
+	}
+	else if (Operation == EOperation::ComposeToNewSceneColor)
+	{
+		check(SceneColor.IsValid());
+
+		OpName = TEXT("ComposeTranslucencyToNewSceneColor");
+
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
+			OutputViewport.Extent,
+			PF_FloatRGB,
+			FClearValueBinding::Black,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource);
+
+		NewSceneColor = GraphBuilder.CreateTexture(
+			OutputDesc,
+			bPostMotionBlur ? TEXT("PostMotionBlurTranslucency.SceneColor") : TEXT("PostDOFTranslucency.SceneColor"));
+	}
+	else
+	{
+		unimplemented();
+	}
+
+	const FVector2f SeparateTranslucencyExtentInv = FVector2f(1.0f, 1.0f) / FVector2f(TranslucencyViewport.Extent);
+
+	const bool bScaleSeparateTranslucency = OutputViewport.Rect.Size() != TranslucencyTextures.ViewRect.Size();
+	const float DownsampleScale = float(TranslucencyTextures.ViewRect.Width()) / float(OutputViewport.Rect.Width());
+	const bool DepthUpscampling = (
+		bScaleSeparateTranslucency &&
+		TranslucencyTextures.DepthTexture.IsValid() &&
+		SceneDepth.IsValid() && 
+		FMath::IsNearlyEqual(DownsampleScale, 0.5f) &&
+		GSeparateTranslucencyUpsampleMode > 0);
+
+	FScreenTransform SvPositionToViewportUV = FScreenTransform::SvPositionToViewportUV(OutputViewport.Rect);
+
+	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
+	PassParameters->ScreenPosToSceneColorUV = SvPositionToViewportUV * FScreenTransform::ChangeTextureBasisFromTo(
+		SceneColorViewport, FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV);
+	PassParameters->ScreenPosToSeparateTranslucencyUV = SvPositionToViewportUV * FScreenTransform::ChangeTextureBasisFromTo(
+		TranslucencyViewport, FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV);
+
+	PassParameters->SeparateTranslucencyUVMin = (FVector2f(TranslucencyViewport.Rect.Min) + FVector2f(0.5f, 0.5f)) * SeparateTranslucencyExtentInv;
+	PassParameters->SeparateTranslucencyUVMax = (FVector2f(TranslucencyViewport.Rect.Max) - FVector2f(0.5f, 0.5f)) * SeparateTranslucencyExtentInv;
+	PassParameters->SeparateTranslucencyExtentInverse = SeparateTranslucencyExtentInv;
+	
+	PassParameters->SceneColorTexture = Operation == EOperation::ComposeToNewSceneColor
+		? SceneColor.Texture
+		: GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
+	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+	PassParameters->SeparateTranslucencyPointTexture = SeparateTranslucencyTexture;
+	PassParameters->SeparateTranslucencyPointSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	
+	PassParameters->SeparateModulationPointTexture = SeparateModulationTexture;
+	PassParameters->SeparateModulationPointSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+	PassParameters->SeparateTranslucencyBilinearTexture = SeparateTranslucencyTexture;
+	PassParameters->SeparateTranslucencyBilinearSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+	PassParameters->SeparateModulationBilinearTexture = SeparateModulationTexture;
+	PassParameters->SeparateModulationBilinearSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+
+	if (Operation == EOperation::ComposeToExistingSceneColor)
+	{
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ELoad);
+	}
+	else
+	{
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
+	}
+
+	if (DepthUpscampling)
+	{
+		PassParameters->LowResDepthTexture = TranslucencyTextures.GetDepthForRead(GraphBuilder);
+		PassParameters->LowResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->FullResDepthTexture = SceneDepth.Texture;
+		PassParameters->FullResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	}
+
+	FComposeSeparateTranslucencyPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FComposeSeparateTranslucencyPS::FNearestDepthNeighborUpsampling>(DepthUpscampling);
+
+	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap, PermutationVector);
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME(
+			"%s(%s%s%s) %dx%d -> %dx%d",
+			OpName,
+			kTranslucencyPassName[int32(TranslucencyTextures.Pass)],
+			bApplyModulateOnly ? TEXT(" ModulateOnly") : TEXT(""),
+			DepthUpscampling ? TEXT(" DepthUpscampling") : TEXT(""),
+			TranslucencyTextures.ViewRect.Width(), TranslucencyTextures.ViewRect.Height(),
+			OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
+		PixelShader,
+		PassParameters,
+		OutputViewport.Rect,
+		BlendState);
+
+	return FScreenPassTexture(NewSceneColor, OutputViewport.Rect);
+}
+
+static void AddUpsampleResponsiveAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FScreenPassTexture DownsampledTranslucencyDepth,
+	FRDGTextureRef OutputDepthTexture)
+{
+	FTranslucencyUpsampleResponsiveAAPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTranslucencyUpsampleResponsiveAAPS::FParameters>();
+	PassParameters->StencilPixelPosMin = DownsampledTranslucencyDepth.ViewRect.Min;
+	PassParameters->StencilPixelPosMax = DownsampledTranslucencyDepth.ViewRect.Max - 1;
+	PassParameters->SvPositionToStencilPixelCoord = (FScreenTransform::Identity - View.ViewRect.Min) * (FVector2f(DownsampledTranslucencyDepth.ViewRect.Size()) / FVector2D(View.ViewRect.Size())) + DownsampledTranslucencyDepth.ViewRect.Min;
+	PassParameters->StencilMask = STENCIL_TEMPORAL_RESPONSIVE_AA_MASK;
+	PassParameters->StencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(DownsampledTranslucencyDepth.Texture, PF_X24_G8));
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutputDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthNop_StencilWrite);
+
 	TShaderMapRef<FScreenVS> VertexShader(View.ShaderMap);
-	TShaderRef<FTranslucencyUpsamplePS> PixelShader;
-	FRHIBlendState* BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
+	TShaderMapRef<FTranslucencyUpsampleResponsiveAAPS> PixelShader(View.ShaderMap);
 
-	if (GetUseTranslucencyNearestDepthNeighborUpsample(DownsampleScale))
-	{
-		PixelShader = TShaderMapRef<FTranslucencyNearestDepthNeighborUpsamplePS>(View.ShaderMap);
-	}
-	else
-	{
-		PixelShader = TShaderMapRef<FTranslucencySimpleUpsamplePS>(View.ShaderMap);
-	}
+	FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<false, CF_Always,
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+		0x00, STENCIL_TEMPORAL_RESPONSIVE_AA_MASK>::GetRHI();
+	FRHIBlendState* BlendState = TStaticBlendState<CW_NONE>::GetRHI();
 
-	const FScreenPassTextureViewport OutputViewport(Output);
-	const FScreenPassTextureViewport InputViewport(DownsampledTranslucencyColor);
-	const FIntPoint LowResExtent = DownsampledTranslucencyColor.Texture->Desc.Extent;
+	const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, BlendState, DepthStencilState, /* StencilRef = */ STENCIL_TEMPORAL_RESPONSIVE_AA_MASK);
 
-	auto* PassParameters = GraphBuilder.AllocParameters<FTranslucencyUpsamplePS::FParameters>();
-	PassParameters->View = View.ViewUniformBuffer;
-	if (TranslucencyPass != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
+	ClearUnusedGraphResources(PixelShader, PassParameters);
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("UpsampleResponsiveAA %dx%d -> %dx%d",
+			DownsampledTranslucencyDepth.ViewRect.Width(), DownsampledTranslucencyDepth.ViewRect.Height(),
+			View.ViewRect.Width(), View.ViewRect.Height()),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View, PipelineState, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 	{
-		PassParameters->FullResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SceneDepthTexture, ERDGTextureMetaDataAccess::Depth));
-		PassParameters->LowResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(DownsampledTranslucencyDepthTexture, ERDGTextureMetaDataAccess::Depth));
-	}
-	else
-	{
-		// no depth test in post-motionblur transparents
-		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-		PassParameters->FullResDepthTexture = PassParameters->LowResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SystemTextures.White));
-	}
-	PassParameters->LowResColorTexture = DownsampledTranslucencyColor.Texture;
-	PassParameters->LowResExtentInverse = FVector2D(1.0f / LowResExtent.X, 1.0f / LowResExtent.Y);
-	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("TranslucencyUpsample"), View, OutputViewport, InputViewport, VertexShader, PixelShader, BlendState, PassParameters);
+		FScreenPassTextureViewport OutputViewport(PassParameters->RenderTargets.DepthStencil.GetTexture()->Desc.Extent, View.ViewRect);
+		DrawScreenPass(RHICmdList, View, OutputViewport, OutputViewport, PipelineState, EScreenPassDrawFlags::None, [&](FRHICommandList&)
+		{
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+		});
+	});
 }
 
 bool FSceneRenderer::ShouldRenderTranslucency() const
@@ -811,7 +924,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			BasePassParameters.PrevSceneColorBilinearUVMin = PrevSceneColorParameters.UVViewportBilinearMin;
 			BasePassParameters.PrevSceneColorBilinearUVMax = PrevSceneColorParameters.UVViewportBilinearMax;
 
-			const FVector2D HZBUvFactor(
+			const FVector2f HZBUvFactor(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
 			);
@@ -890,7 +1003,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			EffectiveBufferSize = View.PrevViewInfo.ScreenSpaceRayTracingInput->GetDesc().Extent;
 		}
 
-		FVector2D InvBufferSize(1.0f / float(EffectiveBufferSize.X), 1.0f / float(EffectiveBufferSize.Y));
+		FVector2f InvBufferSize(1.0f / float(EffectiveBufferSize.X), 1.0f / float(EffectiveBufferSize.Y));
 
 		FVector4f ScreenPosToPixelValue(
 			ViewportExtent.X * 0.5f * InvBufferSize.X,
@@ -1137,7 +1250,10 @@ static void RenderTranslucencyViewInner(
 	if (bRenderInParallel)
 	{
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("SeparateTranslucencyParallel"),
+			RDG_EVENT_NAME("Translucency(%s Parallel) %dx%d",
+				TranslucencyPassToString(TranslucencyPass),
+				int32(View.ViewRect.Width() * ViewportScale),
+				int32(View.ViewRect.Height() * ViewportScale)),
 			PassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[&SceneRenderer, &View, PassParameters, ViewportScale, Viewport, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
@@ -1149,7 +1265,10 @@ static void RenderTranslucencyViewInner(
 	else
 	{
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("SeparateTranslucency"),
+			RDG_EVENT_NAME("Translucency(%s) %dx%d",
+				TranslucencyPassToString(TranslucencyPass),
+				int32(View.ViewRect.Width() * ViewportScale),
+				int32(View.ViewRect.Height() * ViewportScale)),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass, PassParameters](FRHICommandListImmediate& RHICmdList)
@@ -1168,7 +1287,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucencyLightingVolumeTextures& TranslucentLightingVolumeTextures,
-	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
+	FTranslucencyPassResourcesMap* OutTranslucencyResourceMap,
+	FRDGTextureMSAA SharedDepthTexture,
 	ETranslucencyView ViewsToRender,
 	FRDGTextureRef SceneColorCopyTexture,
 	ETranslucencyPass::Type TranslucencyPass,
@@ -1183,7 +1303,10 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
 	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsTranslucencyWaitForTasksEnabled());
 
+	const bool bIsModulate = TranslucencyPass == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate;
+	const bool bDepthTest = TranslucencyPass != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur;
 	const bool bRenderInParallel = IsParallelTranslucencyEnabled();
+	const bool bIsScalingTranslucency = SeparateTranslucencyDimensions.Scale < 1.0f;
 	const bool bRenderInSeparateTranslucency = IsSeparateTranslucencyEnabled(TranslucencyPass, SeparateTranslucencyDimensions.Scale);
 
 	const auto ShouldRenderView = [&](const FViewInfo& View, ETranslucencyView TranslucencyView)
@@ -1198,9 +1321,32 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	if (bRenderInSeparateTranslucency)
 	{
 		// Create resources shared by each view (each view data is tiled into each of the render target resources)
-		FSeparateTranslucencyTextures LocalSeparateTranslucencyTextures(SeparateTranslucencyDimensions);
+		FRDGTextureMSAA SharedColorTexture;
+		{
+			static const TCHAR* kTranslucencyColorTextureName[] = {
+				TEXT("Translucency.BeforeDistortion.Color"),
+				TEXT("Translucency.AfterDOF.Color"),
+				TEXT("Translucency.AfterDOF.Modulate"),
+				TEXT("Translucency.AfterMotionBlur.Color"),
+				TEXT("Translucency.All.Color"),
+			};
+			static_assert(UE_ARRAY_COUNT(kTranslucencyColorTextureName) == int32(ETranslucencyPass::TPT_MAX), "Fix me");
 
-		for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				SeparateTranslucencyDimensions.Extent,
+				bIsModulate ? PF_FloatR11G11B10 : PF_FloatRGBA,
+				bIsModulate ? FClearValueBinding::White : FClearValueBinding::Black,
+				TexCreate_RenderTargetable | TexCreate_ShaderResource,
+				1,
+				SeparateTranslucencyDimensions.NumSamples);
+
+			SharedColorTexture = CreateTextureMSAA(
+				GraphBuilder, Desc,
+				kTranslucencyColorTextureName[int32(TranslucencyPass)],
+				bIsModulate ? GFastVRamConfig.SeparateTranslucencyModulate : GFastVRamConfig.SeparateTranslucency);
+		}
+
+		for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ++ViewIndex, ++NumProcessedViews)
 		{
 			FViewInfo& View = Views[ViewIndex];
 			const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
@@ -1213,49 +1359,22 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
+			FIntRect ScaledViewRect = GetScaledRect(View.ViewRect, SeparateTranslucencyDimensions.Scale);
+
 			const FScreenPassTextureViewport SeparateTranslucencyViewport = SeparateTranslucencyDimensions.GetInstancedStereoViewport(View, InstancedStereoWidth);
 			const bool bCompositeBackToSceneColor = IsMainTranslucencyPass(TranslucencyPass) || EnumHasAnyFlags(TranslucencyView, ETranslucencyView::UnderWater);
-			checkf(bCompositeBackToSceneColor || OutSeparateTranslucencyTextures, TEXT("OutSeparateTranslucencyTextures is null, but we aren't compositing immediately back to scene color."));
-
+			
 			/** Separate translucency color is either composited immediately or later during post processing. If done immediately, it's because the view doesn't support
 			 *  compositing (e.g. we're rendering an underwater view) or because we're downsampling the main translucency pass. In this case, we use a local set of
 			 *  textures instead of the external ones passed in.
 			 */
-			FRDGTextureMSAA SeparateTranslucencyColorTexture;
-			if (bCompositeBackToSceneColor)
-			{
-				SeparateTranslucencyColorTexture = LocalSeparateTranslucencyTextures.GetForWrite(GraphBuilder, TranslucencyPass);
-			}
-			else
-			{
-				SeparateTranslucencyColorTexture = OutSeparateTranslucencyTextures->GetForWrite(GraphBuilder, TranslucencyPass);
-			}
+			FRDGTextureMSAA SeparateTranslucencyColorTexture = SharedColorTexture;
 
-			// NOTE: No depth read on post-motionblur translucency
+			// NOTE: No depth test on post-motionblur translucency
 			FRDGTextureMSAA SeparateTranslucencyDepthTexture;
-			if (TranslucencyPass != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
+			if (bDepthTest)
 			{
-				// When rendering to a 1-to-1 separate translucency target, use the existing scene depth.
-				SeparateTranslucencyDepthTexture = SceneTextures.Depth;
-
-				// Rendering to a downscaled target; allocate a new depth texture and downsample depth.
-				if (SeparateTranslucencyDimensions.Scale < 1.0f)
-				{
-					if (bCompositeBackToSceneColor)
-					{
-						SeparateTranslucencyDepthTexture = LocalSeparateTranslucencyTextures.GetDepthForWrite(GraphBuilder); 
-					}
-					else
-					{
-						SeparateTranslucencyDepthTexture = OutSeparateTranslucencyTextures->GetDepthForWrite(GraphBuilder);
-					}
-
-					AddDownsampleDepthPass(
-						GraphBuilder, View,
-						FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect),
-						FScreenPassRenderTarget(SeparateTranslucencyDepthTexture.Target, SeparateTranslucencyViewport.Rect, ERenderTargetLoadAction::ENoAction),
-						EDownsampleDepthFilter::Point);
-				}
+				SeparateTranslucencyDepthTexture = SharedDepthTexture;
 			}
 
 			AddBeginSeparateTranslucencyTimerPass(GraphBuilder, View, TranslucencyPass);
@@ -1279,6 +1398,13 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				bRenderInParallel,
 				InstanceCullingManager);
 
+			{
+				FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap->Get(ViewIndex, TranslucencyPass);
+				TranslucencyPassResources.ViewRect = ScaledViewRect;
+				TranslucencyPassResources.ColorTexture = SharedColorTexture;
+				TranslucencyPassResources.DepthTexture = SharedDepthTexture;
+			}
+
 			if (bCompositeBackToSceneColor)
 			{
 				FRDGTextureRef SeparateTranslucencyDepthResolve = nullptr;
@@ -1291,14 +1417,36 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 					SceneDepthResolve = SceneTextures.Depth.Resolve;
 				}
 
-				AddTranslucencyUpsamplePass(
-					GraphBuilder, View,
-					FScreenPassRenderTarget(SceneTextures.Color.Target, View.ViewRect, ERenderTargetLoadAction::ELoad),
-					FScreenPassTexture(SeparateTranslucencyColorTexture.Resolve, SeparateTranslucencyViewport.Rect),
-					SeparateTranslucencyDepthResolve,
-					SceneDepthResolve,
-					TranslucencyPass,
-					SeparateTranslucencyDimensions.Scale);
+				FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap->Get(ViewIndex, TranslucencyPass);
+
+				FTranslucencyComposition TranslucencyComposition;
+				TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToExistingSceneColor;
+				TranslucencyComposition.SceneColor = FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect);
+				TranslucencyComposition.SceneDepth = FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect);
+				TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneTextures.Depth.Resolve, View.ViewRect);
+
+				FScreenPassTexture UpscaledTranslucency = TranslucencyComposition.AddPass(
+					GraphBuilder, View, TranslucencyPassResources);
+
+				ensure(View.ViewRect == UpscaledTranslucency.ViewRect);
+				ensure(UpscaledTranslucency.Texture == SceneTextures.Color.Target);
+
+				//Invalidate.
+				TranslucencyPassResources = FTranslucencyPassResources();
+			}
+			else
+			{
+				if (TranslucencyPass == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
+				{
+					FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap->Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+					ensure(TranslucencyPassResources.ViewRect == ScaledViewRect);
+					ensure(TranslucencyPassResources.DepthTexture == SharedDepthTexture);
+					TranslucencyPassResources.ColorModulateTexture = SharedColorTexture;
+				}
+				else
+				{
+					check(!bIsModulate);
+				}
 			}
 
 			AddEndSeparateTranslucencyTimerPass(GraphBuilder, View, TranslucencyPass);
@@ -1351,7 +1499,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucencyLightingVolumeTextures& TranslucentLightingVolumeTextures,
-	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
+	FTranslucencyPassResourcesMap* OutTranslucencyResourceMap,
 	ETranslucencyView ViewsToRender,
 	FInstanceCullingManager& InstanceCullingManager)
 {
@@ -1360,8 +1508,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 		return;
 	}
 
-	RDG_EVENT_SCOPE(GraphBuilder, "Translucency");
-
 	FRDGTextureRef SceneColorCopyTexture = nullptr;
 
 	if (EnumHasAnyFlags(ViewsToRender, ETranslucencyView::AboveWater))
@@ -1369,19 +1515,123 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 		SceneColorCopyTexture = AddCopySceneColorPass(GraphBuilder, Views, SceneTextures.Color);
 	}
 
+	const auto ShouldRenderView = [&](const FViewInfo& View, ETranslucencyView TranslucencyView)
+	{
+		return View.ShouldRenderView() && EnumHasAnyFlags(TranslucencyView, ViewsToRender);
+	};
+
+	// Create a shared depth texture at the correct resolution.
+	FRDGTextureMSAA SharedDepthTexture;
+	const bool bIsScalingTranslucency = SeparateTranslucencyDimensions.Scale < 1.0f;
+	if (bIsScalingTranslucency)
+	{
+		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			SeparateTranslucencyDimensions.Extent,
+			PF_DepthStencil,
+			FClearValueBinding::DepthFar,
+			TexCreate_DepthStencilTargetable | TexCreate_ShaderResource,
+			1,
+			SeparateTranslucencyDimensions.NumSamples);
+
+		SharedDepthTexture = CreateTextureMSAA(
+			GraphBuilder, Desc,
+			TEXT("Translucency.Depth"),
+			GFastVRamConfig.SeparateTranslucencyModulate); // TODO: this should be SeparateTranslucency, but is what the code was doing
+
+		// Downscale the depth buffer for each individual view, but shared accross all translucencies.
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
+
+			if (!ShouldRenderView(View, TranslucencyView))
+			{
+				continue;
+			}
+
+			const FScreenPassTextureViewport SeparateTranslucencyViewport = SeparateTranslucencyDimensions.GetInstancedStereoViewport(View, InstancedStereoWidth);
+			AddDownsampleDepthPass(
+				GraphBuilder, View,
+				FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect),
+				FScreenPassRenderTarget(SharedDepthTexture.Target, SeparateTranslucencyViewport.Rect, ViewIndex == 0 ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad),
+				EDownsampleDepthFilter::Point);
+		}
+	}
+	else
+	{
+		// Uses the existing depth buffer for depth testing the translucency.
+		SharedDepthTexture = SceneTextures.Depth;
+	}
+
 	if (ViewFamily.AllowTranslucencyAfterDOF())
 	{
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency, InstanceCullingManager);
 		if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterTranslucentBeforeTranslucentAfterDOF)
 		{
 			RenderHairComposition(GraphBuilder, Views, SceneTextures.Color.Target, SceneTextures.Depth.Target);
 		}
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF, InstanceCullingManager);
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, InstanceCullingManager);
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterMotionBlur, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterMotionBlur, InstanceCullingManager);
 	}
 	else // Otherwise render translucent primitives in a single bucket.
 	{
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency, InstanceCullingManager);
+	}
+
+	bool bUpscalePostDOFTranslucency = true;
+	FRDGTextureRef SharedUpscaledPostDOFTranslucencyColor = nullptr;
+	if (bUpscalePostDOFTranslucency)
+	{
+		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			SceneTextures.Color.Resolve->Desc.Extent,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource);
+
+		SharedUpscaledPostDOFTranslucencyColor = GraphBuilder.CreateTexture(
+			Desc, TEXT("Translucency.PostDOF.UpscaledColor"));
+	}
+
+	// Upscale to full res.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
+
+		if (!ShouldRenderView(View, TranslucencyView))
+		{
+			continue;
+		}
+
+		// Upscale the responsive AA into original depth buffer.
+		bool bUpscaleResponsiveAA = (
+			IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) &&
+			SharedDepthTexture.Target != SceneTextures.Depth.Target);
+		if (bUpscaleResponsiveAA)
+		{
+			const FScreenPassTextureViewport SeparateTranslucencyViewport = SeparateTranslucencyDimensions.GetInstancedStereoViewport(View, InstancedStereoWidth);
+			AddUpsampleResponsiveAAPass(
+				GraphBuilder,
+				View,
+				FScreenPassTexture(SharedDepthTexture.Target, SeparateTranslucencyViewport.Rect),
+				/* OutputDepthTexture = */ SceneTextures.Depth.Target);
+		}
+
+		FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap->Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+		if (SharedUpscaledPostDOFTranslucencyColor && TranslucencyPassResources.IsValid() && TranslucencyPassResources.ViewRect.Size() != View.ViewRect.Size())
+		{
+			FTranslucencyComposition TranslucencyComposition;
+			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::UpscaleOnly;
+			TranslucencyComposition.SceneDepth = FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect);
+			TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneTextures.Depth.Resolve, View.ViewRect);
+
+			FScreenPassTexture UpscaledTranslucency = TranslucencyComposition.AddPass(
+				GraphBuilder, View, TranslucencyPassResources);
+
+			TranslucencyPassResources.ViewRect = UpscaledTranslucency.ViewRect;
+			TranslucencyPassResources.ColorTexture = FRDGTextureMSAA(UpscaledTranslucency.Texture);
+			TranslucencyPassResources.DepthTexture = FRDGTextureMSAA();
+		}
 	}
 }

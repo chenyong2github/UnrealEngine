@@ -3,68 +3,83 @@
 #include "Common.ush"
 #include "ScreenPass.ush"
 
-Texture2D SceneColor;
+#if PERMUTATION_NEARESTDEPTHNEIGHBOR 
+	#include "SeparateTranslucency.ush"
+#endif // PERMUTATION_NEARESTDEPTHNEIGHBOR
+
+
+//------------------------------------------------------- PARAMETERS
+
+Texture2D    SceneColorTexture;
 SamplerState SceneColorSampler;
 
-Texture2D SeparateTranslucency;
-SamplerState SeparateTranslucencySampler;
+Texture2D<float> LowResDepthTexture;
+Texture2D<float> FullResDepthTexture;
 
-Texture2D SeparateModulation;
-SamplerState SeparateModulationSampler;
+Texture2D    SeparateTranslucencyPointTexture;
+SamplerState SeparateTranslucencyPointSampler;
+Texture2D    SeparateModulationPointTexture;
+SamplerState SeparateModulationPointSampler;
 
-SCREEN_PASS_TEXTURE_VIEWPORT(Color)
-SCREEN_PASS_TEXTURE_VIEWPORT(Translucency)
-FScreenTransform ColorToTranslucency;
+Texture2D    SeparateTranslucencyBilinearTexture;
+SamplerState SeparateTranslucencyBilinearSampler;
+Texture2D    SeparateModulationBilinearTexture;
+SamplerState SeparateModulationBilinearSampler;
 
-float2 ScreenPosToSceneColorUV;
-float2 ScreenPosToSeparateTranslucencyUV;
+FScreenTransform ScreenPosToSceneColorUV;
+FScreenTransform ScreenPosToSeparateTranslucencyUV;
+float2 SeparateTranslucencyUVMin;
 float2 SeparateTranslucencyUVMax;
 float2 SeparateTranslucencyExtentInverse;
 
-#if PERMUTATION_NEARESTDEPTHNEIGHBOR 
 
-#include "SeparateTranslucency.ush"
-
-#endif // PERMUTATION_NEARESTDEPTHNEIGHBOR
+//------------------------------------------------------- ENTRY POINT
 
 void MainPS(
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 ColorUV = SvPosition.xy * Color_ExtentInverse.xy;
-	float2 SeparateTranslucencyUV = clamp(ApplyScreenTransform(ColorUV, ColorToTranslucency), Translucency_UVViewportBilinearMin, Translucency_UVViewportBilinearMax);
+	float4 Debug = 0;
 
-	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, ColorUV, 0);
+	float2 SceneColorUV = ApplyScreenTransform(SvPosition.xy, ScreenPosToSceneColorUV);
+	float2 SeparateTranslucencyUV = ApplyScreenTransform(SvPosition.xy, ScreenPosToSeparateTranslucencyUV);
+
+	float4 SceneColorSample = SceneColorTexture.SampleLevel(SceneColorSampler, SceneColorUV, 0);
+	
+	SeparateTranslucencyUV = clamp(SeparateTranslucencyUV, SeparateTranslucencyUVMin, SeparateTranslucencyUVMax);
 
 #if PERMUTATION_NEARESTDEPTHNEIGHBOR 
 
-	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(SvPosition.xy, ColorUV, Translucency_ExtentInverse);
+	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(
+		LowResDepthTexture,
+		FullResDepthTexture,
+		SvPosition.xy, SeparateTranslucencyUV, SeparateTranslucencyExtentInverse);
 
 	float4 SeparateTranslucencySample = 0;
 	float4 SeparateModulationSample = 0;
+	
+	float2 SeparateTranslucencySampleUV = clamp(UpsampleResult.UV, SeparateTranslucencyUVMin, SeparateTranslucencyUVMax);
+
+
 	if (UpsampleResult.bUsePointSampler)
 	{
-		SeparateTranslucencySample	= SeparateTranslucency.SampleLevel(	GlobalPointClampedSampler, UpsampleResult.UV, 0);
-		SeparateModulationSample	= SeparateModulation.SampleLevel(	GlobalPointClampedSampler, UpsampleResult.UV, 0);
+		SeparateTranslucencySample	= SeparateTranslucencyPointTexture.SampleLevel(	SeparateTranslucencyPointSampler, SeparateTranslucencySampleUV, 0);
+		SeparateModulationSample	= SeparateModulationPointTexture.SampleLevel(	SeparateModulationPointSampler, SeparateTranslucencySampleUV, 0);
 	}
 	else
 	{
-		SeparateTranslucencySample	= SeparateTranslucency.SampleLevel(	GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
-		SeparateModulationSample	= SeparateModulation.SampleLevel(	GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
+		SeparateTranslucencySample	= SeparateTranslucencyBilinearTexture.SampleLevel(	SeparateTranslucencyBilinearSampler, SeparateTranslucencySampleUV, 0);
+		SeparateModulationSample	= SeparateModulationBilinearTexture.SampleLevel(	SeparateModulationBilinearSampler, SeparateTranslucencySampleUV, 0);
 	}
 
 #else // PERMUTATION_NEARESTDEPTHNEIGHBOR
 	
-	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, SeparateTranslucencyUV, 0);
-	float4 SeparateModulationSample   = SeparateModulation.SampleLevel(	 SeparateModulationSampler, SeparateTranslucencyUV, 0);
+	float4 SeparateTranslucencySample = SeparateTranslucencyBilinearTexture.SampleLevel(SeparateTranslucencyBilinearSampler, SeparateTranslucencyUV, 0);
+	float4 SeparateModulationSample   = SeparateModulationBilinearTexture.SampleLevel(	SeparateModulationBilinearSampler, SeparateTranslucencyUV, 0);
 
 #endif // PERMUTATION_NEARESTDEPTHNEIGHBOR
 
 	// Final composition
 	OutColor.rgb = SceneColorSample.rgb * SeparateTranslucencySample.a * SeparateModulationSample.rgb + SeparateTranslucencySample.rgb;
 	OutColor.a   = SceneColorSample.a   * SeparateTranslucencySample.a;
-
-#if !POST_PROCESS_ALPHA
-	OutColor.a = 0;
-#endif
 }

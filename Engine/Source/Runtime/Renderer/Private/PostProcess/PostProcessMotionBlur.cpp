@@ -1219,7 +1219,7 @@ FMotionBlurOutputs AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			MotionBlurFilterTexture,
 			VelocityFlatTexture,
 			VelocityTileTextures,
-			Inputs.PostMotionBlurTranslucency.Texture,
+			Inputs.PostMotionBlurTranslucency.ColorTexture.Resolve,
 			Inputs.PostMotionBlurTranslucency.ViewRect.Size(),
 			EMotionBlurFilterPass::Separable1,
 			Inputs.Quality);
@@ -1234,7 +1234,7 @@ FMotionBlurOutputs AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			Inputs.SceneColor.Texture,
 			VelocityFlatTexture,
 			VelocityTileTextures,
-			Inputs.PostMotionBlurTranslucency.Texture,
+			Inputs.PostMotionBlurTranslucency.ColorTexture.Resolve,
 			Inputs.PostMotionBlurTranslucency.ViewRect.Size(),
 			EMotionBlurFilterPass::Unified,
 			Inputs.Quality);

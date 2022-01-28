@@ -148,6 +148,9 @@ Texture2D SceneColorInput;
 Texture2D SceneDepthTexture;
 Texture2D SceneSeparateCoc;
 
+Texture2D<float> LowResDepthTexture;
+Texture2D<float> FullResDepthTexture;
+
 Texture2D SceneSeparateTranslucency;
 Texture2D SceneSeparateTranslucencyModulateColor;
 
@@ -1095,7 +1098,12 @@ void RecombineMainCS(
 		else
 		{
 			float2 PixelPos = (View.ViewRectMin.xy + DispatchThreadId) + 0.5;
-			UpsampleResult = NearestDepthNeighborUpsampling(PixelPos, InputParameters.SceneBufferUV, SeparateTranslucencyTextureLowResExtentInverse);
+			UpsampleResult = NearestDepthNeighborUpsampling(
+				LowResDepthTexture,
+				FullResDepthTexture,
+				PixelPos,
+				InputParameters.SceneBufferUV,
+				SeparateTranslucencyTextureLowResExtentInverse);
 		}
 		
 		UpsampleResult.UV = clamp(UpsampleResult.UV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);

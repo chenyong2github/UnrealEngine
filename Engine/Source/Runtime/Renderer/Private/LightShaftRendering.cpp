@@ -529,7 +529,7 @@ void AddLightShaftBloomPass(
 void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
+	FTranslucencyPassResourcesMap& OutTranslucencyResourceMap)
 {
 	if (ShouldRenderLightShafts(ViewFamily))
 	{
@@ -564,13 +564,32 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 
 					// Reset to point at separate translucency if enabled.
 					const ELightShaftBloomOutput BloomOutput = GetLightShaftBloomOutput(ViewFamily);
+					bool bUpdateViewsTranslucency = false;
 					if (BloomOutput == ELightShaftBloomOutput::SeparateTranslucency)
 					{
-						if (!SeparateTranslucencyTextures.IsColorValid())
+						FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap.Get(/* ViewIndex = */ 0, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+
+						if (!TranslucencyPassResources.IsValid())
 						{
 							OutputLoadAction = ERenderTargetLoadAction::EClear;
+
+							const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+								SeparateTranslucencyDimensions.Extent,
+								PF_FloatRGBA,
+								FClearValueBinding::Black,
+								TexCreate_RenderTargetable | TexCreate_ShaderResource,
+								1,
+								SeparateTranslucencyDimensions.NumSamples);
+
+							OutputTexture = CreateTextureMSAA(
+								GraphBuilder, Desc,
+								TEXT("Translucency.LightShaftBloom"),
+								GFastVRamConfig.SeparateTranslucency);
 						}
-						OutputTexture = SeparateTranslucencyTextures.GetColorForWrite(GraphBuilder);
+						else
+						{
+							OutputTexture = TranslucencyPassResources.ColorTexture;
+						}
 						OutputViewRectScale = SeparateTranslucencyDimensions.Scale;
 					}
 
@@ -620,6 +639,18 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 
 							AddLightShaftBloomPass(GraphBuilder, View, LightShaftParameters, LightShafts, OutputViewport, OutputBinding);
 							OutputLoadAction = ERenderTargetLoadAction::ELoad;
+
+							if (bUpdateViewsTranslucency)
+							{
+								FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+								TranslucencyPassResources.ViewRect = OutputViewport.Rect;
+								TranslucencyPassResources.ColorTexture = OutputTexture;
+							}
+							else
+							{
+								FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyAfterDOF);
+								ensure(TranslucencyPassResources.ViewRect == OutputViewport.Rect);
+							}
 						}
 					}
 				}
