@@ -143,11 +143,6 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Sub(Compiler->Mul(Compiler->Constant(2.0f), Compiler->Mul(Compiler->Dot(N, C), N)), C);
 	}
 
-	virtual int32 VertexColor() override
-	{
-		return Compiler->VertexColor();
-	}
-
 	virtual int32 PreSkinnedPosition() override
 	{
 		return Compiler->PreSkinnedPosition();
@@ -163,25 +158,10 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->VertexInterpolator(InterpolatorIndex);
 	}
 
-	virtual int32 LightVector() override
-	{
-		return Compiler->LightVector();
-	}
-
 	virtual int32 ReflectionVector() override
 	{
 		// Because camera vector is identical to normal vector we can work out that reflection vector will also be the same
 		return Compiler->VertexNormal();
-	}
-
-	virtual int32 AtmosphericFogColor(int32 WorldPosition) override
-	{
-		return INDEX_NONE;
-	}
-
-	virtual int32 PrecomputedAOMask() override
-	{
-		return Compiler->PrecomputedAOMask();
 	}
 
 #if WITH_EDITOR
