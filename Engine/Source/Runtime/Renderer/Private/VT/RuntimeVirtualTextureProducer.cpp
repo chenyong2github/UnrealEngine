@@ -64,6 +64,7 @@ void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 void FRuntimeVirtualTextureFinalizer::Finalize(FRDGBuilder& GraphBuilder)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "RuntimeVirtualTextureFinalize");
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	RuntimeVirtualTexture::FRenderPageBatchDesc RenderPageBatchDesc;
 	RenderPageBatchDesc.Scene = Scene->GetRenderScene();
