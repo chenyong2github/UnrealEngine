@@ -40,6 +40,22 @@ void UAsyncActionLoadPrimaryAssetBase::HandleLoadCompleted()
 	SetReadyToDestroy();
 }
 
+void UAsyncActionLoadPrimaryAssetBase::GetCurrentlyLoadedAssets(TArray<UObject*>& AssetList)
+{
+	if (UAssetManager* Manager = UAssetManager::GetIfValid())
+	{
+		// The assets may have already been loaded but the handle was invalid, check the original list
+		for (const FPrimaryAssetId& IdToLoad : AssetsToLoad)
+		{
+			UObject* LoadedObject = Manager->GetPrimaryAssetObject(IdToLoad);
+			if (LoadedObject)
+			{
+				AssetList.Add(LoadedObject);
+			}
+		}
+	}
+}
+
 UAsyncActionLoadPrimaryAsset* UAsyncActionLoadPrimaryAsset::AsyncLoadPrimaryAsset(UObject* WorldContextObject, FPrimaryAssetId PrimaryAsset, const TArray<FName>& LoadBundles)
 {
 	UAsyncActionLoadPrimaryAsset* Action = NewObject<UAsyncActionLoadPrimaryAsset>();
@@ -54,9 +70,13 @@ UAsyncActionLoadPrimaryAsset* UAsyncActionLoadPrimaryAsset::AsyncLoadPrimaryAsse
 void UAsyncActionLoadPrimaryAsset::HandleLoadCompleted()
 {
 	UObject* AssetLoaded = nullptr;
-	if (LoadHandle.IsValid())
+	TArray<UObject*> AssetList;
+
+	GetCurrentlyLoadedAssets(AssetList);
+
+	if (AssetList.Num() > 0)
 	{
-		AssetLoaded = LoadHandle->GetLoadedAsset();
+		AssetLoaded = AssetList[0];
 	}
 
 	Super::HandleLoadCompleted();
@@ -77,9 +97,13 @@ UAsyncActionLoadPrimaryAssetClass* UAsyncActionLoadPrimaryAssetClass::AsyncLoadP
 void UAsyncActionLoadPrimaryAssetClass::HandleLoadCompleted()
 {
 	TSubclassOf<UObject> AssetLoaded = nullptr;
-	if (LoadHandle.IsValid())
+	TArray<UObject*> AssetList;
+
+	GetCurrentlyLoadedAssets(AssetList);
+
+	if (AssetList.Num() > 0)
 	{
-		AssetLoaded = Cast<UClass>(LoadHandle->GetLoadedAsset());
+		AssetLoaded = Cast<UClass>(AssetList[0]);
 	}
 
 	Super::HandleLoadCompleted();
@@ -101,10 +125,7 @@ void UAsyncActionLoadPrimaryAssetList::HandleLoadCompleted()
 {
 	TArray<UObject*> AssetList;
 
-	if (LoadHandle.IsValid())
-	{
-		LoadHandle->GetLoadedAssets(AssetList);
-	}
+	GetCurrentlyLoadedAssets(AssetList);
 
 	Super::HandleLoadCompleted();
 	Completed.Broadcast(AssetList);
@@ -126,18 +147,15 @@ void UAsyncActionLoadPrimaryAssetClassList::HandleLoadCompleted()
 	TArray<TSubclassOf<UObject>> AssetClassList;
 	TArray<UObject*> AssetList;
 
-	if (LoadHandle.IsValid())
+	GetCurrentlyLoadedAssets(AssetList);
+
+	for (UObject* LoadedAsset : AssetList)
 	{
-		LoadHandle->GetLoadedAssets(AssetList);
+		UClass* LoadedClass = Cast<UClass>(LoadedAsset);
 
-		for (UObject* LoadedAsset : AssetList)
+		if (LoadedClass)
 		{
-			UClass* LoadedClass = Cast<UClass>(LoadedAsset);
-
-			if (LoadedClass)
-			{
-				AssetClassList.Add(LoadedClass);
-			}
+			AssetClassList.Add(LoadedClass);
 		}
 	}
 
