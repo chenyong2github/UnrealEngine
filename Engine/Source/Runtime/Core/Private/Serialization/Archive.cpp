@@ -158,6 +158,7 @@ void FArchiveState::Reset()
 	ArEngineNetVer						= FNetworkVersion::GetEngineNetworkProtocolVersion();
 	ArGameNetVer						= FNetworkVersion::GetGameNetworkProtocolVersion();
 	ArIsLoading							= false;
+	ArIsLoadingFromCookedPackage		= false;
 	ArIsSaving							= false;
 	ArIsTransacting						= false;
 	ArIsTextFormat						= false;
@@ -217,6 +218,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArEngineNetVer                       = ArchiveToCopy.ArEngineNetVer;
 	ArGameNetVer                         = ArchiveToCopy.ArGameNetVer;
 	ArIsLoading                          = ArchiveToCopy.ArIsLoading;
+	ArIsLoadingFromCookedPackage         = ArchiveToCopy.ArIsLoadingFromCookedPackage;
 	ArIsSaving                           = ArchiveToCopy.ArIsSaving;
 	ArIsTransacting                      = ArchiveToCopy.ArIsTransacting;
 	ArIsTextFormat                       = ArchiveToCopy.ArIsTextFormat;
@@ -398,11 +400,6 @@ void FArchive::PopSerializedProperty(class FProperty* InProperty, const bool bIs
 			SerializedProperty = nullptr;
 		}
 	}
-}
-
-bool FArchive::IsUsingEventDrivenLoader() const
-{
-	return GEventDrivenLoaderEnabled;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1370,6 +1367,11 @@ void FArchiveState::SetGameNetVer(const uint32 InGameNetVer)
 void FArchiveState::SetIsLoading(bool bInIsLoading)
 {
 	ArIsLoading = bInIsLoading;
+}
+
+void FArchiveState::SetIsLoadingFromCookedPackage(bool bInIsLoadingFromCookedPackage)
+{
+	ArIsLoadingFromCookedPackage = bInIsLoadingFromCookedPackage;
 }
 
 void FArchiveState::SetIsSaving(bool bInIsSaving)

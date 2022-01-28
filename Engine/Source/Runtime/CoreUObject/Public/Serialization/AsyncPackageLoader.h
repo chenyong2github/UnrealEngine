@@ -97,6 +97,8 @@ public:
 
 	virtual void StartThread() = 0;
 
+	virtual bool ShouldAlwaysLoadPackageAsync(const FPackagePath& PackagePath) = 0;
+
 	UE_DEPRECATED(5.0, "Call the version that takes a FPackagePath without a FGuid instead")
 	COREUOBJECT_API int32 LoadPackage(
 		const FString& InPackageName,

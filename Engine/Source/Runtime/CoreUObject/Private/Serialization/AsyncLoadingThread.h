@@ -265,6 +265,8 @@ public:
 	/** Start the async loading thread */
 	void StartThread() override;
 
+	bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath) override;
+
 	int32 LoadPackage(
 			const FPackagePath& InPackagePath,
 			FName InCustomName,

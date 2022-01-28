@@ -53,6 +53,13 @@ public:
 		UncookedPackageLoader->StartThread();
 	}
 
+	virtual bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath) override
+	{
+		// Use the old loader if an uncooked package exists on disk
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExistEx(InPackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None;
+		return !bDoesUncookedPackageExist;
+	}
+
 	virtual int32 LoadPackage(
 		const FPackagePath& PackagePath,
 		FName CustomPackageName,

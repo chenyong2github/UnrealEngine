@@ -285,41 +285,34 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 	{
 		auto FindPackagesInDirectory = [](TArray<FString>& OutPackages, const FString& InPath)
 		{
-			// Can't search packages using the filesystem when I/O dispatcher is enabled
-			if (FIoDispatcher::IsInitialized())
+			FString PackagePath;
+			if (FPackageName::TryConvertFilenameToLongPackageName(InPath, PackagePath))
 			{
-				FString PackagePath;
-				if (FPackageName::TryConvertFilenameToLongPackageName(InPath, PackagePath))
+				if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::LoadModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 				{
-					if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::LoadModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
-					{
-						TArray<FAssetData> Assets;
-						AssetRegistryModule->Get().GetAssetsByPath(FName(*PackagePath), Assets, true);
+					TArray<FAssetData> Assets;
+					AssetRegistryModule->Get().GetAssetsByPath(FName(*PackagePath), Assets, true);
 
-						for (const FAssetData& Asset : Assets)
+					for (const FAssetData& Asset : Assets)
+					{
+						if (!!(Asset.PackageFlags & PKG_ContainsMap) && Asset.IsUAsset())
 						{
-							if (!!(Asset.PackageFlags & PKG_ContainsMap) && Asset.IsUAsset())
-							{
-								OutPackages.Emplace(Asset.AssetName.ToString());
-							}
+							OutPackages.AddUnique(Asset.AssetName.ToString());
 						}
 					}
 				}
 			}
-			else
+			TArray<FString> Filenames;
+			FPackageName::FindPackagesInDirectory(Filenames, InPath);
+
+			for (const FString& Filename : Filenames)
 			{
-				TArray<FString> Filenames;
-				FPackageName::FindPackagesInDirectory(Filenames, InPath);
+				const int32 NameStartIdx = Filename.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				const int32 ExtIdx = Filename.Find(*FPackageName::GetMapPackageExtension(), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
-				for (const FString& Filename : Filenames)
+				if (NameStartIdx != INDEX_NONE && ExtIdx != INDEX_NONE)
 				{
-					const int32 NameStartIdx = Filename.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-					const int32 ExtIdx = Filename.Find(*FPackageName::GetMapPackageExtension(), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-
-					if (NameStartIdx != INDEX_NONE && ExtIdx != INDEX_NONE)
-					{
-						OutPackages.Emplace(Filename.Mid(NameStartIdx + 1, ExtIdx - NameStartIdx - 1));
-					}
+					OutPackages.AddUnique(Filename.Mid(NameStartIdx + 1, ExtIdx - NameStartIdx - 1));
 				}
 			}
 		};

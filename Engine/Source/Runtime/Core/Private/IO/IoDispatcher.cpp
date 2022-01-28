@@ -20,6 +20,7 @@
 #include "Containers/Ticker.h"
 #include "IO/IoDispatcherBackend.h"
 #include "Hash/Blake3.h"
+#include "IO/PackageId.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -330,20 +331,22 @@ public:
 		RequestAllocator->ReleaseRef();
 	}
 
-	FIoStatus Initialize()
+	void Initialize()
 	{
-		return FIoStatus::Ok;
-	}
-
-	bool InitializePostSettings()
-	{
-		check(!Thread);
-		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+		if (bIsInitialized)
 		{
-			Backend->Initialize(BackendContext);
+			return;
 		}
-		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
-		return true;
+		bIsInitialized = true;
+		if (!Backends.IsEmpty())
+		{
+			for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+			{
+				Backend->Initialize(BackendContext);
+			}
+			// If there are no mounted backends the resolve thread is not needed
+			StartThread();
+		}
 	}
 
 	FIoBatchImpl* AllocBatch()
@@ -412,10 +415,15 @@ public:
 
 	void Mount(TSharedRef<IIoDispatcherBackend> Backend)
 	{
+		check(IsInGameThread());
 		Backends.Add(Backend);
-		if (Thread)
+		if (bIsInitialized)
 		{
 			Backend->Initialize(BackendContext);
+			if (!Thread)
+			{
+				StartThread();
+			}
 		}
 	}
 
@@ -468,6 +476,25 @@ public:
 			return;
 		}
 		check(Batch.TailRequest);
+
+		if (Backends.IsEmpty())
+		{
+			FIoRequestImpl* Request = Batch.HeadRequest;
+			while (Request)
+			{
+				FIoRequestImpl* NextRequest = Request->NextRequest;
+				CompleteRequest(Request, EIoErrorCode::NotFound);
+				Request->ReleaseRef();
+				Request = NextRequest;
+			}
+			Batch.HeadRequest = Batch.TailRequest = nullptr;
+			if (BatchImpl)
+			{
+				CompleteBatch(BatchImpl);
+			}
+			return;
+		}
+
 		uint32 RequestCount = 0;
 		FIoRequestImpl* Request = Batch.HeadRequest;
 		while (Request)
@@ -549,6 +576,12 @@ public:
 private:
 	friend class FIoBatch;
 	friend class FIoRequest;
+
+	void StartThread()
+	{
+		check(!Thread);
+		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
+	}
 
 	void ProcessCompletedRequests()
 	{
@@ -792,6 +825,7 @@ private:
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
 	FIoRequestStats RequestStats;
+	bool bIsInitialized = false;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -864,18 +898,7 @@ HasUseIoStoreParam()
 bool
 FIoDispatcher::IsInitialized()
 {
-	if (GIoDispatcher)
-	{
-		if (HasScriptObjectsChunk(*GIoDispatcher))
-		{
-			return true;
-		}
-		if (HasUseIoStoreParam() && GIoDispatcher->Impl->HasMountedBackend())
-		{
-			return true;
-		}
-	}
-	return false;
+	return GIoDispatcher.IsValid();
 }
 
 FIoStatus
@@ -884,7 +907,7 @@ FIoDispatcher::Initialize()
 	LLM_SCOPE(ELLMTag::FileSystem);
 	check(!GIoDispatcher);
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
-	return GIoDispatcher->Impl->Initialize();
+	return FIoStatus::Ok;
 }
 
 void
@@ -892,8 +915,7 @@ FIoDispatcher::InitializePostSettings()
 {
 	LLM_SCOPE(ELLMTag::FileSystem);
 	check(GIoDispatcher);
-	bool bSuccess = GIoDispatcher->Impl->InitializePostSettings();
-	UE_CLOG(!bSuccess, LogIoDispatcher, Fatal, TEXT("Failed to initialize IoDispatcher"));
+	GIoDispatcher->Impl->Initialize();
 }
 
 void
@@ -905,6 +927,7 @@ FIoDispatcher::Shutdown()
 FIoDispatcher&
 FIoDispatcher::Get()
 {
+	check(GIoDispatcher);
 	return *GIoDispatcher;
 }
 
@@ -1174,6 +1197,11 @@ FIoRequest::Release()
 		Impl->ReleaseRef();
 		Impl = nullptr;
 	}
+}
+
+FIoChunkId CreatePackageDataChunkId(const FPackageId& PackageId)
+{
+	return CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
 }
 
 FIoChunkId CreateExternalFileChunkId(const FStringView Filename)

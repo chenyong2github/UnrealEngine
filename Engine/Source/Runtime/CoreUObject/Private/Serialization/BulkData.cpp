@@ -21,9 +21,8 @@
 #include "HAL/PlatformFileManager.h"
 #include "UObject/UObjectThreadContext.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
-#if WITH_IOSTORE_IN_EDITOR
 #include "IO/IoDispatcher.h"
-#endif
+#include "AsyncLoadingPrivate.h"
 
 /*-----------------------------------------------------------------------------
 	Constructors and operators
@@ -960,9 +959,9 @@ static FAutoConsoleVariableRef CVarMinimumBulkDataSizeForAsyncLoading(
 
 bool FUntypedBulkData::ShouldStreamBulkData(FArchive& Ar)
 {
-	if (Ar.IsUsingEventDrivenLoader())
+	if (Ar.IsLoadingFromCookedPackage())
 	{
-#if WITH_IOSTORE_IN_EDITOR
+#if WITH_EDITOR
 		// Streaming not yet implemented
 		return false;
 #else
@@ -1129,10 +1128,8 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// GetLinker
 			bool bUseIOStore = false;
 #if WITH_EDITOR
-#if WITH_IOSTORE_IN_EDITOR
-			if (Ar.IsUsingEventDrivenLoader() && bPayloadInSeparateFile)
+			if (bPayloadInSeparateFile && Owner && IsPackageLoadingFromIoDispatcher(Owner->GetPackage(), Ar))
 			{
-				check(Owner && Owner->GetPackage()->GetPackageId().IsValid());
 				checkf(!(BulkDataFlags& BULKDATA_WorkspaceDomainPayload),
 					TEXT("%s IsUsingEventDrivenLoader but has a bulkdata with BULKDATA_WorkspaceDomainPayload. ")
 					TEXT("BULKDATA_WorkspaceDomainPayload is not supported with iostore."), *Ar.GetArchiveName());
@@ -1140,7 +1137,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				PackageId = Owner->GetPackage()->GetPackageId();
 				bUseIOStore = true;
 			}
-#endif // WITH_IOSTORE_IN_EDITOR
+
 			if (Owner != nullptr)
 			{
 				Linker = Owner->GetLinker();

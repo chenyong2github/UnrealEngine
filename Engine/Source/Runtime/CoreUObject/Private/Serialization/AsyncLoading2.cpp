@@ -1132,11 +1132,6 @@ public:
 	void UsingCustomVersion(const FGuid& Key) override {};
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
-	virtual bool IsUsingEventDrivenLoader() const override
-	{
-		return true;
-	}
-
 	/** FExportArchive will be created on the stack so we do not want BulkData objects caching references to it. */
 	virtual FArchive* GetCacheableArchive()
 	{
@@ -2198,6 +2193,11 @@ public:
 	virtual void InitializeLoading() override;
 
 	virtual void ShutdownLoading() override;
+
+	virtual bool ShouldAlwaysLoadPackageAsync(const FPackagePath& PackagePath) override
+	{
+		return true;
+	}
 
 	virtual int32 LoadPackage(
 		const FPackagePath& InPackagePath,
@@ -3383,7 +3383,7 @@ void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 
 	FIoReadOptions ReadOptions;
-	IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Desc.PackageIdToLoad.Value(), 0, EIoChunkType::ExportBundleData),
+	IoRequest = IoBatch.ReadWithCallback(CreatePackageDataChunkId(Desc.PackageIdToLoad),
 		ReadOptions,
 		Desc.Priority,
 		[this](TIoStatusOr<FIoBuffer> Result)
@@ -3599,6 +3599,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 				Ar.SetCustomVersions(Package->LinkerRoot->GetLinkerCustomVersions());
 			}
 			Ar.SetUseUnversionedPropertySerialization((Package->LinkerRoot->GetPackageFlags() & PKG_UnversionedProperties) != 0);
+			Ar.SetIsLoadingFromCookedPackage((Package->LinkerRoot->GetPackageFlags() & PKG_Cooked) != 0);
 			Ar.SetIsLoading(true);
 			Ar.SetIsPersistent(true);
 			if (Package->LinkerRoot->GetPackageFlags() & PKG_FilterEditorOnly)
@@ -6090,6 +6091,11 @@ IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IAsy
 }
 
 #endif //WITH_ASYNCLOADING2
+
+bool IsPackageLoadingFromIoDispatcher(const UPackage* Package, const FArchive& Ar)
+{
+	return Package && Package->GetPackageId().IsValid() && Ar.IsLoadingFromCookedPackage();
+}
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_ENABLE_OPTIMIZATION

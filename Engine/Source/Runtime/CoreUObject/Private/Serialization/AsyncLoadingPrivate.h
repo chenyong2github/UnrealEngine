@@ -149,3 +149,5 @@ private:
 
 	FLinkerLoad* OwnerLinker;
 };
+
+bool IsPackageLoadingFromIoDispatcher(const UPackage* Package, const FArchive& Ar);

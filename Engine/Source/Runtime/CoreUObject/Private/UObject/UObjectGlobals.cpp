@@ -1131,6 +1131,8 @@ UE_TRACE_EVENT_BEGIN(CUSTOM_LOADTIMER_LOG, LoadPackageInternal, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, PackageName)
 UE_TRACE_EVENT_END()
 
+bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath);
+
 UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride,
 	const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath)
 {
@@ -1153,12 +1155,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	}
 	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), *PackagePath.GetDebugName());
 
-	if ((FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
-		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
-#if WITH_IOSTORE_IN_EDITOR
-		|| FIoDispatcher::IsInitialized()
-#endif
-		)
+	if (ShouldAlwaysLoadPackageAsync(PackagePath))
 	{
 		checkf(!InOuter || !InOuter->GetOuter(), TEXT("Loading into subpackages is not implemented.")); // Subpackages are no longer supported in UE
 		FName PackageName(InOuter ? InOuter->GetFName() : PackagePath.GetPackageFName());
@@ -1170,28 +1167,21 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		UE_TRACK_REFERENCING_PACKAGE_SCOPED(PackageName, PackageAccessTrackingOps::NAME_Load);
 
-#if WITH_IOSTORE_IN_EDITOR
-		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None;
-		if (!bDoesUncookedPackageExist)
-#endif
+		if (FCoreDelegates::OnSyncLoadPackage.IsBound())
 		{
-			if (FCoreDelegates::OnSyncLoadPackage.IsBound())
-			{
-				FCoreDelegates::OnSyncLoadPackage.Broadcast(PackageName.ToString());
-			}
-
-			GSyncLoadUsingAsyncLoaderCount++;
-			int32 RequestID = LoadPackageAsync(PackagePath, PackageName);
-
-			if (RequestID != INDEX_NONE)
-			{
-				FlushAsyncLoading(RequestID);
-			}
-			GSyncLoadUsingAsyncLoaderCount--;
-
-			return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
+			FCoreDelegates::OnSyncLoadPackage.Broadcast(PackageName.ToString());
 		}
+
+		GSyncLoadUsingAsyncLoaderCount++;
+		int32 RequestID = LoadPackageAsync(PackagePath, PackageName);
+
+		if (RequestID != INDEX_NONE)
+		{
+			FlushAsyncLoading(RequestID);
+		}
+		GSyncLoadUsingAsyncLoaderCount--;
+
+		return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
 	}
 
 	UPackage* Result = nullptr;

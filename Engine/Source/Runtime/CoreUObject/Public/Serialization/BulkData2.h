@@ -295,7 +295,7 @@ private:
 
 	void ProcessDuplicateData(EBulkDataFlags NewFlags, int64 NewSizeOnDisk, int64 NewOffset, const UPackage* Package,
 		const FPackagePath* PackagePath, const FLinkerLoad* Linker);
-	void ConditionalSetInlineAlwaysAllowDiscard();
+	void ConditionalSetInlineAlwaysAllowDiscard(bool bPackageUsesIoStore);
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 

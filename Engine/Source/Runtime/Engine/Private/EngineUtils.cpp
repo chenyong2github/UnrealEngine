@@ -294,15 +294,14 @@ bool EngineUtils::FindOrLoadAssetsByPath(const FString& Path, TArray<UObject*>& 
 		return false;
 	}
 
-	using FPackageNames = TArray<FName, TInlineAllocator<16>>;
+	using FPackageNames = TSet<FName>;
 
 	auto GetPackageNamesFromPath = [](const FString& InPath, FPackageNames& OutPackageNames)
 	{
 		// There is no filesystem support for packages when using the I/O dispatcher
-		if (FIoDispatcher::IsInitialized())
+		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::LoadModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 		{
-			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+			IAssetRegistry& AssetRegistry = AssetRegistryModule->Get();
 
 			TArray<FAssetData> Assets;
 			AssetRegistry.GetAssetsByPath(FName(*InPath), Assets, true);
@@ -316,28 +315,27 @@ bool EngineUtils::FindOrLoadAssetsByPath(const FString& Path, TArray<UObject*>& 
 				}
 			}
 		}
-		else
+
+		// Convert the package path to a filename with no extension (directory)
+		const FString FilePath = FPackageName::LongPackageNameToFilename(InPath);
+
+		// Gather the package files in that directory and subdirectories
+		TArray<FString> Filenames;
+		FPackageName::FindPackagesInDirectory(Filenames, FilePath);
+
+		// Cull out map files
+		for (const FString& Filename : Filenames)
 		{
-			// Convert the package path to a filename with no extension (directory)
-			const FString FilePath = FPackageName::LongPackageNameToFilename(InPath);
-
-			// Gather the package files in that directory and subdirectories
-			TArray<FString> Filenames;
-			FPackageName::FindPackagesInDirectory(Filenames, FilePath);
-
-			// Cull out map files
-			for (const FString& Filename : Filenames)
+			FStringView Extension = FPathViews::GetExtension(Filename, true);
+			if (Extension != FPackageName::GetMapPackageExtension())
 			{
-				FStringView Extension = FPathViews::GetExtension(Filename, true);
-				if (Extension != FPackageName::GetMapPackageExtension())
-				{
-					OutPackageNames.Emplace(*FPackageName::FilenameToLongPackageName(Filename));
-				}
+				OutPackageNames.Emplace(*FPackageName::FilenameToLongPackageName(Filename));
 			}
 		}
 	};
 
 	FPackageNames PackageNames;
+	PackageNames.Reserve(16);
 	GetPackageNamesFromPath(Path, PackageNames);
 	TCHAR PackageName[FName::StringBufferSize];
 

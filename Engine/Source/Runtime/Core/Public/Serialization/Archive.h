@@ -245,6 +245,12 @@ public:
 		return ArIsLoading;
 	}
 
+	/** Returns true if this archive is loading from a cooked package. */
+ 	FORCEINLINE bool IsLoadingFromCookedPackage() const
+	{
+		return ArIsLoadingFromCookedPackage;
+	}
+
 	/** Returns true if this archive is for saving data, this can also be a pre-save preparation archive. */
 	FORCEINLINE bool IsSaving() const
 	{
@@ -722,6 +728,9 @@ protected:
 	/** Whether this archive is for loading data. */
 	uint8 ArIsLoading : 1;
 
+	/** Whether this archive is loading from a cooked package. */
+	uint8 ArIsLoadingFromCookedPackage : 1;
+
 	/** Whether this archive is for saving data. */
 	uint8 ArIsSaving : 1;
 
@@ -826,6 +835,12 @@ public:
 	 * @param bInIsLoading  true if this archive is for loading, false otherwise.
 	 */
 	virtual void SetIsLoading(bool bInIsLoading);
+
+	/** 
+	 * Sets whether the archive is loading from a cooked package.
+	 * @param bInIsLoadingFromCookedPackage  true if this archive is loading from a cooked package, false otherwise
+	 */
+	virtual void SetIsLoadingFromCookedPackage(bool bInIsLoadingFromCookedPackage);
 
 	/**
 	 * Sets whether this archive is for saving data.
@@ -1820,6 +1835,7 @@ public:
 	}
 
 	using FArchiveState::IsLoading;
+	using FArchiveState::IsLoadingFromCookedPackage;
 	using FArchiveState::IsSaving;
 	using FArchiveState::IsTransacting;
 	using FArchiveState::IsTextFormat;
@@ -1902,10 +1918,6 @@ public:
 	 */
 	virtual bool AttachExternalReadDependency(FExternalReadCallback& ReadCallback) { return false; }
 
-	/**
-	 * Returns whether the Event Driven Loader is enabled or not.
-	 */
-	virtual bool IsUsingEventDrivenLoader() const;
 
 #if USE_STABLE_LOCALIZATION_KEYS
 	using FArchiveState::SetLocalizationNamespace;
@@ -1995,6 +2007,7 @@ private:
 
 private:
 	using FArchiveState::ArIsLoading;
+	using FArchiveState::ArIsLoadingFromCookedPackage;
 	using FArchiveState::ArIsSaving;
 	using FArchiveState::ArIsTransacting;
 	using FArchiveState::ArIsTextFormat;
@@ -2031,6 +2044,7 @@ public:
 
 public:
 	using FArchiveState::SetIsLoading;
+	using FArchiveState::SetIsLoadingFromCookedPackage;
 	using FArchiveState::SetIsSaving;
 	using FArchiveState::SetIsTransacting;
 	using FArchiveState::SetIsTextFormat;

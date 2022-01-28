@@ -1261,6 +1261,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 		return LINKER_Failed;
 	}
 
+	bool bIsCooked = (Summary.GetPackageFlags() & PKG_Cooked) != 0;
+	SetIsLoadingFromCookedPackage(bIsCooked);
+	Loader->SetIsLoadingFromCookedPackage(bIsCooked);
+
 	// Set desired property tag format
 	bool bUseUnversionedProperties = (Summary.GetPackageFlags() & PKG_UnversionedProperties) != 0;
 	SetUseUnversionedPropertySerialization(bUseUnversionedProperties);

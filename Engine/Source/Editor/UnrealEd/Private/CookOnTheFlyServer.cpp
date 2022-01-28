@@ -8070,19 +8070,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories)
 {
-	// if we are cooking with IoStore enabled, this will throw warnings and fail to find any packaged, but since we are running 
-	// with IoStore the state of files will hopefully be good
-	if (FIoDispatcher::IsInitialized())
-	{
-		static bool bShownMessage = false;
-		if (!bShownMessage)
-		{
-			UE_LOG(LogCook, Log, TEXT("Unable to search for packages to not cook when running with IO Dispatcher active"));
-			bShownMessage = true;
-		}
-		return TArray<FName>();
-	}
-
 	TArray<FString> NeverCookDirectories(ExtraNeverCookDirectories);
 
 	auto AddDirectoryPathArray = [&NeverCookDirectories](const TArray<FDirectoryPath>& DirectoriesToNeverCook, const TCHAR* SettingName)

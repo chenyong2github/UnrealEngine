@@ -19,6 +19,7 @@
 #include "IO/IoDispatcher.h"
 #include "Async/Async.h"
 #include "Async/MappedFileHandle.h"
+#include "AsyncLoadingPrivate.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 
@@ -743,7 +744,7 @@ FBulkDataBase::~FBulkDataBase()
 	}
 }
 
-void FBulkDataBase::ConditionalSetInlineAlwaysAllowDiscard()
+void FBulkDataBase::ConditionalSetInlineAlwaysAllowDiscard(bool bPackageUsesIoStore)
 {
 	// If PackagePath is null and we do not have BULKDATA_UsesIoDispatcher, we will not be able to reload the bulkdata.
 	// We will not have a PackagePath if the engine is using IoStore.
@@ -770,7 +771,7 @@ void FBulkDataBase::ConditionalSetInlineAlwaysAllowDiscard()
 	// all inline data should be allowed to be discarded.
 
 #if !UE_KEEP_INLINE_RELOADING_CONSISTENT
-	if (FIoDispatcher::IsInitialized())
+	if (bPackageUsesIoStore)
 #endif // !UE_KEEP_INLINE_RELOADING_CONSISTENT
 	{
 		SetBulkDataFlags(BULKDATA_AlwaysAllowDiscard);
@@ -827,10 +828,10 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const UPackage* Package = Owner->GetOutermost();
 		checkf(Package != nullptr, TEXT("FBulkDataBase::Serialize requires an Owner that returns a valid UPackage"));
 
-		const bool bEngineUsesIoStore = FIoDispatcher::IsInitialized();
+		const bool bPackageUsesIoStore = IsPackageLoadingFromIoDispatcher(Package, Ar);
 		const FPackagePath* PackagePath = nullptr;
 		const FLinkerLoad* Linker = nullptr;
-		if (bEngineUsesIoStore)
+		if (bPackageUsesIoStore)
 		{
 			checkf(IsInlined() || !NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; SaveBulkData during cooking should have added the flag BULKDATA_NoOffsetFixUp."));
 			checkf(IsInlined() || IsInSeparateFile() || !GEventDrivenLoaderEnabled,
@@ -894,7 +895,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
 
 			// Apply the legacy BULKDATA_AlwaysAllowDiscard fix for inline data in some conditions
-			ConditionalSetInlineAlwaysAllowDiscard();
+			ConditionalSetInlineAlwaysAllowDiscard(bPackageUsesIoStore);
 		}
 		else
 		{
@@ -903,16 +904,16 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 				ProcessDuplicateData(DuplicateFlags, DuplicateSizeOnDisk, DuplicateOffset, Package, PackagePath, Linker);
 			}
 
-			if (bAttemptFileMapping && !IsInSeparateFile() && (bEngineUsesIoStore || !Ar.IsAllowingLazyLoading()))
+			if (bAttemptFileMapping && !IsInSeparateFile() && (bPackageUsesIoStore || !Ar.IsAllowingLazyLoading()))
 			{
 				UE_CLOG(bAttemptFileMapping, LogSerialization, Error,
 					TEXT("Attempt to file map BulkData in end-of-package-file section, this is not supported when %s. Package '%s'"),
-					bEngineUsesIoStore ? TEXT("using IoDispatcher") : TEXT("archive does not support lazyload"), *Package->GetFName().ToString());
+					bPackageUsesIoStore ? TEXT("using IoDispatcher") : TEXT("archive does not support lazyload"), *Package->GetFName().ToString());
 				bShouldForceLoad = true; // Signal we want to force the BulkData to load
 			}
 			else if (bAttemptFileMapping)
 			{
-				if (bEngineUsesIoStore)
+				if (bPackageUsesIoStore)
 				{
 					check(IsInSeparateFile());
 					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(CreateChunkId(), FIoReadOptions());
@@ -939,7 +940,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 					}
 				}
 			}
-			else if (!IsInSeparateFile() && (bEngineUsesIoStore || !Ar.IsAllowingLazyLoading()))
+			else if (!IsInSeparateFile() && (bPackageUsesIoStore || !Ar.IsAllowingLazyLoading()))
 			{
 				// If the data is in the end-of-package-file section, and we can't load the package file again later either
 				// because we're using the IoDispatcher or because the archive does not support lazy loading then we have

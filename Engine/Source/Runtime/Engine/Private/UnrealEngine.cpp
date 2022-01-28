@@ -10270,7 +10270,7 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 {
 	FGuid Result(0,0,0,0);
 	// There is no package guid support when using the I/O dispatcher
-	if (FIoDispatcher::IsInitialized())
+	if (FIoDispatcher::IsInitialized() && FIoDispatcher::Get().DoesChunkExist(CreatePackageDataChunkId(FPackageId::FromName(PackageName))))
 	{
 		return Result;
 	}

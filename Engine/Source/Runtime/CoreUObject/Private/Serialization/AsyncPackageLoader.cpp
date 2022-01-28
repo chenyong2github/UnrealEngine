@@ -558,15 +558,21 @@ void InitAsyncThread()
 #if WITH_ASYNCLOADING2
 	if (FIoDispatcher::IsInitialized())
 	{
-		GetGEDLBootNotificationManager().Disable();
-#if WITH_IOSTORE_IN_EDITOR
-		GPackageLoader = MakeEditorPackageLoader(FIoDispatcher::Get(), GetGEDLBootNotificationManager());
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+		bool bHasScriptObjectsChunk = IoDispatcher.DoesChunkExist(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects));
+		bool bHasUseIoStoreParamInEditor = WITH_EDITOR && FParse::Param(FCommandLine::Get(), TEXT("UseIoStore"));
+		if (bHasScriptObjectsChunk || bHasUseIoStoreParamInEditor)
+		{
+			GetGEDLBootNotificationManager().Disable();
+#if WITH_EDITOR
+			GPackageLoader = MakeEditorPackageLoader(IoDispatcher, GetGEDLBootNotificationManager());
 #else
-		GPackageLoader.Reset(MakeAsyncPackageLoader2(FIoDispatcher::Get()));
+			GPackageLoader.Reset(MakeAsyncPackageLoader2(IoDispatcher));
 #endif
+		}
 	}
-	else
 #endif
+	if (!GPackageLoader.IsValid())
 	{
 		GPackageLoader = MakeUnique<FAsyncLoadingThread>(/** ThreadIndex = */ 0, GetGEDLBootNotificationManager());
 	}
@@ -923,6 +929,15 @@ int32 IAsyncPackageLoader::LoadPackage(
 {
 	FPackagePath PackagePath = GetLoadPackageAsyncPackagePath(InPackageToLoadFrom ? FStringView(InPackageToLoadFrom) : FStringView(InPackageName));
 	return LoadPackage(PackagePath, FName(InPackageName), InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+}
+
+bool ShouldAlwaysLoadPackageAsync(const FPackagePath& InPackagePath)
+{
+	if (!GPackageLoader)
+	{
+		return false;
+	}
+	return GPackageLoader->ShouldAlwaysLoadPackageAsync(InPackagePath);
 }
 
 int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate /* = NAME_None*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InstancingContext /*=nullptr*/)

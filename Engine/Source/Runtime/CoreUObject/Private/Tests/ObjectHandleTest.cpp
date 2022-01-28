@@ -181,19 +181,6 @@ bool FObjectHandleTestResolveEngineContentTarget::RunTest(const FString& Paramet
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveNonExistentTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveNonExistentTarget"), ObjectHandleTestFlags)
 bool FObjectHandleTestResolveNonExistentTarget::RunTest(const FString& Parameters)
 {
-	if (FPlatformProperties::RequiresCookedData())
-	{
-		if (FIoDispatcher::IsInitialized())
-		{
-			AddExpectedError(TEXT("SkipPackage"));
-		}
-		else
-		{
-			AddExpectedError(TEXT("Couldn't find file for package"));
-			AddExpectedError(TEXT("Found 0 dependent packages..."));
-		}
-	}
-
 	// Confirm we don't successfully resolve an incorrect reference to engine content
 	TestResolveFailure("/Engine/EngineResources/NonExistentPackageName_0", "DefaultTexture");
 	TestResolveFailure("/Engine/EngineResources/DefaultTexture", "NonExistentObject_0");

@@ -35,6 +35,7 @@ class IMappedFileHandle;
 class IMappedFileRegion;
 class FIoDirectoryIndexReaderImpl;
 struct IIoDispatcherBackend;
+class FPackageId;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -772,6 +773,7 @@ static FIoChunkId CreateIoChunkId(uint64 ChunkId, uint16 ChunkIndex, EIoChunkTyp
 	return IoChunkId;
 }
 
+CORE_API FIoChunkId CreatePackageDataChunkId(const FPackageId& PackageId);
 CORE_API FIoChunkId CreateExternalFileChunkId(const FStringView Filename);
 
 //////////////////////////////////////////////////////////////////////////
