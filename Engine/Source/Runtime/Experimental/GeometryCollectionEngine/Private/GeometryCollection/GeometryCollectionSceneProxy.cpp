@@ -382,6 +382,13 @@ void FGeometryCollectionSceneProxy::InitResources()
 		Data.BoneTransformSRV = TransformBuffers[0].VertexBufferSRV;
 		Data.BonePrevTransformSRV = PrevTransformBuffers[0].VertexBufferSRV;
 	}
+	else
+	{
+		// make sure these are not null to pass UB validation
+		Data.BoneMapSRV = GNullColorVertexBuffer.VertexBufferSRV;
+		Data.BoneTransformSRV = GNullColorVertexBuffer.VertexBufferSRV;
+		Data.BonePrevTransformSRV = GNullColorVertexBuffer.VertexBufferSRV;
+	}
 
 	// 
 	// from InitOrUpdateResource(VertexFactory);
