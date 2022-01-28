@@ -1427,9 +1427,9 @@ void UNiagaraGraph::FindInputNodes(TArray<UNiagaraNodeInput*>& OutInputNodes, UN
 	}
 }
 
-TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly) const
+TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly, const TArray<FNiagaraVariable>& InStaticVars) const
 {
-	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachableNodes() : Nodes;
+	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachableNodes(InStaticVars) : Nodes;
 
 	TArray<FNiagaraVariable> Result;
 	for (UEdGraphNode* Node : NodesToProcess)
@@ -1453,55 +1453,33 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOn
 	return Result;
 }
 
-TArray<UEdGraphNode*> UNiagaraGraph::FindReachableNodes() const
+TArray<UEdGraphNode*> UNiagaraGraph::FindReachableNodes(const TArray<FNiagaraVariable>& InStaticVars) const
 {
+	
 	TArray<UEdGraphNode*> ResultNodes;
+	FNiagaraParameterMapHistoryBuilder Builder;
+	Builder.RegisterExternalStaticVariables(InStaticVars);
+	Builder.SetIgnoreDisabled(false);
+
 	TArray<UNiagaraNodeOutput*> OutNodes;
 	FindOutputNodes(OutNodes);
 	ResultNodes.Append(OutNodes);
-
-	FPinCollectorArray OutPins;
-	for (int i = 0; i < ResultNodes.Num(); i++)
+	for (UNiagaraNodeOutput* OutNode : OutNodes)
 	{
-		UEdGraphNode* Node = ResultNodes[i];
-		if (Node == nullptr)
+		Builder.BuildParameterMaps(OutNode, true);
 		{
-			continue;
-		}
-		
-		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode)
-		{
-			OutPins.Reset();
-			SwitchNode->GetOutputPins(OutPins);
-			for (UEdGraphPin* Pin : OutPins)
+			TArray<const UNiagaraNode*> VisitedNodes;
+			Builder.GetContextuallyVisitedNodes(VisitedNodes);
+			for (const UNiagaraNode* Node : VisitedNodes)
 			{
-				UEdGraphPin* TracedPin = SwitchNode->GetTracedOutputPin(Pin, false, true);
-				if (TracedPin && TracedPin != Pin)
-				{
-					ResultNodes.AddUnique(TracedPin->GetOwningNode());
-				}
-			}
-		}
-		else
-		{
-			for (UEdGraphPin* Pin : Node->GetAllPins())
-			{
-				if (!Pin || Pin->Direction != EEdGraphPinDirection::EGPD_Input)
-				{
-					continue;
-				}
-				for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
-				{
-					if (!LinkedPin)
-					{
-						continue;
-					}
-					ResultNodes.AddUnique(LinkedPin->GetOwningNode());
-				}
+				if (Node->GetOuter() == this)
+					ResultNodes.AddUnique((UNiagaraNode*)Node);
 			}
 		}
 	}
+
+	
+
 	return ResultNodes;
 }
 

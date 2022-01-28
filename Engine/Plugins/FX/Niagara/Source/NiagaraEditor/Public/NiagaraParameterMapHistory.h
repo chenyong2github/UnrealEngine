@@ -508,8 +508,13 @@ public:
 	void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var);
 	int32 FindStaticVariable(const FNiagaraVariable& Var) const;
 
-
 	TArray<FNiagaraVariable> StaticVariables;
+
+	void GetContextuallyVisitedNodes(TArray<const class UNiagaraNode*>& OutVistedNodes)
+	{
+		if (ContextuallyVisitedNodes.Num() > 0)
+			OutVistedNodes.Append(ContextuallyVisitedNodes.Last());
+	}
 protected:
 	/**
 	* Generate the internal alias map from the current traversal state.

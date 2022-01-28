@@ -207,7 +207,7 @@ class UNiagaraGraph : public UEdGraph
 	void FindInputNodes(TArray<class UNiagaraNodeInput*>& OutInputNodes, FFindInputNodeOptions Options = FFindInputNodeOptions()) const;
 
 	/** Returns a list of variable inputs for all static switch nodes in the graph. */
-	TArray<FNiagaraVariable> NIAGARAEDITOR_API FindStaticSwitchInputs(bool bReachableOnly = false) const;
+	TArray<FNiagaraVariable> NIAGARAEDITOR_API FindStaticSwitchInputs(bool bReachableOnly = false, const TArray<FNiagaraVariable>& InStaticVars = TArray<FNiagaraVariable>()) const;
 
 	/** Get an in-order traversal of a graph by the specified target output script usage.*/
 	void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId, bool bEvaluateStaticSwitches = false) const;
@@ -404,7 +404,7 @@ private:
 	FOnGraphChanged OnGraphNeedsRecompile;
 
 	/** Find all nodes in the graph that can be reached during compilation. */
-	TArray<UEdGraphNode*> FindReachableNodes() const;
+	TArray<UEdGraphNode*> FindReachableNodes(const TArray<FNiagaraVariable>& InStaticVars) const;
 
 	/** Compares the values on the default pins with the metadata and syncs the two if necessary */
 	void ValidateDefaultPins();

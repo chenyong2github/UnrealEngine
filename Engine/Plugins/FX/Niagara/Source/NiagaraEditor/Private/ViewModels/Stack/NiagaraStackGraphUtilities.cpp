@@ -173,6 +173,27 @@ void FNiagaraStackGraphUtilities::GetWrittenVariablesForGraph(UEdGraph& Graph, T
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	Graph.GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 	FPinCollectorArray InputPins;
+
+
+	UNiagaraEmitter* Emitter = Graph.GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* System = Graph.GetTypedOuter<UNiagaraSystem>();
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	if (Emitter)
+	{
+		CachedTraversalData = Emitter->GetCachedTraversalData();
+	}
+	else if (System)
+	{
+		CachedTraversalData = System->GetCachedTraversalData();
+	}
+	if (CachedTraversalData.IsValid())
+	{
+		CachedTraversalData.Get()->GetStaticVariables(StaticVars);
+	}
+
+
 	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 	{
 		InputPins.Reset();
@@ -180,6 +201,7 @@ void FNiagaraStackGraphUtilities::GetWrittenVariablesForGraph(UEdGraph& Graph, T
 		if (InputPins.Num() == 1)
 		{
 			FNiagaraParameterMapHistoryBuilder Builder;
+			Builder.RegisterExternalStaticVariables(StaticVars);
 			Builder.BuildParameterMaps(OutputNode, true);
 			check(Builder.Histories.Num() == 1);
 			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); i++)
@@ -414,6 +436,20 @@ void FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolu
 		Builder.BeginUsage(Usage, StageName);
 		bSetUsage = true;
 	}
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	if (OwningEmitter)
+	{
+		CachedTraversalData = OwningEmitter->GetCachedTraversalData();
+	}
+	
+	if (CachedTraversalData.IsValid())
+	{
+		CachedTraversalData.Get()->GetStaticVariables(StaticVars);
+	}
+
+	Builder.RegisterExternalStaticVariables(StaticVars);
 
 	NodeToVisit->BuildParameterMapHistory(Builder, bRecursive, bFilterForCompilation);
 
@@ -932,8 +968,46 @@ void FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(UNiagaraNodeF
 	FunctionCallNode.GetInputPins(InputPins);
 	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionCallGraph, InputPins, ConstantResolver);
 
-	TArray<FNiagaraVariable> SwitchInputs = FunctionCallGraph->FindStaticSwitchInputs(false);
-	TArray<FNiagaraVariable> ReachableInputs = FunctionCallGraph->FindStaticSwitchInputs(true);
+	UNiagaraEmitter* Emitter = FunctionCallNode.GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* System = FunctionCallNode.GetTypedOuter<UNiagaraSystem>();
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	FString EmitterName;
+	FNiagaraAliasContext::ERapidIterationParameterMode Mode = FNiagaraAliasContext::ERapidIterationParameterMode::None;
+	if (Emitter)
+	{
+		CachedTraversalData = Emitter->GetCachedTraversalData();
+		EmitterName = Emitter->GetUniqueEmitterName();
+		Mode = FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript;
+	}
+	else if (System)
+	{
+		CachedTraversalData = System->GetCachedTraversalData();
+		Mode = FNiagaraAliasContext::ERapidIterationParameterMode::SystemScript;
+	}
+	if (CachedTraversalData.IsValid())
+	{
+		TArray<FNiagaraVariable> CachedStatics;
+		CachedTraversalData.Get()->GetStaticVariables(CachedStatics);
+
+		// Because we've lost all context here about the specific function call we're in, we need to convert static vars back to 
+		// normal mode.
+		FString ModuleName = FunctionCallNode.GetFunctionName();
+		FNiagaraAliasContext AliasContext(Mode);
+		AliasContext.ChangeModuleNameToModule(ModuleName);
+		if (EmitterName.Len() != 0)	
+			AliasContext.ChangeEmitterNameToEmitter(EmitterName);
+
+		for (int32 i = 0; i < CachedStatics.Num(); i++)
+		{
+			FNiagaraVariable Var = FNiagaraUtilities::ResolveAliases(CachedStatics[i], AliasContext);
+			StaticVars.Add(Var);
+		}
+	}
+
+	TArray<FNiagaraVariable> SwitchInputs = FunctionCallGraph->FindStaticSwitchInputs();
+	TArray<FNiagaraVariable> ReachableInputs = FunctionCallGraph->FindStaticSwitchInputs(true, StaticVars);
 	for (FNiagaraVariable SwitchInput : SwitchInputs)
 	{
 		FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(SwitchInput.GetType());
@@ -961,6 +1035,27 @@ void FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(UNiagaraNodeFu
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(false);
 	Builder.ConstantResolver = ConstantResolver;
+
+	UNiagaraEmitter* Emitter = FunctionCallNode.GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* System = FunctionCallNode.GetTypedOuter<UNiagaraSystem>();
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	if (Emitter)
+	{
+		CachedTraversalData = Emitter->GetCachedTraversalData();
+	}
+	else if (System)
+	{
+		CachedTraversalData = System->GetCachedTraversalData();
+	}
+	if (CachedTraversalData.IsValid())
+	{
+		CachedTraversalData.Get()->GetStaticVariables(StaticVars);
+	}
+
+	Builder.RegisterExternalStaticVariables(StaticVars);
+
 	FunctionCallNode.BuildParameterMapHistory(Builder, false);
 
 	if (ensureMsgf(Builder.Histories.Num() == 1, TEXT("Invalid Stack Graph - Function call node has invalid history count!")))
@@ -993,6 +1088,27 @@ bool FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiaga
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(false);
 	Builder.ConstantResolver = ConstantResolver;
+
+	UNiagaraEmitter* Emitter = FunctionCallNode.GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* System = FunctionCallNode.GetTypedOuter<UNiagaraSystem>();
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	if (Emitter)
+	{
+		CachedTraversalData = Emitter->GetCachedTraversalData();
+	}
+	else if (System)
+	{
+		CachedTraversalData = System->GetCachedTraversalData();
+	}
+	if (CachedTraversalData.IsValid())
+	{
+		CachedTraversalData.Get()->GetStaticVariables(StaticVars);
+	}
+
+	Builder.RegisterExternalStaticVariables(StaticVars);
+
 	FunctionCallNode.BuildParameterMapHistory(Builder, false);
 
 	if (Builder.Histories.Num() == 0)
