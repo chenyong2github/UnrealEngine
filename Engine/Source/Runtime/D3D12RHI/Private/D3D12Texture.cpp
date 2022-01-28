@@ -3010,16 +3010,31 @@ void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 
 	if (GNumExplicitGPUsForRendering > 1)
 	{
-		for (;BaseTexture; ++BaseTexture)
+		// Generate string of the form "Name (GPU #)" -- assumes GPU index is a single digit.  This is called many times
+		// a frame, so we want to avoid any string functions which dynamically allocate, to reduce perf overhead.
+		static_assert(MAX_NUM_GPUS <= 10);
+
+		static const TCHAR NameSuffix[] = TEXT(" (GPU #)");
+		constexpr int32 NameSuffixLengthWithTerminator = (int32)UE_ARRAY_COUNT(NameSuffix);
+		constexpr int32 NameBufferLength = 256;
+		constexpr int32 GPUIndexSuffixOffset = 6;		// Offset of '#' character
+
+		// Combine Name and suffix in our string buffer (clamping the length for bounds checking).  We'll replace the GPU index
+		// with the appropriate digit in the loop.
+		int32 NameLength = FMath::Min(FCString::Strlen(Name), NameBufferLength - NameSuffixLengthWithTerminator);
+		int32 GPUIndexOffset = NameLength + GPUIndexSuffixOffset;
+
+		TCHAR DebugName[NameBufferLength];
+		FMemory::Memcpy(&DebugName[0], Name, NameLength * sizeof(TCHAR));
+		FMemory::Memcpy(&DebugName[NameLength], NameSuffix, NameSuffixLengthWithTerminator * sizeof(TCHAR));
+
+		for (; BaseTexture; ++BaseTexture)
 		{
 			FD3D12Resource* Resource = BaseTexture->GetResource();
 
-			TArray<FStringFormatArg> Args;
-			Args.Add(Name);
-			Args.Add(LexToString(BaseTexture->GetParentDevice()->GetGPUIndex()));
+			DebugName[GPUIndexOffset] = TEXT('0') + BaseTexture->GetParentDevice()->GetGPUIndex();
 
-			FString DebugName = FString::Format(TEXT("{0} (GPU {1})"), Args);
-			SetName(Resource, DebugName.GetCharArray().GetData());
+			SetName(Resource, DebugName);
 		}
 	}
 	else

@@ -285,8 +285,13 @@ public:
 
 	void SetName(const TCHAR* Name)
 	{
-		DebugName = FName(Name);
-		::SetName(Resource, Name);
+		// Check name before setting it.  Saves FName lookup and driver call.  Names are frequently the same for pooled buffers
+		// that end up getting reused for the same purpose every frame (2/3 of calls to this function on a given frame).
+		if (DebugName != Name)
+		{
+			DebugName = FName(Name);
+			::SetName(Resource, Name);
+		}
 	}
 
 	FName GetName() const
