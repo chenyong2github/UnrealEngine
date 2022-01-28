@@ -76,14 +76,18 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(USequencerPlaylistItem* Item)
 		ItemState.WeakHoldSection.Reset();
 	}
 
-	const FFrameNumber StartFrame = GlobalTime.Time.FloorToFrame();
-	const FFrameNumber SingleLoopDuration = ConvertFrameTime(PlayRange.Size<FFrameNumber>(),
-		PlayScene->GetTickResolution(), RootScene->GetTickResolution()).FloorToFrame();
+	const float TimeScale = FMath::Max(SMALL_NUMBER, SequenceItem->PlaybackSpeed);
+	const FFrameTime SingleLoopDuration = ConvertFrameTime(PlayRange.Size<FFrameTime>() / TimeScale,
+		PlayScene->GetTickResolution(), RootScene->GetTickResolution());
 
+	const FFrameNumber StartFrame = GlobalTime.Time.FloorToFrame();
 	const int32 MaxDuration = TNumericLimits<int32>::Max() - StartFrame.Value - 1;
-	const int32 Duration = FMath::Min(MaxDuration, (SingleLoopDuration * FMath::Max(1, SequenceItem->NumLoops + 1)).Value);
+	const int32 Duration = FMath::Min(MaxDuration,
+		(SingleLoopDuration * FMath::Max(1, SequenceItem->NumLoops + 1)).FloorToFrame().Value);
 
 	UMovieSceneSubSection* WorkingSubSection = WorkingTrack->AddSequence(SequenceItem->Sequence, StartFrame, Duration);
+
+	WorkingSubSection->Parameters.TimeScale = TimeScale;
 
 	if (SequenceItem->StartFrameOffset > 0)
 	{

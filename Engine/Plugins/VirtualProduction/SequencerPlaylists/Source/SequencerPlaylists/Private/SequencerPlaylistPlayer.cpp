@@ -361,6 +361,8 @@ void USequencerPlaylistPlayer::OnTakeRecorderStarted(UTakeRecorder* InRecorder)
 
 	if (TSharedPtr<ISequencer> Sequencer = GetValidatedSequencer())
 	{
+		FScopedTransaction Transaction(LOCTEXT("TakeRecorderStartedTransaction", "Playlist - Take Recorder started"));
+
 		for (USequencerPlaylistItem* Item : Playlist->Items)
 		{
 			if (Item->bHoldAtFirstFrame)
@@ -382,6 +384,8 @@ void USequencerPlaylistPlayer::OnTakeRecorderStopped(UTakeRecorder* InRecorder)
 	// FIXME: Any sequences not already stopped end up a few frames too long; pass in explicit end frame?
 	if (TSharedPtr<ISequencer> Sequencer = GetValidatedSequencer())
 	{
+		FScopedTransaction Transaction(LOCTEXT("TakeRecorderStoppedTransaction", "Playlist - Take Recorder stopped"));
+
 		for (USequencerPlaylistItem* Item : Playlist->Items)
 		{
 			GetCheckedItemPlayer(Item)->Stop(Item);

@@ -15,7 +15,7 @@ class USequencerPlaylist : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="SequencerPlaylists")
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, BlueprintReadWrite, Category="SequencerPlaylists")
 	FText Description;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="SequencerPlaylists")
