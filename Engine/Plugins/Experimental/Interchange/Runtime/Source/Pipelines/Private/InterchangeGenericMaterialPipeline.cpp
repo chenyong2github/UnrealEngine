@@ -217,6 +217,8 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 {
 	using namespace UE::Interchange::Materials::PBR;
 
+	bool bShadingModelHandled = false;
+
 	// BaseColor
 	{
 		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::BaseColor);
@@ -231,7 +233,7 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 				MaterialFactoryNode->ConnectOutputToBaseColor(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 
-			return true;
+			bShadingModelHandled = true;
 		}
 	}
 
@@ -249,7 +251,7 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 				MaterialFactoryNode->ConnectOutputToMetallic(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 
-			return true;
+			bShadingModelHandled = true;
 		}
 	}
 
@@ -267,7 +269,7 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 				MaterialFactoryNode->ConnectOutputToSpecular(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 
-			return true;
+			bShadingModelHandled = true;
 		}
 	}
 
@@ -285,14 +287,14 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 				MaterialFactoryNode->ConnectOutputToRoughness(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 
-			return true;
+			bShadingModelHandled = true;
 		}
 	}
 
-	return false;
+	return bShadingModelHandled;
 }
 
-bool UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Common;
 
@@ -309,8 +311,6 @@ bool UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 			{
 				MaterialFactoryNode->ConnectOutputToEmissiveColor(EmissiveExpressionFactoryNode.Get<0>()->GetUniqueID(), EmissiveExpressionFactoryNode.Get<1>());
 			}
-
-			return true;
 		}
 	}
 
@@ -327,8 +327,6 @@ bool UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 			{
 				MaterialFactoryNode->ConnectOutputToNormal(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
-
-			return true;
 		}
 	}
 
@@ -345,12 +343,8 @@ bool UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 			{
 				MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
 			}
-
-			return true;
 		}
 	}
-
-	return false;
 }
 
 void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)

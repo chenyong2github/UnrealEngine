@@ -145,6 +145,17 @@ namespace UE
 
 					TextureExpression->AutoSetSampleType();
 				}
+
+				UMaterialExpression* CreateMaterialExpression(UMaterial* Material, const TSubclassOf<UMaterialExpression>& ExpressionClass)
+				{
+					UMaterialFunction* const MaterialFunction = nullptr;
+					UObject* const SelectedAsset = nullptr;
+					const int32 NodePosX = 0;
+					const int32 NodePosY = 0;
+					const bool bAllowMarkingPackageDirty = false;
+
+					return UMaterialEditingLibrary::CreateMaterialExpressionEx(Material, MaterialFunction, ExpressionClass, SelectedAsset, NodePosX, NodePosY, bAllowMarkingPackageDirty);
+				}
 #endif // #if WITH_EDITOR
 			}
 		}
@@ -289,16 +300,28 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UMaterialInterface* ImportedMaterial = CastChecked<UMaterialInterface>(Arguments.ImportedObject);
+		UMaterialInterface* ImportedMaterialInterface = CastChecked<UMaterialInterface>(Arguments.ImportedObject);
 
-		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedMaterial
-																										  , ImportedMaterial->AssetImportData
+		//Update the samplers type in case the textures were changed during their PreImportPreCompletedCallback
+		if (UMaterial* ImportedMaterial = CastChecked<UMaterial>(ImportedMaterialInterface))
+		{
+			for (UMaterialExpression* Expression : ImportedMaterial->Expressions)
+			{
+				if (UMaterialExpressionTextureBase* TextureSample = Cast<UMaterialExpressionTextureBase>(Expression))
+				{
+					TextureSample->AutoSetSampleType();
+				}
+			}
+		}
+
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedMaterialInterface
+																										  , ImportedMaterialInterface->AssetImportData
 																										  , Arguments.SourceData
 																										  , Arguments.NodeUniqueID
 																										  , Arguments.NodeContainer
 																										  , Arguments.Pipelines);
 
-		ImportedMaterial->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		ImportedMaterialInterface->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
 #endif
 }
@@ -474,7 +497,7 @@ UMaterialExpression* UInterchangeMaterialFactory::CreateExpression(UMaterial* Ma
 		return nullptr;
 	}
 
-	UMaterialExpression* MaterialExpression = UMaterialEditingLibrary::CreateMaterialExpression(Material, ExpressionClass);
+	UMaterialExpression* MaterialExpression = CreateMaterialExpression(Material, ExpressionClass);
 
 	if (!MaterialExpression)
 	{
@@ -541,7 +564,7 @@ UMaterialExpression* UInterchangeMaterialFactory::CreateExpressionsForNode(UMate
 				}
 
 				const int32 InputIndex = GetInputIndex(*MaterialExpression, InputName);
-				const int32 OutputIndex = GetOutputIndex(*MaterialExpression, OutputName);
+				const int32 OutputIndex = GetOutputIndex(*ConnectedExpression, OutputName);
 
 				if (InputIndex != INDEX_NONE)
 				{

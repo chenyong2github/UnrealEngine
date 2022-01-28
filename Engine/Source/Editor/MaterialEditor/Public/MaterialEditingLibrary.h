@@ -63,14 +63,16 @@ public:
 	/**
 	*	Create a new material expression node within the supplied material, optionally specifying asset to use
 	*	@note	If a MaterialFunction and Material are specified, expression is added to Material and not MaterialFunction, assuming Material is a preview that will be copied to Function later by user.
-	*	@param	Material			Material asset to add an expression to
-	*	@param	MaterialFunction	Specified if adding an expression to a MaterialFunction, used as Outer for new expression object
-	*	@param	SelectedAsset		If specified, new node will attempt to use this asset, if of the appropriate type (e.g. Texture for a TextureSampler)
-	*	@param	ExpressionClass		Class of expression to add
-	*	@param	NodePosX			X position of new expression node
-	*	@param	NodePosY			Y position of new expression node
+	*	@param	Material					Material asset to add an expression to
+	*	@param	MaterialFunction			Specified if adding an expression to a MaterialFunction, used as Outer for new expression object
+	*	@param	SelectedAsset				If specified, new node will attempt to use this asset, if of the appropriate type (e.g. Texture for a TextureSampler)
+	*	@param	ExpressionClass				Class of expression to add
+	*	@param	NodePosX					X position of new expression node
+	*	@param	NodePosY					Y position of new expression node
+	*	@param	bAllowMarkingPackageDirty	Packages can't be marked dirty outside of the game thread. If this is false, package will need to be dirtied through other means. 
 	*/
-	static UMaterialExpression* CreateMaterialExpressionEx(UMaterial* Material, UMaterialFunction* MaterialFunction, TSubclassOf<UMaterialExpression> ExpressionClass, UObject* SelectedAsset = nullptr, int32 NodePosX = 0, int32 NodePosY = 0);
+	static UMaterialExpression* CreateMaterialExpressionEx(UMaterial* Material, UMaterialFunction* MaterialFunction, TSubclassOf<UMaterialExpression> ExpressionClass,
+		UObject* SelectedAsset = nullptr, int32 NodePosX = 0, int32 NodePosY = 0, bool bAllowMarkingPackageDirty = true);
 
 	/**
 	*	Rebuilds dependent Material Instance Editors

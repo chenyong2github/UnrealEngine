@@ -307,7 +307,9 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			}
 		}
 
-		StaticMesh->CommitMeshDescription(CurrentLodIndex);
+		UStaticMesh::FCommitMeshDescriptionParams CommitMeshDescriptionParams;
+		CommitMeshDescriptionParams.bMarkPackageDirty = false; // Marking packages dirty isn't threadsafe
+		StaticMesh->CommitMeshDescription(CurrentLodIndex, CommitMeshDescriptionParams);
 
 		// Handle materials
 		// @TODO: move this outside of the LOD loop?

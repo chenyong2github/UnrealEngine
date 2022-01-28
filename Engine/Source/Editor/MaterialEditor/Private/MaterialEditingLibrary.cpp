@@ -504,7 +504,8 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionInFunction
 }
 
 
-UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMaterial* Material, UMaterialFunction* MaterialFunction, TSubclassOf<UMaterialExpression> ExpressionClass, UObject* SelectedAsset, int32 NodePosX, int32 NodePosY)
+UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMaterial* Material, UMaterialFunction* MaterialFunction, TSubclassOf<UMaterialExpression> ExpressionClass,
+	UObject* SelectedAsset, int32 NodePosX, int32 NodePosY, bool bAllowMarkingPackageDirty)
 {
 	UMaterialExpression* NewExpression = nullptr;
 	if (Material || MaterialFunction)
@@ -532,7 +533,7 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMateri
 		NewExpression->MaterialExpressionEditorY = NodePosY;
 
 		// Create a GUID for the node
-		NewExpression->UpdateMaterialExpressionGuid(true, true);
+		NewExpression->UpdateMaterialExpressionGuid(true, bAllowMarkingPackageDirty);
 
 		if (SelectedAsset)
 		{
@@ -574,7 +575,7 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMateri
 			FunctionOutput->ValidateName();
 		}
 
-		NewExpression->UpdateParameterGuid(true, true);
+		NewExpression->UpdateParameterGuid(true, bAllowMarkingPackageDirty);
 
 		if (NewExpression->HasAParameterName())
 		{
@@ -619,7 +620,10 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMateri
 			Material->AddExpressionParameter(NewExpression, Material->EditorParameters);
 		}
 
-		NewExpression->MarkPackageDirty();
+		if (bAllowMarkingPackageDirty)
+		{
+			NewExpression->MarkPackageDirty();
+		}
 	}
 	return NewExpression;
 }
