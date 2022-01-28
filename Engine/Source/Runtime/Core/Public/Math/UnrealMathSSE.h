@@ -1847,11 +1847,11 @@ FORCEINLINE VectorRegister4Double VectorBitwiseXor(const VectorRegister4Double& 
 }
 
 /**
- * Calculates the cross product of two vectors (XYZ components). W is set to 0.
+ * Calculates the cross product of two vectors (XYZ components). W of the input should be 0, and will remain 0.
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		cross(Vec1.xyz, Vec2.xyz). W is set to 0.
+ * @return		cross(Vec1.xyz, Vec2.xyz). W of the input should be 0, and will remain 0.
  */
 FORCEINLINE VectorRegister4Float VectorCross( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
