@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Dialogs/CustomDialog.h"
 
-DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, const FText& /* Description */, bool /* bSaveAsync */);
+DECLARE_DELEGATE_OneParam(FCloseCreationFormDelegate, const FText& /* Description */);
 
 class ULevelSnapshotsSettings;
 class ULevelSnapshotsEditorSettings;
@@ -52,7 +52,6 @@ private:
 	bool bWasCreateSnapshotPressed = false;
 
 	FText DescriptionText;
-	bool bSaveAsync = true;
 
 	FCloseCreationFormDelegate CallOnCloseDelegate;
 };

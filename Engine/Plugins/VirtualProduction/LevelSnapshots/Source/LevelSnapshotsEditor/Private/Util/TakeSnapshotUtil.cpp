@@ -27,9 +27,11 @@
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotEditorLibrary"
 
-namespace
+namespace UE::LevelSnapshots::Editor
 {
-	void HandleFormReply(const FText& InDescription, bool bShouldUseOverrides, bool bSaveAsync)
+	TAutoConsoleVariable<bool> CVarSaveAsync(TEXT("LevelSnapshots.SnapshotFormUsesSaveAsync"), true, TEXT("Set whether the Take Snapshot Form, opened by pressing the toolbar icon, saves snapshots using the SAVE_Async flag."));
+	
+	static void HandleFormReply(const FText& InDescription, bool bShouldUseOverrides)
 	{
 		UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 		if (!ensure(World))
@@ -53,10 +55,11 @@ namespace
 
 		const FString& ValidatedName = FPaths::MakeValidFileName(NewSnapshotName.ToString());
 
+		const bool bSaveAsync = CVarSaveAsync.GetValueOnAnyThread();
 		SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(World, ValidatedName, NewSnapshotDir.ToString(), InDescription.ToString(), false, bSaveAsync);
 	}
 	
-	void DestroySnapshot(ULevelSnapshot* SnapshotAsset)
+	static void DestroySnapshot(ULevelSnapshot* SnapshotAsset)
 	{
 		SnapshotAsset->ClearFlags(RF_Public | RF_Standalone);
 		SnapshotAsset->Rename(nullptr, GetTransientPackage());
@@ -71,14 +74,14 @@ void SnapshotEditor::TakeSnapshotWithOptionalForm()
 	if (ULevelSnapshotsEditorSettings::Get()->bUseCreationForm)
 	{
 		TSharedRef<SWidget> CreationForm = SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
-			FCloseCreationFormDelegate::CreateLambda([](const FText& Description, bool bSaveAsync)
+			FCloseCreationFormDelegate::CreateLambda([](const FText& Description)
 			{
-				HandleFormReply(Description, true, bSaveAsync);
+				UE::LevelSnapshots::Editor::HandleFormReply(Description, true);
 			}));
 	}
 	else
 	{
-		HandleFormReply(FText::GetEmpty(), false, false);
+		UE::LevelSnapshots::Editor::HandleFormReply(FText::GetEmpty(), false);
 	}
 }
 
@@ -148,7 +151,7 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
         if (!bSuccessful)
         {
             // Package and snapshot need to be destroyed again
-            DestroySnapshot(SnapshotAsset);
+            UE::LevelSnapshots::Editor:: DestroySnapshot(SnapshotAsset);
             ObjectTools::DeleteObjectsUnchecked({ SavePackage });
             
             NotificationItem->SetText(

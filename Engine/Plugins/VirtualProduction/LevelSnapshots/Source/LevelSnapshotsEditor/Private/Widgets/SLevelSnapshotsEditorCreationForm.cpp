@@ -205,22 +205,6 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 			.Padding(2.f, 5.f)
 			[
 				SNew(SHorizontalBox)
-
-				// Save Async checkbox
-				+SHorizontalBox::Slot()
-				.Padding(3.f, 0.f)
-				.HAlign(HAlign_Left)
-				[
-					SNew(SCheckBox)
-					.IsChecked_Lambda([this]() { return bSaveAsync ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-					.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState) { bSaveAsync = NewState == ECheckBoxState::Checked; })
-					.ToolTipText(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveAsync_Tooltip", "Enabling may speed up saving for large levels."))
-					[
-						SNew(STextBlock)
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-						.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveAsync", "Save async"))
-					]
-				]
 				
 				// Create snapshot button
 				+SHorizontalBox::Slot()
@@ -323,6 +307,6 @@ void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>
 
 	if (bWasCreateSnapshotPressed)
 	{
-		CallOnCloseDelegate.ExecuteIfBound(DescriptionText, bSaveAsync);
+		CallOnCloseDelegate.ExecuteIfBound(DescriptionText);
 	}
 }
