@@ -4244,6 +4244,12 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 
 	FMaterialCompilationOutput TempOutput;
 	FMaterialResource* MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
+	if (MaterialResource == nullptr)
+	{
+		ForceRecompileForRendering(); // Make sure material has a resource to avoid crash
+		MaterialResource = GetMaterialResource(GMaxRHIFeatureLevel);
+	}
+
 	FMaterialShaderMapId ShaderMapID;
 	MaterialResource->GetShaderMapId(GMaxRHIShaderPlatform, nullptr, ShaderMapID);
 	FStaticParameterSet StaticParamSet;
