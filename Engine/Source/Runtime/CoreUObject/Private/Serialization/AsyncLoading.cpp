@@ -5641,12 +5641,8 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 				bool bDoesPackageExist = false;
 				{
 					SCOPED_LOADTIMER(CreateLinker_DoesExist);
-#if WITH_IOSTORE_IN_EDITOR 
-					// Only look for non cooked packages on disk
-					bDoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, false /* bMatchCaseOnDisk */, &PackagePath) != FPackageName::EPackageLocationFilter::None;
-#else
-					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, false /* bMatchCaseOnDisk */, &PackagePath);
-#endif
+					// Only look for packages on disk
+					bDoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::FileSystem, false /* bMatchCaseOnDisk */, &PackagePath) != FPackageName::EPackageLocationFilter::None;
 				}
 
 				if (!bDoesPackageExist)

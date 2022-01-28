@@ -1590,70 +1590,18 @@ bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, FPackagePat
 
 bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, bool bMatchCaseOnDisk, FPackagePath* OutPackagePath)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPackageName::DoesPackageExist);
-
-	// DoesPackageExist returns false for local filenames that are in unmounted directories, even if those files exist on the local disk
-	if (!PackagePath.IsMountedPath())
-	{
-		return false;
-	}
-	TStringBuilder<256> PackageName;
-	PackagePath.AppendPackageName(PackageName);
-
-	// Once we have the real Package Name, we can exit early if it's a script package - they exist only in memory.
-	if (IsScriptPackage(PackageName))
-	{
-		return false;
-	}
-
-	if (IsMemoryPackage(PackageName))
-	{
-		return false;
-	}
-
-	FText Reason;
-	if ( !FPackageName::IsValidTextForLongPackageName( PackageName, &Reason ) )
-	{
-		UE_LOG(LogPackageName, Error, TEXT( "DoesPackageExist: DoesPackageExist FAILED: '%s' is not a long packagename name. Reason: %s"), PackageName.ToString(), *Reason.ToString() );
-		return false;
-	}
-
-	// Used when I/O dispatcher is enabled
-	if (DoesPackageExistOverrideDelegate.IsBound())
-	{
-		if (DoesPackageExistOverrideDelegate.Execute(FName(*PackageName)))
-		{
-			if (OutPackagePath)
-			{
-				*OutPackagePath = PackagePath;
-				if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
-				{
-					OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
-				}
-			}
-			return true;
-		}
-
-		// Try to find uncooked packages on disk when I/O store is enabled in editor builds
-#if !WITH_IOSTORE_IN_EDITOR
-		return false; 
-#endif
-	}
-
-	if (bMatchCaseOnDisk)
-	{
-		return IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
-	}
-	else
-	{
-		return IPackageResourceManager::Get().DoesPackageExist(PackagePath, OutPackagePath);
-	}
+	return DoesPackageExistEx(PackagePath, EPackageLocationFilter::Any, bMatchCaseOnDisk, OutPackagePath) != EPackageLocationFilter::None;
 }
 
 FPackageName::EPackageLocationFilter FPackageName::DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filter, bool bMatchCaseOnDisk, FPackagePath* OutPackagePath)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPackageName::DoesPackageExistEx);
 
+	// DoesPackageExist returns false for local filenames that are in unmounted directories, even if those files exist on the local disk
+	if (!PackagePath.IsMountedPath())
+	{
+		return EPackageLocationFilter::None;
+	}
 	TStringBuilder<256> PackageName;
 	PackagePath.AppendPackageName(PackageName);
 
@@ -1676,54 +1624,47 @@ FPackageName::EPackageLocationFilter FPackageName::DoesPackageExistEx(const FPac
 	}
 
 	EPackageLocationFilter Result = EPackageLocationFilter::None;
-	// Used when I/O dispatcher is enabled
-	if (((uint8)Filter & (uint8)EPackageLocationFilter::Cooked))
+	if (((uint8)Filter & (uint8)EPackageLocationFilter::IoDispatcher))
 	{
-		// For Cooked locations, return false for local filenames that are in unmounted directories
-		if (PackagePath.IsMountedPath())
+		if (DoesPackageExistOverrideDelegate.IsBound())
 		{
-			// Used when I/O dispatcher is enabled
-			if (DoesPackageExistOverrideDelegate.IsBound())
+			if (DoesPackageExistOverrideDelegate.Execute(PackagePath.GetPackageFName()))
 			{
-				if (DoesPackageExistOverrideDelegate.Execute(FName(*PackageName)))
+				if (OutPackagePath)
 				{
-					if (OutPackagePath)
+					*OutPackagePath = PackagePath;
+					if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
 					{
-						*OutPackagePath = PackagePath;
-						if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
-						{
-							OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
-						}
+						OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
 					}
+				}
 
-					// note that the file was found in Cooked (IOStore) location
-					Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::Cooked);
+				Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::IoDispatcher);
 
-					// if we just want to find any existence, then we are done and we can skip the on disk check lower
-					if (Filter == EPackageLocationFilter::Any)
-					{
-						return Result;
-					}
+				// if we just want to find any existence, then we are done and we can skip the on disk check lower
+				if (Filter == EPackageLocationFilter::Any)
+				{
+					return Result;
 				}
 			}
 		}
 	}
 
-	if ((uint8)Filter & (uint8)EPackageLocationFilter::Uncooked)
+	if ((uint8)Filter & (uint8)EPackageLocationFilter::FileSystem)
 	{
-		bool bFoundUncooked = false;
+		bool bFoundInFileSystem = false;
 		if (bMatchCaseOnDisk)
 		{
-			bFoundUncooked = IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
+			bFoundInFileSystem = IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
 		}
 		else
 		{
-			bFoundUncooked = IPackageResourceManager::Get().DoesPackageExist(PackagePath, OutPackagePath);
+			bFoundInFileSystem = IPackageResourceManager::Get().DoesPackageExist(PackagePath, OutPackagePath);
 		}
 
-		if (bFoundUncooked)
+		if (bFoundInFileSystem)
 		{
-			Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::Uncooked);
+			Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::FileSystem);
 		}
 	}
 	

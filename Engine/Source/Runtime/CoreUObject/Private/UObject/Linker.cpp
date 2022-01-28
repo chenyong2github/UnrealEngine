@@ -622,12 +622,9 @@ FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkip
 		return FString(); // we won't load this anyway, don't prestream
 	}
 
-#if WITH_IOSTORE_IN_EDITOR 
-	// Only look for non cooked packages on disk
-	bool DoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, false, &PackagePath) != FPackageName::EPackageLocationFilter::None;
-#else
-	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
-#endif
+
+	// Only look for packages on disk
+	bool DoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::FileSystem, false, &PackagePath) != FPackageName::EPackageLocationFilter::None;
 
 	if (!DoesPackageExist)
 	{

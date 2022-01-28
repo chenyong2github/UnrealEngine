@@ -361,8 +361,8 @@ public:
 	enum class EPackageLocationFilter : uint8
 	{
 		None = 0,
-		Cooked = 1,
-		Uncooked = 2,
+		IoDispatcher = 1,
+		FileSystem = 2,
 		Any = 0xFF, // special filter to find if it exists anywhere at all, and won't need to check both. in this case, as soon as one is found, DoesPackageExistEx will return true
 	};
 
@@ -374,7 +374,7 @@ public:
 	 * @param Guid If nonnull, and the package is found on disk but does not have this PackageGuid in its FPackageFileSummary::Guid, false is returned
 	 * @param bMatchCaseOnDisk If true, the OutPackagePath is modified to match the capitalization of the discovered file
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
-	 * @return the set of locations where the package exists (cooked or uncooked, both or neither)
+	 * @return the set of locations where the package exists (IoDispatcher or FileSystem, both or neither)
 	 **/
 	static EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 

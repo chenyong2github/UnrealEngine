@@ -2417,7 +2417,7 @@ void FFindInBlueprintSearchManager::OnBlueprintUnloaded(UBlueprint* InBlueprint)
 							const FPackageName::EPackageLocationFilter PackageLocation = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Any, /*bMatchCaseOnDisk*/ false, &OutPackagePath);
 							if (PackageLocation != FPackageName::EPackageLocationFilter::None)
 							{
-								if (PackageLocation == FPackageName::EPackageLocationFilter::Uncooked && OutPackagePath.HasLocalPath())
+								if (PackageLocation == FPackageName::EPackageLocationFilter::FileSystem && OutPackagePath.HasLocalPath())
 								{
 									TArray<FString> FilesToScan = { OutPackagePath.GetLocalFullPath() };
 									AssetRegistryModule->Get().ScanModifiedAssetFiles(FilesToScan);
