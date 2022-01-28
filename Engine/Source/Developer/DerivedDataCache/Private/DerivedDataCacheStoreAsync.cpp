@@ -3,6 +3,7 @@
 #include "Async/AsyncWork.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
@@ -206,6 +207,13 @@ public:
 		FOnLegacyCacheDeleteComplete&& OnComplete) override
 	{
 		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyDelete);
+	}
+
+	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) override;
+
+	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) override
+	{
+		return InnerBackend->LegacyDebugOptions(Options);
 	}
 
 private:
@@ -567,10 +575,25 @@ TSharedRef<FDerivedDataCacheStatsNode> FDerivedDataBackendAsyncPutWrapper::Gathe
 	return Usage;
 }
 
+void FDerivedDataBackendAsyncPutWrapper::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
+{
+	OutNode = {TEXT("AsyncPutWrapper"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local};
+	OutNode.Stats.Add(TEXT("AsyncPut"), UsageStats);
+	OutNode.Stats.Add(TEXT("AsyncPutSync"), PutSyncUsageStats);
+
+	InnerBackend->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
+	if (InflightCache)
+	{
+		InflightCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
+	}
+}
+
 class FDerivedDataAsyncWrapperRequest final : public FRequestBase, private IQueuedWork
 {
 public:
-	inline FDerivedDataAsyncWrapperRequest(IRequestOwner& InOwner, TUniqueFunction<void (bool bCancel)>&& InFunction)
+	inline FDerivedDataAsyncWrapperRequest(
+		IRequestOwner& InOwner,
+		TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)>&& InFunction)
 		: Owner(InOwner)
 		, Function(MoveTemp(InFunction))
 	{
@@ -578,9 +601,7 @@ public:
 
 	inline void Start(EPriority Priority)
 	{
-		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
 		Owner.Begin(this);
-
 		DoneEvent.Reset();
 		Private::GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
 	}
@@ -590,11 +611,10 @@ public:
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
 		Owner.End(this, [this, bCancel]
 		{
-			Function(bCancel);
+			Function(Owner, bCancel);
 			DoneEvent.Trigger();
 		});
 		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
-		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
 	}
 
 	// IRequest Interface
@@ -673,49 +693,9 @@ private:
 
 private:
 	IRequestOwner& Owner;
-	TUniqueFunction<void (bool bCancel)> Function;
+	TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)> Function;
 	FLazyEvent DoneEvent{EEventMode::ManualReset};
 };
-
-static FCachePutResponse MakeCanceledResponse(const FCachePutRequest& Request)
-{
-	return {Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Canceled};
-}
-
-static FCacheGetResponse MakeCanceledResponse(const FCacheGetRequest& Request)
-{
-	return {Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Canceled};
-}
-
-static FCachePutValueResponse MakeCanceledResponse(const FCachePutValueRequest& Request)
-{
-	return {Request.Name, Request.Key, Request.UserData, EStatus::Canceled};
-}
-
-static FCacheGetValueResponse MakeCanceledResponse(const FCacheGetValueRequest& Request)
-{
-	return {Request.Name, Request.Key, {}, Request.UserData, EStatus::Canceled};
-}
-
-static FCacheGetChunkResponse MakeCanceledResponse(const FCacheGetChunkRequest& Request)
-{
-	return {Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Canceled};
-}
-
-static FLegacyCachePutResponse MakeCanceledResponse(const FLegacyCachePutRequest& Request)
-{
-	return {Request.Name, Request.Key, Request.UserData, EStatus::Canceled};
-}
-
-static FLegacyCacheGetResponse MakeCanceledResponse(const FLegacyCacheGetRequest& Request)
-{
-	return {Request.Name, Request.Key, {}, Request.UserData, EStatus::Canceled};
-}
-
-static FLegacyCacheDeleteResponse MakeCanceledResponse(const FLegacyCacheDeleteRequest& Request)
-{
-	return {Request.Name, Request.Key, Request.UserData, EStatus::Canceled};
-}
 
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>
 void FDerivedDataBackendAsyncPutWrapper::Execute(
@@ -727,43 +707,36 @@ void FDerivedDataBackendAsyncPutWrapper::Execute(
 {
 	auto ExecuteWithStats = [this, COOK_STAT(OnAddStats,) OnExecute](TConstArrayView<RequestType> Requests, IRequestOwner& Owner, OnCompleteType&& OnComplete) mutable
 	{
-	#if ENABLE_COOK_STATS
-		Invoke(OnExecute, *InnerBackend, Requests, Owner, [this, OnAddStats, OnComplete = MoveTemp(OnComplete)](auto&& Response)
+		Invoke(OnExecute, *InnerBackend, Requests, Owner, [this, COOK_STAT(OnAddStats,) OnComplete = MoveTemp(OnComplete)](auto&& Response)
 		{
 			if (Response.Status == EStatus::Ok)
 			{
-				(UsageStats.*OnAddStats)().AddHit(0);
+				COOK_STAT((UsageStats.*OnAddStats)().AddHit(0));
 			}
 			if (OnComplete)
 			{
 				OnComplete(MoveTemp(Response));
 			}
+			FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
 		});
-	#else
-		Invoke(OnExecute, *InnerBackend, Requests, Owner, MoveTemp(OnComplete));
-	#endif
 	};
 
+	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(Requests.Num());
 	if (Owner.GetPriority() == EPriority::Blocking || !Private::GCacheThreadPool)
 	{
 		return ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 	}
 
 	FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-		[this, Requests = TArray<RequestType>(Requests), OnComplete = MoveTemp(OnComplete), ExecuteWithStats = MoveTemp(ExecuteWithStats)](bool bCancel) mutable
+		[this, Requests = TArray<RequestType>(Requests), OnComplete = MoveTemp(OnComplete), ExecuteWithStats = MoveTemp(ExecuteWithStats)](IRequestOwner& Owner, bool bCancel) mutable
 		{
 			if (!bCancel)
 			{
-				FRequestOwner BlockingOwner(EPriority::Blocking);
-				ExecuteWithStats(Requests, BlockingOwner, MoveTemp(OnComplete));
-				BlockingOwner.Wait();
+				ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 			}
-			else if (OnComplete)
+			else
 			{
-				for (const RequestType& Request : Requests)
-				{
-					OnComplete(MakeCanceledResponse(Request));
-				}
+				CompleteWithStatus(Requests, MoveTemp(OnComplete), EStatus::Canceled);
 			}
 		});
 	Request->Start(Owner.GetPriority());
