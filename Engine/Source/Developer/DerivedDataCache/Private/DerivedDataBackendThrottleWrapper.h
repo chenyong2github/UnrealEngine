@@ -148,7 +148,7 @@ public:
 		return Usage;
 	}
 
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
 		FThrottlingScope Scope(this);
 

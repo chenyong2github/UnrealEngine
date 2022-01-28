@@ -84,7 +84,7 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 
 	/**
 	 *  Determines if we would cache the provided data
@@ -291,9 +291,9 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	return false;
 }
 
-bool FMemoryDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FMemoryDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
 bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)

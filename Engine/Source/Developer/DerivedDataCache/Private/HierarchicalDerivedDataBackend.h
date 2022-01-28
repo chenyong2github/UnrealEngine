@@ -202,11 +202,19 @@ public:
 	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
 	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePrefetch());
 
 		TArray<FString, TInlineAllocator<16>> SearchKeys(CacheKeys);
+		TArray<int32, TInlineAllocator<16>> SearchKeysIndex;
+		SearchKeysIndex.Reserve(SearchKeys.Num());
+		for (int32 Index = 0; Index < SearchKeys.Num(); ++Index)
+		{
+			SearchKeysIndex.Add(Index);
+		}
+
+		TBitArray<> Result(false, SearchKeys.Num());
 
 		bool bHasFastBackendToWrite = false;
 		bool bHasSlowBackend = false;
@@ -232,6 +240,8 @@ public:
 					{
 						if (Hits[It.GetIndex()])
 						{
+							Result[SearchKeysIndex[It.GetIndex()]] = true;
+							SearchKeysIndex.RemoveAt(It.GetIndex());
 							// RemoveCurrent will decrement the iterator
 							It.RemoveCurrent();
 						}
@@ -245,7 +255,7 @@ public:
 					if (SearchKeys.IsEmpty())
 					{
 						COOK_STAT(Timer.AddHit(0));
-						return true;
+						return Result;
 					}
 				}
 			}
@@ -256,16 +266,26 @@ public:
 		int64 BytesFetched = 0;
 		if (bHasSlowBackend && bHasFastBackendToWrite)
 		{
+			int32 Index = 0;
 			for (const FString& CacheKey : SearchKeys)
 			{
 				TArray<uint8> Ignored;
-				bHit &= GetCachedData(*CacheKey, Ignored);
+				Result[SearchKeysIndex[Index]] = GetCachedData(*CacheKey, Ignored);
 				BytesFetched += Ignored.Num();
+				++Index;
 			}
 		}
 
-		COOK_STAT(if (bHit) { Timer.AddHit(BytesFetched); });
-		return bHit;
+		if (Result.CountSetBits() == CacheKeys.Num())
+		{
+			COOK_STAT(Timer.AddHit(BytesFetched));
+		}
+		else
+		{
+			COOK_STAT(Timer.AddMiss(BytesFetched));
+		}
+
+		return Result;
 	}
 
 	/*

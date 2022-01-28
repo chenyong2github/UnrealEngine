@@ -112,7 +112,7 @@ public:
 	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
 	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 
 	/**
 	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,
@@ -445,18 +445,23 @@ TBitArray<> FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExistsBatch(TC
 	return Result;
 }
 
-bool FDerivedDataBackendAsyncPutWrapper::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FDerivedDataBackendAsyncPutWrapper::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePrefetch());
 
-	if ((InflightCache && InflightCache->CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num()) ||
-		InnerBackend->TryToPrefetch(CacheKeys))
+	TBitArray<> Result;
+	if (InflightCache)
+	{
+		Result = InflightCache->CachedDataProbablyExistsBatch(CacheKeys);
+	}
+	Result = TBitArray<>::BitwiseOR(Result, InnerBackend->TryToPrefetch(CacheKeys), EBitwiseOperatorFlags::MaxSize);
+
+	if (Result.CountSetBits() == CacheKeys.Num())
 	{
 		COOK_STAT(Timer.AddHit(0));
-		return true;
 	}
 
-	return false;
+	return Result;
 }
 
 /*

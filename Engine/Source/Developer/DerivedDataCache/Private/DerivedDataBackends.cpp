@@ -1376,10 +1376,12 @@ void FDerivedDataBackendInterface::LegacyGet(
 
 	if (!PrefetchKeys.IsEmpty())
 	{
-		const bool bOk = TryToPrefetch(PrefetchKeys);
+		int32 Index = 0;
+		const TBitArray<> Exists = TryToPrefetch(PrefetchKeys);
 		for (const FLegacyCacheGetRequest* const Request : PrefetchRequests)
 		{
-			OnComplete({Request->Name, Request->Key, {}, Request->UserData, bOk ? EStatus::Ok : EStatus::Error});
+			OnComplete({Request->Name, Request->Key, {}, Request->UserData, Exists[Index] ? EStatus::Ok : EStatus::Error});
+			++Index;
 		}
 	}
 

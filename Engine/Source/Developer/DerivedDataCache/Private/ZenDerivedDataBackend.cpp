@@ -99,7 +99,7 @@ public:
 	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
 	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
@@ -587,9 +587,9 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats(
 	return GroupNode;
 }
 
-bool FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
 bool FZenDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)

@@ -106,9 +106,9 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
-		return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+		return CachedDataProbablyExistsBatch(CacheKeys);
 	}
 
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override { return true; }

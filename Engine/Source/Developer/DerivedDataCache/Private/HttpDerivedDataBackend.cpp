@@ -2013,7 +2013,7 @@ public:
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 	
 	virtual FString GetName() const override;
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual ESpeedClass GetSpeedClass() const override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
@@ -2151,9 +2151,9 @@ FString FHttpDerivedDataBackend::GetName() const
 	return Domain;
 }
 
-bool FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
 bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)

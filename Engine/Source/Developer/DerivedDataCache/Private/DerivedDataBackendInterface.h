@@ -176,9 +176,9 @@ public:
 	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
 	 *
 	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
-	 * @return				true if the data will probably be found in a fast backend on a future request.
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) = 0;
+	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) = 0;
 
 	/**
 	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,

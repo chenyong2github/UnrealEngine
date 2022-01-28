@@ -226,7 +226,7 @@ public:
 
 	FString GetName() const override;
 	ESpeedClass GetSpeedClass() const override;
-	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
@@ -1096,9 +1096,9 @@ FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
 	return ESpeedClass::Local;
 }
 
-bool FS3DerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FS3DerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
 bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)

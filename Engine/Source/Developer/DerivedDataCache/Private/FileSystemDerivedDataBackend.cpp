@@ -747,7 +747,7 @@ public:
 	EPutStatus PutCachedData(const TCHAR* CacheKey, TConstArrayView<uint8> Data, bool bPutEvenIfExists) final;
 	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
 	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
-	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
+	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
 	bool WouldCache(const TCHAR* CacheKey, TConstArrayView<uint8> InData) final;
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
 
@@ -1533,9 +1533,9 @@ TSharedRef<FDerivedDataCacheStatsNode> FFileSystemCacheStore::GatherUsageStats()
 	return Usage;
 }
 
-bool FFileSystemCacheStore::TryToPrefetch(const TConstArrayView<FString> CacheKeys)
+TBitArray<> FFileSystemCacheStore::TryToPrefetch(const TConstArrayView<FString> CacheKeys)
 {
-	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
 bool FFileSystemCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
