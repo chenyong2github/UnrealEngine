@@ -136,7 +136,7 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	  * bNeedsValue Whether or not the returned variable must be allocated to a valid value. When true if the pin doesn't have a valid default value itself the variable will be reset to default before return.
 	  * returns The newly created variable.
 	  */
-	FNiagaraVariable PinToNiagaraVariable(const UEdGraphPin* Pin, bool bNeedsValue=false)const;
+	FNiagaraVariable PinToNiagaraVariable(const UEdGraphPin* Pin, bool bNeedsValue=false, ENiagaraStructConversion StructConversion = ENiagaraStructConversion::UserFacing) const;
 
 	/** 
 	  * Tries to get a default value string for a graph pin from a niagara variable.
@@ -147,8 +147,8 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	bool TryGetPinDefaultValueFromNiagaraVariable(const FNiagaraVariable& Variable, FString& OutPinDefaultValue) const;
 
 	static void ConvertIllegalPinsInPlace(UEdGraphPin* Pin);
-	static FNiagaraTypeDefinition PinToTypeDefinition(const UEdGraphPin* Pin);
-	static FNiagaraTypeDefinition PinTypeToTypeDefinition(const FEdGraphPinType& PinType) ;
+	static FNiagaraTypeDefinition PinToTypeDefinition(const UEdGraphPin* Pin, ENiagaraStructConversion StructConversion = ENiagaraStructConversion::UserFacing);
+	static FNiagaraTypeDefinition PinTypeToTypeDefinition(const FEdGraphPinType& PinType);
 	static FEdGraphPinType TypeDefinitionToPinType(FNiagaraTypeDefinition TypeDef);
 	
 	static bool IsPinWildcard(const UEdGraphPin* Pin);

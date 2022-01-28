@@ -11,6 +11,7 @@
 
 #include "NiagaraTypes.generated.h"
 
+struct FNiagaraTypeDefinition;
 class UNiagaraDataInterfaceBase;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
@@ -70,7 +71,7 @@ struct FNiagaraBool
 
 private:
 	UPROPERTY(EditAnywhere, Category = Parameters)// Must be either FNiagaraBool::True or FNiagaraBool::False.
-	int32 Value = FNiagaraBool::False;
+	int32 Value = False;
 };
 
 USTRUCT(meta = (DisplayName = "Position"))
@@ -165,16 +166,16 @@ struct FNiagaraMatrix
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=NiagaraMatrix)
-	FVector4f Row0 = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f Row0 = FVector4f(ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4f Row1 = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f Row1 = FVector4f(ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4f Row2 = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f Row2 = FVector4f(ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4f Row3 = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f Row3 = FVector4f(ForceInitToZero);
 };
 
 USTRUCT()
@@ -216,6 +217,62 @@ struct NIAGARA_API FNiagaraLWCConverter
 
 private:
 	FVector SystemWorldPos;
+};
+
+UENUM()
+enum class ENiagaraStructConversionType : uint8
+{
+	CopyOnly, // no conversion, just copy the data
+	
+	DoubleToFloat,
+	Vector2,
+	Vector3,
+	Vector4,
+	Quat,
+};
+
+USTRUCT()
+struct FNiagaraStructConversionStep
+{
+	GENERATED_USTRUCT_BODY();
+	
+	UPROPERTY()
+	int32 SourceBytes = 0;
+
+	UPROPERTY()
+	int32 SourceOffset = 0;
+	
+	UPROPERTY()
+	int32 SimulationBytes = 0;
+
+	UPROPERTY()
+	int32 SimulationOffset = 0;
+	
+	UPROPERTY()
+	ENiagaraStructConversionType ConversionType = ENiagaraStructConversionType::CopyOnly;
+
+	FNiagaraStructConversionStep();
+	FNiagaraStructConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType InConversionType);
+
+	void CopyToSim(uint8* DestinationData, const uint8* SourceData) const;
+	void CopyFromSim(uint8* DestinationData, const uint8* SourceData) const;
+};
+
+/** Can convert struct data from custom structs containing LWC data such as FVector3d into struct data suitable for Niagara simulations and vice versa. */
+USTRUCT()
+struct NIAGARA_API FNiagaraLwcStructConverter
+{
+	GENERATED_USTRUCT_BODY();
+	
+	void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData) const;
+	void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData) const;
+	
+	void AddConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType ConversionType);
+	bool IsValid() const { return ConversionSteps.Num() > 0; }
+	
+private:
+	UPROPERTY()
+	TArray<FNiagaraStructConversionStep> ConversionSteps;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
@@ -296,6 +353,15 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 	return HashCombine(GetTypeHash(ID.Index), GetTypeHash(ID.AcquireTag));
 }
 
+enum class ENiagaraStructConversion : uint8
+{
+	/** Do not modify struct data members, even if they are not compatible with the Niagara VM, as the struct is user facing (or from an external api). */
+	UserFacing,
+	
+	/** Convert struct members that are not compatible with the simulation (e.g. lwc types) into compatible types and return a simulation-friendly struct for the VM. */
+	Simulation,
+};
+
 /*
 *  Can convert a UStruct with fields of base types only (float, int... - will likely add native vector types here as well)
 *	to an FNiagaraTypeDefinition (internal representation)
@@ -304,8 +370,11 @@ class NIAGARA_API FNiagaraTypeHelper
 {
 public:
 	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
-	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
-	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
+	static bool IsLWCStructure(UStruct* InStruct);
+	static bool IsLWCType(const FNiagaraTypeDefinition& InType);
+	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
+	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
+	static UScriptStruct* GetSWCStruct(UScriptStruct* LWCStruct);
 };
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
@@ -377,7 +446,7 @@ private:
 			//Should be able to support double easily enough
 			else if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 			{
-				GenerateLayoutInfoInternal(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct), PropOffset);
+				GenerateLayoutInfoInternal(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct, ENiagaraStructConversion::Simulation), PropOffset);
 			}
 			else
 			{
@@ -682,7 +751,7 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		, bDisplayInOverviewStack(false)
 		, InlineParameterSortPriority(0)
 		, bOverrideColor(false)
-		, InlineParameterColorOverride(FLinearColor(EForceInit::ForceInit))
+		, InlineParameterColorOverride(FLinearColor(ForceInit))
 		, bEnableBoolOverride(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
@@ -824,7 +893,7 @@ public:
 #endif
 	{
 		checkSlow(ClassStructOrEnum != nullptr);
-		ensure(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow || FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(StructDef));
+		ensureAlwaysMsgf(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow || FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(StructDef, ENiagaraStructConversion::UserFacing), TEXT("Struct(%s) is not supported."), *StructDef->GetName());
 	}
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
@@ -1014,13 +1083,15 @@ public:
 
 	bool IsFloatPrimitive() const
 	{
-		return ClassStructOrEnum == FNiagaraTypeDefinition::GetFloatStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec2Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec3Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec4Struct() ||
-			ClassStructOrEnum == FNiagaraTypeDefinition::GetMatrix4Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetColorStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetQuatStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetPositionStruct();
+		return ClassStructOrEnum == GetFloatStruct() || ClassStructOrEnum == GetVec2Struct() || ClassStructOrEnum ==
+			GetVec3Struct() || ClassStructOrEnum == GetVec4Struct() ||
+			ClassStructOrEnum == GetMatrix4Struct() || ClassStructOrEnum == GetColorStruct() || ClassStructOrEnum ==
+			GetQuatStruct() || ClassStructOrEnum == GetPositionStruct();
  	}
 
 	bool IsIndexType() const
 	{
-		return ClassStructOrEnum == FNiagaraTypeDefinition::GetIntStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetBoolStruct() || IsEnum();
+		return ClassStructOrEnum == GetIntStruct() || ClassStructOrEnum == GetBoolStruct() || IsEnum();
 	}
 	bool IsValid() const 
 	{ 
@@ -1247,18 +1318,18 @@ struct TStructOpsTypeTraits<FNiagaraTypeDefinition> : public TStructOpsTypeTrait
 template<typename T>
 const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 {
-	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
-	if (TIsSame<T, FVector2f>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
-	if (TIsSame<T, FVector3f>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }	
-	if (TIsSame<T, FNiagaraPosition>::Value) { return FNiagaraTypeDefinition::GetPositionDef(); }	
-	if (TIsSame<T, FVector4f>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
-	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
-	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
-	if (TIsSame<T, FQuat4f>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }
-	if (TIsSame<T, FMatrix44f>::Value) { return FNiagaraTypeDefinition::GetMatrix4Def(); }
-	if (TIsSame<T, FLinearColor>::Value) { return FNiagaraTypeDefinition::GetColorDef(); }
-	if (TIsSame<T, FNiagaraID>::Value) { return FNiagaraTypeDefinition::GetIDDef(); }
-	if (TIsSame<T, FNiagaraRandInfo>::Value) { return FNiagaraTypeDefinition::GetRandInfoDef(); }
+	if (TIsSame<T, float>::Value) { return GetFloatDef(); }
+	if (TIsSame<T, FVector2f>::Value) { return GetVec2Def(); }
+	if (TIsSame<T, FVector3f>::Value) { return GetVec3Def(); }	
+	if (TIsSame<T, FNiagaraPosition>::Value) { return GetPositionDef(); }	
+	if (TIsSame<T, FVector4f>::Value) { return GetVec4Def(); }
+	if (TIsSame<T, int32>::Value) { return GetIntDef(); }
+	if (TIsSame<T, FNiagaraBool>::Value) { return GetBoolDef(); }
+	if (TIsSame<T, FQuat4f>::Value) { return GetQuatDef(); }
+	if (TIsSame<T, FMatrix44f>::Value) { return GetMatrix4Def(); }
+	if (TIsSame<T, FLinearColor>::Value) { return GetColorDef(); }
+	if (TIsSame<T, FNiagaraID>::Value) { return GetIDDef(); }
+	if (TIsSame<T, FNiagaraRandInfo>::Value) { return GetRandInfoDef(); }
 }
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
@@ -1359,7 +1430,7 @@ public:
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
-		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
 
 		for (const FNiagaraTypeDefinition& Def : Registry.RegisteredUserDefinedTypes)
 		{
@@ -1403,7 +1474,7 @@ public:
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
-		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
 
 		//TODO: Make this a map of type to a more verbose set of metadata? Such as the hlsl defs, offset table for conversions etc.
 		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Registry.RegisteredTypes.AddUnique(NewType));
@@ -1481,10 +1552,36 @@ public:
 			}
 		}
 
-		FRWScopeLock Lock(Registry.RegisteredTypesLock, FRWScopeLockType::SLT_Write);
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
 		const int32 Index = Registry.RegisteredTypes.AddUnique(NewType);
 		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Index);
 		return Index;
+	}
+
+	static void RegisterStructConverter(const FNiagaraTypeDefinition& SourceType, const FNiagaraLwcStructConverter& StructConverter)
+	{
+		int32 TypeIndex = RegisterIndexed(SourceType);
+		FNiagaraTypeRegistry& Registry = Get();
+		
+		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
+		Registry.RegisteredStructConversionMap.Add(TypeIndex, StructConverter);
+	}
+
+	static FNiagaraLwcStructConverter GetStructConverter(const FNiagaraTypeDefinition& SourceType)
+	{
+		FNiagaraTypeRegistry& Registry = Get();
+		
+		FReadScopeLock Lock(Registry.RegisteredTypesLock);
+		const uint32 TypeHash = GetTypeHash(SourceType);
+		if (const int32* TypeIndex = Registry.RegisteredTypeIndexMap.Find(TypeHash))
+		{
+			if (FNiagaraLwcStructConverter* Converter = Registry.RegisteredStructConversionMap.Find(*TypeIndex))
+			{
+				return *Converter;
+			}
+		}
+		
+		return FNiagaraLwcStructConverter();
 	}
 
 	/** LazySingleton interface */
@@ -1510,6 +1607,8 @@ private:
 
 
 	TMap<uint32, int32> RegisteredTypeIndexMap;
+	TMap<TWeakObjectPtr<UScriptStruct>, TWeakObjectPtr<UScriptStruct>> LWCRegisteredStructRemapping;
+	TMap<uint32, FNiagaraLwcStructConverter> RegisteredStructConversionMap;
 	FRWLock RegisteredTypesLock;
 };
 
@@ -1980,13 +2079,13 @@ struct alignas(16) FNiagaraOwnerParameters
 	FMatrix44f EngineLocalToWorldNoScale = FMatrix44f::Identity;
 	FMatrix44f EngineWorldToLocalNoScale = FMatrix44f::Identity;
 	FQuat4f EngineRotation = FQuat4f::Identity;
-	FVector4f EnginePosition = FVector4f(EForceInit::ForceInitToZero);
-	FVector4f EngineVelocity = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f EnginePosition = FVector4f(ForceInitToZero);
+	FVector4f EngineVelocity = FVector4f(ForceInitToZero);
 	FVector4f EngineXAxis = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
 	FVector4f EngineYAxis = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
 	FVector4f EngineZAxis = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
 	FVector4f EngineScale = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
-	FVector4f EngineLWCTile = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f EngineLWCTile = FVector4f(ForceInitToZero);
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we

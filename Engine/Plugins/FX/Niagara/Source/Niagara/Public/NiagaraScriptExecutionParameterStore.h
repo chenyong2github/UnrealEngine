@@ -3,7 +3,6 @@
 #pragma once
 
 #include "NiagaraCommon.h"
-#include "NiagaraDataInterface.h"
 #include "NiagaraParameterStore.h"
 #include "NiagaraScriptExecutionParameterStore.generated.h"
 
@@ -53,7 +52,23 @@ public:
 	{
 #if WITH_EDITORONLY_DATA
 		int32 NewParamOffset = INDEX_NONE;
-		const bool bAdded = FNiagaraParameterStore::AddParameter(Param, bInitInterfaces, bTriggerRebind, &NewParamOffset);
+		bool bAdded;
+		if (FNiagaraTypeHelper::IsLWCType(Param.GetType()))
+		{
+			// Custom structs containing LWC type data are converted into SWC structs for the runtime 
+			UScriptStruct* Struct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Param.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation);
+			FNiagaraVariable SimParam(FNiagaraTypeDefinition(Struct), Param.GetName());
+			if (Param.IsDataAllocated())
+			{
+				SimParam.AllocateData();
+				FNiagaraTypeRegistry::GetStructConverter(Param.GetType()).ConvertDataToSimulation(SimParam.GetData(), Param.GetData());
+			}
+			bAdded = FNiagaraParameterStore::AddParameter(SimParam, bInitInterfaces, bTriggerRebind, &NewParamOffset);
+		}
+		else
+		{
+			bAdded = FNiagaraParameterStore::AddParameter(Param, bInitInterfaces, bTriggerRebind, &NewParamOffset);
+		}
 		if (bAdded)
 		{
 			AddPaddedParamSize(Param.GetType(), NewParamOffset);

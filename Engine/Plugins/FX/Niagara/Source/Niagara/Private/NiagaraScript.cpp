@@ -1114,11 +1114,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					FString VarTypeName = Vars[i].GetType().GetName();
 					HashState.UpdateWithString(*VarName, VarName.Len());
 					HashState.UpdateWithString(*VarTypeName, VarTypeName.Len());
-					const uint8* VarData = RapidIterationParameters.GetParameterData(Vars[i]);
-					if (VarData)
+					TArray<uint8> DataValue;
+					DataValue.AddUninitialized(Vars[i].GetSizeInBytes());
+					if (RapidIterationParameters.CopyParameterData(Vars[i], DataValue.GetData()))
 					{
-						//UE_LOG(LogNiagara, Display, TEXT("Param %s %s %d"), *VarTypeName, *VarName, (uint32)VarData[0]);
-						HashState.Update(VarData, Vars[i].GetType().GetSize());
+						//UE_LOG(LogNiagara, Display, TEXT("Param %s %s %s"), *VarTypeName, *VarName, *ByteStr);
+						HashState.Update(DataValue.GetData(), Vars[i].GetType().GetSize());
 					}
 				}
 			}

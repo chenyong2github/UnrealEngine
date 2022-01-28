@@ -485,8 +485,8 @@ TSharedPtr<FNiagaraVariable> UNiagaraStackParameterStoreEntry::GetCurrentValueVa
 	if (InputType.GetClass() == nullptr)
 	{
 		FNiagaraVariable DefaultVariable(InputType, ParameterName);
-		const uint8* Data = ParameterStore->GetParameterData(DefaultVariable);
-		DefaultVariable.SetData(Data);
+		DefaultVariable.AllocateData();
+		ParameterStore->CopyParameterData(DefaultVariable, DefaultVariable.GetData());
 		return MakeShared<FNiagaraVariable>(DefaultVariable);
 	}
 	return TSharedPtr<FNiagaraVariable>();

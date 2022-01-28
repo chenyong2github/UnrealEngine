@@ -1034,6 +1034,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 					{
 						Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
 					}
+					ScriptStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(ScriptStruct, ENiagaraStructConversion::UserFacing);
 					FNiagaraTypeRegistry::Register(ScriptStruct, Flags);
 				}
 
@@ -1263,7 +1264,9 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 	if (Ar.IsLoading() && ClassStructOrEnum != nullptr)
 	{
 		if (ClassStructOrEnum.GetClass()->IsChildOf(UScriptStruct::StaticClass()))
-			ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct((UScriptStruct*)ClassStructOrEnum);
+		{
+			ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
+		}
 	}
 #endif
 }

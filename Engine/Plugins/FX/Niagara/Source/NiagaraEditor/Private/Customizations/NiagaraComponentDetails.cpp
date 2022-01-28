@@ -78,13 +78,13 @@ static FNiagaraVariant GetParameterValueFromAsset(const FNiagaraVariableBase& Pa
 		return Value == nullptr ? FNiagaraVariant() : FNiagaraVariant(Value, sizeof(FVector));
 	}
 
-	const uint8* ParameterData = UserParameterStore.GetParameterData(Parameter);
-	if (ParameterData == nullptr)
+	TArray<uint8> DataValue;
+	DataValue.AddUninitialized(Parameter.GetSizeInBytes());
+	if (UserParameterStore.CopyParameterData(Parameter, DataValue.GetData()))
 	{
-		return FNiagaraVariant();
+		return FNiagaraVariant(DataValue);
 	}
-	
-	return FNiagaraVariant(ParameterData, Parameter.GetSizeInBytes());
+	return FNiagaraVariant();
 }
 
 static FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& Parameter, const UNiagaraComponent* Component)
@@ -508,7 +508,7 @@ private:
 						}
 						else
 						{
-							FMemory::Memcpy(DisplayStruct->GetStructMemory(), OverrideParameters.GetParameterData(UserParameter), UserParameter.GetSizeInBytes());
+							OverrideParameters.CopyParameterData(UserParameter, DisplayStruct->GetStructMemory());
 						}
 					}
 				}

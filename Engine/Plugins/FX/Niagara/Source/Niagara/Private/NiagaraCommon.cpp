@@ -7,7 +7,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
@@ -66,121 +65,6 @@ static FAutoConsoleVariableRef CVarNiagaraLogVerboseWarnings(
 	TEXT("Default is enabled in editor builds and disabled in non editor builds.\n"),
 	ECVF_Default
 );
-
-//////////////////////////////////////////////////////////////////////////
-
-FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
-{
-	FString Ret;
-	if (const UEnum* Enum = Cast<const UEnum>(StructOrEnum))
-	{
-		Ret = Enum->GetNameStringByValue(*(int32*)ValueData);
-	}
-	else if (const UScriptStruct* Struct = Cast<const UScriptStruct>(StructOrEnum))
-	{
-		if (Struct == FNiagaraTypeDefinition::GetFloatStruct())
-		{
-			Ret += FString::Printf(TEXT("%g "), *(float*)ValueData);
-		}
-		else if (Struct == FNiagaraTypeDefinition::GetIntStruct())
-		{
-			Ret += FString::Printf(TEXT("%d "), *(int32*)ValueData);
-		}
-		else if (Struct == FNiagaraTypeDefinition::GetBoolStruct())
-		{
-			int32 Val = *(int32*)ValueData;
-			Ret += Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
-		}
-		else
-		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
-			{
-				const FProperty* Property = *PropertyIt;
-				const uint8* PropPtr = ValueData + PropertyIt->GetOffset_ForInternal();
-				if (Property->IsA(FFloatProperty::StaticClass()))
-				{
-					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
-				}
-				else if (Property->IsA(FDoubleProperty::StaticClass()))
-				{
-					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(double*)PropPtr);
-				}
-				else if (Property->IsA(FUInt16Property::StaticClass()))
-				{
-					FFloat16 Val = *(FFloat16*)PropPtr;
-					Ret += FString::Printf(TEXT("%s: %f "), *Property->GetNameCPP(), Val.GetFloat());
-				}
-				else if (Property->IsA(FIntProperty::StaticClass()))
-				{
-					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);
-				}
-				else if (Property->IsA(FBoolProperty::StaticClass()))
-				{
-					int32 Val = *(int32*)ValueData;
-					FString BoolStr = Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
-					Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *BoolStr);
-				}
-				else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
-				{
-					Ret += FString::Printf(TEXT("%s: (%s) "), *Property->GetNameCPP(), *FNiagaraTypeHelper::ToString(PropPtr, StructProp->Struct));
-				}
-				else
-				{
-					check(false);
-					Ret += TEXT("Unknown Type");
-				}
-			}
-		}
-	}
-	return Ret;
-}
-
-UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct)
-{
-	if (!InStruct)
-		return nullptr;
-
-	// Note: UE core types are converted to the float variant as Niagara only works with float types.
-	if (InStruct->GetFName() == NAME_Vector2D || InStruct->GetFName() == NAME_Vector2d) // LWC support
-	{
-		return FNiagaraTypeDefinition::GetVec2Struct();
-	}
-
-	if (InStruct->GetFName() == NAME_Vector || InStruct->GetFName() == NAME_Vector3d) // LWC support
-	{
-		return FNiagaraTypeDefinition::GetVec3Struct();
-	}
-
-	if (InStruct->GetFName() == NAME_Vector4 || InStruct->GetFName() == NAME_Vector4d) // LWC support
-	{
-		return FNiagaraTypeDefinition::GetVec4Struct();
-	}
-
-	if (InStruct->GetFName() == NAME_Quat || InStruct->GetFName() == NAME_Quat4d) // LWC support
-	{
-		return FNiagaraTypeDefinition::GetQuatStruct();
-	}
-
-	if (InStruct->GetFName() == FName("NiagaraPosition"))
-	{
-		return FNiagaraTypeDefinition::GetPositionStruct();
-	}
-
-	return InStruct;
-}
-
-bool FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct)
-{
-	if (FindNiagaraFriendlyTopLevelStruct(InStruct) == InStruct)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-//////////////////////////////////////////////////////////////////////////
 
 FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 {

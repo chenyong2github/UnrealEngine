@@ -134,8 +134,8 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 
 	// Those constructor enforce that there are no data allocated.
 	FORCEINLINE FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
-	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariableBase(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
-	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableBase& InVariable, int32 InOffset) : FNiagaraVariableBase(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariableBase(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset), StructConverter(InRef.StructConverter) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableBase& InVariable, int32 InOffset, const FNiagaraLwcStructConverter& InStructConverter) : FNiagaraVariableBase(InVariable.GetType(), InVariable.GetName()), Offset(InOffset), StructConverter(InStructConverter) {}
 
 	bool Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA
@@ -144,6 +144,9 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 
 	UPROPERTY()
 	int32 Offset;
+
+	UPROPERTY()
+	FNiagaraLwcStructConverter StructConverter;
 };
 
 template<>
@@ -352,6 +355,8 @@ public:
 		const int32* Off = FindParameterOffset(Parameter);
 		return Off ? *Off : (int32)INDEX_NONE;
 	}
+	
+	const FNiagaraVariableWithOffset* FindParameterVariable(const FNiagaraVariable& Parameter, bool IgnoreType = false) const;
 
 	/** Gets the typed parameter data. */
 	template<typename T>
@@ -393,6 +398,12 @@ public:
 		return nullptr;
 	}
 
+	/** Copies the data stored for the given variable to the target pointer. This method automatically converts custom struct data back to lwc types.
+	 * Just using the raw parameter store pointer via IndexOf() will be wrong if the target struct contains a lwc type like FVector.
+	 * Returns true if the data was copied, false if the parameter could not be found in the store.
+	 */
+	bool CopyParameterData(const FNiagaraVariable& Parameter, uint8* DestinationData) const;
+
 	/** Returns the data interface at the passed offset. */
 	FORCEINLINE UNiagaraDataInterface* GetDataInterface(int32 Offset)const
 	{
@@ -412,6 +423,9 @@ public:
 		checkSlow(!Interface || Parameter.GetType().GetClass() == Interface->GetClass());
 		return Interface;
 	}
+
+	/** Returns a struct converter for the given variable, if the store contains the variable and it's a LWC type. */
+	FNiagaraLwcStructConverter GetStructConverter(const FNiagaraVariable& Parameter) const;
 
 	/** Returns the associated FNiagaraVariable for the passed data interface if it exists in the store. Null if not.*/
 	const FNiagaraVariableBase* FindVariable(const UNiagaraDataInterface* Interface) const;
@@ -511,6 +525,7 @@ public:
 	{
 		check(Param.GetSizeInBytes() == sizeof(T));
 #if WITH_EDITOR
+		ensure(FNiagaraTypeHelper::IsLWCType(Param.GetType()) == false);
 		if (Param.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 		{
 			check(HasPositionData(Param.GetName()));
@@ -557,46 +572,7 @@ public:
 		OnParameterChange();
 	}
 
-	FORCEINLINE_DEBUGGABLE bool SetParameterData(const uint8* Data, const FNiagaraVariable& Param, bool bAdd = false)
-	{
-		checkSlow(Data != nullptr);
-		if (Param.GetType() == FNiagaraTypeDefinition::GetPositionDef())
-		{
-			FNiagaraPosition Value = *reinterpret_cast<const FNiagaraPosition*>(Data);
-			return SetPositionParameterValue(Value, Param.GetName(), bAdd);
-		}
-		
-		int32 Offset = IndexOf(Param);
-		if (Offset != INDEX_NONE)
-		{
-			checkSlow(!Param.IsDataInterface());
-			uint8* Dest = GetParameterData_Internal(Offset);
-			if (Dest != Data)
-			{
-				FMemory::Memcpy(Dest, Data, Param.GetSizeInBytes());
-			}
-			OnParameterChange();
-			return true;
-		}
-		else
-		{
-			if (bAdd)
-			{
-				bool bInitInterfaces = false;
-				bool bTriggerRebind = false;
-				AddParameter(Param, bInitInterfaces, bTriggerRebind, &Offset);
-				check(Offset != INDEX_NONE);
-				uint8* Dest = GetParameterData_Internal(Offset);
-				if (Dest != Data)
-				{
-					FMemory::Memcpy(Dest, Data, Param.GetSizeInBytes());
-				}
-				OnLayoutChange();
-				return true;
-			}
-		}
-		return false;
-	}
+	bool SetParameterData(const uint8* Data, FNiagaraVariable Param, bool bAdd = false);
 
 	FORCEINLINE_DEBUGGABLE void SetDataInterface(UNiagaraDataInterface* InInterface, int32 Offset)
 	{

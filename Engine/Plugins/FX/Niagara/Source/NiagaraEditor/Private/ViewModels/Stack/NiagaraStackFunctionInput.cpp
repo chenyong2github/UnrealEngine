@@ -1044,21 +1044,20 @@ void UNiagaraStackFunctionInput::RefreshValues()
 			// otherwise copy the value from the default.
 			InputValues.Mode = EValueMode::Local;
 			InputValues.LocalStruct = MakeShared<FStructOnScope>(InputType.GetStruct());
-			const uint8* RapidIterationParameterData = SourceScript->RapidIterationParameters.GetParameterData(RapidIterationParameter);
-			if (RapidIterationParameterData == nullptr && DefaultInputValues.LocalStruct.IsValid())
-			{
-				RapidIterationParameterData = DefaultInputValues.LocalStruct->GetStructMemory();
-			}
 
-			if (InputType.GetSize() > 0 && InputValues.LocalStruct->GetStructMemory() && RapidIterationParameterData)
+			uint8* DestinationData = InputValues.LocalStruct->GetStructMemory();
+			if (!SourceScript->RapidIterationParameters.CopyParameterData(RapidIterationParameter, DestinationData))
 			{
-				FMemory::Memcpy(InputValues.LocalStruct->GetStructMemory(), RapidIterationParameterData, InputType.GetSize());
+				if (InputType.GetSize() > 0 && DestinationData && DefaultInputValues.LocalStruct.IsValid())
+				{
+					FMemory::Memcpy(DestinationData, DefaultInputValues.LocalStruct->GetStructMemory(), InputType.GetSize());
+				}
+				else
+				{
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Type %s has no data! Cannot refresh values."), *InputType.GetName())
+				}
 			}
-			else
-			{
-				UE_LOG(LogNiagaraEditor, Warning, TEXT("Type %s has no data! Cannot refresh values."), *InputType.GetName())
-			}
-
+			
 			// we check if variable guid is already available in the parameter store and update it if that's not the case
 			if (InputMetaData.IsSet())
 			{

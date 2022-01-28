@@ -2429,7 +2429,7 @@ void FixInvalidUserParameters(FNiagaraUserRedirectionParameterStore& ParameterSt
 				if (DataValuePtr != nullptr)
 				{
 					DataValue.AddUninitialized(IncorrectlyNamedParameter.GetSizeInBytes());
-					FMemory::Memcpy(DataValue.GetData(), DataValuePtr, IncorrectlyNamedParameter.GetSizeInBytes());
+					ParameterStore.CopyParameterData(IncorrectlyNamedParameter, DataValue.GetData());
 				}
 			}
 
@@ -2634,7 +2634,10 @@ static FNiagaraVariant GetParameterValueFromStore(const FNiagaraVariableBase& Va
 		return FNiagaraVariant();
 	}
 
-	return FNiagaraVariant(ParameterData, Var.GetSizeInBytes());
+	TArray<uint8> DataValue;
+	DataValue.AddUninitialized(Var.GetSizeInBytes());
+	Store.CopyParameterData(Var, DataValue.GetData());
+	return FNiagaraVariant(DataValue);
 }
 
 #if WITH_EDITOR
@@ -2836,10 +2839,11 @@ void UNiagaraComponent::EnsureOverrideParametersConsistent() const
 			}
 			else
 			{
-				const uint8* ActualData = OverrideParameters.GetParameterData(Key);
-				if (ActualData != nullptr)
+				TArray<uint8> DataValue;
+				DataValue.AddUninitialized(Key.GetSizeInBytes());
+				if (OverrideParameters.CopyParameterData(Key, DataValue.GetData()))
 				{
-					ensureAlways(FMemory::Memcmp(ActualData, OverrideValue.GetBytes(), Key.GetSizeInBytes()) == 0);
+					ensureAlways(FMemory::Memcmp(DataValue.GetData(), OverrideValue.GetBytes(), Key.GetSizeInBytes()) == 0);
 				}
 			}
 		}
@@ -3203,8 +3207,11 @@ FNiagaraVariant UNiagaraComponent::GetCurrentParameterValue(const FNiagaraVariab
 		const FVector* Value = OverrideParameters.GetPositionParameterValue(RedirectedVar.GetName());
 		return Value == nullptr ? FNiagaraVariant() : FNiagaraVariant(Value, sizeof(FVector));
 	}
-	
-	return FNiagaraVariant(OverrideParameters.GetParameterData(ParameterOffset), InKey.GetSizeInBytes());
+
+	TArray<uint8> DataValue;
+	DataValue.AddUninitialized(UserVariable.GetSizeInBytes());
+	OverrideParameters.CopyParameterData(UserVariable, DataValue.GetData());
+	return FNiagaraVariant(DataValue);
 }
 
 void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)

@@ -110,7 +110,7 @@ struct FNiagaraConvertEntry
 
 			 if (StructProperty != nullptr)
 			{
-				CreateEntries(Schema, InPinId, InPin, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct), OutEntries[Index].Children);
+				CreateEntries(Schema, InPinId, InPin, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::UserFacing), OutEntries[Index].Children);
 			}
 		}
 	}

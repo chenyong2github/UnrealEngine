@@ -1413,9 +1413,9 @@ bool UEdGraphSchema_Niagara::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 	return false;
 }
 
-FNiagaraVariable UEdGraphSchema_Niagara::PinToNiagaraVariable(const UEdGraphPin* Pin, bool bNeedsValue)const
+FNiagaraVariable UEdGraphSchema_Niagara::PinToNiagaraVariable(const UEdGraphPin* Pin, bool bNeedsValue, ENiagaraStructConversion StructConversion) const
 {
-	FNiagaraVariable Var = FNiagaraVariable(PinToTypeDefinition(Pin), Pin->PinName);
+	FNiagaraVariable Var = FNiagaraVariable(PinToTypeDefinition(Pin, StructConversion), Pin->PinName);
 	bool bHasValue = false;
 	if (Pin->bDefaultValueIsIgnored == false && Pin->DefaultValue.IsEmpty() == false)
 	{
@@ -1481,7 +1481,7 @@ void UEdGraphSchema_Niagara::ConvertIllegalPinsInPlace(UEdGraphPin* Pin)
 	if (Pin->PinType.PinCategory == PinCategoryType && Pin->PinType.PinSubCategoryObject.IsValid())
 	{
 		UScriptStruct* Struct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
-		UScriptStruct* ConvertedStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct);
+		UScriptStruct* ConvertedStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct, ENiagaraStructConversion::UserFacing);
 		if (Struct != ConvertedStruct)
 		{
 			Pin->PinType.PinSubCategoryObject = ConvertedStruct;
@@ -1489,7 +1489,7 @@ void UEdGraphSchema_Niagara::ConvertIllegalPinsInPlace(UEdGraphPin* Pin)
 	}
 }
 
-FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGraphPin* Pin)
+FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGraphPin* Pin, ENiagaraStructConversion StructConversion)
 {
 	if (Pin == nullptr)
 	{
@@ -1505,7 +1505,8 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition();
 		}
-		else if (Struct && !FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(Struct)) // LWC swapover support
+
+		if (Struct && !FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(Struct, StructConversion)) // LWC swapover support
 		{
 			if (OwningNode && OwningNode->HasAnyFlags(EObjectFlags::RF_NeedPostLoad))
 			{
@@ -1517,7 +1518,7 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 				UE_LOG(LogNiagaraEditor, Verbose, TEXT("Pin states that it is not a niagara friendly struct, but didn't get converted by PostLoad yet, it does not have RF_NeedPostLoad though. Pin Name '%s' Owning Node '%s'."),
 					*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetPathName() : TEXT("Invalid"));
 			}
-			return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct));
+			return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct, StructConversion));
 		}
 
 		if (Pin->PinType.PinCategory == PinCategoryType)
@@ -1796,24 +1797,24 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProp
 	{
 		return FNiagaraTypeDefinition::GetFloatDef();
 	}
-	else if (Property->IsA(FIntProperty::StaticClass()))
+	if (Property->IsA(FIntProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetIntDef();
 	}
-	else if (Property->IsA(FBoolProperty::StaticClass()))
+	if (Property->IsA(FBoolProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetBoolDef();
 	}	
-	else if (Property->IsA(FEnumProperty::StaticClass()))
+	if (Property->IsA(FEnumProperty::StaticClass()))
 	{
 		const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
 		return FNiagaraTypeDefinition(EnumProp->GetEnum());
 	}
-	else if (const FStructProperty* StructProp = CastField<const FStructProperty>(Property))
+	if (const FStructProperty* StructProp = CastField<const FStructProperty>(Property))
 	{
-		return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
+		return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct, ENiagaraStructConversion::UserFacing));
 	}
-	else if(Property->IsA(FUInt16Property::StaticClass()))
+	if(Property->IsA(FUInt16Property::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetHalfDef();
 	}

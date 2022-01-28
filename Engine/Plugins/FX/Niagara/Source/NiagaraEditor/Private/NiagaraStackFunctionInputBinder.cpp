@@ -243,7 +243,7 @@ TArray<uint8> FNiagaraStackFunctionInputBinder::GetData() const
 	Data.AddUninitialized(InputType.GetSize());
 	if (RapidIterationParameter.IsValid() && Script->RapidIterationParameters.IndexOf(RapidIterationParameter) != -1)
 	{
-		FMemory::Memcpy(Data.GetData(), Script->RapidIterationParameters.GetParameterData(RapidIterationParameter), InputType.GetSize());
+		Script->RapidIterationParameters.CopyParameterData(RapidIterationParameter, Data.GetData());
 	}
 	else
 	{

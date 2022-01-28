@@ -1244,7 +1244,7 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 		else if (Property->IsA(FStructProperty::StaticClass()))
 		{
 			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
-			GenerateLayoutInfo(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct), nullptr, PropertyName, PropertyNames, FieldInfo);
+			GenerateLayoutInfo(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct, ENiagaraStructConversion::Simulation), nullptr, PropertyName, PropertyNames, FieldInfo);
 		}
 		else
 		{
