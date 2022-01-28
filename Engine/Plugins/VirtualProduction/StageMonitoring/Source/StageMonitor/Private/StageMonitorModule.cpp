@@ -7,6 +7,7 @@
 #include "StageMonitor.h"
 #include "StageMonitoringSettings.h"
 #include "StageMonitorSessionManager.h"
+#include "VPSettings.h"
 
 const FName IStageMonitorModule::ModuleName = TEXT("StageMonitor");
 
@@ -40,10 +41,20 @@ void FStageMonitorModule::OnEngineLoopInitComplete()
 	SessionManager = MakeUnique<FStageMonitorSessionManager>();
 	StageMonitor = MakeUnique<FStageMonitor>();
 	StageMonitor->Initialize();
+
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
 	if (Settings->MonitorSettings.ShouldAutoStartOnLaunch())
 	{
-		EnableMonitor(true);
+		if (!Settings->MonitorSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->MonitorSettings.SupportedRoles))
+		{
+			EnableMonitor(true);
+		}
+		else
+		{
+			UE_LOG(LogStageMonitor, Log, TEXT("Can't autostart StageMonitor. Role filtering is enabled and our roles (%s) are filtered out (%s)")
+				, *GetDefault<UVPSettings>()->GetRoles().ToStringSimple()
+				, *Settings->MonitorSettings.SupportedRoles.ToStringSimple())
+		}
 	}
 }
 

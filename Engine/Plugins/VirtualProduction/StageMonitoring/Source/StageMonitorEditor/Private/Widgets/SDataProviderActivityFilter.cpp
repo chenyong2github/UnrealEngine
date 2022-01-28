@@ -88,6 +88,39 @@ FDataProviderActivityFilter::EFilterResult FDataProviderActivityFilter::FilterAc
 		{
 			return EFilterResult::FailRestrictedProviders;
 		}
+
+		if (FilterSettings.RestrictedRoles.Num() > 0)
+		{
+			if (CachedRoleStringToArray.Contains(ProviderEntry.Descriptor.RolesStringified) == false)
+			{
+				TArray<FString> RoleArray;
+				ProviderEntry.Descriptor.RolesStringified.ParseIntoArray(RoleArray, TEXT(","));
+				TArray<FName> ToCache;
+				ToCache.Reserve(RoleArray.Num());
+				for (const FString& RoleString : RoleArray)
+				{
+					ToCache.Add(FName(RoleString));
+				}
+
+				CachedRoleStringToArray.Add(ProviderEntry.Descriptor.RolesStringified, ToCache);
+			}
+
+			bool bHasOneValidRole = false;
+			const TArray<FName>& CachedRoles = CachedRoleStringToArray.FindChecked(ProviderEntry.Descriptor.RolesStringified);
+			for (FName Role : CachedRoles)
+			{
+				if (!FilterSettings.RestrictedRoles.Contains(Role))
+				{
+					bHasOneValidRole = true;
+					break;
+				}
+			}
+
+			if (bHasOneValidRole == false)
+			{
+				return EFilterResult::FailRestrictedRoles;
+			}
+		}
 	}
 
 	if (FilterSettings.bEnableTimeFilter)
@@ -297,6 +330,15 @@ TSharedRef<SWidget> SDataProviderActivityFilter::MakeAddFilterMenu()
 		);
 
 		MenuBuilder.AddSubMenu(
+			LOCTEXT("FilterRoles", "Role"),
+			LOCTEXT("FilterRolesToolTip", "Filters based on the provider role"),
+			FNewMenuDelegate::CreateSP(this, &SDataProviderActivityFilter::CreateRoleFilterMenu),
+			FUIAction(),
+			NAME_None,
+			EUserInterfaceActionType::None
+		);
+
+		MenuBuilder.AddSubMenu(
 			LOCTEXT("FilterCriticalSources", "Critical state source"),
 			LOCTEXT("FilterCriticalSourcesTooltip", "Filters based on critical state sources"),
 			FNewMenuDelegate::CreateSP(this, &SDataProviderActivityFilter::CreateCriticalStateSourceFilterMenu),
@@ -383,16 +425,84 @@ void SDataProviderActivityFilter::CreateProviderFilterMenu(FMenuBuilder& MenuBui
 				);
 			};
 
-			const TConstArrayView<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
-			for (const FStageSessionProviderEntry& Provider : Providers)
+			for (const FStageSessionProviderEntry& Provider : SessionPtr->GetProviders())
 			{
 				CreateMenuEntry(Provider);
 			}
 			
-			const TConstArrayView<FStageSessionProviderEntry> ClearedProviders = SessionPtr->GetClearedProviders();
-			for (const FStageSessionProviderEntry& Provider : ClearedProviders)
+			for (const FStageSessionProviderEntry& Provider : SessionPtr->GetClearedProviders())
 			{
 				CreateMenuEntry(Provider);
+			}
+		}
+	}
+	MenuBuilder.EndSection();
+}
+
+void SDataProviderActivityFilter::ToggleRoleFilter(FName RoleName)
+{
+	if (CurrentFilter->FilterSettings.RestrictedRoles.Contains(RoleName))
+	{
+		CurrentFilter->FilterSettings.RestrictedRoles.RemoveSingle(RoleName);
+	}
+	else
+	{
+		CurrentFilter->FilterSettings.RestrictedRoles.AddUnique(RoleName);
+	}
+
+	OnActivityFilterChanged.ExecuteIfBound();
+}
+
+bool SDataProviderActivityFilter::IsRoleFiltered(FName RoleName) const
+{
+	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
+	return !CurrentFilter->FilterSettings.RestrictedRoles.Contains(RoleName);
+}
+
+void SDataProviderActivityFilter::CreateRoleFilterMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("AvailableRoles", LOCTEXT("AvailableRoles", "Roles"));
+	{
+		if (const TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			//Build list of roles found in active and cleared providers
+			TSet<FName> AvailableRoles;
+			for (const FStageSessionProviderEntry& Provider : SessionPtr->GetProviders())
+			{
+				TArray<FString> ProviderRoles;
+				Provider.Descriptor.RolesStringified.ParseIntoArray(ProviderRoles, TEXT(","));
+				for (const FString& Role : ProviderRoles)
+				{
+					AvailableRoles.Add(*Role);
+				}
+			}
+
+			for (const FStageSessionProviderEntry& Provider : SessionPtr->GetClearedProviders())
+			{
+				TArray<FString> ProviderRoles;
+				Provider.Descriptor.RolesStringified.ParseIntoArray(ProviderRoles, TEXT(","));
+				for (const FString& Role : ProviderRoles)
+				{
+					AvailableRoles.Add(*Role);
+				}
+			}
+
+			for (FName Role : AvailableRoles)
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					FText::FromName(Role), //Label
+					FText::GetEmpty(), //Tooltip
+					FSlateIcon(),
+					FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleRoleFilter, Role)
+						, FCanExecuteAction()
+						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsRoleFiltered, Role)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
 			}
 		}
 	}

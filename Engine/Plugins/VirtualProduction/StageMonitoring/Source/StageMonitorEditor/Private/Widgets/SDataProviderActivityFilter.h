@@ -41,6 +41,10 @@ struct FDataProviderActivityFilterSettings
 	UPROPERTY()
 	TArray<FName> RestrictedProviders;
 
+	/** Roles that are filtered using their friendly name */
+	UPROPERTY()
+	TArray<FName> RestrictedRoles;
+
 	/** Critical state sources that are filtered */
 	UPROPERTY()
 	TArray<FName> RestrictedSources;
@@ -75,6 +79,9 @@ public:
 	FDataProviderActivityFilterSettings FilterSettings;
 	TWeakPtr<IStageMonitorSession> Session;
 
+	/** Cache of stringified roles to array of roles to avoid parsing into array constantly */
+	mutable TMap<FString, TArray<FName>> CachedRoleStringToArray;
+
 private:
 	enum class EFilterResult : uint8
 	{
@@ -83,6 +90,7 @@ private:
 		FailRestrictedProviders,
 		FailRestrictedCriticalState,
 		FailMaxAge,
+		FailRestrictedRoles,
 		Pass
 	};
 	
@@ -151,6 +159,15 @@ private:
 
 	/** Creates the menu listing the different providers filter */
 	void CreateProviderFilterMenu(FMenuBuilder& MenuBuilder);
+
+	/** Toggles state of role filter */
+	void ToggleRoleFilter(FName RoleName);
+
+	/** Returns true if role is currently filtered out */
+	bool IsRoleFiltered(FName RoleName) const;
+	
+	/** Creates the menu listing the different roles filter */
+	void CreateRoleFilterMenu(FMenuBuilder& MenuBuilder);
 
 	/** Create the menu listing all critical state sources */
 	void CreateCriticalStateSourceFilterMenu(FMenuBuilder& MenuBuilder);

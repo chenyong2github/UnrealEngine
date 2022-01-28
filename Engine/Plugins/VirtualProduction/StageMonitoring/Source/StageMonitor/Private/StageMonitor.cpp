@@ -13,7 +13,6 @@
 #include "StageMonitoringSettings.h"
 #include "StageMonitorModule.h"
 #include "StageMonitorUtils.h"
-#include "VPSettings.h"
 
 
 namespace StageMonitorUtils
@@ -42,8 +41,7 @@ void FStageMonitor::Initialize()
 
 void FStageMonitor::Start()
 {
-	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
-	if (!Settings->MonitorSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->MonitorSettings.SupportedRoles))
+	if (bIsActive == false)
 	{
 		const FString MessageEndpointName = TEXT("StageDataMonitor");
 		MonitorEndpoint = FMessageEndpoint::Builder(*MessageEndpointName)
@@ -60,12 +58,6 @@ void FStageMonitor::Start()
 		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FStageMonitor::Tick), 0.0f);
 
 		bIsActive = true;
-	}
-	else
-	{
-		UE_LOG(LogStageMonitor, Log, TEXT("Can't start StageMonitor. Role filtering is enabled and our roles (%s) are filtered out (%s)")
-		, *GetDefault<UVPSettings>()->GetRoles().ToStringSimple()
-		, *Settings->MonitorSettings.SupportedRoles.ToStringSimple())
 	}
 }
 
