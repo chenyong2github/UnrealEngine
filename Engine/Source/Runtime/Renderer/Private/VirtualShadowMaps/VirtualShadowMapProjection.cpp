@@ -427,7 +427,7 @@ void RenderVirtualShadowMapProjection(
 	FProjectedShadowInfo* ShadowInfo,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, View.ViewRect.Max);
 
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
@@ -458,7 +458,7 @@ void RenderVirtualShadowMapProjection(
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, View.ViewRect.Max);
 
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
