@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using SolidWorks.Interop.sldworks;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -483,7 +484,6 @@ namespace DatasmithSolidworks
 
 		public void ExportAnimation(FAnimation InAnim)
 		{
-#if false // Animation export is not available for 4.27
 			FDatasmithFacadeLevelSequence LevelSeq = new FDatasmithFacadeLevelSequence(InAnim.Name);
 
 			LevelSeq.SetFrameRate(InAnim.FPS);
@@ -529,7 +529,6 @@ namespace DatasmithSolidworks
 			}
 
 			DatasmithScene.AddLevelSequence(LevelSeq);
-#endif
 		}
 
 		private FDatasmithFacadeTexture ExportDiffuseMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
