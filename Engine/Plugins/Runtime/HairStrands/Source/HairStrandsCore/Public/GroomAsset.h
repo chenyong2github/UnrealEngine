@@ -525,7 +525,7 @@ public:
 	void ReleaseCardsResource(uint32 GroupIndex);
 	void ReleaseMeshesResource(uint32 GroupIndex);
 
-	void SetNumGroup(uint32 InGroupCount, bool bResetGroupData=true);
+	void SetNumGroup(uint32 InGroupCount, bool bResetGroupData=true, bool bResetOtherData=true);
 	bool AreGroupsValid() const;
 	int32 GetNumHairGroups() const;
 

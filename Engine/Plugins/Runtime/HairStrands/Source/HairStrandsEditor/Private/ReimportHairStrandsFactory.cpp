@@ -349,7 +349,8 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 		const uint32 GroupCount = OutDescription.HairGroups.Num();
 		if (uint32(HairAsset->GetNumHairGroups()) != GroupCount)
 		{
-			HairAsset->SetNumGroup(GroupCount);
+			// When reimporting an asset, if the number of groups has changed, we try to preserve existing settings
+			HairAsset->SetNumGroup(GroupCount, true /*bResetGroupData*/, false /*bResetOtherData*/);
 		}
 
 		// Initialized the settings value based on the assets interpolation options 

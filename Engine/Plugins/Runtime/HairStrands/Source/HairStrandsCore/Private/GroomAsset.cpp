@@ -1648,7 +1648,7 @@ bool UGroomAsset::AreGroupsValid() const
 		HairGroupsLOD.Num() == GroupCount;
 }
 
-void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData)
+void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData, bool bResetOtherData)
 {
 	ReleaseResource();
 	if (bResetGroupData)
@@ -1664,36 +1664,79 @@ void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData)
 
 	if (InGroupCount != HairGroupsPhysics.Num())
 	{
-		HairGroupsPhysics.Init(FHairGroupsPhysics(), InGroupCount);
+		if (bResetOtherData)
+		{
+			HairGroupsPhysics.Init(FHairGroupsPhysics(), InGroupCount);
+		}
+		else
+		{
+			HairGroupsPhysics.SetNum(InGroupCount);
+		}
 	}
 
 	if (InGroupCount != HairGroupsRendering.Num())
 	{
-		HairGroupsRendering.Init(FHairGroupsRendering(), InGroupCount);
+		if (bResetOtherData)
+		{
+			HairGroupsRendering.Init(FHairGroupsRendering(), InGroupCount);
+		}
+		else
+		{
+			HairGroupsRendering.SetNum(InGroupCount);
+		}
 	}
 
 	if (InGroupCount != HairGroupsInterpolation.Num())
 	{
-		HairGroupsInterpolation.Init(FHairGroupsInterpolation(), InGroupCount);
+		if (bResetOtherData)
+		{
+			HairGroupsInterpolation.Init(FHairGroupsInterpolation(), InGroupCount);
+		}
+		else
+		{
+			HairGroupsInterpolation.SetNum(InGroupCount);
+		}
 	}
 
 	if (InGroupCount != HairGroupsLOD.Num())
 	{
-		HairGroupsLOD.Init(FHairGroupsLOD(), InGroupCount);
+		if (bResetOtherData)
+		{
+			HairGroupsLOD.Init(FHairGroupsLOD(), InGroupCount);
+		}
+		else
+		{
+			HairGroupsLOD.SetNum(InGroupCount);
+		}
 
 		// Insure that each group has at least one LOD
 		for (FHairGroupsLOD& GroupLOD : HairGroupsLOD)
 		{
-			FHairLODSettings& S = GroupLOD.LODs.AddDefaulted_GetRef();
-			S.ScreenSize = 1;
-			S.CurveDecimation = 1;
+			if (GroupLOD.LODs.IsEmpty())
+			{
+				FHairLODSettings& S = GroupLOD.LODs.AddDefaulted_GetRef();
+				S.ScreenSize = 1;
+				S.CurveDecimation = 1;
+			}
 		}
 	}
 
 	if (InGroupCount != HairGroupsInfo.Num())
 	{
-		HairGroupsInfo.Init(FHairGroupInfoWithVisibility(), InGroupCount);
+		if (bResetOtherData)
+		{
+			HairGroupsInfo.Init(FHairGroupInfoWithVisibility(), InGroupCount);
+		}
+		else
+		{
+			HairGroupsInfo.SetNum(InGroupCount);
+		}
 	}
+
+	// The following groups remain unchanged:
+	// * HairGroupsCards
+	// * HairGroupsMeshes
+	// * HairGroupsMaterials
 
 	EffectiveLODBias.SetNum(InGroupCount);
 
