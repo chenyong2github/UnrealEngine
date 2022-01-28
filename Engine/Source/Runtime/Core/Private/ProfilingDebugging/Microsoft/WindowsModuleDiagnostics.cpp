@@ -81,11 +81,8 @@ FModuleTrace* FModuleTrace::Get()
 void FModuleTrace::Initialize()
 {
 	using namespace UE::Trace;
-	
-	ProgramHeapId = MemoryTrace_HeapSpec(
-		SystemMemory, 
-		TEXT("Program"), 
-		EMemoryTraceHeapFlags::NeverFrees);
+
+	ProgramHeapId = MemoryTrace_HeapSpec(SystemMemory, TEXT("Module"), EMemoryTraceHeapFlags::None);
 
 	UE_TRACE_LOG(Diagnostics, ModuleInit, ModuleChannel, sizeof(char) * 3)
 		<< ModuleInit.SymbolFormat("pdb", 3)
@@ -202,9 +199,7 @@ void FModuleTrace::OnDllLoaded(const UNICODE_STRING& Name, UPTRINT Base)
 		<< ModuleLoad.ImageId(ImageId.GetData(), ImageId.Num());
 
 	{
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-		UE_MEMSCOPE(ELLMTag::ProgramSize);
-#endif
+		LLM(UE_MEMSCOPE(ELLMTag::ProgramSize));
 		MemoryTrace_Alloc(Base, OptionalHeader.SizeOfImage, 4 * 1024);
 		MemoryTrace_MarkAllocAsHeap(Base, ProgramHeapId);
 		MemoryTrace_Alloc(Base, OptionalHeader.SizeOfImage, 4 * 1024);
@@ -219,6 +214,8 @@ void FModuleTrace::OnDllLoaded(const UNICODE_STRING& Name, UPTRINT Base)
 ////////////////////////////////////////////////////////////////////////////////
 void FModuleTrace::OnDllUnloaded(UPTRINT Base)
 {
+	MemoryTrace_Free(Base);
+
 	UE_TRACE_LOG(Diagnostics, ModuleUnload, ModuleChannel)
 		<< ModuleUnload.Base(uint64(Base));
 

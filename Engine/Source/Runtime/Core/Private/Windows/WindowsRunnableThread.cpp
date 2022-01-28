@@ -145,6 +145,15 @@ uint32 FRunnableThreadWin::Run()
 		// Allow any allocated resources to be cleaned up
 		Runnable->Exit();
 
+#if UE_MEMORY_TRACE_ENABLED || ENABLE_LOW_LEVEL_MEM_TRACKER
+		const uint64 FakeAddress = uint64(this) ^ (1ull << 47);
+		MemoryTrace_Free(FakeAddress);
+		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, (const void*)FakeAddress));
+		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, (const void*)FakeAddress));
+#endif // UE_MEMORY_TRACE_ENABLED || ENABLE_LOW_LEVEL_MEM_TRACKER
+
+		Runnable = nullptr; // skips the Runnable->Stop() if Kill() is further called
+
 #if STATS
 		FThreadStats::Shutdown();
 #endif
