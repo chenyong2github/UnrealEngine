@@ -245,13 +245,14 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true)
+	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, bool bTangentSpaceNormal = false)
 		: FMaterial()
 		, FMaterialRenderProxy(GetPathNameSafe(InMaterialInterface->GetMaterial()))
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
 		, CustomOutputToCompile(InCustomOutputToCompile)
 		, bSynchronousCompilation(bInSynchronousCompilation)
+		, bTangentSpaceNormal(bTangentSpaceNormal)
 	{
 		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
@@ -415,7 +416,7 @@ public:
 				{
 					return CompileNormalEncoding(
 						Compiler,
-						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
+						CompileNormalTransform(&ProxyCompiler, MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate)));
 				}
 				break;
 			case MP_ShadingModel:
@@ -573,7 +574,7 @@ private:
 
 		if (CustomOutputToCompile == TEXT("ClearCoatBottomNormal"))
 		{
-			Result = CompileNormalEncoding(Compiler, Result);
+			Result = CompileNormalEncoding(Compiler, CompileNormalTransform(Compiler, Result));
 		}
 
 		if (ForceCastFlags & MFCF_ForceCast)
@@ -598,6 +599,12 @@ private:
 		return nullptr;
 	}
 
+	int32 CompileNormalTransform(FMaterialCompiler* Compiler, int32 NormalInput) const
+	{
+		return bTangentSpaceNormal && !Material->bTangentSpaceNormal
+			? Compiler->TransformVector(MCB_World, MCB_Tangent, NormalInput) : NormalInput;
+	}
+
 	static int32 CompileNormalEncoding(FMaterialCompiler* Compiler, int32 NormalInput)
 	{
 		return Compiler->Add(
@@ -616,4 +623,8 @@ private:
 	FString CustomOutputToCompile;
 	FGuid Id;
 	bool bSynchronousCompilation;
+
+public:
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };

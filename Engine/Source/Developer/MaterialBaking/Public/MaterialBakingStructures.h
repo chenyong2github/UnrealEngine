@@ -16,6 +16,7 @@ struct FMaterialData
 	FMaterialData()
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
+		, bTangentSpaceNormal(false)
 	{}
 
 	/** Material to bake out */
@@ -24,6 +25,8 @@ struct FMaterialData
 	TMap<EMaterialProperty, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };
 
 /** Structure containing extended information about the material and properties which is being baked out */
@@ -32,6 +35,7 @@ struct FMaterialDataEx
 	FMaterialDataEx()
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
+		, bTangentSpaceNormal(false)
 	{}
 
 	/** Material to bake out */
@@ -40,6 +44,8 @@ struct FMaterialDataEx
 	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };
 
 struct FMeshData
