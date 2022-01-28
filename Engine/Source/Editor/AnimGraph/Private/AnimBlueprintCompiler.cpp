@@ -1382,7 +1382,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 
 	// Cleanup sparse class data & stash a reference to patch the linker later in RecreateSparseClassData
 	OldSparseClassDataStruct = AnimBlueprintClassToClean->GetSparseClassDataStruct();
-	AnimBlueprintClassToClean->ClearSparseClassDataStruct(Blueprint->bIsRegeneratingOnLoad);
+	AnimBlueprintClassToClean->ClearSparseClassDataStruct();
 	
 	FAnimBlueprintGeneratedClassCompiledData CompiledData(AnimBlueprintClassToClean);
 	FAnimBlueprintCompilationBracketContext CompilerContext(this);

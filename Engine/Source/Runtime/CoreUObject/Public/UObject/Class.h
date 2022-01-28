@@ -2836,7 +2836,7 @@ public:
 	void SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct);
 
 	/** Clears the sparse class data struct for this and all child classes that directly reference it as a super-struct */
-	void ClearSparseClassDataStruct(bool bInRecomplingOnLoad);
+	void ClearSparseClassDataStruct();
 
 	/** Assemble reference token streams for all classes if they haven't had it assembled already */
 	static void AssembleReferenceTokenStreams();

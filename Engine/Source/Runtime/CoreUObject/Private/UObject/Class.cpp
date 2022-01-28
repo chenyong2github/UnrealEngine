@@ -5251,6 +5251,10 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 					SubClass->CleanupSparseClassData();
 					SubClassSparseClassDataStruct->SetSuperStruct(InSparseClassDataStruct);
 				}
+				else if (SubClassSparseClassDataStruct == SparseClassDataStruct)
+				{
+					SubClass->SetSparseClassDataStruct(InSparseClassDataStruct);
+				}
 			}
 		}
 		// the old type and new type may not match when we do a reload so get rid of the old data
@@ -5260,7 +5264,7 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 	}
 }
 
-void UClass::ClearSparseClassDataStruct(bool bInRecomplingOnLoad)
+void UClass::ClearSparseClassDataStruct()
 { 
 	if (SparseClassDataStruct != nullptr)
 	{
@@ -5277,22 +5281,17 @@ void UClass::ClearSparseClassDataStruct(bool bInRecomplingOnLoad)
 			}
 		}
 
-		auto ClearSparseClassDataStructInner = [bInRecomplingOnLoad](UClass* InClassToClear)
-		{
-			UScriptStruct* CurrentSparseClassDataStruct = InClassToClear->GetSparseClassDataStruct();
-			InClassToClear->CleanupSparseClassData();
-			InClassToClear->SparseClassDataStruct = nullptr;
-			CurrentSparseClassDataStruct->SetSuperStruct(nullptr);
-			const ERenameFlags RenameFlags = REN_DontCreateRedirectors | ((bInRecomplingOnLoad) ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
-			CurrentSparseClassDataStruct->Rename(nullptr, GetTransientPackage(), RenameFlags);
-		};
-
 		for(UClass* SubClassToClear : SubClassesToClear)
 		{
-			ClearSparseClassDataStructInner(SubClassToClear);
+			UScriptStruct* SubClassSparseClassDataStruct = SubClassToClear->GetSparseClassDataStruct();
+			SubClassToClear->CleanupSparseClassData();
+			SubClassToClear->SparseClassDataStruct = nullptr;
+			SubClassSparseClassDataStruct->SetSuperStruct(nullptr);	
 		}
 
-		ClearSparseClassDataStructInner(this);
+		CleanupSparseClassData();
+
+		SparseClassDataStruct = nullptr;
 	}
 }
 
