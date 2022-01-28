@@ -19,6 +19,7 @@ namespace Horde.Storage.Implementation
 {
     public interface IBlobCleanup
     {
+        bool ShouldRun();
         Task<List<BlobIdentifier>> Cleanup(CancellationToken none);
     }
 
@@ -64,6 +65,16 @@ namespace Horde.Storage.Implementation
                 GcRoots = gcRoots;
             }
 
+        }
+
+        public bool ShouldRun()
+        {
+            if (!_leaderElection.IsThisInstanceLeader())
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)

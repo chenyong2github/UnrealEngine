@@ -39,6 +39,16 @@ namespace Horde.Storage.Implementation
             _namespacePolicyResolver = namespacePolicyResolver;
         }
 
+        public bool ShouldRun()
+        {
+            if (!_leaderElection.IsThisInstanceLeader())
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
         {
             if (!_leaderElection.IsThisInstanceLeader())

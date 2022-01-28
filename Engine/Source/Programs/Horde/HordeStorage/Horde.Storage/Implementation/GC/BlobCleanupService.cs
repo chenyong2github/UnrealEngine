@@ -83,6 +83,9 @@ namespace Horde.Storage.Implementation
             
             foreach (IBlobCleanup blobCleanup in state.BlobCleanups)
             {
+                if (!blobCleanup.ShouldRun())
+                    continue;
+
                 string type = blobCleanup.GetType().ToString();
                 _logger.Information("Blob cleanup running for {BlobCleanup}", type);
                 using IScope scope = Tracer.Instance.StartActive("gc.blob");
