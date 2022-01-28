@@ -456,12 +456,19 @@ struct ENGINE_API FLevelStreamingGCHelper
 	 * @return	The number of levels pending a purge by the garbage collector
 	 */
 	static int32 GetNumLevelsPendingPurge();
+
+	/**
+	 * Allows FLevelStreamingGCHelper to be used in a commandlet.
+	 */
+	static void EnableForCommandlet();
 	
 private:
 	/** Static array of levels that should be unloaded */
 	static TArray<TWeakObjectPtr<ULevel> > LevelsPendingUnload;
 	/** Static array of level packages that have been marked by PrepareStreamedOutLevelsForGC */
 	static TArray<FName> LevelPackageNames;
+	/** Static bool allows FLevelStreamingGCHelper to be used in a commandlet */
+	static bool bEnabledForCommandlet;
 };
 
 /** Saved editor viewport state information */

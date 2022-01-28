@@ -3175,6 +3175,7 @@ FGameTime FGameTime::GetTimeSinceAppStart()
 FLevelStreamingGCHelper::FOnGCStreamedOutLevelsEvent FLevelStreamingGCHelper::OnGCStreamedOutLevels;
 TArray<TWeakObjectPtr<ULevel> > FLevelStreamingGCHelper::LevelsPendingUnload;
 TArray<FName> FLevelStreamingGCHelper::LevelPackageNames;
+bool FLevelStreamingGCHelper::bEnabledForCommandlet = false;
 
 void FLevelStreamingGCHelper::AddGarbageCollectorCallback()
 {
@@ -3188,9 +3189,15 @@ void FLevelStreamingGCHelper::AddGarbageCollectorCallback()
 	}
 }
 
+void FLevelStreamingGCHelper::EnableForCommandlet()
+{
+	check(IsRunningCommandlet());
+	bEnabledForCommandlet = true;
+}
+
 void FLevelStreamingGCHelper::RequestUnload( ULevel* InLevel )
 {
-	if (!IsRunningCommandlet())
+	if (!IsRunningCommandlet() || bEnabledForCommandlet)
 	{
 		check( InLevel );
 		check( InLevel->bIsVisible == false );
@@ -3216,7 +3223,7 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 	{
 		ULevel*	Level = LevelsPendingUnload[LevelIndex].Get();
 
-		if( Level && (!GIsEditor || Level->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) ))
+		if( Level && ((!GIsEditor || bEnabledForCommandlet) || Level->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor)))
 		{
 			UPackage* LevelPackage = Level->GetOutermost();
 			UE_LOG(LogStreaming, Log, TEXT("PrepareStreamedOutLevelsForGC called on '%s'"), *LevelPackage->GetName() );
