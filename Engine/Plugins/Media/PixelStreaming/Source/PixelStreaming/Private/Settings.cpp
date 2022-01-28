@@ -109,26 +109,6 @@ namespace UE::PixelStreaming::Settings
 		ECVF_Default);
 	// End Encoder CVars
 
-	// Begin Capturer CVars
-	TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize(
-		TEXT("PixelStreaming.Capturer.UseBackBufferSize"),
-		true,
-		TEXT("Whether to use back buffer size or custom size"),
-		ECVF_Default);
-
-	TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize(
-		TEXT("PixelStreaming.Capturer.CaptureSize"),
-		TEXT("1920x1080"),
-		TEXT("Capture size in format widthxheight. Recommended to UseBackBufferSize instead."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers(
-		TEXT("PixelStreaming.Capturer.MaxNumBackBuffers"),
-		3,
-		TEXT("Maximum number of back buffers to use. A value of 0 will not limit the number of back buffers."),
-		ECVF_Default);
-	// End Capturer CVars
-
 	// Begin WebRTC CVars
 	TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
 		TEXT("PixelStreaming.WebRTC.DegradationPreference"),
@@ -195,12 +175,6 @@ namespace UE::PixelStreaming::Settings
 		TEXT("PixelStreaming.WebRTC.UseLegacyAudioDevice"),
 		false,
 		TEXT("Whether put audio and video in the same stream (which will make WebRTC try to sync them)."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange(
-		TEXT("PixelStreaming.WebRTC.DisableResolutionChange"),
-		true,
-		TEXT("Disables whether WebRTC can trigger a resolution a change of the stream (regardless of it wants to)."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableStats(
@@ -438,8 +412,6 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderRateControl);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMultipass);
 		CommandLineParseValue(TEXT("PixelStreamingH264Profile="), UE::PixelStreaming::Settings::CVarPixelStreamingH264Profile);
-		CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), UE::PixelStreaming::Settings::CVarPixelStreamingCaptureSize);
-		CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), UE::PixelStreaming::Settings::CVarPixelStreamingMaxNumBackBuffers);
 		CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), UE::PixelStreaming::Settings::CVarPixelStreamingDegradationPreference);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCDegradationPreference="), UE::PixelStreaming::Settings::CVarPixelStreamingDegradationPreference);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCFps="), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps);
@@ -458,12 +430,10 @@ namespace UE::PixelStreaming::Settings
 
 		CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), UE::PixelStreaming::Settings::CVarPixelStreamingDebugDumpFrame);
 		CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), UE::PixelStreaming::Settings::CVarPixelStreamingEnableFillerData);
-		CommandLineParseOption(TEXT("PixelStreamingUseBackBufferSize"), UE::PixelStreaming::Settings::CVarPixelStreamingUseBackBufferCaptureSize);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableStats"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableStats);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableReceiveAudio"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableReceiveAudio);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableTransmitAudio"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableTransmitAudio);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableAudioSync);
-		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableResolutionChange"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableResolutionChange);
 		CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), UE::PixelStreaming::Settings::CVarSendPlayerIdAsInteger);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
 		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), UE::PixelStreaming::Settings::CVarPixelStreamingDisableLatencyTester);

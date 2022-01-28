@@ -99,7 +99,6 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	if (!EncoderInput.IsValid())
 	{
 		EncoderInput = CreateVideoEncoderInput(InWidth, InHeight);
-		EncoderInput->SetMaxNumBuffers((uint32)UE::PixelStreaming::Settings::CVarPixelStreamingMaxNumBackBuffers.GetValueOnAnyThread());
 	}
 
 	return EncoderInput;

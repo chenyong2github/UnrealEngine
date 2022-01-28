@@ -30,12 +30,6 @@ namespace UE {
 			extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval;
 			// End Encoder CVars
 
-			// Begin Capturer CVars
-			extern TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize;
-			extern TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize;
-			extern TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers;
-			// End Capturer CVars
-
 			// Begin WebRTC CVars
 			extern TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference;
 			extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCFps;
@@ -48,7 +42,6 @@ namespace UE {
 			extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableTransmitAudio;
 			extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync;
 			extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
-			extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange;
 			extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableStats;
 			// End WebRTC CVars
 
