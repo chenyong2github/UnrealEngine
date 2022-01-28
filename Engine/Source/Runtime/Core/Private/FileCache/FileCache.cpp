@@ -349,7 +349,8 @@ FFileCache::FFileCache(int32 NumSlots)
 		UE_LOG(LogStreamingFileCache, Warning, TEXT("	Check your IoStore compression block size (Project Settings -> 'Package Compression Commandline Options'"));
 		UE_LOG(LogStreamingFileCache, Warning, TEXT("	and your File Cache block size (fc.BlockSize cvar). They should match!"));
 	}
-	else if (IoStoreCompressionBlockSize != CacheSlotID::GetSize())
+	else if (IoStoreCompressionBlockSize && // If we load without any iostore containers (i.e. editor) we don't need to warn.
+		IoStoreCompressionBlockSize != CacheSlotID::GetSize())
 	{
 		UE_LOG(LogStreamingFileCache, Warning, TEXT("IoStore containers have a different block sizes than FileCache (%d vs %d)!"), IoStoreCompressionBlockSize, CacheSlotID::GetSize());
 		UE_LOG(LogStreamingFileCache, Warning, TEXT("	Check your IoStore compression block size (Project Settings -> 'Package Compression Commandline Options'"));

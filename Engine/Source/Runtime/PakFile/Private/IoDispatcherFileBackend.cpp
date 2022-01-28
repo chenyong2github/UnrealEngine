@@ -899,7 +899,11 @@ TIoStatusOr<FIoContainerHeader> FFileIoStoreReader::ReadContainerHeader() const
 	const uint64 RawOffset = CompressionBlockEntry->GetOffset() % ContainerFile.PartitionSize;
 
 #if !UE_BUILD_SHIPPING
-	FileCache_PostIoStoreCompressionBlockSize(CompressionBlockSize, Partition.FilePath);
+	// Check for flag - compressed containers still have CompressionBlockSize != 0 and CompressionMethod "None".
+	if (EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Compressed)) 
+	{
+		FileCache_PostIoStoreCompressionBlockSize(CompressionBlockSize, Partition.FilePath);
+	}
 #endif
 
 	FIoBuffer IoBuffer(Align(Size, FAES::AESBlockSize));
