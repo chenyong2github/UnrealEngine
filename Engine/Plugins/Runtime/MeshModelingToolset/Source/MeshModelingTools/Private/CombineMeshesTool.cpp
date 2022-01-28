@@ -122,7 +122,7 @@ void UCombineMeshesTool::Setup()
 }
 
 
-void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UCombineMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 	OutputTypeProperties->SaveProperties(this, TEXT("OutputTypeFromInputTool"));

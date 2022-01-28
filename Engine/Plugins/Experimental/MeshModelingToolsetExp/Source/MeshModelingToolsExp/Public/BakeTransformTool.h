@@ -79,7 +79,7 @@ public:
 	UBakeTransformTool();
 
 	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }

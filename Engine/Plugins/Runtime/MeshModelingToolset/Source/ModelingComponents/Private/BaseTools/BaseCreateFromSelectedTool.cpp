@@ -284,7 +284,7 @@ void UBaseCreateFromSelectedTool::OnPropertyModified(UObject* PropertySet, FProp
 }
 
 
-void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
+void UBaseCreateFromSelectedTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	SaveProperties();
 	HandleSourcesProperties->SaveProperties(this);

@@ -159,7 +159,7 @@ void URemeshMeshTool::Setup()
 		EToolMessageLevel::UserNotification);
 }
 
-void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void URemeshMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 

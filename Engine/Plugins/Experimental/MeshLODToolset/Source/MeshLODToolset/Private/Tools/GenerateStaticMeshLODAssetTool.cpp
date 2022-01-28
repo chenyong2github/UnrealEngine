@@ -456,7 +456,7 @@ void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 
 
 
-void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
+void UGenerateStaticMeshLODAssetTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (OutputProperties)
 	{

@@ -34,7 +34,7 @@ class MESHMODELINGTOOLSEXP_API UPhysicsInspectorTool : public UMultiSelectionMes
 	GENERATED_BODY()
 public:
 	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
 

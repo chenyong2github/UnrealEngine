@@ -852,7 +852,7 @@ void UDisplaceMeshTool::Setup()
 		EToolMessageLevel::UserNotification);
 }
 
-void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void UDisplaceMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	// unhook any active listener for contrast curve
 	DisconnectActiveContrastCurveTarget();

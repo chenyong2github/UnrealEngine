@@ -197,7 +197,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 }
 
 
-void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
+void UUVProjectionTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	UVChannelProperties->SaveProperties(this);
 	BasicProperties->SavedDimensions = BasicProperties->Dimensions;

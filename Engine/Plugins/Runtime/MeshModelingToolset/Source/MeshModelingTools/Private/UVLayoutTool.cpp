@@ -154,7 +154,7 @@ void UUVLayoutTool::UpdateNumPreviews()
 }
 
 
-void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
+void UUVLayoutTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (UVLayoutView)
 	{

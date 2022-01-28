@@ -134,7 +134,7 @@ void ULODManagerTool::Setup()
 
 
 
-void ULODManagerTool::Shutdown(EToolShutdownType ShutdownType)
+void ULODManagerTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (LODPreview)
 	{

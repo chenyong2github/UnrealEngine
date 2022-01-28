@@ -67,7 +67,7 @@ bool UConvertMeshesTool::CanAccept() const
 	return Super::CanAccept();
 }
 
-void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UConvertMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	OutputTypeProperties->SaveProperties(this, TEXT("ConvertMeshesTool"));
 	BasicProperties->SaveProperties(this);

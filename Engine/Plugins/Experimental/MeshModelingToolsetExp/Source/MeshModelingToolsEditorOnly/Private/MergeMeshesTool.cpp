@@ -109,7 +109,7 @@ void UMergeMeshesTool::Setup()
 }
 
 
-void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UMergeMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	MergeProps->SaveProperties(this);
 	HandleSourcesProperties->SaveProperties(this);

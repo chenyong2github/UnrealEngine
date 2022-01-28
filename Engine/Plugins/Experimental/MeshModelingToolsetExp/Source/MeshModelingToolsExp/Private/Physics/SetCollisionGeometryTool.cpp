@@ -150,7 +150,7 @@ void USetCollisionGeometryTool::Setup()
 }
 
 
-void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
+void USetCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	VizSettings->SaveProperties(this);
 	Settings->SaveProperties(this);

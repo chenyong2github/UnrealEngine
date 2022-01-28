@@ -91,7 +91,7 @@ void UMeshToVolumeTool::Setup()
 		EToolMessageLevel::UserNotification);
 }
 
-void UMeshToVolumeTool::Shutdown(EToolShutdownType ShutdownType)
+void UMeshToVolumeTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 	HandleSourcesProperties->SaveProperties(this);

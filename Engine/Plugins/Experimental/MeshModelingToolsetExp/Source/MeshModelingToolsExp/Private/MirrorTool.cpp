@@ -327,7 +327,7 @@ void UMirrorTool::CheckAndDisplayWarnings()
 	}
 }
 
-void UMirrorTool::Shutdown(EToolShutdownType ShutdownType)
+void UMirrorTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 

@@ -89,7 +89,7 @@ public:
 	~USkinWeightsBindingTool();
 	
 	void Setup() override;
-	void Shutdown(EToolShutdownType ShutdownType) override;
+	void OnShutdown(EToolShutdownType ShutdownType) override;
 	
 	void OnTick(float DeltaTime) override;
 	void Render(IToolsContextRenderAPI* RenderAPI) override;

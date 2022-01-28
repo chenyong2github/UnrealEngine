@@ -111,7 +111,7 @@ void UMeshTangentsTool::Setup()
 
 
 
-void UMeshTangentsTool::Shutdown(EToolShutdownType ShutdownType)
+void UMeshTangentsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	PreviewGeometry->Disconnect();
 	PreviewMesh->Disconnect();

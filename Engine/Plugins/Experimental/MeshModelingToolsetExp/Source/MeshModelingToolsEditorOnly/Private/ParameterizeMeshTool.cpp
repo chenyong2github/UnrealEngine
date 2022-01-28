@@ -149,7 +149,7 @@ void UParameterizeMeshTool::OnMethodTypeChanged()
 }
 
 
-void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void UParameterizeMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (UVLayoutView)
 	{

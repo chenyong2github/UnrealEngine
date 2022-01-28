@@ -120,7 +120,7 @@ void UEditPivotTool::Setup()
 
 
 
-void UEditPivotTool::Shutdown(EToolShutdownType ShutdownType)
+void UEditPivotTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	DragAlignmentMechanic->Shutdown();
 

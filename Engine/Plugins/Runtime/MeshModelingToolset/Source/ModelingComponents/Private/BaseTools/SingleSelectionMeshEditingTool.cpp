@@ -54,6 +54,18 @@ void USingleSelectionMeshEditingToolBuilder::InitializeNewTool(USingleSelectionM
 	}
 }
 
+
+void USingleSelectionMeshEditingTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	OnShutdown(ShutdownType);
+	TargetWorld = nullptr;
+}
+
+void USingleSelectionMeshEditingTool::OnShutdown(EToolShutdownType ShutdownType)
+{
+}
+
+
 void USingleSelectionMeshEditingTool::SetWorld(UWorld* World)
 {
 	TargetWorld = World;

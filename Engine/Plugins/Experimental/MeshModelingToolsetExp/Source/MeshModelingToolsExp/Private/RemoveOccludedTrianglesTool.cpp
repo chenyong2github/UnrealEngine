@@ -290,7 +290,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 
 
-void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
+void URemoveOccludedTrianglesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (ShutdownType == EToolShutdownType::Accept && AreAllTargetsValid() == false)
 	{

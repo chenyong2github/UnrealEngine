@@ -272,7 +272,7 @@ class MESHMODELINGTOOLSEXP_API UDisplaceMeshTool : public USingleSelectionMeshEd
 	GENERATED_BODY()
 public:
 	void Setup() final;
-	void Shutdown(EToolShutdownType ShutdownType) final;
+	void OnShutdown(EToolShutdownType ShutdownType) final;
 	void OnTick(float DeltaTime) final;
 
 	bool HasCancel() const final { return true; }

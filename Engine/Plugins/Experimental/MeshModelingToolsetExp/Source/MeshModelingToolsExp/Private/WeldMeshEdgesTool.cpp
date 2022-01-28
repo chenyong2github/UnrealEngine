@@ -170,7 +170,7 @@ void UWeldMeshEdgesTool::Setup()
 }
 
 
-void UWeldMeshEdgesTool::Shutdown(EToolShutdownType ShutdownType)
+void UWeldMeshEdgesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 	UE::ToolTarget::ShowSourceObject(Target);

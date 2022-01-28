@@ -336,7 +336,7 @@ void ULatticeDeformerTool::SoftDeformLattice()
 }
 
 
-void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
+void ULatticeDeformerTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 	ControlPointsMechanic->Shutdown();

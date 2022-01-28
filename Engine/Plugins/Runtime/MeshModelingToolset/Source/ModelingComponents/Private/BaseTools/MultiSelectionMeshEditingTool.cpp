@@ -49,6 +49,17 @@ void UMultiSelectionMeshEditingToolBuilder::InitializeNewTool(UMultiSelectionMes
  * Tool
  */
 
+void UMultiSelectionMeshEditingTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	OnShutdown(ShutdownType);
+	TargetWorld = nullptr;
+}
+
+void UMultiSelectionMeshEditingTool::OnShutdown(EToolShutdownType ShutdownType)
+{
+}
+
+
 void UMultiSelectionMeshEditingTool::SetWorld(UWorld* World)
 {
 	TargetWorld = World;

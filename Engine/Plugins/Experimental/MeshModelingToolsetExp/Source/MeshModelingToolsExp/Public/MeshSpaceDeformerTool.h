@@ -205,7 +205,7 @@ public:
 	UMeshSpaceDeformerTool();
 
 	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	void RequestAction(EMeshSpaceDeformerToolAction ActionType);
 

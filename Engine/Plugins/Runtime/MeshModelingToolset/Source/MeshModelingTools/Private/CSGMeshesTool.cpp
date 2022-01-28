@@ -376,9 +376,9 @@ FText UCSGMeshesTool::GetActionName() const
 
 
 
-void UCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UCSGMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
-	Super::Shutdown(ShutdownType);
+	Super::OnShutdown(ShutdownType);
 
 	for (UPreviewMesh* MeshPreview : OriginalMeshPreviews)
 	{

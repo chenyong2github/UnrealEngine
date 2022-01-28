@@ -148,7 +148,7 @@ void UAddPivotActorTool::Setup()
 	DragAlignmentMechanic->AddToGizmo(TransformGizmo);
 }
 
-void UAddPivotActorTool::Shutdown(EToolShutdownType ShutdownType)
+void UAddPivotActorTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	using namespace AddPivotActorToolLocals;
 

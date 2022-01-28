@@ -313,7 +313,7 @@ void UMeshSpaceDeformerTool::Setup()
 		EToolMessageLevel::UserNotification);
 }
 
-void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
+void UMeshSpaceDeformerTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 

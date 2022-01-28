@@ -99,7 +99,7 @@ void UTransformMeshesTool::Setup()
 
 
 
-void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UTransformMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	TransformProps->SaveProperties(this);
 

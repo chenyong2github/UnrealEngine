@@ -326,7 +326,7 @@ FText UCutMeshWithMeshTool::GetActionName() const
 }
 
 
-void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void UCutMeshWithMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	SaveProperties();
 	HandleSourcesProperties->SaveProperties(this);

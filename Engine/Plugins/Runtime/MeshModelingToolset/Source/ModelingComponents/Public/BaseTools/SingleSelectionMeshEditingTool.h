@@ -47,8 +47,10 @@ UCLASS()
 class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
-
 public:
+	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType);
+
 	virtual void SetWorld(UWorld* World);
 	virtual UWorld* GetTargetWorld();
 

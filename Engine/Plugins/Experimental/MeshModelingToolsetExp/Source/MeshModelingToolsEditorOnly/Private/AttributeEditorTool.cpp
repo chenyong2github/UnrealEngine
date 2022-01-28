@@ -358,7 +358,7 @@ void UAttributeEditorTool::InitializeAttributeLists()
 
 
 
-void UAttributeEditorTool::Shutdown(EToolShutdownType ShutdownType)
+void UAttributeEditorTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 }
 

@@ -116,7 +116,7 @@ public:
 	UConvertToPolygonsTool();
 
 	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
 

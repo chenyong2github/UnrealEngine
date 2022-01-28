@@ -94,7 +94,7 @@ void UBakeTransformTool::Setup()
 
 
 
-void UBakeTransformTool::Shutdown(EToolShutdownType ShutdownType)
+void UBakeTransformTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (ShutdownType == EToolShutdownType::Accept)
 	{

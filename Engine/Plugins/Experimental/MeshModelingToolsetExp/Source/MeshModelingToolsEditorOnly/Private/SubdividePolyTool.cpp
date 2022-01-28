@@ -377,7 +377,7 @@ void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
 }
 
 
-void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
+void USubdividePolyTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (Properties)
 	{

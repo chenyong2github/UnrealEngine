@@ -228,7 +228,7 @@ public:
 	bool HasCancel() const override { return true; }
 	bool HasAccept() const override { return true; }
 	bool CanAccept() const override;
-	void Shutdown(EToolShutdownType ShutdownType) override;
+	void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	void OnSelectionModified();
 

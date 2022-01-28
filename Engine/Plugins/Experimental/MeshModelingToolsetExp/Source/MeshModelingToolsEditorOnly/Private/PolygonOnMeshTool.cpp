@@ -228,7 +228,7 @@ void UPolygonOnMeshTool::SetupPreview()
 }
 
 
-void UPolygonOnMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void UPolygonOnMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	PlaneMechanic->Shutdown();
 	if (DrawPolygonMechanic != nullptr)

@@ -53,7 +53,7 @@ void UMeshBoundaryToolBase::Setup()
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UMeshBoundaryToolBase::OnSelectionChanged);
 }
 
-void UMeshBoundaryToolBase::Shutdown(EToolShutdownType ShutdownType)
+void UMeshBoundaryToolBase::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (SelectionMechanic)
 	{

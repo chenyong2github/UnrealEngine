@@ -265,9 +265,9 @@ void URevolveBoundaryTool::StartPreview()
 	Preview->InvalidateResult();
 }
 
-void URevolveBoundaryTool::Shutdown(EToolShutdownType ShutdownType)
+void URevolveBoundaryTool::OnShutdown(EToolShutdownType ShutdownType)
 {
-	UMeshBoundaryToolBase::Shutdown(ShutdownType);
+	UMeshBoundaryToolBase::OnShutdown(ShutdownType);
 
 	OutputTypeProperties->SaveProperties(this);
 

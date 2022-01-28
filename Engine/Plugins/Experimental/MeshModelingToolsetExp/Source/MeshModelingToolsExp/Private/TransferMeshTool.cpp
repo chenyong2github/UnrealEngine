@@ -110,7 +110,7 @@ bool UTransferMeshTool::CanAccept() const
 	return Super::CanAccept();
 }
 
-void UTransferMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void UTransferMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 

@@ -159,7 +159,7 @@ bool USimplifyMeshTool::CanAccept() const
 }
 
 
-void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
+void USimplifyMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	SimplifyProperties->SaveProperties(this);
 	

@@ -87,7 +87,7 @@ void UBakeMeshAttributeMapsToolBase::PostSetup()
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
-void UBakeMeshAttributeMapsToolBase::Shutdown(EToolShutdownType ShutdownType)
+void UBakeMeshAttributeMapsToolBase::OnShutdown(EToolShutdownType ShutdownType)
 {
 	VisualizationProps->SaveProperties(this);
 

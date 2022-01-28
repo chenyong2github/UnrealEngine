@@ -459,11 +459,11 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 }
 
 
-void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
+void UBakeMeshAttributeMapsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeMapsTool::Shutdown);
 	
-	Super::Shutdown(ShutdownType);
+	Super::OnShutdown(ShutdownType);
 	
 	Settings->SaveProperties(this);
 	InputMeshSettings->SaveProperties(this);

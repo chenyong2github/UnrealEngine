@@ -108,7 +108,7 @@ void UMeshInspectorTool::Setup()
 }
 
 
-void UMeshInspectorTool::Shutdown(EToolShutdownType ShutdownType)
+void UMeshInspectorTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	UE::ToolTarget::ShowSourceObject(Target);
 

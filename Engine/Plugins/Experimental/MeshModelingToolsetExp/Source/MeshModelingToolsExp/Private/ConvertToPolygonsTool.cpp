@@ -259,7 +259,7 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 
 
 
-void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
+void UConvertToPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 	UE::ToolTarget::ShowSourceObject(Target);

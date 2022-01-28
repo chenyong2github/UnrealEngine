@@ -242,7 +242,7 @@ void UPlaneCutTool::DoCut()
 
 
 
-void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
+void UPlaneCutTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	PlaneMechanic->Shutdown();
 	BasicProperties->SaveProperties(this);

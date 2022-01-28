@@ -138,7 +138,7 @@ void UGenerateLODMeshesTool::Setup()
 }
 
 
-void UGenerateLODMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UGenerateLODMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	SimplifyProperties->SaveProperties(this);
 	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);

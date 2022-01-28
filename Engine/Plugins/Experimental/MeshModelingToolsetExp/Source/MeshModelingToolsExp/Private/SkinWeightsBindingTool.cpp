@@ -864,7 +864,7 @@ void USkinWeightsBindingTool::Setup()
 }
 
 
-void USkinWeightsBindingTool::Shutdown(EToolShutdownType ShutdownType)
+void USkinWeightsBindingTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Properties->SaveProperties(this);
 

@@ -141,7 +141,7 @@ void UEditNormalsTool::UpdateNumPreviews()
 }
 
 
-void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
+void UEditNormalsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 	AdvancedProperties->SaveProperties(this);

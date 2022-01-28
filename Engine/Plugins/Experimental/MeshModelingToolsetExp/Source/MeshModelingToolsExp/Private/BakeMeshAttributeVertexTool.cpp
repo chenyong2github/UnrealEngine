@@ -360,7 +360,7 @@ void UBakeMeshAttributeVertexTool::Setup()
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
-void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
+void UBakeMeshAttributeVertexTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeVertexTool::Shutdown);
 	

@@ -80,7 +80,7 @@ bool USplitMeshesTool::CanAccept() const
 	return Super::CanAccept();
 }
 
-void USplitMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void USplitMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	OutputTypeProperties->SaveProperties(this, TEXT("OutputTypeFromInputTool"));
 	BasicProperties->SaveProperties(this);

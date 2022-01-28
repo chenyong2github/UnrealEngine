@@ -447,7 +447,7 @@ bool UEditMeshPolygonsTool::IsToolInputSelectionUsable(const UPersistentMeshSele
 		&& !InputSelectionIn->IsEmpty();
 }
 
-void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
+void UEditMeshPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	using namespace EditMeshPolygonsToolLocals;
 

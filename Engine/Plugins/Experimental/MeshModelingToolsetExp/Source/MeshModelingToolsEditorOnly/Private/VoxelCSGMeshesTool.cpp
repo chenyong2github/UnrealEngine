@@ -94,7 +94,7 @@ void UVoxelCSGMeshesTool::Setup()
 }
 
 
-void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+void UVoxelCSGMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	CSGProps->SaveProperties(this);
 	HandleSourcesProperties->SaveProperties(this);

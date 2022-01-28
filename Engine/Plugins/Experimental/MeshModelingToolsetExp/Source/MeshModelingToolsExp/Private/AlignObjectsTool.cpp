@@ -73,7 +73,7 @@ void UAlignObjectsTool::Setup()
 
 
 
-void UAlignObjectsTool::Shutdown(EToolShutdownType ShutdownType)
+void UAlignObjectsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	AlignProps->SaveProperties(this);
 

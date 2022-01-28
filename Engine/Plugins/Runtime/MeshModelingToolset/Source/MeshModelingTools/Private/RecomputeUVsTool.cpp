@@ -134,7 +134,7 @@ void URecomputeUVsTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 }
 
 
-void URecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
+void URecomputeUVsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	if (UVLayoutView)
 	{

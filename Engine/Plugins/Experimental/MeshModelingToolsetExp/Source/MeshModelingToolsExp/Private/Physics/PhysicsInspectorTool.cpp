@@ -82,7 +82,7 @@ void UPhysicsInspectorTool::Setup()
 }
 
 
-void UPhysicsInspectorTool::Shutdown(EToolShutdownType ShutdownType)
+void UPhysicsInspectorTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	VizSettings->SaveProperties(this);
 

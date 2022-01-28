@@ -113,7 +113,7 @@ public:
 
 protected:
 
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 

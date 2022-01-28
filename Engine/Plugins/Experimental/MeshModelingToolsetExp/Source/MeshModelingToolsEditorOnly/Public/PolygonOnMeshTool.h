@@ -152,7 +152,7 @@ public:
 	UPolygonOnMeshTool();
 
 	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
 

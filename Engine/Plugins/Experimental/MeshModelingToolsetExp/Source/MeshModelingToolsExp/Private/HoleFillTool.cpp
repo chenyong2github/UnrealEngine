@@ -252,7 +252,7 @@ bool UHoleFillTool::CanAccept() const
 	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
-void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
+void UHoleFillTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	Properties->SaveProperties(this);
 	SmoothHoleFillProperties->SaveProperties(this);
