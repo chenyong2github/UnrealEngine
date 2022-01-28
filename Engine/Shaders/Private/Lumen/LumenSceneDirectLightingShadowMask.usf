@@ -207,6 +207,41 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 float MaxTraceDistance;
 float SDFSurfaceBiasScale;
 
+float ShadowTraceHeightfield(
+	float3 WorldRayStart,
+	float3 WorldRayDirection,
+	float MaxTraceDistance)
+{
+	float ConeAngle = 0.0f;
+	float MinSampleRadius = 0.0f;
+	FConeTraceInput ConeTraceInput;
+	ConeTraceInput.Setup(
+		WorldRayStart,
+		WorldRayDirection,
+		ConeAngle,
+		MinSampleRadius,
+		/*MinTraceDistance*/ 0.0f,
+		MaxTraceDistance,
+		/*StepFactor*/ 1.0f
+	);
+
+	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
+	{
+		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldObjectIndex);
+		if (LumenHeightfield.bValid)
+		{
+			FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
+
+			if (SimpleResult.bIsHit)
+			{
+				return 0.0f;
+			}
+		}
+	}
+
+	return 1.0f;
+}
+
 float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
 {
 	float ShadowFactor = 1.0f;
@@ -218,31 +253,47 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 		TraceDistance = min(length(ToLight), MaxTraceDistance);
 	#endif
 
-	#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
+	#if (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL) && (OFFSCREEN_SHADOWING_TRACE_MESH_SDF || OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS)
 	{
 		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
 
-		uint NumIntersectingObjects = GetCulledNumObjects();
-		uint CulledDataParameter = 0;
-		GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
+		#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF
+		{
+			uint NumIntersectingObjects = GetCulledNumObjects();
+			uint CulledDataParameter = 0;
+			GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
 
-		float SubsurfaceDensity = 0;
-		bool bUseSubsurfaceTransmission = false;
+			float SubsurfaceDensity = 0;
+			bool bUseSubsurfaceTransmission = false;
 
-		ShadowFactor = ShadowRayTraceThroughCulledObjects(
-			WorldPositionForShadowing,
-			WorldPositionForShadowing + L * TraceDistance,
-			TraceDistance,
-			0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
-			0,
-			100,
-			SubsurfaceDensity,
-			CulledDataParameter,
-			NumIntersectingObjects,
-			true,
-			true,
-			bUseSubsurfaceTransmission,
-			/*bExpandSurface*/ true);
+			ShadowFactor = ShadowRayTraceThroughCulledObjects(
+				WorldPositionForShadowing,
+				WorldPositionForShadowing + L * TraceDistance,
+				TraceDistance,
+				0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
+				0,
+				100,
+				SubsurfaceDensity,
+				CulledDataParameter,
+				NumIntersectingObjects,
+				true,
+				true,
+				bUseSubsurfaceTransmission,
+				/*bExpandSurface*/ true);
+		}
+		#endif
+
+		#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS
+		{
+			// #lumen_todo: figure out why it's needed and remove
+			WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
+
+			ShadowFactor *= ShadowTraceHeightfield(
+				WorldPositionForShadowing,
+				L,
+				TraceDistance);
+		}
+		#endif
 	}
 	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 	{
@@ -255,15 +306,6 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 		ShadowFactor = GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
 	}
 	#endif
-
-#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
-	float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
-
-	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
-	FGlobalSDFTraceResult HeightfieldResult = ShadowTraceHeightfield(TraceInput);
-
-	ShadowFactor *= GlobalSDFTraceResultIsHit(HeightfieldResult) ? 0.0f : 1.0f;
-#endif
 
 	return ShadowFactor;
 }

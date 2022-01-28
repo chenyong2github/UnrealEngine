@@ -942,55 +942,6 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 	return TraceMeshHeightfieldResult;
 }
 
-FGlobalSDFTraceResult ShadowTraceHeightfield(
-	FGlobalSDFTraceInput TraceInput
-)
-{
-	FGlobalSDFTraceResult TraceResult;
-	TraceResult.HitTime = -1.0f;
-	TraceResult.HitClipmapIndex = 0;
-	TraceResult.TotalStepsTaken = 0;
-
-	float ConeAngle = 0.0f;
-	float MinSampleRadius = 0.0f;
-	FConeTraceInput ConeTraceInput;
-	ConeTraceInput.Setup(
-		TraceInput.WorldRayStart,
-		TraceInput.WorldRayDirection,
-		ConeAngle,
-		MinSampleRadius,
-		TraceInput.MinTraceDistance,
-		TraceInput.MaxTraceDistance,
-		TraceInput.StepFactor
-	);
-
-	FConeTraceResult ConeTraceResult;
-
-	FTraceMeshHeightfieldResult TraceMeshHeightfieldResult;
-	TraceMeshHeightfieldResult.HitDistance = ConeTraceInput.MaxTraceDistance;
-
-	//@todo - use culling where appropriate
-	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
-	{
-		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldObjectIndex);
-		if (LumenHeightfield.bValid)
-		{
-			FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
-
-			if (SimpleResult.bIsHit && (SimpleResult.HitDistance < TraceMeshHeightfieldResult.HitDistance))
-			{
-				TraceMeshHeightfieldResult.HitDistance = SimpleResult.HitDistance;
-				TraceMeshHeightfieldResult.HeightfieldObjectIndex = HeightfieldObjectIndex;
-			}
-		}
-	}
-
-	TraceResult.HitTime = TraceMeshHeightfieldResult.HitDistance < TraceInput.MaxTraceDistance ? TraceMeshHeightfieldResult.HitDistance : -1.0f;
-	TraceResult.TotalStepsTaken = TraceMeshHeightfieldResult.TotalStepCount;
-
-	return TraceResult;
-}
-
 void ConeTraceMeshSDFsAndInterpolateFromCards(
 	FConeTraceInput TraceInput,
 	inout FConeTraceResult OutResult)

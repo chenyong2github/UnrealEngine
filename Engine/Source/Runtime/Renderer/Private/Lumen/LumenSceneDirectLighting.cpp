@@ -627,6 +627,13 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		if (PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
 		{
 			PermutationVector.Set<FTraceMeshSDFs>(false);
+			PermutationVector.Set<FTraceHeightfields>(false);
+		}
+
+		// Don't trace global SDF if per mesh object traces are enabled
+		if (PermutationVector.Get<FTraceMeshSDFs>() || PermutationVector.Get<FTraceHeightfields>())
+		{
+			PermutationVector.Set<FTraceGlobalSDF>(false);
 		}
 
 		return PermutationVector;
