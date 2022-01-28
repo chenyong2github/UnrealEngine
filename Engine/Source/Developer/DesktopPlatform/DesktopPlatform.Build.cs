@@ -12,6 +12,7 @@ public class DesktopPlatform : ModuleRules
 			new string[] {
 				"DerivedDataCache",
 				"SlateFontDialog",
+				"LauncherPlatform",
 			}
 		);
 

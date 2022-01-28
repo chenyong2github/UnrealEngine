@@ -6,6 +6,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "DesktopPlatformModule.h"
 #include "DeveloperToolSettingsDelegates.h"
+#include "InstalledPlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
@@ -167,6 +168,7 @@ TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValid
 	// Check if the project has code
 	FProjectStatus ProjectStatus;
 	bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
+	EProjectType ProjectType = bHasCode ? EProjectType::Code : EProjectType::Content;
 
 	// If if does, find all the targets
 	const TArray<FTargetInfo>* Targets = nullptr;
@@ -183,15 +185,14 @@ TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValid
 
 		// Check the target type is valid
 		const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[Idx];
-		if (!bHasCode && Info.Configuration == EBuildConfiguration::DebugGame)
+		if (FInstalledPlatformInfo::Get().IsValid(TOptional<EBuildTargetType>(), TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
 		{
-			continue;
+			Configurations.Add(PackagingConfiguration);
 		}
-
-		Configurations.Add(PackagingConfiguration);
 	}
 	return Configurations;
 }
+
 
 static const FTargetInfo* FindBestTargetInfo(const FString& TargetName, bool bContentOnlyUsesEngineTargets, bool* bOutIsProjectTarget=nullptr)
 {

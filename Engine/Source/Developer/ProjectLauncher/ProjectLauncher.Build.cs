@@ -10,13 +10,13 @@ public class ProjectLauncher : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"TargetPlatform",
 			}
 		);
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"LauncherServices",
+				"TargetPlatform",
 			}
 		);
 

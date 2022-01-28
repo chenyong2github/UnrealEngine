@@ -54,6 +54,7 @@ public class MainFrame : ModuleRules
 				"AssetTools",
 				"DerivedDataCache",
 				"DesktopPlatform",
+				"LauncherPlatform",
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",
 				"LevelEditor",

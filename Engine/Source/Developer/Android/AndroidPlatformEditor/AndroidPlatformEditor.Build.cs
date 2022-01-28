@@ -24,7 +24,7 @@ public class AndroidPlatformEditor : ModuleRules
 				"SourceControl",
 				"AndroidRuntimeSettings",
                 "AndroidDeviceDetection",
-                "TargetPlatform",
+                "DesktopPlatform",
                 "RenderCore",
                 "RHI",
                 "MaterialShaderQualitySettings",

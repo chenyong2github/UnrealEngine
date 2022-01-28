@@ -54,7 +54,7 @@ struct FInstalledPlatformConfiguration
 /**
  * Singleton class for accessing information about installed platform configurations
  */
-class TARGETPLATFORM_API FInstalledPlatformInfo
+class DESKTOPPLATFORM_API FInstalledPlatformInfo
 {
 public:
 	/**
