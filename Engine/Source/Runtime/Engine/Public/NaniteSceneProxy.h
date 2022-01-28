@@ -39,12 +39,9 @@ struct FMaterialAudit
 
 	FORCEINLINE UMaterialInterface* GetMaterial(int32 MaterialIndex) const
 	{
-		for (const FMaterialAuditEntry& Entry : Entries)
+		if (Entries.IsValidIndex(MaterialIndex))
 		{
-			if (Entry.MaterialIndex == MaterialIndex)
-			{
-				return Entry.Material;
-			}
+			return Entries[MaterialIndex].Material;
 		}
 
 		return nullptr;

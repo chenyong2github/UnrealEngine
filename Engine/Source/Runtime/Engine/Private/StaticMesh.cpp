@@ -7224,7 +7224,7 @@ UMaterialInterface* UStaticMesh::GetMaterial(int32 MaterialIndex) const
 		return GetStaticMaterials()[MaterialIndex].MaterialInterface;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 
@@ -7268,7 +7268,7 @@ int32 UStaticMesh::GetMaterialIndex(FName MaterialSlotName) const
 			return MaterialIndex;
 		}
 	}
-	return -1;
+	return INDEX_NONE;
 }
 
 #if WITH_EDITOR

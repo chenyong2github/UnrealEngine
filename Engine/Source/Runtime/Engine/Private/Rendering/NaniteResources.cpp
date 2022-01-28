@@ -80,6 +80,22 @@ FAutoConsoleVariableRef CVarNaniteErrorOnVertexInterpolator(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteErrorOnWorldPositionOffset = 0;
+FAutoConsoleVariableRef CVarNaniteErrorOnWorldPositionOffset(
+	TEXT("r.Nanite.ErrorOnWorldPositionOffset"),
+	GNaniteErrorOnWorldPositionOffset,
+	TEXT("Whether to error and use default material if world position offset is present on a Nanite material."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GNaniteErrorOnPixelDepthOffset = 0;
+FAutoConsoleVariableRef CVarNaniteErrorOnPixelDepthOffset(
+	TEXT("r.Nanite.ErrorOnPixelDepthOffset"),
+	GNaniteErrorOnPixelDepthOffset,
+	TEXT("Whether to error and use default material if pixel depth offset is present on a Nanite material."),
+	ECVF_RenderThreadSafe
+);
+
 int32 GNaniteErrorOnMaskedBlendMode = 1;
 FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	TEXT("r.Nanite.ErrorOnMaskedBlendMode"),
@@ -494,6 +510,11 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		MaterialSection.ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
 		if (bHasSurfaceStaticLighting && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
+		{
+			MaterialSection.ShadingMaterial = nullptr;
+		}
+
+		if (MaterialSection.ShadingMaterial == nullptr)
 		{
 			MaterialSection.ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
@@ -1352,10 +1373,18 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 
 			Entry.bHasAnyError =
 				Entry.bHasNullMaterial |
-				Entry.bHasWorldPositionOffset |
 				Entry.bHasUnsupportedBlendMode |
-				Entry.bHasPixelDepthOffset |
 				Entry.bHasInvalidUsage;
+
+			if (GNaniteErrorOnWorldPositionOffset != 0)
+			{
+				Entry.bHasAnyError |= Entry.bHasWorldPositionOffset;
+			}
+
+			if (GNaniteErrorOnPixelDepthOffset != 0)
+			{
+				Entry.bHasAnyError |= Entry.bHasPixelDepthOffset;
+			}
 
 			if (GNaniteErrorOnVertexInterpolator != 0)
 			{
@@ -1384,6 +1413,7 @@ void FixupMaterials(FMaterialAudit& Audit)
 	{
 		if (!Entry.bHasAnyError)
 		{
+			check(Entry.Material != nullptr); // Should always be valid here
 			continue;
 		}
 
@@ -1407,7 +1437,27 @@ void FixupMaterials(FMaterialAudit& Audit)
 				*BlendModeName
 			);
 		}
-		else if (Entry.bHasVertexInterpolator)
+		else if (Entry.bHasWorldPositionOffset && GNaniteErrorOnWorldPositionOffset != 0)
+		{
+			UE_LOG
+			(
+				LogStaticMesh, Warning,
+				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. World position offset is not supported by Nanite."),
+				*Entry.Material->GetName(),
+				*Audit.AssetName
+			);
+		}
+		else if (Entry.bHasPixelDepthOffset && GNaniteErrorOnPixelDepthOffset != 0)
+		{
+			UE_LOG
+			(
+				LogStaticMesh, Warning,
+				TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Pixel depth offset is not supported by Nanite."),
+				*Entry.Material->GetName(),
+				*Audit.AssetName
+			);
+		}
+		else if (Entry.bHasVertexInterpolator && GNaniteErrorOnVertexInterpolator != 0)
 		{
 			UE_LOG
 			(
@@ -1416,6 +1466,10 @@ void FixupMaterials(FMaterialAudit& Audit)
 				*Entry.Material->GetName(),
 				*Audit.AssetName
 			);
+		}
+		else
+		{
+			check(false);
 		}
 
 		// Route all invalid materials to default material
@@ -1431,7 +1485,7 @@ bool IsSupportedBlendMode(EBlendMode Mode)
 	}
 	else
 	{
-		return Mode == EBlendMode::BLEND_Opaque || EBlendMode::BLEND_Masked;
+		return Mode == EBlendMode::BLEND_Opaque || Mode == EBlendMode::BLEND_Masked;
 	}
 }
 
