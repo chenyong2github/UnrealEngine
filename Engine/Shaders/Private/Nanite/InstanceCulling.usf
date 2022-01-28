@@ -102,7 +102,8 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 		return false;
 	}
 
-	if (bVisibleInRaster && bIgnoreVisibleInRaster)
+	// Special logic for HLOD, which need to be hidden in views, except render into Lumen
+	if (!bVisibleInRaster && !bIgnoreVisibleInRaster)
 	{
 		return false;
 	}
