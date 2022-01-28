@@ -79,10 +79,6 @@
 #include "IO/IoDispatcher.h"
 #endif
 
-#if WITH_COTF
-#include "CookOnTheFly.h"
-#endif
-
 #if WITH_COREUOBJECT
 	#include "Internationalization/PackageLocalizationManager.h"
 	#include "Misc/PackageName.h"
@@ -1825,24 +1821,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		FShaderCodeLibrary::PreInit();
 	}
 #endif // WITH_ENGINE
-
-#if WITH_COTF
-	if (IsRunningCookOnTheFly())
-	{
-		UE::Cook::FCookOnTheFlyHostOptions CookOnTheFlyHostOptions;
-		if (GetCookOnTheFlyHost(CookOnTheFlyHostOptions))
-		{
-			using namespace UE::Cook;
-			ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-			const bool bConnected = CookOnTheFlyModule.ConnectToServer(CookOnTheFlyHostOptions);
-			if (!bConnected)
-			{
-				UE_LOG(LogInit, Error, TEXT("Failed to connect to cook on the fly server"));
-				return 1;
-			}
-		}
-	}
-#endif // WITH_COTF
 
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;

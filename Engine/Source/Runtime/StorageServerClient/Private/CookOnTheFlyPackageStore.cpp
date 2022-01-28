@@ -8,41 +8,7 @@
 #include "HAL/PlatformTime.h"
 #include "Containers/ChunkedArray.h"
 #include "Serialization/MemoryReader.h"
-
-namespace UE { namespace PackageStore { namespace Messaging
-{
-
-FArchive& operator<<(FArchive& Ar, FPackageStoreData& PackageStoreData)
-{
-	Ar << PackageStoreData.CookedPackages;
-	Ar << PackageStoreData.FailedPackages;
-	Ar << PackageStoreData.TotalCookedPackages;
-	Ar << PackageStoreData.TotalFailedPackages;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request)
-{
-	Ar << Request.PackageId;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response)
-{
-	uint32 Status = static_cast<uint32>(Response.Status);
-	Ar << Status;
-
-	if (Ar.IsLoading())
-	{
-		Response.Status = static_cast<EPackageStoreEntryStatus>(Status);
-	}
-
-	return Ar;
-}
-
-}}} // namesapce UE::PackageStore::Messaging
+#include "CookOnTheFlyMessages.h"
 
 class FCookOnTheFlyPackageStore final
 	: public FPackageStoreBase
@@ -68,7 +34,7 @@ public:
 		CookOnTheFlyServerConnection.OnMessage().AddRaw(this, &FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage);
 
 		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		FCookOnTheFlyRequest Request(ECookOnTheFlyMessage::GetCookedPackages);
 		FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection.SendRequest(Request).Get();
@@ -114,7 +80,7 @@ public:
 	virtual EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry) override
 	{
 		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		{
 			FScopeLock _(&CriticalSection);
@@ -229,7 +195,7 @@ public:
 
 	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
 	{
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		switch (Message.GetHeader().MessageType)
 		{

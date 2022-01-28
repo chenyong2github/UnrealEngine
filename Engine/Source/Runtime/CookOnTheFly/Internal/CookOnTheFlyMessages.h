@@ -8,14 +8,7 @@
 
 #include "IO/PackageStore.h"
 
-class FIoDispatcher;
-
-namespace UE { namespace Cook
-{
-	class ICookOnTheFlyServerConnection;
-}}
-
-namespace UE { namespace PackageStore { namespace Messaging
+namespace UE { namespace ZenCookOnTheFly { namespace Messaging
 {
 
 struct FPackageStoreData
@@ -62,8 +55,6 @@ struct FGetCookedPackagesResponse
 	}
 };
 
-}}} // namesapce UE::PackageStore::Messaging
-
-COOKONTHEFLY_API TSharedPtr<IPackageStore> MakeCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection);
+}}} // namesapce UE::ZenCookOnTheFly::Messaging
 
 #endif // WITH_COTF

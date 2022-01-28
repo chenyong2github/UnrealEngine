@@ -17,6 +17,7 @@ class IPackageStore;
 namespace UE::Cook
 {
 	class FCookOnTheFlyMessage;
+	class ICookOnTheFlyServerConnection;
 }
 #endif
 
@@ -95,6 +96,7 @@ public:
 	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
 	virtual bool CreateDirectory(const TCHAR* Directory) override;
 	virtual bool DeleteDirectory(const TCHAR* Directory) override;
+	virtual bool SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler) override;
 
 private:
 	friend class FStorageServerFileHandle;
@@ -113,6 +115,9 @@ private:
 	FStringView ServerEngineDirView = FStringView(TEXT("/{engine}/"));
 	FStringView ServerProjectDirView = FStringView(TEXT("/{project}/"));
 	TUniquePtr<FStorageServerConnection> Connection;
+#if WITH_COTF
+	TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> CookOnTheFlyServerConnection;
+#endif
 	FStorageServerFileSystemTOC ServerToc;
 	FString ServerProject;
 	FString ServerPlatform;

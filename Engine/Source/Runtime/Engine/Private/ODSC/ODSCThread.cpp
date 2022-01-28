@@ -7,7 +7,6 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "ShaderCompiler.h"
-#include "CookOnTheFly.h"
 
 FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
 	: ShaderPlatform(InShaderPlatform), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)
@@ -204,17 +203,7 @@ void FODSCThread::Process()
 	for (FODSCMessageHandler* NextRequest : RequestsToStart)
 	{
 		// send the info, the handler will process the response (and update shaders, etc)
-		UE::Cook::SendCookOnTheFlyRequest(
-			UE::Cook::ECookOnTheFlyMessage::RecompileShaders,
-			[NextRequest](FArchive& Request)
-			{
-				NextRequest->FillPayload(Request);
-			},
-			[NextRequest](FArchive& Response)
-			{
-				NextRequest->ProcessResponse(Response);
-				return true;
-			});
+		IFileManager::Get().SendMessageToServer(TEXT("RecompileShaders"), NextRequest);
 
 		CompletedThreadedRequests.Enqueue(NextRequest);
 	}
@@ -229,17 +218,7 @@ void FODSCThread::Process()
 		}
 
 		// send the info, the handler will process the response (and update shaders, etc)
-		UE::Cook::SendCookOnTheFlyRequest(
-			UE::Cook::ECookOnTheFlyMessage::RecompileShaders,
-			[RequestHandler](FArchive& Request)
-			{
-				RequestHandler->FillPayload(Request);
-			},
-			[RequestHandler](FArchive& Response)
-			{
-				RequestHandler->ProcessResponse(Response);
-				return true;
-			});
+		IFileManager::Get().SendMessageToServer(TEXT("RecompileShaders"), RequestHandler);
 
 		CompletedThreadedRequests.Enqueue(RequestHandler);
 	}

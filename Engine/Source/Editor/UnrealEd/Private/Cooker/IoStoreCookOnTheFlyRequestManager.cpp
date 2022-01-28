@@ -3,8 +3,8 @@
 #include "IoStoreCookOnTheFlyRequestManager.h"
 #include "CookOnTheFlyServerInterface.h"
 #include "CookOnTheFly.h"
+#include "CookOnTheFlyMessages.h"
 #include "Modules/ModuleManager.h"
-#include "CookOnTheFlyPackageStore.h"
 #include "PackageStoreWriter.h"
 #include "ShaderCompiler.h"
 #include "HAL/PlatformTime.h"
@@ -345,11 +345,11 @@ private:
 	bool HandleGetCookedPackagesRequest(UE::Cook::FCookOnTheFlyClient Client, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
 		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		FPlatformContext& Context = GetContext(Client.PlatformName);
 		
-		UE::PackageStore::Messaging::FPackageStoreData PackageStoreData;
+		UE::ZenCookOnTheFly::Messaging::FPackageStoreData PackageStoreData;
 		
 		Context.PackageWriter->GetEntries(
 			[&Context, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries,
@@ -383,7 +383,7 @@ private:
 
 	bool HandleCookPackageRequest(UE::Cook::FCookOnTheFlyClient Client, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleCookPackageRequest);
 
@@ -434,7 +434,7 @@ private:
 	void OnPackageCooked(const IPackageStoreWriter::FCommitEventArgs& EventArgs)
 	{
 		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::OnPackageCooked);
 
@@ -496,7 +496,7 @@ private:
 		FCookOnTheFlyPackageTracker::FCompletedPackages&& NewCompletedPackages, TArrayView<const FPackageStoreEntryResource> Entries)
 	{
 		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
+		using namespace UE::ZenCookOnTheFly::Messaging;
 		if (NewCompletedPackages.CookedEntryIndices.Num() || NewCompletedPackages.FailedPackages.Num())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::SendCookedPackagesMessage);

@@ -289,15 +289,37 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 			TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
 			IoDispatcher.Mount(IoDispatcherBackend);
+
+#if WITH_COTF
+			if (FParse::Param(FCommandLine::Get(), TEXT("CookOnTheFly")))
+			{
+				UE::Cook::FCookOnTheFlyHostOptions CookOnTheFlyHostOptions;
+				// Cook-on-the-fly expects the same host as the Zen storage server
+				CookOnTheFlyHostOptions.Hosts = HostAddrs;
+				double ServerWaitTimeInSeconds;
+				if (FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyServerWaitTime="), ServerWaitTimeInSeconds))
+				{
+					CookOnTheFlyHostOptions.ServerStartupWaitTime = FTimespan::FromSeconds(ServerWaitTimeInSeconds);
+				}
+				UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+				CookOnTheFlyServerConnection = CookOnTheFlyModule.ConnectToServer(CookOnTheFlyHostOptions);
+				if (CookOnTheFlyServerConnection)
+				{
+					CookOnTheFlyServerConnection->OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
+				}
+				else
+				{
+					UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to connect to cook on the fly server"));
+				}
+			}
+#endif
+
 			FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
 			{
 #if WITH_COTF
-				if (IsRunningCookOnTheFly())
+				if (CookOnTheFlyServerConnection)
 				{
-					UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-					UE::Cook::ICookOnTheFlyServerConnection& CotfConnection = CookOnTheFlyModule.GetServerConnection();
-					CotfConnection.OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
-					return MakeCookOnTheFlyPackageStore(CotfConnection);
+					return MakeCookOnTheFlyPackageStore(*CookOnTheFlyServerConnection.Get());
 				}
 				else
 #endif
@@ -693,6 +715,30 @@ int64 FStorageServerPlatformFile::SendReadMessage(uint8* Destination, const FIoC
 		BytesRead = Response.SerializeChunkTo(MakeMemoryView(Destination, BytesToRead), Offset);
 	});
 	return BytesRead;
+}
+
+bool FStorageServerPlatformFile::SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler)
+{
+#if WITH_COTF
+	if (FCString::Stricmp(Message, TEXT("RecompileShaders")) == 0)
+	{
+		UE::Cook::FCookOnTheFlyRequest Request(UE::Cook::ECookOnTheFlyMessage::RecompileShaders);
+		{
+			TUniquePtr<FArchive> Ar = Request.WriteBody();
+			Handler->FillPayload(*Ar);
+		}
+
+		UE::Cook::FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection->SendRequest(Request).Get();
+		if (Response.IsOk())
+		{
+			TUniquePtr<FArchive> Ar = Response.ReadBody();
+			Handler->ProcessResponse(*Ar);
+		}
+
+		return Response.IsOk();
+	}
+#endif
+	return false;
 }
 
 #if WITH_COTF

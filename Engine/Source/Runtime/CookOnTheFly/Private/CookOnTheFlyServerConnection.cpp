@@ -53,9 +53,7 @@ public:
 		Disconnect();
 	}
 
-private:
-
-	virtual bool Connect(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions) override
+	bool Connect(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions)
 	{
 		check(HostOptions.Hosts.Num());
 
@@ -377,9 +375,14 @@ private:
 namespace UE { namespace Cook
 {
 
-TUniquePtr<ICookOnTheFlyServerConnection> MakeServerConnection()
+TUniquePtr<ICookOnTheFlyServerConnection> MakeServerConnection(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions)
 {
-	return MakeUnique<FCookOnTheFlyServerConnection>();
+	TUniquePtr<FCookOnTheFlyServerConnection> Connection = MakeUnique<FCookOnTheFlyServerConnection>();
+	if (!Connection->Connect(HostOptions))
+	{
+		Connection.Release();
+	}
+	return Connection;
 }
 
 }} // namespace UE::Cook

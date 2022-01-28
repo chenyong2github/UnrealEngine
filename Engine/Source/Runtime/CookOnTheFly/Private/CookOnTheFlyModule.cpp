@@ -10,7 +10,7 @@ namespace UE { namespace Cook
 
 TUniquePtr<ICookOnTheFlyConnectionServer> MakeCookOnTheFlyConnectionServer(FCookOnTheFlyServerOptions Options);
 	
-TUniquePtr<ICookOnTheFlyServerConnection> MakeServerConnection();
+TUniquePtr<ICookOnTheFlyServerConnection> MakeServerConnection(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions);
 
 }}
 
@@ -25,15 +25,8 @@ public:
 
 	virtual void StartupModule( ) override { }
 
-	virtual void ShutdownModule( ) override
-	{ 
-		if (ServerConnection.IsValid())
-		{
-			ServerConnection->Disconnect();
-			ServerConnection.Reset();
-		}
-	}
-
+	virtual void ShutdownModule( ) override { }
+	
 	virtual bool SupportsDynamicReloading( ) override { return false; }
 
 	//
@@ -45,25 +38,10 @@ public:
 		return UE::Cook::MakeCookOnTheFlyConnectionServer(Options);
 	}
 
-	virtual bool ConnectToServer(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions) override
+	virtual TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> ConnectToServer(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions) override
 	{
-		if (!ServerConnection.IsValid())
-		{
-			ServerConnection = UE::Cook::MakeServerConnection();
-			return ServerConnection->Connect(HostOptions);
-		}
-
-		return ServerConnection->IsConnected();
+		return UE::Cook::MakeServerConnection(HostOptions);
 	}
-
-	virtual UE::Cook::ICookOnTheFlyServerConnection& GetServerConnection() override
-	{
-		checkf(ServerConnection.IsValid(), TEXT("Call connect before accessing the server connection"));
-		return *ServerConnection;
-	}
-
-private:
-	TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> ServerConnection;
 };
 
 IMPLEMENT_MODULE(FCookOnTheFlyModule, CookOnTheFly);

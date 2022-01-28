@@ -329,11 +329,6 @@ public:
 	virtual ~ICookOnTheFlyServerConnection() { }
 
 	/**
-	 * Connect to the cook-on-the-fly server using the specified host options.
-	 */
-	virtual bool Connect(const FCookOnTheFlyHostOptions& HostOptions) = 0;
-
-	/**
 	 * Returns whether connected to the cook-on-the-fly server.
 	 */
 	virtual bool IsConnected() const = 0;
@@ -361,22 +356,6 @@ public:
 };
 
 /**
- * Gets the cook-on-the-fly host address from the commandline.
- *
- * @param OutHostOptions The host options.
- * @return True if the host options was parsed.
- */
-COOKONTHEFLY_API bool GetCookOnTheFlyHost(FCookOnTheFlyHostOptions& OutHostOptions);
-
-/**
- * Helper function to send cook-on-the-fly requests to the server.
- *
- * This function will send the request to the file server or to the cook-on-the-fly server
- * depending on which is active.
- */
-COOKONTHEFLY_API bool SendCookOnTheFlyRequest(ECookOnTheFlyMessage Request, FFillRequest&& FillRequest, FProcessResponse&& ProcessResponse);
-
-/**
  * Cook-on-the-fly module
  */
 class ICookOnTheFlyModule
@@ -397,10 +376,7 @@ public:
 	 *
 	 * @param HostOptions Cook-on-the-fly host options.
 	 */
-	virtual bool ConnectToServer(const FCookOnTheFlyHostOptions& HostOptions) = 0;
-
-	/** Returns the single instance of the server connection. */
-	virtual ICookOnTheFlyServerConnection& GetServerConnection() = 0;
+	virtual TUniquePtr<ICookOnTheFlyServerConnection> ConnectToServer(const FCookOnTheFlyHostOptions& HostOptions) = 0;
 };
 
 }} // namespace UE::Cook
