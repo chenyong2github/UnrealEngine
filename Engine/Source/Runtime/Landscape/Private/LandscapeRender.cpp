@@ -1685,7 +1685,7 @@ bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
 	if (VisibilityHelper.OnAddedToWorld())
 	{
 		SetForceHidden(false);
-		RegisterNeighbors(this);
+		CreateRenderThreadResources();
 		return true;
 	}
 	return false;
@@ -2196,6 +2196,11 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 {
 	if (AvailableMaterials.Num() == 0)
+	{
+		return;
+	}
+
+	if (!VisibilityHelper.ShouldBeVisible())
 	{
 		return;
 	}
