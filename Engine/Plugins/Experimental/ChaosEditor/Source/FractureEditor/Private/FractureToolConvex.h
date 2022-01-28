@@ -21,12 +21,28 @@ public:
 	{}
 
 	/** Fraction of the convex hulls for a transform that we can remove before instead using the hulls of the children */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = ".01", ClampMax = "1"))
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (DisplayName = "Can Remove Fraction", ClampMin = ".01", ClampMax = "1"))
 	double FractionAllowRemove = .5;
 
+	/** Fraction (of geometry volume) by which a cluster's convex hull volume can exceed the actual geometry volume before instead using the hulls of the children.  0 means the convex volume cannot exceed the geometry volume; 1 means the convex volume is allowed to be 100% larger (2x) the geometry volume. */
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0"))
+	double CanExceedFraction = .5;
+
 	/** We simplify the convex shape to keep points spaced at least this far apart (except to keep the hull from collapsing to zero volume) */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0"))
 	double SimplificationDistanceThreshold = 10.0;
+
+	/** Delete convex hulls from selected clusters.  Does not affect hulls on leaves. */
+	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Delete From Selected"))
+	void DeleteFromSelected();
+
+	/** Promote (and save) child convex hulls on to the selected bone(s) */
+	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Promote Children"))
+	void PromoteChildren();
+
+	/** Clear any manual adjustments to convex hulls on the selected bones */
+	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Clear Custom Convex"))
+	void ClearCustomConvex();
 };
 
 
@@ -62,6 +78,11 @@ public:
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
+	void DeleteConvexFromSelected();
+	void PromoteChildren();
+	void ClearCustomConvex();
+	void AutoComputeConvex(const FFractureToolContext& FractureContext);
+
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
@@ -75,8 +96,14 @@ protected:
 		EdgesMappings.Empty();
 	}
 
+	struct FEdgeVisInfo
+	{
+		int32 A, B;
+		bool bIsCustom; // allow for different coloring of hulls that have been manually set vs auto-generated ones
+	};
+
 	TArray<FVector> HullPoints;
-	TArray<TPair<int32, int32>> HullEdges;
+	TArray<FEdgeVisInfo> HullEdges;
 	FVisualizationMappings EdgesMappings;
 
 };

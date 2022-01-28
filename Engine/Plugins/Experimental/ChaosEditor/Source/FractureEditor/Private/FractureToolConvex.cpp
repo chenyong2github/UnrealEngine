@@ -12,6 +12,132 @@
 
 #define LOCTEXT_NAMESPACE "FractureToolConvex"
 
+
+void UFractureConvexSettings::DeleteFromSelected()
+{
+	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
+	ConvexTool->DeleteConvexFromSelected();
+}
+
+void UFractureConvexSettings::PromoteChildren()
+{
+	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
+	ConvexTool->PromoteChildren();
+}
+
+void UFractureConvexSettings::ClearCustomConvex()
+{
+	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
+	ConvexTool->ClearCustomConvex();
+}
+
+void UFractureToolConvex::DeleteConvexFromSelected()
+{
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+
+	for (const FFractureToolContext& FractureContext : FractureContexts)
+	{
+		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+
+		if (!Collection.HasAttribute("ConvexHull", "Convex") ||
+			!Collection.HasAttribute("TransformToConvexIndices", FGeometryCollection::TransformGroup))
+		{
+			continue;
+		}
+
+		TManagedArray<int32>& HasCustomConvex = *FGeometryCollectionConvexUtility::GetCustomConvexFlags(&Collection, true);
+
+		TArray<int32> TransformsToClear;
+		for (int32 TransformIdx : FractureContext.GetSelection())
+		{
+			if (Collection.SimulationType[TransformIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered)
+			{
+				TransformsToClear.Add(TransformIdx);
+				HasCustomConvex[TransformIdx] = 1;
+			}
+		}
+		TransformsToClear.Sort();
+		FGeometryCollectionConvexUtility::RemoveConvexHulls(&Collection, TransformsToClear);
+	}
+
+	FractureContextChanged();
+}
+
+void UFractureToolConvex::PromoteChildren()
+{
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+
+	for (FFractureToolContext& FractureContext : FractureContexts)
+	{
+		UFractureActionTool::FModifyContextScope ModifyScope(this, &FractureContext);
+
+		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+
+		if (!Collection.HasAttribute("ConvexHull", "Convex") ||
+			!Collection.HasAttribute("TransformToConvexIndices", FGeometryCollection::TransformGroup))
+		{
+			continue;
+		}
+
+		TArray<int32> SelectedTransforms = FractureContext.GetSelection();
+		FGeometryCollectionConvexUtility::CopyChildConvexes(&Collection, SelectedTransforms, &Collection, SelectedTransforms, false);
+	}
+
+	FractureContextChanged();
+}
+
+void UFractureToolConvex::ClearCustomConvex()
+{
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+
+	bool bAnyChanged = false;
+	for (FFractureToolContext& FractureContext : FractureContexts)
+	{
+		bool bHasChanged = false;
+
+		TManagedArray<int32>* HasCustomConvex = FGeometryCollectionConvexUtility::GetCustomConvexFlags(FractureContext.GetGeometryCollection().Get(), false);
+		if (!HasCustomConvex)
+		{
+			continue;
+		}
+
+		UFractureActionTool::FModifyContextScope ModifyScope(this, &FractureContext);
+
+		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+		for (int32 TransformIdx : FractureContext.GetSelection())
+		{
+			if ((*HasCustomConvex)[TransformIdx])
+			{
+				bAnyChanged = bHasChanged = true;
+				(*HasCustomConvex)[TransformIdx] = false;
+			}
+		}
+
+		if (bHasChanged)
+		{
+			bool bAllFalse = true;
+			for (int32 TransformIdx = 0; bAllFalse && TransformIdx < HasCustomConvex->Num(); TransformIdx++)
+			{
+				if ((*HasCustomConvex)[TransformIdx])
+				{
+					bAllFalse = false;
+				}
+			}
+			if (bAllFalse)
+			{
+				Collection.RemoveAttribute("HasCustomConvex", FTransformCollection::TransformGroup);
+			}
+
+			AutoComputeConvex(FractureContext);
+		}
+	}
+
+	if (bAnyChanged)
+	{
+		FractureContextChanged();
+	}
+}
+
 UFractureToolConvex::UFractureToolConvex(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -73,6 +199,8 @@ void UFractureToolConvex::FractureContextChanged()
 			continue;
 		}
 
+		TManagedArray<int32>* HasCustomConvex = FGeometryCollectionConvexUtility::GetCustomConvexFlags(&Collection, false);
+
 		int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
 
 		FTransform OuterTransform = FractureContext.GetTransform();
@@ -80,6 +208,7 @@ void UFractureToolConvex::FractureContextChanged()
 		{
 			FTransform InnerTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TransformIdx);
 			FTransform CombinedTransform = InnerTransform * OuterTransform;
+			bool bIsCustom = HasCustomConvex ? bool((*HasCustomConvex)[TransformIdx]) : false;
 
 			TManagedArray<TSet<int32>>& TransformToConvexIndices = Collection.GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 			TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = Collection.GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
@@ -102,7 +231,7 @@ void UFractureToolConvex::FractureContextChanged()
 					{
 						int32 V0 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, PlaneVertexIdx);
 						int32 V1 = HullPtsStart + HullData.GetPlaneVertex(PlaneIdx, (PlaneVertexIdx + 1) % NumPlaneVerts);
-						HullEdges.Add(TPair<int32, int32>(V0, V1));
+						HullEdges.Add({ V0, V1, bIsCustom });
 					}
 				}
 			}
@@ -114,10 +243,10 @@ void UFractureToolConvex::Render(const FSceneView* View, FViewport* Viewport, FP
 {
 	EnumerateVisualizationMapping(EdgesMappings, HullEdges.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
-		TPair<int32, int32> Edge = HullEdges[Idx];
-		FVector P1 = HullPoints[Edge.Key] + ExplodedVector;
-		FVector P2 = HullPoints[Edge.Value] + ExplodedVector;
-		PDI->DrawLine(P1, P2, FLinearColor::Green, SDPG_Foreground, 0.0f, 0.001f);
+		const FEdgeVisInfo& Edge = HullEdges[Idx];
+		FVector P1 = HullPoints[Edge.A] + ExplodedVector;
+		FVector P2 = HullPoints[Edge.B] + ExplodedVector;
+		PDI->DrawLine(P1, P2, Edge.bIsCustom ? FLinearColor::Red : FLinearColor::Green, SDPG_Foreground, 0.0f, 0.001f);
 	});
 }
 
@@ -145,16 +274,21 @@ TArray<FFractureToolContext> UFractureToolConvex::GetFractureToolContexts() cons
 	return Contexts;
 }
 
-
-int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureContext)
+void UFractureToolConvex::AutoComputeConvex(const FFractureToolContext& FractureContext)
 {
 	if (FractureContext.GetGeometryCollection().IsValid())
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
 		FGeometryCollectionProximityUtility ProximityUtility(&Collection);
 		ProximityUtility.UpdateProximity();
-		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(&Collection, ConvexSettings->FractionAllowRemove, ConvexSettings->SimplificationDistanceThreshold);
+		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(&Collection, ConvexSettings->FractionAllowRemove, ConvexSettings->SimplificationDistanceThreshold, ConvexSettings->CanExceedFraction);
 	}
+}
+
+
+int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureContext)
+{
+	AutoComputeConvex(FractureContext);
 
 	return INDEX_NONE;
 }

@@ -7,6 +7,8 @@
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "SLevelViewport.h"
+#include "EditorModeManager.h"
+#include "FractureEditorMode.h"
 
 #include "FractureToolContext.h"
 #include "FractureSelectionTools.h"
@@ -46,6 +48,30 @@ const TSharedPtr<FUICommandInfo>& UFractureActionTool::GetUICommandInfo() const
 {
 	return UICommandInfo;
 }
+
+UFractureActionTool::FModifyContextScope::FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext) : ActionTool(ActionTool), FractureContext(FractureContext)
+{
+	check(FractureContext);
+	check(ActionTool);
+	FractureContext->GetFracturedGeometryCollection()->Modify();
+	FractureContext->GetGeometryCollectionComponent()->Modify();
+}
+
+UFractureActionTool::FModifyContextScope::~FModifyContextScope()
+{
+	UFractureEditorMode* FractureMode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
+	if (!FractureMode)
+	{
+		return;
+	}
+	TSharedPtr<FModeToolkit> ModeToolkit = FractureMode->GetToolkit().Pin();
+	if (ModeToolkit.IsValid())
+	{
+		FFractureEditorModeToolkit* Toolkit = (FFractureEditorModeToolkit*)ModeToolkit.Get();
+		ActionTool->Refresh(*FractureContext, Toolkit);
+	}
+}
+
 
 bool UFractureActionTool::CanExecute() const
 {
@@ -261,9 +287,10 @@ void UFractureModalTool::NotifyOfPropertyChangeByTool(UFractureToolSettings* Pro
 
 void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	if (InToolkit.IsValid())
+	TSharedPtr<FFractureEditorModeToolkit> ModeToolkit = InToolkit.Pin();
+	if (ModeToolkit.IsValid())
 	{
-		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+		FFractureEditorModeToolkit* Toolkit = ModeToolkit.Get();
 
 		TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 

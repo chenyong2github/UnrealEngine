@@ -37,6 +37,7 @@ public:
 	TObjectPtr<UFractureModalTool> OwnerTool;
 };
 
+class FFractureToolContext;
 
 /** Tools derived from this class should require parameter inputs from the user, only the bone selection. */
 UCLASS(Abstract)
@@ -63,6 +64,17 @@ public:
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) {}
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const;
+
+	// Scope sets up modification and updates UI after
+	struct FModifyContextScope
+	{
+		UFractureActionTool* ActionTool;
+		FFractureToolContext* FractureContext;
+
+		FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext);
+
+		~FModifyContextScope();
+	};
 	
 protected:
 	static bool IsStaticMeshSelected();
