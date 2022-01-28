@@ -306,7 +306,7 @@ void OrderPoints(TArray<int32>& PointOrder, TArrayView<const TVector<RealType>> 
 	}
 
 	// Sort remaining non-coincident points by first metric
-	if (NumWeights > 0 && MovedPtsOffset != EarlyStop)
+	if (NumWeights > 0 && MovedPtsOffset != EarlyStop && MovedPtsOffset < NumPoints)
 	{
 		DescendingPredicate<float> DescendingCurvaturePred(ImportanceWeights[0]);
 		Sort(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset, DescendingCurvaturePred);

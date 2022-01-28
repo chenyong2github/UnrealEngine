@@ -1286,8 +1286,11 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 	}
 
 	// Sort remaining non-coincident points by curvature
-	DescendingPredicate<FReal> DescendingCurvaturePred(PointCurvatures);
-	Sort(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset - NumCoincident, DescendingCurvaturePred);
+	if (MovedPtsOffset < NumPoints)
+	{
+		DescendingPredicate<FReal> DescendingCurvaturePred(PointCurvatures);
+		Sort(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset - NumCoincident, DescendingCurvaturePred);
+	}
 
 	return PointOrder;
 }
