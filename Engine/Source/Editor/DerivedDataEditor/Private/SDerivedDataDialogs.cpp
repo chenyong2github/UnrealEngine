@@ -523,17 +523,20 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 	TSharedRef<SGridPanel> Panel =
 		SNew(SGridPanel);
 
-	int32 Row = 0;
-
 	const float RowMargin = 0.0f;
 	const float ColumnMargin = 10.0f;
-	const FMargin TitleMargin(0.0f, 10.0f, ColumnMargin, 10.0f);
-	const FMargin TitleMarginFirstColumn(ColumnMargin, 10.0f);
 	const FSlateColor TitleColor = FStyleColors::AccentWhite;
 	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
-	const FMargin DefaultMargin(0.0f, RowMargin, ColumnMargin, RowMargin);
 	const FMargin DefaultMarginFirstColumn(ColumnMargin, RowMargin);
 
+#if ENABLE_COOK_STATS
+
+	int32 Row = 0;
+
+	const FMargin TitleMargin(0.0f, 10.0f, ColumnMargin, 10.0f);
+	const FMargin TitleMarginFirstColumn(ColumnMargin, 10.0f);
+	const FMargin DefaultMargin(0.0f, RowMargin, ColumnMargin, RowMargin);
+	
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
@@ -701,6 +704,19 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Font(TitleFont)
 		.Text(FText::FromString(SingleDecimalFormat(SumTotalPutMB)))
 	];
+
+#else
+	Panel->AddSlot(0, 0)
+	[
+		SNew(STextBlock)
+		.Margin(DefaultMarginFirstColumn)
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Disabled", "Cooking Stats Are Disabled For This Project"))
+	];
+
+#endif // ENABLE_COOK_STATS
 
 	return Panel;
 }

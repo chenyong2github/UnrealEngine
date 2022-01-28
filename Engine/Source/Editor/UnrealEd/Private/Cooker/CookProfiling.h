@@ -76,10 +76,10 @@ UE_TRACE_CHANNEL_EXTERN(CookChannel)
 #define UE_SCOPED_CUSTOM_COOKTIMER_AND_DURATION(name, durationStorage)
 #define UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER(name)
 #define UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER_AND_DURATION(name, durationStorage)
-#define UE_ADD_CUSTOM_COOKTIMER_META(key, value)
+#define UE_ADD_CUSTOM_COOKTIMER_META(name, key, value)
 
-void OutputHierarchyTimers() {}
-void ClearHierarchyTimers() {}
+inline void OutputHierarchyTimers() {}
+inline void ClearHierarchyTimers() {}
 #endif
 
 #if ENABLE_COOK_STATS

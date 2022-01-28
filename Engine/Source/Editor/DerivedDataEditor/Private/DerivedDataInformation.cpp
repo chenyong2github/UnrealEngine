@@ -37,10 +37,11 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 {
 	int64 TotalBytes = 0;
 
+#if ENABLE_COOK_STATS
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
 		if (Usage->IsLocal() != bLocal)
-	{
+		{
 			continue;
 		}
 
@@ -58,6 +59,7 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 			}
 		}
 	}
+#endif // ENABLE_COOK_STATS
 
 	return TotalBytes;
 }
@@ -67,10 +69,11 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 {
 	int64 TotalCycles = 0;
 
+#if ENABLE_COOK_STATS
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
 		if (Usage->IsLocal() != bLocal)
-	{
+		{
 			continue;
 		}
 
@@ -96,6 +99,7 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 			}
 		}
 	}
+#endif // ENABLE_COOK_STATS
 
 	return (double)TotalCycles * FPlatformTime::GetSecondsPerCycle();
 }

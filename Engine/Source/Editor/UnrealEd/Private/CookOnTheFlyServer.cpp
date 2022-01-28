@@ -4068,9 +4068,13 @@ private:
 	bool bLinkerDiffEnabled = false;
 };
 
+#if OUTPUT_COOKTIMING
+
 UE_TRACE_EVENT_BEGIN(UE_CUSTOM_COOKTIMER_LOG, SaveCookedPackage, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, PackageName)
 UE_TRACE_EVENT_END()
+
+#endif //OUTPUT_COOKTIMING
 
 void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context)
 {
