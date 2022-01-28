@@ -92,6 +92,7 @@ private:
 	/* IVirtualizationSystem implementation */
 
 	virtual bool IsEnabled() const override;
+	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
 	
 	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;

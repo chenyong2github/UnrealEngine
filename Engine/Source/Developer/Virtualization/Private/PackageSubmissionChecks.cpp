@@ -142,6 +142,12 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		return;
 	}
 
+	if (!System.IsPushingEnabled(EStorageType::Persistent))
+	{
+		UE_LOG(LogVirtualization, Verbose, TEXT("Pushing to persistent backend storage is disabled"));
+		return;
+	}
+
 	const double StartTime = FPlatformTime::Seconds();
 
 	// Other systems may have added errors to this array, we need to check so later we can determine if this function added any additional errors.

@@ -128,6 +128,9 @@ public:
 	/** Poll to see if content virtualization is enabled or not. */
 	virtual bool IsEnabled() const = 0;
 
+	/** Poll to see if pushing virtualized content to the given backend storage type is enabled or not. */
+	virtual bool IsPushingEnabled(EStorageType StorageType) const = 0;
+
 	/**
 	 * Push a payload to the virtualization backends.
 	 *

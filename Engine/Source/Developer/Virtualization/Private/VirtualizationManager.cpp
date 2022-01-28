@@ -288,6 +288,30 @@ bool FVirtualizationManager::IsEnabled() const
 	return !AllBackends.IsEmpty();
 }
 
+bool FVirtualizationManager::IsPushingEnabled(EStorageType StorageType) const
+{
+	if (!bEnablePayloadPushing)
+	{
+		return false;
+	}
+
+	switch (StorageType)
+	{
+		case EStorageType::Local:
+			return !LocalCachableBackends.IsEmpty();
+			break;
+
+		case EStorageType::Persistent:
+			return !PersistentStorageBackends.IsEmpty();
+			break;
+
+		default:
+			checkNoEntry();
+			return false;
+			break;
+	}
+}
+
 bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
 {
 	FPushRequest Request(Id, Payload, Context);

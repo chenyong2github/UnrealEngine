@@ -24,6 +24,11 @@ public:
 		return false;
 	}
 
+	virtual bool IsPushingEnabled(EStorageType StorageType) const override
+	{
+		return false;
+	}
+
 	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
 	{
 		return false;
