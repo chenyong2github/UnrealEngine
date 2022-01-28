@@ -108,8 +108,7 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 		case SF_RayMiss:
 		case SF_RayHitGroup:
 		case SF_RayCallable:
-			// return USE_SHADER_MODEL_6_6 ? TEXT("lib_6_6") : TEXT("lib_6_5");
-			return TEXT("lib_6_5"); // TODO: Intentionally using SM6.5 as a workaround for outstanding driver bug.
+			return USE_SHADER_MODEL_6_6 ? TEXT("lib_6_6") : TEXT("lib_6_5");
 		}
 	}
 	else if(Target.Platform == SP_PCD3D_SM5)
