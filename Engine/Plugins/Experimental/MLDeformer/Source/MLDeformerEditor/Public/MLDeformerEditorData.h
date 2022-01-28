@@ -131,6 +131,9 @@ public:
 	TArray<FVector3f> DebugVectors2;
 	TArray<float> VertexDeltas;
 
+	FVector3f VertexDeltaMeanBackup = FVector3f::ZeroVector;
+	FVector3f VertexDeltaScaleBackup = FVector3f::OneVector;
+
 	bool bIsVertexDeltaNormalized = false;
 	bool bIsReadyForTraining = false;
 	int32 CurrentFrame = -1;

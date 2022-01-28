@@ -171,6 +171,10 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 					{
 						ShowNotification(LOCTEXT("StartTraining", "Starting training process"), SNotificationItem::ECompletionState::CS_Pending, true);
 
+						// Backup the mean and scale.
+						EditorData->VertexDeltaMeanBackup = DeformerAsset->GetVertexDeltaMean();
+						EditorData->VertexDeltaScaleBackup = DeformerAsset->GetVertexDeltaScale();
+
 						// Change the interpolation type for the training sequence to step.
 						DeformerAsset->GetAnimSequence()->Interpolation = EAnimInterpolationType::Step;
 
@@ -213,6 +217,7 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 							// If we aborted we still have normalized the data. Only when we have AbortedCantUse then we canceled the normalization process.
 							EditorData->bIsVertexDeltaNormalized = true;
 						}
+
 						EditorData->GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest).MLDeformerComponent->SetupComponent(DeformerAsset, SkelMeshComponent);
 						if (bMarkDirty)
 						{
@@ -323,6 +328,14 @@ bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResu
 			}
 			else
 			{
+				// Restore the vertex delta mean and scale, as we aborted, and they could have changed when training
+				// on a smaller subset of frames/samples. If we don't do this, the mesh will deform incorrectly.
+				if (TrainingResult == ETrainingResult::Aborted)
+				{
+					EditorData->GetDeformerAsset()->VertexDeltaMean = EditorData->VertexDeltaMeanBackup;
+					EditorData->GetDeformerAsset()->VertexDeltaScale = EditorData->VertexDeltaScaleBackup;
+				}
+
 				ShowNotification(LOCTEXT("TrainingAborted", "Training aborted!"), SNotificationItem::ECompletionState::CS_None, true);
 			}
 		}
