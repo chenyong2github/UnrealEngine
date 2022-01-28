@@ -13,6 +13,7 @@ struct FObjectKey;
 struct FMovieSceneEvaluationKey;
 
 class FTrackInstancePropertyBindings;
+class UMovieSceneEntitySystemLinker;
 
 namespace UE
 {

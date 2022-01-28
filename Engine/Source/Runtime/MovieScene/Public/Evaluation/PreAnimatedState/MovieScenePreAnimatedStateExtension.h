@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "Containers/SortedMap.h"
 #include "Containers/Array.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
 #include "Evaluation/MovieSceneAnimTypeID.h"
@@ -15,6 +16,7 @@ struct FScopedPreAnimatedCaptureSource;
 
 struct IMovieScenePreAnimatedTokenProducer;
 struct IMovieScenePreAnimatedGlobalTokenProducer;
+class UMovieSceneEntitySystemLinker;
 
 namespace UE
 {

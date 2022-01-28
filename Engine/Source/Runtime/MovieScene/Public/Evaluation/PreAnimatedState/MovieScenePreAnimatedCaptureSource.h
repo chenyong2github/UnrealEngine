@@ -15,6 +15,7 @@ struct FMovieSceneEvaluationKey;
 
 class UObject;
 class UMovieSceneTrackInstance;
+class UMovieSceneEntitySystemLinker;
 class FMovieScenePreAnimatedState;
 
 namespace UE

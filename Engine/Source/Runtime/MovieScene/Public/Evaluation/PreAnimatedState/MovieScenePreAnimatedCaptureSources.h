@@ -12,6 +12,7 @@
 
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
 #include "Evaluation/PreAnimatedState/IMovieScenePreAnimatedCaptureSource.h"
+#include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
 
 class UMovieSceneTrackInstance;
 
