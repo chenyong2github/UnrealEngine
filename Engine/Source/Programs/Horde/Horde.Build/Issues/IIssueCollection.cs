@@ -4,7 +4,6 @@ using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
-using MessagePack.Formatters;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;

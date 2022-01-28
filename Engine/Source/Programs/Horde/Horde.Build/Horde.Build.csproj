@@ -10,6 +10,14 @@
     <RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(WithHordeStorage)' == ''">
+    <WithHordeStorage>true</WithHordeStorage>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(WithHordeStorage)">
+    <DefineConstants>$(DefineConstants);WITH_HORDE_STORAGE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="AWSSDK.EC2" Version="3.7.0" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.0.1" />
@@ -30,13 +38,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="3.1.5" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="3.1.7" />
     <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="3.1.17" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.0" />
     <PackageReference Include="MongoDB.Driver" Version="2.11.6" />
     <PackageReference Include="OpenTracing" Version="0.12.1" />
     <PackageReference Include="OpenTracing.Contrib.Grpc" Version="0.4.0" />
     <PackageReference Include="Polly" Version="7.2.1" />
     <PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
-    <PackageReference Include="Serilog.AspNetCore" Version="3.2.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="3.4.0" />
     <PackageReference Include="Serilog.Enrichers.OpenTracing" Version="0.0.2" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="3.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
@@ -44,7 +52,7 @@
     <PackageReference Include="SerilogAnalyzer" Version="0.15.0" />
     <PackageReference Include="SharpZipLib" Version="1.2.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.2.4" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="5.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
     <PackageReference Include="System.Linq.Async" Version="5.0.0" />
     <PackageReference Include="TimeZoneConverter" Version="3.2.0" />
   </ItemGroup>
@@ -96,6 +104,10 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Redis\EpicGames.Redis.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Serialization\EpicGames.Serialization.csproj" />
     <ProjectReference Include="..\..\..\ThirdParty\Perforce\P4Api.Net\p4api.net\p4api.net.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(WithHordeStorage)">
+    <ProjectReference Include="..\HordeStorage\Horde.Storage\Horde.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

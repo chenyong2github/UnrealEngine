@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
@@ -31,9 +32,18 @@ public class MongoStore
     {
         string collectionName = GetCollectionName<T>();
 
+        IMongoDatabase database = _client.GetDatabase(GetDatabaseName());
+
+        // Try to avoid exceptions breaking in the debugger unnecessarily by checking for the existence of the collection beforehand.
+        FilterDefinition<BsonDocument> filter = new BsonDocument("name", collectionName);
+        if (await database.ListCollectionNames(new ListCollectionNamesOptions { Filter = filter }).AnyAsync())
+        {
+            return;
+        }
+
         try
         {
-            await _client.GetDatabase(GetDatabaseName()).CreateCollectionAsync(collectionName);
+            await database.CreateCollectionAsync(collectionName);
         }
         catch (MongoCommandException e)
         {

@@ -145,7 +145,7 @@ namespace HordeServer
 			return SchemaTypes.ToArray();
 		}
 
-		public static void Main(string[] Args)
+		public static async Task Main(string[] Args)
 		{
 			CommandLineArguments Arguments = new CommandLineArguments(Args);
 
@@ -213,7 +213,12 @@ namespace HordeServer
 			{
 				using (X509Certificate2? GrpcCertificate = ReadGrpcCertificate(HordeSettings))
 				{
-					CreateHostBuilderWithCert(Args, Config, HordeSettings, GrpcCertificate).Build().Run();
+					List<IHost> Hosts = new List<IHost>();
+					Hosts.Add(CreateHostBuilderWithCert(Args, Config, HordeSettings, GrpcCertificate).Build());
+#if WITH_HORDE_STORAGE
+					Hosts.Add(Horde.Storage.Program.CreateHostBuilder(Args).Build());
+#endif
+					await Task.WhenAll(Hosts.Select(x => x.RunAsync()));
 				}
 			}
 #pragma warning disable CA1031 // Do not catch general exception types

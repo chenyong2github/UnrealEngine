@@ -5,6 +5,7 @@ using System.IO.Pipelines;
 using System.Net.Sockets;
 using Horde.Storage.Implementation.Kestrel;
 using Jupiter;
+using Microsoft.Extensions.Hosting;
 
 namespace Horde.Storage
 {
@@ -19,6 +20,11 @@ namespace Horde.Storage
         private static BaseHttpConnection HttpConnectionFactory(IServiceProvider sp, PipeReader reader, PipeWriter writer, Socket socket)
         {
             return new KestrelDispatcher(sp, reader, writer, socket);
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] Args)
+        {
+            return BaseProgram<HordeStorageStartup>.CreateHostBuilder(Args, HttpConnectionFactory);
         }
     }
 }
