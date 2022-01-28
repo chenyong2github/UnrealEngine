@@ -108,11 +108,11 @@ float GetLightFunctionShadowFactor(float3 TranslatedWorldPositionForLighting)
 	// Apply light function after edge fading, so that a black light function at the edges can cause distant translucency to also be black
 	#if APPLY_LIGHT_FUNCTION
 		float4 LightVector = mul(float4(TranslatedWorldPositionForLighting, 1),LightFunctionTranslatedWorldToLight);
-	LightVector.xyz /= LightVector.w;
-	float3 LightFunction = GetLightFunctionColor(LightVector.xyz, TranslatedWorldPositionForLighting);
+		LightVector.xyz /= LightVector.w;
+		float3 LightFunction = GetLightFunctionColor(LightVector.xyz, TranslatedWorldPositionForLighting);
 
-	// We only suport monochrome light functions
-	ShadowFactor = dot(LightFunction, .3333f).x;
+		// We only suport monochrome light functions
+		ShadowFactor = dot(LightFunction, .3333f).x;
 	#endif
 
 	return ShadowFactor;
@@ -203,7 +203,7 @@ void InjectMainPS(
 #endif
 
 		// Apply light function (it will also fade out at the edge of the volume so overall dimming of light using light function is not a recommended workflow)
-		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);
+		ShadowFactor *= GetLightFunctionShadowFactor(TranslatedWorldPositionForLighting);
 
 		#if RADIAL_ATTENUATION==0
 		// Apply cloud shadow for atmosphere directional lights only if needed
