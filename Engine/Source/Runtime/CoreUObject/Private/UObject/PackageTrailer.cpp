@@ -20,6 +20,8 @@ enum class EPackageTrailerVersion : uint32
 	INITIAL = 0,
 	// Access mode is now per payload and found in FLookupTableEntry 
 	ACCESS_PER_PAYLOAD = 1,
+	// Added EPayloadAccessMode to FLookupTableEntry
+	PAYLOAD_FLAGS = 2,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
@@ -30,7 +32,7 @@ enum class EPackageTrailerVersion : uint32
 // These asserts are here to make sure that any changes to the size of disk constants are intentional.
 // If the change was intentional then just update the assert.
 static_assert(FPackageTrailer::FHeader::StaticHeaderSizeOnDisk == 28, "FPackageTrailer::FHeader size has been changed, if this was intentional then update this assert");
-static_assert(Private::FLookupTableEntry::SizeOnDisk == 45, "FLookupTableEntry size has been changed, if this was intentional then update this assert");
+static_assert(Private::FLookupTableEntry::SizeOnDisk == 49, "FLookupTableEntry size has been changed, if this was intentional then update this assert");
 static_assert(FPackageTrailer::FFooter::SizeOnDisk == 20, "FPackageTrailer::FFooter size has been changed, if this was intentional then update this assert");
 
 /** Utility for recording failed package open reasons */
@@ -68,6 +70,11 @@ void FLookupTableEntry::Serialize(FArchive& Ar, EPackageTrailerVersion PackageTr
 	Ar << OffsetInFile;
 	Ar << CompressedSize;
 	Ar << RawSize;
+
+	if (Ar.IsSaving() || PackageTrailerVersion >= EPackageTrailerVersion::PAYLOAD_FLAGS)
+	{
+		Ar << Flags;
+	}
 
 	if (Ar.IsSaving() || PackageTrailerVersion >= EPackageTrailerVersion::ACCESS_PER_PAYLOAD)
 	{

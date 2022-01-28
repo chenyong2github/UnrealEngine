@@ -99,6 +99,13 @@ enum class EPayloadAccessMode : uint8
 	Virtualized
 };
 
+/** Flags that can be set on payloads in a payload trailer */
+enum class EPayloadFlags : uint32
+{
+	/** No flags are set */
+	None
+};
+
 enum class EPackageTrailerVersion : uint32;
 
 namespace Private
@@ -107,10 +114,11 @@ namespace Private
 struct FLookupTableEntry
 {
 	/** Size of the entry when serialized to disk in bytes */
-	static constexpr uint32 SizeOnDisk = 45;	// Identifier		| 20 bytes
+	static constexpr uint32 SizeOnDisk = 49;	// Identifier		| 20 bytes
 												// OffsetInFile		| 8 bytes
 												// CompressedSize	| 8 bytes
 												// RawSize			| 8 bytes
+												// Flags			| 4 bytes
 												// AccessMode		| 1 byte
 
 	FLookupTableEntry() = default;
@@ -131,6 +139,8 @@ struct FLookupTableEntry
 	uint64 CompressedSize = INDEX_NONE;
 	/** The size of the payload when uncompressed. */
 	uint64 RawSize = INDEX_NONE;
+	/** Bitfield of flags, see @UE::EPayloadFlags */
+	EPayloadFlags Flags = EPayloadFlags::None;
 
 	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
 };
