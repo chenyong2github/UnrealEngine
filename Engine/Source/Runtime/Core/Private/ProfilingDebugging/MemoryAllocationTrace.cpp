@@ -3,6 +3,7 @@
 #include "ProfilingDebugging/MemoryAllocationTrace.h"
 #include "HAL/PlatformTime.h"
 #include "ProfilingDebugging/TagTrace.h"
+#include "ProfilingDebugging/CallstackTrace.h"
 #include "ProfilingDebugging/TraceMalloc.h"
 
 #if UE_TRACE_ENABLED
@@ -397,23 +398,23 @@ void* FTraceMalloc::Malloc(SIZE_T Count, uint32 Alignment)
 /////////////////////////////////////////////////////////////////////////////
 void* FTraceMalloc::Realloc(void* Original, SIZE_T Count, uint32 Alignment)
 {
-	void* NewPtr;
-	{
-		TGuardValue<bool> _(GDoNotTrace, true);
-		NewPtr = WrappedMalloc->Realloc(Original, Count, Alignment);
-	}
-
+	void* NewPtr = nullptr;
 #if UE_MEMORY_TRACE_ENABLED
 	const uint64 Size = Count;
 	const uint32 AlignmentPow2 = uint32(FPlatformMath::CountTrailingZeros(Alignment));
 	const uint32 Alignment_SizeLower = (AlignmentPow2 << SizeShift) | uint32(Size & ((1 << SizeShift) - 1));
 
 	UE_MEMSCOPE(TRACE_TAG);
-
+	
 	UE_TRACE_LOG(Memory, ReallocFree, MemAllocChannel)
 		<< ReallocFree.Address(uint64(Original))
 		<< ReallocFree.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory));
-
+	
+	{
+		TGuardValue<bool> _(GDoNotTrace, true);
+		NewPtr = WrappedMalloc->Realloc(Original, Count, Alignment);
+	}
+	
 	UE_TRACE_LOG(Memory, ReallocAlloc, MemAllocChannel)
 		<< ReallocAlloc.CallstackId(0)
 		<< ReallocAlloc.Address(uint64(NewPtr))
@@ -428,16 +429,16 @@ void* FTraceMalloc::Realloc(void* Original, SIZE_T Count, uint32 Alignment)
 /////////////////////////////////////////////////////////////////////////////
 void FTraceMalloc::Free(void* Original)
 {
-	{
-		TGuardValue<bool> _(GDoNotTrace, true);
-		WrappedMalloc->Free(Original);
-	}
-
 #if UE_MEMORY_TRACE_ENABLED
 	UE_TRACE_LOG(Memory, Free, MemAllocChannel)
 		<< Free.Address(uint64(Original))
 		<< Free.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory));
 #endif //UE_MEMORY_TRACE_ENABLED
+	
+	{
+		TGuardValue<bool> _(GDoNotTrace, true);
+		WrappedMalloc->Free(Original);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////

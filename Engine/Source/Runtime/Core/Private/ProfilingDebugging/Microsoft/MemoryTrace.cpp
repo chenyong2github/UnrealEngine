@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/MemoryTrace.h"
+
+#include "HAL/MallocMimalloc.h"
 #include "ProfilingDebugging/CallstackTrace.h"
 #include "ProfilingDebugging/TraceMalloc.h"
 
@@ -345,9 +347,11 @@ void FVirtualWinApiHooks::Initialize(bool bInLight)
 LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Type, DWORD Protect)
 {
 	LPVOID Ret = VmAllocOrig(Address, Size, Type, Protect);
-	if (Ret != nullptr && (Type & MEM_COMMIT) && FTraceMalloc::ShouldTrace())
+	// Track any reserve for now. Going forward we need events to differentiate reserves/commits and
+	// corresponding information on frees.
+	if (Ret != nullptr && (Type & MEM_RESERVE))
 	{
-		const uint32 Callstack = CallstackTrace_GetCurrentId();
+		const uint32 Callstack = FTraceMalloc::ShouldTrace() ? CallstackTrace_GetCurrentId() : 0;
 		GAllocationTrace->Alloc(Ret, Size, 0, Callstack, EMemoryTraceRootHeap::SystemMemory);
 		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
@@ -358,7 +362,8 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Ty
 ////////////////////////////////////////////////////////////////////////////////
 BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 {
-	if (FTraceMalloc::ShouldTrace())
+	// Currently tracking any free event
+	if (Type & MEM_RELEASE)
 	{
 		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
 	}
@@ -369,9 +374,9 @@ BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZE_T Size, DWORD Type, DWORD Protect)
 {
 	LPVOID Ret = VmAllocExOrig(Process, Address, Size, Type, Protect);
-	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_COMMIT) && FTraceMalloc::ShouldTrace())
+	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_RESERVE))
 	{
-		const uint32 Callstack = CallstackTrace_GetCurrentId();
+		const uint32 Callstack = FTraceMalloc::ShouldTrace() ? CallstackTrace_GetCurrentId() : 0;
 		GAllocationTrace->Alloc(Ret, Size, 0, Callstack);
 		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
@@ -382,7 +387,7 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZ
 ////////////////////////////////////////////////////////////////////////////////
 BOOL WINAPI FVirtualWinApiHooks::VmFreeEx(HANDLE Process, LPVOID Address, SIZE_T Size, DWORD Type)
 {
-	if (Process == GetCurrentProcess() && FTraceMalloc::ShouldTrace())
+	if (Process == GetCurrentProcess() && (Type & MEM_RELEASE))
 	{
 		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
 	}
