@@ -6,6 +6,8 @@
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
+#include "SceneView.h"
+
 
 class UWorld;
 class FViewport;
