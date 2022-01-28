@@ -347,7 +347,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 
 		if ((int64)Request.Payload.GetCompressedSize() < MinPayloadLength)
 		{
-			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a virtualized payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
+			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
 					*LexToString(Request.Identifier),
 					Request.Payload.GetCompressedSize(),
 					MinPayloadLength);
@@ -356,23 +356,23 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 			continue;
 		}
 
+		if (!ShouldVirtualizePackage(Request.Context))
+		{
+			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a payload (id: %s) from a package path ('%s') that is excluded by filtering"),
+					*LexToString(Request.Identifier), 
+					*Request.Context);
+			
+			Request.Status = FPushRequest::EStatus::ExcludedByPackagPath;
+			continue;
+		}
+
 		OriginalToValidatedRequest[Index] = ValidatedRequests.Num();
 		ValidatedRequests.Add(Request);
 	}
-	
-	// Filtering by package name is currently disabled
-#if 0
-	if (!ShouldVirtualizePackage(PackageContext))
-	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Payload '%s' for package '%s' will not be virtualized due to filtering"),
-			*Id.ToString(), *PackageContext.GetDebugName());
-		return false;
-	}
-#endif
 
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
-	// Early out if there are no backends or if the pushing of payloads has been disabled
+	// Early out if there are no backends
 	if (!IsEnabled() || bEnablePayloadPushing == false)
 	{
 		return false;
@@ -1030,6 +1030,23 @@ bool FVirtualizationManager::ShouldVirtualizePackage(const FPackagePath& Package
 		}
 	}
 	
+	return true;
+}
+
+bool FVirtualizationManager::ShouldVirtualizePackage(const FString& Context) const
+{
+	FPackagePath PackagePath;
+	if (FPackagePath::TryFromPackageName(Context, PackagePath))
+	{
+		return ShouldVirtualizePackage(PackagePath);
+	}
+
+	if (FPackagePath::TryFromMountedName(Context, PackagePath))
+	{
+		return ShouldVirtualizePackage(PackagePath);
+	}
+
+	// Context was not a valid package path so go ahead and virtualize it
 	return true;
 }
 

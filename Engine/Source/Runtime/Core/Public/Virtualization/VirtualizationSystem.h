@@ -64,6 +64,8 @@ struct FPushRequest
 		Invalid,
 		/** The payload is below the minimum length required for virtualization */
 		BelowMinSize,
+		/** The payload is owned by a package that is excluded from virtualization by path filtering */
+		ExcludedByPackagPath,
 		/** The payload in the request is now present in all backends */
 		Success
 	};

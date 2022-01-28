@@ -141,6 +141,7 @@ private:
 	 *						excluded by the projects current filter set up.
 	 */
 	bool ShouldVirtualizePackage(const FPackagePath& PackagePath) const;
+	bool ShouldVirtualizePackage(const FString& Context) const;
 	
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
