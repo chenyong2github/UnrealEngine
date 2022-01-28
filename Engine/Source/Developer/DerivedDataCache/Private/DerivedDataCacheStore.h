@@ -4,6 +4,9 @@
 
 #include "DerivedDataCache.h"
 
+namespace UE::DerivedData { class ILegacyCacheStore; }
+namespace UE::DerivedData { enum class EStatus : uint8; }
+
 namespace UE::DerivedData
 {
 
@@ -88,5 +91,42 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) = 0;
 };
+
+enum class ECacheStoreFlags : uint32
+{
+	None            = 0,
+
+	/** Accepts requests with a policy of QueryLocal or StoreLocal. Needs matching Query/Store flag. */
+	Local           = 1 << 0,
+	/** Accepts requests with a policy of QueryRemote or StoreRemote. Needs matching Query/Store flag.*/
+	Remote          = 1 << 1,
+
+	/** Accepts requests with a policy of QueryLocal or QueryRemote. Needs matching Local/Remote flag. */
+	Query           = 1 << 2,
+	/** Accepts requests with a policy of StoreLocal or StoreRemote. Needs matching Local/Remote flag. */
+	Store           = 1 << 3,
+
+	/** Requests to store records or values contained by this cache store will not propagate any further. */
+	StopStore       = 1 << 4,
+};
+
+ENUM_CLASS_FLAGS(ECacheStoreFlags);
+
+class ICacheStoreOwner
+{
+public:
+	virtual void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) = 0;
+	virtual void SetFlags(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) = 0;
+	virtual void RemoveNotSafe(ILegacyCacheStore* CacheStore) = 0;
+};
+
+template <typename RequestRangeType, typename OnCompleteType>
+inline void CompleteWithStatus(RequestRangeType&& Requests, OnCompleteType&& OnComplete, EStatus Status)
+{
+	for (const auto& Request : Requests)
+	{
+		OnComplete(Request.MakeResponse(Status));
+	}
+}
 
 } // UE::DerivedData
