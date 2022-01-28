@@ -1941,8 +1941,7 @@ const FGlobalDistanceFieldParameterData* FNiagaraGpuComputeDispatch::GetGlobalDi
 
 const FDistanceFieldSceneData* FNiagaraGpuComputeDispatch::GetMeshDistanceFieldParameters() const
 {
-	check(CurrentPassViews.Num() > 0);
-	if (CurrentPassViews[0].Family == nullptr || CurrentPassViews[0].Family->Scene == nullptr || CurrentPassViews[0].Family->Scene->GetRenderScene() == nullptr)
+	if (CurrentPassViews.Num() == 0 || CurrentPassViews[0].Family == nullptr || CurrentPassViews[0].Family->Scene == nullptr || CurrentPassViews[0].Family->Scene->GetRenderScene() == nullptr)
 	{
 		return nullptr;
 	}

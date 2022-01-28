@@ -3,9 +3,12 @@
 #include "NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSettings.h"
 #include "NiagaraScript.h"
+#include "NiagaraDataInterfaceUtilities.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 
@@ -19,6 +22,13 @@
 #include "Internationalization/Internationalization.h"
 #include "GPUSkinCache.h"
 #include "ShaderCompilerCore.h"
+
+#include "Renderer/Private/ScenePrivate.h"
+#include "DistanceFieldAtlas.h"
+#include "Renderer/Private/DistanceFieldLightingShared.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
+#include "NiagaraDistanceFieldParameters.h"
 
 #if WITH_EDITOR
 #include "Subsystems/ImportSubsystem.h"
@@ -137,6 +147,10 @@ namespace NDIStaticMeshLocal
 	static const FName	GetWorldVelocityName("GetWorldVelocity");
 
 	//////////////////////////////////////////////////////////////////////////
+	// Distance Field Functions
+	static const FName	QueryDistanceFieldName("QueryDistanceField");
+
+	//////////////////////////////////////////////////////////////////////////
 	// Deprecated Functions
 	static const FName Deprecated_RandomSectionName("DeprecatedRandomSection");
 	static const FName Deprecated_RandomTriCoordName("DeprecatedRandomTriCoord");
@@ -186,6 +200,8 @@ namespace NDIStaticMeshLocal
 	static FString	InstancePreviousTransformInverseTransposed_String("InstancePreviousTransformInverseTransposed_");
 	static FString	InstancePreviousRotation_String("InstancePreviousRotation_");
 	static FString	InstanceWorldVelocity_String("InstanceWorldVelocity_");
+
+	static FString	InstanceDistanceFieldIndex_String("InstanceDistanceFieldIndex_");
 
 	//////////////////////////////////////////////////////////////////////////
 	struct FNDISectionInfo
@@ -291,6 +307,8 @@ namespace NDIStaticMeshLocal
 		FQuat4f		Rotation = FQuat4f::Identity;
 		FQuat4f		PrevRotation = FQuat4f::Identity;
 		float		DeltaSeconds = 0.0f;
+
+		FPrimitiveComponentId	DistanceFieldPrimitiveId;
 
 		FIntVector NumTriangles = FIntVector::ZeroValue;
 		int32 NumVertices = 0;
@@ -412,11 +430,12 @@ namespace NDIStaticMeshLocal
 
 	struct FInstanceData_FromGameThread
 	{
-		FMatrix44f	Transform = FMatrix44f::Identity;
-		FMatrix44f	PrevTransform = FMatrix44f::Identity;
-		FQuat4f		Rotation = FQuat4f::Identity;
-		FQuat4f		PrevRotation = FQuat4f::Identity;
-		float		DeltaSeconds = 0.0f;
+		FMatrix44f				Transform = FMatrix44f::Identity;
+		FMatrix44f				PrevTransform = FMatrix44f::Identity;
+		FQuat4f					Rotation = FQuat4f::Identity;
+		FQuat4f					PrevRotation = FQuat4f::Identity;
+		float					DeltaSeconds = 0.0f;
+		FPrimitiveComponentId	DistanceFieldPrimitiveId;
 	};
 
 	struct FInstanceData_GameThread
@@ -860,11 +879,12 @@ namespace NDIStaticMeshLocal
 			FInstanceData_FromGameThread* FromGameThread = reinterpret_cast<FInstanceData_FromGameThread*>(FromGameThreadData);
 			FInstanceData_RenderThread* InstanceData = &PerInstanceData_RT.FindChecked(InstanceID);
 
-			InstanceData->Transform		= FromGameThread->Transform;
-			InstanceData->PrevTransform	= FromGameThread->PrevTransform;
-			InstanceData->Rotation		= FromGameThread->Rotation;
-			InstanceData->PrevRotation	= FromGameThread->PrevRotation;
-			InstanceData->DeltaSeconds	= FromGameThread->DeltaSeconds;
+			InstanceData->Transform					= FromGameThread->Transform;
+			InstanceData->PrevTransform				= FromGameThread->PrevTransform;
+			InstanceData->Rotation					= FromGameThread->Rotation;
+			InstanceData->PrevRotation				= FromGameThread->PrevRotation;
+			InstanceData->DeltaSeconds				= FromGameThread->DeltaSeconds;
+			InstanceData->DistanceFieldPrimitiveId	= FromGameThread->DistanceFieldPrimitiveId;
 
 			FromGameThread->~FInstanceData_FromGameThread();
 		}
@@ -1217,6 +1237,9 @@ public:
 		InstancePreviousTransformInverseTransposedParam.Bind(ParameterMap, *(InstancePreviousTransformInverseTransposed_String + ParameterInfo.DataInterfaceHLSLSymbol));
 		InstancePreviousRotationParam.Bind(ParameterMap, *(InstancePreviousRotation_String + ParameterInfo.DataInterfaceHLSLSymbol));
 		InstanceWorldVelocityParam.Bind(ParameterMap, *(InstanceWorldVelocity_String + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		InstanceDistanceFieldIndexParam.Bind(ParameterMap, *(InstanceDistanceFieldIndex_String + ParameterInfo.DataInterfaceHLSLSymbol));
+		DistanceFieldParameters.Bind(ParameterMap);
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -1283,6 +1306,42 @@ public:
 		SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePreviousTransformInverseTransposedParam, InstanceData.PrevTransform.Inverse().GetTransposed());
 		SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePreviousRotationParam, InstanceData.PrevRotation);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocityParam, DeltaPosition);
+
+		const FDistanceFieldSceneData* DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch*>(Context.ComputeDispatchInterface)->GetMeshDistanceFieldParameters();	//-BATCHERTODO:
+
+		if ( InstanceDistanceFieldIndexParam.IsBound() )
+		{
+			int32 DistanceFieldIndex = -1;
+			if ( DistanceFieldSceneData != nullptr && InstanceData.DistanceFieldPrimitiveId.IsValid() )
+			{
+				if ( FScene* Scene = Context.ComputeDispatchInterface->GetScene() )
+				{
+					// Kind of gross, but currently no way to reference other primitive scene infos
+					const int32 PrimitiveSceneIndex = Scene->PrimitiveComponentIds.Find(InstanceData.DistanceFieldPrimitiveId);
+					if (PrimitiveSceneIndex != INDEX_NONE)
+					{
+						const TArray<int32, TInlineAllocator<1>>& DFIndices = Scene->Primitives[PrimitiveSceneIndex]->DistanceFieldInstanceIndices;
+						DistanceFieldIndex = DFIndices.Num() > 0 ? DFIndices[0] : -1;
+					}
+				}
+			}
+			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceDistanceFieldIndexParam, DistanceFieldIndex);
+		}
+
+		if (DistanceFieldParameters.IsBound())
+		{
+			if (ensure(DistanceFieldSceneData != nullptr))
+			{
+				DistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, DistanceFieldSceneData);
+			}
+			else 
+			{
+				//-TODO: We can't create dummy buffers here due to dll boundaries, we will skip the distance field calcs since DistanceFieldIndex will be set to -1
+				//       However some platforms may still complain due to lack of dummy data bound
+				//FDistanceFieldSceneData DummyDistanceFieldSceneData(Context.ComputeDispatchInterface->GetShaderPlatform());
+				//DistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, &DummyDistanceFieldSceneData);
+			}
+		}
 	}
 
 private:
@@ -1315,6 +1374,9 @@ private:
 	LAYOUT_FIELD(FShaderParameter, InstancePreviousTransformInverseTransposedParam);
 	LAYOUT_FIELD(FShaderParameter, InstancePreviousRotationParam);
 	LAYOUT_FIELD(FShaderParameter, InstanceWorldVelocityParam);
+
+	LAYOUT_FIELD(FShaderParameter, InstanceDistanceFieldIndexParam);
+	LAYOUT_FIELD(FDistanceFieldParameters, DistanceFieldParameters);	
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh);
@@ -1530,11 +1592,16 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	NDIStaticMeshLocal::FInstanceData_GameThread* InstanceData = static_cast<NDIStaticMeshLocal::FInstanceData_GameThread*>(InInstanceData);
 	NDIStaticMeshLocal::FInstanceData_FromGameThread* DataFromGT = static_cast<NDIStaticMeshLocal::FInstanceData_FromGameThread*>(InDataFromGT);
 
-	DataFromGT->Transform		= FMatrix44f(InstanceData->Transform);			// LWC_TODO: Precision loss
-	DataFromGT->PrevTransform	= FMatrix44f(InstanceData->PrevTransform);
-	DataFromGT->Rotation		= InstanceData->Rotation;
-	DataFromGT->PrevRotation	= InstanceData->PrevRotation;
-	DataFromGT->DeltaSeconds	= InstanceData->DeltaSeconds;
+	DataFromGT->Transform					= FMatrix44f(InstanceData->Transform);			// LWC_TODO: Precision loss
+	DataFromGT->PrevTransform				= FMatrix44f(InstanceData->PrevTransform);
+	DataFromGT->Rotation					= InstanceData->Rotation;
+	DataFromGT->PrevRotation				= InstanceData->PrevRotation;
+	DataFromGT->DeltaSeconds				= InstanceData->DeltaSeconds;
+	DataFromGT->DistanceFieldPrimitiveId	= FPrimitiveComponentId();
+	if ( UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(InstanceData->SceneComponentWeakPtr) )
+	{
+		DataFromGT->DistanceFieldPrimitiveId = PrimitiveComponent->ComponentId;
+	}
 }
 
 void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
@@ -1841,6 +1908,38 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 	}
 
 	//////////////////////////////////////////////////////////////////////////
+	// Distance Field Functions
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
+		Sig.Name = QueryDistanceFieldName;
+		Sig.bSupportsCPU = false;
+		Sig.bExperimental = true;
+		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Execute")).SetValue(true);
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("World Position"));
+		const FNiagaraVariable& UseMaxDistanceVar = Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Use Max Distance"));
+		const FNiagaraVariable& MaxDistanceVar = Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Max Distance"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Distance"));
+		
+#if WITH_EDITORONLY_DATA
+		Sig.Description = LOCTEXT("QueryDistanceFieldDescription", "Given a world position, this returns the value of the parented static mesh`s signed distance field");
+		Sig.InputDescriptions.Add(
+			UseMaxDistanceVar,
+			LOCTEXT("UseMaxDistanceOptimizationDescription", 
+			"This enables an optimization that will skip reading the SDF texture if the world position exceeds a provided max distance value.\n"
+			"This is a useful optimization if you only need accurate distance information within a certain distance threshold. \n"
+			"One example of a good usecase is if you only want to spawn particles inside the mesh (i.e. distance < 0.0), you should enable this with a MaxDistance of 0.0.")
+		);
+		Sig.InputDescriptions.Add(
+			MaxDistanceVar,
+			LOCTEXT("MaxDistanceDescription",
+			"Only used if UseMaxDistanceOptimization is enabled. This is the max distance from the static meshes` BOUNDING BOX at which we should query it's SDF.\n"
+			"This defaults to 0.0, which means it will only read the SDF if the world position is inside the meshes' bounding box")
+		);
+#endif
+	}
+
+	//////////////////////////////////////////////////////////////////////////
 	// Deprecated Functions
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -1989,6 +2088,15 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 	FunctionSignature.FunctionVersion = EDIFunctionVersion::LatestVersion;
 
 	return true;
+}
+
+void UNiagaraDataInterfaceStaticMesh::GetCommonHLSL(FString& OutHLSL)
+{
+	if (GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields)
+	{
+		OutHLSL += TEXT("#include \"/Engine/Private/DistanceFieldLightingShared.ush\"\n");
+		OutHLSL += TEXT("#include \"/Engine/Private/MeshDistanceFieldCommon.ush\"\n");
+	}
 }
 #endif //WITH_EDITORONLY_DATA
 
@@ -2280,13 +2388,26 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	}
 }
 
+bool UNiagaraDataInterfaceStaticMesh::RequiresDistanceFieldData() const
+{
+	return GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields;
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceStaticMesh::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDIStaticMeshLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
 	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceStaticMeshTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdatePOD(TEXT("NDIStaticMesh_AllowDistanceField"), GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields ? 1 : 0);
 	return bSuccess;
+}
+
+void UNiagaraDataInterfaceStaticMesh::ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const
+{
+	Super::ModifyCompilationEnvironment(ShaderPlatform, OutEnvironment);
+
+	OutEnvironment.SetDefine(TEXT("DISTATICMESH_ALLOWDISTANCEFIELD"), GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields ? 1 : 0);
 }
 
 void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -2481,6 +2602,27 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 			FNiagaraDataInterfaceFix());
 
 		OutWarnings.Add(NoMeshAssignedError);
+	}
+
+	if (GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields == false)
+	{
+		FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(
+			this, Asset, Component,
+			[&](const FNiagaraDataInterfaceGeneratedFunction& FunctionBinding)
+			{
+				if (FunctionBinding.DefinitionName == NDIStaticMeshLocal::QueryDistanceFieldName )
+				{
+					OutWarnings.Emplace(
+						LOCTEXT("DistanceFieldsNotEnabled", "Distance fields functionality is disabled, this can be enabled in Niagara project settings."),
+						LOCTEXT("DistanceFieldsNotEnabledSummary", "Distance fields functionality is disabled."),
+						FNiagaraDataInterfaceFix()
+					);
+
+					return false;
+				}
+				return true;
+			}
+		);
 	}
 }
 #endif //WITH_EDITOR

@@ -113,6 +113,14 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = SkeletalMeshDI, meta = (DisplayName = "Adjacency Triangle Index Format", ToolTip = "Controls the format used for specifying triangle indexes in adjacency buffers.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
 	TEnumAsByte<ENDISkelMesh_AdjacencyTriangleIndexFormat::Type> NDISkelMesh_AdjacencyTriangleIndexFormat;
 
+	/**
+	When enabled the static mesh data interface is allowed to sample from the distance field data (if present) on the GPU.
+	Enabling this feature will move all systems that contain static mesh samples into PostRenderOpaque tick group regardless of the features used.
+	Changing this setting requires restarting the editor.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = StaticMeshDI, meta = (DisplayName = "Allow Distance Fields (Experimental)", ConfigRestartRequired = true))
+	bool NDIStaticMesh_AllowDistanceFields = false;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR

@@ -557,3 +557,31 @@ void GetWorldVelocity_{ParameterName}(out float3 Velocity)
 {
 	Velocity = InstanceWorldVelocity_{ParameterName};
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Experimental Distance Field Functions
+#if DISTATICMESH_ALLOWDISTANCEFIELD
+int		InstanceDistanceFieldIndex_{ParameterName};
+#endif
+
+void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, bool bUseMaxDistance, float MaxDistance, out bool OutIsValid, out float OutDistance)
+{
+	if ( !bUseMaxDistance )
+	{
+		MaxDistance = 1e38;
+	}
+
+#if DISTATICMESH_ALLOWDISTANCEFIELD
+	OutIsValid = bExecute && InstanceDistanceFieldIndex_{ParameterName} != int(-1);
+	OutDistance = MaxDistance;
+	if ( OutIsValid )
+	{
+		// Needs to be a smidge over 0.0 for DistanceToNearestSurfaceForObject to query the SDF
+		MaxDistance = max(0.001, MaxDistance);
+		OutDistance = DistanceToNearestSurfaceForObject(InstanceDistanceFieldIndex_{ParameterName}, WorldPosition, MaxDistance);
+	}
+#else
+	OutIsValid = false;
+	OutDistance = MaxDistance;
+#endif
+}
