@@ -2199,9 +2199,11 @@ FRHICOMMAND_MACRO(FRHICommandClearRayTracingBindings)
 struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICommandBuildAccelerationStructures>
 {
 	const TArrayView<const FRayTracingGeometryBuildParams> Params;
+	FRHIBufferRange ScratchBufferRange;
+	TRefCountPtr<FRHIBuffer> ScratchBuffer;
 
-	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> InParams)
-		: Params(InParams)
+	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> InParams, const FRHIBufferRange& ScratchBufferRange)
+		: Params(InParams), ScratchBufferRange(ScratchBufferRange), ScratchBuffer(ScratchBufferRange.Buffer)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3003,19 +3005,14 @@ public:
 #endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 
 #if RHI_RAYTRACING
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
-	{
-		FRayTracingGeometryBuildParams Params;
-		Params.Geometry = Geometry;
-		Params.BuildMode = EAccelerationStructureBuildMode::Build;
-		BuildAccelerationStructures(MakeArrayView(&Params, 1));
-	}
+	void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry);
+	void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params);
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		if (Bypass())
 		{
-			GetComputeContext().RHIBuildAccelerationStructures(Params);
+			GetComputeContext().RHIBuildAccelerationStructures(Params, ScratchBufferRange);
 		}
 		else
 		{
@@ -3031,7 +3028,7 @@ public:
 					InlineParams[i].Segments = AllocArray(Params[i].Segments);
 				}
 			}
-			ALLOC_COMMAND(FRHICommandBuildAccelerationStructures)(MakeArrayView(InlineParams, Params.Num()));
+			ALLOC_COMMAND(FRHICommandBuildAccelerationStructures)(MakeArrayView(InlineParams, Params.Num()), ScratchBufferRange);
 		}
 	}
 

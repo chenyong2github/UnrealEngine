@@ -562,7 +562,7 @@ void FRHICommandClearRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 void FRHICommandBuildAccelerationStructures::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
-	INTERNAL_DECORATOR_COMPUTE(RHIBuildAccelerationStructures)(Params);
+	INTERNAL_DECORATOR_COMPUTE(RHIBuildAccelerationStructures)(Params, ScratchBufferRange);
 }
 
 void FRHICommandRayTraceOcclusion::Execute(FRHICommandListBase& CmdList)

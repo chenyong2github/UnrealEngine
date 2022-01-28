@@ -193,6 +193,7 @@ FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage)
 		case BUF_FastVRAM:				return TEXT("BUF_FastVRAM");
 		case BUF_Shared:				return TEXT("BUF_Shared");
 		case BUF_AccelerationStructure:	return TEXT("BUF_AccelerationStructure");
+		case BUF_RayTracingScratch:		return TEXT("BUF_RayTracingScratch");
 		case BUF_VertexBuffer:			return TEXT("BUF_VertexBuffer");
 		case BUF_IndexBuffer:			return TEXT("BUF_IndexBuffer");
 		case BUF_StructuredBuffer:		return TEXT("BUF_StructuredBuffer");

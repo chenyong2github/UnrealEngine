@@ -331,7 +331,7 @@ public:
 		/* empty default implementation */
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		checkNoEntry();
 	}
@@ -417,11 +417,6 @@ struct FRayTracingGeometryBuildParams
 	// Optional array of geometry segments that can be used to change per-segment vertex buffers.
 	// Only fields related to vertex buffer are used. If empty, then geometry vertex buffers are not changed.
 	TArrayView<const FRayTracingGeometrySegment> Segments;
-
-	// Optional explicit build scratch buffer. Must be in UAV state.
-	// Scratch buffer will be created automatically if this is not provided.
-	FRHIBuffer* ScratchBuffer = nullptr;
-	uint32 ScratchBufferOffset = 0;
 };
 
 struct FRayTracingSceneBuildParams
@@ -740,18 +735,19 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
+	{
+		checkNoEntry();
+	}
+
+	void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
 	{
 		checkNoEntry();
 	}
 
 	void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
-		FRayTracingGeometryBuildParams Params;
-		Params.Geometry = Geometry;
-		Params.BuildMode = EAccelerationStructureBuildMode::Build;
-
-		RHIBuildAccelerationStructures(MakeArrayView(&Params, 1));
+		checkNoEntry();
 	}
 
 	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)

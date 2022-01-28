@@ -1590,6 +1590,11 @@ enum class EBufferUsageFlags : uint32
 	 * as indirect arg buffers), and the other GPU doesn't actually care about the data.
 	*/
 	MultiGPUGraphIgnore		= 1 << 18,
+	
+	/** Allows buffer to be used as a scratch buffer for building ray tracing acceleration structure,
+	 * which implies unordered access. Only changes the buffer alignment and can be combined with other flags.
+	**/
+	RayTracingScratch = (1 << 19) | UnorderedAccess,
 
 	// Helper bit-masks
 	AnyDynamic = (Dynamic | Volatile),
@@ -1611,6 +1616,7 @@ ENUM_CLASS_FLAGS(EBufferUsageFlags);
 #define BUF_Transient              EBufferUsageFlags::Transient
 #define BUF_Shared                 EBufferUsageFlags::Shared
 #define BUF_AccelerationStructure  EBufferUsageFlags::AccelerationStructure
+#define BUF_RayTracingScratch	   EBufferUsageFlags::RayTracingScratch
 #define BUF_VertexBuffer           EBufferUsageFlags::VertexBuffer
 #define BUF_IndexBuffer            EBufferUsageFlags::IndexBuffer
 #define BUF_StructuredBuffer       EBufferUsageFlags::StructuredBuffer

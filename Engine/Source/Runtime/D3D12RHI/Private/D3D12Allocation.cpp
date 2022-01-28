@@ -1412,6 +1412,11 @@ D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceSta
 		check(InHeapType == D3D12_HEAP_TYPE_DEFAULT);
 		return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 	}
+	else if (EnumHasAnyFlags(InBufferFlags, BUF_RayTracingScratch))
+	{
+		check(InHeapType == D3D12_HEAP_TYPE_DEFAULT);
+		return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
 #endif // D3D12_RHI_RAYTRACING
 	else
 	{

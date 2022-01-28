@@ -311,7 +311,7 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryIn
 	AccelerationStructureBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.accelerationStructureSize, BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BlasBufferCreateInfo).GetReference());
 
 	FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("BuildScratchBLAS"));
-	ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess | BUF_StructuredBuffer, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
+	ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_StructuredBuffer | BUF_RayTracingScratch, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
 
 	VkDevice NativeDevice = Device->GetInstanceHandle();
 
@@ -849,7 +849,7 @@ void FVulkanCommandListContext::RHIBindAccelerationStructureMemory(FRHIRayTracin
 }
 
 // Todo: High level rhi call should have transitioned and verified vb and ib to read for each segment
-void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 {
 	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
@@ -857,6 +857,7 @@ void FVulkanCommandListContext::RHIBuildAccelerationStructures(const TArrayView<
 
 		// Todo: Update geometry from params for each segment
 		// Todo: Can we do this only for an update?
+		// Todo: Use provided ScratchBuffer instead of allocating.
 
 		// Build as for each segment
 		Geometry->BuildAccelerationStructure(*this, P.BuildMode);

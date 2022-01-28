@@ -102,13 +102,29 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRHICommandListImmediate & RH
 		BatchedBuildParams.Reserve(ToUpdate.Num());
 		BatchedUpdateParams.Reserve(ToUpdate.Num());
 
-		auto KickBatch = [&RHICmdList, &BatchedBuildParams, &BatchedUpdateParams, &PrimitivesToUpdates]()
+		auto KickBatch = [&RHICmdList, ScratchBuffer, &BatchedBuildParams, &BatchedUpdateParams, &PrimitivesToUpdates]()
 		{
+			// TODO compute correct offset and increment for the next call or just always use 0 as the offset since we know that 
+			// 2 calls to BuildAccelerationStructures won't overlap due to UAV barrier inside RHIBuildAccelerationStructures so scratch memory can be reused by the next call already
+			uint32 ScratchBLASOffset = 0;
+
 			if (BatchedBuildParams.Num())
 			{
 				SCOPED_GPU_STAT(RHICmdList, SkinnedGeometryBuildBLAS);
 				SCOPED_DRAW_EVENT(RHICmdList, SkinnedGeometryBuildBLAS);
-				RHICmdList.BuildAccelerationStructures(BatchedBuildParams);
+				
+				if (ScratchBuffer)
+				{
+					FRHIBufferRange ScratchBufferRange;
+					ScratchBufferRange.Buffer = ScratchBuffer;
+					ScratchBufferRange.Offset = ScratchBLASOffset;
+					RHICmdList.BuildAccelerationStructures(BatchedBuildParams, ScratchBufferRange);
+				}
+				else
+				{
+					RHICmdList.BuildAccelerationStructures(BatchedBuildParams);
+				}
+				
 				BatchedBuildParams.Empty(BatchedBuildParams.Max());
 			}
 
@@ -116,7 +132,18 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRHICommandListImmediate & RH
 			{
 				SCOPED_GPU_STAT(RHICmdList, SkinnedGeometryUpdateBLAS);
 				SCOPED_DRAW_EVENT(RHICmdList, SkinnedGeometryUpdateBLAS);
-				RHICmdList.BuildAccelerationStructures(BatchedUpdateParams);
+
+				if (ScratchBuffer)
+				{
+					FRHIBufferRange ScratchBufferRange;
+					ScratchBufferRange.Buffer = ScratchBuffer;
+					ScratchBufferRange.Offset = ScratchBLASOffset;
+					RHICmdList.BuildAccelerationStructures(BatchedUpdateParams, ScratchBufferRange);
+				}
+				else
+				{
+					RHICmdList.BuildAccelerationStructures(BatchedUpdateParams);
+				}
 				BatchedUpdateParams.Empty(BatchedUpdateParams.Max());
 			}
 
@@ -124,7 +151,8 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRHICommandListImmediate & RH
 		};
 
 		const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
-		uint32 ScratchBLASOffset = 0;
+		uint32 ScratchBLASCurrentOffset = 0;
+		uint32 ScratchBLASNextOffset = 0;
 
 		// Iterate all the geometries which need an update
 		for (TMap<FRayTracingGeometry*, FRayTracingUpdateInfo>::TRangedForIterator Iter = ToUpdate.begin(); Iter != ToUpdate.end(); ++Iter)
@@ -136,11 +164,9 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRHICommandListImmediate & RH
 			BuildParams.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
 			BuildParams.BuildMode = UpdateInfo.BuildMode;
 			BuildParams.Segments = RayTracingGeometry->Initializer.Segments;
-			BuildParams.ScratchBuffer = ScratchBuffer;
-			BuildParams.ScratchBufferOffset = ScratchBLASOffset;
 
 			// Update the offset
-			ScratchBLASOffset = Align(ScratchBLASOffset + UpdateInfo.ScratchSize, ScratchAlignment);
+			ScratchBLASNextOffset = Align(ScratchBLASNextOffset + UpdateInfo.ScratchSize, ScratchAlignment);
 
 			// Make 'Build' 10 times more expensive than 1 'Update' of the BVH
 			uint32 PrimitiveCount = RayTracingGeometry->Initializer.TotalPrimitiveCount;
@@ -189,7 +215,7 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRDGBuilder& GraphBuilder)
 		
 		FRDGBufferDesc ScratchBufferDesc;
 		ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-		ScratchBufferDesc.Usage = BUF_UnorderedAccess;
+		ScratchBufferDesc.Usage = BUF_RayTracingScratch;
 		ScratchBufferDesc.BytesPerElement = ScratchAlignment;
 		ScratchBufferDesc.NumElements = FMath::DivideAndRoundUp(BLASScratchSize, ScratchAlignment);
 

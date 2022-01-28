@@ -2151,6 +2151,38 @@ void FRHIComputeCommandList::operator delete(void *RawMemory)
 	FMemory::Free(RawMemory);
 }
 
+#if RHI_RAYTRACING
+void FRHIComputeCommandList::BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+{
+	FRayTracingGeometryBuildParams Params;
+	Params.Geometry = Geometry;
+	Params.BuildMode = EAccelerationStructureBuildMode::Build;
+
+	FRHIBufferRange ScratchBufferRange{};
+	
+	FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("RHIScratchBuffer"));
+	ScratchBufferRange.Buffer = RHICreateBuffer(Geometry->GetSizeInfo().BuildScratchSize, BUF_StructuredBuffer | BUF_RayTracingScratch, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo);
+
+	BuildAccelerationStructures(MakeArrayView(&Params, 1), ScratchBufferRange);
+}
+
+void FRHIComputeCommandList::BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+{
+	uint64 TotalRequiredScratchMemorySize = 0;
+	for (const FRayTracingGeometryBuildParams& P : Params)
+	{
+		uint64 ScratchBufferRequiredSize = P.BuildMode == EAccelerationStructureBuildMode::Update ? P.Geometry->GetSizeInfo().UpdateScratchSize : P.Geometry->GetSizeInfo().BuildScratchSize;
+		TotalRequiredScratchMemorySize += ScratchBufferRequiredSize;
+	}
+
+	FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("RHIScratchBuffer"));
+	FRHIBufferRange ScratchBufferRange{};	
+	ScratchBufferRange.Buffer = RHICreateBuffer(TotalRequiredScratchMemorySize, BUF_StructuredBuffer | BUF_RayTracingScratch, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo);
+
+	BuildAccelerationStructures(Params, ScratchBufferRange);
+}
+#endif
+
 void* FRHICommandListBase::operator new(size_t Size)
 {
 	check(0); // you shouldn't be creating these

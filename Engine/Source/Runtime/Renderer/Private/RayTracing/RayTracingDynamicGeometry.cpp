@@ -392,9 +392,6 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SetupSegmentData);
 
-				const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
-				uint32 ScratchBLASOffset = 0;
-
 				// Setup the array views on final allocated segments array
 				FRayTracingGeometrySegment* SegmentData = Segments.GetData();
 				for (FRayTracingGeometryBuildParams& Param : BuildParams)
@@ -405,15 +402,6 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 						Param.Segments = MakeArrayView(SegmentData, SegmentCount);
 						SegmentData += SegmentCount;
 					}
-
-					Param.ScratchBuffer = ScratchBuffer;
-					Param.ScratchBufferOffset = ScratchBLASOffset;
-
-					// Update the offset
-
-					const FRayTracingAccelerationStructureSize BLASSizeInfo = Param.Geometry->GetSizeInfo();
-					const uint64 ScratchSize = Param.BuildMode == EAccelerationStructureBuildMode::Build ? BLASSizeInfo.BuildScratchSize : BLASSizeInfo.UpdateScratchSize;
-					ScratchBLASOffset = Align(ScratchBLASOffset + ScratchSize, ScratchAlignment);
 				}
 			}
 
@@ -541,7 +529,11 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				// requests over to the RaytracingGeometry manager so they can be correctly scheduled
 				// with other build requests in the engine (see UE-106982)
 				SCOPED_DRAW_OR_COMPUTE_EVENT(ParentCmdList, Build);
-				ParentCmdList.BuildAccelerationStructures(BuildParams);
+
+				FRHIBufferRange ScratchBufferRange;
+				ScratchBufferRange.Buffer = ScratchBuffer;
+				ScratchBufferRange.Offset = 0;
+				ParentCmdList.BuildAccelerationStructures(BuildParams, ScratchBufferRange);
 			}
 
 		}

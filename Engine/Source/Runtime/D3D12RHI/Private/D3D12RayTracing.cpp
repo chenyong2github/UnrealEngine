@@ -3199,6 +3199,10 @@ FRayTracingAccelerationStructureSize FD3D12DynamicRHI::RHICalcRayTracingGeometry
 		}
 	}
 
+	SizeInfo.ResultSize = Align(SizeInfo.ResultSize, GRHIRayTracingAccelerationStructureAlignment);
+	SizeInfo.BuildScratchSize = Align(SizeInfo.BuildScratchSize, GRHIRayTracingScratchBufferAlignment);
+	SizeInfo.UpdateScratchSize = Align(SizeInfo.UpdateScratchSize, GRHIRayTracingScratchBufferAlignment);
+
 	return SizeInfo;
 }
 
@@ -3466,11 +3470,6 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 
 	RegisterD3D12RayTracingGeometry(this);
 
-	if (Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination)
-	{
-		return;
-	}
-
 	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
 
 	// #yuriy_todo: get flags directly through the initializer
@@ -3510,6 +3509,14 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	{
 		// Get maximum buffer sizes for all GPUs in the system
 		SizeInfo = RHICalcRayTracingGeometrySize(Initializer);
+	}
+
+	// If this RayTracingGeometry going to be used as streaming destination 
+	// we don't want to allocate its memory as it will be replaced later by streamed version
+	// but we still need correct SizeInfo as it is used to estimate its memory requirements outside of RHI.
+	if (Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination)
+	{
+		return;
 	}
 
 	// Allocate acceleration structure buffer
@@ -4442,14 +4449,15 @@ void FD3D12CommandContext::BuildAccelerationStructuresInternal(const TArrayView<
 	}
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAccelerationStructure_BottomLevel);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12BuildBLAS);
 	LLM_SCOPE_BYNAME(TEXT("FD3D12RT/BLAS"));
 
-	// Update geometry vertex buffers
+	checkf(ScratchBufferRange.Buffer != nullptr, TEXT("BuildAccelerationStructures requires valid scratch buffer"));
 
+	// Update geometry vertex buffers
 	for (const FRayTracingGeometryBuildParams& P : Params)
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
@@ -4488,11 +4496,21 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 	const uint32 GPUIndex = GetGPUIndex();
 
 	// Then do all work
-	TArray<TRefCountPtr<FD3D12Buffer>, TInlineAllocator<32>> ScratchBuffers;
 	TArray<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC, TInlineAllocator<32>> BuildDescs;
-
 	BuildDescs.Reserve(Params.Num());
-	ScratchBuffers.Reserve(Params.Num());
+
+	uint32 ScratchBufferSize = ScratchBufferRange.Size ? ScratchBufferRange.Size : ScratchBufferRange.Buffer->GetSize();
+
+	checkf(ScratchBufferSize + ScratchBufferRange.Offset <= ScratchBufferRange.Buffer->GetSize(),
+		TEXT("BLAS scratch buffer range size is %lld bytes with offset %lld, but the buffer only has %lld bytes. "),
+		ScratchBufferRange.Size, ScratchBufferRange.Offset, ScratchBufferRange.Buffer->GetSize());
+
+
+	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+	FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(ScratchBufferRange.Buffer, GPUIndex);
+	uint32 ScratchBufferOffset = ScratchBufferRange.Offset;
+
+	ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
 
 	FMemMark Mark(FMemStack::Get());
 
@@ -4511,38 +4529,15 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 		Geometry->SetupHitGroupSystemParameters(GPUIndex);
 
 		if (Geometry->IsDirty(GPUIndex))
-		{			
-			D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress;
-			if (P.ScratchBuffer)
-			{
-				FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(P.ScratchBuffer, GPUIndex);
+		{
+			uint64 ScratchBufferRequiredSize = P.BuildMode == EAccelerationStructureBuildMode::Update ? Geometry->SizeInfo.UpdateScratchSize : Geometry->SizeInfo.BuildScratchSize;
+			checkf(ScratchBufferRequiredSize + ScratchBufferOffset <= ScratchBufferSize,
+				TEXT("BLAS scratch buffer size is %lld bytes with offset %lld (%lld bytes available), but the build requires %lld bytes. "),
+				ScratchBufferSize, ScratchBufferOffset, ScratchBufferSize - ScratchBufferOffset, ScratchBufferRequiredSize);
 
-				uint64 ScratchBufferRequiredSize = P.BuildMode == EAccelerationStructureBuildMode::Update ? Geometry->SizeInfo.UpdateScratchSize : Geometry->SizeInfo.BuildScratchSize;
-				checkf(ScratchBufferRequiredSize + P.ScratchBufferOffset <= ScratchBuffer->GetSize(),
-					TEXT("BLAS scratch buffer size is %lld bytes with offset %lld (%lld bytes available), but the build requires %lld bytes. "),
-					ScratchBuffer->GetSize(), P.ScratchBufferOffset, ScratchBuffer->GetSize() - P.ScratchBufferOffset, ScratchBufferRequiredSize);
+			D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + ScratchBufferOffset;
 
-				ScratchBufferAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + P.ScratchBufferOffset;
-				ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
-			}
-			else
-			{
-				TRefCountPtr<FD3D12Buffer> ScratchBuffer;
-				if (P.BuildMode == EAccelerationStructureBuildMode::Update)
-				{
-					static const FName BufferName("UpdateScratchBLAS");
-					ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.UpdateScratchSize, ERayTracingBufferType::Scratch, BufferName);
-				}
-				else
-				{
-					static const FName BufferName("BuildScratchBLAS");
-					ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.BuildScratchSize, ERayTracingBufferType::Scratch, BufferName);
-				}
-
-				ScratchBufferAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress();
-				ScratchBuffers.Add(ScratchBuffer);
-				ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
-			}
+			ScratchBufferOffset = Align(ScratchBufferOffset + ScratchBufferRequiredSize, ScratchAlignment);
 
 			checkf(ScratchBufferAddress % GRHIRayTracingAccelerationStructureAlignment == 0,
 				TEXT("BLAS scratch buffer (plus offset) must be aligned to %lld bytes."),

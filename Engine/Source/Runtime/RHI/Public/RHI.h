@@ -2453,6 +2453,13 @@ struct FUpdateTextureRegion3D
 	{}
 };
 
+struct FRHIBufferRange
+{
+	FRHIBuffer* Buffer{ nullptr };
+	uint64 Offset{ 0 };
+	uint64 Size{ 0 };
+};
+
 struct FRHIDispatchIndirectParameters
 {
 	uint32 ThreadGroupCountX;
