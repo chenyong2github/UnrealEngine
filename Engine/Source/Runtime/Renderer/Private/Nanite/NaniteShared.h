@@ -240,10 +240,14 @@ public:
 	{
 		const bool bProgrammableRaster = 
 		(
+		#if 1 // TODO: PROG_RASTER
+			false
+		#else
 			Parameters.MaterialParameters.bIsMasked ||
 			Parameters.MaterialParameters.bHasPixelDepthOffsetConnected ||
-			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition ||
-			Parameters.MaterialParameters.bWritesEveryPixel == false
+			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition// ||
+			//Parameters.MaterialParameters.bWritesEveryPixel == false
+		#endif
 		);
 
 		const bool bValidMaterial = 

@@ -3940,41 +3940,47 @@ void FMaterial::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStab
 }
 
 #if WITH_EDITOR
+void FMaterial::GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+{
+	FDebugShaderTypeInfo DebugInfo;
+	DebugInfo.VFType = VertexFactory;
+
+	for (const FShaderLayoutEntry& Shader : Layout.Shaders)
+	{
+		if (ShouldCache(Platform, Shader.ShaderType, VertexFactory))
+		{
+			DebugInfo.ShaderTypes.Add(Shader.ShaderType);
+		}
+	}
+
+	for (const FShaderPipelineType* Pipeline : Layout.ShaderPipelines)
+	{
+		if (ShouldCachePipeline(Platform, Pipeline, VertexFactory))
+		{
+			FDebugShaderPipelineInfo PipelineInfo;
+			PipelineInfo.Pipeline = Pipeline;
+
+			for (const FShaderType* Type : Pipeline->GetStages())
+			{
+				PipelineInfo.ShaderTypes.Add((FShaderType*)Type);
+			}
+
+			DebugInfo.Pipelines.Add(PipelineInfo);
+		}
+	}
+
+	OutShaderInfo.Add(DebugInfo);
+}
+
 void FMaterial::GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
 {
 	const FMaterialShaderParameters MaterialParameters(this);
 	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(Platform, GetShaderPermutationFlags(LayoutParams), MaterialParameters);
+	GetShaderTypesForLayout(Platform, Layout, nullptr, OutShaderInfo);
 
 	for (const FMeshMaterialShaderMapLayout& MeshLayout : Layout.MeshShaderMaps)
 	{
-		FDebugShaderTypeInfo debugInfo;
-		debugInfo.VFType = MeshLayout.VertexFactoryType;
-
-		for (const FShaderLayoutEntry& Shader : MeshLayout.Shaders)
-		{
-			if (ShouldCache(Platform, Shader.ShaderType, MeshLayout.VertexFactoryType))
-			{
-				debugInfo.ShaderTypes.Add(Shader.ShaderType);
-			}
-		}
-
-		for (const FShaderPipelineType* Pipeline : MeshLayout.ShaderPipelines)
-		{
-			if (ShouldCachePipeline(Platform, Pipeline, MeshLayout.VertexFactoryType))
-			{
-				FDebugShaderPipelineInfo pipelineInfo;
-				pipelineInfo.Pipeline = Pipeline;
-
-				for (const FShaderType* Type : Pipeline->GetStages())
-				{
-					pipelineInfo.ShaderTypes.Add((FShaderType*)Type);
-				}
-
-				debugInfo.Pipelines.Add(pipelineInfo);
-			}
-		}
-
-		OutShaderInfo.Add(debugInfo);
+		GetShaderTypesForLayout(Platform, MeshLayout, MeshLayout.VertexFactoryType, OutShaderInfo);
 	}
 }
 #endif

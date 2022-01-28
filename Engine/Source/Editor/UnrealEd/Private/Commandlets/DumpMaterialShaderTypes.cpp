@@ -53,14 +53,17 @@ public:
 		}
 #endif // 0
 
-		FString VFTypeName(VertexFactoryName);
-		if (int32* Existing = VertexFactoryTypeHistogram.Find(VFTypeName))
+		if (VertexFactoryName)
 		{
-			++(*Existing);
-		}
-		else
-		{
-			VertexFactoryTypeHistogram.FindOrAdd(VFTypeName, 1);
+			FString VFTypeName(VertexFactoryName);
+			if (int32* Existing = VertexFactoryTypeHistogram.Find(VFTypeName))
+			{
+				++(*Existing);
+			}
+			else
+			{
+				VertexFactoryTypeHistogram.FindOrAdd(VFTypeName, 1);
+			}
 		}
 	}
 
@@ -217,31 +220,64 @@ void PrintDebugShaderInfo(FShaderStatsGatheringContext& Output, const TArray<FDe
 {
 	for (const FDebugShaderTypeInfo& ShaderInfo : OutShaderInfo)
 	{
-		int TotalShadersForVF = 0;
-		TotalShadersForVF += ShaderInfo.ShaderTypes.Num();
-
-		for (const FDebugShaderPipelineInfo& PipelineInfo : ShaderInfo.Pipelines)
-		{
-			TotalShadersForVF += PipelineInfo.ShaderTypes.Num();
-		}
-
 		Output.Log(TEXT(""));
-		Output.Log(FString::Printf(TEXT("\t%s - %d shaders"), ShaderInfo.VFType->GetName(), TotalShadersForVF));
 
-		for (FShaderType* ShaderType : ShaderInfo.ShaderTypes)
+		// FMeshMaterialShader
+		if (ShaderInfo.VFType)
 		{
-			Output.Log(FString::Printf(TEXT("\t\t%s"), ShaderType->GetName()));
-			Output.AddToHistogram(ShaderInfo.VFType->GetName(), nullptr, ShaderType->GetName());
-		}
+			int TotalShadersForVF = 0;
+			TotalShadersForVF += ShaderInfo.ShaderTypes.Num();
 
-		for (const FDebugShaderPipelineInfo& PipelineInfo : ShaderInfo.Pipelines)
-		{
-			Output.Log(FString::Printf(TEXT("\t\t%s"), PipelineInfo.Pipeline->GetName()));
-
-			for (FShaderType* ShaderType : PipelineInfo.ShaderTypes)
+			for (const FDebugShaderPipelineInfo& PipelineInfo : ShaderInfo.Pipelines)
 			{
-				Output.Log(FString::Printf(TEXT("\t\t\t%s"), ShaderType->GetName()));
-				Output.AddToHistogram(ShaderInfo.VFType->GetName(), PipelineInfo.Pipeline->GetName(), ShaderType->GetName());
+				TotalShadersForVF += PipelineInfo.ShaderTypes.Num();
+			}
+
+			Output.Log(FString::Printf(TEXT("\t%s - %d shaders"), ShaderInfo.VFType->GetName(), TotalShadersForVF));
+
+			for (FShaderType* ShaderType : ShaderInfo.ShaderTypes)
+			{
+				Output.Log(FString::Printf(TEXT("\t\t%s"), ShaderType->GetName()));
+				Output.AddToHistogram(ShaderInfo.VFType->GetName(), nullptr, ShaderType->GetName());
+			}
+
+			for (const FDebugShaderPipelineInfo& PipelineInfo : ShaderInfo.Pipelines)
+			{
+				Output.Log(FString::Printf(TEXT("\t\t%s"), PipelineInfo.Pipeline->GetName()));
+
+				for (FShaderType* ShaderType : PipelineInfo.ShaderTypes)
+				{
+					Output.Log(FString::Printf(TEXT("\t\t\t%s"), ShaderType->GetName()));
+					Output.AddToHistogram(ShaderInfo.VFType->GetName(), PipelineInfo.Pipeline->GetName(), ShaderType->GetName());
+				}
+			}
+		}
+		// FMaterialShader
+		else
+		{
+			check(ShaderInfo.Pipelines.Num() == 0);
+
+			TMap<FString, int32> ShaderTypeMap;
+			for (FShaderType* ShaderType : ShaderInfo.ShaderTypes)
+			{
+				FString ShaderTypeName(ShaderType->GetName());
+				if (int32* Existing = ShaderTypeMap.Find(ShaderTypeName))
+				{
+					++(*Existing);
+				}
+				else
+				{
+					ShaderTypeMap.FindOrAdd(ShaderTypeName, 1);
+				}
+			}
+
+			if (ShaderTypeMap.Num() > 0)
+			{
+				ShaderTypeMap.ValueSort(TGreater<int32>());
+				for (TPair<FString, int32> ShaderTypeSum : ShaderTypeMap)
+				{
+					Output.Log(FString::Printf(TEXT("\t%s - %d shaders"), *ShaderTypeSum.Key, ShaderTypeSum.Value));
+				}
 			}
 		}
 

@@ -65,6 +65,7 @@ struct FMaterialShaderTypes;
 struct FMaterialShaders;
 struct FMaterialCachedExpressionData;
 class FMaterialHLSLGenerator;
+class FShaderMapLayout;
 
 namespace UE
 {
@@ -2054,6 +2055,8 @@ public:
 *
 */
 	void GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
+
+	void GetShaderTypesForLayout(EShaderPlatform Platform, const FShaderMapLayout& Layout, FVertexFactoryType* VertexFactory, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
