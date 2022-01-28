@@ -1770,8 +1770,7 @@ FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) c
 		// We know the package we are saving to.
 		const FText PackageName = FText::FromString(Linker->LinkerRoot->GetName());
 		
-		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadToPkg", 
-								"Attempting to save bulkdata {0} with an invalid payload to package '{1}'. The package probably needs to be reverted/recreated to fix this."), 						
+		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadToPkg", "Attempting to save bulkdata {0} with an invalid payload to package '{1}'. The package probably needs to be reverted/recreated to fix this."), 						
 								GuidID, PackageName);
 	}
 	else if(!PackagePath.IsEmpty())
@@ -1779,8 +1778,7 @@ FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) c
 		// We don't know where we are saving to, but we do know the package where the payload came from.
 		const FText PackageName = FText::FromString(PackagePath.GetPackageName());
 
-		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadFromPkg", 
-								"Attempting to save bulkdata {0} with an invalid payload from package '{1}'. The package probably needs to be reverted/recreated to fix this."),
+		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadFromPkg", "Attempting to save bulkdata {0} with an invalid payload from package '{1}'. The package probably needs to be reverted/recreated to fix this."),
 								GuidID, PackageName);
 	}
 	else
