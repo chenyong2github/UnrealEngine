@@ -2,6 +2,7 @@
 
 #include "LiveLinkClientPanelToolbar.h"
 
+#include "Algo/StableSort.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -422,6 +423,11 @@ void SLiveLinkClientPanelToolbar::Construct(const FArguments& Args, FLiveLinkCli
 			Factories.Add(NewObject<ULiveLinkSourceFactory>(GetTransientPackage(), SourceFactory));
 		}
 	}
+
+	Algo::StableSort(Factories, [](ULiveLinkSourceFactory* LHS, ULiveLinkSourceFactory* RHS)
+	{
+		return LHS->GetSourceDisplayName().CompareTo(RHS->GetSourceDisplayName()) <= 0;
+	});
 
 	const int32 ButtonBoxSize = 28;
 	FMargin ButtonPadding(4.f);

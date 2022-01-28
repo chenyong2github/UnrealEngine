@@ -147,7 +147,16 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 		{
 			if (LHS.IsValid() && RHS.IsValid() && LHS->PollResult.IsValid() && RHS->PollResult.IsValid())
 			{
-				return LHS->PollResult->Name.Compare(RHS->PollResult->Name) <= 0;
+				//List by SourceName first and then by machine name
+				const int32 Result = LHS->PollResult->Name.Compare(RHS->PollResult->Name);
+				if (Result == 0)
+				{
+					return LHS->PollResult->MachineName.Compare(RHS->PollResult->MachineName) <= 0;
+				}
+				else
+				{
+					return Result <= 0;
+				}
 			}
 			return true;
 		});
