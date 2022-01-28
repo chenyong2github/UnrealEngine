@@ -311,6 +311,24 @@ bool FCommonAnalogCursor::HandleAnalogInputEvent(FSlateApplication& SlateApp, co
 	return false;
 }
 
+bool FCommonAnalogCursor::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
+{
+#if WITH_EDITOR
+	// We can leave editor cursor visibility in a bad state if the engine stops ticking to debug
+	if (GIntraFrameDebuggingGameThread)
+	{
+		SlateApp.SetPlatformCursorVisibility(true);
+		TSharedPtr<FSlateUser> SlateUser = FSlateApplication::Get().GetUser(GetOwnerUserIndex());
+		if (ensure(SlateUser))
+		{
+			SlateUser->SetCursorVisibility(true);
+		}
+	}
+#endif // WITH_EDITOR
+
+	return FAnalogCursor::HandleMouseMoveEvent(SlateApp, MouseEvent);
+}
+
 bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& PointerEvent)
 {
 	if (FAnalogCursor::IsRelevantInput(PointerEvent))
