@@ -560,7 +560,8 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
-		PassParameters->bDrawNaniteMeshes = !LightSceneProxy->UseVirtualShadowMaps();
+		// Disable Nanite meshes for directional lights that use VSM since they draw into the VSM unconditionally (and would get double shadow)
+		PassParameters->bDrawNaniteMeshes = !(LightSceneProxy->UseVirtualShadowMaps() && LightSceneProxy->GetLightType() == LightType_Directional);
 
 		check(NumPlanes <= 12);
 
@@ -865,7 +866,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 				PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
 			}
-			else if (bOnePassPointLightShadow)
+			else if (IsWholeScenePointLightShadow())
 			{
 				ShadowBoundingSphereValue = FVector4(ShadowBounds.Center.X, ShadowBounds.Center.Y, ShadowBounds.Center.Z, ShadowBounds.W);
 			}

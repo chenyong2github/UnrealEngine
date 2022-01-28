@@ -2239,6 +2239,19 @@ private:
 #endif
 	bool bShadowDepthRenderCompleted;
 
+	struct FScreenMessageWriter
+	{
+		FScreenMessageWriter(FCanvas& InCanvas, int32 InY);
+
+		void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0));
+
+		FCanvas& Canvas;
+		int32 Y;
+	};
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
+	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;
+
 	/** Distance field shadows to project. Used to avoid iterating through the scene lights array. */
 	TArray<FProjectedShadowInfo*, TInlineAllocator<2, SceneRenderingAllocator>> ProjectedDistanceFieldShadows;
 

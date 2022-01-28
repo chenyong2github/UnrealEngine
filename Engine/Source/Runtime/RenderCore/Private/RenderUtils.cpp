@@ -1707,3 +1707,11 @@ RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform)
 	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("r.SkinCache.CompileShaders"));
 	return (PerPlatformCVar.Get(Platform) != 0);
 }
+
+RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform Platform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.DetectVertexShaderLayerAtRuntime"));
+
+	return RHISupportsVertexShaderLayer(Platform)
+		|| (CVar->GetValueOnAnyThread() != 0 && GRHISupportsArrayIndexFromAnyShader != 0);
+}

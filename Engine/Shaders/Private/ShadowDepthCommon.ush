@@ -30,15 +30,3 @@ struct FShadowDepthVSToPS
 	float3 PixelPosition	: TEXCOORD7;
 #endif
 };
-
-#if ONEPASS_POINTLIGHT_SHADOW
-//only for one pass pointlights
-struct FShadowDepthVSToGS : FShadowDepthVSToPS
-{
-	float4 GSPosition : TEXCOORD6;
-#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	nointerpolation uint ViewIndex : TEXCOORD9;
-#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-};
-#endif
-

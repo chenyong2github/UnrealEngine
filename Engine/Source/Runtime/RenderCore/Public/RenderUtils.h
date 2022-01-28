@@ -744,3 +744,10 @@ RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatfor
  *   Checks if skin cache shaders are enabled for the platform (via r.SkinCache.CompileShaders)
  */
 RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform);
+
+
+/*
+ * Detect (at runtime) if the runtime supports rendering one-pass point light shadows (i.e., cube maps)
+ */
+RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform Platform);
+

@@ -2124,7 +2124,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	}
 	
 	ViewIds.Reset();
-	if (GetShadowDepthType().bOnePassPointLightShadow)
+	if (bOnePassPointLightShadow)
 	{
 		ViewIds.AddDefaulted(6);
 		for (int32 CubemapFaceIndex = 0; CubemapFaceIndex < 6; CubemapFaceIndex++)
@@ -2169,9 +2169,9 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	// GPUCULL_TODO: Pass along any custom culling planes or whatever here (e.g., cacade bounds):
 	// GPUCULL_TODO: Add debug tags to context and views (so compute passes can be understood)
 	// GPUCULL_TODO: Needed to support legacy, non-GPU-Scene culled, primitives, this is merely used to allocate enough space for CPU-side replication.
-	const bool bUseGeometryShader = !RHISupportsVertexShaderLayer(Renderer.Scene->GetShaderPlatform()) && RHISupportsGeometryShaders(Renderer.Scene->GetShaderPlatform());
+	const bool bMayUseHostCubeFaceReplication = bOnePassPointLightShadow && !HasVirtualShadowMap();
 	// Note: Iteracts with FShadowDepthPassMeshProcessor::Process and must be an overestimate of the actual replication done there.
-	const uint32 InstanceFactor = !GetShadowDepthType().bOnePassPointLightShadow || bUseGeometryShader ? 1 : 6;
+	const uint32 InstanceFactor = bMayUseHostCubeFaceReplication ? 6 : 1;
 
 	// Ensure all work goes down the one path to simplify processing
 	EBatchProcessingMode SingleInstanceProcessingMode = (HasVirtualShadowMap() || VirtualShadowMapClipmap.IsValid()) ? EBatchProcessingMode::Generic : EBatchProcessingMode::UnCulled;
@@ -4921,6 +4921,20 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmdList)
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	TBitArray<SceneRenderingAllocator> OnePassShadowUnsupportedLights;
+	auto MarkUnsupportedOnePassShadow = [&OnePassShadowUnsupportedLights](int32 LightId)
+	{
+		if (OnePassShadowUnsupportedLights.Num() <= LightId)
+		{
+			OnePassShadowUnsupportedLights.Add(false, 1 + LightId - OnePassShadowUnsupportedLights.Num());
+		}
+		OnePassShadowUnsupportedLights[LightId] = true;
+	};
+#else 
+	auto MarkUnsupportedOnePassShadow = [](int32 LightId) {};
+#endif
+
 	// Sort visible shadows based on their allocation needs
 	// 2d shadowmaps for this frame only that can be atlased across lights
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> Shadows;
@@ -5000,6 +5014,18 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				&& ProjectedShadowInfo->GetLightSceneInfo().GetDynamicShadowMapChannel() == -1)
 			{
 				// With forward shading, dynamic shadows are projected into channels of the light attenuation texture based on their assigned DynamicShadowMapChannel
+				bShadowIsVisible = false;
+			}
+
+			// Skip one-pass point light shadows if rendering to them is not suported, unless VSM or DF
+			if (bShadowIsVisible
+				&& !ProjectedShadowInfo->HasVirtualShadowMap()
+				&& !ProjectedShadowInfo->bRayTracedDistanceField
+				&& ProjectedShadowInfo->bOnePassPointLightShadow 
+				&& !DoesRuntimeSupportOnePassPointLightShadows(GShaderPlatformForFeatureLevel[FeatureLevel]))
+			{ 
+				// Also note this to produce a log message & on-screen warning
+				MarkUnsupportedOnePassShadow(ProjectedShadowInfo->GetLightSceneInfo().Id);
 				bShadowIsVisible = false;
 			}
 
@@ -5207,6 +5233,24 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 		}
 	}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (!OnePassShadowUnsupportedLights.IsEmpty())
+	{
+		OnGetOnScreenMessages.AddLambda([Scene = Scene, OnePassShadowUnsupportedLights = MoveTemp(OnePassShadowUnsupportedLights)](FScreenMessageWriter& ScreenMessageWriter)->void
+		{
+			static const FText Message = NSLOCTEXT("Renderer", "PointLightVsLayer", "RUNTIME DOES NOT SUPPORT WHOLE SCENE POINT LIGHT SHADOWS (Missing Vertexshader Layer support): ");
+			ScreenMessageWriter.DrawLine(Message);
+			for (TConstSetBitIterator<SceneRenderingAllocator> It(OnePassShadowUnsupportedLights); It; ++It)
+			{
+				int32 LightId = It.GetIndex();
+				if (Scene->Lights.IsValidIndex(LightId))
+				{
+					ScreenMessageWriter.DrawLine(FText::FromString(Scene->Lights[LightId].LightSceneInfo->Proxy->GetOwnerNameOrLabel()), 35);
+				}
+			}
+		});
+	}
+#endif
 	SET_MEMORY_STAT(STAT_CachedShadowmapMemory, Scene->GetCachedWholeSceneShadowMapsSize());
 	SET_MEMORY_STAT(STAT_ShadowmapAtlasMemory, SortedShadowsForShadowDepthPass.ComputeMemorySize());
 }

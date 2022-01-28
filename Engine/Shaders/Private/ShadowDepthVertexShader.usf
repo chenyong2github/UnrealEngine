@@ -156,103 +156,15 @@ void TransformToVirtualSmPage(inout float4 PointClip, inout float4 ClipPlanesInO
 
 #endif // VIRTUAL_SM_ENABLED
 
-
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW
-
-// Layer Id per draw call for Vertex-Shader-Layer implementation
-#if VERTEXSHADER && USING_VERTEX_SHADER_LAYER
-uint LayerId;
-#endif
-
 uint bUseGpuSceneInstancing;
-
-struct FShadowDepthGSToPS
-{
-#if INTERPOLATE_VF_ATTRIBUTES
-	FShadowDepthVSToPS PSInputs;
-#endif
-	float4 OutPosition : SV_POSITION;
-
-	/** Controls which of the cube map faces to rasterize the primitive to, only the value from the first vertex is used. */
-	uint RTIndex : SV_RenderTargetArrayIndex;
-};
-
-bool IsTriangleInFrustum(float4 ClipSpacePositions[3])
-{
-	float4 FrustumTests0 = saturate(ClipSpacePositions[0].xyxy * float4(-1, -1, 1, 1) - ClipSpacePositions[0].w);
-	float4 FrustumTests1 = saturate(ClipSpacePositions[1].xyxy * float4(-1, -1, 1, 1) - ClipSpacePositions[1].w);
-	float4 FrustumTests2 = saturate(ClipSpacePositions[2].xyxy * float4(-1, -1, 1, 1) - ClipSpacePositions[2].w);
-	float4 FrustumTests = FrustumTests0 * FrustumTests1 * FrustumTests2;
-
-	float2 FrustumTestsZ0 = saturate(ClipSpacePositions[0].zz * float2(-1, 1) - ClipSpacePositions[0].w);
-	float2 FrustumTestsZ1 = saturate(ClipSpacePositions[1].zz * float2(-1, 1) - ClipSpacePositions[1].w);
-	float2 FrustumTestsZ2 = saturate(ClipSpacePositions[2].zz * float2(-1, 1) - ClipSpacePositions[2].w);
-	float2 FrustumTestsZ = FrustumTestsZ0 * FrustumTestsZ1 * FrustumTestsZ2;
-	return !( any(FrustumTests != 0) || any(FrustumTestsZ != 0) );
-}
-
-/** Allocate space for cloning to all 6 faces which is the worst case (no GPU-scene active). */
-/** GPU-Scene case: Instancing takes care of the clone, we just route to a layer. */
-[maxvertexcount(18)]
-void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout TriangleStream<FShadowDepthGSToPS> OutStream)
-{
-#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	uint CubeFaceStartIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex : 0;
-	uint CubeFaceEndIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex + 1: 6;
-
-	// Clone the triangle to each face
-	for (int CubeFaceIndex = CubeFaceStartIndex; CubeFaceIndex < CubeFaceEndIndex; CubeFaceIndex++)
-#else //!ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	UNROLL
-	// Clone the triangle to each face
-	for (int CubeFaceIndex = 0; CubeFaceIndex < 6; CubeFaceIndex++)
-#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	{
-		float4 ClipSpacePositions[3];
-		UNROLL
-		for (int VertexIndex = 0; VertexIndex < 3; VertexIndex++)
-		{
-			// Calculate the clip space position for each cube face
-			// Note: We don't apply any constant/slop bias here. A constant bias is applied in the shadow projection 
-			// code (see CubemapHardwarePCF() in ShadowProjectionCommon.ush)
-			ClipSpacePositions[VertexIndex] = mul(Input[VertexIndex].GSPosition, PassStruct.ShadowViewProjectionMatrices[CubeFaceIndex]);
-		}
-		// Frustum culling, saves GPU time with high poly meshes
-		BRANCH
-		if (IsTriangleInFrustum(ClipSpacePositions))
-		{
-			FShadowDepthGSToPS Output;
-			Output.RTIndex = CubeFaceIndex;
-
-			UNROLL
-			for (int VertexIndex = 0; VertexIndex < 3; VertexIndex++)
-			{
-				Output.OutPosition = ClipSpacePositions[VertexIndex];
-
-			#if INTERPOLATE_VF_ATTRIBUTES
-				Output.PSInputs.FactoryInterpolants = Input[VertexIndex].FactoryInterpolants;
-			#endif
-
-			#if INTERPOLATE_POSITION
-				Output.PSInputs.PixelPosition = Input[VertexIndex].GSPosition.xyz;
-			#endif
-				OutStream.Append(Output);
-			}
-			OutStream.RestartStrip();
-		}
-	}
-}
-
+#if VERTEXSHADER && ONEPASS_POINTLIGHT_SHADOW
+uint LayerId;
 #endif
 
 void Main(
 	FVertexFactoryInput Input,
 #if ONEPASS_POINTLIGHT_SHADOW
-  #if IS_FOR_GEOMETRY_SHADER
-	out FShadowDepthVSToGS OutParameters,
-  #else
 	out FShadowDepthVSToPS OutParameters,
-  #endif
 #else
 	out FShadowDepthVSToPS OutParameters,
 #endif
@@ -260,8 +172,8 @@ void Main(
 	out nointerpolation uint PackedPageInfo : TEXCOORD8,
 #endif
 	out float4 OutPosition : SV_POSITION
-#if ONEPASS_POINTLIGHT_SHADOW && FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
-	,out uint LayerIndex : SV_RenderTargetArrayIndex
+#if ONEPASS_POINTLIGHT_SHADOW
+	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #endif
 #if VIRTUAL_SM_ENABLED	
 	// OLA-TODO: this collides with instanced stereo, which thankfully is not used with shadow maps, so should be fine, presumably.
@@ -284,13 +196,6 @@ void Main(
 
 	OutPosition = WorldPos;
 
-	#if IS_FOR_GEOMETRY_SHADER
-		OutParameters.GSPosition = WorldPos;
-		#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-			OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
-		#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	#endif // IS_FOR_GEOMETRY_SHADER
-
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip
 		OutParameters.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
@@ -300,13 +205,8 @@ void Main(
 		OutParameters.PixelPosition = WorldPos.xyz;
 	#endif
 
-	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
-		LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
-		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
-		#if INTERPOLATE_VF_ATTRIBUTES && IS_FOR_GEOMETRY_SHADER
-			OutParameters.GSPosition = OutPosition;
-		#endif
-	#endif
+	LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
+	OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
 
 #else
 	float Dummy;
@@ -357,54 +257,14 @@ void Main(
 #endif // VIRTUAL_SM_ENABLED
 }
 
-#if IS_FOR_GEOMETRY_SHADER
-
-// Vertex shader exports must match GS inputs.
-// This is a requirement on some platforms.
-void MainForGS(
-	FVertexFactoryInput Input,
-#if ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters
-	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
-		, out uint LayerIndex : SV_RenderTargetArrayIndex
-	#endif
-#else
-	#error Invalid permutation for MainForGS
-#endif
-#if COMPILER_METAL
-#define SKIP_UNUSED_POSITION
-	// Metal needs a position output
-	, out float4 UnusedPosition : SV_POSITION
-#endif
-	)
-{
-#ifndef SKIP_UNUSED_POSITION
-	float4 UnusedPosition;
-#endif
-
-	Main(Input,
-		OutParameters,
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
-		LayerIndex,
-#endif
-		UnusedPosition);
-}
-
-#endif // IS_FOR_GEOMETRY_SHADER
-
-#define USING_ONEPASS_POINT_VERTEX_LAYER	(FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
-
 #if POSITION_ONLY
 void PositionOnlyMain(
 	in FPositionAndNormalOnlyVertexFactoryInput Input,
-#if USING_ONEPASS_POINT_VERTEX_LAYER
+#if ONEPASS_POINTLIGHT_SHADOW
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif
-#if ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters,
-#else
 	out FShadowDepthVSToPS OutParameters,
-#endif
+
 #if VIRTUAL_SM_ENABLED
 	out nointerpolation uint PackedPageInfo : TEXCOORD8,
 #endif
@@ -426,20 +286,10 @@ void PositionOnlyMain(
 	float3 WorldNormal = VertexFactoryGetWorldNormal(Input);
 
 #if ONEPASS_POINTLIGHT_SHADOW
-	OutPosition = OutParameters.GSPosition = WorldPos;
-#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
-	OutParameters.ViewIndex = VertexFactoryGetViewIndex(Input);
-#endif // !ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
+	LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(Input) : LayerId;
+	OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
 
-	#if USING_ONEPASS_POINT_VERTEX_LAYER
-		LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(Input) : LayerId;
-		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
-		#if INTERPOLATE_VF_ATTRIBUTES
-			OutParameters.GSPosition = OutPosition;
-		#endif
-	#endif
-
-#else // #if ONEPASS_POINTLIGHT_SHADOW
+#else // !ONEPASS_POINTLIGHT_SHADOW
 	float ShadowDepth;
 	SetShadowDepthOutputs(
 		PassStruct.ProjectionMatrix, 
@@ -458,7 +308,7 @@ void PositionOnlyMain(
 	#if !PERSPECTIVE_CORRECT_DEPTH && !COMPILER_SUPPORTS_EMPTY_STRUCTS
 		OutParameters.Dummy = 0;
 	#endif
-#endif // #if ONEPASS_POINTLIGHT_SHADOW
+#endif // ONEPASS_POINTLIGHT_SHADOW
 
 #if INTERPOLATE_POSITION
 	OutParameters.PixelPosition = WorldPos.xyz;
@@ -481,41 +331,5 @@ void PositionOnlyMain(
 #endif // VIRTUAL_SM_ENABLED
 }
 
-
-#if IS_FOR_GEOMETRY_SHADER
-
-// Vertex shader exports must match GS inputs.
-// This is a requirement on some platforms.
-void PositionOnlyMainForGS(
-	in FPositionAndNormalOnlyVertexFactoryInput Input,
-#if USING_ONEPASS_POINT_VERTEX_LAYER
-	out uint LayerIndex : SV_RenderTargetArrayIndex,
-#endif
-#if ONEPASS_POINTLIGHT_SHADOW
-	out FShadowDepthVSToGS OutParameters
-#else
-	#error Invalid permutation for PositionOnlyMainForGS
-#endif
-#if COMPILER_METAL
-	#ifndef SKIP_UNUSED_POSITION
-		#define SKIP_UNUSED_POSITION
-	#endif
-	// Metal needs a position output
-	, out float4 UnusedPosition : SV_POSITION
-#endif
-	)
-{
-#ifndef SKIP_UNUSED_POSITION
-	float4 UnusedPosition;
-#endif
-
-	PositionOnlyMain(Input,
-#if USING_ONEPASS_POINT_VERTEX_LAYER
-		LayerIndex,
-#endif
-		OutParameters, UnusedPosition);
-}
-
-#endif // IS_FOR_GEOMETRY_SHADER
 
 #endif // POSITION_ONLY

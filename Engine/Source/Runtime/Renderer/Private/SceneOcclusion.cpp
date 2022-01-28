@@ -1106,7 +1106,7 @@ static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, 
 							// Skip virtual SMs, as they overlay the same light as physical SM and have their own culling methods anyway.
 							continue;
 						}
-						if (ProjectedShadowInfo.bOnePassPointLightShadow)
+						if (ProjectedShadowInfo.IsWholeScenePointLightShadow())
 						{
 							FRHIRenderQuery* ShadowOcclusionQuery;
 							if (AllocateProjectedShadowOcclusionQuery(View, ProjectedShadowInfo, NumBufferedFrames, SOQ_LightInfluenceSphere, ShadowOcclusionQuery))

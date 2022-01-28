@@ -265,7 +265,6 @@ enum EShadowDepthVertexShaderMode
 	VertexShadowDepth_PerspectiveCorrect,
 	VertexShadowDepth_OutputDepth,
 	VertexShadowDepth_OnePassPointLight,
-	VertexShadowDepth_VSLayer,
 	VertexShadowDepth_VirtualShadowMap,
 };
 
@@ -283,10 +282,19 @@ static bool MobileUsesPerspectiveCorrectShadowPermutation(EShaderPlatform Shader
 	return bMobileEnableMovableSpotlightsShadow;
 }
 
+
+static TAutoConsoleVariable<int32> CVarDetectVertexShaderLayerAtRuntime(
+	TEXT("r.Shadow.DetectVertexShaderLayerAtRuntime"),
+	0,
+	TEXT("Forces the compilation of the vslayer shader permutation even if the platform (RHI) does not declare compile-time support through RHISupportsVertexShaderLayer.")
+	TEXT("Enabled by default for windows/SM5 as DX11 almost universally supports this at runtime."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+
 /**
 * A vertex shader for rendering the depth of a mesh.
 */
-template <EShadowDepthVertexShaderMode ShaderMode, bool bUsePositionOnlyStream, bool bIsForGeometryShader = false>
+template <EShadowDepthVertexShaderMode ShaderMode, bool bUsePositionOnlyStream>
 class TShadowDepthVS : public FShadowDepthVS
 {
 public:
@@ -299,7 +307,6 @@ public:
 		static const auto SupportAllShaderPermutationsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
 		const bool bForceAllPermutations = SupportAllShaderPermutationsVar && SupportAllShaderPermutationsVar->GetValueOnAnyThread() != 0;
 		const bool bSupportPointLightWholeSceneShadows = CVarSupportPointLightWholeSceneShadows.GetValueOnAnyThread() != 0 || bForceAllPermutations;
-		const bool bRHISupportsShadowCastingPointLights = RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform);
 
 		// Mobile only needs OutputDepth, and optionally PerspectiveCorrect
 		if (!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
@@ -308,48 +315,28 @@ public:
 		{
 			return false;
 		}
-		
-		if (bIsForGeometryShader && ShaderMode == VertexShadowDepth_VSLayer)
-		{
-			return false;
-		}
 
-		if (bIsForGeometryShader && (!bSupportPointLightWholeSceneShadows || !bRHISupportsShadowCastingPointLights))
+		// Compile VS layer permutation if RHI supports it unconditionally OR we have forced it on (default for DX11&12 at SM5)
+		static FShaderPlatformCachedIniValue<bool> DetectVertexShaderLayerRuntimeIniValue(TEXT("r.Shadow.DetectVertexShaderLayerAtRuntime"));
+		const bool bShouldCompileVSLayer = RHISupportsVertexShaderLayer(Platform) || DetectVertexShaderLayerRuntimeIniValue.Get(Platform) != 0;
+		if (ShaderMode == VertexShadowDepth_OnePassPointLight && !bShouldCompileVSLayer)
 		{
 			return false;
 		}
 
 		if (ShaderMode == VertexShadowDepth_VirtualShadowMap &&
-			(!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || !UseGPUScene(Platform) || GEnableNonNaniteVSM == 0 || bIsForGeometryShader))
+			(!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || !UseGPUScene(Platform) || GEnableNonNaniteVSM == 0))
 		{
 			return false;
 		}
 
-		// VSLayer and OnePassPointLight are mutually exclusive (see GetShadowDepthPassShaders())
-		if (ShaderMode == VertexShadowDepth_OnePassPointLight || ShaderMode == VertexShadowDepth_VSLayer)
-		{
-			if (RHISupportsVertexShaderLayer(Platform))
-			{
-				if (ShaderMode == VertexShadowDepth_OnePassPointLight)
-				{
-					return false;
-				}
-			}
-			else
-			{
-				if (ShaderMode == VertexShadowDepth_VSLayer)
-				{
-					return false;
-				}
-			}
-		}
 
 		//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
 		return (Parameters.MaterialParameters.bIsSpecialEngineMaterial
 			// Masked and WPO materials need their shaders but cannot be used with a position only stream.
 			|| ((!Parameters.MaterialParameters.bWritesEveryPixelShadowPass || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition) && !bUsePositionOnlyStream))
 			// Only compile one pass point light shaders for feature levels >= SM5
-				&& ((ShaderMode != VertexShadowDepth_OnePassPointLight && ShaderMode != VertexShadowDepth_VSLayer) || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+				&& (ShaderMode != VertexShadowDepth_OnePassPointLight || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 			// Only compile position-only shaders for vertex factories that support it. (Note: this assumes that a vertex factor which supports PositionOnly, supports also PositionAndNormalOnly)
 			&& (!bUsePositionOnlyStream || Parameters.VertexFactoryType->SupportsPositionOnly())
 			// Don't render ShadowDepth for translucent unlit materials
@@ -360,11 +347,8 @@ public:
 	{
 		FShadowDepthVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("PERSPECTIVE_CORRECT_DEPTH"), (uint32)(ShaderMode == VertexShadowDepth_PerspectiveCorrect));
-		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), (uint32)(ShaderMode == VertexShadowDepth_OnePassPointLight || ShaderMode == VertexShadowDepth_VSLayer));
-		OutEnvironment.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), (uint32)(ShaderMode == VertexShadowDepth_VSLayer));
+		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), (uint32)(ShaderMode == VertexShadowDepth_OnePassPointLight));
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
-		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
-		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
 
 		bool bEnableNonNaniteVSM = (ShaderMode == VertexShadowDepth_VirtualShadowMap);
 		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM ? 1 : 0);
@@ -373,11 +357,7 @@ public:
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		}
 
-		if (bIsForGeometryShader)
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToGeometryShader);
-		}
-		else if (ShaderMode == VertexShadowDepth_VSLayer)
+		if (ShaderMode == VertexShadowDepth_OnePassPointLight)
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexUseAutoCulling);
 		}
@@ -388,62 +368,6 @@ public:
 		: FShadowDepthVS(Initializer)
 	{}
 };
-
-/** Geometry shader that allows one pass point light shadows by cloning triangles to all faces of the cube map. */
-class FOnePassPointShadowDepthGS : public FMeshMaterialShader
-{
-	DECLARE_SHADER_TYPE(FOnePassPointShadowDepthGS, MeshMaterial);
-public:
-
-	void GetShaderBindings(
-		const FScene* Scene,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
-		const FMaterialRenderProxy& MaterialRenderProxy,
-		const FMaterial& Material,
-		const FMeshPassProcessorRenderState& DrawRenderState,
-		const FShadowDepthShaderElementData& ShaderElementData,
-		FMeshDrawSingleShaderBindings& ShaderBindings) const
-	{
-		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
-		ShaderBindings.Add(bUseGpuSceneInstancing, ShaderElementData.bUseGpuSceneInstancing);
-	}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsGeometryShaders(Parameters.Platform) && TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), 1);
-		TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
-	}
-
-	FOnePassPointShadowDepthGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMeshMaterialShader(Initializer)
-	{
-		const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-		bUseGpuSceneInstancing.Bind(Initializer.ParameterMap, TEXT("bUseGpuSceneInstancing"));
-	}
-
-	FOnePassPointShadowDepthGS() {}
-	LAYOUT_FIELD(FShaderParameter, bUseGpuSceneInstancing);
-};
-
-IMPLEMENT_SHADER_TYPE(, FOnePassPointShadowDepthGS, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainOnePassPointLightGS"), SF_Geometry);
 
 #define IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(ShaderMode) \
 	typedef TShadowDepthVS<ShaderMode, false> TShadowDepthVS##ShaderMode; \
@@ -464,24 +388,6 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_Outpu
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly,  TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_VirtualShadowMapPositionOnly,   TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
 
-// One pass point light VS for GS shaders.
-typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true> TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight;
-typedef TShadowDepthVS<VertexShadowDepth_OnePassPointLight, true,  true> TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly;
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight,             TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainForGS"),             SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMainForGS"), SF_Vertex);
-
-// One pass point light with vertex shader layer output.
-//                                                       bUsePositionOnlyStream
-//                                                            | bIsForGeometryShader
-//                                                            |      |
-typedef TShadowDepthVS<VertexShadowDepth_VSLayer, false, false> TShadowDepthVSVertexShadowDepth_VSLayer;
-typedef TShadowDepthVS<VertexShadowDepth_VSLayer, true,  false> TShadowDepthVSVertexShadowDepth_VSLayerPositionOnly;
-typedef TShadowDepthVS<VertexShadowDepth_VSLayer, false, true>  TShadowDepthVSVertexShadowDepth_VSLayerGS; // not used
-typedef TShadowDepthVS<VertexShadowDepth_VSLayer, true,  true>  TShadowDepthVSVertexShadowDepth_VSLayerGSPositionOnly; // not used
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_VSLayer,               TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("Main"),             SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_VSLayerPositionOnly,   TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_VSLayerGS,             TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("Main"),             SF_Vertex); // not used
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVSVertexShadowDepth_VSLayerGSPositionOnly, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("PositionOnlyMain"), SF_Vertex); // not used
 
 /**
 * A pixel shader for rendering the depth of a mesh.
@@ -624,8 +530,7 @@ bool GetShadowDepthPassShaders(
 	bool bUsePerspectiveCorrectShadowDepths,
 	bool bVirtualShadowMap,
 	TShaderRef<FShadowDepthVS>& VertexShader,
-	TShaderRef<FShadowDepthBasePS>& PixelShader,
-	TShaderRef<FOnePassPointShadowDepthGS>& GeometryShader)
+	TShaderRef<FShadowDepthBasePS>& PixelShader)
 {
 	const FVertexFactoryType* VFType = VertexFactory->GetType();
 
@@ -634,33 +539,20 @@ bool GetShadowDepthPassShaders(
 	// Vertex related shaders
 	if (bOnePassPointLightShadow)
 	{
-		if (!RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		if (DoesRuntimeSupportOnePassPointLightShadows(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			if (bPositionOnlyVS)
 			{
-				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, true, true>>();
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, true>>();
 			}
 			else
 			{
-				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>>();
-			}
-
-			if (RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
-			{
-				// Use the geometry shader which will clone output triangles to all faces of the cube map
-				ShaderTypes.AddShaderType<FOnePassPointShadowDepthGS>();
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false>>();
 			}
 		}
 		else
 		{
-			if (bPositionOnlyVS)
-			{
-				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_VSLayer, true, false>>();
-			}
-			else
-			{
-				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_VSLayer, false, false>>();
-			}
+			return false;
 		}
 	}
 	else if (bVirtualShadowMap)
@@ -725,7 +617,6 @@ bool GetShadowDepthPassShaders(
 		return false;
 	}
 
-	Shaders.TryGetGeometryShader(GeometryShader);
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
 	return true;
@@ -2180,8 +2071,7 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FShadowDepthVS,
-		FShadowDepthBasePS,
-		FOnePassPointShadowDepthGS> ShadowDepthPassShaders;
+		FShadowDepthBasePS> ShadowDepthPassShaders;
 
 	const bool bUsePositionOnlyVS =
 		   VertexFactory->SupportsPositionAndNormalOnlyStream()
@@ -2212,8 +2102,7 @@ bool FShadowDepthPassMeshProcessor::Process(
 		bUsePerspectiveCorrectShadowDepths,
 		bVirtualShadowMap,
 		ShadowDepthPassShaders.VertexShader,
-		ShadowDepthPassShaders.PixelShader,
-		ShadowDepthPassShaders.GeometryShader))
+		ShadowDepthPassShaders.PixelShader))
 	{
 		return false;
 	}
@@ -2223,12 +2112,11 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(ShadowDepthPassShaders.VertexShader, ShadowDepthPassShaders.PixelShader);
 
-	const bool bUseGeometryShader = !RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[FeatureLevel]) && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]);
-
-	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) 
-		&& VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
-
-	const uint32 InstanceFactor = bUseGpuSceneInstancing || !ShadowDepthType.bOnePassPointLightShadow || bUseGeometryShader ? 1 : 6;
+	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && VertexFactory->SupportsGPUScene(FeatureLevel);
+	
+	// Need to replicate for cube faces on host if GPU-scene is not available (for this draw).
+	const bool bPerformHostCubeFaceReplication = ShadowDepthType.bOnePassPointLightShadow && !bUseGpuSceneInstancing;
+	const uint32 InstanceFactor = bPerformHostCubeFaceReplication ? 6 : 1;
 
 	for (uint32 i = 0; i < InstanceFactor; i++)
 	{

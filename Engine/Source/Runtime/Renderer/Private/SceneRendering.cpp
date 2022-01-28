@@ -3080,6 +3080,19 @@ FSceneRenderer::~FSceneRenderer()
 	Views.Empty();
 }
 
+
+FSceneRenderer::FScreenMessageWriter::FScreenMessageWriter(FCanvas& InCanvas, int32 InY)
+	: Canvas(InCanvas)
+	, Y(InY)
+{
+}
+
+void FSceneRenderer::FScreenMessageWriter::DrawLine(const FText& Message, int32 X, const FLinearColor& Color)
+{
+	Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), Color);
+	Y += 14;
+}
+
 /** 
 * Finishes the view family rendering.
 */
@@ -3224,11 +3237,13 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		FFXSystemInterface* FXInterface = Scene->GetFXSystem();
 		const bool bFxDebugDraw = FXInterface && FXInterface->ShouldDebugDraw_RenderThread();
 
+		const bool bHasDelegateWarnings = OnGetOnScreenMessages.IsBound();
+
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
 			|| bLumenEnabledButHasNoDataForTracing || bLumenEnabledButDisabledForTheProject || bNaniteEnabledButNoAtomics || bNaniteEnabledButDisabledInProject || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight
-			|| bShowLocalExposureDisabledWarning;
+			|| bShowLocalExposureDisabledWarning || bHasDelegateWarnings;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3272,7 +3287,8 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
-						int32 Y = 130;
+						FScreenMessageWriter Writer(Canvas, 130);
+
 						// Make sure draws to the canvas are not rendered upside down.
 						Canvas.SetAllowSwitchVerticalAxis(true);
 						if (bViewParentOrFrozen)
@@ -3282,149 +3298,125 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 								NSLOCTEXT("SceneRendering", "RenderingFrozen", "Rendering frozen...")
 								:
 								NSLOCTEXT("SceneRendering", "OcclusionChild", "Occlusion Child");
-							Canvas.DrawShadowedText(10, Y, StateText, GetStatsFont(), FLinearColor(0.8, 1.0, 0.2, 1.0));
-							Y += 14;
+							Writer.DrawLine(StateText, 10, FLinearColor(0.8, 1.0, 0.2, 1.0));
 						}
 						if (bShowPrecomputedVisibilityWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "NoPrecomputedVisibility", "NO PRECOMPUTED VISIBILITY");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowGlobalClipPlaneWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "NoGlobalClipPlane", "PLANAR REFLECTION REQUIRES GLOBAL CLIP PLANE PROJECT SETTING ENABLED TO WORK PROPERLY");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowDFAODisabledWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "DFAODisabled", "Distance Field AO is disabled through scalability");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowDFDisabledWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "DFDisabled", "Mesh distance fields generation is disabled by project settings, cannot visualize DFAO, mesh or global distance field.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bShowNoSkyAtmosphereComponentWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "SkyAtmosphere", "There is no SkyAtmosphere component to visualize.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;						
+							Writer.DrawLine(Message);
 						}
 						if (bShowSkylightWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "SkylightNotSuppported", "PROJECT DOES NOT SUPPORT STATIONARY SKYLIGHT: ");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bRealTimeSkyCaptureButNothingToCapture)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "Skylight", "A sky light with real-time capture enable is in the scene. It requires at least a SkyAtmosphere component, A volumetricCloud component or a mesh with a material tagged as IsSky. Otherwise it will be black.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowPointLightWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "PointLight", "PROJECT DOES NOT SUPPORT WHOLE SCENE POINT LIGHT SHADOWS: ");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
-
-							for (const FString &LightName : UsedWholeScenePointLightNames)
+							Writer.DrawLine(Message);
+							for (const FString& LightName : UsedWholeScenePointLightNames)
 							{
-								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-								Y += 14;
+								Writer.DrawLine(FText::FromString(LightName), 35);
 							}
 						}
 						if (bShowShadowedLightOverflowWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "ShadowedLightOverflow", "TOO MANY OVERLAPPING SHADOWED MOVABLE LIGHTS, SHADOW CASTING DISABLED: ");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 
 							for (const FString& LightName : Scene->OverflowingDynamicShadowedLights)
 							{
-								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-								Y += 14;
+								Writer.DrawLine(FText::FromString(LightName));
 							}
 						}
 						if (bShowMobileLowQualityLightmapWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "MobileLQLightmap", "MOBILE PROJECTS SUPPORTING STATIC LIGHTING MUST HAVE LQ LIGHTMAPS ENABLED");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowMobileMovableDirectionalLightWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "MobileMovableDirectional", "PROJECT HAS MOVABLE DIRECTIONAL LIGHTS ON MOBILE DISABLED");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bShowMobileDynamicCSMWarning)
 						{
 							static const FText Message = (!ReadOnlyCVARCache.bMobileEnableStaticAndCSMShadowReceivers)
 								? NSLOCTEXT("Renderer", "MobileDynamicCSM", "PROJECT HAS MOBILE CSM SHADOWS FROM STATIONARY DIRECTIONAL LIGHTS DISABLED")
 								: NSLOCTEXT("Renderer", "MobileDynamicCSMDistFieldShadows", "MOBILE CSM+STATIC REQUIRES DISTANCE FIELD SHADOWS ENABLED FOR PROJECT");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 						if (bMobileShowVertexFogWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "MobileVertexFog", "PROJECT HAS VERTEX FOG ON MOBILE DISABLED");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bMobileMissingSkyMaterial)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "MobileMissingSkyMaterial", "On mobile the SkyAtmosphere component needs a mesh with a material tagged as IsSky and using the SkyAtmosphere nodes to visualize the Atmosphere.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bShowSkinCacheOOM)
 						{
 							FString String = FString::Printf(TEXT("OUT OF MEMORY FOR SKIN CACHE, REQUIRES %.3f extra MB (currently at %.3f)"), (float)GPUSkinCacheExtraRequiredMemory / 1048576.0f, CVarSkinCacheOOM->GetValueOnAnyThread());
-							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(FText::FromString(String));
 						}
 						if (bShowLocalExposureDisabledWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LocalExposureDisabled", "Local Exposure is disabled.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bLocked)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "ViewLocked", "VIEW LOCKED");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(0.8, 1.0, 0.2, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message, 10, FLinearColor(0.8, 1.0, 0.2, 1.0));
 						}
 
 						if (bSingleLayerWaterWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing mesh(es) using water material. Meshes are not visible.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bLumenEnabledButHasNoDataForTracing)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", "Lumen is enabled, but has no ray tracing data and won't operate correctly.\nEither configure Lumen to use software distance field ray tracing and enable 'Generate Mesh Distancefields' in project settings\nor configure Lumen to use Hardware Ray Tracing and enable 'Support Hardware Ray Tracing' in project settings.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bLumenEnabledButDisabledForTheProject)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LumenDisabledForProject", "Lumen is enabled but cannot render, because the project has Lumen disabled in an ini (r.Lumen.Supported = 0)");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bNaniteEnabledButNoAtomics)
@@ -3443,29 +3435,25 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							#endif
 							}
 
-							Canvas.DrawShadowedText(10, Y, FText::FromString(NaniteError), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(FText::FromString(NaniteError));
 						}
 
 						if (bNaniteEnabledButDisabledInProject)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "NaniteDisabledForProject", "Nanite is enabled but cannot render, because the project has Nanite disabled in an ini (r.Nanite.ProjectEnabled = 0)");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 						if (bShowDemotedLocalMemoryWarning)
 						{
 							FString String = FString::Printf(TEXT("Video memory has been exhausted (%.3f MB over budget). Expect extremely poor performance."), float(GDemotedLocalMemorySize) / 1048576.0f);
-							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(FText::FromString(String));
 						}
 
 						if (bShowAmbientCubemapMipGenSettingsWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "AmbientCubemapMipGenSettings", "Ambient cubemaps should use 'Angular' Mip Gen Settings.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
+							Writer.DrawLine(Message);
 						}
 
 #if WITH_EDITOR
@@ -3493,10 +3481,10 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 								String += TEXT("Meshes, Textures");
 							}
 							String += TEXT(" for final capture.");
-							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), OrangeColor);
-							Y += 14;
+							Writer.DrawLine(FText::FromString(String), 10, OrangeColor);
 						}
 #endif
+						OnGetOnScreenMessages.Broadcast(Writer);
 					});
 					if (bFxDebugDraw)
 					{
