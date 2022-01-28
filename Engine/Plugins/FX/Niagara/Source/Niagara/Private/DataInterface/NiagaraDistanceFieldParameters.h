@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 class FDistanceFieldParameters
 {
 	DECLARE_INLINE_TYPE_LAYOUT(FDistanceFieldParameters, NonVirtual);
