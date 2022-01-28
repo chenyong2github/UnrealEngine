@@ -171,7 +171,7 @@ public:
 	virtual FMovieSceneSpawnRegister& GetSpawnRegister() { return NullRegister; }
 
 	/*
-	 * Called wehn an object is spawned by sequencer
+	 * Called when an object is spawned by sequencer
 	 * 
 	 */
 	virtual void OnObjectSpawned(UObject* InObject, const FMovieSceneEvaluationOperand& Operand) {}
