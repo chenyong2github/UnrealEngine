@@ -881,7 +881,7 @@ namespace Metasound
 					// alter the predicted OnDone frame between render blocks.
 					if (!bOnNearlyDoneTriggeredForWave)
 					{
-						TriggerOnNearlyDone->TriggerFrame(InOperatorStartFrame + Events.OnEOFFrameIndex);
+						TriggerOnNearlyDone->TriggerFrame(InOperatorStartFrame + Events.OnEOFFrameIndex - OperatorSettings.GetNumFramesPerBlock());
 						bOnNearlyDoneTriggeredForWave = true;
 					}
 				}
