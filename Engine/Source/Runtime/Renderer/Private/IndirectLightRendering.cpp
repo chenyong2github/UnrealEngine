@@ -1376,19 +1376,11 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		return;
 	}
 
-	// If we're currently capturing a reflection capture, output SpecularColor * IndirectIrradiance for metals so they are not black in reflections,
-	// Since we don't have multiple bounce specular reflections
 	bool bReflectionCapture = false;
 	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
-	}
-
-	if (bReflectionCapture)
-	{
-		// if we are rendering a reflection capture then we can skip this pass entirely (no reflection and no sky contribution evaluated in this pass)
-		return;
 	}
 
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
@@ -1408,7 +1400,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			&& !GDistanceFieldAOApplyToStaticIndirect
 			&& ShouldRenderDistanceFieldAO()
 			&& ShouldRenderDistanceFieldLighting()
-			&& ViewFamily.EngineShowFlags.AmbientOcclusion)
+			&& ViewFamily.EngineShowFlags.AmbientOcclusion
+			&& !bReflectionCapture)
 		{
 			bApplySkyShadowing = true;
 			FDistanceFieldAOParameters Parameters(Scene->SkyLight->OcclusionMaxDistance, Scene->SkyLight->Contrast);

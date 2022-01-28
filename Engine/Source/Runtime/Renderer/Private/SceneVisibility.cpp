@@ -4977,7 +4977,9 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 		View.NumSphereReflectionCaptures = 0;
 		View.FurthestReflectionCaptureDistance = 0.0f;
 
-		if (View.Family->EngineShowFlags.ReflectionEnvironment)
+		if (View.Family->EngineShowFlags.ReflectionEnvironment 
+			// Avoid feedback
+			&& !View.bIsReflectionCapture)
 		{
 			View.NumBoxReflectionCaptures = Scene->ReflectionSceneData.NumBoxCaptures;
 			View.NumSphereReflectionCaptures = Scene->ReflectionSceneData.NumSphereCaptures;

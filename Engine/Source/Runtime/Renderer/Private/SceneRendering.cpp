@@ -1672,9 +1672,18 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// If Lumen Dynamic GI is enabled then we don't want GI from Lightmaps
 	// Note: this has the side effect of removing direct lighting from Static Lights
-	if (FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen && DoesPlatformSupportLumenGI(ShaderPlatform))
+	if (ShouldRenderLumenDiffuseGI(Scene, *this))
 	{
 		ViewUniformShaderParameters.PrecomputedIndirectLightingColorScale = FVector::ZeroVector;
+	}
+
+	ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = ViewUniformShaderParameters.IndirectLightingColorScale;
+
+	// If Lumen Reflections are enabled then we don't want precomputed reflections from reflection captures
+	// Note: this has the side effect of removing direct specular from Static Lights
+	if (ShouldRenderLumenReflections(*this))
+	{
+		ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = FVector::ZeroVector;
 	}
 
 	ViewUniformShaderParameters.NormalCurvatureToRoughnessScaleBias.X = FMath::Clamp(CVarNormalCurvatureToRoughnessScale.GetValueOnAnyThread(), 0.0f, 2.0f);
