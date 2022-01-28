@@ -566,6 +566,8 @@ public:
 	// Publishes the active LLM stats in the active frame, useful for single targeted LLM snapshots
 	void PublishDataSingleFrame();
 
+	void OnPreFork();
+
 private:
 	FLowLevelMemTracker();
 
