@@ -32,12 +32,12 @@ FAutoConsoleVariableRef CVarLumenDirectLightingForceShadowMaps(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenDirectLightingForceOffscreenShadowing = 0;
-FAutoConsoleVariableRef CVarLumenDirectLightingForceOffscreenShadowing(
-	TEXT("r.LumenScene.DirectLighting.ForceOffscreenShadowing"),
-	GLumenDirectLightingForceOffscreenShadowing,
-	TEXT("Use offscreen shadowing for all lights casting shadows."),
-	ECVF_RenderThreadSafe
+int32 GLumenDirectLightingReuseShadowMaps = 1;
+FAutoConsoleVariableRef CVarLumenDirectLightingReuseShadowMaps(
+	TEXT("r.LumenScene.DirectLighting.ReuseShadowMaps"),
+	GLumenDirectLightingReuseShadowMaps,
+	TEXT("Whether to use shadow maps for shadowing Lumen Scene, where they are available (onscreen).  Offscreen areas will still use ray tracing."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenDirectLightingOffscreenShadowingTraceMeshSDFs = 1;
@@ -992,7 +992,7 @@ void SampleShadowMap(
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
 		PassParameters->VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
-		PassParameters->ForceOffscreenShadowing = GLumenDirectLightingForceOffscreenShadowing;
+		PassParameters->ForceOffscreenShadowing = (GLumenDirectLightingReuseShadowMaps == 0 || !View.Family->EngineShowFlags.LumenReuseShadowMaps) ? 1 : 0;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}
 
