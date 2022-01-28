@@ -73,11 +73,18 @@ public:
 
 protected:
 
+	enum EReadResult
+	{
+		Fail,
+		Success,
+		Cancelled
+	};
+
 	/** 
 	 * This function reads file in 16 MB chunks and if it detects that
 	 * Frame is pending for cancellation stops reading the file and returns false.
 	*/
-	bool ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize, int32 PixelSize, int32 NumChannels);
+	EReadResult ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize, int32 PixelSize, int32 NumChannels);
 
 	/**
 	 * Get the size of the buffer needed to load in an image.
