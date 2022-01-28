@@ -269,6 +269,8 @@ void PrintDebugShaderInfo(FShaderStatsGatheringContext& Output, const TArray<FDe
 				{
 					ShaderTypeMap.FindOrAdd(ShaderTypeName, 1);
 				}
+
+				Output.AddToHistogram(nullptr, nullptr, ShaderType->GetName());
 			}
 
 			if (ShaderTypeMap.Num() > 0)
