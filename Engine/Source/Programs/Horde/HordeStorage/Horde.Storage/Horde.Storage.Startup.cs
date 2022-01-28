@@ -623,7 +623,7 @@ namespace Horde.Storage
                         FilesystemSettings filesystemSettings = provider.GetService<IOptionsMonitor<FilesystemSettings>>()!.CurrentValue;
                         healthChecks.AddDiskStorageHealthCheck(options =>
                         {
-                            string? driveRoot = Path.GetPathRoot(filesystemSettings.RootDir);
+                            string? driveRoot = Path.GetPathRoot(PathUtil.ResolvePath(filesystemSettings.RootDir));
                             options.AddDrive(driveRoot);
                         });
                         break;
