@@ -169,6 +169,13 @@ namespace AVEncoder
 			return false;
 		}
 
+		//TODO(sandor.hadas) see if the current issues with AMF can be resolved then remove this error message
+		if (RHIName == "D3D11")
+		{
+			UE_LOG(LogEncoderAMF, Error, TEXT("AMF with DX11 is not currently supported try DX12 or Vulkan."));
+			return false;
+		}
+
 		if (!EncoderDevice)
 		{
 			UE_LOG(LogEncoderAMF, Error, TEXT("Amf needs an encoder device."));
