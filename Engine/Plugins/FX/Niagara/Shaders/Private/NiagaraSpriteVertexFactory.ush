@@ -909,10 +909,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 	// SubUV.
 	float SubImageLerp = frac(SubImageIndex);
-	float SubImageA = SubImageIndex - SubImageLerp;
+
+	// add a bias to SubImageA to avoid numerical precision issues around SubImageSize.x vs SubImageSize.z
+	float SubImageA = SubImageIndex - SubImageLerp + 0.5f;
 	float SubImageB = SubImageA + 1;
-	float SubImageAH = fmod( SubImageA, NiagaraSpriteVF.SubImageSize.x );
-	float SubImageBH = fmod( SubImageB, NiagaraSpriteVF.SubImageSize.x );
+	float SubImageAH = floor( fmod( SubImageA, NiagaraSpriteVF.SubImageSize.x ) );
+	float SubImageBH = floor( fmod( SubImageB, NiagaraSpriteVF.SubImageSize.x ) );
 	float SubImageAV = floor( SubImageA * NiagaraSpriteVF.SubImageSize.z );
 	float SubImageBV = floor( SubImageB * NiagaraSpriteVF.SubImageSize.z );
 	Intermediates.TexCoord.xy = (float2( SubImageAH, SubImageAV ) + UVForTexturing) * NiagaraSpriteVF.SubImageSize.zw;

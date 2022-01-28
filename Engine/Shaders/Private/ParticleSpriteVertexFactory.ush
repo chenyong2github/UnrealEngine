@@ -496,10 +496,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// SubUV.
 	float SubImageIndex = Input.SizeRotSubImage.w;
 	float SubImageLerp = frac(SubImageIndex);
-	float SubImageA = SubImageIndex - SubImageLerp;
+
+	// add a bias to SubImageA to avoid numerical precision issues around SubImageSize.x vs SubImageSize.z
+	float SubImageA = SubImageIndex - SubImageLerp + 0.5f;
 	float SubImageB = SubImageA + 1;
-	float SubImageAH = fmod( SubImageA, SpriteVF.SubImageSize.x );
-	float SubImageBH = fmod( SubImageB, SpriteVF.SubImageSize.x );
+	float SubImageAH = floor( fmod( SubImageA, SpriteVF.SubImageSize.x ) );
+	float SubImageBH = floor( fmod( SubImageB, SpriteVF.SubImageSize.x ) );
 	float SubImageAV = floor( SubImageA * SpriteVF.SubImageSize.z );
 	float SubImageBV = floor( SubImageB * SpriteVF.SubImageSize.z );
 	Intermediates.TexCoord.xy = (float2( SubImageAH, SubImageAV ) + UVForTexturing) * SpriteVF.SubImageSize.zw ;
