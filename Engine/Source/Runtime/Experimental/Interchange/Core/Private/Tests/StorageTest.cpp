@@ -150,7 +150,12 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 	}
 
 	{
-		ADD_ATTRIBUTE_STORAGE_NOCOMPARE(FSphere, FSphere(FVector(2.0), 2.2))
+		const FSphere RefValue = FSphere(FVector(2.0), 2.2);
+		FAttributeKey Key = CreateUniqueKey();
+		if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(Key, RefValue)))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FSphere attribute")));
+		}
 		FSphere StoredValue;
 		TestStorage.GetAttributeHandle<FSphere>(Key).Get(StoredValue);
 		if (!StoredValue.Equals(RefValue))
@@ -162,6 +167,64 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 	ADD_ATTRIBUTE_STORAGE(FFrameRate, FFrameRate(1,60), );
 	ADD_ATTRIBUTE_STORAGE(FFrameTime, FFrameTime(29,0.5f), );
 	ADD_ATTRIBUTE_STORAGE(FSoftObjectPath, FSoftObjectPath(UClass::StaticClass()), );
+	ADD_ATTRIBUTE_STORAGE(FMatrix44f, FMatrix44f(FTransform3f(FRotator3f(25.0f, 2.0f, 3.14159f), FVector3f(150.0f, -203.0f, 4500.7f), FVector3f(1.0f, 1.0f, 1.0f)).ToMatrixWithScale()), );
+	ADD_ATTRIBUTE_STORAGE(FMatrix44d, FMatrix44d(FTransform3d(FRotator3d(25.0, 2.0, 3.14159), FVector3d(150.0, -203.0, 4500.7), FVector3d(1.0, 1.0, 1.0)).ToMatrixWithScale()), );
+	ADD_ATTRIBUTE_STORAGE(FPlane4f, FPlane4f(FVector3f(1.0f, 1.0f, 0.0f), FVector3f(0.0f, 0.0f, 1.0f)), );
+	ADD_ATTRIBUTE_STORAGE(FPlane4d, FPlane4d(FVector3d(1.0, 1.0, 0), FVector3d(0, 0, 1.0)), );
+	ADD_ATTRIBUTE_STORAGE(FQuat4f, FQuat4f(1.0f, 1.0f, 0.0f, 1.0f), );
+	ADD_ATTRIBUTE_STORAGE(FQuat4d, FQuat4d(1.0, 1.0, 0, 1.0), );
+	ADD_ATTRIBUTE_STORAGE(FRotator3f, FRotator3f(25.0f, 2.0f, 3.14159f), );
+	ADD_ATTRIBUTE_STORAGE(FRotator3d, FRotator3d(25.0, 2.0, 3.14159), );
+	{
+		ADD_ATTRIBUTE_STORAGE_NOCOMPARE(FTransform3f, FTransform3f(FRotator3f(25.0f, 2.0f, 3.14159f), FVector3f(150.0f, -203.0f, 4500.7f), FVector3f(1.0f, 1.0f, 1.0f)))
+		FTransform3f StoredValue;
+		TestStorage.GetAttributeHandle<FTransform3f>(Key).Get(StoredValue);
+		if (!StoredValue.Equals(RefValue))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FTransform3f attribute")));
+		}
+	}
+	{
+		ADD_ATTRIBUTE_STORAGE_NOCOMPARE(FTransform3d, FTransform3d(FRotator3d(25.0, 2.0, 3.14159), FVector3d(150.0, -203.0, 4500.7), FVector3d(1.0, 1.0, 1.0)))
+		FTransform3d StoredValue;
+		TestStorage.GetAttributeHandle<FTransform>(Key).Get(StoredValue);
+		if (!StoredValue.Equals(RefValue))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FTransform3d attribute")));
+		}
+	}
+	ADD_ATTRIBUTE_STORAGE(FVector3f, FVector3f(150.0f, -203.0f, 4500.7f), );
+	ADD_ATTRIBUTE_STORAGE(FVector3d, FVector3d(150.0, -203.0, 4500.7), );
+	ADD_ATTRIBUTE_STORAGE(FVector2f, FVector2f(150.0f, -203.0f), );
+	ADD_ATTRIBUTE_STORAGE(FVector4f, FVector4f(150.0f, -203.0f, 4500.7f, 2.0f), );
+	ADD_ATTRIBUTE_STORAGE(FVector4d, FVector4d(150.0, -203.0, 4500.7, 2.0), );
+	ADD_ATTRIBUTE_STORAGE(FBox2f, FBox2f(FVector2f(-1.0f), FVector2f(1.0f)), );
+	ADD_ATTRIBUTE_STORAGE(FBox2D, FBox2D(FVector2D(-1.0), FVector2D(1.0)), );
+	ADD_ATTRIBUTE_STORAGE(FBox3f, FBox3f(FVector3f(-1.0f), FVector3f(1.0f)), );
+	ADD_ATTRIBUTE_STORAGE(FBox3d, FBox3d(FVector3d(-1.0), FVector3d(1.0)), );
+	ADD_ATTRIBUTE_STORAGE(FBoxSphereBounds3f, FBoxSphereBounds3f(FVector3f(0.0f), FVector3f(2.0f), 2.2f), );
+	ADD_ATTRIBUTE_STORAGE(FBoxSphereBounds3d, FBoxSphereBounds3d(FVector3d(0.0), FVector3d(2.0), 2.2), );
+	{
+		ADD_ATTRIBUTE_STORAGE_NOCOMPARE(FSphere3f, FSphere3f(FVector3f(2.0f), 2.2f))
+		FSphere3f StoredValue;
+		uint32 bobafet = -45;
+		TestStorage.GetAttributeHandle<FSphere3f>(Key).Get(StoredValue);
+		if (!StoredValue.Equals(RefValue))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FSphere3f attribute")));
+		}
+	}
+	{
+		ADD_ATTRIBUTE_STORAGE_NOCOMPARE(FSphere3d, FSphere3d(FVector3d(2.0), 2.2))
+		FSphere3d StoredValue;
+		uint32 bobafet = -45;
+		TestStorage.GetAttributeHandle<FSphere3d>(Key).Get(StoredValue);
+		if (!StoredValue.Equals(RefValue))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FSphere attribute")));
+		}
+	}
+
 	//Test Adding/Reading uint8 attribute with 0 value
 	{
 		const uint8 RefValue = 0;

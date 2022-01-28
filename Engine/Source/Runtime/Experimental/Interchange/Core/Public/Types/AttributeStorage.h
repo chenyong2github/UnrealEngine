@@ -188,6 +188,29 @@ namespace UE
 			FrameRate			= 42,
 			FrameTime			= 43,
 			SoftObjectPath		= 44,
+			Matrix44f			= 45,
+			Matrix44d			= 46,
+			Plane4f				= 47,
+			Plane4d				= 48,
+			Quat4f				= 49,
+			Quat4d				= 50,
+			Rotator3f			= 51,
+			Rotator3d			= 52,
+			Transform3f			= 53,
+			Transform3d			= 54,
+			Vector3f			= 55,
+			Vector3d			= 56,
+			Vector2f			= 57,
+			Vector4f			= 58,
+			Vector4d			= 59,
+			Box2f				= 60,
+			Box2D				= 61,
+			Box3f				= 62,
+			Box3d				= 63,
+			BoxSphereBounds3f	= 64,
+			BoxSphereBounds3d	= 65,
+			Sphere3f			= 66,
+			Sphere3d			= 67
 		};
 
 		/**
@@ -1017,18 +1040,10 @@ namespace UE
 		};
 
 
-		/** Implements variant type traits for the built-in FBox type. */
-		template<> struct TAttributeTypeTraits<FBox>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Box; }
-		};
+		/** See FBox3f/FBox3d variant type traits for the built-in FBox type. */
 
 
-		/** Implements variant type traits for the built-in FBoxSphereBounds type. */
-		template<> struct TAttributeTypeTraits<FBoxSphereBounds>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::BoxSphereBounds; }
-		};
+		/** See FBoxSphereBounds3f/FBoxSphereBounds3d variant type traits for the built-in FBoxSphereBounds type. */
 
 
 		/** Implements variant type traits for byte arrays. */
@@ -1127,11 +1142,7 @@ namespace UE
 		};
 
 
-		/** Implements variant type traits for the built-in FMatrix type. */
-		template<> struct TAttributeTypeTraits<FMatrix>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Matrix; }
-		};
+		/** See FMatrix44f/FMatrix44d variant type traits for the built-in FMatrix type. */
 
 		/** Implements variant type traits for the built-in FName type. */
 		template<> struct TAttributeTypeTraits<FName>
@@ -1139,18 +1150,10 @@ namespace UE
 			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Name; }
 		};
 
-		/** Implements variant type traits for the built-in FPlane type. */
-		template<> struct TAttributeTypeTraits<FPlane>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Plane; }
-		};
+		/** See FPlane4f/FPlane4d variant type traits for the built-in FPlane type. */
 
 
-		/** Implements variant type traits for the built-in FQuat type. */
-		template<> struct TAttributeTypeTraits<FQuat>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Quat; }
-		};
+		/** See FQuat4f/FQuat4d variant type traits for the built-in FQuat type. */
 
 		/** Implements variant type traits for the built-in FRandomStream type. */
 		template<> struct TAttributeTypeTraits<FRandomStream>
@@ -1159,11 +1162,7 @@ namespace UE
 		};
 
 
-		/** Implements variant type traits for the built-in FRotator type. */
-		template<> struct TAttributeTypeTraits<FRotator>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Rotator; }
-		};
+		/** See FRotator3f/FRotator3d variant type traits for the built-in FRotator type. */
 
 
 		/** Implements variant type traits for the built-in FString type. */
@@ -1180,11 +1179,7 @@ namespace UE
 		};
 
 
-		/** Implements variant type traits for the built-in FTransform type. */
-		template<> struct TAttributeTypeTraits<FTransform>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Transform; }
-		};
+		/** See FTransform3f/FTransform3d variant type traits for the built-in FTransform type. */
 
 
 		/** Implements variant type traits for the built-in FTwoVectors type. */
@@ -1222,11 +1217,7 @@ namespace UE
 		};
 
 
-		/** Implements variant type traits for the built-in FVector type. */
-		template<> struct TAttributeTypeTraits<FVector>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector; }
-		};
+		/** See FVector3f/FVector3d variant type traits for the built-in FVector type. */
 
 
 		/** Implements variant type traits for the built-in FVector2D type. */
@@ -1235,11 +1226,7 @@ namespace UE
 			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector2d; }
 		};
 
-		/** Implements variant type traits for the built-in FVector4 type. */
-		template<> struct TAttributeTypeTraits<FVector4>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector4; }
-		};
+		/** See FVector4f/FVector4d variant type traits for the built-in FVector4 type. */
 
 		/** Implements variant type traits for the built-in Vector2DHalf type. */
 		template<> struct TAttributeTypeTraits<FIntPoint>
@@ -1271,11 +1258,7 @@ namespace UE
 			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::OrientedBox; }
 		};
 
-		/** Implements variant type traits for the built-in Sphere type. */
-		template<> struct TAttributeTypeTraits<FSphere>
-		{
-			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Sphere; }
-		};
+		/** See FSphere3f/FSphere3d variant type traits for the built-in Sphere type. */
 
 		/** Implements variant type traits for the built-in FrameNumber type. */
 		template<> struct TAttributeTypeTraits<FFrameNumber>
@@ -1301,5 +1284,142 @@ namespace UE
 			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::SoftObjectPath; }
 		};
 
+		/** Implements variant type traits for the built-in Matrix44f type. */
+		template<> struct TAttributeTypeTraits<FMatrix44f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Matrix44f; }
+		};
+
+		/** Implements variant type traits for the built-in Matrix44f type. */
+		template<> struct TAttributeTypeTraits<FMatrix44d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Matrix44d; }
+		};
+
+		/** Implements variant type traits for the built-in Plane4f type. */
+		template<> struct TAttributeTypeTraits<FPlane4f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Plane4f; }
+		};
+
+		/** Implements variant type traits for the built-in Plane4d type. */
+		template<> struct TAttributeTypeTraits<FPlane4d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Plane4d; }
+		};
+
+		/** Implements variant type traits for the built-in Quat4f type. */
+		template<> struct TAttributeTypeTraits<FQuat4f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Quat4f; }
+		};
+
+		/** Implements variant type traits for the built-in Quat4d type. */
+		template<> struct TAttributeTypeTraits<FQuat4d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Quat4d; }
+		};
+
+		/** Implements variant type traits for the built-in Rotator3f type. */
+		template<> struct TAttributeTypeTraits<FRotator3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Rotator3f; }
+		};
+
+		/** Implements variant type traits for the built-in Rotator3d type. */
+		template<> struct TAttributeTypeTraits<FRotator3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Rotator3d; }
+		};
+
+		/** Implements variant type traits for the built-in Rotator3f type. */
+		template<> struct TAttributeTypeTraits<FTransform3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Transform3f; }
+		};
+
+		/** Implements variant type traits for the built-in Transform3d type. */
+		template<> struct TAttributeTypeTraits<FTransform3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Transform3d; }
+		};
+
+		/** Implements variant type traits for the built-in Vector3f type. */
+		template<> struct TAttributeTypeTraits<FVector3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector3f; }
+		};
+
+		/** Implements variant type traits for the built-in Vector3d type. */
+		template<> struct TAttributeTypeTraits<FVector3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector3d; }
+		};
+
+		/** Implements variant type traits for the built-in Vector2f type. */
+		template<> struct TAttributeTypeTraits<FVector2f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector2f; }
+		};
+
+		/** Implements variant type traits for the built-in Vector4f type. */
+		template<> struct TAttributeTypeTraits<FVector4f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector4f; }
+		};
+
+		/** Implements variant type traits for the built-in Vector4d type. */
+		template<> struct TAttributeTypeTraits<FVector4d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Vector4d; }
+		};
+
+		/** Implements variant type traits for the built-in Box2f type. */
+		template<> struct TAttributeTypeTraits<FBox2f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Box2f; }
+		};
+
+		/** Implements variant type traits for the built-in Box2D type. */
+		template<> struct TAttributeTypeTraits<FBox2D>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Box2D; }
+		};
+
+		/** Implements variant type traits for the built-in Box3f type. */
+		template<> struct TAttributeTypeTraits<FBox3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Box3f; }
+		};
+
+		/** Implements variant type traits for the built-in Box3d type. */
+		template<> struct TAttributeTypeTraits<FBox3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Box3d; }
+		};
+
+		/** Implements variant type traits for the built-in BoxSphereBounds3f type. */
+		template<> struct TAttributeTypeTraits<FBoxSphereBounds3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::BoxSphereBounds3f; }
+		};
+
+		/** Implements variant type traits for the built-in BoxSphereBounds3d type. */
+		template<> struct TAttributeTypeTraits<FBoxSphereBounds3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::BoxSphereBounds3d; }
+		};
+
+		/** Implements variant type traits for the built-in Sphere3f type. */
+		template<> struct TAttributeTypeTraits<FSphere3f>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Sphere3f; }
+		};
+
+		/** Implements variant type traits for the built-in Sphere3d type. */
+		template<> struct TAttributeTypeTraits<FSphere3d>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::Sphere3d; }
+		};
 	} //ns interchange
 }

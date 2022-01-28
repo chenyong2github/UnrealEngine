@@ -61,6 +61,29 @@ namespace UE
 				case EAttributeTypes::FrameRate: { AttributeTypeString = TEXT("FrameRate"); } break;
 				case EAttributeTypes::FrameTime: { AttributeTypeString = TEXT("FrameTime"); } break;
 				case EAttributeTypes::SoftObjectPath: { AttributeTypeString = TEXT("SoftObjectPath"); } break;
+				case EAttributeTypes::Matrix44f: { AttributeTypeString = TEXT("Matrix44f"); } break;
+				case EAttributeTypes::Matrix44d: { AttributeTypeString = TEXT("Matrix44d"); } break;
+				case EAttributeTypes::Plane4f: { AttributeTypeString = TEXT("Plane4f"); } break;
+				case EAttributeTypes::Plane4d: { AttributeTypeString = TEXT("Plane4d"); } break;
+				case EAttributeTypes::Quat4f: { AttributeTypeString = TEXT("Quat4f"); } break;
+				case EAttributeTypes::Quat4d: { AttributeTypeString = TEXT("Quat4d"); } break;
+				case EAttributeTypes::Rotator3f: { AttributeTypeString = TEXT("Rotator3f"); } break;
+				case EAttributeTypes::Rotator3d: { AttributeTypeString = TEXT("Rotator3d"); } break;
+				case EAttributeTypes::Transform3f: { AttributeTypeString = TEXT("Transform3f"); } break;
+				case EAttributeTypes::Transform3d: { AttributeTypeString = TEXT("Transform3d"); } break;
+				case EAttributeTypes::Vector3f: { AttributeTypeString = TEXT("Vector3f"); } break;
+				case EAttributeTypes::Vector3d: { AttributeTypeString = TEXT("Vector3d"); } break;
+				case EAttributeTypes::Vector2f: { AttributeTypeString = TEXT("Vector2f"); } break;
+				case EAttributeTypes::Vector4f: { AttributeTypeString = TEXT("Vector4f"); } break;
+				case EAttributeTypes::Vector4d: { AttributeTypeString = TEXT("Vector4d"); } break;
+				case EAttributeTypes::Box2f: { AttributeTypeString = TEXT("Box2f"); } break;
+				case EAttributeTypes::Box2D: { AttributeTypeString = TEXT("Box2D"); } break;
+				case EAttributeTypes::Box3f: { AttributeTypeString = TEXT("Box3f"); } break;
+				case EAttributeTypes::Box3d: { AttributeTypeString = TEXT("Box3d"); } break;
+				case EAttributeTypes::BoxSphereBounds3f: { AttributeTypeString = TEXT("BoxSphereBounds3f"); } break;
+				case EAttributeTypes::BoxSphereBounds3d: { AttributeTypeString = TEXT("BoxSphereBounds3d"); } break;
+				case EAttributeTypes::Sphere3f: { AttributeTypeString = TEXT("Sphere3f"); } break;
+				case EAttributeTypes::Sphere3d: { AttributeTypeString = TEXT("Sphere3d"); } break;
 				default:
 				{
 					//Ensure if we ask an unknown type
