@@ -5,6 +5,7 @@
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingComponentWidget.h"
 #include "DMXPixelMappingEditorUtils.h"
+#include "DMXPixelMappingEditorStyle.h"
 #include "SDMXPixelMappingComponentBox.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
@@ -224,7 +225,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 								.ContentPadding(FEditorStyle::Get().GetMargin("ViewportMenu.SToolBarButtonBlock.Button.Padding"))
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("UMGEditor.ZoomToFit"))
+									.Image(FDMXPixelMappingEditorStyle::Get().GetBrush("Icons.ZoomToFit"))
 								]
 							]
 						]

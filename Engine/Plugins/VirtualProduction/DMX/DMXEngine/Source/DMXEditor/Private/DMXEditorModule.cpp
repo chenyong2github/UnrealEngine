@@ -55,8 +55,6 @@ EAssetTypeCategories::Type FDMXEditorModule::DMXEditorAssetCategory;
 
 void FDMXEditorModule::StartupModule()
 {
-	FDMXEditorStyle::Initialize();
-
 	FDMXEditorCommands::Register();
 	BindDMXEditorCommands();
 
@@ -77,8 +75,6 @@ void FDMXEditorModule::StartupModule()
 
 void FDMXEditorModule::ShutdownModule()
 {
-	FDMXEditorStyle::Shutdown();
-
 	if(UObjectInitialized())
 	{
 		UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "DMX");
@@ -148,7 +144,7 @@ void FDMXEditorModule::BindDMXEditorCommands()
 
 void FDMXEditorModule::ExtendLevelEditorToolbar()
 {
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
+	UToolMenu* const Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
 
 	FToolMenuSection& Section = Menu->FindOrAddSection("DMX");
 
@@ -165,18 +161,24 @@ void FDMXEditorModule::ExtendLevelEditorToolbar()
 
 				if (bSendEnabled && bReceiveEnabled)
 				{
-					return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd-rcv");
+					static const FSlateIcon IconSendReceiveDMXEnabled = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.SendReceiveDMXEnabled");
+					return IconSendReceiveDMXEnabled;
 				}
 				else if (bSendEnabled)
 				{
-					return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd");
+					static const FSlateIcon IconSendDMXEnabled = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.SendDMXEnabled");
+					return IconSendDMXEnabled;
 				}
 				else if (bReceiveEnabled)
 				{
-					return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_rcv");
+					static const FSlateIcon IconReceiveDMXEnabled = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ReceiveDMXEnabled");
+					return IconReceiveDMXEnabled;
 				}
-
-				return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_none");
+				else
+				{
+					static const FSlateIcon IconSendReceiveDMXDisabled = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.SendReceiveDMXDisabled");
+					return IconSendReceiveDMXDisabled;
+				}
 			})
 		);
 
@@ -191,24 +193,51 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateDMXLevelEditorToolbarMenu()
 
 	FMenuBuilder MenuBuilder(true, CommandBindings);
 
-	MenuBuilder.BeginSection("CustomMenu", TAttribute<FText>(FText::FromString("DMX")));
-
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenChannelsMonitor);
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenActivityMonitor);
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenOutputConsole);
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenPatchTool);
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().ToggleReceiveDMX);
-	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().ToggleSendDMX);
-
-	MenuBuilder.EndSection();
-
+	static const FName NoExtensionHook = NAME_None;
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenChannelsMonitor,
+		NoExtensionHook,
+		LOCTEXT("ChannelsMonitorLabel", "Open Channel Monitor"),
+		LOCTEXT("ChannelsMonitorTooltip", "Opens the Monitor for all DMX Channels in a Universe"),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ChannelsMonitor")
+	);
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenActivityMonitor,
+		NoExtensionHook,
+		LOCTEXT("ActivityMonitorLabel", "Open Activity Monitor"),
+		LOCTEXT("ActivityMonitorTooltip", "Open the Monitor for all DMX activity in a range of Universes"),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ActivityMonitor")
+	);
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenOutputConsole,
+		NoExtensionHook,
+		LOCTEXT("OutputConsoleLabel", "Open Output Console"),
+		LOCTEXT("OutputConsoleTooltip", "Opens a Console to generate and output DMX Signals"),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.OutputConsole")
+	);
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().OpenPatchTool,
+		NoExtensionHook,
+		LOCTEXT("PatchToolLabel", "Open Patch Tool"),
+		LOCTEXT("PatchToolTooltip", "Open the patch tool - Useful to patch many fixtures at once."),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.PatchTool")
+	);
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().ToggleReceiveDMX,
+		NoExtensionHook,
+		LOCTEXT("ReceiveDMXLabel", "Receive DMX"),
+		LOCTEXT("ReceiveDMXTooltip", "Sets whether DMX is received in from the network"),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ReceiveDMX")
+	);
+	MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().ToggleSendDMX,
+		NoExtensionHook,
+		LOCTEXT("SendDMXLabel", "Send DMX"),
+		LOCTEXT("SendDMXTooltip", "Sets whether DMX is sent to the network"),
+		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.SendDMX")
+	);
+	
 	return MenuBuilder.MakeWidget();
 }
 
 void FDMXEditorModule::RegisterAssetTypeCategories()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	DMXEditorAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("DMX")), LOCTEXT("DmxCategory", "DMX"));
+	DMXEditorAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("DMX")), LOCTEXT("DmxCategory", "DMX")); 
 }
 
 void FDMXEditorModule::RegisterAssetTypeActions()
@@ -282,22 +311,26 @@ void FDMXEditorModule::RegisterNomadTabSpawners()
 	RegisterNomadTabSpawner(FDMXEditorTabNames::ChannelsMonitor,
 		FOnSpawnTab::CreateStatic(&FDMXEditorModule::OnSpawnChannelsMonitorTab))
 		.SetDisplayName(LOCTEXT("ChannelsMonitorTabTitle", "DMX Channel Monitor"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetIcon(FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ChannelsMonitor"));
 
 	RegisterNomadTabSpawner(FDMXEditorTabNames::ActivityMonitor,
 		FOnSpawnTab::CreateStatic(&FDMXEditorModule::OnSpawnActivityMonitorTab))
 		.SetDisplayName(LOCTEXT("ActivityMonitorTabTitle", "DMX Activity Monitor"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetIcon(FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.ActivityMonitor"));
 
 	RegisterNomadTabSpawner(FDMXEditorTabNames::OutputConsole,
 		FOnSpawnTab::CreateStatic(&FDMXEditorModule::OnSpawnOutputConsoleTab))
 		.SetDisplayName(LOCTEXT("OutputConsoleTabTitle", "DMX Output Console"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetIcon(FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.OutputConsole"));
 
 	RegisterNomadTabSpawner(FDMXEditorTabNames::PatchTool,
 		FOnSpawnTab::CreateStatic(&FDMXEditorModule::OnSpawnPatchToolTab))
 		.SetDisplayName(LOCTEXT("PatchToolTabTitle", "DMX Patch Tool"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetIcon(FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.PatchTool"));
 }
 
 void FDMXEditorModule::StartupPIEManager()
@@ -384,30 +417,6 @@ bool FDMXEditorModule::IsSendDMXEnabled()
 	return UDMXProtocolBlueprintLibrary::IsSendDMXEnabled();
 }
 
-FText FDMXEditorModule::GetToggleSendDMXText() const
-{
-	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
-	{
-		return LOCTEXT("MenuButtonText_PauseSendDMX", "Pause Send DMX");
-	}
-	else
-	{
-		return LOCTEXT("MenuButtonText_ResumeSendDMX", "Resume Send DMX");
-	}
-}
-
-FText FDMXEditorModule::GetToggleSendDMXTooltip() const
-{
-	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
-	{
-		return LOCTEXT("MenuButtonText_DisableOutboundDMXPackets", "Disables outbound DMX packets in editor.");
-	}
-	else
-	{
-		return LOCTEXT("MenuButtonText_EnableOutboundDMXPackets", "Enables outbound DMX packets in editor.");
-	}
-}
-
 void FDMXEditorModule::OnToggleReceiveDMX()
 {
 	bool bAffectEditor = true;
@@ -425,30 +434,6 @@ void FDMXEditorModule::OnToggleReceiveDMX()
 bool FDMXEditorModule::IsReceiveDMXEnabled()
 {
 	return UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled();
-}
-
-FText FDMXEditorModule::GetToggleReceiveDMXText() const
-{
-	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
-	{
-		return LOCTEXT("MenuButtonText_PauseReceiveDMX", "Pause Receive DMX");
-	}
-	else
-	{
-		return LOCTEXT("MenuButtonText_ResumeReceiveDMX", "Resume Receive DMX");
-	}
-}
-
-FText FDMXEditorModule::GetToggleReceiveDMXTooltip() const
-{
-	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
-	{
-		return LOCTEXT("MenuButtonText_DisableInboundDMXPackets", "Disables inbound DMX packets in editor.");
-	}
-	else
-	{
-		return LOCTEXT("MenuButtonText_EnableInboundDMXPackets", "Enables inbound DMX packets editor.");
-	}
 }
 
 void FDMXEditorModule::RegisterAssetTypeAction(TSharedRef<IAssetTypeActions> Action)

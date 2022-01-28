@@ -133,23 +133,11 @@ private:
 	/** Returns true if send dmx is enabled */
 	static bool IsSendDMXEnabled();
 
-	/** Returns text for the toggle receive DMX button in the menu */
-	FText GetToggleSendDMXText() const;
-
-	/** Returns text for the toggle receive DMX tooltip in the menu */
-	FText GetToggleSendDMXTooltip() const;
-
 	/** Called when the Toggle Receive DMX menu command is selected */
 	static void OnToggleReceiveDMX();
 
 	/** Returns true if receive dmx is enabled */
 	static bool IsReceiveDMXEnabled();
-
-	/** Returns text for the toggle receive DMX button in the menu */
-	FText GetToggleReceiveDMXText() const;
-
-	/** Returns text for the toggle receive DMX tooltip in the menu */
-	FText GetToggleReceiveDMXTooltip() const;
 
 	/** Command list for the DMX level editor menu */
 	TSharedPtr<class FUICommandList> DMXLevelEditorMenuCommands;

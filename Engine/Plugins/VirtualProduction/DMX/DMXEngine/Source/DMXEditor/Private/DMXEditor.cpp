@@ -13,7 +13,6 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
-#include "LibraryEditorTab/SDMXLibraryEditorTab.h"
 #include "Modes/DMXEditorApplicationMode.h"
 #include "Toolbars/DMXEditorToolbar.h"
 #include "Commands/DMXEditorCommands.h"
@@ -24,6 +23,7 @@
 #include "Widgets/SDMXEntityEditor.h"
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
+#include "Widgets/LibrarySettings/SDMXLibraryEditorTab.h"
 #include "Widgets/OutputConsole/SDMXOutputConsole.h"
 
 #include "Modules/ModuleManager.h"

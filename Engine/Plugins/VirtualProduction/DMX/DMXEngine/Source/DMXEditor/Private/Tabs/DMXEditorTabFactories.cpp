@@ -4,13 +4,14 @@
 
 #include "DMXEditor.h"
 #include "DMXEditorTabNames.h"
-#include "Library/DMXEntityFixtureType.h"
-#include "LibraryEditorTab/SDMXLibraryEditorTab.h"
+#include "DMXEditorStyle.h"
+#include "Widgets/LibrarySettings/SDMXLibraryEditorTab.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 
-#include "Widgets/Docking/SDockTab.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Docking/SDockTab.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXWorkflowTabFactory"
@@ -29,7 +30,7 @@ FDMXLibraryEditorTabSummoner::FDMXLibraryEditorTabSummoner(TSharedPtr<FAssetEdit
 	: FDMXEditorPropertyTabSummoner(FDMXEditorTabNames::DMXLibraryEditor, InHostingApp)
 {
 	TabLabel = LOCTEXT("DMXLibraryEditorTabName", "Library Settings");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults");
+	TabIcon = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.DMXLibrarySettings");
 
 	bIsSingleton = true;
 
@@ -58,8 +59,8 @@ FDMXEditorFixtureTypesSummoner::FDMXEditorFixtureTypesSummoner(TSharedPtr<FAsset
 	: FDMXEditorPropertyTabSummoner(FDMXEditorTabNames::DMXFixtureTypesEditor, InHostingApp)
 {
 	TabLabel = LOCTEXT("DMXFixtureTypesTabLabel", "Fixture Types");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults");
-
+	TabIcon = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.FixtureType");
+	
 	bIsSingleton = true;
 
 	ViewMenuDescription = LOCTEXT("DMXFixtureTypesView", "Fixture Types");
@@ -82,7 +83,7 @@ FDMXEditorFixturePatchSummoner::FDMXEditorFixturePatchSummoner(TSharedPtr<FAsset
 	: FDMXEditorPropertyTabSummoner(FDMXEditorTabNames::DMXFixturePatchEditor, InHostingApp)
 {
 	TabLabel = LOCTEXT("DMXFixturePatchTabLabel", "Fixture Patch");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults");
+	TabIcon = FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.FixturePatch");
 
 	bIsSingleton = true;
 

@@ -5,31 +5,39 @@
 #include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
 
-/**  DMX editor style, for loading and creation of UI resources */
+
+/**  DMX editor style */
 class DMXEDITOR_API FDMXEditorStyle
+	: public FSlateStyleSet
 {
 public:
+	/** Constructor */
+	FDMXEditorStyle();
 
-	/** Initializes this style's singleton and register the Slate Style */
-	static void Initialize();
-
-	/** Unregister the Slate Style and release the Singleton */
-	static void Shutdown();
-
-	/**  Reloads textures used by slate renderer */
-	static void ReloadTextures();
+	/** Desonstructor */
+	virtual ~FDMXEditorStyle();
 
 	/**  Returns the singleton ISlateStyle instance for DMX editor style */
-	static const ISlateStyle& Get();
+	static const FDMXEditorStyle& Get();
 
-	/**  Returns the DMX editor style name */
-	static FName GetStyleSetName();
+/// <summary>
+/// DEPRECATED Members
+/// </summary>
 
-private:
-	/** Instantiate and returns a Slate Style Set object */
-	static TSharedRef< class FSlateStyleSet > Create();
+public:	
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Deprecated since the public API leaves it unclear if the style is initialized or shut down. The style does not need to be Initialized explicitly anymore. Note, the StyleSetName now needs be accessed via FDMXEditorStyle::Get().GetStyleSetName().")
+	static void Initialize();
+
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Deprecated since the public API leaves it unclear if the style is initialized or shut down. The style does not need to be shut down explicitly anymore. Note, the StyleSetName now needs be accessed via FDMXEditorStyle::Get().GetStyleSetName().")
+	static void Shutdown();
+
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Deprecated since no clear use (call FSlateApplication::Get().GetRenderer()->ReloadTextureResources() directly where needed).")
+	static void ReloadTextures();
 
 private:
 	/** Singleton style instance */
-	static TSharedPtr< class FSlateStyleSet > StyleInstance;
+	static TSharedPtr<FSlateStyleSet> StyleInstance_DEPRECATED;
 };
