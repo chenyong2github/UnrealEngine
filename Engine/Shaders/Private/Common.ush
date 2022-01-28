@@ -28,6 +28,71 @@
 	#define MaterialFloat4x3 float4x3 
 #endif
 
+struct FloatDeriv
+{
+	float Value;
+	float Ddx;
+	float Ddy;
+};
+
+struct FloatDeriv2
+{
+	float2 Value;
+	float2 Ddx;
+	float2 Ddy;
+};
+
+struct FloatDeriv3
+{
+	float3 Value;
+	float3 Ddx;
+	float3 Ddy;
+};
+
+struct FloatDeriv4
+{
+	float4 Value;
+	float4 Ddx;
+	float4 Ddy;
+};
+
+FloatDeriv ConstructFloatDeriv(float InValue, float InDdx, float InDdy)
+{
+	FloatDeriv Ret;
+	Ret.Value = InValue;
+	Ret.Ddx = InDdx;
+	Ret.Ddy = InDdy;
+	return Ret;
+}
+
+FloatDeriv2 ConstructFloatDeriv2(float2 InValue, float2 InDdx, float2 InDdy)
+{
+	FloatDeriv2 Ret;
+	Ret.Value = InValue;
+	Ret.Ddx = InDdx;
+	Ret.Ddy = InDdy;
+	return Ret;
+}
+
+FloatDeriv3 ConstructFloatDeriv3(float3 InValue, float3 InDdx, float3 InDdy)
+{
+	FloatDeriv3 Ret;
+	Ret.Value = InValue;
+	Ret.Ddx = InDdx;
+	Ret.Ddy = InDdy;
+	return Ret;
+}
+
+FloatDeriv4 ConstructFloatDeriv4(float4 InValue, float4 InDdx, float4 InDdy)
+{
+	FloatDeriv4 Ret;
+	Ret.Value = InValue;
+	Ret.Ddx = InDdx;
+	Ret.Ddy = InDdy;
+	return Ret;
+}
+
+
 #define POSITIVE_INFINITY (asfloat(0x7F800000))
 #define NEGATIVE_INFINITY (asfloat(0xFF800000))
 
@@ -202,6 +267,14 @@ MaterialFloat4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
 	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex) + GlobalTextureMipBias);
 #else
 	return Tex.Sample(Sampler, UV);
+#endif
+}
+MaterialFloat4 Texture2DSample(Texture2D Tex, SamplerState Sampler, FloatDeriv2 UV)
+{
+#if USE_FORCE_TEXTURE_MIP
+	return Tex.SampleLevel(Sampler, UV.Value, ComputeRayConeLod(Tex) + GlobalTextureMipBias);
+#else
+	return Tex.SampleGrad(Sampler, UV.Value, UV.Ddx, UV.Ddy);
 #endif
 }
 MaterialFloat Texture2DSample_A8(Texture2D Tex, SamplerState Sampler, float2 UV)

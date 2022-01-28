@@ -1286,6 +1286,11 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		EDerivativeType DerivType = (EDerivativeType)Index;
+		if (!IsLWCType(DerivType))
+		{
+			continue;				// Non-LWC types defined in common.ush
+		}
+
 		FString BaseName = GetDerivVectorName(DerivType);
 		FString FieldName = GetFloatVectorName(DerivType);
 		FString FieldNameDDXY = GetFloatVectorDDXYName(DerivType);
@@ -1305,6 +1310,11 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		if (bConstructDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
 			EDerivativeType DerivType = (EDerivativeType)Index;
+			if (!IsLWCType(DerivType))
+			{
+				continue;				// Non-LWC constructors defined in common.ush
+			}
+
 			FString BaseName = GetDerivVectorName(DerivType);
 			FString FieldName = GetFloatVectorName(DerivType);
 			FString FieldNameDDXY = GetFloatVectorDDXYName(DerivType);

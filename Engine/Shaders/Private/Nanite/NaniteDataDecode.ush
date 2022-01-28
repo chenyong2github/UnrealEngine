@@ -288,6 +288,11 @@ struct FInstanceDraw
 	uint ViewId;
 };
 
+struct FNaniteFullscreenVSToPS
+{
+	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
+};
+
 #if NANITE_USE_UNIFORM_BUFFER
 	#define PageConstants			Nanite.PageConstants
 	#define MaxNodes				Nanite.MaxNodes

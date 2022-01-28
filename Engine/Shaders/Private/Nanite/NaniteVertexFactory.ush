@@ -7,13 +7,22 @@
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
-// Always enable all inputs to work around shader linkage errors without introducing permutations.
-// Make sure this matches definition in ExportGBuffer.usf
+// Nanite material evaluation is deferred to a screenspace pass sampling the visibility buffer,
+// so the 'interpolants' used in the GBuffer pass are almost all generated in the PixelShader, instead of exported from VS.
+// FNaniteFullscreenVSToPS is the struct containing what actually needs to be passed between VS and PS in the Nanite GBuffer pass.
 struct FVertexFactoryInterpolantsVSToPS
 {
+#if NEEDS_LIGHTMAP_COORDINATE
 	nointerpolation float4 LightMapCoordinate	: TEXCOORD3;
+	nointerpolation float4 LightMapCoordinateDDX: TEXCOORD4;
+	nointerpolation float4 LightMapCoordinateDDY: TEXCOORD5;
+#endif
+#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
 	nointerpolation uint LightmapDataIndex		: LIGHTMAP_ID;
+#endif
+#if INSTANCED_STEREO
 	nointerpolation uint EyeIndex				: PACKED_EYE_INDEX;
+#endif
 	nointerpolation uint ViewIndex				: PACKED_VIEW_INDEX;
 };
 
@@ -64,6 +73,22 @@ void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out f
 #endif
 }
 
+void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out FloatDeriv2 LightmapUV0, out FloatDeriv2 LightmapUV1, out uint LightmapDataIndex)
+{
+	LightmapUV0 = ConstructFloatDeriv2(	Interpolants.LightMapCoordinate.xy * float2(1.0, 0.5),
+										Interpolants.LightMapCoordinateDDX.xy * float2(1.0, 0.5),
+										Interpolants.LightMapCoordinateDDY.xy * float2(1.0, 0.5));
+
+	LightmapUV1 = LightmapUV0;
+	LightmapUV1.Value += float2(0.0, 0.5);
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	LightmapDataIndex = Interpolants.LightmapDataIndex;
+#else
+	LightmapDataIndex = 0;
+#endif
+}
+
 void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 ShadowMapCoordinate, out uint LightmapDataIndex)
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
@@ -74,10 +99,31 @@ void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out f
 	ShadowMapCoordinate = Interpolants.LightMapCoordinate.zw;
 }
 
+void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out FloatDeriv2 ShadowMapCoordinate, out uint LightmapDataIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	LightmapDataIndex = Interpolants.LightmapDataIndex;
+#else
+	LightmapDataIndex = 0;
+#endif
+	ShadowMapCoordinate = ConstructFloatDeriv2(	Interpolants.LightMapCoordinate.zw,
+												Interpolants.LightMapCoordinateDDX.zw,
+												Interpolants.LightMapCoordinateDDY.zw);
+}
+
 void SetLightMapCoordinate(inout FVertexFactoryInterpolantsVSToPS Interpolants, float2 InLightMapCoordinate, float2 InShadowMapCoordinate)
 {
 	Interpolants.LightMapCoordinate.xy = InLightMapCoordinate;
 	Interpolants.LightMapCoordinate.zw = InShadowMapCoordinate;
+	Interpolants.LightMapCoordinateDDX = 0;
+	Interpolants.LightMapCoordinateDDY = 0;
+}
+
+void SetLightMapCoordinate(inout FVertexFactoryInterpolantsVSToPS Interpolants, FloatDeriv2 InLightMapCoordinate, FloatDeriv2 InShadowMapCoordinate)
+{
+	Interpolants.LightMapCoordinate		= float4(InLightMapCoordinate.Value, InShadowMapCoordinate.Value);
+	Interpolants.LightMapCoordinateDDX	= float4(InLightMapCoordinate.Ddx, InShadowMapCoordinate.Ddy);
+	Interpolants.LightMapCoordinateDDY	= float4(InLightMapCoordinate.Ddy, InShadowMapCoordinate.Ddy);
 }
 
 void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, uint LightmapDataIndex)
@@ -215,9 +261,6 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 	#endif
 
 	#if NEEDS_LIGHTMAP_COORDINATE
-		float2 LightMapCoordinate = 0;
-		float2 ShadowMapCoordinate = 0;
-
 		const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
 		const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
 
@@ -242,12 +285,17 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
 		const float2 InstanceLightMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.xy, LightMapCoordinateScaleBias.zw);
-		LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceLightMapScaleBias;
+		FloatDeriv2 LightMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceLightMapScaleBias,
+																LightMapCoordinateInput_DDX * LightMapCoordinateScaleBias.xy,
+																LightMapCoordinateInput_DDY * LightMapCoordinateScaleBias.xy);
 
+		FloatDeriv2 ShadowMapCoordinate = (FloatDeriv2)0;
 	#if STATICLIGHTING_TEXTUREMASK
 		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
 		const float2 InstanceShadowMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.zw, ShadowMapCoordinateScaleBias.zw);
-		ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceShadowMapScaleBias;
+		ShadowMapCoordinate = ConstructFloatDeriv2(	LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceShadowMapScaleBias,
+													LightMapCoordinateInput_DDX * ShadowMapCoordinateScaleBias.xy,
+													LightMapCoordinateInput_DDY * ShadowMapCoordinateScaleBias.xy);
 	#endif
 
 	#if LIGHTMAP_UV_ACCESS

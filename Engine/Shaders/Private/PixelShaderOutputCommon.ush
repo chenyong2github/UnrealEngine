@@ -53,7 +53,11 @@ PIXELSHADER_EARLYDEPTHSTENCIL
 void MainPS
 	(
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
+#if IS_NANITE_PASS
+		FNaniteFullscreenVSToPS NaniteInterpolants,
+#else
 		FVertexFactoryInterpolantsVSToPS Interpolants,
+#endif
 #endif
 #if PIXELSHADEROUTPUT_BASEPASS
 		FBasePassInterpolantsVSToPS BasePassInterpolants,
@@ -130,6 +134,10 @@ void MainPS
 	)
 {
 	// ---------------------------------------------------------------------------------
+#if IS_NANITE_PASS && (PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS)
+	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+	Interpolants.ViewIndex = NaniteInterpolants.ViewIndex;
+#endif
 
 	FPixelShaderIn PixelShaderIn = (FPixelShaderIn)0;
 	FPixelShaderOut PixelShaderOut = (FPixelShaderOut)0;
