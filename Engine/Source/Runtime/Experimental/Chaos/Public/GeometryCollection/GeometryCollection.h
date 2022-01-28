@@ -6,10 +6,13 @@
 #include "TransformCollection.h"
 #include "Misc/Crc.h"
 
+#include "GeometryCollection/GeometryCollectionConvexPropertiesInterface.h"
+
 namespace Chaos
 {
 	class FChaosArchive;
 }
+class FGeometryCollectionConvexPropertiesInterface;
 
 namespace GeometryCollectionUV
 {
@@ -25,7 +28,8 @@ namespace GeometryCollectionUV
 *    see : https://wiki.it.epicgames.net/display/~Brice.Criswell/Geometry+Collections
 *
 */
-class CHAOS_API FGeometryCollection : public FTransformCollection
+class CHAOS_API FGeometryCollection : public FTransformCollection, 
+	public FGeometryCollectionConvexPropertiesInterface
 {
 
 public:

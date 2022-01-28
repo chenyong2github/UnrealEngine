@@ -33,6 +33,7 @@ const FName FGeometryCollection::StatusFlagsAttribute("StatusFlags");
 
 FGeometryCollection::FGeometryCollection()
 	: FTransformCollection()
+	, FGeometryCollectionConvexPropertiesInterface(this)
 {
 	Construct();
 }
@@ -79,6 +80,7 @@ void FGeometryCollection::Construct()
 	// Material Group
 	AddExternalAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup, Sections, FacesDependency);
 
+	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();
 }
 
 
@@ -884,6 +886,11 @@ void FGeometryCollection::UpdateBoundingBox()
 
 void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
+	if (Ar.IsCooking())
+	{
+		FGeometryCollectionConvexPropertiesInterface::CleanInterfaceForCook();
+	}
+
 	Super::Serialize(Ar);
 
 	if (Ar.IsLoading())

@@ -480,3 +480,22 @@ protected:
 
 };
 
+
+/*
+*  FManagedArrayInterface
+*/
+class CHAOS_API FManagedArrayInterface
+{
+public:
+	FManagedArrayInterface() : ManagedCollection(nullptr) {}
+	FManagedArrayInterface(FManagedArrayCollection* InManagedArray)
+		: ManagedCollection(InManagedArray) {}
+
+	virtual void InitializeInterface() = 0;
+	virtual void CleanInterfaceForCook() = 0; 
+	virtual void RemoveInterfaceAttributes() = 0;
+
+protected:
+	FManagedArrayCollection* ManagedCollection;
+
+};
