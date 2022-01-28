@@ -52,6 +52,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayScrubCompleteDelegate, UWorld* /*Wo
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayPlaybackCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPauseChannelsChangedDelegate, UWorld* /*World*/, bool /*bPaused*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayIDChangedDelegate, UWorld* /*World*/, const FString& /*ReplayID*/);
 
 struct ENGINE_API FNetworkReplayDelegates
 {
@@ -83,6 +84,9 @@ struct ENGINE_API FNetworkReplayDelegates
 
 	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
 	static FOnPauseChannelsChangedDelegate OnPauseChannelsChanged;
+
+	/** Delegate for external systems to be notified when the SessionName has changed (The replay identifier). */
+	static FOnReplayIDChangedDelegate OnReplayIDChanged;
 };
 
 /**

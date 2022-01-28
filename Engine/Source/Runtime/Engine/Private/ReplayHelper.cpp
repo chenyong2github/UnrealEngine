@@ -108,6 +108,15 @@ void FReplayHelper::OnStartRecordingComplete(const FStartStreamingResult& Result
 		OnReplayRecordError.Broadcast();
 		return;
 	}
+
+	// Broadcast the replay id for anyone interested as by this point it has been finalized.
+	// Eg. The replay server telling us the replay id in the case of FHttpNetworkReplayStreamer
+	if (ReplayStreamer.IsValid())
+	{
+		const FString ReplayID = ReplayStreamer->GetReplayID();
+
+		FNetworkReplayDelegates::OnReplayIDChanged.Broadcast(World.Get(), ReplayID);
+	}
 }
 
 void FReplayHelper::StartRecording(UNetConnection* Connection)

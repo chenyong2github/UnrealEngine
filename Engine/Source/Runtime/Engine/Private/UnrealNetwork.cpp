@@ -13,6 +13,7 @@ FOnReplayScrubCompleteDelegate FNetworkReplayDelegates::OnReplayScrubComplete;
 FOnReplayPlaybackCompleteDelegate FNetworkReplayDelegates::OnReplayPlaybackComplete;
 FOnReplayRecordingCompleteDelegate FNetworkReplayDelegates::OnReplayRecordingComplete;
 FOnPauseChannelsChangedDelegate FNetworkReplayDelegates::OnPauseChannelsChanged;
+FOnReplayIDChangedDelegate FNetworkReplayDelegates::OnReplayIDChanged;
 
 // ----------------------------------------------------------------
 
