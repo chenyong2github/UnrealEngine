@@ -187,7 +187,12 @@ namespace Horde.Storage.Implementation
                 yield return (new BlobIdentifier(file.Name), file.LastWriteTime);
             }
         }
-        
+
+        public bool ShouldRun()
+        {
+            return true;
+        }
+
         public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
         {
             return await CleanupInternal(cancellationToken);
