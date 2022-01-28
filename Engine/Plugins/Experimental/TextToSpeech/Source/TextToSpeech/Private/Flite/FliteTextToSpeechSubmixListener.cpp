@@ -108,10 +108,10 @@ void FFliteTextToSpeechSubmixListener::QueueSynthesizedSpeechChunk_AnyThread(FFl
 			// If pitching down, this buffer will be larger than input buffer
 			// If pitching up, this buffer will be smaller than input buffer
 			int32 NumConvertedSamples = InSynthesizedSpeechChunk.SampleRate / SampleRateConversionRatio;
-			SampleRateConversionBuffer.Reset();
+			int32 OutputSamples = INDEX_NONE;
+			TArray<float> SampleRateConversionBuffer;
 			SampleRateConversionBuffer.AddZeroed(NumConvertedSamples);
 			// Perform the sample rate conversion
-			int32 OutputSamples = INDEX_NONE;
 			int32 ErrorCode = AudioResampler.ProcessAudio(InSynthesizedSpeechChunk.GetSpeechData(), InSynthesizedSpeechChunk.GetNumSpeechSamples(), InSynthesizedSpeechChunk.IsLastChunk(), SampleRateConversionBuffer.GetData(), SampleRateConversionBuffer.Num(), OutputSamples);
 			ensure(OutputSamples <= NumConvertedSamples);
 			if (ErrorCode != 0)
@@ -134,7 +134,7 @@ void FFliteTextToSpeechSubmixListener::QueueSynthesizedSpeechChunk_AnyThread(FFl
 	// we should always have the main audio device. If we get here, something's really wrong
 	ensure(false);
 }
-
+	
 void FFliteTextToSpeechSubmixListener::StopPlayback_GameThread()
 {
 	check(IsInGameThread());
@@ -179,9 +179,17 @@ void FFliteTextToSpeechSubmixListener::Unmute()
 	bMuted = false;
 }
 
+/**
+* Controls the capacity of the FSynthesizedSpeechBuffer. The larger the capacity of the buffer, the more synthesiazed audio data that can be held by 
+*/
+static int32 gFliteSpeechBufferCapacity = 512;
+static FAutoConsoleVariableRef FliteSpeechBufferCapacityRef(
+	TEXT("TextToSpeech.Flite.SpeechBufferCapacity"),
+	gFliteSpeechBufferCapacity,
+	TEXT("Controls the capacity of the Flite synthesized speechbuffer upon initialization of the Flite text to speech submix listener. The buffer will hold chunks of streamed, synthesized speech data. The larger the size the capacity of the buffer, the more audio data can be synthesized at once for playback and the more memory the buffer will take up. It's recommeneded to keep the value greater than 256 and less than 1024.")
+);
 FFliteTextToSpeechSubmixListener::FSynthesizedSpeechBuffer::FSynthesizedSpeechBuffer()
-	// @TODOAccessibility: Don't hardcode the size of the buffer. Also need to figure out a way to conserve space. 
-	: SynthesizedSpeechChunks(256)
+	: SynthesizedSpeechChunks(gFliteSpeechBufferCapacity)
 	, ReadIndex(0)
 	, WriteIndex(0)
 , ChunkReadIndex(0)

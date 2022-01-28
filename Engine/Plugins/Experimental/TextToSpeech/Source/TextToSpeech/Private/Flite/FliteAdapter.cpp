@@ -35,10 +35,7 @@ FliteSpeechStreaming::FOnSynthesizedSpeechChunk FliteSpeechStreaming::OnSynthesi
 namespace PrivateFliteSpeechStreaming
 {
 	// written in game thread and read in audio render thread
-	static std::atomic<bool> bShouldContinueStreaming(false);
-	/** Scratch buffer used to convert Flite PCM wave data to UE audio engine format of floats */
-	static TArray<float> PCMToFloatBuffer;
-	
+	static std::atomic<bool> bShouldContinueStreaming(false);	
 #if SINE_DEBUG
 	Audio::FSineOsc SineOsc;
 #endif
@@ -53,10 +50,12 @@ namespace PrivateFliteSpeechStreaming
 	{
 		if (!bShouldContinueStreaming)
 		{
-			UE_LOG(LogTextToSpeech, VeryVerbose, TEXT("Stopping speech streaming."));
+			UE_LOG(LogTextToSpeech, VeryVerbose, TEXT("Stopping Flite speech streaming."));
 			return CST_AUDIO_STREAM_STOP;
 		}
-		PCMToFloatBuffer.Reset();
+		
+		// Scratch buffer to convert PCM data for FLite to UE float format 
+		TArray<float> PCMToFloatBuffer;
 		PCMToFloatBuffer.AddZeroed(NumSamples);
 		// Note it's possible for a stream of size 0 to come in with it being the last chunk
 		for (int32 CurrentIndex = 0; CurrentIndex < NumSamples; ++CurrentIndex)
@@ -70,10 +69,8 @@ namespace PrivateFliteSpeechStreaming
 			PCMToFloatBuffer[CurrentIndex] = Sample;
 #endif
 		}
-		int32 SampleRate = static_cast<int32>(Wave->sample_rate);
-		int32 NumChannels = static_cast<int32>(Wave->num_channels);
-		FFliteSynthesizedSpeechData SpeechData(MoveTemp(PCMToFloatBuffer), SampleRate, NumChannels);;
-		int ReturnCode = CST_AUDIO_STREAM_CONT;;
+		FFliteSynthesizedSpeechData SpeechData(MoveTemp(PCMToFloatBuffer), static_cast<int32>(Wave->sample_rate), static_cast<int32>(Wave->num_channels));
+		int ReturnCode = CST_AUDIO_STREAM_CONT;
 		if (bIsLastChunk == 1)
 		{
 			UE_LOG(LogTextToSpeech, VeryVerbose, TEXT("Synthesizing last speech chunk of %i bytes."), SpeechData.GetNumSpeechSamples());

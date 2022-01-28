@@ -75,12 +75,6 @@ private:
 	Audio::FResampler AudioResampler;
 	FCriticalSection SynthesizedSpeechBufferCS;
 	/**
-	* scratch buffer for SRC
-	* should only be used in background thread when pushing data to
-	* SynthesizedSpeechBuffer
-	*/
-	TArray<float> SampleRateConversionBuffer;
-	/**
 	* The buffer that stores the data with DSP applied
 	* should only be used in audio render thread
 	*/
