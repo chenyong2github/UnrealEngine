@@ -8,6 +8,7 @@
 #include "MeshQueries.h"
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ConvexVolume.h"
 
 using namespace UE::Geometry;
 
