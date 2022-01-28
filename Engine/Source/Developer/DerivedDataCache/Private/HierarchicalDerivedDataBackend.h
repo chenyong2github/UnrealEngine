@@ -511,7 +511,7 @@ public:
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->Put(Requests, AsyncOwner);
+						AsyncPutInnerBackends[PutCacheIndex]->Put(Requests, AsyncOwner, [](auto&&){});
 					}
 				}
 			}
@@ -616,7 +616,7 @@ public:
 								{
 									if (FillBackend->IsWritable())
 									{
-										FillBackend->Put({{Response.Name, Response.Record, PutPolicy}}, AsyncOwner);
+										FillBackend->Put({{Response.Name, Response.Record, PutPolicy}}, AsyncOwner, [](auto&&){});
 									}
 								}
 							}
@@ -677,7 +677,7 @@ public:
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->PutValue(Requests, AsyncOwner);
+						AsyncPutInnerBackends[PutCacheIndex]->PutValue(Requests, AsyncOwner, [](auto&&){});
 					}
 				}
 			}
@@ -724,7 +724,7 @@ public:
 							{
 								if (GetCacheIndex != FillCacheIndex)
 								{
-									AsyncPutInnerBackends[FillCacheIndex]->PutValue({{Response.Name, Response.Key, Response.Value, ECachePolicy::Default}}, AsyncOwner);
+									AsyncPutInnerBackends[FillCacheIndex]->PutValue({{Response.Name, Response.Key, Response.Value, ECachePolicy::Default}}, AsyncOwner, [](auto&&){});
 								}
 							}
 

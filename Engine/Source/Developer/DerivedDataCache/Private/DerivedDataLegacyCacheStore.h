@@ -32,7 +32,7 @@ public:
 	virtual void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete = {}) = 0;
+		FOnLegacyCachePutComplete&& OnComplete) = 0;
 
 	virtual void LegacyGet(
 		TConstArrayView<FLegacyCacheGetRequest> Requests,
