@@ -65,6 +65,7 @@ namespace TechSoftUtils
 
 CADINTERFACES_API bool TECHSOFT_InitializeKernel(const TCHAR* = TEXT(""));
 CADINTERFACES_API FTechSoftInterface& GetTechSoftInterface();
+CADINTERFACES_API FString GetTechSoftVersion();
 
 #ifdef USE_TECHSOFT_SDK
 

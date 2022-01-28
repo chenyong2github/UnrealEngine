@@ -880,6 +880,17 @@ FTechSoftInterface& GetTechSoftInterface()
 	return TechSoftInterface;
 }
 
+FString GetTechSoftVersion()
+{
+#ifdef USE_TECHSOFT_SDK
+	A3DInt32 MajorVersion = 0, MinorVersion = 0;
+	A3DDllGetVersion(&MajorVersion, &MinorVersion);
+	return FString::Printf(TEXT("Techsoft %d.%d"), MajorVersion, MinorVersion);
+#endif
+	return FString();
+}
+
+
 bool TECHSOFT_InitializeKernel(const TCHAR* InEnginePluginsPath)
 {
 	return GetTechSoftInterface().InitializeKernel(InEnginePluginsPath);

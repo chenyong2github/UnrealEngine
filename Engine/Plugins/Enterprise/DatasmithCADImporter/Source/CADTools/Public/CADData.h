@@ -21,6 +21,7 @@ namespace CADLibrary
 enum class ECADFormat
 {
 	ACIS,
+	AUTOCAD,
 	CATIA,
 	CATIA_CGR,
 	CATIA_3DXML,
@@ -28,11 +29,15 @@ enum class ECADFormat
 	CREO,
 	DWG,
 	DGN,
+	TECHSOFT,
+	IFC,
 	IGES,
 	INVENTOR,
 	JT,
 	NX,
+	MICROSTATION,
 	PARASOLID,
+	SOLID_EDGE,
 	SOLIDWORKS,
 	STEP,
 	OTHER

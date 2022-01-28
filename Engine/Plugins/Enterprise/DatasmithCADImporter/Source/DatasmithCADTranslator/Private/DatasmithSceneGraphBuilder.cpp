@@ -216,9 +216,9 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 
 	// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
 	// application_name is something like "Catia V5"
-	DatasmithScene->SetVendor(TEXT("CoreTechnologie"));
+	DatasmithScene->SetVendor(TEXT("Techsoft"));
 
-	if (const FString* ProductVersion = Component.MetaData.Find(TEXT("KernelIOVersion")))
+	if (const FString* ProductVersion = Component.MetaData.Find(TEXT("TechsoftVersion")))
 	{
 		DatasmithScene->SetProductVersion(**ProductVersion);
 	}

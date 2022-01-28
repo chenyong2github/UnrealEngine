@@ -236,11 +236,14 @@ ECADFormat FileFormat(const FString& Extension)
 	{
 		return ECADFormat::CATIAV4;
 	}
-	else if (Extension == TEXT("prt.*") || Extension == TEXT("asm.*"))
+	else if (Extension == TEXT("prt.*") || Extension == TEXT("asm.*") 
+		|| Extension == TEXT("creo") || Extension == TEXT("creo.*")
+		|| Extension == TEXT("neu") || Extension == TEXT("neu.*")
+		|| Extension == TEXT("xas") || Extension == TEXT("xpr"))
 	{
 		return ECADFormat::CREO;
 	}
-	else if (Extension == TEXT("prt"))
+	else if (Extension == TEXT("prt") || Extension == TEXT("asm"))
 	{
 		return ECADFormat::NX;
 	}
@@ -256,9 +259,25 @@ ECADFormat FileFormat(const FString& Extension)
 	{
 		return ECADFormat::PARASOLID;
 	}
-	else if (Extension == TEXT("3dxml"))
+	else if (Extension == TEXT("3dxml") || Extension == TEXT("3drep"))
 	{
 		return ECADFormat::CATIA_3DXML;
+	}
+	else if (Extension == TEXT("par") || Extension == TEXT("psm"))
+	{
+		return ECADFormat::SOLID_EDGE;
+	}
+	else if (Extension == TEXT("dwg"))
+	{
+		return ECADFormat::AUTOCAD;
+	}
+	else if (Extension == TEXT("dgn"))
+	{
+		return ECADFormat::MICROSTATION;
+	}
+	else if (Extension == TEXT("hsf"))
+	{
+		return ECADFormat::TECHSOFT;
 	}
 	else
 	{

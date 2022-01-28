@@ -321,6 +321,12 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	ECADParsingResult Result = TraverseModel(ModelFile);
 
+	FString TechsoftVersion = TechSoftUtils::GetTechSoftVersion();
+	if (!TechsoftVersion.IsEmpty() && CADFileData.ComponentCount() > 0)
+	{
+		CADFileData.GetComponentAt(0).MetaData.Add(TEXT("TechsoftVersion"), TechsoftVersion);
+	}
+
 	TechSoftInterface.UnloadModel();
 
 	return Result;

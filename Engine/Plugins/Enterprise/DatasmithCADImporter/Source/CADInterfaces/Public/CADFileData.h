@@ -124,6 +124,10 @@ public:
 		return SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId) != nullptr;
 	}
 
+	int32 ComponentCount()
+	{
+		return SceneGraphArchive.Components.Num();
+	}
 
 	int32 AddComponent(FCadId ComponentId)
 	{
