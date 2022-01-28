@@ -65,6 +65,14 @@ private:
 	/** The mesh deformer instance. This is used to perform the runtime updates and run the inference. */
 	FMLDeformerInstance DeformerInstance;
 
+	/** DelegateHandle for NeuralNetwork modification. */
+	FDelegateHandle NeuralNetworkModifyDelegateHandle;
+
+	/** Bind to the DeformerAsset NeuralNetworkModifyDelegate. */
+	void AddNeuralNetworkModifyDelegate();
+	/** Unbind from the DeformerAsset NeuralNetworkModifyDelegate. */
+	void RemoveNeuralNetworkModifyDelegate();
+
 	// BEGIN AActorComponent interface
 	/**
 	 * Tick component, i.e., run MLDeformer inference.

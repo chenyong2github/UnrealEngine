@@ -375,8 +375,9 @@ bool FMLDeformerEditorToolkit::TryLoadOnnxFile() const
 		UNeuralNetwork* Network = NewObject<UNeuralNetwork>(EditorData->GetDeformerAsset(), UNeuralNetwork::StaticClass());		
 		if (Network->Load(OnnxFile))
 		{
-			EditorData->GetDeformerAsset()->NeuralNetwork = Network;
-			EditorData->GetDeformerAsset()->NeuralNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
+			Network->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
+			
+			EditorData->GetDeformerAsset()->SetInferenceNeuralNetwork(Network);
 
 			// Recreate the data providers.
 			// This is needed for the neural network GPU buffers to be valid.

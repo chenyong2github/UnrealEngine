@@ -159,6 +159,7 @@ public:
 	void InitGPUData();
 
 	const TArray<int32>& GetVertexMap() const { return VertexMap; }
+	void SetInferenceNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
 	UNeuralNetwork* GetInferenceNeuralNetwork() const { return NeuralNetwork.Get(); }
 	const FVertexMapBuffer& GetVertexMapBuffer() const { return VertexMapBuffer; }
 	const FVector3f& GetVertexDeltaMean() const { return VertexDeltaMean; }
@@ -199,10 +200,15 @@ public:
 	float GetNoiseAmount() const { return NoiseAmount; }
 #endif
 
-public:
+protected:
 	/** The neural network to use for inference. */
 	UPROPERTY()
 	TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
+
+public:
+	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
+	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
+	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
 
 	/** This is an index per vertex in the mesh, indicating the imported vertex number from the source asset. */
 	UPROPERTY()

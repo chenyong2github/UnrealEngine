@@ -309,6 +309,12 @@ bool UMLDeformerAsset::IsReadyForFinishDestroy()
 	return Super::IsReadyForFinishDestroy() && RenderResourceDestroyFence.IsFenceComplete();
 }
 
+void UMLDeformerAsset::SetInferenceNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
+{
+	NeuralNetworkModifyDelegate.Broadcast();
+	NeuralNetwork = InNeuralNetwork;
+}
+
 #if WITH_EDITOR
 void UMLDeformerAsset::InitVertexMap()
 {

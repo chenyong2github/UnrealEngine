@@ -111,9 +111,6 @@ private:
 	/** The ML Deformer asset we're an instance of. */
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 
-	/** Cache most recent NeuralNetwork from the DeformerAsset. This can change after training. */
-	UNeuralNetwork* CurrentNeuralNetwork = nullptr;
-
 	/** Inference handle for neural network inference */
 	int32 NeuralNetworkInferenceHandle = -1;
 

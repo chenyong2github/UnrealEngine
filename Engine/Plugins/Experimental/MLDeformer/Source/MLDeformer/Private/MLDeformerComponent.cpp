@@ -17,10 +17,36 @@ UMLDeformerComponent::UMLDeformerComponent(const FObjectInitializer& ObjectIniti
 
 void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USkeletalMeshComponent* InSkelMeshComponent)
 {
+	RemoveNeuralNetworkModifyDelegate();
+
 	DeformerAsset = InDeformerAsset;
 	SkelMeshComponent = InSkelMeshComponent;
 	AddTickPrerequisiteComponent(SkelMeshComponent);
 	DeformerInstance.Init(InDeformerAsset, InSkelMeshComponent);
+
+	AddNeuralNetworkModifyDelegate();
+}
+
+void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
+{
+	if (DeformerAsset != nullptr)
+	{
+		NeuralNetworkModifyDelegateHandle = DeformerAsset->NeuralNetworkModifyDelegate.AddLambda(([this]()
+		{
+			DeformerInstance.Release();
+			DeformerInstance.Init(DeformerAsset, SkelMeshComponent);
+		}));
+	}
+}
+
+void UMLDeformerComponent::RemoveNeuralNetworkModifyDelegate()
+{
+	if (DeformerAsset != nullptr && NeuralNetworkModifyDelegateHandle != FDelegateHandle())
+	{
+		DeformerAsset->NeuralNetworkModifyDelegate.Remove(NeuralNetworkModifyDelegateHandle);
+	}
+	
+	NeuralNetworkModifyDelegateHandle = FDelegateHandle();
 }
 
 void UMLDeformerComponent::Activate(bool bReset)
@@ -38,6 +64,7 @@ void UMLDeformerComponent::Activate(bool bReset)
 
 void UMLDeformerComponent::Deactivate()
 {
+	RemoveNeuralNetworkModifyDelegate();
 	DeformerInstance.Release();
 }
 
