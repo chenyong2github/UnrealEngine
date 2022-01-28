@@ -163,10 +163,6 @@ class GAMEPLAYABILITIES_API UAbilityTask : public UGameplayTask
 protected:
 	/** Helper method for registering client replicated callbacks */
 	bool CallOrAddReplicatedDelegate(EAbilityGenericReplicatedEvent::Type Event, FSimpleMulticastDelegate::FDelegate Delegate);
-
-private:
-
-	static int32 GlobalAbilityTaskCount;
 };
 
 //For searching through lists of ability instances
