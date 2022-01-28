@@ -4,6 +4,7 @@
 #include "HAL/PlatformProcess.h"
 #include "PerfCounters.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Fork.h"
 
 class FPerfCountersModule : public IPerfCountersModule
 {
@@ -77,5 +78,13 @@ int32 IPerfCountersModule::GetHTTPStatsPort()
 {
 	int32 StatsPort = -1;
 	FParse::Value(FCommandLine::Get(), TEXT("statsPort="), StatsPort);
+
+	if (StatsPort > 0 && FParse::Param(FCommandLine::Get(), TEXT("forkAutoStatsPort")))
+	{
+		const int32 ChildProcessIdx = FForkProcessHelper::GetForkedChildProcessIndex();
+		StatsPort += ChildProcessIdx;
+		UE_LOG(LogPerfCounters, Display, TEXT("ForkAutoStatsPort assigned port %d to child process %d"), StatsPort, ChildProcessIdx);
+	}
+
 	return StatsPort;
 }

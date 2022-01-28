@@ -1461,17 +1461,16 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			}
 			else if (ChildPID == 0)
 			{
-				FForkProcessHelper::SetIsForkedChildProcess();
+				// Child
+				uint16 Cookie = (SignalValue >> 16) & 0xffff;
+				uint16 ChildIdx = SignalValue & 0xffff;
+				FForkProcessHelper::SetIsForkedChildProcess(ChildIdx);
 
 				if (FPlatformMemory::HasForkPageProtectorEnabled())
 				{
 					UE::FForkPageProtector::OverrideGMalloc();
 					UE::FForkPageProtector::Get().ProtectMemoryRegions();
 				}
-
-				// Child
-				uint16 Cookie = (SignalValue >> 16) & 0xffff;
-				uint16 ChildIdx = SignalValue & 0xffff;
 
 				// Close the log state we inherited from our parent
 				GLog->TearDown();

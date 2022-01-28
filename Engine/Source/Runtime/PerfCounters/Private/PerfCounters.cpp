@@ -253,7 +253,20 @@ bool FPerfCounters::ProcessExecRequest(const FHttpServerRequest& Request, const 
 		{
 			bExecCommandSuccess = ExecCmdCallback.Execute(*ExecCmd, StringOutDevice);
 		}
+		else
+		{
+			auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotSupported,
+				TEXT("exec handler not found"));
+			OnComplete(MoveTemp(Response));
+		}
 	}
+	else
+	{
+		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotSupported,
+			TEXT("exec missing query command (c=MyCommand)"));
+		OnComplete(MoveTemp(Response));
+	}
+
 
 	if (bExecCommandSuccess)
 	{
@@ -262,8 +275,7 @@ bool FPerfCounters::ProcessExecRequest(const FHttpServerRequest& Request, const 
 	}
 	else
 	{
-		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotSupported, 
-			TEXT("exec handler not found"));
+		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotSupported, StringOutDevice);
 		OnComplete(MoveTemp(Response));
 	}
 

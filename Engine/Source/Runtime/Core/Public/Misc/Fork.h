@@ -42,9 +42,14 @@ public:
 	static bool IsForkedChildProcess();
 
 	/**
-	 * Sets the forked child process flag 
+	 * Sets the forked child process flag and index given to this child process
 	 */
-	static void SetIsForkedChildProcess();
+	static void SetIsForkedChildProcess(uint16 ChildIndex);
+
+	/**
+	* Returns the unique index of this forked child process. Index 0 is for the master server
+	*/
+	static uint16 GetForkedChildProcessIndex();
 
 	/**
 	 * Event triggered when a fork occurred on the child process and its safe to create real threads
