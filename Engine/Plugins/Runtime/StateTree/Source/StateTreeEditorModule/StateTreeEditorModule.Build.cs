@@ -24,7 +24,6 @@ namespace UnrealBuildTool.Rules
 				"SlateCore",
 				"EditorStyle",
 				"PropertyEditor",
-				"AIModule",
 				"StateTreeModule",
 				"Projects",
 				"BlueprintGraph",
@@ -41,7 +40,6 @@ namespace UnrealBuildTool.Rules
 				"KismetWidgets",
 				"PropertyPath",
 				"PropertyEditor",
-				"AIGraph",
 				"ToolMenus",
 			}
 			);

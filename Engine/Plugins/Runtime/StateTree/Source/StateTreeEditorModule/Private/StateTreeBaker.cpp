@@ -68,11 +68,11 @@ bool FStateTreeBaker::CreateStates()
 	// Create item for the runtime execution state
 	StateTree->Instances.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
 
-	for (UStateTreeState* Routine : TreeData->Routines)
+	for (UStateTreeState* SubTree : TreeData->SubTrees)
 	{
-		if (Routine)
+		if (SubTree != nullptr)
 		{
-			if (!CreateStateRecursive(*Routine, FStateTreeHandle::Invalid))
+			if (!CreateStateRecursive(*SubTree, FStateTreeHandle::Invalid))
 			{
 				return false;
 			}

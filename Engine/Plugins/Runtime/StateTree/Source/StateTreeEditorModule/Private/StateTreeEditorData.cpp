@@ -4,6 +4,18 @@
 #include "StateTreeConditionBase.h"
 #include "CoreMinimal.h"
 
+
+void UStateTreeEditorData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	
+	if (!HasAnyFlags(RF_ClassDefaultObject) && !(GetOuter() && GetOuter()->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject)))
+	{
+		// Add root node by default.
+		AddRootState();
+	}
+}
+
 void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const
 {
 	// Find the states that are updated before the current state.
@@ -126,14 +138,14 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 	TArray<const UStateTreeState*> Stack;
 	bool bContinue = true;
 
-	for (const UStateTreeState* Routine : Routines)
+	for (const UStateTreeState* SubTree : SubTrees)
 	{
-		if (!Routine)
+		if (!SubTree)
 		{
 			continue;
 		}
 
-		Stack.Add(Routine);
+		Stack.Add(SubTree);
 
 		while (!Stack.IsEmpty() && bContinue)
 		{

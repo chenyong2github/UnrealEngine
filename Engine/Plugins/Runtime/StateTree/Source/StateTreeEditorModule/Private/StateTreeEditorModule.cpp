@@ -36,7 +36,10 @@ void FStateTreeEditorModule::StartupModule()
 	// Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-	TSharedPtr<FAssetTypeActions_StateTree> StateTreeAssetTypeAction = MakeShareable(new FAssetTypeActions_StateTree);
+	// Create or find existing category
+	const EAssetTypeCategories::Type AICategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("AI")), LOCTEXT("AIAssetCategory", "Artificial Intelligence"));
+
+	TSharedPtr<FAssetTypeActions_StateTree> StateTreeAssetTypeAction = MakeShareable(new FAssetTypeActions_StateTree(AICategory | EAssetTypeCategories::Gameplay));
 	ItemDataAssetTypeActions.Add(StateTreeAssetTypeAction);
 	AssetTools.RegisterAssetTypeActions(StateTreeAssetTypeAction.ToSharedRef());
 

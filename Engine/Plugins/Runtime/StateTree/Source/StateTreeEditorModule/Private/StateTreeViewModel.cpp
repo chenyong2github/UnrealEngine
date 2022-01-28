@@ -11,7 +11,6 @@
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
-#include "AIGraphTypes.h" // Class cache
 #include "StateTreeEditorModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -188,9 +187,14 @@ void FStateTreeViewModel::NotifyStatesChangedExternally(const TSet<UStateTreeSta
 	OnStatesChanged.Broadcast(ChangedStates, PropertyChangedEvent);
 }
 
-TArray<UStateTreeState*>* FStateTreeViewModel::GetRoutines()
+TArray<UStateTreeState*>* FStateTreeViewModel::GetSubTrees()
 {
-	return TreeData ? &TreeData->Routines : nullptr;
+	return TreeData != nullptr ? &TreeData->SubTrees : nullptr;
+}
+
+int32 FStateTreeViewModel::GetSubTreeCount() const
+{
+	return TreeData != nullptr ? TreeData->SubTrees.Num() : 0;
 }
 
 void FStateTreeViewModel::PostUndo(bool bSuccess)
@@ -278,6 +282,11 @@ void FStateTreeViewModel::GetSelectedStates(TArray<UStateTreeState*>& OutSelecte
 	}
 }
 
+bool FStateTreeViewModel::HasSelection() const
+{
+	return SelectedStates.Num() > 0;
+}
+
 void FStateTreeViewModel::GetPersistentExpandedStates(TSet<UStateTreeState*>& OutExpandedStates)
 {
 	OutExpandedStates.Reset();
@@ -285,9 +294,9 @@ void FStateTreeViewModel::GetPersistentExpandedStates(TSet<UStateTreeState*>& Ou
 	{
 		return;
 	}
-	for (UStateTreeState* Routine : TreeData->Routines)
+	for (UStateTreeState* SubTree : TreeData->SubTrees)
 	{
-		GetExpandedStatesRecursive(Routine, OutExpandedStates);
+		GetExpandedStatesRecursive(SubTree, OutExpandedStates);
 	}
 }
 
@@ -348,14 +357,14 @@ void FStateTreeViewModel::AddState(UStateTreeState* AfterState)
 			NewState->Parent = nullptr;
 		}
 
-		TArray<UStateTreeState*>& ArrayToAddTo = ParentState ? ParentState->Children : TreeData->Routines;
+		TArray<UStateTreeState*>& ArrayToAddTo = ParentState ? ParentState->Children : TreeData->SubTrees;
 		FStateTreeViewUtilities::InsertRecursive(ParentState, ArrayToAddTo, AfterState, NewState, 1); // Insert after
 	}
 	else
 	{
 		TreeData->Modify();
 		NewState->Parent = nullptr;
-		TreeData->Routines.Add(NewState);
+		TreeData->SubTrees.Add(NewState);
 	}
 
 	OnStateAdded.Broadcast(ParentState, NewState);
@@ -432,7 +441,7 @@ void FStateTreeViewModel::RemoveSelectedStates()
 				{
 					AffectedParents.Add(nullptr);
 					TreeData->Modify();
-					FStateTreeViewUtilities::RemoveRecursive(TreeData->Routines, State);
+					FStateTreeViewUtilities::RemoveRecursive(TreeData->SubTrees, State);
 				}
 			}
 		}
@@ -510,8 +519,8 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, int32
 				UStateTreeState* SelectedParent = SelectedState->Parent;
 				AffectedStates.Add(SelectedState);
 
-				TArray<UStateTreeState*>& ArrayToRemoveFrom = SelectedParent ? SelectedParent->Children : TreeData->Routines;
-				TArray<UStateTreeState*>& ArrayToMoveTo = TargetParent ? TargetParent->Children : TreeData->Routines;
+				TArray<UStateTreeState*>& ArrayToRemoveFrom = SelectedParent ? SelectedParent->Children : TreeData->SubTrees;
+				TArray<UStateTreeState*>& ArrayToMoveTo = TargetParent ? TargetParent->Children : TreeData->SubTrees;
 				FStateTreeViewUtilities::RemoveRecursive(ArrayToRemoveFrom, SelectedState);
 				FStateTreeViewUtilities::InsertRecursive(TargetParent, ArrayToMoveTo, TargetState, SelectedState, RelativeLocation);
 			}

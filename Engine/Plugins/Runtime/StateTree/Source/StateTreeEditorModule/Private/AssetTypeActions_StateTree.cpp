@@ -4,9 +4,13 @@
 #include "StateTree.h"
 #include "IStateTreeEditor.h"
 #include "StateTreeEditorModule.h"
-#include "AIModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
+
+FAssetTypeActions_StateTree::FAssetTypeActions_StateTree(const uint32 InAssetCategory)
+	: AssetCategory(InAssetCategory)
+{
+}
 
 void FAssetTypeActions_StateTree::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
@@ -28,9 +32,8 @@ UClass* FAssetTypeActions_StateTree::GetSupportedClass() const
 }
 
 uint32 FAssetTypeActions_StateTree::GetCategories()
-{ 
-	IAIModule& AIModule = FModuleManager::GetModuleChecked<IAIModule>("AIModule").Get();
-	return AIModule.GetAIAssetCategoryBit();
+{
+	return AssetCategory;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -73,7 +73,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 	TreeView = SNew(STreeView<UStateTreeState*>)
 		.OnGenerateRow(this, &SStateTreeView::HandleGenerateRow)
 		.OnGetChildren(this, &SStateTreeView::HandleGetChildren)
-		.TreeItemsSource(StateTreeViewModel->GetRoutines())
+		.TreeItemsSource(StateTreeViewModel->GetSubTrees())
 		.ItemHeight(32)
 		.OnSelectionChanged(this, &SStateTreeView::HandleTreeSelectionChanged)
 		.OnContextMenuOpening(this, &SStateTreeView::HandleContextMenuOpening)
@@ -102,8 +102,8 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 				[
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.ToolTipText(LOCTEXT("AddRoutineToolTip", "Add New Routine"))
-					.OnClicked(this, &SStateTreeView::HandleAddRoutine)
+					.ToolTipText(LOCTEXT("AddStateToolTip", "Add New State"))
+					.OnClicked(this, &SStateTreeView::HandleAddStateButton)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
@@ -121,7 +121,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("AddRoutine", "Add Routine"))
+							.Text(LOCTEXT("AddState", "Add State"))
 							.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
 						]
 					]
@@ -216,7 +216,7 @@ void SStateTreeView::UpdateTree(bool bExpandPersistent)
 	StateTreeViewModel->GetSelectedStates(SelectedStates);
 
 	// Regenerate items
-	TreeView->SetTreeItemsSource(StateTreeViewModel->GetRoutines());
+	TreeView->SetTreeItemsSource(StateTreeViewModel->GetSubTrees());
 
 	// Restore expanded state
 	for (UStateTreeState* State : ExpandedStates)
@@ -371,11 +371,45 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 }
 
 
-FReply SStateTreeView::HandleAddRoutine()
+FReply SStateTreeView::HandleAddStateButton()
 {
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
+		return FReply::Handled();
+	}
+	
+	TArray<UStateTreeState*> SelectedStates;
+	StateTreeViewModel->GetSelectedStates(SelectedStates);
+	UStateTreeState* FirstSelectedState = SelectedStates.Num() > 0 ? SelectedStates[0] : nullptr;
+
+	if (FirstSelectedState != nullptr)
+	{
+		// If the state is root, add child state, else sibling.
+		if (FirstSelectedState->Parent == nullptr)
+		{
+			StateTreeViewModel->AddChildState(FirstSelectedState);
+			TreeView->SetItemExpansion(FirstSelectedState, true);
+		}
+		else
+		{
+			StateTreeViewModel->AddState(FirstSelectedState);
+		}
+	}
+	else if (StateTreeViewModel->GetSubTreeCount() == 0)
+	{
+		// If no root state, create new.
 		StateTreeViewModel->AddState(nullptr);
+	}
+	else
+	{
+		// If no state has been selected, add to root
+		TArray<UStateTreeState*>* SubTrees = StateTreeViewModel->GetSubTrees();
+		UStateTreeState* RootState = (SubTrees != nullptr && SubTrees->Num() > 0) ? SubTrees->GetData()[0] : nullptr;
+		if (RootState != nullptr)
+		{
+			StateTreeViewModel->AddChildState(RootState);
+			TreeView->SetItemExpansion(RootState, true);
+		}
 	}
 
 	return FReply::Handled();
@@ -383,10 +417,12 @@ FReply SStateTreeView::HandleAddRoutine()
 
 void SStateTreeView::HandleAddState(UStateTreeState* AfterState)
 {
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
-		StateTreeViewModel->AddState(AfterState);
+		return;
 	}
+
+	StateTreeViewModel->AddState(AfterState);
 }
 
 void SStateTreeView::HandleRenameState(UStateTreeState* State)
@@ -396,7 +432,12 @@ void SStateTreeView::HandleRenameState(UStateTreeState* State)
 
 void SStateTreeView::HandleAddChildState(UStateTreeState* ParentState)
 {
-	if (StateTreeViewModel && ParentState)
+	if (StateTreeViewModel == nullptr)
+	{
+		return;
+	}
+
+	if (ParentState)
 	{
 		StateTreeViewModel->AddChildState(ParentState);
 		TreeView->SetItemExpansion(ParentState, true);
@@ -405,10 +446,12 @@ void SStateTreeView::HandleAddChildState(UStateTreeState* ParentState)
 
 void SStateTreeView::HandleDeleteItems()
 {
-	if (StateTreeViewModel)
+	if (StateTreeViewModel == nullptr)
 	{
-		StateTreeViewModel->RemoveSelectedStates();
+		return;
 	}
+
+	StateTreeViewModel->RemoveSelectedStates();
 }
 
 

@@ -65,7 +65,7 @@ private:
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 
 	// Action handlers
-	FReply HandleAddRoutine();
+	FReply HandleAddStateButton();
 	void HandleRenameState(UStateTreeState* State);
 	void HandleAddState(UStateTreeState* AfterItem);
 	void HandleAddChildState(UStateTreeState* ParentItem);

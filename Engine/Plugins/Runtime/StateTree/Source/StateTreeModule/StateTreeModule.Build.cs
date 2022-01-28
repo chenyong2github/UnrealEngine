@@ -17,11 +17,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AIModule",
-					"GameplayBehaviorsModule",
 					"GameplayTasks",
 					"GameplayTags",
-					"GameplayAbilities",
-					"SmartObjectsModule",
 					"StructUtils",
 				}
 			);

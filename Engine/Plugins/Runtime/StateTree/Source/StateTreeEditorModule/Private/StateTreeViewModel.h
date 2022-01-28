@@ -42,9 +42,11 @@ public:
 	bool IsSelected(const UStateTreeState* State) const;
 	bool IsChildOfSelection(const UStateTreeState* State) const;
 	void GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates);
+	bool HasSelection() const;
 
-	// Returns array of routines to edit.
-	TArray<UStateTreeState*>* GetRoutines();
+	// Returns array of subtrees to edit.
+	TArray<UStateTreeState*>* GetSubTrees();
+	int32 GetSubTreeCount() const;
 
 	// Gets and sets StateTree view expansion state store in the asset.
 	void GetPersistentExpandedStates(TSet<UStateTreeState*>& OutExpandedStates);

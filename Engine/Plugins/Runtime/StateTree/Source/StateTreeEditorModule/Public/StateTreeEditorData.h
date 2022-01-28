@@ -22,7 +22,10 @@ UCLASS(BlueprintType, EditInlineNew, CollapseCategories)
 class STATETREEEDITORMODULE_API UStateTreeEditorData : public UObject, public IStateTreeEditorPropertyBindingsOwner
 {
 	GENERATED_BODY()
+	
 public:
+	virtual void PostInitProperties() override;
+	
 	// IStateTreeEditorPropertyBindingsOwner
 	virtual void GetAccessibleStructs(const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const override;
 	virtual bool GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const override;
@@ -52,10 +55,19 @@ public:
 		UStateTreeState* SubTreeState = NewObject<UStateTreeState>(this);
 		check(SubTreeState);
 		SubTreeState->Name = Name;
-		Routines.Add(SubTreeState);
+		SubTrees.Add(SubTreeState);
 		return *SubTreeState;
 	}
 
+	/**
+	 * Adds new Subtree named "Root".
+	 * @return Pointer to the new Subtree.
+	 */
+	UStateTreeState& AddRootState()
+	{
+		return AddSubTree(FName(TEXT("Root")));
+	}
+	
 	/**
 	 * Adds property binding between two structs.
 	 */
@@ -64,12 +76,12 @@ public:
 		EditorBindings.AddPropertyBinding(SourcePath, TargetPath);
 	}
 	// ~StateTree Builder API
-
+	
 	
 	UPROPERTY()
 	FStateTreeEditorPropertyBindings EditorBindings;
 
 	// Top level States aka Routines.
 	UPROPERTY()
-	TArray<UStateTreeState*> Routines;
+	TArray<UStateTreeState*> SubTrees;
 };

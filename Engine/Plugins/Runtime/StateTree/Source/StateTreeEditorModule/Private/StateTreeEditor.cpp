@@ -380,6 +380,11 @@ void FStateTreeEditor::OnSchemaChanged(const UStateTree& InStateTree)
 		{
 			StateTreeViewModel->NotifyAssetChangedExternally();
 		}
+
+		if (SelectionDetailsView.IsValid())
+		{
+			SelectionDetailsView->ForceRefresh();
+		}
 	}
 }
 
@@ -452,12 +457,12 @@ namespace UE::StateTree::Editor::Internal
 		TMap<FGuid, FName> IDToName;
 		TArray<UStateTreeState*> Stack;
 
-		for (UStateTreeState* Routine : TreeData->Routines)
+		for (UStateTreeState* SubTree : TreeData->SubTrees)
 		{
-			if (Routine)
+			if (SubTree)
 			{
 				Stack.Reset();
-				Stack.Add(Routine);
+				Stack.Add(SubTree);
 				while (Stack.Num() > 0)
 				{
 					UStateTreeState* CurState = Stack.Pop();
@@ -474,12 +479,12 @@ namespace UE::StateTree::Editor::Internal
 		}
 
 		// Fix changed names.
-		for (UStateTreeState* Routine : TreeData->Routines)
+		for (UStateTreeState* SubTree : TreeData->SubTrees)
 		{
-			if (Routine)
+			if (SubTree)
 			{
 				Stack.Reset();
-				Stack.Add(Routine);
+				Stack.Add(SubTree);
 				while (Stack.Num() > 0)
 				{
 					UStateTreeState* CurState = Stack.Pop();
@@ -511,13 +516,13 @@ namespace UE::StateTree::Editor::Internal
 
 		TArray<UStateTreeState*> Stack;
 
-		for (UStateTreeState* Routine : TreeData->Routines)
+		for (UStateTreeState* SubTree : TreeData->SubTrees)
 		{
-			if (Routine)
+			if (SubTree)
 			{
-				Routine->Parent = nullptr;
+				SubTree->Parent = nullptr;
 				Stack.Reset();
-				Stack.Add(Routine);
+				Stack.Add(SubTree);
 				while (Stack.Num() > 0)
 				{
 					UStateTreeState* CurState = Stack.Pop();
@@ -550,12 +555,12 @@ namespace UE::StateTree::Editor::Internal
 
 		TArray<UStateTreeState*> Stack;
 
-		for (UStateTreeState* Routine : TreeData->Routines)
+		for (UStateTreeState* SubTree : TreeData->SubTrees)
 		{
-			if (Routine)
+			if (SubTree)
 			{
 				Stack.Reset();
-				Stack.Add(Routine);
+				Stack.Add(SubTree);
 				while (Stack.Num() > 0)
 				{
 					UStateTreeState* CurState = Stack.Pop();
