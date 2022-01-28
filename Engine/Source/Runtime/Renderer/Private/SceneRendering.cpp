@@ -382,7 +382,7 @@ static TAutoConsoleVariable<int32> CVarTestSecondaryUpscaleOverride(
 #endif
 
 static FParallelCommandListSet* GOutstandingParallelCommandListSet = nullptr;
-FGraphEventRef FSceneRenderer::OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+FOcclusionSubmittedFenceState FSceneRenderer::OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 
 extern int32 GetTranslucencyLightingVolumeDim();
 
