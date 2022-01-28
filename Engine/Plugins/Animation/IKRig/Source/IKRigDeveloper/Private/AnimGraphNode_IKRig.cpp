@@ -21,13 +21,13 @@
 /////////////////////////////////////////////////////
 // FIKRigGoalLayout
 
-TSharedRef<SWidget> FIKRigGoalLayout::CreateManualValueWidget() const
+TSharedRef<SWidget> FIKRigGoalLayout::CreatePropertyWidget() const
 {
 	const TSharedPtr<IPropertyHandle> TransformSourceHandle = GoalPropHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FIKRigGoal, TransformSource));
 
-	return SNew(SHorizontalBox)
-
 	// transform source combo box
+	return SNew(SHorizontalBox)
+	
 	+ SHorizontalBox::Slot()
 	.FillWidth(1.0f)
 	.HAlign(HAlign_Left)
@@ -39,7 +39,6 @@ TSharedRef<SWidget> FIKRigGoalLayout::CreateManualValueWidget() const
 TSharedRef<SWidget> FIKRigGoalLayout::CreateBoneValueWidget() const
 {
 	const TSharedPtr<IPropertyHandle> TransformSourceHandle = GoalPropHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FIKRigGoal, TransformSource));
-	TSharedPtr<IPropertyHandle> SourceBoneHandle = GoalPropHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FIKRigGoal, SourceBone));
 	
 	return SNew(SHorizontalBox)
 
@@ -67,17 +66,12 @@ TSharedRef<SWidget> FIKRigGoalLayout::CreateBoneValueWidget() const
 TSharedRef<SWidget> FIKRigGoalLayout::CreateValueWidget() const
 {
 	const EIKRigGoalTransformSource TransformSource = GetTransformSource();
-	if (TransformSource == EIKRigGoalTransformSource::Manual)
-	{
-		return CreateManualValueWidget();
-	}
-
 	if (TransformSource == EIKRigGoalTransformSource::Bone)
 	{
 		return CreateBoneValueWidget();
 	}
 
-	return SNullWidget::NullWidget;
+	return CreatePropertyWidget();
 }
 
 void FIKRigGoalLayout::GenerateHeaderRowContent(FDetailWidgetRow& InOutGoalRow)

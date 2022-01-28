@@ -46,7 +46,7 @@ private:
 	void OnBoneSelectionChanged(FName Name) const;
 	FName GetSelectedBone(bool& bMultipleValues) const;
 
-	TSharedRef<SWidget> CreateManualValueWidget() const;
+	TSharedRef<SWidget> CreatePropertyWidget() const;
 	TSharedRef<SWidget> CreateBoneValueWidget() const;
 	TSharedRef<SWidget> CreateValueWidget() const;
 	
