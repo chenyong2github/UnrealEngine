@@ -54,6 +54,7 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGEnableTimeControl;
 		CADTOOLS_API static bool bGEnableCADCache;
 		CADTOOLS_API static bool bGOverwriteCache;
+		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
 
 	public:
 		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 0.1, FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -104,6 +105,7 @@ namespace CADLibrary
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
 			Hash = HashCombine(Hash, ::GetTypeHash(bScaleUVMap));
+			Hash = HashCombine(Hash, ::GetTypeHash(bGPreferJtFileEmbeddedTessellation));
 			return Hash;
 		}
 
@@ -119,12 +121,13 @@ namespace CADLibrary
 			Ar << (uint8&) ImportParameters.Propagation;
 			Ar << (uint8&) ImportParameters.DisplayPreference;
 			Ar << ImportParameters.bScaleUVMap;
-			// these 4 static variables have to be serialized to be transmitted to CADWorkers
+			// these 5 static variables have to be serialized to be transmitted to CADWorkers
 			// because CADWorker has not access to CVars
 			Ar << ImportParameters.bGOverwriteCache;
 			Ar << ImportParameters.bGDisableCADKernelTessellation;
 			Ar << ImportParameters.bGEnableTimeControl;
 			Ar << ImportParameters.bGEnableCADCache;
+			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
 			return Ar;
 		}
 

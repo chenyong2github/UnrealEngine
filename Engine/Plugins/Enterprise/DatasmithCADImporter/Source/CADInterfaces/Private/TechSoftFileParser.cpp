@@ -2,6 +2,8 @@
 
 #include "TechSoftFileParser.h"
 
+#include "CADOptions.h"
+
 #ifdef USE_TECHSOFT_SDK
 
 #include "TechSoftInterface.h"
@@ -246,6 +248,16 @@ void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImp
 	{
 		Importer.m_sLoadData.m_sSpecifics.m_sSolidworks.m_bLoadAllConfigsData = true;
 		break;
+	}
+
+	case CADLibrary::ECADFormat::JT:
+	{
+		if (FImportParameters::bGPreferJtFileEmbeddedTessellation)
+		{
+			Importer.m_sLoadData.m_sGeneral.m_eReadGeomTessMode = kA3DReadTessOnly;
+			Importer.m_sLoadData.m_sSpecifics.m_sJT.m_eReadTessellationLevelOfDetail = A3DEJTReadTessellationLevelOfDetail::kA3DJTTessLODHigh;
+			break;
+		}
 	}
 
 	case CADLibrary::ECADFormat::INVENTOR:

@@ -54,6 +54,13 @@ FAutoConsoleVariableRef GCADTranslatorEnableTimeControl(
 	TEXT("Enable the timer that kill the worker if the import time is unusually long. With this time control, the load of the corrupted file is canceled but the rest of the scene is imported.\n"),
 	ECVF_Default);
 
+bool FImportParameters::bGPreferJtFileEmbeddedTessellation = false;
+FAutoConsoleVariableRef GCADTranslatorJtFileEmbeddedTessellation(
+	TEXT("ds.CADTranslator.PreferJtFileEmbeddedTessellation"),
+	FImportParameters::bGPreferJtFileEmbeddedTessellation,
+	TEXT("If both (tessellation and BRep) exist in the file, import embedded tessellation instead of meshing BRep.\n"),
+	ECVF_Default);
+
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {
 	uint32 ParametersHash = ::GetTypeHash(ImportParameters.bGDisableCADKernelTessellation);
