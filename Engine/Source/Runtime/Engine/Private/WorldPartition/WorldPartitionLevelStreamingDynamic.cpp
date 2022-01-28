@@ -33,12 +33,56 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 #if WITH_EDITOR
 	, RuntimeLevel(nullptr)
 	, bLoadRequestInProgress(false)
+	, bLoadSucceeded(false)
 #endif
 	, bShouldBeAlwaysLoaded(false)
 {
+#if WITH_EDITOR
+	SetShouldBeVisibleInEditor(false);
+#endif
 }
 
 #if WITH_EDITOR
+
+UWorldPartitionLevelStreamingDynamic* UWorldPartitionLevelStreamingDynamic::LoadInEditor(UWorld* World, FName LevelStreamingName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages)
+{
+	check(World->WorldType == EWorldType::Editor);
+	UWorldPartitionLevelStreamingDynamic* LevelStreaming = NewObject<UWorldPartitionLevelStreamingDynamic>(World, LevelStreamingName, RF_Transient);
+	
+	FString PackageName = FString::Printf(TEXT("/Memory/%s"), *LevelStreamingName.ToString());
+	TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *PackageName, *World->GetName())));
+	LevelStreaming->SetWorldAsset(WorldAsset);
+	
+	LevelStreaming->LevelTransform = FTransform::Identity;
+	LevelStreaming->Initialize(World, InPackages);
+	LevelStreaming->SetShouldBeVisibleInEditor(true);
+	World->AddStreamingLevel(LevelStreaming);
+	World->FlushLevelStreaming();
+	
+	return LevelStreaming;
+}
+
+void UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(UWorldPartitionLevelStreamingDynamic* InLevelStreaming)
+{
+	UWorld* World = InLevelStreaming->GetWorld();
+	check(World->WorldType == EWorldType::Editor);
+
+	ULevel* Level = InLevelStreaming->GetLoadedLevel();
+	InLevelStreaming->SetShouldBeVisibleInEditor(false);
+	InLevelStreaming->SetIsRequestingUnloadAndRemoval(true);
+	World->RemoveLevel(Level);
+	World->FlushLevelStreaming();
+	
+}
+
+void UWorldPartitionLevelStreamingDynamic::Initialize(UWorld* OuterWorld, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages)
+{
+	ChildPackages = InPackages;
+
+	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
+	PackageNameToLoad = GetWorldAssetPackageFName();
+	OuterWorldPartition = OuterWorld->GetWorldPartition();
+}
 
 /**
  * Initializes a UWorldPartitionLevelStreamingDynamic.
@@ -54,14 +98,11 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = 0;
-	ChildPackages = InCell.GetPackages();
 	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
 	ActorFolders = InCell.GetActorFolders().Array();
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
-	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
-	PackageNameToLoad = GetWorldAssetPackageFName();
-	OuterWorldPartition = OuterWorld->GetWorldPartition();	
+	Initialize(OuterWorld, InCell.GetPackages());
 }
 
 /**
@@ -83,22 +124,22 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 {
 	check(PendingUnloadLevel == nullptr);
 	check(RuntimeLevel == nullptr);
-	const UWorld* PlayWorld = GetWorld();
-	check(PlayWorld && PlayWorld->IsGameWorld());
+	const UWorld* World = GetWorld();
+	check(World && (World->IsGameWorld() || GetShouldBeVisibleInEditor()));
 
 	// Create streaming cell Level package (make sure this package isn't discoverable until it is fully loaded)
 	const FString WorldAssetPath = GetWorldAsset().ToString();
 	const FString WorldAssetPackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath) + TEXT("_AsyncLoad.") + FPackageName::ObjectPathToObjectName(WorldAssetPath);
-	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(PlayWorld, WorldAssetPackageName);
+	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(World, WorldAssetPackageName);
 	check(RuntimeLevel);
 
 	// Propagate ActorFolder flag to the runtime level and prepare its ActorFolders list
-	if (PlayWorld->PersistentLevel->IsUsingActorFolders() && ActorFolders.Num())
+	if (World->PersistentLevel->IsUsingActorFolders() && ActorFolders.Num())
 	{
 		FLevelActorFoldersHelper::SetUseActorFolders(RuntimeLevel, true);
 		for (const FGuid& ActorFolderGuid : ActorFolders)
 		{
-			if (UActorFolder* ActorFolder = PlayWorld->PersistentLevel->GetActorFolder(ActorFolderGuid))
+			if (UActorFolder* ActorFolder = World->PersistentLevel->GetActorFolder(ActorFolderGuid))
 			{
 				FLevelActorFoldersHelper::AddActorFolder(RuntimeLevel, ActorFolder, /*bInShouldDirtyLevel*/ false, /*bInShouldBroadcast*/ false);
 			}
@@ -179,7 +220,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 		check(CellWorld->PersistentLevel != LoadedLevel);
 
 		// Level already exists but may have the wrong type due to being inactive before, so copy data over
-		check(InPersistentWorld->IsGameWorld());
+		check(InPersistentWorld->IsGameWorld() || GetShouldBeVisibleInEditor());
 		CellWorld->WorldType = InPersistentWorld->WorldType;
 		CellWorld->PersistentLevel->OwningWorld = InPersistentWorld;
 
@@ -204,7 +245,9 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 			check(CellLevelPackage);
 			check(UWorld::FindWorldInPackage(CellLevelPackage));
 			check(RuntimeLevel->OwningWorld);
-			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || ((IsRunningGame() || IsRunningDedicatedServer()) && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game));
+			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || 
+				((IsRunningGame() || IsRunningDedicatedServer()) && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game) || 
+				(RuntimeLevel->OwningWorld->WorldType == EWorldType::Editor && GetShouldBeVisibleInEditor()));
 
 			if (IssueLoadRequests())
 			{
@@ -235,11 +278,11 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
  */
 bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 {
-	check(ShouldBeLoaded());
+	check(ShouldBeLoaded() || GetShouldBeVisibleInEditor());
 	check(!HasLoadedLevel());
 	check(RuntimeLevel);
 	check(!bLoadRequestInProgress);
-
+	bLoadSucceeded = false;
 	bLoadRequestInProgress = true;
 	FLinkerInstancingContext InstancingContext;
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
@@ -295,29 +338,27 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		ActorContainerDup->MarkAsGarbage();
 	}
 
-	auto FinalizeLoading = [this]()
+	auto FinalizeLoading = [this](bool bSucceeded)
 	{
 		check(bLoadRequestInProgress);
 		bLoadRequestInProgress = false;
+		bLoadSucceeded = bSucceeded;
+		if (!bSucceeded)
+		{
+			UE_LOG(LogLevelStreaming, Warning, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
+		}
+
 		FinalizeRuntimeLevel();
 	};
 
 	// Load saved actors
 	if (ChildPackagesToLoad.Num())
 	{
-		FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, [this, FinalizeLoading](bool bSucceeded)
-		{
-			if (!bSucceeded)
-			{
-				UE_LOG(LogLevelStreaming, Warning, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
-			}
-
-			FinalizeLoading();
-		},/*bLoadForPlay=*/true, &InstancingContext);
+		FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, FinalizeLoading, GetWorld()->IsGameWorld(), &InstancingContext);
 	}
 	else
 	{
-		FinalizeLoading();
+		FinalizeLoading(true);
 	}
 
 	return bLoadRequestInProgress;
@@ -343,7 +384,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	const FString WorldAssetPackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath);
 	RuntimePackage->Rename(*WorldAssetPackageName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
 
-	if (!StreamingCell->GetIsHLOD())
+	if (StreamingCell.IsValid() && !StreamingCell->GetIsHLOD())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FixupIDs);
 

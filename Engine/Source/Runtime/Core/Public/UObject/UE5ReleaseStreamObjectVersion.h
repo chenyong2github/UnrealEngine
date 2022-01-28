@@ -90,6 +90,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Convolution bloom now take into account FPostProcessSettings::BloomIntensity for scatter dispersion.
 		ConvolutionBloomIntensity,
 
+		// Serialize FHLODSubActors instead of FGuids in WorldPartition HLODActorDesc
+		WorldPartitionHLODActorDescSerializeHLODSubActors,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

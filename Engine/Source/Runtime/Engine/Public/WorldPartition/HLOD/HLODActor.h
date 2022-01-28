@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/HLOD/HLODSubActor.h"
 #include "HLODActor.generated.h"
 
 class UHLODLayer;
@@ -29,8 +30,8 @@ public:
 #if WITH_EDITOR
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
 
-	void SetSubActors(const TArray<FGuid>& InSubActors);
-	const TArray<FGuid>& GetSubActors() const;
+	void SetSubActors(const TArray<FHLODSubActor>& InSubActorMappings);
+	const TArray<FHLODSubActor>& GetSubActors() const;
 
 	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer);
 	const UHLODLayer* GetSubActorsHLODLayer() const { return SubActorsHLODLayer; }
@@ -91,7 +92,7 @@ protected:
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FGuid> SubActors;
+	TArray<FHLODSubActor> HLODSubActors;
 
 	UPROPERTY()
 	TObjectPtr<const UHLODLayer> SubActorsHLODLayer;

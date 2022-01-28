@@ -95,7 +95,7 @@ protected:
 	bool GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const;
 	bool GetHLODActorsToBuild(TArray<FGuid>& HLODActorsToBuild) const;
 
-	TArray<TArray<FGuid>> GetHLODWorldloads(int32 NumWorkloads) const;
+	TArray<TArray<FGuid>> GetHLODWorkloads(int32 NumWorkloads) const;
 	bool ValidateWorkload(const TArray<FGuid>& Workload) const;
 
 	bool CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& ModifiedFiles, TArray<FString>& BuildProducts);

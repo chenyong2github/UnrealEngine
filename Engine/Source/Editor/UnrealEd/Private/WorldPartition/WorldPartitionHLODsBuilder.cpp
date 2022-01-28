@@ -287,6 +287,9 @@ bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FCellInfo& In
 	WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
 
+	// Allows HLOD Streaming levels to be GCed properly
+	FLevelStreamingGCHelper::EnableForCommandlet();
+
 	SourceControlHelper = new FSourceControlHelper(PackageHelper);
 
 	bool bRet = true;
@@ -767,14 +770,14 @@ bool UWorldPartitionHLODsBuilder::GetHLODActorsToBuild(TArray<FGuid>& HLODActors
 	}
 	else
 	{
-		TArray<TArray<FGuid>> HLODWorkloads = GetHLODWorldloads(1);
+		TArray<TArray<FGuid>> HLODWorkloads = GetHLODWorkloads(1);
 		HLODActorsToBuild = MoveTemp(HLODWorkloads[0]);
 	}
 
 	return bRet;
 }
 
-TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorldloads(int32 NumWorkloads) const
+TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWorkloads) const
 {
 	// Build a mapping of 1 HLOD[Level] -> N HLOD[Level - 1]
 	TMap<FGuid, TArray<FGuid>>	HLODParenting;
@@ -782,12 +785,15 @@ TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorldloads(int32 NumWo
 	{
 		TArray<FGuid>& ChildHLODs = HLODParenting.Add(HLODIterator->GetGuid());
 
-		for (const FGuid& SubActorGuid : HLODIterator->GetSubActors())
+		for (const FHLODSubActorDesc& SubActor : HLODIterator->GetSubActors())
 		{
-			FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-			if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+			if (SubActor.ContainerID.IsMainContainer())
 			{
-				ChildHLODs.Add(SubActorGuid);
+				FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
+				if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+				{
+					ChildHLODs.Add(SubActor.ActorGuid);
+				}
 			}
 		}
 	}
@@ -874,19 +880,22 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 
 		const FHLODActorDesc* HLODActorDesc = static_cast<const FHLODActorDesc*>(ActorDesc);
 
-		for (const FGuid& SubActorGuid : HLODActorDesc->GetSubActors())
+		for (const FHLODSubActorDesc& SubActor : HLODActorDesc->GetSubActors())
 		{
-			FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-
-			// Invalid sub actor guid found, this is unexpected when running distributed builds as the build step is always preceeded by the setup step.
-			check(SubActorDesc || !bDistributedBuild);
-
-			if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+			if (SubActor.ContainerID.IsMainContainer())
 			{
-				if(!ProcessedHLOD.Contains(SubActorGuid))
+				FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
+
+				// Invalid sub actor guid found, this is unexpected when running distributed builds as the build step is always preceeded by the setup step.
+				check(SubActorDesc || !bDistributedBuild);
+
+				if (SubActorDesc && SubActorDesc->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
 				{
-					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Child HLOD actor missing or out of order in HLOD workload, exiting..."));
-					return false;
+					if (!ProcessedHLOD.Contains(SubActor.ActorGuid))
+					{
+						UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Child HLOD actor missing or out of order in HLOD workload, exiting..."));
+						return false;
+					}
 				}
 			}
 		}
@@ -899,7 +908,7 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 
 bool UWorldPartitionHLODsBuilder::GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const
 {
-	TArray<TArray<FGuid>> BuildersWorkload = GetHLODWorldloads(BuilderCount);
+	TArray<TArray<FGuid>> BuildersWorkload = GetHLODWorkloads(BuilderCount);
 
 	FConfigFile ConfigFile;
 

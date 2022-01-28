@@ -159,6 +159,7 @@ public:
 	 */
 	const TArray<FActorClusterInstance>& GetClusterInstances() const { return ClusterInstances; }
 	
+	const FActorContainerInstance* GetClusterInstance(const FActorContainerID& InContainerID) const;
 	FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer);
 	const FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer) const;
 

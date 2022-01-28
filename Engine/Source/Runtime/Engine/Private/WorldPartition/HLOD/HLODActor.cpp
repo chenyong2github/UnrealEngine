@@ -18,6 +18,16 @@
 #include "Engine/TextureStreamingTypes.h"
 #endif
 
+#if WITH_EDITORONLY_DATA
+FArchive& operator<<(FArchive& Ar, FHLODSubActorDesc& SubActor)
+{
+	Ar << SubActor.ActorGuid;
+	Ar << SubActor.ContainerID.ID;
+
+	return Ar;
+}
+#endif
+
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bRequireWarmup(false)
@@ -130,14 +140,14 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 	}
 }
 
-void AWorldPartitionHLOD::SetSubActors(const TArray<FGuid>& InSubActors)
+void AWorldPartitionHLOD::SetSubActors(const TArray<FHLODSubActor>& InHLODSubActors)
 {
-	SubActors = InSubActors;
+	HLODSubActors = InHLODSubActors;
 }
 
-const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
+const TArray<FHLODSubActor>& AWorldPartitionHLOD::GetSubActors() const
 {
-	return SubActors;
+	return HLODSubActors;
 }
 
 void AWorldPartitionHLOD::SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer)

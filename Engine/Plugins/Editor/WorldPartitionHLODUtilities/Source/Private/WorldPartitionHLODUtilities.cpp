@@ -7,9 +7,11 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODSubActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
@@ -22,52 +24,35 @@
 #include "Materials/Material.h"
 #include "AssetCompilingManager.h"
 
-#include "LevelInstance/LevelInstanceActor.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
-
 #include "HLODBuilderInstancing.h"
 #include "HLODBuilderMeshMerge.h"
 #include "HLODBuilderMeshSimplify.h"
 #include "HLODBuilderMeshApproximate.h"
 
-static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<FWorldPartitionReference>& OutActors)
-{
-	OutActors.Reserve(InHLODActor->GetSubActors().Num());
+#include "Algo/Transform.h"
 
+static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(AWorldPartitionHLOD* InHLODActor, bool& bOutDirty)
+{
+	bOutDirty = false;
 	UWorld* World = InHLODActor->GetWorld();
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
+	
+	const FName LevelStreamingName = FName(*FString::Printf(TEXT("HLODLevelStreaming_%s"), *InHLODActor->GetName()));
+	TArray<FWorldPartitionRuntimeCellObjectMapping> Mappings;
+	Mappings.Reserve(InHLODActor->GetSubActors().Num());
+	Algo::Transform(InHLODActor->GetSubActors(), Mappings, [](const FHLODSubActor& SubActor) { return FWorldPartitionRuntimeCellObjectMapping(SubActor.ActorPackage, SubActor.ActorPath, SubActor.ContainerID, SubActor.ContainerTransform, SubActor.ContainerPackage); });
 
-	bool bIsDirty = false;
+	UWorldPartitionLevelStreamingDynamic* LevelStreaming = UWorldPartitionLevelStreamingDynamic::LoadInEditor(World, LevelStreamingName, Mappings);
+	check(LevelStreaming);
 
-	// Gather (and potentially load) actors
-	for (const FGuid& SubActorGuid : InHLODActor->GetSubActors())
+	if (!LevelStreaming->GetLoadSucceeded())
 	{
-		FWorldPartitionReference ActorRef(WorldPartition, SubActorGuid);
-
-		if (ActorRef.IsValid())
-		{
-			AActor* LoadedActor = ActorRef.Get()->GetActor();
-
-			// Load level instances
-			if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(LoadedActor))
-			{
-				// Wait for level instance loading
-				if (LevelInstance->SupportsLoading())
-				{
-					LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
-				}
-			}
-
-			OutActors.Add(MoveTemp(ActorRef));
-		}
-		else
-		{
-			bIsDirty = true;
-		}
+		bOutDirty = true;
+		UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD actor \"%s\" needs to be rebuilt as it didn't succeed in loading all actors."), *InHLODActor->GetActorLabel());
 	}
 
-	return !bIsDirty;
+	return LevelStreaming;
 }
 
 static uint32 GetCRC(const UHLODLayer* InHLODLayer)
@@ -88,12 +73,12 @@ static uint32 GetCRC(const UHLODLayer* InHLODLayer)
 	return CRC;
 }
 
-static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWorldPartitionReference>& InActors)
+static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AActor*>& InActors)
 {
 	FArchiveCrc32 Ar;
 
 	// Base key, changing this will force a rebuild of all HLODs
-	FString HLODBaseKey = "4CE9431F9C6842F996786C980641B63A";
+	FString HLODBaseKey = "5052091956924DB3BD9ACE00B71944AC";
 	Ar << HLODBaseKey;
 
 	// HLOD Layer
@@ -163,7 +148,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 {
 	struct FSubActorsInfo
 	{
-		TArray<FGuid>			SubActors;
+		TArray<FHLODSubActor>	SubActors;
 		bool					bIsSpatiallyLoaded;
 	};
 	TMap<UHLODLayer*, FSubActorsInfo> SubActorsInfos;
@@ -178,7 +163,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			{
 				FSubActorsInfo& SubActorsInfo = SubActorsInfos.FindOrAdd(HLODLayer);
 
-				SubActorsInfo.SubActors.Add(ActorInstance.Actor);
+				SubActorsInfo.SubActors.Emplace(ActorDescView.GetGuid(), ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Container->GetContainerPackage(), ActorInstance.ContainerInstance->Transform);
 				if (ActorDescView.GetIsSpatiallyLoaded())
 				{
 					SubActorsInfo.bIsSpatiallyLoaded = true;
@@ -245,8 +230,8 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			bool bSubActorsChanged = HLODActor->GetSubActors().Num() != SubActorsInfo.SubActors.Num();
 			if (!bSubActorsChanged)
 			{
-				TArray<FGuid> A = HLODActor->GetSubActors();
-				TArray<FGuid> B = SubActorsInfo.SubActors;
+				TArray<FHLODSubActor> A = HLODActor->GetSubActors();
+				TArray<FHLODSubActor> B = SubActorsInfo.SubActors;
 				A.Sort();
 				B.Sort();
 				bSubActorsChanged = A != B;
@@ -367,19 +352,19 @@ UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UH
 
 uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
-	TArray<FWorldPartitionReference> SubActors;
-	
-	bool bIsDirty = !LoadSubActors(InHLODActor, SubActors);
-	if (bIsDirty)
+	bool bIsDirty = false;
+	UWorldPartitionLevelStreamingDynamic* LevelStreaming = CreateLevelStreamingFromHLODActor(InHLODActor, bIsDirty);
+	ON_SCOPE_EXIT
 	{
-		UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD actor \"%s\" needs to be rebuilt as it references actors that have been deleted."), *InHLODActor->GetActorLabel());
-	}
+		UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(LevelStreaming);
+	};
 
 	uint32 OldHLODHash = bIsDirty ? 0 : InHLODActor->GetHLODHash();
-	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, SubActors);
+	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, LevelStreaming->GetLoadedLevel()->Actors);
 
 	if (OldHLODHash == NewHLODHash)
 	{
+		UE_LOG(LogHLODBuilder, Verbose, TEXT("HLOD actor \"%s\" doesn't need to be rebuilt."), *InHLODActor->GetActorLabel());
 		return OldHLODHash;
 	}
 
@@ -398,7 +383,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 				FAssetCompilingManager::Get().FinishAllCompilation();
 			}
 
-			HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
+			HLODBuilder->Build(InHLODActor, HLODLayer, LevelStreaming->GetLoadedLevel()->Actors);
 			HLODBuilder->RemoveFromRoot();
 		}
 			

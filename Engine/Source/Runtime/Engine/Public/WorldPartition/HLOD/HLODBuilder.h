@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorldPartition/WorldPartitionHandle.h"
 #include "HLODBuilder.generated.h"
 
+class AActor;
 class AWorldPartitionHLOD;
 class UPrimitiveComponent;
 class UHLODLayer;
@@ -42,8 +42,8 @@ public:
 
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const;
 
-	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors);
+	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors);
 
-	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(const TArray<FWorldPartitionReference>& InActors);
+	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(const TArray<AActor*>& InActors);
 #endif // WITH_EDITOR
 };

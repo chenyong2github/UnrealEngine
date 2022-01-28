@@ -46,7 +46,7 @@ TArray<UPrimitiveComponent*> UHLODBuilder::CreateComponents(AWorldPartitionHLOD*
 	return TArray<UPrimitiveComponent*>();
 }
 
-void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors)
+void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
 {
 	TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(InSubActors);
 	if (SubComponents.IsEmpty())
@@ -104,7 +104,7 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 	}
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArray<FWorldPartitionReference>& InActors)
+TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArray<AActor*>& InActors)
 {
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
 
@@ -139,9 +139,8 @@ TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArra
 
 	TSet<AActor*> UnderlyingActors;
 
-	for (const FWorldPartitionReference& ActorRef : InActors)
+	for (AActor* Actor : InActors)
 	{
-		AActor* Actor = ActorRef->GetActor();
 		if (!Actor->IsHLODRelevant())
 		{
 			continue;
@@ -149,19 +148,6 @@ TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArra
 
 		// Gather primitives from the Actor
 		GatherPrimitivesFromActor(Actor);
-
-		// Retrieve all underlying actors (ex: all sub actors of a LevelInstance)
-		UnderlyingActors.Reset();
-		Actor->EditorGetUnderlyingActors(UnderlyingActors);
-
-		// Gather primitives from underlying actors
-		for (const AActor* UnderlyingActor : UnderlyingActors)
-		{
-			if (UnderlyingActor->IsHLODRelevant())
-			{
-				GatherPrimitivesFromActor(UnderlyingActor, Actor);
-			}
-		}
 	}
 
 	return PrimitiveComponents;

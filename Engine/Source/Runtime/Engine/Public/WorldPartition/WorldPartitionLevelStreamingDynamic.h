@@ -37,6 +37,9 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
 
 #if WITH_EDITOR
+	static UWorldPartitionLevelStreamingDynamic* LoadInEditor(UWorld* World, FName LevelStreamingName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages);
+	static void UnloadFromEditor(UWorldPartitionLevelStreamingDynamic* InLevelStreaming);
+
 	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
 
 	// Override ULevelStreaming
@@ -44,11 +47,15 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual void BeginDestroy() override;
 	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const override;
 
+	bool GetLoadSucceeded() const { return bLoadSucceeded; }
+
 private:
 	void CreateRuntimeLevel();
 	bool IssueLoadRequests();
 	void FinalizeRuntimeLevel();
 	void OnCleanupLevel();
+
+	void Initialize(UWorld* OuterWorld, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages);
 
 	FName OriginalLevelPackageName;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackages;
@@ -62,6 +69,7 @@ private:
 
 	FDelegateHandle OnCleanupLevelDelegateHandle;
 	bool bLoadRequestInProgress;
+	bool bLoadSucceeded;
 	FWorldPartitionPackageCache PackageCache;
 #endif
 

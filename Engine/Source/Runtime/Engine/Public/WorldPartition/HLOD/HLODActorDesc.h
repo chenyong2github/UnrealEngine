@@ -8,6 +8,7 @@
 
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
+#include "WorldPartition/HLOD/HLODSubActor.h"
 
 class UHLODLayer;
 
@@ -20,7 +21,7 @@ class ENGINE_API FHLODActorDesc : public FWorldPartitionActorDesc
 	friend class FHLODActorDescFactory;
 
 public:
-	inline const TArray<FGuid>& GetSubActors() const { return SubActors; }
+	inline const TArray<FHLODSubActorDesc>& GetSubActors() const { return HLODSubActors; }
 	inline uint64 GetCellHash() const { return CellHash; }
 
 	static uint64 ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ, FDataLayersID DataLayersID);
@@ -32,7 +33,7 @@ protected:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
 
-	TArray<FGuid> SubActors;
+	TArray<FHLODSubActorDesc> HLODSubActors;
 
 	uint64 CellHash = 0;
 #endif

@@ -7,6 +7,7 @@
 #include "Algo/RemoveIf.h"
 #include "Hash/CityHashHelpers.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 
@@ -16,7 +17,8 @@ void FHLODActorDesc::Init(const AActor* InActor)
 
 	const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
 
-	SubActors = HLODActor->GetSubActors();
+	HLODSubActors.Reserve(HLODActor->GetSubActors().Num());
+	Algo::Transform(HLODActor->GetSubActors(), HLODSubActors, [](const FHLODSubActor& SubActor) { return FHLODSubActorDesc(SubActor.ActorGuid, SubActor.ContainerID); });
 	
 	CellHash = 0;
 	if (const UHLODLayer* SubActorsHLODLayer = HLODActor->GetSubActorsHLODLayer())
@@ -35,11 +37,20 @@ void FHLODActorDesc::Init(const AActor* InActor)
 void FHLODActorDesc::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	FWorldPartitionActorDesc::Serialize(Ar);
 
-	Ar << SubActors;
-
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::WorldPartitionHLODActorDescSerializeHLODSubActors)
+	{
+		TArray<FGuid> SubActors;
+		Ar << SubActors;
+	}
+	else
+	{
+		Ar << HLODSubActors;
+	}
+	
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionHLODActorDescSerializeHLODLayer)
 	{
 		FString HLODLayer_Deprecated;
@@ -58,10 +69,10 @@ bool FHLODActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 	{
 		const FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)Other;
 
-		if (CellHash == HLODActorDesc->CellHash && SubActors.Num() == HLODActorDesc->SubActors.Num())
+		if (CellHash == HLODActorDesc->CellHash && HLODSubActors.Num() == HLODActorDesc->HLODSubActors.Num())
 		{
-			TArray<FGuid> SortedSubActors(SubActors);
-			TArray<FGuid> SortedSubActorsOther(HLODActorDesc->SubActors);
+			TArray<FHLODSubActorDesc> SortedSubActors(HLODSubActors);
+			TArray<FHLODSubActorDesc> SortedSubActorsOther(HLODActorDesc->HLODSubActors);
 			SortedSubActors.Sort();
 			SortedSubActorsOther.Sort();
 			return SortedSubActors == SortedSubActorsOther;

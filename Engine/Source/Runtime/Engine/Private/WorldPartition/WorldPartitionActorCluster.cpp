@@ -157,6 +157,19 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 	}
 }
 
+const FActorContainerInstance* FActorClusterContext::GetClusterInstance(const FActorContainerID& InContainerID) const
+{
+	for (const FActorContainerInstance& ContainerInstance : ContainerInstances)
+	{
+		if (ContainerInstance.ID == InContainerID)
+		{
+			return &ContainerInstance;
+		}
+	}
+
+	return nullptr;
+}
+
 FActorContainerInstance* FActorClusterContext::GetClusterInstance(const UActorDescContainer* InContainer)
 {
 	for (FActorContainerInstance& ContainerInstance : ContainerInstances)
