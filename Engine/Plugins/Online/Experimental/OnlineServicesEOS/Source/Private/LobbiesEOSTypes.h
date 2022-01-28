@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Online/Lobbies.h"
+#include "Online/LobbiesCommonTypes.h"
 #include "OnlineIdEOS.h"
 #include "OnlineServicesEOSTypes.h"
 
@@ -49,48 +50,6 @@ inline ELobbyJoinPolicy TranslateJoinPolicy(EOS_ELobbyPermissionLevel JoinPolicy
 using FLobbySearchParameters = FFindLobbies::Params;
 
 /**
- * Local changes to a member to be applied to an existing lobby member snapshot.
- */
-struct FClientLobbyMemberDataChanges
-{
-	/** New or changed attributes. */
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-
-	/** Attributes to be cleared. */
-	TSet<FLobbyAttributeId> ClearedAttributes;
-};
-
-/**
- * Local changes to a lobby to be applied to an existing lobby snapshot.
- */
-struct FClientLobbyDataChanges
-{
-	/** Local name for the lobby. */
-	TOptional<FName> LocalName;
-
-	/** Setting for new join policy. */
-	TOptional<ELobbyJoinPolicy> JoinPolicy;
-
-	/** Setting for lobby ownership change. */
-	TOptional<FOnlineAccountIdHandle> OwnerAccountId;
-
-	/** Setting for lobby schema change. */
-	TOptional<FLobbySchemaId> LobbySchema;
-
-	/** New or changed attributes. */
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-
-	/** Attributes to be cleared. */
-	TSet<FLobbyAttributeId> ClearedAttributes;
-
-	/** Members to be added or changed. */
-	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>> MutatedMembers;
-
-	/** Members to be removed. */
-	TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeavingMembers;
-};
-
-/**
 * Common components required to handle lobby requests.
 * To handle lifetime issues, only FLobbiesEOS should contain a strong reference to prerequisites.
 * Any other component should only store a weak reference.
@@ -101,89 +60,6 @@ struct FLobbyPrerequisitesEOS
 	TWeakPtr<FAuthEOS> AuthInterface;
 	TSharedRef<const FLobbySchemaRegistry> SchemaRegistry;
 	TSharedRef<const FLobbySchema> ServiceSchema;
-};
-
-/**
-* Lobby snapshot data.
-* All contained data has been translated from EOS types.
-* Attributes have had their schema transformations applied.
-*/
-struct FClientLobbySnapshot
-{
-	FOnlineAccountIdHandle OwnerAccountId;
-	FName LocalName;
-	FName SchemaName;
-	int32 MaxMembers;
-	ELobbyJoinPolicy JoinPolicy;
-	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-	TSet<FOnlineAccountIdHandle> Members;
-};
-
-struct FClientLobbyMemberSnapshot : public FLobbyMember
-{
-	bool bIsLocalMember = false;
-};
-
-struct FApplyLobbyUpdateResult
-{
-	TArray<FOnlineAccountIdHandle> LeavingLocalMembers;
-};
-
-/** Lobby data as seen by the client. */
-struct FClientLobbyData final
-{
-public:
-	FClientLobbyData(FOnlineLobbyIdHandle LobbyId);
-
-	TSharedRef<const FLobby> GetPublicDataPtr() const { return PublicData; }
-	const FLobby& GetPublicData() const { return *PublicData; }
-
-	TSharedPtr<const FClientLobbyMemberSnapshot> GetMemberData(FOnlineAccountIdHandle MemberAccountId) const;
-
-	/**
-	 * Apply updated lobby data and generate changes.
-	 * The LeaveReason provides context for members who have left since the most recent snapshot.
-	 * Changing a lobby generates events for the local client.
-	 */
-	FApplyLobbyUpdateResult ApplyLobbyUpdateFromServiceSnapshot(
-		FClientLobbySnapshot&& LobbySnapshot,
-		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
-		TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>&& LeaveReasons = TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>(),
-		FLobbyEvents* LobbyEvents = nullptr);
-
-	/**
-	 * Apply updated lobby data and generate changes.
-	 * Changing a lobby generates events for the local client.
-	 */
-	FApplyLobbyUpdateResult ApplyLobbyUpdateFromLocalChanges(FClientLobbyDataChanges&& Changes, FLobbyEvents& LobbyEvents);
-
-private:
-
-	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
-	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromSnapshot(
-		TMap<FLobbyAttributeId, FLobbyVariant>&& AttributeSnapshot,
-		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
-
-	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
-	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromChanges(
-		TMap<FLobbyAttributeId, FLobbyVariant>&& MutatedAttributes,
-		TSet<FLobbyAttributeId>&& ClearedAttributes,
-		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
-
-	/**
-	 * The shared pointer given back to user code with lobby operation results and notifications.
-	 * Any changes to this data are immediately available to users.
-	 */
-	TSharedRef<FLobby> PublicData;
-
-	/** Mutable lobby member data storage. */
-	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> MemberDataStorage;
-
-	/**
-	 * Keep track of which members are local to the client.
-	 * When all local members have been removed all members will be removed.
-	 */
-	TSet<FOnlineAccountIdHandle> LocalMembers;
 };
 
 /**

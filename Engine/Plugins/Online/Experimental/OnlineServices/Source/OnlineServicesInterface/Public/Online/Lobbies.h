@@ -496,7 +496,6 @@ struct FLobbyJoined
 {
 	/** Lobby data access. */
 	TSharedRef<const FLobby> Lobby;
-
 };
 
 /** Struct for LobbyLeft event */
@@ -504,7 +503,6 @@ struct FLobbyLeft
 {
 	/** Lobby data access. */
 	TSharedRef<const FLobby> Lobby;
-
 };
 
 /** Struct for LobbyMemberJoined event */
@@ -515,7 +513,6 @@ struct FLobbyMemberJoined
 
 	/** Member data access. */
 	TSharedRef<const FLobbyMember> Member;
-
 };
 
 /** Struct for LobbyMemberLeft event */
@@ -529,7 +526,6 @@ struct FLobbyMemberLeft
 
 	/** Context for the member leaving. */
 	ELobbyMemberLeaveReason Reason;
-
 };
 
 /** Struct for LobbyLeaderChanged event */
