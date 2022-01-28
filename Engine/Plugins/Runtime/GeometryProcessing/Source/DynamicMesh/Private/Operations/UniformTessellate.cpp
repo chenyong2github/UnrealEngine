@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Operations/UniformTesselate.h"
+#include "Operations/UniformTessellate.h"
 #include "VectorTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -10,7 +10,7 @@
 
 using namespace UE::Geometry;
 
-namespace UniformTesselateLocals 
+namespace UniformTessellateLocals 
 {
 	// Collection of utility functions for triangular sequence (3 6 10 15 ...) which form a pattern of numbers 
 	// that form triangles.
@@ -50,17 +50,17 @@ namespace UniformTesselateLocals
 	{
 	public:
 		
-		const FDynamicMesh3* InMesh = nullptr; // Input mesh to be tesselated
+		const FDynamicMesh3* InMesh = nullptr; // Input mesh to be tessellated
 		
-		int TesselationNum = 0;
+		int TessellationNum = 0;
 		
 		FProgressCancel* Progress = nullptr; // Set this to be able to cancel the generator
 
 		bool bUseParallel = false; // Enable multithreading
 
-		FBaseGenerator(const FDynamicMesh3* Mesh, const int TesselationNum, FProgressCancel* InProgress, const bool bUseParallel) 
+		FBaseGenerator(const FDynamicMesh3* Mesh, const int TessellationNum, FProgressCancel* InProgress, const bool bUseParallel) 
 		:
-		InMesh(Mesh), TesselationNum(TesselationNum), Progress(InProgress), bUseParallel(bUseParallel)
+		InMesh(Mesh), TessellationNum(TessellationNum), Progress(InProgress), bUseParallel(bUseParallel)
 		{
 		} 
 
@@ -77,7 +77,7 @@ namespace UniformTesselateLocals
 		// If this returns false, the input parameters are invalid
 		bool Validate() 
 		{
-			return InMesh && InMesh->IsCompact() && TesselationNum >= 0;
+			return InMesh && InMesh->IsCompact() && TessellationNum >= 0;
 		}
 
 		/**
@@ -88,8 +88,8 @@ namespace UniformTesselateLocals
 		 */
 		int OrderedEdgeOffset(const bool bIsReversed, const int Offset) const
 		{
-			checkSlow(Offset < TesselationNum);
-			return bIsReversed ? TesselationNum - 1 - Offset : Offset;
+			checkSlow(Offset < TessellationNum);
+			return bIsReversed ? TessellationNum - 1 - Offset : Offset;
 		}
 
 		/**
@@ -100,7 +100,7 @@ namespace UniformTesselateLocals
 		 * triangle.
 		 *
 		 * @param InTriEdges Edge indices into the input mesh
-		 * @param InTriVertices Vertex indices into the parent mesh we are tesselating
+		 * @param InTriVertices Vertex indices into the parent mesh we are tessellating
 		 * @param OutIsEdgeReversed Array of 3 booleans matching the order of InTriEdges
 		 */
 		void GetEdgeOrder(const FIndex3i& InTriEdges, const FIndex3i& InTriVertices, TStaticArray<bool, 3>& OutIsEdgeReversed)
@@ -139,9 +139,9 @@ namespace UniformTesselateLocals
 		// Track which elements we set in the Elements array. 
 		TArray<bool> ElementIsSet; 
 
-		FElementsGenerator(const FDynamicMesh3* Mesh, const int TesselationNum, FProgressCancel* InProgress, const bool bUseParallel) 
+		FElementsGenerator(const FDynamicMesh3* Mesh, const int TessellationNum, FProgressCancel* InProgress, const bool bUseParallel) 
 		:
-		FBaseGenerator(Mesh, TesselationNum, InProgress, bUseParallel)
+		FBaseGenerator(Mesh, TessellationNum, InProgress, bUseParallel)
 		{
 		}
 		
@@ -287,12 +287,12 @@ namespace UniformTesselateLocals
 		/**
 		 * Generate new elements for vertices (marked with "x" below) along each unique edge of the input mesh 
 		 * (input triangle corners are marked with "o" below). The number of the new vertices per edge is equal to the 
-		 * tesselation number. The number of the new elements per vertex can vary, the default implementation below assumes
+		 * tessellation number. The number of the new elements per vertex can vary, the default implementation below assumes
 		 * one element per vertex. 
 		 * 
 		 *          o   
 		 *         x x  
-		 *        x   x   TesselationNum = 2, 6 new elements added in total (assuming 1 element per vertex)
+		 *        x   x   TessellationNum = 2, 6 new elements added in total (assuming 1 element per vertex)
 		 *       o x x o
 		 */
 		virtual bool GenerateEdgeElements() 
@@ -315,9 +315,9 @@ namespace UniformTesselateLocals
 				GetInputMeshElementValue(EdgeTri.A, EdgeV.B, Element2);
 
 				RealType OutElement[ElementSize];
-				for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+				for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 				{
-					const RealType Alpha = (RealType)(VertexOffset + 1) / (TesselationNum + 1);
+					const RealType Alpha = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
 					LerpElements(Element1, Element2, OutElement, Alpha);
 					SetElementOnEdge(EdgeID, EdgeTri.A, VertexOffset, OutElement); 
 				}
@@ -341,7 +341,7 @@ namespace UniformTesselateLocals
 		 * elements added in GenerateEdgeElements(). Along each line segment, depending on the level, we generate the 
 		 * appropriate number of elements.
 		 *
-		 *    TesselationNum = 4
+		 *    TessellationNum = 4
 		 *
 		 *            v1 
 		 *   |        o        Skip
@@ -354,7 +354,7 @@ namespace UniformTesselateLocals
 		 */
 		virtual bool GenerateTriangleElements()
 		{
-			if (TesselationNum <= 1) 
+			if (TessellationNum <= 1) 
 			{
 				return true; // No inner triangle vertices need to be generated
 			}
@@ -378,7 +378,7 @@ namespace UniformTesselateLocals
 				GetEdgeOrder(TriEdges, TriVertices, IsEdgeReversed);
 				
 				int ElementIDCounter = 0; // Track how many new elements in total we added so far for this triangle
-				for (int Level = 1; Level < TesselationNum; ++Level)
+				for (int Level = 1; Level < TessellationNum; ++Level)
 				{
 					// The number of new vertices added along each Level is same as the Level number
 					const int NumNewLevelVertices = Level; 
@@ -417,7 +417,7 @@ namespace UniformTesselateLocals
 	};
 
 	/**
-	 * Abstract class containing common functions for computing triangle element-index triplets of the tesselated mesh. 
+	 * Abstract class containing common functions for computing triangle element-index triplets of the tessellated mesh. 
 	 */
 	template<typename RealType, int ElementSize>
 	class FTrianglesGenerator : public FElementsGenerator<RealType, ElementSize>
@@ -428,22 +428,22 @@ namespace UniformTesselateLocals
 		using BaseType::InMesh;
 		using BaseType::Elements;
 		using BaseType::ElementIsSet;
-		using BaseType::TesselationNum;
+		using BaseType::TessellationNum;
 		using BaseType::OrderedEdgeOffset;
 		using BaseType::GetEdgeOrder;
 		using BaseType::SetBufferSizes;
 
 		int OutTriangleCount = 0; // Total number of triangle triplets in the output mesh
-		int OutInnerTriangleCount = 0; // Number of triangle triplets introduced per input triangle after tesselation
+		int OutInnerTriangleCount = 0; // Number of triangle triplets introduced per input triangle after tessellation
 
 		// Array of triangle corner Elements, stored as tuples of indices into Elements array.
 		TArray<FIndex3i> Triangles;
 
-		FTrianglesGenerator(const FDynamicMesh3* Mesh, const int TesselationNum, FProgressCancel* InProgress, const bool bUseParallel) 
+		FTrianglesGenerator(const FDynamicMesh3* Mesh, const int TessellationNum, FProgressCancel* InProgress, const bool bUseParallel) 
 		:							 
-		FElementsGenerator<RealType, ElementSize>(Mesh, TesselationNum, InProgress, bUseParallel)
+		FElementsGenerator<RealType, ElementSize>(Mesh, TessellationNum, InProgress, bUseParallel)
 		{
-			const int TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 corner vertices on the edge ends
 			OutInnerTriangleCount = TriangularPatternUtils::NumTriangles(TriangleNumber);
 			OutTriangleCount = OutInnerTriangleCount * InMesh->TriangleCount();
 		}
@@ -613,7 +613,7 @@ namespace UniformTesselateLocals
 										const TStaticArray<bool, 3>& IsEdgeReversed) 
 		{	
 			// Top level vertex, normal, uv indices
-			const int TopLevel = TesselationNum - 1;
+			const int TopLevel = TessellationNum - 1;
 			const int NumTopLevelVertices = TopLevel + 2;
 			
 			const int TopLevelFirstElement = this->GetElementIDOnEdge(TriEdges[0], TriangleID, OrderedEdgeOffset(IsEdgeReversed[0], TopLevel));
@@ -652,7 +652,7 @@ namespace UniformTesselateLocals
 					//                      / \
 					// BtmLevelLastVertex  o---x VID 
 
-					const int ID = this->GetElementIDOnEdge(TriEdges[1], TriangleID, OrderedEdgeOffset(IsEdgeReversed[1], TesselationNum - 1));
+					const int ID = this->GetElementIDOnEdge(TriEdges[1], TriangleID, OrderedEdgeOffset(IsEdgeReversed[1], TessellationNum - 1));
 					SetTriangleElements(GetOutTriangleID(TriangleID, TriangleIDCounter), TopLevelLastElement, ID, BtmLevelLastElement); 					
 					TriangleIDCounter++;
 				}
@@ -702,7 +702,7 @@ namespace UniformTesselateLocals
 		*/
 		bool GenerateTriangles()
 		{
-			if (TesselationNum == 0)
+			if (TessellationNum == 0)
 			{
 				return true; // No triangles needs to be generated
 			}
@@ -728,7 +728,7 @@ namespace UniformTesselateLocals
 				GenerateTopTriangleStrip(TriangleID, TriVertices, TriEdges, IsEdgeReversed);					
 
 				// Genereate the middle strips by iterating over their top levels.
-				for (int Level = 0; Level < TesselationNum - 1; ++Level)
+				for (int Level = 0; Level < TessellationNum - 1; ++Level)
 				{
 					GenerateTriangleStripForLevel(Level, TriangleID, TriEdges, IsEdgeReversed); 
 				}
@@ -755,7 +755,7 @@ namespace UniformTesselateLocals
 	public:
 		using BaseType = FTrianglesGenerator<RealType, ElementSize>;
 		using BaseType::InMesh;
-		using BaseType::TesselationNum;
+		using BaseType::TessellationNum;
 		using BaseType::InElementCount; 
 		using BaseType::OutElementCount; 
 		using BaseType::OutEdgeElementCount; 
@@ -775,12 +775,12 @@ namespace UniformTesselateLocals
 		const TDynamicMeshOverlay<RealType, ElementSize>* Overlay;
 		
 		FOverlayGenerator(const FDynamicMesh3* Mesh, 
-						  const int TesselationNum,
+						  const int TessellationNum,
 						  FProgressCancel* InProgress, 
 						  const bool bUseParallel,
 						  const TDynamicMeshOverlay<RealType, ElementSize>* InOverlay) 
 		:
-		FTrianglesGenerator<RealType, ElementSize>(Mesh, TesselationNum, InProgress, bUseParallel), Overlay(InOverlay)
+		FTrianglesGenerator<RealType, ElementSize>(Mesh, TessellationNum, InProgress, bUseParallel), Overlay(InOverlay)
 		{
 		}
 		
@@ -803,13 +803,13 @@ namespace UniformTesselateLocals
 				const bool bIsNotBndry = InMesh->GetEdgeT(InEdgeID).B != FDynamicMesh3::InvalidID;
 				const bool bIsSeam = Overlay->IsSeamEdge(InEdgeID) && bIsNotBndry;
 				SeamEdges[InEdgeID] = bIsSeam;
-				LastOffset += bIsSeam ? 2*TesselationNum : TesselationNum;	
+				LastOffset += bIsSeam ? 2*TessellationNum : TessellationNum;	
 			}
 
 			InElementCount = Overlay->MaxElementID();
 			OutEdgeElementCount = LastOffset;
 
-			const int TriangleNumber = TesselationNum + 2; // plus 2 vertices on the ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 vertices on the ends
 			OutInnerElementCount = TriangularPatternUtils::NumInnerVertices(TriangleNumber);
 			OutElementCount = InElementCount + OutEdgeElementCount + OutInnerElementCount * InMesh->TriangleCount();
 
@@ -842,7 +842,7 @@ namespace UniformTesselateLocals
 			const FIndex2i EdgeTri = InMesh->GetEdgeT(EdgeID);
 			const int SeamIdx = EdgeTri.A == TriangleID ? 0 : 1;
 
-			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TesselationNum);
+			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TessellationNum);
 			const int NormalOffset = bIsSeam ? 2*VertexOffset + SeamIdx : VertexOffset;
 			return InElementCount + EdgeToElementOffset[EdgeID] + NormalOffset; 
 		}
@@ -880,9 +880,9 @@ namespace UniformTesselateLocals
 					GetInputMeshElementValue(EdgeTri.A, EdgeV.A, Element1);
 					GetInputMeshElementValue(EdgeTri.A, EdgeV.B, Element2);
 
-					for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+					for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 					{
-						const RealType Tau = (RealType)(VertexOffset + 1) / (TesselationNum + 1);
+						const RealType Tau = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
 						this->LerpElements(Element1, Element2, Out, Tau);
 						this->SetElementOnEdge(EdgeID, EdgeTri.A, VertexOffset, Out);	
 					}
@@ -893,9 +893,9 @@ namespace UniformTesselateLocals
 					GetInputMeshElementValue(EdgeTri.B, EdgeV.A, Element1);
 					GetInputMeshElementValue(EdgeTri.B, EdgeV.B, Element2);
 					
-					for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+					for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 					{
-						const RealType Tau = (RealType)(VertexOffset + 1) / (TesselationNum + 1);
+						const RealType Tau = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
 						this->LerpElements(Element1, Element2, Out, Tau);
 						this->SetElementOnEdge(EdgeID, EdgeTri.B, VertexOffset, Out);
 					}
@@ -1015,7 +1015,7 @@ namespace UniformTesselateLocals
 	public:
 		using BaseType = FTrianglesGenerator<RealType, 3>;
 		using BaseType::InMesh;
-		using BaseType::TesselationNum;
+		using BaseType::TessellationNum;
 		using BaseType::InElementCount; 
 		using BaseType::OutElementCount; 
 		using BaseType::OutEdgeElementCount; 
@@ -1029,13 +1029,13 @@ namespace UniformTesselateLocals
   		TMap<int32, int32>* VertexTriangleMap;
 		
 		FMeshVerticesGenerator(const FDynamicMesh3* Mesh, 
-							   const int TesselationNum, 
+							   const int TessellationNum, 
 							   FProgressCancel* InProgress, 
   							   TMap<int32, FIndex2i>* VertexEdgeMap,
   							   TMap<int32, int32>* VertexTriangleMap,
   							   const bool bUseParallel) 
 		:
-		FTrianglesGenerator<RealType, 3>(Mesh, TesselationNum, InProgress, bUseParallel), 
+		FTrianglesGenerator<RealType, 3>(Mesh, TessellationNum, InProgress, bUseParallel), 
   		VertexEdgeMap(VertexEdgeMap),
   		VertexTriangleMap(VertexTriangleMap)
 		{
@@ -1047,9 +1047,9 @@ namespace UniformTesselateLocals
 
 		virtual void Initialize() override
 		{	
-			const int TriangleNumber = TesselationNum + 2; // plus 2 vertices on the ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 vertices on the ends
 			InElementCount = InMesh->VertexCount(); 
-			OutEdgeElementCount = TesselationNum * InMesh->EdgeCount(); 
+			OutEdgeElementCount = TessellationNum * InMesh->EdgeCount(); 
 			OutInnerElementCount = TriangularPatternUtils::NumInnerVertices(TriangleNumber); 
 			OutElementCount = InElementCount + OutEdgeElementCount + OutInnerElementCount*InMesh->TriangleCount();	
 
@@ -1088,8 +1088,8 @@ namespace UniformTesselateLocals
 		 */
 		virtual int GetElementIDOnEdge(const int InEdgeID, const int InTriangleID, const int VertexOffset) const override
 		{	
-			checkSlow(InEdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TesselationNum);
-			return InElementCount + TesselationNum * InEdgeID + VertexOffset; 
+			checkSlow(InEdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TessellationNum);
+			return InElementCount + TessellationNum * InEdgeID + VertexOffset; 
 		}
 
 		// The element ID at a vertex is simply the vertex ID, ignore the triangle ID
@@ -1123,7 +1123,7 @@ namespace UniformTesselateLocals
 					
 					const FIndex2i EdgeTri = InMesh->GetEdgeT(EdgeID);
 
-					for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+					for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 					{	
 						const int VertexID = this->GetElementIDOnEdge(EdgeID, EdgeTri.A, VertexOffset);
 						VertexEdgeMap->Add(VertexID, EdgeTri);
@@ -1143,7 +1143,7 @@ namespace UniformTesselateLocals
 					checkSlow(InMesh->IsTriangle(TriangleID));
 					
 					int VertexIDCounter = 0;
-					for (int Level = 1; Level < TesselationNum; ++Level)
+					for (int Level = 1; Level < TessellationNum; ++Level)
 					{
 						for (int VertexOffset = 0; VertexOffset < Level; ++VertexOffset, ++VertexIDCounter) 
 						{
@@ -1199,7 +1199,7 @@ namespace UniformTesselateLocals
 	public:
 		using BaseType = FElementsGenerator<RealType, ElementSize>;
 		using BaseType::InMesh;
-		using BaseType::TesselationNum;
+		using BaseType::TessellationNum;
 		using BaseType::InElementCount; 
 		using BaseType::OutElementCount; 
 		using BaseType::OutEdgeElementCount; 
@@ -1210,12 +1210,12 @@ namespace UniformTesselateLocals
 		TFunction<void(const int VertexID, RealType* OutValue)> DataFunction;
 
 		FVertexAttributeGenerator(const FDynamicMesh3* Mesh, 
-								const int TesselationNum, 
+								const int TessellationNum, 
 								FProgressCancel* InProgress, 
 								const bool bUseParallel, 
 								const TFunction<void(int VertexID, RealType* Value)>& InDataFunction) 
 		:
-		FElementsGenerator<RealType, ElementSize>(Mesh, TesselationNum, InProgress, bUseParallel), DataFunction(InDataFunction)
+		FElementsGenerator<RealType, ElementSize>(Mesh, TessellationNum, InProgress, bUseParallel), DataFunction(InDataFunction)
 		{
 		}
 		
@@ -1225,9 +1225,9 @@ namespace UniformTesselateLocals
 
 		virtual void Initialize() override
 		{	
-			const int TriangleNumber = TesselationNum + 2; // plus 2 vertices on the ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 vertices on the ends
 			InElementCount = InMesh->VertexCount(); 
-			OutEdgeElementCount = TesselationNum * InMesh->EdgeCount(); 
+			OutEdgeElementCount = TessellationNum * InMesh->EdgeCount(); 
 			OutInnerElementCount = TriangularPatternUtils::NumInnerVertices(TriangleNumber); 
 			OutElementCount = InElementCount + OutEdgeElementCount + OutInnerElementCount*InMesh->TriangleCount();	
 
@@ -1243,8 +1243,8 @@ namespace UniformTesselateLocals
 
 		virtual int GetElementIDOnEdge(const int EdgeID, const int TriangleID, const int VertexOffset) const override
 		{	
-			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TesselationNum);
-			return InElementCount + TesselationNum * EdgeID + VertexOffset; 
+			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TessellationNum);
+			return InElementCount + TessellationNum * EdgeID + VertexOffset; 
 		}
 
 		virtual int GetInputMeshElementID(const int TriangleID, const int VertexID) const override 
@@ -1285,7 +1285,7 @@ namespace UniformTesselateLocals
 		}
 
 		static TUniquePtr<FVertexAttributeGenerator> CreateFromPerVertexNormals(const FDynamicMesh3* Mesh, 
-																			const int TesselationNum,
+																			const int TessellationNum,
 																			FProgressCancel* InProgress, 
 																			const bool bUseParallel)  
 		{	
@@ -1303,11 +1303,11 @@ namespace UniformTesselateLocals
 				}
 			};
 
-			return MakeUnique<FVertexAttributeGenerator>(Mesh, TesselationNum, InProgress, bUseParallel, FPntr);
+			return MakeUnique<FVertexAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
 
 		static TUniquePtr<FVertexAttributeGenerator> CreateFromPerVertexUVs(const FDynamicMesh3* Mesh, 
-																			const int TesselationNum,
+																			const int TessellationNum,
 																			FProgressCancel* InProgress, 
 																			const bool bUseParallel)  
 		{	
@@ -1325,11 +1325,11 @@ namespace UniformTesselateLocals
 				}
 			};
 
-			return MakeUnique<FVertexAttributeGenerator>(Mesh, TesselationNum, InProgress, bUseParallel, FPntr);
+			return MakeUnique<FVertexAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
 
 		static TUniquePtr<FVertexAttributeGenerator> CreateFromPerVertexColors(const FDynamicMesh3* Mesh, 
-																			   const int TesselationNum,
+																			   const int TessellationNum,
 																			   FProgressCancel* InProgress, 
 																			   const bool bUseParallel) 
 		{	
@@ -1347,7 +1347,7 @@ namespace UniformTesselateLocals
 				}
 			};
 
-			return MakeUnique<FVertexAttributeGenerator>(Mesh, TesselationNum, InProgress, bUseParallel, FPntr);
+			return MakeUnique<FVertexAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
 	};
 
@@ -1360,7 +1360,7 @@ namespace UniformTesselateLocals
 	public:
 
 		int OutTriangleCount = 0; // Total number of triangles in the output mesh
-		int OutInnerTriangleCount = 0; // Number of triangles introduced per input triangle after tesselation
+		int OutInnerTriangleCount = 0; // Number of triangles introduced per input triangle after tessellation
 
 		TArray<RealType> AttribValues;
 
@@ -1368,14 +1368,14 @@ namespace UniformTesselateLocals
 		TFunction<void(const int TriangleID, RealType* OutValue)> DataFunction;
 		
 		FTriangleAttributeGenerator(const FDynamicMesh3* Mesh, 
-								    const int TesselationNum,
+								    const int TessellationNum,
 								    FProgressCancel* InProgress, 
 								    const bool bUseParallel,
 								    const TFunction<void(int TriangleID, RealType* Value)>& InDataFunction) 
 		:
-		FBaseGenerator(Mesh, TesselationNum, InProgress, bUseParallel), DataFunction(InDataFunction)
+		FBaseGenerator(Mesh, TessellationNum, InProgress, bUseParallel), DataFunction(InDataFunction)
 		{
-			const int TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 corner vertices on the edge ends
 			OutInnerTriangleCount = TriangularPatternUtils::NumTriangles(TriangleNumber);
 			OutTriangleCount = OutInnerTriangleCount * InMesh->TriangleCount();
 		}
@@ -1442,7 +1442,7 @@ namespace UniformTesselateLocals
 		
 		static TUniquePtr<FTriangleAttributeGenerator> 
 		CreateFromDynamicMeshTriangleAttribute(const FDynamicMesh3* Mesh, 
-											   const int TesselationNum, 
+											   const int TessellationNum, 
 											   FProgressCancel* InProgress, 
 											   const bool bUseParallel,
 											   const TDynamicMeshTriangleAttribute<RealType, ElementSize>* Attribute) 
@@ -1457,12 +1457,12 @@ namespace UniformTesselateLocals
 				Attribute->GetValue(TriangleID, Value);
 			};
 
-			return MakeUnique<FTriangleAttributeGenerator>(Mesh, TesselationNum, InProgress, bUseParallel, FPntr);
+			return MakeUnique<FTriangleAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
 
 		static TUniquePtr<FTriangleAttributeGenerator> 
 		CreateFromMeshTriangleGroups(const FDynamicMesh3* Mesh, 
-									 const int TesselationNum,  
+									 const int TessellationNum,  
 									 FProgressCancel* InProgress, 
 									 const bool bUseParallel) 
 		{
@@ -1476,7 +1476,7 @@ namespace UniformTesselateLocals
 				*Value = Mesh->GetTriangleGroup(TriangleID);
 			};
 
-			return MakeUnique<FTriangleAttributeGenerator>(Mesh, TesselationNum, InProgress, bUseParallel, FPntr);
+			return MakeUnique<FTriangleAttributeGenerator>(Mesh, TessellationNum, InProgress, bUseParallel, FPntr);
 		}
 
 		void CopyToAttribute(TDynamicMeshTriangleAttribute<RealType, ElementSize>* OutAttribute) 
@@ -1509,16 +1509,16 @@ namespace UniformTesselateLocals
 		const FDynamicMeshVertexSkinWeightsAttribute* SkinWeightsAttribute = nullptr;
 
 		FSkinWeightAttributeGenerator(const FDynamicMesh3* Mesh, 
-									  const int TesselationNum, 
+									  const int TessellationNum, 
 									  FProgressCancel* InProgress, 
 									  const bool bUseParallel,
 									  const FDynamicMeshVertexSkinWeightsAttribute* SkinWeightsAttribute) 
 		:
-		FBaseGenerator(Mesh, TesselationNum, InProgress, bUseParallel), SkinWeightsAttribute(SkinWeightsAttribute)
+		FBaseGenerator(Mesh, TessellationNum, InProgress, bUseParallel), SkinWeightsAttribute(SkinWeightsAttribute)
 		{
-			const int TriangleNumber = TesselationNum + 2; // plus 2 vertices on the ends
+			const int TriangleNumber = TessellationNum + 2; // plus 2 vertices on the ends
 			InWeightCount = InMesh->VertexCount(); 
-			OutEdgeWeightCount = TesselationNum * InMesh->EdgeCount(); 
+			OutEdgeWeightCount = TessellationNum * InMesh->EdgeCount(); 
 			OutInnerWeightCount = TriangularPatternUtils::NumInnerVertices(TriangleNumber); 
 			OutWeightCount = InWeightCount + OutEdgeWeightCount + OutInnerWeightCount*InMesh->TriangleCount();	
 		}
@@ -1555,8 +1555,8 @@ namespace UniformTesselateLocals
 
 		int GetWeightIDOnEdge(const int EdgeID, const int VertexOffset) const 
 		{	
-			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TesselationNum);
-			return InWeightCount + TesselationNum * EdgeID + VertexOffset; 
+			checkSlow(EdgeID >= 0 && VertexOffset >= 0 && VertexOffset < TessellationNum);
+			return InWeightCount + TessellationNum * EdgeID + VertexOffset; 
 		}
 
 		int GetWeightIDOnTriangle(const int TriangleID, const int VertexOffset) const
@@ -1599,9 +1599,9 @@ namespace UniformTesselateLocals
 				SkinWeightsAttribute->GetValue(EdgeV.B, Weight2);
 
 				FBoneWeights Out;
-				for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+				for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 				{
-					const double Alpha = (double)(VertexOffset + 1) / (TesselationNum + 1);
+					const double Alpha = (double)(VertexOffset + 1) / (TessellationNum + 1);
 					LerpWeights(Weight1, Weight2, Out, Alpha);
 					SetWeightOnEdge(EdgeID, VertexOffset, Out); 
 				}
@@ -1618,7 +1618,7 @@ namespace UniformTesselateLocals
 
 		bool GenerateTriangleElements() 
 		{
-			if (TesselationNum <= 1) 
+			if (TessellationNum <= 1) 
 			{
 				return true; // No inner triangle vertices need to be generated
 			}
@@ -1639,7 +1639,7 @@ namespace UniformTesselateLocals
 				GetEdgeOrder(TriEdges, TriVertices, IsEdgeReversed);
 				
 				int ElementIDCounter = 0; // Track how many new elements in total we added so far for this triangle
-				for (int Level = 1; Level < TesselationNum; ++Level)
+				for (int Level = 1; Level < TessellationNum; ++Level)
 				{
 					const int ID1 = GetWeightIDOnEdge(TriEdges[0], OrderedEdgeOffset(IsEdgeReversed[0], Level));  
 					const int ID2 = GetWeightIDOnEdge(TriEdges[2], OrderedEdgeOffset(IsEdgeReversed[2], Level));
@@ -1701,8 +1701,8 @@ namespace UniformTesselateLocals
 		}
 	};
 
-	bool Tesselate(const FDynamicMesh3* InMesh, 
-				   const int TesselationNum, 
+	bool Tessellate(const FDynamicMesh3* InMesh, 
+				   const int TessellationNum, 
 				   FProgressCancel* Progress, 
 				   const bool bUseParallel,
 				   TMap<int32, FIndex2i>* OutVertexEdgeMap,
@@ -1711,7 +1711,7 @@ namespace UniformTesselateLocals
 	{	
 		OutMesh->Clear();
 
-		FMeshVerticesGenerator<double> FTrianglesGenerator(InMesh, TesselationNum, Progress, OutVertexEdgeMap, OutVertexTriangleMap, bUseParallel);
+		FMeshVerticesGenerator<double> FTrianglesGenerator(InMesh, TessellationNum, Progress, OutVertexEdgeMap, OutVertexTriangleMap, bUseParallel);
 		if (FTrianglesGenerator.Generate() == false) 
 		{
 			return false;
@@ -1726,7 +1726,7 @@ namespace UniformTesselateLocals
 		TUniquePtr<FTriangleAttributeGenerator<int, 1>> TriangleGroupGenerator;
 		if (InMesh->HasTriangleGroups()) 
 		{
-			TriangleGroupGenerator = FTriangleAttributeGenerator<int, 1>::CreateFromMeshTriangleGroups(InMesh, TesselationNum, Progress, bUseParallel);
+			TriangleGroupGenerator = FTriangleAttributeGenerator<int, 1>::CreateFromMeshTriangleGroups(InMesh, TessellationNum, Progress, bUseParallel);
 			if (TriangleGroupGenerator->Generate() == false) 
 			{
 				return false;
@@ -1763,7 +1763,7 @@ namespace UniformTesselateLocals
 				OutAttributes->SetNumNormalLayers(InAttributes->NumNormalLayers());
 				for (int Idx = 0; Idx < InAttributes->NumNormalLayers(); ++Idx) 
 				{	
-					FOverlayGenerator<float, 3> Generator(InMesh, TesselationNum, Progress, bUseParallel, InAttributes->GetNormalLayer(Idx));
+					FOverlayGenerator<float, 3> Generator(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->GetNormalLayer(Idx));
 					if (Generator.Generate() == false) 
 					{
 						return false;
@@ -1778,7 +1778,7 @@ namespace UniformTesselateLocals
 				OutAttributes->SetNumUVLayers(InAttributes->NumUVLayers());
 				for (int Idx = 0; Idx < InAttributes->NumUVLayers(); ++Idx) 
 				{	
-					FOverlayGenerator<float, 2> Generator(InMesh, TesselationNum, Progress, bUseParallel, InAttributes->GetUVLayer(Idx));
+					FOverlayGenerator<float, 2> Generator(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->GetUVLayer(Idx));
 					if (Generator.Generate() == false) 
 					{
 						return false;
@@ -1791,7 +1791,7 @@ namespace UniformTesselateLocals
 			if (InAttributes->HasPrimaryColors()) 
 			{
 				OutAttributes->EnablePrimaryColors();
-				FOverlayGenerator<float, 4> Generator(InMesh, TesselationNum, Progress, bUseParallel, InAttributes->PrimaryColors());
+				FOverlayGenerator<float, 4> Generator(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->PrimaryColors());
 				if (Generator.Generate() == false)
 				{
 					return false;
@@ -1804,7 +1804,7 @@ namespace UniformTesselateLocals
 			{
 				OutAttributes->EnableMaterialID();
 				TUniquePtr<FTriangleAttributeGenerator<int32, 1>> Generator; 
-				Generator = FTriangleAttributeGenerator<int32, 1>::CreateFromDynamicMeshTriangleAttribute(InMesh, TesselationNum, Progress, bUseParallel, InAttributes->GetMaterialID());
+				Generator = FTriangleAttributeGenerator<int32, 1>::CreateFromDynamicMeshTriangleAttribute(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->GetMaterialID());
 				if (Generator->Generate() == false)
 				{
 					return false;
@@ -1819,7 +1819,7 @@ namespace UniformTesselateLocals
 				for (int Idx = 0; Idx < InAttributes->NumPolygroupLayers(); ++Idx) 
 				{	
 					TUniquePtr<FTriangleAttributeGenerator<int32, 1>> Generator;
-					Generator = FTriangleAttributeGenerator<int32, 1>::CreateFromDynamicMeshTriangleAttribute(InMesh, TesselationNum, Progress, bUseParallel, InAttributes->GetPolygroupLayer(Idx));
+					Generator = FTriangleAttributeGenerator<int32, 1>::CreateFromDynamicMeshTriangleAttribute(InMesh, TessellationNum, Progress, bUseParallel, InAttributes->GetPolygroupLayer(Idx));
 					if (Generator->Generate() == false) 
 					{
 						return false;
@@ -1831,7 +1831,7 @@ namespace UniformTesselateLocals
 
 			for (const TTuple<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttributeInfo : InAttributes->GetSkinWeightsAttributes())
 			{
-				FSkinWeightAttributeGenerator Generator(InMesh, TesselationNum, Progress, bUseParallel, AttributeInfo.Value.Get());
+				FSkinWeightAttributeGenerator Generator(InMesh, TessellationNum, Progress, bUseParallel, AttributeInfo.Value.Get());
 				if (Generator.Generate() == false) 
 				{
 					return false;
@@ -1847,7 +1847,7 @@ namespace UniformTesselateLocals
 		if (InMesh->HasVertexNormals()) 
 		{	
 			TUniquePtr<FVertexAttributeGenerator<float, 3>> Generator;
-			Generator = FVertexAttributeGenerator<float, 3>::CreateFromPerVertexNormals(InMesh, TesselationNum, Progress, bUseParallel);
+			Generator = FVertexAttributeGenerator<float, 3>::CreateFromPerVertexNormals(InMesh, TessellationNum, Progress, bUseParallel);
 			if (Generator->Generate() == false) 
 			{
 				return false;
@@ -1864,7 +1864,7 @@ namespace UniformTesselateLocals
 		if (InMesh->HasVertexUVs()) 
 		{	
 			TUniquePtr<FVertexAttributeGenerator<float, 2>> Generator; 
-			Generator = FVertexAttributeGenerator<float, 2>::CreateFromPerVertexUVs(InMesh, TesselationNum, Progress, bUseParallel);
+			Generator = FVertexAttributeGenerator<float, 2>::CreateFromPerVertexUVs(InMesh, TessellationNum, Progress, bUseParallel);
 			if (Generator->Generate() == false) 
 			{
 				return false;
@@ -1881,7 +1881,7 @@ namespace UniformTesselateLocals
 		if (InMesh->HasVertexColors()) 
 		{	
 			TUniquePtr<FVertexAttributeGenerator<float, 4>> Generator;
-			Generator  = FVertexAttributeGenerator<float, 4>::CreateFromPerVertexColors(InMesh, TesselationNum, Progress, bUseParallel);
+			Generator  = FVertexAttributeGenerator<float, 4>::CreateFromPerVertexColors(InMesh, TessellationNum, Progress, bUseParallel);
 			if (Generator->Generate() == false) 
 			{
 				return false;
@@ -1900,36 +1900,36 @@ namespace UniformTesselateLocals
 
 }
 
-int32 FUniformTesselate::ExpectedNumVertices(const FDynamicMesh3& Mesh, const int32 TesselationNum)
+int32 FUniformTessellate::ExpectedNumVertices(const FDynamicMesh3& Mesh, const int32 TessellationNum)
 {
-	int32 EdgeVertCount = TesselationNum * Mesh.EdgeCount();
-	int32 TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
-	int32 InnerTriangleVertCount = UniformTesselateLocals::TriangularPatternUtils::NumInnerVertices(TriangleNumber);
+	int32 EdgeVertCount = TessellationNum * Mesh.EdgeCount();
+	int32 TriangleNumber = TessellationNum + 2; // plus 2 corner vertices on the edge ends
+	int32 InnerTriangleVertCount = UniformTessellateLocals::TriangularPatternUtils::NumInnerVertices(TriangleNumber);
 	int32 TotalVertCount = Mesh.VertexCount() + EdgeVertCount + InnerTriangleVertCount* Mesh.TriangleCount();
 	return TotalVertCount; 	
 }
 	
-int32 FUniformTesselate::ExpectedNumTriangles(const FDynamicMesh3& Mesh, const int32 TesselationNum)
+int32 FUniformTessellate::ExpectedNumTriangles(const FDynamicMesh3& Mesh, const int32 TessellationNum)
 {
-	int32 TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
-	int32 InnerTriangleCount = UniformTesselateLocals::TriangularPatternUtils::NumTriangles(TriangleNumber);
+	int32 TriangleNumber = TessellationNum + 2; // plus 2 corner vertices on the edge ends
+	int32 InnerTriangleCount = UniformTessellateLocals::TriangularPatternUtils::NumTriangles(TriangleNumber);
 	int32 TotalTriangleCount = InnerTriangleCount * Mesh.TriangleCount();
 	return TotalTriangleCount;
 }
 
-bool FUniformTesselate::Cancelled()
+bool FUniformTessellate::Cancelled()
 {
 	return (Progress == nullptr) ? false : Progress->Cancelled();
 }
 
-bool FUniformTesselate::Compute()
+bool FUniformTessellate::Compute()
 {	
 	if (Validate() != EOperationValidationResult::Ok) 
 	{
 		return false;
 	}
 
-	if (TesselationNum == 0)
+	if (TessellationNum == 0)
 	{
 		return true; 
 	}
@@ -1945,7 +1945,7 @@ bool FUniformTesselate::Compute()
 		return true;
 	}
 
-	// Make a copy of the mesh since we are tesselating in place. 
+	// Make a copy of the mesh since we are tessellating in place. 
 	// The copy will be used to restore the mesh to its original state in case the user cancelled the operation.
 	FDynamicMesh3 ResultMeshCopy;
 	if (bInPlace) 
@@ -1963,13 +1963,13 @@ bool FUniformTesselate::Compute()
 
 	if (Mesh->IsCompact()) 
 	{
-		bIsValidMesh = UniformTesselateLocals::Tesselate(Mesh, 
-														 TesselationNum, 
-														 Progress, 
-														 bUseParallel, 
-														 bComputeMappings ? &VertexEdgeMap : nullptr, 
-														 bComputeMappings ? &VertexTriangleMap : nullptr, 
-														 ResultMesh);
+		bIsValidMesh = UniformTessellateLocals::Tessellate(Mesh, 
+														   TessellationNum, 
+														   Progress, 
+														   bUseParallel, 
+														   bComputeMappings ? &VertexEdgeMap : nullptr, 
+														   bComputeMappings ? &VertexTriangleMap : nullptr, 
+														   ResultMesh);
 
 		if (bIsValidMesh && bComputeMappings) 
 		{
@@ -1986,13 +1986,13 @@ bool FUniformTesselate::Compute()
 		FCompactMaps CompactInfo;
 		CompactMesh.CompactCopy(*Mesh, true, true, true, true, &CompactInfo);
 
-		bIsValidMesh = UniformTesselateLocals::Tesselate(&CompactMesh, 
-														 TesselationNum, 
-														 Progress, 
-														 bUseParallel, 
-														 bComputeMappings ? &VertexEdgeMap : nullptr, 
-														 bComputeMappings ? &VertexTriangleMap : nullptr, 
-														 ResultMesh);
+		bIsValidMesh = UniformTessellateLocals::Tessellate(&CompactMesh, 
+														   TessellationNum, 
+														   Progress, 
+														   bUseParallel, 
+														   bComputeMappings ? &VertexEdgeMap : nullptr, 
+														   bComputeMappings ? &VertexTriangleMap : nullptr, 
+														   ResultMesh);
 
 
 		if (bIsValidMesh && bComputeMappings) 
@@ -2017,13 +2017,13 @@ bool FUniformTesselate::Compute()
 			}
 			checkSlow(CompactToInputTriangles.Num() == CompactMesh.TriangleCount());
 				
-			// Chage the mapping [tesselated triangles --> compact mesh triangles]
-			// to the mapping [tesselated triangles --> input mesh triangles (before compacting)]
+			// Chage the mapping [tessellated triangles --> compact mesh triangles]
+			// to the mapping [tessellated triangles --> input mesh triangles (before compacting)]
 			for (TMap<int32, FIndex2i>::TIterator It = VertexEdgeMap.CreateIterator(); It; ++It)
 			{
 				FIndex2i& EdgeTri = It.Value();
 				
-				// We should always be able to find the correct match, but double check in case the Tesselate method
+				// We should always be able to find the correct match, but double check in case the Tessellate method
 				// failed to return the correct mapping
 				int32* TID1= CompactToInputTriangles.Find(EdgeTri.A);
 				ensure(TID1 != nullptr);

@@ -17,7 +17,7 @@
 #include "MeshDescription.h"
 #include "ModelingToolTargetUtil.h"
 #include "Operations/PNTriangles.h"
-#include "Operations/UniformTesselate.h"
+#include "Operations/UniformTessellate.h"
 
 
 // needed to disable normals recalculation on the underlying asset
@@ -250,20 +250,20 @@ namespace DisplaceMeshToolLocals{
 	{
 		if (SubdivisionType == EDisplaceMeshToolSubdivisionType::Flat) 
 		{
-			FUniformTesselate Tesselator(ResultMesh.Get());
-			Tesselator.Progress = ProgressCancel;
-			Tesselator.TesselationNum = SubdivisionsCount;
+			FUniformTessellate Tessellator(ResultMesh.Get());
+			Tessellator.Progress = ProgressCancel;
+			Tessellator.TessellationNum = SubdivisionsCount;
 						
-			if (Tesselator.Validate() == EOperationValidationResult::Ok) 
+			if (Tessellator.Validate() == EOperationValidationResult::Ok) 
 			{
-				Tesselator.Compute();
+				Tessellator.Compute();
 			}
 		}
 		else if (SubdivisionType == EDisplaceMeshToolSubdivisionType::PNTriangles) 
 		{
 			FPNTriangles PNTriangles(ResultMesh.Get());
 			PNTriangles.Progress = ProgressCancel;
-			PNTriangles.TesselationLevel = SubdivisionsCount;
+			PNTriangles.TessellationLevel = SubdivisionsCount;
 
 			if (PNTriangles.Validate() == EOperationValidationResult::Ok)
 			{

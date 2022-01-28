@@ -7,7 +7,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Async/ParallelFor.h"
 #include "Util/ProgressCancel.h"
-#include "Operations/UniformTesselate.h"
+#include "Operations/UniformTessellate.h"
 
 using namespace UE::Geometry;
 
@@ -218,19 +218,19 @@ namespace FPNTrianglesLocals
 	}
 
 	/** 
-	 * Tesselate the mesh by recursively subdividing it using loop-style subdivision. Keep track of the new vertices 
-	 * added and which original triangles (before tesselation) they belong to. New vertices on original non-boundary 
+	 * Tessellate the mesh by recursively subdividing it using loop-style subdivision. Keep track of the new vertices 
+	 * added and which original triangles (before tessellation) they belong to. New vertices on original non-boundary 
 	 * edges can belong to either of the original triangles that share the edge.
 	 * 
-	 * @param Mesh The mesh we are tesselating.
+	 * @param Mesh The mesh we are tessellating.
 	 * @param Level How many times we are recursively subdividing the Mesh.
 	 * @param ProgressCancel Set this to be able to cancel running operation.
 	 * @param OutNewVertices Array of tuples of the new vertex ID and the original triangle ID the vertex belongs to.
-	 * @param OutMesh Result of the tesselation.
+	 * @param OutMesh Result of the tessellation.
 	 * 
 	 * @return true if the operation succeeded, false if it failed or was canceled by the user.
 	 */
-	bool TesselateMesh(const FDynamicMesh3& Mesh, 
+	bool TessellateMesh(const FDynamicMesh3& Mesh, 
 					   const int32 Level, 
 					   FProgressCancel* ProgressCancel,
 					   TArray<FIndex2i>& OutNewVertices,
@@ -247,29 +247,29 @@ namespace FPNTrianglesLocals
 			return true; // nothing to do
 		}
 
-		FUniformTesselate Tesselator(&Mesh, &OutMesh);
-		Tesselator.TesselationNum = Level;
-		Tesselator.bComputeMappings = true;
-		if (Tesselator.Validate() != EOperationValidationResult::Ok)
+		FUniformTessellate Tessellator(&Mesh, &OutMesh);
+		Tessellator.TessellationNum = Level;
+		Tessellator.bComputeMappings = true;
+		if (Tessellator.Validate() != EOperationValidationResult::Ok)
 		{
 			return false;
 		}
 
-		if (Tesselator.Compute() == false) 
+		if (Tessellator.Compute() == false) 
 		{
 			return false;
 		} 
 
-		const int32 NewVertCount = Tesselator.VertexEdgeMap.Num() + Tesselator.VertexTriangleMap.Num();
+		const int32 NewVertCount = Tessellator.VertexEdgeMap.Num() + Tessellator.VertexTriangleMap.Num();
 		OutNewVertices.Reserve(NewVertCount);
 
-		for (auto It = Tesselator.VertexEdgeMap.CreateConstIterator(); It; ++It)
+		for (auto It = Tessellator.VertexEdgeMap.CreateConstIterator(); It; ++It)
 		{
 			FIndex2i EdgeTri = It.Value();
 			OutNewVertices.Add(FIndex2i(It.Key(), EdgeTri.A));
 		}
 
-		for (auto It = Tesselator.VertexTriangleMap.CreateConstIterator(); It; ++It)
+		for (auto It = Tessellator.VertexTriangleMap.CreateConstIterator(); It; ++It)
 		{
 			OutNewVertices.Add(FIndex2i(It.Key(), It.Value()));
 		}
@@ -280,10 +280,10 @@ namespace FPNTrianglesLocals
 	}
 
 	/** 
-	 * Displace the vertices created from the tesselation using the cubic patch formula based on their barycentric 
+	 * Displace the vertices created from the tessellation using the cubic patch formula based on their barycentric 
 	 * coordinates.
 	 * 
-	 * @param OriginalMesh The original mesh (before tesselation).
+	 * @param OriginalMesh The original mesh (before tessellation).
 	 * @param FControlPoints PN Triangle control points.
 	 * @param VerticesToDisplace Array of vertices into the Mesh that we are displacing.
 	 * @param bComputePNNormals Should we be computing quadratically varying normals using control points.
@@ -312,7 +312,7 @@ namespace FPNTrianglesLocals
 			}
 			
 			FIndex2i NewVtx = VerticesToDisplace[IDX];
-			int VertexID = NewVtx[0]; // ID of the new vertex added with tesselation
+			int VertexID = NewVtx[0]; // ID of the new vertex added with tessellation
 			int OriginalTriangleID = NewVtx[1]; // ID of the original triangle new vertex belongs to
 			
 			// Get the topology information of the original triangle
@@ -395,15 +395,15 @@ bool FPNTriangles::Compute()
 {
 	using namespace FPNTrianglesLocals;
 
-	check(TesselationLevel >= 0);
+	check(TessellationLevel >= 0);
 	check(Mesh != nullptr);
 
-	if (TesselationLevel < 0 || Mesh == nullptr) 
+	if (TessellationLevel < 0 || Mesh == nullptr) 
 	{
 		return false;
 	}
 
-	if (TesselationLevel == 0) 
+	if (TessellationLevel == 0) 
 	{
 		return true; // nothing to do
 	}
@@ -426,10 +426,10 @@ bool FPNTriangles::Compute()
 		return false;
 	}
 	
-	// Tesselate the original mesh
+	// Tessellate the original mesh
 	TArray<FIndex2i> NewVertices;
 	FDynamicMesh3 ResultMesh;
-	bOk = TesselateMesh(*Mesh, TesselationLevel, Progress, NewVertices, ResultMesh);
+	bOk = TessellateMesh(*Mesh, TessellationLevel, Progress, NewVertices, ResultMesh);
 	if (bOk == false) 
 	{
 		return false;

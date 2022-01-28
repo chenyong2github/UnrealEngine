@@ -6,7 +6,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "Operations/PNTriangles.h"
-#include "Operations/UniformTesselate.h"
+#include "Operations/UniformTessellate.h"
 #include "UDynamicMesh.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -38,7 +38,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyRecursivePNTes
 		// Convert the number of recursive subdivisions to the equivalent tessellation level to make sure that we 
 		// produce the same topology. 
 		int TessellationLevel = static_cast<int>(FMath::RoundHalfFromZero(FMath::Exp2((double)NumIterations))) - 1;
-		Tessellator.TesselationLevel = TessellationLevel;
+		Tessellator.TessellationLevel = TessellationLevel;
 		Tessellator.Compute();
 
 		if (Options.bRecomputeNormals && EditMesh.HasAttributes() && EditMesh.Attributes()->PrimaryNormals() != nullptr)
@@ -72,7 +72,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyPNTessellation
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
 		FPNTriangles Tessellator(&EditMesh);
-		Tessellator.TesselationLevel = TessellationLevel;
+		Tessellator.TessellationLevel = TessellationLevel;
 		
 		if (Tessellator.Validate() != EOperationValidationResult::Ok)
 		{
@@ -115,8 +115,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyUniformTessell
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
-		FUniformTesselate Tessellator(&EditMesh);
-		Tessellator.TesselationNum = TessellationLevel;
+		FUniformTessellate Tessellator(&EditMesh);
+		Tessellator.TessellationNum = TessellationLevel;
 		
 		if (Tessellator.Validate() != EOperationValidationResult::Ok)
 		{

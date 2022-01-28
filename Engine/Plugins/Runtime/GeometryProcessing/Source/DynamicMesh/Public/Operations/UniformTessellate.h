@@ -15,27 +15,27 @@ namespace Geometry
 class FDynamicMesh3;
 
 /**
- * Given an input mesh and a tesselation level, this operator generates a new tesselated mesh where every triangle in 
- * the input mesh is uniformly subtriangulated into (TesselationNum + 1)^2 triangles. Per-vertex normals, uvs, 
+ * Given an input mesh and a tessellation level, this operator generates a new tessellated mesh where every triangle in 
+ * the input mesh is uniformly subtriangulated into (TessellationNum + 1)^2 triangles. Per-vertex normals, uvs, 
  * colors and extended per-vertex attributes are linearly interpolated to the new verticies. Per-triangle group 
  * identifiers/materials and extended triangle attributes for the new triangles are inherited from the corresponding 
  * input mesh triangles they replaced. 
  * 
  * Note: Currently does not support interpolation of the GenericAttributes besides Skin Weights.
  *   
- *            o                                o         
- *           / \     TesselationNum = 2       / \        
- *          /   \                            /   \       
- *         /     \                          x-----x      
- *        /       \    FUniformTesselate   / \   / \     
- *       /         \    ------------->    /   \ /   \    
- *      /           \                    x-----*-----x   
- *     /             \                  / \   / \   / \  
- *    /               \                /   \ /   \ /   \ 
- *   o-----------------o              o-----x-----x-----o 
+ *            o                                 o         
+ *           / \     TessellationNum = 2       / \        
+ *          /   \                             /   \       
+ *         /     \                           x-----x      
+ *        /       \    FUniformTessellate   / \   / \     
+ *       /         \    ------------->     /   \ /   \    
+ *      /           \                     x-----*-----x   
+ *     /             \                   / \   / \   / \  
+ *    /               \                 /   \ /   \ /   \ 
+ *   o-----------------o               o-----x-----x-----o 
  */
 
-class DYNAMICMESH_API FUniformTesselate
+class DYNAMICMESH_API FUniformTessellate
 {
 public:
 	//
@@ -46,7 +46,7 @@ public:
 	FProgressCancel* Progress = nullptr;
 
 	/** Determines the number of triangles we generate. */
-	int TesselationNum = 0;
+	int TessellationNum = 0;
 
 	/** Should multi-threading be enabled. */
 	bool bUseParallel = true;
@@ -58,7 +58,7 @@ public:
 	// Input/Output
 	//
 
-	/** The tesselated mesh. */
+	/** The tessellated mesh. */
 	FDynamicMesh3* ResultMesh = nullptr;
 	
 	//
@@ -83,47 +83,47 @@ public:
 protected:
 	
 	/** 
-	 * Points to either the input mesh to be used to generate the new tesselated mesh or will point to a copy of 
-	 * the mesh we are tesselating inplace.
+	 * Points to either the input mesh to be used to generate the new tessellated mesh or will point to a copy of 
+	 * the mesh we are tessellating inplace.
 	 */
 	const FDynamicMesh3* Mesh = nullptr;
 
 	/** 
-	 * If true, the mesh to tesselate is contained in the ResultMesh and will be overwritten with the 
-	 * tesselation result. 
+	 * If true, the mesh to tessellate is contained in the ResultMesh and will be overwritten with the 
+	 * tessellation result. 
 	 */
 	bool bInPlace = false;
 
 public:
 
 	/** 
-	 * Tesselate the mesh inplace. If the tesselation fails or the user cancelled the operation, OutMesh will not 
+	 * Tessellate the mesh inplace. If the tessellation fails or the user cancelled the operation, OutMesh will not 
 	 * be changed.
 	 */
-	FUniformTesselate(FDynamicMesh3* OutMesh) 
+	FUniformTessellate(FDynamicMesh3* OutMesh) 
 	:
 	ResultMesh(OutMesh), bInPlace(true)
 	{
 	}
 
 	/** 
-	 * Tesselate the mesh and write the result into another mesh. This will overwrite any data stored in the OutMesh. 
+	 * Tessellate the mesh and write the result into another mesh. This will overwrite any data stored in the OutMesh. 
 	 */
-	FUniformTesselate(const FDynamicMesh3* Mesh, FDynamicMesh3* OutMesh) 
+	FUniformTessellate(const FDynamicMesh3* Mesh, FDynamicMesh3* OutMesh) 
 	: 
 	ResultMesh(OutMesh), Mesh(Mesh), bInPlace(false)
 	{
 	}
 	
-	virtual ~FUniformTesselate() 
+	virtual ~FUniformTessellate() 
 	{
 	}
 
-	/** @return The number of vertices after the tesselation. */
-	static int32 ExpectedNumVertices(const FDynamicMesh3& Mesh, const int32 TesselationNum);
+	/** @return The number of vertices after the tessellation. */
+	static int32 ExpectedNumVertices(const FDynamicMesh3& Mesh, const int32 TessellationNum);
 	
-	/** @return The number of triangles after the tesselation. */
-	static int32 ExpectedNumTriangles(const FDynamicMesh3& Mesh, const int32 TesselationNum);
+	/** @return The number of triangles after the tessellation. */
+	static int32 ExpectedNumTriangles(const FDynamicMesh3& Mesh, const int32 TessellationNum);
 
 	/**
 	 * @return EOperationValidationResult::Ok if we can apply operation, or error code if we cannot.
@@ -133,7 +133,7 @@ public:
 		const bool bIsInvalid = bInPlace == false && (Mesh == nullptr || ResultMesh == nullptr);
 		const bool bIsInvalidInPlace = bInPlace && ResultMesh == nullptr;
 		
-		if (TesselationNum < 0 || bIsInvalid || bIsInvalidInPlace) 
+		if (TessellationNum < 0 || bIsInvalid || bIsInvalidInPlace) 
 		{
 			return EOperationValidationResult::Failed_UnknownReason;
 		}
@@ -142,7 +142,7 @@ public:
 	}
 
 	/**
-	 * Generate tesselated geometry.
+	 * Generate tessellated geometry.
 	 * 
 	 * @return true if the algorithm succeeds, false if it failed or was cancelled by the user.
 	 */

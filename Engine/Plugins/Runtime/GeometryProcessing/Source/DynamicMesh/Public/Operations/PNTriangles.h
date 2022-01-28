@@ -39,7 +39,7 @@ public:
 	FProgressCancel* Progress = nullptr;
 	
 	/** How many times we are recursively subdividing triangles (loop style subdivision). */
-	int32 TesselationLevel = 1;
+	int32 TessellationLevel = 1;
 
 	/**
 	 * If true, use the quadratically varying normal computation. 
@@ -61,7 +61,7 @@ public:
 	 */
 	virtual EOperationValidationResult Validate()
 	{
-		if (TesselationLevel < 0 || Mesh == nullptr) 
+		if (TessellationLevel < 0 || Mesh == nullptr) 
 		{
 			return EOperationValidationResult::Failed_UnknownReason;    
 		}
