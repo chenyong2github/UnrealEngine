@@ -666,13 +666,13 @@ void FTaskTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builde
 		return;
 	}
 
-	Builder.AddEvent(Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, TEXT("Launched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Created));
-	Builder.AddEvent(Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, TEXT("Dispatched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Launched));
+	Builder.AddEvent(Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, TEXT("Created"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Created));
+	Builder.AddEvent(Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, TEXT("Launched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Launched));
 	Builder.AddEvent(Task->ScheduledTimestamp, Task->StartedTimestamp, 0, TEXT("Scheduled"), 0,  FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Scheduled));
-	Builder.AddEvent(Task->StartedTimestamp, Task->FinishedTimestamp, 0, TEXT("Executed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Started));
+	Builder.AddEvent(Task->StartedTimestamp, Task->FinishedTimestamp, 0, TEXT("Executing"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Started));
 	if (Task->CompletedTimestamp > Task->FinishedTimestamp)
 	{
-		Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Completed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Completed));
+		Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Finished"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Finished));
 	}
 
 	if (bShowDetailInfoOnTaskTrack)
@@ -683,27 +683,27 @@ void FTaskTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builde
 			const TraceServices::FTaskInfo* TaskInfo = TasksProvider->TryGetTask(Relation.RelativeId);
 			if (TaskInfo)
 			{
-				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Prerequisite Task %d"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Prerequisite));
+				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Prerequisite Task %d Executing"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::PrerequisiteStarted));
 			}
 		}
 
-		// The nested/subsequents tasks should not overlap the prerequisites tasks, so we can draw them on same depth."
 		Depth = 0;
 		for (TraceServices::FTaskInfo::FRelationInfo Relation : Task->NestedTasks)
 		{
 			const TraceServices::FTaskInfo* TaskInfo = TasksProvider->TryGetTask(Relation.RelativeId);
 			if (TaskInfo)
 			{
-				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Nested Task %d"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::AddedNested));
+				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Nested Task %d Executing"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::NestedStarted));
 			}
 		}
 
+		Depth = 0;
 		for (TraceServices::FTaskInfo::FRelationInfo Relation : Task->Subsequents)
 		{
 			const TraceServices::FTaskInfo* TaskInfo = TasksProvider->TryGetTask(Relation.RelativeId);
 			if (TaskInfo)
 			{
-				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Subsequent Task %d"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Subsequent));
+				Builder.AddEvent(TaskInfo->StartedTimestamp, TaskInfo->FinishedTimestamp, ++Depth, *FString::Printf(TEXT("Subsequent Task %d Executing"), TaskInfo->Id), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::SubsequentStarted));
 			}
 		}
 	}
@@ -829,23 +829,23 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 		{
 			if (EventTime >= Task->CreatedTimestamp && EventTime < Task->LaunchedTimestamp)
 			{
-				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, ETaskTrackEventType::Launched);
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->CreatedTimestamp, Task->LaunchedTimestamp, 0, ETaskEventType::Created);
 			}
 			else if (EventTime >= Task->LaunchedTimestamp && EventTime < Task->ScheduledTimestamp)
 			{
-				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, ETaskTrackEventType::Dispatched);
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, ETaskEventType::Launched);
 			}
 			else if (EventTime >= Task->ScheduledTimestamp && EventTime < Task->StartedTimestamp)
 			{
-				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->ScheduledTimestamp, Task->StartedTimestamp, 0, ETaskTrackEventType::Scheduled);
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->ScheduledTimestamp, Task->StartedTimestamp, 0, ETaskEventType::Scheduled);
 			}
 			else if (EventTime >= Task->StartedTimestamp && EventTime < Task->FinishedTimestamp)
 			{
-				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->StartedTimestamp, Task->FinishedTimestamp, 0, ETaskTrackEventType::Executed);
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->StartedTimestamp, Task->FinishedTimestamp, 0, ETaskEventType::Started);
 			}
 			else if (EventTime >= Task->FinishedTimestamp && EventTime < Task->CompletedTimestamp)
 			{
-				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->FinishedTimestamp, Task->CompletedTimestamp, 0, ETaskTrackEventType::Completed);
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->FinishedTimestamp, Task->CompletedTimestamp, 0, ETaskEventType::Finished);
 			}
 
 			if (TimingEvent.IsValid())
@@ -855,13 +855,13 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 		}
 		else if(bShowDetailInfoOnTaskTrack)
 		{
-			auto GetEventFromRelations = [&TasksProvider, this, EventTime](const TArray<TraceServices::FTaskInfo::FRelationInfo>& Relations, int32 Depth, ETaskTrackEventType EventType, int32 PosOffset) -> TSharedPtr<FTaskTrackEvent>
+			auto GetEventFromRelations = [&TasksProvider, this, EventTime](const TArray<TraceServices::FTaskInfo::FRelationInfo>& Relations, int32 Depth, ETaskEventType EventType) -> TSharedPtr<FTaskTrackEvent>
 			{
-				if (Depth - PosOffset <= 0 || Relations.Num() < Depth - PosOffset)
+				if (Relations.Num() < Depth)
 				{
 					return nullptr;
 				}
-				const TraceServices::FTaskInfo::FRelationInfo& Relation = Relations[Depth - PosOffset - 1];
+				const TraceServices::FTaskInfo::FRelationInfo& Relation = Relations[Depth - 1];
 				{
 					const TraceServices::FTaskInfo* TaskInfo = TasksProvider->TryGetTask(Relation.RelativeId);
 					if (TaskInfo && EventTime >= TaskInfo->StartedTimestamp && EventTime <= TaskInfo->FinishedTimestamp)
@@ -875,16 +875,16 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 				return nullptr;
 			};
 
-			TimingEvent = GetEventFromRelations(Task->Prerequisites, Depth, ETaskTrackEventType::Prerequisite, 0);
+			TimingEvent = GetEventFromRelations(Task->Prerequisites, Depth, ETaskEventType::PrerequisiteStarted);
 
 			if (!TimingEvent.IsValid())
 			{
-				TimingEvent = GetEventFromRelations(Task->NestedTasks, Depth, ETaskTrackEventType::Nested, 0);
+				TimingEvent = GetEventFromRelations(Task->NestedTasks, Depth, ETaskEventType::NestedStarted);
 			}
 
 			if (!TimingEvent.IsValid())
 			{
-				TimingEvent = GetEventFromRelations(Task->Subsequents, Depth, ETaskTrackEventType::Subsequent, Task->NestedTasks.Num());
+				TimingEvent = GetEventFromRelations(Task->Subsequents, Depth, ETaskEventType::SubsequentStarted);
 			}
 		}
 	}
@@ -936,26 +936,26 @@ void FTaskTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimin
 
 	switch (TaskTrackEvent.GetTaskEventType())
 	{
-	case ETaskTrackEventType::Launched:
+	case ETaskEventType::Created:
 		break;
-	case ETaskTrackEventType::Prerequisite:
-	case ETaskTrackEventType::Nested:
-	case ETaskTrackEventType::Subsequent:
+	case ETaskEventType::PrerequisiteStarted:
+	case ETaskEventType::NestedStarted:
+	case ETaskEventType::SubsequentStarted:
 	{
 		InOutTooltip.AddNameValueTextLine(TEXT("Executed Thread Id:"), FString::Printf(TEXT("%d"), Task->StartedThreadId));
 		break;
 	}
-	case ETaskTrackEventType::Dispatched:
+	case ETaskEventType::Launched:
 	{
 		InOutTooltip.AddNameValueTextLine(TEXT("Prerequisite tasks:"), FString::Printf(TEXT("%d"), Task->Prerequisites.Num()));
 		break;
 	}
-	case ETaskTrackEventType::Scheduled:
+	case ETaskEventType::Scheduled:
 		break;
-	case ETaskTrackEventType::Executed:
+	case ETaskEventType::Started:
 		InOutTooltip.AddNameValueTextLine(TEXT("Nested tasks:"), FString::Printf(TEXT("%d"), Task->NestedTasks.Num()));
 		break;
-	case ETaskTrackEventType::Completed:
+	case ETaskEventType::Finished:
 		InOutTooltip.AddNameValueTextLine(TEXT("Subsequent tasks:"), FString::Printf(TEXT("%d"), Task->Subsequents.Num()));
 		break;
 	default:
@@ -1004,7 +1004,7 @@ void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEven
 				{
 					int32 WaitingTaskExecutionDepth = FTaskGraphProfilerManager::Get()->GetDepthOfTaskExecution(WaitedTask->StartedTimestamp, WaitedTask->FinishedTimestamp, WaitedTask->StartedThreadId);
 
-					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, StartTime, ThreadId, -1, WaitedTask->StartedTimestamp, WaitedTask->StartedThreadId, WaitingTaskExecutionDepth, ETaskEventType::AddedNested);
+					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, StartTime, ThreadId, -1, WaitedTask->StartedTimestamp, WaitedTask->StartedThreadId, WaitingTaskExecutionDepth, ETaskEventType::NestedStarted);
 					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, WaitedTask->CompletedTimestamp, WaitedTask->CompletedThreadId, WaitedTask->CompletedTimestamp, ThreadId, ETaskEventType::NestedCompleted);
 				}
 			}

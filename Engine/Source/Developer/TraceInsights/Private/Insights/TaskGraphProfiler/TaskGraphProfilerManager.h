@@ -39,13 +39,13 @@ enum class ETaskEventType : uint32
 {
 	Created,
 	Launched,
-	Prerequisite,
 	Scheduled,
 	Started,
-	AddedNested,
+	Finished,
+	PrerequisiteStarted,
+	NestedStarted,
 	NestedCompleted,
-	Subsequent,
-	Completed,
+	SubsequentStarted,
 	CriticalPath,
 	
 	NumTaskEventTypes,

@@ -5,21 +5,11 @@
 #include "CoreMinimal.h"
 
 // Insights
+#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/ViewModels/TimingEvent.h"
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class ETaskTrackEventType : uint32
+namespace Insights
 {
-	Launched,
-	Dispatched,
-	Scheduled,
-	Executed,
-	Completed,
-	Prerequisite,
-	Nested,
-	Subsequent,
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,7 +18,7 @@ class FTaskTrackEvent : public FTimingEvent
 	INSIGHTS_DECLARE_RTTI(FTaskTrackEvent, FTimingEvent)
 
 public:
-	FTaskTrackEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth, ETaskTrackEventType InTaskEventType);
+	FTaskTrackEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth, ETaskEventType InTaskEventType);
 	virtual ~FTaskTrackEvent() {}
 
 	FString GetStartLabel() const;
@@ -36,14 +26,16 @@ public:
 
 	FString GetEventName() const;
 
-	ETaskTrackEventType GetTaskEventType() const { return TaskEventType; }
+	ETaskEventType GetTaskEventType() const { return TaskEventType; }
 
 	uint32 GetTaskId() const { return TaskId; }
 	void SetTaskId(uint32 InTaskId) { TaskId = InTaskId; }
 
 private:
-	ETaskTrackEventType TaskEventType;
+	ETaskEventType TaskEventType;
 	uint32 TaskId = ~0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights

@@ -2,13 +2,16 @@
 
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTrackEvent.h"
 
+namespace Insights
+{
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 INSIGHTS_IMPLEMENT_RTTI(FTaskTrackEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTaskTrackEvent::FTaskTrackEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth, ETaskTrackEventType InType)
+FTaskTrackEvent::FTaskTrackEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth, ETaskEventType InType)
 	: FTimingEvent(InTrack, InStartTime, InEndTime, InDepth)
 	, TaskEventType(InType)
 {}
@@ -19,18 +22,18 @@ FString FTaskTrackEvent::GetStartLabel() const
 {
 	switch (TaskEventType)
 	{
-	case ETaskTrackEventType::Launched:
+	case ETaskEventType::Created:
 		return TEXT("Created Time:");
-	case ETaskTrackEventType::Dispatched:
+	case ETaskEventType::Launched:
 		return TEXT("Launched Time");
-	case ETaskTrackEventType::Scheduled:
+	case ETaskEventType::Scheduled:
 		return TEXT("Scheduled Time:");
-	case ETaskTrackEventType::Executed:
-	case ETaskTrackEventType::Prerequisite:
-	case ETaskTrackEventType::Nested:
-	case ETaskTrackEventType::Subsequent:
+	case ETaskEventType::Started:
+	case ETaskEventType::PrerequisiteStarted:
+	case ETaskEventType::NestedStarted:
+	case ETaskEventType::SubsequentStarted:
 		return TEXT("Started Time:");
-	case ETaskTrackEventType::Completed:
+	case ETaskEventType::Finished:
 		return TEXT("Finished Time:");
 	default:
 		checkf(false, TEXT("Unknown task event type"));
@@ -46,18 +49,18 @@ FString FTaskTrackEvent::GetEndLabel() const
 {
 	switch (TaskEventType)
 	{
-	case ETaskTrackEventType::Launched:
+	case ETaskEventType::Created:
 		return TEXT("Launched Time:");
-	case ETaskTrackEventType::Dispatched:
+	case ETaskEventType::Launched:
 		return TEXT("Scheduled Time");
-	case ETaskTrackEventType::Scheduled:
+	case ETaskEventType::Scheduled:
 		return TEXT("Started Time:");
-	case ETaskTrackEventType::Executed:
-	case ETaskTrackEventType::Prerequisite:
-	case ETaskTrackEventType::Nested:
-	case ETaskTrackEventType::Subsequent:
+	case ETaskEventType::Started:
+	case ETaskEventType::PrerequisiteStarted:
+	case ETaskEventType::NestedStarted:
+	case ETaskEventType::SubsequentStarted:
 		return TEXT("Finished Time:");
-	case ETaskTrackEventType::Completed:
+	case ETaskEventType::Finished:
 		return TEXT("Completed Time:");
 	default:
 		checkf(false, TEXT("Unknown task event type"));
@@ -73,22 +76,22 @@ FString FTaskTrackEvent::GetEventName() const
 {
 	switch (TaskEventType)
 	{
-	case ETaskTrackEventType::Launched:
+	case ETaskEventType::Created:
+		return TEXT("Created");
+	case ETaskEventType::Launched:
 		return TEXT("Launched");
-	case ETaskTrackEventType::Dispatched:
-		return TEXT("Dispatched");
-	case ETaskTrackEventType::Scheduled:
+	case ETaskEventType::Scheduled:
 		return TEXT("Scheduled");
-	case ETaskTrackEventType::Executed:
-		return TEXT("Executed");
-	case ETaskTrackEventType::Completed:
-		return TEXT("Completed");
-	case ETaskTrackEventType::Prerequisite:
-		return FString::Printf(TEXT("Prerequisite Task %d"), GetTaskId());	
-	case ETaskTrackEventType::Nested:
-		return FString::Printf(TEXT("Nested Task %d"), GetTaskId());
-	case ETaskTrackEventType::Subsequent:
-		return FString::Printf(TEXT("Subsequent Task %d"), GetTaskId());
+	case ETaskEventType::Started:
+		return TEXT("Executing");
+	case ETaskEventType::Finished:
+		return TEXT("Finished");
+	case ETaskEventType::PrerequisiteStarted:
+		return FString::Printf(TEXT("Prerequisite Task %d Executing"), GetTaskId());	
+	case ETaskEventType::NestedStarted:
+		return FString::Printf(TEXT("Nested Task %d Executing"), GetTaskId());
+	case ETaskEventType::SubsequentStarted:
+		return FString::Printf(TEXT("Subsequent Task %d Executing"), GetTaskId());
 
 	default:
 		checkf(false, TEXT("Unknown task event type"));
@@ -100,3 +103,5 @@ FString FTaskTrackEvent::GetEventName() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
