@@ -70,8 +70,9 @@ public:
 	{
 		UFractureActionTool* ActionTool;
 		FFractureToolContext* FractureContext;
+		bool bNeedPhysicsUpdate;
 
-		FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext);
+		FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext, bool bWantPhysicsUpdate = true);
 
 		~FModifyContextScope();
 	};
@@ -147,6 +148,11 @@ public:
 	/** Executes the command.  Derived types need to be implemented in a thread safe way*/
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual bool CanExecute() const override;
+	// @return true if the physics state needs to be updated after executing (e.g., can be false if tool is just updating UVs)
+	virtual bool ExecuteUpdatesPhysics() const
+	{
+		return true;
+	}
 
 	/** Executes function that generates new geometry. Returns the first new geometry index. */
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) { return INDEX_NONE; }

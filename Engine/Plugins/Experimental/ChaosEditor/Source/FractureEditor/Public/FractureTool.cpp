@@ -49,16 +49,27 @@ const TSharedPtr<FUICommandInfo>& UFractureActionTool::GetUICommandInfo() const
 	return UICommandInfo;
 }
 
-UFractureActionTool::FModifyContextScope::FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext) : ActionTool(ActionTool), FractureContext(FractureContext)
+UFractureActionTool::FModifyContextScope::FModifyContextScope(UFractureActionTool* ActionTool, FFractureToolContext* FractureContext, bool bWantPhysicsUpdate) : ActionTool(ActionTool), FractureContext(FractureContext)
 {
 	check(FractureContext);
 	check(ActionTool);
 	FractureContext->GetFracturedGeometryCollection()->Modify();
 	FractureContext->GetGeometryCollectionComponent()->Modify();
+	bool bHasPhysicsState = FractureContext->GetGeometryCollectionComponent()->HasValidPhysicsState();
+	bNeedPhysicsUpdate = bWantPhysicsUpdate && bHasPhysicsState;
+	if (bNeedPhysicsUpdate)
+	{
+		FractureContext->GetGeometryCollectionComponent()->DestroyPhysicsState();
+	}
 }
 
 UFractureActionTool::FModifyContextScope::~FModifyContextScope()
 {
+	if (bNeedPhysicsUpdate)
+	{
+		FractureContext->GetGeometryCollectionComponent()->RecreatePhysicsState();
+	}
+
 	UFractureEditorMode* FractureMode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
 	if (!FractureMode)
 	{
@@ -298,6 +309,12 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 		{
 			FractureContext.GetFracturedGeometryCollection()->Modify();
 			FractureContext.GetGeometryCollectionComponent()->Modify();
+			bool bHadPhysicsState = FractureContext.GetGeometryCollectionComponent()->HasValidPhysicsState();
+			bool bNeedPhysicsUpdate = ExecuteUpdatesPhysics() && bHadPhysicsState;
+			if (bNeedPhysicsUpdate)
+			{
+				FractureContext.GetGeometryCollectionComponent()->DestroyPhysicsState();
+			}
 
 			int32 FirstNewGeometryIndex = ExecuteFracture(FractureContext);
 			
@@ -337,6 +354,11 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 					FractureContext.GetFracturedGeometryCollection()->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 				}
 				FractureContext.GetFracturedGeometryCollection()->InitResources();
+			}
+
+			if (bNeedPhysicsUpdate)
+			{
+				FractureContext.GetGeometryCollectionComponent()->RecreatePhysicsState();
 			}
 
 			Refresh(FractureContext, Toolkit);

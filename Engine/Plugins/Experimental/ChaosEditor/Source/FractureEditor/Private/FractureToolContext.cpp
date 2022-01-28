@@ -14,8 +14,7 @@ FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeome
 
 	Transform = GeometryCollectionComponent->GetOwner()->GetActorTransform();
 
-	FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
-	if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
+	if (UGeometryCollection* GeometryCollectionObject = RestCollection.GetRestCollection())
 	{
 		GeometryCollection = GeometryCollectionObject->GetGeometryCollection();
 		SelectedBones = GeometryCollectionComponent->GetSelectedBones();

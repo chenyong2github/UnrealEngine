@@ -75,6 +75,11 @@ public:
 
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	// don't need to update physics state for new normals/tangents
+	virtual bool ExecuteUpdatesPhysics() const override
+	{
+		return false;
+	}
 
 protected:
 	UPROPERTY()
