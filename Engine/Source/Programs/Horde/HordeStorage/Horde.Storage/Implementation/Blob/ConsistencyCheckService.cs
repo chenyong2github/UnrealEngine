@@ -107,7 +107,9 @@ namespace Horde.Storage.Implementation
                     BlobIdentifier newHash = await BlobIdentifier.FromStream(s);
                     if (!blob.Equals(newHash))
                     {
-                        _logger.Error("Mismatching hash for S3 object {Blob} in {Namespace}, new hash has {NewHash}", blob, ns, newHash);
+                        _logger.Error("Mismatching hash for S3 object {Blob} in {Namespace}, new hash has {NewHash}. Deleting incorrect blob.", blob, ns, newHash);
+
+                        await s3Store.DeleteObject(ns, blob);
                     }
                 }
                 
