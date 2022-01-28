@@ -496,6 +496,11 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		PreviewWithBackgroundCompute->Shutdown();
 	}
+
+	if (GenerateProcess)
+	{
+		GenerateProcess = nullptr;
+	}
 }
 
 
