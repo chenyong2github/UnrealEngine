@@ -4,6 +4,7 @@
 #include "Async/Async.h"
 #include "ConvolutionReverb.h"
 #include "DSP/ConvolutionAlgorithm.h"
+#include "DSP/Dsp.h"
 #include "SynthesisModule.h"
 #include "EffectConvolutionReverb.generated.h"
 
