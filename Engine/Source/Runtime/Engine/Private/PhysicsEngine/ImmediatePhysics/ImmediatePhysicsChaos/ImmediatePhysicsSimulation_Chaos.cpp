@@ -262,7 +262,7 @@ namespace ImmediatePhysics_Chaos
 		FImplementation()
 			: Particles(UniqueIndices)
 			, Joints()
-			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance)
+			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr, 0, 0, ChaosImmediate_Collision_CullDistance)
 			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr)
 			, NarrowPhase(ChaosImmediate_Collision_CullDistance, FReal(0), Collisions.GetConstraintAllocator())
 			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)

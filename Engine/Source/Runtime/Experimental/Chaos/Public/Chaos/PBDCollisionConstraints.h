@@ -57,7 +57,8 @@ public:
 	FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
-		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials, 
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+		const THandleArray<FChaosPhysicsMaterial>* const SimMaterials,
 		const int32 ApplyPairIterations = 1, 
 		const int32 ApplyPushOutPairIterations = 1, 
 		const FReal RestitutionThreshold = 2000.0f);
@@ -311,6 +312,7 @@ private:
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& MPerParticlePhysicsMaterials;
+	const THandleArray<FChaosPhysicsMaterial>* const SimMaterials;
 	int32 MApplyPairIterations;
 	int32 MApplyPushOutPairIterations;
 	FReal RestitutionThreshold;
