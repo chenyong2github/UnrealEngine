@@ -235,24 +235,57 @@ public:
 	: FMaterialShader(Initializer)
 	{
 	}
-	
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+
+	static bool RequiresProgrammableVertex(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		const bool bProgrammableRaster = 
+	#if 0 // TODO: PROG_RASTER
+		return Parameters.MaterialParameters.bMaterialMayModifyMeshPosition;
+	#else
+		return false;
+	#endif
+	}
+
+	static bool RequiresProgrammablePixel(const FMaterialShaderPermutationParameters& Parameters)
+	{
+		const bool bProgrammablePixel =
 		(
-		#if 1 // TODO: PROG_RASTER
-			false
-		#else
-			Parameters.MaterialParameters.bIsMasked ||
-			Parameters.MaterialParameters.bHasPixelDepthOffsetConnected ||
-			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition// ||
-			//Parameters.MaterialParameters.bWritesEveryPixel == false
+			Parameters.MaterialParameters.bIsMasked 
+		#if 0 // TODO: PROG_RASTER
+			|| Parameters.MaterialParameters.bHasPixelDepthOffsetConnected
+			|| Parameters.MaterialParameters.bMaterialMayModifyMeshPosition
 		#endif
 		);
 
-		const bool bValidMaterial = 
-			Parameters.MaterialParameters.bIsDefaultMaterial || 
-			(Parameters.MaterialParameters.bIsUsedWithNanite && bProgrammableRaster);
+		return bProgrammablePixel;
+	}
+
+	static bool ShouldCompilePixelPermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	{
+		// Always compile default material as the fast opaque "fixed function" raster path
+		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
+
+		// Compile this pixel shader if it requires programmable raster and it's enabled
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && RequiresProgrammablePixel(Parameters))
+		{
+			bValidMaterial = true;
+		}
+
+		return
+			DoesPlatformSupportNanite(Parameters.Platform) &&
+			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
+			bValidMaterial;
+	}
+	
+	static bool ShouldCompileVertexPermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	{
+		// Always compile default material as the fast opaque "fixed function" raster path
+		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
+
+		// Compile this vertex shader if it requires programmable raster and it's enabled
+		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && RequiresProgrammableVertex(Parameters))
+		{
+			bValidMaterial = true;
+		}
 
 		return
 			DoesPlatformSupportNanite(Parameters.Platform) &&

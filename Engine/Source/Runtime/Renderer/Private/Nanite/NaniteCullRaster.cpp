@@ -142,6 +142,15 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 	TEXT("")
 );
 
+// TODO: WIP - PROG_RASTER
+int32 GNaniteProgrammableRaster = 0;
+static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
+	TEXT("r.Nanite.ProgrammableRaster"),
+	GNaniteProgrammableRaster,
+	TEXT(""),
+	ECVF_ReadOnly
+);
+
 // Specifies if Nanite should require atomic64 support, or fallback to traditional mesh rendering using the proxies.
 // 0: Nanite will run without atomic support, but use the lockbuffer fallback, with known race conditions and corruption. (unshippable, but useful for debugging and platform bring-up).
 // 1: Nanite will not run without atomic support, instead causing legacy scene proxies to be created instead.
@@ -812,7 +821,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -945,7 +954,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1102,7 +1111,7 @@ public:
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompilePermutation(Parameters);
+		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, GNaniteProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
