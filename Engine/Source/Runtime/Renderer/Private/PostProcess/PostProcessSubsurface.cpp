@@ -1303,7 +1303,7 @@ void AddSubsurfaceViewPass(
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
 			{
-				PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+				PassParameters->TileParameters = GetSubsurfaceTileParameters(SubsurfaceViewport, Tiles, TileType);
 			}
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SubsurfaceIntermediateTexture, SceneColorTextureLoadAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
@@ -1364,7 +1364,7 @@ void AddSubsurfaceViewPass(
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
 			{
-				PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+				PassParameters->TileParameters = GetSubsurfaceTileParameters(SubsurfaceViewport, Tiles, TileType);
 			}
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, SceneColorTextureLoadAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SubsurfaceIntermediateTexture, SceneViewportParameters);

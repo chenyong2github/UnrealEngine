@@ -22,14 +22,14 @@ bool FSubsurfaceTileFallbackScreenPassVS::ShouldCompilePermutation(const FGlobal
 	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 }
 
-FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FViewInfo& InView,const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType, FIntPoint BufferExtent)
+FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FScreenPassTextureViewport& TileViewport, const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType)
 {
 	FSubsurfaceTilePassVS::FParameters Out;
 	Out.TileType = uint32(TileType);
 	Out.bRectPrimitive = InTile.bRectPrimitive ? 1 : 0;
-	Out.ViewMin = InView.ViewRect.Min;
-	Out.ViewMax = InView.ViewRect.Max;
-	Out.ExtentInverse = FVector2f(1.f / BufferExtent.X, 1.f / BufferExtent.Y);
+	Out.ViewMin = TileViewport.Rect.Min;
+	Out.ViewMax = TileViewport.Rect.Max;
+	Out.ExtentInverse = FVector2f(1.f / TileViewport.Extent.X, 1.f / TileViewport.Extent.Y);
 	Out.TileDataBuffer = InTile.GetTileBufferSRV(TileType);
 	Out.TileIndirectBuffer = InTile.TileIndirectDrawBuffer;
 	return Out;

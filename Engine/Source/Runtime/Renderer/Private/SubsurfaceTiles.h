@@ -91,7 +91,7 @@ public:
 };
 
 
-FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FViewInfo& InView, const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType, FIntPoint BufferExtent);
+FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FScreenPassTextureViewport& TileViewport, const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType);
 
 template <typename FSubsurfacePassPS, typename FSubsurfacePassVS>
 void AddSubsurfaceTiledScreenPass(
