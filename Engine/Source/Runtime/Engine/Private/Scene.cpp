@@ -516,7 +516,7 @@ FPostProcessSettings::FPostProcessSettings()
 	AmbientOcclusionMipThreshold = 0.01f;
 	AmbientOcclusionRadiusInWS = false;
 	AmbientOcclusionTemporalBlendWeight = 0.1f;
-	RayTracingAO = 1;
+	RayTracingAO = 0;
 	RayTracingAOSamplesPerPixel = 1;
 	RayTracingAOIntensity = 1.0;
 	RayTracingAORadius = 200.0f;
