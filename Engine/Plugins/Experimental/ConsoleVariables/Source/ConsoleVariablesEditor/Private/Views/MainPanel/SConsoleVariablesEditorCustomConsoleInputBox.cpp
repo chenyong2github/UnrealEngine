@@ -305,7 +305,7 @@ FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyDownHandler(const FGeo
 		InputText->SetText(FText::GetEmpty());
 		SuggestionBox->SetIsOpen( false );
 		bIgnoreUIUpdate = false;
-		return MainPanelWidget.Pin()->ValidateConsoleInput(CommittedText);
+		return MainPanelWidget.Pin()->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
 	}
 
 	return FReply::Unhandled();

@@ -28,6 +28,8 @@ public:
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
+	void SetSearchString(const FString& SearchString);
+
 	EConsoleVariablesEditorListMode GetListMode() const
 	{
 		return CurrentListMode;

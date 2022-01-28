@@ -19,6 +19,11 @@ TSharedRef<SWidget> FConsoleVariablesEditorList::GetOrCreateWidget()
 	return ListWidget.ToSharedRef();
 }
 
+void FConsoleVariablesEditorList::SetSearchString(const FString& SearchString)
+{
+	ListWidget->SetSearchStringInSearchInputField(SearchString);
+}
+
 void FConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo) const
 {
 	if (ListWidget.IsValid())

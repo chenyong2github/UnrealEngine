@@ -28,6 +28,11 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
+	void SavePreset() const;
+	void SaveSpecificPreset(const TObjectPtr<UConsoleVariablesAsset> Preset) const;
+	void SavePresetAs() const;
+	void SaveSpecificPresetAs(const TObjectPtr<UConsoleVariablesAsset> Preset) const;
+	void OpenConsoleVariablesDialogWithPreset(const TObjectPtr<UConsoleVariablesAsset> Preset) const;
 	void OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 	/** Find all console variables and cache their startup values */
@@ -42,7 +47,11 @@ public:
 	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(
 		const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
 
-	/** Find all tracked console variables matching a specific search query with optional case sensitivity. */
+	/*Find all tracked console variables matching a specific search query with optional case sensitivity.
+	 *Individual members of InTokens will be considered "AnyOf" or "OR" searches. If SearchTerms contains any individual member it will match.
+	 *Members will be tested for a space character (" "). If a space is found, a subsearch will be run.
+	 *This subsearch will be an "AllOf" or "AND" type search in which all strings, separated by a space, must be found in the search terms.
+	 */
 	TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FindCommandInfosMatchingTokens(
 		const TArray<FString>& InTokens, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
 
@@ -56,6 +65,12 @@ public:
 	
 	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetPresetAsset() const;
 	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetGlobalSearchAsset() const;
+	
+	FReply ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const;
+	void RefreshList() const;
+	void RebuildList() const;
+	
+	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset);
 
 	/** Fills Global Search Asset's Saved Commands with variables matching the specified query. Returns false if no matches were found. */
 	bool PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens);

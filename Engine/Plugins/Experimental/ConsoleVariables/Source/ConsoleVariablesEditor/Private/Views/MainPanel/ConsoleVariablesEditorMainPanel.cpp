@@ -53,7 +53,7 @@ TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingA
 	return GetConsoleVariablesModule().GetPresetAsset();
 }
 
-void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
+void FConsoleVariablesEditorMainPanel::AddConsoleObjectToCurrentPreset(
 	const FString InConsoleCommand, const FString InValue, const bool bScrollToNewRow) const
 {
 	if (const TObjectPtr<UConsoleVariablesAsset> Asset = GetEditingAsset())
@@ -73,6 +73,70 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
 			RebuildList(bScrollToNewRow ? InConsoleCommand : "");
 		}
 	}
+}
+
+FReply FConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
+{
+	// Clear Search
+	if (const TSharedPtr<FConsoleVariablesEditorList> PinnedList = GetEditorList().Pin())
+	{
+		PinnedList->SetSearchString("");
+	}
+	
+	const FString CommandString = CommittedText.ToString().TrimStartAndEnd();
+	FString CommandKey;
+	FString ValueString;
+	
+	if (CommandString.Contains(" "))
+	{
+		CommandString.Split(TEXT(" "), &CommandKey, &ValueString);
+	}
+	else
+	{
+		CommandKey = CommandString;
+	}
+
+	if (IConsoleObject* ConsoleObject = IConsoleManager::Get().FindConsoleObject(*CommandKey)) 
+	{
+		if (ValueString.IsEmpty())
+		{
+			if (const IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
+			{
+				ValueString = AsVariable->GetString();
+			}
+		}
+		
+		AddConsoleObjectToCurrentPreset(
+			CommandKey,
+			ValueString,
+			true
+		);
+	}
+	else if (CommandString.IsEmpty())
+	{
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input is blank."), __FUNCTION__);
+
+		return FReply::Unhandled();
+	}
+	// Try to execute the whole command. Some commands are not registered, but are parsed externally so they won't be found by IConsoleManager::FindConsoleObject
+	else if (GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(), *CommandString))
+	{
+		AddConsoleObjectToCurrentPreset(
+			CommandString,
+			"",
+			true
+			);
+	}
+	else
+	{
+		UE_LOG(LogConsoleVariablesEditor, Warning,
+			TEXT("%hs: Input '%s' is not a recognized console variable or command."),
+			__FUNCTION__, *CommandString);
+
+		return FReply::Unhandled();
+	}
+
+	return FReply::Handled();
 }
 
 void FConsoleVariablesEditorMainPanel::RebuildList(const FString InConsoleCommandToScrollTo) const
@@ -107,11 +171,10 @@ void FConsoleVariablesEditorMainPanel::RefreshMultiUserDetails() const
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::SavePreset()
+void FConsoleVariablesEditorMainPanel::SaveCurrentPreset()
 {
-	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
-	
-	if (ReferenceAssetOnDisk.IsValid() && EditingAsset.IsValid())
+	if (const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+		EditingAsset.IsValid() && ReferenceAssetOnDisk.IsValid())
 	{
 		UpdatePresetValuesForSave(EditingAsset.Get());
 		
@@ -126,14 +189,28 @@ void FConsoleVariablesEditorMainPanel::SavePreset()
 	}
 
 	// Fallback
-	SavePresetAs();
+	SaveCurrentPresetAs();
 }
 
-void FConsoleVariablesEditorMainPanel::SavePresetAs()
+void FConsoleVariablesEditorMainPanel::SaveSpecificPreset(const TObjectPtr<UConsoleVariablesAsset> InPreset) const
 {
-	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
-	
-	if (EditingAsset.IsValid())
+	if (InPreset)
+	{		
+		if (UPackage* ReferencePackage = InPreset->GetPackage())
+		{
+			UEditorLoadingAndSavingUtils::SavePackages({ ReferencePackage }, false);
+
+			return;
+		}
+	}
+
+	// Fallback
+	SaveSpecificPresetAs(InPreset);
+}
+
+void FConsoleVariablesEditorMainPanel::SaveCurrentPresetAs()
+{
+	if (const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset(); EditingAsset.IsValid())
 	{
 		UpdatePresetValuesForSave(EditingAsset.Get());
 			
@@ -152,31 +229,49 @@ void FConsoleVariablesEditorMainPanel::SavePresetAs()
 	}
 }
 
+void FConsoleVariablesEditorMainPanel::SaveSpecificPresetAs(const TObjectPtr<UConsoleVariablesAsset> InPreset) const
+{
+	if (InPreset)
+	{
+		TArray<UObject*> SavedAssets;
+		FEditorFileUtils::SaveAssetsAs({ InPreset }, SavedAssets);
+	}
+}
+
 void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAsset)
 {
 	FSlateApplication::Get().DismissAllMenus();
-	const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+	
+	if (UConsoleVariablesAsset* Preset = CastChecked<UConsoleVariablesAsset>(InPresetAsset.GetAsset()))
+	{
+		if (const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset(); ImportPreset_Impl(Preset, EditingAsset))
+		{
+			EditorList->RebuildList();
+		}
+	}
+}
 
-	if (EditingAsset && ImportPreset_Impl(InPresetAsset, EditingAsset))
+void FConsoleVariablesEditorMainPanel::ImportPreset(const TObjectPtr<UConsoleVariablesAsset> InPreset)
+{
+	FSlateApplication::Get().DismissAllMenus();
+
+	if (const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset(); ImportPreset_Impl(InPreset, EditingAsset))
 	{
 		EditorList->RebuildList();
 	}
 }
 
 bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(
-	const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset)
+	const TObjectPtr<UConsoleVariablesAsset> Preset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset)
 {
-	if (UConsoleVariablesAsset* Preset = CastChecked<UConsoleVariablesAsset>(InPresetAsset.GetAsset()))
+	if (Preset && EditingAsset)
 	{
-		if (EditingAsset)
-		{
-			ReferenceAssetOnDisk = Preset;
+		ReferenceAssetOnDisk = Preset;
 
-			EditingAsset->Modify();
-			EditingAsset->CopyFrom(Preset);
+		EditingAsset->Modify();
+		EditingAsset->CopyFrom(Preset);
 
-			return true;
-		}
+		return true;
 	}
 
 	return false;

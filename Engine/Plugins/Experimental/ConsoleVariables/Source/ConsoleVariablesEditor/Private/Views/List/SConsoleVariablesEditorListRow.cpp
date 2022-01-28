@@ -101,10 +101,10 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 
 	const TSharedRef<SImage> FlashImage = SNew(SImage)
 										.Image(new FSlateColorBrush(FStyleColors::White))
-										.Visibility_Raw(this, &SConsoleVariablesEditorListRow::GetFlashImageVisibility)
+										.Visibility_Raw(
+											this, &SConsoleVariablesEditorListRow::GetFlashImageVisibility)
 										.ColorAndOpacity_Raw(
-		                                                  this,
-		                                                  &SConsoleVariablesEditorListRow::GetFlashImageColorAndOpacity);
+											this, &SConsoleVariablesEditorListRow::GetFlashImageColorAndOpacity);
 
 	FlashImages.Add(FlashImage);
 
@@ -134,29 +134,8 @@ void SConsoleVariablesEditorListRow::OnMouseEnter(const FGeometry& MyGeometry, c
 
 	if (HoverableWidgetsPtr.IsValid())
 	{
-		// We don't want to show the widget if we're in Global Search mode and the command is already in the preset
-		const bool bIsListValid =
-			Item.Pin()->GetListViewPtr().IsValid() && Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().IsValid();
-
-		const FConsoleVariablesEditorList::EConsoleVariablesEditorListMode ListMode =
-			bIsListValid
-				? Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().Pin()->GetListMode()
-				: FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset;
-
-		const bool bIsGlobalSearch =
-			ListMode == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch;
-
-		const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
-
-		const FString& CommandName = Item.Pin()->GetCommandInfo().Pin()->Command;
-		FConsoleVariablesEditorAssetSaveData MatchingData;
-		if (!bIsGlobalSearch ||
-			(bIsGlobalSearch &&
-				!ConsoleVariablesEditorModule.GetPresetAsset()->
-				                              FindSavedDataByCommandString(CommandName, MatchingData)))
-		{
-			HoverableWidgetsPtr->SetVisibility(EVisibility::SelfHitTestInvisible);
-		}
+		HoverableWidgetsPtr->DetermineButtonImageAndTooltip();
+		HoverableWidgetsPtr->SetVisibility(EVisibility::SelfHitTestInvisible);
 	}
 
 	SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>::OnMouseEnter(MyGeometry, MouseEvent);
@@ -587,28 +566,15 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 
 	Item = InRow;
 
-	const bool bIsListValid =
-		Item.Pin()->GetListViewPtr().IsValid() && Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().IsValid();
-
-	const FConsoleVariablesEditorList::EConsoleVariablesEditorListMode ListMode =
-		bIsListValid
-			? Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().Pin()->GetListMode()
-			: FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset;
-
-	FText ButtonTooltip = LOCTEXT("RemoveCvarTooltip",
-	                              "Remove cvar from this list and reset its value to the startup value.");
-	FName ButtonImageName = "Icons.Delete";
-
-	if (ListMode == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch)
-	{
-		ButtonImageName = "Icons.Star";
-		ButtonTooltip = LOCTEXT("AddCvarToPresetTooltip", "Add this cvar to your current preset.");
-	}
+	const FText ButtonTooltip = LOCTEXT("RemoveCvarTooltip",
+								  "Remove cvar from this list and reset its value to the startup value.");
+	const FSlateBrush* ButtonImage = FAppStyle::Get().GetBrush("Icons.Delete");
 
 	ChildSlot
 	[
 		// Action Button
 		SAssignNew(ActionButtonPtr, SButton)
+		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 		.Visibility(EVisibility::Visible)
 		.ToolTipText(ButtonTooltip)
 		.ButtonColorAndOpacity(FStyleColors::Transparent)
@@ -621,13 +587,48 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 		[
 			SNew(SScaleBox)
 			[
-				SNew(SImage)
+				SAssignNew(ActionButtonImage, SImage)
 				.Visibility(EVisibility::SelfHitTestInvisible)
-				.Image(FAppStyle::Get().GetBrush(ButtonImageName))
+				.Image(ButtonImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 	];
+}
+
+void SConsoleVariablesEditorListRowHoverWidgets::DetermineButtonImageAndTooltip()
+{
+	const bool bIsListValid =
+		Item.Pin()->GetListViewPtr().IsValid() && Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().IsValid();
+
+	const FConsoleVariablesEditorList::EConsoleVariablesEditorListMode ListMode =
+		bIsListValid
+			? Item.Pin()->GetListViewPtr().Pin()->GetListModelPtr().Pin()->GetListMode()
+			: FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset;
+
+	const bool bIsGlobalSearch =
+		ListMode == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch;
+
+	if (bIsGlobalSearch)
+	{
+		FText ButtonTooltip = LOCTEXT("AddCvarToPresetTooltip", "Add this cvar to your current preset.");
+		const FSlateBrush* ButtonImage = FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariables.Favorite.Outline.Small");
+		
+		const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+		
+		const FString& CommandName = Item.Pin()->GetCommandInfo().Pin()->Command;
+		FConsoleVariablesEditorAssetSaveData MatchingData;
+
+		// If the item exists in the current preset already
+		if (ConsoleVariablesEditorModule.GetPresetAsset()->FindSavedDataByCommandString(CommandName, MatchingData))
+		{
+			ButtonTooltip = LOCTEXT("RemoveCvarFromPresetTooltip", "Remove this cvar from your current preset.");
+			ButtonImage = FAppStyle::Get().GetBrush("Icons.Star");
+		}
+
+		ActionButtonPtr->SetToolTipText(ButtonTooltip);
+		ActionButtonImage->SetImage(ButtonImage);
+	}
 }
 
 void SConsoleVariablesEditorListRowHoverWidgets::OnMouseEnter(const FGeometry& MyGeometry,

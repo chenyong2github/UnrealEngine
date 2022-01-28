@@ -8,6 +8,7 @@
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SourceText.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorProjectSettings.h"
+#include "ConsoleVariablesEditorStyle.h"
 #include "SConsoleVariablesEditorListRow.h"
 #include "../Widgets/SConsoleVariablesEditorGlobalSearchToggle.h"
 
@@ -91,13 +92,12 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 					.Padding(0, 1, 4, 0)
 					.AutoWidth()
 					[
-						SNew(STextBlock)
-						.TextStyle(FAppStyle::Get(), "FindResults.FindInBlueprints")
-						.Text(FText::FromString(FString(TEXT("\xf1e5"))) /*fa-binoculars*/)
+						SNew(SImage)
+						.Image(FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariables.GlobalSearch.Small"))
 					]
 
 					+SHorizontalBox::Slot()
-					.Padding(4.f, 0.f, 0.f, 0.f)
+					.Padding(4.f, 1.f, 0.f, 0.f)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
@@ -145,6 +145,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.HAlign(HAlign_Fill)
 			[
 				SAssignNew(GlobalSearchesContainer, SWrapBox)
+				.InnerSlotPadding(FVector2d(6, 4))
 				.UseAllottedSize(true)
 			]
 
@@ -226,7 +227,8 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				SNew(STextBlock)
 				.AutoWrapText(true)
 				.Justification(ETextJustify::Center)
-				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList", "No List to show. Try clearing the active search or adding some console variables to the list."))
+				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList",
+					"No List to show. Try clearing the active local/global search and/or adding some console variables to the list."))
 			]
 		]
 	];
@@ -275,11 +277,12 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 		return ReturnValue;
 	}
 
-	// Strings that already have associated buttons
+	// Strings that already have associated buttons	
 	TArray<FString> ExistingButtonStrings;
+	
 	// All strings parsed from the search text
 	TArray<FString> OutTokens;
-	SearchString.ParseIntoArray(OutTokens, TEXT(" "));
+	SearchString.ParseIntoArray(OutTokens, TEXT("|"), true);
 
 	// Get tokens from current searches. This step allows us to properly populate the asset with all matching commands
 	for (const TSharedRef<SConsoleVariablesEditorGlobalSearchToggle>& GlobalSearchButton : CurrentGlobalSearches)
@@ -305,7 +308,7 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 	
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 	
-	if (ConsoleVariablesEditorModule.PopulateGlobalSearchAssetWithVariablesMatchingTokens(OutTokens))
+	const bool bFoundMatches = ConsoleVariablesEditorModule.PopulateGlobalSearchAssetWithVariablesMatchingTokens(OutTokens);
 	{
 		// If we were in Preset mode before entering global search, cache the existing tree objects to maintain state
 		if (ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
@@ -338,7 +341,8 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 
 		ReturnValue = FReply::Handled();
 	}
-	else
+	
+	if (!bFoundMatches)
 	{
 		UE_LOG(LogConsoleVariablesEditor, Warning,
 			TEXT("%hs: Failed to find console variable objects with names containing search string %s"),
@@ -478,13 +482,22 @@ FString SConsoleVariablesEditorList::GetSearchStringFromSearchInputField() const
 	? ListSearchBoxPtr->GetText().ToString() : "";
 }
 
+void SConsoleVariablesEditorList::SetSearchStringInSearchInputField(const FString InSearchString) const
+{
+	if (ensureAlwaysMsgf(ListSearchBoxPtr.IsValid(),
+		TEXT("%hs: ListSearchBoxPtr is not valid. Check to make sure it was created."), __FUNCTION__))
+	{
+		ListSearchBoxPtr->SetText(FText::FromString(InSearchString));
+	}
+}
+
 void SConsoleVariablesEditorList::ExecuteListViewSearchOnAllRows(
 	const FString& SearchString, const bool bShouldRefreshAfterward)
 {
 	TArray<FString> Tokens;
 	
 	// unquoted search equivalent to a match-any-of search
-	SearchString.ParseIntoArray(Tokens, TEXT(" "), true);
+	SearchString.ParseIntoArray(Tokens, TEXT("|"), true);
 	
 	for (const TSharedPtr<FConsoleVariablesEditorListRow>& ChildRow : TreeViewRootObjects)
 	{
@@ -958,7 +971,7 @@ void SConsoleVariablesEditorList::SetAllGroupsCollapsed()
 
 void SConsoleVariablesEditorList::OnListViewSearchTextChanged(const FText& Text)
 {
-	ExecuteListViewSearchOnAllRows(Text.ToString());
+	ExecuteListViewSearchOnAllRows(Text.ToString(), false);
 }
 
 void SConsoleVariablesEditorList::GenerateTreeView()

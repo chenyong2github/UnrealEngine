@@ -86,58 +86,9 @@ SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 	MultiUserDetailsBox.Reset();
 }
 
-FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& CommittedText) const
+FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
 {
-	const FString CommandString = CommittedText.ToString().TrimStartAndEnd();
-	FString CommandKey;
-	FString ValueString;
-	
-	if (CommandString.Contains(" "))
-	{
-		CommandString.Split(TEXT(" "), &CommandKey, &ValueString);
-	}
-	else
-	{
-		CommandKey = CommandString;
-	}
-
-	if (IConsoleObject* ConsoleObject = IConsoleManager::Get().FindConsoleObject(*CommandKey)) 
-	{
-		if (ValueString.IsEmpty())
-		{
-			if (const IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
-			{
-				ValueString = AsVariable->GetString();
-			}
-		}
-		
-		MainPanel.Pin()->AddConsoleObjectToPreset(
-			CommandKey,
-			ValueString,
-			true
-		);
-	}
-	else if (CommandString.IsEmpty())
-	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input is blank."), __FUNCTION__);
-	}
-	// Try to execute the whole command. Some commands are not registered, but are parsed externally so they won't be found by IConsoleManager::FindConsoleObject
-	else if (GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(), *CommandString))
-	{
-		MainPanel.Pin()->AddConsoleObjectToPreset(
-			CommandString,
-			"",
-			true
-			);
-	}
-	else
-	{
-		UE_LOG(LogConsoleVariablesEditor, Warning,
-			TEXT("%hs: Input '%s' is not a recognized console variable or command."),
-			__FUNCTION__, *CommandString);
-	}
-
-	return FReply::Handled();
+	return MainPanel.Pin()->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
 }
 
 void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails() const
@@ -293,7 +244,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 		LOCTEXT("SavePreset_Text", "Save Preset"),
 		LOCTEXT("SavePreset_Tooltip", "Save the current preset if one has been loaded. Otherwise, the Save As dialog will be opened."),
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset"),
-		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SavePreset)),
+		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SaveCurrentPreset)),
 		NAME_None,
 		EUserInterfaceActionType::Button
 	);
@@ -302,7 +253,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 		LOCTEXT("SavePresetAs_Text", "Save Preset As"),
 		LOCTEXT("SavePresetAs_Tooltip", "Save the current configuration as a new preset that can be shared between multiple jobs, or imported later as the base of a new configuration."),
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAssetAs"),
-		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SavePresetAs)),
+		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SaveCurrentPresetAs)),
 		NAME_None,
 		EUserInterfaceActionType::Button
 	);

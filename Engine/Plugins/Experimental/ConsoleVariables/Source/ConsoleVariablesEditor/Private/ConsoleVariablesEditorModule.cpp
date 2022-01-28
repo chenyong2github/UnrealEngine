@@ -9,7 +9,7 @@
 #include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
-#include "Algo/AnyOf.h"
+#include "Algo/AllOf.h"
 #include "Algo/Find.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
@@ -54,6 +54,47 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		SettingsModule.UnregisterSettings("Project", "Plugins", "Console Variables Editor");
+	}
+}
+
+void FConsoleVariablesEditorModule::SavePreset() const
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->SaveCurrentPreset();
+	}
+}
+
+void FConsoleVariablesEditorModule::SaveSpecificPreset(const TObjectPtr<UConsoleVariablesAsset> Preset) const
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->SaveSpecificPreset(Preset);
+	}
+}
+
+void FConsoleVariablesEditorModule::SavePresetAs() const
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->SaveCurrentPresetAs();
+	}
+}
+
+void FConsoleVariablesEditorModule::SaveSpecificPresetAs(const TObjectPtr<UConsoleVariablesAsset> Preset) const
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->SaveSpecificPresetAs(Preset);
+	}
+}
+
+void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithPreset(
+	const TObjectPtr<UConsoleVariablesAsset> Preset) const
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->ImportPreset(Preset);
 	}
 }
 
@@ -121,13 +162,30 @@ TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FConsoleVariablesEditorModu
 	
 	for (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo : ConsoleObjectsMasterReference)
 	{
-		if (Algo::AnyOf(InTokens,
-			[&CommandInfo, InSearchCase](const FString& Token)
-			{
-				return CommandInfo->Command.Contains(Token, InSearchCase);
-			}))
+		// Match any
+		for (const FString& Token : InTokens)
 		{
-			ReturnValue.Add(CommandInfo);
+			bool bMatchFound = false;
+			
+			// Match all of these
+			const FString SpaceDelimiter = " ";
+			TArray<FString> OutSpacedArray;
+			if (Token.Contains(SpaceDelimiter) && Token.ParseIntoArray(OutSpacedArray, *SpaceDelimiter, true) > 1)
+			{
+				bMatchFound = Algo::AllOf(OutSpacedArray, [&CommandInfo, InSearchCase](const FString& Comparator)
+				{
+					return CommandInfo->Command.Contains(Comparator, InSearchCase);
+				});
+			}
+			else
+			{
+				bMatchFound = CommandInfo->Command.Contains(Token, InSearchCase);
+			}
+
+			if (bMatchFound)
+			{
+				ReturnValue.Add(CommandInfo);
+			}
 		}
 	}
 
@@ -155,6 +213,26 @@ TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetPresetAsset
 TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetGlobalSearchAsset() const
 {
 	return EditingGlobalSearchAsset;
+}
+
+FReply FConsoleVariablesEditorModule::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
+{
+	return MainPanel->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
+}
+
+void FConsoleVariablesEditorModule::RefreshList() const
+{
+	MainPanel->RefreshList();
+}
+
+void FConsoleVariablesEditorModule::RebuildList() const
+{
+	MainPanel->RebuildList();
+}
+
+void FConsoleVariablesEditorModule::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset)
+{
+	MainPanel->UpdatePresetValuesForSave(InAsset);
 }
 
 bool FConsoleVariablesEditorModule::PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens)
@@ -281,7 +359,7 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			{
 				if (MainPanel.IsValid())
 				{
-					MainPanel->AddConsoleObjectToPreset(
+					MainPanel->AddConsoleObjectToCurrentPreset(
 						Key,
 						// If we're not in preset mode then pass empty value
 						// This forces the row to get the current value at the time it's generated

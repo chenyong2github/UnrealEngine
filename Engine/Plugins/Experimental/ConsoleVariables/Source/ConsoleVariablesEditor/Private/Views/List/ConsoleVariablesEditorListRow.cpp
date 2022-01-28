@@ -5,6 +5,7 @@
 #include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorModule.h"
 
+#include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/List/SConsoleVariablesEditorList.h"
@@ -135,8 +136,8 @@ void FConsoleVariablesEditorListRow::SetPresetValue(const FString& InPresetValue
 	PresetValue = InPresetValue;
 }
 
-bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray<FString> InTokens,
-                                                                    const bool bMatchAnyTokens)
+bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(
+	const TArray<FString> InTokens, ESearchCase::Type InSearchCase)
 {
 	// If the search is cleared we'll consider the row to pass search
 	bool bMatchFound = InTokens.Num() == 0;
@@ -153,11 +154,29 @@ bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray
 			SearchTerms += AsVariable->GetString() + PinnedInfo->GetHelpText();
 		}
 
-		bMatchFound = Algo::AnyOf(InTokens,
-		                          [&SearchTerms](const FString& Token)
-		                          {
-			                          return SearchTerms.Contains(Token);
-		                          });
+		// Match any
+		for (const FString& Token : InTokens)
+		{
+			// Match all of these
+			const FString SpaceDelimiter = " ";
+			TArray<FString> OutSpacedArray;
+			if (Token.Contains(SpaceDelimiter) && Token.ParseIntoArray(OutSpacedArray, *SpaceDelimiter, true) > 1)
+			{
+				bMatchFound = Algo::AllOf(OutSpacedArray, [&SearchTerms, InSearchCase](const FString& Comparator)
+				{
+					return SearchTerms.Contains(Comparator, InSearchCase);
+				});
+			}
+			else
+			{
+				bMatchFound = SearchTerms.Contains(Token, InSearchCase);
+			}
+
+			if (bMatchFound)
+			{
+				break;
+			}
+		}
 	}
 
 	bDoesRowMatchSearchTerms = bMatchFound;
@@ -302,13 +321,21 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 
 	if (bIsGlobalSearch)
 	{
-		EditableAsset->AddOrSetConsoleObjectSavedData(
-			{
-				CommandName,
-				"",
-				ECheckBoxState::Checked
-			}
-		);
+		FConsoleVariablesEditorAssetSaveData MatchingData;
+		if (!ConsoleVariablesEditorModule.GetPresetAsset()->FindSavedDataByCommandString(CommandName, MatchingData))
+		{
+			EditableAsset->AddOrSetConsoleObjectSavedData(
+				{
+					CommandName,
+					"",
+					ECheckBoxState::Checked
+				}
+			);
+		}
+		else
+		{
+			EditableAsset->RemoveConsoleVariable(CommandName);
+		}
 	}
 	else
 	{

@@ -22,9 +22,11 @@ public:
 	static FConsoleVariablesEditorModule& GetConsoleVariablesModule();
 	static TObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
 
-	void AddConsoleObjectToPreset(
+	void AddConsoleObjectToCurrentPreset(
 		const FString InConsoleCommand, const FString InValue,
 		const bool bScrollToNewRow = false) const;
+
+	FReply ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const;
 
 	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
 	void RebuildList(const FString InConsoleCommandToScrollTo = "") const;
@@ -41,9 +43,12 @@ public:
 
 	// Save / Load
 
-	void SavePreset();
-	void SavePresetAs();
+	void SaveCurrentPreset();
+	void SaveSpecificPreset(const TObjectPtr<UConsoleVariablesAsset> InPreset) const;
+	void SaveCurrentPresetAs();
+	void SaveSpecificPresetAs(const TObjectPtr<UConsoleVariablesAsset> InPreset) const;
 	void ImportPreset(const FAssetData& InPresetAsset);
+	void ImportPreset(const TObjectPtr<UConsoleVariablesAsset> InPreset);
 
 	TWeakObjectPtr<UConsoleVariablesAsset> GetReferenceAssetOnDisk() const
 	{
@@ -67,7 +72,7 @@ public:
 
 private:
 
-	bool ImportPreset_Impl(const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset);
+	bool ImportPreset_Impl(const TObjectPtr<UConsoleVariablesAsset> Preset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset);
 
 	TSharedPtr<SConsoleVariablesEditorMainPanel> MainPanelWidget;
 

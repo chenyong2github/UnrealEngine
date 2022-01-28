@@ -101,6 +101,8 @@ public:
 	
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
 
+	void DetermineButtonImageAndTooltip();
+
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
@@ -112,4 +114,5 @@ private:
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
 	
 	TSharedPtr<SButton> ActionButtonPtr;
+	TSharedPtr<SImage> ActionButtonImage;
 };
