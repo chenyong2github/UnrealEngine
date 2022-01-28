@@ -242,7 +242,7 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 		int32 NumSrcDeltas = 0;
 		const FMorphTargetDelta* MorphDeltas = MorphTarget->GetMorphTargetDelta(LODIndex, NumSrcDeltas);
 
-		if (NumSrcDeltas == 0)
+		if (NumSrcDeltas == 0 || !MorphTarget->UsesBuiltinMorphTargetCompression())
 		{
 			MaximumValues[0] = 0.0f;
 			MaximumValues[1] = 0.0f;

@@ -204,6 +204,9 @@ public:
 	/** Discard CPU Buffers after render resources have been created. */
 	ENGINE_API virtual void DiscardVertexData();
 
+	/** Return true if this morph target uses engine built-in compression */
+	ENGINE_API virtual bool UsesBuiltinMorphTargetCompression() const { return true; }
+
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */
 	ENGINE_API virtual void PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<struct FSkelMeshSection>& Sections, const bool bCompareNormal = false, const bool bGeneratedByReductionSetting = false, const float PositionThreshold = THRESH_POINTS_ARE_NEAR);
