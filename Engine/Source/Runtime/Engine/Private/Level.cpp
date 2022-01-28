@@ -3224,15 +3224,15 @@ TArray<UPackage*> ULevel::GetLoadedExternalObjectPackages() const
 	
 	for (TObjectIterator<UPackage> It; It; ++It)
 	{
-		if (!ExternalObjectPackages.Contains(*It))
+		TStringBuilder<256> PackageName;
+		It->GetLoadedPath().AppendPackageName(PackageName);
+		FStringView PackageNameStringView(PackageName);
+		for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
 		{
-			for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
+			if (PackageNameStringView.Contains(ExternalActorsPath))
 			{
-				if (It->GetLoadedPath().GetPackageName().Contains(ExternalObjectsPath))
-				{
-					ExternalObjectPackages.Add(*It);
-					break;
-				}
+				ExternalObjectPackages.Add(*It);
+				break;
 			}
 		}
 	}
