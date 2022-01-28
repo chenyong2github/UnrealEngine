@@ -9,6 +9,7 @@
 #include "Containers/UnrealString.h"
 #include "Misc/Parse.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
+#include "Misc/NetworkVersion.h"
 #include "Math/IntPoint.h"
 #include "Logging/LogMacros.h"
 
@@ -616,12 +617,16 @@ public:
 	*/
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
-		// LWC_TODO: Serializer - NetSerialize forced to float for now to fix replays recorded with LWC disabled.
-		float SX = (float)X, SY = (float)Y;
-		Ar << SX;
-		Ar << SY;
-		if(Ar.IsLoading())
+		if (Ar.EngineNetVer() >= HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES)
 		{
+			Ar << X << Y;
+		}
+		else
+		{
+			checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+			// Always serialize as float
+			float SX, SY;
+			Ar << SX << SY;
 			X = SX;
 			Y = SY;
 		}

@@ -1128,7 +1128,20 @@ namespace Math
 			}
 		}
 
-		Ar << Q.X << Q.Y << Q.Z;
+		if (Ar.EngineNetVer() >= HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES)
+		{
+			Ar << Q.X << Q.Y << Q.Z;
+		}
+		else
+		{
+			checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+			// Always serialize as float
+			float SX, SY, SZ;
+			Ar << SX << SY << SZ;
+			Q.X = SX;
+			Q.Y = SY;
+			Q.Z = SZ;
+		}
 
 		if (Ar.IsLoading())
 		{
