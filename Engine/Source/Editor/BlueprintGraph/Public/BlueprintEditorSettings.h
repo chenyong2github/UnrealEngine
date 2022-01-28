@@ -49,6 +49,18 @@ template<> struct TStructOpsTypeTraits<FPerBlueprintSettings> : public TStructOp
 	};
 };
 
+USTRUCT()
+struct BLUEPRINTGRAPH_API FAdditionalBlueprintCategory
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Category)
+	FText Name;
+
+	UPROPERTY(EditAnywhere, Category = Category)
+	FSoftClassPath ClassFilter;
+};
+
 UCLASS(config=EditorPerProjectUserSettings)
 class BLUEPRINTGRAPH_API UBlueprintEditorSettings : public UDeveloperSettings
 {
@@ -134,6 +146,10 @@ public:
 	/** If a pin type is within this list, then it will never be marked as a possible promotable function. */
 	UPROPERTY(config, EditAnywhere, Category = Workflow, meta=(EditCondition="bEnableTypePromotion"))
 	TSet<FName> TypePromotionPinDenyList;
+
+	/** List of additional category names to show in Blueprints, optionally filtered by parent class type. */
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	TArray<FAdditionalBlueprintCategory> AdditionalBlueprintCategories;
 
 	/** How to handle previously-set breakpoints on reload. */
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
