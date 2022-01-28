@@ -1,3 +1,15 @@
+// Parse passed arguments
+let passedPublicIP = null;
+for(let arg of process.argv){
+  if(arg && arg.startsWith("--PublicIP=")){
+    let splitArr = arg.split("=");
+    if(splitArr.length == 2){
+      passedPublicIP = splitArr[1];
+      console.log("--PublicIP=" + passedPublicIP);
+    }
+  }
+}
+
 const config = {
   signallingURL: "ws://localhost:8889",
 
@@ -46,16 +58,11 @@ const config = {
     // localhost so you might have to specify a proper
     // private or public ip here.
     webRtcTransport: {
-      //listenIps: { ip: "<external ip>", announcedIp: null }
-      listenIps: getLocalListenIps(), 
+      listenIps: passedPublicIP != null ? [{ ip: "0.0.0.0", announcedIp: passedPublicIP}] : getLocalListenIps(), 
       // 100 megabits
       initialAvailableOutgoingBitrate: 100_000_000,
     },
   },
-}
-
-function getPublicListenIps() {
-  // todo: but should be { ip: "0.0.0.0", announcedIp: "your public IP" }
 }
 
 function getLocalListenIps() {
