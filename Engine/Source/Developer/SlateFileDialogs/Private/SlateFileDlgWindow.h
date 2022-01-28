@@ -91,7 +91,7 @@ private:
 
 	FSlateFileDialogsStyle* StyleSet;
 
-	void TrimStartDirectory(FString &Path);
+	void TrimFilenameFromPath(FString &Path);
 };
 
 
