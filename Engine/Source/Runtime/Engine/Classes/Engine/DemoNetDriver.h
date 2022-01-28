@@ -607,6 +607,7 @@ public:
 		return ReplayHelper.ActiveReplayName;
 	}
 
+	uint32 GetPlaybackDemoChangelist() const { return ReplayHelper.PlaybackDemoHeader.EngineVersion.GetChangelist(); }
 	uint32 GetPlaybackDemoVersion() const { return ReplayHelper.PlaybackDemoHeader.Version; }
 
 	FString GetDemoPath() const;
