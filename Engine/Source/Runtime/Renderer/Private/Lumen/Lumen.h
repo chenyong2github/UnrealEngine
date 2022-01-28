@@ -107,6 +107,8 @@ namespace Lumen
 	FVector GetFarFieldReferencePos();
 
 	bool UseHeightfields(const FLumenSceneData& LumenSceneData);
+
+	void Shutdown();
 };
 
 namespace LumenHardwareRayTracing

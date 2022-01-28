@@ -993,3 +993,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	return SpecularIndirect;
 }
 
+void Lumen::Shutdown()
+{
+	GVisualizeReflectionTracesData.SafeRelease();
+}

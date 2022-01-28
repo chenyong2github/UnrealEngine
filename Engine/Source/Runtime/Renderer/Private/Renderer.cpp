@@ -36,6 +36,8 @@
 #include "PostProcess/TemporalAA.h"
 #include "CanvasRender.h"
 #include "RendererOnScreenNotification.h"
+#include "Lumen/Lumen.h"
+
 DEFINE_LOG_CATEGORY(LogRenderer);
 
 IMPLEMENT_MODULE(FRendererModule, Renderer);
@@ -78,6 +80,9 @@ void FRendererModule::ShutdownModule()
 
 	// Free up the memory of the default denoiser. Responsibility of the plugin to free up theirs.
 	delete IScreenSpaceDenoiser::GetDefaultDenoiser();
+
+	// Free up global resources in Lumen
+	Lumen::Shutdown();
 }
 
 void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
