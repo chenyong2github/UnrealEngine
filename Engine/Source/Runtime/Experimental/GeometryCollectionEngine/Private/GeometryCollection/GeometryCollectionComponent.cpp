@@ -2238,6 +2238,11 @@ FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* I
 	{
 		Component->DestroyPhysicsState();
 	}
+
+	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
+	{
+		GetRestCollection()->Modify();
+	}
 }
 
 FGeometryCollectionEdit::~FGeometryCollectionEdit()
@@ -2248,11 +2253,6 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
 		{
 			Component->ResetDynamicCollection();
-		}
-
-		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
-		{
-			GetRestCollection()->Modify();
 		}
 
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
