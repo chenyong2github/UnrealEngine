@@ -409,7 +409,7 @@ namespace UE
 				return EAttributeStorageResult::Operation_Error_CannotFoundKey;
 			}
 
-			if (AttributeAllocationInfo->Size == 0)
+			if (AttributeAllocationInfo->Size <= sizeof(TCHAR)) // Account for the null-terminator
 			{
 				OutValue = TEXT("");
 				return EAttributeStorageResult::Operation_Success;

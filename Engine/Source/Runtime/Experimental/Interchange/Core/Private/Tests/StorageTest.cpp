@@ -92,6 +92,8 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 	
 	ADD_ATTRIBUTE_STORAGE(FRotator, FRotator(25.0, 2.0, 3.14159), );
 	ADD_ATTRIBUTE_STORAGE(FString, FString(TEXT("Testing FString storage")), );
+	ADD_ATTRIBUTE_STORAGE(FString, FString(TEXT("")), );
+	ADD_ATTRIBUTE_STORAGE(FString, FString(TEXT("A")), );
 	ADD_ATTRIBUTE_STORAGE(FTimespan, FTimespan(10, 44, 38), );
 
 	{
