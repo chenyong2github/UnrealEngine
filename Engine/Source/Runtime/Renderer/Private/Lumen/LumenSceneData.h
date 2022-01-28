@@ -21,8 +21,8 @@
 #include "Containers/BinaryHeap.h"
 #include "Lumen.h"
 #include "MeshCardRepresentation.h"
+#include "LumenHeightfields.h"
 
-class FLumenMeshCards;
 class FMeshCardsBuildData;
 class FLumenCardBuildData;
 class FLumenCardPassUniformParameters;
@@ -48,7 +48,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, HeightfieldMeshCardsIndicesBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, HeightfieldData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PageTableBuffer)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
@@ -187,7 +187,7 @@ public:
 	TArray<FPrimitiveSceneInfo*, TInlineAllocator<1>> Primitives;
 	int32 PrimitiveInstanceIndex = -1;
 	int32 MeshCardsIndex = -1;
-	int32 IndexInHeighfieldMeshCardsIndices = -1;
+	int32 HeightfieldIndex = -1;
 
 	FRenderBounds WorldSpaceBoundingBox;
 	Experimental::FHashElementId RayTracingGroupMapElementId;
@@ -408,10 +408,10 @@ public:
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
 	FRWBufferStructured MeshCardsBuffer;
 
-	// Sparse array of indices into MeshCards, containing heightfields for Landscape rendering
-	bool bHeightfieldMeshCardsIndicesBufferDirty = false;
-	TSparseSpanArray<uint32> HeightfieldMeshCardsIndices;
-	TRefCountPtr<FRDGPooledBuffer> HeightfieldMeshCardsIndicesBuffer;
+	// Heightfields
+	FUniqueIndexList HeightfieldIndicesToUpdateInBuffer;
+	TSparseSpanArray<FLumenHeightfield> Heightfields;
+	FRWBufferStructured HeightfieldBuffer;
 
 	// GPUScene instance index to MeshCards mapping
 	FUniqueIndexList PrimitivesToUpdateMeshCards;

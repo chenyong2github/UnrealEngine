@@ -8,6 +8,7 @@
 #include "RendererPrivate.h"
 #include "MeshCardRepresentation.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "LumenHeightfields.h"
 
 float GLumenMeshCardsMinSize = 30.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
@@ -346,9 +347,14 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 	extern int32 GLumenSceneUploadEveryFrame;
 	if (GLumenSceneUploadEveryFrame)
 	{
-		LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty = true;
+		LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Reset();
+		for (int32 i = 0; i < LumenSceneData.Heightfields.Num(); ++i)
+		{
+			LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Add(i);
+		}
+
 		LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Reset();
-		for (int32 i = 0; i < LumenSceneData.MeshCards.Num(); i++)
+		for (int32 i = 0; i < LumenSceneData.MeshCards.Num(); ++i)
 		{
 			LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Add(i);
 		}
@@ -393,34 +399,45 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		}
 	}
 
-	// Update heightfield index buffer
-	if (!LumenSceneData.HeightfieldMeshCardsIndicesBuffer.IsValid() || LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty)
+	// Upload Heightfields
 	{
-		const int32 HeightfieldMeshCardsIndicesBufferSize = FMath::DivideAndRoundUp<uint32>(FMath::Max(LumenSceneData.HeightfieldMeshCardsIndices.Num(), 1), 1024u) * 1024u;
+		QUICK_SCOPE_CYCLE_COUNTER(UpdateHeightfields);
 
-		TArray<uint32, SceneRenderingAllocator> Indices;
-		Indices.SetNumUninitialized(LumenSceneData.HeightfieldMeshCardsIndices.Num());
+		const uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
+		const uint32 HeightfieldsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightfields * FLumenHeightfieldGPUData::DataStrideInFloat4s);
+		const uint32 HeightfieldsNumBytes = HeightfieldsNumFloat4s * sizeof(FVector4f);
+		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.HeightfieldBuffer, HeightfieldsNumBytes, TEXT("Lumen.HeigthfieldBuffer"));
 
-		for (int32 IndexInIndexArray = 0; IndexInIndexArray < LumenSceneData.HeightfieldMeshCardsIndices.Num(); ++IndexInIndexArray)
+		const int32 NumHeightfieldsUploads = LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Num();
+
+		if (NumHeightfieldsUploads > 0)
 		{
-			if (LumenSceneData.HeightfieldMeshCardsIndices.IsAllocated(IndexInIndexArray))
+			FLumenHeightfield NullHeightfield;
+
+			LumenSceneData.UploadBuffer.Init(NumHeightfieldsUploads, FLumenHeightfieldGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
+
+			for (int32 Index : LumenSceneData.HeightfieldIndicesToUpdateInBuffer)
 			{
-				Indices[IndexInIndexArray] = LumenSceneData.HeightfieldMeshCardsIndices[IndexInIndexArray];
+				if (Index < LumenSceneData.Heightfields.Num())
+				{
+					const FLumenHeightfield& Heightfield = LumenSceneData.Heightfields.IsAllocated(Index) ? LumenSceneData.Heightfields[Index] : NullHeightfield;
+
+					FVector4f* Data = (FVector4f*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FLumenHeightfieldGPUData::FillData(Heightfield, LumenSceneData.MeshCards, Data);
+				}
 			}
-			else
-			{
-				Indices[IndexInIndexArray] = UINT32_MAX;
-			}
+
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.HeightfieldBuffer, false);
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
-
-		FRDGBufferRef IndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(HeightfieldMeshCardsIndicesBufferSize * sizeof(uint32)), TEXT("Lumen.HeightfieldMeshCardsIndices"));
-		GraphBuilder.QueueBufferUpload(IndexBuffer, Indices.GetData(), Indices.Num() * sizeof(uint32), ERDGInitialDataFlags::None);
-
-		LumenSceneData.HeightfieldMeshCardsIndicesBuffer = GraphBuilder.ConvertToExternalBuffer(IndexBuffer);
-		LumenSceneData.bHeightfieldMeshCardsIndicesBufferDirty = false;
+		else if (bResourceResized)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+		}
 	}
 
-	// Upload MeshCards
+	// Upload SceneInstanceIndexToMeshCardsIndexBuffer
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateSceneInstanceIndexToMeshCardsIndexBuffer);
 
@@ -477,6 +494,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 	}
 
 	// Reset arrays, but keep allocated memory for 1024 elements
+	LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.PrimitivesToUpdateMeshCards.Empty(1024);
 }
@@ -780,7 +798,7 @@ bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f 
 void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, FLumenPrimitiveGroup& PrimitiveGroup)
 {
 	PrimitiveGroup.MeshCardsIndex = -1;
-	PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
+	PrimitiveGroup.HeightfieldIndex = -1;
 
 	const FVector3f LocalToWorldScale = LocalToWorld.GetScaleVector();
 	const FVector3f ScaledBoundSize = MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
@@ -827,15 +845,14 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 
 			if (PrimitiveGroup.bLandscape)
 			{
-				const int32 IndexInHeighfieldMeshCardsIndices = HeightfieldMeshCardsIndices.AddSpan(1);
-				PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = IndexInHeighfieldMeshCardsIndices;
-				HeightfieldMeshCardsIndices[IndexInHeighfieldMeshCardsIndices] = MeshCardsIndex;
+				const int32 HeightfieldIndex = Heightfields.AddSpan(1);
+				PrimitiveGroup.HeightfieldIndex = HeightfieldIndex;
+				Heightfields[HeightfieldIndex].Initialize(MeshCardsIndex);
 
-				bHeightfieldMeshCardsIndicesBufferDirty = true;
+				HeightfieldIndicesToUpdateInBuffer.Add(HeightfieldIndex);
 
 				// Invalidate bounds for voxel lighting
-				const FBox WorldSpaceBounds = MeshCardsInstance.LocalBounds.TransformBy(MeshCardsInstance.LocalToWorld);
-				PrimitiveModifiedBounds.Add(WorldSpaceBounds);
+				PrimitiveModifiedBounds.Add(MeshCardsInstance.GetWorldSpaceBounds());
 			}
 
 			// Add cards
@@ -871,14 +888,13 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 			RemoveCardFromAtlas(CardIndex);
 		}
 
-		if (PrimitiveGroup.IndexInHeighfieldMeshCardsIndices >= 0)
+		if (PrimitiveGroup.HeightfieldIndex >= 0)
 		{
 			// Invalidate bounds for voxel lighting
-			const FBox WorldSpaceBounds = MeshCardsInstance.LocalBounds.TransformBy(MeshCardsInstance.LocalToWorld);
-			PrimitiveModifiedBounds.Add(WorldSpaceBounds);
+			PrimitiveModifiedBounds.Add(MeshCardsInstance.GetWorldSpaceBounds());
 
-			HeightfieldMeshCardsIndices.RemoveSpan(PrimitiveGroup.IndexInHeighfieldMeshCardsIndices, 1);
-			bHeightfieldMeshCardsIndicesBufferDirty = true;
+			Heightfields.RemoveSpan(PrimitiveGroup.HeightfieldIndex, 1);
+			HeightfieldIndicesToUpdateInBuffer.Add(PrimitiveGroup.HeightfieldIndex);
 		}
 
 		Cards.RemoveSpan(MeshCardsInstance.FirstCardIndex, MeshCardsInstance.NumCards);
@@ -887,7 +903,7 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 		MeshCardsIndicesToUpdateInBuffer.Add(PrimitiveGroup.MeshCardsIndex);
 
 		PrimitiveGroup.MeshCardsIndex = -1;
-		PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
+		PrimitiveGroup.HeightfieldIndex = -1;
 
 		// Update surface cache mapping
 		for (const FPrimitiveSceneInfo* ScenePrimitive : PrimitiveGroup.Primitives)

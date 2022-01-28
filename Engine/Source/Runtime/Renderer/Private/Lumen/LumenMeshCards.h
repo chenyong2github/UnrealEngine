@@ -53,6 +53,12 @@ public:
 		LocalToWorld = InLocalToWorld;
 	}
 
+	FBox GetWorldSpaceBounds() const
+	{
+		const FBox WorldSpaceBounds = LocalBounds.TransformBy(LocalToWorld);
+		return WorldSpaceBounds;
+	}
+
 	FMatrix LocalToWorld;
 	FBox LocalBounds;
 

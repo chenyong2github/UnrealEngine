@@ -1177,8 +1177,8 @@ void UpdateVoxelVisBuffer(
 						PassParameters,
 						FIntVector(1, 1, 1));
 				}
-				uint32 NumHeightfieldObjects = LumenSceneData.HeightfieldMeshCardsIndices.Num();
-				uint32 MaxNumHeightfieldObjects = FMath::RoundUpToPowerOfTwo(LumenSceneData.HeightfieldMeshCardsIndices.Num());
+				uint32 NumHeightfieldObjects = LumenSceneData.Heightfields.Num();
+				uint32 MaxNumHeightfieldObjects = FMath::RoundUpToPowerOfTwo(LumenSceneData.Heightfields.Num());
 
 				FRDGBufferRef HeightfieldObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumHeightfieldObjects), TEXT("Lumen.HeightfieldObjectIndices"));
 

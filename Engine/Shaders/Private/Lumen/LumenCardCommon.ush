@@ -216,6 +216,35 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	return MeshCardsData;
 }
 
+// Stride of mesh cards data, must match C++
+#define LUMEN_HEIGHTFIELD_DATA_STRIDE 2
+
+struct FLumenHeightfieldData
+{
+	float3 BoundsCenter;
+	float3 BoundsExtent;
+	uint MeshCardsIndex;
+	bool bValid;
+};
+
+// Note: layout must match FLumenHeightfieldData in C++
+FLumenHeightfieldData GetLumenHeightfieldData(uint HeightfieldId)
+{
+	uint BaseOffset = HeightfieldId * LUMEN_HEIGHTFIELD_DATA_STRIDE;
+
+	FLumenHeightfieldData LumenHeightfield;
+
+	float4 V0 = LumenCardScene.HeightfieldData[BaseOffset + 0];
+	float4 V1 = LumenCardScene.HeightfieldData[BaseOffset + 1];
+
+	LumenHeightfield.BoundsCenter = V0.xyz;
+	LumenHeightfield.BoundsExtent = V1.xyz;
+	LumenHeightfield.MeshCardsIndex = asuint(V0.w);
+	LumenHeightfield.bValid = LumenHeightfield.MeshCardsIndex < LumenCardScene.NumMeshCards;
+
+	return LumenHeightfield;
+}
+
 float3 GetCardLocalPosition(float3 CardLocalExtent, float2 CardUV, float Depth)
 {
 	CardUV.x = 1.0f - CardUV.x;
@@ -292,11 +321,5 @@ float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
 uint GetMeshCardsIndexFromSceneInstanceIndex(uint SceneInstanceIndex)
 {
 	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
-	return MeshCardsIndex;
-}
-
-uint GetMeshCardsIndexFromHeightfieldObjectIndex(uint HeightfieldObjectIndex)
-{
-	const uint MeshCardsIndex = LumenCardScene.HeightfieldMeshCardsIndicesBuffer.Load(4 * HeightfieldObjectIndex);
 	return MeshCardsIndex;
 }

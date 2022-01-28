@@ -373,8 +373,8 @@ void CullHeightfieldObjectsForView(
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
-	uint32 NumHeightfields = LumenSceneData.HeightfieldMeshCardsIndices.Num();
-	uint32 MaxNumHeightfields = FMath::RoundUpToPowerOfTwo(LumenSceneData.HeightfieldMeshCardsIndices.Num());
+	uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
+	uint32 MaxNumHeightfields = FMath::RoundUpToPowerOfTwo(LumenSceneData.Heightfields.Num());
 
 	NumCulledObjects = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2), TEXT("Lumen.NumCulledHeightfieldObjects"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumCulledObjects, PF_R32_UINT), 0);

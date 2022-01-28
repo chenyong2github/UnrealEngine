@@ -608,10 +608,10 @@ void FLumenSceneData::ResetAndConsolidate()
 
 	// Batch consolidate SparseSpanArrays
 	PrimitiveGroups.Consolidate();
+	Heightfields.Consolidate();
 	MeshCards.Consolidate();
 	Cards.Consolidate();
 	PageTable.Consolidate();
-	HeightfieldMeshCardsIndices.Consolidate();
 }
 
 void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)
@@ -824,7 +824,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
 								PrimitiveGroup.WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
-								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
+								PrimitiveGroup.HeightfieldIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
@@ -864,7 +864,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.CardResolutionScale = 1.0f;
 								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
-								PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
+								PrimitiveGroup.HeightfieldIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bLandscape = false;
@@ -884,7 +884,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.CardResolutionScale = 1.0f;
 						PrimitiveGroup.WorldSpaceBoundingBox = SceneProxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
-						PrimitiveGroup.IndexInHeighfieldMeshCardsIndices = -1;
+						PrimitiveGroup.HeightfieldIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 						PrimitiveGroup.bLandscape = SceneProxy->SupportsHeightfieldRepresentation();

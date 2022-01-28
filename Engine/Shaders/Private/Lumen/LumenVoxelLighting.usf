@@ -196,38 +196,6 @@ float3 VoxelClipmapWorldCenter;
 float3 VoxelClipmapWorldExtent;
 float MeshRadiusThreshold;
 
-void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
-{
-	WorldCardCenter = LumenCardData.Origin;
-	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
-
-	float3 Min = -LumenCardData.LocalExtent;
-	float3 Max = LumenCardData.LocalExtent;
-
-	float3 P00 = float3(Min.x, Min.y, Min.z);
-	float3 P10 = float3(Max.x, Min.y, Min.z);
-	float3 P20 = float3(Max.x, Max.y, Min.z);
-	float3 P30 = float3(Min.x, Max.y, Min.z);
-
-	float3 P01 = float3(Min.x, Min.y, Max.z);
-	float3 P11 = float3(Max.x, Min.y, Max.z);
-	float3 P21 = float3(Max.x, Max.y, Max.z);
-	float3 P31 = float3(Min.x, Max.y, Max.z);
-
-	P00 = mul(LumenCardData.WorldToLocalRotation, P00);
-	P10 = mul(LumenCardData.WorldToLocalRotation, P10);
-	P20 = mul(LumenCardData.WorldToLocalRotation, P20);
-	P30 = mul(LumenCardData.WorldToLocalRotation, P30);
-
-	P01 = mul(LumenCardData.WorldToLocalRotation, P01);
-	P11 = mul(LumenCardData.WorldToLocalRotation, P11);
-	P21 = mul(LumenCardData.WorldToLocalRotation, P21);
-	P31 = mul(LumenCardData.WorldToLocalRotation, P31);
-
-	WorldCardExtent = max(P00.xyz, max(P10.xyz, max(P20.xyz, P30.xyz)));
-	WorldCardExtent = max(P01.xyz, max(P11.xyz, max(P21.xyz, max(P31.xyz, WorldCardExtent))));
-}
-
 #define SDF_MESH_TYPE 0
 #define HEIGHTFIELD_MESH_TYPE 1
 
@@ -257,15 +225,11 @@ void CullToVoxelClipmapCS(
 	{
 		if (ObjectIndex < LumenCardScene.NumHeightfields)
 		{
-			uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
-			if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+			FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(ObjectIndex);
+			if (LumenHeightfield.bValid)
 			{
-				FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
-
-				// Fetch card
-				FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
-
-				GetCardAABB(LumenCardData, WorldObjectCenter, WorldObjectExtent);
+				WorldObjectCenter = LumenHeightfield.BoundsCenter;
+				WorldObjectExtent = LumenHeightfield.BoundsExtent;
 			}
 		}
 	}
@@ -324,15 +288,12 @@ void SetupVoxelTracesCS(
 	float3 ObjectExtent = DFObjectBounds.BoxExtent;
 
 #else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE
-	uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
-	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
-	// Fetch card
-	FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
+	FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(ObjectIndex);
+	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(LumenHeightfield.MeshCardsIndex);
 
-	float3 ObjectCenter;
-	float3 ObjectExtent;
-	GetCardAABB(LumenCardData, ObjectCenter, ObjectExtent);
+	float3 ObjectCenter = LumenHeightfield.BoundsCenter;
+	float3 ObjectExtent = LumenHeightfield.BoundsExtent;
 #endif
 
 	int3 ObjectGridMin = (ObjectCenter - ObjectExtent - ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
@@ -666,7 +627,8 @@ void VisBufferShadingCS(
 				// TODO: Bucket by hit-object type in compaction step..
 				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD)
 				{
-					MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(VisBuffer.HitObjectId);
+					FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(VisBuffer.HitObjectId);
+					MeshCardsIndex = LumenHeightfield.MeshCardsIndex;
 					SurfaceCacheDepthTestBias = 20.0f;
 				}
 

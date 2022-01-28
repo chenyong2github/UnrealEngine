@@ -256,7 +256,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 	}
 	#endif
 
-#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS
+#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
 	float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
 
 	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);

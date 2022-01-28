@@ -63,14 +63,14 @@ void CullHeightfieldObjectsForViewCS(
 	uint ObjectIndex = DispatchThreadId.x;
 	if (ObjectIndex < MaxNumObjects)
 	{
-		uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(ObjectIndex);
-		if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(ObjectIndex);
+		if (LumenHeightfield.bValid)
 		{
 			bShouldKeep = true;
 
 			if (bShouldCull)
 			{
-				FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+				FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(LumenHeightfield.MeshCardsIndex);
 
 				// Fetch card
 				int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;

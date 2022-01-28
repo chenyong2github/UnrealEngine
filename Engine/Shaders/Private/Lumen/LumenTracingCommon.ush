@@ -800,8 +800,8 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	Result.bRayStartInsideGeometry = false;
 	Result.HitDistance = TraceInput.MaxTraceDistance;
 
-	uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(HeightfieldIndex);
-	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+	FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldIndex);
+	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(LumenHeightfield.MeshCardsIndex);
 
 	// Fetch card
 	int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
@@ -918,7 +918,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 
 	if (TraceMeshHeightfieldResult.HitDistance < TraceInput.MaxTraceDistance)
 	{
-		uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(TraceMeshHeightfieldResult.HeightfieldObjectIndex);
+		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(TraceMeshHeightfieldResult.HeightfieldObjectIndex);
 		float3 SamplePosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * TraceMeshHeightfieldResult.HitDistance;
 		float3 SampleNormal = float3(0, 0, 1);
 		float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * TraceMeshHeightfieldResult.HitDistance, TraceInput.MinSampleRadius);
@@ -927,7 +927,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 
 		OutResult.Lighting = SampleLumenMeshCards(
 			TraceInput.ScreenCoord,
-			MeshCardsIndex,
+			LumenHeightfield.MeshCardsIndex,
 			SamplePosition,
 			SampleNormal,
 			SampleRadius,
@@ -972,8 +972,8 @@ FGlobalSDFTraceResult ShadowTraceHeightfield(
 	//@todo - use culling where appropriate
 	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
 	{
-		uint MeshCardsIndex = GetMeshCardsIndexFromHeightfieldObjectIndex(HeightfieldObjectIndex);
-		if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldObjectIndex);
+		if (LumenHeightfield.bValid)
 		{
 			FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
 
