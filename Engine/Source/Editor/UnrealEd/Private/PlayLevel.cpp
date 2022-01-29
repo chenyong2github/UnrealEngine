@@ -3102,10 +3102,12 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 		GEngine->XRSystem && GEngine->XRSystem.IsValid())
 	{
 		Args.Add(TEXT("XRSystemName"), FText::FromName(GEngine->XRSystem->GetSystemName()));
+		Args.Add(TEXT("XRRuntimeVersion"), FText::FromString(GEngine->XRSystem->GetVersionString()));
 	}
 	else
 	{
 		Args.Add(TEXT("XRSystemName"), FText::GetEmpty());
+		Args.Add(TEXT("XRRuntimeVersion"), FText::GetEmpty());
 	}
 
 	if (FixedTick > 0.f)
@@ -3118,7 +3120,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 		Args.Add(TEXT("FixedFPS"), FText::GetEmpty());
 	}
 
-	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] {FixedFPS} ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
+	return FText::TrimTrailing(FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] {FixedFPS} ({PlatformBits}-bit/{RHIName}) {XRSystemName} {XRRuntimeVersion}"), Args));
 }
 
 void UEditorEngine::TransferEditorSelectionToPlayInstances(const bool bInSelectInstances)

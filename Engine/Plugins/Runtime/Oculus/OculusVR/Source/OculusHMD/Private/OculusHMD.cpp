@@ -125,7 +125,7 @@ namespace OculusHMD
 			Version = "Unknown";
 		}
 
-		return FString::Printf(TEXT("%s, OVRPlugin: %s"), *FEngineVersion::Current().ToString(), UTF8_TO_TCHAR(Version));
+		return FString::Printf(TEXT("OVRPlugin: %s"), UTF8_TO_TCHAR(Version));
 	}
 
 

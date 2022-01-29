@@ -311,7 +311,7 @@ FName FOpenXRHMD::GetHMDName() const
 
 FString FOpenXRHMD::GetVersionString() const
 {
-	return FString::Printf(TEXT("%s: %d.%d.%d"),
+	return FString::Printf(TEXT("%s (%d.%d.%d)"),
 		UTF8_TO_TCHAR(InstanceProperties.runtimeName),
 		XR_VERSION_MAJOR(InstanceProperties.runtimeVersion),
 		XR_VERSION_MINOR(InstanceProperties.runtimeVersion),
