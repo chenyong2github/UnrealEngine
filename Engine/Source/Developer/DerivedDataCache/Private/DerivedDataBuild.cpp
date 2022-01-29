@@ -185,7 +185,7 @@ EBuildPolicy FBuildPolicy::GetValuePolicy(const FValueId& Id) const
 			}
 		}
 	}
-	return DefaultValuePolicy;
+	return DefaultPolicy;
 }
 
 FBuildPolicy FBuildPolicy::Transform(TFunctionRef<EBuildPolicy (EBuildPolicy)> Op) const
@@ -194,7 +194,7 @@ FBuildPolicy FBuildPolicy::Transform(TFunctionRef<EBuildPolicy (EBuildPolicy)> O
 	{
 		return Op(CombinedPolicy);
 	}
-	FBuildPolicyBuilder Builder(Op(DefaultValuePolicy));
+	FBuildPolicyBuilder Builder(Op(DefaultPolicy));
 	for (const FBuildValuePolicy& Value : GetValuePolicies())
 	{
 		Builder.AddValuePolicy({Value.Id, Op(Value.Policy)});

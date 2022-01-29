@@ -2743,7 +2743,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		FSharedBuffer MeshDataBuffer;
 		FIoHash NaniteStreamingDataHash;
 		{
-			FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::Default);
+			FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::Default | ECachePolicy::KeepAlive);
 			PolicyBuilder.AddValuePolicy(NaniteStreamingDataId, ECachePolicy::Default | ECachePolicy::SkipData);
 			
 			FCacheGetRequest Request;
@@ -2891,11 +2891,8 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				RecordBuilder.AddValue(MeshDataId, FSharedBuffer::MakeView(Ar.GetData(), Ar.TotalSize()));
 				TotalPushedBytes += Ar.TotalSize();
 
-				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::Default);
-				PolicyBuilder.AddValuePolicy(NaniteStreamingDataId, ECachePolicy::Default | ECachePolicy::KeepAlive);
-
 				FRequestOwner RequestOwner(UE::DerivedData::EPriority::Blocking);
-				const FCachePutRequest PutRequest = { FSharedString(TEXT("StaticMesh")), RecordBuilder.Build(), PolicyBuilder.Build() };
+				const FCachePutRequest PutRequest = { FSharedString(TEXT("StaticMesh")), RecordBuilder.Build(), ECachePolicy::Default | ECachePolicy::KeepAlive };
 				GetCache().Put(MakeArrayView(&PutRequest, 1),
 					RequestOwner,
 					[](FCachePutResponse&& Response)

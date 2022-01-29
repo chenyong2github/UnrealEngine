@@ -97,7 +97,7 @@ public:
 	/** Construct a build policy with a single policy for every value. */
 	inline FBuildPolicy(EBuildPolicy Policy)
 		: CombinedPolicy(Policy)
-		, DefaultValuePolicy(Policy)
+		, DefaultPolicy(Policy)
 	{
 	}
 
@@ -107,11 +107,11 @@ public:
 	/** Returns the build policy combined from the value policies. */
 	inline EBuildPolicy GetCombinedPolicy() const { return CombinedPolicy; }
 
+	/** Returns the build policy to use for values with no override. */
+	inline EBuildPolicy GetDefaultPolicy() const { return DefaultPolicy; }
+
 	/** Returns the build policy to use for the value. */
 	UE_API EBuildPolicy GetValuePolicy(const FValueId& Id) const;
-
-	/** Returns the build policy to use for values with no override. */
-	inline EBuildPolicy GetDefaultValuePolicy() const { return DefaultValuePolicy; }
 
 	/** Returns the array of build policy overrides for values, sorted by ID. */
 	inline TConstArrayView<FBuildValuePolicy> GetValuePolicies() const
@@ -126,7 +126,7 @@ private:
 	friend class FBuildPolicyBuilder;
 
 	EBuildPolicy CombinedPolicy = EBuildPolicy::Default;
-	EBuildPolicy DefaultValuePolicy = EBuildPolicy::Default;
+	EBuildPolicy DefaultPolicy = EBuildPolicy::Default;
 	TRefCountPtr<const Private::IBuildPolicyShared> Shared;
 };
 

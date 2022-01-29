@@ -3,6 +3,7 @@
 #include "DerivedDataCacheRecord.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/BinarySearch.h"
 #include "Algo/IsSorted.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"

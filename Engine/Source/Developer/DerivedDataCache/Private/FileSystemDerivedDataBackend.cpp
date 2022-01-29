@@ -1780,7 +1780,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 
 	const FCacheKey& Key = Record.GetKey();
 	const ECachePolicy CombinedValuePolicy = Algo::TransformAccumulate(
-		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultValuePolicy(), UE_PROJECTION(operator|));
+		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultPolicy(), UE_PROJECTION(operator|));
 	const ECachePolicy CombinedPolicy = Policy.GetRecordPolicy() | CombinedValuePolicy;
 
 	// Skip the request if storing to the cache is disabled.
