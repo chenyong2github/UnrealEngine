@@ -28,6 +28,9 @@ public:
 	/** Get convex hull data for the Geometry Collection if it is present */
 	static TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FGeometryCollection* GeometryCollection);
 
+	/** @return true if convex hull data is present */
+	static bool HasConvexHullData(FGeometryCollection* GeometryCollection);
+
 	/**
 	 Create non-overlapping convex hull data for all transforms in the geometry collection (except transforms where it would be better to just use the hulls of the children) 
 
@@ -64,7 +67,7 @@ public:
 	 * @param ToTransformIdx	The transform indices whose convexes will be replaced with *copies* of the child convexes.  Must be same length as FromTransformIdx; can be the same array.
 	 * @param bLeafOnly			If true, we will only collect convexes from leaf bones, not from clusters.
 	 */
-	static void CopyChildConvexes(FGeometryCollection* FromCollection, const TArrayView<const int32>& FromTransformIdx, FGeometryCollection* ToCollection, const TArrayView<const int32>& ToTransformIdx, bool bLeafOnly);
+	static void CopyChildConvexes(const FGeometryCollection* FromCollection, const TArrayView<const int32>& FromTransformIdx, FGeometryCollection* ToCollection, const TArrayView<const int32>& ToTransformIdx, bool bLeafOnly);
 
 };
 
