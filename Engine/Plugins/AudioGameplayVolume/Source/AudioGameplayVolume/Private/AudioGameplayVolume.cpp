@@ -3,7 +3,6 @@
 #include "AudioGameplayVolume.h"
 #include "AudioGameplayVolumeLogs.h"
 #include "AudioGameplayVolumeProxy.h"
-#include "AudioGameplayVolumeSubsystem.h"
 #include "AudioGameplayVolumeComponent.h"
 #include "AudioDevice.h"
 #include "Components/BrushComponent.h"
@@ -69,6 +68,16 @@ void AAudioGameplayVolume::GetLifetimeReplicatedProps(TArray< FLifetimeProperty 
 	DOREPLIFETIME(AAudioGameplayVolume, bEnabled);
 }
 
+void AAudioGameplayVolume::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (CanSupportProxy())
+	{
+		AddProxy();
+	}
+}
+
 void AAudioGameplayVolume::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
@@ -82,11 +91,7 @@ void AAudioGameplayVolume::PostRegisterAllComponents()
 	{
 		UAGVPrimitiveComponentProxy* PrimitiveComponentProxy = NewObject<UAGVPrimitiveComponentProxy>(AGVComponent);
 		AGVComponent->SetProxy(PrimitiveComponentProxy);
-	}
-
-	if (CanSupportProxy())
-	{
-		AddProxy();
+		AGVComponent->bAutoActivate = false;
 	}
 }
 
@@ -140,44 +145,28 @@ void AAudioGameplayVolume::TransformUpdated(USceneComponent* InRootComponent, EU
 
 void AAudioGameplayVolume::AddProxy() const
 {
-	if (UAudioGameplayVolumeSubsystem* VolumeSubsystem = GetSubsystem())
+	if (AGVComponent)
 	{
-		VolumeSubsystem->AddVolumeComponent(AGVComponent);
-		if (AGVComponent)
-		{
-			AGVComponent->OnProxyEnter.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerEnter);
-			AGVComponent->OnProxyExit.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerExit);
-		}
+		AGVComponent->OnProxyEnter.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerEnter);
+		AGVComponent->OnProxyExit.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerExit);
+		AGVComponent->Activate();
 	}
 }
 
 void AAudioGameplayVolume::RemoveProxy() const
 {
-	if (UAudioGameplayVolumeSubsystem* VolumeSubsystem = GetSubsystem())
+	if (AGVComponent)
 	{
-		VolumeSubsystem->RemoveVolumeComponent(AGVComponent);
-		if (AGVComponent)
-		{
-			AGVComponent->OnProxyEnter.RemoveAll(this);
-			AGVComponent->OnProxyExit.RemoveAll(this);
-		}
+		AGVComponent->Deactivate();
+		AGVComponent->OnProxyEnter.RemoveAll(this);
+		AGVComponent->OnProxyExit.RemoveAll(this);
 	}
 }
 
 void AAudioGameplayVolume::UpdateProxy() const
 {
-	if (UAudioGameplayVolumeSubsystem* VolumeSubsystem = GetSubsystem())
+	if (AGVComponent)
 	{
-		VolumeSubsystem->UpdateVolumeComponent(AGVComponent);
+		AGVComponent->OnComponentDataChanged();
 	}
-}
-
-UAudioGameplayVolumeSubsystem* AAudioGameplayVolume::GetSubsystem() const
-{
-	if (UWorld* World = GetWorld())
-	{
-		return FAudioDevice::GetSubsystem<UAudioGameplayVolumeSubsystem>(World->GetAudioDevice());
-	}
-
-	return nullptr;
 }

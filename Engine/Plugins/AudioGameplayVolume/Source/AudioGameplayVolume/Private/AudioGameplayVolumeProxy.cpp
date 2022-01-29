@@ -35,7 +35,7 @@ void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeProx
 	TInlineComponentArray<UAudioGameplayVolumeComponentBase*> Components(Component->GetOwner());
 	for (UAudioGameplayVolumeComponentBase* Comp : Components)
 	{
-		if (!Comp)
+		if (!Comp || !Comp->IsActive())
 		{
 			continue;
 		}

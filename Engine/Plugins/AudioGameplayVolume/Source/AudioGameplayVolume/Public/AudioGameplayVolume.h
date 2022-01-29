@@ -52,6 +52,7 @@ public:
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
+	virtual void PostInitializeComponents() override;
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostUnregisterAllComponents() override;
 	//~ End AActor Interface
@@ -71,6 +72,4 @@ protected:
 	void AddProxy() const;
 	void RemoveProxy() const;
 	void UpdateProxy() const;
-
-	UAudioGameplayVolumeSubsystem* GetSubsystem() const;
 };
