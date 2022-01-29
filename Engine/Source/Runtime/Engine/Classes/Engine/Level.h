@@ -38,6 +38,7 @@ class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
 class SNotificationItem;
 class UActorFolder;
+struct FAssetCompileData;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -825,6 +826,9 @@ private:
 	/** Temporary array containing actor folder objects manually loaded from their external packages (only used while loading the level). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UActorFolder>> LoadedExternalActorFolders;
+
+	/** Actors awaiting outstanding asset compilation prior to running their non trivial construction scripts after loading this level. */
+	TArray<TWeakObjectPtr<AActor>> PendingConstructionScriptActors;
 #endif // #if WITH_EDITORONLY_DATA
 
 	enum class ERouteActorInitializationState : uint8
@@ -1311,6 +1315,18 @@ private:
 
 #if WITH_EDITOR
 private:
+	/**
+	 * Potentially defer the running of an actor's construction script on load
+	 * The running will be deferred if the actor's user construction script is non trivial 
+	 * and if there are outstanding asset compilation currently running (currently checks against static meshes)
+	 * @param InActor The actor to check
+	 * @return true if the running of the construction script was deferred
+	 */
+	bool DeferRunningConstructionScripts(AActor* InActor);
+
+	/** Callback for asset compilation to determine if we can run deferred construction scripts. */
+	void OnAssetPostCompile(const TArray<FAssetCompileData>&);
+
 	/** Attempts to detect and fix any issues with the level script blueprint and associated objects */
 	void RepairLevelScript();
 

@@ -220,6 +220,17 @@ void AActor::DestroyConstructedComponents()
 	}
 }
 
+
+bool AActor::HasNonTrivialUserConstructionScript() const
+{
+	UFunction* UCS = GetClass()->FindFunctionByName(FName(TEXT("UserConstructionScript"))/*UEdGraphSchema_K2::FN_UserConstructionScript*/);
+	if (UCS && UCS->Script.Num())
+	{
+		return true;
+	}
+	return false;
+}
+
 void AActor::RerunConstructionScripts()
 {
 	checkf(!HasAnyFlags(RF_ClassDefaultObject), TEXT("RerunConstructionScripts should never be called on a CDO as it can mutate the transient data on the CDO which then propagates to instances!"));

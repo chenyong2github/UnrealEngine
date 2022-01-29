@@ -53,6 +53,8 @@ Level.cpp: Level-related functions
 #include "UnrealEngine.h"
 #include "Misc/ArchiveMD5.h"
 #if WITH_EDITOR
+#include "AssetCompilingManager.h"
+#include "StaticMeshCompiler.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -941,6 +943,10 @@ void ULevel::PostLoad()
 			}
 		}
 	}
+
+	// Register to the asset async compilation delegate to manage the deferring of non trivial construction scripts on actors
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddUObject(this, &ULevel::OnAssetPostCompile);
+
 #endif
 
 	// Ensure that the level is pointed to the owning world.  For streamed levels, this will be the world of the P map
@@ -1483,6 +1489,13 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 			continue;
 		}
 
+#if WITH_EDITOR
+		if (DeferRunningConstructionScripts(Actor))
+		{
+			continue;
+		}
+#endif
+
 #if PERF_TRACK_DETAILED_ASYNC_STATS
 		FScopeCycleCounterUObject ContextScope(Actor);
 #endif
@@ -1572,6 +1585,42 @@ void ULevel::MarkLevelComponentsRenderStateDirty()
 }
 
 #if WITH_EDITOR
+
+bool ULevel::DeferRunningConstructionScripts(AActor* InActor)
+{
+	// if there are outstanding asset (static meshes) compilation when loading actors
+	// Defer the running of non trivial construction scripts
+	// This is done to ensure that user construction scripts that runs line trace
+	// Would not get an improper result from inflight static mesh compilation for example.
+	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() &&
+		InActor->HasNonTrivialUserConstructionScript())
+	{
+		PendingConstructionScriptActors.Add(InActor);
+		return true;
+	}
+	return false;
+}
+
+void ULevel::OnAssetPostCompile(const TArray<FAssetCompileData>&)
+{
+	// Once there are no more outstanding asset (static meshes), run actors non trivial construction scripts
+	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() == 0)
+	{
+		// since this deferred run of construction script was supposed to be done during level load
+		// temporarily set the global flag to prevent dirtying the level package.
+		// @note: it would quite preferable if we would have a scoped context than touching a global variable... 
+		GIsEditorLoadingPackage = true;
+		for (TWeakObjectPtr<AActor> WeakActor : PendingConstructionScriptActors)
+		{
+			if (AActor* Actor = WeakActor.Get())
+			{
+				Actor->RerunConstructionScripts();
+			}
+		}
+		GIsEditorLoadingPackage = false;
+		PendingConstructionScriptActors.Empty();
+	}
+}
 
 void ULevel::CreateModelComponents()
 {
