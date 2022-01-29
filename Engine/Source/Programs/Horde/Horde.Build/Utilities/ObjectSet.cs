@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using EpicGames.Serialization.Converters;
 using HordeServer.Storage;
@@ -12,8 +13,6 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Utilities
 {
-	using NamespaceId = StringId<INamespace>;
-
 	/// <summary>
 	/// Information about a blob stored in a blob pack file
 	/// </summary>
@@ -138,7 +137,7 @@ namespace HordeServer.Utilities
 	/// </summary>
 	class ObjectSet
 	{
-		readonly IBlobCollection BlobCollection;
+		readonly IStorageClient StorageClient;
 		readonly NamespaceId NamespaceId;
 		public int MaxPackSize { get; }
 
@@ -157,13 +156,13 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="BlobCollection"></param>
+		/// <param name="StorageClient"></param>
 		/// <param name="NamespaceId"></param>
 		/// <param name="MaxPackSize"></param>
 		/// <param name="Time">The initial update time; used to determine the age of blobs</param>
-		public ObjectSet(IBlobCollection BlobCollection, NamespaceId NamespaceId, int MaxPackSize, DateTime Time)
+		public ObjectSet(IStorageClient StorageClient, NamespaceId NamespaceId, int MaxPackSize, DateTime Time)
 		{
-			this.BlobCollection = BlobCollection;
+			this.StorageClient = StorageClient;
 			this.NamespaceId = NamespaceId;
 			this.MaxPackSize = MaxPackSize;
 
@@ -263,7 +262,7 @@ namespace HordeServer.Utilities
 			{
 				if (Pack.TryGetEntry(Hash, out Entry))
 				{
-					ReadOnlyMemory<byte> PackData = await BlobCollection.ReadBytesAsync(NamespaceId, Pack.DataHash);
+					ReadOnlyMemory<byte> PackData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Pack.DataHash);
 					return PackData.Slice(Entry.Offset, Entry.Length);
 				}
 			}
@@ -371,7 +370,7 @@ namespace HordeServer.Utilities
 				}
 
 				// Get the data for this blob
-				ReadOnlyMemory<byte> MergeData = await BlobCollection.ReadBytesAsync(NamespaceId, MergePack.DataHash);
+				ReadOnlyMemory<byte> MergeData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, MergePack.DataHash);
 
 				// Add anything that's still part of the live set into the new blobs
 				int Offset = 0;
@@ -449,7 +448,7 @@ namespace HordeServer.Utilities
 				Array.Resize(ref NextPackData, NextPackSize);
 				ReadOnlyMemory<byte> Data = NextPackData;
 				IoHash DataHash = IoHash.Compute(Data.Span);
-				WriteTasks.Add(Task.Run(() => BlobCollection.WriteBytesAsync(NamespaceId, DataHash, Data)));
+				WriteTasks.Add(Task.Run(() => StorageClient.WriteBlobFromMemoryAsync(NamespaceId, DataHash, Data)));
 
 				// Create the new index
 				ObjectPackIndex Index = new ObjectPackIndex(Time, NextPackEntries.ToArray(), DataHash, NextPackSize);

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using HordeCommon.Rpc;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -89,6 +91,11 @@ namespace HordeAgent
 		/// Thumbprints of certificates to trust. Allows using self-signed certs for the server.
 		/// </summary>
 		public List<string> Thumbprints { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Storage settings for using this server
+		/// </summary>
+		public StorageSettings Storage { get; set; } = new StorageSettings();
 
 		/// <summary>
 		/// Checks whether the given certificate thumbprint should be trusted
@@ -240,6 +247,23 @@ namespace HordeAgent
 		internal string GetAgentName()
 		{
 			return Name ?? Environment.MachineName;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for retrieving config settings
+	/// </summary>
+	public static class AgentSettingsExtensions
+	{
+		/// <summary>
+		/// Gets the configuration section for the active server profile
+		/// </summary>
+		/// <param name="ConfigSection"></param>
+		/// <returns></returns>
+		public static IConfigurationSection GetCurrentServerProfile(this IConfigurationSection ConfigSection)
+		{
+			string ProfileName = ConfigSection[nameof(AgentSettings.Server)];
+			return ConfigSection.GetSection(nameof(AgentSettings.ServerProfiles)).GetChildren().First(x => x[nameof(ServerProfile.Name)] == ProfileName);
 		}
 	}
 }

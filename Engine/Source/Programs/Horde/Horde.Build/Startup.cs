@@ -67,12 +67,10 @@ using HordeServer.Notifications.Impl;
 using HordeServer.Notifications;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using System.Runtime.InteropServices;
-using HordeServer.Storage.Collections;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.S3;
 using Amazon.Runtime;
 using HordeServer.Storage.Backends;
-using HordeServer.Storage.Services;
 using HordeServer.Commits.Impl;
 using HordeServer.Commits;
 using OpenTracing.Contrib.Grpc.Interceptors;
@@ -88,6 +86,10 @@ using Serilog.Events;
 using HordeServer.Jobs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Horde.Build.Storage.Services;
+using EpicGames.Horde.Storage;
+using System.Net.Http;
+using EpicGames.Horde.Storage.Impl;
 
 namespace HordeServer
 {
@@ -251,8 +253,9 @@ namespace HordeServer
 			Services.Configure<ServerSettings>(Configuration.GetSection("Horde"));
 
 			// Settings used for configuring services
+			IConfigurationSection ConfigSection = Configuration.GetSection("Horde");
 			ServerSettings Settings = new ServerSettings();
-			Configuration.GetSection("Horde").Bind(Settings);			
+			ConfigSection.Bind(Settings);			
 
 			if (Settings.GlobalThreadPoolMinSize != null)
 			{
@@ -323,13 +326,6 @@ namespace HordeServer
 
 			// Auditing
 			Services.AddSingleton<IAuditLog<AgentId>>(SP => SP.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
-
-			// Storage
-			Services.AddSingleton<IBlobCollection>(SP => new CachingBlobCollection(new BlobCollection(SP.GetRequiredService<IStorageBackend<BlobCollection>>()), 256 * 1024 * 1024));
-			Services.AddSingleton<IBucketCollection, BucketCollection>();
-			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
-			Services.AddSingleton<IObjectCollection, ObjectCollection>();
-			Services.AddSingleton<IRefCollection, RefCollection>();
 
 			Services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
@@ -424,12 +420,11 @@ namespace HordeServer
 
 			Services.AddSingleton(new StorageBackendSettings<PersistentLogStorage> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalLogsDir, BucketName = Settings.S3LogBucketName });
 			Services.AddSingleton(new StorageBackendSettings<ArtifactCollection> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalArtifactsDir, BucketName = Settings.S3ArtifactBucketName });
-			Services.AddSingleton(new StorageBackendSettings<BlobCollection> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalBlobsDir, BucketName = Settings.S3LogBucketName, BucketPath = "blobs/" });
 			Services.AddSingleton(typeof(IStorageBackend<>), typeof(StorageBackendFactory<>));
 
+			Services.AddHordeStorage(Settings => ConfigSection.GetSection("Storage").Bind(Settings));
+
 			ConfigureLogStorage(Services);
-			Services.AddSingleton<IStorageService, SimpleStorageService>();
-			//			ConfigureLogFileWriteCache(Services, Settings);
 
 			AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
 				{
@@ -894,11 +889,6 @@ namespace HordeServer
 			{
 				Endpoints.MapGrpcService<HealthService>();
 				Endpoints.MapGrpcService<RpcService>();
-				
-				// Google Remote Execution API
-				Endpoints.MapGrpcService<ComputeRpcServer>();
-				Endpoints.MapGrpcService<BlobStoreRpc>();
-				Endpoints.MapGrpcService<RefTableRpc>();
 
 				Endpoints.MapGrpcReflectionService();
 

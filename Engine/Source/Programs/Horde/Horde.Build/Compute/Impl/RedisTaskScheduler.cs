@@ -22,7 +22,6 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Compute.Impl
 {
-	using NamespaceId = StringId<INamespace>;
 	using Condition = StackExchange.Redis.Condition;
 
 	/// <summary>
@@ -31,7 +30,7 @@ namespace HordeServer.Compute.Impl
 	/// <typeparam name="TQueueId">Type used to identify a particular queue</typeparam>
 	/// <typeparam name="TTask">Type used to describe a task to be performed</typeparam>
 	interface ITaskScheduler<TQueueId, TTask> 
-		where TQueueId : struct 
+		where TQueueId : notnull 
 		where TTask : class
 	{
 		/// <summary>
@@ -70,7 +69,7 @@ namespace HordeServer.Compute.Impl
 	/// <typeparam name="TQueueId">Type used to identify a particular queue</typeparam>
 	/// <typeparam name="TTask">Type used to describe a task to be performed</typeparam>
 	class RedisTaskScheduler<TQueueId, TTask> : ITaskScheduler<TQueueId, TTask>, IDisposable 
-		where TQueueId : struct 
+		where TQueueId : notnull
 		where TTask : class
 	{
 		class Listener
@@ -387,7 +386,7 @@ namespace HordeServer.Compute.Impl
 			while (await NewQueues.Reader.WaitToReadAsync(CancellationToken))
 			{
 				HashSet<TQueueId> NewQueueIds = new HashSet<TQueueId>();
-				while (NewQueues.Reader.TryRead(out TQueueId QueueId))
+				while (NewQueues.Reader.TryRead(out TQueueId? QueueId))
 				{
 					NewQueueIds.Add(QueueId);
 				}

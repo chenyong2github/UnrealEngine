@@ -42,7 +42,7 @@ namespace HordeAgent
 		/// <summary>
 		/// The blob store
 		/// </summary>
-		BlobStore.BlobStoreClient BlobStore;
+		IStorageClient StorageClient;
 
 		/// <summary>
 		/// Logger for internal executor output
@@ -52,11 +52,11 @@ namespace HordeAgent
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="GrpcChannel"></param>
+		/// <param name="StorageClient"></param>
 		/// <param name="Logger"></param>
-		public ComputeTaskExecutor(GrpcChannel GrpcChannel, ILogger Logger)
+		public ComputeTaskExecutor(IStorageClient StorageClient, ILogger Logger)
 		{
-			this.BlobStore = new BlobStore.BlobStoreClient(GrpcChannel);
+			this.StorageClient = StorageClient;
 			this.Logger = Logger;
 		}
 
@@ -102,15 +102,19 @@ namespace HordeAgent
 		/// <returns>The action result</returns>
 		public async Task<ComputeTaskResultMessage> ExecuteAsync(string LeaseId, ComputeTaskMessage ComputeTaskMessage, DirectoryReference SandboxDir, CancellationToken CancellationToken)
 		{
-			ComputeTask Task = await BlobStore.GetObjectAsync<ComputeTask>(ComputeTaskMessage.NamespaceId, ComputeTaskMessage.Task);
-			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", ComputeTaskMessage.Task.Hash, LeaseId);
+			NamespaceId NamespaceId = new NamespaceId(ComputeTaskMessage.NamespaceId);
+			BucketId InputBucketId = new BucketId(ComputeTaskMessage.InputBucketId);
+			BucketId OutputBucketId = new BucketId(ComputeTaskMessage.OutputBucketId);
+
+			ComputeTask Task = await StorageClient.GetRefAsync<ComputeTask>(NamespaceId, InputBucketId, ComputeTaskMessage.TaskRefId.AsRefId());
+			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", ComputeTaskMessage.TaskRefId, LeaseId);
 
 			DirectoryReference.CreateDirectory(SandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
 
 			DateTimeOffset InputFetchStart = DateTimeOffset.UtcNow;
-			DirectoryTree InputDirectory = await BlobStore.GetObjectAsync<DirectoryTree>(ComputeTaskMessage.NamespaceId, Task.SandboxHash);
-			await SetupSandboxAsync(ComputeTaskMessage.NamespaceId, InputDirectory, SandboxDir);
+			DirectoryTree InputDirectory = await StorageClient.ReadObjectAsync<DirectoryTree>(NamespaceId, Task.SandboxHash);
+			await SetupSandboxAsync(NamespaceId, InputDirectory, SandboxDir);
 			DateTimeOffset InputFetchCompleted = DateTimeOffset.UtcNow;
 
 			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
@@ -149,8 +153,8 @@ namespace HordeAgent
 					Logger.LogInformation("exit: {ExitCode}", Process.ExitCode);
 
 					ComputeTaskResult Result = new ComputeTaskResult(Process.ExitCode);
-					Result.StdOutHash = await BlobStore.PutBlobAsync(ComputeTaskMessage.NamespaceId, StdOutData);
-					Result.StdErrHash = await BlobStore.PutBlobAsync(ComputeTaskMessage.NamespaceId, StdErrData);
+					Result.StdOutHash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, StdOutData);
+					Result.StdErrHash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, StdErrData);
 
 					FileReference[] OutputFiles = ResolveOutputPaths(SandboxDir, Task.OutputPaths.Select(x => x.ToString())).OrderBy(x => x.FullName, StringComparer.Ordinal).ToArray();
 					if (OutputFiles.Length > 0)
@@ -159,11 +163,13 @@ namespace HordeAgent
 						{
 							Logger.LogInformation("output: {File}", OutputFile.MakeRelativeTo(SandboxDir));
 						}
-						Result.OutputHash = await PutOutput(ComputeTaskMessage.NamespaceId, SandboxDir, OutputFiles);
+						Result.OutputHash = await PutOutput(NamespaceId, SandboxDir, OutputFiles);
 					}
 
-					CbObjectAttachment Attachment = await BlobStore.PutObjectAsync(ComputeTaskMessage.NamespaceId, Result);
-					return new ComputeTaskResultMessage(Attachment);
+					CbObject ResultObject = CbSerializer.Serialize(Result);
+
+					await StorageClient.SetRefAsync(NamespaceId, OutputBucketId, ComputeTaskMessage.TaskRefId, ResultObject);
+					return new ComputeTaskResultMessage(ComputeTaskMessage.TaskRefId);
 				}
 			}
 		}
@@ -175,7 +181,7 @@ namespace HordeAgent
 		/// <param name="InputDirectory">The directory spec</param>
 		/// <param name="OutputDir">Output directory on disk</param>
 		/// <returns>Async task</returns>
-		async Task SetupSandboxAsync(string NamespaceId, DirectoryTree InputDirectory, DirectoryReference OutputDir)
+		async Task SetupSandboxAsync(NamespaceId NamespaceId, DirectoryTree InputDirectory, DirectoryReference OutputDir)
 		{
 			DirectoryReference.CreateDirectory(OutputDir);
 
@@ -183,14 +189,14 @@ namespace HordeAgent
 			{
 				FileReference File = FileReference.Combine(OutputDir, FileNode.Name.ToString());
 				Logger.LogInformation("Downloading {File} (digest: {Digest})", File, FileNode.Hash);
-				byte[] Data = await BlobStore.GetBlobAsync(NamespaceId, FileNode.Hash);
+				byte[] Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, FileNode.Hash);
 				Logger.LogInformation("Writing {File} (digest: {Digest})", File, FileNode.Hash);
 				await FileReference.WriteAllBytesAsync(File, Data);
 			}
 
 			async Task DownloadDir(DirectoryNode DirectoryNode)
 			{
-				DirectoryTree InputSubDirectory = await BlobStore.GetObjectAsync<DirectoryTree>(NamespaceId, DirectoryNode.Hash);
+				DirectoryTree InputSubDirectory = await StorageClient.ReadObjectAsync<DirectoryTree>(NamespaceId, DirectoryNode.Hash);
 				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name.ToString());
 				await SetupSandboxAsync(NamespaceId, InputSubDirectory, OutputSubDirectory);
 			}
@@ -201,14 +207,14 @@ namespace HordeAgent
 			await Task.WhenAll(Tasks);
 		}
 
-		async Task<IoHash> PutOutput(string NamespaceId, DirectoryReference BaseDir, IEnumerable<FileReference> Files)
+		async Task<IoHash> PutOutput(NamespaceId NamespaceId, DirectoryReference BaseDir, IEnumerable<FileReference> Files)
 		{
 			List<FileReference> SortedFiles = Files.OrderBy(x => x.FullName, StringComparer.Ordinal).ToList();
 			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDir.FullName.Length, SortedFiles, 0, SortedFiles.Count);
 			return Hash;
 		}
 
-		async Task<(DirectoryTree, IoHash)> PutDirectoryTree(string NamespaceId, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
+		async Task<(DirectoryTree, IoHash)> PutDirectoryTree(NamespaceId NamespaceId, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
 		{
 			List<Task<FileNode>> Files = new List<Task<FileNode>>();
 			List<Task<DirectoryNode>> Trees = new List<Task<DirectoryNode>>();
@@ -246,19 +252,21 @@ namespace HordeAgent
 			DirectoryTree Tree = new DirectoryTree();
 			Tree.Files.AddRange(await Task.WhenAll(Files));
 			Tree.Directories.AddRange(await Task.WhenAll(Trees));
-			return (Tree, await BlobStore.PutObjectAsync(NamespaceId, Tree));
+
+			IoHash Hash = await StorageClient.WriteObjectAsync<DirectoryTree>(NamespaceId, Tree);
+			return (Tree, Hash);
 		}
 
-		async Task<DirectoryNode> CreateDirectoryNode(string NamespaceId, string Name, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
+		async Task<DirectoryNode> CreateDirectoryNode(NamespaceId NamespaceId, string Name, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
 		{
 			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
 			return new DirectoryNode(Name, Hash);
 		}
 
-		async Task<FileNode> CreateFileNode(string NamespaceId, string Name, FileReference File)
+		async Task<FileNode> CreateFileNode(NamespaceId NamespaceId, string Name, FileReference File)
 		{
 			byte[] Data = await FileReference.ReadAllBytesAsync(File);
-			IoHash Hash = await BlobStore.PutBlobAsync(NamespaceId, Data);
+			IoHash Hash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, Data);
 			return new FileNode(Name, Hash, Data.Length, (int)FileReference.GetAttributes(File));
 		}
 

@@ -436,10 +436,6 @@ namespace EpicGames.Serialization.Converters
 					PropertyList.Add((Name, Property));
 				}
 			}
-			if (PropertyList.Count == 0)
-			{
-				throw new CbException($"{Type.Name} does not have any properties marked with [CbField]");
-			}
 			return PropertyList.ToArray();
 		}
 

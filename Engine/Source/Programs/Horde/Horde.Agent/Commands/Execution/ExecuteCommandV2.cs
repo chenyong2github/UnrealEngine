@@ -23,6 +23,8 @@ using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using System.Net.Http;
+using EpicGames.Horde.Compute.Impl;
+using EpicGames.Horde.Storage.Impl;
 
 namespace HordeAgent.Commands
 {
@@ -32,6 +34,8 @@ namespace HordeAgent.Commands
 	[Command("ExecuteV2", "Executes a command through the remote execution API")]
 	class ExecuteCommandV2 : Command
 	{
+		static ClusterId ClusterId { get; } = new ClusterId("default");
+
 		class JsonRequirements
 		{
 			public string? Condition { get; set; }
@@ -109,182 +113,6 @@ namespace HordeAgent.Commands
 		[CommandLine("-Token=")]
 		public string? Token = Environment.GetEnvironmentVariable("HORDE_TOKEN");
 
-		interface IComputeClient : IDisposable
-		{
-			Task AddBlobAsync(string NamespaceId, IoHash Hash, byte[] Data);
-			Task<byte[]> GetBlobAsync(string NamespaceId, IoHash Hash);
-
-			Task AddObjectAsync(string NamespaceId, IoHash Hash, byte[] Data);
-			Task<byte[]> GetObjectAsync(string NamespaceId, IoHash Hash);
-
-			Task AddTaskAsync(string ChannelId, string NamespaceId, IoHash RequirementsHash, IoHash TaskHash, bool SkipTaskLookup);
-			Task GetTaskUpdatesAsync(string ChannelId, string NamespaceId, Func<GetTaskUpdateResponse, Task<bool>> OnUpdate);
-		}
-
-		class HttpComputeClient : IComputeClient
-		{
-			HttpClient HttpClient;
-
-			public HttpComputeClient(Uri Server, string? BearerToken)
-			{
-				HttpClient = new HttpClient();
-				HttpClient.BaseAddress = Server;
-				if (BearerToken != null)
-				{
-					HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", BearerToken);
-				}
-			}
-
-			public void Dispose()
-			{
-				HttpClient.Dispose();
-			}
-
-			public async Task AddBlobAsync(string NamespaceId, IoHash Hash, byte[] Data)
-			{
-				HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{NamespaceId}/{Hash}");
-				Request.Content = new ByteArrayContent(Data);
-
-				HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-				Response.EnsureSuccessStatusCode();
-			}
-
-			public async Task<byte[]> GetBlobAsync(string NamespaceId, IoHash Hash)
-			{
-				HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/blobs/{NamespaceId}/{Hash}");
-				HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-				Response.EnsureSuccessStatusCode();
-				return await Response.Content.ReadAsByteArrayAsync();
-			}
-
-			public Task AddObjectAsync(string NamespaceId, IoHash Hash, byte[] Data)
-			{
-				return AddBlobAsync(NamespaceId, Hash, Data);
-			}
-
-			public Task<byte[]> GetObjectAsync(string NamespaceId, IoHash Hash)
-			{
-				return GetBlobAsync(NamespaceId, Hash);
-			}
-
-			public async Task AddTaskAsync(string ChannelId, string NamespaceId, IoHash RequirementsHash, IoHash TaskHash, bool SkipCacheLookup)
-			{
-				AddTasksRequest AddTasks = new AddTasksRequest();
-				AddTasks.RequirementsHash = RequirementsHash;
-				AddTasks.TaskHashes.Add(TaskHash);
-				AddTasks.DoNotCache = SkipCacheLookup;
-
-				ReadOnlyMemoryContent Content = new ReadOnlyMemoryContent(CbSerializer.Serialize(AddTasks).GetView());
-				Content.Headers.Add("Content-Type", "application/x-ue-cb");
-
-				HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{ChannelId}");
-				Request.Content = Content;
-
-				HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-				Response.EnsureSuccessStatusCode();
-			}
-
-			public async Task GetTaskUpdatesAsync(string ChannelId, string NamespaceId, Func<GetTaskUpdateResponse, Task<bool>> OnUpdateAsync)
-			{
-				for (; ; )
-				{
-					HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{ChannelId}/updates?wait=10");
-					Request.Headers.Add("Accept", "application/x-ue-cb");
-
-					HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-					Response.EnsureSuccessStatusCode();
-
-					byte[] Data = await Response.Content.ReadAsByteArrayAsync();
-					GetTaskUpdatesResponse ParsedResponse = CbSerializer.Deserialize<GetTaskUpdatesResponse>(new CbField(Data));
-					
-					foreach (GetTaskUpdateResponse Update in ParsedResponse.Updates)
-					{
-						if (!await OnUpdateAsync(Update))
-						{
-							return;
-						}
-					}
-				}
-			}
-		}
-
-		class GrpcComputeClient : IComputeClient
-		{
-			GrpcChannel Channel;
-			BlobStore.BlobStoreClient BlobStore;
-			ComputeRpc.ComputeRpcClient ComputeClient;
-
-			public GrpcComputeClient(GrpcService GrpcService)
-			{
-				Channel = GrpcService.CreateGrpcChannel();
-				BlobStore = new BlobStore.BlobStoreClient(Channel);
-				ComputeClient = new ComputeRpc.ComputeRpcClient(Channel);
-			}
-
-			public void Dispose()
-			{
-				Channel.Dispose();
-			}
-
-			public async Task AddBlobAsync(string NamespaceId, IoHash Hash, byte[] Data)
-			{
-				AddBlobsRequest Request = new AddBlobsRequest();
-				Request.NamespaceId = NamespaceId;
-				Request.Blobs.Add(new AddBlobRequest(Hash, Data));
-				await BlobStore.AddAsync(Request);
-			}
-
-			public async Task<byte[]> GetBlobAsync(string NamespaceId, IoHash Hash)
-			{
-				return await BlobStore.GetBlobAsync(NamespaceId, Hash);
-			}
-
-			public Task AddObjectAsync(string NamespaceId, IoHash Hash, byte[] Data)
-			{
-				return AddBlobAsync(NamespaceId, Hash, Data);
-			}
-
-			public Task<byte[]> GetObjectAsync(string NamespaceId, IoHash Hash)
-			{
-				return BlobStore.GetBlobAsync(NamespaceId, Hash);
-			}
-
-			public async Task AddTaskAsync(string ChannelId, string NamespaceId, IoHash RequirementsHash, IoHash TaskHash, bool SkipCacheLookup)
-			{
-				AddTasksRpcRequest AddTasksRequest = new AddTasksRpcRequest(ChannelId, NamespaceId, RequirementsHash, new List<CbObjectAttachment> { TaskHash }, SkipCacheLookup);
-				await ComputeClient.AddTasksAsync(AddTasksRequest);
-			}
-
-			public async Task GetTaskUpdatesAsync(string ChannelId, string NamespaceId, Func<GetTaskUpdateResponse, Task<bool>> OnUpdateAsync)
-			{
-				using (AsyncDuplexStreamingCall<GetTaskUpdatesRpcRequest, GetTaskUpdatesRpcResponse> Call = ComputeClient.GetTaskUpdates())
-				{
-					await Call.RequestStream.WriteAsync(new GetTaskUpdatesRpcRequest(ChannelId));
-
-					//					TaskCompletionSource<bool> CompleteNowTask = new TaskCompletionSource<bool>();
-					//					Task CompleteTask = Task.Run(async () => { await CompleteNowTask.Task; await Call.RequestStream.CompleteAsync(); });
-
-					while (await Call.ResponseStream.MoveNext())
-					{
-						GetTaskUpdatesRpcResponse RpcResponse = Call.ResponseStream.Current;
-
-						GetTaskUpdateResponse Response = new GetTaskUpdateResponse();
-						Response.AgentId = RpcResponse.AgentId;
-						Response.LeaseId = RpcResponse.LeaseId;
-						Response.Result = RpcResponse.Result?.Hash;
-						Response.State = RpcResponse.State;
-						Response.TaskHash = RpcResponse.Task;
-						Response.Time = RpcResponse.Time.ToDateTime();
-
-						if (!await OnUpdateAsync(Response))
-						{
-							await Call.RequestStream.CompleteAsync();
-						}
-					}
-				}
-			}
-		}
-
 		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo BaseDirInfo, Dictionary<IoHash, byte[]> UploadList)
 		{
 			DirectoryTree Tree = new DirectoryTree();
@@ -306,18 +134,6 @@ namespace HordeAgent.Commands
 			Tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
 			return (Tree, AddCbObject(UploadList, Tree));
-		}
-
-		IComputeClient CreateComputeClient(IServiceProvider Services)
-		{
-			if (UseHttp)
-			{
-				return new HttpComputeClient(new Uri(Server), Token);
-			}
-			else
-			{
-				return new GrpcComputeClient(Services.GetRequiredService<GrpcService>());
-			}
 		}
 
 		/// <inheritdoc/>
@@ -350,13 +166,19 @@ namespace HordeAgent.Commands
 				{
 					Services.AddOptions<AgentSettings>().Configure(Options => ConfigSection.Bind(Options)).ValidateDataAnnotations();
 					Services.AddLogging();
+
+					IConfigurationSection StorageSettings = ConfigSection.GetCurrentServerProfile().GetSection(nameof(ServerProfile.Storage));
+					Services.AddHordeStorage(Settings => StorageSettings.Bind(Settings));
+
 					Services.AddSingleton<GrpcService>();
+					Services.AddSingleton<IComputeClient, HttpComputeClient>(SP => new HttpComputeClient(new HttpClient() { BaseAddress = new Uri(Server) }));
 				});
 
 			using (IHost Host = HostBuilder.Build())
 			{
-				using IComputeClient ComputeClient = CreateComputeClient(Host.Services);
-				
+				IStorageClient StorageClient = Host.Services.GetRequiredService<IStorageClient>();
+				IComputeClient ComputeClient = Host.Services.GetRequiredService<IComputeClient>();
+
 				byte[] Json = await FileReference.ReadAllBytesAsync(Input);
 				JsonComputeTask JsonComputeTask = JsonSerializer.Deserialize<JsonComputeTask>(Json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
@@ -378,18 +200,18 @@ namespace HordeAgent.Commands
 				Dictionary<IoHash, byte[]> Blobs = new Dictionary<IoHash, byte[]>();
 				(_, IoHash SandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), Blobs);
 
-				ComputeTask Task = new ComputeTask(JsonComputeTask.Executable, JsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), JsonComputeTask.WorkingDirectory, SandboxHash);
-				Task.EnvVars = JsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);
-				Task.OutputPaths.AddRange(JsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
-				IoHash TaskHash = AddCbObject(Blobs, Task);
-
 				JsonRequirements JsonRequirements = JsonComputeTask.Requirements;
 				Requirements Requirements = new Requirements(JsonRequirements.Condition ?? String.Empty);
 				Requirements.Resources = JsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
 				Requirements.Exclusive = JsonRequirements.Exclusive;
 				IoHash RequirementsHash = AddCbObject(Blobs, Requirements);
 
-				await ExecuteAction(Logger, ComputeClient, TaskHash, RequirementsHash, Blobs);	
+				ComputeTask Task = new ComputeTask(JsonComputeTask.Executable, JsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), JsonComputeTask.WorkingDirectory, SandboxHash);
+				Task.EnvVars = JsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);
+				Task.OutputPaths.AddRange(JsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
+				Task.RequirementsHash = AddCbObject(Blobs, Requirements);
+
+				await ExecuteAction(Logger, ComputeClient, StorageClient, Task, Blobs);	
 			}
 			return 0;
 		}
@@ -402,58 +224,67 @@ namespace HordeAgent.Commands
 			return Hash;
 		}
 
-		private async Task ExecuteAction(ILogger Logger, IComputeClient ComputeClient, CbObjectAttachment TaskHash, CbObjectAttachment RequirementsHash, Dictionary<IoHash, byte[]> UploadList)
+		private async Task ExecuteAction(ILogger Logger, IComputeClient ComputeClient, IStorageClient StorageClient, ComputeTask Task, Dictionary<IoHash, byte[]> UploadList)
 		{
-			Logger.LogInformation("task: {TaskHash}", TaskHash);
-			Logger.LogInformation("requirements: {RequirementsHash}", RequirementsHash);
+			IComputeClusterInfo Cluster = await ComputeClient.GetClusterInfoAsync(ClusterId);
 
-			const string NamespaceId = "default";
-
-			foreach (KeyValuePair<IoHash, byte[]> Pair in UploadList)
+			List<KeyValuePair<IoHash, byte[]>> UploadBlobs = UploadList.ToList();
+			for(int Idx = 0; Idx < UploadBlobs.Count; Idx++)
 			{
-				await ComputeClient.AddBlobAsync(NamespaceId, Pair.Key, Pair.Value);
+				KeyValuePair<IoHash, byte[]> Pair = UploadBlobs[Idx];
+				Logger.LogInformation("Uploading blob {Idx}/{Count}: {Hash}", Idx + 1, UploadBlobs.Count, Pair.Key);
+				await StorageClient.WriteBlobFromMemoryAsync(Cluster.NamespaceId, Pair.Key, Pair.Value);
 			}
 
-			// Execute the action
-			string ChannelId = Guid.NewGuid().ToString();
-			await ComputeClient.AddTaskAsync(ChannelId, NamespaceId, RequirementsHash, TaskHash, SkipCacheLookup);
+			CbObject TaskObject = CbSerializer.Serialize(Task);
+			IoHash TaskHash = IoHash.Compute(TaskObject.GetView().Span);
+			RefId TaskRefId = new RefId(TaskHash);
+			await StorageClient.SetRefAsync(Cluster.NamespaceId, Cluster.RequestBucketId, TaskRefId, TaskObject);
 
-			await ComputeClient.GetTaskUpdatesAsync(ChannelId, NamespaceId, async Response =>
+			Logger.LogInformation("task: {TaskHash}", TaskHash);
+			Logger.LogInformation("requirements: {RequirementsHash}", Task.RequirementsHash);
+
+			// Execute the action
+			ChannelId ChannelId = new ChannelId(Guid.NewGuid().ToString());
+			await ComputeClient.AddTaskAsync(ClusterId, ChannelId, TaskRefId, Task.RequirementsHash, SkipCacheLookup);
+
+			await foreach(IComputeTaskInfo Response in ComputeClient.GetTaskUpdatesAsync(ClusterId, ChannelId))
 			{
-				Logger.LogInformation("{OperationName}: Execution state: {State}", (IoHash)(CbObjectAttachment)Response.TaskHash, Response.State.ToString());
+				Logger.LogInformation("{OperationName}: Execution state: {State}", Response.TaskRefId, Response.State.ToString());
 				if (!String.IsNullOrEmpty(Response.AgentId) || !String.IsNullOrEmpty(Response.LeaseId))
 				{
-					Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", (IoHash)(CbObjectAttachment)Response.TaskHash, Response.AgentId, Response.LeaseId);
+					Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", Response.TaskRefId, Response.AgentId, Response.LeaseId);
 				}
-				if (Response.Result != null)
+				if (Response.ResultRefId != null)
 				{
-					await HandleCompleteTask(ComputeClient, NamespaceId, Response.Result.Value, Logger);
+					await HandleCompleteTask(StorageClient, Cluster.NamespaceId, Cluster.ResponseBucketId, Response.ResultRefId.Value, Logger);
 				}
-				return Response.State != ComputeTaskState.Complete;
-			});
+				if (Response.State == ComputeTaskState.Complete)
+				{
+					break;
+				}
+			}
 		}
 
-		async Task HandleCompleteTask(IComputeClient ComputeClient, string NamespaceId, CbObjectAttachment Hash, ILogger Logger)
+		async Task HandleCompleteTask(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId OutputBucketId, RefId OutputRefId, ILogger Logger)
 		{
-			Logger.LogInformation("result: {ResultHash}", Hash);
-
-			ComputeTaskResult Result = await GetObjectAsync<ComputeTaskResult>(ComputeClient, NamespaceId, Hash);
+			ComputeTaskResult Result = await StorageClient.GetRefAsync<ComputeTaskResult>(NamespaceId, OutputBucketId, OutputRefId);
 			Logger.LogInformation("exit: {ExitCode}", Result.ExitCode);
 
-			await LogTaskOutputAsync(ComputeClient, "stdout", NamespaceId, Result.StdOutHash, Logger);
-			await LogTaskOutputAsync(ComputeClient, "stderr", NamespaceId, Result.StdErrHash, Logger);
+			await LogTaskOutputAsync(StorageClient, "stdout", NamespaceId, Result.StdOutHash, Logger);
+			await LogTaskOutputAsync(StorageClient, "stderr", NamespaceId, Result.StdErrHash, Logger);
 
 			if (Result.OutputHash != null && OutputDir != null)
 			{
-				await WriteOutputAsync(ComputeClient, NamespaceId, Result.OutputHash.Value, new DirectoryReference(OutputDir));
+				await WriteOutputAsync(StorageClient, NamespaceId, Result.OutputHash.Value, new DirectoryReference(OutputDir));
 			}
 		}
 
-		async Task LogTaskOutputAsync(IComputeClient ComputeClient, string Channel, string NamespaceId, IoHash? LogHash, ILogger Logger)
+		async Task LogTaskOutputAsync(IStorageClient StorageClient, string Channel, NamespaceId NamespaceId, IoHash? LogHash, ILogger Logger)
 		{
 			if (LogHash != null)
 			{
-				byte[] StdOutData = await ComputeClient.GetBlobAsync(NamespaceId, LogHash.Value);
+				byte[] StdOutData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, LogHash.Value);
 				if (StdOutData.Length > 0)
 				{
 					foreach (string Line in Encoding.UTF8.GetString(StdOutData).Split('\n'))
@@ -464,36 +295,30 @@ namespace HordeAgent.Commands
 			}
 		}
 
-		async Task WriteOutputAsync(IComputeClient ComputeClient, string NamespaceId, IoHash TreeHash, DirectoryReference OutputDir)
+		async Task WriteOutputAsync(IStorageClient StorageClient, NamespaceId NamespaceId, IoHash TreeHash, DirectoryReference OutputDir)
 		{
-			DirectoryTree Tree = await GetObjectAsync<DirectoryTree>(ComputeClient, NamespaceId, TreeHash);
+			DirectoryTree Tree = await StorageClient.ReadObjectAsync<DirectoryTree>(NamespaceId, TreeHash);
 
 			List<Task> Tasks = new List<Task>();
 			foreach (FileNode File in Tree.Files)
 			{
 				FileReference OutputFile = FileReference.Combine(OutputDir, File.Name.ToString());
-				Tasks.Add(WriteObjectToFileAsync(ComputeClient, NamespaceId, File.Hash, OutputFile));
+				Tasks.Add(WriteObjectToFileAsync(StorageClient, NamespaceId, File.Hash, OutputFile));
 			}
 			foreach (DirectoryNode Directory in Tree.Directories)
 			{
 				DirectoryReference NextOutputDir = DirectoryReference.Combine(OutputDir, Directory.Name.ToString());
-				Tasks.Add(WriteOutputAsync(ComputeClient, NamespaceId, Directory.Hash, NextOutputDir));
+				Tasks.Add(WriteOutputAsync(StorageClient, NamespaceId, Directory.Hash, NextOutputDir));
 			}
 
 			await Task.WhenAll(Tasks);
 		}
 
-		static async Task<T> GetObjectAsync<T>(IComputeClient ComputeClient, string NamespaceId, IoHash Hash)
-		{
-			byte[] Data = await ComputeClient.GetObjectAsync(NamespaceId, Hash);
-			return CbSerializer.Deserialize<T>(new CbField(Data));
-		}
-
-		static async Task WriteObjectToFileAsync(IComputeClient ComputeClient, string NamespaceId, IoHash Hash, FileReference OutputFile)
+		static async Task WriteObjectToFileAsync(IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, FileReference OutputFile)
 		{
 			DirectoryReference.CreateDirectory(OutputFile.Directory);
 
-			byte[] Data = await ComputeClient.GetBlobAsync(NamespaceId, Hash);
+			byte[] Data = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Hash);
 			await FileReference.WriteAllBytesAsync(OutputFile, Data);
 		}
 	}

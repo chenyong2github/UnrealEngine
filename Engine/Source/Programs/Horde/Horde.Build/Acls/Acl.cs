@@ -437,6 +437,27 @@ namespace HordeServer.Models
 
 
 
+
+
+		//// COMPUTE ////
+
+		/// <summary>
+		/// User can add tasks to the compute cluster
+		/// </summary>
+		AddComputeTasks,
+
+		/// <summary>
+		/// User can poll for compute results
+		/// </summary>
+		ViewComputeTasks,
+
+
+
+
+
+
+
+
 		//// STORAGE ////
 
 		/// <summary>

@@ -2,6 +2,8 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Common;
+using EpicGames.Horde.Compute;
+using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using HordeServer.Api;
 using HordeServer.Utilities;
@@ -44,6 +46,11 @@ namespace HordeServer.Models
 		public List<AgentRateConfig> Rates { get; set; } = new List<AgentRateConfig>();
 
 		/// <summary>
+		/// List of compute profiles
+		/// </summary>
+		public List<ComputeClusterConfig> Compute { get; set; } = new List<ComputeClusterConfig>();
+
+		/// <summary>
 		/// Maximum number of conforms to run at once
 		/// </summary>
 		public int MaxConformCount { get; set; }
@@ -52,6 +59,37 @@ namespace HordeServer.Models
 		/// List of storage namespaces
 		/// </summary>
 		public StorageConfig? Storage { get; set; }
+
+		/// <summary>
+		/// Access control list
+		/// </summary>
+		public UpdateAclRequest? Acl { get; set; }
+	}
+
+	/// <summary>
+	/// Profile for executing compute requests
+	/// </summary>
+	public class ComputeClusterConfig
+	{
+		/// <summary>
+		/// Name of the partition
+		/// </summary>
+		public string Id { get; set; } = "default";
+
+		/// <summary>
+		/// Name of the namespace to use
+		/// </summary>
+		public string NamespaceId { get; set; } = "horde.compute";
+
+		/// <summary>
+		/// Name of the input bucket
+		/// </summary>
+		public string RequestBucketId { get; set; } = "requests";
+
+		/// <summary>
+		/// Name of the output bucket
+		/// </summary>
+		public string ResponseBucketId { get; set; } = "responses";
 
 		/// <summary>
 		/// Access control list

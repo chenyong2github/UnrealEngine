@@ -733,7 +733,13 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteString(Utf8String Name, string Value) => WriteUtf8String(Name, Value);
+		public void WriteString(Utf8String Name, string? Value)
+		{
+			if(Value != null)
+			{
+				WriteUtf8String(Name, Value);
+			}
+		}
 
 		/// <summary>
 		/// Writes an unnamed string value
@@ -752,8 +758,11 @@ namespace EpicGames.Serialization
 		/// <param name="Value">Value to be written</param>
 		public void WriteUtf8String(Utf8String Name, Utf8String Value)
 		{
-			WriteFieldHeader(CbFieldType.String, Name);
-			WriteBinaryPayload(Value.Span);
+			if (Value.Length > 0)
+			{
+				WriteFieldHeader(CbFieldType.String, Name);
+				WriteBinaryPayload(Value.Span);
+			}
 		}
 
 		/// <summary>

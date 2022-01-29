@@ -36,6 +36,6 @@ namespace EpicGames.Serialization.Converters
 
 		public override void Write(CbWriter Writer, T Value) => WriteFunc(Writer, Value);
 
-		public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => WriteNamed(Writer, Name, Value);
+		public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => WriteNamedFunc(Writer, Name, Value);
 	}
 }

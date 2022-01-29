@@ -6,7 +6,6 @@ using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Storage;
 using HordeServer.Storage.Backends;
-using HordeServer.Storage.Collections;
 using HordeServer.Utilities;
 using System;
 using System.Collections.Generic;
@@ -16,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Horde.Build.Fleet.Autoscale;
 using TimeZoneConverter;
+using EpicGames.Horde.Storage;
 
 namespace HordeServer
 {
@@ -561,7 +561,12 @@ namespace HordeServer
 		/// Settings for remote execution
 		/// </summary>
 		public RemoteExecSettings RemoteExecSettings { get; set; } = new RemoteExecSettings();
-		
+
+		/// <summary>
+		/// Settings for the storage service
+		/// </summary>
+		public StorageSettings? Storage { get; set; }
+
 		/// <summary>
 		/// Lazily computed timezone value
 		/// </summary>

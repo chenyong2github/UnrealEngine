@@ -322,6 +322,11 @@ namespace HordeServer.Models
 		public List<ScheduledDowntime> ScheduledDowntime { get; set; } = new List<ScheduledDowntime>();
 
 		/// <summary>
+		/// List of compute profiles
+		/// </summary>
+		public List<ComputeClusterConfig> ComputeClusters { get; set; } = new List<ComputeClusterConfig>();
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		public Globals()

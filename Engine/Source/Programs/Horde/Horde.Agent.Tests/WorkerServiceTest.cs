@@ -50,7 +50,7 @@ namespace HordeAgentTests
 			Settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
 			IOptionsMonitor<AgentSettings> SettingsMonitor = new TestOptionsMonitor<AgentSettings>(Settings);
 
-			return new WorkerService(WorkerLogger, SettingsMonitor, null!, CreateExecutor);
+			return new WorkerService(WorkerLogger, SettingsMonitor, null!, null!, CreateExecutor);
 		}
 
 		[TestMethod]

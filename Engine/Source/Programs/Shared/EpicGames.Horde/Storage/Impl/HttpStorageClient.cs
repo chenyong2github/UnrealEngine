@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Auth;
 using EpicGames.Serialization;
-using Google.Protobuf;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +12,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Storage.Impl
@@ -34,7 +36,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <summary>
 		/// List of hashes that the blob store needs.
 		/// </summary>
-		public List<IoHash> Needs { get; set; } = new List<IoHash>();
+		public List<RefId> Needs { get; set; } = new List<RefId>();
 	}
 
 	/// <summary>
@@ -48,11 +50,11 @@ namespace EpicGames.Horde.Storage.Impl
 
 			public BucketId BucketId { get; set; }
 
-			public IoHash RefId { get; set; }
+			public RefId RefId { get; set; }
 
 			public CbObject Value { get; }
 
-			public RefImpl(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId, CbObject Value)
+			public RefImpl(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value)
 			{
 				this.NamespaceId = NamespaceId;
 				this.BucketId = BucketId;
@@ -67,32 +69,59 @@ namespace EpicGames.Horde.Storage.Impl
 		const string CompactBinaryMimeType = "application/x-ue-cb";
 
 		HttpClient HttpClient;
+		StorageSettings Settings;
+		Uri BaseUrl;
+		IAuthProvider AuthProvider;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="HttpClient">Http client for the blob store. Should be pre-configured with a base address and appropriate authentication headers.</param>
-		public HttpStorageClient(HttpClient HttpClient)
+		public HttpStorageClient(HttpClient HttpClient, IOptions<StorageSettings> Settings, IAuthProvider<HttpStorageClient> AuthProvider)
 		{
 			this.HttpClient = HttpClient;
+			this.Settings = Settings.Value;
+			this.BaseUrl = new Uri(Settings.Value.Url);
+			this.AuthProvider = AuthProvider;
 		}
 
 		#region Blobs
 
 		/// <inheritdoc/>
-		public async Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash)
+		public async Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
 		{
-			using HttpResponseMessage Response = await HttpClient.GetAsync($"/api/v1/blobs/{NamespaceId}/{Hash}");
-			return await Response.Content.ReadAsStreamAsync();
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUrl, $"api/v1/blobs/{NamespaceId}/{Hash}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
+			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			try
+			{
+				if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+				{
+					throw new BlobNotFoundException(NamespaceId, Hash);
+				}
+
+				Response.EnsureSuccessStatusCode();
+				return await Response.Content.ReadAsStreamAsync();
+			}
+			catch
+			{
+				Response.Dispose();
+				throw;
+			}
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream)
+		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken)
 		{
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, new Uri(BaseUrl, $"api/v1/blobs/{NamespaceId}/{Hash}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
 			StreamContent Content = new StreamContent(Stream);
 			Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+			Request.Content = Content;
 
-			HttpResponseMessage Response = await HttpClient.PutAsync($"api/v1/blobs/{NamespaceId}/{Hash}", Content);
+			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			Response.EnsureSuccessStatusCode();
 		}
 
@@ -101,9 +130,11 @@ namespace EpicGames.Horde.Storage.Impl
 		#region Refs
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId)
+		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CompactBinaryMimeType));
 
@@ -125,7 +156,7 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> SetRefAsync(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId, CbObject Value)
+		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken)
 		{
 			using ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Value.GetView());
 
@@ -133,7 +164,9 @@ namespace EpicGames.Horde.Storage.Impl
 			Content.Headers.ContentType = new MediaTypeHeaderValue(CompactBinaryMimeType);
 			Content.Headers.Add(HashHeaderName, IoHash.Compute(Value.GetView().Span).ToString());
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 			Request.Content = Content;
@@ -154,9 +187,11 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> FinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId, IoHash Hash)
+		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}/finalize/{Hash}");
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}/finalize/{Hash}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -176,48 +211,54 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId)
+		public async Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using HttpResponseMessage Response = await HttpClient.DeleteAsync($"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Delete, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
+			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			return Response.IsSuccessStatusCode;
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, IoHash RefId)
+		public async Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using (HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"))
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
+			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			if (Response.IsSuccessStatusCode)
 			{
-				using HttpResponseMessage Response = await HttpClient.SendAsync(Request);
-				if (Response.IsSuccessStatusCode)
-				{
-					return true;
-				}
-				else if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
-				{
-					return false;
-				}
-				else
-				{
-					throw new RefException(NamespaceId, BucketId, RefId, $"Unexpected response for {nameof(HasRefAsync)} call: {Response.StatusCode}");
-				}
+				return true;
+			}
+			else if (Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+			{
+				return false;
+			}
+			else
+			{
+				throw new RefException(NamespaceId, BucketId, RefId, $"Unexpected response for {nameof(HasRefAsync)} call: {Response.StatusCode}");
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IoHash>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<IoHash> RefIds)
+		public async Task<List<RefId>> FindMissingRefsAsync(NamespaceId NamespaceId, BucketId BucketId, List<RefId> RefIds, CancellationToken CancellationToken)
 		{
 			string RefList = String.Join("&", RefIds.Select(x => $"id={x}"));
 
-			using HttpResponseMessage Response = await HttpClient.PostAsync($"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}", null);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUrl, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}"));
+			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+
+			using HttpResponseMessage Response = await HttpClient.PostAsync(new Uri(BaseUrl, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}"), null);
 			if (!Response.IsSuccessStatusCode)
 			{
-				throw new RefException(NamespaceId, BucketId, IoHash.Zero, await GetMessageFromResponse(Response));
+				throw new RefException(NamespaceId, BucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(Response));
 			}
 
 			RefExistsResponse? ResponseContent = await ReadJsonResponse<RefExistsResponse>(Response.Content);
 			if (ResponseContent == null)
 			{
-				throw new RefException(NamespaceId, BucketId, IoHash.Zero, "Unable to parse response body");
+				throw new RefException(NamespaceId, BucketId, new RefId(IoHash.Zero), "Unable to parse response body");
 			}
 
 			return ResponseContent.Needs;

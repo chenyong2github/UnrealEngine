@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
 using EpicGames.Serialization;
 using System;
@@ -16,9 +17,9 @@ namespace HordeCommon.Rpc.Tasks
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeTaskResultMessage(CbObjectAttachment Result)
+		public ComputeTaskResultMessage(RefIdWrapper ResultRefId)
 		{
-			this.Result = Result;
+			this.ResultRefId = ResultRefId;
 		}
 
 		/// <summary>
@@ -26,7 +27,7 @@ namespace HordeCommon.Rpc.Tasks
 		/// </summary>
 		public ComputeTaskResultMessage(ComputeTaskOutcome Outcome, string? Detail = null)
 		{
-			this.Outcome = Outcome;
+			this.Outcome = (int)Outcome;
 			this.Detail = Detail;
 		}
 	}

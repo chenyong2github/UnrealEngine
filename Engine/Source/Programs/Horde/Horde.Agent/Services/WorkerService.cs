@@ -41,6 +41,7 @@ using Status = Grpc.Core.Status;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Compute;
 using System.Net;
+using EpicGames.Horde.Storage.Impl;
 
 namespace HordeAgent.Services
 {
@@ -161,6 +162,11 @@ namespace HordeAgent.Services
 		GrpcService GrpcService;
 
 		/// <summary>
+		/// Client interface to the storage system
+		/// </summary>
+		IStorageClient StorageClient;
+
+		/// <summary>
 		/// The working directory
 		/// </summary>
 		DirectoryReference WorkingDir;
@@ -222,13 +228,15 @@ namespace HordeAgent.Services
 		/// <param name="Logger">Log sink</param>
 		/// <param name="OptionsMonitor">The current settings</param>
 		/// <param name="GrpcService">Instance of the Grpc service</param>
+		/// <param name="StorageClient">Instance of the storage client</param>
 		/// <param name="CreateExecutor"></param>
-		public WorkerService(ILogger<WorkerService> Logger, IOptionsMonitor<AgentSettings> OptionsMonitor, GrpcService GrpcService, Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? CreateExecutor = null)
+		public WorkerService(ILogger<WorkerService> Logger, IOptionsMonitor<AgentSettings> OptionsMonitor, GrpcService GrpcService, IStorageClient StorageClient, Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? CreateExecutor = null)
 		{
 			this.Logger = Logger;
 			this.Settings = OptionsMonitor.CurrentValue;
 			this.ServerProfile = Settings.GetCurrentServerProfile();
 			this.GrpcService = GrpcService;
+			this.StorageClient = StorageClient;
 
 			if (Settings.WorkingDir == null)
 			{
@@ -911,7 +919,7 @@ namespace HordeAgent.Services
 					DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Compute", LeaseId);
 					DirectoryReference.CreateDirectory(LeaseDir);
 
-					ComputeTaskExecutor Executor = new ComputeTaskExecutor(Client.Channel, Logger);
+					ComputeTaskExecutor Executor = new ComputeTaskExecutor(StorageClient, Logger);
 					try
 					{
 						Result = await Executor.ExecuteAsync(LeaseId, ComputeTask, LeaseDir, CancellationToken);

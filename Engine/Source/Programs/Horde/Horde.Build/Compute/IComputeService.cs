@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using HordeServer.Models;
 using HordeServer.Storage;
@@ -18,17 +19,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Compute
 {
-	using ChannelId = StringId<IComputeChannel>;
 	using LeaseId = ObjectId<ILease>;
-	using NamespaceId = StringId<INamespace>;
-
-	/// <summary>
-	/// Unused, except for ChannelId alias.
-	/// </summary>
-	[SuppressMessage("Design", "CA1040:Avoid empty interfaces")]
-	public interface IComputeChannel
-	{
-	}
 
 	/// <summary>
 	/// Status of a compute task
@@ -36,9 +27,9 @@ namespace HordeServer.Compute
 	public interface IComputeTaskStatus
 	{
 		/// <summary>
-		/// The input hash
+		/// The input task ref id
 		/// </summary>
-		public CbObjectAttachment Task { get; }
+		public RefId TaskRefId { get; }
 
 		/// <summary>
 		/// Timestamp for the event
@@ -68,7 +59,7 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// Hash of the result, if complete
 		/// </summary>
-		public CbObjectAttachment? Result { get; }
+		public RefId? ResultRefId { get; }
 
 		/// <summary>
 		/// Additional information for the given outcome
@@ -82,48 +73,36 @@ namespace HordeServer.Compute
 	public interface IComputeService : ITaskSource
 	{
 		/// <summary>
+		/// Gets information about a compute cluster
+		/// </summary>
+		/// <param name="ClusterId">Cluster to use for execution</param>
+		Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId ClusterId);
+
+		/// <summary>
 		/// Post tasks to be executed to a channel
 		/// </summary>
-		/// <param name="NamespaceId">Namespace of referenced blobs</param>
-		/// <param name="RequirementsHash">Hash of the requirements document for execution</param>
-		/// <param name="TaskHashes">List of task hashes</param>
+		/// <param name="ClusterId">Cluster to use for execution</param>
 		/// <param name="ChannelId">Unique identifier of the client</param>
+		/// <param name="TaskRefIds">List of task hashes</param>
+		/// <param name="RequirementsHash">Requirements document for execution</param>
 		/// <returns>Async task</returns>
-		Task AddTasksAsync(NamespaceId NamespaceId, CbObjectAttachment RequirementsHash, List<CbObjectAttachment> TaskHashes, ChannelId ChannelId);
+		Task AddTasksAsync(ClusterId ClusterId, ChannelId ChannelId, List<RefId> TaskRefIds, CbObjectAttachment RequirementsHash);
 
 		/// <summary>
 		/// Dequeue completed items from a queue and return immediately
 		/// </summary>
+		/// <param name="ClusterId">Cluster containing the channel</param>
 		/// <param name="ChannelId">Queue to remove items from</param>
 		/// <returns>List of status updates</returns>
-		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ChannelId ChannelId);
+		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId);
 
 		/// <summary>
 		/// Dequeue completed items from a queue
 		/// </summary>
+		/// <param name="ClusterId">Cluster containing the channel</param>
 		/// <param name="ChannelId">Queue to remove items from</param>
 		/// <param name="CancellationToken">Cancellation token to stop waiting for items</param>
 		/// <returns>List of status updates</returns>
-		Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ChannelId ChannelId, CancellationToken CancellationToken);
-	}
-
-	/// <summary>
-	/// Extension methods for <see cref="IComputeService"/>
-	/// </summary>
-	static class ComputeServiceExtensions
-	{
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="ComputeService"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="RequirementsHash">Hash of the requirements document for execution</param>
-		/// <param name="TaskHash">The task hash</param>
-		/// <param name="ChannelId"></param>
-		/// <returns></returns>
-		public static Task AddTaskAsync(this IComputeService ComputeService, NamespaceId NamespaceId, CbObjectAttachment RequirementsHash, CbObjectAttachment TaskHash, ChannelId ChannelId)
-		{
-			return ComputeService.AddTasksAsync(NamespaceId, RequirementsHash, new List<CbObjectAttachment> { TaskHash }, ChannelId);
-		}
+		Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ClusterId ClusterId, ChannelId ChannelId, CancellationToken CancellationToken);
 	}
 }

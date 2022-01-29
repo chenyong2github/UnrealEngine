@@ -15,8 +15,6 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Commits.Impl
 {
-	using NamespaceId = StringId<INamespace>;
-
 	class CommitTree
 	{
 		class ObjectFormat

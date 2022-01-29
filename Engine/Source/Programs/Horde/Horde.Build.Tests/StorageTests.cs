@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using HordeServer.Services;
-using HordeServer.Storage;
 using HordeServer.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -15,9 +15,6 @@ using System.Threading.Tasks;
 
 namespace HordeServerTests
 {
-	using NamespaceId = StringId<INamespace>;
-	using BucketId = StringId<IBucket>;
-
 	[TestClass]
 	public class StorageTests : TestSetup
 	{
@@ -26,26 +23,22 @@ namespace HordeServerTests
 		{
 			NamespaceId NamespaceId = new NamespaceId("test-ns");
 
-			IBlobCollection BlobCollection = ServiceProvider.GetRequiredService<IBlobCollection>();
+			IStorageClient StorageClient = ServiceProvider.GetRequiredService<IStorageClient>();
 
 			byte[] TestData = Encoding.UTF8.GetBytes("Hello world");
 			IoHash Hash = IoHash.Compute(TestData);
 
-			Assert.IsNull(await BlobCollection.TryReadStreamAsync(NamespaceId, Hash));
-			Assert.IsFalse(await BlobCollection.ExistsAsync(NamespaceId, Hash));
+			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => StorageClient.ReadBlobAsync(NamespaceId, Hash));
 
-			IoHash ReturnedHash = await BlobCollection.WriteBytesAsync(NamespaceId, TestData);
+			IoHash ReturnedHash = await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, TestData);
 			Assert.AreEqual(Hash, ReturnedHash);
-			Assert.IsTrue(await BlobCollection.ExistsAsync(NamespaceId, Hash));
+			Assert.IsNotNull(await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Hash));
 
-			ReadOnlyMemory<byte>? StoredData = await BlobCollection.TryReadBytesAsync(NamespaceId, Hash);
-			Assert.IsNotNull(StoredData);
-			Assert.IsTrue(TestData.AsSpan().SequenceEqual(StoredData.Value.Span));
-			Assert.IsTrue(await BlobCollection.ExistsAsync(NamespaceId, Hash));
+			ReadOnlyMemory<byte> StoredData = await StorageClient.ReadBlobToMemoryAsync(NamespaceId, Hash);
+			Assert.IsTrue(TestData.AsSpan().SequenceEqual(StoredData.Span));
 
 			NamespaceId OtherNamespaceId = new NamespaceId("other-ns");
-			Assert.IsNull(await BlobCollection.TryReadStreamAsync(OtherNamespaceId, Hash));
-			Assert.IsFalse(await BlobCollection.ExistsAsync(OtherNamespaceId, Hash));
+			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => StorageClient.ReadBlobAsync(OtherNamespaceId, Hash));
 		}
 
 		[TestMethod]
@@ -53,7 +46,7 @@ namespace HordeServerTests
 		{
 			NamespaceId NamespaceId = new NamespaceId("test-ns");
 
-			IObjectCollection ObjectCollection = ServiceProvider.GetRequiredService<IObjectCollection>();
+			IStorageClient StorageClient = ServiceProvider.GetRequiredService<IStorageClient>();
 
 			CbObject ObjectD = CbObject.Build(Writer =>
 			{
@@ -61,24 +54,18 @@ namespace HordeServerTests
 			});
 			IoHash HashD = ObjectD.GetHash();
 
-			Assert.IsFalse(await ObjectCollection.ExistsAsync(NamespaceId, HashD));
-			Assert.IsNull(await ObjectCollection.GetAsync(NamespaceId, HashD));
+			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => StorageClient.ReadBlobToMemoryAsync(NamespaceId, HashD));
 
-			await ObjectCollection.AddAsync(NamespaceId, HashD, ObjectD);
+			await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, HashD, ObjectD.GetView());
 
-			Assert.IsTrue(await ObjectCollection.ExistsAsync(NamespaceId, HashD));
-
-			CbObject? ReturnedObjectD = await ObjectCollection.GetAsync(NamespaceId, HashD);
-			Assert.IsNotNull(ReturnedObjectD);
+			CbObject ReturnedObjectD = new CbObject(await StorageClient.ReadBlobToMemoryAsync(NamespaceId, HashD));
 			Assert.IsTrue(ReturnedObjectD!.GetView().Span.SequenceEqual(ObjectD.GetView().Span));
 		}
 
 		[TestMethod]
 		public async Task RefCollectionTest()
 		{
-			IBlobCollection BlobCollection = ServiceProvider.GetRequiredService<IBlobCollection>();
-			IObjectCollection ObjectCollection = ServiceProvider.GetRequiredService<IObjectCollection>();
-			IRefCollection RefCollection = ServiceProvider.GetRequiredService<IRefCollection>();
+			IStorageClient StorageClient = ServiceProvider.GetRequiredService<IStorageClient>();
 
 			byte[] BlobA = Encoding.UTF8.GetBytes("This is blob A");
 			IoHash HashA = IoHash.Compute(BlobA);
@@ -106,53 +93,46 @@ namespace HordeServerTests
 
 			NamespaceId NamespaceId = new NamespaceId("test-ns");
 			BucketId BucketId = new BucketId("test-bkt");
-			const string RefName = "refname";
+			RefId RefId = new RefId("refname");
 
 			// Check that setting the ref to E fails with the correct missing hashes
-			List<IoHash> MissingHashes = await RefCollection.SetAsync(NamespaceId, BucketId, RefName, ObjectE);
+			List<IoHash> MissingHashes = await StorageClient.TrySetRefAsync(NamespaceId, BucketId, RefId, ObjectE);
 			Assert.AreEqual(2, MissingHashes.Count);
 			Assert.IsTrue(MissingHashes.Contains(HashA));
 			Assert.IsTrue(MissingHashes.Contains(HashD));
 
-			IRef? Ref = await RefCollection.GetAsync(NamespaceId, BucketId, RefName);
-			Assert.IsNotNull(Ref);
-			Assert.IsFalse(Ref!.Finalized);
-			Assert.IsTrue(Ref!.Value.GetView().Span.SequenceEqual(ObjectE.GetView().Span));
+			await Assert.ThrowsExceptionAsync<RefNotFoundException>(() => StorageClient.GetRefAsync(NamespaceId, BucketId, RefId));
 
 			// Add object D, and check that changes the missing hashes to just the blobs
-			await ObjectCollection.AddAsync(NamespaceId, HashD, ObjectD);
+			await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, HashD, ObjectD.GetView());
 
-			MissingHashes = await RefCollection.FinalizeAsync(Ref);
+			MissingHashes = await StorageClient.TryFinalizeRefAsync(NamespaceId, BucketId, RefId, HashE);
 			Assert.AreEqual(3, MissingHashes.Count);
 			Assert.IsTrue(MissingHashes.Contains(HashA));
 			Assert.IsTrue(MissingHashes.Contains(HashB));
 			Assert.IsTrue(MissingHashes.Contains(HashC));
 
-			Ref = await RefCollection.GetAsync(NamespaceId, BucketId, RefName);
-			Assert.IsNotNull(Ref);
-			Assert.IsFalse(Ref!.Finalized);
+			await Assert.ThrowsExceptionAsync<RefNotFoundException>(() => StorageClient.GetRefAsync(NamespaceId, BucketId, RefId));
 
 			// Add blobs A, B and C and check that the object can be finalized
-			await BlobCollection.WriteBytesAsync(NamespaceId, HashA, BlobA);
-			await BlobCollection.WriteBytesAsync(NamespaceId, HashB, BlobB);
-			await BlobCollection.WriteBytesAsync(NamespaceId, HashC, BlobC);
+			await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, HashA, BlobA);
+			await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, HashB, BlobB);
+			await StorageClient.WriteBlobFromMemoryAsync(NamespaceId, HashC, BlobC);
 
-			MissingHashes = await RefCollection.FinalizeAsync(Ref);
+			MissingHashes = await StorageClient.TryFinalizeRefAsync(NamespaceId, BucketId, RefId, HashE);
 			Assert.AreEqual(0, MissingHashes.Count);
 
-			Ref = await RefCollection.GetAsync(NamespaceId, BucketId, RefName);
+			IRef Ref = await StorageClient.GetRefAsync(NamespaceId, BucketId, RefId);
 			Assert.IsNotNull(Ref);
-			Assert.IsTrue(Ref!.Finalized);
 
 			// Add a new ref to existing objects and check it finalizes correctly 
-			const string RefName2 = "refname";
+			RefId RefId2 = new RefId("refname");
 
-			MissingHashes = await RefCollection.SetAsync(NamespaceId, BucketId, RefName2, ObjectE);
+			MissingHashes = await StorageClient.TrySetRefAsync(NamespaceId, BucketId, RefId2, ObjectE);
 			Assert.AreEqual(0, MissingHashes.Count);
 
-			Ref = await RefCollection.GetAsync(NamespaceId, BucketId, RefName2);
+			Ref = await StorageClient.GetRefAsync(NamespaceId, BucketId, RefId2);
 			Assert.IsNotNull(Ref);
-			Assert.IsTrue(Ref!.Finalized);
 		}
 	}
 }

@@ -7,7 +7,9 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using HordeCommon;
+using Horde.Build.Storage.Services;
 using HordeServer;
 using HordeServer.Collections;
 using HordeServer.Collections.Impl;
@@ -24,8 +26,6 @@ using HordeServer.Services;
 using HordeServer.Services.Impl;
 using HordeServer.Storage;
 using HordeServer.Storage.Backends;
-using HordeServer.Storage.Collections;
-using HordeServer.Storage.Services;
 using HordeServer.Tasks.Impl;
 using HordeServer.Utilities;
 using HordeServerTests.Stubs.Collections;
@@ -200,18 +200,12 @@ namespace HordeServerTests
 
 			Services.AddSingleton<ConformTaskSource>();
 
-			Services.AddSingleton<IBlobCollection, BlobCollection>();
-			Services.AddSingleton<IObjectCollection, ObjectCollection>();
-			Services.AddSingleton<IRefCollection, RefCollection>();
-			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
-			Services.AddSingleton<IBucketCollection, BucketCollection>();
-
 			Services.AddSingleton(new Startup.StorageBackendSettings<PersistentLogStorage> { Type = StorageProviderType.Transient });
 			Services.AddSingleton(new Startup.StorageBackendSettings<ArtifactCollection> { Type = StorageProviderType.Transient });
-			Services.AddSingleton(new Startup.StorageBackendSettings<BlobCollection> { Type = StorageProviderType.Transient });
+			Services.AddSingleton(new Startup.StorageBackendSettings<BasicStorageClient> { Type = StorageProviderType.Transient });
 			Services.AddSingleton(typeof(IStorageBackend<>), typeof(Startup.StorageBackendFactory<>));
 
-			Services.AddSingleton<IStorageService, SimpleStorageService>();
+			Services.AddSingleton<IStorageClient, BasicStorageClient>();
 
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 		}

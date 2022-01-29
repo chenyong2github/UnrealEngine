@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using EpicGames.Perforce;
 using HordeServer.Models;
 using HordeServer.Utilities;
@@ -8,6 +9,7 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace HordeServer.Commits
@@ -125,6 +127,22 @@ namespace HordeServer.Commits
 			this.Description = Description;
 			this.BasePath = BasePath;
 			this.DateUtc = DateUtc;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for commits
+	/// </summary>
+	static class CommitExtensions
+	{
+		/// <summary>
+		/// Get the ref id for a particular commit
+		/// </summary>
+		/// <param name="Commit"></param>
+		/// <returns></returns>
+		public static RefId GetRefId(this ICommit Commit)
+		{
+			return new RefId(IoHash.Compute(Encoding.UTF8.GetBytes(Commit.TreeRef!)));
 		}
 	}
 }

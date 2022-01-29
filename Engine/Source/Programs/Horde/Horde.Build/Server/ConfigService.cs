@@ -35,8 +35,6 @@ namespace HordeServer.Services
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using NamespaceId = StringId<INamespace>;
-	using BucketId = StringId<IBucket>;
 
 	/// <summary>
 	/// Polls Perforce for stream config changes
@@ -49,7 +47,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Config file version number
 		/// </summary>
-		const int Version = 6;
+		const int Version = 9;
 
 		DatabaseService DatabaseService;
 		ProjectService ProjectService;
@@ -57,8 +55,6 @@ namespace HordeServer.Services
 		IPerforceService PerforceService;
 		PerforceLoadBalancer PerforceLoadBalancer;
 		INotificationService NotificationService;
-		INamespaceCollection NamespaceCollection;
-		IBucketCollection BucketCollection;
 		AgentService AgentService;
 		PoolService PoolService;
 		IOptionsMonitor<ServerSettings> Settings;
@@ -68,7 +64,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, INamespaceCollection NamespaceCollection, IBucketCollection BucketCollection, PoolService PoolService, AgentService AgentService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
+		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, PoolService PoolService, AgentService AgentService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.PerforceService = PerforceService;
@@ -76,8 +72,6 @@ namespace HordeServer.Services
 			this.ProjectService = ProjectService;
 			this.StreamService = StreamService;
 			this.NotificationService = NotificationService;
-			this.NamespaceCollection = NamespaceCollection;
-			this.BucketCollection = BucketCollection;
 			this.PoolService = PoolService;
 			this.AgentService = AgentService;
 			this.Settings = Settings;
@@ -150,9 +144,8 @@ namespace HordeServer.Services
 				Globals.PerforceClusters = CachedGlobalConfig.PerforceClusters;
 				Globals.ScheduledDowntime = CachedGlobalConfig.Downtime;
 				Globals.MaxConformCount = CachedGlobalConfig.MaxConformCount;
+				Globals.ComputeClusters = CachedGlobalConfig.Compute;
 				Globals.RootAcl = Acl.Merge(null, CachedGlobalConfig.Acl);
-
-				await UpdateStorageConfigAsync(GlobalConfig.Storage);
 
 				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
 				{
@@ -305,44 +298,6 @@ namespace HordeServer.Services
 			{
 				Logger.LogInformation("Removing stream {StreamId}", RemoveStreamId);
 				await StreamService.DeleteStreamAsync(RemoveStreamId);
-			}
-		}
-
-		async Task UpdateStorageConfigAsync(StorageConfig? Config)
-		{
-			List<INamespace> Namespaces = await NamespaceCollection.FindAsync();
-			List<NamespaceId> RemoveNamespaceIds = Namespaces.ConvertAll(x => x.Id);
-
-			if (Config != null)
-			{
-				foreach (NamespaceConfig NamespaceConfig in Config.Namespaces)
-				{
-					NamespaceId NamespaceId = new NamespaceId(NamespaceConfig.Id);
-					RemoveNamespaceIds.Remove(NamespaceId);
-					await NamespaceCollection.AddOrUpdateAsync(NamespaceId, NamespaceConfig);
-
-					List<IBucket> Buckets = await BucketCollection.FindAsync(NamespaceId);
-					List<BucketId> RemoveBucketIds = Buckets.ConvertAll(x => x.BucketId);
-
-					foreach(BucketConfig BucketConfig in NamespaceConfig.Buckets)
-					{
-						BucketId BucketId = new BucketId(BucketConfig.Id);
-						await BucketCollection.AddOrUpdateAsync(NamespaceId, BucketId, BucketConfig);
-						RemoveBucketIds.Remove(BucketId);
-					}
-
-					foreach (BucketId RemoveBucketId in RemoveBucketIds)
-					{
-						Logger.LogInformation("Removing bucket {BucketId}", RemoveBucketId);
-						await BucketCollection.RemoveAsync(NamespaceId, RemoveBucketId);
-					}
-				}
-			}
-
-			foreach (NamespaceId RemoveNamespaceId in RemoveNamespaceIds)
-			{
-				Logger.LogInformation("Removing namespace {NamespaceId}", RemoveNamespaceId);
-				await NamespaceCollection.RemoveAsync(RemoveNamespaceId);
 			}
 		}
 
