@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.inl"
 #include "Evaluation/MovieScenePreAnimatedState.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "MovieSceneSection.h"
+#include "MovieSceneSequence.h"
 
 FScopedPreAnimatedCaptureSource::FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const FMovieSceneEvaluationKey& InEvalKey, bool bInWantsRestoreState)
 	: Variant(TInPlaceType<FMovieSceneEvaluationKey>(), InEvalKey)
