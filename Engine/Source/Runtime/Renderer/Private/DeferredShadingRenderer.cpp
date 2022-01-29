@@ -637,7 +637,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0
 				|| (GRayTracingSceneCaptures == -1 && View.bSceneCaptureUsesRayTracing);
 
-			if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInReflectionCaptures))
+			if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInSceneCaptures))
 			{
 				continue;
 			}
