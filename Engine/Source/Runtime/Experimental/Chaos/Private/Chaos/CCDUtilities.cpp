@@ -32,8 +32,14 @@ namespace Chaos
 	{
 		if (Implicit)
 		{
-			const FReal MinExtent = Implicit->BoundingBox().Extents().Min();
-			return MinExtent * CVars::CCDEnableThresholdBoundsScale;
+			// Trimesh/Heightfield are thin, cannot use bounds. We do not want them to contribute to CCD threshold.
+			if (Implicit->IsConvex())
+			{
+				const FReal MinExtent = Implicit->BoundingBox().Extents().Min();
+				return MinExtent * CVars::CCDEnableThresholdBoundsScale;
+			}
+
+			return 0;
 		}
 		return TNumericLimits<FReal>::Max();
 	}
