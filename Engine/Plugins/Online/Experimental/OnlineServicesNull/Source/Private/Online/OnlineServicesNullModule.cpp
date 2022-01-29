@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "Online/OnlineServicesRegistry.h"
-#include "OnlineServicesNull.h"
+#include "Online/OnlineServicesNull.h"
 
 namespace UE::Online
 {

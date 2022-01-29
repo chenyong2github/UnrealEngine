@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PresenceEOS.h"
+#include "Online/PresenceEOS.h"
 #include "Online/OnlineAsyncOp.h"
-#include "OnlineIdEOS.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
-#include "AuthEOS.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
+#include "Online/AuthEOS.h"
 
 #include "eos_presence.h"
 

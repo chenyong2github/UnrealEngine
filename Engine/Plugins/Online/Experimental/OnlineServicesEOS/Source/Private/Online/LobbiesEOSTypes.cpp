@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LobbiesEOSTypes.h"
-#include "AuthEOS.h"
+#include "Online/LobbiesEOSTypes.h"
+#include "Online/AuthEOS.h"
 #include "Online/LobbiesCommon.h"
 
 namespace UE::Online {

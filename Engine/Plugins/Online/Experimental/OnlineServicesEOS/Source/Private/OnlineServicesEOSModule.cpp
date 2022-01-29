@@ -5,8 +5,8 @@
 #include "Modules/ModuleManager.h"
 
 #include "Online/OnlineServicesRegistry.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineIdEOS.h"
 
 namespace UE::Online
 {

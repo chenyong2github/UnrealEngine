@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FriendsEOS.h"
+#include "Online/FriendsEOS.h"
 #include "Online/OnlineAsyncOp.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
-#include "OnlineIdEOS.h"
-#include "AuthEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/AuthEOS.h"
 
 #include "eos_friends.h"
 

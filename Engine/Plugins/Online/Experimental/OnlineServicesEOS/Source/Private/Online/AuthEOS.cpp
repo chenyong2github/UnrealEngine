@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AuthEOS.h"
+#include "Online/AuthEOS.h"
 
-#include "OnlineIdEOS.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
 #include "Algo/Transform.h"
 #include "Online/AuthErrors.h"
 #include "Online/OnlineAsyncOp.h"

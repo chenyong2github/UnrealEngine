@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Online/Lobbies.h"
 #include "Online/LobbiesCommonTypes.h"
-#include "OnlineIdEOS.h"
-#include "OnlineServicesEOSTypes.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME

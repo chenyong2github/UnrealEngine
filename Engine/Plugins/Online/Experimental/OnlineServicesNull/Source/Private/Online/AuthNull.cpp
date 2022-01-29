@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AuthNull.h"
+#include "Online/AuthNull.h"
 
-#include "OnlineServicesNull.h"
-#include "OnlineServicesNullTypes.h"
+#include "Online/OnlineServicesNull.h"
+#include "Online/OnlineServicesNullTypes.h"
 #include "Online/AuthErrors.h"
 #include "Online/OnlineErrorDefinitions.h"
 

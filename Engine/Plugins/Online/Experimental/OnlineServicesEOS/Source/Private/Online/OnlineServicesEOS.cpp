@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
 
 #include "EOSShared.h"
 #include "EOSSharedTypes.h"
 #include "IEOSSDKManager.h"
 
-#include "AuthEOS.h"
-#include "FriendsEOS.h"
-#include "LobbiesEOS.h"
-#include "OnlineIdEOS.h"
-#include "PresenceEOS.h"
-#include "ExternalUIEOS.h"
+#include "Online/AuthEOS.h"
+#include "Online/FriendsEOS.h"
+#include "Online/LobbiesEOS.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/PresenceEOS.h"
+#include "Online/ExternalUIEOS.h"
 #include "InternetAddrEOS.h"
 #include "Engine/EngineBaseTypes.h"
 #include "NetDriverEOS.h"

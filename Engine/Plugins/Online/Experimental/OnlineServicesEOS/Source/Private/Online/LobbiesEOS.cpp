@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LobbiesEOS.h"
-#include "LobbiesEOSTypes.h"
+#include "Online/LobbiesEOS.h"
+#include "Online/LobbiesEOSTypes.h"
 #include "Online/OnlineAsyncOp.h"
-#include "OnlineIdEOS.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
-#include "AuthEOS.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
+#include "Online/AuthEOS.h"
 #include "IEOSSDKManager.h"
 
 #include "eos_lobby.h"

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ExternalUIEOS.h"
+#include "Online/ExternalUIEOS.h"
 
-#include "AuthEOS.h"
-#include "OnlineIdEOS.h"
-#include "OnlineServicesEOS.h"
-#include "OnlineServicesEOSTypes.h"
+#include "Online/AuthEOS.h"
+#include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSTypes.h"
 #include "Online/OnlineErrorDefinitions.h"
 
 #include "eos_ui.h"

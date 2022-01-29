@@ -5,7 +5,7 @@
 #include "Online/OnlineAsyncOp.h"
 #include "String/HexToBytes.h"
 #include "String/BytesToHex.h"
-#include "OnlineServicesEOSTypes.h"
+#include "Online/OnlineServicesEOSTypes.h"
 
 #include "eos_connect_types.h"
 #include "eos_connect.h"

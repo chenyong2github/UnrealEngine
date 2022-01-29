@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineServicesNull.h"
-#include "OnlineServicesNullTypes.h"
+#include "Online/OnlineServicesNull.h"
+#include "Online/OnlineServicesNullTypes.h"
 
-#include "AuthNull.h"
+#include "Online/AuthNull.h"
 
 namespace UE::Online {
 

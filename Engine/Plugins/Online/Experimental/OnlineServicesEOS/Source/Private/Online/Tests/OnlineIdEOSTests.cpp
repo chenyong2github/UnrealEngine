@@ -2,7 +2,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "IEOSSDKManager.h"
-#include "OnlineIdEOS.h"
+#include "Online/OnlineIdEOS.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAccountIdReplicationTest, 
 	"System.Engine.Online.EosAccountIdReplicationTest", 
