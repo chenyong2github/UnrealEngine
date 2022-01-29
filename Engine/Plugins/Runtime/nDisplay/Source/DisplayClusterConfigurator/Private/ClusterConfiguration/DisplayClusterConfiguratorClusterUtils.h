@@ -240,6 +240,17 @@ public:
 	static TArray<UObject*> PasteClusterItemsFromClipboard(const TArray<UObject*>& TargetClusterItems, TOptional<FVector2D> PasteLocation = TOptional<FVector2D>());
 
 private:
+	/**
+	 * Gets a unique name for something given a list of existing names.
+	 * @param InitialName - The initial name the object wants
+	 * @param UsedNames - The list of names that have already been used
+	 * @param Class - The class to generate a name for
+	 * @param Parent - The parent to check for in-memory objects that collide with the name
+	 * @param bAddZero - Whether to add an "_0" to the initial name if it is unique
+	 * @returns A unique name for the object
+	 */
+	static FString GetUniqueName(const FString& InitialName, const TArray<FString>& UsedNames, const UClass* Class, UObject* Parent, bool bAddZero = false);
+	
 	static const FVector2D NewClusterItemDialogSize;
 	static const FString DefaultNewHostName;
 	static const FString DefaultNewClusterNodeName;

@@ -248,6 +248,8 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 
 	bool bAtLeastOneViewportFound = false;
 
+	TMap<FString, UDisplayClusterConfigurationViewport*> ViewportsByName;
+	
 	for (const auto& ClusterNodes : BlueprintData->Cluster->Nodes)
 	{
 		if (ClusterNodes.Value->Viewports.Num() > 0)
@@ -257,6 +259,22 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 			
 			for (const auto& Viewport : ClusterNodes.Value->Viewports)
 			{
+				const FString ViewportName = Viewport.Value->GetName();
+
+				// Check that no two viewports have the same name
+				if (UDisplayClusterConfigurationViewport** ExistingViewport = ViewportsByName.Find(ViewportName))
+				{
+					MessageLog.Error(
+						*LOCTEXT("DuplicateViewportNameError", "Viewport @@ uses the same name as viewport @@.").ToString(),
+						Viewport.Value,
+						*ExistingViewport
+					);
+				}
+				else
+				{
+					ViewportsByName.Add(ViewportName, Viewport.Value);
+				}
+				
 				if (Viewport.Value->ProjectionPolicy.Type.IsEmpty())
 				{
 					MessageLog.Warning(*LOCTEXT("NoPolicyError", "No projection policy assigned to viewport @@.").ToString(), Viewport.Value);
