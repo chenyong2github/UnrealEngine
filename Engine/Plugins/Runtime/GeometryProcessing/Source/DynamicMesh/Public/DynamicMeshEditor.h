@@ -367,7 +367,7 @@ public:
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
 	 * @param ToWorld Optionally transform vertices for world space scaling
 	 */
-	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransform3d> ToWorld = TOptional<FTransform3d>());
+	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransformSRT3d> ToWorld = TOptional<FTransformSRT3d>());
 
 
 	//////////////////////////////////////////////////////////////////////////

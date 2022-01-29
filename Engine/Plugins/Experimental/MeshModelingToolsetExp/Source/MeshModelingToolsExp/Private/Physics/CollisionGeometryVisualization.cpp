@@ -22,7 +22,7 @@ void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollecti
 		const FKSphereElem& Sphere = AggGeom.SphereElems[Index];
 		FTransform ElemTransform = Sphere.GetTransform();
 		ElemTransform.ScaleTranslation(PhysicsData.ExternalScale3D);
-		UE::Geometry::FTransform3f ElemTransformf(ElemTransform);
+		FTransformSRT3f ElemTransformf(ElemTransform);
 		float Radius = PhysicsData.ExternalScale3D.GetAbsMin() * Sphere.Radius;
 		UE::Geometry::GenerateCircleSegments<float>(CircleSteps, Radius, FVector3f::Zero(), FVector3f::UnitX(), FVector3f::UnitY(), ElemTransformf,
 			[&](const FVector3f& A, const FVector3f& B) { LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, SphereColor, LineThickness, DepthBias)); });
@@ -39,7 +39,7 @@ void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollecti
 		const FKBoxElem& Box = AggGeom.BoxElems[Index];
 		FTransform ElemTransform = Box.GetTransform();
 		ElemTransform.ScaleTranslation(PhysicsData.ExternalScale3D);
-		UE::Geometry::FTransform3f ElemTransformf(ElemTransform);
+		FTransformSRT3f ElemTransformf(ElemTransform);
 		FVector3f HalfDimensions(
 			PhysicsData.ExternalScale3D.X * Box.X * 0.5f,
 			PhysicsData.ExternalScale3D.Y * Box.Y * 0.5f,
@@ -55,7 +55,7 @@ void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollecti
 		const FKSphylElem& Capsule = AggGeom.SphylElems[Index];
 		FTransform ElemTransform = Capsule.GetTransform();
 		ElemTransform.ScaleTranslation(PhysicsData.ExternalScale3D);
-		UE::Geometry::FTransform3f ElemTransformf(ElemTransform);
+		FTransformSRT3f ElemTransformf(ElemTransform);
 		const float HalfLength = Capsule.GetScaledCylinderLength(PhysicsData.ExternalScale3D) * .5f;
 		const float Radius = Capsule.GetScaledRadius(PhysicsData.ExternalScale3D);
 		FVector3f Top(0, 0, HalfLength), Bottom(0, 0, -HalfLength);

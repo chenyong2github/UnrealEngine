@@ -369,7 +369,7 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 		int32 TargetIdx = Tool->PreviewToTargetIdx[PreviewIdx];
 		Op->OccluderTrees.Add(Tool->OccluderTrees[TargetIdx]);
 		Op->OccluderWindings.Add(Tool->OccluderWindings[TargetIdx]);
-		Op->OccluderTransforms.Add(UE::Geometry::FTransform3d::Identity());
+		Op->OccluderTransforms.Add(FTransformSRT3d::Identity());
 	}
 	else
 	{
@@ -390,10 +390,10 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	
 	Op->SetTransform(LocalToWorld);
 
-	Op->MeshTransforms.Add((UE::Geometry::FTransform3d)LocalToWorld);
+	Op->MeshTransforms.Add((FTransformSRT3d)LocalToWorld);
 	for (int32 CopyIdx : Tool->PreviewToCopyIdx[PreviewIdx])
 	{
-		Op->MeshTransforms.Add((UE::Geometry::FTransform3d)Tool->PreviewCopies[CopyIdx]->GetTransform());
+		Op->MeshTransforms.Add((FTransformSRT3d)Tool->PreviewCopies[CopyIdx]->GetTransform());
 	}
 
 	return Op;

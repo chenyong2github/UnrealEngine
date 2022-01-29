@@ -66,9 +66,9 @@ public:
 	// Outputs
 	TArray<int32> ExtrudedFaceNewGids;
 
-	void SetTransform(const FTransform& Transform)
+	void SetTransform(const FTransformSRT3d& Transform)
 	{
-		ResultTransform = (FTransform3d)Transform;
+		ResultTransform = Transform;
 	}
 
 	// FDynamicMeshOperator implementation 

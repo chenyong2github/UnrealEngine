@@ -22,7 +22,7 @@ FSmoothingOpBase::FSmoothingOpBase(const FDynamicMesh3* Mesh, const FOptions& Op
 	}
 }
 
-void FSmoothingOpBase::SetTransform(const UE::Geometry::FTransform3d& XForm)
+void FSmoothingOpBase::SetTransform(const FTransformSRT3d& XForm)
 {
 	ResultTransform = XForm;
 }

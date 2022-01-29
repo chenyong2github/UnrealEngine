@@ -128,7 +128,7 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 	UDynamicMeshBrushTool::OnUpdateDrag(Ray);
 
 	FFrame3f WorldFrame((FVector3f)LastBrushStamp.WorldPosition, (FVector3f)LastBrushStamp.WorldNormal);
-	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
+	FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 
 
 	FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
@@ -228,7 +228,7 @@ bool UShapeSprayTool::CanAccept() const
 void UShapeSprayTool::EmitResult()
 {
 	const FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
-	UE::Geometry::FTransform3d UseTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor()->GetTransform());
+	FTransform3d UseTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor()->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EmitShapeSpray", "Create ShapeSpray"));
 

@@ -10,8 +10,9 @@
 
 using namespace UE::Geometry;
 
-void FEditNormalsOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FEditNormalsOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)

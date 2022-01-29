@@ -221,7 +221,7 @@ bool FMeshBoolean::Compute()
 	double ScaleFactor = 1.0 / FMath::Clamp(CombinedAABB.MaxDim(), 0.01, 1000000.0);
 	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
 	{
-		FTransform3d CenteredTransform = Transforms[MeshIdx];
+		FTransformSRT3d CenteredTransform = Transforms[MeshIdx];
 		CenteredTransform.SetTranslation(ScaleFactor*(CenteredTransform.GetTranslation() - CombinedAABB.Center()));
 		CenteredTransform.SetScale(ScaleFactor*CenteredTransform.GetScale());
 		MeshTransforms::ApplyTransform(*CutMesh[MeshIdx], CenteredTransform);
@@ -230,7 +230,7 @@ bool FMeshBoolean::Compute()
 			CutMesh[MeshIdx]->ReverseOrientation(false);
 		}
 	}
-	ResultTransform = FTransform3d(CombinedAABB.Center());
+	ResultTransform = FTransformSRT3d(CombinedAABB.Center());
 	ResultTransform.SetScale(FVector3d::One() * (1.0 / ScaleFactor));
 
 	if (Cancelled())
@@ -757,7 +757,7 @@ bool FMeshBoolean::Compute()
 	if (bPutResultInInputSpace)
 	{
 		MeshTransforms::ApplyTransform(*Result, ResultTransform);
-		ResultTransform = FTransform3d::Identity();
+		ResultTransform = FTransformSRT3d::Identity();
 	}
 
 	return bSuccess;

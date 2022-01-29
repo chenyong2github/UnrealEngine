@@ -461,9 +461,9 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	Converter.Convert( UE::ToolTarget::GetMeshDescription(DetailTargetMesh), *DetailMesh);
 	if (InputMeshSettings->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
-		const UE::Geometry::FTransform3d DetailToWorld(DetailComponent->GetWorldTransform());
+		const FTransformSRT3d DetailToWorld(DetailComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
-		const UE::Geometry::FTransform3d WorldToBase(TargetComponent->GetWorldTransform());
+		const FTransformSRT3d WorldToBase(TargetComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
 	}
 

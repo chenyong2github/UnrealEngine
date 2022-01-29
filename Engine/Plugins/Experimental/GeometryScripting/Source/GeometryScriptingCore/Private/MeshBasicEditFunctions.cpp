@@ -322,7 +322,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 	{
 		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh)
 		{
-			UE::Geometry::FTransform3d XForm(AppendTransform);
+			FTransformSRT3d XForm(AppendTransform);
 			FMeshIndexMappings TmpMappings;
 			FDynamicMeshEditor Editor(&AppendToMesh);
 			const FDynamicMesh3* UseOtherMesh = &OtherMesh;
@@ -364,7 +364,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 	}
 	if (RepeatCount > 0)
 	{
-		UE::Geometry::FTransform3d XForm(AppendTransform);
+		FTransformSRT3d XForm(AppendTransform);
 		FDynamicMesh3 TmpMesh;
 		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh) { TmpMesh.Copy(OtherMesh); });
 		if (bApplyTransformToFirstInstance)

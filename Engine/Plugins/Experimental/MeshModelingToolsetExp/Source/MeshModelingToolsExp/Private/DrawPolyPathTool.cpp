@@ -688,7 +688,7 @@ void UDrawPolyPathTool::BeginSettingWidth()
 
 	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
 	CurveDistMechanic->Setup(this);
-	CurveDistMechanic->InitializePolyCurve(CurPolyLine, UE::Geometry::FTransform3d::Identity());
+	CurveDistMechanic->InitializePolyCurve(CurPolyLine, FTransform3d::Identity);
 
 	ExtrudeHeightMechanic = nullptr;
 
@@ -742,7 +742,7 @@ void UDrawPolyPathTool::BeginSettingRadius()
 
 	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
 	CurveDistMechanic->Setup(this);
-	CurveDistMechanic->InitializePolyCurve(CurPolyLine, UE::Geometry::FTransform3d::Identity());
+	CurveDistMechanic->InitializePolyCurve(CurPolyLine, FTransform3d::Identity);
 
 	ExtrudeHeightMechanic = nullptr;
 

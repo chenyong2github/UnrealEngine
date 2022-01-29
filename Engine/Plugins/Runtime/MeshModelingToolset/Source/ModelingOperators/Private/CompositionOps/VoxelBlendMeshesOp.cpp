@@ -14,8 +14,9 @@
 
 using namespace UE::Geometry;
 
-void FVoxelBlendMeshesOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FVoxelBlendMeshesOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
@@ -47,7 +48,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 		{
 			TransformedMeshes[MeshIdx].ReverseOrientation(false);
 		}
-		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransform3d)Transforms[MeshIdx]);
+		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransformSRT3d)Transforms[MeshIdx]);
 
 		if (bVoxWrap)
 		{

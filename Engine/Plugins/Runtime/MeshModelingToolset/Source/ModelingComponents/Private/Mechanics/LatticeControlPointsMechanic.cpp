@@ -317,7 +317,7 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 	FQuaterniond DeltaRotation = FQuaterniond(Transform.GetRotation() * GizmoStartRotation.Inverse());
 	FVector DeltaScale = Transform.GetScale3D() / GizmoStartScale;
 
-	FTransform3d DeltaTransform;
+	FTransformSRT3d DeltaTransform;
 	DeltaTransform.SetScale((FVector3d)DeltaScale);
 	DeltaTransform.SetRotation((FQuaterniond)DeltaRotation);
 	DeltaTransform.SetTranslation((FVector3d)Transform.GetTranslation());

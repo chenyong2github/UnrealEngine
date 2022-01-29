@@ -993,8 +993,8 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> USkinWeightsBindingTool::MakeNewO
 	Op->OriginalMesh = OriginalMesh;
 	Op->TransformHierarchy = TransformHierarchy;
 
-	const FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
-	Op->SetResultTransform(static_cast<UE::Geometry::FTransform3d>(LocalToWorld));
+	const FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+	Op->SetResultTransform(LocalToWorld);
 	
 	return Op;
 }

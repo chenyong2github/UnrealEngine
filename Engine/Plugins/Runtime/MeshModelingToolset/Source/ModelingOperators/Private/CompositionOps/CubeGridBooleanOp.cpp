@@ -434,7 +434,7 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 	
 	// Perform the boolean operation.
 	FMeshBoolean MeshBoolean(ResultMesh.Get(), InputTransform,
-		OpMesh.Get(), FTransform3d::Identity(), ResultMesh.Get(),
+		OpMesh.Get(), FTransformSRT3d::Identity(), ResultMesh.Get(),
 		bSubtract ? FMeshBoolean::EBooleanOp::Difference : FMeshBoolean::EBooleanOp::Union);
 
 	MeshBoolean.bPutResultInInputSpace = true;
@@ -455,7 +455,7 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 	{
 		// Set the transform to be in the center.
 		FVector3d Center = ResultMesh->GetBounds().Center();
-		ResultTransform = FTransform3d(Center);
+		ResultTransform = FTransformSRT3d(Center);
 	}
 	MeshTransforms::ApplyTransformInverse(*ResultMesh, InputTransform);
 

@@ -106,15 +106,15 @@ bool UE::ToolTarget::SetSourceObjectVisible(UToolTarget* Target, bool bVisible)
 }
 
 
-UE::Geometry::FTransform3d UE::ToolTarget::GetLocalToWorldTransform(UToolTarget* Target)
+FTransform3d UE::ToolTarget::GetLocalToWorldTransform(UToolTarget* Target)
 {
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	if (TargetComponent)
 	{
-		return (UE::Geometry::FTransform3d)TargetComponent->GetWorldTransform();
+		return (FTransform3d)TargetComponent->GetWorldTransform();
 	}
 	ensure(false);
-	return UE::Geometry::FTransform3d();
+	return FTransform3d();
 }
 
 FComponentMaterialSet UE::ToolTarget::GetMaterialSet(UToolTarget* Target, bool bPreferAssetMaterials)

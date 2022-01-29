@@ -18,17 +18,12 @@ namespace Geometry
 	/**
 	 * @return Transformed adapter of a FDynamicMesh
 	 */
-	FTriangleMeshAdapterd GEOMETRYCORE_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform);
+	FTriangleMeshAdapterd GEOMETRYCORE_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform3d Transform);
 
 	/**
 	 * @return 1:1 adapter of a FDynamicMesh; can be used as a starting point to create other adapters
 	 */
 	FTriangleMeshAdapterd GEOMETRYCORE_API MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh);
-
-	/**
-	* @return Transformed adapter of a FDynamicMesh
-	*/
-	FTriangleMeshAdapterd GEOMETRYCORE_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform);
 
 	/**
 	 * @return Mesh vertices as a point set

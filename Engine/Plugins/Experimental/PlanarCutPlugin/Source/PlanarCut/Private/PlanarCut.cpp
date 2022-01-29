@@ -908,8 +908,6 @@ int32 MergeBones(
 	UE::PlanarCut::ENeighborSelectionMethod NeighborSelectionMethod
 )
 {
-	using UE::Geometry::FTransform3d;
-
 	FTransform CellsToWorld = FTransform::Identity;
 
 	FGeometryCollectionProximityUtility ProximityUtility(&Collection);
@@ -1188,7 +1186,7 @@ int32 MergeBones(
 	for (int32 UpMeshIdx = 0; UpMeshIdx < UpdateCollection.Meshes.Num(); UpMeshIdx++)
 	{
 		FMeshData& UpMeshData = UpdateCollection.Meshes[UpMeshIdx];
-		FTransform3d UpMeshXF = (FTransform3d)UpMeshData.FromCollection;
+		FTransformSRT3d UpMeshXF = (FTransformSRT3d)UpMeshData.FromCollection;
 		int32 UpGeoIdx = Collection.TransformToGeometryIndex[UpMeshData.TransformIndex];
 		FRemoveGroup& Group = RemoveGroups[GeomIdxToRemoveGroupIdx[UpGeoIdx]];
 		if (!ensure(Group.IsValid()))
@@ -1199,7 +1197,7 @@ int32 MergeBones(
 		for (int32 RmGeoIdx : Group.ToRemove)
 		{
 			FMeshData& RmMeshData = RemoveCollection.Meshes[GeoIdxToRmMeshIdx[RmGeoIdx]];
-			FTransform3d RmMeshXF = (FTransform3d)RmMeshData.FromCollection;
+			FTransformSRT3d RmMeshXF = (FTransformSRT3d)RmMeshData.FromCollection;
 			if (bUnionJoinedPieces)
 			{
 				FMeshBoolean Boolean(&UpMeshData.AugMesh, &RmMeshData.AugMesh, &UpMeshData.AugMesh, FMeshBoolean::EBooleanOp::Union);

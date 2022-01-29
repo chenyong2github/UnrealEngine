@@ -38,7 +38,7 @@ public:
 	virtual ~FSimpleMeshProcessingBaseOp() {}
 
 	// set ability on protected transform.
-	void SetTransform(const FTransform3d& XForm);
+	void SetTransform(const FTransformSRT3d& XForm);
 
 	// copy the PositionBuffer locations back to the ResultMesh
 	void UpdateResultMeshPositions();

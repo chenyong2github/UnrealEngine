@@ -64,7 +64,7 @@ public:
 	virtual ~FSmoothingOpBase() override {}
 
 	// set ability on protected transform.
-	void SetTransform(const FTransform3d& XForm);
+	void SetTransform(const FTransformSRT3d& XForm);
 
 	// base class overrides this.  Results in updated ResultMesh.
 	virtual void CalculateResult(FProgressCancel* Progress) override = 0;

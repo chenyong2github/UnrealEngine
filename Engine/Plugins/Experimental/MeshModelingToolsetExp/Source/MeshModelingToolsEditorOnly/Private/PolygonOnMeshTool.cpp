@@ -75,7 +75,7 @@ void UPolygonOnMeshTool::Setup()
 	AddInputBehavior(HoverBehavior);
 
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	WorldTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
+	WorldTransform = TargetComponent->GetWorldTransform();
 
 	// hide input StaticMeshComponent
 	TargetComponent->SetOwnerVisibility(false);
@@ -261,7 +261,7 @@ TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 	EmbedOp->bAttemptFixHolesOnBoolean = !bOpLeavesOpenBoundaries && BasicProperties->bTryToFixCracks;
 
 	FFrame3d LocalFrame = DrawPlaneWorld;
-	UE::Geometry::FTransform3d ToLocal = WorldTransform.Inverse();
+	FTransform3d ToLocal = WorldTransform.Inverse();
 	LocalFrame.Transform(ToLocal);
 	EmbedOp->PolygonFrame = LocalFrame;
 	

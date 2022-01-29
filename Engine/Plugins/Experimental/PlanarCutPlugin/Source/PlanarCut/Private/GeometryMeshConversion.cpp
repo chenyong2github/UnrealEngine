@@ -1184,7 +1184,7 @@ FCellMeshes::FCellMeshes(int32 NumUVLayersIn, FDynamicMesh3& SingleCutter, const
 
 	if (Transform.IsSet())
 	{
-		MeshTransforms::ApplyTransform(SingleCutter, UE::Geometry::FTransform3d(Transform.GetValue()));
+		MeshTransforms::ApplyTransform(SingleCutter, FTransformSRT3d(Transform.GetValue()));
 	}
 
 	// Mesh should already be augmented
@@ -2126,8 +2126,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 			continue;
 		}
 
-		using FTransform3d = UE::Geometry::FTransform3d;
-		FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Transforms, Collection->Parent, TransformIdx) * TransformCollection);
+		FTransformSRT3d CollectionToLocal = FTransformSRT3d(GeometryCollectionAlgo::GlobalMatrix(Transforms, Collection->Parent, TransformIdx) * TransformCollection);
 
 		int32 AddedMeshIdx = Meshes.Add(new FMeshData(NumUVLayers));
 		FMeshData& MeshData = Meshes[AddedMeshIdx];

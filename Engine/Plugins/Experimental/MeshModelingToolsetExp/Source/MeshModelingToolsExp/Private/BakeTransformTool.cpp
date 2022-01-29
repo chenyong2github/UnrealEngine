@@ -118,26 +118,26 @@ void UBakeTransformTool::UpdateAssets()
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("BakeTransformToolTransactionName", "Bake Transforms"));
 
-	TArray<UE::Geometry::FTransform3d> BakedTransforms;
+	TArray<FTransformSRT3d> BakedTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		UToolTarget* Target = Targets[ComponentIdx];
 		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Target);
 		Component->Modify();
 
-		UE::Geometry::FTransform3d ComponentToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
-		UE::Geometry::FTransform3d ToBakePart = UE::Geometry::FTransform3d::Identity();
-		UE::Geometry::FTransform3d NewWorldPart = ComponentToWorld;
+		FTransformSRT3d ComponentToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		FTransformSRT3d ToBakePart = FTransformSRT3d::Identity();
+		FTransformSRT3d NewWorldPart = ComponentToWorld;
 
 		if (MapToFirstOccurrences[ComponentIdx] < ComponentIdx)
 		{
 			ToBakePart = BakedTransforms[MapToFirstOccurrences[ComponentIdx]];
 			BakedTransforms.Add(ToBakePart);
 			// try to invert baked transform
-			NewWorldPart = UE::Geometry::FTransform3d(
+			NewWorldPart = FTransformSRT3d(
 				NewWorldPart.GetRotation() * ToBakePart.GetRotation().Inverse(),
 				NewWorldPart.GetTranslation(),
-				NewWorldPart.GetScale() * UE::Geometry::FTransform3d::GetSafeScaleReciprocal(ToBakePart.GetScale())
+				NewWorldPart.GetScale() * FTransformSRT3d::GetSafeScaleReciprocal(ToBakePart.GetScale())
 			);
 			NewWorldPart.SetTranslation(NewWorldPart.GetTranslation() - NewWorldPart.TransformVector(ToBakePart.GetTranslation()));
 		}

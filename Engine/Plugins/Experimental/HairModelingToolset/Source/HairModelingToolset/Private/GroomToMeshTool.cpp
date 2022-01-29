@@ -151,7 +151,7 @@ void UGroomToMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 
-	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
+	FTransformSRT3d Transform(PreviewMesh->GetTransform());
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
@@ -586,7 +586,7 @@ struct FTargetSpace
 
 	AActor* TargetActor = nullptr;
 	USceneComponent* TargetComponent = nullptr;
-	UE::Geometry::FTransform3d TargetTransform = UE::Geometry::FTransform3d::Identity();
+	FTransformSRT3d TargetTransform = FTransformSRT3d::Identity();
 	FFrame3d TargetFrame = FFrame3d();
 
 	FTargetSpace() {}
@@ -609,7 +609,7 @@ struct FTargetSpace
 		TargetFrame = FrameIn;
 	}
 
-	FTargetSpace(const UE::Geometry::FTransform3d& TransformIn)
+	FTargetSpace(const FTransformSRT3d& TransformIn)
 	{
 		TargetSpace = ETargetSpaceType::Transform;
 		TargetTransform = TransformIn;
@@ -632,22 +632,22 @@ static void TransformToSpace(FDynamicMesh3* Mesh, UPrimitiveComponent* SourceCom
 	// Could also add a variant there that applies multiple transforms in sequence to avoid write overhead
 
 	// transform up to world
-	UE::Geometry::FTransform3d ToWorld(SourceComponent->GetComponentTransform());
+	FTransformSRT3d ToWorld(SourceComponent->GetComponentTransform());
 	MeshTransforms::ApplyTransform(*Mesh, ToWorld);
 
 	if (TargetSpace.TargetSpace == ETargetSpaceType::Actor)
 	{
 		check(TargetSpace.TargetActor);
-		UE::Geometry::FTransform3d ActorTransform(TargetSpace.TargetActor->GetActorTransform());
-		UE::Geometry::FTransform3d ToActorTransform = ActorTransform.Inverse();
+		FTransformSRT3d ActorTransform(TargetSpace.TargetActor->GetActorTransform());
+		FTransformSRT3d ToActorTransform = ActorTransform.Inverse();
 		MeshTransforms::ApplyTransform(*Mesh, ToActorTransform);
 
 	}
 	else if (TargetSpace.TargetSpace == ETargetSpaceType::Component)
 	{
 		check(TargetSpace.TargetComponent);
-		UE::Geometry::FTransform3d ComponentTransform(TargetSpace.TargetComponent->GetComponentTransform());
-		UE::Geometry::FTransform3d ToComponentTransform = ComponentTransform.Inverse();
+		FTransformSRT3d ComponentTransform(TargetSpace.TargetComponent->GetComponentTransform());
+		FTransformSRT3d ToComponentTransform = ComponentTransform.Inverse();
 		MeshTransforms::ApplyTransform(*Mesh, ToComponentTransform);
 	}
 	else if (TargetSpace.TargetSpace == ETargetSpaceType::Frame)

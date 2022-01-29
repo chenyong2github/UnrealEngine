@@ -25,7 +25,7 @@ void UDynamicMeshBrushTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = true;
 	PreviewMesh->CreateInWorld(UE::ToolTarget::GetTargetActor(Target)->GetWorld(), FTransform::Identity);
-	UE::Geometry::FTransform3d LocalToWorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	FTransformSRT3d LocalToWorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	PreviewMesh->SetTransform((FTransform)LocalToWorldTransform);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, Target);
 

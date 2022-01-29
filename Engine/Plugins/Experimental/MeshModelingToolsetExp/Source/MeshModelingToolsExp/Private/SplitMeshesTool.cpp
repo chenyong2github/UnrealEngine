@@ -103,7 +103,7 @@ void USplitMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 			check(TargetActor != nullptr);
 			DeleteActors.Add(TargetActor);
 
-			UE::Geometry::FTransform3d SourceTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[ti]);
+			FTransform3d SourceTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[ti]);
 			FDynamicMesh3 SourceMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[ti], true);
 			FString AssetName = TargetActor->GetActorNameOrLabel();
 
@@ -124,7 +124,7 @@ void USplitMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 			{
 				FCreateMeshObjectParams NewMeshObjectParams = BaseMeshObjectParams;
 				NewMeshObjectParams.BaseName = FString::Printf(TEXT("%s_%d"), *AssetName, k);
-				UE::Geometry::FTransform3d PartTransform = SourceTransform;
+				FTransform3d PartTransform = SourceTransform;
 				PartTransform.SetTranslation(SourceTransform.GetTranslation() + SplitInfo.Origins[k]);
 				NewMeshObjectParams.Transform = (FTransform)PartTransform;
 				if (BasicProperties->bTransferMaterials)

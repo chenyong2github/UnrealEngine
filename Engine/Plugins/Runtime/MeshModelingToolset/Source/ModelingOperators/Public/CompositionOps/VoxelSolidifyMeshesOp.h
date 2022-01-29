@@ -20,7 +20,7 @@ public:
 
 	// inputs
 	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
-	TArray<FTransform> Transforms; // 1:1 with Meshes
+	TArray<FTransformSRT3d> Transforms; // 1:1 with Meshes
 
 	double WindingThreshold = .5;
 	double ExtendBounds = 1;
@@ -30,7 +30,7 @@ public:
 	bool bApplyThickenShells = false;
 	double ThickenShells = 5;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

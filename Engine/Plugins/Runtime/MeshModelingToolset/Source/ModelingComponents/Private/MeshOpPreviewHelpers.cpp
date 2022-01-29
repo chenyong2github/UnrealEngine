@@ -42,7 +42,7 @@ FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
 
 	FDynamicMeshOpResult Result;
 	Result.Mesh = PreviewMesh->ExtractPreviewMesh();
-	Result.Transform = UE::Geometry::FTransform3d(PreviewMesh->GetTransform());
+	Result.Transform = FTransformSRT3d(PreviewMesh->GetTransform());
 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();

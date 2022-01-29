@@ -187,7 +187,7 @@ public:
 protected:
 	TArray<int> MapToFirstOccurrences;
 
-	UE::Geometry::FTransform3d Transform;
+	FTransform3d Transform;
 	UE::Geometry::FAxisAlignedBox3d ObjectBounds;
 	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 	void Precompute();

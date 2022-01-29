@@ -19,14 +19,14 @@ template<typename RealType>
 class TTransformSequence3
 {
 protected:
-	TArray<TTransform3<RealType>, TInlineAllocator<2>> Transforms;
+	TArray<TTransformSRT3<RealType>, TInlineAllocator<2>> Transforms;
 
 public:
 
 	/**
 	 * Add Transform to the end of the sequence, ie Seq(P) becomes NewTransform * Seq(P)
 	 */
-	void Append(const TTransform3<RealType>& Transform)
+	void Append(const TTransformSRT3<RealType>& Transform)
 	{
 		Transforms.Add(Transform);
 	}
@@ -36,7 +36,7 @@ public:
 	 */
 	void Append(const FTransform& Transform)
 	{
-		Transforms.Add( TTransform3<RealType>(Transform) );
+		Transforms.Add( TTransformSRT3<RealType>(Transform) );
 	}
 
 	/**
@@ -47,7 +47,7 @@ public:
 	/**
 	 * @return transforms in the sequence
 	 */
-	const TArray<TTransform3<RealType>,TInlineAllocator<2>>& GetTransforms() const { return Transforms; }
+	const TArray<TTransformSRT3<RealType>,TInlineAllocator<2>>& GetTransforms() const { return Transforms; }
 
 
 	/**
@@ -55,7 +55,7 @@ public:
 	 */
 	bool HasNonUniformScale(RealType Tolerance = TMathUtil<RealType>::ZeroTolerance) const
 	{
-		for (const TTransform3<RealType>& Transform : Transforms)
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			if (Transform.HasNonUniformScale(Tolerance))
 			{
@@ -71,7 +71,7 @@ public:
 	TVector<RealType> GetAccumulatedScale() const
 	{
 		TVector<RealType> FinalScale = TVector<RealType>::One();
-		for (const TTransform3<RealType>& Transform : Transforms)
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			FinalScale = FinalScale * Transform.GetScale();
 		}
@@ -83,7 +83,7 @@ public:
 	 */
 	void ClearScales()
 	{
-		for (TTransform3<RealType>& Transform : Transforms)
+		for (TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			Transform.SetScale(TVector<RealType>::One());
 		}
@@ -94,7 +94,7 @@ public:
 	 */
 	TVector<RealType> TransformPosition(UE::Math::TVector<RealType> P) const
 	{
-		for (const TTransform3<RealType>& Transform : Transforms)
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			P = Transform.TransformPosition(P);
 		}
@@ -119,7 +119,7 @@ public:
 	 */
 	TVector<RealType> TransformVector(UE::Math::TVector<RealType> V) const
 	{
-		for (const TTransform3<RealType>& Transform : Transforms)
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			V = Transform.TransformVector(V);
 		}
@@ -132,7 +132,7 @@ public:
 	 */
 	TVector<RealType> TransformNormal(UE::Math::TVector<RealType> Normal) const
 	{
-		for (const TTransform3<RealType>& Transform : Transforms)
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
 		{
 			Normal = Transform.TransformNormal(Normal);
 		}

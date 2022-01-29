@@ -115,7 +115,7 @@ public:
 	 * Apply transform to internal mesh. In some cases this can be more efficient than a general edit.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
-	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert) override;
 
 
 

@@ -38,7 +38,7 @@ public:
 	int32 UseUVLayer = 0;
 
 	// transform from Mesh into space of Projection Geometry
-	FTransform3d MeshToProjectionSpace;
+	FTransformSRT3d MeshToProjectionSpace;
 
 	EUVProjectionMethod ProjectionMethod = EUVProjectionMethod::Box;
 	FOrientedBox3d ProjectionBox;

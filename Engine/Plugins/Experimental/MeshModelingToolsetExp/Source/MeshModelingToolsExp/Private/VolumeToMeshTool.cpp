@@ -111,7 +111,7 @@ void UVolumeToMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	OutputTypeProperties->SaveProperties(this, TEXT("VolumeToMeshTool"));
 	Settings->SaveProperties(this);
 
-	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
+	FTransform3d Transform(PreviewMesh->GetTransform());
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;

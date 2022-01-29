@@ -100,7 +100,7 @@ void UPolyEditCutFacesActivity::BeginCutFaces()
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
 	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
@@ -147,7 +147,7 @@ void UPolyEditCutFacesActivity::ApplyCutFaces()
 	}
 	FVector3d PlaneOrigin = 0.5 * (Point0.Origin + Point1.Origin);
 	// map into local space of target mesh
-	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FTransformSRT3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 	PlaneOrigin = WorldTransform.InverseTransformPosition(PlaneOrigin);
 	PlaneNormal = WorldTransform.InverseTransformNormal(PlaneNormal);
 	UE::Geometry::Normalize(PlaneNormal);

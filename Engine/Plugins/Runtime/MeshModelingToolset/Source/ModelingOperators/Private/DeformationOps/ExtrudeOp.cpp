@@ -175,7 +175,7 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 
 	// Now perform a boolean operation with our result.
 	FMeshBoolean::EBooleanOp Op = ExtrudeDistance > 0 ? FMeshBoolean::EBooleanOp::Union : FMeshBoolean::EBooleanOp::Difference;
-	FMeshBoolean MeshBoolean(ResultMesh.Get(), FTransform3d::Identity(), &Submesh->GetSubmesh(), FTransform3d::Identity(), ResultMesh.Get(), Op);
+	FMeshBoolean MeshBoolean(ResultMesh.Get(), FTransformSRT3d::Identity(), &Submesh->GetSubmesh(), FTransformSRT3d::Identity(), ResultMesh.Get(), Op);
 	MeshBoolean.bPutResultInInputSpace = true;
 	MeshBoolean.bSimplifyAlongNewEdges = true;
 	MeshBoolean.bPopulateSecondMeshGroupMap = true;

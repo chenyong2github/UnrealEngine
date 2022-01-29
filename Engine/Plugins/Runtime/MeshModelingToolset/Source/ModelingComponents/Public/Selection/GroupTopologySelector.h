@@ -34,7 +34,6 @@ using UE::Geometry::FGeometrySet3;
  */
 class MODELINGCOMPONENTS_API FGroupTopologySelector
 {
-	using FTransform3d = UE::Geometry::FTransform3d;
 public:
 
 	//

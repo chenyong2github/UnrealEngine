@@ -552,9 +552,8 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			CurResultMeshSpatial.Build();
 		}
 
-		using FTransform3d = UE::Geometry::FTransform3d;
-		TArray<FTransform3d> NoTransforms;
-		NoTransforms.Add(FTransform3d::Identity());
+		TArray<FTransformSRT3d> NoTransforms;
+		NoTransforms.Add(FTransformSRT3d::Identity());
 		TArray<FDynamicMeshAABBTree3*> Spatials;
 		Spatials.Add(&CurResultMeshSpatial);
 
@@ -571,7 +570,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			RectGen.Width = RectGen.Height = 10.0 * Bounds.MaxDim();
 			BasePlaneOccluderMesh.Copy(&RectGen.Generate());
 			BasePlaneOccluderSpatial.SetMesh(&BasePlaneOccluderMesh, true);
-			NoTransforms.Add(FTransform3d::Identity());
+			NoTransforms.Add(FTransformSRT3d::Identity());
 			Spatials.Add(&BasePlaneOccluderSpatial);
 		}
 

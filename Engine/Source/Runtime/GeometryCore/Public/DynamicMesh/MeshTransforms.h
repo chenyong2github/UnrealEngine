@@ -13,7 +13,6 @@
 namespace MeshTransforms
 {
 	using namespace UE::Geometry;
-	using UE::Geometry::FTransform3d;
 
 	/**
 	 * Apply Translation to vertex positions of Mesh. Does not modify any other attributes.
@@ -40,14 +39,14 @@ namespace MeshTransforms
 	 * Apply given Transform to a Mesh.
 	 * Modifies Vertex Positions and Normals, and any Per-Triangle Normal Overlays
 	 */
-	GEOMETRYCORE_API void ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Transform);
+	GEOMETRYCORE_API void ApplyTransform(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform);
 
 
 	/**
 	 * Apply inverse of given Transform to a Mesh.
 	 * Modifies Vertex Positions and Normals, and any Per-Triangle Normal Overlays
 	 */
-	GEOMETRYCORE_API void ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform3d& Transform);
+	GEOMETRYCORE_API void ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform);
 
 
 	/**

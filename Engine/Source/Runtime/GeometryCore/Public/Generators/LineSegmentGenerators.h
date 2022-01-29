@@ -29,7 +29,7 @@ namespace UE
 			const TVector<RealType>& AxisX, 
 			const TVector<RealType>& AxisY, 
 			const TVector<RealType>& AxisZ,
-			const TTransform3<RealType>& Transform,
+			const TTransformSRT3<RealType>& Transform,
 			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 
 		/**
@@ -48,7 +48,7 @@ namespace UE
 			const TVector<RealType>& Center,
 			const TVector<RealType>& AxisX,
 			const TVector<RealType>& AxisY,
-			const TTransform3<RealType>& Transform,
+			const TTransformSRT3<RealType>& Transform,
 			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 
 		/**
@@ -70,7 +70,7 @@ namespace UE
 			const TVector<RealType>& Center,
 			const TVector<RealType>& AxisX,
 			const TVector<RealType>& AxisY,
-			const TTransform3<RealType>& Transform,
+			const TTransformSRT3<RealType>& Transform,
 			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 	}
 }
@@ -86,7 +86,7 @@ void UE::Geometry::GenerateBoxSegments(
 	const TVector<RealType>& AxisX,
 	const TVector<RealType>& AxisY,
 	const TVector<RealType>& AxisZ,
-	const TTransform3<RealType>& Transform,
+	const TTransformSRT3<RealType>& Transform,
 	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
 	// B is box max/min, P and Q are used to store the start and endpoints of the segments we create
@@ -125,7 +125,7 @@ void UE::Geometry::GenerateCircleSegments(
 	const TVector<RealType>& Center,
 	const TVector<RealType>& AxisX,
 	const TVector<RealType>& AxisY,
-	const TTransform3<RealType>& Transform,
+	const TTransformSRT3<RealType>& Transform,
 	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
 	TVector<RealType> PrevPos = TVector<RealType>::Zero();
@@ -155,7 +155,7 @@ void UE::Geometry::GenerateArcSegments(
 	const TVector<RealType>& Center,
 	const TVector<RealType>& AxisX,
 	const TVector<RealType>& AxisY,
-	const TTransform3<RealType>& Transform,
+	const TTransformSRT3<RealType>& Transform,
 	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
 	TVector<RealType> PrevPos = TVector<RealType>::Zero();

@@ -461,7 +461,7 @@ protected:
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> MeshSpatial;
-	UE::Geometry::FTransform3d CurrentMeshTransform = UE::Geometry::FTransform3d::Identity();
+	UE::Geometry::FTransformSRT3d CurrentMeshTransform = UE::Geometry::FTransformSRT3d::Identity();
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> LastOpChangedTids;
 
 	// Safe inputs for the background compute to use, untouched by undo/redo/other CurrentMesh updates.

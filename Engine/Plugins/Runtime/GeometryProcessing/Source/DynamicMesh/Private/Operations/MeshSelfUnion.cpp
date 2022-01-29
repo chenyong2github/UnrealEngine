@@ -24,11 +24,11 @@ bool FMeshSelfUnion::Compute()
 	// transform the mesh to a shared space (centered at the origin, and scaled to a unit cube)
 	FAxisAlignedBox3d AABB = Mesh->GetBounds(true);
 	double ScaleFactor = 1.0 / FMath::Clamp(AABB.MaxDim(), 0.01, 1000000.0);
-	FTransform3d TransformToCenteredBox = FTransform3d::Identity();
+	FTransformSRT3d TransformToCenteredBox = FTransformSRT3d::Identity();
 	TransformToCenteredBox.SetTranslation(ScaleFactor * (TransformToCenteredBox.GetTranslation() - AABB.Center()));
 	TransformToCenteredBox.SetScale(ScaleFactor * FVector3d::One());
 	MeshTransforms::ApplyTransform(*Mesh, TransformToCenteredBox);
-	FTransform3d ResultTransform(AABB.Center());
+	FTransformSRT3d ResultTransform(AABB.Center());
 	ResultTransform.SetScale((1.0 / ScaleFactor) * FVector3d::One());
 
 	// build spatial data and use it to find intersections

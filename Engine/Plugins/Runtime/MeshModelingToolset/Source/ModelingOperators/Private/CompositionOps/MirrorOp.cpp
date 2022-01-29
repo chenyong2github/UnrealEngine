@@ -7,8 +7,9 @@
 
 using namespace UE::Geometry;
 
-void FMirrorOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FMirrorOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FMirrorOp::CalculateResult(FProgressCancel* Progress)

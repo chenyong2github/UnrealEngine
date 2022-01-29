@@ -339,8 +339,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> ActiveOverrideMaterial;
 
-	UE::Geometry::FTransform3d InitialTargetTransform;
-	UE::Geometry::FTransform3d CurTargetTransform;
+	UE::Geometry::FTransformSRT3d InitialTargetTransform;
+	UE::Geometry::FTransformSRT3d CurTargetTransform;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();

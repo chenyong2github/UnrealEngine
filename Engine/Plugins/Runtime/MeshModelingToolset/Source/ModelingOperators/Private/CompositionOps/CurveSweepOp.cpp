@@ -204,7 +204,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 	// Set the pivot of the mesh to the bounding box center
 	FVector3d PivotLocation = ResultMesh->GetBounds(true).Center();
 	MeshTransforms::Translate(*ResultMesh, -PivotLocation);
-	ResultTransform = FTransform3d::Identity();
+	ResultTransform = FTransformSRT3d::Identity();
 	ResultTransform.SetTranslation(PivotLocation);
 }
 

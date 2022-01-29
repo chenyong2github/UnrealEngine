@@ -31,7 +31,7 @@ public:
 
 	bool bSubtract = false;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

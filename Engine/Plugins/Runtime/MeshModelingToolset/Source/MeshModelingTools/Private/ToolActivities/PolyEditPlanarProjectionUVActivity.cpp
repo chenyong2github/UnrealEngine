@@ -101,7 +101,7 @@ void UPolyEditPlanarProjectionUVActivity::BeginSetUVs()
 	const FGroupTopologySelection& ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
 	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
@@ -181,9 +181,9 @@ void UPolyEditPlanarProjectionUVActivity::ApplySetUVs()
 	PlanarFrame.ConstrainedAlignAxis(0, Delta, PlanarFrame.Z());
 
 	// transform to local, use 3D point to transfer UV scale value
-	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 	FVector3d ScalePt = PlanarFrame.Origin + UVScale * PlanarFrame.Z();
-	UE::Geometry::FTransform3d ToLocalXForm(WorldTransform.Inverse());
+	FTransform3d ToLocalXForm(WorldTransform.Inverse());
 	PlanarFrame.Transform(ToLocalXForm);
 	ScalePt = ToLocalXForm.TransformPosition(ScalePt);
 	UVScale = Distance(ScalePt, PlanarFrame.Origin);

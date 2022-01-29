@@ -102,7 +102,7 @@ void UUVProjectionTool::Setup()
 	ProjectionShapeVisualizer.LineThickness = 2.0;
 
 	// initialize Gizmo
-	UE::Geometry::FTransform3d GizmoPositionWorld(WorldBounds.Center());
+	FTransform3d GizmoPositionWorld(WorldBounds.Center());
 	TransformProxy = NewObject<UTransformProxy>(this);
 	TransformProxy->SetTransform((FTransform)GizmoPositionWorld);
 	TransformProxy->OnTransformChanged.AddUObject(this, &UUVProjectionTool::TransformChanged);

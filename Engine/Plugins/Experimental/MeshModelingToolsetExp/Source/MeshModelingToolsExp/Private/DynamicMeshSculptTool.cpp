@@ -117,7 +117,7 @@ void UDynamicMeshSculptTool::Setup()
 	InitialTargetTransform.SetTranslation(FVector3d::Zero());
 	DynamicMeshComponent->ApplyTransform(InitialTargetTransform, false);
 	// since we moved to World coords there is not a current transform anymore.
-	CurTargetTransform = UE::Geometry::FTransform3d(Translation);
+	CurTargetTransform = FTransformSRT3d(Translation);
 	DynamicMeshComponent->SetWorldTransform((FTransform)CurTargetTransform);
 
 	// copy material if there is one

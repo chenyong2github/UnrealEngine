@@ -58,8 +58,8 @@ public:
 
 	FWorldSpaceProjectionTarget(const FDynamicMesh3* MeshIn, 
 								FDynamicMeshAABBTree3* SpatialIn,
-								const FTransform3d& TargetMeshLocalToWorldIn,
-								const FTransform3d& ToolMeshLocalToWorldIn) :
+								const FTransformSRT3d& TargetMeshLocalToWorldIn,
+								const FTransformSRT3d& ToolMeshLocalToWorldIn) :
 		FMeshProjectionTarget(MeshIn, SpatialIn),
 		TargetMeshLocalToWorld(TargetMeshLocalToWorldIn),
 		ToolMeshLocalToWorld(ToolMeshLocalToWorldIn)
@@ -107,8 +107,8 @@ public:
 	}
 
 protected:
-	FTransform3d TargetMeshLocalToWorld;
-	FTransform3d ToolMeshLocalToWorld;
+	FTransformSRT3d TargetMeshLocalToWorld;
+	FTransformSRT3d ToolMeshLocalToWorld;
 
 };
 

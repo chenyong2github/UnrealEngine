@@ -177,9 +177,9 @@ struct TFrame3
 	}
 
 	/** @return conversion of this Frame to TTransform */
-	TTransform3<RealType> ToTransform() const
+	TTransformSRT3<RealType> ToTransform() const
 	{
-		return TTransform3<RealType>(Rotation, Origin);
+		return TTransformSRT3<RealType>(Rotation, Origin);
 	}
 
 	/** @return point at distances along frame axes */
@@ -350,7 +350,7 @@ struct TFrame3
 	/**
 	 * transform this frame by the given transform
 	 */
-	void Transform(const TTransform3<RealType>& XForm)
+	void Transform(const TTransformSRT3<RealType>& XForm)
 	{
 		Origin = XForm.TransformPosition(Origin);
 		Rotate(XForm.GetRotation());

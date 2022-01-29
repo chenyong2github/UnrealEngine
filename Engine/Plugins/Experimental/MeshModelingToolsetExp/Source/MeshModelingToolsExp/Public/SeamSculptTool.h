@@ -86,7 +86,7 @@ protected:
 	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-	UE::Geometry::FTransform3d MeshTransform;
+	FTransform3d MeshTransform;
 	double NormalOffset = 0;
 
 	void InitPreviewGeometry();

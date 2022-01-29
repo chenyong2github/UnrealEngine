@@ -128,7 +128,7 @@ protected:
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	// camera state at last render
-	UE::Geometry::FTransform3d WorldTransform;
+	FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	// True for the duration of UI click+drag

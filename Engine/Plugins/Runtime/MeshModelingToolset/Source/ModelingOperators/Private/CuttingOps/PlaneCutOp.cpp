@@ -12,8 +12,9 @@ using namespace UE::Geometry;
 
 const FName FPlaneCutOp::ObjectIndexAttribute = "ObjectIndexAttribute";
 
-void FPlaneCutOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FPlaneCutOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)

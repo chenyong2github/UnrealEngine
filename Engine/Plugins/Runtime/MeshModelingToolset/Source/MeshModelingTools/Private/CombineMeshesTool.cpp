@@ -204,7 +204,7 @@ void UCombineMeshesTool::CreateNewAsset()
 				AccumulateDMesh.Attributes()->SetNumUVLayers(ComponentDMesh.Attributes()->NumUVLayers());
 			}
 
-			UE::Geometry::FTransform3d XF = (UE::Geometry::FTransform3d)((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]) * ToAccum);
+			FTransformSRT3d XF = (UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]) * ToAccum);
 			if (XF.GetDeterminant() < 0)
 			{
 				ComponentDMesh.ReverseOrientation(false);
@@ -227,7 +227,7 @@ void UCombineMeshesTool::CreateNewAsset()
 				if (UE::Geometry::ComponentTypeSupportsCollision(PrimitiveComponent))
 				{
 					CollisionSettings = UE::Geometry::GetCollisionSettings(PrimitiveComponent);
-					UE::Geometry::AppendSimpleCollision(PrimitiveComponent, &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+					UE::Geometry::AppendSimpleCollision(PrimitiveComponent, &SimpleCollision, FTransform3d::Identity);
 				}
 			}
 			else
@@ -339,8 +339,8 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	UPrimitiveComponent* UpdateComponent = UE::ToolTarget::GetTargetComponent(Targets[SkipIndex]);
 	SkipActor = UE::ToolTarget::GetTargetActor(Targets[SkipIndex]);
 
-	UE::Geometry::FTransform3d TargetToWorld = (UE::Geometry::FTransform3d)UE::ToolTarget::GetLocalToWorldTransform(Targets[SkipIndex]);
-	UE::Geometry::FTransform3d WorldToTarget = TargetToWorld.Inverse();
+	FTransform3d TargetToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[SkipIndex]);
+	FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
 	FSimpleShapeSet3d SimpleCollision;
 	UE::Geometry::FComponentCollisionSettings CollisionSettings;
@@ -349,7 +349,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	{
 		CollisionSettings = UE::Geometry::GetCollisionSettings(UpdateComponent);
 	}
-	TArray<UE::Geometry::FTransform3d> Transforms;
+	TArray<FTransform3d> Transforms;
 	Transforms.SetNum(2);
 
 	{
@@ -381,7 +381,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 
 			if (ComponentIdx != SkipIndex)
 			{
-				UE::Geometry::FTransform3d ComponentToWorld = (UE::Geometry::FTransform3d)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
+				FTransform3d ComponentToWorld = (FTransform3d)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
 				MeshTransforms::ApplyTransform(ComponentDMesh, ComponentToWorld);
 				if (ComponentToWorld.GetDeterminant() < 0)
 				{
@@ -403,7 +403,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			{
 				if (bOutputComponentSupportsCollision && UE::Geometry::ComponentTypeSupportsCollision(PrimitiveComponent))
 				{
-					UE::Geometry::AppendSimpleCollision(PrimitiveComponent, &SimpleCollision, UE::Geometry::FTransform3d::Identity());
+					UE::Geometry::AppendSimpleCollision(PrimitiveComponent, &SimpleCollision, FTransform3d::Identity);
 				}
 			}
 

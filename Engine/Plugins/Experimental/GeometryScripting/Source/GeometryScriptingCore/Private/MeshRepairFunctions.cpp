@@ -174,8 +174,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::RemoveHiddenTriangles(
 		Jacket.AddRandomRays = Options.RaysPerSample;
 		Jacket.AddTriangleSamples = Options.SamplesPerTriangle;
 
-		TArray<UE::Geometry::FTransform3d> NoTransforms;
-		NoTransforms.Add(UE::Geometry::FTransform3d::Identity());
+		TArray<FTransformSRT3d> NoTransforms;
+		NoTransforms.Add(FTransformSRT3d::Identity());
 
 		//  set up AABBTree and FWNTree lists
 		FDynamicMeshAABBTree3 Spatial(&EditMesh);

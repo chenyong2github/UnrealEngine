@@ -565,7 +565,7 @@ protected:
 	FFrame3d LockedTransfomerFrame;
 	bool bInGizmoDrag = false;
 
-	UE::Geometry::FTransform3d WorldTransform;
+	UE::Geometry::FTransformSRT3d WorldTransform;
 
 	FFrame3d InitialGizmoFrame;
 	FVector3d InitialGizmoScale;

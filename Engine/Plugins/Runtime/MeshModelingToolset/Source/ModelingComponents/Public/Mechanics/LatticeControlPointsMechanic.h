@@ -27,7 +27,6 @@ class MODELINGCOMPONENTS_API ULatticeControlPointsMechanic :
 {
 	GENERATED_BODY()
 	using FVector2i = UE::Geometry::FVector2i;
-	using FTransform3d = UE::Geometry::FTransform3d;
 
 public:
 

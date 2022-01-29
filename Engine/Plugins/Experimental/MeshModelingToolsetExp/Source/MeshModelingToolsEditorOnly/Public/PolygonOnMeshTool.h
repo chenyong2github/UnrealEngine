@@ -211,7 +211,7 @@ protected:
 protected:
 	UWorld* TargetWorld;
 
-	UE::Geometry::FTransform3d WorldTransform;
+	FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;

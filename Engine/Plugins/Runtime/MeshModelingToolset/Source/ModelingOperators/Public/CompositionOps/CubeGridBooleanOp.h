@@ -27,7 +27,7 @@ public:
 
 	// The mesh to add to or subtract from
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-	FTransform3d InputTransform = FTransform3d::Identity();
+	FTransformSRT3d InputTransform = FTransformSRT3d::Identity();
 
 	// Box from which to generate the second mesh
 	FOrientedBox3d WorldBox;

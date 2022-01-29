@@ -14,21 +14,21 @@ namespace Geometry
 
 /**
  * FDynamicMeshOperator is a base interface for operator implementations that can produce 
- * a FDynamicMesh3 with associated FTransform3d. This class exists so we can write generic code 
+ * a FDynamicMesh3 with associated FTransformSRT3d. This class exists so we can write generic code 
  * that works with any type of mesh operation of this style. 
  */
 class FDynamicMeshOperator
 {
 protected:
 	TUniquePtr<FDynamicMesh3> ResultMesh;
-	FTransform3d ResultTransform;
+	FTransformSRT3d ResultTransform;
 	FGeometryResult ResultInfo;
 
 public:
 	FDynamicMeshOperator()
 	{
 		ResultMesh = MakeUnique<FDynamicMesh3>();
-		ResultTransform = FTransform3d::Identity();
+		ResultTransform = FTransformSRT3d::Identity();
 	}
 	virtual ~FDynamicMeshOperator()
 	{
@@ -37,7 +37,7 @@ public:
 	/**
 	 * Set the output transform
 	 */
-	virtual void SetResultTransform(const FTransform3d& Transform)
+	virtual void SetResultTransform(const FTransformSRT3d& Transform)
 	{
 		ResultTransform = Transform;
 	}
@@ -61,7 +61,7 @@ public:
 	/**
 	 * @return the transform applied to the mesh produced by CalculateResult()
 	 */
-	const FTransform3d& GetResultTransform() const
+	const FTransformSRT3d& GetResultTransform() const
 	{
 		return ResultTransform;
 	}

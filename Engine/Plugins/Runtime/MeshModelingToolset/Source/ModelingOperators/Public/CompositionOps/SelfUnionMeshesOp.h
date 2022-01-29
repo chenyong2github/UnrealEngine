@@ -27,7 +27,7 @@ public:
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float TryCollapseExtraEdgesPlanarThresh = 0.01f;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

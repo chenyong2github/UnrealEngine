@@ -196,10 +196,10 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 		FVector3d Center = OpResult.Mesh->GetBounds().Center();
 		double Rescale = OpResult.Transform.GetScale().X;
 		FTransform3d LocalTransform(-Center * Rescale);
-		LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
+		LocalTransform.SetScale3D(FVector3d(Rescale, Rescale, Rescale));
 		MeshTransforms::ApplyTransform(*OpResult.Mesh, LocalTransform);
 		NewTransform = OpResult.Transform;
-		NewTransform.SetScale(FVector3d::One());
+		NewTransform.SetScale3D(FVector3d::One());
 		NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
 

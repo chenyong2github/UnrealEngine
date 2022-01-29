@@ -106,7 +106,7 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 	{
 		ToDynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 		{
-			MeshTransforms::ApplyTransform(EditMesh, (UE::Geometry::FTransform3d)LocalToWorld);
+			MeshTransforms::ApplyTransform(EditMesh, (FTransformSRT3d)LocalToWorld);
 
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);	
 	}

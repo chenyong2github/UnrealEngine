@@ -54,7 +54,7 @@ public:
 	 */
 	void InitializeDeformedMeshRayCast(
 		TFunction<UE::Geometry::FDynamicMeshAABBTree3* ()> GetSpatialIn,
-		const UE::Geometry::FTransform3d& TargetTransform, const FGroupTopologyDeformer* LinearDeformer);
+		const FTransform3d& TargetTransform, const FGroupTopologyDeformer* LinearDeformer);
 
 	virtual void Setup(UInteractiveTool* ParentToolIn) override;
 	virtual void Shutdown() override;

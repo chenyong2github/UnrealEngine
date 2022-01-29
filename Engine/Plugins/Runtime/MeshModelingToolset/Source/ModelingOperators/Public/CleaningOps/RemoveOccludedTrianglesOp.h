@@ -24,9 +24,9 @@ public:
 	
 	TArray<TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
 	TArray<TSharedPtr<UE::Geometry::TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
-	TArray<FTransform3d> OccluderTransforms;
+	TArray<FTransformSRT3d> OccluderTransforms;
 
-	TArray<FTransform3d> MeshTransforms;
+	TArray<FTransformSRT3d> MeshTransforms;
 
 	UE::Geometry::EOcclusionTriangleSampling TriangleSamplingMethod =
 		UE::Geometry::EOcclusionTriangleSampling::Centroids;

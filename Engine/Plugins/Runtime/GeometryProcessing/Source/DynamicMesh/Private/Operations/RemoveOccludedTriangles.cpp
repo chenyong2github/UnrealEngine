@@ -94,11 +94,11 @@ namespace UE
 					Spatials.Add(new TMeshAABBTree3<FComponentMesh>(&ComponentMeshes[ComponentIdx]));
 					Windings.Add(new TFastWindingTree<FComponentMesh>(&Spatials[ComponentIdx]));
 				}
-				FTransform3d Id = FTransform3d::Identity();
-				TArrayView<FTransform3d> TransformsView(&Id, 1);
+				FTransformSRT3d Id = FTransformSRT3d::Identity();
+				TArrayView<FTransformSRT3d> TransformsView(&Id, 1);
 				TArrayView<TMeshAABBTree3<FComponentMesh>*> SpatialsView(Spatials.GetData(), Spatials.Num());
 				TArrayView<TFastWindingTree<FComponentMesh>*> WindingsView(Windings.GetData(), Windings.Num());
-				return Remover.Apply(TransformsView, SpatialsView, WindingsView, TArrayView<const FTransform3d>(), bTestOccludedByAny);
+				return Remover.Apply(TransformsView, SpatialsView, WindingsView, TArrayView<const FTransformSRT3d>(), bTestOccludedByAny);
 			}
 			else
 			{
@@ -107,7 +107,7 @@ namespace UE
 				Remover.TriangleSamplingMethod = SamplingMethod;
 				Remover.AddTriangleSamples = RandomSamplesPerTri;
 				FDynamicMeshAABBTree3 Spatial(&Mesh, true);
-				return Remover.Apply(FTransform3d::Identity(), &Spatial);
+				return Remover.Apply(FTransformSRT3d::Identity(), &Spatial);
 			}
 		}
 	}

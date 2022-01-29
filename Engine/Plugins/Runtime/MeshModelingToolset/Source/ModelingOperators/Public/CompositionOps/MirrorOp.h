@@ -36,7 +36,7 @@ public:
 	/** Whether, when welding, new bowtie vertex creation should be allowed. */
 	bool bAllowBowtieVertexCreation = false;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

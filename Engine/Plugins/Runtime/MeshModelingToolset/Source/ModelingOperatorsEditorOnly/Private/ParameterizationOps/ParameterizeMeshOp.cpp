@@ -489,7 +489,7 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 
 	Op->UVLayer = GetSelectedUVChannel();	
 
-	UE::Geometry::FTransform3d Transform(TargetTransform);
+	FTransformSRT3d Transform(TargetTransform);
 	Op->SetTransform(Transform);
 
 	return Op;

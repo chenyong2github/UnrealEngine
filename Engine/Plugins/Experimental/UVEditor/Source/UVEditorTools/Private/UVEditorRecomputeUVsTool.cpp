@@ -74,7 +74,7 @@ void UUVEditorRecomputeUVsTool::Setup()
 	{
 		TObjectPtr<UUVEditorToolMeshInput> Target = Targets[TargetIndex];
 		Factories[TargetIndex] = NewObject<URecomputeUVsOpFactory>();
-		Factories[TargetIndex]->TargetTransform = (UE::Geometry::FTransform3d)Target->AppliedPreview->PreviewMesh->GetTransform();
+		Factories[TargetIndex]->TargetTransform = (FTransform3d)Target->AppliedPreview->PreviewMesh->GetTransform();
 		Factories[TargetIndex]->Settings = Settings;
 		Factories[TargetIndex]->OriginalMesh = Target->AppliedCanonical;
 		Factories[TargetIndex]->InputGroups = ActiveGroupSet;

@@ -175,7 +175,7 @@ void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
 }
 
 void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn, 
-	const UE::Geometry::FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
+	const FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
 {
 	if (LinearDeformer)
 	{

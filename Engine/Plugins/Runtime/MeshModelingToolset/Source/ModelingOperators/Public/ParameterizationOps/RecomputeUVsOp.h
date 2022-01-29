@@ -81,7 +81,7 @@ public:
 	double MaxNormalDeviationDeg = 45.0;
 
 	// set ability on protected transform.
-	void SetTransform(const FTransform3d& XForm)
+	void SetTransform(const FTransformSRT3d& XForm)
 	{
 		ResultTransform = XForm;
 	}
@@ -129,5 +129,5 @@ public:
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
-	UE::Geometry::FTransform3d TargetTransform;
+	UE::Geometry::FTransformSRT3d TargetTransform;
 };

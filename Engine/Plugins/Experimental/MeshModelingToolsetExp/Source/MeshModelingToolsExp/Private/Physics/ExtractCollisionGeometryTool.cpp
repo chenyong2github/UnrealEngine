@@ -119,12 +119,11 @@ void UExtractCollisionGeometryTool::Setup()
 
 void UExtractCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 {
-	using FTransform3d = UE::Geometry::FTransform3d;
 	OutputTypeProperties->SaveProperties(this, TEXT("ExtractCollisionTool"));
 	Settings->SaveProperties(this);
 	VizSettings->SaveProperties(this);
 
-	UE::Geometry::FTransform3d ActorTransform(PreviewMesh->GetTransform());
+	FTransform3d ActorTransform(PreviewMesh->GetTransform());
 
 	PreviewElements->Disconnect();
 	PreviewMesh->SetVisible(false);
@@ -295,7 +294,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 
 		MeshTransforms::Translate(CapsuleMesh, FVector3d(0,0,-0.5*Capsule.Length) );
 
-		UE::Geometry::FTransform3d Transform(Capsule.GetTransform());
+		FTransformSRT3d Transform(Capsule.GetTransform());
 		MeshTransforms::ApplyTransform(CapsuleMesh, Transform);
 
 		FMeshIndexMappings Mappings;
@@ -306,7 +305,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 
 	for (const FKConvexElem& Convex : AggGeom.ConvexElems)
 	{
-		UE::Geometry::FTransform3d ElemTransform(Convex.GetTransform());
+		FTransformSRT3d ElemTransform(Convex.GetTransform());
 		FDynamicMesh3 ConvexMesh(EMeshComponents::None);
 		int32 NumVertices = Convex.VertexData.Num();
 		for (int32 k = 0; k < NumVertices; ++k)

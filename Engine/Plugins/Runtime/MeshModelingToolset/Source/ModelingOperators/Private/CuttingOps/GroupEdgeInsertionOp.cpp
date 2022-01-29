@@ -7,8 +7,9 @@
 
 using namespace UE::Geometry;
 
-void FGroupEdgeInsertionOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FGroupEdgeInsertionOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FGroupEdgeInsertionOp::GetEdgeLocations(TArray<TPair<FVector3d, FVector3d>>& EndPointPairsOut) const

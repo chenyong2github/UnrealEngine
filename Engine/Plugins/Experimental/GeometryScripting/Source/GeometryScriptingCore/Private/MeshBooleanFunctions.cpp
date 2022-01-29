@@ -65,8 +65,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean(
 		ToolMesh->ProcessMesh([&](const FDynamicMesh3& Mesh2)
 		{
 			FMeshBoolean MeshBoolean(
-				&Mesh1, (UE::Geometry::FTransform3d)TargetTransform,
-				&Mesh2, (UE::Geometry::FTransform3d)ToolTransform,
+				&Mesh1, (FTransformSRT3d)TargetTransform,
+				&Mesh2, (FTransformSRT3d)ToolTransform,
 				&NewResultMesh, ApplyOperation);
 			MeshBoolean.bPutResultInInputSpace = true;
 			MeshBoolean.bSimplifyAlongNewEdges = Options.bSimplifyOutput;
@@ -85,7 +85,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshBoolean(
 	}
 
 	// Boolean result is in the space of TargetTransform, so invert that
-	MeshTransforms::ApplyTransform(NewResultMesh, (UE::Geometry::FTransform3d)TargetTransform.Inverse());
+	MeshTransforms::ApplyTransform(NewResultMesh, (FTransformSRT3d)TargetTransform.Inverse());
 
 	if (NewBoundaryEdges.Num() > 0 && Options.bFillHoles)
 	{

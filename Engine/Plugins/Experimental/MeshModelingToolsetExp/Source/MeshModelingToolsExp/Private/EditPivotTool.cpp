@@ -165,10 +165,10 @@ void UEditPivotTool::Precompute()
 	}
 	else
 	{
-		Transform = UE::Geometry::FTransform3d::Identity();
+		Transform = FTransform3d::Identity;
 		for (int k = 0; k < NumComponents; ++k)
 		{
-			UE::Geometry::FTransform3d CurTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
+			FTransform3d CurTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
 			const FMeshDescription* Mesh = UE::ToolTarget::GetMeshDescription(Targets[k]);
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 				ObjectBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
@@ -439,11 +439,11 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		}
 		else if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
-			UE::Geometry::FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
+			FTransformSRT3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
 			// to preserve scale, after baking the first transform, we will also need to bake an inverse scale transform
 			// this bake will need to be applied separately only in cases where FTransform3d cannot correctly represent the combination of the two transforms
 			// TODO: we could skip the extra bake step if the bake functions could take a general matrix
-			UE::Geometry::FTransform3d SeparateBakeScale = UE::Geometry::FTransform3d::Identity();
+			FTransformSRT3d SeparateBakeScale = FTransformSRT3d::Identity();
 			bool bNeedSeparateScale = false;
 			// ScaledNewWorldTransform is the pivot widget's transform with the scale of the original component transform
 			FTransform ScaledNewWorldTransform = NewWorldTransform;
@@ -472,7 +472,7 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 						(!AxisZero[2] && bEqXY)
 					));
 				bNeedSeparateScale = !bCanCombinedScales;
-				FVector3d InvScale = UE::Geometry::FTransform3d::GetSafeScaleReciprocal(OriginalTransforms[ComponentIdx].GetScale3D());
+				FVector3d InvScale = FTransformSRT3d::GetSafeScaleReciprocal(OriginalTransforms[ComponentIdx].GetScale3D());
 				if (!bNeedSeparateScale)
 				{
 					ToBake.SetScale(FVector3d::One()); // clear scale; it will be fully captured by the new transform

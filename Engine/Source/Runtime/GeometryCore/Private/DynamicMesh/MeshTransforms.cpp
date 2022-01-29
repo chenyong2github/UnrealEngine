@@ -112,7 +112,7 @@ void MeshTransforms::FrameCoordsToWorld(FDynamicMesh3& Mesh, const FFrame3d& Fra
 
 
 
-void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Transform)
+void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform)
 {
 	bool bVertexNormals = Mesh.HasVertexNormals();
 
@@ -143,7 +143,7 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Tra
 
 
 
-void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform3d& Transform)
+void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform)
 {
 	bool bVertexNormals = Mesh.HasVertexNormals();
 

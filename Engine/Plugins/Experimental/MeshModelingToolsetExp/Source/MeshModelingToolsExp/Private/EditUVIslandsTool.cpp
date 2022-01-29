@@ -52,7 +52,7 @@ void UEditUVIslandsTool::Setup()
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, Target);
-	WorldTransform = UE::Geometry::FTransform3d(DynamicMeshComponent->GetComponentTransform());
+	WorldTransform = FTransform3d(DynamicMeshComponent->GetComponentTransform());
 
 	// set materials
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);

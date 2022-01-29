@@ -293,7 +293,7 @@ void UAddPatchTool::GeneratePreviewBaseMesh()
 void UAddPatchTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 {
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
-	UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
+	FTransform3d CurTransform(PreviewMesh->GetTransform());
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPatchToolTransactionName", "Add Patch Mesh"));
 

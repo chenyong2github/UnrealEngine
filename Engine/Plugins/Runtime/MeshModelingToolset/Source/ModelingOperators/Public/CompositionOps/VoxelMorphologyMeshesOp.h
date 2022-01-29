@@ -41,7 +41,7 @@ public:
 
 	// inputs
 	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
-	TArray<FTransform> Transforms; // 1:1 with Meshes
+	TArray<FTransformSRT3d> Transforms; // 1:1 with Meshes
 
 	double Distance = 1.0;
 	EMorphologyOperation Operation;
@@ -50,7 +50,7 @@ public:
 	bool bRemoveInternalsAfterVoxWrap = false;
 	double ThickenShells = 0.0;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

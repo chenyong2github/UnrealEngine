@@ -289,7 +289,7 @@ TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 
 	FVector LocalOrigin = WorldToLocal.TransformPosition((FVector)CutTool->CutPlaneWorld.Origin);
 	FVector3d WorldNormal = CutTool->CutPlaneWorld.GetAxis(2);
-	UE::Geometry::FTransform3d W2LForNormal(WorldToLocal);
+	FTransformSRT3d W2LForNormal(WorldToLocal);
 	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal(WorldNormal);
 	FVector BackTransformed = LocalToWorld.TransformVector(LocalNormal);
 	float NormalScaleFactor = FVector::DotProduct(BackTransformed, (FVector)WorldNormal);

@@ -482,8 +482,8 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 	}
 
 	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
-	UE::Geometry::FTransform3d TargetTransform(UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget));
-	UE::Geometry::FTransform3d TargetTransformInv = TargetTransform.Inverse();
+	FTransformSRT3d TargetTransform(UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget));
+	FTransformSRT3d TargetTransformInv = TargetTransform.Inverse();
 
 	InputMeshes.Reset();
 	InputMeshes.SetNum(SourceObjectIndices.Num());
@@ -492,7 +492,7 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 		FDynamicMesh3 SourceMesh = InitialSourceMeshes[k];
 		if (Settings->bUseWorldSpace)
 		{
-			UE::Geometry::FTransform3d ToWorld(UE::ToolTarget::GetLocalToWorldTransform(Targets[k]));
+			FTransformSRT3d ToWorld(UE::ToolTarget::GetLocalToWorldTransform(Targets[k]));
 			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
 			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
 		}

@@ -86,7 +86,6 @@ class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMech
 {
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FTransform3d = UE::Geometry::FTransform3d;	
 	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
 public:
 
@@ -111,7 +110,7 @@ public:
 	 * @param GetSpatialSourceFunc Function that returns an AABB tree for the mesh.
 	 */
 	void Initialize(const FDynamicMesh3* Mesh,
-		FTransform TargetTransform,
+		FTransform3d TargetTransform,
 		UWorld* World,
 		const FGroupTopology* Topology,
 		TFunction<FDynamicMeshAABBTree3*()> GetSpatialSourceFunc

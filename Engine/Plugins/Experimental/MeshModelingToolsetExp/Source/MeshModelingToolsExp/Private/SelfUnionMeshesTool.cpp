@@ -113,7 +113,7 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 			MaterialIDs->SetValue(TID, MaterialRemap[ComponentIdx][MaterialIDs->GetValue(TID)]);
 		}
 		// TODO: center the meshes
-		FTransform3d WorldTransform = (FTransform3d)TransformProxies[ComponentIdx]->GetTransform();
+		FTransformSRT3d WorldTransform = TransformProxies[ComponentIdx]->GetTransform();
 		if (WorldTransform.GetDeterminant() < 0)
 		{
 			ComponentMesh.ReverseOrientation(false);
@@ -198,7 +198,7 @@ TUniquePtr<FDynamicMeshOperator> USelfUnionMeshesTool::MakeNewOperator()
 	Op->WindingNumberThreshold = Properties->WindingThreshold;
 	Op->bTrimFlaps = Properties->bTrimFlaps;
 
-	Op->SetResultTransform(FTransform3d::Identity()); // TODO Center the combined meshes (when building them) and change this transform accordingly
+	Op->SetResultTransform(FTransformSRT3d::Identity()); // TODO Center the combined meshes (when building them) and change this transform accordingly
 	Op->CombinedMesh = CombinedSourceMeshes;
 
 	return Op;

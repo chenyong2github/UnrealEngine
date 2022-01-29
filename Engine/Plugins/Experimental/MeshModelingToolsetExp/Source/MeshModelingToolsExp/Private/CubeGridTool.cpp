@@ -855,8 +855,6 @@ void UCubeGridTool::UpdateComputeInputs()
 
 void UCubeGridTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	using UE::Geometry::FTransform3d;
-
 	Settings->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);
 

@@ -5,9 +5,9 @@
 
 using namespace UE::Geometry;
 
-void FMeshSpaceDeformerOp::SetTransform(const FTransform& Transform)
+void FMeshSpaceDeformerOp::SetTransform(const FTransformSRT3d& Transform)
 {
-	ResultTransform = (FTransform3d)Transform;
+	ResultTransform = Transform;
 }
 
 void FMeshSpaceDeformerOp::CalculateResult(FProgressCancel* Progress)

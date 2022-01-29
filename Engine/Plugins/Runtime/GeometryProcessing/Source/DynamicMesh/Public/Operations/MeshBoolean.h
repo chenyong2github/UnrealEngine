@@ -34,7 +34,7 @@ public:
 	// Inputs
 	//
 	const FDynamicMesh3* Meshes[2];
-	const FTransform3d Transforms[2];
+	const FTransformSRT3d Transforms[2];
 
 	enum class EBooleanOp
 	{
@@ -111,7 +111,7 @@ public:
 	//
 
 	/** Transform taking the result mesh back to the original space of the inputs */
-	FTransform3d ResultTransform;
+	FTransformSRT3d ResultTransform;
 
 	/** Boundary edges created by the mesh boolean algorithm failing to cleanly weld (doesn't include boundaries that already existed in source meshes) */
 	TArray<int> CreatedBoundaryEdges;
@@ -145,7 +145,7 @@ public:
 	 * @param OutputMesh Mesh to store output
 	 * @param Operation How to combine meshes
 	 */
-	FMeshBoolean(const FDynamicMesh3* MeshA, const FTransform3d& TransformA, const FDynamicMesh3* MeshB, const FTransform3d& TransformB,
+	FMeshBoolean(const FDynamicMesh3* MeshA, const FTransformSRT3d& TransformA, const FDynamicMesh3* MeshB, const FTransformSRT3d& TransformB,
 				 FDynamicMesh3* OutputMesh, EBooleanOp Operation)
 		: Meshes{ MeshA, MeshB }, Transforms{ TransformA, TransformB }, Operation(Operation), Result(OutputMesh)
 	{
@@ -153,7 +153,7 @@ public:
 	}
 
 	FMeshBoolean(const FDynamicMesh3* MeshA, const FDynamicMesh3* MeshB, FDynamicMesh3* OutputMesh, EBooleanOp Operation)
-		: Meshes{ MeshA, MeshB }, Transforms{ FTransform3d::Identity(), FTransform3d::Identity() }, Operation(Operation), Result(OutputMesh)
+		: Meshes{ MeshA, MeshB }, Transforms{ FTransformSRT3d::Identity(), FTransformSRT3d::Identity() }, Operation(Operation), Result(OutputMesh)
 	{
 		check(MeshA != nullptr && MeshB != nullptr && OutputMesh != nullptr);
 	}

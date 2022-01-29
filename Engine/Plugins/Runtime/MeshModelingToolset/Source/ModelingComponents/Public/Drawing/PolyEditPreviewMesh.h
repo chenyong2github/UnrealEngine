@@ -17,7 +17,6 @@ UCLASS(Transient)
 class MODELINGCOMPONENTS_API UPolyEditPreviewMesh : public UPreviewMesh
 {
 	GENERATED_BODY()
-	using FTransform3d = UE::Geometry::FTransform3d;	
 public:
 
 	//
@@ -78,6 +77,6 @@ protected:
 
 	FVector3d InputDirection;
 
-	UE::Geometry::FTransform3d MeshTransform;
+	FTransform3d MeshTransform;
 	bool bHaveMeshTransform;
 };

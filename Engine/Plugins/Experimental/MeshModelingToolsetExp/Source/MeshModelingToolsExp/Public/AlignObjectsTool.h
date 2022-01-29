@@ -102,7 +102,6 @@ UCLASS()
 class MESHMODELINGTOOLSEXP_API UAlignObjectsTool : public UMultiSelectionMeshEditingTool, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
-	using FTransform3d = UE::Geometry::FTransform3d;
 	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
 public:
 	UAlignObjectsTool();

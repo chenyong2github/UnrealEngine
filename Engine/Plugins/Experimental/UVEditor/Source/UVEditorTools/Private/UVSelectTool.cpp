@@ -888,7 +888,7 @@ void UUVSelectTool::ApplyGizmoTransform()
 {
 	if (bGizmoTransformNeedsApplication)
 	{
-		UE::Geometry::FTransform3d TransformToApply(UnappliedGizmoTransform);
+		FTransformSRT3d TransformToApply(UnappliedGizmoTransform);
 
 		// TODO: The division here is a bit of a hack. Properly-speaking, the scaling handles should act relative to
 		// gizmo size, not the visible space across which we drag, otherwise it becomes dependent on the units we

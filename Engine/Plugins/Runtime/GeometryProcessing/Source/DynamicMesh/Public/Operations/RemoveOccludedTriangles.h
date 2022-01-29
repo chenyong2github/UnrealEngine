@@ -106,9 +106,9 @@ public:
 	 *							 Otherwise, we test if it's occluded by the combination of all occluders.
 	 * @return true on success
 	 */
-	virtual bool Select(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
+	virtual bool Select(const TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces,
 		const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-		const TArrayView<const FTransform3d> SpatialTransforms = TArrayView<const FTransform3d>(), bool bTestOccludedByAny = false)
+		const TArrayView<const FTransformSRT3d> SpatialTransforms = TArrayView<const FTransformSRT3d>(), bool bTestOccludedByAny = false)
 	{
 		if (Cancelled())
 		{
@@ -149,14 +149,14 @@ public:
 		// Helper struct to track both the transform and its inverse
 		struct FTransformWithInv
 		{
-			FTransform3d Transform;
+			FTransformSRT3d Transform;
 			FQuaterniond InvRot;
 			FVector3d InvScale;
 
 			FTransformWithInv() : 
-				Transform(FTransform3d::Identity()), InvRot(FQuaterniond::Identity()), InvScale(FVector3d::One())
+				Transform(FTransformSRT3d::Identity()), InvRot(FQuaterniond::Identity()), InvScale(FVector3d::One())
 			{}
-			FTransformWithInv(const FTransform3d& Transform) : Transform(Transform)
+			FTransformWithInv(const FTransformSRT3d& Transform) : Transform(Transform)
 			{
 				ComputeInv();
 			}
@@ -191,7 +191,7 @@ public:
 			}
 
 			// checks if the transform is an exact match
-			inline bool IsSameTransform(const FTransform3d& Other) const
+			inline bool IsSameTransform(const FTransformSRT3d& Other) const
 			{
 				return Other.GetTranslation() == Transform.GetTranslation()
 					&& Other.GetScale() == Transform.GetScale()
@@ -200,7 +200,7 @@ public:
 
 			// apply the inverse transform unless the point was originally transformed by this same transform; then just return the original point
 			// use to avoid floating point error shoving a sample into the surface that it came from
-			inline FVector3d InverseTransformUnlessMatch(const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF) const
+			inline FVector3d InverseTransformUnlessMatch(const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF) const
 			{
 				if (IsSameTransform(OriginalXF))
 				{
@@ -214,12 +214,12 @@ public:
 		};
 
 		typedef TFunctionRef<bool(const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms)> FIsOccludedFn;
+			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms)> FIsOccludedFn;
 
 		// test if point is occluded by the combination of all spatials, according to winding number
 		FIsOccludedFn IsOccludedFWNTotal =
 			[this](const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
+			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
 		{
 			double WindingSum = 0;
 			for (int Idx = 0, NumPts = FastWindingTrees.Num(); Idx < NumPts; ++Idx)
@@ -232,7 +232,7 @@ public:
 		// test if point is occluded by the any of the spatials, according to winding number
 		FIsOccludedFn IsOccludedFWNAny =
 			[this](const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-				const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
+				const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
 		{
 			for (int Idx = 0, NumPts = FastWindingTrees.Num(); Idx < NumPts; ++Idx)
 			{
@@ -247,7 +247,7 @@ public:
 		// test if point is occluded by the combination of all spatials, according to raycasts
 		FIsOccludedFn IsOccludedSimpleTotal = [this, &RayDirs, &NR]
 		(const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
+			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
 		{
 			FRay3d Ray;
 			
@@ -276,7 +276,7 @@ public:
 		// test if point is occluded by the any of the spatials, according to raycasts
 		FIsOccludedFn IsOccludedSimpleAny = [this, &RayDirs, &NR]
 		(const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransform3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
+			const FVector3d& Pt, const FVector3d& OriginalPt, const FTransformSRT3d& OriginalXF, const TArray<FTransformWithInv>& SpatialTransforms) -> bool
 		{
 			FRay3d Ray;
 
@@ -352,7 +352,7 @@ public:
 				bool bAllOccluded = true;
 				for (int32 TransformIdx = 0, TransformNum = MeshLocalToOccluderSpaces.Num(); TransformIdx < TransformNum; TransformIdx++)
 				{
-					const FTransform3d& OriginalTransform = MeshLocalToOccluderSpaces[TransformIdx];
+					const FTransformSRT3d& OriginalTransform = MeshLocalToOccluderSpaces[TransformIdx];
 					FVector3d XFPos = OriginalTransform.TransformPosition(SamplePos);
 
 					bAllOccluded = bAllOccluded && IsOccludedF(Spatials, FastWindingTrees, 
@@ -397,7 +397,7 @@ public:
 					FVector3d SamplePos = V0 * BaryCoords.X + V1 * BaryCoords.Y + V2 * BaryCoords.Z + Normal * NormalOffset;
 					for (int32 TransformIdx = 0, TransformNum = MeshLocalToOccluderSpaces.Num(); TransformIdx < TransformNum; TransformIdx++)
 					{
-						const FTransform3d& OriginalTransform = MeshLocalToOccluderSpaces[TransformIdx];
+						const FTransformSRT3d& OriginalTransform = MeshLocalToOccluderSpaces[TransformIdx];
 						FVector3d XFPos = OriginalTransform.TransformPosition(SamplePos);
 
 						bInside = bInside && IsOccludedF(Spatials, FastWindingTrees,
@@ -461,9 +461,9 @@ public:
 	 *							 Otherwise, we test if it's occluded by the combination of all occluders.
 	 * @return true on success
 	 */
-	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, 
+	virtual bool Apply(const TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces, 
 		const TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials, const TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees,
-		const TArrayView<const FTransform3d> SpatialTransforms = TArrayView<const FTransform3d>(), bool bTestOccludedByAny = false)
+		const TArrayView<const FTransformSRT3d> SpatialTransforms = TArrayView<const FTransformSRT3d>(), bool bTestOccludedByAny = false)
 	{
 		if (!Select(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees, SpatialTransforms, bTestOccludedByAny))
 		{
@@ -483,12 +483,12 @@ public:
 	 * @param FastWindingTrees Precomputed fast winding trees for occluders
 	 * @return true on success
 	 */
-	virtual bool Select(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
+	virtual bool Select(const TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces,
 		TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
 		TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials(&Spatial, 1);
 		TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees(&FastWindingTree, 1);
-		return Select(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees, TArrayView<const FTransform3d>());
+		return Select(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees, TArrayView<const FTransformSRT3d>());
 	}
 
 
@@ -501,12 +501,12 @@ public:
 	 * @param FastWindingTrees Precomputed fast winding trees for occluders
 	 * @return true on success
 	 */
-	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces,
+	virtual bool Apply(const TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces,
 		TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
 		TArrayView<TMeshAABBTree3<OccluderTriangleMeshType>*> Spatials(&Spatial, 1);
 		TArrayView<TFastWindingTree<OccluderTriangleMeshType>*> FastWindingTrees(&FastWindingTree, 1);
-		return Apply(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees, TArrayView<const FTransform3d>());
+		return Apply(MeshLocalToOccluderSpaces, Spatials, FastWindingTrees, TArrayView<const FTransformSRT3d>());
 	}
 
 	/**
@@ -516,9 +516,9 @@ public:
 	 * @param Occluder AABB tree of occluding geometry
 	 * @return true on success
 	 */
-	virtual bool Select(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	virtual bool Select(const FTransformSRT3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
-		TArrayView<const FTransform3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
+		TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
 		return Select(MeshLocalToOccluderSpaces, Spatial, FastWindingTree);
 	}
 
@@ -530,9 +530,9 @@ public:
 	 * @param Occluder AABB tree of occluding geometry
 	 * @return true on success
 	 */
-	virtual bool Apply(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	virtual bool Apply(const FTransformSRT3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
-		TArrayView<const FTransform3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
+		TArrayView<const FTransformSRT3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
 		return Apply(MeshLocalToOccluderSpaces, Spatial, FastWindingTree);
 	}
 
@@ -544,7 +544,7 @@ public:
 	 * @param Occluder AABB tree of occluding geometry
 	 * @return true on success
 	 */
-	virtual bool Select(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
+	virtual bool Select(const FTransformSRT3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
 	{
 		TFastWindingTree<OccluderTriangleMeshType> FastWindingTree(Occluder, InsideMode == EOcclusionCalculationMode::FastWindingNumber);
 		return Select(MeshLocalToOccluderSpace, Occluder, &FastWindingTree);
@@ -558,7 +558,7 @@ public:
 	 * @param Occluder AABB tree of occluding geometry
 	 * @return true on success
 	 */
-	virtual bool Apply(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
+	virtual bool Apply(const FTransformSRT3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
 	{
 		TFastWindingTree<OccluderTriangleMeshType> FastWindingTree(Occluder, InsideMode == EOcclusionCalculationMode::FastWindingNumber);
 		return Apply(MeshLocalToOccluderSpace, Occluder, &FastWindingTree);

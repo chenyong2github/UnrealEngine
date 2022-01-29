@@ -98,7 +98,7 @@ void UPersistentMeshSelectionManager::OnSelectionModified()
 		//const float ROIBorderDepthBias = 0.1f * (float)(WorldBounds.DiagonalLength() * 0.01);
 		const float ROIBorderDepthBias = 0.01f;
 
-		UE::Geometry::FTransform3d Transform(ActiveSelection->GetTargetComponent()->GetComponentToWorld());
+		FTransform3d Transform(ActiveSelection->GetTargetComponent()->GetComponentToWorld());
 
 		const TArray<UE::Geometry::FSegment3d>& Lines = SelectionData->RenderEdges;
 		SelectionDisplay->CreateOrUpdateLineSet(TEXT("SelectionEdges"),  Lines.Num(),

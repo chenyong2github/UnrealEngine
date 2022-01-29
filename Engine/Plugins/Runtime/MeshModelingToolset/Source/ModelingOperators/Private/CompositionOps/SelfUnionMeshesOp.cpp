@@ -8,8 +8,9 @@
 
 using namespace UE::Geometry;
 
-void FSelfUnionMeshesOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FSelfUnionMeshesOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)

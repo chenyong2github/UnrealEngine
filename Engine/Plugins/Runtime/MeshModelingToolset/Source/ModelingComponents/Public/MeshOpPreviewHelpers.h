@@ -24,7 +24,7 @@ using FBackgroundDynamicMeshComputeSource = UE::Geometry::TBackgroundModelingCom
 struct MODELINGCOMPONENTS_API FDynamicMeshOpResult
 {
 	TUniquePtr<UE::Geometry::FDynamicMesh3> Mesh;
-	UE::Geometry::FTransform3d Transform;
+	UE::Geometry::FTransformSRT3d Transform;
 };
 
 

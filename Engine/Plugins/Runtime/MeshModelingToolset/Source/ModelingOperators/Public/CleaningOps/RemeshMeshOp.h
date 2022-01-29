@@ -73,8 +73,8 @@ public:
 	FDynamicMesh3* ProjectionTarget = nullptr;
 	FDynamicMeshAABBTree3* ProjectionTargetSpatial = nullptr;
 
-	FTransform3d TargetMeshLocalToWorld;
-	FTransform3d ToolMeshLocalToWorld;
+	FTransformSRT3d TargetMeshLocalToWorld;
+	FTransformSRT3d ToolMeshLocalToWorld;
 	bool bUseWorldSpace = false;
 	bool bParallel = true;
 
@@ -102,7 +102,7 @@ public:
 	// End normal flow only
 
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

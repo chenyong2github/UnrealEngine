@@ -180,7 +180,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyMathWarpToMesh(
 		return TargetMesh;
 	}
 
-	UE::Geometry::FTransform3d WarpTransform(WarpOrientation);
+	FTransformSRT3d WarpTransform(WarpOrientation);
 	double UseShift = (double)Options.FrequencyShift;
 	double UseFrequency = (double)Options.Frequency;
 	double UseMagnitude = (double)Options.Magnitude;

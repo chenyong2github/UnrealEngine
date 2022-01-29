@@ -33,9 +33,9 @@ using namespace UE::Geometry;
 void ConvertBrushesToDynamicMesh(TArray<ABrush*>& BrushesToConvert, FDynamicMesh3& OutputMesh, 
 	TArray<UMaterialInterface*>& OutputMaterials);
 bool ApplyDynamicMeshBooleanOperation(
-	FDynamicMesh3& MeshA, const UE::Geometry::FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
-	FDynamicMesh3& MeshB, const UE::Geometry::FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
-	FDynamicMesh3& OutputMesh, UE::Geometry::FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
+	FDynamicMesh3& MeshA, const FTransformSRT3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
+	FDynamicMesh3& MeshB, const FTransformSRT3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
+	FDynamicMesh3& OutputMesh, FTransformSRT3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
 	FMeshBoolean::EBooleanOp Operation);
 FText GetBrushGeometryErrorMessage(ABrush* Brush);
 
@@ -357,7 +357,7 @@ bool UBspConversionTool::CombineThenConvert(FText*)
 	}
 
 	MeshTransforms::Translate(OutputMesh, -NewPivot);
-	UE::Geometry::FTransform3d Transform = UE::Geometry::FTransform3d::Identity();
+	FTransformSRT3d Transform = FTransformSRT3d::Identity();
 	Transform.SetTranslation(NewPivot);
 
 	PreviewMesh->UpdatePreview(&OutputMesh);
@@ -387,14 +387,14 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 	// We'll need temporary space to store meshes as we build them up. The input and output meshes,
 	// transforms, and material arrays will swap after we merge in each new mesh.
 	FDynamicMesh3 MeshStorage[2];
-	UE::Geometry::FTransform3d TransformStorage[2];
+	FTransformSRT3d TransformStorage[2];
 	TArray<UMaterialInterface*> MaterialArraysStorage[2];
 
 	FDynamicMesh3* InputMesh = &MeshStorage[0];
 	FDynamicMesh3* OutputMesh = &MeshStorage[1];
 	
-	UE::Geometry::FTransform3d* InputTransform = &TransformStorage[0];
-	UE::Geometry::FTransform3d* OutputTransform = &TransformStorage[1];
+	FTransformSRT3d* InputTransform = &TransformStorage[0];
+	FTransformSRT3d* OutputTransform = &TransformStorage[1];
 
 	TArray<UMaterialInterface*>* InputMaterials = &MaterialArraysStorage[0];
 	TArray<UMaterialInterface*>* OutputMaterials = &MaterialArraysStorage[1];
@@ -406,7 +406,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 	FDynamicMesh3 NextMesh;
 
 	// The transform when a brush is first converted is always the same
-	UE::Geometry::FTransform3d NextTransform = UE::Geometry::FTransform3d::Identity();
+	FTransformSRT3d NextTransform = FTransformSRT3d::Identity();
 
 	// We could actually point to cached materials since we don't change these, but for consistency,
 	// we'll have a local copy.
@@ -439,7 +439,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 					MakeShared<const TArray<UMaterialInterface*>>(*OutputMaterials)));
 			}
 		}
-		*OutputTransform = UE::Geometry::FTransform3d::Identity(); // Always identity when first converted
+		*OutputTransform = FTransformSRT3d::Identity(); // Always identity when first converted
 	}
 
 	// Now convert the other meshes one at a time and apply them using boolean mesh operations
@@ -582,9 +582,9 @@ void ConvertBrushesToDynamicMesh(TArray<ABrush*>& BrushesToConvert, FDynamicMesh
 }
 
 bool ApplyDynamicMeshBooleanOperation(
-	FDynamicMesh3& MeshA, const UE::Geometry::FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
-	FDynamicMesh3& MeshB, const UE::Geometry::FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
-	FDynamicMesh3& OutputMesh, UE::Geometry::FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
+	FDynamicMesh3& MeshA, const FTransformSRT3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
+	FDynamicMesh3& MeshB, const FTransformSRT3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
+	FDynamicMesh3& OutputMesh, FTransformSRT3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
 	FMeshBoolean::EBooleanOp Operation)
 {
 	// These need to be enabled on both meshes to deal with materials properly. This is relevant, for

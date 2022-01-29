@@ -25,7 +25,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::TransformMesh(
 	// todo: publish correct change types
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
-		MeshTransforms::ApplyTransform(EditMesh, (UE::Geometry::FTransform3d)Transform);
+		MeshTransforms::ApplyTransform(EditMesh, (FTransformSRT3d)Transform);
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 

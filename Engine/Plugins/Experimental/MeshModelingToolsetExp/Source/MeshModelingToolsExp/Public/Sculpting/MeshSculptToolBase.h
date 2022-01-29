@@ -224,7 +224,6 @@ class MESHMODELINGTOOLSEXP_API UMeshSculptToolBase : public UMeshSurfacePointToo
 {
 	GENERATED_BODY()
 protected:
-	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 public:
 
@@ -266,9 +265,9 @@ protected:
 	FViewCameraState CameraState;
 
 	/** Initial transformation on target mesh */
-	UE::Geometry::FTransform3d InitialTargetTransform;
+	UE::Geometry::FTransformSRT3d InitialTargetTransform;
 	/** Active transformation on target mesh, includes baked scale */
-	UE::Geometry::FTransform3d CurTargetTransform;
+	UE::Geometry::FTransformSRT3d CurTargetTransform;
 
 	FRay3d GetLocalRay(const FRay& WorldRay) const;
 

@@ -85,9 +85,9 @@ UDynamicMesh* UGeometryScriptLibrary_MeshComparisonFunctions::IsIntersectingMesh
 			ParallelFor(2, [&](int32 k) { Spatials[k].SetMesh((k == 0) ? &Mesh1 : &Mesh2, true); }, EParallelForFlags::Unbalanced);
 
 			bool bIsIdentity1 = TargetTransformIn.Equals(FTransform::Identity, 0);
-			UE::Geometry::FTransform3d Transform1(TargetTransformIn);
+			FTransformSRT3d Transform1(TargetTransformIn);
 			bool bIsIdentity2 = OtherTransformIn.Equals(FTransform::Identity, 0);
-			UE::Geometry::FTransform3d Transform2(OtherTransformIn);
+			FTransformSRT3d Transform2(OtherTransformIn);
 			if (bIsIdentity1 && bIsIdentity2)
 			{
 				bIsIntersecting = Spatials[0].TestIntersection(Spatials[1]);
@@ -95,7 +95,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshComparisonFunctions::IsIntersectingMesh
 			else if (bIsIdentity1 || bIsIdentity2)
 			{
 				FIndex2i Indices = (bIsIdentity1) ? FIndex2i(0,1) : FIndex2i(1,0);
-				UE::Geometry::FTransform3d UseTransform = (bIsIdentity2) ? Transform1 : Transform2;
+				FTransformSRT3d UseTransform = (bIsIdentity2) ? Transform1 : Transform2;
 				bIsIntersecting = Spatials[Indices.A].TestIntersection(Spatials[Indices.B],
 					[&](const FVector3d& Pos) { return UseTransform.TransformPosition(Pos); });
 			}

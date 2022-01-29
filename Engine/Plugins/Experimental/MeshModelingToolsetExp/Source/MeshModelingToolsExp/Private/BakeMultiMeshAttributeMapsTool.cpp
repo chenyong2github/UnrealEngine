@@ -382,7 +382,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	Super::Setup();
 
 	// Initialize base mesh
-	const UE::Geometry::FTransform3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+	const FTransformSRT3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	PreviewMesh->ProcessMesh([this, BaseToWorld](const FDynamicMesh3& Mesh)
 	{
 		TargetMesh.Copy(Mesh);

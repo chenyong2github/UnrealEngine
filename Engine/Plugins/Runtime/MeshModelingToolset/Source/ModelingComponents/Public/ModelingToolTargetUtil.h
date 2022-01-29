@@ -67,7 +67,7 @@ MODELINGCOMPONENTS_API bool SetSourceObjectVisible(UToolTarget* Target, bool bVi
 /**
  * @return the local-to-world Transform underlying a ToolTarget, eg the Component or Actor transform
  */
-MODELINGCOMPONENTS_API UE::Geometry::FTransform3d GetLocalToWorldTransform(UToolTarget* Target);
+MODELINGCOMPONENTS_API FTransform3d GetLocalToWorldTransform(UToolTarget* Target);
 
 /**
  * Fetch the Material Set on the object underlying a ToolTarget. In cases where there are (eg) 

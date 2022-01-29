@@ -205,7 +205,7 @@ protected:
 	// AABB trees and winding trees for every mesh target, with repeated instances as pointers to the same data
 	TArray<TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
 	TArray<TSharedPtr<UE::Geometry::TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
-	TArray<UE::Geometry::FTransform3d> OccluderTransforms;
+	TArray<UE::Geometry::FTransformSRT3d> OccluderTransforms;
 
 	TArray<TArray<int32>> PreviewToCopyIdx;
 	TArray<int32> PreviewToTargetIdx;

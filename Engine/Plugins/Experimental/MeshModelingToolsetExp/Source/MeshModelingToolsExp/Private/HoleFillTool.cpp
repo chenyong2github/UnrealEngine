@@ -92,7 +92,7 @@ TUniquePtr<FDynamicMeshOperator> UHoleFillOperatorFactory::MakeNewOperator()
 	TUniquePtr<FHoleFillOp> FillOp = MakeUnique<FHoleFillOp>();
 
 	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(FillTool->Target)->GetWorldTransform();
-	FillOp->SetResultTransform((UE::Geometry::FTransform3d)LocalToWorld);
+	FillOp->SetResultTransform((FTransformSRT3d)LocalToWorld);
 	FillOp->OriginalMesh = FillTool->OriginalMesh;
 	FillOp->MeshUVScaleFactor = FillTool->MeshUVScaleFactor;
 	FillTool->GetLoopsToFill(FillOp->Loops);

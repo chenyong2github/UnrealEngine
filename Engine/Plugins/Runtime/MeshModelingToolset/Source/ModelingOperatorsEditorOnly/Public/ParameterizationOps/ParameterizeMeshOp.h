@@ -68,7 +68,7 @@ public:
 	EParamOpBackend Method = EParamOpBackend::UVAtlas;
 
 	// set ability on protected transform.
-	void SetTransform(const FTransform3d& XForm)
+	void SetTransform(const FTransformSRT3d& XForm)
 	{
 		ResultTransform = XForm;
 	}

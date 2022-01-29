@@ -273,22 +273,22 @@ void UDataprepBakeTransformOperation::OnExecution_Implementation(const FDataprep
 		}
 	}
 
-	TArray<UE::Geometry::FTransform3d> BakedTransforms;
+	TArray<UE::Geometry::FTransformSRT3d> BakedTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < StaticMeshComponents.Num(); ComponentIdx++)
 	{
-		UE::Geometry::FTransform3d ComponentToWorld(StaticMeshComponents[ComponentIdx]->GetComponentTransform());
-		UE::Geometry::FTransform3d ToBakePart = UE::Geometry::FTransform3d::Identity();
-		UE::Geometry::FTransform3d NewWorldPart = ComponentToWorld;
+		UE::Geometry::FTransformSRT3d ComponentToWorld(StaticMeshComponents[ComponentIdx]->GetComponentTransform());
+		UE::Geometry::FTransformSRT3d ToBakePart = UE::Geometry::FTransformSRT3d::Identity();
+		UE::Geometry::FTransformSRT3d NewWorldPart = ComponentToWorld;
 
 		if (MapToFirstOccurrences[ComponentIdx] < ComponentIdx)
 		{
 			ToBakePart = BakedTransforms[MapToFirstOccurrences[ComponentIdx]];
 			BakedTransforms.Add(ToBakePart);
 			// Try to invert baked transform
-			NewWorldPart = UE::Geometry::FTransform3d(
+			NewWorldPart = UE::Geometry::FTransformSRT3d(
 				NewWorldPart.GetRotation() * ToBakePart.GetRotation().Inverse(),
 				NewWorldPart.GetTranslation(),
-				NewWorldPart.GetScale() * UE::Geometry::FTransform3d::GetSafeScaleReciprocal(ToBakePart.GetScale())
+				NewWorldPart.GetScale() * UE::Geometry::FTransformSRT3d::GetSafeScaleReciprocal(ToBakePart.GetScale())
 			);
 			NewWorldPart.SetTranslation(NewWorldPart.GetTranslation() - NewWorldPart.TransformVector(ToBakePart.GetTranslation()));
 		}
@@ -864,7 +864,7 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> UDataprepPlaneCutOperation::MakeN
 	LocalToWorld.SetScale3D(LocalToWorldScale);
 	FTransform WorldToLocal = LocalToWorld.Inverse();
 	FVector LocalOrigin = WorldToLocal.TransformPosition(CutPlaneOrigin);
-	UE::Geometry::FTransform3d W2LForNormal(WorldToLocal);
+	UE::Geometry::FTransformSRT3d W2LForNormal(WorldToLocal);
 	FVector LocalNormal = (FVector)W2LForNormal.TransformNormal((FVector3d)WorldNormal);
 	FVector BackTransformed = LocalToWorld.TransformVector(LocalNormal);
 	float NormalScaleFactor = FVector::DotProduct(BackTransformed, WorldNormal);

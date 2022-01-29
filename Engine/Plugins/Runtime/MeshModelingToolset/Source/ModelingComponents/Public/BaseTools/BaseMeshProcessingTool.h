@@ -78,7 +78,6 @@ class MODELINGCOMPONENTS_API UBaseMeshProcessingTool : public USingleSelectionTo
 {
 	GENERATED_BODY()
 protected:
-	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 public:
 	UBaseMeshProcessingTool() = default;

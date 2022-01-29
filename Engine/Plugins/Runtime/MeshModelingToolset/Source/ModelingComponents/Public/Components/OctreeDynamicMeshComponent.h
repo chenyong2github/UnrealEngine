@@ -67,7 +67,7 @@ public:
 	 * Apply transform to internal mesh. Invalidates RenderProxy.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
-	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert) override;
 
 	//
 	// change tracking/etc

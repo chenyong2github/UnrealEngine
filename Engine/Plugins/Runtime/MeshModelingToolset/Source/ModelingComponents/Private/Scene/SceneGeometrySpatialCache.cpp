@@ -61,7 +61,7 @@ public:
 public:
 	TWeakObjectPtr<UBrushComponent> Component;
 	FAxisAlignedBox3d LocalBounds;
-	UE::Geometry::FTransform3d Transform;
+	FTransformSRT3d Transform;
 	FColliderMesh ColliderMesh;
 	bool bDeferredRebuildPending;
 };
@@ -159,7 +159,7 @@ void FSceneVolumeSpatial::OnGeometryModified(bool bDeferSpatialRebuild)
 		return;
 	}
 
-	Transform = (UE::Geometry::FTransform3d)Component->GetComponentTransform();
+	Transform = (FTransformSRT3d)Component->GetComponentTransform();
 	LocalBounds = FAxisAlignedBox3d( Component->CalcBounds(FTransform::Identity).GetBox() );
 
 	if (bDeferSpatialRebuild)
@@ -189,7 +189,7 @@ void FSceneVolumeSpatial::OnTransformModified()
 {
 	if (IsValid())
 	{
-		Transform = (UE::Geometry::FTransform3d)Component->GetComponentTransform();
+		Transform = (FTransformSRT3d)Component->GetComponentTransform();
 	}
 }
 
@@ -221,7 +221,7 @@ public:
 public:
 	TWeakObjectPtr<UDynamicMeshComponent> Component;
 	FAxisAlignedBox3d LocalBounds;
-	UE::Geometry::FTransform3d Transform;
+	FTransformSRT3d Transform;
 	FDynamicMeshAABBTree3 AABBTree;
 	bool bDeferredRebuildPending;
 };
@@ -329,7 +329,7 @@ void FSceneDynamicMeshSpatial::OnGeometryModified(bool bDeferSpatialRebuild)
 		return;
 	}
 
-	Transform = (UE::Geometry::FTransform3d)DynamicMeshComponent->GetComponentTransform();
+	Transform = (FTransformSRT3d)DynamicMeshComponent->GetComponentTransform();
 	// may be reasonable to use USceneComponent::GetLocalBounds() here. Unclear if it will have already been updated on mesh changes...
 	DynamicMeshComponent->ProcessMesh([&](const FDynamicMesh3& Mesh)
 	{
@@ -355,7 +355,7 @@ void FSceneDynamicMeshSpatial::OnTransformModified()
 {
 	if (IsValid())
 	{
-		Transform = (UE::Geometry::FTransform3d)Component->GetComponentTransform();
+		Transform = (FTransformSRT3d)Component->GetComponentTransform();
 	}
 }
 

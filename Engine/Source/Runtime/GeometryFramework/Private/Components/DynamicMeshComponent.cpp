@@ -162,7 +162,7 @@ const FDynamicMesh3* UDynamicMeshComponent::GetRenderMesh() const
 
 
 
-void UDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
+void UDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, bool bInvert)
 {
 	MeshObject->EditMesh([&](FDynamicMesh3& EditMesh)
 	{

@@ -14,10 +14,19 @@ namespace Geometry
 using namespace UE::Math;
 
 /**
- * TTransform3 is a double/float templated version of standard UE FTransform.
+ * TTransformSRT3 is a variant of the standard UE FTransform/TTransform that uses the 
+ * UE::Geometry::TQuaternion instead of the UE::Math::TQuat. 
+ * 
+ * Transform order is Scale, then Rotate, then Translate.
+ * So mathematically (T * R * S) * v , assuming traditional matrix-vector multiplication order
+ * (note that the UE::Math library uses the opposite vector*Matrix ordering for TMatrix!)
+ * 
+ * Implicit constructors/casts are defined to/from FTransform3d and FTransform3f.
+ * This will likely be revised in future so that conversions that lose precision are explicit.
+ * 
  */
 template<typename RealType>
-class TTransform3
+class TTransformSRT3
 {
 protected:
 	TQuaternion<RealType> Rotation;
@@ -26,35 +35,42 @@ protected:
 
 public:
 
-	TTransform3()
+	TTransformSRT3()
 	{
 		Rotation = TQuaternion<RealType>::Identity();
 		Translation = TVector<RealType>::Zero();
 		Scale3D = TVector<RealType>::One();
 	}
 
-	TTransform3(const TQuaternion<RealType>& RotationIn, const UE::Math::TVector<RealType>& TranslationIn, const UE::Math::TVector<RealType>& ScaleIn)
+	TTransformSRT3(const TQuaternion<RealType>& RotationIn, const UE::Math::TVector<RealType>& TranslationIn, const UE::Math::TVector<RealType>& ScaleIn)
 	{
 		Rotation = RotationIn;
 		Translation = TranslationIn;
 		Scale3D = ScaleIn;
 	}
 
-	explicit TTransform3(const TQuaternion<RealType>& RotationIn, const UE::Math::TVector<RealType>& TranslationIn)
+	explicit TTransformSRT3(const TQuaternion<RealType>& RotationIn, const UE::Math::TVector<RealType>& TranslationIn)
 	{
 		Rotation = RotationIn;
 		Translation = TranslationIn;
 		Scale3D = TVector<RealType>::One();
 	}
 
-	explicit TTransform3(const UE::Math::TVector<RealType>& TranslationIn)
+	explicit TTransformSRT3(const UE::Math::TVector<RealType>& TranslationIn)
 	{
 		Rotation = TQuaternion<RealType>::Identity();
 		Translation = TranslationIn;
 		Scale3D = TVector<RealType>::One();
 	}
 
-	explicit TTransform3(const FTransform& Transform)
+	TTransformSRT3(const FTransform3f& Transform)
+	{
+		Rotation = TQuaternion<RealType>(Transform.GetRotation());
+		Translation = TVector<RealType>(Transform.GetTranslation());
+		Scale3D = TVector<RealType>(Transform.GetScale3D());
+	}
+
+	TTransformSRT3(const FTransform3d& Transform)
 	{
 		Rotation = TQuaternion<RealType>(Transform.GetRotation());
 		Translation = TVector<RealType>(Transform.GetTranslation());
@@ -64,19 +80,26 @@ public:
 	/**
 	 * @return identity transform, IE no rotation, zero origin, unit scale
 	 */
-	static TTransform3<RealType> Identity()
+	static TTransformSRT3<RealType> Identity()
 	{
-		return TTransform3<RealType>(TQuaternion<RealType>::Identity(), TVector<RealType>::Zero(), TVector<RealType>::One());
+		return TTransformSRT3<RealType>(TQuaternion<RealType>::Identity(), TVector<RealType>::Zero(), TVector<RealType>::One());
 	}
 
 	/**
 	 * @return this transform converted to FTransform 
 	 */
-	explicit operator FTransform() const
+	operator FTransform3f() const
 	{
-		return FTransform((FQuat)Rotation, (FVector)Translation, (FVector)Scale3D);
+		return FTransform3f((FQuat4f)Rotation, (FVector3f)Translation, (FVector3f)Scale3D);
 	}
 
+	/**
+	* @return this transform converted to FTransform3d
+	*/
+	operator FTransform3d() const
+	{
+		return FTransform((FQuat4d)Rotation, (FVector3d)Translation, (FVector3d)Scale3D);
+	}
 
 	/**
 	 * @return Rotation portion of Transform, as Quaternion
@@ -147,12 +170,12 @@ public:
 	/**
 	 * @return inverse of this transform
 	 */
-	TTransform3<RealType> Inverse() const
+	TTransformSRT3<RealType> Inverse() const
 	{
 		TQuaternion<RealType> InvRotation = Rotation.Inverse();
 		TVector<RealType> InvScale3D = GetSafeScaleReciprocal(Scale3D);
 		TVector<RealType> InvTranslation = InvRotation * (InvScale3D * -Translation);
-		return TTransform3<RealType>(InvRotation, InvTranslation, InvScale3D);
+		return TTransformSRT3<RealType>(InvRotation, InvTranslation, InvScale3D);
 	}
 
 
@@ -350,8 +373,8 @@ public:
 	}
 
 };
-typedef TTransform3<float> FTransform3f;
-typedef TTransform3<double> FTransform3d;
+typedef TTransformSRT3<float> FTransformSRT3f;
+typedef TTransformSRT3<double> FTransformSRT3d;
 
 
 } // end namespace UE::Geometry

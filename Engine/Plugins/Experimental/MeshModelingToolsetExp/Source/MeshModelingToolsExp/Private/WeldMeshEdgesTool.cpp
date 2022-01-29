@@ -68,9 +68,9 @@ public:
 		}
 	}
 
-	void SetTransform(const FTransform& Transform)
+	void SetTransform(const FTransformSRT3d& Transform)
 	{
-		ResultTransform = (UE::Geometry::FTransform3d)Transform;
+		ResultTransform = Transform;
 	}
 };
 

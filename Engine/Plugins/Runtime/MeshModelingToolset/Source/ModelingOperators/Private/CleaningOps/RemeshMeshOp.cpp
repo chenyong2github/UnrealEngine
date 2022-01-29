@@ -50,9 +50,9 @@ TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMe
 
 }
 
-void FRemeshMeshOp::SetTransform(const FTransform& Transform)
+void FRemeshMeshOp::SetTransform(const FTransformSRT3d& Transform)
 {
-	ResultTransform = (FTransform3d)Transform;
+	ResultTransform = Transform;
 }
 
 void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)

@@ -219,7 +219,7 @@ protected:
 	EState State = EState::DrawingPath;
 
 	// camera state at last render
-	UE::Geometry::FTransform3d WorldTransform;
+	FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	// drawing plane and gizmo

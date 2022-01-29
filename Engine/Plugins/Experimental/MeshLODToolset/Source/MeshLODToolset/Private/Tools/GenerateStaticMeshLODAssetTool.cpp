@@ -156,7 +156,7 @@ namespace GenerateStaticMeshLODAssetLocals
 
 	public:
 
-		FGenerateStaticMeshLODAssetOperatorFactory(UGenerateStaticMeshLODAssetTool* AutoLODTool, UE::Geometry::FTransform3d ResultTransform) :
+		FGenerateStaticMeshLODAssetOperatorFactory(UGenerateStaticMeshLODAssetTool* AutoLODTool, FTransformSRT3d ResultTransform) :
 			AutoLODTool(AutoLODTool), 
 			ResultTransform(ResultTransform) 
 		{}
@@ -194,7 +194,7 @@ namespace GenerateStaticMeshLODAssetLocals
 		}
 
 		UGenerateStaticMeshLODAssetTool* AutoLODTool = nullptr;
-		UE::Geometry::FTransform3d ResultTransform;
+		FTransformSRT3d ResultTransform;
 	};
 
 	static void DisplayCriticalWarningMessage(const FString& Message)
@@ -368,7 +368,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 
 	FBoxSphereBounds Bounds = StaticMeshComponent->Bounds;
-	UE::Geometry::FTransform3d PreviewTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+	FTransformSRT3d PreviewTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	PreviewTransform.SetTranslation(PreviewTransform.GetTranslation() + 2.5 * (double)Bounds.BoxExtent.Y * FVector3d::UnitY());
 
 	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, PreviewTransform);

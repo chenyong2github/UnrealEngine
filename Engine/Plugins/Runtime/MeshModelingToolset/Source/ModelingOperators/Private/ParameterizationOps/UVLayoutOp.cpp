@@ -10,8 +10,9 @@
 
 using namespace UE::Geometry;
 
-void FUVLayoutOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FUVLayoutOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 

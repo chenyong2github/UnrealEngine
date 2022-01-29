@@ -41,7 +41,7 @@ public:
 	float GutterSize = 1.0;
 	FVector2f UVTranslation = FVector2f::Zero();
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

@@ -22,7 +22,6 @@
 namespace MeshAdapterTransforms
 {
 	using namespace UE::Geometry;
-	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 
 	/**
@@ -107,7 +106,7 @@ namespace MeshAdapterTransforms
 	* Modifies Vertex Positions and Normals, and any Per-Triangle Normal Overlays
 	*/
 	template<class TriangleMeshType>
-	void ApplyTransform(TriangleMeshType& Mesh, const FTransform3d& Transform)
+	void ApplyTransform(TriangleMeshType& Mesh, const FTransformSRT3d& Transform)
 	{
 		int NumVertices = Mesh.MaxVertexID();
 		ParallelFor(NumVertices, [&](int vid)
@@ -140,7 +139,7 @@ namespace MeshAdapterTransforms
 	* Modifies Vertex Positions and Normals, and any Per-Triangle Normal Overlays
 	*/
 	template<class TriangleMeshType>
-	void ApplyTransformInverse(TriangleMeshType& Mesh, const FTransform3d& Transform)
+	void ApplyTransformInverse(TriangleMeshType& Mesh, const FTransformSRT3d& Transform)
 	{
 		int NumVertices = Mesh.MaxVertexID();
 		ParallelFor(NumVertices, [&](int vid)

@@ -200,7 +200,7 @@ protected:
 	
 	// camera state at last render
 	FViewCameraState CameraState;
-	UE::Geometry::FTransform3d WorldTransform;
+	FTransform3d WorldTransform;
 
 	FToolDataVisualizer PolyEdgesRenderer;
 

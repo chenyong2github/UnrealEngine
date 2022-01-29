@@ -57,7 +57,7 @@ public:
 	bool bAllowSharpVertices;
 	float NormalSplitThreshold;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

@@ -64,7 +64,7 @@ void USeamSculptTool::Setup()
 	BrushProperties->RestoreProperties(this);
 
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	MeshTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
+	MeshTransform = FTransform3d(TargetComponent->GetWorldTransform());
 	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*PreviewMesh->GetMesh());
 	FMeshNormals::QuickComputeVertexNormals(*InputMesh);
 	NormalOffset = InputMesh->GetBounds(true).MinDim() * 0.001;

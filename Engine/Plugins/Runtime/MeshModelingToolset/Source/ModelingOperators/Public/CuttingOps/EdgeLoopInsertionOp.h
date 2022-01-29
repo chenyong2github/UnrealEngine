@@ -42,7 +42,7 @@ public:
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> ResultTopology;
 	bool bSucceeded = false;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	/** 
 	 * Converts LoopEids into pairs of endpoints, since ResultMesh is inaccessible without

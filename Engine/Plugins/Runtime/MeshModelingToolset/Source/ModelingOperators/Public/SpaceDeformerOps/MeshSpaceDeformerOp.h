@@ -18,7 +18,7 @@ public:
 	// Inputs
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	FFrame3d GizmoFrame;
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	// The lower bound of the region of space that the operator affects, relative to the gizmo position.
 	double LowerBoundsInterval;

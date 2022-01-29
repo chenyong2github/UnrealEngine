@@ -38,7 +38,7 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 
 	if (Options.bInWorldSpace)
 	{
-		UE::Geometry::FTransform3d XForm(Volume->GetTransform());
+		FTransform3d XForm(Volume->GetTransform());
 		MeshTransforms::ApplyTransform(Mesh, XForm);
 	}
 }
@@ -56,7 +56,7 @@ void BrushComponentToDynamicMesh(UBrushComponent* Component, UE::Geometry::FDyna
 
 	if (Options.bInWorldSpace)
 	{
-		UE::Geometry::FTransform3d XForm(Component->GetComponentTransform());
+		FTransform3d XForm(Component->GetComponentTransform());
 		MeshTransforms::ApplyTransform(Mesh, XForm);
 	}
 }

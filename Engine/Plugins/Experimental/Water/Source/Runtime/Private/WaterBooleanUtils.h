@@ -83,7 +83,7 @@ private:
 	 * Construct transforms to and from a normalized space, for a given bounds.
 	 * ("Normalized space" is such that scaled box fits in origin-centered unit box)
 	 */
-	static void MakeNormalizationTransform(const FAxisAlignedBox3d& Bounds, UE::Geometry::FTransform3d& ToNormalizedOut, UE::Geometry::FTransform3d& FromNormalizedOut);
+	static void MakeNormalizationTransform(const FAxisAlignedBox3d& Bounds, FTransformSRT3d& ToNormalizedOut, FTransformSRT3d& FromNormalizedOut);
 
 	/**
 	 * Utility function to set per-triangle attribute normals on a DynamicMesh
@@ -94,7 +94,7 @@ private:
 	 * Mesh a set of AVolumes and then Boolean-Union them into a FDynamicMesh3.
 	 * @param Transform this transform is applied to each volume before the Boolean is computed
 	 */
-	static FDynamicMesh3 AccumulateExtrusionVolumes(const TArray<AWaterBodyExclusionVolume*>& ExclusionVolumes, const UE::Geometry::FTransform3d& Transform);
+	static FDynamicMesh3 AccumulateExtrusionVolumes(const TArray<AWaterBodyExclusionVolume*>& ExclusionVolumes, const FTransformSRT3d& Transform);
 
 	/**
 	 * Generate a mesh that is a Box with a set of Volumes Boolean-subtracted.

@@ -104,14 +104,14 @@ void UPolygonSelectionMechanic::LoadSelection(const UPersistentMeshSelection& Se
 
 void UPolygonSelectionMechanic::Initialize(
 	const FDynamicMesh3* MeshIn,
-	FTransform TargetTransformIn,
+	FTransform3d TargetTransformIn,
 	UWorld* WorldIn,
 	const FGroupTopology* TopologyIn,
 	TFunction<FDynamicMeshAABBTree3 * ()> GetSpatialSourceFuncIn)
 {
 	this->Mesh = MeshIn;
 	this->Topology = TopologyIn;
-	this->TargetTransform = FTransform3d(TargetTransformIn);
+	this->TargetTransform = TargetTransformIn;
 
 	TopoSelector->Initialize(Mesh, Topology);
 	this->GetSpatialFunc = GetSpatialSourceFuncIn;

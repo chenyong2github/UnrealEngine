@@ -14,8 +14,9 @@
 
 using namespace UE::Geometry;
 
-void FVoxelMorphologyMeshesOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FVoxelMorphologyMeshesOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
@@ -59,7 +60,7 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	FDynamicMeshEditor AppendEditor(&CombinedMesh);
 	for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
 	{
-		FTransform3d MeshTransform = (FTransform3d)Transforms[MeshIdx];
+		FTransformSRT3d MeshTransform = Transforms[MeshIdx];
 		bool bReverseOrientation = MeshTransform.GetDeterminant() < 0;
 		FMeshIndexMappings IndexMaps;
 		AppendEditor.AppendMesh(Meshes[MeshIdx].Get(), IndexMaps,

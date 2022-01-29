@@ -306,13 +306,13 @@ void FSimpleShapeSet3d::RemoveContainedGeometry()
 }
 
 
-static void TransformSphereShape(FSphereShape3d& SphereShape, const UE::Geometry::FTransform3d& Transform)
+static void TransformSphereShape(FSphereShape3d& SphereShape, const FTransform3d& Transform)
 {
-	double RadiusScale = Transform.GetScale().Length() / FVector3d::One().Length();
+	double RadiusScale = Transform.GetScale3D().Length() / FVector3d::One().Length();
 	SphereShape.Sphere.Center = Transform.TransformPosition(SphereShape.Sphere.Center);
 	SphereShape.Sphere.Radius *= RadiusScale;
 }
-static void TransformBoxShape(FBoxShape3d& BoxShape, const UE::Geometry::FTransform3d& Transform)
+static void TransformBoxShape(FBoxShape3d& BoxShape, const FTransform3d& Transform)
 {
 	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
 	BoxShape.Box.Frame.Transform(Transform);
@@ -321,7 +321,7 @@ static void TransformBoxShape(FBoxShape3d& BoxShape, const UE::Geometry::FTransf
 	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
 	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
 }
-static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const UE::Geometry::FTransform3d& Transform)
+static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const FTransform3d& Transform)
 {
 	FVector3d P0 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.StartPoint());
 	FVector3d P1 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.EndPoint());
@@ -341,19 +341,19 @@ static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, c
 
 
 
-static void TransformSphereShape(FSphereShape3d& SphereShape, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
+static void TransformSphereShape(FSphereShape3d& SphereShape, const TArray<FTransform3d>& TransformSequence)
 {
-	for (const UE::Geometry::FTransform3d& XForm : TransformSequence)
+	for (const FTransform3d& XForm : TransformSequence)
 	{
 		SphereShape.Sphere.Center = XForm.TransformPosition(SphereShape.Sphere.Center);
-		double RadiusScale = XForm.GetScale().Length() / FVector3d::One().Length();
+		double RadiusScale = XForm.GetScale3D().Length() / FVector3d::One().Length();
 		SphereShape.Sphere.Radius *= RadiusScale;
 	}
 }
-static void TransformBoxShape(FBoxShape3d& BoxShape, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
+static void TransformBoxShape(FBoxShape3d& BoxShape, const TArray<FTransform3d>& TransformSequence)
 {
 	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
-	for (const UE::Geometry::FTransform3d& XForm : TransformSequence)
+	for (const FTransform3d& XForm : TransformSequence)
 	{
 		BoxShape.Box.Frame.Transform(XForm);
 		CornerVec = XForm.TransformVector(CornerVec);
@@ -362,7 +362,7 @@ static void TransformBoxShape(FBoxShape3d& BoxShape, const TArray<UE::Geometry::
 	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
 	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
 }
-static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
+static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const TArray<FTransform3d>& TransformSequence)
 {
 	FVector3d P0 = CapsuleShape.Capsule.Segment.StartPoint();
 	FVector3d P1 = CapsuleShape.Capsule.Segment.EndPoint();
@@ -372,7 +372,7 @@ static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, c
 	FVector3d InitialSideVec = CapsuleFrame.PointAt(FVector3d(CurRadius, CurRadius, 0)) - CapsuleFrame.Origin;
 	FVector3d NewSideVec = InitialSideVec;
 
-	for (const UE::Geometry::FTransform3d& XForm : TransformSequence)
+	for (const FTransform3d& XForm : TransformSequence)
 	{
 		P0 = XForm.TransformPosition(P0);
 		P1 = XForm.TransformPosition(P1);
@@ -414,7 +414,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
 }
 
 
-void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const UE::Geometry::FTransform3d& Transform)
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTransform3d& Transform)
 {
 	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
 	{
@@ -444,7 +444,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const UE:
 
 
 
-void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<FTransform3d>& TransformSequence)
 {
 	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
 	{
@@ -517,7 +517,7 @@ void FSimpleShapeSet3d::FilterByVolume(int32 MaximumCount)
 
 
 
-void FSimpleShapeSet3d::ApplyTransform(const UE::Geometry::FTransform3d& Transform)
+void FSimpleShapeSet3d::ApplyTransform(const FTransform3d& Transform)
 {
 	for (FSphereShape3d& SphereShape : Spheres)
 	{

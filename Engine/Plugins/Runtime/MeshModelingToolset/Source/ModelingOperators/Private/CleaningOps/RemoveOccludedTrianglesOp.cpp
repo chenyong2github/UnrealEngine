@@ -15,7 +15,7 @@ using namespace UE::Geometry;
 
 void FRemoveOccludedTrianglesOp::SetTransform(const FTransform& Transform)
 {
-	ResultTransform = (FTransform3d)Transform;
+	ResultTransform = (FTransformSRT3d)Transform;
 }
 
 void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)

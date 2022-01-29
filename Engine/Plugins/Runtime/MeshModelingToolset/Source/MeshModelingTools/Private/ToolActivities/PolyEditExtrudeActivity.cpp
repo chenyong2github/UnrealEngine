@@ -42,7 +42,6 @@ namespace PolyEditExtrudeActivityLocals
 TUniquePtr<FDynamicMeshOperator> UPolyEditExtrudeActivity::MakeNewOperator()
 {
 	using namespace PolyEditExtrudeActivityLocals;
-	using UE::Geometry::FTransform3d;
 
 	TUniquePtr<FExtrudeOp> Op = MakeUnique<FExtrudeOp>();
 	Op->OriginalMesh = ActivityContext->CurrentMesh;
@@ -256,7 +255,6 @@ EToolActivityStartResult UPolyEditExtrudeActivity::Start()
 void UPolyEditExtrudeActivity::BeginExtrude()
 {
 	using namespace PolyEditExtrudeActivityLocals;
-	using UE::Geometry::FTransform3d;
 
 	ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
 
@@ -291,8 +289,6 @@ void UPolyEditExtrudeActivity::BeginExtrude()
 // The height mechanics has to get reinitialized whenever extrude direction changes
 void UPolyEditExtrudeActivity::ReinitializeExtrudeHeightMechanic()
 {
-	using UE::Geometry::FTransform3d;
-
 	ExtrusionFrameWorld = ActiveSelectionFrameWorld;
 	ExtrusionFrameWorld.AlignAxis(2, GetExtrudeDirection());
 
@@ -463,8 +459,6 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 // Gets used to set the direction along which we measure the distance to extrude.
 FVector3d UPolyEditExtrudeActivity::GetExtrudeDirection() const
 {
-	using UE::Geometry::FTransform3d;
-
 	EPolyEditExtrudeDirection DirectionToUse = EPolyEditExtrudeDirection::SelectionNormal;
 	switch (PropertySetToUse)
 	{
@@ -492,11 +486,11 @@ FVector3d UPolyEditExtrudeActivity::GetExtrudeDirection() const
 	case EPolyEditExtrudeDirection::WorldZ:
 		return FVector3d::UnitZ();
 	case EPolyEditExtrudeDirection::LocalX:
-		return FTransform3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisX();
+		return FTransformSRT3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisX();
 	case EPolyEditExtrudeDirection::LocalY:
-		return FTransform3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisY();
+		return FTransformSRT3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisY();
 	case EPolyEditExtrudeDirection::LocalZ:
-		return FTransform3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisZ();
+		return FTransformSRT3d(ActivityContext->Preview->PreviewMesh->GetTransform()).GetRotation().AxisZ();
 	}
 	return ActiveSelectionFrameWorld.Z();
 }

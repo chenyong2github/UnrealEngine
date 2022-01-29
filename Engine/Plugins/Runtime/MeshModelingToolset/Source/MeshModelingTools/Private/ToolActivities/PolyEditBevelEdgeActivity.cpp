@@ -28,9 +28,9 @@ public:
 	TArray<int32> BevelGroupFaces;
 	double BevelDistance = 1.0;
 
-	void SetTransform(const FTransform& Transform)
+	void SetTransform(const FTransformSRT3d& Transform)
 	{
-		ResultTransform = (UE::Geometry::FTransform3d)Transform;
+		ResultTransform = Transform;
 	}
 
 	// FDynamicMeshOperator implementation 
@@ -103,7 +103,7 @@ TUniquePtr<FDynamicMeshOperator> UPolyEditBevelEdgeActivity::MakeNewOperator()
 		UE_LOG(LogGeometry, Warning, TEXT("UPolyEditBevelEdgeActivity::MakeNewOperator : empty selection"));
 	}
 
-	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 	Op->SetResultTransform(WorldTransform);
 	
 	return Op;

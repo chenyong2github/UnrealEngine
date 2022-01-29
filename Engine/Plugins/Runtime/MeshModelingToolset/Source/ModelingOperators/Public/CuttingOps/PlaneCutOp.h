@@ -28,7 +28,7 @@ public:
 	static const FName ObjectIndexAttribute;
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation

@@ -274,7 +274,7 @@ struct TAxisAlignedBox3
 		}
 	}
 
-	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const FTransform3d& Transform)
+	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const FTransformSRT3d& Transform)
 	{
 		TVector<RealType> C0 = Transform.TransformPosition(Box.GetCorner(0));
 		Min = C0;

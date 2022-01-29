@@ -154,7 +154,7 @@ public:
 	/**
 	 * Apply a transform to the mesh
 	 */
-	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
+	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert)
 	{
 		unimplemented();
 	}

@@ -8,8 +8,9 @@
 
 using namespace UE::Geometry;
 
-void FBooleanMeshesOp::SetTransform(const FTransform& Transform) {
-	ResultTransform = (FTransform3d)Transform;
+void FBooleanMeshesOp::SetTransform(const FTransformSRT3d& Transform) 
+{
+	ResultTransform = Transform;
 }
 
 void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
@@ -64,7 +65,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
-	FMeshBoolean MeshBoolean(Meshes[FirstIdx].Get(), (FTransform3d)Transforms[FirstIdx], Meshes[OtherIdx].Get(), (FTransform3d)Transforms[OtherIdx], ResultMesh.Get(), Op);
+	FMeshBoolean MeshBoolean(Meshes[FirstIdx].Get(), Transforms[FirstIdx], Meshes[OtherIdx].Get(), Transforms[OtherIdx], ResultMesh.Get(), Op);
 	if (Progress && Progress->Cancelled())
 	{
 		return;

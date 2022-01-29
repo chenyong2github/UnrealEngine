@@ -259,7 +259,7 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> InputMeshROISpatial;
 	TSet<int32> TriangleROISet;
 
-	UE::Geometry::FTransform3d WorldTransform;
+	FTransform3d WorldTransform;
 	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 
 	FVector InitialDimensions;

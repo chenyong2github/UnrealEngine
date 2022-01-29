@@ -62,7 +62,7 @@ public:
 	ETrimSide TrimSide;
 	bool bTrimMode = false; // if true, do a trim operation instead of a boolean
 	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
-	TArray<FTransform> Transforms; // 1:1 with Meshes
+	TArray<FTransformSRT3d> Transforms; // 1:1 with Meshes
 	bool bAttemptFixHoles = false;
 	double WindingThreshold = 0.5;
 
@@ -71,7 +71,7 @@ public:
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float TryCollapseExtraEdgesPlanarThresh = 0.01f;
 
-	void SetTransform(const FTransform& Transform);
+	void SetTransform(const FTransformSRT3d& Transform);
 
 	//
 	// FDynamicMeshOperator implementation
