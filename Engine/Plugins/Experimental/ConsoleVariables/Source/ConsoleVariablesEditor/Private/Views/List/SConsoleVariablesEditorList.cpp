@@ -21,6 +21,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Text/SRichTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
@@ -129,7 +130,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
+		.Padding(FMargin(8.f, 4.f, 8.f, 4.f))
 		[
 			SAssignNew(GlobalSearchesHBox, SHorizontalBox)
 			.Visibility_Lambda([this]()
@@ -223,11 +224,23 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.HAlign(HAlign_Fill)
 			.Padding(2.0f, 24.0f, 2.0f, 2.0f)
 			[
-				SNew(STextBlock)
+				SNew(SRichTextBlock)
 				.AutoWrapText(true)
 				.Justification(ETextJustify::Center)
-				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList",
-					"No List to show. Try clearing the active local/global search and/or adding some console variables to the list."))
+				.Text_Lambda([this]()
+				{
+					if (const TSharedPtr<FConsoleVariablesEditorList> ListModel = ListModelPtr.Pin())
+					{
+						if (ListModel->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch)
+						{
+							return LOCTEXT("ConsoleVariablesEditorList_NoList",
+								"No matching console variables found in Unreal Engine.\n\nCheck your search criteria.");
+						}
+					}
+					
+					return LOCTEXT("ConsoleVariablesEditorList_NoList",
+					"No matching console variables in your list.\n\nCheck your filter or Search All console variables instead.");
+				})
 			]
 		]
 	];

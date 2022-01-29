@@ -458,17 +458,6 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 		{
 			const TSharedPtr<SConsoleVariablesEditorList> PinnedListView = ListView.Pin();
 			PinnedListView->OnListItemCheckBoxStateChange(InNewState);
-
-			if (const TWeakPtr<FConsoleVariablesEditorList>& ListModel = PinnedListView->GetListModelPtr(); ListModel.IsValid())
-			{
-				const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
-				TObjectPtr<UConsoleVariablesAsset> Asset =
-					ListModel.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
-						ConsoleVariablesEditorModule.GetPresetAsset() : ConsoleVariablesEditorModule.GetGlobalSearchAsset();
-
-				// todo: Need to update JUST the
-				PinnedListView->UpdatePresetValuesForSave(Asset);
-			}
 		}
 	}
 }
@@ -583,7 +572,10 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 		.OnClicked_Lambda([this]()
 		{
 			SetVisibility(EVisibility::Collapsed);
-			return Item.Pin()->OnActionButtonClicked();
+			FReply Reply = Item.Pin()->OnActionButtonClicked();
+			DetermineButtonImageAndTooltip();
+			SetVisibility(EVisibility::SelfHitTestInvisible);
+			return Reply;
 		})
 		[
 			SNew(SScaleBox)
