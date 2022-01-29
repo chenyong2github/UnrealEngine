@@ -128,7 +128,7 @@ bool UTakeRecorderWorldSource::CanAddSource(UTakeRecorderSources* InSources) con
 
 void UTakeRecorderWorldSource::AutotrackActors(class ULevelSequence* InSequence, UWorld* InWorld)
 {
-	if (!InWorld)
+	if (!InWorld || !GEditor)
 	{
 		return;
 	}
