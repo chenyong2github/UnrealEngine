@@ -42,6 +42,30 @@ constexpr ERCPayloadType ToInternal(ERCIPayloadType Value)
 	return ERCPayloadType::Cbor;
 }
 
+// Internal helper for ERCIModifyOperation->ERCModifyOperation conversion
+constexpr ERCModifyOperation ToInternal(ERCIModifyOperation Value)
+{
+	switch (Value)
+	{
+	case ERCIModifyOperation::EQUAL:
+		return ERCModifyOperation::EQUAL;
+
+	case ERCIModifyOperation::ADD:
+		return ERCModifyOperation::ADD;
+
+	case ERCIModifyOperation::SUBTRACT:
+		return ERCModifyOperation::SUBTRACT;
+
+	case ERCIModifyOperation::MULTIPLY:
+		return ERCModifyOperation::MULTIPLY;
+
+	case ERCIModifyOperation::DIVIDE:
+		return ERCModifyOperation::DIVIDE;
+	}
+
+	return ERCModifyOperation::EQUAL;
+}
+
 // Internal helper for ERCAccess->ERCIAccess conversion
 constexpr ERCIAccess ToExternal(ERCAccess Value)
 {
@@ -76,4 +100,28 @@ constexpr ERCIPayloadType ToExternal(ERCPayloadType Value)
 	}
 
 	return ERCIPayloadType::Cbor;
+}
+
+// Internal helper for ERCModifyOperation->ERCIModifyOperation conversion
+constexpr ERCIModifyOperation ToExternal(ERCModifyOperation Value)
+{
+	switch (Value)
+	{
+	case ERCModifyOperation::EQUAL:
+		return ERCIModifyOperation::EQUAL;
+
+	case ERCModifyOperation::ADD:
+		return ERCIModifyOperation::ADD;
+
+	case ERCModifyOperation::SUBTRACT:
+		return ERCIModifyOperation::SUBTRACT;
+
+	case ERCModifyOperation::MULTIPLY:
+		return ERCIModifyOperation::MULTIPLY;
+
+	case ERCModifyOperation::DIVIDE:
+		return ERCIModifyOperation::DIVIDE;
+	}
+
+	return ERCIModifyOperation::EQUAL;
 }

@@ -31,7 +31,7 @@ public:
 	virtual bool ResolveObject(ERCAccess AccessType, const FString& ObjectPath, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override;
 	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override;
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override;
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override;
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload, ERCModifyOperation Operation) override;
 	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept) override;
 	virtual TOptional<FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const override;
 	virtual TOptional<FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const override;
@@ -59,6 +59,17 @@ private:
 
 	/** Determines if a property modification should use a setter or default to deserializing directly onto an object. */
 	static bool PropertyModificationShouldUseSetter(UObject* Object, FProperty* Property);
+
+	/**
+	 * Deserialize data for a non-EQUAL modification request and apply the operation to the resulting data.
+	 * 
+	 * @param ObjectAccess Data about the object/property for which modification was requested.
+	 * @param Backend Deserialization backend for the modification request.
+	 * @param Operation Type of operation to apply to the value.
+	 * @param OutData Buffer used to deserialize data from the backend and contain the result value.
+	 * @return True if the data was successfully deserialized and modified.
+	 */
+	static bool DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData);
 
 #if WITH_EDITOR
 	/** Finalize an ongoing change, triggering post edit change on the tracked object. */

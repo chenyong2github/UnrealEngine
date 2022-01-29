@@ -102,6 +102,19 @@ enum class ERCAccess : uint8
 };
 
 /**
+ * Type of operation to perform when setting a remote property's value
+ */
+UENUM()
+enum class ERCModifyOperation : uint8
+{
+	EQUAL,
+	ADD,
+	SUBTRACT,
+	MULTIPLY,
+	DIVIDE
+};
+
+/**
  * Reference to a UObject or one of its properties
  */
 struct FRCObjectReference
@@ -266,9 +279,10 @@ public:
 	 * @param Backend the struct deserializer backend to use to deserialize the object properties.
 	 * @param InPayloadType the payload type archive.
 	 * @param InInterceptPayload the payload reference archive for the interception.
+	 * @param Operation the type of operation to perform when setting the value.
 	 * @return true if the deserialization succeeded
 	 */
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) = 0;
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>(), ERCModifyOperation Operation = ERCModifyOperation::EQUAL) = 0;
 
 	/**
 	 * Reset the property or the object the Object Reference is pointing to

@@ -235,6 +235,12 @@ public:
 	UPROPERTY()
 	bool GenerateTransaction = false;
 
+	/**
+	 * Which type of operation should be performed if this is modifying a property.
+	 */
+	UPROPERTY()
+	ERCModifyOperation Operation = ERCModifyOperation::EQUAL;
+
 private:
 	/**
 	 * Indicates if the property should be read or written to.

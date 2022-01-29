@@ -866,7 +866,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd);
 			FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
 			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
-			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody))
+			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend, ERCPayloadType::Json, DeserializedRequest.TCHARBody, DeserializedRequest.Operation))
 			{
 				Response->Code = EHttpServerResponseCodes::Ok;
 			}

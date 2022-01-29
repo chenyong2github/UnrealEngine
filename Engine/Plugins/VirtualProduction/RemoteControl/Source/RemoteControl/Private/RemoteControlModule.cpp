@@ -14,6 +14,7 @@
 #include "RemoteControlInterceptionProcessor.h"
 #include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
+#include "Serialization/PropertyMapStructDeserializerBackendWrapper.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -187,21 +188,81 @@ namespace RemoteControlUtil
 	{
 		return Access == ERCAccess::WRITE_ACCESS || Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
 	}
+
+	/** Helper function to check if a value is 0 without always calling FMath::IsNearlyZero, since that results in an ambiguous call for non-float values. */
+	template <typename T>
+	bool IsNearlyZero(T Value)
+	{
+		return Value == 0;
+	}
+
+	template <>
+	bool IsNearlyZero(double Value)
+	{
+		return FMath::IsNearlyZero(Value);
+	}
+
+	/**
+	 * Apply a property modification based on the given type's overloaded operators.
+	 * 
+	 * @param Operation The operation to perform.
+	 * @param BasePropertyData A pointer to the original value before modification.
+	 * @param DeltaPropertyData A pointer to the value of the operand and which will store the result.
+	 * @param Getter Function which, given a pointer to property data, will return the property's value.
+	 * @param Setter Function which, given a pointer to property data and a value, will set the property's value to the new value.
+	 */
+	template <typename T>
+	bool ApplySimpleDeltaOperation(ERCModifyOperation Operation, const void* BasePropertyData, void* DeltaPropertyData, FProperty* Property, TFunction<T(const void*)> Getter, TFunction<void(void*, T)> Setter)
+	{
+		const T BaseValue = Getter(BasePropertyData);
+		const T DeltaValue = Getter(DeltaPropertyData);
+
+		switch (Operation)
+		{
+		case ERCModifyOperation::ADD:
+			Setter(DeltaPropertyData, BaseValue + DeltaValue);
+			break;
+
+		case ERCModifyOperation::SUBTRACT:
+			Setter(DeltaPropertyData, BaseValue - DeltaValue);
+			break;
+
+		case ERCModifyOperation::MULTIPLY:
+			Setter(DeltaPropertyData, BaseValue * DeltaValue);
+			break;
+
+		case ERCModifyOperation::DIVIDE:
+			if (IsNearlyZero<T>(DeltaValue))
+			{
+				return false;
+			}
+			Setter(DeltaPropertyData, BaseValue / DeltaValue);
+			break;
+
+		default:
+			// Unsupported operation
+			return false;
+		}
+
+		return true;
+	}
 }
 
 namespace RemoteControlSetterUtils
 {
 	struct FConvertToFunctionCallArgs
 	{
-		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall)
+		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall, const void* InValuePtrOverride = nullptr)
 			: ObjectReference(InObjectReference)
 			, ReaderBackend(InReaderBackend)
 			, Call(OutCall)
+			, ValuePtrOverride(InValuePtrOverride)
 		{ }
 
 		const FRCObjectReference& ObjectReference;
 		IStructDeserializerBackend& ReaderBackend;
 		FRCCall& Call;
+		const void* ValuePtrOverride;
 	};
 
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
@@ -238,14 +299,9 @@ namespace RemoteControlSetterUtils
 		bool bSuccess = false;
 		if (FProperty* SetterArgument = RemoteControlPropertyUtilities::FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
 		{
-			FStructOnScope ArgsOnScope{InSetterFunction};
+			FStructOnScope ArgsOnScope{ InSetterFunction };
 
-			// First put the complete property value from the object in the struct on scope
-			// in case the user only a part of the incoming structure (ie. Providing only { "x": 2 } in the case of a vector.
-			const uint8* ContainerAddress = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(InOutArgs.ObjectReference.ContainerAdress);
-			InOutArgs.ObjectReference.Property->CopyCompleteValue(ArgsOnScope.GetStructMemory(), ContainerAddress);
-
-			// Temporarily rename the setter argument in order to deserialize the incoming property modification on top of it
+			// Temporarily rename the setter argument in order to copy/deserialize the incoming property modification on top of it
 			// regardless of the argument name.
 			FName OldSetterArgumentName = SetterArgument->GetFName();
 			SetterArgument->Rename(InOutArgs.ObjectReference.Property->GetFName());
@@ -255,13 +311,35 @@ namespace RemoteControlSetterUtils
 					SetterArgument->Rename(OldSetterArgumentName);
 				};
 
-				// Then deserialize the input value on top of it and reset the setter property name.
-				bSuccess = FStructDeserializer::Deserialize((void*)ArgsOnScope.GetStructMemory(), *const_cast<UStruct*>(ArgsOnScope.GetStruct()), InOutArgs.ReaderBackend, FStructDeserializerPolicies());
-			}
+				if (InOutArgs.ValuePtrOverride)
+				{
+					// We already have a pointer directly to the data we want, so copy the data into the function arguments
+					const UStruct* ArgsStruct = ArgsOnScope.GetStruct();
 
-			if (bSuccess)
-			{
-				OptionalArgsOnScope = MoveTemp(ArgsOnScope);
+					check(ArgsStruct);
+
+					uint8* SetterArgData = SetterArgument->ContainerPtrToValuePtr<uint8>(ArgsOnScope.GetStructMemory());
+					InOutArgs.ObjectReference.Property->CopyCompleteValue(SetterArgData, InOutArgs.ValuePtrOverride);
+
+					bSuccess = true;
+				}
+				else
+				{
+					// Data needs to be deserialized from the passed reader backend
+
+					// First put the complete property value from the object in the struct on scope
+					// in case the user only a part of the incoming structure (ie. Providing only { "x": 2 } in the case of a vector.
+					const uint8* ContainerAddress = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(InOutArgs.ObjectReference.ContainerAdress);
+					InOutArgs.ObjectReference.Property->CopyCompleteValue(ArgsOnScope.GetStructMemory(), ContainerAddress);
+
+					// Deserialize on top of the setter argument
+					bSuccess = FStructDeserializer::Deserialize((void*)ArgsOnScope.GetStructMemory(), *const_cast<UStruct*>(ArgsOnScope.GetStruct()), InOutArgs.ReaderBackend, FStructDeserializerPolicies());
+				}
+
+				if (bSuccess)
+				{
+					OptionalArgsOnScope = MoveTemp(ArgsOnScope);
+				}
 			}
 		}
 
@@ -704,10 +782,11 @@ bool FRemoteControlModule::GetObjectProperties(const FRCObjectReference& ObjectA
 	return false;
 }
 
-bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload)
+bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload, ERCModifyOperation Operation)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::SetObjectProperties);
 	UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Set Object Properties"));
+
 	// Check the replication path before applying property values
 	if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 	{
@@ -718,6 +797,19 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 			FRCInterceptionPayload InterceptionPayload;
 			constexpr bool bCreateInterceptionPayload = true;
 			RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
+
+			// If this is a delta operation, deserialize the value into and apply the operation on a temporary buffer
+			TArray<uint8> DeltaData;
+			if (Operation != ERCModifyOperation::EQUAL)
+			{
+				if (!DeserializeDeltaModificationData(ObjectAccess, Backend, Operation, DeltaData))
+				{
+					return false;
+				}
+
+				Args.ValuePtrOverride = ObjectAccess.Property->ContainerPtrToValuePtr<void>(DeltaData.GetData());
+			}
+
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
 			{
 				const bool bResult = InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
@@ -734,7 +826,7 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 
 		// Build interception command
 		FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
-		FRCIPropertiesMetadata PropsMetadata(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ToExternal(ObjectAccess.Access), ToExternal(InPayloadType), InPayload);
+		FRCIPropertiesMetadata PropsMetadata(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ToExternal(ObjectAccess.Access), ToExternal(InPayloadType), ToExternal(Operation), InPayload);
 
 		// Initialization
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -766,6 +858,19 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 	{
 		FRCCall Call;
 		RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
+
+		// If this is a delta operation, deserialize the value into and apply the operation on a temporary buffer
+		TArray<uint8> DeltaData;
+		if (Operation != ERCModifyOperation::EQUAL)
+		{
+			if (!DeserializeDeltaModificationData(ObjectAccess, Backend, Operation, DeltaData))
+			{
+				return false;
+			}
+
+			Args.ValuePtrOverride = ObjectAccess.Property->ContainerPtrToValuePtr<void>(DeltaData.GetData());
+		}
+
 		if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 		{
 			const bool bResult = InvokeCall(Call);
@@ -857,17 +962,34 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 			};
 		}
 
-		//Serialize the element if we're looking for a member or serialize the full object if not
 		bool bSuccess = false;
-		if (MutableObjectReference.PropertyPathInfo.IsResolved())
+
+		if (Operation == ERCModifyOperation::EQUAL)
 		{
-			const FRCFieldPathSegment& LastSegment = MutableObjectReference.PropertyPathInfo.GetFieldSegment(MutableObjectReference.PropertyPathInfo.GetSegmentCount() - 1);
-			int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
-			bSuccess = FStructDeserializer::DeserializeElement(MutableObjectReference.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
+			//Serialize the element if we're looking for a member or serialize the full object if not
+			if (MutableObjectReference.PropertyPathInfo.IsResolved())
+			{
+				const FRCFieldPathSegment& LastSegment = MutableObjectReference.PropertyPathInfo.GetFieldSegment(MutableObjectReference.PropertyPathInfo.GetSegmentCount() - 1);
+				int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
+				bSuccess = FStructDeserializer::DeserializeElement(MutableObjectReference.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
+			}
+			else
+			{
+				bSuccess = FStructDeserializer::Deserialize(MutableObjectReference.ContainerAdress, *ContainerType, Backend, Policies);
+			}
 		}
 		else
 		{
-			bSuccess = FStructDeserializer::Deserialize(MutableObjectReference.ContainerAdress, *ContainerType, Backend, Policies);
+			// This is a delta operation, so deserialize the value into and apply the operation on a temporary buffer
+			TArray<uint8> DeltaData;
+			if (!DeserializeDeltaModificationData(MutableObjectReference, Backend, Operation, DeltaData))
+			{
+				return false;
+			}
+
+			// Copy data to the actual object
+			MutableObjectReference.Property->CopyCompleteValue_InContainer(MutableObjectReference.ContainerAdress, DeltaData.GetData());
+			bSuccess = true;
 		}
 
 #if WITH_EDITOR
@@ -893,8 +1015,8 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 						{
 							World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(MutableObjectReference.Object.Get()));
 						}
+					}
 				}
-			}
 			}
 			else
 			{
@@ -917,6 +1039,8 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		{
 			EntityFactoryPair.Value->PostSetObjectProperties(ObjectAccess.Object.Get(), bSuccess);
 		}
+
+		return bSuccess;
 	}
 	return false;
 }
@@ -1242,6 +1366,82 @@ bool FRemoteControlModule::PropertyModificationShouldUseSetter(UObject* Object, 
 	}
 
 	return !!RemoteControlPropertyUtilities::FindSetterFunction(Property, Object->GetClass());
+}
+
+bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData)
+{
+	// Allocate data to deserialize the request data into
+	const int32 StructureSize = ObjectAccess.ContainerType->GetStructureSize();
+	OutData.SetNumUninitialized(StructureSize);
+	void* OutContainerAddress = OutData.GetData();
+
+	// Copy existing property data into the delta container so unchanged values remain the same
+	ObjectAccess.Property->CopyCompleteValue_InContainer(OutContainerAddress, ObjectAccess.ContainerAdress);
+
+	// Deserialize the data on top of what we just copied so that modified properties contain delta values
+	FStructDeserializerPolicies Policies;
+	Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+	{
+		return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+	};
+
+	// Wrap the backend so we can track which properties were actually changed by deserialization
+	FPropertyMapStructDeserializerBackendWrapper BackendWrapper(Backend);
+
+	bool bSuccess;
+	if (ObjectAccess.PropertyPathInfo.IsResolved())
+	{
+		const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+		int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
+		bSuccess = FStructDeserializer::DeserializeElement(OutContainerAddress, *LastSegment.ResolvedData.Struct, Index, BackendWrapper, Policies);
+	}
+	else
+	{
+		bSuccess = FStructDeserializer::Deserialize(OutContainerAddress, *ObjectAccess.ContainerType, BackendWrapper, Policies);
+	}
+
+	if (!bSuccess)
+	{
+		return false;
+	}
+
+	// Apply delta operation to each property that was changed (where possible)
+	for (const FPropertyMapStructDeserializerBackendWrapper::FReadPropertyData& ReadProperty : BackendWrapper.GetReadProperties())
+	{
+		// Pointer to the property in OutData
+		void* OutPropertyValue = ReadProperty.Data;
+
+		// Offset from start of OutData struct to the property that was changed
+		ptrdiff_t Offset = ((const uint8*)OutPropertyValue) - ((const uint8*)OutContainerAddress);
+
+		// Pointer to the equivalent property in the original object
+		const void* BasePropertyValue = ((uint8*)ObjectAccess.Object.Get()) + Offset;
+
+		if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(ReadProperty.Property))
+		{
+			// Float property
+			if (NumericProperty->IsFloatingPoint())
+			{
+				bSuccess &= RemoteControlUtil::ApplySimpleDeltaOperation<double>(Operation, BasePropertyValue, OutPropertyValue, ReadProperty.Property,
+					[&NumericProperty](const void* Data) { return NumericProperty->GetFloatingPointPropertyValue(Data); },
+					[&NumericProperty](void* Data, double Value) { NumericProperty->SetFloatingPointPropertyValue(Data, Value); });
+			}
+			// Integer property
+			else if (NumericProperty->IsInteger() && !NumericProperty->IsEnum())
+			{
+				bSuccess &= RemoteControlUtil::ApplySimpleDeltaOperation<int64>(Operation, BasePropertyValue, OutPropertyValue, ReadProperty.Property,
+					[&NumericProperty](const void* Data) { return NumericProperty->GetSignedIntPropertyValue(Data); },
+					[&NumericProperty](void* Data, int64 Value) { NumericProperty->SetIntPropertyValue(Data, Value); });
+			}
+		}
+
+		if (!bSuccess)
+		{
+			break;
+		}
+	}
+
+	return bSuccess;
 }
 
 #if WITH_EDITOR

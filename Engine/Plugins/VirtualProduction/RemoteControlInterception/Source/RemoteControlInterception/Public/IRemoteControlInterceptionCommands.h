@@ -39,6 +39,18 @@ enum class ERCIAccess : uint8
 	WRITE_TRANSACTION_ACCESS,
 };
 
+/**
+ * Type of operation to perform when setting a remote property's value (proxy type for ERCModifyOperation to avoid module dependency)
+ */
+enum class ERCIModifyOperation : uint8
+{
+	EQUAL,
+	ADD,
+	SUBTRACT,
+	MULTIPLY,
+	DIVIDE
+};
+
 
 /**
  * The list of remote control commands available for interception
@@ -159,9 +171,10 @@ struct FRCIPropertiesMetadata : public FRCIObjectMetadata
 public:
 	FRCIPropertiesMetadata() = default;
 
-	FRCIPropertiesMetadata(const FString& InObjectPath, const FString& InPropertyPath, const FString& InPropertyPathInfo, const ERCIAccess InAccess, const ERCIPayloadType InPayloadType, const TArray<uint8>& InPayload)
+	FRCIPropertiesMetadata(const FString& InObjectPath, const FString& InPropertyPath, const FString& InPropertyPathInfo, const ERCIAccess InAccess, const ERCIPayloadType InPayloadType, const ERCIModifyOperation InOperation, const TArray<uint8>& InPayload)
 		: FRCIObjectMetadata(InObjectPath, InPropertyPath, InPropertyPathInfo, InAccess)
 		, PayloadType(InPayloadType)
+		, Operation(InOperation)
 		, Payload(InPayload)
 	{ }
 
@@ -198,6 +211,9 @@ public:
 public:
 	/** Intercepted payload type */
 	ERCIPayloadType PayloadType = ERCIPayloadType::Json;
+
+	/** Type of operation to perform on the property **/
+	ERCIModifyOperation Operation;
 
 	/** Property payload to intercept */
 	const TArray<uint8> Payload;

@@ -42,7 +42,7 @@ void FRemoteControlInterceptionProcessor::SetObjectProperties(FRCIPropertiesMeta
 		check(StructDeserializerBackend.IsValid());
 
 		// Deserialize without replication
-		IRemoteControlModule::Get().SetObjectProperties(ObjectRef, *StructDeserializerBackend);
+		IRemoteControlModule::Get().SetObjectProperties(ObjectRef, *StructDeserializerBackend, ERCPayloadType::Json, TArray<uint8>(), ToInternal(PropsMetadata.Operation));
 	}
 }
 
