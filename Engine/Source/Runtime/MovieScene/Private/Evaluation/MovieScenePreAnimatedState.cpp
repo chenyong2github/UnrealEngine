@@ -3,6 +3,7 @@
 #include "Evaluation/MovieScenePreAnimatedState.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 #include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
