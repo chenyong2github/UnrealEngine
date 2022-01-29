@@ -103,7 +103,9 @@ public:
 		int32 GetDeviceIDForMotionSource(FName MotionSource) const;
 		XrPath GetUserPathForMotionSource(FName MotionSource) const;
 		bool IsOpenXRInputSupportedMotionSource(const FName MotionSource) const;
+
 		bool bActionsBound;
+		bool bDirectionalBindingSupported;
 
 		void BuildActions();
 		void DestroyActions();
