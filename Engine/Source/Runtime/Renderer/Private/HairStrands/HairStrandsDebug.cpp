@@ -71,6 +71,28 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_ForceMipLevel(TEXT("r.HairSt
 static int32 GHairVirtualVoxel_DebugTraversalType = 0;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.HairStrands.Voxelization.Virtual.DebugTraversalType"), GHairVirtualVoxel_DebugTraversalType, TEXT("Traversal mode (0:linear, 1:mip) for debug voxel visualization."));
 
+static bool TryEnableShaderDrawAndShaderPrint(const FViewInfo& View, uint32 ResquestedShaderDrawElements, uint32 RequestedShaderPrintElements)
+{
+	const EShaderPlatform Platform = View.Family->GetShaderPlatform();
+	if (!ShaderDrawDebug::IsSupported(Platform) || !ShaderPrint::IsSupported(Platform))
+	{
+		return false;
+	}
+
+	if (!ShaderPrint::IsEnabled(View))
+	{
+		ShaderPrint::SetEnabled(true);
+	}
+	ShaderPrint::RequestSpaceForCharacters(RequestedShaderPrintElements);
+
+	if (!ShaderDrawDebug::IsEnabled(View))
+	{
+		ShaderDrawDebug::SetEnabled(true);
+	}
+	ShaderDrawDebug::RequestSpaceForElements(ResquestedShaderDrawElements);
+	return true;
+}
+
 static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
 {
 	return ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View);
@@ -652,6 +674,11 @@ static void AddDeepShadowInfoPass(
 		return;
 	}
 
+	if (!TryEnableShaderDrawAndShaderPrint(View, DeepShadowResources.TotalAtlasSlotCount * 64, 2000))
+	{
+		return;
+	}
+
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
@@ -715,7 +742,7 @@ static void AddVoxelPageRaymarchingPass(
 	const FHairStrandsVoxelResources& VoxelResources,
 	FRDGTextureRef& OutputTexture)
 {
-	if (!IsDebugDrawAndDebugPrintEnabled(View))
+	if (!TryEnableShaderDrawAndShaderPrint(View, 4000, 2000))
 	{
 		return;
 	}
@@ -1071,11 +1098,6 @@ static void AddDrawDebugClusterPass(
 	const FHairStrandClusterData& HairClusterData,
 	const FViewInfo& View)
 {
-	if (!IsDebugDrawAndDebugPrintEnabled(View))
-	{
-		return;
-	}
-
 	const bool bDebugEnable = IsHairStrandsClusterDebugAABBEnable();
 	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
 	if (!bDebugEnable || !bCullingEnable)
@@ -1083,6 +1105,11 @@ static void AddDrawDebugClusterPass(
 		return;
 	}
 	
+	if (!TryEnableShaderDrawAndShaderPrint(View, 5000, 2000))
+	{
+		return;
+	}
+
 	{
 		{
 			for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)

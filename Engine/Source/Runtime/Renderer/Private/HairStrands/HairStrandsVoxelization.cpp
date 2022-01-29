@@ -901,7 +901,7 @@ static void AddAllocateVoxelPagesPass(
 static float RoundHairVoxeliSize(float In)
 {
 	// Round voxel size to 0.01f to avoid oscillation issue
-	return FMath::RoundToFloat(In * 100.f) * 0.01f;
+	return FMath::RoundToFloat(In * 1000.f) * 0.001f;
 }
 
 static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
@@ -923,7 +923,9 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 	const float MinVoxelWorldSize = 0.01f;
 	const float MaxVoxelWorldSize = 10.f;
 
-	float VoxelWorldSize = RoundHairVoxeliSize(FMath::Clamp(GHairVirtualVoxel_VoxelWorldSize, MinVoxelWorldSize, MaxVoxelWorldSize));
+	const float RequestedVoxelWorldSize = RoundHairVoxeliSize(FMath::Clamp(GHairVirtualVoxel_VoxelWorldSize, MinVoxelWorldSize, MaxVoxelWorldSize));
+	float TargetVoxelWorldSize = RequestedVoxelWorldSize;
+	float VoxelWorldSize = RequestedVoxelWorldSize;
 
 	// Readback allocated value to adapt the voxel size in order to fit max page allocation
 	const bool bAdaptiveResolution = OutViewStateData && OutViewStateData->IsInit();
@@ -979,7 +981,7 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 			// If the page pool is large enough but the voxel are larger than the requested size decrease voxel size
 			else if (AllocatedPageCount < PageCount && PrevWorldVoxelSize > VoxelWorldSize)
 			{
-				const float TargetVoxelWorldSize = PrevWorldVoxelSize * LinearRatio_Thres;
+				TargetVoxelWorldSize = PrevWorldVoxelSize * LinearRatio_Thres;
 				VoxelWorldSize = FMath::Max(VoxelWorldSize, FMath::Lerp(PrevWorldVoxelSize, TargetVoxelWorldSize, Factor));
 			}
 			else
@@ -1027,12 +1029,17 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.SteppingScale_Environment	  = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Environment		>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Environment		: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
 	Out.Parameters.Common.SteppingScale_Raytracing	  = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Raytracing		>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Raytracing		: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
 
-	Out.Parameters.Common.NodeDescCount				= MacroGroupDatas.Num();
-	Out.Parameters.Common.IndirectDispatchGroupSize = 64;	
+	Out.Parameters.Common.NodeDescCount							= MacroGroupDatas.Num();
+	Out.Parameters.Common.IndirectDispatchGroupSize				= 64;	
 	Out.Parameters.Common.Raytracing_ShadowOcclusionThreshold	= FMath::Max(0.f, GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold);
 	Out.Parameters.Common.Raytracing_SkyOcclusionThreshold		= FMath::Max(0.f, GHairVirtualVoxelRaytracing_SkyOcclusionThreshold);
-	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
-	Out.Parameters.Common.TranslatedWorldOffset		= FVector3f(View.ViewMatrices.GetPreViewTranslation());
+	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1		= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
+	Out.Parameters.Common.TranslatedWorldOffset					= FVector3f(View.ViewMatrices.GetPreViewTranslation());
+
+	// For debug purpose
+	Out.Parameters.Common.AdaptiveEnable					= bAdaptiveResolution ? 1u : 0u;
+	Out.Parameters.Common.AdaptiveRequestedVoxelWorldSize	= RequestedVoxelWorldSize;
+	Out.Parameters.Common.AdaptiveTargetVoxelWorldSize		= TargetVoxelWorldSize;
 
 	FRDGBufferRef TotalRequestedPageAllocationBuffer;
 	AddAllocateVoxelPagesPass(

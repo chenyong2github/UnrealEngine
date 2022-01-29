@@ -179,6 +179,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, )
 
 	SHADER_PARAMETER(FVector3f, TranslatedWorldOffset) // For debug purpose
 
+	SHADER_PARAMETER(uint32, AdaptiveEnable)
+	SHADER_PARAMETER(float, AdaptiveRequestedVoxelWorldSize)
+	SHADER_PARAMETER(float, AdaptiveTargetVoxelWorldSize)
+
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, PageIndexOccupancyBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexCoordBuffer)

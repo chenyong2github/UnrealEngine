@@ -97,8 +97,30 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			float2 StartPos = float2(50.0f, 100.0f ) / OutputResolution;
 			float2 Pos = StartPos;
 
+			// Adaptive voxels
+			Pos = ShaderPrintText(Pos, TEXT("Adapative "), FontOrange);
+			if (VirtualVoxel.AdaptiveEnable)
+			{
+				Pos = ShaderPrintText(Pos, TEXT("True"), FontGreen);
+			}
+			else
+			{
+				Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
+			}
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintText(Pos, TEXT("Requested Voxel Size "));
+			Pos = ShaderPrint(Pos, VirtualVoxel.AdaptiveRequestedVoxelWorldSize);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintText(Pos, TEXT("Target Voxel Size "));
+			Pos = ShaderPrint(Pos, VirtualVoxel.AdaptiveTargetVoxelWorldSize);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			// Actual voxel/pages size & resolution
 			Pos = ShaderPrintText(Pos, TEXT("Voxel World Size "), FontOrange);
-			Pos = ShaderPrint(Pos, VirtualVoxel.VoxelWorldSize, FontOrange);
+			Pos = ShaderPrint(Pos, VirtualVoxel.VoxelWorldSize, FontEmerald);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 			
 			Pos = ShaderPrintText(Pos, TEXT("Page Res         "));
@@ -111,7 +133,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageCountResolution.z);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT("Page Texture Res  "), FontEmerald);
+			Pos = ShaderPrintText(Pos, TEXT("Page Texture Res "), FontEmerald);
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.x, FontEmerald);
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.y, FontEmerald);
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.z, FontEmerald);
@@ -129,7 +151,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			const float PageIndexOccupancy = TotalAllocatedPageCount / float(TotalPageIndexCount);
-			Pos = ShaderPrintText(Pos, TEXT("Page Index Occupancy         "), FontOrange);
+			Pos = ShaderPrintText(Pos, TEXT("Page Index Occupancy        "), FontOrange);
 			Pos = ShaderPrint(Pos, PageIndexOccupancy * 100.f, GetOccupancyColor(PageIndexOccupancy));
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
