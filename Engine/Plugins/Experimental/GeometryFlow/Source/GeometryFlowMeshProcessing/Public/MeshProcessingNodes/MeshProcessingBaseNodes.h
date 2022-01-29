@@ -6,7 +6,7 @@
 #include "GeometryFlowCoreNodes.h"
 #include "GeometryFlowNodeUtil.h"
 #include "DataTypes/DynamicMeshData.h"
-
+#include "Util/ProgressCancel.h"
 
 namespace UE
 {
@@ -77,6 +77,9 @@ public:
 			{
 				if (bRecomputeRequired)
 				{
+					// if execution is interrupted by ProgressCancel, make sure this node is recomputed next time through
+					ClearAllOutputs();
+
 					bool bIsMeshMutable = DatasIn.GetDataFlags(InParamMesh()).bIsMutableData;
 					if (bIsMeshMutable)
 					{
@@ -85,6 +88,11 @@ public:
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
 						ProcessMeshInPlace(DatasIn, EditableMesh, EvaluationInfo);
+
+						if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+						{
+							return;
+						}
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -101,6 +109,11 @@ public:
 						// run mesh processing
 						FDynamicMesh3 ResultMesh;
 						ProcessMesh(DatasIn, SourceMesh, ResultMesh, EvaluationInfo);
+
+						if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+						{
+							return;
+						}
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -218,6 +231,9 @@ public:
 			{
 				if (bRecomputeRequired)
 				{
+					// if execution is interrupted by ProgressCancel, make sure this node is recomputed next time through
+					ClearAllOutputs();
+
 					// always make a copy of settings
 					SettingsType Settings;
 					SettingsArg->GetDataCopy(Settings, SettingsType::DataTypeIdentifier);
@@ -230,6 +246,11 @@ public:
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
 						ProcessMeshInPlace(DatasIn, Settings, EditableMesh, EvaluationInfo);
+
+						if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+						{
+							return;
+						}
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -246,6 +267,11 @@ public:
 						// run mesh processing
 						FDynamicMesh3 ResultMesh;
 						ProcessMesh(DatasIn, Settings, SourceMesh, ResultMesh, EvaluationInfo);
+
+						if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+						{
+							return;
+						}
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
