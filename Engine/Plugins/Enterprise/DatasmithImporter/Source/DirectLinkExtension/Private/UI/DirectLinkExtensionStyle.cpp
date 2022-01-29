@@ -8,6 +8,7 @@
 #include "Interfaces/IPluginManager.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDirectLinkExtensionStyle::InContent( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(FDirectLinkExtensionStyle::InContent(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
 namespace UE::DatasmithImporter
 {
@@ -36,19 +37,15 @@ namespace UE::DatasmithImporter
 		StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-
-		TUniquePtr< FSlateStyleSet > Style = MakeUnique<FSlateStyleSet>(GetStyleSetName());
-		const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("DatasmithImporter"))->GetContentDir();
-		Style->SetContentRoot(ContentDir);
-
 		// Const icon sizes
 		const FVector2D Icon16x16(16.0f, 16.0f);
 
 		// 16x16
-		StyleSet->Set("DirectLinkExtension.NotAvailable", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceNotAvailable16"), Icon16x16));
-		StyleSet->Set("DirectLinkExtension.OutOfSync", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceOutOfSync16"), Icon16x16));
-		StyleSet->Set("DirectLinkExtension.UpToDate", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceUpToDate16"), Icon16x16));
-		StyleSet->Set("DirectLinkExtension.AutoReimport", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceAutoReimport16"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.NotAvailable", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DirectLinkBadgeNotAvailable"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.OutOfSync", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DirectLinkBadgeOutOfSync"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.UpToDate", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DirectLinkBadgeUpToDate"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.AutoReimport", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DirectLinkBadgeAutoReimport"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.AutoReimportGrayscale", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DirectLinkAutoReimport_16"), Icon16x16));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 	};
@@ -69,3 +66,4 @@ namespace UE::DatasmithImporter
 }
 
 #undef IMAGE_PLUGIN_BRUSH
+#undef IMAGE_PLUGIN_BRUSH_SVG

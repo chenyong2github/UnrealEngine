@@ -11,7 +11,8 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/StyleColors.h"
 
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDatasmithContentEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDatasmithContentEditorStyle::InContent( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(FDatasmithContentEditorStyle::InContent(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
 TSharedPtr<FSlateStyleSet> FDatasmithContentEditorStyle::StyleSet;
 
@@ -29,47 +30,7 @@ void FDatasmithContentEditorStyle::Initialize()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	StyleSet->Set("DatasmithDataprepEditor.Importer", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.Importer.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.Importer.Selected", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.Importer.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.CADImporter", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithCADImporterIcon40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.CADImporter.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithCADImporterIcon40", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.CADImporter.Selected", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithCADImporterIcon40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.CADImporter.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithCADImporterIcon40", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.VREDImporter", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithVREDImporter40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.VREDImporter.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithVREDImporter40", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.VREDImporter.Selected", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithVREDImporter40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.VREDImporter.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithVREDImporter40", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.DeltaGenImporter", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithDeltaGenImporter40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.DeltaGenImporter.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithDeltaGenImporter40", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.DeltaGenImporter.Selected", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithDeltaGenImporter40", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.DeltaGenImporter.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithDeltaGenImporter40", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.SaveScene", new IMAGE_PLUGIN_BRUSH("Icons/SaveScene", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.SaveScene.Small", new IMAGE_PLUGIN_BRUSH("Icons/SaveScene", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.SaveScene.Selected", new IMAGE_PLUGIN_BRUSH("Icons/SaveScene", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.SaveScene.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/SaveScene", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.ShowDatasmithSceneSettings", new IMAGE_PLUGIN_BRUSH("Icons/IconOptions", Icon40x40));
-
-	StyleSet->Set("DatasmithDataprepEditor.BuildWorld", new IMAGE_PLUGIN_BRUSH("Icons/BuildWorld", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.BuildWorld.Small", new IMAGE_PLUGIN_BRUSH("Icons/BuildWorld", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.BuildWorld.Selected", new IMAGE_PLUGIN_BRUSH("Icons/BuildWorld", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.BuildWorld.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/BuildWorld", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.ExecutePipeline", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.ExecutePipeline.Small", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.ExecutePipeline.Selected", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.ExecutePipeline.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/ExecutePipeline", Icon20x20));
-
-	StyleSet->Set("DatasmithDataprepEditor.Jacketing", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Small", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon20x20));
-	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Selected", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon40x40));
-	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon20x20));
+	StyleSet->Set("DatasmithContent.AutoReimportGrayscale", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/DataSmithAutoReimport_16"), Icon16x16));
 
 	// Copy the base style, and change the rounding of the left-side borders so that it can be combined with a "right" widget.
 	FButtonStyle ButtonLeftStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>(TEXT("Button"));
@@ -112,8 +73,11 @@ FName FDatasmithContentEditorStyle::GetStyleSetName()
 	return StyleName;
 }
 
-FString FDatasmithContentEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
+FString FDatasmithContentEditorStyle::InContent(const FString& RelativePath, const TCHAR* Extension)
 {
-	static FString BaseDir = IPluginManager::Get().FindPlugin(DATASMITHCONTENT_MODULE_NAME)->GetBaseDir() + TEXT("/Resources");
-	return (BaseDir / RelativePath) + Extension;
+	static FString ContentDir = IPluginManager::Get().FindPlugin(DATASMITHCONTENT_MODULE_NAME)->GetContentDir();
+	return (ContentDir / RelativePath) + Extension;
 }
+
+#undef IMAGE_PLUGIN_BRUSH_SVG
+#undef IMAGE_PLUGIN_BRUSH

@@ -4,6 +4,7 @@
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithContentEditorModule.h"
+#include "DatasmithContentEditorStyle.h"
 #include "DatasmithScene.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -48,22 +49,21 @@ void FAssetTypeActions_DatasmithScene::GetActions(const TArray<UObject*>& InObje
 		}
 	}
 
-	const FText AutoReimportText = bHasAutoReimportEnabled
-		? LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimport_Disable", "Disable Direct Link auto-reimport")
-		: LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimport_Enable", "Enable Direct Link auto-reimport");
-	const FText AutoReimportTooltip = bHasAutoReimportEnabled
-		? LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimportTooltip_Disable", "Disable Direct Link auto-reimport for all selected Datasmith Scenes.")
-		: LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimportTooltip_Enable", "Enable Direct Link auto-reimport for all selected Datasmith Scenes.");
+	const FText AutoReimportText = LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimport", "Direct Link Auto-Reimport");
+	const FText AutoReimportTooltip = LOCTEXT("DatasmithScene_ToggleDirectLinkAutoReimportTooltip", "Toggle Direct Link Auto-Reimport for all selected Datasmith Scenes.");
 
+	// #ueent_todo DatasmithContent should not know about DirectLink, this should be made modular, or we should directly depend on DirectLinkExtension module.
 	Section.AddMenuEntry(
 		"DatasmithScene_ToggleDirectLinkAutoReimport",
 		AutoReimportText,
 		AutoReimportTooltip,
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.ReimportWithNewFile"),
+		FSlateIcon(FDatasmithContentEditorStyle::GetStyleSetName(), "DatasmithContent.AutoReimportGrayscale"),
 		FUIAction(
 			FExecuteAction::CreateLambda([Scenes = MoveTemp(Scenes), bHasAutoReimportEnabled]() { FAssetTypeActions_DatasmithScene::ExecuteToggleDirectLinkAutoReimport(Scenes, !bHasAutoReimportEnabled); }),
-			FCanExecuteAction::CreateLambda([bHasCanExecuteAutoReimport]() { return bHasCanExecuteAutoReimport; })
+			FCanExecuteAction::CreateLambda([bHasCanExecuteAutoReimport]() { return bHasCanExecuteAutoReimport; }),
+			FGetActionCheckState::CreateLambda([bHasAutoReimportEnabled]() { return bHasAutoReimportEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 		)
+		, EUserInterfaceActionType::Check
 	);
 }
 

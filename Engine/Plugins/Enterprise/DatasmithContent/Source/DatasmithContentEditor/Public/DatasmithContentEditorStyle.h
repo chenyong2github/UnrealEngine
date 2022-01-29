@@ -16,7 +16,7 @@ public:
 	static FName GetStyleSetName();
 
 private:
-	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
+	static FString InContent(const FString& RelativePath, const TCHAR* Extension);
 
 private:
 	static TSharedPtr<FSlateStyleSet> StyleSet;
