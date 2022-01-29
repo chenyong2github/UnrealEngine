@@ -7,7 +7,6 @@
 #include "Materials/MaterialInstanceConstant.h"
 
 class MEGASCANSPLUGIN_API FAssetsImportController
-
 {
 private:
 	FAssetsImportController() = default;
@@ -18,12 +17,8 @@ private:
 		TEXT("atlas"),
 		TEXT("surface")
 	};
-	
 
 public:	
 	static TSharedPtr<FAssetsImportController> Get();
 	void DataReceived(const FString DataFromBridge);
-	
-
-
 };

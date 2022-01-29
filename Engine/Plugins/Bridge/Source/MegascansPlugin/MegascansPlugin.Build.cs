@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
 					"JsonUtilities",
 					"MaterialEditor",
 					"UnrealEd",
-                  					
 					"FoliageEdit",
                     "Foliage",
 					"HTTP",					
@@ -36,8 +35,6 @@ namespace UnrealBuildTool.Rules
 					"MeshBuilder",
 					"TargetPlatform",
 					"EditorScriptingUtilities",
-					
-
 				}
 			);
 		}

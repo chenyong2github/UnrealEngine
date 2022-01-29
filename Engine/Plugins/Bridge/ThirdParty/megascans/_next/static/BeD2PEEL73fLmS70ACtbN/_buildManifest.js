@@ -1,0 +1,1 @@
+self.__BUILD_MANIFEST = {"/[view]":["static\u002Fchunks\u002Fa32bc7ed.3463a9ee5bc8a4aea6f3.js","static\u002Fchunks\u002F75fc9c18.319c61d49dec25606d7f.js","static\u002Fcss\u002Fstyles.7ec57e8f.chunk.css","static\u002Fchunks\u002Fstyles.bc53a7be2534f1535453.js"]};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()

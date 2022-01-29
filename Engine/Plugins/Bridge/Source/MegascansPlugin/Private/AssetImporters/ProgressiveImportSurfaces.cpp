@@ -75,8 +75,10 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 		if (!MInstanceData.IsValid()) return;
 
+
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandleNormalMaterialLoad, MInstanceData, AssetMetaData,  LocationOffset));
+
 
 		return;
 	}
@@ -111,7 +113,6 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId, LocationOffset));
-		
 
 	}
 	else if (ImportData->ProgressiveStage == 2)
@@ -199,11 +200,8 @@ void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData
 
 void FImportProgressiveSurfaces::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID, float LocationOffset)
 {
-	
 	PreviewDetails[AssetID]->PreviewInstance = Cast<UMaterialInstanceConstant>(PreviewInstanceData.GetAsset());
 	SpawnMaterialPreviewActor(AssetID, LocationOffset);
-	
-
 }
 
 void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, float LocationOffset, bool bIsNormal, FAssetData MInstanceData)
@@ -237,15 +235,8 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, floa
 	FViewport* ActiveViewport = GEditor->GetActiveViewport();
 	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
 
-	FVector ViewPosition = EditorViewClient->GetViewLocation();
-	FVector ViewDirection = EditorViewClient->GetViewRotation().Vector();
-	FRotator InitialRotation(0.0f, 0.0f, 0.0f);
+	FVector SpawnLocation;
 
-	FVector SpawnLocation = ViewPosition + (ViewDirection * 300.0f);
-	SpawnLocation.X += LocationOffset;
-
-	FVector Location(0.0f, 0.0f, 0.0f);
-	FRotator Rotation(0.0f, 0.0f, 0.0f);
 	UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(PreviewerMeshData.GetAsset());
 	FTransform InitialTransform(SpawnLocation);
@@ -263,18 +254,23 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, floa
 		SMActor->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(PreviewDetails[AssetID]->PreviewInstance));
 	}
 	//SMActor->Rename(TEXT("MyStaticMeshInTheWorld"));
-	//SMActor->SetActorLabel("StaticMeshActor");
+	SMActor->SetActorLabel(AssetID);
 
 	GEditor->SelectActor(SMActor, true, false);
 
 	GEditor->EditorUpdateComponents();
 	CurrentWorld->UpdateWorldComponents(true, false);
 	SMActor->RerunConstructionScripts();
-	if (bIsNormal) return;
+	if (bIsNormal)
+	{
+		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(MInstanceData, AssetID, SMActor);
+		return;
+	}
 
 	if (PreviewDetails.Contains(AssetID))
 	{
 		PreviewDetails[AssetID]->ActorsInLevel.Add(SMActor);
+		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(PreviewerMeshData, AssetID, SMActor);
 	}
 }
 

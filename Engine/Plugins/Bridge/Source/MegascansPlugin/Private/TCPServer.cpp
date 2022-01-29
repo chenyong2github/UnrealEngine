@@ -7,7 +7,6 @@
 #include "UObject/GarbageCollection.h"
 #include "AssetsImportController.h"
 
-
 TQueue<FString> FTCPServer::ImportQueue;
 
 FTCPServer::FTCPServer()
@@ -15,12 +14,10 @@ FTCPServer::FTCPServer()
 	FThreadSafeCounter  WorkerCounter;
 	FString ThreadName(FString::Printf(TEXT("MegascansPlugin%i"), WorkerCounter.Increment()));
 	ClientThread = FRunnableThread::Create(this, *ThreadName, 8 * 1024, TPri_Normal);
-
 }
 
 FTCPServer::~FTCPServer()
 {
-
 	Stop();
 
 	if (ClientThread != NULL)
@@ -30,17 +27,14 @@ FTCPServer::~FTCPServer()
 	}
 }
 
-
 bool FTCPServer::Init()
 {
 	Stopping = false;
 	return true;
 }
 
-
 uint32  FTCPServer::Run()
 {
-	
 	while (!Stopping)
 	{
 		FPlatformProcess::Sleep(0.3f);	
@@ -97,5 +91,3 @@ bool FTCPServer::HandleListenerConnectionAccepted(class FSocket* ClientSocket, c
 	PendingClients.Enqueue(ClientSocket);
 	return true;
 }
-
-

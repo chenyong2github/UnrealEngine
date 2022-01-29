@@ -13,18 +13,14 @@
 #include "Containers/Queue.h"
 #include "Common/UdpSocketReceiver.h"
 
-
-
 class MEGASCANSPLUGIN_API FTCPServer : public FRunnable
 {
-
 public:	
+
 	FTCPServer();
 	~FTCPServer();	
 	virtual bool Init() override;	
 	virtual uint32 Run() override;
-
-
 
 	virtual void Stop() override
 	{
@@ -34,7 +30,6 @@ public:
 	
 	bool RecvMessage(FSocket *Socket, uint32 DataSize, FString& Message);
 	bool HandleListenerConnectionAccepted(class FSocket *ClientSocket, const FIPv4Endpoint& ClientEndpoint);
-
 
 	FSocket* ListenerSocket;
 	FString LocalHostIP = "127.0.0.1";
@@ -51,7 +46,6 @@ private:
 	FRunnableThread* ClientThread = NULL;
 	class FTcpListener *Listener = NULL;	
 	TArray<int32> ConnectionTimer;
-
 };
 
 

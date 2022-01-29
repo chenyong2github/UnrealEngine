@@ -175,7 +175,7 @@ void FBridgeUIManagerImpl::CreateWindow()
 		float DesiredWidth = 1650;
 		float DesiredHeight = 900;
 
-		if (DesiredWidth < MainWindowSize.X && DesiredHeight < MainWindowSize.Y)
+		if (DesiredWidth < MainWindowSize.X && DesiredHeight < MainWindowSize.Y && LocalBrowserDock->GetParentWindow().IsValid())
 		{
 			LocalBrowserDock->GetParentWindow()->Resize(FVector2D(DesiredWidth, DesiredHeight));
 			LocalBrowserDock->GetParentWindow()->MoveWindowTo(FVector2D((MainWindowSize.X - DesiredWidth) - 17, MainWindowSize.Y - DesiredHeight) / 2);

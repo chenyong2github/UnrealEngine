@@ -31,8 +31,6 @@
 
 #include "StaticMeshCompiler.h"
 
-
-
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::ImportProgressive3DInst;
 
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
@@ -57,7 +55,7 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 
 	FVector SpawnLocation = ViewPosition + (ViewDirection * 300.0f) ;
 	SpawnLocation.X += LocationOffset;
-	
+
 	UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(AssetData.GetAsset());
 	FTransform InitialTransform(SpawnLocation);	
@@ -66,7 +64,6 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 	AStaticMeshActor* SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
 	SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
 
-	
 	SMActor->SetActorLabel(AssetData.AssetName.ToString());
 
 	GEditor->EditorUpdateComponents();
@@ -77,14 +74,10 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 
 	if (bIsNormal) return;
 
-	if (!ProgressiveData.Contains(ImportData->AssetId) )
-	{
-		ProgressiveData.Add(ImportData->AssetId, SMActor);
-	}
-
-	
-
-
+	// if (!ProgressiveData.Contains(ImportData->AssetId) )
+	// {
+	// 	ProgressiveData.Add(ImportData->AssetId, SMActor);
+	// }
 }
 
 void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset, bool bIsNormal)
@@ -124,8 +117,9 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		FSoftObjectPath ItemToStream = AssetMeshData.ToSoftObjectPath();
 		if (!AssetMeshData.IsValid()) return;
 
-		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleNormalAssetLoad, AssetMeshData, AssetMetaData, LocationOffset));
+		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetMeshData, ImportData->AssetId, nullptr);
 
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleNormalAssetLoad, AssetMeshData, AssetMetaData, LocationOffset));
 
 		return;
 	}
@@ -155,10 +149,18 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		FSoftObjectPath ItemToStream = PreviewMeshData.ToSoftObjectPath();
 		
 		if (!MInstanceData.IsValid()) return;		
-		
-		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
-		SpawnAtCenter(PreviewMeshData, ImportData, LocationOffset);
 
+		// if (!ProgressiveData.Contains(ImportData->AssetId) )
+		// {
+		// 	ProgressiveData.Add(ImportData->AssetId, TEXT("Exists"));
+		// }
+
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
+
+		FString AssetPath = PreviewMeshData.ObjectPath.ToString();
+		FAssetData DraggedAssetData = FAssetData(LoadObject<UStaticMesh>(nullptr, *AssetPath));
+
+		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(DraggedAssetData, ImportData->AssetId, nullptr);
 	}
 	else if (ImportData->ProgressiveStage == 2)
 	{
@@ -180,8 +182,6 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		if (!AlbedoData.IsValid()) return;
 
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewTextureLoad, AlbedoData, ImportData->AssetId, TextureType));
-
-
 	}
 
 	else if (ImportData->ProgressiveStage == 3)
@@ -223,11 +223,10 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 
 		if (!HighMeshData.IsValid()) return;
 
+		FAssetData PreviewMeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshPath));
+
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleHighAssetLoad, HighMeshData, ImportData->AssetId, AssetMetaData, bWaitNaniteConversion));
-
 	}
-
-
 }
 
 void FImportProgressive3D::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID,  FString Type)
@@ -254,9 +253,8 @@ void FImportProgressive3D::HandlePreviewInstanceLoad(FAssetData PreviewInstanceD
 void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString AssetID, FUAssetMeta AssetMetaData, bool bWaitNaniteConversion)
 {
 
-	if (!ProgressiveData.Contains(AssetID)) return;
-	if (ProgressiveData[AssetID] == nullptr) return;
-	AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
+	// if (!ProgressiveData.Contains(AssetID)) return;
+	// AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
 
 	/*SourceMesh->OnPostMeshBuild().AddLambda([this](UStaticMesh* StaticMesh) {
@@ -331,7 +329,7 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 	//AssetUtils::DeleteDirectory(PreviwPath);
 
 	
-	ProgressiveData.Remove(AssetID);
+	// ProgressiveData.Remove(AssetID);
 	PreviewDetails.Remove(AssetID);
 }
 
@@ -371,14 +369,4 @@ void FImportProgressive3D::AsyncNormalImportCache(FAssetData NormalAssetData, FU
 		}
 	}	
 
-	AsyncTask(ENamedThreads::GameThread, [this, NormalAssetData, AssetMetaData, LocationOffset]() {
-		SpawnAtCenter(NormalAssetData, nullptr, LocationOffset, true);
-	});
-
 }
-
-
-
-
-
-

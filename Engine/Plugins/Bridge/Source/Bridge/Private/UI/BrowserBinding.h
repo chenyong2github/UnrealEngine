@@ -10,27 +10,34 @@
 #include "NodeProcess.h"
 #include "Misc/FileHelper.h"
 
+#include "TCPServer.h"
+#include "BridgeDragDropUtils.h"
+
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "IPlacementModeModule.h"
+#include "ActorFactories/ActorFactoryBasicShape.h"
+
 #include "BrowserBinding.generated.h"
+
+DECLARE_DELEGATE_TwoParams(FOnDialogSuccess, FString, FString);
+DECLARE_DELEGATE_TwoParams(FOnDialogFail, FString, FString);
+DECLARE_DELEGATE_OneParam(FOnDropped, FString);
+DECLARE_DELEGATE_OneParam(FOnDropDiscarded, FString);
+DECLARE_DELEGATE_OneParam(FOnExit, FString);
 
 UCLASS()
 class UBrowserBinding : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+private:
+	void SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDragDropOp> DragDropOperation);
+	
 public:
-	DECLARE_DELEGATE_TwoParams(FOnDialogSuccess, FString, FString);
 	FOnDialogSuccess DialogSuccessDelegate;
-
-	DECLARE_DELEGATE_TwoParams(FOnDialogFail, FString, FString);
 	FOnDialogFail DialogFailDelegate;
-
-	DECLARE_DELEGATE_OneParam(FOnDropped, FString);
 	FOnDropped OnDroppedDelegate;
-
-	DECLARE_DELEGATE_OneParam(FOnDropDiscarded, FString);
 	FOnDropDiscarded OnDropDiscardedDelegate;
-
-	DECLARE_DELEGATE_OneParam(FOnExit, FString);
 	FOnExit OnExitDelegate;
 
 	TSharedPtr<SWindow> DialogMainWindow;
@@ -67,7 +74,7 @@ public:
 	void ShowDialog(FString Type, FString Url);
 
 	UFUNCTION()
-	void DragStarted(TArray<FString> ImageUrl);
+	void DragStarted(TArray<FString> ImageUrl, TArray<FString> IDs);
 
 	UFUNCTION()
 	void ShowLoginDialog(bool Production);
@@ -94,4 +101,9 @@ public:
 	void OpenMegascansPluginSettings();
 
 	TSharedRef<FBridgeMessageHandler> BridgeMessageHandler = MakeShared<FBridgeMessageHandler>();
+	bool bWasSwitchDragOperation = false;
+	bool bIsDragging = false;
+	TArray<FAssetData> InAssetData;
+	TMap<FString, AStaticMeshActor*> AssetToSphereMap;
+	TMap<FString, TArray<FString>> DragOperationToAssetsMap;
 };

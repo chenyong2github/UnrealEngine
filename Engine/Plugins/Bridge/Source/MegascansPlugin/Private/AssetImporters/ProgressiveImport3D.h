@@ -6,6 +6,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "BridgeDragDropUtils.h"
 
 struct FProgressiveData
 {
@@ -13,9 +14,6 @@ struct FProgressiveData
 	UMaterialInstanceConstant* PreviewInstance;
 	FString PreviewFolderPath;
 	FString PreviewMeshPath;
-	
-	
-
 };
 
 class FImportProgressive3D
@@ -25,7 +23,7 @@ private:
 	FImportProgressive3D() = default;
 	static TSharedPtr<FImportProgressive3D> ImportProgressive3DInst;
 	void SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData, float LocationOffset, bool bIsNormal= false);
-	TMap<FString, AStaticMeshActor*> ProgressiveData;
+	// TMap<FString, FString> ProgressiveData;
 	
 	TMap<FString, TSharedPtr<FProgressiveData>> PreviewDetails;
 	

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "IMegascansLiveLinkModule.h"
 #include "TCPServer.h"
+#include "BridgeDragDropUtils.h"
 #include "UI/MaterialBlendingDetails.h"
 
 #include "Modules/ModuleManager.h"
@@ -22,6 +23,8 @@ public:
 		{
 			SocketListener = new FTCPServer();
 		}
+
+		FBridgeDragDrop::Initialize();
 
 		auto& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout(

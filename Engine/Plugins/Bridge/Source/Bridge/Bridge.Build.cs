@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
+					"UnrealEd",
 					"Engine",
 					"InputCore",
 					"RenderCore",
@@ -40,6 +41,7 @@ namespace UnrealBuildTool.Rules
 					"Sockets",
 					"ToolMenus",
 					"ContentBrowserData",
+					"PlacementMode",
 					"MegascansPlugin",
 					});
 
