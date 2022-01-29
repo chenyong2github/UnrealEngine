@@ -46,7 +46,7 @@ UMovieSceneSection* UMovieSceneCVarTrack::CreateNewSection()
 
 bool UMovieSceneCVarTrack::SupportsMultipleRows() const
 {
-	return false;
+	return true;
 }
 
 EMovieSceneTrackEasingSupportFlags UMovieSceneCVarTrack::SupportsEasing(FMovieSceneSupportsEasingParams& Params) const
