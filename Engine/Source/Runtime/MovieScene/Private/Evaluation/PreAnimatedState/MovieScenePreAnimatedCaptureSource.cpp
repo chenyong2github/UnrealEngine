@@ -3,6 +3,8 @@
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
 #include "Evaluation/MovieScenePreAnimatedState.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "MovieSceneSection.h"
 
 FScopedPreAnimatedCaptureSource::FScopedPreAnimatedCaptureSource(FMovieScenePreAnimatedState* InPreAnimatedState, const FMovieSceneEvaluationKey& InEvalKey, bool bInWantsRestoreState)
 	: Variant(TInPlaceType<FMovieSceneEvaluationKey>(), InEvalKey)
