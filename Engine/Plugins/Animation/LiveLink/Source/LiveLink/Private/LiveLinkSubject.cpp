@@ -166,8 +166,16 @@ void FLiveLinkSubject::Update()
 
 		case ELiveLinkSourceMode::EngineTime:
 		{
-			//Compute the evaluation time using all offsets (user offset + clock offset)
-			const double ReadTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.EngineTimeClockOffset;
+			//Compute the evaluation time using all offsets (user offset + clock offset + smooth offset)
+			const double ReadTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.EngineTimeClockOffset - CachedSettings.BufferSettings.SmoothEngineTimeOffset;
+
+			UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' Read Time: %lf    User Offset: %.4lf    Clock Offset: %.4lf    Smooth Offset: %.4lf")
+				, *SubjectKey.SubjectName.ToString()
+				, ReadTime
+				, CachedSettings.BufferSettings.EngineTimeOffset
+				, CachedSettings.BufferSettings.EngineTimeClockOffset
+				, CachedSettings.BufferSettings.SmoothEngineTimeOffset);
+
 			bSnapshotIsValid = GetFrameAtWorldTime(ReadTime, FrameSnapshot);
 			break;
 		}
@@ -211,7 +219,8 @@ TArray<FLiveLinkTime> FLiveLinkSubject::GetFrameTimes() const
 	for (const FLiveLinkFrameDataStruct& Data : FrameData)
 	{
 		//When giving out frame times, include the latest Source clock offset
-		Result.Emplace(Data.GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset, Data.GetBaseData()->MetaData.SceneTime);
+		const double OffsettedWorldTime = Data.GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset + CachedSettings.BufferSettings.SmoothEngineTimeOffset;
+		Result.Emplace(OffsettedWorldTime, Data.GetBaseData()->MetaData.SceneTime);
 	}
 	return Result;
 }
@@ -742,6 +751,11 @@ bool FLiveLinkSubject::GetFrameAtWorldTime_Interpolated(const double InSeconds, 
 	FLiveLinkInterpolationInfo InterpolationInfo;
 	FrameInterpolationProcessor->Interpolate(InSeconds, StaticData, FrameData, OutFrame, InterpolationInfo);
 
+	UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' interpolating between frames %d and %d")
+		, *SubjectKey.SubjectName.ToString()
+		, InterpolationInfo.FrameIndexA
+		, InterpolationInfo.FrameIndexB);
+
 	VerifyInterpolationInfo(InterpolationInfo);
 
 	return true;
@@ -1132,7 +1146,7 @@ FTimedDataChannelSampleTime FLiveLinkSubject::GetOldestDataTime() const
 			TimecodeClockOffsetTime = FrameData[0].GetBaseData()->MetaData.SceneTime.Rate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 		}
 
-		const double OffsettedOldestTime = FrameData[0].GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset;
+		const double OffsettedOldestTime = FrameData[0].GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset + CachedSettings.BufferSettings.SmoothEngineTimeOffset;
 		const FQualifiedFrameTime OldestSceneTime = FQualifiedFrameTime(FrameData[0].GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, FrameData[0].GetBaseData()->MetaData.SceneTime.Rate);
 		return FTimedDataChannelSampleTime(OffsettedOldestTime, OldestSceneTime);
 	}
@@ -1150,7 +1164,7 @@ FTimedDataChannelSampleTime FLiveLinkSubject::GetNewestDataTime() const
 			TimecodeClockOffsetTime = FrameData.Last().GetBaseData()->MetaData.SceneTime.Rate.AsFrameTime(CachedSettings.BufferSettings.TimecodeClockOffset);
 		}
 
-		const double OffsettedNewestTime = FrameData.Last().GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset;
+		const double OffsettedNewestTime = FrameData.Last().GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset + CachedSettings.BufferSettings.SmoothEngineTimeOffset;
 		const FQualifiedFrameTime NewestSceneTime = FQualifiedFrameTime(FrameData.Last().GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, FrameData.Last().GetBaseData()->MetaData.SceneTime.Rate);
 		return FTimedDataChannelSampleTime(OffsettedNewestTime, NewestSceneTime);
 	}
@@ -1172,7 +1186,7 @@ TArray<FTimedDataChannelSampleTime> FLiveLinkSubject::GetDataTimes() const
 		Result.Reset(FrameData.Num());
 		for (const FLiveLinkFrameDataStruct& Data : FrameData)
 		{
-			const double OffsettedEngineTime = Data.GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset;
+			const double OffsettedEngineTime = Data.GetBaseData()->WorldTime.GetSourceTime() + CachedSettings.BufferSettings.EngineTimeClockOffset + CachedSettings.BufferSettings.SmoothEngineTimeOffset;
 			const FQualifiedFrameTime AdjustedSceneTime = FQualifiedFrameTime(Data.GetBaseData()->MetaData.SceneTime.Time + TimecodeClockOffsetTime, Data.GetBaseData()->MetaData.SceneTime.Rate);
 			Result.Emplace(OffsettedEngineTime, AdjustedSceneTime);
 		}

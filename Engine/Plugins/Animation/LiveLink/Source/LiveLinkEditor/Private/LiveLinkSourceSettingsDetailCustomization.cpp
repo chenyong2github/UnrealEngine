@@ -115,6 +115,8 @@ void FLiveLinkSourceSettingsDetailCustomization::CustomizeDetails(IDetailLayoutB
 			, EPropertyLocation::Advanced);
 		CategoryBuilder.AddProperty(BufferSettingsPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FLiveLinkSourceBufferManagementSettings, EngineTimeClockOffset))
 			, EPropertyLocation::Advanced);
+		CategoryBuilder.AddProperty(BufferSettingsPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FLiveLinkSourceBufferManagementSettings, SmoothEngineTimeOffset))
+			, EPropertyLocation::Advanced);
 	}
 	else if (SourceMode == ELiveLinkSourceMode::Latest)
 	{

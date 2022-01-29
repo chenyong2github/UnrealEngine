@@ -6,12 +6,11 @@
 
 #include "CoreMinimal.h"
 #include "ClockOffsetEstimatorRamp.h"
-
+#include "Math/NumericLimits.h"
 
 class FLiveLinkClient;
 enum class ELiveLinkSourceMode : uint8;
 struct FLiveLinkBaseFrameData;
-
 
 class FLiveLinkTimedDataInput : public ITimedDataInput
 {
@@ -43,6 +42,9 @@ public:
 	//Tracks clock difference between each frame received and arrival time in engine referential.
 	void ProcessNewFrameTimingInfo(FLiveLinkBaseFrameData& NewFrameData);
 
+private:
+	//Computes the smooth offset based on the average frame time intervals of the source time
+	void UpdateSmoothEngineTimeOffset(const FLiveLinkBaseFrameData& NewFrameData);
 
 private:
 	FLiveLinkClient* LiveLinkClient;
@@ -53,7 +55,16 @@ private:
 	FClockOffsetEstimatorRamp EngineClockOffset;
 	FClockOffsetEstimatorRamp TimecodeClockOffset;
 
-	// We will receive each frame for each subject of this source. Stamp last source time/timecode to only update our offset estimation once per "source frame"
+	//We will receive each frame for each subject of this source. Stamp last source time/timecode to only update our offset estimation once per "source frame"
 	double LastWorldSourceTime = 0.0;
 	double LastSceneTime = 0.0;
+
+	static constexpr double FrameIntervalThreshold = 0.005;
+	static constexpr int32 FrameIntervalSnapCount = 5;
+	static constexpr int32 FrameTimeBufferSize = 200;
+
+	TArray<double> FrameTimes;
+
+	int32 FrameIntervalChangeCount = 0;
+	int32 NumFramesToConsiderForAverage = TNumericLimits<int32>::Max();
 };

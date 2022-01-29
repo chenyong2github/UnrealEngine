@@ -248,7 +248,7 @@ public:
 	virtual TArray<FLiveLinkSubjectKey> GetSubjectsSupportingRole(TSubclassOf<ULiveLinkRole> SupportedRole, bool bIncludeDisabledSubject, bool bIncludeVirtualSubject) const = 0;
 
 	/**
-	 * Get the time of all the frames for a specific source.
+	 * Get the time of all the frames for a specific subject, including computed offsets.
 	 * @note Use for debugging purposes.
 	 */
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const = 0;
@@ -259,7 +259,7 @@ public:
 	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceKey) const = 0;
 
 	/**
-	 * Get the time of all the frames for a source.
+	 * Get the time of all the frames for a specific subject, including computed offsets.
 	 * @note Use for debugging purposes.
 	 */
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const = 0;

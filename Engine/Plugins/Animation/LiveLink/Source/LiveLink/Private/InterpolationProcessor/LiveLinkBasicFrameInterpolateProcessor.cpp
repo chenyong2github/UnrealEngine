@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterpolationProcessor/LiveLinkBasicFrameInterpolateProcessor.h"
+
+#include "LiveLinkClient.h"
 #include "Roles/LiveLinkBasicRole.h"
 #include "Roles/LiveLinkBasicTypes.h"
 
@@ -184,6 +186,9 @@ namespace LiveLinkInterpolation
 		int32 FrameDataIndexB = INDEX_NONE;
 		if (ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolationProcessorWorker::FindInterpolateIndex(InTime, InSourceFrames, FrameDataIndexA, FrameDataIndexB, OutInterpolationInfo))
 		{
+			OutInterpolationInfo.FrameIndexA = FrameDataIndexA;
+			OutInterpolationInfo.FrameIndexB = FrameDataIndexB;
+
 			if (FrameDataIndexA == FrameDataIndexB)
 			{
 				// Copy over the frame directly

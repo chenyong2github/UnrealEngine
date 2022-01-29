@@ -43,6 +43,12 @@ namespace LiveLinkTimedDataInput
 		ECVF_Default
 	);
 
+	TAutoConsoleVariable<float> CVarLiveLinkNumFramesForSmoothOffset(
+		TEXT("LiveLink.TimedDataInput.NumFramesForSmoothOffset"),
+		1.5,
+		TEXT("The fractional number of source frames used an offset to achieve smooth evaluation time."),
+		ECVF_Default
+	);
 
 	ETimedDataInputEvaluationType ToTimedDataInputEvaluationType(ELiveLinkSourceMode SourceMode)
 	{
@@ -84,6 +90,8 @@ FLiveLinkTimedDataInput::FLiveLinkTimedDataInput(FLiveLinkClient* InClient, FGui
 
 	EngineClockOffset.SetCorrectionStep(GetDefault<ULiveLinkSettings>()->ClockOffsetCorrectionStep);
 	TimecodeClockOffset.SetCorrectionStep(GetDefault<ULiveLinkSettings>()->ClockOffsetCorrectionStep);
+
+	FrameTimes.Reserve(FrameTimeBufferSize);
 }
 
 FLiveLinkTimedDataInput::~FLiveLinkTimedDataInput()
@@ -199,20 +207,29 @@ const FSlateBrush* FLiveLinkTimedDataInput::GetDisplayIcon() const
 
 void FLiveLinkTimedDataInput::ProcessNewFrameTimingInfo(FLiveLinkBaseFrameData& NewFrameData)
 {
-	if (LiveLinkTimedDataInput::CVarLiveLinkUpdateContinuousClockOffset.GetValueOnGameThread())
+	bool bUpdateContinuousClockOffset = LiveLinkTimedDataInput::CVarLiveLinkUpdateContinuousClockOffset.GetValueOnGameThread();
+
+	//Update both clock offsets for each frame received for our subjects
+	//We mark the last source/frame time that we used to update our offset to only update once per source frame
+	if (!FMath::IsNearlyEqual(NewFrameData.WorldTime.GetSourceTime(), LastWorldSourceTime))
 	{
-		//Update both clock offsets for each frame received for our subjects
-		//We mark the last source/frame time that we used to update our offset to only update once per source frame
-		if (!FMath::IsNearlyEqual(NewFrameData.WorldTime.GetSourceTime(), LastWorldSourceTime))
+		LastWorldSourceTime = NewFrameData.WorldTime.GetSourceTime();
+
+		if (bUpdateContinuousClockOffset)
 		{
-			LastWorldSourceTime = NewFrameData.WorldTime.GetSourceTime();
 			EngineClockOffset.UpdateEstimation(NewFrameData.WorldTime.GetSourceTime(), NewFrameData.ArrivalTime.WorldTime);
 		}
 
-		const double NewFrameSceneTime = NewFrameData.MetaData.SceneTime.AsSeconds();
-		if(!FMath::IsNearlyEqual(NewFrameSceneTime, LastSceneTime))
+		UpdateSmoothEngineTimeOffset(NewFrameData);
+	}
+
+	const double NewFrameSceneTime = NewFrameData.MetaData.SceneTime.AsSeconds();
+	if (!FMath::IsNearlyEqual(NewFrameSceneTime, LastSceneTime))
+	{
+		LastSceneTime = NewFrameSceneTime;
+
+		if (bUpdateContinuousClockOffset)
 		{
-			LastSceneTime = NewFrameSceneTime;
 			TimecodeClockOffset.UpdateEstimation(NewFrameSceneTime, NewFrameData.ArrivalTime.SceneTime.AsSeconds());
 		}
 	}
@@ -225,6 +242,77 @@ void FLiveLinkTimedDataInput::ProcessNewFrameTimingInfo(FLiveLinkBaseFrameData& 
 
 	//Update frame world time offset based on our latest clock offset
 	NewFrameData.WorldTime.SetClockOffset(EngineClockOffset.GetEstimatedOffset());
+}
+
+void FLiveLinkTimedDataInput::UpdateSmoothEngineTimeOffset(const FLiveLinkBaseFrameData& NewFrameData)
+{
+	//Remove the oldest frame from the buffer if it is full
+	if (FrameTimes.Num() >= FrameTimeBufferSize)
+	{
+		constexpr int32 Count = 1;
+		constexpr bool bAllowShrinking = false;
+		FrameTimes.RemoveAt(0, Count, bAllowShrinking);
+	}
+
+	//Add the newest frame time to the buffer
+	FrameTimes.Add(NewFrameData.WorldTime.GetSourceTime());
+
+	if (ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Source))
+	{
+		//Early-out if no frame offset is needed
+		const float NumFramesForSmoothOffset = LiveLinkTimedDataInput::CVarLiveLinkNumFramesForSmoothOffset.GetValueOnGameThread();
+
+		if (NumFramesForSmoothOffset <= 0)
+		{
+			Settings->BufferSettings.SmoothEngineTimeOffset = 0.0;
+			return;
+		}
+
+		//In order to compute a frame interval, at least 2 frames are needed
+		const int32 NumFramesInBuffer = FrameTimes.Num();
+		if (NumFramesInBuffer > 1)
+		{
+			//Compute the time interval between the two most recent frames (N+1 - N)
+			const double LatestFrameInterval = FrameTimes[NumFramesInBuffer - 1] - FrameTimes[NumFramesInBuffer - 2];
+
+			//Recover the average frame interval computed last frame
+			const double PreviousAverageFrameInterval = Settings->BufferSettings.SmoothEngineTimeOffset / NumFramesForSmoothOffset;
+
+			//Detect if the new frame interval is very different from the current moving average
+			if (FMath::Abs(LatestFrameInterval - PreviousAverageFrameInterval) > FrameIntervalThreshold)
+			{
+				++FrameIntervalChangeCount;
+
+				if (FrameIntervalChangeCount >= FrameIntervalSnapCount)
+				{
+					//Reduce the number of frames to consider to only those consecutive recent frames that differed so much from the previous average
+					NumFramesToConsiderForAverage = FrameIntervalSnapCount - 1;
+					FrameIntervalChangeCount = 0;
+				}
+			}
+			else
+			{
+				FrameIntervalChangeCount = 0;
+			}
+
+			//Slowly increase the number of frames to consider until it reaches the size of the frame buffer
+			if (NumFramesToConsiderForAverage < NumFramesInBuffer)
+			{
+				++NumFramesToConsiderForAverage;
+			}
+			else
+			{
+				NumFramesToConsiderForAverage = NumFramesInBuffer;
+			}
+
+			check(NumFramesToConsiderForAverage > 1);
+
+			const int32 OldestFrameToConsider = NumFramesInBuffer - NumFramesToConsiderForAverage;
+			const double AverageFrameInterval = (FrameTimes[NumFramesInBuffer - 1] - FrameTimes[OldestFrameToConsider]) / (NumFramesToConsiderForAverage - 1);
+
+			Settings->BufferSettings.SmoothEngineTimeOffset = AverageFrameInterval * NumFramesForSmoothOffset;
+		}
+	}
 }
 
 

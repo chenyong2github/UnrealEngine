@@ -25,6 +25,10 @@ struct FLiveLinkInterpolationInfo
 	/** Distance in seconds between expected evaluation time and oldest sample */
 	float ExpectedEvaluationDistanceFromOldestSeconds;
 
+	/** Frame indices interpolated between */
+	int32 FrameIndexA = INDEX_NONE;
+	int32 FrameIndexB = INDEX_NONE;
+
 	/** Whether sampling was done below our oldest sample */
 	bool bUnderflowDetected = false;
 

@@ -55,6 +55,10 @@ struct FLiveLinkSourceBufferManagementSettings
 	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay, meta = (ForceUnits = s))
 	double EngineTimeClockOffset = 0.0;
 
+	/** Continuously updated offset to achieve a smooth evaluation time (in seconds) */
+	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay, meta = (ForceUnits = s))
+	double SmoothEngineTimeOffset = 0.0;
+
 #if WITH_EDITORONLY_DATA
 	/** DEPRECATED: TimecodeFrameRate is now read from each individual subject from FQualifiedFrameTime. 
 	 * It is expected that all subjects under a source have the same and it will be readable in DetectedFrameRate variable
