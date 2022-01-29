@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
+#include "Factories/Factory.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeManager.h"
 #include "Settings/EditorExperimentalSettings.h"
