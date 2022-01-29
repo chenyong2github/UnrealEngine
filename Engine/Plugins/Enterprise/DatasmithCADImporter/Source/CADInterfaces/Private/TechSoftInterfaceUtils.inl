@@ -103,7 +103,6 @@ namespace TechSoftInterfaceUtils
 			return TriangleCount;
 		}
 
-#pragma optimize ("", off)
 		void FillFaceArray(CADLibrary::FBodyMesh& BodyMesh)
 		{
 			using namespace CADLibrary;
@@ -275,7 +274,6 @@ namespace TechSoftInterfaceUtils
 				ensure(!bMustProcess);
 			}
 		}
-#pragma optimize ("", on)
 
 		typedef double A3DDouble;
 		bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& InOutVertexIndex)
