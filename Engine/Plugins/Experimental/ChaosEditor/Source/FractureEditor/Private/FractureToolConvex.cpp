@@ -19,11 +19,14 @@ void UFractureConvexSettings::DeleteFromSelected()
 	ConvexTool->DeleteConvexFromSelected();
 }
 
+// Note: this feature puts multiple convexes on a single bone, which isn't supported by sim yet
+#if 0
 void UFractureConvexSettings::PromoteChildren()
 {
 	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
 	ConvexTool->PromoteChildren();
 }
+#endif
 
 void UFractureConvexSettings::ClearCustomConvex()
 {

@@ -36,9 +36,12 @@ public:
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Delete From Selected"))
 	void DeleteFromSelected();
 
+	// Note: this feature puts multiple convexes on a single bone, which isn't supported by sim yet
+#if 0
 	/** Promote (and save) child convex hulls on to the selected bone(s) */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Promote Children"))
 	void PromoteChildren();
+#endif
 
 	/** Clear any manual adjustments to convex hulls on the selected bones */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Clear Custom Convex"))
