@@ -740,12 +740,14 @@ static void RunHairLODSelection(
 		float LODIndex = Instance->Debug.LODForcedIndex >= 0 ? FMath::Max(Instance->Debug.LODForcedIndex, MinLOD) : -1.0f;
 		float LODViewIndex = -1;
 		{
+			float MaxScreenSize = 0.f;
 			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
 			for (const FSceneView* View : Views)
 			{
 				const float ScreenSize = ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View);
 				const float LODBias = Instance->Strands.Modifier.LODBias;
 				const float CurrLODViewIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
+				MaxScreenSize = FMath::Max(MaxScreenSize, ScreenSize);
 
 				// Select highest LOD accross all views
 				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
@@ -760,6 +762,7 @@ static void RunHairLODSelection(
 
 			// Feedback game thread with LOD selection 
 			Instance->Debug.LODPredictedIndex = LODViewIndex;
+			Instance->HairGroupPublicData->DebugScreenSize = MaxScreenSize;
 		}
 
 		// Function for selecting, loading, & initializing LOD resources

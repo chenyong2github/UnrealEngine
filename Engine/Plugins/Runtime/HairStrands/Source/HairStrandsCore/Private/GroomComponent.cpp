@@ -2482,6 +2482,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		{
 			HairGroupInstance->HairGroupPublicData = new FHairGroupPublicData(GroupIt);
 			HairGroupInstance->HairGroupPublicData->Instance = HairGroupInstance;
+			HairGroupInstance->HairGroupPublicData->bDebugDrawLODInfo = bPreviewMode;
+			HairGroupInstance->HairGroupPublicData->DebugScreenSize = 0.f;
+			HairGroupInstance->HairGroupPublicData->DebugGroupColor = GetHairGroupDebugColor(GroupIt);
 			TArray<float> CPULODScreenSize;
 			TArray<bool> LODVisibility;
 			TArray<EHairGeometryType> LODGeometryTypes;

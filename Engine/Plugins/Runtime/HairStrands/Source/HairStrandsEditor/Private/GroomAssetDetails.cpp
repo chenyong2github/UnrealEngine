@@ -1140,44 +1140,51 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
 	FProperty* Property = StructProperty->GetProperty();
 
+	const FLinearColor LODColorBlock = GetHairGroupDebugColor(GroupIndex) * 0.25f;
+	const FLinearColor LODNameColor(FLinearColor::White);
+	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
+	float OtherMargin = 2.0f;
+
 	ChildrenBuilder.AddCustomRow(LOCTEXT("HairInfo_Separator", "Separator"))
-	.ValueContent()
+	.WholeRowContent()
+	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Fill)
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SImage)
+			.Image(GenericBrush)
+			.ColorAndOpacity(LODColorBlock)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SSeparator)
-			.Thickness(2)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(HairLODColor)
-			.Text(FText::Format(LOCTEXT("LOD", "LOD {0}"), FText::AsNumber(LODIndex)))
-		]
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SSeparator)
-			.Thickness(2)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SButton)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.OnClicked(this, &FGroomRenderingDetails::OnRemoveLODClicked, GroupIndex, LODIndex, Property)
+			.Padding(OtherMargin)
 			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Cross"))
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.ColorAndOpacity(LODNameColor)
+				.Text(FText::Format(LOCTEXT("LOD", "LOD {0}"), FText::AsNumber(LODIndex)))
 			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &FGroomRenderingDetails::OnRemoveLODClicked, GroupIndex, LODIndex, Property)
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Cross"))
+				]
+			]
+			
 		]
 	];
 
@@ -1243,7 +1250,7 @@ FName FGroomRenderingDetails::GetGroupName(int32 GroupIndex) const
 	return NAME_None;
 }
 
-TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 GroupIndex)
+TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 GroupIndex, const FLinearColor& GroupColor)
 {
 	switch (PanelType)
 	{
@@ -1251,7 +1258,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 	{
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(HairGroupColor)
+			.ColorAndOpacity(GroupColor)
 			.Text(FText::Format(LOCTEXT("Cards", "Cards {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
@@ -1259,7 +1266,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 	{
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(HairGroupColor)
+			.ColorAndOpacity(GroupColor)
 			.Text(FText::Format(LOCTEXT("Meshes", "Meshes {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
@@ -1270,14 +1277,14 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 		{
 			return SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ColorAndOpacity(HairGroupColor)
+				.ColorAndOpacity(GroupColor)
 				.Text(FText::Format(LOCTEXT("Group", "Group ID {0} - {1}"), FText::AsNumber(GroupIndex), FText::FromName(GroupName)));
 		}
 		else
 		{
 			return SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ColorAndOpacity(HairGroupColor)
+				.ColorAndOpacity(GroupColor)
 				.Text(FText::Format(LOCTEXT("Group", "Group ID {0}"), FText::AsNumber(GroupIndex)));
 		}
 	}
@@ -1291,53 +1298,49 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyHandle> StructProperty, int32 GroupIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
 {
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
-	const FLinearColor GroupColor = GetHairGroupDebugColor(GroupIndex);
+	const FLinearColor GroupColorBlock = GetHairGroupDebugColor(GroupIndex) * 0.75f;
+	const FLinearColor GroupNameColor(FLinearColor::White);
 
 	FProperty* Property = StructProperty->GetProperty();
 
+	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
+
+	float OtherMargin = 2.0f;
+	float RightMargin = 2.0f;
+	if (PanelType != EMaterialPanelType::LODs && PanelType != EMaterialPanelType::Cards && PanelType != EMaterialPanelType::Meshes)
+	{
+		RightMargin = 10.0f;
+	}
+
 	ChildrenBuilder.AddCustomRow(LOCTEXT("HairInfo_Separator", "Separator"))
-	.NameContent()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SSeparator)
-			.Thickness(2)
-			.ColorAndOpacity(HairGroupColor)
-		]
-	]
-	.ValueContent()
+	.WholeRowContent()
+	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Fill)
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
+		SNew(SOverlay)
+		+ SOverlay::Slot()
 		[
-			SNew(SSeparator)
-			.Thickness(2)
+			SNew(SImage)
+			.Image(GenericBrush)
+			.ColorAndOpacity(GroupColorBlock)
 		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		[
-			MakeGroupNameCustomization(GroupIndex)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+		+ SOverlay::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SColorBlock)
-			.Color(GroupColor)
-			.Size(FVector2D(8,8))
-			.CornerRadius(FVector4f(4.0f, 4.0f, 4.0f, 4.0f))
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			MakeGroupNameButtonCustomization(GroupIndex, Property)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(OtherMargin, OtherMargin, RightMargin, OtherMargin)
+			[
+				MakeGroupNameCustomization(GroupIndex, GroupNameColor)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				MakeGroupNameButtonCustomization(GroupIndex, Property)
+			]
+			
 		]
 	];
 

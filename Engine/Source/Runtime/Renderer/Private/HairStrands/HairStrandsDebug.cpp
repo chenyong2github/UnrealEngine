@@ -86,16 +86,6 @@ bool IsHairStrandsClusterDebugAABBEnable()
 	return GHairStrandsClusterDebug > 1;
 }
 
-void SetHairScreenLODInfo(bool bEnable)
-{
-	if (!ShaderPrint::IsEnabled())
-	{
-		ShaderPrint::SetEnabled(true);
-		ShaderPrint::SetFontSize(8);
-	}
-	GHairStrandsClusterDebug = bEnable ? 4 : 1;
-}
-
 FHairStrandsDebugData::Data FHairStrandsDebugData::CreateData(FRDGBuilder& GraphBuilder)
 {
 	FHairStrandsDebugData::Data Out;
@@ -230,6 +220,79 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	};
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class FHairPrintLODInfoCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairPrintLODInfoCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairPrintLODInfoCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, MaxResolution)
+		SHADER_PARAMETER(FVector3f, GroupColor)
+		SHADER_PARAMETER(uint32, GroupIndex)
+		SHADER_PARAMETER(uint32, GeometryType)
+		SHADER_PARAMETER(float, ScreenSize)
+		SHADER_PARAMETER(float, LOD)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Skip optimization for avoiding long compilation time due to large UAV writes
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.SetDefine(TEXT("SHADER_LOD_INFO"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairPrintLODInfoCS, "/Engine/Private/HairStrands/HairStrandsDebugPrint.usf", "MainCS", SF_Compute);
+
+static void AddPrintLODInfoPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FHairGroupPublicData* Data)
+{
+	if (!ShaderPrint::IsSupported(View.Family->GetShaderPlatform()))
+	{
+		return;
+	}
+
+	if (!ShaderPrint::IsEnabled(View))
+	{
+		ShaderPrint::SetEnabled(true);
+		ShaderPrint::RequestSpaceForCharacters(2000);
+	}
+
+	const uint32 GroupIndex = Data->GetGroupIndex();
+	const FLinearColor GroupColor = Data->DebugGroupColor;
+	const uint32 IntLODIndex = Data->LODIndex;
+
+	FHairPrintLODInfoCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairPrintLODInfoCS::FParameters>();
+	Parameters->MaxResolution = FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+	Parameters->GroupIndex = GroupIndex;
+	Parameters->LOD = Data->LODIndex;
+	Parameters->GroupColor = FVector3f(GroupColor.R, GroupColor.G, GroupColor.B);
+	Parameters->ScreenSize = Data->DebugScreenSize;
+	switch (Data->VFInput.GeometryType)
+	{
+	case EHairGeometryType::Strands: Parameters->GeometryType = 0; break;
+	case EHairGeometryType::Cards  : Parameters->GeometryType = 1; break;
+	case EHairGeometryType::Meshes : Parameters->GeometryType = 2; break;
+	}
+	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+	TShaderMapRef<FHairPrintLODInfoCS> ComputeShader(View.ShaderMap);
+
+	ClearUnusedGraphResources(ComputeShader, Parameters);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrands::PrintLODInfo(%d/%d)", Parameters->GroupIndex, Parameters->GroupIndex),
+		ComputeShader,
+		Parameters,
+		FIntVector(1, 1, 1));
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairDebugPrintCS : public FGlobalShader
@@ -1142,6 +1205,25 @@ static void InternalRenderHairStrandsDebugInfo(
 			AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
 		}
 	}
+
+	// Draw LOD info 
+	for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
+	{
+		const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
+		if (GroupData->bDebugDrawLODInfo)
+		{
+			AddPrintLODInfoPass(GraphBuilder, View, GroupData);
+		}
+	}
+	for (const FMeshBatchAndRelevance& Mesh : View.HairCardsMeshElements)
+	{
+		const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
+		if (GroupData->bDebugDrawLODInfo)
+		{
+			AddPrintLODInfoPass(GraphBuilder, View, GroupData);
+		}
+	}
+
 
 	// Pass this point, all debug rendering concern only hair strands data
 	if (!HairStrands::HasViewHairStrandsData(View))

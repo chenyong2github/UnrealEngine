@@ -46,6 +46,7 @@ namespace ShaderPrint
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
 	static uint32 GCharacterRequestCount = 0;
+	static bool GShaderPrintEnableOverride = false;
 
 	// Structure used by shader buffers to store values and symbols
 	struct ShaderPrintItem
@@ -126,7 +127,14 @@ namespace ShaderPrint
 
 	void SetEnabled(bool bInEnabled)
 	{
-		CVarEnable->Set(bInEnabled);
+		if (IsInGameThread())
+		{
+			CVarEnable->Set(bInEnabled);
+		}
+		else
+		{
+			GShaderPrintEnableOverride = bInEnabled;
+		}
 	}
 
 	void SetFontSize(int32 InFontSize)
@@ -146,7 +154,7 @@ namespace ShaderPrint
 
 	bool IsEnabled()
 	{
-		return CVarEnable.GetValueOnAnyThread() != 0;
+		return CVarEnable.GetValueOnAnyThread() != 0 || GShaderPrintEnableOverride;
 	}
 
 	bool IsEnabled(const FViewInfo& View)

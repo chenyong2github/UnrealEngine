@@ -376,3 +376,64 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 #endif // SHADER_TANGENT
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_LOD_INFO
+
+int2 MaxResolution;
+uint GroupIndex;
+uint GeometryType;
+float LOD;
+float ScreenSize;
+float3 GroupColor;
+
+[numthreads(1, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	// Legend
+	if (GroupIndex == 0)
+	{
+		float2 OriginalPos = float2(15, 50) / float2(MaxResolution);
+		float2 Pos = OriginalPos;
+		Pos = ShaderPrintText(Pos, TEXT("Group Geom.   LOD      Screen Size"), FontSilver); AddNewLine(OriginalPos, Pos);
+	}
+
+	// Values
+	{
+		float2 OriginalPos = float2(30, 50) / float2(MaxResolution);
+		OriginalPos.y = float(65 + GroupIndex * 15) / float(MaxResolution.y);
+		float2 Pos = OriginalPos;
+
+		// Group Color
+		Pos = ShaderPrintText(Pos, TEXT("* "), InitFontColor(GroupColor));
+
+		// Group index
+		ShaderPrint(Pos, GroupIndex, FontEmerald);
+		Pos.x += 20.f / float(MaxResolution.x);
+
+		// Geometry Type
+		if (GeometryType == 0)
+		{
+			Pos = ShaderPrintText(Pos, TEXT("Strands "), FontOrange);
+		}
+		else if (GeometryType == 1)
+		{
+			Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontOrange);
+		}
+		else if (GeometryType == 2)
+		{
+			Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontOrange);
+		}
+
+		// LOD
+		ShaderPrint(Pos, LOD, FontWhite);
+		Pos.x += 80.f / float(MaxResolution.x);
+
+		// Screen size
+		ShaderPrint(Pos, saturate(ScreenSize), FontWhite);
+		Pos.x += 80.f / float(MaxResolution.x);
+
+		AddNewLine(OriginalPos, Pos);
+	}
+}
+
+#endif // SHADER_LOD_INFO

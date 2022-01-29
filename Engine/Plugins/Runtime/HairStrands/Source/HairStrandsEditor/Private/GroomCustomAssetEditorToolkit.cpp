@@ -107,8 +107,6 @@ void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 #endif
 }
 
-static uint32 GOpenedGroomEditorCount = 0;
-
 void FGroomCustomAssetEditorToolkit::DocPropChanged(UObject *InObject, FPropertyChangedEvent &Property)
 {
 	if (!GroomAsset.Get())
@@ -324,7 +322,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	ViewportTab = SNew(SGroomEditorViewport);
 	
 	// Default layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v15")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v15a")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -524,24 +522,11 @@ FGroomCustomAssetEditorToolkit::FGroomCustomAssetEditorToolkit()
 	PreviewGroomComponent			= nullptr;	
 	PreviewStaticMeshComponent		= nullptr;
 	PreviewSkeletalMeshComponent	= nullptr;
-
-	// Set LOD debug mode to show current LOD index & screen size
-	if (GOpenedGroomEditorCount == 0)
-	{
-		SetHairScreenLODInfo(true);
-	}
-	++GOpenedGroomEditorCount;
 }
 
 FGroomCustomAssetEditorToolkit::~FGroomCustomAssetEditorToolkit()
 {
-	// Disable LOD debug mode info
-	--GOpenedGroomEditorCount;
-	if (GOpenedGroomEditorCount == 0)
-	{
-		SetHairScreenLODInfo(false);
-	}
-	check(GOpenedGroomEditorCount >= 0);
+
 }
 
 FText FGroomCustomAssetEditorToolkit::GetToolkitName() const

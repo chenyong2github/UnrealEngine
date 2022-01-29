@@ -74,7 +74,7 @@ private:
 	void OnResetToBaseClicked(TSharedPtr<IPropertyHandle> PropertyHandle);
 	TSharedRef<SWidget> CreateMaterialSwatch(const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, int32 GroupIndex);
 
-	TSharedRef<SWidget> MakeGroupNameCustomization(int32 GroupIndex);
+	TSharedRef<SWidget> MakeGroupNameCustomization(int32 GroupIndex, const FLinearColor& GroupColor);
 	TSharedRef<SWidget> MakeGroupNameButtonCustomization(int32 GroupIndex, FProperty* Property);
 
 	FReply OnRemoveLODClicked(int32 GroupIndex, int32 LODIndex, FProperty* Property);

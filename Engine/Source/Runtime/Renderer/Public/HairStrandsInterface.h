@@ -341,6 +341,11 @@ public:
 	float LODIndex = -1;		// Current LOD used for all views
 	float LODBias = 0;			// Current LOD bias
 	bool bLODVisibility = true; // Enable/disable hair rendering for this component
+
+	// Debug
+	bool  bDebugDrawLODInfo = false; // Enable/disable hair LOD info
+	float DebugScreenSize = 0.f;
+	FLinearColor DebugGroupColor;
 	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
 };
 
@@ -421,9 +426,6 @@ RENDERER_API float GetHairCoverage(uint32 HairCount, float AverageHairRadius);
 
 /// Return the average hair normalized radius for a given hair count and a given coverage value
 RENDERER_API float GetHairAvgRadius(uint32 InCount, float InCoverage);
-
-/// Helper to enable debug information about hair LOD
-RENDERER_API void SetHairScreenLODInfo(bool bEnable);
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
