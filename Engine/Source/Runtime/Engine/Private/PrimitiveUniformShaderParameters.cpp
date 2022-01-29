@@ -169,6 +169,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.NaniteResourceID(NaniteResourceID)
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)
 		.NaniteImposterIndex(NaniteImposterIndex)
+		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
 		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
 
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
@@ -194,10 +195,10 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[0].Z	= *(const float*)&PrimitiveUniformShaderParameters.NumInstanceSceneDataEntries;
 	Data[0].W	= *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
 
-	Data[1].X = *(const float*)&PrimitiveUniformShaderParameters.TilePosition.X;
-	Data[1].Y = *(const float*)&PrimitiveUniformShaderParameters.TilePosition.Y;
-	Data[1].Z = *(const float*)&PrimitiveUniformShaderParameters.TilePosition.Z;
-	Data[1].W = 0u;
+	Data[1].X	= *(const float*)&PrimitiveUniformShaderParameters.TilePosition.X;
+	Data[1].Y	= *(const float*)&PrimitiveUniformShaderParameters.TilePosition.Y;
+	Data[1].Z	= *(const float*)&PrimitiveUniformShaderParameters.TilePosition.Z;
+	Data[1].W	= FMath::AsFloat(PrimitiveUniformShaderParameters.PrimitiveComponentId);
 
 	Data[2]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToRelativeWorld.M[0][0];
 	Data[3]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToRelativeWorld.M[1][0];

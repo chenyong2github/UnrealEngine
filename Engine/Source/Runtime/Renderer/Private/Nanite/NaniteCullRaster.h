@@ -137,6 +137,9 @@ struct FCullingContext
 	FRDGBufferRef	StreamingRequests;
 	FRDGBufferRef	ViewsBuffer;
 	FRDGBufferRef	InstanceDrawsBuffer;
+	FRDGBufferRef	PrimitiveFilterBuffer;
+	FRDGBufferRef	HiddenPrimitivesBuffer;
+	FRDGBufferRef	ShowOnlyPrimitivesBuffer;
 	FRDGBufferRef	StatsBuffer;
 };
 

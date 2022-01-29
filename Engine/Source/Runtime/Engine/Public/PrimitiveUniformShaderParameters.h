@@ -25,7 +25,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		NumInstanceSceneDataEntries)
 	SHADER_PARAMETER(int32,			SingleCaptureIndex)										// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
 	SHADER_PARAMETER(FVector3f,		TilePosition)
-	SHADER_PARAMETER(uint32,		Unused1)
+	SHADER_PARAMETER(uint32,		PrimitiveComponentId)									// TODO: Refactor to use PersistentPrimitiveIndex, ENGINE USE ONLY - will be removed
 	SHADER_PARAMETER(FMatrix44f,	LocalToRelativeWorld)									// Always needed
 	SHADER_PARAMETER(FMatrix44f,	RelativeWorldToLocal)									// Rarely needed
 	SHADER_PARAMETER(FMatrix44f,	PreviousLocalToRelativeWorld)							// Used to calculate velocity
@@ -125,6 +125,7 @@ public:
 		Parameters.LightmapUVIndex					= INDEX_NONE;
 		Parameters.SingleCaptureIndex				= INDEX_NONE;
 		Parameters.PersistentPrimitiveIndex			= INDEX_NONE;
+		Parameters.PrimitiveComponentId				= ~uint32(0u);
 
 		// Nanite
 		Parameters.NaniteResourceID					= INDEX_NONE;
@@ -174,6 +175,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataStride);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				PersistentPrimitiveIndex);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			PrimitiveComponentId);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteImposterIndex);

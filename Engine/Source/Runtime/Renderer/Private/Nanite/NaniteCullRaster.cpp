@@ -20,6 +20,7 @@ DEFINE_GPU_STAT(NaniteRaster);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
+DECLARE_GPU_STAT_NAMED(NanitePrimitiveFilter, TEXT("Nanite Primitive Filter"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull, TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM, TEXT("Nanite Instance Cull VSM"));
 DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
@@ -76,6 +77,13 @@ static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 	TEXT("r.Nanite.ComputeRasterization"),
 	GNaniteComputeRasterization,
 	TEXT("")
+);
+
+static TAutoConsoleVariable<int32> CVarNaniteFilterPrimitives(
+	TEXT("r.Nanite.FilterPrimitives"),
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe
 );
 
 #if PLATFORM_WINDOWS
@@ -323,6 +331,52 @@ public:
 	}
 };
 
+class FPrimitiveFilter_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPrimitiveFilter_CS);
+	SHADER_USE_PARAMETER_STRUCT(FPrimitiveFilter_CS, FNaniteGlobalShader);
+
+	class FHiddenPrimitivesListDim : SHADER_PERMUTATION_BOOL("HAS_HIDDEN_PRIMITIVES_LIST");
+	class FShowOnlyPrimitivesListDim : SHADER_PERMUTATION_BOOL("HAS_SHOW_ONLY_PRIMITIVES_LIST");
+
+	using FPermutationDomain = TShaderPermutationDomain<FHiddenPrimitivesListDim, FShowOnlyPrimitivesListDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (!PermutationVector.Get<FHiddenPrimitivesListDim>() && !PermutationVector.Get<FShowOnlyPrimitivesListDim>())
+		{
+			// Don't compile a permutation with both buffers disabled
+			return false;
+		}
+
+		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumPrimitives)
+		SHADER_PARAMETER(uint32, NumHiddenPrimitives)
+		SHADER_PARAMETER(uint32, NumShowOnlyPrimitives)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, PrimitiveFilterBuffer)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HiddenPrimitivesList)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShowOnlyPrimitivesList)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FPrimitiveFilter_CS, "/Engine/Private/Nanite/PrimitiveFilter.usf", "PrimitiveFilter", SF_Compute);
+
 class FInstanceCull_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
@@ -331,9 +385,10 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST, CULLING_PASS_EXPLICIT_LIST);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
+	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FNearClipDim, FDebugFlagsDim, FRasterTechniqueDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -386,6 +441,7 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InPrimitiveFilterBuffer )
 
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
@@ -435,10 +491,11 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 	SHADER_USE_PARAMETER_STRUCT( FInstanceCullVSM_CS, FNaniteGlobalShader);
 
 	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
+	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
 	class FUseCompactedViewsDim : SHADER_PERMUTATION_BOOL( "USE_COMPACTED_VIEWS" );
 
-	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FDebugFlagsDim, FUseCompactedViewsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim, FUseCompactedViewsDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -471,6 +528,7 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InOccludedInstances )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InPrimitiveFilterBuffer )
 
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
@@ -1312,6 +1370,126 @@ FCullingContext InitCullingContext(
 	return CullingContext;
 }
 
+void AddPass_PrimitiveFilter(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& SceneView,
+	const FGPUSceneParameters& GPUSceneParameters,
+	const FSharedContext& SharedContext,
+	FCullingContext& CullingContext
+)
+{
+	LLM_SCOPE_BYTAG(Nanite);
+
+	const uint32 PrimitiveCount = uint32(Scene.Primitives.Num());
+	const uint32 HiddenPrimitiveCount = SceneView.HiddenPrimitives.Num();
+	const uint32 ShowOnlyPrimitiveCount = SceneView.ShowOnlyPrimitives.IsSet() ? SceneView.ShowOnlyPrimitives->Num() : 0u;
+
+	CullingContext.PrimitiveFilterBuffer = nullptr;
+	CullingContext.HiddenPrimitivesBuffer = nullptr;
+	CullingContext.ShowOnlyPrimitivesBuffer = nullptr;
+
+	if (CVarNaniteFilterPrimitives.GetValueOnRenderThread() != 0 && (HiddenPrimitiveCount + ShowOnlyPrimitiveCount) > 0)
+	{
+		check(PrimitiveCount > 0);
+		const uint32 DWordCount = FMath::DivideAndRoundUp(PrimitiveCount, 32u); // 32 primitive bits per uint32
+		const uint32 PrimitiveFilterBufferElements = FMath::RoundUpToPowerOfTwo(DWordCount);
+
+		CullingContext.PrimitiveFilterBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PrimitiveFilterBufferElements), TEXT("Nanite.PrimitiveFilter"));
+		FRDGBufferUAVRef PrimitiveFilterBufferUAV = GraphBuilder.CreateUAV(CullingContext.PrimitiveFilterBuffer);
+
+		// Zeroed initially to indicate "all primitives unfiltered / visible"
+		AddClearUAVPass(GraphBuilder, PrimitiveFilterBufferUAV, 0);
+
+		// Create buffer from "show only primitives" set
+		if (ShowOnlyPrimitiveCount > 0)
+		{
+			TArray<uint32, SceneRenderingAllocator> ShowOnlyPrimitiveIds;
+			ShowOnlyPrimitiveIds.Reserve(FMath::RoundUpToPowerOfTwo(ShowOnlyPrimitiveCount));
+
+			const TSet<FPrimitiveComponentId>& ShowOnlyPrimitivesSet = SceneView.ShowOnlyPrimitives.GetValue();
+			for (TSet<FPrimitiveComponentId>::TConstIterator It(ShowOnlyPrimitivesSet); It; ++It)
+			{
+				ShowOnlyPrimitiveIds.Add(It->PrimIDValue);
+			}
+
+			// Add extra entries to ensure the buffer is valid pow2 in size
+			ShowOnlyPrimitiveIds.SetNumZeroed(FMath::RoundUpToPowerOfTwo(ShowOnlyPrimitiveCount));
+
+			// Sort the buffer by ascending value so the GPU binary search works properly
+			Algo::Sort(ShowOnlyPrimitiveIds);
+
+			CullingContext.ShowOnlyPrimitivesBuffer = CreateUploadBuffer(
+				GraphBuilder,
+				TEXT("Nanite.ShowOnlyPrimitivesBuffer"),
+				sizeof(uint32),
+				ShowOnlyPrimitiveIds.Num(),
+				ShowOnlyPrimitiveIds.GetData(),
+				sizeof(uint32) * ShowOnlyPrimitiveIds.Num()
+			);
+		}
+
+		// Create buffer from "hidden primitives" set
+		if (HiddenPrimitiveCount > 0)
+		{
+			TArray<uint32, SceneRenderingAllocator> HiddenPrimitiveIds;
+			HiddenPrimitiveIds.Reserve(FMath::RoundUpToPowerOfTwo(HiddenPrimitiveCount));
+
+			for (TSet<FPrimitiveComponentId>::TConstIterator It(SceneView.HiddenPrimitives); It; ++It)
+			{
+				HiddenPrimitiveIds.Add(It->PrimIDValue);
+			}
+
+			// Add extra entries to ensure the buffer is valid pow2 in size
+			HiddenPrimitiveIds.SetNumZeroed(FMath::RoundUpToPowerOfTwo(HiddenPrimitiveCount));
+
+			// Sort the buffer by ascending value so the GPU binary search works properly
+			Algo::Sort(HiddenPrimitiveIds);
+
+			CullingContext.HiddenPrimitivesBuffer = CreateUploadBuffer(
+				GraphBuilder,
+				TEXT("Nanite.HiddenPrimitivesBuffer"),
+				sizeof(uint32),
+				HiddenPrimitiveIds.Num(),
+				HiddenPrimitiveIds.GetData(),
+				sizeof(uint32) * HiddenPrimitiveIds.Num()
+			);
+		}
+
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NanitePrimitiveFilter);
+		FPrimitiveFilter_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrimitiveFilter_CS::FParameters>();
+
+		PassParameters->NumPrimitives = PrimitiveCount;
+		PassParameters->NumHiddenPrimitives = FMath::RoundUpToPowerOfTwo(HiddenPrimitiveCount);
+		PassParameters->NumShowOnlyPrimitives = FMath::RoundUpToPowerOfTwo(ShowOnlyPrimitiveCount);
+		PassParameters->GPUSceneParameters = GPUSceneParameters;
+		PassParameters->PrimitiveFilterBuffer = PrimitiveFilterBufferUAV;
+
+		if (CullingContext.HiddenPrimitivesBuffer != nullptr)
+		{
+			PassParameters->HiddenPrimitivesList = GraphBuilder.CreateSRV(CullingContext.HiddenPrimitivesBuffer, PF_R32_UINT);
+		}
+
+		if (CullingContext.ShowOnlyPrimitivesBuffer != nullptr)
+		{
+			PassParameters->ShowOnlyPrimitivesList = GraphBuilder.CreateSRV(CullingContext.ShowOnlyPrimitivesBuffer, PF_R32_UINT);
+		}
+
+		FPrimitiveFilter_CS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FPrimitiveFilter_CS::FHiddenPrimitivesListDim>(CullingContext.HiddenPrimitivesBuffer != nullptr);
+		PermutationVector.Set<FPrimitiveFilter_CS::FShowOnlyPrimitivesListDim>(CullingContext.ShowOnlyPrimitivesBuffer != nullptr);
+
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FPrimitiveFilter_CS>(PermutationVector);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("PrimitiveFilter"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCountWrapped(PrimitiveCount, 64)
+		);
+	}
+}
+
 void AddPass_InstanceHierarchyAndClusterCull(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -1360,6 +1538,11 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			PassParameters->OutStatsBuffer					= GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 		}
 
+		if (CullingContext.PrimitiveFilterBuffer)
+		{
+			PassParameters->InPrimitiveFilterBuffer			= GraphBuilder.CreateSRV(CullingContext.PrimitiveFilterBuffer);
+		}
+
 		check( CullingPass == CULLING_PASS_NO_OCCLUSION );
 		check( CullingContext.InstanceDrawsBuffer == nullptr );
 		PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV( MainAndPostNodesAndClusterBatchesBuffer );
@@ -1368,6 +1551,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		FInstanceCullVSM_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
+		PermutationVector.Set<FInstanceCullVSM_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCullVSM_CS::FUseCompactedViewsDim>(CVarCompactVSMViews.GetValueOnRenderThread() != 0);
 
@@ -1424,6 +1608,11 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( CullingContext.OccludedInstances );
 			PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( CullingContext.OccludedInstancesArgs );
 		}
+
+		if (CullingContext.PrimitiveFilterBuffer)
+		{
+			PassParameters->InPrimitiveFilterBuffer		= GraphBuilder.CreateSRV(CullingContext.PrimitiveFilterBuffer);
+		}
 		
 		check(CullingContext.ViewsBuffer);
 
@@ -1432,6 +1621,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
 		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
 		PermutationVector.Set<FInstanceCull_CS::FNearClipDim>(RasterState.bNearClip);
+		PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
 
@@ -2356,8 +2546,17 @@ void CullRasterize(
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 		MainAndPostCandididateClustersBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostCandididateClustersBuffer"));
 	}
-	
 
+	// Per-view primitive filtering
+	AddPass_PrimitiveFilter(
+		GraphBuilder,
+		Scene,
+		SceneView,
+		GPUSceneParameters,
+		SharedContext,
+		CullingContext
+	);
+	
 	// No Occlusion Pass / Occlusion Main Pass
 	AddPass_InstanceHierarchyAndClusterCull(
 		GraphBuilder,

@@ -156,6 +156,10 @@ int OnlyCastShadowsPrimitives;
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
 
+#if PRIMITIVE_FILTER
+Buffer<uint>							InPrimitiveFilterBuffer;
+#endif
+
 RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
 RWBuffer<uint>							OutOccludedInstancesArgs;
 RWByteAddressBuffer						OutMainAndPostNodesAndClusterBatches;
@@ -212,6 +216,15 @@ void InstanceCull(
 			return;
 		}
 #endif // DEBUG_FLAGS
+
+	#if PRIMITIVE_FILTER
+		BRANCH
+		if ((InPrimitiveFilterBuffer[InstanceData.PrimitiveId >> 5u] & BitFieldMaskU32(1u, InstanceData.PrimitiveId & 31u)) != 0u)
+		{
+			// Primitive has been filtered out
+			return;
+		}
+	#endif
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const bool bCastShadows = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
@@ -492,6 +505,18 @@ void InstanceCullVSM(
 		return;
 	}
 
+	// TODO: Implement bCastHiddenShadow
+	//const bool bCastHiddenShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) == 0u;
+
+#if PRIMITIVE_FILTER
+	BRANCH
+	if ((InPrimitiveFilterBuffer[InstanceData.PrimitiveId >> 5u] & BitFieldMaskU32(1u, InstanceData.PrimitiveId & 31u)) != 0u)
+	{
+		// Primitive has been filtered out
+		return;
+	}
+#endif
+
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	bool bCastShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 	
@@ -502,8 +527,9 @@ void InstanceCullVSM(
 	}
 
 	BRANCH
-	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) == 0u && !(RenderFlags & RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER))
+	if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags))
 	{
+		// Primitive is not visible - cull it
 		return;
 	}
 

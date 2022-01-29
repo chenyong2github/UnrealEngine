@@ -114,6 +114,7 @@ struct FPrimitiveSceneData
 	int			PersistentPrimitiveIndex;
 	uint		SingleCaptureIndex; // TODO: Use 16 bits? 8 bits?
 	float3		TilePosition;
+	uint		PrimitiveComponentId; // TODO: Refactor to use PersistentPrimitiveIndex, ENGINE USE ONLY - will be removed
 	FLWCMatrix	LocalToWorld;
 	FLWCInverseMatrix WorldToLocal;
 	FLWCMatrix	PreviousLocalToWorld;
@@ -155,6 +156,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.NumInstanceSceneDataEntries	= Primitive.NumInstanceSceneDataEntries;
 	PrimitiveData.SingleCaptureIndex			= Primitive.SingleCaptureIndex;
 	PrimitiveData.TilePosition					= Primitive.TilePosition;
+	PrimitiveData.PrimitiveComponentId			= Primitive.PrimitiveComponentId;
 	PrimitiveData.LocalToWorld					= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.LocalToRelativeWorld);
 	PrimitiveData.WorldToLocal					= MakeLWCInverseMatrix4x3(Primitive.TilePosition, Primitive.RelativeWorldToLocal);
 	PrimitiveData.PreviousLocalToWorld			= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.PreviousLocalToRelativeWorld);
@@ -261,7 +263,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceSceneDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
 	PrimitiveData.NumInstanceSceneDataEntries	= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
 	PrimitiveData.SingleCaptureIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
-	PrimitiveData.TilePosition					= TilePosition;
+	PrimitiveData.TilePosition					= TilePosition; // 1.xyz
+	PrimitiveData.PrimitiveComponentId			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1).w);
 	PrimitiveData.LocalToWorld					= MakeLWCMatrix4x3(TilePosition, LocalToWorld);
 	PrimitiveData.WorldToLocal					= MakeLWCInverseMatrix4x3(TilePosition, WorldToLocal);
 	PrimitiveData.PreviousLocalToWorld			= MakeLWCMatrix4x3(TilePosition, PreviousLocalToWorld);
