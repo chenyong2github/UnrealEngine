@@ -40,9 +40,9 @@ public:
 			FAnimatedPropertyKey::FromStructType(NAME_Vector),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
 #endif
-			FAnimatedPropertyKey::FromStructType(NAME_Vector2f),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector3f),
-			FAnimatedPropertyKey::FromStructType(NAME_Vector4f)
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4f),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector2D)
 		});
 	}
 
@@ -97,7 +97,6 @@ public:
 			FAnimatedPropertyKey::FromStructType(NAME_Vector),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
 #endif
-			FAnimatedPropertyKey::FromStructType(NAME_Vector2D),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector3d),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector4d)
 		});

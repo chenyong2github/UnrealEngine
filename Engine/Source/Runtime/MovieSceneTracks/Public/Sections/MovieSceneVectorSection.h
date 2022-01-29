@@ -40,10 +40,10 @@ template<> struct TStructOpsTypeTraits<FMovieSceneFloatVectorKeyStructBase> : pu
 
 
 /**
- * Proxy structure for 2f vector section key data.
+ * Proxy structure for 2D vector section key data.
  */
 USTRUCT()
-struct FMovieSceneVector2fKeyStruct
+struct FMovieSceneVector2DKeyStruct
 	: public FMovieSceneFloatVectorKeyStructBase
 {
 	GENERATED_BODY()
@@ -55,7 +55,7 @@ struct FMovieSceneVector2fKeyStruct
 	//~ FMovieSceneFloatVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
 };
-template<> struct TStructOpsTypeTraits<FMovieSceneVector2fKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector2fKeyStruct> { enum { WithCopy = false }; };
+template<> struct TStructOpsTypeTraits<FMovieSceneVector2DKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector2DKeyStruct> { enum { WithCopy = false }; };
 
 /**
 * Proxy structure for float vector section key data.
@@ -115,24 +115,6 @@ struct FMovieSceneDoubleVectorKeyStructBase
 	virtual double* GetPropertyChannelByIndex(int32 Index) PURE_VIRTUAL(FMovieSceneDoubleVectorKeyStructBase::GetPropertyChannelByIndex, return nullptr; );
 };
 template<> struct TStructOpsTypeTraits<FMovieSceneDoubleVectorKeyStructBase> : public TStructOpsTypeTraitsBase2<FMovieSceneDoubleVectorKeyStructBase> { enum { WithCopy = false, WithPureVirtual = true, }; };
-
-/**
- * Proxy structure for 2D vector section key data.
- */
-USTRUCT()
-struct FMovieSceneVector2DKeyStruct
-	: public FMovieSceneDoubleVectorKeyStructBase
-{
-	GENERATED_BODY()
-
-	/** They key's vector value. */
-	UPROPERTY(EditAnywhere, Category=Key)
-	FVector2D Vector = FVector2D::ZeroVector;
-
-	//~ FMovieSceneDoubleVectorKeyStructBase interface
-	virtual double* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }
-};
-template<> struct TStructOpsTypeTraits<FMovieSceneVector2DKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieSceneVector2DKeyStruct> { enum { WithCopy = false }; };
 
 /**
 * Proxy structure for double vector section key data.
