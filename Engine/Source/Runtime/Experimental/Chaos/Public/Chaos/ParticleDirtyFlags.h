@@ -9,6 +9,7 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "Chaos/KinematicTargets.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
@@ -357,7 +358,7 @@ public:
 		SetCollisionGroup(Other.CollisionGroup());
 		SetSleepType(Other.SleepType());
 		SetOneWayInteraction(Other.OneWayInteraction());
-		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
+		SetCollisionConstraintFlags(Other.CollisionConstraintFlags());
 		SetCCDEnabled(Other.CCDEnabled());
 		SetDisabled(Other.Disabled());
 	}
@@ -374,7 +375,7 @@ public:
 			&& CollisionGroup() == Other.CollisionGroup()
 			&& SleepType() == Other.SleepType()
 			&& OneWayInteraction() == Other.OneWayInteraction() 
-			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag()
+			&& CollisionConstraintFlags() == Other.CollisionConstraintFlags()
 			&& CCDEnabled() == Other.CCDEnabled()
 			&& Disabled() == Other.Disabled();
 	}
@@ -414,8 +415,11 @@ public:
 	ESleepType SleepType() const { return MSleepType; }
 	void SetSleepType(ESleepType Type) { MSleepType = Type; }
 
-	uint32 CollisionConstraintFlag() const { return MCollisionConstraintFlag; }
-	void SetCollisionConstraintFlag(uint32 InCollisionConstraintFlag) { MCollisionConstraintFlag = InCollisionConstraintFlag; }
+	uint32 CollisionConstraintFlags() const { return MCollisionConstraintFlag; }
+	void SetCollisionConstraintFlags(uint32 InCollisionConstraintFlag) { MCollisionConstraintFlag = InCollisionConstraintFlag; }
+	void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { MCollisionConstraintFlag |= uint32(Flag); }
+	void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { MCollisionConstraintFlag &= ~uint32(Flag); }
+	
 	bool OneWayInteraction() const { return MOneWayInteraction; }
 	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
 

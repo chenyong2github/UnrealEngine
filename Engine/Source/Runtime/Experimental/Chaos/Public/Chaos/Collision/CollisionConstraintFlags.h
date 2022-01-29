@@ -14,11 +14,14 @@
 
 namespace Chaos
 {
+	/**
+	 * @brief Flags for user-control over per-particle collision behaviour
+	*/
 	enum class ECollisionConstraintFlags : uint32
 	{
 		CCF_None                       = 0x0,
 		CCF_BroadPhaseIgnoreCollisions = 0x1,
-		CCF_DoBufferCollisions         = 0x2,
+		CCF_SmoothEdgeCollisions       = 0x2,
 		CCF_DummyFlag
 	};
 

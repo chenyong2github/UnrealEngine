@@ -832,7 +832,7 @@ protected:
 		: TKinematicGeometryParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TKinematicGeometryParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{
 		PBDRigidParticleDefaultConstruct<T, d>(*this, Params);
-		ClearCollisionConstraintFlag();
+		SetCollisionConstraintFlags(0);
 		SetDisabled(Params.bDisabled);
 		SetPreV(this->V());
 		SetPreW(this->W());
@@ -879,8 +879,8 @@ public:
 	bool HasCollisionConstraintFlag(const ECollisionConstraintFlags Flag) const { return  PBDRigidParticles->HasCollisionConstraintFlag(Flag, ParticleIdx); }
 	void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { PBDRigidParticles->AddCollisionConstraintFlag(Flag, ParticleIdx); }
 	void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag) { PBDRigidParticles->RemoveCollisionConstraintFlag(Flag, ParticleIdx); }
-	void ClearCollisionConstraintFlag() { PBDRigidParticles->ClearCollisionConstraintFlag(ParticleIdx); }
-	uint32 CollisionConstraintFlag() const { return PBDRigidParticles->CollisionConstraintFlag(ParticleIdx); }
+	void SetCollisionConstraintFlags(const uint32 Flags) { PBDRigidParticles->SetCollisionConstraintFlags(ParticleIdx, Flags); }
+	uint32 CollisionConstraintFlags() const { return PBDRigidParticles->CollisionConstraintFlags(ParticleIdx); }
 
 	bool Disabled() const { return PBDRigidParticles->Disabled(ParticleIdx); }
 	bool& Disabled() { return PBDRigidParticles->DisabledRef(ParticleIdx); }
@@ -2441,10 +2441,22 @@ public:
 		MMiscData.Modify(true, MDirtyFlags, Proxy, [InOneWayInteraction](auto& Data) { Data.SetOneWayInteraction(InOneWayInteraction); });
 	}
 
-	uint32 CollisionConstraintFlag() const { return MMiscData.Read().CollisionConstraintFlag(); }
-	void SetCollisionConstraintFlag(const uint32 InCollisionConstraintFlag)
-	{
-		MMiscData.Modify(true, MDirtyFlags, Proxy, [InCollisionConstraintFlag](auto& Data) { Data.SetCollisionConstraintFlag(InCollisionConstraintFlag); });
+	// Enable a single flag
+	void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag)
+	{ 
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [Flag](auto& Data) { Data.AddCollisionConstraintFlag(Flag); });
+	}
+	// Disable a single flag
+	void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag)
+	{ 
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [Flag](auto& Data) { Data.RemoveCollisionConstraintFlag(Flag); });
+	}
+	// A mask of all the active flags
+	uint32 CollisionConstraintFlags() const { return MMiscData.Read().CollisionConstraintFlags(); }
+	// Replace all flags
+	void SetCollisionConstraintFlags(const uint32 Flags)
+	{ 
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [Flags](auto& Data) { Data.SetCollisionConstraintFlags(Flags); });
 	}
 
 	bool CCDEnabled() const { return MMiscData.Read().CCDEnabled(); }

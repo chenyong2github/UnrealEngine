@@ -1217,6 +1217,7 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 		FPhysicsInterface::SetIsKinematic_AssumesLocked(Instance->ActorHandle, !Instance->ShouldInstanceSimulatingPhysics());
 #if WITH_CHAOS
 		FPhysicsInterface::SetMaxLinearVelocity_AssumesLocked(Instance->ActorHandle, TNumericLimits<float>::Max());
+		FPhysicsInterface::SetSmoothEdgeCollisionsEnabled(Instance->ActorHandle, Instance->bSmoothEdgeCollisions);
 #endif
 
 		// Set sleep even notification
@@ -3675,6 +3676,25 @@ void FBodyInstance::SetContactModification(bool bNewContactModification)
 		UpdatePhysicsFilterData();
 	}
 }
+
+void FBodyInstance::SetSmoothEdgeCollisionsEnabled(bool bNewSmoothEdgeCollisions)
+{
+	if (bNewSmoothEdgeCollisions != bSmoothEdgeCollisions)
+	{
+		bSmoothEdgeCollisions = bNewSmoothEdgeCollisions;
+#if WITH_CHAOS
+		FPhysicsCommand::ExecuteWrite(ActorHandle, 
+			[bNewSmoothEdgeCollisions](const FPhysicsActorHandle& Actor)
+			{
+				if (FPhysicsInterface::IsRigidBody(Actor))
+				{
+					FPhysicsInterface::SetSmoothEdgeCollisionsEnabled(Actor, bNewSmoothEdgeCollisions);
+				}
+			});
+#endif
+	}
+}
+
 
 void FBodyInstance::SetUseCCD(bool bInUseCCD)
 {

@@ -187,18 +187,6 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(FPBDRigidsSolver* In
 						}
 					}
 				}
-
-				// Contact transfer enables buffered collision constraints on the child of the joint
-				if (Handle0)
-				{
-					if (Chaos::TPBDRigidParticleHandle<FReal, 3>*RigidHandle0 = Handle0->CastToRigidParticle())
-					{
-						if (!FMath::IsNearlyZero(CurrentConstraintSettings.ContactTransferScale))
-						{
-							RigidHandle0->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_DoBufferCollisions);
-						}
-					}
-				}
 			}
 
 			Constraint_PT->SetSettings(JointSettingsBuffer);

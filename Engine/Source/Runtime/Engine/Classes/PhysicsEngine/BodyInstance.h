@@ -339,6 +339,13 @@ public:
 	/**	Enable contact modification. Assumes custom contact modification has been provided (see FPhysXContactModifyCallback) */
 	uint8 bContactModification : 1;
 
+	/**
+	 * Remove unnecessary edge collisions to allow smooth sliding over surfaces composed of multiple actors/components.
+	 * This is fairly expensive and should only be enabled on hero objects. 
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Collision)
+	uint8 bSmoothEdgeCollisions : 1;
+
 	/////////
 	// SIM SETTINGS
 
@@ -801,6 +808,8 @@ public:
 	void SetEnableGravity(bool bGravityEnabled);
 	/** Enables/disables contact modification */
 	void SetContactModification(bool bNewContactModification);
+	/** Enables/disabled smoothed edge collisions */
+	void SetSmoothEdgeCollisionsEnabled(bool bNewSmoothEdgeCollisions);
 
 	/** Enable/disable Continuous Collidion Detection feature */
 	void SetUseCCD(bool bInUseCCD);

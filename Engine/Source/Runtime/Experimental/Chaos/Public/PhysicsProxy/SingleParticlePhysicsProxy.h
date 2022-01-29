@@ -1157,6 +1157,22 @@ public:
 		}
 	}
 
+	void SetSmoothEdgeCollisionsEnabled(bool bEnabled)
+	{
+		VerifyContext();
+		if (TPBDRigidParticle<FReal, 3>*Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			if (bEnabled)
+			{
+				Rigid->AddCollisionConstraintFlag(ECollisionConstraintFlags::CCF_SmoothEdgeCollisions);
+			}
+			else
+			{
+				Rigid->RemoveCollisionConstraintFlag(ECollisionConstraintFlags::CCF_SmoothEdgeCollisions);
+			}
+		}
+	}
+
 	void SetCCDEnabled(bool bEnabled)
 	{
 		VerifyContext();

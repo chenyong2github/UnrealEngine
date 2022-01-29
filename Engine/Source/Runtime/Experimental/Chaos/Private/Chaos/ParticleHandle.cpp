@@ -314,7 +314,7 @@ namespace Chaos
 		SetCCDEnabled(DynamicMisc.CCDEnabled());
 		SetDisabled(DynamicMisc.Disabled());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
-		AddCollisionConstraintFlag((Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag());
+		SetCollisionConstraintFlags(DynamicMisc.CollisionConstraintFlags());
 
 		Evolution.SetParticleObjectState(this, DynamicMisc.ObjectState());
 		Evolution.SetParticleSleepType(this, DynamicMisc.SleepType());

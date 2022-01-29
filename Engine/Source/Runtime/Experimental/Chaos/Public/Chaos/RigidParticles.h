@@ -219,8 +219,8 @@ public:
 	FORCEINLINE bool HasCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) const { return (MCollisionConstraintFlags[Index] & (uint32)Flag) != 0; }
 	FORCEINLINE void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) { MCollisionConstraintFlags[Index] |= (uint32)Flag; }
 	FORCEINLINE void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) { MCollisionConstraintFlags[Index] &= ~(uint32)Flag; }
-	FORCEINLINE void ClearCollisionConstraintFlag(const int32 Index) { MCollisionConstraintFlags[Index] = (uint32)ECollisionConstraintFlags::CCF_None; }
-	FORCEINLINE uint32 CollisionConstraintFlag(const int32 Index) const { return MCollisionConstraintFlags[Index]; }
+	FORCEINLINE void SetCollisionConstraintFlags(const int32 Index, const uint32 Flags) { MCollisionConstraintFlags[Index] = Flags; }
+	FORCEINLINE uint32 CollisionConstraintFlags(const int32 Index) const { return MCollisionConstraintFlags[Index]; }
 
 	FORCEINLINE const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
 
