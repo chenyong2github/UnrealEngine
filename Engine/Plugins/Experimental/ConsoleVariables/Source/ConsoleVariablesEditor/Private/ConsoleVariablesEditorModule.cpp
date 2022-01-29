@@ -220,14 +220,14 @@ FReply FConsoleVariablesEditorModule::ValidateConsoleInputAndAddToCurrentPreset(
 	return MainPanel->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
 }
 
+void FConsoleVariablesEditorModule::RebuildList(const FString InConsoleCommandToScrollTo, bool bShouldCacheValues) const
+{
+	MainPanel->RebuildList(InConsoleCommandToScrollTo, bShouldCacheValues);
+}
+
 void FConsoleVariablesEditorModule::RefreshList() const
 {
 	MainPanel->RefreshList();
-}
-
-void FConsoleVariablesEditorModule::RebuildList() const
-{
-	MainPanel->RebuildList();
 }
 
 void FConsoleVariablesEditorModule::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset)

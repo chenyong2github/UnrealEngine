@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorListRow.h"
 #include "ConsoleVariablesEditorListFilters/IConsoleVariablesEditorListFilter.h"
 
@@ -44,8 +45,11 @@ public:
 	/** Remove all widgets from the global search container then recreate them */
 	void RefreshGlobalSearchWidgets();
 
-	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
-	void RebuildList(const FString& InConsoleCommandToScrollTo = "");
+	/*
+	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
+	 * @param bShouldCacheValues If true, the current list's current values will be cached and then restored when the list is rebuilt. Otherwise preset values will be used.
+	 */
+	void RebuildList(const FString& InConsoleCommandToScrollTo = "", bool bShouldCacheValues = true);
 
 	/**
 	 * Refresh filters and sorting.
@@ -146,7 +150,9 @@ private:
 
 	//  Tree View Implementation
 
-	void GenerateTreeView();
+	void CacheCurrentListItemData();
+	void RestorePreviousListItemData();
+	void GenerateTreeView(const bool bExecuteCommandsAsTheyAreLoaded = true);
 	void FindVisibleTreeViewObjects();
 	void FindVisibleObjectsAndRequestTreeRefresh();
 	
@@ -167,6 +173,9 @@ private:
 	 * This way they can be recalled without rebuilding from the saved commands
 	 */
 	TArray<FConsoleVariablesEditorListRowPtr> LastPresetObjects;
+
+	/** A collection of list item data to save and restore when rebuilding the list. */
+	TArray<FConsoleVariablesEditorAssetSaveData> CachedCommandStates;
 
 	// Sorting
 

@@ -312,7 +312,7 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 	const bool bIsGlobalSearch =
 		ListMode == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch;
 
-	const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
 	const FString& CommandName = GetCommandInfo().Pin()->Command;
 

@@ -24,11 +24,11 @@ void FConsoleVariablesEditorList::SetSearchString(const FString& SearchString)
 	ListWidget->SetSearchStringInSearchInputField(SearchString);
 }
 
-void FConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo, bool bShouldCacheValues) const
 {
 	if (ListWidget.IsValid())
 	{
-		ListWidget->RebuildList(InConsoleCommandToScrollTo);
+		ListWidget->RebuildList(InConsoleCommandToScrollTo, bShouldCacheValues);
 	}
 }
 

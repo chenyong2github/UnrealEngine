@@ -40,8 +40,11 @@ public:
 		CurrentListMode = NewListMode;;
 	}
 
-	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
-	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;
+	/*
+	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
+	 * @param bShouldCacheValues If true, the current list's current values will be cached and then restored when the list is rebuilt. Otherwise preset values will be used.
+	 */
+	void RebuildList(const FString& InConsoleCommandToScrollTo = "", bool bShouldCacheValues = true) const;
 
 	/**
 	 * Refresh filters and sorting.

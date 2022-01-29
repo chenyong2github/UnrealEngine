@@ -64,9 +64,7 @@ bool UConsoleVariablesEditorFunctionLibrary::AddValidatedCommandToCurrentPreset(
 
 bool UConsoleVariablesEditorFunctionLibrary::RemoveCommandFromCurrentPreset(const FString NewCommand)
 {
-	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
-	
-	ConsoleVariablesEditorModule.UpdatePresetValuesForSave(GetCurrentlyLoadedPreset());
+	const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 	
 	if (const bool bSuccess = GetCurrentlyLoadedPreset()->RemoveConsoleVariable(NewCommand))
 	{

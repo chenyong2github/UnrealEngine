@@ -58,8 +58,6 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToCurrentPreset(
 {
 	if (const TObjectPtr<UConsoleVariablesAsset> Asset = GetEditingAsset())
 	{
-		UpdatePresetValuesForSave(Asset);
-		
 		Asset->AddOrSetConsoleObjectSavedData(
 			{
 				InConsoleCommand,
@@ -139,7 +137,7 @@ FReply FConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPres
 	return FReply::Handled();
 }
 
-void FConsoleVariablesEditorMainPanel::RebuildList(const FString InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorMainPanel::RebuildList(const FString InConsoleCommandToScrollTo, bool bShouldCacheValues) const
 {
 	if (EditorList.IsValid())
 	{
@@ -246,7 +244,7 @@ void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAs
 	{
 		if (const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset(); ImportPreset_Impl(Preset, EditingAsset))
 		{
-			EditorList->RebuildList();
+			EditorList->RebuildList("", false);
 		}
 	}
 }
@@ -257,7 +255,7 @@ void FConsoleVariablesEditorMainPanel::ImportPreset(const TObjectPtr<UConsoleVar
 
 	if (const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset(); ImportPreset_Impl(InPreset, EditingAsset))
 	{
-		EditorList->RebuildList();
+		EditorList->RebuildList("", false);
 	}
 }
 

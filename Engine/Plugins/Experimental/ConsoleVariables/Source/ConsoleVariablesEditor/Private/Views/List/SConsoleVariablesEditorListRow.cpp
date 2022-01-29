@@ -465,7 +465,8 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 				TObjectPtr<UConsoleVariablesAsset> Asset =
 					ListModel.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
 						ConsoleVariablesEditorModule.GetPresetAsset() : ConsoleVariablesEditorModule.GetGlobalSearchAsset();
-				
+
+				// todo: Need to update JUST the
 				PinnedListView->UpdatePresetValuesForSave(Asset);
 			}
 		}

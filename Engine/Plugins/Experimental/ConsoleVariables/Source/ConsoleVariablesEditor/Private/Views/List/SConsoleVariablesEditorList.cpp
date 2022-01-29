@@ -2,7 +2,6 @@
 
 #include "SConsoleVariablesEditorList.h"
 
-#include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorList.h"
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ModifiedVariables.h"
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SourceText.h"
@@ -385,9 +384,20 @@ void SConsoleVariablesEditorList::RefreshGlobalSearchWidgets()
 	}
 }
 
-void SConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo)
+void SConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo, bool bShouldCacheValues)
 {
-	GenerateTreeView();
+	if (bShouldCacheValues)
+	{
+		CacheCurrentListItemData();
+	}
+
+	// Skip execution on load if we've cached the previous values
+	GenerateTreeView(!bShouldCacheValues);
+
+	if (bShouldCacheValues)
+	{
+		RestorePreviousListItemData();
+	}
 
 	RefreshList();
 
@@ -974,7 +984,61 @@ void SConsoleVariablesEditorList::OnListViewSearchTextChanged(const FText& Text)
 	ExecuteListViewSearchOnAllRows(Text.ToString(), false);
 }
 
-void SConsoleVariablesEditorList::GenerateTreeView()
+void SConsoleVariablesEditorList::CacheCurrentListItemData()
+{
+	CachedCommandStates.Empty();
+
+	// We only want preset items, not global search
+	const TArray<FConsoleVariablesEditorListRowPtr>& ListItems =
+		ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
+			TreeViewRootObjects : LastPresetObjects;
+
+	for (const TSharedPtr<FConsoleVariablesEditorListRow>& Item : ListItems)
+	{
+		if (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo = Item->GetCommandInfo().Pin())
+		{
+			if (const IConsoleVariable* AsVariable = CommandInfo->GetConsoleVariablePtr())
+			{
+				CachedCommandStates.Add(
+					{
+						CommandInfo->Command,
+						AsVariable->GetString(),
+						Item->GetWidgetCheckedState()
+					}
+				);
+			}
+		}
+	}
+}
+
+void SConsoleVariablesEditorList::RestorePreviousListItemData()
+{
+	for (const TSharedPtr<FConsoleVariablesEditorListRow>& Item : TreeViewRootObjects)
+	{
+		if (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo = Item->GetCommandInfo().Pin())
+		{
+			if (CommandInfo->GetConsoleVariablePtr())
+			{
+				const FString& CommandName = CommandInfo->Command;
+				
+				if (const FConsoleVariablesEditorAssetSaveData* Match = Algo::FindByPredicate(
+					CachedCommandStates,
+					[CommandName](const FConsoleVariablesEditorAssetSaveData& CachedData)
+					{
+						return CachedData.CommandName.Equals(CommandName);
+					}))
+				{
+					CommandInfo->ExecuteCommand((*Match).CommandValueAsString);
+					Item->SetWidgetCheckedState((*Match).CheckedState);
+				}
+			}
+		}
+	}
+
+	CachedCommandStates.Empty();
+}
+
+void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAsTheyAreLoaded)
 {	
 	if (!ensure(TreeViewPtr.IsValid()))
 	{
@@ -1036,7 +1100,8 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 					SavedCommand.CheckedState == ECheckBoxState::Unchecked ?
 							ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 
-				if (ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
+				if (bExecuteCommandsAsTheyAreLoaded &&
+					ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
 				{
 					// If the row is checked and the saved value differs from the current value,
 					// execute the command with the saved value 
