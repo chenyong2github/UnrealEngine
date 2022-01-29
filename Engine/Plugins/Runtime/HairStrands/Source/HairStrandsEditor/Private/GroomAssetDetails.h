@@ -52,7 +52,7 @@ private:
 	int32 GetGroupCount() const;
 	FName GetGroupName(int32 GroupIndex) const;
 
-	void AddNewGroupButton(IDetailCategoryBuilder& StrandsGroupFilesCategory, FProperty* Property);
+	void AddNewGroupButton(IDetailCategoryBuilder& StrandsGroupFilesCategory, FProperty* Property, const FText& HeaderText);
 
 	void ApplyChanges();
 	void SetMaterialSlot(int32 GroupIndex, int32 MaterialIndex);
