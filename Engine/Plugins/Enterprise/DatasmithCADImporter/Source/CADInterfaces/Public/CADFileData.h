@@ -69,11 +69,7 @@ public:
 
 	const FString GetBodyCachePath(uint32 BodyHash) const
 	{
-		if (IsCacheDefined())
-		{
-			return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
-		}
-		return FString();
+		return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
 	}
 
 	/**

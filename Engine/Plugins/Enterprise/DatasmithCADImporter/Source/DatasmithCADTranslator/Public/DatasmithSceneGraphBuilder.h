@@ -56,6 +56,7 @@ class DATASMITHCADTRANSLATOR_API FDatasmithSceneBaseGraphBuilder
 public:
 	FDatasmithSceneBaseGraphBuilder(
 		CADLibrary::FArchiveSceneGraph* InSceneGraph,
+		const FString& InCachePath,
 		TSharedRef<IDatasmithScene> InScene, 
 		const FDatasmithSceneSource& InSource, 
 		const CADLibrary::FImportParameters& InImportParameters);
@@ -83,6 +84,7 @@ protected:
 
 protected:
 	CADLibrary::FArchiveSceneGraph* SceneGraph;
+	const FString& CachePath;
 	TSharedRef<IDatasmithScene> DatasmithScene;
 	const CADLibrary::FImportParameters& ImportParameters;
 	const uint32 ImportParametersHash;
@@ -125,9 +127,5 @@ public:
 	void FillAnchorActor(const TSharedRef< IDatasmithActorElement >& ActorElement, const FString& CleanFilenameOfCADFile);
 
 protected:
-	virtual TSharedPtr< IDatasmithMeshElement > FindOrAddMeshElement(CADLibrary::FArchiveBody& Body, FString& InLabel);
-
-protected:
 	TMap<uint32, FString>& CADFileToSceneGraphDescriptionFile;
-	const FString& CachePath;
 };

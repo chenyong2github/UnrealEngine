@@ -172,14 +172,14 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		return true;
 	}
 
-	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescriptor, *FPaths::EnginePluginsDir());
+	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescriptor, *FPaths::EnginePluginsDir(), CachePath);
 	if (FileReader.ProcessFile() != CADLibrary::ECADParsingResult::ProcessOk)
 	{
 		return false;
 	}
 
 	CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
-	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&CADFileData.GetSceneGraphArchive(), DatasmithScene, GetSource(), ImportParameters);
+	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&CADFileData.GetSceneGraphArchive(), CachePath, DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
 
 	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileData.GetBodyMeshes(), ImportParameters);

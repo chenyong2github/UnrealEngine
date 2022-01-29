@@ -77,9 +77,8 @@ FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(
 	TSharedRef<IDatasmithScene> InScene, 
 	const FDatasmithSceneSource& InSource, 
 	const CADLibrary::FImportParameters& InImportParameters)
-		: FDatasmithSceneBaseGraphBuilder(nullptr, InScene, InSource, InImportParameters)
+		: FDatasmithSceneBaseGraphBuilder(nullptr, InCachePath, InScene, InSource, InImportParameters)
 		, CADFileToSceneGraphDescriptionFile(InCADFileToUnrealFileMap)
-		, CachePath(InCachePath)
 {
 }
 
@@ -163,20 +162,9 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	ActorElement->SetLabel(*ActorLabel);
 }
 
-TSharedPtr<IDatasmithMeshElement> FDatasmithSceneGraphBuilder::FindOrAddMeshElement(CADLibrary::FArchiveBody & Body, FString & InLabel)
-{
-	if (TSharedPtr<IDatasmithMeshElement> MeshElement = FDatasmithSceneBaseGraphBuilder::FindOrAddMeshElement(Body, InLabel))
-	{
-		FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorName);
-		MeshElement->SetFile(*BodyCachePath);
-		return MeshElement;
-	}
-
-	return TSharedPtr<IDatasmithMeshElement>();
-}
-
-FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FArchiveSceneGraph* InSceneGraph, TSharedRef<IDatasmithScene> InScene, const FDatasmithSceneSource& InSource, const CADLibrary::FImportParameters& InImportParameters)
+FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FArchiveSceneGraph* InSceneGraph, const FString& InCachePath,  TSharedRef<IDatasmithScene> InScene, const FDatasmithSceneSource& InSource, const CADLibrary::FImportParameters& InImportParameters)
 	: SceneGraph(InSceneGraph)
+	, CachePath(InCachePath)
 	, DatasmithScene(InScene)
 	, ImportParameters(InImportParameters)
 	, ImportParametersHash(ImportParameters.GetHash())
@@ -576,6 +564,9 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMe
 	DatasmithScene->AddMesh(MeshElement);
 
 	BodyUuidToMeshElement.Add(Body.MeshActorName, MeshElement);
+
+	FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorName);
+	MeshElement->SetFile(*BodyCachePath);
 
 	return MeshElement;
 }

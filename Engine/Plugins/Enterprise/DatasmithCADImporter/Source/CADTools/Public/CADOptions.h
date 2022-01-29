@@ -212,7 +212,7 @@ namespace CADLibrary
 
 		if (FImportParameters::bGDisableCADKernelTessellation)
 		{
-			OutFileName += TEXT(".ct");
+			OutFileName += GCADLibrary.Equals("TechSoft") ? TEXT(".hsf") : TEXT(".ct");
 		}
 		else
 		{

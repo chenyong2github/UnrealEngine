@@ -33,6 +33,12 @@ void FDatasmithCADTranslatorModule::StartupModule()
 		CADLibrary::FImportParameters::bGEnableCADCache = false; // very weak protection: user could turn that on later, while the cache path is invalid
 	}
 
+	// Create body cache directory since this one is used even if bGEnableCADCache is false
+	if (!CacheDir.IsEmpty())
+	{
+		IFileManager::Get().MakeDirectory(*FPaths::Combine(CacheDir, TEXT("body")), true);
+	}
+
 	Datasmith::RegisterTranslator<FDatasmithCADTranslator>();
 }
 

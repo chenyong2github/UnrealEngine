@@ -11,8 +11,6 @@
 
 #include "TUniqueTechSoftObj.h"
 
-#define NEW_CODE
-
 typedef void A3DAsmModelFile;
 typedef void A3DAsmPartDefinition;
 typedef void A3DAsmProductOccurrence;
@@ -160,20 +158,15 @@ private:
 	bool IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet);
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
-	void TraversePrototype(const A3DAsmProductOccurrence* Prototype, FArchiveComponent& Component);
 	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, A3DMiscTransformation** OutLocation);
-	void ProcessOccurrence(TUniqueTSObj<A3DAsmProductOccurrenceData>& Occurrence, FArchiveComponent& Component);
 	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component);
 	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, FEntityMetaData& PartMetaData);
 	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, FEntityMetaData& PartMetaData);
 	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, FEntityMetaData& PartMetaData);
-	FCadId TraversePolyBRepModel(const A3DRiPolyBrepModel* PolygonalBrepModel, FEntityMetaData& PartMetaData);
+	FCadId TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalBrepModel, FEntityMetaData& PartMetaData);
 
 	// Tessellation methods
-	void MeshRepresentationWithTechSoft(A3DRiRepresentationItem* RepresentationItem, FArchiveBody& Body);
-	void TraverseRepresentationContent(const A3DRiRepresentationItem* RepresentationItem, FArchiveBody& Body);
-	void TraverseTessellationBase(const A3DTessBase* Tessellation, FArchiveBody& Body);
-	void TraverseTessellation3D(const A3DTess3D* Tessellation, FArchiveBody& Body);
+	void GenerateBodyMeshes();
 
 	// MetaData
 	void ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
@@ -218,7 +211,7 @@ private:
 	FArchiveUnloadedComponent& AddUnloadedComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
 	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FEntityMetaData& ReferenceMetaData, FCadId& OutComponentId);
 	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FCadId& OutComponentId);
-	FArchiveBody& AddBody(FEntityMetaData& BodyMetaData);
+	int32 AddBody(FEntityMetaData& BodyMetaData);
 #endif
 
 private:
@@ -236,75 +229,27 @@ private:
 	FCadId LastEntityId = 1;
 
 	// 
-	TMap<const A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
+	TMap<A3DRiRepresentationItem*, int32> RepresentationItemsCache;
 };
 
 namespace TechSoftFileParserImpl
 {
-// Methodes used by TraverseTessellation3D
-
-typedef double A3DDouble;
-inline bool AddFace(int32 FaceIndex[3], CADLibrary::FTessellationData& Tessellation, int32& InOutVertexIndex)
-{
-	if (FaceIndex[0] == FaceIndex[1] || FaceIndex[0] == FaceIndex[2] || FaceIndex[1] == FaceIndex[2])
-	{
-		return false;
-	}
-
-	for (int32 Index = 0; Index < 3; ++Index)
-	{
-		Tessellation.VertexIndices.Add(InOutVertexIndex++);
-	}
-	Tessellation.PositionIndices.Append(FaceIndex, 3);
-	return true;
-};
-
-inline void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector>& TessellationNormals)
-{
-	for (int32 Index = 0; Index < 3; ++Index)
-	{
-		int32 NormalIndex = Indices[Index];
-		TessellationNormals.Emplace(Normals[NormalIndex], Normals[NormalIndex + 1], Normals[NormalIndex + 2]);
-	}
-};
-
-inline void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2D>& TessellationTextures)
-{
-	for (int32 Index = 0; Index < 3; ++Index)
-	{
-		int32 TextureIndex = Indices[Index];
-		TessellationTextures.Emplace(TextureCoords[TextureIndex], TextureCoords[TextureIndex + 1]);
-	}
-};
-
-inline void Reserve(CADLibrary::FTessellationData& Tessellation, int32 InTrinangleCount, bool bWithTexture)
-{
-	Tessellation.PositionIndices.Reserve(3 * InTrinangleCount);
-	Tessellation.VertexIndices.Reserve(3 * InTrinangleCount);
-	Tessellation.NormalArray.Reserve(3 * InTrinangleCount);
-	if (bWithTexture)
-	{
-		Tessellation.TexCoordArray.Reserve(3 * InTrinangleCount);
-	}
-};
-
 #ifdef USE_TECHSOFT_SDK
-inline FColor GetColorAt(uint32 ColorIndex)
-{
-	TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
-	if (ColorData.IsValid())
+	inline FColor GetColorAt(uint32 ColorIndex)
 	{
-		return FColor((uint8)(ColorData->m_dRed * 255)
-			, (uint8)(ColorData->m_dGreen * 255)
-			, (uint8)(ColorData->m_dBlue * 255));
+		TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
+		if (ColorData.IsValid())
+		{
+			return FColor((uint8)(ColorData->m_dRed * 255)
+				, (uint8)(ColorData->m_dGreen * 255)
+				, (uint8)(ColorData->m_dBlue * 255));
+		}
+		else
+		{
+			return FColor(200, 200, 200);
+		}
 	}
-	else
-	{
-		return FColor(200, 200, 200);
-	}
-}
 #endif
-
 } // ns TechSoftFileParserImpl
 
 } // ns CADLibrary

@@ -4,11 +4,14 @@
 
 #include "TechSoftInterface.h"
 
+#include "CADOptions.h"
 #include "CADInterfacesModule.h"
+
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
 #include "TUniqueTechSoftObj.h"
 
+#include "TechSoftInterfaceUtils.inl"
 
 namespace CADLibrary
 {
@@ -62,6 +65,146 @@ bool FTechSoftInterface::InitializeKernel(const TCHAR* InEnginePluginsPath)
 	return bIsInitialize;
 #else
 	return false;
+#endif
+}
+
+void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filename)
+{
+	if (!BodyPtr)
+	{
+		return;
+	}
+
+#ifdef USE_TECHSOFT_SDK
+	A3DRiRepresentationItem* RepresentationItem = (A3DRiRepresentationItem*)BodyPtr;
+	A3DAsmPartDefinition* PartDefinition = nullptr;
+
+	A3DAsmPartDefinitionData PartDefinitionData;
+	A3D_INITIALIZE_DATA(A3DAsmPartDefinitionData, PartDefinitionData);
+
+	PartDefinitionData.m_uiRepItemsSize = 1;
+	PartDefinitionData.m_ppRepItems = &RepresentationItem;
+
+	A3DAsmPartDefinitionCreate(&PartDefinitionData, &PartDefinition);
+
+	A3DAsmProductOccurrence* ProductOccurrence = nullptr;
+
+	A3DAsmProductOccurrenceData ProductOccurrenceData;
+	A3D_INITIALIZE_DATA(A3DAsmProductOccurrenceData, ProductOccurrenceData);
+
+	ProductOccurrenceData.m_pPart = PartDefinition;
+
+	A3DInt32 iRet = A3DAsmProductOccurrenceCreate(&ProductOccurrenceData, &ProductOccurrence);
+
+	A3DAsmModelFile* ModelFile = nullptr;
+
+	A3DAsmModelFileData ModelFileData;
+	A3D_INITIALIZE_DATA(A3DAsmModelFileData, ModelFileData);
+
+	ModelFileData.m_uiPOccurrencesSize = 1;
+	ModelFileData.m_dUnit = 1.0;
+	ModelFileData.m_ppPOccurrences = &ProductOccurrence;
+
+	A3DAsmModelFileCreate(&ModelFileData, &ModelFile);
+
+	A3DRWParamsExportPrcData sParamsExportData;
+	A3D_INITIALIZE_DATA(A3DRWParamsExportPrcData, sParamsExportData);
+
+	sParamsExportData.m_bCompressBrep = false;
+	sParamsExportData.m_bCompressTessellation = false;
+
+	A3DUTF8Char HsfFileName[_MAX_PATH];
+	FCStringAnsi::Strncpy(HsfFileName, TCHAR_TO_UTF8(*Filename), _MAX_PATH);
+
+	iRet = A3DAsmModelFileExportToPrcFile(ModelFile, &sParamsExportData, HsfFileName, nullptr);
+
+	// #ueent_techsoft: Deleting the model seems to delete the entire content. To be double-checked
+	A3DEntityDelete(ModelFile);
+#endif
+}
+
+bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
+{
+#ifdef USE_TECHSOFT_SDK
+	A3DRWParamsPrcReadHelper* ReadHelper = nullptr;
+	A3DAsmModelFile* ModelFile = nullptr;
+
+	A3DInt32 iRet = A3DAsmModelFileLoadFromPrcFile(TCHAR_TO_UTF8(*Filename), &ReadHelper, &ModelFile);
+
+	if (iRet != A3D_SUCCESS || !ModelFile)
+	{
+		return false;
+	}
+
+	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile);
+	if (!ModelFileData.IsValid() || ModelFileData->m_uiPOccurrencesSize == 0)
+	{
+		return false;
+	}
+
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurenceData(ModelFileData->m_ppPOccurrences[0]);
+	if (!OccurenceData.IsValid() || !OccurenceData->m_pPart)
+	{
+		return false;
+	}
+
+	TUniqueTSObj<A3DAsmPartDefinitionData> PartDefinitionData(OccurenceData->m_pPart);
+	if (!PartDefinitionData.IsValid() || PartDefinitionData->m_uiRepItemsSize == 0)
+	{
+		return false;
+	}
+
+	return FillBodyMesh(PartDefinitionData->m_ppRepItems[0], ImportParameters, FileUnit, BodyMesh);
+#else
+	return false;
+#endif
+}
+
+bool FTechSoftInterface::FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
+{
+#ifdef USE_TECHSOFT_SDK
+	A3DRiRepresentationItem* RepresentationItemPtr = (A3DRiRepresentationItem*)BodyPtr;
+
+	A3DEEntityType Type;
+	A3DEntityGetType(RepresentationItemPtr, &Type);
+	if (Type == kA3DTypeRiPolyBrepModel)
+	{
+		TUniqueTSObj<A3DRiRepresentationItemData> RepresentationItemData(RepresentationItemPtr);
+		TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
+		return Extractor.FillBodyMesh(BodyMesh, FileUnit);
+	}
+
+	TUniqueTSObj<A3DRiRepresentationItemData> RepresentationItemData;
+
+	// TUniqueTechSoftObj does not work in this case
+	A3DRWParamsTessellationData TessellationParameters;
+	A3D_INITIALIZE_DATA(A3DRWParamsTessellationData, TessellationParameters);
+
+	TessellationParameters.m_eTessellationLevelOfDetail = kA3DTessLODUserDefined; // Enum to specify predefined values for some following members.
+	TessellationParameters.m_bUseHeightInsteadOfRatio = A3D_TRUE;
+	TessellationParameters.m_dMaxChordHeight = ImportParameters.GetChordTolerance() * 10. / FileUnit;
+	TessellationParameters.m_dAngleToleranceDeg = ImportParameters.GetMaxNormalAngle();
+	TessellationParameters.m_dMaximalTriangleEdgeLength = 0; //ImportParameters.MaxEdgeLength;
+
+	TessellationParameters.m_bAccurateTessellation = A3D_FALSE;  // A3D_FALSE' indicates the tessellation is set for visualization
+	TessellationParameters.m_bAccurateTessellationWithGrid = A3D_FALSE; // Enable accurate tessellation with faces inner points on a grid.
+	TessellationParameters.m_dAccurateTessellationWithGridMaximumStitchLength = 0; 	// Maximal grid stitch length. Disabled if value is 0. Be careful, a too small value can generate a huge tessellation.
+
+	TessellationParameters.m_bKeepUVPoints = A3D_TRUE; // Keep parametric points as texture points.
+
+	// Get the tessellation
+	A3DStatus Status = A3DRiRepresentationItemComputeTessellation(RepresentationItemPtr, &TessellationParameters);
+	Status = A3DRiRepresentationItemGet(RepresentationItemPtr, RepresentationItemData.GetEmptyDataPtr());
+
+	{
+		A3DEntityGetType(RepresentationItemData->m_pTessBase, &Type);
+		ensure(Type == kA3DTypeTess3D);
+	}
+
+	TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
+	return Extractor.FillBodyMesh(BodyMesh, FileUnit);
+#else
+return false;
 #endif
 }
 

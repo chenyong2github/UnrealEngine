@@ -43,6 +43,11 @@ public:
 
 	bool InitializeKernel(const TCHAR* = TEXT(""));
 
+	void SaveBodyToHsfFile(void* BodyPtr, const FString& Filename);
+
+	bool GetBodyFromHsfFile(const FString& Filename, const class FImportParameters& ImportParameters, double FileUnit, class FBodyMesh& BodyMesh);
+
+	bool FillBodyMesh(void* BodyPtr, const class FImportParameters& ImportParameters, double FileUnit, class FBodyMesh& BodyMesh);
 
 #ifdef USE_TECHSOFT_SDK
 	A3DStatus Import(const A3DImport& Import);
