@@ -127,6 +127,12 @@ private:
 			, Size(InSize)
 		{
 		}
+
+		~FCacheValue()
+		{
+			// Ensure we don't begin destruction of this value while our own PutCachedData function is holding this lock
+			FWriteScopeLock WriteLock(DataLock);
+		}
 	};
 
 	FORCEINLINE int32 CalcSerializedCacheValueSize(const FString& Key, const FCacheValue& Val)
