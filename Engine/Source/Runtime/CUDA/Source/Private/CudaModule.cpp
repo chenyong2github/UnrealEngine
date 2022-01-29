@@ -16,6 +16,7 @@
     #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+#include "RHI.h"
 #include "HAL/UnrealMemory.h"
 
 DEFINE_LOG_CATEGORY(LogCUDA);

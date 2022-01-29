@@ -5,6 +5,7 @@
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphQuery.h"
 #include "MassSpawnerTypes.h"
+#include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassGameplaySettings.h"
 #include "MassSpawnLocationProcessor.h"
