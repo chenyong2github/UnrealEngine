@@ -681,6 +681,14 @@ bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFa
 		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight); // Disable diffuse sky contribution if evaluated by RT Sky;
 }
 
+bool ShouldDoReflectionEnvironment(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+{
+	const ERHIFeatureLevel::Type SceneFeatureLevel = Scene->GetFeatureLevel();
+
+	return IsReflectionEnvironmentAvailable(SceneFeatureLevel)
+		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num()
+		&& ViewFamily.EngineShowFlags.ReflectionEnvironment;
+}
 
 bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 {

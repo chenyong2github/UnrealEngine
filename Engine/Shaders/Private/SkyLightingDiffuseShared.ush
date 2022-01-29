@@ -116,7 +116,7 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 		float3 L = normalize(V - N * dot(V, N));
 		SkyVisData.SkyDiffuseLookUpNormal = L;
 		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+		DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
 		DiffuseWeight = 1.0f;
 	}
 

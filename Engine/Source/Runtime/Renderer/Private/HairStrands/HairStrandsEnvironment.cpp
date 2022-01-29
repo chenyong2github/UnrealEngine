@@ -22,6 +22,8 @@
 #include "Lumen/LumenRadianceCache.h"
 #include "Lumen/LumenScreenProbeGather.h"
 #include "IndirectLightRendering.h"
+#include "DistanceFieldAmbientOcclusion.h"
+#include "RenderGraphEvent.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,6 +61,10 @@ static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_IntegrationType(TEXT("
 
 static int32 GHairStrandsSkyLighting_DebugSample = 0;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_DebugSample(TEXT("r.HairStrands.SkyLighting.DebugSample"), GHairStrandsSkyLighting_DebugSample, TEXT("Enable debug view for visualizing sample used for the sky integration"), ECVF_Scalability | ECVF_RenderThreadSafe);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+DECLARE_GPU_STAT_NAMED(HairSkyLighting, TEXT("Hair Sky lighting"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,7 +208,8 @@ public:
 	class FIntegrationType	: SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", uint32(EHairLightingIntegrationType::Count));
 	class FDebug			: SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG"); 
 	class FLumen			: SHADER_PERMUTATION_BOOL("PERMUTATION_LUMEN"); 
-	using FPermutationDomain = TShaderPermutationDomain<FIntegrationType, FLumen, FDebug>;
+	class FStaticLighting	: SHADER_PERMUTATION_BOOL("PERMUTATION_STATIC_LIGHTING"); 
+	using FPermutationDomain = TShaderPermutationDomain<FIntegrationType, FLumen, FDebug, FStaticLighting>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -217,6 +224,19 @@ public:
 		{
 			return false;
 		}
+
+		// If using Lumen, no static lighting
+		if (PermutationVector.Get<FStaticLighting>() && PermutationVector.Get<FLumen>())
+		{
+			return false;
+		}
+
+		// If using another integrator than SH integrator, no static lighting
+		if (PermutationVector.Get<FStaticLighting>() && PermutationVector.Get<FIntegrationType>() != int32(EHairLightingIntegrationType::SH))
+		{
+			return false;
+		}
+
 		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
 	}
 
@@ -230,11 +250,11 @@ public:
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(float, Voxel_TanConeAngle)
+		SHADER_PARAMETER(uint32, bHasStaticLighting)
 		SHADER_PARAMETER(uint32, MultipleScatterSampleCount)
 		SHADER_PARAMETER(float,  HairDualScatteringRoughnessOverride)
-		SHADER_PARAMETER(float, TransmissionDensityScaleFactor)
-		SHADER_PARAMETER(float, HairDistanceThreshold)
+		SHADER_PARAMETER(float,  TransmissionDensityScaleFactor)
+		SHADER_PARAMETER(float,  HairDistanceThreshold)
 		SHADER_PARAMETER(uint32, bHairUseViewHairCount)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
@@ -309,6 +329,8 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FHairEnvironmentLightingPS, "/Engine/Private/HairStrands/HairStrandsEnvironmentLighting.usf", "MainPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FHairEnvironmentLightingVS, "/Engine/Private/HairStrands/HairStrandsEnvironmentLighting.usf", "MainVS", SF_Vertex);
 
+bool AllowStaticLighting();
+
 static void AddHairStrandsEnvironmentLightingPassPS(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -319,24 +341,12 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	const EHairLightingSourceType LightingType,
 	const FHairStrandsDebugData::Data* DebugData)
 {
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
-
-	check(VirtualVoxelResources.IsValid());
-
-	// Render the reflection environment with tiled deferred culling
-	const bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
-	const bool bHasSphereCaptures = (View.NumSphereReflectionCaptures > 0);
-	FHairEnvironmentLightingPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairEnvironmentLightingPS::FParameters>();
-	FHairEnvironmentLighting::FParameters* PassParameters = &ParametersPS->Common;
-
-	PassParameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
 
 	EHairLightingIntegrationType IntegrationType = EHairLightingIntegrationType::AdHoc;
 	if (LightingType == EHairLightingSourceType::SceneColor)
 	{
 		check(SceneColorTexture != nullptr);
 		IntegrationType = EHairLightingIntegrationType::SceneColor;
-		PassParameters->SceneColorTexture = SceneColorTexture;
 	}
 	else
 	{
@@ -347,9 +357,38 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 			case 2: IntegrationType = EHairLightingIntegrationType::SH; break;
 		}
 	}
-	
+
+	// The specular sky light contribution is also needed by RT Reflections as a fallback.
+	const bool bSkyLight = Scene->SkyLight && Scene->SkyLight->ProcessedTexture && !Scene->SkyLight->bHasStaticLighting;
+
+	const bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, *View.Family);
+	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, *View.Family);
+
+	// Only support static lighting with SH integrator at the moment
+	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
+	const bool bHasStaticLighting = AllowStaticLighting() && bUseVolumetricLightmap && View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod != EDynamicGlobalIlluminationMethod::Lumen && IntegrationType == EHairLightingIntegrationType::SH;
+
+	// Sanity check
+	if (bHasStaticLighting) { check(LightingType != EHairLightingSourceType::Lumen); }
+
+	// Early out if there is no static lighting, no sky lighting, nor reflection probes
+	if (!bSkyLight && !bDynamicSkyLight && !bHasStaticLighting && !bReflectionEnv)
+		return;
+
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+
+	check(VirtualVoxelResources.IsValid());
+
+	// Render the reflection environment with tiled deferred culling
+	const bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
+	const bool bHasSphereCaptures = (View.NumSphereReflectionCaptures > 0);
+	FHairEnvironmentLightingPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairEnvironmentLightingPS::FParameters>();
+	FHairEnvironmentLighting::FParameters* PassParameters = &ParametersPS->Common;
+
+	PassParameters->SceneColorTexture = SceneColorTexture;
+	PassParameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
+	PassParameters->bHasStaticLighting = bHasStaticLighting ? 1 : 0;
 	PassParameters->SkyDiffuseLighting = GetSkyDiffuseLightingParameters(Scene->SkyLight, 1.0f /*DynamicBentNormalAO*/);
-	PassParameters->Voxel_TanConeAngle = FMath::Tan(FMath::DegreesToRadians(GetHairStrandsSkyLightingConeAngle()));
 	PassParameters->HairDistanceThreshold = FMath::Max(GHairStrandsSkyLightingDistanceThreshold, 1.f);
 	PassParameters->bHairUseViewHairCount = VisibilityData.ViewHairCountTexture && GHairStrandsSkyLightingUseHairCountTexture ? 1 : 0;
 	PassParameters->MultipleScatterSampleCount = FMath::Max(uint32(GHairStrandsSkyLightingSampleCount), 1u);
@@ -391,6 +430,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PermutationVector.Set<FHairEnvironmentLighting::FIntegrationType>(uint32(IntegrationType));
 	PermutationVector.Set<FHairEnvironmentLighting::FLumen>(LightingType == EHairLightingSourceType::Lumen);
 	PermutationVector.Set<FHairEnvironmentLighting::FDebug>(DebugData != nullptr);
+	PermutationVector.Set<FHairEnvironmentLighting::FStaticLighting>(bHasStaticLighting);
 	PermutationVector = FHairEnvironmentLighting::RemapPermutation(PermutationVector);
 
 	FIntPoint ViewportResolution = VisibilityData.SampleLightingViewportResolution;
@@ -502,6 +542,7 @@ void RenderHairStrandsEnvironmentLighting(
 	const FScene* Scene,
 	const FViewInfo& View)
 {
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairSkyLighting);
 	InternalRenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View, EHairLightingSourceType::ReflectionProbe);
 }
 

@@ -89,7 +89,6 @@ static TAutoConsoleVariable<int32> CVarProbeSamplePerPixel(
 
 DECLARE_GPU_STAT_NAMED(ReflectionEnvironment, TEXT("Reflection Environment"));
 DECLARE_GPU_STAT_NAMED(RayTracingReflections, TEXT("Ray Tracing Reflections"));
-DECLARE_GPU_STAT_NAMED(HairSkyLighting, TEXT("Hair Sky lighting"));
 DECLARE_GPU_STAT(SkyLightDiffuse);
 
 int GetReflectionEnvironmentCVar();
@@ -536,15 +535,6 @@ TUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(co
 	FReflectionUniformParameters ReflectionStruct;
 	SetupReflectionUniformParameters(View, ReflectionStruct);
 	return CreateUniformBufferImmediate(ReflectionStruct, Usage);
-}
-
-bool FDeferredShadingSceneRenderer::ShouldDoReflectionEnvironment() const
-{
-	const ERHIFeatureLevel::Type SceneFeatureLevel = Scene->GetFeatureLevel();
-
-	return IsReflectionEnvironmentAvailable(SceneFeatureLevel)
-		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num()
-		&& ViewFamily.EngineShowFlags.ReflectionEnvironment;
 }
 
 static const FVector SampleArray4x4x6[96] = {
@@ -1411,7 +1401,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
+	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, ViewFamily);
 
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 	const auto& SceneColorTexture = SceneTextures.Color;
@@ -1638,10 +1628,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			}
 		}
 
-		const bool bIsHairSkyLightingEnabled = HairStrands::HasViewHairStrandsData(View) && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
-		if (bIsHairSkyLightingEnabled)
+		if (HairStrands::HasViewHairStrandsData(View))
 		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, HairSkyLighting);
 			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View);
 		}
 	}
@@ -1664,15 +1652,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 			continue;
 		}
 
-		// The specular sky light contribution is also needed by RT Reflections as a fallback.
-		const bool bSkyLight = Scene->SkyLight
-			&& Scene->SkyLight->ProcessedTexture
-			&& !Scene->SkyLight->bHasStaticLighting;
-
-		const bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
-		const bool bReflectionEnv = ShouldDoReflectionEnvironment();
-		const bool bIsHairSkyLightingEnabled = HairStrands::HasViewHairStrandsData(View) && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
-		if (bIsHairSkyLightingEnabled)
+		if (HairStrands::HasViewHairStrandsData(View))
 		{
 			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View);
 		}
