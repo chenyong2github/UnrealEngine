@@ -202,15 +202,17 @@ MOVIESCENETRACKS_API void ConvertOperationalProperty(const FColor& InColor, FInt
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FLinearColor& InColor, FIntermediateColor& OutIntermediate);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FSlateColor& InColor, FIntermediateColor& OutIntermediate);
 
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector2D& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector2f& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector3f& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector4& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector2D& In, FFloatIntermediateVector& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector2f& In, FFloatIntermediateVector& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector3f& In, FFloatIntermediateVector& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector4& In, FFloatIntermediateVector& Out);
 
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector2D& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector3d& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector4d& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector2D& In, FDoubleIntermediateVector& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector3d& In, FDoubleIntermediateVector& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector4d& In, FDoubleIntermediateVector& Out);
 
