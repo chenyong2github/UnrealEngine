@@ -90,8 +90,8 @@ bool FAndroidPlatformStackWalk::InitStackWalking()
 	sigprocmask(SIG_SETMASK, &OldSignalSet, nullptr);
 
 	StackWalkingInitialized = true;
-	return true;
 #endif
+	return true;
 }
 
 void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
