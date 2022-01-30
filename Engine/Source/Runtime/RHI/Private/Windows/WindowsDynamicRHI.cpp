@@ -375,23 +375,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 			LoadedRHIModuleName = nullptr;
 		}
-		else
-		{
-#if !WITH_EDITOR
-			// Enable -psocache by default on DX12. Since RHI is selected at runtime we can't set this at compile time with PIPELINE_CACHE_DEFAULT_ENABLED.
-			auto PSOFileCacheEnabledCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.Enabled"));
-			*PSOFileCacheEnabledCVar = 1;
-
-			auto PSOFileCacheReportCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.ReportPSO"));
-			*PSOFileCacheReportCVar = 1;
-
-			auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
-			*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
-
-			auto PSOFileCacheLogCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.LogPSO"));
-			*PSOFileCacheLogCVar = UE_BUILD_SHIPPING;
-#endif
-		}
 	}
 
 	// Fallback to D3D11RHI if nothing is selected

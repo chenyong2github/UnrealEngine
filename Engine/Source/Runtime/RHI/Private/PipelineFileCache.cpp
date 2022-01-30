@@ -2975,7 +2975,7 @@ bool FPipelineFileCache::IsPipelineFileCacheEnabled()
 		bCmdLineForce = FParse::Param(FCommandLine::Get(), TEXT("psocache"));
 		UE_CLOG(bCmdLineForce, LogRHI, Warning, TEXT("****************************** Forcing PSO cache from command line"));
 	}
-	return GRHISupportsPipelineFileCache && FileCacheEnabled && (bCmdLineForce || CVarPSOFileCacheEnabled.GetValueOnAnyThread() == 1);
+	return FileCacheEnabled && (bCmdLineForce || CVarPSOFileCacheEnabled.GetValueOnAnyThread() == 1);
 }
 
 bool FPipelineFileCache::LogPSOtoFileCache()
@@ -3001,7 +3001,7 @@ bool FPipelineFileCache::ReportNewPSOs()
         bCmdLineForce = FParse::Param(FCommandLine::Get(), TEXT("reportpso"));
         UE_CLOG(bCmdLineForce, LogRHI, Warning, TEXT("****************************** Forcing reporting of new PSOs from command line"));
     }
-    return (bCmdLineForce || CVarPSOFileCacheReportPSO.GetValueOnAnyThread() == 1);
+	return (bCmdLineForce || CVarPSOFileCacheReportPSO.GetValueOnAnyThread() == 1);
 }
 
 bool FPipelineFileCache::LogPSODetails()
@@ -3050,7 +3050,7 @@ bool FPipelineFileCache::ShouldEnableFileCache()
 		}
 	}
 #endif
-	return true;
+	return GRHISupportsPipelineFileCache;
 }
 
 void FPipelineFileCache::PreCompileComplete()
@@ -3456,7 +3456,6 @@ void FPipelineFileCache::CacheRayTracingPSO(const FRayTracingPipelineStateInitia
 	if (!IsPipelineFileCacheEnabled() || !(LogPSOtoFileCache() || ReportNewPSOs()))
 	{
 		return;
-
 	}
 
 	TArrayView<FRHIRayTracingShader*> ShaderTables[] =

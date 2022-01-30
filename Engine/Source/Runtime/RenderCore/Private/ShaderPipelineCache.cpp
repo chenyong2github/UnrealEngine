@@ -1240,14 +1240,7 @@ FShaderPipelineCache::FShaderPipelineCache(EShaderPlatform Platform)
 
 FShaderPipelineCache::~FShaderPipelineCache()
 {
-	// Only save PSO Record / Logging at shutdown
-	if (GetShaderPipelineCacheSaveBoundPSOLog())
-	{
-		FShaderPipelineCache::SavePipelineFileCache(FPipelineFileCache::SaveMode::BoundPSOsOnly);
-	}
-	
-	// Close with shutdown flag
-	Close(true);
+	Close();
 	
 	// The render thread tick should be dead now and we are safe to destroy everything that needs to wait or manual destruction
 
@@ -1598,7 +1591,7 @@ bool FShaderPipelineCache::Save(FPipelineFileCache::SaveMode Mode)
 	return bOK;
 }
 
-void FShaderPipelineCache::Close(bool bShuttingDown)
+void FShaderPipelineCache::Close()
 {
 	FScopeLock Lock(&Mutex);
 		
@@ -1614,8 +1607,7 @@ void FShaderPipelineCache::Close(bool bShuttingDown)
 		Save(FPipelineFileCache::SaveMode::BoundPSOsOnly);
 	}
 	
-	// Force a fast save, just in case - but not at shutdown / destruction
-	if (GetPSOFileCacheSaveUserCache() && !bShuttingDown)
+	if (GetPSOFileCacheSaveUserCache())
 	{
 		Save(FPipelineFileCache::SaveMode::Incremental);
 	}
