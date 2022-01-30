@@ -265,8 +265,6 @@ namespace HordeServer.Compute.Impl
 			{
 				throw new KeyNotFoundException();
 			}
-
-			Logger.LogInformation("Found compute cluster: {ClusterId}, Reqs {ReqId} {ReqId2} {Json}", ClusterId, Config.RequestBucketId, new ClusterInfo(Config).RequestBucketId, JsonSerializer.Serialize(new ClusterInfo(Config)));
 			return new ClusterInfo(Config);
 		}
 
