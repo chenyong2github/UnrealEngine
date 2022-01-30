@@ -45,7 +45,7 @@ void FTopologicalVertex::RemoveConnectedEdge(FTopologicalEdge& Edge)
 
 bool FTopologicalVertex::IsBorderVertex()
 {
-	for (FTopologicalVertex* Vertex : GetTwinsEntities())
+	for (FTopologicalVertex* Vertex : GetTwinEntities())
 	{
 		if (Vertex != nullptr)
 		{
@@ -53,7 +53,7 @@ bool FTopologicalVertex::IsBorderVertex()
 			{
 				if (Edge != nullptr)
 				{
-					if (Edge->GetTwinsEntityCount() == 1)
+					if (Edge->GetTwinEntityCount() == 1)
 					{
 						return true;
 					}
@@ -64,18 +64,12 @@ bool FTopologicalVertex::IsBorderVertex()
 	return false;
 }
 
-TSharedPtr<FEntityGeom> FTopologicalVertex::ApplyMatrix(const FMatrixH& InMatrix) const
-{
-	FPoint transformedPoint = InMatrix.Multiply(Coordinates);
-	return FTopologicalVertex::Make(transformedPoint);
-}
-
 void FTopologicalVertex::GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& OutEdges) const
 {
-	OutEdges.Reserve(GetTwinsEntityCount());
+	OutEdges.Reserve(GetTwinEntityCount());
 
 	TSharedPtr<TTopologicalLink<FTopologicalVertex>> OtherVertexLink = OtherVertex.GetLink();
-	for (const FTopologicalVertex* Vertex : GetTwinsEntities())
+	for (const FTopologicalVertex* Vertex : GetTwinEntities())
 	{
 		if (Vertex != nullptr)
 		{
@@ -104,12 +98,12 @@ void FTopologicalVertex::Link(FTopologicalVertex& Twin)
 		}
 	}
 
-	FPoint Barycenter = GetBarycenter() * (double)GetTwinsEntityCount()
-		+ Twin.GetBarycenter() * (double)Twin.GetTwinsEntityCount();
+	FPoint Barycenter = GetBarycenter() * (double)GetTwinEntityCount()
+		+ Twin.GetBarycenter() * (double)Twin.GetTwinEntityCount();
 
 	MakeLink(Twin);
 
-	Barycenter /= (double)GetTwinsEntityCount();
+	Barycenter /= (double)GetTwinEntityCount();
 	GetLink()->SetBarycenter(Barycenter);
 
 	// Find the closest vertex of the Barycenter
@@ -122,7 +116,7 @@ void FTopologicalVertex::UnlinkTo(FTopologicalVertex& OtherVertex)
 	ResetTopologicalLink();
 	OtherVertex.ResetTopologicalLink();
 
-	for (FTopologicalVertex* Vertex : OldLink->GetTwinsEntities())
+	for (FTopologicalVertex* Vertex : OldLink->GetTwinEntities())
 	{
 		if (!Vertex || Vertex == this || Vertex == &OtherVertex)
 		{
@@ -146,24 +140,24 @@ void FTopologicalVertex::UnlinkTo(FTopologicalVertex& OtherVertex)
 void FVertexLink::ComputeBarycenter()
 {
 	Barycenter = FPoint::ZeroPoint;
-	for (const FTopologicalVertex* Vertex : TwinsEntities)
+	for (const FTopologicalVertex* Vertex : TwinEntities)
 	{
 		Barycenter += Vertex->Coordinates;
 	}
-	Barycenter /= TwinsEntities.Num();
+	Barycenter /= TwinEntities.Num();
 }
 
 void FVertexLink::DefineActiveEntity()
 {
-	if (TwinsEntities.Num() == 0)
+	if (TwinEntities.Num() == 0)
 	{
 		ActiveEntity = nullptr;
 		return;
 	}
 
 	double DistanceSquare = HUGE_VALUE;
-	FTopologicalVertex* ClosedVertex = TwinsEntities.HeapTop();
-	for (FTopologicalVertex* Vertex : TwinsEntities)
+	FTopologicalVertex* ClosedVertex = TwinEntities.HeapTop();
+	for (FTopologicalVertex* Vertex : TwinEntities)
 	{
 		ensureCADKernel(!Vertex->IsDeleted());
 
@@ -181,7 +175,7 @@ void FVertexLink::DefineActiveEntity()
 	ActiveEntity = ClosedVertex;
 }
 
-TSharedRef<FVertexMesh> FTopologicalVertex::GetOrCreateMesh(TSharedRef<FModelMesh>& MeshModel)
+TSharedRef<FVertexMesh> FTopologicalVertex::GetOrCreateMesh(FModelMesh& MeshModel)
 {
 	if (!IsActiveEntity())
 	{
@@ -190,11 +184,11 @@ TSharedRef<FVertexMesh> FTopologicalVertex::GetOrCreateMesh(TSharedRef<FModelMes
 
 	if (!Mesh.IsValid())
 	{
-		Mesh = FEntity::MakeShared<FVertexMesh>(MeshModel, StaticCastSharedRef<FTopologicalVertex>(AsShared()));
+		Mesh = FEntity::MakeShared<FVertexMesh>(MeshModel, *this);
 
 		Mesh->GetNodeCoordinates().Emplace(GetBarycenter());
 		Mesh->RegisterCoordinates();
-		MeshModel->AddMesh(Mesh.ToSharedRef());
+		MeshModel.AddMesh(Mesh.ToSharedRef());
 		SetMeshed();
 	}
 	return Mesh.ToSharedRef();
@@ -224,7 +218,7 @@ FInfoEntity& TTopologicalLink<FTopologicalVertex>::GetInfo(FInfoEntity& Info) co
 {
 	return FEntity::GetInfo(Info)
 		.Add(TEXT("active Entity"), ActiveEntity)
-		.Add(TEXT("twin Entities"), TwinsEntities);
+		.Add(TEXT("twin Entities"), TwinEntities);
 }
 
 FInfoEntity& FVertexLink::GetInfo(FInfoEntity& Info) const

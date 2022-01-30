@@ -72,7 +72,7 @@ namespace CADKernel
 		 */
 		inline const FPoint& GetBarycenter() const
 		{
-			if (TopologicalLink.IsValid() && TopologicalLink->GetTwinsEntitieNum() > 1)
+			if (TopologicalLink.IsValid() && TopologicalLink->GetTwinEntityNum() > 1)
 			{
 				return TopologicalLink->GetBarycenter();
 			}
@@ -89,13 +89,13 @@ namespace CADKernel
 
 		void SetCoordinates(const FPoint& NewCoordinates)
 		{
-			if (GetLink()->GetTwinsEntities().Num() > 1)
+			if (GetLink()->GetTwinEntityNum() > 1)
 			{
 				// Update barycenter
-				FPoint BaryCenter = GetLink()->GetBarycenter() * (double)GetLink()->GetTwinsEntities().Num();
+				FPoint BaryCenter = GetLink()->GetBarycenter() * (double)GetLink()->GetTwinEntityNum();
 				BaryCenter -= Coordinates;
 				BaryCenter += NewCoordinates;
-				BaryCenter /= (double)GetLink()->GetTwinsEntities().Num();
+				BaryCenter /= (double)GetLink()->GetTwinEntityNum();
 				GetLink()->SetBarycenter(BaryCenter);
 			}
 			else
@@ -120,9 +120,7 @@ namespace CADKernel
 			return Coordinates.SquareDistance(Point);
 		}
 
-		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
-
-		TSharedRef<FVertexMesh> GetOrCreateMesh(TSharedRef<FModelMesh>& MeshModel);
+		TSharedRef<FVertexMesh> GetOrCreateMesh(FModelMesh& MeshModel);
 
 		const TSharedRef<FVertexMesh> GetMesh() const
 		{
@@ -193,7 +191,7 @@ namespace CADKernel
 			else
 			{
 				OutConnectedEdges.Reserve(100);
-				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinsEntities())
+				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
 				{
 					OutConnectedEdges.Append(Vertex->ConnectedEdges);
 				}
@@ -209,7 +207,7 @@ namespace CADKernel
 			else
 			{
 				int32 Count = 0;
-				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinsEntities())
+				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
 				{
 					Count += Vertex->ConnectedEdges.Num();
 				}

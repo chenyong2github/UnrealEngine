@@ -24,10 +24,10 @@ namespace CADKernel
 
 	public:
 
-		FMesh(TSharedRef<FModelMesh> InMeshModel, TSharedRef<FTopologicalEntity> InTopologicalEntity)
+		FMesh(FModelMesh& InMeshModel, FTopologicalEntity& InTopologicalEntity)
 			: FEntityGeom()
-			, ModelMesh(*InMeshModel)
-			, TopologicalEntity(*InTopologicalEntity)
+			, ModelMesh(InMeshModel)
+			, TopologicalEntity(InTopologicalEntity)
 		{
 		}
 

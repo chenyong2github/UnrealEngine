@@ -14,7 +14,7 @@ namespace CADKernel
 	class FCriteriaGrid
 	{
 	protected:
-		TSharedRef<FTopologicalFace> Surface;
+		FTopologicalFace& Face;
 
 		const FCoordinateGrid& CoordinateGrid;
 		int32 TrueUcoorindateCount; 
@@ -39,11 +39,11 @@ namespace CADKernel
 		void Init();
 
 	public:
-		FCriteriaGrid(TSharedRef<FTopologicalFace> Surface);
+		FCriteriaGrid(FTopologicalFace& Surface);
 
-		TSharedRef<FTopologicalFace> GetSurface()
+		FTopologicalFace& GetSurface()
 		{
-			return Surface;
+			return Face;
 		}
 
 		void ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& GetCriteria) const;

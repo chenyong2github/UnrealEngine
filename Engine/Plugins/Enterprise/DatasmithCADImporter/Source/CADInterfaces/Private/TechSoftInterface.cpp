@@ -11,7 +11,9 @@
 #include "Misc/Paths.h"
 #include "TUniqueTechSoftObj.h"
 
+#ifndef CADKERNEL_DEV
 #include "TechSoftInterfaceUtils.inl"
+#endif
 
 namespace CADLibrary
 {
@@ -75,7 +77,7 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 		return;
 	}
 
-#ifdef USE_TECHSOFT_SDK
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	A3DRiRepresentationItem* RepresentationItem = (A3DRiRepresentationItem*)BodyPtr;
 	A3DAsmPartDefinition* PartDefinition = nullptr;
 
@@ -125,7 +127,7 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 
 bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
 {
-#ifdef USE_TECHSOFT_SDK
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	A3DRWParamsPrcReadHelper* ReadHelper = nullptr;
 	A3DAsmModelFile* ModelFile = nullptr;
 
@@ -162,7 +164,7 @@ bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImpo
 
 bool FTechSoftInterface::FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
 {
-#ifdef USE_TECHSOFT_SDK
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	A3DRiRepresentationItem* RepresentationItemPtr = (A3DRiRepresentationItem*)BodyPtr;
 
 	A3DEEntityType Type;

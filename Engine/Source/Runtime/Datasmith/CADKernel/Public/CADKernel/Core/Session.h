@@ -31,7 +31,7 @@ namespace CADKernel
 		{
 		}
 
-		TSharedRef<FModel> GetModel();
+		FModel& GetModel();
 
 		void Serialize(FCADKernelArchive& Ar)
 		{
@@ -101,20 +101,19 @@ namespace CADKernel
 		 * This method browses all sub entities and set their Id if needed
 		 * @param bForceSpawning If false, the process does not iterate through the children of entities with a defined ID
 		 */
-		uint32 SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bForceSpawning = false)
-		{
-			return Database.SpawnEntityIdent(SelectedEntities, bForceSpawning);
-		}
-
-		uint32 SpawnEntityIdent(TSharedPtr<FEntity> SelectedEntity, bool bForceSpawning)
+		uint32 SpawnEntityIdent(FEntity& SelectedEntity, bool bForceSpawning = false)
 		{
 			return Database.SpawnEntityIdent(SelectedEntity, bForceSpawning);
 		}
 
-		template<typename PointType>
-		uint32 SpawnEntityIdent(TSharedPtr<PointType>& SelectedEntity, bool bForceSpawning = false)
+		uint32 SpawnEntityIdents(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bForceSpawning = false)
 		{
-			return Database.SpawnEntityIdent((TSharedPtr<FEntity>&) SelectedEntity, bForceSpawning);
+			return Database.SpawnEntityIdents(SelectedEntities, bForceSpawning);
+		}
+
+		uint32 SpawnEntityIdents(const TArray<FEntity*>& SelectedEntities, bool bForceSpawning = false)
+		{
+			return Database.SpawnEntityIdents(SelectedEntities, bForceSpawning);
 		}
 
 		int32 GetLastHostId() const 

@@ -3,6 +3,8 @@
 
 #include "CADKernel/Core/Types.h"
 
+#include "CADKernel/Topo/TopomakerReport.h"
+
 namespace CADKernel
 {
 
@@ -13,7 +15,7 @@ class FTopologicalEdge;
 class FTopologicalFace;
 class FTopologicalVertex;
 
-class CADKERNEL_API FJoiner
+class CADKERNEL_API FTopomaker
 {
 	friend class FThinZone;
 	friend class FThinZoneFinder;
@@ -22,20 +24,21 @@ protected:
 
 	FSession& Session;
 
-	TArray<TSharedPtr<FShell>> Shells;
+	TArray<FShell*> Shells;
 	TArray<TSharedPtr<FTopologicalFace>> Faces;
 
-	double JoiningTolerance;
-	double JoiningToleranceSquare;
+	const double SewTolerance;
+	const double SewToleranceSquare;
+
+	FTopomakerReport Report;
 
 public:
 
-	FJoiner(FSession& InSession, const TSharedRef<FModel>& Shells, double Tolerance);
-	FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
-	FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
+	FTopomaker(FSession& InSession, double Tolerance);
+	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
+	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
 
-	void JoinFaces();
-	//void JoinFaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges);
+	void Sew();
 
 	/**
 	 * Check topology of each body
@@ -49,12 +52,19 @@ public:
 	/**
 	 * Split into connected shell and put each shell into the appropriate body
 	 */
-	void SplitIntoConnectedShell();
+	void SplitIntoConnectedShells();
+
+	void OrientShells();
 
 	/**
 	 * Unlink Non-Manifold Vertex i.e. Vertex belong to tow or more shell
 	 */
 	void UnlinkNonManifoldVertex();
+
+	void PrintReport()
+	{
+		Report.Print();
+	}
 
 private:
 
@@ -67,6 +77,8 @@ private:
 	void EmptyShells();
 
 	void RemoveFacesFromShell();
+
+	void RemoveEmptyShells();
 
 	/**
 	 * Return an array of active vertices.

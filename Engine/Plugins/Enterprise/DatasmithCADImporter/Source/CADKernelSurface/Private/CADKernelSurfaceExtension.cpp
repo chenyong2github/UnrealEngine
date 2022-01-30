@@ -59,15 +59,14 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / ImportParameters.GetMetricUnit());
 		CADKernelSession->AddDatabase(RawData);
 
-		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
-		TArray<TSharedPtr<CADKernel::FBody>> CADKernelBodies = CADKernelModel->GetBodies();
+		CADKernel::FModel& CADKernelModel = CADKernelSession->GetModel();
+		TArray<TSharedPtr<CADKernel::FBody>> CADKernelBodies = CADKernelModel.GetBodies();
 		if (CADKernelBodies.Num() != 1)
 		{
 			return bSuccessfulTessellation;
 		}
 
-		TSharedRef<CADKernel::FTopologicalEntity> CADKernelEntity = CADKernelModel;
-		if(CADLibrary::FCADKernelTools::Tessellate(CADKernelEntity, ImportParameters, CadMeshParameters, MeshDescription))
+		if(CADLibrary::FCADKernelTools::Tessellate(CADKernelModel, ImportParameters, CadMeshParameters, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();

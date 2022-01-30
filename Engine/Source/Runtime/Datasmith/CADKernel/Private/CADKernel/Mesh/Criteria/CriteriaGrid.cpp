@@ -37,19 +37,19 @@ void FCriteriaGrid::Init()
 	};
 
 	FCoordinateGrid CoordinateGrid2;
-	ComputeMiddlePointsCoordinates(Surface->GetCrossingPointCoordinates(EIso::IsoU), CoordinateGrid2[EIso::IsoU]);
-	ComputeMiddlePointsCoordinates(Surface->GetCrossingPointCoordinates(EIso::IsoV), CoordinateGrid2[EIso::IsoV]);
+	ComputeMiddlePointsCoordinates(Face.GetCrossingPointCoordinates(EIso::IsoU), CoordinateGrid2[EIso::IsoU]);
+	ComputeMiddlePointsCoordinates(Face.GetCrossingPointCoordinates(EIso::IsoV), CoordinateGrid2[EIso::IsoV]);
 
-	Surface->GetCarrierSurface()->EvaluatePointGrid(CoordinateGrid2, Grid, true);
+	Face.GetCarrierSurface()->EvaluatePointGrid(CoordinateGrid2, Grid, true);
 	TrueUcoorindateCount = CoordinateGrid2[EIso::IsoU].Num();
 }
 
-FCriteriaGrid::FCriteriaGrid(TSharedRef<FTopologicalFace> InSurface)
-	: Surface(InSurface)
-	, CoordinateGrid(InSurface->GetCrossingPointCoordinates())
+FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InSurface)
+	: Face(InSurface)
+	, CoordinateGrid(InSurface.GetCrossingPointCoordinates())
 {
-	Surface->Presample();
-	Surface->InitDeltaUs();
+	Face.Presample();
+	Face.InitDeltaUs();
 	Init();
 #ifdef DISPLAY_CRITERIA_GRID
 	Display();
@@ -58,11 +58,11 @@ FCriteriaGrid::FCriteriaGrid(TSharedRef<FTopologicalFace> InSurface)
 
 void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria) const
 {
-	TArray<double>& DeltaUMaxArray = Surface->GetCrossingPointDeltaMaxs(EIso::IsoU);
-	TArray<double>& DeltaUMiniArray = Surface->GetCrossingPointDeltaMins(EIso::IsoU);
-	TArray<double>& DeltaVMaxArray = Surface->GetCrossingPointDeltaMaxs(EIso::IsoV);
-	TArray<double>& DeltaVMinArray = Surface->GetCrossingPointDeltaMins(EIso::IsoV);
-	FSurfaceCurvature& SurfaceCurvature = Surface->GetCurvatures();
+	TArray<double>& DeltaUMaxArray = Face.GetCrossingPointDeltaMaxs(EIso::IsoU);
+	TArray<double>& DeltaUMiniArray = Face.GetCrossingPointDeltaMins(EIso::IsoU);
+	TArray<double>& DeltaVMaxArray = Face.GetCrossingPointDeltaMaxs(EIso::IsoV);
+	TArray<double>& DeltaVMinArray = Face.GetCrossingPointDeltaMins(EIso::IsoV);
+	FSurfaceCurvature& SurfaceCurvature = Face.GetCurvatures();
 
 	for (int32 IndexV = 0; IndexV < GetCoordinateCount(EIso::IsoV) - 1; ++IndexV)
 	{
@@ -156,7 +156,7 @@ void FCriteriaGrid::Display() const
 
 	{
 		F3DDebugSession A(TEXT("Loop 3D"));
-		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
 			CADKernel::Display(*Loop);
 		}
@@ -164,7 +164,7 @@ void FCriteriaGrid::Display() const
 
 	{
 		F3DDebugSession A(TEXT("Loop 2D"));
-		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
 			CADKernel::Display2D(*Loop);
 		}

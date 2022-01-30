@@ -721,7 +721,7 @@ void Draw(const FTopologicalFace& Face)
 			for (const FOrientedEdge& Edge : Loop->GetEdges())
 			{
 				EVisuProperty Property = EVisuProperty::BlueCurve;
-				switch (Edge.Entity->GetTwinsEntityCount())
+				switch (Edge.Entity->GetTwinEntityCount())
 				{
 				case 1:
 					Property = EVisuProperty::BorderEdge;

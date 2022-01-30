@@ -323,7 +323,7 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRe
 	}
 
 	// Create body from faces
-	CADKernelSession.GetModel()->Add(CADKernelBody);
+	CADKernelSession.GetModel().Add(CADKernelBody);
 	return true;
 }
 

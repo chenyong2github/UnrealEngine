@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
 #include "CADKernel/Core/Types.h"
 
 #ifdef USE_KERNEL_IO_SDK 
@@ -32,6 +33,7 @@ class FShell;
 class FSurface;
 class FTopologicalEdge;
 class FTopologicalLoop;
+class FTopologicalShapeEntity;
 
 class FCoreTechBridge
 {
@@ -98,28 +100,7 @@ private:
 
 	FMatrixH CreateCoordinateSystem(const CT_COORDINATE& InOrigin, const CT_VECTOR& InDirection, const CT_VECTOR& InURef);
 
-	void AddMetadata(CT_OBJECT_ID NodeId, TSharedRef<FMetadataDictionary> Entity);
-
-	template<typename EntityType>
-	void AddMetadata(CT_OBJECT_ID NodeId, TSharedRef<EntityType> Entity)
-	{
-		AddMetadata(NodeId, (TSharedRef<FMetadataDictionary>) Entity);
-	}
-
-//#ifdef CADKERNEL_DEV
-//	TMap<const uint32, FMatrixH> SurfaceToMatrix;
-//
-//	const FMatrixH& GetParamSpaceTransform(TSharedPtr<FSurface>& Surface)
-//	{
-//		FMatrixH* Matrix = SurfaceToMatrix.Find(Surface->GetId());
-//		return Matrix == nullptr ? FMatrixH::Identity : *Matrix;
-//	}
-//
-//	void SetParamSpaceTransorm(TSharedPtr<FSurface>& Surface, const FMatrixH Matrix)
-//	{
-//		SurfaceToMatrix.Add(Surface->GetId(), Matrix);
-//	}
-//#endif
+	void AddMetadata(CT_OBJECT_ID NodeId, FTopologicalShapeEntity& Entity);
 
 };
 }

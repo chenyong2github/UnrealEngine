@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/MetadataDictionary.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
-#include "CADKernel/Math/Aabb.h"
+#include "CADKernel/Geo/Sampling/PolylineTools.h"
 #include "CADKernel/Math/Curvature.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalLoop.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
 
 namespace CADKernel
 {
@@ -27,6 +27,8 @@ enum class EQuadType : uint8
 	Other
 };
 
+struct FBBoxWithNormal;
+
 class FGrid;
 class FFaceMesh;
 class FThinZone;
@@ -34,16 +36,14 @@ class FThinZoneFinder;
 class FBezierSurface;
 class FSegmentCurve;
 
-class CADKERNEL_API FTopologicalFace : public FTopologicalEntity, public FMetadataDictionary
+class CADKERNEL_API FTopologicalFace : public FTopologicalShapeEntity
 {
 	friend class FEntity;
-	//friend class FShell;
 
 protected:
 
 	TSharedPtr<FSurface> CarrierSurface;
 	TArray<TSharedPtr<FTopologicalLoop>> Loops;
-	FShell* HostedBy;
 
 	mutable TCache<FSurfacicBoundary> Boundary;
 
@@ -74,7 +74,7 @@ protected:
 	 * This constructor has to be completed with one of the three "AddBoundaries" methods to be finalized.
 	 */
 	FTopologicalFace(const TSharedPtr<FSurface>& InCarrierSurface)
-		: FTopologicalEntity()
+		: FTopologicalShapeEntity()
 		, CarrierSurface(InCarrierSurface)
 		, Mesh(TSharedPtr<FFaceMesh>())
 	{
@@ -92,11 +92,9 @@ public:
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
-		FTopologicalEntity::Serialize(Ar);
+		FTopologicalShapeEntity::Serialize(Ar);
 		SerializeIdent(Ar, CarrierSurface);
 		SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Loops);
-		SerializeIdent(Ar, &HostedBy);
-		FMetadataDictionary::Serialize(Ar);
 	}
 
 	virtual void SpawnIdent(FDatabase& Database) override;
@@ -116,8 +114,6 @@ public:
 	{
 		return EEntity::TopologicalFace;
 	}
-
-	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 
 	const FSurfacicTolerance& GetIsoTolerances() const
 	{
@@ -143,37 +139,19 @@ public:
 		return 1;
 	}
 
-	virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override
+	virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) override
 	{
 		if (!HasMarker1())
 		{
-			OutFaces.Emplace(StaticCastSharedRef<FTopologicalFace>(AsShared()));
+			OutFaces.Emplace(this);
 			SetMarker1();
 		}
 	}
 
-	void ResetHost()
+	virtual void SpreadBodyOrientation() override
 	{
-		HostedBy = nullptr;
 	}
 
-	FShell* GetHost()
-	{
-		return HostedBy;
-	}
-
-	void SetHost(FShell* Shell)
-	{
-		HostedBy = Shell;
-	}
-
-	void CompleteMetadata()
-	{
-		if (HostedBy != nullptr)
-		{
-			CompleteDictionary((const FMetadataDictionary&)*HostedBy);
-		}
-	}
 
 	// ======   Loop Functions   ======
 
@@ -215,7 +193,6 @@ public:
 	/**
 	 * Get a sampling of each loop of the face
 	 * @param OutLoopSamplings an array of 2d points
-	 * @param OutAABBs an array of 2d axis aligned bounding box of each boundary
 	 */
 	const void Get2DLoopSampling(TArray<TArray<FPoint2D>>& OutLoopSamplings) const;
 
@@ -281,6 +258,12 @@ public:
 	 */
 	void Presample();
 
+	/**
+	 * Update the bounding box with an approximation of the surface based of n iso curves 
+	 * @param ApproximationFactor: the factor apply to the geometric tolerance to defined the SAG error of the ISO
+	 */
+	void UpdateBBox(int32 IsoCount, const double ApproximationFactor, FBBoxWithNormal& BBox);
+
 	// ======   Topo Functions   ======
 
 	/**
@@ -297,7 +280,7 @@ public:
 
 	// ======   Meshing Function   ======
 
-	TSharedRef<FFaceMesh> GetOrCreateMesh(const TSharedRef<FModelMesh>& ShellMesh);
+	TSharedRef<FFaceMesh> GetOrCreateMesh(FModelMesh& ModelMesh);
 
 	const bool HasTesselation() const
 	{
@@ -396,6 +379,18 @@ public:
 	bool IsBackOriented() const
 	{
 		return ((States & EHaveStates::IsBackOriented) == EHaveStates::IsBackOriented);
+	}
+
+	void SwapOrientation() const
+	{
+		if (IsBackOriented())
+		{
+			ResetBackOriented();
+		}
+		else
+		{
+			SetBackOriented();
+		}
 	}
 
 	void SetBackOriented() const
@@ -549,17 +544,158 @@ struct FFaceSubset
 	TArray<FTopologicalFace*> Faces;
 	int32 BorderEdgeCount = 0;
 	int32 NonManifoldEdgeCount = 0;
-	FShell* MainShell;
-	FBody* MainBody;
+	FTopologicalShapeEntity* MainShell;
+	FTopologicalShapeEntity* MainBody;
 	FString MainName;
 	uint32 MainColor;
 	uint32 MainMaterial;
 
-	void SetMainShell(TMap<FShell*, int32>& ShellToFaceCount);
-	void SetMainBody(TMap<FBody*, int32>& BodyToFaceCount);
+	void SetMainShell(TMap<FTopologicalShapeEntity*, int32>& ShellToFaceCount);
+	void SetMainBody(TMap<FTopologicalShapeEntity*, int32>& BodyToFaceCount);
 	void SetMainName(TMap<FString, int32>& NameToFaceCount);
 	void SetMainColor(TMap<uint32, int32>& ColorToFaceCount);
 	void SetMainMaterial(TMap<uint32, int32>& MaterialToFaceCount);
+};
+
+struct FBBoxWithNormal
+{
+	FPoint Max;
+	FPoint Min;
+	FPoint MaxPoints[3];
+	FPoint MinPoints[3];
+	FPoint2D MaxCoordinates[3];
+	FPoint2D MinCoordinates[3];
+	FVector MaxPointNormals[3];
+	FVector MinPointNormals[3];
+	bool MaxNormalNeedUpdate[3];
+	bool MinNormalNeedUpdate[3];
+
+	FBBoxWithNormal()
+		: Max(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE)
+		, Min(HUGE_VALUE, HUGE_VALUE, HUGE_VALUE)
+	{
+	}
+
+	/**
+	 * BBox Length is the sum of the length of the 3 sides
+	 */
+	double Length()
+	{
+		double XLength = Max.X - Min.X;
+		double YLength = Max.Y - Min.Y;
+		double ZLength = Max.Z - Min.Z;
+		return XLength + YLength + ZLength;
+	}
+
+	/**
+	 * Return false if the process failed
+	 */
+	bool CheckOrientation(bool bHasWrongOrientation)
+	{
+		int32 GoodOrientation = 0;
+		int32 WrongOrientation = 0;
+
+		const FVector BBoxNormals[] = { FVector(1., 0., 0.) , FVector(0., 1., 0.) , FVector(0., 0., 1.) };
+
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			double DotProduct = MaxPointNormals[Index] | BBoxNormals[Index];
+			if (DotProduct > KINDA_SMALL_NUMBER)
+			{
+				GoodOrientation++;
+			}
+			else if(DotProduct < KINDA_SMALL_NUMBER)
+			{
+				WrongOrientation++;
+			}
+
+			DotProduct = MinPointNormals[Index] | BBoxNormals[Index];
+			if (DotProduct < KINDA_SMALL_NUMBER)
+			{
+				GoodOrientation++;
+			}
+			else if (DotProduct > KINDA_SMALL_NUMBER)
+			{
+				WrongOrientation++;
+			}
+		}
+
+		bHasWrongOrientation = (GoodOrientation < WrongOrientation);
+		return ((GoodOrientation >= 3) || (WrongOrientation >= 3)) && (GoodOrientation != WrongOrientation);
+	}
+
+	void Update(const FPolylineBBox& PolylineBBox, const EIso IsoType, double IsoCoordinate)
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			if (PolylineBBox.Max[Index] > Max[Index])
+			{
+				Max[Index] = PolylineBBox.Max[Index];
+				MaxPoints[Index] = PolylineBBox.MaxPoints[Index];
+				MaxCoordinates[Index] = (IsoType == IsoU) ? FPoint2D(IsoCoordinate, PolylineBBox.CoordinateOfMaxPoint[Index]) : FPoint2D(PolylineBBox.CoordinateOfMaxPoint[Index], IsoCoordinate);
+				MaxNormalNeedUpdate[Index] = true;
+			}
+
+			if (PolylineBBox.Min[Index] < Min[Index])
+			{
+				Min[Index] = PolylineBBox.Min[Index];
+				MinPoints[Index] = PolylineBBox.MinPoints[Index];
+				MinCoordinates[Index] = (IsoType == IsoU) ? FPoint2D(IsoCoordinate, PolylineBBox.CoordinateOfMinPoint[Index]) : FPoint2D(PolylineBBox.CoordinateOfMinPoint[Index], IsoCoordinate);
+				MinNormalNeedUpdate[Index] = true;
+			}
+		}
+	}
+
+	void Update(const FPoint& Point, const FPoint2D InPoint2D)
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			if (Point[Index] > Max[Index])
+			{
+				Max[Index] = Point[Index];
+				MaxPoints[Index] = Point;
+				MaxCoordinates[Index] = InPoint2D;
+				MaxNormalNeedUpdate[Index] = true;
+			}
+
+			if (Point[Index] < Min[Index])
+			{
+				Min[Index] = Point[Index];
+				MinPoints[Index] = Point;
+				MinCoordinates[Index] = InPoint2D;
+				MinNormalNeedUpdate[Index] = true;
+			}
+		}
+	}
+
+	void UpdateNormal(const FTopologicalFace& Face)
+	{
+		const FSurface& Surface = *Face.GetCarrierSurface();
+		bool bSwapOrientation = Face.IsBackOriented();
+
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			if (MaxNormalNeedUpdate[Index])
+			{
+				MaxPointNormals[Index] = Surface.EvaluateNormal(MaxCoordinates[Index]);
+				if (bSwapOrientation)
+				{
+					MaxPointNormals[Index] *= -1.;
+				}
+				MaxNormalNeedUpdate[Index] = false;
+			}
+
+			if (MinNormalNeedUpdate[Index])
+			{
+				MinPointNormals[Index] = Surface.EvaluateNormal(MinCoordinates[Index]);
+				if (bSwapOrientation)
+				{
+					MinPointNormals[Index] *= -1.;
+				}
+				MinNormalNeedUpdate[Index] = false;
+			}
+		}
+	}
 };
 
 

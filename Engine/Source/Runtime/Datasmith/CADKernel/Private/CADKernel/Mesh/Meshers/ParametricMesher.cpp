@@ -26,26 +26,28 @@ FMesherParameters::FMesherParameters()
 	: InconsistencyAngle(TEXT("inconsistencyAngle"), 20., *this)
 {}
 
-FParametricMesher::FParametricMesher(TSharedRef<FModelMesh> InMeshModel)
+FParametricMesher::FParametricMesher(FModelMesh& InMeshModel)
 	: MeshModel(InMeshModel)
-	, Parameters(MakeShared<FMesherParameters>())
 {
 }
 
-void FParametricMesher::MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities)
+void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntities)
 {
 	int32 FaceCount = 0;
 
-	for (TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
+		if (Face == nullptr)
+		{
+			continue;
+		}
 		Face->SetMarker1();
 	}
 
 	// count faces
-	for (TSharedPtr<FEntity>& Entity : InEntities)
+	for (FTopologicalShapeEntity* TopologicalEntity : InEntities)
 	{
-		TSharedPtr<FTopologicalEntity> TopologicalEntity = StaticCastSharedPtr<FTopologicalEntity>(Entity);
-		if (!TopologicalEntity.IsValid())
+		if (TopologicalEntity == nullptr)
 		{
 			continue;
 		}
@@ -53,16 +55,19 @@ void FParametricMesher::MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities)
 	}
 	Faces.Reserve(Faces.Num() + FaceCount);
 
-	for (TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
+		if (Face == nullptr)
+		{
+			continue;
+		}
 		Face->ResetMarkers();
 	}
 
 	// Get independent Faces and spread body's shells orientation
-	for (TSharedPtr<FEntity>& Entity : InEntities)
+	for (FTopologicalShapeEntity* TopologicalEntity : InEntities)
 	{
-		TSharedPtr<FTopologicalEntity> TopologicalEntity = StaticCastSharedPtr<FTopologicalEntity>(Entity);
-		if (!TopologicalEntity.IsValid())
+		if (TopologicalEntity == nullptr)
 		{
 			continue;
 		}
@@ -71,32 +76,13 @@ void FParametricMesher::MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities)
 		TopologicalEntity->GetFaces(Faces);
 	}
 
-	for (TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
-		Face->ResetMarkers();
-	}
-
-	// Get independent elementary entities (Edge, Vertex)
-	for (TSharedPtr<FEntity>& Entity : InEntities)
-	{
-		if (!Entity.IsValid())
+		if (Face == nullptr)
 		{
 			continue;
 		}
-
-		switch (Entity->GetEntityType())
-		{
-		case EEntity::TopologicalEdge:
-			Edges.Add(StaticCastSharedPtr<FTopologicalEdge>(Entity));
-			break;
-
-		case EEntity::TopologicalVertex:
-			Vertices.Add(StaticCastSharedPtr<FTopologicalVertex>(Entity));
-			break;
-
-		default:
-			break;
-		}
+		Face->ResetMarkers();
 	}
 
 	MeshEntities();
@@ -115,14 +101,16 @@ void FParametricMesher::MeshEntities()
 	//      Apply Surface Criteria
 	// ============================================================================================================
 
-	for (TSharedPtr<FTopologicalFace> Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
 		FProgress _(1, TEXT("Meshing Entities : Apply Surface Criteria"));
 
-		ensureCADKernel(Face.IsValid());
-		ensureCADKernel(!Face->IsDeleted());
+		if(Face == nullptr || Face->IsDeleted())
+		{
+			continue;
+		}
 
-		ApplyFaceCriteria(Face.ToSharedRef());
+		ApplyFaceCriteria(*Face);
 	}
 
 	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
@@ -160,18 +148,18 @@ void FParametricMesher::MeshEntities()
 	//Chronos.PrintTimeElapse();
 }
 
-void FParametricMesher::ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face)
+void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face)
 {
-	if (Face->IsApplyCriteria())
+	if (Face.IsApplyCriteria())
 	{
 		return;
 	}
 
 	FCriteriaGrid Grid(Face);
-	Grid.ApplyCriteria(GetMeshModel()->GetCriteria());
+	Grid.ApplyCriteria(GetMeshModel().GetCriteria());
 
-	Face->ChooseFinalDeltaUs();
-	Face->SetApplyCriteria();
+	Face.ChooseFinalDeltaUs();
+	Face.SetApplyCriteria();
 }
 
 void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
@@ -195,7 +183,7 @@ void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 	TArray<FCurvePoint> Points3D;
 	Edge.EvaluatePoints(Coordinates, 0, Points3D);
 
-	const TArray<TSharedPtr<FCriterion>>& Criteria = GetMeshModel()->GetCriteria();
+	const TArray<TSharedPtr<FCriterion>>& Criteria = GetMeshModel().GetCriteria();
 	for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 	{
 		Criterion->ApplyOnEdgeParameters(Edge, CrossingPointUs, Points3D);
@@ -240,7 +228,6 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 		return;
 	}
 
-
 	FTimePoint IsoTriangulerStartTime = FChrono::Now();
 
 	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face.GetOrCreateMesh(MeshModel));
@@ -252,7 +239,7 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 		{
 			SurfaceMesh->InverseOrientation();
 		}
-		MeshModel->AddMesh(SurfaceMesh);
+		MeshModel.AddMesh(SurfaceMesh);
 	}
 	Face.SetMeshed();
 
@@ -761,7 +748,7 @@ void FParametricMesher::GenerateEdgeElements(FTopologicalEdge& Edge)
 
 	EdgeMesh->RegisterCoordinates();
 	EdgeMesh->Mesh(StartVertexNodeIndex, EndVertexNodeIndex);
-	MeshModel->AddMesh(EdgeMesh);
+	MeshModel.AddMesh(EdgeMesh);
 	ActiveEdge.SetMeshed();
 }
 
@@ -772,9 +759,9 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 	QuadSurfaces.Reserve(Faces.Num() * 2);
 	OtherSurfaces.Reserve(Faces.Num());
 
-	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
-		if (Face->IsDeleted() || Face->IsMeshed())
+		if (Face == nullptr || Face->IsDeleted() || Face->IsMeshed())
 		{
 			continue;
 		}
@@ -782,8 +769,13 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 		Face->ComputeSurfaceSideProperties();
 	}
 
-	for (const TSharedPtr<FTopologicalFace>& FacePtr : Faces)
+	for (FTopologicalFace* FacePtr : Faces)
 	{
+		if (FacePtr == nullptr)
+		{
+			continue;
+		}
+
 		FTopologicalFace& Face = *FacePtr;
 		Face.DefineSurfaceType();
 		switch (Face.GetQuadType())
@@ -860,7 +852,7 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 
 void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<FTopologicalFace*>>& OutStrips)
 {
-	const double GeometricTolerance = 20. * MeshModel->GetGeometricTolerance();
+	const double GeometricTolerance = 20. * MeshModel.GetGeometricTolerance();
 
 	OutStrips.Reserve(QuadTrimmedSurfaceSet.Num());
 
@@ -1009,8 +1001,12 @@ void FParametricMesher::LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedS
 		}
 	}
 
-	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
+		if (Face == nullptr)
+		{
+			continue;
+		}
 		Face->ResetMarkers();
 	}
 }
@@ -1023,12 +1019,16 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 	FMessage::Printf(EVerboseLevel::Debug, TEXT("Start MeshSurfaceByFront\n"));
 
-	for (TSharedPtr<FTopologicalFace> Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
+		if (Face == nullptr)
+		{
+			continue;
+		}
 		Face->SetMarker3();
 	}
 
-	const double GeometricTolerance = 20. * MeshModel->GetGeometricTolerance();
+	const double GeometricTolerance = 20. * MeshModel.GetGeometricTolerance();
 
 	TArray<FTopologicalFace*> CandidateFacesForMesh; // first in first out
 	CandidateFacesForMesh.Reserve(100);
@@ -1066,7 +1066,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		{
 			const TSharedPtr<FTopologicalEdge> Edge = OrientedEdge.Entity;
 			Edge->SetMarker1(); // tmp for debug
-			for (FTopologicalEdge* NextEdge : Edge->GetTwinsEntities())
+			for (FTopologicalEdge* NextEdge : Edge->GetTwinEntities())
 			{
 				if (NextEdge->HasMarker1())
 				{
@@ -1217,9 +1217,9 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 	}
 
 	// the the other surface
-	for (TSharedPtr<FTopologicalFace> Face : Faces)
+	for (FTopologicalFace* Face : Faces)
 	{
-		if (!Face->IsMeshed())
+		if (Face != nullptr && !Face->IsMeshed())
 		{
 			MeshFacesByFront(*Face);
 		}
@@ -1593,12 +1593,6 @@ void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 	Close3DDebugSession();
 #endif
 
-}
-
-
-void FParametricMesher::InitParameters(const FString& ParametersString)
-{
-	Parameters->SetFromString(ParametersString);
 }
 
 void FParametricMesher::PrintReport()

@@ -7,7 +7,7 @@ namespace CADKernel
 #ifdef CADKERNEL_DEV
 FInfoEntity& FTopologicalEntity::GetInfo(FInfoEntity& Info) const
 {
-	return FEntityGeom::GetInfo(Info)
+	return FEntity::GetInfo(Info)
 		.Add(TEXT("IsMesh"), IsMeshed());
 }
 #endif

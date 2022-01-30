@@ -27,7 +27,7 @@ namespace CADKernel
 		TArray<FVector2D> UVMap;
 
 	public:
-		FFaceMesh(TSharedRef<FModelMesh> InMeshModel, TSharedRef<FTopologicalEntity> InTopologicalEntity)
+		FFaceMesh(FModelMesh& InMeshModel, FTopologicalEntity& InTopologicalEntity)
 			: FMesh(InMeshModel, InTopologicalEntity)
 		{
 		}

@@ -16,6 +16,42 @@
 namespace CADKernel
 {
 
+struct FPolylineBBox
+{
+	FPoint Max;
+	FPoint Min;
+	FPoint MaxPoints[3];
+	FPoint MinPoints[3];
+	double CoordinateOfMaxPoint[3];
+	double CoordinateOfMinPoint[3];
+
+	FPolylineBBox()
+		: Max(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE)
+		, Min(HUGE_VALUE, HUGE_VALUE, HUGE_VALUE)
+	{
+	}
+
+	void Update(const double Coordinate, const FPoint& Point)
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			if (Point[Index] > Max[Index])
+			{
+				Max[Index] = Point[Index];
+				MaxPoints[Index] = Point;
+				CoordinateOfMaxPoint[Index] = Coordinate;
+			}
+
+			if (Point[Index] < Min[Index])
+			{
+				Min[Index] = Point[Index];
+				MinPoints[Index] = Point;
+				CoordinateOfMinPoint[Index] = Coordinate;
+			}
+		}
+	}
+};
+
 namespace PolylineTools
 {
 
@@ -552,30 +588,57 @@ public:
 	 */
 	void GetSubPolyline(const FLinearBoundary& InBoundary, TArray<double>& OutCoordinates, TArray<PointType>& OutPoints) const
 	{
-		int32 StartIndex = 0;
-		int32 EndIndex = 0;
-		GetStartEndIndex(PolylineCoordinates, InBoundary, StartIndex, EndIndex);
+		int32 BoundaryIndices[2];
+		GetStartEndIndex(InBoundary, BoundaryIndices);
 
-		OutCoordinates.Empty(EndIndex - StartIndex + 2);
-		OutPoints.Empty(EndIndex - StartIndex + 2);
+		int32 NewSize = BoundaryIndices[1] - BoundaryIndices[0] + 2;
 
-		if (FMath::IsNearlyEqual(PolylineCoordinates[StartIndex + 1], InBoundary.Min, (double)SMALL_NUMBER))
+		OutCoordinates.Empty(NewSize);
+		OutPoints.Empty(NewSize);
+
+		if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[0] + 1], InBoundary.Min, (double)SMALL_NUMBER))
 		{
-			StartIndex++;
+			BoundaryIndices[0]++;
 		}
 
-		if (!FMath::IsNearlyEqual(PolylineCoordinates[EndIndex], InBoundary.Max, (double)SMALL_NUMBER))
+		if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[1]], InBoundary.Max, (double)SMALL_NUMBER))
 		{
-			EndIndex--;
+			BoundaryIndices[1]--;
 		}
 
-		OutPoints.Emplace(ComputePoint(StartIndex, InBoundary.Min));
-		OutPoints.Append(PolylinePoints.GetData() + StartIndex + 1, EndIndex - StartIndex);
-		OutPoints.Emplace(ComputePoint(EndIndex, InBoundary.Max));
+		OutPoints.Emplace(ComputePoint(BoundaryIndices[0], InBoundary.Min));
+		OutPoints.Append(PolylinePoints.GetData() + BoundaryIndices[0] + 1, BoundaryIndices[1] - BoundaryIndices[0]);
+		OutPoints.Emplace(ComputePoint(BoundaryIndices[1], InBoundary.Max));
 
 		OutCoordinates.Add(InBoundary.Min);
-		OutCoordinates.Append(PolylineCoordinates.GetData() + StartIndex + 1, EndIndex - StartIndex);
+		OutCoordinates.Append(PolylineCoordinates.GetData() + BoundaryIndices[0] + 1, BoundaryIndices[1] - BoundaryIndices[0]);
 		OutCoordinates.Add(InBoundary.Max);
+	}
+
+	/**
+	 * Update the Curve bounding box with this subset of polyline
+	 */
+	void UpdateSubPolylineBBox(const FLinearBoundary& InBoundary, FPolylineBBox& OutBBox) const
+	{
+		int32 BoundaryIndices[2];
+		GetStartEndIndex(InBoundary, BoundaryIndices);
+
+		if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[0] + 1], InBoundary.Min, (double)SMALL_NUMBER))
+		{
+			BoundaryIndices[0]++;
+		}
+
+		if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[1]], InBoundary.Max, (double)SMALL_NUMBER))
+		{
+			BoundaryIndices[1]--;
+		}
+
+		OutBBox.Update(InBoundary.Min, ComputePoint(BoundaryIndices[0], InBoundary.Min));
+		OutBBox.Update(InBoundary.Max, ComputePoint(BoundaryIndices[1], InBoundary.Max));
+		for (int32 Index = BoundaryIndices[0] + 1; Index <= BoundaryIndices[1]; ++Index)
+		{
+			OutBBox.Update(PolylineCoordinates[Index], PolylinePoints[Index]);
+		}
 	}
 
 	double ComputeLength() const

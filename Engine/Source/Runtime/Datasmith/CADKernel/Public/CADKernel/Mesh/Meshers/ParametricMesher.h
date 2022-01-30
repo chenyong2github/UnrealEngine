@@ -50,12 +50,9 @@ protected:
 	 */
 	const double ConstMinCurvature = 0.001;
 
-	TSharedRef<FModelMesh> MeshModel;
-	TSharedRef<FMesherParameters> Parameters;
+	FModelMesh& MeshModel;
 
-	TArray<TSharedPtr<FTopologicalFace>> Faces;
-	TArray<TSharedPtr<FTopologicalEdge>> Edges;
-	TArray<TSharedPtr<FTopologicalVertex>> Vertices;
+	TArray<FTopologicalFace*> Faces;
 
 	FMesherReport MesherReport;
 
@@ -63,42 +60,24 @@ protected:
 
 public:
 
-	FParametricMesher(TSharedRef<FModelMesh> MeshModel);
+	FParametricMesher(FModelMesh& MeshModel);
 
-	const TSharedRef<FModelMesh>& GetMeshModel() const
+	const FModelMesh& GetMeshModel() const
 	{
 		return MeshModel;
 	}
 
-	TSharedRef<FModelMesh>& GetMeshModel()
+	FModelMesh& GetMeshModel()
 	{
 		return MeshModel;
 	}
 
-	void InitParameters(const FString& ParametersString);
+	void MeshEntities(TArray<FTopologicalShapeEntity*>& InEntities);
 
-	const TSharedRef<FMesherParameters>& GetParameters() const
+	void MeshEntity(FTopologicalShapeEntity& InEntity)
 	{
-		return Parameters;
-	}
-
-	void MeshEntities(TArray<TSharedPtr<FEntity>>& InEntities);
-
-	template<typename EntityType>
-	void MeshEntity(TSharedRef<EntityType>& Entity)
-	{
-		MeshEntity((TSharedRef<FTopologicalEntity>&) Entity);
-	}
-
-	void MeshEntity(TSharedRef<FModel>& InModel)
-	{
-		MeshEntity((TSharedRef<FTopologicalEntity>&) InModel);
-	}
-
-	void MeshEntity(TSharedRef<FTopologicalEntity>& InEntity)
-	{
-		TArray<TSharedPtr<FEntity>> Entities;
-		Entities.Add(InEntity);
+		TArray<FTopologicalShapeEntity*> Entities;
+		Entities.Add(&InEntity);
 		MeshEntities(Entities);
 	}
 
@@ -127,7 +106,7 @@ protected:
 	void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
 
 	void ApplyEdgeCriteria(FTopologicalEdge& Edge);
-	void ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face);
+	void ApplyFaceCriteria(FTopologicalFace& Face);
 
 	/**
 	 * Generate Edge Elements on active edge from Edge cutting points

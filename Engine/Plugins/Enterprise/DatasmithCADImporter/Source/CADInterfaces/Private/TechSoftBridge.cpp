@@ -729,7 +729,7 @@ TSharedRef<FBody> FTechSoftBridge::AddBody(A3DRiBrepModel* BrepModel, FEntityDat
 	TSharedRef<FBody> Body = FEntity::MakeShared<FBody>();
 	TechSoftToEntity.Add(BrepModel, Body);
 
-	AddMetadata(BrepMetaData, Body);
+	AddMetadata(BrepMetaData, *Body);
 
 	CADLibrary::TUniqueTSObj<A3DRiBrepModelData> BRepModelData(BrepModel);
 	if (BRepModelData.IsValid())
@@ -797,7 +797,7 @@ void FTechSoftBridge::TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<FBo
 	Body->AddShell(Shell);
 	Report.ShellCount++;
 
-	AddMetadata(MetaData, Shell);
+	AddMetadata(MetaData, *Shell);
 
 	CADLibrary::TUniqueTSObj<A3DTopoShellData> ShellData(A3DShell);
 	if (ShellData.IsValid())
@@ -1374,7 +1374,7 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, TSharedRef<FShell>& Sh
 		}
 	}
 
-	//AddMetadata(CTFaceId, Face);
+	AddMetadata(MetaData, *Face);
 	//Face->SetPatchId((int32)CTFaceId);
 
 	EOrientation Orientation = EOrientation::Front; //CTOrientation == CT_FORWARD ? EOrientation::Front : EOrientation::Back;
@@ -1938,17 +1938,17 @@ TSharedPtr<FSurface> FTechSoftBridge::AddSurfaceAsNurbs(const A3DSurfBase* Surfa
 
 }
 
-void FTechSoftBridge::AddMetadata(FEntityData& MetaData, TSharedRef<FMetadataDictionary> Entity)
+void FTechSoftBridge::AddMetadata(FEntityData& MetaData, FTopologicalShapeEntity& Entity)
 {
 	//Entity->SetHostId(CTNodeId);
-	Entity->SetName(MetaData.Name);
-	//Entity->SetLayer(LayerId);
+	Entity.SetName(*MetaData.Name);
+	//Entity.SetLayer(LayerId);
 	//uint32 ColorHId = CADLibrary::BuildColorId(ColorId, Alpha);
-	//Entity->SetColorId(ColorHId);
-	//Entity->SetPatchId();
+	//Entity.SetColorId(ColorHId);
+	//Entity.SetPatchId();
 }
 
 }
 
 
-#endif
+#endif // USE_TECHSOFT_SDK

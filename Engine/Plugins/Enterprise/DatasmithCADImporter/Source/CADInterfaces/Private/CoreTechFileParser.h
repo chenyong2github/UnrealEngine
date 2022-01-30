@@ -77,7 +77,7 @@ namespace CADLibrary
 		bool BuildStaticMeshData(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash);
 		
 		void ReadAndSewBodies(const TArray<CT_OBJECT_ID>& Bodies, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, TArray<FCadId>& OutChildren);
-		void BuildStaticMeshData(CADKernel::FSession& CADKernelSession, TSharedRef<CADKernel::FBody> CADKernelBody, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash);
+		void BuildStaticMeshData(CADKernel::FSession& CADKernelSession, CADKernel::FBody& CADKernelBody, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash);
 
 		uint32 GetMaterialNum();
 		void ReadMaterials();

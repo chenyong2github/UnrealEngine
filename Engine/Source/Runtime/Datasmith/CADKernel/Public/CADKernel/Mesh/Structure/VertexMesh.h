@@ -12,7 +12,7 @@ namespace CADKernel
 	protected:
 
 	public:
-		FVertexMesh(TSharedRef<FModelMesh> Model, TSharedRef<FTopologicalEntity> TopologicalEntity)
+		FVertexMesh(FModelMesh& Model, FTopologicalEntity& TopologicalEntity)
 			: FMesh(Model, TopologicalEntity)
 		{
 		}

@@ -83,19 +83,6 @@ struct CADKERNEL_API FMesherChronos
 	FDuration GlobalMeshThinZones;
 
 	FMesherChronos()
-		: GlobalDuration(FChrono::Init())
-		, ApplyCriteriaDuration(FChrono::Init())
-		, IsolateQuadPatchDuration(FChrono::Init())
-		, GlobalMeshDuration(FChrono::Init())
-		, GlobalPointCloudDuration(FChrono::Init())
-		, GlobalGeneratePointCloudDuration(FChrono::Init())
-		, GlobalTriangulateDuration(FChrono::Init())
-		, GlobalDelaunayDuration(FChrono::Init())
-		, GlobalMeshAndGetLoopNodes(FChrono::Init())
-		, GlobalMeshEdges(FChrono::Init())
-		, GlobalThinZones(FChrono::Init())
-		, GlobalFindThinZones(FChrono::Init())
-		, GlobalMeshThinZones(FChrono::Init())
 	{}
 
 	void PrintTimeElapse() const

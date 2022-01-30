@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/EntityGeom.h"
+#include "CADKernel/Core/Entity.h"
 
 namespace CADKernel
 {
@@ -9,28 +9,24 @@ namespace CADKernel
 	class FTopologicalFace;
 	class FTopologyReport;
 
-	class CADKERNEL_API FTopologicalEntity : public FEntityGeom
+	class CADKERNEL_API FTopologicalEntity : public FEntity
 	{
+		friend class FCoreTechBridge;
+
+	protected:
+		FIdent CtKioId = 0;
+
 	public:
 
-		virtual int32 FaceCount() const
+		FIdent GetKioId() const
 		{
-			return 0;
+			return CtKioId;
 		}
-
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) {}
-
-		/**
-		 * Each face of model is set by its orientation. This allow to make oriented mesh and to keep the face orientation in topological function.
-		 * Marker2 of spread face is set. It must be reset after the process
-		 */
-		virtual void SpreadBodyOrientation() {}
-
-		virtual void FillTopologyReport(FTopologyReport& Report) const {}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
-			FEntityGeom::Serialize(Ar);
+			FEntity::Serialize(Ar);
+			Ar << CtKioId;
 		}
 		
 #ifdef CADKERNEL_DEV

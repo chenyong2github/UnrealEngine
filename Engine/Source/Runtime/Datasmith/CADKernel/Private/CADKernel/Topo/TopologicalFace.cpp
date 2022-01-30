@@ -7,6 +7,8 @@
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/SegmentCurve.h"
 #include "CADKernel/Geo/GeoPoint.h"
+#include "CADKernel/Geo/Sampler/SamplerOnChord.h"
+#include "CADKernel/Geo/Sampling/Polyline.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
@@ -43,6 +45,122 @@ void FTopologicalFace::Presample()
 	const FSurfacicBoundary& FaceBoundaries = GetBoundary();
 	CarrierSurface->Presample(FaceBoundaries, CrossingCoordinates);
 }
+
+#ifdef DEBUG_GET_BBOX
+#include "CADKernel/Math/Aabb.h"
+#endif
+
+void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFactor, FBBoxWithNormal& BBox)
+{
+	const double SAG = GetCarrierSurface()->Get3DTolerance() * ApproximationFactor;
+
+	TArray<TArray<FPoint2D>> BoundaryApproximation;
+	Get2DLoopSampling(BoundaryApproximation);
+
+	FPolyline3D Polyline;
+	const FSurface& Surface = GetCarrierSurface().Get();
+	FIsoCurve3DSamplerOnChord Sampler(Surface, SAG, Polyline);
+
+	TFunction <void(const EIso)> UpdateBBoxWithIsos = [&](const EIso IsoType)
+	{
+		const FLinearBoundary& Bounds = GetBoundary().Get(IsoType);
+
+		EIso Other = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
+
+		double Coordinate = Bounds.Min;
+		IsoCount++;
+		const double Step = (Bounds.Max - Bounds.Min) / IsoCount;
+
+		for (int32 iIso = 1; iIso < IsoCount; iIso++)
+		{
+			FPolylineBBox IsoBBox;
+
+			Coordinate += Step;
+
+			TArray<double> Intersections;
+			FindLoopIntersectionsWithIso(IsoType, Coordinate, BoundaryApproximation, Intersections);
+			int32 IntersectionCount = Intersections.Num();
+			if (IntersectionCount == 0)
+			{
+				return;
+			}
+
+			FLinearBoundary CurveBounds(Intersections[0], Intersections.Last());
+
+			Polyline.Empty();
+			Sampler.Set(IsoType, Coordinate, CurveBounds);
+			Sampler.Sample();
+
+			if (IntersectionCount == 0)
+			{
+				continue;
+			}
+
+			if (IntersectionCount % 2 != 0)
+			{
+				TArray<FPoint> SubPolyline;
+				FLinearBoundary IntersectionBoundary(Intersections[IntersectionCount - 1], CurveBounds.GetMax());
+
+#ifdef DEBUG_GET_BBOX2
+				Polyline.GetSubPolyline(Boundary, EOrientation::Front, SubPolyline);
+				Draw(SubPolyline, EVisuProperty::Iso);
+#endif
+
+				Polyline.UpdateSubPolylineBBox(IntersectionBoundary, IsoBBox);
+
+				Intersections.Pop();
+				IntersectionCount--;
+			}
+
+			for (int32 ISection = 0; ISection < IntersectionCount; ISection += 2)
+			{
+				TArray<FPoint> SubPolyline;
+				FLinearBoundary IntersectionBoundary(Intersections[ISection], Intersections[ISection + 1]);
+
+#ifdef DEBUG_GET_BBOX2
+				Polyline.GetSubPolyline(Boundary, EOrientation::Front, SubPolyline);
+				Draw(SubPolyline, EVisuProperty::Iso);
+#endif
+				Polyline.UpdateSubPolylineBBox(IntersectionBoundary, IsoBBox);
+			}
+
+#ifdef DEBUG_GET_BBOX2
+			for (int32 Index = 0; Index < 3; ++Index)
+			{
+				CADKernel::DisplayPoint(IsoBBox.MaxPoints[Index], EVisuProperty::YellowPoint);
+				CADKernel::DisplayPoint(IsoBBox.MinPoints[Index], EVisuProperty::YellowPoint);
+			}
+#endif
+
+			BBox.Update(IsoBBox, IsoType, Coordinate);
+		}
+	};
+
+	UpdateBBoxWithIsos(EIso::IsoV);
+	UpdateBBoxWithIsos(EIso::IsoU);
+
+	BBox.UpdateNormal(*this);
+
+#ifdef DEBUG_GET_BBOX
+	{
+		F3DDebugSession _(TEXT("BBox Face"));
+
+		FAABB AABB(BBox.Min, BBox.Max);
+		CADKernel::DisplayAABB(AABB);
+
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			CADKernel::DisplayPoint(BBox.MaxPoints[Index], EVisuProperty::YellowPoint);
+			CADKernel::DisplayPoint(BBox.MinPoints[Index], EVisuProperty::YellowPoint);
+			CADKernel::DisplaySegment(BBox.MaxPoints[Index], BBox.MaxPoints[Index] + BBox.MaxPointNormals[Index], 0, EVisuProperty::YellowCurve);
+			CADKernel::DisplaySegment(BBox.MinPoints[Index], BBox.MinPoints[Index] + BBox.MinPointNormals[Index], 0, EVisuProperty::YellowCurve);
+		}
+		Wait();
+	}
+#endif
+
+}
+
 
 void FTopologicalFace::ApplyNaturalLoops()
 {
@@ -210,7 +328,7 @@ bool FTopologicalFace::HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& O
 
 const FTopologicalEdge* FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& LinkedEdge) const
 {
-	for (FTopologicalEdge* TwinEdge : LinkedEdge.GetTwinsEntities())
+	for (FTopologicalEdge* TwinEdge : LinkedEdge.GetTwinEntities())
 	{
 		if (&*TwinEdge->GetLoop()->GetFace() == this)
 		{
@@ -282,22 +400,20 @@ void FTopologicalFace::SpawnIdent(FDatabase& Database)
 #ifdef CADKERNEL_DEV
 FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 {
-	return FTopologicalEntity::GetInfo(Info)
-		.Add(TEXT("Hosted by"), HostedBy)
+	return FTopologicalShapeEntity::GetInfo(Info)
 		.Add(TEXT("Carrier Surface"), CarrierSurface)
 		.Add(TEXT("Boundary"), (FSurfacicBoundary&) Boundary)
 		.Add(TEXT("Loops"), Loops)
 		.Add(TEXT("QuadCriteria"), QuadCriteria)
-		.Add(TEXT("mesh"), Mesh)
-		.Add(*this);
+		.Add(TEXT("Mesh"), Mesh);
 }
 #endif
 
-TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(const TSharedRef<FModelMesh>& MeshModel)
+TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
 {
 	if (!Mesh.IsValid())
 	{
-		Mesh = FEntity::MakeShared<FFaceMesh>(MeshModel, StaticCastSharedRef<FTopologicalFace>(AsShared()));
+		Mesh = FEntity::MakeShared<FFaceMesh>(MeshModel, *this);
 	}
 	return Mesh.ToSharedRef();
 }
@@ -340,12 +456,6 @@ void FTopologicalFace::ChooseFinalDeltaUs()
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
-
-TSharedPtr<FEntityGeom> FTopologicalFace::ApplyMatrix(const FMatrixH& InMatrix) const
-{
-	NOT_IMPLEMENTED;
-	return TSharedPtr<FEntityGeom>();
-}
 
 // Quad ==============================================================================================================================================================================================================================
 
@@ -403,8 +513,10 @@ void FTopologicalFace::ComputeSurfaceSideProperties()
 
 void FTopologicalFace::DefineSurfaceType()
 {
-	if (CarrierSurface == nullptr)
+	if (!CarrierSurface.IsValid())
+	{
 		return;
+	}
 
 	const double Tolerance3D = CarrierSurface->Get3DTolerance();
 	const double GeometricTolerance = 20.0 * Tolerance3D;
@@ -423,7 +535,7 @@ void FTopologicalFace::DefineSurfaceType()
 			if (SideProperties[Index].IsoType == EIso::UndefinedIso)
 			{
 				TSharedPtr<FTopologicalEdge> Edge = Loops[0]->GetEdge(StartSideIndices[Index]);
-				int32 NeighborsNum = Edge->GetTwinsEntityCount();
+				int32 NeighborsNum = Edge->GetTwinEntityCount();
 				// If non manifold Edge => Stop
 				if (NeighborsNum != 2)
 				{
@@ -445,7 +557,7 @@ void FTopologicalFace::DefineSurfaceType()
 
 				FTopologicalFace* Neighbor = nullptr;
 				{
-					for(FTopologicalEdge* NeighborEdge : Edge->GetTwinsEntities() )
+					for(FTopologicalEdge* NeighborEdge : Edge->GetTwinEntities() )
 					{
 						if (NeighborEdge == Edge.Get())
 						{
@@ -455,10 +567,8 @@ void FTopologicalFace::DefineSurfaceType()
 					}
 				}
 
-				ensure(Neighbor != nullptr);
-
 				// it's not a quad surface
-				if (Neighbor==nullptr || Neighbor->SurfaceCorners.Num() == 0)
+				if (Neighbor == nullptr || Neighbor->SurfaceCorners.Num() == 0)
 				{
 					return;
 				}
@@ -520,7 +630,7 @@ void FTopologicalFace::DefineSurfaceType()
 }
 
 
-void FFaceSubset::SetMainShell(TMap<FShell*, int32>& ShellToFaceCount)
+void FFaceSubset::SetMainShell(TMap<FTopologicalShapeEntity*, int32>& ShellToFaceCount)
 {
 	if (ShellToFaceCount.Num() == 0)
 	{
@@ -528,9 +638,9 @@ void FFaceSubset::SetMainShell(TMap<FShell*, int32>& ShellToFaceCount)
 	}
 
 	int32 MaxFaceCount = 0;
-	FShell* CandidateShell = nullptr;
+	FTopologicalShapeEntity* CandidateShell = nullptr;
 
-	for (TPair<FShell*, int32>& Pair : ShellToFaceCount)
+	for (TPair<FTopologicalShapeEntity*, int32>& Pair : ShellToFaceCount)
 	{
 		if (Pair.Value > MaxFaceCount)
 		{
@@ -545,16 +655,16 @@ void FFaceSubset::SetMainShell(TMap<FShell*, int32>& ShellToFaceCount)
 	}
 }
 
-void FFaceSubset::SetMainBody(TMap<FBody*, int32>& BodyToFaceCount)
+void FFaceSubset::SetMainBody(TMap<FTopologicalShapeEntity*, int32>& BodyToFaceCount)
 {
 	if (BodyToFaceCount.Num() == 0)
 	{
 		return;
 	}
 
-	FBody* CandidateBody = nullptr;
+	FTopologicalShapeEntity* CandidateBody = nullptr;
 	int32 MaxFaceCount = 0;
-	for (TPair<FBody*, int32>& Pair : BodyToFaceCount)
+	for (TPair<FTopologicalShapeEntity*, int32>& Pair : BodyToFaceCount)
 	{
 		if (Pair.Value > MaxFaceCount)
 		{

@@ -10,39 +10,38 @@ class FString;
 
 namespace CADKernel
 {
-	class CADKERNEL_API FEntityGeom : public FEntity
-	{
+
+class CADKERNEL_API FEntityGeom : public FEntity
+{
 	friend class FCoreTechBridge;
 
-	protected:
-		FIdent CtKioId = 0;
+protected:
+	FIdent CtKioId = 0;
 
-	public:
-		FEntityGeom() = default;
+public:
 
-		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const
-		{
-			return TSharedPtr<FEntityGeom>();
-		}
+	FEntityGeom() = default;
 
-		virtual void Display(const FString& Name) const
-		{
-		}
+	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const
+	{
+		return TSharedPtr<FEntityGeom>();
+	}
 
-		virtual void Serialize(FCADKernelArchive& Ar) override
-		{
-			FEntity::Serialize(Ar);
-			Ar << CtKioId;
-		}
+	virtual void Serialize(FCADKernelArchive& Ar) override
+	{
+		FEntity::Serialize(Ar);
+		Ar << CtKioId;
+	}
 
-		FIdent GetKioId() const
-		{
-			return CtKioId;
-		}
+	FIdent GetKioId() const
+	{
+		return CtKioId;
+	}
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity& Info) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity& Info) const override;
 #endif
-	};
+};
+
 }
 

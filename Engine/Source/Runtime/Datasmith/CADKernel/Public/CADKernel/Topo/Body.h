@@ -9,105 +9,114 @@
 
 namespace CADKernel
 {
-	class FShell;
 
-	class CADKERNEL_API FBody : public FTopologicalEntity, public FMetadataDictionary
+class FShell;
+
+class CADKERNEL_API FBody : public FTopologicalShapeEntity
+{
+	friend FEntity;
+
+private:
+	TArray<TSharedPtr<FShell>> Shells;
+
+	FBody() = default;
+
+	FBody(const TArray<TSharedPtr<FShell>>& InShells)
 	{
-		friend FEntity;
-
-	private:
-		TArray<TSharedPtr<FShell>> Shells;
-
-		FBody() = default;
-
-		FBody(const TArray<TSharedPtr<FShell>>& InShells)
+		for (TSharedPtr<FShell> Shell : InShells)
 		{
-			for (TSharedPtr<FShell> Shell : InShells)
+			if (Shell.IsValid())
 			{
-				if (Shell.IsValid())
-				{
-					AddShell(Shell.ToSharedRef());
-				}
+				AddShell(Shell.ToSharedRef());
 			}
 		}
+	}
 
-	public:
+public:
 
-		virtual void Serialize(FCADKernelArchive& Ar) override
+	virtual void Serialize(FCADKernelArchive& Ar) override
+	{
+		FTopologicalShapeEntity::Serialize(Ar);
+		SerializeIdents(Ar, Shells);
+	}
+
+
+	virtual void SpawnIdent(FDatabase& Database) override
+	{
+		if (!FEntity::SetId(Database))
 		{
-			FTopologicalEntity::Serialize(Ar);
-			SerializeIdents(Ar, Shells);
-			FMetadataDictionary::Serialize(Ar);
+			return;
 		}
 
-		virtual void SpawnIdent(FDatabase& Database) override
-		{
-			if (!FEntity::SetId(Database))
-			{
-				return;
-			}
+		SpawnIdentOnEntities(Shells, Database);
+	}
 
-			SpawnIdentOnEntities(Shells, Database);
-		}
-
-		virtual void ResetMarkersRecursively() override
-		{
-			ResetMarkers();
-			ResetMarkersRecursivelyOnEntities(Shells);
-		}
+	virtual void ResetMarkersRecursively() override
+	{
+		ResetMarkers();
+		ResetMarkersRecursivelyOnEntities(Shells);
+	}
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
 
-		virtual EEntity GetEntityType() const override
+	virtual EEntity GetEntityType() const override
+	{
+		return EEntity::Body;
+	}
+
+	void AddShell(TSharedRef<FShell> Shell);
+
+	void RemoveEmptyShell(FModel& Model);
+
+	void Empty()
+	{
+		Shells.Empty();
+	}
+
+	const TArray<TSharedPtr<FShell>>& GetShells() const
+	{
+		return Shells;
+	}
+
+	virtual int32 FaceCount() const override
+	{
+		int32 FaceCount = 0;
+		for (const TSharedPtr<FShell>& Shell : Shells)
 		{
-			return EEntity::Body;
+			FaceCount += Shell->FaceCount();
 		}
+		return FaceCount;
+	}
 
-		void AddShell(TSharedRef<FShell> Shell);
-
-		void RemoveEmptyShell();
-
-		void Empty()
+	virtual void GetFaces(TArray<FTopologicalFace*>& Faces) override
+	{
+		for (const TSharedPtr<FShell>& Shell : Shells)
 		{
-			Shells.Empty();
+			Shell->GetFaces(Faces);
 		}
+	}
 
-		const TArray<TSharedPtr<FShell>>& GetShells() const
+	virtual void SpreadBodyOrientation() override
+	{
+		for (const TSharedPtr<FShell>& Shell : Shells)
 		{
-			return Shells;
+			Shell->SpreadBodyOrientation();
 		}
+	}
 
-		virtual int32 FaceCount() const override
+	void Orient()
+	{
+		for (const TSharedPtr<FShell>& Shell : Shells)
 		{
-			int32 FaceCount = 0;
-			for (const TSharedPtr<FShell>& Shell : Shells)
-			{
-				FaceCount += Shell->FaceCount();
-			}
-			return FaceCount;
+			Shell->Orient();
 		}
+	}
 
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& Faces) override
-		{
-			for (const TSharedPtr<FShell>& Shell : Shells)
-			{
-				Shell->GetFaces(Faces);
-			}
-		}
+	virtual void FillTopologyReport(FTopologyReport& Report) const override;
 
-		virtual void SpreadBodyOrientation() override
-		{
-			for (const TSharedPtr<FShell>& Shell : Shells)
-			{
-				Shell->SpreadBodyOrientation();
-			}
-		}
+};
 
-		virtual void FillTopologyReport(FTopologyReport& Report) const override;
-
-		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
-	};
 }
 

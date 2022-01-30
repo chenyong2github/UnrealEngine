@@ -10,6 +10,7 @@ namespace CADKernel
 {
 	class FModel;
 	class FTopologicalEntity;
+	class FTopologicalShapeEntity;
 
 	class CADKERNEL_API FDatabase
 	{
@@ -76,7 +77,7 @@ namespace CADKernel
 
 		FDatabase();
 
-		TSharedRef<FModel> GetModel();
+		FModel& GetModel();
 
 		/**
 		 * Remove from database
@@ -254,8 +255,9 @@ namespace CADKernel
 			}
 		}
 
-		uint32 SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bForceSpawning = false);
-		uint32 SpawnEntityIdent(TSharedPtr<FEntity>& SelectedEntity, bool bForceSpawning = false);
+		uint32 SpawnEntityIdents(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bForceSpawning = false);
+		uint32 SpawnEntityIdents(const TArray<FEntity*>& SelectedEntities, bool bForceSpawning = false);
+		uint32 SpawnEntityIdent(FEntity& SelectedEntity, bool bForceSpawning = false);
 
 	protected:
 		/**
@@ -289,6 +291,8 @@ namespace CADKernel
 
 		TSharedPtr<FEntity> GetEntity(FIdent id) const;
 		void GetEntities(const TArray<FIdent>& ids, TArray<TSharedPtr<FEntity>>& Entities) const;
+		void GetTopologicalEntities(const TArray<FIdent>& ids, TArray<FTopologicalEntity*>& Entities) const;
+		void GetTopologicalShapeEntities(const TArray<FIdent>& ids, TArray<FTopologicalShapeEntity*>& Entities) const;
 
 		void GetEntitiesOfType(EEntity Type, TArray<TSharedPtr<FEntity>>& OutEntities) const;
 		void GetEntitiesOfTypes(const TSet<EEntity>& Types, TArray<TSharedPtr<FEntity>>& OutEntities) const;

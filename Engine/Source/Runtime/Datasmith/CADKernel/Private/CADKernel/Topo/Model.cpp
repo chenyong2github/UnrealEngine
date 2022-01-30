@@ -3,7 +3,6 @@
 
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Topo/Body.h"
-#include "CADKernel/Topo/Topomaker.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
@@ -70,62 +69,6 @@ void FModel::PrintBodyAndShellCount()
 	FMessage::Printf(Log, TEXT("Body count %d shell count %d \n"), NbBody, NbShell);
 }
 
-void FModel::RemoveEmptyBodies()
-{
-	int32 NbBody = 0;
-	int32 NbShell = 0;
-
-	TArray<TSharedPtr<FBody>> NewBodies;
-	NewBodies.Reserve(Bodies.Num());
-	for (TSharedPtr<FBody> Body : Bodies)
-	{
-		Body->RemoveEmptyShell();
-		if (Body->GetShells().Num())
-		{
-			NbShell += Body->GetShells().Num();
-			NewBodies.Emplace(Body);
-			NbBody++;
-		}
-		else
-		{
-			Body->Delete();
-		}
-	}
-	Swap(NewBodies, Bodies);
-	FMessage::Printf(Log, TEXT("After RemoveEmptyBodies, Body count %d shell count %d \n"), NbBody, NbShell);
-}
-
-
-
-/*void FModel::RemoveDomain(TSharedPtr<FTopologicalFace> Domain)
-{
-	Faces.Remove(Domain);
-}
-
-void FModel::RemoveBody(TSharedPtr<FBody> Body)
-{
-	Bodies.Remove(Body);
-}*/
-
-TSharedPtr<FEntityGeom> FModel::ApplyMatrix(const FMatrixH& InMatrix) const
-{
-	TSharedPtr<FModel> Model = FEntity::MakeShared<FModel>();
-
-	for (TSharedPtr<FBody> Body : Bodies)
-	{
-		TSharedPtr<FBody> TransformedBody = StaticCastSharedPtr<FBody>(Body->ApplyMatrix(InMatrix));
-		Model->Add(TransformedBody);
-	}
-
-	for (TSharedPtr<FTopologicalFace> Domain : Faces)
-	{
-		TSharedPtr<FTopologicalFace> TransformedSurface = StaticCastSharedPtr<FTopologicalFace>(Domain->ApplyMatrix(InMatrix));
-		Model->Add(TransformedSurface);
-	}
-
-	return Model;
-}
-
 int32 FModel::FaceCount() const
 {
 	int32 FaceCount = 0;
@@ -137,7 +80,7 @@ int32 FModel::FaceCount() const
 	return FaceCount;
 }
 
-void FModel::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) 
+void FModel::GetFaces(TArray<FTopologicalFace*>& OutFaces) 
 {
 	for (const TSharedPtr<FBody>& Body : Bodies)
 	{
@@ -148,7 +91,7 @@ void FModel::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces)
 	{
 		if (!Face->HasMarker1())
 		{
-			OutFaces.Emplace(Face);
+			OutFaces.Add(Face.Get());
 			Face->SetMarker1();
 		}
 	}
@@ -165,10 +108,9 @@ void FModel::SpreadBodyOrientation()
 #ifdef CADKERNEL_DEV
 FInfoEntity& FModel::GetInfo(FInfoEntity& Info) const
 {
-	return FEntityGeom::GetInfo(Info)
+	return FTopologicalShapeEntity::GetInfo(Info)
 		.Add(TEXT("Bodies"), Bodies)
-		.Add(TEXT("Domains"), Faces)
-		.Add(*this);
+		.Add(TEXT("Faces"), Faces);
 }
 #endif
 
@@ -264,9 +206,12 @@ void FModel::FillTopologyReport(FTopologyReport& Report) const
 	}
 }
 
-void FModel::Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody)
+void FModel::Orient()
 {
-
+	for (TSharedPtr<FBody> Body : Bodies)
+	{
+		Body->Orient();
+	}
 }
 
 /**

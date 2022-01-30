@@ -94,6 +94,7 @@ FCoreTechBridge::FCoreTechBridge(FSession& InSession, FCADFileReport& InReport)
 
 TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 {
+
 	TSharedPtr<FEntity>* EntityPtr = CTIdToEntity.Find((uint32)CTBodyId);
 	if (EntityPtr)
 	{
@@ -107,7 +108,7 @@ TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 	TSharedRef<FBody> Body = FEntity::MakeShared<FBody>();
 	Report.BodyCount++;
 
-	AddMetadata(CTBodyId, Body);
+	AddMetadata(CTBodyId, *Body);
 
 #ifdef CORETECHBRIDGE_DEBUG
 	Body->CtKioId = (FIdent)CTBodyId;
@@ -144,7 +145,7 @@ TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 		Body->AddShell(Shell);
 		Report.ShellCount++;
 
-		AddMetadata(CTShellId, Shell);
+		AddMetadata(CTShellId, *Shell);
 #ifdef CORETECHBRIDGE_DEBUG
 		Shell->CtKioId = (FIdent)CTShellId;
 #endif
@@ -267,7 +268,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 	}
 
 	TSharedRef<FTopologicalFace> Face = FEntity::MakeShared<FTopologicalFace>(Surface);
-	AddMetadata(CTFaceId, Face);
+	AddMetadata(CTFaceId, *Face);
 	Face->SetPatchId((int32)CTFaceId);
 
 #ifdef CORETECHBRIDGE_DEBUG
@@ -675,6 +676,13 @@ TSharedPtr<FSurface> FCoreTechBridge::AddLinearTransfoSurface(CT_OBJECT_ID CTSur
 	TSharedPtr<FSurface> BaseSurface = AddSurface(CTBaseSurfaceId, FSurfacicBoundary());
 	TSharedPtr<FSurface> Surface = StaticCastSharedPtr<FSurface>(BaseSurface->ApplyMatrix(Matrix));
 
+//#ifdef CADKERNEL_DEV 
+//	const FMatrixH& BaseSurfaceMatrix = GetParamSpaceTransform(BaseSurface);
+//	if (!BaseSurfaceMatrix.IsId())
+//	{
+//		SetParamSpaceTransorm(Surface, BaseSurfaceMatrix);
+//	}
+//#endif
 	return Surface;
 }
 
@@ -999,11 +1007,40 @@ TSharedPtr<FCurve> FCoreTechBridge::AddCurveOnSurface(CT_OBJECT_ID CTCurveId)
 		return TSharedPtr<FCurve>();
 	}
 
+//#ifdef CADKERNEL_DEV
+//	// Curves on cylinders have UV param. and Z axis inversed:
+//	// Z'=-Z and {UV}' = {VU}
+//	if (CTSurfaceType == CT_CYLINDER_TYPE)
+//	{
+//		ensureCADKernel(false);
+//		FMatrixH MatrixTransformZandUV;
+//		MatrixTransformZandUV.SetIdentity();
+//		MatrixTransformZandUV[0] = 0;
+//		MatrixTransformZandUV[1] = -1;
+//		MatrixTransformZandUV[4] = 1;
+//		MatrixTransformZandUV[5] = 0;
+//		SetParamSpaceTransorm(Surface, MatrixTransformZandUV);
+//	}
+//#endif
+
 	TSharedPtr<FCurve> Curve2D = AddCurve(CTParametricCurveId, CTBaseSurfaceId);
 	if (!Curve2D.IsValid())
 	{
 		return TSharedPtr<FCurve>();
 	}
+
+//#ifdef CADKERNEL_DEV
+//	FMatrixH Matrix = GetParamSpaceTransform(Surface);
+//	if (!Matrix.IsId())
+//	{
+//		Curve2D = StaticCastSharedPtr<FCurve>(Curve2D->ApplyMatrix(Matrix));
+//	}
+//
+//	if (!Curve2D.IsValid())
+//	{
+//		return TSharedPtr<FCurve>();
+//	}
+//#endif
 
 	return FEntity::MakeShared<FSurfacicCurve>(Curve2D.ToSharedRef(), Surface.ToSharedRef());
 }
@@ -1105,9 +1142,9 @@ static void GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, EValueT
 	}
 }
 
-void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDictionary> Entity)
+void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, FTopologicalShapeEntity& ShapeEntity)
 {
-	Entity->SetHostId((uint32) CTNodeId);
+	ShapeEntity.SetHostId((uint32) CTNodeId);
 
 	CT_UINT32 IthAttrib = 0;
 	while (CT_OBJECT_IO::SearchAttribute(CTNodeId, CT_ATTRIB_ALL, IthAttrib++) == IO_OK)
@@ -1122,12 +1159,12 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 		{
 		case CT_ATTRIB_NAME:
 		{
-			if (Entity->GetName() == nullptr) // otherwise the name has been set with ORIGINAL_NAME that is prefered in all case
+			if (ShapeEntity.HasName()) // otherwise the name has been set with ORIGINAL_NAME that is prefered in all case
 			{
 				CT_STR NameStrValue;
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
 				{
-					Entity->SetName(AsFString(NameStrValue));
+					ShapeEntity.SetName(AsFString(NameStrValue));
 				}
 				break;
 			}
@@ -1138,7 +1175,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 			CT_STR NameStrValue;
 			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
 			{
-				Entity->SetName(AsFString(NameStrValue));
+				ShapeEntity.SetName(AsFString(NameStrValue));
 			}
 			break;
 		}
@@ -1150,7 +1187,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 			{
 				LayerId = 0;
 			}
-			Entity->SetLayer(LayerId);
+			ShapeEntity.SetLayer(LayerId);
 			break;
 
 		}
@@ -1174,7 +1211,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 			}
 
 			uint32 ColorHId = CADLibrary::BuildColorId(ColorId, Alpha);
-			Entity->SetColorId(ColorHId);
+			ShapeEntity.SetColorId(ColorHId);
 		}
 
 		case CT_ATTRIB_MATERIALID:
@@ -1182,7 +1219,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 			int32 MaterialId = 0;
 			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_MATERIALID_VALUE, MaterialId) == IO_OK)
 			{
-				Entity->SetMaterialId(MaterialId);
+				ShapeEntity.SetMaterialId(MaterialId);
 			}
 			break;
 		}

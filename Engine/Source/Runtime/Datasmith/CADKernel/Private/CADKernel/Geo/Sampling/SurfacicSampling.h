@@ -7,56 +7,58 @@
 
 namespace CADKernel
 {
-	struct FSurfacicSampling
+
+struct FSurfacicSampling
+{
+	bool bWithNormals = false;
+	TArray<FPoint2D> Points2D;
+	TArray<FPoint> Points3D;
+	TArray<FVector> Normals;
+
+	int32 Count()
 	{
-		bool bWithNormals = false;
-		TArray<FPoint2D> Points2D;
-		TArray<FPoint> Points3D;
-		TArray<FVector> Normals;
+		return Points3D.Num();
+	}
 
-		int32 Count()
+	void SetNum(int32 Number)
+	{
+		Points2D.SetNum(Number);
+		Points3D.SetNum(Number);
+		if (bWithNormals)
 		{
-			return Points3D.Num();
+			Normals.SetNum(Number);
 		}
+	}
 
-		void SetNum(int32 Number)
+	void Reserve(int32 Number)
+	{
+		Points2D.Empty(Number);
+		Points3D.Empty(Number);
+		if (bWithNormals)
 		{
-			Points2D.SetNum(Number);
-			Points3D.SetNum(Number);
-			if (bWithNormals)
+			Normals.Empty(Number);
+		}
+	}
+
+	void NormalizeNormals()
+	{
+		for (FVector& Normal : Normals)
+		{
+			Normal.Normalize();
+		}
+	}
+
+	void Set2DCoordinates(const FCoordinateGrid& Coordinates)
+	{
+		Reserve(Coordinates.Count());
+		for (double VCoord : Coordinates[EIso::IsoV])
+		{
+			for (double UCoord : Coordinates[EIso::IsoU])
 			{
-				Normals.SetNum(Number);
+				Points2D.Emplace(UCoord, VCoord);
 			}
 		}
+	}
+};
 
-		void Reserve(int32 Number)
-		{
-			Points2D.Empty(Number);
-			Points3D.Empty(Number);
-			if (bWithNormals)
-			{
-				Normals.Empty(Number);
-			}
-		}
-
-		void NormalizeNormals()
-		{
-			for (FVector& Normal : Normals)
-			{
-				Normal.Normalize();
-			}
-		}
-
-		void Set2DCoordinates(const FCoordinateGrid& Coordinates)
-		{
-			Reserve(Coordinates.Count());
-			for (double VCoord : Coordinates[EIso::IsoV])
-			{
-				for (double UCoord : Coordinates[EIso::IsoU])
-				{
-					Points2D.Emplace(UCoord, VCoord);
-				}
-			}
-		}
-	};
-}
+} // ns CADKernel

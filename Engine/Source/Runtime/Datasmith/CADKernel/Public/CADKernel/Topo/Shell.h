@@ -6,12 +6,14 @@
 #include "CADKernel/Core/MetadataDictionary.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
-#include "CADKernel/Topo/TopologicalEntity.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
 
 namespace CADKernel
 {
+
 class FTopologicalFace;
 class FBody;
+class FTopologyReport;
 
 struct FFaceSubset;
 
@@ -34,19 +36,18 @@ public:
 	}
 };
 
-class CADKERNEL_API FShell : public FTopologicalEntity, public FMetadataDictionary
+class CADKERNEL_API FShell : public FTopologicalShapeEntity
 {
 	friend FEntity;
 	friend class FBody;
 
 private:
 	TArray<FOrientedFace> TopologicalFaces;
-	FBody* HostedBy;
 
 	FShell() = default;
 
 	FShell(const TArray<FOrientedFace> InTopologicalFaces, bool bIsInnerShell = false)
-		: FTopologicalEntity()
+		: FTopologicalShapeEntity()
 		, TopologicalFaces(InTopologicalFaces)
 	{
 		if (bIsInnerShell)
@@ -64,10 +65,8 @@ public:
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
-		FTopologicalEntity::Serialize(Ar);
+		FTopologicalShapeEntity::Serialize(Ar);
 		SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
-		SerializeIdent(Ar, &HostedBy);
-		FMetadataDictionary::Serialize(Ar);
 	}
 
 	virtual void SpawnIdent(FDatabase& Database) override
@@ -86,24 +85,6 @@ public:
 		ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
 	}
 
-	FBody* GetHost()
-	{
-		return HostedBy;
-	}
-
-	void SetHost(FBody* Body)
-	{
-		HostedBy = Body;
-	}
-
-	void CompleteMetadata()
-	{
-		if (HostedBy != nullptr)
-		{
-			CompleteDictionary((const FMetadataDictionary&)*HostedBy);
-		}
-	}
-
 	void Empty(int32 NewSize = 0);
 
 	void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
@@ -117,8 +98,6 @@ public:
 	{
 		return EEntity::Shell;
 	}
-
-	TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const;
 
 	virtual int32 FaceCount() const override
 	{
@@ -141,13 +120,18 @@ public:
 		return TopologicalFaces;
 	}
 
-	virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
+	virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) override;
 
 	virtual void Merge(TSharedPtr<FShell>& Shell);
 
 	virtual void SpreadBodyOrientation() override;
 
-	void CheckTopology(TArray<FFaceSubset>& SubShells);
+	/**
+	 * Update each FOrientedFace::Direction according to FOrientedFace::Entity->IsBackOriented() flag
+	 */
+	virtual void UpdateShellOrientation();
+
+	void CheckTopology(TArray<FFaceSubset>& Subshells);
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
 
 	/**
@@ -174,6 +158,16 @@ public:
 	{
 		States &= ~EHaveStates::IsInner;
 	}
+
+	/**
+	 * Orient each connected sub-shell: each connected face will have the same orientation 
+	 * Each connected subset of faces will be oriented:
+	 * - towards the outside if it's a closed subset (without border edge) 
+	 * - according to its main/average orientation if it's an open shell 
+	 * @return SwapFaceCount for report purpose
+	 */
+	int32 Orient();
 };
+
 }
 

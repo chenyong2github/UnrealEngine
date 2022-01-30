@@ -327,7 +327,7 @@ bool FOpenNurbsBRepToCADKernelConverter::AddBRep(ON_Brep& BRep, const ON_3dVecto
 
 	BRep.Translate(-Offset);
 
-	CADKernelSession.GetModel()->Add(Body);
+	CADKernelSession.GetModel().Add(Body);
 
 	return true;
 }

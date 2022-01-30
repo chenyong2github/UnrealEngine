@@ -32,14 +32,14 @@ FDatabase::FDatabase()
 	AddEntity(Model.ToSharedRef());
 }
 
-TSharedRef<FModel> FDatabase::GetModel()
+FModel& FDatabase::GetModel()
 {
 	if (!Model.IsValid())
 	{
 		Model = FEntity::MakeShared<FModel>();
 		AddEntity(Model.ToSharedRef());
 	}
-	return Model.ToSharedRef();
+	return *Model;
 }
 
 FIdent FDatabase::CreateId()
@@ -134,6 +134,80 @@ void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<F
 		{
 			AddedComponents.Add(EntityId);
 			Entities.Add(Entity);
+		}
+	}
+}
+
+void FDatabase::GetTopologicalEntities(const TArray<FIdent>& EntityIds, TArray<FTopologicalEntity*>& Entities) const
+{
+	Entities.Empty(EntityIds.Num());
+
+	// to avoid duplicated components
+	TSet<FIdent> AddedComponents;
+	AddedComponents.Reserve(EntityIds.Num());
+
+	for (FIdent EntityId : EntityIds)
+	{
+		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
+		switch (Entity->GetEntityType())
+		{
+		case EEntity::EdgeLink:
+		case EEntity::VertexLink:
+		case EEntity::TopologicalEdge:
+		case EEntity::TopologicalFace:
+		case EEntity::TopologicalLink:
+		case EEntity::TopologicalLoop:
+		case EEntity::TopologicalVertex:
+		case EEntity::Shell:
+		case EEntity::Body:
+		case EEntity::Model:
+			if (AddedComponents.Find(EntityId) == nullptr)
+			{
+				AddedComponents.Add(EntityId);
+				Entities.Add((FTopologicalShapeEntity*)Entity.Get());
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void FDatabase::GetTopologicalShapeEntities(const TArray<FIdent>& EntityIds, TArray<FTopologicalShapeEntity*>& Entities) const
+{
+	Entities.Empty(EntityIds.Num());
+
+	// to avoid duplicated components
+	TSet<FIdent> AddedComponents;
+	AddedComponents.Reserve(EntityIds.Num());
+
+	for (FIdent EntityId : EntityIds)
+	{
+		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (!Entity.IsValid() || Entity->IsDeleted())
+		{
+			continue;
+		}
+
+		switch (Entity->GetEntityType())
+		{
+		case EEntity::Body:
+		case EEntity::Model:
+		case EEntity::Shell:
+		case EEntity::TopologicalFace:
+			if (AddedComponents.Find(EntityId) == nullptr)
+			{
+				AddedComponents.Add(EntityId);
+				Entities.Add((FTopologicalShapeEntity*) Entity.Get());
+			}
+			break;
+		default:
+			break;
 		}
 	}
 }
@@ -240,7 +314,7 @@ void FDatabase::Serialize(FCADKernelArchive& Ar)
 
 	ensure(Ar.IsSaving());
 
-	SpawnEntityIdent((TSharedPtr<FEntity>&) Model, true);
+	SpawnEntityIdent(*Model, true);
 
 	Ar.Session.Serialize(Ar);
 
@@ -320,7 +394,7 @@ void FDatabase::CleanArchiveEntities()
 			{
 				TSharedPtr<FEdgeLink> EdgeLink = StaticCastSharedPtr<FEdgeLink>(Entity);
 				EdgeLink->CleanLink();
-				ensureCADKernel(EdgeLink->GetTwinsEntitieNum());
+				ensureCADKernel(EdgeLink->GetTwinEntityNum());
 				break;
 			}
 			case EEntity::VertexLink:
@@ -328,7 +402,7 @@ void FDatabase::CleanArchiveEntities()
 				TSharedPtr<FVertexLink> VertexLink = StaticCastSharedPtr<FVertexLink>(Entity);
 				VertexLink->CleanLink();
 #ifdef CADKERNEL_DEV
- 				ensureCADKernel(VertexLink->GetTwinsEntitieNum());
+ 				ensureCADKernel(VertexLink->GetTwinEntityNum());
 #endif
 				break;
 			}
@@ -422,7 +496,7 @@ void FDatabase::Empty()
 	AvailableIdents.Empty(DataBaseInitialSize);
 }
 
-uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bInForceSpawning)
+uint32 FDatabase::SpawnEntityIdents(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bInForceSpawning)
 {
 	bForceSpawning = bInForceSpawning;
 	EntityCount = 0;
@@ -439,16 +513,33 @@ uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEn
 	return EntityCount;
 }
 
-uint32 FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool bInForceSpawning)
+uint32 FDatabase::SpawnEntityIdents(const TArray<FEntity*>& SelectedEntities, bool bInForceSpawning)
 {
-	if (!Entity.IsValid() || Entity->IsDeleted())
+	bForceSpawning = bInForceSpawning;
+	EntityCount = 0;
+	for (FEntity* Entity : SelectedEntities)
+	{
+		if (Entity == nullptr || Entity->IsDeleted())
+		{
+			continue;
+		}
+
+		Entity->SpawnIdent(*this);
+	}
+	bForceSpawning = false;
+	return EntityCount;
+}
+
+uint32 FDatabase::SpawnEntityIdent(FEntity& Entity, bool bInForceSpawning)
+{
+	if (Entity.IsDeleted())
 	{
 		return 0;
 	}
 
 	bForceSpawning = bInForceSpawning;
 	EntityCount = 0;
-	Entity->SpawnIdent(*this);
+	Entity.SpawnIdent(*this);
 	bForceSpawning = false;
 	return EntityCount;
 }

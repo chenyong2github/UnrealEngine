@@ -187,6 +187,17 @@ namespace CADKernel
 
 		virtual void EvaluateNormals(const TArray<FPoint2D>& Points2D, TArray<FVector>& Normals) const;
 
+		virtual FVector EvaluateNormal(const FPoint2D& InPoint2D) const
+		{
+			int32 DerivativeOrder = 1;
+			FSurfacicPoint Point3D;
+			EvaluatePoint(InPoint2D, Point3D, DerivativeOrder);
+
+			FVector Normal = Point3D.GradientU ^ Point3D.GradientV;
+			Normal.Normalize();
+			return Normal;
+		}
+
 		/**
 		 * Divide the parametric space in the desired number of regular subdivisions and compute the associated PointGrid
 		 */

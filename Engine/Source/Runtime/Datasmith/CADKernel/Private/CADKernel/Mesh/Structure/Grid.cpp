@@ -15,7 +15,7 @@
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace CADKernel
 {
-FGrid::FGrid(FTopologicalFace& InFace, TSharedRef<FModelMesh>& InMeshModel)
+FGrid::FGrid(FTopologicalFace& InFace, FModelMesh& InMeshModel)
 	: Face(InFace)
 	, FaceTolerance(InFace.GetIsoTolerances())
 	, Tolerance3D(InFace.GetCarrierSurface()->Get3DTolerance())
@@ -347,7 +347,10 @@ bool FGrid::GeneratePointCloud()
 
 	ComputeMaxElementSize();
 
-	ScaleGrid();
+	if (!ScaleGrid())
+	{
+		return false;
+	}
 
 	Chronos.GeneratePointCloudDuration += FChrono::Elapse(StartTime);
 	return true;
@@ -993,7 +996,7 @@ bool FGrid::GetMeshOfLoops()
 				if (EdgeCuttingPointCoordinates.IsEmpty())
 				{
 					int32 CuttingPointCount = 2;
-					for (const FTopologicalEdge* TwinEdge : Edge->GetTwinsEntities())
+					for (const FTopologicalEdge* TwinEdge : Edge->GetTwinEntities())
 					{
 						int32 TwinCuttingPointCount = TwinEdge->GetCuttingPoints().Num();
 						if (TwinCuttingPointCount > CuttingPointCount)
@@ -1181,7 +1184,7 @@ bool FGrid::GetMeshOfLoops()
 	return true;
 }
 
-void FGrid::ScaleGrid()
+bool FGrid::ScaleGrid()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -1260,9 +1263,14 @@ void FGrid::ScaleGrid()
 	}
 
 	double MeanLengthV = GetMean(LengthsV);
-	double FactorV = MeanLengthV / (CuttingCoordinates[EIso::IsoV].Last() - CuttingCoordinates[EIso::IsoV][0]);
-
 	double MeanLengthU = GetMean(LengthsU);
+	if(MeanLengthV < Tolerance3D || MeanLengthU < Tolerance3D)
+	{
+		SetAsDegenerated();
+		return false;
+	}
+
+	double FactorV = MeanLengthV / (CuttingCoordinates[EIso::IsoV].Last() - CuttingCoordinates[EIso::IsoV][0]);
 	double FactorU = MeanLengthU / (CuttingCoordinates[EIso::IsoU].Last() - CuttingCoordinates[EIso::IsoU][0]);
 
 	//TArray<double> ScaledCuttingCoordinates;
@@ -1360,6 +1368,7 @@ void FGrid::ScaleGrid()
 		}
 	}
 	Chronos.ScaleGridDuration = FChrono::Elapse(StartTime);
+	return true;
 }
 
 void FGrid::TransformPoints(EGridSpace DestinationSpace, const TArray<FPoint2D>& InPointsToScale, TArray<FPoint2D>& OutTransformedPoints) const

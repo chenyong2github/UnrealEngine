@@ -23,18 +23,17 @@ void FSession::SaveDatabase(const TCHAR* FileName)
 	Archive->Close();
 }
 
-TSharedRef<FModel> FSession::GetModel()
+FModel& FSession::GetModel()
 {
 	return Database.GetModel();
 }
-
 
 void FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
 {
 	TArray<FIdent> EntityIds;
 	EntityIds.Reserve(SelectedEntities.Num());
 
-	SpawnEntityIdent(SelectedEntities, true);
+	SpawnEntityIdents(SelectedEntities, true);
 
 	for (const TSharedPtr<FEntity>& Entity : SelectedEntities)
 	{
@@ -56,7 +55,7 @@ void FSession::LoadDatabase(const TCHAR* FilePath)
 		return;
 	}
 
-	TSharedRef<FModel> SessionModel = GetModel();
+	FModel& Model = GetModel();
 
 	Database.Deserialize(*Archive.Get());
 	FModel* ArchiveModel = Archive->ArchiveModel;
@@ -77,7 +76,7 @@ void FSession::AddDatabase(const TArray<uint8>& InRawData)
 
 void FSession::SetGeometricTolerance(double NewTolerance)
 {
-	ensure(Database.GetModel()->EntityCount() == 0);
+	ensure(Database.GetModel().EntityCount() == 0);
 	GeometricTolerance = NewTolerance;
 }
 } // namespace CADKernel

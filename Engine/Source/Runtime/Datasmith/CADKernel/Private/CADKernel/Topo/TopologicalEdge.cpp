@@ -531,29 +531,6 @@ bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
 	return vertex1Edge == Edge.GetStartVertex()->GetLink();
 }
 
-TSharedPtr<FEntityGeom> FTopologicalEdge::ApplyMatrix(const FMatrixH& InMatrix) const
-{
-	TSharedPtr<FTopologicalVertex> v1Transformed = StaticCastSharedPtr<FTopologicalVertex>(StartVertex->ApplyMatrix(InMatrix));
-	if (!v1Transformed.IsValid())
-	{
-		return TSharedPtr<FEntityGeom>();
-	}
-
-	TSharedPtr<FTopologicalVertex> v2Transformed = StaticCastSharedPtr<FTopologicalVertex>(EndVertex->ApplyMatrix(InMatrix));
-	if (!v2Transformed.IsValid())
-	{
-		return TSharedPtr<FEntityGeom>();
-	}
-
-	TSharedPtr<FRestrictionCurve> TransformedCurve = StaticCastSharedPtr<FRestrictionCurve>(Curve->ApplyMatrix(InMatrix));
-	if (!TransformedCurve.IsValid())
-	{
-		return TSharedPtr<FEntityGeom>();
-	}
-
-	return FTopologicalEdge::Make(TransformedCurve.ToSharedRef(), v1Transformed.ToSharedRef(), v2Transformed.ToSharedRef(), Boundary);
-}
-
 #ifdef CADKERNEL_DEV
 FInfoEntity& FTopologicalEdge::GetInfo(FInfoEntity& Info) const
 {
@@ -569,7 +546,7 @@ FInfoEntity& FTopologicalEdge::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(const TSharedRef<FModelMesh>& ShellMesh)
+TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
 {
 	if (!IsActiveEntity())
 	{
@@ -578,7 +555,7 @@ TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(const TSharedRef<FModelM
 
 	if (!Mesh)
 	{
-		Mesh = FEntity::MakeShared<FEdgeMesh>(ShellMesh, StaticCastSharedRef<FTopologicalEdge>(AsShared()));
+		Mesh = FEntity::MakeShared<FEdgeMesh>(ShellMesh, *this);
 	}
 	return Mesh.ToSharedRef();
 }
@@ -939,7 +916,7 @@ void FTopologicalEdge::SpawnIdent(FDatabase& Database)
 
 TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& NewEdge)
 {
-	if (GetTwinsEntityCount() > 1)
+	if (GetTwinEntityCount() > 1)
 	{
 		return TSharedPtr<FTopologicalVertex>();
 		ensureCADKernel(false);
@@ -1025,7 +1002,7 @@ FInfoEntity& FEdgeLink::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
 		.Add(TEXT("Active Entity"), ActiveEntity)
-		.Add(TEXT("Twin Entities"), TwinsEntities);
+		.Add(TEXT("Twin Entities"), TwinEntities);
 }
 #endif
 

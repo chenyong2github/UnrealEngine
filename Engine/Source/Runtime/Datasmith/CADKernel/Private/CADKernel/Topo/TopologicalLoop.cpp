@@ -979,13 +979,13 @@ void FTopologicalLoop::FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& OutBre
 	FPoint StartTangentEdge;
 	FPoint EndTangentPreviousEdge;
 	Edges[EdgeNum - 1].Entity->GetTangentsAtExtremities(StartTangentEdge, EndTangentPreviousEdge, Edges[EdgeNum - 1].Direction == EOrientation::Front);
-	bool bPreviousIsSurface = (Edges[EdgeNum - 1].Entity->GetTwinsEntityCount() > 1);
+	bool bPreviousIsSurface = (Edges[EdgeNum - 1].Entity->GetTwinEntityCount() > 1);
 
 	for (int32 Index = 0; Index < EdgeNum; Index++)
 	{
 		FPoint EndTangentEdge;
 		Edges[Index].Entity->GetTangentsAtExtremities(StartTangentEdge, EndTangentEdge, Edges[Index].Direction == EOrientation::Front);
-		bool bIsSurface = (Edges[Index].Entity->GetTwinsEntityCount() > 1);
+		bool bIsSurface = (Edges[Index].Entity->GetTwinEntityCount() > 1);
 
 		// if both edge are border, the rupture is not evaluate. 
 		if (bIsSurface || bPreviousIsSurface)

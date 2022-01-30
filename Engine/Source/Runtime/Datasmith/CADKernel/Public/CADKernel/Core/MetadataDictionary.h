@@ -7,153 +7,153 @@
 
 namespace CADKernel
 {
-	class CADKERNEL_API FMetadataDictionary
+
+class FMetadataDictionary
+{
+private:
+	FString Name;
+	int32   HostId = 0;
+	int32   PatchId = 0;
+	uint32  ColorId = 0;
+	uint32  MaterialId = 0;
+	int32   LayerId = -1;
+
+public:
+	FMetadataDictionary() = default;
+
+	void Serialize(FCADKernelArchive& Ar)
 	{
+		Ar.Archive << Name;
+		Ar.Archive << HostId;
+		Ar.Archive << PatchId;
+		Ar.Archive << ColorId;
+		Ar.Archive << MaterialId;
+		Ar.Archive << LayerId;
+	}
 
-	private:
-
-		FString Name;
-		int32   HostId = 0;
-		int32   PatchId = 0;
-		uint32  ColorId = 0;
-		uint32  MaterialId = 0;
-		int32   LayerId = -1;
-
-	public:
-
-		FMetadataDictionary() = default;
-
-		void Serialize(FCADKernelArchive& Ar)
+	void CompleteDictionary(const FMetadataDictionary& MetaData)
+	{
+		if (Name.IsEmpty())
 		{
-			Ar.Archive << Name;
-			Ar.Archive << HostId;
-			Ar.Archive << PatchId;
-			Ar.Archive << ColorId;
-			Ar.Archive << MaterialId;
-			Ar.Archive << LayerId;
+			Name = MetaData.Name;
 		}
-
-		void CompleteDictionary(const FMetadataDictionary& MetaData)
+		if (HostId == 0)
 		{
-			if (Name.IsEmpty())
-			{
-				Name = MetaData.Name;
-			}
-			if (HostId == 0)
-			{
-				HostId = MetaData.HostId;
-			}
-			if (PatchId == 0)
-			{
-				PatchId = MetaData.PatchId;
-			}
-			if (ColorId == 0)
-			{
-				ColorId = MetaData.ColorId;
-			}
-			if (MaterialId == 0)
-			{
-				MaterialId = MetaData.MaterialId;
-			}
-			if (LayerId == 0)
-			{
-				LayerId = MetaData.LayerId;
-			}
+			HostId = MetaData.HostId;
 		}
-
-		void SetHostId(const int32 InHostId)
+		if (PatchId == 0)
 		{
-			HostId = InHostId;
+			PatchId = MetaData.PatchId;
 		}
-
-		const int32 GetHostId() const
+		if (ColorId == 0)
 		{
-			return HostId;
+			ColorId = MetaData.ColorId;
 		}
-
-		void SetLayer(const int32 InLayerId)
+		if (MaterialId == 0)
 		{
-			LayerId = InLayerId;
+			MaterialId = MetaData.MaterialId;
 		}
-
-		int32 GetLayer() const
+		if (LayerId == 0)
 		{
-			return LayerId;
+			LayerId = MetaData.LayerId;
 		}
+	}
 
-		void SetName(const FString& InName)
+	void ExtractMetaData(TMap<FString, FString>& OutMetaData) const 
+	{
+		if (!Name.IsEmpty())
 		{
-			Name = InName;
+			OutMetaData.Add(TEXT("Name"), Name);
 		}
+		if (HostId != 0)
+		{
+			OutMetaData.Add(TEXT("HostId"), FString::FromInt(HostId));
+		}
+		if (PatchId != 0)
+		{
+			OutMetaData.Add(TEXT("PatchId"), FString::FromInt(PatchId));
+		}
+		if (ColorId != 0)
+		{
+			OutMetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), ColorId));
+		}
+		if (MaterialId != 0)
+		{
+			OutMetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), MaterialId));
+		}
+		if (LayerId != 0)
+		{
+			OutMetaData.Add(TEXT("LayerId"), FString::FromInt(LayerId));
+		}
+	}
 
-		bool HasName() const
-		{
-			return !Name.IsEmpty();
-		}
+	void SetHostId(const int32 InHostId)
+	{
+		HostId = InHostId;
+	}
 
-		const TCHAR* GetName() const
-		{
-			return *Name;
-		}
+	const int32 GetHostId() const
+	{
+		return HostId;
+	}
 
-		void SetColorId(const uint32& InColorId)
-		{
-			ColorId = InColorId;
-		}
+	void SetLayer(const int32 InLayerId)
+	{
+		LayerId = InLayerId;
+	}
 
-		uint32 GetColorId() const
-		{
-			return ColorId;
-		}
+	int32 GetLayer() const
+	{
+		return LayerId;
+	}
 
-		void SetMaterialId(const uint32& InMaterialId)
-		{
-			MaterialId = InMaterialId;
-		}
+	void SetName(const FString& InName)
+	{
+		Name = InName;
+	}
 
-		uint32 GetMaterialId() const
-		{
-			return MaterialId;
-		}
+	bool HasName() const
+	{
+		return !Name.IsEmpty();
+	}
 
-		void SetPatchId(int32 InPatchId)
-		{
-			PatchId = InPatchId;
-		}
+	const TCHAR* GetName() const
+	{
+		return *Name;
+	}
 
-		int32 GetPatchId() const
-		{
-			return PatchId;
-		}
+	void SetColorId(const uint32& InColorId)
+	{
+		ColorId = InColorId;
+	}
 
-		void GetMetaData(TMap<FString, FString>& OutMetaData)
-		{
-			if (!Name.IsEmpty())
-			{
-				OutMetaData.Add(TEXT("Name"), Name);
-			}
-			if (HostId != 0)
-			{
-				OutMetaData.Add(TEXT("HostId"), FString::FromInt(HostId));
-			}
-			if (PatchId != 0)
-			{
-				OutMetaData.Add(TEXT("PatchId"), FString::FromInt(PatchId));
-			}
-			if (ColorId != 0)
-			{
-				OutMetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), ColorId));
-			}
-			if (MaterialId != 0)
-			{
-				OutMetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), MaterialId));
-			}
-			if (LayerId != 0)
-			{
-				OutMetaData.Add(TEXT("LayerId"), FString::FromInt(LayerId));
-			}
-		}
-	};
+	uint32 GetColorId() const
+	{
+		return ColorId;
+	}
+
+	void SetMaterialId(const uint32& InMaterialId)
+	{
+		MaterialId = InMaterialId;
+	}
+
+	uint32 GetMaterialId() const
+	{
+		return MaterialId;
+	}
+
+	void SetPatchId(int32 InPatchId)
+	{
+		PatchId = InPatchId;
+	}
+
+	int32 GetPatchId() const
+	{
+		return PatchId;
+	}
+};
+
+
 }
 
 

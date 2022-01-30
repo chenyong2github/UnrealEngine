@@ -217,7 +217,6 @@ class FCriterion;
 class FCurve;
 class FEntity;
 class FFaceMesh;
-class FMetadataDictionary;
 class FModel;
 class FPoint;
 class FRestrictionCurve;
@@ -226,6 +225,7 @@ class FShell;
 class FSurface;
 class FTopologicalEdge;
 class FTopologicalLoop;
+class FTopologicalShapeEntity;
 
 class FTechSoftBridge
 {
@@ -306,10 +306,10 @@ private:
 
 	TSharedPtr<FCurve> AddCurveAsNurbs(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	void AddMetadata(FEntityData& EntityData, TSharedRef<FMetadataDictionary> Entity);
+	void AddMetadata(FEntityData& EntityData, FTopologicalShapeEntity& Entity);
 };
 }
 
 
 
-#endif // USE_KERNEL_IO_SDK
+#endif // USE_TECHSOFT_SDK

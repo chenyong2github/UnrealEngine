@@ -127,6 +127,18 @@ public:
 		return Edges;
 	}
 
+	const FOrientedEdge* GetOrientedEdge(const FTopologicalEdge* InEdge) const 
+	{
+		for (const FOrientedEdge& Edge : Edges)
+		{
+			if (Edge.Entity.Get() == InEdge)
+			{
+				return &Edge;
+			}
+		}
+		return nullptr;
+	}
+
 	/**
 	 * Add active Edge that has not marker 1 in the edge array.
 	 * Marker 1 has to be reset at the end.

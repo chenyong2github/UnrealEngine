@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Topo/Body.h"
 
+#include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologyReport.h"
 
@@ -11,10 +12,10 @@ namespace CADKernel
 void FBody::AddShell(TSharedRef<FShell> Shell)
 {
 	Shells.Add(Shell);
-	Shell->HostedBy = this;
+	Shell->SetHost(this);
 }
 
-void FBody::RemoveEmptyShell()
+void FBody::RemoveEmptyShell(FModel& Model)
 {
 	TArray<TSharedPtr<FShell>> NewShells;
 	NewShells.Reserve(Shells.Num());
@@ -29,23 +30,21 @@ void FBody::RemoveEmptyShell()
 			Shell->Delete();
 		}
 	}
-	Swap(NewShells, Shells);
-}
-
-TSharedPtr<FEntityGeom> FBody::ApplyMatrix(const FMatrixH& InMatrix) const 
-{
-	TArray<TSharedPtr<FShell>> NewShells;
-	for (TSharedPtr<FShell> Shell : Shells)
+	if (NewShells.IsEmpty())
 	{
-		NewShells.Add(StaticCastSharedPtr<FShell>(Shell->ApplyMatrix(InMatrix)));
+		Delete();
+		Model.RemoveBody(this);
 	}
-	return FEntity::MakeShared<FBody>(NewShells);
+	else
+	{
+		Swap(NewShells, Shells);
+	}
 }
 
 #ifdef CADKERNEL_DEV
 FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
 {
-	return FTopologicalEntity::GetInfo(Info).Add(TEXT("shells"), Shells).Add(*this);
+	return FTopologicalShapeEntity::GetInfo(Info).Add(TEXT("Shells"), Shells);
 }
 #endif
 

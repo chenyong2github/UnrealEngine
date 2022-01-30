@@ -19,7 +19,7 @@ namespace CADKernel
 		 */
 		TArray<int32> EdgeVerticesIndex;
 
-		FEdgeMesh(TSharedRef<FModelMesh> Model, TSharedRef<FTopologicalEntity> TopologicalEntity)
+		FEdgeMesh(FModelMesh& Model, FTopologicalEntity& TopologicalEntity)
 			: FMesh(Model, TopologicalEntity)
 		{
 		}

@@ -23,7 +23,7 @@
 #include "CADKernel/Topo/Body.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
-#include "CADKernel/Topo/TopologicalEntity.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 
@@ -275,15 +275,15 @@ namespace CADLibrary
 		return MeshDescription.Polygons().Num() > 0;
 	}
 
-	bool FCADKernelTools::Tessellate(TSharedRef<CADKernel::FTopologicalEntity>& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
+	bool FCADKernelTools::Tessellate(CADKernel::FTopologicalShapeEntity& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
 	{
 		using namespace CADKernel;
 
 		// Tessellate the model
 		TSharedRef<FModelMesh> CADKernelModelMesh = FEntity::MakeShared<FModelMesh>();
-		FParametricMesher Mesher(CADKernelModelMesh);
+		FParametricMesher Mesher(*CADKernelModelMesh);
 
-		DefineMeshCriteria(CADKernelModelMesh, ImportParameters, 0.01);
+		DefineMeshCriteria(*CADKernelModelMesh, ImportParameters, 0.01);
 		Mesher.MeshEntity(CADTopologicalEntity);
 
 		FMeshConversionContext Context(ImportParameters, MeshParameters);
@@ -292,41 +292,39 @@ namespace CADLibrary
 	}
 
 
-	uint32 FCADKernelTools::GetFaceTessellation(const TSharedRef<CADKernel::FFaceMesh>& FaceMesh, FBodyMesh& OutBodyMesh)
+	uint32 FCADKernelTools::GetFaceTessellation(CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh)
 	{
 		// Something wrong happened, either an error or no data to collect
-		if (FaceMesh->TrianglesVerticesIndex.Num() == 0)
+		if (FaceMesh.TrianglesVerticesIndex.Num() == 0)
 		{
 			return 0;
 		}
 
 		FTessellationData& Tessellation = OutBodyMesh.Faces.Emplace_GetRef();
 
-		const CADKernel::FTopologicalFace& HaveMetadata = (const CADKernel::FTopologicalFace&) FaceMesh->GetGeometricEntity();
-		Tessellation.PatchId = HaveMetadata.GetPatchId();
+		const CADKernel::FTopologicalFace& TopologicalFace = (const CADKernel::FTopologicalFace&) FaceMesh.GetGeometricEntity();
+		Tessellation.PatchId = TopologicalFace.GetPatchId();
 
-		Tessellation.PositionIndices = MoveTemp(FaceMesh->VerticesGlobalIndex);
-		Tessellation.VertexIndices = MoveTemp(FaceMesh->TrianglesVerticesIndex);
+		Tessellation.PositionIndices = MoveTemp(FaceMesh.VerticesGlobalIndex);
+		Tessellation.VertexIndices = MoveTemp(FaceMesh.TrianglesVerticesIndex);
 
-		Tessellation.NormalArray = MoveTemp(FaceMesh->Normals);
-		Tessellation.TexCoordArray = MoveTemp(FaceMesh->UVMap);
+		Tessellation.NormalArray = MoveTemp(FaceMesh.Normals);
+		Tessellation.TexCoordArray = MoveTemp(FaceMesh.UVMap);
 
 		return Tessellation.VertexIndices.Num() / 3;
 	}
 
-	template<class ClassType>
-	void GetDisplayDataIds(const TSharedRef<ClassType>& Entity, FObjectDisplayDataId& DisplayDataId)
+	void GetDisplayDataIds(const CADKernel::FTopologicalShapeEntity& ShapeEntity, FObjectDisplayDataId& DisplayDataId)
 	{
-		const TSharedRef<CADKernel::FMetadataDictionary>& HaveMetadata = StaticCastSharedRef<CADKernel::FMetadataDictionary>(Entity);
-		DisplayDataId.Color = HaveMetadata->GetColorId();
-		DisplayDataId.Material = HaveMetadata->GetMaterialId();
+		DisplayDataId.Color = ShapeEntity.GetColorId();
+		DisplayDataId.Material = ShapeEntity.GetMaterialId();
 	}
 
-	void FCADKernelTools::GetBodyTessellation(const TSharedRef<CADKernel::FModelMesh>& ModelMesh, const TSharedRef<CADKernel::FBody>& Body, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> SetFaceMainMaterial)
+	void FCADKernelTools::GetBodyTessellation(const CADKernel::FModelMesh& ModelMesh, const CADKernel::FBody& Body, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> SetFaceMainMaterial)
 	{
-		ModelMesh->GetNodeCoordinates(OutBodyMesh.VertexArray);
+		ModelMesh.GetNodeCoordinates(OutBodyMesh.VertexArray);
 
-		uint32 FaceSize = Body->FaceCount();
+		uint32 FaceSize = Body.FaceCount();
 
 		// Allocate memory space for tessellation data
 		OutBodyMesh.Faces.Reserve(FaceSize);
@@ -340,7 +338,7 @@ namespace CADLibrary
 
 		// Loop through the face of bodies and collect all tessellation data
 		int32 FaceIndex = 0;
-		for (const TSharedPtr<CADKernel::FShell>& Shell : Body->GetShells())
+		for (const TSharedPtr<CADKernel::FShell>& Shell : Body.GetShells())
 		{
 			if (!Shell.IsValid())
 			{
@@ -348,7 +346,7 @@ namespace CADLibrary
 			}
 
 			FObjectDisplayDataId ShellMaterial = BodyMaterial;
-			GetDisplayDataIds(Shell.ToSharedRef(), ShellMaterial);
+			GetDisplayDataIds(*Shell, ShellMaterial);
 
 			for (const CADKernel::FOrientedFace& Face : Shell->GetFaces())
 			{
@@ -363,9 +361,9 @@ namespace CADLibrary
 				}
 
 				FObjectDisplayDataId FaceMaterial;
-				GetDisplayDataIds(Face.Entity.ToSharedRef(), FaceMaterial);
+				GetDisplayDataIds(*Face.Entity, FaceMaterial);
 
-				uint32 TriangleNum = GetFaceTessellation(Face.Entity->GetMesh(), OutBodyMesh);
+				uint32 TriangleNum = GetFaceTessellation(*Face.Entity->GetMesh(), OutBodyMesh);
 
 				if (TriangleNum == 0)
 				{
@@ -383,32 +381,32 @@ namespace CADLibrary
 		}
 	}
 
-	void FCADKernelTools::DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance)
+	void FCADKernelTools::DefineMeshCriteria(CADKernel::FModelMesh& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance)
 	{
 		{
 			TSharedPtr<CADKernel::FCriterion> CurvatureCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::CADCurvature);
-			MeshModel->AddCriterion(CurvatureCriterion);
+			MeshModel.AddCriterion(CurvatureCriterion);
 
 			TSharedPtr<CADKernel::FCriterion> MinSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MinSize, 2. * GeometricTolerance);
-			MeshModel->AddCriterion(MinSizeCriterion);
+			MeshModel.AddCriterion(MinSizeCriterion);
 		}
 
 		if (ImportParameters.GetMaxEdgeLength() > SMALL_NUMBER)
 		{
 			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.GetMaxEdgeLength() / ImportParameters.GetScaleFactor());
-			MeshModel->AddCriterion(MaxSizeCriterion);
+			MeshModel.AddCriterion(MaxSizeCriterion);
 		}
 
 		if (ImportParameters.GetChordTolerance() > SMALL_NUMBER)
 		{
 			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.GetChordTolerance() / ImportParameters.GetScaleFactor());
-			MeshModel->AddCriterion(ChordCriterion);
+			MeshModel.AddCriterion(ChordCriterion);
 		}
 
 		if (ImportParameters.GetMaxNormalAngle() > SMALL_NUMBER)
 		{
 			TSharedPtr<CADKernel::FCriterion> MaxNormalAngleCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Angle, ImportParameters.GetMaxNormalAngle());
-			MeshModel->AddCriterion(MaxNormalAngleCriterion);
+			MeshModel.AddCriterion(MaxNormalAngleCriterion);
 		}
 	}
 

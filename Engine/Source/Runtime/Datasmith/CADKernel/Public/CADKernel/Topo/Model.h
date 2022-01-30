@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/EntityGeom.h"
-#include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
 
 namespace CADKernel
 {
@@ -13,7 +13,7 @@ namespace CADKernel
 	class FGroup;
 	class FTopologicalVertex;
 
-	class CADKERNEL_API FModel : public FTopologicalEntity, public FMetadataDictionary
+	class CADKERNEL_API FModel : public FTopologicalShapeEntity
 	{
 		friend FEntity;
 
@@ -32,10 +32,9 @@ namespace CADKernel
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
-			FTopologicalEntity::Serialize(Ar);
+			FTopologicalShapeEntity::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Bodies);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Faces);
-			FMetadataDictionary::Serialize(Ar);
 
 			if(Ar.IsLoading())
 			{
@@ -112,8 +111,16 @@ namespace CADKernel
 			Bodies.Remove(InBody);
 		}
 
+		void RemoveBody(const FBody* InBody)
+		{
+			int32 Index = Bodies.IndexOfByPredicate([&](const TSharedPtr<FBody>& Body){ return (InBody == Body.Get()); });
+			if (Index != INDEX_NONE)
+			{
+				Bodies.RemoveAt(Index);
+			}
+		}
+
 		void PrintBodyAndShellCount();
-		void RemoveEmptyBodies();
 
 		void RemoveEntity(TSharedPtr<FTopologicalEntity> InEntity);
 
@@ -158,7 +165,7 @@ namespace CADKernel
 			return Faces;
 		}
 
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
+		virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) override;
 
 		virtual int32 FaceCount() const override;
 
@@ -168,8 +175,6 @@ namespace CADKernel
 		}
 
 		virtual void SpreadBodyOrientation() override;
-
-		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 
 		// Topo functions
 
@@ -186,15 +191,13 @@ namespace CADKernel
 		void FixModelTopology(double JoiningTolerance);
 
 		void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
-		void Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
-		void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
 
 		/**
 		 * Fore each shell of each body, try to stitch topological gap
 		 */
 		void HealModelTopology(double JoiningTolerance);
 
-
+		void Orient();
 	};
 
 } // namespace CADKernel

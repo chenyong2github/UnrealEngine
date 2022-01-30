@@ -76,7 +76,7 @@ protected:
 	const double Tolerance3D;
 	const double MinimumElementSize;
 
-	TSharedRef<FModelMesh> MeshModel;
+	FModelMesh& MeshModel;
 
 	FThinZone2DFinder ThinZoneFinder;
 
@@ -157,7 +157,7 @@ public:
 	FGridChronos Chronos;
 
 public:
-	FGrid(FTopologicalFace& InFace, TSharedRef<FModelMesh>& InShellMesh);
+	FGrid(FTopologicalFace& InFace, FModelMesh& InShellMesh);
 
 #ifndef CADKERNEL_DEV
 	virtual ~FGrid() = default;
@@ -210,8 +210,9 @@ protected:
 	 * Builds the scaled parametric spaces
 	 * @see Points2D
 	 * @see GeneratePointCloud (ended GeneratePointCloud process)
+	 * @return false if the scaled grid is degenerated
 	 */
-	void ScaleGrid();
+	bool ScaleGrid();
 
 	/**
 	 * Projects loop's points in the scaled parametric spaces

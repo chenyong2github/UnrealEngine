@@ -32,8 +32,9 @@
 #include "CADKernel/Mesh/Meshers/ParametricMesher.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 
-#include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Body.h"
+#include "CADKernel/Topo/Model.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
 #include "CADKernel/Topo/Topomaker.h"
 
 #include "HAL/FileManager.h"
@@ -721,20 +722,20 @@ namespace CADLibrary
 			double GeometricTolerance = 0.00001 / CADFileData.GetImportParameters().GetMetricUnit();
 			CADKernel::FSession CADKernelSession(GeometricTolerance);
 
-			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
+			CADKernel::FModel& CADKernelModel = CADKernelSession.GetModel();
 
 			CADKernel::FCADFileReport Report;
 			CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession, Report);
 
 			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
-			CADKernelModel->Add(CADKernelBody);
+			CADKernelModel.Add(CADKernelBody);
 
 			// Repair if needed
 			if(CADFileData.GetImportParameters().GetStitchingTechnique() != EStitchingTechnique::StitchingNone)
 			{
 				double Tolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.1); // mm
-				CADKernel::FJoiner Joiner(CADKernelSession, CADKernelModel, Tolerance);
-				Joiner.JoinFaces();
+				CADKernel::FTopomaker Topomaker(CADKernelSession, Tolerance);
+				Topomaker.Sew();
 			}
 
 #ifdef CORETECHBRIDGE_DEBUG
@@ -752,9 +753,9 @@ namespace CADLibrary
 			// Tessellate the body
 			TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-			FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters(), GeometricTolerance);
+			FCADKernelTools::DefineMeshCriteria(*CADKernelModelMesh, CADFileData.GetImportParameters(), GeometricTolerance);
 
-			CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
+			CADKernel::FParametricMesher Mesher(*CADKernelModelMesh);
 			Mesher.MeshEntity(CADKernelModel);
 
 			TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
@@ -763,7 +764,7 @@ namespace CADLibrary
 				SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
 			};
 
-			FCADKernelTools::GetBodyTessellation(CADKernelModelMesh, CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+			FCADKernelTools::GetBodyTessellation(*CADKernelModelMesh, *CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
 
 			CADKernelSession.Clear();
 		}
@@ -773,14 +774,14 @@ namespace CADLibrary
 		return true;
 	}
 
-	void FCoreTechFileParser::BuildStaticMeshData(CADKernel::FSession& CADKernelSession, TSharedRef<CADKernel::FBody> CADKernelBody, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash)
+	void FCoreTechFileParser::BuildStaticMeshData(CADKernel::FSession& CADKernelSession, CADKernel::FBody& CADKernelBody, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash)
 	{
-		int32 Index = CADFileData.AddBody(CADKernelBody->GetHostId());
+		int32 Index = CADFileData.AddBody(CADKernelBody.GetHostId());
 		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(Index);
 
-		CADKernelBody->GetMetaData(ArchiveBody.MetaData);
+		CADKernelBody.ExtractMetaData(ArchiveBody.MetaData);
 
-		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(CADKernelBody->GetHostId(), ArchiveBody);
+		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(CADKernelBody.GetHostId(), ArchiveBody);
 		if (uint32 MaterialHash = GetObjectMaterial(ArchiveBody))
 		{
 			DefaultMaterialHash = MaterialHash;
@@ -801,9 +802,9 @@ namespace CADLibrary
 		// Tessellate the body
 		TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters(), CADKernelSession.GetGeometricTolerance());
+		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh.Get(), CADFileData.GetImportParameters(), CADKernelSession.GetGeometricTolerance());
 
-		CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
+		CADKernel::FParametricMesher Mesher(*CADKernelModelMesh);
 		Mesher.MeshEntity(CADKernelBody);
 
 		TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
@@ -812,7 +813,7 @@ namespace CADLibrary
 			SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
 		};
 
-		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh, CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh.Get(), CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
 
 		ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
 		ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
@@ -823,7 +824,7 @@ namespace CADLibrary
 		double GeometricTolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.01); // mm
 		CADKernel::FSession CADKernelSession(GeometricTolerance);
 		CADKernelSession.SetFirstNewHostId(LastHostIdUsed);
-		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
+		CADKernel::FModel& CADKernelModel = CADKernelSession.GetModel();
 
 		CADKernel::FCADFileReport Report;
 		CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession, Report);
@@ -831,27 +832,28 @@ namespace CADLibrary
 		for(CT_OBJECT_ID BodyId : Bodies)
 		{
 			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
-			CADKernelModel->Add(CADKernelBody);
+			CADKernelModel.Add(CADKernelBody);
 		}
 
 		// Repair if needed
 		if (CADFileData.GetImportParameters().GetStitchingTechnique() != EStitchingTechnique::StitchingNone)
 		{
 			double Tolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.1); // mm
-			CADKernel::FJoiner Joiner(CADKernelSession, CADKernelModel, Tolerance);
-			Joiner.JoinFaces();
-			Joiner.SplitIntoConnectedShell();
+			CADKernel::FTopomaker Topomaker(CADKernelSession, Tolerance);
+			Topomaker.Sew();
+			Topomaker.SplitIntoConnectedShells();
+			Topomaker.OrientShells();
 		}
 
 		// Get CADKernel new bodies
-		for(const TSharedPtr<CADKernel::FBody>& CADKernelBody : CADKernelModel->GetBodies())
+		for(const TSharedPtr<CADKernel::FBody>& CADKernelBody : CADKernelModel.GetBodies())
 		{
 			if (!CADKernelBody.IsValid())
 			{
 				continue;
 			}
 
-			BuildStaticMeshData(CADKernelSession, CADKernelBody.ToSharedRef(), ParentId, ParentMaterialHash);
+			BuildStaticMeshData(CADKernelSession, *CADKernelBody, ParentId, ParentMaterialHash);
 			OutChildren.Add(CADKernelBody->GetHostId());
 		}
 

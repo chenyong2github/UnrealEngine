@@ -27,7 +27,7 @@ public:
 
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
-		FEntityGeom::Serialize(Ar);
+		FTopologicalEntity::Serialize(Ar);
 		SerializeIdent(Ar, TopologicalLink);
 	}
 
@@ -49,7 +49,7 @@ public:
 	{
 		ensureCADKernel(TopologicalLink.IsValid());
 
-		if (TopologicalLink->GetTwinsEntitieNum() == 1)
+		if (TopologicalLink->GetTwinEntityNum() == 1)
 		{
 			return true;
 		}
@@ -90,21 +90,21 @@ public:
 		return (Entity->TopologicalLink == TopologicalLink);
 	}
 
-	int32 GetTwinsEntityCount() const
+	int32 GetTwinEntityCount() const
 	{
 		ensureCADKernel(TopologicalLink.IsValid());
-		return TopologicalLink->GetTwinsEntitieNum();
+		return TopologicalLink->GetTwinEntityNum();
 	}
 
 	bool HasTwin() const
 	{
-		return GetTwinsEntityCount() != 1;
+		return GetTwinEntityCount() != 1;
 	}
 
-	const TArray<EntityType*>& GetTwinsEntities() const
+	const TArray<EntityType*>& GetTwinEntities() const
 	{
 		ensureCADKernel(TopologicalLink.IsValid());
-		return TopologicalLink->GetTwinsEntities();
+		return TopologicalLink->GetTwinEntities();
 	}
 
 	virtual void RemoveFromLink()
@@ -119,7 +119,11 @@ public:
 	 */
 	void UnlinkTwinEntities()
 	{
-		TopologicalLink->UnlinkTwinEntities();
+		TArray<EntityType*> Twins = GetTwinEntities();
+		for (EntityType* Entity : Twins)
+		{
+			Entity->ResetTopologicalLink();
+		}
 	}
 
 	const bool IsThinZone() const
@@ -151,13 +155,13 @@ protected:
 			return;
 		}
 
-		if (Link2->GetTwinsEntities().Num() > Link1->GetTwinsEntities().Num())
+		if (Link2->GetTwinEntityNum() > Link1->GetTwinEntityNum())
 		{
 			Swap(Link1, Link2);
 		}
 
-		Link1->AddEntities(Link2->GetTwinsEntities());
-		for (EntityType* Entity : Link2->GetTwinsEntities())
+		Link1->AddEntities(Link2->GetTwinEntities());
+		for (EntityType* Entity : Link2->GetTwinEntities())
 		{
 			Entity->SetTopologicalLink(Link1);
 		}

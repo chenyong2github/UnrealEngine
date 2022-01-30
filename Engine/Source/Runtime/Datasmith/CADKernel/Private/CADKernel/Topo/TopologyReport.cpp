@@ -58,7 +58,7 @@ void FTopologyReport::Add(const FTopologicalEdge* Edge)
 
 		CoedgeCount++;
 
-		switch (ActiveEdge->GetTwinsEntityCount())
+		switch (ActiveEdge->GetTwinEntityCount())
 		{
 		case 1:
 			BorderEdgeCount++;
@@ -93,7 +93,7 @@ void FTopologyReport::CountLoops()
 		}
 		Edge->SetMarker1();
 
-		if (Edge->GetTwinsEntityCount() == 2)
+		if (Edge->GetTwinEntityCount() == 2)
 		{
 			continue;
 		}

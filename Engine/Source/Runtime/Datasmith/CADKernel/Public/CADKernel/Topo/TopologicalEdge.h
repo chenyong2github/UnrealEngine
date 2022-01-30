@@ -174,8 +174,6 @@ public:
 		return EEntity::TopologicalEdge;
 	}
 
-	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
-
 	// ======   Topological Function   ======
 
 	void LinkVertex();
@@ -209,12 +207,12 @@ public:
 			return nullptr;
 		}
 
-		if (TopologicalLink->GetTwinsEntities().Num() < 2)
+		if (TopologicalLink->GetTwinEntities().Num() < 2)
 		{
 			return nullptr;
 		}
 
-		FTopologicalEdge* FirstTwinEdge = (TopologicalLink->GetTwinsEntities()[0] == this) ? TopologicalLink->GetTwinsEntities()[1] : TopologicalLink->GetTwinsEntities()[0];
+		FTopologicalEdge* FirstTwinEdge = (TopologicalLink->GetTwinEntities()[0] == this) ? TopologicalLink->GetTwinEntities()[1] : TopologicalLink->GetTwinEntities()[0];
 		return FirstTwinEdge;
 	}
 
@@ -405,7 +403,7 @@ public:
 		return Mesh.ToSharedRef();
 	}
 
-	TSharedRef<FEdgeMesh> GetOrCreateMesh(const TSharedRef<FModelMesh>& MeshModel);
+	TSharedRef<FEdgeMesh> GetOrCreateMesh(FModelMesh& MeshModel);
 
 	/**
 	 * Generate a sampling of the curve.
@@ -694,7 +692,7 @@ public:
 	 */
 	bool IsBorder()
 	{
-		return GetTwinsEntityCount() == 1;
+		return GetTwinEntityCount() == 1;
 	}
 
 	/**
@@ -702,7 +700,7 @@ public:
 	 */
 	bool IsSurfacic()
 	{
-		return GetTwinsEntityCount() == 2;
+		return GetTwinEntityCount() == 2;
 	}
 
 	/**
