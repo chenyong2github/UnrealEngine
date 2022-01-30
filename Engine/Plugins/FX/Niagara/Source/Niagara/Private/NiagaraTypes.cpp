@@ -366,7 +366,7 @@ bool FNiagaraTypeHelper::IsLWCStructure(UStruct* InStruct)
 
 bool FNiagaraTypeHelper::IsLWCType(const FNiagaraTypeDefinition& InType)
 {
-	return InType.IsValid() && IsLWCStructure(InType.GetStruct());
+	return InType.IsValid() && !InType.IsUObject() && IsLWCStructure(InType.GetStruct());
 }
 
 UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
