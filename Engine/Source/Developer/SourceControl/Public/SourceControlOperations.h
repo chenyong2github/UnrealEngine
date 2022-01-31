@@ -7,6 +7,7 @@
 #include "Containers/StringFwd.h"
 #include "Memory/SharedBuffer.h"
 #include "ISourceControlChangelist.h"
+#include "SourceControlPreferences.h"
 #include "SourceControlOperationBase.h"
 
 #define LOCTEXT_NAMESPACE "SourceControl"
@@ -180,6 +181,11 @@ public:
 	bool IsSoftRevert() const
 	{
 		return bIsSoftRevert;
+	}
+
+	bool ShouldDeleteNewFiles() const
+	{
+		return USourceControlPreferences::ShouldDeleteNewFilesOnRevert();
 	}
 
 protected:

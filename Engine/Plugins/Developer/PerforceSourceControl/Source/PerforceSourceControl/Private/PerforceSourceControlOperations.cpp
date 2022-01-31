@@ -711,9 +711,15 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			AppendChangelistParameter(Parameters);
 		}
 
-		if (StaticCastSharedRef<FRevert>(InCommand.Operation)->IsSoftRevert())
+		TSharedRef<FRevert> RevertOperation = StaticCastSharedRef<FRevert>(InCommand.Operation);
+
+		if (RevertOperation->IsSoftRevert())
 		{
 			Parameters.Add(TEXT("-k"));
+		}
+		else if (RevertOperation->ShouldDeleteNewFiles())
+		{
+			Parameters.Add(TEXT("-w"));
 		}
 
 		if (InCommand.Files.Num() != 0)
@@ -1657,10 +1663,6 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			InCommand.bCommandSuccessful = true;
 		}
 
-		// update using any special hints passed in via the operation
-
-		bForceQuiet = Operation->ShouldBeQuiet();
-
 		if(Operation->ShouldUpdateHistory())
 		{
 			GetFileHistory(Connection, InCommand, InCommand.Files, OutStates, OutHistory);
@@ -1698,13 +1700,15 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			}
 			InCommand.bCommandSuccessful &= Connection.RunCommand(TEXT("diff"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 
+			bool bMoveErrorsToInfo = !Operation->ShouldBeQuiet();
+
 			// Parse the results and store them in the command
 			ParseDiffResults(Records, OutModifiedFiles);
 			RemoveRedundantErrors(InCommand, TEXT(" - no such file(s)."));
 			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not opened for edit"));
 			RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
 			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not opened on this client"));
-			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not on client."));
+			RemoveRedundantErrors(InCommand, TEXT("- file(s) not on client."), bMoveErrorsToInfo);
 		}
 	}
 

@@ -117,6 +117,7 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 	{
 		auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 		UpdateStatusOperation->SetUpdateModifiedState(true);
+		UpdateStatusOperation->SetQuiet(true);
 		SourceControlProvider.Execute(UpdateStatusOperation, InFilenames);
 	}
 
@@ -130,10 +131,12 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 			const bool bFileExists = IFileManager::Get().FileExists(*FileState->GetFilename());
 
 			const bool bIsUncontrolled = (!bIsSourceControlled) && bFileExists;
-			const bool bIsDeleted = bIsSourceControlled && (!bFileExists);
+			// File doesn't exist and is not marked for delete
+			const bool bIsDeleted = bIsSourceControlled && (!bFileExists) && (!FileState->IsDeleted());
+			const bool bIsModified = FileState->IsModified() && (!FileState->IsDeleted());
 
 			const bool bIsCheckoutCompliant = (!bCheckCheckout) || (!FileState->IsCheckedOut());
-			const bool bIsStatusCompliant = (!bCheckStatus) || FileState->IsModified() || bIsUncontrolled || bIsDeleted;
+			const bool bIsStatusCompliant = (!bCheckStatus) || bIsModified || bIsUncontrolled || bIsDeleted;
 
 			if (bIsCheckoutCompliant && bIsStatusCompliant)
 			{

@@ -24,7 +24,6 @@ public class SourceControlWindows : ModuleRules
 				"AssetTools",
 				"EditorFramework",
 				"WorkspaceMenuStructure",
-				"DeveloperSettings",
 				"UnrealEd"			// We need this dependency here because we use PackageTools.
 			}
 		);

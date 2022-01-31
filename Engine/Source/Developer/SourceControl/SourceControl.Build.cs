@@ -14,6 +14,7 @@ public class SourceControl : ModuleRules
 				"CoreUObject",
 				"SlateCore",
 				"InputCore",
+				"DeveloperSettings",
 			}
 		);
 
