@@ -46,7 +46,7 @@ namespace UnrealBuildTool.Rules
             // RPCLib disabled on other platforms
             if (Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+				Target.Platform == UnrealTargetPlatform.Linux)
             {
                 PublicDefinitions.Add("WITH_RPCLIB=1");
 				PrivateDependencyModuleNames.Add("RPCLib");
