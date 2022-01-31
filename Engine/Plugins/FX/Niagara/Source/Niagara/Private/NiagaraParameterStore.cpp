@@ -225,7 +225,7 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 {
 	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	
-	checkf(IsInGameThread() || (IsInRenderingThread() && SourceStores.Num() == 0), TEXT("ParameterStore destruction must be on the GameThread(%d) or RenderThread(%d) and if on render must be unbound.  SourceStores(%d)"), IsInGameThread() ? 1 : 0, IsInRenderingThread() ? 1 : 0, SourceStores.Num());
+	checkf(IsInGameThread() || (SourceStores.Num() == 0), TEXT("ParameterStore destruction must be on the GameThread(%d) or SourceStores(%d) must be unbound"), IsInGameThread() ? 1 : 0, SourceStores.Num());
 
 	UnbindAll();
 }
