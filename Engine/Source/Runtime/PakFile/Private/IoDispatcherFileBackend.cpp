@@ -400,11 +400,6 @@ FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::GetNextInternal(F
 	return Request;
 }
 
-FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::Peek(FFileIoStoreReadRequestSortKey LastSortKey)
-{
-	return GetNextInternal(LastSortKey, false);
-}
-
 FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::Pop(FFileIoStoreReadRequestSortKey LastSortKey)
 {
 	return GetNextInternal(LastSortKey, true);
@@ -466,35 +461,6 @@ void FFileIoStoreRequestQueue::UpdateSortRequestsByOffset()
 		}
 		check(Algo::AllOf(SortedPriorityQueues, [](const FFileIoStoreOffsetSortedRequestQueue& Q) { return Q.IsEmpty(); }));
 		SortedPriorityQueues.Empty();
-	}
-}
-
-FFileIoStoreReadRequest* FFileIoStoreRequestQueue::Peek()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePeek);
-	FScopeLock _(&CriticalSection);
-	UpdateSortRequestsByOffset();
-	if (bSortRequestsByOffset)
-	{
-		if( SortedPriorityQueues.Num() == 0)
-		{
-			return nullptr;
-		}
-
-		FFileIoStoreOffsetSortedRequestQueue& SubQueue = SortedPriorityQueues.Last();
-		check(!SubQueue.IsEmpty());
-		FFileIoStoreReadRequest* Request = SubQueue.Peek(LastSortKey);
-		check(Request);
-		// Do not update LastUsedPriority here until we actually pop
-		return Request;
-	}
-	else
-	{
-		if (Heap.Num() == 0)
-		{
-			return nullptr;
-		}
-		return Heap.HeapTop();
 	}
 }
 
@@ -1992,28 +1958,6 @@ void FFileIoStore::FreeCompressionContext(FFileIoStoreCompressionContext* Compre
 	FirstFreeCompressionContext = CompressionContext;
 }
 
-void FFileIoStore::UpdateAsyncIOMinimumPriority()
-{
-	EAsyncIOPriorityAndFlags NewAsyncIOMinimumPriority = AIOP_MIN;
-	if (FFileIoStoreReadRequest* NextRequest = RequestQueue.Peek())
-	{
-		if (NextRequest->Priority >= IoDispatcherPriority_High)
-		{
-			NewAsyncIOMinimumPriority = AIOP_MAX;
-		}
-		else if (NextRequest->Priority >= IoDispatcherPriority_Medium)
-		{
-			NewAsyncIOMinimumPriority = AIOP_Normal;
-		}
-	}
-	if (NewAsyncIOMinimumPriority != CurrentAsyncIOMinimumPriority)
-	{
-		//TRACE_BOOKMARK(TEXT("SetAsyncMinimumPrioirity(%d)"), NewAsyncIOMinimumPriority);
-		FPlatformFileManager::Get().GetPlatformFile().SetAsyncMinimumPriority(NewAsyncIOMinimumPriority);
-		CurrentAsyncIOMinimumPriority = NewAsyncIOMinimumPriority;
-	}
-}
-
 bool FFileIoStore::Init()
 {
 	return true;
@@ -2029,10 +1973,8 @@ uint32 FFileIoStore::Run()
 {
 	while (!bStopRequested)
 	{
-		UpdateAsyncIOMinimumPriority();
 		if (!PlatformImpl->StartRequests(RequestQueue))
 		{
-			UpdateAsyncIOMinimumPriority();
 			PlatformImpl->ServiceWait();
 		}
 	}

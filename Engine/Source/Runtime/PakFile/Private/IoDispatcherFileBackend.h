@@ -163,7 +163,6 @@ private:
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
 	void CompleteDispatcherRequest(FFileIoStoreResolvedRequest* ResolvedRequest);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
-	void UpdateAsyncIOMinimumPriority();
 
 	uint64 ReadBufferSize = 0;
 	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
@@ -186,7 +185,6 @@ private:
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
 	FIoRequestImpl* CompletedRequestsHead = nullptr;
 	FIoRequestImpl* CompletedRequestsTail = nullptr;
-	EAsyncIOPriorityAndFlags CurrentAsyncIOMinimumPriority = AIOP_MIN;
 };
 
 TSharedRef<FFileIoStore> CreateIoDispatcherFileBackend();

@@ -2877,13 +2877,6 @@ namespace AutomationScripts
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 						if (bShouldCreateIoStoreContainerFiles)
 						{
-							bool bAllowShadersInIoStore;
-							if (!PlatformEngineConfig.GetBool("Core.System", "AllowShadersInIoStore", out bAllowShadersInIoStore))
-							{
-								bAllowShadersInIoStore = false;
-							}
-
-
 							UnrealPakResponseFile = new Dictionary<string, string>();
 							Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
 							foreach (var Entry in PakParams.UnrealPakResponseFile)
@@ -2907,14 +2900,7 @@ namespace AutomationScripts
 								}
 								else if (Path.GetExtension(Entry.Key).Contains(".ushaderbytecode"))
 								{
-									if (bAllowShadersInIoStore)
-									{
-										IoStoreResponseFile.Add(Entry.Key, Entry.Value);
-									}
-									else
-									{
-										UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
-									}
+									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
 								}
 								else if (!Path.GetExtension(Entry.Key).Contains(".uexp"))
 								{
