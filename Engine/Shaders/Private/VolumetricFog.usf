@@ -45,9 +45,9 @@ float ComputeDepthFromZSlice(float ZSlice)
 }
 
 float4x4 UnjitteredClipToTranslatedWorld;    
-float4x4 UnjitteredPrevWorldToClip;
+float4x4 UnjitteredPrevTranslatedWorldToClip;
 
-float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
+float3 ComputeCellTranslatedWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
 {
 	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / VolumetricFog.GridSize.xy;
 	float2 VolumeNDC = (VolumeUV * 2 - 1) * float2(1, -1);
@@ -56,7 +56,18 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out flo
 
 	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
 	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	return CenterPosition.xyz / CenterPosition.w;
+}
+
+float3 ComputeCellTranslatedWorldPosition(uint3 GridCoordinate, float3 CellOffset)
+{
+	float Unused;
+	return ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, Unused);
+}
+
+float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
+{
+	return ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, SceneDepth) - LWCHackToFloat(PrimaryView.PreViewTranslation);
 }
 
 float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
@@ -213,13 +224,12 @@ float4 LightFunctionAtlasTileMinMaxUvBound;
 Texture2D LightFunctionAtlasTexture;
 SamplerState LightFunctionAtlasSampler;
 
-float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
+float GetLocalLightFunction(float3 TranslatedWorldPosition, bool IsPointLight)
 {
 	float2 LightFunctionUV;
 	if (IsPointLight)
 	{
 		// Get vector from light to cell world pos.
-		float TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float3 LightVec = normalize(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition);
 		// Transform and swizzle
 		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
@@ -228,7 +238,7 @@ float GetLocalLightFunction(float3 WorldPosition, bool IsPointLight)
 	}
 	else
 	{
-		float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), LocalLightFunctionMatrix);
+		float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), LocalLightFunctionMatrix);
 		HomogeneousShadowPosition.xyz /= HomogeneousShadowPosition.w;
 		LightFunctionUV = HomogeneousShadowPosition.xy;
 		LightFunctionUV.x = 1 - LightFunctionUV.x;
@@ -304,7 +314,7 @@ void InjectShadowedLocalLightPS(
 
 #if USE_TEMPORAL_REPROJECTION
 
-		float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
+		float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip);
 		float HistoryAlpha = HistoryWeight;
 
 		FLATTEN
@@ -323,11 +333,11 @@ void InjectShadowedLocalLightPS(
 			//float CellOffset = .5f;
 
 			float SceneDepth;
-			float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-			float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
+			float3 TranslatedWorldPosition = ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, SceneDepth);
+			float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 			float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
-			float CellRadius = length(WorldPosition - ComputeCellWorldPosition(GridCoordinate + uint3(1, 1, 1), CellOffset));
+			float CellRadius = length(TranslatedWorldPosition - ComputeCellTranslatedWorldPosition(GridCoordinate + uint3(1, 1, 1), CellOffset));
 			// Bias the inverse squared light falloff based on voxel size to prevent aliasing near the light source
 			float DistanceBias = max(CellRadius * InverseSquaredLightDistanceBiasScale, 1);
 
@@ -368,7 +378,7 @@ void InjectShadowedLocalLightPS(
 #endif
 	
 #if	USE_LIGHT_FUNCTION
-			ShadowFactor *= GetLocalLightFunction(WorldPosition, IsPointLight);
+			ShadowFactor *= GetLocalLightFunction(TranslatedWorldPosition, IsPointLight);
 #endif
 
 			OutScattering.rgb += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * ShadowFactor * VolumetricScatteringIntensity);
@@ -492,13 +502,13 @@ float ComputeSkyVisibility(float3 WorldPosition, float3 BrickTextureUVs)
 	return Visibility;
 }
 
-float4x4 DirectionalLightFunctionWorldToShadow;
+float4x4 DirectionalLightFunctionTranslatedWorldToShadow;
 Texture2D LightFunctionTexture;
 SamplerState LightFunctionSampler;
 
-float GetLightFunction(float3 WorldPosition)
+float GetLightFunction(float3 TranslatedWorldPosition)
 {
-	float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), DirectionalLightFunctionWorldToShadow);
+	float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), DirectionalLightFunctionTranslatedWorldToShadow);
 	float2 LightFunctionUV = HomogeneousShadowPosition.xy * .5f + .5f;
 	LightFunctionUV.y = 1 - LightFunctionUV.y;
 
@@ -526,9 +536,9 @@ void LightScatteringCS(
 	if (UseConservativeDepthTexture > 0)
 	{
 		const float3 FarDepthOffset = float3(0.5f, 0.5f, -1.0f);
-		float3 CellWorldPosition = ComputeCellWorldPosition(GridCoordinate, FarDepthOffset);
+		float3 CellTranslatedWorldPosition = ComputeCellTranslatedWorldPosition(GridCoordinate, FarDepthOffset);
 
-		float4 CellNDCPosition = mul(float4(CellWorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+		float4 CellNDCPosition = mul(float4(CellTranslatedWorldPosition, 1), PrimaryView.TranslatedWorldToClip);
 		CellNDCPosition.xyz /= CellNDCPosition.w;
 		float2 UVs = CellNDCPosition.xy * float2(0.5f, -0.5f) + 0.5f;
 
@@ -540,7 +550,7 @@ void LightScatteringCS(
 			return;
 		}
 
-		float4 PrevCellNDCPosition = mul(float4(CellWorldPosition, 1), UnjitteredPrevWorldToClip);
+		float4 PrevCellNDCPosition = mul(float4(CellTranslatedWorldPosition, 1), UnjitteredPrevTranslatedWorldToClip);
 		PrevCellNDCPosition.xyz /= PrevCellNDCPosition.w;
 		float2 PrevUVs = PrevCellNDCPosition.xy * float2(0.5f, -0.5f) + 0.5f;
 		const float PrevSceneDepth = PrevConservativeDepthTexture.Load(uint3(PrevConservativeDepthTextureSize * PrevUVs, 0));
@@ -551,7 +561,7 @@ void LightScatteringCS(
 	}
 
 #if USE_TEMPORAL_REPROJECTION
-	float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
+	float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip);
 	float HistoryAlpha = HistoryWeight;
 
 	FLATTEN
@@ -573,8 +583,8 @@ void LightScatteringCS(
 		//CellOffset = 0.5f;
 
 		float SceneDepth;
-		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 TranslatedWorldPosition = ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, SceneDepth);
+		float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float CameraVectorLength = length(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 		float3 CameraVector = (TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin) / CameraVectorLength;
 
@@ -600,7 +610,7 @@ void LightScatteringCS(
 #endif
 			}
 
-			ShadowFactor *= GetLightFunction(WorldPosition);
+			ShadowFactor *= GetLightFunction(TranslatedWorldPosition);
 
 			float3 DirectionalLightColor = ForwardLightData.DirectionalLightColor;
 
@@ -681,7 +691,7 @@ void LightScatteringCS(
 		uint GridIndex = ComputeLightGridCellIndex(GridCoordinate.xy * VolumetricFog.FogGridToPixelXY, SceneDepth, 0);
 		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
 
-		float CellRadius = length(WorldPosition - ComputeCellWorldPosition(GridCoordinate + uint3(1, 1, 1), CellOffset));
+		float CellRadius = length(TranslatedWorldPosition - ComputeCellTranslatedWorldPosition(GridCoordinate + uint3(1, 1, 1), CellOffset));
 		// Bias the inverse squared light falloff based on voxel size to prevent aliasing near the light source
 		float DistanceBiasSqr = max(CellRadius * InverseSquaredLightDistanceBiasScale, 1);
 		DistanceBiasSqr *= DistanceBiasSqr;
@@ -791,16 +801,16 @@ void FinalIntegrationCS(
 
 	float3 AccumulatedLighting = 0;
 	float AccumulatedTransmittance = 1.0f;
-	float3 PreviousSliceWorldPosition = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	float3 PreviousSliceTranslatedWorldPosition = PrimaryView.TranslatedWorldCameraOrigin;
 
 	for (int LayerIndex = 0; LayerIndex < VolumetricFog.GridSizeInt.z; LayerIndex++)
 	{
 		uint3 LayerCoordinate = uint3(GridCoordinate.xy, LayerIndex);
 		float4 ScatteringAndExtinction = DecodeHDR(LightScattering[LayerCoordinate]);
 
-		float3 LayerWorldPosition = ComputeCellWorldPosition(LayerCoordinate, .5f);
-		float StepLength = length(LayerWorldPosition - PreviousSliceWorldPosition);
-		PreviousSliceWorldPosition = LayerWorldPosition;
+		float3 LayerTranslatedWorldPosition = ComputeCellTranslatedWorldPosition(LayerCoordinate, .5f);
+		float StepLength = length(LayerTranslatedWorldPosition - PreviousSliceTranslatedWorldPosition);
+		PreviousSliceTranslatedWorldPosition = LayerTranslatedWorldPosition;
 
 		float Transmittance = exp(-ScatteringAndExtinction.w * StepLength);
 

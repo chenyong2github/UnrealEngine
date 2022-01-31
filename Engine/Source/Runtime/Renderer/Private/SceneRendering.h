@@ -772,7 +772,7 @@ struct FTransientLightFunctionTextureAtlasTile
 struct FVolumetricFogLocalLightFunctionInfo
 {
 	FTransientLightFunctionTextureAtlasTile AtlasTile;
-	FMatrix LightFunctionMatrix;
+	FMatrix44f LightFunctionTranslatedWorldToLightMatrix;
 };
 
 class FVolumetricFogViewResources

@@ -165,11 +165,12 @@ void SetupVolumetricFogIntegrationParameters(
 {
 	Out.VolumetricFog = View.VolumetricFogResources.VolumetricFogGlobalData;
 
-	FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = FMatrix44f(View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed());		// LWC_TODO: Precision loss?
+	FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = FMatrix44f(View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed());
 	Out.UnjitteredClipToTranslatedWorld = UnjitteredInvTranslatedViewProjectionMatrix;
 
-	FMatrix44f UnjitteredViewProjectionMatrix = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());
-	Out.UnjitteredPrevWorldToClip = UnjitteredViewProjectionMatrix;
+	FMatrix TranslatedWorldToWorld = FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
+	FMatrix44f UnjitteredTranslatedViewProjectionMatrix = FMatrix44f(TranslatedWorldToWorld * View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());
+	Out.UnjitteredPrevTranslatedWorldToClip = UnjitteredTranslatedViewProjectionMatrix;
 
 	int32 OffsetCount = IntegrationData.FrameJitterOffsetValues.Num();
 	for (int32 i = 0; i < OffsetCount; ++i)
@@ -520,7 +521,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						continue;
 					}
 
-					PassParameters->LocalLightFunctionMatrix = FMatrix44f(LightFunctionData->LightFunctionMatrix);
+					PassParameters->LocalLightFunctionMatrix = LightFunctionData->LightFunctionTranslatedWorldToLightMatrix;
 					PassParameters->LightFunctionAtlasTexture = LightFunctionData->AtlasTile.Texture;
 					PassParameters->LightFunctionAtlasTileMinMaxUvBound = LightFunctionData->AtlasTile.MinMaxUvBound;
 				}
@@ -657,7 +658,7 @@ class FVolumetricFogLightScatteringCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGlobalDistanceFieldParameters2, GlobalDistanceFieldParameters)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWLightScattering)
 		SHADER_PARAMETER_ARRAY(FVector4f, SkySH, [3])
-		SHADER_PARAMETER(FMatrix44f, DirectionalLightFunctionWorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, DirectionalLightFunctionTranslatedWorldToShadow)
 		SHADER_PARAMETER(FMatrix44f, CloudShadowmapWorldToLightClipMatrix)
 		SHADER_PARAMETER(FVector2f, PrevConservativeDepthTextureSize)
 		SHADER_PARAMETER(FVector2f, UseHeightFogColors)
@@ -955,7 +956,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			&& ViewFamily.bRealtimeUpdate
 			&& View.ViewState->LightScatteringHistory;
 
-		FMatrix DirectionalLightFunctionWorldToShadow;
+		FMatrix44f DirectionalLightFunctionTranslatedWorldToShadow;
 
 		RDG_EVENT_SCOPE(GraphBuilder, "VolumetricFog");
 
@@ -1017,7 +1018,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			SceneTextures,
 			VolumetricFogGridSize,
 			FogInfo.VolumetricFogDistance,
-			DirectionalLightFunctionWorldToShadow,
+			DirectionalLightFunctionTranslatedWorldToShadow,
 			DirectionalLightFunctionTexture,
 			bUseDirectionalLightShadowing);
 			
@@ -1119,7 +1120,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				PassParameters->PrevConservativeDepthTextureSize = FVector2D(1, 1);
 			}
 
-			PassParameters->DirectionalLightFunctionWorldToShadow = FMatrix44f(DirectionalLightFunctionWorldToShadow);		// LWC_TODO: Precision loss?
+			PassParameters->DirectionalLightFunctionTranslatedWorldToShadow = DirectionalLightFunctionTranslatedWorldToShadow;
 			PassParameters->LightFunctionTexture = DirectionalLightFunctionTexture;
 			PassParameters->LightFunctionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 

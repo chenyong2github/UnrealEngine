@@ -730,7 +730,7 @@ private:
 		const FSceneTextures& SceneTextures,
 		FIntVector VolumetricFogGridSize,
 		float VolumetricFogMaxDistance,
-		FMatrix& OutLightFunctionWorldToShadow,
+		FMatrix44f& OutLightFunctionTranslatedWorldToShadow,
 		FRDGTexture*& OutLightFunctionTexture,
 		bool& bOutUseDirectionalLightShadowing);
 

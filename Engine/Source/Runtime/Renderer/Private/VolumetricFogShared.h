@@ -39,7 +39,7 @@ struct FVolumetricFogIntegrationParameterData
 BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricFogIntegrationParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FVolumetricFogGlobalData, VolumetricFog)
 	SHADER_PARAMETER(FMatrix44f, UnjitteredClipToTranslatedWorld)
-	SHADER_PARAMETER(FMatrix44f, UnjitteredPrevWorldToClip)
+	SHADER_PARAMETER(FMatrix44f, UnjitteredPrevTranslatedWorldToClip)
 	SHADER_PARAMETER_ARRAY(FVector4f, FrameJitterOffsets, [16])
 	SHADER_PARAMETER(float, HistoryWeight)
 	SHADER_PARAMETER(uint32, HistoryMissSuperSampleCount)
