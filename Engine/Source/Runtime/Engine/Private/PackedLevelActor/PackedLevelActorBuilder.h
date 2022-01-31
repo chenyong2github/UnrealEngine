@@ -79,7 +79,7 @@ public:
 	void ClusterLevelActor(AActor* InLevelActor);
 	void FindOrAddCluster(FPackedLevelActorBuilderClusterID&& InClusterID, UActorComponent* InComponent = nullptr);
 	void DiscardActor(AActor* InActor);
-	void Report(FMessageLog& LevelInstanceLog) const;
+	void Report(FMessageLog& Log) const;
 
 	const TMap<FPackedLevelActorBuilderClusterID, TArray<UActorComponent*>>& GetClusters() const { return Clusters; }
 	

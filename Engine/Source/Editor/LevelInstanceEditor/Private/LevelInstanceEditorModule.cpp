@@ -572,7 +572,7 @@ void FLevelInstanceEditorModule::StartupModule()
 	InitOptions.bShowFilters = true;
 	InitOptions.bShowPages = false;
 	InitOptions.bAllowClear = true;
-	MessageLogModule.RegisterLogListing("LevelInstance", LOCTEXT("LevelInstanceLog", "Level Instance Log"), InitOptions);
+	MessageLogModule.RegisterLogListing("PackedLevelActor", LOCTEXT("PackedLevelActorLog", "Packed Level Actor Log"), InitOptions);
 		
 	FLevelInstanceEditorModeCommands::Register();
 
