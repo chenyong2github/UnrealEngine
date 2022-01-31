@@ -40,7 +40,7 @@ namespace Horde.Storage.Implementation
 
             _leaderElection.OnLeaderChanged += OnLeaderChanged;
 
-            DirectoryInfo di = new DirectoryInfo(settings.CurrentValue.StateRoot);
+            DirectoryInfo di = new DirectoryInfo(settings.CurrentValue.GetStateRoot());
             Directory.CreateDirectory(di.FullName);
 
             foreach (var replicator in settings.CurrentValue.Replicators)

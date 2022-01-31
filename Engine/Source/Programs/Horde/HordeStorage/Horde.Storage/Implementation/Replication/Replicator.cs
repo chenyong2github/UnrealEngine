@@ -123,7 +123,7 @@ namespace Horde.Storage.Implementation
             _replicatorSettings = replicatorSettings;
 
             string stateFileName = $"{_name}.json";
-            DirectoryInfo stateRoot = new DirectoryInfo(PathUtil.ResolvePath(replicationSettings.CurrentValue.StateRoot));
+            DirectoryInfo stateRoot = new DirectoryInfo(replicationSettings.CurrentValue.GetStateRoot());
             _stateFile = new FileInfo(Path.Combine(stateRoot.FullName, stateFileName));
 
             if (_stateFile.Exists)

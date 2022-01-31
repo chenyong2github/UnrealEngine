@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Horde.Storage.Implementation;
 using Jupiter.Implementation;
 
 namespace Horde.Storage
@@ -35,6 +36,11 @@ namespace Horde.Storage
         [Required]
         // ReSharper disable once CollectionNeverUpdated.Global
         public List<ReplicatorSettings> Replicators { get; set; } = new List<ReplicatorSettings>();
+
+        public string GetStateRoot()
+        {
+            return PathUtil.ResolvePath(StateRoot);
+        }
     }
 
     public class ReplicatorSettings
