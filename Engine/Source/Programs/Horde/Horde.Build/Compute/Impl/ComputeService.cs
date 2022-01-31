@@ -240,6 +240,7 @@ namespace HordeServer.Compute.Impl
 
 					ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Complete, null, null);
 					Status.Outcome = ComputeTaskOutcome.Expired;
+					Status.Outcome = $"No agents monitoring queue {QueueKey}";
 					Logger.LogInformation("Compute task expired (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", QueueKey, ComputeTask.TaskRefId, ComputeTask.ChannelId);
 					await PostStatusMessageAsync(ComputeTask, Status);
 				}
@@ -480,7 +481,8 @@ namespace HordeServer.Compute.Impl
 
 					ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskRefId, ComputeTaskState.Complete, null, null);
 					Status.Outcome = ComputeTaskOutcome.BlobNotFound;
-					Logger.LogInformation("Compute task failed due to missing requirements (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", QueueKey, ComputeTask.TaskRefId, ComputeTask.ChannelId);
+					Status.Detail = $"Missing requirements object {QueueKey.RequirementsHash}";
+					Logger.LogInformation("Compute task failed due to missing requirements (queue: {QueueKey}, task: {TaskHash}, channel: {ChannelId})", QueueKey, ComputeTask.TaskRefId, ComputeTask.ChannelId);
 					await PostStatusMessageAsync(ComputeTask, Status);
 				}
 			}

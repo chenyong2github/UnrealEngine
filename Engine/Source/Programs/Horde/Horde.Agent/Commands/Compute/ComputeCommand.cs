@@ -248,6 +248,10 @@ namespace HordeAgent.Commands
 				}
 				if (Response.State == ComputeTaskState.Complete)
 				{
+					if (Response.Outcome != ComputeTaskOutcome.Success)
+					{
+						Logger.LogError("{OperationName}: Outcome: {Outcome}, Detail: {Detail}", Response.TaskRefId, Response.Outcome.ToString(), Response.Detail ?? "(none)");
+					}
 					break;
 				}
 			}
