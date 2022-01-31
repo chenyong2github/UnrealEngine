@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
                         "MLAdapter",
                         "JsonUtilities",
                 }
-                );
+            );
 
             if (Target.bBuildEditor == true)
             {
@@ -33,16 +33,15 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
             }
 
-            // RPCLib disabled on other platforms at the moment
-            if (Target.Platform == UnrealTargetPlatform.Win64)
-            {
-                PublicDefinitions.Add("WITH_RPCLIB=1");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "RPCLib");
-
-                string RPClibDir = Path.Combine(Target.UEThirdPartySourceDirectory, "rpclib");
-                PublicIncludePaths.Add(Path.Combine(RPClibDir, "Source", "include"));
-            }
-            else
+			// RPCLib disabled on other platforms
+			if (Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				PublicDefinitions.Add("WITH_RPCLIB=1");
+				PrivateDependencyModuleNames.Add("RPCLib");
+			}
+			else
             {
                 PublicDefinitions.Add("WITH_RPCLIB=0");
             }

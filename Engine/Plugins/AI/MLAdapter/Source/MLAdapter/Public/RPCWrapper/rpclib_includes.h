@@ -23,14 +23,18 @@
 #define RPCLIB_MSGPACK clmdep_msgpack
 #endif /* ifndef RPCLIB_MSGPACK */
 
+#if PLATFORM_WINDOWS
 #include "Windows/PreWindowsApi.h"
+#endif
 
 #include "rpc/client.h"
 #include "rpc/server.h"
 #include "rpc/this_handler.h"
 #include "rpc/msgpack.hpp"
 
+#if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
+#endif
 
 #ifdef __clang__
 #pragma clang diagnostic pop

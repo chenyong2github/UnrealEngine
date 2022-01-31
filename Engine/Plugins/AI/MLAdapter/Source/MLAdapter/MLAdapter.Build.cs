@@ -43,15 +43,14 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            // RPCLib disabled on other platforms at the moment
-            if (Target.Platform == UnrealTargetPlatform.Win64)
+            // RPCLib disabled on other platforms
+            if (Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
             {
                 PublicDefinitions.Add("WITH_RPCLIB=1");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "RPCLib");
-            
-				string RPClibDir = Path.Combine(Target.UEThirdPartySourceDirectory, "rpclib");
-				PublicIncludePaths.Add(Path.Combine(RPClibDir, "Source", "include"));
-            }
+				PrivateDependencyModuleNames.Add("RPCLib");
+			}
             else
             {
                 PublicDefinitions.Add("WITH_RPCLIB=0");
