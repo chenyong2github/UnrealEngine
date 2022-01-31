@@ -1163,9 +1163,7 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	UPackage* Package = GetOutermost();
 	if (Package->IsDirty())
 	{
-		UpdateConvexGeometry();
 		InvalidateCollection();
-		ValidateSizeSpecificDataDefaults();
 	}
 
 	return bSuperResult;

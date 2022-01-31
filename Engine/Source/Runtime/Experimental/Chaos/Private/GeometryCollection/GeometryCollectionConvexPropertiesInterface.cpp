@@ -5,6 +5,7 @@
 
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexPropertiesGroup = "ConvexProperties";
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexIndexAttribute = "TransformGroupIndex";
+const FName FGeometryCollectionConvexPropertiesInterface::ConvexEnable = "Enable";
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexFractionRemoveAttribute = "FractionRemove";
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexSimplificationThresholdAttribute = "SimplificationThreshold";
 
@@ -26,6 +27,11 @@ FGeometryCollectionConvexPropertiesInterface::InitializeInterface()
 		ManagedCollection->AddAttribute<int32>(ConvexIndexAttribute, ConvexPropertiesGroup, AttributeDependency);
 	}
 
+	if (!ManagedCollection->HasAttribute(ConvexEnable, ConvexPropertiesGroup))
+	{
+		ManagedCollection->AddAttribute<bool>(ConvexEnable, ConvexPropertiesGroup);
+	}
+
 	if (!ManagedCollection->HasAttribute(ConvexFractionRemoveAttribute, ConvexPropertiesGroup))
 	{
 		ManagedCollection->AddAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
@@ -45,9 +51,6 @@ void FGeometryCollectionConvexPropertiesInterface::SetDefaultProperty()
 	TManagedArray<int32>& Index = ManagedCollection->GetAttribute<int32>(ConvexIndexAttribute, ConvexPropertiesGroup);
 	if (Index.Num() == 0 || !Index.Contains(INDEX_NONE))
 	{
-		TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
-		TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
-
 		int32 DefaultAttributeIndex = ManagedCollection->AddElements(1, ConvexPropertiesGroup);
 		Index[DefaultAttributeIndex] = INDEX_NONE;
 		SetConvexProperties(DefaultProperty);
@@ -61,12 +64,14 @@ FGeometryCollectionConvexPropertiesInterface::GetDefaultProperty() const
 	const TManagedArray<int32>& Index = ManagedCollection->GetAttribute<int32>(ConvexIndexAttribute, ConvexPropertiesGroup);
 	if (Index.Contains(INDEX_NONE))
 	{
+		TManagedArray<bool>& Enable = ManagedCollection->GetAttribute<bool>(ConvexEnable, ConvexPropertiesGroup);
 		const TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 
 		int32 DefaultIndex = Index.Find(INDEX_NONE);
 		if (0 <= DefaultIndex && DefaultIndex < Index.Num())
 		{
+			DefaultProperty.Enable = Enable[DefaultIndex];
 			DefaultProperty.FractionRemove = FractionRemove[DefaultIndex];
 			DefaultProperty.SimplificationThreshold = SimplificationThreshold[DefaultIndex];
 		}
@@ -95,9 +100,11 @@ FGeometryCollectionConvexPropertiesInterface::GetConvexProperties(int TransformG
 	int32 PropIndex = Index.Find(TransformGroupIndex);
 	if (0 <= PropIndex && PropIndex < Index.Num())
 	{
+		TManagedArray<bool>& Enable = ManagedCollection->GetAttribute<bool>(ConvexEnable, ConvexPropertiesGroup);
 		const TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 
+		ConvexProperty.Enable = Enable[PropIndex];
 		ConvexProperty.FractionRemove = FractionRemove[PropIndex];
 		ConvexProperty.SimplificationThreshold = SimplificationThreshold[PropIndex];
 	}
@@ -109,6 +116,7 @@ FGeometryCollectionConvexPropertiesInterface::SetConvexProperties(const FConvexC
 {
 	FConvexCreationProperties Property;
 	TManagedArray<int32>& Index = ManagedCollection->GetAttribute<int32>(ConvexIndexAttribute, ConvexPropertiesGroup);
+	TManagedArray<bool>& Enable = ManagedCollection->GetAttribute<bool>(ConvexEnable, ConvexPropertiesGroup);
 	TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 	TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 
@@ -125,6 +133,7 @@ FGeometryCollectionConvexPropertiesInterface::SetConvexProperties(const FConvexC
 	if (0 <= AttributeIndex && AttributeIndex < Index.Num())
 	{
 		Index[AttributeIndex] = TransformGroupIndex;
+		Enable[AttributeIndex] = InConvexAttributes.Enable;
 		FractionRemove[AttributeIndex] = InConvexAttributes.FractionRemove;
 		SimplificationThreshold[AttributeIndex] = InConvexAttributes.SimplificationThreshold;
 	}

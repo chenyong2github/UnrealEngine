@@ -18,12 +18,15 @@ public :
 	// Attribute
 	static const FName ConvexIndexAttribute;
 	// Attribute
+	static const FName ConvexEnable;
+	// Attribute
 	static const FName ConvexFractionRemoveAttribute;
 	// Attribute
 	static const FName ConvexSimplificationThresholdAttribute;
 
 
 	struct FConvexCreationProperties {
+		bool Enable = true;
 		float FractionRemove = 0.5f;
 		float SimplificationThreshold = 10.0f;
 	};

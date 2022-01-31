@@ -2242,6 +2242,7 @@ FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* I
 	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
 	{
 		Component->Modify();
+		GetRestCollection()->Modify();
 	}
 }
 

@@ -151,11 +151,11 @@ namespace GeometryCollection
 		/** No update. */
 		None = 0,
 		/** Mark the rest collection as changed. */
-		Rest = 1 << 1,
+		Rest = 1 << 0,
 		/** Recreate the physics state (proxy). */
-		Physics = 1 << 2,
+		Physics = 1 << 1,
 		/** Reset the dynamic collection. */
-		Dynamic = 1 << 4,
+		Dynamic = 1 << 2,
 		/** Mark the rest collection as changed, and recreate the physics state (proxy). */
 		RestPhysics = Rest | Physics,
 		/** Reset dynamic collection, mark the rest collection as changed, and recreate the physics state (proxy). */
