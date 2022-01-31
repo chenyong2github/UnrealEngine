@@ -1709,6 +1709,14 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 					return (InObj.GetName() == VarRapid.GetName());
 				});;
 
+			if (StaticIdx == INDEX_NONE)
+			{
+				StaticIdx = StaticVariables.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
+					{
+						return (InObj.GetName() == Var.GetName());
+					});;
+			}
+
 			if (ConstantResolver.ResolveConstant(VarRapid))
 			{
 				DefaultValue = VarRapid.GetType().ToString(VarRapid.GetData());
