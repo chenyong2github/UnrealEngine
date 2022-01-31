@@ -62,20 +62,19 @@
 	],
 	"AdditionalFeaturePacks": [
 		{
-			"MountName": "Geometry",
-			"DetailLevels": [
-				"Standard",
-				"High"
-			]
-		},
-		{
 			"MountName": "FPWeapon",
 			"DetailLevels": [
 				"Standard"
 			]
 		},
 		{
-			"MountName": "FirstPerson",
+			"MountName": "LevelPrototyping",
+			"DetailLevels": [
+				"High"
+			]
+		},
+		{
+			"MountName": "FirstPersonArms",
 			"DetailLevels":
 			[
 				"Standard"

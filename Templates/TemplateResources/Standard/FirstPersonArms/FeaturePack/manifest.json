@@ -35,13 +35,13 @@
 	[
 		"FirstPerson_Preview.png"
 	],
-	"Ident": "FirstPersonStandard",
+	"Ident": "FirstPersonArmsStandard",
 	"AdditionalFiles":
 	{
-		"DestinationFilesFolder": "FirstPerson",
+		"DestinationFilesFolder": "FirstPersonArms",
 		"AdditionalFilesList":
 		[
-			"Templates/TemplateResources/Standard/FirstPerson/Content/*.*"
+			"Templates/TemplateResources/Standard/FirstPersonArms/Content/*.*"
 		]
 	}
 }

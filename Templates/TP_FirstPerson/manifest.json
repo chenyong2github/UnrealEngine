@@ -54,28 +54,27 @@
 	],
 	"ClassTypes": "Character, GameMode, HUD, Actor, Character, GameMode, HUD, Actor",
 	"Category": "CodeFeature",
-	"FocusAsset": "/Game/FirstPersonCPP/Blueprints/FirstPersonCharacter.FirstPersonCharacter",
+	"FocusAsset": "/Game/FirstPerson/Blueprints/FirstPersonCharacter.FirstPersonCharacter",
 	"Thumbnail": "TP_FirstPerson.png",
 	"Screenshots":
 	[
 		"TP_FirstPerson_Preview.png"
 	],
 	"AdditionalFeaturePacks": [
-		{
-			"MountName": "Geometry",
-			"DetailLevels": [
-				"Standard",
-				"High"
-			]
-		},
-		{
+				{
 			"MountName": "FPWeapon",
 			"DetailLevels": [
 				"Standard"
 			]
 		},
 		{
-			"MountName": "FirstPerson",
+			"MountName": "LevelPrototyping",
+			"DetailLevels": [
+				"High"
+			]
+		},
+		{
+			"MountName": "FirstPersonArms",
 			"DetailLevels":
 			[
 				"Standard"
