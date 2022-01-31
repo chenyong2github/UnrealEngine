@@ -511,6 +511,13 @@ void FFractureEditorModeToolkit::InvokeUI()
 			}
 		}
 	}
+
+	// TODO: This is a workaround for the Mode's Enter() call happening *before* the toolkit UI-building call.  Ideally we'd find a better way of making sure the toolkit UI knows about the current selection.
+	UFractureEditorMode* Mode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
+	if (Mode)
+	{
+		Mode->RefreshOutlinerWithCurrentSelection();
+	}
 }
 
 TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawnTabArgs& Args)

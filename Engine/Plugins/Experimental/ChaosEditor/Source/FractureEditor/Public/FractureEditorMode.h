@@ -66,6 +66,10 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
+	// Used to update outliner when the selection hasn't change -- needed because the outliner is not built yet when Enter() is called
+	// TODO: We may be able to remove this function if we can find a way to invoke Enter's current selection-update logic after the outliner UI is built
+	void RefreshOutlinerWithCurrentSelection();
+
 private:
 	void OnUndoRedo();
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);

@@ -514,6 +514,15 @@ void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 	}
 }
 
+void UFractureEditorMode::RefreshOutlinerWithCurrentSelection()
+{
+	if (Toolkit.IsValid())
+	{
+		FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
+		FractureToolkit->SetOutlinerComponents(SelectedGeometryComponents);
+	}
+}
+
 void UFractureEditorMode::GetComponentGlobalBounds(UGeometryCollectionComponent* GeometryCollectionComponent, TMap<int32, FBox> &BoundsToBone) const
 {
 	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
