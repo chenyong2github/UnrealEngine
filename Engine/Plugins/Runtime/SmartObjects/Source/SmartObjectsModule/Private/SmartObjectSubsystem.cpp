@@ -85,22 +85,22 @@ USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
 	return UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 }
 
-void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds)
+void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds)
 {
-	if (!ensureMsgf(ID.IsValid(), TEXT("SmartObject needs a valid ID to be added to the simulation")))
+	if (!ensureMsgf(Handle.IsValid(), TEXT("SmartObject needs a valid Handle to be added to the simulation")))
 	{
 		return;
 	}
 
-	if (!ensureMsgf(RuntimeSmartObjects.Find(ID) == nullptr, TEXT("ID '%s' already registered in runtime simulation"), *LexToString(ID)))
+	if (!ensureMsgf(RuntimeSmartObjects.Find(Handle) == nullptr, TEXT("Handle '%s' already registered in runtime simulation"), *LexToString(Handle)))
 	{
 		return;
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *LexToString(ID));
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *LexToString(Handle));
 
-	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(ID, FSmartObjectRuntime(Definition));
-	Runtime.SetRegisteredID(ID);
+	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(Handle, FSmartObjectRuntime(Definition));
+	Runtime.SetRegisteredID(Handle);
 
 	// Create runtime data and entity for each slot
 	if (UMassEntitySubsystem* EntitySubsystem = GetWorldRef().GetSubsystem<UMassEntitySubsystem>())
@@ -139,7 +139,7 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle ID, const U
 	// Insert instance in the octree
 	const FSmartObjectOctreeIDSharedRef SharedOctreeID = MakeShareable(new FSmartObjectOctreeID());
 	Runtime.SetOctreeID(SharedOctreeID);
-	SmartObjectOctree.AddNode(Bounds, ID, SharedOctreeID);
+	SmartObjectOctree.AddNode(Bounds, Handle, SharedOctreeID);
 }
 
 void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
@@ -155,14 +155,14 @@ void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Compone
 	}
 }
 
-void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle ID)
+void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle)
 {
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(ID));
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(Handle));
 
-	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ID);
+	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
 	if (SmartObjectRuntime == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Failed to remove SmartObject '%s' from runtime simulation. No entry found."), *LexToString(ID));
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Failed to remove SmartObject '%s' from runtime simulation. No entry found."), *LexToString(Handle));
 		return;
 	}
 
@@ -189,7 +189,7 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle ID)
 		EntitySubsystem->Defer().BatchDestroyEntities(EntitiesToDestroy);
 	}
 
-	RuntimeSmartObjects.Remove(ID);
+	RuntimeSmartObjects.Remove(Handle);
 }
 
 void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry)
@@ -342,15 +342,15 @@ bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObject
 	return UnregisterSmartObject(*SOComponent);
 }
 
-FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter)
+FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter)
 {
-	if (!ensureMsgf(ID.IsValid(), TEXT("SmartObject ID should be valid: %s"), *LexToString(ID)))
+	if (!ensureMsgf(Handle.IsValid(), TEXT("SmartObject handle should be valid: %s"), *LexToString(Handle)))
 	{
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
-	FSmartObjectRuntime* SORuntime = RuntimeSmartObjects.Find(ID);
-	if (!ensureMsgf(SORuntime != nullptr, TEXT("A SmartObjectRuntime must be created for ID %s"), *LexToString(ID)))
+	FSmartObjectRuntime* SORuntime = RuntimeSmartObjects.Find(Handle);
+	if (!ensureMsgf(SORuntime != nullptr, TEXT("A SmartObjectRuntime must be created for handle %s"), *LexToString(Handle)))
 	{
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
@@ -361,7 +361,7 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle ID
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
-	return Claim(ID, FoundHandle);
+	return Claim(Handle, FoundHandle);
 }
 
 FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectRequestResult& RequestResult)
@@ -374,7 +374,7 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectRequestRe
 	return Claim(RequestResult.SmartObjectHandle, RequestResult.SlotHandle);
 }
 
-FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle ID, const FSmartObjectSlotHandle SlotHandle)
+FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Handle, const FSmartObjectSlotHandle SlotHandle)
 {
 	// Slot might be unregistered by the time a result is used so it is possible that it can no longer be found
 	if (FSmartObjectSlotClaimState* SlotState = RuntimeSlotStates.Find(SlotHandle))
@@ -382,7 +382,7 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle ID
 		const FSmartObjectUserHandle User(NextFreeUserID++);
 		const bool bClaimed = SlotState->Claim(User);
 
-		const FSmartObjectClaimHandle ClaimHandle(ID, SlotHandle, User);
+		const FSmartObjectClaimHandle ClaimHandle(Handle, SlotHandle, User);
 		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Claim %s for handle %s"), bClaimed ? TEXT("SUCCEEDED") : TEXT("FAILED"), *LexToString(ClaimHandle));
 		UE_CVLOG_LOCATION(bClaimed, this, LogSmartObject, Display, GetSlotLocation(ClaimHandle).GetValue(), 50.f, FColor::Yellow, TEXT("Claim"));
 
@@ -634,19 +634,25 @@ FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHa
 
 FSmartObjectSlotHandle USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const
 {
-	const FSmartObjectSlotHandle InvalidHandle;
+	TArray<FSmartObjectSlotHandle> Handles;
+	FindSlots(SmartObjectRuntime, Filter, Handles, ESmartObjectSlotSearchMode::FirstMatch);
 
+	return Handles.IsEmpty() ? FSmartObjectSlotHandle() : Handles.Top();
+}
+
+void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, const ESmartObjectSlotSearchMode SearchMode) const
+{
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 	const int32 NumSlotDefinitions = Definition.GetSlots().Num();
 	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("Definition should contain slot definitions at this point")))
 	{
-		return InvalidHandle;
+		return;
 	}
 
 	const UClass* RequiredDefinitionClass = *Filter.BehaviorDefinitionClass;
 	if (!ensureMsgf(RequiredDefinitionClass != nullptr, TEXT("Filter needs to provide required behavior definition type")))
 	{
-		return InvalidHandle;
+		return;
 	}
 
 	// Validate if any available slots
@@ -667,7 +673,7 @@ FSmartObjectSlotHandle USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime
 
 	if (bAnyFreeSlot == false)
 	{
-		return InvalidHandle;
+		return;
 	}
 
 	const FGameplayTagContainer& ObjectTags = SmartObjectRuntime.GetTags();
@@ -700,11 +706,13 @@ FSmartObjectSlotHandle USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime
 				continue;
 			}
 
-			return SmartObjectRuntime.SlotHandles[i];
+			OutResults.Add(SmartObjectRuntime.SlotHandles[i]);
+			if (SearchMode == ESmartObjectSlotSearchMode::FirstMatch)
+			{
+				break;
 		}
 	}
-
-	return InvalidHandle;
+	}
 }
 
 void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
@@ -751,15 +759,15 @@ FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObj
 
 bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults)
 {
-	FSmartObjectRequestResult Result;
 	const FSmartObjectRequestFilter& Filter = Request.Filter;
 	SmartObjectOctree.FindFirstElementWithBoundsTest(Request.QueryBox,
-		[&Result, &Filter, &OutResults, this](const FSmartObjectOctreeElement& Element)
+		[&Filter, &OutResults, this](const FSmartObjectOctreeElement& Element)
 		{
-			Result = FindSlot(Element.SmartObjectHandle, Filter);
-			if (Result.IsValid())
+			TArray<FSmartObjectSlotHandle> SlotHandles;
+			FindSlots(Element.SmartObjectHandle, Filter, SlotHandles);
+			for (FSmartObjectSlotHandle SlotHandle: SlotHandles)
 			{
-				OutResults.Add(Result);
+				OutResults.Emplace(Element.SmartObjectHandle, SlotHandle);
 			}
 			return true;
 		});
@@ -767,34 +775,37 @@ bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request,
 	return (OutResults.Num() > 0);
 }
 
-FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter) const
+FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter) const
 {
-	const FSmartObjectRequestResult InvalidResult;
-	if (!ID.IsValid())
+	TArray<FSmartObjectSlotHandle> SlotHandles;
+	FindSlots(Handle, Filter, SlotHandles, ESmartObjectSlotSearchMode::FirstMatch);
+	return SlotHandles.IsEmpty() ? FSmartObjectRequestResult() : FSmartObjectRequestResult(Handle, SlotHandles.Top());
+}
+
+void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle,
+									  const FSmartObjectRequestFilter& Filter,
+									  TArray<FSmartObjectSlotHandle>& OutSlots,
+									  const ESmartObjectSlotSearchMode SearchMode) const
+	{
+	if (!Handle.IsValid())
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Requesting a valid use for an invalid smart object."));
-		return InvalidResult;
+		return;
 	}
 
-	if (Filter.Predicate && !Filter.Predicate(ID))
+	if (Filter.Predicate && !Filter.Predicate(Handle))
 	{
-		return InvalidResult;
+		return;
 	}
 
-	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(ID);
+	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
 	// Runtime data may no longer be available (removed from simulation)
 	if (SmartObjectRuntime == nullptr)
 	{
-		return InvalidResult;
+		return;
 	}
 
-	const FSmartObjectSlotHandle FoundHandle = FindSlot(*SmartObjectRuntime, Filter);
-	if (!FoundHandle.IsValid())
-	{
-		return InvalidResult;
-	}
-
-	return FSmartObjectRequestResult(ID, FoundHandle);
+	FindSlots(*SmartObjectRuntime, Filter, OutSlots, SearchMode);
 }
 
 void USmartObjectSubsystem::RegisterCollectionInstances()
@@ -911,7 +922,7 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 			continue;
 		}
 
-		// Create a runtime instance of that definition using that ID
+		// Create a runtime instance of that definition using that handle
 		if (Component != nullptr)
 		{
 			Component->SetRegisteredHandle(Entry.GetHandle());

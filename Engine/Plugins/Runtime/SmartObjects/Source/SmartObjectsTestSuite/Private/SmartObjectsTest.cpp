@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "Engine/World.h"
-#include "EngineDefines.h"
 #include "MassExecutor.h"
 #include "MassEntitySubsystem.h"
 #include "SmartObjectSubsystem.h"
@@ -34,15 +33,17 @@ struct FSmartObjectTestBase : FAITestBase
 
 		// Setup main definition
 		USmartObjectDefinition* Definition = NewAutoDestroyObject<USmartObjectDefinition>();
-		FSmartObjectSlotDefinition& Slot = Definition->DebugAddSlot();
+		FSmartObjectSlotDefinition& FirstSlot = Definition->DebugAddSlot();
+		FSmartObjectSlotDefinition& SecondSlot = Definition->DebugAddSlot();
 
 		// Add some test behavior definition
-		Slot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
+		FirstSlot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
+		SecondSlot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
 
 		// Add some test slot definition data
 		FSmartObjectSlotTestDefinitionData DefinitionData;
 		DefinitionData.SomeSharedFloat = 123.456f;
-		Slot.Data.Add(FInstancedStruct::Make(DefinitionData));
+		FirstSlot.Data.Add(FInstancedStruct::Make(DefinitionData));
 
 		// Setup filter
 		TestFilter.BehaviorDefinitionClass = USmartObjectTestBehaviorDefinition::StaticClass();
@@ -117,6 +118,21 @@ struct FFindSmartObject : FSmartObjectTestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FFindSmartObject, "System.AI.SmartObjects.Find");
+
+struct FFindMultipleSmartObjects : FSmartObjectTestBase
+{
+	virtual bool InstantTest() override
+	{
+		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		// Find objects
+		TArray<FSmartObjectRequestResult> Results;
+		Subsystem->FindSmartObjects(Request, Results);
+		AITEST_EQUAL("Results is expected to contain 4 elements", Results.Num(), 4);
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FFindMultipleSmartObjects, "System.AI.SmartObjects.Find multiple");
 
 struct FClaimAndReleaseSmartObject : FSmartObjectTestBase
 {

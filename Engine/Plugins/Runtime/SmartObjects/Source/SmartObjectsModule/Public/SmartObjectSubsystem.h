@@ -133,6 +133,16 @@ enum class ESmartObjectCollectionRegistrationResult
 };
 
 /**
+ * Indicates how extensive a search for slots should be within a single SmartObject.
+ */
+UENUM()
+enum class ESmartObjectSlotSearchMode
+{
+	FirstMatch,
+	AllMatches
+};
+
+/**
  * Subsystem that holds all registered smart object instances and offers the API for spatial queries and reservations.
  */
 UCLASS(config = Game)
@@ -181,7 +191,19 @@ public:
 	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
 	 * @return Identifier of a valid slot to use. Call IsValid on it to check if the search was successful.
 	 */
-	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter) const;
+	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter) const;
+
+	/**
+	 * Returns slots of a given smart object matching the filter.
+	 * @param Handle Handle to the SmartObject
+	 * @param Filter Filter to apply on object and slots
+	 * @param OutSlots Available slots found that match the filter
+	 * @param SearchMode Indicates if the result must include all matching slots or only the first one matching
+	 */
+	void FindSlots(const FSmartObjectHandle Handle,
+				   const FSmartObjectRequestFilter& Filter,
+				   TArray<FSmartObjectSlotHandle>& OutSlots,
+				   ESmartObjectSlotSearchMode SearchMode = ESmartObjectSlotSearchMode::AllMatches) const;
 
 	/**
 	 *	Claim smart object from a valid request result.
@@ -191,7 +213,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
 
-	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle ID, const FSmartObjectRequestFilter& Filter = {});
+	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter = {});
 
 	/**
 	 *	Start using a claimed smart object slot.
@@ -366,12 +388,13 @@ protected:
 
 	/**
 	 * Goes through all defined slots of smart object represented by SmartObjectRuntime
-	 * and finds the first one given actor can use.
+	 * and finds the first one matching the filter.
 	 * @return Handle to a valid slot to use. Call IsValid on it to check if the search was successful.
 	 */
 	FSmartObjectSlotHandle FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
+	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, ESmartObjectSlotSearchMode SearchMode) const;
 
-	FSmartObjectClaimHandle Claim(FSmartObjectHandle ID, FSmartObjectSlotHandle SlotHandle);
+	FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
 
 	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
@@ -384,10 +407,10 @@ protected:
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
-	void AddToSimulation(const FSmartObjectHandle ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
+	void AddToSimulation(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
 	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
 	void AddToSimulation(const USmartObjectComponent&);
-	void RemoveFromSimulation(const FSmartObjectHandle ID);
+	void RemoveFromSimulation(const FSmartObjectHandle Handle);
 	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);
 	void RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent);
 
