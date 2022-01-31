@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Cassandra;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;

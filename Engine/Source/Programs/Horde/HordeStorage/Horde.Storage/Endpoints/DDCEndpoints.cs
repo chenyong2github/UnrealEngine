@@ -4,6 +4,7 @@ using System;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Jupiter;
@@ -14,6 +15,8 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Horde.Storage
 {
+    using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
+
     public class DDCEndpoints
     {
         private readonly IDDCRefService _ddcRefService;

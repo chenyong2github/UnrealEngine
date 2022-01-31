@@ -16,6 +16,7 @@ using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Moq;
 using RestSharp;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.UnitTests
 {

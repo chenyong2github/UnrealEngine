@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;

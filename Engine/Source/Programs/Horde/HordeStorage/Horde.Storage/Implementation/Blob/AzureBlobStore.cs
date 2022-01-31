@@ -11,6 +11,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Jupiter.Implementation;
 using Serilog;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.Implementation
 {

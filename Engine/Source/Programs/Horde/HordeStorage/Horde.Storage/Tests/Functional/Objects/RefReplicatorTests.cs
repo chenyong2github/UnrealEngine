@@ -25,6 +25,7 @@ using Moq.Contrib.HttpClient;
 using Newtonsoft.Json;
 using Serilog;
 using Logger = Serilog.Core.Logger;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.Replication
 {

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation

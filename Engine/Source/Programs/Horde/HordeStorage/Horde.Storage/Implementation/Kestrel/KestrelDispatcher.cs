@@ -7,6 +7,7 @@ using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http;

@@ -26,6 +26,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serilog;
 using Logger = Serilog.Core.Logger;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.References
 {

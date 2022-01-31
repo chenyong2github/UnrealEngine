@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
 using Jupiter.Utils;

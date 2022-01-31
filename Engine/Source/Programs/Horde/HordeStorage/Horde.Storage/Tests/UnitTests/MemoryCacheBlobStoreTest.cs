@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;

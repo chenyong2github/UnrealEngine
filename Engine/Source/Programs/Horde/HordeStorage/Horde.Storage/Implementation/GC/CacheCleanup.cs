@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;

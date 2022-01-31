@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Common.Implementation;

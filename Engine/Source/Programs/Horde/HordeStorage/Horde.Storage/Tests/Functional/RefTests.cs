@@ -28,6 +28,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.Ref
 {

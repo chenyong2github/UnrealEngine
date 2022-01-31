@@ -21,6 +21,7 @@ using RestSharp;
 using Serilog;
 using Serilog.Core;
 using Moq;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.GC
 {

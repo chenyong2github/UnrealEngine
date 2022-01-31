@@ -11,6 +11,7 @@ using Datadog.Trace;
 using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.Controllers
 {

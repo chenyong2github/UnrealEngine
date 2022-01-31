@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
@@ -26,6 +27,8 @@ using Serilog;
 
 namespace Horde.Storage.Controllers
 {
+    using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
+
     [ApiController]
     [FormatFilter]
     [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary)]

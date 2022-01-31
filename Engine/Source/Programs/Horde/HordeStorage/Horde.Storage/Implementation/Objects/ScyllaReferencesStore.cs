@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;

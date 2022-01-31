@@ -18,6 +18,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Serilog;
 using Serilog.Core;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.GC
 {

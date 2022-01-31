@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Logger = Serilog.Core.Logger;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.References
 {

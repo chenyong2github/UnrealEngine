@@ -8,8 +8,9 @@ using Jupiter.Implementation;
 using Serilog;
 
 using RefContainer = System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>;
-using BucketContainer = System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>;
-using NamespaceContainer = System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.NamespaceId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>>;
+using BucketContainer = System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>;
+using NamespaceContainer = System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.NamespaceId, System.Collections.Concurrent.ConcurrentDictionary<EpicGames.Horde.Storage.BucketId, System.Collections.Concurrent.ConcurrentDictionary<Jupiter.Implementation.KeyId, Horde.Storage.Implementation.RefRecord>>>;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.Implementation
 {

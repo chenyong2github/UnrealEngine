@@ -7,6 +7,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;

@@ -9,6 +9,7 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Implementation;
@@ -25,6 +26,8 @@ using Serilog;
 
 namespace Horde.Storage.Controllers
 {
+    using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
+
     public class RefRequest
     {
         [JsonConstructor]
@@ -656,10 +659,10 @@ namespace Horde.Storage.Controllers
 
         // ReSharper disable UnusedAutoPropertyAccessor.Global
         // ReSharper disable once ClassNeverInstantiated.Global
-        public class BatchOp
+        public class DdcBatchOp
         {
             // ReSharper disable InconsistentNaming
-            public enum Operation
+            public enum DdcOperation
             {
                 INVALID,
                 GET,
@@ -676,31 +679,31 @@ namespace Horde.Storage.Controllers
 
             [Required] public KeyId? Id { get; set; }
 
-            [Required] public Operation Op { get; set; }
+            [Required] public DdcOperation Op { get; set; }
 
             // used for put ops
             public ContentHash? ContentHash { get; set; }
             public byte[]? Content { get; set; }
         }
 
-        public class BatchCall
+        public class DdcBatchCall
         {
-            public BatchOp[]? Operations { get; set; }
+            public DdcBatchOp[]? Operations { get; set; }
         }
 
         [HttpPost("ddc-rpc")]
-        public async Task<IActionResult> Post([FromBody] BatchCall batch)
+        public async Task<IActionResult> Post([FromBody] DdcBatchCall batch)
         {
-            string OpToPolicy(BatchOp.Operation op)
+            string OpToPolicy(DdcBatchOp.DdcOperation op)
             {
                 switch (op)
                 {
-                    case BatchOp.Operation.GET:
-                    case BatchOp.Operation.HEAD:
+                    case DdcBatchOp.DdcOperation.GET:
+                    case DdcBatchOp.DdcOperation.HEAD:
                         return "Cache.read";
-                    case BatchOp.Operation.PUT:
+                    case DdcBatchOp.DdcOperation.PUT:
                         return "Cache.write";
-                    case BatchOp.Operation.DELETE:
+                    case DdcBatchOp.DdcOperation.DELETE:
                         return "Cache.delete";
                     default:
                         throw new ArgumentOutOfRangeException(nameof(op), op, null);
@@ -715,7 +718,7 @@ namespace Horde.Storage.Controllers
             Task<object?>[] tasks = new Task<object?>[batch.Operations.Length];
             for (int index = 0; index < batch.Operations.Length; index++)
             {
-                BatchOp op = batch.Operations[index];
+                DdcBatchOp op = batch.Operations[index];
 
                 AuthorizationResult authorizationResultNamespace = await _authorizationService.AuthorizeAsync(User, op.Namespace, NamespaceAccessRequirement.Name);
                 AuthorizationResult authorizationResultOp = await _authorizationService.AuthorizeAsync(User, op, OpToPolicy(op.Op));
@@ -739,7 +742,7 @@ namespace Horde.Storage.Controllers
             return Ok(results);
         }
 
-        private Task<object?> ProcessOp(BatchOp op)
+        private Task<object?> ProcessOp(DdcBatchOp op)
         {
             if (op.Namespace == null)
             {
@@ -758,9 +761,9 @@ namespace Horde.Storage.Controllers
 
             switch (op.Op)
             {
-                case BatchOp.Operation.INVALID:
+                case DdcBatchOp.DdcOperation.INVALID:
                     throw new ArgumentOutOfRangeException();
-                case BatchOp.Operation.GET:
+                case DdcBatchOp.DdcOperation.GET:
                     // TODO: support field filtering
                     return _ddcRefService.Get(op.Namespace.Value, op.Bucket.Value, op.Id.Value, new string[0]).ContinueWith(t => 
                     {
@@ -773,9 +776,9 @@ namespace Horde.Storage.Controllers
                         }
                         return (object?)response;
                     });
-                case BatchOp.Operation.HEAD:
+                case DdcBatchOp.DdcOperation.HEAD:
                     return _ddcRefService.Exists(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith(t => t.Result == null ? (object?)null : op.Id);
-                case BatchOp.Operation.PUT:
+                case DdcBatchOp.DdcOperation.PUT:
                 {
                     if (op.ContentHash == null)
                     {
@@ -794,7 +797,7 @@ namespace Horde.Storage.Controllers
                     }
                     return _ddcRefService.Put(op.Namespace.Value, op.Bucket.Value, op.Id.Value, blobHash, op.Content).ContinueWith(t => (object?)t.Result);
                 }
-                case BatchOp.Operation.DELETE:
+                case DdcBatchOp.DdcOperation.DELETE:
                     return _ddcRefService.Delete(op.Namespace.Value, op.Bucket.Value, op.Id.Value).ContinueWith(t => (object?)null);
                 default:
                     throw new ArgumentOutOfRangeException();

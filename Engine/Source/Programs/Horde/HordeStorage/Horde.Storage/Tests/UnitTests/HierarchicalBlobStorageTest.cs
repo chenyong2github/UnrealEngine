@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dasync.Collections;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
@@ -16,6 +17,8 @@ using Moq;
 
 namespace Horde.Storage.UnitTests
 {
+    using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
+
     [TestClass]
     public class HierarchicalBlobStorageTest
     {

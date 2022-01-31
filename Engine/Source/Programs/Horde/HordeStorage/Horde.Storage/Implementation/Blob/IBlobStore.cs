@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation

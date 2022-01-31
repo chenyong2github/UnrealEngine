@@ -7,6 +7,7 @@ using Serilog;
 using Microsoft.Extensions.Options;
 using RestSharp;
 using RestSharp.Serializers.NewtonsoftJson;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.Implementation
 {

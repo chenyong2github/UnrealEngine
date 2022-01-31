@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation
