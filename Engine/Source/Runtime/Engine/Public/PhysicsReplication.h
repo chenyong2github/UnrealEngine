@@ -98,6 +98,7 @@ protected:
 
 	/** Called when a dynamic rigid body receives a physics update */
 	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);
+	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay); // deprecated path with no localframe/numpredicted
 
 	UWorld* GetOwningWorld();
 	const UWorld* GetOwningWorld() const;
