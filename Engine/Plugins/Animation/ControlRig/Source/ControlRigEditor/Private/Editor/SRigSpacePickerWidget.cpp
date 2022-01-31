@@ -228,22 +228,6 @@ void SRigSpacePickerWidget::SetControls(
 
 class SRigSpaceDialogWindow : public SWindow
 {
-public:
-
-	virtual bool OnIsActiveChanged(const FWindowActivateEvent& ActivateEvent) override
-	{
-		if(ActivateEvent.GetActivationType() == FWindowActivateEvent::EA_Deactivate)
-		{
-			DeactivatedDelegate.ExecuteIfBound();
-		}
-		return SWindow::OnIsActiveChanged(ActivateEvent);
-	}
-
-	FSimpleDelegate& OnDeactivated() { return DeactivatedDelegate; }
-
-private:
-
-	FSimpleDelegate DeactivatedDelegate;
 }; 
 
 FReply SRigSpacePickerWidget::OpenDialog(bool bModal)
@@ -256,6 +240,7 @@ FReply SRigSpacePickerWidget::OpenDialog(bool bModal)
 	.Title( LOCTEXT("SRigSpacePickerWidgetPickSpace", "Pick a new space") )
 	.CreateTitleBar(false)
 	.Type(EWindowType::Menu)
+	.IsPopupWindow(true) // the window automatically closes when user clicks outside of it
 	.SizingRule( ESizingRule::Autosized )
 	.ScreenPosition(CursorPos)
 	.FocusWhenFirstShown(true)
@@ -265,7 +250,6 @@ FReply SRigSpacePickerWidget::OpenDialog(bool bModal)
 	];
 	
 	Window->SetWidgetToFocusOnActivate(AsShared());
-	Window->OnDeactivated().BindSP(this, &SRigSpacePickerWidget::CloseDialog);
 	
 	DialogWindow = Window;
 
