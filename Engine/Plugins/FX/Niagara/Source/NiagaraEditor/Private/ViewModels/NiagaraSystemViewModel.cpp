@@ -646,10 +646,11 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 {
 	// Reset system stack and emitter handle view models to prevent accessing invalid data if they were in the undo operation.
 
-	//We have to force a reinit of all systems in the event of an undo.
-	FNiagaraSystemUpdateContext UpdateContext;
-	UpdateContext.SetDestroyOnAdd(true);
-	UpdateContext.Add(System, true);
+	//We have to invalidate all cached data that may have been directly modified by the transaction.
+	System->ForEachScript([](UNiagaraScript* Script)
+	{
+		Script->InvalidateCompileResults(TEXT("Post Undo"));
+	});
 
 	SystemStackViewModel->Reset();
 	ResetEmitterHandleViewModelsAndTracks();
