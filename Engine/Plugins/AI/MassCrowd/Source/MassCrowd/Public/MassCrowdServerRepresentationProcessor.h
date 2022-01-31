@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassCrowdRepresentationProcessor.h"
+#include "MassRepresentationProcessor.h"
 
 #include "MassCrowdServerRepresentationProcessor.generated.h"
 
@@ -11,10 +11,13 @@
  * It is the counter part of the crowd visualization processor on the client.
  */
 UCLASS(meta = (DisplayName = "Mass Crowd Server Representation"))
-class MASSCROWD_API UMassCrowdServerRepresentationProcessor : public UMassCrowdRepresentationProcessor
+class MASSCROWD_API UMassCrowdServerRepresentationProcessor : public UMassRepresentationProcessor
 {
 	GENERATED_BODY()
 
 public:
 	UMassCrowdServerRepresentationProcessor();
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
 };

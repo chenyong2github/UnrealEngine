@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassCrowdRepresentationProcessor.h"
+#include "MassRepresentationProcessor.h"
 
 #include "MassCrowdVisualizationProcessor.generated.h"
 
@@ -10,7 +10,7 @@
  * Overridden visualization processor to make it tied to the crowd via the requirements
  */
 UCLASS(meta = (DisplayName = "Mass Crowd Visualization"))
-class MASSCROWD_API UMassCrowdVisualizationProcessor : public UMassCrowdRepresentationProcessor
+class MASSCROWD_API UMassCrowdVisualizationProcessor : public UMassVisualizationProcessor
 {
 	GENERATED_BODY()
 public:
@@ -20,6 +20,24 @@ protected:
 
 	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
+};
+
+/**
+ * A custom visualization processor for debugging mass crowd
+ */
+UCLASS(meta = (DisplayName = "Mass Crowd Visualization"))
+class MASSCROWD_API UMassDebugCrowdVisualizationProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+public:
+	UMassDebugCrowdVisualizationProcessor();
+
+protected:
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
+
+	virtual void Initialize(UObject& Owner) override;
 
 	/**
 	 * Execution method for this processor
@@ -27,4 +45,9 @@ protected:
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
+	UPROPERTY(Transient)
+	UWorld* World;
+
+	FMassEntityQuery EntityQuery;
 };

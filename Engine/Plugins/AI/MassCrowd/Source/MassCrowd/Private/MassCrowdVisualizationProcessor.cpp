@@ -28,6 +28,8 @@ UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 
+	bAutoRegisterWithProcessingPhases = true;
+
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 
 	bRequiresGameThreadExecution = true;
@@ -36,15 +38,41 @@ UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
 void UMassCrowdVisualizationProcessor::ConfigureQueries()
 {
 	Super::ConfigureQueries();
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
 }
 
-void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+//----------------------------------------------------------------------//
+// UMassDebugCrowdVisualizationProcessor
+//----------------------------------------------------------------------//
+UMassDebugCrowdVisualizationProcessor::UMassDebugCrowdVisualizationProcessor()
 {
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-	{
-		UpdateVisualization(Context);
-	});
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+	ExecutionOrder.ExecuteAfter.Add(UMassCrowdVisualizationProcessor::StaticClass()->GetFName());
+
+	bRequiresGameThreadExecution = true;
+}
+
+void UMassDebugCrowdVisualizationProcessor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassDebugCrowdVisualizationProcessor::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+
+	World = Owner.GetWorld();
+	check(World);
+}
+
+void UMassDebugCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+{
 	if (UE::MassCrowd::bDebugCrowdVisualType)
 	{
 		check(World);

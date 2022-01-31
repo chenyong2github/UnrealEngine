@@ -8,5 +8,13 @@ UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
 
+	bAutoRegisterWithProcessingPhases = true;
+
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+}
+
+void UMassCrowdServerRepresentationProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
 }

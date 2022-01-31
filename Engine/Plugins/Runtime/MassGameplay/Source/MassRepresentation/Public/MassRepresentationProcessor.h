@@ -50,6 +50,39 @@ protected:
 	 */
 	bool ReleaseActorOrCancelSpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, const bool bCancelSpawningOnly = false);
 
+	/*
+	 * Update representation type for each entity, must be called within a ForEachEntityChunk
+	 * @param Context of the execution from the entity sub system
+	 */
+	void UpdateRepresentation(FMassExecutionContext& Context);
+
+	/** Caching ptr to our associated world */
+	UPROPERTY(Transient)
+	UWorld* World;
+
+	UPROPERTY(Transient)
+	UMassEntitySubsystem* CachedEntitySubsystem;
+
+	FMassEntityQuery EntityQuery;
+};
+
+UCLASS()
+class MASSREPRESENTATION_API UMassVisualizationProcessor : public UMassRepresentationProcessor
+{
+	GENERATED_BODY()
+
+protected:
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
+
+	/**
+	 * Execution method for this processor
+	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
+	 * @param Context is the execution context to be passed when executing the lambdas
+	 */
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
 	/**
 	 * Updates chunk visibility info for later chunk logic optimization
 	 * @param Context of the execution from the entity sub system
@@ -67,31 +100,13 @@ protected:
 	 */
 	static void UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassCommandBuffer& CommandBuffer);
 
-protected:
-
-	/*
-	 * Update representation type for each entity, must be called within a ForEachEntityChunk
-	 * @param Context of the execution from the entity sub system
-	 */
-	void UpdateRepresentation(FMassExecutionContext& Context);
-
-	/** 
+	/**
 	 * Update representation and visibility for each entity, must be called within a ForEachEntityChunk
 	 * @param Context of the execution from the entity sub system
 	 */
 	void UpdateVisualization(FMassExecutionContext& Context);
-
-	/** Caching ptr to our associated world */
-	UPROPERTY(Transient)
-	UWorld* World;
-
-	UPROPERTY(Transient)
-	UMassEntitySubsystem* CachedEntitySubsystem;
-
-
-	FMassEntityQuery EntityQuery;
-
 };
+
 
 UCLASS()
 class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassFragmentDeinitializer
