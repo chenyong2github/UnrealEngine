@@ -649,8 +649,6 @@ float4 TonemapCommonPS(
 
 		half3 OutDeviceColor = ColorLookupTable(LinearColor);
 
-		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
-
 		#if USE_GRAIN_QUANTIZATION
 			half Grain = GrainFromUV(GrainUV.zw);
 
@@ -672,7 +670,7 @@ float4 TonemapCommonPS(
 		#endif
 
 		// RETURN_COLOR not needed unless writing to SceneColor
-		OutColor = float4(OutDeviceColor, saturate(LuminanceForPostProcessAA));
+		OutColor.rgb = OutDeviceColor;
 
 		#if USE_LINEAR_FLOAT_RT
 			OutColor.rgb = sRGBToLinear( OutColor.rgb );

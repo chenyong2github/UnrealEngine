@@ -606,7 +606,6 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		OutputDesc.Flags |= View.bUseComputePasses ? TexCreate_UAV : TexCreate_RenderTargetable;
 		OutputDesc.Flags |= GFastVRamConfig.Tonemap;
 		// RGB is the color in LDR, A is the luminance for PostprocessAA
-		OutputDesc.Format = Inputs.bOutputInHDR ? GRHIHDRDisplayOutputFormat : PF_B8G8R8A8;
 		OutputDesc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
 
 		const FTonemapperOutputDeviceParameters OutputDeviceParameters = GetTonemapperOutputDeviceParameters(*View.Family);
@@ -616,9 +615,28 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		{
 			OutputDesc.Format = PF_A32B32G32R32F;
 		}
-		if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve || OutputDevice == ETonemapperOutputDevice::LinearWithToneCurve)
+		else if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve || OutputDevice == ETonemapperOutputDevice::LinearWithToneCurve)
 		{
 			OutputDesc.Format = PF_FloatRGBA;
+		}
+		else if (Inputs.bOutputInHDR)
+		{
+			OutputDesc.Format = GRHIHDRDisplayOutputFormat;
+		}
+		else if (View.Family->RenderTarget && View.Family->RenderTarget->GetRenderTargetTexture())
+		{
+			// Render into a pixel format that do not loose bit depth precision for the view family.
+			OutputDesc.Format = View.Family->RenderTarget->GetRenderTargetTexture()->GetFormat();
+		}
+		else if (IsPostProcessingWithAlphaChannelSupported())
+		{
+			// Make sure there is no loss for a 10bit bit-depth using the 10bit of mantissa of halfs
+			OutputDesc.Format = PF_FloatRGBA;
+		}
+		else 
+		{
+			// Make sure there is no loss for a 10bit bit-depth
+			OutputDesc.Format = PF_A2B10G10R10;
 		}
 
 		Output = FScreenPassRenderTarget(
