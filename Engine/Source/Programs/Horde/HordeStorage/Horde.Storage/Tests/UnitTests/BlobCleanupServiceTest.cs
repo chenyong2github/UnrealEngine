@@ -25,8 +25,9 @@ namespace Horde.Storage.UnitTests
             BlobCleanupService blobCleanupService = new BlobCleanupService(Mock.Of<IServiceProvider>(), gcSettingsMon);
 
             Mock<IBlobCleanup> store1 = new Mock<IBlobCleanup>();
+            store1.Setup(cleanup => cleanup.ShouldRun()).Returns(true);
             Mock<IBlobCleanup> store2 = new Mock<IBlobCleanup>();
-            
+            store2.Setup(cleanup => cleanup.ShouldRun()).Returns(true);
             blobCleanupService.RegisterCleanup(store1.Object);
             blobCleanupService.RegisterCleanup(store2.Object);
 
