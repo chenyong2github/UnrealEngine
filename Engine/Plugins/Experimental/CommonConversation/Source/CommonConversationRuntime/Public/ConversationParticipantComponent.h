@@ -40,7 +40,7 @@ public:
 
 public:
 	void SendClientConversationMessage(const FConversationContext& Context, const FClientConversationMessagePayload& Payload);
-	void SendClientUpdatedChoices(const FConversationContext& Context);
+	virtual void SendClientUpdatedChoices(const FConversationContext& Context);
 	void SendClientRefreshedTaskChoiceData(const FConversationNodeHandle& Handle, const FConversationContext& Context);
 
 	UFUNCTION(BlueprintCallable, Category=Conversation)
