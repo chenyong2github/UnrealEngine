@@ -1081,7 +1081,7 @@ bool FVideoDecoderH264::FlushDecoder()
 {
 	if (DecoderHandle && DecoderHandle->DecompressionSession)
 	{
-		VTDecompressionSessionFinishDelayedFrames(DecoderHandle->DecompressionSession);
+		// This call implies VTDecompressionSessionFinishDelayedFrames();
 		VTDecompressionSessionWaitForAsynchronousFrames(DecoderHandle->DecompressionSession);
 		// Push out all images we got from the decoder from our internal PTS sorting facility
 		ProcessOutput(true);
@@ -1332,7 +1332,7 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(TSharedPtr<FDecoderIn
 	VTDecodeFrameFlags DecodeFlags = kVTDecodeFrame_EnableAsynchronousDecompression | kVTDecodeFrame_EnableTemporalProcessing;
 	if (bRecreatingSession || !AU->AdjustedPTS.IsValid())
 	{
-		DecodeFlags = kVTDecodeFrame_DoNotOutputFrame;
+		DecodeFlags |= kVTDecodeFrame_DoNotOutputFrame;
 	}
 	VTDecodeInfoFlags  InfoFlags = 0;
 /*
