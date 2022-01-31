@@ -348,6 +348,7 @@ FRasterizerStateRHIRef FOpenGLDynamicRHI::RHICreateRasterizerState(const FRaster
 	RasterizerState->Data.FillMode = TranslateFillMode(Initializer.FillMode);
 	RasterizerState->Data.DepthBias = Initializer.DepthBias;
 	RasterizerState->Data.SlopeScaleDepthBias = Initializer.SlopeScaleDepthBias;
+	RasterizerState->Data.DepthClipMode = Initializer.DepthClipMode;
 	
 	return RasterizerState;
 }
@@ -359,6 +360,7 @@ bool FOpenGLRasterizerState::GetInitializer(FRasterizerStateInitializerRHI& Init
 	Init.FillMode = TranslateFillMode(Data.FillMode);
 	Init.DepthBias = Data.DepthBias;
 	Init.SlopeScaleDepthBias = Data.SlopeScaleDepthBias;
+	Init.DepthClipMode = Data.DepthClipMode;
 	return true;
 }
 

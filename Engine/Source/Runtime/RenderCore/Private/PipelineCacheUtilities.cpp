@@ -55,7 +55,7 @@ namespace Private
 
 		enum class EVersion : int32
 		{
-			Current = 3
+			Current = 4
 		};
 
 		/** Magic to reject other files */

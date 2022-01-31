@@ -142,13 +142,13 @@ public:
  * settings.
  * Should only be used from the rendering thread.
  */
-template<ERasterizerFillMode FillMode=FM_Solid,ERasterizerCullMode CullMode=CM_None,bool bEnableLineAA=false,bool bEnableMSAA=true>
+template<ERasterizerFillMode FillMode=FM_Solid,ERasterizerCullMode CullMode=CM_None,bool bEnableLineAA=false,bool bEnableMSAA=true, ERasterizerDepthClipMode DepthClipMode=ERasterizerDepthClipMode::DepthClip>
 class TStaticRasterizerState : public TStaticStateRHI<TStaticRasterizerState<FillMode,CullMode,bEnableLineAA>,FRasterizerStateRHIRef, FRHIRasterizerState*>
 {
 public:
 	FORCEINLINE_DEBUGGABLE static FRasterizerStateRHIRef CreateRHI()
 	{
-		FRasterizerStateInitializerRHI Initializer = { FillMode, CullMode, 0, 0, bEnableMSAA, bEnableLineAA };
+		const FRasterizerStateInitializerRHI Initializer(FillMode, CullMode, 0.0f, 0.0f, DepthClipMode, bEnableMSAA, bEnableLineAA);
 		return RHICreateRasterizerState(Initializer);
 	}
 };

@@ -76,12 +76,13 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	LastUsedTime = 22,
 	MoreRenderTargetFlags = 23,
 	FragmentDensityAttachment = 24,
+	AddingDepthClipMode = 25,
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
 const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415232; // TOCSTAR2
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const RHI_API uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::FragmentDensityAttachment;
+const RHI_API uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::AddingDepthClipMode;
 const int32  FPipelineCacheGraphicsDescPartsNum = 66; // parser will expect this number of parts in a description string
 
 /**
@@ -371,6 +372,7 @@ FString FPipelineFileCacheRasterizerState::ToString() const
 		, SlopeScaleDepthBias
 		, uint32(FillMode)
 		, uint32(CullMode)
+		, uint32(DepthClipMode)
 		, uint32(!!bAllowMSAA)
 		, uint32(!!bEnableLineAA)
 	);
@@ -391,6 +393,7 @@ void FPipelineFileCacheRasterizerState::FromString(const FStringView& Src)
 	LexFromString(SlopeScaleDepthBias, *PartIt++);
 	LexFromString((uint8&)FillMode, *PartIt++);
 	LexFromString((uint8&)CullMode, *PartIt++);
+	LexFromString((uint8&)DepthClipMode, *PartIt++);
 	LexFromString((uint8&)bAllowMSAA, *PartIt++);
 	LexFromString((uint8&)bEnableLineAA, *PartIt++);
 

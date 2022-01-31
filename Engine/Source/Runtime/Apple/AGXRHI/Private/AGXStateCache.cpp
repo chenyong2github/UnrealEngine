@@ -37,6 +37,16 @@ static mtlpp::CullMode TranslateCullMode(ERasterizerCullMode CullMode)
 	}
 }
 
+static mtlpp::DepthClipMode TranslateDepthClipMode(ERasterizerDepthClipMode DepthClipMode)
+{
+	switch (DepthClipMode)
+	{
+	case ERasterizerDepthClipMode::DepthClip:	return mtlpp::DepthClipMode::Clip;
+	case ERasterizerDepthClipMode::DepthClamp:	return mtlpp::DepthClipMode::Clamp;
+	default:									return mtlpp::DepthClipMode::Clip;
+	}
+}
+
 FORCEINLINE mtlpp::StoreAction GetMetalRTStoreAction(ERenderTargetStoreAction StoreAction)
 {
 	switch(StoreAction)
@@ -383,7 +393,7 @@ void FAGXStateCache::SetRasterizerState(FAGXRasterizerState* InRasterizerState)
 	if(RasterizerState != InRasterizerState)
 	{
 		RasterizerState = InRasterizerState;
-		RasterBits |= EAGXRenderFlagFrontFacingWinding|EAGXRenderFlagCullMode|EAGXRenderFlagDepthBias|EAGXRenderFlagTriangleFillMode;
+		RasterBits |= EAGXRenderFlagFrontFacingWinding|EAGXRenderFlagCullMode|EAGXRenderFlagDepthBias|EAGXRenderFlagTriangleFillMode|EAGXRenderFlagDepthClipMode;
 	}
 }
 
@@ -1945,6 +1955,11 @@ void FAGXStateCache::SetRenderState(FAGXCommandEncoder& CommandEncoder, FAGXComm
             	VisibilityWritten = VisibilityOffset + FAGXQueryBufferPool::EQueryResultMaxSize;
 			}
         }
+		if (RasterBits & EAGXRenderFlagDepthClipMode)
+		{
+			check(IsValidRef(RasterizerState));
+			CommandEncoder.SetDepthClipMode(TranslateDepthClipMode(RasterizerState->State.DepthClipMode));
+		}
 		RasterBits = 0;
 	}
 }

@@ -32,7 +32,8 @@ enum EMetalRenderFlags
     EMetalRenderFlagDepthStencilState = 1 << 7,
     EMetalRenderFlagStencilReferenceValue = 1 << 8,
     EMetalRenderFlagVisibilityResultMode = 1 << 9,
-    EMetalRenderFlagMask = 0x1FF
+	EMetalRenderFlagDepthClipMode = 1 << 10,
+    EMetalRenderFlagMask = 0x3FF
 };
 
 class FMetalStateCache

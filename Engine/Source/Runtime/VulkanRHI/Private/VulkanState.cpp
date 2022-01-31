@@ -232,8 +232,8 @@ FVulkanSamplerState::FVulkanSamplerState(const VkSamplerCreateInfo& InInfo, FVul
 }
 
 FVulkanRasterizerState::FVulkanRasterizerState(const FRasterizerStateInitializerRHI& InInitializer)
+	: Initializer(InInitializer)
 {
-	Initializer = InInitializer;
 	FVulkanRasterizerState::ResetCreateInfo(RasterizerState);
 
 	// @todo vulkan: I'm assuming that Solid and Wireframe wouldn't ever be mixed within the same BoundShaderState, so we are ignoring the fill mode as a unique identifier
@@ -242,7 +242,7 @@ FVulkanRasterizerState::FVulkanRasterizerState(const FRasterizerStateInitializer
 	RasterizerState.polygonMode = RasterizerFillModeToVulkan(Initializer.FillMode);
 	RasterizerState.cullMode = RasterizerCullModeToVulkan(Initializer.CullMode);
 
-	//RasterizerState.depthClampEnable = VK_FALSE;
+	RasterizerState.depthClampEnable = InInitializer.DepthClipMode == ERasterizerDepthClipMode::DepthClamp ? VK_TRUE : VK_FALSE;
 	RasterizerState.depthBiasEnable = Initializer.DepthBias != 0.0f ? VK_TRUE : VK_FALSE;
 	//RasterizerState.rasterizerDiscardEnable = VK_FALSE;
 

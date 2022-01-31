@@ -32,7 +32,8 @@ enum EAGXRenderFlags
     EAGXRenderFlagDepthStencilState = 1 << 7,
     EAGXRenderFlagStencilReferenceValue = 1 << 8,
     EAGXRenderFlagVisibilityResultMode = 1 << 9,
-    EAGXRenderFlagMask = 0x1FF
+	EAGXRenderFlagDepthClipMode = 1 << 10,
+    EAGXRenderFlagMask = 0x3FF
 };
 
 class FAGXStateCache

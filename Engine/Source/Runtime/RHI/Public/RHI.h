@@ -1327,19 +1327,42 @@ struct FSamplerStateInitializerRHI
 
 struct FRasterizerStateInitializerRHI
 {
-	TEnumAsByte<ERasterizerFillMode> FillMode;
-	TEnumAsByte<ERasterizerCullMode> CullMode;
-	float DepthBias;
-	float SlopeScaleDepthBias;
-	bool bAllowMSAA;
-	bool bEnableLineAA;
-	
+	TEnumAsByte<ERasterizerFillMode> FillMode = FM_Point;
+	TEnumAsByte<ERasterizerCullMode> CullMode = CM_None;
+	float DepthBias = 0.0f;
+	float SlopeScaleDepthBias = 0.0f;
+	ERasterizerDepthClipMode DepthClipMode = ERasterizerDepthClipMode::DepthClip;
+	bool bAllowMSAA = false;
+	bool bEnableLineAA = false;
+
+	FRasterizerStateInitializerRHI() = default;
+
+	FRasterizerStateInitializerRHI(ERasterizerFillMode InFillMode, ERasterizerCullMode InCullMode, bool bInAllowMSAA, bool bInEnableLineAA)
+		: FillMode(InFillMode)
+		, CullMode(InCullMode)
+		, bAllowMSAA(bInAllowMSAA)
+		, bEnableLineAA(bInEnableLineAA)
+	{
+	}
+
+	FRasterizerStateInitializerRHI(ERasterizerFillMode InFillMode, ERasterizerCullMode InCullMode, float InDepthBias, float InSlopeScaleDepthBias, ERasterizerDepthClipMode InDepthClipMode, bool bInAllowMSAA, bool bInEnableLineAA)
+		: FillMode(InFillMode)
+		, CullMode(InCullMode)
+		, DepthBias(InDepthBias)
+		, SlopeScaleDepthBias(InSlopeScaleDepthBias)
+		, DepthClipMode(InDepthClipMode)
+		, bAllowMSAA(bInAllowMSAA)
+		, bEnableLineAA(bInEnableLineAA)
+	{
+	}
+
 	friend FArchive& operator<<(FArchive& Ar,FRasterizerStateInitializerRHI& RasterizerStateInitializer)
 	{
 		Ar << RasterizerStateInitializer.FillMode;
 		Ar << RasterizerStateInitializer.CullMode;
 		Ar << RasterizerStateInitializer.DepthBias;
 		Ar << RasterizerStateInitializer.SlopeScaleDepthBias;
+		Ar << RasterizerStateInitializer.DepthClipMode;
 		Ar << RasterizerStateInitializer.bAllowMSAA;
 		Ar << RasterizerStateInitializer.bEnableLineAA;
 		return Ar;
@@ -1916,6 +1939,18 @@ inline constexpr bool IsValidAccess(ERHIAccess Access)
 {
 	return !IsInvalidAccess(Access);
 }
+
+enum class ERHITransitionAccessMode
+{
+	// All upcoming rhi transitions can still have Unkown before state - rhi might need to do internal tracking if needed
+	AllowUnknown = 0,
+
+	// All upcoming rhi transitions are fully defined - no internal RHI tracking required anymore
+	DisallowUnknown,
+
+	Default = AllowUnknown
+};
+ENUM_CLASS_FLAGS(ERHITransitionAccessMode);
 
 enum class ERHITransitionCreateFlags
 {

@@ -1054,6 +1054,16 @@ enum ERasterizerCullMode
 };
 static_assert(ERasterizerCullMode_Num <= (1 << ERasterizerCullMode_NumBits), "ERasterizerCullMode_Num will not fit on ERasterizerCullMode_NumBits");
 
+enum class ERasterizerDepthClipMode : uint8
+{
+	DepthClip,
+	DepthClamp,
+
+	Num,
+	NumBits = 1,
+};
+static_assert(uint32(ERasterizerDepthClipMode::Num) <= (1U << uint32(ERasterizerDepthClipMode::NumBits)), "ERasterizerDepthClipMode::Num will not fit on ERasterizerDepthClipMode::NumBits");
+
 enum EColorWriteMask
 {
 	CW_RED   = 0x01,

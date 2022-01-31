@@ -75,18 +75,11 @@ public:
 
 struct FOpenGLRasterizerStateData
 {
-	GLenum FillMode;
-	GLenum CullMode;
-	float DepthBias;
-	float SlopeScaleDepthBias;
-
-	FOpenGLRasterizerStateData()
-		: FillMode(GL_FILL)
-		, CullMode(GL_NONE)
-		, DepthBias(0.0f)
-		, SlopeScaleDepthBias(0.0f)
-	{
-	}
+	GLenum FillMode = GL_FILL;
+	GLenum CullMode = GL_NONE;
+	float DepthBias = 0.0f;
+	float SlopeScaleDepthBias = 0.0f;
+	ERasterizerDepthClipMode DepthClipMode = ERasterizerDepthClipMode::DepthClip;
 };
 
 class FOpenGLRasterizerState : public FRHIRasterizerState

@@ -357,6 +357,12 @@ public:
 	 * @param FillMode The fill mode.
 	 */
 	void SetTriangleFillMode(mtlpp::TriangleFillMode const FillMode);
+
+	/*
+	 * Set wether to clip or clamp triangles based on depth.
+	 * @param FillMode The fill mode.
+	 */
+	void SetDepthClipMode(mtlpp::DepthClipMode DepthClipMode);
 	
 	/*
 	 * Set the constant blend color used across all blending on all render targets

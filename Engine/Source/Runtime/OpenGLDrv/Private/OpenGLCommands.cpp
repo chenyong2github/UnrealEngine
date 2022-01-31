@@ -271,6 +271,19 @@ void FOpenGLDynamicRHI::UpdateRasterizerStateInOpenGLContext( FOpenGLContextStat
 		ContextState.RasterizerState.CullMode = PendingState.RasterizerState.CullMode;
 	}
 
+	if (FOpenGL::SupportsDepthClamp() && ContextState.RasterizerState.DepthClipMode != PendingState.RasterizerState.DepthClipMode)
+	{
+		if (PendingState.RasterizerState.DepthClipMode == ERasterizerDepthClipMode::DepthClamp)
+		{
+			glEnable(GL_DEPTH_CLAMP);
+		}
+		else
+		{
+			glDisable(GL_DEPTH_CLAMP);
+		}
+		ContextState.RasterizerState.DepthClipMode = PendingState.RasterizerState.DepthClipMode;
+	}
+
 	// Convert our platform independent depth bias into an OpenGL depth bias.
 	const float BiasScale = float((1<<24)-1);	// Warning: this assumes depth bits == 24, and won't be correct with 32.
 	float DepthBias = PendingState.RasterizerState.DepthBias * BiasScale;

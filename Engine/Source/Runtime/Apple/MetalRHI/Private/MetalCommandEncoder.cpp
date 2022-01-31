@@ -1363,6 +1363,14 @@ void FMetalCommandEncoder::SetTriangleFillMode(mtlpp::TriangleFillMode const InF
 	}
 }
 
+void FMetalCommandEncoder::SetDepthClipMode(mtlpp::DepthClipMode const InDepthClipMode)
+{
+	check(RenderCommandEncoder);
+	{
+		RenderCommandEncoder.SetDepthClipMode(InDepthClipMode);
+	}
+}
+
 void FMetalCommandEncoder::SetBlendColor(float const Red, float const Green, float const Blue, float const Alpha)
 {
 	check(RenderCommandEncoder);

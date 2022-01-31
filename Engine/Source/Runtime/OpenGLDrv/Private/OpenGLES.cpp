@@ -127,6 +127,9 @@ bool FOpenGLES::bRequiresARMShaderFramebufferFetchDepthStencilUndef = false;
 /** GL_EXT_buffer_storage */
 bool FOpenGLES::bSupportsBufferStorage = false;
 
+/** GL_EXT_depth_clamp */
+bool FOpenGLES::bSupportsDepthClamp = false;
+
 bool FOpenGLES::bHasHardwareHiddenSurfaceRemoval = false;
 bool FOpenGLES::bSupportsMobileMultiView = false;
 GLint FOpenGLES::MaxMSAASamplesTileMem = 1;
@@ -222,6 +225,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	bSupportsDXT = ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc"));
 	bSupportsNVFrameBufferBlit = ExtensionsString.Contains(TEXT("GL_NV_framebuffer_blit"));
 	bSupportsBufferStorage = ExtensionsString.Contains(TEXT("GL_EXT_buffer_storage"));
+	bSupportsDepthClamp = ExtensionsString.Contains(TEXT("GL_EXT_depth_clamp"));
 	bSupportsASTCDecodeMode = ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_astc_decode_mode"));
 
 	// Report shader precision

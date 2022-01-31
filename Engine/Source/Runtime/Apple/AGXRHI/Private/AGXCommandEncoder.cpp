@@ -825,6 +825,14 @@ void FAGXCommandEncoder::SetTriangleFillMode(mtlpp::TriangleFillMode const InFil
 	}
 }
 
+void FAGXCommandEncoder::SetDepthClipMode(mtlpp::DepthClipMode const InDepthClipMode)
+{
+	check(RenderCommandEncoder);
+	{
+		RenderCommandEncoder.SetDepthClipMode(InDepthClipMode);
+	}
+}
+
 void FAGXCommandEncoder::SetBlendColor(float const Red, float const Green, float const Blue, float const Alpha)
 {
 	check(RenderCommandEncoder);

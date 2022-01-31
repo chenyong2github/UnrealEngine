@@ -97,6 +97,9 @@ typedef GLfloat GLdouble;
 #ifndef GL_MAX_TEXTURE_BUFFER_SIZE
 #define GL_MAX_TEXTURE_BUFFER_SIZE 0x8C2B
 #endif
+#ifndef GL_DEPTH_CLAMP
+#define GL_DEPTH_CLAMP 0x864F
+#endif
 
 /** For the shader stage bits that don't exist just use 0 */
 #define GL_GEOMETRY_SHADER_BIT				0x00000000
@@ -217,6 +220,7 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsRGB10A2() { return bSupportsRGB10A2; }
 	static FORCEINLINE bool SupportsDrawIndirect() { return true; }
 	static FORCEINLINE bool SupportsBufferStorage() { return bSupportsBufferStorage; }
+	static FORCEINLINE bool SupportsDepthClamp() { return bSupportsDepthClamp; }
 	
 
 	static FORCEINLINE bool HasBinaryProgramRetrievalFailed() { return bBinaryProgramRetrievalFailed; }
@@ -834,6 +838,9 @@ public:
 
 	/** GL_EXT_buffer_storage */
 	static bool bSupportsBufferStorage;
+
+	/** GL_EXT_depth_clamp */
+	static bool bSupportsDepthClamp;
 
 	enum class EFeatureLevelSupport : uint8
 	{

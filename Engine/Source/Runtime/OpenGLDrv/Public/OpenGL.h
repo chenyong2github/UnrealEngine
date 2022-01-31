@@ -135,6 +135,7 @@ public:
 	static FORCEINLINE bool AmdWorkaround()								{ return false; }
 	static FORCEINLINE bool SupportsSeparateShaderObjects()				{ return false; }
 	static FORCEINLINE bool SupportsProgramBinary()						{ return false; }
+	static FORCEINLINE bool SupportsDepthClamp()						{ return true; }
 	
 	static FORCEINLINE bool SupportsASTCDecodeMode()					{ return false; }
 
