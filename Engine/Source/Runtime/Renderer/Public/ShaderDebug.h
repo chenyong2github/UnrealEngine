@@ -57,8 +57,12 @@ namespace ShaderDrawDebug
 	// Call this to fill the FShaderDrawParameters
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters);
 
+	// Call this to fill the FShaderDrawParameters
+	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo& Data, FShaderParameters& OutParameters);
+
 	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
 	bool IsDefaultViewEnabled();
+
 	// Call this to fill the FShaderDrawParameters using the default view (the first one for which Begin was called in case of stereo or similar)
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
 }

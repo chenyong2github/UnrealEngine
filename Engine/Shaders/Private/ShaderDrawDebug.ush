@@ -254,11 +254,6 @@ void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)		{ AddLineTr
 
 void AddOBBTWS(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 {
-	if (ShaderDrawMaxElementCount == 0)
-	{
-		return;
-	}
-
 	uint Offset = 0;
 	if (AllocateShaderDrawElement(12, Offset))
 	{
