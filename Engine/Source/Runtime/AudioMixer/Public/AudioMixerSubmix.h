@@ -529,9 +529,9 @@ namespace Audio
 		FModulationDestination DryLevelMod;
 		FModulationDestination WetLevelMod;
 
-		float VolumeModBase;
-		float DryModBase;
-		float WetModBase;
+		float VolumeModBase = 1.f;
+		float DryModBase = 0.f;
+		float WetModBase = 1.f;
 
 		// Envelope following data
 		float EnvelopeValues[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];

@@ -43,31 +43,41 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	, AmbisonicsPluginSettings(nullptr)
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(500)
-	, GainMode(EGainParamMode::Linear)
 	, OutputVolume(1.0f)
 	, WetLevel(1.0f)
 	, DryLevel(0.0f)
-#if WITH_EDITOR
-	, OutputVolumeDB(0.0f)
-	, WetLevelDB(0.0f)
-	, DryLevelDB(-120.0f)
-#endif
 {
-	OutputVolumeModulation.Value = 0.f;
-	WetLevelModulation.Value = 0.f;
+	OutputVolumeModulation.Value = 1.f;
+	WetLevelModulation.Value = 1.f;
 	DryLevelModulation.Value = 0.f;
 }
 
-void USoundSubmix::PostLoad()
+void USoundSubmix::Serialize(FArchive& Ar)
 {
-	Super::PostLoad();
+	Super::Serialize(Ar);
 
-#if WITH_EDITOR
-	OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
-	WetLevelDB = Audio::ConvertToDecibels(WetLevel);
-	DryLevelDB = Audio::ConvertToDecibels(DryLevel);
-#endif
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		if (OutputVolume < 1.0f)
+		{
+			OutputVolumeModulation.Value = OutputVolume;
+			OutputVolume = 1.0f;
+		}
 
+		if (WetLevel < 1.0f)
+		{
+			OutputVolumeModulation.Value = WetLevel;
+			WetLevel = 1.0f;
+		}
+
+		if (DryLevel > 0.0f)
+		{
+			OutputVolumeModulation.Value = DryLevel;
+			DryLevel = 0.0f;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 UEndpointSubmix::UEndpointSubmix(const FObjectInitializer& ObjectInitializer)
@@ -381,72 +391,6 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 		if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 		{
 			FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
-
-			bool bUpdateSubmixGain = false;
-
-			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolume))
-			{
-				OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
-				bUpdateSubmixGain = true;
-			}
-			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevel))
-			{
-				WetLevelDB = Audio::ConvertToDecibels(OutputVolume);
-				bUpdateSubmixGain = true;
-			}
-			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevel))
-			{
-				DryLevelDB = Audio::ConvertToDecibels(DryLevel);
-				bUpdateSubmixGain = true;
-			}
-			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeDB))
-			{
-				if (OutputVolumeDB <= -160.f)
-				{
-					OutputVolume = 0.0f;
-				}
-				else
-				{
-					OutputVolume = Audio::ConvertToLinear(OutputVolumeDB);
-				}
-				bUpdateSubmixGain = true;
-			}
-			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelDB))
-			{
-				if (WetLevelDB <= -120.f)
-				{
-					WetLevel = 0.0f;
-				}
-				else
-				{
-					WetLevel = Audio::ConvertToLinear(WetLevelDB);
-				}
-				bUpdateSubmixGain = true;
-			}
-			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevelDB))
-			{
-				if (DryLevelDB <= -120.0f)
-				{
-					DryLevel = 0.0f;
-				}
-				else
-				{
-					DryLevel = Audio::ConvertToLinear(DryLevelDB);
-				}
-				bUpdateSubmixGain = true;
-			}
-
-			if (bUpdateSubmixGain)
-			{
-				const float NewOutputVolume = OutputVolume;
-				const float NewWetLevel = WetLevel;
-				const float NewDryLevel = DryLevel;
-				USoundSubmix* SoundSubmix = this;
-				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewOutputVolume, NewWetLevel, NewDryLevel](Audio::FDeviceId Id, FAudioDevice* Device)
-				{
-					Device->SetSubmixWetDryLevel(SoundSubmix, NewOutputVolume, NewWetLevel, NewDryLevel);
-				});
-			}
 
 			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, bAutoDisable))
 			{
