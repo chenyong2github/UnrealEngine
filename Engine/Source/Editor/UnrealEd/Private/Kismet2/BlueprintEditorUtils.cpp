@@ -3075,6 +3075,19 @@ void FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(UBlueprint* Bluepri
 	{
 		GatherDependencies(Blueprint, Blueprint->CachedDependencies, Blueprint->CachedUDSDependencies);
 		Blueprint->bCachedDependenciesUpToDate = true;
+
+		// A macro dependency will result in an expansion from an external graph rather than a local one, so we must also include its dependencies.
+		TSet<TWeakObjectPtr<UBlueprint>> LocalCopyOfCachedDependencies = Blueprint->CachedDependencies;
+		for (const TWeakObjectPtr<UBlueprint>& Dependency : LocalCopyOfCachedDependencies)
+		{
+			UBlueprint* ResolvedDependency = Dependency.Get();
+			if (ResolvedDependency && ResolvedDependency->BlueprintType == BPTYPE_MacroLibrary)
+			{
+				EnsureCachedDependenciesUpToDate(ResolvedDependency);
+				Blueprint->CachedDependencies.Append(ResolvedDependency->CachedDependencies);
+				Blueprint->CachedUDSDependencies.Append(ResolvedDependency->CachedUDSDependencies);
+			}
+		}
 	}
 }
 

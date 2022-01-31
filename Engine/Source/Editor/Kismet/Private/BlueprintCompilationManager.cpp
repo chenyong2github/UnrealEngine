@@ -541,6 +541,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				BP->bCachedDependenciesUpToDate = false;
 			}
 
+			const bool bWasDependencyCacheOutOfDate = !BP->bCachedDependenciesUpToDate;
+
 			FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(BP);
 
 			if ((CompileJob.UserData.CompileOptions & 
@@ -558,6 +560,9 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				{
 					if(!IsQueuedForCompilation(DependentBlueprint))
 					{
+						// The macro may have updated its dependency cache above; if so, we'll need to regenerate the dependent's set as well.
+						DependentBlueprint->bCachedDependenciesUpToDate &= !bWasDependencyCacheOutOfDate;
+
 						DependentBlueprint->bQueuedForCompilation = true;
 						CurrentlyCompilingBPs.Emplace(
 							FCompilerData(
