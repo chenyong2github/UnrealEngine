@@ -143,7 +143,7 @@ extern void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bTraceMeshSDFs,
+	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,

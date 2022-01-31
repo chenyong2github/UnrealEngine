@@ -294,8 +294,9 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 		
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("SCENE_TRACE_MESH_SDFS");
 	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
-	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FTraceHeightfields>;
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FTraceMeshSDFs, FTraceHeightfields>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -559,7 +560,7 @@ void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bTraceMeshSDFs,
+	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -668,7 +669,7 @@ void TraceReflections(
 	}
 	else 
 	{
-		if (bTraceMeshSDFs)
+		if (bTraceMeshObjects)
 		{
 			FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
 			if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
@@ -681,7 +682,10 @@ void TraceReflections(
 					/* out */ MeshSDFGridParameters);
 			}
 
-			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
+			const bool bTraceMeshSDFs = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
+			const bool bTraceHeightfields = Lumen::UseHeightfields(*Scene->LumenSceneData);
+
+			if (bTraceMeshSDFs || bTraceHeightfields)
 			{
 				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,
@@ -707,7 +711,8 @@ void TraceReflections(
 
 					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
-					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfields(*Scene->LumenSceneData));
+					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceMeshSDFs >(bTraceMeshSDFs);
+					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FTraceHeightfields >(bTraceHeightfields);
 					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(

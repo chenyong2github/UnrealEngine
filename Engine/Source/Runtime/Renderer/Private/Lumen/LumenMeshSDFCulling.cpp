@@ -373,6 +373,9 @@ void CullHeightfieldObjectsForView(
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
+	// We don't want any heightfield overhead if there are no heightfields in the scene
+	check(Lumen::UseHeightfields(LumenSceneData));
+
 	uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
 	uint32 MaxNumHeightfields = FMath::RoundUpToPowerOfTwo(LumenSceneData.Heightfields.Num());
 
@@ -550,19 +553,22 @@ void CullMeshSDFObjectsToProbes(
 		CardTraceEndDistanceFromCamera,
 		Context);
 
-	FRDGBufferRef NumCulledHeightfieldObjects;
-	FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
-	CullHeightfieldObjectsForView(
-		GraphBuilder,
-		Scene,
-		View,
-		MaxMeshSDFInfluenceRadius,
-		CardTraceEndDistanceFromCamera,
-		NumCulledHeightfieldObjects,
-		CulledHeightfieldObjectIndexBuffer
-	);
-	OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
-	OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
+	if (Lumen::UseHeightfields(*Scene->LumenSceneData))
+	{
+		FRDGBufferRef NumCulledHeightfieldObjects;
+		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
+		CullHeightfieldObjectsForView(
+			GraphBuilder,
+			Scene,
+			View,
+			MaxMeshSDFInfluenceRadius,
+			CardTraceEndDistanceFromCamera,
+			NumCulledHeightfieldObjects,
+			CulledHeightfieldObjectIndexBuffer
+		);
+		OutGridParameters.NumCulledHeightfieldObjects = GraphBuilder.CreateSRV(NumCulledHeightfieldObjects, PF_R32_UINT);
+		OutGridParameters.CulledHeightfieldObjectIndexBuffer = GraphBuilder.CreateSRV(CulledHeightfieldObjectIndexBuffer, PF_R32_UINT);
+	}
 
 	// Scatter mesh SDF objects into a temporary array of {ObjectIndex, ProbeIndex}
 	{

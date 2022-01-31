@@ -34,9 +34,15 @@
 	#define SDF_TRACING_TRAVERSE_MIPS 0
 #endif
 
+#ifndef SCENE_TRACE_MESH_SDFS
+	#define SCENE_TRACE_MESH_SDFS 1
+#endif
+
 #ifndef SCENE_TRACE_HEIGHTFIELDS
 	#define SCENE_TRACE_HEIGHTFIELDS 0
 #endif
+
+#define SCENE_TRACE_VOXELS 1
 
 #define MIN_flt			(1.175494351e-38F)			/* min positive value */
 
@@ -900,13 +906,12 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 )
 {
 	OutResult = (FConeTraceResult)0;
-
-	FTraceMeshHeightfieldResult TraceMeshHeightfieldResult;
+	FTraceMeshHeightfieldResult TraceMeshHeightfieldResult = (FTraceMeshHeightfieldResult)0;
 	TraceMeshHeightfieldResult.HitDistance = TraceInput.MaxTraceDistance;
 
-	for (uint Index = 0; Index < NumCulledHeightfieldObjects[0]; Index++)
+#if SCENE_TRACE_HEIGHTFIELDS
+	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
 	{
-		uint HeightfieldObjectIndex = CulledHeightfieldObjectIndexBuffer[Index];
 		FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(TraceInput, HeightfieldObjectIndex);
 
 		if (SimpleResult.bIsHit && (SimpleResult.HitDistance < TraceMeshHeightfieldResult.HitDistance))
@@ -937,6 +942,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 			AtlasId).Lighting;
 		OutResult.Transparency = 0;
 	}
+#endif
 
 	OutResult.OpaqueHitDistance = TraceMeshHeightfieldResult.HitDistance;
 	return TraceMeshHeightfieldResult;
@@ -1167,22 +1173,15 @@ float CalculateVoxelTraceStartDistance(float MinTraceDistance, float MaxTraceDis
 	return VoxelTraceStartDistance;
 }
 
-// For debugging
-#define SCENE_TRACE_CARDS 1
-#define SCENE_TRACE_VOXELS 1
-
-#ifndef SCENE_TRACE_HEIGHTFIELDS
-#define SCENE_TRACE_HEIGHTFIELDS 0
-#endif // SCENE_TRACE_HEIGHTFIELDS
-
 void ConeTraceLumenSceneCards(
 	FConeTraceInput TraceInput,
 	inout FConeTraceResult OutResult)
 {
 	OutResult = (FConeTraceResult)0;
 	OutResult.Transparency = 1;
+	OutResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
-#if SCENE_TRACE_CARDS
+#if SCENE_TRACE_MESH_SDFS
 	if (TraceInput.VoxelTraceStartDistance > TraceInput.MinTraceDistance)
 	{
 		FConeTraceInput CardTraceInput = TraceInput;

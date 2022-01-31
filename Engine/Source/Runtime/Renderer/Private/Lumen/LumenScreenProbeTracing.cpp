@@ -248,8 +248,9 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 		
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("SCENE_TRACE_MESH_SDFS");
 	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands, FTraceHeightfields>;
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands, FTraceMeshSDFs, FTraceHeightfields>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -465,7 +466,7 @@ void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
-	bool bTraceMeshSDFs,
+	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -575,7 +576,7 @@ void TraceScreenProbes(
 			RadianceCacheParameters,
 			CompactedTraceParameters);
 	}
-	else if (bTraceMeshSDFs)
+	else if (bTraceMeshObjects)
 	{
 		CullForCardTracing(
 			GraphBuilder,
@@ -584,7 +585,10 @@ void TraceScreenProbes(
 			IndirectTracingParameters,
 			/* out */ MeshSDFGridParameters);
 
-		if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
+		const bool bTraceMeshSDFs = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
+		const bool bTraceHeightfields = Lumen::UseHeightfields(*Scene->LumenSceneData);
+
+		if (bTraceMeshSDFs || bTraceHeightfields)
 		{
 			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 				GraphBuilder,
@@ -609,7 +613,8 @@ void TraceScreenProbes(
 				FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
-				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(Lumen::UseHeightfields(*Scene->LumenSceneData));
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceMeshSDFs >(bTraceMeshSDFs);
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(bTraceHeightfields);
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
