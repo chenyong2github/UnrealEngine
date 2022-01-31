@@ -1407,6 +1407,14 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 #if WITH_EDITORONLY_DATA
 	check(IsInGameThread());
 
+	// We remove emitters and scripts on dedicated servers (and platforms which don't use AV data), so skip further work.
+	const bool bIsDedicatedServer = !GIsClient && GIsServer;
+	const bool bTargetRequiresAvData = WillNeedAudioVisualData();
+	if (bIsDedicatedServer || !bTargetRequiresAvData)
+	{
+		return;
+	}
+
 	// Synchronize with definitions before merging.
 	PostLoadDefinitionsSubscriptions();
 

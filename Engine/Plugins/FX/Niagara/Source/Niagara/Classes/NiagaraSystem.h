@@ -800,6 +800,8 @@ private:
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 	void PrepareRapidIterationParametersForCompilation();
 
+	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
+	void ResetToEmptySystem();
 #endif
 
 	void ResolveScalabilitySettings();

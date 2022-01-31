@@ -721,11 +721,18 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	// We remove emitters and scripts on dedicated servers, so skip further work.
+
+	// We remove emitters and scripts on dedicated servers (and platforms which don't use AV data), so skip further work.
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
+	const bool bTargetRequiresAvData = WillNeedAudioVisualData();
+	if (bIsDedicatedServer || !bTargetRequiresAvData)
+	{
+		ResetToEmptySystem();
+		return;
+	}
 
 	TArray<UNiagaraScript*> AllSystemScripts;
-	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
+	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		UNiagaraScriptSourceBase* SystemScriptSource;
 		if (SystemSpawnScript == nullptr)
@@ -3462,6 +3469,24 @@ void UNiagaraSystem::InitSystemCompiledData()
 		}
 	}
 
+}
+
+void UNiagaraSystem::ResetToEmptySystem()
+{
+	EffectType = nullptr;
+	EmitterHandles.Empty();
+	ParameterCollectionOverrides.Empty();
+	SystemSpawnScript = nullptr;
+	SystemUpdateScript = nullptr;
+	EmitterCompiledData.Empty();
+	SystemCompiledData = FNiagaraSystemCompiledData();
+	UserDINamesReadInSystemScripts.Empty();
+	EmitterExecutionOrder.Empty();
+	RendererPostTickOrder.Empty();
+	RendererCompletionOrder.Empty();
+
+	// while we'd like to remove these as well, BP will generate warnings for missing parameters
+	//ExposedParameters = FNiagaraUserRedirectionParameterStore();
 }
 
 #endif
