@@ -477,6 +477,21 @@ VTPageTableResult TextureLoadVirtualPageTableGrad(
 	return Result;
 }
 
+// LoadPageTable: 2 Page tables, SampleGrad, no feedback
+VTPageTableResult TextureLoadVirtualPageTableGrad(
+	Texture2D<uint4> PageTable0, Texture2D<uint4> PageTable1,
+	VTPageTableUniform PageTableUniform,
+	float2 UV, uint AddressU, uint AddressV,
+	MaterialFloat2 dUVdx, MaterialFloat2 dUVdy, float2 SvPositionXY)
+{
+	VTPageTableResult Result = (VTPageTableResult)0.0f;
+	int vLevel = TextureComputeVirtualMipLevel(Result, dUVdx * PageTableUniform.UVScale, dUVdy * PageTableUniform.UVScale, 0, SvPositionXY, PageTableUniform);
+	UV = UV * PageTableUniform.UVScale;
+	UV = ApplyAddressMode(UV, AddressU, AddressV);
+	TextureLoadVirtualPageTableInternal(Result, PageTable0, PageTable1, PageTableUniform, UV, vLevel);
+	return Result;
+}
+
 // LoadPageTable: 1 Page table, SampleLevel
 VTPageTableResult TextureLoadVirtualPageTableLevel(
 	Texture2D<uint4> PageTable0,

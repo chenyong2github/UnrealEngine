@@ -15,21 +15,22 @@
 
 #if IS_NANITE_PASS
 #define LightmapUVType FloatDeriv2
-LightmapUVType ScaleLightmapUV(LightmapUVType UV, float2 Scale)
+#else
+#define LightmapUVType float2
+#endif
+
+float2 ScaleLightmapUV(float2 UV, float2 Scale)
+{
+	return UV * Scale;
+}
+
+FloatDeriv2 ScaleLightmapUV(FloatDeriv2 UV, float2 Scale)
 {
 	UV.Value *= Scale;
 	UV.Ddx *= Scale;
 	UV.Ddy *= Scale;
 	return UV;
 }
-#else
-#define LightmapUVType float2
-LightmapUVType ScaleLightmapUV(LightmapUVType UV, float2 Scale)
-{
-	return UV * Scale;
-}
-#endif
-
 
 #if HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP
  
@@ -49,7 +50,7 @@ LightmapUVType ScaleLightmapUV(LightmapUVType UV, float2 Scale)
 #if LIGHTMAP_VT_ENABLED
 VTPageTableResult LightmapGetVTSampleInfo(float2 UV, uint LightmapDataIndex, float2 SvPositionXY)
 {
-	UV *= float2(1.0f, 2.0f); // Undo transform used to pack 2 lightmap coeffs in 1 texture for the non-VT default case
+	UV = ScaleLightmapUV(UV, float2(1.0f, 2.0f)); // Undo transform used to pack 2 lightmap coeffs in 1 texture for the non-VT default case
 
 	return TextureLoadVirtualPageTable(LightmapResourceCluster.LightmapVirtualTexturePageTable0, LightmapResourceCluster.LightmapVirtualTexturePageTable1,
 		VTPageTableUniform_Unpack(GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[0], GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[1]),
@@ -58,11 +59,11 @@ VTPageTableResult LightmapGetVTSampleInfo(float2 UV, uint LightmapDataIndex, flo
 
 VTPageTableResult LightmapGetVTSampleInfo(FloatDeriv2 UV, uint LightmapDataIndex, float2 SvPositionXY)
 {
-	ScaleLightmapUV(UV, float2(1.0f, 2.0f)); // Undo transform used to pack 2 lightmap coeffs in 1 texture for the non-VT default case
+	UV = ScaleLightmapUV(UV, float2(1.0f, 2.0f)); // Undo transform used to pack 2 lightmap coeffs in 1 texture for the non-VT default case
 	
 	return TextureLoadVirtualPageTableGrad(LightmapResourceCluster.LightmapVirtualTexturePageTable0, LightmapResourceCluster.LightmapVirtualTexturePageTable1,
 		VTPageTableUniform_Unpack(GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[0], GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[1]),
-		UV.Value, LIGHTMAP_VTADDRESSMODE, LIGHTMAP_VTADDRESSMODE, UV.Ddx, UV.Ddy, 0, SvPositionXY);
+		UV.Value, LIGHTMAP_VTADDRESSMODE, LIGHTMAP_VTADDRESSMODE, UV.Ddx, UV.Ddy, SvPositionXY);
 }
 
 half4 SampleLightmapVT(VTPageTableResult LightmapVTPageTableResult, uint LayerIndex, uint LightmapDataIndex, Texture2D CacheTexture, SamplerState CacheSampler)
