@@ -69,9 +69,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\Shared\EpicGames.Horde.Common\Protos\**\*.*">
-      <Link>Protos\%(RecursiveDir)%(FileName)%(Extension)</Link>
-    </Content>
     <Content Include="..\Horde.Build\Protos\horde\horde_rpc_messages.proto">
       <Link>Protos\horde_rpc_messages.proto</Link>
     </Content>

@@ -121,7 +121,7 @@ namespace Horde.Build.Storage.Services
 			RefImpl NewRef = new RefImpl();
 			NewRef.Id = GetFullRefId(NamespaceId, BucketId, RefId);
 			NewRef.Data = Value.GetView().ToArray();
-			await Refs.ReplaceOneAsync(x => x.Id == NewRef.Id, NewRef, new ReplaceOptions { IsUpsert = true });
+			await Refs.ReplaceOneAsync(x => x.Id == NewRef.Id, NewRef, new ReplaceOptions { IsUpsert = true }, CancellationToken);
 
 			IoHash Hash = IoHash.Compute(Value.GetView().Span);
 			return await TryFinalizeRefAsync(NamespaceId, BucketId, RefId, Hash, CancellationToken);
@@ -143,7 +143,7 @@ namespace Horde.Build.Storage.Services
 
 				if (MissingHashes.Count == 0)
 				{
-					await Refs.UpdateOneAsync(x => x.Id == Id, Builders<RefImpl>.Update.Set(x => x.Finalized, true));
+					await Refs.UpdateOneAsync(x => x.Id == Id, Builders<RefImpl>.Update.Set(x => x.Finalized, true), cancellationToken: CancellationToken);
 				}
 			}
 			return MissingHashes.ToList();
