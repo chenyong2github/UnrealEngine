@@ -118,6 +118,7 @@ void UGeometryCacheTrackAbcFile::Reset()
 	AbcFile.Reset();
 	Hash.Empty();
 	AbcStream.Reset();
+	SampleInfos.Reset();
 
 	EndFrameIndex = 0;
 	Duration = 0.f;
