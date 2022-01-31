@@ -15,38 +15,38 @@ public:
 	FContentSourceViewModel(TSharedPtr<IContentSource> ContentSourceIn);
 
 	/** Gets the content source represented by this view model. */
-	TSharedPtr<IContentSource> GetContentSource();
+	const TSharedPtr<IContentSource>& GetContentSource() const;
 
 	/** Gets the display name for this content source. */
-	FText GetName();
+	const FText& GetName() const;
 
 	/** Gets the description of this content source. */
-	FText GetDescription();
+	const FText& GetDescription() const;
 
 	/** Gets the asset types used in this content source. */
-	FText GetAssetTypes();
+	const FText& GetAssetTypes() const;
 
 	/** Gets the class types used in this content source. */
-	FString GetClassTypes();
+	FStringView GetClassTypes() const;
 
-	/** Gets the view model for the category for this content source. */
-	FCategoryViewModel GetCategory();
+	/** Gets the view models for the categories for this content source. */
+	const TArray<FCategoryViewModel>& GetCategories() const;
 
 	/** Gets the brush which should be used to draw the icon representation of this content source. */
-	TSharedPtr<FSlateBrush> GetIconBrush();
+	const TSharedPtr<FSlateBrush>& GetIconBrush() const;
 
 	/** Gets an array or brushes which should be used to display screenshots for this content source. */
-	TArray<TSharedPtr<FSlateBrush>>* GetScreenshotBrushes();
+	const TArray<TSharedPtr<FSlateBrush>>& GetScreenshotBrushes() const;
 
 private:
 	/** Sets up brushes from the images data supplied by the IContentSource. */
 	void SetupBrushes();
 
 	/** Creates a slate brush from raw binary PNG formatted image data and the supplied prefix. */
-	TSharedPtr<FSlateDynamicImageBrush> CreateBrushFromRawData(FString ResourceNamePrefix, const TArray<uint8>& RawData) const;
+	TSharedPtr<FSlateDynamicImageBrush> CreateBrushFromRawData(const FString& ResourceNamePrefix, const TArray<uint8>& RawData) const;
 
 	/** Selects the text from an array which matches the given language. */
-	FText ChooseLocalizedText(const TArray<FLocalizedText>& Choices, const FString& InCurrentLanguage);
+	FText ChooseLocalizedText(const TArray<FLocalizedText>& Choices, const FString& InCurrentLanguage) const;
 
 private:
 	struct FCachedContentText
@@ -64,17 +64,17 @@ private:
 	/** An array or brushes which should be used to display screenshots for this content source. */
 	TArray<TSharedPtr<FSlateBrush>> ScreenshotBrushes;
 
-	/** The view model for the category for this content source. */
-	FCategoryViewModel Category;
+	/** The view models for the categories for this content source. */
+	TArray<FCategoryViewModel> Categories;
 
 	/** The information used/returned the last time the name of the content source was requested. */
-	FCachedContentText CachedNameText;
+	mutable FCachedContentText CachedNameText;
 
 	/** The information used/returned the last time the description of the content source was requested. */
-	FCachedContentText CachedDescriptionText;
+	mutable FCachedContentText CachedDescriptionText;
 
 	/** The information used/returned the last time the asset types of the content source was requested. */
-	FCachedContentText CachedAssetTypeText;
+	mutable FCachedContentText CachedAssetTypeText;
 
 	/** Keeps track of a unique increasing id which is appended to each brush name.  This avoids an issue
 		where two brushes are created with the same name, and then both brushes texture data gets deleted

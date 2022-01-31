@@ -17,16 +17,6 @@ FCategoryViewModel::FCategoryViewModel(EContentSourceCategory InCategory)
 	Initialize();
 }
 
-FText FCategoryViewModel::GetText() const
-{
-	return Text;
-}
-
-uint32 FCategoryViewModel::GetTypeHash() const
-{
-	return (uint32)Category;
-}
-
 void FCategoryViewModel::Initialize()
 {
 	switch (Category)

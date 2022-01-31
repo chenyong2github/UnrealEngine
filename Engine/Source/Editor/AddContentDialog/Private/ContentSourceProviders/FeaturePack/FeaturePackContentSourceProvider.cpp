@@ -40,7 +40,7 @@ FFeaturePackContentSourceProvider::FFeaturePackContentSourceProvider()
 	RefreshFeaturePacks();
 }
 
-const TArray<TSharedRef<IContentSource>> FFeaturePackContentSourceProvider::GetContentSources()
+const TArray<TSharedRef<IContentSource>>& FFeaturePackContentSourceProvider::GetContentSources() const
 {
 	return ContentSources;
 }

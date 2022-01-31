@@ -12,7 +12,7 @@ class FFeaturePackContentSourceProvider : public IContentSourceProvider
 {
 public:
 	FFeaturePackContentSourceProvider();
-	virtual const TArray<TSharedRef<IContentSource>> GetContentSources() override;
+	virtual const TArray<TSharedRef<IContentSource>>& GetContentSources() const override;
 	virtual void SetContentSourcesChanged(FOnContentSourcesChanged OnContentSourcesChangedIn) override;
 
 	virtual ~FFeaturePackContentSourceProvider();

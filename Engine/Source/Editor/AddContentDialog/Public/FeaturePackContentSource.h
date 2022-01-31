@@ -42,13 +42,13 @@ public:
 	}
 
 	/** Gets the iso 2-letter language specifier for this text. */
-	FString GetTwoLetterLanguage() const
+	const FString& GetTwoLetterLanguage() const
 	{
 		return TwoLetterLanguage;
 	}
 
 	/** Gets the array of tags in the language specified. */
-	TArray<FText> GetTags() const
+	const TArray<FText>& GetTags() const
 	{
 		return Tags;
 	}
@@ -141,17 +141,17 @@ public:
 
 	virtual ~FFeaturePackContentSource();
 
-	virtual TArray<FLocalizedText> GetLocalizedNames() const override;
-	virtual TArray<FLocalizedText> GetLocalizedDescriptions() const override;
+	virtual const TArray<FLocalizedText>& GetLocalizedNames() const override;
+	virtual const TArray<FLocalizedText>& GetLocalizedDescriptions() const override;
 	
-	virtual EContentSourceCategory GetCategory() const override;
-	virtual TArray<FLocalizedText> GetLocalizedAssetTypes() const override;
-	virtual FString GetSortKey() const override;
-	virtual FString GetClassTypesUsed() const override;
-	
+	virtual const TArray<EContentSourceCategory>& GetCategories() const override;
+	virtual const TArray<FLocalizedText>& GetLocalizedAssetTypes() const override;
+	virtual const FString& GetSortKey() const override;
+	virtual const FString& GetClassTypesUsed() const override;
+	virtual const FString& GetIdent() const override;
 	virtual TSharedPtr<FImageData> GetIconData() const override;
-	virtual TArray<TSharedPtr<FImageData>> GetScreenshotData() const override;
-	FString GetFocusAssetName() const;
+	virtual const TArray<TSharedPtr<FImageData>>& GetScreenshotData() const override;
+	const FString& GetFocusAssetName() const;
 
 	virtual bool InstallToProject(FString InstallPath) override;
 
@@ -185,9 +185,6 @@ public:
 	TArray<FString>	ParseErrors;
 	
 	void BuildListOfAdditionalFiles(TArray<FString>& AdditionalFileSourceList,TArray<FString>& FileList, bool& bContainsSourceFiles);
-
-	/* Get the identifier of the pack. */
-	virtual FString GetIdent() const;
 
 private:
 	static void ParseAndImportPacks();
@@ -227,8 +224,8 @@ private:
 	/* Array of localised descriptions */
 	TArray<FLocalizedText> LocalizedDescriptions;
 	
-	/* Defines the type of feature pack this is */
-	EContentSourceCategory Category;
+	/* Defines the type(s) of feature pack this is */
+	TArray<EContentSourceCategory> Categories;
 	
 	/* Filename of the icon */
 	FString IconFilename;

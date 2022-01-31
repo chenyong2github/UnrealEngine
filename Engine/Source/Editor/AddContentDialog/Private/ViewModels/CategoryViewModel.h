@@ -16,7 +16,7 @@ public:
 	FCategoryViewModel(EContentSourceCategory InCategory);
 
 	/** Gets the display name of the category. */
-	FText GetText() const;
+	const FText& GetText() const { return Text; }
 
 	inline bool operator==(const FCategoryViewModel& Other) const
 	{
@@ -28,7 +28,7 @@ public:
 		return SortID < Other.SortID;
 	}
 
-	uint32 GetTypeHash() const;
+	uint32 GetTypeHash() const { return (uint32) Category; }
 
 private:
 	void Initialize();

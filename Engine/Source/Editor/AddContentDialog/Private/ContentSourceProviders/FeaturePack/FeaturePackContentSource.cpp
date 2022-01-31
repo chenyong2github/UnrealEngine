@@ -112,7 +112,7 @@ bool TryValidateManifestObject(TSharedPtr<FJsonObject> ManifestObject, TSharedPt
 		return false;
 	}
 
-	if (ManifestObject->HasTypedField<EJson::String>("Category") == false)
+	if (ManifestObject->HasTypedField<EJson::Array>("Category") == false && ManifestObject->HasTypedField<EJson::String>("Category") == false)
 	{
 		ErrorMessage = MakeShareable(new FString("Manifest object missing 'Category' field"));
 		return false;
@@ -154,7 +154,7 @@ FFeaturePackContentSource::FFeaturePackContentSource(FString InFeaturePackPath)
 	bPackValid = false;
 	
 	FString ManifestString;
-	Category = EContentSourceCategory::Unknown;
+	Categories = { EContentSourceCategory::Unknown };
 	if( InFeaturePackPath.EndsWith(TEXT(".upack") ) == true )
 	{
 		bContentsInPakFile = true;
@@ -216,30 +216,30 @@ bool FFeaturePackContentSource::LoadPakFileToBuffer(FPakPlatformFile& PakPlatfor
 	return bResult;
 }
 
-TArray<FLocalizedText> FFeaturePackContentSource::GetLocalizedNames() const
+const TArray<FLocalizedText>& FFeaturePackContentSource::GetLocalizedNames() const
 {
 	return LocalizedNames;
 }
 
-TArray<FLocalizedText> FFeaturePackContentSource::GetLocalizedDescriptions() const
+const TArray<FLocalizedText>& FFeaturePackContentSource::GetLocalizedDescriptions() const
 {
 	return LocalizedDescriptions;
 }
 
-TArray<FLocalizedText> FFeaturePackContentSource::GetLocalizedAssetTypes() const
+const TArray<FLocalizedText>& FFeaturePackContentSource::GetLocalizedAssetTypes() const
 {
 	return LocalizedAssetTypesList;
 }
 
 
-FString FFeaturePackContentSource::GetClassTypesUsed() const
+const FString& FFeaturePackContentSource::GetClassTypesUsed() const
 {
 	return ClassTypes;
 }
 
-EContentSourceCategory FFeaturePackContentSource::GetCategory() const
+const TArray<EContentSourceCategory>& FFeaturePackContentSource::GetCategories() const
 {
-	return Category;
+	return Categories;
 }
 
 TSharedPtr<FImageData> FFeaturePackContentSource::GetIconData() const
@@ -247,7 +247,7 @@ TSharedPtr<FImageData> FFeaturePackContentSource::GetIconData() const
 	return IconData;
 }
 
-TArray<TSharedPtr<FImageData>> FFeaturePackContentSource::GetScreenshotData() const
+const TArray<TSharedPtr<FImageData>>& FFeaturePackContentSource::GetScreenshotData() const
 {
 	return ScreenshotData;
 }
@@ -287,7 +287,7 @@ bool FFeaturePackContentSource::InstallToProject(FString InstallPath)
 			{
 				// Save any imported assets.
 				TArray<UPackage*> ToSave;
-				for (auto ImportedObject : ImportedObjects)
+				for (UObject* ImportedObject : ImportedObjects)
 				{
 					ToSave.AddUnique(ImportedObject->GetOutermost());
 				}
@@ -328,17 +328,17 @@ bool FFeaturePackContentSource::IsDataValid() const
 	return true;	
 }
 
-FString FFeaturePackContentSource::GetFocusAssetName() const
+const FString& FFeaturePackContentSource::GetFocusAssetName() const
 {
 	return FocusAssetIdent;
 }
 
-FString FFeaturePackContentSource::GetSortKey() const
+const FString& FFeaturePackContentSource::GetSortKey() const
 {
 	return SortKey;
 }
 
-FString FFeaturePackContentSource::GetIdent() const
+const FString& FFeaturePackContentSource::GetIdent() const
 {
 	return Identity;
 }
@@ -430,7 +430,7 @@ bool FFeaturePackContentSource::ExtractListOfAdditionalFiles(const FString& InCo
 		TArray<FString> AdditionalFilesMap;
 		
 		bParsedAdditionFiles = true;
-		for (auto FilePair : *AdditionalFilesSection)
+		for (auto& FilePair : *AdditionalFilesSection)
 		{
 			if (FilePair.Key.ToString().Contains("Files"))
 			{
@@ -443,9 +443,9 @@ bool FFeaturePackContentSource::ExtractListOfAdditionalFiles(const FString& InCo
 	return bParsedAdditionFiles;
 }
 
-void FFeaturePackContentSource::BuildListOfAdditionalFiles(TArray<FString>& AdditionalFileSourceList,TArray<FString>& FileList, bool& bContainsSourceFiles)
+void FFeaturePackContentSource::BuildListOfAdditionalFiles(TArray<FString>& AdditionalFileSourceList, TArray<FString>& FileList, bool& bContainsSourceFiles)
 {
-	for (auto FileSource : AdditionalFileSourceList)
+	for (const FString& FileSource : AdditionalFileSourceList)
 	{
 		FString Filename = FPaths::GetCleanFilename(FileSource);
 		FString Directory = FPaths::RootDir() / FPaths::GetPath(FileSource);
@@ -545,7 +545,7 @@ void FFeaturePackContentSource::ParseAndImportPacks()
 			{
 				// Save any imported assets.
 				TArray<UPackage*> ToSave;
-				for (auto ImportedObject : EachPackData.ImportedObjects)
+				for (UObject* ImportedObject : EachPackData.ImportedObjects)
 				{
 					ToSave.AddUnique(ImportedObject->GetOutermost());
 				}
@@ -629,16 +629,16 @@ bool FFeaturePackContentSource::InsertAdditionalResources(TArray<FFeaturePackLev
 	// Build a map of feature packs we have (This would probably be better elsewhere and stored in 2 arrays - one listing .upack packs and one non-upack packs)
 	IAddContentDialogModule& AddContentDialogModule = FModuleManager::LoadModuleChecked<IAddContentDialogModule>("AddContentDialog");
 	TMap<FString, FFeaturePackContentSource*> PackMap;
-	for (auto& ContentSourceProvider : *AddContentDialogModule.GetContentSourceProviderManager()->GetContentSourceProviders())
+	for (const TSharedRef<IContentSourceProvider>& ContentSourceProvider : *AddContentDialogModule.GetContentSourceProviderManager()->GetContentSourceProviders())
 	{
 		const TArray<TSharedRef<IContentSource>> ProviderSources = ContentSourceProvider->GetContentSources();
-		for (auto& EachSourceProvider : ProviderSources)
+		for (const TSharedRef<IContentSource>& EachSourceProvider : ProviderSources)
 		{
-			FFeaturePackContentSource* Source = (FFeaturePackContentSource*)&EachSourceProvider.Get();
-			FString ID = EachSourceProvider->GetIdent();
-			if( ID.IsEmpty() == false )
+			FFeaturePackContentSource* Source = (FFeaturePackContentSource*) &EachSourceProvider.Get();
+			FStringView ID = EachSourceProvider->GetIdent();
+			if (!ID.IsEmpty())
 			{
-				PackMap.Add(ID, Source);
+				PackMap.Add(FString(ID), Source);
 			}
 		}
 	}
@@ -690,7 +690,7 @@ bool FFeaturePackContentSource::ParseManifestString(const FString& ManifestStrin
 	if (ManifestReader->GetErrorMessage().IsEmpty() == false)
 	{
 		RecordAndLogError(FString::Printf(TEXT("Error in Feature pack %s. Failed to parse manifest: %s"), *FeaturePackPath, *ManifestReader->GetErrorMessage()));
-		Category = EContentSourceCategory::Unknown;
+		Categories = { EContentSourceCategory::Unknown };
 		return false;
 	}
 
@@ -707,7 +707,7 @@ bool FFeaturePackContentSource::ParseManifestString(const FString& ManifestStrin
 	if (TryValidateManifestObject(ManifestObject, ManifestObjectErrorMessage) == false)
 	{
 		RecordAndLogError(FString::Printf(TEXT("Error in Feature pack %s. Manifest object error: %s"), *FeaturePackPath, **ManifestObjectErrorMessage));
-		Category = EContentSourceCategory::Unknown;
+		Categories = { EContentSourceCategory::Unknown };
 		return false;
 	}
 
@@ -761,10 +761,25 @@ bool FFeaturePackContentSource::ParseManifestString(const FString& ManifestStrin
 	SortKey = FeaturePackPath;
 	ManifestObject->TryGetStringField("SortKey", SortKey);
 
-	FString CategoryString = ManifestObject->GetStringField("Category");
+	TArray<FString> CategoryStrings;
+	if (!ManifestObject->TryGetStringArrayField("Category", CategoryStrings))
+	{
+		FString CategoryString = ManifestObject->GetStringField("Category");
+		if (!CategoryString.IsEmpty())
+		{
+			CategoryStrings.Add(CategoryString);
+		}
+	}
+
 	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EContentSourceCategory"));
-	int32 EnumValue = Enum->GetValueByName(FName(*CategoryString));
-	Category = EnumValue != INDEX_NONE ? (EContentSourceCategory)EnumValue : EContentSourceCategory::Unknown;
+	for (const FString& CategoryString : CategoryStrings)
+	{
+		int32 EnumValue = Enum->GetValueByName(FName(*CategoryString));
+		if (EnumValue != INDEX_NONE)
+		{
+			Categories.Add((EContentSourceCategory) EnumValue);
+		}
+	}
 
 	// Thumbnail filename
 	IconFilename = ManifestObject->GetStringField("Thumbnail");

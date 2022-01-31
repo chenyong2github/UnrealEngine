@@ -17,86 +17,102 @@ FContentSourceViewModel::FContentSourceViewModel(TSharedPtr<IContentSource> Cont
 {
 	ContentSource = ContentSourceIn;
 	SetupBrushes();
-	Category = FCategoryViewModel(ContentSource->GetCategory());
+
+	for (EContentSourceCategory Category : ContentSource->GetCategories())
+	{
+		Categories.Add(FCategoryViewModel(Category));
+	}
 }
 
-TSharedPtr<IContentSource> FContentSourceViewModel::GetContentSource()
+const TSharedPtr<IContentSource>& FContentSourceViewModel::GetContentSource() const
 {
 	return ContentSource;
 }
 
-FText FContentSourceViewModel::GetName()
+const FText& FContentSourceViewModel::GetName() const
 {
-	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
+	const FString& CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	if (CachedNameText.Language != CurrentLanguage)
 	{
-		CachedNameText.Language = CurrentLanguage;
-		CachedNameText.Text = ChooseLocalizedText(ContentSource->GetLocalizedNames(), CurrentLanguage);
+		CachedNameText =
+			FCachedContentText
+		{
+			CurrentLanguage,
+			ChooseLocalizedText(ContentSource->GetLocalizedNames(), CurrentLanguage)
+		};
 	}
 	return CachedNameText.Text;
 }
 
-FText FContentSourceViewModel::GetDescription()
+const FText& FContentSourceViewModel::GetDescription() const
 {
-	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
+	const FString& CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	if (CachedDescriptionText.Language != CurrentLanguage)
 	{
-		CachedDescriptionText.Language = CurrentLanguage;
-		CachedDescriptionText.Text = ChooseLocalizedText(ContentSource->GetLocalizedDescriptions(), CurrentLanguage);
+		CachedDescriptionText = 
+			FCachedContentText 
+			{ 
+				CurrentLanguage, 
+				ChooseLocalizedText(ContentSource->GetLocalizedDescriptions(), CurrentLanguage) 
+			};
 	}
 	return CachedDescriptionText.Text;
 }
 
-FText FContentSourceViewModel::GetAssetTypes()
+const FText& FContentSourceViewModel::GetAssetTypes() const
 {
-	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
+	const FString& CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
 	if (CachedAssetTypeText.Language != CurrentLanguage)
 	{
-		CachedAssetTypeText.Language = CurrentLanguage;
-		CachedAssetTypeText.Text = ChooseLocalizedText(ContentSource->GetLocalizedAssetTypes(), CurrentLanguage);
+		CachedAssetTypeText =
+			FCachedContentText
+		{
+			CurrentLanguage,
+			ChooseLocalizedText(ContentSource->GetLocalizedAssetTypes(), CurrentLanguage)
+		};
 	}
 	return CachedAssetTypeText.Text;
 }
 
-FString FContentSourceViewModel::GetClassTypes()
+FStringView FContentSourceViewModel::GetClassTypes() const
 {
 	return ContentSource->GetClassTypesUsed();
 }
 
-FCategoryViewModel FContentSourceViewModel::GetCategory()
+const TArray<FCategoryViewModel>& FContentSourceViewModel::GetCategories() const
 {
-	return Category;
+	return Categories;
 }
 
-TSharedPtr<FSlateBrush> FContentSourceViewModel::GetIconBrush()
+const TSharedPtr<FSlateBrush>& FContentSourceViewModel::GetIconBrush() const
 {
 	return IconBrush;
 }
 
-TArray<TSharedPtr<FSlateBrush>>* FContentSourceViewModel::GetScreenshotBrushes()
+const TArray<TSharedPtr<FSlateBrush>>& FContentSourceViewModel::GetScreenshotBrushes() const
 {
-	return &ScreenshotBrushes;
+	return ScreenshotBrushes;
 }
 
 void FContentSourceViewModel::SetupBrushes()
 {
 	if (ContentSource->GetIconData().IsValid())
 	{
-	    FString IconBrushName = GetName().ToString() + "_" + ContentSource->GetIconData()->GetName();
-	    IconBrush = CreateBrushFromRawData(IconBrushName, *ContentSource->GetIconData()->GetData());
+		const FString IconBrushName = GetName().ToString() + "_" + ContentSource->GetIconData()->GetName();
+		IconBrush = CreateBrushFromRawData(IconBrushName, *ContentSource->GetIconData()->GetData());
 	}
 
-	for (TSharedPtr<FImageData> ScreenshotData : ContentSource->GetScreenshotData())
+	for (const TSharedPtr<FImageData>& ScreenshotData : ContentSource->GetScreenshotData())
 	{
 		if (ScreenshotData.IsValid() == true)
 		{
-		    FString ScreenshotBrushName = GetName().ToString() + "_" + ScreenshotData->GetName();
-		    ScreenshotBrushes.Add(CreateBrushFromRawData(ScreenshotBrushName, *ScreenshotData->GetData()));
+			const FString ScreenshotBrushName = GetName().ToString() + "_" + ScreenshotData->GetName();
+			ScreenshotBrushes.Add(CreateBrushFromRawData(ScreenshotBrushName, *ScreenshotData->GetData()));
 	    }
     }
 }
 
-TSharedPtr<FSlateDynamicImageBrush> FContentSourceViewModel::CreateBrushFromRawData(FString ResourceNamePrefix, const TArray< uint8 >& RawData) const
+TSharedPtr<FSlateDynamicImageBrush> FContentSourceViewModel::CreateBrushFromRawData(const FString& ResourceNamePrefix, const TArray<uint8>& RawData) const
 {
 	TSharedPtr< FSlateDynamicImageBrush > Brush;
 
@@ -128,7 +144,7 @@ TSharedPtr<FSlateDynamicImageBrush> FContentSourceViewModel::CreateBrushFromRawD
 	return Brush;
 }
 
-FText FContentSourceViewModel::ChooseLocalizedText(const TArray<FLocalizedText>& Choices, const FString& InCurrentLanguage)
+FText FContentSourceViewModel::ChooseLocalizedText(const TArray<FLocalizedText>& Choices, const FString& InCurrentLanguage) const
 {
 	auto FindLocalizedTextForCulture = [&Choices](const FString& InCulture)
 	{

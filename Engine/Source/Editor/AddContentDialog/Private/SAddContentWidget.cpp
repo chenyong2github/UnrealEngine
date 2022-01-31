@@ -358,7 +358,7 @@ TSharedRef<SWidget> SAddContentWidget::CreateContentSourceDetail(TSharedPtr<FCon
 			.Padding(FMargin(10, 0, 0, 5))
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(ContentSource->GetClassTypes()))
+				.Text(FText::FromStringView(ContentSource->GetClassTypes()))
 				.Visibility(ContentSource->GetClassTypes().IsEmpty() == false ? EVisibility::Visible : EVisibility::Collapsed)
 				.AutoWrapText(true)
 			]
@@ -373,7 +373,7 @@ TSharedRef<SWidget> SAddContentWidget::CreateScreenshotCarousel(TSharedPtr<FCont
 		.NavigationBarStyle(FWidgetCarouselModuleStyle::Get(), "CarouselNavigationBar")
 		.NavigationButtonStyle(FWidgetCarouselModuleStyle::Get(), "CarouselNavigationButton")
 		.OnGenerateWidget(this, &SAddContentWidget::CreateScreenshotWidget)
-		.WidgetItemsSource(ContentSource->GetScreenshotBrushes());
+		.WidgetItemsSource(&ContentSource->GetScreenshotBrushes());
 }
 
 void SAddContentWidget::SearchTextChanged(const FText& SearchText)

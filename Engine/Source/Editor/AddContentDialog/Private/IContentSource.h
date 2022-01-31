@@ -40,7 +40,7 @@ public:
 	}
 
 	/** Gets the raw binary image data in PNG format. */
-	const TSharedPtr<TArray<uint8>> GetData() const
+	const TSharedPtr<TArray<uint8>>& GetData() const
 	{
 		return Data;
 	}
@@ -68,7 +68,7 @@ public:
 	}
 
 	/** Gets the iso 2-letter language specifier for this text. */
-	FString GetTwoLetterLanguage() const
+	const FString& GetTwoLetterLanguage() const
 	{
 		return TwoLetterLanguage;
 	}
@@ -88,29 +88,31 @@ private:
 class IContentSource
 {
 public:
+	virtual ~IContentSource() = default;
+
 	/** Gets the name of the content source as an array of localized strings. */
-	virtual TArray<FLocalizedText> GetLocalizedNames() const = 0;
+	virtual const TArray<FLocalizedText>& GetLocalizedNames() const = 0;
 
 	/** Gets the description of the content source as an array or localized strings. */
-	virtual TArray<FLocalizedText> GetLocalizedDescriptions() const = 0;
+	virtual const TArray<FLocalizedText>& GetLocalizedDescriptions() const = 0;
 
 	/** Gets the category for the content source. */
-	virtual EContentSourceCategory GetCategory() const = 0;
+	virtual const TArray<EContentSourceCategory>& GetCategories() const = 0;
 
 	/** Gets the image data for the icon which should represent the content source in the UI. */
 	virtual TSharedPtr<FImageData> GetIconData() const = 0;
 
 	/** Gets an array or image data for screenshots for the content source. */
-	virtual TArray<TSharedPtr<FImageData>> GetScreenshotData() const = 0;
+	virtual const TArray<TSharedPtr<FImageData>>& GetScreenshotData() const = 0;
 
 	/** Gets the asset types used in this pack. */
-	virtual TArray<FLocalizedText> GetLocalizedAssetTypes() const = 0;
+	virtual const TArray<FLocalizedText>& GetLocalizedAssetTypes() const = 0;
 
 	/** Gets the class types used in this pack. */
-	virtual FString GetClassTypesUsed() const = 0;
+	virtual const FString& GetClassTypesUsed() const = 0;
 
 	/** Gets the category for the content source. */
-	virtual FString GetSortKey() const = 0;
+	virtual const FString& GetSortKey() const = 0;
 	/*
 	 * Installs the content in the content source to the specific path. 
 	 * @returns true if install succeeded
@@ -120,8 +122,6 @@ public:
 	/** Is the data in this content valid. */
 	virtual bool IsDataValid() const = 0;
 
-	virtual ~IContentSource() { };
-
 	/** Gets the identity of the content. */
-	virtual FString GetIdent() const = 0;
+	virtual const FString& GetIdent() const = 0;
 };

@@ -13,7 +13,7 @@ public:
 
 public:
 	/** Gets the available content sources. */
-	virtual const TArray<TSharedRef<IContentSource>> GetContentSources() = 0;
+	virtual const TArray<TSharedRef<IContentSource>>& GetContentSources() const = 0;
 
 	/** Sets the delegate which will be executed when the avaialble content sources change */
 	virtual void SetContentSourcesChanged(FOnContentSourcesChanged OnContentSourcesChangedIn) = 0;

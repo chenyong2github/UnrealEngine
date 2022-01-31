@@ -21,16 +21,17 @@ TSharedRef<FAddContentWidgetViewModel> FAddContentWidgetViewModel::CreateShared(
 
 void FAddContentWidgetViewModel::Initialize()
 {
+	ContentSourceFilter = MakeShared<ContentSourceTextFilter>(
+		ContentSourceTextFilter::FItemToStringArray::CreateSP(this, &FAddContentWidgetViewModel::TransformContentSourceToStrings)
+	);
+
 	IAddContentDialogModule& AddContentDialogModule = FModuleManager::LoadModuleChecked<IAddContentDialogModule>("AddContentDialog");
 
-	for (auto ContentSourceProvider : *AddContentDialogModule.GetContentSourceProviderManager()->GetContentSourceProviders())
+	for (const TSharedRef<IContentSourceProvider>& ContentSourceProvider : *AddContentDialogModule.GetContentSourceProviderManager()->GetContentSourceProviders())
 	{
 		ContentSourceProviders.Add(ContentSourceProvider);
 		ContentSourceProvider->SetContentSourcesChanged(FOnContentSourcesChanged::CreateSP(this, &FAddContentWidgetViewModel::ContentSourcesChanged));
 	}
-
-	ContentSourceFilter = TSharedPtr<ContentSourceTextFilter>(new ContentSourceTextFilter(
-		ContentSourceTextFilter::FItemToStringArray::CreateSP(this, &FAddContentWidgetViewModel::TransformContentSourceToStrings)));
 
 	BuildContentSourceViewModels();
 }
@@ -112,48 +113,59 @@ void FAddContentWidgetViewModel::BuildContentSourceViewModels()
 	FilteredContentSourceViewModels.Empty();
 	CategoryToSelectedContentSourceMap.Empty();
 	
-	// List of categorys we dont want to see
+	// List of categories we don't want to see
 	TArray<EContentSourceCategory> FilteredCategories;
 	FilteredCategories.Add(EContentSourceCategory::SharedPack);
 	FilteredCategories.Add(EContentSourceCategory::Unknown);
 
-	for (auto ContentSourceProvider : ContentSourceProviders)
+	TSet<EContentSourceCategory> FoundCategories;
+
+	for (const TSharedPtr<IContentSourceProvider>& ContentSourceProvider : ContentSourceProviders)
 	{
-		for (auto ContentSource : ContentSourceProvider->GetContentSources())
+		for (const TSharedRef<IContentSource>& ContentSource : ContentSourceProvider->GetContentSources())
 		{
-			// Check if we want to see this category
-			if( FilteredCategories.Contains( ContentSource->GetCategory()) == false )
+			// Check if we want to see this content source - true unless all its categories are filtered out
+			bool bAnyVisible = false;
+			for (EContentSourceCategory ContentCategory : ContentSource->GetCategories())
 			{
-				TSharedPtr<FContentSourceViewModel> ContentSourceViewModel = MakeShareable(new FContentSourceViewModel(ContentSource));
-				if (Categories.Contains(ContentSourceViewModel->GetCategory()) == false)
+				if (!FilteredCategories.Contains(ContentCategory))
 				{
-					Categories.Add(ContentSourceViewModel->GetCategory());
+					FoundCategories.Add(ContentCategory);
+					bAnyVisible = true;
 				}
-				ContentSourceViewModels.Add(ContentSourceViewModel);
+			}
+
+			if (bAnyVisible)
+			{
+				ContentSourceViewModels.Add(MakeShared<FContentSourceViewModel>(ContentSource));
 			}
 		}
 	}
 
-	if (Categories.Num() > 0)
+	for (EContentSourceCategory Found : FoundCategories)
 	{
-		Categories.Sort();
-		// Update the current selection for all categories.  Do this in reverse order so that the first category
-		// remains selected when finished.
-		for (int i = Categories.Num() - 1; i >= 0; i--)
-		{
-			SelectedCategory = Categories[i];
-			UpdateFilteredContentSourcesAndSelection(false);
-		}
+		Categories.Add(FCategoryViewModel(Found));
 	}
+
+	Categories.Sort();
+
+	// Update the current selection for all categories.  Do this in reverse order so that the first category
+	// remains selected when finished.
+	for (int i = Categories.Num() - 1; i >= 0; i--)
+	{
+		SelectedCategory = Categories[i];
+		UpdateFilteredContentSourcesAndSelection(false);
+	}
+
 	OnCategoriesChanged.ExecuteIfBound();
 }
 
 void FAddContentWidgetViewModel::UpdateFilteredContentSourcesAndSelection(bool bAllowEmptySelection)
 {
 	FilteredContentSourceViewModels.Empty();
-	for (auto ContentSource : ContentSourceViewModels)
+	for (const TSharedPtr<FContentSourceViewModel>& ContentSource : ContentSourceViewModels)
 	{
-		if ((ContentSource->GetCategory() == SelectedCategory) && (ContentSourceFilter.IsValid() == false || ContentSourceFilter->PassesFilter(ContentSource)))
+		if (ContentSource->GetCategories().Contains(SelectedCategory) && ContentSourceFilter->PassesFilter(ContentSource))
 		{
 			FilteredContentSourceViewModels.Add(ContentSource);
 		}
