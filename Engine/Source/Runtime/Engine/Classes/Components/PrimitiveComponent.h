@@ -1774,16 +1774,10 @@ private:
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<class UPrimitiveComponent> LODParentPrimitive;
 
-	UPROPERTY(Transient)
-	TObjectPtr<class UPrimitiveComponent> CachedLODParentPrimitive;
-
 public:
 
 	/** Set the LOD parent component */
 	void SetLODParentPrimitive(UPrimitiveComponent* InLODParentPrimitive);
-
-	/** Set the cached LOD parent component */
-	void SetCachedLODParentPrimitive(UPrimitiveComponent* InCachedLODParentPrimitive);
 
 	/** Gets the LOD Parent, which is used to compute visibility when hierarchical LOD is enabled */
 	UPrimitiveComponent* GetLODParentPrimitive() const;
