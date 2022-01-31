@@ -340,7 +340,7 @@ FPCGFetchInputElement::FPCGFetchInputElement(UPCGComponent* InComponent)
 {
 }
 
-bool FPCGFetchInputElement::Execute(FPCGContextPtr Context) const
+bool FPCGFetchInputElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	// First: any input can be passed through to the output trivially
 	Context->OutputData = Context->InputData;
@@ -371,7 +371,7 @@ FPCGGenericElement::FPCGGenericElement(TFunction<bool()> InOperation)
 {
 }
 
-bool FPCGGenericElement::Execute(FPCGContextPtr Context) const
+bool FPCGGenericElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	return Operation();
 }

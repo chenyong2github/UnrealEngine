@@ -11,7 +11,7 @@ FPCGElementPtr UPCGSurfaceSamplerSettings::CreateElement() const
 	return MakeShared<FPCGSurfaceSamplerElement>();
 }
 
-bool FPCGSurfaceSamplerElement::Execute(FPCGContextPtr Context) const
+bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSurfaceSamplerElement::Execute);
 	// TODO: time-sliced implementation

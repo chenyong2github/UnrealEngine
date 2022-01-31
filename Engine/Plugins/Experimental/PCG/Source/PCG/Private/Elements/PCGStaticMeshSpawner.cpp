@@ -24,7 +24,7 @@ struct FWeightedMeshAndInstances
 	TArray<FTransform> Instances;
 };
 
-bool FPCGStaticMeshSpawnerElement::Execute(FPCGContextPtr Context) const
+bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute);
 	// TODO : time-sliced implementation

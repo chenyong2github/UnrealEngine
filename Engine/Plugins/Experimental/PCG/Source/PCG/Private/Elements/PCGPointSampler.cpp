@@ -10,7 +10,7 @@ FPCGElementPtr UPCGPointSamplerSettings::CreateElement() const
 	return MakeShared<FPCGPointSamplerElement>();
 }
 
-bool FPCGPointSamplerElement::Execute(FPCGContextPtr Context) const
+bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute);
 	// TODO: make time-sliced implementation

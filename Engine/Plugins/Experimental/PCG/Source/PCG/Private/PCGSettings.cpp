@@ -30,7 +30,7 @@ FPCGElementPtr UPCGTrivialSettings::CreateElement() const
 	return MakeShared<FPCGTrivialElement>();
 }
 
-bool FPCGTrivialElement::Execute(FPCGContextPtr Context) const
+bool FPCGTrivialElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	// Pass-through
 	Context->OutputData = Context->InputData;

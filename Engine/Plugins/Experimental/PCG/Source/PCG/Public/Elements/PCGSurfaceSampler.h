@@ -41,6 +41,6 @@ protected:
 
 class FPCGSurfaceSamplerElement : public FSimpleTypedPCGElement<UPCGSurfaceSamplerSettings>
 {
-public:
-	virtual bool Execute(FPCGContextPtr Context) const override;
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 };

@@ -46,8 +46,8 @@ public:
 
 class FPCGStaticMeshSpawnerElement : public FSimpleTypedPCGElement<UPCGStaticMeshSpawnerSettings>
 {
-public:
-	virtual bool Execute(FPCGContextPtr Context) const override;
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 
 private:
 	UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InActor, const UPCGComponent* SourceComponent, UStaticMesh* InMesh) const;

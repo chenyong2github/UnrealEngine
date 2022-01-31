@@ -19,7 +19,11 @@ class IPCGElement
 public:
 	virtual ~IPCGElement() = default;
 	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent) = 0;
-	virtual bool Execute(FPCGContextPtr Context) const = 0;
+
+	bool Execute(FPCGContextPtr Context) const;
+
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const = 0;
 };
 
 /**

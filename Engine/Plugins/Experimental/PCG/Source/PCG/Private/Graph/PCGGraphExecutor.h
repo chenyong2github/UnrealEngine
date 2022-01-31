@@ -104,7 +104,9 @@ class FPCGFetchInputElement : public FSimplePCGElement
 public:
 	FPCGFetchInputElement(UPCGComponent* InComponent);
 
-	virtual bool Execute(FPCGContextPtr Context) const override;
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+
 private:
 	UPCGComponent* Component = nullptr;
 };
@@ -115,9 +117,10 @@ class FPCGGenericElement : public FSimplePCGElement
 public:
 	FPCGGenericElement(TFunction<bool()> InOperation);
 
+protected:
 	// Important note: generic elements must always be run on the main thread
 	// as most of these will impact the editor in some way (loading, unloading, saving)
-	virtual bool Execute(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 
 private:
 	TFunction<bool()> Operation;

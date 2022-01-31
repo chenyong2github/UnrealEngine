@@ -42,7 +42,7 @@ FPCGElementPtr UPCGSelfPruningSettings::CreateElement() const
 	return MakeShared<FPCGSelfPruningElement>();
 }
 
-bool FPCGSelfPruningElement::Execute(FPCGContextPtr Context) const
+bool FPCGSelfPruningElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSelfPruningElement::Execute);
 	// TODO: time-sliced implementation

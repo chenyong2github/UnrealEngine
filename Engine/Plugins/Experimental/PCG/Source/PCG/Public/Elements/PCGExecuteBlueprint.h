@@ -110,6 +110,6 @@ protected:
 
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
 {
-public:
-	virtual bool Execute(FPCGContextPtr Context) const override;
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 };

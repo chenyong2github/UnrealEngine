@@ -35,6 +35,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	int Seed = 0xC35A9631; // random prime number
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bEnabled = true;
+
 #if WITH_EDITOR
 	FOnPCGSettingsChanged OnSettingsChangedDelegate;
 #endif
@@ -64,6 +67,6 @@ protected:
 
 class FPCGTrivialElement : public FSimplePCGElement
 {
-public:
-	virtual bool Execute(FPCGContextPtr Context) const override;
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 };

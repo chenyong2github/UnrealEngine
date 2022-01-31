@@ -305,7 +305,7 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 	return MakeShared<FPCGExecuteBlueprintElement>();
 }
 
-bool FPCGExecuteBlueprintElement::Execute(FPCGContextPtr Context) const
+bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
 
