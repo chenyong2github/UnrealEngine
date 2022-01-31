@@ -442,17 +442,12 @@ namespace Metasound
 			FGraphEditorCommands::Register();
 			FEditorCommands::Register();
 
+			constexpr bool bForceRefreshNodes = true;
 			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+			FGraphBuilder::SynchronizeGraph(*Metasound, bForceRefreshNodes);
 
 			BindGraphCommands();
 			CreateInternalWidgets();
-
-			// Call after create internal widgets as editor is
-			// referenced in validation step. TODO: Make this
-			// relationship more explicit.
-			constexpr bool bForceRefreshNodes = true;
-			FGraphBuilder::SynchronizeGraph(*Metasound, bForceRefreshNodes);
-
 			CreateAnalyzers();
 
 			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v9")
