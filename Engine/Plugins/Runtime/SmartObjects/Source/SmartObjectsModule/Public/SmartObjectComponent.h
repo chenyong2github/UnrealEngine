@@ -27,7 +27,7 @@ protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = SmartObject, BlueprintReadWrite)
 	TObjectPtr<USmartObjectDefinition> DefinitionAsset;
 
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered into a collection by SmartObjectSubsystem */
