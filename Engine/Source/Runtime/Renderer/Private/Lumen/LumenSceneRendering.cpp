@@ -1435,6 +1435,12 @@ void ProcessLumenSurfaceCacheRequests(
 				const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
 				if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
 				{
+					// Landscape traces card representation, so need to invalidate voxel vis buffer when it's ready for the first time
+					if (MeshCardsElement.bLandscape && Card.DesiredLockedResLevel == 0)
+					{
+						LumenSceneData.PrimitiveModifiedBounds.Add(MeshCardsElement.GetWorldSpaceBounds());
+					}
+
 					Card.bVisible = true;
 					Card.DesiredLockedResLevel = Request.ResLevel;
 

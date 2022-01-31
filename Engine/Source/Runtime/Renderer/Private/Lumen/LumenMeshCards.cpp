@@ -850,9 +850,6 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				Heightfields[HeightfieldIndex].Initialize(MeshCardsIndex);
 
 				HeightfieldIndicesToUpdateInBuffer.Add(HeightfieldIndex);
-
-				// Invalidate bounds for voxel lighting
-				PrimitiveModifiedBounds.Add(MeshCardsInstance.GetWorldSpaceBounds());
 			}
 
 			// Add cards
