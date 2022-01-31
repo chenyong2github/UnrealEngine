@@ -287,12 +287,25 @@ static void GetBLASBuildData(
 		&BuildData.SizesInfo);
 }
 
+FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(ENoInit)
+{}
+
 FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& InInitializer, FVulkanDevice* InDevice)
 	: FRHIRayTracingGeometry(InInitializer), Device(InDevice)
 {
 	// Only supporting triangles initially
 	check(Initializer.GeometryType == ERayTracingGeometryType::RTGT_Triangles);
-	checkf(!Initializer.IndexBuffer || (Initializer.IndexBuffer->GetStride() == 2 || Initializer.IndexBuffer->GetStride() == 4), TEXT("Index buffer must be 16 or 32 bit if in use."));
+
+	uint32 IndexBufferStride = 0;
+	if (Initializer.IndexBuffer)
+	{
+		// In case index buffer in initializer is not yet in valid state during streaming we assume the geometry is using UINT32 format.
+		IndexBufferStride = Initializer.IndexBuffer->GetSize() > 0
+			? Initializer.IndexBuffer->GetStride()
+			: 4;
+	}
+
+	checkf(!Initializer.IndexBuffer || (IndexBufferStride == 2 || IndexBufferStride == 4), TEXT("Index buffer must be 16 or 32 bit if in use."));
 
 	FVkRtBLASBuildData BuildData;
 	GetBLASBuildData(
@@ -302,7 +315,7 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(const FRayTracingGeometryIn
 		Initializer.IndexBufferOffset,
 		Initializer.bFastBuild,
 		Initializer.bAllowUpdate,
-		Initializer.IndexBuffer ? Initializer.IndexBuffer->GetStride() : 0,
+		IndexBufferStride,
 		EAccelerationStructureBuildMode::Build,
 		BuildData);
 
@@ -345,7 +358,7 @@ FVulkanRayTracingGeometry::~FVulkanRayTracingGeometry()
 
 void FVulkanRayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 {
-	checkf(Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FVulkanRayTracingGeometry that was created as StreamingDestination can update their initializer."));
+	checkf(InitializedType == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FVulkanRayTracingGeometry that was created as StreamingDestination can update their initializer."));
 	Initializer = InInitializer;
 
 	// TODO: Update HitGroup Parameters
@@ -356,9 +369,10 @@ void FVulkanRayTracingGeometry::Swap(FVulkanRayTracingGeometry& Other)
 	::Swap(Handle, Other.Handle);
 	::Swap(Address, Other.Address);
 
-	Initializer = Other.Initializer;
 	AccelerationStructureBuffer = Other.AccelerationStructureBuffer;
 	ScratchBuffer = Other.ScratchBuffer;
+
+	// The rest of the members should be updated using SetInitializer()
 }
 
 void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
@@ -631,11 +645,8 @@ void FVulkanDynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayT
 	check(DestGeometry);
 	FVulkanRayTracingGeometry* Dest = ResourceCast(DestGeometry);
 	if (!SrcGeometry)
-	{
-		FRayTracingGeometryInitializer DummyInitializer = {};
-		DummyInitializer.Type = ERayTracingGeometryInitializerType::StreamingDestination;
-		DummyInitializer.DebugName = FName(TEXT("RHITransferRayTracingGeometryUnderlyingResource"));
-		TRefCountPtr<FVulkanRayTracingGeometry> DeletionProxy = new FVulkanRayTracingGeometry(DummyInitializer, GetDevice());
+	{		
+		TRefCountPtr<FVulkanRayTracingGeometry> DeletionProxy = new FVulkanRayTracingGeometry(NoInit);
 		Dest->Swap(*DeletionProxy);
 	}
 	else

@@ -437,7 +437,7 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	}
 
 	const bool bWithoutNativeResource = Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination;
-	if (bAllSegmentsAreValid || bWithoutNativeResource)
+	if (bAllSegmentsAreValid)
 	{
 		bValid = !bWithoutNativeResource;
 		RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);

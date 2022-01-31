@@ -3617,7 +3617,6 @@ void FD3D12RayTracingGeometry::Swap(FD3D12RayTracingGeometry& Other)
 		bIsAccelerationStructureDirty[i] = Other.bIsAccelerationStructureDirty[i];
 	}
 	::Swap(AccelerationStructureCompactedSize, Other.AccelerationStructureCompactedSize);
-	::Swap(SizeInfo, Other.SizeInfo);
 
 	// The rest of the members should be updated using SetInitializer()
 }
@@ -3674,13 +3673,12 @@ void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 	for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
 	{
 		Buffer.SafeRelease();
-	}	
+	}
 
 	Initializer = {};
 
 	AccelerationStructureCompactedSize = 0;
 	GeometryDescs = {};
-	SizeInfo = {};
 	for (TArray<FHitGroupSystemParameters>& HitGroupParametersForGPU : HitGroupSystemParameters)
 	{
 		HitGroupParametersForGPU.Empty();
@@ -3826,9 +3824,8 @@ void FD3D12RayTracingGeometry::UpdateResidency(FD3D12CommandContext& CommandCont
 
 void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 {
-	checkf(Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FD3D12RayTracingGeometry that was created as StreamingDestination can update their initializer."));
+	checkf(InitializedType == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FD3D12RayTracingGeometry that was created as StreamingDestination can update their initializer."));
 	Initializer = InInitializer;
-	Initializer.Type = ERayTracingGeometryInitializerType::StreamingDestination; // Make sure this flag is set at all times so we can verify the resource state
 
 	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
