@@ -724,21 +724,49 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	uint32 CrcLastCompiledSignature;
 
+	/**
+	 * Transient flag that indicates whether or not the internal dependency
+	 * cache needs to be updated. This is not carried forward by duplication so
+	 * that the post-duplicate compile path is forced to reinitialize the cache.
+	 */
+	UPROPERTY(transient, duplicatetransient)
 	bool bCachedDependenciesUpToDate;
+
 	/**
 	 * Set of blueprints that we reference - i.e. blueprints that we have
-	 * some kind of reference to (variable of that blueprints type or function 
+	 * some kind of reference to (variable of that blueprints type or function
 	 * call
+	 *
+	 * We need this to be serializable so that its references can be collected.
+	 *
+	 * This is intentionally marked 'duplicatetransient' so that it won't carry
+	 * over to a duplicated Blueprint object. The post-duplicate compile path
+	 * will instead regenerate this set to be relative to the duplicated object.
 	 */
+	UPROPERTY(transient, duplicatetransient)
 	TSet<TWeakObjectPtr<UBlueprint>> CachedDependencies;
 
-	/** 
+	/**
 	 * Transient cache of dependent blueprints - i.e. blueprints that call
-	 * functions declared in this blueprint. Used to speed up compilation checks 
+	 * functions declared in this blueprint. Used to speed up compilation checks
+	 *
+	 * This is intentionally marked 'duplicatetransient' so that it won't carry
+	 * over to a duplicated Blueprint object. However, the post-duplicate compile
+	 * path will not regenerate this set, since it is populated by each dependent
+	 * Blueprint's compile. In this case, a duplicated Blueprint equates to a
+	 * new Blueprint, so it won't initially have any dependents to include here.
 	 */
+	UPROPERTY(transient, duplicatetransient)
 	TSet<TWeakObjectPtr<UBlueprint>> CachedDependents;
 
-	// User Defined Structures, the blueprint depends on
+	/**
+	 * User Defined Structures the blueprint depends on
+	 *
+	 * This is intentionally marked 'duplicatetransient' so that it won't carry
+	 * over to a duplicated Blueprint object. The post-duplicate compile path
+	 * will instead regenerate this set to be relative to the duplicated object.
+	 */
+	UPROPERTY(transient, duplicatetransient)
 	TSet<TWeakObjectPtr<UStruct>> CachedUDSDependencies;
 
 	enum class EIsBPNonReducible : uint8
