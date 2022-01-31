@@ -13,7 +13,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct MOVIESCENE_API FPreAnimatedObjectGroupManager : TPreAnimatedStateGroupManager<FObjectKey>, TSharedFromThis<FPreAnimatedObjectGroupManager>
+struct MOVIESCENE_API FPreAnimatedObjectGroupManager : TPreAnimatedStateGroupManager<FObjectKey>
 {
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedObjectGroupManager> GroupManagerID;
 
