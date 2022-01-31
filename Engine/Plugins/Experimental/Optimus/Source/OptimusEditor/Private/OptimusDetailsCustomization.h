@@ -93,13 +93,13 @@ private:
 };
 
 
-class FOptimusType_ShaderTextCustomization : 
+class FOptimusShaderTextCustomization : 
 	public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	FOptimusType_ShaderTextCustomization();
+	FOptimusShaderTextCustomization();
 
 	// IPropertyTypeCustomization overrides
 	void CustomizeHeader(

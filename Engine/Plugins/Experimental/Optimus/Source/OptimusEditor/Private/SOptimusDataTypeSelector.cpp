@@ -140,23 +140,7 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 {
 	if (InDataType.IsValid())
 	{
-		const UObject *TypeObject = InDataType->TypeObject.Get();
-
-		if (TypeObject)
-		{
-			if (const UField* Field = Cast<const UField>(TypeObject))
-			{
-				return Field->GetDisplayNameText();
-			}
-			else
-			{
-				return FText::FromString(TypeObject->GetName());
-			}
-		}
-		else
-		{
-			return UEdGraphSchema_K2::GetCategoryText(InDataType->TypeCategory, true);
-		}
+		return InDataType->DisplayName;
 	}
 	else
 	{

@@ -2,10 +2,7 @@
 
 #include "OptimusEditorModule.h"
 
-#include "AssetToolsModule.h"
-#include "EdGraphUtilities.h"
-#include "IAssetTools.h"
-#include "OptimusDataType.h"
+#include "SOptimusEditorGraphExplorer.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
@@ -15,10 +12,15 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
+
+#include "OptimusDataType.h"
 #include "OptimusResourceDescription.h"
+#include "OptimusShaderText.h"
+
 #include "PropertyEditorModule.h"
-#include "SOptimusEditorGraphExplorer.h"
-#include "Types/OptimusType_ShaderText.h"
+#include "AssetToolsModule.h"
+#include "EdGraphUtilities.h"
+#include "IAssetTools.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -102,7 +104,7 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusDataDomain::StaticStruct()->GetFName(), &FOptimusDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusMultiLevelDataDomain::StaticStruct()->GetFName(), &FOptimusMultiLevelDataDomainCustomization::MakeInstance);
-	RegisterPropertyCustomization(FOptimusType_ShaderText::StaticStruct()->GetFName(), &FOptimusType_ShaderTextCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusShaderText::StaticStruct()->GetFName(), &FOptimusShaderTextCustomization::MakeInstance);
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()

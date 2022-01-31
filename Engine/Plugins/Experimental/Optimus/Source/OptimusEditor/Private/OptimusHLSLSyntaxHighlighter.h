@@ -6,7 +6,7 @@
 
 // TEMP
 #include "Text/HLSLSyntaxHighlighterMarshaller.h"
-#include "Types/OptimusType_ShaderText.h"
+#include "OptimusShaderText.h"
 
 class FTextLayout;
 
@@ -20,7 +20,7 @@ public:
 	static TSharedRef<FOptimusHLSLSyntaxHighlighter> Create(const FSyntaxTextStyle& InSyntaxTextStyle = GetSyntaxTextStyle());
 	static FSyntaxTextStyle GetSyntaxTextStyle();
 
-	void SetCompilerMessages(const TArray<FOptimusType_CompilerDiagnostic> &InCompilerMessages);
+	void SetCompilerMessages(const TArray<FOptimusCompilerDiagnostic> &InCompilerMessages);
 
 protected:
 
@@ -29,7 +29,7 @@ protected:
 	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<FSyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
 	virtual FTextLayout::FNewLineData ProcessTokenizedLine(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString) override;
 
-	TMultiMap<int32 /*Line*/, FOptimusType_CompilerDiagnostic> CompilerMessages;
+	TMultiMap<int32 /*Line*/, FOptimusCompilerDiagnostic> CompilerMessages;
 
 private:
 

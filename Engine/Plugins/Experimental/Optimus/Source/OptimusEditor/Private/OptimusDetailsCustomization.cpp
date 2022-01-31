@@ -7,7 +7,7 @@
 #include "SOptimusDataTypeSelector.h"
 
 #include "OptimusDataTypeRegistry.h"
-#include "Types/OptimusType_ShaderText.h"
+#include "OptimusShaderText.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DetailWidgetRow.h"
@@ -328,13 +328,13 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 static constexpr int32 GTabWidth = 4;
 
 
-TSharedRef<IPropertyTypeCustomization> FOptimusType_ShaderTextCustomization::MakeInstance()
+TSharedRef<IPropertyTypeCustomization> FOptimusShaderTextCustomization::MakeInstance()
 {
-	return MakeShared<FOptimusType_ShaderTextCustomization>();
+	return MakeShared<FOptimusShaderTextCustomization>();
 }
 
 
-FOptimusType_ShaderTextCustomization::FOptimusType_ShaderTextCustomization() :
+FOptimusShaderTextCustomization::FOptimusShaderTextCustomization() :
 	SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create()),
 	SyntaxHighlighterMain(FOptimusHLSLSyntaxHighlighter::Create())
 {
@@ -342,22 +342,22 @@ FOptimusType_ShaderTextCustomization::FOptimusType_ShaderTextCustomization() :
 }
 
 
-void FOptimusType_ShaderTextCustomization::CustomizeHeader(
+void FOptimusShaderTextCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle, 
 	FDetailWidgetRow& InHeaderRow, 
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	DeclarationsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Declarations));
-	ShaderTextProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderText));
-	DiagnosticsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Diagnostics));
+	DeclarationsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusShaderText, Declarations));
+	ShaderTextProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusShaderText, ShaderText));
+	DiagnosticsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusShaderText, Diagnostics));
 
 	// Make sure the diagnostics are updated to reflect the error highlighting.
 	UpdateDiagnostics();
 
 	// Watch any changes to the diagnostics array and act on it. It's a giant hammer, but
 	// it's the best we have.
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FOptimusType_ShaderTextCustomization::OnPropertyChanged);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FOptimusShaderTextCustomization::OnPropertyChanged);
 	InPropertyHandle->GetOuterObjects(InspectedObjects);
 	
 	HorizontalScrollbar =
@@ -410,7 +410,7 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 						SNew(SMultiLineEditableText)
 						.Font(Font)
 						.TextStyle(&TextStyle)
-						.Text(this, &FOptimusType_ShaderTextCustomization::GetDeclarationsText)
+						.Text(this, &FOptimusShaderTextCustomization::GetDeclarationsText)
 						.Marshaller(SyntaxHighlighter)
 						.HScrollBar(HorizontalScrollbar)
 						.AutoWrapText(false)
@@ -432,11 +432,11 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 						SAssignNew(ShaderEditor, SMultiLineEditableText)
 						.Font(Font)
 						.TextStyle(&TextStyle)
-						.Text(this, &FOptimusType_ShaderTextCustomization::GetShaderText)
-						.OnTextChanged(this, &FOptimusType_ShaderTextCustomization::OnShaderTextChanged)
+						.Text(this, &FOptimusShaderTextCustomization::GetShaderText)
+						.OnTextChanged(this, &FOptimusShaderTextCustomization::OnShaderTextChanged)
 						// By default, the Tab key gets routed to "next widget". We want to disable that behaviour.
 						.OnIsTypedCharValid_Lambda([](const TCHAR InChar) { return true; })
-						.OnKeyCharHandler(this, &FOptimusType_ShaderTextCustomization::OnShaderTextKeyChar)
+						.OnKeyCharHandler(this, &FOptimusShaderTextCustomization::OnShaderTextKeyChar)
 						.AutoWrapText(false)
 						.Marshaller(SyntaxHighlighterMain)
 						.HScrollBar(HorizontalScrollbar)
@@ -456,7 +456,7 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 }
 
 
-FText FOptimusType_ShaderTextCustomization::GetDeclarationsText() const
+FText FOptimusShaderTextCustomization::GetDeclarationsText() const
 {
 	FString Preamble;
 	DeclarationsProperty->GetValue(Preamble);
@@ -464,7 +464,7 @@ FText FOptimusType_ShaderTextCustomization::GetDeclarationsText() const
 }
 
 
-FText FOptimusType_ShaderTextCustomization::GetShaderText() const
+FText FOptimusShaderTextCustomization::GetShaderText() const
 {
 	FString ShaderText;
 	ShaderTextProperty->GetValue(ShaderText);
@@ -472,19 +472,19 @@ FText FOptimusType_ShaderTextCustomization::GetShaderText() const
 }
 
 
-void FOptimusType_ShaderTextCustomization::OnShaderTextChanged(const FText& InText)
+void FOptimusShaderTextCustomization::OnShaderTextChanged(const FText& InText)
 {
 	ShaderTextProperty->SetValue(InText.ToString());
 }
 
 
-void FOptimusType_ShaderTextCustomization::UpdateDiagnostics()
+void FOptimusShaderTextCustomization::UpdateDiagnostics()
 {
 	TArray<const void *> RawData;
 	DiagnosticsProperty->AccessRawData(RawData);
 	if (ensure(RawData.Num() > 0))
 	{
-		const TArray<FOptimusType_CompilerDiagnostic>* DiagnosticsPtr = static_cast<const TArray<FOptimusType_CompilerDiagnostic>*>(RawData[0]);
+		const TArray<FOptimusCompilerDiagnostic>* DiagnosticsPtr = static_cast<const TArray<FOptimusCompilerDiagnostic>*>(RawData[0]);
 		SyntaxHighlighterMain->SetCompilerMessages(*DiagnosticsPtr);
 
 		if (ShaderEditor)
@@ -495,16 +495,16 @@ void FOptimusType_ShaderTextCustomization::UpdateDiagnostics()
 }
 
 
-void FOptimusType_ShaderTextCustomization::OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InChangedEvent)
+void FOptimusShaderTextCustomization::OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InChangedEvent)
 {
-	if (InspectedObjects.Contains(InObject) && InChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Diagnostics))
+	if (InspectedObjects.Contains(InObject) && InChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FOptimusShaderText, Diagnostics))
 	{
 		UpdateDiagnostics();
 	}
 }
 
 
-FReply FOptimusType_ShaderTextCustomization::OnShaderTextKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
+FReply FOptimusShaderTextCustomization::OnShaderTextKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
 {
 	if (ShaderEditor->IsTextReadOnly())
 	{

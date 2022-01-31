@@ -12,11 +12,11 @@ TSharedRef<FOptimusHLSLSyntaxHighlighter> FOptimusHLSLSyntaxHighlighter::Create(
 	return MakeShareable(new FOptimusHLSLSyntaxHighlighter(CreateTokenizer(), InSyntaxTextStyle));
 }
 
-void FOptimusHLSLSyntaxHighlighter::SetCompilerMessages(const TArray<FOptimusType_CompilerDiagnostic> &InCompilerMessages)
+void FOptimusHLSLSyntaxHighlighter::SetCompilerMessages(const TArray<FOptimusCompilerDiagnostic> &InCompilerMessages)
 {
 	CompilerMessages.Reset();
 
-	for (const FOptimusType_CompilerDiagnostic& Message: InCompilerMessages)
+	for (const FOptimusCompilerDiagnostic& Message: InCompilerMessages)
 	{
 		CompilerMessages.Add(Message.Line - 1, Message);
 	}
@@ -44,10 +44,10 @@ FTextLayout::FNewLineData FOptimusHLSLSyntaxHighlighter::ProcessTokenizedLine(co
 	FTextBlockStyle ErrorTextStyle = SyntaxTextStyle.ErrorTextStyle;
 	TSharedPtr<FSlateTextUnderlineLineHighlighter> UnderlineLineHighlighter = FSlateTextUnderlineLineHighlighter::Create(ErrorTextStyle.UnderlineBrush, ErrorTextStyle.Font, ErrorTextStyle.ColorAndOpacity, ErrorTextStyle.ShadowOffset, ErrorTextStyle.ShadowColorAndOpacity);
 	
-	TArray<const FOptimusType_CompilerDiagnostic *> Diagnostics;
+	TArray<const FOptimusCompilerDiagnostic *> Diagnostics;
 	CompilerMessages.MultiFindPointer(LineNumber, Diagnostics);
 		
-	for (const FOptimusType_CompilerDiagnostic *Diagnostic: Diagnostics)
+	for (const FOptimusCompilerDiagnostic *Diagnostic: Diagnostics)
 	{
 		// ColumnStart/ColumnEnd are 1-based, closed interval. FTextRange is 0 based, half-closed interval. 
 		FTextRange UnderlineRange(Diagnostic->ColumnStart - 1, Diagnostic->ColumnEnd);
