@@ -71,32 +71,28 @@ bool FControlRigPoseMirrorTable::IsMatched(const FName& Name) const
 }
 
 //Now returns mirrored global and local unmirrored
-void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bDoLocal, bool bIsMatched, FVector& OutGlobalTranslation,
-	FQuat& OutGlobalRotation, FVector& OutLocalTranslation, FQuat& OutLocalRotation) const
+void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bDoLocal, bool bIsMatched, FTransform& OutGlobalTransform,
+	FTransform& OutLocalTransform) const
 {
 	const UControlRigPoseMirrorSettings* Settings = GetDefault<UControlRigPoseMirrorSettings>();
 	FTransform GlobalTransform = ControlCopy.GlobalTransform;
-	FQuat GlobalRotation = GlobalTransform.GetRotation();
-
+	OutGlobalTransform = GlobalTransform;
 	FTransform LocalTransform = ControlCopy.LocalTransform;
-	OutLocalRotation = LocalTransform.GetRotation();
-	OutLocalTranslation = LocalTransform.GetTranslation();
-	OutGlobalTranslation = GlobalTransform.GetTranslation();
-	OutGlobalRotation = GlobalTransform.GetRotation();
+	OutLocalTransform = LocalTransform;
 	if (Settings)
 	{
-		if (!bIsMatched  && (OutGlobalRotation.IsIdentity() == false || OutLocalRotation.IsIdentity() == false))
+		if (!bIsMatched  && (OutGlobalTransform.GetRotation().IsIdentity() == false || OutLocalTransform.GetRotation().IsIdentity() == false))
 		{
 			FRigMirrorSettings MirrorSettings;
 			MirrorSettings.MirrorAxis = Settings->MirrorAxis;
 			MirrorSettings.AxisToFlip = Settings->AxisToFlip;
 			FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);
-			OutGlobalTranslation = NewTransform.GetTranslation();
-			OutGlobalRotation = NewTransform.GetRotation();
+			OutGlobalTransform.SetTranslation(NewTransform.GetTranslation());
+			OutGlobalTransform.SetRotation(NewTransform.GetRotation());
 
 			FTransform NewLocalTransform = MirrorSettings.MirrorTransform(LocalTransform);
-			OutLocalTranslation = NewLocalTransform.GetTranslation();
-			OutLocalRotation = NewLocalTransform.GetRotation();
+			OutLocalTransform.SetTranslation(NewLocalTransform.GetTranslation());
+			OutLocalTransform.SetRotation(NewLocalTransform.GetRotation());
 			return;
 		}
 	}

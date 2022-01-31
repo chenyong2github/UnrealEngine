@@ -31,7 +31,7 @@ public:
 	bool IsMatched(const FName& ControlName) const;
 
 	/*Return the Mirrored Global(In Control Rig Space) Translation and Mirrored Local Rotation*/
-	void GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bDoLocal, bool bIsMatched,FVector& OutGlobalTranslation, FQuat& OutGlobalRotation, FVector& OutLocalTranslation,FQuat& OutLocalRotation) const;
+	void GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bDoLocal, bool bIsMatched,FTransform& OutGlobalTransform, FTransform& OutLocalTransform) const;
 
 private:
 
