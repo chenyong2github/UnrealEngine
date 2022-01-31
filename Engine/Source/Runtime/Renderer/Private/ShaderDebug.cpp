@@ -258,11 +258,12 @@ namespace ShaderDrawDebug
 		ValidateShaderParameters(VertexShader, PassParameters->ShaderDrawVSParameters);
 		ClearUnusedGraphResources(VertexShader, &PassParameters->ShaderDrawVSParameters, { IndirectBuffer });
 
+		const FIntRect Viewport = View.ViewRect;
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("ShaderDebug::Draw"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[VertexShader, PixelShader, PassParameters, IndirectBuffer](FRHICommandList& RHICmdList)
+			[VertexShader, PixelShader, PassParameters, IndirectBuffer, Viewport](FRHICommandList& RHICmdList)
 			{
 				// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
 				PassParameters->ShaderDrawVSParameters.IndirectBuffer->MarkResourceAsUsed();
@@ -278,6 +279,7 @@ namespace ShaderDrawDebug
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
+				RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->ShaderDrawVSParameters);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->ShaderDrawPSParameters);
 
