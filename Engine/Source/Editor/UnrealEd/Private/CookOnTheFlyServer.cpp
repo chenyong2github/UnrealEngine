@@ -4695,7 +4695,7 @@ bool UCookOnTheFlyServer::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputD
 				StartupOptions.CookMaps.Add(StandardPackageName.ToString());
 			}
 		}
-		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
+		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 		
 		StartCookByTheBook(StartupOptions);
 	}
@@ -6300,41 +6300,12 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FN
 			}
 		}
 	}
-	//@todo SLATE: This is a hack to ensure all slate referenced assets get cooked.
-	// Slate needs to be refactored to properly identify required assets at cook time.
-	// Simply jamming everything in a given directory into the cook list is error-prone
-	// on many levels - assets not required getting cooked/shipped; assets not put under 
-	// the correct folder; etc.
-	if ( !(FilesToCookFlags & ECookByTheBookOptions::NoSlatePackages))
+
 	{
 		TArray<FString> UIContentPaths;
-		TSet <FName> ContentDirectoryAssets; 
 		if (GConfig->GetArray(TEXT("UI"), TEXT("ContentDirectories"), UIContentPaths, GEditorIni) > 0)
 		{
-			for (int32 DirIdx = 0; DirIdx < UIContentPaths.Num(); DirIdx++)
-			{
-				FString ContentPath = FPackageName::LongPackageNameToFilename(UIContentPaths[DirIdx]);
-				FName ContentPathName(*ContentPath);
-
-				TArray<FString> Files;
-				IFileManager::Get().FindFilesRecursive(Files, *ContentPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false);
-				for (int32 Index = 0; Index < Files.Num(); Index++)
-				{
-					FString StdFile = Files[Index];
-					FName PackageName = FName(*FPackageName::FilenameToLongPackageName(StdFile));
-					ContentDirectoryAssets.Add(PackageName);
-					FPaths::MakeStandardFilename(StdFile);
-					AddFileToCook( FilesInPath, Instigators, StdFile, FInstigator(EInstigator::UIContentDirectory, ContentPathName));
-				}
-			}
-		}
-
-		if (CookByTheBookOptions && CookByTheBookOptions->bGenerateDependenciesForMaps) 
-		{
-			for (auto& MapDependencyGraph : CookByTheBookOptions->MapDependencyGraphs)
-			{
-				MapDependencyGraph.Value.Add(FName(TEXT("ContentDirectoryAssets")), ContentDirectoryAssets);
-			}
+			UE_LOG(LogCook, Warning, TEXT("The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead."));
 		}
 	}
 }

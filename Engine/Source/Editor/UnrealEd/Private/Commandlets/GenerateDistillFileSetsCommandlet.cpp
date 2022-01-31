@@ -221,30 +221,12 @@ int32 UGenerateDistillFileSetsCommandlet::Main( const FString& InParams )
 	// Form a full unique package list
 	TSet<FString> AllPackageNames;
 
-	//@todo SLATE: This is a hack to ensure all slate referenced assets get cooked.
-	// Slate needs to be refactored to properly identify required assets at cook time.
-	// Simply jamming everything in a given directory into the cook list is error-prone
-	// on many levels - assets not required getting cooked/shipped; assets not put under 
-	// the correct folder; etc.
+	// Slate
 	{
 		TArray<FString> UIContentPaths;
 		if (GConfig->GetArray(TEXT("UI"), TEXT("ContentDirectories"), UIContentPaths, GEditorIni) > 0)
 		{
-			for (int32 DirIdx = 0; DirIdx < UIContentPaths.Num(); DirIdx++)
-			{
-				FString ContentPath = FPackageName::LongPackageNameToFilename(UIContentPaths[DirIdx]);
-
-				TArray<FString> Files;
-				IFileManager::Get().FindFilesRecursive(Files, *ContentPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false);
-				for (int32 Index = 0; Index < Files.Num(); Index++)
-				{
-					FString StdFile = Files[Index];
-					FPaths::MakeStandardFilename(StdFile);
-					StdFile = FPackageName::FilenameToLongPackageName(StdFile);
-					AllPackageNames.Add(StdFile);
-				}
-			}
-
+			UE_LOG(LogGenerateDistillFileSetsCommandlet, Warning, TEXT("The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead."));
 		}
 	}
 

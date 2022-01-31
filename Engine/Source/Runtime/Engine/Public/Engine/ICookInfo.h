@@ -33,7 +33,6 @@ namespace UE::Cook
 	CallbackMacro(FullDepotSearch, true) \
 	CallbackMacro(GameDefaultObject, false) \
 	CallbackMacro(InputSettingsIni, true) \
-	CallbackMacro(UIContentDirectory, false) \
 	CallbackMacro(StartupSoftObjectPath, true) \
 	CallbackMacro(PackagingSettingsMapToCook, true) \
 	CallbackMacro(CookModificationDelegate, true) \
