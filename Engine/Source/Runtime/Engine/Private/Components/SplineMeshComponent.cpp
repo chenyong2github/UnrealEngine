@@ -58,9 +58,9 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	FVertexInputStreamArray& VertexStreams
 ) const
 {
+	const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
 	if (BatchElement.bUserDataIsColorVertexBuffer)
 	{
-		const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
 		FColorVertexBuffer* OverrideColorVertexBuffer = (FColorVertexBuffer*)BatchElement.UserData;
 		check(OverrideColorVertexBuffer);
 
@@ -69,10 +69,14 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 			LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
 		}
 	}
+	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	{
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryUniformShaderParameters>(), LocalVertexFactory->GetUniformBuffer());
+	}
 
-		checkSlow(BatchElement.bIsSplineProxy);
-		FSplineMeshSceneProxy* SplineProxy = BatchElement.SplineMeshSceneProxy;
-		FSplineMeshParams& SplineParams = SplineProxy->SplineParams;
+	checkSlow(BatchElement.bIsSplineProxy);
+	FSplineMeshSceneProxy* SplineProxy = BatchElement.SplineMeshSceneProxy;
+	FSplineMeshParams& SplineParams = SplineProxy->SplineParams;
 
 	FVector4f ParamData[10];
 	// LWC_TODO: Precision loss
@@ -109,6 +113,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVe
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsPositionOnly
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 //////////////////////////////////////////////////////////////////////////

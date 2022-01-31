@@ -21,8 +21,8 @@ void FSplineMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactory
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("0"));
 	}
 
-	// We don't call this because we don't actually support speed tree wind, and this advertises support for that
-	//FLocalVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_SPEEDTREE_WIND"), TEXT("0"));
+	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 	OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), TEXT("1"));
 }
@@ -32,8 +32,6 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 {
 	bSupportsDistanceFieldRepresentation = false;
 	bSupportsMeshCardRepresentation = false;
-	bVFRequiresPrimitiveUniformBuffer = true;
-	bSupportsGPUScene = false;
 
 	// make sure all the materials are okay to be rendered as a spline mesh
 	for (FStaticMeshSceneProxy::FLODInfo& LODInfo : LODs)
