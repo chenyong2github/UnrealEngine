@@ -303,8 +303,6 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 				{
 					NewPin->DefaultValue = PinDefaultValue;
 				}
-
-				NewPin->PersistentGuid = ScriptVar->Metadata.GetVariableGuid();
 			}
 			else
 			{
