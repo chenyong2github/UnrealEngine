@@ -25,63 +25,6 @@
 uint ObjectBoundingGeometryIndexCount;
 float ObjectExpandScale;
 
-void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
-{
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-	RWCulledObjectBounds[DestIndex] = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
-#else
-	float4 BoxOriginAndSphereRadius = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
-	float4 BoxExtent = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 1];
-	BoxExtent.z += MAX_TRACE_SPHERE_RADIUS;
-
-	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE] = BoxOriginAndSphereRadius;
-	RWCulledObjectBounds[DestIndex * OBJECT_BOUNDS_STRIDE + 1] = BoxExtent;
-#endif
-
-	UNROLL
-	for (uint VectorIndex = 0; VectorIndex < CULLED_OBJECT_DATA_STRIDE; VectorIndex++)
-	{
-		// Note: only copying the first CULLED_OBJECT_DATA_STRIDE of the original object data
-		RWCulledObjectData[DestIndex * CULLED_OBJECT_DATA_STRIDE + VectorIndex] = SceneObjectData[SourceIndex * OBJECT_DATA_STRIDE + VectorIndex];
-	}
-
-	float3 MinViewSpacePosition = float3(2000000, 2000000, 2000000);
-	float3 MaxViewSpacePosition = float3(-2000000, -2000000, -2000000);
-	float3 ViewSpaceBoundsVertices[8];
-
-	for (uint i = 0; i < 8; i++)
-	{
-		float3 UnitBoxVertex;
-		UnitBoxVertex.x = i & 0x1 ? 1.0f : -1.0f;
-		UnitBoxVertex.y = i & 0x2 ? 1.0f : -1.0f;
-		UnitBoxVertex.z = i & 0x4 ? 1.0f : -1.0f;
-
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-		FDFObjectData DFObjectData = LoadDFObjectData(SourceIndex);
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), DFObjectData.VolumeToWorld).xyz;
-#else
-		float3 WorldBoundsPosition = UnitBoxVertex * BoxExtent.xyz + BoxOriginAndSphereRadius.xyz;
-#endif
-
-		float3 ViewSpacePosition = mul(float4(WorldBoundsPosition, 1.0f), WorldToShadow).xyz;
-		MinViewSpacePosition = min(MinViewSpacePosition, ViewSpacePosition);
-		MaxViewSpacePosition = max(MaxViewSpacePosition, ViewSpacePosition);
-		ViewSpaceBoundsVertices[i] = ViewSpacePosition;
-	}
-
-	float3 ObjectXAxis = (ViewSpaceBoundsVertices[1] - ViewSpaceBoundsVertices[0]) / 2.0f;
-	float3 ObjectYAxis = (ViewSpaceBoundsVertices[2] - ViewSpaceBoundsVertices[0]) / 2.0f;
-	float3 ObjectZAxis = (ViewSpaceBoundsVertices[4] - ViewSpaceBoundsVertices[0]) / 2.0f;
-
-	MinViewSpacePosition.xy -= ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
-	MaxViewSpacePosition.xy += ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
-	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 0] = float4(MinViewSpacePosition, 0);
-	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 1] = float4(MaxViewSpacePosition, 0);
-	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 2] = float4(ObjectXAxis / max(dot(ObjectXAxis, ObjectXAxis), .0001f), 0);
-	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 3] = float4(ObjectYAxis / max(dot(ObjectYAxis, ObjectYAxis), .0001f), 0);
-	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 4] = float4(ObjectZAxis / max(dot(ObjectZAxis, ObjectZAxis), .0001f), 0);
-}
-
 float4 ShadowConvexHull[12];
 float4 ShadowBoundingSphere;
 uint NumShadowHullPlanes;
@@ -122,6 +65,15 @@ bool ShadowConvexHullIntersectBox(float3 BoxOrigin, float3 BoxExtent)
 	return true;
 }
 
+uint GetNumSceneObjects()
+{
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
+	return NumSceneObjects;
+#else
+	return NumSceneHeightfieldObjects;
+#endif
+}
+
 [numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
 void CullObjectsForShadowCS(
 	uint3 GroupId : SV_GroupID,
@@ -142,9 +94,7 @@ void CullObjectsForShadowCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint SourceIndex = ObjectIndex;
-
-	if (ObjectIndex < NumSceneObjects)
+	if (ObjectIndex < GetNumSceneObjects())
 	{
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
@@ -166,18 +116,16 @@ void CullObjectsForShadowCS(
             {
                 uint DestIndex;
                 InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
-                CopyCulledObjectData(DestIndex, SourceIndex);
+                RWCulledObjectIndices[DestIndex] = ObjectIndex;
             }
         }
 #else
-		float3 BoxOrigin = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-		float3 BoxExtent = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
-
-		if (ShadowConvexHullIntersectBox(BoxOrigin, BoxExtent))
+		FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
+		if (ShadowConvexHullIntersectBox(Bounds.BoxOrigin, Bounds.BoxExtent))
 		{
 			uint DestIndex;
 			InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
-			CopyCulledObjectData(DestIndex, SourceIndex);
+			RWCulledObjectIndices[DestIndex] = ObjectIndex;
 		}
 #endif
 	}
@@ -188,15 +136,12 @@ void CullObjectsForShadowCS(
 	{
 		// IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance
 		RWObjectIndirectArguments[0] = ObjectBoundingGeometryIndexCount;
-		RWObjectIndirectArguments[1] = NumSceneObjects;
+		RWObjectIndirectArguments[1] = GetNumSceneObjects();
 	}
 
-	uint SourceIndex = ObjectIndex;
-	uint DestIndex = ObjectIndex;
-
-	if (ObjectIndex < NumSceneObjects)
+	if (ObjectIndex < GetNumSceneObjects())
 	{
-		CopyCulledObjectData(DestIndex, SourceIndex);
+		RWCulledObjectIndices[ObjectIndex] = ObjectIndex;
 	}
 #endif
 }
@@ -265,13 +210,15 @@ float MinExpandRadius;
 /** Used when culling objects into screenspace tile lists */
 void ShadowObjectCullVS(
 	float4 InPosition : ATTRIBUTE0,
-	uint ObjectIndex : SV_InstanceID,
+	uint InstanceIndex : SV_InstanceID,
 	out FShadowObjectCullVertexOutput Output,
 	out float4 OutPosition : SV_POSITION
 )
 {
+	uint ObjectIndex = CulledObjectIndices[InstanceIndex];
+
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-	FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 	float4x4 ObjectOBBToWorld = DFObjectData.VolumeToWorld;
 
 	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
@@ -284,9 +231,10 @@ void ShadowObjectCullVS(
 
 	float3 WorldPosition = mul(float4(InPosition.xyz, 1.0f), ObjectOBBToWorld).xyz;
 #else
-	float3 BoxOrigin;
-	float3 BoxExtent;
-	LoadHeightFieldObjectBoxBounds(ObjectIndex, BoxOrigin, BoxExtent);
+
+	FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
+	float3 BoxOrigin = Bounds.BoxOrigin;
+	float3 BoxExtent = Bounds.BoxExtent;
 
 	BoxExtent += MinExpandRadius;
 
@@ -323,6 +271,58 @@ void HandleShadowTileObjectIntersection(uint TileIndex, uint ObjectIndex)
 	#endif
 }
 
+struct FObjectViewSpaceBox
+{
+	float3 Min;
+	float3 Max;
+	float3 XAxis;
+	float3 YAxis;
+	float3 ZAxis;
+};
+
+FObjectViewSpaceBox GetObjectViewSpaceBox(uint ObjectIndex)
+{
+	float3 MinViewSpacePosition = float3(2000000, 2000000, 2000000);
+	float3 MaxViewSpacePosition = float3(-2000000, -2000000, -2000000);
+	float3 ViewSpaceBoundsVertices[8];
+
+	for (uint i = 0; i < 8; i++)
+	{
+		float3 UnitBoxVertex;
+		UnitBoxVertex.x = i & 0x1 ? 1.0f : -1.0f;
+		UnitBoxVertex.y = i & 0x2 ? 1.0f : -1.0f;
+		UnitBoxVertex.z = i & 0x4 ? 1.0f : -1.0f;
+
+#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), DFObjectData.VolumeToWorld).xyz;
+#else
+		FHeightfieldObjectBounds HeightfieldObjectBounds = LoadHeightfieldObjectBounds(ObjectIndex);
+		float3 WorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + HeightfieldObjectBounds.BoxOrigin;
+#endif
+
+		float3 ViewSpacePosition = mul(float4(WorldBoundsPosition, 1.0f), WorldToShadow).xyz;
+		MinViewSpacePosition = min(MinViewSpacePosition, ViewSpacePosition);
+		MaxViewSpacePosition = max(MaxViewSpacePosition, ViewSpacePosition);
+		ViewSpaceBoundsVertices[i] = ViewSpacePosition;
+	}
+
+	float3 ObjectXAxis = (ViewSpaceBoundsVertices[1] - ViewSpaceBoundsVertices[0]) / 2.0f;
+	float3 ObjectYAxis = (ViewSpaceBoundsVertices[2] - ViewSpaceBoundsVertices[0]) / 2.0f;
+	float3 ObjectZAxis = (ViewSpaceBoundsVertices[4] - ViewSpaceBoundsVertices[0]) / 2.0f;
+
+	MinViewSpacePosition.xy -= ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
+	MaxViewSpacePosition.xy += ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
+
+	FObjectViewSpaceBox ViewBox;
+	ViewBox.Min = MinViewSpacePosition;
+	ViewBox.Max = MaxViewSpacePosition;
+	ViewBox.XAxis = ObjectXAxis / max(dot(ObjectXAxis, ObjectXAxis), .0001f);
+	ViewBox.YAxis = ObjectYAxis / max(dot(ObjectYAxis, ObjectYAxis), .0001f);
+	ViewBox.ZAxis = ObjectZAxis / max(dot(ObjectZAxis, ObjectZAxis), .0001f);
+	return ViewBox;
+}
+
 /** Intersects a single object with the tile and adds to the intersection list if needed. */
 void ShadowObjectCullPS(
 	FShadowObjectCullVertexOutput Input, 
@@ -347,16 +347,14 @@ void ShadowObjectCullPS(
 	ShadowTileMin.z = 0;
 	ShadowTileMax.z = 1000;
 
-	float3 ObjectViewSpaceMin;
-	float3 ObjectViewSpaceMax;
-	LoadObjectViewSpaceBox(Input.ObjectIndex, ObjectViewSpaceMin, ObjectViewSpaceMax);
+	FObjectViewSpaceBox ObjectViewSpaceBox = GetObjectViewSpaceBox(Input.ObjectIndex);
 
 	BRANCH
 	// Separating axis test on the AABB
 	// Note: don't clip by near plane, objects closer to the light can still cast into the frustum
-	if (all(ObjectViewSpaceMax > ShadowTileMin) && all(ObjectViewSpaceMin.xy < ShadowTileMax.xy))
+	if (all(ObjectViewSpaceBox.Max > ShadowTileMin) && all(ObjectViewSpaceBox.Min.xy < ShadowTileMax.xy))
 	{
-		float3 ObjectCenter = .5f * (ObjectViewSpaceMin + ObjectViewSpaceMax);
+		float3 ObjectCenter = .5f * (ObjectViewSpaceBox.Min + ObjectViewSpaceBox.Max);
 		float3 MinProjections = 500000;
 		float3 MaxProjections = -500000;
 
@@ -371,10 +369,9 @@ void ShadowObjectCullPS(
 			Corners[6] = float3(ShadowTileMin.x, ShadowTileMax.y, ShadowTileMax.z);
 			Corners[7] = float3(ShadowTileMax.x, ShadowTileMax.y, ShadowTileMax.z);
 
-			float3 ObjectAxisX;
-			float3 ObjectAxisY; 
-			float3 ObjectAxisZ;
-			LoadObjectAxes(Input.ObjectIndex, ObjectAxisX, ObjectAxisY, ObjectAxisZ);
+			float3 ObjectAxisX = ObjectViewSpaceBox.XAxis;
+			float3 ObjectAxisY = ObjectViewSpaceBox.YAxis; 
+			float3 ObjectAxisZ = ObjectViewSpaceBox.ZAxis;
 
 			UNROLL
 			for (int i = 0; i < 8; i++)
@@ -547,12 +544,13 @@ void CullObjectsToTileWithGather(
 		// Compute per-tile lists of affecting objects through bounds culling
 		// Each thread now operates on a sample instead of a pixel
 		LOOP
-		for (uint ObjectIndex = ThreadIndex; ObjectIndex < NumCulledObjects; ObjectIndex += THREADGROUP_TOTALSIZE)
+		for (uint IndexInCulledList = ThreadIndex; IndexInCulledList < NumCulledObjects; IndexInCulledList += THREADGROUP_TOTALSIZE)
 		{
-			float4 SphereCenterAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
+			const uint ObjectIndex = CulledObjectIndices[IndexInCulledList];
+			FDFObjectBounds Bounds = LoadDFObjectBounds(ObjectIndex);
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup0Center, LightDirection0, RayLength0, SphereCenterAndRadius.xyz, SphereCenterAndRadius.w + Group0BoundingRadius))
+			if (RaySegmentHitSphere(WorldGroup0Center, LightDirection0, RayLength0, Bounds.Center, Bounds.SphereRadius + Group0BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects0, 1U, ListIndex);
@@ -562,7 +560,7 @@ void CullObjectsToTileWithGather(
 			}
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup1Center, LightDirection1, RayLength1, SphereCenterAndRadius.xyz, SphereCenterAndRadius.w + Group1BoundingRadius))
+			if (RaySegmentHitSphere(WorldGroup1Center, LightDirection1, RayLength1, Bounds.Center, Bounds.SphereRadius + Group1BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects1, 1U, ListIndex);

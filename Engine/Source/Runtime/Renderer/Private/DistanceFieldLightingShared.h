@@ -46,13 +46,9 @@ enum EDistanceFieldPrimitiveType
 // Must match equivalent shader defines
 static const int32 GDistanceFieldObjectDataStride = 9;
 static const int32 GDistanceFieldObjectBoundsStride = 2;
-static const int32 GDistanceFieldCulledObjectDataStride = GDistanceFieldObjectDataStride;
-static const int32 GDistanceFieldCulledObjectBoxBoundsStride = 5;
 
 static const int32 GHeightFieldObjectDataStride = 6;
 static const int32 GHeightFieldObjectBoundsStride = 2;
-static const int32 GHeightFieldCulledObjectDataStride = GHeightFieldObjectDataStride;
-static const int32 GHeightFieldCulledObjectBoxBoundsStride = 5;
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBuffers
@@ -90,6 +86,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
 	SHADER_PARAMETER(uint32, NumSceneObjects)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectBounds)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectData)
+	SHADER_PARAMETER(uint32, NumSceneHeightfieldObjects)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
@@ -133,20 +132,14 @@ namespace DistanceField
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndirectArguments)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectBounds)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectData)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectBoxBounds)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectIndices)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectIndirectArguments)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectBounds)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectBoxBounds)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectIndices)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void AllocateDistanceFieldCulledObjectBuffers(
 	FRDGBuilder& GraphBuilder,
-	bool bWantBoxBounds,
 	uint32 MaxObjects,
-	EDistanceFieldPrimitiveType PrimitiveType,
 	FRDGBufferRef& OutObjectIndirectArguments,
 	FDistanceFieldCulledObjectBufferParameters& OutParameters);
 

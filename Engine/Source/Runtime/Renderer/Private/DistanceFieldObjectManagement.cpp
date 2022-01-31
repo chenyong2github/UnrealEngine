@@ -102,6 +102,7 @@ FDistanceFieldObjectBufferParameters DistanceField::SetupObjectBufferParameters(
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
 
 	ObjectBufferParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+	ObjectBufferParameters.NumSceneHeightfieldObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer;
 
 	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
@@ -113,6 +114,18 @@ FDistanceFieldObjectBufferParameters DistanceField::SetupObjectBufferParameters(
 	{
 		ObjectBufferParameters.SceneObjectBounds = nullptr;
 		ObjectBufferParameters.SceneObjectData = nullptr;
+	}
+
+	if (DistanceFieldSceneData.NumHeightFieldObjectsInBuffer > 0)
+	{
+		check(DistanceFieldSceneData.GetHeightFieldObjectBuffers());
+		ObjectBufferParameters.SceneHeightfieldObjectBounds = DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Bounds.SRV;
+		ObjectBufferParameters.SceneHeightfieldObjectData = DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Data.SRV;
+	}
+	else
+	{
+		ObjectBufferParameters.SceneHeightfieldObjectBounds = nullptr;
+		ObjectBufferParameters.SceneHeightfieldObjectData = nullptr;
 	}
 
 	return ObjectBufferParameters;

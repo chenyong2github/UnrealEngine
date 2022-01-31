@@ -162,7 +162,6 @@ class FCullObjectsForShadowCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
-		SHADER_PARAMETER(float, ObjectExpandScale)
 		SHADER_PARAMETER(uint32, NumShadowHullPlanes)
 		SHADER_PARAMETER(uint32, bDrawNaniteMeshes)
 		SHADER_PARAMETER(FVector4f, ShadowBoundingSphere)
@@ -187,9 +186,8 @@ class FCullObjectsForShadowCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FCullObjectsForShadowCS, "/Engine/Private/DistanceFieldShadowing.usf", "CullObjectsForShadowCS", SF_Compute);
 
-/**  */
 class FShadowObjectCullVS : public FGlobalShader
-	{
+{
 	DECLARE_GLOBAL_SHADER(FShadowObjectCullVS);
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullVS, FGlobalShader);
 
@@ -212,7 +210,7 @@ class FShadowObjectCullVS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FShadowObjectCullVS, "/Engine/Private/DistanceFieldShadowing.usf", "ShadowObjectCullVS", SF_Vertex);
 
 class FShadowObjectCullPS : public FGlobalShader
-	{
+{
 	DECLARE_GLOBAL_SHADER(FShadowObjectCullPS);
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullPS, FGlobalShader);
 
@@ -220,6 +218,8 @@ class FShadowObjectCullPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
+		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(float, ObjectExpandScale)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FPrimitiveType : SHADER_PERMUTATION_INT("DISTANCEFIELD_PRIMITIVE_TYPE", 2);
@@ -415,6 +415,8 @@ void ScatterObjectsToShadowTiles(
 		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->PS.LightTileIntersectionParameters = LightTileIntersectionParameters;
+		PassParameters->PS.WorldToShadow = FMatrix44f(WorldToShadowValue);
+		PassParameters->PS.ObjectExpandScale = PrimitiveType == DFPT_HeightField ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 
 		PassParameters->MeshSDFIndirectArgs = ObjectIndirectArguments;
 
@@ -471,49 +473,19 @@ void ScatterObjectsToShadowTiles(
 
 void AllocateDistanceFieldCulledObjectBuffers(
 	FRDGBuilder& GraphBuilder, 
-	bool bWantBoxBounds, 
 	uint32 MaxObjects, 
-	EDistanceFieldPrimitiveType PrimitiveType,
 	FRDGBufferRef& OutObjectIndirectArguments,
 	FDistanceFieldCulledObjectBufferParameters& OutParameters)
 {
 	check(MaxObjects > 0);
-	OutObjectIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(), TEXT("FDistanceFieldCulledObjectBuffers_ObjectIndirectArguments"));
-
-	uint32 NumBoundsElementsScale;
-	uint32 ObjectDataStride;
-	uint32 ObjectBoxBoundsStride;
-
-	if (PrimitiveType == DFPT_SignedDistanceField)
-	{
-		NumBoundsElementsScale = 1;
-		ObjectDataStride = GDistanceFieldCulledObjectDataStride;
-		ObjectBoxBoundsStride = GDistanceFieldCulledObjectBoxBoundsStride;
-	}
-	else
-	{
-		NumBoundsElementsScale = 2;
-		ObjectDataStride = GHeightFieldCulledObjectDataStride;
-		ObjectBoxBoundsStride = GHeightFieldCulledObjectBoxBoundsStride;
-	}
-
-	FRDGBufferRef Bounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * NumBoundsElementsScale), TEXT("FDistanceFieldCulledObjectBuffers_Bounds"));
-	FRDGBufferRef Data = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * ObjectDataStride), TEXT("FDistanceFieldCulledObjectBuffers_Data"));
+	OutObjectIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(), TEXT("DistanceField.ObjectIndirectArguments"));
+	FRDGBufferRef ObjectIndices = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxObjects), TEXT("DistanceField.ObjectIndices"));
 
 	OutParameters.RWObjectIndirectArguments = GraphBuilder.CreateUAV(OutObjectIndirectArguments, PF_R32_UINT);
-	OutParameters.RWCulledObjectBounds = GraphBuilder.CreateUAV(Bounds);
-	OutParameters.RWCulledObjectData = GraphBuilder.CreateUAV(Data);
+	OutParameters.RWCulledObjectIndices = GraphBuilder.CreateUAV(ObjectIndices);
 
 	OutParameters.ObjectIndirectArguments = GraphBuilder.CreateSRV(OutObjectIndirectArguments, PF_R32_UINT);
-	OutParameters.CulledObjectBounds = GraphBuilder.CreateSRV(Bounds);
-	OutParameters.CulledObjectData = GraphBuilder.CreateSRV(Data);
-
-	if (bWantBoxBounds)
-	{
-		FRDGBufferRef BoxBounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * ObjectBoxBoundsStride), TEXT("FDistanceFieldCulledObjectBuffers_BoxBounds"));
-		OutParameters.RWCulledObjectBoxBounds = GraphBuilder.CreateUAV(BoxBounds);
-		OutParameters.CulledObjectBoxBounds = GraphBuilder.CreateSRV(BoxBounds);
-	}
+	OutParameters.CulledObjectIndices = GraphBuilder.CreateSRV(ObjectIndices);
 }
 
 void CullDistanceFieldObjectsForLight(
@@ -541,9 +513,7 @@ void CullDistanceFieldObjectsForLight(
 
 	AllocateDistanceFieldCulledObjectBuffers(
 		GraphBuilder, 
-		true, 
 		FMath::DivideAndRoundUp(NumObjectsInBuffer, 256) * 256, 
-		PrimitiveType,
 		ObjectIndirectArguments,
 		CulledObjectBufferParameters);
 
@@ -557,7 +527,6 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->ObjectBoundingGeometryIndexCount = UE_ARRAY_COUNT(GCubeIndices);
 		PassParameters->WorldToShadow = FMatrix44f(WorldToShadowValue);	// LWC_TODO: Precision loss
-		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
 		// Disable Nanite meshes for directional lights that use VSM since they draw into the VSM unconditionally (and would get double shadow)
@@ -926,10 +895,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 		const FVector4 ShadowBoundingSphereValue(0.f, 0.f, 0.f, 0.f);
 		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
-		FDistanceFieldObjectBufferParameters ObjectBufferParameters;
-		ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Bounds.SRV;
-		ObjectBufferParameters.SceneObjectData = Scene->DistanceFieldSceneData.GetHeightFieldObjectBuffers()->Data.SRV;
-		ObjectBufferParameters.NumSceneObjects = Scene->DistanceFieldSceneData.NumHeightFieldObjectsInBuffer;
+		FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
 		FLightTileIntersectionParameters LightTileIntersectionParameters;
 		FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;

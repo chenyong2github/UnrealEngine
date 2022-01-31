@@ -131,6 +131,9 @@ FDFAssetData LoadDFAssetDataHighestResolution(uint AssetIndex)
 RWBuffer<uint> RWObjectIndirectArguments;
 Buffer<uint> ObjectIndirectArguments;
 
+RWStructuredBuffer<uint> RWCulledObjectIndices;
+StructuredBuffer<uint> CulledObjectIndices;
+
 uint GetCulledNumObjects()
 {
 	// IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance
@@ -138,15 +141,10 @@ uint GetCulledNumObjects()
 }
 
 // In float4's.  Must match equivalent C++ variables.
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-#define OBJECT_BOUNDS_STRIDE 2
-#define OBJECT_DATA_STRIDE 9
-#elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
-#define OBJECT_BOUNDS_STRIDE 2
-#define OBJECT_DATA_STRIDE 6
-#else
-#error Unknown distance field primitive type
-#endif
+#define DF_OBJECT_BOUNDS_STRIDE 2
+#define DF_OBJECT_DATA_STRIDE 9
+#define HEIGHTFIELD_OBJECT_BOUNDS_STRIDE 2
+#define HEIGHTFIELD_OBJECT_DATA_STRIDE 6
 
 struct FDFObjectBounds
 {
@@ -161,17 +159,21 @@ struct FDFObjectBounds
 
 uint NumSceneObjects;
 StructuredBuffer<float4> SceneObjectBounds;
+
+StructuredBuffer<float4> SceneHeightfieldObjectBounds;
+uint NumSceneHeightfieldObjects;
+
 SamplerState DistanceFieldSampler;
 
 FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 {
 	FDFObjectBounds Bounds;
 
-	float4 Vector0 = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0];
+	float4 Vector0 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 0];
 	Bounds.Center = Vector0.xyz;
 	Bounds.SphereRadius = Vector0.w;
 
-	float4 Vector1 = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1];
+	float4 Vector1 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 1];
 	Bounds.BoxExtent = Vector1.xyz;
 
 	uint Flags = asuint(Vector1.w);
@@ -179,6 +181,25 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 	Bounds.bCastShadow = (Flags & 2U) != 0U;
 	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
 	Bounds.bEmissiveLightSource = (Flags & 8U) != 0U;
+
+	return Bounds;
+}
+
+struct FHeightfieldObjectBounds
+{
+	float3 BoxOrigin;	// World space AABB center
+	float3 BoxExtent;	// World space AABB extent
+};
+
+FHeightfieldObjectBounds LoadHeightfieldObjectBounds(uint ObjectIndex)
+{
+	FHeightfieldObjectBounds Bounds;
+
+	float4 Vector0 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 0];
+	Bounds.BoxOrigin = Vector0.xyz;
+
+	float4 Vector1 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 1];
+	Bounds.BoxExtent = Vector1.xyz;
 
 	return Bounds;
 }
@@ -220,27 +241,27 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 {
 	FDFObjectData Data;
 
-	float4 V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 0];
-	float4 V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 1];
-	float4 V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 2];
+	float4 V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 0];
+	float4 V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 1];
+	float4 V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 2];
 	Data.WorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	float4 Vector3 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 3];
+	float4 Vector3 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 3];
 	Data.VolumePositionExtent = Vector3.xyz;
 	Data.VolumeSurfaceBias = abs(Vector3.w);
 	Data.bMostlyTwoSided = Vector3.w < 0.0f;
 
-	float4 Vector4 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 4];
+	float4 Vector4 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 4];
 	Data.MinMaxDrawDistance2 = Vector4.xy;
 	Data.SelfShadowBias = Vector4.z;
 	Data.GPUSceneInstanceIndex = asuint(Vector4.w);
 	
-	V0 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 5];
-	V1 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 6];
-	V2 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 7];
+	V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 5];
+	V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 6];
+	V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 7];
 	Data.VolumeToWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	float4 Vector8 = SourceBuffer[ObjectIndex * OBJECT_DATA_STRIDE + 8];
+	float4 Vector8 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 8];
 	Data.VolumeToWorldScale = Vector8.xyz;
 	Data.VolumeScale = min(Data.VolumeToWorldScale.x, min(Data.VolumeToWorldScale.y, Data.VolumeToWorldScale.z));
 	Data.AssetIndex = asuint(Vector8.w);
@@ -248,120 +269,41 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	return Data;
 }
 
+struct FHeightfieldObjectData
+{
+	float4x4 WorldToLocal;
+	float4 SizeScale;
+	float4 AtlasUVScaleBias;
+	float4 VisibilityAtlasUVScaleBias;
+};
+
+FHeightfieldObjectData LoadHeightfieldObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, uint ObjectIndex)
+{
+	FHeightfieldObjectData Data;
+
+	float4 V0 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 0];
+	float4 V1 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 1];
+	float4 V2 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 2];
+	Data.WorldToLocal = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	Data.SizeScale = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 3];
+	Data.AtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 4];
+	Data.VisibilityAtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 5];
+
+	return Data;
+}
+
 StructuredBuffer<float4> SceneObjectData;
+StructuredBuffer<float4> SceneHeightfieldObjectData;
 
 FDFObjectData LoadDFObjectData(uint ObjectIndex)
 {
 	return LoadDFObjectDataFromBuffer(SceneObjectData, ObjectIndex);
 }
 
-// In float4's.  Must match equivalent C++ variables.
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-#define CULLED_OBJECT_DATA_STRIDE OBJECT_DATA_STRIDE
-#define CULLED_OBJECT_BOX_BOUNDS_STRIDE 5
-#elif (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_HeightField)
-#define CULLED_OBJECT_DATA_STRIDE 6
-#define CULLED_OBJECT_BOX_BOUNDS_STRIDE 5
-#else
-#error Unknown distance field primitive type
-#endif
-
-float4 LoadObjectPositionAndRadiusFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
+FHeightfieldObjectData LoadHeightfieldObjectData(uint ObjectIndex)
 {
-	return InBuffer[ObjectIndex];
-}
-
-void LoadHeightFieldObjectBoxBoundsFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer, out float3 OutBoxOrigin, out float3 OutBoxExtent)
-{
-	OutBoxOrigin = InBuffer[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-	OutBoxExtent = InBuffer[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
-}
-
-float4x4 LoadHeightFieldObjectWorldToLocalFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
-{
-	float4 M0 = InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 0];
-	float4 M1 = InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 1];
-	float4 M2 = InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 2];
-
-	return transpose(float4x4(M0, M1, M2, float4(0, 0, 0, 1)));
-}
-
-float4 LoadHeightFieldObjectSizeScaleFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
-{
-	return InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 3];
-}
-
-float4 LoadHeightFieldObjectAtlasUVScaleBiasFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
-{
-	return InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 4];
-}
-
-float4 LoadHeightFieldObjectVisibilityAtlasUVScaleBiasFromBuffer(uint ObjectIndex, StructuredBuffer<float4> InBuffer)
-{
-	return InBuffer[ObjectIndex * CULLED_OBJECT_DATA_STRIDE + 5];
-}
-
-// These are structured buffers so they can be scalar memory loads on GCN
-StructuredBuffer<float4> CulledObjectBounds;
-StructuredBuffer<float4> CulledObjectData;
-StructuredBuffer<float4> CulledObjectBoxBounds;
-
-RWStructuredBuffer<float4> RWCulledObjectBounds;
-RWStructuredBuffer<float4> RWCulledObjectData;
-RWStructuredBuffer<float4> RWCulledObjectBoxBounds;
-
-FDFObjectData LoadCulledDFObjectData(uint ObjectIndex)
-{
-	return LoadDFObjectDataFromBuffer(CulledObjectData, ObjectIndex);
-}
-
-float4 LoadObjectPositionAndRadius(uint ObjectIndex)
-{
-	return LoadObjectPositionAndRadiusFromBuffer(ObjectIndex, CulledObjectBounds);
-}
-
-void LoadHeightFieldObjectBoxBounds(uint ObjectIndex, out float3 OutBoxOrigin, out float3 OutBoxExtent)
-{
-	LoadHeightFieldObjectBoxBoundsFromBuffer(ObjectIndex, CulledObjectBounds, OutBoxOrigin, OutBoxExtent);
-}
-
-float4x4 LoadHeightFieldObjectWorldToLocal(uint ObjectIndex)
-{
-	return LoadHeightFieldObjectWorldToLocalFromBuffer(ObjectIndex, CulledObjectData);
-}
-
-float4 LoadHeightFieldObjectAtlasUVScaleBias(uint ObjectIndex)
-{
-	return LoadHeightFieldObjectAtlasUVScaleBiasFromBuffer(ObjectIndex, CulledObjectData);
-}
-
-float4 LoadHeightFieldObjectSizeScale(uint ObjectIndex)
-{
-	return LoadHeightFieldObjectSizeScaleFromBuffer(ObjectIndex, CulledObjectData);
-}
-
-float4 LoadHeightFieldObjectVisibilityAtlasUVScaleBias(uint ObjectIndex)
-{
-	return LoadHeightFieldObjectVisibilityAtlasUVScaleBiasFromBuffer(ObjectIndex, CulledObjectData);
-}
-
-// x = Offset in global buffer, y = NumLOD0, z = NumSurfels (all LODs), W = instance index
-uint4 LoadObjectSurfelCoordinate(uint ObjectIndex)
-{
-	return uint4(0, 0, 0, 0);
-}
-
-void LoadObjectViewSpaceBox(uint ObjectIndex, out float3 ObjectViewSpaceMin, out float3 ObjectViewSpaceMax)
-{
-	ObjectViewSpaceMin = CulledObjectBoxBounds[ObjectIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 0].xyz;
-	ObjectViewSpaceMax = CulledObjectBoxBounds[ObjectIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 1].xyz;
-}
-
-void LoadObjectAxes(uint ObjectIndex, out float3 ObjectAxisX, out float3 ObjectAxisY, out float3 ObjectAxisZ)
-{
-	ObjectAxisX = CulledObjectBoxBounds[ObjectIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 2].xyz;
-	ObjectAxisY = CulledObjectBoxBounds[ObjectIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 3].xyz;
-	ObjectAxisZ = CulledObjectBoxBounds[ObjectIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 4].xyz;
+	return LoadHeightfieldObjectDataFromBuffer(SceneHeightfieldObjectData, ObjectIndex);
 }
 
 // VPLs generated by raytracing from the light

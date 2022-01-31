@@ -830,9 +830,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	{
 		AllocateDistanceFieldCulledObjectBuffers(
 			GraphBuilder,
-			false,
 			MaxSceneObjects,
-			DFPT_SignedDistanceField,
 			ObjectIndirectArguments,
 			CulledObjectBufferParameters);
 

@@ -31,7 +31,7 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 	for (uint ListObjectIndex = 0; ListObjectIndex < min(NumIntersectingObjects, (uint)MAX_INTERSECTING_OBJECTS); ListObjectIndex++)
 	{
 		uint ObjectIndex = IntersectingObjectIndices[ListObjectIndex];
-		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
 		float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxRayTime;
@@ -185,9 +185,11 @@ void VisualizeMeshDistanceFieldCS(
 	uint NumCulledObjects = GetCulledNumObjects();
 
 	LOOP
-	for (uint ObjectIndex = ThreadIndex; ObjectIndex < NumCulledObjects; ObjectIndex += THREADGROUP_TOTALSIZE)
+	for (uint IndexInCulledList = ThreadIndex; IndexInCulledList < NumCulledObjects; IndexInCulledList += THREADGROUP_TOTALSIZE)
 	{
-		float4 SphereCenterAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
+		const uint ObjectIndex = CulledObjectIndices[IndexInCulledList];
+		FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		float4 SphereCenterAndRadius = float4(ObjectBounds.Center, ObjectBounds.SphereRadius);
 
 		BRANCH
 		if (SphereIntersectCone(SphereCenterAndRadius, TileConeVertex, TileConeAxis, TileConeAngleCos, TileConeAngleSin))
@@ -217,7 +219,7 @@ void VisualizeMeshDistanceFieldCS(
 
 	if (HitCulledObjectIndex != 0xFFFFFFFF)
 	{
-		FDFObjectData DFObjectData = LoadCulledDFObjectData(HitCulledObjectIndex);
+		FDFObjectData DFObjectData = LoadDFObjectData(HitCulledObjectIndex);
 
 		float3 VolumeHitPosition = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 		//VolumeHitPosition = clamp(VolumeHitPosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);

@@ -17,20 +17,6 @@ groupshared uint NumGroupObjects;
 groupshared uint GroupBaseIndex;
 groupshared uint GroupObjectIndices[UPDATEOBJECTS_THREADGROUP_SIZE];
 
-void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
-{
-	RWCulledObjectBounds[DestIndex] = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
-
-	UNROLL
-	for (uint VectorIndex = 0; VectorIndex < CULLED_OBJECT_DATA_STRIDE; VectorIndex++)
-	{
-		float4 Data = SceneObjectData[SourceIndex * OBJECT_DATA_STRIDE + VectorIndex];
-
-		// Note: only copying the first CULLED_OBJECT_DATA_STRIDE of the original object data
-		RWCulledObjectData[DestIndex * CULLED_OBJECT_DATA_STRIDE + VectorIndex] = Data;
-	}
-}
-
 [numthreads(UPDATEOBJECTS_THREADGROUP_SIZE, 1, 1)]
 void CullObjectsForViewCS(
 	uint3 GroupId : SV_GroupID,
@@ -92,7 +78,7 @@ void CullObjectsForViewCS(
 	{
 		uint SourceIndex = GroupObjectIndices[GroupThreadId.x];
 		uint DestIndex = GroupBaseIndex + GroupThreadId.x;
-		CopyCulledObjectData(DestIndex, SourceIndex);
+		RWCulledObjectIndices[DestIndex] = SourceIndex;
 	}
 
 #else
@@ -111,7 +97,7 @@ void CullObjectsForViewCS(
 		uint SourceIndex = ObjectIndex;
 		uint DestIndex = ObjectIndex;
 
-		CopyCulledObjectData(DestIndex, SourceIndex);
+		RWCulledObjectIndices[DestIndex] = SourceIndex;
 	}
 
 #endif
@@ -254,18 +240,21 @@ float ConservativeRadiusScale;
 /** Used when culling objects into screenspace tile lists */
 void ObjectCullVS(
 	float4 InPosition : ATTRIBUTE0,
-	uint ObjectIndex : SV_InstanceID,
+	uint InstanceIndex : SV_InstanceID,
 	out FObjectCullVertexOutput Output,
 	out float4 OutPosition : SV_POSITION
 	)
 {
+	const uint ObjectIndex = CulledObjectIndices[InstanceIndex];
+
 	//@todo - implement ConservativelyBoundSphere
-	float4 ObjectPositionAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
+	FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
 	//@todo - expand to handle conservative rasterization
-	float EffectiveRadius = (ObjectPositionAndRadius.w + AOObjectMaxDistance) * ConservativeRadiusScale;
-	float3 WorldPosition = InPosition.xyz * EffectiveRadius + ObjectPositionAndRadius.xyz;
+	float EffectiveRadius = (ObjectBounds.SphereRadius + AOObjectMaxDistance) * ConservativeRadiusScale;
+	float3 WorldPosition = InPosition.xyz * EffectiveRadius + ObjectBounds.Center;
 	OutPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
-	Output.PositionAndRadius = ObjectPositionAndRadius;
+	Output.PositionAndRadius.xyz = ObjectBounds.Center;
+	Output.PositionAndRadius.w = ObjectBounds.SphereRadius;
 	Output.ObjectIndex = ObjectIndex;
 } 
 
@@ -284,7 +273,7 @@ bool IntersectObjectWithConeDepthRange(
 	{
 #define USE_DISTANCE_FIELD_FOR_OBJECT_CULLING 1
 #if USE_DISTANCE_FIELD_FOR_OBJECT_CULLING
-		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 		// Use the position halfway between the depth ranges as the center for the bounding sphere of this tile depth range
 		float3 ViewTileBoundingSphereCenter = TileConeVertex + TileConeAxis * (.5f * (ConeDepthRange.x + ConeDepthRange.y));

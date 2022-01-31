@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #ifndef COMPACT_CULLED_SHADOW_OBJECTS
-#define COMPACT_CULLED_SHADOW_OBJECTS 1
+	#define COMPACT_CULLED_SHADOW_OBJECTS 1
 #endif
 
 Buffer<uint> ShadowTileNumCulledObjects;
@@ -91,7 +91,7 @@ float ShadowRayTraceThroughCulledObjects(
 		}
 
 		{
-			FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 			float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
 			float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
@@ -327,10 +327,10 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 			ObjectIndex = ListObjectIndex;
 		}
 
-		float4x4 WorldToLocal = LoadHeightFieldObjectWorldToLocal(ObjectIndex);
-		float4 SizeScale = LoadHeightFieldObjectSizeScale(ObjectIndex);
-		float2 HeightFieldSize = SizeScale.xy;
-		float WorldToLocalScale = SizeScale.z;
+		FHeightfieldObjectData HeightfieldObject = LoadHeightfieldObjectData(ObjectIndex);
+		float4x4 WorldToLocal = HeightfieldObject.WorldToLocal;
+		float2 HeightFieldSize = HeightfieldObject.SizeScale.xy;
+		float WorldToLocalScale = HeightfieldObject.SizeScale.z;
 
 		float3 LocalRayStart = mul(float4(WorldRayStart, 1.0), WorldToLocal).xyz;
 		float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), WorldToLocal).xyz;
@@ -343,9 +343,9 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 
 		if (bValidIntersection)
 		{
-			float4 AtlasUVScaleBias = LoadHeightFieldObjectAtlasUVScaleBias(ObjectIndex);
+			float4 AtlasUVScaleBias = HeightfieldObject.AtlasUVScaleBias;
 #if DF_SHADOW_QUALITY == 2
-			float4 VisUVScaleBias = LoadHeightFieldObjectVisibilityAtlasUVScaleBias(ObjectIndex);
+			float4 VisUVScaleBias = HeightfieldObject.VisibilityAtlasUVScaleBias;
 #else
 			float4 VisUVScaleBias = float4(0, 0, 0, 0);
 #endif

@@ -75,14 +75,14 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 	InvMaxOcclusionDistance = 1.0f / AOGlobalMaxOcclusionDistance;
 #endif
 
-	float4 ObjectPositionAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
-	float ObjectDistanceSq = dot(ObjectPositionAndRadius.xyz - WorldShadingPosition, ObjectPositionAndRadius.xyz - WorldShadingPosition);
+	FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
+	float ObjectDistanceSq = dot(ObjectBounds.Center - WorldShadingPosition, ObjectBounds.Center - WorldShadingPosition);
 
 	BRANCH
 	// Skip tracing objects with a small projected angle 
-	if (ObjectPositionAndRadius.w * ObjectPositionAndRadius.w / ObjectDistanceSq > Square(.25f))
+	if (ObjectBounds.SphereRadius * ObjectBounds.SphereRadius / ObjectDistanceSq > Square(.25f))
 	{
-		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), DFObjectData.WorldToVolume).xyz;
 		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent, VolumeShadingPosition) * DFObjectData.VolumeScale;
