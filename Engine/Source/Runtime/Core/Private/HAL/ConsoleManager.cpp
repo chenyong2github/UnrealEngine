@@ -116,7 +116,7 @@ public:
 	virtual void SetOnChangedCallback(const FConsoleVariableDelegate& Callback) 
 	{
 		OnChangedCallback.Remove(LegacyDelegateHandle);
-		OnChangedCallback.Add(Callback); 
+		LegacyDelegateHandle = OnChangedCallback.Add(Callback); 
 	}
 
 	/** Returns a multicast delegate with which to register. Called when this CVar changes. */
