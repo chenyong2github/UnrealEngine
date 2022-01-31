@@ -143,7 +143,7 @@ FPhysicsReplication::~FPhysicsReplication()
 #endif
 }
 
-bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay)
+bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float InPingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames)
 {
 	if (CharacterMovementCVars::SkipPhysicsReplication)
 	{
@@ -154,6 +154,39 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 	{
 		return false;
 	}
+
+	// LocalFrame the local frame number we should use to access past state in the rewind data
+	// NumPredictedFrames is how many frames (steps) ahead "now" is for the client compared to the latest data we've received from the server (use this to determine accurately how far ahead this object should extrapolate from its "physics target"
+	
+	Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
+	Chaos::FRewindData* RewindData = Solver->GetRewindData();
+
+	if (LocalFrame > RewindData->GetEarliestFrame_Internal() && LocalFrame < RewindData->CurrentFrame())
+	{
+		auto Proxy = BI->GetPhysicsActorHandle();
+		const auto P = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), LocalFrame);
+		
+//#if 0
+		// Debugging/test: compare and print out if locations differ
+		if (FVector::DistSquared(PhysicsTarget.TargetState.Position, P.X()) > 1.f)
+		{
+			const int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
+			const int32 CurrentFrame = RewindData->CurrentFrame();
+
+			UE_LOG(LogTemp, Warning, TEXT(""));
+			UE_LOG(LogTemp, Warning, TEXT("Location differs"));
+			UE_LOG(LogTemp, Warning, TEXT("   Replicated: %s"), *PhysicsTarget.TargetState.Position.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("   Historic: %s"), *P.X().ToString());
+		}
+//#endif
+	}
+
+	//if (true)
+	{
+		return false;
+	}
+
+	float PingSecondsOneWay = (Solver->GetLastDt() * NumPredictedFrames) * 0.5f; //InPingSecondsOneWay;
 
 	//
 	// NOTES:
@@ -460,6 +493,25 @@ float FPhysicsReplication::GetOwnerPing(const AActor* const Owner, const FReplic
 
 void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets)
 {
+	int32 LocalFrameOffset = 0;		// LocalFrame = ServerFrame + LocalFrameOffset;
+	int32 NumPredictedFrames = 0;	// How many frames "ahead" of the server we are predicting. That is, how many frames are in flight between us and the server.
+
+	if (UWorld* World = GetOwningWorld())
+	{
+		if (World->GetNetMode() == NM_Client)
+		{
+			if (APlayerController* PlayerController = World->GetFirstPlayerController())
+			{
+				Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
+				check(Solver);
+
+				const APlayerController::FClientFrameInfo& ClientFrameInfo = PlayerController->GetClientFrameInfo();
+				LocalFrameOffset = ClientFrameInfo.GetLocalFrameOffset();
+				NumPredictedFrames = Solver->GetCurrentFrame() - ClientFrameInfo.LastProcessedInputFrame;
+			}
+		}
+	}
+
 	const FRigidBodyErrorCorrection& PhysicErrorCorrection = UPhysicsSettings::Get()->PhysicErrorCorrection;
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -500,7 +552,8 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 
 						if (UpdatedState.Flags & ERigidBodyFlags::NeedsUpdate)
 						{
-							const bool bRestoredState = ApplyRigidBodyState(DeltaSeconds, BI, PhysicsTarget, PhysicErrorCorrection, PingSecondsOneWay);
+							const int32 LocalFrame = PhysicsTarget.ServerFrame + LocalFrameOffset;
+							const bool bRestoredState = ApplyRigidBodyState(DeltaSeconds, BI, PhysicsTarget, PhysicErrorCorrection, PingSecondsOneWay, LocalFrame, NumPredictedFrames);
 
 							// Need to update the component to match new position.
 							if (PhysicsReplicationCVars::SkipSkeletalRepOptimization == 0 || Cast<USkeletalMeshComponent>(PrimComp) == nullptr)	//simulated skeletal mesh does its own polling of physics results so we don't need to call this as it'll happen at the end of the physics sim
@@ -631,7 +684,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 }
 #endif
 
-void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget)
+void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame)
 {
 	if (UWorld* OwningWorld = GetOwningWorld())
 	{
@@ -648,6 +701,7 @@ void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FN
 			Target->PrevPosTarget = ReplicatedTarget.Position;
 		}
 
+		Target->ServerFrame = ServerFrame;
 		Target->TargetState = ReplicatedTarget;
 		Target->BoneName = BoneName;
 		Target->ArrivedTimeSeconds = OwningWorld->GetTimeSeconds();

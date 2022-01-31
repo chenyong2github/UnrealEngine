@@ -2118,6 +2118,8 @@ public:
 
 		int8 QuantizedTimeDilation = 1; // Server sent this to this client, telling them to dilate local time either catch up or slow down
 		float TargetNumBufferedCmds = 0.f;
+
+		int32 GetLocalFrameOffset() const { return LastProcessedInputFrame - LastRecvServerFrame; }
 	};	
 
 	// Client pushes input data locally. RPC is sent here but also includes redundant data
@@ -2128,6 +2130,7 @@ public:
 	void ServerRecvClientInputFrame(int32 RecvClientInputFrame, const TArray<uint8>& Data);
 
 	const FClientFrameInfo& GetClientFrameInfo() const { return ClientFrameInfo; }
+	FClientFrameInfo& GetClientFrameInfo() { return ClientFrameInfo; }
 
 	// -------------------------------------------------------------------------
 	// Server

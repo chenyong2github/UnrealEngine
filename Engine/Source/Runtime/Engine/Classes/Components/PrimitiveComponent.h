@@ -2474,7 +2474,7 @@ public:
 	 * Applies RigidBodyState only if it needs to be updated
 	 * NeedsUpdate flag will be removed from UpdatedState after all velocity corrections are finished
 	 */
-	void SetRigidBodyReplicatedTarget(FRigidBodyState& UpdatedState, const FName BoneName = NAME_None);
+	void SetRigidBodyReplicatedTarget(FRigidBodyState& UpdatedState, const FName BoneName = NAME_None, int32 ServerFrame = 0, int32 ServerHandle = 0);
 
 	/** 
 	 *	Get the state of the rigid body responsible for this Actor's physics, and fill in the supplied FRigidBodyState struct based on it.

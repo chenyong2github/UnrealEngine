@@ -25,7 +25,8 @@ struct FReplicatedPhysicsTarget
 {
 	FReplicatedPhysicsTarget() :
 		ArrivedTimeSeconds(0.0f),
-		AccumulatedErrorSeconds(0.0f)
+		AccumulatedErrorSeconds(0.0f),
+		ServerFrame(0)
 	{ }
 
 	/** The target state replicated by server */
@@ -44,6 +45,9 @@ struct FReplicatedPhysicsTarget
 	FVector PrevPosTarget;
 	FVector PrevPos;
 
+	/** ServerFrame this target was replicated on (must be converted to local frame prior to client-side use) */
+	int32 ServerFrame;
+
 #if !UE_BUILD_SHIPPING
 	FDebugFloatHistory ErrorHistory;
 #endif
@@ -59,6 +63,7 @@ struct FAsyncPhysicsDesiredState
 	Chaos::FSingleParticlePhysicsProxy* Proxy;
 	Chaos::EObjectStateType ObjectState;
 	bool bShouldSleep;
+	int32 ServerFrame;
 };
 #endif
 
@@ -79,7 +84,8 @@ public:
 	void Tick(float DeltaSeconds);
 
 	/** Sets the latest replicated target for a body instance */
-	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget);
+	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget) { SetReplicatedTarget(Component, BoneName, ReplicatedTarget, 0); }
+	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame);
 
 	/** Remove the replicated target*/
 	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component);
@@ -91,7 +97,7 @@ protected:
 	virtual void OnTargetRestored(TWeakObjectPtr<UPrimitiveComponent> Component, const FReplicatedPhysicsTarget& Target) {}
 
 	/** Called when a dynamic rigid body receives a physics update */
-	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay);
+	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);
 
 	UWorld* GetOwningWorld();
 	const UWorld* GetOwningWorld() const;

@@ -1918,6 +1918,11 @@ public:
 	const FParticleID& ParticleID() const { return MNonFrequentData.Read().ParticleID(); }
 	void SetParticleID(const FParticleID& ParticleID, bool bInvalidate = true)
 	{
+		if (this->ParticleID() == ParticleID)
+		{
+			return;
+		}
+
 		MNonFrequentData.Modify(bInvalidate, MDirtyFlags, Proxy, [ParticleID](auto& Data) { Data.SetParticleID(ParticleID); });
 	}
 

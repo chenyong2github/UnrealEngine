@@ -237,6 +237,17 @@ public:
 	void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
 	void ProcessDeferredCreatePhysicsState();
 
+
+	// Storage structure for replication data
+	// probably should just expose read/write API not the structure directly itself like this.
+	struct FPrimitiveComponentReplicationCache
+	{
+		int32 ServerFrame = 0;
+		TMap<FObjectKey, FRigidBodyState>	Map;
+	};
+
+	FPrimitiveComponentReplicationCache ReplicationCache;
+
 private:
 	UPROPERTY()
 	TArray<UPrimitiveComponent*> CollisionEventRegistrations;
@@ -350,6 +361,9 @@ private:
 
 	// Maps Component to PhysicsProxy that is created
 	TMap<UPrimitiveComponent*, TArray<IPhysicsProxyBase*>> ComponentToPhysicsProxyMap;
+
+	//TSet<UActorComponent*> FixedTickComponents;
+	//TSet<AActor*> FixedTickActors;
 
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;

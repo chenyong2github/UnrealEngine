@@ -21,6 +21,12 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Interfaces/Interface_ActorSubobject.h"
 
+#if WITH_CHAOS
+#include "Physics/Experimental/PhysScene_Chaos.h"
+#include "PBDRigidsSolver.h"
+#include "ChaosSolversModule.h"
+#endif
+
 /*-----------------------------------------------------------------------------
 	AActor networking implementation.
 -----------------------------------------------------------------------------*/
@@ -259,11 +265,12 @@ void AActor::PostNetReceivePhysicState()
 	UPrimitiveComponent* RootPrimComp = Cast<UPrimitiveComponent>(RootComponent);
 	if (RootPrimComp)
 	{
+		const FRepMovement& ThisReplicatedMovement = GetReplicatedMovement();
 		FRigidBodyState NewState;
-		GetReplicatedMovement().CopyTo(NewState, this);
+		ThisReplicatedMovement.CopyTo(NewState, this);
 
 		FVector DeltaPos(FVector::ZeroVector);
-		RootPrimComp->SetRigidBodyReplicatedTarget(NewState);
+		RootPrimComp->SetRigidBodyReplicatedTarget(NewState, NAME_None, ThisReplicatedMovement.ServerFrame, ThisReplicatedMovement.ServerPhysicsHandle);
 	}
 }
 
@@ -354,10 +361,26 @@ void AActor::GatherCurrentMovement()
 		UPrimitiveComponent* RootPrimComp = Cast<UPrimitiveComponent>(GetRootComponent());
 		if (RootPrimComp && RootPrimComp->IsSimulatingPhysics())
 		{
-			FRigidBodyState RBState;
-			RootPrimComp->GetRigidBodyState(RBState);
+			bool bFoundInCache = false;
+#if WITH_CHAOS
+			UWorld* World = GetWorld();
+			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
+			{
+				if (FRigidBodyState* FoundState = Scene->ReplicationCache.Map.Find(FObjectKey(RootPrimComp)))
+				{
+					ReplicatedMovement.FillFrom(*FoundState, this, Scene->ReplicationCache.ServerFrame);
+					bFoundInCache = true;
+				}
+			}
+#endif
+			if (!bFoundInCache)
+			{
+				// fallback to GT data
+				FRigidBodyState RBState;
+				RootPrimComp->GetRigidBodyState(RBState);
+				ReplicatedMovement.FillFrom(RBState, this, 0);
+			}
 
-			ReplicatedMovement.FillFrom(RBState, this);
 			// Don't replicate movement if we're welded to another parent actor.
 			// Their replication will affect our position indirectly since we are attached.
 			ReplicatedMovement.bRepPhysics = !RootPrimComp->IsWelded();

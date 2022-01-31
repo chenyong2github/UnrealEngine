@@ -3507,6 +3507,14 @@ struct ENGINE_API FRepMovement
 	UPROPERTY(Transient)
 	uint8 bRepPhysics : 1;
 
+	/** Server physics step */
+	UPROPERTY(Transient)
+	int32 ServerFrame;
+
+	/** ID assigned by server used to ensure determinism by physics. */
+	UPROPERTY(Transient)
+	int32 ServerPhysicsHandle = INDEX_NONE;
+
 	/** Allows tuning the compression level for the replicated location vector. You should only need to change this from the default if you see visual artifacts. */
 	UPROPERTY(EditDefaultsOnly, Category=Replication, AdvancedDisplay)
 	EVectorQuantization LocationQuantizationLevel;
@@ -3551,10 +3559,12 @@ struct ENGINE_API FRepMovement
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		// pack bitfield with flags
-		uint8 Flags = (bSimulatedPhysicSleep << 0) | (bRepPhysics << 1);
-		Ar.SerializeBits(&Flags, 2);
+		uint8 Flags = (bSimulatedPhysicSleep << 0) | (bRepPhysics << 1) | ((ServerFrame > 0) << 2) | ((ServerPhysicsHandle != INDEX_NONE) << 3);
+		Ar.SerializeBits(&Flags, 4);
 		bSimulatedPhysicSleep = ( Flags & ( 1 << 0 ) ) ? 1 : 0;
 		bRepPhysics = ( Flags & ( 1 << 1 ) ) ? 1 : 0;
+		const bool bRepServerFrame = (Flags & (1 << 2)) ? 1 : 0;
+		const bool bRepServerHandle = (Flags & (1 << 3)) ? 1 : 0;
 
 		bOutSuccess = true;
 
@@ -3584,10 +3594,24 @@ struct ENGINE_API FRepMovement
 			bOutSuccess &= SerializeQuantizedVector( Ar, AngularVelocity, VelocityQuantizationLevel );
 		}
 
+		if (bRepServerFrame)
+		{
+			uint32 uServerFrame = (uint32)ServerFrame;
+			Ar.SerializeIntPacked(uServerFrame);
+			ServerFrame = (int32)uServerFrame;
+		}
+
+		if (bRepServerHandle)
+		{
+			uint32 uServerPhysicsHandle = (uint32)ServerPhysicsHandle;
+			Ar.SerializeIntPacked(uServerPhysicsHandle);
+			ServerPhysicsHandle = (int32)uServerPhysicsHandle;
+		}
+
 		return true;
 	}
 
-	void FillFrom(const struct FRigidBodyState& RBState, const AActor* const Actor = nullptr)
+	void FillFrom(const struct FRigidBodyState& RBState, const AActor* const Actor = nullptr, int32 InServerFrame = 0)
 	{
 		Location = RebaseOntoZeroOrigin(RBState.Position, Actor);
 		Rotation = RBState.Quaternion.Rotator();
@@ -3595,6 +3619,7 @@ struct ENGINE_API FRepMovement
 		AngularVelocity = RBState.AngVel;
 		bSimulatedPhysicSleep = (RBState.Flags & ERigidBodyFlags::Sleeping) != 0;
 		bRepPhysics = true;
+		ServerFrame = InServerFrame;
 	}
 
 	void CopyTo(struct FRigidBodyState& RBState, const AActor* const Actor = nullptr) const
