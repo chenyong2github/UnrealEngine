@@ -327,9 +327,13 @@ public:
 
 	bool IsLastMipFirst() const { return bMipOrderDescending; }
 
-	virtual FRHIShaderResourceView* GetDefaultShaderResourceView() const final
+	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const final
 	{
-		return GetShaderResourceView();
+		if (FRHIShaderResourceView* View = GetShaderResourceView())
+		{
+			return View->GetBindlessHandle();
+		}
+		return FRHIDescriptorHandle();
 	}
 
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */

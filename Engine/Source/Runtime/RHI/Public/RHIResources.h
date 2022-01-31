@@ -1253,7 +1253,7 @@ public:
 	virtual class FRHITextureCube* GetTextureCube() { return NULL; }
 	virtual class FRHITextureReference* GetTextureReference() { return NULL; }
 
-	virtual class FRHIShaderResourceView* GetDefaultShaderResourceView() const { return nullptr; }
+	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const { return FRHIDescriptorHandle(); }
 
 	// Slower method to get Size X, Y & Z information. Prefer sub-classes' GetSizeX(), etc
 	virtual FIntVector GetSizeXYZ() const = 0;

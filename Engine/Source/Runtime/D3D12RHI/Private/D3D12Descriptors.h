@@ -3,6 +3,7 @@
 #pragma once
 
 #include "D3D12CommandList.h"
+#include "RHIDescriptorAllocator.h"
 
 struct FD3D12OfflineHeapEntry;
 
@@ -60,28 +61,8 @@ private:
 };
 using FD3D12DescriptorHeapPtr = TRefCountPtr<FD3D12DescriptorHeap>;
 
-struct FDescriptorAllocatorRange;
-
-class FDescriptorAllocator
-{
-public:
-	FDescriptorAllocator();
-	~FDescriptorAllocator();
-
-	void Init(uint32 InNumDescriptors);
-
-	bool Allocate(uint32 NumDescriptors, uint32& OutSlot);
-	void Free(uint32 Slot, uint32 NumDescriptors);
-
-private:
-	TArray<FDescriptorAllocatorRange> Ranges;
-	uint32 Capacity = 0;
-
-	FCriticalSection CriticalSection;
-};
-
 /** Manager for resource descriptor allocations. */
-class FD3D12DescriptorManager : public FD3D12DeviceChild
+class FD3D12DescriptorManager : public FD3D12DeviceChild, public FRHIHeapDescriptorAllocator
 {
 public:
 	FD3D12DescriptorManager() = delete;
@@ -91,21 +72,10 @@ public:
 	void Init(TCHAR* InName, ERHIDescriptorHeapType InType, uint32 InNumDescriptors);
 	void Destroy();
 
-	FRHIDescriptorHandle AllocateDescriptor();
-	bool AllocateDescriptors(uint32 NumDescriptors, uint32& OutSlot);
-
-	void FreeDescriptor(FRHIDescriptorHandle InHandle);
-	void FreeDescriptors(uint32 Slot, uint32 NumDescriptors);
-
 	inline FD3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetCpuDescriptorHandle(uint32 InSlot) const { return Heap->GetCPUSlotHandle(InSlot); }
 
-	inline bool HandlesAllocation(ERHIDescriptorHeapType InHeapType) const
-	{
-		return Heap && Heap->GetType() == InHeapType;
-	}
-
-	inline bool HandlesAllocation(ERHIDescriptorHeapType InHeapType, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags) const
+	inline bool HandlesAllocationWithFlags(ERHIDescriptorHeapType InHeapType, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags) const
 	{
 		return HandlesAllocation(InHeapType) && Heap->GetFlags() == InHeapFlags;
 	}
@@ -117,7 +87,6 @@ public:
 
 private:
 	FD3D12DescriptorHeapPtr Heap;
-	FDescriptorAllocator Allocator;
 };
 
 /** Manager for resource descriptors used in bindless rendering. */
