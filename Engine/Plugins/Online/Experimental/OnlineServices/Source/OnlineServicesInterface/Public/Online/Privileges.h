@@ -80,6 +80,7 @@ struct FQueryUserPrivilege
 
 class IPrivileges
 {
+public:
 	/**
 		* Queries about a given privilege for a user
 		*/
