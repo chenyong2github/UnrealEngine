@@ -27,6 +27,7 @@
 #include "GlobalShader.h"
 #include "SceneRenderTargetParameters.h"
 #include "SceneRendering.h"
+#include "SceneViewExtension.h"
 #include "ScenePrivate.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"
@@ -1435,6 +1436,13 @@ void CaptureSceneIntoScratchCubemap(
 		ViewInitOptions.ViewRotationMatrix = CalcCubeFaceViewRotationMatrix((ECubeFace)CubeFace);
 
 		FSceneView* View = new FSceneView(ViewInitOptions);
+
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
+		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+		{
+			Extension->SetupViewFamily(ViewFamily);
+			Extension->SetupView(ViewFamily, *View);
+		}
 
 		// Force all surfaces diffuse
 		View->RoughnessOverrideParameter = FVector2D( 1.0f, 0.0f );

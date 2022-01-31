@@ -6,6 +6,7 @@
 #include "Engine/Level.h"
 #include "ShowFlags.h"
 #include "SceneView.h"
+#include "SceneViewExtension.h"
 #include "Engine/LevelBounds.h"
 
 ULevelThumbnailRenderer::ULevelThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
@@ -27,16 +28,23 @@ void ULevelThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Wid
 		ViewFamily.EngineShowFlags.SetDistanceCulledPrimitives(true); // show distance culled objects
 		ViewFamily.EngineShowFlags.SetPostProcessing(false);
 
-		GetView(Level, &ViewFamily, X, Y, Width, Height);
+		FSceneView* NewView = GetView(Level, &ViewFamily, X, Y, Width, Height);
 
-		if (ViewFamily.Views.Num() > 0)
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Level->OwningWorld->Scene));
+		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+		{
+			Extension->SetupViewFamily(ViewFamily);
+			Extension->SetupView(ViewFamily, *NewView);
+		}
+
+		if (NewView)
 		{
 			RenderViewFamily(Canvas, &ViewFamily);
 		}
 	}
 }
 
-void ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const 
+FSceneView* ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const
 {
 	check(ViewFamily);
 
@@ -47,6 +55,7 @@ void ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* ViewFamil
 		FMath::Max<int32>(Y+SizeY,0));
 
 	FBox LevelBox(ForceInit);
+	FSceneView* NewView = nullptr;
 
 	if (Level->LevelBoundsActor.IsValid())
 	{
@@ -80,8 +89,10 @@ void ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* ViewFamil
 			ZOffset
 			);
 
-		FSceneView* NewView = new FSceneView(ViewInitOptions);
+		NewView = new FSceneView(ViewInitOptions);
 
 		ViewFamily->Views.Add(NewView);
 	}
+
+	return NewView;
 }
