@@ -2,7 +2,7 @@
 
 #pragma once
 
-// UE4 includes
+// UE includes
 
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"

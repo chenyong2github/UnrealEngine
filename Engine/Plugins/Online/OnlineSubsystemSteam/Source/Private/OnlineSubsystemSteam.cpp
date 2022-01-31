@@ -40,8 +40,13 @@
  * This helps the SteamAPI find your project on shipping builds
  * if your game is launched outside of Steam.
  */
-#ifndef UE4_PROJECT_STEAMSHIPPINGID
-#define UE4_PROJECT_STEAMSHIPPINGID 0
+#ifndef UE_PROJECT_STEAMSHIPPINGID
+#ifdef UE4_PROJECT_STEAMSHIPPINGID
+UE_DEPRECATED(5.0, "UE4_PROJECT_STEAMSHIPPINGID has been renamed to UE_PROJECT_STEAMSHIPPINGID.")
+#define UE_PROJECT_STEAMSHIPPINGID UE4_PROJECT_STEAMSHIPPINGID
+#else
+#define UE_PROJECT_STEAMSHIPPINGID 0
+#endif
 #endif
 
 namespace FNetworkProtocolTypes
@@ -217,7 +222,7 @@ bool ConfigureSteamInitDevOptions(bool& RequireRelaunch, int32& RelaunchAppId)
 #else
 	// Always check against the Steam client when shipping
 	RequireRelaunch = true;
-	RelaunchAppId = UE4_PROJECT_STEAMSHIPPINGID;
+	RelaunchAppId = UE_PROJECT_STEAMSHIPPINGID;
 #endif
 
 	return true;

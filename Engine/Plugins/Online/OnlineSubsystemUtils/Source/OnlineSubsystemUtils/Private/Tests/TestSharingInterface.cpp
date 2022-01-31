@@ -36,7 +36,7 @@ void FTestSharingInterface::Test(UWorld* InWorld, bool bWithImage)
 	SharingInterface = OnlineSub->GetSharingInterface();
 	if (SharingInterface.IsValid())
 	{
-		TestStatusUpdate.Message = FString::Printf(TEXT("This is a test post for UE4 Sharing support! Date = %s"), *FDateTime::Now().ToString());
+		TestStatusUpdate.Message = FString::Printf(TEXT("This is a test post for UE Sharing support! Date = %s"), *FDateTime::Now().ToString());
 		TestStatusUpdate.PostPrivacy = EOnlineStatusUpdatePrivacy::OnlyMe;
 		if (bWithImage)
 		{
