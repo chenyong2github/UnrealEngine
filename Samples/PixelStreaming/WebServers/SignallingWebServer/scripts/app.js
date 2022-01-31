@@ -10,15 +10,16 @@ let rAF = window.mozRequestAnimationFrame ||
 let kbEvent = document.createEvent("KeyboardEvent");
 let initMethod = typeof kbEvent.initKeyboardEvent !== 'undefined' ? "initKeyboardEvent" : "initKeyEvent";
 
+
 let webRtcPlayerObj = null;
 let print_stats = false;
 let print_inputs = false;
 let connect_on_load = false;
-
 let is_reconnection = false;
 let ws;
 const WS_OPEN_STATE = 1;
 
+let qualityController = false;
 let qualityControlOwnershipCheckBox;
 let matchViewportResolution;
 // TODO: Remove this - workaround because of bug causing UE to crash when switching resolutions too quickly
@@ -298,6 +299,11 @@ function setupHtmlEvents() {
             sendStartLatencyTest();
         };
     }
+
+    // Setup toggle and pair with some URL query string param.
+    setupToggleWithUrlParams("prefer-sfu-tgl", "preferSFU");
+    setupToggleWithUrlParams("use-mic-tgl", "useMic");
+    setupToggleWithUrlParams("force-turn-tgl", "ForceTURN");
  
     var streamSelector = document.getElementById('stream-select');
     var trackSelector = document.getElementById('track-select');
@@ -327,6 +333,22 @@ function setupHtmlEvents() {
                 }
             }
         }
+    }
+}
+
+function setupToggleWithUrlParams(toggleId, urlParameterKey){
+    let toggleElem = document.getElementById(toggleId);
+    if(toggleElem) {
+        toggleElem.checked = new URLSearchParams(window.location.search).has(urlParameterKey);
+        toggleElem.addEventListener('change', (event) => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (event.currentTarget.checked) {
+                urlParams.set(urlParameterKey, "true");
+            } else {
+                urlParams.delete(urlParameterKey);
+            }
+            window.history.replaceState({}, '', urlParams.toString() !== "" ? `${location.pathname}?${urlParams}` : `${location.pathname}`);
+        });
     }
 }
 
@@ -618,6 +640,7 @@ function setupWebRtcPlayer(htmlElement, config) {
     webRtcPlayerObj.onDataChannelConnected = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
             showTextOverlay('WebRTC data channel connected... waiting for video');
+            requestQualityControl();
         }
     };
 
@@ -787,7 +810,8 @@ function setupWebRtcPlayer(htmlElement, config) {
         if (view[0] === ToClientMessageType.QualityControlOwnership) {
             let ownership = view[1] === 0 ? false : true;
             console.log("Received quality controller message, will control quality: " + ownership);
-            // If we own the quality control, we can't relenquish it. We only loose
+            qualityController = ownership;
+            // If we own the quality control, we can't relinquish it. We only lose
             // quality control when another peer asks for it
             if (qualityControlOwnershipCheckBox !== null) {
                 qualityControlOwnershipCheckBox.disabled = ownership;
@@ -1401,7 +1425,9 @@ function requestInitialSettings() {
 }
 
 function requestQualityControl() {
-    sendInputData(new Uint8Array([MessageType.RequestQualityControl]).buffer);
+    if(!qualityController){
+        sendInputData(new Uint8Array([MessageType.RequestQualityControl]).buffer);
+    }
 }
 
 let playerElementClientRect = undefined;
@@ -2076,6 +2102,8 @@ function connect() {
             onWebRtcAnswer(msg);
         } else if (msg.type === 'iceCandidate') {
             onWebRtcIce(msg.candidate);
+        } else if(msg.type === 'warning' && msg.warning) {
+            console.warn(msg.warning);
         } else {
             console.error("Invalid SS message type", msg.type);
         }

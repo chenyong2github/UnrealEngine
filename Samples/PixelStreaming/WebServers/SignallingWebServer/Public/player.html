@@ -1,6 +1,7 @@
 <!-- Copyright Epic Games, Inc. All Rights Reserved. -->
 <!DOCTYPE HTML>
 <html>
+
 <head>
 	<link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon">
 	<link rel="icon" type="image/png" sizes="96x96" href="/images/favicon-96x96.png">
@@ -11,18 +12,18 @@
 		// This horrible hack is to make Fippo's adapter-latest.js work with Firefox when not on https
 		// because FF does not let you access navigator.mediaDevices when on http.
 		var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-		if(isFirefox){
-			window.navigator.mozGetUserMedia = function(){};
-			if(window.navigator.mediaDevices === undefined) {
+		if (isFirefox) {
+			window.navigator.mozGetUserMedia = function () { };
+			if (window.navigator.mediaDevices === undefined) {
 				navigator.mediaDevices = {};
-				navigator.mediaDevices.getSupportedConstraints = function(){ return {}; };
-				navigator.mediaDevices.getUserMedia = function(){ return {}; };
+				navigator.mediaDevices.getSupportedConstraints = function () { return {}; };
+				navigator.mediaDevices.getUserMedia = function () { return {}; };
 			}
 		}
 	</script>
-    <script type="text/javascript" src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-    <script type="text/javascript" src="scripts/webRtcPlayer.js"></script>
-    <script type="text/javascript" src="scripts/app.js"></script>
+	<script type="text/javascript" src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+	<script type="text/javascript" src="scripts/webRtcPlayer.js"></script>
+	<script type="text/javascript" src="scripts/app.js"></script>
 </head>
 
 <body onload="load()">
@@ -43,7 +44,8 @@
 				<div id="kickOthers" class="setting">
 					<div class="settings-text">Kick all other players</div>
 					<label class="btn-overlay">
-						<input type="button" id="kick-other-players-button" class="overlay-button btn-flat" value="Kick">
+						<input type="button" id="kick-other-players-button" class="overlay-button btn-flat"
+							value="Kick">
 					</label>
 				</div>
 				<div id="fillWindow" class="setting">
@@ -67,6 +69,27 @@
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
+				<div id="preferSFU" class="setting">
+					<div class="settings-text">Prefer SFU</div>
+					<label class="tgl-switch">
+						<input type="checkbox" id="prefer-sfu-tgl" class="tgl tgl-flat">
+						<div class="tgl-slider"></div>
+					</label>
+				</div>
+				<div id="useMic" class="setting">
+					<div class="settings-text">Use microphone</div>
+					<label class="tgl-switch">
+						<input type="checkbox" id="use-mic-tgl" class="tgl tgl-flat">
+						<div class="tgl-slider"></div>
+					</label>
+				</div>
+				<div id="forceTURN" class="setting">
+					<div class="settings-text">Force TURN</div>
+					<label class="tgl-switch">
+						<input type="checkbox" id="force-turn-tgl" class="tgl tgl-flat">
+						<div class="tgl-slider"></div>
+					</label>
+				</div>
 
 				<section id="encoderSettings">
 					<div id="encoderSettingsHeader" class="settings-text">
@@ -75,11 +98,14 @@
 					<div id="encoderParamsContainer" class="collapse">
 						<div class="form-group">
 							<label for="encoder-min-qp-text">Min QP</label>
-							<input type="number" class="form-control" id="encoder-min-qp-text" value="0" min="0" max="51" />
+							<input type="number" class="form-control" id="encoder-min-qp-text" value="0" min="0"
+								max="51" />
 							<label for="encoder-max-qp-text">Max QP</label>
-							<input type="number" class="form-control" id="encoder-max-qp-text" value="51" min="0" max="51" />
+							<input type="number" class="form-control" id="encoder-max-qp-text" value="51" min="0"
+								max="51" />
 							<br>
-							<input id="encoder-params-submit" class="overlay-button btn-flat" type="button" value="Apply">
+							<input id="encoder-params-submit" class="overlay-button btn-flat" type="button"
+								value="Apply">
 						</div>
 					</div>
 				</section>
@@ -91,13 +117,17 @@
 					<div id="webrtcParamsContainer" class="collapse">
 						<div class="form-group">
 							<label for="webrtc-fps-text">FPS</label>
-							<input type="number" class="form-control" id="webrtc-fps-text" value="60" min="1" max="999" />
+							<input type="number" class="form-control" id="webrtc-fps-text" value="60" min="1"
+								max="999" />
 							<label for="webrtc-min-bitrate-text">Min bitrate (kbps)</label>
-							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0" max="100000" />
+							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0"
+								max="100000" />
 							<label for="webrtc-max-bitrate-text">Max bitrate (kbps)</label>
-							<input type="number" class="form-control" id="webrtc-max-bitrate-text" value="0" min="0" max="100000" />
+							<input type="number" class="form-control" id="webrtc-max-bitrate-text" value="0" min="0"
+								max="100000" />
 							<br>
-							<input id="webrtc-params-submit" class="overlay-button btn-flat" type="button" value="Apply">
+							<input id="webrtc-params-submit" class="overlay-button btn-flat" type="button"
+								value="Apply">
 						</div>
 					</div>
 				</section>
@@ -129,12 +159,13 @@
 						<div id="stats" class="stats"></div>
 					</div>
 				</section>
-				
+
 				<section id="latencyTest">
 					<div class="setting settings-text">
 						<div>Latency Report</div>
 						<label class="btn-overlay">
-							<input type="button" id="test-latency-button" class="overlay-button btn-flat" value="Get Report">
+							<input type="button" id="test-latency-button" class="overlay-button btn-flat"
+								value="Get Report">
 						</label>
 					</div>
 					<div id="latencyStatsContainer" class="statsContainer">
@@ -145,4 +176,5 @@
 		</div>
 	</div>
 </body>
+
 </html>

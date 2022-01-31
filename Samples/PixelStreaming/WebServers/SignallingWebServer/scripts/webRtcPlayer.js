@@ -71,6 +71,12 @@ function webRtcPlayer(parOptions) {
         console.error("For testing you can enable HTTP microphone access Chrome by visiting chrome://flags/ and enabling 'unsafely-treat-insecure-origin-as-secure'");
     }
 
+    // Prefer SFU or P2P connection
+    this.preferSFU = urlParams.has('preferSFU');
+    console.log(this.preferSFU ? 
+        "The browser will signal it would prefer an SFU connection. Remove ?preferSFU from the url to signal for P2P usage." :
+        "The browser will signal for a P2P connection. Pass ?preferSFU in the url to signal for SFU usage.");
+
     // Latency tester
     this.latencyTestTimings = 
     {
@@ -187,6 +193,8 @@ function webRtcPlayer(parOptions) {
                     self.availableVideoStreams.set(s.id, s);
                 }
             }
+
+            self.video.srcObject = e.streams[0];
 
             // All tracks are added "muted" by WebRTC/browser and become unmuted when media is being sent
             e.track.onunmute = () => {
@@ -477,6 +485,7 @@ function webRtcPlayer(parOptions) {
         {
             // check if no relay address is found, if so, we are assuming it means no TURN server
             if(candidate.candidate.indexOf("relay") < 0) { 
+                console.warn("Dropping candidate because it was not TURN relay.", "| Type=", candidate.type, "| Protocol=", candidate.protocol, "| Address=", candidate.address, "| Port=", candidate.port, "|")
                 return;
             }
         }
