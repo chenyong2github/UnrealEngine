@@ -532,7 +532,7 @@ struct FRDGResourceDumpContext
 		return JsonObject;
 	}
 
-	TSharedPtr<FJsonObject> ToJson(const TCHAR* Name, const FRDGTextureDesc& Desc)
+	TSharedPtr<FJsonObject> ToJson(const FString& UniqueResourceName, const TCHAR* Name, const FRDGTextureDesc& Desc)
 	{
 		FString PixelFormat = ToJson(Desc.Format);
 
@@ -540,6 +540,7 @@ struct FRDGResourceDumpContext
 
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		JsonObject->SetStringField(TEXT("Name"), Name);
+		JsonObject->SetStringField(TEXT("UniqueResourceName"), UniqueResourceName);
 		JsonObject->SetNumberField(TEXT("ByteSize"), ResourceByteSize);
 		JsonObject->SetStringField(TEXT("Desc"), TEXT("FRDGTextureDesc"));
 		JsonObject->SetStringField(TEXT("Type"), GetTextureDimensionString(Desc.Dimension));
@@ -567,10 +568,11 @@ struct FRDGResourceDumpContext
 		return JsonObject;
 	}
 
-	TSharedPtr<FJsonObject> ToJson(const TCHAR* Name, const FRDGBufferDesc& Desc, int32 ResourceByteSize)
+	TSharedPtr<FJsonObject> ToJson(const FString& UniqueResourceName, const TCHAR* Name, const FRDGBufferDesc& Desc, int32 ResourceByteSize)
 	{
 		TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 		JsonObject->SetStringField(TEXT("Name"), Name);
+		JsonObject->SetStringField(TEXT("UniqueResourceName"), UniqueResourceName);
 		JsonObject->SetNumberField(TEXT("ByteSize"), ResourceByteSize);
 		JsonObject->SetStringField(TEXT("Desc"), TEXT("FRDGBufferDesc"));
 		JsonObject->SetStringField(TEXT("Type"), GetBufferUnderlyingTypeName(Desc.UnderlyingType));
@@ -946,10 +948,8 @@ struct FRDGResourceDumpContext
 		// Dump the information of the texture to json file.
 		if (bDumpResourceInfos)
 		{
-			TSharedPtr<FJsonObject> JsonObject = ToJson(SubresourceDesc.Texture->Name, Desc);
-
-			FString ResourceInfoJsonPath = kResourcesDir / UniqueResourceName + TEXT(".json");
-			DumpJsonToFile(JsonObject, ResourceInfoJsonPath);
+			TSharedPtr<FJsonObject> JsonObject = ToJson(UniqueResourceName, SubresourceDesc.Texture->Name, Desc);
+			DumpJsonToFile(JsonObject, FString(FRDGResourceDumpContext::kBaseDir) / TEXT("ResourceDescs.json"), FILEWRITE_Append);
 		}
 
 		if (!SubresourceDumpDesc.IsDumpSupported())
@@ -1093,10 +1093,8 @@ struct FRDGResourceDumpContext
 		// Dump the information of the buffer to json file.
 		if (bDumpResourceInfos)
 		{
-			TSharedPtr<FJsonObject> JsonObject = ToJson(Buffer->Name, Desc, ByteSize);
-
-			FString ResourceInfoJsonPath = kResourcesDir / UniqueResourceName + TEXT(".json");
-			DumpJsonToFile(JsonObject, ResourceInfoJsonPath);
+			TSharedPtr<FJsonObject> JsonObject = ToJson(UniqueResourceName, Buffer->Name, Desc, ByteSize);
+			DumpJsonToFile(JsonObject, FString(FRDGResourceDumpContext::kBaseDir) / TEXT("ResourceDescs.json"), FILEWRITE_Append);
 
 			if (Desc.Metadata && DumpBufferMode == 2)
 			{
@@ -1242,6 +1240,8 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		PlatformFile.CreateDirectoryTree(*(NewResourceDumpContext.DumpingDirectoryPath / FRDGResourceDumpContext::kBaseDir));
 		PlatformFile.CreateDirectoryTree(*(NewResourceDumpContext.DumpingDirectoryPath / FRDGResourceDumpContext::kResourcesDir));
 
+		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("Passes.json"));
+		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("ResourceDescs.json"));
 		NewResourceDumpContext.DumpStringToFile(TEXT(""), FString(FRDGResourceDumpContext::kBaseDir) / TEXT("PassDrawCounts.json"));
 	}
 
