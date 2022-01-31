@@ -294,10 +294,21 @@ namespace Metasound
 					// MetaSoundAssetSubsystem so as to properly refresh respective open editors.
 					constexpr bool bReregisterWithFrontend = false;
 					AssetSubsystem->RenameAsset(InAssetData, bReregisterWithFrontend);
-					if (UObject* AssetObject = InAssetData.GetAsset())
+					UObject* AssetObject = InAssetData.GetAsset();
+					FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
+
+					// Request sync of other open MetaSounds to ensure rename is reflected in other asset editors with
+					// nodes referencing the renamed asset.
+					TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+					for (UObject* EditedAsset : EditedAssets)
 					{
-						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
-						FGraphBuilder::MarkEditorNodesReferencingAssetForRefresh(*AssetObject);
+						if (AssetObject != EditedAsset)
+						{
+							if (FMetasoundAssetBase* EditedMetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(EditedAsset))
+							{
+								EditedMetaSoundAsset->SetSynchronizationRequired();
+							}
+						}
 					}
 				}
 			}

@@ -14,12 +14,12 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontendNodeController"
 
-static int32 MetaSoundAutoUpdateNativeClassCVar = 1;
+static int32 MetaSoundAutoUpdateNativeClassesOfEqualVersionCVar = 1;
 FAutoConsoleVariableRef CVarMetaSoundAutoUpdateNativeClass(
-	TEXT("au.MetaSounds.AutoUpdate.NativeClasses"),
-	MetaSoundAutoUpdateNativeClassCVar,
+	TEXT("au.MetaSounds.AutoUpdate.NativeClassesOfEqualVersion"),
+	MetaSoundAutoUpdateNativeClassesOfEqualVersionCVar,
 	TEXT("If true, node references to native class that share a version number will attempt to auto-update if the interface is different, which results in slower graph load times.\n")
-	TEXT("0: Don't auto-update native classes, !0: Auto-update native classes (default)"),
+	TEXT("0: Don't auto-update native classes of the same version with interface discrepancies, !0: Auto-update native classes of the same version with interface discrepancies (default)"),
 	ECVF_Default);
 
 namespace Metasound
@@ -937,9 +937,11 @@ namespace Metasound
 			return true;
 		}
 
-		bool FBaseNodeController::CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates) const
+		bool FBaseNodeController::CanAutoUpdate(FClassInterfaceUpdates& OutInterfaceUpdates) const
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(BaseNodeController::CanAutoUpdate);
+
+			OutInterfaceUpdates = { };
 
 			const FMetasoundFrontendClassMetadata& NodeClassMetadata = GetClassMetadata();
 			if (IMetaSoundAssetManager* AssetManager = IMetaSoundAssetManager::Get())
@@ -959,32 +961,25 @@ namespace Metasound
 				return false;
 			}
 
+			// 1. Document's class version is somehow higher than registries, so can't update.
 			if (RegistryClass.Metadata.GetVersion() < NodeClassMetadata.GetVersion())
 			{
 				return false;
 			}
 
+			// 2. Document's class version is equal, so have to dif and check change IDs
+			// to ensure a change wasn't created that didn't contain a version change.
 			if (RegistryClass.Metadata.GetVersion() == NodeClassMetadata.GetVersion())
 			{
 				// TODO: Merge these paths.  Shouldn't use different logic to
-				// define changes in native vs asset class definitions.
+				// define changes in native vs asset class definitions. Need to
+				// hash a changeID from natively defined node classes in order to
+				// merge branches.
 				const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(RegistryClass.Metadata);
 				const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
 				if (bIsClassNative)
 				{
-					if (!MetaSoundAutoUpdateNativeClassCVar)
-					{
-						return false;
-					}
-
-					FClassInterfaceUpdates InterfaceUpdates;
-					DiffAgainstRegistryInterface(InterfaceUpdates, true /* bUseHighestMinorVersion */);
-					if (OutInterfaceUpdates)
-					{
-						*OutInterfaceUpdates = InterfaceUpdates;
-					}
-
-					if (!InterfaceUpdates.ContainsChanges())
+					if (!MetaSoundAutoUpdateNativeClassesOfEqualVersionCVar)
 					{
 						return false;
 					}
@@ -1000,8 +995,15 @@ namespace Metasound
 						}
 					}
 				}
+
+				DiffAgainstRegistryInterface(OutInterfaceUpdates, true /* bUseHighestMinorVersion */);
+				return OutInterfaceUpdates.ContainsChanges();
 			}
 
+			// 3. Document's class version is out-of-date, so dif and always return true that can auto-update
+			// (Unlike the case where the version is equal, the version must be updated even if the interface
+			// contains no changes).
+			DiffAgainstRegistryInterface(OutInterfaceUpdates, true /* bUseHighestMinorVersion */);
 			return true;
 		}
 

@@ -434,21 +434,24 @@ namespace Metasound
 			checkf(IMetasoundUObjectRegistry::Get().IsRegisteredClass(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound interface!"));
 			
 			// Support undo/redo
-			ObjectToEdit->SetFlags(RF_Transactional);
-
 			Metasound = ObjectToEdit;
-
-			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
-			FGraphBuilder::SynchronizeGraph(*Metasound);
+			Metasound->SetFlags(RF_Transactional);
 
 			GEditor->RegisterForUndo(this);
 
 			FGraphEditorCommands::Register();
 			FEditorCommands::Register();
 
-			BindGraphCommands();
+			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
 
+			BindGraphCommands();
 			CreateInternalWidgets();
+
+			// Call after create internal widgets as editor is
+			// referenced in validation step. TODO: Make this
+			// relationship more explicit.
+			constexpr bool bForceRefreshNodes = true;
+			FGraphBuilder::SynchronizeGraph(*Metasound, bForceRefreshNodes);
 
 			CreateAnalyzers();
 
@@ -595,6 +598,16 @@ namespace Metasound
 					MetaSoundAsset->MarkMetasoundDocumentDirty();
 				}
 			}
+		}
+
+		void FEditor::NotifyNodePasteFailure_MultipleVariableSetters()
+		{
+			FNotificationInfo Info(LOCTEXT("NodePasteFailed_MultipleVariableSetters", "Node(s) not pasted: Only one variable setter node possible per graph."));
+			Info.bFireAndForget = true;
+			Info.bUseSuccessFailIcons = false;
+			Info.ExpireDuration = 5.0f;
+
+			MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
 		}
 
 		void FEditor::NotifyNodePasteFailure_ReferenceLoop()
@@ -1700,6 +1713,7 @@ namespace Metasound
 			NodeTextToPaste.Empty();
 
 			bool bNotifyReferenceLoop = false;
+			bool bNotifyMultipleVariableSetters = false;
 
 			TArray<UEdGraphNode*> NodesToRemove;
 			for (UEdGraphNode* GraphNode : PastedGraphNodes)
@@ -1746,34 +1760,54 @@ namespace Metasound
 				}
 				else if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(GraphNode))
 				{
-					if (!Graph.ContainsInput(InputNode->Input))
+					if (!InputNode->Input || !Graph.ContainsInput(*InputNode->Input))
 					{
 						NodesToRemove.Add(GraphNode);
 					}
 				}
 				else if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(GraphNode))
 				{
-					if (!Graph.ContainsOutput(OutputNode->Output))
+					if (OutputNode->Output && Graph.ContainsOutput(*OutputNode->Output))
 					{
-						NodesToRemove.Add(GraphNode);
-					}
-
-					auto NodeMatches = [OutputNodeID = OutputNode->GetNodeID()](const TObjectPtr<UEdGraphNode>& EdNode)
-					{
-						if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(EdNode))
+						auto NodeMatches = [OutputNodeID = OutputNode->GetNodeID()](const TObjectPtr<UEdGraphNode>& EdNode)
 						{
-							return OutputNodeID == OutputNode->GetNodeID();
-						}
-						return false;
-					};
+							if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(EdNode))
+							{
+								return OutputNodeID == OutputNode->GetNodeID();
+							}
+							return false;
+						};
 
-					// Can only have one output reference node
-					if (Graph.Nodes.ContainsByPredicate(NodeMatches))
+						// Can only have one output reference node
+						if (Graph.Nodes.ContainsByPredicate(NodeMatches))
+						{
+							NodesToRemove.Add(GraphNode);
+						}
+					}
+					else
 					{
 						NodesToRemove.Add(GraphNode);
 					}
 				}
-				else if (!(GraphNode->IsA<UEdGraphNode_Comment>() || GraphNode->IsA<UMetasoundEditorGraphVariableNode>()))
+				else if (UMetasoundEditorGraphVariableNode* VariableNode = Cast<UMetasoundEditorGraphVariableNode>(GraphNode))
+				{
+					// Can only have one setter node
+					if (const UMetasoundEditorGraphVariable* Variable = VariableNode->Variable)
+					{
+						FConstVariableHandle VariableHandle = Variable->GetConstVariableHandle();
+						FConstNodeHandle VariableMutatorNodeHandle = VariableHandle->FindMutatorNode();
+						if (VariableNode->GetNodeID() == VariableMutatorNodeHandle->GetID())
+						{
+							bNotifyMultipleVariableSetters = true;
+							NodesToRemove.Add(GraphNode);
+						}
+					}
+					else
+					{
+						NodesToRemove.Add(GraphNode);
+					}
+				}
+				else if (!GraphNode->IsA<UEdGraphNode_Comment>())
 				{
 					checkNoEntry();
 				}
@@ -1867,6 +1901,11 @@ namespace Metasound
 			if (bNotifyReferenceLoop)
 			{
 				NotifyNodePasteFailure_ReferenceLoop();
+			}
+
+			if (bNotifyMultipleVariableSetters)
+			{
+				NotifyNodePasteFailure_MultipleVariableSetters();
 			}
 
 			MetasoundGraphEditor->NotifyGraphChanged();

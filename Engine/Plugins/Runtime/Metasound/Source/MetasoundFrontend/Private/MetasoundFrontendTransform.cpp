@@ -481,7 +481,7 @@ namespace Metasound
 				}
 
 				FClassInterfaceUpdates InterfaceUpdates;
-				if (!NodeHandle->CanAutoUpdate(&InterfaceUpdates))
+				if (!NodeHandle->CanAutoUpdate(InterfaceUpdates))
 				{
 					return;
 				}
@@ -490,14 +490,25 @@ namespace Metasound
 				if (UpdateVersion.IsValid() && UpdateVersion > ClassMetadata.GetVersion())
 				{
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s': Newer version '%s' found."), *DebugAssetPath, *ClassMetadata.GetClassName().ToString(), *UpdateVersion.ToString());
+
+					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
 				}
 				else if (InterfaceUpdates.ContainsChanges())
 				{
 					UpdateVersion = ClassMetadata.GetVersion();
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s (%s)': Interface change detected."), *DebugAssetPath, *ClassMetadata.GetClassName().ToString(), *UpdateVersion.ToString());
+
+					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
 				}
 
-				NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
+				// Only update the node at this point if editor data is loaded. If it isn't and their are no interface
+				// changes but auto-update returned it was eligible, then the auto-update only contains cosmetic changes.
+#if WITH_EDITORONLY_DATA
+				else
+				{
+					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
+				}
+#endif // WITH_EDITORONLY_DATA
 			}, EMetasoundFrontendClassType::External);
 
 			if (PresetReferencedMetaSoundAsset)

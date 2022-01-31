@@ -761,7 +761,7 @@ namespace Metasound
 				FNodeClassMetadata Info;
 				Info.ClassName = { StandardNodes::Namespace, TEXT("Sine"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
-				Info.MinorVersion = 0;
+				Info.MinorVersion = 1;
 				Info.DisplayName = LOCTEXT("Metasound_SineNodeDisplayName", "Sine");
 				Info.Description = LOCTEXT("Metasound_SineNodeDescription", "Emits an audio signal of a sinusoid.");
 				Info.Author = PluginAuthor;

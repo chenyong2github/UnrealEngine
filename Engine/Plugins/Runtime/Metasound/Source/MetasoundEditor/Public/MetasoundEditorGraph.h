@@ -144,9 +144,6 @@ public:
 	 * a UMetasoundEditorGraph, returns a nullptr. */
 	const UMetasoundEditorGraph* GetOwningGraph() const;
 
-	/** Marks all member's nodes as requiring a display refresh. */
-	void MarkNodesForRefresh();
-
 	/* Whether this member can be renamed. */
 	virtual bool CanRename() const PURE_VIRTUAL(UMetasoundEditorGraphMember::CanRename, return false;);
 
@@ -374,12 +371,17 @@ public:
 	void IterateInputs(TUniqueFunction<void(UMetasoundEditorGraphInput&)> InFunction) const;
 	void IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const;
 
-	bool ContainsInput(UMetasoundEditorGraphInput* InInput) const;
-	bool ContainsOutput(UMetasoundEditorGraphOutput* InOutput) const;
+	bool ContainsInput(const UMetasoundEditorGraphInput& InInput) const;
+	bool ContainsOutput(const UMetasoundEditorGraphOutput& InOutput) const;
+	bool ContainsVariable(const UMetasoundEditorGraphVariable& InVariable) const;
 
 	void SetPreviewID(uint32 InPreviewID);
 	bool IsPreviewing() const;
 	bool IsEditable() const;
+
+	void SetForceRefreshNodes();
+	void ClearForceRefreshNodes();
+	bool RequiresForceRefreshNodes() const;
 
 	// UMetasoundEditorGraphBase Implementation
 	virtual void RegisterGraphWithFrontend() override;
@@ -400,6 +402,12 @@ private:
 	uint32 PreviewID = INDEX_NONE;
 
 	bool bVersionedOnLoad = false;
+
+	// Used as a means of forcing the graph to rebuild nodes on next tick.
+	// TODO: Will no longer require this once all editor metadata is migrated
+	// to the frontend & the system can adequately rely on the changeIDs as a
+	// mechanism for selectively updating nodes.
+	bool bForceRefreshNodes = false;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMetasoundEditorGraphInput>> Inputs;

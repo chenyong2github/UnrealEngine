@@ -98,11 +98,26 @@ public:
 	virtual FMetasoundFrontendClassName GetClassName() const { return FMetasoundFrontendClassName(); }
 	virtual FGuid GetNodeID() const { return FGuid(); }
 	virtual FText GetDisplayName() const;
+	virtual void CacheTitle();
 
-	// Marks node to be reconstructed on next editor tick.
-	bool bRefreshNode = false;
+	// Mark node for refresh
+	void SyncChangeIDs();
+
+
+	// Returns whether or not Metadata has been changed since the last node refresh
+	bool ContainsMetadataChange() const;
+
+	// Returns whether or not Interface has been changed since the last node refresh
+	bool ContainsInterfaceChange() const;
 
 protected:
+	FGuid InterfaceChangeID;
+	FGuid MetadataChangeID;
+
+	// Not be serialized to avoid text desync as the registry can provide
+	// a new name if the external definition changes between application sessions.
+	FText CachedTitle;
+
 	virtual void SetNodeID(FGuid InNodeID) { }
 
 	friend class Metasound::Editor::FGraphBuilder;
@@ -177,12 +192,13 @@ protected:
 	bool bIsClassNative = true;
 
 public:
-	virtual void PostLoad() override;
-
 	virtual FMetasoundFrontendClassName GetClassName() const override { return ClassName; }
 	virtual FGuid GetNodeID() const override { return NodeID; }
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetNodeTitleIcon() const override;
+
+	virtual void ReconstructNode() override;
+	virtual void CacheTitle() override;
 
 	FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const;
 	FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const;

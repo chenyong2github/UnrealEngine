@@ -221,6 +221,7 @@ namespace Metasound
 			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(InNodeHandle->GetClassMetadata());
 			NewGraphNode->bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
 			NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
+			NewGraphNode->CacheTitle();
 
 			NodeCreator.Finalize();
 			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
@@ -303,6 +304,7 @@ namespace Metasound
 			NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
 			UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(&Graph);
 			NewGraphNode->Output = MetasoundGraph->FindOrAddOutput(InNodeHandle);
+			NewGraphNode->CacheTitle();
 
 			NodeCreator.Finalize();
 			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
@@ -320,7 +322,7 @@ namespace Metasound
 			RebuildNodePins(*NewGraphNode);
 		}
 
-		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound)
+		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
 			using namespace Frontend;
 
@@ -335,6 +337,9 @@ namespace Metasound
 			check(MetaSoundAsset);
 			UMetasoundEditorGraph& Graph = *CastChecked<UMetasoundEditorGraph>(&MetaSoundAsset->GetGraphChecked());
 
+			bForceRefreshNodes |= Graph.RequiresForceRefreshNodes();
+			Graph.ClearForceRefreshNodes();
+
 			FGraphValidationResults Results;
 
 			bool bMarkDirty = false;
@@ -343,13 +348,17 @@ namespace Metasound
 			for (const FGraphNodeValidationResult& Result : Results.GetResults())
 			{
 				bMarkDirty |= Result.bIsDirty;
-				if (GraphEditor.IsValid())
+				check(Result.Node);
+				const bool bMetadataChange = Result.Node->ContainsInterfaceChange();
+				const bool bInterfaceChange = Result.Node->ContainsMetadataChange();
+				if (Result.bIsDirty || bMetadataChange || bInterfaceChange || bForceRefreshNodes)
 				{
-					check(Result.Node);
-					if (Result.bIsDirty || Result.Node->bRefreshNode)
+					Result.Node->SyncChangeIDs();
+					Result.Node->CacheTitle();
+
+					if (GraphEditor.IsValid())
 					{
 						GraphEditor->RefreshNode(*Result.Node);
-						Result.Node->bRefreshNode = false;
 					}
 				}
 			}
@@ -1242,8 +1251,6 @@ namespace Metasound
 					AddPinToNode(InGraphNode, OutputHandle);
 				}
 			}
-
-			InGraphNode.bRefreshNode = true;
 		}
 
 		void FGraphBuilder::RefreshPinMetadata(UEdGraphPin& InPin, const FMetasoundFrontendVertexMetadata& InMetadata)
@@ -1258,11 +1265,6 @@ namespace Metasound
 				if (OwningNode->AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
 				{
 					OwningNode->AdvancedPinDisplay = ENodeAdvancedPins::Hidden;
-				}
-
-				if (UMetasoundEditorGraphNode* MetaSoundNode = Cast<UMetasoundEditorGraphNode>(OwningNode))
-				{
-					MetaSoundNode->bRefreshNode = true;
 				}
 			}
 		}
@@ -1343,56 +1345,6 @@ namespace Metasound
 			}
 
 			MetaSoundAsset->UnregisterGraphWithFrontend();
-		}
-
-		void FGraphBuilder::MarkEditorNodesReferencingAssetForRefresh(UObject& InMetaSound)
-		{
-			using namespace Frontend;
-
-			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
-			if (!MetaSoundAsset)
-			{
-				return;
-			}
-
-			if (!GEditor)
-			{
-				return;
-			}
-
-			bool bGraphUpdated = false;
-
-			FMetasoundFrontendClassMetadata AssetClassMetadata = MetaSoundAsset->GetRootGraphHandle()->GetGraphMetadata();
-			AssetClassMetadata.SetType(EMetasoundFrontendClassType::External);
-			const FNodeRegistryKey AssetClassKey = NodeRegistryKey::CreateKey(AssetClassMetadata);
-
-			TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
-			for (UObject* EditedAsset : EditedAssets)
-			{
-				if (FMetasoundAssetBase* EditedMetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(EditedAsset))
-				{
-					const UEdGraph& Graph = EditedMetaSoundAsset->GetGraphChecked();
-					TArray<UMetasoundEditorGraphExternalNode*> ExternalNodes;
-					Graph.GetNodesOfClass<UMetasoundEditorGraphExternalNode>(ExternalNodes);
-					for (UMetasoundEditorGraphExternalNode* Node : ExternalNodes)
-					{
-						FConstNodeHandle NodeHandle = Node->GetConstNodeHandle();
-						const FMetasoundFrontendClassMetadata& ClassMetadata = NodeHandle->GetClassMetadata();
-						const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassMetadata);
-
-						if (AssetClassKey == RegistryKey)
-						{
-							bGraphUpdated = true;
-							Node->bRefreshNode = true;
-						}
-					}
-				}
-			}
-
-			if (bGraphUpdated)
-			{
-				MetaSoundAsset->SetSynchronizationRequired();
-			}
 		}
 
 		bool FGraphBuilder::IsMatchingInputHandleAndPin(const Frontend::FConstInputHandle& InInputHandle, const UEdGraphPin& InEditorPin)
@@ -1491,7 +1443,6 @@ namespace Metasound
 				RefreshPinMetadata(*NewPin, InOutputHandle->GetMetadata());
 			}
 
-			InEditorNode.bRefreshNode = true;
 			return NewPin;
 		}
 
@@ -1634,7 +1585,7 @@ namespace Metasound
 			return bIsGraphDirty;
 		}
 
-		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound)
+		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
 			bool bEditorGraphModified = SynchronizeGraphVertices(InMetaSound);
 			bEditorGraphModified |= SynchronizeNodeMembers(InMetaSound);
@@ -1646,7 +1597,8 @@ namespace Metasound
 				InMetaSound.MarkPackageDirty();
 			}
 
-			const bool bIsValid = FGraphBuilder::ValidateGraph(InMetaSound);
+			bForceRefreshNodes |= bEditorGraphModified;
+			const bool bIsValid = FGraphBuilder::ValidateGraph(InMetaSound, bForceRefreshNodes);
 
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
@@ -1924,7 +1876,6 @@ namespace Metasound
 			if (bRemoveUnusedPins)
 			{
 				bIsNodeDirty |= !EditorPins.IsEmpty();
-				InEditorNode.bRefreshNode |= !EditorPins.IsEmpty();
 				for (UEdGraphPin* Pin : EditorPins)
 				{
 					if (bLogChanges)

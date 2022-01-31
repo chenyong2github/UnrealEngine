@@ -172,6 +172,41 @@ void UMetasoundEditorGraphNode::AllocateDefaultPins()
 	Editor::FGraphBuilder::RebuildNodePins(*this);
 }
 
+void UMetasoundEditorGraphNode::SyncChangeIDs()
+{
+	using namespace Metasound::Frontend;
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+
+	MetadataChangeID = NodeHandle->GetClassMetadata().GetChangeID();
+	InterfaceChangeID = NodeHandle->GetClassInterface().GetChangeID();
+
+}
+
+void UMetasoundEditorGraphNode::CacheTitle()
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	FConstNodeHandle NodeHandle = GetNodeHandle();
+	CachedTitle = NodeHandle->GetDisplayTitle();
+}
+
+bool UMetasoundEditorGraphNode::ContainsMetadataChange() const
+{
+	using namespace Metasound::Frontend;
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+
+	return MetadataChangeID != NodeHandle->GetClassMetadata().GetChangeID();
+}
+
+bool UMetasoundEditorGraphNode::ContainsInterfaceChange() const
+{
+	using namespace Metasound::Frontend;
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+
+	return InterfaceChangeID != NodeHandle->GetClassInterface().GetChangeID();
+}
+
 void UMetasoundEditorGraphNode::ReconstructNode()
 {
 	using namespace Metasound::Editor;
@@ -186,6 +221,8 @@ void UMetasoundEditorGraphNode::ReconstructNode()
 	{
 		FGraphBuilder::SynchronizeNodePins(*this, NodeHandle, false /* bRemoveUnusedPins */, false /* bLogChanges */);
 	}
+
+	CacheTitle();
 }
 
 void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
@@ -244,10 +281,7 @@ FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 
 FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	using namespace Metasound::Frontend;
-
-	FConstNodeHandle NodeHandle = GetNodeHandle();
-	return NodeHandle->GetDisplayTitle();
+	return CachedTitle;
 }
 
 void UMetasoundEditorGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& OutHoverText) const
@@ -641,6 +675,14 @@ bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
 	return bModified;
 }
 
+void UMetasoundEditorGraphExternalNode::ReconstructNode()
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	Super::ReconstructNode();
+}
+
 FMetasoundFrontendVersionNumber UMetasoundEditorGraphExternalNode::FindHighestVersionInRegistry() const
 {
 	return GetConstNodeHandle()->FindHighestVersionInRegistry();
@@ -655,7 +697,34 @@ bool UMetasoundEditorGraphExternalNode::CanAutoUpdate() const
 {
 	using namespace Metasound::Frontend;
 
-	return GetConstNodeHandle()->CanAutoUpdate();
+	FClassInterfaceUpdates InterfaceUpdates;
+	return GetConstNodeHandle()->CanAutoUpdate(InterfaceUpdates);
+}
+
+void UMetasoundEditorGraphExternalNode::CacheTitle()
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	Super::CacheTitle();
+
+	// If version is missing from the registry, then this node will not cache
+	// a useful title.  In that case, just display the next highest available name.
+	if (CachedTitle.IsEmpty())
+	{
+		FMetasoundFrontendClass ClassWithHighestVersion;
+		if (ISearchEngine::Get().FindClassWithHighestVersion(ClassName, ClassWithHighestVersion))
+		{
+			CachedTitle = ClassWithHighestVersion.Metadata.GetDisplayName();
+		}
+	}
+
+	// If that cannot be found, build a title from the cached node registry FName.
+	if (CachedTitle.IsEmpty())
+	{
+		CachedTitle = FText::FromString(ClassName.ToString());
+	}
+
 }
 
 UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
@@ -704,7 +773,6 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 		}
 	}
 
-	bRefreshNode = true;
 	return ReplacementEdNode;
 }
 
@@ -875,27 +943,27 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 			EMessageSeverity::Type Severity;
 
 			const bool bClassVersionExists = SortedClasses.ContainsByPredicate([InCurrentVersion = &CurrentVersion](const FMetasoundFrontendClass& AvailableClass)
-				{
-					return AvailableClass.Metadata.GetVersion() == *InCurrentVersion;
-				});
+			{
+				return AvailableClass.Metadata.GetVersion() == *InCurrentVersion;
+			});
 			if (bClassVersionExists)
 			{
 				NodeMsg = FString::Format(TEXT("Node class '{0} {1}' is prior version: Eligible for upgrade to {2}"),
-					{
-						*Metadata.GetClassName().ToString(),
-						*Metadata.GetVersion().ToString(),
-						*HighestRegistryClass.Metadata.GetVersion().ToString()
-					});
+				{
+					*Metadata.GetClassName().ToString(),
+					*Metadata.GetVersion().ToString(),
+					*HighestRegistryClass.Metadata.GetVersion().ToString()
+				});
 				Severity = EMessageSeverity::Warning;
 			}
 			else
 			{
 				NodeMsg = FString::Format(TEXT("Node class '{0} {1}' is missing and ineligible for auto-update.  Highest version '{2}' found."),
-					{
-						*Metadata.GetClassName().ToString(),
-						*Metadata.GetVersion().ToString(),
-						*HighestRegistryClass.Metadata.GetVersion().ToString()
-					});
+				{
+					*Metadata.GetClassName().ToString(),
+					*Metadata.GetVersion().ToString(),
+					*HighestRegistryClass.Metadata.GetVersion().ToString()
+				});
 				Severity = EMessageSeverity::Error;
 				OutResult.bIsInvalid = true;
 			}
@@ -908,11 +976,11 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 			if (InterfaceUpdates.ContainsChanges())
 			{
 				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
-					FString::Format(TEXT("Node & registered class interface mismatch: '{0} {1}'. Class either versioned improperly, class key collision exists, or AutoUpdate disabled in 'MetaSound' Developer Settings."),
-						{
-							*Metadata.GetClassName().ToString(),
-							*Metadata.GetVersion().ToString()
-						}));
+				FString::Format(TEXT("Node & registered class interface mismatch: '{0} {1}'. Class either versioned improperly, class key collision exists, or AutoUpdate disabled in 'MetaSound' Developer Settings."),
+				{
+					*Metadata.GetClassName().ToString(),
+					*Metadata.GetVersion().ToString()
+				}));
 				OutResult.bIsDirty = true;
 				OutResult.bIsInvalid = true;
 			}
@@ -921,22 +989,17 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		{
 			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
 				FString::Format(TEXT("Node with class '{0} {1}' interface version higher than that of highest minor revision ({2}) in class registry."),
-					{
-						*Metadata.GetClassName().ToString(),
-						*Metadata.GetVersion().ToString(),
-						*HighestRegistryClass.Metadata.GetVersion().ToString()
-					}));
+				{
+					*Metadata.GetClassName().ToString(),
+					*Metadata.GetVersion().ToString(),
+					*HighestRegistryClass.Metadata.GetVersion().ToString()
+				}));
 			OutResult.bIsDirty = true;
 			OutResult.bIsInvalid = true;
 		}
 	}
 
 	return !OutResult.bIsInvalid;
-}
-
-void UMetasoundEditorGraphExternalNode::PostLoad()
-{
-	Super::PostLoad();
 }
 
 FLinearColor UMetasoundEditorGraphExternalNode::GetNodeTitleColor() const

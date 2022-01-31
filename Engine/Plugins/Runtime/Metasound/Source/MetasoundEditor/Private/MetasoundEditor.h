@@ -302,6 +302,7 @@ namespace Metasound
 			void EditObjectSettings();
 
 			void NotifyDocumentVersioned();
+			void NotifyNodePasteFailure_MultipleVariableSetters();
 			void NotifyNodePasteFailure_ReferenceLoop();
 
 			bool IsPlaying() const;

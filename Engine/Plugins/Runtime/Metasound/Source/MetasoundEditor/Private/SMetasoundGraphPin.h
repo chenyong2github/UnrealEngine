@@ -185,9 +185,6 @@ namespace Metasound
 											}
 										}
 
-										// Mark node for refresh in case non-pin widget on node needs updating (ex. sliders, knobs)
-										Node->bRefreshNode = true;
-
 										// Full node synchronization required as custom
 										// node-level widgets may need to be refreshed
 										MetaSoundGraph->SetSynchronizationRequired();

@@ -529,9 +529,13 @@ namespace Metasound
 
 			/** Returns whether the node is eligible for auto-updating (i.e.
 			  * has undergone minor revision or the interface has changed, but
-			  * no higher major revision is available. Optionally provide
-			  * interface updates to be populate with any information regarding interface updates. */
-			virtual bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const = 0;
+			  * no higher major revision is available). Provides interface updates
+			  * to populate with any information regarding interface updates.
+			  * Can return true if the interface has changed but only cosmetic
+			  * differences (ex. DisplayName only used in editor) but no runtime
+			  * behavior has been modified.
+			  */
+			virtual bool CanAutoUpdate(FClassInterfaceUpdates& OutInterfaceUpdates) const = 0;
 
 			/** Description of the given node. */
 			virtual const FText& GetDescription() const = 0;

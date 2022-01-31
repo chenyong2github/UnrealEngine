@@ -276,8 +276,6 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 		UE_LOG(LogMetaSound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
 		Doc.RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
 	}
-
-	MarkMetasoundDocumentDirty();
 }
 
 bool FMetasoundAssetBase::GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const

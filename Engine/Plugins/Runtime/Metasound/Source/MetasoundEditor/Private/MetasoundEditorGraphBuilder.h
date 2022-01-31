@@ -43,7 +43,7 @@ namespace Metasound
 			static void InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetaSound);
 
 			// Validates MetaSound graph.
-			static bool ValidateGraph(UObject& InMetaSound);
+			static bool ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes);
 
 		public:
 			static const FName PinCategoryAudio;
@@ -74,8 +74,6 @@ namespace Metasound
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void UnregisterGraphWithFrontend(UObject& InMetaSound);
-
-			static void MarkEditorNodesReferencingAssetForRefresh(UObject& InMetaSound);
 
 			// Returns a display name for a node. If the node has an empty or whitespace
 			// only DisplayName, then the NodeName is used. 
@@ -210,8 +208,9 @@ namespace Metasound
 
 			// Adds and removes nodes, pins and connections so that the UEdGraph of the MetaSound matches the FMetasoundFrontendDocumentModel
 			//
+			// @param bForceRefreshNodes - Refreshes all transient data stored on editor nodes & redraws them
 			// @return True if the UEdGraph is synchronized and is in valid state, false otherwise.
-			static bool SynchronizeGraph(UObject& InMetaSound);
+			static bool SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes = false);
 
 			// Synchronizes editor nodes with frontend nodes, removing editor nodes that are not represented in the frontend, and adding editor nodes to represent missing frontend nodes.
 			//

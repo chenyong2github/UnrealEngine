@@ -613,7 +613,6 @@ namespace Metasound
 								DefaultFloat->SetDefault(Output);
 								GraphMember->UpdateFrontendDefaultLiteral(bPostTransaction);
 
-								GraphMember->MarkNodesForRefresh();
 								if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
 								{
 									Graph->SetSynchronizationRequired();

@@ -36,7 +36,6 @@ namespace Metasound
 				const bool bCommitChange = InChangeType != EPropertyChangeType::Interactive;
 				if (bCommitChange)
 				{
-					InMember.MarkNodesForRefresh();
 					if (UObject* MetaSound = InMember.GetOutermostObject())
 					{
 						FGraphBuilder::RegisterGraphWithFrontend(*MetaSound);
@@ -59,25 +58,6 @@ UMetasoundEditorGraph* UMetasoundEditorGraphMember::GetOwningGraph()
 const UMetasoundEditorGraph* UMetasoundEditorGraphMember::GetOwningGraph() const
 {
 	return Cast<const UMetasoundEditorGraph>(GetOuter());
-}
-
-void UMetasoundEditorGraphMember::MarkNodesForRefresh()
-{
-	using namespace Metasound;
-
-	UMetasoundEditorGraph* Graph = GetOwningGraph();
-	if (ensure(Graph))
-	{
-		FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&Graph->GetMetasoundChecked());
-		check(MetasoundAsset);
-		MetasoundAsset->SetSynchronizationRequired();
-
-		const TArray<UMetasoundEditorGraphNode*> Nodes = GetNodes();
-		for (UMetasoundEditorGraphNode* Node : Nodes)
-		{
-			Node->bRefreshNode = true;
-		}
-	}
 }
 
 void UMetasoundEditorGraphMember::ConformLiteralDataType()
@@ -219,6 +199,7 @@ FName UMetasoundEditorGraphVertex::GetMemberName() const
 
 void UMetasoundEditorGraphVertex::SetMemberName(const FName& InNewName, bool bPostTransaction)
 {
+	using namespace Metasound;
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
@@ -235,19 +216,9 @@ void UMetasoundEditorGraphVertex::SetMemberName(const FName& InNewName, bool bPo
 
 		GetNodeHandle()->SetNodeName(InNewName);
 
-		const TArray<UMetasoundEditorGraphNode*> Nodes = GetNodes();
-		for (UMetasoundEditorGraphNode* Node : Nodes)
-		{
-			const TArray<UEdGraphPin*>& Pins = Node->GetAllPins();
-			ensure(Pins.Num() == 1);
-
-			for (UEdGraphPin* Pin : Pins)
-			{
-				Pin->PinName = InNewName;
-			}
-		}
-
-		MarkNodesForRefresh();
+		FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&Graph->GetMetasoundChecked());
+		check(MetasoundAsset);
+		MetasoundAsset->SetSynchronizationRequired();
 	}
 
 	NameChanged.Broadcast(NodeID);
@@ -287,8 +258,6 @@ void UMetasoundEditorGraphVertex::SetDisplayName(const FText& InNewName, bool bP
 				Pin->PinFriendlyName = InNewName;
 			}
 		}
-
-		MarkNodesForRefresh();
 	}
 
 	NameChanged.Broadcast(NodeID);
@@ -477,7 +446,6 @@ void UMetasoundEditorGraphMemberDefaultLiteral::PostEditUndo()
 	UMetasoundEditorGraphMember* Member = CastChecked<UMetasoundEditorGraphMember>(GetOuter());
 	Member->UpdateFrontendDefaultLiteral(bPostTransaction);
 
-	Member->MarkNodesForRefresh();
 	if (UMetasoundEditorGraph* Graph = Member->GetOwningGraph())
 	{
 		Graph->SetSynchronizationRequired();
@@ -1178,10 +1146,12 @@ UMetasoundEditorGraphInputNode* UMetasoundEditorGraph::CreateInputNode(Metasound
 			NewInputNode->AllocateDefaultPins();
 		}
 
+		NewInputNode->CacheTitle();
+
 		return NewInputNode;
 	}
 	
-	return nullptr;	
+	return nullptr;
 }
 
 Metasound::Frontend::FDocumentHandle UMetasoundEditorGraph::GetDocumentHandle()
@@ -1513,14 +1483,19 @@ UMetasoundEditorGraphMember* UMetasoundEditorGraph::FindAdjacentMember(const UMe
 	return nullptr;
 }
 
-bool UMetasoundEditorGraph::ContainsInput(UMetasoundEditorGraphInput* InInput) const
+bool UMetasoundEditorGraph::ContainsInput(const UMetasoundEditorGraphInput& InInput) const
 {
-	return Inputs.Contains(InInput);
+	return Inputs.Contains(&InInput);
 }
 
-bool UMetasoundEditorGraph::ContainsOutput(UMetasoundEditorGraphOutput* InOutput) const
+bool UMetasoundEditorGraph::ContainsOutput(const UMetasoundEditorGraphOutput& InOutput) const
 {
-	return Outputs.Contains(InOutput);
+	return Outputs.Contains(&InOutput);
+}
+
+bool UMetasoundEditorGraph::ContainsVariable(const UMetasoundEditorGraphVariable& InVariable) const
+{
+	return Variables.Contains(&InVariable);
 }
 
 void UMetasoundEditorGraph::IterateInputs(TUniqueFunction<void(UMetasoundEditorGraphInput&)> InFunction) const
@@ -1563,6 +1538,21 @@ bool UMetasoundEditorGraph::IsPreviewing() const
 bool UMetasoundEditorGraph::IsEditable() const
 {
 	return GetGraphHandle()->GetGraphStyle().bIsGraphEditable;
+}
+
+void UMetasoundEditorGraph::SetForceRefreshNodes()
+{
+	bForceRefreshNodes = true;
+}
+
+void UMetasoundEditorGraph::ClearForceRefreshNodes()
+{
+	bForceRefreshNodes = false;
+}
+
+bool UMetasoundEditorGraph::RequiresForceRefreshNodes() const
+{
+	return bForceRefreshNodes;
 }
 
 void UMetasoundEditorGraph::IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const
