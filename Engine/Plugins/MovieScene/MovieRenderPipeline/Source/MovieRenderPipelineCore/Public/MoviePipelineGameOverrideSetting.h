@@ -124,4 +124,6 @@ private:
 	int32 PreviousSkyLightRealTimeReflectionCaptureTimeSlice;
 	int32 PreviousVolumetricRenderTarget;
 	int32 PreviousIgnoreStreamingPerformance;
+	int32 PreviousGeoCacheStreamerShowNotification;
+	int32 PreviousGeoCacheStreamerBlockTillFinish;
 };
