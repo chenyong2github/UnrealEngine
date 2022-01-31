@@ -322,6 +322,30 @@ namespace Metasound
 	} // namespace Editor
 } // namespace Metasound
 
+UEdGraphNode* FMetasoundGraphSchemaAction_NodeWithMultipleOutputs::PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode/* = true*/)
+{
+	UEdGraphNode* ResultNode = NULL;
+
+	if (FromPins.Num() > 0)
+	{
+		ResultNode = PerformAction(ParentGraph, FromPins[0], Location, bSelectNewNode);
+
+		if (ResultNode)
+		{
+			// Try autowiring the rest of the pins
+			for (int32 Index = 1; Index < FromPins.Num(); ++Index)
+			{
+				ResultNode->AutowireNewNode(FromPins[Index]);
+			}
+		}
+	}
+	else
+	{
+		ResultNode = PerformAction(ParentGraph, NULL, Location, bSelectNewNode);
+	}
+
+	return ResultNode;
+}
 
 const FSlateBrush* FMetasoundGraphSchemaAction_NewNode::GetIconBrush() const
 {
@@ -382,7 +406,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 }
 
 FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InNodeID, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
-	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGroup)
+	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGroup)
 	, NodeID(InNodeID)
 {
 }
@@ -446,7 +470,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 }
 
 FMetasoundGraphSchemaAction_PromoteToInput::FMetasoundGraphSchemaAction_PromoteToInput()
-	: FMetasoundGraphSchemaAction(
+	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(
 		FText(),
 		LOCTEXT("PromoteToInputName", "Promote To Graph Input"),
 		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph input"),
@@ -503,7 +527,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 }
 
 FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode::FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode()
-	: FMetasoundGraphSchemaAction(
+	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(
 		FText(),
 		LOCTEXT("PromoteToVariableGetterName", "Promote To Graph Variable"),
 		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph variable and creates a getter node"),
@@ -535,7 +559,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode::Perfor
 }
 
 FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode::FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode()
-	: FMetasoundGraphSchemaAction(
+	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(
 		FText(),
 		LOCTEXT("PromoteToVariableDeferredGetterName", "Promote To Graph Variable (Deferred)"),
 		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph variable and creates a deferred getter node"),
@@ -715,7 +739,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGrap
 }
 
 FMetasoundGraphSchemaAction_NewVariableNode::FMetasoundGraphSchemaAction_NewVariableNode(FText InNodeCategory, FText InDisplayName, FGuid InVariableID, FText InToolTip)
-	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), Metasound::Editor::EPrimaryContextGroup::Variables)
+	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), Metasound::Editor::EPrimaryContextGroup::Variables)
 	, VariableID(InVariableID)
 {
 }
