@@ -2341,23 +2341,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	/**
-	 * Helper to perform RDG drain (essentially Execute() for the queued passes so far), and do any tasks that need doing at the start of a new 
-	 * section of RDG setup (currently, restarting deferred culling).
-	 */
-	auto ExecuteDrainPoint = [this, &GraphBuilder, &InstanceCullingManager]()
 	{
-		GraphBuilder.Drain();
-		if (GraphBuilder.IsDrainEnabled())
-		{
-			// This sets up a fresh deferred context that is used by all subsequent culling passes since the previous one is 'used up' by Drain.
-			InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
-		}
-	};
-
-	{
-		ExecuteDrainPoint();
-
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 			InitViewsAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
@@ -2536,8 +2520,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
 
 		CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
-
-		ExecuteDrainPoint();
 	};
 
 	// Early occlusion queries

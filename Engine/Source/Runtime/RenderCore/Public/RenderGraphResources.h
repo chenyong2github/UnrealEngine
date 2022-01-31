@@ -73,9 +73,6 @@ struct FRDGSubresourceState
 	/** The last no-UAV barrier to be used by this subresource. */
 	FRDGViewUniqueFilter NoUAVBarrierFilter;
 
-	/** The graph execution generation to submit this subresource state. */
-	uint8 ExecuteGeneration = 0;
-
 	/** The last used pass for log file debugging. */
 	IF_RDG_ENABLE_DEBUG(mutable FRDGPassHandle LogFilePass);
 };
@@ -270,13 +267,6 @@ public:
 	bool HasBeenProduced() const
 	{
 		return bProduced;
-	}
-
-	/** Marks a resource as excluded from the transient allocator, if it would otherwise be included. */
-	void SetNonTransient()
-	{
-		check(!bTransient);
-		bForceNonTransient = 1;
 	}
 
 protected:

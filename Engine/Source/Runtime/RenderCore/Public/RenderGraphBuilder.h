@@ -278,9 +278,6 @@ public:
 	/** Manually ends the current GPU event scope. */
 	void EndEventScope();
 
-	/** Drains the RDG queue early. All resource lifetimes are extended to the end of the Drain and culling is disabled for any drained passes. */
-	void Drain();
-
 	/** Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction. */
 	void Execute();
 
@@ -289,9 +286,6 @@ public:
 
 	/** Whether RDG is running in immediate mode. */
 	static bool IsImmediateMode();
-
-	/** Whether RDG will actually perform a drain when Drain() is called. */
-	static bool IsDrainEnabled();
 
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
@@ -354,28 +348,28 @@ private:
 
 	void AddProloguePass();
 
-	FORCEINLINE FRDGPassHandle ClampToPrologue(FRDGPassHandle PassHandle, ERHIPipeline Pipeline = ERHIPipeline::Graphics) const
+	FORCEINLINE FRDGPassHandle ClampToPrologue(FRDGPassHandle PassHandle) const
 	{
 		// Preserve null inputs as outputs. Null is the highest value.
-		return ProloguePassHandles[Pipeline].GetIndexUnchecked() > PassHandle.GetIndexUnchecked() ? ProloguePassHandles[Pipeline] : PassHandle;
+		return ProloguePassHandle.GetIndexUnchecked() > PassHandle.GetIndexUnchecked() ? ProloguePassHandle : PassHandle;
 	}
 
 	FORCEINLINE FRDGPassHandlesByPipeline ClampToPrologue(FRDGPassHandlesByPipeline PassHandles) const
 	{
-		PassHandles[ERHIPipeline::Graphics]     = ClampToPrologue(PassHandles[ERHIPipeline::Graphics],     ERHIPipeline::Graphics);
-		PassHandles[ERHIPipeline::AsyncCompute] = ClampToPrologue(PassHandles[ERHIPipeline::AsyncCompute], ERHIPipeline::AsyncCompute);
+		PassHandles[ERHIPipeline::Graphics]     = ClampToPrologue(PassHandles[ERHIPipeline::Graphics]);
+		PassHandles[ERHIPipeline::AsyncCompute] = ClampToPrologue(PassHandles[ERHIPipeline::AsyncCompute]);
 		return PassHandles;
 	}
 
-	FORCEINLINE FRDGPass* GetProloguePass(ERHIPipeline Pipeline = ERHIPipeline::Graphics) const
+	FORCEINLINE FRDGPass* GetProloguePass() const
 	{
-		return ProloguePasses[Pipeline];
+		return ProloguePass;
 	}
 
 	/** Returns the graph prologue pass handle. */
-	FORCEINLINE FRDGPassHandle GetProloguePassHandle(ERHIPipeline Pipeline = ERHIPipeline::Graphics) const
+	FORCEINLINE FRDGPassHandle GetProloguePassHandle() const
 	{
-		return ProloguePassHandles[Pipeline];
+		return ProloguePassHandle;
 	}
 
 	/** Returns the graph epilogue pass handle. */
@@ -456,9 +450,6 @@ private:
 	FRDGViewRegistry Views;
 	FRDGUniformBufferRegistry UniformBuffers;
 
-	FRDGPassBitArray PassesOnAsyncCompute;
-	TArray<FRDGPassHandle, TInlineAllocator<8, FRDGArrayAllocator>> PassesOnAsyncComputeToJoin;
-
 	/** Uniform buffers which were used in a pass. */
 	TArray<FRDGUniformBufferHandle, TInlineAllocator<32, FRDGArrayAllocator>> UniformBuffersToCreate;
 
@@ -478,8 +469,8 @@ private:
 	 *  the graph for culling purposes. The epilogue pass is added to the very end of the pass array for traversal
 	 *  purposes. The prologue does not need to participate in any graph traversal behavior.
 	 */
-	FRDGPassHandlesByPipeline ProloguePassHandles;
-	FRDGPassesByPipeline ProloguePasses;
+	FRDGPassHandle ProloguePassHandle;
+	FRDGPass* ProloguePass = nullptr;
 	FRDGPass* EpiloguePass = nullptr;
 
 	struct FExtractedTexture
@@ -576,7 +567,6 @@ private:
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
-	uint32 ParallelPassSetsOffset = 0;
 
 	/** Array of all active parallel execute tasks. */
 	FGraphEventArray ParallelExecuteEvents;
@@ -624,21 +614,13 @@ private:
 
 	uint32 AsyncComputePassCount = 0;
 	uint32 RasterPassCount = 0;
-	uint32 ExecuteGeneration = 0;
 
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatScope);
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatState);
 
 	IRHITransientResourceAllocator* TransientResourceAllocator = nullptr;
 
-	enum class EExecuteMode
-	{
-		Drain,
-		Final
-	};
-
-	void Execute(EExecuteMode ExecuteMode);
-	void Compile(EExecuteMode ExecuteMode);
+	void Compile();
 	void Clear();
 
 	void BeginResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle ExecutePassHandle);
@@ -711,11 +693,6 @@ private:
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;
 
 	FRDGSubresourceState* AllocSubresource(const FRDGSubresourceState& Other);
-
-	inline void ExtendPassBitArray(FRDGPassBitArray& BitArray, bool bValue) const
-	{
-		BitArray.Insert(bValue, BitArray.Num(), Passes.Num() - BitArray.Num());
-	}
 
 #if RDG_DUMP_RESOURCES
 	void DumpResourcePassOutputs(const FRDGPass* Pass);
