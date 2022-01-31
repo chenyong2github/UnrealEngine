@@ -73,7 +73,12 @@ public:
 	int Seed = 42;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<FName> ExclusionTags;
+	TSet<FName> ExcludedTags;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FName> ExclusionTags_DEPRECATED;
+#endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	bool bActivated = true;
@@ -101,7 +106,7 @@ public:
 
 #if WITH_EDITOR
 	void Refresh();
-	void DirtyGenerated(bool bInDirtyCachedInput = false, bool bInDirtyCachedExclusions = false);
+	void DirtyGenerated(bool bInDirtyCachedInput = false);
 #endif
 
 	bool IsPartitioned() const;
@@ -118,7 +123,7 @@ private:
 	UPCGData* GetActorPCGData();
 	UPCGData* CreateActorPCGData();
 	UPCGData* CreateActorPCGData(AActor* Actor);
-	TArray<UPCGData*> CreatePCGExclusionData();
+	void UpdatePCGExclusionData();
 
 	UPCGSubsystem* GetSubsystem() const;
 	bool ShouldGenerate(bool bForce = false) const;
@@ -126,18 +131,22 @@ private:
 	void CleanupInternal(bool bRemoveComponents);
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
 
+	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors);
+
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 
+	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh);
 	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural);
 
 	void SetupActorCallbacks();
 	void TeardownActorCallbacks();
-	void SetupExclusionCallbacks();
-	void TeardownExclusionCallbacks();	
+	void SetupTrackingCallbacks();
+	void TeardownTrackingCallbacks();
+	void RefreshTrackingData();
 
 	void OnActorAdded(AActor* InActor);
 	void OnActorDeleted(AActor* InActor);
@@ -145,15 +154,7 @@ private:
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	bool ActorHasExcludedTag(AActor* InActor) const;
 	bool ActorIsTracked(AActor* InActor) const;
-
-	enum class EExcludedActorChange
-	{
-		Added = 0,
-		Deleted,
-		Changed
-	};
-
-	void UpdateExcludedActor(AActor* InActor, EExcludedActorChange Change);
+	void DirtyExclusionData(AActor* InActor);
 #endif
 
 	FBox GetGridBounds() const;
@@ -166,7 +167,10 @@ private:
 	UPCGData* CachedActorData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	TArray<UPCGData*> CachedExclusionData;
+	TMap<AActor*, UPCGData*> CachedExclusionData;
+
+	UPROPERTY()
+	TSet<TWeakObjectPtr<AActor>> CachedExcludedActors; 
 
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
@@ -175,5 +179,11 @@ private:
 	bool bIsGenerating = false;
 	bool bWasGeneratedPriorToUndo = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
+	TSet<FName> CachedTrackedActorTags;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors;
 #endif
 };

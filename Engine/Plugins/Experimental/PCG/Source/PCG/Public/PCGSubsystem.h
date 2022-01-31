@@ -58,7 +58,7 @@ public:
 	void CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
 
 	/** Immediately dirties the partition actors in the given bounds */
-	void DirtyGraph(UPCGComponent* Component, const FBox& InBounds, bool bDirtyInputs, bool bDirtyExclusions);
+	void DirtyGraph(UPCGComponent* Component, const FBox& InBounds, bool bDirtyInputs);
 
 	/** Partition actors methods */
 	void CleanupPartitionActors(const FBox& InBounds);
