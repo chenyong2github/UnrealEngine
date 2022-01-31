@@ -13,6 +13,7 @@
 #include "Chaos/ChaosScene.h"
 #include "Chaos/ContactModification.h"
 #include "Chaos/Real.h"
+#include "UObject/ObjectKey.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
