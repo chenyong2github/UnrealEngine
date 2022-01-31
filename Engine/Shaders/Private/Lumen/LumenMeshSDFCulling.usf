@@ -76,8 +76,8 @@ void CullHeightfieldObjectsForViewCS(
 				int LocalCardIndex = LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX;
 				FLumenCardData LumenCardData = GetLumenCardData(MeshCardsData.CardOffset + LocalCardIndex);
 
-				float MaxCullingDistance = length(LumenCardData.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) + length(LumenCardData.LocalExtent);
-				bShouldKeep = MaxCullingDistance < CardTraceEndDistanceFromCamera;
+				float DistanceFromCameraSq = LengthSq(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - LumenCardData.Origin) - LengthSq(LumenCardData.LocalExtent);
+				bShouldKeep = DistanceFromCameraSq < CardTraceEndDistanceFromCamera * CardTraceEndDistanceFromCamera;
 			}
 		}
 	}
