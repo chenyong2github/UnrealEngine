@@ -36,7 +36,7 @@ struct FEngineShowFlags;
 struct FLandscapeEditDataInterface;
 struct FLandscapeTextureDataInfo;
 struct FStaticLightingPrimitiveInfo;
-
+struct FMeshDescription;
 struct FLandscapeEditDataInterface;
 struct FLandscapeMobileRenderData;
 
@@ -864,6 +864,9 @@ public:
 
 	/** Generate mobile data if it's missing or outdated */
 	void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+
+	LANDSCAPE_API void ExportToMeshDescription(const int32 InExportLOD, FMeshDescription& OutMesh);
+	LANDSCAPE_API void ExportToMeshDescription(const int32 InExportLOD, const FBoxSphereBounds& InBounds, FMeshDescription& OutMesh);
 #endif
 
 	LANDSCAPE_API int32 GetMaterialInstanceCount(bool InDynamic = true) const;
