@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorFactoryMediaPlate.h"
+
 #include "MediaSource.h"
 #include "MediaPlate.h"
 
@@ -30,6 +31,33 @@ bool UActorFactoryMediaPlate::CanCreateActorFrom(const FAssetData& AssetData, FT
 	else
 	{
 		return true;
+	}
+}
+
+void UActorFactoryMediaPlate::PostSpawnActor(UObject* Asset, AActor* NewActor)
+{
+	Super::PostSpawnActor(Asset, NewActor);
+
+	SetUpActor(Asset, NewActor);
+}
+
+void UActorFactoryMediaPlate::PostCreateBlueprint(UObject* Asset, AActor* CDO)
+{
+	SetUpActor(Asset, CDO);
+}
+
+void UActorFactoryMediaPlate::SetUpActor(UObject* Asset, AActor* Actor)
+{
+	if (Actor != nullptr)
+	{
+		AMediaPlate* MediaPlate = CastChecked<AMediaPlate>(Actor);
+
+		// Hook up media source.
+		UMediaSource* MediaSource = Cast<UMediaSource>(Asset);
+		if (MediaSource != nullptr)
+		{
+			MediaPlate->MediaSource = MediaSource;
+		}
 	}
 }
 
