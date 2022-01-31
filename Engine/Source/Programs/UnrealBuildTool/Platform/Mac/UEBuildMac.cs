@@ -33,6 +33,13 @@ namespace UnrealBuildTool
 		[CommandLine("-EnableUBSan")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableUndefinedBehaviorSanitizer")]
 		public bool bEnableUndefinedBehaviorSanitizer = false;
+
+		/// <summary>
+		/// Enables the generation of .dsym files. This can be disabled to enable faster iteration times during development.
+		/// </summary>
+		[CommandLine("-NoDSYM", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bUseDSYMFiles")]
+		public bool bUseDSYMFiles = true;
 	}
 
 	/// <summary>
@@ -129,6 +136,7 @@ namespace UnrealBuildTool
 			Target.GlobalDefinitions.Add("GL_SILENCE_DEPRECATION=1");
 
 			Target.bUsePDBFiles = !Target.bDisableDebugInfo && ShouldCreateDebugInfo(new ReadOnlyTargetRules(Target));
+			Target.bUsePDBFiles &= Target.MacPlatform.bUseDSYMFiles;
 
 			// we always deploy - the build machines need to be able to copy the files back, which needs the full bundle
 			Target.bDeployAfterCompile = true;
