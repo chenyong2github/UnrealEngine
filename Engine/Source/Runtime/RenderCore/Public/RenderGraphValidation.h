@@ -48,7 +48,6 @@ public:
 	void ValidateRegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		const TCHAR* Name,
-		ERenderTargetTexture RenderTargetTexture,
 		ERDGTextureFlags Flags);
 
 	void ValidateRegisterExternalBuffer(

@@ -476,7 +476,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 				};
 
 				// Hijack the render target
-				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.ConvertToExternalTexture(FlippedOutputTexture)->GetTargetableRHI()->GetTexture2D();
+				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.ConvertToExternalTexture(FlippedOutputTexture)->GetRHI()->GetTexture2D();
 				SceneRenderer->ViewFamily.RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
 			}
 

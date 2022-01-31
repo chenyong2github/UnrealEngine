@@ -186,18 +186,15 @@ void ClearUnusedGraphResources(
 RENDERCORE_API FRDGTextureRef RegisterExternalTextureWithFallback(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
-	ERenderTargetTexture ExternalTexture = ERenderTargetTexture::ShaderResource,
-	ERenderTargetTexture FallbackTexture = ERenderTargetTexture::ShaderResource);
+	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture);
 
 /** Variants of RegisterExternalTexture which will returns null (rather than assert) if the external texture is null. */
 inline FRDGTextureRef TryRegisterExternalTexture(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	ERenderTargetTexture RenderTargetTexture = ERenderTargetTexture::ShaderResource,
 	ERDGTextureFlags Flags = ERDGTextureFlags::None)
 {
-	return ExternalPooledTexture ? GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, RenderTargetTexture, Flags) : nullptr;
+	return ExternalPooledTexture ? GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, Flags) : nullptr;
 }
 
 /** Variants of RegisterExternalBuffer which will return null (rather than assert) if the external buffer is null. */
@@ -263,29 +260,6 @@ RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 	FRDGTextureDesc Desc,
 	const TCHAR* Name,
 	ETextureCreateFlags ResolveFlagsToAdd = TexCreate_None);
-
-inline FRDGTextureMSAA RegisterExternalTextureMSAA(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
-{
-	return FRDGTextureMSAA(
-		GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, ERenderTargetTexture::Targetable),
-		GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, ERenderTargetTexture::ShaderResource));
-}
-
-inline FRDGTextureMSAA TryRegisterExternalTextureMSAA(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
-{
-	return FRDGTextureMSAA(
-		TryRegisterExternalTexture(GraphBuilder, ExternalPooledTexture, ERenderTargetTexture::Targetable),
-		TryRegisterExternalTexture(GraphBuilder, ExternalPooledTexture, ERenderTargetTexture::ShaderResource));
-}
-
-RENDERCORE_API FRDGTextureMSAA RegisterExternalTextureMSAAWithFallback(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture);
 
 /** All utils for compute shaders.
  */
@@ -1181,6 +1155,13 @@ RENDERCORE_API bool GetPooledFreeBuffer(
 	TRefCountPtr<FRDGPooledBuffer>& Out,
 	const TCHAR* InDebugName);
 
+RENDERCORE_API bool AllocatePooledTexture(
+	const FRDGTextureDesc& Desc,
+	TRefCountPtr<IPooledRenderTarget>& Out,
+	const TCHAR* Name);
+
+RENDERCORE_API TRefCountPtr<IPooledRenderTarget> AllocatePooledTexture(const FRDGTextureDesc& Desc, const TCHAR* Name);
+
 //////////////////////////////////////////////////////////////////////////
 //! Deprecated Functions
 
@@ -1214,6 +1195,56 @@ inline void ConvertToUntrackedExternalBuffer(
 	ERHIAccess AccessFinal)
 {
 	OutPooledBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, Buffer, AccessFinal);
+}
+
+UE_DEPRECATED(5.0, "RegisterExternalTextureWithFallback no longer requires ERenderTargetTexture")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+inline FRDGTextureRef RegisterExternalTextureWithFallback(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
+	ERenderTargetTexture ExternalTexture,
+	ERenderTargetTexture FallbackTexture = ERenderTargetTexture::ShaderResource)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	return RegisterExternalTextureWithFallback(GraphBuilder, ExternalPooledTexture, FallbackPooledTexture);
+}
+
+UE_DEPRECATED(5.0, "TryRegisterExternalTexture no longer requires ERenderTargetTexture")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+inline FRDGTextureRef TryRegisterExternalTexture(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	ERenderTargetTexture RenderTargetTexture,
+	ERDGTextureFlags Flags = ERDGTextureFlags::None)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	return ExternalPooledTexture ? GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, Flags) : nullptr;
+}
+
+UE_DEPRECATED(5.0, "RegisterExternalTextureMSAA with a single pooled render target is no longer supported.")
+inline FRDGTextureMSAA RegisterExternalTextureMSAA(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
+{
+	return FRDGTextureMSAA();
+}
+
+UE_DEPRECATED(5.0, "RegisterExternalTextureMSAA with a single pooled render target is no longer supported.")
+inline FRDGTextureMSAA TryRegisterExternalTextureMSAA(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
+{
+	return FRDGTextureMSAA();
+}
+
+UE_DEPRECATED(5.0, "RegisterExternalTextureMSAAWithFallback is no longer supported.")
+inline FRDGTextureMSAA RegisterExternalTextureMSAAWithFallback(
+	FRDGBuilder& GraphBuilder,
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture)
+{
+	return FRDGTextureMSAA();
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -644,17 +644,17 @@ float GetSubsurfaceProfileId(const USubsurfaceProfile* In)
 
 FRHITexture* GetSubsurfaceProfileTexture()
 {
-	return GSSProfiles ? GSSProfiles->GetShaderResourceRHI() : nullptr;
+	return GSSProfiles ? GSSProfiles->GetRHI() : nullptr;
 }
 
 FRHITexture* GetSubsurfaceProfileTextureWithFallback()
 {
-	return GSSProfiles ? GSSProfiles->GetShaderResourceRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
+	return GSSProfiles ? GSSProfiles->GetRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
 }
 
 FRHITexture* GetSSProfilesPreIntegratedTextureWithFallback()
 {
-	return GSSProfilesPreIntegratedTexture ? GSSProfilesPreIntegratedTexture->GetShaderResourceRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
+	return GSSProfilesPreIntegratedTexture ? GSSProfilesPreIntegratedTexture->GetRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
 }
 
 void UpdateSubsurfaceProfileTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform)

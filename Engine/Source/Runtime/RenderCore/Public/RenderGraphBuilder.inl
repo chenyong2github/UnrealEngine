@@ -11,11 +11,11 @@ inline FRDGTextureRef FRDGBuilder::FindExternalTexture(FRHITexture* ExternalText
 	return nullptr;
 }
 
-inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* ExternalTexture, ERenderTargetTexture Texture) const
+inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* ExternalTexture) const
 {
 	if (ExternalTexture)
 	{
-		return FindExternalTexture(ExternalTexture->GetRenderTargetItem().GetRHI(Texture));
+		return FindExternalTexture(ExternalTexture->GetRHI());
 	}
 	return nullptr;
 }
@@ -39,7 +39,7 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	OverrideDesc.Extent.Y = FMath::Clamp(OverrideDesc.Extent.Y, 1, GetMax2DTextureDimension());
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(OverrideDesc, Name, Flags));
-	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, OverrideDesc, Flags, ERenderTargetTexture::ShaderResource);
+	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, OverrideDesc, Flags);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
 	IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
 	return Texture;

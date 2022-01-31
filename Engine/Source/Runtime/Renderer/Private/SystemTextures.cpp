@@ -22,7 +22,7 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 {
 	const auto Register = [&](const TRefCountPtr<IPooledRenderTarget>& RenderTarget)
 	{
-		return TryRegisterExternalTexture(GraphBuilder, RenderTarget, ERenderTargetTexture::ShaderResource, ERDGTextureFlags::ReadOnly);
+		return TryRegisterExternalTexture(GraphBuilder, RenderTarget, ERDGTextureFlags::ReadOnly);
 	};
 
 	auto& SystemTextures = GraphBuilder.Blackboard.Create<FRDGSystemTextures>();
@@ -104,7 +104,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 	// Create a WhiteDummy texture
 	{
 		WhiteDummy = CreateRenderTarget(GWhiteTexture->TextureRHI, TEXT("WhiteDummy"));
-		WhiteDummySRV = RHICreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetShaderResourceRHI(), 0);
+		WhiteDummySRV = RHICreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetRHI(), 0);
 	}
 
 	// Create a BlackDummy texture
@@ -211,7 +211,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8_UINT, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		SetDummyTextureData<FColor>(Texture2D, FColor::White);
 		StencilDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
-		StencilDummySRV = RHICreateShaderResourceView((FRHITexture2D*)StencilDummy->GetShaderResourceRHI(), 0);
+		StencilDummySRV = RHICreateShaderResourceView((FRHITexture2D*)StencilDummy->GetRHI(), 0);
 	}
 
 	if (GPixelFormats[PF_FloatRGBA].Supported)
@@ -272,7 +272,6 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-		Desc.AutoWritable = false;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HairLUT0, TEXT("HairLUT0"));
 
 		// Init with dummy textures. The texture will be initialize with real values if needed

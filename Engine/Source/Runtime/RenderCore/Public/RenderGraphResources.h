@@ -37,6 +37,10 @@ struct FRDGSubresourceState
 
 	FRDGSubresourceState() = default;
 
+	explicit FRDGSubresourceState(ERHIAccess InAccess)
+		: Access(InAccess)
+	{}
+
 	/** Initializes the first and last pass and the pipeline. Clears any other pass state. */
 	void SetPass(ERHIPipeline Pipeline, FRDGPassHandle PassHandle);
 
@@ -382,19 +386,27 @@ private:
 };
 
 /** Translates from a pooled render target descriptor to an RDG texture descriptor. */
-inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture = ERenderTargetTexture::Targetable);
+inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc);
 
 /** Translates from an RDG texture descriptor to a pooled render target descriptor. */
 inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc);
+
+UE_DEPRECATED(5.0, "Translate with ERenderTargetTexture is deprecated. Please use the single parameter variant.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	return Translate(InDesc);
+}
 
 class RENDERCORE_API FRDGPooledTexture final
 	: public FRefCountedObject
 {
 public:
-	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout)
+	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout, ERHIAccess AccessInitial = ERHIAccess::Unknown)
 		: Texture(InTexture)
 	{
-		Reset();
+		InitAsWholeResource(State, FRDGSubresourceState(AccessInitial));
 	}
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
@@ -476,11 +488,10 @@ public:
 	FRDGTextureSubresourceRange GetSubresourceRangeSRV() const;
 
 private:
-	FRDGTexture(const TCHAR* InName, const FRDGTextureDesc& InDesc, ERDGTextureFlags InFlags, ERenderTargetTexture InRenderTargetTexture)
+	FRDGTexture(const TCHAR* InName, const FRDGTextureDesc& InDesc, ERDGTextureFlags InFlags)
 		: FRDGParentResource(InName, ERDGParentResourceType::Texture)
 		, Desc(InDesc)
 		, Flags(InFlags)
-		, RenderTargetTexture(InRenderTargetTexture)
 		, Layout(InDesc)
 		, WholeRange(Layout)
 		, SubresourceCount(Layout.GetSubresourceCount())
@@ -516,9 +527,6 @@ private:
 		check(State);
 		return *State;
 	}
-
-	/** Describes which RHI texture this RDG texture represents on a pooled texture. Must be default unless the texture is externally registered. */
-	const ERenderTargetTexture RenderTargetTexture;
 
 	/** The next texture to own the PooledTexture allocation during execution. */
 	FRDGTextureHandle NextOwner;

@@ -170,8 +170,6 @@ void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
 				)
 			);
 
-		Desc.AutoWritable = false;
-	
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		// Allocate TextureCubeArray for the scene's reflection captures

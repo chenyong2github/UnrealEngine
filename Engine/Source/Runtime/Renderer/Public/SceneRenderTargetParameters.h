@@ -163,7 +163,7 @@ public:
 
 	FRHITexture* GetDepthTexture() const
 	{
-		return Depth ? Depth->GetShaderResourceRHI() : nullptr;
+		return Depth ? Depth->GetRHI() : nullptr;
 	}
 
 	void QueueExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);

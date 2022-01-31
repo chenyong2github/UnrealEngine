@@ -160,18 +160,16 @@ void ClearUnusedGraphResourcesImpl(
 FRDGTextureRef RegisterExternalTextureWithFallback(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
-	ERenderTargetTexture ExternalTexture,
-	ERenderTargetTexture FallbackTexture)
+	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture)
 {
 	ensureMsgf(FallbackPooledTexture.IsValid(), TEXT("RegisterExternalTextureWithDummyFallback() requires a valid fallback pooled texture."));
 	if (ExternalPooledTexture.IsValid())
 	{
-		return GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, ExternalTexture);
+		return GraphBuilder.RegisterExternalTexture(ExternalPooledTexture);
 	}
 	else
 	{
-		return GraphBuilder.RegisterExternalTexture(FallbackPooledTexture, FallbackTexture);
+		return GraphBuilder.RegisterExternalTexture(FallbackPooledTexture);
 	}
 }
 
@@ -200,22 +198,6 @@ RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 	}
 
 	return Texture;
-}
-
-FRDGTextureMSAA RegisterExternalTextureMSAAWithFallback(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture)
-{
-	ensureMsgf(FallbackPooledTexture.IsValid(), TEXT("RegisterExternalTextureWithDummyFallback() requires a valid fallback pooled texture."));
-	if (ExternalPooledTexture.IsValid())
-	{
-		return RegisterExternalTextureMSAA(GraphBuilder, ExternalPooledTexture);
-	}
-	else
-	{
-		return RegisterExternalTextureMSAA(GraphBuilder, FallbackPooledTexture);
-	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
@@ -976,4 +958,14 @@ bool GetPooledFreeBuffer(
 	// New allocation.
 	Out = GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, InDebugName);
 	return true;
+}
+
+bool AllocatePooledTexture(const FRDGTextureDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name)
+{
+	return GRenderTargetPool.FindFreeElement(Desc, Out, Name);
+}
+
+TRefCountPtr<IPooledRenderTarget> AllocatePooledTexture(const FRDGTextureDesc& Desc, const TCHAR* Name)
+{
+	return GRenderTargetPool.FindFreeElement(Desc, Name);
 }

@@ -524,7 +524,7 @@ FTAAOutputs AddTemporalAAPass(
 				TexCreate_ShaderResource | TexCreate_UAV | GFastVRamConfig.Downsample);
 			const TRefCountPtr<IPooledRenderTarget>& PrevFrameHalfResTAAHistory = View.PrevViewInfo.HalfResTemporalAAHistory;
 
-			if (PrevFrameHalfResTAAHistory && Translate(PrevFrameHalfResTAAHistory->GetDesc(), ERenderTargetTexture::ShaderResource) == HalfResSceneColorDesc)
+			if (PrevFrameHalfResTAAHistory && Translate(PrevFrameHalfResTAAHistory->GetDesc()) == HalfResSceneColorDesc)
 			{
 				Outputs.DownsampledSceneColor = GraphBuilder.RegisterExternalTexture(PrevFrameHalfResTAAHistory);
 			}

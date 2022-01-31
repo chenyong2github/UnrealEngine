@@ -832,7 +832,7 @@ void FVisualizeTexture::SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTa
 
 	const FPooledRenderTargetDesc& Desc = PooledRenderTarget->GetDesc();
 
-	if (!EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_ShaderResource))
+	if (!EnumHasAnyFlags(Desc.Flags, TexCreate_ShaderResource))
 	{
 		return;
 	}
@@ -843,7 +843,7 @@ void FVisualizeTexture::SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTa
 		return;
 	}
 
-	FRDGTextureRef TextureToCapture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::Targetable);
+	FRDGTextureRef TextureToCapture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget);
 	CreateContentCapturePass(GraphBuilder, TextureToCapture, CaptureId.GetValue());
 }
 

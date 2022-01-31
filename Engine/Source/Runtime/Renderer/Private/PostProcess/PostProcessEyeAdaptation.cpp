@@ -474,7 +474,7 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 	View.UpdateEyeAdaptationLastExposureFromTexture();
 	View.SwapEyeAdaptationTextures();
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
+	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERDGTextureFlags::MultiFrame);
 
 	FEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEyeAdaptationCS::FParameters>();
 	PassParameters->EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
@@ -636,7 +636,7 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
+	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERDGTextureFlags::MultiFrame);
 
 	FBasicEyeAdaptationShader::FParameters PassBaseParameters;
 	PassBaseParameters.View = View.ViewUniformBuffer;
@@ -781,7 +781,7 @@ void FSceneViewState::FEyeAdaptationManager::EnqueueExposureTextureReadback(FRDG
 	
 	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
 	{
-		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERenderTargetTexture::ShaderResource, ERDGTextureFlags::MultiFrame);
+		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERDGTextureFlags::MultiFrame);
 
 		FRHIGPUTextureReadback* ExposureReadbackTexture = ExposureReadbackTextures[ReadbackBuffersWriteIndex];
 
@@ -816,7 +816,7 @@ const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager:
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
-			Desc.TargetableFlags |= TexCreate_UAV;
+			Desc.Flags |= TexCreate_UAV;
 		}
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[TextureIndex], TEXT("EyeAdaptation"));
 	}

@@ -831,7 +831,7 @@ void AddAmbientOcclusionPass(
 
 	SharedParameters.SSAO_Sampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	SharedParameters.RandomNormalTexture = GSystemTextures.SSAORandomization->GetShaderResourceRHI();
+	SharedParameters.RandomNormalTexture = GSystemTextures.SSAORandomization->GetRHI();
 	SharedParameters.RandomNormalTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 	FRDGEventName EventName(TEXT("AmbientOcclusion%s %dx%d SetupAsInput=%d Upsample=%d ShaderQuality=%d"),

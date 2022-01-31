@@ -75,7 +75,7 @@ FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FSceneVi
 {
 	if (View.HasValidEyeAdaptationTexture())
 	{
-		return GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
+		return GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(), ERDGTextureFlags::MultiFrame);
 	}
 	else
 	{

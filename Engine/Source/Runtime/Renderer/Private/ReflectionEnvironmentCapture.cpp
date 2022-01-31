@@ -128,7 +128,7 @@ void FReflectionScratchCubemaps::Allocate(FRHICommandList& RHICmdList, uint32 Ta
 	{
 		const int32 NumReflectionCaptureMips = FMath::CeilLogTwo(TargetSize) + 1;
 
-		if (Color[0] && Color[0]->GetTargetableRHI()->GetNumMips() != NumReflectionCaptureMips)
+		if (Color[0] && Color[0]->GetRHI()->GetNumMips() != NumReflectionCaptureMips)
 		{
 			Color[0].SafeRelease();
 			Color[1].SafeRelease();
@@ -187,8 +187,8 @@ void FReflectionScratchCubemaps::Release()
 void FullyResolveReflectionScratchCubes(FRHICommandListImmediate& RHICmdList)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, FullyResolveReflectionScratchCubes);
-	FRHITexture* Scratch0 = GReflectionScratchCubemaps.Color[0]->GetTargetableRHI();
-	FRHITexture* Scratch1 = GReflectionScratchCubemaps.Color[1]->GetTargetableRHI();
+	FRHITexture* Scratch0 = GReflectionScratchCubemaps.Color[0]->GetRHI();
+	FRHITexture* Scratch1 = GReflectionScratchCubemaps.Color[1]->GetRHI();
 	FResolveParams ResolveParams(FResolveRect(), CubeFace_PosX, -1, -1, -1);
 	RHICmdList.CopyToResolveTarget(Scratch0, Scratch0, ResolveParams);
 	RHICmdList.CopyToResolveTarget(Scratch1, Scratch1, ResolveParams);  
@@ -362,7 +362,7 @@ float ComputeSingleAverageBrightnessFromCubemap(FRHICommandListImmediate& RHICmd
 	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionBrightnessTarget, TEXT("ReflectionBrightness"));
 
-	FRHITexture* BrightnessTarget = ReflectionBrightnessTarget->GetTargetableRHI();
+	FRHITexture* BrightnessTarget = ReflectionBrightnessTarget->GetRHI();
 
 	FRHIRenderPassInfo RPInfo(BrightnessTarget, ERenderTargetActions::Load_Store);
 	TransitionRenderPassTargets(RHICmdList, RPInfo);

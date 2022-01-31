@@ -176,7 +176,7 @@ void TrackLandscapeRDGTextures(FRDGBuilder& GraphBuilder, TMap<FTexture2DResourc
 
 		// Force tracking on the external texture if necessary, so that it can be copied from/to via CopyTexture within the graph : 
 		ERDGTextureFlags TextureFlags = (TrackedTexture.bNeedsForceTracking || TrackedTexture.bNeedsScratch) ? ERDGTextureFlags::ForceTracking : ERDGTextureFlags::ReadOnly;
-		TrackedTexture.ExternalTextureRef = GraphBuilder.RegisterExternalTexture(RenderTarget, **TrackedTexture.DebugName, ERenderTargetTexture::ShaderResource, TextureFlags);
+		TrackedTexture.ExternalTextureRef = GraphBuilder.RegisterExternalTexture(RenderTarget, **TrackedTexture.DebugName, TextureFlags);
 
 		if (TrackedTexture.bNeedsScratch)
 		{

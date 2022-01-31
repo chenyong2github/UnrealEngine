@@ -70,9 +70,15 @@ public:
 	FPooledRenderTargetDesc()
 		: PackedBits(0)
 	{
-		AutoWritable = true;
 		check(!IsValid());
 	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FPooledRenderTargetDesc(const FPooledRenderTargetDesc&) = default;
+	FPooledRenderTargetDesc(FPooledRenderTargetDesc&&) = default;
+	FPooledRenderTargetDesc& operator=(const FPooledRenderTargetDesc&) = default;
+	FPooledRenderTargetDesc& operator=(FPooledRenderTargetDesc&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Factory function to create 2D texture description
@@ -103,13 +109,8 @@ public:
 		NewDesc.NumMips = InNumMips;
 		NewDesc.NumSamples = 1;
 		NewDesc.Format = InFormat;
-		NewDesc.Flags = InFlags;
-		NewDesc.TargetableFlags = InTargetableFlags;
-		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.Flags = InFlags | InTargetableFlags;
 		NewDesc.DebugName = TEXT("UnknownTexture2D");
-		NewDesc.AutoWritable = InAutowritable;
-		NewDesc.bCreateRenderTargetWriteMask = InCreateRTWriteMask;
-		NewDesc.bCreateRenderTargetFmask = InCreateFmask;
 		check(NewDesc.Is2DTexture());
 		return NewDesc;
 	}
@@ -144,13 +145,8 @@ public:
 		NewDesc.NumMips = InNumMips;
 		NewDesc.NumSamples = 1;
 		NewDesc.Format = InFormat;
-		NewDesc.Flags = InFlags;
-		NewDesc.TargetableFlags = InTargetableFlags;
-		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.Flags = InFlags | InTargetableFlags;
 		NewDesc.DebugName = TEXT("UnknownTexture2DArray");
-		NewDesc.AutoWritable = InAutowritable;
-		NewDesc.bCreateRenderTargetWriteMask = InCreateRTWriteMask;
-		NewDesc.bCreateRenderTargetFmask = InCreateFmask;
 		check(NewDesc.Is2DTexture());
 
 		return NewDesc;
@@ -185,11 +181,8 @@ public:
 		NewDesc.NumMips = InNumMips;
 		NewDesc.NumSamples = 1;
 		NewDesc.Format = InFormat;
-		NewDesc.Flags = InFlags;
-		NewDesc.TargetableFlags = InTargetableFlags;
-		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.Flags = InFlags | InTargetableFlags;
 		NewDesc.DebugName = TEXT("UnknownTextureVolume");
-		NewDesc.AutoWritable = InAutowritable;
 		check(NewDesc.Is3DTexture());
 		return NewDesc;
 	}
@@ -222,11 +215,8 @@ public:
 		NewDesc.NumMips = InNumMips;
 		NewDesc.NumSamples = 1;
 		NewDesc.Format = InFormat;
-		NewDesc.Flags = InFlags;
-		NewDesc.TargetableFlags = InTargetableFlags;
-		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.Flags = InFlags | InTargetableFlags;
 		NewDesc.DebugName = TEXT("UnknownTextureCube");
-		NewDesc.AutoWritable = InAutowritable;
 		check(NewDesc.IsCubemap());
 
 		return NewDesc;
@@ -259,11 +249,8 @@ public:
 		NewDesc.NumMips = InNumMips;
 		NewDesc.NumSamples = 1;
 		NewDesc.Format = InFormat;
-		NewDesc.Flags = InFlags;
-		NewDesc.TargetableFlags = InTargetableFlags;
-		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.Flags = InFlags | InTargetableFlags;
 		NewDesc.DebugName = TEXT("UnknownTextureCubeArray");
-		NewDesc.AutoWritable = InAutowritable;
 		check(NewDesc.IsCubemap());
 
 		return NewDesc;
@@ -283,7 +270,6 @@ public:
 		
 		return ClearValue == rhs.ClearValue
 			&& LhsFlags == RhsFlags
-			&& TargetableFlags == rhs.TargetableFlags
 			&& Format == rhs.Format
 			&& UAVFormat == rhs.UAVFormat
 			&& Extent == rhs.Extent
@@ -332,7 +318,7 @@ public:
 		}
 
 		return Extent.X != 0 && NumMips != 0 && NumSamples >=1 && NumSamples <=16 && Format != PF_Unknown
-			&& (EnumHasAnyFlags(TargetableFlags, TexCreate_UAV) || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+			&& (EnumHasAnyFlags(Flags, TexCreate_UAV) || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 	}
 
 	FIntVector GetSize() const
@@ -350,7 +336,7 @@ public:
 
 		FString FlagsString = TEXT("");
 
-		ETextureCreateFlags LocalFlags = Flags | TargetableFlags;
+		ETextureCreateFlags LocalFlags = Flags;
 
 		if(EnumHasAnyFlags(LocalFlags, TexCreate_RenderTargetable))
 		{
@@ -405,13 +391,9 @@ public:
 		// Usually we don't want to propagate MSAA samples.
 		NumSamples = 1;
 
-		bForceSeparateTargetAndShaderResource = false;
-		bForceSharedTargetAndShaderResource = false;
-		AutoWritable = true;
-
 		// Remove UAV flag for rendertargets that don't need it (some formats are incompatible)
-		TargetableFlags |= TexCreate_RenderTargetable;
-		TargetableFlags &= (~TexCreate_UAV);
+		Flags |= TexCreate_RenderTargetable;
+		Flags &= (~TexCreate_UAV);
 	}
 
 	/** only set a pointer to memory that never gets released */
@@ -421,6 +403,7 @@ public:
 	/** The flags that must be set on both the shader-resource and the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
 	ETextureCreateFlags Flags = TexCreate_None;
 	/** The flags that must be set on the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
+	UE_DEPRECATED(5.0, "TargetableFlags has been deprecated. Use Flags instead.")
 	ETextureCreateFlags TargetableFlags = TexCreate_None;
 	/** Texture format e.g. PF_B8G8R8A8 */
 	EPixelFormat Format = PF_Unknown;
@@ -446,14 +429,19 @@ public:
 			/** true if a cubemap texture */
 			uint8 bIsCubemap : 1;
 			/** Whether the shader-resource and targetable texture must be separate textures. */
+			UE_DEPRECATED(5.0, "bForceSeparateTargetAndShaderResource has been deprecated. Do not use.")
 			uint8 bForceSeparateTargetAndShaderResource : 1;
 			/** Whether the shader-resource and targetable texture must be the same resource. */
+			UE_DEPRECATED(5.0, "bForceSharedTargetAndShaderResource has been deprecated. Do not use.")
 			uint8 bForceSharedTargetAndShaderResource : 1;
 			/** automatically set to writable via barrier during */
+			UE_DEPRECATED(5.0, "AutoWritable has been deprecated. Do not use.")
 			uint8 AutoWritable : 1;
 			/** create render target write mask (supported only on specific platforms) */
+			UE_DEPRECATED(5.0, "bCreateRenderTargetWriteMask has been deprecated. Do not use.")
 			uint8 bCreateRenderTargetWriteMask : 1;
 			/** create render target fmask (supported only on specific platforms) */
+			UE_DEPRECATED(5.0, "bCreateRenderTargetFmask has been deprecated. Do not use.")
 			uint8 bCreateRenderTargetFmask : 1;
 			/** Unused flag. */
 			uint8 bReserved0 : 1;
@@ -463,7 +451,7 @@ public:
 };
 
 /** Enum to select between the two RHI textures on a pooled render target. */
-enum class ERenderTargetTexture : uint8
+enum class UE_DEPRECATED(5.0, "ERenderTargetTexture is deprecated. IPooledRenderTarget now only has shared texture.") ERenderTargetTexture : uint8
 {
 	/** Maps to the targetable RHI texture on a pooled render target item. */
 	Targetable,
@@ -508,10 +496,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			|| UAV != 0;
 	}
 
-	FRHITexture* GetRHI(ERenderTargetTexture Texture) const
-	{
-		return Texture == ERenderTargetTexture::Targetable ? TargetableTexture : ShaderResourceTexture;
-	}
+	FRHITexture* GetRHI() const { return TargetableTexture; }
+
+	UE_DEPRECATED(5.0, "GetRHI with ERenderTargetTexture is deprecated. Use GetRHI() instead.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRHITexture* GetRHI(ERenderTargetTexture) const { return TargetableTexture; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The 2D or cubemap texture that may be used as a render or depth-stencil target. */
 	FTextureRHIRef TargetableTexture;
@@ -548,10 +538,10 @@ struct IPooledRenderTarget
 
 	/** Checks if the reference count indicated that the rendertarget is unused and can be reused. */
 	virtual bool IsFree() const = 0;
+	
 	/** Get all the data that is needed to create the render target. */
 	virtual const FPooledRenderTargetDesc& GetDesc() const = 0;
-	/** @param InName must not be 0 */
-	virtual void SetDebugName(const TCHAR *InName) = 0;
+	
 	/**
 	 * Only for debugging purpose
 	 * @return in bytes
@@ -573,20 +563,22 @@ struct IPooledRenderTarget
 	virtual uint32 Release() = 0;
 	virtual uint32 GetRefCount() const = 0;
 
-	FORCEINLINE FRHITexture* GetTargetableRHI() const
-	{
-		return RenderTargetItem.TargetableTexture.GetReference();
-	}
+	FRHITexture* GetRHI() const { return RenderTargetItem.GetRHI(); }
 
-	FORCEINLINE FRHITexture* GetShaderResourceRHI() const
-	{
-		return RenderTargetItem.ShaderResourceTexture.GetReference();
-	}
 
-	FORCEINLINE FRHITexture* GetRHI(ERenderTargetTexture Texture) const
-	{
-		return Texture == ERenderTargetTexture::Targetable ? GetTargetableRHI() : GetShaderResourceRHI();
-	}
+	UE_DEPRECATED(5.0, "Use GetRHI instead.")
+	FRHITexture* GetTargetableRHI() const { return GetRHI(); }
+
+	UE_DEPRECATED(5.0, "Use GetRHI instead.")
+	FRHITexture* GetShaderResourceRHI() const { return GetRHI(); }
+
+	UE_DEPRECATED(5.0, "Use GetRHI without ERenderTargetTexture instead.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRHITexture* GetRHI(ERenderTargetTexture) const { return GetRHI(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.0, "SetDebugName has been deprecated.")
+	virtual void SetDebugName(const TCHAR* InName) {}
 
 protected:
 

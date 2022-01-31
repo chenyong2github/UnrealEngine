@@ -57,13 +57,9 @@ inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
 {
 	check(InDesc.IsValid());
 
-	const ETextureCreateFlags ShaderResourceOnlyFlags = TexCreate_FastVRAM | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget;
-	const ETextureCreateFlags ShaderResourceFlags = TexCreate_ShaderResource;
-
 	FPooledRenderTargetDesc OutDesc;
 	OutDesc.ClearValue = InDesc.ClearValue;
-	OutDesc.Flags = (InDesc.Flags & ShaderResourceOnlyFlags) | (InDesc.Flags & ShaderResourceFlags);
-	OutDesc.TargetableFlags = (InDesc.Flags & ~ShaderResourceOnlyFlags);
+	OutDesc.Flags = InDesc.Flags;
 	OutDesc.Format = InDesc.Format;
 	OutDesc.UAVFormat = InDesc.UAVFormat;
 	OutDesc.Extent.X = InDesc.Extent.X;
@@ -74,9 +70,6 @@ inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
 	OutDesc.NumSamples = InDesc.NumSamples;
 	OutDesc.bIsArray = InDesc.IsTextureArray();
 	OutDesc.bIsCubemap = InDesc.IsTextureCube();
-	OutDesc.bForceSeparateTargetAndShaderResource = false;
-	OutDesc.bForceSharedTargetAndShaderResource = InDesc.IsMultisample(); // Don't set this unless actually necessary to avoid creating separate pool buckets.
-	OutDesc.AutoWritable = false;
 
 	check(OutDesc.IsValid());
 	return OutDesc;
@@ -104,7 +97,7 @@ inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc)
 	return CreateInfo;
 }
 
-FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture)
+FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
 {
 	check(InDesc.IsValid());
 
@@ -115,6 +108,7 @@ FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTe
 	OutDesc.Extent = InDesc.Extent;
 	OutDesc.ArraySize = InDesc.ArraySize;
 	OutDesc.NumMips = InDesc.NumMips;
+	OutDesc.NumSamples = InDesc.NumSamples;
 
 	if (InDesc.Depth > 0)
 	{
@@ -130,43 +124,9 @@ FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTe
 		OutDesc.Dimension = ETextureDimension::Texture2DArray;
 	}
 
-	// Matches logic in RHIUtilities.h for compatibility.
-	const ETextureCreateFlags TargetableFlags = ETextureCreateFlags(InDesc.TargetableFlags) | TexCreate_ShaderResource;
-	const ETextureCreateFlags ShaderResourceFlags = ETextureCreateFlags(InDesc.Flags) | TexCreate_ShaderResource;
-
-	OutDesc.Flags = TargetableFlags | ShaderResourceFlags;
-
-	bool bUseSeparateTextures = InDesc.bForceSeparateTargetAndShaderResource;
-
-	if (InDesc.NumSamples > 1 && !InDesc.bForceSharedTargetAndShaderResource)
-	{
-		bUseSeparateTextures = RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
-	}
-
-	if (bUseSeparateTextures)
-	{
-		if (InTexture == ERenderTargetTexture::Targetable)
-		{
-			OutDesc.NumSamples = InDesc.NumSamples;
-			OutDesc.Flags = TargetableFlags;
-		}
-		else
-		{
-			OutDesc.Flags = ShaderResourceFlags;
-
-			if (EnumHasAnyFlags(TargetableFlags, TexCreate_RenderTargetable))
-			{
-				OutDesc.Flags |= TexCreate_ResolveTargetable;
-			}
-
-			if (EnumHasAnyFlags(TargetableFlags, TexCreate_DepthStencilTargetable))
-			{
-				OutDesc.Flags |= TexCreate_DepthStencilResolveTarget;
-			}
-		}
-	}
-
+	OutDesc.Flags = InDesc.Flags;
 	check(OutDesc.IsValid());
+
 	return OutDesc;
 }
 

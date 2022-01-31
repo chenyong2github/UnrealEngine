@@ -4284,7 +4284,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 			TRefCountPtr<IPooledRenderTarget> RenderTarget = CreateRenderTarget(TextureResolveInfo.Texture->TextureRHI, **DebugName);
 
 			// Force tracking on the external texture, so that it can be copied to via CopyTexture within the graph : 
-			FRDGTextureRef DestinationTexture = GraphBuilder.RegisterExternalTexture(RenderTarget, ERenderTargetTexture::ShaderResource, ERDGTextureFlags::ForceTracking);
+			FRDGTextureRef DestinationTexture = GraphBuilder.RegisterExternalTexture(RenderTarget, ERDGTextureFlags::ForceTracking);
 
 			FRHICopyTextureInfo CopyTextureInfo;
 			// We want to copy all mips : 

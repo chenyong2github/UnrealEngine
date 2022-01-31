@@ -25,9 +25,7 @@ TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const
 	Desc.Format = Texture->GetFormat();
 	Desc.NumMips = Texture->GetNumMips();
 	Desc.NumSamples = Texture->GetNumSamples();
-	Desc.Flags = Desc.TargetableFlags = Texture->GetFlags();
-	Desc.bForceSharedTargetAndShaderResource = true;
-	Desc.AutoWritable = false;
+	Desc.Flags = Texture->GetFlags();
 	Desc.DebugName = Name;
 
 	if (FRHITextureCube* TextureCube = Texture->GetTextureCube())
@@ -55,7 +53,7 @@ TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const
 
 bool CacheRenderTarget(FRHITexture* Texture, const TCHAR* Name, TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget)
 {
-	if (!OutPooledRenderTarget || OutPooledRenderTarget->GetShaderResourceRHI() != Texture)
+	if (!OutPooledRenderTarget || OutPooledRenderTarget->GetRHI() != Texture)
 	{
 		OutPooledRenderTarget = CreateRenderTarget(Texture, Name);
 		return true;
@@ -78,28 +76,13 @@ static uint64 GetTypeHash(FClearValueBinding Binding)
 	return Hash ^ uint64(Binding.ColorBinding);
 }
 
-static uint64 GetTypeHash(FPooledRenderTargetDesc Desc)
+inline uint64 ComputeHash(const FRHITextureCreateInfo& InCreateInfo)
 {
-	constexpr uint32 HashOffset = STRUCT_OFFSET(FPooledRenderTargetDesc, Flags);
-	constexpr uint32 HashSize = STRUCT_OFFSET(FPooledRenderTargetDesc, PackedBits) + sizeof(FPooledRenderTargetDesc::PackedBits) - HashOffset;
-
-	static_assert(
-		HashSize ==
-		sizeof(FPooledRenderTargetDesc::Flags) +
-		sizeof(FPooledRenderTargetDesc::TargetableFlags) +
-		sizeof(FPooledRenderTargetDesc::Format) +
-		sizeof(FPooledRenderTargetDesc::UAVFormat) +
-		sizeof(FPooledRenderTargetDesc::Extent) +
-		sizeof(FPooledRenderTargetDesc::Depth) +
-		sizeof(FPooledRenderTargetDesc::ArraySize) +
-		sizeof(FPooledRenderTargetDesc::NumMips) +
-		sizeof(FPooledRenderTargetDesc::NumSamples) +
-		sizeof(FPooledRenderTargetDesc::PackedBits),
-		"FPooledRenderTarget has padding that will break the hash.");
-
-	Desc.Flags &= (~TexCreate_FastVRAM);
-
-	return CityHash64WithSeed((const char*)&Desc.Flags, HashSize, GetTypeHash(Desc.ClearValue));
+	// Make sure all padding is removed.
+	FRHITextureCreateInfo NewInfo;
+	FPlatformMemory::Memzero(&NewInfo, sizeof(FRHITextureCreateInfo));
+	NewInfo = InCreateInfo;
+	return CityHash64((const char*)&NewInfo, sizeof(FRHITextureCreateInfo));
 }
 
 RENDERCORE_API void DumpRenderTargetPoolMemory(FOutputDevice& OutputDevice)
@@ -118,221 +101,127 @@ static uint32 ComputeSizeInKB(FPooledRenderTarget& Element)
 	return (Element.ComputeMemorySize() + 1023) / 1024;
 }
 
-TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementForRDG(
-	FRHICommandList& RHICmdList,
-	const FRDGTextureDesc& Desc,
-	const TCHAR* Name)
-{
-	return FindFreeElementInternal(RHICmdList, Translate(Desc), Name);
-}
-
-TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
-	FRHICommandList& RHICmdList,
-	const FPooledRenderTargetDesc& Desc,
-	const TCHAR* InDebugName)
+TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(FRHITextureCreateInfo Desc, const TCHAR* Name, bool bResetStateToUnknown)
 {
 	FPooledRenderTarget* Found = 0;
 	uint32 FoundIndex = -1;
-	const uint64 DescHash = GetTypeHash(Desc);
+
+	// FastVRAM is no longer supported by the render target pool.
+	EnumRemoveFlags(Desc.Flags, ETextureCreateFlags::FastVRAM | ETextureCreateFlags::FastVRAMPartialAlloc);
+
+	const uint64 DescHash = ComputeHash(Desc);
 
 	for (uint32 Index = 0, Num = (uint32)PooledRenderTargets.Num(); Index < Num; ++Index)
 	{
 		if (PooledRenderTargetHashes[Index] == DescHash)
 		{
 			FPooledRenderTarget* Element = PooledRenderTargets[Index];
-			checkf(Element, TEXT("Hash was not cleared from the list."));
-			checkf(Element->GetDesc().Compare(Desc, false), TEXT("Invalid hash or collision when attempting to allocate %s"), Element->GetDesc().DebugName);
 
-			if (!Element->IsFree())
+		#if DO_CHECK
 			{
-				continue;
+				checkf(Element, TEXT("Hash was not cleared from the list."));
+
+				const FRHITextureCreateInfo ElementDesc = Translate(Element->GetDesc());
+				checkf(ElementDesc == Desc, TEXT("Invalid hash or collision when attempting to allocate %s"), Element->GetDesc().DebugName);
 			}
+		#endif
 
-			const FPooledRenderTargetDesc& ElementDesc = Element->GetDesc();
-
-			if (ElementDesc.Flags != Desc.Flags)
+			if (Element->IsFree())
 			{
-				continue;
+				Found = Element;
+				FoundIndex = Index;
+				break;
 			}
-
-			Found = Element;
-			FoundIndex = Index;
-			break;
 		}
 	}
 
 	if (!Found)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderTargetPool::CreateTexture);
-		UE_LOG(LogRenderTargetPool, Display, TEXT("%d MB, NewRT %s %s"), (AllocationLevelInKB + 1023) / 1024, *Desc.GenerateInfoString(), InDebugName);
 
-		// not found in the pool, create a new element
-		Found = new FPooledRenderTarget(Desc, this);
+		FRHIResourceCreateInfo CreateInfo(Name, Desc.ClearValue);
+
+		FTextureRHIRef ResultTexture;
+		const ERHIAccess AccessInitial = ERHIAccess::SRVMask;
+		const ETextureCreateFlags TextureFlags = Desc.Flags | TexCreate_ShaderResource;
+
+		// Only create resources if we're not asked to defer creation.
+		if (Desc.IsTexture2D())
+		{
+			if (!Desc.IsTextureArray())
+			{
+				ResultTexture = RHICreateTexture2D(
+					Desc.Extent.X,
+					Desc.Extent.Y,
+					(uint8)Desc.Format,
+					Desc.NumMips,
+					Desc.NumSamples,
+					TextureFlags,
+					AccessInitial,
+					CreateInfo
+				);
+			}
+			else
+			{
+				ResultTexture = RHICreateTexture2DArray(
+					Desc.Extent.X,
+					Desc.Extent.Y,
+					Desc.ArraySize,
+					(uint8)Desc.Format,
+					Desc.NumMips,
+					Desc.NumSamples,
+					TextureFlags,
+					AccessInitial,
+					CreateInfo
+				);
+			}
+		}
+		else if (Desc.IsTexture3D())
+		{
+			ResultTexture = RHICreateTexture3D(
+				Desc.Extent.X,
+				Desc.Extent.Y,
+				Desc.Depth,
+				(uint8)Desc.Format,
+				Desc.NumMips,
+				TextureFlags,
+				AccessInitial,
+				CreateInfo);
+		}
+		else
+		{
+			check(Desc.IsTextureCube());
+			if (Desc.IsTextureArray())
+			{
+				ResultTexture = RHICreateTextureCubeArray(
+					Desc.Extent.X,
+					Desc.ArraySize,
+					(uint8)Desc.Format,
+					Desc.NumMips,
+					TextureFlags,
+					AccessInitial,
+					CreateInfo
+				);
+			}
+			else
+			{
+				ResultTexture = RHICreateTextureCube(
+					Desc.Extent.X,
+					(uint8)Desc.Format,
+					Desc.NumMips,
+					TextureFlags,
+					AccessInitial,
+					CreateInfo
+				);
+			}
+		}
+
+		Found = new FPooledRenderTarget(ResultTexture, AccessInitial, Translate(Desc), this);
 
 		PooledRenderTargets.Add(Found);
 		PooledRenderTargetHashes.Add(DescHash);
 
-		// TexCreate_UAV should be used on Desc.TargetableFlags
-		check(!EnumHasAnyFlags(Desc.Flags, TexCreate_UAV));
-
-		FRHIResourceCreateInfo CreateInfo(InDebugName, Desc.ClearValue);
-
-		if (EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV))
-		{
-			// Only create resources if we're not asked to defer creation.
-			if (Desc.Is2DTexture())
-			{
-				if (!Desc.IsArray())
-				{
-					RHICreateTargetableShaderResource2D(
-						Desc.Extent.X,
-						Desc.Extent.Y,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.Flags,
-						Desc.TargetableFlags,
-						Desc.bForceSeparateTargetAndShaderResource,
-						Desc.bForceSharedTargetAndShaderResource,
-						CreateInfo,
-						(FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture,
-						(FTexture2DRHIRef&)Found->RenderTargetItem.ShaderResourceTexture,
-						Desc.NumSamples
-					);
-				}
-				else
-				{
-					RHICreateTargetableShaderResource2DArray(
-						Desc.Extent.X,
-						Desc.Extent.Y,
-						Desc.ArraySize,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.Flags,
-						Desc.TargetableFlags,
-						Desc.bForceSeparateTargetAndShaderResource,
-						Desc.bForceSharedTargetAndShaderResource,
-						CreateInfo,
-						(FTexture2DArrayRHIRef&)Found->RenderTargetItem.TargetableTexture,
-						(FTexture2DArrayRHIRef&)Found->RenderTargetItem.ShaderResourceTexture,
-						Desc.NumSamples
-					);
-				}
-			}
-			else if (Desc.Is3DTexture())
-			{
-				Found->RenderTargetItem.ShaderResourceTexture = RHICreateTexture3D(
-					Desc.Extent.X,
-					Desc.Extent.Y,
-					Desc.Depth,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					Desc.Flags | Desc.TargetableFlags,
-					CreateInfo);
-
-				// similar to RHICreateTargetableShaderResource2D
-				Found->RenderTargetItem.TargetableTexture = Found->RenderTargetItem.ShaderResourceTexture;
-			}
-			else
-			{
-				check(Desc.IsCubemap());
-				if (Desc.IsArray())
-				{
-					RHICreateTargetableShaderResourceCubeArray(
-						Desc.Extent.X,
-						Desc.ArraySize,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.Flags,
-						Desc.TargetableFlags,
-						false,
-						CreateInfo,
-						(FTextureCubeRHIRef&)Found->RenderTargetItem.TargetableTexture,
-						(FTextureCubeRHIRef&)Found->RenderTargetItem.ShaderResourceTexture
-					);
-				}
-				else
-				{
-					RHICreateTargetableShaderResourceCube(
-						Desc.Extent.X,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.Flags,
-						Desc.TargetableFlags,
-						false,
-						CreateInfo,
-						(FTextureCubeRHIRef&)Found->RenderTargetItem.TargetableTexture,
-						(FTextureCubeRHIRef&)Found->RenderTargetItem.ShaderResourceTexture
-					);
-				}
-			}
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			RHIBindDebugLabelName(Found->RenderTargetItem.TargetableTexture, InDebugName);
-#endif
-		}
-		else
-		{
-			if (Desc.Is2DTexture())
-			{
-				// this is useful to get a CPU lockable texture through the same interface
-				if (!Desc.IsArray())
-				{
-					Found->RenderTargetItem.ShaderResourceTexture = RHICreateTexture2D(
-						Desc.Extent.X,
-						Desc.Extent.Y,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.NumSamples,
-						Desc.Flags,
-						CreateInfo);
-				}
-				else
-				{
-					Found->RenderTargetItem.ShaderResourceTexture = RHICreateTexture2DArray(
-						Desc.Extent.X,
-						Desc.Extent.Y,
-						Desc.ArraySize,
-						(uint8)Desc.Format,
-						Desc.NumMips,
-						Desc.NumSamples,
-						Desc.Flags,
-						CreateInfo);
-				}
-
-				
-			}
-			else if (Desc.Is3DTexture())
-			{
-				Found->RenderTargetItem.ShaderResourceTexture = RHICreateTexture3D(
-					Desc.Extent.X,
-					Desc.Extent.Y,
-					Desc.Depth,
-					(uint8)Desc.Format,
-					Desc.NumMips,
-					Desc.Flags,
-					CreateInfo);
-			}
-			else
-			{
-				check(Desc.IsCubemap());
-				if (Desc.IsArray())
-				{
-					FTextureCubeRHIRef CubeTexture = RHICreateTextureCubeArray(Desc.Extent.X, Desc.ArraySize, (uint8)Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
-					Found->RenderTargetItem.TargetableTexture = Found->RenderTargetItem.ShaderResourceTexture = CubeTexture;
-				}
-				else
-				{
-					FTextureCubeRHIRef CubeTexture = RHICreateTextureCube(Desc.Extent.X, (uint8)Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
-					Found->RenderTargetItem.TargetableTexture = Found->RenderTargetItem.ShaderResourceTexture = CubeTexture;
-				}
-			}
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			RHIBindDebugLabelName(Found->RenderTargetItem.ShaderResourceTexture, InDebugName);
-#endif
-		}
-
-		if (EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_UAV))
+		if (EnumHasAnyFlags(Desc.Flags, TexCreate_UAV))
 		{
 			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
 			check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
@@ -343,42 +232,37 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 					? Desc.UAVFormat
 					: Desc.Format;
 
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0, (uint8)AliasFormat, 0, 0);
+				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->GetRHI(), 0, (uint8)AliasFormat, 0, 0);
 			}
 			else
 			{
 				checkf(Desc.UAVFormat == PF_Unknown || Desc.UAVFormat == Desc.Format, TEXT("UAV aliasing is not supported by the current RHI."));
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0);
+				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->GetRHI(), 0);
 			}
 		}
 
 		AllocationLevelInKB += ComputeSizeInKB(*Found);
 
 		FoundIndex = PooledRenderTargets.Num() - 1;
-		Found->Desc.DebugName = InDebugName;
+		Found->Desc.DebugName = Name;
 	}
 
-	Found->Desc.DebugName = InDebugName;
+	Found->Desc.DebugName = Name;
 	Found->UnusedForNFrames = 0;
 
-	// assign to the reference counted variable
-	TRefCountPtr<FPooledRenderTarget> Result = Found;
+	if (bResetStateToUnknown)
+	{
+		Found->PooledTexture.Reset();
+	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (Found->GetRenderTargetItem().TargetableTexture)
-	{
-		RHIBindDebugLabelName(Found->GetRenderTargetItem().TargetableTexture, InDebugName);
-	}
+	RHIBindDebugLabelName(Found->GetRHI(), Name);
 #endif
 
-	return MoveTemp(Result);
+	return TRefCountPtr<IPooledRenderTarget>(MoveTemp(Found));
 }
 
-bool FRenderTargetPool::FindFreeElement(
-	FRHICommandList& RHICmdList,
-	const FPooledRenderTargetDesc& Desc,
-	TRefCountPtr<IPooledRenderTarget>& Out,
-	const TCHAR* InDebugName)
+bool FRenderTargetPool::FindFreeElement(const FRHITextureCreateInfo& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name)
 {
 	check(IsInRenderingThread());
 
@@ -391,27 +275,19 @@ bool FRenderTargetPool::FindFreeElement(
 	// Querying a render target that have no mip levels makes no sens.
 	check(Desc.NumMips > 0);
 
-	// Make sure if requesting a depth format that the clear value is correct
-	ensure(!(Desc.Flags & TexCreate_DepthStencilTargetable) || (Desc.ClearValue.ColorBinding == EClearBinding::ENoneBound || Desc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
-
-	// TexCreate_FastVRAM should be used on Desc.Flags
-	ensure(!EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_FastVRAM));
-
 	// if we can keep the current one, do that
 	if (Out)
 	{
 		FPooledRenderTarget* Current = (FPooledRenderTarget*)Out.GetReference();
 
-		const bool bExactMatch = true;
-
-		if (Out->GetDesc().Compare(Desc, bExactMatch))
+		if (Translate(Out->GetDesc()) == Desc)
 		{
 			// we can reuse the same, but the debug name might have changed
-			Current->Desc.DebugName = InDebugName;
+			Current->Desc.DebugName = Name;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Current->GetRenderTargetItem().TargetableTexture)
+			if (Current->GetRHI())
 			{
-				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+				RHIBindDebugLabelName(Current->GetRHI(), Name);
 			}
 #endif
 			check(!Out->IsFree());
@@ -425,53 +301,29 @@ bool FRenderTargetPool::FindFreeElement(
 			if (Current->IsFree())
 			{
 				AllocationLevelInKB -= ComputeSizeInKB(*Current);
-
 				int32 Index = FindIndex(Current);
-
 				check(Index >= 0);
-
 				FreeElementAtIndex(Index);
 			}
 		}
 	}
 
-	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName);
-
-	// Reset RDG state back to an unknown default. The resource is being handed off to a user outside of RDG, so the state is no longer valid.
-	{
-		FRDGPooledTexture* TargetableTexture = Result->TargetableTexture;
-		FRDGPooledTexture* ShaderResourceTexture = Result->ShaderResourceTexture;
-
-		if (TargetableTexture)
-		{
-			checkf(!TargetableTexture->GetOwner(), TEXT("Allocated a pooled render target that is currently owned by RDG texture %s."), TargetableTexture->GetOwner()->Name);
-			TargetableTexture->Reset();
-		}
-
-		if (ShaderResourceTexture && ShaderResourceTexture != TargetableTexture)
-		{
-			checkf(!ShaderResourceTexture->GetOwner(), TEXT("Allocated a pooled render target that is currently owned by RDG texture %s."), ShaderResourceTexture->GetOwner()->Name);
-			ShaderResourceTexture->Reset();
-		}
-	}
-
-	Out = Result;
+	const bool bResetStateToUnknown = true;
+	Out = FindFreeElementInternal(Desc, Name, bResetStateToUnknown);
 	return false;
+}
+
+TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(const FRHITextureCreateInfo& Desc, const TCHAR* Name)
+{
+	const bool bResetStateToUnknown = true;
+	return FindFreeElementInternal(Desc, Name, bResetStateToUnknown);
 }
 
 void FRenderTargetPool::CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item)
 {
-	check(IsInRenderingThread());
-
-	Out = 0;
-
-	// not found in the pool, create a new element
-	FPooledRenderTarget* Found = new FPooledRenderTarget(Desc, NULL);
-
-	Found->RenderTargetItem = Item;
-
-	// assign to the reference counted variable
-	Out = Found;
+	FPooledRenderTarget* Result = new FPooledRenderTarget(Item.GetRHI(), ERHIAccess::Unknown, Desc, nullptr);
+	Result->RenderTargetItem = Item;
+	Out = Result;
 }
 
 void FRenderTargetPool::GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB, uint32& OutUsedInKB) const
@@ -747,57 +599,6 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 		}
 	}
 	OutputDevice.Logf(TEXT("%.3fMB Deferred total"), DeferredTotal / 1024.f);
-}
-
-void FPooledRenderTarget::InitRDG()
-{
-	check(RenderTargetItem.ShaderResourceTexture);
-
-	if (RenderTargetItem.TargetableTexture)
-	{
-		TargetableTexture = new FRDGPooledTexture(RenderTargetItem.TargetableTexture, Translate(Desc, ERenderTargetTexture::Targetable));
-	}
-
-	if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
-	{
-		ShaderResourceTexture = new FRDGPooledTexture(RenderTargetItem.ShaderResourceTexture, Translate(Desc, ERenderTargetTexture::ShaderResource));
-	}
-	else
-	{
-		ShaderResourceTexture = TargetableTexture;
-	}
-}
-
-uint32 FPooledRenderTarget::AddRef() const
-{
-	return uint32(FPlatformAtomics::InterlockedIncrement(&NumRefs));
-}
-
-uint32 FPooledRenderTarget::Release()
-{
-	const int32 Refs = FPlatformAtomics::InterlockedDecrement(&NumRefs);
-	if (Refs == 0)
-	{
-		delete this;
-	}
-	return uint32(Refs);
-}
-
-uint32 FPooledRenderTarget::GetRefCount() const
-{
-	return uint32(NumRefs);
-}
-
-void FPooledRenderTarget::SetDebugName(const TCHAR* InName)
-{
-	check(InName);
-
-	Desc.DebugName = InName;
-}
-
-const FPooledRenderTargetDesc& FPooledRenderTarget::GetDesc() const
-{
-	return Desc;
 }
 
 void FRenderTargetPool::ReleaseDynamicRHI()

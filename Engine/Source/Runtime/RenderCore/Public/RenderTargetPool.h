@@ -12,49 +12,61 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+class FRenderTargetPool;
+
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
 struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 {
-	FPooledRenderTarget(const FPooledRenderTargetDesc& InDesc, class FRenderTargetPool* InRenderTargetPool) 
+	FPooledRenderTarget(FRHITexture* Texture, ERHIAccess AccessInitial, const FPooledRenderTargetDesc& InDesc, FRenderTargetPool* InRenderTargetPool) 
 		: RenderTargetPool(InRenderTargetPool)
 		, Desc(InDesc)
-	{}
+		, PooledTexture(Texture, Translate(InDesc), AccessInitial)
+	{
+		RenderTargetItem.TargetableTexture = RenderTargetItem.ShaderResourceTexture = Texture;
+	}
 
 	uint32 GetUnusedForNFrames() const 
 	{ 
 		return UnusedForNFrames; 
 	}
 
-	bool HasRDG() const
+	const FPooledRenderTargetDesc& GetDesc() const override { return Desc; }
+
+	uint32 AddRef() const override
 	{
-		return TargetableTexture.IsValid() || ShaderResourceTexture.IsValid();
+		return uint32(FPlatformAtomics::InterlockedIncrement(&NumRefs));
 	}
 
-	FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture)
+	uint32 Release() override
 	{
-		return Texture == ERenderTargetTexture::Targetable ? TargetableTexture : ShaderResourceTexture;
+		const int32 Refs = FPlatformAtomics::InterlockedDecrement(&NumRefs);
+		if (Refs == 0)
+		{
+			delete this;
+		}
+		return uint32(Refs);
 	}
 
-	const FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture) const
+	uint32 GetRefCount() const override
 	{
-		return Texture == ERenderTargetTexture::Targetable ? TargetableTexture : ShaderResourceTexture;
+		return uint32(NumRefs);
 	}
 
-	void InitRDG();
-
-	// interface IPooledRenderTarget --------------
-	uint32 AddRef() const override;
-	uint32 Release() override;
-	uint32 GetRefCount() const override;
 	bool IsFree() const override;
 	bool IsTracked() const override { return RenderTargetPool != nullptr; }
-
-	void SetDebugName(const TCHAR *InName) override;
-	const FPooledRenderTargetDesc& GetDesc() const override;
 	uint32 ComputeMemorySize() const override;
 
-private:
+	UE_DEPRECATED(5.0, "This method is deprecated.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture) { return &PooledTexture; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	UE_DEPRECATED(5.0, "This method is deprecated.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture) const { return &PooledTexture; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+private:
 	/** Pointer back to the pool for render targets which are actually pooled, otherwise NULL. */
 	FRenderTargetPool* RenderTargetPool;
 	
@@ -68,8 +80,7 @@ private:
 	uint32 UnusedForNFrames = 0;
 
 	/** Pooled textures for use with RDG. */
-	TRefCountPtr<FRDGPooledTexture> TargetableTexture;
-	TRefCountPtr<FRDGPooledTexture> ShaderResourceTexture;
+	FRDGPooledTexture PooledTexture;
 
 	/** @return true:release this one, false otherwise */
 	bool OnFrameStart();
@@ -87,6 +98,10 @@ class RENDERCORE_API FRenderTargetPool : public FRenderResource
 public:
 	FRenderTargetPool() = default;
 
+	TRefCountPtr<IPooledRenderTarget> FindFreeElement(const FRHITextureCreateInfo& Desc, const TCHAR* Name);
+
+	bool FindFreeElement(const FRHITextureCreateInfo& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name);
+
 	/**
 	 * @param DebugName must not be 0, we only store the pointer
 	 * @param Out is not the return argument to avoid double allocation because of wrong reference counting
@@ -97,7 +112,10 @@ public:
 		FRHICommandList& RHICmdList,
 		const FPooledRenderTargetDesc& Desc,
 		TRefCountPtr<IPooledRenderTarget>& Out,
-		const TCHAR* InDebugName);
+		const TCHAR* InDebugName)
+	{
+		return FindFreeElement(Translate(Desc), Out, InDebugName);
+	}
 
 	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
 
@@ -130,13 +148,7 @@ public:
 	void DumpMemoryUsage(FOutputDevice& OutputDevice);
 
 private:
-	TRefCountPtr<FPooledRenderTarget> FindFreeElementForRDG(FRHICommandList& RHICmdList, const FRDGTextureDesc& Desc, const TCHAR* Name);
-
-	TRefCountPtr<FPooledRenderTarget> FindFreeElementInternal(
-		FRHICommandList& RHICmdList,
-		const FPooledRenderTargetDesc& InputDesc,
-		const TCHAR* InDebugName);
-
+	TRefCountPtr<IPooledRenderTarget> FindFreeElementInternal(FRHITextureCreateInfo Desc, const TCHAR* Name, bool bResetStateToUnknown);
 	void FreeElementAtIndex(int32 Index);
 
 	/** Elements can be 0, we compact the buffer later. */

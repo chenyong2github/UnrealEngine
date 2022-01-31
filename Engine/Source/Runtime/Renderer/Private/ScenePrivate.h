@@ -1356,7 +1356,7 @@ public:
 		}
 
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LUTSize * LUTSize, LUTSize), LUTPixelFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource, false);
-		Desc.TargetableFlags |= bNeedUAV ? TexCreate_UAV : TexCreate_RenderTargetable;
+		Desc.Flags |= bNeedUAV ? TexCreate_UAV : TexCreate_RenderTargetable;
 
 		if (bUseVolumeLUT)
 		{
@@ -1376,7 +1376,7 @@ public:
 		if (CombinedLUTRenderTarget.IsValid() == false || 
 			CombinedLUTRenderTarget->GetDesc().Extent.Y != LUTSize ||
 			((CombinedLUTRenderTarget->GetDesc().Depth != 0) != bUseVolumeLUT) ||
-			!!(CombinedLUTRenderTarget->GetDesc().TargetableFlags & TexCreate_UAV) != bNeedUAV ||
+			!!(CombinedLUTRenderTarget->GetDesc().Flags & TexCreate_UAV) != bNeedUAV ||
 			(CombinedLUTRenderTarget->GetDesc().Format == PF_FloatRGBA) != bNeedFloatOutput)
 		{
 			// Create the texture needed for the tonemapping LUT

@@ -222,12 +222,7 @@ void FRDGTexture::SetRHI(IPooledRenderTarget* InPooledRenderTarget)
 		FPooledRenderTarget* LocalRenderTarget = static_cast<FPooledRenderTarget*>(InPooledRenderTarget);
 		Allocation = TRefCountPtr<FPooledRenderTarget>(LocalRenderTarget);
 
-		if (!LocalRenderTarget->HasRDG())
-		{
-			LocalRenderTarget->InitRDG();
-		}
-
-		SetRHI(LocalRenderTarget->GetRDG(RenderTargetTexture));
+		SetRHI(&LocalRenderTarget->PooledTexture);
 	}
 
 	PooledRenderTarget = InPooledRenderTarget;

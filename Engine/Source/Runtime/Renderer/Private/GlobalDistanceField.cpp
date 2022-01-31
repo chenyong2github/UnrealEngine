@@ -715,7 +715,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					// TexCreate_ReduceMemoryWithTilingMode used because 128^3 texture comes out 4x bigger on PS4 with recommended volume texture tiling modes
 					TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 					false));
-				VolumeDesc.AutoWritable = false;
 
 				GRenderTargetPool.FindFreeElement(
 					RHICmdList,
@@ -750,7 +749,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 						false));
-					VolumeDesc.AutoWritable = false;
 
 					GRenderTargetPool.FindFreeElement(
 						RHICmdList,
@@ -784,7 +782,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					TexCreate_None,
 					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 					false));
-				VolumeDesc.AutoWritable = false;
 
 				GRenderTargetPool.FindFreeElement(
 					RHICmdList,
@@ -820,7 +817,6 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
 						false));
-					VolumeDesc.AutoWritable = false;
 
 					GRenderTargetPool.FindFreeElement(
 						RHICmdList,

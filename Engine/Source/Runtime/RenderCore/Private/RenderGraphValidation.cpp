@@ -235,7 +235,6 @@ void FRDGUserValidation::ValidateCreateUniformBuffer(FRDGUniformBufferRef Unifor
 void FRDGUserValidation::ValidateRegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TCHAR* Name,
-	ERenderTargetTexture RenderTargetTexture,
 	ERDGTextureFlags Flags)
 {
 	checkf(Name, TEXT("Attempted to register external texture with NULL name."));

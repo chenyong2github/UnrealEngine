@@ -29,23 +29,17 @@ public:
 
 	/** Finds an RDG texture associated with the external texture, or returns null if none is found. */
 	FRDGTextureRef FindExternalTexture(FRHITexture* Texture) const;
-	FRDGTextureRef FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture, ERenderTargetTexture Texture) const;
+	FRDGTextureRef FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture) const;
 
-	/** Registers a external pooled render target texture to be tracked by the render graph. The pooled render target may contain two RHI
-	 *  textures--one MSAA and one non-MSAA resolve texture. In most cases they are both the same pointer. RDG textures are 1-to-1 with an
-	 *  RHI texture, so two RDG textures must be registered at most. Use ERenderTargetTexture to select which RHI texture on the pooled
-	 *  render target to register. The name of the registered RDG texture is pulled from the pooled render target.
-	 */
+	/** Registers a external pooled render target texture to be tracked by the render graph. The name of the registered RDG texture is pulled from the pooled render target. */
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		ERenderTargetTexture Texture = ERenderTargetTexture::ShaderResource,
 		ERDGTextureFlags Flags = ERDGTextureFlags::None);
 
 	/** Register an external texture with a custom name. The name is only used if the texture has not already been registered. */
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		const TCHAR* NameIfNotRegistered,
-		ERenderTargetTexture RenderTargetTexture = ERenderTargetTexture::ShaderResource,
 		ERDGTextureFlags Flags = ERDGTextureFlags::None);
 
 	/** Register a external buffer to be tracked by the render graph. */
@@ -326,6 +320,37 @@ public:
 
 	UE_DEPRECATED(5.0, "PreallocateBuffer has been renamed to ConvertToExternalBuffer")
 	inline void PreallocateBuffer(FRDGBufferRef Buffer) { ConvertToExternalBuffer(Buffer); }
+
+	UE_DEPRECATED(5.0, "RegisterExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	inline FRDGTextureRef RegisterExternalTexture(
+		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+		ERenderTargetTexture Texture,
+		ERDGTextureFlags Flags = ERDGTextureFlags::None)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		return RegisterExternalTexture(ExternalPooledTexture, Flags);
+	}
+
+	UE_DEPRECATED(5.0, "RegisterExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	inline FRDGTextureRef RegisterExternalTexture(
+		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+		const TCHAR* NameIfNotRegistered,
+		ERenderTargetTexture RenderTargetTexture,
+		ERDGTextureFlags Flags = ERDGTextureFlags::None)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		return RegisterExternalTexture(ExternalPooledTexture, NameIfNotRegistered, Flags);
+	}
+
+	UE_DEPRECATED(5.0, "FindExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRDGTextureRef FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture, ERenderTargetTexture Texture) const
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		return FindExternalTexture(ExternalPooledTexture);
+	}
 	//////////////////////////////////////////////////////////////////////////
 
 private:

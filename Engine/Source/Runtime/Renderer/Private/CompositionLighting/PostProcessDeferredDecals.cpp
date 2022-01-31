@@ -185,7 +185,7 @@ TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuf
 	float Denom = FMath::Max(UniformParameters.NormalReprojectionThresholdHigh - UniformParameters.NormalReprojectionThresholdLow,1e-4f);
 	UniformParameters.NormalReprojectionThresholdScaleHelper = 1.0f / Denom;
 
-	UniformParameters.PreviousFrameNormal = (bIsNormalReprojectionEnabled) ? View.PrevViewInfo.GBufferA->GetShaderResourceRHI() : GSystemTextures.BlackDummy->GetShaderResourceRHI();
+	UniformParameters.PreviousFrameNormal = (bIsNormalReprojectionEnabled) ? View.PrevViewInfo.GBufferA->GetRHI() : GSystemTextures.BlackDummy->GetRHI();
 
 	UniformParameters.NormalReprojectionJitter = View.PrevViewInfo.ViewMatrices.GetTemporalAAJitter();
 

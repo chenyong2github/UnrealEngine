@@ -647,7 +647,6 @@ void FRDGBuilder::FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FR
 
 FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	ERenderTargetTexture RenderTargetTexture,
 	ERDGTextureFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
@@ -659,17 +658,16 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	{
 		Name = TEXT("External");
 	}
-	return RegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags);
+	return RegisterExternalTexture(ExternalPooledTexture, Name, Flags);
 }
 
 FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TCHAR* Name,
-	ERenderTargetTexture RenderTargetTexture,
 	ERDGTextureFlags Flags)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(ExternalPooledTexture, Name, RenderTargetTexture, Flags));
-	FRHITexture* ExternalTextureRHI = ExternalPooledTexture->GetRenderTargetItem().GetRHI(RenderTargetTexture);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(ExternalPooledTexture, Name, Flags));
+	FRHITexture* ExternalTextureRHI = ExternalPooledTexture->GetRHI();
 	IF_RDG_ENABLE_DEBUG(checkf(ExternalTextureRHI, TEXT("Attempted to register texture %s, but its RHI texture is null."), Name));
 
 	if (FRDGTextureRef FoundTexture = FindExternalTexture(ExternalTextureRHI))
@@ -677,7 +675,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		return FoundTexture;
 	}
 
-	const FRDGTextureDesc Desc = Translate(ExternalPooledTexture->GetDesc(), RenderTargetTexture);
+	const FRDGTextureDesc Desc = Translate(ExternalPooledTexture->GetDesc());
 	bool bFinalizedAccess = false;
 
 	if (!EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking) &&
@@ -687,7 +685,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		bFinalizedAccess = true;
 	}
 
-	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags, RenderTargetTexture);
+	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags);
 	Texture->SetRHI(ExternalPooledTexture.GetReference());
 
 	Texture->bExternal = true;
@@ -3023,7 +3021,8 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Tex
 
 	if (!Texture->ResourceRHI)
 	{
-		Texture->SetRHI(GRenderTargetPool.FindFreeElementForRDG(RHICmdList, Texture->Desc, Texture->Name));
+		const bool bResetToUnknownState = false;
+		Texture->SetRHI(GRenderTargetPool.FindFreeElementInternal(Texture->Desc, Texture->Name, bResetToUnknownState));
 	}
 
 	Texture->FirstPass = PassHandle;

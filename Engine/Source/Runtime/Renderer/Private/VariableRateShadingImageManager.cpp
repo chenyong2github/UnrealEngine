@@ -285,7 +285,7 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::RenderShadin
 		return Attachment;
 	}
 
-	FRDGTextureRef RDGAttachment = GraphBuilder.RegisterExternalTexture(Attachment, ERenderTargetTexture::Targetable);
+	FRDGTextureRef RDGAttachment = GraphBuilder.RegisterExternalTexture(Attachment);
 
 	FComputeVariableRateShadingImageGeneration::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeVariableRateShadingImageGeneration::FParameters>();
 	PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(RDGAttachment);

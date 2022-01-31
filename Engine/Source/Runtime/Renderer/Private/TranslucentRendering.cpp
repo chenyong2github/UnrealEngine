@@ -868,7 +868,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 
 	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
 	{
-		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, Flags);
 	};
 
 	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);

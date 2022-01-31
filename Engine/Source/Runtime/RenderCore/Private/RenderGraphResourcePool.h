@@ -59,8 +59,6 @@ public:
 	bool IsTracked() const override { return true; }
 	uint32 ComputeMemorySize() const override { return 0; }
 
-	void SetDebugName(const TCHAR*) override {}
-
 	const FPooledRenderTargetDesc& GetDesc() const override { return Desc; }
 
 	FRHITransientTexture* GetTransientTexture() const override

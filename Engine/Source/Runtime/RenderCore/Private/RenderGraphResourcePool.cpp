@@ -74,17 +74,24 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		TRefCountPtr<FRHIBuffer> BufferRHI;
 
+		ERHIAccess InitialAccess = ERHIAccess::Unknown;
+
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 		{
-			BufferRHI = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
+			const EBufferUsageFlags Usage = Desc.Usage | BUF_VertexBuffer;
+			InitialAccess = RHIGetDefaultResourceState(Usage, false);
+			BufferRHI = RHICreateVertexBuffer(NumBytes, Usage, InitialAccess, CreateInfo);
 		}
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
 		{
-			BufferRHI = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
+			const EBufferUsageFlags Usage = Desc.Usage | BUF_StructuredBuffer;
+			InitialAccess = RHIGetDefaultResourceState(Usage, false);
+			BufferRHI = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Usage, InitialAccess, CreateInfo);
 		}
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
 		{
-			BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, 0, ERHIAccess::BVHWrite, CreateInfo);
+			InitialAccess = ERHIAccess::BVHWrite;
+			BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, 0, InitialAccess, CreateInfo);
 		}
 		else
 		{
@@ -101,6 +108,7 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
 		check(PooledBuffer->GetRefCount() == 2);
 
 		PooledBuffer->LastUsedFrame = FrameCounter;
+		PooledBuffer->State.Access = InitialAccess;
 
 		return PooledBuffer;
 	}

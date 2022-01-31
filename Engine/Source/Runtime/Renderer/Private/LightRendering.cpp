@@ -1808,7 +1808,7 @@ static FDeferredLightPS::FParameters GetDeferredLightPSParameters(
 	Out.DummyRectLightTextureForCapsuleCompilerWarning = DepthDummy;
 	Out.DummyRectLightSamplerForCapsuleCompilerWarning = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Out.IESTexture = GSystemTextures.WhiteDummy->GetShaderResourceRHI();
+	Out.IESTexture = GSystemTextures.WhiteDummy->GetRHI();
 	if (LightSceneInfo->Proxy->GetIESTextureResource())
 	{
 		Out.IESTexture = LightSceneInfo->Proxy->GetIESTextureResource()->TextureRHI;
@@ -2365,7 +2365,7 @@ static FSimpleLightsStandardDeferredParameters GetRenderLightSimpleParameters(
 	Out.PS.DummyRectLightTextureForCapsuleCompilerWarning = DepthDummy;
 	Out.PS.DummyRectLightSamplerForCapsuleCompilerWarning = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.PS.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Out.PS.IESTexture = GSystemTextures.WhiteDummy->GetShaderResourceRHI();
+	Out.PS.IESTexture = GSystemTextures.WhiteDummy->GetRHI();
 	Out.PS.View = View.ViewUniformBuffer;
 	Out.PS.DeferredLight = CreateDeferredLightUniformBuffer(GraphBuilder, View, SimpleLight, SimpleLightPosition);
 	// PS - Hair (default)
