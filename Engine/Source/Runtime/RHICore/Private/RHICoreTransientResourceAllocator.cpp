@@ -370,7 +370,7 @@ FRHITransientHeapAllocator::FFindResult FRHITransientHeapAllocator::FindFreeRang
 		FRange& Range = Ranges[Handle];
 
 		// Due to alignment we may have to shift the offset and expand the size accordingly.
-		const uint64 AlignmentPad = Align(Range.Offset, Alignment) - Range.Offset;
+		const uint64 AlignmentPad = Align(GpuVirtualAddress + Range.Offset, Alignment) - GpuVirtualAddress - Range.Offset;
 		const uint64 RequiredSize = Size + AlignmentPad;
 
 		if (RequiredSize <= Range.Size)

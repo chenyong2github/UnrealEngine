@@ -332,6 +332,12 @@ public:
 
 	void Deallocate(FRHITransientHeapAllocation Allocation);
 
+	void SetGpuVirtualAddress(uint64 InGpuVirtualAddress)
+	{
+		GpuVirtualAddress = InGpuVirtualAddress;
+	}
+
+	uint64 GetGpuVirtualAddress() const { return GpuVirtualAddress; }
 	uint64 GetCapacity() const { return Capacity; }
 	uint64 GetUsedSize() const { return UsedSize; }
 	uint64 GetFreeSize() const { return Capacity - UsedSize; }
@@ -407,6 +413,7 @@ private:
 
 	void Validate();
 
+	uint64 GpuVirtualAddress = 0;
 	uint64 Capacity = 0;
 	uint64 UsedSize = 0;
 	uint64 AlignmentWaste = 0;
@@ -523,7 +530,7 @@ public:
 
 	uint64 GetCapacity() const { return Allocator.GetCapacity(); }
 
-	uint64 GetGPUVirtualAddress() const { return GpuVirtualAddress; }
+	uint64 GetGPUVirtualAddress() const { return Allocator.GetGpuVirtualAddress(); }
 
 	uint64 GetLastUsedGarbageCollectCycle() const { return LastUsedGarbageCollectCycle; }
 
@@ -541,9 +548,9 @@ public:
 	}
 
 protected:
-	void SetGPUVirtualAddress(uint64 InBaseGPUVirtualAddress)
+	void SetGpuVirtualAddress(uint64 InBaseGPUVirtualAddress)
 	{
-		GpuVirtualAddress = InBaseGPUVirtualAddress;
+		Allocator.SetGpuVirtualAddress(InBaseGPUVirtualAddress);
 	}
 
 private:
@@ -553,7 +560,6 @@ private:
 	FInitializer Initializer;
 	FRHITransientHeapAllocator Allocator;
 
-	uint64 GpuVirtualAddress = 0;
 	uint64 LastUsedGarbageCollectCycle = 0;
 	uint64 CommitSize = 0;
 	uint32 AlignmentLog2;
@@ -864,10 +870,9 @@ public:
 			, Spans(InResource.GetPageAllocation().Spans)
 			, AllocationsBefore(Allocations)
 			, GpuVirtualAddress(Resource.GetGpuVirtualAddress())
-			, Size(Resource.GetSize())
+			, Size(Align(Resource.GetSize(), InPageSize))
 			, PagesRemaining(Size / InPageSize)
 		{
-			checkf(Size % InPageSize == 0, TEXT("Resource size was not aligned properly to page size."));
 			Allocations.Reset();
 			Spans.Reset();
 		}
