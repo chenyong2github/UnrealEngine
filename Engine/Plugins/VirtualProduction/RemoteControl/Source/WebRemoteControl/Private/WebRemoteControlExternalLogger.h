@@ -10,6 +10,7 @@ class FWebRemoteControlExternalLogger
 {
 public:
 	FWebRemoteControlExternalLogger(TSharedPtr<class INetworkingWebSocket> WebSocketConnection);
+	virtual ~FWebRemoteControlExternalLogger();
 
 	void Log(int32 RequestId, const TCHAR* Stage);
 

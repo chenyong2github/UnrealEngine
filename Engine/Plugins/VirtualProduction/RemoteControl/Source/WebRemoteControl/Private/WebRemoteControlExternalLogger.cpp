@@ -20,6 +20,12 @@ FWebRemoteControlExternalLogger::FWebRemoteControlExternalLogger(TSharedPtr<INet
 	WebSocketConnection->SetSocketClosedCallBack(ClosedCallback);
 }
 
+FWebRemoteControlExternalLogger::~FWebRemoteControlExternalLogger()
+{
+	FTSTicker::RemoveTicker(TickerHandle);
+	TickerHandle.Reset();
+}
+
 void FWebRemoteControlExternalLogger::Log(int32 RequestId, const TCHAR* Stage)
 {
 	if (IsConnected)
