@@ -25,24 +25,18 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeRegistryKey& InKey)
-		{
-			return GenerateClassDescription(InKey).Metadata;
-		}
-
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType)
+		FMetasoundFrontendClass GenerateClass(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType)
 		{
 			FMetasoundFrontendClass ClassDescription;
 
-			ClassDescription.Metadata = FMetasoundFrontendClassMetadata::GenerateClassDescription(InNodeMetadata, ClassType);
-			ClassDescription.Interface = FMetasoundFrontendClassInterface::GenerateClassDescription(InNodeMetadata.DefaultInterface);
-			ClassDescription.Style = FMetasoundFrontendClassStyle::GenerateClassDescription(InNodeMetadata.DisplayStyle);
+			ClassDescription.Metadata = FMetasoundFrontendClassMetadata::GenerateClassMetadata(InNodeMetadata, ClassType);
+			ClassDescription.Interface = FMetasoundFrontendClassInterface::GenerateClassInterface(InNodeMetadata.DefaultInterface);
+			ClassDescription.Style = FMetasoundFrontendClassStyle::GenerateClassStyle(InNodeMetadata.DisplayStyle);
 
 			return ClassDescription;
 		}
 
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeRegistryKey& InKey)
+		FMetasoundFrontendClass GenerateClass(const FNodeRegistryKey& InKey)
 		{
 			FMetasoundFrontendClass OutClass;
 

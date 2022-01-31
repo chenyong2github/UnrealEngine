@@ -349,25 +349,25 @@ namespace Metasound
 					if constexpr (bIsParsable)
 					{
 						TInputNode<TDataType> InputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
-						InputClass = Metasound::Frontend::GenerateClassDescription(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
+						InputClass = Metasound::Frontend::GenerateClass(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 
 						TOutputNode<TDataType> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
-						OutputClass = Metasound::Frontend::GenerateClassDescription(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
+						OutputClass = Metasound::Frontend::GenerateClass(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 
 						TLiteralNode<TDataType> LiteralPrototype(TEXT(""), FGuid(), FLiteral());
-						LiteralClass = Metasound::Frontend::GenerateClassDescription(LiteralPrototype.GetMetadata(), EMetasoundFrontendClassType::Literal);
+						LiteralClass = Metasound::Frontend::GenerateClass(LiteralPrototype.GetMetadata(), EMetasoundFrontendClassType::Literal);
 
 						TVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), FLiteral());
-						VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+						VariableClass = Metasound::Frontend::GenerateClass(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
 
 						TVariableMutatorNode<TDataType> VariableMutatorPrototype(TEXT(""), FGuid());
-						VariableMutatorClass = Metasound::Frontend::GenerateClassDescription(VariableMutatorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
+						VariableMutatorClass = Metasound::Frontend::GenerateClass(VariableMutatorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
 
 						TVariableAccessorNode<TDataType> VariableAccessorPrototype(TEXT(""), FGuid());
-						VariableAccessorClass = Metasound::Frontend::GenerateClassDescription(VariableAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+						VariableAccessorClass = Metasound::Frontend::GenerateClass(VariableAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
 
 						TVariableDeferredAccessorNode<TDataType> VariableDeferredAccessorPrototype(TEXT(""), FGuid());
-						VariableDeferredAccessorClass = Metasound::Frontend::GenerateClassDescription(VariableDeferredAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableDeferredAccessor);
+						VariableDeferredAccessorClass = Metasound::Frontend::GenerateClass(VariableDeferredAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableDeferredAccessor);
 					}
 				}
 				virtual ~FDataTypeRegistryEntry() {}

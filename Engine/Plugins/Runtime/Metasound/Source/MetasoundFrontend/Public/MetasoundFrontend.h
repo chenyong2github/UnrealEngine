@@ -17,48 +17,37 @@ namespace Metasound
 {	
 	namespace Frontend
 	{
-		class IRegistryTransaction;
-		using FRegistryTransactionID = int32;
-
-		/** Returns all metadata (name, description, author, what to say if it's missing) for a given node.
-		 *
-		 * @param InInfo - Class info for a already registered external node.
-		 *
-		 * @return Metadata for node.
-		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeRegistryKey& InKey);
-
 		/** Generates a new FMetasoundFrontendClass from Node Metadata 
 		 *
 		 * @param InNodeMetadata - Metadata describing an external node.
 		 *
-		 * @return Class description for external node.
+		 * @return FrontendClass for natively-defined node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType=EMetasoundFrontendClassType::External);
+		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClass(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType=EMetasoundFrontendClassType::External);
 
 		/** Generates a new FMetasoundFrontendClass from node lookup info.
 		 *
 		 * @param InInfo - Class info for a already registered external node.
 		 *
-		 * @return Class description for external node.
+		 * @return FrontendClass for natively-defined node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const Metasound::Frontend::FNodeRegistryKey& InKey);
+		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClass(const Metasound::Frontend::FNodeRegistryKey& InKey);
 
 		/** Generates a new FMetasoundFrontendClass from Node init data
 		 *
 		 * @tparam NodeType - Type of node to instantiate.
 		 * @param InNodeInitData - Data used to call constructor of node.
 		 *
-		 * @return Class description for external node.
+		 * @return FrontendClass for natively-defined node.
 		 */
 		template<typename NodeType>
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeInitData& InNodeInitData)
+		FMetasoundFrontendClass GenerateClass(const FNodeInitData& InNodeInitData)
 		{
 			TUniquePtr<INode> Node = MakeUnique<NodeType>(InNodeInitData);
 
 			if (ensure(Node.IsValid()))
 			{
-				return GenerateClassDescription(Node->GetMetadata());
+				return GenerateClass(Node->GetMetadata());
 			}
 
 			return FMetasoundFrontendClass();
@@ -68,15 +57,15 @@ namespace Metasound
 		 *
 		 * @tparam NodeType - Type of node.
 		 *
-		 * @return Class description for external node.
+		 * @return FrontendClass for natively-defined node.
 		 */
 		template<typename NodeType>
-		FMetasoundFrontendClass GenerateClassDescription()
+		FMetasoundFrontendClass GenerateClass()
 		{
 			FNodeInitData InitData;
-			InitData.InstanceName = TEXT("GenerateClassDescriptionForNode");
+			InitData.InstanceName = "GeneratedClass";
 
-			return GenerateClassDescription<NodeType>(InitData);
+			return GenerateClass<NodeType>(InitData);
 		}
 
 		// Takes a JSON string and deserializes it into a Metasound document struct.

@@ -182,7 +182,7 @@ bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 	return !(InLHS == InRHS);
 }
 
-FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClassDescription(const Metasound::FVertexInterface& InDefaultInterface)
+FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClassInterface(const Metasound::FVertexInterface& InVertexInterface)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -191,7 +191,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 	// Copy over inputs
 	{
-		const FInputVertexInterface& InputInterface = InDefaultInterface.GetInputInterface();
+		const FInputVertexInterface& InputInterface = InVertexInterface.GetInputInterface();
 		FMetasoundFrontendInterfaceStyle InputStyle;
 		for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
 		{
@@ -235,7 +235,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 	// Copy over outputs
 	{
-		const FOutputVertexInterface& OutputInterface = InDefaultInterface.GetOutputInterface();
+		const FOutputVertexInterface& OutputInterface = InVertexInterface.GetOutputInterface();
 		FMetasoundFrontendInterfaceStyle OutputStyle;
 		for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
 		{
@@ -268,7 +268,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		ClassInterface.OutputStyle = MoveTemp(OutputStyle);
 	}
 
-	for (auto& EnvTuple : InDefaultInterface.GetEnvironmentInterface())
+	for (auto& EnvTuple : InVertexInterface.GetEnvironmentInterface())
 	{
 		FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
@@ -388,7 +388,7 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
 
-FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassDescription(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
+FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassStyle(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
 {
 	FMetasoundFrontendClassStyle Style;
 	Style.Display.bShowName = InNodeDisplayStyle.bShowName;
@@ -453,11 +453,9 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 }
 #endif // WITH_EDITORONLY_DATA
 
-FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
+FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
 {
 	FMetasoundFrontendClassMetadata NewMetadata;
-
-	NewMetadata.SetSerializeText(false);
 
 	NewMetadata.Type = InType;
 
@@ -470,6 +468,7 @@ FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassDe
 	NewMetadata.ClassName = InNodeClassMetadata.ClassName;
 	NewMetadata.Version = { InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion };
 
+	NewMetadata.SetSerializeText(false);
 	NewMetadata.SetDisplayName(InNodeClassMetadata.DisplayName);
 	NewMetadata.SetDescription(InNodeClassMetadata.Description);
 	NewMetadata.SetPromptIfMissing(InNodeClassMetadata.PromptIfMissing);

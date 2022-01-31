@@ -45,8 +45,8 @@ namespace Metasound
 		{
 		public:
 			FNodeRegistryEntry(const Metasound::FNodeClassMetadata& InMetadata)
-			: ClassInfo(FMetasoundFrontendClassMetadata::GenerateClassDescription(InMetadata, EMetasoundFrontendClassType::External))
-			, FrontendClass(Metasound::Frontend::GenerateClassDescription(InMetadata)) 
+			: ClassInfo(FMetasoundFrontendClassMetadata::GenerateClassMetadata(InMetadata, EMetasoundFrontendClassType::External))
+			, FrontendClass(Metasound::Frontend::GenerateClass(InMetadata))
 			{
 			}
 

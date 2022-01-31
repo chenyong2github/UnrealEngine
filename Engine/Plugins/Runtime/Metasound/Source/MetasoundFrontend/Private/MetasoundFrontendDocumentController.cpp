@@ -285,7 +285,7 @@ namespace Metasound
 						// TODO: Assuming we want to recheck classes when they add another
 						// node, this should be replace with a call to synchronize a 
 						// single class.
-						FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
+						FMetasoundFrontendClass NewClass = GenerateClass(InKey);
 						if (NewClass.Metadata.GetVersion().Major != MetasoundClass->Metadata.GetVersion().Major)
 						{
 							return AddClass(MoveTemp(NewClass), FGuid::NewGuid());
@@ -295,14 +295,14 @@ namespace Metasound
 					if (bInRefreshFromRegistry)
 					{
 						FGuid ClassID = MetasoundClass->ID;
-						FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
+						FMetasoundFrontendClass NewClass = GenerateClass(InKey);
 						return AddClass(MoveTemp(NewClass), ClassID);
 					}
 
 					return ClassPtr;
 				}
 
-				FMetasoundFrontendClass NewClass = GenerateClassDescription(InKey);
+				FMetasoundFrontendClass NewClass = GenerateClass(InKey);
 				return AddClass(MoveTemp(NewClass), FGuid::NewGuid());
 			}
 
