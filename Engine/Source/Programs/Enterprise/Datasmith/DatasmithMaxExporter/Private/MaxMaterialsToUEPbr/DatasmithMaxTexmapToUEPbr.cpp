@@ -1736,6 +1736,10 @@ bool FDatasmithMaxPassthroughToUEPbr::IsSupported( const FDatasmithMaxMaterialsT
 		{
 			return true;
 		}
+		else if ( InTexmap->ClassID() == COLORMAPCLASS )
+		{
+			return true;
+		}
 	}
 
 	return false;

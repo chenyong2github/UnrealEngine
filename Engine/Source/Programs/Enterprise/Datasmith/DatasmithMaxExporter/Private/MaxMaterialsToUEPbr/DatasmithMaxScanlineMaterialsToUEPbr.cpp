@@ -76,7 +76,7 @@ namespace DatasmithMaxScanlineMaterialsToUEPbrImpl
 		ScanlineMaterialProperties.SpecularLevel = Material.GetShinStr();
 		ScanlineMaterialProperties.Glossiness = Material.GetShininess();
 		ScanlineMaterialProperties.bUseSelfIllumColor = ( Material.GetSelfIllumColorOn() != 0 );
-		ScanlineMaterialProperties.SelfIllumColor = FDatasmithMaxMatHelper::MaxColorToFLinearColor( (BMM_Color_fl)Material.GetSelfIllumColor() );
+		ScanlineMaterialProperties.SelfIllumColor = FDatasmithMaxMatHelper::MaxColorToFLinearColor( (BMM_Color_fl)Material.GetSelfIllumColor() ); // todo: this seems wrong(converting color to gamme space)
 
 		const TimeValue CurrentTime = GetCOREInterface()->GetTime();
 

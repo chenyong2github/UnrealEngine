@@ -424,15 +424,15 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 			{
 				TransparencyMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Transparency_Color_Map")) == 0)
+			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("trans_color_map")) == 0)
 			{
 				TransparencyColorMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Emittance_Map")) == 0)
+			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Emission_Map")) == 0)
 			{
 				EmittanceMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Emittance_Color_Map")) == 0)
+			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Emission_Color_Map")) == 0)
 			{
 				EmittanceColorMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
