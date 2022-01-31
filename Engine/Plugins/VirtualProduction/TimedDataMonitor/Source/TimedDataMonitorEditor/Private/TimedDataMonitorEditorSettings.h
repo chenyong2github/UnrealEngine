@@ -38,6 +38,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category ="UI", meta=(ClampMin=0.0f))
 	float RefreshRate = 0.2f;
 
+	/** Whether or not to draw vertical bars delineating each frame in the buffer of a channel */
+	UPROPERTY(Config, EditAnywhere, Category = "UI")
+	bool bDrawFrameTimesInBufferVisualization = true;
+
+	/** If true, accurate world times will be used to draw frame times. If false, a constant frame interval is used */
+	UPROPERTY(Config, EditAnywhere, Category = "UI", meta = (EditCondition = "bDrawFrameTimesInBufferVisualization"))
+	bool bUseAccurateFrameTimesInBufferVisualization = false;
+
 	UPROPERTY(Config, AdvancedDisplay, EditAnywhere, Category = "UI", meta = (InlineEditConditionToggle = true))
 	bool bOverrideNumberOfStandardDeviationToShow;
 

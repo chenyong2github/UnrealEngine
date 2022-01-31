@@ -83,6 +83,9 @@ public:
 		const float MeanLocationMinX = LocationOfCenter - (OldestMean * SizePerSeconds);
 		const float MeanLocationMaxX = LocationOfCenter + (NewestMean * SizePerSeconds);
 
+		const bool bDrawFrameTimes = GetDefault<UTimedDataMonitorEditorSettings>()->bDrawFrameTimesInBufferVisualization;
+		const bool bUseAccurateFrameTimes = GetDefault<UTimedDataMonitorEditorSettings>()->bUseAccurateFrameTimesInBufferVisualization;
+
 		// square to show that the data goes further
 		if (bShowFurther)
 		{
@@ -200,6 +203,46 @@ public:
 				DarkBrush->GetTint(InWidgetStyle) * EvaluationColor);
 		}
 
+		// Draw frame lines
+		if (bDrawFrameTimes && (SampleCount > 1))
+		{
+			const FLinearColor EvaluationColor = FLinearColor::Black;
+			const double FrameIntervalEstimate = (MaxSampleTime - MinSampleTime) / (SampleCount - 1);
+			for (int32 FrameIndex = 0; FrameIndex < SampleCount; ++FrameIndex)
+			{
+				double SampleTime = 0.0;
+				if (bUseAccurateFrameTimes && (AllSampleTimes.Num() == SampleCount))
+				{
+					SampleTime = AllSampleTimes[FrameIndex];
+				}
+				else
+				{
+					SampleTime = MinSampleTime + (FrameIntervalEstimate * FrameIndex);
+				}
+
+				const double LocationToDraw = LocationOfCenter + ((SampleTime - EvaluationTime) * SizePerSeconds);
+
+				TArray<FVector2D> LinePoints;
+				LinePoints.SetNum(2);
+
+				if (LocationToDraw >= SizeOfFurthur)
+				{
+					LinePoints[0] = FVector2D(LocationToDraw, 0.f);
+					LinePoints[1] = FVector2D(LocationToDraw, SizeY * 0.5f);
+
+					FSlateDrawElement::MakeLines(
+						OutDrawElements,
+						LayerId,
+						AllottedGeometry.ToPaintGeometry(),
+						LinePoints,
+						ESlateDrawEffect::None,
+						DarkBrush->GetTint(InWidgetStyle) * EvaluationColor,
+						false
+					);
+				}
+			}
+		}
+
 		return LayerId;
 	}
 
@@ -220,11 +263,13 @@ public:
 	double EvaluationTime = 0.0;
 	double MinSampleTime = 0.0;
 	double MaxSampleTime = 0.0;
+	TArray<double> AllSampleTimes;
 	double OldestMean = 0.0;
 	double NewestMean = 0.0;
 	double OldestSigma = 0.0;
 	double NewestSigma = 0.0;
 	int32 NumberOfSigma = 3;
+	int32 SampleCount = 0;
 	FSlateFontInfo FontInfo;
 };
 
@@ -276,10 +321,14 @@ void STimingDiagramWidget::UpdateCachedValue()
 
 	const ETimedDataInputEvaluationType EvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
 
+	const UTimedDataMonitorEditorSettings* const EditorSettings = GetDefault<UTimedDataMonitorEditorSettings>();
+	const bool bUpdateSampleTimes = EditorSettings->bDrawFrameTimesInBufferVisualization && EditorSettings->bUseAccurateFrameTimesInBufferVisualization;
+
 	double EvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
 	double MinSampleTime = 0.0;
 	double MaxSampleTime = 0.0;
 	double NewestMean = 0.0;
+
 	if (bIsInput)
 	{
 		MinSampleTime = TimedDataMonitorSubsystem->GetInputOldestDataTime(InputIdentifier).AsSeconds(EvaluationType);
@@ -297,10 +346,15 @@ void STimingDiagramWidget::UpdateCachedValue()
 		GraphicWidget->NewestMean = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
 		GraphicWidget->OldestSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
 		GraphicWidget->NewestSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleStandardDeviation(ChannelIdentifier);
+		GraphicWidget->SampleCount = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
+
+		if (bUpdateSampleTimes)
+		{
+			UpdateSampleTimes(TimedDataMonitorSubsystem->GetChannelFrameDataTimes(ChannelIdentifier), EvaluationType);
+		}
 	}
 	GraphicWidget->MinSampleTime = MinSampleTime + EvaluationOffset;
 	GraphicWidget->MaxSampleTime = MaxSampleTime + EvaluationOffset;
-
 	GraphicWidget->EvaluationTime = UTimedDataMonitorSubsystem::GetEvaluationTime(EvaluationType);
 }
 
@@ -342,8 +396,50 @@ FText STimingDiagramWidget::GetTooltipText() const
 		, DistanceToOldestSampleAverage
 		, DistanceToOldestSampleSigma);
 	}
+}
 
-	
+void STimingDiagramWidget::UpdateSampleTimes(const TArray<FTimedDataChannelSampleTime>& FrameDataTimes, ETimedDataInputEvaluationType EvaluationType)
+{
+	// Cache the newest time in the buffer from the last update
+	double PreviousNewestTime = -1.0;
+	if (GraphicWidget->AllSampleTimes.Num() > 0)
+	{
+		PreviousNewestTime = GraphicWidget->AllSampleTimes.Last();
+	}
+
+	// If the widget's buffer is too large (because the buffer size changed), resize it and remove the oldest frames
+	if (GraphicWidget->AllSampleTimes.Num() > FrameDataTimes.Num())
+	{
+		const int32 Count = (GraphicWidget->AllSampleTimes.Num() - FrameDataTimes.Num());
+		constexpr bool bAllowShrinking = true;
+		GraphicWidget->AllSampleTimes.RemoveAt(0, Count, bAllowShrinking);
+	}
+	else if (GraphicWidget->AllSampleTimes.Num() < FrameDataTimes.Num())
+	{
+		GraphicWidget->AllSampleTimes.Reserve(FrameDataTimes.Num());
+	}
+
+	// Add all sample times that are newer than the previous newest time
+	for (int32 SampleIndex = FrameDataTimes.Num() - 1; SampleIndex >= 0; --SampleIndex)
+	{
+		const double SampleTimeInSeconds = FrameDataTimes[SampleIndex].AsSeconds(EvaluationType);
+		if (SampleTimeInSeconds > PreviousNewestTime)
+		{
+			// Remove the oldest sample(s) from the widget's buffer if it full 
+			if (GraphicWidget->AllSampleTimes.Num() >= FrameDataTimes.Num())
+			{
+				constexpr int32 Count = 1;
+				constexpr bool bAllowShrinking = false;
+				GraphicWidget->AllSampleTimes.RemoveAt(0, Count, bAllowShrinking);
+			}
+
+			GraphicWidget->AllSampleTimes.Add(SampleTimeInSeconds);
+		}
+		else
+		{
+			break;
+		}
+	}
 
 }
 

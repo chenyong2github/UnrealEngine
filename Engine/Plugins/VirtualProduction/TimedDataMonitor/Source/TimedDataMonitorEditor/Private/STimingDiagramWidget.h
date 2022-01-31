@@ -43,7 +43,8 @@ public:
 
 private:
 	FText GetTooltipText() const;
-	
+	void UpdateSampleTimes(const TArray<FTimedDataChannelSampleTime>& FrameDataTimes, ETimedDataInputEvaluationType EvaluationType);
+
 private:
 	// Identifier of the channel this widget is associated to
 	TSharedPtr<STimingDiagramWidgetGraphic> GraphicWidget;

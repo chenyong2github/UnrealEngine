@@ -370,6 +370,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
 	FTimedDataChannelSampleTime GetChannelNewestDataTime(const FTimedDataMonitorChannelIdentifier& Identifier);
 
+	/** Get the sample times for every frame in the channel */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	TArray<FTimedDataChannelSampleTime> GetChannelFrameDataTimes(const FTimedDataMonitorChannelIdentifier& Identifier);
+
 	/** Get the number of data samples available. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
 	int32 GetChannelNumberOfSamples(const FTimedDataMonitorChannelIdentifier& Identifier);

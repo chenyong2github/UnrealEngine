@@ -785,6 +785,21 @@ FTimedDataChannelSampleTime UTimedDataMonitorSubsystem::GetChannelNewestDataTime
 }
 
 
+TArray<FTimedDataChannelSampleTime> UTimedDataMonitorSubsystem::GetChannelFrameDataTimes(const FTimedDataMonitorChannelIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	TArray<FTimedDataChannelSampleTime> SampleTimes;
+
+	if (const FTimeDataChannelItem* SourceItem = ChannelMap.Find(Identifier))
+	{
+		SampleTimes = SourceItem->Channel->GetDataTimes();
+	}
+
+	return SampleTimes;
+}
+
+
 int32 UTimedDataMonitorSubsystem::GetChannelNumberOfSamples(const FTimedDataMonitorChannelIdentifier& Identifier)
 {
 	BuildSourcesListIfNeeded();
