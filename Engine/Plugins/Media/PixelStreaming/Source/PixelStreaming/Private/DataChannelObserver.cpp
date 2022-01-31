@@ -95,26 +95,38 @@ void UE::PixelStreaming::FDataChannelObserver::SendLatencyReport() const
 	double ReceiptTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
 	AsyncTask(ENamedThreads::GameThread, [this, ReceiptTimeMs]() {
-		double EncodeMs = -1.0;
-		double CaptureToSendMs = 0.0;
-
-		UE::PixelStreaming::FStats* Stats = UE::PixelStreaming::FStats::Get();
-		if (Stats)
+		FString ReportToTransmitJSON;
+	
+		if (!UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCDisableStats.GetValueOnAnyThread())
 		{
-			// bool QueryPeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutStatValue)
-			Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanEncodeTime, EncodeMs);
-			Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanSendDelay, CaptureToSendMs);
+			double EncodeMs = -1.0;
+			double CaptureToSendMs = 0.0;
+
+			UE::PixelStreaming::FStats* Stats = UE::PixelStreaming::FStats::Get();
+			if (Stats)
+			{
+				// bool QueryPeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutStatValue)
+				Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanEncodeTime, EncodeMs);
+				Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanSendDelay, CaptureToSendMs);
+			}
+
+			double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+			ReportToTransmitJSON = FString::Printf(
+				TEXT("{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": %.2f, \"CaptureToSendMs\": %.2f, \"TransmissionTimeMs\": %.2f }"),
+				ReceiptTimeMs,
+				EncodeMs,
+				CaptureToSendMs,
+				TransmissionTimeMs);
 		}
-
-		double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
-
-		FString ReportToTransmitJSON = FString::Printf(
-			TEXT("{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": %.2f, \"CaptureToSendMs\": %.2f, \"TransmissionTimeMs\": %.2f }"),
-			ReceiptTimeMs,
-			EncodeMs,
-			CaptureToSendMs,
-			TransmissionTimeMs);
-
+		else
+		{
+			double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+			ReportToTransmitJSON = FString::Printf(
+				TEXT("{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": \"Pixel Streaming stats are disabled\", \"CaptureToSendMs\": \"Pixel Streaming stats are disabled\", \"TransmissionTimeMs\": %.2f }"),
+				ReceiptTimeMs,
+				TransmissionTimeMs);
+		}
+		
 		PlayerSessions->SendMessage(PlayerId, UE::PixelStreaming::Protocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
 	});
 }
