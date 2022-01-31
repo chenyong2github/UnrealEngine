@@ -176,7 +176,7 @@ protected:
 	};
 	FBakeSettings CachedBakeSettings;
 
-	TArray<int32> TargetMeshUVCharts;
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> TargetMeshUVCharts;
 
 	/**
 	 * To be invoked by client when bake map types change.

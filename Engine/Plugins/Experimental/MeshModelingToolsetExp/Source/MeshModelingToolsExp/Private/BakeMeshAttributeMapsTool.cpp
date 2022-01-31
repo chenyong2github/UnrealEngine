@@ -98,11 +98,11 @@ public:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> DetailMeshTangents;
-	UE::Geometry::FDynamicMesh3* BaseMesh;
+	UE::Geometry::FDynamicMesh3* BaseMesh = nullptr;
 	TUniquePtr<UE::Geometry::FMeshMapBaker> Baker;
 	UBakeMeshAttributeMapsTool::FBakeSettings BakeSettings;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
-	TArray<int32>* BaseMeshUVCharts;
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts;
 
 	// Map Type settings
 	EBakeMapType Maps;
@@ -133,7 +133,7 @@ public:
 		Baker->SetDimensions(BakeSettings.Dimensions);
 		Baker->SetProjectionDistance(BakeSettings.ProjectionDistance);
 		Baker->SetSamplesPerPixel(BakeSettings.SamplesPerPixel);
-		Baker->SetTargetMeshUVCharts(BaseMeshUVCharts);
+		Baker->SetTargetMeshUVCharts(BaseMeshUVCharts.Get());
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		
 		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get(), DetailMeshTangents.Get());
@@ -403,7 +403,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 	Op->DetailSpatial = DetailSpatial;
 	Op->BaseMesh = &TargetMesh;
 	Op->BakeSettings = CachedBakeSettings;
-	Op->BaseMeshUVCharts = &TargetMeshUVCharts;
+	Op->BaseMeshUVCharts = TargetMeshUVCharts;
 
 	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal;
 	if ((bool)(CachedBakeSettings.BakeMapTypes & RequiresTangents))

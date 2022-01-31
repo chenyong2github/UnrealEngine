@@ -82,7 +82,8 @@ void UBakeMeshAttributeMapsToolBase::PostSetup()
 
 	// Initialize UV charts
 	// TODO: Compute UV charts asynchronously
-	FMeshMapBaker::ComputeUVCharts(TargetMesh, TargetMeshUVCharts);
+	TargetMeshUVCharts = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
+	FMeshMapBaker::ComputeUVCharts(TargetMesh, *TargetMeshUVCharts);
 
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
