@@ -351,7 +351,9 @@ public:
 	{
 		Ar << Min << Max;
 		// Can't do Ar << bIsValid as that performs legacy UBOOL (uint32) serialization.
-		Ar.Serialize(&bIsValid, 1);
+		uint8 bValid = bIsValid;
+		Ar.Serialize(&bValid, sizeof(uint8));
+		bIsValid = !!bValid;
 		return true;
 	}
 

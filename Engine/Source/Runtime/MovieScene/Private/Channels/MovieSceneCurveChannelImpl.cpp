@@ -1119,12 +1119,16 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::SerializeChannelValue(ChannelValu
 
 	if constexpr(TIsSame<CurveValueType, double>::Value)
 	{
-		// LWC_TODO: Serializer
-		// We serialize all values as float to allow the same data to be loaded with LWC enabled or disabled.
-		float TempValue = (float)InValue.Value;
-		Ar << TempValue;
-		if (Ar.IsLoading())
+		if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 		{
+			Ar << InValue.Value;
+		}
+		else
+		{
+			// Serialize as float and convert to doubles.
+			checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+			float TempValue = (float)InValue.Value;
+			Ar << TempValue;
 			InValue.Value = (double)TempValue;
 		}
 	}

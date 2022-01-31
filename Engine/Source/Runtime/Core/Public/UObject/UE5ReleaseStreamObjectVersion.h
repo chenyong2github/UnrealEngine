@@ -92,7 +92,10 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Serialize FHLODSubActors instead of FGuids in WorldPartition HLODActorDesc
 		WorldPartitionHLODActorDescSerializeHLODSubActors,
-
+		
+		// Large Worlds - serialize double types as doubles
+		LargeWorldCoordinates,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

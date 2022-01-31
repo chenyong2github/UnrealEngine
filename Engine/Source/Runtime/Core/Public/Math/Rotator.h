@@ -10,6 +10,7 @@
 #include "Logging/LogMacros.h"
 #include "Math/Vector.h"
 #include "Math/VectorRegister.h"
+#include "UObject/ObjectVersion.h"
 
 namespace UE
 {
@@ -479,24 +480,22 @@ template<> CORE_API const FRotator3d FRotator3d::ZeroRotator;
 
 inline FArchive& operator<<(FArchive& Ar, TRotator<float>& R)
 {
-	// LWC_TODO: Serializer
 	Ar << R.Pitch << R.Yaw << R.Roll;
 	return Ar;
 }
 
 inline FArchive& operator<<(FArchive& Ar, TRotator<double>& R)
 {
-	// LWC: Serialize as float
-	float Pitch, Yaw, Roll;
-	Pitch = (float)R.Pitch;
-	Yaw   = (float)R.Yaw;
-	Roll  = (float)R.Roll;
-
-	// LWC_TODO: Serializer
-	Ar << Pitch << Yaw << Roll;
-
-	if (Ar.IsLoading())
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
+		Ar << R.Pitch << R.Yaw << R.Roll;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float Pitch, Yaw, Roll;
+		Ar << Pitch << Yaw << Roll;
 		R = TRotator<double>(Pitch, Yaw, Roll);
 	}
 	return Ar;

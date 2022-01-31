@@ -12,6 +12,7 @@
 #include "Math/Rotator.h"
 #include "Math/Matrix.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
+#include "UObject/ObjectVersion.h"
 
 class Error;
 
@@ -693,25 +694,25 @@ public:
  */
 inline FArchive& operator<<(FArchive& Ar, TQuat<float>& F)
 {
-	// LWC_TODO: Serializer
 	return Ar << F.X << F.Y << F.Z << F.W;
 }
 
 inline FArchive& operator<<(FArchive& Ar, TQuat<double>& F)
 {
-	// LWC: Serialize as float
-	float X, Y, Z, W;
-	X = (float)F.X;
-	Y = (float)F.Y;
-	Z = (float)F.Z;
-	W = (float)F.W;
-
-	// LWC_TODO: Serializer
-	Ar << X << Y << Z << W;
-
-	if (Ar.IsLoading())
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
-		F = TQuat<double>(X, Y, Z, W);
+		return Ar << F.X << F.Y << F.Z << F.W;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float X, Y, Z, W;
+		Ar << X << Y << Z << W;
+		if(Ar.IsLoading())
+		{
+			F = TQuat<double>(X, Y, Z, W);
+		}
 	}
 	return Ar;
 }
@@ -1352,7 +1353,7 @@ template<> struct TIsPODType<FQuat4d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FQuat4f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FQuat4d> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FQuat4f> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FQuat4d> { enum { Value = false }; }; // LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TCanBulkSerialize<FQuat4d> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4d);
 

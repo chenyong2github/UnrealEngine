@@ -1281,20 +1281,20 @@ bool UnFbx::FFbxImporter::ImportBones(TArray<FbxNode*>& NodeArray, FSkeletalMesh
 			}
 		}
 
-		JointMatrix.Transform.SetTranslation(Converter.ConvertPos(LocalLinkT));
-		JointMatrix.Transform.SetRotation(Converter.ConvertRotToQuat(LocalLinkQ));
-		JointMatrix.Transform.SetScale3D(Converter.ConvertScale(LocalLinkS));
+		JointMatrix.Transform.SetTranslation(FVector3f(Converter.ConvertPos(LocalLinkT)));
+		JointMatrix.Transform.SetRotation(FQuat4f(Converter.ConvertRotToQuat(LocalLinkQ)));
+		JointMatrix.Transform.SetScale3D(FVector3f(Converter.ConvertScale(LocalLinkS)));
 	}
 	
 	//In case we do a scene import we need a relative to skeletal mesh transform instead of a global
 	if (ImportOptions->bImportScene && !ImportOptions->bTransformVertexToAbsolute)
 	{
 		FbxAMatrix GlobalSkeletalNodeFbx = Scene->GetAnimationEvaluator()->GetNodeGlobalTransform(SkeletalMeshNode, 0);
-		FTransform GlobalSkeletalNode;
-		GlobalSkeletalNode.SetFromMatrix(Converter.ConvertMatrix(GlobalSkeletalNodeFbx.Inverse()));
+		FTransform3f GlobalSkeletalNode;
+		GlobalSkeletalNode.SetFromMatrix(FMatrix44f(Converter.ConvertMatrix(GlobalSkeletalNodeFbx.Inverse())));
 
 		SkeletalMeshImportData::FBone& RootBone = ImportData.RefBonesBinary[RootIdx];
-		FTransform& RootTransform = RootBone.BonePos.Transform;
+		FTransform3f& RootTransform = RootBone.BonePos.Transform;
 		RootTransform.SetFromMatrix(RootTransform.ToMatrixWithScale() * GlobalSkeletalNode.ToMatrixWithScale());
 	}
 
@@ -1302,10 +1302,10 @@ bool UnFbx::FFbxImporter::ImportBones(TArray<FbxNode*>& NodeArray, FSkeletalMesh
 	{
 		FbxAMatrix FbxAddedMatrix;
 		BuildFbxMatrixForImportTransform(FbxAddedMatrix, TemplateData);
-		FMatrix AddedMatrix = Converter.ConvertMatrix(FbxAddedMatrix);
+		FMatrix44f AddedMatrix = FMatrix44f(Converter.ConvertMatrix(FbxAddedMatrix));
 
 		SkeletalMeshImportData::FBone& RootBone = ImportData.RefBonesBinary[RootIdx];
-		FTransform& RootTransform = RootBone.BonePos.Transform;
+		FTransform3f& RootTransform = RootBone.BonePos.Transform;
 		RootTransform.SetFromMatrix(RootTransform.ToMatrixWithScale() * AddedMatrix);
 	}
 	

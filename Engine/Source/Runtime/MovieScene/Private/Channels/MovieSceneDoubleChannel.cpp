@@ -230,7 +230,6 @@ bool FMovieSceneDoubleChannel::SerializeFromMismatchedTag(const FPropertyTag& Ta
 	static const FName FloatChannelName("MovieSceneFloatChannel");
 	if (Tag.Type == NAME_StructProperty && Tag.StructName == FloatChannelName)
 	{
-		// LWC_TODO: Serializer
 		// We have to load the whole structure into a float channel, and then convert it into our data.
 		// It's not ideal but it's the safest way to make it work.
 

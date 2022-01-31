@@ -5961,7 +5961,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 			const FMeshBoneInfo& MeshBoneInfo = ReferenceSkeleton.GetRawRefBoneInfo()[BoneIndex];
 			const FTransform& MeshBonePose = ReferenceSkeleton.GetRawRefBonePose()[BoneIndex];
 			RefBone.Name = MeshBoneInfo.ExportName;
-			RefBone.BonePos.Transform = MeshBonePose;
+			RefBone.BonePos.Transform = FTransform3f(MeshBonePose);
 			RefBone.ParentIndex = MeshBoneInfo.ParentIndex;
 			RefBone.NumChildren = 0;
 			if (ImportData.RefBonesBinary.IsValidIndex(RefBone.ParentIndex))

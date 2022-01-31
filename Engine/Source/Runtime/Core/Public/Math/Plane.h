@@ -366,20 +366,17 @@ inline FArchive& operator<<(FArchive& Ar, TPlane<double>& P)
 {
 	Ar << (TVector<double>&)P;
 
-	// LWC_TODO: Serializer
-	//if (!Ar.IsPersistent())
-	//{
-	//	Ar << P.W;
-	//}
-	//else
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
+		Ar << P.W;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
 		// Stored as floats, so serialize float and copy.
-		float SW = (float)P.W;
+		float SW;
 		Ar << SW;
-		if(Ar.IsLoading())
-		{
-			P.W = SW;
-		}
+		P.W = SW;
 	}
 
 	P.DiagnosticCheckNaN();

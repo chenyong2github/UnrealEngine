@@ -98,7 +98,7 @@ namespace UE
 
 				SkeletalMeshImportData::FBone& Bone = RefBonesBinary.AddZeroed_GetRef();
 				Bone.Name = Info.Name;
-				Bone.BonePos.Transform = Info.LocalTransform;
+				Bone.BonePos.Transform = FTransform3f(Info.LocalTransform);
 				Bone.ParentIndex = ParentIndex;
 				//Fill the scrap we do not need
 				Bone.BonePos.Length = 0.0f;

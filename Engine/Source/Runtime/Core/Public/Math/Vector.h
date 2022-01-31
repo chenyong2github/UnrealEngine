@@ -1180,24 +1180,21 @@ inline void operator<<(FStructuredArchive::FSlot Slot, TVector<double>& V)
 	// See TArray::BulkSerialize for detailed description of implied limitations.
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
-	// LWC_TODO: Serializer
-	//if (!Slot.GetUnderlyingArchive().IsPersistent())
-	//{
-	//	Record << SA_VALUE(TEXT("X"), V.X);
-	//	Record << SA_VALUE(TEXT("Y"), V.Y);
-	//	Record << SA_VALUE(TEXT("Z"), V.Z);
-	//}
-	//else
+	if (Slot.GetUnderlyingArchive().UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
+		Record << SA_VALUE(TEXT("X"), V.X);
+		Record << SA_VALUE(TEXT("Y"), V.Y);
+		Record << SA_VALUE(TEXT("Z"), V.Z);
+	}
+	else
+	{
+		checkf(Slot.GetUnderlyingArchive().IsLoading(), TEXT("float -> double conversion applied outside of load!"));
 		// Stored as floats, so serialize float and copy.
-		float SX = (float)V.X, SY = (float)V.Y, SZ = (float)V.Z;
-		Record << SA_VALUE(TEXT("X"), SX);
-		Record << SA_VALUE(TEXT("Y"), SY);
-		Record << SA_VALUE(TEXT("Z"), SZ);
-		if(Slot.GetUnderlyingArchive().IsLoading())
-		{
-			V = TVector<double>(SX, SY, SZ);
-		}
+		float X, Y, Z;
+		Record << SA_VALUE(TEXT("X"), X);
+		Record << SA_VALUE(TEXT("Y"), Y);
+		Record << SA_VALUE(TEXT("Z"), Z);
+		V = TVector<double>(X, Y, Z);
 	}
 	V.DiagnosticCheckNaN();
 }
@@ -2468,7 +2465,7 @@ template<> struct TIsPODType<FVector3f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FVector3f> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector3f);
 
-template<> struct TCanBulkSerialize<FVector3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TCanBulkSerialize<FVector3d> { enum { Value = true }; };
 template<> struct TIsPODType<FVector3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FVector3d> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector3d);

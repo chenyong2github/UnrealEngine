@@ -1061,7 +1061,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 		Bone.Name = TEXT("Root");
 		Bone.ParentIndex = INDEX_NONE;
 		Bone.NumChildren = 0;
-		Bone.BonePos.Transform = FTransform::Identity;
+		Bone.BonePos.Transform = FTransform3f::Identity;
 		Bone.BonePos.Length = 1.0f;
 		Bone.BonePos.XSize = 100.0f;
 		Bone.BonePos.YSize = 100.0f;
@@ -1114,7 +1114,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 		}
 
 		SkeletalMeshImportData::FJointPos& JointMatrix = Bone.BonePos;
-		JointMatrix.Transform = BoneTransforms[Index];
+		JointMatrix.Transform = FTransform3f(BoneTransforms[Index]);
 
 		// Not sure if Length and X/Y/Z Size need to be set, there are no equivalents in USD
 		JointMatrix.Length = 1.f;

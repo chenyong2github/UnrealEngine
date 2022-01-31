@@ -150,9 +150,9 @@ double FKismetBytecodeDisassembler::ReadDOUBLE(int32& ScriptIndex)
 FVector FKismetBytecodeDisassembler::ReadFVECTOR(int32& ScriptIndex)
 {
 	FVector Vec;
-	Vec.X = ReadFLOAT(ScriptIndex);
-	Vec.Y = ReadFLOAT(ScriptIndex);
-	Vec.Z = ReadFLOAT(ScriptIndex);
+	Vec.X = ReadDOUBLE(ScriptIndex);
+	Vec.Y = ReadDOUBLE(ScriptIndex);
+	Vec.Z = ReadDOUBLE(ScriptIndex);
 	return Vec;
 }
 

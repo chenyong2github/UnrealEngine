@@ -333,19 +333,17 @@ inline FArchive& operator<<(FArchive& Ar, TBoxSphereBounds<float, float>& Bounds
 inline FArchive& operator<<(FArchive& Ar, TBoxSphereBounds<double, double>& Bounds)
 {
 	Ar << Bounds.Origin << Bounds.BoxExtent;
-	// LWC_TODO: Serializer
-	//if(!Ar.IsPersistent())
-	//{
-	//	Ar << Bounds.SphereRadius;
-	//}
-	//else
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
-		float Radius = (float)Bounds.SphereRadius;
+		Ar << Bounds.SphereRadius;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float Radius;
 		Ar << Radius;
-		if (Ar.IsLoading())
-		{
-			Bounds.SphereRadius = Radius;
-		}
+		Bounds.SphereRadius = Radius;
 	}
 
 	return Ar;

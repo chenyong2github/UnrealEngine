@@ -20,7 +20,7 @@ template<> struct TIsPODType<FTransform3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FTransform3f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FTransform3d> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FTransform3f> { enum { Value = false }; }; // LWC_TODO: this was never defined before, should it be true or false?
-template<> struct TCanBulkSerialize<FTransform3d> { enum { Value = false }; }; // LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TCanBulkSerialize<FTransform3d> { enum { Value = false }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FTransform3f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FTransform3d);
 

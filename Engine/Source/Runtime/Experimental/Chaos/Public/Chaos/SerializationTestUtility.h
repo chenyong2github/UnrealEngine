@@ -47,12 +47,13 @@ namespace Chaos
 			ObjectsToTest.Emplace(MoveTemp(ReadFromMemory));
 		}
 
+#if 0	// TODO: Fix archive level versioning? Remove?
+
 		// Get files from binary folder.
 		TArray<FString> FilesFound;
 		IFileManager &FileManager = IFileManager::Get();
 		FString TestBinaryFolder = FString(SerializedBinaryDirectory) / BinaryFolderName;
 		FileManager.FindFiles(FilesFound, *TestBinaryFolder);
-
 
 		// Add binaries in folder to results
 		{
@@ -121,6 +122,7 @@ namespace Chaos
 				Ar->Close();
 			}
 		}
+#endif
 
 		return true;
 	}

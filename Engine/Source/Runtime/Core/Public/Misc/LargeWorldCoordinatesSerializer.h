@@ -12,9 +12,10 @@ namespace LWCSerializerPrivate
 template<typename FAltType, typename FType, typename FArSlot>
 bool SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot, FName BaseTag, FName AltTag, FName ThisTag)
 {
-	if(StructTag == BaseTag)
+	if( StructTag == BaseTag || 
+		StructTag == ThisTag)
 	{
-		// LWC_TODO: Serialize - Convert from float/double based on archive version. Just uses (float) serializer for now.
+		// Note: relies on Serialize to handle float/double based on archive version.
 		return Target.Serialize(ArSlot);
 	}
 	else if(StructTag == AltTag)
@@ -24,10 +25,6 @@ bool SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot,
 		const bool bResult = AsAlt.Serialize(ArSlot);
 		Target = static_cast<FType>(AsAlt);					// LWC_TODO: Log precision loss warning for TIsUECoreVariant<FType, float>? Could get spammy.
 		return bResult;
-	}
-	else if(StructTag == ThisTag)							// LWC_TODO: Not necessary for float variants once we're fixed on doubles, supports e.g. FVector3f->FVector conversions with LWC disabled.
-	{
-		return Target.Serialize(ArSlot);
 	}
 
 	return false;

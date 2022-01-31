@@ -97,7 +97,7 @@ namespace SkeletalMeshImportData
 	// A bone: an orientation, and a position, all relative to their parent.
 	struct FJointPos
 	{
-		FTransform	Transform;
+		::FTransform3f	Transform;	// LWC_TODO: UE::Geometry namespace issues
 
 		// For collision testing / debug drawing...
 		float       Length;

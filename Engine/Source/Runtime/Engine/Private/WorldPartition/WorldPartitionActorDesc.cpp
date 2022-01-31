@@ -186,7 +186,19 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	Ar << Class << Guid << BoundsLocation << BoundsExtent;
+	Ar << Class << Guid;
+
+	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
+	{
+		FVector3f BoundsLocationFlt, BoundsExtentFlt;
+		Ar << BoundsLocationFlt << BoundsExtentFlt;
+		BoundsLocation = FVector(BoundsLocationFlt);
+		BoundsExtent = FVector(BoundsExtentFlt);
+	}
+	else
+	{
+		Ar << BoundsLocation << BoundsExtent;
+	}
 	
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ConvertedActorGridPlacementToSpatiallyLoadedFlag)
 	{

@@ -2995,7 +2995,7 @@ void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 	else
 #endif //WITH_EDITOR
 	{
-		PerInstanceSMData.BulkSerialize(Ar, true); // LWC_TODO: Serializer. Need to force per element as PerInstance data contains an FMatrix. Should force using Ar.UEVer < LWC. 
+		PerInstanceSMData.BulkSerialize(Ar, Ar.UEVer() < EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES); 
 	}
 
 	if (!Ar.IsLoading() || Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::PerInstanceCustomData)

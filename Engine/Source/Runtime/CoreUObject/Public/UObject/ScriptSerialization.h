@@ -398,22 +398,48 @@
 		}
 		case EX_RotationConst:
 		{
-			XFER(int32); XFER(int32); XFER(int32);
+			if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
+			{
+				XFER(int64); XFER(int64); XFER(int64);
+			}
+			else
+			{
+				XFER(int32); XFER(int32); XFER(int32);
+			}
 			break;
 		}
 		case EX_VectorConst:
 		{
-			XFER(float); XFER(float); XFER(float);
+			if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
+			{
+				XFER(double); XFER(double); XFER(double);
+			}
+			else
+			{
+				XFER(float); XFER(float); XFER(float);
+			}
 			break;
 		}
 		case EX_TransformConst:
 		{
-			// Rotation
-			XFER(float); XFER(float); XFER(float); XFER(float);
-			// Translation
-			XFER(float); XFER(float); XFER(float);
-			// Scale
-			XFER(float); XFER(float); XFER(float);
+			if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
+			{
+				// Rotation
+				XFER(double); XFER(double); XFER(double); XFER(double);
+				// Translation
+				XFER(double); XFER(double); XFER(double);
+				// Scale
+				XFER(double); XFER(double); XFER(double);
+			}
+			else
+			{
+				// Rotation
+				XFER(float); XFER(float); XFER(float); XFER(float);
+				// Translation
+				XFER(float); XFER(float); XFER(float);
+				// Scale
+				XFER(float); XFER(float); XFER(float);
+			}
 			break;
 		}
 		case EX_StructConst:

@@ -421,8 +421,7 @@ FArchive& operator<<(FArchive& Ar, FFoliageInfo& Info)
 	{
 		if (Ar.IsTransacting())
 		{
-			// LWC_TODO: Serializer. Foliage bulk serialization disabled (see FFoliageInstancePlacementInfo). Force using Ar.UEVer < LWC 
-			Info.Instances.BulkSerialize(Ar, true);
+			Info.Instances.BulkSerialize(Ar, Ar.UEVer() < EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES);
 		}
 		else
 		{

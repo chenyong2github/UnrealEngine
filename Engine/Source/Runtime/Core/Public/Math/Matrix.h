@@ -12,6 +12,7 @@
 #include "Math/Rotator.h"
 #include "Math/Axis.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
+#include "UObject/ObjectVersion.h"
 #include <type_traits>
 
 UE_DECLARE_LWC_TYPE(Quat, 4);
@@ -481,28 +482,25 @@ inline FArchive& operator<<(FArchive& Ar, TMatrix<float>& M)
  */
 inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
 {
-	// LWC_TODO: Serializer
-	//if (!Ar.IsPersistent())
-	//{
-	//	Ar << M.M[0][0] << M.M[0][1] << M.M[0][2] << M.M[0][3];
-	//	Ar << M.M[1][0] << M.M[1][1] << M.M[1][2] << M.M[1][3];
-	//	Ar << M.M[2][0] << M.M[2][1] << M.M[2][2] << M.M[2][3];
-	//	Ar << M.M[3][0] << M.M[3][1] << M.M[3][2] << M.M[3][3];
-	//}
-	//else
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
+		Ar << M.M[0][0] << M.M[0][1] << M.M[0][2] << M.M[0][3];
+		Ar << M.M[1][0] << M.M[1][1] << M.M[1][2] << M.M[1][3];
+		Ar << M.M[2][0] << M.M[2][1] << M.M[2][2] << M.M[2][3];
+		Ar << M.M[3][0] << M.M[3][1] << M.M[3][2] << M.M[3][3];
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
 		// Stored as floats, so serialize float and copy.
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
-			float Col0 = (float)M.M[Row][0], Col1 = (float)M.M[Row][1], Col2 = (float)M.M[Row][2], Col3 = (float)M.M[Row][3];
+			float Col0, Col1, Col2, Col3;
 			Ar << Col0 << Col1 << Col2 << Col3;
-			if(Ar.IsLoading())
-			{
-				M.M[Row][0] = Col0;
-				M.M[Row][1] = Col1;
-				M.M[Row][2] = Col2;
-				M.M[Row][3] = Col3;
-			}
+			M.M[Row][0] = Col0;
+			M.M[Row][1] = Col1;
+			M.M[Row][2] = Col2;
+			M.M[Row][3] = Col3;
 		}
 	}
 	M.DiagnosticCheckNaN();

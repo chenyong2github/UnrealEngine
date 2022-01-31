@@ -3322,17 +3322,17 @@ IMPLEMENT_VM_FUNCTION( EX_ByteConst, execByteConst );
 
 DEFINE_FUNCTION(UObject::execRotationConst)
 {
-	((FRotator*)RESULT_PARAM)->Pitch = Stack.ReadFloat();
-	((FRotator*)RESULT_PARAM)->Yaw   = Stack.ReadFloat();
-	((FRotator*)RESULT_PARAM)->Roll  = Stack.ReadFloat();
+	((FRotator*)RESULT_PARAM)->Pitch = Stack.ReadDouble();
+	((FRotator*)RESULT_PARAM)->Yaw   = Stack.ReadDouble();
+	((FRotator*)RESULT_PARAM)->Roll  = Stack.ReadDouble();
 }
 IMPLEMENT_VM_FUNCTION( EX_RotationConst, execRotationConst );
 
 DEFINE_FUNCTION(UObject::execVectorConst)
 {
-	((FVector*)RESULT_PARAM)->X = Stack.ReadFloat();
-	((FVector*)RESULT_PARAM)->Y = Stack.ReadFloat();
-	((FVector*)RESULT_PARAM)->Z = Stack.ReadFloat();
+	((FVector*)RESULT_PARAM)->X = Stack.ReadDouble();
+	((FVector*)RESULT_PARAM)->Y = Stack.ReadDouble();
+	((FVector*)RESULT_PARAM)->Z = Stack.ReadDouble();
 }
 IMPLEMENT_VM_FUNCTION( EX_VectorConst, execVectorConst );
 
@@ -3340,22 +3340,22 @@ DEFINE_FUNCTION(UObject::execTransformConst)
 {
 	// Rotation
 	FQuat TmpRotation;
-	TmpRotation.X = Stack.ReadFloat();
-	TmpRotation.Y = Stack.ReadFloat();
-	TmpRotation.Z = Stack.ReadFloat();
-	TmpRotation.W = Stack.ReadFloat();
+	TmpRotation.X = Stack.ReadDouble();
+	TmpRotation.Y = Stack.ReadDouble();
+	TmpRotation.Z = Stack.ReadDouble();
+	TmpRotation.W = Stack.ReadDouble();
 
 	// Translation
 	FVector TmpTranslation;
-	TmpTranslation.X = Stack.ReadFloat();
-	TmpTranslation.Y = Stack.ReadFloat();
-	TmpTranslation.Z = Stack.ReadFloat();
+	TmpTranslation.X = Stack.ReadDouble();
+	TmpTranslation.Y = Stack.ReadDouble();
+	TmpTranslation.Z = Stack.ReadDouble();
 
 	// Scale
 	FVector TmpScale;
-	TmpScale.X = Stack.ReadFloat();
-	TmpScale.Y = Stack.ReadFloat();
-	TmpScale.Z = Stack.ReadFloat();
+	TmpScale.X = Stack.ReadDouble();
+	TmpScale.Y = Stack.ReadDouble();
+	TmpScale.Z = Stack.ReadDouble();
 
 	((FTransform*)RESULT_PARAM)->SetComponents(TmpRotation, TmpTranslation, TmpScale);
 }

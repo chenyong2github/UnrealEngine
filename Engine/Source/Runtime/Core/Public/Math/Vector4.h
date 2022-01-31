@@ -523,24 +523,21 @@ public:
  */
 inline FArchive& operator<<(FArchive& Ar, TVector4<float>& V)
 {
-	// LWC_TODO: Serializer
 	return Ar << V.X << V.Y << V.Z << V.W;
 }
 
 inline FArchive& operator<<(FArchive& Ar, TVector4<double>& V)
 {
-	// LWC: Serialize as float
-	float X, Y, Z, W;
-	X = (float)V.X;
-	Y = (float)V.Y;
-	Z = (float)V.Z;
-	W = (float)V.W;
-
-	// LWC_TODO: Serializer
-	Ar << X << Y << Z << W;
-
-	if (Ar.IsLoading())
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
+		Ar << V.X << V.Y << V.Z << V.W;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float X, Y, Z, W;
+		Ar << X << Y << Z << W;
 		V = TVector4<double>(X, Y, Z, W);
 	}
 	return Ar;
@@ -849,8 +846,7 @@ template <typename T>
 bool TVector4<T>::SerializeFromVector3(FName StructTag, FArchive& Ar)
 {
 	// Upgrade Vector3 - only set X/Y/Z.  The W should already have been set to the property specific default and we don't want to trash it by forcing 0 or 1.
-	// LWC_TODO: Serialize - Convert from Vector based on archive version
-	if(StructTag == NAME_Vector || StructTag == NAME_Vector3f)
+	if(StructTag == NAME_Vector3f)
 	{
 		FVector3f AsVec;
 		Ar << AsVec;
@@ -859,9 +855,9 @@ bool TVector4<T>::SerializeFromVector3(FName StructTag, FArchive& Ar)
 		Z = (T)AsVec.Z;		
 		return true;
 	}
-	else if(StructTag == NAME_Vector3d)
+	else if(StructTag == NAME_Vector || StructTag == NAME_Vector3d)
 	{
-		FVector3d AsVec;
+		FVector3d AsVec;	// Note: Vector relies on FVector3d serializer to handle float/double based on archive version.
 		Ar << AsVec;
 		X = (T)AsVec.X;
 		Y = (T)AsVec.Y;
@@ -883,7 +879,7 @@ template<> struct TIsPODType<FVector4d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FVector4f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FVector4d> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FVector4f> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FVector4d> { enum { Value = false }; }; // LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TCanBulkSerialize<FVector4d> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector4f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector4d);
 

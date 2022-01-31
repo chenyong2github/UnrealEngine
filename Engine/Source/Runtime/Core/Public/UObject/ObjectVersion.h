@@ -54,6 +54,9 @@ enum class EUnrealEngineObjectUE5Version : uint32
 	// Added data to identify references from and to optional package
 	OPTIONAL_RESOURCES,
 	
+	// Large world coordinates converts a number of core types to double components by default.
+	LARGE_WORLD_COORDINATES,       
+	
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
 	AUTOMATIC_VERSION_PLUS_ONE,

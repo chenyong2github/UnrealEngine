@@ -686,12 +686,17 @@ inline FArchive& operator<<(FArchive& Ar, TVector2<double>& V)
 {
 	// @warning BulkSerialize: TVector2<T> is serialized as memory dump
 	// See TArray::BulkSerialize for detailed description of implied limitations.
-	float X = (float)V.X, Y = (float)V.Y;
-	Ar << X << Y;
-	if(Ar.IsLoading())
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
-		V.X = X;
-		V.Y = Y;
+		Ar << V.X << V.Y;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float X, Y;
+		Ar << X << Y;
+		V = TVector2<double>(X, Y);
 	}
 	return Ar;
 }
@@ -701,13 +706,19 @@ inline void operator<<(FStructuredArchive::FSlot Slot, TVector2<double>& V)
 	// @warning BulkSerialize: TVector2<T> is serialized as memory dump
 	// See TArray::BulkSerialize for detailed description of implied limitations.
 	FStructuredArchive::FStream Stream = Slot.EnterStream();
-	float X = (float)V.X, Y = (float)V.Y;
-	Stream.EnterElement() << X;
-	Stream.EnterElement() << Y;
-	if(Slot.GetArchiveState().IsLoading())
+	if (Slot.GetUnderlyingArchive().UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
-		V.X = X;
-		V.Y = Y;
+		Stream.EnterElement() << V.X;
+		Stream.EnterElement() << V.Y;
+	}
+	else
+	{
+		checkf(Slot.GetUnderlyingArchive().IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float X, Y;
+		Stream.EnterElement() << X;
+		Stream.EnterElement() << Y;
+		V = TVector2<double>(X, Y);
 	}
 }
 
@@ -1163,7 +1174,7 @@ template <> struct TIsUECoreVariant<FVector2f> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
 template <> struct TIsPODType<FVector2d> { enum { Value = true }; };
 template <> struct TIsUECoreVariant<FVector2d> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FVector2d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
 
 template<>
 inline bool FVector2f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)

@@ -208,19 +208,17 @@ inline FArchive& operator<<(FArchive& Ar, TSphere<double>& Sphere)
 {
 	Ar << Sphere.Center;
 
-	// LWC_TODO: Serializer
-	//if (!Ar.IsPersistent())
-	//{
-	//	Ar << Sphere.W;
-	//}
-	//else
+	if (Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 	{
-		float SW = (float)Sphere.W;
+		Ar << Sphere.W;
+	}
+	else
+	{
+		checkf(Ar.IsLoading(), TEXT("float -> double conversion applied outside of load!"));
+		// Stored as floats, so serialize float and copy.
+		float SW;
 		Ar << SW;
-		if (Ar.IsLoading())
-		{
-			Sphere.W = (double)SW;
-		}
+		Sphere.W = (double)SW;
 	}
 
 	return Ar;

@@ -1190,7 +1190,19 @@ public:
 					A.ResizeForCopy(A.ArrayNum, A.ArrayMax);
 				}
 
-				Ar.Serialize(A.GetData(), A.Num() * sizeof(ElementType));
+				if(TIsUECoreVariant<ElementType, double>::Value && Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
+				{
+					// Per item serialization is required for core variant types loaded from pre LWC archives, to enable conversion from float to double.
+					A.Empty(SerializeNum);
+					for (SizeType i=0; i<SerializeNum; i++)
+					{
+						Ar << *::new(A) ElementType;
+					}		
+				}
+				else
+				{
+					Ar.Serialize(A.GetData(), A.Num() * sizeof(ElementType));
+				}
 			}
 			else if (Ar.IsLoading())
 			{
@@ -1250,7 +1262,7 @@ public:
 		// Serialize element size to detect mismatch across platforms.
 		int32 SerializedElementSize = ElementSize;
 		Ar << SerializedElementSize;
-		
+	
 		if (bForcePerElementSerialization
 			|| (Ar.IsSaving()			// if we are saving, we always do the ordinary serialize as a way to make sure it matches up with bulk serialization
 			&& !Ar.IsCooking()			// but cooking and transacting is performance critical, so we skip that
