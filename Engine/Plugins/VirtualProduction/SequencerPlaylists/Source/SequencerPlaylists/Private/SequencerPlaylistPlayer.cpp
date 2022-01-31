@@ -19,6 +19,7 @@
 
 #define LOCTEXT_NAMESPACE "SequencerPlaylists"
 
+
 USequencerPlaylistPlayer::USequencerPlaylistPlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -37,6 +38,8 @@ void USequencerPlaylistPlayer::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	PlaylistTicker = {};
+
 	UTakeRecorder::OnRecordingInitialized().RemoveAll(this);
 
 	if (UTakeRecorder* BoundRecorder = WeakRecorder.Get())
@@ -44,6 +47,13 @@ void USequencerPlaylistPlayer::BeginDestroy()
 		BoundRecorder->OnRecordingStarted().RemoveAll(this);
 		BoundRecorder->OnRecordingStopped().RemoveAll(this);
 	}
+}
+
+
+//static
+USequencerPlaylistPlayer* USequencerPlaylistPlayer::GetDefaultPlayer()
+{
+	return ISequencerPlaylistsModule::Get().GetDefaultPlayer();
 }
 
 
@@ -150,7 +160,6 @@ void StopPlaybackAndAdjustTime(TSharedPtr<ISequencer>& Sequencer)
 			FFrameTime CurrentFrameTime = GetFrameTime(MovieScene, Sequencer->GetGlobalTime());
 			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
 			// Set the playback range back to a closed interval.
-			//
 			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(Range.GetLowerBoundValue(), CurrentFrameTime.GetFrame()), false);
 		}
 	}
@@ -207,15 +216,20 @@ bool USequencerPlaylistPlayer::PlayAll()
 
 	EnterUnboundedPlayIfNotRecording();
 
-	bool bResult = true;
+	bool bAnyChange = false;
 
 	FScopedTransaction Transaction(LOCTEXT("PlayAllTransaction", "Trigger playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult &= GetCheckedItemPlayer(Item)->Play(Item);
+		bAnyChange |= GetCheckedItemPlayer(Item)->Play(Item);
 	}
 
-	return bResult;
+	if (bAnyChange)
+	{
+		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
+	}
+
+	return bAnyChange;
 }
 
 
@@ -235,16 +249,22 @@ bool USequencerPlaylistPlayer::StopAll()
 		UE::Private::PlaylistPlayer::StopPlaybackAndAdjustTime(Sequencer);
 	}
 
-	bool bResult = true;
+	bool bAnyChange = false;
 
 	FScopedTransaction Transaction(LOCTEXT("StopAllTransaction", "Stop playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult &= GetCheckedItemPlayer(Item)->Stop(Item);
+		bAnyChange |= GetCheckedItemPlayer(Item)->Stop(Item);
+	}
+
+	if (bAnyChange)
+	{
+		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
 	}
 
 	PlaylistTicker = {};
-	return bResult;
+
+	return bAnyChange;
 }
 
 
@@ -255,15 +275,20 @@ bool USequencerPlaylistPlayer::ResetAll()
 		return false;
 	}
 
-	bool bResult = true;
+	bool bAnyChange = false;
 
 	FScopedTransaction Transaction(LOCTEXT("ResetAllTransaction", "Reset playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult &= GetCheckedItemPlayer(Item)->Reset(Item);
+		bAnyChange |= GetCheckedItemPlayer(Item)->Reset(Item);
 	}
 
-	return bResult;
+	if (bAnyChange)
+	{
+		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
+	}
+
+	return bAnyChange;
 }
 
 

@@ -1576,10 +1576,10 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 			// Recurse into the sub sequence
 			RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
 			{
-			PopulateSubSequenceTree(SubData->GetSequence(), SubParams, RootPath, InOutHierarchy);
+				PopulateSubSequenceTree(SubData->GetSequence(), SubParams, RootPath, InOutHierarchy);
+			}
+			RootPath->PopGenerations(1);
 		}
-		RootPath->PopGenerations(1);
-	}
 		else
 		{
 			// The section is looping so we need to add its contents to the tree as many times as it has loops.

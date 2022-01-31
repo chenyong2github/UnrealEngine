@@ -32,8 +32,14 @@ public:
 	void BeginDestroy() override;
 	//~ End UObject interface
 
+	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")
 	void SetPlaylist(USequencerPlaylist* InPlaylist) { Playlist = InPlaylist; }
+
+	UFUNCTION(BlueprintPure, Category="SequencerPlaylists")
 	USequencerPlaylist* GetPlaylist() { return Playlist; }
+
+	UFUNCTION(BlueprintPure, meta=(DisplayName="Get Default Sequencer Playlist Player"), Category="SequencerPlaylists")
+	static USequencerPlaylistPlayer* GetDefaultPlayer();
 
 public:
 	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")

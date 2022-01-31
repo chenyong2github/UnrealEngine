@@ -42,8 +42,8 @@ public:
 	//~ Begin ISequencerPlaylistItemPlayer
 	bool Play(USequencerPlaylistItem* Item) override;
 	bool Stop(USequencerPlaylistItem* Item) override;
-	bool Reset(USequencerPlaylistItem* Item) override;
 	bool AddHold(USequencerPlaylistItem* Item) override;
+	bool Reset(USequencerPlaylistItem* Item) override;
 	//~ End ISequencerPlaylistItemPlayer
 
 private:

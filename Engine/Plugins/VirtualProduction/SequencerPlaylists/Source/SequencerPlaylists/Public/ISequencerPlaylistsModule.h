@@ -13,15 +13,36 @@ class USequencerPlaylistItem;
 class USequencerPlaylistPlayer;
 
 
+/** Interface for derived classes that play one or more subclasses of USequencerPlaylistItem. */
 class ISequencerPlaylistItemPlayer
 {
 public:
 	virtual ~ISequencerPlaylistItemPlayer() {}
 
+	/**
+	 * Initiate playback of the specified item.
+	 * @return True if the current sequence was modified, otherwise false.
+	 */
 	virtual bool Play(USequencerPlaylistItem* Item) = 0;
+
+	/**
+	 * Halt any current playback of the specified item.
+	 * @return True if the current sequence was modified, otherwise false.
+	 */
 	virtual bool Stop(USequencerPlaylistItem* Item) = 0;
-	virtual bool Reset(USequencerPlaylistItem* Item) = 0;
+
+	/**
+	 * Adds a first frame hold section for the specified item.
+	 * @return True if the current sequence was modified, otherwise false.
+	 */
 	virtual bool AddHold(USequencerPlaylistItem* Item) = 0;
+
+	/**
+	 * Reset the specified item.
+	 * This is essentially a Stop(), followed by an AddHold() if applicable.
+	 * @return True if the current sequence was modified, otherwise false.
+	 */
+	virtual bool Reset(USequencerPlaylistItem* Item) = 0;
 };
 
 
