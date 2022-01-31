@@ -756,11 +756,11 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 				const FRigidTransform3 ChildToParentTransform = ChildTransform.GetRelativeTransform(ParentTransform);
 
 				ChildParticle->Handle()->ParticleCollisions().VisitCollisions(
-					[&](const FPBDCollisionConstraint* ChildCollisionConstraint)
+					[&](const FPBDCollisionConstraint& ChildCollisionConstraint)
 					{
-						if (ChildCollisionConstraint->GetCCDType() != ECollisionCCDType::Disabled)
+						if (ChildCollisionConstraint.GetCCDType() != ECollisionCCDType::Disabled)
 						{
-							return;
+							return ECollisionVisitorResult::Continue;
 						}
 
 						// @todo(chaos): implemeent this
@@ -775,7 +775,7 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 						//		to replace a legit collision with our fake one...probably
 						ensure(false);
 
-						const FGeometryParticleHandle* NewParentParticleConst = (ChildCollisionConstraint->GetParticle0() == ChildParticle->Handle()) ? ChildCollisionConstraint->GetParticle1() : ChildCollisionConstraint->GetParticle0();
+						const FGeometryParticleHandle* NewParentParticleConst = (ChildCollisionConstraint.GetParticle0() == ChildParticle->Handle()) ? ChildCollisionConstraint.GetParticle1() : ChildCollisionConstraint.GetParticle0();
 						
 						FGeometryParticleHandle* NewParticleA = const_cast<FGeometryParticleHandle*>(NewParentParticleConst);
 						FGeometryParticleHandle* NewParticleB = ParentParticle->Handle();
@@ -790,6 +790,8 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 						// Add collision to the system
 						//FParticlePairMidPhase* MidPhase = CollisionAllocator.GetParticlePairMidPhase(NewParticleA, NewParticleB);
 						//MidPhase->InjectCollision(NewCollision);
+
+						return ECollisionVisitorResult::Continue;
 					});
 			}
 		}

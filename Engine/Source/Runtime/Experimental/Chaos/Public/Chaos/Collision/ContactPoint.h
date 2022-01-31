@@ -10,17 +10,20 @@
 
 namespace Chaos
 {
-	// 
-	// In principle, the low-level collision detection functions should not need to calculate the world-space contact data, but some of them
-	// do some of their work in world space and already have the results we need. To avoid duplicate work, all collision detection functions
-	// should also fill in the world-space data
+	/**
+	 * @brief Used in FContactPoint to indicate whether the contact is vertex-plane, edge-edge, etc
+	*/
+	enum class EContactPointType : int8
+	{
+		Unknown,
+		VertexPlane,
+		PlaneVertex,
+		EdgeEdge,
+		VertexVertex,
+	};
 
 	/**
 	 * @brief Data returned by the low-level collision functions
-	 * 
-	 * @note In principle, the low-level collision detection functions should not need to calculate the world-space contact data, but some of them
-	 * do some of their work in world space and already have the results we need. To avoid duplicate work, all collision detection functions
-	 * should also fill in the world-space data
 	*/
 	class CHAOS_API FContactPoint
 	{
@@ -37,9 +40,13 @@ namespace Chaos
 		// Face index of the shape we hit. Only valid for Heightfield and Trimesh contact points, otherwise INDEX_NONE
 		int32 FaceIndex;
 
+		// Whether this is a vertex-plane contact, edge-edge contact etc.
+		EContactPointType ContactType;
+
 		FContactPoint()
 			: Phi(TNumericLimits<FReal>::Max())
 			, FaceIndex(INDEX_NONE)
+			, ContactType(EContactPointType::Unknown)
 		{
 		}
 

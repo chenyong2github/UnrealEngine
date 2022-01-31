@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Collision/ParticlePairMidPhase.h"
+#include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/CollisionFilter.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
@@ -151,12 +152,6 @@ namespace Chaos
 		, SphereBoundsCheckSize(R.SphereBoundsCheckSize)
 		, Flags(R.Flags)
 	{
-	}
-
-	inline bool FSingleShapePairCollisionDetector::IsUsedSince(const int32 Epoch) const
-	{
-		// If we have no constraint it was never used, so this check is always false
-		return (Constraint != nullptr) && (LastUsedEpoch >= Epoch);
 	}
 
 	bool FSingleShapePairCollisionDetector::DoBoundsOverlap(const FReal CullDistance)
@@ -623,18 +618,6 @@ namespace Chaos
 		}
 	}
 
-	void FMultiShapePairCollisionDetector::VisitCollisions(const int32 LastEpoch, const FPBDCollisionVisitor& Visitor) const
-	{
-		for (auto& KVP : Constraints)
-		{
-			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
-			if (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)
-			{
-				Visitor(Constraint.Get());
-			}
-		}
-	}
-
 
 	////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -661,6 +644,11 @@ namespace Chaos
 	FParticlePairMidPhase::~FParticlePairMidPhase()
 	{
 		Reset();
+	}
+
+	int32 FParticlePairMidPhase::GetCurrentEpoch() const
+	{
+		return CollisionAllocator->GetCurrentEpoch();
 	}
 
 	void FParticlePairMidPhase::DetachParticle(FGeometryParticleHandle* Particle)
@@ -899,24 +887,6 @@ namespace Chaos
 
 			Flags.bIsSleeping = bInIsSleeping;
 		}
-	}
-
-	void FParticlePairMidPhase::VisitCollisions(const FPBDCollisionVisitor& Visitor) const
-	{
-		const int32 LastEpoch = IsSleeping() ? LastUsedEpoch : CollisionAllocator->GetCurrentEpoch();
-		for (const FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
-		{
-			if (ShapePair.IsUsedSince(LastEpoch))
-			{
-				Visitor(ShapePair.GetConstraint());
-			}
-		}
-
-		for (const FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
-		{
-			MultiShapePair.VisitCollisions(LastEpoch, Visitor);
-		}
-
 	}
 
 }

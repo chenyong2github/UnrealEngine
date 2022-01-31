@@ -56,7 +56,10 @@ namespace Chaos
 		/**
 		 * @brief Have we run collision detection since this Epoch (inclusive)
 		*/
-		bool IsUsedSince(const int32 CurrentEpoch) const;
+		inline bool IsUsedSince(const int32 Epoch) const
+		{
+			return (Constraint != nullptr) && (LastUsedEpoch >= Epoch);
+		}
 
 		/**
 		 * @brief Perform a bounds check and run the narrow phase if necessary
@@ -187,7 +190,17 @@ namespace Chaos
 		*/
 		void WakeCollisions(const int32 SleepEpoch);
 
-		void VisitCollisions(const int32 LastEpoch, const FPBDCollisionVisitor& Visitor) const;
+		/**
+		 * @brief Visit all the collisions
+		*/
+		template<typename TLambda>
+		ECollisionVisitorResult VisitCollisions(const int32 LastEpoch, const TLambda& Visitor);
+
+		/**
+		 * @brief Visit all the collisions
+		*/
+		template<typename TLambda>
+		ECollisionVisitorResult VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor) const;
 
 	private:
 		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
@@ -315,12 +328,22 @@ namespace Chaos
 		*/
 		void InjectCollision(const FPBDCollisionConstraint& Constraint);
 
+		int32 GetCurrentEpoch() const;
+
 		/**
-		 * @brief Call a function on each active collision constraint
-		 * This including sleeping constraints, but not constraints that are were not used on the last awake tick
+		 * @brief Call a lambda on each active collision constraint
+		 * This includes sleeping constraints, but skips constraints that are were not used on the last awake tick
 		 * but are still kept around as an optimization.
 		*/
-		void VisitCollisions(const FPBDCollisionVisitor& Visitor) const;
+		template<typename TLambda>
+		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor);
+
+
+		/**
+		 * @brief Call a lambda on each active collision constraint
+		 */
+		template<typename TLambda>
+		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor) const;
 
 		/**
 		 * @brief Cookie for use by FParticleCollisions

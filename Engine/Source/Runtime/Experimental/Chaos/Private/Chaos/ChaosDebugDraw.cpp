@@ -845,7 +845,8 @@ namespace Chaos
 					// Static friction, no restitution = green
 					// Inactive = gray
 					FColor DiscColor = FColor(200, 0, 0);
-					FColor NormalColor = FColor(200, 0, 0);
+					FColor PlaneNormalColor = FColor(200, 0, 0);
+					FColor EdgeNormalColor = FColor(200, 150, 0);
 					FColor ImpulseColor = FColor(0, 0, 200);
 					FColor PushOutColor = FColor(200, 200, 0);
 					FColor PushOutImpusleColor = FColor(0, 200, 200);
@@ -856,7 +857,8 @@ namespace Chaos
 					if (!bIsActive)
 					{
 						DiscColor = FColor(100, 100, 100);
-						NormalColor = FColor(100, 100, 100);
+						PlaneNormalColor = FColor(100, 0, 0);
+						EdgeNormalColor = FColor(100, 80, 0);
 					}
 
 					const FVec3 WorldPointLocation = SpaceTransform.TransformPosition(PointLocation);
@@ -885,6 +887,7 @@ namespace Chaos
 					}
 					if (Settings.ContactLen > 0)
 					{
+						FColor NormalColor = ((ManifoldPoint.ContactPoint.ContactType != EContactPointType::EdgeEdge) ? PlaneNormalColor : EdgeNormalColor);
 						FColor C1 = (ColorScale * NormalColor).ToFColor(false);
 						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPlaneLocation, WorldPlaneLocation + Settings.DrawScale * Settings.ContactLen * WorldPlaneNormal, C1, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 					}
@@ -898,10 +901,13 @@ namespace Chaos
 					FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 
 					// Previous points
-					const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PointTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPointOwner]));
-					const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PlaneTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPlaneOwner]));
-					FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					if (bIsActive)
+					{
+						const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PointTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPointOwner]));
+						const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PlaneTransform.TransformPosition(ManifoldPoint.ShapeAnchorPoints[ContactPlaneOwner]));
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					}
 
 					// Whether restored
 					if (Settings.ContactInfoWidth > 0)
@@ -1496,10 +1502,11 @@ namespace Chaos
 		{
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				CollisionAllocator.VisitCollisions(
-					[&](const FPBDCollisionConstraint* Collision)
+				CollisionAllocator.VisitConstCollisions(
+					[&](const FPBDCollisionConstraint& Collision)
 					{
-						DrawCollisionImpl(SpaceTransform, Collision, ColorScale, GetChaosDebugDrawSettings(Settings));
+						DrawCollisionImpl(SpaceTransform, &Collision, ColorScale, GetChaosDebugDrawSettings(Settings));
+						return ECollisionVisitorResult::Continue;
 					});
 			}
 		}

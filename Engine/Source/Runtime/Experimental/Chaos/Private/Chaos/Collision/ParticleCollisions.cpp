@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Collision/ParticleCollisions.h"
+#include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/ParticlePairMidPhase.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
@@ -41,15 +42,6 @@ namespace Chaos
 		{
 			MidPhases[Index].Value->SetParticleCollisionsIndex(InParticle, Index);
 		}
-	}
-
-
-	void FParticleCollisions::VisitCollisions(const FPBDCollisionVisitor& Visitor) const
-	{
-		VisitConstMidPhases([&Visitor](const FParticlePairMidPhase& MidPhase)
-			{
-				MidPhase.VisitCollisions(Visitor);
-			});
 	}
 
 }

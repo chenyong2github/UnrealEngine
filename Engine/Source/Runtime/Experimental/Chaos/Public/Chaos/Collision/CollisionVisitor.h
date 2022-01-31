@@ -8,5 +8,13 @@ namespace Chaos
 {
 	class FPBDCollisionConstraint;
 
-	using FPBDCollisionVisitor = TFunction<void(const FPBDCollisionConstraint*)>;
+	/**
+	 * @brief Return value in collision visitors to indicate whether we should continue visiting for stop
+	*/
+	enum class ECollisionVisitorResult
+	{
+		Stop,
+		Continue
+	};
+
 }

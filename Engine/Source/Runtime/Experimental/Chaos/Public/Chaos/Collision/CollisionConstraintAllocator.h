@@ -282,20 +282,25 @@ namespace Chaos
 			Particle->ParticleCollisions().VisitMidPhases([Particle](FParticlePairMidPhase& MidPhase)
 				{
 					MidPhase.DetachParticle(Particle);
+					return ECollisionVisitorResult::Continue;
 				});
 		}
 
 		/**
 		 * @brief Iterate over all collisions, including sleeping ones
 		*/
-		void VisitCollisions(const TFunction<void(const FPBDCollisionConstraint*)>& Visitor) const
+		template<typename TLambda>
+		void VisitConstCollisions(const TLambda& Visitor) const
 		{
 			for (const auto& MidPhase : ParticlePairMidPhases)
 			{
-				MidPhase->VisitCollisions(Visitor);
+				if (MidPhase->VisitConstCollisions(Visitor) == ECollisionVisitorResult::Stop)
+				{
+					return;
+				}
 			}
 		}
-
+		
 	private:
 
 		void ProcessNewItems()
@@ -440,5 +445,156 @@ namespace Chaos
 		// The set of mid phases created this tick (i.e., for particle pairs that were not in the map)
 		mutable TLockFreePointerListLIFO<FParticlePairMidPhase> NewParticlePairMidPhases;
 	};
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	// Below here is for code that is moved to avoid circular header dependencies
+	// See ParticlePairMidPhase.h and ParticleCollisions.h
+	//
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitCollisions(const int32 LastEpoch, const TLambda& Visitor)
+	{
+		for (auto& KVP : Constraints)
+		{
+			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			if (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)
+			{
+				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor) const
+	{
+		for (auto& KVP : Constraints)
+		{
+			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			if (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)
+			{
+				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticlePairMidPhase::VisitCollisions(const TLambda& Visitor)
+	{
+		const int32 LastEpoch = IsSleeping() ? LastUsedEpoch : GetCurrentEpoch();
+		for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+		{
+			if (ShapePair.IsUsedSince(LastEpoch))
+			{
+				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+
+		for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
+		{
+			if (MultiShapePair.VisitCollisions(LastEpoch, Visitor) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+
+		return ECollisionVisitorResult::Continue;
+	}
+
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticlePairMidPhase::VisitConstCollisions(const TLambda& Visitor) const
+	{
+		const int32 LastEpoch = IsSleeping() ? LastUsedEpoch : GetCurrentEpoch();
+		for (const FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+		{
+			if (ShapePair.IsUsedSince(LastEpoch))
+			{
+				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+
+		for (const FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
+		{
+			if (MultiShapePair.VisitConstCollisions(LastEpoch, Visitor) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+
+		return ECollisionVisitorResult::Continue;
+	}
+
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticleCollisions::VisitMidPhases(const TLambda& Lambda)
+	{
+		for (int32 Index = 0; Index < MidPhases.Num(); ++Index)
+		{
+			if (Lambda(*MidPhases[Index].Value) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticleCollisions::VisitConstMidPhases(const TLambda& Lambda) const
+	{
+		for (int32 Index = 0; Index < MidPhases.Num(); ++Index)
+		{
+			if (Lambda(*MidPhases[Index].Value) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticleCollisions::VisitCollisions(const TLambda& Visitor)
+	{
+		return VisitMidPhases([&Visitor](FParticlePairMidPhase& MidPhase)
+			{
+				if (MidPhase.VisitCollisions(Visitor) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+				return ECollisionVisitorResult::Continue;
+			});
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticleCollisions::VisitConstCollisions(const TLambda& Visitor) const
+	{
+		return VisitConstMidPhases([&Visitor](const FParticlePairMidPhase& MidPhase)
+			{
+				if (MidPhase.VisitConstCollisions(Visitor) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+				return ECollisionVisitorResult::Continue;
+			});
+	}
+
 
 }

@@ -51,7 +51,12 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarChaos_Collision_GJKEpsilon(TEXT("p.Chaos.Collision.GJKEpsilon"), Chaos_Collision_GJKEpsilon, TEXT(""));
 	FAutoConsoleVariableRef CVarChaos_Collision_EPAEpsilon(TEXT("p.Chaos.Collision.EPAEpsilon"), Chaos_Collision_EPAEpsilon, TEXT(""));
 
-	
+	// Whether to prune spurious edge contacts in trimesh nd heighfield contacts (pretty much essential)
+	bool bChaos_Collision_EnableEdgePrune = true;
+	FRealSingle Chaos_Collision_EdgePrunePlaneDistance = 3.0;
+	FAutoConsoleVariableRef CVarChaos_Collision_EnableEdgePrune(TEXT("p.Chaos.Collision.EnableEdgePrune"), bChaos_Collision_EnableEdgePrune, TEXT(""));
+	FAutoConsoleVariableRef CVarChaos_Collision_EdgePrunePlaneDistance(TEXT("p.Chaos.Collision.EdgePrunePlaneDistance"), Chaos_Collision_EdgePrunePlaneDistance, TEXT(""));
+
 	namespace Collisions
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
@@ -240,11 +245,64 @@ namespace Chaos
 			return OutPointCount; // This should always be 4
 		}
 
+		// Remove spurious edge contact by removing edge-edge contact that are in the plane of another vertex-plane contact.
+		void PruneEdgeContactPoints(TArray<FContactPoint>& ContactPoints, const FReal Epsilon)
+		{
+			if (!bChaos_Collision_EnableEdgePrune)
+			{
+				return;
+			}
+
+			int32 NumContactPoints = ContactPoints.Num();
+			for (int32 EdgeContactIndex = 0; EdgeContactIndex < NumContactPoints; ++EdgeContactIndex)
+			{
+				const FContactPoint& EdgeContactPoint = ContactPoints[EdgeContactIndex];
+
+				if (EdgeContactPoint.ContactType == EContactPointType::EdgeEdge)
+				{
+					for (int32 PlaneContactIndex = 0; PlaneContactIndex < NumContactPoints; ++PlaneContactIndex)
+					{
+						const FContactPoint PlaneContactPoint = ContactPoints[PlaneContactIndex];
+
+						// Does the edge-edge contact lie in the plane of the vertex-plane contact...?
+						int32 PlaneShapeIndex = INDEX_NONE;
+						if (PlaneContactPoint.ContactType == EContactPointType::PlaneVertex)
+						{
+							PlaneShapeIndex = 0;
+						}
+						else if (PlaneContactPoint.ContactType == EContactPointType::VertexPlane)
+						{
+							PlaneShapeIndex = 1;
+						}
+						if (PlaneShapeIndex != INDEX_NONE)
+						{
+							const FVec3 DeltaPos = PlaneContactPoint.ShapeContactPoints[PlaneShapeIndex] - EdgeContactPoint.ShapeContactPoints[PlaneShapeIndex];
+							const FReal Distance = FVec3::DotProduct(DeltaPos, PlaneContactPoint.ShapeContactNormal);
+							if (FMath::Abs(Distance) < Epsilon)
+							{
+								// Note: Cannot use RemoveAtSwap unless we re-sort at the end. See ReduceManifoldContactPointsTriangeMesh
+								const bool bAllowShrinking = false;
+								ContactPoints.RemoveAt(EdgeContactIndex, 1, bAllowShrinking);
+								--EdgeContactIndex;
+								--NumContactPoints;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// Reduce the number of contact points (in place)
 		// Prerequisites to calling this function:
 		// ContactPoints are sorted on phi (ascending)
 		void ReduceManifoldContactPointsTriangeMesh(TArray<FContactPoint>& ContactPoints)
 		{
+			// Remove edge contacts that are "hidden" by face contacts
+			// EdgePruneDistance should be some fraction of the convex margin...
+			const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
+			PruneEdgeContactPoints(ContactPoints, EdgePruneDistance);
+
 			if (ContactPoints.Num() <= 4)
 			{
 				return;
@@ -746,6 +804,9 @@ namespace Chaos
 					return;
 				}
 
+				// This is an edge-edge contact
+				GJKContactPoint.ContactType = EContactPointType::EdgeEdge;
+
 				// @todo(chaos): remove this if we ditch convex margins
 				// We only need to find the best edges when we have convex margins enabled because then the GJK result
 				// is a contact on the rounded margin-reduced shape and not the actual shape. If we are using zero
@@ -767,10 +828,21 @@ namespace Chaos
 					const FVec3 EdgePos1In2 = Convex2ToConvex1Transform.InverseTransformPositionNoScale(ShapeEdgePos1);
 					const FVec3 EdgePos2In2 = ShapeEdgePos2;
 					const FReal EdgePhi = FVec3::DotProduct(EdgePos1In2 - EdgePos2In2, GJKContactPoint.ShapeContactNormal);
-					const FVec3 EdgePosIn2 = FReal(0.5) * (EdgePos1In2 + EdgePos2In2);
 
-					GJKContactPoint.ShapeContactPoints[0] = Convex2ToConvex1Transform.TransformPositionNoScale(EdgePosIn2 + FReal(0.5) * EdgePhi * GJKContactPoint.ShapeContactNormal);
-					GJKContactPoint.ShapeContactPoints[1] = EdgePosIn2 - FReal(0.5) * EdgePhi * GJKContactPoint.ShapeContactNormal;
+					// We now have an accurate separation, so reject points beyond cull distance.
+					// This is quite important because if we use a larger cull distance for edge-edge contacts than for vertex-plane
+					// contacts, the pruning of unnecessary edge-edge contacts does not work (Tri Mesh and heighfield)
+					if (EdgePhi > Constraint.GetCullDistance())
+					{
+						return;
+					}
+
+					// @todo(chaos): we leave the contact point on the second shape because this is better for triangle meshes (see PruneContactEdges). For other shapes it should probably be the average
+					//const FVec3 EdgePosIn2 = FReal(0.5) * (EdgePos1In2 + EdgePos2In2);
+					//GJKContactPoint.ShapeContactPoints[0] = Convex2ToConvex1Transform.TransformPositionNoScale(EdgePosIn2 + FReal(0.5) * EdgePhi * GJKContactPoint.ShapeContactNormal);
+					//GJKContactPoint.ShapeContactPoints[1] = EdgePosIn2 - FReal(0.5) * EdgePhi * GJKContactPoint.ShapeContactNormal;
+					GJKContactPoint.ShapeContactPoints[0] = Convex2ToConvex1Transform.TransformPositionNoScale(EdgePos2In2 + EdgePhi * GJKContactPoint.ShapeContactNormal);
+					GJKContactPoint.ShapeContactPoints[1] = EdgePos2In2;
 					GJKContactPoint.Phi = EdgePhi;
 					// Normal unchanged from GJK result
 				}
@@ -861,6 +933,9 @@ namespace Chaos
 				}
 			}
 
+			// This is a vertex-plane contact
+			EContactPointType ContactType = ReferenceFaceConvex1 ? EContactPointType::PlaneVertex : EContactPointType::VertexPlane;
+
 			// Generate the contact points from the clipped vertices
 			{
 				SCOPE_CYCLE_COUNTER_MANIFOLD_ADDFACEVERTEX();
@@ -879,6 +954,7 @@ namespace Chaos
 					ContactPoint.ShapeContactPoints[1] = ReferenceFaceConvex1 ? ClippedPointInOtherCoordinates : PointProjectedOntoReferenceFace;
 					ContactPoint.ShapeContactNormal = SeparationDirectionLocalConvex2;
 					ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);				
+					ContactPoint.ContactType = ContactType;
 
 					Constraint.AddOneshotManifoldContact(ContactPoint);
 				}

@@ -11,7 +11,6 @@ namespace Chaos
 {
 	class FParticlePairMidPhase;
 
-
 	/**
 	 * @brief Knows about all the collisions detectors associated with a particular particle.
 	 * Used when particles are destroyed to remove perisstent collisions from the system, or
@@ -33,7 +32,7 @@ namespace Chaos
 		FParticleCollisions();
 		~FParticleCollisions();
 
-		int32 Num() const 
+		inline int32 Num() const 
 		{ 
 			return MidPhases.Num();
 		}
@@ -41,7 +40,7 @@ namespace Chaos
 		/**
 		 * @brief Clear the list of midphases. Only for use in shutdown.
 		*/
-		void Reset()
+		inline void Reset()
 		{
 			MidPhases.Reset();
 		}
@@ -78,36 +77,39 @@ namespace Chaos
 
 		/**
 		 * @brief Visit all of the midphases on the particle and call the specified function
+		 * @tparam TLambda visitor type with signature ECollisionVisitorResult(FParticlePairMidPhase&)
+		 *
 		 * @note Do not call RemoveMidPhase from the visitor
-		 * 
-		 * Lambda must have signature void(FParticlePairMidPhase&)
 		*/
 		template<typename TLambda>
-		void VisitMidPhases(const TLambda& Lambda)
-		{
-			for (int32 Index = 0; Index < MidPhases.Num(); ++Index)
-			{
-				Lambda(*MidPhases[Index].Value);
-			}
-		}
+		inline ECollisionVisitorResult VisitMidPhases(const TLambda& Lambda);
 
 		/**
 		 * @brief Visit all of the midphases on the particle and call the specified function
+		 * @tparam TLambda visitor type with signature void(const FParticlePairMidPhase&)
+		 * 
 		 * @note Do not call RemoveMidPhase from the visitor
-		 *
-		 * Lambda must have signature void(const FParticlePairMidPhase&)
 		*/
 		template<typename TLambda>
-		void VisitConstMidPhases(const TLambda& Lambda) const
-		{
-			for (int32 Index = 0; Index < MidPhases.Num(); ++Index)
-			{
-				Lambda(*MidPhases[Index].Value);
-			}
-		}
+		inline ECollisionVisitorResult VisitConstMidPhases(const TLambda& Lambda) const;
 
-		void VisitCollisions(const FPBDCollisionVisitor& Visitor) const;
+		/**
+		 * @brief Visit all the collisions on this particle
+		 * @tparam TLambda visitor type with signature void(FPBDCollisionParticle&)
+		 * 
+		 * @note do not delete constraint from the lambda. You may disable them though.
+		*/
+		template<typename TLambda>
+		inline ECollisionVisitorResult VisitCollisions(const TLambda& Visitor);
 
+		/**
+		 * @brief Visit all the collisions on this particle
+		 * @tparam TLambda visitor type with signature void(const FPBDCollisionParticle&)
+		 * 
+		 * @note do not delete constraint from the lambda. You may disable them though.
+		*/
+		template<typename TLambda>
+		inline ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor) const;
 
 	private:
 		FContainerType MidPhases;
